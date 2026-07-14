@@ -5,67 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Bonding Bench — Make Some Compounds!</title>
 
-<!-- Google Fonts: Fredoka + Patrick Hand -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet" />
-
-<!-- Phosphor Icons -->
-<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
-<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css" />
+<!-- ScienceSandbox kit -->
+<link rel="stylesheet" href="../../../kit/themes/stationery.css" />
+<link rel="stylesheet" href="../../../kit/kit.css" />
+<script src="../../../kit/kit.js"></script>
 
 <style>
+  /* ---- app tokens: bonding uses a mint stationery tint ---- */
   :root {
-    --paper: #e9f5f1;
-    --paper-line: #d0e7df;
-    --ink: #35494a;
-    --ink-soft: #7c9490;
-    --tape: #a4dcc7;
-    --stitch: #c4ddd5;
-    --metal: #f6cf9b;   /* metals  - warm peach */
-    --nonmetal: #a9d4ea; /* nonmetals - cool sky */
-    --electron: #4a6b6a;
-    --plus: #e8896f;
-    --minus: #5aa0d6;
+    --paper: #e9f5f1; --paper-line: #d0e7df; --surface: #fbfefc;
+    --ink: #35494a; --ink-soft: #7c9490;
+    --tape: #a4dcc7; --stitch: #c4ddd5;
+    --accent: #cdeee2; --btn-ghost-bg: #eef6f3;
     --card-shadow: 0 3px 0 rgba(53,73,74,0.14), 0 6px 14px rgba(53,73,74,0.12);
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: 'Fredoka', sans-serif; color: var(--ink);
-    background-color: var(--paper);
-    background-image: radial-gradient(var(--paper-line) 1.3px, transparent 1.3px);
-    background-size: 22px 22px; background-position: -11px -11px;
-    min-height: 100vh; -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 22px 18px 60px; }
-
-  header { text-align: center; margin-bottom: 20px; }
-  .title-tape {
-    display: inline-block; position: relative; background: #fbfefc;
-    border: 2px dashed var(--stitch); border-radius: 14px; padding: 14px 30px;
-    box-shadow: var(--card-shadow); transform: rotate(-1deg);
-  }
-  .title-tape::before, .title-tape::after {
-    content: ""; position: absolute; top: -12px; width: 74px; height: 26px;
-    background: var(--tape); opacity: 0.85; box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-  }
-  .title-tape::before { left: 14px; transform: rotate(-6deg); }
-  .title-tape::after  { right: 14px; transform: rotate(5deg); }
-  h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; letter-spacing: -0.5px; }
-  h1 .ph { color: #3fae8b; }
-  .subtitle { font-family: 'Patrick Hand', cursive; font-size: 1.15rem; color: var(--ink-soft); margin-top: 4px; }
-
-  .panel {
-    background: #fbfefc; border: 2px solid var(--stitch); border-radius: 16px;
-    box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 18px; position: relative;
-  }
-  .panel h2 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .panel h2 .ph { color: var(--ink-soft); }
-  .badge {
-    position: absolute; top: -13px; left: 16px; background: var(--tape);
-    font-family: 'Patrick Hand', cursive; font-size: 0.85rem; padding: 2px 10px;
-    border-radius: 8px; transform: rotate(-2deg); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    --metal: #f6cf9b; --nonmetal: #a9d4ea; --electron: #4a6b6a; --plus: #e8896f; --minus: #5aa0d6;
   }
 
   /* periodic palette */
@@ -74,16 +27,15 @@
     width: 62px; height: 66px; border-radius: 12px; border: 2px solid var(--ink);
     background: #fff; cursor: pointer; font-family: inherit; color: var(--ink);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    box-shadow: 0 3px 0 rgba(53,73,74,0.18); transition: transform .06s ease;
-    position: relative;
+    box-shadow: 0 3px 0 rgba(53,73,74,0.18); transition: transform .06s ease; position: relative;
   }
   .elem:hover { transform: translateY(-2px); }
   .elem:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(53,73,74,0.18); }
   .elem.metal { background: var(--metal); }
   .elem.nonmetal { background: var(--nonmetal); }
   .elem .sym { font-size: 1.4rem; font-weight: 700; line-height: 1; }
-  .elem .val { font-size: 0.62rem; color: rgba(53,73,74,0.7); margin-top: 3px; font-family:'Patrick Hand',cursive; }
-  .legend { display:flex; gap:14px; flex-wrap:wrap; font-family:'Patrick Hand',cursive; color:var(--ink-soft); margin-top:10px; }
+  .elem .val { font-size: 0.62rem; color: rgba(53,73,74,0.7); margin-top: 3px; font-family: var(--font-hand); }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-family: var(--font-hand); color:var(--ink-soft); margin-top:10px; }
   .legend span { display:inline-flex; align-items:center; gap:6px; }
   .swatch { width:15px; height:15px; border-radius:4px; border:1.5px solid var(--ink); display:inline-block; }
 
@@ -97,7 +49,7 @@
   .slot-empty {
     width: 130px; height: 130px; border-radius: 16px; border: 2px dashed var(--stitch);
     display: grid; place-items: center; color: var(--ink-soft);
-    font-family: 'Patrick Hand', cursive; font-size: 1.05rem; text-align: center; padding: 8px;
+    font-family: var(--font-hand); font-size: 1.05rem; text-align: center; padding: 8px;
   }
 
   /* atom with Lewis dots */
@@ -123,23 +75,9 @@
     transition: all .6s cubic-bezier(.5,-0.2,.3,1.4);
   }
   .atom-wrap { position: relative; display: grid; place-items: center; padding: 22px; }
-  .atom-name { position:absolute; bottom:-2px; font-family:'Patrick Hand',cursive; color:var(--ink-soft); font-size:0.9rem; white-space:nowrap; }
-
+  .atom-name { position:absolute; bottom:-2px; font-family: var(--font-hand); color:var(--ink-soft); font-size:0.9rem; white-space:nowrap; }
   .plus-sign { font-size: 2rem; color: var(--ink-soft); }
-
   .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
-  .btn {
-    display:inline-flex; align-items:center; gap:8px; border: 2px solid var(--ink);
-    border-radius: 12px; background: #cdeee2; font-family: inherit; font-weight: 600;
-    font-size: 1rem; color: var(--ink); padding: 11px 20px; cursor: pointer;
-    box-shadow: 0 3px 0 rgba(53,73,74,0.2); transition: all .1s ease;
-  }
-  .btn:hover:not(:disabled) { transform: translateY(-1px); }
-  .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(53,73,74,0.2); }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn.ghost { background: #eef6f3; }
-  .btn.go { animation: nudge 1.6s ease-in-out infinite; }
-  @keyframes nudge { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
 
   /* result card */
   .result { margin-top: 14px; border-radius: 14px; padding: 16px; border: 2px solid var(--stitch);
@@ -154,9 +92,9 @@
   .type-badge.covalent { background: #c9e6f5; }
   .type-badge.none { background: #e6e6e6; }
   .result .formula { font-size: 2rem; font-weight: 700; }
-  .result .cname { font-family: 'Patrick Hand', cursive; color: var(--ink-soft); font-size: 1.25rem; margin-left: 8px; }
+  .result .cname { font-family: var(--font-hand); color: var(--ink-soft); font-size: 1.25rem; margin-left: 8px; }
   .result .why { margin-top: 8px; font-size: 0.98rem; line-height: 1.45; }
-  .result .octet { margin-top: 8px; font-family:'Patrick Hand',cursive; color:#3fae8b; font-size:1.05rem; }
+  .result .octet { margin-top: 8px; font-family: var(--font-hand); color:#3fae8b; font-size:1.05rem; }
   sub { font-size: 0.62em; }
 
   .discovered { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; }
@@ -165,17 +103,7 @@
     background:#fff; border:2px solid rgba(53,73,74,0.25); font-weight:600; box-shadow:0 2px 0 rgba(53,73,74,0.12);
   }
   .disc-chip.ionic { background:#ffe9d6; } .disc-chip.covalent { background:#d9eef9; }
-  .disc-empty { font-family:'Patrick Hand',cursive; color:var(--ink-soft); }
-
-  .hint { font-family:'Patrick Hand',cursive; color:var(--ink-soft); font-size:1.02rem; line-height:1.4; }
-  #toast {
-    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
-    background: var(--ink); color: #eefaf5; font-family: 'Patrick Hand', cursive; font-size: 1.1rem;
-    padding: 10px 20px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-    opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; z-index: 50;
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .footer-note { text-align:center; margin-top:22px; font-family:'Patrick Hand',cursive; color:var(--ink-soft); font-size:1rem; }
+  .disc-empty { font-family: var(--font-hand); color:var(--ink-soft); }
 </style>
 </head>
 <body>
@@ -220,13 +148,13 @@
 
   <p class="footer-note"><i class="ph ph-info"></i> Formulas follow the octet rule; covalent examples are common real molecules.</p>
 </div>
-<div id="toast"></div>
 
 <script>
 /* =========================================================
    Bonding Bench
-   Metal + nonmetal  -> ionic  (electrons transferred)
+   Metal + nonmetal    -> ionic    (electrons transferred)
    nonmetal + nonmetal -> covalent (electrons shared)
+   ($ / el / toast come from kit.js)
 ========================================================= */
 
 const ELEMENTS = {
@@ -243,7 +171,6 @@ const ELEMENTS = {
 };
 const ORDER = ["H","C","N","O","F","Cl","Na","Mg","Al","K"];
 
-// common covalent molecules keyed by sorted symbol pair
 const MOLECULES = {
   "H,H":  { formula:"H<sub>2</sub>",  name:"Hydrogen gas" },
   "Cl,Cl":{ formula:"Cl<sub>2</sub>", name:"Chlorine gas" },
@@ -260,29 +187,24 @@ const MOLECULES = {
   "C,N":  { formula:"C–N compound",   name:"organic molecule" },
   "N,O":  { formula:"NO compound",    name:"nitrogen oxide" },
 };
-// friendly names for common ionic compounds
 const IONIC_NAMES = {
   "NaCl":"Table salt", "KCl":"Potassium chloride", "NaF":"Sodium fluoride",
   "MgO":"Magnesia", "MgCl2":"Magnesium chloride", "Na2O":"Sodium oxide",
-  "Al2O3":"Aluminum oxide (alumina)", "CaCl2":"", "KF":"Potassium fluoride",
+  "Al2O3":"Aluminum oxide (alumina)", "KF":"Potassium fluoride",
   "AlCl3":"Aluminum chloride", "MgF2":"Magnesium fluoride", "K2O":"Potassium oxide",
   "Na3N":"Sodium nitride", "AlN":"Aluminum nitride",
 };
 
-const $ = s => document.querySelector(s);
-const el = (t,c,h) => { const n=document.createElement(t); if(c)n.className=c; if(h!=null)n.innerHTML=h; return n; };
 const gcd = (a,b) => b ? gcd(b, a%b) : a;
-function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2000); }
 
-let selected = [null, null];      // two chosen element symbols
-const discovered = new Map();     // formulaKey -> {formula,name,type}
+let selected = [null, null];
+const discovered = new Map();
 
 /* ---------- Lewis dot placement (top,right,bottom,left; singles first) ---------- */
 function dotOffsets(valence){
   const sides = { top:[], right:[], bottom:[], left:[] };
   const order = ["top","right","bottom","left"];
   for(let i=0;i<valence;i++) sides[order[i%4]].push(i);
-  // convert to pixel offsets around a 92px atom (radius ~46, dots just outside)
   const R = 52, out = [];
   const place = (side, list) => {
     list.forEach((_, idx) => {
@@ -311,13 +233,12 @@ function makeAtom(sym){
     d.dataset.i = i;
     atom.appendChild(d);
   });
-  atom.appendChild(el("div","charge","")); // filled on bond
+  atom.appendChild(el("div","charge",""));
   wrap.appendChild(atom);
   wrap.appendChild(el("div","atom-name", e.name));
   return wrap;
 }
 
-/* ---------- rendering ---------- */
 function renderPalette(){
   const p = $("#palette"); p.innerHTML="";
   ORDER.forEach(sym => {
@@ -353,17 +274,15 @@ function choose(sym){
 /* ---------- chemistry ---------- */
 function ionCharge(sym){
   const v = ELEMENTS[sym].valence;
-  if(ELEMENTS[sym].metal) return v;      // loses valence electrons -> +v
-  return v - 8;                          // gains to fill octet -> negative
+  return ELEMENTS[sym].metal ? v : v - 8;   // metal loses -> +v ; nonmetal gains -> negative
 }
 function subscript(n){ return n===1 ? "" : `<sub>${n}</sub>`; }
 
 function ionicFormula(a, b){
-  // a,b symbols. metal first.
   const metal = ELEMENTS[a].metal ? a : b;
   const non   = metal===a ? b : a;
-  const cat = ionCharge(metal);          // +
-  const an  = Math.abs(ionCharge(non));  // magnitude
+  const cat = ionCharge(metal);
+  const an  = Math.abs(ionCharge(non));
   const g = gcd(cat, an);
   const catN = an/g, anN = cat/g;
   const html  = `${metal}${subscript(catN)}${non}${subscript(anN)}`;
@@ -376,7 +295,6 @@ function bond(){
   const ea = ELEMENTS[a], eb = ELEMENTS[b];
   const res = $("#result"); res.className="result show";
 
-  // both metals -> not this kind of bond
   if(ea.metal && eb.metal){
     res.innerHTML = `<span class="type-badge none"><i class="ph-bold ph-x-circle"></i> no simple bond</span>
       <div class="why">Two metals don't swap or share electrons like this — they clump together in
@@ -385,7 +303,6 @@ function bond(){
     return;
   }
 
-  // ionic: one metal + one nonmetal
   if(ea.metal !== eb.metal){
     const f = ionicFormula(a,b);
     animateIonic();
@@ -403,7 +320,6 @@ function bond(){
     return;
   }
 
-  // covalent: two nonmetals
   const key = [a,b].sort().join(",");
   const mol = MOLECULES[key];
   animateCovalent();
@@ -426,16 +342,12 @@ function bond(){
 
 /* ---------- animations ---------- */
 function animateIonic(){
-  const atoms = document.querySelectorAll("#chamber .atom");
+  const atoms = $$("#chamber .atom");
   if(atoms.length<2) return;
-  const metalAtom = [...atoms].find(a => ELEMENTS[a.dataset.sym].metal);
-  const nonAtom   = [...atoms].find(a => !ELEMENTS[a.dataset.sym].metal);
+  const metalAtom = atoms.find(a => ELEMENTS[a.dataset.sym].metal);
+  const nonAtom   = atoms.find(a => !ELEMENTS[a.dataset.sym].metal);
   if(!metalAtom || !nonAtom) return;
-
-  // fly the metal's electrons toward the nonmetal, then show charges + pull together
-  const mRect = metalAtom.getBoundingClientRect();
-  const nRect = nonAtom.getBoundingClientRect();
-  const dx = (nRect.left - mRect.left);
+  const dx = nonAtom.getBoundingClientRect().left - metalAtom.getBoundingClientRect().left;
   metalAtom.querySelectorAll(".dot").forEach(d => {
     d.style.transform = `translate(${dx}px, 0) scale(0.6)`;
     d.style.opacity = "0.15";
@@ -453,9 +365,8 @@ function setCharge(atom, q){
   else if(q<0){ c.className="charge neg show"; c.textContent = (Math.abs(q)>1?Math.abs(q):"")+"–"; }
 }
 function animateCovalent(){
-  const atoms = document.querySelectorAll("#chamber .atom");
+  const atoms = $$("#chamber .atom");
   if(atoms.length<2) return;
-  // slide atoms together and nudge each atom's dots toward the shared middle
   atoms[0].style.transform = "translateX(24px)";
   atoms[1].style.transform = "translateX(-24px)";
   atoms[0].querySelectorAll(".dot").forEach(d => { d.style.transform="translate(10px,0)"; });
@@ -474,7 +385,7 @@ function collect(key, html, name, type){
   box.appendChild(chip);
 }
 
-/* ---------- wire up ---------- */
+/* ---------- boot ---------- */
 $("#bondBtn").addEventListener("click", bond);
 $("#resetBtn").addEventListener("click", ()=>{ selected=[null,null]; renderChamber(); });
 renderPalette();
