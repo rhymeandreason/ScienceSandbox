@@ -40,7 +40,27 @@ exist before the app's inline `<script>` at the end of `<body>` runs.
 won't clash with app-local keyframes: `.kit-pop`, `.kit-cardin`, `.kit-shake`,
 `.kit-snap`, and the `kit-float` keyframe (used by `floatUp()`).
 
-**JS helpers** (`kit.js`): `$`, `$$`, `el`, `toast`, `replay`, `floatUp`.
+**JS helpers** (`kit.js`): `$`, `$$`, `el`, `toast`, `replay`, `floatUp`, `kitChart`.
+
+**Charting** (`kitChart`): a tiny theme-aware SVG line chart for the
+slider-driven "watch the curve" interactives. It draws axes, a light grid, a
+filled curve, and an optional moving marker dot — all colored from theme tokens
+(`--ink`, `--ink-soft`, `--stitch`, `--surface`, and the line color from
+`--chart-line`, which an app sets in its tint):
+
+```js
+const chart = kitChart($('#plot'), {
+  xRange: [0, 100], yRange: [0, 1],
+  xLabel: 'temperature (°C)', yLabel: 'rate',
+  xTicks: 5, yTicks: 4,          // optional; xFmt/yFmt format tick labels
+});
+chart.setCurve(points);          // [[x,y], …] in data coordinates
+chart.setMarker(x, y, 'label');  // moving dot + drop-line; pass null x to hide
+```
+
+The chart uses a fixed 480×260 viewBox scaled to its container's width, so it
+stays crisp at any size. Give it a color per app via `--chart-line` (or the
+`color` option).
 
 ## Per-app tint
 

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Enzyme Lab — Find the Sweet Spot!</title>
+
+<!-- ScienceSandbox kit -->
+<link rel="stylesheet" href="../../../kit/themes/stationery.css" />
+<link rel="stylesheet" href="../../../kit/kit.css" />
+<script src="../../../kit/kit.js"></script>
+
+<style>
+  /* ---- app tokens: enzyme lab uses a warm amber tint ---- */
+  :root {
+    --paper: #fbf1e0; --paper-line: #ecdcc0; --surface: #fffdf6;
+    --ink: #4b3a29; --ink-soft: #977c5c;
+    --tape: #f3c079; --stitch: #dcc4a0;
+    --accent: #f7e3c3; --btn-ghost-bg: #f6efe1;
+    --chart-line: #d9822b;
+    --card-shadow: 0 3px 0 rgba(75,58,41,0.14), 0 6px 14px rgba(75,58,41,0.12);
+    --meter-lo: #d96b5a; --meter-mid: #e6b34a; --meter-hi: #57ac6f;
+  }
+
+  /* ---- two-column workbench on wide screens ---- */
+  .bench { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .bench { grid-template-columns: 1fr; } }
+  .bench .panel { margin-bottom: 0; }
+
+  /* ---- sliders ---- */
+  .dial { margin: 18px 0 6px; }
+  .dial .row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .dial .name { font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .dial .read { font-family: var(--font-hand); font-size: 1.35rem; color: var(--ink); }
+  .dial .read .opt { font-size: 0.8rem; color: var(--ink-soft); margin-left: 6px; }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 10px;
+    border-radius: 999px; border: 2px solid var(--ink); cursor: pointer; margin: 4px 0;
+  }
+  #tempRange { background: linear-gradient(90deg, #7fb2e0, #e6b34a 55%, #d96b5a); }
+  #phRange   { background: linear-gradient(90deg, #e07a55, #8bc78b 50%, #7d7ccc); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--surface); border: 3px solid var(--ink); box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface); border: 3px solid var(--ink); box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+  }
+  .scale { display: flex; justify-content: space-between; font-family: var(--font-hand);
+    color: var(--ink-soft); font-size: 0.85rem; }
+
+  /* ---- active site stage ---- */
+  .stage { display: grid; place-items: center; min-height: 190px;
+    background: repeating-linear-gradient(0deg, #fdf6ea, #fdf6ea 21px, #f6ecd8 21px, #f6ecd8 22px);
+    border: 2px dashed var(--stitch); border-radius: 14px; padding: 10px; position: relative; }
+  .enzyme-svg { width: 240px; height: auto; overflow: visible; }
+  #enzymeG { transform-box: fill-box; transform-origin: center; }
+  #enzymeG.jitter { animation: enz-jitter var(--wobble, 0.6s) ease-in-out infinite; }
+  @keyframes enz-jitter {
+    0%,100% { transform: translate(0,0) rotate(0deg); }
+    25% { transform: translate(-1.2px,0.8px) rotate(-0.7deg); }
+    75% { transform: translate(1.2px,-0.8px) rotate(0.7deg); }
+  }
+  #enzymeBlob { transition: d .35s ease, fill .35s ease; }
+  #substrate { transition: transform .35s cubic-bezier(.5,-0.3,.3,1.5), fill .3s ease; }
+  .stage .stamp {
+    position: absolute; top: 12px; right: 14px; font-family: var(--font-hand);
+    font-size: 1.15rem; padding: 3px 12px; border-radius: 999px; border: 2px solid var(--ink);
+    background: var(--surface); opacity: 0; transform: scale(0.6); transition: all .3s ease; }
+  .stage .stamp.show { opacity: 1; transform: scale(1); }
+  .stamp.good { background: #dff1e3; color: #2f7d4c; }
+  .stamp.dead { background: #f6ddd7; color: #b23f2d; }
+
+  /* ---- rate meter ---- */
+  .meter-wrap { margin-top: 14px; }
+  .meter-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+  .meter-top .pct { font-family: var(--font-hand); font-size: 1.5rem; }
+  .meter { height: 20px; border-radius: 999px; border: 2px solid var(--ink);
+    background: #f0e6d3; overflow: hidden; }
+  .meter .fill { height: 100%; width: 0%; border-radius: 999px 0 0 999px;
+    transition: width .25s ease, background .25s ease; }
+
+  /* ---- factor chips ---- */
+  .factors { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .factors .k-chip { font-size: 0.85rem; }
+  .factors .k-chip b { font-family: var(--font-hand); font-size: 1.05rem; }
+
+  /* ---- graph ---- */
+  .graph-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .seg { display: inline-flex; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
+  .seg button { border: none; background: var(--surface); color: var(--ink); cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 0.9rem; padding: 5px 14px; }
+  .seg button.on { background: var(--tape); }
+  #plot { margin-top: 6px; }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-card">
+      <h1><i class="ph-fill ph-flask"></i> Enzyme Lab</h1>
+      <div class="subtitle">two knobs, one sweet spot — find where the enzyme works best!</div>
+    </div>
+  </header>
+
+  <div class="bench">
+    <!-- LEFT: conditions + active site -->
+    <div>
+      <section class="panel">
+        <span class="badge">conditions</span>
+        <h2><i class="ph-bold ph-sliders-horizontal"></i> Set the conditions</h2>
+
+        <div class="dial">
+          <div class="row">
+            <span class="name"><i class="ph-fill ph-thermometer-hot"></i> Temperature</span>
+            <span class="read"><span id="tempVal">20</span>°C<span class="opt">best ≈ 37°</span></span>
+          </div>
+          <input type="range" id="tempRange" min="0" max="70" step="1" value="20" />
+          <div class="scale"><span>cold</span><span>body heat</span><span>too hot!</span></div>
+        </div>
+
+        <div class="dial">
+          <div class="row">
+            <span class="name"><i class="ph-fill ph-eyedropper"></i> pH</span>
+            <span class="read">pH <span id="phVal">7.0</span><span class="opt">best ≈ 7</span></span>
+          </div>
+          <input type="range" id="phRange" min="0" max="14" step="0.2" value="7" />
+          <div class="scale"><span>acidic 0</span><span>neutral 7</span><span>basic 14</span></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn ghost" id="freshBtn"><i class="ph-bold ph-arrow-counter-clockwise"></i> Grab a fresh enzyme</button>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:18px">
+        <span class="badge">active site</span>
+        <h2><i class="ph-bold ph-puzzle-piece"></i> The enzyme &amp; its substrate</h2>
+        <div class="stage">
+          <div class="stamp" id="stamp"></div>
+          <svg class="enzyme-svg" viewBox="0 0 200 160" aria-hidden="true">
+            <g id="enzymeG">
+              <path id="enzymeBlob" fill="#e2b06a" stroke="#4b3a29" stroke-width="3"
+                    d="M40,150 Q20,150 20,108 Q20,58 60,54 L86,88 Q100,99 114,88 L140,54 Q180,58 180,108 Q180,150 160,150 Z" />
+            </g>
+            <circle id="substrate" r="15" cx="100" cy="80" fill="#d9822b" stroke="#4b3a29" stroke-width="3" />
+          </svg>
+        </div>
+        <div class="factors">
+          <span class="k-chip"><i class="ph-fill ph-thermometer-hot"></i> heat effect <b id="tf">–</b></span>
+          <span class="k-chip"><i class="ph-fill ph-eyedropper"></i> pH effect <b id="pf">–</b></span>
+        </div>
+        <p class="hint" id="siteNote" style="margin-top:10px"></p>
+      </section>
+    </div>
+
+    <!-- RIGHT: meter + curve -->
+    <div>
+      <section class="panel">
+        <span class="badge">reaction rate</span>
+        <h2><i class="ph-bold ph-gauge"></i> How fast is it going?</h2>
+        <div class="meter-wrap">
+          <div class="meter-top">
+            <span class="hint" id="rateWord">warming up…</span>
+            <span class="pct"><span id="ratePct">0</span>%</span>
+          </div>
+          <div class="meter"><div class="fill" id="rateFill"></div></div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:18px">
+        <span class="badge">the curve</span>
+        <div class="graph-head">
+          <h2 style="margin:0"><i class="ph-bold ph-chart-line"></i> Rate curve</h2>
+          <span class="seg" style="margin-left:auto">
+            <button id="modeTemp" class="on">vs temperature</button>
+            <button id="modePh">vs pH</button>
+          </span>
+        </div>
+        <p class="hint" id="curveNote">Rate as you change temperature, holding pH where it is now. Move the other slider and watch the whole curve rise or fall.</p>
+        <div id="plot"></div>
+      </section>
+    </div>
+  </div>
+
+  <p class="footer-note"><i class="ph ph-info"></i> Simplified: one made-up enzyme, smooth model curves. Real optimums differ by enzyme (pepsin loves pH 2!), but the shapes — a peak for temperature and a bell for pH — are real.</p>
+</div>
+
+<script>
+/* =========================================================
+   Enzyme Lab
+   rate(T, pH) = heat(T) · pH(pH), each 0..1.
+   - heat: gentle rise to the optimum, steep fall past it (denaturing).
+   - pH:   a bell curve around the optimum.
+   Cooking it (too hot, or a pH extreme) DENATURES the enzyme —
+   and that damage sticks: dialing back to nice conditions won't
+   revive it. You need a fresh enzyme. That permanence is the
+   whole point: temperature and pH don't just "slow" an enzyme,
+   past a limit they wreck its shape for good.
+   ($ / el / toast / kitChart come from kit.js)
+========================================================= */
+
+const OPT_T = 37, OPT_PH = 7;
+const HEALTHY_D = "M40,150 Q20,150 20,108 Q20,58 60,54 L86,88 Q100,99 114,88 L140,54 Q180,58 180,108 Q180,150 160,150 Z";
+const DENAT_D   = "M42,150 Q22,150 30,104 Q34,70 66,72 L88,66 Q100,58 112,72 L132,60 Q176,74 172,116 Q178,150 156,150 Z";
+
+let temp = 20, pH = 7, denatured = false, won = false, mode = 'temp';
+
+const heat = (T) => T <= OPT_T ? Math.exp(-(((T - OPT_T) / 20) ** 2))
+                               : Math.exp(-(((T - OPT_T) / 8) ** 2));
+const phf  = (p) => Math.exp(-(((p - OPT_PH) / 2.4) ** 2));
+const damage = () => denatured ? 0.04 : 1;   // multiplier once wrecked
+
+let chart = null;
+function buildChart() {
+  $("#plot").innerHTML = "";
+  chart = (mode === 'temp')
+    ? kitChart($("#plot"), { xRange: [0, 70], yRange: [0, 1], xLabel: 'temperature (°C)', yLabel: 'reaction rate',
+                             xTicks: 7, yTicks: 4, xFmt: v => `${Math.round(v)}`, yFmt: v => v.toFixed(1) })
+    : kitChart($("#plot"), { xRange: [0, 14], yRange: [0, 1], xLabel: 'pH', yLabel: 'reaction rate',
+                             xTicks: 7, yTicks: 4, xFmt: v => `${Math.round(v)}`, yFmt: v => v.toFixed(1) });
+}
+
+function curvePoints() {
+  const pts = [];
+  if (mode === 'temp') {
+    for (let T = 0; T <= 70; T += 1) pts.push([T, heat(T) * phf(pH) * damage()]);
+  } else {
+    for (let p = 0; p <= 14; p += 0.2) pts.push([p, heat(temp) * phf(p) * damage()]);
+  }
+  return pts;
+}
+
+function rateWord(r) {
+  if (denatured) return "denatured — it's done 💀";
+  if (r >= 0.95) return "flat-out! peak activity 🎉";
+  if (r >= 0.6)  return "cooking along nicely";
+  if (r >= 0.25) return "slow but working";
+  if (r > 0.03)  return "barely ticking over";
+  return "basically stopped";
+}
+function meterColor(r) {
+  if (denatured) return "#8a8a8a";
+  if (r >= 0.66) return "var(--meter-hi)";
+  if (r >= 0.33) return "var(--meter-mid)";
+  return "var(--meter-lo)";
+}
+
+function checkDenature() {
+  if (denatured) return;
+  const why = temp >= 52 ? "heat" : (pH <= 2 || pH >= 12) ? "ph" : null;
+  if (!why) return;
+  denatured = true;
+  $("#enzymeBlob").setAttribute("d", DENAT_D);
+  $("#enzymeBlob").setAttribute("fill", "#b9a689");
+  $("#enzymeG").classList.remove("jitter");
+  const sub = $("#substrate");
+  sub.setAttribute("fill", "#c25844");
+  sub.style.transform = "translate(46px,-30px)";
+  showStamp("dead", why === "heat" ? "cooked!" : "pH burned it!");
+  toast(why === "heat" ? "Too hot — the enzyme denatured!" : "pH extreme — the enzyme denatured!");
+}
+
+function showStamp(kind, text) {
+  const s = $("#stamp");
+  s.className = "stamp show " + kind;
+  s.textContent = text;
+}
+function hideStamp() { $("#stamp").className = "stamp"; }
+
+function update() {
+  temp = +$("#tempRange").value;
+  pH = +$("#phRange").value;
+  $("#tempVal").textContent = temp;
+  $("#phVal").textContent = pH.toFixed(1);
+
+  checkDenature();
+
+  const tfac = heat(temp), pfac = phf(pH);
+  const rate = tfac * pfac * damage();
+  const pct = Math.round(rate * 100);
+
+  $("#tf").textContent = denatured ? "×" : tfac.toFixed(2);
+  $("#pf").textContent = denatured ? "×" : pfac.toFixed(2);
+  $("#ratePct").textContent = pct;
+  $("#rateFill").style.width = Math.max(rate * 100, denatured ? 4 : 0) + "%";
+  $("#rateFill").style.background = meterColor(rate);
+  $("#rateWord").textContent = rateWord(rate);
+
+  // active-site life: jitter speed tracks kinetic energy (hotter = faster),
+  // substrate snuggles into the notch only when the fit is good.
+  const g = $("#enzymeG"), sub = $("#substrate");
+  if (!denatured) {
+    g.classList.add("jitter");
+    g.style.setProperty("--wobble", (1.1 - Math.min(temp, 60) / 60 * 0.85).toFixed(2) + "s");
+    // good fit → sit in the pocket (cx100,cy80); poor fit → hover above and drift
+    const fit = rate;
+    const lift = (1 - fit) * 34;
+    const drift = (1 - fit) * (pH < OPT_PH ? -26 : 26);
+    sub.style.transform = `translate(${drift.toFixed(0)}px, ${(-lift).toFixed(0)}px)`;
+    sub.setAttribute("fill", "var(--chart-line)");
+  }
+
+  $("#siteNote").innerHTML = denatured
+    ? "The active site lost its shape, so the substrate can't fit anymore. Cooling down or fixing pH <b>won't</b> bring it back — grab a fresh enzyme."
+    : "Warm molecules jiggle and collide faster (rate up), but the right shape only holds near the optimum. The substrate drops into the pocket when both knobs are close to best.";
+
+  chart.setCurve(curvePoints());
+  const my = denatured ? Math.min(rate, 0.04) : rate;
+  chart.setMarker(mode === 'temp' ? temp : pH, my, pct + "%");
+
+  if (!denatured && !won && rate >= 0.97) {
+    won = true;
+    showStamp("good", "optimum!");
+    toast("Optimum conditions — peak activity! 🎉");
+    floatUp(window.innerWidth / 2, 140, "🎉 peak!", "");
+  }
+  if (rate < 0.97) won = false; // allow re-win after moving away and back
+}
+
+function setMode(m) {
+  mode = m;
+  $("#modeTemp").classList.toggle("on", m === 'temp');
+  $("#modePh").classList.toggle("on", m === 'ph');
+  $("#curveNote").innerHTML = m === 'temp'
+    ? "Rate as you change <b>temperature</b>, holding pH where it is now. Move the pH slider and watch the whole curve rise or fall."
+    : "Rate as you change <b>pH</b>, holding temperature where it is now. Notice it's a symmetric bell — no denaturing cliff like heat has.";
+  buildChart();
+  update();
+}
+
+function freshEnzyme() {
+  denatured = false; won = false;
+  $("#enzymeBlob").setAttribute("d", HEALTHY_D);
+  $("#enzymeBlob").setAttribute("fill", "#e2b06a");
+  $("#substrate").setAttribute("fill", "var(--chart-line)");
+  hideStamp();
+  toast("Fresh enzyme ready!");
+  update();
+}
+
+/* ---------- boot ---------- */
+$("#tempRange").addEventListener("input", update);
+$("#phRange").addEventListener("input", update);
+$("#freshBtn").addEventListener("click", freshEnzyme);
+$("#modeTemp").addEventListener("click", () => setMode('temp'));
+$("#modePh").addEventListener("click", () => setMode('ph'));
+
+buildChart();
+update();
+</script>
+</body>
+</html>
