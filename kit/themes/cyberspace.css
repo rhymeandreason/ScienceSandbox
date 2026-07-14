@@ -1,0 +1,83 @@
+/* =========================================================
+   ScienceSandbox — "Cyberspace" theme
+   A dark, neon, space/cyberpunk reskin. Same tokens as the
+   stationery theme, different values — so kit.css components
+   restyle themselves. A few component overrides (scoped under
+   `body` for specificity) push the chrome from "paper" to "neon".
+   Load it exactly like the stationery theme:
+     <link rel="stylesheet" href=".../kit/themes/cyberspace.css">
+     <link rel="stylesheet" href=".../kit/kit.css">
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Share+Tech+Mono&display=swap');
+@import url('https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css');
+@import url('https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css');
+@import url('https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css');
+
+:root {
+  /* type: wide techy display + terminal mono */
+  --font-display: 'Orbitron', sans-serif;
+  --font-hand: 'Share Tech Mono', monospace;
+
+  /* surface + ink */
+  --paper: #060912;                 /* deep space */
+  --paper-line: rgba(34,211,238,0.06);
+  --surface: rgba(16,26,48,0.72);   /* glassy panels */
+  --ink: #dff6ff;                   /* near-white cyan text */
+  --ink-soft: #7f9bc0;
+
+  /* accents: neon cyan structure, magenta highlights */
+  --tape: #ff2e88;                  /* neon magenta */
+  --stitch: #22d3ee;                /* neon cyan borders */
+  --accent: rgba(34,211,238,0.10);  /* translucent button fill */
+
+  /* shape + depth: sharper corners, glow instead of drop shadow */
+  --radius: 10px;
+  --radius-sm: 8px;
+  --card-shadow: 0 0 0 1px rgba(34,211,238,0.18), 0 0 22px rgba(34,211,238,0.12), inset 0 0 20px rgba(34,211,238,0.04);
+  --press-shadow: 0 0 14px rgba(255,46,136,0.45);
+  --wrap-max: 1120px;
+}
+
+/* themed page surface: dark with a neon grid + corner glows */
+body {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--paper-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px),
+    radial-gradient(circle at 12% 8%, rgba(255,46,136,0.12), transparent 42%),
+    radial-gradient(circle at 88% 92%, rgba(34,211,238,0.14), transparent 46%);
+  background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%;
+  background-attachment: fixed;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- cyberspace flourishes: neon corner bars + glow chrome ---- */
+body .title-card::before, body .title-card::after {
+  content: ""; position: absolute; top: -3px;
+  width: 74px; height: 6px; background: var(--tape);
+  border-radius: 2px; box-shadow: 0 0 12px var(--tape);
+}
+body .title-card::before { left: 18px; }
+body .title-card::after  { right: 18px; }
+body h1 { text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 14px rgba(34,211,238,0.55); }
+body .subtitle { letter-spacing: 1px; }
+body .panel { backdrop-filter: blur(5px); }
+body .badge {
+  text-transform: uppercase; letter-spacing: 1.5px; color: #06121a;
+  box-shadow: 0 0 10px rgba(255,46,136,0.55);
+}
+body .btn { text-transform: uppercase; letter-spacing: 1.5px; color: var(--ink); }
+body .btn:hover:not(:disabled) { box-shadow: 0 0 16px rgba(34,211,238,0.5); }
+body .k-chip {
+  background: rgba(34,211,238,0.08); color: var(--ink);
+  border-color: rgba(34,211,238,0.4); box-shadow: none;
+}
+body #toast {
+  background: rgba(6,12,24,0.95); color: var(--ink);
+  border: 1px solid var(--stitch); box-shadow: 0 0 18px rgba(34,211,238,0.45);
+}

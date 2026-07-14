@@ -5,6 +5,11 @@ tokens + page surface), **component chrome** (`kit.css`), and a few **JS helpers
 (`kit.js`). Extracted from the three starter apps so every interactive shares one
 look and feel.
 
+Two themes ship today: `themes/stationery.css` (warm paper, the default) and
+`themes/cyberspace.css` (dark space/cyberpunk). Open `preview.html` from the repo
+root to see every kit component and flip between themes live — one `<link>` swap
+reskins all shared chrome.
+
 ## Using the kit in an app
 
 In `<head>`, load a theme, then `kit.css`, then `kit.js`:
@@ -28,7 +33,7 @@ exist before the app's inline `<script>` at the end of `<body>` runs.
 `--ink-soft`, `--tape`, `--stitch`, `--accent`, `--radius`, `--radius-sm`,
 `--card-shadow`, `--press-shadow`, `--wrap-max`.
 
-**Components** (`kit.css`): `.wrap` layout, `.title-tape` header, `.panel` + `.badge`,
+**Components** (`kit.css`): `.wrap` layout, `.title-card` header, `.panel` + `.badge`,
 `.btn` (`.ghost`, `.go`), `.k-chip`, `.hint`, `.footer-note`, `#toast`.
 
 **Animations**: `nudge` (shared, used by `.btn.go`) plus `kit-*` utilities that
@@ -56,6 +61,11 @@ each app's `<style>` and may reference these tokens.
 
 Copy `themes/stationery.css` to e.g. `themes/chalkboard.css`, change the `@import`
 fonts, the `:root` token values, and the `body` surface. Point an app at the new
-theme file instead — `kit.css` and all component markup are unchanged. Component
-chrome currently carries a stationery flavor (dashed borders, washi tape); a
-radically different theme can override specific component rules after `kit.css`.
+theme file instead — `kit.css` and all component markup are unchanged.
+
+`kit.css` is a deliberately neutral "fun" base — no washi tape, no dashed edges,
+no tilts. Decorative personality lives entirely in the theme file. To add flair
+beyond token values, override component rules inside the theme, scoped under
+`body` so they win over the base regardless of load order (see the flourishes at
+the bottom of `stationery.css` and `cyberspace.css` for the pattern). That way a
+themer still links just one file, and apps never change.
