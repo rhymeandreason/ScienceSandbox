@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Central Dogma Lab — Build a Protein!</title>
+
+<!-- Google Fonts: Fredoka + Patrick Hand -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet" />
+
+<!-- Phosphor Icons -->
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css" />
+
+<!-- Three.js (r128 global build, no modules) for the 3D helix -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+  :root {
+    --paper: #f3f0fb;
+    --paper-line: #ddd6ef;
+    --ink: #453f52;
+    --ink-soft: #8a83a0;
+    --tape: #c9b8f0;
+    --stitch: #cfc6e6;
+    --A: #f2a3b6;   /* adenine  - pink   */
+    --T: #a8d8ef;   /* thymine  - blue   */
+    --G: #f6c96b;   /* guanine  - yellow */
+    --C: #a7dca0;   /* cytosine - green  */
+    --U: #d6b3ef;   /* uracil   - purple */
+    --card-shadow: 0 3px 0 rgba(69,63,82,0.14), 0 6px 14px rgba(69,63,82,0.12);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Fredoka', sans-serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image: radial-gradient(var(--paper-line) 1.3px, transparent 1.3px);
+    background-size: 22px 22px;
+    background-position: -11px -11px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 22px 18px 60px; }
+
+  /* header */
+  header { text-align: center; margin-bottom: 20px; }
+  .title-tape {
+    display: inline-block; position: relative;
+    background: #fffdf9; border: 2px dashed var(--stitch);
+    border-radius: 14px; padding: 14px 30px;
+    box-shadow: var(--card-shadow); transform: rotate(-1deg);
+  }
+  .title-tape::before, .title-tape::after {
+    content: ""; position: absolute; top: -12px;
+    width: 74px; height: 26px; background: var(--tape); opacity: 0.85;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .title-tape::before { left: 14px; transform: rotate(-6deg); }
+  .title-tape::after  { right: 14px; transform: rotate(5deg); }
+  h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; letter-spacing: -0.5px; }
+  h1 .ph { color: #a98be0; }
+  .subtitle { font-family: 'Patrick Hand', cursive; font-size: 1.15rem; color: var(--ink-soft); margin-top: 4px; }
+
+  .panel {
+    background: #fffdf9; border: 2px solid var(--stitch);
+    border-radius: 16px; box-shadow: var(--card-shadow); padding: 16px;
+    margin-bottom: 18px; position: relative;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .panel h2 .ph { color: var(--ink-soft); }
+  .badge {
+    position: absolute; top: -13px; left: 16px; background: var(--tape);
+    font-family: 'Patrick Hand', cursive; font-size: 0.85rem; padding: 2px 10px;
+    border-radius: 8px; transform: rotate(-2deg); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+
+  /* 3D helix hero */
+  #helix { width: 100%; height: 260px; border-radius: 12px; display: block;
+    background: radial-gradient(circle at 50% 40%, #efe9fb, #e2dbf3); }
+  .helix-cap { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-family:'Patrick Hand',cursive; color: var(--ink-soft); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 13px; height: 13px; border-radius: 50%; display: inline-block; border: 1.5px solid rgba(69,63,82,0.25); }
+
+  /* base tiles */
+  .strand { display: flex; gap: 7px; flex-wrap: wrap; margin: 6px 0; }
+  .base {
+    width: 46px; height: 52px; border-radius: 10px;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 1.25rem;
+    border: 2px solid rgba(69,63,82,0.25);
+    box-shadow: 0 2px 0 rgba(69,63,82,0.15);
+    position: relative;
+  }
+  .base small { position:absolute; bottom:3px; font-size:0.5rem; font-weight:500; color: rgba(69,63,82,0.5); font-family:'Patrick Hand',cursive; }
+  .base.A{background:var(--A)} .base.T{background:var(--T)} .base.G{background:var(--G)} .base.C{background:var(--C)} .base.U{background:var(--U)}
+  .slot {
+    width: 46px; height: 52px; border-radius: 10px;
+    border: 2px dashed var(--stitch); background: var(--paper);
+    display: grid; place-items: center; color: var(--ink-soft);
+    font-family:'Patrick Hand',cursive; font-size: 1.3rem;
+  }
+  .slot.active { border-color: #a98be0; box-shadow: 0 0 0 3px rgba(169,139,224,0.25); }
+  .slot .base { width:100%; height:100%; box-shadow:none; animation: snap .3s ease; }
+  @keyframes snap { 0%{transform: translateY(-14px) scale(0.8); opacity:0} 100%{transform:none; opacity:1} }
+  .rail-label { font-family:'Patrick Hand',cursive; color: var(--ink-soft); font-size: 0.95rem; margin-bottom: 2px; }
+
+  .shake { animation: shake .35s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+
+  /* nucleotide palette */
+  .palette { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .nuc {
+    width: 52px; height: 58px; border-radius: 12px; border: 2px solid var(--ink);
+    font-family: inherit; font-weight: 700; font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 3px 0 rgba(69,63,82,0.2); display:grid; place-items:center;
+    transition: transform .06s ease;
+  }
+  .nuc:hover { transform: translateY(-2px); }
+  .nuc:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(69,63,82,0.2); }
+  .nuc.A{background:var(--A)} .nuc.U{background:var(--U)} .nuc.G{background:var(--G)} .nuc.C{background:var(--C)}
+
+  .btn {
+    display:inline-flex; align-items:center; gap:8px;
+    border: 2px solid var(--ink); border-radius: 12px; background: #ece4fb;
+    font-family: inherit; font-weight: 600; font-size: 1rem; color: var(--ink);
+    padding: 10px 18px; cursor: pointer; box-shadow: 0 3px 0 rgba(69,63,82,0.2);
+    transition: all .1s ease;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(69,63,82,0.2); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.go { background: #d9c8fb; animation: nudge 1.6s ease-in-out infinite; }
+  @keyframes nudge { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+
+  .step-dim { opacity: 0.5; pointer-events: none; }
+
+  /* protein chain */
+  .protein { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-height: 66px; margin-top: 6px; }
+  .aa {
+    padding: 10px 14px; border-radius: 999px; background: #fff; font-weight: 600;
+    border: 2px solid rgba(69,63,82,0.3); box-shadow: 0 2px 0 rgba(69,63,82,0.15);
+    animation: pop .4s ease;
+  }
+  .aa.start { background: var(--C); }
+  .link { color: var(--ink-soft); font-size: 1.3rem; }
+  @keyframes pop { 0%{transform: scale(0.5); opacity:0} 60%{transform: scale(1.12)} 100%{transform:none; opacity:1} }
+  .codon-hint { font-family:'Patrick Hand',cursive; color: var(--ink-soft); font-size: 1rem; margin-top: 8px; }
+
+  .hint { font-family: 'Patrick Hand', cursive; color: var(--ink-soft); font-size: 1.02rem; line-height: 1.4; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: #f7f3ff; font-family: 'Patrick Hand', cursive; font-size: 1.1rem;
+    padding: 10px 20px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; z-index: 50;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer-note { text-align: center; margin-top: 22px; font-family: 'Patrick Hand', cursive; color: var(--ink-soft); font-size: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-tape">
+      <h1><i class="ph-fill ph-dna"></i> Central Dogma Lab</h1>
+      <div class="subtitle">DNA → RNA → protein: build a gene's product by hand!</div>
+    </div>
+  </header>
+
+  <!-- 3D helix specimen -->
+  <section class="panel">
+    <span class="badge">specimen</span>
+    <div class="helix-cap">
+      <h2><i class="ph-bold ph-atom"></i> Your gene, up close</h2>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--A)"></i>A</span>
+        <span><i class="dot" style="background:var(--T)"></i>T</span>
+        <span><i class="dot" style="background:var(--G)"></i>G</span>
+        <span><i class="dot" style="background:var(--C)"></i>C</span>
+      </div>
+    </div>
+    <canvas id="helix"></canvas>
+  </section>
+
+  <!-- Step 1: transcription -->
+  <section class="panel" id="transcribe">
+    <span class="badge">step 1 · transcription</span>
+    <h2><i class="ph-bold ph-pencil-simple"></i> Transcribe DNA → mRNA</h2>
+    <p class="hint">
+      RNA polymerase reads the DNA <b>template strand</b> and builds a matching mRNA.
+      Pair each base: <b>A→U</b>, <b>T→A</b>, <b>G→C</b>, <b>C→G</b>. (RNA uses <b>U</b> instead of T!)
+    </p>
+
+    <div class="rail-label">DNA template strand (3'→5')</div>
+    <div class="strand" id="dnaStrand"></div>
+
+    <div class="rail-label">mRNA you're building (5'→3')</div>
+    <div class="strand" id="mrnaSlots"></div>
+
+    <div class="palette" id="palette"></div>
+  </section>
+
+  <!-- Step 2: translation -->
+  <section class="panel step-dim" id="translate">
+    <span class="badge">step 2 · translation</span>
+    <h2><i class="ph-bold ph-factory"></i> Translate mRNA → protein</h2>
+    <p class="hint">
+      Ribosomes read mRNA in <b>codons</b> (groups of 3). Each codon calls in a tRNA
+      carrying one amino acid. Chain them up to build the protein!
+    </p>
+    <button class="btn" id="translateBtn" disabled><i class="ph-bold ph-play"></i> Read next codon</button>
+    <div class="codon-hint" id="codonHint">Finish transcription first ↑</div>
+    <div class="protein" id="protein"></div>
+  </section>
+
+  <p class="footer-note">
+    <i class="ph ph-info"></i>
+    A short made-up gene, kept simple so you can build the whole thing by hand.
+  </p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   Central Dogma Lab
+   1) Transcription: build mRNA complementary to a DNA template
+   2) Translation: read codons -> amino acids -> protein chain
+========================================================= */
+
+// --- the gene (DNA template strand, read 3'->5') ---
+// template  T A C  G G G  A A A
+// mRNA      A U G  C C C  U U U   -> Met(start) - Pro - Phe
+const DNA_TEMPLATE = ["T","A","C","G","G","G","A","A","A"];
+
+// complementary base the mRNA needs for each DNA base
+const PAIR = { A:"U", T:"A", G:"C", C:"G" };
+
+// minimal codon table (enough for this gene + a few extras)
+const CODONS = {
+  AUG:"Met", UUU:"Phe", UUC:"Phe", CCC:"Pro", CCU:"Pro",
+  GGG:"Gly", AAA:"Lys", UAA:"STOP", UAG:"STOP", UGA:"STOP",
+};
+
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const n=document.createElement(t); if(c)n.className=c; if(h!=null)n.innerHTML=h; return n; };
+
+let mrna = [];        // bases the player has placed
+let nextIndex = 0;    // which slot is active
+let codonPos = 0;     // which codon translation is on
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1800); }
+
+/* ---------- render DNA + slots ---------- */
+function renderTranscription(){
+  const dna = $("#dnaStrand"); dna.innerHTML="";
+  DNA_TEMPLATE.forEach(b => {
+    const tile = el("div","base "+b, b+'<small>DNA</small>');
+    dna.appendChild(tile);
+  });
+
+  const slots = $("#mrnaSlots"); slots.innerHTML="";
+  DNA_TEMPLATE.forEach((_,i) => {
+    const s = el("div","slot"); s.id="slot-"+i;
+    if(i===nextIndex) s.classList.add("active");
+    if(mrna[i]) s.innerHTML = `<div class="base ${mrna[i]}">${mrna[i]}<small>RNA</small></div>`;
+    slots.appendChild(s);
+  });
+
+  const pal = $("#palette"); pal.innerHTML="";
+  ["A","U","G","C"].forEach(b => {
+    const btn = el("button","nuc "+b, b);
+    btn.addEventListener("click",()=>placeBase(b));
+    pal.appendChild(btn);
+  });
+}
+
+function placeBase(base){
+  if(nextIndex >= DNA_TEMPLATE.length) return;
+  const need = PAIR[DNA_TEMPLATE[nextIndex]];
+  if(base !== need){
+    const slot = $("#slot-"+nextIndex);
+    slot.classList.remove("shake"); void slot.offsetWidth; slot.classList.add("shake");
+    toast(`${DNA_TEMPLATE[nextIndex]} pairs with ${need}, not ${base}!`);
+    return;
+  }
+  mrna[nextIndex] = base;
+  nextIndex++;
+  renderTranscription();
+  if(nextIndex === DNA_TEMPLATE.length) finishTranscription();
+}
+
+function finishTranscription(){
+  toast("mRNA complete! Time to translate 🎉");
+  $("#translate").classList.remove("step-dim");
+  $("#translateBtn").disabled = false;
+  $("#translateBtn").classList.add("go");
+  $("#codonHint").textContent = "Read the mRNA 3 bases at a time →";
+  helixUnzip();
+}
+
+/* ---------- translation ---------- */
+function readCodon(){
+  const codon = mrna.slice(codonPos, codonPos+3).join("");
+  const aa = CODONS[codon] || "???";
+  const prot = $("#protein");
+
+  if(codonPos>0) prot.appendChild(el("span","link","—"));
+  const isStart = codon==="AUG" && codonPos===0;
+  const chip = el("span","aa"+(isStart?" start":""),
+    `${aa}${isStart?" (start)":""} <small style="opacity:.6">${codon}</small>`);
+  prot.appendChild(chip);
+
+  codonPos += 3;
+  $("#codonHint").textContent = `Codon ${codon} → ${aa}`;
+
+  if(codonPos >= mrna.length || aa==="STOP"){
+    $("#translateBtn").disabled = true;
+    $("#translateBtn").classList.remove("go");
+    $("#codonHint").innerHTML = "🎉 Protein built! You ran the central dogma from DNA all the way to a protein.";
+    toast("Protein assembled! 🧬");
+  }
+}
+
+/* =========================================================
+   3D DNA double helix (Three.js r128)
+========================================================= */
+let helixGroup, renderer, unzipT = 0, unzipping = false;
+function initHelix(){
+  const canvas = $("#helix");
+  const w = canvas.clientWidth, h = 260;
+  if(typeof THREE === "undefined"){ canvas.style.display="none"; return; }
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 100);
+  camera.position.set(0, 0, 20);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  renderer.setSize(w, h, false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  const key = new THREE.DirectionalLight(0xffffff, 0.6); key.position.set(5,8,10); scene.add(key);
+
+  helixGroup = new THREE.Group();
+  scene.add(helixGroup);
+
+  const colors = { A:0xf2a3b6, T:0xa8d8ef, G:0xf6c96b, C:0xa7dca0 };
+  const comp = { T:"A", A:"T", C:"G", G:"C" };
+  const sphereGeo = new THREE.SphereGeometry(0.6, 20, 20);
+  const N = DNA_TEMPLATE.length;
+  const backboneMat = new THREE.MeshStandardMaterial({ color:0xbcb2da, roughness:0.6 });
+
+  for(let i=0;i<N;i++){
+    const t = i * 0.6;
+    const y = (i - (N-1)/2) * 1.6;
+    const x = Math.cos(t) * 3.2;
+    const z = Math.sin(t) * 3.2;
+    const base = DNA_TEMPLATE[i];
+
+    const rung = new THREE.Group();
+    rung.userData.dir = new THREE.Vector3(x,0,z).normalize();
+
+    const s1 = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color:colors[base], roughness:0.4 }));
+    s1.position.set(x, y, z);
+    const s2 = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color:colors[comp[base]], roughness:0.4 }));
+    s2.position.set(-x, y, -z);
+
+    // connecting bar
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12, 6.4, 8),
+      new THREE.MeshStandardMaterial({ color:0xd8cfec }));
+    bar.position.set(0,y,0);
+    bar.lookAt(x, y, z); bar.rotateX(Math.PI/2);
+
+    rung.add(s1, s2, bar);
+    rung.userData.y = y;
+    helixGroup.add(rung);
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    helixGroup.rotation.y += 0.006;
+    if(unzipping && unzipT < 1){
+      unzipT += 0.02;
+      helixGroup.children.forEach(rung => {
+        const d = rung.userData.dir;
+        const spread = unzipT * 2.4;
+        rung.children[0].position.set(d.x*(3.2+spread), rung.userData.y, d.z*(3.2+spread));
+        rung.children[1].position.set(-d.x*(3.2+spread), rung.userData.y, -d.z*(3.2+spread));
+        rung.children[2].scale.y = Math.max(0.02, 1 - unzipT);
+      });
+    }
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener("resize", ()=>{
+    const nw = canvas.clientWidth;
+    camera.aspect = nw/h; camera.updateProjectionMatrix();
+    renderer.setSize(nw, h, false);
+  });
+}
+function helixUnzip(){ unzipping = true; }
+
+/* ---------- boot ---------- */
+renderTranscription();
+$("#translateBtn").addEventListener("click", readCodon);
+window.addEventListener("load", initHelix);
+</script>
+</body>
+</html>

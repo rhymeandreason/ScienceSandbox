@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Respiration Lab — Craft Some Energy!</title>
+
+<!-- Google Fonts: Fredoka (rounded, playful headings) + Patrick Hand (handwritten notes) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet" />
+
+<!-- Phosphor Icons (web font) -->
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css" />
+
+<style>
+  :root {
+    --paper: #fbf6ea;
+    --paper-line: #e7ddc7;
+    --ink: #4a4038;
+    --ink-soft: #8a7d6d;
+    --tape: #f7d9a0;
+    --glucose: #f0a5b8;
+    --oxygen: #a8d8ef;
+    --pyruvate: #f6c56b;
+    --nadh: #b6d99a;
+    --fadh: #c9b3e6;
+    --co2: #d8cfc2;
+    --water: #9ad3e8;
+    --atp: #ffd94a;
+    --card-shadow: 0 3px 0 rgba(74,64,56,0.15), 0 6px 14px rgba(74,64,56,0.12);
+    --stitch: #cbbfa8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Fredoka', sans-serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    /* dotted-grid "graph paper" texture */
+    background-image:
+      radial-gradient(var(--paper-line) 1.3px, transparent 1.3px);
+    background-size: 22px 22px;
+    background-position: -11px -11px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; }
+
+  /* ---------- Header ---------- */
+  header {
+    position: relative;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .title-tape {
+    display: inline-block;
+    position: relative;
+    background: #fffdf7;
+    border: 2px dashed var(--stitch);
+    border-radius: 14px;
+    padding: 14px 30px;
+    box-shadow: var(--card-shadow);
+    transform: rotate(-1deg);
+  }
+  .title-tape::before, .title-tape::after {
+    content: "";
+    position: absolute;
+    top: -12px;
+    width: 74px; height: 26px;
+    background: var(--tape);
+    opacity: 0.85;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .title-tape::before { left: 14px; transform: rotate(-6deg); }
+  .title-tape::after  { right: 14px; transform: rotate(5deg); }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  h1 .ph { color: #e88aa2; }
+  .subtitle {
+    font-family: 'Patrick Hand', cursive;
+    font-size: 1.15rem;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+
+  /* ---------- Layout ---------- */
+  .board {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  @media (min-width: 900px) {
+    .board { grid-template-columns: 230px 1fr; align-items: start; }
+  }
+
+  .panel {
+    background: #fffdf7;
+    border: 2px solid var(--stitch);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    padding: 16px;
+  }
+  .panel h2 {
+    margin: 0 0 12px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel h2 .ph { color: var(--ink-soft); }
+
+  /* ---------- Pantry / supplies ---------- */
+  .pantry-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-family: inherit;
+    font-size: 0.98rem;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    margin-bottom: 10px;
+    box-shadow: 0 3px 0 rgba(74,64,56,0.2);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .pantry-btn:hover { transform: translateY(-1px); }
+  .pantry-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(74,64,56,0.2); }
+  .pantry-btn .chip { margin-left: auto; }
+  .pantry-btn .ph { font-size: 1.5rem; }
+  .pantry-btn.glucose .ph { color: #e0708c; }
+  .pantry-btn.oxygen .ph { color: #57a7d6; }
+
+  .hint {
+    font-family: 'Patrick Hand', cursive;
+    color: var(--ink-soft);
+    font-size: 1rem;
+    line-height: 1.35;
+    margin-top: 6px;
+  }
+
+  /* ---------- Inventory chips ---------- */
+  .inventory {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 2px solid rgba(74,64,56,0.25);
+    background: #fff;
+    white-space: nowrap;
+  }
+  .chip .ph { font-size: 1.1rem; }
+  .chip .count { font-variant-numeric: tabular-nums; }
+  .chip.glucose  { background: var(--glucose); }
+  .chip.oxygen   { background: var(--oxygen); }
+  .chip.pyruvate { background: var(--pyruvate); }
+  .chip.nadh     { background: var(--nadh); }
+  .chip.fadh     { background: var(--fadh); }
+  .chip.co2      { background: var(--co2); }
+  .chip.water    { background: var(--water); }
+  .chip.atp      { background: var(--atp); }
+  .chip.dim { opacity: 0.4; }
+
+  /* ---------- Stations ---------- */
+  .stations { display: grid; gap: 16px; }
+  @media (min-width: 620px) { .stations { grid-template-columns: repeat(3, 1fr); } }
+
+  .station {
+    position: relative;
+    background: #fffdf7;
+    border: 2px solid var(--stitch);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: var(--card-shadow);
+    display: flex; flex-direction: column;
+    transition: transform .12s ease;
+  }
+  .station .badge {
+    position: absolute; top: -13px; left: 14px;
+    background: var(--tape);
+    font-family: 'Patrick Hand', cursive;
+    font-size: 0.85rem;
+    padding: 2px 10px;
+    border-radius: 8px;
+    transform: rotate(-2deg);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+  .station h3 {
+    margin: 6px 0 2px;
+    font-size: 1.1rem;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .station h3 .ph { font-size: 1.4rem; }
+  .station .where {
+    font-family: 'Patrick Hand', cursive;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+  }
+  .recipe {
+    background: var(--paper);
+    border: 1.5px dashed var(--stitch);
+    border-radius: 10px;
+    padding: 9px;
+    font-size: 0.82rem;
+    line-height: 1.7;
+  }
+  .recipe .row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .recipe .arrow { color: var(--ink-soft); font-family: 'Patrick Hand', cursive; margin: 2px 0; }
+  .mini {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    border: 1.5px solid rgba(74,64,56,0.2);
+    font-weight: 600; font-size: 0.78rem;
+  }
+  .mini.glucose{background:var(--glucose)} .mini.oxygen{background:var(--oxygen)}
+  .mini.pyruvate{background:var(--pyruvate)} .mini.nadh{background:var(--nadh)}
+  .mini.fadh{background:var(--fadh)} .mini.co2{background:var(--co2)}
+  .mini.water{background:var(--water)} .mini.atp{background:var(--atp)}
+
+  .make-btn {
+    margin-top: auto;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%;
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    background: #efe7d5;
+    color: var(--ink);
+    font-family: inherit; font-weight: 600; font-size: 1rem;
+    padding: 11px;
+    margin-top: 12px;
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: 0 3px 0 rgba(74,64,56,0.2);
+    transition: all .1s ease;
+  }
+  .make-btn.ready {
+    cursor: pointer;
+    opacity: 1;
+    background: #ffe9a8;
+    animation: nudge 1.6s ease-in-out infinite;
+  }
+  .make-btn.ready:hover { transform: translateY(-1px); }
+  .make-btn.ready:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(74,64,56,0.2); }
+  @keyframes nudge { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+
+  .station.pop { animation: pop .4s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.04)} 100%{transform:scale(1)} }
+
+  /* ---------- Goal / cell ---------- */
+  .goal {
+    margin-top: 18px;
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .cell {
+    position: relative;
+    width: 92px; height: 92px; flex: none;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #d9ead0, #bcd6ad);
+    border: 3px solid #9cbb88;
+    display: grid; place-items: center;
+    transition: filter .4s ease, box-shadow .4s ease;
+    filter: saturate(0.5) brightness(0.96);
+  }
+  .cell .ph { font-size: 2.4rem; color: #6e8a5a; transition: color .4s ease; }
+  .cell.powered {
+    box-shadow: 0 0 0 4px rgba(255,217,74,0.35), 0 0 26px 6px rgba(255,217,74,0.55);
+    filter: saturate(1.2) brightness(1.05);
+  }
+  .cell.powered .ph { color: #e0a400; }
+
+  .meter-wrap { flex: 1; min-width: 220px; }
+  .meter-label { display: flex; justify-content: space-between; font-weight: 500; margin-bottom: 6px; }
+  .meter-label .ph { color: var(--atp); }
+  .meter {
+    height: 20px; border-radius: 999px;
+    background: var(--paper);
+    border: 2px solid var(--stitch);
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%; width: 0%;
+    background: repeating-linear-gradient(45deg, #ffd94a, #ffd94a 10px, #ffcf29 10px, #ffcf29 20px);
+    transition: width .4s ease;
+  }
+  .goal-note {
+    font-family: 'Patrick Hand', cursive;
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+    margin-top: 6px;
+  }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: #fff8ec;
+    font-family: 'Patrick Hand', cursive; font-size: 1.1rem;
+    padding: 10px 20px; border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 50;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer-note {
+    text-align: center; margin-top: 26px;
+    font-family: 'Patrick Hand', cursive; color: var(--ink-soft); font-size: 1rem;
+  }
+
+  /* float-up particle for outputs */
+  .float {
+    position: fixed; pointer-events: none; z-index: 60;
+    font-weight: 700; font-size: 0.95rem;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 999px;
+    border: 2px solid rgba(74,64,56,0.25);
+    animation: floatUp 1s ease forwards;
+  }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(0) scale(0.8); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-70px) scale(1.05); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-tape">
+      <h1><i class="ph-fill ph-flask"></i> Respiration Lab</h1>
+      <div class="subtitle">craft glucose + oxygen into energy, one station at a time!</div>
+    </div>
+  </header>
+
+  <div class="board">
+    <!-- Supplies panel -->
+    <aside class="panel" aria-label="Supplies">
+      <h2><i class="ph-bold ph-basket"></i> Supplies</h2>
+      <button class="pantry-btn glucose" data-supply="glucose">
+        <i class="ph-fill ph-cookie"></i> Eat glucose
+        <span class="chip glucose" style="padding:2px 8px;">+1</span>
+      </button>
+      <button class="pantry-btn oxygen" data-supply="oxygen">
+        <i class="ph-fill ph-wind"></i> Breathe O₂
+        <span class="chip oxygen" style="padding:2px 8px;">+2</span>
+      </button>
+      <p class="hint">Tip: grab a little glucose &amp; oxygen, then feed the stations in order → → →</p>
+    </aside>
+
+    <!-- Main work area -->
+    <main>
+      <section class="panel" style="margin-bottom:18px;">
+        <h2><i class="ph-bold ph-package"></i> Your stuff</h2>
+        <div class="inventory" id="inventory"></div>
+      </section>
+
+      <div class="stations" id="stations"></div>
+
+      <div class="panel goal" style="margin-top:18px;">
+        <div class="cell" id="cell"><i class="ph-fill ph-atom"></i></div>
+        <div class="meter-wrap">
+          <div class="meter-label">
+            <span><i class="ph-fill ph-lightning"></i> ATP made</span>
+            <span><b id="atpCount">0</b> / <span id="atpGoal">30</span></span>
+          </div>
+          <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+          <div class="goal-note" id="goalNote">Power up the cell by making 30 ATP!</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <p class="footer-note">
+    <i class="ph ph-info"></i>
+    Numbers are simplified to keep the crafting fun — real cells net about 30–38 ATP per glucose.
+  </p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ---------------------------------------------------------
+   Cellular Respiration — a little crafting game
+   Ingredients live in `inv`. Stations consume + produce them.
+--------------------------------------------------------- */
+
+const GOAL_ATP = 30;
+
+// icon + label + css-class for every ingredient type
+const ITEMS = {
+  glucose:  { label: "Glucose",  icon: "ph-fill ph-cookie",     cls: "glucose"  },
+  oxygen:   { label: "O₂",       icon: "ph-fill ph-wind",       cls: "oxygen"   },
+  pyruvate: { label: "Pyruvate", icon: "ph-fill ph-drop-half",  cls: "pyruvate" },
+  nadh:     { label: "NADH",     icon: "ph-fill ph-battery-medium", cls: "nadh" },
+  fadh:     { label: "FADH₂",    icon: "ph-fill ph-battery-medium", cls: "fadh" },
+  co2:      { label: "CO₂",      icon: "ph-fill ph-cloud",      cls: "co2"      },
+  water:    { label: "H₂O",      icon: "ph-fill ph-drop",       cls: "water"    },
+  atp:      { label: "ATP",      icon: "ph-fill ph-lightning",  cls: "atp"      },
+};
+
+// recipes for the three stages (inputs -> outputs), numbers simplified
+const STATIONS = [
+  {
+    id: "glycolysis",
+    name: "Glycolysis",
+    where: "in the cytoplasm",
+    icon: "ph-fill ph-scissors",
+    inputs:  { glucose: 1 },
+    outputs: { pyruvate: 2, atp: 2, nadh: 2 },
+  },
+  {
+    id: "krebs",
+    name: "Krebs Cycle",
+    where: "mitochondrial matrix",
+    icon: "ph-fill ph-arrows-clockwise",
+    inputs:  { pyruvate: 2 },
+    outputs: { co2: 6, atp: 2, nadh: 8, fadh: 2 },
+  },
+  {
+    id: "etc",
+    name: "Electron Transport",
+    where: "inner membrane",
+    icon: "ph-fill ph-lightning",
+    inputs:  { nadh: 10, fadh: 2, oxygen: 6 },
+    outputs: { atp: 26, water: 6 },
+  },
+];
+
+// inventory state
+const inv = { glucose:0, oxygen:0, pyruvate:0, nadh:0, fadh:0, co2:0, water:0, atp:0 };
+
+/* ---------- helpers ---------- */
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, html) => { const n=document.createElement(tag); if(cls)n.className=cls; if(html!=null)n.innerHTML=html; return n; };
+
+function chipHTML(type, count) {
+  const it = ITEMS[type];
+  return `<i class="${it.icon}"></i> ${it.label} <span class="count">×${count}</span>`;
+}
+function miniHTML(type, n) {
+  const it = ITEMS[type];
+  return `<span class="mini ${it.cls}"><i class="${it.icon}"></i>${n>1?n+"×":""} ${it.label}</span>`;
+}
+
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+function canMake(st) {
+  return Object.entries(st.inputs).every(([k,v]) => inv[k] >= v);
+}
+
+/* ---------- rendering ---------- */
+function renderInventory() {
+  const box = $("#inventory");
+  box.innerHTML = "";
+  // show every type; dim the ones you don't have yet
+  Object.keys(ITEMS).forEach(type => {
+    const count = inv[type];
+    const chip = el("span", "chip " + ITEMS[type].cls + (count === 0 ? " dim" : ""));
+    chip.innerHTML = chipHTML(type, count);
+    box.appendChild(chip);
+  });
+}
+
+function renderStations() {
+  const box = $("#stations");
+  box.innerHTML = "";
+  STATIONS.forEach((st, i) => {
+    const card = el("div", "station");
+    card.id = "st-" + st.id;
+
+    const inRows  = Object.entries(st.inputs).map(([k,v]) => miniHTML(k,v)).join(" ");
+    const outRows = Object.entries(st.outputs).map(([k,v]) => miniHTML(k,v)).join(" ");
+
+    card.innerHTML = `
+      <span class="badge">step ${i+1}</span>
+      <h3><i class="${st.icon}"></i> ${st.name}</h3>
+      <div class="where">${st.where}</div>
+      <div class="recipe">
+        <div class="row">${inRows}</div>
+        <div class="arrow">↓ becomes ↓</div>
+        <div class="row">${outRows}</div>
+      </div>
+    `;
+    const btn = el("button", "make-btn");
+    btn.innerHTML = `<i class="ph-bold ph-hammer"></i> Make it!`;
+    btn.addEventListener("click", () => runStation(st, card, btn));
+    card.appendChild(btn);
+    box.appendChild(card);
+  });
+  refreshButtons();
+}
+
+function refreshButtons() {
+  STATIONS.forEach(st => {
+    const btn = $("#st-" + st.id + " .make-btn");
+    if (!btn) return;
+    btn.classList.toggle("ready", canMake(st));
+  });
+}
+
+/* ---------- floating output particles ---------- */
+function floatFrom(cardEl, type, n) {
+  const it = ITEMS[type];
+  const r = cardEl.getBoundingClientRect();
+  const f = el("div", "float " + it.cls, `<i class="${it.icon}"></i> +${n} ${it.label}`);
+  f.style.left = (r.left + r.width/2 - 40 + (Math.random()*40-20)) + "px";
+  f.style.top  = (r.top + 30) + "px";
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 1000);
+}
+
+/* ---------- actions ---------- */
+function getSupply(type) {
+  const amt = type === "oxygen" ? 2 : 1;
+  inv[type] += amt;
+  renderInventory();
+  refreshButtons();
+}
+
+function runStation(st, card, btn) {
+  if (!canMake(st)) {
+    toast("Not enough ingredients for " + st.name + " yet!");
+    return;
+  }
+  // consume inputs
+  Object.entries(st.inputs).forEach(([k,v]) => inv[k] -= v);
+  // produce outputs
+  Object.entries(st.outputs).forEach(([k,v], idx) => {
+    inv[k] += v;
+    setTimeout(() => floatFrom(card, k, v), idx * 130);
+  });
+  card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
+  renderInventory();
+  refreshButtons();
+  updateGoal();
+
+  if (st.id === "etc") toast("⚡ Big energy payoff from the electron transport chain!");
+  else if (st.id === "glycolysis") toast("Glucose split into pyruvate — nice!");
+  else toast("Krebs cycle spun — look at all that NADH!");
+}
+
+function updateGoal() {
+  const atp = inv.atp;
+  $("#atpCount").textContent = atp;
+  const pct = Math.min(100, Math.round(atp / GOAL_ATP * 100));
+  $("#meterFill").style.width = pct + "%";
+  if (atp >= GOAL_ATP) {
+    $("#cell").classList.add("powered");
+    $("#goalNote").innerHTML = "🎉 The cell is powered up! You ran the whole pathway.";
+  }
+}
+
+/* ---------- wire up ---------- */
+document.querySelectorAll("[data-supply]").forEach(b =>
+  b.addEventListener("click", () => getSupply(b.dataset.supply))
+);
+$("#atpGoal").textContent = GOAL_ATP;
+
+renderInventory();
+renderStations();
+updateGoal();
+</script>
+</body>
+</html>
