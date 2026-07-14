@@ -76,6 +76,37 @@ h1 {
   box-shadow: 0 2px 0 rgba(0,0,0,0.10);
 }
 
+/* ---------- slider ----------
+   A themed range input. The track defaults to --accent; give a
+   slider its own track (e.g. a cold→hot gradient) by setting
+   --slider-track on the element. .k-dial is an optional layout
+   wrapper: a label + readout row above, min/mid/max labels below. */
+.k-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 10px; margin: 4px 0;
+  border-radius: 999px; border: 2px solid var(--ink);
+  background: var(--slider-track, var(--accent));
+  cursor: pointer;
+}
+.k-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface); border: 3px solid var(--ink);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2); cursor: pointer;
+}
+.k-slider::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--surface); border: 3px solid var(--ink);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2); cursor: pointer;
+}
+.k-slider:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.k-dial { margin: 16px 0 6px; }
+.k-dial-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.k-dial-head .name { font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.k-dial-head .read { font-family: var(--font-hand); font-size: 1.3rem; color: var(--ink); }
+.k-dial-scale { display: flex; justify-content: space-between; font-family: var(--font-hand); color: var(--ink-soft); font-size: 0.85rem; }
+
 /* ---------- notes ---------- */
 .hint { font-family: var(--font-hand); color: var(--ink-soft); font-size: 1.02rem; line-height: 1.4; }
 .footer-note { text-align: center; margin-top: 22px; font-family: var(--font-hand); color: var(--ink-soft); font-size: 1rem; }

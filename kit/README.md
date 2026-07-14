@@ -34,7 +34,24 @@ exist before the app's inline `<script>` at the end of `<body>` runs.
 `--card-shadow`, `--press-shadow`, `--wrap-max`.
 
 **Components** (`kit.css`): `.wrap` layout, `.title-card` header, `.panel` + `.badge`,
-`.btn` (`.ghost`, `.go`), `.k-chip`, `.hint`, `.footer-note`, `#toast`.
+`.btn` (`.ghost`, `.go`), `.k-chip`, `.k-slider` + `.k-dial`, `.hint`, `.footer-note`, `#toast`.
+
+**Slider** (`.k-slider`): a themed range input with a chunky thumb (styled for
+both WebKit and Firefox). The track defaults to `--accent`; give a slider its own
+track — e.g. a cold→hot gradient — by setting `--slider-track` on the element.
+`.k-dial` is an optional wrapper adding a label + readout row above and a
+min/mid/max scale below:
+
+```html
+<div class="k-dial">
+  <div class="k-dial-head">
+    <span class="name"><i class="ph-fill ph-thermometer-hot"></i> Temperature</span>
+    <span class="read">20°C</span>
+  </div>
+  <input type="range" class="k-slider" style="--slider-track: linear-gradient(90deg,#7fb2e0,#d96b5a)">
+  <div class="k-dial-scale"><span>cold</span><span>warm</span><span>hot</span></div>
+</div>
+```
 
 **Animations**: `nudge` (shared, used by `.btn.go`) plus `kit-*` utilities that
 won't clash with app-local keyframes: `.kit-pop`, `.kit-cardin`, `.kit-shake`,

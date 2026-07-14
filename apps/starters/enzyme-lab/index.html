@@ -27,28 +27,10 @@
   @media (max-width: 860px) { .bench { grid-template-columns: 1fr; } }
   .bench .panel { margin-bottom: 0; }
 
-  /* ---- sliders ---- */
-  .dial { margin: 18px 0 6px; }
-  .dial .row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-  .dial .name { font-weight: 600; display: flex; align-items: center; gap: 7px; }
-  .dial .read { font-family: var(--font-hand); font-size: 1.35rem; color: var(--ink); }
-  .dial .read .opt { font-size: 0.8rem; color: var(--ink-soft); margin-left: 6px; }
-  input[type="range"] {
-    -webkit-appearance: none; appearance: none; width: 100%; height: 10px;
-    border-radius: 999px; border: 2px solid var(--ink); cursor: pointer; margin: 4px 0;
-  }
-  #tempRange { background: linear-gradient(90deg, #7fb2e0, #e6b34a 55%, #d96b5a); }
-  #phRange   { background: linear-gradient(90deg, #e07a55, #8bc78b 50%, #7d7ccc); }
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
-    background: var(--surface); border: 3px solid var(--ink); box-shadow: 0 2px 0 rgba(0,0,0,0.2);
-  }
-  input[type="range"]::-moz-range-thumb {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--surface); border: 3px solid var(--ink); box-shadow: 0 2px 0 rgba(0,0,0,0.2);
-  }
-  .scale { display: flex; justify-content: space-between; font-family: var(--font-hand);
-    color: var(--ink-soft); font-size: 0.85rem; }
+  /* ---- sliders: use kit .k-slider / .k-dial; just the app's track gradients ---- */
+  #tempRange { --slider-track: linear-gradient(90deg, #7fb2e0, #e6b34a 55%, #d96b5a); }
+  #phRange   { --slider-track: linear-gradient(90deg, #e07a55, #8bc78b 50%, #7d7ccc); }
+  .k-dial-head .read .opt { font-size: 0.8rem; color: var(--ink-soft); margin-left: 6px; }
 
   /* ---- active site stage ---- */
   .stage { display: grid; place-items: center; min-height: 190px;
@@ -113,22 +95,22 @@
         <span class="badge">conditions</span>
         <h2><i class="ph-bold ph-sliders-horizontal"></i> Set the conditions</h2>
 
-        <div class="dial">
-          <div class="row">
+        <div class="k-dial">
+          <div class="k-dial-head">
             <span class="name"><i class="ph-fill ph-thermometer-hot"></i> Temperature</span>
             <span class="read"><span id="tempVal">20</span>°C<span class="opt">best ≈ 37°</span></span>
           </div>
-          <input type="range" id="tempRange" min="0" max="70" step="1" value="20" />
-          <div class="scale"><span>cold</span><span>body heat</span><span>too hot!</span></div>
+          <input type="range" class="k-slider" id="tempRange" min="0" max="70" step="1" value="20" />
+          <div class="k-dial-scale"><span>cold</span><span>body heat</span><span>too hot!</span></div>
         </div>
 
-        <div class="dial">
-          <div class="row">
+        <div class="k-dial">
+          <div class="k-dial-head">
             <span class="name"><i class="ph-fill ph-eyedropper"></i> pH</span>
             <span class="read">pH <span id="phVal">7.0</span><span class="opt">best ≈ 7</span></span>
           </div>
-          <input type="range" id="phRange" min="0" max="14" step="0.2" value="7" />
-          <div class="scale"><span>acidic 0</span><span>neutral 7</span><span>basic 14</span></div>
+          <input type="range" class="k-slider" id="phRange" min="0" max="14" step="0.2" value="7" />
+          <div class="k-dial-scale"><span>acidic 0</span><span>neutral 7</span><span>basic 14</span></div>
         </div>
 
         <div class="controls">
