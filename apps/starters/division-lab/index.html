@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Division Lab — Drive the Cell Through Division</title>
+
+<!-- ScienceSandbox kit -->
+<link rel="stylesheet" href="../../../kit/themes/stationery.css" />
+<link rel="stylesheet" href="../../../kit/kit.css" />
+<script src="../../../kit/kit.js"></script>
+
+<style>
+  /* ---- app tokens: heredity plum tint (matches the mitosis/meiosis tour) ---- */
+  :root {
+    --paper: #efe8f6; --paper-line: #ddd2ec; --surface: #fffdff;
+    --ink: #40374f; --ink-soft: #857a95;
+    --tape: #cbb7e8; --stitch: #cabfe0;
+    --accent: #e6dcf5; --btn-ghost-bg: #f3eefa;
+    --card-shadow: 0 3px 0 rgba(64,55,79,0.13), 0 6px 14px rgba(64,55,79,0.12);
+    --cell-fill: #fbf7ff; --cell-stroke: #b9a9d6; --star: #8a5fd0;
+    --ok: #4fa87a; --slot: #c3b4df;
+  }
+
+  /* top-level mode picker */
+  .mode-pick { display: flex; align-items: center; justify-content: center; gap: 12px;
+    flex-wrap: wrap; margin: -6px 0 22px; }
+  .seg { display: inline-flex; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden;
+    box-shadow: var(--card-shadow); }
+  .seg button { border: none; background: var(--surface); color: var(--ink); cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; padding: 10px 24px;
+    display: inline-flex; align-items: center; gap: 7px; }
+  .seg button.on { background: var(--tape); }
+
+  /* control bar */
+  .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .bar .stagename { font-weight: 700; font-size: 1.15rem; }
+  .bar .spacer { margin-left: auto; }
+  .prog { display: inline-flex; gap: 6px; align-items: center; }
+  .prog .p { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--surface); }
+  .prog .p.on { background: var(--star); }
+  .prog .p.done { background: var(--tape); }
+  .instruction { font-size: 1.05rem; line-height: 1.5; margin-top: 10px; }
+  .instruction .why { color: var(--ink-soft); }
+  .feedback { margin-top: 8px; font-family: var(--font-hand); font-size: 1.15rem; min-height: 1.4em; }
+  .feedback.ok { color: var(--ok); } .feedback.no { color: #c2603f; }
+
+  /* the field */
+  .field { position: relative; width: 100%; max-width: 660px; margin: 0 auto;
+    aspect-ratio: 660 / 380; background: repeating-linear-gradient(0deg, #f6f1fc, #f6f1fc 21px, #efe7f8 21px, #efe7f8 22px);
+    border: 2px dashed var(--stitch); border-radius: 14px; overflow: hidden; touch-action: none; }
+  .field svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .field .layer { position: absolute; inset: 0; }        /* px-coordinate layer (660x380) */
+  .slot { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+    border: 3px dashed var(--slot); border-radius: 50%; }
+  .slot .lbl { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-hand); font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; }
+  .piece { position: absolute; width: 70px; height: 82px; margin: -41px 0 0 -35px;
+    cursor: grab; touch-action: none; user-select: none; transition: filter .1s ease; }
+  .piece.drag { cursor: grabbing; filter: drop-shadow(0 6px 6px rgba(64,55,79,0.3)); z-index: 20; transition: none; }
+  .piece.locked { pointer-events: none; }
+  .piece svg { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+
+  .celllabel { position: absolute; transform: translate(-50%, -50%); font-family: var(--font-hand);
+    font-size: 0.95rem; color: var(--ink-soft); text-align: center; pointer-events: none; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--font-hand);
+    color: var(--ink-soft); margin-top: 12px; align-items: center; justify-content: center; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .lg-swatch { width: 15px; height: 15px; border-radius: 4px; border: 2px solid var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-card">
+      <h1><i class="ph-fill ph-hand-grabbing"></i> Division Lab</h1>
+      <div class="subtitle">drag the chromosomes into place and drive the cell through division</div>
+    </div>
+  </header>
+
+  <div class="mode-pick">
+    <span class="seg">
+      <button id="mMitosis" class="on"><i class="ph-fill ph-copy"></i> Mitosis</button>
+      <button id="mMeiosis"><i class="ph-fill ph-shuffle"></i> Meiosis</button>
+    </span>
+  </div>
+
+  <section class="panel">
+    <span class="badge" id="modeBadge">mitosis</span>
+    <div class="bar">
+      <span class="stagename" id="stageName">—</span>
+      <span class="spacer"></span>
+      <span class="prog" id="prog"></span>
+      <button class="btn ghost" id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
+      <button class="btn go" id="next" disabled>Next <i class="ph-bold ph-arrow-right"></i></button>
+    </div>
+    <div class="instruction" id="instruction">—</div>
+    <div class="feedback" id="feedback"></div>
+
+    <div class="field" style="margin-top:14px">
+      <svg class="bg" id="bg" viewBox="0 0 660 380" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="layer" id="layer"></div>
+    </div>
+
+    <div class="legend">
+      <span><i class="lg-swatch" style="background:#e0655f"></i> maternal</span>
+      <span><i class="lg-swatch" style="background:#4f8fd0"></i> paternal</span>
+      <span><i class="ph-bold ph-x"></i> = replicated (two sister chromatids)</span>
+      <span>big &amp; small = the two homologous pairs (2n = 4)</span>
+    </div>
+  </section>
+
+  <p class="footer-note"><i class="ph ph-info"></i> Learn mode. Simplified to 2n = 4. Drag a chromosome onto a glowing slot — it snaps into place.</p>
+</div>
+
+<script>
+/* =========================================================
+   Division Lab — learn mode
+   Drag chromosomes into the right configuration at each stage
+   to advance the cell through division. The two decisions that
+   carry the teaching:
+     • Meiosis: PAIR the homologs (prophase I) — mitosis never does.
+     • Anaphase: mitosis/meiosis-II split SISTER CHROMATIDS;
+       meiosis I sends whole HOMOLOGS to opposite poles.
+   ($ / el / toast from kit.js)
+========================================================= */
+
+const NS = "http://www.w3.org/2000/svg";
+const COL = { red: "#e0655f", blue: "#4f8fd0" };
+const W = 660, H = 380;
+
+/* ---------- chromosome art (returns an <svg> string) ---------- */
+function chromoSVG(sp) {
+  const col = COL[sp.color], rec = sp.recomb ? COL[sp.color === "red" ? "blue" : "red"] : null;
+  const len = sp.size === "big" ? 52 : 34;
+  const cap = (l, w, c, r, rot) =>
+    `<g transform="rotate(${rot})"><rect x="${-w/2}" y="${-l/2}" width="${w}" height="${l}" rx="${w/2}" fill="${c}" stroke="var(--ink)" stroke-width="2"/>` +
+    (r ? `<rect x="${-w/2}" y="${-l/2}" width="${w}" height="11" rx="${w/2}" fill="${r}" stroke="var(--ink)" stroke-width="2"/>` : ``) + `</g>`;
+  let inner;
+  if (sp.form === "single") inner = cap(len, 13, col, rec, 0);
+  else inner = cap(len, 11, col, rec, 23) + cap(len, 11, col, null, -23) +
+               `<circle r="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/>`;
+  return `<svg viewBox="-40 -45 80 90"><g transform="translate(0,0)">${inner}</g></svg>`;
+}
+
+/* ---------- stage definitions ---------- */
+/* spec: {size:'big'|'small', color:'red'|'blue', form:'x'|'single', recomb?} */
+const S = (size, color, form, recomb = false) => ({ size, color, form, recomb });
+const isBig = (sp) => sp.size === "big";
+
+/* helper builders */
+function scatter(specs) {
+  const pos = [[110, 105], [110, 275], [550, 105], [550, 275]];
+  return specs.map((sp, i) => ({ id: "p" + i, sp, x: pos[i][0], y: pos[i][1], cell: 0 }));
+}
+
+const STAGES = {
+  mitosis: [
+    { // 0 metaphase
+      name: "Metaphase", membranes: [{ cx: 330, cy: 190, r: 155 }],
+      instruction: `Line the chromosomes up <b>single file</b> on the plate — each one alone.`,
+      why: `In mitosis every chromosome lines up individually.`,
+      pieces: scatter([S("big", "red", "x"), S("big", "blue", "x"), S("small", "red", "x"), S("small", "blue", "x")]),
+      slots: [
+        { id: "m0", x: 330, y: 90, side: "plate", cell: 0 }, { id: "m1", x: 330, y: 150, side: "plate", cell: 0 },
+        { id: "m2", x: 330, y: 210, side: "plate", cell: 0 }, { id: "m3", x: 330, y: 270, side: "plate", cell: 0 },
+      ],
+      accept: () => true, split: false,
+      check: (st) => ({ done: filled(st, "plate") === 4, ok: true }),
+      success: `Lined up single file — that's mitotic metaphase.`,
+    },
+    { // 1 anaphase
+      name: "Anaphase", membranes: [{ cx: 330, cy: 190, r: 178 }],
+      instruction: `Pull each chromosome apart — drag it toward a pole and the <b>sister chromatids</b> split, one to each side.`,
+      why: `Mitosis separates sister chromatids.`,
+      pieces: [
+        { id: "a0", sp: S("big", "red", "x"), x: 330, y: 90, cell: 0, splitOnDrop: true },
+        { id: "a1", sp: S("big", "blue", "x"), x: 330, y: 150, cell: 0, splitOnDrop: true },
+        { id: "a2", sp: S("small", "red", "x"), x: 330, y: 210, cell: 0, splitOnDrop: true },
+        { id: "a3", sp: S("small", "blue", "x"), x: 330, y: 270, cell: 0, splitOnDrop: true },
+      ],
+      slots: poles(0, 150, 510),
+      accept: () => true, split: true,
+      check: (st) => ({ done: filled(st, "L") === 4 && filled(st, "R") === 4, ok: true }),
+      success: `Sisters separated — each pole gets a full set.`,
+    },
+    { // 2 result
+      name: "Two diploid cells", membranes: [{ cx: 195, cy: 190, r: 128, label: "2n = 4" }, { cx: 465, cy: 190, r: 128, label: "2n = 4" }],
+      instruction: `<b>Two identical diploid cells.</b> Mitosis is for growth &amp; repair — the daughters match the parent.`,
+      why: ``, result: [
+        cellSingles(195, 190), cellSingles(465, 190),
+      ], check: () => ({ done: true, ok: true, terminal: true }),
+    },
+  ],
+
+  meiosis: [
+    { // 0 prophase I — pairing
+      name: "Prophase I", membranes: [{ cx: 330, cy: 190, r: 155 }],
+      instruction: `<b>Pair up the homologs</b> — drop each chromosome next to the one its own size. (Mitosis never does this!)`,
+      why: `Homologous chromosomes find their partner and pair up — this is unique to meiosis.`,
+      pieces: scatter([S("big", "red", "x", true), S("big", "blue", "x", true), S("small", "red", "x"), S("small", "blue", "x")]),
+      slots: [
+        { id: "b0", x: 285, y: 140, side: "big", cell: 0, lbl: "big pair" }, { id: "b1", x: 375, y: 140, side: "big", cell: 0 },
+        { id: "s0", x: 285, y: 255, side: "small", cell: 0, lbl: "small pair" }, { id: "s1", x: 375, y: 255, side: "small", cell: 0 },
+      ],
+      accept: (sp, slot) => slot.side === "big" ? isBig(sp) : !isBig(sp), split: false,
+      check: (st) => ({ done: filled(st, "big") === 2 && filled(st, "small") === 2, ok: true }),
+      success: `Paired! Each big found its big homolog, each small its small.`,
+    },
+    { // 1 anaphase I — homologs to opposite poles
+      name: "Anaphase I", membranes: [{ cx: 330, cy: 190, r: 178 }],
+      instruction: `Send the <b>pairs</b> apart: one chromosome of each pair to each pole. Keep sister chromatids together!`,
+      why: `Meiosis I separates whole homologs — not sisters. That's what halves the chromosome number.`,
+      pieces: [
+        { id: "h0", sp: S("big", "red", "x", true), x: 290, y: 140, cell: 0 },
+        { id: "h1", sp: S("big", "blue", "x", true), x: 370, y: 140, cell: 0 },
+        { id: "h2", sp: S("small", "red", "x"), x: 290, y: 250, cell: 0 },
+        { id: "h3", sp: S("small", "blue", "x"), x: 370, y: 250, cell: 0 },
+      ],
+      slots: [
+        { id: "L0", x: 150, y: 150, side: "L", cell: 0 }, { id: "L1", x: 150, y: 230, side: "L", cell: 0 },
+        { id: "R0", x: 510, y: 150, side: "R", cell: 0 }, { id: "R1", x: 510, y: 230, side: "R", cell: 0 },
+      ],
+      accept: () => true, split: false,
+      check: (st) => {
+        const L = occ(st, "L"), R = occ(st, "R");
+        if (L.length < 2 || R.length < 2) return { done: false, ok: true };
+        const okAssort = L.filter(isBig).length === 1 && R.filter(isBig).length === 1;
+        return okAssort ? { done: true, ok: true }
+          : { done: false, ok: false, hint: `Send homologs to OPPOSITE poles — each pole should get one big and one small.` };
+      },
+      success: `Homologs separated — the sisters stayed joined. Each pole is now haploid (n = 2).`,
+    },
+    { // 2 meiosis II — sisters separate, in two cells
+      name: "Meiosis II", membranes: [{ cx: 190, cy: 190, r: 128 }, { cx: 470, cy: 190, r: 128 }],
+      instruction: `Now, in <b>each</b> cell, split the sister chromatids to the poles — just like mitosis.`,
+      why: `Meiosis II is like mitosis: the sister chromatids finally separate.`,
+      pieces: [
+        { id: "c0a", sp: S("big", "red", "x", true), x: 190, y: 150, cell: 0, splitOnDrop: true },
+        { id: "c0b", sp: S("small", "blue", "x"), x: 190, y: 235, cell: 0, splitOnDrop: true },
+        { id: "c1a", sp: S("big", "blue", "x", true), x: 470, y: 150, cell: 1, splitOnDrop: true },
+        { id: "c1b", sp: S("small", "red", "x"), x: 470, y: 235, cell: 1, splitOnDrop: true },
+      ],
+      slots: [...poles(0, 105, 275, 128), ...poles(1, 385, 555, 128)],
+      accept: () => true, split: true,
+      check: (st) => ({ done: ["L", "R"].every(s => filled2(st, s, 0) === 2 && filled2(st, s, 1) === 2), ok: true }),
+      success: `Sisters separated in both cells — four products in total.`,
+    },
+    { // 3 result
+      name: "Four haploid cells",
+      membranes: [{ cx: 175, cy: 110, r: 92, label: "n = 2" }, { cx: 485, cy: 110, r: 92, label: "n = 2" },
+                  { cx: 175, cy: 270, r: 92, label: "n = 2" }, { cx: 485, cy: 270, r: 92, label: "n = 2" }],
+      instruction: `<b>Four haploid cells</b>, each genetically unique — thanks to crossing over and independent assortment. These become gametes.`,
+      why: ``, result: [
+        cellPair(175, 110, S("big", "red", "single", true), S("small", "blue", "single")),
+        cellPair(485, 110, S("big", "red", "single"), S("small", "blue", "single")),
+        cellPair(175, 270, S("big", "blue", "single", true), S("small", "red", "single")),
+        cellPair(485, 270, S("big", "blue", "single"), S("small", "red", "single")),
+      ], check: () => ({ done: true, ok: true, terminal: true }),
+    },
+  ],
+};
+
+/* two pole columns (L/R) of 2 slots each, for cell `ci` */
+function poles(ci, lx, rx, r) {
+  const ys = r ? [155, 225] : [110, 175, 210, 275];   // narrow cell: 2 each; wide: 2 each side? use 2
+  const yy = r ? [150, 230] : [110, 160, 210, 260];
+  return [
+    ...yy.slice(0, r ? 2 : 4).map((y, i) => ({ id: `L${ci}_${i}`, x: lx, y, side: "L", cell: ci })),
+    ...yy.slice(0, r ? 2 : 4).map((y, i) => ({ id: `R${ci}_${i}`, x: rx, y, side: "R", cell: ci })),
+  ];
+}
+/* result-cell chromosome layouts */
+function cellSingles(cx, cy) {
+  return [[S("big","red","single"),-24,-26],[S("big","blue","single"),24,-26],
+          [S("small","red","single"),-22,30],[S("small","blue","single"),22,30]]
+          .map(([sp,dx,dy]) => ({ sp, x: cx+dx, y: cy+dy }));
+}
+function cellPair(cx, cy, a, b) { return [{ sp: a, x: cx, y: cy-20 }, { sp: b, x: cx, y: cy+22 }]; }
+
+/* ---------- state ---------- */
+let mode = "mitosis", si = 0;
+let pieces = [], slots = [];   // live objects for current stage
+
+const state = () => ({ pieces, slots });
+const filled = (st, side) => st.slots.filter(s => s.side === side && s.by).length;
+const filled2 = (st, side, cell) => st.slots.filter(s => s.side === side && s.cell === cell && s.by).length;
+const occ = (st, side) => st.slots.filter(s => s.side === side && s.by).map(s => s.by.sp);
+
+/* ---------- rendering ---------- */
+function drawBG(stage) {
+  const bg = $("#bg"); bg.innerHTML = "";
+  (stage.membranes || []).forEach(m => {
+    const c = document.createElementNS(NS, "circle");
+    Object.entries({ cx: m.cx, cy: m.cy, r: m.r, fill: "var(--cell-fill)", stroke: "var(--cell-stroke)", "stroke-width": 3 })
+      .forEach(([k, v]) => c.setAttribute(k, v));
+    bg.appendChild(c);
+  });
+  // plate line hint for metaphase/pairing single-cell stages
+}
+
+function makeChromoDiv(sp, x, y, cls) {
+  const d = el("div", "piece" + (cls ? " " + cls : ""));
+  d.style.left = pxX(x); d.style.top = pxY(y);
+  d.innerHTML = chromoSVG(sp);
+  return d;
+}
+// convert 660x380 coords to % of the layer (keeps things responsive)
+const pxX = (x) => (x / W * 100) + "%";
+const pxY = (y) => (y / H * 100) + "%";
+
+function renderStage() {
+  const stage = STAGES[mode][si];
+  const layer = $("#layer"); layer.innerHTML = "";
+  drawBG(stage);
+
+  $("#stageName").textContent = stage.name;
+  $("#instruction").innerHTML = stage.instruction + (stage.why ? ` <span class="why">${stage.why}</span>` : "");
+  $("#feedback").className = "feedback"; $("#feedback").textContent = "";
+  renderProg();
+
+  // membrane labels
+  (stage.membranes || []).forEach(m => {
+    if (!m.label) return;
+    const t = el("div", "celllabel", m.label);
+    t.style.left = pxX(m.cx); t.style.top = pxY(m.cy + m.r - 16);
+    layer.appendChild(t);
+  });
+
+  if (stage.result) {                     // terminal: static chromosomes, no drag
+    stage.result.flat().forEach(g => layer.appendChild(makeChromoDiv(g.sp, g.x, g.y, "locked")));
+    slots = []; pieces = [];
+    $("#next").disabled = false;
+    $("#next").innerHTML = `Play again <i class="ph-bold ph-arrows-clockwise"></i>`;
+    return;
+  }
+  $("#next").innerHTML = `Next <i class="ph-bold ph-arrow-right"></i>`;
+
+  // slots
+  slots = stage.slots.map(s => ({ ...s, by: null }));
+  slots.forEach(s => {
+    const d = el("div", "slot"); d.dataset.id = s.id;
+    d.style.left = pxX(s.x); d.style.top = pxY(s.y);
+    if (s.lbl) d.appendChild(el("div", "lbl", s.lbl));
+    s.el = d; layer.appendChild(d);
+  });
+
+  // pieces
+  pieces = stage.pieces.map(p => ({ ...p, slot: null }));
+  pieces.forEach(p => {
+    const d = makeChromoDiv(p.sp, p.x, p.y);
+    p.el = d; p.x0 = p.x; p.y0 = p.y;
+    attachDrag(p, stage);
+    layer.appendChild(d);
+  });
+  updateNext(stage);
+}
+
+function renderProg() {
+  const n = STAGES[mode].length, p = $("#prog"); p.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const d = el("div", "p" + (i === si ? " on" : i < si ? " done" : ""));
+    p.appendChild(d);
+  }
+}
+
+/* ---------- drag ---------- */
+let drag = null;
+function fieldRect() { return $("#layer").getBoundingClientRect(); }
+function attachDrag(p, stage) {
+  p.el.addEventListener("pointerdown", (e) => {
+    if (p.locked) return;
+    e.preventDefault();
+    p.el.setPointerCapture(e.pointerId);
+    p.el.classList.add("drag");
+    if (p.slot) { p.slot.by = null; setGlow(p.slot, false); p.slot = null; }
+    drag = { p, stage };
+    highlightSlots(stage, p, true);
+  });
+  p.el.addEventListener("pointermove", (e) => {
+    if (!drag || drag.p !== p) return;
+    const r = fieldRect();
+    p.x = (e.clientX - r.left) / r.width * W;
+    p.y = (e.clientY - r.top) / r.height * H;
+    p.x = Math.max(30, Math.min(W - 30, p.x)); p.y = Math.max(40, Math.min(H - 40, p.y));
+    p.el.style.left = pxX(p.x); p.el.style.top = pxY(p.y);
+  });
+  const end = (e) => {
+    if (!drag || drag.p !== p) return;
+    p.el.classList.remove("drag");
+    highlightSlots(stage, p, false);
+    drag = null;
+    drop(p, stage);
+  };
+  p.el.addEventListener("pointerup", end);
+  p.el.addEventListener("pointercancel", end);
+}
+
+function nearestSlot(p, stage) {
+  let best = null, bd = 62;
+  slots.forEach(s => {
+    if (s.by) return;
+    if (!stage.accept(p.sp, s)) return;
+    const d = Math.hypot(s.x - p.x, s.y - p.y);
+    if (d < bd) { bd = d; best = s; }
+  });
+  return best;
+}
+
+function drop(p, stage) {
+  if (stage.split && p.splitOnDrop) {
+    // must have moved meaningfully toward a pole region
+    const moved = Math.hypot(p.x - p.x0, p.y - p.y0) > 26;
+    if (moved) return splitToPoles(p, stage);
+    return snapBack(p);
+  }
+  const s = nearestSlot(p, stage);
+  if (s) { placeInSlot(p, s); afterAction(stage); }
+  else snapBack(p);
+}
+
+function placeInSlot(p, s) {
+  p.slot = s; s.by = p;
+  p.x = s.x; p.y = s.y;
+  p.el.style.left = pxX(s.x); p.el.style.top = pxY(s.y);
+}
+function snapBack(p) {
+  p.x = p.x0; p.y = p.y0;
+  p.el.style.left = pxX(p.x0); p.el.style.top = pxY(p.y0);
+}
+
+function splitToPoles(p, stage) {
+  const L = slots.find(s => s.side === "L" && s.cell === p.cell && !s.by);
+  const R = slots.find(s => s.side === "R" && s.cell === p.cell && !s.by);
+  if (!L || !R) return snapBack(p);
+  const prod = { ...p.sp, form: "single" };
+  [[L], [R]].forEach(([slot]) => {
+    const d = makeChromoDiv(prod, slot.x, slot.y, "locked");
+    $("#layer").appendChild(d);
+    slot.by = { sp: prod };
+  });
+  p.el.remove();
+  pieces = pieces.filter(x => x !== p);
+  afterAction(stage);
+}
+
+function afterAction(stage) {
+  const res = stage.check(state());
+  const fb = $("#feedback");
+  if (res.done) {
+    fb.className = "feedback ok"; fb.textContent = stage.success || "Nice!";
+    lockAll();
+    updateNext(stage, true);
+  } else if (res.ok === false) {
+    fb.className = "feedback no"; fb.textContent = res.hint || "Not quite — try again.";
+    updateNext(stage, false);
+  } else {
+    fb.className = "feedback"; fb.textContent = "";
+    updateNext(stage, false);
+  }
+}
+function lockAll() { pieces.forEach(p => { p.locked = true; p.el.classList.add("locked"); }); }
+function updateNext(stage, done) {
+  const isDone = done ?? stage.check(state()).done;
+  $("#next").disabled = !isDone;
+  $("#next").classList.toggle("go", !!isDone);
+}
+
+/* slot glow while dragging */
+function highlightSlots(stage, p, on) {
+  slots.forEach(s => {
+    const valid = !s.by && (stage.split ? (s.side === "L" || s.side === "R") && s.cell === p.cell : stage.accept(p.sp, s));
+    setGlow(s, on && valid);
+  });
+}
+function setGlow(s, on) {
+  if (!s.el) return;
+  s.el.style.borderColor = on ? "var(--star)" : "var(--slot)";
+  s.el.style.background = on ? "rgba(138,95,208,0.12)" : "transparent";
+}
+
+/* ---------- flow ---------- */
+function setMode(m) {
+  mode = m; si = 0;
+  $("#mMitosis").classList.toggle("on", m === "mitosis");
+  $("#mMeiosis").classList.toggle("on", m === "meiosis");
+  $("#modeBadge").textContent = m;
+  renderStage();
+}
+function next() {
+  const stage = STAGES[mode][si];
+  if (stage.check(state()).terminal) { si = 0; renderStage(); return; }
+  if (!stage.check(state()).done) return;
+  if (si < STAGES[mode].length - 1) { si++; renderStage(); }
+}
+
+$("#mMitosis").addEventListener("click", () => setMode("mitosis"));
+$("#mMeiosis").addEventListener("click", () => setMode("meiosis"));
+$("#restart").addEventListener("click", () => { si = 0; renderStage(); });
+$("#next").addEventListener("click", next);
+
+setMode("mitosis");
+</script>
+</body>
+</html>
