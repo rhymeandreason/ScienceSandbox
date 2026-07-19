@@ -168,6 +168,22 @@
 
   .slots-hint { font-family: var(--font-hand); color: rgba(74,64,56,0.6); font-size: 0.9rem; margin-top: 10px; }
 
+  /* "Make it!" — appears only once every ingredient is in the blob */
+  .make-btn {
+    display: none; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 18px; padding: 12px 26px;
+    border: none; border-radius: 999px; cursor: pointer;
+    background: var(--ink); color: #fff;
+    font-family: var(--font-display); font-weight: 700; font-size: 1.05rem;
+    box-shadow: 0 5px 0 rgba(74,64,56,0.35), 0 8px 16px rgba(74,64,56,0.25);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .blob.ready .make-btn { display: inline-flex; animation: nudge 1.4s ease-in-out infinite; }
+  .make-btn:hover { transform: translateY(-1px); }
+  .make-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(74,64,56,0.35); }
+  .blob.ready .slots-hint { display: none; }
+  .blob.done .make-btn { display: none; }
+
   /* produces list (revealed after reaction) */
   .produces { margin-top: 14px; opacity: 0; max-height: 0; overflow: hidden; transition: opacity .4s ease, max-height .4s ease; }
   .blob.done .produces { opacity: 1; max-height: 200px; }
@@ -390,6 +406,7 @@ function buildFlow() {
         <div class="drag-prompt">${st.prompt}</div>
         <div class="slots">${slots}</div>
         <div class="slots-hint">drop from your inventory, or tap a slot</div>
+        <button class="make-btn" type="button"><i class="ph-bold ph-flask"></i> Make it!</button>
         <div class="done-badge"><i class="ph-fill ph-check-circle"></i> reaction complete!</div>
         <div class="produces">
           <div class="p-label">↓ this made ↓</div>
@@ -407,6 +424,7 @@ function buildFlow() {
     wireDrop(blob, st, i);
     $$(".slot", step).forEach(slot =>
       slot.addEventListener("click", () => tryFill(st, i, slot.dataset.need)));
+    $(".make-btn", blob).addEventListener("click", () => react(st, i));
   });
 
   // finale
@@ -453,15 +471,20 @@ function tryFill(st, i, type) {
   st._filled[type] = true;
   slot.classList.add("filled");
   renderInventory();
-  // all inputs satisfied?
-  if (Object.keys(st.inputs).every(k => st._filled[k])) react(st, i);
+  // all inputs satisfied? reveal the "Make it!" button — the student fires it
+  if (Object.keys(st.inputs).every(k => st._filled[k])) {
+    $("#blob-" + i).classList.add("ready");
+    toast("Everything's in — hit “Make it!” when you're ready.");
+  }
 }
 
 /* run the reaction: consume already-removed inputs, emit outputs */
 function react(st, i) {
+  if (st._done) return;                      // guard against a double click
   const blob = $("#blob-" + i);
   replay(blob, "react");
   st._done = true;
+  blob.classList.remove("ready");
   blob.classList.add("done");
 
   // outputs fly into inventory, staggered
@@ -475,8 +498,8 @@ function react(st, i) {
   });
 
   toast(reactionLine(st));
-  // reveal the next step
-  setTimeout(() => revealNext(i), 700);
+  // give students a beat to read what this step produced before moving on
+  setTimeout(() => revealNext(i), 1800);
 }
 
 function reactionLine(st) {
