@@ -428,7 +428,8 @@ function renderInventory() {
   box.innerHTML = "";
   INV_ORDER.forEach(type => {
     const it = ITEMS[type], count = inv[type];
-    const row = el("div", "inv-row" + (count === 0 ? " empty" : ""));
+    if (count === 0) return;                  // hide items you don't have yet
+    const row = el("div", "inv-row");
     row.dataset.type = type;
     row.draggable = count > 0;
     row.innerHTML =
