@@ -250,17 +250,6 @@
       <div class="inv-card">
         <div class="inv-head">Inventory</div>
 
-        <div class="gather">
-          <button class="gather-btn glucose" data-supply="glucose">
-            <span class="g-ico"><i class="ph-fill ph-cookie"></i></span>
-            Eat glucose <span class="g-add">+1</span>
-          </button>
-          <button class="gather-btn oxygen" data-supply="oxygen">
-            <span class="g-ico"><i class="ph-fill ph-wind"></i></span>
-            Breathe O₂ <span class="g-add">+2</span>
-          </button>
-        </div>
-
         <div class="inv-list" id="invList"></div>
 
         <div class="rail-meter"><div class="rail-meter-fill" id="railFill"></div></div>
@@ -321,8 +310,9 @@ const STATIONS = [
     lock:"" },
 ];
 
-/* the cell starts with a small ATP reserve to prime glycolysis' investment phase */
-const inv = { glucose:0, oxygen:0, pyruvate:0, nadh:0, fadh:0, co2:0, water:0, atp:2 };
+/* the cell starts stocked: glucose + oxygen to run the pathway, plus a small
+   ATP reserve to prime glycolysis' investment phase */
+const inv = { glucose:1, oxygen:6, pyruvate:0, nadh:0, fadh:0, co2:0, water:0, atp:2 };
 /* per-station state: which input types are filled, and whether it's done */
 STATIONS.forEach(s => { s._filled = {}; s._done = false; });
 let unlocked = 0; // highest revealed step index
@@ -526,16 +516,7 @@ function flyTo(fromEl, type, n) {
   setTimeout(() => f.remove(), 850);
 }
 
-/* -------- supplies -------- */
-function getSupply(type) {
-  inv[type] += (type === "oxygen" ? 2 : 1);
-  renderInventory();
-  const btn = $(`.gather-btn.${type}`);
-  if (btn) replay(btn, "kit-pop");
-}
-
 /* -------- init -------- */
-$$("[data-supply]").forEach(b => b.addEventListener("click", () => getSupply(b.dataset.supply)));
 buildFlow();
 renderInventory();
 updateTotal();
