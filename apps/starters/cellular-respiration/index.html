@@ -308,8 +308,8 @@ const INV_ORDER = ["glucose","oxygen","pyruvate","nadh","fadh","atp","co2","wate
 
 const STATIONS = [
   { id:"glycolysis", name:"Glycolysis", tag:"Step 1", where:"cytoplasm",
-    inputs:{ glucose:1 }, outputs:{ pyruvate:2, atp:2, nadh:2 },
-    prompt:"Drag and drop the ingredients to start the reaction!",
+    inputs:{ glucose:1, atp:2 }, outputs:{ pyruvate:2, atp:4, nadh:2 },
+    prompt:"Invest a little ATP to split the glucose — you'll get more back!",
     lock:"Finish glycolysis first" },
   { id:"krebs", name:"Krebs Cycle", tag:"Step 2", where:"mitochondrial matrix",
     inputs:{ pyruvate:2 }, outputs:{ co2:6, atp:2, nadh:8, fadh:2 },
@@ -321,7 +321,8 @@ const STATIONS = [
     lock:"" },
 ];
 
-const inv = { glucose:0, oxygen:0, pyruvate:0, nadh:0, fadh:0, co2:0, water:0, atp:0 };
+/* the cell starts with a small ATP reserve to prime glycolysis' investment phase */
+const inv = { glucose:0, oxygen:0, pyruvate:0, nadh:0, fadh:0, co2:0, water:0, atp:2 };
 /* per-station state: which input types are filled, and whether it's done */
 STATIONS.forEach(s => { s._filled = {}; s._done = false; });
 let unlocked = 0; // highest revealed step index
