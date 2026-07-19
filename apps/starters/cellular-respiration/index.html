@@ -221,9 +221,6 @@
   .blob.done .drag-prompt, .blob.done .slots-hint { display: none; }
   .blob.done .slot { pointer-events: none; cursor: default; }
   .blob.done .slot:hover { transform: none; }
-  .blob .done-badge { display: none; }
-  .blob.done .done-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-family: var(--font-hand); font-size: 1.2rem; color: var(--ink); }
-  .blob.done .done-badge i { color: #3f9d4f; }
 
   /* location annotation ("Takes place in the ___") */
   .where-note {
@@ -307,8 +304,7 @@
   .step.locked .drag-prompt,
   .step.locked .slots,
   .step.locked .slots-hint,
-  .step.locked .make-btn,
-  .step.locked .done-badge { display: none; }
+  .step.locked .make-btn { display: none; }
   .step.locked .blob h2 { margin-bottom: 0; }
   .step.locked .where-note { display: none; }
   /* fade the details in when the step is revealed */
@@ -510,7 +506,6 @@ function buildFlow() {
         <div class="slots">${slots}</div>
         <div class="slots-hint">drop from your inventory, or tap a slot</div>
         <button class="make-btn" type="button"><i class="ph-bold ph-flask"></i> Make it!</button>
-        <div class="done-badge"><i class="ph-fill ph-check-circle"></i> reaction complete!</div>
       </div>
       <div class="where-note">
         <img class="star" src="../../../kit/images/star_1.svg" alt="">
