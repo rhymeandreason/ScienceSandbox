@@ -207,6 +207,65 @@
   .where-note .wtext { font-family: var(--font-display); font-weight: 600; color: #8a3fb0; font-size: 0.95rem; line-height: 1.15; }
   .where-note .wblank { margin-top: 5px; font-family: var(--font-hand); font-size: 1.05rem; color: var(--ink); background: rgba(217,169,240,0.5); border-radius: 8px; padding: 3px 8px; }
 
+  /* ---------- result post-it (shown after "Make it!") ---------- */
+  .result-note {
+    position: absolute; z-index: 6; width: 210px;
+    display: none; flex-direction: column; align-items: flex-end; gap: 12px;
+  }
+  .result-note.show { display: flex; animation: noteIn .45s cubic-bezier(.34,1.4,.5,1); }
+  @keyframes noteIn { 0%{opacity:0; transform: translateY(14px) rotate(6deg) scale(.9);} 100%{opacity:1; transform: none;} }
+  /* place it to the lower-right of each blob, in the open canvas */
+  .step[data-i="0"] .result-note { top: 58%; right: -2%; }
+  .step[data-i="1"] .result-note { top: 60%; right: 6%; }
+  .step[data-i="2"] .result-note { top: 58%; right: 2%; }
+
+  .postit {
+    position: relative; width: 100%; padding: 20px 18px;
+    background: #1f1c19; color: #fff; border-radius: 7px;
+    transform: rotate(2.5deg); box-shadow: 0 12px 26px rgba(31,28,25,0.32);
+  }
+  .postit::before {   /* folded top-right corner */
+    content: ""; position: absolute; top: 0; right: 0;
+    border-width: 0 22px 22px 0; border-style: solid;
+    border-color: var(--paper) var(--paper) transparent transparent;
+    filter: brightness(0.94);
+  }
+  .postit::after {    /* washi tape at the bottom */
+    content: ""; position: absolute; bottom: -10px; left: 50%;
+    width: 66px; height: 22px; transform: translateX(-40%) rotate(-4deg);
+    background: var(--tape); opacity: 0.85; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .pi-head {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-display); font-weight: 700; font-size: 1.12rem;
+    text-align: center; line-height: 1.2; margin-bottom: 14px;
+  }
+  .pi-head .spk { color: #ffe06a; font-size: 0.9rem; }
+  .pi-tokens { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .pi-tok {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px;
+    border-radius: 999px; background: rgba(255,255,255,0.12);
+    font-size: 0.8rem; font-weight: 600; color: #fff;
+  }
+  .pi-tok .swatch { width: 30px; height: 30px; font-size: 0.5rem; border-color: rgba(255,255,255,0.5); color: var(--ink); }
+
+  .continue-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: none; border-radius: 999px; cursor: pointer;
+    background: var(--ink); color: #fff;
+    font-family: var(--font-display); font-weight: 700; font-size: 1rem;
+    padding: 11px 26px; box-shadow: 0 5px 0 rgba(74,64,56,0.35), 0 8px 16px rgba(74,64,56,0.22);
+    animation: nudge 1.4s ease-in-out infinite;
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .continue-btn:hover { transform: translateY(-1px); }
+  .continue-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(74,64,56,0.35); }
+  .continue-btn.spent { display: none; }
+
+  @media (max-width: 900px) {
+    .result-note { position: static; width: min(280px, 80vw); margin: 4px auto 0; align-items: center; top: auto; right: auto; }
+  }
+
   /* arrows between blobs */
   .connector { height: 120px; display: flex; align-items: center; width: 100%; }
   .connector.right { justify-content: center; padding-left: 6%; }
@@ -301,7 +360,7 @@ const GOAL_ATP = 30;
 const ITEMS = {
   glucose:  { name: "Glucose",  tag: "C₆H₁₂O₆" },
   oxygen:   { name: "Oxygen",   tag: "O₂" },
-  pyruvate: { name: "Pyruvate", tag: "C₃" },
+  pyruvate: { name: "Pyruvate", tag: "C₃H₄O₃" },
   nadh:     { name: "NADH",     tag: "NADH" },
   fadh:     { name: "FADH₂",    tag: "FADH₂" },
   co2:      { name: "CO₂",      tag: "CO₂" },
@@ -317,7 +376,7 @@ const STATIONS = [
     prompt:"Invest a little ATP to split the glucose — you'll get more back!",
     lock:"Finish glycolysis first" },
   { id:"krebs", name:"Krebs Cycle", tag:"Step 2", where:"mitochondrial matrix",
-    inputs:{ pyruvate:2 }, outputs:{ co2:6, atp:2, nadh:8, fadh:2 },
+    inputs:{ pyruvate:2 }, outputs:{ nadh:8, fadh:2, atp:2, co2:6 },
     prompt:"Feed in the pyruvate you just made!",
     lock:"Finish the Krebs cycle first" },
   { id:"etc", name:"Electron Transport", tag:"Step 3", where:"inner membrane",
@@ -396,8 +455,10 @@ function buildFlow() {
       `<button class="slot" data-need="${k}" data-count="${v}">
          <span class="s-dot ${k}"></span> ${v}× ${ITEMS[k].name}
        </button>`).join("");
-    const produces = Object.entries(st.outputs).map(([k,v]) =>
-      `<span class="p-pill"><span class="s-dot ${k}"></span> +${v} ${ITEMS[k].name}</span>`).join("");
+    const outs = Object.entries(st.outputs);
+    const headline = `${outs[0][1]} ${ITEMS[outs[0][0]].name} created!`;
+    const tokens = outs.map(([k,v]) =>
+      `<span class="pi-tok"><span class="swatch ${k}">${ITEMS[k].tag}</span> ×${v}</span>`).join("");
 
     step.innerHTML = `
       <div class="blob" id="blob-${i}">
@@ -408,15 +469,18 @@ function buildFlow() {
         <div class="slots-hint">drop from your inventory, or tap a slot</div>
         <button class="make-btn" type="button"><i class="ph-bold ph-flask"></i> Make it!</button>
         <div class="done-badge"><i class="ph-fill ph-check-circle"></i> reaction complete!</div>
-        <div class="produces">
-          <div class="p-label">↓ this made ↓</div>
-          <div class="p-row">${produces}</div>
-        </div>
       </div>
       <div class="where-note">
         <img class="star" src="../../../kit/images/star_1.svg" alt="">
         <div class="wtext">Takes place in the</div>
         <div class="wblank">${st.where}</div>
+      </div>
+      <div class="result-note" id="note-${i}">
+        <div class="postit">
+          <div class="pi-head"><i class="ph-fill ph-sparkle spk"></i> ${headline} <i class="ph-fill ph-sparkle spk"></i></div>
+          <div class="pi-tokens">${tokens}</div>
+        </div>
+        <button class="continue-btn" type="button">Continue <i class="ph-bold ph-arrow-right"></i></button>
       </div>`;
     flow.appendChild(step);
 
@@ -425,6 +489,7 @@ function buildFlow() {
     $$(".slot", step).forEach(slot =>
       slot.addEventListener("click", () => tryFill(st, i, slot.dataset.need)));
     $(".make-btn", blob).addEventListener("click", () => react(st, i));
+    $(".continue-btn", step).addEventListener("click", () => continueStep(st, i));
   });
 
   // finale
@@ -478,7 +543,8 @@ function tryFill(st, i, type) {
   }
 }
 
-/* run the reaction: consume already-removed inputs, emit outputs */
+/* "Make it!" — run the reaction and reveal the result post-it.
+   The outputs are NOT added to inventory yet; that waits for "Continue". */
 function react(st, i) {
   if (st._done) return;                      // guard against a double click
   const blob = $("#blob-" + i);
@@ -487,19 +553,30 @@ function react(st, i) {
   blob.classList.remove("ready");
   blob.classList.add("done");
 
-  // outputs fly into inventory, staggered
+  $("#note-" + i).classList.add("show");     // the black sticky note
+  toast(reactionLine(st));
+}
+
+/* "Continue" — commit this step's products to inventory, then reveal the
+   next step. The post-it stays put so the pathway fills in as you go. */
+function continueStep(st, i) {
+  if (st._continued) return;
+  st._continued = true;
+  $(`#note-${i} .continue-btn`).classList.add("spent");
+  const blob = $("#blob-" + i);
+
+  // outputs fly from the post-it into the inventory, staggered
   Object.entries(st.outputs).forEach(([k,v], idx) => {
     setTimeout(() => {
       inv[k] += v;
       renderInventory();
       updateTotal();
-      flyTo(blob, k, v);
-    }, 250 + idx * 180);
+      flyTo($("#note-" + i), k, v);
+    }, idx * 160);
   });
 
-  toast(reactionLine(st));
-  // give students a beat to read what this step produced before moving on
-  setTimeout(() => revealNext(i), 1800);
+  // give students a beat before the next step slides in
+  setTimeout(() => revealNext(i), 900);
 }
 
 function reactionLine(st) {
