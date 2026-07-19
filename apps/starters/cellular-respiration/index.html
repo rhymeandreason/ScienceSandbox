@@ -11,177 +11,268 @@
 <script src="../../../kit/kit.js"></script>
 
 <style>
-  /* ---- app tokens: cellular respiration uses the default stationery tint ---- */
+  /* ---- app tokens: cellular respiration ingredient colors ---- */
   :root {
-    --glucose: #f0a5b8;
+    --glucose: #c9a3ea;
     --oxygen: #a8d8ef;
     --pyruvate: #f6c56b;
     --nadh: #b6d99a;
-    --fadh: #c9b3e6;
-    --co2: #d8cfc2;
+    --fadh: #cbb5e8;
+    --co2: #e6a5a0;
     --water: #9ad3e8;
     --atp: #ffd94a;
+
+    /* per-step blob tints, straight from the sketch */
+    --blob-1: #dcaeea;   /* glycolysis — lilac */
+    --blob-2: #a9d5ef;   /* krebs — blue */
+    --blob-3: #a5e3ce;   /* etc — teal */
   }
 
-  /* layout */
-  .board { display: grid; grid-template-columns: 1fr; gap: 18px; }
-  @media (min-width: 900px) { .board { grid-template-columns: 230px 1fr; align-items: start; } }
+  /* =======================================================
+     Layout: fixed left inventory + scrolling center flow
+     ======================================================= */
+  .board {
+    max-width: 1180px; margin: 0 auto; padding: 0 20px 80px;
+    display: grid; grid-template-columns: 1fr; gap: 26px;
+  }
+  @media (min-width: 860px) {
+    .board { grid-template-columns: 250px 1fr; align-items: start; }
+  }
 
-  /* ---------- pantry / supplies ---------- */
-  .pantry-btn {
-    display: flex; align-items: center; gap: 10px; width: 100%;
+  /* ---------- fixed inventory rail ---------- */
+  .rail { position: static; }
+  @media (min-width: 860px) {
+    .rail { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); display: flex; flex-direction: column; }
+  }
+
+  .inv-card {
+    background: var(--surface); border: 2px solid var(--stitch);
+    border-radius: var(--radius); box-shadow: var(--card-shadow);
+    padding: 0; overflow: hidden; display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .inv-head {
+    text-align: center; letter-spacing: 2px; font-weight: 600; font-size: 0.8rem;
+    color: var(--ink-soft); text-transform: uppercase;
+    padding: 12px; border-bottom: 2px dashed var(--stitch); background: var(--paper);
+  }
+
+  /* gather buttons */
+  .gather { padding: 12px 12px 4px; display: flex; flex-direction: column; gap: 8px; }
+  .gather-btn {
+    display: flex; align-items: center; gap: 9px; width: 100%;
     border: 2px solid var(--ink); background: var(--paper);
-    border-radius: var(--radius-sm); padding: 11px 12px;
-    font-family: inherit; font-size: 0.98rem; font-weight: 500; color: var(--ink);
-    cursor: pointer; margin-bottom: 10px; box-shadow: 0 3px 0 rgba(74,64,56,0.2);
+    border-radius: var(--radius-sm); padding: 9px 11px;
+    font-family: inherit; font-size: 0.92rem; font-weight: 500; color: var(--ink);
+    cursor: pointer; box-shadow: 0 3px 0 rgba(74,64,56,0.2);
     transition: transform .06s ease, box-shadow .06s ease;
   }
-  .pantry-btn:hover { transform: translateY(-1px); }
-  .pantry-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(74,64,56,0.2); }
-  .pantry-btn .chip { margin-left: auto; }
-  .pantry-btn .ph { font-size: 1.5rem; }
-  .pantry-btn.glucose .ph { color: #e0708c; }
-  .pantry-btn.oxygen .ph { color: #57a7d6; }
+  .gather-btn:hover { transform: translateY(-1px); }
+  .gather-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(74,64,56,0.2); }
+  .gather-btn .g-ico { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 1rem; flex: none; border: 2px solid rgba(74,64,56,0.25); }
+  .gather-btn.glucose .g-ico { background: var(--glucose); }
+  .gather-btn.oxygen  .g-ico { background: var(--oxygen); }
+  .gather-btn .g-add { margin-left: auto; font-family: var(--font-hand); font-size: 1.05rem; color: var(--ink-soft); }
 
-  /* ---------- inventory chips ---------- */
-  .inventory { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px;
-    border-radius: 999px; font-weight: 600; font-size: 0.9rem;
-    border: 2px solid rgba(74,64,56,0.25); background: #fff; white-space: nowrap;
+  /* inventory list (scrolls if needed) */
+  .inv-list { padding: 8px 10px; overflow-y: auto; flex: 1; min-height: 0; }
+  .inv-row {
+    display: flex; align-items: center; gap: 10px; padding: 7px 8px;
+    border-radius: 10px; margin-bottom: 3px; transition: background .15s ease, opacity .2s ease;
+    cursor: grab; user-select: none;
   }
-  .chip .ph { font-size: 1.1rem; }
-  .chip .count { font-variant-numeric: tabular-nums; }
-  .chip.glucose  { background: var(--glucose); }
-  .chip.oxygen   { background: var(--oxygen); }
-  .chip.pyruvate { background: var(--pyruvate); }
-  .chip.nadh     { background: var(--nadh); }
-  .chip.fadh     { background: var(--fadh); }
-  .chip.co2      { background: var(--co2); }
-  .chip.water    { background: var(--water); }
-  .chip.atp      { background: var(--atp); }
-  .chip.dim { opacity: 0.4; }
+  .inv-row:hover:not(.empty) { background: var(--paper); }
+  .inv-row:active:not(.empty) { cursor: grabbing; }
+  .inv-row.empty { opacity: 0.32; cursor: default; }
+  .inv-row.drag-src { opacity: 0.5; }
+  .swatch {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    display: grid; place-items: center; font-size: 0.62rem; font-weight: 700;
+    border: 2px solid rgba(74,64,56,0.28); line-height: 1.05; text-align: center; padding: 1px;
+  }
+  .swatch.glucose{background:var(--glucose)} .swatch.oxygen{background:var(--oxygen)}
+  .swatch.pyruvate{background:var(--pyruvate)} .swatch.nadh{background:var(--nadh)}
+  .swatch.fadh{background:var(--fadh)} .swatch.co2{background:var(--co2)}
+  .swatch.water{background:var(--water)} .swatch.atp{background:var(--atp)}
+  .inv-name { font-size: 0.86rem; font-weight: 500; flex: 1; }
+  .inv-count {
+    font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.95rem;
+    min-width: 26px; text-align: center; padding: 1px 8px; border-radius: 999px;
+    background: var(--paper); border: 1.5px solid var(--stitch); color: var(--ink);
+  }
+  .inv-row.empty .inv-count { background: transparent; border-color: transparent; }
+  .grip { color: var(--ink-soft); opacity: 0; font-size: 0.85rem; transition: opacity .15s; }
+  .inv-row:hover:not(.empty) .grip { opacity: 0.6; }
 
-  /* ---------- stations ---------- */
-  .stations { display: grid; gap: 16px; }
-  @media (min-width: 620px) { .stations { grid-template-columns: repeat(3, 1fr); } }
-  .station {
-    position: relative; background: var(--surface); border: 2px solid var(--stitch);
-    border-radius: var(--radius); padding: 14px; box-shadow: var(--card-shadow);
-    display: flex; flex-direction: column; transition: transform .12s ease;
+  /* total ATP footer */
+  .total {
+    border-top: 2px dashed var(--stitch); background: var(--paper);
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
   }
-  .station .badge { left: 14px; }
-  .station h3 { margin: 6px 0 2px; font-size: 1.1rem; display: flex; align-items: center; gap: 7px; }
-  .station h3 .ph { font-size: 1.4rem; }
-  .station .where { font-family: var(--font-hand); color: var(--ink-soft); font-size: 0.95rem; margin-bottom: 10px; }
-  .recipe {
-    background: var(--paper); border: 1.5px dashed var(--stitch); border-radius: 10px;
-    padding: 9px; font-size: 0.82rem; line-height: 1.7;
-  }
-  .recipe .row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  .recipe .arrow { color: var(--ink-soft); font-family: var(--font-hand); margin: 2px 0; }
-  .mini {
-    display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
-    border: 1.5px solid rgba(74,64,56,0.2); font-weight: 600; font-size: 0.78rem;
-  }
-  .mini.glucose{background:var(--glucose)} .mini.oxygen{background:var(--oxygen)}
-  .mini.pyruvate{background:var(--pyruvate)} .mini.nadh{background:var(--nadh)}
-  .mini.fadh{background:var(--fadh)} .mini.co2{background:var(--co2)}
-  .mini.water{background:var(--water)} .mini.atp{background:var(--atp)}
+  .total .lbl { letter-spacing: 1.5px; font-size: 0.72rem; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; }
+  .total .val { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; display: inline-flex; align-items: center; gap: 4px; }
+  .total .val i { color: var(--atp); }
+  .total.win .val { color: #e0a400; }
 
-  .make-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-    border: 2px solid var(--ink); border-radius: var(--radius-sm); background: #efe7d5; color: var(--ink);
-    font-family: inherit; font-weight: 600; font-size: 1rem; padding: 11px;
-    margin-top: 12px; cursor: not-allowed; opacity: 0.55;
-    box-shadow: 0 3px 0 rgba(74,64,56,0.2); transition: all .1s ease;
+  /* mini progress meter under total */
+  .rail-meter { height: 8px; border-radius: 999px; background: var(--paper); border: 1.5px solid var(--stitch); overflow: hidden; margin: 0 14px 12px; }
+  .rail-meter-fill { height: 100%; width: 0%; background: repeating-linear-gradient(45deg, #ffd94a, #ffd94a 8px, #ffcf29 8px, #ffcf29 16px); transition: width .5s ease; }
+
+  /* =======================================================
+     Center flow: big organic blobs + hand-drawn arrows
+     ======================================================= */
+  .flow { position: relative; display: flex; flex-direction: column; align-items: center; }
+
+  .step { position: relative; width: 100%; display: flex; justify-content: center; }
+  /* blobs nudge left/right like the sketch */
+  .step[data-i="0"] { justify-content: flex-end; padding-right: 4%; }
+  .step[data-i="1"] { justify-content: flex-start; padding-left: 2%; }
+  .step[data-i="2"] { justify-content: flex-start; padding-left: 8%; }
+
+  .blob {
+    position: relative; width: min(460px, 88vw); min-height: 400px;
+    padding: 46px 44px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    border-radius: 47% 53% 44% 56% / 55% 47% 53% 45%;
+    transition: transform .18s ease, box-shadow .18s ease, filter .3s ease;
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,0.35), 0 10px 26px rgba(74,64,56,0.14);
   }
-  .make-btn.ready { cursor: pointer; opacity: 1; background: #ffe9a8; animation: nudge 1.6s ease-in-out infinite; }
-  .make-btn.ready:hover { transform: translateY(-1px); }
-  .make-btn.ready:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(74,64,56,0.2); }
+  .step[data-i="0"] .blob { background: var(--blob-1); border-radius: 48% 52% 42% 58% / 58% 44% 56% 42%; }
+  .step[data-i="1"] .blob { background: var(--blob-2); border-radius: 54% 46% 55% 45% / 46% 55% 45% 54%; }
+  .step[data-i="2"] .blob { background: var(--blob-3); border-radius: 44% 56% 48% 52% / 52% 48% 55% 45%; }
 
-  .station.pop { animation: pop .4s ease; }
-  @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.04)} 100%{transform:scale(1)} }
+  .blob.drop-hot { transform: scale(1.03); box-shadow: inset 0 0 0 4px rgba(255,255,255,0.6), 0 0 0 5px rgba(74,64,56,0.18), 0 14px 30px rgba(74,64,56,0.2); }
+  .blob.react { animation: blobPulse .6s ease; }
+  @keyframes blobPulse { 0%{transform:scale(1)} 35%{transform:scale(1.05)} 70%{transform:scale(0.99)} 100%{transform:scale(1)} }
 
-  /* ---------- goal / cell ---------- */
-  .goal { margin-top: 18px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .blob .step-tag { font-family: var(--font-display); font-weight: 600; letter-spacing: 2px; font-size: 0.78rem; text-transform: uppercase; color: rgba(74,64,56,0.7); }
+  .blob h2 { margin: 2px 0 6px; font-size: 1.9rem; font-weight: 700; color: var(--ink); }
+  .blob .drag-prompt { font-family: var(--font-hand); font-size: 1.12rem; color: rgba(74,64,56,0.85); margin-bottom: 16px; line-height: 1.3; max-width: 260px; }
+
+  /* requirement slots inside the blob */
+  .slots { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 4px; }
+  .slot {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px 7px 8px;
+    border-radius: 999px; font-weight: 600; font-size: 0.86rem; color: var(--ink);
+    background: rgba(255,255,255,0.55); border: 2px dashed rgba(74,64,56,0.4);
+    cursor: pointer; transition: transform .1s ease, background .2s ease, border-color .2s ease;
+  }
+  .slot:hover { transform: translateY(-1px); }
+  .slot .s-dot { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 0.52rem; font-weight: 700; border: 2px solid rgba(74,64,56,0.28); line-height: 1; text-align: center; }
+  .slot.filled { background: rgba(255,255,255,0.92); border-style: solid; border-color: rgba(74,64,56,0.55); }
+  .slot.filled::after { content: "✓"; color: #3f9d4f; font-weight: 800; margin-left: 2px; }
+  .slot.shake { animation: kit-shake .35s ease; }
+  .s-dot.glucose{background:var(--glucose)} .s-dot.oxygen{background:var(--oxygen)}
+  .s-dot.pyruvate{background:var(--pyruvate)} .s-dot.nadh{background:var(--nadh)}
+  .s-dot.fadh{background:var(--fadh)} .s-dot.atp{background:var(--atp)}
+
+  .slots-hint { font-family: var(--font-hand); color: rgba(74,64,56,0.6); font-size: 0.9rem; margin-top: 10px; }
+
+  /* produces list (revealed after reaction) */
+  .produces { margin-top: 14px; opacity: 0; max-height: 0; overflow: hidden; transition: opacity .4s ease, max-height .4s ease; }
+  .blob.done .produces { opacity: 1; max-height: 200px; }
+  .produces .p-label { font-family: var(--font-hand); font-size: 0.95rem; color: rgba(74,64,56,0.75); margin-bottom: 6px; }
+  .produces .p-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .p-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 0.8rem; background: rgba(255,255,255,0.9); border: 2px solid rgba(74,64,56,0.35); }
+  .p-pill .s-dot { width: 17px; height: 17px; font-size: 0.44rem; }
+
+  .blob.done .drag-prompt, .blob.done .slots, .blob.done .slots-hint { display: none; }
+  .blob .done-badge { display: none; }
+  .blob.done .done-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-family: var(--font-hand); font-size: 1.2rem; color: var(--ink); }
+  .blob.done .done-badge i { color: #3f9d4f; }
+
+  /* location annotation ("Takes place in the ___") */
+  .where-note {
+    position: absolute; top: 30px; right: -14px; width: 150px; text-align: center;
+    transform: rotate(3deg); pointer-events: none; z-index: 3;
+  }
+  .step[data-i="1"] .where-note, .step[data-i="2"] .where-note { right: auto; left: -18px; transform: rotate(-3deg); }
+  .where-note .star { width: 26px; height: 26px; margin: 0 auto 2px; display: block; }
+  .where-note .wtext { font-family: var(--font-display); font-weight: 600; color: #8a3fb0; font-size: 0.95rem; line-height: 1.15; }
+  .where-note .wblank { margin-top: 5px; font-family: var(--font-hand); font-size: 1.05rem; color: var(--ink); background: rgba(217,169,240,0.5); border-radius: 8px; padding: 3px 8px; }
+
+  /* arrows between blobs */
+  .connector { height: 120px; display: flex; align-items: center; width: 100%; }
+  .connector.right { justify-content: center; padding-left: 6%; }
+  .connector.left  { justify-content: center; padding-right: 6%; }
+  .connector img { height: 108px; opacity: 0.85; transition: opacity .4s ease; }
+  .connector.left img { transform: scaleX(1); }
+
+  /* locked / gradual reveal */
+  .step.locked .blob { filter: grayscale(0.7) brightness(1.04); pointer-events: none; }
+  .step.locked .blob::before {
+    content: "🔒 " attr(data-lock); position: absolute; inset: 0; z-index: 4;
+    display: grid; place-content: center; font-family: var(--font-hand); font-size: 1.2rem;
+    color: var(--ink-soft); background: rgba(251,246,234,0.55); border-radius: inherit; text-align: center; padding: 0 30px;
+  }
+  .step.locked .where-note { display: none; }
+  .step.hidden, .connector.hidden { display: none; }
+  .step.reveal { animation: kit-cardin .5s ease; }
+
+  /* final cell reward */
+  .finale { text-align: center; margin-top: 30px; opacity: 0.4; transition: opacity .5s ease; }
+  .finale.on { opacity: 1; }
   .cell {
-    position: relative; width: 92px; height: 92px; flex: none; border-radius: 50%;
+    width: 120px; height: 120px; margin: 0 auto 12px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #d9ead0, #bcd6ad); border: 3px solid #9cbb88;
-    display: grid; place-items: center; transition: filter .4s ease, box-shadow .4s ease;
-    filter: saturate(0.5) brightness(0.96);
+    display: grid; place-items: center; filter: saturate(0.5) brightness(0.96);
+    transition: filter .5s ease, box-shadow .5s ease;
   }
-  .cell .ph { font-size: 2.4rem; color: #6e8a5a; transition: color .4s ease; }
-  .cell.powered { box-shadow: 0 0 0 4px rgba(255,217,74,0.35), 0 0 26px 6px rgba(255,217,74,0.55); filter: saturate(1.2) brightness(1.05); }
-  .cell.powered .ph { color: #e0a400; }
+  .cell i { font-size: 3rem; color: #6e8a5a; transition: color .5s ease; }
+  .finale.on .cell { box-shadow: 0 0 0 5px rgba(255,217,74,0.35), 0 0 30px 8px rgba(255,217,74,0.55); filter: saturate(1.25) brightness(1.06); }
+  .finale.on .cell i { color: #e0a400; }
+  .finale .fnote { font-family: var(--font-hand); font-size: 1.2rem; color: var(--ink-soft); }
 
-  .meter-wrap { flex: 1; min-width: 220px; }
-  .meter-label { display: flex; justify-content: space-between; font-weight: 500; margin-bottom: 6px; }
-  .meter-label .ph { color: var(--atp); }
-  .meter { height: 20px; border-radius: 999px; background: var(--paper); border: 2px solid var(--stitch); overflow: hidden; }
-  .meter-fill {
-    height: 100%; width: 0%;
-    background: repeating-linear-gradient(45deg, #ffd94a, #ffd94a 10px, #ffcf29 10px, #ffcf29 20px);
-    transition: width .4s ease;
+  /* a floating token that drifts to the inventory rail */
+  .flyer {
+    position: fixed; pointer-events: none; z-index: 70;
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
+    border-radius: 999px; font-weight: 700; font-size: 0.85rem;
+    border: 2px solid rgba(74,64,56,0.3); background: #fff;
+    box-shadow: 0 4px 10px rgba(74,64,56,0.2);
+    transition: transform .8s cubic-bezier(.4,0,.2,1), opacity .8s ease;
   }
-  .goal-note { font-family: var(--font-hand); color: var(--ink-soft); font-size: 1.05rem; margin-top: 6px; }
-
-  /* float-up particle for outputs */
-  .float {
-    position: fixed; pointer-events: none; z-index: 60; font-weight: 700; font-size: 0.95rem;
-    display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
-    border: 2px solid rgba(74,64,56,0.25); animation: floatUp 1s ease forwards;
-  }
-  @keyframes floatUp {
-    0% { opacity: 0; transform: translateY(0) scale(0.8); }
-    20% { opacity: 1; }
-    100% { opacity: 0; transform: translateY(-70px) scale(1.05); }
-  }
+  .flyer .s-dot { width: 16px; height: 16px; font-size: 0.42rem; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" style="max-width:1180px;">
   <header>
     <div class="title-card">
       <h1><i class="ph-fill ph-flask"></i> Respiration Lab</h1>
-      <div class="subtitle">craft glucose + oxygen into energy, one station at a time!</div>
+      <div class="subtitle">drag glucose &amp; oxygen through the pathway to power up the cell!</div>
     </div>
   </header>
 
   <div class="board">
-    <aside class="panel" aria-label="Supplies">
-      <h2><i class="ph-bold ph-basket"></i> Supplies</h2>
-      <button class="pantry-btn glucose" data-supply="glucose">
-        <i class="ph-fill ph-cookie"></i> Eat glucose
-        <span class="chip glucose" style="padding:2px 8px;">+1</span>
-      </button>
-      <button class="pantry-btn oxygen" data-supply="oxygen">
-        <i class="ph-fill ph-wind"></i> Breathe O₂
-        <span class="chip oxygen" style="padding:2px 8px;">+2</span>
-      </button>
-      <p class="hint">Tip: grab a little glucose &amp; oxygen, then feed the stations in order → → →</p>
-    </aside>
+    <!-- ============ fixed inventory rail ============ -->
+    <aside class="rail" aria-label="Inventory">
+      <div class="inv-card">
+        <div class="inv-head">Inventory</div>
 
-    <main>
-      <section class="panel" style="margin-bottom:18px;">
-        <h2><i class="ph-bold ph-package"></i> Your stuff</h2>
-        <div class="inventory" id="inventory"></div>
-      </section>
+        <div class="gather">
+          <button class="gather-btn glucose" data-supply="glucose">
+            <span class="g-ico"><i class="ph-fill ph-cookie"></i></span>
+            Eat glucose <span class="g-add">+1</span>
+          </button>
+          <button class="gather-btn oxygen" data-supply="oxygen">
+            <span class="g-ico"><i class="ph-fill ph-wind"></i></span>
+            Breathe O₂ <span class="g-add">+2</span>
+          </button>
+        </div>
 
-      <div class="stations" id="stations"></div>
+        <div class="inv-list" id="invList"></div>
 
-      <div class="panel goal" style="margin-top:18px;">
-        <div class="cell" id="cell"><i class="ph-fill ph-atom"></i></div>
-        <div class="meter-wrap">
-          <div class="meter-label">
-            <span><i class="ph-fill ph-lightning"></i> ATP made</span>
-            <span><b id="atpCount">0</b> / <span id="atpGoal">30</span></span>
-          </div>
-          <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
-          <div class="goal-note" id="goalNote">Power up the cell by making 30 ATP!</div>
+        <div class="rail-meter"><div class="rail-meter-fill" id="railFill"></div></div>
+        <div class="total" id="total">
+          <span class="lbl">Total ATP</span>
+          <span class="val"><i class="ph-fill ph-lightning"></i><b id="atpCount">0</b></span>
         </div>
       </div>
-    </main>
+    </aside>
+
+    <!-- ============ scrolling flowchart ============ -->
+    <main class="flow" id="flow"></main>
   </div>
 
   <p class="footer-note">
@@ -192,136 +283,261 @@
 
 <script>
 /* ---------------------------------------------------------
-   Cellular Respiration — a little crafting game
-   Ingredients live in `inv`. Stations consume + produce them.
-   ($ / el / toast come from kit.js)
+   Cellular Respiration — a drag-and-drop crafting flow
+   Inventory lives in `inv`. Drag ingredients into each step's
+   blob; when its requirements are met the reaction fires,
+   outputs fly back to inventory, and the next step reveals.
+   ($ / $$ / el / toast / replay come from kit.js)
 --------------------------------------------------------- */
 
 const GOAL_ATP = 30;
 
+/* formula labels shown inside the little colored swatches */
 const ITEMS = {
-  glucose:  { label: "Glucose",  icon: "ph-fill ph-cookie",         cls: "glucose"  },
-  oxygen:   { label: "O₂",       icon: "ph-fill ph-wind",           cls: "oxygen"   },
-  pyruvate: { label: "Pyruvate", icon: "ph-fill ph-drop-half",      cls: "pyruvate" },
-  nadh:     { label: "NADH",     icon: "ph-fill ph-battery-medium", cls: "nadh"     },
-  fadh:     { label: "FADH₂",    icon: "ph-fill ph-battery-medium", cls: "fadh"     },
-  co2:      { label: "CO₂",      icon: "ph-fill ph-cloud",          cls: "co2"      },
-  water:    { label: "H₂O",      icon: "ph-fill ph-drop",           cls: "water"    },
-  atp:      { label: "ATP",      icon: "ph-fill ph-lightning",      cls: "atp"      },
+  glucose:  { name: "Glucose",  tag: "C₆H₁₂O₆" },
+  oxygen:   { name: "Oxygen",   tag: "O₂" },
+  pyruvate: { name: "Pyruvate", tag: "C₃" },
+  nadh:     { name: "NADH",     tag: "NADH" },
+  fadh:     { name: "FADH₂",    tag: "FADH₂" },
+  co2:      { name: "CO₂",      tag: "CO₂" },
+  water:    { name: "Water",    tag: "H₂O" },
+  atp:      { name: "ATP",      tag: "ATP" },
 };
+/* order shown in the inventory rail */
+const INV_ORDER = ["glucose","oxygen","pyruvate","nadh","fadh","atp","co2","water"];
 
 const STATIONS = [
-  { id: "glycolysis", name: "Glycolysis", where: "in the cytoplasm", icon: "ph-fill ph-scissors",
-    inputs: { glucose: 1 }, outputs: { pyruvate: 2, atp: 2, nadh: 2 } },
-  { id: "krebs", name: "Krebs Cycle", where: "mitochondrial matrix", icon: "ph-fill ph-arrows-clockwise",
-    inputs: { pyruvate: 2 }, outputs: { co2: 6, atp: 2, nadh: 8, fadh: 2 } },
-  { id: "etc", name: "Electron Transport", where: "inner membrane", icon: "ph-fill ph-lightning",
-    inputs: { nadh: 10, fadh: 2, oxygen: 6 }, outputs: { atp: 26, water: 6 } },
+  { id:"glycolysis", name:"Glycolysis", tag:"Step 1", where:"cytoplasm",
+    inputs:{ glucose:1 }, outputs:{ pyruvate:2, atp:2, nadh:2 },
+    prompt:"Drag and drop the ingredients to start the reaction!",
+    lock:"Finish glycolysis first" },
+  { id:"krebs", name:"Krebs Cycle", tag:"Step 2", where:"mitochondrial matrix",
+    inputs:{ pyruvate:2 }, outputs:{ co2:6, atp:2, nadh:8, fadh:2 },
+    prompt:"Feed in the pyruvate you just made!",
+    lock:"Finish the Krebs cycle first" },
+  { id:"etc", name:"Electron Transport", tag:"Step 3", where:"inner membrane",
+    inputs:{ nadh:10, fadh:2, oxygen:6 }, outputs:{ atp:26, water:6 },
+    prompt:"Load the electron carriers + oxygen for the big payoff!",
+    lock:"" },
 ];
 
 const inv = { glucose:0, oxygen:0, pyruvate:0, nadh:0, fadh:0, co2:0, water:0, atp:0 };
+/* per-station state: which input types are filled, and whether it's done */
+STATIONS.forEach(s => { s._filled = {}; s._done = false; });
+let unlocked = 0; // highest revealed step index
 
-function chipHTML(type, count) {
-  const it = ITEMS[type];
-  return `<i class="${it.icon}"></i> ${it.label} <span class="count">×${count}</span>`;
-}
-function miniHTML(type, n) {
-  const it = ITEMS[type];
-  return `<span class="mini ${it.cls}"><i class="${it.icon}"></i>${n>1?n+"×":""} ${it.label}</span>`;
-}
-function canMake(st) { return Object.entries(st.inputs).every(([k,v]) => inv[k] >= v); }
-
+/* -------- inventory rail -------- */
 function renderInventory() {
-  const box = $("#inventory");
+  const box = $("#invList");
   box.innerHTML = "";
-  Object.keys(ITEMS).forEach(type => {
-    const count = inv[type];
-    const chip = el("span", "chip " + ITEMS[type].cls + (count === 0 ? " dim" : ""));
-    chip.innerHTML = chipHTML(type, count);
-    box.appendChild(chip);
+  INV_ORDER.forEach(type => {
+    const it = ITEMS[type], count = inv[type];
+    const row = el("div", "inv-row" + (count === 0 ? " empty" : ""));
+    row.dataset.type = type;
+    row.draggable = count > 0;
+    row.innerHTML =
+      `<span class="swatch ${type}">${it.tag}</span>` +
+      `<span class="inv-name">${it.name}</span>` +
+      `<i class="grip ph-bold ph-dots-six-vertical"></i>` +
+      `<span class="inv-count">${count}</span>`;
+    if (count > 0) {
+      row.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", type);
+        e.dataTransfer.effectAllowed = "move";
+        row.classList.add("drag-src");
+      });
+      row.addEventListener("dragend", () => row.classList.remove("drag-src"));
+    }
+    box.appendChild(row);
   });
 }
 
-function renderStations() {
-  const box = $("#stations");
-  box.innerHTML = "";
+function updateTotal() {
+  $("#atpCount").textContent = inv.atp;
+  $("#railFill").style.width = Math.min(100, Math.round(inv.atp / GOAL_ATP * 100)) + "%";
+  if (inv.atp >= GOAL_ATP) {
+    $("#total").classList.add("win");
+    $("#finale").classList.add("on");
+    if (!powered) {
+      powered = true;
+      const note = $("#finale .fnote");
+      if (note) note.innerHTML = "🎉 The cell is powered up — you ran the whole pathway!";
+      toast("🎉 The cell is fully powered — you ran the whole pathway!");
+    }
+  }
+}
+let powered = false;
+
+/* -------- build the flow -------- */
+const ARROWS = ["../../../kit/images/arrowR.svg", "../../../kit/images/arrowL.svg"];
+
+function buildFlow() {
+  const flow = $("#flow");
   STATIONS.forEach((st, i) => {
-    const card = el("div", "station");
-    card.id = "st-" + st.id;
-    const inRows  = Object.entries(st.inputs).map(([k,v]) => miniHTML(k,v)).join(" ");
-    const outRows = Object.entries(st.outputs).map(([k,v]) => miniHTML(k,v)).join(" ");
-    card.innerHTML = `
-      <span class="badge">step ${i+1}</span>
-      <h3><i class="${st.icon}"></i> ${st.name}</h3>
-      <div class="where">${st.where}</div>
-      <div class="recipe">
-        <div class="row">${inRows}</div>
-        <div class="arrow">↓ becomes ↓</div>
-        <div class="row">${outRows}</div>
+    if (i > 0) {
+      const conn = el("div", "connector " + (i % 2 ? "right" : "left") + (i > unlocked ? " hidden" : ""));
+      conn.id = "conn-" + i;
+      conn.innerHTML = `<img src="${ARROWS[(i-1) % 2]}" alt="">`;
+      flow.appendChild(conn);
+    }
+    const step = el("div", "step" + (i > unlocked ? " locked" : ""));
+    step.dataset.i = i;
+    if (st.lock) step.dataset.lock = st.lock;
+    step.id = "step-" + i;
+
+    const slots = Object.entries(st.inputs).map(([k,v]) =>
+      `<button class="slot" data-need="${k}" data-count="${v}">
+         <span class="s-dot ${k}"></span> ${v}× ${ITEMS[k].name}
+       </button>`).join("");
+    const produces = Object.entries(st.outputs).map(([k,v]) =>
+      `<span class="p-pill"><span class="s-dot ${k}"></span> +${v} ${ITEMS[k].name}</span>`).join("");
+
+    step.innerHTML = `
+      <div class="blob" id="blob-${i}">
+        <div class="step-tag">${st.tag}</div>
+        <h2>${st.name}</h2>
+        <div class="drag-prompt">${st.prompt}</div>
+        <div class="slots">${slots}</div>
+        <div class="slots-hint">drop from your inventory, or tap a slot</div>
+        <div class="done-badge"><i class="ph-fill ph-check-circle"></i> reaction complete!</div>
+        <div class="produces">
+          <div class="p-label">↓ this made ↓</div>
+          <div class="p-row">${produces}</div>
+        </div>
+      </div>
+      <div class="where-note">
+        <img class="star" src="../../../kit/images/star_1.svg" alt="">
+        <div class="wtext">Takes place in the</div>
+        <div class="wblank">${st.where}</div>
       </div>`;
-    const btn = el("button", "make-btn");
-    btn.innerHTML = `<i class="ph-bold ph-hammer"></i> Make it!`;
-    btn.addEventListener("click", () => runStation(st, card, btn));
-    card.appendChild(btn);
-    box.appendChild(card);
+    flow.appendChild(step);
+
+    const blob = $("#blob-" + i, step);
+    wireDrop(blob, st, i);
+    $$(".slot", step).forEach(slot =>
+      slot.addEventListener("click", () => tryFill(st, i, slot.dataset.need)));
   });
-  refreshButtons();
+
+  // finale
+  const fin = el("div", "finale");
+  fin.id = "finale";
+  fin.innerHTML = `
+    <div class="cell"><i class="ph-fill ph-atom"></i></div>
+    <div class="fnote">Reach ${GOAL_ATP} ATP to light up the cell!</div>`;
+  flow.appendChild(fin);
 }
 
-function refreshButtons() {
-  STATIONS.forEach(st => {
-    const btn = $("#st-" + st.id + " .make-btn");
-    if (btn) btn.classList.toggle("ready", canMake(st));
+/* -------- drop wiring -------- */
+function wireDrop(blob, st, i) {
+  blob.addEventListener("dragover", (e) => {
+    if (st._done || i > unlocked) return;
+    e.preventDefault(); blob.classList.add("drop-hot");
+  });
+  blob.addEventListener("dragleave", () => blob.classList.remove("drop-hot"));
+  blob.addEventListener("drop", (e) => {
+    e.preventDefault(); blob.classList.remove("drop-hot");
+    const type = e.dataTransfer.getData("text/plain");
+    tryFill(st, i, type);
   });
 }
 
-function floatFrom(cardEl, type, n) {
+/* attempt to satisfy one input line of a station */
+function tryFill(st, i, type) {
+  if (st._done || i > unlocked) return;
+  const need = st.inputs[type];
+  const slot = $(`#step-${i} .slot[data-need="${type}"]`);
+  if (need == null) {                      // wrong ingredient for this step
+    toast(`${st.name} doesn't use ${ITEMS[type] ? ITEMS[type].name : "that"}.`);
+    if (slot) return;
+    replay($("#blob-" + i), "react");
+    return;
+  }
+  if (st._filled[type]) { toast("Already added — try the other slots!"); return; }
+  if (inv[type] < need) {
+    if (slot) { replay(slot, "shake"); }
+    toast(`Need ${need} ${ITEMS[type].name} — you have ${inv[type]}.`);
+    return;
+  }
+  inv[type] -= need;
+  st._filled[type] = true;
+  slot.classList.add("filled");
+  renderInventory();
+  // all inputs satisfied?
+  if (Object.keys(st.inputs).every(k => st._filled[k])) react(st, i);
+}
+
+/* run the reaction: consume already-removed inputs, emit outputs */
+function react(st, i) {
+  const blob = $("#blob-" + i);
+  replay(blob, "react");
+  st._done = true;
+  blob.classList.add("done");
+
+  // outputs fly into inventory, staggered
+  Object.entries(st.outputs).forEach(([k,v], idx) => {
+    setTimeout(() => {
+      inv[k] += v;
+      renderInventory();
+      updateTotal();
+      flyTo(blob, k, v);
+    }, 250 + idx * 180);
+  });
+
+  toast(reactionLine(st));
+  // reveal the next step
+  setTimeout(() => revealNext(i), 700);
+}
+
+function reactionLine(st) {
+  if (st.id === "glycolysis") return "Glucose split into pyruvate — nice!";
+  if (st.id === "krebs") return "Krebs cycle spun — look at all that NADH!";
+  return "⚡ Huge energy payoff from the electron transport chain!";
+}
+
+function revealNext(i) {
+  const next = i + 1;
+  if (next >= STATIONS.length) return;
+  if (next <= unlocked) return;
+  unlocked = next;
+  const conn = $("#conn-" + next);
+  const step = $("#step-" + next);
+  if (conn) conn.classList.remove("hidden");
+  step.classList.remove("hidden", "locked");
+  step.classList.add("reveal");
+  step.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/* fly a token from the blob toward the inventory rail */
+function flyTo(fromEl, type, n) {
   const it = ITEMS[type];
-  const r = cardEl.getBoundingClientRect();
-  const f = el("div", "float " + it.cls, `<i class="${it.icon}"></i> +${n} ${it.label}`);
-  f.style.left = (r.left + r.width/2 - 40 + (Math.random()*40-20)) + "px";
-  f.style.top  = (r.top + 30) + "px";
+  const start = fromEl.getBoundingClientRect();
+  const target = $("#invList").getBoundingClientRect();
+  const f = el("div", "flyer", `<span class="s-dot ${type}"></span> +${n} ${it.name}`);
+  f.style.left = (start.left + start.width/2 - 30) + "px";
+  f.style.top  = (start.top + 60) + "px";
   document.body.appendChild(f);
-  setTimeout(() => f.remove(), 1000);
+  requestAnimationFrame(() => {
+    const dx = (target.left + 40) - (start.left + start.width/2 - 30);
+    const dy = (target.top + 30) - (start.top + 60);
+    f.style.transform = `translate(${dx}px, ${dy}px) scale(0.7)`;
+    f.style.opacity = "0";
+  });
+  setTimeout(() => f.remove(), 850);
 }
 
+/* -------- supplies -------- */
 function getSupply(type) {
   inv[type] += (type === "oxygen" ? 2 : 1);
   renderInventory();
-  refreshButtons();
+  const btn = $(`.gather-btn.${type}`);
+  if (btn) replay(btn, "kit-pop");
 }
 
-function runStation(st, card) {
-  if (!canMake(st)) { toast("Not enough ingredients for " + st.name + " yet!"); return; }
-  Object.entries(st.inputs).forEach(([k,v]) => inv[k] -= v);
-  Object.entries(st.outputs).forEach(([k,v], idx) => {
-    inv[k] += v;
-    setTimeout(() => floatFrom(card, k, v), idx * 130);
-  });
-  replay(card, "pop");
-  renderInventory();
-  refreshButtons();
-  updateGoal();
-  if (st.id === "etc") toast("⚡ Big energy payoff from the electron transport chain!");
-  else if (st.id === "glycolysis") toast("Glucose split into pyruvate — nice!");
-  else toast("Krebs cycle spun — look at all that NADH!");
-}
-
-function updateGoal() {
-  const atp = inv.atp;
-  $("#atpCount").textContent = atp;
-  $("#meterFill").style.width = Math.min(100, Math.round(atp / GOAL_ATP * 100)) + "%";
-  if (atp >= GOAL_ATP) {
-    $("#cell").classList.add("powered");
-    $("#goalNote").innerHTML = "🎉 The cell is powered up! You ran the whole pathway.";
-  }
-}
-
+/* -------- init -------- */
 $$("[data-supply]").forEach(b => b.addEventListener("click", () => getSupply(b.dataset.supply)));
-$("#atpGoal").textContent = GOAL_ATP;
+buildFlow();
 renderInventory();
-renderStations();
-updateGoal();
+updateTotal();
 </script>
 </body>
 </html>
