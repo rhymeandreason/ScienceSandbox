@@ -85,15 +85,39 @@
   .inv-row:active:not(.empty) { cursor: grabbing; }
   .inv-row.empty { opacity: 0.32; cursor: default; }
   .inv-row.drag-src { opacity: 0.5; }
-  .swatch {
-    width: 34px; height: 34px; border-radius: 9px; flex: none;
-    display: grid; place-items: center; font-size: 0.62rem; font-weight: 700;
-    border: 2px solid rgba(74,64,56,0.28); line-height: 1.05; text-align: center; padding: 1px;
+  /* ---------- shaped molecule tokens ----------
+     Each molecule gets its own outlined shape (hexagon glucose, star ATP,
+     triangle pyruvate, …) with its formula inside. One .tok system is reused
+     in the inventory, the reaction slots, the post-it, and the flyers. */
+  .tok {
+    position: relative; flex: none; display: inline-grid; place-items: center;
+    font-weight: 700; line-height: 0.92; text-align: center; color: var(--ink);
+    --shape: circle(50%); --tok-color: #ddd;
+    filter: drop-shadow(0 1px 1px rgba(74,64,56,0.22));
   }
-  .swatch.glucose{background:var(--glucose)} .swatch.oxygen{background:var(--oxygen)}
-  .swatch.pyruvate{background:var(--pyruvate)} .swatch.nadh{background:var(--nadh)}
-  .swatch.fadh{background:var(--fadh)} .swatch.co2{background:var(--co2)}
-  .swatch.water{background:var(--water)} .swatch.atp{background:var(--atp)}
+  .tok::before { content: ""; position: absolute; inset: 0; background: #fff; clip-path: var(--shape); }
+  .tok::after  { content: ""; position: absolute; inset: 2px; background: var(--tok-color); clip-path: var(--shape); }
+  .tok .tl { position: relative; z-index: 1; padding: 0 1px; }
+  /* shapes */
+  .tok.circle   { --shape: circle(49%); }
+  .tok.hex      { --shape: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+  .tok.triangle { --shape: polygon(50% 4%,96% 94%,4% 94%); }
+  .tok.triangle .tl { transform: translateY(4px); }
+  .tok.pentagon { --shape: polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%); }
+  .tok.pentagon .tl { transform: translateY(2px); }
+  .tok.star     { --shape: polygon(50% 0,56.5% 30%,79.4% 9.5%,67% 37.7%,97.6% 34.5%,71% 50%,97.6% 65.5%,67% 62.3%,79.4% 90.5%,56.5% 70%,50% 100%,43.5% 70%,20.6% 90.5%,33% 62.3%,2.4% 65.5%,29% 50%,2.4% 34.5%,33% 37.7%,20.6% 9.5%,43.5% 30%); }
+  /* colors */
+  .tok.glucose{--tok-color:var(--glucose)} .tok.oxygen{--tok-color:var(--oxygen)}
+  .tok.pyruvate{--tok-color:var(--pyruvate)} .tok.nadh{--tok-color:var(--nadh)}
+  .tok.fadh{--tok-color:var(--fadh)} .tok.co2{--tok-color:var(--co2)}
+  .tok.water{--tok-color:var(--water)} .tok.atp{--tok-color:var(--atp)}
+  /* sizes */
+  .tok.sz-inv  { width: 40px; height: 40px; font-size: 0.46rem; }
+  .tok.sz-slot { width: 32px; height: 32px; font-size: 0.4rem; }
+  .tok.sz-note { width: 42px; height: 42px; font-size: 0.47rem; }
+  .tok.sz-fly  { width: 22px; height: 22px; font-size: 0.34rem; }
+  .tok.star.sz-inv, .tok.star.sz-note { width: 44px; height: 44px; }
+
   .inv-name { font-size: 0.86rem; font-weight: 500; flex: 1; }
   .inv-count {
     font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.95rem;
@@ -356,17 +380,23 @@
 
 const GOAL_ATP = 30;
 
-/* formula labels shown inside the little colored swatches */
+/* each molecule: display name, formula shown inside its token, and its shape */
 const ITEMS = {
-  glucose:  { name: "Glucose",  tag: "C₆H₁₂O₆" },
-  oxygen:   { name: "Oxygen",   tag: "O₂" },
-  pyruvate: { name: "Pyruvate", tag: "C₃H₄O₃" },
-  nadh:     { name: "NADH",     tag: "NADH" },
-  fadh:     { name: "FADH₂",    tag: "FADH₂" },
-  co2:      { name: "CO₂",      tag: "CO₂" },
-  water:    { name: "Water",    tag: "H₂O" },
-  atp:      { name: "ATP",      tag: "ATP" },
+  glucose:  { name: "Glucose",  tag: "C₆H₁₂O₆", shape: "hex" },
+  oxygen:   { name: "Oxygen",   tag: "O₂",      shape: "circle" },
+  pyruvate: { name: "Pyruvate", tag: "C₃H₄O₃",  shape: "triangle" },
+  nadh:     { name: "NADH",     tag: "NADH",    shape: "pentagon" },
+  fadh:     { name: "FADH₂",    tag: "FADH₂",   shape: "pentagon" },
+  co2:      { name: "CO₂",      tag: "CO₂",     shape: "circle" },
+  water:    { name: "Water",    tag: "H₂O",     shape: "circle" },
+  atp:      { name: "ATP",      tag: "ATP",     shape: "star" },
 };
+
+/* shaped molecule token: <span class="tok hex glucose sz-inv"><span class="tl">C₆H₁₂O₆</span></span> */
+function tokHTML(type, size) {
+  const it = ITEMS[type];
+  return `<span class="tok ${it.shape} ${type} sz-${size}"><span class="tl">${it.tag}</span></span>`;
+}
 /* order shown in the inventory rail */
 const INV_ORDER = ["glucose","oxygen","pyruvate","nadh","fadh","atp","co2","water"];
 
@@ -402,7 +432,7 @@ function renderInventory() {
     row.dataset.type = type;
     row.draggable = count > 0;
     row.innerHTML =
-      `<span class="swatch ${type}">${it.tag}</span>` +
+      tokHTML(type, "inv") +
       `<span class="inv-name">${it.name}</span>` +
       `<i class="grip ph-bold ph-dots-six-vertical"></i>` +
       `<span class="inv-count">${count}</span>`;
@@ -453,12 +483,12 @@ function buildFlow() {
 
     const slots = Object.entries(st.inputs).map(([k,v]) =>
       `<button class="slot" data-need="${k}" data-count="${v}">
-         <span class="s-dot ${k}"></span> ${v}× ${ITEMS[k].name}
+         ${tokHTML(k, "slot")} ${v}× ${ITEMS[k].name}
        </button>`).join("");
     const outs = Object.entries(st.outputs);
     const headline = `${outs[0][1]} ${ITEMS[outs[0][0]].name} created!`;
     const tokens = outs.map(([k,v]) =>
-      `<span class="pi-tok"><span class="swatch ${k}">${ITEMS[k].tag}</span> ×${v}</span>`).join("");
+      `<span class="pi-tok">${tokHTML(k, "note")} ×${v}</span>`).join("");
 
     step.innerHTML = `
       <div class="blob" id="blob-${i}">
@@ -603,7 +633,7 @@ function flyTo(fromEl, type, n) {
   const it = ITEMS[type];
   const start = fromEl.getBoundingClientRect();
   const target = $("#invList").getBoundingClientRect();
-  const f = el("div", "flyer", `<span class="s-dot ${type}"></span> +${n} ${it.name}`);
+  const f = el("div", "flyer", `${tokHTML(type, "fly")} +${n} ${it.name}`);
   f.style.left = (start.left + start.width/2 - 30) + "px";
   f.style.top  = (start.top + 60) + "px";
   document.body.appendChild(f);
