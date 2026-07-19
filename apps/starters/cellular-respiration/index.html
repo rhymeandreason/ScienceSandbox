@@ -45,46 +45,45 @@
     .rail { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); display: flex; flex-direction: column; }
   }
 
+  /* taped inventory note — a fixed 2-column grid of square cells */
   .inv-card {
-    background: var(--surface); border: 2px solid var(--stitch);
-    border-radius: var(--radius); box-shadow: var(--card-shadow);
-    padding: 0; overflow: hidden; display: flex; flex-direction: column;
-    min-height: 0;
+    position: relative;
+    background: var(--surface); border: 1px solid rgba(74,64,56,0.12);
+    border-radius: 4px; box-shadow: 0 10px 24px rgba(74,64,56,0.14);
+    padding: 20px 16px; display: flex; flex-direction: column;
   }
-  .inv-head {
-    text-align: center; letter-spacing: 2px; font-weight: 600; font-size: 0.8rem;
-    color: var(--ink-soft); text-transform: uppercase;
-    padding: 12px; border-bottom: 2px dashed var(--stitch); background: var(--paper);
+  .tape {
+    position: absolute; left: 50%; width: 116px; height: 40px; z-index: 2;
+    background: var(--tape); opacity: 0.8;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    -webkit-mask-image: linear-gradient(#000,#000); /* keeps corners crisp */
+  }
+  .tape-top    { top: -16px; transform: translateX(-46%) rotate(-4deg); }
+  .tape-bottom { bottom: -16px; transform: translateX(-56%) rotate(4deg); }
+
+  .inv-head, .total-head {
+    text-align: center; letter-spacing: 2.5px; font-weight: 700; font-size: 0.82rem;
+    color: #8f887c; text-transform: uppercase;
+    padding: 11px; background: #e7e3d9;
   }
 
-  /* gather buttons */
-  .gather { padding: 12px 12px 4px; display: flex; flex-direction: column; gap: 8px; }
-  .gather-btn {
-    display: flex; align-items: center; gap: 9px; width: 100%;
-    border: 2px solid var(--ink); background: var(--paper);
-    border-radius: var(--radius-sm); padding: 9px 11px;
-    font-family: inherit; font-size: 0.92rem; font-weight: 500; color: var(--ink);
-    cursor: pointer; box-shadow: 0 3px 0 rgba(74,64,56,0.2);
-    transition: transform .06s ease, box-shadow .06s ease;
+  /* fixed grid: 2 columns of square cells with table-style rules */
+  .inv-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-top: 1.5px solid #d7d1c4; border-left: 1.5px solid #d7d1c4;
   }
-  .gather-btn:hover { transform: translateY(-1px); }
-  .gather-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(74,64,56,0.2); }
-  .gather-btn .g-ico { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 1rem; flex: none; border: 2px solid rgba(74,64,56,0.25); }
-  .gather-btn.glucose .g-ico { background: var(--glucose); }
-  .gather-btn.oxygen  .g-ico { background: var(--oxygen); }
-  .gather-btn .g-add { margin-left: auto; font-family: var(--font-hand); font-size: 1.05rem; color: var(--ink-soft); }
-
-  /* inventory list (scrolls if needed) */
-  .inv-list { padding: 8px 10px; overflow-y: auto; flex: 1; min-height: 0; }
-  .inv-row {
-    display: flex; align-items: center; gap: 10px; padding: 7px 8px;
-    border-radius: 10px; margin-bottom: 3px; transition: background .15s ease, opacity .2s ease;
-    cursor: grab; user-select: none;
+  .inv-cell {
+    position: relative; aspect-ratio: 1 / 1;
+    border-right: 1.5px solid #d7d1c4; border-bottom: 1.5px solid #d7d1c4;
+    display: grid; place-items: center;
   }
-  .inv-row:hover:not(.empty) { background: var(--paper); }
-  .inv-row:active:not(.empty) { cursor: grabbing; }
-  .inv-row.empty { opacity: 0.32; cursor: default; }
-  .inv-row.drag-src { opacity: 0.5; }
+  .inv-cell[data-type] { cursor: grab; user-select: none; }
+  .inv-cell[data-type]:active { cursor: grabbing; }
+  .inv-cell.drag-src { opacity: 0.5; }
+  .inv-cell .cell-count {
+    position: absolute; right: 7px; bottom: 3px;
+    font-weight: 800; font-size: 1rem; color: #a49b8b; font-variant-numeric: tabular-nums;
+  }
   /* ---------- shaped molecule tokens ----------
      Each molecule gets its own outlined shape (hexagon glucose, star ATP,
      triangle pyruvate, …) with its formula inside. One .tok system is reused
@@ -113,34 +112,21 @@
   .tok.water{--tok-color:var(--water)} .tok.atp{--tok-color:var(--atp)}
   /* sizes */
   .tok.sz-inv  { width: 40px; height: 40px; font-size: 0.46rem; }
+  .tok.sz-cell { width: 62px; height: 62px; font-size: 0.62rem; }
   .tok.sz-slot { width: 32px; height: 32px; font-size: 0.4rem; }
   .tok.sz-note { width: 42px; height: 42px; font-size: 0.47rem; }
   .tok.sz-fly  { width: 22px; height: 22px; font-size: 0.34rem; }
   .tok.star.sz-inv, .tok.star.sz-note { width: 44px; height: 44px; }
-
-  .inv-name { font-size: 0.86rem; font-weight: 500; flex: 1; }
-  .inv-count {
-    font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.95rem;
-    min-width: 26px; text-align: center; padding: 1px 8px; border-radius: 999px;
-    background: var(--paper); border: 1.5px solid var(--stitch); color: var(--ink);
-  }
-  .inv-row.empty .inv-count { background: transparent; border-color: transparent; }
-  .grip { color: var(--ink-soft); opacity: 0; font-size: 0.85rem; transition: opacity .15s; }
-  .inv-row:hover:not(.empty) .grip { opacity: 0.6; }
+  .tok.star.sz-cell { width: 68px; height: 68px; }
 
   /* total ATP footer */
-  .total {
-    border-top: 2px dashed var(--stitch); background: var(--paper);
-    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+  .total-head { margin-top: 14px; }
+  .total-val {
+    padding: 12px 16px; text-align: right;
+    font-family: var(--font-display); font-weight: 700; font-size: 2rem; color: var(--ink);
+    border: 1.5px solid #d7d1c4; border-top: none;
   }
-  .total .lbl { letter-spacing: 1.5px; font-size: 0.72rem; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; }
-  .total .val { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; display: inline-flex; align-items: center; gap: 4px; }
-  .total .val i { color: var(--atp); }
-  .total.win .val { color: #e0a400; }
-
-  /* mini progress meter under total */
-  .rail-meter { height: 8px; border-radius: 999px; background: var(--paper); border: 1.5px solid var(--stitch); overflow: hidden; margin: 0 14px 12px; }
-  .rail-meter-fill { height: 100%; width: 0%; background: repeating-linear-gradient(45deg, #ffd94a, #ffd94a 8px, #ffcf29 8px, #ffcf29 16px); transition: width .5s ease; }
+  .total-val.win { color: #e0a400; }
 
   /* =======================================================
      Center flow: big organic blobs + hand-drawn arrows
@@ -353,16 +339,13 @@
   <div class="board">
     <!-- ============ fixed inventory rail ============ -->
     <aside class="rail" aria-label="Inventory">
-      <div class="inv-card">
+      <div class="inv-card" id="invCard">
+        <span class="tape tape-top"></span>
+        <span class="tape tape-bottom"></span>
         <div class="inv-head">Inventory</div>
-
-        <div class="inv-list" id="invList"></div>
-
-        <div class="rail-meter"><div class="rail-meter-fill" id="railFill"></div></div>
-        <div class="total" id="total">
-          <span class="lbl">Total ATP</span>
-          <span class="val"><i class="ph-fill ph-lightning"></i><b id="atpCount">0</b></span>
-        </div>
+        <div class="inv-grid" id="invGrid"></div>
+        <div class="total-head">Total ATP</div>
+        <div class="total-val" id="total"><b id="atpCount">0</b></div>
       </div>
     </aside>
 
@@ -430,35 +413,32 @@ STATIONS.forEach(s => { s._filled = {}; s._done = false; });
 let unlocked = 0; // highest revealed step index
 
 /* -------- inventory rail -------- */
+const INV_CELLS = 8;                          // fixed grid; items fill the cells
+
 function renderInventory() {
-  const box = $("#invList");
-  box.innerHTML = "";
-  INV_ORDER.forEach(type => {
-    const it = ITEMS[type], count = inv[type];
-    if (count === 0) return;                  // hide items you don't have yet
-    const row = el("div", "inv-row");
-    row.dataset.type = type;
-    row.draggable = count > 0;
-    row.innerHTML =
-      tokHTML(type, "inv") +
-      `<span class="inv-name">${it.name}</span>` +
-      `<i class="grip ph-bold ph-dots-six-vertical"></i>` +
-      `<span class="inv-count">${count}</span>`;
-    if (count > 0) {
-      row.addEventListener("dragstart", (e) => {
+  const grid = $("#invGrid");
+  grid.innerHTML = "";
+  const owned = INV_ORDER.filter(t => inv[t] > 0);   // hide what you don't have yet
+  for (let i = 0; i < INV_CELLS; i++) {
+    const cell = el("div", "inv-cell");
+    const type = owned[i];
+    if (type) {
+      cell.dataset.type = type;
+      cell.draggable = true;
+      cell.innerHTML = tokHTML(type, "cell") + `<span class="cell-count">${inv[type]}</span>`;
+      cell.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData("text/plain", type);
         e.dataTransfer.effectAllowed = "move";
-        row.classList.add("drag-src");
+        cell.classList.add("drag-src");
       });
-      row.addEventListener("dragend", () => row.classList.remove("drag-src"));
+      cell.addEventListener("dragend", () => cell.classList.remove("drag-src"));
     }
-    box.appendChild(row);
-  });
+    grid.appendChild(cell);
+  }
 }
 
 function updateTotal() {
   $("#atpCount").textContent = inv.atp;
-  $("#railFill").style.width = Math.min(100, Math.round(inv.atp / GOAL_ATP * 100)) + "%";
   if (inv.atp >= GOAL_ATP) {
     $("#total").classList.add("win");
     $("#finale").classList.add("on");
@@ -639,7 +619,7 @@ function revealNext(i) {
 function flyTo(fromEl, type, n) {
   const it = ITEMS[type];
   const start = fromEl.getBoundingClientRect();
-  const target = $("#invList").getBoundingClientRect();
+  const target = $("#invGrid").getBoundingClientRect();
   const f = el("div", "flyer", `${tokHTML(type, "fly")} +${n} ${it.name}`);
   f.style.left = (start.left + start.width/2 - 30) + "px";
   f.style.top  = (start.top + 60) + "px";
