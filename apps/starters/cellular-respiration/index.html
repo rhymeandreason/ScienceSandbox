@@ -216,7 +216,11 @@
   .p-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 0.8rem; background: rgba(255,255,255,0.9); border: 2px solid rgba(74,64,56,0.35); }
   .p-pill .s-dot { width: 17px; height: 17px; font-size: 0.44rem; }
 
-  .blob.done .drag-prompt, .blob.done .slots, .blob.done .slots-hint { display: none; }
+  /* once reacted, hide the instructions but keep the ingredient tokens in
+     the blob so each completed step stays "filled in" on the diagram */
+  .blob.done .drag-prompt, .blob.done .slots-hint { display: none; }
+  .blob.done .slot { pointer-events: none; cursor: default; }
+  .blob.done .slot:hover { transform: none; }
   .blob .done-badge { display: none; }
   .blob.done .done-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-family: var(--font-hand); font-size: 1.2rem; color: var(--ink); }
   .blob.done .done-badge i { color: #3f9d4f; }
