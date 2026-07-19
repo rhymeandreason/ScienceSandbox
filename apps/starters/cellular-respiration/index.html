@@ -297,14 +297,21 @@
   .connector img { height: 108px; opacity: 0.85; transition: opacity .4s ease; }
   .connector.left img { transform: scaleX(1); }
 
-  /* locked / gradual reveal */
-  .step.locked .blob { filter: grayscale(0.7) brightness(1.04); pointer-events: none; }
-  .step.locked .blob::before {
-    content: "🔒 " attr(data-lock); position: absolute; inset: 0; z-index: 4;
-    display: grid; place-content: center; font-family: var(--font-hand); font-size: 1.2rem;
-    color: var(--ink-soft); background: rgba(251,246,234,0.55); border-radius: inherit; text-align: center; padding: 0 30px;
-  }
+  /* locked / gradual reveal — future steps show only "STEP #" + title;
+     the prompt, slots, "Make it!" and location note appear on reveal. */
+  .step.locked .blob { filter: grayscale(0.45) brightness(1.02); opacity: 0.9; pointer-events: none; }
+  .step.locked .drag-prompt,
+  .step.locked .slots,
+  .step.locked .slots-hint,
+  .step.locked .make-btn,
+  .step.locked .done-badge { display: none; }
+  .step.locked .blob h2 { margin-bottom: 0; }
   .step.locked .where-note { display: none; }
+  /* fade the details in when the step is revealed */
+  .step.reveal .drag-prompt,
+  .step.reveal .slots,
+  .step.reveal .slots-hint,
+  .step.reveal .where-note { animation: kit-cardin .6s ease .15s both; }
   .step.hidden, .connector.hidden { display: none; }
   .step.reveal { animation: kit-cardin .5s ease; }
 
