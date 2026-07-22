@@ -167,8 +167,8 @@ const _up=new THREE.Vector3(0,1,0);
 function hbondTube(a,b){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
-  const n=Math.max(5,Math.round(len/0.2)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
-  for(let i=0;i<n;i++){ if(i%2)continue;                         // skip odd segments = gaps
+  const n=Math.max(5,Math.round(len/0.26)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
+  for(let i=0;i<n;i++){                                          // a dash in every slot, small gap between
     const m=new THREE.Mesh(_hbGeo,_hbMat);
     m.position.copy(a).add(dir.clone().multiplyScalar((i+0.5)/n));
     m.quaternion.copy(q); m.scale.set(1,len/n*0.6,1); g.add(m);
@@ -330,12 +330,12 @@ L.push({
       const forces=mols.map(()=>new THREE.Vector3());
       mols.forEach((w,i)=>{
         // gentle pull toward centroid keeps the cluster on screen
-        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.0016));
+        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.001));
         forces[i].add(new THREE.Vector3((Math.random()-.5)*.01,(Math.random()-.5)*.01,(Math.random()-.5)*.01));
       });
       // short-range steric (Pauli) repulsion — the hard core that stops molecules
       // collapsing. Floor sits below the H-bond equilibrium so bonded pairs settle there.
-      const MIN=3.0;
+      const MIN=3.3;
       for(let i=0;i<mols.length;i++)for(let j=i+1;j<mols.length;j++){
         const d=new THREE.Vector3().subVectors(mols[i].position,mols[j].position);
         const dist=Math.max(0.4,d.length());
@@ -366,7 +366,7 @@ L.push({
             if(best){ const l=hbondTube(h,best); lines.push(l); root.add(l); n++;
               // the H-bond is an attractive force: pull the two molecules toward the
               // equilibrium O···O distance, scaled by how linear (aligned) the bond is
-              const EQ=3.5, kHB=0.007;
+              const EQ=3.9, kHB=0.007;
               const ax=new THREE.Vector3().subVectors(bestMol.position,donor.position);
               const dist=ax.length()||1; ax.multiplyScalar((dist-EQ)*kHB*bestLin/dist);
               donor.userData.vel.add(ax); bestMol.userData.vel.sub(ax);
