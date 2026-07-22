@@ -28,6 +28,13 @@
     --blob-3: #a5e3ce;   /* etc — teal */
   }
 
+  /* plain title — no tape, border, or card background (override theme) */
+  body .title-card {
+    background: none; border: none; box-shadow: none;
+    padding: 8px 0; transform: none;
+  }
+  body .title-card::before, body .title-card::after { content: none; }
+
   /* =======================================================
      Layout: fixed left inventory + scrolling center flow
      ======================================================= */
