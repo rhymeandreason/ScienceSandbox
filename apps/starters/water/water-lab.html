@@ -481,33 +481,39 @@ L.push({
 L.push({
   title:'Specific Heat & Thermoregulation',
   build(){
-    hintEl.textContent='Add heat — energy first breaks H-bonds before molecules speed away';
-    const mols=[]; const N=16;
-    for(let i=0;i<N;i++){ const w=water();
-      w.userData.home=new THREE.Vector3((i%4-1.5)*2.2,(Math.floor(i/4)-1.5)*2.2,(Math.random()-.5)*2);
-      w.position.copy(w.userData.home); root.add(w); mols.push(w);
-      w.userData.escaped=false;
-    }
+    hintEl.textContent='Add heat — energy first breaks hydrogen bonds, then molecules escape (evaporate)';
+    // engine tuned as a cohesive liquid droplet; heat is injected per-frame
+    const sim=createWaterSim({centroidPull:0.0022, MIN:3.3, EQ:3.7, kHB:0.008, jitter:0.006});
+    for(let i=0;i<14;i++)
+      sim.spawn(new THREE.Vector3((Math.random()-.5)*5,(Math.random()-.5)*5,(Math.random()-.5)*4));
+
     let temp=20;
     slider('🔥 Heat',0,100,20,1,v=>temp=v);
-    frameFn=(t)=>{
-      const amp=temp/100;
-      let escaped=0;
-      mols.forEach((w,i)=>{
-        const jitter=amp*0.6;
-        if(temp>85 && !w.userData.escaped && Math.random()<0.004){w.userData.escaped=true;}
-        if(w.userData.escaped){ w.position.y+=0.08+amp*0.05; w.rotation.x+=0.1;
-          if(w.position.y>7){w.position.copy(w.userData.home);w.userData.escaped=false;} escaped++;
-        } else {
-          w.position.x=w.userData.home.x+Math.sin(t*0.005+i)*jitter;
-          w.position.y=w.userData.home.y+Math.cos(t*0.006+i)*jitter;
-          w.rotation.y+=0.01+amp*0.03;
-        }
-      });
-      const label = temp<40?'liquid — H-bonds intact':temp<85?'warming — H-bonds flexing':'evaporating — H-bonds breaking';
-      setReadout(`Temp <b>${temp}°</b><br>${label}<br>${escaped} molecule(s) escaping`);
+    toggle('🟢 Show hydrogen bonds','hbond',true);
+    const rnd=()=>new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5);
+
+    frameFn=()=>{
+      const T=temp/100;
+      // hydrogen bonds weaken as temperature rises — energy goes into breaking
+      // them (high specific heat). Cohesion is gone by ~82°.
+      const hbScale=Math.max(0, 1-temp/82);
+      let escaping=0;
+      const r=sim.step({ showHbonds:flags.hbond, hbScale, hook:(w,i,f)=>{
+        f.add(rnd().multiplyScalar(T*0.03));                    // thermal kinetic energy ∝ T
+        if(w.userData.escaped){ f.set(0,0.02,0); escaping++; }  // rising vapour molecule
+        else if(temp>80 && Math.random()<0.0008*(temp-80)) w.userData.escaped=true;  // break free
+      }});
+      // recycle escaped molecules back into the droplet once they leave the top
+      sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>8){
+        w.position.set((Math.random()-.5)*4,-4.5,(Math.random()-.5)*4);
+        w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
+
+      const state = temp<35 ? 'liquid — H-bonds intact, absorbing heat'
+                  : temp<80 ? 'warming — H-bonds flexing & breaking'
+                  : 'evaporating — H-bonds break, molecules escape';
+      setReadout(`Temp <b>${temp}°</b><br>${state}<br><b style="color:#6fe3c4">${r.hbondCount}</b> H-bonds · ${escaping} escaping`);
     };
-    cam.r=17; applyCam();
+    cam.r=18; applyCam();
   }
 });
 
