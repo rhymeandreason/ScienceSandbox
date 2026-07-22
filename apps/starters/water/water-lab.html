@@ -42,6 +42,10 @@
   #readout{position:absolute;top:14px;right:16px;font-size:12px;color:var(--accent2);
     background:rgba(15,23,41,.7);padding:6px 11px;border-radius:8px;border:1px solid var(--line);
     font-variant-numeric:tabular-nums;text-align:right;min-width:120px;display:none}
+  #savepng{position:absolute;bottom:16px;right:16px;font-size:12.5px;color:var(--ink);
+    background:rgba(15,23,41,.82);border:1px solid var(--line);border-radius:10px;padding:7px 12px;
+    cursor:pointer;backdrop-filter:blur(6px)}
+  #savepng:hover{border-color:var(--accent)}
   #side{grid-row:3;grid-column:2;background:var(--panel);border-left:1px solid var(--line);
     display:flex;flex-direction:column;overflow:hidden}
   #card{padding:22px 24px;overflow-y:auto;flex:1}
@@ -82,6 +86,7 @@
     <div class="hint" id="hint"></div>
     <div id="readout"></div>
     <div id="controls"></div>
+    <button id="savepng" title="Save transparent PNG">⬇ PNG</button>
   </div>
   <div id="side">
     <div id="card"></div>
@@ -102,7 +107,7 @@
 
 /* ---------- scene setup ---------- */
 const canvas = document.getElementById('gl');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
@@ -799,6 +804,15 @@ applyCam(); resize();
 function loop(t){ if(frameFn)frameFn(t); renderer.render(scene,camera); requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
 go(0);
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);                          // fresh frame into the preserved buffer
+  const name=(L[cur]?.title||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const a=document.createElement('a');
+  a.download=`${name}.png`;
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+};
 </script>
 </body>
 </html>
