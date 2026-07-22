@@ -521,96 +521,79 @@ L.push({
 L.push({
   title:'Why Ice Floats',
   build(){
-    hintEl.textContent='Freeze into real hexagonal ice (Iₕ) — a tetrahedral O framework, one H per O···O bridge';
-    // ───────── build the true ice Iₕ oxygen lattice ─────────
-    // Puckered hexagonal bilayers, ABAB-stacked. Every O is tetrahedrally
-    // bonded to 4 others (O–O = b); each bilayer has thickness b/3 and the
-    // stacking period is 4b/3.  This is the hexagonal-ice (Iₕ) O sublattice.
-    const b=2.2, dxy=0.9428*b, alat=Math.sqrt(3)*dxy;
+    hintEl.textContent='Freeze the molecules into real hexagonal ice (Iₕ) — an open tetrahedral lattice';
+    // ───────── true ice Iₕ oxygen lattice ─────────
+    // Puckered hexagonal bilayers, ABAB-stacked; every O tetrahedrally bonded
+    // to 4 others (O–O = b). b is large so each molecule's own H bridges the gap.
+    const b=4.0, dxy=0.9428*b, alat=Math.sqrt(3)*dxy;
     const A1=new THREE.Vector2(alat,0), A2=new THREE.Vector2(alat/2,1.5*dxy);
     const Opos=[];
     for(let k=0;k<3;k++){
-      const base=k*(4*b/3), upA=(k%2===0);           // even bilayer: upper=A, lower=B
+      const base=k*(4*b/3), upA=(k%2===0);
       for(let n=-1;n<=1;n++)for(let m=-1;m<=1;m++){
-        const a=A1.clone().multiplyScalar(n).add(A2.clone().multiplyScalar(m));   // A-site (x,z)
-        const bs=a.clone().add(new THREE.Vector2(0,dxy));                         // B-site (x,z)
+        const a=A1.clone().multiplyScalar(n).add(A2.clone().multiplyScalar(m));
+        const bs=a.clone().add(new THREE.Vector2(0,dxy));
         const up=upA?a:bs, lo=upA?bs:a;
-        Opos.push(new THREE.Vector3(up.x, base+b/6, up.y));                       // upper atom
-        Opos.push(new THREE.Vector3(lo.x, base-b/6, lo.y));                       // lower atom
+        Opos.push(new THREE.Vector3(up.x, base+b/6, up.y));
+        Opos.push(new THREE.Vector3(lo.x, base-b/6, lo.y));
       }
     }
-    // centre the crystal
     const ctr=new THREE.Vector3(); Opos.forEach(p=>ctr.add(p)); ctr.multiplyScalar(1/Opos.length);
     Opos.forEach(p=>p.sub(ctr));
-    // bonds (O–O ≈ b) + donor assignment (each O donates 2 H → ice rules)
-    const bonds=[], donorCount=Opos.map(()=>0);
-    for(let i=0;i<Opos.length;i++)for(let j=i+1;j<Opos.length;j++){
+    const N=Opos.length;
+    // bonds + donor assignment (each O donates 2 H → ice rules) → orientation targets
+    const donorDirs=Array.from({length:N},()=>[]), neighDirs=Array.from({length:N},()=>[]);
+    const donorCount=Opos.map(()=>0);
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
       if(Opos[i].distanceTo(Opos[j])<b*1.15){
-        const di=donorCount[i]<=donorCount[j]?i:j, aj=di===i?j:i;
-        donorCount[di]++; bonds.push({d:di,a:aj});
+        const di=donorCount[i]<=donorCount[j]?i:j, aj=di===i?j:i; donorCount[di]++;
+        const dDA=Opos[aj].clone().sub(Opos[di]).normalize();
+        donorDirs[di].push(dDA);
+        neighDirs[i].push(Opos[j].clone().sub(Opos[i]).normalize());
+        neighDirs[j].push(Opos[i].clone().sub(Opos[j]).normalize());
       }
     }
-    // ───────── meshes ─────────
-    const iceGrp=new THREE.Group(); root.add(iceGrp);
-    const Ospheres=Opos.map(p=>{const s=atom(state.O,0.62,p.clone()); iceGrp.add(s); return s;});
-    // liquid scatter targets + per-O jitter phase
-    const liq=Opos.map(()=>new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*6,(Math.random()-.5)*7));
-    const phase=Opos.map(()=>Math.random()*6.28);
-    // bridging H (one per bond) + connecting sticks
-    const stickGeo=new THREE.CylinderGeometry(0.07,0.07,1,10);
-    const stickMat=new THREE.MeshStandardMaterial({color:0x8fa0bd,roughness:.6,transparent:true});
-    const Hs=bonds.map(bd=>{const h=atom(state.H,0.4,new THREE.Vector3()); iceGrp.add(h);
-      h.userData.off=new THREE.Vector3((Math.random()-.5),(Math.random()-.5),(Math.random()-.5)).normalize().multiplyScalar(0.9);
-      return h;});
-    const sticks=bonds.map(()=>{const s=new THREE.Mesh(stickGeo,stickMat.clone()); iceGrp.add(s); return s;});
-    const upY=new THREE.Vector3(0,1,0);
+    // frozen orientation quaternion per site: rotate the molecule so its two H's
+    // point at the two neighbours it donates to (bridging H emerges from the real H).
+    function frameQuat(u,v){
+      const x=u.clone().normalize();
+      const z=new THREE.Vector3().crossVectors(u,v); if(z.lengthSq()<1e-6)z.set(0,0,1); z.normalize();
+      const y=new THREE.Vector3().crossVectors(z,x).normalize();
+      return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+    }
+    const qLocalInv=frameQuat(H1L.clone().add(H2L), H1L.clone()).invert();
+    const desired=Opos.map((_,i)=>{
+      const dd=donorDirs[i].slice();
+      for(const nd of neighDirs[i]){ if(dd.length>=2)break; if(!dd.some(x=>x.distanceTo(nd)<1e-3))dd.push(nd); }
+      if(dd.length<2) return new THREE.Quaternion();
+      return frameQuat(dd[0].clone().add(dd[1]), dd[0].clone()).multiply(qLocalInv);
+    });
+
+    // ───────── molecules via the engine ─────────
+    // dense liquid (packed ~2 units) ⇄ open ice lattice (~4 units) = the density contrast
+    const sim=createWaterSim({centroidPull:0.002, jitter:0.005, MIN:2.0, stericK:0.05,
+      hbForce:false, spin:0, collisionMin:1.9, hbThreshold:2.6});
+    for(let i=0;i<N;i++) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4));
 
     let freeze=0, target=0;
-    const MIND=1.55, _d=new THREE.Vector3();   // min centre-to-centre gap (spheres Ø≈1.24)
     action('❄ Freeze into ice',(btn)=>{ target=target?0:1;
       btn.innerHTML=target?'💧 Melt to liquid':'❄ Freeze into ice';});
-    toggle('🔗 Show O···O framework','frame',true);
+    toggle('🔗 Show hydrogen bonds','hbond',true);
+    const _t=new THREE.Vector3();
 
-    frameFn=(t)=>{
-      freeze += (target-freeze)*0.035;
-      // ease each O toward its target (liquid scatter ⇄ lattice site + thermal jiggle)
-      Ospheres.forEach((s,i)=>{
-        const j=0.12*(1-freeze);
-        const site=Opos[i].clone().add(new THREE.Vector3(Math.sin(t*0.003+phase[i])*j,Math.cos(t*0.0027+phase[i])*j,0));
-        s.position.lerp(liq[i].clone().lerp(site,freeze), 0.09);
-      });
-      // position-based collision resolution: push apart any overlapping oxygens so
-      // molecules never intersect while morphing. Lattice O–O (2.76 Å) > MIND, so
-      // the frozen crystal is left untouched.
-      for(let it=0;it<4;it++){
-        for(let i=0;i<Ospheres.length;i++)for(let j=i+1;j<Ospheres.length;j++){
-          _d.subVectors(Ospheres[i].position,Ospheres[j].position);
-          const d=_d.length();
-          if(d<MIND && d>1e-4){ _d.multiplyScalar((MIND-d)/d*0.5);
-            Ospheres[i].position.add(_d); Ospheres[j].position.sub(_d); }
-        }
-      }
-      // place bridging H's along current O···O bonds; sticks follow
-      const showFrame=flags.frame && freeze>0.04;
-      bonds.forEach((bd,k)=>{
-        const Od=Ospheres[bd.d].position, Oa=Ospheres[bd.a].position;
-        const bridge=Od.clone().lerp(Oa,0.34);                       // H sits near donor O
-        const liqH=Ospheres[bd.d].position.clone().add(Hs[k].userData.off);
-        Hs[k].position.lerpVectors(liqH,bridge,freeze);
-        const st=sticks[k]; st.visible=showFrame;
-        if(showFrame){
-          const dir=new THREE.Vector3().subVectors(Oa,Od), len=dir.length();
-          st.position.copy(Od).add(dir.clone().multiplyScalar(.5));
-          st.quaternion.setFromUnitVectors(upY,dir.clone().normalize());
-          st.scale.set(1,len,1); st.material.opacity=Math.min(1,freeze*1.5);
-        }
-      });
-      iceGrp.rotation.y+=0.0015;
+    frameFn=()=>{
+      freeze += (target-freeze)*0.03;
+      const r=sim.step({ showHbonds:flags.hbond && freeze>0.35, hook:(w,i,f)=>{
+        // spring toward the assigned lattice site, engaged by freezing
+        f.add(_t.subVectors(Opos[i], w.position).multiplyScalar(0.03*freeze));
+      }});
+      // rotate each molecule toward its ice-rule orientation as it freezes
+      sim.mols.forEach((w,i)=>{ if(freeze>0.02) w.quaternion.slerp(desired[i], 0.08*freeze); });
       setReadout(freeze>0.5
-        ?'<b style="color:#9fd0ff">ICE Iₕ</b> · open hexagonal lattice<br>O–O 2.76 Å · tetrahedral · <b>less dense → floats</b>'
+        ?`<b style="color:#9fd0ff">ICE Iₕ</b> · open hexagonal lattice<br>tetrahedral · <b>${r.hbondCount} H-bonds</b> · <b>less dense → floats</b>`
         :'<b>LIQUID</b> · molecules pack closer<br>more dense than ice');
     };
-    cam.r=22; applyCam();
+    cam.r=26; applyCam();
   }
 });
 
