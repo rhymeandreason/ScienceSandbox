@@ -511,18 +511,30 @@ L.push({
     const upY=new THREE.Vector3(0,1,0);
 
     let freeze=0, target=0;
+    const MIND=1.55, _d=new THREE.Vector3();   // min centre-to-centre gap (spheres Ø≈1.24)
     action('❄ Freeze into ice',(btn)=>{ target=target?0:1;
       btn.innerHTML=target?'💧 Melt to liquid':'❄ Freeze into ice';});
     toggle('🔗 Show O···O framework','frame',true);
 
     frameFn=(t)=>{
       freeze += (target-freeze)*0.035;
-      // move oxygens between liquid scatter and lattice site (+ tiny thermal jiggle)
+      // ease each O toward its target (liquid scatter ⇄ lattice site + thermal jiggle)
       Ospheres.forEach((s,i)=>{
         const j=0.12*(1-freeze);
         const site=Opos[i].clone().add(new THREE.Vector3(Math.sin(t*0.003+phase[i])*j,Math.cos(t*0.0027+phase[i])*j,0));
-        s.position.lerpVectors(liq[i],site,freeze);
+        s.position.lerp(liq[i].clone().lerp(site,freeze), 0.09);
       });
+      // position-based collision resolution: push apart any overlapping oxygens so
+      // molecules never intersect while morphing. Lattice O–O (2.76 Å) > MIND, so
+      // the frozen crystal is left untouched.
+      for(let it=0;it<4;it++){
+        for(let i=0;i<Ospheres.length;i++)for(let j=i+1;j<Ospheres.length;j++){
+          _d.subVectors(Ospheres[i].position,Ospheres[j].position);
+          const d=_d.length();
+          if(d<MIND && d>1e-4){ _d.multiplyScalar((MIND-d)/d*0.5);
+            Ospheres[i].position.add(_d); Ospheres[j].position.sub(_d); }
+        }
+      }
       // place bridging H's along current O···O bonds; sticks follow
       const showFrame=flags.frame && freeze>0.04;
       bonds.forEach((bd,k)=>{
