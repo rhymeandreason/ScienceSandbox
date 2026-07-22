@@ -330,12 +330,12 @@ L.push({
       const forces=mols.map(()=>new THREE.Vector3());
       mols.forEach((w,i)=>{
         // gentle pull toward centroid keeps the cluster on screen
-        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.0028));
+        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.0016));
         forces[i].add(new THREE.Vector3((Math.random()-.5)*.01,(Math.random()-.5)*.01,(Math.random()-.5)*.01));
       });
-      // pairwise repulsion keeps a visible gap between molecules so the dashed
-      // hydrogen bonds sit in open space rather than buried inside the cluster
-      const MIN=3.7;
+      // short-range steric (Pauli) repulsion — the hard core that stops molecules
+      // collapsing. Floor sits below the H-bond equilibrium so bonded pairs settle there.
+      const MIN=3.0;
       for(let i=0;i<mols.length;i++)for(let j=i+1;j<mols.length;j++){
         const d=new THREE.Vector3().subVectors(mols[i].position,mols[j].position);
         const dist=Math.max(0.4,d.length());
@@ -353,16 +353,24 @@ L.push({
         for(const donor of mols){ const oD=donor.userData.oWorld();
           for(let hi=0;hi<2;hi++){ const h=donor.userData.hWorld(hi);
             // each H forms at most ONE H-bond: to the nearest acceptor O that it points toward
-            let best=null,bestD=2.5;
+            let best=null,bestMol=null,bestD=2.5,bestLin=0;
             for(const acc of mols){ if(acc===donor)continue;
               const oA=acc.userData.oWorld(), d=h.distanceTo(oA);
               if(d<bestD){
                 const oh=new THREE.Vector3().subVectors(h,oD).normalize();       // O–H direction
                 const ha=new THREE.Vector3().subVectors(oA,h).normalize();       // H···O direction
-                if(oh.dot(ha)>0.5){ best=oA; bestD=d; }                          // roughly linear
+                const lin=oh.dot(ha);
+                if(lin>0.5){ best=oA; bestMol=acc; bestD=d; bestLin=lin; }        // roughly linear
               }
             }
-            if(best){ const l=hbondTube(h,best); lines.push(l); root.add(l); n++; }
+            if(best){ const l=hbondTube(h,best); lines.push(l); root.add(l); n++;
+              // the H-bond is an attractive force: pull the two molecules toward the
+              // equilibrium O···O distance, scaled by how linear (aligned) the bond is
+              const EQ=3.5, kHB=0.007;
+              const ax=new THREE.Vector3().subVectors(bestMol.position,donor.position);
+              const dist=ax.length()||1; ax.multiplyScalar((dist-EQ)*kHB*bestLin/dist);
+              donor.userData.vel.add(ax); bestMol.userData.vel.sub(ax);
+            }
           }
         }
       }
