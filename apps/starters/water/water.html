@@ -167,11 +167,11 @@ const _up=new THREE.Vector3(0,1,0);
 function hbondTube(a,b){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
-  const n=Math.max(3,Math.round(len/0.34)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
+  const n=Math.max(5,Math.round(len/0.2)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
   for(let i=0;i<n;i++){ if(i%2)continue;                         // skip odd segments = gaps
     const m=new THREE.Mesh(_hbGeo,_hbMat);
     m.position.copy(a).add(dir.clone().multiplyScalar((i+0.5)/n));
-    m.quaternion.copy(q); m.scale.set(1,len/n*0.62,1); g.add(m);
+    m.quaternion.copy(q); m.scale.set(1,len/n*0.6,1); g.add(m);
   }
   return g;
 }
@@ -335,7 +335,7 @@ L.push({
       });
       // pairwise repulsion keeps a visible gap between molecules so the dashed
       // hydrogen bonds sit in open space rather than buried inside the cluster
-      const MIN=4.2;
+      const MIN=3.7;
       for(let i=0;i<mols.length;i++)for(let j=i+1;j<mols.length;j++){
         const d=new THREE.Vector3().subVectors(mols[i].position,mols[j].position);
         const dist=Math.max(0.4,d.length());
@@ -353,7 +353,7 @@ L.push({
         for(const donor of mols){ const oD=donor.userData.oWorld();
           for(let hi=0;hi<2;hi++){ const h=donor.userData.hWorld(hi);
             // each H forms at most ONE H-bond: to the nearest acceptor O that it points toward
-            let best=null,bestD=2.9;
+            let best=null,bestD=2.5;
             for(const acc of mols){ if(acc===donor)continue;
               const oA=acc.userData.oWorld(), d=h.distanceTo(oA);
               if(d<bestD){
