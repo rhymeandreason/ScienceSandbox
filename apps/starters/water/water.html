@@ -159,6 +159,22 @@ function dashed(a,b,color=0x6fe3c4){
   const m=new THREE.LineDashedMaterial({color,dashSize:.22,gapSize:.16,transparent:true,opacity:.9,linewidth:2});
   const l=new THREE.Line(g,m); l.computeLineDistances(); return l;
 }
+// visible dashed hydrogen bond, built from short cylinder segments (WebGL ignores
+// line width, so real lines are invisible). Shared geo/material — cheap to rebuild.
+const _hbGeo=new THREE.CylinderGeometry(0.07,0.07,1,8);
+const _hbMat=new THREE.MeshStandardMaterial({color:0x6fe3c4,emissive:0x2fae90,emissiveIntensity:.6,roughness:.4});
+const _up=new THREE.Vector3(0,1,0);
+function hbondTube(a,b){
+  const g=new THREE.Group();
+  const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+  const n=Math.max(3,Math.round(len/0.34)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
+  for(let i=0;i<n;i++){ if(i%2)continue;                         // skip odd segments = gaps
+    const m=new THREE.Mesh(_hbGeo,_hbMat);
+    m.position.copy(a).add(dir.clone().multiplyScalar((i+0.5)/n));
+    m.quaternion.copy(q); m.scale.set(1,len/n*0.62,1); g.add(m);
+  }
+  return g;
+}
 function label(txt,color='#e9eef8',size=64){
   const c=document.createElement('canvas'); const x=c.getContext('2d');
   x.font=`bold ${size}px sans-serif`;
@@ -314,11 +330,12 @@ L.push({
       const forces=mols.map(()=>new THREE.Vector3());
       mols.forEach((w,i)=>{
         // gentle pull toward centroid keeps the cluster on screen
-        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.004));
+        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.0028));
         forces[i].add(new THREE.Vector3((Math.random()-.5)*.01,(Math.random()-.5)*.01,(Math.random()-.5)*.01));
       });
-      // pairwise repulsion so molecules keep a realistic separation (~O–O distance)
-      const MIN=3.0;
+      // pairwise repulsion keeps a visible gap between molecules so the dashed
+      // hydrogen bonds sit in open space rather than buried inside the cluster
+      const MIN=4.2;
       for(let i=0;i<mols.length;i++)for(let j=i+1;j<mols.length;j++){
         const d=new THREE.Vector3().subVectors(mols[i].position,mols[j].position);
         const dist=Math.max(0.4,d.length());
@@ -330,13 +347,13 @@ L.push({
         w.rotation.y+=0.004; setCov(w);
       });
       // rebuild H-bonds: any δ+ H within range of a δ− O on ANOTHER molecule
-      lines.forEach(l=>{root.remove(l);l.geometry.dispose();}); lines=[];
+      lines.forEach(l=>root.remove(l)); lines=[];   // shared geo/material — no dispose
       let n=0;
       if(flags.hbond){
         for(const donor of mols){ const oD=donor.userData.oWorld();
           for(let hi=0;hi<2;hi++){ const h=donor.userData.hWorld(hi);
             // each H forms at most ONE H-bond: to the nearest acceptor O that it points toward
-            let best=null,bestD=2.6;
+            let best=null,bestD=2.9;
             for(const acc of mols){ if(acc===donor)continue;
               const oA=acc.userData.oWorld(), d=h.distanceTo(oA);
               if(d<bestD){
@@ -345,8 +362,7 @@ L.push({
                 if(oh.dot(ha)>0.5){ best=oA; bestD=d; }                          // roughly linear
               }
             }
-            if(best){ const l=dashed(h,best,0x6fe3c4); l.material.opacity=Math.max(.25,1-bestD/2.6);
-              lines.push(l); root.add(l); n++; }
+            if(best){ const l=hbondTube(h,best); lines.push(l); root.add(l); n++; }
           }
         }
       }
