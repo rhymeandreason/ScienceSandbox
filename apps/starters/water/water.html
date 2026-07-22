@@ -160,16 +160,33 @@ function dashed(a,b,color=0x6fe3c4){
   const l=new THREE.Line(g,m); l.computeLineDistances(); return l;
 }
 function label(txt,color='#e9eef8',size=64){
-  const c=document.createElement('canvas'); c.width=c.height=128;
-  const x=c.getContext('2d'); x.fillStyle=color; x.font=`bold ${size}px sans-serif`;
-  x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,64,68);
+  const c=document.createElement('canvas'); const x=c.getContext('2d');
+  x.font=`bold ${size}px sans-serif`;
+  const w=Math.max(128,Math.ceil(x.measureText(txt).width)+24); c.width=w; c.height=128;
+  x.font=`bold ${size}px sans-serif`; x.fillStyle=color;
+  x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,w/2,68);
   const t=new THREE.CanvasTexture(c);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));
-  s.scale.setScalar(1.1); return s;
+  s.scale.set(1.1*w/128,1.1,1); return s;
 }
 function arrow(from,to,color=0x6fe3c4){
   const dir=new THREE.Vector3().subVectors(to,from);
   return new THREE.ArrowHelper(dir.clone().normalize(),from,dir.length(),color,0.35,0.22);
+}
+// small electron sphere with glow
+const eGeo=new THREE.SphereGeometry(0.17,16,12);
+function electron(pos,color=0xffe14d){
+  const m=new THREE.Mesh(eGeo,new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.6,roughness:.3}));
+  m.position.copy(pos); return m;
+}
+// a pair of electrons straddling a point along an axis
+function ePair(center,along,color){
+  const g=new THREE.Group();
+  const perp=new THREE.Vector3(0,0,1).cross(along).normalize();
+  if(perp.lengthSq()<0.01) perp.set(1,0,0);
+  g.add(electron(center.clone().add(perp.clone().multiplyScalar(0.22)),color),
+        electron(center.clone().add(perp.clone().multiplyScalar(-0.22)),color));
+  return g;
 }
 
 // Water molecule: O at local origin, two H's at 104.5°.
@@ -246,6 +263,21 @@ L.push({
     const dH2=label('δ+','#ff6b6b'); dH2.position.copy(H2L).multiplyScalar(1.35); dH2.visible=false;
     root.add(dO,dH1,dH2);
 
+    // ── electrons: 2 shared (bonding) pairs on the O–H bonds + 2 lone pairs on O ──
+    const eGroup=new THREE.Group(); eGroup.visible=false; w.add(eGroup);
+    const O0=new THREE.Vector3(0,0,0);
+    [H1L,H2L].forEach(H=>{
+      // bonding pair sits between O and H, pulled toward O (electronegativity)
+      const mid=O0.clone().lerp(H,0.42);
+      eGroup.add(ePair(mid, H.clone().normalize(), 0xffe14d));   // one O electron + one H electron shared
+    });
+    // two lone pairs on O, pointing away from the H's (tetrahedral, out of the H–O–H plane)
+    const lp1=new THREE.Vector3(0,0.55,0.83).normalize();
+    const lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
+    [lp1,lp2].forEach(d=> eGroup.add(ePair(d.clone().multiplyScalar(1.35), d, 0x6fe3c4)));
+    const eLbl=label('lone pairs','#6fe3c4',30); eLbl.position.set(0,2.1,0); eLbl.visible=false; w.add(eLbl);
+
+    toggle('● Electrons (shared + lone pairs)','electrons',false,v=>{eGroup.visible=v;eLbl.visible=v;});
     toggle('⚡ Partial charges (δ)','charge',true,v=>{dO.visible=dH1.visible=dH2.visible=v;});
     toggle('➤ Dipole arrow','dipole',false,v=>dip.visible=v);
     toggle('☁ Electron cloud','cloud',false,v=>cloud.visible=v);
@@ -259,34 +291,66 @@ L.push({
 L.push({
   title:'Covalent vs Hydrogen Bonds',
   build(){
-    hintEl.textContent='Two water molecules — watch a hydrogen bond form';
-    const a=water(); const b=water();
-    a.position.set(-1.6,0.4,0);
-    b.position.set(3.4,-0.3,0); b.rotation.z=Math.PI*0.85;
-    root.add(a,b);
-    // covalent bond highlight ring labels
-    const covLbl=label('covalent','#e9eef8',40); covLbl.position.set(-2.6,1.6,0); covLbl.visible=false;
-    root.add(covLbl);
-    let hb=null;
-    const bStart=b.position.clone(), bEnd=new THREE.Vector3(1.7,-0.3,0);
-    let anim=0, target=0;
-    action('🧲 Bring molecules together',(btn)=>{ target = target? 0:1;
-      btn.innerHTML = target? '↔ Pull apart' : '🧲 Bring molecules together';});
-    toggle('🟢 Highlight H-bond','hbond',true);
-    toggle('⬜ Label covalent bonds','cov',false,v=>covLbl.visible=v);
-    frameFn=(t)=>{
-      anim += (target-anim)*0.06;
-      b.position.lerpVectors(bStart,bEnd,anim);
-      if(hb){root.remove(hb);hb.geometry.dispose();hb=null;}
-      if(anim>0.55 && flags.hbond){
-        // H of molecule b closest to O of molecule a
-        const oA=a.userData.oWorld();
-        const h=b.userData.hWorld(0);
-        hb=dashed(h,oA,0x6fe3c4); root.add(hb);
+    hintEl.textContent='Add water molecules — hydrogen bonds link δ+ H to δ− O';
+    const mols=[]; let lines=[];
+    function spawn(pos){
+      const w=water();
+      w.position.copy(pos||new THREE.Vector3((Math.random()-.5)*5,(Math.random()-.5)*5,(Math.random()-.5)*3));
+      w.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);
+      w.userData.vel=new THREE.Vector3();
+      root.add(w); mols.push(w);
+    }
+    // start with three
+    spawn(new THREE.Vector3(-2,0.6,0)); spawn(new THREE.Vector3(1.6,-0.4,0.4)); spawn(new THREE.Vector3(0.2,2.2,-0.6));
+
+    action('＋ Add water',()=>{ if(mols.length<12) spawn(); });
+    action('－ Remove',()=>{ if(mols.length>2){ const w=mols.pop(); root.remove(w);} });
+    toggle('🟢 Show hydrogen bonds','hbond',true);
+    toggle('⬜ Show covalent (O–H) bonds','cov',true,v=>mols.forEach(setCov));
+    function setCov(w){ w.children.forEach(c=>{ if(c.geometry&&c.geometry.type==='CylinderGeometry') c.visible=flags.cov; }); }
+
+    frameFn=()=>{
+      const c=new THREE.Vector3(); mols.forEach(m=>c.add(m.position)); c.multiplyScalar(1/mols.length);
+      const forces=mols.map(()=>new THREE.Vector3());
+      mols.forEach((w,i)=>{
+        // gentle pull toward centroid keeps the cluster on screen
+        forces[i].add(new THREE.Vector3().subVectors(c,w.position).multiplyScalar(0.004));
+        forces[i].add(new THREE.Vector3((Math.random()-.5)*.01,(Math.random()-.5)*.01,(Math.random()-.5)*.01));
+      });
+      // pairwise repulsion so molecules keep a realistic separation (~O–O distance)
+      const MIN=3.0;
+      for(let i=0;i<mols.length;i++)for(let j=i+1;j<mols.length;j++){
+        const d=new THREE.Vector3().subVectors(mols[i].position,mols[j].position);
+        const dist=Math.max(0.4,d.length());
+        if(dist<MIN){ const push=d.normalize().multiplyScalar((MIN-dist)*0.03);
+          forces[i].add(push); forces[j].sub(push); }
       }
-      setReadout(anim>0.7
-        ?'<b style="color:#6fe3c4">H-bond active</b><br>~1/20 the strength of covalent'
-        :'Covalent O–H bonds only');
+      mols.forEach((w,i)=>{
+        w.userData.vel.add(forces[i]).multiplyScalar(0.9); w.position.add(w.userData.vel);
+        w.rotation.y+=0.004; setCov(w);
+      });
+      // rebuild H-bonds: any δ+ H within range of a δ− O on ANOTHER molecule
+      lines.forEach(l=>{root.remove(l);l.geometry.dispose();}); lines=[];
+      let n=0;
+      if(flags.hbond){
+        for(const donor of mols){ const oD=donor.userData.oWorld();
+          for(let hi=0;hi<2;hi++){ const h=donor.userData.hWorld(hi);
+            // each H forms at most ONE H-bond: to the nearest acceptor O that it points toward
+            let best=null,bestD=2.6;
+            for(const acc of mols){ if(acc===donor)continue;
+              const oA=acc.userData.oWorld(), d=h.distanceTo(oA);
+              if(d<bestD){
+                const oh=new THREE.Vector3().subVectors(h,oD).normalize();       // O–H direction
+                const ha=new THREE.Vector3().subVectors(oA,h).normalize();       // H···O direction
+                if(oh.dot(ha)>0.5){ best=oA; bestD=d; }                          // roughly linear
+              }
+            }
+            if(best){ const l=dashed(h,best,0x6fe3c4); l.material.opacity=Math.max(.25,1-bestD/2.6);
+              lines.push(l); root.add(l); n++; }
+          }
+        }
+      }
+      setReadout(`${mols.length} molecules<br><b style="color:#6fe3c4">${n} hydrogen bond${n===1?'':'s'}</b><br>each ~1/20 a covalent bond`);
     };
     cam.r=15; applyCam();
   }
@@ -402,29 +466,84 @@ L.push({
 L.push({
   title:'Why Ice Floats',
   build(){
-    hintEl.textContent='Toggle liquid ⇄ ice — the crystal lattice spreads molecules apart';
-    const mols=[]; const N=27;
-    // liquid = tight random; ice = open hexagonal-ish lattice
-    const liquid=[], icePos=[];
-    for(let i=0;i<N;i++){
-      liquid.push(new THREE.Vector3((Math.random()-.5)*6,(Math.random()-.5)*6,(Math.random()-.5)*6));
+    hintEl.textContent='Freeze into real hexagonal ice (Iₕ) — a tetrahedral O framework, one H per O···O bridge';
+    // ───────── build the true ice Iₕ oxygen lattice ─────────
+    // Puckered hexagonal bilayers, ABAB-stacked. Every O is tetrahedrally
+    // bonded to 4 others (O–O = b); each bilayer has thickness b/3 and the
+    // stacking period is 4b/3.  This is the hexagonal-ice (Iₕ) O sublattice.
+    const b=2.2, dxy=0.9428*b, alat=Math.sqrt(3)*dxy;
+    const A1=new THREE.Vector2(alat,0), A2=new THREE.Vector2(alat/2,1.5*dxy);
+    const Opos=[];
+    for(let k=0;k<3;k++){
+      const base=k*(4*b/3), upA=(k%2===0);           // even bilayer: upper=A, lower=B
+      for(let n=-1;n<=1;n++)for(let m=-1;m<=1;m++){
+        const a=A1.clone().multiplyScalar(n).add(A2.clone().multiplyScalar(m));   // A-site (x,z)
+        const bs=a.clone().add(new THREE.Vector2(0,dxy));                         // B-site (x,z)
+        const up=upA?a:bs, lo=upA?bs:a;
+        Opos.push(new THREE.Vector3(up.x, base+b/6, up.y));                       // upper atom
+        Opos.push(new THREE.Vector3(lo.x, base-b/6, lo.y));                       // lower atom
+      }
     }
-    let k=0;
-    for(let x=-1;x<=1;x++)for(let y=-1;y<=1;y++)for(let z=-1;z<=1;z++){
-      icePos.push(new THREE.Vector3(x*3.1+(y%2)*0.7,y*3.1,z*3.1)); k++;
+    // centre the crystal
+    const ctr=new THREE.Vector3(); Opos.forEach(p=>ctr.add(p)); ctr.multiplyScalar(1/Opos.length);
+    Opos.forEach(p=>p.sub(ctr));
+    // bonds (O–O ≈ b) + donor assignment (each O donates 2 H → ice rules)
+    const bonds=[], donorCount=Opos.map(()=>0);
+    for(let i=0;i<Opos.length;i++)for(let j=i+1;j<Opos.length;j++){
+      if(Opos[i].distanceTo(Opos[j])<b*1.15){
+        const di=donorCount[i]<=donorCount[j]?i:j, aj=di===i?j:i;
+        donorCount[di]++; bonds.push({d:di,a:aj});
+      }
     }
-    for(let i=0;i<N;i++){const w=water();w.position.copy(liquid[i]);root.add(w);mols.push(w);}
-    toggle('❄ Freeze into ice','ice',false);
-    frameFn=()=>{
-      mols.forEach((w,i)=>{
-        const tgt=flags.ice?icePos[i]:liquid[i];
-        w.position.lerp(tgt,0.06); w.rotation.y+=0.004;
+    // ───────── meshes ─────────
+    const iceGrp=new THREE.Group(); root.add(iceGrp);
+    const Ospheres=Opos.map(p=>{const s=atom(state.O,0.62,p.clone()); iceGrp.add(s); return s;});
+    // liquid scatter targets + per-O jitter phase
+    const liq=Opos.map(()=>new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*6,(Math.random()-.5)*7));
+    const phase=Opos.map(()=>Math.random()*6.28);
+    // bridging H (one per bond) + connecting sticks
+    const stickGeo=new THREE.CylinderGeometry(0.07,0.07,1,10);
+    const stickMat=new THREE.MeshStandardMaterial({color:0x8fa0bd,roughness:.6,transparent:true});
+    const Hs=bonds.map(bd=>{const h=atom(state.H,0.4,new THREE.Vector3()); iceGrp.add(h);
+      h.userData.off=new THREE.Vector3((Math.random()-.5),(Math.random()-.5),(Math.random()-.5)).normalize().multiplyScalar(0.9);
+      return h;});
+    const sticks=bonds.map(()=>{const s=new THREE.Mesh(stickGeo,stickMat.clone()); iceGrp.add(s); return s;});
+    const upY=new THREE.Vector3(0,1,0);
+
+    let freeze=0, target=0;
+    action('❄ Freeze into ice',(btn)=>{ target=target?0:1;
+      btn.innerHTML=target?'💧 Melt to liquid':'❄ Freeze into ice';});
+    toggle('🔗 Show O···O framework','frame',true);
+
+    frameFn=(t)=>{
+      freeze += (target-freeze)*0.035;
+      // move oxygens between liquid scatter and lattice site (+ tiny thermal jiggle)
+      Ospheres.forEach((s,i)=>{
+        const j=0.12*(1-freeze);
+        const site=Opos[i].clone().add(new THREE.Vector3(Math.sin(t*0.003+phase[i])*j,Math.cos(t*0.0027+phase[i])*j,0));
+        s.position.lerpVectors(liq[i],site,freeze);
       });
-      setReadout(flags.ice
-        ?'<b style="color:#9fd0ff">ICE</b> — open lattice<br>LESS dense → floats'
-        :'<b>LIQUID</b> — packed close<br>MORE dense');
+      // place bridging H's along current O···O bonds; sticks follow
+      const showFrame=flags.frame && freeze>0.04;
+      bonds.forEach((bd,k)=>{
+        const Od=Ospheres[bd.d].position, Oa=Ospheres[bd.a].position;
+        const bridge=Od.clone().lerp(Oa,0.34);                       // H sits near donor O
+        const liqH=Ospheres[bd.d].position.clone().add(Hs[k].userData.off);
+        Hs[k].position.lerpVectors(liqH,bridge,freeze);
+        const st=sticks[k]; st.visible=showFrame;
+        if(showFrame){
+          const dir=new THREE.Vector3().subVectors(Oa,Od), len=dir.length();
+          st.position.copy(Od).add(dir.clone().multiplyScalar(.5));
+          st.quaternion.setFromUnitVectors(upY,dir.clone().normalize());
+          st.scale.set(1,len,1); st.material.opacity=Math.min(1,freeze*1.5);
+        }
+      });
+      iceGrp.rotation.y+=0.0015;
+      setReadout(freeze>0.5
+        ?'<b style="color:#9fd0ff">ICE Iₕ</b> · open hexagonal lattice<br>O–O 2.76 Å · tetrahedral · <b>less dense → floats</b>'
+        :'<b>LIQUID</b> · molecules pack closer<br>more dense than ice');
     };
-    cam.r=20; applyCam();
+    cam.r=22; applyCam();
   }
 });
 
@@ -490,6 +609,32 @@ const svgWater = (charges)=>`
   <text x="130" y="152" text-anchor="middle" font-size="12" fill="#93a3c4">bond angle 104.5°</text>`:''}
 </svg>`;
 
+// Bohr / Lewis style — shows valence electrons and the two shared (covalent) pairs
+const svgElectrons = `
+<svg viewBox="0 0 260 210">
+  <circle cx="130" cy="95" r="60" fill="#4ea1ff" opacity="0.12"/>
+  <line x1="130" y1="95" x2="88" y2="150" stroke="#c7d0e2" stroke-width="4"/>
+  <line x1="130" y1="95" x2="172" y2="150" stroke="#c7d0e2" stroke-width="4"/>
+  <circle cx="130" cy="95" r="30" fill="#ff4d4d"/>
+  <text x="130" y="101" text-anchor="middle" font-size="22" fill="#04122b" font-weight="700">O</text>
+  <circle cx="88" cy="150" r="18" fill="#ffe14d"/><text x="88" y="156" text-anchor="middle" font-size="15" fill="#04122b" font-weight="700">H</text>
+  <circle cx="172" cy="150" r="18" fill="#ffe14d"/><text x="172" y="156" text-anchor="middle" font-size="15" fill="#04122b" font-weight="700">H</text>
+  <!-- O's lone-pair valence electrons (red) around the top -->
+  <g fill="#ff4d4d" stroke="#7a1010" stroke-width="1">
+    <circle cx="110" cy="52" r="6"/><circle cx="150" cy="52" r="6"/>
+    <circle cx="82" cy="80" r="6"/><circle cx="82" cy="110" r="6"/>
+    <circle cx="178" cy="80" r="6"/><circle cx="178" cy="110" r="6"/>
+  </g>
+  <!-- shared (covalent) pairs: one O electron (red) + one H electron (yellow) between atoms -->
+  <g stroke-width="1">
+    <circle cx="103" cy="118" r="6" fill="#ff4d4d" stroke="#7a1010"/><circle cx="115" cy="131" r="6" fill="#ffe14d" stroke="#8a7400"/>
+    <circle cx="157" cy="118" r="6" fill="#ff4d4d" stroke="#7a1010"/><circle cx="145" cy="131" r="6" fill="#ffe14d" stroke="#8a7400"/>
+  </g>
+  <text x="205" y="120" font-size="12" fill="#6fe3c4" font-weight="700">shared</text>
+  <text x="205" y="134" font-size="12" fill="#6fe3c4" font-weight="700">pair</text>
+  <text x="130" y="192" text-anchor="middle" font-size="12" fill="#93a3c4">2 shared pairs = 2 covalent bonds · 104.5°</text>
+</svg>`;
+
 const svgBonds = `
 <svg viewBox="0 0 300 170">
   <!-- molecule 1 -->
@@ -508,10 +653,10 @@ const svgBonds = `
 
 const cards=[
  {tag:'Molecule',
-  html:`${svgWater(true)}<p class="cap">Bent geometry + unequal electron sharing = a polar molecule</p>`,
-  body:`<p>Water is <b>V-shaped</b>: one oxygen covalently bonded to two hydrogens at a <b>104.5°</b> angle. Oxygen is far more <b>electronegative</b>, so it pulls the shared electrons closer.</p>
-  <div class="key">This uneven pull leaves oxygen slightly negative (<b>δ−</b>) and each hydrogen slightly positive (<b>δ+</b>). The molecule is <b>polar</b> — it has a positive and a negative end.</div>
-  <p class="try">Toggle the electron cloud to see it bunch toward oxygen. Turn on the dipole arrow — it points to the negative end.</p>`},
+  html:`${svgElectrons}<p class="cap">Each O–H bond is a <b>shared pair</b> of electrons — that's a covalent bond</p>`,
+  body:`<p>Water is <b>V-shaped</b>: one oxygen covalently bonded to two hydrogens at a <b>104.5°</b> angle. A <b>covalent bond</b> is a <b>shared pair of electrons</b> — one from O, one from H — so oxygen ends up with two bonding pairs and <b>two lone pairs</b>.</p>
+  <div class="key">Oxygen is far more <b>electronegative</b>, so it pulls the shared electrons closer, becoming slightly negative (<b>δ−</b>) while each hydrogen becomes slightly positive (<b>δ+</b>). The molecule is <b>polar</b>.</div>
+  <p class="try">Turn on <b>Electrons</b> to see the two shared pairs and two lone pairs in 3D. Add the electron cloud and dipole arrow to see the charge pulled toward O.</p>`},
 
  {tag:'Bonding',
   html:`${svgBonds}<p class="cap">Strong covalent bonds within · weak hydrogen bonds between</p>`,
@@ -521,7 +666,7 @@ const cards=[
    <li><b>Hydrogen bonds</b> attract the δ+ H of one molecule to the δ− O of another (<i>between</i> molecules — weak).</li>
   </ul>
   <div class="key">A single H-bond is only about <b>1/20</b> as strong as a covalent bond — but water forms them by the trillions, and <b>collectively</b> they drive nearly every special property of water.</div>
-  <p class="try">Click "Bring molecules together" and watch the hydrogen bond snap into place.</p>`},
+  <p class="try">Click <b>＋ Add water</b> to build up a cluster — hydrogen bonds form automatically wherever a δ+ H comes near a δ− O. Watch the H-bond count climb.</p>`},
 
  {tag:'Property',
   html:`${svgWater(false)}<p class="cap">Molecules cling to each other — the surface acts like a skin</p>`,
@@ -553,7 +698,7 @@ const cards=[
     </g></svg><p class="cap">Solid water is <i>less</i> dense than liquid — so it floats</p>`,
   body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. When it freezes, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice</b>, spacing them farther apart than in liquid water.</p>
   <div class="key">Ice floats, insulating the water below so lakes don't freeze solid — letting aquatic life survive winter.</div>
-  <p class="try">Toggle "Freeze into ice" and watch molecules spread into the lattice as density drops.</p>`},
+  <p class="try">Click <b>❄ Freeze into ice</b> and rotate the crystal: it's the real <b>hexagonal ice (Iₕ)</b> lattice — each O tetrahedrally bonded to four others, with one H bridging every O···O. Notice the open hexagonal channels that make ice less dense.</p>`},
 
  {tag:'Property',
   html:`<svg viewBox="0 0 260 150">
