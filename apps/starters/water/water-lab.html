@@ -528,9 +528,10 @@ L.push({
     const b=4.0, dxy=0.9428*b, alat=Math.sqrt(3)*dxy;
     const A1=new THREE.Vector2(alat,0), A2=new THREE.Vector2(alat/2,1.5*dxy);
     const Opos=[];
-    for(let k=0;k<3;k++){
+    // small patch (~24 molecules) so the open cage and its H-bonds stay legible
+    for(let k=0;k<2;k++){
       const base=k*(4*b/3), upA=(k%2===0);
-      for(let n=-1;n<=1;n++)for(let m=-1;m<=1;m++){
+      for(let n=-1;n<=1;n++)for(let m=0;m<=1;m++){
         const a=A1.clone().multiplyScalar(n).add(A2.clone().multiplyScalar(m));
         const bs=a.clone().add(new THREE.Vector2(0,dxy));
         const up=upA?a:bs, lo=upA?bs:a;
@@ -570,10 +571,12 @@ L.push({
     });
 
     // ───────── molecules via the engine ─────────
-    // dense liquid (packed ~2 units) ⇄ open ice lattice (~4 units) = the density contrast
-    const sim=createWaterSim({centroidPull:0.002, jitter:0.005, MIN:2.0, stericK:0.05,
-      hbForce:false, spin:0, collisionMin:1.9, hbThreshold:2.6});
-    for(let i=0;i<N;i++) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4));
+    // Liquid = a dynamic H-bonded network (spaced, bonds visible, like lesson 2);
+    // ice = the open ordered lattice. Real liquid/ice O–O are similar — ice is only
+    // modestly less dense, but its rigid open cage is what makes it float.
+    const sim=createWaterSim({centroidPull:0.0009, jitter:0.006, MIN:3.0, stericK:0.04,
+      EQ:3.6, kHB:0.007, hbThreshold:2.7, hbForce:true, spin:0, collisionMin:1.9});
+    for(let i=0;i<N;i++) sim.spawn(new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*7,(Math.random()-.5)*7));
 
     let freeze=0, target=0;
     action('❄ Freeze into ice',(btn)=>{ target=target?0:1;
@@ -583,15 +586,16 @@ L.push({
 
     frameFn=()=>{
       freeze += (target-freeze)*0.03;
-      const r=sim.step({ showHbonds:flags.hbond && freeze>0.35, hook:(w,i,f)=>{
-        // spring toward the assigned lattice site, engaged by freezing
-        f.add(_t.subVectors(Opos[i], w.position).multiplyScalar(0.03*freeze));
+      // H-bonds stay visible in both states; their pull fades as the lattice
+      // spring takes over on freezing, so the crystal geometry isn't distorted.
+      const r=sim.step({ showHbonds:flags.hbond, hbScale:1-0.7*freeze, hook:(w,i,f)=>{
+        f.add(_t.subVectors(Opos[i], w.position).multiplyScalar(0.035*freeze));
       }});
       // rotate each molecule toward its ice-rule orientation as it freezes
       sim.mols.forEach((w,i)=>{ if(freeze>0.02) w.quaternion.slerp(desired[i], 0.08*freeze); });
       setReadout(freeze>0.5
         ?`<b style="color:#9fd0ff">ICE Iₕ</b> · open hexagonal lattice<br>tetrahedral · <b>${r.hbondCount} H-bonds</b> · <b>less dense → floats</b>`
-        :'<b>LIQUID</b> · molecules pack closer<br>more dense than ice');
+        :`<b>LIQUID</b> · dynamic H-bonded network<br><b style="color:#6fe3c4">${r.hbondCount} H-bonds</b> · packs a bit closer than ice`);
     };
     cam.r=26; applyCam();
   }
