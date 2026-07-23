@@ -345,10 +345,14 @@ function recolorBondType(which,hex){
 let outlinesOn=false;
 const _outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
 const OUTLINE_ROLES=['O','H','Na','Cl'];
+const OUTLINE_GAP=0.05;   // constant world-space thickness (not proportional to radius)
+// child scale is relative to the parent's radius, so divide the gap out to keep
+// the outline the same thickness on small H and large Cl alike
+function outlineScale(r){ return (r+OUTLINE_GAP)/r; }
 function addOutline(mesh){
   if(mesh.userData.outline) return;
   const o=new THREE.Mesh(mesh.geometry,_outlineMat);   // shares unit sphere; inherits parent scale
-  o.scale.setScalar(1.06); mesh.add(o); mesh.userData.outline=o;
+  o.scale.setScalar(outlineScale(mesh.scale.x||1)); mesh.add(o); mesh.userData.outline=o;
 }
 function removeOutline(mesh){
   if(mesh.userData.outline){ mesh.remove(mesh.userData.outline); mesh.userData.outline=null; }
@@ -1056,7 +1060,8 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   // sim sliders
   const DEFAULTS=Object.assign({},DBG);
   function applyRadii(){ salt.forEach(m=>{ const r=m.userData.charge>0?DBG.naRad:DBG.clRad;
-    m.scale.setScalar(r); m.userData.rad=r; }); }
+    m.scale.setScalar(r); m.userData.rad=r;
+    if(m.userData.outline) m.userData.outline.scale.setScalar(outlineScale(r)); }); }
   specs.forEach(([k])=>{ const s=panel.querySelector('#ds_'+k), v=panel.querySelector('#dv_'+k);
     s.oninput=()=>{ DBG[k]=parseFloat(s.value); v.textContent=s.value;
       if(k==='naRad'||k==='clRad') applyRadii(); }; });
