@@ -481,15 +481,20 @@ function createWaterSim(cfg={}){
         if(dist<m&&dist>1e-4){ d.multiplyScalar((m-dist)/dist*0.5);
           mols[i].position.add(d); mols[j].position.sub(d); } } }
     clearLines(); let n=0;
+    // Each oxygen has only two lone pairs, so it can ACCEPT at most two H-bonds
+    // (a water tops out at 4 total: 2 as donor, 2 as acceptor). Cap acceptors so
+    // counts stay physical in a dense cluster.
+    const accepted=new Map();
     for(const donor of mols){ const oD=donor.userData.oWorld();
       for(let hi=0;hi<2;hi++){ const h=donor.userData.hWorld(hi);
         let best=null,bestMol=null,bestD=o.hbThreshold,bestLin=0;
         for(const acc of mols){ if(acc===donor)continue;
+          if((accepted.get(acc)||0)>=2) continue;   // this oxygen's lone pairs are full
           const oA=acc.userData.oWorld(), dd=h.distanceTo(oA);
           if(dd<bestD){ const oh=V().subVectors(h,oD).normalize(), ha=V().subVectors(oA,h).normalize();
             const lin=oh.dot(ha); if(lin>0.5){ best=oA;bestMol=acc;bestD=dd;bestLin=lin; } }
         }
-        if(best){ n++;
+        if(best){ n++; accepted.set(bestMol,(accepted.get(bestMol)||0)+1);
           if(showHbonds){ const l=hbondTube(h,best); lines.push(l); root.add(l); }
           if(o.hbForce&&hbScale>0){ const ax=V().subVectors(bestMol.position,donor.position);
             const dist=ax.length()||1; ax.multiplyScalar((dist-o.EQ)*o.kHB*bestLin*hbScale/dist);
