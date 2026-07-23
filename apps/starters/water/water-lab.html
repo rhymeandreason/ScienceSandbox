@@ -472,6 +472,12 @@ function assignShells(){
     ion.userData.shellCount=cand.length;
   });
 }
+// a water leaving the shell (e.g. evaporating) frees its slot and thins the shell
+function releaseFromShell(w){
+  const ion=w.userData.shellIon; if(!ion) return;
+  ion.userData.shellCount=Math.max(0,ion.userData.shellCount-1);
+  w.userData.shellIon=null; w.userData.shellSlot=-1;
+}
 function updateSaltBonds(){
   const up=new THREE.Vector3(0,1,0);
   saltBonds.forEach(b=>{
@@ -774,7 +780,7 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
 })();
 
 /* ---------- main loop ---------- */
-let wasFreezing=false;
+let wasFreezing=false, wasBoiling=false;
 function renderReadout(p,r,escaping){
   if(S.step===0){ readEl.style.display='none'; return; }
   const nb=`<b style="color:#6fe3c4">${r.hbondCount}</b> H-bonds`;
@@ -819,6 +825,9 @@ function loop(){
   S.fz=p.fz;
   if(salt.length && wasFreezing && p.fz<0.05) assignShells();   // melting: re-form hydration shells
   wasFreezing = p.fz>0.3;
+  // condensing back below the boiling point re-forms depleted shells
+  if(salt.length && wasBoiling && p.evapProb<=0 && !saltDescending) assignShells();
+  wasBoiling = p.evapProb>0;
   sim.cfg.jitter = (S.step===0)?0:(solvent?DBG.jitter:0.006)*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
   if(S.freezeEnabled && p.fz>0.02){ if(iceFor!==sim.mols.length) assignIce(); } else iceFor=-1;
   let escaping=0;
@@ -826,8 +835,9 @@ function loop(){
     if(S.tempEnabled && p.kinetic>0) f.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(p.kinetic));
     if(p.fz>0 && w.userData.iceSite) f.add(new THREE.Vector3().subVectors(w.userData.iceSite,w.position).multiplyScalar(0.035*p.fz));
     if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; } else { f.set(0,0.02,0); escaping++; } }
-    else if(p.evapProb>0 && Math.random()<p.evapProb) w.userData.escaped=true;
-    if(salt.length){
+    else if(p.evapProb>0 && Math.random()<p.evapProb){ w.userData.escaped=true; releaseFromShell(w); }
+    // escaping waters break free of the hydration shell (boiling leaves the salt behind)
+    if(salt.length && !w.userData.escaped){
       const ion=w.userData.shellIon;
       if(ion){ // spring toward this water's octahedral seat in the ion's shell
         const cat=ion.userData.charge>0;
