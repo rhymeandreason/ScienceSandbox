@@ -1066,7 +1066,10 @@ let cur=-1;
 const stepR=[8,18,20,24,20];
 function applyStep(n){
   S.step=n;
-  if(n===0){ while(sim.mols.length>1) sim.remove(); }
+  if(n===0){ while(sim.mols.length>1) sim.remove();
+    // the surviving molecule may have drifted while part of a larger cluster on
+    // other steps — recentre it so it rotates in place instead of off-axis
+    const w=sim.mols[0]; if(w){ w.position.set(0,0,0); w.userData.vel.set(0,0,0); } }
   else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
   if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
   if(n<4) clearSalt();
