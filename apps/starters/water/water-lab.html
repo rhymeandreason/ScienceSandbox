@@ -624,8 +624,6 @@ function addSalt(){
   const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(0.9,0,0)),'Cl');
   na.userData={role:'Na', charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0};
   cl.userData={role:'Cl', charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0};
-  const naL=label('Na⁺','#c79bff',34); naL.position.set(0,1.4,0); na.add(naL);
-  const clL=label('Cl⁻','#8fe6a0',34); clL.position.set(0,1.8,0); cl.add(clL);
   root.add(na,cl); salt.push(na,cl);
   // ionic bond, shown until water wedges the ions apart
   const stick=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,1,12),
