@@ -912,20 +912,19 @@ function tempParams(){
   const {dTf,dTb,molal}=saltShift();
   const fz=S.freezeEnabled ? clamp((8-dTf-T)/8,0,1) : 0;  // ramp shifted DOWN by the depression
   const warm=clamp((T-20)/80,0,1);
-  const kinetic=warm*0.03;               // extra thermal motion, 0 at the cool end
-  // On the salt step the slider reaches 110°C, so anchor boiling at the true
-  // 100°C (raised by the elevation) rather than the 82°C visual proxy used on
-  // the 0–100°C property steps — otherwise "boiling" starts far below the label.
-  // "salt mode" only once salt is actually dissolved: anchor boiling at the true
-  // 100°C (raised by ΔTb) over the extended slider. Pure water — including step 5
-  // before any salt — uses the 82°C visual proxy and standard 0–100°C behaviour.
+  // curved rather than linear: motion stays fairly calm through the middle of the
+  // range and then visibly ramps up as T approaches boiling, so heating reads as
+  // molecules "speeding up" rather than a flat jiggle increase
+  const kinetic=Math.pow(warm,1.7)*0.2;
+  // Boiling is anchored at the true 100°C (raised by ΔTb once salt is dissolved)
+  // on every step — the 0–100°C slider tops out exactly at the boiling point.
   const saltMode=(S.step===4 && salt.length>0);
-  const boilBase=saltMode?100:82;
+  const boilBase=100;
   const boilProxy=boilBase+dTb;
   // In salt mode boiling ramps to a full rolling boil within ~2°C of the boiling
   // point (boiling is nearly a threshold), so it visibly boils right at ~102°C.
-  const evapProb = T>boilProxy
-    ? (saltMode ? Math.min(0.025, 0.012*(T-boilProxy)) : 0.0009*(T-boilProxy))
+  const evapProb = T>=boilProxy
+    ? (saltMode ? Math.min(0.025, 0.012*(T-boilProxy)) : Math.min(0.02, 0.01*(T-boilProxy)+0.003))
     : 0;
   const hbScale=clamp(1-(T-40)/60,0.15,1)*(1-0.7*fz);
   return {T,fz,warm,kinetic,evapProb,hbScale,dTf,dTb,molal};
@@ -1270,7 +1269,9 @@ function loop(){
   // condensing back below the boiling point re-forms depleted shells
   if(salt.length && wasBoiling && p.evapProb<=0 && !anyDescending()) assignShells();
   wasBoiling = p.evapProb>0;
-  sim.cfg.jitter = (S.step===0)?0:(solvent?DBG.jitter:0.006)*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
+  // base thermal jiggle: quieted by freezing, amplified by warmth so heating visibly
+  // speeds molecules up well before the boiling threshold kicks in escape behavior
+  sim.cfg.jitter = (S.step===0)?0:(solvent?DBG.jitter:0.006)*(1-p.fz*0.92)*(1+p.warm*1.4);
   if(S.freezeEnabled && p.fz>0.02){ if(iceFor!==sim.mols.length) assignIce(); } else iceFor=-1;
   let escaping=0;
   const r=sim.step({ showHbonds:S.hbondsOn && S.step>=1, hbScale:p.hbScale, hook:(w,i,f)=>{
