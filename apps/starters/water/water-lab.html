@@ -588,8 +588,13 @@ function tempParams(){
   const fz=S.freezeEnabled ? clamp((8-dTf-T)/8,0,1) : 0;  // ramp shifted DOWN by the depression
   const warm=clamp((T-20)/80,0,1);
   const kinetic=warm*0.03;               // extra thermal motion, 0 at the cool end
-  const boilProxy=82+dTb;                // evaporation onset raised by the elevation
-  const evapProb=T>boilProxy ? 0.0009*(T-boilProxy) : 0;
+  // On the salt step the slider reaches 110°C, so anchor boiling at the true
+  // 100°C (raised by the elevation) rather than the 82°C visual proxy used on
+  // the 0–100°C property steps — otherwise "boiling" starts far below the label.
+  const boilBase=(S.step===4)?100:82;
+  const boilProxy=boilBase+dTb;
+  const evapK=(S.step===4)?0.003:0.0009;  // steeper so boiling is vigorous in the 100–110°C window
+  const evapProb=T>boilProxy ? evapK*(T-boilProxy) : 0;
   const hbScale=clamp(1-(T-40)/60,0.15,1)*(1-0.7*fz);
   return {T,fz,warm,kinetic,evapProb,hbScale,dTf,dTb,molal};
 }
