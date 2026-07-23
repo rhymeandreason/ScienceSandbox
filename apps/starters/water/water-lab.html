@@ -289,6 +289,24 @@ const first = sim.spawn(new THREE.Vector3(0,0,0));
 const S = { step:0, temperature:22, tempEnabled:false, freezeEnabled:false,
   saltEnabled:false, hbondsOn:true, targetR:9 };
 
+/* ---- live-tunable knobs (step-5 solvent scene); exposed via the 🐛 Debug panel ---- */
+const DBG = {
+  naRad:0.70,        // Na⁺ display radius (real Na⁺/O ≈ 0.73)
+  clRad:1.24,        // Cl⁻ display radius (real Cl⁻/O ≈ 1.29, Cl⁻/Na⁺ ≈ 1.77)
+  naShellDist:2.7,   // Na⁺ → water-O resting distance (tight shell)
+  clShellDist:3.6,   // Cl⁻ → water-O resting distance (looser shell)
+  centroidPull:0.0011, // how strongly the whole cluster collapses inward
+  // ion–dipole "bond" stiffness. Real ion–water attraction ≈ several× a
+  // hydrogen bond, and Na⁺ (small, dense) grips ~1.5× harder than Cl⁻:
+  //   Na⁺–water ≈ 4.5× H-bond, Cl⁻–water ≈ 3× H-bond (kHB below).
+  naShellK:0.036,    // Na⁺ shell spring (≈ 4.5 × kHB)
+  clShellK:0.024,    // Cl⁻ shell spring (≈ 3 × kHB)
+  orientSlerp:0.08,  // how fast shell waters snap to ion-dipole orientation
+  kHB:0.008,         // hydrogen-bond force strength (shell↔bulk connectivity)
+  jitter:0.006,      // thermal jiggle
+  stericMIN:3.0,     // water–water minimum spacing
+  zoom:26 };         // camera pull-back on this step
+
 /* ---- step-1 molecular-detail decorations (on the first molecule) ---- */
 const detail=new THREE.Group(); first.add(detail);
 const cloud=atom(0x4ea1ff,1.9,new THREE.Vector3(0,0.2,0));
@@ -362,35 +380,90 @@ function assignIce(){
   iceFor=n;
 }
 
-/* ---- salt (step 5): Na⁺ / Cl⁻ ions ---- */
-const salt=[];
+/* ---- salt (step 5): Na⁺ / Cl⁻ ions ----
+   Each ion holds a first hydration shell of 6 water molecules in an
+   octahedral arrangement (the textbook coordination number for both Na⁺
+   and Cl⁻ in dilute solution). Waters are RECRUITED from those already in
+   the scene — add water first, then add salt.
+     • Na⁺ (cation): each water points its O (δ−) straight at the ion.
+     • Cl⁻ (anion):  each water points ONE O–H bond (δ+) at the ion —
+       a near-linear Cl⁻···H–O hydrogen bond, not the H–H bisector.        */
+const salt=[]; const saltBonds=[];
 const bisLocal=H1L.clone().add(H2L).normalize();   // molecule bisector (points toward the H's)
+const h1Local=H1L.clone().normalize();             // one O–H direction, for anion orientation
+const WSHELL=1.15;                                  // water-O half-thickness for contact/shell
+const SHELL_N=6;                                    // octahedral coordination number, Na⁺ & Cl⁻
+// six octahedral vertex directions for seating the shell
+const OCTA=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),
+            new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),
+            new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
 function addSalt(){
   const base=outerPoint(3);
-  [['Na',+1,0.7,'Na⁺','#c79bff',-1.6],['Cl',-1,1.05,'Cl⁻','#8fe6a0',1.6]].forEach(([t,q,rad,txt,col,dx])=>{
-    const m=atom(t==='Na'?state.Na:state.Cl,rad, base.clone().add(new THREE.Vector3(dx,0,0)));
-    const lbl=label(txt,col,34); lbl.position.set(0,rad+0.7,0); m.add(lbl);
-    m.userData={charge:q, vel:new THREE.Vector3(), rad};
-    root.add(m); salt.push(m);
+  const na=atom(state.Na,DBG.naRad, base.clone().add(new THREE.Vector3(-0.9,0,0)));
+  const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(0.9,0,0)));
+  na.userData={charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0};
+  cl.userData={charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0};
+  const naL=label('Na⁺','#c79bff',34); naL.position.set(0,1.4,0); na.add(naL);
+  const clL=label('Cl⁻','#8fe6a0',34); clL.position.set(0,1.8,0); cl.add(clL);
+  root.add(na,cl); salt.push(na,cl);
+  // ionic bond, shown until water wedges the ions apart
+  const stick=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,1,12),
+    new THREE.MeshStandardMaterial({color:0xe0cf8a,emissive:0x4a3d12,roughness:.45}));
+  root.add(stick); saltBonds.push({na,cl,stick});
+  assignShells();
+}
+function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0;
+  saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0;
+  sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); }
+// Assign each ion its 6 nearest un-claimed waters as an octahedral shell.
+function assignShells(){
+  sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; });
+  const taken=new Set();
+  salt.forEach(ion=>{
+    const cand=sim.mols.filter(w=>!taken.has(w))
+      .sort((a,b)=>a.position.distanceToSquared(ion.position)-b.position.distanceToSquared(ion.position))
+      .slice(0,SHELL_N);
+    cand.forEach((w,k)=>{ taken.add(w); w.userData.shellIon=ion; w.userData.shellSlot=k; });
+    ion.userData.shellCount=cand.length;
   });
 }
-function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0; }
+function updateSaltBonds(){
+  const up=new THREE.Vector3(0,1,0);
+  saltBonds.forEach(b=>{
+    const dist=b.na.position.distanceTo(b.cl.position);
+    const bonded = dist < b.na.userData.rad+b.cl.userData.rad+0.9;   // still an ion pair
+    b.stick.visible=bonded;
+    if(bonded){
+      const dir=new THREE.Vector3().subVectors(b.cl.position,b.na.position);
+      b.stick.position.copy(b.na.position).add(dir.clone().multiplyScalar(.5));
+      b.stick.quaternion.setFromUnitVectors(up,dir.clone().normalize());
+      b.stick.scale.set(1,dist,1);
+    }
+  });
+}
 function ionForceOnWater(w,f){
   for(const ion of salt){
-    const d=new THREE.Vector3().subVectors(ion.position,w.position), dist=d.length()||1;
-    if(dist<8) f.add(d.multiplyScalar(0.02/(dist*dist)));   // hydration attraction
+    const d=new THREE.Vector3().subVectors(w.position,ion.position), dist=d.length()||1;
+    if(dist<8){
+      const shell=ion.userData.rad+WSHELL;                 // resting hydration distance (contact)
+      const k = dist<shell ? 0.16 : 0.018;                 // hard repulsion inside, soft pull outside
+      f.addScaledVector(d.multiplyScalar(1/dist), -(dist-shell)*k);  // spring toward the shell
+    }
   }
 }
-function orientHydration(){
+function orientShells(){
   sim.mols.forEach(w=>{
-    let ion=null,bd=30;
-    salt.forEach(m=>{ const d=w.position.distanceToSquared(m.position); if(d<bd){bd=d;ion=m;} });
-    if(!ion) return;
+    const ion=w.userData.shellIon; if(!ion) return;
     const toIon=new THREE.Vector3().subVectors(ion.position,w.position).normalize();
-    // cation (Na⁺): O faces ion → H's (bisector) point away; anion (Cl⁻): H's toward ion
-    const worldBis = ion.userData.charge>0 ? toIon.clone().multiplyScalar(-1) : toIon;
-    const q=new THREE.Quaternion().setFromUnitVectors(bisLocal, worldBis);
-    w.quaternion.slerp(q,0.05);
+    let q;
+    if(ion.userData.charge>0){
+      // cation: O (δ−) toward ion → bisector (toward H's) points away
+      q=new THREE.Quaternion().setFromUnitVectors(bisLocal, toIon.clone().multiplyScalar(-1));
+    } else {
+      // anion: one O–H bond (δ+) points straight at the ion (linear Cl⁻···H–O)
+      q=new THREE.Quaternion().setFromUnitVectors(h1Local, toIon);
+    }
+    w.quaternion.slerp(q,DBG.orientSlerp);
   });
 }
 function updateIons(){
@@ -398,8 +471,14 @@ function updateIons(){
     const f=new THREE.Vector3().copy(a.position).multiplyScalar(-0.004);   // gentle containment
     salt.forEach(b=>{ if(a===b)return;
       const dir=new THREE.Vector3().subVectors(b.position,a.position), dist=Math.max(1,dir.length()); dir.normalize();
-      f.addScaledVector(dir, -a.userData.charge*b.userData.charge*0.015/dist);  // unlike attract / like repel
-      if(dist<a.userData.rad+b.userData.rad+1.2) f.addScaledVector(dir,-0.05);  // steric + hydration keeps apart
+      f.addScaledVector(dir, -a.userData.charge*b.userData.charge*0.012/dist);  // unlike attract / like repel
+      if(dist<a.userData.rad+b.userData.rad+0.4) f.addScaledVector(dir,-0.05);  // ion–ion steric
+    });
+    // water pushes back on the ion — no passing through molecules; also wedges pairs apart
+    sim.mols.forEach(w=>{
+      const dir=new THREE.Vector3().subVectors(a.position,w.position), dist=dir.length()||1;
+      const shell=a.userData.rad+WSHELL;
+      if(dist<shell) f.addScaledVector(dir.multiplyScalar(1/dist),(shell-dist)*0.09);
     });
     a.userData.vel.add(f).multiplyScalar(0.9); a.position.add(a.userData.vel);
   });
@@ -450,9 +529,13 @@ const stepMeta=[
  {tag:'Property', title:'The Universal Solvent',
   hint:'Add salt — water forms hydration shells around each ion',
   body:`<p>Because water is polar, it dissolves <b>ionic and polar substances</b> extraordinarily well — the "universal solvent" of life.</p>
-  <p>Add salt (NaCl): water's <b>δ− oxygens</b> turn toward each <b>Na⁺</b>, and its <b>δ+ hydrogens</b> turn toward each <b>Cl⁻</b>, forming <b>hydration shells</b>.</p>
-  <div class="key">This lets water carry nutrients, ions, and molecules throughout cells and organisms.</div>
-  <p class="try">Click <b>🧂 Add salt</b> and watch water reorient into shells around the ions.</p>`},
+  <p>Add salt (NaCl) and each ion pulls in a <b>first hydration shell of ~6 waters</b> (octahedral):</p>
+  <ul>
+   <li>Around <b>Na⁺</b>, every water aims its <b>δ− oxygen</b> straight at the ion.</li>
+   <li>Around <b>Cl⁻</b>, every water aims <b>one δ+ O–H bond</b> at the ion (a near-linear Cl⁻···H–O bond).</li>
+  </ul>
+  <div class="key">Na⁺ is small and dense, so its shell is tight; Cl⁻ is larger, so its shell sits farther out — both hold about 6 waters. This lets water carry ions and nutrients through cells and organisms.</div>
+  <p class="try">Enough water is already here — click <b>🧂 Add salt</b> and watch 6 waters wrap each ion. Add or remove water to see the shells refill.</p>`},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
@@ -501,8 +584,8 @@ function buildControls(){
     ctlButton('☁ Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
   }
   if(S.step>=1){
-    ctlButton('＋ Add water',undefined,()=>{ if(sim.mols.length<60) sim.spawn(outerPoint(2.5)); });
-    ctlButton('－ Remove',undefined,()=>{ if(sim.mols.length>3) sim.remove(); });
+    ctlButton('＋ Add water',undefined,()=>{ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt.length) assignShells(); } });
+    ctlButton('－ Remove',undefined,()=>{ if(sim.mols.length>3){ sim.remove(); if(salt.length) assignShells(); } });
     ctlButton('🔗 Show hydrogen bonds',S.hbondsOn,b=>{S.hbondsOn=!S.hbondsOn;b.classList.toggle('on',S.hbondsOn);});
   }
   if(S.step>=4){
@@ -517,10 +600,13 @@ function applyStep(n){
   S.step=n;
   if(n===0){ while(sim.mols.length>1) sim.remove(); }
   else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
+  // solvent step: seed enough water so two full 6-coordinate shells can form
+  if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
   if(n<4) clearSalt();
   S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
   applyDetail();
   tempBar.style.display=S.tempEnabled?'flex':'none';
+  if(n===4) S.temperature=30;    // solvent step: liquid water, never frozen
   if(S.tempEnabled) setTempRange(S.freezeEnabled?0:20,100);
   S.targetR=Math.max(stepR[n], fitDistance());
   buildControls();
@@ -537,6 +623,51 @@ stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
 prevB.onclick=()=>applyStep(Math.max(0,cur-1));
 nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
 
+/* ---------- 🐛 debug slider panel ---------- */
+(function(){
+  const specs=[
+    ['naRad','Na⁺ radius',0.4,1.2,0.01],
+    ['clRad','Cl⁻ radius',0.6,1.8,0.01],
+    ['naShellDist','Na⁺ shell dist',1.6,4.5,0.05],
+    ['clShellDist','Cl⁻ shell dist',2.0,5.5,0.05],
+    ['centroidPull','Cluster pull',0,0.006,0.0001],
+    ['naShellK','Na⁺ spring',0,0.12,0.002],
+    ['clShellK','Cl⁻ spring',0,0.12,0.002],
+    ['orientSlerp','Orient speed',0,0.3,0.01],
+    ['kHB','H-bond force',0,0.02,0.0005],
+    ['jitter','Thermal jitter',0,0.03,0.001],
+    ['stericMIN','Water spacing',2,4.5,0.05],
+    ['zoom','Camera zoom',10,44,1],
+  ];
+  const panel=document.createElement('div');
+  panel.style.cssText='position:absolute;top:100px;right:16px;width:212px;z-index:20;'
+    +'background:rgba(14,18,28,.92);border:1px solid #2a3346;border-radius:10px;'
+    +'padding:10px 12px;font:11px/1.35 sans-serif;color:#cdd6e6;display:none;'
+    +'box-shadow:0 8px 24px rgba(0,0,0,.4);max-height:80vh;overflow:auto';
+  let html='<div style="font-weight:700;color:#7fb0ff;margin-bottom:6px">🐛 Debug — solvent scene</div>';
+  specs.forEach(([k,lbl,mn,mx,st])=>{ html+=
+    `<label style="display:block;margin:7px 0 2px">${lbl} <span id="dv_${k}" style="float:right;color:#8fe6a0">${DBG[k]}</span></label>`
+    +`<input id="ds_${k}" type="range" min="${mn}" max="${mx}" step="${st}" value="${DBG[k]}" style="width:100%">`; });
+  html+='<div id="dbg_reset" style="margin-top:9px;text-align:center;padding:5px;border:1px solid #37507a;'
+    +'border-radius:6px;color:#7fb0ff;cursor:pointer">⟲ Reset defaults</div>';
+  panel.innerHTML=html; stage.appendChild(panel);
+  const DEFAULTS=Object.assign({},DBG);
+  function applyRadii(){ salt.forEach(m=>{ const r=m.userData.charge>0?DBG.naRad:DBG.clRad;
+    m.scale.setScalar(r); m.userData.rad=r; }); }
+  specs.forEach(([k])=>{ const s=panel.querySelector('#ds_'+k), v=panel.querySelector('#dv_'+k);
+    s.oninput=()=>{ DBG[k]=parseFloat(s.value); v.textContent=s.value;
+      if(k==='naRad'||k==='clRad') applyRadii(); }; });
+  panel.querySelector('#dbg_reset').onclick=()=>{ Object.assign(DBG,DEFAULTS);
+    specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
+      panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); };
+  const btn=document.createElement('div'); btn.textContent='🐛 Debug';
+  btn.style.cssText='position:absolute;top:64px;right:16px;z-index:20;cursor:pointer;'
+    +'background:rgba(14,18,28,.92);border:1px solid #2a3346;border-radius:8px;'
+    +'padding:5px 10px;font:11px sans-serif;color:#7fb0ff';
+  btn.onclick=()=>{ panel.style.display=panel.style.display==='none'?'block':'none'; };
+  stage.appendChild(btn);
+})();
+
 /* ---------- main loop ---------- */
 function renderReadout(p,r,escaping){
   if(S.step===0){ readEl.style.display='none'; return; }
@@ -550,14 +681,24 @@ function renderReadout(p,r,escaping){
     if(escaping) s+=` · ${escaping} escaping`;
     if(p.fz>0.5) s+='<br><b style="color:#9fd0ff">less dense → floats</b>';
   }
-  if(salt.length) s+=`<br>🧂 ${salt.length/2} NaCl · hydration shells`;
+  if(salt.length){
+    const na=salt.find(m=>m.userData.charge>0), cl=salt.find(m=>m.userData.charge<0);
+    s+=`<br>🧂 ${salt.length/2} NaCl · <b style="color:#c79bff">Na⁺ ${na.userData.shellCount}/6</b> (O-inward) · `
+      +`<b style="color:#8fe6a0">Cl⁻ ${cl.userData.shellCount}/6</b> (H-inward)`;
+  }
   setReadout(s);
 }
 function loop(){
-  const want=Math.max(S.targetR, fitDistance());     // live auto-fit: zoom out when the cluster fills the view
+  const solvent=(S.step===4);
+  // step-5 solvent scene runs looser & more spread out so the shells are legible
+  sim.cfg.centroidPull = solvent?DBG.centroidPull:0.0024;
+  sim.cfg.kHB          = solvent?DBG.kHB:0.008;
+  sim.cfg.MIN          = solvent?DBG.stericMIN:3.0;
+  if(solvent) S.targetR = Math.max(S.targetR, DBG.zoom);
+  const want=Math.max(solvent?DBG.zoom:S.targetR, fitDistance()); // live auto-fit
   cam.r += (want - cam.r)*0.05; applyCam();
   const p=tempParams();
-  sim.cfg.jitter = (S.step===0)?0:0.006*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
+  sim.cfg.jitter = (S.step===0)?0:(solvent?DBG.jitter:0.006)*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
   if(S.freezeEnabled && p.fz>0.02){ if(iceFor!==sim.mols.length) assignIce(); } else iceFor=-1;
   let escaping=0;
   const r=sim.step({ showHbonds:S.hbondsOn && S.step>=1, hbScale:p.hbScale, hook:(w,i,f)=>{
@@ -565,13 +706,21 @@ function loop(){
     if(p.fz>0 && w.userData.iceSite) f.add(new THREE.Vector3().subVectors(w.userData.iceSite,w.position).multiplyScalar(0.035*p.fz));
     if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; } else { f.set(0,0.02,0); escaping++; } }
     else if(p.evapProb>0 && Math.random()<p.evapProb) w.userData.escaped=true;
-    if(salt.length) ionForceOnWater(w,f);
+    if(salt.length){
+      const ion=w.userData.shellIon;
+      if(ion){ // spring toward this water's octahedral seat in the ion's shell
+        const cat=ion.userData.charge>0;
+        const sd=cat?DBG.naShellDist:DBG.clShellDist, sk=cat?DBG.naShellK:DBG.clShellK;
+        const site=ion.position.clone().addScaledVector(OCTA[w.userData.shellSlot], sd);
+        f.add(new THREE.Vector3().subVectors(site,w.position).multiplyScalar(sk));
+      } else ionForceOnWater(w,f);
+    }
   }});
   if(p.fz>0.02) sim.mols.forEach(w=>{ if(w.userData.iceQuat) w.quaternion.slerp(w.userData.iceQuat,0.08*p.fz); });
-  else if(salt.length) orientHydration();
+  else if(salt.length) orientShells();
   sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>9){
     w.position.set((Math.random()-.5)*4,-5,(Math.random()-.5)*4); w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
-  if(salt.length) updateIons();
+  if(salt.length){ updateIons(); updateSaltBonds(); }
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
