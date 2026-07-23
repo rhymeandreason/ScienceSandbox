@@ -599,8 +599,12 @@ function tempParams(){
   // the 0–100°C property steps — otherwise "boiling" starts far below the label.
   const boilBase=(S.step===4)?100:82;
   const boilProxy=boilBase+dTb;
-  const evapK=(S.step===4)?0.003:0.0009;  // steeper so boiling is vigorous in the 100–110°C window
-  const evapProb=T>boilProxy ? evapK*(T-boilProxy) : 0;
+  // On the salt step, boiling ramps to a full rolling boil within ~2°C of the
+  // boiling point (boiling is nearly a threshold, not a gradual effect), so it
+  // visibly boils right at ~102°C rather than only near 110°C.
+  const evapProb = T>boilProxy
+    ? (S.step===4 ? Math.min(0.025, 0.012*(T-boilProxy)) : 0.0009*(T-boilProxy))
+    : 0;
   const hbScale=clamp(1-(T-40)/60,0.15,1)*(1-0.7*fz);
   return {T,fz,warm,kinetic,evapProb,hbScale,dTf,dTb,molal};
 }
