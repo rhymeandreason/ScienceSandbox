@@ -28,7 +28,7 @@
   nav button .n{opacity:.6;margin-right:5px}
   #stage{grid-row:3;grid-column:1;position:relative;background:radial-gradient(circle at 50% 40%,#16233f,#0a0f1e 75%);overflow:hidden}
   #gl{display:block;width:100%;height:100%}
-  #controls{position:absolute;left:16px;bottom:16px;right:16px;display:flex;flex-wrap:wrap;gap:8px;
+  #controls{position:absolute;left:16px;bottom:16px;right:70px;display:flex;flex-wrap:wrap;gap:8px;
     align-items:center}
   .ctl{background:rgba(15,23,41,.82);border:1px solid var(--line);border-radius:10px;
     padding:7px 12px;font-size:12.5px;color:var(--ink);cursor:pointer;backdrop-filter:blur(6px);
@@ -36,12 +36,22 @@
   .ctl:hover{border-color:var(--accent)}
   .ctl.on{border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2) inset;color:#eafff9}
   .ctl.act{background:var(--accent);color:#04122b;border-color:var(--accent);font-weight:650}
-  .ctl input[type=range]{width:120px;accent-color:var(--accent2)}
   .hint{position:absolute;top:14px;left:16px;font-size:12px;color:var(--muted);
     background:rgba(15,23,41,.7);padding:5px 10px;border-radius:8px;border:1px solid var(--line)}
   #readout{position:absolute;top:14px;right:16px;font-size:12px;color:var(--accent2);
     background:rgba(15,23,41,.7);padding:6px 11px;border-radius:8px;border:1px solid var(--line);
     font-variant-numeric:tabular-nums;text-align:right;min-width:120px;display:none}
+  /* big vertical temperature slider, left of stage */
+  #tempbar{position:absolute;left:18px;top:50%;transform:translateY(-50%);display:none;
+    flex-direction:column;align-items:center;gap:10px;background:rgba(15,23,41,.82);
+    border:1px solid var(--line);border-radius:16px;padding:16px 14px;backdrop-filter:blur(6px)}
+  #tempbar .cap{font-size:11px;color:var(--muted);letter-spacing:.5px}
+  #tempbar .tval{font-size:16px;font-weight:750;color:#ffb08a;font-variant-numeric:tabular-nums}
+  #tempbar input[type=range]{ -webkit-appearance:slider-vertical;appearance:slider-vertical;
+    writing-mode:vertical-lr;direction:rtl;width:26px;height:52vh;accent-color:#ff8a5b;cursor:pointer}
+  #tempbar .tlabel{font-size:10.5px;color:var(--muted)}
+  #tempbar .tlabel.cold{color:#9fd0ff}
+  #tempbar .tlabel.hot{color:#ff8a5b}
   #savepng{position:absolute;bottom:16px;right:16px;font-size:12.5px;color:var(--ink);
     background:rgba(15,23,41,.82);border:1px solid var(--line);border-radius:10px;padding:7px 12px;
     cursor:pointer;backdrop-filter:blur(6px)}
@@ -52,10 +62,6 @@
   #card h2{font-size:20px;margin:0 0 2px}
   #card .tag{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--accent2);font-weight:700}
   #card p{font-size:14px;line-height:1.62;color:#d3ddf3}
-  #card .svgwrap{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
-    padding:12px;margin:14px 0}
-  #card .svgwrap svg{width:100%;height:auto;display:block}
-  #card .cap{font-size:11.5px;color:var(--muted);text-align:center;margin-top:8px}
   #card .key{background:rgba(78,161,255,.09);border-left:3px solid var(--accent);
     padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px;line-height:1.55}
   #card .key b{color:var(--accent2)}
@@ -68,7 +74,6 @@
   footer button:hover{border-color:var(--accent)}
   footer button.primary{background:var(--accent);color:#04122b;border-color:var(--accent)}
   footer button:disabled{opacity:.35;cursor:not-allowed}
-  .dlt{fill:var(--pos)} .dgt{fill:var(--neg)}
   @media (max-width:920px){#app{grid-template-columns:1fr;grid-template-rows:auto auto 46vh 1fr}
     #stage{grid-column:1}#side{grid-column:1;grid-row:auto;border-left:none;border-top:1px solid var(--line)}}
 </style>
@@ -100,26 +105,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 "use strict";
-/* ============================================================= *
- *  THE CHEMISTRY OF WATER — standalone interactive lesson
- *  3D stage (Three.js) + 2D SVG diagrams + lesson cards
+/* =============================================================
+ *  THE CHEMISTRY OF WATER — one continuous simulation
+ *  Each step adds molecules / reveals controls on the SAME sim.
  * ============================================================= */
 
 /* ---------- scene setup ---------- */
 const canvas = document.getElementById('gl');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, preserveDrawingBuffer:true});
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-const root = new THREE.Group(); scene.add(root);          // lesson content lives here
+const root = new THREE.Group(); scene.add(root);
 
-// lights
 scene.add(new THREE.AmbientLight(0xffffff, .55));
-const key = new THREE.DirectionalLight(0xffffff, .9); key.position.set(4,6,8); scene.add(key);
-const fill = new THREE.DirectionalLight(0x88aaff, .4); fill.position.set(-6,-2,-4); scene.add(fill);
+const keyL = new THREE.DirectionalLight(0xffffff, .9); keyL.position.set(4,6,8); scene.add(keyL);
+const fillL = new THREE.DirectionalLight(0x88aaff, .4); fillL.position.set(-6,-2,-4); scene.add(fillL);
 
-// simple orbit controls (no external dep)
-const cam = {theta:0.5, phi:1.15, r:14, target:new THREE.Vector3(0,0,0)};
+const cam = {theta:0.5, phi:1.15, r:9, target:new THREE.Vector3(0,0,0)};
 function applyCam(){
   camera.position.set(
     cam.target.x + cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
@@ -135,12 +138,11 @@ canvas.addEventListener('pointermove',e=>{ if(!drag)return;
   drag={x:e.clientX,y:e.clientY}; applyCam();});
 canvas.addEventListener('pointerup',()=>drag=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();
-  cam.r=Math.max(5,Math.min(40,cam.r*(1+Math.sign(e.deltaY)*0.08)));applyCam();},{passive:false});
+  cam.r=Math.max(5,Math.min(60,cam.r*(1+Math.sign(e.deltaY)*0.08)));
+  S.targetR=cam.r; applyCam();},{passive:false});   // manual zoom sticks
 
-function resize(){
-  const w=canvas.clientWidth,h=canvas.clientHeight;
-  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
-}
+function resize(){ const w=canvas.clientWidth,h=canvas.clientHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(canvas);
 
 /* ---------- geometry helpers ---------- */
@@ -158,14 +160,7 @@ function bond(a,b,color=0xbfc8dc,rad=0.13){
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());
   return m;
 }
-// dashed line (for hydrogen bonds)
-function dashed(a,b,color=0x6fe3c4){
-  const g=new THREE.BufferGeometry().setFromPoints([a,b]);
-  const m=new THREE.LineDashedMaterial({color,dashSize:.22,gapSize:.16,transparent:true,opacity:.9,linewidth:2});
-  const l=new THREE.Line(g,m); l.computeLineDistances(); return l;
-}
-// visible dashed hydrogen bond, built from short cylinder segments (WebGL ignores
-// line width, so real lines are invisible). Shared geo/material — cheap to rebuild.
+// visible dashed hydrogen bond, built from short cylinder segments
 const _hbGeo=new THREE.CylinderGeometry(0.07,0.07,1,8);
 const _hbMat=new THREE.MeshStandardMaterial({color:0x6fe3c4,emissive:0x2fae90,emissiveIntensity:.6,roughness:.4});
 const _up=new THREE.Vector3(0,1,0);
@@ -173,7 +168,7 @@ function hbondTube(a,b){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
   const n=Math.max(5,Math.round(len/0.26)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
-  for(let i=0;i<n;i++){                                          // a dash in every slot, small gap between
+  for(let i=0;i<n;i++){
     const m=new THREE.Mesh(_hbGeo,_hbMat);
     m.position.copy(a).add(dir.clone().multiplyScalar((i+0.5)/n));
     m.quaternion.copy(q); m.scale.set(1,len/n*0.6,1); g.add(m);
@@ -194,13 +189,11 @@ function arrow(from,to,color=0x6fe3c4){
   const dir=new THREE.Vector3().subVectors(to,from);
   return new THREE.ArrowHelper(dir.clone().normalize(),from,dir.length(),color,0.35,0.22);
 }
-// small electron sphere with glow
 const eGeo=new THREE.SphereGeometry(0.17,16,12);
 function electron(pos,color=0xffe14d){
   const m=new THREE.Mesh(eGeo,new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.6,roughness:.3}));
   m.position.copy(pos); return m;
 }
-// a pair of electrons straddling a point along an axis
 function ePair(center,along,color){
   const g=new THREE.Group();
   const perp=new THREE.Vector3(0,0,1).cross(along).normalize();
@@ -214,7 +207,7 @@ function ePair(center,along,color){
 const ANG=104.5*Math.PI/180, HL=1.55, half=ANG/2;
 const H1L=new THREE.Vector3(Math.sin(half)*HL,-Math.cos(half)*HL,0);
 const H2L=new THREE.Vector3(-Math.sin(half)*HL,-Math.cos(half)*HL,0);
-function water(opts={}){
+function water(){
   const g=new THREE.Group();
   const O=atom(state.O,0.95,new THREE.Vector3(0,0,0));
   const Ha=atom(state.H,0.55,H1L), Hb=atom(state.H,0.55,H2L);
@@ -226,26 +219,12 @@ function water(opts={}){
 }
 
 /* ============================================================= *
- *  WaterSim — reusable water-molecule simulation engine
- *  (extracted from the "Covalent vs Hydrogen Bonds" lesson)
- *
- *  Physics per frame:
- *    · gentle centroid pull (keeps the cluster on screen)
- *    · random thermal jitter
- *    · optional per-molecule force `hook` (heat, lattice springs, ions…)
- *    · short-range steric (Pauli) repulsion — the hard core
- *    · velocity integration + slow spin
- *    · optional hard collision resolution (for tight lattices)
- *    · directional H-bond detection + attractive force toward equilibrium
- *
- *  Lessons 5/6/7 configure this rather than re-implementing molecule physics.
+ *  WaterSim — reusable molecule simulation engine
  * ============================================================= */
 function createWaterSim(cfg={}){
   const o=Object.assign({
-    centroidPull:0.001, jitter:0.01,          // containment + thermal noise
-    MIN:3.3, stericK:0.03,                     // soft steric repulsion (hard core)
-    EQ:3.9, kHB:0.007, hbThreshold:2.5,        // H-bond equilibrium, strength, form range
-    hbForce:true, spin:0.004, collisionMin:0   // attractive H-bond? spin rate; hard collide gap
+    centroidPull:0.001, jitter:0.01, MIN:3.3, stericK:0.03,
+    EQ:3.9, kHB:0.007, hbThreshold:2.5, hbForce:true, spin:0, collisionMin:0
   },cfg);
   const mols=[]; let lines=[]; const forces=[];
   const V=(x,y,z)=>new THREE.Vector3(x,y,z);
@@ -256,10 +235,7 @@ function createWaterSim(cfg={}){
     w.userData.vel=V(0,0,0); root.add(w); mols.push(w); return w;
   }
   function remove(){ if(mols.length){ const w=mols.pop(); root.remove(w); return w; } }
-  function setCov(vis){ mols.forEach(w=>w.children.forEach(c=>{
-    if(c.geometry&&c.geometry.type==='CylinderGeometry') c.visible=vis; })); }
   function clearLines(){ lines.forEach(l=>root.remove(l)); lines=[]; }
-  // one physics step. opts: { hook(mol,i,force), showHbonds, hbScale } → { hbondCount, centroid }
   function step({hook, showHbonds=true, hbScale=1}={}){
     const c=V(0,0,0); mols.forEach(m=>c.add(m.position)); if(mols.length)c.multiplyScalar(1/mols.length);
     forces.length=mols.length;
@@ -300,354 +276,303 @@ function createWaterSim(cfg={}){
     }
     return {hbondCount:n, centroid:c};
   }
-  return {mols, cfg:o, spawn, remove, setCov, clearLines, step};
+  return {mols, cfg:o, spawn, remove, clearLines, step};
 }
-
-/* ---------- UI plumbing ---------- */
-const ctlWrap=document.getElementById('controls');
-const hintEl=document.getElementById('hint');
-const readEl=document.getElementById('readout');
-let frameFn=null;             // current lesson per-frame callback
-const flags={};               // toggle state for current lesson
-
-function clearStage(){
-  while(root.children.length) root.remove(root.children[0]);
-  ctlWrap.innerHTML=''; frameFn=null; readEl.style.display='none';
-  for(const k in flags) delete flags[k];
-  cam.target.set(0,0,0);
-}
-function toggle(labelTxt,keyName,def,onChange){
-  flags[keyName]=def;
-  const b=document.createElement('div'); b.className='ctl'+(def?' on':'');
-  b.innerHTML=labelTxt;
-  b.onclick=()=>{flags[keyName]=!flags[keyName]; b.classList.toggle('on',flags[keyName]);
-    onChange&&onChange(flags[keyName]);};
-  ctlWrap.appendChild(b); onChange&&onChange(def); return b;
-}
-function action(labelTxt,fn){
-  const b=document.createElement('div'); b.className='ctl act'; b.innerHTML=labelTxt;
-  b.onclick=()=>fn(b); ctlWrap.appendChild(b); return b;
-}
-function slider(labelTxt,min,max,val,step,fn){
-  const b=document.createElement('div'); b.className='ctl';
-  const span=document.createElement('span'); span.textContent=labelTxt;
-  const i=document.createElement('input'); i.type='range';
-  i.min=min;i.max=max;i.value=val;i.step=step;
-  i.oninput=()=>fn(parseFloat(i.value));
-  b.append(span,i); ctlWrap.appendChild(b); fn(val); return i;
-}
-function setReadout(txt){readEl.style.display='block'; readEl.innerHTML=txt;}
 
 /* ============================================================= *
- *  LESSONS
+ *  Persistent simulation + global state
  * ============================================================= */
-const L=[];
+const sim = createWaterSim({ centroidPull:0.0016, jitter:0.006, MIN:3.0, stericK:0.045,
+  EQ:3.6, kHB:0.008, hbThreshold:2.7, hbForce:true, spin:0, collisionMin:1.9 });
+const first = sim.spawn(new THREE.Vector3(0,0,0));
 
-/* ---- 1. Structure & Polarity ---- */
-L.push({
-  title:'Structure & Polarity',
-  build(){
-    hintEl.textContent='One water molecule — H₂O';
-    const w=water(); root.add(w);
-    // electron cloud (shifted toward O)
-    const cloud=atom(0x4ea1ff,1.9,new THREE.Vector3(0,0.2,0));
-    cloud.material=new THREE.MeshBasicMaterial({color:0x4ea1ff,transparent:true,opacity:0.12});
-    cloud.visible=false; root.add(cloud);
-    // dipole arrow (points toward O = negative end)
-    const dip=arrow(new THREE.Vector3(0,-1.4,0),new THREE.Vector3(0,1.5,0),0xffd166);
-    dip.visible=false; root.add(dip);
-    // partial charge labels
-    const dO=label('δ−','#4ea1ff'); dO.position.set(0.0,1.35,0); dO.visible=false;
-    const dH1=label('δ+','#ff6b6b'); dH1.position.copy(H1L).multiplyScalar(1.35); dH1.visible=false;
-    const dH2=label('δ+','#ff6b6b'); dH2.position.copy(H2L).multiplyScalar(1.35); dH2.visible=false;
-    root.add(dO,dH1,dH2);
+const S = { step:0, temperature:22, tempEnabled:false, freezeEnabled:false,
+  saltEnabled:false, hbondsOn:true, targetR:9 };
 
-    // ── electrons: 2 shared (bonding) pairs on the O–H bonds + 2 lone pairs on O ──
-    const eGroup=new THREE.Group(); eGroup.visible=false; w.add(eGroup);
-    const O0=new THREE.Vector3(0,0,0);
-    [H1L,H2L].forEach(H=>{
-      // bonding pair sits between O and H, pulled toward O (electronegativity)
-      const mid=O0.clone().lerp(H,0.42);
-      eGroup.add(ePair(mid, H.clone().normalize(), 0xffe14d));   // one O electron + one H electron shared
-    });
-    // two lone pairs on O, pointing away from the H's (tetrahedral, out of the H–O–H plane)
-    const lp1=new THREE.Vector3(0,0.55,0.83).normalize();
-    const lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
-    [lp1,lp2].forEach(d=> eGroup.add(ePair(d.clone().multiplyScalar(1.35), d, 0x6fe3c4)));
-    const eLbl=label('lone pairs','#6fe3c4',30); eLbl.position.set(0,2.1,0); eLbl.visible=false; w.add(eLbl);
+/* ---- step-1 molecular-detail decorations (on the first molecule) ---- */
+const detail=new THREE.Group(); first.add(detail);
+const cloud=atom(0x4ea1ff,1.9,new THREE.Vector3(0,0.2,0));
+cloud.material=new THREE.MeshBasicMaterial({color:0x4ea1ff,transparent:true,opacity:0.12}); detail.add(cloud);
+const dip=arrow(new THREE.Vector3(0,-1.4,0),new THREE.Vector3(0,1.5,0),0xffd166); detail.add(dip);
+const dO=label('δ−','#4ea1ff'); dO.position.set(0,1.35,0);
+const dH1=label('δ+','#ff6b6b'); dH1.position.copy(H1L).multiplyScalar(1.35);
+const dH2=label('δ+','#ff6b6b'); dH2.position.copy(H2L).multiplyScalar(1.35);
+detail.add(dO,dH1,dH2);
+const eGroup=new THREE.Group(); detail.add(eGroup);
+[H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),0xffe14d)); });
+const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
+[lp1,lp2].forEach(d=>eGroup.add(ePair(d.clone().multiplyScalar(1.35),d,0x6fe3c4)));
+const eLbl=label('lone pairs','#6fe3c4',30); eLbl.position.set(0,2.1,0); eGroup.add(eLbl);
+const dset={electrons:false,charge:true,dipole:false,cloud:false};
+function applyDetail(){
+  detail.visible=(S.step===0);
+  eGroup.visible=dset.electrons; dO.visible=dH1.visible=dH2.visible=dset.charge;
+  dip.visible=dset.dipole; cloud.visible=dset.cloud;
+}
 
-    toggle('● Electrons (shared + lone pairs)','electrons',false,v=>{eGroup.visible=v;eLbl.visible=v;});
-    toggle('⚡ Partial charges (δ)','charge',true,v=>{dO.visible=dH1.visible=dH2.visible=v;});
-    toggle('➤ Dipole arrow','dipole',false,v=>dip.visible=v);
-    toggle('☁ Electron cloud','cloud',false,v=>cloud.visible=v);
-    toggle('⟳ Spin','spin',true);
-    frameFn=(t)=>{ if(flags.spin) w.rotation.y=t*0.0004; };
-    cam.r=11; applyCam();
-  }
-});
-
-/* ---- 2. Bonding Types ---- */
-L.push({
-  title:'Covalent vs Hydrogen Bonds',
-  build(){
-    hintEl.textContent='Add water molecules — hydrogen bonds link δ+ H to δ− O';
-    const sim=createWaterSim();
-    sim.spawn(new THREE.Vector3(-2,0.6,0));
-    sim.spawn(new THREE.Vector3(1.6,-0.4,0.4));
-    sim.spawn(new THREE.Vector3(0.2,2.2,-0.6));
-
-    action('＋ Add water',()=>{ if(sim.mols.length<12) sim.spawn(); });
-    action('－ Remove',()=>{ if(sim.mols.length>2) sim.remove(); });
-    toggle('🟢 Show hydrogen bonds','hbond',true);
-    toggle('⬜ Show covalent (O–H) bonds','cov',true,v=>sim.setCov(v));
-
-    frameFn=()=>{
-      const r=sim.step({showHbonds:flags.hbond});
-      sim.setCov(flags.cov);
-      setReadout(`${sim.mols.length} molecules<br><b style="color:#6fe3c4">${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}</b><br>each ~1/20 a covalent bond`);
-    };
-    cam.r=15; applyCam();
-  }
-});
-
-/* ---- 3. Specific Heat & Heat of Vaporization ---- */
-L.push({
-  title:'Specific Heat & Thermoregulation',
-  build(){
-    hintEl.textContent='Add heat — energy first breaks hydrogen bonds, then molecules escape (evaporate)';
-    // engine tuned as a cohesive liquid droplet; heat is injected per-frame
-    const sim=createWaterSim({centroidPull:0.0022, MIN:3.3, EQ:3.7, kHB:0.008, jitter:0.006});
-    for(let i=0;i<14;i++)
-      sim.spawn(new THREE.Vector3((Math.random()-.5)*5,(Math.random()-.5)*5,(Math.random()-.5)*4));
-
-    let temp=20;
-    slider('🔥 Heat',0,100,20,1,v=>temp=v);
-    toggle('🟢 Show hydrogen bonds','hbond',true);
-    const rnd=()=>new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5);
-
-    frameFn=()=>{
-      const T=temp/100;
-      // hydrogen bonds weaken as temperature rises — energy goes into breaking
-      // them (high specific heat). Cohesion is gone by ~82°.
-      const hbScale=Math.max(0, 1-temp/82);
-      let escaping=0;
-      const r=sim.step({ showHbonds:flags.hbond, hbScale, hook:(w,i,f)=>{
-        f.add(rnd().multiplyScalar(T*0.03));                    // thermal kinetic energy ∝ T
-        if(w.userData.escaped){ f.set(0,0.02,0); escaping++; }  // rising vapour molecule
-        else if(temp>80 && Math.random()<0.0008*(temp-80)) w.userData.escaped=true;  // break free
-      }});
-      // recycle escaped molecules back into the droplet once they leave the top
-      sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>8){
-        w.position.set((Math.random()-.5)*4,-4.5,(Math.random()-.5)*4);
-        w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
-
-      const state = temp<35 ? 'liquid — H-bonds intact, absorbing heat'
-                  : temp<80 ? 'warming — H-bonds flexing & breaking'
-                  : 'evaporating — H-bonds break, molecules escape';
-      setReadout(`Temp <b>${temp}°</b><br>${state}<br><b style="color:#6fe3c4">${r.hbondCount}</b> H-bonds · ${escaping} escaping`);
-    };
-    cam.r=18; applyCam();
-  }
-});
-
-/* ---- 6. Ice Floats (density) ---- */
-L.push({
-  title:'Why Ice Floats',
-  build(){
-    hintEl.textContent='Freeze the molecules into real hexagonal ice (Iₕ) — an open tetrahedral lattice';
-    // ───────── true ice Iₕ oxygen lattice ─────────
-    // Puckered hexagonal bilayers, ABAB-stacked; every O tetrahedrally bonded
-    // to 4 others (O–O = b). b is large so each molecule's own H bridges the gap.
-    const b=4.0, dxy=0.9428*b, alat=Math.sqrt(3)*dxy;
-    const A1=new THREE.Vector2(alat,0), A2=new THREE.Vector2(alat/2,1.5*dxy);
-    const Opos=[];
-    // small patch (~24 molecules) so the open cage and its H-bonds stay legible
-    for(let k=0;k<2;k++){
-      const base=k*(4*b/3), upA=(k%2===0);
-      for(let n=-1;n<=1;n++)for(let m=0;m<=1;m++){
-        const a=A1.clone().multiplyScalar(n).add(A2.clone().multiplyScalar(m));
-        const bs=a.clone().add(new THREE.Vector2(0,dxy));
-        const up=upA?a:bs, lo=upA?bs:a;
-        Opos.push(new THREE.Vector3(up.x, base+b/6, up.y));
-        Opos.push(new THREE.Vector3(lo.x, base-b/6, lo.y));
-      }
+/* ---- ice Iₕ lattice (built to fit the current molecule count) ---- */
+function frameQuat(u,v){
+  const x=u.clone().normalize();
+  const z=new THREE.Vector3().crossVectors(u,v); if(z.lengthSq()<1e-6)z.set(0,0,1); z.normalize();
+  const y=new THREE.Vector3().crossVectors(z,x).normalize();
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+}
+const qLocalInv=frameQuat(H1L.clone().add(H2L), H1L.clone()).invert();
+function buildIceSites(n){
+  const b=4.0,dxy=0.9428*b,alat=Math.sqrt(3)*dxy, R=4;
+  const A1x=alat,A1z=0,A2x=alat/2,A2z=1.5*dxy, P=[];
+  for(let k=0;k<5;k++){ const base=k*(4*b/3), upA=(k%2===0);
+    for(let nn=-R;nn<=R;nn++)for(let mm=-R;mm<=R;mm++){
+      const ax=A1x*nn+A2x*mm, az=A1z*nn+A2z*mm, bx=ax, bz=az+dxy;
+      const up=upA?[ax,az]:[bx,bz], lo=upA?[bx,bz]:[ax,az];
+      P.push(new THREE.Vector3(up[0],base+b/6,up[1]));
+      P.push(new THREE.Vector3(lo[0],base-b/6,lo[1]));
     }
-    const ctr=new THREE.Vector3(); Opos.forEach(p=>ctr.add(p)); ctr.multiplyScalar(1/Opos.length);
-    Opos.forEach(p=>p.sub(ctr));
-    const N=Opos.length;
-    // bonds + donor assignment (each O donates 2 H → ice rules) → orientation targets
-    const donorDirs=Array.from({length:N},()=>[]), neighDirs=Array.from({length:N},()=>[]);
-    const donorCount=Opos.map(()=>0);
-    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
-      if(Opos[i].distanceTo(Opos[j])<b*1.15){
-        const di=donorCount[i]<=donorCount[j]?i:j, aj=di===i?j:i; donorCount[di]++;
-        const dDA=Opos[aj].clone().sub(Opos[di]).normalize();
-        donorDirs[di].push(dDA);
-        neighDirs[i].push(Opos[j].clone().sub(Opos[i]).normalize());
-        neighDirs[j].push(Opos[i].clone().sub(Opos[j]).normalize());
-      }
-    }
-    // frozen orientation quaternion per site: rotate the molecule so its two H's
-    // point at the two neighbours it donates to (bridging H emerges from the real H).
-    function frameQuat(u,v){
-      const x=u.clone().normalize();
-      const z=new THREE.Vector3().crossVectors(u,v); if(z.lengthSq()<1e-6)z.set(0,0,1); z.normalize();
-      const y=new THREE.Vector3().crossVectors(z,x).normalize();
-      return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
-    }
-    const qLocalInv=frameQuat(H1L.clone().add(H2L), H1L.clone()).invert();
-    const desired=Opos.map((_,i)=>{
-      const dd=donorDirs[i].slice();
-      for(const nd of neighDirs[i]){ if(dd.length>=2)break; if(!dd.some(x=>x.distanceTo(nd)<1e-3))dd.push(nd); }
-      if(dd.length<2) return new THREE.Quaternion();
-      return frameQuat(dd[0].clone().add(dd[1]), dd[0].clone()).multiply(qLocalInv);
-    });
-
-    // ───────── molecules via the engine ─────────
-    // Liquid = a dynamic H-bonded network (spaced, bonds visible, like lesson 2);
-    // ice = the open ordered lattice. Real liquid/ice O–O are similar — ice is only
-    // modestly less dense, but its rigid open cage is what makes it float.
-    const sim=createWaterSim({centroidPull:0.0009, jitter:0.006, MIN:3.0, stericK:0.04,
-      EQ:3.6, kHB:0.007, hbThreshold:2.7, hbForce:true, spin:0, collisionMin:1.9});
-    for(let i=0;i<N;i++) sim.spawn(new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*7,(Math.random()-.5)*7));
-
-    let freeze=0, target=0;
-    action('❄ Freeze into ice',(btn)=>{ target=target?0:1;
-      btn.innerHTML=target?'💧 Melt to liquid':'❄ Freeze into ice';});
-    toggle('🔗 Show hydrogen bonds','hbond',true);
-    const _t=new THREE.Vector3();
-
-    frameFn=()=>{
-      freeze += (target-freeze)*0.03;
-      // H-bonds stay visible in both states; their pull fades as the lattice
-      // spring takes over on freezing, so the crystal geometry isn't distorted.
-      const r=sim.step({ showHbonds:flags.hbond, hbScale:1-0.7*freeze, hook:(w,i,f)=>{
-        f.add(_t.subVectors(Opos[i], w.position).multiplyScalar(0.035*freeze));
-      }});
-      // rotate each molecule toward its ice-rule orientation as it freezes
-      sim.mols.forEach((w,i)=>{ if(freeze>0.02) w.quaternion.slerp(desired[i], 0.08*freeze); });
-      setReadout(freeze>0.5
-        ?`<b style="color:#9fd0ff">ICE Iₕ</b> · open hexagonal lattice<br>tetrahedral · <b>${r.hbondCount} H-bonds</b> · <b>less dense → floats</b>`
-        :`<b>LIQUID</b> · dynamic H-bonded network<br><b style="color:#6fe3c4">${r.hbondCount} H-bonds</b> · packs a bit closer than ice`);
-    };
-    cam.r=26; applyCam();
   }
-});
-
-/* ---- 7. Universal Solvent ---- */
-L.push({
-  title:'The Universal Solvent',
-  build(){
-    hintEl.textContent='Dissolve table salt — water forms hydration shells around each ion';
-    // NaCl mini crystal
-    const ions=[];
-    const spots=[[-1,0,0,'Na'],[1,0,0,'Cl'],[0,-1,0,'Cl'],[0,1,0,'Na'],[0,0,-1,'Na'],[0,0,1,'Cl']];
-    spots.forEach(([x,y,z,type])=>{
-      const ion=atom(type==='Na'?state.Na:state.Cl, type==='Na'?0.7:1.0,new THREE.Vector3(x*1.4,y*1.4,z*1.4));
-      ion.userData={type,home:ion.position.clone(),
-        out:new THREE.Vector3(x,y,z).multiplyScalar(4+Math.random()*2)};
-      const lbl=label(type==='Na'?'Na⁺':'Cl⁻', type==='Na'?'#c79bff':'#8fe6a0',34);
-      lbl.position.copy(ion.position).add(new THREE.Vector3(0,1,0)); lbl.visible=false;
-      ion.userData.lbl=lbl; root.add(ion,lbl); ions.push(ion);
-    });
-    // shell waters around each ion
-    const shells=[];
-    ions.forEach(ion=>{ for(let s=0;s<4;s++){ const w=water();
-      w.userData.ion=ion; w.userData.ang=s/4*Math.PI*2 + (ion.userData.type==='Na'?0:0.4);
-      w.visible=false; root.add(w); shells.push(w);} });
-    let diss=0,target=0;
-    action('🧂 Dissolve salt',(btn)=>{target=target?0:1;
-      btn.innerHTML=target?'⟲ Reform crystal':'🧂 Dissolve salt';});
-    frameFn=()=>{
-      diss+=(target-diss)*0.04;
-      ions.forEach(ion=>{ ion.position.lerpVectors(ion.userData.home,ion.userData.out,diss);
-        ion.userData.lbl.position.copy(ion.position).add(new THREE.Vector3(0,1.2,0));
-        ion.userData.lbl.visible=diss>0.3;});
-      shells.forEach(w=>{ w.visible=diss>0.35;
-        const ion=w.userData.ion, a=w.userData.ang;
-        const off=new THREE.Vector3(Math.cos(a)*2.4,Math.sin(a)*2.4,Math.sin(a*1.3)*1.2);
-        w.position.lerpVectors(ion.position, ion.position.clone().add(off), 1);
-        // orient: O toward Na+, H toward Cl-
-        w.lookAt(ion.userData.type==='Na'?ion.position:w.position.clone().add(off));
-      });
-      setReadout(diss>0.5?'<b>Dissolved</b> — hydration shells<br>δ− O faces Na⁺, δ+ H faces Cl⁻':'Ionic crystal (NaCl)');
-    };
-    cam.r=17; applyCam();
+  const ctr=new THREE.Vector3(); P.forEach(p=>ctr.add(p)); ctr.multiplyScalar(1/P.length); P.forEach(p=>p.sub(ctr));
+  P.sort((a,b)=>a.lengthSq()-b.lengthSq());
+  const sites=P.slice(0,n);
+  const c2=new THREE.Vector3(); sites.forEach(p=>c2.add(p)); c2.multiplyScalar(1/sites.length); sites.forEach(p=>p.sub(c2));
+  const donorDirs=sites.map(()=>[]), neighDirs=sites.map(()=>[]), dc=sites.map(()=>0);
+  for(let i=0;i<sites.length;i++)for(let j=i+1;j<sites.length;j++){
+    if(sites[i].distanceTo(sites[j])<b*1.15){
+      const di=dc[i]<=dc[j]?i:j, aj=di===i?j:i; dc[di]++;
+      donorDirs[di].push(sites[aj].clone().sub(sites[di]).normalize());
+      neighDirs[i].push(sites[j].clone().sub(sites[i]).normalize());
+      neighDirs[j].push(sites[i].clone().sub(sites[j]).normalize());
+    }
   }
-});
+  const quats=sites.map((_,i)=>{ const dd=donorDirs[i].slice();
+    for(const nd of neighDirs[i]){ if(dd.length>=2)break; if(!dd.some(x=>x.distanceTo(nd)<1e-3))dd.push(nd); }
+    if(dd.length<2) return new THREE.Quaternion();
+    return frameQuat(dd[0].clone().add(dd[1]), dd[0].clone()).multiply(qLocalInv);
+  });
+  return {sites,quats};
+}
+let iceFor=-1;
+function assignIce(){
+  const n=sim.mols.length; const {sites,quats}=buildIceSites(n);
+  const free=sites.map((_,i)=>i);
+  sim.mols.forEach(w=>{
+    let bi=free[0],bk=0,bd=1e9;
+    free.forEach((si,k)=>{ const d=w.position.distanceToSquared(sites[si]); if(d<bd){bd=d;bi=si;bk=k;} });
+    free.splice(bk,1);
+    w.userData.iceSite=sites[bi]; w.userData.iceQuat=quats[bi];
+  });
+  iceFor=n;
+}
+
+/* ---- salt (step 5): Na⁺ / Cl⁻ ions ---- */
+const salt=[];
+const bisLocal=H1L.clone().add(H2L).normalize();   // molecule bisector (points toward the H's)
+function addSalt(){
+  const base=new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4);
+  [['Na',+1,0.7,'Na⁺','#c79bff',-1.6],['Cl',-1,1.05,'Cl⁻','#8fe6a0',1.6]].forEach(([t,q,rad,txt,col,dx])=>{
+    const m=atom(t==='Na'?state.Na:state.Cl,rad, base.clone().add(new THREE.Vector3(dx,0,0)));
+    const lbl=label(txt,col,34); lbl.position.set(0,rad+0.7,0); m.add(lbl);
+    m.userData={charge:q, vel:new THREE.Vector3(), rad};
+    root.add(m); salt.push(m);
+  });
+}
+function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0; }
+function ionForceOnWater(w,f){
+  for(const ion of salt){
+    const d=new THREE.Vector3().subVectors(ion.position,w.position), dist=d.length()||1;
+    if(dist<8) f.add(d.multiplyScalar(0.02/(dist*dist)));   // hydration attraction
+  }
+}
+function orientHydration(){
+  sim.mols.forEach(w=>{
+    let ion=null,bd=30;
+    salt.forEach(m=>{ const d=w.position.distanceToSquared(m.position); if(d<bd){bd=d;ion=m;} });
+    if(!ion) return;
+    const toIon=new THREE.Vector3().subVectors(ion.position,w.position).normalize();
+    // cation (Na⁺): O faces ion → H's (bisector) point away; anion (Cl⁻): H's toward ion
+    const worldBis = ion.userData.charge>0 ? toIon.clone().multiplyScalar(-1) : toIon;
+    const q=new THREE.Quaternion().setFromUnitVectors(bisLocal, worldBis);
+    w.quaternion.slerp(q,0.05);
+  });
+}
+function updateIons(){
+  salt.forEach(a=>{
+    const f=new THREE.Vector3().copy(a.position).multiplyScalar(-0.004);   // gentle containment
+    salt.forEach(b=>{ if(a===b)return;
+      const dir=new THREE.Vector3().subVectors(b.position,a.position), dist=Math.max(1,dir.length()); dir.normalize();
+      f.addScaledVector(dir, -a.userData.charge*b.userData.charge*0.015/dist);  // unlike attract / like repel
+      if(dist<a.userData.rad+b.userData.rad+1.2) f.addScaledVector(dir,-0.05);  // steric + hydration keeps apart
+    });
+    a.userData.vel.add(f).multiplyScalar(0.9); a.position.add(a.userData.vel);
+  });
+}
 
 /* ============================================================= *
- *  CARD CONTENT (text only — 2D diagrams removed, to be redone)
- *  One entry per lesson, in the same order as L.
+ *  Temperature model (one continuum: cold → ice, hot → vapour)
  * ============================================================= */
-const cards=[
- {tag:'Molecule',
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function tempParams(){
+  const T=S.tempEnabled ? S.temperature : 22;
+  const fz=S.freezeEnabled ? clamp((8-T)/8,0,1) : 0;      // 0 at 8°C → 1 at 0°C
+  const warm=clamp((T-20)/80,0,1);
+  const kinetic=warm*0.03;               // extra thermal motion, 0 at the cool end
+  const evapProb=T>82 ? 0.0009*(T-82) : 0;
+  const hbScale=clamp(1-(T-40)/60,0.15,1)*(1-0.7*fz);
+  return {T,fz,warm,kinetic,evapProb,hbScale};
+}
+
+/* ============================================================= *
+ *  Steps
+ * ============================================================= */
+const stepMeta=[
+ {tag:'Molecule', title:'Structure & Polarity',
+  hint:'One water molecule — H₂O',
   body:`<p>Water is <b>V-shaped</b>: one oxygen covalently bonded to two hydrogens at a <b>104.5°</b> angle. A <b>covalent bond</b> is a <b>shared pair of electrons</b> — one from O, one from H — so oxygen ends up with two bonding pairs and <b>two lone pairs</b>.</p>
   <div class="key">Oxygen is far more <b>electronegative</b>, so it pulls the shared electrons closer, becoming slightly negative (<b>δ−</b>) while each hydrogen becomes slightly positive (<b>δ+</b>). The molecule is <b>polar</b>.</div>
-  <p class="try">Turn on <b>Electrons</b> to see the two shared pairs and two lone pairs in 3D. Add the electron cloud and dipole arrow to see the charge pulled toward O.</p>`},
-
- {tag:'Bonding',
+  <p class="try">Toggle <b>Electrons</b>, <b>Dipole arrow</b>, and <b>Electron cloud</b> to see the charge pulled toward O.</p>`},
+ {tag:'Bonding', title:'Covalent vs Hydrogen Bonds',
+  hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O',
   body:`<p>Two very different bonds matter here:</p>
   <ul>
    <li><b>Covalent bonds</b> hold O–H together <i>inside</i> one molecule (shared electrons — strong).</li>
    <li><b>Hydrogen bonds</b> attract the δ+ H of one molecule to the δ− O of another (<i>between</i> molecules — weak).</li>
   </ul>
   <div class="key">A single H-bond is only about <b>1/20</b> as strong as a covalent bond — but water forms them by the trillions, and <b>collectively</b> they drive nearly every special property of water.</div>
-  <p class="try">Click <b>＋ Add water</b> to build up a cluster — hydrogen bonds form automatically wherever a δ+ H comes near a δ− O. Watch the H-bond count climb.</p>`},
-
- {tag:'Property',
+  <p class="try">Click <b>＋ Add water</b> to grow the cluster — hydrogen bonds form wherever a δ+ H meets a δ− O.</p>`},
+ {tag:'Property', title:'Specific Heat & Thermoregulation',
+  hint:'Raise the temperature — energy first breaks hydrogen bonds',
   body:`<p>Water has a <b>high specific heat</b>: it absorbs a lot of heat for only a small temperature change, because energy first goes into <b>breaking hydrogen bonds</b> rather than speeding up molecules.</p>
   <div class="key">Its <b>high heat of vaporization</b> means sweating (evaporative cooling) removes lots of body heat, and large bodies of water stabilize climate.</div>
-  <p class="try">Drag the Heat slider. Below ~85° molecules just jiggle; push it higher and they break free and evaporate.</p>`},
-
- {tag:'Property',
-  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. When it freezes, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice</b>, spacing them farther apart than in liquid water.</p>
+  <p class="try">Drag the big <b>temperature</b> slider up. Past ~82°C molecules break free and evaporate.</p>`},
+ {tag:'Property', title:'Why Ice Floats',
+  hint:'Cool toward 0°C — molecules lock into the open ice lattice',
+  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. As it approaches <b>0°C</b>, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice (Iₕ)</b>, spacing them farther apart than in liquid water.</p>
   <div class="key">Ice floats, insulating the water below so lakes don't freeze solid — letting aquatic life survive winter.</div>
-  <p class="try">Click <b>❄ Freeze into ice</b> and rotate the crystal: it's the real <b>hexagonal ice (Iₕ)</b> lattice — each O tetrahedrally bonded to four others. Notice the open hexagonal channels that make ice less dense.</p>`},
-
- {tag:'Property',
+  <p class="try">Drag the temperature slider down to <b>0°C</b> and rotate the crystal — each O is tetrahedrally bonded to four others.</p>`},
+ {tag:'Property', title:'The Universal Solvent',
+  hint:'Add salt — water forms hydration shells around each ion',
   body:`<p>Because water is polar, it dissolves <b>ionic and polar substances</b> extraordinarily well — the "universal solvent" of life.</p>
-  <p>When salt (NaCl) dissolves, water's <b>δ− oxygens</b> surround each <b>Na⁺</b>, and its <b>δ+ hydrogens</b> surround each <b>Cl⁻</b>, forming <b>hydration shells</b> that pull the crystal apart.</p>
+  <p>Add salt (NaCl): water's <b>δ− oxygens</b> turn toward each <b>Na⁺</b>, and its <b>δ+ hydrogens</b> turn toward each <b>Cl⁻</b>, forming <b>hydration shells</b>.</p>
   <div class="key">This lets water carry nutrients, ions, and molecules throughout cells and organisms.</div>
-  <p class="try">Click "Dissolve salt" and watch hydration shells assemble around each ion.</p>`},
+  <p class="try">Click <b>🧂 Add salt</b> and watch water reorient into shells around the ions.</p>`},
 ];
 
-/* ============================================================= *
- *  ROUTER
- * ============================================================= */
-let cur=-1;
-const nav=document.getElementById('nav');
-L.forEach((les,i)=>{ const b=document.createElement('button');
-  b.innerHTML=`<span class="n">${i+1}</span>${les.title}`; b.onclick=()=>go(i); nav.appendChild(b);});
+/* ---------- DOM refs + control builders ---------- */
+const stage=document.getElementById('stage');
+const ctlWrap=document.getElementById('controls');
+const hintEl=document.getElementById('hint');
+const readEl=document.getElementById('readout');
 const cardEl=document.getElementById('card');
+const nav=document.getElementById('nav');
 const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
-prevB.onclick=()=>go(cur-1); nextB.onclick=()=>go(cur+1);
+function setReadout(t){ readEl.style.display='block'; readEl.innerHTML=t; }
 
-function go(i){
-  if(i<0||i>=L.length) return;
-  cur=i;
-  [...nav.children].forEach((b,k)=>b.classList.toggle('active',k===i));
-  clearStage(); L[i].build();
-  const c=cards[i];
-  cardEl.innerHTML=`<div class="tag">${c.tag}</div><h2>${L[i].title}</h2>${c.body}`;
-  cardEl.scrollTop=0;
-  prevB.disabled=(i===0); nextB.disabled=(i===L.length-1);
-  nextB.textContent = i===L.length-1?'Finish ✓':'Next →';
+// big vertical temperature slider
+const tempBar=document.createElement('div'); tempBar.id='tempbar';
+tempBar.innerHTML=`<div class="cap">HEAT</div><div class="tlabel hot" id="thot">100°C</div>
+  <input type="range" id="tinput" min="20" max="100" value="22" step="1">
+  <div class="tlabel cold" id="tcold">20°C</div><div class="tval" id="tval">22°C</div>`;
+stage.appendChild(tempBar);
+const tinput=tempBar.querySelector('#tinput'), tvalEl=tempBar.querySelector('#tval'), tcoldEl=tempBar.querySelector('#tcold');
+tinput.oninput=()=>{ S.temperature=parseFloat(tinput.value); tvalEl.textContent=S.temperature+'°C'; };
+function setTempRange(min,max){ tinput.min=min; tinput.max=max; tcoldEl.textContent=min+'°C';
+  if(S.temperature<min)S.temperature=min; tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
+
+function ctlButton(txt,on,onClick){ const b=document.createElement('div');
+  b.className='ctl'+(on?' on':(on===undefined?' act':'')); b.innerHTML=txt;
+  b.onclick=()=>onClick(b); ctlWrap.appendChild(b); return b; }
+function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>rad=Math.max(rad,w.position.length()));
+  salt.forEach(m=>rad=Math.max(rad,m.position.length())); return rad*2.0+6; }
+
+function buildControls(){
+  ctlWrap.innerHTML='';
+  if(S.step===0){
+    ctlButton('● Electrons (shared + lone pairs)',dset.electrons,b=>{dset.electrons=!dset.electrons;b.classList.toggle('on',dset.electrons);applyDetail();});
+    ctlButton('⚡ Partial charges (δ)',dset.charge,b=>{dset.charge=!dset.charge;b.classList.toggle('on',dset.charge);applyDetail();});
+    ctlButton('➤ Dipole arrow',dset.dipole,b=>{dset.dipole=!dset.dipole;b.classList.toggle('on',dset.dipole);applyDetail();});
+    ctlButton('☁ Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
+  }
+  if(S.step>=1){
+    ctlButton('＋ Add water',undefined,()=>{ if(sim.mols.length<60){
+      sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); } });
+    ctlButton('－ Remove',undefined,()=>{ if(sim.mols.length>3) sim.remove(); });
+    ctlButton('🔗 Show hydrogen bonds',S.hbondsOn,b=>{S.hbondsOn=!S.hbondsOn;b.classList.toggle('on',S.hbondsOn);});
+  }
+  if(S.step>=4){
+    ctlButton('🧂 Add salt (NaCl)',undefined,()=>{ if(salt.length<8) addSalt(); });
+    ctlButton('⟲ Clear salt',undefined,()=>clearSalt());
+  }
 }
 
-/* ---------- render loop ---------- */
-applyCam(); resize();
-function loop(t){ if(frameFn)frameFn(t); renderer.render(scene,camera); requestAnimationFrame(loop);}
-requestAnimationFrame(loop);
-go(0);
+let cur=-1;
+const stepR=[8,18,20,24,20];
+function applyStep(n){
+  S.step=n;
+  if(n===0){ while(sim.mols.length>1) sim.remove(); }
+  else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
+  if(n<4) clearSalt();
+  S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
+  applyDetail();
+  tempBar.style.display=S.tempEnabled?'flex':'none';
+  if(S.tempEnabled) setTempRange(S.freezeEnabled?0:20,100);
+  S.targetR=Math.max(stepR[n], fitDistance());
+  buildControls();
+  cur=n;
+  [...nav.children].forEach((b,k)=>b.classList.toggle('active',k===n));
+  const m=stepMeta[n];
+  cardEl.innerHTML=`<div class="tag">${m.tag}</div><h2>${m.title}</h2>${m.body}`; cardEl.scrollTop=0;
+  hintEl.textContent=m.hint;
+  prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
+  nextB.textContent=n===stepMeta.length-1?'Finish ✓':'Next →';
+}
+stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
+  b.innerHTML=`<span class="n">${i+1}</span>${s.title}`; b.onclick=()=>applyStep(i); nav.appendChild(b); });
+prevB.onclick=()=>applyStep(Math.max(0,cur-1));
+nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
+
+/* ---------- main loop ---------- */
+function renderReadout(p,r,escaping){
+  if(S.step===0){ readEl.style.display='none'; return; }
+  const nb=`<b style="color:#6fe3c4">${r.hbondCount}</b> H-bonds`;
+  let s;
+  if(!S.tempEnabled){ s=`${sim.mols.length} molecules · ${nb}`; }
+  else {
+    const phase = p.fz>0.5 ? '<b style="color:#9fd0ff">ICE Iₕ</b> — open lattice'
+                : p.T>82 ? 'evaporating' : 'liquid';
+    s=`<b>${p.T}°C</b> · ${phase}<br>${sim.mols.length} molecules · ${nb}`;
+    if(escaping) s+=` · ${escaping} escaping`;
+    if(p.fz>0.5) s+='<br><b style="color:#9fd0ff">less dense → floats</b>';
+  }
+  if(salt.length) s+=`<br>🧂 ${salt.length/2} NaCl · hydration shells`;
+  setReadout(s);
+}
+function loop(){
+  const want=Math.max(S.targetR, fitDistance());     // live auto-fit: zoom out when the cluster fills the view
+  cam.r += (want - cam.r)*0.05; applyCam();
+  const p=tempParams();
+  sim.cfg.jitter = (S.step===0)?0:0.006*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
+  if(S.freezeEnabled && p.fz>0.02){ if(iceFor!==sim.mols.length) assignIce(); } else iceFor=-1;
+  let escaping=0;
+  const r=sim.step({ showHbonds:S.hbondsOn && S.step>=1, hbScale:p.hbScale, hook:(w,i,f)=>{
+    if(S.tempEnabled && p.kinetic>0) f.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(p.kinetic));
+    if(p.fz>0 && w.userData.iceSite) f.add(new THREE.Vector3().subVectors(w.userData.iceSite,w.position).multiplyScalar(0.035*p.fz));
+    if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; } else { f.set(0,0.02,0); escaping++; } }
+    else if(p.evapProb>0 && Math.random()<p.evapProb) w.userData.escaped=true;
+    if(salt.length) ionForceOnWater(w,f);
+  }});
+  if(p.fz>0.02) sim.mols.forEach(w=>{ if(w.userData.iceQuat) w.quaternion.slerp(w.userData.iceQuat,0.08*p.fz); });
+  else if(salt.length) orientHydration();
+  sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>9){
+    w.position.set((Math.random()-.5)*4,-5,(Math.random()-.5)*4); w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
+  if(salt.length) updateIons();
+  renderReadout(p,r,escaping);
+  renderer.render(scene,camera); requestAnimationFrame(loop);
+}
+
+applyCam(); resize(); applyStep(0); requestAnimationFrame(loop);
 
 document.getElementById('savepng').onclick=()=>{
-  renderer.render(scene,camera);                          // fresh frame into the preserved buffer
-  const name=(L[cur]?.title||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-  const a=document.createElement('a');
-  a.download=`${name}.png`;
-  a.href=canvas.toDataURL('image/png');
-  a.click();
+  renderer.render(scene,camera);
+  const name=(stepMeta[cur]?.title||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const a=document.createElement('a'); a.download=`${name}.png`; a.href=canvas.toDataURL('image/png'); a.click();
 };
 </script>
 </body>
