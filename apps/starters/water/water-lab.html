@@ -586,18 +586,52 @@ function buildIceSites(n){
   P.sort((a,b)=>a.lengthSq()-b.lengthSq());
   const sites=P.slice(0,n);
   const c2=new THREE.Vector3(); sites.forEach(p=>c2.add(p)); c2.multiplyScalar(1/sites.length); sites.forEach(p=>p.sub(c2));
-  const donorDirs=sites.map(()=>[]), neighDirs=sites.map(()=>[]), dc=sites.map(()=>0);
+  // ---- Bernal–Fowler proton assignment ----
+  // Orient every O···O link donor→acceptor so each interior oxygen DONATES exactly
+  // two bonds (its two covalent, "near" H's) and ACCEPTS two (neighbours' "far" H's).
+  // That's a bounded-out-degree (≤2) orientation of the H-bond graph: it guarantees
+  // exactly one proton per link, so no two hydrogens ever share an O···O channel.
+  const adj=sites.map(()=>[]), edges=[];
   for(let i=0;i<sites.length;i++)for(let j=i+1;j<sites.length;j++){
-    if(sites[i].distanceTo(sites[j])<b*1.15){
-      const di=dc[i]<=dc[j]?i:j, aj=di===i?j:i; dc[di]++;
-      donorDirs[di].push(sites[aj].clone().sub(sites[di]).normalize());
-      neighDirs[i].push(sites[j].clone().sub(sites[i]).normalize());
-      neighDirs[j].push(sites[i].clone().sub(sites[j]).normalize());
-    }
+    if(sites[i].distanceTo(sites[j])<b*1.15){ adj[i].push(j); adj[j].push(i); edges.push([i,j]); }
   }
-  const quats=sites.map((_,i)=>{ const dd=donorDirs[i].slice();
-    for(const nd of neighDirs[i]){ if(dd.length>=2)break; if(!dd.some(x=>x.distanceTo(nd)<1e-3))dd.push(nd); }
-    if(dd.length<2) return new THREE.Quaternion();
+  const out=sites.map(()=>0), donor={};                 // out[i]=donor count, donor["i,j"]=donor index
+  const key=(a,c)=>a<c?a+','+c:c+','+a;
+  for(const [i,j] of edges){ const d=out[i]<=out[j]?i:j; donor[key(i,j)]=d; out[d]++; }   // greedy seed
+  // Rebalance: any oxygen donating >2 pushes the excess along an augmenting path of
+  // donor-directed edges to an oxygen with spare capacity, flipping edges en route.
+  function reduce(v){
+    const prev=new Map([[v,-1]]), stack=[v];
+    while(stack.length){
+      const u=stack.pop();
+      for(const w of adj[u]){
+        if(donor[key(u,w)]===u && !prev.has(w)){
+          prev.set(w,u);
+          if(out[w]<2){ let cur=w; while(prev.get(cur)!==-1){ const p=prev.get(cur); donor[key(p,cur)]=cur; cur=p; }
+            out[v]--; out[w]++; return true; }
+          stack.push(w);
+        }
+      }
+    }
+    return false;
+  }
+  let guard=sites.length*8;
+  for(let v=0;v<sites.length;v++){ while(out[v]>2 && guard-->0){ if(!reduce(v)) break; } }
+  const quats=sites.map((_,i)=>{
+    const dd=[], accept=[];
+    for(const jn of adj[i]){ const dir=sites[jn].clone().sub(sites[i]).normalize();
+      (donor[key(i,jn)]===i?dd:accept).push(dir); }        // donor dirs = near H's
+    // Surface molecule short of two donor bonds: keep both covalent H's but aim the
+    // spare one(s) into open space (a real dangling O–H) — never back along a link
+    // this molecule is accepting on, which is what caused overlapping protons.
+    while(dd.length<2){
+      let best=new THREE.Vector3(0,1,0), bestScore=1e9;
+      for(let s=0;s<48;s++){ const c=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5);
+        if(c.lengthSq()<1e-4) continue; c.normalize();
+        let sc=0; for(const a of accept) sc=Math.max(sc,c.dot(a)); for(const d0 of dd) sc=Math.max(sc,c.dot(d0));
+        if(sc<bestScore){ bestScore=sc; best=c; } }
+      dd.push(best);
+    }
     return frameQuat(dd[0].clone().add(dd[1]), dd[0].clone()).multiply(qLocalInv);
   });
   return {sites,quats};
