@@ -632,36 +632,39 @@ const SHELL_N=6;                                    // octahedral coordination n
 const OCTA=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),
             new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),
             new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
-let saltDescending=false;   // true while a freshly-added crystal is sinking into the water
 function addSalt(){
   // drop the crystal in from above the cluster so it drifts down into the water
   let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
-  const base=new THREE.Vector3((Math.random()-.5)*2, maxY+11, (Math.random()-.5)*2);
-  const na=atom(state.Na,DBG.naRad, base.clone().add(new THREE.Vector3(-0.9,0,0)),'Na');
-  const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(0.9,0,0)),'Cl');
-  na.userData={role:'Na', charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0};
-  cl.userData={role:'Cl', charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0};
+  const base=new THREE.Vector3((Math.random()-.5)*2, maxY+6, (Math.random()-.5)*2);
+  // seat the pair at contact distance (surfaces just touching) so the spheres don't overlap
+  const half=(DBG.naRad+DBG.clRad)/2+0.05;
+  const na=atom(state.Na,DBG.naRad, base.clone().add(new THREE.Vector3(-half,0,0)),'Na');
+  const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(half,0,0)),'Cl');
+  // `descending` is per-ion so an already-settled crystal keeps its normal physics
+  // (and its hydration shells) while a newly-added one is still falling in.
+  na.userData={role:'Na', charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0, descending:true};
+  cl.userData={role:'Cl', charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0, descending:true};
   root.add(na,cl); salt.push(na,cl);
-  // ionic bond, shown until water wedges the ions apart
+  // ionic bond, shown until water wedges the ions apart. `dissociated` is per-bond
+  // so dropping a second crystal never resets the first back to a contact pair.
   const stick=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,1,12),
     new THREE.MeshStandardMaterial({color:0xe0cf8a,emissive:0x4a3d12,roughness:.45}));
-  root.add(stick); saltBonds.push({na,cl,stick});
-  dissociated=false;        // fresh crystal starts as a contact ion pair
-  saltDescending=true;      // shells form only once it sinks into the water
+  root.add(stick); saltBonds.push({na,cl,stick,dissociated:false});
   updateTempRange();        // now that salt is present, extend the slider to −25…110°C
 }
-// once the crystal reaches the water, lock in the hydration shells
+const anyDescending=()=>salt.some(m=>m.userData.descending);
+// once a crystal reaches the water, clear its descending flag and lock in shells
 function checkSaltArrival(){
-  if(!saltDescending) return;
-  const reached=salt.every(ion=>sim.mols.some(w=>ion.position.distanceTo(w.position)<3.0));
-  if(reached){ saltDescending=false; assignShells(); }
+  let arrived=false;
+  saltBonds.forEach(b=>{
+    if(!b.na.userData.descending) return;
+    const both=[b.na,b.cl].every(ion=>sim.mols.some(w=>ion.position.distanceTo(w.position)<3.0));
+    if(both){ b.na.userData.descending=b.cl.userData.descending=false; arrived=true; }
+  });
+  if(arrived) assignShells();
 }
-// true once every ion is (nearly) fully hydrated: the Na⁺–Cl⁻ ionic bond is
-// then permanently broken and water's high dielectric screens the ion–ion pull,
-// so the free hydrated ions diffuse independently and don't re-pair.
-let dissociated=false;
 function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0;
-  saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0; dissociated=false; saltDescending=false;
+  saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0;
   sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); clearIonBonds();
   updateTempRange(); }   // back to pure water → standard 0–100°C bar
 // A water "bridges" a Na⁺–Cl⁻ pair once its O has wedged onto the bond axis
@@ -680,15 +683,17 @@ function bridgingWater(na,cl){
   });
 }
 function checkDissociation(){
-  if(dissociated || salt.length===0) return;
-  if(!saltBonds.every(b=>bridgingWater(b.na,b.cl))) return;  // wait for a water to wedge each pair apart
-  dissociated=true;
-  showDissocMsg();
-  // one-time "pop apart" impulse outward from the salt centroid
-  const c=new THREE.Vector3(); salt.forEach(m=>c.add(m.position)); c.multiplyScalar(1/salt.length);
-  salt.forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
-    if(d.lengthSq()<1e-4) d.set(Math.random()-.5,Math.random()-.5,Math.random()-.5);
-    m.userData.vel.add(d.normalize().multiplyScalar(0.25)); });
+  saltBonds.forEach(b=>{
+    if(b.dissociated || b.na.userData.descending) return;   // already split, or still falling in
+    if(!bridgingWater(b.na,b.cl)) return;                   // wait for a water to wedge this pair apart
+    b.dissociated=true;
+    showDissocMsg();
+    // one-time "pop apart" impulse outward from this pair's midpoint
+    const c=new THREE.Vector3().addVectors(b.na.position,b.cl.position).multiplyScalar(0.5);
+    [b.na,b.cl].forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
+      if(d.lengthSq()<1e-4) d.set(Math.random()-.5,Math.random()-.5,Math.random()-.5);
+      m.userData.vel.add(d.normalize().multiplyScalar(0.25)); });
+  });
 }
 // Animated toast announcing that water has pried the ionic bond apart.
 const dissocMsgEl=document.getElementById('dissocmsg');
@@ -721,6 +726,7 @@ function assignShells(){
   sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; });
   const taken=new Set();
   salt.forEach(ion=>{
+    if(ion.userData.descending){ ion.userData.shellCount=0; return; }   // no shell while still falling in
     const cand=sim.mols.filter(w=>!taken.has(w))
       .sort((a,b)=>a.position.distanceToSquared(ion.position)-b.position.distanceToSquared(ion.position))
       .slice(0,SHELL_N);
@@ -738,7 +744,7 @@ function updateSaltBonds(){
   const up=new THREE.Vector3(0,1,0);
   saltBonds.forEach(b=>{
     const dist=b.na.position.distanceTo(b.cl.position);
-    const bonded = !dissociated && dist < b.na.userData.rad+b.cl.userData.rad+0.9;   // still a contact ion pair
+    const bonded = !b.dissociated && dist < b.na.userData.rad+b.cl.userData.rad+0.9;   // still a contact ion pair
     b.stick.visible=bonded;
     if(bonded){
       const dir=new THREE.Vector3().subVectors(b.cl.position,b.na.position);
@@ -774,18 +780,26 @@ function orientShells(){
   });
 }
 function updateIons(){
-  if(saltDescending){   // fall as one rigid crystal (no ion–ion or water forces yet) so the pair stays bonded
-    salt.forEach(a=>{
-      const f=new THREE.Vector3(0,-0.012,0).addScaledVector(a.position,-0.0008);   // gravity + slack horizontal centering
+  // A freshly-added crystal falls as one rigid body (no ion–ion or water forces yet)
+  // so the pair stays bonded until it reaches the water. Only its own ions descend —
+  // already-settled crystals below keep their normal physics.
+  const descending=salt.filter(m=>m.userData.descending);
+  if(descending.length){
+    // centre on the descending crystal's centroid, not each ion, so the horizontal
+    // pull doesn't squeeze Na⁺ and Cl⁻ toward each other on the way down
+    const c=new THREE.Vector3(); descending.forEach(a=>c.add(a.position)); c.multiplyScalar(1/descending.length);
+    const cen=new THREE.Vector3(c.x*-0.0008,0,c.z*-0.0008);
+    descending.forEach(a=>{
+      const f=new THREE.Vector3(0,-0.012,0).add(cen);   // gravity + slack horizontal centering (shared)
       a.userData.vel.add(f).multiplyScalar(0.9); a.position.add(a.userData.vel);
     });
-    return;
   }
+  const settled=salt.filter(m=>!m.userData.descending);
   const fz=S.fz||0;
   // brine rejection: as ice grows it excludes the salt, so freezing pushes the
   // ions out to just beyond the lattice (leaving nearly-fresh ice + salty brine)
   let iceR=0; if(fz>0.2) sim.mols.forEach(w=>iceR=Math.max(iceR,w.position.length()));
-  salt.forEach(a=>{
+  settled.forEach(a=>{
     let f;
     if(fz>0.2){ const r=a.position.length()||1, Rrej=iceR+1.5;
       f=a.position.clone().multiplyScalar((Rrej-r)/r*0.012*fz); }   // spring outward to the ice surface
@@ -795,7 +809,7 @@ function updateIons(){
     // Screening is per-ion (not a global switch), so a hydrated ion never gets yanked
     // back to contact even while another pair is still dissociating.
     const aShielded=a.userData.shellCount>=3;
-    salt.forEach(b=>{ if(a===b)return;
+    settled.forEach(b=>{ if(a===b)return;
       const dir=new THREE.Vector3().subVectors(b.position,a.position), dist=Math.max(1,dir.length()); dir.normalize();
       const shielded = aShielded || b.userData.shellCount>=3;
       const sc = shielded ? DBG.screen : 1;   // water's dielectric screens ion–ion pull once either ion is hydrated
@@ -976,7 +990,10 @@ function chip(txt,on,onClick){ const b=document.createElement('div');
   b.className='chip'+(on?' on':''); b.textContent=txt;
   b.onclick=()=>onClick(b); chipsEl.appendChild(b); return b; }
 function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>rad=Math.max(rad,w.position.length()));
-  salt.forEach(m=>rad=Math.max(rad,m.position.length())); return rad*2.0+6; }
+  // skip any crystal still falling in from high above — it would balloon the fit
+  // radius and make the whole view zoom out until it settles into the water
+  salt.forEach(m=>{ if(!m.userData.descending) rad=Math.max(rad,m.position.length()); });
+  return rad*2.0+6; }
 function outerPoint(margin=1.6){
   const n=sim.mols.length+salt.length*0.5;
   const rad=1.6*Math.cbrt(Math.max(1,n))+margin;
@@ -995,8 +1012,8 @@ function buildControls(){
   }
 }
 // water +/- (top formula card) and salt +/clear (bottom card)
-function addWater(){ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt.length&&!saltDescending) assignShells(); } }
-function remWater(){ if(sim.mols.length>3){ sim.remove(); if(salt.length&&!saltDescending) assignShells(); } }
+function addWater(){ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt.length&&!anyDescending()) assignShells(); } }
+function remWater(){ if(sim.mols.length>3){ sim.remove(); if(salt.length&&!anyDescending()) assignShells(); } }
 document.getElementById('addwater').onclick=addWater;
 document.getElementById('remwater').onclick=remWater;
 document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
@@ -1200,7 +1217,7 @@ function loop(){
   if(salt.length && wasFreezing && p.fz<0.05) assignShells();   // melting: re-form hydration shells
   wasFreezing = p.fz>0.3;
   // condensing back below the boiling point re-forms depleted shells
-  if(salt.length && wasBoiling && p.evapProb<=0 && !saltDescending) assignShells();
+  if(salt.length && wasBoiling && p.evapProb<=0 && !anyDescending()) assignShells();
   wasBoiling = p.evapProb>0;
   sim.cfg.jitter = (S.step===0)?0:(solvent?DBG.jitter:0.006)*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
   if(S.freezeEnabled && p.fz>0.02){ if(iceFor!==sim.mols.length) assignIce(); } else iceFor=-1;
