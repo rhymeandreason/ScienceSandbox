@@ -524,6 +524,24 @@ function updateIons(){
     a.userData.vel.add(f).multiplyScalar(0.9); a.position.add(a.userData.vel);
   });
 }
+// Hard constraint: no water ATOM (O or either H) may overlap an ion sphere.
+// This matters most for Cl⁻, whose inward-pointing H is the closest atom and
+// would otherwise poke into the large anion. Shoves the whole molecule out.
+const WO_RAD=0.95, WH_RAD=0.55;
+function separateIonsFromWater(){
+  salt.forEach(ion=>{
+    sim.mols.forEach(w=>{
+      const atoms=[[w.userData.oWorld(),WO_RAD],[w.userData.hWorld(0),WH_RAD],[w.userData.hWorld(1),WH_RAD]];
+      let pen=0, dir=null;
+      for(const [p,rad] of atoms){
+        const d=new THREE.Vector3().subVectors(p,ion.position), dist=d.length()||1;
+        const minD=ion.userData.rad+rad+0.08;
+        if(minD-dist>pen){ pen=minD-dist; dir=d.multiplyScalar(1/dist); }
+      }
+      if(dir) w.position.addScaledVector(dir,pen);   // push molecule out until the offending atom clears
+    });
+  });
+}
 
 /* ============================================================= *
  *  Temperature model (one continuum: cold → ice, hot → vapour)
@@ -767,7 +785,7 @@ function loop(){
   else if(salt.length) orientShells();
   sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>9){
     w.position.set((Math.random()-.5)*4,-5,(Math.random()-.5)*4); w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
-  if(salt.length){ checkDissociation(); updateIons(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
+  if(salt.length){ checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
