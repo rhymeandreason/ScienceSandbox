@@ -3,102 +3,215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Chemistry of Water — AP Biology Interactive</title>
+<title>The Structure of Water — Interactive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <style>
   :root{
-    --bg:#0b1020; --panel:#121a30; --panel2:#0f1729; --ink:#e8eefc; --muted:#93a3c4;
-    --accent:#4ea1ff; --accent2:#6fe3c4; --pos:#ff6b6b; --neg:#4ea1ff; --line:#26324f;
-    --O:#ff4d4d; --H:#e9eef8; --Na:#b06bff; --Cl:#5fd07a;
+    --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
+    --hair:#d8cfbf; --sketch:#353f44;
+    --O:#e6362f; --H:#e9eef8; --Na:#a052e0; --Cl:#2fbf7a; --hot:#e5533a; --cold:#4a90d9;
+    --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
+    --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --torn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  #app{display:grid;grid-template-columns:1fr 430px;grid-template-rows:auto auto 1fr;height:100vh}
-  header{grid-column:1/3;grid-row:1;display:flex;align-items:center;gap:16px;padding:12px 22px;
-    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e1730,#0b1020)}
-  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
-  header .badge{font-size:11px;color:var(--muted);border:1px solid var(--line);
-    padding:3px 9px;border-radius:20px}
-  nav{grid-column:1/3;grid-row:2;display:flex;gap:6px;padding:8px 22px;border-bottom:1px solid var(--line);
-    overflow-x:auto;background:var(--panel2)}
-  nav button{white-space:nowrap;background:transparent;border:1px solid var(--line);color:var(--muted);
-    padding:6px 12px;border-radius:20px;font-size:12.5px;cursor:pointer;transition:.15s}
-  nav button:hover{color:var(--ink);border-color:var(--accent)}
-  nav button.active{background:var(--accent);border-color:var(--accent);color:#04122b;font-weight:650}
-  nav button .n{opacity:.6;margin-right:5px}
-  #stage{grid-row:3;grid-column:1;position:relative;background:radial-gradient(circle at 50% 40%,#16233f,#0a0f1e 75%);overflow:hidden}
+  html,body{margin:0;height:100%;color:var(--ink);font-family:var(--font-sans)}
+  #app{display:grid;grid-template-columns:1fr 372px;grid-template-rows:1fr;height:100vh;overflow:hidden}
+
+  /* ---------- stage (left, dotted stationery) ---------- */
+  #stage{grid-column:1;position:relative;overflow:hidden;
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+    background-size:26px 26px;background-position:13px 13px}
   #gl{display:block;width:100%;height:100%}
-  #controls{position:absolute;left:16px;bottom:16px;right:70px;display:flex;flex-wrap:wrap;gap:8px;
-    align-items:center}
-  .ctl{background:rgba(15,23,41,.82);border:1px solid var(--line);border-radius:10px;
-    padding:7px 12px;font-size:12.5px;color:var(--ink);cursor:pointer;backdrop-filter:blur(6px);
-    display:flex;align-items:center;gap:8px;user-select:none}
-  .ctl:hover{border-color:var(--accent)}
-  .ctl.on{border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2) inset;color:#eafff9}
-  .ctl.act{background:var(--accent);color:#04122b;border-color:var(--accent);font-weight:650}
-  .hint{position:absolute;top:14px;left:16px;font-size:12px;color:var(--muted);
-    background:rgba(15,23,41,.7);padding:5px 10px;border-radius:8px;border:1px solid var(--line)}
-  #readout{position:absolute;top:14px;right:16px;font-size:12px;color:var(--accent2);
-    background:rgba(15,23,41,.7);padding:6px 11px;border-radius:8px;border:1px solid var(--line);
-    font-variant-numeric:tabular-nums;text-align:right;min-width:120px;display:none}
-  /* big vertical temperature slider, left of stage */
-  #tempbar{position:absolute;left:18px;top:50%;transform:translateY(-50%);display:none;
-    flex-direction:column;align-items:center;gap:10px;background:rgba(15,23,41,.82);
-    border:1px solid var(--line);border-radius:16px;padding:16px 14px;backdrop-filter:blur(6px)}
-  #tempbar .cap{font-size:11px;color:var(--muted);letter-spacing:.5px}
-  #tempbar .tval{font-size:16px;font-weight:750;color:#ffb08a;font-variant-numeric:tabular-nums}
-  #tempbar input[type=range]{ -webkit-appearance:slider-vertical;appearance:slider-vertical;
-    writing-mode:vertical-lr;direction:rtl;width:26px;height:52vh;accent-color:#ff8a5b;cursor:pointer}
-  #tempbar .tlabel{font-size:10.5px;color:var(--muted)}
-  #tempbar .tlabel.cold{color:#9fd0ff}
-  #tempbar .tlabel.hot{color:#ff8a5b}
-  #savepng{position:absolute;bottom:16px;right:16px;font-size:12.5px;color:var(--ink);
-    background:rgba(15,23,41,.82);border:1px solid var(--line);border-radius:10px;padding:7px 12px;
-    cursor:pointer;backdrop-filter:blur(6px)}
-  #savepng:hover{border-color:var(--accent)}
-  #side{grid-row:3;grid-column:2;background:var(--panel);border-left:1px solid var(--line);
-    display:flex;flex-direction:column;overflow:hidden}
-  #card{padding:22px 24px;overflow-y:auto;flex:1}
-  #card h2{font-size:20px;margin:0 0 2px}
-  #card .tag{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--accent2);font-weight:700}
-  #card p{font-size:14px;line-height:1.62;color:#d3ddf3}
-  #card .key{background:rgba(78,161,255,.09);border-left:3px solid var(--accent);
-    padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px;line-height:1.55}
-  #card .key b{color:var(--accent2)}
-  #card ul{padding-left:18px;font-size:13.5px;line-height:1.6;color:#d3ddf3}
-  #card .try{font-size:12.5px;color:var(--accent2);margin-top:6px;display:flex;gap:7px;align-items:flex-start}
-  #card .try::before{content:"▸";color:var(--accent2)}
-  footer{display:flex;gap:10px;padding:14px 24px;border-top:1px solid var(--line);background:var(--panel2)}
-  footer button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
-    color:var(--ink);font-size:13.5px;cursor:pointer;font-weight:600}
-  footer button:hover{border-color:var(--accent)}
-  footer button.primary{background:var(--accent);color:#04122b;border-color:var(--accent)}
-  footer button:disabled{opacity:.35;cursor:not-allowed}
-  @media (max-width:920px){#app{grid-template-columns:1fr;grid-template-rows:auto auto 46vh 1fr}
-    #stage{grid-column:1}#side{grid-column:1;grid-row:auto;border-left:none;border-top:1px solid var(--line)}}
+
+  /* wordmark */
+  #brand{position:absolute;top:22px;left:26px;display:flex;align-items:center;gap:11px;z-index:6}
+  #brand .drop{font-size:26px;color:var(--ink)}
+  #brand h1{margin:0;font-family:var(--font-marker);font-weight:400;font-size:25px;letter-spacing:.3px}
+
+  /* H2O formula card, top-center */
+  #formula{position:absolute;top:20px;right:28px;z-index:6;
+    display:flex;flex-direction:column;align-items:center;gap:8px}
+  .sketchbox{position:relative;width:104px;height:92px;border:2.5px solid var(--ink);border-radius:6px 10px 7px 9px;
+    display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.28)}
+  .sketchbox img{width:74px;height:74px;object-fit:contain}
+  .sketchbox .flabel{position:absolute;top:-13px;left:6px;font-family:var(--font-slab);
+    font-weight:600;font-size:15px;background:var(--paper);padding:0 5px}
+  .sketchbox .flabel sub{font-size:.72em}
+  .addbtn{width:34px;height:34px;border-radius:50%;border:none;background:#4b4640;color:#fff;
+    font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.22);transition:.15s}
+  .addbtn:hover{background:#2b2723;transform:scale(1.06)}
+  .addbtn.mini{width:26px;height:26px;font-size:14px;background:transparent;color:var(--muted);
+    border:1.5px solid var(--hair);box-shadow:none}
+  .addbtn.mini:hover{color:var(--ink);border-color:var(--muted);background:transparent}
+  #formula .addrow{position:relative;display:flex;justify-content:center}
+  #formula .addrow .mini{position:absolute;left:calc(50% + 26px);top:50%;transform:translateY(-50%)}
+
+  /* NaCl card, bottom-center (step 5) */
+  #saltcard{position:absolute;bottom:26px;right:28px;z-index:6;
+    display:none;flex-direction:column;align-items:center;gap:8px}
+  #saltcard .clear{font-family:var(--font-hand);font-size:20px;color:var(--muted);
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  #saltcard .clear:hover{color:var(--ink)}
+
+  /* temperature slider, left (steps 3+) */
+  #tempbar{position:absolute;left:34px;top:50%;transform:translateY(-50%);z-index:5;
+    display:none;flex-direction:row;align-items:center;gap:16px}
+  #tempbar .tcol{display:flex;flex-direction:column;align-items:center;gap:9px}
+  #tempbar .tlabel{font-family:var(--font-slab);font-weight:600;font-size:14px}
+  #tempbar .tlabel.hot{color:var(--hot)}#tempbar .tlabel.cold{color:var(--cold)}
+  #trange{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;
+    width:20px;height:340px;border-radius:12px;cursor:pointer;outline:none;
+    background:linear-gradient(to top,var(--cold),#e9d98f 48%,var(--hot));
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  #trange::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+    background:#fff;border:2.5px solid var(--ink);cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.25)}
+  #trange::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;
+    border:2.5px solid var(--ink);cursor:pointer}
+  #treadout{display:flex;flex-direction:column;gap:2px;min-width:120px}
+  #treadout .tval{font-family:var(--font-slab);font-weight:700;font-size:34px;line-height:1}
+  #treadout .tdesc{font-family:var(--font-hand);font-size:19px;color:var(--muted);line-height:1.05;margin-top:6px;white-space:pre-line}
+
+  /* step-5 salt readout, bottom-center of the canvas */
+  #saltinfo{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;display:none;
+    text-align:center;font-family:var(--font-slab);font-weight:500;font-size:14px;color:#5a5346;
+    line-height:1.5;white-space:nowrap}
+  #saltinfo b{font-weight:700;color:var(--ink)}
+  #saltinfo .cold{color:var(--cold)}#saltinfo .hot{color:var(--hot)}
+  #saltinfo .muted{color:var(--muted);font-weight:500}
+
+  /* bottom-left stats + PNG */
+  #stats{position:absolute;left:26px;bottom:66px;z-index:5;font-size:13px;color:var(--muted);line-height:1.7}
+  #savepng{position:absolute;left:26px;bottom:22px;z-index:5;
+    font-family:var(--font-slab);font-weight:600;font-size:13px;letter-spacing:.5px;color:var(--ink);
+    background:transparent;border:2px solid var(--ink);border-radius:8px;padding:6px 15px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #savepng:hover{background:var(--ink);color:var(--paper)}
+
+  /* on-stage toggle chips (electron/charge/dipole/cloud + H-bonds) */
+  #chips{position:absolute;left:26px;bottom:150px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .chip{font-size:12px;color:var(--muted);background:rgba(255,255,255,.5);border:1.5px solid var(--hair);
+    border-radius:16px;padding:4px 12px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+  .chip:hover{border-color:var(--muted);color:var(--ink)}
+  .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+  /* ---------- right panel (torn grid paper) ---------- */
+  #side{grid-column:2;position:relative;background:var(--panel);
+    background-image:linear-gradient(var(--hair) 1px,transparent 1px),linear-gradient(90deg,var(--hair) 1px,transparent 1px);
+    background-size:22px 22px;display:flex;flex-direction:column;
+    padding:26px 30px 44px 34px;box-shadow:-14px 0 30px -18px rgba(0,0,0,.25)}
+  #side::before{content:"";position:absolute;top:0;left:-9px;width:14px;height:100%;
+    background:var(--panel);z-index:2;
+    -webkit-mask:var(--torn);mask:var(--torn);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+
+  /* step numbers with hand-drawn circle */
+  #steps{display:flex;gap:14px;align-items:center;margin-bottom:22px}
+  .stepnum{position:relative;font-family:var(--font-slab);font-weight:700;font-size:30px;color:var(--muted);
+    cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+  .stepnum:hover{color:var(--ink)}
+  .stepnum.active{color:var(--ink)}
+  .stepnum.active::after{content:"";position:absolute;inset:-6px -4px;
+    background:url('sketch_circle.svg') center/100% 100% no-repeat}
+
+  #card{flex:1;overflow-y:auto}
+  #card h2{font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12;margin:0 0 16px}
+  #card p{font-family:var(--font-sans);font-weight:400;font-size:16px;line-height:1.55;margin:0 0 14px;color:#3a352f}
+  #card p.lead{font-weight:600}
+  #card ul{font-family:var(--font-sans);font-weight:400;font-size:15px;line-height:1.55;padding-left:20px;margin:0 0 14px}
+  #card b{font-weight:700}
+  #card .fact{margin-top:18px;padding:14px 16px;background:rgba(255,224,120,.28);
+    border-left:3px solid #e5b93a;border-radius:0 8px 8px 0;font-size:14.5px;line-height:1.5;
+    display:none}
+  #card .fact.show{display:block}
+
+  /* lightbulb sticker */
+  #bulb{position:absolute;left:-36px;top:46%;width:66px;height:66px;cursor:pointer;z-index:8;
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));transition:transform .15s;display:none}
+  #bulb:hover{transform:scale(1.08) rotate(-3deg)}
+  #bulb.lit{transform:scale(1.05)}
+  #bulb img{width:100%;height:100%}
+
+  /* nav footer */
+  footer{display:flex;gap:12px;align-items:center;margin-top:16px}
+  footer button{font-family:var(--font-slab);font-weight:600;font-size:15px;padding:11px 22px;
+    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
+  #prev{background:transparent;color:var(--ink)}
+  #prev:hover{background:rgba(0,0,0,.05)}
+  #next{background:var(--ink);color:var(--panel);border-color:var(--ink);margin-left:auto}
+  #next:hover{background:#000}
+  footer button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+  #dbgtoggle{position:absolute;left:0;right:0;bottom:14px;text-align:center;font-family:var(--font-slab);font-weight:600;
+    font-size:13px;letter-spacing:1px;color:var(--muted);cursor:pointer;user-select:none}
+  #dbgtoggle:hover{color:var(--ink)}
+
+  @media (max-width:920px){#app{grid-template-columns:1fr;grid-template-rows:56vh 1fr}
+    #stage{grid-column:1}#side{grid-column:1;padding:20px}#side::before{display:none}
+    #bulb{position:static;margin:10px 0}}
 </style>
 </head>
 <body>
 <div id="app">
-  <header>
-    <h1>💧 The Chemistry of Water</h1>
-    <span class="badge">AP Biology · Interactive</span>
-    <span class="badge" style="margin-left:auto">Drag stage to rotate · scroll to zoom</span>
-  </header>
-  <nav id="nav"></nav>
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div class="hint" id="hint"></div>
-    <div id="readout"></div>
-    <div id="controls"></div>
-    <button id="savepng" title="Save transparent PNG">⬇ PNG</button>
+
+    <div id="brand">
+      <i class="ph-bold ph-drop drop"></i>
+      <h1>Structure of Water</h1>
+    </div>
+
+    <div id="formula">
+      <div class="sketchbox">
+        <span class="flabel">H<sub>2</sub>O</span>
+        <img src="molecule_water.png" alt="water molecule">
+      </div>
+      <div class="addrow">
+        <button class="addbtn" id="addwater" title="Add water molecule"><i class="ph-bold ph-plus"></i></button>
+        <button class="addbtn mini" id="remwater" title="Remove water molecule"><i class="ph-bold ph-minus"></i></button>
+      </div>
+    </div>
+
+    <div id="tempbar">
+      <div class="tcol">
+        <div class="tlabel hot" id="thot">100°C</div>
+        <input type="range" id="trange" min="20" max="100" value="22" step="1">
+        <div class="tlabel cold" id="tcold">20°C</div>
+      </div>
+      <div id="treadout">
+        <div class="tval" id="tval">22°C</div>
+        <div class="tdesc" id="tdesc"></div>
+      </div>
+    </div>
+
+    <div id="chips"></div>
+    <div id="saltinfo"></div>
+    <div id="stats"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+
+    <div id="saltcard">
+      <div class="sketchbox">
+        <span class="flabel">NaCl</span>
+        <img src="molecule_salt.png" alt="salt">
+      </div>
+      <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
+      <span class="clear" id="clearsalt">Clear Salt</span>
+    </div>
   </div>
+
   <div id="side">
+    <div id="steps"></div>
     <div id="card"></div>
+    <img id="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit">
     <footer>
-      <button id="prev">← Previous</button>
-      <button id="next" class="primary">Next →</button>
+      <button id="prev">Previous</button>
+      <button id="next">Next</button>
     </footer>
+    <span id="dbgtoggle">DEBUG</span>
   </div>
 </div>
 
@@ -618,77 +731,86 @@ function tempParams(){
  *  Steps
  * ============================================================= */
 const stepMeta=[
- {tag:'Molecule', title:'Structure & Polarity',
+ {title:'A Polar Molecule',
   hint:'One water molecule — H₂O',
-  body:`<p>Water is <b>V-shaped</b>: one oxygen covalently bonded to two hydrogens at a <b>104.5°</b> angle. A <b>covalent bond</b> is a <b>shared pair of electrons</b> — one from O, one from H — so oxygen ends up with two bonding pairs and <b>two lone pairs</b>.</p>
-  <div class="key">Oxygen is far more <b>electronegative</b>, so it pulls the shared electrons closer, becoming slightly negative (<b>δ−</b>) while each hydrogen becomes slightly positive (<b>δ+</b>). The molecule is <b>polar</b>.</div>
-  <p class="try">Toggle <b>Electrons</b>, <b>Dipole arrow</b>, and <b>Electron cloud</b> to see the charge pulled toward O.</p>`},
- {tag:'Bonding', title:'Covalent vs Hydrogen Bonds',
+  body:`<p>Water is <b>V-shaped</b>: one oxygen bonded to two hydrogens at a <b>104.5°</b> angle. Oxygen pulls the shared electrons closer, so it turns slightly negative (<b>δ−</b>) and the hydrogens slightly positive (<b>δ+</b>).</p>`,
+  fact:`Because the charge is lopsided, water is <b>polar</b> — and that single fact is the seed of nearly every special property that follows.`},
+ {title:'Hydrogen Bonds',
   hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O',
-  body:`<p>Two very different bonds matter here:</p>
-  <ul>
-   <li><b>Covalent bonds</b> hold O–H together <i>inside</i> one molecule (shared electrons — strong).</li>
-   <li><b>Hydrogen bonds</b> attract the δ+ H of one molecule to the δ− O of another (<i>between</i> molecules — weak).</li>
-  </ul>
-  <div class="key">A single H-bond is only about <b>1/20</b> as strong as a covalent bond — but water forms them by the trillions, and <b>collectively</b> they drive nearly every special property of water.</div>
-  <p class="try">Click <b>＋ Add water</b> to grow the cluster — hydrogen bonds form wherever a δ+ H meets a δ− O.</p>`},
- {tag:'Property', title:'Specific Heat & Thermoregulation',
+  body:`<p>Hydrogen bonds attract the <b>+ H</b> of one water molecule to the <b>− O</b> of another.</p>`,
+  fact:`A single hydrogen bond is only about <b>1/20</b> as strong as the covalent O–H bond inside a molecule — but water forms them by the trillions, and <b>together</b> they drive everything that makes water special.`},
+ {title:'Specific Heat',
   hint:'Raise the temperature — energy first breaks hydrogen bonds',
-  body:`<p>Water has a <b>high specific heat</b>: it absorbs a lot of heat for only a small temperature change, because energy first goes into <b>breaking hydrogen bonds</b> rather than speeding up molecules.</p>
-  <div class="key">Its <b>high heat of vaporization</b> means sweating (evaporative cooling) removes lots of body heat, and large bodies of water stabilize climate.</div>
-  <p class="try">Drag the big <b>temperature</b> slider up. Past ~82°C molecules break free and evaporate.</p>`},
- {tag:'Property', title:'Why Ice Floats',
+  body:`<p class="lead">Water has a high specific heat.</p>
+  <p>It absorbs a lot of heat for only a small temperature change, because energy first goes into breaking hydrogen bonds rather than speeding up molecules.</p>`,
+  fact:`This is why sweating cools you so well and why oceans stabilize climate — water soaks up enormous heat before it warms.`},
+ {title:'Why Ice Floats',
   hint:'Cool toward 0°C — molecules lock into the open ice lattice',
-  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. As it approaches <b>0°C</b>, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice (Iₕ)</b>, spacing them farther apart than in liquid water.</p>
-  <div class="key">Ice floats, insulating the water below so lakes don't freeze solid — letting aquatic life survive winter.</div>
-  <p class="try">Drag the temperature slider down to <b>0°C</b> and rotate the crystal — each O is tetrahedrally bonded to four others.</p>`},
- {tag:'Property', title:'The Universal Solvent',
+  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. Near <b>0°C</b> hydrogen bonds lock each molecule into a rigid, open hexagonal lattice, spacing them farther apart than in liquid water.</p>`,
+  fact:`So ice floats, insulating the water below — lakes don't freeze solid, and aquatic life survives the winter.`},
+ {title:'The Universal Solvent',
   hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
-  body:`<p>Because water is polar, it dissolves <b>ionic and polar substances</b> extraordinarily well — the "universal solvent" of life.</p>
-  <p>Add salt (NaCl) and each ion pulls in a <b>first hydration shell of ~6 waters</b> (octahedral):</p>
-  <ul>
-   <li>Around <b>Na⁺</b>, every water aims its <b>δ− oxygen</b> straight at the ion.</li>
-   <li>Around <b>Cl⁻</b>, every water aims <b>one δ+ O–H bond</b> at the ion (a near-linear Cl⁻···H–O bond).</li>
-  </ul>
-  <div class="key">Na⁺ is small and dense, so its shell is tight; Cl⁻ is larger, so its shell sits farther out — both hold about 6 waters. This lets water carry ions and nutrients through cells and organisms.</div>
-  <p>Dissolved salt also shifts water's phase changes (<b>colligative properties</b> — they depend on the <i>number</i> of dissolved particles). Each NaCl frees 2 ions, so salt water <b>freezes below 0°C</b> (the ions block the ice lattice — why salt melts road ice) and <b>boils above 100°C</b>. Freeze it and the growing ice <b>rejects the salt</b>, leaving nearly-fresh ice and saltier brine.</p>
-  <p class="try">Click <b>🧂 Add salt</b> to watch 6 waters wrap each ion. Then drag the <b>temperature</b> slider: below 0°C it still stays liquid, and only freezes lower — pushing the ions out of the ice.</p>`},
+  body:`<p>Because water is polar, it dissolves ionic and polar substances extraordinarily well — the "universal solvent" of life.</p>
+  <p>Add salt and each ion pulls in a shell of about <b>6 waters</b>: around <b>Na⁺</b> they aim their δ− oxygen inward; around <b>Cl⁻</b> they aim a δ+ O–H inward.</p>`,
+  fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>): salt water <b>freezes below 0°C</b> — which is how salt melts road ice — and <b>boils above 100°C</b>. Freeze it and the growing ice rejects the salt, leaving fresh ice and saltier brine.`},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
 const stage=document.getElementById('stage');
-const ctlWrap=document.getElementById('controls');
-const hintEl=document.getElementById('hint');
-const readEl=document.getElementById('readout');
 const cardEl=document.getElementById('card');
-const nav=document.getElementById('nav');
+const stepsEl=document.getElementById('steps');
+const statsEl=document.getElementById('stats');
+const saltinfoEl=document.getElementById('saltinfo');
+const bulbEl=document.getElementById('bulb');
 const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
-function setReadout(t){ readEl.style.display='block'; readEl.innerHTML=t; }
 
-// big vertical temperature slider
-const tempBar=document.createElement('div'); tempBar.id='tempbar';
-tempBar.innerHTML=`<div class="cap">HEAT</div><div class="tlabel hot" id="thot">100°C</div>
-  <input type="range" id="tinput" min="20" max="100" value="22" step="1">
-  <div class="tlabel cold" id="tcold">20°C</div><div class="tval" id="tval">22°C</div>`;
-stage.appendChild(tempBar);
-const tinput=tempBar.querySelector('#tinput'), tvalEl=tempBar.querySelector('#tval'),
-      tcoldEl=tempBar.querySelector('#tcold'), thotEl=tempBar.querySelector('#thot');
+// temperature slider (markup lives in the HTML)
+const tempBar=document.getElementById('tempbar');
+const tinput=document.getElementById('trange'), tvalEl=document.getElementById('tval'),
+      tdescEl=document.getElementById('tdesc'),
+      tcoldEl=document.getElementById('tcold'), thotEl=document.getElementById('thot');
 tinput.oninput=()=>{ S.temperature=parseFloat(tinput.value); tvalEl.textContent=S.temperature+'°C'; };
-function setTempRange(min,max){ tinput.min=min; tinput.max=max; tcoldEl.textContent=min+'°C'; thotEl.textContent=max+'°C';
-  S.temperature=clamp(S.temperature,min,max); tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
+const PX_PER_DEG=3.4;   // 340px / 100°C baseline — keeps the bar proportional at any range
+// paint the bar for a given (possibly fractional, mid-tween) range
+function paintRange(min,max){ tinput.min=min; tinput.max=max;
+  tcoldEl.textContent=Math.round(min)+'°C'; thotEl.textContent=Math.round(max)+'°C';
+  tinput.style.height=((max-min)*PX_PER_DEG)+'px';
+  tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
+// smoothly tween min/max/height together so the thumb glides instead of snapping to
+// its new fractional position (a native range can't animate a min/max change on its own)
+let rangeAnim=null;
+function setTempRange(min,max){
+  const from={min:parseFloat(tinput.min)||min, max:parseFloat(tinput.max)||max};
+  S.temperature=clamp(S.temperature,min,max);
+  if(rangeAnim) cancelAnimationFrame(rangeAnim);
+  if(from.min===min && from.max===max){ paintRange(min,max); return; }
+  const t0=performance.now(), dur=450, ease=x=>1-Math.pow(1-x,3);
+  (function frame(now){
+    const k=Math.min(1,(now-t0)/dur), e=ease(k);
+    paintRange(from.min+(min-from.min)*e, from.max+(max-from.max)*e);
+    rangeAnim = k<1 ? requestAnimationFrame(frame) : null;
+  })(t0);
+}
 // standard 0–100°C bar for pure water; extend to −25…110°C only once salt is added
 function updateTempRange(){ if(!S.tempEnabled) return;
   if(S.step===4 && salt.length>0) setTempRange(-25,110);
   else setTempRange(S.freezeEnabled?0:20, 100); }
+// handwritten descriptor beside the temperature readout, driven by phase
+function tempDescriptor(p){
+  if(p.fz>0.5)        return 'Frozen\nlocked in the ice lattice';
+  if(p.fz>0.05)       return 'Cooling\nH-bonds locking up';
+  if(p.evapProb>0)    return 'Boiling\nmolecules breaking free';
+  if(p.T>=45)         return 'Warming\nH-bonds flexing\n& breaking';
+  return 'Liquid\nH-bonds forming\n& reforming';
+}
 
-function ctlButton(txt,on,onClick){ const b=document.createElement('div');
-  b.className='ctl'+(on?' on':(on===undefined?' act':'')); b.innerHTML=txt;
-  b.onclick=()=>onClick(b); ctlWrap.appendChild(b); return b; }
+// on-stage toggle chips (step-1 detail toggles + hydrogen-bond visibility)
+const chipsEl=document.getElementById('chips');
+function chip(txt,on,onClick){ const b=document.createElement('div');
+  b.className='chip'+(on?' on':''); b.textContent=txt;
+  b.onclick=()=>onClick(b); chipsEl.appendChild(b); return b; }
 function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>rad=Math.max(rad,w.position.length()));
   salt.forEach(m=>rad=Math.max(rad,m.position.length())); return rad*2.0+6; }
-// a point just outside the settled cluster, so new molecules drift in rather than
-// popping into the middle. Radius is estimated from the COUNT (stable) rather than
-// the outermost molecule (which balloons while things are still flying inward).
 function outerPoint(margin=1.6){
   const n=sim.mols.length+salt.length*0.5;
   const rad=1.6*Math.cbrt(Math.max(1,n))+margin;
@@ -698,23 +820,22 @@ function outerPoint(margin=1.6){
 }
 
 function buildControls(){
-  ctlWrap.innerHTML='';
+  chipsEl.innerHTML='';
   if(S.step===0){
-    ctlButton('● Electrons (shared + lone pairs)',dset.electrons,b=>{dset.electrons=!dset.electrons;b.classList.toggle('on',dset.electrons);applyDetail();});
-    ctlButton('⚡ Partial charges (δ)',dset.charge,b=>{dset.charge=!dset.charge;b.classList.toggle('on',dset.charge);applyDetail();});
-    ctlButton('➤ Dipole arrow',dset.dipole,b=>{dset.dipole=!dset.dipole;b.classList.toggle('on',dset.dipole);applyDetail();});
-    ctlButton('☁ Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
-  }
-  if(S.step>=1){
-    ctlButton('＋ Add water',undefined,()=>{ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt.length&&!saltDescending) assignShells(); } });
-    ctlButton('－ Remove',undefined,()=>{ if(sim.mols.length>3){ sim.remove(); if(salt.length&&!saltDescending) assignShells(); } });
-    ctlButton('🔗 Show hydrogen bonds',S.hbondsOn,b=>{S.hbondsOn=!S.hbondsOn;b.classList.toggle('on',S.hbondsOn);});
-  }
-  if(S.step>=4){
-    ctlButton('🧂 Add salt (NaCl)',undefined,()=>{ if(salt.length<8) addSalt(); });
-    ctlButton('⟲ Clear salt',undefined,()=>clearSalt());
+    chip('Electrons',dset.electrons,b=>{dset.electrons=!dset.electrons;b.classList.toggle('on',dset.electrons);applyDetail();});
+    chip('Charges δ',dset.charge,b=>{dset.charge=!dset.charge;b.classList.toggle('on',dset.charge);applyDetail();});
+    chip('Dipole',dset.dipole,b=>{dset.dipole=!dset.dipole;b.classList.toggle('on',dset.dipole);applyDetail();});
+    chip('Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
   }
 }
+// water +/- (top formula card) and salt +/clear (bottom card)
+function addWater(){ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt.length&&!saltDescending) assignShells(); } }
+function remWater(){ if(sim.mols.length>3){ sim.remove(); if(salt.length&&!saltDescending) assignShells(); } }
+document.getElementById('addwater').onclick=addWater;
+document.getElementById('remwater').onclick=remWater;
+document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
+document.getElementById('clearsalt').onclick=()=>clearSalt();
+const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
 
 let cur=-1;
 const stepR=[8,18,20,24,20];
@@ -722,28 +843,34 @@ function applyStep(n){
   S.step=n;
   if(n===0){ while(sim.mols.length>1) sim.remove(); }
   else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
-  // solvent step: seed enough water so two full 6-coordinate shells can form
   if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
   if(n<4) clearSalt();
   S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
   applyDetail();
   tempBar.style.display=S.tempEnabled?'flex':'none';
-  if(n===4) S.temperature=30;    // solvent step: liquid water at room-ish temp
-  updateTempRange();             // extends only when salt is present (see addSalt/clearSalt)
+  formulaEl.style.display=n>=1?'flex':'none';       // add-water only once bonding starts
+  saltcardEl.style.display=n>=4?'flex':'none';
+  if(n===4) S.temperature=30;
+  updateTempRange();
   S.targetR=Math.max(stepR[n], fitDistance());
   buildControls();
   cur=n;
-  [...nav.children].forEach((b,k)=>b.classList.toggle('active',k===n));
+  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
   const m=stepMeta[n];
-  cardEl.innerHTML=`<div class="tag">${m.tag}</div><h2>${m.title}</h2>${m.body}`; cardEl.scrollTop=0;
-  hintEl.textContent=m.hint;
+  cardEl.innerHTML=`<h2>${m.title}</h2>${m.body}<div class="fact" id="fact">${m.fact}</div>`;
+  cardEl.scrollTop=0;
+  bulbEl.style.display='block'; bulbEl.classList.remove('lit');
   prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
-  nextB.textContent=n===stepMeta.length-1?'Finish ✓':'Next →';
+  nextB.textContent=n===stepMeta.length-1?'Finish':'Next';
 }
-stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
-  b.innerHTML=`<span class="n">${i+1}</span>${s.title}`; b.onclick=()=>applyStep(i); nav.appendChild(b); });
+// step numbers 1–5 with hand-drawn active circle
+stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
+  b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
 prevB.onclick=()=>applyStep(Math.max(0,cur-1));
 nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
+// lightbulb reveals the extra interesting fact (progressive disclosure)
+bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
+  const show=f.classList.toggle('show'); bulbEl.classList.toggle('lit',show); };
 
 /* ---------- 🐛 debug slider panel ---------- */
 (function(){
@@ -763,16 +890,16 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
     ['zoom','Camera zoom',10,44,1],
   ];
   const panel=document.createElement('div');
-  panel.style.cssText='position:absolute;top:292px;right:16px;width:212px;z-index:20;'
-    +'background:rgba(14,18,28,.92);border:1px solid #2a3346;border-radius:10px;'
-    +'padding:10px 12px;font:11px/1.35 sans-serif;color:#cdd6e6;display:none;'
-    +'box-shadow:0 8px 24px rgba(0,0,0,.4);max-height:80vh;overflow:auto';
-  let html='<div style="font-weight:700;color:#7fb0ff;margin-bottom:6px">🐛 Debug — solvent scene</div>';
+  panel.style.cssText='position:absolute;top:20px;right:20px;width:216px;z-index:20;'
+    +'background:rgba(248,245,239,.97);border:1.5px solid #d8cfbf;border-radius:10px;'
+    +'padding:11px 13px;font:11px/1.35 sans-serif;color:#4a443c;display:none;'
+    +'box-shadow:0 10px 26px rgba(0,0,0,.18);max-height:80vh;overflow:auto';
+  let html='<div style="font-weight:700;color:#2b2723;margin-bottom:6px">Debug — solvent scene</div>';
   specs.forEach(([k,lbl,mn,mx,st])=>{ html+=
-    `<label style="display:block;margin:7px 0 2px">${lbl} <span id="dv_${k}" style="float:right;color:#8fe6a0">${DBG[k]}</span></label>`
+    `<label style="display:block;margin:7px 0 2px">${lbl} <span id="dv_${k}" style="float:right;color:#2fbf7a">${DBG[k]}</span></label>`
     +`<input id="ds_${k}" type="range" min="${mn}" max="${mx}" step="${st}" value="${DBG[k]}" style="width:100%">`; });
-  html+='<div id="dbg_reset" style="margin-top:9px;text-align:center;padding:5px;border:1px solid #37507a;'
-    +'border-radius:6px;color:#7fb0ff;cursor:pointer">⟲ Reset defaults</div>';
+  html+='<div id="dbg_reset" style="margin-top:9px;text-align:center;padding:5px;border:1px solid #b9ad98;'
+    +'border-radius:6px;color:#2b2723;cursor:pointer">Reset defaults</div>';
   panel.innerHTML=html; stage.appendChild(panel);
   const DEFAULTS=Object.assign({},DBG);
   function applyRadii(){ salt.forEach(m=>{ const r=m.userData.charge>0?DBG.naRad:DBG.clRad;
@@ -783,46 +910,33 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
   panel.querySelector('#dbg_reset').onclick=()=>{ Object.assign(DBG,DEFAULTS);
     specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
       panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); };
-  const btn=document.createElement('div'); btn.textContent='🐛 Debug';
-  btn.style.cssText='position:absolute;top:256px;right:16px;z-index:20;cursor:pointer;'
-    +'background:rgba(14,18,28,.92);border:1px solid #2a3346;border-radius:8px;'
-    +'padding:5px 10px;font:11px sans-serif;color:#7fb0ff';
-  btn.onclick=()=>{ panel.style.display=panel.style.display==='none'?'block':'none'; };
-  stage.appendChild(btn);
+  document.getElementById('dbgtoggle').onclick=()=>{
+    panel.style.display=panel.style.display==='none'?'block':'none'; };
 })();
 
 /* ---------- main loop ---------- */
 let wasFreezing=false, wasBoiling=false;
 function renderReadout(p,r,escaping){
-  if(S.step===0){ readEl.style.display='none'; return; }
-  const nb=`<b style="color:#6fe3c4">${r.hbondCount}</b> H-bonds`;
-  let s;
-  if(!S.tempEnabled){ s=`${sim.mols.length} molecules · ${nb}`; }
-  else {
-    const phase = p.fz>0.5 ? '<b style="color:#9fd0ff">ICE Iₕ</b> — open lattice'
-                : p.evapProb>0 ? 'evaporating' : 'liquid';
-    s=`<b>${p.T}°C</b> · ${phase}<br>${sim.mols.length} molecules · ${nb}`;
-    if(escaping) s+=` · ${escaping} escaping`;
-    if(p.fz>0.5) s+='<br><b style="color:#9fd0ff">less dense → floats</b>';
-  }
-  if(salt.length){
+  // bottom-left: just the counts, mirroring the mockup
+  let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
+  if(salt.length) s+=`<br>${salt.length/2} NaCl dissolved`;
+  statsEl.innerHTML=s;
+  // handwritten phase descriptor beside the temperature readout
+  if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);
+  // step-5 salt readout: ion:water ratio + calculated (colligative) phase-change points
+  if(S.step===4 && salt.length){
     const na=salt.find(m=>m.userData.charge>0), cl=salt.find(m=>m.userData.charge<0);
-    const saltState = p.fz>0.5
-      ? '<b style="color:#9fd0ff">brine rejected</b> — ice excludes the ions'
-      : saltDescending
-      ? '<b style="color:#9fd0ff">crystal sinking</b> — dropping into the water'
-      : dissociated
-      ? '<b style="color:#8fe6a0">fully dissociated</b> — free hydrated ions'
-      : '<b style="color:#e0cf8a">contact ion pair</b> — dissolving';
     const fp=Math.round(-p.dTf), bp=Math.round(100+p.dTb);
-    s+=`<br>🧂 ${salt.length/2} NaCl · <b style="color:#c79bff">Na⁺ ${na.userData.shellCount}/6</b> (O-inward) · `
-      +`<b style="color:#8fe6a0">Cl⁻ ${cl.userData.shellCount}/6</b> (H-inward)`
-      +`<br>❄ freezes <b style="color:#9fd0ff">${fp}°C</b> · ♨ boils <b style="color:#ffb454">${bp}°C</b> `
-      +`<span style="opacity:.6">(pure 0 / 100)</span>`
-      +`<br>${saltState}`;
-    if(p.fz<=0.3) s+=`<br><span style="color:#ffb454">▬ ion–water bonds</span> · <span style="color:#6fe3c4">▬ hydrogen bonds</span>`;
-  }
-  setReadout(s);
+    saltinfoEl.innerHTML=
+      `<b>${salt.length/2}</b> NaCl : <b>${sim.mols.length}</b> H₂O `
+      +`<span class="muted">· ${p.molal.toFixed(1)} m molality</span>`
+      +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
+      +`Na⁺ <b>${na.userData.shellCount}/6</b> · Cl⁻ <b>${cl.userData.shellCount}/6</b>`
+      +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
+      +`freezes <b class="cold">${fp}°C</b> · boils <b class="hot">${bp}°C</b> `
+      +`<span class="muted">(pure water 0 / 100)</span>`;
+    saltinfoEl.style.display='block';
+  } else saltinfoEl.style.display='none';
 }
 function loop(){
   const solvent=(S.step===4);
