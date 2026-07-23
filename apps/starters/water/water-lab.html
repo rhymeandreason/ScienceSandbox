@@ -263,28 +263,79 @@ function resize(){ const w=canvas.clientWidth,h=canvas.clientHeight;
   renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(canvas);
 
-/* ---------- geometry helpers ---------- */
+/* ---------- geometry helpers + material system ---------- */
 const Rsphere = new THREE.SphereGeometry(1,32,24);
-const state = {O:0xff4d4d,H:0xe9eef8,Na:0xb06bff,Cl:0x5fd07a};
-function atom(color, radius, pos){
-  const m=new THREE.Mesh(Rsphere,new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1}));
-  m.scale.setScalar(radius); if(pos)m.position.copy(pos); return m;
+// Atom colours tuned for legibility on the light cream stage: deeper, more
+// saturated than the original neon set so they don't wash out. `state` stays
+// the single source of truth (water()/addSalt() read it; the Debug ▸ Colors
+// tab writes it live).
+const state = {O:0xd6362e, H:0xb9c2d0, Na:0x9a3fe0, Cl:0x1fa968};
+let bondColor=0xb3a892;      // covalent stick, muted stone on cream
+let hbColor=0x18a58a;        // hydrogen bond, deep teal
+let ionColor=0xd9791e;       // ion–dipole bond, deep amber
+let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
+
+// material factories honour the current render mode
+function atomMat(color){ return toonMode
+  ? new THREE.MeshToonMaterial({color})
+  : new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1}); }
+function bondMat(color){ return toonMode
+  ? new THREE.MeshToonMaterial({color})
+  : new THREE.MeshStandardMaterial({color,roughness:.5}); }
+function glowMat(color,ei){ return toonMode
+  ? Object.assign(new THREE.MeshToonMaterial({color,emissive:color}),{emissiveIntensity:ei})
+  : new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:ei,roughness:.4}); }
+
+function atom(color, radius, pos, role){
+  const m=new THREE.Mesh(Rsphere, atomMat(color));
+  m.scale.setScalar(radius); if(pos)m.position.copy(pos);
+  if(role) m.userData.role=role; return m;
 }
-function bond(a,b,color=0xbfc8dc,rad=0.13){
+function bond(a,b,color=bondColor,rad=0.13){
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
   const g=new THREE.CylinderGeometry(rad,rad,len,16);
-  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color,roughness:.5}));
+  const m=new THREE.Mesh(g, bondMat(color)); m.userData.role='covalent';
   m.position.copy(a).add(dir.clone().multiplyScalar(.5));
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());
   return m;
 }
-// visible dashed hydrogen bond, built from short cylinder segments
+// visible dashed hydrogen bond, built from short cylinder segments. _hbMat/_ionMat
+// are `let` and rebuilt on render-mode / colour change; the tubes are recreated
+// every frame, so new tubes pick up the current shared material automatically.
 const _hbGeo=new THREE.CylinderGeometry(0.07,0.07,1,8);
-const _hbMat=new THREE.MeshStandardMaterial({color:0x6fe3c4,emissive:0x2fae90,emissiveIntensity:.6,roughness:.4});
+let _hbMat=glowMat(hbColor,.55);
 // ion–water (ion–dipole) bonds get their own colour so they read as a distinct
 // interaction from the teal hydrogen bonds
-const _ionMat=new THREE.MeshStandardMaterial({color:0xffb454,emissive:0xa65e12,emissiveIntensity:.7,roughness:.4});
+let _ionMat=glowMat(ionColor,.6);
 const _up=new THREE.Vector3(0,1,0);
+
+// ---- live material controls (Debug ▸ Colors / Render) ----
+// swap a mesh's material between Standard and Toon, preserving colour/emissive
+function convertMat(mesh){
+  const s=mesh.material; if(!s || s.isMeshBasicMaterial) return;
+  if(!!s.isMeshToonMaterial===toonMode) return;              // already correct type
+  const o={color:s.color.getHex(), transparent:s.transparent, opacity:s.opacity};
+  const em=s.emissive && s.emissive.getHex();
+  if(em) o.emissive=em;
+  const nm=toonMode ? new THREE.MeshToonMaterial(o)
+                    : new THREE.MeshStandardMaterial(Object.assign({roughness:.4,metalness:.08},o));
+  if(em) nm.emissiveIntensity=s.emissiveIntensity;
+  mesh.material=nm;
+}
+function applyRenderMode(){
+  _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);
+  scene.traverse(o=>{ if(o.isMesh) convertMat(o); });
+}
+// recolour every existing mesh of a given role (atoms/covalent); future meshes
+// read `state`/bondColor at creation
+function recolor(role,hex){
+  if(role==='covalent') bondColor=hex; else state[role]=hex;
+  scene.traverse(o=>{ if(o.isMesh && o.userData.role===role) o.material.color.setHex(hex); });
+}
+function recolorBondType(which,hex){
+  if(which==='hb') hbColor=hex; else ionColor=hex;
+  _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);   // new tubes next frame
+}
 function dashTube(a,b,mat=_hbMat){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
@@ -331,8 +382,8 @@ const H1L=new THREE.Vector3(Math.sin(half)*HL,-Math.cos(half)*HL,0);
 const H2L=new THREE.Vector3(-Math.sin(half)*HL,-Math.cos(half)*HL,0);
 function water(){
   const g=new THREE.Group();
-  const O=atom(state.O,0.95,new THREE.Vector3(0,0,0));
-  const Ha=atom(state.H,0.55,H1L), Hb=atom(state.H,0.55,H2L);
+  const O=atom(state.O,0.95,new THREE.Vector3(0,0,0),'O');
+  const Ha=atom(state.H,0.55,H1L,'H'), Hb=atom(state.H,0.55,H2L,'H');
   g.add(bond(new THREE.Vector3(0,0,0),H1L),bond(new THREE.Vector3(0,0,0),H2L));
   g.add(O,Ha,Hb);
   g.userData={O,Ha,Hb, oWorld:()=>O.getWorldPosition(new THREE.Vector3()),
@@ -525,10 +576,10 @@ function addSalt(){
   // drop the crystal in from above the cluster so it drifts down into the water
   let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
   const base=new THREE.Vector3((Math.random()-.5)*2, maxY+11, (Math.random()-.5)*2);
-  const na=atom(state.Na,DBG.naRad, base.clone().add(new THREE.Vector3(-0.9,0,0)));
-  const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(0.9,0,0)));
-  na.userData={charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0};
-  cl.userData={charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0};
+  const na=atom(state.Na,DBG.naRad, base.clone().add(new THREE.Vector3(-0.9,0,0)),'Na');
+  const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(0.9,0,0)),'Cl');
+  na.userData={role:'Na', charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0};
+  cl.userData={role:'Cl', charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0};
   const naL=label('Na⁺','#c79bff',34); naL.position.set(0,1.4,0); na.add(naL);
   const clL=label('Cl⁻','#8fe6a0',34); clL.position.set(0,1.8,0); cl.add(clL);
   root.add(na,cl); salt.push(na,cl);
@@ -877,7 +928,7 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
 bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   const show=f.classList.toggle('show'); bulbEl.classList.toggle('lit',show); };
 
-/* ---------- 🐛 debug slider panel ---------- */
+/* ---------- debug panel: right-docked, tabbed (Sim / Colors / Render) ---------- */
 (function(){
   const specs=[
     ['naRad','Na⁺ radius',0.4,1.2,0.01],
@@ -894,18 +945,64 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
     ['stericMIN','Water spacing',2,4.5,0.05],
     ['zoom','Camera zoom',10,44,1],
   ];
+  // colour swatches: [key, label]. O/H/Na/Cl/covalent live in state/bondColor;
+  // hb/ion are the shared bond materials.
+  const cols=[['O','Oxygen'],['H','Hydrogen'],['Na','Sodium  Na⁺'],['Cl','Chloride  Cl⁻'],
+    ['covalent','Covalent bond'],['hb','Hydrogen bond'],['ion','Ion–dipole bond']];
+  const hex=n=>'#'+n.toString(16).padStart(6,'0');
+  const colVal=k=> k==='covalent'?bondColor : k==='hb'?hbColor : k==='ion'?ionColor : state[k];
+
   const panel=document.createElement('div');
-  panel.style.cssText='position:absolute;top:20px;right:20px;width:216px;z-index:20;'
-    +'background:rgba(248,245,239,.97);border:1.5px solid #d8cfbf;border-radius:10px;'
-    +'padding:11px 13px;font:11px/1.35 sans-serif;color:#4a443c;display:none;'
-    +'box-shadow:0 10px 26px rgba(0,0,0,.18);max-height:80vh;overflow:auto';
-  let html='<div style="font-weight:700;color:#2b2723;margin-bottom:6px">Debug — solvent scene</div>';
+  panel.style.cssText='position:fixed;top:0;right:0;bottom:0;width:300px;z-index:40;'
+    +'background:rgba(248,245,239,.98);border-left:1.5px solid #d8cfbf;'
+    +'padding:16px 18px;font:12px/1.4 sans-serif;color:#4a443c;display:none;'
+    +'box-shadow:-12px 0 30px -14px rgba(0,0,0,.3);overflow-y:auto';
+
+  const tabRow=['sim','colors','render'];
+  let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<div style="font-weight:700;font-size:14px;color:#2b2723">Debug</div>'
+    +'<div id="dbg_close" style="cursor:pointer;font-size:16px;color:#8a8073;line-height:1">✕</div></div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:14px">'
+    +tabRow.map(t=>`<div class="dtab" data-tab="${t}" style="flex:1;text-align:center;padding:6px 4px;`
+      +`border:1.5px solid #d8cfbf;border-radius:7px;cursor:pointer;text-transform:capitalize">${t}</div>`).join('')
+    +'</div>';
+
+  // — Sim tab —
+  html+='<div class="dpane" data-pane="sim">';
   specs.forEach(([k,lbl,mn,mx,st])=>{ html+=
-    `<label style="display:block;margin:7px 0 2px">${lbl} <span id="dv_${k}" style="float:right;color:#2fbf7a">${DBG[k]}</span></label>`
+    `<label style="display:block;margin:9px 0 3px">${lbl} <span id="dv_${k}" style="float:right;color:#1fa968">${DBG[k]}</span></label>`
     +`<input id="ds_${k}" type="range" min="${mn}" max="${mx}" step="${st}" value="${DBG[k]}" style="width:100%">`; });
-  html+='<div id="dbg_reset" style="margin-top:9px;text-align:center;padding:5px;border:1px solid #b9ad98;'
-    +'border-radius:6px;color:#2b2723;cursor:pointer">Reset defaults</div>';
-  panel.innerHTML=html; stage.appendChild(panel);
+  html+='<div id="dbg_reset" style="margin-top:12px;text-align:center;padding:7px;border:1px solid #b9ad98;'
+    +'border-radius:7px;color:#2b2723;cursor:pointer">Reset sim defaults</div></div>';
+
+  // — Colors tab —
+  html+='<div class="dpane" data-pane="colors" style="display:none">'
+    +'<div style="color:#8a8073;margin-bottom:10px">Live atom &amp; bond colours</div>';
+  cols.forEach(([k,lbl])=>{ html+=
+    `<label style="display:flex;align-items:center;justify-content:space-between;margin:10px 0">`
+    +`<span>${lbl}</span>`
+    +`<input id="dc_${k}" type="color" value="${hex(colVal(k))}" style="width:44px;height:26px;border:none;background:none;cursor:pointer;padding:0"></label>`; });
+  html+='</div>';
+
+  // — Render tab —
+  html+='<div class="dpane" data-pane="render" style="display:none">'
+    +'<label style="display:flex;align-items:center;gap:10px;margin:10px 0;cursor:pointer">'
+    +'<input id="dr_toon" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
+    +'<span><b>Cell-shaded</b> render<br><span style="color:#8a8073">flat, banded toon shading instead of smooth solid</span></span>'
+    +'</label></div>';
+
+  panel.innerHTML=html; document.body.appendChild(panel);
+
+  // tab switching
+  panel.querySelectorAll('.dtab').forEach(tab=>{ tab.onclick=()=>{
+    const t=tab.dataset.tab;
+    panel.querySelectorAll('.dtab').forEach(x=>x.style.background=x.dataset.tab===t?'#2b2723':'transparent');
+    panel.querySelectorAll('.dtab').forEach(x=>x.style.color=x.dataset.tab===t?'#f8f5ef':'#4a443c');
+    panel.querySelectorAll('.dpane').forEach(p=>p.style.display=p.dataset.pane===t?'block':'none');
+  }; });
+  panel.querySelector('.dtab').click();   // default to Sim
+
+  // sim sliders
   const DEFAULTS=Object.assign({},DBG);
   function applyRadii(){ salt.forEach(m=>{ const r=m.userData.charge>0?DBG.naRad:DBG.clRad;
     m.scale.setScalar(r); m.userData.rad=r; }); }
@@ -915,6 +1012,18 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   panel.querySelector('#dbg_reset').onclick=()=>{ Object.assign(DBG,DEFAULTS);
     specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
       panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); };
+
+  // colour pickers
+  cols.forEach(([k])=>{ panel.querySelector('#dc_'+k).oninput=e=>{
+    const v=parseInt(e.target.value.slice(1),16);
+    if(k==='hb'||k==='ion') recolorBondType(k,v); else recolor(k,v);
+  }; });
+
+  // render mode
+  panel.querySelector('#dr_toon').onchange=e=>{ toonMode=e.target.checked; applyRenderMode(); };
+
+  const close=()=>panel.style.display='none';
+  panel.querySelector('#dbg_close').onclick=close;
   document.getElementById('dbgtoggle').onclick=()=>{
     panel.style.display=panel.style.display==='none'?'block':'none'; };
 })();
