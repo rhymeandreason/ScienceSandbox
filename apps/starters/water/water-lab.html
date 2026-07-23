@@ -534,7 +534,11 @@ const DBG = {
   kHB:0.008,         // hydrogen-bond force strength (shell↔bulk connectivity)
   jitter:0.006,      // thermal jiggle
   stericMIN:4.1,     // water–water minimum spacing (roomier = less cluttered shells)
-  zoom:26 };         // camera pull-back on this step
+  zoom:26,           // camera pull-back on this step
+  // --- geometry lengths (scene units) for tuning the ice-vs-liquid density lesson ---
+  iceBond:4.0,       // ice Iₕ nearest-neighbour O···O spacing (lattice bond length)
+  liquidEQ:3.6,      // liquid H-bond equilibrium O···O distance (property/freeze steps)
+  hbThreshold:3.25 }; // max H···O distance for a hydrogen bond to register/draw
 
 /* ---- step-1 molecular-detail decorations (on the first molecule) ---- */
 const detail=new THREE.Group(); first.add(detail);
@@ -577,7 +581,7 @@ function frameQuat(u,v){
 }
 const qLocalInv=frameQuat(H1L.clone().add(H2L), H1L.clone()).invert();
 function buildIceSites(n){
-  const b=4.0,dxy=0.9428*b,alat=Math.sqrt(3)*dxy, R=4;
+  const b=DBG.iceBond,dxy=0.9428*b,alat=Math.sqrt(3)*dxy, R=4;
   const A1x=alat,A1z=0,A2x=alat/2,A2z=1.5*dxy, P=[];
   for(let k=0;k<5;k++){ const base=k*(4*b/3), upA=(k%2===0);
     for(let nn=-R;nn<=R;nn++)for(let mm=-R;mm<=R;mm++){
@@ -1116,6 +1120,9 @@ cardEl.addEventListener('click',e=>{
     ['kHB','H-bond force',0,0.02,0.0005],
     ['jitter','Thermal jitter',0,0.03,0.001],
     ['stericMIN','Water spacing',2,4.5,0.05],
+    ['iceBond','Ice O–O bond',3.0,5.4,0.05],
+    ['liquidEQ','Liquid O–O eq',3.0,4.5,0.05],
+    ['hbThreshold','H-bond reach',1.5,4.0,0.05],
     ['zoom','Camera zoom',10,44,1],
   ];
   // colour swatches: [key, label]. O/H/Na/Cl/covalent live in state/bondColor;
@@ -1193,10 +1200,12 @@ cardEl.addEventListener('click',e=>{
     if(m.userData.outline) m.userData.outline.scale.setScalar(outlineScale(r)); }); }
   specs.forEach(([k])=>{ const s=panel.querySelector('#ds_'+k), v=panel.querySelector('#dv_'+k);
     s.oninput=()=>{ DBG[k]=parseFloat(s.value); v.textContent=s.value;
-      if(k==='naRad'||k==='clRad') applyRadii(); }; });
+      if(k==='naRad'||k==='clRad') applyRadii();
+      if(k==='iceBond') iceFor=-1;   // force the ice lattice to rebuild at the new spacing
+    }; });
   panel.querySelector('#dbg_reset').onclick=()=>{ Object.assign(DBG,DEFAULTS);
     specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
-      panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); };
+      panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); iceFor=-1; };
 
   // colour pickers
   cols.forEach(([k])=>{ panel.querySelector('#dc_'+k).oninput=e=>{
@@ -1244,10 +1253,13 @@ function renderReadout(p,r,escaping){
 }
 function loop(){
   const solvent=(S.step===4);
-  // step-5 solvent scene runs looser & more spread out so the shells are legible
-  sim.cfg.centroidPull = solvent?DBG.centroidPull:0.0024;
+  // Roomier spacing on every multi-molecule step (not just the solvent scene) so
+  // the network reads clearly: gentler cluster pull + a larger steric minimum.
+  sim.cfg.centroidPull = DBG.centroidPull;
   sim.cfg.kHB          = solvent?DBG.kHB:0.008;
-  sim.cfg.MIN          = solvent?DBG.stericMIN:3.0;
+  sim.cfg.MIN          = DBG.stericMIN;
+  sim.cfg.EQ           = solvent?3.6:DBG.liquidEQ;
+  sim.cfg.hbThreshold  = DBG.hbThreshold;
   if(solvent) S.targetR = Math.max(S.targetR, DBG.zoom);
   const want=Math.max(solvent?DBG.zoom:S.targetR, fitDistance()); // live auto-fit
   cam.r += (want - cam.r)*0.05; applyCam();
