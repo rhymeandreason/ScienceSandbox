@@ -420,6 +420,7 @@ function addSalt(){
   root.add(stick); saltBonds.push({na,cl,stick});
   dissociated=false;        // fresh crystal starts as a contact ion pair
   saltDescending=true;      // shells form only once it sinks into the water
+  updateTempRange();        // now that salt is present, extend the slider to −25…110°C
 }
 // once the crystal reaches the water, lock in the hydration shells
 function checkSaltArrival(){
@@ -433,7 +434,8 @@ function checkSaltArrival(){
 let dissociated=false;
 function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0;
   saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0; dissociated=false; saltDescending=false;
-  sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); clearIonBonds(); }
+  sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); clearIonBonds();
+  updateTempRange(); }   // back to pure water → standard 0–100°C bar
 function checkDissociation(){
   if(dissociated || salt.length===0) return;
   if(!salt.every(m=>m.userData.shellCount>=5)) return;   // wait for near-full shells
@@ -597,13 +599,16 @@ function tempParams(){
   // On the salt step the slider reaches 110°C, so anchor boiling at the true
   // 100°C (raised by the elevation) rather than the 82°C visual proxy used on
   // the 0–100°C property steps — otherwise "boiling" starts far below the label.
-  const boilBase=(S.step===4)?100:82;
+  // "salt mode" only once salt is actually dissolved: anchor boiling at the true
+  // 100°C (raised by ΔTb) over the extended slider. Pure water — including step 5
+  // before any salt — uses the 82°C visual proxy and standard 0–100°C behaviour.
+  const saltMode=(S.step===4 && salt.length>0);
+  const boilBase=saltMode?100:82;
   const boilProxy=boilBase+dTb;
-  // On the salt step, boiling ramps to a full rolling boil within ~2°C of the
-  // boiling point (boiling is nearly a threshold, not a gradual effect), so it
-  // visibly boils right at ~102°C rather than only near 110°C.
+  // In salt mode boiling ramps to a full rolling boil within ~2°C of the boiling
+  // point (boiling is nearly a threshold), so it visibly boils right at ~102°C.
   const evapProb = T>boilProxy
-    ? (S.step===4 ? Math.min(0.025, 0.012*(T-boilProxy)) : 0.0009*(T-boilProxy))
+    ? (saltMode ? Math.min(0.025, 0.012*(T-boilProxy)) : 0.0009*(T-boilProxy))
     : 0;
   const hbScale=clamp(1-(T-40)/60,0.15,1)*(1-0.7*fz);
   return {T,fz,warm,kinetic,evapProb,hbScale,dTf,dTb,molal};
@@ -671,6 +676,10 @@ const tinput=tempBar.querySelector('#tinput'), tvalEl=tempBar.querySelector('#tv
 tinput.oninput=()=>{ S.temperature=parseFloat(tinput.value); tvalEl.textContent=S.temperature+'°C'; };
 function setTempRange(min,max){ tinput.min=min; tinput.max=max; tcoldEl.textContent=min+'°C'; thotEl.textContent=max+'°C';
   S.temperature=clamp(S.temperature,min,max); tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
+// standard 0–100°C bar for pure water; extend to −25…110°C only once salt is added
+function updateTempRange(){ if(!S.tempEnabled) return;
+  if(S.step===4 && salt.length>0) setTempRange(-25,110);
+  else setTempRange(S.freezeEnabled?0:20, 100); }
 
 function ctlButton(txt,on,onClick){ const b=document.createElement('div');
   b.className='ctl'+(on?' on':(on===undefined?' act':'')); b.innerHTML=txt;
@@ -720,8 +729,7 @@ function applyStep(n){
   applyDetail();
   tempBar.style.display=S.tempEnabled?'flex':'none';
   if(n===4) S.temperature=30;    // solvent step: liquid water at room-ish temp
-  // salt step spans below 0°C (depressed freezing) and above 100°C (elevated boiling)
-  if(S.tempEnabled) setTempRange(n===4?-25:(S.freezeEnabled?0:20), n===4?110:100);
+  updateTempRange();             // extends only when salt is present (see addSalt/clearSalt)
   S.targetR=Math.max(stepR[n], fitDistance());
   buildControls();
   cur=n;
