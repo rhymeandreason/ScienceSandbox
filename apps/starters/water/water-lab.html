@@ -292,7 +292,8 @@ function glowMat(color,ei){ return toonMode
 function atom(color, radius, pos, role){
   const m=new THREE.Mesh(Rsphere, atomMat(color));
   m.scale.setScalar(radius); if(pos)m.position.copy(pos);
-  if(role) m.userData.role=role; return m;
+  if(role){ m.userData.role=role; if(outlinesOn && OUTLINE_ROLES.includes(role)) addOutline(m); }
+  return m;
 }
 function bond(a,b,color=bondColor,rad=0.13){
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
@@ -338,6 +339,23 @@ function recolor(role,hex){
 function recolorBondType(which,hex){
   if(which==='hb') hbColor=hex; else ionColor=hex;
   _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);   // new tubes next frame
+}
+
+// ---- cel outlines: an inflated back-face shell per atom (Debug ▸ Render) ----
+let outlinesOn=false;
+const _outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
+const OUTLINE_ROLES=['O','H','Na','Cl'];
+function addOutline(mesh){
+  if(mesh.userData.outline) return;
+  const o=new THREE.Mesh(mesh.geometry,_outlineMat);   // shares unit sphere; inherits parent scale
+  o.scale.setScalar(1.06); mesh.add(o); mesh.userData.outline=o;
+}
+function removeOutline(mesh){
+  if(mesh.userData.outline){ mesh.remove(mesh.userData.outline); mesh.userData.outline=null; }
+}
+function applyOutlines(){
+  scene.traverse(o=>{ if(o.isMesh && OUTLINE_ROLES.includes(o.userData.role)){
+    outlinesOn ? addOutline(o) : removeOutline(o); } });
 }
 function dashTube(a,b,mat=_hbMat){
   const g=new THREE.Group();
@@ -1005,9 +1023,12 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   html+='<div class="dpane" data-pane="colors" style="display:none">'
     +'<div style="color:#8a8073;margin-bottom:10px">Live atom &amp; bond colours</div>';
   cols.forEach(([k,lbl])=>{ html+=
-    `<label style="display:flex;align-items:center;justify-content:space-between;margin:10px 0">`
+    `<div style="margin:11px 0">`
+    +`<div style="display:flex;align-items:center;justify-content:space-between">`
     +`<span>${lbl}</span>`
-    +`<input id="dc_${k}" type="color" value="${hex(colVal(k))}" style="width:44px;height:26px;border:none;background:none;cursor:pointer;padding:0"></label>`; });
+    +`<input id="dc_${k}" type="color" value="${hex(colVal(k))}" style="width:44px;height:26px;border:none;background:none;cursor:pointer;padding:0"></div>`
+    +`<div id="dh_${k}" style="text-align:right;color:#8a8073;font:11px ui-monospace,Menlo,monospace;margin-top:2px">${hex(colVal(k)).toUpperCase()}</div>`
+    +`</div>`; });
   html+='</div>';
 
   // — Render tab —
@@ -1015,6 +1036,10 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
     +'<label style="display:flex;align-items:center;gap:10px;margin:10px 0;cursor:pointer">'
     +'<input id="dr_toon" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
     +'<span><b>Cell-shaded</b> render<br><span style="color:#8a8073">flat, banded toon shading instead of smooth solid</span></span>'
+    +'</label>'
+    +'<label style="display:flex;align-items:center;gap:10px;margin:14px 0;cursor:pointer">'
+    +'<input id="dr_outline" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
+    +'<span><b>Outlines</b><br><span style="color:#8a8073">dark ink outline around each atom</span></span>'
     +'</label></div>';
 
   panel.innerHTML=html; document.body.appendChild(panel);
@@ -1042,6 +1067,7 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   // colour pickers
   cols.forEach(([k])=>{ panel.querySelector('#dc_'+k).oninput=e=>{
     const v=parseInt(e.target.value.slice(1),16);
+    panel.querySelector('#dh_'+k).textContent=e.target.value.toUpperCase();
     if(k==='hb'||k==='ion') recolorBondType(k,v);
     else if(k==='eBond'||k==='eLone') recolorElectrons(k,v);
     else if(k==='dNeg'||k==='dPos') recolorChargeText(k,v);
@@ -1050,6 +1076,7 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
 
   // render mode
   panel.querySelector('#dr_toon').onchange=e=>{ toonMode=e.target.checked; applyRenderMode(); };
+  panel.querySelector('#dr_outline').onchange=e=>{ outlinesOn=e.target.checked; applyOutlines(); };
 
   const close=()=>panel.style.display='none';
   panel.querySelector('#dbg_close').onclick=close;
