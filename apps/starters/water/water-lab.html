@@ -790,12 +790,18 @@ function updateIons(){
     if(fz>0.2){ const r=a.position.length()||1, Rrej=iceR+1.5;
       f=a.position.clone().multiplyScalar((Rrej-r)/r*0.012*fz); }   // spring outward to the ice surface
     else f=new THREE.Vector3().copy(a.position).multiplyScalar(-0.004);   // gentle containment
+    // An ion is "shielded" once it carries a substantial hydration shell: water's
+    // dielectric + the shell's steric bulk then cut the ion–ion pull to a few percent.
+    // Screening is per-ion (not a global switch), so a hydrated ion never gets yanked
+    // back to contact even while another pair is still dissociating.
+    const aShielded=a.userData.shellCount>=3;
     salt.forEach(b=>{ if(a===b)return;
       const dir=new THREE.Vector3().subVectors(b.position,a.position), dist=Math.max(1,dir.length()); dir.normalize();
-      const sc = dissociated ? DBG.screen : 1;   // water's dielectric screens ion–ion pull once dissolved
+      const shielded = aShielded || b.userData.shellCount>=3;
+      const sc = shielded ? DBG.screen : 1;   // water's dielectric screens ion–ion pull once either ion is hydrated
       f.addScaledVector(dir, -a.userData.charge*b.userData.charge*0.012*sc/dist);  // unlike attract / like repel
       if(dist<a.userData.rad+b.userData.rad+0.4) f.addScaledVector(dir,-0.05);  // ion–ion steric
-      if(dissociated){   // freed ions carry hydration shells that can't interpenetrate → they stay apart
+      if(shielded){   // hydrated ions carry shells that can't interpenetrate → they stay apart
         const ra=a.userData.charge>0?DBG.naShellDist:DBG.clShellDist;
         const rb=b.userData.charge>0?DBG.naShellDist:DBG.clShellDist;
         const reach=ra+rb; if(dist<reach) f.addScaledVector(dir,-(reach-dist)*0.03);
