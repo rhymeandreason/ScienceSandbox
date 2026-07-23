@@ -273,7 +273,10 @@ const state = {O:0xd6362e, H:0xb9c2d0, Na:0x9a3fe0, Cl:0x1fa968};
 let bondColor=0xb3a892;      // covalent stick, muted stone on cream
 let hbColor=0x18a58a;        // hydrogen bond, deep teal
 let ionColor=0xd9791e;       // ion–dipole bond, deep amber
+// step-1 detail decorations (electrons + charge text)
+let eBondColor=0xe0a92e, eLoneColor=0x18a58a, dNegColor=0x2f6fd0, dPosColor=0xd6362e;
 let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
+const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
 // material factories honour the current render mode
 function atomMat(color){ return toonMode
@@ -348,31 +351,39 @@ function dashTube(a,b,mat=_hbMat){
   return g;
 }
 const hbondTube=(a,b)=>dashTube(a,b,_hbMat);
-function label(txt,color='#e9eef8',size=64){
+function drawLabelTex(txt,color,size){
   const c=document.createElement('canvas'); const x=c.getContext('2d');
   x.font=`bold ${size}px sans-serif`;
   const w=Math.max(128,Math.ceil(x.measureText(txt).width)+24); c.width=w; c.height=128;
   x.font=`bold ${size}px sans-serif`; x.fillStyle=color;
   x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,w/2,68);
-  const t=new THREE.CanvasTexture(c);
-  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));
-  s.scale.set(1.1*w/128,1.1,1); return s;
+  return {tex:new THREE.CanvasTexture(c), w};
+}
+function label(txt,color='#e9eef8',size=64){
+  const {tex,w}=drawLabelTex(txt,color,size);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+  s.scale.set(1.1*w/128,1.1,1); s.userData.txt=txt; s.userData.size=size; return s;
+}
+// redraw an existing label's texture in a new colour (text/size unchanged)
+function setLabelColor(sprite,hexNum){
+  const {tex}=drawLabelTex(sprite.userData.txt, hx(hexNum), sprite.userData.size);
+  sprite.material.map.dispose(); sprite.material.map=tex; sprite.material.needsUpdate=true;
 }
 function arrow(from,to,color=0x6fe3c4){
   const dir=new THREE.Vector3().subVectors(to,from);
   return new THREE.ArrowHelper(dir.clone().normalize(),from,dir.length(),color,0.35,0.22);
 }
 const eGeo=new THREE.SphereGeometry(0.17,16,12);
-function electron(pos,color=0xffe14d){
+function electron(pos,color=0xffe14d,role){
   const m=new THREE.Mesh(eGeo,new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.6,roughness:.3}));
-  m.position.copy(pos); return m;
+  m.position.copy(pos); if(role) m.userData.role=role; return m;
 }
-function ePair(center,along,color){
+function ePair(center,along,color,role){
   const g=new THREE.Group();
   const perp=new THREE.Vector3(0,0,1).cross(along).normalize();
   if(perp.lengthSq()<0.01) perp.set(1,0,0);
-  g.add(electron(center.clone().add(perp.clone().multiplyScalar(0.22)),color),
-        electron(center.clone().add(perp.clone().multiplyScalar(-0.22)),color));
+  g.add(electron(center.clone().add(perp.clone().multiplyScalar(0.22)),color,role),
+        electron(center.clone().add(perp.clone().multiplyScalar(-0.22)),color,role));
   return g;
 }
 
@@ -486,15 +497,26 @@ const detail=new THREE.Group(); first.add(detail);
 const cloud=atom(0x4ea1ff,1.9,new THREE.Vector3(0,0.2,0));
 cloud.material=new THREE.MeshBasicMaterial({color:0x4ea1ff,transparent:true,opacity:0.12}); detail.add(cloud);
 const dip=arrow(new THREE.Vector3(0,-1.4,0),new THREE.Vector3(0,1.5,0),0xffd166); detail.add(dip);
-const dO=label('δ−','#4ea1ff'); dO.position.set(0,1.35,0);
-const dH1=label('δ+','#ff6b6b'); dH1.position.copy(H1L).multiplyScalar(1.35);
-const dH2=label('δ+','#ff6b6b'); dH2.position.copy(H2L).multiplyScalar(1.35);
+const dO=label('δ−',hx(dNegColor)); dO.position.set(0,1.35,0);
+const dH1=label('δ+',hx(dPosColor)); dH1.position.copy(H1L).multiplyScalar(1.35);
+const dH2=label('δ+',hx(dPosColor)); dH2.position.copy(H2L).multiplyScalar(1.35);
 detail.add(dO,dH1,dH2);
 const eGroup=new THREE.Group(); detail.add(eGroup);
-[H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),0xffe14d)); });
+[H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),eBondColor,'eBond')); });
 const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
-[lp1,lp2].forEach(d=>eGroup.add(ePair(d.clone().multiplyScalar(1.35),d,0x6fe3c4)));
-const eLbl=label('lone pairs','#6fe3c4',30); eLbl.position.set(0,2.1,0); eGroup.add(eLbl);
+[lp1,lp2].forEach(d=>eGroup.add(ePair(d.clone().multiplyScalar(1.35),d,eLoneColor,'eLone')));
+const eLbl=label('lone pairs',hx(eLoneColor),30); eLbl.position.set(0,2.1,0); eGroup.add(eLbl);
+// live recolour for step-1 electrons + charge text (Debug ▸ Colors)
+function recolorElectrons(role,hexNum){
+  if(role==='eBond') eBondColor=hexNum; else eLoneColor=hexNum;
+  eGroup.traverse(o=>{ if(o.isMesh && o.userData.role===role){
+    o.material.color.setHex(hexNum); if(o.material.emissive) o.material.emissive.setHex(hexNum); } });
+  if(role==='eLone') setLabelColor(eLbl,hexNum);
+}
+function recolorChargeText(which,hexNum){
+  if(which==='dNeg'){ dNegColor=hexNum; setLabelColor(dO,hexNum); }
+  else { dPosColor=hexNum; setLabelColor(dH1,hexNum); setLabelColor(dH2,hexNum); }
+}
 const dset={electrons:false,charge:true,dipole:false,cloud:false};
 function applyDetail(){
   detail.visible=(S.step===0);
@@ -948,9 +970,13 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   // colour swatches: [key, label]. O/H/Na/Cl/covalent live in state/bondColor;
   // hb/ion are the shared bond materials.
   const cols=[['O','Oxygen'],['H','Hydrogen'],['Na','Sodium  Na⁺'],['Cl','Chloride  Cl⁻'],
-    ['covalent','Covalent bond'],['hb','Hydrogen bond'],['ion','Ion–dipole bond']];
+    ['covalent','Covalent bond'],['hb','Hydrogen bond'],['ion','Ion–dipole bond'],
+    ['eBond','Bonding electrons'],['eLone','Lone-pair electrons'],
+    ['dNeg','δ− text'],['dPos','δ+ text']];
   const hex=n=>'#'+n.toString(16).padStart(6,'0');
-  const colVal=k=> k==='covalent'?bondColor : k==='hb'?hbColor : k==='ion'?ionColor : state[k];
+  const colVal=k=> k==='covalent'?bondColor : k==='hb'?hbColor : k==='ion'?ionColor
+    : k==='eBond'?eBondColor : k==='eLone'?eLoneColor : k==='dNeg'?dNegColor : k==='dPos'?dPosColor
+    : state[k];
 
   const panel=document.createElement('div');
   panel.style.cssText='position:fixed;top:0;right:0;bottom:0;width:300px;z-index:40;'
@@ -1016,7 +1042,10 @@ bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
   // colour pickers
   cols.forEach(([k])=>{ panel.querySelector('#dc_'+k).oninput=e=>{
     const v=parseInt(e.target.value.slice(1),16);
-    if(k==='hb'||k==='ion') recolorBondType(k,v); else recolor(k,v);
+    if(k==='hb'||k==='ion') recolorBondType(k,v);
+    else if(k==='eBond'||k==='eLone') recolorElectrons(k,v);
+    else if(k==='dNeg'||k==='dPos') recolorChargeText(k,v);
+    else recolor(k,v);
   }; });
 
   // render mode
