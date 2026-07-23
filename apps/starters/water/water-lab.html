@@ -163,18 +163,22 @@ function bond(a,b,color=0xbfc8dc,rad=0.13){
 // visible dashed hydrogen bond, built from short cylinder segments
 const _hbGeo=new THREE.CylinderGeometry(0.07,0.07,1,8);
 const _hbMat=new THREE.MeshStandardMaterial({color:0x6fe3c4,emissive:0x2fae90,emissiveIntensity:.6,roughness:.4});
+// ion–water (ion–dipole) bonds get their own colour so they read as a distinct
+// interaction from the teal hydrogen bonds
+const _ionMat=new THREE.MeshStandardMaterial({color:0xffb454,emissive:0xa65e12,emissiveIntensity:.7,roughness:.4});
 const _up=new THREE.Vector3(0,1,0);
-function hbondTube(a,b){
+function dashTube(a,b,mat=_hbMat){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
   const n=Math.max(5,Math.round(len/0.26)), q=new THREE.Quaternion().setFromUnitVectors(_up,dir.clone().normalize());
   for(let i=0;i<n;i++){
-    const m=new THREE.Mesh(_hbGeo,_hbMat);
+    const m=new THREE.Mesh(_hbGeo,mat);
     m.position.copy(a).add(dir.clone().multiplyScalar((i+0.5)/n));
     m.quaternion.copy(q); m.scale.set(1,len/n*0.6,1); g.add(m);
   }
   return g;
 }
+const hbondTube=(a,b)=>dashTube(a,b,_hbMat);
 function label(txt,color='#e9eef8',size=64){
   const c=document.createElement('canvas'); const x=c.getContext('2d');
   x.font=`bold ${size}px sans-serif`;
@@ -302,6 +306,7 @@ const DBG = {
   naShellK:0.036,    // Na⁺ shell spring (≈ 4.5 × kHB)
   clShellK:0.024,    // Cl⁻ shell spring (≈ 3 × kHB)
   orientSlerp:0.08,  // how fast shell waters snap to ion-dipole orientation
+  screen:0.05,       // residual ion–ion pull after dissociation (water dielectric ≈ ×1/80)
   kHB:0.008,         // hydrogen-bond force strength (shell↔bulk connectivity)
   jitter:0.006,      // thermal jiggle
   stericMIN:3.0,     // water–water minimum spacing
@@ -410,11 +415,41 @@ function addSalt(){
   const stick=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,1,12),
     new THREE.MeshStandardMaterial({color:0xe0cf8a,emissive:0x4a3d12,roughness:.45}));
   root.add(stick); saltBonds.push({na,cl,stick});
+  dissociated=false;   // fresh crystal starts as a contact ion pair
   assignShells();
 }
+// true once every ion is (nearly) fully hydrated: the Na⁺–Cl⁻ ionic bond is
+// then permanently broken and water's high dielectric screens the ion–ion pull,
+// so the free hydrated ions diffuse independently and don't re-pair.
+let dissociated=false;
 function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0;
-  saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0;
-  sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); }
+  saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0; dissociated=false;
+  sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); clearIonBonds(); }
+function checkDissociation(){
+  if(dissociated || salt.length===0) return;
+  if(!salt.every(m=>m.userData.shellCount>=5)) return;   // wait for near-full shells
+  dissociated=true;
+  // one-time "pop apart" impulse outward from the salt centroid
+  const c=new THREE.Vector3(); salt.forEach(m=>c.add(m.position)); c.multiplyScalar(1/salt.length);
+  salt.forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
+    if(d.lengthSq()<1e-4) d.set(Math.random()-.5,Math.random()-.5,Math.random()-.5);
+    m.userData.vel.add(d.normalize().multiplyScalar(0.25)); });
+}
+// ion–dipole bonds: each shell water → its ion, drawn to the atom that faces
+// the ion (O for Na⁺, the inward H for Cl⁻) so the polarity reads correctly
+let ionBondLines=[];
+function clearIonBonds(){ ionBondLines.forEach(l=>root.remove(l)); ionBondLines=[]; }
+function updateIonBonds(){
+  clearIonBonds();
+  sim.mols.forEach(w=>{
+    const ion=w.userData.shellIon; if(!ion) return;
+    let atomPos;
+    if(ion.userData.charge>0){ atomPos=w.userData.oWorld(); }              // Na⁺ ↔ O
+    else { const h0=w.userData.hWorld(0), h1=w.userData.hWorld(1);          // Cl⁻ ↔ nearer O–H
+      atomPos=h0.distanceToSquared(ion.position)<h1.distanceToSquared(ion.position)?h0:h1; }
+    const l=dashTube(atomPos, ion.position, _ionMat); ionBondLines.push(l); root.add(l);
+  });
+}
 // Assign each ion its 6 nearest un-claimed waters as an octahedral shell.
 function assignShells(){
   sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; });
@@ -431,7 +466,7 @@ function updateSaltBonds(){
   const up=new THREE.Vector3(0,1,0);
   saltBonds.forEach(b=>{
     const dist=b.na.position.distanceTo(b.cl.position);
-    const bonded = dist < b.na.userData.rad+b.cl.userData.rad+0.9;   // still an ion pair
+    const bonded = !dissociated && dist < b.na.userData.rad+b.cl.userData.rad+0.9;   // still a contact ion pair
     b.stick.visible=bonded;
     if(bonded){
       const dir=new THREE.Vector3().subVectors(b.cl.position,b.na.position);
@@ -471,8 +506,14 @@ function updateIons(){
     const f=new THREE.Vector3().copy(a.position).multiplyScalar(-0.004);   // gentle containment
     salt.forEach(b=>{ if(a===b)return;
       const dir=new THREE.Vector3().subVectors(b.position,a.position), dist=Math.max(1,dir.length()); dir.normalize();
-      f.addScaledVector(dir, -a.userData.charge*b.userData.charge*0.012/dist);  // unlike attract / like repel
+      const sc = dissociated ? DBG.screen : 1;   // water's dielectric screens ion–ion pull once dissolved
+      f.addScaledVector(dir, -a.userData.charge*b.userData.charge*0.012*sc/dist);  // unlike attract / like repel
       if(dist<a.userData.rad+b.userData.rad+0.4) f.addScaledVector(dir,-0.05);  // ion–ion steric
+      if(dissociated){   // freed ions carry hydration shells that can't interpenetrate → they stay apart
+        const ra=a.userData.charge>0?DBG.naShellDist:DBG.clShellDist;
+        const rb=b.userData.charge>0?DBG.naShellDist:DBG.clShellDist;
+        const reach=ra+rb; if(dist<reach) f.addScaledVector(dir,-(reach-dist)*0.03);
+      }
     });
     // water pushes back on the ion — no passing through molecules; also wedges pairs apart
     sim.mols.forEach(w=>{
@@ -634,13 +675,14 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
     ['naShellK','Na⁺ spring',0,0.12,0.002],
     ['clShellK','Cl⁻ spring',0,0.12,0.002],
     ['orientSlerp','Orient speed',0,0.3,0.01],
+    ['screen','Ion–ion screen',0,1,0.01],
     ['kHB','H-bond force',0,0.02,0.0005],
     ['jitter','Thermal jitter',0,0.03,0.001],
     ['stericMIN','Water spacing',2,4.5,0.05],
     ['zoom','Camera zoom',10,44,1],
   ];
   const panel=document.createElement('div');
-  panel.style.cssText='position:absolute;top:100px;right:16px;width:212px;z-index:20;'
+  panel.style.cssText='position:absolute;top:292px;right:16px;width:212px;z-index:20;'
     +'background:rgba(14,18,28,.92);border:1px solid #2a3346;border-radius:10px;'
     +'padding:10px 12px;font:11px/1.35 sans-serif;color:#cdd6e6;display:none;'
     +'box-shadow:0 8px 24px rgba(0,0,0,.4);max-height:80vh;overflow:auto';
@@ -661,7 +703,7 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
     specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
       panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); };
   const btn=document.createElement('div'); btn.textContent='🐛 Debug';
-  btn.style.cssText='position:absolute;top:64px;right:16px;z-index:20;cursor:pointer;'
+  btn.style.cssText='position:absolute;top:256px;right:16px;z-index:20;cursor:pointer;'
     +'background:rgba(14,18,28,.92);border:1px solid #2a3346;border-radius:8px;'
     +'padding:5px 10px;font:11px sans-serif;color:#7fb0ff';
   btn.onclick=()=>{ panel.style.display=panel.style.display==='none'?'block':'none'; };
@@ -683,8 +725,13 @@ function renderReadout(p,r,escaping){
   }
   if(salt.length){
     const na=salt.find(m=>m.userData.charge>0), cl=salt.find(m=>m.userData.charge<0);
+    const saltState = dissociated
+      ? '<b style="color:#8fe6a0">fully dissociated</b> — free hydrated ions'
+      : '<b style="color:#e0cf8a">contact ion pair</b> — dissolving';
     s+=`<br>🧂 ${salt.length/2} NaCl · <b style="color:#c79bff">Na⁺ ${na.userData.shellCount}/6</b> (O-inward) · `
-      +`<b style="color:#8fe6a0">Cl⁻ ${cl.userData.shellCount}/6</b> (H-inward)`;
+      +`<b style="color:#8fe6a0">Cl⁻ ${cl.userData.shellCount}/6</b> (H-inward)`
+      +`<br>${saltState}`
+      +`<br><span style="color:#ffb454">▬ ion–water bonds</span> · <span style="color:#6fe3c4">▬ hydrogen bonds</span>`;
   }
   setReadout(s);
 }
@@ -720,7 +767,7 @@ function loop(){
   else if(salt.length) orientShells();
   sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>9){
     w.position.set((Math.random()-.5)*4,-5,(Math.random()-.5)*4); w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
-  if(salt.length){ updateIons(); updateSaltBonds(); }
+  if(salt.length){ checkDissociation(); updateIons(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
