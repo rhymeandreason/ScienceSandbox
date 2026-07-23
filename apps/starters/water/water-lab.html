@@ -1077,7 +1077,7 @@ function applyStep(n){
   saltcardEl.style.display=n>=4?'flex':'none';
   if(n===4) S.temperature=30;
   updateTempRange();
-  S.targetR=Math.max(stepR[n], fitDistance());
+  S.targetR=Math.max(n===4?DBG.zoom:stepR[n], fitDistance());
   buildControls();
   cur=n;
   [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
@@ -1259,8 +1259,7 @@ function loop(){
   sim.cfg.MIN          = DBG.stericMIN;
   sim.cfg.EQ           = solvent?3.6:DBG.liquidEQ;
   sim.cfg.hbThreshold  = DBG.hbThreshold;
-  if(solvent) S.targetR = Math.max(S.targetR, DBG.zoom);
-  const want=Math.max(solvent?DBG.zoom:S.targetR, fitDistance()); // live auto-fit
+  const want=Math.max(S.targetR, fitDistance()); // live auto-fit; manual wheel zoom (S.targetR) always wins
   cam.r += (want - cam.r)*0.05; applyCam();
   const p=tempParams();
   S.fz=p.fz;
