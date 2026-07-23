@@ -232,8 +232,13 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
 const root = new THREE.Group(); scene.add(root);
 
 scene.add(new THREE.AmbientLight(0xffffff, .55));
-const keyL = new THREE.DirectionalLight(0xffffff, .9); keyL.position.set(4,6,8); scene.add(keyL);
-const fillL = new THREE.DirectionalLight(0x88aaff, .4); fillL.position.set(-6,-2,-4); scene.add(fillL);
+// Lights are parented to the camera so they travel with the view: orbiting the
+// camera then reads as rotating the MODEL under a fixed studio light — the
+// highlights stay put on screen instead of sweeping across the molecules.
+scene.add(camera);
+const keyL = new THREE.DirectionalLight(0xffffff, .9); keyL.position.set(4,6,8);
+const fillL = new THREE.DirectionalLight(0x88aaff, .4); fillL.position.set(-6,-2,-4);
+camera.add(keyL, keyL.target, fillL, fillL.target);   // targets default to camera origin → constant view-space direction
 
 const cam = {theta:0.5, phi:1.15, r:9, target:new THREE.Vector3(0,0,0)};
 function applyCam(){
