@@ -23,6 +23,17 @@
   #app{display:grid;grid-template-columns:1fr 372px;grid-template-rows:1fr;height:100vh;overflow:hidden}
 
   /* ---------- stage (left, dotted stationery) ---------- */
+  #dissocmsg{position:absolute;top:80px;left:50%;transform:translateX(-50%);
+    z-index:12;pointer-events:none;text-align:center;opacity:0;white-space:nowrap;
+    font-family:var(--font-hand);font-size:20px;color:var(--muted);letter-spacing:.2px}
+  #dissocmsg b{font-weight:400}
+  #dissocmsg .Na{color:var(--Na)}#dissocmsg .Cl{color:var(--Cl)}
+  #dissocmsg.show{animation:dissocFade 3.4s ease-out forwards}
+  @keyframes dissocFade{
+    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
+    10%{opacity:1;transform:translateX(-50%) translateY(0)}
+    80%{opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
   #stage{grid-column:1;position:relative;overflow:hidden;
     background-color:var(--paper);
     background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
@@ -165,6 +176,7 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
+    <div id="dissocmsg" aria-live="polite"></div>
 
     <div id="brand">
       <i class="ph-bold ph-drop drop"></i>
@@ -652,15 +664,41 @@ function clearSalt(){ salt.forEach(m=>root.remove(m)); salt.length=0;
   saltBonds.forEach(b=>root.remove(b.stick)); saltBonds.length=0; dissociated=false; saltDescending=false;
   sim.mols.forEach(w=>{ w.userData.shellIon=null; w.userData.shellSlot=-1; }); clearIonBonds();
   updateTempRange(); }   // back to pure water → standard 0–100°C bar
+// A water "bridges" a Na⁺–Cl⁻ pair once its O has wedged onto the bond axis
+// between the two ions: projection lands in the mid-section of the axis and the
+// O sits close to that line. This is the real contact→solvent-separated ion-pair
+// transition — the first bridging water screens the pair and pries it apart.
+function bridgingWater(na,cl){
+  const axis=new THREE.Vector3().subVectors(cl.position,na.position);
+  const len=axis.length()||1; axis.multiplyScalar(1/len);
+  return sim.mols.some(w=>{
+    const rel=new THREE.Vector3().subVectors(w.userData.oWorld(),na.position);
+    const t=rel.dot(axis)/len;                       // fractional position along Na→Cl
+    if(t<0.3||t>0.7) return false;                   // must sit between the ions, not beside
+    const perp=rel.addScaledVector(axis,-t*len).length();
+    return perp<1.2;                                 // O close to the bond line
+  });
+}
 function checkDissociation(){
   if(dissociated || salt.length===0) return;
-  if(!salt.every(m=>m.userData.shellCount>=5)) return;   // wait for near-full shells
+  if(!saltBonds.every(b=>bridgingWater(b.na,b.cl))) return;  // wait for a water to wedge each pair apart
   dissociated=true;
+  showDissocMsg();
   // one-time "pop apart" impulse outward from the salt centroid
   const c=new THREE.Vector3(); salt.forEach(m=>c.add(m.position)); c.multiplyScalar(1/salt.length);
   salt.forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
     if(d.lengthSq()<1e-4) d.set(Math.random()-.5,Math.random()-.5,Math.random()-.5);
     m.userData.vel.add(d.normalize().multiplyScalar(0.25)); });
+}
+// Animated toast announcing that water has pried the ionic bond apart.
+const dissocMsgEl=document.getElementById('dissocmsg');
+let dissocMsgShown=0;                 // only teach it the first couple of times
+function showDissocMsg(){
+  if(dissocMsgShown++>=2) return;
+  dissocMsgEl.innerHTML='Ionic bond broken — water pulls <b class="Na">Na⁺</b> and <b class="Cl">Cl⁻</b> apart';
+  dissocMsgEl.classList.remove('show');
+  void dissocMsgEl.offsetWidth;      // restart the animation if it fires again
+  dissocMsgEl.classList.add('show');
 }
 // ion–dipole bonds: each shell water → its ion, drawn to the atom that faces
 // the ion (O for Na⁺, the inward H for Cl⁻) so the polarity reads correctly
