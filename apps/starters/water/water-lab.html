@@ -118,23 +118,31 @@
   .stepnum.active::after{content:"";position:absolute;inset:-6px -4px;
     background:url('sketch_circle.svg') center/100% 100% no-repeat}
 
-  #card{flex:1;overflow-y:auto}
+  /* #card itself stays overflow:visible so the lightbulb (below) can spill past its
+     left edge onto the sidebar's torn edge; only the title+body text scrolls, in
+     its own inner box, so long copy doesn't clip the bulb */
+  #card{flex:1;display:flex;flex-direction:column;min-height:0}
+  #card .cardtext{flex:0 1 auto;overflow-y:auto;min-height:0}
   #card h2{font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12;margin:0 0 16px}
   #card p{font-family:var(--font-sans);font-weight:400;font-size:16px;line-height:1.55;margin:0 0 14px;color:#3a352f}
   #card p.lead{font-weight:600}
   #card ul{font-family:var(--font-sans);font-weight:400;font-size:15px;line-height:1.55;padding-left:20px;margin:0 0 14px}
   #card b{font-weight:700}
-  #card .fact{margin-top:18px;padding:14px 16px;background:rgba(255,224,120,.28);
+  #card .fact{padding:14px 16px;background:rgba(255,224,120,.28);
     border-left:3px solid #e5b93a;border-radius:0 8px 8px 0;font-size:14.5px;line-height:1.5;
-    display:none}
-  #card .fact.show{display:block}
+    opacity:0;pointer-events:none;transition:opacity .2s}
+  #card .fact.show{opacity:1;pointer-events:auto}
 
-  /* lightbulb sticker */
-  #bulb{position:absolute;left:-36px;top:46%;width:66px;height:66px;cursor:pointer;z-index:8;
-    filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));transition:transform .15s;display:none}
-  #bulb:hover{transform:scale(1.08) rotate(-3deg)}
-  #bulb.lit{transform:scale(1.05)}
-  #bulb img{width:100%;height:100%}
+  /* lightbulb sticker + the fact it reveals — the fact keeps its box size even
+     hidden (opacity, not display), so the bulb — absolutely positioned within the
+     relative wrapper — stays put instead of jumping when toggled; repeats per
+     fact if a step has several */
+  #card .factwrap{position:relative;margin-top:18px;padding-left:12px}
+  #card .factwrap .bulb{position:absolute;left:-46px;top:50%;transform:translateY(-50%);
+    width:56px;height:56px;cursor:pointer;z-index:2;
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));transition:transform .15s}
+  #card .factwrap .bulb:hover{transform:translateY(-50%) scale(1.08) rotate(-3deg)}
+  #card .factwrap .bulb.lit{transform:translateY(-50%) scale(1.05)}
 
   /* nav footer */
   footer{display:flex;gap:12px;align-items:center;margin-top:16px}
@@ -150,8 +158,7 @@
   #dbgtoggle:hover{color:var(--ink)}
 
   @media (max-width:920px){#app{grid-template-columns:1fr;grid-template-rows:56vh 1fr}
-    #stage{grid-column:1}#side{grid-column:1;padding:20px}#side::before{display:none}
-    #bulb{position:static;margin:10px 0}}
+    #stage{grid-column:1}#side{grid-column:1;padding:20px}#side::before{display:none}}
 </style>
 </head>
 <body>
@@ -205,7 +212,6 @@
   <div id="side">
     <div id="steps"></div>
     <div id="card"></div>
-    <img id="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit">
     <footer>
       <button id="prev">Previous</button>
       <button id="next">Next</button>
@@ -858,7 +864,6 @@ const cardEl=document.getElementById('card');
 const stepsEl=document.getElementById('steps');
 const statsEl=document.getElementById('stats');
 const saltinfoEl=document.getElementById('saltinfo');
-const bulbEl=document.getElementById('bulb');
 const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
 
 // temperature slider (markup lives in the HTML)
@@ -974,9 +979,12 @@ function applyStep(n){
   cur=n;
   [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
   const m=stepMeta[n];
-  cardEl.innerHTML=`<h2>${m.title}</h2>${m.body}<div class="fact" id="fact">${m.fact}</div>`;
-  cardEl.scrollTop=0;
-  bulbEl.style.display='block'; bulbEl.classList.remove('lit');
+  const facts=Array.isArray(m.facts)?m.facts:(m.fact?[m.fact]:[]);
+  const factsHtml=facts.map(f=>
+    `<div class="factwrap"><img class="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${f}</div></div>`
+  ).join('');
+  cardEl.innerHTML=`<div class="cardtext"><h2>${m.title}</h2>${m.body}</div>${factsHtml}`;
+  cardEl.querySelector('.cardtext').scrollTop=0;
   prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
   nextB.textContent=n===stepMeta.length-1?'Finish':'Next';
 }
@@ -985,9 +993,13 @@ stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
   b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
 prevB.onclick=()=>applyStep(Math.max(0,cur-1));
 nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
-// lightbulb reveals the extra interesting fact (progressive disclosure)
-bulbEl.onclick=()=>{ const f=document.getElementById('fact'); if(!f)return;
-  const show=f.classList.toggle('show'); bulbEl.classList.toggle('lit',show); };
+// lightbulb reveals its neighbouring fact (progressive disclosure); delegated since
+// each step's card.innerHTML rebuild replaces the .bulb/.fact elements
+cardEl.addEventListener('click',e=>{
+  const bulb=e.target.closest('.bulb'); if(!bulb) return;
+  const f=bulb.nextElementSibling; if(!f) return;
+  const show=f.classList.toggle('show'); bulb.classList.toggle('lit',show);
+});
 
 /* ---------- debug panel: right-docked, tabbed (Sim / Colors / Render) ---------- */
 (function(){
