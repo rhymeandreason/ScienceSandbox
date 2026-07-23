@@ -282,7 +282,7 @@ function createWaterSim(cfg={}){
 /* ============================================================= *
  *  Persistent simulation + global state
  * ============================================================= */
-const sim = createWaterSim({ centroidPull:0.0016, jitter:0.006, MIN:3.0, stericK:0.045,
+const sim = createWaterSim({ centroidPull:0.0024, jitter:0.006, MIN:3.0, stericK:0.045,
   EQ:3.6, kHB:0.008, hbThreshold:2.7, hbForce:true, spin:0, collisionMin:1.9 });
 const first = sim.spawn(new THREE.Vector3(0,0,0));
 
@@ -366,7 +366,7 @@ function assignIce(){
 const salt=[];
 const bisLocal=H1L.clone().add(H2L).normalize();   // molecule bisector (points toward the H's)
 function addSalt(){
-  const base=new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4);
+  const base=outerPoint(3);
   [['Na',+1,0.7,'Na⁺','#c79bff',-1.6],['Cl',-1,1.05,'Cl⁻','#8fe6a0',1.6]].forEach(([t,q,rad,txt,col,dx])=>{
     const m=atom(t==='Na'?state.Na:state.Cl,rad, base.clone().add(new THREE.Vector3(dx,0,0)));
     const lbl=label(txt,col,34); lbl.position.set(0,rad+0.7,0); m.add(lbl);
@@ -481,6 +481,16 @@ function ctlButton(txt,on,onClick){ const b=document.createElement('div');
   b.onclick=()=>onClick(b); ctlWrap.appendChild(b); return b; }
 function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>rad=Math.max(rad,w.position.length()));
   salt.forEach(m=>rad=Math.max(rad,m.position.length())); return rad*2.0+6; }
+// a point just outside the settled cluster, so new molecules drift in rather than
+// popping into the middle. Radius is estimated from the COUNT (stable) rather than
+// the outermost molecule (which balloons while things are still flying inward).
+function outerPoint(margin=1.6){
+  const n=sim.mols.length+salt.length*0.5;
+  const rad=1.6*Math.cbrt(Math.max(1,n))+margin;
+  const d=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5);
+  if(d.lengthSq()<1e-4)d.set(1,0,0);
+  return d.normalize().multiplyScalar(rad);
+}
 
 function buildControls(){
   ctlWrap.innerHTML='';
@@ -491,8 +501,7 @@ function buildControls(){
     ctlButton('☁ Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
   }
   if(S.step>=1){
-    ctlButton('＋ Add water',undefined,()=>{ if(sim.mols.length<60){
-      sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); } });
+    ctlButton('＋ Add water',undefined,()=>{ if(sim.mols.length<60) sim.spawn(outerPoint(2.5)); });
     ctlButton('－ Remove',undefined,()=>{ if(sim.mols.length>3) sim.remove(); });
     ctlButton('🔗 Show hydrogen bonds',S.hbondsOn,b=>{S.hbondsOn=!S.hbondsOn;b.classList.toggle('on',S.hbondsOn);});
   }
