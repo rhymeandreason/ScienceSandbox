@@ -410,79 +410,7 @@ L.push({
   }
 });
 
-/* ---- 3. Cohesion & Surface Tension ---- */
-L.push({
-  title:'Cohesion & Surface Tension',
-  build(){
-    hintEl.textContent='A cluster of water — H-bonds knit molecules together';
-    const mols=[]; const N=14;
-    for(let i=0;i<N;i++){
-      const w=water(); const a=Math.random()*Math.PI*2, r=1+Math.random()*3.2;
-      w.userData.home=new THREE.Vector3(Math.cos(a)*r,(Math.random()-0.5)*3.5,Math.sin(a)*r*0.8);
-      w.position.copy(w.userData.home);
-      w.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);
-      root.add(w); mols.push(w);
-    }
-    let lines=[];
-    function rebuildBonds(){
-      lines.forEach(l=>{root.remove(l);l.geometry.dispose();}); lines=[];
-      if(!flags.hb) return;
-      for(let i=0;i<mols.length;i++)for(let j=i+1;j<mols.length;j++){
-        const d=mols[i].position.distanceTo(mols[j].position);
-        if(d<3.6){ const l=dashed(mols[i].userData.oWorld(),mols[j].userData.oWorld(),0x6fe3c4);
-          l.material.opacity=Math.max(0.15,1-d/3.6); lines.push(l); root.add(l);}
-      }
-    }
-    toggle('🟢 Show H-bond network','hb',true);
-    action('🌊 Cohesive tug',()=> mols.forEach(w=>{
-      w.userData.vel=new THREE.Vector3((Math.random()-.5)*.8,(Math.random()-.5)*.8,(Math.random()-.5)*.8);}));
-    frameFn=()=>{
-      mols.forEach(w=>{
-        if(!w.userData.vel)w.userData.vel=new THREE.Vector3();
-        // spring back home (cohesion) + damping
-        const f=new THREE.Vector3().subVectors(w.userData.home,w.position).multiplyScalar(0.02);
-        w.userData.vel.add(f).multiplyScalar(0.92);
-        w.position.add(w.userData.vel);
-        w.rotation.y+=0.003;
-      });
-      rebuildBonds();
-    };
-    cam.r=16; applyCam();
-  }
-});
-
-/* ---- 4. Adhesion & Capillary Action ---- */
-L.push({
-  title:'Adhesion & Capillary Action',
-  build(){
-    hintEl.textContent='Water climbs a narrow tube — adhesion to the wall beats gravity';
-    // glass tube
-    const tubeMat=new THREE.MeshStandardMaterial({color:0x9fd0ff,transparent:true,opacity:0.16,side:THREE.DoubleSide});
-    let tube, waterCol, radius=1.1;
-    function buildTube(){
-      if(tube){root.remove(tube);root.remove(waterCol);}
-      tube=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,10,32,1,true),tubeMat);
-      root.add(tube);
-      waterCol=new THREE.Mesh(new THREE.CylinderGeometry(radius*0.92,radius*0.92,1,32),
-        new THREE.MeshStandardMaterial({color:0x3aa0ff,transparent:true,opacity:0.55,roughness:.2}));
-      root.add(waterCol);
-    }
-    buildTube();
-    let level=0.1;
-    slider('Tube width',0.5,1.8,1.1,0.01,v=>{radius=v;buildTube();});
-    setReadout('Narrower tube → higher rise');
-    frameFn=()=>{
-      const targetH = 8*(0.9/radius); // narrower => taller column
-      const h=THREE.MathUtils.clamp(targetH,1,9);
-      level += (h-level)*0.05;
-      waterCol.scale.y=level; waterCol.position.y=-5+level/2;
-      setReadout(`Column height <b>${level.toFixed(1)}</b><br>Radius ${radius.toFixed(2)} → ${radius<0.9?'high':radius<1.3?'medium':'low'} rise`);
-    };
-    cam.target.set(0,0,0); cam.r=18; cam.phi=1.4; applyCam();
-  }
-});
-
-/* ---- 5. Specific Heat & Heat of Vaporization ---- */
+/* ---- 3. Specific Heat & Heat of Vaporization ---- */
 L.push({
   title:'Specific Heat & Thermoregulation',
   build(){
@@ -649,76 +577,16 @@ L.push({
 });
 
 /* ============================================================= *
- *  CARD CONTENT (2D SVG + text)
+ *  CARD CONTENT (text only — 2D diagrams removed, to be redone)
+ *  One entry per lesson, in the same order as L.
  * ============================================================= */
-const svgWater = (charges)=>`
-<svg viewBox="0 0 260 170">
-  <line x1="130" y1="70" x2="80" y2="120" stroke="#7f8db0" stroke-width="7" stroke-linecap="round"/>
-  <line x1="130" y1="70" x2="180" y2="120" stroke="#7f8db0" stroke-width="7" stroke-linecap="round"/>
-  <circle cx="130" cy="70" r="26" fill="#ff4d4d"/>
-  <circle cx="80" cy="120" r="16" fill="#e9eef8"/>
-  <circle cx="180" cy="120" r="16" fill="#e9eef8"/>
-  <text x="130" y="76" text-anchor="middle" font-size="20" fill="#04122b" font-weight="700">O</text>
-  <text x="80" y="126" text-anchor="middle" font-size="15" fill="#04122b" font-weight="700">H</text>
-  <text x="180" y="126" text-anchor="middle" font-size="15" fill="#04122b" font-weight="700">H</text>
-  ${charges?`
-  <text x="163" y="52" font-size="15" class="dgt" font-weight="700">δ−</text>
-  <text x="52" y="128" font-size="14" class="dlt" font-weight="700">δ+</text>
-  <text x="196" y="128" font-size="14" class="dlt" font-weight="700">δ+</text>
-  <text x="130" y="152" text-anchor="middle" font-size="12" fill="#93a3c4">bond angle 104.5°</text>`:''}
-</svg>`;
-
-// Bohr / Lewis style — shows valence electrons and the two shared (covalent) pairs
-const svgElectrons = `
-<svg viewBox="0 0 260 210">
-  <circle cx="130" cy="95" r="60" fill="#4ea1ff" opacity="0.12"/>
-  <line x1="130" y1="95" x2="88" y2="150" stroke="#c7d0e2" stroke-width="4"/>
-  <line x1="130" y1="95" x2="172" y2="150" stroke="#c7d0e2" stroke-width="4"/>
-  <circle cx="130" cy="95" r="30" fill="#ff4d4d"/>
-  <text x="130" y="101" text-anchor="middle" font-size="22" fill="#04122b" font-weight="700">O</text>
-  <circle cx="88" cy="150" r="18" fill="#ffe14d"/><text x="88" y="156" text-anchor="middle" font-size="15" fill="#04122b" font-weight="700">H</text>
-  <circle cx="172" cy="150" r="18" fill="#ffe14d"/><text x="172" y="156" text-anchor="middle" font-size="15" fill="#04122b" font-weight="700">H</text>
-  <!-- O's lone-pair valence electrons (red) around the top -->
-  <g fill="#ff4d4d" stroke="#7a1010" stroke-width="1">
-    <circle cx="110" cy="52" r="6"/><circle cx="150" cy="52" r="6"/>
-    <circle cx="82" cy="80" r="6"/><circle cx="82" cy="110" r="6"/>
-    <circle cx="178" cy="80" r="6"/><circle cx="178" cy="110" r="6"/>
-  </g>
-  <!-- shared (covalent) pairs: one O electron (red) + one H electron (yellow) between atoms -->
-  <g stroke-width="1">
-    <circle cx="103" cy="118" r="6" fill="#ff4d4d" stroke="#7a1010"/><circle cx="115" cy="131" r="6" fill="#ffe14d" stroke="#8a7400"/>
-    <circle cx="157" cy="118" r="6" fill="#ff4d4d" stroke="#7a1010"/><circle cx="145" cy="131" r="6" fill="#ffe14d" stroke="#8a7400"/>
-  </g>
-  <text x="205" y="120" font-size="12" fill="#6fe3c4" font-weight="700">shared</text>
-  <text x="205" y="134" font-size="12" fill="#6fe3c4" font-weight="700">pair</text>
-  <text x="130" y="192" text-anchor="middle" font-size="12" fill="#93a3c4">2 shared pairs = 2 covalent bonds · 104.5°</text>
-</svg>`;
-
-const svgBonds = `
-<svg viewBox="0 0 300 170">
-  <!-- molecule 1 -->
-  <line x1="90" y1="55" x2="60" y2="90" stroke="#7f8db0" stroke-width="6" stroke-linecap="round"/>
-  <line x1="90" y1="55" x2="120" y2="90" stroke="#7f8db0" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="90" cy="55" r="20" fill="#ff4d4d"/><circle cx="60" cy="90" r="12" fill="#e9eef8"/><circle cx="120" cy="90" r="12" fill="#e9eef8"/>
-  <!-- molecule 2 -->
-  <line x1="210" y1="120" x2="180" y2="90" stroke="#7f8db0" stroke-width="6" stroke-linecap="round"/>
-  <line x1="210" y1="120" x2="240" y2="95" stroke="#7f8db0" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="210" cy="120" r="20" fill="#ff4d4d"/><circle cx="180" cy="90" r="12" fill="#e9eef8"/><circle cx="240" cy="95" r="12" fill="#e9eef8"/>
-  <!-- hydrogen bond -->
-  <line x1="120" y1="90" x2="180" y2="90" stroke="#6fe3c4" stroke-width="3" stroke-dasharray="6 5"/>
-  <text x="150" y="82" text-anchor="middle" font-size="11" fill="#6fe3c4" font-weight="700">H-bond</text>
-  <text x="70" y="35" font-size="11" fill="#e9eef8">covalent</text>
-</svg>`;
-
 const cards=[
  {tag:'Molecule',
-  html:`${svgElectrons}<p class="cap">Each O–H bond is a <b>shared pair</b> of electrons — that's a covalent bond</p>`,
   body:`<p>Water is <b>V-shaped</b>: one oxygen covalently bonded to two hydrogens at a <b>104.5°</b> angle. A <b>covalent bond</b> is a <b>shared pair of electrons</b> — one from O, one from H — so oxygen ends up with two bonding pairs and <b>two lone pairs</b>.</p>
   <div class="key">Oxygen is far more <b>electronegative</b>, so it pulls the shared electrons closer, becoming slightly negative (<b>δ−</b>) while each hydrogen becomes slightly positive (<b>δ+</b>). The molecule is <b>polar</b>.</div>
   <p class="try">Turn on <b>Electrons</b> to see the two shared pairs and two lone pairs in 3D. Add the electron cloud and dipole arrow to see the charge pulled toward O.</p>`},
 
  {tag:'Bonding',
-  html:`${svgBonds}<p class="cap">Strong covalent bonds within · weak hydrogen bonds between</p>`,
   body:`<p>Two very different bonds matter here:</p>
   <ul>
    <li><b>Covalent bonds</b> hold O–H together <i>inside</i> one molecule (shared electrons — strong).</li>
@@ -728,47 +596,16 @@ const cards=[
   <p class="try">Click <b>＋ Add water</b> to build up a cluster — hydrogen bonds form automatically wherever a δ+ H comes near a δ− O. Watch the H-bond count climb.</p>`},
 
  {tag:'Property',
-  html:`${svgWater(false)}<p class="cap">Molecules cling to each other — the surface acts like a skin</p>`,
-  body:`<p><b>Cohesion</b> is water sticking to water via hydrogen bonds. At the surface, molecules have no water above them, so they pull inward and sideways, creating <b>surface tension</b> — a "skin" strong enough for insects to walk on.</p>
-  <div class="key">In plants, cohesion lets a continuous water column be pulled up the <b>xylem</b> from roots to leaves without breaking.</div>
-  <p class="try">Toggle the H-bond network. Hit "Cohesive tug" — the cluster stretches but snaps back together.</p>`},
-
- {tag:'Property',
-  html:`${svgBonds}<p class="cap">Water grips polar surfaces and pulls itself upward</p>`,
-  body:`<p><b>Adhesion</b> is water clinging to <i>other</i> polar surfaces (like glass or cell walls). Combined with cohesion, it produces <b>capillary action</b> — water creeping up a narrow tube against gravity.</p>
-  <div class="key">The narrower the tube, the higher water climbs — critical for water movement in soil and the tiniest vessels of plants.</div>
-  <p class="try">Drag the "Tube width" slider narrower and watch the column rise higher.</p>`},
-
- {tag:'Property',
-  html:`${svgWater(false)}<p class="cap">Heat energy goes into breaking H-bonds, not into motion</p>`,
   body:`<p>Water has a <b>high specific heat</b>: it absorbs a lot of heat for only a small temperature change, because energy first goes into <b>breaking hydrogen bonds</b> rather than speeding up molecules.</p>
   <div class="key">Its <b>high heat of vaporization</b> means sweating (evaporative cooling) removes lots of body heat, and large bodies of water stabilize climate.</div>
   <p class="try">Drag the Heat slider. Below ~85° molecules just jiggle; push it higher and they break free and evaporate.</p>`},
 
  {tag:'Property',
-  html:`<svg viewBox="0 0 260 150">
-    <g opacity="0.9">
-    <circle cx="70" cy="55" r="10" fill="#9fd0ff"/><circle cx="110" cy="45" r="10" fill="#9fd0ff"/>
-    <circle cx="90" cy="90" r="10" fill="#9fd0ff"/><circle cx="130" cy="85" r="10" fill="#9fd0ff"/>
-    <text x="95" y="125" text-anchor="middle" font-size="12" fill="#9fd0ff">ice: open lattice (less dense)</text>
-    <circle cx="185" cy="55" r="8" fill="#3aa0ff"/><circle cx="200" cy="65" r="8" fill="#3aa0ff"/>
-    <circle cx="192" cy="78" r="8" fill="#3aa0ff"/><circle cx="205" cy="50" r="8" fill="#3aa0ff"/>
-    <circle cx="178" cy="70" r="8" fill="#3aa0ff"/>
-    </g></svg><p class="cap">Solid water is <i>less</i> dense than liquid — so it floats</p>`,
   body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. When it freezes, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice</b>, spacing them farther apart than in liquid water.</p>
   <div class="key">Ice floats, insulating the water below so lakes don't freeze solid — letting aquatic life survive winter.</div>
-  <p class="try">Click <b>❄ Freeze into ice</b> and rotate the crystal: it's the real <b>hexagonal ice (Iₕ)</b> lattice — each O tetrahedrally bonded to four others, with one H bridging every O···O. Notice the open hexagonal channels that make ice less dense.</p>`},
+  <p class="try">Click <b>❄ Freeze into ice</b> and rotate the crystal: it's the real <b>hexagonal ice (Iₕ)</b> lattice — each O tetrahedrally bonded to four others. Notice the open hexagonal channels that make ice less dense.</p>`},
 
  {tag:'Property',
-  html:`<svg viewBox="0 0 260 150">
-    <circle cx="130" cy="75" r="18" fill="#b06bff"/><text x="130" y="80" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">Na⁺</text>
-    <g stroke="#7f8db0" stroke-width="3" fill="none">
-    <circle cx="80" cy="45" r="9" fill="#ff4d4d" stroke="none"/><circle cx="90" cy="30" r="6" fill="#e9eef8" stroke="none"/>
-    <circle cx="185" cy="55" r="9" fill="#ff4d4d" stroke="none"/><circle cx="205" cy="45" r="6" fill="#e9eef8" stroke="none"/>
-    <circle cx="130" cy="130" r="9" fill="#ff4d4d" stroke="none"/><circle cx="118" cy="142" r="6" fill="#e9eef8" stroke="none"/>
-    </g>
-    <text x="130" y="18" text-anchor="middle" font-size="11" fill="#93a3c4">δ− oxygens face the positive ion</text>
-  </svg><p class="cap">Polar water surrounds each ion in a hydration shell</p>`,
   body:`<p>Because water is polar, it dissolves <b>ionic and polar substances</b> extraordinarily well — the "universal solvent" of life.</p>
   <p>When salt (NaCl) dissolves, water's <b>δ− oxygens</b> surround each <b>Na⁺</b>, and its <b>δ+ hydrogens</b> surround each <b>Cl⁻</b>, forming <b>hydration shells</b> that pull the crystal apart.</p>
   <div class="key">This lets water carry nutrients, ions, and molecules throughout cells and organisms.</div>
@@ -792,8 +629,7 @@ function go(i){
   [...nav.children].forEach((b,k)=>b.classList.toggle('active',k===i));
   clearStage(); L[i].build();
   const c=cards[i];
-  cardEl.innerHTML=`<div class="tag">${c.tag}</div><h2>${L[i].title}</h2>
-    <div class="svgwrap">${c.html}</div>${c.body}`;
+  cardEl.innerHTML=`<div class="tag">${c.tag}</div><h2>${L[i].title}</h2>${c.body}`;
   cardEl.scrollTop=0;
   prevB.disabled=(i===0); nextB.disabled=(i===L.length-1);
   nextB.textContent = i===L.length-1?'Finish ✓':'Next →';
