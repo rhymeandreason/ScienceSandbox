@@ -450,6 +450,7 @@ let ionBondLines=[];
 function clearIonBonds(){ ionBondLines.forEach(l=>root.remove(l)); ionBondLines=[]; }
 function updateIonBonds(){
   clearIonBonds();
+  if((S.fz||0)>0.3) return;   // hidden while frozen (shells have released into the ice)
   sim.mols.forEach(w=>{
     const ion=w.userData.shellIon; if(!ion) return;
     let atomPos;
@@ -518,8 +519,15 @@ function updateIons(){
     });
     return;
   }
+  const fz=S.fz||0;
+  // brine rejection: as ice grows it excludes the salt, so freezing pushes the
+  // ions out to just beyond the lattice (leaving nearly-fresh ice + salty brine)
+  let iceR=0; if(fz>0.2) sim.mols.forEach(w=>iceR=Math.max(iceR,w.position.length()));
   salt.forEach(a=>{
-    const f=new THREE.Vector3().copy(a.position).multiplyScalar(-0.004);   // gentle containment
+    let f;
+    if(fz>0.2){ const r=a.position.length()||1, Rrej=iceR+1.5;
+      f=a.position.clone().multiplyScalar((Rrej-r)/r*0.012*fz); }   // spring outward to the ice surface
+    else f=new THREE.Vector3().copy(a.position).multiplyScalar(-0.004);   // gentle containment
     salt.forEach(b=>{ if(a===b)return;
       const dir=new THREE.Vector3().subVectors(b.position,a.position), dist=Math.max(1,dir.length()); dir.normalize();
       const sc = dissociated ? DBG.screen : 1;   // water's dielectric screens ion–ion pull once dissolved
@@ -563,14 +571,27 @@ function separateIonsFromWater(){
  *  Temperature model (one continuum: cold → ice, hot → vapour)
  * ============================================================= */
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+// Colligative shift from dissolved salt: NaCl → 2 free particles, so it both
+// depresses the freezing point and elevates the boiling point in proportion to
+// concentration. ΔTf = Kf·m (Kf=1.86), capped at the −21°C NaCl/water eutectic;
+// ΔTb = ΔTf·(Kb/Kf) since Kf/Kb ≈ 3.63.
+function saltShift(){
+  if(!salt.length) return {dTf:0,dTb:0,molal:0};
+  const waterKg=Math.max(0.05, sim.mols.length*0.018);   // ~18 g per water molecule
+  const molal=salt.length/waterKg;                        // free particles (Na⁺+Cl⁻) per kg
+  const dTf=Math.min(1.86*molal, 21);
+  return {dTf, dTb:dTf/3.63, molal};
+}
 function tempParams(){
   const T=S.tempEnabled ? S.temperature : 22;
-  const fz=S.freezeEnabled ? clamp((8-T)/8,0,1) : 0;      // 0 at 8°C → 1 at 0°C
+  const {dTf,dTb,molal}=saltShift();
+  const fz=S.freezeEnabled ? clamp((8-dTf-T)/8,0,1) : 0;  // ramp shifted DOWN by the depression
   const warm=clamp((T-20)/80,0,1);
   const kinetic=warm*0.03;               // extra thermal motion, 0 at the cool end
-  const evapProb=T>82 ? 0.0009*(T-82) : 0;
+  const boilProxy=82+dTb;                // evaporation onset raised by the elevation
+  const evapProb=T>boilProxy ? 0.0009*(T-boilProxy) : 0;
   const hbScale=clamp(1-(T-40)/60,0.15,1)*(1-0.7*fz);
-  return {T,fz,warm,kinetic,evapProb,hbScale};
+  return {T,fz,warm,kinetic,evapProb,hbScale,dTf,dTb,molal};
 }
 
 /* ============================================================= *
@@ -602,7 +623,7 @@ const stepMeta=[
   <div class="key">Ice floats, insulating the water below so lakes don't freeze solid — letting aquatic life survive winter.</div>
   <p class="try">Drag the temperature slider down to <b>0°C</b> and rotate the crystal — each O is tetrahedrally bonded to four others.</p>`},
  {tag:'Property', title:'The Universal Solvent',
-  hint:'Add salt — water forms hydration shells around each ion',
+  hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
   body:`<p>Because water is polar, it dissolves <b>ionic and polar substances</b> extraordinarily well — the "universal solvent" of life.</p>
   <p>Add salt (NaCl) and each ion pulls in a <b>first hydration shell of ~6 waters</b> (octahedral):</p>
   <ul>
@@ -610,7 +631,8 @@ const stepMeta=[
    <li>Around <b>Cl⁻</b>, every water aims <b>one δ+ O–H bond</b> at the ion (a near-linear Cl⁻···H–O bond).</li>
   </ul>
   <div class="key">Na⁺ is small and dense, so its shell is tight; Cl⁻ is larger, so its shell sits farther out — both hold about 6 waters. This lets water carry ions and nutrients through cells and organisms.</div>
-  <p class="try">Enough water is already here — click <b>🧂 Add salt</b> and watch 6 waters wrap each ion. Add or remove water to see the shells refill.</p>`},
+  <p>Dissolved salt also shifts water's phase changes (<b>colligative properties</b> — they depend on the <i>number</i> of dissolved particles). Each NaCl frees 2 ions, so salt water <b>freezes below 0°C</b> (the ions block the ice lattice — why salt melts road ice) and <b>boils above 100°C</b>. Freeze it and the growing ice <b>rejects the salt</b>, leaving nearly-fresh ice and saltier brine.</p>
+  <p class="try">Click <b>🧂 Add salt</b> to watch 6 waters wrap each ion. Then drag the <b>temperature</b> slider: below 0°C it still stays liquid, and only freezes lower — pushing the ions out of the ice.</p>`},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
@@ -629,10 +651,11 @@ tempBar.innerHTML=`<div class="cap">HEAT</div><div class="tlabel hot" id="thot">
   <input type="range" id="tinput" min="20" max="100" value="22" step="1">
   <div class="tlabel cold" id="tcold">20°C</div><div class="tval" id="tval">22°C</div>`;
 stage.appendChild(tempBar);
-const tinput=tempBar.querySelector('#tinput'), tvalEl=tempBar.querySelector('#tval'), tcoldEl=tempBar.querySelector('#tcold');
+const tinput=tempBar.querySelector('#tinput'), tvalEl=tempBar.querySelector('#tval'),
+      tcoldEl=tempBar.querySelector('#tcold'), thotEl=tempBar.querySelector('#thot');
 tinput.oninput=()=>{ S.temperature=parseFloat(tinput.value); tvalEl.textContent=S.temperature+'°C'; };
-function setTempRange(min,max){ tinput.min=min; tinput.max=max; tcoldEl.textContent=min+'°C';
-  if(S.temperature<min)S.temperature=min; tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
+function setTempRange(min,max){ tinput.min=min; tinput.max=max; tcoldEl.textContent=min+'°C'; thotEl.textContent=max+'°C';
+  S.temperature=clamp(S.temperature,min,max); tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
 
 function ctlButton(txt,on,onClick){ const b=document.createElement('div');
   b.className='ctl'+(on?' on':(on===undefined?' act':'')); b.innerHTML=txt;
@@ -681,8 +704,9 @@ function applyStep(n){
   S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
   applyDetail();
   tempBar.style.display=S.tempEnabled?'flex':'none';
-  if(n===4) S.temperature=30;    // solvent step: liquid water, never frozen
-  if(S.tempEnabled) setTempRange(S.freezeEnabled?0:20,100);
+  if(n===4) S.temperature=30;    // solvent step: liquid water at room-ish temp
+  // salt step spans below 0°C (depressed freezing) and above 100°C (elevated boiling)
+  if(S.tempEnabled) setTempRange(n===4?-25:(S.freezeEnabled?0:20), n===4?110:100);
   S.targetR=Math.max(stepR[n], fitDistance());
   buildControls();
   cur=n;
@@ -745,6 +769,7 @@ nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
 })();
 
 /* ---------- main loop ---------- */
+let wasFreezing=false;
 function renderReadout(p,r,escaping){
   if(S.step===0){ readEl.style.display='none'; return; }
   const nb=`<b style="color:#6fe3c4">${r.hbondCount}</b> H-bonds`;
@@ -752,22 +777,27 @@ function renderReadout(p,r,escaping){
   if(!S.tempEnabled){ s=`${sim.mols.length} molecules · ${nb}`; }
   else {
     const phase = p.fz>0.5 ? '<b style="color:#9fd0ff">ICE Iₕ</b> — open lattice'
-                : p.T>82 ? 'evaporating' : 'liquid';
+                : p.evapProb>0 ? 'evaporating' : 'liquid';
     s=`<b>${p.T}°C</b> · ${phase}<br>${sim.mols.length} molecules · ${nb}`;
     if(escaping) s+=` · ${escaping} escaping`;
     if(p.fz>0.5) s+='<br><b style="color:#9fd0ff">less dense → floats</b>';
   }
   if(salt.length){
     const na=salt.find(m=>m.userData.charge>0), cl=salt.find(m=>m.userData.charge<0);
-    const saltState = saltDescending
+    const saltState = p.fz>0.5
+      ? '<b style="color:#9fd0ff">brine rejected</b> — ice excludes the ions'
+      : saltDescending
       ? '<b style="color:#9fd0ff">crystal sinking</b> — dropping into the water'
       : dissociated
       ? '<b style="color:#8fe6a0">fully dissociated</b> — free hydrated ions'
       : '<b style="color:#e0cf8a">contact ion pair</b> — dissolving';
+    const fp=Math.round(-p.dTf), bp=Math.round(100+p.dTb);
     s+=`<br>🧂 ${salt.length/2} NaCl · <b style="color:#c79bff">Na⁺ ${na.userData.shellCount}/6</b> (O-inward) · `
       +`<b style="color:#8fe6a0">Cl⁻ ${cl.userData.shellCount}/6</b> (H-inward)`
-      +`<br>${saltState}`
-      +`<br><span style="color:#ffb454">▬ ion–water bonds</span> · <span style="color:#6fe3c4">▬ hydrogen bonds</span>`;
+      +`<br>❄ freezes <b style="color:#9fd0ff">${fp}°C</b> · ♨ boils <b style="color:#ffb454">${bp}°C</b> `
+      +`<span style="opacity:.6">(pure 0 / 100)</span>`
+      +`<br>${saltState}`;
+    if(p.fz<=0.3) s+=`<br><span style="color:#ffb454">▬ ion–water bonds</span> · <span style="color:#6fe3c4">▬ hydrogen bonds</span>`;
   }
   setReadout(s);
 }
@@ -781,6 +811,9 @@ function loop(){
   const want=Math.max(solvent?DBG.zoom:S.targetR, fitDistance()); // live auto-fit
   cam.r += (want - cam.r)*0.05; applyCam();
   const p=tempParams();
+  S.fz=p.fz;
+  if(salt.length && wasFreezing && p.fz<0.05) assignShells();   // melting: re-form hydration shells
+  wasFreezing = p.fz>0.3;
   sim.cfg.jitter = (S.step===0)?0:(solvent?DBG.jitter:0.006)*(1-p.fz*0.92);   // freezing quiets thermal motion → crisp lattice
   if(S.freezeEnabled && p.fz>0.02){ if(iceFor!==sim.mols.length) assignIce(); } else iceFor=-1;
   let escaping=0;
@@ -793,9 +826,9 @@ function loop(){
       const ion=w.userData.shellIon;
       if(ion){ // spring toward this water's octahedral seat in the ion's shell
         const cat=ion.userData.charge>0;
-        const sd=cat?DBG.naShellDist:DBG.clShellDist, sk=cat?DBG.naShellK:DBG.clShellK;
+        const sd=cat?DBG.naShellDist:DBG.clShellDist, sk=(cat?DBG.naShellK:DBG.clShellK)*(1-p.fz);
         const site=ion.position.clone().addScaledVector(OCTA[w.userData.shellSlot], sd);
-        f.add(new THREE.Vector3().subVectors(site,w.position).multiplyScalar(sk));
+        f.add(new THREE.Vector3().subVectors(site,w.position).multiplyScalar(sk));   // shells release as ice takes over
       } else ionForceOnWater(w,f);
     }
   }});
