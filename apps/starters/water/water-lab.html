@@ -68,7 +68,6 @@
   #tempbar .tlabel.hot{color:var(--hot)}#tempbar .tlabel.cold{color:var(--cold)}
   #trange{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;
     width:20px;height:340px;border-radius:12px;cursor:pointer;outline:none;
-    background:linear-gradient(to top,var(--cold),#e9d98f 48%,var(--hot));
     box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
   #trange::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;
     background:#fff;border:2.5px solid var(--ink);cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.25)}
@@ -869,10 +868,30 @@ const tinput=document.getElementById('trange'), tvalEl=document.getElementById('
       tcoldEl=document.getElementById('tcold'), thotEl=document.getElementById('thot');
 tinput.oninput=()=>{ S.temperature=parseFloat(tinput.value); tvalEl.textContent=S.temperature+'°C'; };
 const PX_PER_DEG=3.4;   // 340px / 100°C baseline — keeps the bar proportional at any range
+// absolute-temperature colour scale: dark blue (deep freeze) → cold → warm yellow → hot → magenta (near-boiling)
+// the bar's gradient is sampled from this fixed scale, so it always shows what a given
+// temperature *means* rather than just stretching cold..hot across whatever range is active
+const TEMP_COLOR_STOPS=[[-25,'#1c3a66'],[0,'#4a90d9'],[50,'#e9d98f'],[100,'#e5533a'],[110,'#ff3d7f']];
+function lerpHex(a,b,t){ const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);
+  const ar=(pa>>16)&255,ag=(pa>>8)&255,ab=pa&255, br=(pb>>16)&255,bg=(pb>>8)&255,bb=pb&255;
+  const r=Math.round(ar+(br-ar)*t),g=Math.round(ag+(bg-ag)*t),bl=Math.round(ab+(bb-ab)*t);
+  return '#'+[r,g,bl].map(v=>v.toString(16).padStart(2,'0')).join(''); }
+function colorAtTemp(t){
+  const s=TEMP_COLOR_STOPS;
+  if(t<=s[0][0]) return s[0][1];
+  if(t>=s[s.length-1][0]) return s[s.length-1][1];
+  for(let i=0;i<s.length-1;i++){ const [t0,c0]=s[i],[t1,c1]=s[i+1];
+    if(t>=t0 && t<=t1) return lerpHex(c0,c1,(t-t0)/(t1-t0)); }
+  return s[s.length-1][1];
+}
 // paint the bar for a given (possibly fractional, mid-tween) range
 function paintRange(min,max){ tinput.min=min; tinput.max=max;
   tcoldEl.textContent=Math.round(min)+'°C'; thotEl.textContent=Math.round(max)+'°C';
   tinput.style.height=((max-min)*PX_PER_DEG)+'px';
+  const STEPS=8, stops=[];
+  for(let i=0;i<=STEPS;i++){ const t=min+(max-min)*i/STEPS;
+    stops.push(colorAtTemp(t)+' '+(i/STEPS*100)+'%'); }
+  tinput.style.background='linear-gradient(to top,'+stops.join(',')+')';
   tinput.value=S.temperature; tvalEl.textContent=S.temperature+'°C'; }
 // smoothly tween min/max/height together so the thumb glides instead of snapping to
 // its new fractional position (a native range can't animate a min/max change on its own)
