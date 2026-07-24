@@ -1,6 +1,6 @@
 # Scientific Accuracy Rules — Water Visualization
 
-Rules and decisions that keep `water.html` scientifically honest. When adding or
+Rules and decisions that keep `water-lab.html` scientifically honest. When adding or
 tweaking a visualization, check it against these before shipping. The guiding
 principle:
 
@@ -112,8 +112,3 @@ Every "special property" lesson should visibly connect to hydrogen bonding:
   **explicit in comments** so they aren't mistaken for to-scale facts.
 
 ---
-
-*Library note:* `water.html` uses Three.js. ChemDoodle was considered; it would
-only add value for **loading external crystallographic files** (`.cif`/`.pdb`).
-For everything here, correctness came from computing the coordinates/forces
-ourselves, which any renderer can draw.
