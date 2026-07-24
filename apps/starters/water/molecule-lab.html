@@ -805,6 +805,10 @@ function checkDissociation(){
     [b.na,b.cl].forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
       if(d.lengthSq()<1e-4) d.set(Math.random()-.5,Math.random()-.5,Math.random()-.5);
       m.userData.vel.add(d.normalize().multiplyScalar(0.25)); });
+    // the bond snapping is its own event — shockwave + sparks at the break point,
+    // each ion flaring in its own colour as water tears them apart
+    spawnRing(c, colorOf(b.na));
+    popGlow(b.na, colorOf(b.na)); popGlow(b.cl, colorOf(b.cl));
   });
 }
 // Animated toast announcing that water has pried the ionic bond apart.
@@ -1268,6 +1272,25 @@ function protonHop(from,to,onArrive){
     }
   },cleanup(){ root.remove(m); m.material.dispose(); if(onArrive) onArrive(); }});
 }
+// pick a representative colour off a molecule group (its first coloured atom) so
+// an effect can be tinted to whatever it's decorating without hard-coding.
+function colorOf(g){ let c=null;
+  g.traverse(o=>{ if(c===null && o.isMesh && o.material && o.material.color
+      && o.userData.role && o.userData.role!=='covalent') c=o.material.color.getHex(); });
+  return c==null?0xffffff:c; }
+// gentle cousin of popGlow for a NON-reaction beat (a solute settling into its
+// hydration shell): a soft emissive breathe in-and-out, no scale punch, no ring
+// or sparks — enough to notice, not enough to imply a reaction happened.
+function settleShimmer(g,color){
+  const parts=[];
+  g.traverse(o=>{ if(o.isMesh && o.material && o.material.emissive
+        && o.userData.role && o.userData.role!=='covalent'){
+    parts.push({m:o.material, e0:o.material.emissiveIntensity, c0:o.material.emissive.getHex()});
+    o.material.emissive.setHex(color); } });
+  fx.push({t:0,dur:1.1,update(k){
+    parts.forEach(p=>{ p.m.emissiveIntensity=0.8*Math.sin(k*Math.PI); });   // fade up then down
+  },cleanup(){ parts.forEach(p=>{ p.m.emissiveIntensity=p.e0; p.m.emissive.setHex(p.c0); }); }});
+}
 let rxMsgShown=0;
 function updateReactions(){
   // iterate over a snapshot: morphSolute/spawnProduct mutate `solutes`
@@ -1408,6 +1431,16 @@ function updateSoluteHBonds(){
           if(oh.dot(ha)>0.35){ best=w; bestD=dd; bestH=h.clone(); } } } });
       if(best){ addSoluteTube(bestH,ap); pullToSite(s,best,ap,TARGET); s.userData.hbCount++; }
     });
+    // first time a polar solute LOCKS into a hydration shell — a gentle one-off
+    // shimmer. Gated on ≥2 bonds HELD for a handful of frames (not a fleeting
+    // touch), and skipped for CO₂/products, whose big moment is the reaction.
+    const u=s.userData, sp=MolLib.MOLECULES[u.specKey];
+    if(!u.settleShown && !sp.reactsTo && !sp.product){
+      u.settleFrames = (u.hbCount>=2) ? (u.settleFrames||0)+1 : 0;
+      // tinted to water's own blue — this is the hydration shell closing in,
+      // not a colour that belongs to the solute
+      if(u.settleFrames>=20){ u.settleShown=true; settleShimmer(s, 0x9fd4ff); }
+    }
   });
 }
 
