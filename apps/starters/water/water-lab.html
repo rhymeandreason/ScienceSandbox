@@ -13,7 +13,7 @@
   :root{
     --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
     --hair:#d8cfbf; --sketch:#353f44;
-    --O:#e6362f; --H:#e9eef8; --Na:#a052e0; --Cl:#2fbf7a; --hot:#e5533a; --cold:#4a90d9;
+    --O:#e6362f; --H:#9DADC2; --Na:#a052e0; --Cl:#2fbf7a; --hot:#e5533a; --cold:#4a90d9;
     --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
     --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --torn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
@@ -75,7 +75,7 @@
   #tempbar{position:absolute;left:34px;top:50%;transform:translateY(-50%);z-index:5;
     display:none;flex-direction:row;align-items:center;gap:16px}
   #tempbar .tcol{display:flex;flex-direction:column;align-items:center;gap:9px}
-  #tempbar .tlabel{font-family:var(--font-slab);font-weight:600;font-size:14px}
+  #tempbar .tlabel{font-family:var(--font-slab);font-weight:600;font-size:16px}
   #tempbar .tlabel.hot{color:var(--hot)}#tempbar .tlabel.cold{color:var(--cold)}
   #trange{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;
     width:20px;height:340px;border-radius:12px;cursor:pointer;outline:none;
@@ -288,10 +288,10 @@ const Rsphere = new THREE.SphereGeometry(1,32,24);
 // tab writes it live).
 const state = {O:0xd6362e, H:0xb9c2d0, Na:0x9a3fe0, Cl:0x1fa968};
 let bondColor=0xb3a892;      // covalent stick, muted stone on cream
-let hbColor=0x18a58a;        // hydrogen bond, deep teal
+let hbColor=0x0042AA;        // hydrogen bond, deep blue
 let ionColor=0xd9791e;       // ion–dipole bond, deep amber
 // step-1 detail decorations (electrons + charge text)
-let eBondColor=0xe0a92e, eLoneColor=0x18a58a, dNegColor=0x2f6fd0, dPosColor=0xd6362e;
+let eBondColor=0xe0a92e, eLoneColor=0x0433FF, dNegColor=0x444444, dPosColor=0x444444;
 let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
@@ -553,7 +553,6 @@ const eGroup=new THREE.Group(); detail.add(eGroup);
 [H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),eBondColor,'eBond')); });
 const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
 [lp1,lp2].forEach(d=>eGroup.add(ePair(d.clone().multiplyScalar(1.35),d,eLoneColor,'eLone')));
-const eLbl=label('lone pairs',hx(eLoneColor),30); eLbl.position.set(0,2.1,0); eGroup.add(eLbl);
 // live recolour for step-1 electrons + charge text (Debug ▸ Colors)
 function recolorElectrons(role,hexNum){
   if(role==='eBond') eBondColor=hexNum; else eLoneColor=hexNum;
@@ -743,7 +742,7 @@ const dissocMsgEl=document.getElementById('dissocmsg');
 let dissocMsgShown=0;                 // only teach it the first couple of times
 function showDissocMsg(){
   if(dissocMsgShown++>=2) return;
-  dissocMsgEl.innerHTML='Ionic bond broken — water pulls <b class="Na">Na⁺</b> and <b class="Cl">Cl⁻</b> apart';
+  dissocMsgEl.innerHTML='Ionic bond broken! Water pulls <b class="Na">Na⁺</b> and <b class="Cl">Cl⁻</b> apart.';
   dissocMsgEl.classList.remove('show');
   void dissocMsgEl.offsetWidth;      // restart the animation if it fires again
   dissocMsgEl.classList.add('show');
@@ -1047,7 +1046,7 @@ function outerPoint(margin=1.6){
 function buildControls(){
   chipsEl.innerHTML='';
   if(S.step===0){
-    chip('Electrons',dset.electrons,b=>{dset.electrons=!dset.electrons;b.classList.toggle('on',dset.electrons);applyDetail();});
+    chip('Lone Pairs',dset.electrons,b=>{dset.electrons=!dset.electrons;b.classList.toggle('on',dset.electrons);applyDetail();});
     chip('Charges δ',dset.charge,b=>{dset.charge=!dset.charge;b.classList.toggle('on',dset.charge);applyDetail();});
     chip('Dipole',dset.dipole,b=>{dset.dipole=!dset.dipole;b.classList.toggle('on',dset.dipole);applyDetail();});
     chip('Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
@@ -1246,10 +1245,9 @@ function renderReadout(p,r,escaping){
       `<b>${salt.length/2}</b> NaCl : <b>${sim.mols.length}</b> H₂O `
       +`<span class="muted">· ${p.molal.toFixed(1)} m molality</span>`
       +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
-      +`Na⁺ <b>${na.userData.shellCount}/6</b> · Cl⁻ <b>${cl.userData.shellCount}/6</b>`
-      +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
-      +`freezes <b class="cold">${fp}°C</b> · boils <b class="hot">${bp}°C</b> `
-      +`<span class="muted">(pure water 0 / 100)</span>`;
+ //     +`Na⁺ <b>${na.userData.shellCount}/6</b> · Cl⁻ <b>${cl.userData.shellCount}/6</b>`
+ //     +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
+      +`freezes <b class="cold">${fp}°C</b> · boils <b class="hot">${bp}°C</b> `;
     saltinfoEl.style.display='block';
   } else saltinfoEl.style.display='none';
 }
