@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Structure of Water — Interactive</title>
+<title>Molecule Sandbox — Water as a Solvent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
@@ -64,12 +64,7 @@
   #formula .addrow{position:relative;display:flex;justify-content:center}
   #formula .addrow .mini{position:absolute;left:calc(50% + 26px);top:50%;transform:translateY(-50%)}
 
-  /* NaCl card, bottom-center (step 5) */
-  #saltcard{position:absolute;bottom:26px;right:28px;z-index:6;
-    display:none;flex-direction:column;align-items:center;gap:8px}
-  #saltcard .clear{font-family:var(--font-hand);font-size:20px;color:var(--muted);
-    cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-  #saltcard .clear:hover{color:var(--ink)}
+  /* solutes are added from the side-panel library, not a floating canvas card */
 
   /* temperature slider, left (steps 3+) */
   #tempbar{position:absolute;left:34px;top:50%;transform:translateY(-50%);z-index:5;
@@ -120,19 +115,34 @@
     background:var(--panel);z-index:2;
     -webkit-mask:var(--torn);mask:var(--torn);-webkit-mask-size:100% 100%;mask-size:100% 100%}
 
-  /* step numbers with hand-drawn circle */
-  #steps{display:flex;gap:14px;align-items:center;margin-bottom:22px}
-  .stepnum{position:relative;font-family:var(--font-slab);font-weight:700;font-size:30px;color:var(--muted);
-    cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
-  .stepnum:hover{color:var(--ink)}
-  .stepnum.active{color:var(--ink)}
-  .stepnum.active::after{content:"";position:absolute;inset:-6px -4px;
-    background:url('sketch_circle.svg') center/100% 100% no-repeat}
+  /* ---------- molecule library (sandbox picker) ---------- */
+  #labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12}
+  #labintro{margin:0 0 18px;font-family:var(--font-sans);font-size:15px;line-height:1.5;color:#3a352f}
+  #library{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+  .libgroup{font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--muted);margin-top:8px}
+  .libgroup:first-child{margin-top:0}
+  .molrow{display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;
+    border:1.5px solid var(--hair);border-radius:9px;background:rgba(255,255,255,.5);user-select:none}
+  .molrow:hover{border-color:var(--muted)}
+  .molrow.sel{border-color:var(--ink);background:rgba(255,255,255,.92);box-shadow:0 1px 0 var(--ink)}
+  .molrow .swatch{width:14px;height:14px;border-radius:50%;flex:none}
+  .molrow .mname{font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--ink)}
+  .molrow .mform{font-family:var(--font-slab);font-size:13px;color:var(--muted);margin-left:auto}
+  /* add / clear buttons under the picker */
+  #libactions{display:flex;gap:10px;align-items:center;margin-bottom:4px}
+  #libactions button{font-family:var(--font-slab);font-weight:600;font-size:14px;padding:9px 18px;
+    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
+  #addmol{background:var(--ink);color:var(--panel)}
+  #addmol:hover{background:#000}
+  #clearmol{background:transparent;color:var(--ink)}
+  #clearmol:hover{background:rgba(0,0,0,.05)}
+  #libactions button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
 
   /* #card itself stays overflow:visible so the lightbulb (below) can spill past its
      left edge onto the sidebar's torn edge; only the title+body text scrolls, in
      its own inner box, so long copy doesn't clip the bulb */
-  #card{flex:1;display:flex;flex-direction:column;min-height:0}
+  #card{flex:1;display:flex;flex-direction:column;}
   #card .cardtext{flex:0 1 auto;overflow-y:auto;min-height:0}
   #card h2{font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12;margin:0 0 16px}
   #card p{font-family:var(--font-sans);font-weight:400;font-size:16px;line-height:1.55;margin:0 0 14px;color:#3a352f}
@@ -155,15 +165,6 @@
   #card .factwrap .bulb:hover{transform:translateY(-50%) scale(1.08) rotate(-3deg)}
   #card .factwrap .bulb.lit{transform:translateY(-50%) scale(1.05)}
 
-  /* nav footer */
-  footer{display:flex;gap:12px;align-items:center;margin-top:16px}
-  footer button{font-weight:600;font-size:15px;padding:11px 22px;
-    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
-  #prev{background:transparent;color:var(--ink)}
-  #prev:hover{background:rgba(0,0,0,.05)}
-  #next{background:var(--ink);color:var(--panel);border-color:var(--ink);margin-left:auto}
-  #next:hover{background:#000}
-  footer button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
   #dbgtoggle{position:absolute;left:0;right:0;bottom:14px;text-align:center;font-family:var(--font-slab);font-weight:600;
     font-size:13px;letter-spacing:1px;color:var(--muted);cursor:pointer;user-select:none}
   #dbgtoggle:hover{color:var(--ink)}
@@ -179,8 +180,8 @@
     <div id="dissocmsg" aria-live="polite"></div>
 
     <div id="brand">
-      <i class="ph-bold ph-drop drop"></i>
-      <h1>Structure of Water</h1>
+      <i class="ph-bold ph-flask drop"></i>
+      <h1>Molecule Sandbox</h1>
     </div>
 
     <div id="formula">
@@ -211,23 +212,14 @@
     <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
-    <div id="saltcard">
-      <div class="sketchbox">
-        <span class="flabel">NaCl</span>
-        <img src="molecule_salt.png" alt="salt">
-      </div>
-      <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
-      <span class="clear" id="clearsalt">Clear Salt</span>
-    </div>
   </div>
 
   <div id="side">
-    <div id="steps"></div>
+    <h1 id="labtitle">Dissolve something</h1>
+    <p id="labintro">
+      </p>
+    <div id="library"></div>
     <div id="card"></div>
-    <footer>
-      <button id="prev">Previous</button>
-      <button id="next">Next</button>
-    </footer>
     <span id="dbgtoggle">DEBUG</span>
   </div>
 </div>
@@ -712,9 +704,7 @@ const SHELL_N=6;                                    // octahedral coordination n
 const OCTA=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),
             new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),
             new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
-// This page teaches the solvent lesson with NaCl only; the other library entries
-// (KCl, ethanol, ammonia, methane, CO₂) live in molecule-lab.html.
-const currentSalt='nacl';
+let currentSalt='nacl';   // which ionic compound the + button adds (nacl | kcl)
 // display radius for an ion: Na/Cl stay tied to their live Debug sliders; any
 // other ion (e.g. K⁺) uses its own spec radius.
 function ionRadius(ion, specR){ return ion==='Na'?DBG.naRad : ion==='Cl'?DBG.clRad : specR; }
@@ -939,6 +929,98 @@ function separateIonsFromWater(){
   });
 }
 
+/* ---- molecular (polar/nonpolar) solutes ----
+   Unlike salt, these dissolve WHOLE — no ions. Polar ones hydrate by
+   H-bonding to water through their donor/acceptor sites (–OH, N–H, lone
+   pairs); nonpolar ones just get excluded. Handled in a parallel system so
+   the delicate water–water H-bond engine (sim.step) is left untouched.     */
+const solutes=[];
+let currentSolute='ethanol';
+function addSolute(specKey=currentSolute){
+  const spec=MolLib.MOLECULES[specKey];
+  const g=buildMolecule(spec);
+  let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
+  g.position.set((Math.random()-.5)*3, maxY+6, (Math.random()-.5)*3);
+  g.userData.vel=new THREE.Vector3(); g.userData.descending=true; g.userData.specKey=specKey;
+  root.add(g); solutes.push(g);
+}
+function clearSolutes(){ solutes.forEach(s=>root.remove(s)); solutes.length=0; clearSoluteHBonds(); }
+function updateSolutes(){
+  solutes.forEach(s=>{
+    if(s.userData.descending){   // fall in until it's genuinely surrounded by water
+      s.userData.vel.add(new THREE.Vector3(0,-0.012,0)).multiplyScalar(0.9);
+      s.position.add(s.userData.vel);
+      if(sim.mols.filter(w=>s.position.distanceTo(w.position)<3.5).length>=3) s.userData.descending=false;
+      return;
+    }
+    // gently pull toward the water centroid so the solute embeds in the cluster core
+    // (soft, so it doesn't ram into the water — the hard constraint handles overlap)
+    const wc=new THREE.Vector3(); sim.mols.forEach(w=>wc.add(w.position));
+    if(sim.mols.length) wc.multiplyScalar(1/sim.mols.length);
+    const f=new THREE.Vector3().subVectors(wc,s.position).multiplyScalar(0.006);
+    // keep clear of other solutes
+    solutes.forEach(o=>{ if(o===s) return;
+      const dir=new THREE.Vector3().subVectors(s.position,o.position), dist=dir.length()||1, minD=3.5;
+      if(dist<minD) f.addScaledVector(dir.multiplyScalar(1/dist),(minD-dist)*0.03);
+    });
+    const j=DBG.jitter; f.add(new THREE.Vector3((Math.random()-.5)*j,(Math.random()-.5)*j,(Math.random()-.5)*j));
+    s.userData.vel.add(f).multiplyScalar(0.9); s.position.add(s.userData.vel);
+    s.rotation.y+=0.004;   // slow tumble
+  });
+}
+// hard constraint: no water atom overlaps a solute atom sphere. Iterated a few
+// times so it actually resolves even when a solute is pulled into a crowd of water.
+function separateSolutesFromWater(){
+  for(let it=0; it<3; it++)
+  solutes.forEach(s=>{ if(s.userData.descending) return;
+    const atoms=s.userData.spec.atoms;
+    sim.mols.forEach(w=>{
+      const wAtoms=[[w.userData.oWorld(),WO_RAD],[w.userData.hWorld(0),WH_RAD],[w.userData.hWorld(1),WH_RAD]];
+      let pen=0, dir=null;
+      atoms.forEach((a,ai)=>{ const ap=s.userData.atomWorld(ai), arad=MolLib.PALETTE.radii[a.el]||0.7;
+        for(const [wp,wr] of wAtoms){ const d=new THREE.Vector3().subVectors(wp,ap), dist=d.length()||1, minD=arad+wr+0.06;
+          if(minD-dist>pen){ pen=minD-dist; dir=d.multiplyScalar(1/dist); } } });
+      if(dir){ w.position.addScaledVector(dir,pen*0.7); s.position.addScaledVector(dir,-pen*0.3); }  // shove both apart
+    });
+  });
+}
+// ion–dipole-style hydration H-bonds between solute polar sites and water
+let soluteHbLines=[];
+function clearSoluteHBonds(){ soluteHbLines.forEach(l=>root.remove(l)); soluteHbLines=[]; }
+function addSoluteTube(a,b){ const l=hbondTube(a,b); root.add(l); soluteHbLines.push(l); }
+// spring a water toward a specific solute polar SITE (not the group centre), so
+// the water settles at the –OH / lone pair and isn't dragged into the nonpolar atoms
+function pullToSite(s,w,site,target){
+  const ax=new THREE.Vector3().subVectors(w.position,site), dist=ax.length()||1;
+  ax.multiplyScalar((dist-target)*0.012/dist);
+  w.userData.vel.sub(ax); s.userData.vel.add(ax.multiplyScalar(0.4));   // lighter reaction on the solute
+}
+function updateSoluteHBonds(){
+  clearSoluteHBonds();
+  if((S.fz||0)>0.3) return;                 // hidden while frozen
+  const thr=DBG.hbThreshold, TARGET=2.0;
+  solutes.forEach(s=>{ if(s.userData.descending) return;
+    // solute donor H → nearest aligned water O (water accepts)
+    s.userData.donors.forEach(d=>{
+      const h=s.userData.atomWorld(d.h), par=s.userData.atomWorld(d.parent);
+      let best=null,bestD=thr;
+      sim.mols.forEach(w=>{ const o=w.userData.oWorld(), dd=h.distanceTo(o);
+        if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,par).normalize(), ha=new THREE.Vector3().subVectors(o,h).normalize();
+          if(oh.dot(ha)>0.35){ best=w; bestD=dd; } } });
+      if(best){ addSoluteTube(h,best.userData.oWorld()); pullToSite(s,best,h,TARGET); }
+    });
+    // solute acceptor → nearest aligned water H (water donates)
+    s.userData.acceptors.forEach(a=>{
+      const ap=s.userData.atomWorld(a.atom);
+      let best=null,bestD=thr,bestH=null;
+      sim.mols.forEach(w=>{ for(let hi=0;hi<2;hi++){ const h=w.userData.hWorld(hi), dd=h.distanceTo(ap);
+        if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,w.userData.oWorld()).normalize(), ha=new THREE.Vector3().subVectors(ap,h).normalize();
+          if(oh.dot(ha)>0.35){ best=w; bestD=dd; bestH=h.clone(); } } } });
+      if(best){ addSoluteTube(bestH,ap); pullToSite(s,best,ap,TARGET); }
+    });
+  });
+}
+
 /* ============================================================= *
  *  Temperature model (one continuum: cold → ice, hot → vapour)
  * ============================================================= */
@@ -983,40 +1065,58 @@ function tempParams(){
 }
 
 /* ============================================================= *
- *  Steps
+ *  Solute library — teaching notes per molecule
+ *  Order here drives the side-panel picker. `group` buckets the rows by
+ *  solute class; `mode` tells the add button which engine to use.
  * ============================================================= */
-const stepMeta=[
- {title:'A Polar Molecule',
-  hint:'One water molecule — H₂O',
-  body:`<p>Water is <b>V-shaped</b>: one oxygen bonded to two hydrogens at a <b>104.5°</b> angle. <br><br>Oxygen pulls the shared electrons closer, so it turns slightly negative (<b>δ−</b>) and the hydrogens slightly positive (<b>δ+</b>).</p>`,
-  fact:`Because the charge is lopsided, water is <b>polar</b> — and that single fact is the seed of nearly every special property that follows.`},
- {title:'Hydrogen Bonds',
-  hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O',
-  body:`<p>Hydrogen bonds attract the <b>+ H</b> of one water molecule to the <b>− O</b> of another.</p>`,
-  fact:`A single hydrogen bond is weak. It's about <b>1/20</b> as strong as the covalent O–H bond inside a molecule. <br><br>But with trillions of water molecules togther, <b>H-bonds collectively drive nearly every special property of water!</b>`},
- {title:'Specific Heat',
-  hint:'Raise the temperature — energy first breaks hydrogen bonds',
-  body:`<p class="lead">Water has a high specific heat.</p>
-  <p>It absorbs a lot of heat for only a small temperature change, because energy first goes into breaking hydrogen bonds rather than speeding up molecules.</p>`,
-  fact:`This is why sweating cools you so well and why oceans stabilize climate — water soaks up enormous heat before it warms.`},
- {title:'Why Ice Floats',
-  hint:'Cool toward 0°C — molecules lock into the open ice lattice',
-  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. <br><br>When water freezes, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice</b>, spacing them farther apart than in liquid water.</p>`,
-  fact:`So ice floats, insulating the water below — lakes don't freeze solid, and aquatic life survives the winter.`},
- {title:'The Universal Solvent',
-  hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
-  body:`<p>Because water is polar, it dissolves ionic and polar substances extraordinarily well — the "universal solvent" of life.</p>
-  <p>Add salt and each ion pulls in a shell of about <b>6 waters</b>: around <b>Na⁺</b> they aim their δ− oxygen inward; around <b>Cl⁻</b> they aim a δ+ O–H inward.</p>`,
-  fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>). Salt water <b>freezes below 0°C</b> — which is how salt melts road ice — and <b>boils above 100°C</b>.`},
-];
+const SOLUTE_INFO={
+  nacl:{group:'Ionic', mode:'salt',
+    body:`<p><b>Sodium chloride</b> is held together by an <b>ionic bond</b>. Water pries the
+      pair apart and each free ion collects a shell of about <b>6 waters</b>: around
+      <b>Na⁺</b> they aim their δ− oxygen inward; around <b>Cl⁻</b> they aim a δ+ O–H inward.</p>`,
+    fact:`Dissolved ions shift water's phase changes (<b>colligative properties</b>) — salt water
+      <b>freezes below 0°C</b>, which is how salt melts road ice, and <b>boils above 100°C</b>.`},
+  kcl:{group:'Ionic', mode:'salt',
+    body:`<p><b>Potassium chloride</b> dissolves the same way as table salt, but <b>K⁺</b> is a
+      bigger ion than Na⁺. Its charge is spread over more surface, so it grips each water
+      less tightly and its hydration shell is more loosely held.</p>`,
+    fact:`Bigger ion, weaker pull — this is why K⁺ and Na⁺ behave differently at the cell
+      membrane even though both carry a <b>1+</b> charge.`},
+  ethanol:{group:'Polar', mode:'molecule',
+    body:`<p><b>Ethanol</b> dissolves whole — no ions. Its <b>–OH</b> group both donates and
+      accepts hydrogen bonds, so water welcomes that end. The <b>C₂H₅</b> tail is nonpolar and
+      gets no such treatment.</p>`,
+    fact:`One molecule, two personalities: the polar head is <b>hydrophilic</b> and the
+      hydrocarbon tail is <b>hydrophobic</b>. That split is exactly how soaps and cell
+      membranes work.`},
+  ammonia:{group:'Polar', mode:'molecule',
+    body:`<p><b>Ammonia</b> is a trigonal pyramid with a lone pair on top. All three <b>N–H</b>
+      bonds can donate a hydrogen bond and the lone pair can accept one, so it mixes with
+      water extremely well.</p>`,
+    fact:`NH₃ is so soluble it also reacts, grabbing an H⁺ from water to make <b>NH₄⁺</b> and
+      <b>OH⁻</b> — which is why household ammonia is a base.`},
+  methane:{group:'Nonpolar', mode:'molecule',
+    body:`<p><b>Methane</b> is a symmetric tetrahedron of C–H bonds. There is no δ+ or δ− end
+      for water to grab, so no hydrogen bonds form and the molecule is squeezed out of the
+      water's bonded network.</p>`,
+    fact:`Water doesn't "hate" methane so much as prefer itself — water molecules would rather
+      hydrogen-bond to each other. That exclusion is the <b>hydrophobic effect</b>.`},
+  co2:{group:'Nonpolar', mode:'molecule',
+    body:`<p><b>Carbon dioxide</b> has two polar C=O bonds, but the molecule is <b>linear</b>
+      and symmetric, so the two dipoles cancel exactly. Net dipole: zero — it behaves as a
+      nonpolar molecule.</p>`,
+    fact:`Shape beats bonds: polar bonds don't make a polar molecule if the geometry
+      cancels them. (CO₂ does slowly react with water to form carbonic acid — not modelled here.)`},
+};
+// picker order + display; water itself is added from the H₂O card on the canvas
+const SOLUTE_ORDER=['nacl','kcl','ethanol','ammonia','methane','co2'];
 
 /* ---------- DOM refs + control builders ---------- */
 const stage=document.getElementById('stage');
 const cardEl=document.getElementById('card');
-const stepsEl=document.getElementById('steps');
+const libraryEl=document.getElementById('library');
 const statsEl=document.getElementById('stats');
 const saltinfoEl=document.getElementById('saltinfo');
-const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
 
 // temperature slider (markup lives in the HTML)
 const tempBar=document.getElementById('tempbar');
@@ -1111,47 +1211,93 @@ function addWater(){ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt
 function remWater(){ if(sim.mols.length>3){ sim.remove(); if(salt.length&&!anyDescending()) assignShells(); } }
 document.getElementById('addwater').onclick=addWater;
 document.getElementById('remwater').onclick=remWater;
-document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
-document.getElementById('clearsalt').onclick=()=>clearSalt();
-const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
 
-let cur=-1;
-const stepR=[8,18,20,24,20];
-function applyStep(n){
-  S.step=n;
-  if(n===0){ while(sim.mols.length>1) sim.remove();
-    // the surviving molecule may have drifted while part of a larger cluster on
-    // other steps — recentre it so it rotates in place instead of off-axis
-    const w=sim.mols[0]; if(w){ w.position.set(0,0,0); w.userData.vel.set(0,0,0); } }
-  else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
-  if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
-  if(n<4) clearSalt();
-  S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
-  applyDetail();
-  tempBar.style.display=S.tempEnabled?'flex':'none';
-  formulaEl.style.display=n>=1?'flex':'none';       // add-water only once bonding starts
-  saltcardEl.style.display=n>=4?'flex':'none';
-  if(n===4) S.temperature=30;
-  updateTempRange();
-  S.targetR=Math.max(n===4?DBG.zoom:stepR[n], fitDistance());
-  buildControls();
-  cur=n;
-  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
-  const m=stepMeta[n];
-  const facts=Array.isArray(m.facts)?m.facts:(m.fact?[m.fact]:[]);
-  const factsHtml=facts.map(f=>
-    `<div class="factwrap"><img class="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${f}</div></div>`
-  ).join('');
-  cardEl.innerHTML=`<div class="cardtext"><h2>${m.title}</h2>${m.body}</div>${factsHtml}`;
-  cardEl.querySelector('.cardtext').scrollTop=0;
-  prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
-  nextB.textContent=n===stepMeta.length-1?'Finish':'Next';
+/* ---------- sandbox molecule picker ----------
+   One scene, always the solvent scene. Selecting a row only sets what the
+   Add button drops in; the sim keeps whatever is already dissolved, so you
+   can mix (e.g. salt + ethanol) and compare how water treats each. */
+const formulaEl=document.getElementById('formula');
+let selected='nacl';
+
+const MAX_SALT=8, MAX_SOLUTE=8;
+const isSalt=k=>SOLUTE_INFO[k].mode==='salt';
+// how many of the selected species are currently in the scene
+function countOf(k){ return isSalt(k) ? salt.length/2 : solutes.filter(s=>s.userData.specKey===k).length; }
+function atCapacity(k){ return isSalt(k) ? salt.length>=MAX_SALT : solutes.length>=MAX_SOLUTE; }
+
+function addSelected(){
+  if(atCapacity(selected)) return;
+  // keep the readout labels pointed at whatever was added last
+  if(isSalt(selected)){ currentSalt=selected; addSalt(selected); }
+  else { currentSolute=selected; addSolute(selected); }
+  refreshCard();
 }
-// step numbers 1–5 with hand-drawn active circle
-stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
-  b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
-prevB.onclick=()=>applyStep(Math.max(0,cur-1));
-nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
+function clearSelected(){
+  // clear only the selected species, so mixtures stay under the student's control
+  if(isSalt(selected)) clearSalt();
+  else { solutes.filter(s=>s.userData.specKey===selected).forEach(s=>root.remove(s));
+    for(let i=solutes.length-1;i>=0;i--) if(solutes[i].userData.specKey===selected) solutes.splice(i,1);
+    clearSoluteHBonds(); }
+  refreshCard();
+}
+
+// side-panel card: geometry/bonding note + lightbulb fact for the selected molecule
+function refreshCard(){
+  const spec=MolLib.MOLECULES[selected], info=SOLUTE_INFO[selected];
+  const n=countOf(selected);
+  const inScene=n?`<p class="lead">${n} in the water</p>`:'';
+  cardEl.innerHTML=
+    `<div class="cardtext"><h2>${spec.name} <span style="color:var(--muted)">${spec.formula}</span></h2>`
+    +inScene+info.body+`</div>`
+    +`<div class="factwrap"><img class="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${info.fact}</div></div>`;
+  cardEl.querySelector('.cardtext').scrollTop=0;
+  [...libraryEl.querySelectorAll('.molrow')].forEach(r=>r.classList.toggle('sel',r.dataset.key===selected));
+  addB.disabled=atCapacity(selected);
+  clearB.disabled=(n===0);
+}
+
+// build the picker: rows grouped by solute class, each with a colour swatch taken
+// from the molecule's most characteristic atom so the row matches what's on canvas
+const swatchAtom={nacl:'Na', kcl:'K', ethanol:'O', ammonia:'N', methane:'C', co2:'C'};
+const addB=document.createElement('button'), clearB=document.createElement('button');
+(function buildLibrary(){
+  let lastGroup=null;
+  SOLUTE_ORDER.forEach(k=>{
+    const info=SOLUTE_INFO[k], spec=MolLib.MOLECULES[k];
+    if(info.group!==lastGroup){ lastGroup=info.group;
+      const g=document.createElement('div'); g.className='libgroup'; g.textContent=info.group;
+      libraryEl.appendChild(g); }
+    const row=document.createElement('div');
+    row.className='molrow'; row.dataset.key=k;
+    const hex='#'+MolLib.PALETTE.atoms[swatchAtom[k]].toString(16).padStart(6,'0');
+    row.innerHTML=`<span class="swatch" style="background:${hex}"></span>`
+      +`<span class="mname">${spec.name}</span><span class="mform">${spec.formula}</span>`;
+    row.onclick=()=>{ selected=k; refreshCard(); };
+    libraryEl.appendChild(row);
+  });
+  const actions=document.createElement('div'); actions.id='libactions';
+  addB.id='addmol'; addB.textContent='Add to water'; addB.onclick=addSelected;
+  clearB.id='clearmol'; clearB.textContent='Clear'; clearB.onclick=clearSelected;
+  actions.append(addB,clearB); libraryEl.appendChild(actions);
+})();
+
+/* ---------- sandbox scene setup ----------
+   S.step stays pinned at 4: the physics, camera zoom and temperature range all
+   key off it, and the solvent scene is the only one this page shows. */
+function initSandbox(){
+  S.step=4;
+  S.tempEnabled=true; S.freezeEnabled=true; S.saltEnabled=true;
+  S.temperature=30;
+  while(sim.mols.length<16) sim.spawn(outerPoint(2.5));
+  applyDetail();
+  tempBar.style.display='flex';
+  formulaEl.style.display='flex';
+  updateTempRange();
+  S.targetR=Math.max(DBG.zoom, fitDistance());
+  cam.r=S.targetR;   // open already framed — there's no step transition to ease from
+  buildControls();
+  refreshCard();
+}
 // lightbulb reveals its neighbouring fact (progressive disclosure); delegated since
 // each step's card.innerHTML rebuild replaces the .bulb/.fact elements
 cardEl.addEventListener('click',e=>{
@@ -1295,6 +1441,7 @@ function renderReadout(p,r,escaping){
   // bottom-left: just the counts, mirroring the mockup
   let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
   if(salt.length) s+=`<br>${salt.length/2} ${MolLib.MOLECULES[currentSalt].formula} dissolved`;
+  if(solutes.length) s+=`<br>${solutes.length} ${MolLib.MOLECULES[currentSolute].formula} dissolved`;
   statsEl.innerHTML=s;
   // handwritten phase descriptor beside the temperature readout
   if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);
@@ -1372,15 +1519,16 @@ function loop(){
       setMolOpacity(w, clamp((EVAP_TOP-w.position.y)/(EVAP_TOP-EVAP_FADE_LO),0,1));
     } });
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
+  if(solutes.length){ updateSolutes(); separateSolutesFromWater(); updateSoluteHBonds(); } else clearSoluteHBonds();
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
 
-applyCam(); resize(); applyStep(0); requestAnimationFrame(loop);
+applyCam(); resize(); initSandbox(); requestAnimationFrame(loop);
 
 document.getElementById('savepng').onclick=()=>{
   renderer.render(scene,camera);
-  const name=(stepMeta[cur]?.title||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const name=('molecule-lab-'+(MolLib.MOLECULES[selected]?.name||'water')).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
   const a=document.createElement('a'); a.download=`${name}.png`; a.href=canvas.toDataURL('image/png'); a.click();
 };
 </script>
