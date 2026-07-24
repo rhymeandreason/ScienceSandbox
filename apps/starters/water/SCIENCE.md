@@ -112,3 +112,69 @@ Every "special property" lesson should visibly connect to hydrogen bonding:
   **explicit in comments** so they aren't mistaken for to-scale facts.
 
 ---
+
+## 9. Reaction & event animation reference (`molecule-lab.html`)
+
+Every "something happened" moment in the sandbox is marked by a transient effect,
+driven by the `fx` registry and stepped once per frame off a wall-clock delta
+(`stepFX`). All effects are **purely cosmetic** — they never feed back into the
+physics, the H-bond counts, or the pH readout.
+
+### Guiding principle — intensity tracks the chemistry
+
+The loudness of the effect is proportional to what actually happened. **Bonds
+breaking or forming** get the full shockwave-and-sparks treatment; **hydration**
+(no bonds broken, identity unchanged) gets only a soft shimmer; a solute where
+**nothing happens** stays visually silent. Never dramatize a non-event — an
+animation on plain dissolving would imply a reaction that didn't occur, and
+methane's *silence* is itself the lesson about nonpolar solutes.
+
+### Effect primitives
+
+| Function | What it draws | Used for |
+|---|---|---|
+| `spawnRing(pos,color)` | white core flash + double additive shockwave ring + 16-spark burst | bond break/form events |
+| `popGlow(g,color)` | emissive flash (2.2×) + springy scale overshoot on a molecule's atoms | a molecule freshly formed / an ion tearing free |
+| `settleShimmer(g,color)` | soft emissive breathe in-and-out, **no** scale/ring/sparks | a polar solute locking into its hydration shell |
+| `protonHop(from,to,onArrive)` | glowing proton arcing between points with a fading comet trail | the H⁺ transfer of an acid ionization |
+| `colorOf(g)` | reads a molecule's first **atom** colour (skips covalent-bond meshes) | tinting an effect to whatever it decorates |
+
+### Per-molecule event → effect → colour
+
+Atom/palette colours are the single source of truth in `molecules.js`
+(`MolLib.PALETTE.atoms`); ion effects pull them live via `colorOf`.
+
+| Molecule | `class` | Event | Effect(s) | Colour(s) |
+|---|---|---|---|---|
+| **Water** H₂O | `solvent` | — (the medium; ambient H-bond network) | none | — |
+| **Salt** NaCl | `ionic` | water bridges the pair → **dissociation** | `spawnRing` + `popGlow` each ion | ring/Na⁺ violet `#9a3fe0`, Cl⁻ green `#1fa968` |
+| **Potassium chloride** KCl | `ionic` | same → **dissociation** | `spawnRing` + `popGlow` each ion | ring/K⁺ blue `#0054c0`, Cl⁻ green `#1fa968` |
+| **Ethanol** C₂H₅OH | `polar` | settles into water → hydration toast | `settleShimmer` (in sync with toast) | water-blue `#9fd4ff` |
+| **Ammonia** NH₃ | `polar` | settles into water → hydration toast | `settleShimmer` (in sync with toast) | water-blue `#9fd4ff` |
+| **Methane** CH₄ | `nonpolar` | squeezed out (no H-bonds) | **none** (silence is the point) | — |
+| **Carbon dioxide** CO₂ | `reactive` | **step 1:** CO₂ + H₂O → H₂CO₃ | `spawnRing` at attack site + `popGlow` on new H₂CO₃ | cool blue: ring `#7cc4ff`, glow `#bfe4ff` |
+| ↳ **Carbonic acid** H₂CO₃ | `polar`, `product` | **step 2:** H₂CO₃ → HCO₃⁻ + H⁺ | `popGlow` on HCO₃⁻ + `protonHop` acid→water | glow `#ffe4b0`; proton `#ffe08a`, trail `#ffcf6b` |
+| ↳ **Bicarbonate** HCO₃⁻ | `ion`, `product` | (formed in step 2) | — (glowed as part of step 2) | `#ffe4b0` |
+| ↳ **Hydronium** H₃O⁺ | `ion`, `product` | proton lands on a water | `spawnRing` at landing + `popGlow` on new H₃O⁺ | warm amber: ring `#ffc24d`, glow `#ffd98a` |
+
+### Colour language
+
+- **Cool blue** (`#7cc4ff` / `#bfe4ff`) — a **water-driven** step: hydration, water
+  attacking the carbon.
+- **Warm amber** (`#ffc24d` / `#ffd98a` / `#ffe08a`) — **acid / proton** chemistry;
+  echoes the amber ion–dipole bond colour and the falling-pH story.
+- **Ion palette** (violet / blue / green) — dissociation flares each ion in its own
+  identity colour so cation and anion read as distinct.
+- **Water-blue** (`#9fd4ff`) — the **hydration shell closing in**; deliberately a
+  water colour, not the solute's, because the solute is unchanged.
+- The **white core flash** (`#ffffff`) is shared by all `spawnRing` events — the
+  neutral white-hot instant before the coloured rings take over.
+
+### Where each is wired
+
+- Dissociation — `checkDissociation()` (at the "pop apart" impulse).
+- CO₂ chain — `updateReactions()` (step 1 hydration, step 2 ionization).
+- Solute settle — `updateSolutes()`, at the moment descent ends and the hydration
+  toast fires (gated to `class === 'polar'`).
+
+---
