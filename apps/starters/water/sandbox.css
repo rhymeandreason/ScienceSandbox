@@ -165,7 +165,7 @@
    font-size:13px;letter-spacing:1px;color:var(--muted);cursor:pointer;user-select:none}
  #dbgtoggle:hover{color:var(--ink)}
 
- /* ---------- molecule library (sandbox picker) ---------- */
+ /* ---------- right panel extras ---------- */
  #labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12}
  #labintro{margin:0 0 18px;font-family:var(--font-sans);font-size:15px;line-height:1.5;color:#3a352f}
  #library{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
@@ -181,7 +181,7 @@
  .molrow .mform{font-family:var(--font-slab);font-size:13px;color:var(--muted);margin-left:auto}
  /* add / clear buttons under the picker */
  #libactions{display:flex;gap:10px;align-items:center;margin-bottom:4px}
- #libactions button{font-family:var(--font-slab);font-weight:600;font-size:14px;padding:9px 18px;
+ #libactions button{font-weight:600;font-size:14px;padding:9px 18px;
    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
  #addmol{background:var(--ink);color:var(--panel)}
  #addmol:hover{background:#000}

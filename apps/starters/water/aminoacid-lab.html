@@ -12,10 +12,6 @@
 <style>
   :root{ --pep:#6a5acd; }
 
-  /* wordmark runs a touch smaller on this page */
-  #brand .drop{font-size:24px}
-  #brand h1{font-size:24px}
-
   /* reaction toast, top-center */
   #rxmsg{position:absolute;top:78px;left:50%;transform:translateX(-50%);
     z-index:12;pointer-events:none;text-align:center;max-width:70%;opacity:0;
@@ -29,7 +25,6 @@
     100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
 
   #stats b{color:var(--ink)}
-  #savepng{border-radius:8px}
 
   /* peptide (sequence) card, bottom-right */
   #seqcard{position:absolute;right:24px;bottom:24px;z-index:6;display:none;
@@ -46,29 +41,7 @@
   @keyframes pcpop{0%{background:rgba(255,214,120,.6)}100%{background:rgba(106,90,205,.12)}}
 
   /* ---------- right panel ---------- */
-  #side{padding:26px 30px 30px 34px;overflow-y:auto}
-  h1#labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:27px;line-height:1.12}
-  #labintro{margin:0 0 18px;font-family:var(--font-sans);font-size:14.5px;line-height:1.5;color:#3a352f}
-  #labintro b{font-weight:700}
-  .libgroup{font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:1.2px;
-    text-transform:uppercase;color:var(--muted);margin:2px 0 8px}
-  #library{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
-  .molrow{display:flex;align-items:center;gap:11px;padding:9px 12px;cursor:pointer;
-    border:1.5px solid var(--hair);border-radius:9px;background:rgba(255,255,255,.5);user-select:none}
-  .molrow:hover{border-color:var(--muted)}
-  .molrow.sel{border-color:var(--ink);background:rgba(255,255,255,.92);box-shadow:0 1px 0 var(--ink)}
-  .molrow .swatch{width:15px;height:15px;border-radius:50%;flex:none;border:1.5px solid rgba(0,0,0,.15)}
-  .molrow .mname{font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--ink)}
-  .molrow .mside{font-family:var(--font-slab);font-size:12px;color:var(--muted);margin-left:auto}
-  #libactions{display:flex;gap:10px;align-items:center;margin-bottom:18px}
-  #libactions button{font-family:var(--font-slab);font-weight:600;font-size:14px;padding:9px 18px;
-    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
-  #addmol{background:var(--ink);color:var(--panel)}#addmol:hover{background:#000}
-  #clearmol{background:transparent;color:var(--ink)}#clearmol:hover{background:rgba(0,0,0,.05)}
-  #libactions button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
-  #card{border-top:1.5px dashed var(--hair);padding-top:16px;font-size:14px;line-height:1.55;color:#3a352f}
-  #card h2{margin:0 0 8px;font-family:var(--font-slab);font-weight:700;font-size:17px}
-  #card p{margin:0 0 10px}
+  #card{border-top:1.5px dashed var(--hair);padding-top:16px}
   #card .rxn{font-family:var(--font-slab);font-weight:700;color:var(--pep);font-size:15px}
 
   @media (max-width:880px){#app{grid-template-columns:1fr}#stage{grid-column:1}#side{grid-column:1}#side::before{display:none}}
@@ -96,7 +69,7 @@
       <button id="addmol">Add to chain</button>
       <button id="clearmol">Clear</button>
     </div>
-    <div id="card"></div>
+    <div id="card"><div class="cardtext" id="cardtext"></div></div>
   </div>
 </div>
 
@@ -142,12 +115,12 @@ function buildLibrary(){
     const s=MolLib.MOLECULES[k];
     const row=document.createElement('div'); row.className='molrow'+(k===selected?' sel':'');
     row.innerHTML=`<span class="swatch" style="background:${hx(state[AA_SWATCH[k]])}"></span>`
-      +`<span class="mname">${s.name}</span><span class="mside">${s.res} · R = ${s.side}</span>`;
+      +`<span class="mname">${s.name}</span><span class="mform">${s.res} · R = ${s.side}</span>`;
     row.onclick=()=>{selected=k; buildLibrary(); refreshCard();};
     libraryEl.appendChild(row);
   });
 }
-const cardEl=document.getElementById('card');
+const cardEl=document.getElementById('cardtext');
 function refreshCard(){
   const s=MolLib.MOLECULES[selected];
   cardEl.innerHTML=`<h2>${s.name} <span style="color:var(--muted);font-weight:500">${s.res}</span></h2>`
