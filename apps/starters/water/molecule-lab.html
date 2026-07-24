@@ -461,6 +461,11 @@ function buildMolecule(spec){
     // nonpolar atoms (ethanol's ethyl tail, all of methane) — water is pushed off
     // these, which is what makes ethanol's hydration visibly one-sided
     hydrophobic:(spec.hydrophobic||[]).slice() };
+  // local sphere layout [x,y,z,r] + bounding radius, for the overlap constraint.
+  // Cached because the resolver runs it every iteration of every frame, and
+  // rotating a stored offset is far cheaper than getWorldPosition() per atom.
+  g.userData.locals=spec.atoms.map(a=>[a.pos[0],a.pos[1],a.pos[2],P.radii[a.el]||0.7]);
+  g.userData.boundR=Math.max(...g.userData.locals.map(L=>Math.hypot(L[0],L[1],L[2])+L[3]));
   return g;
 }
 
@@ -542,7 +547,10 @@ function createWaterSim(cfg={}){
  *  Persistent simulation + global state
  * ============================================================= */
 const sim = createWaterSim({ centroidPull:0.0024, jitter:0.006, MIN:3.0, stericK:0.045,
-  EQ:3.6, kHB:0.008, hbThreshold:2.7, hbForce:true, spin:0, collisionMin:1.9 });
+  // collisionMin (a centre-distance test) is off: resolveAllOverlaps() now does
+  // water/water at the atom level, which a centre test can't express — the H's
+  // reach 2.10 from the centre, so the old 1.9 always let them interpenetrate.
+  EQ:3.6, kHB:0.008, hbThreshold:2.7, hbForce:true, spin:0, collisionMin:0 });
 const first = sim.spawn(new THREE.Vector3(0,0,0));
 
 const S = { step:0, temperature:22, tempEnabled:false, freezeEnabled:false,
@@ -928,23 +936,94 @@ function updateIons(){
     a.userData.vel.add(f).multiplyScalar(0.9); a.position.add(a.userData.vel);
   });
 }
-// Hard constraint: no water ATOM (O or either H) may overlap an ion sphere.
-// This matters most for Cl⁻, whose inward-pointing H is the closest atom and
-// would otherwise poke into the large anion. Shoves the whole molecule out.
 const WO_RAD=0.95, WH_RAD=0.55;
-function separateIonsFromWater(){
-  salt.forEach(ion=>{
-    sim.mols.forEach(w=>{
-      const atoms=[[w.userData.oWorld(),WO_RAD],[w.userData.hWorld(0),WH_RAD],[w.userData.hWorld(1),WH_RAD]];
-      let pen=0, dir=null;
-      for(const [p,rad] of atoms){
-        const d=new THREE.Vector3().subVectors(p,ion.position), dist=d.length()||1;
-        const minD=ion.userData.rad+rad+0.08;
-        if(minD-dist>pen){ pen=minD-dist; dir=d.multiplyScalar(1/dist); }
+
+/* ==================================================================== *
+ *  Global sphere-overlap constraint
+ *
+ *  One rule for the whole scene: NO two spheres may interpenetrate —
+ *  water/water, water/ion, water/solute, solute/solute, solute/ion.
+ *  This replaces three partial constraints that each covered one pair
+ *  type and left the rest free to intersect. Notably water/water was
+ *  only ever a centre-distance test (collisionMin 1.9), which says
+ *  nothing about the H's — they reach 2.10 from the centre, so two
+ *  waters at 1.9 apart were guaranteed to interpenetrate.
+ *
+ *  Every body is RIGID: a correction translates the whole body, never
+ *  an individual atom. Orientation is owned by the H-bond/ice logic and
+ *  is deliberately left alone here. Corrections split by mobility, so a
+ *  light water gives way to a heavy solute instead of shoving it.
+ *
+ *  Runs last in the frame, after everything else has moved.
+ * ==================================================================== */
+const WATER_LOCAL=[[0,0,0,WO_RAD],[H1L.x,H1L.y,H1L.z,WH_RAD],[H2L.x,H2L.y,H2L.z,WH_RAD]];
+const WATER_BOUND=HL+WH_RAD;
+// Gauss-Seidel: corrections are applied immediately and the affected bodies'
+// sphere buffers refreshed, so later pairs in the same sweep see current
+// positions. Doing it Jacobi-style (refresh once per sweep) left a persistent
+// ~0.15 residual under load — each sweep kept resolving against stale positions.
+//
+// Sweeps run until nothing overlaps, capped. Adaptive rather than fixed because
+// the cost is wildly uneven: a settled cluster converges in one sweep and exits,
+// while the frames where a solute is punching into the pack need ~10. At 48
+// bodies the whole pass is ~0.25ms, so the cap is affordable.
+const OVERLAP_MAX_ITERS=12, OVERLAP_SKIN=0.05, OVERLAP_RELAX=0.85;
+// mobility weights — the share of a correction each body absorbs
+const MOB_WATER=1, MOB_ION=0.5, MOB_SOLUTE=0.5, MOB_SOLUTE_FALLING=0.12;
+const _osv=new THREE.Vector3();
+function writeSpheres(body,out){
+  const o=body.o;
+  if(!body.locals){    // ion: a single sphere at the body's own position
+    out[0]=o.position.x; out[1]=o.position.y; out[2]=o.position.z; out[3]=body.bound; return 1;
+  }
+  const L=body.locals;
+  for(let k=0;k<L.length;k++){
+    _osv.set(L[k][0],L[k][1],L[k][2]).applyQuaternion(o.quaternion).add(o.position);
+    out[k*4]=_osv.x; out[k*4+1]=_osv.y; out[k*4+2]=_osv.z; out[k*4+3]=L[k][3];
+  }
+  return L.length;
+}
+function resolveAllOverlaps(){
+  const bodies=[];
+  // escaping waters are airborne and deliberately exempt — they're leaving
+  sim.mols.forEach(w=>{ if(!w.userData.escaped)
+    bodies.push({o:w, locals:WATER_LOCAL, bound:WATER_BOUND, mob:MOB_WATER}); });
+  solutes.forEach(s=>bodies.push({o:s, locals:s.userData.locals, bound:s.userData.boundR,
+    mob:s.userData.descending?MOB_SOLUTE_FALLING:MOB_SOLUTE}));
+  salt.forEach(i=>bodies.push({o:i, locals:null, bound:i.userData.rad, mob:MOB_ION}));
+  const n=bodies.length; if(n<2) return;
+  const buf=bodies.map(b=>new Float64Array(4*(b.locals?b.locals.length:1)));
+  const cnt=new Array(n);
+  for(let i=0;i<n;i++) cnt[i]=writeSpheres(bodies[i],buf[i]);
+  for(let it=0; it<OVERLAP_MAX_ITERS; it++){
+    const relax=(it===OVERLAP_MAX_ITERS-1)?1:OVERLAP_RELAX;   // final sweep closes the gap
+    let dirty=false;
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      const A=bodies[i], B=bodies[j], pa=A.o.position, pb=B.o.position;
+      // broad phase: bounding spheres
+      const bx=pb.x-pa.x, by=pb.y-pa.y, bz=pb.z-pa.z;
+      const reach=A.bound+B.bound+OVERLAP_SKIN;
+      if(bx*bx+by*by+bz*bz > reach*reach) continue;
+      // narrow phase: every overlapping atom pair contributes, so a body
+      // wedged between two atoms of another is pushed clear of both
+      const ba=buf[i], bb=buf[j];
+      let cx=0,cy=0,cz=0,hit=false;
+      for(let a=0;a<cnt[i];a++) for(let b=0;b<cnt[j];b++){
+        const ex=bb[b*4]-ba[a*4], ey=bb[b*4+1]-ba[a*4+1], ez=bb[b*4+2]-ba[a*4+2];
+        const minD=ba[a*4+3]+bb[b*4+3]+OVERLAP_SKIN, d2=ex*ex+ey*ey+ez*ez;
+        if(d2>=minD*minD) continue;
+        const d=Math.sqrt(d2)||1e-4, pen=(minD-d)/d;
+        cx+=ex*pen; cy+=ey*pen; cz+=ez*pen; hit=true;
       }
-      if(dir) w.position.addScaledVector(dir,pen);   // push molecule out until the offending atom clears
-    });
-  });
+      if(!hit) continue;
+      dirty=true;
+      const mt=A.mob+B.mob, fb=B.mob/mt*relax, fa=A.mob/mt*relax;
+      pb.x+=cx*fb; pb.y+=cy*fb; pb.z+=cz*fb;
+      pa.x-=cx*fa; pa.y-=cy*fa; pa.z-=cz*fa;
+      writeSpheres(A,ba); writeSpheres(B,bb);   // keep the sweep self-consistent
+    }
+    if(!dirty) break;   // nothing overlapped this sweep — scene is clean
+  }
 }
 
 /* ---- molecular (polar/nonpolar) solutes ----
@@ -1025,42 +1104,6 @@ function repelWaterFromTails(){
         const push=d.multiplyScalar((R-dist)*HPHOB_K/dist);
         w.userData.vel.add(push); s.userData.vel.addScaledVector(push,-0.3);
       });
-    });
-  });
-}
-/* Hard constraint: NO sphere may overlap another sphere. Every solute atom is
-   tested against all three water atoms (O + both H).
-
-   Two things the earlier version got wrong, both of which showed up as ethanol
-   visibly passing through water:
-     • it resolved only the single deepest pair per water, so a water wedged
-       between two of ethanol's nine atoms got pushed out of one and left inside
-       the other. Now every overlapping pair contributes.
-     • it skipped descending solutes, so a solute plowed straight through the
-       cluster on the way in — and `descending` only clears once waters are
-       already within 3.5, i.e. after it has embedded. Now it always applies;
-       a falling solute just takes a smaller share of the correction so the
-       constraint doesn't stall its descent.                                   */
-const SEP_ITERS=8, SEP_SKIN=0.06;
-function separateSolutesFromWater(){
-  const d=new THREE.Vector3(), corr=new THREE.Vector3();
-  for(let it=0; it<SEP_ITERS; it++)
-  solutes.forEach(s=>{
-    const atoms=s.userData.spec.atoms;
-    // solute atoms move as the group is corrected, so refresh once per iteration
-    const sp=atoms.map((a,ai)=>({p:s.userData.atomWorld(ai), r:MolLib.PALETTE.radii[a.el]||0.7}));
-    const sShare=s.userData.descending?0.08:0.3;
-    sim.mols.forEach(w=>{
-      const wAtoms=[[w.userData.oWorld(),WO_RAD],[w.userData.hWorld(0),WH_RAD],[w.userData.hWorld(1),WH_RAD]];
-      corr.set(0,0,0); let hit=false;
-      for(const a of sp) for(const [wp,wr] of wAtoms){
-        d.subVectors(wp,a.p); const dist=d.length()||1e-3, minD=a.r+wr+SEP_SKIN;
-        if(dist<minD){ corr.addScaledVector(d.multiplyScalar(1/dist), minD-dist); hit=true; }
-      }
-      if(!hit) return;
-      // relaxed, because summed pair corrections overshoot; the iterations converge it
-      corr.multiplyScalar(0.6);
-      w.position.addScaledVector(corr,1-sShare); s.position.addScaledVector(corr,-sShare);
     });
   });
 }
@@ -1616,8 +1659,13 @@ function loop(){
     } else {                      // fade with height as it drifts up past the cluster
       setMolOpacity(w, clamp((EVAP_TOP-w.position.y)/(EVAP_TOP-EVAP_FADE_LO),0,1));
     } });
-  if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
-  if(solutes.length){ updateSolutes(); separateSolutesFromWater(); updateSoluteHBonds(); } else clearSoluteHBonds();
+  if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); }
+  if(solutes.length) updateSolutes();
+  // one rule for everything, applied after every body has moved and before any
+  // bond is drawn — so the sticks are placed at the final, non-overlapping positions
+  resolveAllOverlaps();
+  if(salt.length){ updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
+  if(solutes.length) updateSoluteHBonds(); else clearSoluteHBonds();
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
