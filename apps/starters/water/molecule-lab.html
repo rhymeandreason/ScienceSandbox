@@ -91,6 +91,22 @@
   #saltinfo .cold{color:var(--cold)}#saltinfo .hot{color:var(--hot)}
   #saltinfo .muted{color:var(--muted);font-weight:500}
 
+  /* reaction-product card, bottom-right of the canvas — appears once the CO₂
+     chain starts making new molecules (H₂CO₃ / HCO₃⁻ / H₃O⁺) */
+  #productcard{position:absolute;right:24px;bottom:24px;z-index:6;display:none;
+    background:rgba(255,255,255,.62);border:2px solid var(--ink);border-radius:7px 11px 8px 10px;
+    padding:11px 15px 12px;min-width:172px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);
+    backdrop-filter:blur(2px)}
+  #productcard .pchead{font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:1.3px;
+    text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  #productcard .prow{display:flex;align-items:baseline;gap:8px;padding:2px 0;line-height:1.25}
+  #productcard .pform{font-family:var(--font-slab);font-weight:700;font-size:16px;color:var(--ink);min-width:52px}
+  #productcard .pform sub{font-size:.72em}
+  #productcard .pname{font-family:var(--font-sans);font-size:12px;color:var(--muted)}
+  #productcard .pn{font-family:var(--font-slab);font-weight:700;font-size:16px;color:var(--ink);margin-left:auto}
+  #productcard .prow.fresh{animation:pcpop .9s ease}
+  @keyframes pcpop{0%{background:rgba(255,214,120,.55)}100%{background:transparent}}
+
   /* bottom-left stats + PNG */
   #stats{position:absolute;left:26px;bottom:66px;z-index:5;font-size:13px;color:var(--muted);line-height:1.7}
   #savepng{position:absolute;left:26px;bottom:22px;z-index:5;
@@ -213,6 +229,7 @@
 
     <div id="chips"></div>
     <div id="saltinfo"></div>
+    <div id="productcard"></div>
     <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
@@ -1219,7 +1236,10 @@ function repelWaterFromTails(){
         const d=new THREE.Vector3().subVectors(w.position,ap), dist=d.length()||1;
         if(dist>=R) return;
         const push=d.multiplyScalar((R-dist)*HPHOB_K/dist);
-        w.userData.vel.add(push); s.userData.vel.addScaledVector(push,-0.3);
+        // equal and opposite so the pair doesn't inject net momentum into the
+        // cluster — a lighter/heavier feel belongs at integration time (mass or
+        // mobility scaling), not as an asymmetric reaction force
+        w.userData.vel.add(push); s.userData.vel.sub(push);
       });
     });
   });
@@ -1234,11 +1254,15 @@ const SITE_TORQUE=0.09;
 function pullToSite(s,w,site,target){
   const ax=new THREE.Vector3().subVectors(w.position,site), dist=ax.length()||1;
   ax.multiplyScalar((dist-target)*0.012/dist);
-  w.userData.vel.sub(ax); s.userData.vel.add(ax.multiplyScalar(0.4));   // lighter reaction on the solute
+  // equal and opposite: an asymmetric reaction here (e.g. a lighter push on the
+  // solute) injects net momentum every frame and the whole cluster drifts off
+  // the origin over thousands of frames. If the solute should feel "heavier",
+  // that belongs in its own integration step (a mobility/mass factor), not here.
+  w.userData.vel.sub(ax); s.userData.vel.add(ax);
   // ax is now the force ON the solute, applied at `site` → torque about its centre,
   // which is what swings the polar group around to face the water
   const r=new THREE.Vector3().subVectors(site,s.position);
-  s.userData.angVel.addScaledVector(new THREE.Vector3().crossVectors(r,ax),SITE_TORQUE);
+  s.userData.angVel.addScaledVector(new THREE.Vector3().crossVectors(r,ax),SITE_TORQUE*0.4);
 }
 function updateSoluteHBonds(){
   clearSoluteHBonds();
@@ -1371,6 +1395,28 @@ const cardEl=document.getElementById('card');
 const libraryEl=document.getElementById('library');
 const statsEl=document.getElementById('stats');
 const saltinfoEl=document.getElementById('saltinfo');
+const productCardEl=document.getElementById('productcard');
+// which reaction products to surface in the bottom-right card, in reaction order
+const PRODUCT_KEYS=['carbonic','bicarbonate','hydronium'];
+let prevProductN={};                         // last frame's per-species counts, for the "fresh" pop
+function renderProductCard(){
+  const byKey={};
+  solutes.forEach(x=>{ const k=x.userData.specKey;
+    if(PRODUCT_KEYS.includes(k)) byKey[k]=(byKey[k]||0)+1; });
+  const present=PRODUCT_KEYS.filter(k=>byKey[k]);
+  if(!present.length){ productCardEl.style.display='none'; prevProductN={}; return; }
+  let h='<div class="pchead">Products formed</div>';
+  present.forEach(k=>{
+    const spec=MolLib.MOLECULES[k], n=byKey[k];
+    const fresh=n>(prevProductN[k]||0) ? ' fresh' : '';
+    // <sub>-ify the digits in the formula so H₂CO₃ etc. sit right in the slab face
+    h+=`<div class="prow${fresh}"><span class="pform">${spec.formula}</span>`
+      +`<span class="pname">${spec.name}</span><span class="pn">${n}</span></div>`;
+  });
+  productCardEl.innerHTML=h;
+  productCardEl.style.display='block';
+  prevProductN=byKey;
+}
 
 // temperature slider (markup lives in the HTML)
 const tempBar=document.getElementById('tempbar');
@@ -1438,10 +1484,23 @@ const chipsEl=document.getElementById('chips');
 function chip(txt,on,onClick){ const b=document.createElement('div');
   b.className='chip'+(on?' on':''); b.textContent=txt;
   b.onclick=()=>onClick(b); chipsEl.appendChild(b); return b; }
-function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>{ if(!w.userData.escaped) rad=Math.max(rad,w.position.length()); });
+// Water's own cohesive forces don't perfectly self-cancel once solutes are
+// dissolved (H-bond springs, hydrophobic repulsion, overlap resolution during
+// a solute's fall-through) — small per-frame biases compound over thousands of
+// frames into a real centroid drift. Rather than chase every source, track the
+// live cluster centroid and re-centre the camera on it each frame, so the
+// cluster stays framed regardless of where it wanders.
+function clusterCentroid(){
+  const c=new THREE.Vector3(); let n=0;
+  sim.mols.forEach(w=>{ if(!w.userData.escaped){ c.add(w.position); n++; } });
+  solutes.forEach(s=>{ if(!s.userData.descending){ c.add(s.position); n++; } });
+  if(n) c.multiplyScalar(1/n);
+  return c;
+}
+function fitDistance(center){ let rad=1.6; sim.mols.forEach(w=>{ if(!w.userData.escaped) rad=Math.max(rad,w.position.distanceTo(center)); });
   // skip any crystal still falling in from high above — it would balloon the fit
   // radius and make the whole view zoom out until it settles into the water
-  salt.forEach(m=>{ if(!m.userData.descending) rad=Math.max(rad,m.position.length()); });
+  salt.forEach(m=>{ if(!m.userData.descending) rad=Math.max(rad,m.position.distanceTo(center)); });
   return rad*2.0+6; }
 function outerPoint(margin=1.6){
   const n=sim.mols.length+salt.length*0.5;
@@ -1556,7 +1615,7 @@ function initSandbox(){
   tempBar.style.display='flex';
   formulaEl.style.display='flex';
   updateTempRange();
-  S.targetR=Math.max(DBG.zoom, fitDistance());
+  S.targetR=Math.max(DBG.zoom, fitDistance(cam.target));
   cam.r=S.targetR;   // open already framed — there's no step transition to ease from
   buildControls();
   refreshCard();
@@ -1721,6 +1780,7 @@ function renderReadout(p,r,escaping){
     if(pH!==null) s+=`<br>pH <b>${pH.toFixed(1)}</b> — pure water is 7.0`;
   }
   statsEl.innerHTML=s;
+  renderProductCard();
   // handwritten phase descriptor beside the temperature readout
   if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);
   // step-5 salt readout: ion:water ratio + calculated (colligative) phase-change points
@@ -1746,7 +1806,8 @@ function loop(){
   sim.cfg.MIN          = DBG.stericMIN;
   sim.cfg.EQ           = solvent?3.6:DBG.liquidEQ;
   sim.cfg.hbThreshold  = DBG.hbThreshold;
-  const want=Math.max(S.targetR, fitDistance()); // live auto-fit; manual wheel zoom (S.targetR) always wins
+  cam.target.lerp(clusterCentroid(), 0.05);   // follow the cluster so drift never carries it off screen
+  const want=Math.max(S.targetR, fitDistance(cam.target)); // live auto-fit; manual wheel zoom (S.targetR) always wins
   cam.r += (want - cam.r)*0.05; applyCam();
   const p=tempParams();
   // Heat loosens the H-bond network: rest length and draw reach stretch with warmth,
