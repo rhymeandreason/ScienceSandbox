@@ -9,87 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
 <style>
-  :root{
-    --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
-    --hair:#d8cfbf; --sketch:#353f44;
-    --O:#e6362f; --H:#9DADC2; --Na:#a052e0; --Cl:#2fbf7a; --K:#0054c0; --hot:#e5533a; --cold:#4a90d9;
-    --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
-    --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --torn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;color:var(--ink);font-family:var(--font-sans)}
-  #app{display:grid;grid-template-columns:1fr 372px;grid-template-rows:1fr;height:100vh;overflow:hidden}
+  :root{ --K:#0054c0; }
 
-  /* ---------- stage (left, dotted stationery) ---------- */
-  #dissocmsg{position:absolute;top:80px;left:50%;transform:translateX(-50%);
-    z-index:12;pointer-events:none;text-align:center;opacity:0;white-space:nowrap;
-    font-family:var(--font-hand);font-size:20px;color:var(--muted);letter-spacing:.2px}
-  #dissocmsg b{font-weight:400}
-  #dissocmsg .Na{color:var(--Na)}#dissocmsg .Cl{color:var(--Cl)}#dissocmsg .K{color:var(--K)}
+  /* dissociation message keeps its own fade timing + the extra K+ color */
+  #dissocmsg .K{color:var(--K)}
   #dissocmsg.show{animation:dissocFade 3.4s ease-out forwards}
-  @keyframes dissocFade{
-    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
-    10%{opacity:1;transform:translateX(-50%) translateY(0)}
-    80%{opacity:1;transform:translateX(-50%) translateY(0)}
-    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
-  #stage{grid-column:1;position:relative;overflow:hidden;
-    background-color:var(--paper);
-    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
-    background-size:26px 26px;background-position:13px 13px}
-  #gl{display:block;width:100%;height:100%}
 
-  /* wordmark */
-  #brand{position:absolute;top:22px;left:26px;display:flex;align-items:center;gap:11px;z-index:6}
-  #brand .drop{font-size:26px;color:var(--ink)}
-  #brand h1{margin:0;font-family:var(--font-marker);font-weight:400;font-size:25px;letter-spacing:.3px}
-
-  /* H2O formula card, top-center */
-  #formula{position:absolute;top:20px;right:28px;z-index:6;
-    display:flex;flex-direction:column;align-items:center;gap:8px}
-  .sketchbox{position:relative;width:104px;height:92px;border:2.5px solid var(--ink);border-radius:6px 10px 7px 9px;
-    display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.28)}
-  .sketchbox img{width:74px;height:74px;object-fit:contain}
-  .sketchbox .flabel{position:absolute;top:-13px;left:6px;font-family:var(--font-slab);
-    font-weight:600;font-size:15px;background:var(--paper);padding:0 5px}
-  .sketchbox .flabel sub{font-size:.72em}
-  .addbtn{width:34px;height:34px;border-radius:50%;border:none;background:#4b4640;color:#fff;
-    font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 6px rgba(0,0,0,.22);transition:.15s}
-  .addbtn:hover{background:#2b2723;transform:scale(1.06)}
-  .addbtn.mini{width:26px;height:26px;font-size:14px;background:transparent;color:var(--muted);
-    border:1.5px solid var(--hair);box-shadow:none}
-  .addbtn.mini:hover{color:var(--ink);border-color:var(--muted);background:transparent}
-  #formula .addrow{position:relative;display:flex;justify-content:center}
-  #formula .addrow .mini{position:absolute;left:calc(50% + 26px);top:50%;transform:translateY(-50%)}
+  /* formula card uses a wobblier, smaller sketchbox than the shared default */
+  .sketchbox{width:104px;height:92px;border-radius:6px 10px 7px 9px}
 
   /* solutes are added from the side-panel library, not a floating canvas card */
 
-  /* temperature slider, left (steps 3+) */
-  #tempbar{position:absolute;left:34px;top:50%;transform:translateY(-50%);z-index:5;
-    display:none;flex-direction:row;align-items:center;gap:16px}
-  #tempbar .tcol{display:flex;flex-direction:column;align-items:center;gap:9px}
-  #tempbar .tlabel{font-family:var(--font-slab);font-weight:600;font-size:16px}
-  #tempbar .tlabel.hot{color:var(--hot)}#tempbar .tlabel.cold{color:var(--cold)}
-  #trange{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;
-    width:20px;height:340px;border-radius:12px;cursor:pointer;outline:none;
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
-  #trange::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;
-    background:#fff;border:2.5px solid var(--ink);cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.25)}
-  #trange::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;
-    border:2.5px solid var(--ink);cursor:pointer}
+  /* temperature readout sits inline here instead of being absolutely positioned */
   #treadout{display:flex;flex-direction:column;gap:2px;min-width:120px}
-  #treadout .tval{font-family:var(--font-slab);font-weight:700;font-size:34px;line-height:1}
-  #treadout .tdesc{font-family:var(--font-hand);font-size:19px;color:var(--muted);line-height:1.05;margin-top:6px;white-space:pre-line}
-
-  /* step-5 salt readout, bottom-center of the canvas */
-  #saltinfo{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;display:none;
-    text-align:center;font-family:var(--font-slab);font-weight:500;font-size:14px;color:#5a5346;
-    line-height:1.5;white-space:nowrap}
-  #saltinfo b{font-weight:700;color:var(--ink)}
-  #saltinfo .cold{color:var(--cold)}#saltinfo .hot{color:var(--hot)}
-  #saltinfo .muted{color:var(--muted);font-weight:500}
 
   /* reaction-product card, bottom-right of the canvas — appears once the CO₂
      chain starts making new molecules (H₂CO₃ / HCO₃⁻ / H₃O⁺) */
@@ -107,29 +41,15 @@
   #productcard .prow.fresh{animation:pcpop .9s ease}
   @keyframes pcpop{0%{background:rgba(255,214,120,.55)}100%{background:transparent}}
 
-  /* bottom-left stats + PNG */
-  #stats{position:absolute;left:26px;bottom:66px;z-index:5;font-size:13px;color:var(--muted);line-height:1.7}
-  #savepng{position:absolute;left:26px;bottom:22px;z-index:5;
-    font-weight:600;font-size:13px;letter-spacing:.5px;color:var(--ink);
-    background:transparent;border:2px solid var(--ink);border-radius:8px;padding:6px 15px;cursor:pointer;
-    display:inline-flex;align-items:center;gap:6px}
-  #savepng:hover{background:var(--ink);color:var(--paper)}
+  /* save-PNG button keeps a slightly tighter radius than the shared default */
+  #savepng{border-radius:8px}
 
-  /* on-stage toggle chips (electron/charge/dipole/cloud + H-bonds) */
-  #chips{position:absolute;left:26px;bottom:150px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  /* on-stage toggle chips (electron/charge/dipole/cloud + H-bonds) — this page
+     still uses the plain pill chip, not the layers-panel component */
   .chip{font-size:12px;color:var(--muted);background:rgba(255,255,255,.5);border:1.5px solid var(--hair);
     border-radius:16px;padding:4px 12px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
   .chip:hover{border-color:var(--muted);color:var(--ink)}
   .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-
-  /* ---------- right panel (torn grid paper) ---------- */
-  #side{grid-column:2;position:relative;background:var(--panel);
-    background-image:linear-gradient(var(--hair) 1px,transparent 1px),linear-gradient(90deg,var(--hair) 1px,transparent 1px);
-    background-size:22px 22px;display:flex;flex-direction:column;
-    padding:26px 30px 44px 34px;box-shadow:-14px 0 30px -18px rgba(0,0,0,.25)}
-  #side::before{content:"";position:absolute;top:0;left:-9px;width:14px;height:100%;
-    background:var(--panel);z-index:2;
-    -webkit-mask:var(--torn);mask:var(--torn);-webkit-mask-size:100% 100%;mask-size:100% 100%}
 
   /* ---------- molecule library (sandbox picker) ---------- */
   #labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12}
@@ -155,42 +75,18 @@
   #clearmol:hover{background:rgba(0,0,0,.05)}
   #libactions button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
 
-  /* #card itself stays overflow:visible so the lightbulb (below) can spill past its
-     left edge onto the sidebar's torn edge; only the title+body text scrolls, in
-     its own inner box, so long copy doesn't clip the bulb */
+  /* #card here doesn't need min-height:0 (no footer/step nav below it) */
   #card{flex:1;display:flex;flex-direction:column;}
-  #card .cardtext{flex:0 1 auto;overflow-y:auto;min-height:0}
-  #card h2{font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12;margin:0 0 16px}
-  #card p{font-family:var(--font-sans);font-weight:400;font-size:16px;line-height:1.55;margin:0 0 14px;color:#3a352f}
-  #card p.lead{font-weight:600}
-  #card ul{font-family:var(--font-sans);font-weight:400;font-size:15px;line-height:1.55;padding-left:20px;margin:0 0 14px}
-  #card b{font-weight:700}
+
   /* the carbonation equation — set on its own line so the reaction chain reads
      as a chemical statement rather than running into the prose */
   #card .rx{display:block;margin:10px 0;font-family:var(--font-slab);font-weight:700;
     font-size:15px;letter-spacing:.3px;color:#2f2a24}
-  #card .fact{padding:14px 16px;background:rgba(255,224,120,.28);
-    border-left:3px solid #e5b93a;border-radius:0 8px 8px 0;font-size:14.5px;line-height:1.5;
-    opacity:0;pointer-events:none;transition:opacity .2s}
-  #card .fact.show{opacity:1;pointer-events:auto}
+  #card .fact{border-radius:0 8px 8px 0;font-size:14.5px}
 
-  /* lightbulb sticker + the fact it reveals — the fact keeps its box size even
-     hidden (opacity, not display), so the bulb — absolutely positioned within the
-     relative wrapper — stays put instead of jumping when toggled; repeats per
-     fact if a step has several */
-  #card .factwrap{position:relative;margin-top:18px;padding-left:12px}
-  #card .factwrap .bulb{position:absolute;left:-46px;top:50%;transform:translateY(-50%);
-    width:56px;height:56px;cursor:pointer;z-index:2;
-    filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));transition:transform .15s}
-  #card .factwrap .bulb:hover{transform:translateY(-50%) scale(1.08) rotate(-3deg)}
-  #card .factwrap .bulb.lit{transform:translateY(-50%) scale(1.05)}
+  /* lightbulb sticker sits closer in / smaller than the shared default here */
+  #card .factwrap .bulb{left:-46px;width:56px;height:56px}
 
-  #dbgtoggle{position:absolute;left:0;right:0;bottom:14px;text-align:center;font-family:var(--font-slab);font-weight:600;
-    font-size:13px;letter-spacing:1px;color:var(--muted);cursor:pointer;user-select:none}
-  #dbgtoggle:hover{color:var(--ink)}
-
-  @media (max-width:920px){#app{grid-template-columns:1fr;grid-template-rows:56vh 1fr}
-    #stage{grid-column:1}#side{grid-column:1;padding:20px}#side::before{display:none}}
 </style>
 </head>
 <body>
