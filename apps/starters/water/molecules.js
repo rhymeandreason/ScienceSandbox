@@ -24,14 +24,18 @@
       K:  0x0054C0,   // potassium — blue (distinct from Na)
       C:  0x3a3a3a,   // carbon   — charcoal
       N:  0x3f6ae0,   // nitrogen — blue
+      S:  0xe0b93a,   // sulfur   — goldenrod (cysteine / methionine)
     },
     bonds: {
       covalent:  0xb3a892,   // covalent stick — muted stone on cream
       hbond:     0x0042aa,   // hydrogen bond  — deep blue
       iondipole: 0xd9791e,   // ion–dipole bond — deep amber
+      peptide:   0x6a5acd,   // peptide (amide C–N) bond — slate violet, so the
+                             // newly-formed backbone link reads distinct from the
+                             // ordinary covalent sticks within each residue
     },
     // default display radii (scene units, stylised — enlarged for legibility)
-    radii: { O:0.95, H:0.55, C:0.85, N:0.90, Na:0.70, Cl:1.24, K:0.85 },
+    radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85 },
   };
 
   // ---- molecule library ----------------------------------------------
@@ -173,6 +177,56 @@
               {el:'H',pos:[-0.719,-0.581,-1.244]} ],
       bonds:[ [0,1],[0,2],[0,3] ],
       sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[] },
+    },
+
+    // ---- amino acids ----------------------------------------------------
+    // Shared backbone, laid out left→right so a chain grows along +X:
+    //   amino end (−X)  H₂N–Cα–COOH  carboxyl end (+X)
+    //   0 N   1 H   2 H       (amino group; an H leaves in condensation)
+    //   3 Cα  4 H              (α-carbon; 4 is the backbone H)
+    //   5 C   6 O(=O)  7 O(–OH)  8 H   (carboxyl; the –OH, atoms 7+8, leaves)
+    //   9…    side chain (R), bonded to Cα (atom 3), splayed −Y
+    // `pep` names the atoms the peptide-bond reaction acts on (aminoacid-lab.js):
+    //   cC carboxyl carbon · oOH/hOH the leaving hydroxyl · nN amino N · hN amino H's.
+    // Only the ANGLES/topology carry the lesson; bond lengths are stylised as
+    // elsewhere (must exceed the two display radii so the stick shows).
+    // Zwitterion form is skipped on purpose — the neutral –NH₂/–COOH makes the
+    // "lose a water" bookkeeping legible; note this is a display simplification.
+    glycine: {
+      name:'Glycine', formula:'C₂H₅NO₂', class:'aminoacid', res:'Gly', side:'–H',
+      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
+              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'H',pos:[0,-1.8,0]} ],   // 9 R = H (glycine's side chain is just H)
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9] ],
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+    },
+    alanine: {
+      name:'Alanine', formula:'C₃H₇NO₂', class:'aminoacid', res:'Ala', side:'–CH₃',
+      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
+              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[0,-2.0,0]} ],   // 9 R = CH₃ (united-atom methyl)
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9] ],
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+    },
+    serine: {
+      name:'Serine', formula:'C₃H₇NO₃', class:'aminoacid', res:'Ser', side:'–CH₂OH',
+      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
+              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[0,-2.0,0]}, {el:'O',pos:[1.3,-3.35,0]}, {el:'H',pos:[2.55,-3.05,0]} ],   // R = CH₂OH
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9],[9,10],[10,11] ],
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+    },
+    cysteine: {
+      name:'Cysteine', formula:'C₃H₇NO₂S', class:'aminoacid', res:'Cys', side:'–CH₂SH',
+      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
+              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[0,-2.0,0]}, {el:'S',pos:[1.5,-3.6,0]}, {el:'H',pos:[2.95,-3.25,0]} ],   // R = CH₂SH (the S)
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9],[9,10],[10,11] ],
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
   };
 

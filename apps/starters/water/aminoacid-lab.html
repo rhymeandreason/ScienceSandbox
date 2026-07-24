@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Building Proteins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<style>
+  :root{
+    --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
+    --hair:#d8cfbf;
+    --pep:#6a5acd;
+    --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
+    --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --torn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;color:var(--ink);font-family:var(--font-sans)}
+  #app{display:grid;grid-template-columns:1fr 372px;grid-template-rows:1fr;height:100vh;overflow:hidden}
+
+  /* ---------- stage ---------- */
+  #stage{grid-column:1;position:relative;overflow:hidden;
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+    background-size:26px 26px;background-position:13px 13px}
+  #gl{display:block;width:100%;height:100%}
+
+  #brand{position:absolute;top:22px;left:26px;display:flex;align-items:center;gap:11px;z-index:6}
+  #brand .drop{font-size:24px;color:var(--ink)}
+  #brand h1{margin:0;font-family:var(--font-marker);font-weight:400;font-size:24px;letter-spacing:.3px}
+
+  /* reaction toast, top-center */
+  #rxmsg{position:absolute;top:78px;left:50%;transform:translateX(-50%);
+    z-index:12;pointer-events:none;text-align:center;max-width:70%;opacity:0;
+    font-family:var(--font-hand);font-size:21px;color:var(--muted);letter-spacing:.2px}
+  #rxmsg b{font-weight:600;color:var(--ink)}
+  #rxmsg.show{animation:rxFade 4s ease-out forwards}
+  @keyframes rxFade{
+    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
+    8%{opacity:1;transform:translateX(-50%) translateY(0)}
+    82%{opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
+
+  /* bottom-left stats */
+  #stats{position:absolute;left:26px;bottom:66px;z-index:5;font-size:13px;color:var(--muted);line-height:1.7}
+  #stats b{color:var(--ink)}
+  #savepng{position:absolute;left:26px;bottom:22px;z-index:5;
+    font-weight:600;font-size:13px;letter-spacing:.5px;color:var(--ink);
+    background:transparent;border:2px solid var(--ink);border-radius:8px;padding:6px 15px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #savepng:hover{background:var(--ink);color:var(--paper)}
+
+  /* peptide (sequence) card, bottom-right */
+  #seqcard{position:absolute;right:24px;bottom:24px;z-index:6;display:none;
+    background:rgba(255,255,255,.62);border:2px solid var(--ink);border-radius:7px 11px 8px 10px;
+    padding:11px 15px 12px;min-width:172px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #seqcard .pchead{font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:1.3px;
+    text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  #seqcard .chain{display:flex;flex-wrap:wrap;align-items:center;gap:3px;font-family:var(--font-slab)}
+  #seqcard .rescode{font-weight:700;font-size:15px;color:var(--ink);padding:2px 7px;border-radius:5px;
+    background:rgba(106,90,205,.12)}
+  #seqcard .rescode.fresh{animation:pcpop .9s ease}
+  #seqcard .link{color:var(--pep);font-weight:700;font-size:15px}
+  #seqcard .term{font-family:var(--font-slab);font-size:11px;color:var(--muted);font-weight:600}
+  @keyframes pcpop{0%{background:rgba(255,214,120,.6)}100%{background:rgba(106,90,205,.12)}}
+
+  /* ---------- right panel ---------- */
+  #side{grid-column:2;position:relative;background:var(--panel);
+    background-image:linear-gradient(var(--hair) 1px,transparent 1px),linear-gradient(90deg,var(--hair) 1px,transparent 1px);
+    background-size:22px 22px;display:flex;flex-direction:column;
+    padding:26px 30px 30px 34px;box-shadow:-14px 0 30px -18px rgba(0,0,0,.25);overflow-y:auto}
+  #side::before{content:"";position:absolute;top:0;left:-9px;width:14px;height:100%;
+    background:var(--panel);z-index:2;
+    -webkit-mask:var(--torn);mask:var(--torn);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+  h1#labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:27px;line-height:1.12}
+  #labintro{margin:0 0 18px;font-family:var(--font-sans);font-size:14.5px;line-height:1.5;color:#3a352f}
+  #labintro b{font-weight:700}
+  .libgroup{font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--muted);margin:2px 0 8px}
+  #library{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .molrow{display:flex;align-items:center;gap:11px;padding:9px 12px;cursor:pointer;
+    border:1.5px solid var(--hair);border-radius:9px;background:rgba(255,255,255,.5);user-select:none}
+  .molrow:hover{border-color:var(--muted)}
+  .molrow.sel{border-color:var(--ink);background:rgba(255,255,255,.92);box-shadow:0 1px 0 var(--ink)}
+  .molrow .swatch{width:15px;height:15px;border-radius:50%;flex:none;border:1.5px solid rgba(0,0,0,.15)}
+  .molrow .mname{font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--ink)}
+  .molrow .mside{font-family:var(--font-slab);font-size:12px;color:var(--muted);margin-left:auto}
+  #libactions{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+  #libactions button{font-family:var(--font-slab);font-weight:600;font-size:14px;padding:9px 18px;
+    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
+  #addmol{background:var(--ink);color:var(--panel)}#addmol:hover{background:#000}
+  #clearmol{background:transparent;color:var(--ink)}#clearmol:hover{background:rgba(0,0,0,.05)}
+  #libactions button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+  #card{border-top:1.5px dashed var(--hair);padding-top:16px;font-size:14px;line-height:1.55;color:#3a352f}
+  #card h2{margin:0 0 8px;font-family:var(--font-slab);font-weight:700;font-size:17px}
+  #card p{margin:0 0 10px}
+  #card .rxn{font-family:var(--font-slab);font-weight:700;color:var(--pep);font-size:15px}
+  #card b{font-weight:700}
+
+  @media (max-width:880px){#app{grid-template-columns:1fr}#stage{grid-column:1}#side{grid-column:1}#side::before{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="rxmsg" aria-live="polite"></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-link-simple"></i></span><h1>Building Proteins</h1></div>
+    <div id="seqcard"></div>
+    <div id="stats"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+  <div id="side">
+    <h1 id="labtitle">Build a peptide</h1>
+    <p id="labintro">Amino acids share a backbone — an <b>amino group</b> (–NH₂) and a
+      <b>carboxyl group</b> (–COOH) — and differ only by their <b>side chain (R)</b>.
+      Add them one at a time: each new residue joins by <b>dehydration synthesis</b>,
+      losing a water as a <b>peptide bond</b> forms.</p>
+    <div class="libgroup">Amino acids</div>
+    <div id="library"></div>
+    <div id="libactions">
+      <button id="addmol">Add to chain</button>
+      <button id="clearmol">Clear</button>
+    </div>
+    <div id="card"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="molecules.js"></script>
+<script src="fx.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  BUILDING PROTEINS — amino acids → peptide via dehydration synthesis
+ *  Reuses molecules.js (residue specs + palette) and fx.js (reaction
+ *  effects). Each residue stays its own group; condensation removes the
+ *  leaving –OH / –H, spawns a water, and links residues with a peptide bond.
+ * ============================================================= */
+
+/* ---------- scene setup ---------- */
+const canvas=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,1,0.1,1000);
+const root=new THREE.Group(); scene.add(root);
+
+scene.add(new THREE.AmbientLight(0xffffff,.55));
+scene.add(camera);
+const keyL=new THREE.DirectionalLight(0xffffff,.9); keyL.position.set(4,6,8);
+const fillL=new THREE.DirectionalLight(0x88aaff,.4); fillL.position.set(-6,-2,-4);
+camera.add(keyL,keyL.target,fillL,fillL.target);
+
+const FXi=FX.create(THREE,root,camera);   // shared reaction effects
+
+const cam={theta:0.0,phi:1.2,r:16,target:new THREE.Vector3(0,0,0)};
+function applyCam(){
+  camera.position.set(
+    cam.target.x+cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
+    cam.target.y+cam.r*Math.cos(cam.phi),
+    cam.target.z+cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
+  camera.lookAt(cam.target);
+}
+let drag=null, userSpun=false;
+canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{ if(!drag)return; userSpun=true;
+  cam.theta-=(e.clientX-drag.x)*0.008;
+  cam.phi=Math.max(0.35,Math.min(2.6,cam.phi-(e.clientY-drag.y)*0.008));
+  drag={x:e.clientX,y:e.clientY}; applyCam();});
+canvas.addEventListener('pointerup',()=>drag=null);
+let userZoom=false;
+canvas.addEventListener('wheel',e=>{e.preventDefault(); userZoom=true;
+  cam.r=Math.max(7,Math.min(70,cam.r*(1+Math.sign(e.deltaY)*0.08))); applyCam();},{passive:false});
+function resize(){const w=canvas.clientWidth,h=canvas.clientHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(canvas);
+
+/* ---------- geometry + materials ---------- */
+const Rsphere=new THREE.SphereGeometry(1,32,24);
+const state=MolLib.PALETTE.atoms, RAD=el=>MolLib.PALETTE.radii[el]||0.7;
+const bondColor=MolLib.PALETTE.bonds.covalent, pepColor=MolLib.PALETTE.bonds.peptide;
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const vec=p=>V(p[0],p[1],p[2]);
+function atomMat(color){return new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1});}
+function bondMat(color){return new THREE.MeshStandardMaterial({color,roughness:.5});}
+function atom(color,radius,pos,role){
+  const m=new THREE.Mesh(Rsphere,atomMat(color));
+  m.scale.setScalar(radius); if(pos)m.position.copy(pos);
+  if(role)m.userData.role=role; return m;
+}
+// a covalent stick between two LOCAL points; peptide bonds are thicker + slate
+function stick(a,b,color=bondColor,rad=0.14){
+  const dir=V().subVectors(b,a), len=dir.length();
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,len,16),bondMat(color));
+  m.userData.role='covalent';
+  m.position.copy(a).add(dir.clone().multiplyScalar(.5));
+  m.quaternion.setFromUnitVectors(V(0,1,0),dir.clone().normalize());
+  return m;
+}
+
+// Build a residue (or water) group. Tracks per-atom + per-bond meshes so the
+// condensation reaction can pull specific atoms/bonds out later.
+function buildMol(spec){
+  const g=new THREE.Group();
+  const atomMeshes=spec.atoms.map(a=>atom(state[a.el]||0x888888,RAD(a.el),vec(a.pos),a.el));
+  const bondMeshes=(spec.bonds||[]).map(([i,j])=>{
+    const m=stick(vec(spec.atoms[i].pos),vec(spec.atoms[j].pos)); m.userData.pair=[i,j]; return m;
+  });
+  bondMeshes.forEach(m=>g.add(m));
+  atomMeshes.forEach(m=>g.add(m));
+  g.userData={spec,atomMeshes,bondMeshes};
+  return g;
+}
+const atomWorld=(g,i)=>g.userData.atomMeshes[i].getWorldPosition(V());
+// remove atoms (and any bond touching them) from a residue — the leaving group
+function removeAtoms(g,idxs){
+  const set=new Set(idxs);
+  idxs.forEach(i=>{const m=g.userData.atomMeshes[i]; if(m){g.remove(m);} g.userData.atomMeshes[i]=null;});
+  g.userData.bondMeshes=g.userData.bondMeshes.filter(bm=>{
+    if(bm.userData.pair.some(p=>set.has(p))){g.remove(bm); return false;} return true;});
+}
+
+/* ---------- amino-acid picker ---------- */
+const AA_KEYS=['glycine','alanine','serine','cysteine'];
+// swatch colour = a characteristic atom of the side chain
+const AA_SWATCH={glycine:'H',alanine:'C',serine:'O',cysteine:'S'};
+let selected='glycine';
+const libraryEl=document.getElementById('library');
+function hx(n){return '#'+n.toString(16).padStart(6,'0');}
+function buildLibrary(){
+  libraryEl.innerHTML='';
+  AA_KEYS.forEach(k=>{
+    const s=MolLib.MOLECULES[k];
+    const row=document.createElement('div'); row.className='molrow'+(k===selected?' sel':'');
+    row.innerHTML=`<span class="swatch" style="background:${hx(state[AA_SWATCH[k]])}"></span>`
+      +`<span class="mname">${s.name}</span><span class="mside">${s.res} · R = ${s.side}</span>`;
+    row.onclick=()=>{selected=k; buildLibrary(); refreshCard();};
+    libraryEl.appendChild(row);
+  });
+}
+const cardEl=document.getElementById('card');
+function refreshCard(){
+  const s=MolLib.MOLECULES[selected];
+  cardEl.innerHTML=`<h2>${s.name} <span style="color:var(--muted);font-weight:500">${s.res}</span></h2>`
+    +`<p>Side chain <b>R = ${s.side}</b>. Backbone is the universal –NH₂ / –COOH.`
+    +(selected==='cysteine'?` The <b>sulfur</b> in cysteine's –SH lets two cysteines later cross-link (disulfide bridges).`:'')
+    +(selected==='serine'?` The –OH makes serine polar and a common phosphorylation site.`:'')
+    +`</p><p class="rxn">–COOH + H₂N– → –CO–NH– + H₂O</p>`
+    +`<p style="color:var(--muted);font-size:13px">Every join loses one water — that's <b>dehydration synthesis</b>. In a cell, amino groups (N) come from other amino acids; sulfur (S) comes in with cysteine/methionine. Potassium (K⁺) is vital in cells but is <b>not</b> built into amino acids.</p>`;
+}
+
+/* ---------- chain state + peptide-bond reaction ---------- */
+const SPACING=8.8;            // residue-to-residue backbone pitch (peptide bond ≈2.6)
+const chain=[];              // residue groups, N-terminus → C-terminus
+const peptideBonds=[];       // {a,b} residue pairs linked by an amide bond
+const debris=[];             // released water molecules drifting away
+let rxShown=0;
+
+const rxmsgEl=document.getElementById('rxmsg');
+function flashMsg(html){ rxmsgEl.innerHTML=html; rxmsgEl.classList.remove('show');
+  void rxmsgEl.offsetWidth; rxmsgEl.classList.add('show'); }
+
+function targetX(i){ return i*SPACING-(chain.length-1)*SPACING/2; }   // keep chain centred
+
+function addResidue(key){
+  const g=buildMol(MolLib.MOLECULES[key]);
+  g.userData.key=key; g.userData.res=MolLib.MOLECULES[key].res;
+  const i=chain.length;
+  // enter from the right + above, then drift to its slot (lerped in loop)
+  g.position.set(targetX(i)+7,5,0);
+  g.userData.tx=targetX(i);
+  root.add(g); chain.push(g);
+  if(chain.length>=2) condense(chain[chain.length-2],g);
+  reflowTargets();
+  refreshReadout();
+}
+
+// dehydration synthesis: prev's carboxyl + next's amino → peptide bond + water
+function condense(prev,next){
+  const pp=prev.userData.spec.pep, np=next.userData.spec.pep;
+  // capture the leaving atoms' world positions BEFORE removing them (for the water)
+  const oPos=atomWorld(prev,pp.oOH), hcPos=atomWorld(prev,pp.hOH), hnPos=atomWorld(next,np.hN[1]);
+  removeAtoms(prev,[pp.oOH,pp.hOH]);   // –OH leaves the carboxyl
+  removeAtoms(next,[np.hN[1]]);        // one –H leaves the amino group
+  prev.userData.cUsed=true; next.userData.nUsed=true;
+  peptideBonds.push({a:prev,b:next});
+  // the released water, assembled from the very atoms that left, drifting off
+  const mid=oPos.clone().add(hcPos).add(hnPos).multiplyScalar(1/3);
+  spawnWater(mid);
+  // effects: the bond forms — flash at the join, glow both residues
+  const bondMid=atomWorld(prev,pp.cC).add(atomWorld(next,np.nN)).multiplyScalar(0.5);
+  FXi.spawnRing(bondMid,pepColor);
+  FXi.popGlow(prev,0xcfc6ff); FXi.popGlow(next,0xcfc6ff);
+  if(rxShown++<2) flashMsg(`<b>Dehydration synthesis</b> — the –OH and an –H leave as <b>H₂O</b>; a <b>peptide bond</b> links the residues.`);
+}
+
+function spawnWater(pos){
+  const w=buildMol(MolLib.MOLECULES.water);
+  w.position.copy(pos); w.scale.setScalar(0.85);
+  w.userData.vel=V((Math.random()-.2)*0.05,0.09+Math.random()*0.03,(Math.random()-.5)*0.05);
+  w.userData.life=0; root.add(w); debris.push(w);
+}
+
+// peptide bonds are redrawn every frame from live world positions (residues are
+// still easing into place, and the user can orbit) — cheap for a short chain
+let pepSticks=[];
+function redrawPeptideBonds(){
+  pepSticks.forEach(s=>root.remove(s)); pepSticks=[];
+  peptideBonds.forEach(({a,b})=>{
+    const c=atomWorld(a,a.userData.spec.pep.cC), n=atomWorld(b,b.userData.spec.pep.nN);
+    const s=stick(c,n,pepColor,0.17); pepSticks.push(s); root.add(s);   // world-space
+  });
+}
+
+function reflowTargets(){ chain.forEach((g,i)=>g.userData.tx=targetX(i)); }
+
+function clearChain(){
+  chain.forEach(g=>root.remove(g)); chain.length=0;
+  peptideBonds.length=0;
+  pepSticks.forEach(s=>root.remove(s)); pepSticks=[];
+  debris.forEach(w=>root.remove(w)); debris.length=0;
+  refreshReadout();
+}
+
+document.getElementById('addmol').onclick=()=>addResidue(selected);
+document.getElementById('clearmol').onclick=clearChain;
+
+/* ---------- readouts ---------- */
+const statsEl=document.getElementById('stats'), seqEl=document.getElementById('seqcard');
+let prevLen=0;
+function refreshReadout(){
+  const n=chain.length, bonds=Math.max(0,n-1);
+  if(!n){ statsEl.innerHTML=''; seqEl.style.display='none'; prevLen=0; return; }
+  statsEl.innerHTML=`<b>${n}</b> residue${n===1?'':'s'}<br>`
+    +`<b>${bonds}</b> peptide bond${bonds===1?'':'s'}<br>`
+    +`<b>${bonds}</b> water released`;
+  // sequence card: N-term  Gly–Ala–Ser  C-term, last chip pops when it's new
+  let h='<div class="pchead">Peptide chain</div><div class="chain"><span class="term">H₂N–</span>';
+  chain.forEach((g,i)=>{
+    if(i) h+='<span class="link">–</span>';
+    const fresh=(i===n-1 && n>prevLen)?' fresh':'';
+    h+=`<span class="rescode${fresh}">${g.userData.res}</span>`;
+  });
+  h+='<span class="term">–COOH</span></div>';
+  seqEl.innerHTML=h; seqEl.style.display='block';
+  prevLen=n;
+}
+
+/* ---------- main loop ---------- */
+function loop(){
+  // ease residues toward their (centred) slots
+  chain.forEach(g=>{
+    g.position.x+=(g.userData.tx-g.position.x)*0.12;
+    g.position.y+=(0-g.position.y)*0.12;
+    g.position.z+=(0-g.position.z)*0.12;
+  });
+  // released waters float up and fade, then are removed
+  for(let i=debris.length-1;i>=0;i--){ const w=debris[i]; w.userData.life+=1/60;
+    w.position.add(w.userData.vel); w.userData.vel.y+=0.0006;
+    const op=Math.max(0,1-w.userData.life/2.2);
+    w.traverse(o=>{if(o.isMesh&&o.material){o.material.transparent=true;o.material.opacity=op;}});
+    if(w.userData.life>2.4){ root.remove(w); debris.splice(i,1); }
+  }
+  redrawPeptideBonds();
+  // gentle idle spin until the user grabs it; auto-fit zoom to chain length
+  // (unless the user has taken manual control of the wheel)
+  if(!userSpun && !drag) cam.theta+=0.0016;
+  if(!userZoom){ const fit=chain.length? 12+chain.length*3.1 : 16; cam.r+=(fit-cam.r)*0.05; }
+  applyCam();
+  FXi.step();
+  renderer.render(scene,camera); requestAnimationFrame(loop);
+}
+
+buildLibrary(); refreshCard(); applyCam(); resize(); requestAnimationFrame(loop);
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a'); a.download='peptide.png'; a.href=canvas.toDataURL('image/png'); a.click();
+};
+</script>
+</body>
+</html>

@@ -190,8 +190,35 @@ Atom/palette colours are the single source of truth in `molecules.js`
   `molecule-lab.html`.
 - Solute settle — `updateSolutes()`, at the moment descent ends and the hydration
   toast fires (gated to `class === 'polar'`) — `molecule-lab.html`.
+- Peptide bond — `condense()` (`aminoacid-lab.html`): `spawnRing` in the peptide
+  colour at the join + `popGlow` on both residues, as a water is released.
 
 New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` once,
 `FXi.step()` in the loop, and call the primitives at your own event sites.
+
+---
+
+## 10. Amino acids & peptide bonds (`aminoacid-lab.html`)
+
+- **Amino acids contain C, H, O, N — and S only in cysteine/methionine.**
+  Potassium is **not** part of any amino acid; K⁺ is an intracellular electrolyte
+  / enzyme cofactor (an ion in solution, like the Na⁺/Cl⁺ elsewhere), never built
+  into the backbone or a side chain. The side panel says so explicitly.
+- **Shared backbone:** every residue is amino group (–NH₂) + α-carbon + carboxyl
+  (–COOH), differing only by the side chain **R**. The specs in `molecules.js`
+  share one atom layout (indices 0–8) with R appended from index 9.
+- **Peptide bond = dehydration synthesis (condensation).** Two residues join when
+  one's **carboxyl –OH** and the other's **amino –H** leave as a single **H₂O**,
+  forming a C–N amide bond. This is the inverse of CO₂ + H₂O (where water is
+  *consumed*): here water is *released*, and the readout counts one water per bond.
+- **Peptide bond colour:** slate violet (`#6a5acd`, `PALETTE.bonds.peptide`), drawn
+  thicker than the stone covalent sticks so the backbone link reads as distinct.
+- **Model simplifications (keep explicit):** residues are drawn in the **neutral**
+  –NH₂/–COOH form, not the physiological **zwitterion** (–NH₃⁺/–COO⁻); this makes
+  the "lose a water" bookkeeping legible but is a display choice. Methyl side
+  chains are united-atom single C spheres (as ethanol's are). Bond lengths are
+  stylised for legibility; angles/topology carry the lesson. Each residue stays a
+  separate group linked by a redrawn peptide stick — so a chain is N groups, not
+  one merged molecule (no claim of a single rigid conformation).
 
 ---
