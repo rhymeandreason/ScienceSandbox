@@ -131,6 +131,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="molecules.js"></script>
+<script src="scene.js"></script>
 <script src="fx.js"></script>
 <script>
 "use strict";
@@ -141,88 +142,21 @@
  *  leaving –OH / –H, spawns a water, and links residues with a peptide bond.
  * ============================================================= */
 
-/* ---------- scene setup ---------- */
+/* ---------- shared stage (scene.js) + reaction fx (fx.js) ---------- */
 const canvas=document.getElementById('gl');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(45,1,0.1,1000);
-const root=new THREE.Group(); scene.add(root);
-
-scene.add(new THREE.AmbientLight(0xffffff,.55));
-scene.add(camera);
-const keyL=new THREE.DirectionalLight(0xffffff,.9); keyL.position.set(4,6,8);
-const fillL=new THREE.DirectionalLight(0x88aaff,.4); fillL.position.set(-6,-2,-4);
-camera.add(keyL,keyL.target,fillL,fillL.target);
-
+let userSpun=false, userZoom=false;   // set once the user takes manual control
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  cam:{theta:0,phi:1.2,r:16}, phiMin:0.35, phiMax:2.6, rMin:7, rMax:70,
+  onDrag:()=>{userSpun=true;}, onZoom:()=>{userZoom=true;} });
 const FXi=FX.create(THREE,root,camera);   // shared reaction effects
 
-const cam={theta:0.0,phi:1.2,r:16,target:new THREE.Vector3(0,0,0)};
-function applyCam(){
-  camera.position.set(
-    cam.target.x+cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
-    cam.target.y+cam.r*Math.cos(cam.phi),
-    cam.target.z+cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
-  camera.lookAt(cam.target);
-}
-let drag=null, userSpun=false;
-canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
-canvas.addEventListener('pointermove',e=>{ if(!drag)return; userSpun=true;
-  cam.theta-=(e.clientX-drag.x)*0.008;
-  cam.phi=Math.max(0.35,Math.min(2.6,cam.phi-(e.clientY-drag.y)*0.008));
-  drag={x:e.clientX,y:e.clientY}; applyCam();});
-canvas.addEventListener('pointerup',()=>drag=null);
-let userZoom=false;
-canvas.addEventListener('wheel',e=>{e.preventDefault(); userZoom=true;
-  cam.r=Math.max(7,Math.min(70,cam.r*(1+Math.sign(e.deltaY)*0.08))); applyCam();},{passive:false});
-function resize(){const w=canvas.clientWidth,h=canvas.clientHeight;
-  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();}
-new ResizeObserver(resize).observe(canvas);
-
-/* ---------- geometry + materials ---------- */
-const Rsphere=new THREE.SphereGeometry(1,32,24);
-const state=MolLib.PALETTE.atoms, RAD=el=>MolLib.PALETTE.radii[el]||0.7;
-const bondColor=MolLib.PALETTE.bonds.covalent, pepColor=MolLib.PALETTE.bonds.peptide;
+// palette handles + thin aliases onto the shared builder, so call sites below
+// read the same as before. buildMolecule already tracks per-atom/bond meshes,
+// which is what the condensation reaction needs to pull out the leaving group.
+const state=MolLib.PALETTE.atoms, pepColor=MolLib.PALETTE.bonds.peptide;
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
-const vec=p=>V(p[0],p[1],p[2]);
-function atomMat(color){return new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1});}
-function bondMat(color){return new THREE.MeshStandardMaterial({color,roughness:.5});}
-function atom(color,radius,pos,role){
-  const m=new THREE.Mesh(Rsphere,atomMat(color));
-  m.scale.setScalar(radius); if(pos)m.position.copy(pos);
-  if(role)m.userData.role=role; return m;
-}
-// a covalent stick between two LOCAL points; peptide bonds are thicker + slate
-function stick(a,b,color=bondColor,rad=0.14){
-  const dir=V().subVectors(b,a), len=dir.length();
-  const m=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,len,16),bondMat(color));
-  m.userData.role='covalent';
-  m.position.copy(a).add(dir.clone().multiplyScalar(.5));
-  m.quaternion.setFromUnitVectors(V(0,1,0),dir.clone().normalize());
-  return m;
-}
-
-// Build a residue (or water) group. Tracks per-atom + per-bond meshes so the
-// condensation reaction can pull specific atoms/bonds out later.
-function buildMol(spec){
-  const g=new THREE.Group();
-  const atomMeshes=spec.atoms.map(a=>atom(state[a.el]||0x888888,RAD(a.el),vec(a.pos),a.el));
-  const bondMeshes=(spec.bonds||[]).map(([i,j])=>{
-    const m=stick(vec(spec.atoms[i].pos),vec(spec.atoms[j].pos)); m.userData.pair=[i,j]; return m;
-  });
-  bondMeshes.forEach(m=>g.add(m));
-  atomMeshes.forEach(m=>g.add(m));
-  g.userData={spec,atomMeshes,bondMeshes};
-  return g;
-}
-const atomWorld=(g,i)=>g.userData.atomMeshes[i].getWorldPosition(V());
-// remove atoms (and any bond touching them) from a residue — the leaving group
-function removeAtoms(g,idxs){
-  const set=new Set(idxs);
-  idxs.forEach(i=>{const m=g.userData.atomMeshes[i]; if(m){g.remove(m);} g.userData.atomMeshes[i]=null;});
-  g.userData.bondMeshes=g.userData.bondMeshes.filter(bm=>{
-    if(bm.userData.pair.some(p=>set.has(p))){g.remove(bm); return false;} return true;});
-}
+const buildMol=Stage.buildMolecule, removeAtoms=Stage.removeAtoms, stick=Stage.bond;
+const atomWorld=(g,i)=>g.userData.atomWorld(i);
 
 /* ---------- amino-acid picker ---------- */
 const AA_KEYS=['glycine','alanine','serine','cysteine'];
@@ -368,7 +302,7 @@ function loop(){
   redrawPeptideBonds();
   // gentle idle spin until the user grabs it; auto-fit zoom to chain length
   // (unless the user has taken manual control of the wheel)
-  if(!userSpun && !drag) cam.theta+=0.0016;
+  if(!userSpun) cam.theta+=0.0016;
   if(!userZoom){ const fit=chain.length? 12+chain.length*3.1 : 16; cam.r+=(fit-cam.r)*0.05; }
   applyCam();
   FXi.step();

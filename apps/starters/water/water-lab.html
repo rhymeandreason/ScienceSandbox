@@ -243,6 +243,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="molecules.js"></script>
+<script src="scene.js"></script>
 <script src="fx.js"></script>
 <script>
 "use strict";
@@ -251,48 +252,16 @@
  *  Each step adds molecules / reveals controls on the SAME sim.
  * ============================================================= */
 
-/* ---------- scene setup ---------- */
+/* ---------- scene setup (shared stage, scene.js) ---------- */
+// Stage.create owns the renderer/scene/camera/lights/orbit/resize boilerplate,
+// destructured into the same names the rest of this file already uses. This page
+// keeps its OWN builder below (outlines, hydration userData, Debug recolour/toon)
+// — only the bootstrap is shared. See SCIENCE.md §11.
 const canvas = document.getElementById('gl');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-const root = new THREE.Group(); scene.add(root);
-
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  cam:{theta:0.5, phi:1.15, r:9}, onZoom:r=>{ S.targetR=r; } });   // manual zoom sticks
 // shared transient-effect system (fx.js) — bond-break flashes etc.; step() in loop()
 const FXi=FX.create(THREE, root, camera);
-
-scene.add(new THREE.AmbientLight(0xffffff, .55));
-// Lights are parented to the camera so they travel with the view: orbiting the
-// camera then reads as rotating the MODEL under a fixed studio light — the
-// highlights stay put on screen instead of sweeping across the molecules.
-scene.add(camera);
-const keyL = new THREE.DirectionalLight(0xffffff, .9); keyL.position.set(4,6,8);
-const fillL = new THREE.DirectionalLight(0x88aaff, .4); fillL.position.set(-6,-2,-4);
-camera.add(keyL, keyL.target, fillL, fillL.target);   // targets default to camera origin → constant view-space direction
-
-const cam = {theta:0.5, phi:1.15, r:9, target:new THREE.Vector3(0,0,0)};
-function applyCam(){
-  camera.position.set(
-    cam.target.x + cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
-    cam.target.y + cam.r*Math.cos(cam.phi),
-    cam.target.z + cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
-  camera.lookAt(cam.target);
-}
-let drag=null;
-canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
-canvas.addEventListener('pointermove',e=>{ if(!drag)return;
-  cam.theta -= (e.clientX-drag.x)*0.008;
-  cam.phi = Math.max(0.25, Math.min(2.85, cam.phi-(e.clientY-drag.y)*0.008));
-  drag={x:e.clientX,y:e.clientY}; applyCam();});
-canvas.addEventListener('pointerup',()=>drag=null);
-canvas.addEventListener('wheel',e=>{e.preventDefault();
-  cam.r=Math.max(5,Math.min(60,cam.r*(1+Math.sign(e.deltaY)*0.08)));
-  S.targetR=cam.r; applyCam();},{passive:false});   // manual zoom sticks
-
-function resize(){ const w=canvas.clientWidth,h=canvas.clientHeight;
-  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
-new ResizeObserver(resize).observe(canvas);
 
 /* ---------- geometry helpers + material system ---------- */
 const Rsphere = new THREE.SphereGeometry(1,32,24);

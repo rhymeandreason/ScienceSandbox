@@ -222,3 +222,49 @@ New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` onc
   one merged molecule (no claim of a single rigid conformation).
 
 ---
+
+## 11. Shared modules & the page architecture
+
+Pages are built from small shared scripts loaded before each page's own `<script>`.
+The guiding principle from building the first few lessons: **share the plumbing,
+not the physics.** The lessons fall into distinct paradigms (solvation, molecular
+assembly, pathways, gradients) that do *not* share a simulation core, so there is
+deliberately **no monolithic `engine.js`** — only the genuinely universal pieces
+are extracted.
+
+| Module | Exposes | Shared by |
+|---|---|---|
+| `molecules.js` | `MolLib.PALETTE` (atom/bond colours + radii), `MolLib.MOLECULES` (declarative specs) | all pages |
+| `fx.js` | `FX.create(THREE,root,camera)` → transient reaction effects (§9) | all pages |
+| `scene.js` | `Stage.create(canvas,opts)` (renderer/scene/camera/orbit/lights/resize) + a clean molecule builder (materials + `atom`/`bond`/`buildMolecule`/`removeAtoms`) | all pages (bootstrap); assembly pages also use the builder |
+
+### What is and isn't shared
+
+- **`Stage.create`** owns the scene bootstrap every 3D page had duplicated. It is
+  destructured into the same `scene/camera/renderer/root/cam/applyCam/resize`
+  names the pages already used, so page code is otherwise unchanged. Per-page zoom
+  / drag side-effects are passed as `onZoom(r)` / `onDrag()` hooks; pitch/zoom
+  clamps and initial camera are `opts`.
+- **`Stage.buildMolecule`** is the clean builder for **assembly** pages
+  (`aminoacid-lab`, future glucose/macromolecule pages): it tracks per-atom AND
+  per-bond meshes (each bond stamped with its atom `pair`) so a reaction can pull
+  a leaving group out (`Stage.removeAtoms`). Pages layer their own `userData`
+  (peptide metadata, etc.) on top.
+- **The solvation pages (`water-lab`, `molecule-lab`) keep their OWN builder.** It
+  is entangled with cel outlines, live Debug ▸ Colours/Render recolouring + toon
+  toggling, and hydration `userData` (donors/acceptors/locals for the overlap
+  resolver). Forcing that into the shared builder would couple the physics engine
+  into `scene.js` for no reuse benefit — so only the bootstrap is shared there.
+- **The solvation physics itself (`createWaterSim`, hydration shells, dissociation)
+  is NOT shared as an engine** — it's used by only those two pages and is the least
+  relevant part to future assembly/pathway lessons. If those two ever need to share
+  it, a narrow `solvent-sim.js` is the right cut, not a monolith.
+
+### Adding a new page
+
+`molecules.js` + `scene.js` + `fx.js`, then `Stage.create(...)`, build molecules
+with `Stage.buildMolecule` (assembly) or a page-specific builder (if it needs
+outlines/physics `userData`), and fire `FX` beats at your event sites. Build each
+new *paradigm's* mechanic custom on top — don't try to unify paradigms.
+
+---
