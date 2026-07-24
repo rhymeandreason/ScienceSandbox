@@ -108,13 +108,71 @@
       hydrophobic:[0,1,2,3,4],
     },
     co2: {
-      name:'Carbon dioxide', formula:'CO₂', class:'nonpolar',
-      // linear O=C=O; symmetric so no net dipole → nonpolar. (The carbonation
-      // reaction to carbonic acid is a later behaviour, not modelled yet.)
+      name:'Carbon dioxide', formula:'CO₂', class:'reactive',
+      // Linear O=C=O; symmetric, so the two C=O dipoles cancel and the MOLECULE
+      // has no net dipole. That does NOT make it methane: each O still carries
+      // δ− and two lone pairs, so water can donate an O–H to it. CO₂ is ~30×
+      // more soluble than O₂ and ~60× more than CH₄ for exactly this reason.
+      //   → acceptors on both O's, and NO hydrophobic list. Listing the O's as
+      //     hydrophobic (as an earlier version did) put the site springs and the
+      //     nonpolar exclusion field on the same atoms, fighting every frame.
+      // It cannot DONATE an H-bond, so it hydrates more weakly than ethanol/NH₃.
       atoms:[ {el:'C',pos:[0,0,0]}, {el:'O',pos:[1.9,0,0]}, {el:'O',pos:[-1.9,0,0]} ],
       bonds:[ [0,1],[0,2] ],
       sites:{ donors:[], acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2}] },
-      hydrophobic:[0,1,2],
+      // reaction chain driven by molecule-lab's updateReactions():
+      //   CO₂ + H₂O → H₂CO₃ → HCO₃⁻ + H⁺(as H₃O⁺)
+      reactsTo:'carbonic',
+    },
+
+    // ---- carbonation products -------------------------------------------
+    // Not in the picker: these only ever appear as products of the CO₂ chain,
+    // so each carries `product:true` and the engine tags them with the parent
+    // key ('co2') for counting and clearing.
+    carbonic: {
+      name:'Carbonic acid', formula:'H₂CO₃', class:'polar', product:true,
+      // Trigonal planar about C (120°): one C=O plus two C–O–H arms. Stylised
+      // lengths again (C–O 1.9, O–H 1.55) — the ANGLES are the real ones.
+      // The acidic H's are BENT off the C–O axis at ~107°, like water's O — a
+      // hydroxyl O is never linear (check-molecules.js prints these angles).
+      // Origin is the heavy-atom centroid, so it spins about its middle.
+      atoms:[ {el:'C',pos:[0,0,0]},                 // 0 central C
+              {el:'O',pos:[0,1.9,0]},               // 1 carbonyl O (=O)
+              {el:'O',pos:[1.645,-0.95,0]},         // 2 hydroxyl O
+              {el:'O',pos:[-1.645,-0.95,0]},        // 3 hydroxyl O
+              {el:'H',pos:[2.779,0.107,0]},         // 4 acidic H on atom 2
+              {el:'H',pos:[-2.779,0.107,0]} ],      // 5 acidic H on atom 3
+      bonds:[ [0,1],[0,2],[0,3],[2,4],[3,5] ],
+      sites:{ donors:[{atom:4},{atom:5}],
+              acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
+      ionizesTo:'bicarbonate',   // loses ONE H (pKa1 = 3.6 — it is a genuine acid)
+    },
+    bicarbonate: {
+      name:'Bicarbonate', formula:'HCO₃⁻', class:'ion', product:true, charge:-1,
+      // Carbonic acid minus one acidic H. The two bare O's share the negative
+      // charge (delocalised) — drawn as plain O's here; the charge lives in the
+      // label and the pH readout, not in the force model (no polyatomic-ion
+      // electrostatics in this engine yet).
+      atoms:[ {el:'C',pos:[0,0,0]},
+              {el:'O',pos:[0,1.9,0]},
+              {el:'O',pos:[1.645,-0.95,0]},
+              {el:'O',pos:[-1.645,-0.95,0]},
+              {el:'H',pos:[-2.779,0.107,0]} ],      // 4 the one remaining H (bent, ~107°)
+      bonds:[ [0,1],[0,2],[0,3],[3,4] ],
+      sites:{ donors:[{atom:4}],
+              acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
+    },
+    hydronium: {
+      name:'Hydronium', formula:'H₃O⁺', class:'ion', product:true, charge:+1,
+      // Where the H⁺ actually goes: a bare proton doesn't exist in water. This
+      // is a water molecule that ACCEPTED the acid's H — trigonal pyramidal
+      // (~113°), one lone pair left on top. All three H's can donate.
+      atoms:[ {el:'O',pos:[0,0,0]},
+              {el:'H',pos:[1.437,-0.581,0]},
+              {el:'H',pos:[-0.719,-0.581,1.244]},
+              {el:'H',pos:[-0.719,-0.581,-1.244]} ],
+      bonds:[ [0,1],[0,2],[0,3] ],
+      sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[] },
     },
   };
 

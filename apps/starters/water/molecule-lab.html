@@ -149,6 +149,10 @@
   #card p.lead{font-weight:600}
   #card ul{font-family:var(--font-sans);font-weight:400;font-size:15px;line-height:1.55;padding-left:20px;margin:0 0 14px}
   #card b{font-weight:700}
+  /* the carbonation equation — set on its own line so the reaction chain reads
+     as a chemical statement rather than running into the prose */
+  #card .rx{display:block;margin:10px 0;font-family:var(--font-slab);font-weight:700;
+    font-size:15px;letter-spacing:.3px;color:#2f2a24}
   #card .fact{padding:14px 16px;background:rgba(255,224,120,.28);
     border-left:3px solid #e5b93a;border-radius:0 8px 8px 0;font-size:14.5px;line-height:1.5;
     opacity:0;pointer-events:none;transition:opacity .2s}
@@ -809,6 +813,9 @@ function showHydrateMsg(key){
   const spec=MolLib.MOLECULES[key];
   flashMsg(spec.class==='nonpolar'
     ? `No hydrogen bonds — water closes ranks and squeezes <b>${spec.formula}</b> out.`
+    : spec.class==='reactive'
+    // CO₂: no net dipole, yet water still bonds to its δ− oxygens — and then reacts
+    ? `No net dipole, but water still bonds to <b>${spec.formula}</b>'s oxygens. Watch what happens next…`
     : `No ions! <b>${spec.formula}</b> dissolves whole — water hydrogen-bonds to its polar group.`);
 }
 // ion–dipole bonds: each shell water → its ion, drawn to the atom that faces
@@ -1039,9 +1046,13 @@ function addSolute(specKey=currentSolute){
   let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
   g.position.set((Math.random()-.5)*3, maxY+6, (Math.random()-.5)*3);
   g.userData.vel=new THREE.Vector3(); g.userData.descending=true; g.userData.specKey=specKey;
+  // parentKey ties reaction products back to the species the student added, so
+  // "3 in the water" and Clear still work once a CO₂ has become HCO₃⁻ + H₃O⁺
+  g.userData.parentKey=specKey;
   g.userData.angVel=new THREE.Vector3();   // accumulated by the H-bond site springs (see pullToSite)
   g.userData.hbCount=0;                    // hydration bonds this frame, for the readout
   root.add(g); solutes.push(g);
+  return g;
 }
 function clearSolutes(){ solutes.forEach(s=>root.remove(s)); solutes.length=0; clearSoluteHBonds(); }
 function updateSolutes(){
@@ -1069,6 +1080,112 @@ function updateSolutes(){
     integrateSoluteSpin(s);
   });
   repelWaterFromTails();
+}
+
+/* ============================================================= *
+ *  Carbonation — the one solute that REACTS with water
+ *
+ *    CO₂ + H₂O  →  H₂CO₃  →  HCO₃⁻ + H⁺
+ *
+ *  Mechanism (what the animation shows) is real:
+ *    1. CO₂ has to be hydrated first — water attacks the δ+ carbon. We gate
+ *       the step on the CO₂ actually holding ≥2 hydration H-bonds AND having a
+ *       water within reach, and that water is CONSUMED (the count drops).
+ *    2. Carbonic acid is a genuine acid (pKa1 = 3.6) — it hands one H to a
+ *       neighbouring water, which becomes H₃O⁺. A bare proton never exists in
+ *       water, so we show the hydronium rather than a floating H⁺.
+ *
+ *  Rate is NOT real, and deliberately so: hydration is the slow step (only
+ *  ~0.2% of dissolved CO₂ is H₂CO₃ at equilibrium, and it takes seconds), while
+ *  ionization is near-instant. At true rates a student would watch nothing
+ *  happen. Both probabilities below are scaled up so the chain plays out over
+ *  a few seconds, with hydration kept visibly the slower of the two so the
+ *  ORDER of the steps still reads correctly. See SCIENCE.md §8 on exaggerations.
+ * ============================================================= */
+const CO2_HYDRATE_P=0.0025,      // per frame, once the CO₂ is properly hydrated
+      CARBONIC_IONIZE_P=0.02,    // ~8× faster: H₂CO₃ is a strong-ish acid
+      RX_REACH=4.0;              // how close a water has to be to react
+// swap a solute's geometry in place, keeping its position, spin and lineage
+function morphSolute(s,newKey){
+  const g=buildMolecule(MolLib.MOLECULES[newKey]);
+  g.position.copy(s.position); g.quaternion.copy(s.quaternion);
+  g.userData.vel=s.userData.vel.clone();
+  g.userData.angVel=s.userData.angVel.clone();
+  g.userData.descending=false; g.userData.hbCount=0;
+  g.userData.specKey=newKey; g.userData.parentKey=s.userData.parentKey;
+  g.userData.product=true;
+  root.remove(s); root.add(g);
+  solutes[solutes.indexOf(s)]=g;
+  return g;
+}
+// pull a specific water OUT of the sim (it has been consumed by the reaction).
+// sim.remove() only pops the last one, so splice by identity here.
+function consumeWater(w){
+  const i=sim.mols.indexOf(w); if(i<0) return;
+  releaseFromShell(w);
+  sim.mols.splice(i,1); root.remove(w);
+  iceFor=-1;                       // lattice assignment is keyed on the count
+  if(salt.length && !anyDescending()) assignShells();
+}
+function nearestWater(pos,maxD){
+  let best=null,bd=maxD;
+  sim.mols.forEach(w=>{ if(w.userData.escaped) return;
+    const d=pos.distanceTo(w.position); if(d<bd){ best=w; bd=d; } });
+  return best;
+}
+// drop a product molecule into the scene already dissolved (no falling-in phase)
+function spawnProduct(key,pos,parentKey){
+  const g=buildMolecule(MolLib.MOLECULES[key]);
+  g.position.copy(pos);
+  g.userData.vel=new THREE.Vector3(); g.userData.angVel=new THREE.Vector3();
+  g.userData.descending=false; g.userData.hbCount=0;
+  g.userData.specKey=key; g.userData.parentKey=parentKey; g.userData.product=true;
+  root.add(g); solutes.push(g);
+  return g;
+}
+let rxMsgShown=0;
+function updateReactions(){
+  // iterate over a snapshot: morphSolute/spawnProduct mutate `solutes`
+  [...solutes].forEach(s=>{
+    const u=s.userData;
+    if(u.descending) return;
+    const spec=MolLib.MOLECULES[u.specKey];
+    // --- step 1: hydration, CO₂ + H₂O → H₂CO₃ ---
+    if(spec.reactsTo){
+      if((u.hbCount||0)<2) return;              // not yet hydrated enough to be attacked
+      const w=nearestWater(s.position,RX_REACH);
+      if(!w || Math.random()>=CO2_HYDRATE_P) return;
+      consumeWater(w);                          // the water is a REACTANT, not a spectator
+      morphSolute(s,spec.reactsTo);
+      if(rxMsgShown++<2) flashMsg(`<b>CO₂ + H₂O → H₂CO₃</b> — the water reacted; that's carbonic acid.`);
+      return;
+    }
+    // --- step 2: ionization, H₂CO₃ → HCO₃⁻ + H⁺ ---
+    if(spec.ionizesTo && Math.random()<CARBONIC_IONIZE_P){
+      // the H goes to a real neighbouring water, which becomes hydronium
+      const w=nearestWater(s.position,RX_REACH);
+      const at=w?w.position.clone():s.position.clone().add(new THREE.Vector3(3,0,0));
+      if(w) consumeWater(w);
+      morphSolute(s,spec.ionizesTo);
+      spawnProduct('hydronium',at,u.parentKey);
+      if(rxMsgShown++<3) flashMsg(`<b>H₂CO₃ → HCO₃⁻ + H⁺</b> — the H⁺ lands on a water: <b>H₃O⁺</b>. The pH drops.`);
+    }
+  });
+}
+/* Equilibrium pH of the solution.
+   Not derived from the handful of H₃O⁺ on screen — a single molecule in a
+   40-water box is a molar concentration no beaker ever sees. Instead this is
+   the REAL carbonic-acid equilibrium, pH = ½(pKa1 − log₁₀[CO₂(aq)]), evaluated
+   at a stated mapping: each dissolved carbon in the scene stands for one
+   atmospheric-equilibrium unit, [CO₂(aq)] = 1.4×10⁻⁵ M. So one CO₂ gives 5.6 —
+   the pH of clean rainwater — and the number falls from there. Soda (~0.1 M)
+   is pH 3.9 and is far off this scale; the card says so. */
+const PKA1=6.35, CO2_UNIT=1.4e-5;
+const DIC_KEYS={co2:1, carbonic:1, bicarbonate:1};   // dissolved inorganic carbon
+function carbonatePH(){
+  const n=solutes.filter(s=>!s.userData.descending && DIC_KEYS[s.userData.specKey]).length;
+  if(!n) return null;
+  return 0.5*(PKA1-Math.log10(n*CO2_UNIT));
 }
 // The solute no longer tumbles blindly — it TURNS to face the water. Torque comes
 // from the H-bond site springs (pullToSite), so the –OH / lone pair rotates toward
@@ -1233,12 +1350,17 @@ const SOLUTE_INFO={
       water's bonded network.</p>`,
     fact:`Water doesn't "hate" methane so much as prefer itself — water molecules would rather
       hydrogen-bond to each other. That exclusion is the <b>hydrophobic effect</b>.`},
-  co2:{group:'Nonpolar', mode:'molecule',
+  co2:{group:'Reacts with water', mode:'molecule',
     body:`<p><b>Carbon dioxide</b> has two polar C=O bonds, but the molecule is <b>linear</b>
-      and symmetric, so the two dipoles cancel exactly. Net dipole: zero — it behaves as a
-      nonpolar molecule.</p>`,
-    fact:`Shape beats bonds: polar bonds don't make a polar molecule if the geometry
-      cancels them. (CO₂ does slowly react with water to form carbonic acid — not modelled here.)`},
+      and symmetric, so the dipoles cancel — net dipole zero. Yet it is <b>30× more soluble
+      than O₂</b>, because each oxygen still carries δ− and lone pairs that water can donate
+      an O–H to. It just can't donate one back.</p>
+      <p>Then it does what methane never does: it <b>reacts</b>.
+      <span class="rx">CO₂ + H₂O → H₂CO₃ → HCO₃⁻ + H⁺</span>
+      Watch a water get consumed, and the H⁺ land on another water as <b>H₃O⁺</b>.</p>`,
+    fact:`This is <b>ocean acidification</b> and the <b>bicarbonate buffer</b> in your blood —
+      the same three-step reaction. Rainwater in clean air sits at <b>pH 5.6</b> from CO₂ alone;
+      soda, force-fed CO₂ under pressure, reaches <b>pH ~3.9</b>.`},
 };
 // picker order + display; water itself is added from the H₂O card on the canvas
 const SOLUTE_ORDER=['nacl','kcl','ethanol','ammonia','methane','co2'];
@@ -1353,9 +1475,17 @@ let selected='nacl';
 
 const MAX_SALT=8, MAX_SOLUTE=8;
 const isSalt=k=>SOLUTE_INFO[k].mode==='salt';
-// how many of the selected species are currently in the scene
-function countOf(k){ return isSalt(k) ? salt.length/2 : solutes.filter(s=>s.userData.specKey===k).length; }
-function atCapacity(k){ return isSalt(k) ? salt.length>=MAX_SALT : solutes.length>=MAX_SOLUTE; }
+// how many of the selected species are currently in the scene.
+// Reaction products count toward their parent (a CO₂ that became HCO₃⁻ is still
+// the one carbon the student added) — but H₃O⁺ is excluded, or one CO₂ would
+// read as two. Everything downstream of CO₂ carries exactly one carbon.
+const isCarrier=s=>s.userData.specKey!=='hydronium';
+function countOf(k){ return isSalt(k) ? salt.length/2
+  : solutes.filter(s=>s.userData.parentKey===k && isCarrier(s)).length; }
+// capacity is on what the student ADDED, so a reaction spawning H₃O⁺ never
+// silently uses up a slot and disables the Add button
+function atCapacity(k){ return isSalt(k) ? salt.length>=MAX_SALT
+  : solutes.filter(isCarrier).length>=MAX_SOLUTE; }
 
 function addSelected(){
   if(atCapacity(selected)) return;
@@ -1367,8 +1497,9 @@ function addSelected(){
 function clearSelected(){
   // clear only the selected species, so mixtures stay under the student's control
   if(isSalt(selected)) clearSalt();
-  else { solutes.filter(s=>s.userData.specKey===selected).forEach(s=>root.remove(s));
-    for(let i=solutes.length-1;i>=0;i--) if(solutes[i].userData.specKey===selected) solutes.splice(i,1);
+  // parentKey, not specKey: clearing CO₂ must also take away its H₂CO₃/HCO₃⁻/H₃O⁺
+  else { solutes.filter(s=>s.userData.parentKey===selected).forEach(s=>root.remove(s));
+    for(let i=solutes.length-1;i>=0;i--) if(solutes[i].userData.parentKey===selected) solutes.splice(i,1);
     clearSoluteHBonds(); }
   refreshCard();
 }
@@ -1574,14 +1705,20 @@ function renderReadout(p,r,escaping){
   let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
   if(salt.length) s+=`<br>${salt.length/2} ${MolLib.MOLECULES[currentSalt].formula} dissolved`;
   if(solutes.length){
-    s+=`<br>${solutes.length} ${MolLib.MOLECULES[currentSolute].formula} dissolved`;
+    // tally by actual species, so a reacted CO₂ reports as HCO₃⁻ + H₃O⁺ rather
+    // than staying labelled "CO₂" — the readout is how you see the reaction land
+    const byKey={}; solutes.forEach(x=>byKey[x.userData.specKey]=(byKey[x.userData.specKey]||0)+1);
+    Object.keys(byKey).forEach(k=>{ s+=`<br>${byKey[k]} ${MolLib.MOLECULES[k].formula} dissolved`; });
     // hydration bonds per solute — the number students compare across molecules
-    // (ammonia ~4, ethanol ~2–3, methane 0)
+    // (ammonia ~4, ethanol ~2–3, CO₂ ~1–2, methane 0)
     const settled=solutes.filter(x=>!x.userData.descending);
     if(settled.length){
       const tot=settled.reduce((a,x)=>a+(x.userData.hbCount||0),0);
       s+=`<br>${(tot/settled.length).toFixed(1)} hydration bonds each`;
     }
+    const pH=carbonatePH();
+    // #stats is already muted-coloured, so the number is bolded to carry the line
+    if(pH!==null) s+=`<br>pH <b>${pH.toFixed(1)}</b> — pure water is 7.0`;
   }
   statsEl.innerHTML=s;
   // handwritten phase descriptor beside the temperature readout
@@ -1661,6 +1798,9 @@ function loop(){
     } });
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); }
   if(solutes.length) updateSolutes();
+  // reactions run on LAST frame's hydration tally (updateSoluteHBonds is below),
+  // which is what we want: a CO₂ must be measurably hydrated before it reacts
+  if(solutes.length) updateReactions();
   // one rule for everything, applied after every body has moved and before any
   // bond is drawn — so the sticks are placed at the final, non-overlapping positions
   resolveAllOverlaps();
