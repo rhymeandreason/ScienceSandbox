@@ -233,6 +233,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="molecules.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -286,10 +287,12 @@ const Rsphere = new THREE.SphereGeometry(1,32,24);
 // saturated than the original neon set so they don't wash out. `state` stays
 // the single source of truth (water()/addSalt() read it; the Debug ▸ Colors
 // tab writes it live).
-const state = {O:0xd6362e, H:0xb9c2d0, Na:0x9a3fe0, Cl:0x1fa968};
-let bondColor=0xb3a892;      // covalent stick, muted stone on cream
-let hbColor=0x0042AA;        // hydrogen bond, deep blue
-let ionColor=0xd9791e;       // ion–dipole bond, deep amber
+// atom + bond colours come from the shared palette (molecules.js) so they
+// stay identical across pages; the Debug ▸ Colours tab mutates these in place.
+const state = MolLib.PALETTE.atoms;                 // element → hex (O/H/Na/Cl/…)
+let bondColor=MolLib.PALETTE.bonds.covalent;        // covalent stick, muted stone on cream
+let hbColor=MolLib.PALETTE.bonds.hbond;             // hydrogen bond, deep blue
+let ionColor=MolLib.PALETTE.bonds.iondipole;        // ion–dipole bond, deep amber
 // step-1 detail decorations (electrons + charge text)
 let eBondColor=0xe0a92e, eLoneColor=0x0433FF, dNegColor=0x444444, dPosColor=0x444444;
 let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
