@@ -234,6 +234,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="molecules.js"></script>
+<script src="fx.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -248,6 +249,9 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
 const root = new THREE.Group(); scene.add(root);
+
+// shared transient-effect system (fx.js) — bond-break flashes etc.; step() in loop()
+const FXi=FX.create(THREE, root, camera);
 
 scene.add(new THREE.AmbientLight(0xffffff, .55));
 // Lights are parented to the camera so they travel with the view: orbiting the
@@ -783,6 +787,10 @@ function checkDissociation(){
     [b.na,b.cl].forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
       if(d.lengthSq()<1e-4) d.set(Math.random()-.5,Math.random()-.5,Math.random()-.5);
       m.userData.vel.add(d.normalize().multiplyScalar(0.25)); });
+    // the bond snapping is its own event — shockwave + sparks at the break point,
+    // each ion flaring in its own palette colour as water tears them apart
+    FXi.spawnRing(c, FXi.colorOf(b.na));
+    FXi.popGlow(b.na, FXi.colorOf(b.na)); FXi.popGlow(b.cl, FXi.colorOf(b.cl));
   });
 }
 // Animated toast announcing that water has pried the ionic bond apart.
@@ -1373,6 +1381,7 @@ function loop(){
     } });
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
   renderReadout(p,r,escaping);
+  FXi.step();
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
 

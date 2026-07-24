@@ -113,12 +113,24 @@ Every "special property" lesson should visibly connect to hydrogen bonding:
 
 ---
 
-## 9. Reaction & event animation reference (`molecule-lab.html`)
+## 9. Reaction & event animation reference (`fx.js`)
 
-Every "something happened" moment in the sandbox is marked by a transient effect,
-driven by the `fx` registry and stepped once per frame off a wall-clock delta
-(`stepFX`). All effects are **purely cosmetic** — they never feed back into the
-physics, the H-bond counts, or the pH readout.
+Every "something happened" moment in a simulation is marked by a transient effect.
+These live in the shared **`fx.js`** module (same reuse pattern as `molecules.js`)
+so every page gets identical visuals. Each page creates one instance bound to its
+own scene:
+
+```js
+const FXi = FX.create(THREE, root, camera);   // root: group the molecules live in
+FXi.spawnRing(pos, color);  FXi.popGlow(g, color);  …
+FXi.step();                                    // once per frame, in loop()
+```
+
+Effects are stepped off a wall-clock delta (frame-rate independent) and are
+**purely cosmetic** — they never feed back into the physics, the H-bond counts,
+or the pH readout. `popGlow` scales *relative* to a target's current scale, so it
+works on both a molecule Group (rest scale 1) and a bare ion mesh (rest scale =
+its radius) without resizing it.
 
 ### Guiding principle — intensity tracks the chemistry
 
@@ -172,9 +184,14 @@ Atom/palette colours are the single source of truth in `molecules.js`
 
 ### Where each is wired
 
-- Dissociation — `checkDissociation()` (at the "pop apart" impulse).
-- CO₂ chain — `updateReactions()` (step 1 hydration, step 2 ionization).
+- Dissociation — `checkDissociation()` (at the "pop apart" impulse). Wired in
+  **both** `water-lab.html` and `molecule-lab.html`.
+- CO₂ chain — `updateReactions()` (step 1 hydration, step 2 ionization) —
+  `molecule-lab.html`.
 - Solute settle — `updateSolutes()`, at the moment descent ends and the hydration
-  toast fires (gated to `class === 'polar'`).
+  toast fires (gated to `class === 'polar'`) — `molecule-lab.html`.
+
+New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` once,
+`FXi.step()` in the loop, and call the primitives at your own event sites.
 
 ---
