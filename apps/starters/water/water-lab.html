@@ -487,12 +487,13 @@ function createWaterSim(cfg={}){
     // A single pair of waters shares at most ONE H-bond (each of water's 4 bonds
     // goes to a different neighbour), so also forbid a second bond between a pair.
     const accepted=new Map(), bonded=new Set();
-    mols.forEach((m,idx)=>m.userData._i=idx);
+    mols.forEach((m,idx)=>{ m.userData._i=idx; m.userData.hb=0; });   // per-molecule H-bond tally (read next frame)
     const pairKey=(a,b)=>a<b?a+'|'+b:b+'|'+a;
-    for(const donor of mols){ const oD=donor.userData.oWorld();
+    for(const donor of mols){ if(donor.userData.escaped) continue;   // gas-phase molecule: no H-bonds
+      const oD=donor.userData.oWorld();
       for(let hi=0;hi<2;hi++){ const h=donor.userData.hWorld(hi);
         let best=null,bestMol=null,bestD=o.hbThreshold,bestLin=0;
-        for(const acc of mols){ if(acc===donor)continue;
+        for(const acc of mols){ if(acc===donor||acc.userData.escaped)continue;   // can't bond to a molecule that's left
           if((accepted.get(acc)||0)>=2) continue;   // this oxygen's lone pairs are full
           if(bonded.has(pairKey(donor.userData._i,acc.userData._i))) continue;   // pair already H-bonded
           const oA=acc.userData.oWorld(), dd=h.distanceTo(oA);
@@ -501,6 +502,7 @@ function createWaterSim(cfg={}){
         }
         if(best){ n++; accepted.set(bestMol,(accepted.get(bestMol)||0)+1);
           bonded.add(pairKey(donor.userData._i,bestMol.userData._i));
+          donor.userData.hb++; bestMol.userData.hb++;   // both partners gain a bond
           if(showHbonds){ const l=hbondTube(h,best); lines.push(l); root.add(l); }
           if(o.hbForce&&hbScale>0){ const ax=V().subVectors(bestMol.position,donor.position);
             const dist=ax.length()||1; ax.multiplyScalar((dist-o.EQ)*o.kHB*bestLin*hbScale/dist);
@@ -1304,7 +1306,13 @@ function loop(){
     if(S.tempEnabled && p.kinetic>0) f.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(p.kinetic));
     if(p.fz>0 && w.userData.iceSite) f.add(new THREE.Vector3().subVectors(w.userData.iceSite,w.position).multiplyScalar(0.035*p.fz));
     if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; setMolOpacity(w,1); } else { f.set(0,0.02,0); escaping++; } }
-    else if(p.evapProb>0 && Math.random()<p.evapProb){ w.userData.escaped=true; releaseFromShell(w); }
+    // A molecule can only break free once it's lost most of its H-bonds: escape
+    // chance falls off with how many bonds it still holds (last frame's tally), so
+    // you see bonds break BEFORE a molecule leaves — the energy-of-vaporization story.
+    else if(p.evapProb>0){
+      const bondFactor=clamp(1-(w.userData.hb||0)*0.5,0,1);   // 0 bonds→1×, 1→0.5×, ≥2→0
+      if(bondFactor>0 && Math.random()<p.evapProb*bondFactor){ w.userData.escaped=true; releaseFromShell(w); }
+    }
     // escaping waters break free of the hydration shell (boiling leaves the salt behind)
     if(salt.length && !w.userData.escaped){
       const ion=w.userData.shellIon;
