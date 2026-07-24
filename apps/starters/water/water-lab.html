@@ -25,10 +25,10 @@
   /* ---------- stage (left, dotted stationery) ---------- */
   #dissocmsg{position:absolute;top:80px;left:50%;transform:translateX(-50%);
     z-index:12;pointer-events:none;text-align:center;opacity:0;white-space:nowrap;
-    font-family:var(--font-hand);font-size:20px;color:var(--muted);letter-spacing:.2px}
+    font-family:var(--font-hand);font-size:20px;color:var(--muted);letter-spacing:.2px; background-color: rgba(255,255,255,.5); padding:10px; border-radius: var(--radius);}
   #dissocmsg b{font-weight:400}
   #dissocmsg .Na{color:var(--Na)}#dissocmsg .Cl{color:var(--Cl)}
-  #dissocmsg.show{animation:dissocFade 3.4s ease-out forwards}
+  #dissocmsg.show{animation:dissocFade 3.5s ease-out forwards}
   @keyframes dissocFade{
     0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
     10%{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -48,7 +48,7 @@
   /* H2O formula card, top-center */
   #formula{position:absolute;top:20px;right:28px;z-index:6;
     display:flex;flex-direction:column;align-items:center;gap:8px}
-  .sketchbox{position:relative;width:104px;height:92px;border:2.5px solid var(--ink);border-radius:var(--radius);
+  .sketchbox{position:relative;width:100px;height:100px;border:2.5px solid var(--ink);border-radius:var(--radius);
     display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.28)}
   .sketchbox img{width:74px;height:74px;object-fit:contain}
   .sketchbox .flabel{position:absolute;top:-13px;left:6px;font-family:var(--font-slab);
@@ -1015,7 +1015,7 @@ const stepMeta=[
   hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
   body:`<p>Because water is polar, it dissolves ionic and polar substances extraordinarily well — the "universal solvent" of life.</p>
   <p>Add salt and each ion pulls in a shell of about <b>6 waters</b>: around <b>Na⁺</b> they aim their δ− oxygen inward; around <b>Cl⁻</b> they aim a δ+ O–H inward.</p>`,
-  fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>). Salt water <b>freezes below 0°C</b> — which is how salt melts road ice — and <b>boils above 100°C</b>.`},
+  fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>). Salt water <b>freezes below 0°C</b> and <b>boils above 100°C</b>.<br><br> This is why salt is used to melt road ice.`},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
