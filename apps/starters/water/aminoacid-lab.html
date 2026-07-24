@@ -8,29 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
 <style>
-  :root{
-    --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
-    --hair:#d8cfbf;
-    --pep:#6a5acd;
-    --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
-    --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --torn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;color:var(--ink);font-family:var(--font-sans)}
-  #app{display:grid;grid-template-columns:1fr 372px;grid-template-rows:1fr;height:100vh;overflow:hidden}
+  :root{ --pep:#6a5acd; }
 
-  /* ---------- stage ---------- */
-  #stage{grid-column:1;position:relative;overflow:hidden;
-    background-color:var(--paper);
-    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
-    background-size:26px 26px;background-position:13px 13px}
-  #gl{display:block;width:100%;height:100%}
-
-  #brand{position:absolute;top:22px;left:26px;display:flex;align-items:center;gap:11px;z-index:6}
-  #brand .drop{font-size:24px;color:var(--ink)}
-  #brand h1{margin:0;font-family:var(--font-marker);font-weight:400;font-size:24px;letter-spacing:.3px}
+  /* wordmark runs a touch smaller on this page */
+  #brand .drop{font-size:24px}
+  #brand h1{font-size:24px}
 
   /* reaction toast, top-center */
   #rxmsg{position:absolute;top:78px;left:50%;transform:translateX(-50%);
@@ -44,14 +28,8 @@
     82%{opacity:1;transform:translateX(-50%) translateY(0)}
     100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
 
-  /* bottom-left stats */
-  #stats{position:absolute;left:26px;bottom:66px;z-index:5;font-size:13px;color:var(--muted);line-height:1.7}
   #stats b{color:var(--ink)}
-  #savepng{position:absolute;left:26px;bottom:22px;z-index:5;
-    font-weight:600;font-size:13px;letter-spacing:.5px;color:var(--ink);
-    background:transparent;border:2px solid var(--ink);border-radius:8px;padding:6px 15px;cursor:pointer;
-    display:inline-flex;align-items:center;gap:6px}
-  #savepng:hover{background:var(--ink);color:var(--paper)}
+  #savepng{border-radius:8px}
 
   /* peptide (sequence) card, bottom-right */
   #seqcard{position:absolute;right:24px;bottom:24px;z-index:6;display:none;
@@ -68,13 +46,7 @@
   @keyframes pcpop{0%{background:rgba(255,214,120,.6)}100%{background:rgba(106,90,205,.12)}}
 
   /* ---------- right panel ---------- */
-  #side{grid-column:2;position:relative;background:var(--panel);
-    background-image:linear-gradient(var(--hair) 1px,transparent 1px),linear-gradient(90deg,var(--hair) 1px,transparent 1px);
-    background-size:22px 22px;display:flex;flex-direction:column;
-    padding:26px 30px 30px 34px;box-shadow:-14px 0 30px -18px rgba(0,0,0,.25);overflow-y:auto}
-  #side::before{content:"";position:absolute;top:0;left:-9px;width:14px;height:100%;
-    background:var(--panel);z-index:2;
-    -webkit-mask:var(--torn);mask:var(--torn);-webkit-mask-size:100% 100%;mask-size:100% 100%}
+  #side{padding:26px 30px 30px 34px;overflow-y:auto}
   h1#labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:27px;line-height:1.12}
   #labintro{margin:0 0 18px;font-family:var(--font-sans);font-size:14.5px;line-height:1.5;color:#3a352f}
   #labintro b{font-weight:700}
@@ -98,7 +70,6 @@
   #card h2{margin:0 0 8px;font-family:var(--font-slab);font-weight:700;font-size:17px}
   #card p{margin:0 0 10px}
   #card .rxn{font-family:var(--font-slab);font-weight:700;color:var(--pep);font-size:15px}
-  #card b{font-weight:700}
 
   @media (max-width:880px){#app{grid-template-columns:1fr}#stage{grid-column:1}#side{grid-column:1}#side::before{display:none}}
 </style>
