@@ -972,21 +972,25 @@ function updateSolutes(){
       if(sim.mols.filter(w=>s.position.distanceTo(w.position)<3.5).length>=3) s.userData.descending=false;
       return;
     }
-    // pull toward the water centroid so the solute embeds in the cluster core
+    // gently pull toward the water centroid so the solute embeds in the cluster core
+    // (soft, so it doesn't ram into the water — the hard constraint handles overlap)
     const wc=new THREE.Vector3(); sim.mols.forEach(w=>wc.add(w.position));
     if(sim.mols.length) wc.multiplyScalar(1/sim.mols.length);
-    const f=new THREE.Vector3().subVectors(wc,s.position).multiplyScalar(0.02);
-    sim.mols.forEach(w=>{   // gentle water push so it embeds without overlapping
-      const dir=new THREE.Vector3().subVectors(s.position,w.position), dist=dir.length()||1;
-      const shell=1.9; if(dist<shell) f.addScaledVector(dir.multiplyScalar(1/dist),(shell-dist)*0.02);
+    const f=new THREE.Vector3().subVectors(wc,s.position).multiplyScalar(0.006);
+    // keep clear of other solutes
+    solutes.forEach(o=>{ if(o===s) return;
+      const dir=new THREE.Vector3().subVectors(s.position,o.position), dist=dir.length()||1, minD=3.5;
+      if(dist<minD) f.addScaledVector(dir.multiplyScalar(1/dist),(minD-dist)*0.03);
     });
     const j=DBG.jitter; f.add(new THREE.Vector3((Math.random()-.5)*j,(Math.random()-.5)*j,(Math.random()-.5)*j));
     s.userData.vel.add(f).multiplyScalar(0.9); s.position.add(s.userData.vel);
     s.rotation.y+=0.004;   // slow tumble
   });
 }
-// hard constraint: no water atom overlaps a solute atom sphere
+// hard constraint: no water atom overlaps a solute atom sphere. Iterated a few
+// times so it actually resolves even when a solute is pulled into a crowd of water.
 function separateSolutesFromWater(){
+  for(let it=0; it<3; it++)
   solutes.forEach(s=>{ if(s.userData.descending) return;
     const atoms=s.userData.spec.atoms;
     sim.mols.forEach(w=>{
@@ -995,7 +999,7 @@ function separateSolutesFromWater(){
       atoms.forEach((a,ai)=>{ const ap=s.userData.atomWorld(ai), arad=MolLib.PALETTE.radii[a.el]||0.7;
         for(const [wp,wr] of wAtoms){ const d=new THREE.Vector3().subVectors(wp,ap), dist=d.length()||1, minD=arad+wr+0.06;
           if(minD-dist>pen){ pen=minD-dist; dir=d.multiplyScalar(1/dist); } } });
-      if(dir) w.position.addScaledVector(dir,pen);
+      if(dir){ w.position.addScaledVector(dir,pen*0.7); s.position.addScaledVector(dir,-pen*0.3); }  // shove both apart
     });
   });
 }
@@ -1003,14 +1007,17 @@ function separateSolutesFromWater(){
 let soluteHbLines=[];
 function clearSoluteHBonds(){ soluteHbLines.forEach(l=>root.remove(l)); soluteHbLines=[]; }
 function addSoluteTube(a,b){ const l=hbondTube(a,b); root.add(l); soluteHbLines.push(l); }
-function pullTogether(s,w,target){   // spring solute & water centres toward a hydration separation
-  const ax=new THREE.Vector3().subVectors(w.position,s.position), dist=ax.length()||1;
-  ax.multiplyScalar((dist-target)*0.012/dist); s.userData.vel.add(ax); w.userData.vel.sub(ax);
+// spring a water toward a specific solute polar SITE (not the group centre), so
+// the water settles at the –OH / lone pair and isn't dragged into the nonpolar atoms
+function pullToSite(s,w,site,target){
+  const ax=new THREE.Vector3().subVectors(w.position,site), dist=ax.length()||1;
+  ax.multiplyScalar((dist-target)*0.012/dist);
+  w.userData.vel.sub(ax); s.userData.vel.add(ax.multiplyScalar(0.4));   // lighter reaction on the solute
 }
 function updateSoluteHBonds(){
   clearSoluteHBonds();
   if((S.fz||0)>0.3) return;                 // hidden while frozen
-  const thr=DBG.hbThreshold, TARGET=2.6;
+  const thr=DBG.hbThreshold, TARGET=2.0;
   solutes.forEach(s=>{ if(s.userData.descending) return;
     // solute donor H → nearest aligned water O (water accepts)
     s.userData.donors.forEach(d=>{
@@ -1019,7 +1026,7 @@ function updateSoluteHBonds(){
       sim.mols.forEach(w=>{ const o=w.userData.oWorld(), dd=h.distanceTo(o);
         if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,par).normalize(), ha=new THREE.Vector3().subVectors(o,h).normalize();
           if(oh.dot(ha)>0.35){ best=w; bestD=dd; } } });
-      if(best){ addSoluteTube(h,best.userData.oWorld()); pullTogether(s,best,TARGET); }
+      if(best){ addSoluteTube(h,best.userData.oWorld()); pullToSite(s,best,h,TARGET); }
     });
     // solute acceptor → nearest aligned water H (water donates)
     s.userData.acceptors.forEach(a=>{
@@ -1028,7 +1035,7 @@ function updateSoluteHBonds(){
       sim.mols.forEach(w=>{ for(let hi=0;hi<2;hi++){ const h=w.userData.hWorld(hi), dd=h.distanceTo(ap);
         if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,w.userData.oWorld()).normalize(), ha=new THREE.Vector3().subVectors(ap,h).normalize();
           if(oh.dot(ha)>0.35){ best=w; bestD=dd; bestH=h.clone(); } } } });
-      if(best){ addSoluteTube(bestH,ap); pullTogether(s,best,TARGET); }
+      if(best){ addSoluteTube(bestH,ap); pullToSite(s,best,ap,TARGET); }
     });
   });
 }

@@ -67,13 +67,20 @@
     },
     ethanol: {
       name:'Ethanol', formula:'C₂H₅OH', class:'polar',
-      // CH3–CH2–OH; the two carbons are united-atom (nonpolar tail), the
-      // hydroxyl O–H carries the H-bonding.
-      atoms:[ {el:'C',pos:[-2.3,-0.3,0]}, {el:'C',pos:[-1.0,0.4,0]},
-              {el:'O',pos:[0.2,-0.2,0]},  {el:'H',pos:[1.05,0.35,0]} ],
-      bonds:[ [0,1],[1,2],[2,3] ],
+      // CH3–CH2–OH, all-atom: methyl (3 H) + methylene (2 H) + hydroxyl (1 H) = 6 H.
+      // Only the hydroxyl O–H is polar; the ethyl group is the nonpolar tail.
+      atoms:[ {el:'C',pos:[-2.5,0,0]},          // 0 methyl C
+              {el:'C',pos:[-1.1,0.5,0]},        // 1 methylene C
+              {el:'O',pos:[0.2,-0.1,0]},        // 2 hydroxyl O
+              {el:'H',pos:[1.0,0.5,0]},         // 3 hydroxyl H (donor)
+              {el:'H',pos:[-3.13,0.78,0]},      // 4 methyl H
+              {el:'H',pos:[-2.66,-0.56,0.82]},  // 5 methyl H
+              {el:'H',pos:[-2.66,-0.56,-0.82]}, // 6 methyl H
+              {el:'H',pos:[-1.07,1.14,0.77]},   // 7 methylene H
+              {el:'H',pos:[-1.07,1.14,-0.77]} ],// 8 methylene H
+      bonds:[ [0,1],[1,2],[2,3],[0,4],[0,5],[0,6],[1,7],[1,8] ],
       sites:{ donors:[{atom:3}], acceptors:[{atom:2, lonePairs:2}] },
-      hydrophobic:[0,1],
+      hydrophobic:[0,1,4,5,6,7,8],
     },
     ammonia: {
       name:'Ammonia', formula:'NH₃', class:'polar',
