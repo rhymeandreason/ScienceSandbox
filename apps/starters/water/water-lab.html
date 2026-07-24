@@ -12,7 +12,7 @@
 <style>
   :root{
     --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
-    --hair:#d8cfbf; --sketch:#353f44;
+    --hair:#d8cfbf; --sketch:#353f44; --radius:10px;
     --O:#e6362f; --H:#9DADC2; --Na:#a052e0; --Cl:#2fbf7a; --hot:#e5533a; --cold:#4a90d9;
     --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
     --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -48,7 +48,7 @@
   /* H2O formula card, top-center */
   #formula{position:absolute;top:20px;right:28px;z-index:6;
     display:flex;flex-direction:column;align-items:center;gap:8px}
-  .sketchbox{position:relative;width:104px;height:92px;border:2.5px solid var(--ink);border-radius:6px 10px 7px 9px;
+  .sketchbox{position:relative;width:104px;height:92px;border:2.5px solid var(--ink);border-radius:var(--radius);
     display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.28)}
   .sketchbox img{width:74px;height:74px;object-fit:contain}
   .sketchbox .flabel{position:absolute;top:-13px;left:6px;font-family:var(--font-slab);
@@ -84,7 +84,7 @@
     background:#fff;border:2.5px solid var(--ink);cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.25)}
   #trange::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;
     border:2.5px solid var(--ink);cursor:pointer}
-  #treadout{display:flex;flex-direction:column;gap:2px;min-width:120px}
+  #treadout{display:flex;flex-direction:column;gap:2px;min-width:120px; position: absolute; top: 32px; left: 50px;}
   #treadout .tval{font-family:var(--font-slab);font-weight:700;font-size:34px;line-height:1}
   #treadout .tdesc{font-family:var(--font-hand);font-size:19px;color:var(--muted);line-height:1.05;margin-top:6px;white-space:pre-line}
 
@@ -100,14 +100,14 @@
   #stats{position:absolute;left:26px;bottom:66px;z-index:5;font-size:13px;color:var(--muted);line-height:1.7}
   #savepng{position:absolute;left:26px;bottom:22px;z-index:5;
     font-weight:600;font-size:13px;letter-spacing:.5px;color:var(--ink);
-    background:transparent;border:2px solid var(--ink);border-radius:8px;padding:6px 15px;cursor:pointer;
+    background:transparent;border:2px solid var(--ink);border-radius:var(--radius);padding:6px 15px;cursor:pointer;
     display:inline-flex;align-items:center;gap:6px}
   #savepng:hover{background:var(--ink);color:var(--paper)}
 
   /* on-stage toggle chips (electron/charge/dipole/cloud + H-bonds) */
   #chips{position:absolute;left:26px;bottom:150px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
   .chip{font-size:12px;color:var(--muted);background:rgba(255,255,255,.5);border:1.5px solid var(--hair);
-    border-radius:16px;padding:4px 12px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+    border-radius:var(--radius);padding:4px 12px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
   .chip:hover{border-color:var(--muted);color:var(--ink)}
   .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
@@ -140,7 +140,7 @@
   #card ul{font-family:var(--font-sans);font-weight:400;font-size:15px;line-height:1.55;padding-left:20px;margin:0 0 14px}
   #card b{font-weight:700}
   #card .fact{padding:14px 16px;background:rgba(255,224,120,.28);
-    border-left:3px solid #e5b93a;border-radius:0 8px 8px 0;font-size:14.5px;line-height:1.5;
+    border-left:3px solid #e5b93a;border-radius:0 var(--radius) var(--radius) 0;line-height:1.5;
     opacity:0;pointer-events:none;transition:opacity .2s}
   #card .fact.show{opacity:1;pointer-events:auto}
 
@@ -149,8 +149,8 @@
      relative wrapper — stays put instead of jumping when toggled; repeats per
      fact if a step has several */
   #card .factwrap{position:relative;margin-top:18px;padding-left:12px}
-  #card .factwrap .bulb{position:absolute;left:-46px;top:50%;transform:translateY(-50%);
-    width:56px;height:56px;cursor:pointer;z-index:2;
+  #card .factwrap .bulb{position:absolute;left:-65px;top:50%;transform:translateY(-50%);
+    width:64px;cursor:pointer;z-index:2;
     filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));transition:transform .15s}
   #card .factwrap .bulb:hover{transform:translateY(-50%) scale(1.08) rotate(-3deg)}
   #card .factwrap .bulb.lit{transform:translateY(-50%) scale(1.05)}
@@ -158,7 +158,7 @@
   /* nav footer */
   footer{display:flex;gap:12px;align-items:center;margin-top:16px}
   footer button{font-weight:600;font-size:15px;padding:11px 22px;
-    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
+    border-radius:var(--radius);cursor:pointer;border:2px solid var(--ink)}
   #prev{background:transparent;color:var(--ink)}
   #prev:hover{background:rgba(0,0,0,.05)}
   #next{background:var(--ink);color:var(--panel);border-color:var(--ink);margin-left:auto}
@@ -298,7 +298,7 @@ let bondColor=MolLib.PALETTE.bonds.covalent;        // covalent stick, muted sto
 let hbColor=MolLib.PALETTE.bonds.hbond;             // hydrogen bond, deep blue
 let ionColor=MolLib.PALETTE.bonds.iondipole;        // ion–dipole bond, deep amber
 // step-1 detail decorations (electrons + charge text)
-let eBondColor=0xe0a92e, eLoneColor=0x0433FF, dNegColor=0x444444, dPosColor=0x444444;
+let eBondColor=0xe0a92e, eLoneColor=0x444444, dNegColor=0x444444, dPosColor=0x444444;
 let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
@@ -1212,7 +1212,7 @@ cardEl.addEventListener('click',e=>{
     +'<div id="dbg_close" style="cursor:pointer;font-size:16px;color:#8a8073;line-height:1">✕</div></div>'
     +'<div style="display:flex;gap:6px;margin-bottom:14px">'
     +tabRow.map(t=>`<div class="dtab" data-tab="${t}" style="flex:1;text-align:center;padding:6px 4px;`
-      +`border:1.5px solid #d8cfbf;border-radius:7px;cursor:pointer;text-transform:capitalize">${t}</div>`).join('')
+      +`border:1.5px solid #d8cfbf;border-radius:var(--radius);cursor:pointer;text-transform:capitalize">${t}</div>`).join('')
     +'</div>';
 
   // — Sim tab —
@@ -1221,7 +1221,7 @@ cardEl.addEventListener('click',e=>{
     `<label style="display:block;margin:9px 0 3px">${lbl} <span id="dv_${k}" style="float:right;color:#1fa968">${DBG[k]}</span></label>`
     +`<input id="ds_${k}" type="range" min="${mn}" max="${mx}" step="${st}" value="${DBG[k]}" style="width:100%">`; });
   html+='<div id="dbg_reset" style="margin-top:12px;text-align:center;padding:7px;border:1px solid #b9ad98;'
-    +'border-radius:7px;color:#2b2723;cursor:pointer">Reset sim defaults</div></div>';
+    +'border-radius:var(--radius);color:#2b2723;cursor:pointer">Reset sim defaults</div></div>';
 
   // — Colors tab —
   html+='<div class="dpane" data-pane="colors" style="display:none">'
