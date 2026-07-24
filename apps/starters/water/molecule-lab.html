@@ -13,7 +13,7 @@
   :root{
     --paper:#efe6d6; --paper-line:#e2d8c6; --panel:#f8f5ef; --ink:#2b2723; --muted:#8a8073;
     --hair:#d8cfbf; --sketch:#353f44;
-    --O:#e6362f; --H:#9DADC2; --Na:#a052e0; --Cl:#2fbf7a; --hot:#e5533a; --cold:#4a90d9;
+    --O:#e6362f; --H:#9DADC2; --Na:#a052e0; --Cl:#2fbf7a; --K:#0054c0; --hot:#e5533a; --cold:#4a90d9;
     --font-marker:'Permanent Marker',cursive; --font-slab:'Zilla Slab',Georgia,serif; --font-hand:'Caveat',cursive;
     --font-sans:'Proxima Soft','Proxima Nova',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --torn:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
@@ -27,7 +27,7 @@
     z-index:12;pointer-events:none;text-align:center;opacity:0;white-space:nowrap;
     font-family:var(--font-hand);font-size:20px;color:var(--muted);letter-spacing:.2px}
   #dissocmsg b{font-weight:400}
-  #dissocmsg .Na{color:var(--Na)}#dissocmsg .Cl{color:var(--Cl)}
+  #dissocmsg .Na{color:var(--Na)}#dissocmsg .Cl{color:var(--Cl)}#dissocmsg .K{color:var(--K)}
   #dissocmsg.show{animation:dissocFade 3.4s ease-out forwards}
   @keyframes dissocFade{
     0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
@@ -457,7 +457,10 @@ function buildMolecule(spec){
   const parentOf=hi=>{ const b=bonds.find(([i,j])=>i===hi||j===hi); return b?(b[0]===hi?b[1]:b[0]):hi; };
   g.userData={ spec, meshes, atomWorld:wp,
     donors:(sites.donors||[]).map(d=>({h:d.atom, parent:parentOf(d.atom)})),
-    acceptors:(sites.acceptors||[]).map(a=>({atom:a.atom, cap:a.lonePairs||2})) };
+    acceptors:(sites.acceptors||[]).map(a=>({atom:a.atom, cap:a.lonePairs||2})),
+    // nonpolar atoms (ethanol's ethyl tail, all of methane) — water is pushed off
+    // these, which is what makes ethanol's hydration visibly one-sided
+    hydrophobic:(spec.hydrophobic||[]).slice() };
   return g;
 }
 
@@ -777,13 +780,28 @@ function checkDissociation(){
 }
 // Animated toast announcing that water has pried the ionic bond apart.
 const dissocMsgEl=document.getElementById('dissocmsg');
-let dissocMsgShown=0;                 // only teach it the first couple of times
-function showDissocMsg(){
-  if(dissocMsgShown++>=2) return;
-  dissocMsgEl.innerHTML='Ionic bond broken! Water pulls <b class="Na">Na⁺</b> and <b class="Cl">Cl⁻</b> apart.';
+function flashMsg(html){
+  dissocMsgEl.innerHTML=html;
   dissocMsgEl.classList.remove('show');
   void dissocMsgEl.offsetWidth;      // restart the animation if it fires again
   dissocMsgEl.classList.add('show');
+}
+let dissocMsgShown=0;                 // only teach it the first couple of times
+function showDissocMsg(){
+  if(dissocMsgShown++>=2) return;
+  const [cat,an]=MolLib.MOLECULES[currentSalt].dissociates;
+  flashMsg(`Ionic bond broken! Water pulls <b class="${cat.ion}">${cat.ion}⁺</b> and `
+          +`<b class="${an.ion}">${an.ion}⁻</b> apart.`);
+}
+// The molecular counterpart: the lesson here is the ABSENCE of dissociation, which
+// is otherwise invisible — nothing happens on screen to mark it.
+const hydrateMsgShown={};
+function showHydrateMsg(key){
+  if((hydrateMsgShown[key]=(hydrateMsgShown[key]||0)+1)>2) return;
+  const spec=MolLib.MOLECULES[key];
+  flashMsg(spec.class==='nonpolar'
+    ? `No hydrogen bonds — water closes ranks and squeezes <b>${spec.formula}</b> out.`
+    : `No ions! <b>${spec.formula}</b> dissolves whole — water hydrogen-bonds to its polar group.`);
 }
 // ion–dipole bonds: each shell water → its ion, drawn to the atom that faces
 // the ion (O for Na⁺, the inward H for Cl⁻) so the polarity reads correctly
@@ -942,6 +960,8 @@ function addSolute(specKey=currentSolute){
   let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
   g.position.set((Math.random()-.5)*3, maxY+6, (Math.random()-.5)*3);
   g.userData.vel=new THREE.Vector3(); g.userData.descending=true; g.userData.specKey=specKey;
+  g.userData.angVel=new THREE.Vector3();   // accumulated by the H-bond site springs (see pullToSite)
+  g.userData.hbCount=0;                    // hydration bonds this frame, for the readout
   root.add(g); solutes.push(g);
 }
 function clearSolutes(){ solutes.forEach(s=>root.remove(s)); solutes.length=0; clearSoluteHBonds(); }
@@ -950,7 +970,9 @@ function updateSolutes(){
     if(s.userData.descending){   // fall in until it's genuinely surrounded by water
       s.userData.vel.add(new THREE.Vector3(0,-0.012,0)).multiplyScalar(0.9);
       s.position.add(s.userData.vel);
-      if(sim.mols.filter(w=>s.position.distanceTo(w.position)<3.5).length>=3) s.userData.descending=false;
+      if(sim.mols.filter(w=>s.position.distanceTo(w.position)<3.5).length>=3){
+        s.userData.descending=false; showHydrateMsg(s.userData.specKey);   // it's in the water — say what didn't happen
+      }
       return;
     }
     // gently pull toward the water centroid so the solute embeds in the cluster core
@@ -965,22 +987,80 @@ function updateSolutes(){
     });
     const j=DBG.jitter; f.add(new THREE.Vector3((Math.random()-.5)*j,(Math.random()-.5)*j,(Math.random()-.5)*j));
     s.userData.vel.add(f).multiplyScalar(0.9); s.position.add(s.userData.vel);
-    s.rotation.y+=0.004;   // slow tumble
+    integrateSoluteSpin(s);
+  });
+  repelWaterFromTails();
+}
+// The solute no longer tumbles blindly — it TURNS to face the water. Torque comes
+// from the H-bond site springs (pullToSite), so the –OH / lone pair rotates toward
+// the waters holding it and then stays put. Without this the site springs could
+// never establish a stable shell: the spin dragged them out of position each frame.
+const SPIN_DAMP=0.85, SPIN_JITTER=0.0016, SPIN_MAX=0.05;
+function integrateSoluteSpin(s){
+  const av=s.userData.angVel;
+  av.multiplyScalar(SPIN_DAMP);
+  // residual thermal tumble, so a solute with no H-bonds (methane) still drifts
+  av.x+=(Math.random()-.5)*SPIN_JITTER; av.y+=(Math.random()-.5)*SPIN_JITTER; av.z+=(Math.random()-.5)*SPIN_JITTER;
+  const mag=av.length();
+  if(mag<1e-6) return;
+  // axis is in world space, so premultiply (world rotation applied outside the local one)
+  const q=new THREE.Quaternion().setFromAxisAngle(av.clone().multiplyScalar(1/mag), Math.min(mag,SPIN_MAX));
+  s.quaternion.premultiply(q);
+}
+// Soft exclusion around nonpolar atoms. Deliberately NOT folded into the hard
+// overlap constraint below: that one resolves a single max-penetration direction
+// for the whole rigid group, so padding the tail there would shove the hydrated
+// –OH end away too. A separate soft field lets water crowd the head while the
+// tail stays bare — the asymmetry IS the lesson.
+const HPHOB_GAP=1.15, HPHOB_K=0.012;
+function repelWaterFromTails(){
+  solutes.forEach(s=>{
+    if(s.userData.descending || !s.userData.hydrophobic.length) return;
+    const atoms=s.userData.spec.atoms;
+    s.userData.hydrophobic.forEach(ai=>{
+      const ap=s.userData.atomWorld(ai), R=(MolLib.PALETTE.radii[atoms[ai].el]||0.7)+WO_RAD+HPHOB_GAP;
+      sim.mols.forEach(w=>{
+        const d=new THREE.Vector3().subVectors(w.position,ap), dist=d.length()||1;
+        if(dist>=R) return;
+        const push=d.multiplyScalar((R-dist)*HPHOB_K/dist);
+        w.userData.vel.add(push); s.userData.vel.addScaledVector(push,-0.3);
+      });
+    });
   });
 }
-// hard constraint: no water atom overlaps a solute atom sphere. Iterated a few
-// times so it actually resolves even when a solute is pulled into a crowd of water.
+/* Hard constraint: NO sphere may overlap another sphere. Every solute atom is
+   tested against all three water atoms (O + both H).
+
+   Two things the earlier version got wrong, both of which showed up as ethanol
+   visibly passing through water:
+     • it resolved only the single deepest pair per water, so a water wedged
+       between two of ethanol's nine atoms got pushed out of one and left inside
+       the other. Now every overlapping pair contributes.
+     • it skipped descending solutes, so a solute plowed straight through the
+       cluster on the way in — and `descending` only clears once waters are
+       already within 3.5, i.e. after it has embedded. Now it always applies;
+       a falling solute just takes a smaller share of the correction so the
+       constraint doesn't stall its descent.                                   */
+const SEP_ITERS=8, SEP_SKIN=0.06;
 function separateSolutesFromWater(){
-  for(let it=0; it<3; it++)
-  solutes.forEach(s=>{ if(s.userData.descending) return;
+  const d=new THREE.Vector3(), corr=new THREE.Vector3();
+  for(let it=0; it<SEP_ITERS; it++)
+  solutes.forEach(s=>{
     const atoms=s.userData.spec.atoms;
+    // solute atoms move as the group is corrected, so refresh once per iteration
+    const sp=atoms.map((a,ai)=>({p:s.userData.atomWorld(ai), r:MolLib.PALETTE.radii[a.el]||0.7}));
+    const sShare=s.userData.descending?0.08:0.3;
     sim.mols.forEach(w=>{
       const wAtoms=[[w.userData.oWorld(),WO_RAD],[w.userData.hWorld(0),WH_RAD],[w.userData.hWorld(1),WH_RAD]];
-      let pen=0, dir=null;
-      atoms.forEach((a,ai)=>{ const ap=s.userData.atomWorld(ai), arad=MolLib.PALETTE.radii[a.el]||0.7;
-        for(const [wp,wr] of wAtoms){ const d=new THREE.Vector3().subVectors(wp,ap), dist=d.length()||1, minD=arad+wr+0.06;
-          if(minD-dist>pen){ pen=minD-dist; dir=d.multiplyScalar(1/dist); } } });
-      if(dir){ w.position.addScaledVector(dir,pen*0.7); s.position.addScaledVector(dir,-pen*0.3); }  // shove both apart
+      corr.set(0,0,0); let hit=false;
+      for(const a of sp) for(const [wp,wr] of wAtoms){
+        d.subVectors(wp,a.p); const dist=d.length()||1e-3, minD=a.r+wr+SEP_SKIN;
+        if(dist<minD){ corr.addScaledVector(d.multiplyScalar(1/dist), minD-dist); hit=true; }
+      }
+      if(!hit) return;
+      // relaxed, because summed pair corrections overshoot; the iterations converge it
+      corr.multiplyScalar(0.6);
+      w.position.addScaledVector(corr,1-sShare); s.position.addScaledVector(corr,-sShare);
     });
   });
 }
@@ -990,16 +1070,25 @@ function clearSoluteHBonds(){ soluteHbLines.forEach(l=>root.remove(l)); soluteHb
 function addSoluteTube(a,b){ const l=hbondTube(a,b); root.add(l); soluteHbLines.push(l); }
 // spring a water toward a specific solute polar SITE (not the group centre), so
 // the water settles at the –OH / lone pair and isn't dragged into the nonpolar atoms
+const SITE_TORQUE=0.09;
 function pullToSite(s,w,site,target){
   const ax=new THREE.Vector3().subVectors(w.position,site), dist=ax.length()||1;
   ax.multiplyScalar((dist-target)*0.012/dist);
   w.userData.vel.sub(ax); s.userData.vel.add(ax.multiplyScalar(0.4));   // lighter reaction on the solute
+  // ax is now the force ON the solute, applied at `site` → torque about its centre,
+  // which is what swings the polar group around to face the water
+  const r=new THREE.Vector3().subVectors(site,s.position);
+  s.userData.angVel.addScaledVector(new THREE.Vector3().crossVectors(r,ax),SITE_TORQUE);
 }
 function updateSoluteHBonds(){
   clearSoluteHBonds();
-  if((S.fz||0)>0.3) return;                 // hidden while frozen
-  const thr=DBG.hbThreshold, TARGET=2.0;
+  if((S.fz||0)>0.3){ solutes.forEach(s=>s.userData.hbCount=0); return; }   // hidden while frozen
+  // 2.15, not 2.0: an acceptor pair is solute-O (0.95) + water-O (0.95) + skin (0.06)
+  // = 1.96, so a 2.0 target parked the spring right on the contact distance and it
+  // fought the separation constraint every frame. This leaves the resolver headroom.
+  const thr=DBG.hbThreshold, TARGET=2.15;
   solutes.forEach(s=>{ if(s.userData.descending) return;
+    s.userData.hbCount=0;
     // solute donor H → nearest aligned water O (water accepts)
     s.userData.donors.forEach(d=>{
       const h=s.userData.atomWorld(d.h), par=s.userData.atomWorld(d.parent);
@@ -1007,7 +1096,7 @@ function updateSoluteHBonds(){
       sim.mols.forEach(w=>{ const o=w.userData.oWorld(), dd=h.distanceTo(o);
         if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,par).normalize(), ha=new THREE.Vector3().subVectors(o,h).normalize();
           if(oh.dot(ha)>0.35){ best=w; bestD=dd; } } });
-      if(best){ addSoluteTube(h,best.userData.oWorld()); pullToSite(s,best,h,TARGET); }
+      if(best){ addSoluteTube(h,best.userData.oWorld()); pullToSite(s,best,h,TARGET); s.userData.hbCount++; }
     });
     // solute acceptor → nearest aligned water H (water donates)
     s.userData.acceptors.forEach(a=>{
@@ -1016,7 +1105,7 @@ function updateSoluteHBonds(){
       sim.mols.forEach(w=>{ for(let hi=0;hi<2;hi++){ const h=w.userData.hWorld(hi), dd=h.distanceTo(ap);
         if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,w.userData.oWorld()).normalize(), ha=new THREE.Vector3().subVectors(ap,h).normalize();
           if(oh.dot(ha)>0.35){ best=w; bestD=dd; bestH=h.clone(); } } } });
-      if(best){ addSoluteTube(bestH,ap); pullToSite(s,best,ap,TARGET); }
+      if(best){ addSoluteTube(bestH,ap); pullToSite(s,best,ap,TARGET); s.userData.hbCount++; }
     });
   });
 }
@@ -1441,7 +1530,16 @@ function renderReadout(p,r,escaping){
   // bottom-left: just the counts, mirroring the mockup
   let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
   if(salt.length) s+=`<br>${salt.length/2} ${MolLib.MOLECULES[currentSalt].formula} dissolved`;
-  if(solutes.length) s+=`<br>${solutes.length} ${MolLib.MOLECULES[currentSolute].formula} dissolved`;
+  if(solutes.length){
+    s+=`<br>${solutes.length} ${MolLib.MOLECULES[currentSolute].formula} dissolved`;
+    // hydration bonds per solute — the number students compare across molecules
+    // (ammonia ~4, ethanol ~2–3, methane 0)
+    const settled=solutes.filter(x=>!x.userData.descending);
+    if(settled.length){
+      const tot=settled.reduce((a,x)=>a+(x.userData.hbCount||0),0);
+      s+=`<br>${(tot/settled.length).toFixed(1)} hydration bonds each`;
+    }
+  }
   statsEl.innerHTML=s;
   // handwritten phase descriptor beside the temperature readout
   if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);

@@ -21,7 +21,7 @@
       H:  0xb9c2d0,   // hydrogen — pale steel
       Na: 0x9a3fe0,   // sodium   — violet
       Cl: 0x1fa968,   // chloride — green
-      K:  0x7b5cf0,   // potassium — lilac (distinct from Na)
+      K:  0x0054C0,   // potassium — blue (distinct from Na)
       C:  0x3a3a3a,   // carbon   — charcoal
       N:  0x3f6ae0,   // nitrogen — blue
     },
@@ -69,15 +69,20 @@
       name:'Ethanol', formula:'C₂H₅OH', class:'polar',
       // CH3–CH2–OH, all-atom: methyl (3 H) + methylene (2 H) + hydroxyl (1 H) = 6 H.
       // Only the hydroxyl O–H is polar; the ethyl group is the nonpolar tail.
-      atoms:[ {el:'C',pos:[-2.5,0,0]},          // 0 methyl C
-              {el:'C',pos:[-1.1,0.5,0]},        // 1 methylene C
-              {el:'O',pos:[0.2,-0.1,0]},        // 2 hydroxyl O
-              {el:'H',pos:[1.0,0.5,0]},         // 3 hydroxyl H (donor)
-              {el:'H',pos:[-3.13,0.78,0]},      // 4 methyl H
-              {el:'H',pos:[-2.66,-0.56,0.82]},  // 5 methyl H
-              {el:'H',pos:[-2.66,-0.56,-0.82]}, // 6 methyl H
-              {el:'H',pos:[-1.07,1.14,0.77]},   // 7 methylene H
-              {el:'H',pos:[-1.07,1.14,-0.77]} ],// 8 methylene H
+      // Bond lengths are the STYLISED ones (C–C 1.85, C–O 1.90, O–H 1.55, C–H 1.50),
+      // not real Å. They have to exceed the sum of the two display radii or the
+      // spheres merge and hide the bond stick — water's O–H 1.55 vs radii 1.50 sets
+      // the convention. Angles are true tetrahedral (109.5°) / 105° at the hydroxyl.
+      // Origin sits at the heavy-atom centroid so the molecule spins about its middle.
+      atoms:[ {el:'C',pos:[-1.544,-0.183,0]},        // 0 methyl C
+              {el:'C',pos:[0.056,0.717,0]},          // 1 methylene C
+              {el:'O',pos:[1.487,-0.533,0]},         // 2 hydroxyl O
+              {el:'H',pos:[2.775,0.329,0]},          // 3 hydroxyl H (donor)
+              {el:'H',pos:[-1.634,-1.046,1.226]},    // 4 methyl H
+              {el:'H',pos:[-2.674,0.803,0]},         // 5 methyl H
+              {el:'H',pos:[-1.634,-1.046,-1.226]},   // 6 methyl H
+              {el:'H',pos:[0.145,1.578,1.226]},      // 7 methylene H
+              {el:'H',pos:[0.145,1.578,-1.226]} ],   // 8 methylene H
       bonds:[ [0,1],[1,2],[2,3],[0,4],[0,5],[0,6],[1,7],[1,8] ],
       sites:{ donors:[{atom:3}], acceptors:[{atom:2, lonePairs:2}] },
       hydrophobic:[0,1,4,5,6,7,8],
