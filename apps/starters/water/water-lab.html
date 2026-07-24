@@ -1036,7 +1036,7 @@ const chipsEl=document.getElementById('chips');
 function chip(txt,on,onClick){ const b=document.createElement('div');
   b.className='chip'+(on?' on':''); b.textContent=txt;
   b.onclick=()=>onClick(b); chipsEl.appendChild(b); return b; }
-function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>rad=Math.max(rad,w.position.length()));
+function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>{ if(!w.userData.escaped) rad=Math.max(rad,w.position.length()); });
   // skip any crystal still falling in from high above — it would balloon the fit
   // radius and make the whole view zoom out until it settles into the water
   salt.forEach(m=>{ if(!m.userData.descending) rad=Math.max(rad,m.position.length()); });
@@ -1235,6 +1235,12 @@ cardEl.addEventListener('click',e=>{
 })();
 
 /* ---------- main loop ---------- */
+// Evaporating molecules rise well above the cluster and fade out over a tall band
+// near the top before being recycled to the bottom, so they don't pop out abruptly.
+const EVAP_FADE_LO=12, EVAP_TOP=22;   // start fading at LO, fully gone (and recycled) at TOP
+function setMolOpacity(w,op){
+  w.traverse(o=>{ if(o.isMesh && o.material){ o.material.transparent=(op<1); o.material.opacity=op; } });
+}
 let wasFreezing=false, wasBoiling=false;
 function renderReadout(p,r,escaping){
   // bottom-left: just the counts, mirroring the mockup
@@ -1283,7 +1289,7 @@ function loop(){
   const r=sim.step({ showHbonds:S.hbondsOn && S.step>=1, hbScale:p.hbScale, hook:(w,i,f)=>{
     if(S.tempEnabled && p.kinetic>0) f.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(p.kinetic));
     if(p.fz>0 && w.userData.iceSite) f.add(new THREE.Vector3().subVectors(w.userData.iceSite,w.position).multiplyScalar(0.035*p.fz));
-    if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; } else { f.set(0,0.02,0); escaping++; } }
+    if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; setMolOpacity(w,1); } else { f.set(0,0.02,0); escaping++; } }
     else if(p.evapProb>0 && Math.random()<p.evapProb){ w.userData.escaped=true; releaseFromShell(w); }
     // escaping waters break free of the hydration shell (boiling leaves the salt behind)
     if(salt.length && !w.userData.escaped){
@@ -1298,8 +1304,13 @@ function loop(){
   }});
   if(p.fz>0.02) sim.mols.forEach(w=>{ if(w.userData.iceQuat) w.quaternion.slerp(w.userData.iceQuat,0.08*p.fz); });
   else if(salt.length) orientShells();
-  sim.mols.forEach(w=>{ if(w.userData.escaped && w.position.y>9){
-    w.position.set((Math.random()-.5)*4,-5,(Math.random()-.5)*4); w.userData.vel.set(0,0,0); w.userData.escaped=false; } });
+  sim.mols.forEach(w=>{ if(!w.userData.escaped) return;
+    if(w.position.y>=EVAP_TOP){   // faded out at the top → recycle back into the pool
+      w.position.set((Math.random()-.5)*4,-5,(Math.random()-.5)*4);
+      w.userData.vel.set(0,0,0); w.userData.escaped=false; setMolOpacity(w,1);
+    } else {                      // fade with height as it drifts up past the cluster
+      setMolOpacity(w, clamp((EVAP_TOP-w.position.y)/(EVAP_TOP-EVAP_FADE_LO),0,1));
+    } });
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
