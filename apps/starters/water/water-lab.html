@@ -213,7 +213,7 @@
 
     <div id="saltcard">
       <div class="sketchbox">
-        <span class="flabel">NaCl</span>
+        <span class="flabel" id="saltlabel" title="Click to switch salt" style="cursor:pointer">NaCl</span>
         <img src="molecule_salt.png" alt="salt">
       </div>
       <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
@@ -364,7 +364,7 @@ function recolorBondType(which,hex){
 // ---- cel outlines: an inflated back-face shell per atom (Debug ▸ Render) ----
 let outlinesOn=false;
 const _outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
-const OUTLINE_ROLES=['O','H','Na','Cl'];
+const OUTLINE_ROLES=['O','H','Na','Cl','K','C','N'];
 const OUTLINE_GAP=0.05;   // constant world-space thickness (not proportional to radius)
 // child scale is relative to the parent's radius, so divide the gap out to keep
 // the outline the same thickness on small H and large Cl alike
@@ -441,6 +441,28 @@ function water(){
   g.add(O,Ha,Hb);
   g.userData={O,Ha,Hb, oWorld:()=>O.getWorldPosition(new THREE.Vector3()),
     hWorld:i=>(i?Hb:Ha).getWorldPosition(new THREE.Vector3())};
+  return g;
+}
+
+// Generic molecule builder driven by a MolLib spec (atoms + bonds + sites).
+// Used for SOLUTE molecules (ethanol, ammonia, methane, CO₂…). Water keeps its
+// dedicated water() above because the H-bond/ice engine leans on oWorld/hWorld.
+// userData exposes each atom's world position plus the donor/acceptor site
+// indices, so the H-bond engine can later be pointed at a solute's polar sites.
+function buildMolecule(spec){
+  const g=new THREE.Group();
+  const P=MolLib.PALETTE;
+  const meshes=spec.atoms.map(a=>atom(state[a.el], P.radii[a.el]||0.7,
+    new THREE.Vector3(a.pos[0],a.pos[1],a.pos[2]), a.el));
+  (spec.bonds||[]).forEach(([i,j])=>g.add(bond(
+    new THREE.Vector3().fromArray(spec.atoms[i].pos),
+    new THREE.Vector3().fromArray(spec.atoms[j].pos))));
+  meshes.forEach(m=>g.add(m));
+  const wp=idx=>meshes[idx].getWorldPosition(new THREE.Vector3());
+  const sites=spec.sites||{donors:[],acceptors:[]};
+  g.userData={ spec, meshes, atomWorld:wp,
+    donors:(sites.donors||[]).map(d=>d.atom),
+    acceptors:(sites.acceptors||[]).map(a=>a.atom) };
   return g;
 }
 
@@ -687,18 +709,26 @@ const SHELL_N=6;                                    // octahedral coordination n
 const OCTA=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),
             new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),
             new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
-function addSalt(){
+let currentSalt='nacl';   // which ionic compound the + button adds (nacl | kcl)
+// display radius for an ion: Na/Cl stay tied to their live Debug sliders; any
+// other ion (e.g. K⁺) uses its own spec radius.
+function ionRadius(ion, specR){ return ion==='Na'?DBG.naRad : ion==='Cl'?DBG.clRad : specR; }
+function addSalt(specKey=currentSalt){
+  const spec=MolLib.MOLECULES[specKey];
+  const catDef=spec.dissociates.find(d=>d.charge>0);   // cation
+  const anDef =spec.dissociates.find(d=>d.charge<0);   // anion
+  const catR=ionRadius(catDef.ion,catDef.radius), anR=ionRadius(anDef.ion,anDef.radius);
   // drop the crystal in from above the cluster so it drifts down into the water
   let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
   const base=new THREE.Vector3((Math.random()-.5)*2, maxY+6, (Math.random()-.5)*2);
   // seat the pair at contact distance (surfaces just touching) so the spheres don't overlap
-  const half=(DBG.naRad+DBG.clRad)/2+0.05;
-  const na=atom(state.Na,DBG.naRad, base.clone().add(new THREE.Vector3(-half,0,0)),'Na');
-  const cl=atom(state.Cl,DBG.clRad,base.clone().add(new THREE.Vector3(half,0,0)),'Cl');
+  const half=(catR+anR)/2+0.05;
+  const na=atom(state[catDef.ion],catR, base.clone().add(new THREE.Vector3(-half,0,0)),catDef.ion);
+  const cl=atom(state[anDef.ion], anR, base.clone().add(new THREE.Vector3(half,0,0)), anDef.ion);
   // `descending` is per-ion so an already-settled crystal keeps its normal physics
   // (and its hydration shells) while a newly-added one is still falling in.
-  na.userData={role:'Na', charge:+1, vel:new THREE.Vector3(), rad:DBG.naRad, shellCount:0, descending:true};
-  cl.userData={role:'Cl', charge:-1, vel:new THREE.Vector3(), rad:DBG.clRad, shellCount:0, descending:true};
+  na.userData={role:catDef.ion, charge:catDef.charge, vel:new THREE.Vector3(), rad:catR, baseRad:catDef.radius, shellCount:0, descending:true};
+  cl.userData={role:anDef.ion,  charge:anDef.charge,  vel:new THREE.Vector3(), rad:anR,  baseRad:anDef.radius,  shellCount:0, descending:true};
   root.add(na,cl); salt.push(na,cl);
   // ionic bond, shown until water wedges the ions apart. `dissociated` is per-bond
   // so dropping a second crystal never resets the first back to a contact pair.
@@ -1078,6 +1108,10 @@ document.getElementById('addwater').onclick=addWater;
 document.getElementById('remwater').onclick=remWater;
 document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
 document.getElementById('clearsalt').onclick=()=>clearSalt();
+// click the formula label to switch which ionic compound the + button adds
+const saltLabelEl=document.getElementById('saltlabel');
+saltLabelEl.onclick=()=>{ currentSalt = currentSalt==='nacl'?'kcl':'nacl';
+  saltLabelEl.textContent=MolLib.MOLECULES[currentSalt].formula; };
 const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
 
 let cur=-1;
@@ -1148,7 +1182,7 @@ cardEl.addEventListener('click',e=>{
   ];
   // colour swatches: [key, label]. O/H/Na/Cl/covalent live in state/bondColor;
   // hb/ion are the shared bond materials.
-  const cols=[['O','Oxygen'],['H','Hydrogen'],['Na','Sodium  Na⁺'],['Cl','Chloride  Cl⁻'],
+  const cols=[['O','Oxygen'],['H','Hydrogen'],['Na','Sodium  Na⁺'],['Cl','Chloride  Cl⁻'],['K','Potassium  K⁺'],
     ['covalent','Covalent bond'],['hb','Hydrogen bond'],['ion','Ion–dipole bond'],
     ['eBond','Bonding electrons'],['eLone','Lone-pair electrons'],
     ['dNeg','δ− text'],['dPos','δ+ text']];
@@ -1216,7 +1250,7 @@ cardEl.addEventListener('click',e=>{
 
   // sim sliders
   const DEFAULTS=Object.assign({},DBG);
-  function applyRadii(){ salt.forEach(m=>{ const r=m.userData.charge>0?DBG.naRad:DBG.clRad;
+  function applyRadii(){ salt.forEach(m=>{ const r=ionRadius(m.userData.role, m.userData.baseRad);
     m.scale.setScalar(r); m.userData.rad=r;
     if(m.userData.outline) m.userData.outline.scale.setScalar(outlineScale(r)); }); }
   specs.forEach(([k])=>{ const s=panel.querySelector('#ds_'+k), v=panel.querySelector('#dv_'+k);
@@ -1259,7 +1293,7 @@ let wasFreezing=false, wasBoiling=false;
 function renderReadout(p,r,escaping){
   // bottom-left: just the counts, mirroring the mockup
   let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
-  if(salt.length) s+=`<br>${salt.length/2} NaCl dissolved`;
+  if(salt.length) s+=`<br>${salt.length/2} ${MolLib.MOLECULES[currentSalt].formula} dissolved`;
   statsEl.innerHTML=s;
   // handwritten phase descriptor beside the temperature readout
   if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);
@@ -1268,7 +1302,7 @@ function renderReadout(p,r,escaping){
     const na=salt.find(m=>m.userData.charge>0), cl=salt.find(m=>m.userData.charge<0);
     const fp=Math.round(-p.dTf), bp=Math.round(100+p.dTb);
     saltinfoEl.innerHTML=
-      `<b>${salt.length/2}</b> NaCl : <b>${sim.mols.length}</b> H₂O `
+      `<b>${salt.length/2}</b> ${MolLib.MOLECULES[currentSalt].formula} : <b>${sim.mols.length}</b> H₂O `
       +`<span class="muted">· ${p.molal.toFixed(1)} m molality</span>`
       +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
  //     +`Na⁺ <b>${na.userData.shellCount}/6</b> · Cl⁻ <b>${cl.userData.shellCount}/6</b>`
