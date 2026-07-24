@@ -13,17 +13,8 @@
 <style>
   :root{ --K:#0054c0; }
 
-  /* dissociation message keeps its own fade timing + the extra K+ color */
+  /* dissociation message the extra K+ color */
   #dissocmsg .K{color:var(--K)}
-  #dissocmsg.show{animation:dissocFade 3.4s ease-out forwards}
-
-  /* formula card uses a wobblier, smaller sketchbox than the shared default */
-  .sketchbox{width:104px;height:92px;border-radius:6px 10px 7px 9px}
-
-  /* solutes are added from the side-panel library, not a floating canvas card */
-
-  /* temperature readout sits inline here instead of being absolutely positioned */
-  #treadout{display:flex;flex-direction:column;gap:2px;min-width:120px}
 
   /* reaction-product card, bottom-right of the canvas — appears once the CO₂
      chain starts making new molecules (H₂CO₃ / HCO₃⁻ / H₃O⁺) */
@@ -41,51 +32,11 @@
   #productcard .prow.fresh{animation:pcpop .9s ease}
   @keyframes pcpop{0%{background:rgba(255,214,120,.55)}100%{background:transparent}}
 
-  /* save-PNG button keeps a slightly tighter radius than the shared default */
-  #savepng{border-radius:8px}
-
-  /* on-stage toggle chips (electron/charge/dipole/cloud + H-bonds) — this page
-     still uses the plain pill chip, not the layers-panel component */
-  .chip{font-size:12px;color:var(--muted);background:rgba(255,255,255,.5);border:1.5px solid var(--hair);
-    border-radius:16px;padding:4px 12px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
-  .chip:hover{border-color:var(--muted);color:var(--ink)}
-  .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-
-  /* ---------- molecule library (sandbox picker) ---------- */
-  #labtitle{margin:0 0 8px;font-family:var(--font-marker);font-weight:400;font-size:28px;line-height:1.12}
-  #labintro{margin:0 0 18px;font-family:var(--font-sans);font-size:15px;line-height:1.5;color:#3a352f}
-  #library{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
-  .libgroup{font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:1.2px;
-    text-transform:uppercase;color:var(--muted);margin-top:8px}
-  .libgroup:first-child{margin-top:0}
-  .molrow{display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;
-    border:1.5px solid var(--hair);border-radius:9px;background:rgba(255,255,255,.5);user-select:none}
-  .molrow:hover{border-color:var(--muted)}
-  .molrow.sel{border-color:var(--ink);background:rgba(255,255,255,.92);box-shadow:0 1px 0 var(--ink)}
-  .molrow .swatch{width:14px;height:14px;border-radius:50%;flex:none}
-  .molrow .mname{font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--ink)}
-  .molrow .mform{font-family:var(--font-slab);font-size:13px;color:var(--muted);margin-left:auto}
-  /* add / clear buttons under the picker */
-  #libactions{display:flex;gap:10px;align-items:center;margin-bottom:4px}
-  #libactions button{font-family:var(--font-slab);font-weight:600;font-size:14px;padding:9px 18px;
-    border-radius:9px;cursor:pointer;border:2px solid var(--ink)}
-  #addmol{background:var(--ink);color:var(--panel)}
-  #addmol:hover{background:#000}
-  #clearmol{background:transparent;color:var(--ink)}
-  #clearmol:hover{background:rgba(0,0,0,.05)}
-  #libactions button:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
-
-  /* #card here doesn't need min-height:0 (no footer/step nav below it) */
-  #card{flex:1;display:flex;flex-direction:column;}
-
   /* the carbonation equation — set on its own line so the reaction chain reads
      as a chemical statement rather than running into the prose */
   #card .rx{display:block;margin:10px 0;font-family:var(--font-slab);font-weight:700;
     font-size:15px;letter-spacing:.3px;color:#2f2a24}
   #card .fact{border-radius:0 8px 8px 0;font-size:14.5px}
-
-  /* lightbulb sticker sits closer in / smaller than the shared default here */
-  #card .factwrap .bulb{left:-46px;width:56px;height:56px}
 
 </style>
 </head>
