@@ -67,9 +67,11 @@
   /* NaCl card, bottom-center (step 5) */
   #saltcard{position:absolute;bottom:26px;right:28px;z-index:6;
     display:none;flex-direction:column;align-items:center;gap:8px}
-  #saltcard .clear{font-family:var(--font-hand);font-size:20px;color:var(--muted);
+  #solutecard{position:absolute;bottom:26px;right:150px;z-index:6;
+    display:none;flex-direction:column;align-items:center;gap:8px}
+  #saltcard .clear,#solutecard .clear{font-family:var(--font-hand);font-size:20px;color:var(--muted);
     cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-  #saltcard .clear:hover{color:var(--ink)}
+  #saltcard .clear:hover,#solutecard .clear:hover{color:var(--ink)}
 
   /* temperature slider, left (steps 3+) */
   #tempbar{position:absolute;left:34px;top:50%;transform:translateY(-50%);z-index:5;
@@ -218,6 +220,15 @@
       </div>
       <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
       <span class="clear" id="clearsalt">Clear Salt</span>
+    </div>
+
+    <div id="solutecard">
+      <div class="sketchbox">
+        <span class="flabel" id="solutelabel" title="Click to switch molecule" style="cursor:pointer">C₂H₅OH</span>
+        <div id="solutename" style="font-family:var(--font-hand);font-size:18px;color:var(--muted);display:flex;align-items:center;justify-content:center;height:100%;text-align:center;padding:0 4px">Ethanol</div>
+      </div>
+      <button class="addbtn" id="addsolute" title="Add molecule"><i class="ph-bold ph-plus"></i></button>
+      <span class="clear" id="clearsolute">Clear</span>
     </div>
   </div>
 
@@ -460,9 +471,12 @@ function buildMolecule(spec){
   meshes.forEach(m=>g.add(m));
   const wp=idx=>meshes[idx].getWorldPosition(new THREE.Vector3());
   const sites=spec.sites||{donors:[],acceptors:[]};
+  const bonds=spec.bonds||[];
+  // the heavy atom a donor H is bonded to (gives the O–H / N–H direction)
+  const parentOf=hi=>{ const b=bonds.find(([i,j])=>i===hi||j===hi); return b?(b[0]===hi?b[1]:b[0]):hi; };
   g.userData={ spec, meshes, atomWorld:wp,
-    donors:(sites.donors||[]).map(d=>d.atom),
-    acceptors:(sites.acceptors||[]).map(a=>a.atom) };
+    donors:(sites.donors||[]).map(d=>({h:d.atom, parent:parentOf(d.atom)})),
+    acceptors:(sites.acceptors||[]).map(a=>({atom:a.atom, cap:a.lonePairs||2})) };
   return g;
 }
 
@@ -934,6 +948,91 @@ function separateIonsFromWater(){
   });
 }
 
+/* ---- molecular (polar/nonpolar) solutes ----
+   Unlike salt, these dissolve WHOLE — no ions. Polar ones hydrate by
+   H-bonding to water through their donor/acceptor sites (–OH, N–H, lone
+   pairs); nonpolar ones just get excluded. Handled in a parallel system so
+   the delicate water–water H-bond engine (sim.step) is left untouched.     */
+const solutes=[];
+let currentSolute='ethanol';
+function addSolute(specKey=currentSolute){
+  const spec=MolLib.MOLECULES[specKey];
+  const g=buildMolecule(spec);
+  let maxY=0; sim.mols.forEach(w=>maxY=Math.max(maxY,w.position.y));
+  g.position.set((Math.random()-.5)*3, maxY+6, (Math.random()-.5)*3);
+  g.userData.vel=new THREE.Vector3(); g.userData.descending=true; g.userData.specKey=specKey;
+  root.add(g); solutes.push(g);
+}
+function clearSolutes(){ solutes.forEach(s=>root.remove(s)); solutes.length=0; clearSoluteHBonds(); }
+function updateSolutes(){
+  solutes.forEach(s=>{
+    if(s.userData.descending){   // fall in until it's genuinely surrounded by water
+      s.userData.vel.add(new THREE.Vector3(0,-0.012,0)).multiplyScalar(0.9);
+      s.position.add(s.userData.vel);
+      if(sim.mols.filter(w=>s.position.distanceTo(w.position)<3.5).length>=3) s.userData.descending=false;
+      return;
+    }
+    // pull toward the water centroid so the solute embeds in the cluster core
+    const wc=new THREE.Vector3(); sim.mols.forEach(w=>wc.add(w.position));
+    if(sim.mols.length) wc.multiplyScalar(1/sim.mols.length);
+    const f=new THREE.Vector3().subVectors(wc,s.position).multiplyScalar(0.02);
+    sim.mols.forEach(w=>{   // gentle water push so it embeds without overlapping
+      const dir=new THREE.Vector3().subVectors(s.position,w.position), dist=dir.length()||1;
+      const shell=1.9; if(dist<shell) f.addScaledVector(dir.multiplyScalar(1/dist),(shell-dist)*0.02);
+    });
+    const j=DBG.jitter; f.add(new THREE.Vector3((Math.random()-.5)*j,(Math.random()-.5)*j,(Math.random()-.5)*j));
+    s.userData.vel.add(f).multiplyScalar(0.9); s.position.add(s.userData.vel);
+    s.rotation.y+=0.004;   // slow tumble
+  });
+}
+// hard constraint: no water atom overlaps a solute atom sphere
+function separateSolutesFromWater(){
+  solutes.forEach(s=>{ if(s.userData.descending) return;
+    const atoms=s.userData.spec.atoms;
+    sim.mols.forEach(w=>{
+      const wAtoms=[[w.userData.oWorld(),WO_RAD],[w.userData.hWorld(0),WH_RAD],[w.userData.hWorld(1),WH_RAD]];
+      let pen=0, dir=null;
+      atoms.forEach((a,ai)=>{ const ap=s.userData.atomWorld(ai), arad=MolLib.PALETTE.radii[a.el]||0.7;
+        for(const [wp,wr] of wAtoms){ const d=new THREE.Vector3().subVectors(wp,ap), dist=d.length()||1, minD=arad+wr+0.06;
+          if(minD-dist>pen){ pen=minD-dist; dir=d.multiplyScalar(1/dist); } } });
+      if(dir) w.position.addScaledVector(dir,pen);
+    });
+  });
+}
+// ion–dipole-style hydration H-bonds between solute polar sites and water
+let soluteHbLines=[];
+function clearSoluteHBonds(){ soluteHbLines.forEach(l=>root.remove(l)); soluteHbLines=[]; }
+function addSoluteTube(a,b){ const l=hbondTube(a,b); root.add(l); soluteHbLines.push(l); }
+function pullTogether(s,w,target){   // spring solute & water centres toward a hydration separation
+  const ax=new THREE.Vector3().subVectors(w.position,s.position), dist=ax.length()||1;
+  ax.multiplyScalar((dist-target)*0.012/dist); s.userData.vel.add(ax); w.userData.vel.sub(ax);
+}
+function updateSoluteHBonds(){
+  clearSoluteHBonds();
+  if((S.fz||0)>0.3) return;                 // hidden while frozen
+  const thr=DBG.hbThreshold, TARGET=2.6;
+  solutes.forEach(s=>{ if(s.userData.descending) return;
+    // solute donor H → nearest aligned water O (water accepts)
+    s.userData.donors.forEach(d=>{
+      const h=s.userData.atomWorld(d.h), par=s.userData.atomWorld(d.parent);
+      let best=null,bestD=thr;
+      sim.mols.forEach(w=>{ const o=w.userData.oWorld(), dd=h.distanceTo(o);
+        if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,par).normalize(), ha=new THREE.Vector3().subVectors(o,h).normalize();
+          if(oh.dot(ha)>0.35){ best=w; bestD=dd; } } });
+      if(best){ addSoluteTube(h,best.userData.oWorld()); pullTogether(s,best,TARGET); }
+    });
+    // solute acceptor → nearest aligned water H (water donates)
+    s.userData.acceptors.forEach(a=>{
+      const ap=s.userData.atomWorld(a.atom);
+      let best=null,bestD=thr,bestH=null;
+      sim.mols.forEach(w=>{ for(let hi=0;hi<2;hi++){ const h=w.userData.hWorld(hi), dd=h.distanceTo(ap);
+        if(dd<bestD){ const oh=new THREE.Vector3().subVectors(h,w.userData.oWorld()).normalize(), ha=new THREE.Vector3().subVectors(ap,h).normalize();
+          if(oh.dot(ha)>0.35){ best=w; bestD=dd; bestH=h.clone(); } } } });
+      if(best){ addSoluteTube(bestH,ap); pullTogether(s,best,TARGET); }
+    });
+  });
+}
+
 /* ============================================================= *
  *  Temperature model (one continuum: cold → ice, hot → vapour)
  * ============================================================= */
@@ -1113,6 +1212,15 @@ const saltLabelEl=document.getElementById('saltlabel');
 saltLabelEl.onclick=()=>{ currentSalt = currentSalt==='nacl'?'kcl':'nacl';
   saltLabelEl.textContent=MolLib.MOLECULES[currentSalt].formula; };
 const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
+// molecular-solute card: cycle through the non-ionic library entries
+const soluteCycle=['ethanol','ammonia','methane','co2'];
+const soluteLabelEl=document.getElementById('solutelabel'), soluteNameEl=document.getElementById('solutename');
+const solutecardEl=document.getElementById('solutecard');
+function refreshSoluteCard(){ const m=MolLib.MOLECULES[currentSolute];
+  soluteLabelEl.textContent=m.formula; soluteNameEl.textContent=m.name; }
+soluteLabelEl.onclick=()=>{ currentSolute=soluteCycle[(soluteCycle.indexOf(currentSolute)+1)%soluteCycle.length]; refreshSoluteCard(); };
+document.getElementById('addsolute').onclick=()=>{ if(solutes.length<8) addSolute(); };
+document.getElementById('clearsolute').onclick=()=>clearSolutes();
 
 let cur=-1;
 const stepR=[8,18,20,24,20];
@@ -1130,6 +1238,8 @@ function applyStep(n){
   tempBar.style.display=S.tempEnabled?'flex':'none';
   formulaEl.style.display=n>=1?'flex':'none';       // add-water only once bonding starts
   saltcardEl.style.display=n>=4?'flex':'none';
+  solutecardEl.style.display=n>=4?'flex':'none';
+  if(n!==4 && solutes.length) clearSolutes();
   if(n===4) S.temperature=30;
   updateTempRange();
   S.targetR=Math.max(n===4?DBG.zoom:stepR[n], fitDistance());
@@ -1294,6 +1404,7 @@ function renderReadout(p,r,escaping){
   // bottom-left: just the counts, mirroring the mockup
   let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
   if(salt.length) s+=`<br>${salt.length/2} ${MolLib.MOLECULES[currentSalt].formula} dissolved`;
+  if(solutes.length) s+=`<br>${solutes.length} ${MolLib.MOLECULES[currentSolute].formula} dissolved`;
   statsEl.innerHTML=s;
   // handwritten phase descriptor beside the temperature readout
   if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);
@@ -1371,6 +1482,7 @@ function loop(){
       setMolOpacity(w, clamp((EVAP_TOP-w.position.y)/(EVAP_TOP-EVAP_FADE_LO),0,1));
     } });
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
+  if(solutes.length){ updateSolutes(); separateSolutesFromWater(); updateSoluteHBonds(); } else clearSoluteHBonds();
   renderReadout(p,r,escaping);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
