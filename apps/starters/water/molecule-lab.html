@@ -1083,6 +1083,10 @@ function updateSolutes(){
       s.position.add(s.userData.vel);
       if(sim.mols.filter(w=>s.position.distanceTo(w.position)<3.5).length>=3){
         s.userData.descending=false; showHydrateMsg(s.userData.specKey);   // it's in the water — say what didn't happen
+        // shimmer in sync with the toast, only for polar solutes (whose message
+        // is "water hydrogen-bonds to its polar group"). Nonpolar/reactive/product
+        // solutes are excluded: methane gets squeezed out, CO₂'s beat is the reaction.
+        if(MolLib.MOLECULES[s.userData.specKey].class==='polar') settleShimmer(s, 0x9fd4ff);
       }
       return;
     }
@@ -1431,16 +1435,6 @@ function updateSoluteHBonds(){
           if(oh.dot(ha)>0.35){ best=w; bestD=dd; bestH=h.clone(); } } } });
       if(best){ addSoluteTube(bestH,ap); pullToSite(s,best,ap,TARGET); s.userData.hbCount++; }
     });
-    // first time a polar solute LOCKS into a hydration shell — a gentle one-off
-    // shimmer. Gated on ≥2 bonds HELD for a handful of frames (not a fleeting
-    // touch), and skipped for CO₂/products, whose big moment is the reaction.
-    const u=s.userData, sp=MolLib.MOLECULES[u.specKey];
-    if(!u.settleShown && !sp.reactsTo && !sp.product){
-      u.settleFrames = (u.hbCount>=2) ? (u.settleFrames||0)+1 : 0;
-      // tinted to water's own blue — this is the hydration shell closing in,
-      // not a colour that belongs to the solute
-      if(u.settleFrames>=20){ u.settleShown=true; settleShimmer(s, 0x9fd4ff); }
-    }
   });
 }
 
