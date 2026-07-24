@@ -30,13 +30,81 @@
       hbond:     0x0042aa,   // hydrogen bond  — deep blue
       iondipole: 0xd9791e,   // ion–dipole bond — deep amber
     },
+    // default display radii (scene units, stylised — enlarged for legibility)
+    radii: { O:0.95, H:0.55, C:0.85, N:0.90, Na:0.70, Cl:1.24, K:0.85 },
   };
 
-  // ---- molecule library (populated in the next step) ------------------
-  // Each entry: { name, formula, class, atoms:[{el,pos}], bonds:[[i,j]],
-  //   sites:{donors,acceptors}, dissociates?, hydrophobic? }
-  // class ∈ 'solvent' | 'ionic' | 'polar' | 'nonpolar' | 'weak-acid'
-  const MOLECULES = {};
+  // ---- molecule library ----------------------------------------------
+  // Each entry:
+  //   name, formula
+  //   class    — 'solvent' | 'ionic' | 'polar' | 'nonpolar'
+  //   atoms    — [{el, pos:[x,y,z]}]  local positions (bond lengths are
+  //              stylised ~1.5–1.9, matching water's exaggerated O–H)
+  //   bonds    — [[i,j], …]  indices into atoms
+  //   sites    — { donors:[{atom}], acceptors:[{atom, lonePairs}] }
+  //              donor = a δ+ H that can point into water; acceptor = a
+  //              lone-pair-bearing atom water's H can point at. Drives the
+  //              H-bond engine for molecular (polar) solutes.
+  //   dissociates — ionic only: [{ion, charge, radius}] produced on dissolving
+  //   hydrophobic — indices of nonpolar atoms (tail), for the exclusion lesson
+  //
+  // Geometry notes: united-atom where a group is nonpolar filler (ethanol's
+  // CH3/CH2 are single C spheres); explicit H's where they carry the lesson.
+  const MOLECULES = {
+    water: {
+      name:'Water', formula:'H₂O', class:'solvent',
+      atoms:[ {el:'O',pos:[0,0,0]}, {el:'H',pos:[1.226,-0.948,0]}, {el:'H',pos:[-1.226,-0.948,0]} ],
+      bonds:[ [0,1],[0,2] ],
+      sites:{ donors:[{atom:1},{atom:2}], acceptors:[{atom:0, lonePairs:2}] },
+    },
+    nacl: {
+      name:'Salt', formula:'NaCl', class:'ionic',
+      dissociates:[ {ion:'Na', charge:+1, radius:0.70}, {ion:'Cl', charge:-1, radius:1.24} ],
+    },
+    kcl: {
+      name:'Potassium chloride', formula:'KCl', class:'ionic',
+      dissociates:[ {ion:'K', charge:+1, radius:0.85}, {ion:'Cl', charge:-1, radius:1.24} ],
+    },
+    ethanol: {
+      name:'Ethanol', formula:'C₂H₅OH', class:'polar',
+      // CH3–CH2–OH; the two carbons are united-atom (nonpolar tail), the
+      // hydroxyl O–H carries the H-bonding.
+      atoms:[ {el:'C',pos:[-2.3,-0.3,0]}, {el:'C',pos:[-1.0,0.4,0]},
+              {el:'O',pos:[0.2,-0.2,0]},  {el:'H',pos:[1.05,0.35,0]} ],
+      bonds:[ [0,1],[1,2],[2,3] ],
+      sites:{ donors:[{atom:3}], acceptors:[{atom:2, lonePairs:2}] },
+      hydrophobic:[0,1],
+    },
+    ammonia: {
+      name:'Ammonia', formula:'NH₃', class:'polar',
+      // trigonal pyramidal, lone pair up (+y); H's splay down at ~107°
+      atoms:[ {el:'N',pos:[0,0,0]},
+              {el:'H',pos:[1.391,-0.562,0]},
+              {el:'H',pos:[-0.695,-0.562,1.204]},
+              {el:'H',pos:[-0.695,-0.562,-1.204]} ],
+      bonds:[ [0,1],[0,2],[0,3] ],
+      sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[{atom:0, lonePairs:1}] },
+    },
+    methane: {
+      name:'Methane', formula:'CH₄', class:'nonpolar',
+      // tetrahedral; no polar sites → excluded by water (hydrophobic)
+      atoms:[ {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[0.866,0.866,0.866]}, {el:'H',pos:[0.866,-0.866,-0.866]},
+              {el:'H',pos:[-0.866,0.866,-0.866]}, {el:'H',pos:[-0.866,-0.866,0.866]} ],
+      bonds:[ [0,1],[0,2],[0,3],[0,4] ],
+      sites:{ donors:[], acceptors:[] },
+      hydrophobic:[0,1,2,3,4],
+    },
+    co2: {
+      name:'Carbon dioxide', formula:'CO₂', class:'nonpolar',
+      // linear O=C=O; symmetric so no net dipole → nonpolar. (The carbonation
+      // reaction to carbonic acid is a later behaviour, not modelled yet.)
+      atoms:[ {el:'C',pos:[0,0,0]}, {el:'O',pos:[1.9,0,0]}, {el:'O',pos:[-1.9,0,0]} ],
+      bonds:[ [0,1],[0,2] ],
+      sites:{ donors:[], acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2}] },
+      hydrophobic:[0,1,2],
+    },
+  };
 
   global.MolLib = { PALETTE, MOLECULES };
 })(this);
