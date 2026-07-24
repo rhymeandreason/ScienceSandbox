@@ -104,12 +104,21 @@
     display:inline-flex;align-items:center;gap:6px}
   #savepng:hover{background:var(--ink);color:var(--paper)}
 
-  /* on-stage toggle chips (electron/charge/dipole/cloud + H-bonds) */
+  /* on-stage toggle chips / layers panel */
   #chips{position:absolute;left:26px;bottom:150px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-  .chip{font-size:12px;color:var(--muted);background:rgba(255,255,255,.5);border:1.5px solid var(--hair);
-    border-radius:var(--radius);padding:4px 12px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
-  .chip:hover{border-color:var(--muted);color:var(--ink)}
-  .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .layer-panel{background:rgba(255,255,255,.85);backdrop-filter:blur(6px);border:1.5px solid var(--hair);
+    border-radius:var(--radius);box-shadow:0 4px 14px rgba(0,0,0,.08);overflow:hidden;min-width:175px}
+  .layer-panel-header{font-family:var(--font-slab);font-size:11px;font-weight:700;letter-spacing:.8px;
+    text-transform:uppercase;color:var(--muted);padding:7px 12px 5px;background:rgba(0,0,0,.03);border-bottom:1px solid var(--hair)}
+  .chip{font-size:13px;color:var(--ink);padding:6px 12px;cursor:pointer;user-select:none;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .15s, color .15s}
+  .chip:not(:last-child){border-bottom:1px solid rgba(0,0,0,.05)}
+  .chip:hover{background:rgba(0,0,0,.04)}
+  .chip .layer-name{display:flex;align-items:center;gap:6px}
+  .chip .eye-icon{font-size:16px;color:var(--muted);transition:color .15s}
+  .chip.on{background:rgba(43,39,35,.07);color:var(--ink);font-weight:600}
+  .chip.on:hover{background:rgba(43,39,35,.12)}
+  .chip.on .eye-icon{color:var(--ink)}
 
   /* ---------- right panel (torn grid paper) ---------- */
   #side{grid-column:2;position:relative;background:var(--panel);
@@ -1089,9 +1098,21 @@ function tempDescriptor(p){
 
 // on-stage toggle chips (step-1 detail toggles + hydrogen-bond visibility)
 const chipsEl=document.getElementById('chips');
-function chip(txt,on,onClick){ const b=document.createElement('div');
-  b.className='chip'+(on?' on':''); b.textContent=txt;
-  b.onclick=()=>onClick(b); chipsEl.appendChild(b); return b; }
+function chip(container,txt,on,onClick){
+  const b=document.createElement('div');
+  b.className='chip'+(on?' on':'');
+  b.innerHTML=`<span class="layer-name">${txt}</span><i class="ph-bold ${on?'ph-eye':'ph-eye-slash'} eye-icon"></i>`;
+  b.onclick=()=>{
+    const nextOn=onClick(b);
+    b.classList.toggle('on',nextOn);
+    const icon=b.querySelector('.eye-icon');
+    if(icon){
+      icon.className=`ph-bold ${nextOn?'ph-eye':'ph-eye-slash'} eye-icon`;
+    }
+  };
+  container.appendChild(b);
+  return b;
+}
 function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>{ if(!w.userData.escaped) rad=Math.max(rad,w.position.length()); });
   // skip any crystal still falling in from high above — it would balloon the fit
   // radius and make the whole view zoom out until it settles into the water
@@ -1108,10 +1129,15 @@ function outerPoint(margin=1.6){
 function buildControls(){
   chipsEl.innerHTML='';
   if(S.step===0){
-    chip('Lone Pairs',dset.electrons,b=>{dset.electrons=!dset.electrons;b.classList.toggle('on',dset.electrons);applyDetail();});
-    chip('Charges δ',dset.charge,b=>{dset.charge=!dset.charge;b.classList.toggle('on',dset.charge);applyDetail();});
-    chip('Dipole',dset.dipole,b=>{dset.dipole=!dset.dipole;b.classList.toggle('on',dset.dipole);applyDetail();});
-    chip('Electron cloud',dset.cloud,b=>{dset.cloud=!dset.cloud;b.classList.toggle('on',dset.cloud);applyDetail();});
+    const panel=document.createElement('div');
+    panel.className='layer-panel';
+    panel.innerHTML='<div class="layer-panel-header">Display Layers</div>';
+    chipsEl.appendChild(panel);
+
+    chip(panel,'Lone Pairs',dset.electrons,()=>{dset.electrons=!dset.electrons;applyDetail();return dset.electrons;});
+    chip(panel,'Charges δ',dset.charge,()=>{dset.charge=!dset.charge;applyDetail();return dset.charge;});
+    chip(panel,'Dipole',dset.dipole,()=>{dset.dipole=!dset.dipole;applyDetail();return dset.dipole;});
+    chip(panel,'Electron Cloud',dset.cloud,()=>{dset.cloud=!dset.cloud;applyDetail();return dset.cloud;});
   }
 }
 // water +/- (top formula card) and salt +/clear (bottom card)
