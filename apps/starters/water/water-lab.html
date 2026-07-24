@@ -1305,7 +1305,7 @@ function loop(){
   const r=sim.step({ showHbonds:S.hbondsOn && S.step>=1, hbScale:p.hbScale, hook:(w,i,f)=>{
     if(S.tempEnabled && p.kinetic>0) f.add(new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(p.kinetic));
     if(p.fz>0 && w.userData.iceSite) f.add(new THREE.Vector3().subVectors(w.userData.iceSite,w.position).multiplyScalar(0.035*p.fz));
-    if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; setMolOpacity(w,1); } else { f.set(0,0.02,0); escaping++; } }
+    if(w.userData.escaped){ if(p.evapProb<=0){ w.userData.escaped=false; setMolOpacity(w,1); } else { f.set(0,0.055,0); escaping++; } }
     // A molecule can only break free once it's lost most of its H-bonds: escape
     // chance falls off with how many bonds it still holds (last frame's tally), so
     // you see bonds break BEFORE a molecule leaves — the energy-of-vaporization story.
