@@ -4,6 +4,8 @@ Self-contained, browser-based 3D molecular simulations for AP Bio. Each lesson i
 one HTML page sharing a small set of modules. No build step, no framework — plain
 Three.js (r128, global style) + vanilla JS.
 
+Let the human test in the browser for visual changes, it's faster than taking screenshots.
+
 ## Pages (lessons)
 
 | Page | Lesson | Paradigm |
