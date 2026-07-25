@@ -373,6 +373,20 @@
     for(let k=0;k<3;k++) this.grow(p,'O',GL.PO,'sp3',0);
     return p;
   };
+  Skel.prototype.rotate=function(rx,ry,rz){
+    const cx=Math.cos(rx), sx=Math.sin(rx);
+    const cy=Math.cos(ry), sy=Math.sin(ry);
+    const cz=Math.cos(rz), sz=Math.sin(rz);
+    this.atoms.forEach(a=>{
+      let [x,y,z]=a.pos;
+      let y1=y*cx-z*sx, z1=y*sx+z*cx;
+      let x2=x*cy+z1*sy, z2=-x*sy+z1*cy;
+      let x3=x2*cz-y1*sz, y3=x2*sz+y1*cz;
+      a.pos=[x3,y3,z2];
+    });
+    return this;
+  };
+
   Skel.prototype.spec=function(extra){
     return Object.assign({ atoms:this.atoms, bonds:this.bonds }, extra);
   };
@@ -415,6 +429,8 @@
     g.hydroxyl(1,0); g.hydroxyl(2,0); g.hydroxyl(3,0); g.hydroxyl(4,0);
     const c6=g.grow(5,'C',GL.CC,'sp3',0); // C6, exocyclic
     g.hydroxyl(c6,0);
+    // Rotate to a clear 3D 3/4 chair perspective (ring face tilted towards camera)
+    g.rotate(1.05, 0.45, -0.2);
     GLYCOLYSIS.glucose=g.spec({ name:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',
       gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
             note:'β-D-glucopyranose — the ring form that dominates in water' } });
