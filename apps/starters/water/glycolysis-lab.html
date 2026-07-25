@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Glycolysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a; }
+
+  /* This page's side panel is the tallest in the sandbox (rail + prose + the
+     10-step list + footer). A grid row of `1fr` still floors at its content's
+     auto height, so the row grew past 100vh and #app's overflow:hidden ate the
+     bottom of BOTH columns — the reagent tray and the footer buttons vanished.
+     minmax(0,…) plus min-height:0 lets the row actually shrink; the prose then
+     scrolls inside .cardtext (which already has overflow-y:auto) instead. */
+  #app{grid-template-rows:minmax(0,1fr)}
+  #stage,#side{min-height:0}
+  #side{overflow:hidden}
+  /* …and the same story one level down: #card is flex:1 inside #side, but a flex
+     item's default min-height:auto still floors it at its content, so the card
+     shoved the footer off the bottom. min-height:0 lets it yield; .cardtext then
+     takes the overflow and scrolls. The footer must never be the thing that gives. */
+  #card{min-height:0}
+  footer{flex:none}
+
+  /* ---------- reaction toast, top-center of the stage ---------- */
+  #rxmsg{position:absolute;top:76px;left:50%;transform:translateX(-50%);
+    z-index:12;pointer-events:none;text-align:center;max-width:72%;opacity:0;
+    font-family:var(--font-hand);font-size:21px;color:var(--muted);letter-spacing:.2px;
+    background:rgba(255,255,255,.55);padding:8px 16px;border-radius:var(--radius)}
+  #rxmsg b{font-weight:600;color:var(--ink)}
+  #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
+  #rxmsg.show{animation:rxFade 4.6s ease-out forwards}
+  @keyframes rxFade{
+    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
+    7%{opacity:1;transform:translateX(-50%) translateY(0)}
+    84%{opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
+
+  /* ---------- the ledger: the whole point of the page ---------- */
+  /* Always visible, never resets. Students watch ATP dip below its start value
+     and climb back past it — that dip is the "investment phase" made physical. */
+  #ledger{position:absolute;left:26px;top:74px;z-index:6;min-width:186px;
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);
+    border-radius:8px 12px 9px 11px;padding:12px 14px 13px;
+    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #ledger .lhead{font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:1.3px;
+    text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  #ledger .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    font-family:var(--font-slab);font-size:14px;color:#4a443c;padding:2.5px 0}
+  #ledger .row .v{font-weight:700;font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+  #ledger .row.net{border-top:1.5px dashed var(--hair);margin-top:7px;padding-top:7px}
+  #ledger .row.net .v{font-size:20px;color:var(--atp)}
+  #ledger .row.carb{border-top:1.5px dashed var(--hair);margin-top:7px;padding-top:7px}
+  #ledger .row.carb .v{font-size:15px;color:var(--carbon);letter-spacing:.5px}
+  #ledger .bump{animation:bump .7s ease}
+  @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
+
+  /* ---------- reagent tray, bottom-center: the cell's pools ---------- */
+  #tray{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:7;
+    display:flex;gap:9px;align-items:flex-end}
+  .reag{position:relative;min-width:74px;padding:9px 12px 8px;cursor:default;
+    background:rgba(255,255,255,.66);border:1.5px solid var(--hair);border-radius:9px;
+    text-align:center;user-select:none;transition:transform .15s,border-color .15s,background .15s}
+  .reag .rname{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);line-height:1.1}
+  .reag .rname sub,.reag .rname sup{font-size:.68em}
+  .reag .rcount{font-family:var(--font-slab);font-weight:700;font-size:22px;line-height:1.15;
+    color:var(--ink);font-variant-numeric:tabular-nums}
+  .reag .rsub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--muted)}
+  .reag.empty .rcount{color:var(--hair)}
+  /* the reagent this step needs: lit, clickable, pulsing */
+  .reag.live{cursor:pointer;border-color:var(--ink);border-width:2.5px;background:rgba(255,255,255,.95);
+    box-shadow:0 0 0 4px rgba(224,123,31,.18);animation:reagPulse 1.9s ease-in-out infinite}
+  .reag.live:hover{transform:translateY(-3px) scale(1.04)}
+  @keyframes reagPulse{0%,100%{box-shadow:0 0 0 3px rgba(224,123,31,.14)}
+    50%{box-shadow:0 0 0 8px rgba(224,123,31,.05)}}
+  .reag .need{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
+  .reag.live .need{display:block}
+
+  /* the no-reagent action button (the split), same slot as the tray prompt */
+  #actbtn{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:8;display:none;
+    font-family:var(--font-slab);font-weight:700;font-size:15px;letter-spacing:.3px;
+    padding:11px 24px;border-radius:var(--radius);cursor:pointer;
+    border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
+    box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
+  #actbtn:hover{background:#000;transform:translateX(-50%) translateY(-2px)}
+  #actbtn .hint{display:block;font-family:var(--font-hand);font-weight:500;font-size:14px;
+    letter-spacing:0;opacity:.72;margin-top:1px}
+
+  /* ---------- right panel ---------- */
+  #labtitle .stageno{font-family:var(--font-slab);font-size:13px;font-weight:700;letter-spacing:1.4px;
+    text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+  #phase{font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:1.2px;
+    text-transform:uppercase;padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:12px}
+  #phase.invest{background:rgba(200,69,46,.13);color:#a8371f}
+  #phase.payoff{background:rgba(47,125,92,.14);color:#1f6146}
+  #phase.split{background:rgba(224,123,31,.15);color:#a4560e}
+
+  /* pathway rail — the 5 stages, with each one's bookkeeping delta */
+  #rail{display:flex;flex-direction:column;gap:0;margin:6px 0 18px}
+  .rstage{display:flex;gap:11px;align-items:flex-start;padding:7px 0;cursor:pointer;
+    border-top:1px solid rgba(0,0,0,.07)}
+  .rstage:first-child{border-top:none}
+  .rstage .rdot{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--hair);
+    background:var(--panel);font-family:var(--font-slab);font-weight:700;font-size:12px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted);margin-top:1px}
+  .rstage.done .rdot{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+  .rstage.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
+    box-shadow:0 0 0 3px rgba(43,39,35,.1)}
+  .rstage .rlab{font-family:var(--font-sans);font-size:14.5px;font-weight:600;color:var(--muted);line-height:1.3}
+  .rstage.cur .rlab,.rstage.done .rlab{color:var(--ink)}
+  .rstage .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);font-weight:700;font-size:12px;
+    color:var(--muted);white-space:nowrap;margin-top:2px}
+  .rstage.cur .rdelta{color:var(--phos)}
+  .rstage.future{opacity:.55}
+
+  #card .enz{font-family:var(--font-slab);font-size:13px;color:var(--muted);margin:0 0 12px}
+  #card .enz b{color:var(--ink);font-weight:700}
+  #card .rxn{font-family:var(--font-slab);font-weight:700;font-size:14.5px;color:var(--phos);
+    margin:0 0 14px;line-height:1.45}
+  #card .misc{font-size:13.5px;color:var(--muted)}
+
+  /* "show the real steps" — the honours escape hatch, off by default */
+  #realwrap{margin-top:auto;padding-top:14px;border-top:1.5px dashed var(--hair)}
+  #realtoggle{font-family:var(--font-slab);font-weight:700;font-size:12px;letter-spacing:.9px;
+    text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none;
+    display:flex;align-items:center;gap:6px}
+  #realtoggle:hover{color:var(--ink)}
+  #reallist{display:none;margin-top:10px;max-height:184px;overflow-y:auto}
+  #reallist.open{display:block}
+  #reallist .rs{display:flex;gap:9px;font-family:var(--font-slab);font-size:12.5px;
+    color:var(--muted);padding:3.5px 0;line-height:1.35}
+  #reallist .rs .n{flex:none;width:15px;text-align:right;font-weight:700}
+  #reallist .rs.here{color:var(--ink)}
+  #reallist .rs.here .n{color:var(--phos)}
+
+  footer{margin-top:14px}
+  #restart{background:transparent;color:var(--muted);border-color:var(--hair)}
+  #restart:hover{background:rgba(0,0,0,.04);color:var(--ink);border-color:var(--muted)}
+
+  /* ---------- the ending fork ---------- */
+  #fork{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:8;
+    display:none;gap:14px}
+  #fork .door{width:196px;padding:13px 15px;background:rgba(255,255,255,.8);
+    border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
+    box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
+  #fork .door .dh{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);margin-bottom:4px}
+  #fork .door .dh i{color:var(--muted);font-weight:500}
+  #fork .door .db{font-family:var(--font-sans);font-size:12.5px;line-height:1.45;color:#5a5346}
+
+  @media (max-width:920px){
+    #ledger{top:auto;bottom:96px;left:14px;min-width:0;padding:9px 11px}
+    #ledger .row{font-size:12.5px}
+    #tray{gap:6px;bottom:14px}.reag{min-width:56px;padding:7px 8px 6px}
+    #fork{flex-direction:column;bottom:150px}#fork .door{width:250px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="rxmsg" aria-live="polite"></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-flow-arrow"></i></span><h1>Glycolysis</h1></div>
+    <div id="ledger"></div>
+    <button id="actbtn"></button>
+    <div id="fork"></div>
+    <div id="tray"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+  <div id="side">
+    <h1 id="labtitle"></h1>
+    <div id="phase"></div>
+    <div id="rail"></div>
+    <div id="card"><div class="cardtext" id="cardtext"></div>
+      <div id="realwrap">
+        <div id="realtoggle"><i class="ph-bold ph-caret-right" id="realcaret"></i> Show the real 10 steps</div>
+        <div id="reallist"></div>
+      </div>
+    </div>
+    <footer>
+      <button id="restart">Restart</button>
+      <button id="next">Next</button>
+    </footer>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script>
+"use strict";
+/* =============================================================================
+ *  GLYCOLYSIS — glucose → 2 pyruvate, and where the ATP/NADH actually come from
+ * =============================================================================
+ *  PARADIGM: pathway. Not solvation (no water, no H-bond engine, no
+ *  electrostatics) and not assembly (nothing is being joined). The mechanic is
+ *  a scripted sequence of TRANSFORMATIONS plus a running LEDGER, so this page
+ *  shares only scene.js's bootstrap and fx.js's effects — see SCIENCE.md §11.
+ *
+ *  WHY 5 STAGES AND NOT 10: AP Bio (Topic 3.5) does not assess the ten enzymes
+ *  by name. It assesses the bookkeeping — 6C → 2×3C, net 2 ATP, 2 NADH, and the
+ *  fact that you must SPEND ATP before you make any. So the ten canonical steps
+ *  are grouped into the five events that change that bookkeeping, and the real
+ *  ten are one toggle away for whoever wants them (#reallist).
+ *
+ *  THE ×2 IS SHOWN, NEVER LABELLED. After the split, both three-carbon halves
+ *  stay on screen in parallel lanes and every later step visibly fires twice.
+ *  A "×2" caption is exactly the thing students drop on the exam.
+ *
+ *  DERIVED STATE, NOT MUTATED STATE. `done` (how many steps are complete) is
+ *  the only mutable state; species, pools and ledger are all pure functions of
+ *  it (speciesAt/poolAt/ledgerAt). That makes stepping BACKWARD free — rewind
+ *  just re-renders at a lower index instead of trying to invert a reaction.
+ * ========================================================================== */
+
+/* ---------- shared stage (scene.js) + effects (fx.js) ---------- */
+const canvas=document.getElementById('gl');
+let userSpun=false, userZoom=false;
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  cam:{theta:0.10,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
+  onDrag:()=>{userSpun=true;}, onZoom:()=>{userZoom=true;} });
+const FXi=FX.create(THREE,root,camera);
+const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+
+/* =============================================================
+ *  THE LESSON SCRIPT
+ * ============================================================= */
+
+// Cell pools. Chosen so the pools THEMSELVES demonstrate the net yield: ATP
+// starts at 4 and ends at 6 (net +2) after dipping to 2, and NAD⁺ runs to
+// exactly 0 — which is the setup for the fermentation fork at the end.
+const POOL0={ATP:4, ADP:4, NAD:2, NADH:0, Pi:2};
+
+const REAGENTS=[
+  {key:'ATP',  name:'ATP',   sub:'energy spent'},
+  {key:'ADP',  name:'ADP',   sub:'energy made'},
+  {key:'Pi',   name:'P<sub>i</sub>', sub:'free phosphate'},
+  {key:'NAD',  name:'NAD<sup>+</sup>',  sub:'empty carrier'},
+  {key:'NADH', name:'NADH',  sub:'loaded carrier'},
+];
+
+// One entry per user action. `species` is the resulting contents of the lanes,
+// so the lane count doubling at the split falls out of the data.
+const STEPS=[
+  { stage:1, reagent:'ATP', need:'Spend 1 ATP',
+    species:['g6p'], enz:'Hexokinase',
+    pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
+    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6. The ring opens — and the charged phosphate means glucose can no longer leave the cell.` },
+
+  { stage:1, reagent:'ATP', need:'Spend 1 more ATP',
+    species:['f16bp'], enz:'Phosphofructokinase (PFK)',
+    pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
+    msg:`A second <b>ATP</b> phosphorylates the far end. Both ends now carry a <span class="p">phosphate</span> — and the C=O has shifted to carbon 2.` },
+
+  { stage:2, reagent:null, need:'Cleave C3–C4',
+    act:'Snap the six-carbon chain', actHint:'aldolase cuts between C3 and C4',
+    species:['dhap','g3p'], enz:'Aldolase',
+    fx:'split',
+    msg:`Six carbons become <b>3 + 3</b>. Each half keeps one <span class="p">phosphate</span> — which is why two were paid in.` },
+
+  { stage:2, reagent:null, need:'Isomerise DHAP',
+    act:'Convert DHAP → G3P', actHint:'the two halves are not identical yet',
+    species:['g3p','g3p'], enz:'Triose-phosphate isomerase',
+    fx:'iso',
+    msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Now both lanes are identical — everything from here happens <b>twice</b>.` },
+
+  { stage:3, reagent:'NAD', need:'Load both NAD⁺',
+    species:['bpg13','bpg13'], enz:'G3P dehydrogenase',
+    pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
+    msg:`Each G3P is <b>oxidised</b> — it loses its H and 2 electrons to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol takes that spot. <b>No ATP was spent here.</b>` },
+
+  { stage:4, reagent:'ADP', need:'Charge 2 ADP',
+    species:['pga3','pga3'], enz:'Phosphoglycerate kinase',
+    pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
+    msg:`The high-energy <span class="p">phosphate</span> on carbon 1 is handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
+
+  { stage:4, reagent:'ADP', need:'Charge 2 more ADP',
+    species:['pyruvate','pyruvate'], enz:'Pyruvate kinase',
+    pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p3',
+    msg:`The last <span class="p">phosphate</span> goes to <b>ADP</b> too — <b>2 more ATP</b>. What is left is <b>pyruvate</b>: three carbons, no phosphate.` },
+];
+
+// The five stages. `delta` is the bookkeeping change students should be able to
+// recite for each one — it is printed on the rail whether or not they read the prose.
+const STAGES=[
+  { n:0, title:'Glucose', phase:null, label:'Start: one glucose', delta:'6 C',
+    body:`<p>One molecule of <b>glucose</b> — six carbons, and the cell's default fuel.
+      It is drawn here as the <b>ring</b> (pyranose) form, which is what it mostly
+      looks like dissolved in water.</p>
+      <p>Glycolysis will cut it in half and skim off a little energy. All of it happens
+      in the <b>cytosol</b>, and <b>none of it needs oxygen</b> — which is why this
+      pathway is shared by nearly everything alive.</p>
+      <p class="misc">Watch two numbers in the ledger: the <b>carbon count</b>, which
+      must never change, and <b>ATP</b>, which is about to go <i>down</i>.</p>` },
+
+  { n:1, title:'Investment', phase:'invest', label:'Priming: spend 2 ATP', delta:'−2 ATP',
+    body:`<p>To make energy, the cell first has to <b>spend</b> it. Two ATP go in,
+      one phosphate onto each end of the sugar.</p>
+      <p>Why bother? Two reasons. The <b>charge</b> traps the sugar inside the cell —
+      it can't slip back out through its transporter. And it makes the molecule
+      <b>unstable</b>, primed to be broken.</p>
+      <p class="misc">This is the step students forget on the exam. Glycolysis makes
+      <b>4</b> ATP but <i>nets</i> <b>2</b>, because of these two right here.</p>` },
+
+  { n:2, title:'The split', phase:'split', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
+    body:`<p>The six-carbon chain is cut clean between <b>carbon 3 and carbon 4</b>.
+      One molecule becomes <b>two</b>.</p>
+      <p>The first fragment is <b>DHAP</b>, the second is <b>G3P</b>. They aren't the
+      same molecule yet — so one gets rearranged into the other, leaving <b>two
+      identical G3P</b>.</p>
+      <p class="misc">This is where "glycolysis" gets its name: <i>glyco-</i> sugar,
+      <i>-lysis</i> splitting. From here on, every step happens <b>twice</b> — once
+      per lane. Nothing on screen will say "×2"; you'll just see both.</p>` },
+
+  { n:3, title:'Oxidation', phase:'payoff', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
+    body:`<p>Each G3P is <b>oxidised</b>: it loses two electrons and a hydrogen, and
+      <b>NAD⁺</b> catches them to become <b>NADH</b>. Two lanes, so <b>2 NADH</b>.</p>
+      <p>A <b>free phosphate</b> already floating in the cytosol fills the empty spot.
+      It did <b>not</b> cost an ATP — a very common misreading.</p>
+      <p class="misc">NADH is the real prize. Later, in the mitochondrion, each NADH
+      is worth roughly <b>2.5 ATP</b> — so this pathway's 2 NADH quietly outweigh
+      its 2 net ATP, <i>if</i> oxygen is around.</p>` },
+
+  { n:4, title:'Payoff', phase:'payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
+    body:`<p>Now the phosphates come back off — and each one is handed <b>directly</b>
+      to an ADP. Two phosphates per lane, two lanes: <b>4 ATP</b>.</p>
+      <p>This is <b>substrate-level phosphorylation</b>: an enzyme moves a phosphate
+      straight from a substrate onto ADP. No membrane, no gradient, no oxygen —
+      unlike the ATP synthase that does the bulk of the work later.</p>
+      <p class="misc">Count the phosphates leaving the screen. Four out, and every one
+      of them lands on an ADP.</p>` },
+
+  { n:5, title:'The tally', phase:null, label:'Tally & what comes next', delta:'net +2 ATP',
+    body:`<p>Two <b>pyruvate</b>. Six carbons in, six carbons out — nothing was lost,
+      it was cut in half and drained of a little energy.</p>
+      <p>Per glucose: <b>4 ATP made − 2 ATP spent = net 2 ATP</b>, plus <b>2 NADH</b>.
+      That's under 5% of the energy in the glucose. The rest is still locked up in
+      those two pyruvate.</p>
+      <p class="misc">Notice the ledger: <b>NAD⁺ is now 0</b>. Glycolysis cannot run
+      another round until NAD⁺ is regenerated — and <i>how</i> the cell does that is
+      exactly what the fork below is about.</p>` },
+];
+
+// The canonical ten, for the toggle. `stage` says which of our five covers it.
+const REAL_STEPS=[
+  {n:1, stage:1, t:'Glucose → G6P', e:'hexokinase', note:'spends ATP'},
+  {n:2, stage:1, t:'G6P → fructose-6-phosphate', e:'phosphoglucose isomerase'},
+  {n:3, stage:1, t:'F6P → fructose-1,6-bisphosphate', e:'phosphofructokinase', note:'spends ATP · main control point'},
+  {n:4, stage:2, t:'F1,6BP → DHAP + G3P', e:'aldolase'},
+  {n:5, stage:2, t:'DHAP → G3P', e:'triose-phosphate isomerase'},
+  {n:6, stage:3, t:'G3P → 1,3-BPG', e:'G3P dehydrogenase', note:'makes NADH · adds free Pi'},
+  {n:7, stage:4, t:'1,3-BPG → 3-phosphoglycerate', e:'phosphoglycerate kinase', note:'makes ATP'},
+  {n:8, stage:4, t:'3-PG → 2-phosphoglycerate', e:'phosphoglycerate mutase'},
+  {n:9, stage:4, t:'2-PG → phosphoenolpyruvate', e:'enolase', note:'releases water'},
+  {n:10,stage:4, t:'PEP → pyruvate', e:'pyruvate kinase', note:'makes ATP'},
+];
+
+/* =============================================================
+ *  DERIVED STATE — everything is a function of `done`
+ * ============================================================= */
+let done=0;                                   // how many STEPS are complete
+// `intro` is the one piece of state that ISN'T derived from `done`: at done=0 the
+// next action is already a stage-1 step, so without this flag the page would open
+// on "Investment" and the student would never meet glucose. It gates the reading,
+// not the chemistry — the tray stays dark until Begin is pressed.
+let intro=true;
+const nSteps=STEPS.length;
+const stepAt=i=>STEPS[i];                     // the step that runs NEXT at done=i
+const speciesAt=i=>i===0?['glucose']:STEPS[i-1].species;
+function poolAt(i){ const p=Object.assign({},POOL0);
+  for(let k=0;k<i;k++){ const d=STEPS[k].pool||{}; for(const q in d) p[q]+=d[q]; }
+  return p; }
+function ledgerAt(i){ const L={spent:0,made:0,nadh:0};
+  for(let k=0;k<i;k++){ const s=STEPS[k];
+    L.spent+=s.spent||0; L.made+=s.made||0; L.nadh+=s.nadh||0; }
+  return L; }
+// which stage the student is LOOKING at: the stage of the next step, or the
+// final tally stage once every step is done.
+const stageAt=i=>intro?0:(i>=nSteps?5:STEPS[i].stage);
+const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+M[k].gly.carbons,0);
+
+/* =============================================================
+ *  3D: lanes, labels, transitions
+ * ============================================================= */
+const LANE=5.6;                               // half-separation of the two lanes
+let lanes=[];                                 // [{g, key, label}] left→right
+let busy=false;                               // a transition is animating
+
+// Species name plates, drawn to canvas and billboarded as sprites. Kept in the
+// 3D scene rather than as HTML overlays so they orbit and scale WITH the
+// molecule they name — an HTML label would drift off its molecule on rotate.
+function makePlate(text, sub){
+  const c=document.createElement('canvas'), s=2;         // s = supersample
+  c.width=520*s; c.height=150*s;
+  const x=c.getContext('2d'); x.scale(s,s);
+  x.font='700 44px "Zilla Slab", Georgia, serif';
+  x.textAlign='center'; x.textBaseline='middle';
+  x.fillStyle='#2b2723'; x.fillText(text,260,44);
+  x.font='500 32px "Zilla Slab", Georgia, serif';
+  x.fillStyle='#8a8073'; x.fillText(sub||'',260,92);
+  const t=new THREE.CanvasTexture(c); t.anisotropy=4;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));
+  sp.scale.set(7.0,2.02,1); sp.renderOrder=9;
+  return sp;
+}
+
+function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
+
+// highest / lowest point of a spec including sphere radii — the specs vary from a
+// 5-unit ring to a 10-unit chain, and a phosphate can hang off either end
+function moleculeTop(spec){
+  return spec.atoms.reduce((m,a)=>Math.max(m,a.pos[1]+(PAL.radii[a.el]||0.7)),0); }
+function moleculeBottom(spec){
+  return spec.atoms.reduce((m,a)=>Math.min(m,a.pos[1]-(PAL.radii[a.el]||0.7)),0); }
+
+// Build one lane's molecule + name plate at slot i of n. `topY` is passed in
+// rather than derived per-molecule: DHAP carries its phosphate on C1 and G3P on
+// C3, so per-molecule plate heights differed by 3.3 units and the two lane labels
+// sat at visibly different heights — which reads as "these are different sizes".
+// One shared baseline keeps the lanes looking like a matched pair.
+function spawnLane(key,i,n,topY){
+  const spec=M[key];
+  const g=Stage.buildMolecule(spec);
+  g.position.set(laneX(i,n),0,0);
+  const long=spec.name.length>22;
+  const plate=makePlate(long?spec.formula:spec.name, long?spec.name:spec.formula);
+  plate.position.set(0, topY, 0);
+  g.add(plate);
+  root.add(g);
+  return {g,key,plate};
+}
+function clearLanes(){ lanes.forEach(l=>root.remove(l.g)); lanes=[]; }
+
+const PLATE_H=2.02, PLATE_GAP=1.5;
+const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP+PLATE_H/2;
+
+// ---- framing ---------------------------------------------------------------
+// ONE SCALE FOR THE WHOLE PATHWAY. Auto-fitting each state to the frame would
+// quietly zoom the two three-carbon halves back up to the size the six-carbon
+// molecule had — so the split would look like a rearrangement instead of a
+// halving. The camera distance is therefore solved ONCE, from the union of every
+// state from priming onward, and never changes again: pyruvate looks small
+// because it IS small. Only the intro gets its own closer framing, since a lone
+// glucose has nothing on screen to be compared against.
+//
+// It is solved from the SPECS plus the intended lane offsets rather than from a
+// live bounding box, because during the split the halves are still easing apart —
+// a measured bbox would fit the stacked pair and be wrong a frame later.
+const HALF_FOV=Math.tan(22.5*Math.PI/180);
+function fitFor(states){
+  let lo=0, hi=0, top=0, wide=0;      // lo/hi = atoms only · top = incl. name plate
+  states.forEach(keys=>{
+    const n=keys.length;
+    keys.forEach((k,j)=>{ const x=Math.abs(laneX(j,n));
+      M[k].atoms.forEach(a=>{ const r=PAL.radii[a.el]||0.7;
+        lo=Math.min(lo,a.pos[1]-r); hi=Math.max(hi,a.pos[1]+r);
+        wide=Math.max(wide, x+Math.abs(a.pos[0])+r); }); });
+    top=Math.max(top, plateY(keys)+PLATE_H/2);
+    wide=Math.max(wide, (n>1?LANE:0)+3.6);            // name plates are ~7 wide
+  });
+  // Centre on the MOLECULES, not on the molecules-plus-label: letting the plate
+  // pull the centre up shoved the molecule down into the reagent tray. The plate
+  // only gets a say in how far back the camera sits.
+  const Y=(lo+hi)/2;
+  const halfNeeded=Math.max(top-Y, Y-lo);
+  // aspect is NaN until the first ResizeObserver tick, so don't trust it blindly
+  const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
+  return { Y, R:Math.max(15, Math.min(52,
+    Math.max(halfNeeded/HALF_FOV, wide/(HALF_FOV*asp))*1.14)) };
+}
+let fitR=24, fitY=0;
+function computeFit(){
+  const intro0=fitFor([['glucose']]);
+  // every state from the first phosphorylation to the last pyruvate, unioned
+  const path=fitFor(STEPS.map(s=>s.species));
+  const f=(intro&&done===0)?intro0:path;
+  fitR=f.R; fitY=f.Y;
+}
+
+// Snap the scene to the state at index i, with no animation. Used by restart,
+// rewind, and as the settling half of every animated transition.
+function renderLanes(i){
+  clearLanes();
+  const keys=speciesAt(i), top=plateY(keys);
+  lanes=keys.map((k,j)=>spawnLane(k,j,keys.length,top));
+  computeFit();
+}
+
+const anchorWorld=(l,which)=>{
+  const idx=M[l.key].gly[which];
+  return idx==null? l.g.getWorldPosition(new THREE.Vector3())
+                  : l.g.userData.atomWorld(idx);
+};
+
+/* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
+// TIMERS, NOT FRAMES, ADVANCE THE LESSON.
+// requestAnimationFrame stops entirely in a backgrounded tab (README says so, and
+// document.hidden confirmed it). The first version of this page completed each
+// transition from INSIDE the fly animation's rAF callback — so switching tabs
+// mid-step left `busy` stuck true forever, the tray permanently dark and the
+// lesson unrecoverable without a reload. So: setTimeout owns every state change
+// (it still fires while hidden), and rAF owns only the pixels. Worst case a
+// hidden tab skips the animation and the student comes back to the finished step,
+// which is exactly the right failure mode.
+let timers=[];
+const later=(fn,ms)=>{ timers.push(setTimeout(fn,ms)); };
+const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[]; };
+
+const FLY=620, SPLIT=840, GLOW=0xffe0b0;
+const OFFSCREEN=8.5;    // where reagents come from / products go to, in world Y
+
+// A phosphate arcing in from the cytosol or out toward the tray. This is the
+// page's signature beat: the student should be able to SEE that the thing ATP
+// gives up and the thing ADP receives are the same object. Purely decorative —
+// it reports nothing back, and its cleanup is on a timer so a hidden tab can't
+// leak a stranded mesh into the scene.
+function flyPhosphate(from,to){
+  const p=Stage.atom(PAL.atoms.P, PAL.radii.P*0.8, from.clone(), 'P');
+  p.material=Stage.glowMat(PAL.atoms.P,1.6);
+  const r0=PAL.radii.P*0.8;
+  root.add(p);
+  const t0=performance.now();
+  (function fly(){
+    const k=Math.min((performance.now()-t0)/FLY,1), e=k*(2-k);   // ease-out
+    p.position.lerpVectors(from,to,e);
+    p.position.y+=2.6*Math.sin(k*Math.PI);                        // arc over the top
+    p.scale.setScalar(r0*(0.75+0.45*Math.sin(k*Math.PI)));
+    if(k<1) requestAnimationFrame(fly);
+  })();
+  later(()=>{ root.remove(p); p.material.dispose(); }, FLY+60);
+}
+
+// Where an atom of a not-yet-built species WILL be, so a reagent can fly to the
+// spot before the molecule carrying it exists. root is never transformed on this
+// page (the camera orbits instead), but localToWorld keeps that from mattering.
+function siteWorld(key,which,x){
+  const idx=M[key].gly[which], a=M[key].atoms[idx];
+  return root.localToWorld(V(a.pos[0]+x, a.pos[1], a.pos[2]));
+}
+
+/* =============================================================
+ *  RUNNING A STEP
+ * ============================================================= */
+function runStep(){
+  if(busy || intro || done>=nSteps) return;
+  const st=stepAt(done), to=done+1;
+  const keys=speciesAt(to), n=keys.length;
+  busy=true; refresh();                       // dim the tray for the duration
+  let dur=FLY;
+
+  if(st.fx==='in'){
+    // a phosphate flies in from the cytosol onto the site it is ABOUT to occupy
+    keys.forEach((key,j)=>{
+      const x=laneX(j,n), tp=siteWorld(key,st.anchor,x);
+      flyPhosphate(V(x,OFFSCREEN,0), tp);
+      later(()=>FXi.spawnRing(tp,PAL.atoms.P), FLY);
+    });
+
+  } else if(st.fx==='out'){
+    // each lane's phosphate flies OUT toward the tray, where an ADP catches it
+    lanes.forEach(l=>{
+      const src=anchorWorld(l,st.anchor);
+      FXi.spawnRing(src,PAL.atoms.P);
+      flyPhosphate(src, V(l.g.position.x,-OFFSCREEN,0));
+    });
+
+  } else if(st.fx==='ox'){
+    // two things at once, which is the whole lesson of this step: the H leaves
+    // UPWARD onto NAD⁺, and a free phosphate arrives from BELOW to fill the gap.
+    // Opposite directions, so it can't read as one swap.
+    lanes.forEach(l=>{
+      const hIdx=M[l.key].gly.aldehydeH;
+      const hPos=hIdx!=null? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3');
+      FXi.protonHop(hPos, V(l.g.position.x, OFFSCREEN, 0));
+      flyPhosphate(V(l.g.position.x,-OFFSCREEN,0), hPos);
+      later(()=>FXi.spawnRing(hPos,PAL.atoms.P), FLY);
+    });
+
+  } else if(st.fx==='split'){
+    // THE MONEY SHOT: flash at the C3–C4 bond, then the two halves part into lanes.
+    // Both halves are spawned at the centre and eased outward by the main loop, so
+    // the six carbons visibly become 3 + 3 rather than cutting to a new layout.
+    const l=lanes[0], cl=M[l.key].gly.cleave;
+    const mid=l.g.userData.atomWorld(cl[0]).add(l.g.userData.atomWorld(cl[1])).multiplyScalar(.5);
+    FXi.spawnRing(mid,PAL.atoms.P);
+    clearLanes();
+    const top=plateY(keys);
+    lanes=keys.map((k,j)=>{ const o=spawnLane(k,j,n,top);
+      o.g.position.set(0,0,0); o.g.userData.tx=laneX(j,n); return o; });
+    later(()=>{ done=to;                       // lanes already correct — don't respawn
+      // The parting is a rAF ease, so in a hidden tab it never ran; land them on
+      // their marks here so the two halves can't come back stacked on each other.
+      lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; FXi.popGlow(o.g,GLOW); });
+      busy=false; refresh(); flashMsg(st.msg); }, SPLIT);
+    return;
+
+  } else dur=280;                              // 'iso': a plain rearrangement
+
+  later(()=>{ done=to; renderLanes(to);
+    lanes.forEach(o=>FXi.popGlow(o.g,GLOW));
+    busy=false; refresh(); flashMsg(st.msg); }, dur);
+}
+
+function rewind(){
+  if(busy) return;
+  if(done===0){ intro=true; refresh(); return; }   // step back off stage 1 onto the intro
+  done--; renderLanes(done); refresh();
+}
+function restart(){ cancelTimers(); busy=false; done=0; intro=true;
+  renderLanes(0); refresh(); userSpun=false; userZoom=false; }
+
+/* =============================================================
+ *  UI
+ * ============================================================= */
+const rxmsgEl=document.getElementById('rxmsg');
+function flashMsg(html){ if(!html) return; rxmsgEl.innerHTML=html;
+  rxmsgEl.classList.remove('show'); void rxmsgEl.offsetWidth; rxmsgEl.classList.add('show'); }
+
+const ledgerEl=document.getElementById('ledger');
+let prevLedger=null;
+function drawLedger(){
+  const L=ledgerAt(done), net=L.made-L.spent, c=speciesAt(done).map(k=>M[k].gly.carbons);
+  const bumped=k=>prevLedger && prevLedger[k]!==L[k] ? ' bump':'';
+  ledgerEl.innerHTML=
+     `<div class="lhead">Running ledger</div>`
+    +`<div class="row"><span>ATP spent</span><span class="v${bumped('spent')}">${L.spent}</span></div>`
+    +`<div class="row"><span>ATP made</span><span class="v${bumped('made')}">${L.made}</span></div>`
+    // typographic minus, not a hyphen — "−2" is a quantity, and the dip to −2 is
+    // the single number this whole page is built to make land
+    +`<div class="row net"><span>Net ATP</span><span class="v">${net>0?'+':net<0?'−':''}${Math.abs(net)}</span></div>`
+    +`<div class="row"><span>NADH</span><span class="v${bumped('nadh')}">${L.nadh}</span></div>`
+    +`<div class="row carb"><span>Carbons</span><span class="v">${c.join(' + ')}${c.length>1?' = 6':''}</span></div>`;
+  prevLedger=L;
+}
+
+const trayEl=document.getElementById('tray');
+function drawTray(){
+  const pool=poolAt(done), st=(!intro&&done<nSteps)?stepAt(done):null;
+  trayEl.innerHTML='';
+  REAGENTS.forEach(r=>{
+    const live=!!st && st.reagent===r.key && !busy;
+    const d=document.createElement('div');
+    d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
+    d.innerHTML=(live?`<span class="need">${st.need} ↓</span>`:'')
+      +`<div class="rname">${r.name}</div>`
+      +`<div class="rcount">${pool[r.key]}</div>`
+      +`<div class="rsub">${r.sub}</div>`;
+    if(live) d.onclick=runStep;
+    trayEl.appendChild(d);
+  });
+}
+
+const actEl=document.getElementById('actbtn');
+function drawAct(){
+  const st=(!intro&&done<nSteps)?stepAt(done):null;
+  if(st && !st.reagent && !busy){
+    actEl.style.display='block';
+    actEl.innerHTML=`${st.act}<span class="hint">${st.actHint}</span>`;
+    actEl.onclick=runStep;
+  } else actEl.style.display='none';
+}
+
+const railEl=document.getElementById('rail');
+function drawRail(){
+  const cur=stageAt(done);
+  railEl.innerHTML='';
+  STAGES.forEach(s=>{
+    const cls=s.n<cur?'done':(s.n===cur?'cur':'future');
+    const d=document.createElement('div');
+    d.className='rstage '+cls;
+    d.innerHTML=`<div class="rdot">${s.n||'·'}</div><div class="rlab">${s.label}</div>`
+      +`<div class="rdelta">${s.delta}</div>`;
+    // clicking a completed stage rewinds to its first step — teachers re-show steps
+    d.onclick=()=>{ if(busy||s.n>cur) return;
+      const k=STEPS.findIndex(x=>x.stage===s.n);
+      intro=(s.n===0);
+      done=(s.n===0?0:(s.n===5?nSteps:(k<0?done:k)));
+      renderLanes(done); refresh(); };
+    railEl.appendChild(d);
+  });
+}
+
+const cardEl=document.getElementById('cardtext'), titleEl=document.getElementById('labtitle'),
+      phaseEl=document.getElementById('phase');
+function drawCard(){
+  const s=STAGES[stageAt(done)], st=(!intro&&done<nSteps)?stepAt(done):null;
+  titleEl.innerHTML=`<span class="stageno">${s.n?'Stage '+s.n+' of 5':'Starting point'}</span>${s.title}`;
+  phaseEl.textContent=s.phase==='invest'?'Investment phase'
+    :s.phase==='payoff'?'Payoff phase':s.phase==='split'?'The split':'';
+  phaseEl.className=s.phase||'';
+  phaseEl.style.display=s.phase?'inline-block':'none';
+  cardEl.innerHTML=(st?`<p class="enz">Next enzyme: <b>${st.enz}</b></p>`:'')+s.body;
+}
+
+const realListEl=document.getElementById('reallist');
+function drawReal(){
+  const cur=stageAt(done);
+  realListEl.innerHTML=REAL_STEPS.map(r=>
+    `<div class="rs${r.stage===cur?' here':''}"><span class="n">${r.n}</span>`
+    +`<span>${r.t} — <i>${r.e}</i>${r.note?` · ${r.note}`:''}</span></div>`).join('');
+}
+document.getElementById('realtoggle').onclick=()=>{
+  const open=realListEl.classList.toggle('open');
+  document.getElementById('realcaret').className='ph-bold ph-caret-'+(open?'down':'right');
+};
+
+const nextEl=document.getElementById('next');
+function drawFooter(){
+  // Next is a real button only for the intro gate. Every actual chemical step is
+  // driven from the stage — you click the reagent you're spending, or the cleave
+  // button — so the footer must not offer a second way to do it. It labels where
+  // the action is instead, and stays disabled.
+  if(intro){ nextEl.textContent='Begin →'; nextEl.disabled=false; return; }
+  if(done>=nSteps){ nextEl.textContent='Complete'; nextEl.disabled=true; return; }
+  const st=stepAt(done);
+  nextEl.textContent=busy?'…':(st.reagent?`Click ${st.reagent==='NAD'?'NAD⁺':st.reagent} ↙`:'Use the button ↙');
+  nextEl.disabled=true;
+}
+
+const forkEl=document.getElementById('fork');
+function drawFork(){
+  if(intro || done<nSteps){ forkEl.style.display='none'; return; }
+  forkEl.style.display='flex';
+  forkEl.innerHTML=
+     `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
+        <div class="db">Pyruvate enters the <b>mitochondrion</b> → Krebs cycle →
+        electron transport. ~30 more ATP per glucose.</div></div>`
+    +`<div class="door"><div class="dh">Without O₂ <i>— fermentation</i></div>
+        <div class="db">Pyruvate accepts the NADH's electrons instead, regenerating
+        <b>NAD⁺</b> so glycolysis can keep running. <b>No extra ATP.</b></div></div>`;
+}
+
+function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawCard();
+  drawReal(); drawFooter(); drawFork(); }
+
+nextEl.onclick=()=>{ if(intro){ intro=false; refresh(); } };
+document.getElementById('restart').onclick=restart;
+// keyboard: → advances whatever the current step is, ← rewinds
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
+    if(intro){ intro=false; refresh(); } else runStep(); }
+  if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
+});
+
+/* =============================================================
+ *  MAIN LOOP
+ * ============================================================= */
+function loop(){
+  // lanes ease toward their slots (used by the split, and after any respawn)
+  lanes.forEach(l=>{ if(l.g.userData.tx!=null)
+    l.g.position.x+=(l.g.userData.tx-l.g.position.x)*0.10; });
+  if(!userSpun) cam.theta+=0.0013;              // slow idle turn until grabbed
+  if(!userZoom) cam.r+=(fitR-cam.r)*0.05;        // ease to the computed framing
+  cam.target.y+=(fitY-cam.target.y)*0.06;        // …and re-centre vertically
+  applyCam(); FXi.step();
+  renderer.render(scene,camera); requestAnimationFrame(loop);
+}
+
+renderLanes(0); refresh(); applyCam(); resize();
+cam.target.y=fitY; cam.r=fitR; applyCam();      // open already framed, don't ease in
+requestAnimationFrame(loop);
+// the fit depends on camera.aspect, so it has to be redone whenever the stage
+// reshapes (window resize, or the sidebar stacking under it on a narrow screen)
+new ResizeObserver(computeFit).observe(canvas);
+// name plates are canvas text: redraw them once the webfont actually lands,
+// otherwise the first paint bakes the Georgia fallback into the texture
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>renderLanes(done));
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a'); a.download='glycolysis.png';
+  a.href=canvas.toDataURL('image/png'); a.click();
+};
+</script>
+</body>
+</html>

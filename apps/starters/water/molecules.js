@@ -25,6 +25,11 @@
       C:  0x3a3a3a,   // carbon   — charcoal
       N:  0x3f6ae0,   // nitrogen — blue
       S:  0xe0b93a,   // sulfur   — goldenrod (cysteine / methionine)
+      P:  0xe07b1f,   // phosphorus — orange (CPK). Deliberately the warmest atom
+                      // in the palette: in glycolysis the phosphate IS the energy
+                      // currency, so every P a student sees is "something ATP paid
+                      // for or will be paid back". No other lesson uses P, so it
+                      // can't be confused with sulfur's goldenrod.
     },
     bonds: {
       covalent:  0xb3a892,   // covalent stick — muted stone on cream
@@ -35,7 +40,7 @@
                              // ordinary covalent sticks within each residue
     },
     // default display radii (scene units, stylised — enlarged for legibility)
-    radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85 },
+    radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85, P:1.00 },
   };
 
   // ---- molecule library ----------------------------------------------
@@ -229,6 +234,282 @@
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
   };
+
+  /* =====================================================================
+   *  GLYCOLYSIS INTERMEDIATES  (glycolysis-lab.html)  — see SCIENCE.md §12
+   * =====================================================================
+   *  These specs are COMPUTED, not typed out. Every earlier molecule here is
+   *  small enough to hand-place, but a phosphorylated six-carbon sugar has
+   *  ~30 atoms and four tetrahedral centres per phosphate — hand coordinates
+   *  would be eyeballed, and SCIENCE.md's rule is that accuracy lives in the
+   *  coordinates. So geometry is generated from bond lengths + real VSEPR
+   *  angles by the tiny `Skel` builder below, and check-molecules.js audits
+   *  the result (no sphere overlaps, printed angles).
+   *
+   *  MODEL SIMPLIFICATIONS — all deliberate, all listed in SCIENCE.md §12:
+   *   1. C–H hydrogens are OMITTED on the carbon backbone. The lesson is
+   *      "where do the six carbons go", so the carbons must stay countable;
+   *      24 extra H's would bury them. The ONE exception is the aldehyde H on
+   *      G3P's C1 — that specific H is what gets oxidised onto NAD⁺, so it is
+   *      drawn. Hydroxyl O–H hydrogens are always drawn (they read as "–OH").
+   *   2. Double bonds (C=O, P=O) are drawn as SINGLE sticks — the shared
+   *      builder has no double-bond geometry. The carbonyl carbon's angles are
+   *      still built sp2/planar (120°), so the SHAPE is right even though the
+   *      stick count isn't.
+   *   3. After the first phosphorylation the sugar is drawn as an OPEN CHAIN,
+   *      the way every textbook draws glycolysis (Fischer projection), not as
+   *      the furanose ring F1,6-bisphosphate actually is in solution. Glucose
+   *      itself IS drawn as its real pyranose ring, and the ring visibly opens
+   *      during priming — glucose genuinely ring-opens and closes in water.
+   *      The open chain is what makes "six carbons in a row snap into 3 + 3"
+   *      legible, which is the whole reason this page exists.
+   *   4. Phosphate/carboxylate charges live in the labels and the ledger, not
+   *      in a force model — this page has no electrostatics (it is not the
+   *      solvation engine).
+   */
+
+  // Stylised bond lengths, same scale convention as everything above: each MUST
+  // exceed the sum of the two display radii or the spheres swallow the stick.
+  //   C+C 1.70 · C+O 1.80 · O+H 1.50 · O+P 1.95 · C+H 1.40
+  const GL = { CC:1.95, CO:1.95, OH:1.60, OP:2.10, PO:2.10, CH:1.60 };
+  const TET = 109.5, SP2 = 120;
+
+  const V  = (x,y,z)=>({x,y,z});
+  const vadd=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
+  const vsub=(a,b)=>V(a.x-b.x,a.y-b.y,a.z-b.z);
+  const vmul=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+  const vlen=a=>Math.hypot(a.x,a.y,a.z);
+  const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+  const vcross=(a,b)=>V(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
+  const rad=d=>d*Math.PI/180;
+
+  // ---- Skel: an atoms+bonds accumulator that knows VSEPR ----------------
+  // The point of it: you never state a substituent's position, you state which
+  // atom it hangs off and how it's hybridised. Directions come out of the
+  // geometry already committed, so angles are correct by construction and
+  // successive calls on the same atom automatically take the next free slot.
+  function Skel(){ this.atoms=[]; this.bonds=[]; }
+  Skel.prototype.put=function(el,p){ this.atoms.push({el,pos:[p.x,p.y,p.z]}); return this.atoms.length-1; };
+  Skel.prototype.at =function(i){ const p=this.atoms[i].pos; return V(p[0],p[1],p[2]); };
+  Skel.prototype.link=function(i,j){ this.bonds.push([i,j]); return this; };
+  Skel.prototype.nbrs=function(i){ const A=this.at(i);
+    return this.bonds.filter(b=>b[0]===i||b[1]===i)
+      .map(b=>vnorm(vsub(this.at(b[0]===i?b[1]:b[0]),A))); };
+
+  // any unit vector perpendicular to `a` (picks a seed axis that isn't parallel)
+  function perpTo(a){
+    let t=vcross(a,V(0,0,1));
+    if(vlen(t)<0.25) t=vcross(a,V(1,0,0));
+    return vnorm(t);
+  }
+  Skel.prototype.centroid=function(){
+    return vmul(this.atoms.reduce((s,a)=>vadd(s,V(a.pos[0],a.pos[1],a.pos[2])),V(0,0,0)),
+      1/(this.atoms.length||1));
+  };
+  // When an atom has only ONE bond so far, the correct bond ANGLE still leaves a
+  // free rotation about that bond — and picking that azimuth arbitrarily is how a
+  // phosphate ends up folded back through the carbon chain it hangs off (the first
+  // version of this file did exactly that; check-molecules.js caught it as a
+  // 1.5-unit C..O overlap). So: seed the cone so slot 0 points as far as possible
+  // AWAY from the centroid of everything already placed. Backbones are always
+  // built before their substituents, so "away from the centroid" means "out into
+  // open space", and groups splay outward instead of collapsing inward.
+  Skel.prototype.outwardAt=function(i,a){
+    const away=vsub(this.at(i), this.centroid());
+    const t=vsub(away, vmul(a, away.x*a.x+away.y*a.y+away.z*a.z));   // ⊥ component
+    return vlen(t)<0.05 ? perpTo(a) : vnorm(t);
+  };
+  // remaining sp3 bond directions at atom i, each `TET` from every existing bond
+  Skel.prototype.freeTet=function(i){
+    const nb=this.nbrs(i);
+    if(nb.length===0) return [V(0,1,0),V(0,-1,0)];
+    if(nb.length===1){
+      const a=nb[0], t=this.outwardAt(i,a), u=vnorm(vcross(a,t));
+      const c=Math.cos(rad(TET)), s=Math.sin(rad(TET));
+      return [0,1,2].map(k=>{ const ph=k*2*Math.PI/3;
+        return vnorm(vadd(vmul(a,c), vadd(vmul(t,s*Math.cos(ph)), vmul(u,s*Math.sin(ph))))); });
+    }
+    if(nb.length===2){
+      // the two open slots straddle the plane of the existing pair, opening away
+      // from it — the classic axial/equatorial pair on a ring carbon
+      const bis=vnorm(vmul(vadd(nb[0],nb[1]),-1)), p=vnorm(vcross(nb[0],nb[1]));
+      const h=rad(TET/2), c=Math.cos(h), s=Math.sin(h);
+      return [ vnorm(vadd(vmul(bis,c), vmul(p, s))), vnorm(vadd(vmul(bis,c), vmul(p,-s))) ];
+    }
+    return [ vnorm(vmul(nb.reduce(vadd,V(0,0,0)),-1)) ];   // 3 bonds → one slot left
+  };
+  // remaining sp2 (trigonal planar, 120°) directions — carbonyl + carboxylate carbons
+  Skel.prototype.freeSp2=function(i){
+    const nb=this.nbrs(i);
+    if(nb.length===1){
+      const a=nb[0], t=this.outwardAt(i,a);      // same outward rule as freeTet
+      const c=Math.cos(rad(SP2)), s=Math.sin(rad(SP2));
+      return [ vnorm(vadd(vmul(a,c), vmul(t,s))), vnorm(vadd(vmul(a,c), vmul(t,-s))) ];
+    }
+    return [ vnorm(vmul(nb.reduce(vadd,V(0,0,0)),-1)) ];
+  };
+  // hang one atom off atom i in its next free slot; `hyb` picks the geometry
+  Skel.prototype.grow=function(i,el,dist,hyb,slot){
+    const dirs=(hyb==='sp2'?this.freeSp2(i):this.freeTet(i));
+    const j=this.put(el, vadd(this.at(i), vmul(dirs[slot||0], dist)));
+    this.link(i,j); return j;
+  };
+
+  // ---- functional groups ------------------------------------------------
+  Skel.prototype.hydroxyl=function(i,slot){                 // –OH
+    const o=this.grow(i,'O',GL.CO,'sp3',slot);
+    this.grow(o,'H',GL.OH,'sp3',0);                         // C–O–H ≈ 109.5°
+    return o;
+  };
+  Skel.prototype.carbonyl=function(i,slot){                 // C=O (single stick)
+    return this.grow(i,'O',GL.CO,'sp2',slot);
+  };
+  // –O–PO₃²⁻ : a bridging ester O, then a tetrahedral P with three more O's.
+  // Returns the P index — the page uses it as the effect anchor, because the P
+  // is what visibly arrives from ATP and later leaves for ADP.
+  Skel.prototype.phosphate=function(i,slot){
+    const o=this.grow(i,'O',GL.CO,'sp3',slot);
+    const p=this.grow(o,'P',GL.OP,'sp3',0);
+    for(let k=0;k<3;k++) this.grow(p,'O',GL.PO,'sp3',0);
+    return p;
+  };
+  Skel.prototype.spec=function(extra){
+    return Object.assign({ atoms:this.atoms, bonds:this.bonds }, extra);
+  };
+
+  // ---- backbone scaffolds ----------------------------------------------
+  // Open carbon chain in the textbook orientation: C1 at the TOP, growing down
+  // −Y in a zig-zag through the real ~111° chain angle, all carbons in the z=0
+  // plane so substituents splay toward the viewer in ±z and the backbone stays
+  // readable head-on. Carbons land at indices 0…n−1 = C1…Cn.
+  function chainC(n){
+    const s=new Skel(), half=rad(111/2);
+    const dy=GL.CC*Math.sin(half), dx=GL.CC*Math.cos(half);
+    for(let k=0;k<n;k++){
+      s.put('C', V((k%2?dx:0)-dx/2, (n-1)*dy/2 - k*dy, 0));
+      if(k) s.link(k-1,k);
+    }
+    return s;
+  }
+  // β-D-glucopyranose ring: six-membered, O5 at index 0 then C1…C5 at 1…5, laid
+  // in the xz-plane with an alternating ±y pucker (the chair — a flat hexagon is
+  // as wrong for a pyranose as a linear water is for H₂O). C6 is exocyclic on C5.
+  function ringPyranose(){
+    const s=new Skel(), R=GL.CC;             // regular hexagon: side = circumradius
+    for(let k=0;k<6;k++){ const th=k*Math.PI/3;
+      s.put(k===0?'O':'C', V(R*Math.cos(th), (k%2?0.34:-0.34), R*Math.sin(th))); }
+    for(let k=0;k<6;k++) s.link(k,(k+1)%6);
+    return s;
+  }
+
+  // ---- the intermediates ------------------------------------------------
+  // `gly` is this page's metadata block (the analogue of `pep` on the amino
+  // acids): `cN` maps the biologist's carbon numbering onto atom indices, `p1`
+  // /`p3` are the phosphorus atoms (effect anchors), `cleave` is the bond
+  // aldolase breaks, and `carbons` is the count the ledger asserts on screen.
+  const GLYCOLYSIS = {};
+  {
+    // — glucose: the only ring on the page, and the only unphosphorylated sugar
+    const g=ringPyranose();
+    const C=[1,2,3,4,5];                  // ring C1…C5
+    g.hydroxyl(1,0); g.hydroxyl(2,0); g.hydroxyl(3,0); g.hydroxyl(4,0);
+    const c6=g.grow(5,'C',GL.CC,'sp3',0); // C6, exocyclic
+    g.hydroxyl(c6,0);
+    GLYCOLYSIS.glucose=g.spec({ name:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',
+      gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
+            note:'β-D-glucopyranose — the ring form that dominates in water' } });
+  }
+  {
+    // — glucose-6-phosphate: ring has opened to the aldose chain; P on C6.
+    //   Hexokinase's product, and the step that traps glucose inside the cell
+    //   (the phosphate's charge means it can't slip back out through GLUT).
+    const g=chainC(6);
+    g.carbonyl(0,0); g.grow(0,'H',GL.CH,'sp2',0);          // C1 aldehyde, incl. its H
+    for(let k=1;k<=4;k++) g.hydroxyl(k, k%2);              // C2…C5 –OH, alternating face
+    const p=g.phosphate(5,0);                              // C6 –O–PO₃
+    GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', formula:'C₆H₁₃O₉P²⁻', class:'sugar',
+      gly:{ carbons:6, cN:[0,1,2,3,4,5], p3:p, phosphates:1 } });
+  }
+  {
+    // — fructose-1,6-bisphosphate: both ENDS phosphorylated, and the carbonyl has
+    //   moved C1 → C2 (aldose → ketose). That shift is the isomerase step, shown
+    //   as a visible change rather than given its own stage.
+    const g=chainC(6);
+    const p1=g.phosphate(0,0);                             // C1 –O–PO₃
+    g.carbonyl(1,0);                                       // C2 ketone
+    for(let k=2;k<=4;k++) g.hydroxyl(k, k%2);              // C3…C5 –OH
+    const p6=g.phosphate(5,0);                             // C6 –O–PO₃
+    GLYCOLYSIS.f16bp=g.spec({ name:'Fructose-1,6-bisphosphate', formula:'C₆H₁₄O₁₂P₂⁴⁻', class:'sugar',
+      gly:{ carbons:6, cN:[0,1,2,3,4,5], p1, p3:p6, phosphates:2,
+            cleave:[2,3],           // aldolase cuts C3–C4 → DHAP (C1-3) + G3P (C4-6)
+            note:'drawn open-chain (Fischer) though it is really a furanose ring' } });
+  }
+  {
+    // — DHAP: the C1–C3 half of the cut. A ketose, so it is NOT yet a substrate
+    //   for the payoff phase; triose-phosphate isomerase converts it to G3P.
+    const g=chainC(3);
+    const p=g.phosphate(0,0);
+    g.carbonyl(1,0);
+    g.hydroxyl(2,1);
+    GLYCOLYSIS.dhap=g.spec({ name:'Dihydroxyacetone phosphate', formula:'C₃H₇O₆P²⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,2], p1:p, phosphates:1 } });
+  }
+  {
+    // — G3P: the C4–C6 half, renumbered C1–C3. The aldehyde H on C1 is drawn
+    //   because THAT is the hydrogen NAD⁺ takes in the next stage.
+    const g=chainC(3);
+    g.carbonyl(0,0); const h=g.grow(0,'H',GL.CH,'sp2',0);
+    g.hydroxyl(1,1);
+    const p=g.phosphate(2,0);
+    GLYCOLYSIS.g3p=g.spec({ name:'Glyceraldehyde-3-phosphate', formula:'C₃H₇O₆P²⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h } });
+  }
+  {
+    // — 1,3-BPG: G3P oxidised. The aldehyde H is gone (it left with 2e⁻ on NAD⁺)
+    //   and a phosphate from the cytosol has taken its place on C1. That C1
+    //   phosphate sits on an ACYL phosphate — the high-energy bond whose
+    //   hydrolysis pays for the first ATP. Nothing spent ATP to attach it.
+    const g=chainC(3);
+    g.carbonyl(0,0);
+    const p1=g.phosphate(0,1);                             // C1 acyl phosphate
+    g.hydroxyl(1,1);
+    const p3=g.phosphate(2,0);
+    GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', formula:'C₃H₈O₁₀P₂⁴⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1 } });
+  }
+  {
+    // — 3-phosphoglycerate: C1 phosphate handed to ADP, leaving a carboxylate.
+    //   Drawn ionised (–COO⁻), which is accurate at cytosolic pH ~7.2. (The
+    //   amino-acid page draws the neutral –COOH instead, because there the
+    //   leaving –OH has to be visible; here nothing leaves, so accuracy wins.)
+    const g=chainC(3);
+    g.carbonyl(0,0); g.grow(0,'O',GL.CO,'sp2',0);          // carboxylate: two O's
+    g.hydroxyl(1,1);
+    const p=g.phosphate(2,0);
+    GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', formula:'C₃H₆O₇P²⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, hot:p } });
+  }
+  {
+    // — pyruvate: the finish line. Three carbons, no phosphate left, and a
+    //   methyl at C3 as a united atom (same convention as alanine's –CH₃).
+    const g=chainC(3);
+    g.carbonyl(0,0); g.grow(0,'O',GL.CO,'sp2',0);          // C1 carboxylate
+    g.carbonyl(1,0);                                       // C2 ketone
+    GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', formula:'C₃H₃O₃⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true } });
+  }
+  {
+    // — inorganic phosphate (Pi), the free phosphate already dissolved in the
+    //   cytosol. Students routinely assume the second phosphate on 1,3-BPG cost
+    //   an ATP; it did not, it came from here, so Pi is drawn as its own species.
+    const s=new Skel(); s.put('P',V(0,0,0));
+    [[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].forEach(d=>{
+      s.link(0, s.put('O', vmul(vnorm(V(d[0],d[1],d[2])), GL.PO))); });
+    s.grow(1,'H',GL.OH,'sp3',0);
+    GLYCOLYSIS.pi=s.spec({ name:'Inorganic phosphate', formula:'HPO₄²⁻', class:'ion',
+      gly:{ carbons:0, phosphates:1, free:true } });
+  }
+  Object.assign(MOLECULES, GLYCOLYSIS);
 
   global.MolLib = { PALETTE, MOLECULES };
 })(this);

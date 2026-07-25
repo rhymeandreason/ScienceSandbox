@@ -6,6 +6,10 @@ Three.js (r128, global style) + vanilla JS.
 
 Let the human test in the browser for visual changes, it's faster than taking screenshots.
 
+Try to model scientific accuracy, especially when building atoms and molecules. 
+Spheres should never intersect.
+
+
 ## Pages (lessons)
 
 | Page | Lesson | Paradigm |
@@ -13,6 +17,7 @@ Let the human test in the browser for visual changes, it's faster than taking sc
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly |
+| `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway |
 
 ## Shared modules
 
@@ -87,3 +92,6 @@ so an automated screenshot may freeze on the last painted frame. Verify logic by
 driving the page's functions directly rather than trusting a single screenshot.
 
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
+
+## Later
+glycolysis-lab ending fork — pyruvate ×2 sitting there, two doors: O₂ present → Krebs, absent → fermentation. Not built; it's the hook to the next lesson.
