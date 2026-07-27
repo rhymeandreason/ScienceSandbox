@@ -71,6 +71,16 @@ All-equatorial is what makes glucose the most stable of the 16 aldohexoses, and
 is a large part of why the pathway is built around it rather than a sibling
 sugar. It is a chemical claim, so it gets asserted like one.
 
+**A real record is not a guarantee — your transform can destroy what you fetched
+it for.** PubChem supplied correct L-amino acids; the converter shipped D. Its
+reframe negated one output component to aim the side chain at −Y, and negating a
+single component of an orthonormal basis is a **reflection**, not a rotation, so
+every stereocentre inverted. Bond lengths, every bond angle, and the render are
+identical in a mirror, so nothing caught it — the specs were committed, reviewed
+and rendered before a signed-volume calculation found it. Keep the basis
+right-handed (`e3 = e1 × e2`), flip the *axis* rather than the output, and let
+`chirality:'L'` assert the result.
+
 `Skel` has **no general chirality model**. Glucose works because all-equatorial
 is expressible as a geometric rule ("pick the slot most perpendicular to the ring
 axis"). A sugar needing a *specific* mixed pattern — galactose differs from
@@ -372,6 +382,12 @@ New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` onc
   the H-bond donors and the leaving groups, so hiding them would hide the lesson.
   The toggle flips visibility only; it must not rebuild, or it would resurrect the
   –OH and –H that a peptide bond already consumed.
+- **Handedness: L, and asserted.** Life builds proteins from L-amino acids only;
+  the D- mirror images exist but ribosomes don't use them. Each chiral residue
+  declares `chirality:'L'` and `check-molecules.js` verifies the signed volume
+  over CIP priorities. Glycine is the exception and declares nothing — its side
+  chain is an H, so its α-carbon has two identical substituents and it is
+  achiral, which is also why it is the most conformationally flexible residue.
 - **Model simplifications (keep explicit):** residues are drawn in the **neutral**
   –NH₂/–COOH form, not the physiological **zwitterion** (–NH₃⁺/–COO⁻); this makes
   the "lose a water" bookkeeping legible but is a display choice. Each residue stays a

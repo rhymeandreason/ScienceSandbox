@@ -86,11 +86,17 @@ function reindex(m){
 function reframe(m){
   const P = m.atoms.map(a=>a.pos);
   const Ca = P[3], N = P[0], Cc = P[5], R = P[9] || P[4];
+  // The basis MUST stay right-handed. Projecting onto an orthonormal (e1,e2,e3)
+  // is a rotation and preserves chirality; negating a single output component to
+  // aim the side chain at -Y is a REFLECTION, and silently turns every L-amino
+  // acid into its D- mirror image. (It did exactly that, and nothing caught it:
+  // bond lengths, every angle, and the render are all identical in a mirror.)
+  // So flip the AXIS and rebuild e3 from it, keeping e3 = e1 x e2 throughout.
   const e1 = norm(sub(Cc, N));                       // backbone N->C  => +X
   let w = sub(R, Ca);
   w = sub(w, e1.map(c=>c*dot(w,e1)));
-  const e2 = norm(w);                                // side chain     => -Y
-  const e3 = cross(e1, e2);                          //                => +Z(ish)
+  const e2 = norm(w).map(c=>-c);                     // side chain     => -Y
+  const e3 = cross(e1, e2);                          // right-handed by construction
   // optH: hydrogens the "show extra H" toggle may hide. Only NONPOLAR C-H
   // qualifies — an H on N/O/S is an H-bond DONOR and carries the lesson, so it
   // is never optional. Matches the H-omission policy in SCIENCE.md 12.
@@ -101,7 +107,7 @@ function reframe(m){
   return {
     atoms: m.atoms.map(a=>{
       const v = sub(a.pos, Ca);
-      return { el:a.el, pos:[ dot(v,e1)*SCALE, -dot(v,e2)*SCALE, dot(v,e3)*SCALE ]
+      return { el:a.el, pos:[ dot(v,e1)*SCALE, dot(v,e2)*SCALE, dot(v,e3)*SCALE ]
                              .map(x=>+x.toFixed(3)) };
     }),
     bonds: m.bonds.map(b=>b[2]===1?[b[0],b[1]]:[b[0],b[1],b[2]]),

@@ -26,6 +26,13 @@
  *  declare `stereo:'all-equatorial'` (β-D-glucopyranose, the arrangement that
  *  makes glucose the most stable hexose) and this asserts it; otherwise the
  *  pattern is printed for eyeballing.
+ *
+ *  And it audits L/D HANDEDNESS, the same class of error one level worse: a
+ *  mirror image has identical lengths, identical angles, and an identical
+ *  render. The PubChem converter shipped D-amino acids because its reframe
+ *  negated one output component — a reflection, not a rotation — and nothing
+ *  noticed until someone thought to compute a signed volume. Specs declare
+ *  `chirality:'L'`.
  * ===================================================================== */
 'use strict';
 
@@ -98,7 +105,7 @@ function ringNormal(ring, P) {
   return unit(n);
 }
 
-let failures = 0, warnings = 0, stereoFails = 0;
+let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0;
 
 for (const [key, mol] of Object.entries(MOLECULES)) {
   if (!mol.atoms) continue;            // ionic entries carry no geometry
@@ -148,6 +155,30 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- α-carbon handedness (L vs D) -----------------------------------
+  // A mirror image has identical bond lengths, identical bond angles and an
+  // identical-looking render — so nothing above can see it. The converter
+  // shipped D-amino acids for exactly this reason: its reframe negated one
+  // output component, which is a reflection, not a rotation. Life is
+  // homochiral (L-amino acids), so specs declare it and we check the sign of
+  // the signed volume over CIP priorities N > C(carboxyl) > R > H.
+  if (mol.chirality && mol.pep) {
+    const CA_IDX = 3, R_IDX = 9;         // fixed backbone order, see molecules.js
+    const Ca = P(CA_IDX);
+    const v1 = sub(P(mol.pep.nN), Ca), v2 = sub(P(mol.pep.cC), Ca), v3 = sub(P(R_IDX), Ca);
+    const vol = dot3(cross(v1, v2), v3);
+    const actual = vol > 0 ? 'L' : 'D';
+    if (actual !== mol.chirality) {
+      chiralFails++;
+      console.log(`   CHIRALITY FAIL: spec declares ${mol.chirality}- but geometry is ${actual}-`
+        + ` (signed volume ${vol.toFixed(2)})`);
+      console.log(`     A mirrored frame inverts this and changes NOTHING else —`);
+      console.log(`     check the converter's basis is right-handed (e3 = e1 x e2).`);
+    } else {
+      console.log(`   chirality OK: ${actual}- as declared (signed volume ${vol.toFixed(2)})`);
+    }
+  }
+
   // ---- ring stereochemistry -------------------------------------------
   // Wrong configuration is invisible to every check above: lengths, angles and
   // the render all stay perfect while the molecule is a different sugar. So
@@ -192,12 +223,13 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails) {
+if (failures || stereoFails || chiralFails) {
   const parts = [];
   if (failures) parts.push(`${failures} overlapping pair(s)`);
   if (stereoFails) parts.push(`${stereoFails} ring(s) with wrong stereochemistry`);
+  if (chiralFails) parts.push(`${chiralFails} mirrored stereocentre(s) (L/D)`);
   console.log(`FAIL: ${parts.join(' + ')}`);
   process.exit(1);
 }
-console.log(`PASS: no sphere overlaps, ring stereochemistry as declared`
+console.log(`PASS: no sphere overlaps; ring stereochemistry and L/D as declared`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));
