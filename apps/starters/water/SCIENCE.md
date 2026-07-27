@@ -21,6 +21,38 @@ principle:
   *angle* and *bent shape* must stay correct. If a length is exaggerated, say so
   in a comment rather than implying it's to scale.
 
+### Where geometry comes from
+
+Three sources, and the choice is not about how "complex" a molecule looks. The
+question is whether its shape follows from **one or two known constants** or
+**emerges from many coupled constraints**.
+
+1. **Hand-written** — small molecules defined by a known angle, where the spec
+   doubles as teaching material in its comments. Water (104.5°), methane (109.5°),
+   ammonia (~107°), CO₂ (linear), the small ions. These are verifiably right today;
+   don't churn them, and don't trade their readable annotated layout for an opaque
+   coordinate block.
+2. **Generated from a real record** (`tools/sdf2spec.js`, PubChem 3D) — branching
+   skeletons, conformational freedom, or more than a handful of coordinates to
+   type. The amino acids. The cost is real: generated specs are unreadable numbers
+   carrying a "regenerate, don't hand-edit" warning, so only pay it when hand
+   placement would actually drift.
+3. **Generated from VSEPR** (`Skel` in `molecules.js`) — the glycolysis
+   intermediates. First-principles derivation rather than a database, so it also
+   covers the charged species PubChem has no 3D conformer for (bicarbonate,
+   pyruvate, HPO₄²⁻), and it produces the deliberate flat Fischer-projection
+   layout the lesson wants. Don't "upgrade" these to PubChem — it's a downgrade.
+
+**The failure mode to watch for** is not complexity, it's a *scene* requirement
+quietly outranking the chemistry. The old amino-acid specs were laid out so a
+peptide chain would line up neatly along +X, and the α-carbon ended up at 180° —
+a straight line through a tetrahedral centre. Whenever a layout is serving the
+camera or the animation rather than the molecule, assume it has drifted and check.
+
+Whatever the source, run `check-molecules.js`. It caught a double bond that was
+correctly tagged but rendered as nothing, which reading the spec would never
+reveal.
+
 ## 2. Polarity & charge
 
 - Oxygen is **more electronegative** → it carries the partial negative charge
@@ -36,6 +68,19 @@ principle:
   tetrahedral-ish). Both lone pairs must be shown when depicting O's electrons.
 - Bonding pairs sit **closer to O** than to H (electronegativity), consistent with
   the δ−/δ+ story.
+- **Double bonds are drawn as two sticks, never one.** A spec's bond entry carries
+  an optional third element — the bond order — so `[i,j,2]` renders as a pair of
+  thinner cylinders. Every C=O in the library is tagged: CO₂, carbonic acid,
+  bicarbonate, the amino-acid carboxyls, and the glycolysis carbonyls.
+- **Where the pair is splayed matters.** For a molecule with a neighbouring bond,
+  the offset direction is derived from the plane those two bonds define, so both
+  sticks read head-on. A **linear** molecule (CO₂) has no such plane, so the
+  fallback deliberately offsets *across* the view rather than toward the camera —
+  otherwise one stick hides exactly behind the other and a double bond reads as
+  single from the default angle.
+- **P=O stays a single stick, on purpose.** In phosphate the charge is delocalised
+  over the oxygens; doubling one of them would assert a localisation that isn't
+  there. Same reasoning as drawing bicarbonate's two bare O's identically.
 
 ## 4. Hydrogen bonds
 
@@ -107,9 +152,18 @@ Every "special property" lesson should visibly connect to hydrogen bonding:
   invisible and get occluded. Render bonds that need to be *seen* as thin
   cylinders/tubes, not lines.
 - Prefer **real computed coordinates** over hand-placed approximations for any
-  crystal/lattice/geometry claim.
+  crystal/lattice/geometry claim. Where a real record exists, convert it
+  (`tools/sdf2spec.js`) instead of eyeballing numbers — the amino acids carried
+  impossible bond angles for as long as they were hand-written.
 - Keep pedagogical exaggerations (enlarged bonds, spacing for legibility)
   **explicit in comments** so they aren't mistaken for to-scale facts.
+- **Mixed conventions are fine, but label them.** The amino acids are real 3D
+  conformers; the water/solute and glycolysis specs are still hand-built, flat
+  (z=0), and use united-atom methyls (ethanol, and the `Skel` builder's sugars).
+  Don't assume a spec's style from its neighbours — check the comment above it.
+- A stick only shows if the bond is **longer than the two display radii combined**.
+  This is a rendering constraint, not chemistry, and it is why lengths get scaled
+  up. `check-molecules.js` is the guard.
 
 ---
 
@@ -213,11 +267,26 @@ New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` onc
   *consumed*): here water is *released*, and the readout counts one water per bond.
 - **Peptide bond colour:** slate violet (`#6a5acd`, `PALETTE.bonds.peptide`), drawn
   thicker than the stone covalent sticks so the backbone link reads as distinct.
+- **Geometry is generated, not hand-placed** (`tools/sdf2spec.js`). The four
+  residue specs are converted from PubChem 3D records, so the angles are real —
+  the α-carbon is tetrahedral (~109°), where the earlier hand-written specs drew
+  N–Cα–C at 180° and N–Cα–H at 90°, which no carbon does. Unlike the flat z=0
+  layouts elsewhere in `molecules.js`, these are **genuinely non-planar**.
+  Re-generate rather than hand-editing the numbers.
+- **One global scale, not per-bond fudging.** Display radii here are enlarged for
+  legibility, so true Ångström coordinates bury every stick inside its two
+  spheres. A single 1.9× factor clears them all while keeping *relative* bond
+  lengths truthful. Run `check-molecules.js` after any geometry change — it fails
+  on merged spheres, which is exactly the bug that hid the carboxyl C=O.
+- **Hydrogens: all present, C–H hideable.** The specs carry every real hydrogen;
+  `spec.optH` lists the nonpolar C–H's that the lab's "show C–H hydrogens" toggle
+  hides (`Stage.setOptionalH`). An H on N/O/S is **never** in `optH` — those are
+  the H-bond donors and the leaving groups, so hiding them would hide the lesson.
+  The toggle flips visibility only; it must not rebuild, or it would resurrect the
+  –OH and –H that a peptide bond already consumed.
 - **Model simplifications (keep explicit):** residues are drawn in the **neutral**
   –NH₂/–COOH form, not the physiological **zwitterion** (–NH₃⁺/–COO⁻); this makes
-  the "lose a water" bookkeeping legible but is a display choice. Methyl side
-  chains are united-atom single C spheres (as ethanol's are). Bond lengths are
-  stylised for legibility; angles/topology carry the lesson. Each residue stays a
+  the "lose a water" bookkeeping legible but is a display choice. Each residue stays a
   separate group linked by a redrawn peptide stick — so a chain is N groups, not
   one merged molecule (no claim of a single rigid conformation).
 

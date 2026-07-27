@@ -39,14 +39,20 @@ Loaded **in this order**, before each page's own `<script>`:
 - **`scene.js`** — `Stage.create(canvas, opts)` returns
   `{scene, camera, renderer, root, cam, applyCam, resize}` (renderer/scene/camera/
   orbit/lights/resize boilerplate). Also a clean builder: `Stage.buildMolecule`,
-  `Stage.atom/bond`, `Stage.removeAtoms`. Zoom/drag side-effects go through
-  `onZoom(r)` / `onDrag()` hooks.
+  `Stage.atom/bond`, `Stage.removeAtoms`, `Stage.setOptionalH`. Zoom/drag
+  side-effects go through `onZoom(r)` / `onDrag()` hooks.
+  `Stage.bond` takes a bond **order** — `[i,j,2]` in a spec draws a double bond as
+  a pair of sticks. `setOptionalH` shows/hides the nonpolar C–H's a spec lists in
+  `optH` (visibility only, so it never resurrects reaction-removed atoms).
 - **`fx.js`** — `FX.create(THREE, root, camera)` returns transient reaction effects
   (`spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, …) + `step()` (call once
   per frame in your loop). Purely cosmetic.
 - **`sandbox.css`** — the shared sketchbook look (cream paper, torn-edge panel,
   fonts, `#app` grid, stage/side-panel chrome). Page-specific rules go in the
   page's own `<style>` after this link.
+- **`tools/sdf2spec.js`** — converts a PubChem 3D record into a `MolLib` spec, so
+  geometry is derived rather than guessed. The amino acids are generated this way;
+  regenerate them instead of hand-editing coordinates. See `tools/README.md`.
 
 ## Architecture principle: **share the plumbing, not the physics**
 
@@ -61,7 +67,8 @@ their **own** molecule builder (cel outlines, Debug recolour/toon, hydration
 
 1. Copy the head (fonts/icons + `sandbox.css` + the four scripts) and the `#app`
    grid skeleton from `aminoacid-lab.html` (the simplest page).
-2. Add any new molecules to `molecules.js`.
+2. Add any new molecules to `molecules.js` — prefer generating the geometry with
+   `tools/sdf2spec.js` over typing coordinates, then run `check-molecules.js`.
 3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
    then `const FXi=FX.create(THREE,root,camera);`
 4. Build molecules with `Stage.buildMolecule(spec)` (assembly pages) **or** a
@@ -86,8 +93,11 @@ Pages load sibling scripts, so `file://` won't work — serve the folder:
 python3 -m http.server 8817     # then open http://localhost:8817/water-lab.html
 ```
 
-`check-molecules.js` prints computed bond angles for the specs (a geometry sanity
-check). Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —
+`check-molecules.js` prints computed bond angles for every spec and **exits
+FAIL if any bonded pair's spheres merge** — a merged pair means the stick is
+buried inside the atoms and simply won't be visible, which is how a double bond
+can be correctly tagged yet render as nothing. Run it after any geometry change.
+Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —
 so an automated screenshot may freeze on the last painted frame. Verify logic by
 driving the page's functions directly rather than trusting a single screenshot.
 

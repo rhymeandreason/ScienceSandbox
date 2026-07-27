@@ -182,6 +182,21 @@
     return {scene,camera,renderer,root,cam,applyCam,resize};
   }
 
+  // Show/hide a spec's OPTIONAL hydrogens — the nonpolar C–H's listed in
+  // spec.optH. Unlike removeAtoms this only flips `visible`, so it is fully
+  // reversible and does not disturb atoms a REACTION has already removed (the
+  // peptide bond deletes the leaving –OH and one amino H; a rebuild would
+  // resurrect them). An H on N/O/S is never in optH: those are the H-bond
+  // donors, so hiding them would hide the lesson.
+  function setOptionalH(g,show){
+    const spec=g.userData.spec, opt=spec&&spec.optH;
+    if(!opt||!opt.length) return;
+    const set=new Set(opt);
+    opt.forEach(i=>{ const m=g.userData.atomMeshes[i]; if(m) m.visible=show; });
+    g.userData.bondMeshes.forEach(bm=>{
+      if(bm.userData.pair.some(p=>set.has(p))) bm.visible=show; });
+  }
+
   global.Stage={ create, setToon, atomMat, bondMat, glowMat, atom, bond,
-    buildMolecule, removeAtoms, Rsphere, get toon(){return toon;} };
+    buildMolecule, removeAtoms, setOptionalH, Rsphere, get toon(){return toon;} };
 })(this);

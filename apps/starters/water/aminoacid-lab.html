@@ -32,6 +32,8 @@
     padding:11px 15px 12px;min-width:172px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
   #seqcard .pchead{font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:1.3px;
     text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  #libactions{flex-wrap:wrap}
+  #htoggle{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.75;cursor:pointer;flex-basis:100%}
   #seqcard .chain{display:flex;flex-wrap:wrap;align-items:center;gap:3px;font-family:var(--font-slab)}
   #seqcard .rescode{font-weight:700;font-size:15px;color:var(--ink);padding:2px 7px;border-radius:5px;
     background:rgba(106,90,205,.12)}
@@ -68,6 +70,7 @@
     <div id="libactions">
       <button id="addmol">Add to chain</button>
       <button id="clearmol">Clear</button>
+      <label id="htoggle"><input type="checkbox" id="showh"> show C–H hydrogens</label>
     </div>
     <div id="card"><div class="cardtext" id="cardtext"></div></div>
   </div>
@@ -134,6 +137,7 @@ function refreshCard(){
 /* ---------- chain state + peptide-bond reaction ---------- */
 const SPACING=8.8;            // residue-to-residue backbone pitch (peptide bond ≈2.6)
 const chain=[];              // residue groups, N-terminus → C-terminus
+let showH=false;             // nonpolar C–H visibility (spec.optH), user-toggled
 const peptideBonds=[];       // {a,b} residue pairs linked by an amide bond
 const debris=[];             // released water molecules drifting away
 let rxShown=0;
@@ -151,6 +155,7 @@ function addResidue(key){
   // enter from the right + above, then drift to its slot (lerped in loop)
   g.position.set(targetX(i)+7,5,0);
   g.userData.tx=targetX(i);
+  Stage.setOptionalH(g,showH);        // honour the toggle for residues added later
   root.add(g); chain.push(g);
   if(chain.length>=2) condense(chain[chain.length-2],g);
   reflowTargets();
@@ -206,6 +211,12 @@ function clearChain(){
 
 document.getElementById('addmol').onclick=()=>addResidue(selected);
 document.getElementById('clearmol').onclick=clearChain;
+// The specs carry every real hydrogen (they come from PubChem 3D records), but
+// the nonpolar C–H's are clutter for the peptide lesson, so they start hidden.
+// Only visibility is flipped — the N–H and O–H that the reaction consumes are
+// never in optH, so toggling can't interfere with a chain already built.
+document.getElementById('showh').onchange=e=>{
+  showH=e.target.checked; chain.forEach(g=>Stage.setOptionalH(g,showH)); };
 
 /* ---------- readouts ---------- */
 const statsEl=document.getElementById('stats'), seqEl=document.getElementById('seqcard');

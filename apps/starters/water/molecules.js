@@ -197,40 +197,88 @@
     // elsewhere (must exceed the two display radii so the stick shows).
     // Zwitterion form is skipped on purpose — the neutral –NH₂/–COOH makes the
     // "lose a water" bookkeeping legible; note this is a display simplification.
+    // ---- generated from PubChem 3D records (see tools/sdf2spec.js) --------
+    // Coordinates are REAL conformers: correct angles (Ca is tetrahedral, ~110°,
+    // not the 180° the old hand-written specs drew) and genuinely non-planar,
+    // unlike the flat z=0 layouts elsewhere in this file. One global 1.9x scale
+    // is applied so every stick clears the enlarged display radii — relative
+    // bond lengths stay truthful, which the old per-pair guesses did not.
+    // Bond ORDERS come straight from the SDF bond block, so the carboxyl C=O
+    // is tagged [i,j,2] without anyone having to notice it by hand.
+    // Re-generate rather than hand-editing these numbers.
     glycine: {
       name:'Glycine', formula:'C₂H₅NO₂', class:'aminoacid', res:'Gly', side:'–H',
-      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
-              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
-              {el:'H',pos:[0,-1.8,0]} ],   // 9 R = H (glycine's side chain is just H)
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9] ],
+      atoms:[ {el:'N',pos:[-2.225,0.942,-1.34]},
+              {el:'H',pos:[-2.194,2.878,-1.394]},
+              {el:'H',pos:[-2.195,0.34,-3.18]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[-0.006,0.705,1.954]},
+              {el:'C',pos:[2.341,0.942,-1.34]},
+              {el:'O',pos:[2.294,2.285,-3.239]},
+              {el:'O',pos:[4.526,0.214,-0.179]},
+              {el:'H',pos:[6.032,0.873,-1.056]},
+              {el:'H',pos:[-0.002,-2.077,0]} ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8] ],
+      optH:[4,9],   // nonpolar C–H, hidden by the lab’s H toggle
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     alanine: {
       name:'Alanine', formula:'C₃H₇NO₂', class:'aminoacid', res:'Ala', side:'–CH₃',
-      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
-              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
-              {el:'C',pos:[0,-2.0,0]} ],   // 9 R = CH₃ (united-atom methyl)
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9] ],
+      atoms:[ {el:'N',pos:[-2.227,0.979,1.339]},
+              {el:'H',pos:[-3.836,0.37,0.449]},
+              {el:'H',pos:[-2.301,0.234,3.127]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[-0.008,0.747,-1.942]},
+              {el:'C',pos:[2.35,0.979,1.339]},
+              {el:'O',pos:[2.398,2.292,3.255]},
+              {el:'O',pos:[4.479,0.213,0.095]},
+              {el:'H',pos:[6.029,0.833,0.924]},
+              {el:'C',pos:[-0.054,-2.893,0]},
+              {el:'H',pos:[1.547,-3.668,-1.082]},
+              {el:'H',pos:[-1.802,-3.612,-0.87]},
+              {el:'H',pos:[0.076,-3.662,1.931]} ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12] ],
+      optH:[4,10,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     serine: {
       name:'Serine', formula:'C₃H₇NO₃', class:'aminoacid', res:'Ser', side:'–CH₂OH',
-      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
-              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
-              {el:'C',pos:[0,-2.0,0]}, {el:'O',pos:[1.3,-3.35,0]}, {el:'H',pos:[2.55,-3.05,0]} ],   // R = CH₂OH
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9],[9,10],[10,11] ],
+      atoms:[ {el:'N',pos:[-2.216,0.977,1.36]},
+              {el:'H',pos:[-2.211,0.344,3.191]},
+              {el:'H',pos:[-2.143,2.91,1.44]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[-0.013,0.749,-1.943]},
+              {el:'C',pos:[2.345,0.977,1.36]},
+              {el:'O',pos:[2.545,1.381,3.639]},
+              {el:'O',pos:[4.272,1.35,-0.317]},
+              {el:'H',pos:[5.813,1.976,0.524]},
+              {el:'C',pos:[-0.047,-2.899,0]},
+              {el:'O',pos:[2.112,-3.833,-1.336]},
+              {el:'H',pos:[-1.759,-3.637,-0.924]},
+              {el:'H',pos:[0.036,-3.669,1.932]},
+              {el:'H',pos:[2.018,-3.186,-3.064]} ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[10,13] ],
+      optH:[4,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     cysteine: {
       name:'Cysteine', formula:'C₃H₇NO₂S', class:'aminoacid', res:'Cys', side:'–CH₂SH',
-      atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
-              {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
-              {el:'C',pos:[0,-2.0,0]}, {el:'S',pos:[1.5,-3.6,0]}, {el:'H',pos:[2.95,-3.25,0]} ],   // R = CH₂SH (the S)
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9],[9,10],[10,11] ],
+      atoms:[ {el:'N',pos:[-2.223,1.021,1.326]},
+              {el:'H',pos:[-2.255,2.949,1.148]},
+              {el:'H',pos:[-3.839,0.374,0.477]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[-0.03,0.703,-1.962]},
+              {el:'C',pos:[2.347,1.021,1.326]},
+              {el:'O',pos:[2.892,0.517,3.533]},
+              {el:'O',pos:[3.833,2.497,-0.178]},
+              {el:'H',pos:[5.349,3.102,0.722]},
+              {el:'C',pos:[-0.089,-2.905,0]},
+              {el:'S',pos:[2.665,-4.284,-1.578]},
+              {el:'H',pos:[-1.794,-3.58,-0.985]},
+              {el:'H',pos:[-0.139,-3.656,1.941]},
+              {el:'H',pos:[4.4,-3.554,0.138]} ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[10,13] ],
+      optH:[4,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
   };
