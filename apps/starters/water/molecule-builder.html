@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Build a Molecule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  :root{ --ionic:#d9791e; --covalent:#7a6f58; }
+
+  /* ---------- target prompt card, top-center of the stage ---------- */
+  #goal{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
+    text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
+    border-radius:8px 12px 9px 11px;padding:9px 18px 11px;min-width:230px;
+    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #goal .glabel{font-family:var(--font-slab);font-weight:700;font-size:10px;
+    letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
+  #goal .gname{font-family:var(--font-marker);font-size:23px;color:var(--ink);line-height:1.15;margin-top:3px}
+  #goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
+  #goal.done{border-color:#2e8b57}
+  #goal.done .gname{color:#2e8b57}
+
+  /* ---------- feedback toast ---------- */
+  #say{position:absolute;top:172px;left:50%;transform:translateX(-50%);z-index:12;
+    pointer-events:none;text-align:center;max-width:74%;opacity:0;
+    font-family:var(--font-hand);font-size:21px;color:var(--muted)}
+  #say b{font-weight:600;color:var(--ink)}
+  #say.no b{color:#c0392b}
+  #say.show{animation:sayFade 3.4s ease-out forwards}
+  @keyframes sayFade{
+    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
+    9%{opacity:1;transform:translateX(-50%) translateY(0)}
+    78%{opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
+  /* a refused bond shakes rather than silently doing nothing */
+  #stage.shake{animation:shk .34s ease}
+  @keyframes shk{0%,100%{transform:translateX(0)}22%{transform:translateX(-7px)}
+    58%{transform:translateX(6px)}80%{transform:translateX(-3px)}}
+
+  /* ---------- element bench ---------- */
+  .benchgrid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
+  .elem{width:58px;height:62px;border:2px solid var(--ink);border-radius:10px;
+    background:#fff;cursor:pointer;font-family:inherit;color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    box-shadow:0 3px 0 rgba(0,0,0,.16);transition:transform .07s ease}
+  .elem:hover{transform:translateY(-2px)}
+  .elem:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.16)}
+  .elem .sym{font-family:var(--font-slab);font-size:1.32rem;font-weight:700;line-height:1}
+  .elem .slots{font-family:var(--font-hand);font-size:.66rem;color:var(--muted);margin-top:3px}
+  .elem.metal{background:#f6dcb4}
+  .elem.nonmetal{background:#cfe4f2}
+
+  .legend{display:flex;gap:13px;flex-wrap:wrap;font-family:var(--font-hand);
+    color:var(--muted);font-size:13px;margin:2px 0 12px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--ink);display:inline-block}
+
+  /* ---------- target picker ---------- */
+  #targets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .tbtn{font-family:var(--font-slab);font-weight:600;font-size:13px;padding:5px 11px;
+    border:1.5px solid var(--hair);border-radius:7px;background:#fff;color:var(--muted);
+    cursor:pointer}
+  .tbtn.on{border-color:var(--ink);color:var(--ink);background:rgba(0,0,0,.04)}
+  .tbtn.cleared::after{content:' ✓';color:#2e8b57}
+
+  #libactions{flex-wrap:wrap}
+  #etoggle{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.75;
+    cursor:pointer;flex-basis:100%}
+  .edot{display:inline-block;width:9px;height:9px;border-radius:50%;
+    background:#ffc93c;border:1px solid rgba(0,0,0,.35);vertical-align:middle}
+
+  /* ---------- teach card ---------- */
+  #card{border-top:1.5px dashed var(--hair);padding-top:14px;margin-top:4px}
+  #card .ctitle{font-family:var(--font-slab);font-weight:700;font-size:15px;margin-bottom:5px}
+  #card .ctitle.ionic{color:var(--ionic)}
+  #card .ctitle.covalent{color:var(--covalent)}
+  #card .cardtext{display:none}
+  #card.show .cardtext{display:block}
+
+  @media (max-width:880px){#app{grid-template-columns:1fr}#stage{grid-column:1}
+    #side{grid-column:1}#side::before{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="goal">
+      <div class="glabel">Build</div>
+      <div class="gname">—</div>
+      <div class="gform"></div>
+    </div>
+    <div id="say" aria-live="polite"></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
+    <div id="stats"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+
+  <div id="side">
+    <h1 id="labtitle">Bonding bench</h1>
+    <p id="labintro">Atoms don't bond because you want them to — they bond when they
+      have <b>room</b>. The yellow dots are <b>valence electrons</b><i class="edot"></i>:
+      a single dot is one that's free to share, a pair sitting together is
+      already spoken for, and a pair <i>between</i> two atoms is a bond. Fill every
+      open slot and you've made a molecule; try to add one more and it will refuse.
+      Watch what happens when a <b>metal</b> meets a <b>nonmetal</b>.</p>
+
+    <div class="libgroup">Target</div>
+    <div id="targets"></div>
+
+    <div class="libgroup">Element bench</div>
+    <div class="benchgrid" id="bench"></div>
+    <div class="legend">
+      <span><i class="sw" style="background:#cfe4f2"></i> nonmetal — shares</span>
+      <span><i class="sw" style="background:#f6dcb4"></i> metal — gives</span>
+    </div>
+
+    <div id="libactions">
+      <button id="clearmol">Clear</button>
+      <label id="etoggle"><input type="checkbox" id="showe" checked> show valence electrons</label>
+    </div>
+
+    <div id="card"><div class="ctitle"></div><div class="cardtext"></div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="builder.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  BUILD A MOLECULE — valence + geometry as the game rules
+ *  All chemistry lives in builder.js; this file is UI only. The page's job is
+ *  to make the RULE legible: show slot counts on the bench, show ghost slots
+ *  in 3D, and when a bond is refused, say why out loud instead of ignoring the
+ *  click. A silent no-op reads as a bug; "oxygen has no room left" reads as
+ *  chemistry.
+ * ============================================================= */
+
+const canvas=document.getElementById('gl');
+let userSpun=false;
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  cam:{theta:0.6,phi:1.15,r:11}, rMin:6, rMax:26,
+  onDrag:()=>{userSpun=true;}
+});
+const fx=FX.create(THREE, root, camera);
+const builder=Builder.create({THREE, root, fx});
+
+const elGoalName=document.querySelector('#goal .gname');
+const elGoalForm=document.querySelector('#goal .gform');
+const elGoal=document.getElementById('goal');
+const elSay=document.getElementById('say');
+const elCard=document.getElementById('card');
+const elStats=document.getElementById('stats');
+const cleared=new Set();
+
+/* ---------- feedback ---------- */
+let sayTimer=null;
+function say(html, bad){
+  elSay.innerHTML=html;
+  elSay.classList.remove('show','no');
+  if(bad) elSay.classList.add('no');
+  void elSay.offsetWidth;              // restart the animation
+  elSay.classList.add('show');
+  if(bad){
+    const st=document.getElementById('stage');
+    st.classList.remove('shake'); void st.offsetWidth; st.classList.add('shake');
+  }
+  clearTimeout(sayTimer);
+  sayTimer=setTimeout(()=>elSay.classList.remove('show'),3400);
+}
+
+/* ---------- element bench ---------- */
+const bench=document.getElementById('bench');
+Object.keys(Builder.ELEMENTS).forEach(sym=>{
+  const e=Builder.ELEMENTS[sym];
+  const b=document.createElement('button');
+  b.className='elem '+e.kind;
+  b.title=e.name;
+  b.innerHTML='<span class="sym">'+sym+'</span><span class="slots">'+
+    (e.kind==='metal' ? 'gives 1e⁻' : e.valence+(e.valence===1?' slot':' slots'))+'</span>';
+  b.addEventListener('click',()=>place(sym));
+  bench.appendChild(b);
+});
+
+/* ---------- target picker ---------- */
+const elTargets=document.getElementById('targets');
+function renderTargets(){
+  elTargets.innerHTML='';
+  Builder.TARGETS.forEach(t=>{
+    const b=document.createElement('button');
+    b.className='tbtn'+(builder.target&&builder.target.key===t.key?' on':'')+
+                (cleared.has(t.key)?' cleared':'');
+    b.innerHTML=t.formula;
+    b.addEventListener('click',()=>pick(t.key));
+    elTargets.appendChild(b);
+  });
+}
+
+function pick(key){
+  const t=builder.setTarget(key);
+  elGoalName.textContent=t.name;
+  elGoalForm.innerHTML=t.formula;
+  elGoal.classList.remove('done');
+  elCard.classList.remove('show');
+  renderTargets();
+  updateStats();
+  say(t.prompt);
+}
+
+/* ---------- the loop: place an atom, get told what happened ---------- */
+function place(sym){
+  const r=builder.addAtom(sym);
+  if(!r.ok){ say(r.why,true); updateStats(); return; }
+
+  if(r.bonded==='ionic'){
+    say('<b>'+r.transferred+'</b> gave its electron away — that\'s an <b>ionic bond</b>.');
+  }else if(r.bonded==='covalent'){
+    say(r.remaining>0
+      ? 'Shared a pair. <b>'+r.remaining+'</b> slot'+(r.remaining===1?'':'s')+' left.'
+      : 'Shared a pair. Every slot is full.');
+  }else{
+    say('<b>'+sym+'</b> placed. Now fill its slots.');
+  }
+
+  const c=builder.check();
+  if(c.complete) win(c);
+  updateStats();
+}
+
+function win(c){
+  const t=builder.target;
+  cleared.add(t.key);
+  elGoal.classList.add('done');
+  const title=elCard.querySelector('.ctitle');
+  title.className='ctitle '+c.bonding;
+  title.innerHTML=t.name+' &middot; '+t.formula+' &middot; '+c.bonding+' bond';
+  elCard.querySelector('.cardtext').innerHTML=t.teach;
+  elCard.classList.add('show');
+  renderTargets();
+  say('You made <b>'+t.name+'</b>.');
+  // the one ring in the lesson: reserved for completion, so it means "done"
+  // rather than being background noise on every single bond
+  if(fx) fx.spawnRing(new THREE.Vector3(0,0,0),
+    c.bonding==='ionic'?MolLib.PALETTE.bonds.iondipole:MolLib.PALETTE.bonds.covalent);
+}
+
+function updateStats(){
+  const t=builder.target;
+  if(!t){ elStats.innerHTML=''; return; }
+  const bits=['built: <b>'+(builder.placed.join(' + ')||'nothing yet')+'</b>'];
+  if(!t.pair) bits.push('open slots: <b>'+builder.openSlots+'</b>');
+  if(builder.isIonic) bits.push('<b>ions</b> — held by charge');
+  elStats.innerHTML=bits.join(' &nbsp;·&nbsp; ');
+}
+
+document.getElementById('clearmol').addEventListener('click',()=>{
+  if(builder.target) pick(builder.target.key);
+});
+
+document.getElementById('showe').addEventListener('change',e=>{
+  builder.setElectrons(e.target.checked);
+});
+
+document.getElementById('savepng').addEventListener('click',()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download='molecule-builder.png';
+  a.href=renderer.domElement.toDataURL('image/png');
+  a.click();
+});
+
+/* ---------- frame loop ---------- */
+function frame(){
+  requestAnimationFrame(frame);
+  if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
+  builder.step();
+  fx.step();
+  renderer.render(scene,camera);
+}
+resize();
+renderTargets();
+pick('water');
+frame();
+</script>
+</body>
+</html>
