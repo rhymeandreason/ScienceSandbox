@@ -403,6 +403,29 @@
     this.link(i,j,order); return j;
   };
 
+  // ---- ring stereochemistry ---------------------------------------------
+  // freeTet() on a ring carbon returns its AXIAL and EQUATORIAL slots, but in an
+  // order that falls out of the cross-product sign, not out of chemistry. Taking
+  // slot 0 every time therefore alternates axial/equatorial around the ring — an
+  // arbitrary stereoisomer wearing glucose's name. `equatorial()` picks by
+  // geometry instead: of the free slots, the one most PERPENDICULAR to the ring
+  // axis. β-D-glucopyranose is all-equatorial, which is exactly why it is the
+  // most stable hexose and the one the whole pathway is built around.
+  Skel.prototype.ringNormal=function(ring){
+    const c=vmul(ring.reduce((s,i)=>vadd(s,this.at(i)),V(0,0,0)), 1/ring.length);
+    let n=V(0,0,0);
+    for(let k=0;k<ring.length;k++)
+      n=vadd(n, vcross(vsub(this.at(ring[k]),c), vsub(this.at(ring[(k+1)%ring.length]),c)));
+    return vnorm(n);
+  };
+  Skel.prototype.equatorial=function(i,ring){
+    const n=this.ringNormal(ring), dirs=this.freeTet(i);
+    let best=0, bestDot=Infinity;
+    dirs.forEach((d,k)=>{ const v=Math.abs(d.x*n.x+d.y*n.y+d.z*n.z);
+      if(v<bestDot){ bestDot=v; best=k; } });
+    return best;
+  };
+
   // ---- functional groups ------------------------------------------------
   Skel.prototype.hydroxyl=function(i,slot){                 // –OH
     const o=this.grow(i,'O',GL.CO,'sp3',slot);
@@ -474,9 +497,14 @@
     // — glucose: the only ring on the page, and the only unphosphorylated sugar
     const g=ringPyranose();
     const C=[1,2,3,4,5];                  // ring C1…C5
-    g.hydroxyl(1,0); g.hydroxyl(2,0); g.hydroxyl(3,0); g.hydroxyl(4,0);
-    const c6=g.grow(5,'C',GL.CC,'sp3',0); // C6, exocyclic
-    g.hydroxyl(c6,0);
+    const RING=[0,1,2,3,4,5];             // O5 + C1…C5, the pyranose ring itself
+    // EVERY substituent equatorial — that is what makes this β-D-glucopyranose
+    // rather than one of its 15 stereoisomers. Passing slot 0 here (as an earlier
+    // version did) alternates axial/equatorial around the ring, which is not
+    // glucose and, at C5, not even D-.
+    C.forEach(k=>{ if(k<5) g.hydroxyl(k, g.equatorial(k,RING)); });
+    const c6=g.grow(5,'C',GL.CC,'sp3',g.equatorial(5,RING));   // C6, exocyclic
+    g.hydroxyl(c6,0);                     // free rotor off the ring — no ax/eq here
     // Rotate to a clear 3D 3/4 chair perspective (ring face tilted towards camera)
     g.rotate(1.05, 0.45, -0.2);
     GLYCOLYSIS.glucose=g.spec({ name:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',

@@ -27,7 +27,7 @@ Promise.all([fetch('_generated-specs.json').then(r=>r.json()),
              fetch('_old-specs.json').then(r=>r.json())])
   .then(([a,b])=>{ gen = a; old = b; build(); });
 
-['glycine','alanine','serine','cysteine'].forEach(k=>{
+['glycine','alanine','serine','cysteine','glucose'].forEach(k=>{
   const b = document.createElement('button');
   b.textContent = k; b.onclick = ()=>{ key = k; build(); };
   document.getElementById('btns').appendChild(b);
@@ -44,6 +44,7 @@ function build(){
   const b = Stage.buildMolecule(g);
   b.position.x = 9; S.root.add(b); genG = b;
   const angs = (spec)=>{
+    if(key === 'glucose') return '(ring — see axial/equatorial check in the console)';
     const P = spec.atoms.map(x=>x.pos), V=(p,q)=>[p[0]-q[0],p[1]-q[1],p[2]-q[2]];
     const ang=(i,j,k)=>{const u=V(P[i],P[j]),v=V(P[k],P[j]);
       const d=(u[0]*v[0]+u[1]*v[1]+u[2]*v[2])/(Math.hypot(...u)*Math.hypot(...v));
