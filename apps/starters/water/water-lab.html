@@ -127,12 +127,41 @@ function atom(color, radius, pos, role){
   if(role){ m.userData.role=role; if(outlinesOn && OUTLINE_ROLES.includes(role)) addOutline(m); }
   return m;
 }
-function bond(a,b,color=bondColor,rad=0.13){
+function bond(a,b,color=bondColor,rad=0.13,order=1,perpHint=null){
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+  const normDir=dir.clone().normalize();
+  if(order===2){
+    const g=new THREE.Group();
+    g.userData.role='covalent';
+    let perp=perpHint?perpHint.clone():null;
+    if(!perp || perp.lengthSq()<0.001){
+      // A LINEAR molecule (CO2) has no neighbouring bond to define a plane, so
+      // any perpendicular is geometrically arbitrary — but not visually. Offset
+      // the pair ACROSS the view, not along it: crossing with +Z for a bond that
+      // isn't already pointing at the camera splays the sticks vertically, so the
+      // double bond reads as double from the default angle instead of hiding one
+      // stick directly behind the other.
+      const helper=Math.abs(normDir.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0);
+      perp=new THREE.Vector3().crossVectors(normDir,helper);
+    }
+    perp.normalize();
+    const offset=0.15;
+    const r2=rad*0.75;
+    [-offset, offset].forEach(off=>{
+      const shift=perp.clone().multiplyScalar(off);
+      const aOff=a.clone().add(shift);
+      const m=new THREE.Mesh(new THREE.CylinderGeometry(r2,r2,len,16),bondMat(color));
+      m.userData.role='covalent';
+      m.position.copy(aOff).add(dir.clone().multiplyScalar(.5));
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),normDir);
+      g.add(m);
+    });
+    return g;
+  }
   const g=new THREE.CylinderGeometry(rad,rad,len,16);
   const m=new THREE.Mesh(g, bondMat(color)); m.userData.role='covalent';
   m.position.copy(a).add(dir.clone().multiplyScalar(.5));
-  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),normDir);
   return m;
 }
 // visible dashed hydrogen bond, built from short cylinder segments. _hbMat/_ionMat
@@ -266,9 +295,28 @@ function buildMolecule(spec){
   const P=MolLib.PALETTE;
   const meshes=spec.atoms.map(a=>atom(state[a.el], P.radii[a.el]||0.7,
     new THREE.Vector3(a.pos[0],a.pos[1],a.pos[2]), a.el));
-  (spec.bonds||[]).forEach(([i,j])=>g.add(bond(
-    new THREE.Vector3().fromArray(spec.atoms[i].pos),
-    new THREE.Vector3().fromArray(spec.atoms[j].pos))));
+  (spec.bonds||[]).forEach(bSpec=>{
+    const i=bSpec[0], j=bSpec[1], order=bSpec[2]||1;
+    const posI=new THREE.Vector3().fromArray(spec.atoms[i].pos);
+    const posJ=new THREE.Vector3().fromArray(spec.atoms[j].pos);
+    let perpHint=null;
+    if(order===2){
+      const kBond=(spec.bonds||[]).find(b=>(b[0]===i||b[1]===i||b[0]===j||b[1]===j) && !(b[0]===i&&b[1]===j) && !(b[0]===j&&b[1]===i));
+      if(kBond){
+        const kIdx=[kBond[0],kBond[1]].find(idx=>idx!==i && idx!==j);
+        if(kIdx!=null){
+          const posK=new THREE.Vector3().fromArray(spec.atoms[kIdx].pos);
+          const bondVec=new THREE.Vector3().subVectors(posJ,posI).normalize();
+          const otherVec=new THREE.Vector3().subVectors(posK,posI).normalize();
+          const planeNorm=new THREE.Vector3().crossVectors(bondVec,otherVec);
+          if(planeNorm.lengthSq()>0.001){
+            perpHint=new THREE.Vector3().crossVectors(planeNorm,bondVec).normalize();
+          }
+        }
+      }
+    }
+    g.add(bond(posI, posJ, bondColor, 0.13, order, perpHint));
+  });
   meshes.forEach(m=>g.add(m));
   const wp=idx=>meshes[idx].getWorldPosition(new THREE.Vector3());
   const sites=spec.sites||{donors:[],acceptors:[]};

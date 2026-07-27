@@ -127,7 +127,7 @@
       //     nonpolar exclusion field on the same atoms, fighting every frame.
       // It cannot DONATE an H-bond, so it hydrates more weakly than ethanol/NH₃.
       atoms:[ {el:'C',pos:[0,0,0]}, {el:'O',pos:[1.9,0,0]}, {el:'O',pos:[-1.9,0,0]} ],
-      bonds:[ [0,1],[0,2] ],
+      bonds:[ [0,1,2],[0,2,2] ],
       sites:{ donors:[], acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2}] },
       // reaction chain driven by molecule-lab's updateReactions():
       //   CO₂ + H₂O → H₂CO₃ → HCO₃⁻ + H⁺(as H₃O⁺)
@@ -151,7 +151,7 @@
               {el:'O',pos:[-1.645,-0.95,0]},        // 3 hydroxyl O
               {el:'H',pos:[2.779,0.107,0]},         // 4 acidic H on atom 2
               {el:'H',pos:[-2.779,0.107,0]} ],      // 5 acidic H on atom 3
-      bonds:[ [0,1],[0,2],[0,3],[2,4],[3,5] ],
+      bonds:[ [0,1,2],[0,2],[0,3],[2,4],[3,5] ],
       sites:{ donors:[{atom:4},{atom:5}],
               acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
       ionizesTo:'bicarbonate',   // loses ONE H (pKa1 = 3.6 — it is a genuine acid)
@@ -167,7 +167,7 @@
               {el:'O',pos:[1.645,-0.95,0]},
               {el:'O',pos:[-1.645,-0.95,0]},
               {el:'H',pos:[-2.779,0.107,0]} ],      // 4 the one remaining H (bent, ~107°)
-      bonds:[ [0,1],[0,2],[0,3],[3,4] ],
+      bonds:[ [0,1,2],[0,2],[0,3],[3,4] ],
       sites:{ donors:[{atom:4}],
               acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
     },
@@ -201,36 +201,36 @@
       name:'Glycine', formula:'C₂H₅NO₂', class:'aminoacid', res:'Gly', side:'–H',
       atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
               {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
               {el:'H',pos:[0,-1.8,0]} ],   // 9 R = H (glycine's side chain is just H)
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9] ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9] ],
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     alanine: {
       name:'Alanine', formula:'C₃H₇NO₂', class:'aminoacid', res:'Ala', side:'–CH₃',
       atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
               {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
               {el:'C',pos:[0,-2.0,0]} ],   // 9 R = CH₃ (united-atom methyl)
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9] ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9] ],
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     serine: {
       name:'Serine', formula:'C₃H₇NO₃', class:'aminoacid', res:'Ser', side:'–CH₂OH',
       atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
               {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
               {el:'C',pos:[0,-2.0,0]}, {el:'O',pos:[1.3,-3.35,0]}, {el:'H',pos:[2.55,-3.05,0]} ],   // R = CH₂OH
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9],[9,10],[10,11] ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9],[9,10],[10,11] ],
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     cysteine: {
       name:'Cysteine', formula:'C₃H₇NO₂S', class:'aminoacid', res:'Cys', side:'–CH₂SH',
       atoms:[ {el:'N',pos:[-3.2,0,0]}, {el:'H',pos:[-4.0,1.0,0]}, {el:'H',pos:[-4.0,-1.0,0]},
               {el:'C',pos:[0,0,0]},    {el:'H',pos:[0,1.6,0]},
-              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[3.9,1.55,0]}, {el:'O',pos:[3.9,-1.55,0]}, {el:'H',pos:[5.2,-1.85,0]},
+              {el:'C',pos:[3.0,0,0]},  {el:'O',pos:[4.055,1.816,0]}, {el:'O',pos:[4.055,-1.816,0]}, {el:'H',pos:[5.614,-2.176,0]},
               {el:'C',pos:[0,-2.0,0]}, {el:'S',pos:[1.5,-3.6,0]}, {el:'H',pos:[2.95,-3.25,0]} ],   // R = CH₂SH (the S)
-      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6],[5,7],[7,8],[3,9],[9,10],[10,11] ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[5,6,2],[5,7],[7,8],[3,9],[9,10],[10,11] ],
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
   };
@@ -252,10 +252,10 @@
    *      24 extra H's would bury them. The ONE exception is the aldehyde H on
    *      G3P's C1 — that specific H is what gets oxidised onto NAD⁺, so it is
    *      drawn. Hydroxyl O–H hydrogens are always drawn (they read as "–OH").
-   *   2. Double bonds (C=O, P=O) are drawn as SINGLE sticks — the shared
-   *      builder has no double-bond geometry. The carbonyl carbon's angles are
-   *      still built sp2/planar (120°), so the SHAPE is right even though the
-   *      stick count isn't.
+   *   2. C=O double bonds are tagged `[i,j,2]` and drawn as a PAIR of sticks
+   *      (see `bond()` in scene.js / the labs). P=O is the exception: the three
+   *      phosphate O's are all drawn as single sticks, because the charge is
+   *      delocalised over them and picking one to double up would be a lie.
    *   3. After the first phosphorylation the sugar is drawn as an OPEN CHAIN,
    *      the way every textbook draws glycolysis (Fischer projection), not as
    *      the furanose ring F1,6-bisphosphate actually is in solution. Glucose
@@ -291,7 +291,7 @@
   function Skel(){ this.atoms=[]; this.bonds=[]; }
   Skel.prototype.put=function(el,p){ this.atoms.push({el,pos:[p.x,p.y,p.z]}); return this.atoms.length-1; };
   Skel.prototype.at =function(i){ const p=this.atoms[i].pos; return V(p[0],p[1],p[2]); };
-  Skel.prototype.link=function(i,j){ this.bonds.push([i,j]); return this; };
+  Skel.prototype.link=function(i,j,order){ this.bonds.push(order?[i,j,order]:[i,j]); return this; };
   Skel.prototype.nbrs=function(i){ const A=this.at(i);
     return this.bonds.filter(b=>b[0]===i||b[1]===i)
       .map(b=>vnorm(vsub(this.at(b[0]===i?b[1]:b[0]),A))); };
@@ -349,10 +349,10 @@
     return [ vnorm(vmul(nb.reduce(vadd,V(0,0,0)),-1)) ];
   };
   // hang one atom off atom i in its next free slot; `hyb` picks the geometry
-  Skel.prototype.grow=function(i,el,dist,hyb,slot){
+  Skel.prototype.grow=function(i,el,dist,hyb,slot,order){
     const dirs=(hyb==='sp2'?this.freeSp2(i):this.freeTet(i));
     const j=this.put(el, vadd(this.at(i), vmul(dirs[slot||0], dist)));
-    this.link(i,j); return j;
+    this.link(i,j,order); return j;
   };
 
   // ---- functional groups ------------------------------------------------
@@ -361,8 +361,8 @@
     this.grow(o,'H',GL.OH,'sp3',0);                         // C–O–H ≈ 109.5°
     return o;
   };
-  Skel.prototype.carbonyl=function(i,slot){                 // C=O (single stick)
-    return this.grow(i,'O',GL.CO,'sp2',slot);
+  Skel.prototype.carbonyl=function(i,slot){                 // C=O (double bond)
+    return this.grow(i,'O',GL.CO,'sp2',slot,2);
   };
   // –O–PO₃²⁻ : a bridging ester O, then a tetrahedral P with three more O's.
   // Returns the P index — the page uses it as the effect anchor, because the P
