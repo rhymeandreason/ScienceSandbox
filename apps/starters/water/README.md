@@ -93,8 +93,9 @@ Pages load sibling scripts, so `file://` won't work — serve the folder:
 python3 -m http.server 8817     # then open http://localhost:8817/water-lab.html
 ```
 
-`check-molecules.js` prints computed bond angles for every spec and **exits
-FAIL if any bonded pair's spheres merge** — a merged pair means the stick is
+`check-molecules.js` prints computed bond angles for every spec, audits ring
+stereochemistry against a spec's `stereo` declaration, and **exits FAIL if any
+bonded pair's spheres merge** — a merged pair means the stick is
 buried inside the atoms and simply won't be visible, which is how a double bond
 can be correctly tagged yet render as nothing. Run it after any geometry change.
 Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —

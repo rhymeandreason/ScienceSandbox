@@ -508,6 +508,9 @@
     // Rotate to a clear 3D 3/4 chair perspective (ring face tilted towards camera)
     g.rotate(1.05, 0.45, -0.2);
     GLYCOLYSIS.glucose=g.spec({ name:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',
+      // asserted by check-molecules.js — the one property that no bond length,
+      // bond angle or screenshot can confirm, and the one that makes it glucose
+      stereo:'all-equatorial',
       gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
             note:'β-D-glucopyranose — the ring form that dominates in water' } });
   }

@@ -53,6 +53,31 @@ Whatever the source, run `check-molecules.js`. It caught a double bond that was
 correctly tagged but rendered as nothing, which reading the spec would never
 reveal.
 
+### Stereochemistry is the error nothing else catches
+
+Bond lengths, bond angles and the render can all be perfect while the molecule
+is **a different substance**. Glucose shipped that way: its substituents
+alternated axial/equatorial around the ring, which is not glucose, and at C5 not
+even D-. No screenshot shows this and no angle readout hints at it — only
+measuring each substituent against the ring axis does.
+
+So `check-molecules.js` audits rings, and a spec may **declare** what it expects:
+
+```js
+stereo:'all-equatorial',   // β-D-glucopyranose — asserted, not assumed
+```
+
+All-equatorial is what makes glucose the most stable of the 16 aldohexoses, and
+is a large part of why the pathway is built around it rather than a sibling
+sugar. It is a chemical claim, so it gets asserted like one.
+
+`Skel` has **no general chirality model**. Glucose works because all-equatorial
+is expressible as a geometric rule ("pick the slot most perpendicular to the ring
+axis"). A sugar needing a *specific* mixed pattern — galactose differs from
+glucose at one carbon only — cannot be built this way. Convert it from a real
+record instead of inventing a face-naming convention; getting that subtly wrong
+produces exactly the invisible failure above.
+
 ## 2. Polarity & charge
 
 - Oxygen is **more electronegative** → it carries the partial negative charge
