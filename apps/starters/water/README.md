@@ -82,6 +82,9 @@ their **own** molecule builder (cel outlines, Debug recolour/toon, hydration
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook: geometry/angles, polarity, H-bonds, reaction/effect/colour conventions
 (§9), amino-acid & peptide rules (§10), and the module architecture (§11).
+Before adding a **new molecule**, read §1 — it sets how much fidelity a molecule
+owes based on the claim it makes (prop / contrast / subject), and requires that
+any chemical claim ship with a `check-molecules.js` assertion in the same commit.
 Pedagogical exaggerations (enlarged bond lengths for legibility, neutral vs.
 zwitterion forms) must stay **explicit in comments**.
 

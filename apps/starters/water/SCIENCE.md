@@ -78,6 +78,69 @@ glucose at one carbon only — cannot be built this way. Convert it from a real
 record instead of inventing a face-naming convention; getting that subtly wrong
 produces exactly the invisible failure above.
 
+### Adding a molecule: how much fidelity does it owe?
+
+Fidelity is not a global dial. Every geometry bug this project has shipped had
+the same shape — the spec was right about everything **except the one feature the
+lesson depended on**. The carboxyl C=O was buried inside its spheres; the
+α-carbon was drawn linear; the glucose ring was a different sugar. So before
+adding a molecule, ask what claim it is making, and classify it:
+
+**Tier 1 — Prop.** Appears in a scene, never compared against a sibling. Water in
+a membrane diagram, methane as "the nonpolar one". Hand-write it; correct shape
+and polarity is enough.
+
+**Tier 2 — Contrast.** Shown *against* a near-identical molecule where one
+feature is the entire point. That feature must be exactly right **and asserted by
+`check-molecules.js`**. Most of the AP Bio curriculum lives here:
+
+| Contrast | Differs by | The lesson |
+|---|---|---|
+| starch vs cellulose | α- vs β-1,4 linkage | why we can't digest wood |
+| saturated vs unsaturated fat | one C=C, *cis* | why butter is solid and oil is not |
+| ribose vs deoxyribose | one –OH at 2′ | why DNA is the stable archive |
+| glucose vs galactose | one –OH orientation | why galactosemia is a disease |
+| L- vs D-amino acids | handedness | why life is homochiral |
+| purine vs pyrimidine | two rings vs one | why A–T and G–C are equal width |
+
+Every one of those is a stereochemistry or bond-order claim — the class that
+renders beautifully while being wrong.
+
+**Tier 3 — Subject.** The structure *is* the lesson (DNA's helix, an enzyme's
+active site). Derive it from a real record.
+
+Rules that follow:
+
+1. **Name honesty.** If the distinguishing feature is not rendered correctly,
+   do not use the name that implies it. Call it "a sugar", not "glucose".
+2. **A claim ships with its assertion, in the same commit.** `stereo:` exists so
+   a chemical claim fails a check rather than relying on someone noticing. A new
+   claim type means extending `check-molecules.js` as part of adding the
+   molecule — never as a follow-up.
+3. **Source it by the three-way rule above** (hand-write / PubChem / `Skel`).
+4. **Anything a lab manipulates needs an index map** (`pep`, `gly`), because
+   reactions address atoms by position and a reindex silently breaks them.
+
+### Derive when shape carries the lesson; schematize when topology does
+
+Both are legitimate, and the failure is doing one while claiming the other.
+
+Real coordinates are right when the *shape* is the point — a chair ring, a
+tetrahedral centre, a helix. They are **wrong** when the lesson is topology.
+A phospholipid's real conformer is floppy and renders as spaghetti; the lesson is
+"polar head, nonpolar tails", so build it schematically **on purpose** and say so
+in the comment, exactly as the open-chain Fischer intermediates in §12 are
+deliberate. Bilayers and polymers additionally need instancing rather than N
+built groups, and should be validated at the monomer, not the assembly.
+
+Two gaps to close before the relevant lessons land:
+
+- **Cis/trans is unchecked.** Bond order 2 renders correctly, but nothing asserts
+  an unsaturated fatty acid's double bond is *cis* — and the cis kink is the whole
+  reason that lesson exists. Needs a torsion assertion before the first lipid.
+- **`stereo:` only understands `all-equatorial`.** Starch vs cellulose is an
+  anomeric-configuration claim, so the vocabulary has to grow with it.
+
 ## 2. Polarity & charge
 
 - Oxygen is **more electronegative** → it carries the partial negative charge
