@@ -20,8 +20,8 @@
  *       the free atoms were carrying a moment earlier — one from the core's open
  *       slot, one from the ligand. Nothing is created; the count is conserved.
  *    3. Only as many fit as there are slots. Oxygen offers two at 104.5° and
- *       carbon four at 109.5°, so the spare ligand on the bench has nowhere to
- *       be pulled and simply drifts. The count is discovered, not announced.
+ *       carbon four at 109.5°, and the bench holds exactly that many ligands —
+ *       the molecule is finished when the bench is empty.
  *
  *  Geometry is lifted from MolLib.MOLECULES (slot dirs = the real ligand
  *  positions normalised), so a hand-built molecule is the same molecule every
@@ -72,16 +72,43 @@
       slots2d: [[0.7910,-0.6116,0], [-0.7910,-0.6116,0]],
       lone:     [[0,0.6116,0.7910], [0,0.6116,-0.7910]],
       loneFlat: [[0.6116,0.7910,0], [-0.6116,0.7910,0]],
-      // one more ligand than fits, so "only two" is discovered, not announced
-      start:[[-5.0,-1.2,1.2],[5.0,1.4,-1.0],[-4.4,3.6,-1.6]],
+      start:[[-5.0,-1.2,1.2],[5.0,1.4,-1.0]],
+    },
+    /* Ammonia is the only recipe with a SECOND stage, and it is the reason to
+     * have one: nitrogen's three slots fill to NH3 and its lone pair is left
+     * over, and that leftover pair is not decoration — it is a docking site. A
+     * bare proton (a hydrogen with NO electron, which is why it draws no dot and
+     * wears a +) lands in it, and nitrogen supplies BOTH electrons of the new
+     * bond. That is a dative bond, the one bonding type the other tabs cannot
+     * show: water's tab is "one electron each", salt's is "hand it over", and
+     * this is "one atom pays for the whole bond".
+     *
+     * `proton` holds the geometry AFTER it lands. The three N–H bonds barely
+     * move (107° → 109.5°) because the lone pair stops taking up more room than
+     * a bond the moment it becomes one — the shape change IS the explanation for
+     * why ammonia was 107° in the first place. Slot order is preserved so bonds
+     * 0/1/2 stay themselves and the proton takes index 3.
+     */
+    ammonia: {
+      core:'N', ligand:'H', bond:1.50,
+      slots:   [[0.9272,-0.3746,0],[-0.4635,-0.3748,0.8029],[-0.4635,-0.3748,-0.8029]],
+      slots2d: [[0.8660,-0.5,0],[-0.8660,-0.5,0],[0,-1,0]],
+      lone:     [[0,1,0]],
+      loneFlat: [[0,1,0]],
+      start:[[-5.0,-1.4,1.2],[5.0,1.2,-1.0],[-1.4,4.8,-1.4]],
+      proton:{
+        slots:   [[0.9428,-0.3333,0],[-0.4714,-0.3333,0.8165],[-0.4714,-0.3333,-0.8165],[0,1,0]],
+        slots2d: [[0.8660,-0.5,0],[-0.8660,-0.5,0],[0,-1,0],[0,1,0]],
+        lone:[], loneFlat:[],
+        start:[4.6,4.2,0],
+      },
     },
     methane: {
       core:'C', ligand:'H', bond:1.50,
       slots:   [[S3,S3,S3],[S3,-S3,-S3],[-S3,S3,-S3],[-S3,-S3,S3]],
       slots2d: [[0,1,0],[1,0,0],[0,-1,0],[-1,0,0]],
       lone:[], loneFlat:[],
-      start:[[-5.2,-1.4,1.0],[5.2,1.2,-1.2],[-1.6,5.0,-1.4],
-             [1.8,-5.0,1.4],[5.4,-3.0,0.8]],
+      start:[[-5.2,-1.4,1.0],[5.2,1.2,-1.2],[-1.6,5.0,-1.4],[1.8,-5.0,1.4]],
     },
   };
 
@@ -101,7 +128,12 @@
     let mode='electrons';
     let dim='3d';             // '2d' = straight-on Lewis view, rotation locked
     let ligands=[], core=null, sticks=[], sharedPairs=[];
-    function slotDirs(){ return (dim==='2d')?R.slots2d:R.slots; }
+    let protonated=false, proton=null;
+    // after the proton lands the molecule is a different shape with one more
+    // slot, so every direction lookup goes through here
+    function G(){ return (protonated && R.proton) ? R.proton : R; }
+    function slotDirs(){ return (dim==='2d')?G().slots2d:G().slots; }
+    function loneDirs(){ return (dim==='2d')?G().loneFlat:G().lone; }
     let t=0;
 
     /* ---- pieces: the shared dressing lives in atomkit.js --------------
@@ -128,11 +160,7 @@
       og.add(osphere, ocloud, label(R.core, R.core, '#ffffff'));
       // two lone PAIRS (four electrons, spoken for) — positions come from
       // layoutLone(), because they move when the view flips to 2D
-      const lonePairs=R.lone.map(()=>{
-        const pair=[dot(P.atoms[R.core]), dot(P.atoms[R.core])];
-        pair.forEach(m=>og.add(m));
-        return pair;
-      });
+      const lonePairs=[];
       // … and two UNPAIRED electrons, one on each open slot: the two that are
       // free to share, which is why water is H₂O and not H₃O.
       const slotDots=slotDirs().map(d=>{
@@ -151,10 +179,11 @@
       });
       group.add(og);
       core={group:og, sphere:osphere, cloud:ocloud, lonePairs, slotDots, ghosts};
-      layoutLone();
+      buildLonePairs();
 
-      // three ligands — one more than fits, so "only two" is discovered, not
-      // announced. The spare one has nowhere to be pulled and just drifts.
+      // exactly as many ligands as there are slots: scattered wide enough that
+      // none starts inside the core's capture radius, so every bond is one the
+      // student made rather than one that happened on load
       R.start.forEach(p=>{
         const hg=new THREE.Group();
         hg.position.set(p[0],p[1],p[2]);
@@ -175,9 +204,22 @@
      * each pair across an axis the camera can see: in 2D that has to be the
      * in-plane perpendicular, or the two dots line up front-to-back and read as
      * one electron instead of two. */
+    /* Rebuildable, because ammonia's lone pair is not permanent furniture: a
+     * proton lands in it and it becomes a bond. Deprotonating puts it back. */
+    function buildLonePairs(){
+      core.lonePairs.forEach(pair=>pair.forEach(m=>core.group.remove(m)));
+      core.lonePairs=loneDirs().map(()=>{
+        const pair=[dot(P.atoms[R.core]), dot(P.atoms[R.core])];
+        pair.forEach(m=>core.group.add(m));
+        return pair;
+      });
+      layoutLone();
+      applyMode();
+    }
     function layoutLone(){
-      const dirs=(dim==='2d')?R.loneFlat:R.lone;
+      const dirs=loneDirs();
       core.lonePairs.forEach((pair,i)=>{
+        if(!dirs[i]) return;
         const dir=v3(dirs[i]).normalize();
         const perp=new THREE.Vector3().crossVectors(dir,
           Math.abs(dir.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0)).normalize();
@@ -252,10 +294,14 @@
       return { center, out, end:b };
     }
 
-    function makeSharedPair(i){
+    function makeSharedPair(i, dative){
       const pair={slot:i, dots:[]};
-      // one electron from each atom, still wearing the colour it arrived in
-      [P.atoms[R.core], P.atoms[R.ligand]].forEach(col=>{
+      /* One electron from each atom, still wearing the colour it arrived in —
+       * except a DATIVE bond, where the core paid for both. Drawing both dots in
+       * the core's colour is the whole argument: the proton brought nothing, so
+       * there is no second colour to show. */
+      (dative ? [P.atoms[R.core], P.atoms[R.core]]
+              : [P.atoms[R.core], P.atoms[R.ligand]]).forEach(col=>{
         const m=dot(col); group.add(m); pair.dots.push(m);
       });
       sharedPairs.push(pair);
@@ -312,18 +358,120 @@
       // the two electrons that merge into the shared pair are the two that were
       // just visible on the free atoms — hide them, don't create new ones
       h.electron.visible=false;
-      core.slotDots[i].visible=false;
-      core.ghosts[i].visible=false;
+      // the protonated stage adds a slot that never had a ghost or a spare
+      // electron of its own — its pair came from the lone pair
+      if(core.slotDots[i]) core.slotDots[i].visible=false;
+      if(core.ghosts[i]) core.ghosts[i].visible=false;
       makeSharedPair(i);
       if(fx) fx.settleShimmer(h.sphere, P.atoms[R.core]);
+      if(R.proton && !proton && bondedCount()===R.slots.length) spawnProton();
       onChange(state());
     }
     function unbond(h){
+      if(h.isProton) return deprotonate(h);
       const i=h.slot; h.slot=null;
       dropSharedPair(i);
-      core.ghosts[i].visible=(mode==='electrons');
-      core.slotDots[i].visible=(mode==='electrons');
+      if(core.ghosts[i]) core.ghosts[i].visible=(mode==='electrons');
+      if(core.slotDots[i]) core.slotDots[i].visible=(mode==='electrons');
       h.electron.visible=(mode==='electrons');
+      onChange(state());
+    }
+
+    /* ---- the proton: a hydrogen with no electron ------------------------
+     * It appears only once the neutral molecule is finished, because that is
+     * when the lone pair is the only thing left to react with. It draws no
+     * electron dot (it has none — that is what makes it a proton) and wears a +
+     * so the missing dot reads as a charge rather than as a rendering slip.
+     */
+    function spawnProton(){
+      const g=new THREE.Group();
+      g.position.set(R.proton.start[0], R.proton.start[1], R.proton.start[2]);
+      const sphere=Stage.atom(P.atoms[R.ligand], P.radii[R.ligand]*0.92,
+                              new THREE.Vector3(), R.ligand);
+      const badge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.ligand]).getHexString(),
+                             R.ligand);
+      g.add(sphere, label(R.ligand, R.ligand, '#2b2b2b'), badge);
+      group.add(g);
+      proton={ group:g, sphere, badge, cloud:null,
+               electron:{visible:false, position:new THREE.Vector3()},
+               vel:new THREE.Vector3(), slot:null, dragging:false, isProton:true };
+      ligands.push(proton);
+      applyCel();
+    }
+    // where it docks: straight into the lone pair it is aiming for
+    function protonTarget(){
+      const d=loneDirs()[0];
+      return d ? v3(d).normalize().multiplyScalar(R.bond) : null;
+    }
+    function protonate(h){
+      protonated=true;                     // slot set becomes the 4-bond geometry
+      // the lone pair is not replaced by a bond — it BECOMES one
+      core.lonePairs.forEach(pair=>pair.forEach(m=>core.group.remove(m)));
+      core.lonePairs=[];
+      const i=slotDirs().length-1;
+      h.slot=i; h.vel.set(0,0,0);
+      // NOT snapped to the slot: the per-frame lerp for bonded ligands glides it
+      // the last stretch, so you watch the proton arrive onto the waiting pair
+      makeSharedPair(i, true);
+      flarePair(i);
+      /* The proton's own + comes off as the molecule's + goes on: the charge did
+       * not arrive and then sit there being carried by one atom, it became a
+       * property of the whole ion. Two badges would say it is still the
+       * hydrogen's. */
+      h.group.remove(h.badge);
+      core.charge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.core]).getHexString(), R.core);
+      core.group.add(core.charge);
+      layoutBonds();                       // 107° → 109.5°: the other three move
+      /* Amber, and a ring rather than the ionic flash: SCIENCE.md §9 gives proton
+       * chemistry the warm amber vocabulary, and this IS the moment the molecule
+       * becomes an ion. Fired here rather than by the page because only the
+       * module knows where the proton landed. */
+      if(fx){
+        /* A covalent bond's ring expands from the molecule, because the bond
+         * belongs to both atoms. A DATIVE bond's expands from the DONOR, in the
+         * donor's own colour, because it does not: nitrogen paid for it. Same
+         * effect, moved and recoloured — the variant should read as "a covalent
+         * bond, but from here", which is what a dative bond is.
+         * The shimmer stays amber (SCIENCE.md §9, proton/acid chemistry) because
+         * the other half of this moment is that the molecule became an ion. */
+        fx.spawnRing(core.group.getWorldPosition(new THREE.Vector3()), P.atoms[R.core]);
+        fx.settleShimmer(core.sphere, 0xffc24d);
+      }
+      onChange(state());
+    }
+
+    /* The dative animation, and why it is a FLARE rather than a journey: the
+     * lone pair hardly moves. Nitrogen's lone-pair site is 1.07 from the nucleus
+     * and the bond's pinch is 0.93 — a tenth of a unit apart. Sliding the dots
+     * between them was invisible, and worse, it implied the pair travelled to
+     * meet the proton when the truth is the opposite: the pair stays exactly
+     * where it always was and the PROTON comes to it. So the proton glides the
+     * last stretch (the ordinary bonded-ligand lerp does that once its slot is
+     * set) and the two donor dots swell and settle — "these two, the ones that
+     * were already here, are now the bond". The swell is deliberately small: a
+     * dot that balloons stops reading as an electron and starts reading as an
+     * effect, and this one has to stay the same two electrons throughout. */
+    let dative=null;
+    function flarePair(slot){
+      const p=sharedPairs.find(x=>x.slot===slot); if(!p) return;
+      dative={ dots:p.dots, k:0 };
+    }
+    function stepDative(dt){
+      if(!dative) return;
+      dative.k=Math.min(1, dative.k+dt/0.5);
+      const swell=Math.sin(dative.k*Math.PI);         // 0 → 1 → 0
+      dative.dots.forEach(m=>m.scale.setScalar(0.1*(1+0.35*swell)));
+      if(dative.k>=1){ dative.dots.forEach(m=>m.scale.setScalar(0.1)); dative=null; }
+    }
+    function deprotonate(h){
+      protonated=false;
+      const i=h.slot; h.slot=null;
+      dropSharedPair(i);
+      dative=null;
+      if(core.charge){ core.group.remove(core.charge); core.charge=null; }
+      h.group.add(h.badge);                // it leaves as a proton, as it arrived
+      buildLonePairs();                    // the pair goes back to being a pair
+      layoutBonds();
       onChange(state());
     }
 
@@ -418,7 +566,7 @@
       ligands.forEach(h=>{
         if(dim==='2d'){ h.group.position.z=0; h.vel.z=0; }
         // its lone electron always faces the core — "this is the one I can share"
-        if(h.slot==null){
+        if(h.slot==null && !h.isProton){
           const toO=h.group.position.clone().negate();
           if(toO.lengthSq()>1e-6)
             h.electron.position.copy(toO.normalize().multiplyScalar(P.radii[R.ligand]+0.17));
@@ -428,10 +576,13 @@
           h.group.position.lerp(slotPos(h.slot), 1-Math.pow(0.001, dt));
           return;
         }
-        const b=bestSlot(h);
+        // the proton has exactly one place to go: the lone pair
+        const pTarget=h.isProton ? protonTarget() : null;
+        const b=h.isProton ? (pTarget?{i:-1}:null) : bestSlot(h);
         if(!b){ h.vel.multiplyScalar(Math.pow(S.DAMP, dt*60));
                 h.group.position.addScaledVector(h.vel, dt); return; }
-        const target=slotPos(b.i);
+        const target=pTarget || slotPos(b.i);
+        const land=()=>h.isProton ? protonate(h) : bond(h, b.i);
         const toSlot=target.clone().sub(h.group.position);
         const d=toSlot.length();
 
@@ -446,7 +597,7 @@
             h.group.position.addScaledVector(toSlot.normalize(), d*k*k*0.55);
           }
           shell(h);
-          if(h.group.position.distanceTo(target)<S.SNAP) bond(h, b.i);
+          if(h.group.position.distanceTo(target)<S.SNAP) land();
         }else{
           // released (or never touched): a real inverse-square-ish pull-in
           if(d<S.CAPTURE){
@@ -456,9 +607,11 @@
           h.vel.multiplyScalar(Math.pow(S.DAMP, dt*60));
           h.group.position.addScaledVector(h.vel, dt);
           shell(h);
-          if(h.group.position.distanceTo(target)<S.SNAP) bond(h, b.i);
+          if(h.group.position.distanceTo(target)<S.SNAP) land();
         }
       });
+
+      stepDative(dt);
 
       // ghosts breathe, and brighten when a ligand is close enough to be caught
       core.ghosts.forEach((g,i)=>{
@@ -479,22 +632,26 @@
       core.cloud.visible=e;
       sharedPairs.forEach(p=>p.dots.forEach(d=>d.visible=e));
       ligands.forEach(h=>{
-        h.cloud.visible=e;
-        h.electron.visible=e && h.slot==null;
+        if(h.cloud) h.cloud.visible=e;
+        if(h.electron) h.electron.visible=e && h.slot==null && !h.isProton;
       });
       sticks.forEach(s=>s.visible=!e);
     }
     function setMode(m){ mode=(m==='sticks')?'sticks':'electrons'; applyMode(); }
 
+    function bondedCount(){ return ligands.filter(h=>h.slot!=null && !h.isProton).length; }
     function state(){
-      const bonded=ligands.filter(h=>h.slot!=null).length;
-      return { bonded, open:slotDirs().length-bonded, complete:bonded===slotDirs().length,
+      const bonded=bondedCount();
+      const slots=R.slots.length;                 // the NEUTRAL molecule's slots
+      return { bonded, open:Math.max(0,slots-bonded), complete:bonded>=slots,
+               protonated, hasProton:!!proton,
                free:ligands.length-bonded };
     }
 
     function reset(){
       [...group.children].forEach(c=>group.remove(c));
       ligands=[]; sticks=[]; sharedPairs=[]; core=null; held=null;
+      protonated=false; proton=null;
       build();
       setDim(dim);
     }

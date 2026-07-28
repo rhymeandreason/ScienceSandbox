@@ -36,18 +36,23 @@
   .goal.done .gname{color:#2e8b57}
   .goal .gkind{font-family:var(--font-hand);font-size:13px;color:var(--muted);margin-top:2px}
 
-  /* ---------- feedback toast ---------- */
-  #say{position:absolute;top:172px;left:50%;transform:translateX(-50%);z-index:12;
-    pointer-events:none;text-align:center;max-width:74%;opacity:0;
-    font-family:var(--font-hand);font-size:21px;color:var(--muted)}
+  /* ---------- feedback toast ----------
+     Below the molecule, just above the dock: up top it was wedged between the
+     tab strip and the atoms and had to stay short. Down here a line can run
+     wide, and it sits next to the controls that caused it. It rises INTO place
+     from below for the same reason — the motion should come from where the
+     hands are. */
+  #say{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);z-index:12;
+    pointer-events:none;text-align:center;width:min(760px,86%);opacity:0;
+    font-family:var(--font-hand);font-size:21px;line-height:1.35;color:var(--muted)}
   #say b{font-weight:600;color:var(--ink)}
   #say.no b{color:#c0392b}
   #say.show{animation:sayFade 3.4s ease-out forwards}
   @keyframes sayFade{
-    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
+    0%{opacity:0;transform:translateX(-50%) translateY(6px)}
     9%{opacity:1;transform:translateX(-50%) translateY(0)}
     78%{opacity:1;transform:translateX(-50%) translateY(0)}
-    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
+    100%{opacity:0;transform:translateX(-50%) translateY(4px)}}
   /* a refused bond shakes rather than silently doing nothing */
   #stage.shake{animation:shk .34s ease}
   @keyframes shk{0%,100%{transform:translateX(0)}22%{transform:translateX(-7px)}
@@ -79,16 +84,6 @@
     background:#d6362e;border:1px solid rgba(0,0,0,.55);vertical-align:middle}
   .edot.h{background:#b9c2d0;margin-left:-3px}
 
-  /* the teach card, revealed on the stage once water is finished */
-  #teach{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:11;
-    width:min(560px,84%);display:none;padding:12px 18px 14px;
-    background:rgba(255,255,255,.8);border:2px solid #2e8b57;
-    border-radius:9px 13px 8px 12px;backdrop-filter:blur(2px)}
-  #teach.show{display:block}
-  #teach .ctitle{font-family:var(--font-slab);font-weight:700;font-size:15px;
-    color:#2e8b57;margin-bottom:5px}
-  #teach .cardtext{font-family:var(--font-hand);font-size:17px;line-height:1.45;color:var(--ink)}
-
   /* ---------- view-mode switch ---------- */
   #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
   #modes .mode,#dims .mode{font-family:var(--font-slab);font-weight:600;font-size:13px;
@@ -118,6 +113,12 @@
         <div class="gform">CH&#8324;</div>
         <div class="gkind">share four ways</div>
       </button>
+      <button class="goal" data-lesson="ammonia">
+        <div class="glabel">Build</div>
+        <div class="gname">Ammonia</div>
+        <div class="gform">NH&#8323; &rarr; NH&#8324;<sup>+</sup></div>
+        <div class="gkind">then catch a proton</div>
+      </button>
       <button class="goal" data-lesson="nacl">
         <div class="glabel">Build</div>
         <div class="gname">Salt</div>
@@ -135,8 +136,6 @@
     <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
     <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
-
-    <div id="teach"><div class="ctitle"></div><div class="cardtext"></div></div>
 
     <div id="dock">
       <div id="modes" role="group" aria-label="View">
@@ -167,9 +166,9 @@
  *  BUILD A MOLECULE — two tabs: water shares, salt gives
  *  All the chemistry and all the feel live in water-drag.js / salt-drag.js;
  *  this file is UI only. Its job is to narrate what the hands just did: name
- *  the pull when it starts, name the shared pair when it forms, say "full" when
- *  a third hydrogen finds nowhere to go, and count the electrons out loud when
- *  one changes owner. Every rule is enforced in 3D, never in a dialog.
+ *  the pull when it starts, name the shared pair when it forms, count the slots
+ *  still open, and count the electrons out loud when one changes owner. Every
+ *  rule is enforced in 3D, never in a dialog.
  * ============================================================= */
 
 /* 2D is a diagram, and a diagram must not have perspective: at 45° an atom
@@ -193,7 +192,6 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
 const fx=FX.create(THREE, root, camera);
 
 const elSay=document.getElementById('say');
-const elCard=document.getElementById('teach');
 const elStats=document.getElementById('stats');
 
 /* ---------- the two lessons ----------------------------------------------
@@ -214,27 +212,34 @@ const LESSONS={
   water:{
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'water', onChange:report}),
     open:'Drag a hydrogen toward the oxygen.',
-    title:'Water &middot; H\u2082O &middot; covalent bond',
-    teach:'Oxygen shares a pair with each hydrogen — a <b>covalent bond</b>. '+
-      'Two open slots, two hydrogens: that is why water is H\u2082O and not H\u2083O, and '+
-      'why the third hydrogen never got pulled in. The slots sit <b>104.5\u00b0</b> apart, '+
-      'so water comes out bent — the reason it has a positive end and a negative end at all.',
+    // a ring enclosing the whole molecule: covalent is a thing the molecule has
     ring:()=>MolLib.PALETTE.bonds.covalent,
-    won:'You made <b>water</b>. The spare hydrogen has nowhere to go.',
+    won:'You made <b>water</b>. Two slots, two hydrogens.',
     flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
     step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
   },
+  ammonia:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'ammonia', onChange:report}),
+    open:'Nitrogen has three slots — and a lone pair it keeps.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'Ammonia. The <b>lone pair</b> is left over — now drag the <b>H\u207a</b> into it.',
+    flatSay:'Flat view — three bonds and the lone pair on top.',
+    stats:s=>s.protonated
+      ? 'ammonium <b>NH\u2084\u207a</b> &nbsp;\u00b7&nbsp; the lone pair became a <b>bond</b>'
+      : 'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>'+
+        (s.hasProton?' &nbsp;\u00b7&nbsp; a bare <b>proton</b> is waiting':''),
+    step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
+    /* The second stage is its own moment, and its own sentence: the proton
+       brought no electron, so nitrogen paid for the whole bond. */
+    extra:s=>s.protonated
+      ? 'The proton brought <b>no electron</b> — nitrogen paid for both. That is a '+
+        '<b>dative bond</b>, and the molecule is now <b>NH\u2084\u207a</b>.'
+      : null,
+  },
   methane:{
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'methane', onChange:report}),
     open:'Carbon has four slots. Same rule — fill them all.',
-    title:'Methane &middot; CH\u2084 &middot; covalent bond',
-    teach:'The same rule as water, four times over. Carbon brings <b>four</b> unpaired '+
-      'electrons and <b>no lone pairs</b>, so every one of them ends up in a bond and '+
-      'nothing is left over. The four slots point at the corners of a '+
-      '<b>tetrahedron</b> (<b>109.5\u00b0</b>) — methane is not flat, whatever the '+
-      'diagram view draws — and four slots building in every direction is why carbon '+
-      'is the backbone of every molecule in biology.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'You made <b>methane</b>. Four slots, four hydrogens, nothing left over.',
     flatSay:'Flat view — the four bonds spread out so you can count them. They are '+
@@ -245,13 +250,10 @@ const LESSONS={
   nacl:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
     open:'Drag the sodium and the chlorine together.',
-    title:'Salt &middot; NaCl &middot; ionic bond',
-    teach:'Sodium would not share — it <b>gave the electron away</b>. Watch it cross: '+
-      'it leaves violet and arrives green, because it now belongs to chlorine. '+
-      'Count them — sodium has none of its own left and chlorine has eight. '+
-      'They are Na<sup>+</sup> and Cl<sup>\u2212</sup>, and what holds them together '+
-      'is <b>opposite charge</b>, not a shared pair: <b>nothing sits in the gap</b> '+
-      'between them. That is why salt comes apart in water when water does not.',
+    /* No ring — ionic-drag.js already flashes and sparks where the electron
+       lands. The ionic moment is one electron arriving at one place, not the
+       molecule acquiring something, and giving it the enclosing ring would say
+       the two bond types are the same event in different colours. */
     ring:null,
     won:'The electron moved. Two <b>ions</b>, held by charge.',
     flatSay:'Flat view — count them: 0 on sodium, 8 on chlorine.',
@@ -262,13 +264,6 @@ const LESSONS={
   kcl:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'kcl', onChange:report}),
     open:'A different metal. Does the same thing happen?',
-    title:'Potassium chloride &middot; KCl &middot; ionic bond',
-    teach:'It does. Potassium hands its electron over exactly like sodium did — same '+
-      'one loose electron, same seven on chlorine waiting for an eighth, same '+
-      'K<sup>+</sup> and Cl<sup>\u2212</sup> held by charge across an empty gap. The '+
-      'behaviour belongs to <b>metal + nonmetal</b>, not to sodium personally, and '+
-      'this tab is the control that shows it. Potassium is the bigger atom, so the '+
-      'only thing that changes is how far apart the two ions settle.',
     ring:null,
     won:'Same story, different metal. That is the point.',
     flatSay:'Flat view — count them: 0 on potassium, 8 on chlorine.',
@@ -297,20 +292,23 @@ function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); 
    electron landing) and pulling a bond apart re-arms it — which is the useful
    behaviour: rebuild the molecule and you earn the ring again. */
 let rung=false;
+/* `extra` is for a lesson with a stage AFTER completion — ammonia's proton.
+   Checked first, so the protonation line is not shadowed by the win line the
+   molecule already earned. */
+let saidExtra=false;
 function report(s){
   elStats.innerHTML=L.stats(s);
+  const more=L.extra && L.extra(s);
+  if(more){ if(!saidExtra){ saidExtra=true; say(more); } return; }
+  saidExtra=false;
   if(s.complete){ win(); return; }
   rung=false;
   card().classList.remove('done');
-  elCard.classList.remove('show');
   const line=L.step(s); if(line) say(line);
 }
 
 function win(){
   card().classList.add('done');
-  elCard.querySelector('.ctitle').innerHTML=L.title;
-  elCard.querySelector('.cardtext').innerHTML=L.teach;
-  elCard.classList.add('show');
   say(L.won);
   /* Each bond type finishes in its own visual language, which is the cheapest
      way to say they are different KINDS of event:
@@ -330,10 +328,9 @@ let last=0;
 function load(k){
   if(sim) sim.destroy();
   rung=false;
-  key=k; L=LESSONS[k];
+  key=k; L=LESSONS[k]; saidExtra=false;
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
-  elCard.classList.remove('show');
   sim=L.make();
   sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
   sim.setDim(flat?'2d':'3d');
@@ -372,7 +369,7 @@ document.querySelectorAll('#dims .mode').forEach(b=>{
 });
 
 document.getElementById('clearmol').addEventListener('click',()=>{
-  rung=false;
+  rung=false; saidExtra=false;
   sim.reset();
   sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
   say(L.open);
