@@ -31,6 +31,13 @@
   const INK = '#2b2723';
   const INK_HEX = 0x2b2723;
 
+  /* How far a valence electron floats off its atom's surface. One number for
+   * every lesson, because a dot that sits at a different height on nitrogen than
+   * on oxygen reads as meaning something. Roomy on purpose: tucked against the
+   * sphere the dots crowd the outline and there is nowhere to show a pair
+   * sitting OFF-centre, which is how polarity gets drawn. */
+  const DOT_GAP = 0.34;
+
   function create(THREE){
     const P=global.MolLib.PALETTE;
 
@@ -92,18 +99,20 @@
 
     /* A charge badge (+ / −) for an ion. Same overlay rules as the letter, and
      * parked off the atom's shoulder so it never covers the element symbol. */
-    function charge(text, color, el){
+    function charge(text, color, el, scale){
       const c=document.createElement('canvas'); c.width=c.height=96;
       const x=c.getContext('2d');
       x.fillStyle='rgba(255,255,255,0.94)'; x.beginPath(); x.arc(48,48,40,0,7); x.fill();
       x.lineWidth=6; x.strokeStyle=INK; x.stroke();
-      x.fillStyle=color; x.font='bold 66px sans-serif';
+      x.fillStyle=color;
+      // δ− needs two glyphs in the same circle a bare + gets to itself
+      x.font='bold '+(text.length>1?40:66)+'px sans-serif';
       x.textAlign='center'; x.textBaseline='middle'; x.fillText(text,48,51);
       const s=new THREE.Sprite(new THREE.SpriteMaterial({
         map:new THREE.CanvasTexture(c), transparent:true,
         depthTest:false, depthWrite:false }));
       s.renderOrder=31;
-      s.scale.setScalar(0.62);
+      s.scale.setScalar(0.62*(scale||1));
       const r=(P.radii[el]||0.7);
       s.position.set(r*0.78, r*0.78, 0);
       return s;
@@ -150,7 +159,7 @@
       });
     }
 
-    return { dot, cloud, label, charge, cel, INK, INK_HEX };
+    return { dot, cloud, label, charge, cel, DOT_GAP, INK, INK_HEX };
   }
 
   global.AtomKit={ create };

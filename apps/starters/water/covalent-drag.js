@@ -65,9 +65,20 @@
    * plane to keep the octet countable. Carbon has none: all four of its
    * electrons are in slots, which is why methane has no leftovers to draw.
    */
+  /* `polar` is how unequally the pair is shared, 0 (dead centre) to 1 (as far
+   * toward the core as this page will draw it). It is a stylised weight from the
+   * electronegativity difference, NOT a dipole moment: O–H is 1.24 and gets 1,
+   * N–H is 0.84 and gets 0.7, C–H is 0.35 and gets 0 because chemistry calls a
+   * C–H bond nonpolar. Its whole job is to place the shared pair off-centre, so
+   * that water's "shared" and methane's "shared" are visibly not the same word —
+   * and to earn the δ badges, which appear only where there is a real charge
+   * separation to label. SCIENCE.md §2 requires the density be drawn shifted
+   * toward oxygen and never symmetric; this is that rule, applied to the object
+   * this page already uses to mean "the shared electrons".
+   */
   const RECIPES = {
     water: {
-      core:'O', ligand:'H', bond:1.55,
+      core:'O', ligand:'H', bond:1.55, polar:1,
       slots:   [[0.7910,-0.6116,0], [-0.7910,-0.6116,0]],
       slots2d: [[0.7910,-0.6116,0], [-0.7910,-0.6116,0]],
       lone:     [[0,0.6116,0.7910], [0,0.6116,-0.7910]],
@@ -90,7 +101,7 @@
      * 0/1/2 stay themselves and the proton takes index 3.
      */
     ammonia: {
-      core:'N', ligand:'H', bond:1.50,
+      core:'N', ligand:'H', bond:1.50, polar:0.7,
       slots:   [[0.9272,-0.3746,0],[-0.4635,-0.3748,0.8029],[-0.4635,-0.3748,-0.8029]],
       slots2d: [[0.8660,-0.5,0],[-0.8660,-0.5,0],[0,-1,0]],
       lone:     [[0,1,0]],
@@ -104,7 +115,7 @@
       },
     },
     methane: {
-      core:'C', ligand:'H', bond:1.50,
+      core:'C', ligand:'H', bond:1.50, polar:0,      // the nonpolar control
       slots:   [[S3,S3,S3],[S3,-S3,-S3],[-S3,S3,-S3],[-S3,-S3,S3]],
       slots2d: [[0,1,0],[1,0,0],[0,-1,0],[-1,0,0]],
       lone:[], loneFlat:[],
@@ -142,6 +153,7 @@
      * them from the same kit. What stays here is the covalent physics. */
     const kit=AtomKit.create(THREE);
     const dot=kit.dot, cloud=kit.cloud, label=kit.label;
+    const GAP=kit.DOT_GAP;   // surface → electron, shared by every lesson
     function applyCel(){
       const on=(dim==='2d');
       kit.cel([core&&core.sphere].concat(ligands.map(h=>h.sphere)), on);
@@ -165,7 +177,7 @@
       // free to share, which is why water is H₂O and not H₃O.
       const slotDots=slotDirs().map(d=>{
         const m=dot(P.atoms[R.core]);
-        m.position.copy(v3(d).normalize().multiplyScalar(P.radii[R.core]+0.17));
+        m.position.copy(v3(d).normalize().multiplyScalar(P.radii[R.core]+GAP));
         og.add(m); return m;
       });
       // ghost markers showing WHERE a ligand is allowed to land
@@ -223,7 +235,7 @@
         const dir=v3(dirs[i]).normalize();
         const perp=new THREE.Vector3().crossVectors(dir,
           Math.abs(dir.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0)).normalize();
-        const base=dir.clone().multiplyScalar(P.radii[R.core]+0.17);
+        const base=dir.clone().multiplyScalar(P.radii[R.core]+GAP);
         pair.forEach((m,k)=>m.position.copy(base).addScaledVector(perp,(k?1:-1)*0.16));
       });
     }
@@ -265,8 +277,18 @@
     function pairPlacement(i){
       const b=slotPos(i);
       const along=b.clone().normalize();
+      /* Dead centre of the gap between the two SURFACES is where an equally
+       * shared pair belongs. A polar bond pulls it toward the core — not all the
+       * way onto it, which would be the ionic picture, but visibly off the middle
+       * and biased toward the atom that wants the electrons more. */
       const gapMid=(P.radii[R.core] + (R.bond-P.radii[R.ligand]))/2;
-      const center=along.clone().multiplyScalar(gapMid);
+      /* Small on purpose. The stylised radii leave only ~0.05 between the two
+       * surfaces, so any pull at all puts the pair inside the core's silhouette;
+       * pushed further it stops reading as "shared, unequally" and starts
+       * reading as "transferred", which is the salt tab's picture, not this one.
+       * The δ badges and the leaning cloud carry the rest of the argument. */
+      const pull=(R.polar||0)*0.08;
+      const center=along.clone().multiplyScalar(gapMid-pull);
       /* Straddle the axis away from the OTHER bonds, so the pairs splay apart
        * instead of stacking. Summing the other slot dirs and negating gives that
        * for water (two slots) and for methane's flat cross; a real tetrahedron
@@ -329,7 +351,7 @@
       if(core){
         const dirs=slotDirs();
         core.slotDots.forEach((m,i)=>
-          m.position.copy(v3(dirs[i]).normalize().multiplyScalar(P.radii[R.core]+0.17)));
+          m.position.copy(v3(dirs[i]).normalize().multiplyScalar(P.radii[R.core]+GAP)));
         core.ghosts.forEach((m,i)=>m.position.copy(slotPos(i)));
       }
       sharedPairs.forEach(p=>{
@@ -352,6 +374,43 @@
         if(s.userData.slot!==i) return true; group.remove(s); return false; });
     }
 
+    /* δ badges, and the cloud shifted toward the core. Both appear only on a
+     * polar recipe and only on bonds that actually exist: an unbonded hydrogen
+     * has no charge separation to label, and labelling it would say the atom is
+     * charged rather than the BOND being lopsided. Methane's polar:0 means it
+     * never gets either, which is the point of having it next door. */
+    function showPolarity(){
+      if(!R.polar) return;
+      const bonded=ligands.filter(x=>x.slot!=null && !x.isProton);
+      if(!core.delta && bonded.length){
+        core.delta=kit.charge('δ−', '#'+new THREE.Color(P.atoms[R.core]).getHexString(),
+                              R.core, 0.85);
+        core.group.add(core.delta);
+      }
+      bonded.forEach(x=>{
+        if(!x.delta){
+          x.delta=kit.charge('δ+', '#'+new THREE.Color(P.atoms[R.ligand]).getHexString(),
+                             R.ligand, 0.8);
+          x.group.add(x.delta);
+        }
+        // parked on the far side of the ligand, pointing away from the core: the
+        // kit's default shoulder position aims at the core on half the bonds,
+        // straight into the shared pair the badge is supposed to be explaining
+        x.delta.position.copy(x.group.position).normalize()
+          .multiplyScalar(P.radii[R.ligand]*1.15);
+        // SCIENCE.md §2: the density is drawn shifted toward the core, never
+        // symmetric. The ligand's haze leans back along its own bond.
+        if(x.cloud) x.cloud.position.copy(
+          x.group.position.clone().normalize().multiplyScalar(-0.16*R.polar));
+      });
+    }
+    function hidePolarity(h){
+      if(h && h.delta){ h.group.remove(h.delta); h.delta=null;
+                        if(h.cloud) h.cloud.position.set(0,0,0); }
+      const anyBonded=ligands.some(x=>x.slot!=null && !x.isProton);
+      if(!anyBonded && core && core.delta){ core.group.remove(core.delta); core.delta=null; }
+    }
+
     function bond(h, i){
       h.slot=i; h.vel.set(0,0,0);
       h.group.position.copy(slotPos(i));
@@ -364,6 +423,7 @@
       if(core.ghosts[i]) core.ghosts[i].visible=false;
       makeSharedPair(i);
       if(fx) fx.settleShimmer(h.sphere, P.atoms[R.core]);
+      showPolarity();
       if(R.proton && !proton && bondedCount()===R.slots.length) spawnProton();
       onChange(state());
     }
@@ -374,6 +434,7 @@
       if(core.ghosts[i]) core.ghosts[i].visible=(mode==='electrons');
       if(core.slotDots[i]) core.slotDots[i].visible=(mode==='electrons');
       h.electron.visible=(mode==='electrons');
+      hidePolarity(h);
       onChange(state());
     }
 
@@ -419,6 +480,8 @@
        * property of the whole ion. Two badges would say it is still the
        * hydrogen's. */
       h.group.remove(h.badge);
+      // δ− becomes a whole +: the ion's charge is not a partial one any more
+      if(core.delta){ core.group.remove(core.delta); core.delta=null; }
       core.charge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.core]).getHexString(), R.core);
       core.group.add(core.charge);
       layoutBonds();                       // 107° → 109.5°: the other three move
@@ -470,7 +533,8 @@
       dative=null;
       if(core.charge){ core.group.remove(core.charge); core.charge=null; }
       h.group.add(h.badge);                // it leaves as a proton, as it arrived
-      buildLonePairs();                    // the pair goes back to being a pair
+      buildLonePairs();
+      showPolarity();                      // back to a neutral polar molecule                    // the pair goes back to being a pair
       layoutBonds();
       onChange(state());
     }
@@ -569,7 +633,7 @@
         if(h.slot==null && !h.isProton){
           const toO=h.group.position.clone().negate();
           if(toO.lengthSq()>1e-6)
-            h.electron.position.copy(toO.normalize().multiplyScalar(P.radii[R.ligand]+0.17));
+            h.electron.position.copy(toO.normalize().multiplyScalar(P.radii[R.ligand]+GAP));
         }
 
         if(h.slot!=null){                   // bonded: sit on the slot

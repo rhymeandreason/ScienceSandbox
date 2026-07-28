@@ -107,7 +107,7 @@
           lastAxis=toNa.clone();
         }
       }
-      const r=(P.radii[atom.el]||0.7)+0.17;
+      const r=(P.radii[atom.el]||0.7)+kit.DOT_GAP;   // one gap for every lesson
       // one colour per electron, so the newcomer can be picked out by eye
       const cols=[];
       for(let n=0;n<atom.count;n++) cols.push(P.atoms[atom.el]);
@@ -199,7 +199,7 @@
       const dir=new THREE.Vector3().subVectors(na.group.position, cl.group.position);
       if(dir.lengthSq()<1e-6) dir.set(-1,0,0);
       return cl.group.position.clone()
-        .addScaledVector(dir.normalize(), P.radii[R.nonmetal]+0.17);
+        .addScaledVector(dir.normalize(), P.radii[R.nonmetal]+kit.DOT_GAP);
     }
     function stepHop(dt){
       if(!hop) return;
