@@ -17,9 +17,12 @@
      two halves — share vs. give — rather than two unrelated pages. The inactive
      card is dimmed but never hidden: the comparison is the content. */
   #goals{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
-    display:flex;gap:10px;align-items:stretch}
+    display:flex;gap:8px;align-items:stretch}
+  /* the covalent pair and the ionic pair, set apart: the tab strip itself should
+     read as two lessons of two, not four unrelated molecules */
+  .goal[data-lesson="nacl"]{margin-left:24px}
   .goal{text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
-    border-radius:8px 12px 9px 11px;padding:9px 18px 11px;min-width:190px;
+    border-radius:8px 12px 9px 11px;padding:8px 13px 10px;min-width:132px;max-width:176px;
     font-family:inherit;color:var(--ink);cursor:pointer;
     box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px);
     opacity:.5;transition:opacity .12s ease,transform .12s ease}
@@ -27,7 +30,7 @@
   .goal.on{opacity:1;transform:translateY(-2px)}
   .goal .glabel{font-family:var(--font-slab);font-weight:700;font-size:10px;
     letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
-  .goal .gname{font-family:var(--font-marker);font-size:23px;color:var(--ink);line-height:1.15;margin-top:3px}
+  .goal .gname{font-family:var(--font-marker);font-size:19px;color:var(--ink);line-height:1.1;margin-top:3px}
   .goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
   .goal.done{border-color:#2e8b57}
   .goal.done .gname{color:#2e8b57}
@@ -109,11 +112,23 @@
         <div class="gform">H&#8322;O</div>
         <div class="gkind">they share</div>
       </button>
-      <button class="goal" data-lesson="salt">
+      <button class="goal" data-lesson="methane">
+        <div class="glabel">Build</div>
+        <div class="gname">Methane</div>
+        <div class="gform">CH&#8324;</div>
+        <div class="gkind">share four ways</div>
+      </button>
+      <button class="goal" data-lesson="nacl">
         <div class="glabel">Build</div>
         <div class="gname">Salt</div>
         <div class="gform">NaCl</div>
         <div class="gkind">one gives</div>
+      </button>
+      <button class="goal" data-lesson="kcl">
+        <div class="glabel">Build</div>
+        <div class="gname">Potassium chloride</div>
+        <div class="gform">KCl</div>
+        <div class="gkind">so does this one</div>
       </button>
     </div>
     <div id="say" aria-live="polite"></div>
@@ -144,8 +159,8 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="atomkit.js"></script>
-<script src="water-drag.js"></script>
-<script src="salt-drag.js"></script>
+<script src="covalent-drag.js"></script>
+<script src="ionic-drag.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -182,49 +197,82 @@ const elCard=document.getElementById('teach');
 const elStats=document.getElementById('stats');
 
 /* ---------- the two lessons ----------------------------------------------
- * Water and salt are adjacent tabs because the comparison IS the lesson: same
- * hands, same drag, same attraction — and then one pair shares a slot while the
- * other hands an electron over and never gets it back. Each tab owns its own
- * module (see "share the plumbing, not the physics"); this table is only the
- * words that go around them.
+ * Four tabs, in two pairs, because every comparison here IS a lesson. Water and
+ * methane are the same rule at two slot counts, so methane reads as "the rule
+ * generalises" rather than as a new fact. Salt and KCl are the same transfer
+ * from two different metals, so KCl reads as the control that shows the
+ * behaviour belongs to metal + nonmetal rather than to sodium. And covalent vs
+ * ionic is the comparison the whole page exists for: same hands, same drag, same
+ * attraction — then one pair shares a slot and the other hands an electron over
+ * and never gets it back.
+ *
+ * Two modules back the four (covalent-drag.js, ionic-drag.js): same mechanic
+ * means same file with a recipe, different mechanic means a different file. This
+ * table is only the words that go around them.
  */
 const LESSONS={
   water:{
-    make:()=>WaterDrag.create({THREE, root, camera, canvas, fx, onChange:report}),
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'water', onChange:report}),
     open:'Drag a hydrogen toward the oxygen.',
     title:'Water &middot; H\u2082O &middot; covalent bond',
     teach:'Oxygen shares a pair with each hydrogen — a <b>covalent bond</b>. '+
       'Two open slots, two hydrogens: that is why water is H\u2082O and not H\u2083O, and '+
       'why the third hydrogen never got pulled in. The slots sit <b>104.5\u00b0</b> apart, '+
       'so water comes out bent — the reason it has a positive end and a negative end at all.',
-    won:'You made <b>water</b>. The spare hydrogen has nowhere to go.',
-    /* A ring, expanding from the oxygen through both hydrogens: a covalent bond
-       is a thing the whole molecule now has, and the effect encloses all of it. */
     ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'You made <b>water</b>. The spare hydrogen has nowhere to go.',
     flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
-    step:s=>s.bonded===1?'Shared a pair. <b>One</b> slot left.':null,
+    step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
   },
-  salt:{
-    make:()=>SaltDrag.create({THREE, root, camera, canvas, fx, onChange:report}),
+  methane:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'methane', onChange:report}),
+    open:'Carbon has four slots. Same rule — fill them all.',
+    title:'Methane &middot; CH\u2084 &middot; covalent bond',
+    teach:'The same rule as water, four times over. Carbon brings <b>four</b> unpaired '+
+      'electrons and <b>no lone pairs</b>, so every one of them ends up in a bond and '+
+      'nothing is left over. The four slots point at the corners of a '+
+      '<b>tetrahedron</b> (<b>109.5\u00b0</b>) — methane is not flat, whatever the '+
+      'diagram view draws — and four slots building in every direction is why carbon '+
+      'is the backbone of every molecule in biology.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'You made <b>methane</b>. Four slots, four hydrogens, nothing left over.',
+    flatSay:'Flat view — the four bonds spread out so you can count them. They are '+
+            'really at 109.5\u00b0, not 90\u00b0; switch to 3D.',
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
+    step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
+  },
+  nacl:{
+    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
     open:'Drag the sodium and the chlorine together.',
     title:'Salt &middot; NaCl &middot; ionic bond',
     teach:'Sodium would not share — it <b>gave the electron away</b>. Watch it cross: '+
       'it leaves violet and arrives green, because it now belongs to chlorine. '+
       'Count them — sodium has none of its own left and chlorine has eight. '+
-      'They are Na<sup>+</sup> and '+
-      'Cl<sup>\u2212</sup>, and what holds them together is <b>opposite charge</b>, '+
-      'not a shared pair: <b>nothing sits in the gap</b> between them. That is why '+
-      'salt comes apart in water when water does not.',
-    won:'The electron moved. Two <b>ions</b>, held by charge.',
-    /* No ring. Salt's moment is not the molecule acquiring something — it is one
-       electron arriving at one place, and salt-drag.js already flashes white and
-       sprays green sparks exactly there. Giving the ionic tab the same enclosing
-       ring would say the two bonds are the same event with different colours,
-       when the whole point of the pair of tabs is that they are not. */
+      'They are Na<sup>+</sup> and Cl<sup>\u2212</sup>, and what holds them together '+
+      'is <b>opposite charge</b>, not a shared pair: <b>nothing sits in the gap</b> '+
+      'between them. That is why salt comes apart in water when water does not.',
     ring:null,
+    won:'The electron moved. Two <b>ions</b>, held by charge.',
     flatSay:'Flat view — count them: 0 on sodium, 8 on chlorine.',
-    stats:s=>'Na: <b>'+s.naCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.clCount+
+    stats:s=>'Na: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
+             'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
+    step:()=>null,
+  },
+  kcl:{
+    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'kcl', onChange:report}),
+    open:'A different metal. Does the same thing happen?',
+    title:'Potassium chloride &middot; KCl &middot; ionic bond',
+    teach:'It does. Potassium hands its electron over exactly like sodium did — same '+
+      'one loose electron, same seven on chlorine waiting for an eighth, same '+
+      'K<sup>+</sup> and Cl<sup>\u2212</sup> held by charge across an empty gap. The '+
+      'behaviour belongs to <b>metal + nonmetal</b>, not to sodium personally, and '+
+      'this tab is the control that shows it. Potassium is the bigger atom, so the '+
+      'only thing that changes is how far apart the two ions settle.',
+    ring:null,
+    won:'Same story, different metal. That is the point.',
+    flatSay:'Flat view — count them: 0 on potassium, 8 on chlorine.',
+    stats:s=>'K: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
              'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
     step:()=>null,
   },

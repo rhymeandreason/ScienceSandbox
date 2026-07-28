@@ -1,51 +1,57 @@
 /* =============================================================================
- *  salt-drag.js — build salt by HAND: sodium does not share, it GIVES
+ *  ionic-drag.js — build an ion pair by HAND: the metal does not share, it GIVES
  * =============================================================================
  *  Loaded as a classic script AFTER three.min.js, molecules.js, scene.js, fx.js
- *  and atomkit.js. Exposes window.SaltDrag.
+ *  and atomkit.js.
  *
- *  A sibling of water-drag.js, deliberately NOT a mode of it. The two lessons
+ *  A sibling of covalent-drag.js, deliberately NOT a mode of it. The two lessons
  *  share a look (atomkit.js) and a feel (drag, attraction, snap) but not a
  *  mechanic, and the difference is the entire point of putting them in adjacent
  *  tabs:
  *
- *    WATER   a slot is filled. Two electrons end up BETWEEN the nuclei and
- *            belong to both atoms. Neither atom's count changes.
- *    SALT    nothing is filled and nothing is between them. One electron MOVES,
- *            permanently: sodium ends with none of its own and chlorine ends
- *            with eight. What holds the pair together afterwards is opposite
- *            charge — so there is no stick to draw, at any zoom, in any mode.
+ *    COVALENT  a slot is filled. Two electrons end up BETWEEN the nuclei and
+ *              belong to both atoms. Neither atom's count changes.
+ *    IONIC     nothing is filled and nothing is between them. One electron
+ *              MOVES, permanently: the metal ends with none of its own and the
+ *              nonmetal ends with eight. What holds the pair together afterwards
+ *              is opposite charge, not anything in the gap.
  *
  *  That is why this file has no valence slots and no shared pair: there is
  *  nothing in the gap to draw. Stick view still gets a stick, because that is
  *  the schematic the rest of the project speaks — but an amber one, the
  *  palette's ion colour, never a covalent grey.
  *
- *  Counts are the argument, so they are drawn rather than asserted: Na shows its
- *  single loose electron, Cl shows seven (one short of full), and after the
- *  transfer you can count 0 and 8.
+ *  Counts are the argument, so they are drawn rather than asserted: the metal
+ *  shows its single loose electron, the nonmetal shows seven (one short of
+ *  full), and after the transfer you can count 0 and 8.
  *
  *  Usage:
- *    const s = SaltDrag.create({THREE, root, camera, canvas, fx, onChange});
+ *    const s = IonicDrag.create({THREE, root, camera, canvas, fx, onChange,
+ *                                recipe:'nacl'});
  *    s.setMode('electrons'|'sticks');  s.setDim('2d'|'3d');  s.reset();
  * ========================================================================== */
 (function(global){
   'use strict';
 
   const S = {
-    /* Roomier than any covalent bond in the project (O–H is 1.55 against radii
-     * summing to 1.50). Na 0.70 + Cl 1.24 = 1.94 against 2.55, and the gap is
-     * deliberate: nothing is shared across it. The eye should read a space
-     * between two ions, not a join. */
-    NACL: 2.55,
     CAPTURE: 4.2,             // ionic attraction reaches further than a slot does
     SNAP: 0.5,
     BREAK: 1.6,
-    TOUCH: 2.05,              // solid nuclei: 0.70 + 1.24, plus a hair
     DAMP: 0.86,
     PULL: 30,               // approach, before the electron moves
     SPRING: 34,             // the charge hold afterwards, about NACL
     HOP: 0.55,                // seconds for the electron to cross
+  };
+
+  /* Separations are roomier than any covalent bond in the project (O–H is 1.55
+   * against radii summing to 1.50): Na 0.70 + Cl 1.24 = 1.94 against 2.55. The
+   * gap is deliberate — nothing is shared across it, and the eye should read a
+   * space between two ions rather than a join. Potassium is the bigger atom and
+   * gets the longer bond, straight from molecules.js.
+   */
+  const RECIPES = {
+    nacl: { metal:'Na', nonmetal:'Cl', bond:2.55 },
+    kcl:  { metal:'K',  nonmetal:'Cl', bond:2.70 },
   };
 
   /* Where an ion's electrons sit. 3D spreads them tetrahedrally, the same
@@ -62,6 +68,9 @@
           onChange=opts.onChange||function(){};
     const P=global.MolLib.PALETTE;
     const kit=AtomKit.create(THREE);
+    const R=RECIPES[opts.recipe||'nacl'];
+    const REST=R.bond;
+    const TOUCH=(P.radii[R.metal]+P.radii[R.nonmetal])*1.06;   // solid nuclei
 
     const group=new THREE.Group(); root.add(group);
     let mode='electrons', dim='3d';
@@ -131,10 +140,10 @@
     }
 
     function build(){
-      // sodium on the left with its one loose electron, chlorine on the right
-      // with seven — the asymmetry the student is meant to notice first
-      na=makeAtom('Na', new THREE.Vector3(-4.6,0.6,0), 1);
-      cl=makeAtom('Cl', new THREE.Vector3(4.4,-0.4,0), 7);
+      // the metal on the left with its one loose electron, the nonmetal on the
+      // right with seven — the asymmetry the student is meant to notice first
+      na=makeAtom(R.metal, new THREE.Vector3(-4.6,0.6,0), 1);
+      cl=makeAtom(R.nonmetal, new THREE.Vector3(4.4,-0.4,0), 7);
       drawDots(na); drawDots(cl);
       applyCel(); applyMode();
       onChange(state());
@@ -159,8 +168,8 @@
       drawDots(na); drawDots(cl);
       startHop();
 
-      badges=[ kit.charge('+', '#'+new THREE.Color(P.atoms.Na).getHexString(), 'Na'),
-               kit.charge('−', '#'+new THREE.Color(P.atoms.Cl).getHexString(), 'Cl') ];
+      badges=[ kit.charge('+', '#'+new THREE.Color(P.atoms[R.metal]).getHexString(), R.metal),
+               kit.charge('−', '#'+new THREE.Color(P.atoms[R.nonmetal]).getHexString(), R.nonmetal) ];
       na.group.add(badges[0]); cl.group.add(badges[1]);
 
       /* The stick is a STICK-VIEW object only. In the electron view drawing a
@@ -179,18 +188,18 @@
     /* the flight: sodium's own dot, re-parented to the pair and animated across */
     function startHop(){
       const from=na.group.position.clone();
-      const m=kit.dot(P.atoms.Na);
+      const m=kit.dot(P.atoms[R.metal]);
       m.position.copy(from);
       group.add(m);
       hop={ m, from, k:0,
-            c0:new THREE.Color(P.atoms.Na), c1:new THREE.Color(P.atoms.Cl) };
+            c0:new THREE.Color(P.atoms[R.metal]), c1:new THREE.Color(P.atoms[R.nonmetal]) };
     }
     // where the newcomer is headed: chlorine's surface on the side facing sodium
     function hopTarget(){
       const dir=new THREE.Vector3().subVectors(na.group.position, cl.group.position);
       if(dir.lengthSq()<1e-6) dir.set(-1,0,0);
       return cl.group.position.clone()
-        .addScaledVector(dir.normalize(), P.radii.Cl+0.17);
+        .addScaledVector(dir.normalize(), P.radii[R.nonmetal]+0.17);
     }
     function stepHop(dt){
       if(!hop) return;
@@ -211,7 +220,7 @@
          * meaning "done" instead of firing twice a second apart. */
         if(fx){
           fx.spawnCore(at, 0xffffff);
-          fx.spawnBurst(at, P.atoms.Cl, 14);
+          fx.spawnBurst(at, P.atoms[R.nonmetal], 14);
         }
         onChange(state());
       }
@@ -280,7 +289,7 @@
       const want=group.worldToLocal(p.add(grabOffset));
       // pulling the ions apart un-does the transfer: the electron goes home, so
       // "they stick together because of the charge" is testable, not asserted
-      if(given && want.distanceTo(other.group.position)>S.NACL+S.BREAK) unbond();
+      if(given && want.distanceTo(other.group.position)>REST+S.BREAK) unbond();
       held.group.position.copy(want);
       stickLayout();
     }
@@ -311,7 +320,7 @@
       // charges exist the pull is stronger, which is the point of the lesson
       const sep=new THREE.Vector3().subVectors(cl.group.position, na.group.position);
       const d=sep.length();
-      const rest=S.NACL;
+      const rest=REST;
       pair.forEach(a=>{
         if(a.dragging) return;
         const toward=(a===na?1:-1);                     // +1 pulls Na toward Cl
@@ -335,8 +344,8 @@
 
       // solid nuclei — neither ion may be pushed inside the other
       const now=new THREE.Vector3().subVectors(cl.group.position, na.group.position);
-      if(now.length()<S.TOUCH){
-        const push=now.clone().normalize().multiplyScalar((S.TOUCH-now.length()));
+      if(now.length()<TOUCH){
+        const push=now.clone().normalize().multiplyScalar((TOUCH-now.length()));
         if(!cl.dragging) cl.group.position.add(push);
         else na.group.position.sub(push);
       }
@@ -401,8 +410,10 @@
     }
 
     function state(){
+      // element-neutral names: the page's KCl tab reads the same fields
       return { given, complete:given,
-               naCount:na?na.count:1, clCount:cl?cl.count:7 };
+               metalCount:na?na.count:1, nonmetalCount:cl?cl.count:7,
+               metal:R.metal, nonmetal:R.nonmetal };
     }
 
     function reset(){
@@ -421,5 +432,5 @@
              get mode(){return mode;}, get dim(){return dim;} };
   }
 
-  global.SaltDrag={ create, S };
+  global.IonicDrag={ create, S, RECIPES };
 })(this);
