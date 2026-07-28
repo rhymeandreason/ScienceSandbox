@@ -41,48 +41,52 @@
   @keyframes shk{0%,100%{transform:translateX(0)}22%{transform:translateX(-7px)}
     58%{transform:translateX(6px)}80%{transform:translateX(-3px)}}
 
-  /* ---------- element bench ---------- */
-  .benchgrid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
-  .elem{width:58px;height:62px;border:2px solid var(--ink);border-radius:10px;
-    background:#fff;cursor:pointer;font-family:inherit;color:var(--ink);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    box-shadow:0 3px 0 rgba(0,0,0,.16);transition:transform .07s ease}
-  .elem:hover{transform:translateY(-2px)}
-  .elem:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.16)}
-  .elem .sym{font-family:var(--font-slab);font-size:1.32rem;font-weight:700;line-height:1}
-  .elem .slots{font-family:var(--font-hand);font-size:.66rem;color:var(--muted);margin-top:3px}
-  .elem.metal{background:#f6dcb4}
-  .elem.nonmetal{background:#cfe4f2}
+  /* ---------- single-column while we tune the water interaction ----------
+     The bench lives ON the stage instead of in a side panel: with one target
+     there is nothing to browse, and keeping hand and molecule in the same
+     field of view is what the interaction is being tuned for. */
+  #app{grid-template-columns:1fr}
+  #side{display:none}
+  #stage{grid-column:1}
 
-  .legend{display:flex;gap:13px;flex-wrap:wrap;font-family:var(--font-hand);
-    color:var(--muted);font-size:13px;margin:2px 0 12px}
-  .legend span{display:inline-flex;align-items:center;gap:5px}
-  .sw{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--ink);display:inline-block}
-
-  /* ---------- target picker ---------- */
-  #targets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-  .tbtn{font-family:var(--font-slab);font-weight:600;font-size:13px;padding:5px 11px;
-    border:1.5px solid var(--hair);border-radius:7px;background:#fff;color:var(--muted);
-    cursor:pointer}
-  .tbtn.on{border-color:var(--ink);color:var(--ink);background:rgba(0,0,0,.04)}
-  .tbtn.cleared::after{content:' ✓';color:#2e8b57}
-
-  #libactions{flex-wrap:wrap}
-  #etoggle{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.75;
-    cursor:pointer;flex-basis:100%}
+  #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
+    display:flex;align-items:center;gap:14px;padding:11px 16px;
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);
+    border-radius:11px 14px 10px 13px;box-shadow:0 5px 16px -8px rgba(0,0,0,.4);
+    backdrop-filter:blur(2px)}
+  #dock .dsep{width:1.5px;align-self:stretch;background:var(--hair)}
+  #dock button.act{font-family:var(--font-slab);font-weight:600;font-size:13px;
+    padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
+    background:#fff;color:var(--ink);cursor:pointer}
+  #dock button.act:hover{background:var(--ink);color:var(--paper)}
+  #etoggle{display:flex;align-items:center;gap:6px;font-family:var(--font-hand);
+    font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  /* electrons wear their atom's colour, so the switch label doubles as the
+     legend: red = oxygen's electrons, steel = hydrogen's */
   .edot{display:inline-block;width:9px;height:9px;border-radius:50%;
-    background:#ffc93c;border:1px solid rgba(0,0,0,.35);vertical-align:middle}
+    background:#d6362e;border:1px solid rgba(0,0,0,.55);vertical-align:middle}
+  .edot.h{background:#b9c2d0;margin-left:-3px}
 
-  /* ---------- teach card ---------- */
-  #card{border-top:1.5px dashed var(--hair);padding-top:14px;margin-top:4px}
-  #card .ctitle{font-family:var(--font-slab);font-weight:700;font-size:15px;margin-bottom:5px}
-  #card .ctitle.ionic{color:var(--ionic)}
-  #card .ctitle.covalent{color:var(--covalent)}
-  #card .cardtext{display:none}
-  #card.show .cardtext{display:block}
+  /* the teach card, revealed on the stage once water is finished */
+  #teach{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:11;
+    width:min(560px,84%);display:none;padding:12px 18px 14px;
+    background:rgba(255,255,255,.8);border:2px solid #2e8b57;
+    border-radius:9px 13px 8px 12px;backdrop-filter:blur(2px)}
+  #teach.show{display:block}
+  #teach .ctitle{font-family:var(--font-slab);font-weight:700;font-size:15px;
+    color:#2e8b57;margin-bottom:5px}
+  #teach .cardtext{font-family:var(--font-hand);font-size:17px;line-height:1.45;color:var(--ink)}
 
-  @media (max-width:880px){#app{grid-template-columns:1fr}#stage{grid-column:1}
-    #side{grid-column:1}#side::before{display:none}}
+  /* ---------- view-mode switch ---------- */
+  #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
+  #modes .mode,#dims .mode{font-family:var(--font-slab);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #modes .mode + .mode,#dims .mode + .mode{border-left:1.5px solid var(--ink)}
+  #modes .mode.on,#dims .mode.on{background:var(--ink);color:var(--paper)}
+
+  /* the PNG button and the dock both want the bottom strip — move it up */
+  #savepng{bottom:auto;top:22px;right:26px;left:auto}
 </style>
 </head>
 <body>
@@ -98,33 +102,22 @@
     <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
     <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
-  </div>
 
-  <div id="side">
-    <h1 id="labtitle">Bonding bench</h1>
-    <p id="labintro">Atoms don't bond because you want them to — they bond when they
-      have <b>room</b>. The yellow dots are <b>valence electrons</b><i class="edot"></i>:
-      a single dot is one that's free to share, a pair sitting together is
-      already spoken for, and a pair <i>between</i> two atoms is a bond. Fill every
-      open slot and you've made a molecule; try to add one more and it will refuse.
-      Watch what happens when a <b>metal</b> meets a <b>nonmetal</b>.</p>
+    <div id="teach"><div class="ctitle"></div><div class="cardtext"></div></div>
 
-    <div class="libgroup">Target</div>
-    <div id="targets"></div>
-
-    <div class="libgroup">Element bench</div>
-    <div class="benchgrid" id="bench"></div>
-    <div class="legend">
-      <span><i class="sw" style="background:#cfe4f2"></i> nonmetal — shares</span>
-      <span><i class="sw" style="background:#f6dcb4"></i> metal — gives</span>
+    <div id="dock">
+      <div id="modes" role="group" aria-label="View">
+        <button class="mode on" data-mode="electrons">valence electrons<i class="edot"></i><i class="edot h"></i></button>
+        <button class="mode" data-mode="sticks">stick bonds</button>
+      </div>
+      <div class="dsep"></div>
+      <div id="dims" role="group" aria-label="View angle">
+        <button class="mode" data-dim="3d">3D</button>
+        <button class="mode on" data-dim="2d">2D</button>
+      </div>
+      <div class="dsep"></div>
+      <button class="act" id="clearmol">Reset</button>
     </div>
-
-    <div id="libactions">
-      <button id="clearmol">Clear</button>
-      <label id="etoggle"><input type="checkbox" id="showe" checked> show valence electrons</label>
-    </div>
-
-    <div id="card"><div class="ctitle"></div><div class="cardtext"></div></div>
   </div>
 </div>
 
@@ -132,141 +125,103 @@
 <script src="molecules.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
-<script src="builder.js"></script>
+<script src="water-drag.js"></script>
 <script>
 "use strict";
 /* =============================================================
- *  BUILD A MOLECULE — valence + geometry as the game rules
- *  All chemistry lives in builder.js; this file is UI only. The page's job is
- *  to make the RULE legible: show slot counts on the bench, show ghost slots
- *  in 3D, and when a bond is refused, say why out loud instead of ignoring the
- *  click. A silent no-op reads as a bug; "oxygen has no room left" reads as
- *  chemistry.
+ *  BUILD WATER — drag a hydrogen until oxygen takes it
+ *  All the chemistry and all the feel live in water-drag.js; this file is UI
+ *  only. Its job is to narrate what the hands just did: name the pull when it
+ *  starts, name the shared pair when it forms, and say "full" when a third
+ *  hydrogen finds nowhere to go. The rule is enforced in 3D, never in a dialog.
  * ============================================================= */
 
 const canvas=document.getElementById('gl');
 let userSpun=false;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
-  cam:{theta:0.6,phi:1.15,r:11}, rMin:6, rMax:26,
+  cam:{theta:0.6,phi:1.15,r:12}, rMin:6, rMax:26,
   onDrag:()=>{userSpun=true;}
 });
 const fx=FX.create(THREE, root, camera);
-const builder=Builder.create({THREE, root, fx});
 
-const elGoalName=document.querySelector('#goal .gname');
-const elGoalForm=document.querySelector('#goal .gform');
 const elGoal=document.getElementById('goal');
 const elSay=document.getElementById('say');
-const elCard=document.getElementById('card');
+const elCard=document.getElementById('teach');
 const elStats=document.getElementById('stats');
-const cleared=new Set();
+
+const TEACH='Oxygen shares a pair with each hydrogen — a <b>covalent bond</b>. '+
+  'Two open slots, two hydrogens: that is why water is H\u2082O and not H\u2083O, and '+
+  'why the third hydrogen never got pulled in. The slots sit <b>104.5\u00b0</b> apart, '+
+  'so water comes out bent — the reason it has a positive end and a negative end at all.';
+
+document.querySelector('#goal .gname').textContent='Water';
+document.querySelector('#goal .gform').innerHTML='H\u2082O';
 
 /* ---------- feedback ---------- */
 let sayTimer=null;
-function say(html, bad){
+function say(html){
   elSay.innerHTML=html;
-  elSay.classList.remove('show','no');
-  if(bad) elSay.classList.add('no');
+  elSay.classList.remove('show');
   void elSay.offsetWidth;              // restart the animation
   elSay.classList.add('show');
-  if(bad){
-    const st=document.getElementById('stage');
-    st.classList.remove('shake'); void st.offsetWidth; st.classList.add('shake');
-  }
   clearTimeout(sayTimer);
   sayTimer=setTimeout(()=>elSay.classList.remove('show'),3400);
 }
 
-/* ---------- element bench ---------- */
-const bench=document.getElementById('bench');
-Object.keys(Builder.ELEMENTS).forEach(sym=>{
-  const e=Builder.ELEMENTS[sym];
-  const b=document.createElement('button');
-  b.className='elem '+e.kind;
-  b.title=e.name;
-  b.innerHTML='<span class="sym">'+sym+'</span><span class="slots">'+
-    (e.kind==='metal' ? 'gives 1e⁻' : e.valence+(e.valence===1?' slot':' slots'))+'</span>';
-  b.addEventListener('click',()=>place(sym));
-  bench.appendChild(b);
-});
+/* ---------- the sim ---------- */
+let last=0;
+const water=WaterDrag.create({THREE, root, camera, canvas, fx, onChange:report});
 
-/* ---------- target picker ---------- */
-const elTargets=document.getElementById('targets');
-function renderTargets(){
-  elTargets.innerHTML='';
-  Builder.TARGETS.forEach(t=>{
-    const b=document.createElement('button');
-    b.className='tbtn'+(builder.target&&builder.target.key===t.key?' on':'')+
-                (cleared.has(t.key)?' cleared':'');
-    b.innerHTML=t.formula;
-    b.addEventListener('click',()=>pick(t.key));
-    elTargets.appendChild(b);
-  });
-}
-
-function pick(key){
-  const t=builder.setTarget(key);
-  elGoalName.textContent=t.name;
-  elGoalForm.innerHTML=t.formula;
+function report(s){
+  elStats.innerHTML='bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>';
+  if(s.complete){ win(); return; }
   elGoal.classList.remove('done');
   elCard.classList.remove('show');
-  renderTargets();
-  updateStats();
-  say(t.prompt);
+  if(s.bonded===1) say('Shared a pair. <b>One</b> slot left.');
 }
 
-/* ---------- the loop: place an atom, get told what happened ---------- */
-function place(sym){
-  const r=builder.addAtom(sym);
-  if(!r.ok){ say(r.why,true); updateStats(); return; }
-
-  if(r.bonded==='ionic'){
-    say('<b>'+r.transferred+'</b> gave its electron away — that\'s an <b>ionic bond</b>.');
-  }else if(r.bonded==='covalent'){
-    say(r.remaining>0
-      ? 'Shared a pair. <b>'+r.remaining+'</b> slot'+(r.remaining===1?'':'s')+' left.'
-      : 'Shared a pair. Every slot is full.');
-  }else{
-    say('<b>'+sym+'</b> placed. Now fill its slots.');
-  }
-
-  const c=builder.check();
-  if(c.complete) win(c);
-  updateStats();
-}
-
-function win(c){
-  const t=builder.target;
-  cleared.add(t.key);
+function win(){
   elGoal.classList.add('done');
   const title=elCard.querySelector('.ctitle');
-  title.className='ctitle '+c.bonding;
-  title.innerHTML=t.name+' &middot; '+t.formula+' &middot; '+c.bonding+' bond';
-  elCard.querySelector('.cardtext').innerHTML=t.teach;
+  title.innerHTML='Water &middot; H\u2082O &middot; covalent bond';
+  elCard.querySelector('.cardtext').innerHTML=TEACH;
   elCard.classList.add('show');
-  renderTargets();
-  say('You made <b>'+t.name+'</b>.');
+  say('You made <b>water</b>. The spare hydrogen has nowhere to go.');
   // the one ring in the lesson: reserved for completion, so it means "done"
   // rather than being background noise on every single bond
-  if(fx) fx.spawnRing(new THREE.Vector3(0,0,0),
-    c.bonding==='ionic'?MolLib.PALETTE.bonds.iondipole:MolLib.PALETTE.bonds.covalent);
+  if(fx) fx.spawnRing(new THREE.Vector3(0,0,0), MolLib.PALETTE.bonds.covalent);
 }
 
-function updateStats(){
-  const t=builder.target;
-  if(!t){ elStats.innerHTML=''; return; }
-  const bits=['built: <b>'+(builder.placed.join(' + ')||'nothing yet')+'</b>'];
-  if(!t.pair) bits.push('open slots: <b>'+builder.openSlots+'</b>');
-  if(builder.isIonic) bits.push('<b>ions</b> — held by charge');
-  elStats.innerHTML=bits.join(' &nbsp;·&nbsp; ');
-}
-
-document.getElementById('clearmol').addEventListener('click',()=>{
-  if(builder.target) pick(builder.target.key);
+/* ---------- controls ---------- */
+document.querySelectorAll('#modes .mode').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#modes .mode').forEach(o=>o.classList.remove('on'));
+    b.classList.add('on');
+    water.setMode(b.dataset.mode);
+  });
 });
 
-document.getElementById('showe').addEventListener('change',e=>{
-  builder.setElectrons(e.target.checked);
+/* 2D is the default: straight-on, rotation locked, every electron countable.
+   3D is the thing you switch to once you want to ask where the lone pairs
+   really are — which is the question the flat view provokes. */
+let flat=true;
+document.querySelectorAll('#dims .mode').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#dims .mode').forEach(o=>o.classList.remove('on'));
+    b.classList.add('on');
+    flat=(b.dataset.dim==='2d');
+    water.setDim(flat?'2d':'3d');
+    if(flat){ userSpun=true; }        // no idle turntable behind a locked view
+    else { cam.theta=0.6; cam.phi=1.15; applyCam(); userSpun=false; }
+    say(flat ? 'Flat view — all eight of oxygen\u2019s electrons in one plane.'
+             : 'Free view — drag the background to spin it.');
+  });
+});
+
+document.getElementById('clearmol').addEventListener('click',()=>{
+  water.reset();
+  water.setMode(document.querySelector('#modes .mode.on').dataset.mode);
+  say('Drag a hydrogen toward the oxygen.');
 });
 
 document.getElementById('savepng').addEventListener('click',()=>{
@@ -278,17 +233,23 @@ document.getElementById('savepng').addEventListener('click',()=>{
 });
 
 /* ---------- frame loop ---------- */
-function frame(){
+function frame(now){
   requestAnimationFrame(frame);
-  if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
-  builder.step();
+  const dt=last?(now-last)/1000:0.016; last=now;
+  /* The 2D lock is re-asserted per frame rather than by unbinding Stage's orbit
+     handler: the handler belongs to the shared stage, and a page has no business
+     reaching in to disable it. Re-applying the camera afterwards is the same
+     result from the outside — the view simply cannot be rotated. */
+  if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
+  else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
+  water.step(dt);
   fx.step();
   renderer.render(scene,camera);
 }
 resize();
-renderTargets();
-pick('water');
-frame();
+water.setDim('2d');
+say('Drag a hydrogen toward the oxygen.');
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
