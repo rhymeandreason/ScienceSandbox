@@ -161,10 +161,21 @@
        * line puts them at the edges of the frame AND makes the molecule look
        * half-assembled on load — the linear shape should be the result of
        * bonding, not the arrangement it started in.
-       * Closer in than the hydrogen recipes' ±5 as well: oxygen is drawn at
-       * radius 0.95 against hydrogen's 0.55, so a scatter that framed an H
-       * comfortably runs a whole oxygen off the edge of the canvas. */
-      start:[[-3.5,2.4,1.2],[3.5,-2.4,-1.2]],
+       *
+       * The constraint that actually sets these numbers is S.CAPTURE: a ligand
+       * that starts within 3.4 of its SLOT is already inside the core's pull and
+       * flies in on its own, so the student watches the molecule assemble itself
+       * instead of building it. That distance is measured slot-to-atom, not
+       * origin-to-atom, and CO2's slots are 2.10 out along the very axis the
+       * atoms would otherwise sit on — so clearing the radius takes either more
+       * height or more width than a hydrogen recipe needs.
+       * It has to be width. The stage is wider than it is tall and the tab strip
+       * and the dock own the top and bottom of it, so an atom parked high enough
+       * to clear 3.4 vertically lands underneath the cards. ±5.2 matches
+       * methane's scatter exactly, which keeps the framing behaving like every
+       * other tab at every window size, and 2.4 of height puts it 3.9 from the
+       * slot — more margin than water's nearest hydrogen has. */
+      start:[[-5.2,2.4,1.2],[5.2,-2.4,-1.2]],
     },
     /* Nitrogen gas: the same doubling taken one step further, and the cheapest
      * possible demonstration that bond order is a real quantity. Two identical
@@ -188,8 +199,9 @@
       lone:     [[-1,0,0]],                  // the core's, pointing away
       loneFlat: [[-1,0,0]],
       ligandLone:{ n:1, mode:'axial' },      // the ligand's, pointing the far way
-      start:[[3.4,2.4,-1.0]],       // off-axis and close in, as CO2's, and for
-                                    // the same two reasons
+      // off the bond axis and clear of S.CAPTURE, for CO2's reasons exactly:
+      // 3.9 from the slot, so the triple bond is one the student pulled together
+      start:[[5.2,2.4,-1.0]],
 
     },
   };

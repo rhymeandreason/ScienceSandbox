@@ -346,10 +346,8 @@ const LESSONS={
       : null,
     /* The dipole point lands AFTER the win line, on its own, because it is a
        separate claim from "you made CO2" and the one students lose. */
-    extra:s=>s.complete
-      ? 'Both bonds pull toward oxygen — but in <b>opposite directions</b>, '+
-        'along one straight line. They <b>cancel</b>: polar bonds, <b>nonpolar molecule</b>.'
-      : null,
+    after:()=>'Both bonds pull toward oxygen — but in <b>opposite directions</b>, '+
+             'along one straight line. They <b>cancel</b>: polar bonds, <b>nonpolar molecule</b>.',
   },
   /* And N2 is the same doubling pushed to its limit, with the polarity argument
      switched off entirely — two identical atoms have nothing to argue about, so
@@ -374,10 +372,8 @@ const LESSONS={
       ? 'shared pairs: <b>'+s.pairs+'</b> &nbsp;·&nbsp; a <b>triple</b> bond'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
     step:()=>null,
-    extra:s=>s.complete
-      ? 'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
-        'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.'
-      : null,
+    after:()=>'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
+             'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.',
   },
   nacl:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
@@ -452,22 +448,39 @@ let rung=false;
    Checked first, so the protonation line is not shadowed by the win line the
    molecule already earned. */
 let saidExtra=false;
+/* `after` is the OTHER kind of second line, and the distinction matters because
+   getting it wrong silently costs a lesson its ending. `extra` replaces the win
+   — ammonia's protonation is a new stage, and the molecule that finished is not
+   the molecule on screen any more. `after` follows the win — CO2's two dipoles
+   cancelling is a second sentence about the SAME completion, so the ring, the
+   won line and the done card all still have to happen first. Routing that
+   through `extra` returned before win() ever ran and quietly took all three. */
+let saidAfter=false, afterTimer=null;
 function report(s){
   elStats.innerHTML=L.stats(s);
   const more=L.extra && L.extra(s);
   if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
   saidExtra=false;
-  if(s.complete){ win(); return; }
-  rung=false;
+  if(s.complete){ win(s); return; }
+  rung=false; saidAfter=false;
+  clearTimeout(afterTimer);
   card().classList.remove('done');
   showNotes(null);
   const line=L.step(s); if(line) say(line);
 }
 
-function win(){
+function win(s){
   card().classList.add('done');
   showNotes(L.notes);
   say(L.won);
+  /* The follow-up lands as the win line is fading rather than on top of it: two
+     sentences about the same moment, read in order. 3.2s against say()'s 3.4s
+     hold, so the toast never goes empty in between. */
+  if(L.after && !saidAfter){
+    saidAfter=true;
+    clearTimeout(afterTimer);
+    afterTimer=setTimeout(()=>say(L.after(s)), 3200);
+  }
   /* Each bond type finishes in its own visual language, which is the cheapest
      way to say they are different KINDS of event:
        covalent — a ring expanding from the anchor atom through the molecule
@@ -485,7 +498,7 @@ function win(){
 let last=0;
 function load(k){
   if(sim) sim.destroy();
-  rung=false;
+  rung=false; saidAfter=false; clearTimeout(afterTimer);
   key=k; L=LESSONS[k]; saidExtra=false;
   showNotes(null);
   document.querySelectorAll('.goal').forEach(c=>
