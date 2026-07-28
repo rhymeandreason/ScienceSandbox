@@ -77,10 +77,12 @@
      rail starts at 150 and gets away with tucking under the cards because it is
      bare text on paper; this is an opaque card with a border, and one card
      overlapping another just reads as broken layout. */
-  #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;
-    background:#fdf6df;border:2px solid var(--ink);border-radius:5px 9px 6px 10px;
+  #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;height:224px;
+    background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
+    border:none;border-radius:0;box-sizing:border-box;overflow:visible;
     padding:15px 15px 13px;transform:rotate(1.6deg) translateY(6px);
-    box-shadow:0 6px 18px -8px rgba(0,0,0,.42);
+    box-shadow:0 1px 1px rgba(0,0,0,.15),2px 3px 6px rgba(0,0,0,.18),
+      6px 10px 16px -6px rgba(0,0,0,.35);
     display:none;opacity:0;transition:opacity .22s ease,transform .22s ease}
   #sticky.show{display:block;opacity:1;transform:rotate(1.6deg) translateY(0)}
   /* the sticker rides the top-left corner, half off the paper, so the note reads
