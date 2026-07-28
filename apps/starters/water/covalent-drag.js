@@ -121,7 +121,86 @@
       lone:[], loneFlat:[],
       start:[[-5.2,-1.4,1.0],[5.2,1.2,-1.2],[-1.6,5.0,-1.4],[1.8,-5.0,1.4]],
     },
+    /* Carbon dioxide is the first recipe where one slot is not one pair. Carbon
+     * has four electrons and only two neighbours, so each slot has to take TWO —
+     * and the count is the whole argument: the student can flip to 2D and find
+     * eight electrons around every atom, which is only true because the bonds
+     * doubled. `order` is that number, and everything hung off a slot (the core's
+     * spare dots, the shared pairs, the stick) is drawn `order` times.
+     *
+     * It is also the first recipe where the CORE is the positive end. C–O pulls
+     * toward oxygen, the opposite of O–H and N–H, so `polarToward` names the
+     * direction instead of leaving it implied — and the payoff is that the two
+     * dipoles point opposite ways along one line and cancel. `netDipole:false`
+     * says so out loud, because "polar bonds, nonpolar molecule" is exactly the
+     * thing a student gets wrong, and the page should not make them infer it from
+     * two badges pointing away from each other.
+     *
+     * Oxygen arrives carrying lone pairs of its own — the first ligand that does.
+     * Hydrogen had one electron and nothing left over; oxygen brings six, two of
+     * which go into the bond, and the other four have to be somewhere or the
+     * octet does not close. */
+    co2: {
+      /* 2.10, not the ~1.7 a real C=O would suggest scaled against water's O–H.
+       * The display radii are stylised and large — C 0.85 + O 0.95 is 1.80 on its
+       * own — so a bond shorter than that buries the shared pairs INSIDE the two
+       * spheres, and a double bond you cannot count is not a double bond. Every
+       * recipe has to clear the sum of its two radii; water does (1.50 against
+       * 1.55). A MULTIPLE bond needs more than that bare clearance, because its
+       * pairs straddle the axis and so occupy the gap lengthwise as well as
+       * across it — 2.10 leaves ~0.30 of open gap for a ±0.11 straddle to sit in. */
+      core:'C', ligand:'O', bond:2.10, polar:0.7, polarToward:'ligand',
+      netDipole:false,
+      order:2,
+      slots:   [[1,0,0],[-1,0,0]],
+      slots2d: [[1,0,0],[-1,0,0]],
+      lone:[], loneFlat:[],                  // all four of carbon's are in bonds
+      ligandLone:{ n:2, mode:'perp' },       // sp: the two pairs sit off the axis
+      /* Well OFF the bond axis, unlike every earlier recipe's scatter. With only
+       * two ligands and both slots on one straight line, starting them near that
+       * line puts them at the edges of the frame AND makes the molecule look
+       * half-assembled on load — the linear shape should be the result of
+       * bonding, not the arrangement it started in.
+       * Closer in than the hydrogen recipes' ±5 as well: oxygen is drawn at
+       * radius 0.95 against hydrogen's 0.55, so a scatter that framed an H
+       * comfortably runs a whole oxygen off the edge of the canvas. */
+      start:[[-3.5,2.4,1.2],[3.5,-2.4,-1.2]],
+    },
+    /* Nitrogen gas: the same doubling taken one step further, and the cheapest
+     * possible demonstration that bond order is a real quantity. Two identical
+     * atoms, so there is no polarity to draw and nothing to distract from the
+     * count — five valence electrons each, three into the bond, one pair left
+     * over on each end pointing away down the axis. It is also the reason
+     * nitrogen fixation is expensive, which is the fact that actually earns it a
+     * place in a biology page: three shared pairs is the strongest bond in the
+     * whole sandbox, and life needs it broken.
+     *
+     * Ligand and core are the same element here, which the engine allows and
+     * nothing else in the file assumes otherwise — TOUCH, the radii and the
+     * colours all read per-element. */
+    n2: {
+      // 2.15 for the reason CO2 is 1.95: two nitrogens are 0.90 + 0.90 of drawn
+      // radius, and three pairs need more room in the gap than two do
+      core:'N', ligand:'N', bond:2.15, polar:0,      // identical atoms: no dipole
+      order:3,
+      slots:   [[1,0,0]],
+      slots2d: [[1,0,0]],
+      lone:     [[-1,0,0]],                  // the core's, pointing away
+      loneFlat: [[-1,0,0]],
+      ligandLone:{ n:1, mode:'axial' },      // the ligand's, pointing the far way
+      start:[[3.4,2.4,-1.0]],       // off-axis and close in, as CO2's, and for
+                                    // the same two reasons
+
+    },
   };
+  /* Bond order per slot. A number applies to every slot (CO2's two doubles, N2's
+   * one triple); the older recipes have none and mean 1. Kept a function rather
+   * than a field so a future recipe with MIXED orders — a carboxyl's C=O and C–O
+   * off one carbon — only has to make `order` an array. */
+  function orderOf(R, i){
+    const o=R.order;
+    return Array.isArray(o) ? (o[i]||1) : (o||1);
+  }
 
   function create(opts){
     const THREE=opts.THREE, root=opts.root, camera=opts.camera,
@@ -162,6 +241,34 @@
 
     function v3(a){ return new THREE.Vector3(a[0],a[1],a[2]); }
 
+    /* Two vectors perpendicular to `dir`, for anything that has to fan out
+     * AROUND an axis: the electrons on a double bond's slot, the two shared
+     * pairs in the gap, the parallel sticks. In 2D the first one is forced into
+     * the z=0 plane, because a fan that spreads toward the camera collapses to a
+     * single dot in the one view whose entire job is letting you count. */
+    function basis(dir){
+      const along=dir.clone().normalize();
+      let u;
+      if(dim==='2d'){
+        u=new THREE.Vector3(-along.y, along.x, 0);            // in-plane normal
+        if(u.lengthSq()<1e-6) u=new THREE.Vector3(1,0,0);
+      }else{
+        u=new THREE.Vector3().crossVectors(along,
+          Math.abs(along.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0));
+      }
+      u.normalize();
+      return { along, u, v:new THREE.Vector3().crossVectors(along,u).normalize() };
+    }
+    /* Where the k-th of n things sits when they straddle an axis: evenly spaced
+     * and CENTRED on it, so a single one is dead on the axis (which is what every
+     * pre-existing recipe wants) and two or three splay symmetrically about it
+     * without the axis itself ever looking occupied when it isn't. */
+    function fan(dir, k, n, spread){
+      if(n<=1) return new THREE.Vector3();
+      const {u}=basis(dir);
+      return u.clone().multiplyScalar((k-(n-1)/2)*spread);
+    }
+
     /* ---- build the starting scatter ----------------------------------- */
     function build(){
       // the core: nucleus + cloud + its own valence electrons
@@ -173,12 +280,15 @@
       // two lone PAIRS (four electrons, spoken for) — positions come from
       // layoutLone(), because they move when the view flips to 2D
       const lonePairs=[];
-      // … and two UNPAIRED electrons, one on each open slot: the two that are
-      // free to share, which is why water is H₂O and not H₃O.
-      const slotDots=slotDirs().map(d=>{
-        const m=dot(P.atoms[R.core]);
-        m.position.copy(v3(d).normalize().multiplyScalar(P.radii[R.core]+GAP));
-        og.add(m); return m;
+      // … and the UNPAIRED electrons, `order` of them on each open slot: the ones
+      // free to share, which is why water is H₂O and not H₃O — and why carbon,
+      // with four of them across two slots, has to double both bonds.
+      // A group per slot, so a slot is still one thing to show, hide and place;
+      // slotSpread() fans the members apart when there is more than one.
+      const slotDots=slotDirs().map((d,i)=>{
+        const g=new THREE.Group();
+        for(let k=0;k<orderOf(G(),i);k++) g.add(dot(P.atoms[R.core]));
+        og.add(g); return g;
       });
       // ghost markers showing WHERE a ligand is allowed to land
       const ghosts=slotDirs().map((d,i)=>{
@@ -196,15 +306,30 @@
       // exactly as many ligands as there are slots: scattered wide enough that
       // none starts inside the core's capture radius, so every bond is one the
       // student made rather than one that happened on load
-      R.start.forEach(p=>{
+      R.start.forEach((p,i)=>{
         const hg=new THREE.Group();
         hg.position.set(p[0],p[1],p[2]);
         const sphere=Stage.atom(P.atoms[R.ligand], P.radii[R.ligand], new THREE.Vector3(), R.ligand);
         const hcloud=cloud(R.ligand);
-        const e=dot(P.atoms[R.ligand]);                  // its single valence electron
+        /* The electrons this ligand has to OFFER — one for hydrogen, two for a
+         * doubly-bonded oxygen, three for nitrogen. Grouped for the same reason
+         * the core's are: the count is what the flat view exists to let you
+         * check, and it has to be right on both ends of the bond, not just the
+         * interesting one. */
+        const e=new THREE.Group();
+        for(let k=0;k<orderOf(R, i);k++) e.add(dot(P.atoms[R.ligand]));
+        /* … and the ones it does NOT offer. Hydrogen has none, which is why no
+         * recipe needed this until now; oxygen brings six and spends two, and the
+         * remaining four have to be drawn or CO2's octets do not close. They hang
+         * off the ligand and are placed relative to the bond it makes. */
+        const lone=[];
+        for(let k=0;k<((R.ligandLone&&R.ligandLone.n)||0);k++){
+          const pair=[dot(P.atoms[R.ligand]), dot(P.atoms[R.ligand])];
+          pair.forEach(m=>hg.add(m)); lone.push(pair);
+        }
         hg.add(sphere, hcloud, e, label(R.ligand, R.ligand, '#2b2b2b'));
         group.add(hg);
-        ligands.push({ group:hg, sphere, cloud:hcloud, electron:e,
+        ligands.push({ group:hg, sphere, cloud:hcloud, electron:e, lone,
                          vel:new THREE.Vector3(), slot:null, dragging:false,
                          home:new THREE.Vector3(p[0],p[1],p[2]) });
       });
@@ -237,6 +362,44 @@
           Math.abs(dir.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0)).normalize();
         const base=dir.clone().multiplyScalar(P.radii[R.core]+GAP);
         pair.forEach((m,k)=>m.position.copy(base).addScaledVector(perp,(k?1:-1)*0.16));
+      });
+    }
+
+    /* A ligand's own electrons, placed in its LOCAL frame against the bond it is
+     * making (or about to make). Everything is oriented off `toCore`, so a loose
+     * oxygen already shows which two electrons it is offering and which four it
+     * is keeping, and nothing jumps when it lands.
+     *
+     *  · the offered electrons face the core — "these are the ones I can share",
+     *    fanned apart when there is more than one so the count survives 2D
+     *  · an AXIAL lone pair sits on the far side, straight down the bond line:
+     *    N2's leftover pair, the one pointing out of the back of each nitrogen
+     *  · PERPENDICULAR pairs ride off the axis: CO2's oxygens are sp, and their
+     *    two pairs genuinely sit across the bond rather than behind it
+     */
+    function layoutLigand(h){
+      const toCore=h.slot!=null ? slotPos(h.slot).clone().negate()
+                                : h.group.position.clone().negate();
+      if(toCore.lengthSq()<1e-6) return;
+      const axis=toCore.normalize();                 // ligand → core, local frame
+      const out=P.radii[R.ligand]+GAP;
+      const n=h.electron.children.length;
+      h.electron.position.copy(axis).multiplyScalar(out);
+      h.electron.children.forEach((m,k)=>m.position.copy(fan(axis, k, n, 0.28)));
+      if(!h.lone || !h.lone.length) return;
+      const mode2=(R.ligandLone&&R.ligandLone.mode)||'axial';
+      const {u,v}=basis(axis);
+      h.lone.forEach((pair,i)=>{
+        // axial: behind the atom. perp: fanned across the bond, ±u in 2D so both
+        // stay in the plane the flat view can count in, ±v adding depth in 3D.
+        const dir = mode2==='axial'
+          ? axis.clone().negate()
+          : (dim==='2d' ? u.clone().multiplyScalar(i?-1:1)
+                        : u.clone().multiplyScalar(i?-1:1).addScaledVector(v, 0.35).normalize());
+        const base=dir.clone().multiplyScalar(out);
+        const straddle=new THREE.Vector3().crossVectors(dir,
+          Math.abs(dir.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0)).normalize();
+        pair.forEach((m,k)=>m.position.copy(base).addScaledVector(straddle,(k?1:-1)*0.16));
       });
     }
 
@@ -287,7 +450,10 @@
        * pushed further it stops reading as "shared, unequally" and starts
        * reading as "transferred", which is the salt tab's picture, not this one.
        * The δ badges and the leaning cloud carry the rest of the argument. */
-      const pull=(R.polar||0)*0.08;
+      /* Toward the core for O–H and N–H, toward the LIGAND for C=O — carbon is
+       * the electron-poor end, so a pair drawn leaning on carbon would say the
+       * opposite of the truth and take CO2's whole lesson with it. */
+      const pull=(R.polar||0)*0.08*(R.polarToward==='ligand'?-1:1);
       const center=along.clone().multiplyScalar(gapMid-pull);
       /* Straddle the axis away from the OTHER bonds, so the pairs splay apart
        * instead of stacking. Summing the other slot dirs and negating gives that
@@ -317,26 +483,65 @@
     }
 
     function makeSharedPair(i, dative){
-      const pair={slot:i, dots:[]};
-      /* One electron from each atom, still wearing the colour it arrived in —
-       * except a DATIVE bond, where the core paid for both. Drawing both dots in
-       * the core's colour is the whole argument: the proton brought nothing, so
-       * there is no second colour to show. */
-      (dative ? [P.atoms[R.core], P.atoms[R.core]]
-              : [P.atoms[R.core], P.atoms[R.ligand]]).forEach(col=>{
-        const m=dot(col); group.add(m); pair.dots.push(m);
-      });
-      sharedPairs.push(pair);
-      // a guide-line stick for the other view mode — thin, because in electron
-      // mode the pair of dots is what is doing the explaining
-      const st=Stage.bond(new THREE.Vector3(), slotPos(i), P.bonds.covalent, 0.10, 1);
-      st.userData.slot=i;
-      st.userData.len=slotPos(i).length();       // the length its geometry was cut at
-      group.add(st); sticks.push(st);
+      const n=orderOf(G(), i);
+      for(let idx=0; idx<n; idx++){
+        const pair={slot:i, index:idx, dots:[]};
+        /* One electron from each atom, still wearing the colour it arrived in —
+         * except a DATIVE bond, where the core paid for both. Drawing both dots in
+         * the core's colour is the whole argument: the proton brought nothing, so
+         * there is no second colour to show. */
+        (dative ? [P.atoms[R.core], P.atoms[R.core]]
+                : [P.atoms[R.core], P.atoms[R.ligand]]).forEach(col=>{
+          const m=dot(col); group.add(m); pair.dots.push(m);
+        });
+        sharedPairs.push(pair);
+        // a guide-line stick for the other view mode — thin, because in electron
+        // mode the pair of dots is what is doing the explaining. One per pair, so
+        // stick mode shows the bond ORDER too rather than flattening C=O to C–O.
+        const st=Stage.bond(new THREE.Vector3(), slotPos(i), P.bonds.covalent, 0.10, 1);
+        st.userData.slot=i; st.userData.index=idx;
+        st.userData.len=slotPos(i).length();     // the length its geometry was cut at
+        group.add(st); sticks.push(st);
+      }
+      // a multiple bond arrives one pair at a time — see stepStagger()
+      if(n>1) stagger(i, n);
       layoutBonds();
       applyCel();                       // a stick born in 2D is born cel-shaded
       applyMode();
     }
+
+    /* ---- the doubling, made watchable ---------------------------------
+     * A double bond formed in one silent instant is a fact the page asserts. The
+     * drag is still ONE gesture — the student should not have to know in advance
+     * that carbon wants two pairs here — but the pairs land in sequence, ~0.22s
+     * apart, so the second one is a visible event with its own arrival. That is
+     * the difference between "this bond is double" and "watch it become double",
+     * and it is the only moment on the page where bond order is a thing that
+     * happens rather than a thing that is drawn.
+     *
+     * Held as a slot-keyed job rather than per-pair state so a bond broken
+     * mid-animation takes its own stagger with it and nothing is left invisible.
+     */
+    let staggers=[];
+    function stagger(slot, n){
+      staggers=staggers.filter(s=>s.slot!==slot);
+      staggers.push({slot, n, k:0});
+      applyStagger(staggers[staggers.length-1]);
+    }
+    function applyStagger(s){
+      const shown=Math.min(s.n, Math.floor(s.k/0.22)+1);
+      const e=(mode==='electrons');
+      sharedPairs.forEach(p=>{ if(p.slot===s.slot)
+        p.dots.forEach(m=>m.visible = e && p.index<shown); });
+      sticks.forEach(st=>{ if(st.userData.slot===s.slot)
+        st.visible = !e && st.userData.index<shown; });
+      return shown>=s.n;
+    }
+    function stepStagger(dt){
+      if(!staggers.length) return;
+      staggers=staggers.filter(s=>{ s.k+=dt; return !applyStagger(s); });
+    }
+    function dropStagger(slot){ staggers=staggers.filter(s=>s.slot!==slot); }
 
     /* Everything that hangs off a slot has to be re-placed when the slots move.
      * They do move: methane's four bonds are a tetrahedron in 3D and a flat cross
@@ -350,23 +555,60 @@
       // same directions, so they travel with them
       if(core){
         const dirs=slotDirs();
-        core.slotDots.forEach((m,i)=>
-          m.position.copy(v3(dirs[i]).normalize().multiplyScalar(P.radii[R.core]+GAP)));
+        core.slotDots.forEach((g,i)=>{
+          const d=v3(dirs[i]).normalize();
+          g.position.copy(d).multiplyScalar(P.radii[R.core]+GAP);
+          // the spares on a double/triple slot fan apart so they can be counted;
+          // a single one stays dead on the bond axis, as it always was
+          g.children.forEach((m,k)=>m.position.copy(fan(d, k, g.children.length, 0.30)));
+        });
         core.ghosts.forEach((m,i)=>m.position.copy(slotPos(i)));
       }
+      /* A slot's pairs stack ACROSS the bond, never along it — a double bond is
+       * two pairs side by side in the same gap, and drawing them one behind the
+       * other would read as one pair drawn twice.
+       *
+       * A multiple bond is laid out as a GRID, n rows of 2, which is the glyph a
+       * textbook draws: the two dots of a pair straddle the bond AXIS, and the
+       * pairs stack perpendicular to it. So a double bond is a 2×2 block and a
+       * triple is 3×2, and the grouping is unambiguous in both directions —
+       * whereas putting all 2n dots on one perpendicular line leaves "two pairs"
+       * and "four loose electrons" distinguished only by spacing, which is
+       * exactly the thing a student is being asked to tell apart.
+       * Both axes are chosen in-plane by basis(), so the block survives the flat
+       * view instead of collapsing toward the camera.
+       * A single bond keeps its old behaviour exactly: pairPlacement's `out`,
+       * chosen to lean away from the other bonds. */
       sharedPairs.forEach(p=>{
         const {center,out}=pairPlacement(p.slot);
-        p.dots.forEach((m,k)=>m.position.copy(center).addScaledVector(out,(k?1:-1)*0.17));
+        const n=orderOf(G(), p.slot);
+        if(n<=1){
+          p.dots.forEach((m,k)=>m.position.copy(center).addScaledVector(out,(k?1:-1)*0.17));
+          return;
+        }
+        const b=slotPos(p.slot);
+        const across=basis(b).u;                       // perpendicular: the rows
+        const along=b.clone().normalize();             // the bond: the columns
+        const row=(p.index-(n-1)/2)*0.34;
+        p.dots.forEach((m,k)=>m.position.copy(center)
+          .addScaledVector(across, row)
+          .addScaledVector(along, (k?1:-1)*0.11));
       });
       sticks.forEach(st=>{
         const b=slotPos(st.userData.slot), len=b.length();
-        st.position.copy(b).multiplyScalar(0.5);
+        const n=orderOf(G(), st.userData.slot);
+        st.position.copy(b).multiplyScalar(0.5)
+          .add(fan(b, st.userData.index, n, 0.26));   // parallel lines = bond order
         st.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), b.clone().normalize());
         st.scale.set(1, len/st.userData.len, 1);   // geometry was cut at userData.len
       });
+      // a bonded ligand's leftover pairs hang off the slot it landed in, and the
+      // slots move between views — so they are re-placed here with everything else
+      ligands.forEach(h=>{ if(h.slot!=null && !h.isProton) layoutLigand(h); });
     }
 
     function dropSharedPair(i){
+      dropStagger(i);
       sharedPairs=sharedPairs.filter(p=>{
         if(p.slot!==i) return true;
         p.dots.forEach(d=>group.remove(d)); return false; });
@@ -379,17 +621,26 @@
      * has no charge separation to label, and labelling it would say the atom is
      * charged rather than the BOND being lopsided. Methane's polar:0 means it
      * never gets either, which is the point of having it next door. */
+    /* Which end is which. Water and ammonia keep the core negative; CO2 is the
+     * inverse and says so, and getting this from the recipe rather than from the
+     * shape of the code is what lets one engine draw both without either one
+     * being the special case. */
+    function deltas(){
+      return R.polarToward==='ligand' ? {core:'δ+', ligand:'δ−'}
+                                      : {core:'δ−', ligand:'δ+'};
+    }
     function showPolarity(){
       if(!R.polar || protonated) return;
+      const sign=deltas();
       const bonded=ligands.filter(x=>x.slot!=null && !x.isProton);
       if(!core.delta && bonded.length){
-        core.delta=kit.charge('δ−', '#'+new THREE.Color(P.atoms[R.core]).getHexString(),
+        core.delta=kit.charge(sign.core, '#'+new THREE.Color(P.atoms[R.core]).getHexString(),
                               R.core, 0.85);
         core.group.add(core.delta);
       }
       bonded.forEach(x=>{
         if(!x.delta){
-          x.delta=kit.charge('δ+', '#'+new THREE.Color(P.atoms[R.ligand]).getHexString(),
+          x.delta=kit.charge(sign.ligand, '#'+new THREE.Color(P.atoms[R.ligand]).getHexString(),
                              R.ligand, 0.8);
           x.group.add(x.delta);
         }
@@ -398,10 +649,12 @@
         // straight into the shared pair the badge is supposed to be explaining
         x.delta.position.copy(x.group.position).normalize()
           .multiplyScalar(P.radii[R.ligand]*1.15);
-        // SCIENCE.md §2: the density is drawn shifted toward the core, never
-        // symmetric. The ligand's haze leans back along its own bond.
-        if(x.cloud) x.cloud.position.copy(
-          x.group.position.clone().normalize().multiplyScalar(-0.16*R.polar));
+        // SCIENCE.md §2: the density is drawn shifted toward whichever atom wants
+        // the electrons more, never symmetric. For O–H that is the core, so the
+        // ligand's haze leans back along its own bond; for C=O it is the oxygen,
+        // so the haze leans the other way, out along the bond and off carbon.
+        if(x.cloud) x.cloud.position.copy(x.group.position).normalize()
+          .multiplyScalar(0.16*R.polar*(R.polarToward==='ligand'?1:-1));
       });
     }
     function hidePolarity(h){
@@ -637,11 +890,7 @@
       ligands.forEach(h=>{
         if(dim==='2d'){ h.group.position.z=0; h.vel.z=0; }
         // its lone electron always faces the core — "this is the one I can share"
-        if(h.slot==null && !h.isProton){
-          const toO=h.group.position.clone().negate();
-          if(toO.lengthSq()>1e-6)
-            h.electron.position.copy(toO.normalize().multiplyScalar(P.radii[R.ligand]+GAP));
-        }
+        if(h.slot==null && !h.isProton) layoutLigand(h);
 
         if(h.slot!=null){                   // bonded: sit on the slot
           h.group.position.lerp(slotPos(h.slot), 1-Math.pow(0.001, dt));
@@ -683,6 +932,7 @@
       });
 
       stepDative(dt);
+      stepStagger(dt);
 
       // ghosts breathe, and brighten when a ligand is close enough to be caught
       core.ghosts.forEach((g,i)=>{
@@ -705,8 +955,14 @@
       ligands.forEach(h=>{
         if(h.cloud) h.cloud.visible=e;
         if(h.electron) h.electron.visible=e && h.slot==null && !h.isProton;
+        // a ligand's LONE pairs survive bonding — that is what makes them lone —
+        // so unlike its offered electrons they stay on once the bond forms
+        if(h.lone) h.lone.forEach(pr=>pr.forEach(m=>m.visible=e));
       });
       sticks.forEach(s=>s.visible=!e);
+      // a multiple bond mid-arrival owns its own pairs' visibility; letting the
+      // blanket assignments above stand would pop the whole bond in at once
+      staggers.forEach(applyStagger);
     }
     function setMode(m){ mode=(m==='sticks')?'sticks':'electrons'; applyMode(); }
 
@@ -716,13 +972,21 @@
       const slots=R.slots.length;                 // the NEUTRAL molecule's slots
       return { bonded, open:Math.max(0,slots-bonded), complete:bonded>=slots,
                protonated, hasProton:!!proton,
-               free:ligands.length-bonded };
+               free:ligands.length-bonded,
+               /* Bond order, and whether the bond dipoles survive being added up.
+                  Both are recipe facts rather than run-time ones, but the page
+                  narrates from `state` and should not have to reach into
+                  RECIPES to find out whether it just watched a double bond. */
+               order:orderOf(R,0), netDipole:R.netDipole!==false,
+               // pairs actually shared: 2 per bond in CO2, 3 in N2. The number a
+               // student would be asked for, and not derivable from `bonded`.
+               pairs:ligands.reduce((n,h)=>n+(h.slot!=null&&!h.isProton?orderOf(R,h.slot):0),0) };
     }
 
     function reset(){
       [...group.children].forEach(c=>group.remove(c));
       ligands=[]; sticks=[]; sharedPairs=[]; core=null; held=null;
-      protonated=false; proton=null;
+      protonated=false; proton=null; staggers=[]; dative=null;
       build();
       setDim(dim);
     }

@@ -149,6 +149,18 @@
         <div class="gform">NH&#8323; &rarr; NH&#8324;<sup>+</sup></div>
         <div class="gkind">then catch a proton</div>
       </button>
+      <button class="goal" data-lesson="co2">
+        <div class="glabel">Build</div>
+        <div class="gname">Carbon dioxide</div>
+        <div class="gform">CO&#8322;</div>
+        <div class="gkind">share twice over</div>
+      </button>
+      <button class="goal" data-lesson="n2">
+        <div class="glabel">Build</div>
+        <div class="gname">Nitrogen gas</div>
+        <div class="gform">N&#8322;</div>
+        <div class="gkind">and three times</div>
+      </button>
       <button class="goal" data-lesson="nacl">
         <div class="glabel">Build</div>
         <div class="gname">Salt</div>
@@ -305,6 +317,67 @@ const LESSONS={
             'really at 109.5\u00b0, not 90\u00b0; switch to 3D.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
     step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
+  },
+  /* CO2 is where "fill the slots" stops being the whole rule. Carbon has four
+     electrons and only two neighbours, so a slot has to take two pairs — and the
+     student finds that out by watching it happen, not by being told first.
+     Its second job is the harder one: every bond here is polar, and the molecule
+     is not. That is the distinction water spent four tabs setting up, and CO2 is
+     the case that proves the two are separable. */
+  co2:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'co2', onChange:report}),
+    open:'Carbon has four electrons to share — and only two oxygens to share them with.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'<b>Carbon dioxide</b>. Each bond took <b>two pairs</b> — a <b>double bond</b>.',
+    notes:{ title:'Carbon dioxide &middot; CO₂', tags:['covalent','nonpolar'], facts:[
+      '<b>linear</b> &middot; <b>180°</b>',
+      '<b>2 double bonds</b> — 4 shared pairs',
+      'each O keeps <b>2 lone pairs</b>',
+      'C–O bonds <b>are</b> polar — O pulls harder',
+      '… but they point <b>opposite ways</b> and <b>cancel</b>',
+      '<b>polar bonds, nonpolar molecule</b>',
+      'nonpolar → crosses membranes freely' ] },
+    flatSay:'Flat view — count around each atom. Eight everywhere, and only because '+
+            'the bonds doubled.',
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+
+             '</b> &nbsp;·&nbsp; shared pairs: <b>'+s.pairs+'</b>',
+    step:s=>s.open>0
+      ? 'A <b>double bond</b> — two pairs, not one. <b>'+s.open+'</b> slot left.'
+      : null,
+    /* The dipole point lands AFTER the win line, on its own, because it is a
+       separate claim from "you made CO2" and the one students lose. */
+    extra:s=>s.complete
+      ? 'Both bonds pull toward oxygen — but in <b>opposite directions</b>, '+
+        'along one straight line. They <b>cancel</b>: polar bonds, <b>nonpolar molecule</b>.'
+      : null,
+  },
+  /* And N2 is the same doubling pushed to its limit, with the polarity argument
+     switched off entirely — two identical atoms have nothing to argue about, so
+     all that is left is the count. It earns its place in a biology page by being
+     the reason nitrogen fixation is expensive: three pairs is the strongest bond
+     on the whole site, and life has to break it to build an amino acid. */
+  n2:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'n2', onChange:report}),
+    open:'Two nitrogens, three electrons each to share. Watch how many pairs it takes.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'<b>Nitrogen gas</b>. <b>Three</b> shared pairs — a <b>triple bond</b>.',
+    notes:{ title:'Nitrogen gas &middot; N₂', tags:['covalent','nonpolar'], facts:[
+      '<b>linear</b> — only two atoms',
+      '<b>triple bond</b> — 3 shared pairs',
+      '1 lone pair left on <b>each</b> N',
+      'identical atoms → <b>no</b> dipole at all',
+      'the <b>strongest</b> bond here — very hard to break',
+      '78% of air, and <b>unusable</b> by most life',
+      '<b>fixation</b> = paying to break it' ] },
+    flatSay:'Flat view — three pairs in the gap, one on each end. Eight around both.',
+    stats:s=>s.complete
+      ? 'shared pairs: <b>'+s.pairs+'</b> &nbsp;·&nbsp; a <b>triple</b> bond'
+      : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
+    step:()=>null,
+    extra:s=>s.complete
+      ? 'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
+        'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.'
+      : null,
   },
   nacl:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
