@@ -58,7 +58,7 @@
   #notes .ntag.dative{background:#ded7f5}
   #notes .ntag.ion{background:#f6dcb4}
   #notes ul{list-style:none;margin:0;padding:0}
-  #notes li{font-family:var(--font-hand);font-size:15px;line-height:1.32;
+  #notes li{font-family:var(--font-sans);font-size:15px;line-height:1.32;
     color:var(--ink);padding-left:13px;position:relative;margin-bottom:4px}
   #notes li::before{content:'·';position:absolute;left:2px;color:var(--muted);font-weight:700}
   #notes li b{font-weight:600}
@@ -89,7 +89,7 @@
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
   #sticky .stitle{font-family:var(--font-marker);font-size:16px;line-height:1.16;
     color:var(--ink);margin:2px 0 7px 13px}
-  #sticky .sbody{font-family:var(--font-hand);font-size:16px;line-height:1.34;
+  #sticky .sbody{font-family:var(--font-sans);font-size:16px;line-height:1.34;
     color:var(--ink)}
   #sticky .sbody b{font-weight:600}
 
@@ -101,7 +101,7 @@
      hands are. */
   #say{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);z-index:12;
     pointer-events:none;text-align:center;width:min(760px,86%);opacity:0;
-    font-family:var(--font-hand);font-size:21px;line-height:1.35;color:var(--muted)}
+    font-family:var(--font-sans);font-size:21px;line-height:1.35;color:var(--muted)}
   #say b{font-weight:600;color:var(--ink)}
   #say.no b{color:#c0392b}
   #say.show{animation:sayFade 3.4s ease-out forwards}
@@ -126,12 +126,12 @@
   #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
     display:flex;align-items:center;gap:22px}
   #dock .dsep{display:none}
-  #dock button.act{font-family:var(--font-slab);font-weight:600;font-size:13px;
+  #dock button.act{font-family:var(--font-sans);font-weight:600;font-size:13px;
     padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
     background:#fff;color:var(--ink);cursor:pointer;
     box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
   #dock button.act:hover{background:var(--ink);color:var(--paper)}
-  #etoggle{display:flex;align-items:center;gap:6px;font-family:var(--font-hand);
+  #etoggle{display:flex;align-items:center;gap:6px;font-family:var(--font-sans);
     font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap}
   /* electrons wear their atom's colour, so the switch label doubles as the
      legend: red = oxygen's electrons, steel = hydrogen's */
@@ -142,7 +142,7 @@
   /* ---------- view-mode switch ---------- */
   #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
     box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
-  #modes .mode,#dims .mode{font-family:var(--font-slab);font-weight:600;font-size:13px;
+  #modes .mode,#dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
     padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
     display:inline-flex;align-items:center;gap:6px}
   #modes .mode + .mode,#dims .mode + .mode{border-left:1.5px solid var(--ink)}
