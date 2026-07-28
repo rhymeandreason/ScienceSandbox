@@ -82,99 +82,16 @@
     let hydrogens=[], oxygen=null, sticks=[], sharedPairs=[];
     let t=0;
 
-    /* ---- pieces ------------------------------------------------------- */
-    const dotGeo=new THREE.SphereGeometry(1,12,10);
-    /* depthTest:false — electrons are an OVERLAY, not geometry competing with
-     * the spheres. A shared O–H pair sits near a point that is physically inside
-     * the oxygen (bond 1.55 vs radius 0.95), and the student has to be able to
-     * count all eight electrons from any angle; occluding half of them behind a
-     * nucleus would hide the octet, which is the whole lesson. */
-    const dotInk=new THREE.MeshBasicMaterial({ color:0x2b2723, side:THREE.BackSide,
-      depthTest:false, depthWrite:false });
-    function dot(color){
-      const m=new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({
-        color:color, transparent:true, opacity:0.95,
-        depthTest:false, depthWrite:false }));
-      m.renderOrder=20; m.scale.setScalar(0.1);
-      // ink ring: an electron wears its atom's colour, so it has to stay legible
-      // sitting ON that same atom
-      const ring=new THREE.Mesh(dotGeo, dotInk);
-      ring.scale.setScalar(1.32); ring.renderOrder=19;
-      m.add(ring);
-      return m;
-    }
-    /* The electron cloud: a soft back-faced shell, so it reads as a haze with a
-     * bright rim rather than a solid ball hiding the atom. Clouds are ALLOWED to
-     * interpenetrate — two overlapping clouds is exactly what a covalent bond
-     * is, and watching them merge as you drag is the point. (The project's
-     * no-intersection rule is about the solid nuclei spheres, which still hold:
-     * O 0.95 + H 0.55 = 1.50 against a 1.55 bond.) */
-    function cloud(el){
-      const m=new THREE.Mesh(Stage.Rsphere, new THREE.MeshBasicMaterial({
-        color:P.atoms[el], transparent:true, opacity:0.13,
-        side:THREE.BackSide, depthWrite:false }));
-      m.scale.setScalar((P.radii[el]||0.7)*1.85);
-      m.renderOrder=-1;
-      return m;
-    }
-    /* The element letter, sitting at the atom's centre. A Sprite so it always
-     * faces the camera through any orbit, and depthTest:false + a high
-     * renderOrder so it is never swallowed by its own sphere, by an overlapping
-     * cloud, or by the other atom once the two are touching — at bonding
-     * distance the spheres are 0.05 apart, so a depth-tested label would flicker
-     * in and out exactly at the moment the student is watching. */
-    function label(text, el, ink){
-      const c=document.createElement('canvas'); c.width=c.height=128;
-      const x=c.getContext('2d');
-      x.fillStyle=ink; x.font='bold 92px "Zilla Slab", Georgia, serif';
-      x.textAlign='center'; x.textBaseline='middle';
-      x.fillText(text, 64, 68);
-      const s=new THREE.Sprite(new THREE.SpriteMaterial({
-        map:new THREE.CanvasTexture(c), transparent:true,
-        depthTest:false, depthWrite:false }));
-      s.renderOrder=30;                       // above the electron dots (20)
-      s.scale.setScalar((P.radii[el]||0.7)*1.6);
-      return s;
-    }
-    /* ---- cel shading, for the 2D view ---------------------------------
-     * Same two moves the other pages use (water-lab's Debug ▸ Render): swap the
-     * lit Standard material for Toon so the sphere reads as flat bands instead
-     * of a photographic highlight, and give it an inflated back-face shell for
-     * an ink outline. It is not decoration here — 2D is the DIAGRAM view, and a
-     * diagram wants a drawn atom you could copy into a notebook, not a rendered
-     * ball. The 3D view keeps the lit spheres, because there the highlight is
-     * what tells you which atom is nearer.
-     */
-    const OUTLINE_GAP=0.05;   // constant world-space thickness, so the outline is
-                              // the same weight on small H as on large O
-    const outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
-    function toonify(mesh, on){
-      const m=mesh.material;
-      if(!m || m.isMeshBasicMaterial) return;                 // dots, clouds, ghosts
-      if(!!m.isMeshToonMaterial===on) return;                 // already right
-      const o={color:m.color.getHex(), transparent:m.transparent, opacity:m.opacity};
-      mesh.material = on ? new THREE.MeshToonMaterial(o)
-                         : new THREE.MeshStandardMaterial(
-                             Object.assign({roughness:.35, metalness:.1}, o));
-      m.dispose();
-    }
-    function outline(mesh, on){
-      const had=mesh.userData.outline;
-      if(on===!!had) return;
-      if(on){
-        const r=mesh.scale.x||1;
-        const o=new THREE.Mesh(mesh.geometry, outlineMat);    // shares the unit sphere
-        o.scale.setScalar((r+OUTLINE_GAP)/r);                 // child scale is relative
-        mesh.add(o); mesh.userData.outline=o;
-      }else{ mesh.remove(had); mesh.userData.outline=null; }
-    }
+    /* ---- pieces: the shared dressing lives in atomkit.js --------------
+     * Electron dots, clouds, letters and the cel/outline treatment are the
+     * VOCABULARY of the lesson, not its mechanic, so both bonding tabs read
+     * them from the same kit. What stays here is the covalent physics. */
+    const kit=AtomKit.create(THREE);
+    const dot=kit.dot, cloud=kit.cloud, label=kit.label;
     function applyCel(){
       const on=(dim==='2d');
-      if(oxygen){ toonify(oxygen.sphere,on); outline(oxygen.sphere,on); }
-      hydrogens.forEach(h=>{ toonify(h.sphere,on); outline(h.sphere,on); });
-      sticks.forEach(m=>toonify(m,on));                       // sticks get no shell:
-                                                              // an outlined cylinder
-                                                              // reads as a second bond
+      kit.cel([oxygen&&oxygen.sphere].concat(hydrogens.map(h=>h.sphere)), on);
+      kit.cel(sticks, on, false);
     }
 
     function v3(a){ return new THREE.Vector3(a[0],a[1],a[2]); }
@@ -367,7 +284,7 @@
     }
 
     const surface=canvas.parentElement||canvas;
-    surface.addEventListener('pointerdown', e=>{
+    function onDown(e){
       const h=pick(e);
       if(!h) return;                       // let the orbit handler have it
       e.stopPropagation(); e.preventDefault();
@@ -377,9 +294,8 @@
       const p=pointerOnPlane(e);
       grabOffset.copy(p ? world.clone().sub(p) : new THREE.Vector3());
       canvas.style.cursor='grabbing';
-    }, true);
-
-    window.addEventListener('pointermove', e=>{
+    }
+    function onMove(e){
       if(!held){                            // hover affordance only
         if(!canvas.style.cursor || canvas.style.cursor==='grab' || canvas.style.cursor==='')
           canvas.style.cursor = pick(e) ? 'grab' : '';
@@ -389,13 +305,26 @@
       const want=group.worldToLocal(p.add(grabOffset));   // atoms live in group space
       if(held.slot!=null && want.distanceTo(slotPos(held.slot))>S.BREAK) unbond(held);
       held.group.position.copy(want);
-    });
-
-    window.addEventListener('pointerup', ()=>{
+    }
+    function onUp(){
       if(!held) return;
       held.dragging=false; held=null;
       canvas.style.cursor='';
-    });
+    }
+    surface.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+
+    /* Tabs swap one lesson for another, so a module has to be able to take
+     * itself off the page completely — a stale pointer handler would keep
+     * grabbing atoms that are no longer visible. */
+    function destroy(){
+      surface.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      root.remove(group);
+      canvas.style.cursor='';
+    }
 
     /* ---- per-frame: attraction, snap, dressing ------------------------- */
     // keep a free hydrogen outside oxygen's surface (see S.TOUCH)
@@ -495,7 +424,7 @@
     }
 
     build();
-    return { group, step, setMode, setDim, reset, state,
+    return { group, step, setMode, setDim, reset, destroy, state,
              get mode(){return mode;}, get dim(){return dim;} };
   }
 

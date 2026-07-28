@@ -12,17 +12,26 @@
 <style>
   :root{ --ionic:#d9791e; --covalent:#7a6f58; }
 
-  /* ---------- target prompt card, top-center of the stage ---------- */
-  #goal{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
-    text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
-    border-radius:8px 12px 9px 11px;padding:9px 18px 11px;min-width:230px;
-    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
-  #goal .glabel{font-family:var(--font-slab);font-weight:700;font-size:10px;
+  /* ---------- goal cards, top-center: one per lesson, and they are TABS ----
+     Both molecules stay on screen as cards so the pair reads as one lesson with
+     two halves — share vs. give — rather than two unrelated pages. The inactive
+     card is dimmed but never hidden: the comparison is the content. */
+  #goals{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:10px;align-items:stretch}
+  .goal{text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
+    border-radius:8px 12px 9px 11px;padding:9px 18px 11px;min-width:190px;
+    font-family:inherit;color:var(--ink);cursor:pointer;
+    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px);
+    opacity:.5;transition:opacity .12s ease,transform .12s ease}
+  .goal:hover{opacity:.8}
+  .goal.on{opacity:1;transform:translateY(-2px)}
+  .goal .glabel{font-family:var(--font-slab);font-weight:700;font-size:10px;
     letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
-  #goal .gname{font-family:var(--font-marker);font-size:23px;color:var(--ink);line-height:1.15;margin-top:3px}
-  #goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
-  #goal.done{border-color:#2e8b57}
-  #goal.done .gname{color:#2e8b57}
+  .goal .gname{font-family:var(--font-marker);font-size:23px;color:var(--ink);line-height:1.15;margin-top:3px}
+  .goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
+  .goal.done{border-color:#2e8b57}
+  .goal.done .gname{color:#2e8b57}
+  .goal .gkind{font-family:var(--font-hand);font-size:13px;color:var(--muted);margin-top:2px}
 
   /* ---------- feedback toast ---------- */
   #say{position:absolute;top:172px;left:50%;transform:translateX(-50%);z-index:12;
@@ -93,10 +102,19 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="goal">
-      <div class="glabel">Build</div>
-      <div class="gname">—</div>
-      <div class="gform"></div>
+    <div id="goals">
+      <button class="goal on" data-lesson="water">
+        <div class="glabel">Build</div>
+        <div class="gname">Water</div>
+        <div class="gform">H&#8322;O</div>
+        <div class="gkind">they share</div>
+      </button>
+      <button class="goal" data-lesson="salt">
+        <div class="glabel">Build</div>
+        <div class="gname">Salt</div>
+        <div class="gform">NaCl</div>
+        <div class="gkind">one gives</div>
+      </button>
     </div>
     <div id="say" aria-live="polite"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
@@ -125,15 +143,18 @@
 <script src="molecules.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<script src="atomkit.js"></script>
 <script src="water-drag.js"></script>
+<script src="salt-drag.js"></script>
 <script>
 "use strict";
 /* =============================================================
- *  BUILD WATER — drag a hydrogen until oxygen takes it
- *  All the chemistry and all the feel live in water-drag.js; this file is UI
- *  only. Its job is to narrate what the hands just did: name the pull when it
- *  starts, name the shared pair when it forms, and say "full" when a third
- *  hydrogen finds nowhere to go. The rule is enforced in 3D, never in a dialog.
+ *  BUILD A MOLECULE — two tabs: water shares, salt gives
+ *  All the chemistry and all the feel live in water-drag.js / salt-drag.js;
+ *  this file is UI only. Its job is to narrate what the hands just did: name
+ *  the pull when it starts, name the shared pair when it forms, say "full" when
+ *  a third hydrogen finds nowhere to go, and count the electrons out loud when
+ *  one changes owner. Every rule is enforced in 3D, never in a dialog.
  * ============================================================= */
 
 /* 2D is a diagram, and a diagram must not have perspective: at 45° an atom
@@ -156,18 +177,52 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
 });
 const fx=FX.create(THREE, root, camera);
 
-const elGoal=document.getElementById('goal');
 const elSay=document.getElementById('say');
 const elCard=document.getElementById('teach');
 const elStats=document.getElementById('stats');
 
-const TEACH='Oxygen shares a pair with each hydrogen — a <b>covalent bond</b>. '+
-  'Two open slots, two hydrogens: that is why water is H\u2082O and not H\u2083O, and '+
-  'why the third hydrogen never got pulled in. The slots sit <b>104.5\u00b0</b> apart, '+
-  'so water comes out bent — the reason it has a positive end and a negative end at all.';
-
-document.querySelector('#goal .gname').textContent='Water';
-document.querySelector('#goal .gform').innerHTML='H\u2082O';
+/* ---------- the two lessons ----------------------------------------------
+ * Water and salt are adjacent tabs because the comparison IS the lesson: same
+ * hands, same drag, same attraction — and then one pair shares a slot while the
+ * other hands an electron over and never gets it back. Each tab owns its own
+ * module (see "share the plumbing, not the physics"); this table is only the
+ * words that go around them.
+ */
+const LESSONS={
+  water:{
+    make:()=>WaterDrag.create({THREE, root, camera, canvas, fx, onChange:report}),
+    open:'Drag a hydrogen toward the oxygen.',
+    title:'Water &middot; H\u2082O &middot; covalent bond',
+    teach:'Oxygen shares a pair with each hydrogen — a <b>covalent bond</b>. '+
+      'Two open slots, two hydrogens: that is why water is H\u2082O and not H\u2083O, and '+
+      'why the third hydrogen never got pulled in. The slots sit <b>104.5\u00b0</b> apart, '+
+      'so water comes out bent — the reason it has a positive end and a negative end at all.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'You made <b>water</b>. The spare hydrogen has nowhere to go.',
+    flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
+    step:s=>s.bonded===1?'Shared a pair. <b>One</b> slot left.':null,
+  },
+  salt:{
+    make:()=>SaltDrag.create({THREE, root, camera, canvas, fx, onChange:report}),
+    open:'Drag the sodium and the chlorine together.',
+    title:'Salt &middot; NaCl &middot; ionic bond',
+    teach:'Sodium would not share — it <b>gave the electron away</b>. Watch it cross: '+
+      'it leaves violet and arrives green, because it now belongs to chlorine. '+
+      'Count them — sodium has none of its own left and chlorine has eight. '+
+      'They are Na<sup>+</sup> and '+
+      'Cl<sup>\u2212</sup>, and what holds them together is <b>opposite charge</b>, '+
+      'not a shared pair: <b>nothing sits in the gap</b> between them. That is why '+
+      'salt comes apart in water when water does not.',
+    ring:()=>MolLib.PALETTE.bonds.iondipole,
+    won:'The electron moved. Two <b>ions</b>, held by charge.',
+    flatSay:'Flat view — count them: 0 on sodium, 8 on chlorine.',
+    stats:s=>'Na: <b>'+s.naCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.clCount+
+             'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
+    step:()=>null,
+  },
+};
+let key='water', L=LESSONS[key], sim=null;
 
 /* ---------- feedback ---------- */
 let sayTimer=null;
@@ -180,36 +235,53 @@ function say(html){
   sayTimer=setTimeout(()=>elSay.classList.remove('show'),3400);
 }
 
-/* ---------- the sim ---------- */
-let last=0;
-const water=WaterDrag.create({THREE, root, camera, canvas, fx, onChange:report});
+function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); }
 
 function report(s){
-  elStats.innerHTML='bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>';
+  elStats.innerHTML=L.stats(s);
   if(s.complete){ win(); return; }
-  elGoal.classList.remove('done');
+  card().classList.remove('done');
   elCard.classList.remove('show');
-  if(s.bonded===1) say('Shared a pair. <b>One</b> slot left.');
+  const line=L.step(s); if(line) say(line);
 }
 
 function win(){
-  elGoal.classList.add('done');
-  const title=elCard.querySelector('.ctitle');
-  title.innerHTML='Water &middot; H\u2082O &middot; covalent bond';
-  elCard.querySelector('.cardtext').innerHTML=TEACH;
+  card().classList.add('done');
+  elCard.querySelector('.ctitle').innerHTML=L.title;
+  elCard.querySelector('.cardtext').innerHTML=L.teach;
   elCard.classList.add('show');
-  say('You made <b>water</b>. The spare hydrogen has nowhere to go.');
-  // the one ring in the lesson: reserved for completion, so it means "done"
+  say(L.won);
+  // the one ring in each lesson: reserved for completion, so it means "done"
   // rather than being background noise on every single bond
-  if(fx) fx.spawnRing(new THREE.Vector3(0,0,0), MolLib.PALETTE.bonds.covalent);
+  if(fx) fx.spawnRing(new THREE.Vector3(0,0,0), L.ring());
 }
+
+/* Tabs tear the old lesson down rather than hiding it: both modules bind
+   pointer handlers to the stage, and a hidden-but-live one would keep grabbing
+   atoms the student can no longer see. */
+let last=0;
+function load(k){
+  if(sim) sim.destroy();
+  key=k; L=LESSONS[k];
+  document.querySelectorAll('.goal').forEach(c=>
+    c.classList.toggle('on', c.dataset.lesson===k));
+  elCard.classList.remove('show');
+  sim=L.make();
+  sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
+  sim.setDim(flat?'2d':'3d');
+  say(L.open);
+}
+
+document.querySelectorAll('.goal').forEach(c=>{
+  c.addEventListener('click',()=>{ if(c.dataset.lesson!==key) load(c.dataset.lesson); });
+});
 
 /* ---------- controls ---------- */
 document.querySelectorAll('#modes .mode').forEach(b=>{
   b.addEventListener('click',()=>{
     document.querySelectorAll('#modes .mode').forEach(o=>o.classList.remove('on'));
     b.classList.add('on');
-    water.setMode(b.dataset.mode);
+    sim.setMode(b.dataset.mode);
   });
 });
 
@@ -222,20 +294,19 @@ document.querySelectorAll('#dims .mode').forEach(b=>{
     document.querySelectorAll('#dims .mode').forEach(o=>o.classList.remove('on'));
     b.classList.add('on');
     flat=(b.dataset.dim==='2d');
-    water.setDim(flat?'2d':'3d');
+    sim.setDim(flat?'2d':'3d');
     camera.fov=flat?FOV_2D:FOV_3D; camera.updateProjectionMatrix();
     cam.r*=flat?LENS:1/LENS;         // same apparent size through the new lens
     if(flat){ userSpun=true; }        // no idle turntable behind a locked view
     else { cam.theta=0.6; cam.phi=1.15; applyCam(); userSpun=false; }
-    say(flat ? 'Flat view — all eight of oxygen\u2019s electrons in one plane.'
-             : 'Free view — drag the background to spin it.');
+    say(flat ? L.flatSay : 'Free view — drag the background to spin it.');
   });
 });
 
 document.getElementById('clearmol').addEventListener('click',()=>{
-  water.reset();
-  water.setMode(document.querySelector('#modes .mode.on').dataset.mode);
-  say('Drag a hydrogen toward the oxygen.');
+  sim.reset();
+  sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
+  say(L.open);
 });
 
 document.getElementById('savepng').addEventListener('click',()=>{
@@ -259,14 +330,13 @@ function frame(now){
   cam.r=Math.max(z[0],Math.min(z[1],cam.r));
   if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
-  water.step(dt);
+  sim.step(dt);
   fx.step();
   renderer.render(scene,camera);
 }
 resize();
-water.setDim('2d');
 camera.fov=FOV_2D; camera.updateProjectionMatrix(); cam.r*=LENS;
-say('Drag a hydrogen toward the oxygen.');
+load('water');
 requestAnimationFrame(frame);
 </script>
 </body>
