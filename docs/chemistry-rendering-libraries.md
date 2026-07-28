@@ -125,10 +125,25 @@ rule rather than needing its own special case.
 3. **Recognition** — when the assembly matches a `MolLib.MOLECULES` entry, name
    it: "you made water." `MOLECULES` is already the answer key.
 
-Planned as `builder.js` + `molecule-builder.html` — a draggable element
-palette, valence-checked snapping, recognition against `MOLECULES`. Reuses
-`Stage` and `FX` unchanged, adds one line to `PALETTE`, zero dependencies.
-(`molecules.js:5` has referenced an "upcoming molecule-builder.html" all along.)
+**Built** as `builder.js` + `molecule-builder.html`: element bench, valence-gated
+snapping onto VSEPR ghost slots, four targets (H₂O → CH₄ → NaCl → KCl) taking
+the student from covalent sharing to ionic transfer. Reuses `Stage` and `FX`
+unchanged, zero dependencies. (`molecules.js:5` referenced an "upcoming
+molecule-builder.html" all along.)
+
+Two things that changed once it was real:
+
+- **The valence table alone was not enough.** `Na:0` correctly says "sodium does
+  not share", but it also makes NaCl unbuildable — and NaCl is half the lesson.
+  Ionic needs its own path: the electron *transfers*, both atoms become ions,
+  and what holds them together is charge, drawn as beads rather than a stick
+  because nothing is shared across that gap.
+- **Valence electrons are shown as dots**, not just counted as slots. Oxygen's
+  six (two lone pairs + two unpaired) are the *reason* it has two slots, so the
+  dots turn an asserted rule into a visible one, and the octet becomes something
+  the student can count. Electrons render as a depth-tested-off overlay: the
+  stylised radii leave only ~0.05 units between adjacent sphere surfaces, so a
+  shared pair at the literal bond midpoint would be buried inside the oxygen.
 
 ## The piece to prioritize: a data pipeline, not a runtime library
 
@@ -171,12 +186,12 @@ if a lesson ever asks students to produce a product structure.
 
 ## Suggested first steps
 
-1. **mhchem** into `molecule-lab.html`'s carbonic-acid text — it's currently
-   faking notation in HTML. Small, immediate, visible.
-2. **SDF → `MolLib` converter** for one glycolysis intermediate, to prove the
-   build-time pipeline.
-3. **`builder.js`** — the drag-to-assemble page. Biggest new lesson, and the
-   only item here that needs design work rather than plumbing.
+1. ~~**SDF → `MolLib` converter**~~ — already exists as
+   [`tools/sdf2spec.js`](../apps/starters/water/tools/sdf2spec.js), same
+   PubChem-fetch-then-convert shape recommended above. Done.
+2. ~~**`builder.js`**~~ — built, see above.
+3. **mhchem** into `molecule-lab.html`'s carbonic-acid text — still open. It's
+   currently faking notation in HTML. Small, immediate, visible.
 
 Note that none of the three requires adopting a chemistry framework. The
 libraries worth taking are small and narrow (mhchem, SmilesDrawer); the

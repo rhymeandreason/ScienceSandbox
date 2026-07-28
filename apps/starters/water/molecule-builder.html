@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Build a Molecule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  :root{ --ionic:#d9791e; --covalent:#7a6f58; }
+
+  /* ---------- goal cards, top-center: one per lesson, and they are TABS ----
+     Both molecules stay on screen as cards so the pair reads as one lesson with
+     two halves — share vs. give — rather than two unrelated pages. The inactive
+     card is dimmed but never hidden: the comparison is the content. */
+  #goals{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:8px;align-items:stretch}
+  /* the covalent pair and the ionic pair, set apart: the tab strip itself should
+     read as two lessons of two, not four unrelated molecules */
+  .goal[data-lesson="nacl"]{margin-left:24px}
+  .goal{text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
+    border-radius:8px 12px 9px 11px;padding:8px 13px 10px;min-width:132px;max-width:176px;
+    font-family:inherit;color:var(--ink);cursor:pointer;
+    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px);
+    opacity:.5;transition:opacity .12s ease,transform .12s ease}
+  .goal:hover{opacity:.8}
+  .goal.on{opacity:1;transform:translateY(-2px)}
+  .goal .gname{font-family:var(--font-marker);font-size:19px;color:var(--ink);line-height:1.1;margin-top:3px}
+  .goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
+  .goal.done{border-color:#2e8b57}
+  .goal.done .gname{color:#2e8b57}
+
+  /* ---------- notes: the test-answer keywords, revealed on completion ----
+     Left rail rather than a card over the stage: it is reference material to
+     glance at, not a thing that happened, so it should not compete with the
+     molecule or move. Kept to keywords on purpose — the page teaches by what it
+     draws, and this is only what a student would be asked to name. */
+  #notes{position:absolute;left:26px;top:210px;z-index:11;width:206px;
+    display:none;opacity:0;transition:opacity .25s ease}
+  #notes.show{display:block;opacity:1}
+  #notes .ntitle{font-family:var(--font-marker);font-size:22px;color:var(--ink);
+    line-height:1.1;margin-bottom:7px}
+  /* a second stage stacks under the first, hairline-separated: same molecule,
+     next thing that happened to it */
+  #notes .nblock + .nblock{margin-top:13px;padding-top:12px;
+    border-top:1.5px dashed var(--hair)}
+  #notes .ntags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+  #notes .ntag{font-weight:700;font-size:10px;
+    letter-spacing:.7px;text-transform:uppercase;padding:3px 7px;border-radius:5px;
+    border:1.5px solid var(--ink);background:#fff;color:var(--ink)}
+  #notes .ntag.covalent{background:#e8e2d4}
+  #notes .ntag.ionic{background:#f6dcb4}
+  #notes .ntag.polar{background:#cfe4f2}
+  #notes .ntag.nonpolar{background:#eceae4;color:var(--muted);border-color:var(--hair)}
+  #notes .ntag.dative{background:#ded7f5}
+  #notes .ntag.ion{background:#f6dcb4}
+  #notes ul{list-style:none;margin:0;padding:0}
+  #notes li{font-family:var(--font-sans);font-size:15px;line-height:1.32;
+    color:var(--ink);padding-left:13px;position:relative;margin-bottom:4px}
+  #notes li::before{content:'·';position:absolute;left:2px;top:-2px;color:var(--muted);
+    font-weight:700;font-size:22px;line-height:1}
+  #notes li b{font-weight:600}
+
+  /* ---------- sticky note, right rail ----------
+     The mirror of #notes, and deliberately NOT the same object. Notes are the
+     keywords a student is revising toward, earned by finishing; a sticky is an
+     aside about the state the molecule is in right now, and it leaves again when
+     that state does. So: opposite side, paper instead of bare rail, tilted, and
+     stuck on with a sticker — it should read as something pinned to the page
+     rather than part of it. */
+  /* Clear of the tab strip rather than level with #notes on the left. The notes
+     rail starts at 150 and gets away with tucking under the cards because it is
+     bare text on paper; this is an opaque card with a border, and one card
+     overlapping another just reads as broken layout. */
+  #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;height:224px;
+    background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
+    border:none;border-radius:0;box-sizing:border-box;overflow:visible;
+    padding:20px;transform:rotate(1.6deg) translateY(6px);
+    box-shadow:0 1px 1px rgba(0,0,0,.15),2px 3px 6px rgba(0,0,0,.18),
+      6px 10px 16px -6px rgba(0,0,0,.35);
+    display:none;opacity:0;transition:opacity .22s ease,transform .22s ease}
+  #sticky.show{display:block;opacity:1;transform:rotate(1.6deg) translateY(0)}
+  /* the sticker rides the top-left corner, half off the paper, so the note reads
+     as stuck down by it rather than as a box with a picture inside */
+  #sticky .simg{position:absolute;left:-19px;top:-50px;width:80px;;
+    transform:rotate(-13deg);pointer-events:none;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+  #sticky .stitle{font-family:var(--font-marker);font-size:22px;line-height:1.16;
+    color:var(--ink);margin:2px 0 8px 13px}
+  #sticky .sbody{font-family:var(--font-sans);font-size:16px;line-height:1.34;
+    color:var(--ink)}
+  #sticky .sbody b{font-weight:600}
+
+  /* ---------- feedback toast ----------
+     Below the molecule, just above the dock: up top it was wedged between the
+     tab strip and the atoms and had to stay short. Down here a line can run
+     wide, and it sits next to the controls that caused it. It rises INTO place
+     from below for the same reason — the motion should come from where the
+     hands are. */
+  #say{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);z-index:12;
+    pointer-events:none;text-align:center;width:min(760px,86%);opacity:0;
+    font-family:var(--font-sans);font-size:21px;line-height:1.35;color:var(--muted)}
+  #say b{font-weight:600;color:var(--ink)}
+  #say.no b{color:#c0392b}
+  #say.show{animation:sayFade 3.4s ease-out forwards}
+  @keyframes sayFade{
+    0%{opacity:0;transform:translateX(-50%) translateY(6px)}
+    9%{opacity:1;transform:translateX(-50%) translateY(0)}
+    78%{opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(4px)}}
+  /* a refused bond shakes rather than silently doing nothing */
+  #stage.shake{animation:shk .34s ease}
+  @keyframes shk{0%,100%{transform:translateX(0)}22%{transform:translateX(-7px)}
+    58%{transform:translateX(6px)}80%{transform:translateX(-3px)}}
+
+  /* ---------- single-column while we tune the water interaction ----------
+     The bench lives ON the stage instead of in a side panel: with one target
+     there is nothing to browse, and keeping hand and molecule in the same
+     field of view is what the interaction is being tuned for. */
+  #app{grid-template-columns:1fr}
+  #side{display:none}
+  #stage{grid-column:1}
+
+  #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
+    display:flex;align-items:center;gap:22px}
+  #dock .dsep{display:none}
+  #dock button.act{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
+    background:#fff;color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dock button.act:hover{background:var(--ink);color:var(--paper)}
+  #etoggle{display:flex;align-items:center;gap:6px;font-family:var(--font-sans);
+    font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  /* electrons wear their atom's colour, so the switch label doubles as the
+     legend: red = oxygen's electrons, steel = hydrogen's */
+  .edot{display:inline-block;width:9px;height:9px;border-radius:50%;
+    background:#d6362e;border:1px solid rgba(0,0,0,.55);vertical-align:middle}
+  .edot.h{background:#b9c2d0;margin-left:-3px}
+
+  /* ---------- view-mode switch ---------- */
+  #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #modes .mode,#dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #modes .mode + .mode,#dims .mode + .mode{border-left:1.5px solid var(--ink)}
+  #modes .mode.on,#dims .mode.on{background:var(--ink);color:var(--paper)}
+
+  /* the PNG button and the dock both want the bottom strip — move it up */
+  #savepng{bottom:22px;right:26px;left:auto}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="goals">
+      <button class="goal on" data-lesson="water">
+        <div class="gname">Water</div>
+        <div class="gform">H&#8322;O</div>
+      </button>
+      <button class="goal" data-lesson="methane">
+        <div class="gname">Methane</div>
+        <div class="gform">CH&#8324;</div>
+      </button>
+      <button class="goal" data-lesson="ammonia">
+        <div class="gname">Ammonia</div>
+        <div class="gform">NH&#8323; &rarr; NH&#8324;<sup>+</sup></div>
+      </button>
+      <button class="goal" data-lesson="co2">
+        <div class="gname">Carbon dioxide</div>
+        <div class="gform">CO&#8322;</div>
+      </button>
+      <button class="goal" data-lesson="n2">
+        <div class="gname">Nitrogen gas</div>
+        <div class="gform">N&#8322;</div>
+      </button>
+      <button class="goal" data-lesson="nacl">
+        <div class="gname">Salt</div>
+        <div class="gform">NaCl</div>
+      </button>
+      <button class="goal" data-lesson="kcl">
+        <div class="gname">Potassium chloride</div>
+        <div class="gform">KCl</div>
+      </button>
+    </div>
+    <div id="notes" aria-live="polite"></div>
+    <div id="sticky" aria-live="polite"></div>
+    <div id="say" aria-live="polite"></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+
+    <div id="dock">
+      <div id="modes" role="group" aria-label="View">
+        <button class="mode on" data-mode="electrons">valence electrons<i class="edot"></i><i class="edot h"></i></button>
+        <button class="mode" data-mode="sticks">stick bonds</button>
+      </div>
+      <div class="dsep"></div>
+      <div id="dims" role="group" aria-label="View angle">
+        <button class="mode" data-dim="3d">3D</button>
+        <button class="mode on" data-dim="2d">2D</button>
+      </div>
+      <div class="dsep"></div>
+      <button class="act" id="clearmol">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="atomkit.js"></script>
+<script src="covalent-drag.js"></script>
+<script src="ionic-drag.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  BUILD A MOLECULE — two tabs: water shares, salt gives
+ *  All the chemistry and all the feel live in water-drag.js / salt-drag.js;
+ *  this file is UI only. Its job is to narrate what the hands just did: name
+ *  the pull when it starts, name the shared pair when it forms, count the slots
+ *  still open, and count the electrons out loud when one changes owner. Every
+ *  rule is enforced in 3D, never in a dialog.
+ * ============================================================= */
+
+/* 2D is a diagram, and a diagram must not have perspective: at 45° an atom
+   parked off to the side is drawn skewed, and a hydrogen nearer the camera reads
+   as BIGGER rather than NEARER — both of which are lies in a view whose whole job
+   is letting you count and compare. The fix is a long lens rather than a real
+   OrthographicCamera: fx.js captures its camera in a closure with no setter, and
+   swapping the camera object means surgery on a module four pages share. Dropping
+   to a 12° FOV and pulling back by the matching factor is orthographic to the eye
+   at this scale, and costs one page-local line. */
+const FOV_3D=45, FOV_2D=12;
+const LENS=Math.tan(FOV_3D/2*Math.PI/180)/Math.tan(FOV_2D/2*Math.PI/180);
+const ZOOM={ '3d':[6,26], '2d':[6*LENS,26*LENS] };   // same framing, longer throw
+
+const canvas=document.getElementById('gl');
+let userSpun=false;
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  cam:{theta:0.6,phi:1.15,r:12}, rMin:6, rMax:26*LENS,
+  onDrag:()=>{userSpun=true;}
+});
+const fx=FX.create(THREE, root, camera);
+
+const elSay=document.getElementById('say');
+const elNotes=document.getElementById('notes');
+const elSticky=document.getElementById('sticky');
+
+/* ---------- the two lessons ----------------------------------------------
+ * Four tabs, in two pairs, because every comparison here IS a lesson. Water and
+ * methane are the same rule at two slot counts, so methane reads as "the rule
+ * generalises" rather than as a new fact. Salt and KCl are the same transfer
+ * from two different metals, so KCl reads as the control that shows the
+ * behaviour belongs to metal + nonmetal rather than to sodium. And covalent vs
+ * ionic is the comparison the whole page exists for: same hands, same drag, same
+ * attraction — then one pair shares a slot and the other hands an electron over
+ * and never gets it back.
+ *
+ * Two modules back the four (covalent-drag.js, ionic-drag.js): same mechanic
+ * means same file with a recipe, different mechanic means a different file. This
+ * table is only the words that go around them.
+ */
+const LESSONS={
+  water:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'water', onChange:report}),
+    open:'Drag a hydrogen toward the oxygen.',
+    // a ring enclosing the whole molecule: covalent is a thing the molecule has
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'You made <b>water</b>. Two slots, two hydrogens.',
+    /* Keywords, not sentences: what a student would be asked to NAME. The page
+       already taught the mechanism by drawing it; this is the part that ends up
+       on an exam. */
+    notes:{ title:'Water &middot; H\u2082O', tags:['covalent','polar'], facts:[
+      '<b>bent</b> &middot; <b>104.5\u00b0</b>',
+      '2 bonding pairs + <b>2 lone pairs</b> on O',
+      'lone pairs squeeze the bonds \u2192 not 109.5\u00b0',
+      '<b>\u03b4\u2212</b> on O, <b>\u03b4+</b> on H \u2014 unequal sharing',
+      'H-bond <b>donor and acceptor</b>',
+      'the <b>universal solvent</b>' ] },
+    flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
+    step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
+  },
+  ammonia:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'ammonia', onChange:report}),
+    open:'Nitrogen has three slots — and a lone pair it keeps.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'Ammonia. The <b>lone pair</b> is left over — now drag the <b>H\u207a</b> into it.',
+    notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar'], facts:[
+      '<b>trigonal pyramidal</b> &middot; <b>107\u00b0</b>',
+      '3 bonding pairs + <b>1 lone pair</b> on N',
+      '<b>\u03b4\u2212</b> on N, <b>\u03b4+</b> on H',
+      'the lone pair accepts H\u207a \u2192 a <b>base</b>' ] },
+    notes2:{ title:'Ammonium &middot; NH\u2084\u207a', tags:['covalent','dative','ion'], facts:[
+      '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
+      '<b>dative</b> (coordinate) bond \u2014 N gave both electrons',
+      'no lone pair left \u2192 charge <b>+1</b>',
+      'the four N\u2013H bonds are now <b>identical</b>' ] },
+    flatSay:'Flat view — three bonds and the lone pair on top.',
+    stats:s=>s.protonated
+      ? 'ammonium <b>NH\u2084\u207a</b> &nbsp;\u00b7&nbsp; the lone pair became a <b>bond</b>'
+      : 'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>'+
+        (s.hasProton?' &nbsp;\u00b7&nbsp; a bare <b>proton</b> is waiting':''),
+    step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
+    /* The second stage is its own moment, and its own sentence: the proton
+       brought no electron, so nitrogen paid for the whole bond. */
+    extra:s=>s.protonated
+      ? 'The proton brought <b>no electron</b> — nitrogen paid for both. That is a '+
+        '<b>dative bond</b>, and the molecule is now <b>NH\u2084\u207a</b>.'
+      : null,
+  },
+  methane:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'methane', onChange:report}),
+    open:'Carbon has four slots. Same rule — fill them all.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'You made <b>methane</b>. Four slots, four hydrogens, nothing left over.',
+    notes:{ title:'Methane &middot; CH\u2084', tags:['covalent','nonpolar'], facts:[
+      '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
+      '4 bonding pairs + <b>0 lone pairs</b>',
+      'C\u2013H barely differ \u2192 <b>nonpolar</b>',
+      'symmetric \u2192 <b>no net dipole</b>',
+      '<b>hydrophobic</b> \u2014 will not dissolve in water',
+      'carbon\u2019s 4 bonds = the backbone of biology' ] },
+    flatSay:'Flat view — the four bonds spread out so you can count them. They are '+
+            'really at 109.5\u00b0, not 90\u00b0; switch to 3D.',
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
+    step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
+  },
+  /* CO2 is where "fill the slots" stops being the whole rule. Carbon has four
+     electrons and only two neighbours, so a slot has to take two pairs — and the
+     student finds that out by watching it happen, not by being told first.
+     Its second job is the harder one: every bond here is polar, and the molecule
+     is not. That is the distinction water spent four tabs setting up, and CO2 is
+     the case that proves the two are separable. */
+  co2:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'co2', onChange:report}),
+    open:'Carbon has four electrons to share — and only two oxygens to share them with.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'<b>Carbon dioxide</b>. Each bond took <b>two pairs</b> — a <b>double bond</b>.',
+    notes:{ title:'Carbon dioxide &middot; CO₂', tags:['covalent','nonpolar'], facts:[
+      '<b>linear</b> &middot; <b>180°</b>',
+      '<b>2 double bonds</b> — 4 shared pairs',
+      'each O keeps <b>2 lone pairs</b>',
+      'C–O bonds <b>are</b> polar — O pulls harder',
+      '… but they point <b>opposite ways</b> and <b>cancel</b>',
+      '<b>polar bonds, nonpolar molecule</b>',
+      'nonpolar → crosses membranes freely' ] },
+    flatSay:'Flat view — count around each atom. Eight everywhere, and only because '+
+            'the bonds doubled.',
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+
+             '</b> &nbsp;·&nbsp; shared pairs: <b>'+s.pairs+'</b>',
+    step:s=>s.open>0
+      ? 'A <b>double bond</b> — two pairs, not one. <b>'+s.open+'</b> slot left.'
+      : null,
+    /* Halfway through CO2 the screen shows one carbon joined to one oxygen, and
+       that is exactly the picture a student reads as carbon monoxide. It isn't —
+       CO is C≡O with a lone pair on carbon, a different bond order and a
+       different molecule, and what is on screen is a fragment with carbon still
+       two electrons short. Rather than have the step line scold ("not a molecule
+       yet"), the interesting answer goes on a sticky: CO is real, it is just
+       made somewhere else and by something else. Tied to bonded===1, so it
+       arrives with the half-built state and leaves with it. */
+    sticky:s=>s.bonded===1 ? {
+      title:'Why do you not make Carbon Monoxide?',
+      body:'CO is a product of <b>incomplete combustion</b>, burning carbon fuel '+
+           'when oxygen is limited.' } : null,
+    /* The dipole point lands AFTER the win line, on its own, because it is a
+       separate claim from "you made CO2" and the one students lose. */
+    after:()=>'Both bonds pull toward oxygen — but in <b>opposite directions</b>, '+
+             'along one straight line. They <b>cancel</b>: polar bonds, <b>nonpolar molecule</b>.',
+  },
+  /* And N2 is the same doubling pushed to its limit, with the polarity argument
+     switched off entirely — two identical atoms have nothing to argue about, so
+     all that is left is the count. It earns its place in a biology page by being
+     the reason nitrogen fixation is expensive: three pairs is the strongest bond
+     on the whole site, and life has to break it to build an amino acid. */
+  n2:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'n2', onChange:report}),
+    open:'Two nitrogens, three electrons each to share. Watch how many pairs it takes.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'<b>Nitrogen gas</b>. <b>Three</b> shared pairs — a <b>triple bond</b>.',
+    notes:{ title:'Nitrogen gas &middot; N₂', tags:['covalent','nonpolar'], facts:[
+      '<b>linear</b> — only two atoms',
+      '<b>triple bond</b> — 3 shared pairs',
+      '1 lone pair left on <b>each</b> N',
+      'identical atoms → <b>no</b> dipole at all',
+      'the <b>strongest</b> bond here — very hard to break',
+      '78% of air, and <b>unusable</b> by most life',
+      '<b>fixation</b> = paying to break it' ] },
+    flatSay:'Flat view — three pairs in the gap, one on each end. Eight around both.',
+    stats:s=>s.complete
+      ? 'shared pairs: <b>'+s.pairs+'</b> &nbsp;·&nbsp; a <b>triple</b> bond'
+      : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
+    step:()=>null,
+    after:()=>'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
+             'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.',
+  },
+  nacl:{
+    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
+    open:'Drag the sodium and the chlorine together.',
+    /* No ring — ionic-drag.js already flashes and sparks where the electron
+       lands. The ionic moment is one electron arriving at one place, not the
+       molecule acquiring something, and giving it the enclosing ring would say
+       the two bond types are the same event in different colours. */
+    ring:null,
+    won:'The electron moved. Two <b>ions</b>, held by charge.',
+    notes:{ title:'Salt &middot; NaCl', tags:['ionic','ion'], facts:[
+      '<b>metal + nonmetal</b> \u2192 electron <b>transferred</b>',
+      'Na <b>0e\u207b</b>, Cl <b>8e\u207b</b> \u2014 both now stable',
+      '<b>Na\u207a</b> and <b>Cl\u207b</b>, held by <b>opposite charge</b>',
+      'nothing shared \u2192 <b>no pair</b> in the gap',
+      '<b>dissociates</b> in water' ] },
+    flatSay:'Flat view — count them: 0 on sodium, 8 on chlorine.',
+    stats:s=>'Na: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
+             'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
+    step:()=>null,
+  },
+  kcl:{
+    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'kcl', onChange:report}),
+    open:'A different metal. Does the same thing happen?',
+    ring:null,
+    won:'Same story, different metal. That is the point.',
+    notes:{ title:'Potassium chloride &middot; KCl', tags:['ionic','ion'], facts:[
+      'same transfer, <b>different metal</b>',
+      'behaviour belongs to <b>metal + nonmetal</b>, not to sodium',
+      '<b>K\u207a</b> and <b>Cl\u207b</b>, held by <b>opposite charge</b>',
+      'K is bigger \u2192 the ions settle <b>further apart</b>' ] },
+    flatSay:'Flat view — count them: 0 on potassium, 8 on chlorine.',
+    stats:s=>'K: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
+             'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
+    step:()=>null,
+  },
+};
+let key='water', L=LESSONS[key], sim=null;
+
+/* ---------- feedback ---------- */
+let sayTimer=null;
+function say(html){
+  elSay.innerHTML=html;
+  elSay.classList.remove('show');
+  void elSay.offsetWidth;              // restart the animation
+  elSay.classList.add('show');
+  clearTimeout(sayTimer);
+  sayTimer=setTimeout(()=>elSay.classList.remove('show'),3400);
+}
+
+function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); }
+
+/* Takes a list, because a lesson with a second stage ADDS to its notes rather
+   than replacing them: ammonium is not a correction to ammonia, it is what
+   ammonia became, and a student revising wants both — the base and what
+   happened when it accepted a proton — side by side. */
+function showNotes(list){
+  if(!list){ elNotes.classList.remove('show'); return; }
+  elNotes.innerHTML=[].concat(list).map(n=>
+    '<div class="nblock"><div class="ntitle">'+n.title+'</div><div class="ntags">'+
+    n.tags.map(t=>'<span class="ntag '+t+'">'+t+'</span>').join('')+'</div><ul>'+
+    n.facts.map(f=>'<li>'+f+'</li>').join('')+'</ul></div>').join('');
+  elNotes.classList.add('show');
+}
+
+/* A lesson's sticky is a function of the CURRENT state, not an event, so it is
+   re-evaluated on every report and goes away by itself when the state that
+   earned it does. That is the whole difference from say(): a toast is "this just
+   happened", a sticky is "this is what you are looking at". */
+function showSticky(note){
+  // the key is cleared on the way out, so peeling a bond off and rebuilding it
+  // earns the note again rather than leaving a hidden div that thinks it is up
+  if(!note){ elSticky.classList.remove('show'); elSticky.dataset.key=''; return; }
+  if(elSticky.dataset.key===note.title){ return; }   // already up — don't re-animate
+  elSticky.dataset.key=note.title;
+  elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
+    '<div class="stitle">'+note.title+'</div>'+
+    '<div class="sbody">'+note.body+'</div>';
+  elSticky.classList.add('show');
+}
+
+/* The completion ring is one-per-molecule, so it stays an event rather than a
+   status light. Salt reports twice after finishing (the transfer, then the
+   electron landing) and pulling a bond apart re-arms it — which is the useful
+   behaviour: rebuild the molecule and you earn the ring again. */
+let rung=false;
+/* `extra` is for a lesson with a stage AFTER completion — ammonia's proton.
+   Checked first, so the protonation line is not shadowed by the win line the
+   molecule already earned. */
+let saidExtra=false;
+/* `after` is the OTHER kind of second line, and the distinction matters because
+   getting it wrong silently costs a lesson its ending. `extra` replaces the win
+   — ammonia's protonation is a new stage, and the molecule that finished is not
+   the molecule on screen any more. `after` follows the win — CO2's two dipoles
+   cancelling is a second sentence about the SAME completion, so the ring, the
+   won line and the done card all still have to happen first. Routing that
+   through `extra` returned before win() ever ran and quietly took all three. */
+let saidAfter=false, afterTimer=null;
+function report(s){
+  /* Ahead of every early return below, because a sticky belongs to the state
+     rather than to a branch: completing the molecule has to be able to take it
+     down, and win() returns before the end of this function. */
+  showSticky(L.sticky && L.sticky(s));
+  const more=L.extra && L.extra(s);
+  if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
+  saidExtra=false;
+  if(s.complete){ win(s); return; }
+  rung=false; saidAfter=false;
+  clearTimeout(afterTimer);
+  card().classList.remove('done');
+  showNotes(null);
+  const line=L.step(s); if(line) say(line);
+}
+
+function win(s){
+  card().classList.add('done');
+  showNotes(L.notes);
+  say(L.won);
+  /* The follow-up lands as the win line is fading rather than on top of it: two
+     sentences about the same moment, read in order. 3.2s against say()'s 3.4s
+     hold, so the toast never goes empty in between. */
+  if(L.after && !saidAfter){
+    saidAfter=true;
+    clearTimeout(afterTimer);
+    afterTimer=setTimeout(()=>say(L.after(s)), 3200);
+  }
+  /* Each bond type finishes in its own visual language, which is the cheapest
+     way to say they are different KINDS of event:
+       covalent — a ring expanding from the anchor atom through the molecule
+       ionic    — a white flash and green sparks where the electron lands, fired
+                  by salt-drag.js at the arrival point, not from here
+     Centred by asking the lesson for its anchor's position rather than assuming
+     the world origin — that assumption is what previously bloomed the ring out
+     of empty space beside a salt pair dragged off-centre. */
+  if(fx && !rung && L.ring){ rung=true; fx.spawnRing(sim.center(), L.ring()); }
+}
+
+/* Tabs tear the old lesson down rather than hiding it: both modules bind
+   pointer handlers to the stage, and a hidden-but-live one would keep grabbing
+   atoms the student can no longer see. */
+let last=0;
+function load(k){
+  if(sim) sim.destroy();
+  rung=false; saidAfter=false; clearTimeout(afterTimer);
+  key=k; L=LESSONS[k]; saidExtra=false;
+  showNotes(null); showSticky(null);
+  document.querySelectorAll('.goal').forEach(c=>
+    c.classList.toggle('on', c.dataset.lesson===k));
+  sim=L.make();
+  sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
+  sim.setDim(flat?'2d':'3d');
+  say(L.open);
+}
+
+document.querySelectorAll('.goal').forEach(c=>{
+  c.addEventListener('click',()=>{ if(c.dataset.lesson!==key) load(c.dataset.lesson); });
+});
+
+/* ---------- controls ---------- */
+document.querySelectorAll('#modes .mode').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#modes .mode').forEach(o=>o.classList.remove('on'));
+    b.classList.add('on');
+    sim.setMode(b.dataset.mode);
+  });
+});
+
+/* 2D is the default: straight-on, rotation locked, every electron countable.
+   3D is the thing you switch to once you want to ask where the lone pairs
+   really are — which is the question the flat view provokes. */
+let flat=true;
+document.querySelectorAll('#dims .mode').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#dims .mode').forEach(o=>o.classList.remove('on'));
+    b.classList.add('on');
+    flat=(b.dataset.dim==='2d');
+    sim.setDim(flat?'2d':'3d');
+    camera.fov=flat?FOV_2D:FOV_3D; camera.updateProjectionMatrix();
+    cam.r*=flat?LENS:1/LENS;         // same apparent size through the new lens
+    if(flat){ userSpun=true; }        // no idle turntable behind a locked view
+    else { cam.theta=0.6; cam.phi=1.15; applyCam(); userSpun=false; }
+    say(flat ? L.flatSay : 'Free view — drag the background to spin it.');
+  });
+});
+
+document.getElementById('clearmol').addEventListener('click',()=>{
+  rung=false; saidExtra=false;
+  sim.reset();
+  sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
+  say(L.open);
+});
+
+document.getElementById('savepng').addEventListener('click',()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download='molecule-builder.png';
+  a.href=renderer.domElement.toDataURL('image/png');
+  a.click();
+});
+
+/* ---------- frame loop ---------- */
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=last?(now-last)/1000:0.016; last=now;
+  /* The 2D lock is re-asserted per frame rather than by unbinding Stage's orbit
+     handler: the handler belongs to the shared stage, and a page has no business
+     reaching in to disable it. Re-applying the camera afterwards is the same
+     result from the outside — the view simply cannot be rotated. */
+  // Stage's wheel clamp spans BOTH lenses, so each mode re-clamps to its own
+  const z=ZOOM[flat?'2d':'3d'];
+  cam.r=Math.max(z[0],Math.min(z[1],cam.r));
+  if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
+  else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
+  sim.step(dt);
+  fx.step();
+  renderer.render(scene,camera);
+}
+resize();
+camera.fov=FOV_2D; camera.updateProjectionMatrix(); cam.r*=LENS;
+load('water');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -139,8 +139,8 @@ Real coordinates are right when the *shape* is the point — a chair ring, a
 tetrahedral centre, a helix. They are **wrong** when the lesson is topology.
 A phospholipid's real conformer is floppy and renders as spaghetti; the lesson is
 "polar head, nonpolar tails", so build it schematically **on purpose** and say so
-in the comment, exactly as the open-chain Fischer intermediates in §12 are
-deliberate. Bilayers and polymers additionally need instancing rather than N
+in the comment, exactly as the open-chain Fischer-projection intermediates in §1
+(source 3, `Skel`) are deliberate. Bilayers and polymers additionally need instancing rather than N
 built groups, and should be validated at the monomer, not the assembly.
 
 Two gaps to close before the relevant lessons land:
@@ -157,6 +157,16 @@ Two gaps to close before the relevant lessons land:
   (**δ−**); each hydrogen carries partial positive (**δ+**).
 - The **dipole points toward oxygen** (the negative end).
 - The electron cloud / density is shown **shifted toward O**, never symmetric.
+- In `molecule-builder.html` this is drawn three ways at once, all from one
+  per-recipe `polar` weight (a stylised electronegativity difference, **not** a
+  dipole moment — O–H 1.24 → `1`, N–H 0.84 → `0.7`, C–H 0.35 → `0`): the shared
+  pair sits **off-centre toward the core**, each atom gets a **δ−/δ+ badge**, and
+  the ligand's cloud **leans back** along its bond. The offset is small on purpose
+  — pushed far enough to bury the pair in the core it stops reading as *shared
+  unequally* and starts reading as *transferred*, which is the ionic picture.
+- **Methane is the control.** `polar: 0` means dead-centre pairs and no badges, so
+  "shared" in the water tab and "shared" in the methane tab are visibly not the
+  same word.
 
 ## 3. Electrons & covalent bonding
 
@@ -176,6 +186,18 @@ Two gaps to close before the relevant lessons land:
   fallback deliberately offsets *across* the view rather than toward the camera —
   otherwise one stick hides exactly behind the other and a double bond reads as
   single from the default angle.
+- **An electron wears its own atom's colour** (`molecule-builder.html`). A shared
+  pair therefore shows **one dot of each colour** — two atoms each putting one
+  electron in, rather than a bond appearing from nowhere — and ownership needs no
+  legend. The cost is that a red dot lands on a red sphere, so every dot carries an
+  ink ring; without it the shared pair vanishes into the oxygen at exactly the
+  moment it matters.
+- **A dative (coordinate) bond is drawn as two dots of the DONOR's colour.** In
+  NH₃ + H⁺ → NH₄⁺ nitrogen supplies both electrons and the proton brings none, so
+  there is no second colour to show. The proton itself is drawn with **no electron
+  dot at all** and a `+`, because that is what a proton is. Once formed, the four
+  N–H bonds are identical and the ion carries a **whole +1** — every δ badge comes
+  off, since four δ+ would assert partial charges that happen to sum to one.
 - **P=O stays a single stick, on purpose.** In phosphate the charge is delocalised
   over the oxygens; doubling one of them would assert a localisation that isn't
   there. Same reasoning as drawing bicarbonate's two bare O's identically.
@@ -321,6 +343,33 @@ Atom/palette colours are the single source of truth in `molecules.js`
 | ↳ **Bicarbonate** HCO₃⁻ | `ion`, `product` | (formed in step 2) | — (glowed as part of step 2) | `#ffe4b0` |
 | ↳ **Hydronium** H₃O⁺ | `ion`, `product` | proton lands on a water | `spawnRing` at landing + `popGlow` on new H₃O⁺ | warm amber: ring `#ffc24d`, glow `#ffd98a` |
 
+### Bonding builder events (`molecule-builder.html`)
+
+Each **bond type finishes in its own visual language**, because the page exists to
+say they are different kinds of event. Recolouring one effect for all three would
+say the opposite. Every effect is fired at a position the module **asks for** (the
+anchor atom, the landing point) — never at the world origin, which is only where
+the molecule is in the water tab.
+
+| Bond formed | Event | Effect(s) | Colour(s) |
+|---|---|---|---|
+| **Covalent** (H₂O, CH₄, NH₃) | the last slot fills | `spawnRing` from the **core atom**, expanding through the molecule — the bond is a thing the whole molecule now has | covalent stone `#b3a892` |
+| **Dative** (NH₃ + H⁺ → NH₄⁺) | the proton lands in the lone pair | `spawnRing` from the **donor**, in the **donor's own colour** (it did not come from both atoms) + the donor pair swells 1.34× and settles + amber `settleShimmer` on the new ion | N blue `#3f6ae0`; shimmer amber `#ffc24d` |
+| **Ionic** (NaCl, KCl) | the electron lands on the nonmetal | **no ring** — `spawnCore` white flash + `spawnBurst` at the **arrival point on the shell**: one electron arrived at one place, the molecule did not acquire something | white `#ffffff` + the nonmetal's colour |
+
+- The **completion ring is latched to fire once per molecule**, re-armed when the
+  lesson reports incomplete — so rebuilding earns it again but a second report of
+  the same finished state does not.
+- The **electron's own flight** carries the ionic story: sodium's dot detaches,
+  arcs the gap over 0.55 s and lands **green**. An electron wears its owner's
+  colour, so changing colour mid-flight *is* the sentence "it changed owner".
+  Counts flip at the moment of transfer, not on arrival — the callback only runs
+  while the frame loop does, and a backgrounded tab must not leave the readout
+  stale.
+- The **dative flare is deliberately small** (1.34×). A dot that balloons stops
+  reading as an electron and starts reading as an effect, and the whole claim is
+  that these are the *same two electrons* throughout.
+
 ### Colour language
 
 - **Cool blue** (`#7cc4ff` / `#bfe4ff`) — a **water-driven** step: hydration, water
@@ -395,3 +444,100 @@ New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` onc
   one merged molecule (no claim of a single rigid conformation).
 
 
+
+## 11. Module architecture — share the plumbing, not the physics
+
+There is deliberately **no monolithic `engine.js`**. The lessons fall into distinct
+paradigms — solvation, molecular assembly, pathways, bonding — that do not share a
+simulation core, and pretending otherwise would produce an engine whose every
+option exists for exactly one caller.
+
+What *is* extracted is the scaffolding nobody's lesson is about:
+
+| Module | Owns | Deliberately does **not** own |
+|---|---|---|
+| `molecules.js` | colours, radii, geometry specs | anything that moves |
+| `scene.js` | renderer/camera/orbit/lights/resize, `atom`/`bond`/`buildMolecule` | any page's physics |
+| `fx.js` | transient event effects | when an event happened |
+| `atomkit.js` | how an atom is **drawn** for the bonding lessons | how a bond **forms** |
+
+The test for whether something belongs in a shared module: **would two lessons
+disagree about it?** Colours, radii and the look of an electron must not vary
+between pages — a student moving from one tab to the next has to read the second
+lesson with the vocabulary the first one taught. How a bond forms is exactly what
+the lessons are *for*, so it stays local.
+
+The split repeats one level down inside the bonding builder. Water and methane
+share `covalent-drag.js` because they are the **same mechanic at two slot counts**
+— a recipe. Salt gets `ionic-drag.js` because filling a valence slot and handing
+an electron over are **different mechanics**, and expressing the second as a mode
+of the first would have meant a flag that turns the lesson off. Rule of thumb:
+*same mechanic, different constants* → one file with a recipe; *different
+mechanic* → a different file.
+
+The two solvation pages (`water-lab`, `molecule-lab`) keep their **own** molecule
+builder — cel outlines, Debug recolour/toon, hydration `userData` — and share only
+the scene bootstrap, for the same reason.
+
+## 12. Bonding builder (`molecule-builder.html`)
+
+Five tabs, in three groups, because every comparison on this page is itself a
+lesson: **water / methane** (the same rule at two slot counts, so methane reads as
+*the rule generalises* rather than as a new fact), **ammonia → ammonium** (the bond
+one atom pays for), and **salt / KCl** (the same transfer from two metals, so KCl
+is the *control* showing the behaviour belongs to metal + nonmetal, not to sodium).
+
+### What the mechanic asserts
+
+- **A bond is an attraction, not a decision.** Atoms are dragged near and the last
+  stretch is pulled by the core, not the mouse; releasing inside the capture radius
+  still bonds. A click-to-place bench said "you may now place an atom here", which
+  is a different claim.
+- **Nuclei are solid.** An atom slides on the core's surface rather than entering
+  it — which is also what makes a sloppy drop work, since anywhere on the face is
+  within reach of a slot.
+- **Geometry is lifted from `molecules.js`**, never re-derived: slot directions are
+  the real ligand positions normalised, so a molecule the student *builds* is
+  identical to the same molecule every other page *loads*. Angles as
+  `check-molecules.js` reports them: H₂O **104.6°** (the spec's coordinates
+  realise 104.57 against a 104.5 target), NH₃ **106.8°**, CH₄ and NH₄⁺
+  **109.5°**. The notes rail quotes the textbook values — 104.5° and 107° — since
+  those are what a student writes down; the difference is spec rounding, not a
+  second claim.
+- **Valence is enforced, never explained.** The slot count is the answer to "why
+  H₂O and not H₃O" — and in the ammonia tab a further hydrogen is refused *as an
+  atom* and accepted *as a proton*, which is the acid/base door.
+
+### The 2D view is a projection, and says so
+
+2D locks the camera straight on, cel-shades the atoms (Toon + inflated back-face
+outline, the same convention as water-lab's Render mode) and swings out-of-plane
+electrons into the plane so the octet can be counted. **It is a projection for
+counting, not a claim about shape.** Water's lone pairs really do stick out of the
+H–O–H plane and methane really is a tetrahedron, so:
+
+- the flat layouts move only what would otherwise hide behind the core;
+- bond angles and the underlying slot geometry are untouched;
+- the notes and the teach text state the real angle (109.5°, not the 90° the flat
+  cross draws), and 3D is one click away.
+
+The 2D camera uses a **12° FOV pulled back** rather than an orthographic camera:
+at 45° an off-centre atom is drawn skewed and a nearer one reads as *bigger* rather
+than *nearer*, both lies in a view whose job is comparison. (A true
+`OrthographicCamera` would mean swapping the camera object, and `fx.js` captures
+its camera in a closure.)
+
+### Model simplifications (keep explicit)
+
+- **`polar` weights are stylised**, from electronegativity difference, not dipole
+  moments (§2).
+- **Ionic separations are roomier than any covalent bond** (Na–Cl 2.55 against
+  radii summing to 1.94) so the eye reads a *space* between two ions rather than a
+  join. Nothing is shared across that gap.
+- **Stick view still draws a stick for the ion pair** — amber, the palette's ion
+  colour, never covalent grey — because stick view is the schematic the rest of the
+  project speaks and a student who switches to it should find a bond. The electron
+  view has none, because there is no shared pair in that gap.
+- **Each covalent lesson ships exactly as many ligands as it has slots.** The limit
+  is shown by the open-slot counter and the ghost markers rather than tested by a
+  refusal.
