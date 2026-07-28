@@ -190,7 +190,6 @@
     <div id="sticky" aria-live="polite"></div>
     <div id="say" aria-live="polite"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
-    <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="dock">
@@ -248,7 +247,6 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
 const fx=FX.create(THREE, root, camera);
 
 const elSay=document.getElementById('say');
-const elStats=document.getElementById('stats');
 const elNotes=document.getElementById('notes');
 const elSticky=document.getElementById('sticky');
 
@@ -499,7 +497,6 @@ let saidExtra=false;
    through `extra` returned before win() ever ran and quietly took all three. */
 let saidAfter=false, afterTimer=null;
 function report(s){
-  elStats.innerHTML=L.stats(s);
   /* Ahead of every early return below, because a sticky belongs to the state
      rather than to a branch: completing the molecule has to be able to take it
      down, and win() returns before the end of this function. */
