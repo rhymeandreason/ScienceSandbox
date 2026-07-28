@@ -18,6 +18,7 @@ Spheres should never intersect.
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly |
 | `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway |
+| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · NaCl · KCl) | bonding assembly |
 
 ## Shared modules
 
@@ -30,6 +31,7 @@ Loaded **in this order**, before each page's own `<script>`:
 <script src="molecules.js"></script>   <!-- MolLib.PALETTE (colours/radii) + MolLib.MOLECULES (specs) -->
 <script src="scene.js"></script>       <!-- Stage.create + molecule builder -->
 <script src="fx.js"></script>          <!-- FX.create → reaction effects -->
+<script src="atomkit.js"></script>     <!-- AtomKit.create → how an atom is DRESSED -->
 <script> /* page-specific code */ </script>
 ```
 
@@ -47,6 +49,19 @@ Loaded **in this order**, before each page's own `<script>`:
 - **`fx.js`** — `FX.create(THREE, root, camera)` returns transient reaction effects
   (`spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, …) + `step()` (call once
   per frame in your loop). Purely cosmetic.
+- **`atomkit.js`** — `AtomKit.create(THREE)` returns the shared *vocabulary* for
+  drawing an atom: electron `dot`s (each in its own atom's colour, with an ink ring
+  so it stays legible on that same atom), the soft `cloud`, the element `label`, the
+  `charge` badge (`+`, `δ−`), `cel()` for the flat diagram look, and `DOT_GAP` (how
+  far an electron floats off the surface — one number, so a dot never sits at a
+  different height on nitrogen than on oxygen). Only used by the bonding builder
+  today. Anything a student learns to **read** belongs here; anything they learn
+  about **bonding** does not.
+- **`covalent-drag.js` / `ionic-drag.js`** — the bonding builder's two mechanics,
+  each driven by a `RECIPES` table (`CovalentDrag`: core + slots + polarity;
+  `IonicDrag`: metal + nonmetal + separation). Page-specific, not plumbing: the
+  same mechanic with different constants is a recipe, a different mechanic is a
+  different file. See **`SCIENCE.md` §12**.
 - **`sandbox.css`** — the shared sketchbook look (cream paper, torn-edge panel,
   fonts, `#app` grid, stage/side-panel chrome). Page-specific rules go in the
   page's own `<style>` after this link.
@@ -60,8 +75,11 @@ There is deliberately **no monolithic `engine.js`**. Lessons fall into distinct
 paradigms (solvation, assembly, pathways, gradients) that don't share a simulation
 core — only the universal scaffolding is extracted. The two solvation pages keep
 their **own** molecule builder (cel outlines, Debug recolour/toon, hydration
-`userData`); only the scene *bootstrap* is shared. Full rationale in
-**`SCIENCE.md` §11**.
+`userData`); only the scene *bootstrap* is shared. The bonding builder splits the
+same way one level down: covalent and ionic get separate modules because filling a
+valence slot and handing an electron over are different mechanics, while water and
+methane share one module because they are the same mechanic at two slot counts.
+Full rationale in **`SCIENCE.md` §11**, the builder's own rules in **§12**.
 
 ## Adding a new page
 
@@ -81,7 +99,8 @@ their **own** molecule builder (cel outlines, Debug recolour/toon, hydration
 
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook: geometry/angles, polarity, H-bonds, reaction/effect/colour conventions
-(§9), amino-acid & peptide rules (§10), and the module architecture (§11).
+(§9), amino-acid & peptide rules (§10), the module architecture (§11), and the
+bonding builder's rules (§12).
 Before adding a **new molecule**, read §1 — it sets how much fidelity a molecule
 owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.
