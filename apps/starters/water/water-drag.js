@@ -425,6 +425,12 @@
 
     build();
     return { group, step, setMode, setDim, reset, destroy, state,
+             /* Where the molecule IS, for effects that have to fire somewhere.
+                Water's oxygen happens to sit at the origin, but read the mesh
+                rather than assuming it — the assumption is exactly what put the
+                completion ring in empty space in the salt tab. */
+             center:()=>oxygen ? oxygen.group.getWorldPosition(new THREE.Vector3())
+                               : new THREE.Vector3(),
              get mode(){return mode;}, get dim(){return dim;} };
   }
 

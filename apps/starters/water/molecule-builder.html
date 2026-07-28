@@ -197,8 +197,10 @@ const LESSONS={
       'Two open slots, two hydrogens: that is why water is H\u2082O and not H\u2083O, and '+
       'why the third hydrogen never got pulled in. The slots sit <b>104.5\u00b0</b> apart, '+
       'so water comes out bent — the reason it has a positive end and a negative end at all.',
-    ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'You made <b>water</b>. The spare hydrogen has nowhere to go.',
+    /* A ring, expanding from the oxygen through both hydrogens: a covalent bond
+       is a thing the whole molecule now has, and the effect encloses all of it. */
+    ring:()=>MolLib.PALETTE.bonds.covalent,
     flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
     step:s=>s.bonded===1?'Shared a pair. <b>One</b> slot left.':null,
@@ -214,8 +216,13 @@ const LESSONS={
       'Cl<sup>\u2212</sup>, and what holds them together is <b>opposite charge</b>, '+
       'not a shared pair: <b>nothing sits in the gap</b> between them. That is why '+
       'salt comes apart in water when water does not.',
-    ring:()=>MolLib.PALETTE.bonds.iondipole,
     won:'The electron moved. Two <b>ions</b>, held by charge.',
+    /* No ring. Salt's moment is not the molecule acquiring something — it is one
+       electron arriving at one place, and salt-drag.js already flashes white and
+       sprays green sparks exactly there. Giving the ionic tab the same enclosing
+       ring would say the two bonds are the same event with different colours,
+       when the whole point of the pair of tabs is that they are not. */
+    ring:null,
     flatSay:'Flat view — count them: 0 on sodium, 8 on chlorine.',
     stats:s=>'Na: <b>'+s.naCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.clCount+
              'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
@@ -237,9 +244,15 @@ function say(html){
 
 function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); }
 
+/* The completion ring is one-per-molecule, so it stays an event rather than a
+   status light. Salt reports twice after finishing (the transfer, then the
+   electron landing) and pulling a bond apart re-arms it — which is the useful
+   behaviour: rebuild the molecule and you earn the ring again. */
+let rung=false;
 function report(s){
   elStats.innerHTML=L.stats(s);
   if(s.complete){ win(); return; }
+  rung=false;
   card().classList.remove('done');
   elCard.classList.remove('show');
   const line=L.step(s); if(line) say(line);
@@ -251,9 +264,15 @@ function win(){
   elCard.querySelector('.cardtext').innerHTML=L.teach;
   elCard.classList.add('show');
   say(L.won);
-  // the one ring in each lesson: reserved for completion, so it means "done"
-  // rather than being background noise on every single bond
-  if(fx) fx.spawnRing(new THREE.Vector3(0,0,0), L.ring());
+  /* Each bond type finishes in its own visual language, which is the cheapest
+     way to say they are different KINDS of event:
+       covalent — a ring expanding from the anchor atom through the molecule
+       ionic    — a white flash and green sparks where the electron lands, fired
+                  by salt-drag.js at the arrival point, not from here
+     Centred by asking the lesson for its anchor's position rather than assuming
+     the world origin — that assumption is what previously bloomed the ring out
+     of empty space beside a salt pair dragged off-centre. */
+  if(fx && !rung && L.ring){ rung=true; fx.spawnRing(sim.center(), L.ring()); }
 }
 
 /* Tabs tear the old lesson down rather than hiding it: both modules bind
@@ -262,6 +281,7 @@ function win(){
 let last=0;
 function load(k){
   if(sim) sim.destroy();
+  rung=false;
   key=k; L=LESSONS[k];
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
@@ -304,6 +324,7 @@ document.querySelectorAll('#dims .mode').forEach(b=>{
 });
 
 document.getElementById('clearmol').addEventListener('click',()=>{
+  rung=false;
   sim.reset();
   sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
   say(L.open);

@@ -200,9 +200,19 @@
       hop.m.position.y += 0.9*Math.sin(hop.k*Math.PI);          // a small arc
       hop.m.material.color.copy(hop.c0).lerp(hop.c1, hop.k);    // violet → green
       if(hop.k>=1){
+        const at=hop.m.position.clone();
         group.remove(hop.m); hop=null;
         cl.count=8; drawDots(cl);                                // it has arrived
-        if(fx) fx.settleShimmer(cl.sphere, P.atoms.Cl);
+        /* The pulse goes where the ELECTRON lands, not on the chlorine as a
+         * whole: the event is one electron arriving at one place on the shell,
+         * and a glow over the entire ion would say the ion changed rather than
+         * that it gained a specific electron. Core + sparks, not spawnRing —
+         * the full ring stays reserved for finishing a molecule, so it keeps
+         * meaning "done" instead of firing twice a second apart. */
+        if(fx){
+          fx.spawnCore(at, 0xffffff);
+          fx.spawnBurst(at, P.atoms.Cl, 14);
+        }
         onChange(state());
       }
     }
@@ -404,6 +414,10 @@
 
     build();
     return { group, step, setMode, setDim, reset, destroy, state,
+             // the chloride is the anchor: it is the bigger ion and the one that
+             // ends up holding the electron, so it is what the pair reads as
+             center:()=>cl ? cl.group.getWorldPosition(new THREE.Vector3())
+                           : new THREE.Vector3(),
              get mode(){return mode;}, get dim(){return dim;} };
   }
 
