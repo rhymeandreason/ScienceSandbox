@@ -136,10 +136,22 @@
  *  hydrogen finds nowhere to go. The rule is enforced in 3D, never in a dialog.
  * ============================================================= */
 
+/* 2D is a diagram, and a diagram must not have perspective: at 45° an atom
+   parked off to the side is drawn skewed, and a hydrogen nearer the camera reads
+   as BIGGER rather than NEARER — both of which are lies in a view whose whole job
+   is letting you count and compare. The fix is a long lens rather than a real
+   OrthographicCamera: fx.js captures its camera in a closure with no setter, and
+   swapping the camera object means surgery on a module four pages share. Dropping
+   to a 12° FOV and pulling back by the matching factor is orthographic to the eye
+   at this scale, and costs one page-local line. */
+const FOV_3D=45, FOV_2D=12;
+const LENS=Math.tan(FOV_3D/2*Math.PI/180)/Math.tan(FOV_2D/2*Math.PI/180);
+const ZOOM={ '3d':[6,26], '2d':[6*LENS,26*LENS] };   // same framing, longer throw
+
 const canvas=document.getElementById('gl');
 let userSpun=false;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
-  cam:{theta:0.6,phi:1.15,r:12}, rMin:6, rMax:26,
+  cam:{theta:0.6,phi:1.15,r:12}, rMin:6, rMax:26*LENS,
   onDrag:()=>{userSpun=true;}
 });
 const fx=FX.create(THREE, root, camera);
@@ -211,6 +223,8 @@ document.querySelectorAll('#dims .mode').forEach(b=>{
     b.classList.add('on');
     flat=(b.dataset.dim==='2d');
     water.setDim(flat?'2d':'3d');
+    camera.fov=flat?FOV_2D:FOV_3D; camera.updateProjectionMatrix();
+    cam.r*=flat?LENS:1/LENS;         // same apparent size through the new lens
     if(flat){ userSpun=true; }        // no idle turntable behind a locked view
     else { cam.theta=0.6; cam.phi=1.15; applyCam(); userSpun=false; }
     say(flat ? 'Flat view — all eight of oxygen\u2019s electrons in one plane.'
@@ -240,6 +254,9 @@ function frame(now){
      handler: the handler belongs to the shared stage, and a page has no business
      reaching in to disable it. Re-applying the camera afterwards is the same
      result from the outside — the view simply cannot be rotated. */
+  // Stage's wheel clamp spans BOTH lenses, so each mode re-clamps to its own
+  const z=ZOOM[flat?'2d':'3d'];
+  cam.r=Math.max(z[0],Math.min(z[1],cam.r));
   if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
   water.step(dt);
@@ -248,6 +265,7 @@ function frame(now){
 }
 resize();
 water.setDim('2d');
+camera.fov=FOV_2D; camera.updateProjectionMatrix(); cam.r*=LENS;
 say('Drag a hydrogen toward the oxygen.');
 requestAnimationFrame(frame);
 </script>
