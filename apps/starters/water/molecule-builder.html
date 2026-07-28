@@ -28,13 +28,10 @@
     opacity:.5;transition:opacity .12s ease,transform .12s ease}
   .goal:hover{opacity:.8}
   .goal.on{opacity:1;transform:translateY(-2px)}
-  .goal .glabel{font-family:var(--font-slab);font-weight:700;font-size:10px;
-    letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
   .goal .gname{font-family:var(--font-marker);font-size:19px;color:var(--ink);line-height:1.1;margin-top:3px}
   .goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
   .goal.done{border-color:#2e8b57}
   .goal.done .gname{color:#2e8b57}
-  .goal .gkind{font-family:var(--font-hand);font-size:13px;color:var(--muted);margin-top:2px}
 
   /* ---------- notes: the test-answer keywords, revealed on completion ----
      Left rail rather than a card over the stage: it is reference material to
@@ -162,46 +159,32 @@
     <canvas id="gl"></canvas>
     <div id="goals">
       <button class="goal on" data-lesson="water">
-        <div class="glabel">Build</div>
         <div class="gname">Water</div>
         <div class="gform">H&#8322;O</div>
-        <div class="gkind">they share</div>
       </button>
       <button class="goal" data-lesson="methane">
-        <div class="glabel">Build</div>
         <div class="gname">Methane</div>
         <div class="gform">CH&#8324;</div>
-        <div class="gkind">share four ways</div>
       </button>
       <button class="goal" data-lesson="ammonia">
-        <div class="glabel">Build</div>
         <div class="gname">Ammonia</div>
         <div class="gform">NH&#8323; &rarr; NH&#8324;<sup>+</sup></div>
-        <div class="gkind">then catch a proton</div>
       </button>
       <button class="goal" data-lesson="co2">
-        <div class="glabel">Build</div>
         <div class="gname">Carbon dioxide</div>
         <div class="gform">CO&#8322;</div>
-        <div class="gkind">share twice over</div>
       </button>
       <button class="goal" data-lesson="n2">
-        <div class="glabel">Build</div>
         <div class="gname">Nitrogen gas</div>
         <div class="gform">N&#8322;</div>
-        <div class="gkind">and three times</div>
       </button>
       <button class="goal" data-lesson="nacl">
-        <div class="glabel">Build</div>
         <div class="gname">Salt</div>
         <div class="gform">NaCl</div>
-        <div class="gkind">one gives</div>
       </button>
       <button class="goal" data-lesson="kcl">
-        <div class="glabel">Build</div>
         <div class="gname">Potassium chloride</div>
         <div class="gform">KCl</div>
-        <div class="gkind">so does this one</div>
       </button>
     </div>
     <div id="notes" aria-live="polite"></div>
