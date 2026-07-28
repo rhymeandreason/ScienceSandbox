@@ -380,7 +380,7 @@
      * charged rather than the BOND being lopsided. Methane's polar:0 means it
      * never gets either, which is the point of having it next door. */
     function showPolarity(){
-      if(!R.polar) return;
+      if(!R.polar || protonated) return;
       const bonded=ligands.filter(x=>x.slot!=null && !x.isProton);
       if(!core.delta && bonded.length){
         core.delta=kit.charge('δ−', '#'+new THREE.Color(P.atoms[R.core]).getHexString(),
@@ -480,8 +480,15 @@
        * property of the whole ion. Two badges would say it is still the
        * hydrogen's. */
       h.group.remove(h.badge);
-      // δ− becomes a whole +: the ion's charge is not a partial one any more
+      /* Every δ comes off, not just nitrogen's. Ammonium's charge is a whole +1
+       * belonging to the ION, spread over all five atoms — four separate δ+
+       * badges would read as four partial charges that happen to add up, which
+       * is a different claim — and with the four N–H bonds now identical, there
+       * is no hydrogen to single out anyway. The bonds are still polar and the
+       * clouds still lean toward nitrogen; what is gone is the labelling of
+       * partial charges on a species whose charge is not partial. */
       if(core.delta){ core.group.remove(core.delta); core.delta=null; }
+      ligands.forEach(x=>{ if(x.delta){ x.group.remove(x.delta); x.delta=null; } });
       core.charge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.core]).getHexString(), R.core);
       core.group.add(core.charge);
       layoutBonds();                       // 107° → 109.5°: the other three move

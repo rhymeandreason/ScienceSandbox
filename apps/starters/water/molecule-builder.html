@@ -36,6 +36,36 @@
   .goal.done .gname{color:#2e8b57}
   .goal .gkind{font-family:var(--font-hand);font-size:13px;color:var(--muted);margin-top:2px}
 
+  /* ---------- notes: the test-answer keywords, revealed on completion ----
+     Left rail rather than a card over the stage: it is reference material to
+     glance at, not a thing that happened, so it should not compete with the
+     molecule or move. Kept to keywords on purpose — the page teaches by what it
+     draws, and this is only what a student would be asked to name. */
+  #notes{position:absolute;left:26px;top:150px;z-index:11;width:206px;
+    display:none;opacity:0;transition:opacity .25s ease}
+  #notes.show{display:block;opacity:1}
+  #notes .ntitle{font-family:var(--font-marker);font-size:19px;color:var(--ink);
+    line-height:1.1;margin-bottom:7px}
+  /* a second stage stacks under the first, hairline-separated: same molecule,
+     next thing that happened to it */
+  #notes .nblock + .nblock{margin-top:13px;padding-top:12px;
+    border-top:1.5px dashed var(--hair)}
+  #notes .ntags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+  #notes .ntag{font-family:var(--font-slab);font-weight:700;font-size:10px;
+    letter-spacing:.7px;text-transform:uppercase;padding:3px 7px;border-radius:5px;
+    border:1.5px solid var(--ink);background:#fff;color:var(--ink)}
+  #notes .ntag.covalent{background:#e8e2d4}
+  #notes .ntag.ionic{background:#f6dcb4}
+  #notes .ntag.polar{background:#cfe4f2}
+  #notes .ntag.nonpolar{background:#eceae4;color:var(--muted);border-color:var(--hair)}
+  #notes .ntag.dative{background:#ded7f5}
+  #notes .ntag.ion{background:#f6dcb4}
+  #notes ul{list-style:none;margin:0;padding:0}
+  #notes li{font-family:var(--font-hand);font-size:15px;line-height:1.32;
+    color:var(--ink);padding-left:13px;position:relative;margin-bottom:4px}
+  #notes li::before{content:'·';position:absolute;left:2px;color:var(--muted);font-weight:700}
+  #notes li b{font-weight:600}
+
   /* ---------- feedback toast ----------
      Below the molecule, just above the dock: up top it was wedged between the
      tab strip and the atoms and had to stay short. Down here a line can run
@@ -132,6 +162,7 @@
         <div class="gkind">so does this one</div>
       </button>
     </div>
+    <div id="notes" aria-live="polite"></div>
     <div id="say" aria-live="polite"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
     <div id="stats"></div>
@@ -193,6 +224,7 @@ const fx=FX.create(THREE, root, camera);
 
 const elSay=document.getElementById('say');
 const elStats=document.getElementById('stats');
+const elNotes=document.getElementById('notes');
 
 /* ---------- the two lessons ----------------------------------------------
  * Four tabs, in two pairs, because every comparison here IS a lesson. Water and
@@ -215,6 +247,16 @@ const LESSONS={
     // a ring enclosing the whole molecule: covalent is a thing the molecule has
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'You made <b>water</b>. Two slots, two hydrogens.',
+    /* Keywords, not sentences: what a student would be asked to NAME. The page
+       already taught the mechanism by drawing it; this is the part that ends up
+       on an exam. */
+    notes:{ title:'Water &middot; H\u2082O', tags:['covalent','polar'], facts:[
+      '<b>bent</b> &middot; <b>104.5\u00b0</b>',
+      '2 bonding pairs + <b>2 lone pairs</b> on O',
+      'lone pairs squeeze the bonds \u2192 not 109.5\u00b0',
+      '<b>\u03b4\u2212</b> on O, <b>\u03b4+</b> on H \u2014 unequal sharing',
+      'H-bond <b>donor and acceptor</b>',
+      'the <b>universal solvent</b>' ] },
     flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
     step:s=>s.open>0?'Shared a pair. <b>'+s.open+'</b> slot'+(s.open===1?'':'s')+' left.':null,
@@ -224,6 +266,16 @@ const LESSONS={
     open:'Nitrogen has three slots — and a lone pair it keeps.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'Ammonia. The <b>lone pair</b> is left over — now drag the <b>H\u207a</b> into it.',
+    notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar'], facts:[
+      '<b>trigonal pyramidal</b> &middot; <b>107\u00b0</b>',
+      '3 bonding pairs + <b>1 lone pair</b> on N',
+      '<b>\u03b4\u2212</b> on N, <b>\u03b4+</b> on H',
+      'the lone pair accepts H\u207a \u2192 a <b>base</b>' ] },
+    notes2:{ title:'Ammonium &middot; NH\u2084\u207a', tags:['covalent','dative','ion'], facts:[
+      '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
+      '<b>dative</b> (coordinate) bond \u2014 N gave both electrons',
+      'no lone pair left \u2192 charge <b>+1</b>',
+      'the four N\u2013H bonds are now <b>identical</b>' ] },
     flatSay:'Flat view — three bonds and the lone pair on top.',
     stats:s=>s.protonated
       ? 'ammonium <b>NH\u2084\u207a</b> &nbsp;\u00b7&nbsp; the lone pair became a <b>bond</b>'
@@ -242,6 +294,13 @@ const LESSONS={
     open:'Carbon has four slots. Same rule — fill them all.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'You made <b>methane</b>. Four slots, four hydrogens, nothing left over.',
+    notes:{ title:'Methane &middot; CH\u2084', tags:['covalent','nonpolar'], facts:[
+      '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
+      '4 bonding pairs + <b>0 lone pairs</b>',
+      'C\u2013H barely differ \u2192 <b>nonpolar</b>',
+      'symmetric \u2192 <b>no net dipole</b>',
+      '<b>hydrophobic</b> \u2014 will not dissolve in water',
+      'carbon\u2019s 4 bonds = the backbone of biology' ] },
     flatSay:'Flat view — the four bonds spread out so you can count them. They are '+
             'really at 109.5\u00b0, not 90\u00b0; switch to 3D.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
@@ -256,6 +315,12 @@ const LESSONS={
        the two bond types are the same event in different colours. */
     ring:null,
     won:'The electron moved. Two <b>ions</b>, held by charge.',
+    notes:{ title:'Salt &middot; NaCl', tags:['ionic','ion'], facts:[
+      '<b>metal + nonmetal</b> \u2192 electron <b>transferred</b>',
+      'Na <b>0e\u207b</b>, Cl <b>8e\u207b</b> \u2014 both now stable',
+      '<b>Na\u207a</b> and <b>Cl\u207b</b>, held by <b>opposite charge</b>',
+      'nothing shared \u2192 <b>no pair</b> in the gap',
+      '<b>dissociates</b> in water' ] },
     flatSay:'Flat view — count them: 0 on sodium, 8 on chlorine.',
     stats:s=>'Na: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
              'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
@@ -266,6 +331,11 @@ const LESSONS={
     open:'A different metal. Does the same thing happen?',
     ring:null,
     won:'Same story, different metal. That is the point.',
+    notes:{ title:'Potassium chloride &middot; KCl', tags:['ionic','ion'], facts:[
+      'same transfer, <b>different metal</b>',
+      'behaviour belongs to <b>metal + nonmetal</b>, not to sodium',
+      '<b>K\u207a</b> and <b>Cl\u207b</b>, held by <b>opposite charge</b>',
+      'K is bigger \u2192 the ions settle <b>further apart</b>' ] },
     flatSay:'Flat view — count them: 0 on potassium, 8 on chlorine.',
     stats:s=>'K: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
              'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
@@ -287,6 +357,19 @@ function say(html){
 
 function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); }
 
+/* Takes a list, because a lesson with a second stage ADDS to its notes rather
+   than replacing them: ammonium is not a correction to ammonia, it is what
+   ammonia became, and a student revising wants both — the base and what
+   happened when it accepted a proton — side by side. */
+function showNotes(list){
+  if(!list){ elNotes.classList.remove('show'); return; }
+  elNotes.innerHTML=[].concat(list).map(n=>
+    '<div class="nblock"><div class="ntitle">'+n.title+'</div><div class="ntags">'+
+    n.tags.map(t=>'<span class="ntag '+t+'">'+t+'</span>').join('')+'</div><ul>'+
+    n.facts.map(f=>'<li>'+f+'</li>').join('')+'</ul></div>').join('');
+  elNotes.classList.add('show');
+}
+
 /* The completion ring is one-per-molecule, so it stays an event rather than a
    status light. Salt reports twice after finishing (the transfer, then the
    electron landing) and pulling a bond apart re-arms it — which is the useful
@@ -299,16 +382,18 @@ let saidExtra=false;
 function report(s){
   elStats.innerHTML=L.stats(s);
   const more=L.extra && L.extra(s);
-  if(more){ if(!saidExtra){ saidExtra=true; say(more); } return; }
+  if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
   saidExtra=false;
   if(s.complete){ win(); return; }
   rung=false;
   card().classList.remove('done');
+  showNotes(null);
   const line=L.step(s); if(line) say(line);
 }
 
 function win(){
   card().classList.add('done');
+  showNotes(L.notes);
   say(L.won);
   /* Each bond type finishes in its own visual language, which is the cheapest
      way to say they are different KINDS of event:
@@ -329,6 +414,7 @@ function load(k){
   if(sim) sim.destroy();
   rung=false;
   key=k; L=LESSONS[k]; saidExtra=false;
+  showNotes(null);
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
   sim=L.make();
