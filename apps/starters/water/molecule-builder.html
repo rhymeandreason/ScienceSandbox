@@ -124,14 +124,12 @@
   #stage{grid-column:1}
 
   #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
-    display:flex;align-items:center;gap:14px;padding:11px 16px;
-    background:rgba(255,255,255,.72);border:2px solid var(--ink);
-    border-radius:11px 14px 10px 13px;box-shadow:0 5px 16px -8px rgba(0,0,0,.4);
-    backdrop-filter:blur(2px)}
-  #dock .dsep{width:1.5px;align-self:stretch;background:var(--hair)}
+    display:flex;align-items:center;gap:22px}
+  #dock .dsep{display:none}
   #dock button.act{font-family:var(--font-slab);font-weight:600;font-size:13px;
     padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
-    background:#fff;color:var(--ink);cursor:pointer}
+    background:#fff;color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
   #dock button.act:hover{background:var(--ink);color:var(--paper)}
   #etoggle{display:flex;align-items:center;gap:6px;font-family:var(--font-hand);
     font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap}
@@ -142,7 +140,8 @@
   .edot.h{background:#b9c2d0;margin-left:-3px}
 
   /* ---------- view-mode switch ---------- */
-  #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
+  #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
   #modes .mode,#dims .mode{font-family:var(--font-slab);font-weight:600;font-size:13px;
     padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
     display:inline-flex;align-items:center;gap:6px}
