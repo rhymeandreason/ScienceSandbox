@@ -187,7 +187,7 @@ if a lesson ever asks students to produce a product structure.
 ## Suggested first steps
 
 1. ~~**SDF → `MolLib` converter**~~ — already exists as
-   [`tools/sdf2spec.js`](../apps/starters/water/tools/sdf2spec.js), same
+   [`tools/sdf2spec.js`](../demos/tools/sdf2spec.js), same
    PubChem-fetch-then-convert shape recommended above. Done.
 2. ~~**`builder.js`**~~ — built, see above.
 3. **mhchem** into `molecule-lab.html`'s carbonic-acid text — still open. It's
