@@ -55,7 +55,7 @@
   };
 
   /* Where an ion's electrons sit. 3D spreads them tetrahedrally, the same
-   * arrangement builder.js uses for a free ion; 2D rings them around the atom in
+   * arrangement a free ion's leftover pairs take; 2D rings them around the atom in
    * the plane, because the whole reason to have a flat view is being able to
    * count to eight without orbiting. */
   const S3=1/Math.sqrt(3);
