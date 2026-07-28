@@ -66,6 +66,34 @@
   #notes li::before{content:'·';position:absolute;left:2px;color:var(--muted);font-weight:700}
   #notes li b{font-weight:600}
 
+  /* ---------- sticky note, right rail ----------
+     The mirror of #notes, and deliberately NOT the same object. Notes are the
+     keywords a student is revising toward, earned by finishing; a sticky is an
+     aside about the state the molecule is in right now, and it leaves again when
+     that state does. So: opposite side, paper instead of bare rail, tilted, and
+     stuck on with a sticker — it should read as something pinned to the page
+     rather than part of it. */
+  /* Clear of the tab strip rather than level with #notes on the left. The notes
+     rail starts at 150 and gets away with tucking under the cards because it is
+     bare text on paper; this is an opaque card with a border, and one card
+     overlapping another just reads as broken layout. */
+  #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;
+    background:#fdf6df;border:2px solid var(--ink);border-radius:5px 9px 6px 10px;
+    padding:15px 15px 13px;transform:rotate(1.6deg) translateY(6px);
+    box-shadow:0 6px 18px -8px rgba(0,0,0,.42);
+    display:none;opacity:0;transition:opacity .22s ease,transform .22s ease}
+  #sticky.show{display:block;opacity:1;transform:rotate(1.6deg) translateY(0)}
+  /* the sticker rides the top-left corner, half off the paper, so the note reads
+     as stuck down by it rather than as a box with a picture inside */
+  #sticky .simg{position:absolute;left:-19px;top:-17px;width:46px;height:46px;
+    transform:rotate(-13deg);pointer-events:none;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+  #sticky .stitle{font-family:var(--font-marker);font-size:16px;line-height:1.16;
+    color:var(--ink);margin:2px 0 7px 13px}
+  #sticky .sbody{font-family:var(--font-hand);font-size:16px;line-height:1.34;
+    color:var(--ink)}
+  #sticky .sbody b{font-weight:600}
+
   /* ---------- feedback toast ----------
      Below the molecule, just above the dock: up top it was wedged between the
      tab strip and the atoms and had to stay short. Down here a line can run
@@ -175,6 +203,7 @@
       </button>
     </div>
     <div id="notes" aria-live="polite"></div>
+    <div id="sticky" aria-live="polite"></div>
     <div id="say" aria-live="polite"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
     <div id="stats"></div>
@@ -237,6 +266,7 @@ const fx=FX.create(THREE, root, camera);
 const elSay=document.getElementById('say');
 const elStats=document.getElementById('stats');
 const elNotes=document.getElementById('notes');
+const elSticky=document.getElementById('sticky');
 
 /* ---------- the two lessons ----------------------------------------------
  * Four tabs, in two pairs, because every comparison here IS a lesson. Water and
@@ -344,6 +374,18 @@ const LESSONS={
     step:s=>s.open>0
       ? 'A <b>double bond</b> — two pairs, not one. <b>'+s.open+'</b> slot left.'
       : null,
+    /* Halfway through CO2 the screen shows one carbon joined to one oxygen, and
+       that is exactly the picture a student reads as carbon monoxide. It isn't —
+       CO is C≡O with a lone pair on carbon, a different bond order and a
+       different molecule, and what is on screen is a fragment with carbon still
+       two electrons short. Rather than have the step line scold ("not a molecule
+       yet"), the interesting answer goes on a sticky: CO is real, it is just
+       made somewhere else and by something else. Tied to bonded===1, so it
+       arrives with the half-built state and leaves with it. */
+    sticky:s=>s.bonded===1 ? {
+      title:'Why do you not make Carbon Monoxide?',
+      body:'CO is a product of <b>incomplete combustion</b>, burning carbon fuel '+
+           'when oxygen is limited.' } : null,
     /* The dipole point lands AFTER the win line, on its own, because it is a
        separate claim from "you made CO2" and the one students lose. */
     after:()=>'Both bonds pull toward oxygen — but in <b>opposite directions</b>, '+
@@ -439,6 +481,22 @@ function showNotes(list){
   elNotes.classList.add('show');
 }
 
+/* A lesson's sticky is a function of the CURRENT state, not an event, so it is
+   re-evaluated on every report and goes away by itself when the state that
+   earned it does. That is the whole difference from say(): a toast is "this just
+   happened", a sticky is "this is what you are looking at". */
+function showSticky(note){
+  // the key is cleared on the way out, so peeling a bond off and rebuilding it
+  // earns the note again rather than leaving a hidden div that thinks it is up
+  if(!note){ elSticky.classList.remove('show'); elSticky.dataset.key=''; return; }
+  if(elSticky.dataset.key===note.title){ return; }   // already up — don't re-animate
+  elSticky.dataset.key=note.title;
+  elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
+    '<div class="stitle">'+note.title+'</div>'+
+    '<div class="sbody">'+note.body+'</div>';
+  elSticky.classList.add('show');
+}
+
 /* The completion ring is one-per-molecule, so it stays an event rather than a
    status light. Salt reports twice after finishing (the transfer, then the
    electron landing) and pulling a bond apart re-arms it — which is the useful
@@ -458,6 +516,10 @@ let saidExtra=false;
 let saidAfter=false, afterTimer=null;
 function report(s){
   elStats.innerHTML=L.stats(s);
+  /* Ahead of every early return below, because a sticky belongs to the state
+     rather than to a branch: completing the molecule has to be able to take it
+     down, and win() returns before the end of this function. */
+  showSticky(L.sticky && L.sticky(s));
   const more=L.extra && L.extra(s);
   if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
   saidExtra=false;
@@ -500,7 +562,7 @@ function load(k){
   if(sim) sim.destroy();
   rung=false; saidAfter=false; clearTimeout(afterTimer);
   key=k; L=LESSONS[k]; saidExtra=false;
-  showNotes(null);
+  showNotes(null); showSticky(null);
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
   sim=L.make();
