@@ -1,8 +1,9 @@
-# Scientific Accuracy Rules — Water Visualization
+# Scientific Accuracy Rules
 
-Rules and decisions that keep `water-lab.html` scientifically honest. When adding or
-tweaking a visualization, check it against these before shipping. The guiding
-principle:
+The rulebook for every page in this project. **§1 governs adding any molecule**
+(§1.1–§1.6); §§2–8 are chemistry and the water/solvation physics; §§9–13 are
+per-page. When adding or tweaking a visualization, check it against these before
+shipping. The guiding principle:
 
 > **Accuracy comes from the coordinates and the forces, not from the rendering
 > library.** A pretty render of wrong geometry is still wrong. Prefer computing
@@ -11,6 +12,8 @@ principle:
 ---
 
 ## 1. Molecular geometry
+
+### 1.1 Angles and shape
 
 - **Bond angle is 104.5°**, not 90° or 120°. The H–O–H angle is used verbatim in
   the 3D molecule builder and the 2D diagrams.
@@ -21,7 +24,7 @@ principle:
   *angle* and *bent shape* must stay correct. If a length is exaggerated, say so
   in a comment rather than implying it's to scale.
 
-### Where geometry comes from
+### 1.2 Where geometry comes from
 
 Three sources, and the choice is not about how "complex" a molecule looks. The
 question is whether its shape follows from **one or two known constants** or
@@ -47,42 +50,37 @@ Whatever the source, run `check-molecules.js`. It caught a double bond that was
 correctly tagged but rendered as nothing, which reading the spec would never
 reveal.
 
-### Stereochemistry is the error nothing else catches
+### 1.3 Stereochemistry is the error nothing else catches
 
-Bond lengths, bond angles and the render can all be perfect while the molecule
-is **a different substance**. Glucose shipped that way: its substituents
-alternated axial/equatorial around the ring, which is not glucose, and at C5 not
-even D-. No screenshot shows this and no angle readout hints at it — only
-measuring each substituent against the ring axis does.
-
-So `check-molecules.js` audits rings, and a spec may **declare** what it expects:
+**Bond lengths, bond angles and the render can all be perfect while the molecule
+is a different substance.** Nothing but an explicit stereo audit sees it, so a
+spec **declares** what it expects and `check-molecules.js` fails if the geometry
+disagrees:
 
 ```js
 stereo:'all-equatorial',   // β-D-glucopyranose — asserted, not assumed
 ```
 
-All-equatorial is what makes glucose the most stable of the 16 aldohexoses, and
-is a large part of why the pathway is built around it rather than a sibling
-sugar. It is a chemical claim, so it gets asserted like one.
+Glucose shipped wrong this way — substituents alternating axial/equatorial, not
+glucose, and at C5 not even D-. All-equatorial is what makes glucose the most
+stable of the 16 aldohexoses and much of why the pathway is built around it, so
+it is a chemical claim and gets asserted like one.
 
 **A real record is not a guarantee — your transform can destroy what you fetched
-it for.** PubChem supplied correct L-amino acids; the converter shipped D. Its
-reframe negated one output component to aim the side chain at −Y, and negating a
-single component of an orthonormal basis is a **reflection**, not a rotation, so
-every stereocentre inverted. Bond lengths, every bond angle, and the render are
-identical in a mirror, so nothing caught it — the specs were committed, reviewed
-and rendered before a signed-volume calculation found it. Keep the basis
-right-handed (`e3 = e1 × e2`), flip the *axis* rather than the output, and let
-`chirality:'L'` assert the result.
+it for.** PubChem supplied L-amino acids; the converter shipped D, because its
+reframe negated one output component of an orthonormal basis, which is a
+**reflection**, not a rotation. A mirror preserves every bond length, every
+angle and the render, so the specs were committed, reviewed and rendered before
+a signed-volume check found it. Keep the basis right-handed (`e3 = e1 × e2`),
+flip the *axis* rather than the output, and let `chirality:'L'` assert it.
 
-`Skel` has **no general chirality model**. Glucose works because all-equatorial
-is expressible as a geometric rule ("pick the slot most perpendicular to the ring
-axis"). A sugar needing a *specific* mixed pattern — galactose differs from
-glucose at one carbon only — cannot be built this way. Convert it from a real
-record instead of inventing a face-naming convention; getting that subtly wrong
-produces exactly the invisible failure above.
+**`Skel` has no general chirality model.** All-equatorial works only because it
+is expressible as a geometric rule ("pick the slot most perpendicular to the
+ring axis"). A sugar needing a *specific* mixed pattern — galactose differs from
+glucose at one carbon — must come from a real record, not from a face-naming
+convention invented on the spot.
 
-### Adding a molecule: how much fidelity does it owe?
+### 1.4 Adding a molecule: how much fidelity does it owe?
 
 Fidelity is not a global dial. Every geometry bug this project has shipped had
 the same shape — the spec was right about everything **except the one feature the
@@ -148,7 +146,7 @@ Rules that follow:
 4. **Anything a lab manipulates needs an index map** (`pep`, `gly`), because
    reactions address atoms by position and a reindex silently breaks them.
 
-### Bond-length scale families — a page may only show one
+### 1.5 Bond-length scale families — a page may only show one
 
 Display radii in `PALETTE` are stylised and **large**, so no spec can use true
 ångströms: a bond must exceed the sum of its two atoms' radii or the spheres
@@ -171,19 +169,14 @@ nothing ever shows water beside an amino acid.
 **The invariant: one page, one family.** Only family B is comparable
 molecule-to-molecule, so only family B may make a size claim.
 
-This was learned the expensive way, and it is the §1 failure shape exactly — the
-specs were right about everything except the one property a new page depended on.
-The `Skel` table (`GL`) was family A while the amino acids were family B; every
-page drew from a single family, so nothing showed it. Then
-`macromolecule-lab.html` put `Skel` glucose beside PubChem alanine and AMP under
-the words *"true relative size"* and glucose was ~0.7× everything around it — a
-bug no bond-length check, no angle, and no screenshot of any *existing* page
-could have caught. `GL` is now family B.
-
-Two things the fix also corrected, both invisible while the page only compared
-against itself: `GL.CC` and `GL.CO` were the same number (C–O is really the
-shorter bond), and one constant served both C–O and C=O. There is now a separate
-`GL.CdO`.
+Learned the expensive way, and it is the §1.4 failure shape exactly. `Skel`'s
+table (`GL`) was family A while the amino acids were family B; every page drew
+from one family, so nothing showed it — until `macromolecule-lab.html` put
+`Skel` glucose beside PubChem alanine under the words *"true relative size"* and
+glucose came out ~0.7× everything around it. No bond-length check, no angle and
+no screenshot of any *existing* page could have caught it. `GL` is now family B,
+and the fix also split `GL.CC`/`GL.CO` (C–O is the shorter bond) and gave C=O
+its own `GL.CdO`.
 
 **Known residual, measured:** `ringPyranose()` builds a *regular* hexagon, so a
 pyranose's ring C–O comes out as long as its ring C–C. Against the real PubChem
@@ -192,19 +185,18 @@ heavy-atom span 6.78 Å vs 6.26 — **+8%**, inherited from the ring and consist
 throughout. Left alone deliberately; closing it means a ring builder with
 alternating bond lengths, which is a rewrite, not a constant.
 
-**Do not measure size across hydrogens.** The first version of
-macromolecule-lab's "Å across" readout took the widest pair over *all* atoms and
-put glucose at 8.3 Å against a real 6.45. The bond lengths were fine — the
-widest pair was two hydroxyl *hydrogens*. `Skel.outwardAt` aims every free
-substituent away from the centroid, so all five O–H splay radially at once; a
-real molecule's hydroxyls rotate freely and never do. An –OH rotamer is
-arbitrary in any static model, so a size figure that depends on one is measuring
-the builder, not the molecule. Heavy atoms only.
+**Do not measure size across hydrogens — heavy atoms only.** An –OH rotamer is
+arbitrary in any static model, so a size figure that depends on one measures the
+builder, not the molecule. Macromolecule-lab's first "Å across" readout took the
+widest pair over *all* atoms and put glucose at 8.3 Å against a real 6.45: the
+widest pair was two hydroxyl *hydrogens*, because `Skel.outwardAt` splays every
+free substituent away from the centroid at once and a real molecule's hydroxyls
+never all point outward together.
 
 If you add a page that must show a solvation molecule next to a derived one,
 that is a new problem — solve it in `molecules.js`, not on the page.
 
-### Derive when shape carries the lesson; schematize when topology does
+### 1.6 Derive when shape carries the lesson; schematize when topology does
 
 Both are legitimate, and the failure is doing one while claiming the other.
 
@@ -212,17 +204,15 @@ Real coordinates are right when the *shape* is the point — a chair ring, a
 tetrahedral centre, a helix. They are **wrong** when the lesson is topology.
 A phospholipid's real conformer is floppy and renders as spaghetti; the lesson is
 "polar head, nonpolar tails", so build it schematically **on purpose** and say so
-in the comment, exactly as the open-chain Fischer-projection intermediates in §1
-(source 3, `Skel`) are deliberate. Bilayers and polymers additionally need instancing rather than N
-built groups, and should be validated at the monomer, not the assembly.
+in the comment, exactly as the open-chain Fischer-projection intermediates in §1.2
+(source 3, `Skel`) are deliberate. Bilayers and polymers additionally need
+instancing rather than N built groups, and should be validated at the monomer,
+not the assembly.
 
-Two gaps to close before the relevant lessons land:
-
-- **Cis/trans is unchecked.** Bond order 2 renders correctly, but nothing asserts
-  an unsaturated fatty acid's double bond is *cis* — and the cis kink is the whole
-  reason that lesson exists. Needs a torsion assertion before the first lipid.
-- **`stereo:` only understands `all-equatorial`.** Starch vs cellulose is an
-  anomeric-configuration claim, so the vocabulary has to grow with it.
+The declaration vocabulary is in §1.4; the unbuilt rows of its contrast table are
+blocked on **extending it**, not on geometry. Nearest gap: **cis/trans is
+unchecked** — bond order 2 renders, but nothing asserts an unsaturated fatty
+acid's double bond is *cis*, and the kink is the whole reason that lesson exists.
 
 ## 2. Polarity & charge
 
@@ -292,7 +282,7 @@ Two gaps to close before the relevant lessons land:
 - **It is an attractive force.** When a bond forms it must actually *pull* the two
   molecules together toward an **equilibrium O···O distance**, balanced by
   short-range steric (Pauli) repulsion as a hard core. Molecules should latch into
-  a cohesive network, not drift through each other. (Distances in `water.html` are
+  a cohesive network, not drift through each other. (Distances in `water-lab.html` are
   scene units, not Ångström — the *behavior* is what must be right: attract when
   far, repel when too close, settle at equilibrium.)
 
@@ -625,7 +615,7 @@ functional groups distinguish them. There is no simulation loop.
 - **One monomer per class, and the protein monomer is `alanine`** — the spec
   already in the library, already asserted `chirality:'L'`. Nothing is
   duplicated for it; it just gained a `groups` map.
-- **`groups` is an index contract** (§1, rule 4), the analogue of `pep` / `gly`:
+- **`groups` is an index contract** (§1.4, rule 4), the analogue of `pep` / `gly`:
   `{key, label, formula, atoms:[…], note}`. The page renders whatever the map
   says and knows no chemistry of its own, so a new functional group is a
   `molecules.js` edit. Regenerating a spec must not renumber it — an off-by-one
@@ -633,10 +623,10 @@ functional groups distinguish them. There is no simulation loop.
 - **True relative size in compare mode.** Palmitic acid really is ~3× the span
   of alanine and nothing normalises it; the layout sizes each grid column from
   its own occupants instead.
-- **Scale family B**, like every molecule on this page — see §1, "Bond-length
-  scale families". This is the page that discovered the rule, by drawing a
-  family-A glucose next to family-B monomers and labelling it "true relative
-  size". If a fifth monomer is ever added here, it must be family B.
+- **Scale family B**, like every molecule on this page — see §1.5. This is the
+  page that discovered the rule, by drawing a family-A glucose next to family-B
+  monomers and labelling it "true relative size". If a fifth monomer is ever
+  added here, it must be family B.
 - **One glucose in the library, not two.** The carbohydrate monomer is the
   `glucose` that `glycolysis-lab.html` already builds with `Skel`; it gained
   `groups`, its C–H, and `optH` rather than being duplicated under a second key.
@@ -649,12 +639,12 @@ functional groups distinguish them. There is no simulation loop.
   addresses those by position. That page hides them (`Stage.setOptionalH(g,false)`)
   and excludes them from its plate-height and camera-fit measurements, so its
   "no C–H anywhere" look is unchanged.
-- **Derived where shape is the claim, schematic where topology is** (§1): AMP
+- **Derived where shape is the claim, schematic where topology is** (§1.6): AMP
   comes from a PubChem 3D record via `tools/sdf2spec-generic.js` — the furanose
   ring and the 2′-OH are the claims. Palmitic acid is built as an idealised
   all-anti zigzag **on purpose**: a real conformer is floppy and renders as
   spaghetti, while the lesson is "one small polar head on a long nonpolar tail".
-- **The lipid is saturated, deliberately.** §1 still lists cis/trans as
+- **The lipid is saturated, deliberately.** §1.6 still lists cis/trans as
   unchecked, and the *cis* kink is the entire point of the unsaturated
   contrast — so that molecule waits for a torsion assertion rather than shipping
   a double bond nothing verifies.

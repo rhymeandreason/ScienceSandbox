@@ -25,99 +25,75 @@ Spheres should never intersect.
 
 ## Shared modules
 
-Loaded **in this order**, before each page's own `<script>`:
+Only `molecules.js` + `scene.js` are universal. A page loads what it uses, and the
+order matters — each script assumes the ones above it:
 
 ```html
 <link rel="stylesheet" href="sandbox.css">   <!-- after fonts/icons, before page <style> -->
 ...
 <script src=".../three.min.js"></script>
-<script src="molecules.js"></script>   <!-- MolLib.PALETTE (colours/radii) + MolLib.MOLECULES (specs) -->
-<script src="scene.js"></script>       <!-- Stage.create + molecule builder -->
-<script src="fx.js"></script>          <!-- FX.create → reaction effects -->
-<script src="atomkit.js"></script>     <!-- AtomKit.create → how an atom is DRESSED -->
+<script src="molecules.js"></script>   <!-- always — PALETTE (colours/radii) + MOLECULES (specs) -->
+<script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
+<script src="fx.js"></script>          <!-- if the page fires any effect -->
+<script src="atomkit.js"></script>     <!-- bonding builder only -->
+<script src="covalent-drag.js"></script>  <!-- bonding builder only -->
+<script src="ionic-drag.js"></script>     <!-- bonding builder only -->
 <script> /* page-specific code */ </script>
 ```
 
-- **`molecules.js`** — single source of truth for atom/bond colours + radii
-  (`MolLib.PALETTE`) and declarative molecule specs (`MolLib.MOLECULES`). Add new
-  molecules here. A spec's coordinates are **canonical** — never bake a viewing
-  angle into them with `Skel.rotate()`. Declare `view:VIEW.pyranose` (radians
-  `[x,y,z]`, applied by `Stage.buildMolecule`) so the numbers describe the
-  molecule and not a camera, and so two specs share a view by name rather than by
-  copying three constants. Add new entries to the `VIEW` table. **Read the scale-families note at the top of the file first:**
-  specs come in two bond-length families (hand-written solvation molecules vs.
-  derived real-Å × 1.9 ones), and a page may only show molecules from one of
-  them. Full rationale in `SCIENCE.md` §1.
-- **`scene.js`** — `Stage.create(canvas, opts)` returns
-  `{scene, camera, renderer, root, cam, applyCam, resize}` (renderer/scene/camera/
-  orbit/lights/resize boilerplate). Pass `orbit:false` when dragging should turn
-  the **models** rather than swing the camera — a side-by-side comparison page
-  must not orbit, because orbiting puts one molecule nearer the camera and
-  perspective then magnifies it (`contrast-lab.html` does this and drives both
-  halves from one shared spin/lean).
-  **Presentation helpers — use these instead of hand-tuning a camera:**
-  `Stage.measure(spec)` → `{rxz, hy, radius, span}` (a turntable sweeps a
-  *cylinder*, so `rxz`/`hy`, not one radius; `span` is real Å);
-  `Stage.frame(camera, cam, boxes, {pad, top, bottom})` solves the camera
-  distance from the actual frustum, so it stays correct at any viewport — a
-  hand-picked `r:` is only right at the size it was tuned for;
-  `Stage.buildMolecule(spec, {center:true})` puts the group origin at the
-  molecule's middle so it turns on the spot rather than orbiting its build
-  origin, and every built molecule gets `rotation.order='YXZ'` so a leaned
-  model still spins upright. Also a clean builder: `Stage.buildMolecule`,
-  `Stage.atom/bond`, `Stage.removeAtoms`, `Stage.setOptionalH`. Zoom/drag
-  side-effects go through `onZoom(r)` / `onDrag()` hooks.
-  `Stage.bond` takes a bond **order** — `[i,j,2]` in a spec draws a double bond as
-  a pair of sticks. `setOptionalH` shows/hides the nonpolar C–H's a spec lists in
-  `optH` (visibility only, so it never resurrects reaction-removed atoms).
-- **`fx.js`** — `FX.create(THREE, root, camera)` returns transient reaction effects
-  (`spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, …) + `step()` (call once
-  per frame in your loop). Purely cosmetic.
-- **`atomkit.js`** — `AtomKit.create(THREE)` returns the shared *vocabulary* for
-  drawing an atom: electron `dot`s (each in its own atom's colour, with an ink ring
-  so it stays legible on that same atom), the soft `cloud`, the element `label`, the
-  `charge` badge (`+`, `δ−`), `cel()` for the flat diagram look, and `DOT_GAP` (how
-  far an electron floats off the surface — one number, so a dot never sits at a
-  different height on nitrogen than on oxygen). Only used by the bonding builder
-  today. Anything a student learns to **read** belongs here; anything they learn
-  about **bonding** does not.
-- **`covalent-drag.js` / `ionic-drag.js`** — the bonding builder's two mechanics,
-  each driven by a `RECIPES` table (`CovalentDrag`: core + slots + polarity;
-  `IonicDrag`: metal + nonmetal + separation). Page-specific, not plumbing: the
-  same mechanic with different constants is a recipe, a different mechanic is a
-  different file. See **`SCIENCE.md` §12**.
-- **`sandbox.css`** — the shared sketchbook look (cream paper, torn-edge panel,
-  fonts, `#app` grid, stage/side-panel chrome). Page-specific rules go in the
-  page's own `<style>` after this link.
-- **`tools/sdf2spec.js`** — converts a PubChem 3D record into a `MolLib` spec, so
-  geometry is derived rather than guessed. The amino acids are generated this way;
-  regenerate them instead of hand-editing coordinates. See `tools/README.md`.
-- **`tools/sdf2spec-generic.js`** — the same conversion for molecules that are
-  **not** amino acids (no fixed backbone order to force). Orients on the ring
-  plane when there is a ring, so a pyranose lands face-on. `amp` is generated
-  with it.
+| Page | Loads |
+|---|---|
+| `contrast-lab` | molecules, scene |
+| `water-lab`, `molecule-lab`, `aminoacid-lab`, `glycolysis-lab`, `macromolecule-lab` | + fx |
+| `molecule-builder` | + atomkit, covalent-drag, ionic-drag |
+
+| Module | Exposes | Rules |
+|---|---|---|
+| `molecules.js` | `MolLib.PALETTE` (colours/radii), `MolLib.MOLECULES` (specs), `Skel`, `VIEW` | `SCIENCE.md` §1 |
+| `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §11 |
+| `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
+| `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | §12 |
+| `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | §12 |
+| `sandbox.css` | cream paper, torn-edge panel, fonts, `#app` grid, stage/panel chrome | — |
+| `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
+| `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
+
+Things that are easy to get wrong and are not visible from the API:
+
+- **A spec's coordinates are canonical.** Never bake a viewing angle into them
+  with `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied
+  by `Stage.buildMolecule`), and add new angles to the `VIEW` table so two specs
+  share a view by name rather than by copying three constants.
+- **Specs come in two bond-length families** and a page may show only one. §1.5.
+- **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve the distance
+  from the real frustum; a hand-picked `r:` is only right at the size it was tuned
+  for. Pass `orbit:false` on a side-by-side page — orbiting puts one molecule
+  nearer the camera and perspective magnifies it.
+- **`Stage.bond` takes a bond order**; `[i,j,2]` in a spec draws a double bond as
+  a pair of sticks. `setOptionalH` toggles *visibility* of the C–H's listed in
+  `optH`, so it can never resurrect a reaction-removed atom.
+- **`atomkit.js` owns what a student learns to _read_**, never how a bond forms.
+- Page-specific, not plumbing: the drag modules are *mechanics*. Same mechanic,
+  different constants → a recipe in the same file; different mechanic → new file.
 
 ## Architecture principle: **share the plumbing, not the physics**
 
-There is deliberately **no monolithic `engine.js`**. Lessons fall into distinct
-paradigms (solvation, assembly, pathways, gradients) that don't share a simulation
-core — only the universal scaffolding is extracted. The two solvation pages keep
-their **own** molecule builder (cel outlines, Debug recolour/toon, hydration
-`userData`); only the scene *bootstrap* is shared. The bonding builder splits the
-same way one level down: covalent and ionic get separate modules because filling a
-valence slot and handing an electron over are different mechanics, while water and
-methane share one module because they are the same mechanic at two slot counts.
-Full rationale in **`SCIENCE.md` §11**, the builder's own rules in **§12**.
+There is deliberately **no monolithic `engine.js`** — the lessons are distinct
+paradigms (solvation, assembly, pathways, bonding) with no shared simulation core,
+so only the universal scaffolding is extracted. **Full rationale and the test for
+what belongs in a shared module: `SCIENCE.md` §11.**
 
 ## Adding a new page
 
-1. Copy the head (fonts/icons + `sandbox.css` + the four scripts) and the `#app`
-   layout skeleton from `molecule-builder.html` (the simplest page).
+1. Copy the head (fonts/icons + `sandbox.css` + the scripts you need — see the
+   table above) and the `#app` layout skeleton from `contrast-lab.html` (the
+   smallest page: two scripts, no FX, no simulation loop).
 2. Add any new molecules to `molecules.js` — prefer generating the geometry with
    `tools/sdf2spec.js` over typing coordinates, then run `check-molecules.js`.
 3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
    then `const FXi=FX.create(THREE,root,camera);` — skip FX entirely if the page
-   has no reactions (`contrast-lab.html` does).
+   fires no effects at all (`contrast-lab.html` does; `macromolecule-lab.html`
+   has no reactions but still rings on selection, so it keeps FX).
 4. Build molecules with `Stage.buildMolecule(spec,{center:true})` (assembly
    pages) **or** a page-specific builder if you need outlines/physics `userData`.
    Then frame the camera rather than guessing a distance:
@@ -143,10 +119,11 @@ Full rationale in **`SCIENCE.md` §11**, the builder's own rules in **§12**.
 ## Scientific accuracy
 
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
-rulebook: geometry/angles, polarity, H-bonds, reaction/effect/colour conventions
-(§9), amino-acid & peptide rules (§10), the module architecture (§11), and the
-bonding builder's rules (§12).
-Before adding a **new molecule**, read §1 — it sets how much fidelity a molecule
+rulebook. §1 covers adding any molecule (geometry, sources, stereochemistry,
+fidelity tiers, scale families); §§2–8 chemistry and the solvation physics;
+§§9–13 the per-page rules — fx/colour conventions (§9), amino acids (§10),
+module architecture (§11), bonding builder (§12), macromolecule gallery (§13).
+Before adding a **new molecule**, read §1.4 — it sets how much fidelity a molecule
 owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.
 Pedagogical exaggerations (enlarged bond lengths for legibility, neutral vs.
@@ -173,13 +150,11 @@ committed ships. To see exactly what deploys, serve it statically instead:
 python3 -m http.server 8818     # no injection, no live reload
 ```
 
-`check-molecules.js` prints computed bond angles for every spec, audits ring
-stereochemistry against a spec's `stereo` declaration (`'all-equatorial'`,
-`{axial:[…]}` for a pyranose, `{faces:{…}}` for a furanose — see SCIENCE.md §1),
-audits ring **topology** against `topology:{rings:[…], fused:true}`, and **exits FAIL if any
-bonded pair's spheres merge** — a merged pair means the stick is
-buried inside the atoms and simply won't be visible, which is how a double bond
-can be correctly tagged yet render as nothing. Run it after any geometry change.
+`check-molecules.js` prints every spec's bond angles, audits each declared
+`stereo` / `topology` / `chirality` claim (§1.4 lists them), and **exits FAIL if
+any bonded pair's spheres merge** — a merged pair buries the stick inside the
+atoms, which is how a double bond can be correctly tagged yet render as nothing.
+Run it after any geometry change.
 Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —
 so an automated screenshot may freeze on the last painted frame. Verify logic by
 driving the page's functions directly rather than trusting a single screenshot.
