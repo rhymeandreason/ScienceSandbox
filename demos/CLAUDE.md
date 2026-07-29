@@ -154,10 +154,23 @@ zwitterion forms) must stay **explicit in comments**.
 
 ## Run / test locally
 
-Pages load sibling scripts, so `file://` won't work — serve the folder:
+Serve the folder — the dev server gives live reload and, importantly, sends
+`no-store`, so you never debug a fix that is already correct on disk:
 
 ```bash
-python3 -m http.server 8817     # then open http://localhost:8817/water-lab.html
+node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
+```
+
+Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet
+in place instead, so the scene keeps its camera angle, its selection and its
+toggle states while you tune the paper texture.
+
+The reload client is injected into HTML **responses**, never written to disk —
+this repo publishes to GitHub Pages straight from the working tree, so anything
+committed ships. To see exactly what deploys, serve it statically instead:
+
+```bash
+python3 -m http.server 8818     # no injection, no live reload
 ```
 
 `check-molecules.js` prints computed bond angles for every spec, audits ring

@@ -59,3 +59,19 @@ Differences from `sdf2spec.js`:
   molecule (see the comment in `sdf2spec.js`).
 
 Used for `amp` in `molecules.js`.
+
+## `dev-server.js` — local development only
+
+```bash
+node tools/dev-server.js [port]      # default 8817, zero dependencies
+```
+
+Static file server with live reload. A CSS-only change swaps the stylesheet in
+place (the page keeps its state); anything else reloads. Everything is served
+`no-store`, which matters more than it sounds — python's `http.server` sends no
+cache headers, so a browser will reuse a stale `scene.js` for a whole session and
+a correct fix looks broken.
+
+It injects its reload client into HTML **responses**, never into the files. The
+repo deploys to GitHub Pages from the working tree, so the published pages must
+stay exactly what is committed. `python3 -m http.server` to see what ships.

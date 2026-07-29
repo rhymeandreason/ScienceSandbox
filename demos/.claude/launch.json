@@ -3,9 +3,15 @@
   "configurations": [
     {
       "name": "sandbox",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8817"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/dev-server.js", "8817"],
       "port": 8817
+    },
+    {
+      "name": "sandbox-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8818"],
+      "port": 8818
     }
   ]
 }
