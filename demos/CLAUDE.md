@@ -55,8 +55,8 @@ order matters — each script assumes the ones above it:
 | `molecules.js` | `MolLib.PALETTE` (colours/radii), `MolLib.MOLECULES` (specs), `Skel`, `VIEW` | `SCIENCE.md` §1 |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §11 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
-| `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | §12 |
-| `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | §12 |
+| `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
+| `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
 | `sandbox.css` | cream paper, torn-edge panel, fonts, `#app` grid, stage/panel chrome | — |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
@@ -124,8 +124,11 @@ what belongs in a shared module: `SCIENCE.md` §11.**
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook. §1 covers adding any molecule (geometry, sources, stereochemistry,
 fidelity tiers, scale families); §§2–8 chemistry and the solvation physics;
-§§9–13 the per-page rules — fx/colour conventions (§9), amino acids (§10),
-module architecture (§11), bonding builder (§12), macromolecule gallery (§13).
+§§9–12 the per-page rules — fx/colour conventions (§9), amino acids (§10),
+module architecture (§11), macromolecule gallery (§12). The bonding builder's
+own rules live in `molecule-builder.html`'s header comment and in
+`covalent-drag.js`/`ionic-drag.js`, not in SCIENCE.md — they're page-internal,
+not cross-cutting.
 Before adding a **new molecule**, read §1.4 — it sets how much fidelity a molecule
 owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.

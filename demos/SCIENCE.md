@@ -545,70 +545,7 @@ The two solvation pages (`water-lab`, `molecule-lab`) keep their **own** molecul
 builder — cel outlines, Debug recolour/toon, hydration `userData` — and share only
 the scene bootstrap, for the same reason.
 
-## 12. Bonding builder (`molecule-builder.html`)
-
-Five tabs, in three groups, because every comparison on this page is itself a
-lesson: **water / methane** (the same rule at two slot counts, so methane reads as
-*the rule generalises* rather than as a new fact), **ammonia → ammonium** (the bond
-one atom pays for), and **salt / KCl** (the same transfer from two metals, so KCl
-is the *control* showing the behaviour belongs to metal + nonmetal, not to sodium).
-
-### What the mechanic asserts
-
-- **A bond is an attraction, not a decision.** Atoms are dragged near and the last
-  stretch is pulled by the core, not the mouse; releasing inside the capture radius
-  still bonds. A click-to-place bench said "you may now place an atom here", which
-  is a different claim.
-- **Nuclei are solid.** An atom slides on the core's surface rather than entering
-  it — which is also what makes a sloppy drop work, since anywhere on the face is
-  within reach of a slot.
-- **Geometry is lifted from `molecules.js`**, never re-derived: slot directions are
-  the real ligand positions normalised, so a molecule the student *builds* is
-  identical to the same molecule every other page *loads*. Angles as
-  `check-molecules.js` reports them: H₂O **104.6°** (the spec's coordinates
-  realise 104.57 against a 104.5 target), NH₃ **106.8°**, CH₄ and NH₄⁺
-  **109.5°**. The notes rail quotes the textbook values — 104.5° and 107° — since
-  those are what a student writes down; the difference is spec rounding, not a
-  second claim.
-- **Valence is enforced, never explained.** The slot count is the answer to "why
-  H₂O and not H₃O" — and in the ammonia tab a further hydrogen is refused *as an
-  atom* and accepted *as a proton*, which is the acid/base door.
-
-### The 2D view is a projection, and says so
-
-2D locks the camera straight on, cel-shades the atoms (Toon + inflated back-face
-outline, the same convention as water-lab's Render mode) and swings out-of-plane
-electrons into the plane so the octet can be counted. **It is a projection for
-counting, not a claim about shape.** Water's lone pairs really do stick out of the
-H–O–H plane and methane really is a tetrahedron, so:
-
-- the flat layouts move only what would otherwise hide behind the core;
-- bond angles and the underlying slot geometry are untouched;
-- the notes and the teach text state the real angle (109.5°, not the 90° the flat
-  cross draws), and 3D is one click away.
-
-The 2D camera uses a **12° FOV pulled back** rather than an orthographic camera:
-at 45° an off-centre atom is drawn skewed and a nearer one reads as *bigger* rather
-than *nearer*, both lies in a view whose job is comparison. (A true
-`OrthographicCamera` would mean swapping the camera object, and `fx.js` captures
-its camera in a closure.)
-
-### Model simplifications (keep explicit)
-
-- **`polar` weights are stylised**, from electronegativity difference, not dipole
-  moments (§2).
-- **Ionic separations are roomier than any covalent bond** (Na–Cl 2.55 against
-  radii summing to 1.94) so the eye reads a *space* between two ions rather than a
-  join. Nothing is shared across that gap.
-- **Stick view still draws a stick for the ion pair** — amber, the palette's ion
-  colour, never covalent grey — because stick view is the schematic the rest of the
-  project speaks and a student who switches to it should find a bond. The electron
-  view has none, because there is no shared pair in that gap.
-- **Each covalent lesson ships exactly as many ligands as it has slots.** The limit
-  is shown by the open-slot counter and the ghost markers rather than tested by a
-  refusal.
-
-## 13. Macromolecule gallery (`macromolecule-lab.html`)
+## 12. Macromolecule gallery (`macromolecule-lab.html`)
 
 **What the page is, how it lays out, and which monomer stands for each class
 live in the comment block at the top of `macromolecule-lab.html`** — those are

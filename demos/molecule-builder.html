@@ -236,16 +236,42 @@
  *  flag. This file is UI only. Its job is to narrate what the hands just did:
  *  name the pull when it starts, name the shared pair when it forms, count the
  *  slots still open, and count the electrons out loud when one changes owner.
- *  Every rule is enforced in 3D, never in a dialog.
+ *  Every rule is enforced in 3D, never in a dialog (covalent-drag.js and
+ *  ionic-drag.js own the per-mechanic claims — solid nuclei, conserved
+ *  electron counts, slots lifted from MolLib.MOLECULES).
  *
- *  Rules that reach beyond this page — the polarity weights, the 2D projection's
- *  honesty, the ionic gap — are SCIENCE.md 12.
+ *  Angles, as check-molecules.js reports them against the real specs: H2O
+ *  104.6 deg, NH3 106.8 deg, CH4 and NH4+ 109.5 deg. The notes rail quotes the
+ *  textbook values (104.5, 107) instead, since that's what a student writes
+ *  down — the gap is spec rounding, not a second claim.
+ *
+ *  MODEL SIMPLIFICATIONS (deliberate, kept explicit):
+ *   - `polar` weights are stylised, from electronegativity difference, not
+ *     dipole moments (SCIENCE.md 2).
+ *   - Ionic separations are roomier than any covalent bond (Na-Cl 2.55 vs.
+ *     radii summing to 1.94), so the eye reads a SPACE between two ions
+ *     rather than a join — nothing is shared across that gap.
+ *   - Stick view still draws a stick for the ion pair (amber, the ion
+ *     colour, never covalent grey), because stick view is the schematic the
+ *     rest of the project speaks and switching to it should still show a
+ *     bond. Electron view has none — there is no shared pair to draw.
+ *   - Each covalent lesson ships exactly as many ligands as it has slots,
+ *     shown by the open-slot counter and ghost markers rather than tested
+ *     by a refusal.
  * ============================================================= */
 
-/* 2D is a diagram, and a diagram must not have perspective: at 45° an atom
-   parked off to the side is drawn skewed, and a hydrogen nearer the camera reads
-   as BIGGER rather than NEARER — both of which are lies in a view whose whole job
-   is letting you count and compare. The fix is a long lens rather than a real
+/* 2D is a PROJECTION FOR COUNTING, not a claim about shape — water's lone pairs
+   really do stick out of the H-O-H plane and methane really is a tetrahedron.
+   Three things carry that: the flat layouts move only what would otherwise hide
+   behind the core, bond angles and the underlying slot geometry stay untouched,
+   and the notes/teach text state the real angle (109.5°, not the 90° a flat
+   cross draws) with 3D one click away. atomkit.js's cel() adds the flat-Toon +
+   ink-outline shading that reads as "diagram mode" alongside the camera change.
+
+   The camera itself must not have perspective: at 45° an atom parked off to the
+   side is drawn skewed, and a hydrogen nearer the camera reads as BIGGER rather
+   than NEARER — both of which are lies in a view whose whole job is letting you
+   count and compare. The fix is a long lens rather than a real
    OrthographicCamera: fx.js captures its camera in a closure with no setter, and
    swapping the camera object means surgery on a module four pages share. Dropping
    to a 12° FOV and pulling back by the matching factor is orthographic to the eye

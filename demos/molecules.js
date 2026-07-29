@@ -471,7 +471,7 @@
   };
 
   /* =====================================================================
-   *  GLYCOLYSIS INTERMEDIATES  (glycolysis-lab.html)  — see SCIENCE.md §12
+   *  GLYCOLYSIS INTERMEDIATES  (glycolysis-lab.html)
    * =====================================================================
    *  These specs are COMPUTED, not typed out. Every earlier molecule here is
    *  small enough to hand-place, but a phosphorylated six-carbon sugar has
@@ -481,7 +481,7 @@
    *  angles by the tiny `Skel` builder below, and check-molecules.js audits
    *  the result (no sphere overlaps, printed angles).
    *
-   *  MODEL SIMPLIFICATIONS — all deliberate, all listed in SCIENCE.md §12:
+   *  MODEL SIMPLIFICATIONS — all deliberate, all listed here:
    *   1. C–H hydrogens are OMITTED on the carbon backbone. The lesson is
    *      "where do the six carbons go", so the carbons must stay countable;
    *      24 extra H's would bury them. The ONE exception is the aldehyde H on

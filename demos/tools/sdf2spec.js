@@ -99,7 +99,8 @@ function reframe(m){
   const e3 = cross(e1, e2);                          // right-handed by construction
   // optH: hydrogens the "show extra H" toggle may hide. Only NONPOLAR C-H
   // qualifies — an H on N/O/S is an H-bond DONOR and carries the lesson, so it
-  // is never optional. Matches the H-omission policy in SCIENCE.md 12.
+  // is never optional. Matches the H-omission policy in molecules.js's
+  // glycolysis MODEL SIMPLIFICATIONS list.
   const nb = i => m.bonds.filter(b=>b[0]===i||b[1]===i).map(b=>b[0]===i?b[1]:b[0]);
   const optH = m.atoms.map((a,i)=>
       (a.el==='H' && nb(i).every(j=>m.atoms[j].el==='C')) ? i : -1)
