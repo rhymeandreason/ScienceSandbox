@@ -96,6 +96,7 @@ and polarity is enough.
 feature is the entire point. That feature must be exactly right **and asserted by
 `check-molecules.js`**. Most of the AP Bio curriculum lives here:
 
+<!-- ENUM: flip the Built column when a pair ships; add a row for a new contrast. -->
 | Contrast | Differs by | The lesson | Built |
 |---|---|---|---|
 | starch vs cellulose | α- vs β-1,4 linkage | why we can't digest wood | — |
@@ -115,6 +116,7 @@ they are blocked on being checkable.
 **How a distinguishing feature gets declared.** One of these goes on the spec,
 and `check-molecules.js` fails if the geometry disagrees:
 
+<!-- ENUM: a new claim type goes here AND in check-molecules.js's header, same commit. -->
 | Declaration | Means | Used by |
 |---|---|---|
 | `stereo:'all-equatorial'` | every ring substituent equatorial | glucose |
@@ -155,6 +157,7 @@ swallow the stick. `check-molecules.js` enforces exactly that, and nothing more.
 *How* a spec satisfies it is not uniform across this project, and that is the
 trap. There are two families:
 
+<!-- ENUM: update when a spec is added, or SCALE / the GL constants change. -->
 | Family | Specs | Rule | Implied scale |
 |---|---|---|---|
 | **A. hand-written** | water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
@@ -380,6 +383,7 @@ methane's *silence* is itself the lesson about nonpolar solutes.
 
 ### Effect primitives
 
+<!-- ENUM: update when an fx.js primitive is added or removed. -->
 | Function | What it draws | Used for |
 |---|---|---|
 | `spawnRing(pos,color)` | white core flash + double additive shockwave ring + 16-spark burst | bond break/form events |
@@ -393,6 +397,7 @@ methane's *silence* is itself the lesson about nonpolar solutes.
 Atom/palette colours are the single source of truth in `molecules.js`
 (`MolLib.PALETTE.atoms`); ion effects pull them live via `colorOf`.
 
+<!-- ENUM: update when an effect is wired to a new event. -->
 | Molecule | `class` | Event | Effect(s) | Colour(s) |
 |---|---|---|---|---|
 | **Water** H₂O | `solvent` | — (the medium; ambient H-bond network) | none | — |

@@ -13,6 +13,7 @@ Spheres should never intersect.
 
 ## Pages (lessons)
 
+<!-- ENUM: add a row when a *-lab.html is added or repurposed. See "Keeping the docs true". -->
 | Page | Lesson | Paradigm |
 |---|---|---|
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics |
@@ -41,12 +42,14 @@ order matters — each script assumes the ones above it:
 <script> /* page-specific code */ </script>
 ```
 
+<!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
 | Page | Loads |
 |---|---|
 | `contrast-lab` | molecules, scene |
 | `water-lab`, `molecule-lab`, `aminoacid-lab`, `glycolysis-lab`, `macromolecule-lab` | + fx |
 | `molecule-builder` | + atomkit, covalent-drag, ionic-drag |
 
+<!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
 |---|---|---|
 | `molecules.js` | `MolLib.PALETTE` (colours/radii), `MolLib.MOLECULES` (specs), `Skel`, `VIEW` | `SCIENCE.md` §1 |
@@ -166,6 +169,57 @@ angle, one aspect or one toggle state). Nothing runs automatically: there is no
 CI and no git hook, so `check-molecules.js` is hand-run too.
 
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
+
+## Keeping the docs true
+
+These docs are load-bearing: they are the only record of *why* a constant, a
+geometry or a module boundary is what it is, so a stale one actively misleads.
+Every doc error this project has shipped was the same shape — **an enumeration
+that grew a new member and wasn't updated**. Not prose going out of date; a
+list, table or index that claims to be complete and silently isn't. A page was
+added and the script table didn't say so; `stereo:` grew `{axial}` and `{faces}`
+while two files still said it understood only `all-equatorial`; §13 was written
+and the index still stopped at §12.
+
+So the rule is not "update the docs" — it is:
+
+> **If your change adds a member to a set, find every enumeration of that set
+> and update it in the same commit.** A doc claim gets asserted the same way a
+> chemical claim does (§1.4, rule 2): in the commit that makes it true.
+
+**The enumerations, and what invalidates each:**
+
+| Enumeration | Goes stale when you… |
+|---|---|
+| `CLAUDE.md` → Pages table | add or repurpose a `*-lab.html` |
+| `CLAUDE.md` → per-page script table | change any page's `<script>` tags |
+| `CLAUDE.md` → module index table | add a module, or add/rename an exported entry point |
+| `CLAUDE.md` → `SCIENCE.md` section index | add a `## n.` section to `SCIENCE.md` |
+| `SCIENCE.md` §1.2 | add a *third-party* geometry source or converter |
+| `SCIENCE.md` §1.4 declaration table | teach `check-molecules.js` a new claim type |
+| `SCIENCE.md` §1.4 contrast table | build one of the unbuilt pairs (flip its Built column) |
+| `SCIENCE.md` §1.5 family table | add a spec, or change `SCALE` / the `GL` constants |
+| `SCIENCE.md` §9 effect + colour tables | add an `fx.js` primitive or wire an effect to a new event |
+| `check-molecules.js` header | add a claim type or a new audit |
+| `MolLib.VIEW` table | add a shared viewing angle |
+
+**Checklist by change type:**
+
+- **New page** → Pages table, script table, and a `##` section in `SCIENCE.md` if
+  the page makes decisions a future reader would otherwise reverse.
+- **New molecule** → §1.4 (what tier, what does it assert), §1.5 (which family),
+  and the assertion itself, all in one commit. §1.4 rule 2 is not optional.
+- **New claim type in `check-molecules.js`** → §1.4's declaration table *and* the
+  script's own header. They drifted apart once already.
+- **Renamed or deleted file** → `grep -rn 'oldname' *.md *.js` before committing.
+  `water.html` outlived its rename by months.
+- **Changed a constant with a reason** → the reason lives in the doc, not the
+  commit message. Nobody greps git log for why `SCALE` is 1.9.
+
+**Delete rather than hedge.** A rule that no longer holds should be removed, not
+softened — SCIENCE.md's value is that every line in it is currently true. If a
+decision was reversed, say so and why; that is the one case where history earns
+its space (§1.5 is the model).
 
 ## Later
 glycolysis-lab ending fork — pyruvate ×2 sitting there, two doors: O₂ present → Krebs, absent → fermentation. Not built; it's the hook to the next lesson.

@@ -818,6 +818,8 @@
   // spec's atom positions stay canonical, so check-molecules.js measures the
   // molecule and not a camera angle, and two specs can share one view by name
   // instead of by copying three constants and a comment.
+  // ENUM: a new shared angle goes here, not inline in a spec — CLAUDE.md
+  // "Keeping the docs true" lists this table as one that goes stale silently.
   const VIEW = {
     // The 3/4 chair. Every pyranose on every page uses this, which is what makes
     // glucose look the same in glycolysis-lab, macromolecule-lab and contrast-lab.
