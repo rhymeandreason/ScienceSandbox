@@ -124,11 +124,12 @@ what belongs in a shared module: `SCIENCE.md` §11.**
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook. §1 covers adding any molecule (geometry, sources, stereochemistry,
 fidelity tiers, scale families); §§2–8 chemistry and the solvation physics;
-§§9–12 the per-page rules — fx/colour conventions (§9), amino acids (§10),
-module architecture (§11), macromolecule gallery (§12). The bonding builder's
-own rules live in `molecule-builder.html`'s header comment and in
-`covalent-drag.js`/`ionic-drag.js`, not in SCIENCE.md — they're page-internal,
-not cross-cutting.
+§§9–11 the per-page rules — fx/colour conventions (§9), amino acids (§10),
+module architecture (§11). The bonding builder's and the macromolecule
+gallery's own rules live in their own header comments (`molecule-builder.html`,
+`covalent-drag.js`/`ionic-drag.js`; `macromolecule-lab.html` and the relevant
+`molecules.js`/`glycolysis-lab.html` spec comments), not in SCIENCE.md —
+they're page-internal, not cross-cutting.
 Before adding a **new molecule**, read §1.4 — it sets how much fidelity a molecule
 owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.
