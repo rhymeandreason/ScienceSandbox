@@ -15,12 +15,6 @@
      job for it and give the difference away before the student looks. */
   :root{ --sugar:#2f8f6f; --nucl:#b03a86; --base:#6a5acd; }
 
-  #paircard{position:absolute;right:26px;top:22px;z-index:6;text-align:right}
-  #paircard .ckind{font-family:var(--font-slab);font-weight:700;font-size:11px;
-    letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
-  #paircard .cname{font-family:var(--font-marker);font-weight:400;font-size:25px;line-height:1.15;margin-top:2px}
-  #paircard .cform{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--muted)}
-
   /* the lesson line, bottom-centre — the "so what" of the pair */
   #lesson{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:6;
     max-width:min(620px,76%);text-align:center;
@@ -35,9 +29,16 @@
      thing it was naming — and they rendered as blurry canvas textures next to
      crisp DOM type everywhere else on the page. */
   .molname{position:absolute;z-index:5;transform:translate(-50%,-100%);
-    pointer-events:none;white-space:nowrap;
-    font-family:var(--font-marker);font-weight:400;font-size:26px;line-height:1}
-  @media (max-width:920px){ .molname{font-size:20px} }
+    pointer-events:none;white-space:nowrap;text-align:center}
+  .molname .mnname{font-family:var(--font-marker);font-weight:400;font-size:26px;line-height:1.05}
+  /* Formula in the slab face, muted — it is a label for the name above it, not a
+     second heading competing with it. */
+  .molname .mnform{font-family:var(--font-slab);font-weight:700;font-size:14px;
+    color:var(--muted);margin-top:3px}
+  @media (max-width:920px){
+    .molname .mnname{font-size:20px}
+    .molname .mnform{font-size:12px}
+  }
 
   #stage,#side{min-height:0}
   #side{overflow-y:auto}
@@ -65,7 +66,6 @@
     border-top:1.5px dashed var(--hair);padding-top:12px;margin-top:4px}
 
   @media (max-width:920px){
-    #paircard .cname{font-size:20px}
     #lesson{bottom:14px;max-width:88%}
   }
 </style>
@@ -75,7 +75,6 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="brand"><span class="drop"><i class="ph-bold ph-magnifying-glass"></i></span><h1>Spot the Difference</h1></div>
-    <div id="paircard"></div>
     <div id="nameL" class="molname"></div>
     <div id="nameR" class="molname"></div>
     <div id="lesson"></div>
@@ -102,7 +101,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="molecules.js"></script>
 <script src="scene.js"></script>
-<script src="fx.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -111,7 +109,10 @@
  *  This page renders SCIENCE.md's Tier-2 table: pairs of near-identical
  *  molecules where exactly one feature is the entire lesson. It is a
  *  comparison gallery like macromolecule-lab.html, not a simulation — no
- *  physics loop, no reactions.
+ *  physics loop, no reactions. It therefore does NOT load fx.js, which is the
+ *  one place this page departs from the standard four-script head: nothing on
+ *  it forms or breaks a bond, and §9's rule is that a non-event stays visually
+ *  silent.
  *
  *  Two rules make this page work, and both are enforced elsewhere:
  *
@@ -141,7 +142,6 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   cam:{theta:0,phi:Math.PI/2,r:30}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
   // Dragging turns the MOLECULES, not the camera (see the drag handler below).
   orbit:false });
-const FXi=FX.create(THREE,root,camera);
 
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
@@ -231,7 +231,11 @@ PAIRS.forEach(p=>membersOf(p).forEach(k=>{ EXT[k]=extent(specOf(k), p.tilt||0); 
 const GAP=3.0;             // gutter between the two halves
 // Headroom above each model, in world units, for the HTML name plate to sit in
 // without covering the molecule or colliding with the stage's top chrome.
-const NAME_ROOM=2.4;
+const NAME_ROOM=4.6;
+// How far above the molecule's top the plate's baseline sits, in world units.
+// The plate grows UPWARD from this point (translate -100%), so the two-line
+// version needs both a bigger offset and more NAME_ROOM in the camera fit.
+const NAME_LIFT=1.8;
 // The stage chrome is HTML sitting ON TOP of the canvas: the lesson card runs
 // along the bottom centre and the atom counts along the bottom left. Both are in
 // the same band the name sprites want. Lifting the whole pair buys that band
@@ -373,7 +377,9 @@ function applyLayout(){
   });
   const ks=membersOf(PAIRS[selected]);
   [nameL,nameR].forEach((el,i)=>{
-    el.textContent=specOf(ks[i]).name;
+    const sp=specOf(ks[i]);
+    el.innerHTML=`<div class="mnname">${sp.name}</div>`
+      +`<div class="mnform">${sp.formula}</div>`;
     el.style.color=hx(PAIRS[selected].accent);
   });
   applySpin();
@@ -400,7 +406,7 @@ function placeNames(){
   const top=Math.max(...ks.map(k=>EXT[k].hy));
   [nameL,nameR].forEach((el,i)=>{
     const k=ks[i];
-    _p.set(posOf(k).x, LIFT+top+0.5, 0).project(camera);
+    _p.set(posOf(k).x, LIFT+top+NAME_LIFT, 0).project(camera);
     el.style.left=((_p.x*0.5+0.5)*w).toFixed(1)+'px';
     el.style.top =((-_p.y*0.5+0.5)*h).toFixed(1)+'px';
   });
@@ -470,15 +476,13 @@ function buildCard(){
         +`except one feature. Found it?</div>`);
 }
 
-const pairCardEl=document.getElementById('paircard');
 const lessonEl=document.getElementById('lesson');
 const statsEl=document.getElementById('stats');
 function buildStageChrome(){
+  // No pair caption in the corner: each molecule now carries its own name and
+  // formula on its plate, so a "Glucose vs Galactose · C6H12O6 · C6H12O6" block
+  // was saying the same thing a second time, further from what it described.
   const p=PAIRS[selected], a=specOf(p.left), b=specOf(p.right);
-  pairCardEl.innerHTML=`<div class="ckind">${p.kind}</div>`
-    +`<div class="cname" style="color:${hx(p.accent)}">${a.name} vs ${b.name}</div>`
-    +`<div class="cform">${a.formula} · ${b.formula}</div>`;
-
   lessonEl.innerHTML = showDiff
     ? `<div class="lhead" style="color:${hx(p.accent)}">Differs by ${a.contrast.differs}</div>`
       +`<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`
@@ -503,18 +507,12 @@ function refresh(){
   diffBtn.textContent=showDiff?'Hide the difference':'Show the difference';
   buildLibrary(); buildCard(); buildStageChrome();
   applyLayout(); applyHighlight();
-  // Ring the difference on reveal — on a 24-atom sugar the dimming alone can
-  // take a few seconds to parse, and this says "here" while it lands.
-  if(showDiff){
-    membersOf(PAIRS[selected]).forEach(k=>{
-      const g=built[k], spec=specOf(k);
-      const idx=(spec.contrast&&spec.contrast.diff)||[];
-      const p=V(0,0,0); let n=0;
-      idx.forEach(i=>{ const m=g.userData.atomMeshes[i];
-        if(m&&m.visible){ p.add(m.getWorldPosition(V())); n++; } });
-      if(n){ p.multiplyScalar(1/n); FXi.spawnRing(root.worldToLocal(p),PAIRS[selected].accent); }
-    });
-  }
+  // No effect fires here on purpose. Revealing the difference is not a chemical
+  // event — nothing forms, breaks or moves; the student's understanding changed,
+  // not the molecule. SCIENCE.md §9 reserves spawnRing for bond break/form and
+  // says never to dramatize a non-event, and a shockwave over a hydroxyl that is
+  // simply being pointed at reads as "a reaction happened here". The dimming is
+  // the whole signal.
 }
 
 /* ---------- render loop ---------- */
@@ -525,7 +523,6 @@ function refresh(){
 function loop(){
   if(!userSpun){ spin+=0.0022; applySpin(); }
   placeNames();
-  FXi.step();
   renderer.render(scene,camera);
   requestAnimationFrame(loop);
 }
