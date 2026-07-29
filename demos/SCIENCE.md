@@ -465,53 +465,7 @@ New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` onc
 
 ---
 
-## 10. Amino acids & peptide bonds (`aminoacid-lab.html`)
-
-- **Amino acids contain C, H, O, N — and S only in cysteine/methionine.**
-  Potassium is **not** part of any amino acid; K⁺ is an intracellular electrolyte
-  / enzyme cofactor (an ion in solution, like the Na⁺/Cl⁺ elsewhere), never built
-  into the backbone or a side chain. The side panel says so explicitly.
-- **Shared backbone:** every residue is amino group (–NH₂) + α-carbon + carboxyl
-  (–COOH), differing only by the side chain **R**. The specs in `molecules.js`
-  share one atom layout (indices 0–8) with R appended from index 9.
-- **Peptide bond = dehydration synthesis (condensation).** Two residues join when
-  one's **carboxyl –OH** and the other's **amino –H** leave as a single **H₂O**,
-  forming a C–N amide bond. This is the inverse of CO₂ + H₂O (where water is
-  *consumed*): here water is *released*, and the readout counts one water per bond.
-- **Peptide bond colour:** slate violet (`#6a5acd`, `PALETTE.bonds.peptide`), drawn
-  thicker than the stone covalent sticks so the backbone link reads as distinct.
-- **Geometry is generated, not hand-placed** (`tools/sdf2spec.js`). The four
-  residue specs are converted from PubChem 3D records, so the angles are real —
-  the α-carbon is tetrahedral (~109°), where the earlier hand-written specs drew
-  N–Cα–C at 180° and N–Cα–H at 90°, which no carbon does. Unlike the flat z=0
-  layouts elsewhere in `molecules.js`, these are **genuinely non-planar**.
-  Re-generate rather than hand-editing the numbers.
-- **One global scale, not per-bond fudging.** Display radii here are enlarged for
-  legibility, so true Ångström coordinates bury every stick inside its two
-  spheres. A single 1.9× factor clears them all while keeping *relative* bond
-  lengths truthful. Run `check-molecules.js` after any geometry change — it fails
-  on merged spheres, which is exactly the bug that hid the carboxyl C=O.
-- **Hydrogens: all present, C–H hideable.** The specs carry every real hydrogen;
-  `spec.optH` lists the nonpolar C–H's that the lab's "show C–H hydrogens" toggle
-  hides (`Stage.setOptionalH`). An H on N/O/S is **never** in `optH` — those are
-  the H-bond donors and the leaving groups, so hiding them would hide the lesson.
-  The toggle flips visibility only; it must not rebuild, or it would resurrect the
-  –OH and –H that a peptide bond already consumed.
-- **Handedness: L, and asserted.** Life builds proteins from L-amino acids only;
-  the D- mirror images exist but ribosomes don't use them. Each chiral residue
-  declares `chirality:'L'` and `check-molecules.js` verifies the signed volume
-  over CIP priorities. Glycine is the exception and declares nothing — its side
-  chain is an H, so its α-carbon has two identical substituents and it is
-  achiral, which is also why it is the most conformationally flexible residue.
-- **Model simplifications (keep explicit):** residues are drawn in the **neutral**
-  –NH₂/–COOH form, not the physiological **zwitterion** (–NH₃⁺/–COO⁻); this makes
-  the "lose a water" bookkeeping legible but is a display choice. Each residue stays a
-  separate group linked by a redrawn peptide stick — so a chain is N groups, not
-  one merged molecule (no claim of a single rigid conformation).
-
-
-
-## 11. Module architecture — share the plumbing, not the physics
+## 10. Module architecture — share the plumbing, not the physics
 
 There is deliberately **no monolithic `engine.js`**. The lessons fall into distinct
 paradigms — solvation, molecular assembly, pathways, bonding — that do not share a

@@ -86,7 +86,7 @@
 // Stage.create owns the renderer/scene/camera/lights/orbit/resize boilerplate,
 // destructured into the same names the rest of this file already uses. This page
 // keeps its OWN builder below (outlines, hydration userData, Debug recolour/toon)
-// — only the bootstrap is shared. See SCIENCE.md §11.
+// — only the bootstrap is shared. See SCIENCE.md §10.
 const canvas = document.getElementById('gl');
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   cam:{theta:0.5, phi:1.15, r:9}, onZoom:r=>{ S.targetR=r; } });   // manual zoom sticks

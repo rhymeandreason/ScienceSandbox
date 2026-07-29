@@ -9,7 +9,7 @@
  *  Loaded as a classic script AFTER three.min.js and molecules.js. Exposes
  *  window.Stage. Deliberately knows NOTHING about any particular lesson's
  *  physics — solvation (createWaterSim), pathways, membranes, etc. are built per
- *  page on top of this. See SCIENCE.md §11 for the architecture rationale.
+ *  page on top of this. See SCIENCE.md §10 for the architecture rationale.
  *
  *  Usage:
  *    const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{

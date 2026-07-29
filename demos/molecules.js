@@ -238,6 +238,12 @@
     // elsewhere (must exceed the two display radii so the stick shows).
     // Zwitterion form is skipped on purpose — the neutral –NH₂/–COOH makes the
     // "lose a water" bookkeeping legible; note this is a display simplification.
+    // Handedness: life builds proteins from L-amino acids only (the D- mirror
+    // images exist but ribosomes don't use them), so every chiral residue
+    // declares `chirality:'L'` and check-molecules.js verifies the signed
+    // volume over CIP priorities. optH lists only nonpolar C–H — an H on
+    // N/O/S is never in it, since those are the H-bond donors and the leaving
+    // groups a peptide bond consumes, and hiding them would hide the lesson.
     // ---- generated from PubChem 3D records (see tools/sdf2spec.js) --------
     // Coordinates are REAL conformers: correct angles (Ca is tetrahedral, ~110°,
     // not the 180° the old hand-written specs drew) and genuinely non-planar,

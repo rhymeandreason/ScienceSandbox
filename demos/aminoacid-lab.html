@@ -87,6 +87,17 @@
  *  Reuses molecules.js (residue specs + palette) and fx.js (reaction
  *  effects). Each residue stays its own group; condensation removes the
  *  leaving –OH / –H, spawns a water, and links residues with a peptide bond.
+ *  This is the INVERSE of molecule-lab.html's CO2 + H2O (there water is
+ *  consumed; here it's released) — the readout counts one water per bond.
+ *
+ *  Each residue stays a separate group, relinked every frame by a redrawn
+ *  peptide stick rather than merged into one molecule — so a chain makes no
+ *  claim about a single rigid conformation.
+ *
+ *  The side panel spells out the elements on purpose: every residue is C,
+ *  H, O, N (S only in cysteine/methionine) — K+ is an intracellular
+ *  electrolyte like the Na+/Cl+ elsewhere in the sandbox, never part of the
+ *  backbone or a side chain, and students mix the two up.
  * ============================================================= */
 
 /* ---------- shared stage (scene.js) + reaction fx (fx.js) ---------- */

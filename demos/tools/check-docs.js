@@ -41,7 +41,7 @@ const SCIENCE = rd('SCIENCE.md');
 // excused — it is asserted ABSENT, so if one gets built the check fails and
 // tells you to update the doc that called it hypothetical.
 const KNOWN_ABSENT = {
-  'engine.js':          'the monolith CLAUDE.md/§11 exist to argue against',
+  'engine.js':          'the monolith CLAUDE.md/§10 exist to argue against',
   'water.html':         "CLAUDE.md's example of a rename that outlived its file",
   'package.json':       'TESTING.md notes there is deliberately none',
   'layout.js':          'TESTING.md proposal — not built',

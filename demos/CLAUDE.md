@@ -53,7 +53,7 @@ order matters — each script assumes the ones above it:
 | Module | Exposes | Rules |
 |---|---|---|
 | `molecules.js` | `MolLib.PALETTE` (colours/radii), `MolLib.MOLECULES` (specs), `Skel`, `VIEW` | `SCIENCE.md` §1 |
-| `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §11 |
+| `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §10 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
@@ -84,7 +84,7 @@ Things that are easy to get wrong and are not visible from the API:
 There is deliberately **no monolithic `engine.js`** — the lessons are distinct
 paradigms (solvation, assembly, pathways, bonding) with no shared simulation core,
 so only the universal scaffolding is extracted. **Full rationale and the test for
-what belongs in a shared module: `SCIENCE.md` §11.**
+what belongs in a shared module: `SCIENCE.md` §10.**
 
 ## Adding a new page
 
@@ -124,12 +124,13 @@ what belongs in a shared module: `SCIENCE.md` §11.**
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook. §1 covers adding any molecule (geometry, sources, stereochemistry,
 fidelity tiers, scale families); §§2–8 chemistry and the solvation physics;
-§§9–11 the per-page rules — fx/colour conventions (§9), amino acids (§10),
-module architecture (§11). The bonding builder's and the macromolecule
-gallery's own rules live in their own header comments (`molecule-builder.html`,
-`covalent-drag.js`/`ionic-drag.js`; `macromolecule-lab.html` and the relevant
-`molecules.js`/`glycolysis-lab.html` spec comments), not in SCIENCE.md —
-they're page-internal, not cross-cutting.
+§9 the fx/colour conventions; §10 module architecture. The bonding builder's,
+the amino-acid page's, and the macromolecule gallery's own rules live in
+their own header comments (`molecule-builder.html`, `covalent-drag.js`/
+`ionic-drag.js`; `aminoacid-lab.html` and the relevant `molecules.js` amino-
+acid comments; `macromolecule-lab.html` and the relevant `molecules.js`/
+`glycolysis-lab.html` spec comments), not in SCIENCE.md — they're
+page-internal, not cross-cutting.
 Before adding a **new molecule**, read §1.4 — it sets how much fidelity a molecule
 owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.
