@@ -18,21 +18,42 @@
  *  molecule's shape can be eyeballed against its real VSEPR geometry.
  *  Run this after adding or editing anything in MOLECULES.
  *
- *  It also audits RING STEREOCHEMISTRY, because that is the one error class
- *  nothing else here can see. Glucose shipped with its substituents
- *  alternating axial/equatorial around the ring: every bond length fine,
- *  every angle textbook-correct, renders beautifully — and not glucose. Only
- *  measuring each substituent against the ring axis catches it. A spec can
- *  declare `stereo:'all-equatorial'` (β-D-glucopyranose, the arrangement that
- *  makes glucose the most stable hexose) and this asserts it; otherwise the
- *  pattern is printed for eyeballing.
+ *  It also audits the DISTINGUISHING-FEATURE CLAIMS a spec declares — the
+ *  error class nothing else here can see, because a wrong stereocentre has
+ *  perfect bond lengths, textbook angles, and renders beautifully. Glucose
+ *  shipped with its substituents alternating axial/equatorial around the ring
+ *  — not glucose, and at C5 not even D-. Only measuring each substituent
+ *  against the ring axis catches it.
  *
- *  And it audits L/D HANDEDNESS, the same class of error one level worse: a
- *  mirror image has identical lengths, identical angles, and an identical
- *  render. The PubChem converter shipped D-amino acids because its reframe
- *  negated one output component — a reflection, not a rotation — and nothing
- *  noticed until someone thought to compute a signed volume. Specs declare
- *  `chirality:'L'`.
+ *  Four declarations, each FAILing if the geometry disagrees (SCIENCE.md §1.4
+ *  is the reference; add a new claim type here in the same commit that adds
+ *  the molecule making the claim):
+ *
+ *    stereo:'all-equatorial'      every ring substituent equatorial — the
+ *                                 β-D-glucopyranose arrangement that makes
+ *                                 glucose the most stable hexose.  [glucose]
+ *    stereo:{ axial:[i,…] }       exactly these ring atoms axial, all others
+ *                                 equatorial. Galactose is one flip from
+ *                                 glucose, and that flip is the lesson.
+ *    stereo:{ faces:{i:'a',…} }   which substituents share a ring face, for a
+ *                                 furanose too flat for axial/equatorial to
+ *                                 mean anything. Checked as a RELATIVE
+ *                                 pattern — the normal's sign is arbitrary —
+ *                                 so it cannot catch a global mirror.
+ *                                 [ribose, deoxyribose]
+ *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that a
+ *               fused:true }      bicycle shares an edge.  [purine/pyrimidine]
+ *    chirality:'L'                signed volume over CIP priorities
+ *                                 N > C(carboxyl) > R > H. Amino acids only
+ *                                 (requires `pep`). A mirror image is
+ *                                 invisible to every other check here: the
+ *                                 PubChem converter shipped D- because its
+ *                                 reframe negated one output component, a
+ *                                 reflection rather than a rotation, and
+ *                                 nothing noticed until someone computed a
+ *                                 signed volume.
+ *
+ *  A spec with no declaration gets its ring pattern printed for eyeballing.
  * ===================================================================== */
 'use strict';
 
@@ -316,10 +337,12 @@ console.log('');
 if (failures || stereoFails || chiralFails) {
   const parts = [];
   if (failures) parts.push(`${failures} overlapping pair(s)`);
-  if (stereoFails) parts.push(`${stereoFails} ring(s) with wrong stereochemistry`);
+  if (stereoFails) parts.push(`${stereoFails} ring(s) failing a declared `
+    + `stereo/topology claim`);
   if (chiralFails) parts.push(`${chiralFails} mirrored stereocentre(s) (L/D)`);
   console.log(`FAIL: ${parts.join(' + ')}`);
   process.exit(1);
 }
-console.log(`PASS: no sphere overlaps; ring stereochemistry and L/D as declared`
+console.log(`PASS: no sphere overlaps; every declared stereo/topology/chirality `
+  + `claim holds`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));
