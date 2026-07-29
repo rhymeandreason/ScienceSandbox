@@ -813,6 +813,20 @@
   // acids): `cN` maps the biologist's carbon numbering onto atom indices, `p1`
   // /`p3` are the phosphorus atoms (effect anchors), `cleave` is the bond
   // aldolase breaks, and `carbons` is the count the ledger asserts on screen.
+  // Presentation views: which way a molecule should FACE, in radians [x,y,z],
+  // applied by Stage.buildMolecule rather than baked into the coordinates. A
+  // spec's atom positions stay canonical, so check-molecules.js measures the
+  // molecule and not a camera angle, and two specs can share one view by name
+  // instead of by copying three constants and a comment.
+  const VIEW = {
+    // The 3/4 chair. Every pyranose on every page uses this, which is what makes
+    // glucose look the same in glycolysis-lab, macromolecule-lab and contrast-lab.
+    pyranose:[1.05, 0.45, -0.2],
+    furanose:[1.0, 0.5, -0.15],
+    // Flat aromatics are built in the xz-plane, so they need turning face-on.
+    flatRing:[-Math.PI/2, 0.35, 0],
+  };
+
   const GLYCOLYSIS = {};
   {
     // — glucose: the only ring on the page, and the only unphosphorylated sugar
@@ -837,7 +851,6 @@
     C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
     CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
     // Rotate to a clear 3D 3/4 chair perspective (ring face tilted towards camera)
-    g.rotate(1.05, 0.45, -0.2);
     // the H on each hydroxyl O is grown immediately after its O, so it is the
     // next index — asserted rather than assumed, since a Skel change would move it
     const ohH=OH.map(o=>{
@@ -848,6 +861,7 @@
       // asserted by check-molecules.js — the one property that no bond length,
       // bond angle or screenshot can confirm, and the one that makes it glucose
       stereo:'all-equatorial',
+      view:VIEW.pyranose,
       optH:CH,                            // nonpolar C–H; the five O–H are never optional
       mono:'carbohydrate',                // macromolecule-lab.html: the carbohydrate monomer
       gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
@@ -999,7 +1013,6 @@
     const CH=[];
     C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
     CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
-    g.rotate(1.05, 0.45, -0.2);           // same view as glucose, so the pair lines up
     const ohH=OH.map(o=>{
       const b=g.bonds.find(b=>(b[0]===o||b[1]===o) && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
       return b[0]===o?b[1]:b[0];
@@ -1008,6 +1021,7 @@
       // C4 axial, every other substituent equatorial. `all-equatorial` here would
       // be glucose — and the render of the two is very nearly the same picture.
       stereo:{ axial:[C4] },
+      view:VIEW.pyranose,       // the same object as glucose's — they cannot drift
       optH:CH,
       contrast:{ pair:'glucose-galactose', partner:'glucose',
         differs:'one –OH orientation',
@@ -1039,7 +1053,6 @@
       const CH=[ s.grow(c1,'H',GL.CH,'sp3',0), s.grow(c2,'H',GL.CH,'sp3',0),
                  s.grow(c3,'H',GL.CH,'sp3',0), s.grow(c4,'H',GL.CH,'sp3',0),
                  s.grow(c5,'H',GL.CH,'sp3',0), s.grow(c5,'H',GL.CH,'sp3',0) ];
-      s.rotate(1.0, 0.5, -0.15);
       const ohH=o=>{ const b=s.bonds.find(b=>(b[0]===o||b[1]===o) && s.atoms[b[0]===o?b[1]:b[0]].el==='H');
         return b[0]===o?b[1]:b[0]; };
       return { s, RING, c2, o1, o2, h2, o3, c5, o5, CH, ohH };
@@ -1053,6 +1066,7 @@
     const r=riboFuranose(false);
     CONTRAST.ribose=r.s.spec({ name:'Ribose', formula:'C₅H₁₀O₅', class:'sugar',
       stereo:{ faces:FACES },
+      view:VIEW.furanose,
       optH:r.CH,
       contrast:{ pair:'ribose-deoxyribose', partner:'deoxyribose',
         differs:'one –OH at 2′',
@@ -1068,6 +1082,7 @@
       // declaration — asserting a face for an atom that isn't there would pass
       // vacuously and tell us nothing.
       stereo:{ faces:{ 1:'a', 3:'b', 4:'a' } },
+      view:VIEW.furanose,
       optH:d.CH,
       contrast:{ pair:'ribose-deoxyribose', partner:'ribose',
         differs:'one –OH at 2′',
@@ -1091,9 +1106,9 @@
     const p=flatRing(6, ['N','C','N','C','C','C']);
     p.order(0,1,2).order(2,3,2).order(4,5,2);      // one Kekulé structure
     const pH=[1,3,4,5].map(i=>flatH(p,i,AR.CH));
-    p.rotate(-Math.PI/2, 0.35, 0);                 // xz-plane → face-on to camera
     CONTRAST.pyrimidine=p.spec({ name:'Pyrimidine', formula:'C₄H₄N₂', class:'base',
       topology:{ rings:[6] },
+      view:VIEW.flatRing,
       contrast:{ pair:'purine-pyrimidine', partner:'purine',
         differs:'one ring vs two',
         lesson:'why A–T and G–C are equal width',
@@ -1113,9 +1128,9 @@
     q.order(five[0],five[1],2);                    // N7=C8
     const qH=[1,5,five[1]].map(i=>flatH(q,i,AR.CH));
     qH.push(flatH(q,five[2],AR.NH));               // N9–H, the 9H tautomer
-    q.rotate(-Math.PI/2, 0.35, 0);
     CONTRAST.purine=q.spec({ name:'Purine', formula:'C₅H₄N₄', class:'base',
       topology:{ rings:[5,6], fused:true },
+      view:VIEW.flatRing,
       contrast:{ pair:'purine-pyrimidine', partner:'pyrimidine',
         differs:'one ring vs two',
         lesson:'why A–T and G–C are equal width',

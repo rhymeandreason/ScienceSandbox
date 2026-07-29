@@ -40,7 +40,11 @@ Loaded **in this order**, before each page's own `<script>`:
 
 - **`molecules.js`** — single source of truth for atom/bond colours + radii
   (`MolLib.PALETTE`) and declarative molecule specs (`MolLib.MOLECULES`). Add new
-  molecules here. **Read the scale-families note at the top of the file first:**
+  molecules here. A spec's coordinates are **canonical** — never bake a viewing
+  angle into them with `Skel.rotate()`. Declare `view:VIEW.pyranose` (radians
+  `[x,y,z]`, applied by `Stage.buildMolecule`) so the numbers describe the
+  molecule and not a camera, and so two specs share a view by name rather than by
+  copying three constants. Add new entries to the `VIEW` table. **Read the scale-families note at the top of the file first:**
   specs come in two bond-length families (hand-written solvation molecules vs.
   derived real-Å × 1.9 ones), and a page may only show molecules from one of
   them. Full rationale in `SCIENCE.md` §1.
@@ -127,9 +131,9 @@ Full rationale in **`SCIENCE.md` §11**, the builder's own rules in **§12**.
 
    Re-call `Stage.frame` from a `ResizeObserver` — it solves against
    `camera.aspect`, so it is only right once the canvas has been measured.
-   Leave the spec's own orientation alone: each one already ends with a
-   `rotate()` chosen to present it well, and with a raised camera (`phi≈1.3`)
-   that is the view the other pages show. Raising the camera is fine; *swinging*
+   Leave the spec's own orientation alone: `view:` already carries the angle
+   chosen to present it well, and with a raised camera (`phi≈1.3`) that is the
+   view the other pages show. Raising the camera is fine; *swinging*
    it (`theta`) is not on a side-by-side page, because it puts one molecule
    nearer than the other and perspective magnifies it.
 5. Fire `FXi.spawnRing/popGlow/…` at your reaction/event sites; call `FXi.step()`

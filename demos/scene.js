@@ -133,6 +133,31 @@
       center=centerOf(spec);
       g.children.forEach(ch=>{ ch.position.x-=center[0]; ch.position.y-=center[1]; ch.position.z-=center[2]; });
     }
+    // PRESENTATION ORIENTATION. `spec.view` is [x,y,z] radians saying which way
+    // this molecule should face — the angle that makes a pyranose read as a 3/4
+    // chair rather than a flat hexagon. It used to be baked into the atom
+    // coordinates by Skel.rotate(), which meant the spec's numbers were a view
+    // rather than the molecule, two specs could only share a view by copying
+    // three constants, and a page could not ask for a different one.
+    //
+    // Applied to the MESHES, not to the group's rotation: the group's rotation
+    // belongs to the page (idle spin, the user's drag), and composing the two
+    // there is exactly the Euler-order trap that made molecules cartwheel.
+    // Baking it here instead keeps that free, and keeps atom/bond meshes as
+    // direct children so removeAtoms() and friends still work.
+    //
+    // Pass opts.view to override, or null for the spec's canonical coordinates.
+    const view = opts.view!==undefined ? opts.view : spec.view;
+    if(view){
+      // 'ZYX' composes as RZ*RY*RX, which is the order Skel.rotate() applied
+      // when these were baked — so a migrated spec renders identically.
+      const q=new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(view[0]||0, view[1]||0, view[2]||0, 'ZYX'));
+      g.children.forEach(ch=>{
+        ch.position.applyQuaternion(q);      // where it sits
+        ch.quaternion.premultiply(q);        // and which way it points (bonds)
+      });
+    }
     g.userData={ spec, atomMeshes, bondMeshes, center,
       atomWorld:i=>atomMeshes[i].getWorldPosition(new THREE.Vector3()) };
     return g;
