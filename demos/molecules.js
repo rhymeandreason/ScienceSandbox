@@ -1126,5 +1126,8 @@
   }
   Object.assign(MOLECULES, CONTRAST);
 
-  global.MolLib = { PALETTE, MOLECULES };
+  // SCALE is exported so Stage.measure() can divide it back out and report real
+  // angstroms. Pages used to hard-code 1.9 to do that, which silently becomes
+  // wrong the day this constant moves.
+  global.MolLib = { PALETTE, MOLECULES, SCALE };
 })(this);

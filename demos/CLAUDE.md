@@ -5,6 +5,7 @@ one HTML page sharing a small set of modules. No build step, no framework — pl
 Three.js (r128, global style) + vanilla JS.
 
 Let the human test in the browser for visual changes, it's faster than taking screenshots.
+Tell her what to do to test the changes.
 
 Try to model scientific accuracy, especially when building atoms and molecules. 
 Spheres should never intersect.
@@ -49,7 +50,17 @@ Loaded **in this order**, before each page's own `<script>`:
   the **models** rather than swing the camera — a side-by-side comparison page
   must not orbit, because orbiting puts one molecule nearer the camera and
   perspective then magnifies it (`contrast-lab.html` does this and drives both
-  halves from one shared spin/lean). Also a clean builder: `Stage.buildMolecule`,
+  halves from one shared spin/lean).
+  **Presentation helpers — use these instead of hand-tuning a camera:**
+  `Stage.measure(spec)` → `{rxz, hy, radius, span}` (a turntable sweeps a
+  *cylinder*, so `rxz`/`hy`, not one radius; `span` is real Å);
+  `Stage.frame(camera, cam, boxes, {pad, top, bottom})` solves the camera
+  distance from the actual frustum, so it stays correct at any viewport — a
+  hand-picked `r:` is only right at the size it was tuned for;
+  `Stage.buildMolecule(spec, {center:true})` puts the group origin at the
+  molecule's middle so it turns on the spot rather than orbiting its build
+  origin, and every built molecule gets `rotation.order='YXZ'` so a leaned
+  model still spins upright. Also a clean builder: `Stage.buildMolecule`,
   `Stage.atom/bond`, `Stage.removeAtoms`, `Stage.setOptionalH`. Zoom/drag
   side-effects go through `onZoom(r)` / `onDrag()` hooks.
   `Stage.bond` takes a bond **order** — `[i,j,2]` in a spec draws a double bond as
@@ -101,9 +112,26 @@ Full rationale in **`SCIENCE.md` §11**, the builder's own rules in **§12**.
 2. Add any new molecules to `molecules.js` — prefer generating the geometry with
    `tools/sdf2spec.js` over typing coordinates, then run `check-molecules.js`.
 3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
-   then `const FXi=FX.create(THREE,root,camera);`
-4. Build molecules with `Stage.buildMolecule(spec)` (assembly pages) **or** a
-   page-specific builder if you need outlines/physics `userData`.
+   then `const FXi=FX.create(THREE,root,camera);` — skip FX entirely if the page
+   has no reactions (`contrast-lab.html` does).
+4. Build molecules with `Stage.buildMolecule(spec,{center:true})` (assembly
+   pages) **or** a page-specific builder if you need outlines/physics `userData`.
+   Then frame the camera rather than guessing a distance:
+
+   ```js
+   const g = Stage.buildMolecule(MolLib.MOLECULES.glucose, {center:true});
+   root.add(g);
+   const m = Stage.measure(MolLib.MOLECULES.glucose);
+   Stage.frame(camera, cam, [{x:0, y:0, rxz:m.rxz, hy:m.hy}]);  applyCam();
+   ```
+
+   Re-call `Stage.frame` from a `ResizeObserver` — it solves against
+   `camera.aspect`, so it is only right once the canvas has been measured.
+   Leave the spec's own orientation alone: each one already ends with a
+   `rotate()` chosen to present it well, and with a raised camera (`phi≈1.3`)
+   that is the view the other pages show. Raising the camera is fine; *swinging*
+   it (`theta`) is not on a side-by-side page, because it puts one molecule
+   nearer than the other and perspective magnifies it.
 5. Fire `FXi.spawnRing/popGlow/…` at your reaction/event sites; call `FXi.step()`
    in the render loop before `renderer.render`.
 6. Build the lesson's *mechanic* custom — don't try to unify paradigms.

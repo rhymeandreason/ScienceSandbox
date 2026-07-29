@@ -120,7 +120,20 @@
     });
     bondMeshes.forEach(m=>g.add(m));
     atomMeshes.forEach(m=>g.add(m));
-    g.userData={ spec, atomMeshes, bondMeshes,
+    // YXZ, so a page that both leans and spins a molecule gets a turntable
+    // rather than a tumble: the default XYZ composes as RX*RY, applying the spin
+    // in the model's own frame and then leaning the spin axis over with it.
+    // Harmless where only rotation.y is set, which is every other page today.
+    g.rotation.order='YXZ';
+    // opts.center puts the group's origin at the middle of the molecule so it
+    // turns on the spot rather than orbiting its build origin. Opt-in: pages
+    // that place molecules by their spec origin would shift if it were default.
+    let center=null;
+    if(opts.center){
+      center=centerOf(spec);
+      g.children.forEach(ch=>{ ch.position.x-=center[0]; ch.position.y-=center[1]; ch.position.z-=center[2]; });
+    }
+    g.userData={ spec, atomMeshes, bondMeshes, center,
       atomWorld:i=>atomMeshes[i].getWorldPosition(new THREE.Vector3()) };
     return g;
   }
@@ -131,6 +144,88 @@
     idxs.forEach(i=>{ const m=u.atomMeshes[i]; if(m) g.remove(m); u.atomMeshes[i]=null; });
     u.bondMeshes=u.bondMeshes.filter(bm=>{
       if(bm.userData.pair.some(p=>set.has(p))){ g.remove(bm); return false; } return true; });
+  }
+
+  /* ---- presentation: how big a molecule is, and where to put the camera ----
+   *
+   *  Framing used to be a hand-tuned constant per page (`r:26`), guessed against
+   *  one molecule at one viewport, and the extent maths behind it was copied
+   *  between pages. Both belong here: how large a molecule is, and how far back
+   *  you must stand to see it, are properties of the geometry and the lens — not
+   *  decisions a lesson should have an opinion about.
+   */
+
+  // Bounding-box centre of a spec, INCLUDING display radii. This is the point to
+  // spin about: a spec's coordinates sit around wherever its build started (a
+  // ring's centre, a chain's first atom), which is not the middle of the
+  // finished molecule, and turning about that makes it orbit rather than rotate.
+  // Bounding box rather than mean atom position, which dense clusters of
+  // hydrogens drag off-centre.
+  function centerOf(spec){
+    const P=global.MolLib.PALETTE.radii;
+    const lo=[Infinity,Infinity,Infinity], hi=[-Infinity,-Infinity,-Infinity];
+    spec.atoms.forEach(a=>{ const R=P[a.el]||0.7;
+      for(let k=0;k<3;k++){ lo[k]=Math.min(lo[k],a.pos[k]-R); hi[k]=Math.max(hi[k],a.pos[k]+R); } });
+    return lo.map((v,k)=>(v+hi[k])/2);
+  }
+
+  // How much room a molecule needs, measured about its own centre.
+  //
+  //   rxz    horizontal radius about the vertical spin axis — the extent that
+  //          matters once it is turning, because a turntable sweeps a CYLINDER,
+  //          not a sphere. Framing the sphere (the obvious first guess) treats
+  //          the tallest point as though it could also swing out sideways, and
+  //          costs roughly a third of the molecule's size on screen.
+  //   hy     half-height, which a vertical spin never changes.
+  //   radius full 3D radius — for anything tumbling on more than one axis.
+  //   span   widest heavy-atom centre separation in REAL angstroms (the display
+  //          scale divided out), i.e. the figure an instrument would agree with.
+  //          Heavy atoms only: an -OH is a free rotor, so counting its hydrogen
+  //          reports how the spec happens to be drawn, not how big it is.
+  function measure(spec, opts={}){
+    const P=global.MolLib.PALETTE.radii;
+    const O=opts.center||centerOf(spec);
+    const skip=new Set(opts.skip||[]);
+    let rxz=0, hy=0, radius=0;
+    spec.atoms.forEach((a,i)=>{
+      if(skip.has(i)) return;
+      const R=P[a.el]||0.7;
+      const x=a.pos[0]-O[0], y=a.pos[1]-O[1], z=a.pos[2]-O[2];
+      rxz=Math.max(rxz, Math.hypot(x,z)+R);
+      hy =Math.max(hy,  Math.abs(y)+R);
+      radius=Math.max(radius, Math.hypot(x,y,z)+R);
+    });
+    const heavy=spec.atoms.filter(a=>a.el!=='H');
+    let span=0;
+    for(let i=0;i<heavy.length;i++)
+      for(let j=i+1;j<heavy.length;j++){
+        const a=heavy[i].pos, b=heavy[j].pos;
+        span=Math.max(span, Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]));
+      }
+    return { rxz, hy, radius, span:span/(global.MolLib.SCALE||1.9), center:O };
+  }
+
+  // Solve the camera distance that fits `boxes`, instead of guessing a constant.
+  //
+  //   boxes  [{x,y,rxz,hy}]  each item's centre and half-extents (from measure)
+  //   opts   {pad, top, bottom, min, max}  pad is slack (1.12 = 12%);
+  //          top/bottom reserve world-space bands for captions above/below.
+  //
+  // Solved per AXIS against the real frustum, not as one circumscribing radius:
+  // a row of molecules is far wider than it is tall, and fitting its bounding
+  // circle pulls back far enough to show empty space above and below. The
+  // horizontal half-angle shrinks with aspect < 1, so the tighter axis wins —
+  // which is why a constant tuned on a wide monitor crops on a laptop.
+  function frame(camera, cam, boxes, opts={}){
+    const o=Object.assign({pad:1.12, top:0, bottom:0, min:6, max:220}, opts);
+    if(!boxes.length || !isFinite(camera.aspect) || !camera.aspect) return cam.r;
+    const hw=Math.max(...boxes.map(b=>Math.abs(b.x||0)+b.rxz));
+    const hh=Math.max(...boxes.map(b=>Math.max( (b.y||0)+b.hy+o.top,
+                                               -(b.y||0)+b.hy+o.bottom)));
+    const tan=Math.tan(camera.fov*Math.PI/360);
+    const d=Math.max(hh/tan, hw/(tan*camera.aspect))*o.pad;
+    cam.r=Math.max(o.min, Math.min(o.max, d));
+    return cam.r;
   }
 
   /* ---- the stage: renderer + scene + camera + orbit + resize ---- */
@@ -212,5 +307,6 @@
   }
 
   global.Stage={ create, setToon, atomMat, bondMat, glowMat, atom, bond,
-    buildMolecule, removeAtoms, setOptionalH, Rsphere, get toon(){return toon;} };
+    buildMolecule, removeAtoms, setOptionalH, measure, frame, centerOf,
+    Rsphere, get toon(){return toon;} };
 })(this);
