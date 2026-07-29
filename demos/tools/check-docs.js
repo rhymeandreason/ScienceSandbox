@@ -132,7 +132,11 @@ for (const doc of DOCS) {
 
 // Docs sometimes write a path from the repo root rather than from demos/.
 const norm = n => n.replace(/^demos\//, '');
-const exists = n => fs.existsSync(path.join(ROOT, norm(n)));
+// Prose names a script the way a reader says it — `check-molecules.js` lives at
+// the top level and `check-docs.js` in tools/, and neither gets a directory in
+// running text. So resolve a bare name against both.
+const SEARCH = ['.', 'tools'];
+const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
 for (const [n, docs] of [...named].sort()) {
   const where = [...docs].join(', ');

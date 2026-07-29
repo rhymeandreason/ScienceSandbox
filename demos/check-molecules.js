@@ -5,53 +5,36 @@
  *  Run:  node check-molecules.js          (exits non-zero on failure)
  *
  *  Why this exists: the display radii in PALETTE are stylised and LARGE
- *  relative to the bond lengths. If a bond is shorter than the sum of the
- *  two atoms' radii, the spheres merge and the bond stick vanishes inside
- *  them — the molecule renders as a blob and students can't read the
- *  bonds off it. Ethanol shipped that way: its O–H was 1.00 against radii
- *  summing to 1.50, because its geometry had been written at realistic
- *  ångström lengths while every other molecule used the stylised scale
- *  (water's O–H is 1.55 vs the same 1.50, clearing by 0.05).
- *
- *  So: every bonded pair must clear, every NON-bonded pair within a
+ *  relative to the bond lengths, so a bond shorter than the sum of its two
+ *  atoms' radii has its stick swallowed by the spheres and renders as a
+ *  blob. So: every bonded pair must clear, every NON-bonded pair within a
  *  molecule must not overlap either, and bond angles are printed so a new
  *  molecule's shape can be eyeballed against its real VSEPR geometry.
  *  Run this after adding or editing anything in MOLECULES.
  *
  *  It also audits the DISTINGUISHING-FEATURE CLAIMS a spec declares — the
- *  error class nothing else here can see, because a wrong stereocentre has
- *  perfect bond lengths, textbook angles, and renders beautifully. Glucose
- *  shipped with its substituents alternating axial/equatorial around the ring
- *  — not glucose, and at C5 not even D-. Only measuring each substituent
- *  against the ring axis catches it.
+ *  error class nothing above can see, because a wrong stereocentre has perfect
+ *  bond lengths, textbook angles, and renders beautifully. It is only caught
+ *  when a spec DECLARES what it should be, so the declaration is not optional
+ *  decoration; SCIENCE.md §1.3 has the two incidents that established this.
  *
  *  Four declarations, each FAILing if the geometry disagrees (SCIENCE.md §1.4
  *  is the reference; add a new claim type here in the same commit that adds
  *  the molecule making the claim):
  *
- *    stereo:'all-equatorial'      every ring substituent equatorial — the
- *                                 β-D-glucopyranose arrangement that makes
- *                                 glucose the most stable hexose.  [glucose]
- *    stereo:{ axial:[i,…] }       exactly these ring atoms axial, all others
- *                                 equatorial. Galactose is one flip from
- *                                 glucose, and that flip is the lesson.
+ *    stereo:'all-equatorial'      every ring substituent equatorial  [glucose]
+ *    stereo:{ axial:[i,…] }       exactly these ring atoms axial, every other
+ *                                 one equatorial                 [galactose]
  *    stereo:{ faces:{i:'a',…} }   which substituents share a ring face, for a
  *                                 furanose too flat for axial/equatorial to
- *                                 mean anything. Checked as a RELATIVE
- *                                 pattern — the normal's sign is arbitrary —
- *                                 so it cannot catch a global mirror.
- *                                 [ribose, deoxyribose]
+ *                                 mean anything. RELATIVE pattern only — the
+ *                                 normal's sign is arbitrary, so this cannot
+ *                                 catch a global mirror   [ribose, deoxyribose]
  *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that a
- *               fused:true }      bicycle shares an edge.  [purine/pyrimidine]
+ *               fused:true }      bicycle shares an edge  [purine/pyrimidine]
  *    chirality:'L'                signed volume over CIP priorities
- *                                 N > C(carboxyl) > R > H. Amino acids only
- *                                 (requires `pep`). A mirror image is
- *                                 invisible to every other check here: the
- *                                 PubChem converter shipped D- because its
- *                                 reframe negated one output component, a
- *                                 reflection rather than a rotation, and
- *                                 nothing noticed until someone computed a
- *                                 signed volume.
+ *                                 N > C(carboxyl) > R > H. Requires `pep`, so
+ *                                 amino acids only        [the amino acids]
  *
  *  A spec with no declaration gets its ring pattern printed for eyeballing.
  * ===================================================================== */

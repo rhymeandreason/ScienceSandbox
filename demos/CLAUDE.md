@@ -184,12 +184,9 @@ These docs are load-bearing: they are the only record of *why* a constant, a
 geometry or a module boundary is what it is, so a stale one actively misleads.
 Every doc error this project has shipped was the same shape — **an enumeration
 that grew a new member and wasn't updated**. Not prose going out of date; a
-list, table or index that claims to be complete and silently isn't. A page was
-added and the script table didn't say so; `stereo:` grew `{axial}` and `{faces}`
-while two files still said it understood only `all-equatorial`; §13 was written
-and the index still stopped at §12.
+list, table or index that claims to be complete and silently isn't.
 
-Three of these are mechanically checkable, so they are checked:
+Most of those are now mechanically checked:
 
 ```bash
 node tools/check-docs.js
@@ -210,32 +207,33 @@ the stale `stereo:` vocabulary. The rest is on the reader:
 > and update it in the same commit.** A doc claim gets asserted the same way a
 > chemical claim does (§1.4, rule 2): in the commit that makes it true.
 
-**The enumerations, and what invalidates each:**
+**The enumerations, and what invalidates each.** ✓ = `check-docs.js` catches it,
+so you do not have to remember; the unmarked rows are the ones that need you.
 
-| Enumeration | Goes stale when you… |
-|---|---|
-| `CLAUDE.md` → Pages table | add or repurpose a `*-lab.html` |
-| `CLAUDE.md` → per-page script table | change any page's `<script>` tags |
-| `CLAUDE.md` → module index table | add a module, or add/rename an exported entry point |
-| `CLAUDE.md` → `SCIENCE.md` section index | add a `## n.` section to `SCIENCE.md` |
-| `SCIENCE.md` §1.2 | add a *third-party* geometry source or converter |
-| `SCIENCE.md` §1.4 declaration table | teach `check-molecules.js` a new claim type |
-| `SCIENCE.md` §1.4 contrast table | build one of the unbuilt pairs (flip its Built column) |
-| `SCIENCE.md` §1.5 family table | add a spec, or change `SCALE` / the `GL` constants |
-| `SCIENCE.md` §9 effect + colour tables | add an `fx.js` primitive or wire an effect to a new event |
-| `check-molecules.js` header | add a claim type or a new audit |
-| `MolLib.VIEW` table | add a shared viewing angle |
+| Enumeration | Goes stale when you… | |
+|---|---|---|
+| `CLAUDE.md` → per-page script table | change any page's `<script>` tags | ✓ |
+| `CLAUDE.md` → `SCIENCE.md` section index | add a `## n.` section to `SCIENCE.md` | ✓ |
+| any doc's file references | rename or delete a file | ✓ |
+| `CLAUDE.md` → Pages table | add or repurpose a `*-lab.html` | |
+| `CLAUDE.md` → module index table | add a module, or add/rename an exported entry point | |
+| `SCIENCE.md` §1.2 | add a geometry source or converter | |
+| `SCIENCE.md` §1.4 declaration table | teach `check-molecules.js` a new claim type | |
+| `SCIENCE.md` §1.4 contrast table | build one of the unbuilt pairs (flip its Built column) | |
+| `SCIENCE.md` §1.5 family table | add a spec, or change `SCALE` / the `GL` constants | |
+| `SCIENCE.md` §9 effect + colour tables | add an `fx.js` primitive or wire an effect to a new event | |
+| `check-molecules.js` header | add a claim type or a new audit | |
+| `MolLib.VIEW` table | add a shared viewing angle | |
 
-**Checklist by change type:**
+**Checklist for the unchecked ones:**
 
-- **New page** → Pages table, script table, and a `##` section in `SCIENCE.md` if
-  the page makes decisions a future reader would otherwise reverse.
+- **New page** → Pages table, and a `##` section in `SCIENCE.md` only if the page
+  constrains shared code or another page. Decisions internal to the page belong
+  in a comment block at the top of the page, where the invalidating edit happens.
 - **New molecule** → §1.4 (what tier, what does it assert), §1.5 (which family),
   and the assertion itself, all in one commit. §1.4 rule 2 is not optional.
 - **New claim type in `check-molecules.js`** → §1.4's declaration table *and* the
   script's own header. They drifted apart once already.
-- **Renamed or deleted file** → `grep -rn 'oldname' *.md *.js` before committing.
-  `water.html` outlived its rename by months.
 - **Changed a constant with a reason** → the reason lives in the doc, not the
   commit message. Nobody greps git log for why `SCALE` is 1.9.
 
@@ -243,6 +241,44 @@ the stale `stereo:` vocabulary. The rest is on the reader:
 softened — SCIENCE.md's value is that every line in it is currently true. If a
 decision was reversed, say so and why; that is the one case where history earns
 its space (§1.5 is the model).
+
+### When a checker lands, retire the prose it replaces
+
+The docs carry war stories — the ethanol bond length, the mirrored amino acids,
+the family-A glucose — because a bug that could recur is worth more than the
+lines it costs. But a story stops earning its space the moment something catches
+the bug for you. So:
+
+> **When a rule becomes mechanically enforced, cut its story to the rule.** The
+> checker is the better documentation: it can't go stale and it fires without
+> being read.
+
+The test is whether enforcement is **unconditional**:
+
+- **Unconditional** — every spec is checked whether or not it opts in (merged
+  spheres, non-bonded overlap, doc file references, the script table). Story
+  retires; state the rule in one line.
+- **Conditional on a declaration** — only checked if someone writes `stereo:` or
+  `chirality:` (§1.4). The prose still has to argue for declaring, so the story
+  **stays**. This is why §1.3 keeps both incidents at length.
+- **Unenforced** — scale families, size-across-hydrogens, *cis*/*trans*, and
+  whether any prose is actually true. Story stays, and is the only defence.
+
+**Write for an agent, not for a newcomer.** An agent reads the code accurately
+and fast, so prose describing *what the code does* is worse than absent — it goes
+stale and gets believed over the source. Spend the words on what code cannot
+state: intent, alternatives already rejected, invariants that span files, and
+failures that would otherwise be repeated. Mechanism goes in the code.
+
+Where a fact belongs follows from **which edit invalidates it**: one file → a
+comment in that file; several → a doc. Never both — the `stereo:` vocabulary
+drifted precisely because it lived in two places.
+
+Budget note: **CLAUDE.md is read on every task**, whether or not it's relevant,
+so its job is routing and prohibitions — not explanation. `SCIENCE.md` is read on
+demand and can afford length; optimise it for navigability instead. If CLAUDE.md
+grows in proportion to the number of pages, it is holding something that belongs
+in a page comment or a `SCIENCE.md` section.
 
 ## Later
 glycolysis-lab ending fork — pyruvate ×2 sitting there, two doors: O₂ present → Krebs, absent → fermentation. Not built; it's the hook to the next lesson.

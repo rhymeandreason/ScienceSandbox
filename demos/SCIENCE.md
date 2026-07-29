@@ -46,9 +46,7 @@ question is whether its shape follows from **one or two known constants** or
    pyruvate, HPO₄²⁻), and it produces the deliberate flat Fischer-projection
    layout the lesson wants. Don't "upgrade" these to PubChem — it's a downgrade.
 
-Whatever the source, run `check-molecules.js`. It caught a double bond that was
-correctly tagged but rendered as nothing, which reading the spec would never
-reveal.
+Whatever the source, run `check-molecules.js`.
 
 ### 1.3 Stereochemistry is the error nothing else catches
 
