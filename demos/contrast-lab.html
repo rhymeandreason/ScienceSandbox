@@ -67,7 +67,9 @@
     cursor:pointer;border:2px solid var(--ink);background:transparent;color:var(--ink)}
   #modeactions button:hover{background:rgba(0,0,0,.05)}
   #modeactions button.on{background:var(--ink);color:var(--panel)}
-  #htoggle{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.75;cursor:pointer;flex-basis:100%}
+  #htoggle{position:absolute;right:28px;bottom:26px;z-index:5;display:flex;align-items:center;gap:6px;
+    font-size:13px;opacity:.75;cursor:pointer;background:rgba(255,255,255,.66);
+    border:1.5px solid var(--hair);border-radius:8px;padding:7px 11px}
 
   #card{border-top:1.5px dashed var(--hair);padding-top:16px}
   .verdict{font-family:var(--font-slab);font-weight:700;font-size:13px;color:var(--muted);
@@ -89,6 +91,7 @@
     <div id="noteR" class="molnote"></div>
     <div id="lesson"></div>
     <div id="stats"></div>
+    <label id="htoggle"><input type="checkbox" id="showh"> show C–H hydrogens</label>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
 
@@ -102,7 +105,6 @@
     <div id="library"></div>
     <div id="modeactions">
       <button id="diffbtn">Show the difference</button>
-      <label id="htoggle"><input type="checkbox" id="showh"> show C–H hydrogens</label>
     </div>
     <div id="card"></div>
   </div>
@@ -142,7 +144,6 @@
 
 /* ---------- shared stage (scene.js) ---------- */
 const canvas=document.getElementById('gl');
-let userSpun=false;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   // Face-on by default, NOT the livelier three-quarter angle the other pages
   // open at. Two molecules side by side at an oblique angle are at different
@@ -244,8 +245,9 @@ const built={};
 PAIRS.forEach(p=>membersOf(p).forEach(k=>{
   const spec=specOf(k);
   // center:true puts the group's origin at the middle of the molecule so it
-  // turns on the spot, and buildMolecule sets the YXZ rotation order that keeps
-  // a leaned molecule spinning upright. Both used to be done by hand here.
+  // turns on the spot when dragged, and buildMolecule sets the YXZ rotation
+  // order that keeps a leaned molecule spinning upright. Both used to be done
+  // by hand here.
   const g=Stage.buildMolecule(spec,{center:CENTER[k]});
   g.userData.atomMeshes.forEach(m=>{ if(m) m.userData.baseColor=m.material.color.getHex(); });
   g.userData.bondMeshes.forEach(m=>m.traverse(o=>{ if(o.isMesh) o.userData.baseColor=o.material.color.getHex(); }));
@@ -323,11 +325,11 @@ function posOf(k){
   // half-width plus half the gutter out from the middle. (Offsetting the centres
   // by GAP instead leaves the two overlapping whenever a molecule is wider than
   // the gutter — which every one of these is.)
-  // Spaced on each molecule's BOUNDING RADIUS, not its x half-width. These
-  // molecules turn — the idle turntable never stops unless the user grabs one —
-  // so an extent measured on the spec's static orientation is only correct for
-  // the one frame it was measured in. Half a turn later the pair overlaps and
-  // the edges clip. The radius is the only number that holds at every angle.
+  // Spaced on each molecule's BOUNDING RADIUS, not its x half-width. A drag
+  // can turn either molecule to any angle, so an extent measured on the
+  // spec's static orientation is only correct for the one frame it was
+  // measured in. Half a turn later the pair overlaps and the edges clip. The
+  // radius is the only number that holds at every angle.
   const [a,b]=ks;
   return k===a ? V(-(GAP/2+EXT[a].rxz),LIFT,0) : V(GAP/2+EXT[b].rxz,LIFT,0);
 }
@@ -415,7 +417,7 @@ function placeNames(){
  * still. Each one turns on the spot, about its own centre, in lockstep.        */
 let drag=null;
 canvas.addEventListener('pointerdown',e=>{
-  drag={x:e.clientX,y:e.clientY}; userSpun=true;
+  drag={x:e.clientX,y:e.clientY};
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove',e=>{
@@ -511,7 +513,6 @@ function refresh(){
 // would stop being comparable at exactly the moment it is moving — which is when
 // a student is trying to match one against the other.
 function loop(){
-  if(!userSpun){ spin+=0.0022; applySpin(); }
   placeNames();
   renderer.render(scene,camera);
   requestAnimationFrame(loop);
