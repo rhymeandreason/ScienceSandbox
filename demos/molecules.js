@@ -8,6 +8,46 @@
  *  PALETTE is the single source of truth for atom + bond colours.
  *  MOLECULES will hold the declarative specs (geometry + charge sites +
  *  solute class) that drive buildMolecule() and the solvation physics.
+ *
+ * ---------------------------------------------------------------------
+ *  BOND-LENGTH SCALE FAMILIES — read this before putting two molecules
+ *  from different sections on the same screen.
+ * ---------------------------------------------------------------------
+ *  There is ONE hard rule, and check-molecules.js enforces it: a bond must
+ *  be longer than the sum of its two atoms' display radii, or the spheres
+ *  swallow the stick and the molecule renders as a blob. Display radii here
+ *  are stylised and LARGE, so no spec can use true ångströms.
+ *
+ *  How each section satisfies that rule is NOT the same, and that is the
+ *  trap. Two families live in this file:
+ *
+ *    A. HAND-WRITTEN (water, ethanol, ammonia, methane, CO₂, carbonic,
+ *       bicarbonate, hydronium — the solvation pages).
+ *       Each length was chosen individually to clear its radii. Water's O–H
+ *       is 1.55 against radii summing to 1.50. Implied scale runs ~1.2–1.6×
+ *       and varies WITHIN a molecule (ethanol: C–C 1.19×, C–O 1.33×,
+ *       O–H 1.61×). There is no proportionality claim, and there cannot be
+ *       one: water-lab.html and molecule-lab.html hard-code HL=1.55 and tune
+ *       their entire solvation engine around it (EQ, MIN, hbThreshold, the
+ *       ice lattice spacing). Rescaling water means re-tuning that physics.
+ *       Do not touch this family to make some other page tidy.
+ *
+ *    B. DERIVED (the amino acids, palmitate, amp, and everything the Skel
+ *       builder makes — glucose and the glycolysis intermediates).
+ *       Real ångströms × ONE global factor, SCALE = 1.9. Relative lengths
+ *       are truthful, so these molecules are comparable to each other.
+ *
+ *  THE INVARIANT: a single page may only show molecules from ONE family.
+ *  Every page satisfies this — water-lab and molecule-lab are family A,
+ *  aminoacid-lab / glycolysis-lab / macromolecule-lab are family B.
+ *
+ *  This was learned the expensive way. The Skel table (GL, further down)
+ *  used to be family A while the amino acids were family B; nothing showed
+ *  it, because no page mixed them. macromolecule-lab.html then put Skel
+ *  glucose beside PubChem alanine and AMP under the words "true relative
+ *  size", and glucose was ~0.7× everything around it. GL is now family B.
+ *  If you add a page that shows a solvation molecule next to a derived one,
+ *  that is a new problem and it needs solving here, not on the page.
  * ===================================================================== */
 (function(global){
   'use strict';
@@ -47,8 +87,9 @@
   // Each entry:
   //   name, formula
   //   class    — 'solvent' | 'ionic' | 'polar' | 'nonpolar'
-  //   atoms    — [{el, pos:[x,y,z]}]  local positions (bond lengths are
-  //              stylised ~1.5–1.9, matching water's exaggerated O–H)
+  //   atoms    — [{el, pos:[x,y,z]}]  local positions. These are family A
+  //              (hand-written, per-bond, matching water's exaggerated O–H) —
+  //              see the scale-families note at the top of this file.
   //   bonds    — [[i,j], …]  indices into atoms
   //   sites    — { donors:[{atom}], acceptors:[{atom, lonePairs}] }
   //              donor = a δ+ H that can point into water; acceptor = a
@@ -243,6 +284,21 @@
       optH:[4,10,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      // alanine doubles as the PROTEIN monomer in macromolecule-lab.html's
+      // gallery, so it carries the same `groups` index map the other three
+      // monomers do. Indices are the fixed backbone order (see above) —
+      // regenerating this spec must not renumber them.
+      mono:'protein',
+      groups:[
+        { key:'amino', label:'Amino group', formula:'–NH₂', atoms:[0,1,2],
+          note:'The nitrogen end. Every amino acid has one, and it is where the next residue attaches.' },
+        { key:'carboxyl', label:'Carboxyl group', formula:'–COOH', atoms:[5,6,7,8],
+          note:'The acid end. Its –OH is what leaves as water when a peptide bond forms.' },
+        { key:'alpha', label:'α-carbon', formula:'Cα', atoms:[3,4],
+          note:'One carbon carrying all four: amino, carboxyl, an H, and the side chain. Four different groups means it is chiral — and life uses only the L form.' },
+        { key:'side', label:'Side chain', formula:'R = –CH₃', atoms:[9,10,11,12],
+          note:'The only part that differs between the twenty amino acids. Everything a protein does traces back to which R groups sit where.' },
+      ],
     },
     serine: {
       name:'Serine', formula:'C₃H₇NO₃', class:'aminoacid', res:'Ser', side:'–CH₂OH',
@@ -286,6 +342,132 @@
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
+
+    /* -------------------------------------------------------------------
+     *  MACROMOLECULE MONOMERS  (macromolecule-lab.html)
+     * -------------------------------------------------------------------
+     *  One representative monomer per class, for the four-class comparison
+     *  gallery. Two of the four are specs that already existed and were reused
+     *  rather than duplicated: the protein monomer is `alanine` above, and the
+     *  carbohydrate is `glucose` in the glycolysis section below. Only the
+     *  lipid and the nucleotide are new.
+     *
+     *  Each carries a `groups` map: the functional groups the gallery labels,
+     *  as {key, label, formula, atoms:[…], note}. This is the same kind of
+     *  index contract as `pep` / `gly` (SCIENCE.md §1, rule 4) — the page
+     *  addresses atoms by position, so a reindex would silently mislabel
+     *  chemistry rather than crash. Regenerate; don't renumber by hand.
+     * ------------------------------------------------------------------- */
+
+    //  The CARBOHYDRATE monomer is `glucose`, built in the glycolysis section
+    //  below — one glucose in the library, not two. It gained `groups`, `optH`
+    //  and its C–H there rather than being duplicated here.
+    //
+    // — LIPID. SCHEMATIC ON PURPOSE (SCIENCE.md §1, "derive when shape carries
+    //   the lesson; schematize when topology does"). A real palmitate conformer
+    //   is floppy and renders as spaghetti; the lesson here is "long nonpolar
+    //   tail, one small polar head", which an idealised all-anti zigzag shows
+    //   far better. So: 16 carbons at a real 109.5° C–C–C, planar, united-atom
+    //   (the CH₂'s are single C spheres, the same convention ethanol uses).
+    //   SATURATED deliberately — SCIENCE.md §1 notes that nothing yet asserts a
+    //   double bond is *cis*, and the cis kink is the entire point of the
+    //   unsaturated contrast, so that molecule waits for a torsion check.
+    //   Drawn as the neutral acid so the –COOH head is legible; at cell pH it is
+    //   really the carboxylate, palmitate.
+    palmitate: {
+      name:'Palmitic acid', formula:'C₁₆H₃₂O₂', class:'lipid', mono:'lipid',
+      atoms:[ {el:'C',pos:[-15.099,-0.47,0]},
+              {el:'C',pos:[-12.71,1.218,0]},
+              {el:'C',pos:[-10.32,-0.47,0]},
+              {el:'C',pos:[-7.931,1.218,0]},
+              {el:'C',pos:[-5.541,-0.47,0]},
+              {el:'C',pos:[-3.152,1.218,0]},
+              {el:'C',pos:[-0.762,-0.47,0]},
+              {el:'C',pos:[1.627,1.218,0]},
+              {el:'C',pos:[4.017,-0.47,0]},
+              {el:'C',pos:[6.406,1.218,0]},
+              {el:'C',pos:[8.796,-0.47,0]},
+              {el:'C',pos:[11.185,1.218,0]},
+              {el:'C',pos:[13.575,-0.47,0]},
+              {el:'C',pos:[15.964,1.218,0]},
+              {el:'C',pos:[18.354,-0.47,0]},
+              {el:'C',pos:[20.743,1.218,0]},
+              {el:'O',pos:[-17.222,0.508,0]},
+              {el:'O',pos:[-14.863,-3.043,0]},
+              {el:'H',pos:[-13.065,-3.45,0]} ],
+      bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],
+              [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
+      hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+      groups:[
+        { key:'carboxyl', label:'Carboxyl head', formula:'–COOH', atoms:[0,16,17,18],
+          note:'The only polar part of the whole molecule — one water-friendly end on a sixteen-carbon chain.' },
+        { key:'tail', label:'Hydrocarbon tail', formula:'–(CH₂)₁₄CH₃',
+          atoms:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+          note:'Carbon and hydrogen only: no charge, no H-bonds. Water closes ranks and squeezes it out — that is what "hydrophobic" means.' },
+        { key:'saturated', label:'Saturated', formula:'no C=C', atoms:[],
+          note:'Every C–C is single, so the chain lies straight and packs tightly — solid at room temperature. One cis double bond would kink it, and that is an oil.' },
+      ],
+    },
+
+    // — NUCLEIC ACID. Derived from the PubChem 3D record for AMP
+    //   (tools/sdf2spec-generic.js): the furanose ring shape and the 2′-OH are
+    //   the claims, and the 2′-OH is exactly the one atom that separates RNA
+    //   from DNA. Drawn as the dianion the record supplies — accurate at
+    //   cytosolic pH, and the same convention the glycolysis phosphates use.
+    amp: {
+      name:'Adenosine monophosphate', formula:'C₁₀H₁₂N₅O₇P²⁻', class:'nucleotide', mono:'nucleic acid',
+      atoms:[ {el:'P',pos:[-6.419,-4.966,-4.143]},
+              {el:'O',pos:[-2.061,-1.359,1.881]},
+              {el:'O',pos:[-1.333,5.382,2.698]},
+              {el:'O',pos:[-4.964,2.545,5.027]},
+              {el:'O',pos:[-5.496,-3.81,-1.372]},
+              {el:'O',pos:[-5.993,-7.82,-3.868]},
+              {el:'O',pos:[-4.679,-3.696,-6.084]},
+              {el:'O',pos:[-9.209,-4.207,-4.362]},
+              {el:'N',pos:[1.837,0.612,0.765]},
+              {el:'N',pos:[4.427,-0.512,-2.398]},
+              {el:'N',pos:[4.83,2.848,3.476]},
+              {el:'N',pos:[9.085,2.868,1.635]},
+              {el:'N',pos:[10.031,0.892,-2.35]},
+              {el:'C',pos:[-2.134,3.123,1.489]},
+              {el:'C',pos:[-4.745,2.253,2.339]},
+              {el:'C',pos:[-0.501,0.86,2.242]},
+              {el:'C',pos:[-4.69,-0.575,1.708]},
+              {el:'C',pos:[-5.64,-1.153,-0.962]},
+              {el:'C',pos:[4.184,1.533,1.39]},
+              {el:'C',pos:[2.083,-0.602,-1.527]},
+              {el:'C',pos:[5.76,0.818,-0.594]},
+              {el:'C',pos:[8.298,1.535,-0.421]},
+              {el:'C',pos:[7.328,3.433,3.43]},
+              {el:'H',pos:[-2.106,3.424,-0.571]},
+              {el:'H',pos:[-6.297,3.314,1.455]},
+              {el:'H',pos:[0.059,0.921,4.248]},
+              {el:'H',pos:[-5.743,-1.716,3.095]},
+              {el:'H',pos:[-4.464,-0.208,-2.394]},
+              {el:'H',pos:[-7.611,-0.529,-1.183]},
+              {el:'H',pos:[-1.459,5.129,4.524]},
+              {el:'H',pos:[-6.62,1.889,5.519]},
+              {el:'H',pos:[0.502,-1.507,-2.477]},
+              {el:'H',pos:[8.024,4.502,5.049]},
+              {el:'H',pos:[9.448,-0.103,-3.886]},
+              {el:'H',pos:[11.866,1.434,-2.181]} ],
+      bonds:[ [0,4],[0,5],[0,6],[0,7,2],[1,15],[1,16],[2,13],[2,29],[3,14],[3,30],
+              [4,17],[8,15],[8,18],[8,19],[9,19,2],[9,20],[10,18,2],[10,22],[11,21],
+              [11,22,2],[12,21],[12,33],[12,34],[13,14],[13,15],[13,23],[14,16],
+              [14,24],[15,25],[16,17],[16,26],[17,27],[17,28],[18,20],[19,31],
+              [20,21,2],[22,32] ],
+      optH:[23,24,25,26,27,28,31,32],   // nonpolar C–H; the O–H / N–H are never optional
+      groups:[
+        { key:'phosphate', label:'Phosphate', formula:'–PO₄', atoms:[0,4,5,6,7],
+          note:'Negatively charged, and the piece that links one nucleotide to the next — the sugar–phosphate backbone.' },
+        { key:'sugar', label:'Five-carbon sugar', formula:'ribose', atoms:[1,13,14,15,16,17],
+          note:'A furanose: five-membered, unlike glucose’s six. Every nucleotide is phosphate + this sugar + a base.' },
+        { key:'twooh', label:'The 2′–OH', formula:'–OH', atoms:[2,29],
+          note:'This single hydroxyl is the whole difference between RNA and DNA. Remove it (deoxyribose) and the strand becomes far harder to break — which is why DNA is the archive.' },
+        { key:'base', label:'Nitrogenous base', formula:'adenine', atoms:[8,9,10,11,12,18,19,20,21,22],
+          note:'Two fused rings — a purine. The base is the letter; the phosphate and sugar are just the tape it is written on.' },
+      ],
+    },
   };
 
   /* =====================================================================
@@ -321,10 +503,30 @@
    *      solvation engine).
    */
 
-  // Stylised bond lengths, same scale convention as everything above: each MUST
-  // exceed the sum of the two display radii or the spheres swallow the stick.
-  //   C+C 1.70 · C+O 1.80 · O+H 1.50 · O+P 1.95 · C+H 1.40
-  const GL = { CC:1.95, CO:1.95, OH:1.60, OP:2.10, PO:2.10, CH:1.60 };
+  // Bond lengths: REAL ångströms × SCALE — the derived scale family (see the
+  // "Bond-length scale families" note at the top of this file).
+  //
+  // These used to be picked one at a time to just clear the display radii
+  // (C+C 1.70 · C+O 1.80 · O+H 1.50 · O+P 1.95 · C+H 1.40), which is the
+  // hand-written family's rule. It kept every stick visible and was internally
+  // fine — this page only ever shows its own specs — but it made C–C and C–O
+  // the SAME length when C–O is really the shorter of the two, used one number
+  // for both C–O and C=O, and put the whole page at ~0.7× the derived specs.
+  // That last one only surfaced when macromolecule-lab.html put this glucose
+  // next to alanine and AMP under the words "true relative size".
+  //
+  // Every value below still clears its radii sum by a wide margin (the tightest
+  // is O–H at 1.84 against 1.50); check-molecules.js asserts that.
+  const SCALE = 1.9;                    // the shared factor, as in tools/sdf2spec.js
+  const GL = {
+    CC: 1.54*SCALE,   // 2.93  C–C single
+    CO: 1.43*SCALE,   // 2.72  C–O single (hydroxyl, phosphate ester bridge)
+    CdO:1.23*SCALE,   // 2.34  C=O — and the carboxylate C–O⁻, which is nearly it
+    OH: 0.97*SCALE,   // 1.84  O–H
+    CH: 1.09*SCALE,   // 2.07  C–H
+    OP: 1.60*SCALE,   // 3.04  P–O ester (the bridging oxygen)
+    PO: 1.50*SCALE,   // 2.85  P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
+  };
   const TET = 109.5, SP2 = 120;
 
   const V  = (x,y,z)=>({x,y,z});
@@ -438,7 +640,7 @@
     return o;
   };
   Skel.prototype.carbonyl=function(i,slot){                 // C=O (double bond)
-    return this.grow(i,'O',GL.CO,'sp2',slot,2);
+    return this.grow(i,'O',GL.CdO,'sp2',slot,2);
   };
   // –O–PO₃²⁻ : a bridging ester O, then a tetrahedral P with three more O's.
   // Returns the P index — the page uses it as the effect anchor, because the P
@@ -486,8 +688,14 @@
   // as wrong for a pyranose as a linear water is for H₂O). C6 is exocyclic on C5.
   function ringPyranose(){
     const s=new Skel(), R=GL.CC;             // regular hexagon: side = circumradius
+    // Pucker is a FRACTION of the ring, not a fixed offset: it was 0.34 when
+    // GL.CC was 1.95, and leaving it absolute after the rescale would have
+    // flattened the chair toward a hexagon as the ring grew. `equatorial()`
+    // picks substituent slots off this pucker, so a flatter ring is not a
+    // cosmetic difference — it is what decides which stereoisomer gets built.
+    const pucker=0.174*R;
     for(let k=0;k<6;k++){ const th=k*Math.PI/3;
-      s.put(k===0?'O':'C', V(R*Math.cos(th), (k%2?0.34:-0.34), R*Math.sin(th))); }
+      s.put(k===0?'O':'C', V(R*Math.cos(th), (k%2?pucker:-pucker), R*Math.sin(th))); }
     for(let k=0;k<6;k++) s.link(k,(k+1)%6);
     return s;
   }
@@ -507,17 +715,47 @@
     // rather than one of its 15 stereoisomers. Passing slot 0 here (as an earlier
     // version did) alternates axial/equatorial around the ring, which is not
     // glucose and, at C5, not even D-.
-    C.forEach(k=>{ if(k<5) g.hydroxyl(k, g.equatorial(k,RING)); });
+    const OH=[];                          // the hydroxyl O's, in C1…C4 then C6 order
+    C.forEach(k=>{ if(k<5) OH.push(g.hydroxyl(k, g.equatorial(k,RING))); });
     const c6=g.grow(5,'C',GL.CC,'sp3',g.equatorial(5,RING));   // C6, exocyclic
-    g.hydroxyl(c6,0);                     // free rotor off the ring — no ax/eq here
+    OH.push(g.hydroxyl(c6,0));            // free rotor off the ring — no ax/eq here
+    // C–H hydrogens. Grown LAST so every index above (cN, c6, the OH's) is
+    // unchanged — glycolysis-lab addresses those by position. Every other spec
+    // on the pathway omits C–H entirely, and this one keeps that look by listing
+    // them all in `optH`: glycolysis-lab hides optional H, macromolecule-lab
+    // offers them behind its toggle. A ring carbon has three bonds already, so
+    // exactly one slot is free; C6 has two.
+    const CH=[];
+    C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
+    CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
     // Rotate to a clear 3D 3/4 chair perspective (ring face tilted towards camera)
     g.rotate(1.05, 0.45, -0.2);
+    // the H on each hydroxyl O is grown immediately after its O, so it is the
+    // next index — asserted rather than assumed, since a Skel change would move it
+    const ohH=OH.map(o=>{
+      const b=g.bonds.find(b=>(b[0]===o||b[1]===o) && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
+      return b[0]===o?b[1]:b[0];
+    });
     GLYCOLYSIS.glucose=g.spec({ name:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',
       // asserted by check-molecules.js — the one property that no bond length,
       // bond angle or screenshot can confirm, and the one that makes it glucose
       stereo:'all-equatorial',
+      optH:CH,                            // nonpolar C–H; the five O–H are never optional
+      mono:'carbohydrate',                // macromolecule-lab.html: the carbohydrate monomer
       gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
-            note:'β-D-glucopyranose — the ring form that dominates in water' } });
+            note:'β-D-glucopyranose — the ring form that dominates in water' },
+      // functional-group index map for macromolecule-lab.html's gallery — the
+      // same kind of contract as `gly` above. Derived from the build variables,
+      // not typed out, so re-ordering the build can't silently mislabel a group.
+      groups:[
+        { key:'hydroxyl', label:'Hydroxyl', formula:'–OH',
+          atoms:[...OH,...ohH],
+          note:'Five of them. Every one is a hydrogen-bond site — which is why sugar dissolves in water.' },
+        { key:'ring', label:'Ring oxygen', formula:'–O–', atoms:[0],
+          note:'The pyranose ring closes through an oxygen, not a sixth carbon.' },
+        { key:'anomeric', label:'Anomeric carbon', formula:'C1', atoms:[1,OH[0],ohH[0]],
+          note:'The one carbon bonded to two oxygens. Its –OH points equatorial here (β); flipping it to axial gives α — and α vs β is the whole difference between starch and cellulose.' },
+      ] });
   }
   {
     // — glucose-6-phosphate: ring has opened to the aldose chain; P on C6.
@@ -583,7 +821,7 @@
     //   amino-acid page draws the neutral –COOH instead, because there the
     //   leaving –OH has to be visible; here nothing leaves, so accuracy wins.)
     const g=chainC(3);
-    g.carbonyl(0,0); g.grow(0,'O',GL.CO,'sp2',0);          // carboxylate: two O's
+    g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // carboxylate: two O's
     g.hydroxyl(1,1);
     const p=g.phosphate(2,0);
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', formula:'C₃H₆O₇P²⁻', class:'sugar',
@@ -593,7 +831,7 @@
     // — pyruvate: the finish line. Three carbons, no phosphate left, and a
     //   methyl at C3 as a united atom (same convention as alanine's –CH₃).
     const g=chainC(3);
-    g.carbonyl(0,0); g.grow(0,'O',GL.CO,'sp2',0);          // C1 carboxylate
+    g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
     g.carbonyl(1,0);                                       // C2 ketone
     GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', formula:'C₃H₃O₃⁻', class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true } });

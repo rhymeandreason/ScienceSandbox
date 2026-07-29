@@ -43,12 +43,6 @@ question is whether its shape follows from **one or two known constants** or
    pyruvate, HPO₄²⁻), and it produces the deliberate flat Fischer-projection
    layout the lesson wants. Don't "upgrade" these to PubChem — it's a downgrade.
 
-**The failure mode to watch for** is not complexity, it's a *scene* requirement
-quietly outranking the chemistry. The old amino-acid specs were laid out so a
-peptide chain would line up neatly along +X, and the α-carbon ended up at 180° —
-a straight line through a tetrahedral centre. Whenever a layout is serving the
-camera or the animation rather than the molecule, assume it has drifted and check.
-
 Whatever the source, run `check-molecules.js`. It caught a double bond that was
 correctly tagged but rendered as nothing, which reading the spec would never
 reveal.
@@ -130,6 +124,62 @@ Rules that follow:
 3. **Source it by the three-way rule above** (hand-write / PubChem / `Skel`).
 4. **Anything a lab manipulates needs an index map** (`pep`, `gly`), because
    reactions address atoms by position and a reindex silently breaks them.
+
+### Bond-length scale families — a page may only show one
+
+Display radii in `PALETTE` are stylised and **large**, so no spec can use true
+ångströms: a bond must exceed the sum of its two atoms' radii or the spheres
+swallow the stick. `check-molecules.js` enforces exactly that, and nothing more.
+
+*How* a spec satisfies it is not uniform across this project, and that is the
+trap. There are two families:
+
+| Family | Specs | Rule | Implied scale |
+|---|---|---|---|
+| **A. hand-written** | water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
+| **B. derived** | amino acids, palmitate, AMP, glucose + all glycolysis intermediates | real Å × one global `SCALE` | **1.9×**, relative lengths truthful |
+
+Family A cannot be normalised, and should not be. `water-lab.html` and
+`molecule-lab.html` hard-code `HL=1.55` and tune the whole solvation engine
+around that scale — `EQ`, `MIN`, `hbThreshold`, the ice lattice `iceBond`.
+Rescaling water means re-tuning that physics for no visible gain, because
+nothing ever shows water beside an amino acid.
+
+**The invariant: one page, one family.** Only family B is comparable
+molecule-to-molecule, so only family B may make a size claim.
+
+This was learned the expensive way, and it is the §1 failure shape exactly — the
+specs were right about everything except the one property a new page depended on.
+The `Skel` table (`GL`) was family A while the amino acids were family B; every
+page drew from a single family, so nothing showed it. Then
+`macromolecule-lab.html` put `Skel` glucose beside PubChem alanine and AMP under
+the words *"true relative size"* and glucose was ~0.7× everything around it — a
+bug no bond-length check, no angle, and no screenshot of any *existing* page
+could have caught. `GL` is now family B.
+
+Two things the fix also corrected, both invisible while the page only compared
+against itself: `GL.CC` and `GL.CO` were the same number (C–O is really the
+shorter bond), and one constant served both C–O and C=O. There is now a separate
+`GL.CdO`.
+
+**Known residual, measured:** `ringPyranose()` builds a *regular* hexagon, so a
+pyranose's ring C–O comes out as long as its ring C–C. Against the real PubChem
+β-D-glucopyranose record that leaves the ring 3.13 Å wide vs 2.90, and the
+heavy-atom span 6.78 Å vs 6.26 — **+8%**, inherited from the ring and consistent
+throughout. Left alone deliberately; closing it means a ring builder with
+alternating bond lengths, which is a rewrite, not a constant.
+
+**Do not measure size across hydrogens.** The first version of
+macromolecule-lab's "Å across" readout took the widest pair over *all* atoms and
+put glucose at 8.3 Å against a real 6.45. The bond lengths were fine — the
+widest pair was two hydroxyl *hydrogens*. `Skel.outwardAt` aims every free
+substituent away from the centroid, so all five O–H splay radially at once; a
+real molecule's hydroxyls rotate freely and never do. An –OH rotamer is
+arbitrary in any static model, so a size figure that depends on one is measuring
+the builder, not the molecule. Heavy atoms only.
+
+If you add a page that must show a solvation molecule next to a derived one,
+that is a new problem — solve it in `molecules.js`, not on the page.
 
 ### Derive when shape carries the lesson; schematize when topology does
 
@@ -541,3 +591,55 @@ its camera in a closure.)
 - **Each covalent lesson ships exactly as many ligands as it has slots.** The limit
   is shown by the open-slot counter and the ghost markers rather than tested by a
   refusal.
+
+## 13. Macromolecule gallery (`macromolecule-lab.html`)
+
+A **comparison** page, not a reaction page: `aminoacid-lab.html` already shows a
+polymer being built one dehydration at a time, so this one covers the step
+before — what the four monomer classes look like next to each other, and which
+functional groups distinguish them. There is no simulation loop.
+
+- **One monomer per class, and the protein monomer is `alanine`** — the spec
+  already in the library, already asserted `chirality:'L'`. Nothing is
+  duplicated for it; it just gained a `groups` map.
+- **`groups` is an index contract** (§1, rule 4), the analogue of `pep` / `gly`:
+  `{key, label, formula, atoms:[…], note}`. The page renders whatever the map
+  says and knows no chemistry of its own, so a new functional group is a
+  `molecules.js` edit. Regenerating a spec must not renumber it — an off-by-one
+  here mislabels chemistry rather than crashing.
+- **True relative size in compare mode.** Palmitic acid really is ~3× the span
+  of alanine and nothing normalises it; the layout sizes each grid column from
+  its own occupants instead.
+- **Scale family B**, like every molecule on this page — see §1, "Bond-length
+  scale families". This is the page that discovered the rule, by drawing a
+  family-A glucose next to family-B monomers and labelling it "true relative
+  size". If a fifth monomer is ever added here, it must be family B.
+- **One glucose in the library, not two.** The carbohydrate monomer is the
+  `glucose` that `glycolysis-lab.html` already builds with `Skel`; it gained
+  `groups`, its C–H, and `optH` rather than being duplicated under a second key.
+  A parallel PubChem-derived spec was the alternative and was dropped: both
+  declare `stereo:'all-equatorial'`, which is the claim that actually gets
+  asserted, so the second copy bought nothing but a name collision with
+  `Object.assign(MOLECULES, GLYCOLYSIS)`.
+- **Adding the C–H did not renumber anything.** They are grown last, after every
+  hydroxyl, so `gly.cN` and the group indices are untouched — glycolysis-lab
+  addresses those by position. That page hides them (`Stage.setOptionalH(g,false)`)
+  and excludes them from its plate-height and camera-fit measurements, so its
+  "no C–H anywhere" look is unchanged.
+- **Derived where shape is the claim, schematic where topology is** (§1): AMP
+  comes from a PubChem 3D record via `tools/sdf2spec-generic.js` — the furanose
+  ring and the 2′-OH are the claims. Palmitic acid is built as an idealised
+  all-anti zigzag **on purpose**: a real conformer is floppy and renders as
+  spaghetti, while the lesson is "one small polar head on a long nonpolar tail".
+- **The lipid is saturated, deliberately.** §1 still lists cis/trans as
+  unchecked, and the *cis* kink is the entire point of the unsaturated
+  contrast — so that molecule waits for a torsion assertion rather than shipping
+  a double bond nothing verifies.
+- **Lipids are named as the exception.** They are not polymers of a repeating
+  monomer, and the side panel says so instead of quietly filing them next to the
+  other three.
+- **Model simplifications (keep explicit):** palmitic acid is drawn as the
+  neutral acid (at cell pH it is the carboxylate, palmitate) so the –COOH head
+  is legible, the same choice §10 makes for amino acids. AMP is drawn as the
+  dianion the PubChem record supplies — accurate at cytosolic pH, and the same
+  convention the glycolysis phosphates use.

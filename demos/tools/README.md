@@ -30,3 +30,32 @@ bond whose spheres merge, plus all bond angles.
 Caveats: `record_type=3d` often has no conformer for charged species
 (bicarbonate, pyruvate, HPO₄²⁻), so those stay hand-written. Output is genuinely
 non-planar, unlike the flat z=0 layouts elsewhere in `molecules.js`.
+
+---
+
+# tools/sdf2spec-generic.js
+
+The same converter for molecules that are **not** amino acids. `sdf2spec.js`
+exists mostly to force the library's fixed backbone order, because
+`pep:{cC,oOH,hOH,nN,hN}` and `aminoacid-lab.html` index into it; a sugar or a
+nucleotide has no such contract, so this one keeps the SDF's own atom order.
+
+```bash
+cd tools
+curl -o beta-D-glucopyranose.sdf "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/beta-D-glucopyranose/SDF?record_type=3d"
+node sdf2spec-generic.js beta-D-glucopyranose   # -> generated-specs-generic.json
+```
+
+Differences from `sdf2spec.js`:
+
+- **no reindex** — atom order is the record's. Anything a page addresses by
+  index (a `groups` map, a reaction site) must be read off the OUTPUT.
+- **orientation** — if there is a 5-/6-ring, its mean plane becomes XY, so a
+  pyranose lands face-on and the axial/equatorial pattern `check-molecules.js`
+  audits is the thing you actually see. Otherwise the longest heavy-atom axis
+  becomes +X.
+- same global `SCALE` (1.9), same `optH` policy, same right-handed basis rule —
+  negating one output component is a reflection and silently mirrors the
+  molecule (see the comment in `sdf2spec.js`).
+
+Used for `amp` in `molecules.js`.

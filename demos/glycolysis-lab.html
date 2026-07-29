@@ -416,12 +416,23 @@ function makePlate(text, sub){
 
 function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
 
+// This page draws no C–H anywhere: the lesson is carbon and phosphate
+// bookkeeping, and a hydrogen on every carbon is noise the ledger never counts.
+// Glucose is the one spec that carries its C–H (macromolecule-lab.html offers
+// them behind a toggle), so they are hidden on build and excluded from every
+// measurement below — otherwise a hydrogen nobody can see would still push
+// glucose's name plate up and widen the shared camera fit.
+const visibleAtoms=spec=>{
+  const opt=new Set(spec.optH||[]);
+  return spec.atoms.filter((_,i)=>!opt.has(i));
+};
+
 // highest / lowest point of a spec including sphere radii — the specs vary from a
 // 5-unit ring to a 10-unit chain, and a phosphate can hang off either end
 function moleculeTop(spec){
-  return spec.atoms.reduce((m,a)=>Math.max(m,a.pos[1]+(PAL.radii[a.el]||0.7)),0); }
+  return visibleAtoms(spec).reduce((m,a)=>Math.max(m,a.pos[1]+(PAL.radii[a.el]||0.7)),0); }
 function moleculeBottom(spec){
-  return spec.atoms.reduce((m,a)=>Math.min(m,a.pos[1]-(PAL.radii[a.el]||0.7)),0); }
+  return visibleAtoms(spec).reduce((m,a)=>Math.min(m,a.pos[1]-(PAL.radii[a.el]||0.7)),0); }
 
 // Build one lane's molecule + name plate at slot i of n. `topY` is passed in
 // rather than derived per-molecule: DHAP carries its phosphate on C1 and G3P on
@@ -431,6 +442,7 @@ function moleculeBottom(spec){
 function spawnLane(key,i,n,topY){
   const spec=M[key];
   const g=Stage.buildMolecule(spec);
+  Stage.setOptionalH(g,false);          // no C–H on this page — see visibleAtoms
   g.position.set(laneX(i,n),0,0);
   const long=spec.name.length>22;
   const plate=makePlate(long?spec.formula:spec.name, long?spec.name:spec.formula);
@@ -462,7 +474,7 @@ function fitFor(states){
   states.forEach(keys=>{
     const n=keys.length;
     keys.forEach((k,j)=>{ const x=Math.abs(laneX(j,n));
-      M[k].atoms.forEach(a=>{ const r=PAL.radii[a.el]||0.7;
+      visibleAtoms(M[k]).forEach(a=>{ const r=PAL.radii[a.el]||0.7;
         lo=Math.min(lo,a.pos[1]-r); hi=Math.max(hi,a.pos[1]+r);
         wide=Math.max(wide, x+Math.abs(a.pos[0])+r); }); });
     top=Math.max(top, plateY(keys)+PLATE_H/2);

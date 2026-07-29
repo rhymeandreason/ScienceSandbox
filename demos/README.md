@@ -19,6 +19,7 @@ Spheres should never intersect.
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly |
 | `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway |
 | `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · NaCl · KCl) | bonding assembly |
+| `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery |
 
 ## Shared modules
 
@@ -37,7 +38,10 @@ Loaded **in this order**, before each page's own `<script>`:
 
 - **`molecules.js`** — single source of truth for atom/bond colours + radii
   (`MolLib.PALETTE`) and declarative molecule specs (`MolLib.MOLECULES`). Add new
-  molecules here.
+  molecules here. **Read the scale-families note at the top of the file first:**
+  specs come in two bond-length families (hand-written solvation molecules vs.
+  derived real-Å × 1.9 ones), and a page may only show molecules from one of
+  them. Full rationale in `SCIENCE.md` §1.
 - **`scene.js`** — `Stage.create(canvas, opts)` returns
   `{scene, camera, renderer, root, cam, applyCam, resize}` (renderer/scene/camera/
   orbit/lights/resize boilerplate). Also a clean builder: `Stage.buildMolecule`,
@@ -68,6 +72,10 @@ Loaded **in this order**, before each page's own `<script>`:
 - **`tools/sdf2spec.js`** — converts a PubChem 3D record into a `MolLib` spec, so
   geometry is derived rather than guessed. The amino acids are generated this way;
   regenerate them instead of hand-editing coordinates. See `tools/README.md`.
+- **`tools/sdf2spec-generic.js`** — the same conversion for molecules that are
+  **not** amino acids (no fixed backbone order to force). Orients on the ring
+  plane when there is a ring, so a pyranose lands face-on. `amp` is generated
+  with it.
 
 ## Architecture principle: **share the plumbing, not the physics**
 
