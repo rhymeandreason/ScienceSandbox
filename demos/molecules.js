@@ -232,7 +232,7 @@
     //   3 Cα  4 H              (α-carbon; 4 is the backbone H)
     //   5 C   6 O(=O)  7 O(–OH)  8 H   (carboxyl; the –OH, atoms 7+8, leaves)
     //   9…    side chain (R), bonded to Cα (atom 3), splayed −Y
-    // `pep` names the atoms the peptide-bond reaction acts on (aminoacid-lab.js):
+    // `pep` names the atoms the peptide-bond reaction acts on (aminoacid-lab.html):
     //   cC carboxyl carbon · oOH/hOH the leaving hydroxyl · nN amino N · hN amino H's.
     // Only the ANGLES/topology carry the lesson; bond lengths are stylised as
     // elsewhere (must exceed the two display radii so the stick shows).

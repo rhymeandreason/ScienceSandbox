@@ -165,8 +165,16 @@ driving the page's functions directly rather than trusting a single screenshot.
 Layout — framing, spacing, rotation, captions — has **no** checker; it is
 verified by hand in the browser. `TESTING.md` records what a headless one would
 take and why the sweep matters (every layout bug here has been conditional on one
-angle, one aspect or one toggle state). Nothing runs automatically: there is no
-CI and no git hook, so `check-molecules.js` is hand-run too.
+angle, one aspect or one toggle state).
+
+`tools/check-docs.js` audits what the docs *claim* — see "Keeping the docs true".
+
+Nothing runs automatically: there is no CI and no git hook, so both checkers are
+hand-run. The two together:
+
+```bash
+node check-molecules.js && node tools/check-docs.js
+```
 
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
 
@@ -181,7 +189,22 @@ added and the script table didn't say so; `stereo:` grew `{axial}` and `{faces}`
 while two files still said it understood only `all-equatorial`; §13 was written
 and the index still stopped at §12.
 
-So the rule is not "update the docs" — it is:
+Three of these are mechanically checkable, so they are checked:
+
+```bash
+node tools/check-docs.js
+```
+
+It audits the per-page script table against the real `<script>` tags, every
+file named in a doc against the filesystem, and every `§n` reference against
+`SCIENCE.md`'s actual headings (including that no section is missing from
+CLAUDE.md's index). A file a doc names *on purpose* that doesn't exist —
+`engine.js`, TESTING.md's proposals — goes in the script's `KNOWN_ABSENT` map
+with a reason, and is then asserted **absent**: build it and the check fails
+until the doc that called it hypothetical is updated.
+
+It cannot check whether prose is *true* — nothing mechanical would have caught
+the stale `stereo:` vocabulary. The rest is on the reader:
 
 > **If your change adds a member to a set, find every enumeration of that set
 > and update it in the same commit.** A doc claim gets asserted the same way a

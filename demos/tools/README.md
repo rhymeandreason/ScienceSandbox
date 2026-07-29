@@ -76,3 +76,32 @@ a correct fix looks broken.
 It injects its reload client into HTML **responses**, never into the files. The
 repo deploys to GitHub Pages from the working tree, so the published pages must
 stay exactly what is committed. `python3 -m http.server` to see what ships.
+
+# tools/check-docs.js
+
+Audits the claims `CLAUDE.md` and `SCIENCE.md` make about the code, for the same
+reason `check-molecules.js` audits the claims a spec makes about chemistry: this
+project's rule is that a claim ships with its assertion rather than relying on
+someone noticing.
+
+```bash
+node tools/check-docs.js        # exits non-zero on failure
+```
+
+Three checks, chosen because every doc error found so far was one of them — an
+**enumeration** that grew a member and wasn't updated:
+
+- **scripts** — CLAUDE.md's per-page script table vs the real `<script>` tags.
+  The table's `+ fx` rows are cumulative, so row order is load-bearing.
+- **paths** — every file named in a doc or a module comment exists. A file named
+  on purpose that doesn't (`engine.js`, TESTING.md's proposals) goes in
+  `KNOWN_ABSENT` with a reason, and is then asserted **absent** — build it and
+  the check fails until the doc calling it hypothetical is updated.
+- **sections** — every `§n` / `§n.m` reference resolves to a real SCIENCE.md
+  heading, and every section appears in CLAUDE.md's index (ranges like `§§2–8`
+  are expanded).
+
+It does **not** check whether prose is true. Nothing mechanical would have caught
+SCIENCE.md claiming `stereo:` understood only `all-equatorial` long after it
+learned `{axial}` and `{faces}`. See CLAUDE.md "Keeping the docs true" for the
+part that is still on the reader.
