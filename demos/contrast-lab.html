@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Spot the Difference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  /* One accent per PAIR, not per molecule — the two halves are supposed to look
+     like the same thing, so giving them different colours would do the lesson's
+     job for it and give the difference away before the student looks. */
+  :root{ --sugar:#2f8f6f; --nucl:#b03a86; --base:#6a5acd; }
+
+  #paircard{position:absolute;right:26px;top:22px;z-index:6;text-align:right}
+  #paircard .ckind{font-family:var(--font-slab);font-weight:700;font-size:11px;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+  #paircard .cname{font-family:var(--font-marker);font-weight:400;font-size:25px;line-height:1.15;margin-top:2px}
+  #paircard .cform{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--muted)}
+
+  /* the lesson line, bottom-centre — the "so what" of the pair */
+  #lesson{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:6;
+    max-width:min(620px,76%);text-align:center;
+    background:rgba(255,255,255,.66);border:2px solid var(--ink);border-radius:8px 12px 9px 11px;
+    padding:11px 17px 12px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #lesson .lhead{font-family:var(--font-slab);font-weight:700;font-size:15px;margin-bottom:4px}
+  #lesson .lbody{font-family:var(--font-sans);font-size:14px;line-height:1.45;color:#3a352f}
+
+  /* Molecule names are PAGE CHROME, not geometry: HTML sitting over the canvas,
+     tracking each model's position but never parented to it. As 3D sprites they
+     inherited the model's tilt and idle spin, so the caption drifted around the
+     thing it was naming — and they rendered as blurry canvas textures next to
+     crisp DOM type everywhere else on the page. */
+  .molname{position:absolute;z-index:5;transform:translate(-50%,-100%);
+    pointer-events:none;white-space:nowrap;
+    font-family:var(--font-marker);font-weight:400;font-size:26px;line-height:1}
+  @media (max-width:920px){ .molname{font-size:20px} }
+
+  #stage,#side{min-height:0}
+  #side{overflow-y:auto}
+
+  .pairrow{display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer;
+    border:1.5px solid transparent;border-radius:9px}
+  .pairrow:hover{background:rgba(0,0,0,.04)}
+  .pairrow.sel{border-color:var(--ink);background:rgba(255,255,255,.85)}
+  .pairrow .swatch{width:11px;height:11px;border-radius:50%;flex:none;border:1.5px solid var(--ink)}
+  .pairrow .pnames{font-family:var(--font-slab);font-weight:700;font-size:14.5px;line-height:1.25}
+  .pairrow .pdiff{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);display:block}
+
+  #modeactions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}
+  #modeactions button{font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;
+    cursor:pointer;border:2px solid var(--ink);background:transparent;color:var(--ink)}
+  #modeactions button:hover{background:rgba(0,0,0,.05)}
+  #modeactions button.on{background:var(--ink);color:var(--panel)}
+  #htoggle{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.75;cursor:pointer;flex-basis:100%}
+
+  #card{border-top:1.5px dashed var(--hair);padding-top:16px}
+  .sidenote{margin-bottom:14px}
+  .sidenote .snname{font-family:var(--font-slab);font-weight:700;font-size:14.5px}
+  .sidenote .snbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:#3a352f}
+  .verdict{font-family:var(--font-slab);font-weight:700;font-size:13px;color:var(--muted);
+    border-top:1.5px dashed var(--hair);padding-top:12px;margin-top:4px}
+
+  @media (max-width:920px){
+    #paircard .cname{font-size:20px}
+    #lesson{bottom:14px;max-width:88%}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-magnifying-glass"></i></span><h1>Spot the Difference</h1></div>
+    <div id="paircard"></div>
+    <div id="nameL" class="molname"></div>
+    <div id="nameR" class="molname"></div>
+    <div id="lesson"></div>
+    <div id="stats"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+
+  <div id="side">
+    <h1 id="labtitle">One feature apart</h1>
+    <p id="labintro">Each of these pairs is two molecules that are nearly the same
+      drawing. One bond, one oxygen, one ring — that is the whole difference, and
+      each time it decides something you already know about biology. Look first,
+      then hit <b>Show the difference</b>.</p>
+    <div class="libgroup">Pairs</div>
+    <div id="library"></div>
+    <div id="modeactions">
+      <button id="diffbtn">Show the difference</button>
+      <label id="htoggle"><input type="checkbox" id="showh"> show C–H hydrogens</label>
+    </div>
+    <div id="card"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  SPOT THE DIFFERENCE — the contrast pairs
+ *
+ *  This page renders SCIENCE.md's Tier-2 table: pairs of near-identical
+ *  molecules where exactly one feature is the entire lesson. It is a
+ *  comparison gallery like macromolecule-lab.html, not a simulation — no
+ *  physics loop, no reactions.
+ *
+ *  Two rules make this page work, and both are enforced elsewhere:
+ *
+ *   1. BOTH HALVES MUST BE THE SAME SCALE FAMILY. Every spec here is
+ *      family B (real Å × 1.9), so "these are the same size except here"
+ *      is a true statement. A family-A molecule on this page would make
+ *      the comparison a lie. See the note at the top of molecules.js.
+ *
+ *   2. THE DIFFERENCE IS ASSERTED, NOT DRAWN. Each spec declares its
+ *      distinguishing feature (`stereo` / `topology`) and
+ *      check-molecules.js fails if the geometry disagrees. This file
+ *      never decides what the difference IS — it reads `contrast.diff`
+ *      off the spec and dims everything else. That index map lives with
+ *      the geometry for the same reason `pep` and `gly` do: re-ordering
+ *      a build would silently point the highlight at the wrong atoms.
+ * ============================================================= */
+
+/* ---------- shared stage (scene.js) ---------- */
+const canvas=document.getElementById('gl');
+let userSpun=false;
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  // Face-on by default, NOT the livelier three-quarter angle the other pages
+  // open at. Two molecules side by side at an oblique angle are at different
+  // depths, so the near one is perspective-magnified — and "these two are the
+  // same size except here" is exactly the claim this page is making. The user
+  // can still spin to any angle; the default just must not lie.
+  cam:{theta:0,phi:Math.PI/2,r:30}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
+  // Dragging turns the MOLECULES, not the camera (see the drag handler below).
+  orbit:false });
+const FXi=FX.create(THREE,root,camera);
+
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const hx=n=>'#'+n.toString(16).padStart(6,'0');
+
+/* ---------- the pairs ----------
+ * `left`/`right` index MolLib.MOLECULES. Everything chemical — what differs,
+ * which atoms differ, and why it matters — comes off the specs' own `contrast`
+ * blocks; only the framing question lives here.                              */
+const PAIRS=[
+  { left:'glucose', right:'galactose', accent:0x2f8f6f, kind:'Sugars', tilt:-0.6,
+    ask:'Same formula, same ring, same five hydroxyls. One of these you burn for '
+      + 'energy without thinking. The other, if you are missing one enzyme, '
+      + 'poisons you. Which atom is doing that?' },
+  { left:'ribose', right:'deoxyribose', accent:0xb03a86, kind:'Sugars', tilt:-1.0,
+    ask:'These two sugars build RNA and DNA respectively. One oxygen is the '
+      + 'difference — and it is the reason your genome is written in one of them '
+      + 'and not the other.' },
+  { left:'purine', right:'pyrimidine', accent:0x6a5acd, kind:'Bases', tilt:0.2,
+    ask:'The two shapes every DNA base is built on. A and G are one, C and T the '
+      + 'other. Count the rings, then think about what a ladder needs.' },
+];
+const specOf=k=>MolLib.MOLECULES[k];
+const membersOf=p=>[p.left,p.right];
+
+/* ---------- layout ---------- */
+// Same true-relative-size discipline as macromolecule-lab: nothing here
+// normalises the two halves to a common size, because "these are the same size"
+// is part of what the student is checking.
+const SPEC_SCALE=1.9;
+// Extents are measured on the molecule AS IT WILL BE SEEN — after the pair's
+// tilt, and swept through the idle turntable spin.
+//
+// The spin is about Y only, so the swept volume is a CYLINDER, not a sphere:
+// only the horizontal distance from the spin axis grows as it turns, while the
+// vertical extent is whatever the tilt left it at and never changes. Framing a
+// sphere instead (the obvious first guess) treats the molecule's tallest point
+// as though it could also swing out sideways, and pushes the camera back far
+// enough to lose about a third of the molecule's size on screen for nothing.
+//
+//   rxz — horizontal radius about the spin axis: the number that decides how far
+//         apart the two halves sit and how wide the frame must be.
+//   hy  — half-height, unchanged by the spin.
+// Where a molecule's OWN axis is. A spec's coordinates are laid out around
+// whatever point its build happened to start from — the pyranose ring's centre,
+// the first atom of a chain — which is not the middle of the finished molecule.
+// Spinning about the group origin therefore swings the model bodily around an
+// off-centre point: it orbits instead of turning on the spot, and against a
+// partner doing the same thing the pair visibly wobbles apart. Centring on the
+// bounding box (not the mean atom position, which dense clusters of hydrogens
+// drag off-centre) puts the spin axis through the middle of what you can see.
+function centreOf(spec){
+  const P=MolLib.PALETTE.radii;
+  const lo=[Infinity,Infinity,Infinity], hi=[-Infinity,-Infinity,-Infinity];
+  spec.atoms.forEach(a=>{ const R=P[a.el]||0.7;
+    for(let k=0;k<3;k++){ lo[k]=Math.min(lo[k],a.pos[k]-R); hi[k]=Math.max(hi[k],a.pos[k]+R); } });
+  return lo.map((v,k)=>(v+hi[k])/2);
+}
+
+function extent(spec, tilt){
+  const P=MolLib.PALETTE.radii;
+  const c=Math.cos(tilt), sn=Math.sin(tilt);
+  const O=centreOf(spec);
+  let rxz=0, hy=0;
+  spec.atoms.forEach(a=>{
+    const R=P[a.el]||0.7;
+    // measured from the spin axis, which is the centre — not the spec origin
+    const x=a.pos[0]-O[0], y0=a.pos[1]-O[1], z0=a.pos[2]-O[2];
+    const y=y0*c-z0*sn, z=y0*sn+z0*c;        // rotate about X by `tilt`
+    rxz=Math.max(rxz, Math.hypot(x,z)+R);
+    hy =Math.max(hy,  Math.abs(y)+R);
+  });
+  // widest heavy-atom centre separation, in real Å (see macromolecule-lab for
+  // why heavy atoms and centres rather than surfaces). Orientation-independent,
+  // so it is measured on the untilted spec.
+  const heavy=spec.atoms.filter(a=>a.el!=='H');
+  let span=0;
+  for(let i=0;i<heavy.length;i++)
+    for(let j=i+1;j<heavy.length;j++){
+      const a=heavy[i].pos, b=heavy[j].pos;
+      span=Math.max(span, Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]));
+    }
+  return {rxz,hy,span:span/SPEC_SCALE};
+}
+const EXT={};
+PAIRS.forEach(p=>membersOf(p).forEach(k=>{ EXT[k]=extent(specOf(k), p.tilt||0); }));
+
+const GAP=3.0;             // gutter between the two halves
+// Headroom above each model, in world units, for the HTML name plate to sit in
+// without covering the molecule or colliding with the stage's top chrome.
+const NAME_ROOM=2.4;
+// The stage chrome is HTML sitting ON TOP of the canvas: the lesson card runs
+// along the bottom centre and the atom counts along the bottom left. Both are in
+// the same band the name sprites want. Lifting the whole pair buys that band
+// back — cheaper than fighting it in CSS, and it keeps the molecules optically
+// centred in the space actually left over for them.
+const LIFT=0;
+
+/* ---------- build every molecule once ---------- */
+// All six up front, shown/hidden per pair — same reasoning as the gallery: it is
+// nothing to hold in memory, and rebuilding would drop the highlight and the
+// C–H toggle on every click.
+const built={};
+PAIRS.forEach(p=>membersOf(p).forEach(k=>{
+  const spec=specOf(k);
+  const g=Stage.buildMolecule(spec);
+  // Shift every mesh so the group's origin — which is what rotation turns about
+  // — sits at the middle of the molecule. buildMolecule puts atoms and bonds in
+  // as direct children, so one pass over the children covers both.
+  const O=centreOf(spec);
+  g.children.forEach(ch=>{ ch.position.x-=O[0]; ch.position.y-=O[1]; ch.position.z-=O[2]; });
+  // Spin about the WORLD vertical, through the molecule's own centre.
+  //
+  // Three.js composes the default 'XYZ' order as RX·RY, which applies the idle
+  // y-spin in the molecule's own frame and THEN leans it over by the tilt — so
+  // the spin axis ends up tilted with it (57° off vertical for the furanose
+  // pair) and the molecule tumbles end-over-end instead of turning on the spot.
+  // 'YXZ' composes as RY·RX: the tilt is applied first, as a fixed lean, and the
+  // spin then happens about the upright axis. Centring the geometry above fixes
+  // WHERE it turns; this fixes what it turns ABOUT, and both are needed.
+  g.rotation.order='YXZ';
+  g.userData.atomMeshes.forEach(m=>{ if(m) m.userData.baseColor=m.material.color.getHex(); });
+  g.userData.bondMeshes.forEach(m=>m.traverse(o=>{ if(o.isMesh) o.userData.baseColor=o.material.color.getHex(); }));
+  root.add(g);
+  built[k]=g;
+}));
+
+/* ---------- state ---------- */
+let selected=0;      // index into PAIRS
+let showDiff=false;
+let showH=false;
+// Orientation is ONE pair of numbers driving BOTH halves, not a per-molecule
+// value. The whole page rests on the two being seen from the same angle, so
+// there is deliberately no way to turn one without the other.
+let spin=0;          // shared turntable angle (about the vertical)
+let lean=0;          // user's extra tilt, added to the pair's own `tilt`
+
+/* ---------- the highlight ----------
+ * Dim to GREY, in place — not hidden, not ghosted. The claim being made is
+ * "everything else about these two is identical", and that claim is only
+ * visible while everything else is still on screen. Hiding the shared skeleton
+ * would leave two lone hydroxyls floating in space, which proves nothing.
+ *
+ * Grey rather than transparent for the same reason: two dozen translucent
+ * spheres sort against each other into a muddy stack, and the shape stops being
+ * readable at exactly the moment the student needs to confirm it is unchanged.  */
+// A NEUTRAL grey, and a hard fade. The paper here is warm cream, so an earlier
+// warm grey left the dimmed oxygens reading as distinctly pink — which on a page
+// whose entire instruction is "find the one coloured thing" is the worst
+// possible failure mode. Shared skeleton must read as unmistakably colourless.
+const GREY=new THREE.Color(0x8d8a86);
+const MIX=0.9;       // how far the shared skeleton fades toward grey
+function applyHighlight(){
+  const p=PAIRS[selected];
+  membersOf(p).forEach(k=>{
+    const g=built[k], spec=specOf(k);
+    const set=new Set((spec.contrast&&spec.contrast.diff)||[]);
+    const paint=(m,on)=>{
+      if(!m) return;
+      m.traverse(o=>{
+        if(!o.isMesh||!o.material) return;
+        const base=o.userData.baseColor;
+        if(base===undefined) return;
+        o.material.color.setHex(base);
+        if(showDiff&&!on) o.material.color.lerp(GREY,MIX);
+        if(o.material.emissive){
+          const glow=showDiff&&on;
+          o.material.emissive.setHex(glow?base:0x000000);
+          o.material.emissiveIntensity=glow?0.45:0;
+        }
+      });
+    };
+    g.userData.atomMeshes.forEach((m,i)=>paint(m,set.has(i)));
+    // A bond is part of the difference only when BOTH ends are. A bond with one
+    // end in the shared skeleton is the attachment, not the feature — colouring
+    // it would draw the boundary one atom too wide.
+    g.userData.bondMeshes.forEach(m=>paint(m,m.userData.pair.every(q=>set.has(q))));
+  });
+}
+
+/* ---------- camera ---------- */
+const PAD=1.12;
+function fitCamera(){
+  const p=PAIRS[selected], ks=membersOf(p);
+  // Same reasoning as posOf: fit the swept SPHERE of each molecule, so nothing
+  // clips at any point in the rotation.
+  const hw=Math.max(...ks.map(k=>Math.abs(posOf(k).x)+EXT[k].rxz));
+  // half-height about the ORIGIN, which the camera still looks at — so the lift
+  // counts on the top side and the label hangs below on the bottom side, and the
+  // taller of the two is what has to fit.
+  const hh=Math.max(...ks.map(k=>Math.max(EXT[k].hy+LIFT+NAME_ROOM, EXT[k].hy-LIFT)));
+  const tan=Math.tan(camera.fov*Math.PI/360), aspect=camera.aspect||1;
+  cam.r=Math.max(6,Math.min(220,Math.max(hh/tan, hw/(tan*aspect))*PAD));
+  applyCam();
+}
+// Each half sits in its own column, sized from ITS OWN width, so the pair is
+// centred as a whole rather than each molecule being centred in an equal cell —
+// purine is visibly wider than pyrimidine and the gutter should stay even.
+function posOf(k){
+  const p=PAIRS[selected], ks=membersOf(p);
+  if(!ks.includes(k)) return V(0,0,0);
+  // GAP is the clear space BETWEEN the two, so each centre sits its own
+  // half-width plus half the gutter out from the middle. (Offsetting the centres
+  // by GAP instead leaves the two overlapping whenever a molecule is wider than
+  // the gutter — which every one of these is.)
+  // Spaced on each molecule's BOUNDING RADIUS, not its x half-width. These
+  // molecules turn — the idle turntable never stops unless the user grabs one —
+  // so an extent measured on the spec's static orientation is only correct for
+  // the one frame it was measured in. Half a turn later the pair overlaps and
+  // the edges clip. The radius is the only number that holds at every angle.
+  const [a,b]=ks;
+  return k===a ? V(-(GAP/2+EXT[a].rxz),LIFT,0) : V(GAP/2+EXT[b].rxz,LIFT,0);
+}
+
+/* `tilt` is a rotation about X, applied EQUALLY to both halves.
+ *
+ * The pair needs some tilt or a flat ring is seen face-on and an axial
+ * substituent points straight at the camera — which is exactly the feature the
+ * glucose/galactose pair exists to show, foreshortened into invisibility. But it
+ * has to be an X tilt, not a camera swing: the two halves are separated along X,
+ * so tilting about X leaves them at the SAME depth and the same apparent size,
+ * while orbiting the camera puts one in front of the other and silently magnifies
+ * it. Each pair gets the least tilt that makes its own difference legible. */
+function applyLayout(){
+  Object.keys(built).forEach(k=>{
+    const on=membersOf(PAIRS[selected]).includes(k);
+    built[k].visible=on;
+    if(on) built[k].position.copy(posOf(k));
+    Stage.setOptionalH(built[k],showH);
+  });
+  const ks=membersOf(PAIRS[selected]);
+  [nameL,nameR].forEach((el,i)=>{
+    el.textContent=specOf(ks[i]).name;
+    el.style.color=hx(PAIRS[selected].accent);
+  });
+  applySpin();
+  fitCamera();
+  placeNames();
+}
+
+/* ---------- name plates ----------
+ * Projected from the world point directly above each model to a pixel position
+ * on the stage. Done every frame rather than once per layout because the user
+ * can orbit and zoom the camera, and a caption that stops tracking its molecule
+ * is worse than no caption. It is only two elements — the cost is nothing.     */
+const nameL=document.getElementById('nameL'), nameR=document.getElementById('nameR');
+const _p=new THREE.Vector3();
+function placeNames(){
+  if(!isFinite(camera.aspect)) return;
+  const ks=membersOf(PAIRS[selected]);
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h) return;
+  // ONE baseline for the pair, taken from the taller half. Sitting each caption
+  // at its own molecule's height puts the two names a few pixels apart, and on a
+  // page whose whole job is "these two are the same except here" a stray
+  // misalignment reads as a difference.
+  const top=Math.max(...ks.map(k=>EXT[k].hy));
+  [nameL,nameR].forEach((el,i)=>{
+    const k=ks[i];
+    _p.set(posOf(k).x, LIFT+top+0.5, 0).project(camera);
+    el.style.left=((_p.x*0.5+0.5)*w).toFixed(1)+'px';
+    el.style.top =((-_p.y*0.5+0.5)*h).toFixed(1)+'px';
+  });
+}
+
+/* ---------- drag: turn the models, never the camera ----------
+ * The shared stage's orbit is switched off for this page. Orbiting swings the
+ * camera around the SCENE origin, which on a two-up comparison does two bad
+ * things: the pair wheels around a point that belongs to neither molecule, and
+ * one of them ends up nearer the camera and is perspective-magnified — which
+ * quietly falsifies the "same size except here" claim the page is built on.
+ *
+ * So a drag drives the same spin/lean into both molecules and the camera holds
+ * still. Each one turns on the spot, about its own centre, in lockstep.        */
+let drag=null;
+canvas.addEventListener('pointerdown',e=>{
+  drag={x:e.clientX,y:e.clientY}; userSpun=true;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  spin+=(e.clientX-drag.x)*0.008;
+  lean=Math.max(-1.2,Math.min(1.2, lean+(e.clientY-drag.y)*0.008));
+  drag={x:e.clientX,y:e.clientY};
+  applySpin();
+});
+canvas.addEventListener('pointerup',()=>{drag=null;});
+canvas.addEventListener('pointercancel',()=>{drag=null;});
+
+// Push the shared orientation onto both halves. Assigned, never accumulated, so
+// the two can't drift out of phase over a long session.
+function applySpin(){
+  const tilt=PAIRS[selected].tilt||0;
+  membersOf(PAIRS[selected]).forEach(k=>{
+    built[k].rotation.y=spin;
+    built[k].rotation.x=tilt+lean;
+  });
+}
+
+/* ---------- side panel ---------- */
+const libraryEl=document.getElementById('library');
+function buildLibrary(){
+  libraryEl.innerHTML='';
+  PAIRS.forEach((p,i)=>{
+    const a=specOf(p.left), b=specOf(p.right);
+    const row=document.createElement('div');
+    row.className='pairrow'+(i===selected?' sel':'');
+    row.innerHTML=`<span class="swatch" style="background:${hx(p.accent)}"></span>`
+      +`<span><span class="pnames">${a.name} vs ${b.name}</span>`
+      +`<span class="pdiff">differ by ${a.contrast.differs}</span></span>`;
+    row.onclick=()=>{ selected=i; showDiff=false; refresh(); };
+    libraryEl.appendChild(row);
+  });
+}
+
+const cardEl=document.getElementById('card');
+function buildCard(){
+  const p=PAIRS[selected], a=specOf(p.left), b=specOf(p.right);
+  cardEl.innerHTML=`<p>${p.ask}</p>`
+    + (showDiff
+      ? `<div class="sidenote"><div class="snname" style="color:${hx(p.accent)}">${a.name}</div>`
+        +`<div class="snbody">${a.contrast.note}</div></div>`
+        +`<div class="sidenote"><div class="snname" style="color:${hx(p.accent)}">${b.name}</div>`
+        +`<div class="snbody">${b.contrast.note}</div></div>`
+        +`<div class="verdict">Difference: ${a.contrast.differs} — ${a.contrast.lesson}.</div>`
+      : `<div class="verdict">Everything on screen is shared between the two, `
+        +`except one feature. Found it?</div>`);
+}
+
+const pairCardEl=document.getElementById('paircard');
+const lessonEl=document.getElementById('lesson');
+const statsEl=document.getElementById('stats');
+function buildStageChrome(){
+  const p=PAIRS[selected], a=specOf(p.left), b=specOf(p.right);
+  pairCardEl.innerHTML=`<div class="ckind">${p.kind}</div>`
+    +`<div class="cname" style="color:${hx(p.accent)}">${a.name} vs ${b.name}</div>`
+    +`<div class="cform">${a.formula} · ${b.formula}</div>`;
+
+  lessonEl.innerHTML = showDiff
+    ? `<div class="lhead" style="color:${hx(p.accent)}">Differs by ${a.contrast.differs}</div>`
+      +`<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`
+    : `<div class="lhead">Spot the difference</div>`
+      +`<div class="lbody">Drag to turn them together. One feature is not the same.</div>`;
+
+  // The atom counts are part of the argument, not decoration: for the sugar
+  // pairs they are IDENTICAL, which is what makes "look harder" the right
+  // instruction rather than "look for the bigger one".
+  statsEl.innerHTML=membersOf(p).map(k=>{
+    const s=specOf(k);
+    return `${s.name} · <b>${s.atoms.length}</b> atoms · <b>${EXT[k].span.toFixed(1)}</b> Å across`;
+  }).join('<br>');
+}
+
+const diffBtn=document.getElementById('diffbtn');
+diffBtn.onclick=()=>{ showDiff=!showDiff; refresh(); };
+document.getElementById('showh').onchange=e=>{ showH=e.target.checked; applyLayout(); };
+
+function refresh(){
+  diffBtn.classList.toggle('on',showDiff);
+  diffBtn.textContent=showDiff?'Hide the difference':'Show the difference';
+  buildLibrary(); buildCard(); buildStageChrome();
+  applyLayout(); applyHighlight();
+  // Ring the difference on reveal — on a 24-atom sugar the dimming alone can
+  // take a few seconds to parse, and this says "here" while it lands.
+  if(showDiff){
+    membersOf(PAIRS[selected]).forEach(k=>{
+      const g=built[k], spec=specOf(k);
+      const idx=(spec.contrast&&spec.contrast.diff)||[];
+      const p=V(0,0,0); let n=0;
+      idx.forEach(i=>{ const m=g.userData.atomMeshes[i];
+        if(m&&m.visible){ p.add(m.getWorldPosition(V())); n++; } });
+      if(n){ p.multiplyScalar(1/n); FXi.spawnRing(root.worldToLocal(p),PAIRS[selected].accent); }
+    });
+  }
+}
+
+/* ---------- render loop ---------- */
+// Both halves turn on their OWN axis, in lockstep. Rotating `root` instead would
+// swing the two columns through the camera at different depths, and the pair
+// would stop being comparable at exactly the moment it is moving — which is when
+// a student is trying to match one against the other.
+function loop(){
+  if(!userSpun){ spin+=0.0022; applySpin(); }
+  placeNames();
+  FXi.step();
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+
+// The canvas reflows when the window does, and fitCamera() solves against
+// camera.aspect — so without this the framing is only ever right at the size the
+// page happened to load at.
+new ResizeObserver(()=>{ resize(); fitCamera(); placeNames(); }).observe(canvas);
+
+// resize() first: fitCamera() reads camera.aspect, which is only correct once
+// the canvas has actually been measured.
+resize(); refresh(); requestAnimationFrame(loop);
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download=PAIRS[selected].left+'-vs-'+PAIRS[selected].right+'.png';
+  a.href=canvas.toDataURL('image/png'); a.click();
+};
+</script>
+</body>
+</html>

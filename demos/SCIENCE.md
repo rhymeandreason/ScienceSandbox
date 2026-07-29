@@ -98,14 +98,37 @@ and polarity is enough.
 feature is the entire point. That feature must be exactly right **and asserted by
 `check-molecules.js`**. Most of the AP Bio curriculum lives here:
 
-| Contrast | Differs by | The lesson |
+| Contrast | Differs by | The lesson | Built |
+|---|---|---|---|
+| starch vs cellulose | α- vs β-1,4 linkage | why we can't digest wood | — |
+| saturated vs unsaturated fat | one C=C, *cis* | why butter is solid and oil is not | — |
+| ribose vs deoxyribose | one –OH at 2′ | why DNA is the stable archive | ✓ `stereo:{faces}` |
+| glucose vs galactose | one –OH orientation | why galactosemia is a disease | ✓ `stereo:{axial}` |
+| L- vs D-amino acids | handedness | why life is homochiral | — |
+| purine vs pyrimidine | two rings vs one | why A–T and G–C are equal width | ✓ `topology` |
+
+The three built pairs are `contrast-lab.html`. The three unbuilt ones each need a
+**new assertion type** before they can ship, which is the point of rule 2 below —
+*cis*-C=C needs a torsion check, starch/cellulose needs a check across a
+glycosidic linkage, and L/D on a sugar needs a signed-volume test like the one
+`chirality` already does for amino acids. None of them is blocked on geometry;
+they are blocked on being checkable.
+
+**How a distinguishing feature gets declared.** One of these goes on the spec,
+and `check-molecules.js` fails if the geometry disagrees:
+
+| Declaration | Means | Used by |
 |---|---|---|
-| starch vs cellulose | α- vs β-1,4 linkage | why we can't digest wood |
-| saturated vs unsaturated fat | one C=C, *cis* | why butter is solid and oil is not |
-| ribose vs deoxyribose | one –OH at 2′ | why DNA is the stable archive |
-| glucose vs galactose | one –OH orientation | why galactosemia is a disease |
-| L- vs D-amino acids | handedness | why life is homochiral |
-| purine vs pyrimidine | two rings vs one | why A–T and G–C are equal width |
+| `stereo:'all-equatorial'` | every ring substituent equatorial | glucose |
+| `stereo:{axial:[i,…]}` | exactly these ring atoms are axial, all others equatorial | galactose (C4) |
+| `stereo:{faces:{i:'a',…}}` | which ring atoms' substituents share a face — checked as a *relative* pattern, since the ring normal's sign is arbitrary | ribose, deoxyribose |
+| `topology:{rings:[…],fused:true}` | ring count, ring sizes, and that a bicycle shares an edge | purine, pyrimidine |
+| `chirality:'L'` | signed volume over CIP priorities | the amino acids |
+
+`{faces}` deliberately cannot catch a *global* mirror (flip every substituent and
+the relative pattern is unchanged, so L-ribose would pass as D-). No page makes a
+D/L claim about a sugar yet; the moment one does, that claim needs its own
+assertion rather than leaning on this one.
 
 Every one of those is a stereochemistry or bond-order claim — the class that
 renders beautifully while being wrong.

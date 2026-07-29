@@ -164,18 +164,32 @@
         cam.target.z+cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
       camera.lookAt(cam.target);
     }
+    // Camera orbit. Pages pass `orbit:false` when dragging should turn the MODELS
+    // instead of swinging the camera — a comparison page showing two molecules
+    // side by side must not orbit, because orbiting puts one of them nearer the
+    // camera than the other and perspective then magnifies it. Those pages take
+    // the pointer themselves; wheel zoom stays either way.
     let drag=null;
-    canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
-    canvas.addEventListener('pointermove',e=>{ if(!drag)return; if(o.onDrag)o.onDrag();
-      cam.theta-=(e.clientX-drag.x)*0.008;
-      cam.phi=Math.max(o.phiMin,Math.min(o.phiMax,cam.phi-(e.clientY-drag.y)*0.008));
-      drag={x:e.clientX,y:e.clientY}; applyCam();});
-    canvas.addEventListener('pointerup',()=>drag=null);
+    if(o.orbit!==false){
+      canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+      canvas.addEventListener('pointermove',e=>{ if(!drag)return; if(o.onDrag)o.onDrag();
+        cam.theta-=(e.clientX-drag.x)*0.008;
+        cam.phi=Math.max(o.phiMin,Math.min(o.phiMax,cam.phi-(e.clientY-drag.y)*0.008));
+        drag={x:e.clientX,y:e.clientY}; applyCam();});
+      canvas.addEventListener('pointerup',()=>drag=null);
+    }
     canvas.addEventListener('wheel',e=>{e.preventDefault();
       cam.r=Math.max(o.rMin,Math.min(o.rMax,cam.r*(1+Math.sign(e.deltaY)*o.wheel)));
       if(o.onZoom) o.onZoom(cam.r); applyCam();},{passive:false});
 
+    // Bail on a zero-sized canvas instead of computing w/0. A ResizeObserver
+    // fires during layout, and a grid item is briefly 0px tall before its row is
+    // resolved — one such frame set camera.aspect to NaN, which poisons the
+    // projection matrix and makes every subsequent project()/unproject() return
+    // NaN until the next real resize happens to arrive. Pages that fit their
+    // camera from camera.aspect then silently frame against a garbage number.
     function resize(){ const w=canvas.clientWidth,h=canvas.clientHeight;
+      if(!w||!h) return;
       renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
     new ResizeObserver(resize).observe(canvas);
     applyCam();

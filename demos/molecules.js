@@ -550,6 +550,14 @@
   Skel.prototype.nbrs=function(i){ const A=this.at(i);
     return this.bonds.filter(b=>b[0]===i||b[1]===i)
       .map(b=>vnorm(vsub(this.at(b[0]===i?b[1]:b[0]),A))); };
+  // Set the order of an already-linked pair. Aromatic rings are laid out as a
+  // polygon first and given their Kekulé orders after, so the geometry code
+  // never has to care which bonds are double.
+  Skel.prototype.order=function(i,j,o){
+    const b=this.bonds.find(b=>(b[0]===i&&b[1]===j)||(b[0]===j&&b[1]===i));
+    if(!b) throw new Error(`order(): no bond ${i}-${j}`);
+    b[2]=o; return this;
+  };
 
   // any unit vector perpendicular to `a` (picks a seed axis that isn't parallel)
   function perpTo(a){
@@ -632,6 +640,28 @@
       if(v<bestDot){ bestDot=v; best=k; } });
     return best;
   };
+  // The other one. Glucose never needs this; galactose is glucose with C4 axial,
+  // and that single flip is the whole difference between a sugar we metabolise
+  // and one that poisons an infant who cannot (galactosemia). Defined as "not
+  // equatorial" rather than "most parallel to the axis" on purpose: the two
+  // free slots on a ring carbon are a pair, so deriving one from the other
+  // guarantees they can never both resolve to the same slot.
+  Skel.prototype.axial=function(i,ring){
+    return this.freeTet(i).length===2 ? 1-this.equatorial(i,ring) : 0;
+  };
+  // Which FACE of a near-planar ring a substituent points to. A furanose is too
+  // flat for the axial/equatorial distinction to mean much — ribose's identity is
+  // carried by which side of the ring each –OH sits on. `side` is +1 or −1
+  // against the ring normal; the normal's own sign is arbitrary (it falls out of
+  // the ring's traversal order), so only the RELATIVE faces are meaningful, and
+  // that is exactly what check-molecules.js asserts.
+  Skel.prototype.face=function(i,ring,side){
+    const n=this.ringNormal(ring), dirs=this.freeTet(i);
+    let best=0, bestDot=-Infinity;
+    dirs.forEach((d,k)=>{ const v=side*(d.x*n.x+d.y*n.y+d.z*n.z);
+      if(v>bestDot){ bestDot=v; best=k; } });
+    return best;
+  };
 
   // ---- functional groups ------------------------------------------------
   Skel.prototype.hydroxyl=function(i,slot){                 // –OH
@@ -699,6 +729,84 @@
     for(let k=0;k<6;k++) s.link(k,(k+1)%6);
     return s;
   }
+  // β-D-ribofuranose ring: five-membered, O4′ at index 0 then C1′…C4′ at 1…4.
+  // Puckered as a C3′-endo envelope — four atoms near-coplanar, one lifted. Real
+  // furanoses are never flat, but the pucker here is deliberately SMALL: unlike a
+  // pyranose chair, nothing about ribose's identity rides on it (the –OH faces
+  // carry that), and a strong pucker would tempt `equatorial()` into reporting
+  // an ax/eq split that means nothing on a five-ring. Use `face()` on this ring.
+  function ringFuranose(){
+    const s=new Skel(), R=GL.CC/(2*Math.sin(Math.PI/5));   // side → circumradius
+    const pucker=0.12*R;
+    for(let k=0;k<5;k++){ const th=k*2*Math.PI/5;
+      // index 3 is C3′ — the one atom out of the plane (C3′-endo)
+      s.put(k===0?'O':'C', V(R*Math.cos(th), k===3?pucker:0, R*Math.sin(th))); }
+    for(let k=0;k<5;k++) s.link(k,(k+1)%5);
+    return s;
+  }
+  // ---- aromatic ring systems -------------------------------------------
+  // Purine and pyrimidine are FLAT — every ring atom is sp2, and the delocalised
+  // π system is what holds them planar. So these are laid out as regular polygons
+  // in the xz-plane rather than grown through freeTet(): a tetrahedral builder
+  // would pucker them, and a puckered base would break the one claim this pair
+  // makes, which is about WIDTH. Two rings vs one is why A–T and G–C are the same
+  // width and the DNA backbone stays a constant 2 nm apart.
+  //
+  // Bond orders below are one Kekulé structure of the aromatic ring. The real
+  // molecule is delocalised — no bond is truly single or double — but every
+  // textbook draws a Kekulé form, and alternating orders at least keep every
+  // atom's valence correct, which a uniform "aromatic" stick would not show.
+  const AR = { CC: 1.39*SCALE, CN: 1.34*SCALE, CH: 1.08*SCALE, NH: 1.01*SCALE };
+  // Regular polygon of `n` sides, side length AR.CC, in the xz-plane.
+  function flatRing(n, els){
+    const s=new Skel(), R=AR.CC/(2*Math.sin(Math.PI/n));
+    for(let k=0;k<n;k++){ const th=k*2*Math.PI/n;
+      s.put(els[k], V(R*Math.cos(th), 0, R*Math.sin(th))); }
+    for(let k=0;k<n;k++) s.link(k,(k+1)%n);
+    return s;
+  }
+  // Fuse a regular `n`-gon onto the existing edge i–j, coplanar with the ring and
+  // opening AWAY from `awayFrom` (the parent ring's centre). Returns the new atom
+  // indices in order walking from j round to i. This is how the imidazole gets
+  // onto the pyrimidine ring to make a purine — sharing the C4–C5 edge, which is
+  // the definition of the fused bicycle.
+  // Both rings live in the xz-plane, so this is 2D trigonometry about the y-axis
+  // — not a general 3D fuse. Keeping it 2D is the point: a general version would
+  // silently tolerate a non-planar purine, which is the one thing that must not
+  // happen here.
+  function fuseRing(s, n, i, j, awayFrom, els){
+    const a=s.at(i), b=s.at(j);
+    const mid=vmul(vadd(a,b),0.5);
+    const out=vnorm(vsub(mid, awayFrom));            // already in-plane (all y=0)
+    const side=vlen(vsub(b,a));
+    const apo=side/(2*Math.tan(Math.PI/n));          // centre → edge midpoint
+    const c=vadd(mid, vmul(out, apo));               // polygon centre
+    const R=side/(2*Math.sin(Math.PI/n));
+    const ang=p=>Math.atan2(p.z-c.z, p.x-c.x);
+    const thB=ang(b), step=2*Math.PI/n;
+    // step in whichever direction walks AWAY from a — i.e. the direction whose
+    // first vertex is not a. a and b are adjacent, so one of ±step lands on a.
+    const dA=((ang(a)-thB)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+    const dir=(Math.abs(dA-step)<Math.abs(dA-(2*Math.PI-step))) ? -1 : +1;
+    const idx=[];
+    for(let k=1;k<=n-2;k++){
+      const th=thB+dir*k*step;
+      idx.push(s.put(els[k-1], V(c.x+R*Math.cos(th), 0, c.z+R*Math.sin(th))));
+    }
+    s.link(j, idx[0]);
+    for(let k=0;k<idx.length-1;k++) s.link(idx[k], idx[k+1]);
+    s.link(idx[idx.length-1], i);
+    return idx;
+  }
+  // Hang an H off a flat ring atom, in the ring plane, bisecting its two
+  // neighbours from the outside. Doing this with freeTet() would push the H out
+  // of the plane and make the ring look puckered when it is not.
+  function flatH(s, i, dist){
+    const dir=vnorm(vmul(s.nbrs(i).reduce(vadd,V(0,0,0)),-1));
+    const h=s.put('H', vadd(s.at(i), vmul(dir, dist)));
+    s.link(i,h);
+    return h;
+  }
 
   // ---- the intermediates ------------------------------------------------
   // `gly` is this page's metadata block (the analogue of `pep` on the amino
@@ -755,7 +863,18 @@
           note:'The pyranose ring closes through an oxygen, not a sixth carbon.' },
         { key:'anomeric', label:'Anomeric carbon', formula:'C1', atoms:[1,OH[0],ohH[0]],
           note:'The one carbon bonded to two oxygens. Its –OH points equatorial here (β); flipping it to axial gives α — and α vs β is the whole difference between starch and cellulose.' },
-      ] });
+      ],
+      // contrast-lab.html: glucose is the reference half of the glucose/galactose
+      // pair. `diff` is C4 and its hydroxyl — the one position where galactose
+      // differs — derived from the build variables above rather than typed, so
+      // re-ordering this build cannot silently point the highlight elsewhere.
+      contrast:{ pair:'glucose-galactose', partner:'galactose',
+        differs:'one –OH orientation',
+        lesson:'why galactosemia is a disease',
+        diff:[4, OH[3], ohH[3]],
+        note:'C4’s –OH lies equatorial, in the plane of the ring, like every other '
+           + 'substituent here. All-equatorial is what makes glucose the most stable '
+           + 'hexose — and the one sugar nearly every organism runs on.' } });
   }
   {
     // — glucose-6-phosphate: ring has opened to the aldose chain; P on C6.
@@ -848,6 +967,164 @@
       gly:{ carbons:0, phosphates:1, free:true } });
   }
   Object.assign(MOLECULES, GLYCOLYSIS);
+
+  /* ---------------------------------------------------------------------
+   *  CONTRAST PAIRS — contrast-lab.html
+   * ---------------------------------------------------------------------
+   *  Family B (real Å × SCALE), so a pair is genuinely comparable: if these
+   *  came from different scale families the whole page would be a lie.
+   *
+   *  Every molecule here is Tier 2 in SCIENCE.md's sense — it exists only to be
+   *  shown beside a near-identical sibling, where ONE feature is the entire
+   *  lesson. That feature is therefore asserted by check-molecules.js, never
+   *  merely drawn. Each spec carries a `contrast` block naming its partner, the
+   *  lesson, and `diff` — the atoms that differ, which is what the page dims
+   *  everything else down to.
+   * ------------------------------------------------------------------- */
+  const CONTRAST = {};
+  {
+    // — galactose: β-D-galactopyranose. Built by exactly the same sequence as
+    //   glucose above, with ONE substitution: C4's –OH is axial, not equatorial.
+    //   That is the whole molecule's reason to exist on this page, so the build
+    //   deliberately mirrors glucose's line for line — if the two builds drifted
+    //   apart, a difference could show up on screen that is not the difference.
+    const g=ringPyranose();
+    const C=[1,2,3,4,5];
+    const RING=[0,1,2,3,4,5];
+    const C4=4;                           // ring index of C4 — the one flipped atom
+    const OH=[];
+    C.forEach(k=>{ if(k<5) OH.push(g.hydroxyl(k, k===C4 ? g.axial(k,RING) : g.equatorial(k,RING))); });
+    const c6=g.grow(5,'C',GL.CC,'sp3',g.equatorial(5,RING));
+    OH.push(g.hydroxyl(c6,0));
+    const CH=[];
+    C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
+    CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
+    g.rotate(1.05, 0.45, -0.2);           // same view as glucose, so the pair lines up
+    const ohH=OH.map(o=>{
+      const b=g.bonds.find(b=>(b[0]===o||b[1]===o) && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
+      return b[0]===o?b[1]:b[0];
+    });
+    CONTRAST.galactose=g.spec({ name:'Galactose', formula:'C₆H₁₂O₆', class:'sugar',
+      // C4 axial, every other substituent equatorial. `all-equatorial` here would
+      // be glucose — and the render of the two is very nearly the same picture.
+      stereo:{ axial:[C4] },
+      optH:CH,
+      contrast:{ pair:'glucose-galactose', partner:'glucose',
+        differs:'one –OH orientation',
+        lesson:'why galactosemia is a disease',
+        diff:[C4, OH[3], ohH[3]],
+        note:'Same formula, same atoms, same bonds — C4’s –OH points axial instead '
+           + 'of equatorial. One enzyme (GALT) tells them apart. Without it, galactose '
+           + 'from milk builds up and damages the liver, eyes and brain.' } });
+  }
+  {
+    // — ribose and 2-deoxyribose. Built by one shared function, because "the same
+    //   molecule minus one oxygen" has to be literally that: the deoxy build runs
+    //   the identical sequence and swaps a single hydroxyl for a hydrogen.
+    //   β-D-ribofuranose faces: 1′-OH and 5′ up (that pairing is what β- means),
+    //   2′-OH and 3′-OH down.
+    const UP=+1, DOWN=-1;
+    function riboFuranose(deoxy){
+      const s=ringFuranose();
+      const RING=[0,1,2,3,4];             // O4′, C1′, C2′, C3′, C4′
+      const c1=1,c2=2,c3=3,c4=4;
+      const o1=s.hydroxyl(c1, s.face(c1,RING,UP));
+      // the 2′ position — the entire difference between the two sugars
+      const o2 = deoxy ? null : s.hydroxyl(c2, s.face(c2,RING,DOWN));
+      const h2 = deoxy ? s.grow(c2,'H',GL.CH,'sp3',s.face(c2,RING,DOWN)) : null;
+      const o3=s.hydroxyl(c3, s.face(c3,RING,DOWN));
+      const c5=s.grow(c4,'C',GL.CC,'sp3',s.face(c4,RING,UP));
+      const o5=s.hydroxyl(c5,0);
+      // C–H last, so every index above is stable (same discipline as glucose)
+      const CH=[ s.grow(c1,'H',GL.CH,'sp3',0), s.grow(c2,'H',GL.CH,'sp3',0),
+                 s.grow(c3,'H',GL.CH,'sp3',0), s.grow(c4,'H',GL.CH,'sp3',0),
+                 s.grow(c5,'H',GL.CH,'sp3',0), s.grow(c5,'H',GL.CH,'sp3',0) ];
+      s.rotate(1.0, 0.5, -0.15);
+      const ohH=o=>{ const b=s.bonds.find(b=>(b[0]===o||b[1]===o) && s.atoms[b[0]===o?b[1]:b[0]].el==='H');
+        return b[0]===o?b[1]:b[0]; };
+      return { s, RING, c2, o1, o2, h2, o3, c5, o5, CH, ohH };
+    }
+    // Faces are declared by LABEL, not by sign: the ring normal's sign falls out
+    // of ring traversal order, so only which substituents share a face is
+    // meaningful — and that is exactly what makes this ribose rather than one of
+    // its stereoisomers (arabinose, xylose, lyxose all differ only here).
+    const FACES={ 1:'a', 2:'b', 3:'b', 4:'a' };
+
+    const r=riboFuranose(false);
+    CONTRAST.ribose=r.s.spec({ name:'Ribose', formula:'C₅H₁₀O₅', class:'sugar',
+      stereo:{ faces:FACES },
+      optH:r.CH,
+      contrast:{ pair:'ribose-deoxyribose', partner:'deoxyribose',
+        differs:'one –OH at 2′',
+        lesson:'why DNA is the stable archive',
+        diff:[r.o2, r.ohH(r.o2)],
+        note:'The 2′–OH is the reactive one: it can attack the backbone next door, '
+           + 'which is why RNA self-cleaves in minutes to hours. Useful for a '
+           + 'short-lived message.' } });
+
+    const d=riboFuranose(true);
+    CONTRAST.deoxyribose=d.s.spec({ name:'Deoxyribose', formula:'C₅H₁₀O₄', class:'sugar',
+      // C2′ carries no heavy substituent at all now, so it drops out of the face
+      // declaration — asserting a face for an atom that isn't there would pass
+      // vacuously and tell us nothing.
+      stereo:{ faces:{ 1:'a', 3:'b', 4:'a' } },
+      optH:d.CH,
+      contrast:{ pair:'ribose-deoxyribose', partner:'ribose',
+        differs:'one –OH at 2′',
+        lesson:'why DNA is the stable archive',
+        diff:[d.h2],
+        note:'Take that one oxygen away and the backbone has nothing to attack '
+           + 'itself with. DNA lasts — readably — for tens of thousands of years.' } });
+  }
+  {
+    // — purine and pyrimidine, the two parent ring systems. Named as the parents
+    //   rather than as adenine/thymine on purpose (SCIENCE.md rule 1): the claim
+    //   being made is about ring COUNT and width, and dressing them up with
+    //   substituents would add features this page does not check.
+    //
+    //   Both rings are drawn as regular polygons — a ~4% idealisation, since real
+    //   C–N (1.34 Å) is a little shorter than C–C (1.39 Å). That is deliberate:
+    //   the lesson is the two-ring vs one-ring WIDTH, and a regular polygon makes
+    //   that width read cleanly without changing it meaningfully.
+
+    // pyrimidine: one six-ring, N1 C2 N3 C4 C5 C6 at indices 0…5
+    const p=flatRing(6, ['N','C','N','C','C','C']);
+    p.order(0,1,2).order(2,3,2).order(4,5,2);      // one Kekulé structure
+    const pH=[1,3,4,5].map(i=>flatH(p,i,AR.CH));
+    p.rotate(-Math.PI/2, 0.35, 0);                 // xz-plane → face-on to camera
+    CONTRAST.pyrimidine=p.spec({ name:'Pyrimidine', formula:'C₄H₄N₂', class:'base',
+      topology:{ rings:[6] },
+      contrast:{ pair:'purine-pyrimidine', partner:'purine',
+        differs:'one ring vs two',
+        lesson:'why A–T and G–C are equal width',
+        // The C4–C5 edge and its two hydrogens: on purine this exact edge is
+        // where the second ring is fused. Highlighting a plain edge on one side
+        // and a whole fused ring on the other is what makes the absence visible
+        // — a pyrimidine's difference from a purine is something it does NOT have.
+        diff:[3,4,pH[1],pH[2]],
+        note:'C and T are pyrimidines — one ring, the narrow ones. Where purine '
+           + 'carries a second ring, this edge just carries two hydrogens.' } });
+
+    // purine: the same six-ring with an imidazole fused across C4–C5.
+    // Indices 0…5 = N1 C2 N3 C4 C5 C6, then 6,7,8 = N7 C8 N9.
+    const q=flatRing(6, ['N','C','N','C','C','C']);
+    const five=fuseRing(q, 5, 3, 4, V(0,0,0), ['N','C','N']);   // N7, C8, N9
+    q.order(0,1,2).order(2,3,2).order(4,5,2);      // six-ring, same Kekulé form
+    q.order(five[0],five[1],2);                    // N7=C8
+    const qH=[1,5,five[1]].map(i=>flatH(q,i,AR.CH));
+    qH.push(flatH(q,five[2],AR.NH));               // N9–H, the 9H tautomer
+    q.rotate(-Math.PI/2, 0.35, 0);
+    CONTRAST.purine=q.spec({ name:'Purine', formula:'C₅H₄N₄', class:'base',
+      topology:{ rings:[5,6], fused:true },
+      contrast:{ pair:'purine-pyrimidine', partner:'pyrimidine',
+        differs:'one ring vs two',
+        lesson:'why A–T and G–C are equal width',
+        diff:[3,4,...five, ...qH.slice(2)],
+        note:'A and G are purines — two fused rings, the wide ones. Every base pair '
+           + 'is one wide plus one narrow, so the DNA ladder keeps a constant 2 nm '
+           + 'rung. Two purines would bulge; two pyrimidines would pinch.' } });
+  }
+  Object.assign(MOLECULES, CONTRAST);
 
   global.MolLib = { PALETTE, MOLECULES };
 })(this);

@@ -179,6 +179,37 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- ring topology ---------------------------------------------------
+  // Purine vs pyrimidine makes no stereochemical claim at all — its claim is
+  // COUNT. Two fused rings vs one, which is why every DNA base pair is one wide
+  // base plus one narrow one and the ladder keeps a constant width. Nothing else
+  // in this file can see a missing ring: drop purine's imidazole and what remains
+  // is a perfectly valid, perfectly rendered, wrong molecule.
+  if (mol.topology) {
+    const rings = findRings(mol.atoms.length, bonds);
+    const sizes = rings.map(r => r.length).sort();
+    const want = (mol.topology.rings || []).slice().sort();
+    if (sizes.length !== want.length || sizes.some((s, k) => s !== want[k])) {
+      stereoFails++;
+      console.log(`   TOPOLOGY FAIL: spec declares rings [${want.join(', ')}] `
+        + `but geometry has [${sizes.join(', ')}]`);
+    } else if (mol.topology.fused) {
+      // "fused" is a real structural claim, not decoration: two rings sharing a
+      // single atom (spiro) or none at all is a different molecule entirely.
+      const shared = rings.length === 2
+        ? rings[0].filter(i => rings[1].includes(i)).length : 0;
+      if (shared < 2) {
+        stereoFails++;
+        console.log(`   TOPOLOGY FAIL: spec declares fused rings but they share `
+          + `${shared} atom(s) — a fused bicycle shares an EDGE (2 atoms).`);
+      } else {
+        console.log(`   topology OK: rings [${sizes.join(', ')}], fused across ${shared} shared atoms`);
+      }
+    } else {
+      console.log(`   topology OK: rings [${sizes.join(', ')}] as declared`);
+    }
+  }
+
   // ---- ring stereochemistry -------------------------------------------
   // Wrong configuration is invisible to every check above: lengths, angles and
   // the render all stay perfect while the molecule is a different sugar. So
@@ -213,9 +244,68 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
       } else {
         console.log(`   stereo OK: all-equatorial as declared`);
       }
+    } else if (mol.stereo && mol.stereo.axial) {
+      // `{ axial:[...] }` — the general form. Exactly these ring atoms carry an
+      // axial heavy substituent; every other one must be equatorial. Galactose is
+      // `{axial:[C4]}` and glucose is all-equatorial, and that single flip is the
+      // entire difference between them — so it is checked in BOTH directions:
+      // a missing flip and a spurious extra flip are both failures.
+      const want = new Set(mol.stereo.axial);
+      const wrong = found.filter(s => want.has(s.i) === s.eq);
+      if (wrong.length) {
+        stereoFails++;
+        console.log(`   STEREO FAIL: spec declares axial at [${mol.stereo.axial.map(label).join(', ')}] but`);
+        wrong.forEach(s => console.log(`     ${label(s.i)}->${label(s.j)} is `
+          + `${s.eq ? 'equatorial' : 'AXIAL'} (tilt ${s.tilt.toFixed(0)}°) — expected `
+          + `${want.has(s.i) ? 'axial' : 'equatorial'}`));
+      } else {
+        console.log(`   stereo OK: axial exactly at [${mol.stereo.axial.map(label).join(', ')}]`);
+      }
+    } else if (mol.stereo && mol.stereo.faces) {
+      // `{ faces:{ ringAtom: label } }` — for furanoses, where the ring is too
+      // flat for axial/equatorial to carry meaning (ribose's substituents all
+      // measure 49–62°, i.e. neither). What matters is which side of the ring
+      // each one is on. The ring normal's SIGN is arbitrary — it falls out of the
+      // traversal order findRings happens to produce — so this asserts only the
+      // RELATIVE pattern: same label ⇒ same face, different label ⇒ opposite.
+      // That is enough to separate ribose from arabinose, xylose and lyxose.
+      // What it CANNOT catch is a global mirror — flip every substituent at once
+      // and the relative pattern is unchanged, so L-ribose would pass as D-. That
+      // needs a signed-volume test like the `chirality` check above. It is not
+      // written yet because no page makes a D/L claim about a sugar; the moment
+      // one does, that claim needs its own assertion here rather than this one.
+      const decl = mol.stereo.faces;
+      const seen = found.filter(s => decl[s.i] !== undefined);
+      const missing = Object.keys(decl).filter(k => !seen.some(s => s.i === +k));
+      if (missing.length) {
+        stereoFails++;
+        console.log(`   STEREO FAIL: faces declared for ${missing.map(k => label(+k)).join(', ')}`
+          + ` but no heavy substituent is bonded there.`);
+        console.log(`     A face declared on an atom that carries nothing passes vacuously —`);
+        console.log(`     which is exactly how deoxyribose could be mistaken for ribose.`);
+      } else {
+        const side = s => Math.sign(dot3(unit(sub(P(s.j), P(s.i))), n));
+        // anchor on the first substituent's label, then require consistency
+        const anchor = decl[seen[0].i], anchorSide = side(seen[0]);
+        const bad = seen.filter(s => (decl[s.i] === anchor) !== (side(s) === anchorSide));
+        seen.forEach(s => console.log(`     ${label(s.i)}->${label(s.j)} face `
+          + `${side(s) === anchorSide ? anchor : `not-${anchor}`} (declared ${decl[s.i]})`));
+        if (bad.length) {
+          stereoFails++;
+          console.log(`   STEREO FAIL: ${bad.map(s => label(s.i)).join(', ')} `
+            + `${bad.length === 1 ? 'sits' : 'sit'} on the wrong face of the ring.`);
+          console.log(`     Flipping one –OH to the other face gives a different sugar`);
+          console.log(`     with identical lengths, identical angles and an identical render.`);
+        } else {
+          console.log(`   stereo OK: face pattern as declared `
+            + `(${seen.map(s => `${label(s.i)}:${decl[s.i]}`).join(' ')})`);
+        }
+      }
     } else if (mol.stereo) {
       stereoFails++;
-      console.log(`   STEREO FAIL: unknown stereo declaration '${mol.stereo}'`);
+      console.log(`   STEREO FAIL: unknown stereo declaration `
+        + `'${JSON.stringify(mol.stereo)}' — expected 'all-equatorial', `
+        + `{axial:[…]} or {faces:{…}}`);
     } else {
       console.log(`   (no \`stereo\` declared — pattern above is informational)`);
     }
