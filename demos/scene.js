@@ -128,9 +128,16 @@
     // opts.center puts the group's origin at the middle of the molecule so it
     // turns on the spot rather than orbiting its build origin. Opt-in: pages
     // that place molecules by their spec origin would shift if it were default.
+    //
+    // `true` centres on the bounding box. An explicit [x,y,z] centres on a point
+    // the caller chooses — which is how a comparison page registers two
+    // molecules against each other: centred on their own boxes, two specs that
+    // differ by one atom have different boxes, so their SHARED skeleton lands in
+    // slightly different places and the eye reads a shift that is not the
+    // difference. Centring both on the part they have in common removes it.
     let center=null;
     if(opts.center){
-      center=centerOf(spec);
+      center=Array.isArray(opts.center)?opts.center:centerOf(spec);
       g.children.forEach(ch=>{ ch.position.x-=center[0]; ch.position.y-=center[1]; ch.position.z-=center[2]; });
     }
     // PRESENTATION ORIENTATION. `spec.view` is [x,y,z] radians saying which way

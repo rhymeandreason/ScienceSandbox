@@ -822,7 +822,7 @@
     // The 3/4 chair. Every pyranose on every page uses this, which is what makes
     // glucose look the same in glycolysis-lab, macromolecule-lab and contrast-lab.
     pyranose:[1.05, 0.45, -0.2],
-    furanose:[1.0, 0.5, -0.15],
+    furanose:[-0.89, -2.723, -1.257],
     // Flat aromatics are built in the xz-plane, so they need turning face-on.
     flatRing:[-Math.PI/2, 0.35, 0],
   };
@@ -886,6 +886,11 @@
         differs:'one –OH orientation',
         lesson:'why galactosemia is a disease',
         diff:[4, OH[3], ohH[3]],
+        // The atoms this molecule shares with its partner, used to register the
+        // two against each other on screen. Both are centred on the centroid of
+        // their own `align` set, so the part they have in common lands in the
+        // same place and the only visible offset is the real difference.
+        align:RING,
         note:'C4’s –OH lies equatorial, in the plane of the ring, like every other '
            + 'substituent here. All-equatorial is what makes glucose the most stable '
            + 'hexose — and the one sugar nearly every organism runs on.' } });
@@ -1027,6 +1032,7 @@
         differs:'one –OH orientation',
         lesson:'why galactosemia is a disease',
         diff:[C4, OH[3], ohH[3]],
+        align:RING,
         note:'Same formula, same atoms, same bonds — C4’s –OH points axial instead '
            + 'of equatorial. One enzyme (GALT) tells them apart. Without it, galactose '
            + 'from milk builds up and damages the liver, eyes and brain.' } });
@@ -1072,6 +1078,7 @@
         differs:'one –OH at 2′',
         lesson:'why DNA is the stable archive',
         diff:[r.o2, r.ohH(r.o2)],
+        align:r.RING,
         note:'The 2′–OH is the reactive one: it can attack the backbone next door, '
            + 'which is why RNA self-cleaves in minutes to hours. Useful for a '
            + 'short-lived message.' } });
@@ -1088,6 +1095,7 @@
         differs:'one –OH at 2′',
         lesson:'why DNA is the stable archive',
         diff:[d.h2],
+        align:d.RING,
         note:'Take that one oxygen away and the backbone has nothing to attack '
            + 'itself with. DNA lasts — readably — for tens of thousands of years.' } });
   }
@@ -1117,6 +1125,7 @@
         // and a whole fused ring on the other is what makes the absence visible
         // — a pyrimidine's difference from a purine is something it does NOT have.
         diff:[3,4,pH[1],pH[2]],
+        align:[0,1,2,3,4,5],
         note:'C and T are pyrimidines — one ring, the narrow ones. Where purine '
            + 'carries a second ring, this edge just carries two hydrogens.' } });
 
@@ -1135,6 +1144,7 @@
         differs:'one ring vs two',
         lesson:'why A–T and G–C are equal width',
         diff:[3,4,...five, ...qH.slice(2)],
+        align:[0,1,2,3,4,5],      // the pyrimidine ring, before the fusion
         note:'A and G are purines — two fused rings, the wide ones. Every base pair '
            + 'is one wide plus one narrow, so the DNA ladder keeps a constant 2 nm '
            + 'rung. Two purines would bulge; two pyrimidines would pinch.' } });
