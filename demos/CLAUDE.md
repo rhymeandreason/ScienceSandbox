@@ -171,6 +171,12 @@ Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —
 so an automated screenshot may freeze on the last painted frame. Verify logic by
 driving the page's functions directly rather than trusting a single screenshot.
 
+Layout — framing, spacing, rotation, captions — has **no** checker; it is
+verified by hand in the browser. `TESTING.md` records what a headless one would
+take and why the sweep matters (every layout bug here has been conditional on one
+angle, one aspect or one toggle state). Nothing runs automatically: there is no
+CI and no git hook, so `check-molecules.js` is hand-run too.
+
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
 
 ## Later
