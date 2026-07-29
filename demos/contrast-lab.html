@@ -149,7 +149,13 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   // depths, so the near one is perspective-magnified — and "these two are the
   // same size except here" is exactly the claim this page is making. The user
   // can still spin to any angle; the default just must not lie.
-  cam:{theta:0,phi:Math.PI/2,r:30}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
+  // theta stays 0 — a horizontal camera swing puts one half nearer than the
+  // other and perspective magnifies it. phi is free, because the two are
+  // separated along X: raising the camera tilts both equally and keeps them at
+  // the same depth. 1.30 is glycolysis-lab's angle, which together with the
+  // specs' own baked orientation is what makes a pyranose read as a 3/4 chair
+  // rather than a flat hexagon.
+  cam:{theta:0,phi:1.30,r:30}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
   // Dragging turns the MOLECULES, not the camera (see the drag handler below).
   orbit:false });
 
@@ -161,15 +167,15 @@ const hx=n=>'#'+n.toString(16).padStart(6,'0');
  * which atoms differ, and why it matters — comes off the specs' own `contrast`
  * blocks; only the framing question lives here.                              */
 const PAIRS=[
-  { left:'glucose', right:'galactose', accent:0x2f8f6f, kind:'Sugars', tilt:-0.6,
+  { left:'glucose', right:'galactose', accent:0x2f8f6f, kind:'Sugars',
     ask:'Same formula, same ring, same five hydroxyls. One of these you burn for '
       + 'energy without thinking. The other, if you are missing one enzyme, '
       + 'poisons you. Which atom is doing that?' },
-  { left:'ribose', right:'deoxyribose', accent:0xb03a86, kind:'Sugars', tilt:-1.0,
+  { left:'ribose', right:'deoxyribose', accent:0xb03a86, kind:'Sugars',
     ask:'These two sugars build RNA and DNA respectively. One oxygen is the '
       + 'difference — and it is the reason your genome is written in one of them '
       + 'and not the other.' },
-  { left:'purine', right:'pyrimidine', accent:0x6a5acd, kind:'Bases', tilt:0.2,
+  { left:'purine', right:'pyrimidine', accent:0x6a5acd, kind:'Bases',
     ask:'The two shapes every DNA base is built on. A and G are one, C and T the '
       + 'other. Count the rings, then think about what a ladder needs.' },
 ];
@@ -181,8 +187,8 @@ const membersOf=p=>[p.left,p.right];
 // normalises the two halves to a common size, because "these are the same size"
 // is part of what the student is checking.
 const SPEC_SCALE=1.9;
-// Extents are measured on the molecule AS IT WILL BE SEEN — after the pair's
-// tilt, and swept through the idle turntable spin.
+// Extents are measured on the molecule AS IT WILL BE SEEN — swept through the
+// idle turntable spin.
 //
 // The spin is about Y only, so the swept volume is a CYLINDER, not a sphere:
 // only the horizontal distance from the spin axis grows as it turns, while the
@@ -210,16 +216,14 @@ function centreOf(spec){
   return lo.map((v,k)=>(v+hi[k])/2);
 }
 
-function extent(spec, tilt){
+function extent(spec){
   const P=MolLib.PALETTE.radii;
-  const c=Math.cos(tilt), sn=Math.sin(tilt);
   const O=centreOf(spec);
   let rxz=0, hy=0;
   spec.atoms.forEach(a=>{
     const R=P[a.el]||0.7;
     // measured from the spin axis, which is the centre — not the spec origin
-    const x=a.pos[0]-O[0], y0=a.pos[1]-O[1], z0=a.pos[2]-O[2];
-    const y=y0*c-z0*sn, z=y0*sn+z0*c;        // rotate about X by `tilt`
+    const x=a.pos[0]-O[0], y=a.pos[1]-O[1], z=a.pos[2]-O[2];
     rxz=Math.max(rxz, Math.hypot(x,z)+R);
     hy =Math.max(hy,  Math.abs(y)+R);
   });
@@ -236,7 +240,7 @@ function extent(spec, tilt){
   return {rxz,hy,span:span/SPEC_SCALE};
 }
 const EXT={};
-PAIRS.forEach(p=>membersOf(p).forEach(k=>{ EXT[k]=extent(specOf(k), p.tilt||0); }));
+PAIRS.forEach(p=>membersOf(p).forEach(k=>{ EXT[k]=extent(specOf(k)); }));
 
 const GAP=3.0;             // gutter between the two halves
 // Headroom above each model, in world units, for the HTML name plate to sit in
@@ -376,15 +380,26 @@ function posOf(k){
   return k===a ? V(-(GAP/2+EXT[a].rxz),LIFT,0) : V(GAP/2+EXT[b].rxz,LIFT,0);
 }
 
-/* `tilt` is a rotation about X, applied EQUALLY to both halves.
+/* Resting orientation is the SPEC'S OWN — no per-pair correction at all.
  *
- * The pair needs some tilt or a flat ring is seen face-on and an axial
- * substituent points straight at the camera — which is exactly the feature the
- * glucose/galactose pair exists to show, foreshortened into invisibility. But it
- * has to be an X tilt, not a camera swing: the two halves are separated along X,
- * so tilting about X leaves them at the SAME depth and the same apparent size,
- * while orbiting the camera puts one in front of the other and silently magnifies
- * it. Each pair gets the least tilt that makes its own difference legible. */
+ * Each spec already ends with a rotate() chosen to present the molecule well
+ * (glucose's `rotate(1.05,0.45,-0.2)` is what makes the pyranose read as a 3/4
+ * chair), and with the camera at glycolysis-lab's phi that is exactly the view
+ * that page shows. Two earlier attempts to "improve" on it were both wrong:
+ *
+ *   · an X tilt, to swing an axial -OH into view — it laid the ring on its side,
+ *     and a pyranose that no longer reads as a chair costs more than the
+ *     substituent gains;
+ *   · a Y phase solved to put the differing bond in the screen plane — it scored
+ *     0.97 on that metric and turned the ring edge-on, which is worse still.
+ *
+ * Both optimised one bond's visibility against the legibility of the whole
+ * molecule. The difference does not need to be maximally exposed at rest: the
+ * pair turns continuously, the reveal colours it, and the note names it.
+ *
+ * The camera may be raised (phi) but never swung (theta): the halves are
+ * separated along X, so phi tilts both equally while theta puts one nearer than
+ * the other and perspective magnifies it. */
 function applyLayout(){
   Object.keys(built).forEach(k=>{
     const on=membersOf(PAIRS[selected]).includes(k);
@@ -464,10 +479,9 @@ canvas.addEventListener('pointercancel',()=>{drag=null;});
 // Push the shared orientation onto both halves. Assigned, never accumulated, so
 // the two can't drift out of phase over a long session.
 function applySpin(){
-  const tilt=PAIRS[selected].tilt||0;
   membersOf(PAIRS[selected]).forEach(k=>{
-    built[k].rotation.y=spin;
-    built[k].rotation.x=tilt+lean;
+    built[k].rotation.y=spin;      // 0 at rest — the spec's own orientation
+    built[k].rotation.x=lean;      // 0 at rest; only the user's drag leans it
   });
 }
 
