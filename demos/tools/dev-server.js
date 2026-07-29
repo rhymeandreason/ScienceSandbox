@@ -35,7 +35,8 @@ const fs   = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');          // demos/
-const PORT = Number(process.argv[2] || process.env.PORT || 8817);
+const ASKED = process.argv[2] || process.env.PORT;   // explicit port, if any
+const PORT  = Number(ASKED || 8817);
 
 const TYPES = {
   '.html':'text/html; charset=utf-8',  '.js':'text/javascript; charset=utf-8',
@@ -103,7 +104,7 @@ try {
 }
 
 /* ---- serve ---------------------------------------------------------------- */
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
 
   if (url === '/__dev/reload') {
@@ -128,12 +129,50 @@ http.createServer((req, res) => {
     }
     send(target, res);
   });
-}).listen(PORT, () => {
-  console.log(`\n  dev server → http://localhost:${PORT}/`);
+});
+
+/* ---- listen, and cope with a port already in use --------------------------
+ * Something else holding the port is the normal case, not an exception: another
+ * editor window, a python http.server from last week, a second copy of this.
+ * Crashing with an unhandled 'error' event and a stack trace tells you almost
+ * nothing, so:
+ *   · no port asked for  → quietly try the next few and say which one won;
+ *   · port asked for     → that was a deliberate choice, so say plainly what is
+ *                          holding it and how to look, and stop.
+ */
+const MAX_TRIES = 10;
+let tries = 0;
+
+server.on('error', err => {
+  if (err.code !== 'EADDRINUSE') throw err;
+  const port = PORT + tries;
+  if (ASKED) {
+    console.error(`\n  Port ${port} is already in use.\n`);
+    console.error(`  Something else is serving on it — another copy of this server,`);
+    console.error(`  or a python http.server. To see what:\n`);
+    console.error(`      lsof -nP -iTCP:${port} -sTCP:LISTEN\n`);
+    console.error(`  Then stop it, or pick another port:\n`);
+    console.error(`      node tools/dev-server.js ${port + 1}\n`);
+    process.exit(1);
+  }
+  if (++tries > MAX_TRIES) {
+    console.error(`\n  Ports ${PORT}–${PORT + MAX_TRIES} are all in use. `
+      + `Pass one explicitly:\n\n      node tools/dev-server.js 9000\n`);
+    process.exit(1);
+  }
+  console.log(`  port ${port} busy, trying ${PORT + tries}…`);
+  server.listen(PORT + tries);
+});
+
+server.on('listening', () => {
+  const port = server.address().port;
+  console.log(`\n  dev server → http://localhost:${port}/`);
   console.log(`  serving     ${ROOT}`);
   console.log(`  live reload on; CSS swaps in place, everything else reloads`);
   console.log(`  (published files are untouched — the client is injected per response)\n`);
 });
+
+server.listen(PORT);
 
 function send(file, res) {
   const ext = path.extname(file).toLowerCase();

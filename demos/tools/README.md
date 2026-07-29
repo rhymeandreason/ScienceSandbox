@@ -63,7 +63,8 @@ Used for `amp` in `molecules.js`.
 ## `dev-server.js` — local development only
 
 ```bash
-node tools/dev-server.js [port]      # default 8817, zero dependencies
+node tools/dev-server.js             # default 8817; if busy, walks up to a free port
+node tools/dev-server.js 9000        # explicit port; if busy, says what holds it and stops
 ```
 
 Static file server with live reload. A CSS-only change swaps the stylesheet in
