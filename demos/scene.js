@@ -207,15 +207,26 @@
   //          scale divided out), i.e. the figure an instrument would agree with.
   //          Heavy atoms only: an -OH is a free rotor, so counting its hydrogen
   //          reports how the spec happens to be drawn, not how big it is.
+  // Measured AS BUILT, which means the spec's `view` is applied first. Skipping
+  // that reports the extents of a differently-oriented molecule: a pyranose
+  // turned face-on is much taller than the same ring seen edge-on, so the camera
+  // frames the wrong shape and captions placed at ±hy land on top of the model.
+  // opts.view overrides, matching buildMolecule's option of the same name.
   function measure(spec, opts={}){
     const P=global.MolLib.PALETTE.radii;
     const O=opts.center||centerOf(spec);
     const skip=new Set(opts.skip||[]);
+    const view = opts.view!==undefined ? opts.view : spec.view;
+    const q = view ? new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(view[0]||0, view[1]||0, view[2]||0, 'ZYX')) : null;
+    const v=new THREE.Vector3();
     let rxz=0, hy=0, radius=0;
     spec.atoms.forEach((a,i)=>{
       if(skip.has(i)) return;
       const R=P[a.el]||0.7;
-      const x=a.pos[0]-O[0], y=a.pos[1]-O[1], z=a.pos[2]-O[2];
+      v.set(a.pos[0]-O[0], a.pos[1]-O[1], a.pos[2]-O[2]);
+      if(q) v.applyQuaternion(q);
+      const x=v.x, y=v.y, z=v.z;
       rxz=Math.max(rxz, Math.hypot(x,z)+R);
       hy =Math.max(hy,  Math.abs(y)+R);
       radius=Math.max(radius, Math.hypot(x,y,z)+R);

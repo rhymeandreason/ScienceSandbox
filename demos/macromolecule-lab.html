@@ -163,32 +163,11 @@ const specOf=c=>MolLib.MOLECULES[c.key];
  * Compare mode keeps TRUE relative size — palmitate really is three times the
  * span of glucose, and that contrast is part of the lesson, so nothing here
  * normalises it. The 2x2 cell is sized from the widest/tallest monomer.       */
-const SPEC_SCALE=1.9;   // the one global factor every derived spec is built at
-function extent(spec){
-  const P=MolLib.PALETTE.radii;
-  let x=0,y=0,r=0,span=0;
-  spec.atoms.forEach(a=>{ const R=P[a.el]||0.7;
-    x=Math.max(x,Math.abs(a.pos[0])+R); y=Math.max(y,Math.abs(a.pos[1])+R);
-    r=Math.max(r,Math.hypot(a.pos[0],a.pos[1],a.pos[2])+R); });
-  // Widest HEAVY-atom centre separation, in real ångströms.
-  //   · centres, not surfaces — display radii are stylised, so including them
-  //     would report a number no instrument agrees with;
-  //   · pairwise max, not an axis extent — otherwise it reports how the spec
-  //     happens to be oriented rather than how big the molecule is;
-  //   · heavy atoms only, because an –OH is a free rotor. Counting hydrogens
-  //     had glucose at 8.3 Å against a real 6.45: the widest pair was two
-  //     hydroxyl H's, which `Skel` splays outward and which in a real molecule
-  //     spin freely anyway. On heavy atoms it reads 6.8 vs 6.26 — the honest
-  //     residual, and it stops the figure changing with the C–H toggle.
-  const heavy=spec.atoms.filter(a=>a.el!=='H');
-  for(let i=0;i<heavy.length;i++)
-    for(let j=i+1;j<heavy.length;j++){
-      const a=heavy[i].pos, b=heavy[j].pos;
-      span=Math.max(span, Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]));
-    }
-  return {x,y,r,span:span/SPEC_SCALE};
-}
-const EXT=CLASSES.map(c=>extent(specOf(c)));
+// Extents come from Stage.measure (scene.js) — `rxz` is the horizontal radius
+// swept by the idle turntable, `hy` the half-height a vertical spin never
+// changes, `span` the widest heavy-atom separation in real angstroms. This page
+// used to carry its own copy of all three.
+const EXT=CLASSES.map(c=>Stage.measure(specOf(c)));
 const LABEL_DROP=4.3;                 // caption sprite below each cell
 const GAP_X=7, GAP_Y=6;
 // Columns and rows are sized from THEIR OWN occupants, not from the widest
@@ -196,8 +175,8 @@ const GAP_X=7, GAP_Y=6;
 // cell puts the two small monomers in the middle of an empty half-screen and
 // the camera has to pull back for whitespace.
 const col=i=>i%2, row=i=>(i<2?0:1);
-const colHalf=[0,1].map(j=>Math.max(...EXT.filter((_,i)=>col(i)===j).map(e=>e.x)));
-const rowHalf=[0,1].map(j=>Math.max(...EXT.filter((_,i)=>row(i)===j).map(e=>e.y+LABEL_DROP)));
+const colHalf=[0,1].map(j=>Math.max(...EXT.filter((_,i)=>col(i)===j).map(e=>e.rxz)));
+const rowHalf=[0,1].map(j=>Math.max(...EXT.filter((_,i)=>row(i)===j).map(e=>e.hy+LABEL_DROP)));
 const colX=[-(colHalf[0]+GAP_X/2), colHalf[1]+GAP_X/2];
 const rowY=[rowHalf[0]+GAP_Y/2, -(rowHalf[1]+GAP_Y/2)];
 const gridPos=i=>V(colX[col(i)], rowY[row(i)], 0);
@@ -220,12 +199,16 @@ function textSprite(txt,color,px=54){
 // static groups is nothing to keep in memory, and rebuilding would drop the
 // highlight and the C–H toggle state on every click.
 const built=CLASSES.map((c,i)=>{
-  const g=Stage.buildMolecule(specOf(c));
+  // center:true so a monomer turns about its own middle rather than orbiting
+  // whatever point its spec was built around, and buildMolecule's YXZ rotation
+  // order keeps it upright. `hy`/`rxz` above are measured about that same
+  // centre, so the caption and the camera fit agree with it.
+  const g=Stage.buildMolecule(specOf(c),{center:true});
   // remember each mesh's own colour so a highlight can be undone exactly
   g.userData.atomMeshes.forEach(m=>{ if(m) m.userData.baseColor=m.material.color.getHex(); });
   g.userData.bondMeshes.forEach(m=>m.traverse(o=>{ if(o.isMesh) o.userData.baseColor=o.material.color.getHex(); }));
   const label=textSprite(c.kind, hx(c.accent));
-  label.position.set(0, -EXT[i].y-LABEL_DROP+1.7, 0);
+  label.position.set(0, -EXT[i].hy-LABEL_DROP+1.7, 0);
   g.add(label); g.userData.label=label;
   root.add(g);
   return g;
@@ -277,22 +260,21 @@ function applyHighlight(){
 // canvas nearly square on a laptop and wide on a monitor, so a constant that
 // frames palmitate on one crops it on the other. Horizontal half-angle shrinks
 // with aspect < 1, so the tighter of the two axes wins.
-const PAD=1.1;
 function fitCamera(){
-  // half-extents of what is currently on stage, about the origin. Solved per
-  // AXIS, not as one circumscribing radius: the compare grid is roughly twice
-  // as wide as it is tall, and a radius fit would frame that bounding circle —
-  // pulling back far enough to show empty space above and below.
-  let hw, hh;
-  if(compare){
-    hw=Math.max(...EXT.map((e,i)=>Math.abs(gridPos(i).x)+e.x));
-    hh=Math.max(...EXT.map((e,i)=>Math.abs(gridPos(i).y)+e.y+LABEL_DROP));
-  } else {
-    hw=hh=EXT[selected].r;   // a single monomer turns on the spot: fit its sphere
-  }
-  const tan=Math.tan(camera.fov*Math.PI/360), aspect=camera.aspect||1;
-  const d=Math.max(hh/tan, hw/(tan*aspect))*PAD;
-  cam.r=Math.max(6,Math.min(220,d));
+  // Compare mode fits the four cells where they sit; single mode fits one
+  // monomer at the origin. Stage.frame solves both per-axis against the real
+  // frustum — the compare grid is about twice as wide as it is tall, and a
+  // radius fit would frame its bounding circle and leave empty bands above and
+  // below. LABEL_DROP is passed as the bottom band the captions need.
+  const boxes = compare
+    ? EXT.map((e,i)=>({x:gridPos(i).x, y:gridPos(i).y, rxz:e.rxz, hy:e.hy}))
+    : [{x:0, y:0, rxz:EXT[selected].rxz, hy:EXT[selected].hy}];
+  // The caption band is only reserved in compare mode — the label sprites are
+  // hidden on a single monomer, so reserving room for them there would just
+  // shrink it. Reserved on the BOTTOM only: a label hangs under its molecule,
+  // which extends the frame for the bottom row and is interior for the top.
+  Stage.frame(camera, cam, boxes,
+    {pad:1.1, bottom:compare?LABEL_DROP:0, min:6, max:220});
   applyCam();
 }
 // the canvas reflows when the window does, and a re-fit is cheap
