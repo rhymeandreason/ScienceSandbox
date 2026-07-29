@@ -610,22 +610,16 @@ its camera in a closure.)
 
 ## 13. Macromolecule gallery (`macromolecule-lab.html`)
 
-A **comparison** page, not a reaction page: `aminoacid-lab.html` already shows a
-polymer being built one dehydration at a time, so this one covers the step
-before — what the four monomer classes look like next to each other, and which
-functional groups distinguish them. There is no simulation loop.
+**What the page is, how it lays out, and which monomer stands for each class
+live in the comment block at the top of `macromolecule-lab.html`** — those are
+invalidated by editing that page and nothing else. This section carries only
+what the page imposes on `molecules.js` or on another page.
 
-- **One monomer per class, and the protein monomer is `alanine`** — the spec
-  already in the library, already asserted `chirality:'L'`. Nothing is
-  duplicated for it; it just gained a `groups` map.
 - **`groups` is an index contract** (§1.4, rule 4), the analogue of `pep` / `gly`:
   `{key, label, formula, atoms:[…], note}`. The page renders whatever the map
   says and knows no chemistry of its own, so a new functional group is a
   `molecules.js` edit. Regenerating a spec must not renumber it — an off-by-one
   here mislabels chemistry rather than crashing.
-- **True relative size in compare mode.** Palmitic acid really is ~3× the span
-  of alanine and nothing normalises it; the layout sizes each grid column from
-  its own occupants instead.
 - **Scale family B**, like every molecule on this page — see §1.5. This is the
   page that discovered the rule, by drawing a family-A glucose next to family-B
   monomers and labelling it "true relative size". If a fifth monomer is ever
@@ -651,9 +645,6 @@ functional groups distinguish them. There is no simulation loop.
   unchecked, and the *cis* kink is the entire point of the unsaturated
   contrast — so that molecule waits for a torsion assertion rather than shipping
   a double bond nothing verifies.
-- **Lipids are named as the exception.** They are not polymers of a repeating
-  monomer, and the side panel says so instead of quietly filing them next to the
-  other three.
 - **Model simplifications (keep explicit):** palmitic acid is drawn as the
   neutral acid (at cell pH it is the carboxylate, palmitate) so the –COOH head
   is legible, the same choice §10 makes for amino acids. AMP is drawn as the

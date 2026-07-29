@@ -160,9 +160,12 @@ const CLASSES=[
 const specOf=c=>MolLib.MOLECULES[c.key];
 
 /* ---------- layout geometry ----------
- * Compare mode keeps TRUE relative size — palmitate really is three times the
- * span of glucose, and that contrast is part of the lesson, so nothing here
- * normalises it. The 2x2 cell is sized from the widest/tallest monomer.       */
+ * Compare mode keeps TRUE relative size, and that contrast IS the lesson, so
+ * nothing here normalises it. Heavy-atom spans, as check-molecules.js measures
+ * them: alanine 3.6 A, glucose 6.8, AMP 10.8, palmitate 20.0 — so palmitate is
+ * ~3x glucose and ~5.5x alanine. The 2x2 cell is sized from the widest/tallest
+ * monomer. (Spans are heavy-atom only: an -OH rotamer is arbitrary in a static
+ * model, so measuring across hydrogens measures the builder — SCIENCE.md 1.5.) */
 // Extents come from Stage.measure (scene.js) — `rxz` is the horizontal radius
 // swept by the idle turntable, `hy` the half-height a vertical spin never
 // changes, `span` the widest heavy-atom separation in real angstroms. This page

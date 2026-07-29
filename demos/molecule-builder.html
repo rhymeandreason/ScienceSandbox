@@ -219,12 +219,27 @@
 <script>
 "use strict";
 /* =============================================================
- *  BUILD A MOLECULE — two tabs: water shares, salt gives
- *  All the chemistry and all the feel live in water-drag.js / salt-drag.js;
- *  this file is UI only. Its job is to narrate what the hands just did: name
- *  the pull when it starts, name the shared pair when it forms, count the slots
- *  still open, and count the electrons out loud when one changes owner. Every
- *  rule is enforced in 3D, never in a dialog.
+ *  BUILD A MOLECULE — five tabs in three groups
+ *
+ *  H2O / CH4 ....... the same rule at two slot counts, so methane reads as
+ *                    "the rule generalises" rather than as a new fact
+ *  NH3 -> NH4+ ..... the bond one atom pays for (dative), and the acid/base
+ *                    door: a further H is refused as an ATOM, accepted as a
+ *                    PROTON
+ *  NaCl / KCl ...... the same transfer from two metals, so KCl is the control
+ *                    showing the behaviour belongs to metal + nonmetal, not
+ *                    to sodium
+ *
+ *  All the chemistry and all the feel live in covalent-drag.js (H2O, CH4, NH3)
+ *  and ionic-drag.js (NaCl, KCl) — two files because filling a valence slot and
+ *  handing an electron over are different MECHANICS, not one mechanic with a
+ *  flag. This file is UI only. Its job is to narrate what the hands just did:
+ *  name the pull when it starts, name the shared pair when it forms, count the
+ *  slots still open, and count the electrons out loud when one changes owner.
+ *  Every rule is enforced in 3D, never in a dialog.
+ *
+ *  Rules that reach beyond this page — the polarity weights, the 2D projection's
+ *  honesty, the ionic gap — are SCIENCE.md 12.
  * ============================================================= */
 
 /* 2D is a diagram, and a diagram must not have perspective: at 45° an atom
@@ -529,7 +544,7 @@ function win(s){
      way to say they are different KINDS of event:
        covalent — a ring expanding from the anchor atom through the molecule
        ionic    — a white flash and green sparks where the electron lands, fired
-                  by salt-drag.js at the arrival point, not from here
+                  by ionic-drag.js at the arrival point, not from here
      Centred by asking the lesson for its anchor's position rather than assuming
      the world origin — that assumption is what previously bloomed the ring out
      of empty space beside a salt pair dragged off-centre. */

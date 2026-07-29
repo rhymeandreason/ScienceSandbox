@@ -48,6 +48,10 @@ const KNOWN_ABSENT = {
   'check-layout.js':    'TESTING.md proposal — not built',
   'contrast-layout.js': 'TESTING.md proposal — not built',
   'three.min.js':       'loaded from a CDN, deliberately not vendored',
+  // Build outputs and runtime strings, not repo files.
+  'generated-specs.json':         'sdf2spec.js writes it; not committed',
+  'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',
+  'index.html':                   "dev-server.js's directory-index default",
 };
 
 let fails = 0;
@@ -114,14 +118,27 @@ if (!scriptRows) {
 /* ---- 2. PATHS ------------------------------------------------------ */
 console.log('\n== 2. files named in docs exist');
 
-const DOCS = fs.readdirSync(ROOT).filter(f => f.endsWith('.md'))
-  .concat(['molecules.js', 'scene.js', 'fx.js', 'atomkit.js', 'check-molecules.js']);
+// Every doc AND every source file, because a page's own header comment is now
+// where page-internal rules are supposed to live (CLAUDE.md, "Keeping the docs
+// true") — so it is exactly as capable of naming a file that got renamed. The
+// first version of this check scanned only .md plus a hand-listed five modules,
+// and missed molecule-builder.html citing water-drag.js / salt-drag.js long
+// after those became covalent-drag.js / ionic-drag.js.
+const DOCS = fs.readdirSync(ROOT)
+  .filter(f => /\.(md|js|html)$/.test(f) && !f.startsWith('_'))
+  .concat(fs.readdirSync(path.join(ROOT, 'tools'))
+    .filter(f => /\.(md|js)$/.test(f)).map(f => `tools/${f}`))
+  // This file cites filenames as examples (water-drag.js, lab.html) and would
+  // flag its own prose.
+  .filter(f => f !== 'tools/check-docs.js');
 
 const named = new Map();          // name -> Set of docs naming it
 for (const doc of DOCS) {
-  // The leading (^|[^\w./*-]) stops `*-lab.html` from being read as `lab.html`
-  // and a URL's tail from being read as a local path.
-  for (const m of rd(doc).matchAll(
+  // Drop URLs first — a CDN path like @2.1.1/src/bold/style.css is not a local
+  // file, and its tail looks exactly like one.
+  const src = rd(doc).replace(/\b(?:https?:)?\/\/[^\s"'`)]+/g, ' ');
+  // The leading (^|[^\w./*-]) stops `*-lab.html` from being read as `lab.html`.
+  for (const m of src.matchAll(
         /(^|[^\w./*-])([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:html|js|css|json))\b/gm)) {
     const n = m[2];
     if (n.includes('..') || n === 'Three.js') continue;         // prose, not a path
