@@ -40,6 +40,17 @@
     .molname .mnform{font-size:12px}
   }
 
+  /* Each molecule's note, directly under it. Same reasoning as the name plate:
+     it describes ONE molecule, so it belongs beside that molecule rather than in
+     a sidebar where the reader has to carry "the first one" across the screen.
+     Width is capped so a long note wraps into a column over its own half instead
+     of running under its partner. */
+  .molnote{position:absolute;z-index:5;transform:translate(-50%,0);
+    pointer-events:none;text-align:center;
+    max-width:min(330px,38%);
+    font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:#3a352f}
+  @media (max-width:920px){ .molnote{font-size:12px;max-width:44%} }
+
   #stage,#side{min-height:0}
   #side{overflow-y:auto}
 
@@ -59,9 +70,6 @@
   #htoggle{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.75;cursor:pointer;flex-basis:100%}
 
   #card{border-top:1.5px dashed var(--hair);padding-top:16px}
-  .sidenote{margin-bottom:14px}
-  .sidenote .snname{font-family:var(--font-slab);font-weight:700;font-size:14.5px}
-  .sidenote .snbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:#3a352f}
   .verdict{font-family:var(--font-slab);font-weight:700;font-size:13px;color:var(--muted);
     border-top:1.5px dashed var(--hair);padding-top:12px;margin-top:4px}
 
@@ -77,6 +85,8 @@
     <div id="brand"><span class="drop"><i class="ph-bold ph-magnifying-glass"></i></span><h1>Spot the Difference</h1></div>
     <div id="nameL" class="molname"></div>
     <div id="nameR" class="molname"></div>
+    <div id="noteL" class="molnote"></div>
+    <div id="noteR" class="molnote"></div>
     <div id="lesson"></div>
     <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
@@ -236,6 +246,12 @@ const NAME_ROOM=4.6;
 // The plate grows UPWARD from this point (translate -100%), so the two-line
 // version needs both a bigger offset and more NAME_ROOM in the camera fit.
 const NAME_LIFT=1.8;
+// Room under each molecule for its note. Reserved whether or not the note is
+// currently shown: sizing the frame to the note's presence would zoom the camera
+// every time "Show the difference" is pressed, and a comparison that changes
+// size at the moment of the reveal is exactly the wrong thing to do.
+const NOTE_ROOM=6.2;
+const NOTE_GAP=0.6;      // gap between the molecule's underside and the text
 // The stage chrome is HTML sitting ON TOP of the canvas: the lesson card runs
 // along the bottom centre and the atom counts along the bottom left. Both are in
 // the same band the name sprites want. Lifting the whole pair buys that band
@@ -335,7 +351,8 @@ function fitCamera(){
   // half-height about the ORIGIN, which the camera still looks at — so the lift
   // counts on the top side and the label hangs below on the bottom side, and the
   // taller of the two is what has to fit.
-  const hh=Math.max(...ks.map(k=>Math.max(EXT[k].hy+LIFT+NAME_ROOM, EXT[k].hy-LIFT)));
+  const hh=Math.max(...ks.map(k=>Math.max(EXT[k].hy+LIFT+NAME_ROOM,
+                                          EXT[k].hy-LIFT+NOTE_ROOM)));
   const tan=Math.tan(camera.fov*Math.PI/360), aspect=camera.aspect||1;
   cam.r=Math.max(6,Math.min(220,Math.max(hh/tan, hw/(tan*aspect))*PAD));
   applyCam();
@@ -382,6 +399,11 @@ function applyLayout(){
       +`<div class="mnform">${sp.formula}</div>`;
     el.style.color=hx(PAIRS[selected].accent);
   });
+  // The note gives the answer away, so it waits for the reveal — same gate the
+  // sidebar version was behind.
+  [noteL,noteR].forEach((el,i)=>{
+    el.textContent=showDiff?specOf(ks[i]).contrast.note:'';
+  });
   applySpin();
   fitCamera();
   placeNames();
@@ -393,6 +415,7 @@ function applyLayout(){
  * can orbit and zoom the camera, and a caption that stops tracking its molecule
  * is worse than no caption. It is only two elements — the cost is nothing.     */
 const nameL=document.getElementById('nameL'), nameR=document.getElementById('nameR');
+const noteL=document.getElementById('noteL'), noteR=document.getElementById('noteR');
 const _p=new THREE.Vector3();
 function placeNames(){
   if(!isFinite(camera.aspect)) return;
@@ -404,12 +427,14 @@ function placeNames(){
   // page whose whole job is "these two are the same except here" a stray
   // misalignment reads as a difference.
   const top=Math.max(...ks.map(k=>EXT[k].hy));
-  [nameL,nameR].forEach((el,i)=>{
-    const k=ks[i];
-    _p.set(posOf(k).x, LIFT+top+NAME_LIFT, 0).project(camera);
+  const bottom=Math.min(...ks.map(k=>-EXT[k].hy));   // shared baseline, lower half
+  const put=(el,worldY,i)=>{
+    _p.set(posOf(ks[i]).x, worldY, 0).project(camera);
     el.style.left=((_p.x*0.5+0.5)*w).toFixed(1)+'px';
     el.style.top =((-_p.y*0.5+0.5)*h).toFixed(1)+'px';
-  });
+  };
+  [nameL,nameR].forEach((el,i)=>put(el, LIFT+top+NAME_LIFT, i));
+  [noteL,noteR].forEach((el,i)=>put(el, LIFT+bottom-NOTE_GAP, i));
 }
 
 /* ---------- drag: turn the models, never the camera ----------
@@ -465,13 +490,12 @@ function buildLibrary(){
 const cardEl=document.getElementById('card');
 function buildCard(){
   const p=PAIRS[selected], a=specOf(p.left), b=specOf(p.right);
+  // Per-molecule notes now sit under their own molecule on the canvas, not here.
+  // The sidebar keeps what is about the PAIR rather than either half: the framing
+  // question, and the verdict.
   cardEl.innerHTML=`<p>${p.ask}</p>`
     + (showDiff
-      ? `<div class="sidenote"><div class="snname" style="color:${hx(p.accent)}">${a.name}</div>`
-        +`<div class="snbody">${a.contrast.note}</div></div>`
-        +`<div class="sidenote"><div class="snname" style="color:${hx(p.accent)}">${b.name}</div>`
-        +`<div class="snbody">${b.contrast.note}</div></div>`
-        +`<div class="verdict">Difference: ${a.contrast.differs} — ${a.contrast.lesson}.</div>`
+      ? `<div class="verdict">Difference: ${a.contrast.differs} — ${a.contrast.lesson}.</div>`
       : `<div class="verdict">Everything on screen is shared between the two, `
         +`except one feature. Found it?</div>`);
 }
