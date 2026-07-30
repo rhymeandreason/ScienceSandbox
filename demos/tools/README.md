@@ -105,3 +105,45 @@ It does **not** check whether prose is true. Nothing mechanical would have caugh
 SCIENCE.md claiming `stereo:` understood only `all-equatorial` long after it
 learned `{axial}` and `{faces}`. See CLAUDE.md "Keeping the docs true" for the
 part that is still on the reader.
+
+# tools/cod-check.js — an audit, not a guard
+
+Compares a Skel-built sugar against a **measured** crystal structure from the
+[Crystallography Open Database](https://www.crystallography.net/). Every sugar in
+`molecules.js` is constructed from our own `GL` table and idealised VSEPR angles,
+so `check-molecules.js` can only prove the geometry matches what the spec
+*declares*. This is the one thing that checks the declaration against reality.
+
+```bash
+curl -o 2101292.cif https://www.crystallography.net/cod/cif/2/10/12/2101292.cif
+node tools/cod-check.js glucose 2101292.cif
+```
+
+Run it **once per molecule**, then record the verdict in that spec's
+`validated:{}` and move on — see
+[molecule-pipeline.md](../../docs/molecule-pipeline.md) item 6 for why it is
+deliberately not wired into any check. Short version: the answer cannot go stale,
+a network call inside a guard is a liability, and choosing the reference needs
+judgement the script cannot supply.
+
+Results so far (2026-07-30): `glucose` matches COD 2101292 on all five
+substituents, torsions within 9.6°. `galactose` matches COD 2101291 on C4 — the
+axial –OH that is the entire glucose/galactose lesson — with torsions within 3.4°.
+
+Three things to know before trusting a run:
+
+- **The anomeric carbon is reported separately, and it often differs.** C1 is α or
+  β depending on which anomer crystallised; our sugars are β and the best
+  galactose reference is α. A raw mismatch count would flag a correct spec.
+- **Comparison is scale-invariant** — tilt from the ring plane, which face, and
+  ring torsions. Never coordinates: our specs are multiplied by `SCALE` (1.9), so
+  an RMSD against ångström crystal data means nothing.
+- **Pyranoses and furanoses only, single ring.** It finds the ring by sugar
+  numbering (`C1..Cn` plus `O5`/`O4`), so `ribose` and `deoxyribose` work but the
+  disaccharides do not — `maltose` and `cellobiose` label their two rings `C1A` /
+  `C1B`, and adjudicating a glycosidic link is a different job.
+
+The header comment carries the reference-selection traps (predicted structures
+filed as measurements, name searches that miss the structure you want,
+high-pressure series in ordinary results). Read it before picking a new COD id;
+that judgement is the expensive part, not the arithmetic.
