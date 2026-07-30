@@ -829,8 +829,10 @@
   const VIEW = {
     // The 3/4 chair. Every pyranose on every page uses this, which is what makes
     // glucose look the same in glycolysis-lab, macromolecule-lab and contrast-lab.
-    pyranose:[1.05+28*Math.PI/180, 0.45-24.4*Math.PI/180, -0.2],
-    furanose:[-0.89-20*Math.PI/180, -2.723-47.9*Math.PI/180, -1.257],
+    // Tuned +28° x / -24.4° y off an earlier [1.05, 0.45, -0.2] pass.
+    pyranose:[1.5387, 0.0241, -0.2],
+    // Tuned -30.5° y off an earlier [-0.89, -2.723, -1.257] pass.
+    furanose:[-0.89, -3.2553, -1.257],
     // Flat aromatics are built in the xz-plane, so they need turning face-on.
     flatRing:[-Math.PI/2, 0.35, 0],
   };
