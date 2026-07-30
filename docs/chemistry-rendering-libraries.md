@@ -18,7 +18,9 @@ genuinely different problems with different best tools.
 | Need | Tool | Where it lives |
 |---|---|---|
 | Equations, charges, arrows | KaTeX + mhchem | runtime, all pages |
-| 2D skeletal structures | SmilesDrawer (→ RDKit.js if it disappoints) | runtime, new `mol2d.js` module |
+| 2D skeletal structures | SmilesDrawer | runtime, `contrast-lab.html` |
+| 2D sugars (Haworth) | our own `haworth.js` | runtime, from the spec |
+| SMILES + highlight marks | RDKit | build-time, output committed |
 | 3D small molecules | our Three.js + `MolLib` | unchanged |
 | 3D macromolecules | 3Dmol.js | later, own page only |
 | Accurate 3D coordinates | PubChem / RDKit-Python | build-time script, output committed |
@@ -33,6 +35,54 @@ step, small. (MathJax has mhchem built in if we'd rather go that way.)
 
 Highest-value, lowest-risk addition, and `molecule-lab.html`'s carbonic-acid
 text needs it *today* — it's currently faking chemistry notation with HTML.
+
+## 2. 2D structure diagrams → SmilesDrawer, plus a Haworth projector
+
+**Settled, and built.** `contrast-lab.html` now draws a flat structure under
+every model. The call above held — SmilesDrawer runs at runtime, RDKit never
+ships — but two things came out of building it that this doc did not anticipate.
+Evidence, both openable in a browser:
+[rdkit-vs-smilesdrawer.html](rdkit-vs-smilesdrawer.html) (same pair, both
+renderers, self-contained) and [smilesdrawer-greys.html](smilesdrawer-greys.html)
+(highlight-colour options).
+
+**Sugars needed a third path.** No general depiction library draws a Haworth
+projection; they draw a flat ring with wedge/hash bonds. That is chemically
+correct and pedagogically useless for these pairs, because glucose vs galactose
+*is* the face of one –OH. `demos/haworth.js` projects a sugar from its own spec
+— ring from the same finder `check-molecules.js` uses, numbering from the
+committed `names`, each substituent's face from the sign of
+`(substituent − ringAtom) · ringNormal`. Every sugar lesson then reduces to a
+single flipped arrow, including α vs β, which shows up as the glycosidic bridge
+sitting below or above the join.
+
+**Highlighting is real but thin.** SmilesDrawer's `highlight_atoms` matches on
+SMILES atom-map class (the `:1` in `[N:1]`), not an index, and draws one flat
+circle per atom. There is **no bond highlighting anywhere in the library** —
+only `drawAtomHighlight` exists. RDKit takes `atoms` *and* `bonds` with per-item
+colours. For our pairs the atom-only limit costs little, because suppressing H
+in a skeletal drawing collapses most `diff` sets to a single heavy atom anyway.
+
+**Two traps, both measured:**
+
+- **Never use RDKit's `rootedAtAtom`.** Its output does not round-trip for ring
+  stereocentres — it silently returns the wrong anomer, verified on
+  glucose/galactose with `canonical` either `true` or `false`. Plain canonical
+  round-trips for all 16 contrast specs. We reached for rooting because it makes
+  a pair's SMILES traverse in parallel and so lay out alike; it is not worth a
+  wrong sugar.
+- **SmilesDrawer emits a square `viewBox`** whatever width and height you ask
+  for, so a long chain arrives letterboxed into a sliver. Re-fit the viewBox to
+  the drawn `getBBox()` and size the element to that aspect.
+
+**Do not hand-write SMILES.** `demos/tools/spec2smiles.js` generates the string
+from the spec via a molblock, and carries the highlight selection in the V2000
+atom-atom map field so `[N:1]` falls out of `contrast.diff` rather than being
+typed. `check-molecules.js` guards the committed string without needing RDKit:
+heavy-atom count parsed from the SMILES against the spec, and `:1` marks against
+the folded `diff`.
+
+### The original comparison
 
 ## 2. 2D structure diagrams → SmilesDrawer first
 
