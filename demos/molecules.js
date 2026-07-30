@@ -266,6 +266,7 @@
               {el:'H',pos:[6.032,0.873,1.056]},
               {el:'H',pos:[-0.002,-2.077,0]} ],
       names:['N','H','H2','CA','HA1','C','O','OXT','HXT','HA2'],
+      smiles:'O=C(O)C[NH2:1]',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8] ],
       optH:[4,9],   // nonpolar C–H, hidden by the lab’s H toggle
       // glycine is ACHIRAL: its side chain is an H, so Ca has two identical
@@ -302,6 +303,7 @@
               {el:'H',pos:[-1.802,-3.612,0.87]},
               {el:'H',pos:[0.076,-3.662,-1.931]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','HB3'],
+      smiles:'O=[C:1](O)[C@H:1]([CH3:1])[NH2:1]',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12] ],
       optH:[4,10,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
@@ -434,6 +436,7 @@
               {el:'O',pos:[-14.863,-3.043,0]},
               {el:'H',pos:[-13.065,-3.45,0]} ],
       names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
+      smiles:'CCCCC[CH2:1][CH2:1][CH2:1][CH2:1]CCCCCCC(=O)O',
       bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],
               [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
       hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
@@ -1179,6 +1182,7 @@
     const pH=[1,3,4,5].map(i=>flatH(p,i,AR.CH));
     CONTRAST.pyrimidine=p.spec({ name:'Pyrimidine', formula:'C₄H₄N₂', class:'base',
       names:['N1','C2','N3','C4','C5','C6','H2','H4','H5','H6'],
+      smiles:'c1nc[cH:1][cH:1]n1',
       topology:{ rings:[6] },
       view:VIEW.flatRing,
       contrast:{ pair:'purine-pyrimidine', partner:'purine',
@@ -1202,6 +1206,7 @@
     qH.push(flatH(q,five[2],AR.NH));               // N9–H, the 9H tautomer
     CONTRAST.purine=q.spec({ name:'Purine', formula:'C₅H₄N₄', class:'base',
       names:['N1','C2','N3','C4','C5','C6','N7','C8','N9','H2','H6','H8','H9'],
+      smiles:'c1nc[c:1]2[n:1][cH:1][nH:1][c:1]2n1',
       topology:{ rings:[5,6], fused:true },
       view:VIEW.flatRing,
       contrast:{ pair:'purine-pyrimidine', partner:'pyrimidine',
@@ -1224,6 +1229,7 @@
       res:'D-Ala', side:'–CH₃',
       atoms:MOLECULES.alanine.atoms.map(a=>({ el:a.el, pos:mirror(a.pos) })),
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','HB3'],
+      smiles:'O=[C:1](O)[C@@H:1]([CH3:1])[NH2:1]',
       bonds:MOLECULES.alanine.bonds.map(b=>b.slice()),
       optH:MOLECULES.alanine.optH.slice(),
       chirality:'D',   // asserted by check-molecules.js — the mirror life doesn't use
@@ -1279,6 +1285,7 @@
               {el:'H',pos:[-1.662,-1.013,-4.864]},
               {el:'H',pos:[-4.875,-0.91,-3.832]} ],
       names:['N','H','CD','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','CG','HG1','HG2','HD1','HD2'],
+      smiles:'O=C(O)[C@@H]1CC[CH2:1][NH:1]1',
       bonds:[ [0,1],[0,2],[0,3],[2,15],[2,16],[3,4],[3,5],[3,9],
               [5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[12,2],[12,13],[12,14] ],
       optH:[4,10,11,13,14,15,16],   // nonpolar C–H, hidden by the lab's H toggle
@@ -1379,6 +1386,7 @@
               {el:'H',pos:[-4.491,-7.197,-0.57]},
               {el:'H',pos:[-3.432,-10.085,0.576]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','CG','HB1','HB2','CD','HG1','HG2','OE1','NE2','HE21','HE22'],
+      smiles:'N[C@@H](CCC(=O)[NH2:1])C(=O)O',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
               [9,10],[9,11],[9,12],[10,13],[10,14],[10,15],[13,16,2],[13,17],[17,18],[17,19] ],
       optH:[4,11,12,14,15],   // nonpolar C–H; the amide N–H at 18/19 are donors, never optional
@@ -1412,6 +1420,7 @@
               {el:'O',pos:[2.356,-8.496,0.521]},
               {el:'H',pos:[-1.788,-10.393,0.512]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','CG','HB1','HB2','CD','HG1','HG2','OE2','OE1','HE2'],
+      smiles:'N[C@@H](CCC(=O)[OH:1])C(=O)O',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
               [9,10],[9,11],[9,12],[10,13],[10,14],[10,15],[13,16],[13,17,2],[16,18] ],
       optH:[4,11,12,14,15],   // nonpolar C–H; the hydroxyl H at 18 is a donor, never optional
@@ -1463,6 +1472,7 @@
         { el:'H', pos:[2.034,-2.98,0] },
       ],
       names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
+      smiles:'CCCCC[CH2:1]/[CH:1]=[CH:1]\\[CH2:1]CCCCCCC(=O)O',
       bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9,2],[9,10],
               [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
       hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],

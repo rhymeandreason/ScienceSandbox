@@ -125,6 +125,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="molecules.js"></script>
 <script src="haworth.js"></script>
+<!-- SmilesDrawer draws the flat structure of everything that is not a sugar
+     (sugars get a Haworth projection from haworth.js instead — see paintFlat).
+     From a CDN, like three.js and the icon font above. -->
+<script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
 <script src="scene.js"></script>
 <script>
 "use strict";
@@ -478,26 +482,91 @@ const flatL=document.getElementById('flatL'), flatR=document.getElementById('fla
  * Haworth projection, and until that exists their panel stays empty rather than
  * showing a ring projection of something that has no ring.
  */
+// Element colours shared by BOTH flat renderers, so a Haworth ring and a
+// SmilesDrawer skeleton read as one visual language rather than two libraries.
+const FLAT_INK='#2b2b2b';
+const FLAT_COLORS={ C:FLAT_INK, O:'#b03a2e', N:'#2b6cb0', S:'#b8860b', H:'#6a6257' };
+// The highlight disc. Grey, so it spotlights without competing with the element
+// colours — but a shade DARKER than reads well on white, because this page's
+// paper is cream (#f4ecdf) and #dcd8d0 disappeared into it entirely.
+const FLAT_HL='#cfc7b6';
+
+// The box a SmilesDrawer panel is fitted into. It is a BOX, not a size: the
+// drawing keeps its own aspect inside it, so palmitate's 16-carbon chain gets
+// the width it needs and an amino acid does not float in whitespace.
+const FLAT_MAX_W=430, FLAT_MAX_H=140;
+
+/* SmilesDrawer emits a SQUARE viewBox whatever width and height it was asked
+ * for, so a long chain arrives letterboxed into a sliver of the panel. Re-fit
+ * the viewBox to what was actually drawn, then size the element to that
+ * aspect inside FLAT_MAX_W x FLAT_MAX_H. Measured rather than assumed, since
+ * the extent depends on the molecule and on how the layout engine folded it. */
+function fitSvgToContent(svg){
+  let bb; try{ bb=svg.getBBox(); }catch(e){ return; }
+  if(!bb||!bb.width||!bb.height) return;
+  const pad=7, vw=bb.width+pad*2, vh=bb.height+pad*2;
+  svg.setAttribute('viewBox',`${bb.x-pad} ${bb.y-pad} ${vw} ${vh}`);
+  const s=Math.min(FLAT_MAX_W/vw, FLAT_MAX_H/vh);
+  svg.setAttribute('width', Math.round(vw*s));
+  svg.setAttribute('height', Math.round(vh*s));
+}
+
+// The highlight set, resolved exactly as the 3D view resolves it, then folded
+// so every entry lands on something a flat drawing actually draws: a hydrogen
+// has no glyph of its own there, it is part of its parent's -NH2 / -OH label.
+function flatHighlight(spec){
+  const idx=MolLib.resolveAtoms(spec,(spec.contrast&&spec.contrast.diff)||[]);
+  const adj=spec.atoms.map(()=>[]);
+  spec.bonds.forEach(([i,j])=>{ adj[i].push(j); adj[j].push(i); });
+  return new Set(idx.map(i=>spec.atoms[i].el==='H'
+    ? adj[i].find(j=>spec.atoms[j].el!=='H') : i));
+}
+
+/* ---------- the flat structure under each model ----------
+ * A second VIEW of the same spec, never a second source of truth. Sugars get a
+ * Haworth projection (haworth.js), because their whole lesson is which face an
+ * -OH sits on and a skeletal drawing can only mumble that with a wedge. Every
+ * other class gets SmilesDrawer, from the `smiles` string generated off the
+ * same spec by tools/spec2smiles.js — with the highlight carried in the string
+ * as atom-map class 1, which is what SmilesDrawer keys on.
+ */
 function paintFlat(){
   const ks=membersOf(PAIRS[selected]);
   [flatL,flatR].forEach((el,i)=>{
     const spec=specOf(ks[i]);
-    if(spec.class!=='sugar'||!spec.names||typeof Haworth==='undefined'){ el.innerHTML=''; return; }
-    // resolve exactly what the 3D highlight resolves, then fold each H onto its
-    // heavy neighbour: a Haworth gives H no glyph of its own unless it is the
-    // whole point (deoxyribose), so an H in `diff` must light up something.
-    const idx=new Set(MolLib.resolveAtoms(spec,(spec.contrast&&spec.contrast.diff)||[]));
+    el.innerHTML='';
+    if(!spec.names) return;
+
+    if(spec.class==='sugar'){
+      if(typeof Haworth==='undefined') return;
+      try{
+        el.innerHTML=Haworth.haworth(spec,{
+          highlight: showDiff?flatHighlight(spec):new Set(),
+          showH: showH,
+          width: spec.glycosidic?344:184, height:112,
+          ink:FLAT_INK, paper:'#f4ecdf',
+          highlightColour: hx(PAIRS[selected].accent),
+          highlightFill: FLAT_HL,
+          colors: FLAT_COLORS,
+        });
+      }catch(e){}
+      return;
+    }
+
+    if(!spec.smiles||typeof SmilesDrawer==='undefined') return;
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    el.appendChild(svg);
     try{
-      el.innerHTML=Haworth.haworth(spec,{
-        highlight: showDiff?idx:new Set(),
-        showH: showH,
-        width: spec.glycosidic?344:184,
-        height: 112,
-        ink:'#2b2b2b', paper:'#f4ecdf',
-        highlightColour: hx(PAIRS[selected].accent),
-        highlightFill:'#dcd8d0',
-        colors:{ C:'#2b2b2b', O:'#b03a2e', N:'#2b6cb0', H:'#6a6257' },
-      });
+      SmilesDrawer.parse(spec.smiles, tree=>{
+        new SmilesDrawer.SvgDrawer({
+          width:FLAT_MAX_W, height:FLAT_MAX_H,
+          bondThickness:1.1, terminalCarbons:false, compactDrawing:false,
+          themes:{ light:Object.assign({}, FLAT_COLORS,
+            { BACKGROUND:'#00000000', BOND:FLAT_INK }) },
+        }).draw(tree, svg, 'light', null, false,
+                showDiff?[[1, FLAT_HL]]:[]);
+        fitSvgToContent(svg);
+      }, ()=>{ el.innerHTML=''; });
     }catch(e){ el.innerHTML=''; }
   });
 }

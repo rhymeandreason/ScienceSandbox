@@ -134,7 +134,7 @@ function ringNormal(ring, P) {
   return unit(n);
 }
 
-let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0, nameFails = 0;
+let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0, nameFails = 0, smilesFails = 0;
 
 for (const [key, mol] of Object.entries(MOLECULES)) {
   if (!mol.atoms) continue;            // ionic entries carry no geometry
@@ -179,6 +179,46 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     if (mol.names.length === mol.atoms.length && !dupes.length && !wrong.length)
       console.log(`   names OK: ${mol.atoms.length} unique labels, elements agree`);
   }
+  // ---- the generated SMILES ------------------------------------------
+  // `smiles` is produced by tools/spec2smiles.js and committed, so it can drift
+  // from the `atoms`/`bonds` it was generated from. RDKit would settle it
+  // properly but is a dev dependency this checker must not need, so two cheap
+  // invariants stand in, and both catch a stale string:
+  //   · the heavy-atom count must match the spec's
+  //   · the atom-map marks (:1) must match the folded `diff` — folded because a
+  //     hydrogen has no glyph in a skeletal drawing and marks its heavy parent
+  if (mol.smiles) {
+    let n = 0;
+    for (let i = 0; i < mol.smiles.length; i++) {
+      const c = mol.smiles[i];
+      if (c === '[') { n++; i = mol.smiles.indexOf(']', i); continue; }
+      const two = mol.smiles.slice(i, i + 2);
+      if (two === 'Cl' || two === 'Br') { n++; i++; continue; }
+      if ('BCNOPSFI'.includes(c) || 'bcnops'.includes(c)) n++;
+    }
+    const heavy = mol.atoms.filter(a => a.el !== 'H').length;
+    if (n !== heavy) {
+      smilesFails++;
+      console.log(`   SMILES FAIL: ${n} heavy atoms in the string, ${heavy} in the spec `
+        + `— re-run tools/spec2smiles.js`);
+    }
+    const adj = mol.atoms.map(() => []);
+    (mol.bonds || []).forEach(([i, j]) => { adj[i].push(j); adj[j].push(i); });
+    const folded = new Set(((mol.contrast && mol.contrast.diff) || []).map(r => {
+      const i = typeof r === 'number' ? r : (mol.names || []).indexOf(r);
+      return mol.atoms[i] && mol.atoms[i].el === 'H'
+        ? adj[i].find(j => mol.atoms[j].el !== 'H') : i;
+    }));
+    const marks = (mol.smiles.match(/:1]/g) || []).length;
+    if (marks !== folded.size) {
+      smilesFails++;
+      console.log(`   SMILES FAIL: ${marks} highlight marks, but \`diff\` folds to `
+        + `${folded.size} heavy atom(s) — re-run tools/spec2smiles.js`);
+    }
+    if (n === heavy && marks === folded.size)
+      console.log(`   smiles OK: ${heavy} heavy atoms, ${marks} highlight mark(s)`);
+  }
+
   // Every atom reference must resolve. Migrated specs use names; the rest still
   // use integers, which are range-checked instead.
   if (mol.contrast && mol.contrast.diff) {
@@ -492,9 +532,10 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails || chiralFails || nameFails) {
+if (failures || stereoFails || chiralFails || nameFails || smilesFails) {
   const parts = [];
   if (nameFails) parts.push(`${nameFails} broken atom-name reference(s)`);
+  if (smilesFails) parts.push(`${smilesFails} stale generated SMILES`);
   if (failures) parts.push(`${failures} overlapping pair(s)`);
   if (stereoFails) parts.push(`${stereoFails} ring(s) failing a declared `
     + `stereo/topology claim`);
