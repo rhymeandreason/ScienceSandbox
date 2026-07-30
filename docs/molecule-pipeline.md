@@ -136,23 +136,35 @@ Before designing anything, every path-2 spec was re-fetched from PubChem and
 re-converted, then compared against what is committed. **Four of nine
 reproduce.** The results are the reason item 1 looks the way it does.
 
-| Spec | Result |
+**This is about regenerating, not about rendering.** Every spec below is correct
+and every page works — `check-molecules.js` passes on all of them. What the sweep
+measures is whether a committed spec could be *rebuilt* from its source today.
+The converters are Node tools run at a terminal; no page loads one.
+
+| Spec | Can it be regenerated? |
 |---|---|
-| `glycine`, `alanine`, `serine`, `cysteine` | **exact** — 0.000 coordinate delta; bonds identical up to endpoint order |
-| `proline` | **converter crashes** |
-| `glutamine`, `glutamate` | side-chain rotamer differs |
-| `palmitate`, `palmitoleate` | fetched has 32 H, committed has 1 |
-| `amp` | fetched has 14 H, committed has 12 |
+| `glycine`, `alanine`, `serine`, `cysteine` | **yes, exactly** — 0.000 coordinate delta; bonds identical up to endpoint order |
+| `proline` | **no** — the converter throws on it |
+| `glutamine`, `glutamate` | no — side-chain rotamer differs |
+| `palmitate`, `palmitoleate` | no — fetched has 32 H, committed has 1 |
+| `amp` | no — fetched has 14 H, committed has 12 |
 
 The four that reproduce are exactly the four `tools/README.md` documents. Every
-other spec took an **undocumented step** between the record and the file:
+other spec took an extra step between the record and the file:
 
 - **`proline` breaks the converter's unstated precondition.** `reindex` assumes
-  the backbone order `0 N · 1 H · 2 H · 3 Ca`, i.e. two hydrogens on the
-  backbone nitrogen. Proline's nitrogen is inside its side-chain ring and carries
-  one, so the fixed order has a hole in it and `sdf2spec.js` throws. It is the
-  one proteinogenic amino acid that cannot go through the amino-acid converter —
-  which is also, not coincidentally, the fact `contrast-lab.html` teaches.
+  the backbone order `0 N · 1 H · 2 H · 3 Ca`, i.e. two hydrogens on the amino
+  nitrogen. Proline's is secondary — one H, one bond into its own side-chain ring
+  — so slot 2 has nothing to fill it and `sdf2spec.js` throws a `TypeError`. It
+  is the one proteinogenic amino acid the amino-acid converter cannot take, which
+  is also, not coincidentally, the fact `contrast-lab.html` teaches about it.
+
+  The committed spec is nevertheless fine, and is the **best-annotated of the
+  nine**: `molecules.js` records that it came from CID 145742, was reindexed *by
+  hand* into the fixed order, and was then put through `sdf2spec.js`'s `reframe()`
+  alone. So this one is not an undocumented step — it is a documented manual
+  workaround. What it costs is that the tool in item 4 will hit the same wall the
+  moment anyone regenerates proline or adds another secondary-amine residue.
 - **`glutamine` and `glutamate` differ by a rotamer, not by noise.** The
   deviation climbs monotonically outward from the backbone: N 0.5, CG 1.5,
   CD 2.3, NE2 5.3, terminal H 7.1. The backbone reproduces; the flexible tail
@@ -164,9 +176,11 @@ other spec took an **undocumented step** between the record and the file:
   was deprotonated to the anion its own `note:` describes. Both are correct
   decisions. Neither is written down anywhere.
 
-None of this is drift or rot — the specs are right. The gap is that the
-transformation from record to spec exists only in whoever ran it. That is what
-makes the sweep worth repeating after any change to the converters.
+None of this is drift or rot, and nothing here is a bug on a page — the specs are
+right and the lessons render correctly. The gap is that for five of the nine, the
+transformation from record to spec exists only in whoever ran it (proline
+excepted, which wrote it down). That is what makes the sweep worth repeating
+after any change to the converters.
 
 ### 1. Record provenance *and* transformation in the spec
 
@@ -219,10 +233,12 @@ real and worth keeping separate.
 
 The sweep in item 0 is its requirements list. The tool has to own the three steps
 that are currently done by hand and unrecorded — **conformer pinning**,
-**hydrogen stripping**, and **protonation state** — and it has to do something
-defensible about `proline`, whose ring nitrogen breaks `sdf2spec.js` outright.
-Handling it or refusing it with a clear message are both fine; crashing on a
-stack trace inside `reindex` is not.
+**hydrogen stripping**, and **protonation state** — plus the fourth that *is*
+recorded but only in prose: the **secondary-amine backbone**, where proline's
+ring nitrogen breaks `reindex`'s fixed order. Supporting it or refusing it with a
+message pointing at proline's comment in `molecules.js` are both fine; a
+`TypeError` out of `reindex` is not. Nothing is broken today — proline's spec is
+committed and correct — but this is the first wall the one-way-in tool hits.
 
 **The tool writes to a file it owns outright, which humans never edit.**
 Programmatically editing a 1,694-line hand-authored source file is a codegen
