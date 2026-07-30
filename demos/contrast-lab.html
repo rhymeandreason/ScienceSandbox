@@ -546,6 +546,10 @@ document.getElementById('highlightdiff').onchange=e=>{ showDiff=e.target.checked
 document.getElementById('showh').onchange=e=>{ showH=e.target.checked; applyLayout(); };
 
 function refresh(){
+  // A drag on one pair shouldn't carry over as a surprise tilt on the next —
+  // each pair starts from its own rest pose (spec.view), not wherever the
+  // last one was left spinning.
+  spin=0; lean=0; applySpin();
   buildStageChrome();
   applyLayout(); applyHighlight();
   // No effect fires here on purpose. Revealing the difference is not a chemical
