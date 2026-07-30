@@ -333,7 +333,10 @@ function applyHighlight(){
   const p=PAIRS[selected];
   membersOf(p).forEach(k=>{
     const g=built[k], spec=specOf(k);
-    const set=new Set((spec.contrast&&spec.contrast.diff)||[]);
+    // `diff` entries are atom NAMES on migrated specs and raw indices on the
+    // rest (see molecules.js's atom-references-by-name note); resolveAtoms
+    // takes either, so this page never has to know which.
+    const set=new Set(MolLib.resolveAtoms(spec,(spec.contrast&&spec.contrast.diff)||[]));
     const paint=(m,on)=>{
       if(!m) return;
       m.traverse(o=>{

@@ -134,17 +134,50 @@ function ringNormal(ring, P) {
   return unit(n);
 }
 
-let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0;
+let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0, nameFails = 0;
 
 for (const [key, mol] of Object.entries(MOLECULES)) {
   if (!mol.atoms) continue;            // ionic entries carry no geometry
   const R = i => PALETTE.radii[mol.atoms[i].el] || 0.7;
   const P = i => mol.atoms[i].pos;
-  const label = i => mol.atoms[i].el + i;
+  const label = i => (mol.names ? mol.names[i] : mol.atoms[i].el + i);
   const bonds = mol.bonds || [];
   const bonded = new Set(bonds.map(([i, j]) => (i < j ? `${i},${j}` : `${j},${i}`)));
 
   console.log(`\n== ${key} (${mol.formula})`);
+
+  // ---- atom names ------------------------------------------------------
+  // `names` is what lets `diff` say what it selects rather than where it lands.
+  // Nothing else enforces it, so this is where a bad rename gets caught: wrong
+  // length, a duplicate, or a reference resolving to nothing.
+  if (mol.names) {
+    const dupes = mol.names.filter((n, i) => mol.names.indexOf(n) !== i);
+    if (mol.names.length !== mol.atoms.length) {
+      nameFails++;
+      console.log(`   NAME FAIL: ${mol.names.length} names for ${mol.atoms.length} atoms`);
+    }
+    if (dupes.length) {
+      nameFails++;
+      console.log(`   NAME FAIL: duplicate name(s) ${[...new Set(dupes)].join(', ')} `
+        + `— a name must select exactly one atom`);
+    }
+    if (mol.names.length === mol.atoms.length && !dupes.length)
+      console.log(`   names OK: ${mol.atoms.length} unique labels`);
+  }
+  // Every atom reference must resolve. Migrated specs use names; the rest still
+  // use integers, which are range-checked instead.
+  if (mol.contrast && mol.contrast.diff) {
+    for (const r of mol.contrast.diff) {
+      const ok = typeof r === 'number'
+        ? (Number.isInteger(r) && r >= 0 && r < mol.atoms.length)
+        : (mol.names && mol.names.indexOf(r) >= 0);
+      if (!ok) {
+        nameFails++;
+        console.log(`   NAME FAIL: contrast.diff references '${r}', not an atom of `
+          + `this spec${typeof r === 'string' && !mol.names ? ' (spec has no `names`)' : ''}`);
+      }
+    }
+  }
 
   for (const [i, j] of bonds) {
     const len = dist(P(i), P(j)), radii = R(i) + R(j), gap = len - radii;
@@ -444,8 +477,9 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails || chiralFails) {
+if (failures || stereoFails || chiralFails || nameFails) {
   const parts = [];
+  if (nameFails) parts.push(`${nameFails} broken atom-name reference(s)`);
   if (failures) parts.push(`${failures} overlapping pair(s)`);
   if (stereoFails) parts.push(`${stereoFails} ring(s) failing a declared `
     + `stereo/topology claim`);
@@ -453,6 +487,6 @@ if (failures || stereoFails || chiralFails) {
   console.log(`FAIL: ${parts.join(' + ')}`);
   process.exit(1);
 }
-console.log(`PASS: no sphere overlaps; every declared stereo/topology/chirality `
-  + `claim holds`
+console.log(`PASS: no sphere overlaps; every atom reference resolves; every `
+  + `declared stereo/topology/chirality claim holds`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));

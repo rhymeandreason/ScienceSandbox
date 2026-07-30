@@ -265,6 +265,7 @@
               {el:'O',pos:[4.526,0.214,0.179]},
               {el:'H',pos:[6.032,0.873,1.056]},
               {el:'H',pos:[-0.002,-2.077,0]} ],
+      names:['N','H','H2','CA','HA1','C','O','OXT','HXT','HA2'],
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8] ],
       optH:[4,9],   // nonpolar C–H, hidden by the lab’s H toggle
       // glycine is ACHIRAL: its side chain is an H, so Ca has two identical
@@ -278,7 +279,7 @@
       contrast:{ pair:'glycine-proline', partner:'proline',
         differs:'free vs ring-closed amino N',
         lesson:'why gluten resists digestion',
-        diff:[0,1,2],
+        diff:['N','H','H2'],
         note:'Glycine has no side chain to speak of — just an H — so its backbone '
            + 'nitrogen carries two ordinary N–H bonds and the chain stays free to '
            + 'straighten, which is the shape a digestive protease needs to grip. '
@@ -300,6 +301,7 @@
               {el:'H',pos:[1.547,-3.668,1.082]},
               {el:'H',pos:[-1.802,-3.612,0.87]},
               {el:'H',pos:[0.076,-3.662,-1.931]} ],
+      names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','HB3'],
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12] ],
       optH:[4,10,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
@@ -312,7 +314,7 @@
       contrast:{ pair:'alanine-D-alanine', partner:'dAlanine',
         differs:'handedness',
         lesson:'why life is homochiral',
-        diff:[3,0,4,5,9],
+        diff:['CA','N','HA','C','CB'],
         note:'Every ribosome on Earth builds proteins from L-amino acids only. '
            + 'The choice of L over D looks like an early accident — but once '
            + 'translation locked onto one hand, every enzyme that reads a '
@@ -350,6 +352,7 @@
               {el:'H',pos:[-1.759,-3.637,0.924]},
               {el:'H',pos:[0.036,-3.669,-1.932]},
               {el:'H',pos:[2.018,-3.186,3.064]} ],
+      names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','OG','HB1','HB2','HG'],
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[10,13] ],
       optH:[4,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
@@ -371,6 +374,7 @@
               {el:'H',pos:[-1.794,-3.58,0.985]},
               {el:'H',pos:[-0.139,-3.656,-1.941]},
               {el:'H',pos:[4.4,-3.554,-0.138]} ],
+      names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','SG','HB1','HB2','HG'],
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[10,13] ],
       optH:[4,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
@@ -429,6 +433,7 @@
               {el:'O',pos:[-17.222,0.508,0]},
               {el:'O',pos:[-14.863,-3.043,0]},
               {el:'H',pos:[-13.065,-3.45,0]} ],
+      names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
       bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],
               [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
       hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
@@ -449,7 +454,7 @@
       contrast:{ pair:'palmitate-palmitoleate', partner:'palmitoleate',
         differs:'one C=C, cis',
         lesson:"why butter is solid and oil is not",
-        diff:[7,8,9,10],
+        diff:['C8','C9','C10','C11'],
         note:'No double bond anywhere in this chain, so every C–C rotates freely '
            + 'into the same all-anti zigzag. Straight chains stack against each '
            + 'other like pencils in a box — tight packing is what makes a '
@@ -1212,6 +1217,7 @@
     CONTRAST.dAlanine={ name:'D-Alanine', formula:'C₃H₇NO₂', class:'aminoacid',
       res:'D-Ala', side:'–CH₃',
       atoms:MOLECULES.alanine.atoms.map(a=>({ el:a.el, pos:mirror(a.pos) })),
+      names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','HB3'],
       bonds:MOLECULES.alanine.bonds.map(b=>b.slice()),
       optH:MOLECULES.alanine.optH.slice(),
       chirality:'D',   // asserted by check-molecules.js — the mirror life doesn't use
@@ -1219,7 +1225,7 @@
       contrast:{ pair:'alanine-D-alanine', partner:'alanine',
         differs:'handedness',
         lesson:'why life is homochiral',
-        diff:[3,0,4,5,9],
+        diff:['CA','N','HA','C','CB'],
         note:'Same four groups on Cα as L-alanine — amino, carboxyl, H, methyl — '
            + 'just mirrored. Bacteria use D-alanine to cross-link cell walls, and it '
            + 'turns up in a few peptide antibiotics, but no ribosome on Earth reads it.' } };
@@ -1266,6 +1272,7 @@
               {el:'H',pos:[-4.128,-3.925,-0.507]},
               {el:'H',pos:[-1.662,-1.013,-4.864]},
               {el:'H',pos:[-4.875,-0.91,-3.832]} ],
+      names:['N','H','CD','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','CG','HG1','HG2','HD1','HD2'],
       bonds:[ [0,1],[0,2],[0,3],[2,15],[2,16],[3,4],[3,5],[3,9],
               [5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[12,2],[12,13],[12,14] ],
       optH:[4,10,11,13,14,15,16],   // nonpolar C–H, hidden by the lab's H toggle
@@ -1274,7 +1281,7 @@
       contrast:{ pair:'glycine-proline', partner:'glycine',
         differs:'ring-closed vs free amino N',
         lesson:'why gluten resists digestion',
-        diff:[0,1,2],
+        diff:['N','H','CD'],
         note:'Every other amino acid’s backbone nitrogen carries a free N–H, and the '
            + 'chain around it can flex into the extended shape a protease has to '
            + 'grip. Proline’s side chain bonds back into that nitrogen: no free N–H, '
@@ -1365,6 +1372,7 @@
               {el:'N',pos:[-3.007,-8.314,-0.053]},
               {el:'H',pos:[-4.491,-7.197,-0.57]},
               {el:'H',pos:[-3.432,-10.085,0.576]} ],
+      names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','CG','HB1','HB2','CD','HG1','HG2','OE1','NE2','HE21','HE22'],
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
               [9,10],[9,11],[9,12],[10,13],[10,14],[10,15],[13,16,2],[13,17],[17,18],[17,19] ],
       optH:[4,11,12,14,15],   // nonpolar C–H; the amide N–H at 18/19 are donors, never optional
@@ -1373,7 +1381,7 @@
       contrast:{ pair:'glutamine-glutamate', partner:'glutamate',
         differs:'side-chain amide vs acid',
         lesson:'how gluten becomes an antigen',
-        diff:[17,18,19],
+        diff:['NE2','HE21','HE22'],
         note:'Gliadin is glutamine-rich as well as proline-rich. This side chain '
            + 'ends in an amide — neutral, and nothing your immune system objects to. '
            + 'An enzyme in your gut wall swaps that –NH₂ for an –OH.' } };
@@ -1397,6 +1405,7 @@
               {el:'O',pos:[-1.908,-8.655,-0.15]},
               {el:'O',pos:[2.356,-8.496,0.521]},
               {el:'H',pos:[-1.788,-10.393,0.512]} ],
+      names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','CG','HB1','HB2','CD','HG1','HG2','OE2','OE1','HE2'],
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
               [9,10],[9,11],[9,12],[10,13],[10,14],[10,15],[13,16],[13,17,2],[16,18] ],
       optH:[4,11,12,14,15],   // nonpolar C–H; the hydroxyl H at 18 is a donor, never optional
@@ -1405,7 +1414,7 @@
       contrast:{ pair:'glutamine-glutamate', partner:'glutamine',
         differs:'side-chain acid vs amide',
         lesson:'how gluten becomes an antigen',
-        diff:[16,18],
+        diff:['OE2','HE2'],
         note:'The same residue after that swap: an oxygen where the amide nitrogen '
            + 'was, giving up its H and leaving the side chain negative. The immune '
            + 'receptor nearly everyone with celiac disease carries grips exactly this '
@@ -1447,6 +1456,7 @@
         { el:'O', pos:[0.236,-2.573,0] },
         { el:'H', pos:[2.034,-2.98,0] },
       ],
+      names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
       bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9,2],[9,10],
               [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
       hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
@@ -1454,7 +1464,7 @@
       contrast:{ pair:'palmitate-palmitoleate', partner:'palmitate',
         differs:'one C=C, cis',
         lesson:"why butter is solid and oil is not",
-        diff:[7,8,9,10],
+        diff:['C8','C9','C10','C11'],
         note:'One cis double bond, and the whole back half of the chain bends '
            + 'away. That kink is why vegetable oil stays liquid in the fridge: a '
            + 'bent chain cannot stack flush against its neighbours the way a '
@@ -1628,8 +1638,39 @@
   }
   Object.assign(MOLECULES, CONTRAST);
 
+  /* ---------- atom references by name ----------
+   * Specs carry an optional `names` array: one PDB-style label per atom, in
+   * the same order as `atoms`. Fields that point AT atoms may then use those
+   * labels instead of raw integers — `diff:['NE2','HE21','HE22']` says what it
+   * selects, where `diff:[17,18,19]` says only where it currently lands.
+   *
+   * The problem this solves is real and already documented all over this file:
+   * seven fields (`pep`, `groups`, `diff`, `optH`, `stereo.axial`, `cis`,
+   * `glycosidic`) index into `atoms`, and the comments keep warning that
+   * regenerating a spec "must not renumber them" — with nothing enforcing it.
+   * A different BFS order in sdf2spec.js silently repoints every one of them.
+   * Named references survive that, and check-molecules.js fails loudly on a
+   * name that does not resolve.
+   *
+   * `names` is generated once by tools/name-atoms.js and committed, not derived
+   * at load. It is positional and travels with `atoms`: regenerate the two
+   * together. The suffixes come from chemistry (bond order, then element), not
+   * from array position, so a reordered spec yields the SAME names — which is
+   * the whole point.
+   *
+   * Integers still work everywhere, so specs migrate one at a time.
+   */
+  function atomIndex(spec, ref){
+    if(typeof ref === 'number') return ref;
+    const i = spec.names ? spec.names.indexOf(ref) : -1;
+    if(i < 0) throw new Error(`atom '${ref}' is not in ${spec.name||'this spec'}`
+      + (spec.names ? '' : " (spec has no `names` array yet)"));
+    return i;
+  }
+  const resolveAtoms = (spec, refs) => (refs||[]).map(r => atomIndex(spec, r));
+
   // SCALE is exported so Stage.measure() can divide it back out and report real
   // angstroms. Pages used to hard-code 1.9 to do that, which silently becomes
   // wrong the day this constant moves.
-  global.MolLib = { PALETTE, MOLECULES, SCALE };
+  global.MolLib = { PALETTE, MOLECULES, SCALE, atomIndex, resolveAtoms };
 })(this);
