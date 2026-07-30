@@ -1404,17 +1404,6 @@
         differs:'α- vs β-1,4 linkage',
         lesson:'why we can’t digest wood',
         diff:[m.c1, m.bo, m.c4, m.h1],
-        // Registered on the FIRST ring — the two donor residues are built
-        // identically apart from the anomeric slot, so registering there lands
-        // them exactly on top of each other and the difference reads as where
-        // the SECOND ring ends up: α swings it out of line (chain these and
-        // starch coils), β carries it onward (cellulose runs as a ribbon).
-        // Aligning on the linkage instead would split that difference between
-        // the two halves and hide it. The cost is purine's cost — the pivot sits
-        // a ring off centre, so a drag swings the dimer rather than turning it
-        // perfectly in place — and it is worth paying here, because unlike
-        // purine's fused ring this IS the feature.
-        align:m.d.RING,
         note:'The bridge leaves C1 pointing axial — down, out of the ring plane. '
            + 'Chain these and the backbone has to curl: starch coils into a helix '
            + 'loose enough for amylase to reach in, which is why bread is food.' } });
@@ -1431,7 +1420,6 @@
         differs:'α- vs β-1,4 linkage',
         lesson:'why we can’t digest wood',
         diff:[c.c1, c.bo, c.c4, c.h1],
-        align:c.d.RING,
         note:'The bridge leaves C1 equatorial — straight out, in the ring plane. '
            + 'Chain these and the backbone stays flat and straight: cellulose '
            + 'ribbons stack into fibres no human enzyme can open. Wood is glucose '
