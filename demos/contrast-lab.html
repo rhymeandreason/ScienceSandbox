@@ -27,7 +27,7 @@
      inherited the model's tilt and idle spin, so the caption drifted around the
      thing it was naming — and they rendered as blurry canvas textures next to
      crisp DOM type everywhere else on the page. */
-  .molname{position:absolute;z-index:5;transform:translate(-50%,-100%);
+  .molname{position:absolute;z-index:5;transform:translate(-50%,0);
     pointer-events:none;white-space:nowrap;text-align:center}
   .molname .mnname{font-family:var(--font-marker);font-weight:400;font-size:26px;line-height:1.05}
   /* Formula in the slab face, muted — it is a label for the name above it, not a
@@ -49,6 +49,17 @@
     max-width:min(330px,38%);
     font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:#3a352f}
   @media (max-width:920px){ .molnote{font-size:12px;max-width:44%} }
+
+  /* The flat structure, directly under its own model. Same column as the name
+     and the note, so a reader goes model -> diagram -> note down one side
+     instead of pairing things across the screen. It is a SECOND VIEW of the
+     same molecule, not a second molecule, so it carries no frame or heading —
+     anything that made it look like its own object would invite reading the
+     four panels as four things. */
+  .molflat{position:absolute;z-index:5;transform:translate(-50%,0);
+    pointer-events:none;text-align:center;line-height:0}
+  .molflat svg{max-width:100%;height:auto}
+  @media (max-width:920px){ .molflat{display:none} }
 
   #stage{min-height:0}
 
@@ -92,9 +103,10 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="brand"><span class="drop"><i class="ph-bold ph-magnifying-glass"></i></span><h1>Spot the Difference</h1></div>
     <div id="nameL" class="molname"></div>
     <div id="nameR" class="molname"></div>
+    <div id="flatL" class="molflat"></div>
+    <div id="flatR" class="molflat"></div>
     <div id="noteL" class="molnote"></div>
     <div id="noteR" class="molnote"></div>
     <div id="lesson"></div>
@@ -112,6 +124,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="molecules.js"></script>
+<script src="haworth.js"></script>
 <script src="scene.js"></script>
 <script>
 "use strict";
@@ -265,26 +278,32 @@ PAIRS.forEach(p=>membersOf(p).forEach(k=>{ CENTER[k]=alignCenter(specOf(k)); }))
 const EXT={};
 PAIRS.forEach(p=>membersOf(p).forEach(k=>{ EXT[k]=Stage.measure(specOf(k),{center:CENTER[k]}); }));
 
-const GAP=3.0;             // gutter between the two halves
-// Headroom above each model, in world units, for the HTML name plate to sit in
-// without covering the molecule or colliding with the stage's top chrome.
-const NAME_ROOM=4.6;
-// How far above the molecule's top the plate's baseline sits, in world units.
-// The plate grows UPWARD from this point (translate -100%), so the two-line
-// version needs both a bigger offset and more NAME_ROOM in the camera fit.
-const NAME_LIFT=1.8;
-// Room under each molecule for its note. Reserved whether or not the note is
-// currently shown: sizing the frame to the note's presence would zoom the camera
-// every time "Show the difference" is pressed, and a comparison that changes
-// size at the moment of the reveal is exactly the wrong thing to do.
-const NOTE_ROOM=6.2;
-const NOTE_GAP=0.6;      // gap between the molecule's underside and the text
-// The stage chrome is HTML sitting ON TOP of the canvas: the lesson card runs
-// along the bottom centre and the atom counts along the bottom left. Both are in
-// the same band the name sprites want. Lifting the whole pair buys that band
-// back — cheaper than fighting it in CSS, and it keeps the molecules optically
-// centred in the space actually left over for them.
-const LIFT=0;
+/* ---------- fixed pixel layout ----------
+ * The stage is a plain vertical stack in SCREEN pixels: name plate, then a box
+ * of fixed size for the 3D model, then the flat structure, then the note. The
+ * model is scaled to fit its box rather than the box being derived from the
+ * model.
+ *
+ * The earlier version framed the camera against world-unit reserves for the
+ * captions and solved for a fit. That coupled everything to everything: a
+ * reserve for the flat structure changed the zoom, which changed the pixel
+ * height of the notes, which changed the reserve needed. Sizes here are what
+ * they say they are, and CSS can be tuned without re-deriving a camera.
+ */
+const NAME_TOP=50;               // px from the top of the stage to the name plate
+const MODEL_TOP=124;             // px — top of the 3D band
+const MODEL_W=500, MODEL_H=400;  // px — the box each model is scaled to fit
+const MODEL_GAP=60;              // px of clear space between the two boxes
+const FLAT_GAP=8;                // px between the model box and the flat structure
+const NOTE_GAP=14;               // px between the flat structure and the note
+
+// World units per screen pixel. This page's camera is ORTHOGRAPHIC (see
+// Stage.create above), so apparent size comes from the frustum's half-height,
+// not from standing distance — there is no fov to solve a distance against.
+function worldPerPx(){
+  const h=canvas.clientHeight||1;
+  return (camera.top-camera.bottom)/h;
+}
 
 /* ---------- build every molecule once ---------- */
 // All of them up front, shown/hidden per pair — same reasoning as the gallery: it is
@@ -361,29 +380,36 @@ function applyHighlight(){
 }
 
 /* ---------- camera ---------- */
+/* Scale the models to the fixed box rather than fitting the box to them.
+ * cam.r is solved so the LARGER of the pair exactly fills MODEL_W x MODEL_H —
+ * one distance for both halves, so the two stay comparable in size. That is the
+ * whole point of the page: a molecule drawn bigger than its partner reads as a
+ * difference. */
 function fitCamera(){
   const ks=membersOf(PAIRS[selected]);
-  Stage.frame(camera, cam, ks.map(k=>({x:posOf(k).x, y:LIFT, rxz:EXT[k].rxz, hy:EXT[k].hy})),
-    { pad:1.12, top:NAME_ROOM, bottom:NOTE_ROOM, min:6, max:220 });
+  const H=canvas.clientHeight||1;
+  if(!isFinite(camera.aspect)||!camera.aspect) return;
+  // Orthographic: set the frustum half-height directly. Whichever constraint
+  // binds — the box's height or its width — the scale is uniform, so one figure
+  // covers both.
+  const halfH=Math.max(...ks.map(k=>Math.max(EXT[k].hy*H/MODEL_H,
+                                             EXT[k].rxz*H/MODEL_W)));
+  camera.top=halfH; camera.bottom=-halfH;
+  camera.left=-halfH*camera.aspect; camera.right=halfH*camera.aspect;
+  camera.updateProjectionMatrix();
   applyCam();
 }
-// Each half sits in its own column, sized from ITS OWN width, so the pair is
-// centred as a whole rather than each molecule being centred in an equal cell —
-// purine is visibly wider than pyrimidine and the gutter should stay even.
+// Column centres are FIXED pixel positions converted into world x, so the two
+// boxes sit MODEL_GAP apart whatever the molecules happen to measure. Spacing
+// them on their own radii (as before) made the gutter breathe from pair to
+// pair. Y puts the box centre at MODEL_TOP + MODEL_H/2 down the screen.
 function posOf(k){
-  const p=PAIRS[selected], ks=membersOf(p);
+  const ks=membersOf(PAIRS[selected]);
   if(!ks.includes(k)) return V(0,0,0);
-  // GAP is the clear space BETWEEN the two, so each centre sits its own
-  // half-width plus half the gutter out from the middle. (Offsetting the centres
-  // by GAP instead leaves the two overlapping whenever a molecule is wider than
-  // the gutter — which every one of these is.)
-  // Spaced on each molecule's BOUNDING RADIUS, not its x half-width. A drag
-  // can turn either molecule to any angle, so an extent measured on the
-  // spec's static orientation is only correct for the one frame it was
-  // measured in. Half a turn later the pair overlaps and the edges clip. The
-  // radius is the only number that holds at every angle.
-  const [a,b]=ks;
-  return k===a ? V(-(GAP/2+EXT[a].rxz),LIFT,0) : V(GAP/2+EXT[b].rxz,LIFT,0);
+  const wpp=worldPerPx(), H=canvas.clientHeight||1;
+  const dx=(MODEL_W+MODEL_GAP)/2*wpp;
+  const y=(H/2-(MODEL_TOP+MODEL_H/2))*wpp;
+  return V(k===ks[0]?-dx:dx, y, 0);
 }
 
 /* Resting orientation is the SPEC'S OWN — no per-pair correction at all.
@@ -407,6 +433,10 @@ function posOf(k){
  * separated along X, so phi tilts both equally while theta puts one nearer than
  * the other and perspective magnifies it. */
 function applyLayout(){
+  // fitCamera FIRST: it sets the orthographic frustum, and posOf() converts the
+  // fixed pixel column centres into world units through that frustum. Placing
+  // the models before the fit would space them by the previous pair's scale.
+  fitCamera();
   Object.keys(built).forEach(k=>{
     const on=membersOf(PAIRS[selected]).includes(k);
     built[k].visible=on;
@@ -423,37 +453,71 @@ function applyLayout(){
   [noteL,noteR].forEach((el,i)=>{
     el.textContent=specOf(ks[i]).contrast.note;
   });
+  paintFlat();
   applySpin();
-  fitCamera();
   placeNames();
 }
 
-/* ---------- name plates ----------
- * Projected from the world point directly above each model to a pixel position
- * on the stage. Done every frame rather than once per layout because the user
- * can orbit and zoom the camera, and a caption that stops tracking its molecule
- * is worse than no caption. It is only two elements — the cost is nothing.     */
+/* ---------- name plate, flat structure, note ----------
+ * All three sit at FIXED pixel offsets down the stage — they no longer chase a
+ * projected world point. The camera cannot be orbited or zoomed on this page
+ * (drag turns the models, not the camera), so there is nothing for them to
+ * track, and fixed offsets keep the two columns exactly level with each other. */
 const nameL=document.getElementById('nameL'), nameR=document.getElementById('nameR');
 const noteL=document.getElementById('noteL'), noteR=document.getElementById('noteR');
-const _p=new THREE.Vector3();
-function placeNames(){
-  if(!isFinite(camera.aspect)) return;
+const flatL=document.getElementById('flatL'), flatR=document.getElementById('flatR');
+
+/* ---------- the flat structure under each model ----------
+ * A second VIEW of the same spec, not a second source of truth: the ring, the
+ * numbering and the faces are all read out of the same `atoms`/`bonds`/`names`
+ * the 3D model is built from, and the highlight comes from the same
+ * `contrast.diff`. There is nothing here that can disagree with the model above
+ * it — which is the only reason it is safe to show them side by side.
+ *
+ * Sugars only for now. The other classes want a skeletal drawing rather than a
+ * Haworth projection, and until that exists their panel stays empty rather than
+ * showing a ring projection of something that has no ring.
+ */
+function paintFlat(){
   const ks=membersOf(PAIRS[selected]);
+  [flatL,flatR].forEach((el,i)=>{
+    const spec=specOf(ks[i]);
+    if(spec.class!=='sugar'||!spec.names||typeof Haworth==='undefined'){ el.innerHTML=''; return; }
+    // resolve exactly what the 3D highlight resolves, then fold each H onto its
+    // heavy neighbour: a Haworth gives H no glyph of its own unless it is the
+    // whole point (deoxyribose), so an H in `diff` must light up something.
+    const idx=new Set(MolLib.resolveAtoms(spec,(spec.contrast&&spec.contrast.diff)||[]));
+    try{
+      el.innerHTML=Haworth.haworth(spec,{
+        highlight: showDiff?idx:new Set(),
+        showH: showH,
+        width: spec.glycosidic?344:184,
+        height: 112,
+        ink:'#2b2b2b', paper:'#f4ecdf',
+        highlightColour: hx(PAIRS[selected].accent),
+        highlightFill:'#dcd8d0',
+        colors:{ C:'#2b2b2b', O:'#b03a2e', N:'#2b6cb0', H:'#6a6257' },
+      });
+    }catch(e){ el.innerHTML=''; }
+  });
+}
+function placeNames(){
   const w=canvas.clientWidth, h=canvas.clientHeight;
   if(!w||!h) return;
-  // ONE baseline for the pair, taken from the taller half. Sitting each caption
-  // at its own molecule's height puts the two names a few pixels apart, and on a
-  // page whose whole job is "these two are the same except here" a stray
-  // misalignment reads as a difference.
-  const top=Math.max(...ks.map(k=>EXT[k].hy));
-  const bottom=Math.min(...ks.map(k=>-EXT[k].hy));   // shared baseline, lower half
-  const put=(el,worldY,i)=>{
-    _p.set(posOf(ks[i]).x, worldY, 0).project(camera);
-    el.style.left=((_p.x*0.5+0.5)*w).toFixed(1)+'px';
-    el.style.top =((-_p.y*0.5+0.5)*h).toFixed(1)+'px';
-  };
-  [nameL,nameR].forEach((el,i)=>put(el, LIFT+top+NAME_LIFT, i));
-  [noteL,noteR].forEach((el,i)=>put(el, LIFT+bottom-NOTE_GAP, i));
+  // Straight pixel arithmetic — the overlays no longer chase the projection of
+  // a world point. Both columns share every Y, so nothing can drift a few
+  // pixels out of line and read as a difference between the two molecules.
+  const cx=[w/2-(MODEL_W+MODEL_GAP)/2, w/2+(MODEL_W+MODEL_GAP)/2];
+  const put=(el,top,i)=>{ el.style.left=cx[i].toFixed(1)+'px';
+                          el.style.top=top.toFixed(1)+'px'; };
+  const flatTop=MODEL_TOP+MODEL_H+FLAT_GAP;
+  [nameL,nameR].forEach((el,i)=>put(el, NAME_TOP, i));
+  [flatL,flatR].forEach((el,i)=>put(el, flatTop, i));
+  // ONE note baseline for the pair, from the taller of the two panels: letting
+  // each note sit under its own diagram would stagger them whenever the panels
+  // differ in height.
+  const flatH=Math.max(...[flatL,flatR].map(el=>el.firstChild?el.offsetHeight:0));
+  [noteL,noteR].forEach((el,i)=>put(el, flatTop+flatH+(flatH?NOTE_GAP:0), i));
 }
 
 /* ---------- drag: turn the models, never the camera ----------
@@ -559,7 +623,10 @@ function buildStageChrome(){
   lessonEl.innerHTML = `<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`;
 }
 
-document.getElementById('highlightdiff').onchange=e=>{ showDiff=e.target.checked; applyHighlight(); };
+// both views answer the one toggle — a flat diagram still showing the plain
+// structure while the model beside it is lit up would read as a disagreement
+document.getElementById('highlightdiff').onchange=e=>{
+  showDiff=e.target.checked; applyHighlight(); paintFlat(); placeNames(); };
 document.getElementById('showh').onchange=e=>{ showH=e.target.checked; applyLayout(); };
 
 function refresh(){
@@ -591,7 +658,12 @@ function loop(){
 // The canvas reflows when the window does, and fitCamera() solves against
 // camera.aspect — so without this the framing is only ever right at the size the
 // page happened to load at.
-new ResizeObserver(()=>{ resize(); fitCamera(); placeNames(); }).observe(canvas);
+// applyLayout, not just fitCamera: the models' world positions are derived from
+// FIXED PIXEL column centres through the current frustum, so a size change moves
+// them, not only the camera. Re-fitting alone left the pair at the previous
+// size's spacing — and at startup, before the canvas has been measured, at a
+// spacing computed from a 1px-tall fallback.
+new ResizeObserver(()=>{ resize(); applyLayout(); }).observe(canvas);
 
 // resize() first: fitCamera() reads camera.aspect, which is only correct once
 // the canvas has actually been measured.

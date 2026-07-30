@@ -14,7 +14,13 @@
  * Nothing is hand-placed, so a regenerated spec redraws correctly, and this
  * never goes through SMILES — sidestepping the rooted-SMILES stereo bug that
  * flips ring anomeric centres.
+ *
+ * Lives beside molecules.js rather than in tools/ because contrast-lab.html
+ * loads it at runtime — tools/ is for things that only ever run at a terminal.
+ * Same dual wrapper molecules.js uses: `this` is window in the browser and
+ * module.exports under CommonJS, so the page and the checker share one file.
  */
+(function (global) {
 'use strict';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -235,4 +241,5 @@ function haworth(m, options) {
     + `font-family="'Zilla Slab',Georgia,serif">${body}</svg>`;
 }
 
-module.exports = { haworth, findRings, faces };
+global.Haworth = { haworth, findRings, faces };
+})(this);
