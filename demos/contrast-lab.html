@@ -23,15 +23,10 @@
   #lesson .lbody{font-family:var(--font-sans);font-size:14px;line-height:1.45;color:#3a352f}
 
   /* Molecule names are PAGE CHROME, not geometry: HTML sitting over the canvas,
-     tracking each model's position but never parented to it. As 3D sprites they
-     inherited the model's tilt and idle spin, so the caption drifted around the
-     thing it was naming — and they rendered as blurry canvas textures next to
-     crisp DOM type everywhere else on the page. */
+ */
   .molname{position:absolute;z-index:5;transform:translate(-50%,0);
     pointer-events:none;white-space:nowrap;text-align:center}
   .molname .mnname{font-family:var(--font-marker);font-weight:400;font-size:26px;line-height:1.05}
-  /* Formula in the slab face, muted — it is a label for the name above it, not a
-     second heading competing with it. */
   .molname .mnform{font-family:var(--font-slab);font-weight:700;font-size:14px;
     color:var(--muted);margin-top:3px}
   @media (max-width:920px){
@@ -39,23 +34,14 @@
     .molname .mnform{font-size:12px}
   }
 
-  /* Each molecule's note, directly under it. Same reasoning as the name plate:
-     it describes ONE molecule, so it belongs beside that molecule rather than in
-     a sidebar where the reader has to carry "the first one" across the screen.
-     Width is capped so a long note wraps into a column over its own half instead
-     of running under its partner. */
+  /* Each molecule's note, directly under it.  */
   .molnote{position:absolute;z-index:5;transform:translate(-50%,0);
     pointer-events:none;text-align:center;
     max-width:min(330px,38%);
     font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:#3a352f}
   @media (max-width:920px){ .molnote{font-size:12px;max-width:44%} }
 
-  /* The flat structure, directly under its own model. Same column as the name
-     and the note, so a reader goes model -> diagram -> note down one side
-     instead of pairing things across the screen. It is a SECOND VIEW of the
-     same molecule, not a second molecule, so it carries no frame or heading —
-     anything that made it look like its own object would invite reading the
-     four panels as four things. */
+  /* The flat structure, directly under its own model. */
   .molflat{position:absolute;z-index:5;transform:translate(-50%,0);
     pointer-events:none;text-align:center;line-height:0}
   .molflat svg{max-width:100%;height:auto}
@@ -63,8 +49,6 @@
 
   #stage{min-height:0}
 
-  /* Sidebar removed: this is a single-stage page now, pairs are browsed with
-     the arrow buttons instead of a picked-from-a-list panel. */
   #app{grid-template-columns:1fr}
 
   #toggles{position:absolute;right:28px;bottom:26px;z-index:5;display:flex;
@@ -127,7 +111,7 @@
 <script src="haworth.js"></script>
 <!-- SmilesDrawer draws the flat structure of everything that is not a sugar
      (sugars get a Haworth projection from haworth.js instead — see paintFlat).
-     From a CDN, like three.js and the icon font above. -->
+-->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
 <script src="scene.js"></script>
 <script>
@@ -174,17 +158,13 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   // open at. The user can still spin to any angle; the default just must not
   // present the two at different attitudes. phi is free, because the two are
   // separated along X: raising the camera tilts both equally and keeps them at
-  // the same depth. 1.30 is glycolysis-lab's angle, which together with the
-  // specs' own baked orientation is what makes a pyranose read as a 3/4 chair
-  // rather than a flat hexagon.
+  // the same depth. 
   cam:{theta:0,phi:1.30,r:30}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
   // Dragging turns the MOLECULES, not the camera (see the drag handler below).
   orbit:false });
 
 // Zoom disabled: fitCamera() is what sizes each pair (from the real geometry,
-// re-solved on every resize/pair switch), so a free scroll-zoom would just let
-// a student "fix" a size difference that's supposed to be read off the models,
-// not the camera. scene.js's own wheel listener is already bound to the canvas
+// re-solved on every resize/pair switch). scene.js's own wheel listener is already bound to the canvas
 // (rMin/rMax there only clamp it, they can't turn it off), so this listener is
 // added on the stage in the CAPTURE phase — capture on an ancestor always runs
 // before a bubble listener on the descendant target, so stopping propagation
@@ -199,7 +179,7 @@ const hx=n=>'#'+n.toString(16).padStart(6,'0');
 /* ---------- the pairs ----------
  * `left`/`right` index MolLib.MOLECULES. Everything chemical — what differs,
  * which atoms differ, and why it matters — comes off the specs' own `contrast`
- * blocks; only the framing question lives here.                              */
+ * blocks.                             */
 const PAIRS=[
   { left:'glucose', right:'galactose', accent:0x2f8f6f, kind:'Sugars',
     ask:'Same formula, same ring, same five hydroxyls. One of these you burn for '
@@ -464,9 +444,7 @@ function applyLayout(){
 
 /* ---------- name plate, flat structure, note ----------
  * All three sit at FIXED pixel offsets down the stage — they no longer chase a
- * projected world point. The camera cannot be orbited or zoomed on this page
- * (drag turns the models, not the camera), so there is nothing for them to
- * track, and fixed offsets keep the two columns exactly level with each other. */
+ * projected world point.  */
 const nameL=document.getElementById('nameL'), nameR=document.getElementById('nameR');
 const noteL=document.getElementById('noteL'), noteR=document.getElementById('noteR');
 const flatL=document.getElementById('flatL'), flatR=document.getElementById('flatR');
@@ -477,18 +455,13 @@ const flatL=document.getElementById('flatL'), flatR=document.getElementById('fla
  * the 3D model is built from, and the highlight comes from the same
  * `contrast.diff`. There is nothing here that can disagree with the model above
  * it — which is the only reason it is safe to show them side by side.
- *
- * Sugars only for now. The other classes want a skeletal drawing rather than a
- * Haworth projection, and until that exists their panel stays empty rather than
- * showing a ring projection of something that has no ring.
- */
+
 // Element colours shared by BOTH flat renderers, so a Haworth ring and a
 // SmilesDrawer skeleton read as one visual language rather than two libraries.
 const FLAT_INK='#2b2b2b';
 const FLAT_COLORS={ C:FLAT_INK, O:'#b03a2e', N:'#2b6cb0', S:'#b8860b', H:'#6a6257' };
 // The highlight disc. Grey, so it spotlights without competing with the element
-// colours — but a shade DARKER than reads well on white, because this page's
-// paper is cream (#f4ecdf) and #dcd8d0 disappeared into it entirely.
+// colours.
 const FLAT_HL='#cfc7b6';
 
 // The box a SmilesDrawer panel is fitted into. It is a BOX, not a size: the
