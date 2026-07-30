@@ -163,13 +163,13 @@ const specOf=c=>MolLib.MOLECULES[c.key];
  * Compare mode keeps TRUE relative size, and that contrast IS the lesson, so
  * nothing here normalises it. Heavy-atom spans, as check-molecules.js measures
  * them: alanine 3.6 A, glucose 6.8, AMP 10.8, palmitate 20.0 — so palmitate is
- * ~3x glucose and ~5.5x alanine. The 2x2 cell is sized from the widest/tallest
- * monomer. (Spans are heavy-atom only: an -OH rotamer is arbitrary in a static
- * model, so measuring across hydrogens measures the builder — SCIENCE.md 1.5.) */
-// Extents come from Stage.measure (scene.js) — `rxz` is the horizontal radius
-// swept by the idle turntable, `hy` the half-height a vertical spin never
-// changes, `span` the widest heavy-atom separation in real angstroms. This page
-// used to carry its own copy of all three.
+ * ~3x glucose and ~5.5x alanine. (Spans are heavy-atom only: an -OH rotamer is
+ * arbitrary in a static model, so measuring across hydrogens measures the
+ * builder — SCIENCE.md 1.5.)
+ *
+ * Extents come from Stage.measure (scene.js) — `rxz` is the horizontal radius
+ * swept by the idle turntable, `hy` the half-height a vertical spin never
+ * changes, `span` the widest heavy-atom separation in real angstroms. */
 const EXT=CLASSES.map(c=>Stage.measure(specOf(c)));
 const LABEL_DROP=4.3;                 // caption sprite below each cell
 const GAP_X=7, GAP_Y=6;
@@ -261,14 +261,13 @@ function applyHighlight(){
 // Pull the camera back until what's on stage fits, solved from the ACTUAL
 // frustum rather than a hand-tuned multiple of the radius: the panel makes this
 // canvas nearly square on a laptop and wide on a monitor, so a constant that
-// frames palmitate on one crops it on the other. Horizontal half-angle shrinks
-// with aspect < 1, so the tighter of the two axes wins.
+// frames palmitate on one crops it on the other.
 function fitCamera(){
   // Compare mode fits the four cells where they sit; single mode fits one
-  // monomer at the origin. Stage.frame solves both per-axis against the real
-  // frustum — the compare grid is about twice as wide as it is tall, and a
-  // radius fit would frame its bounding circle and leave empty bands above and
-  // below. LABEL_DROP is passed as the bottom band the captions need.
+  // monomer at the origin. A radius fit would frame the compare grid's
+  // bounding circle and leave empty bands above/below, since it's twice as
+  // wide as tall — Stage.frame solves both axes against the real frustum
+  // instead. LABEL_DROP is passed as the bottom band the captions need.
   const boxes = compare
     ? EXT.map((e,i)=>({x:gridPos(i).x, y:gridPos(i).y, rxz:e.rxz, hy:e.hy}))
     : [{x:0, y:0, rxz:EXT[selected].rxz, hy:EXT[selected].hy}];
