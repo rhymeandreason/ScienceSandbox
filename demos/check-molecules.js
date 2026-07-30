@@ -161,8 +161,23 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
       console.log(`   NAME FAIL: duplicate name(s) ${[...new Set(dupes)].join(', ')} `
         + `— a name must select exactly one atom`);
     }
-    if (mol.names.length === mol.atoms.length && !dupes.length)
-      console.log(`   names OK: ${mol.atoms.length} unique labels`);
+    // A name's first letter is its element (H, C, N, O, S, P are all one
+    // character here), so a name and the atom it sits on must agree. This is
+    // the check that matters for the BUILDER-made specs — sugars and bases get
+    // a literal `names` array beside a computed `atoms` array, and reordering
+    // the build would slide the two out of step. Length alone would not notice
+    // a swap; element disagreement does.
+    const wrong = mol.names
+      .map((n, i) => (n && n[0] !== mol.atoms[i].el ? `${n} on ${mol.atoms[i].el}${i}` : null))
+      .filter(Boolean);
+    if (wrong.length) {
+      nameFails++;
+      console.log(`   NAME FAIL: name/element disagreement — ${wrong.slice(0, 4).join(', ')}`
+        + (wrong.length > 4 ? ` (+${wrong.length - 4} more)` : '')
+        + `\n     the \`names\` array has drifted out of step with \`atoms\``);
+    }
+    if (mol.names.length === mol.atoms.length && !dupes.length && !wrong.length)
+      console.log(`   names OK: ${mol.atoms.length} unique labels, elements agree`);
   }
   // Every atom reference must resolve. Migrated specs use names; the rest still
   // use integers, which are range-checked instead.

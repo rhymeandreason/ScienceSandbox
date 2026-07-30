@@ -149,7 +149,171 @@ function nameLipid(key, m) {
   return names;
 }
 
-const NAMERS = { aminoacid: nameAminoAcid, lipid: nameLipid };
+/* Smallest 5- and 6-membered cycles, same method check-molecules.js uses for
+ * its axial/equatorial and glycosidic checks. */
+function findRings(m) {
+  const adj = adjacency(m), out = [], seen = new Set();
+  for (const [i, j] of m.bonds) {
+    const prev = new Map([[i, null]]);
+    const q = [i];
+    let done = false;
+    while (q.length && !done) {
+      const u = q.shift();
+      for (const v of adj[u]) {
+        if ((u === i && v === j) || (u === j && v === i)) continue;
+        if (prev.has(v)) continue;
+        prev.set(v, u);
+        if (v === j) { done = true; break; }
+        q.push(v);
+      }
+    }
+    if (!prev.has(j)) continue;
+    const path = [];
+    for (let c = j; c !== null; c = prev.get(c)) path.push(c);
+    if (path.length < 5 || path.length > 6) continue;
+    const sig = [...path].sort((a, b) => a - b).join(',');
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push(path);
+  }
+  return out;
+}
+
+/* Sugars: carbohydrate numbering. C1 is the ANOMERIC carbon — the ring carbon
+ * next to the ring oxygen that also carries an exocyclic O — then round the
+ * ring away from that oxygen: C2, C3, C4, (C5). The ring O takes the number of
+ * the last ring carbon (O5 in a pyranose, O4 in a furanose), the exocyclic
+ * carbon hanging off it continues the count (C6 / C5), and every hydroxyl O
+ * takes its carbon's number. So the names are derived from ring position and
+ * the anomeric centre, never from array order.
+ *
+ * Disaccharides get an A/B suffix: A is the residue donating the anomeric
+ * carbon to the glycosidic bond (the non-reducing end), B the one receiving
+ * it. The bridging O belongs to A and is named once, as O1A.
+ */
+function nameSugar(key, m) {
+  const adj = adjacency(m), el = i => m.atoms[i].el;
+  const names = new Array(m.atoms.length).fill(null);
+  const ringList = findRings(m);
+  const inRing = new Set(ringList.flat());
+
+  // residue A first when there are two, so its bridge O wins the naming
+  const donor = m.glycosidic ? m.glycosidic.anomeric : null;
+  const ordered = ringList.slice().sort((a, b) =>
+    (b.includes(donor) ? 1 : 0) - (a.includes(donor) ? 1 : 0));
+  const suffix = ordered.length > 1 ? ['A', 'B'] : [''];
+
+  ordered.forEach((ring, r) => {
+    const sfx = suffix[r] || '';
+    const O = ring.find(i => el(i) === 'O');
+    const carbons = ring.filter(i => i !== O);
+    // anomeric: ring carbon beside the ring O that also bears an exocyclic O
+    const anomeric = adj[O].filter(i => ring.includes(i))
+      .find(c => adj[c].some(j => el(j) === 'O' && !ring.includes(j)));
+    // walk the ring from C1, stepping away from the ring oxygen
+    const order = [anomeric];
+    let prev = O, cur = anomeric;
+    while (order.length < carbons.length) {
+      const nxt = adj[cur].find(j => ring.includes(j) && j !== prev && j !== O);
+      order.push(nxt); prev = cur; cur = nxt;
+    }
+    order.forEach((c, n) => { names[c] = `C${n + 1}${sfx}`; });
+    names[O] = `O${carbons.length}${sfx}`;
+    // exocyclic carbon off the last ring carbon continues the numbering
+    let tail = adj[order[order.length - 1]].find(j => el(j) === 'C' && !inRing.has(j));
+    let n = carbons.length + 1;
+    while (tail != null) {
+      names[tail] = `C${n}${sfx}`;
+      const o = adj[tail].find(j => el(j) === 'O' && !names[j]);
+      if (o != null) names[o] = `O${n}${sfx}`;
+      tail = adj[tail].find(j => el(j) === 'C' && !inRing.has(j) && !names[j]);
+      n++;
+    }
+    // hydroxyl (and bridging) oxygens take their carbon's number
+    order.forEach((c, k) => {
+      const o = adj[c].find(j => el(j) === 'O' && !ring.includes(j) && !names[j]);
+      if (o != null) names[o] = `O${k + 1}${sfx}`;
+    });
+  });
+  nameHydrogens(m, names, adj, el);
+  return names;
+}
+
+/* Nucleobases: standard purine / pyrimidine ring numbering.
+ *
+ * Purine is fixed by its fusion bond. C4 and C5 are the shared atoms, and they
+ * are told apart by nitrogen count — C4 has two N neighbours (N3 and N9), C5
+ * has one (N7). Everything else follows by walking each ring from there.
+ *
+ * Bare pyrimidine is SYMMETRIC (N1<->N3, C4<->C6), so which of the two
+ * nitrogens is called N1 is arbitrary — the two labellings describe the same
+ * chemistry. No graph invariant can separate automorphic atoms; that is what
+ * symmetry means. The tie is broken by array order, so the names are stable
+ * for a given spec but would mirror if this molecule were ever renumbered.
+ * Harmless here, and worth knowing before `diff` leans on C4 vs C6.
+ */
+function nameBase(key, m) {
+  const adj = adjacency(m), el = i => m.atoms[i].el;
+  const names = new Array(m.atoms.length).fill(null);
+  const ringList = findRings(m);
+  const six = ringList.find(r => r.length === 6);
+  const five = ringList.find(r => r.length === 5);
+
+  if (five) {                                     // purine
+    const fusion = six.filter(i => five.includes(i));
+    const nCount = i => adj[i].filter(j => el(j) === 'N').length;
+    const C4 = fusion.reduce((a, b) => (nCount(a) >= nCount(b) ? a : b));
+    const C5 = fusion.find(i => i !== C4);
+    names[C4] = 'C4'; names[C5] = 'C5';
+    const N3 = adj[C4].find(i => six.includes(i) && el(i) === 'N');
+    const N9 = adj[C4].find(i => five.includes(i) && el(i) === 'N');
+    names[N3] = 'N3'; names[N9] = 'N9';
+    const C2 = adj[N3].find(i => six.includes(i) && i !== C4);
+    names[C2] = 'C2';
+    const N1 = adj[C2].find(i => six.includes(i) && i !== N3);
+    names[N1] = 'N1';
+    names[adj[N1].find(i => six.includes(i) && i !== C2)] = 'C6';
+    const C8 = adj[N9].find(i => five.includes(i) && i !== C4);
+    names[C8] = 'C8';
+    names[adj[C8].find(i => five.includes(i) && i !== N9)] = 'N7';
+  } else {                                        // pyrimidine
+    const Ns = six.filter(i => el(i) === 'N').sort((a, b) => a - b);
+    const C2 = six.find(i => el(i) === 'C' && adj[i].filter(j => Ns.includes(j)).length === 2);
+    names[C2] = 'C2';
+    // Either N may be N1 (see the note above). Taking them in array order is
+    // arbitrary but deterministic, and lands C4/C5 on the edge where a purine
+    // fuses its second ring — so the two bases' names line up on the page.
+    const [N1, N3] = Ns;
+    names[N1] = 'N1'; names[N3] = 'N3';
+    const C4 = adj[N3].find(i => six.includes(i) && i !== C2);
+    names[C4] = 'C4';
+    const C6 = adj[N1].find(i => six.includes(i) && i !== C2);
+    names[C6] = 'C6';
+    names[six.find(i => !names[i])] = 'C5';
+  }
+  nameHydrogens(m, names, adj, el);
+  return names;
+}
+
+/* Hydrogens follow their heavy neighbour: H2 on C2, HO3 on O3, and a numbered
+ * pair (H61/H62) where a carbon carries two. */
+function nameHydrogens(m, names, adj, el) {
+  const byParent = new Map();
+  m.atoms.forEach((a, i) => {
+    if (a.el !== 'H' || names[i]) return;
+    const p = adj[i].find(j => el(j) !== 'H');
+    if (!byParent.has(p)) byParent.set(p, []);
+    byParent.get(p).push(i);
+  });
+  for (const [p, list] of byParent) {
+    const pn = names[p] || '';
+    const stem = el(p) === 'O' ? `HO${pn.slice(1)}` : `H${pn.slice(1)}`;
+    list.forEach((i, n) => { names[i] = list.length > 1 ? `${stem}${n + 1}` : stem; });
+  }
+}
+
+const NAMERS = { aminoacid: nameAminoAcid, lipid: nameLipid,
+                 sugar: nameSugar, base: nameBase };
 
 const keys = process.argv.slice(2).length ? process.argv.slice(2)
   : Object.keys(MOLECULES).filter(k => MOLECULES[k].class === 'aminoacid');
