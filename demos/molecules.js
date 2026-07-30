@@ -834,7 +834,8 @@
     // Tuned -30.5° y off an earlier [-0.89, -2.723, -1.257] pass.
     furanose:[-0.89, -3.2553, -1.257],
     // Flat aromatics are built in the xz-plane, so they need turning face-on.
-    flatRing:[-Math.PI/2, 0.35, 0],
+    // Tuned -6.5° x / -20.8° y off an earlier [-Math.PI/2, 0.35, 0] pass.
+    flatRing:[-1.6842, -0.013, 0],
   };
 
   const GLYCOLYSIS = {};
@@ -1135,7 +1136,6 @@
         // and a whole fused ring on the other is what makes the absence visible
         // — a pyrimidine's difference from a purine is something it does NOT have.
         diff:[3,4,pH[1],pH[2]],
-        align:[0,1,2,3,4,5],
         note:'C and T are pyrimidines — one ring, the narrow ones. Where purine '
            + 'carries a second ring, this edge just carries two hydrogens.' } });
 
@@ -1154,7 +1154,6 @@
         differs:'one ring vs two',
         lesson:'why A–T and G–C are equal width',
         diff:[3,4,...five, ...qH.slice(2)],
-        align:[0,1,2,3,4,5],      // the pyrimidine ring, before the fusion
         note:'A and G are purines — two fused rings, the wide ones. Every base pair '
            + 'is one wide plus one narrow, so the DNA ladder keeps a constant 2 nm '
            + 'rung. Two purines would bulge; two pyrimidines would pinch.' } });

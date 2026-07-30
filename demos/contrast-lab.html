@@ -202,19 +202,22 @@ const membersOf=p=>[p.left,p.right];
 // a vertical spin never changes; see the notes on measure() for why a cylinder
 // and not a sphere.
 // Registration point: the centroid of the atoms this molecule shares with its
-// partner (`contrast.align`, declared in molecules.js). Both halves are built
-// and measured about this point, so the shared skeleton lands in the same place
-// in both columns.
+// partner (`contrast.align`, declared in molecules.js), which keeps the shared
+// skeleton in the same place in both columns as the molecule turns. Falls back
+// to the molecule's OWN bounding box (Stage.centerOf) when a spec declares no
+// `align` — which is now purine/pyrimidine's case on purpose: registering
+// purine on the ring it shares with pyrimidine put the pivot well off purine's
+// own centre, and the extra (fused) ring swung around it under drag instead of
+// the molecule just turning in place. Losing registration for that one pair was
+// worth it for a drag that feels right on every pair.
 //
-// Centring each on its own bounding box instead — the obvious default — put the
-// two out of register by up to 1.3 units, because two specs that differ by one
-// atom have different boxes. On a page whose entire instruction is "these are
-// identical except here", a shift that is not the difference is the worst thing
-// on screen. It also means each pair now turns about the part it has in common,
-// so the shared skeleton holds still and the difference is what swings.
+// Always resolve to a concrete [x,y,z] array here, never a bare `true` — unlike
+// Stage.buildMolecule, Stage.measure does `opts.center||centerOf(spec)`, so a
+// literal `true` short-circuits the `||` and silently measures against `true`
+// instead of a point, producing NaN extents.
 function alignCenter(spec){
   const idx=spec.contrast&&spec.contrast.align;
-  if(!idx||!idx.length) return true;            // fall back to the bounding box
+  if(!idx||!idx.length) return Stage.centerOf(spec);
   const c=[0,0,0];
   idx.forEach(i=>{ c[0]+=spec.atoms[i].pos[0]; c[1]+=spec.atoms[i].pos[1]; c[2]+=spec.atoms[i].pos[2]; });
   return c.map(v=>v/idx.length);
@@ -253,8 +256,8 @@ const LIFT=0;
 const built={};
 PAIRS.forEach(p=>membersOf(p).forEach(k=>{
   const spec=specOf(k);
-  // center:true puts the group's origin at the middle of the molecule so it
-  // turns on the spot when dragged, and buildMolecule sets the YXZ rotation
+  // CENTER[k] puts the group's origin at its registration point (see above) so
+  // it turns on the spot when dragged, and buildMolecule sets the YXZ rotation
   // order that keeps a leaned molecule spinning upright. Both used to be done
   // by hand here.
   const g=Stage.buildMolecule(spec,{center:CENTER[k]});
