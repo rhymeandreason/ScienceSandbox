@@ -51,29 +51,25 @@
     font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:#3a352f}
   @media (max-width:920px){ .molnote{font-size:12px;max-width:44%} }
 
-  #stage,#side{min-height:0}
-  #side{overflow-y:auto}
+  #stage{min-height:0}
 
-  .pairrow{display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer;
-    border:1.5px solid transparent;border-radius:9px}
-  .pairrow:hover{background:rgba(0,0,0,.04)}
-  .pairrow.sel{border-color:var(--ink);background:rgba(255,255,255,.85)}
-  .pairrow .swatch{width:11px;height:11px;border-radius:50%;flex:none;border:1.5px solid var(--ink)}
-  .pairrow .pnames{font-family:var(--font-slab);font-weight:700;font-size:14.5px;line-height:1.25}
-  .pairrow .pdiff{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);display:block}
+  /* Sidebar removed: this is a single-stage page now, pairs are browsed with
+     the arrow buttons instead of a picked-from-a-list panel. */
+  #app{grid-template-columns:1fr}
 
-  #modeactions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}
-  #modeactions button{font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;
-    cursor:pointer;border:2px solid var(--ink);background:transparent;color:var(--ink)}
-  #modeactions button:hover{background:rgba(0,0,0,.05)}
-  #modeactions button.on{background:var(--ink);color:var(--panel)}
-  #htoggle{position:absolute;right:28px;bottom:26px;z-index:5;display:flex;align-items:center;gap:6px;
+  #toggles{position:absolute;right:28px;bottom:26px;z-index:5;display:flex;
+    flex-direction:column;align-items:flex-end;gap:8px}
+  #toggles label{display:flex;align-items:center;gap:6px;
     font-size:13px;opacity:.75;cursor:pointer;background:rgba(255,255,255,.66);
     border:1.5px solid var(--hair);border-radius:8px;padding:7px 11px}
 
-  #card{border-top:1.5px dashed var(--hair);padding-top:16px}
-  .verdict{font-family:var(--font-slab);font-weight:700;font-size:13px;color:var(--muted);
-    border-top:1.5px dashed var(--hair);padding-top:12px;margin-top:4px}
+  .navbtn{position:absolute;top:50%;transform:translateY(-50%);z-index:5;
+    width:44px;height:44px;border-radius:50%;cursor:pointer;
+    border:2px solid var(--ink);background:rgba(255,255,255,.7);color:var(--ink);
+    font-size:18px;display:flex;align-items:center;justify-content:center}
+  .navbtn:hover{background:rgba(255,255,255,.95)}
+  #navprev{left:22px}
+  #navnext{right:22px}
 
   @media (max-width:920px){
     #lesson{bottom:14px;max-width:88%}
@@ -90,23 +86,13 @@
     <div id="noteL" class="molnote"></div>
     <div id="noteR" class="molnote"></div>
     <div id="lesson"></div>
-    <div id="stats"></div>
-    <label id="htoggle"><input type="checkbox" id="showh"> show C–H hydrogens</label>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
-  </div>
-
-  <div id="side">
-    <h1 id="labtitle">One feature apart</h1>
-    <p id="labintro">Each of these pairs is two molecules that are nearly the same
-      drawing. One bond, one oxygen, one ring — that is the whole difference, and
-      each time it decides something you already know about biology. Look first,
-      then hit <b>Show the difference</b>.</p>
-    <div class="libgroup">Pairs</div>
-    <div id="library"></div>
-    <div id="modeactions">
-      <button id="diffbtn">Show the difference</button>
+    <button id="navprev" class="navbtn" aria-label="previous pair"><i class="ph-bold ph-caret-left"></i></button>
+    <button id="navnext" class="navbtn" aria-label="next pair"><i class="ph-bold ph-caret-right"></i></button>
+    <div id="toggles">
+      <label><input type="checkbox" id="highlightdiff"> highlight difference</label>
+      <label><input type="checkbox" id="showh"> show C–H hydrogens</label>
     </div>
-    <div id="card"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
 </div>
 
@@ -368,10 +354,8 @@ function applyLayout(){
       +`<div class="mnform">${sp.formula}</div>`;
     el.style.color=hx(PAIRS[selected].accent);
   });
-  // The note gives the answer away, so it waits for the reveal — same gate the
-  // sidebar version was behind.
   [noteL,noteR].forEach((el,i)=>{
-    el.textContent=showDiff?specOf(ks[i]).contrast.note:'';
+    el.textContent=specOf(ks[i]).contrast.note;
   });
   applySpin();
   fitCamera();
@@ -439,65 +423,25 @@ function applySpin(){
   });
 }
 
-/* ---------- side panel ---------- */
-const libraryEl=document.getElementById('library');
-function buildLibrary(){
-  libraryEl.innerHTML='';
-  PAIRS.forEach((p,i)=>{
-    const a=specOf(p.left), b=specOf(p.right);
-    const row=document.createElement('div');
-    row.className='pairrow'+(i===selected?' sel':'');
-    row.innerHTML=`<span class="swatch" style="background:${hx(p.accent)}"></span>`
-      +`<span><span class="pnames">${a.name} vs ${b.name}</span>`
-      +`<span class="pdiff">differ by ${a.contrast.differs}</span></span>`;
-    row.onclick=()=>{ selected=i; showDiff=false; refresh(); };
-    libraryEl.appendChild(row);
-  });
-}
-
-const cardEl=document.getElementById('card');
-function buildCard(){
-  const p=PAIRS[selected], a=specOf(p.left), b=specOf(p.right);
-  // Per-molecule notes now sit under their own molecule on the canvas, not here.
-  // The sidebar keeps what is about the PAIR rather than either half: the framing
-  // question, and the verdict.
-  cardEl.innerHTML=`<p>${p.ask}</p>`
-    + (showDiff
-      ? `<div class="verdict">Difference: ${a.contrast.differs} — ${a.contrast.lesson}.</div>`
-      : `<div class="verdict">Everything on screen is shared between the two, `
-        +`except one feature. Found it?</div>`);
-}
+/* ---------- pair navigation ---------- */
+document.getElementById('navprev').onclick=()=>{ selected=(selected-1+PAIRS.length)%PAIRS.length; refresh(); };
+document.getElementById('navnext').onclick=()=>{ selected=(selected+1)%PAIRS.length; refresh(); };
 
 const lessonEl=document.getElementById('lesson');
-const statsEl=document.getElementById('stats');
 function buildStageChrome(){
   // No pair caption in the corner: each molecule now carries its own name and
   // formula on its plate, so a "Glucose vs Galactose · C6H12O6 · C6H12O6" block
   // was saying the same thing a second time, further from what it described.
-  const p=PAIRS[selected], a=specOf(p.left), b=specOf(p.right);
-  lessonEl.innerHTML = showDiff
-    ? `<div class="lhead" style="color:${hx(p.accent)}">Differs by ${a.contrast.differs}</div>`
-      +`<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`
-    : `<div class="lhead">Spot the difference</div>`
-      +`<div class="lbody">Drag to turn them together. One feature is not the same.</div>`;
-
-  // The atom counts are part of the argument, not decoration: for the sugar
-  // pairs they are IDENTICAL, which is what makes "look harder" the right
-  // instruction rather than "look for the bigger one".
-  statsEl.innerHTML=membersOf(p).map(k=>{
-    const s=specOf(k);
-    return `${s.name} · <b>${s.atoms.length}</b> atoms · <b>${EXT[k].span.toFixed(1)}</b> Å across`;
-  }).join('<br>');
+  const p=PAIRS[selected], a=specOf(p.left);
+  lessonEl.innerHTML = `<div class="lhead" style="color:${hx(p.accent)}">Differs by ${a.contrast.differs}</div>`
+    +`<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`;
 }
 
-const diffBtn=document.getElementById('diffbtn');
-diffBtn.onclick=()=>{ showDiff=!showDiff; refresh(); };
+document.getElementById('highlightdiff').onchange=e=>{ showDiff=e.target.checked; applyHighlight(); };
 document.getElementById('showh').onchange=e=>{ showH=e.target.checked; applyLayout(); };
 
 function refresh(){
-  diffBtn.classList.toggle('on',showDiff);
-  diffBtn.textContent=showDiff?'Hide the difference':'Show the difference';
-  buildLibrary(); buildCard(); buildStageChrome();
+  buildStageChrome();
   applyLayout(); applyHighlight();
   // No effect fires here on purpose. Revealing the difference is not a chemical
   // event — nothing forms, breaks or moves; the student's understanding changed,
