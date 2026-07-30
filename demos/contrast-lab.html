@@ -20,7 +20,6 @@
     max-width:min(620px,76%);text-align:center;
     background:rgba(255,255,255,.66);border:2px solid var(--ink);border-radius:8px 12px 9px 11px;
     padding:11px 17px 12px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
-  #lesson .lhead{font-family:var(--font-slab);font-weight:700;font-size:15px;margin-bottom:4px}
   #lesson .lbody{font-family:var(--font-sans);font-size:14px;line-height:1.45;color:#3a352f}
 
   /* Molecule names are PAGE CHROME, not geometry: HTML sitting over the canvas,
@@ -445,8 +444,7 @@ function buildStageChrome(){
   // formula on its plate, so a "Glucose vs Galactose · C6H12O6 · C6H12O6" block
   // was saying the same thing a second time, further from what it described.
   const p=PAIRS[selected], a=specOf(p.left);
-  lessonEl.innerHTML = `<div class="lhead" style="color:${hx(p.accent)}">Differs by ${a.contrast.differs}</div>`
-    +`<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`;
+  lessonEl.innerHTML = `<div class="lbody">${a.contrast.lesson.replace(/^why /,'Why ')}.</div>`;
 }
 
 document.getElementById('highlightdiff').onchange=e=>{ showDiff=e.target.checked; applyHighlight(); };
