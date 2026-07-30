@@ -270,6 +270,20 @@
       // glycine is ACHIRAL: its side chain is an H, so Ca has two identical
       // substituents and there is no L/D to assert.
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      // contrast-lab.html: glycine is the free-N-H reference half of the
+      // glycine-proline pair (see proline's own contrast block below for
+      // why alanine couldn't take this slot — it's already D-alanine's
+      // partner). Glycine has the plainest possible side chain, so the only
+      // thing left to contrast is the backbone nitrogen itself.
+      contrast:{ pair:'glycine-proline', partner:'proline',
+        differs:'free vs ring-closed amino N',
+        lesson:'why gluten resists digestion',
+        diff:[0,1,2],
+        note:'Glycine has no side chain to speak of — just an H — so its backbone '
+           + 'nitrogen carries two ordinary N–H bonds and the chain stays free to '
+           + 'straighten, which is the shape a digestive protease needs to grip. '
+           + 'Proline’s side chain bonds back into that nitrogen and takes away '
+           + 'both.' },
     },
     alanine: {
       name:'Alanine', formula:'C₃H₇NO₂', class:'aminoacid', res:'Ala', side:'–CH₃',
@@ -1209,6 +1223,193 @@
         note:'Same four groups on Cα as L-alanine — amino, carboxyl, H, methyl — '
            + 'just mirrored. Bacteria use D-alanine to cross-link cell walls, and it '
            + 'turns up in a few peptide antibiotics, but no ribosome on Earth reads it.' } };
+  }
+  {
+    // — proline: the one amino acid whose side chain bonds BACK to its own
+    //   backbone nitrogen, closing a 5-membered ring (N-Ca-Cb-Cg-Cd-N). Every
+    //   other residue's backbone follows the fixed order this file documents
+    //   at the top of the amino-acid section (0 N, 1 H, 2 H, 3 Ca, …) because
+    //   the amino N carries TWO hydrogens — a primary amine. Proline's N is
+    //   secondary (one H, one ring bond), so slot 2 — normally the second
+    //   amino H — holds Cδ instead, and Cδ's own two hydrogens land at the
+    //   tail (15, 16). `pep.hN` is therefore a ONE-element array, not two:
+    //   documentation of the difference, not a page hookup — proline is not
+    //   in aminoacid-lab.html's AA_KEYS, so nothing ever reads hN[1] on it.
+    //
+    //   Real PubChem 3D conformer (CID 145742, L-proline), reindexed by hand
+    //   into the above order and run through sdf2spec.js's own reframe()
+    //   (recentre on Ca, backbone N->C -> +X, side chain -> -Y, the same
+    //   1.9x SCALE). check-molecules.js's
+    //   chirality check (CA_IDX 3, R_IDX 9 — both land on the right atoms
+    //   under this reindexing) confirms the geometry is L, as it must be:
+    //   ribosomes only ever build with proline's one hand.
+    //
+    //   contrast-lab.html: paired with glycine, not alanine — alanine's
+    //   `contrast` slot is already spoken for by D-alanine, and glycine (no
+    //   side chain beyond H) makes the cleaner point anyway: even the
+    //   plainest possible amino acid still has a free N-H. Proline does not.
+    CONTRAST.proline={ name:'Proline', formula:'C₅H₉NO₂', class:'aminoacid', res:'Pro', side:'ring to N',
+      atoms:[ {el:'N',pos:[-2.239,0.902,-1.378]},
+              {el:'H',pos:[-1.931,2.599,-2.254]},
+              {el:'C',pos:[-2.905,-1.084,-3.195]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[0.021,0.795,1.922]},
+              {el:'C',pos:[2.321,0.902,-1.378]},
+              {el:'O',pos:[2.308,2.187,-3.312]},
+              {el:'O',pos:[4.457,0.093,-0.188]},
+              {el:'H',pos:[6,0.662,-1.065]},
+              {el:'C',pos:[-0.195,-2.891,0]},
+              {el:'H',pos:[-0.526,-3.628,1.919]},
+              {el:'H',pos:[1.512,-3.818,-0.75]},
+              {el:'C',pos:[-2.466,-3.498,-1.691]},
+              {el:'H',pos:[-2.115,-5.141,-2.916]},
+              {el:'H',pos:[-4.128,-3.925,-0.507]},
+              {el:'H',pos:[-1.662,-1.013,-4.864]},
+              {el:'H',pos:[-4.875,-0.91,-3.832]} ],
+      bonds:[ [0,1],[0,2],[0,3],[2,15],[2,16],[3,4],[3,5],[3,9],
+              [5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[12,2],[12,13],[12,14] ],
+      optH:[4,10,11,13,14,15,16],   // nonpolar C–H, hidden by the lab's H toggle
+      chirality:'L',   // asserted by check-molecules.js — life is homochiral
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1] },   // one amino H, not two — see note above
+      contrast:{ pair:'glycine-proline', partner:'glycine',
+        differs:'ring-closed vs free amino N',
+        lesson:'why gluten resists digestion',
+        diff:[0,1,2],
+        note:'Every other amino acid’s backbone nitrogen carries a free N–H, and the '
+           + 'chain around it can flex into the extended shape a protease has to '
+           + 'grip. Proline’s side chain bonds back into that nitrogen: no free N–H, '
+           + 'and a stiff kink the enzyme cannot accommodate. Gliadin is unusually '
+           + 'proline-rich, so those bonds pass through your gut uncut.' } };
+  }
+  {
+    // — glutamine / glutamic acid: the second half of the gluten story. The edit
+    //   is at the tip of the side chain only — amide –NH2 becomes –OH, so an N
+    //   is replaced by an O and one H drops (C5H10N2O3 -> C5H9NO4). The lab's
+    //   `ask` calls this "one atom" because the swap is what you SEE; the lost H
+    //   is one of the two amide H's and is not separately visible.
+    //
+    //   Tissue transglutaminase (tTG) deamidates a glutamine side chain: the
+    //   terminal amide –NH2 becomes an –OH, neutral becomes negative at gut pH.
+    //   That single swap is what turns an undigested gliadin fragment into
+    //   something HLA-DQ2/DQ8 binds tightly enough to trigger a T-cell response
+    //   — see the `contrast` notes below. The proline pair explains why the
+    //   fragment survives the gut at all; this pair explains why the survivor
+    //   becomes an antigen.
+    //
+    //   Both are real PubChem 3D conformers (CID 5961 L-glutamine, CID 33032
+    //   L-glutamic acid) run through tools/sdf2spec.js — no hand reindexing,
+    //   unlike proline, though glutamine did force the backbone-N fix in that
+    //   tool's reindex(): it is the first residue here with TWO nitrogens, and
+    //   the SDF lists the side-chain amide N first.
+    //
+    //   The two carry the same ELEMENT in the same slot all the way to index 16
+    //   (backbone 0-8, then Cb 9, Cg 10, its H 11/12, Cd 13, its H 14/15), and
+    //   diverge only at the tail: glutamine 16 O(=), 17 N, 18/19 amide H;
+    //   glutamic acid 16 O(-H), 17 O(=), 18 hydroxyl H. That alignment is an
+    //   indexing convenience, not the visual effect — it keeps `diff` and `pep`
+    //   reading the same slots on both, nothing more. What the eye actually
+    //   responds to is the pose, set further down. Same slots also does NOT mean
+    //   same coordinates: these are two independent conformers whose positions
+    //   differ from index 1 on. `diff` marks only the group that changes — the
+    //   carbonyl O is common to both, and highlighting it would overstate the
+    //   edit.
+    //
+    //   VIEW TUNING: both are then rotated about X — the backbone axis reframe()
+    //   already fixed — by +18.00° (Gln) and +17.75° (Glu). Straight out of the
+    //   converter the side chain curled toward the camera and Cb/Cg drew as one
+    //   blob with the terminal group hidden behind them; each angle is the one
+    //   that flattened that molecule's heavy atoms best. Rotation about a fixed
+    //   axis is chirality-preserving, so check-molecules.js still reads both as
+    //   L; only the pose changes, never a length or an angle. Constrained to the
+    //   root that keeps the side chain pointing -Y: the other z-minimum is ~180°
+    //   away and would flip one chain up and the other down.
+    //
+    //   Then the terminal group is turned about the Cg-Cd bond (atoms 10->13) by
+    //   -84.75° (Gln) and -89.50° (Glu). That bond is a freely rotating single
+    //   bond, so this picks a different SIDE-CHAIN ROTAMER — a conformation the
+    //   real residue samples constantly — rather than editing any length or
+    //   angle. It is the one change here that is not a pure view transform, and
+    //   it earns its place: in the PubChem rotamer the amide sits edge-on to the
+    //   camera and the N hides behind the carbonyl O, which is precisely the
+    //   atom the whole pair exists to show. After the turn every non-bonded pair
+    //   of heavy atoms clears by at least 0.50 in screen XY.
+    //
+    //   Both angles are additionally constrained to put the carbonyl O on the
+    //   RIGHT and the group that actually differs (Gln's –NH2, Glu's –OH) on the
+    //   LEFT, so the eye lands on the same spot in either panel and sees one
+    //   substitution. This is what makes the pair read as one molecule edited;
+    //   unconstrained, the two best-scoring rotamers splay opposite ways.
+    //
+    //   Drawn NEUTRAL (side chain as –COOH, not –COO–), matching every other
+    //   amino acid in this file and `palmitate`'s 'Palmitic acid' naming. The
+    //   lesson is the amide->acid swap; the ionisation that follows from it is
+    //   named in the note rather than drawn.
+    CONTRAST.glutamine={ name:'Glutamine', formula:'C₅H₁₀N₂O₃', class:'aminoacid', res:'Gln', side:'–CH₂CH₂CONH₂',
+      atoms:[ {el:'N',pos:[-2.23,0.639,-1.531]},
+              {el:'H',pos:[-2.194,-0.33,-3.207]},
+              {el:'H',pos:[-2.188,2.519,-1.994]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[-0.004,1.251,1.666]},
+              {el:'C',pos:[2.359,0.639,-1.531]},
+              {el:'O',pos:[2.378,1.393,-3.731]},
+              {el:'O',pos:[4.522,0.311,-0.159]},
+              {el:'H',pos:[6.043,0.737,-1.148]},
+              {el:'C',pos:[-0.073,-2.778,0.903]},
+              {el:'C',pos:[-0.248,-4.807,-1.18]},
+              {el:'H',pos:[1.615,-3.168,2.065]},
+              {el:'H',pos:[-1.704,-3.003,2.186]},
+              {el:'C',pos:[-0.529,-7.49,-0.183]},
+              {el:'H',pos:[-1.893,-4.446,-2.405]},
+              {el:'H',pos:[1.456,-4.738,-2.377]},
+              {el:'O',pos:[1.311,-8.796,0.413]},
+              {el:'N',pos:[-3.007,-8.314,-0.053]},
+              {el:'H',pos:[-4.491,-7.197,-0.57]},
+              {el:'H',pos:[-3.432,-10.085,0.576]} ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
+              [9,10],[9,11],[9,12],[10,13],[10,14],[10,15],[13,16,2],[13,17],[17,18],[17,19] ],
+      optH:[4,11,12,14,15],   // nonpolar C–H; the amide N–H at 18/19 are donors, never optional
+      chirality:'L',   // asserted by check-molecules.js — life is homochiral
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      contrast:{ pair:'glutamine-glutamate', partner:'glutamate',
+        differs:'side-chain amide vs acid',
+        lesson:'how gluten becomes an antigen',
+        diff:[17,18,19],
+        note:'Gliadin is glutamine-rich as well as proline-rich. This side chain '
+           + 'ends in an amide — neutral, and nothing your immune system objects to. '
+           + 'An enzyme in your gut wall swaps that –NH₂ for an –OH.' } };
+    CONTRAST.glutamate={ name:'Glutamic acid', formula:'C₅H₉NO₄', class:'aminoacid', res:'Glu', side:'–CH₂CH₂COOH',
+      atoms:[ {el:'N',pos:[-2.225,0.629,-1.537]},
+              {el:'H',pos:[-2.253,2.533,-1.895]},
+              {el:'H',pos:[-3.837,0.244,-0.536]},
+              {el:'C',pos:[0,0,0]},
+              {el:'H',pos:[-0.009,1.25,1.666]},
+              {el:'C',pos:[2.359,0.629,-1.537]},
+              {el:'O',pos:[2.374,1.373,-3.742]},
+              {el:'O',pos:[4.523,0.268,-0.176]},
+              {el:'H',pos:[6.046,0.671,-1.172]},
+              {el:'C',pos:[-0.025,-2.783,0.891]},
+              {el:'C',pos:[0.241,-4.799,-1.19]},
+              {el:'H',pos:[-1.779,-3.141,1.964]},
+              {el:'H',pos:[1.526,-3.049,2.262]},
+              {el:'C',pos:[0.388,-7.482,-0.194]},
+              {el:'H',pos:[-1.387,-4.694,-2.481]},
+              {el:'H',pos:[1.98,-4.458,-2.282]},
+              {el:'O',pos:[-1.908,-8.655,-0.15]},
+              {el:'O',pos:[2.356,-8.496,0.521]},
+              {el:'H',pos:[-1.788,-10.393,0.512]} ],
+      bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
+              [9,10],[9,11],[9,12],[10,13],[10,14],[10,15],[13,16],[13,17,2],[16,18] ],
+      optH:[4,11,12,14,15],   // nonpolar C–H; the hydroxyl H at 18 is a donor, never optional
+      chirality:'L',   // asserted by check-molecules.js — life is homochiral
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      contrast:{ pair:'glutamine-glutamate', partner:'glutamine',
+        differs:'side-chain acid vs amide',
+        lesson:'how gluten becomes an antigen',
+        diff:[16,18],
+        note:'The same residue after that swap: an oxygen where the amide nitrogen '
+           + 'was, giving up its H and leaving the side chain negative. The immune '
+           + 'receptor nearly everyone with celiac disease carries grips exactly this '
+           + 'charge — and ignores the neutral version.' } };
   }
   {
     // — palmitoleate: palmitate's exact carbon count (16) with one cis C=C at

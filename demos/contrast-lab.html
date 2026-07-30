@@ -211,6 +211,20 @@ const PAIRS=[
     ask:'Same sixteen-carbon chain, same carboxyl head. One is dead straight; '
       + 'the other bends partway down. Find the one bond that is not like the '
       + 'others.' },
+  { left:'glycine', right:'proline', accent:0xc2762a, kind:'Amino acids',
+    ask:'A digestive enzyme has to grip a straightened-out stretch of backbone '
+      + 'before it can cut. One of these leaves the backbone free to straighten, '
+      + 'and its nitrogen keeps a free N–H. The other’s side chain loops back and '
+      + 'bonds into that nitrogen, closing a ring over it. Gluten leans on '
+      + 'residues built like the second one.' },
+  // second half of the gluten story — proline explains why the fragment survives
+  // the gut, this pair explains why the survivor becomes an antigen
+  { left:'glutamine', right:'glutamate', accent:0xb0553f, kind:'Amino acids',
+    ask:'Everything here is identical until the very tip of the side chain. Follow '
+      + 'each one down to its far end and look at what sits beside the '
+      + 'double-bonded oxygen — one atom, swapped. An enzyme in your gut wall '
+      + 'makes exactly this swap to gliadin, and only the second version is one '
+      + 'your immune system can be taught to attack.' },
 ];
 const specOf=k=>MolLib.MOLECULES[k];
 const membersOf=p=>[p.left,p.right];

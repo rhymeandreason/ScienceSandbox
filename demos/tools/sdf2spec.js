@@ -46,9 +46,20 @@ function reindex(m){
   const nb = i => m.bonds.filter(b=>b[0]===i||b[1]===i)
                          .map(b=>b[0]===i?b[1]:b[0]);
   const el = i => m.atoms[i].el;
-  const N  = m.atoms.findIndex(a=>a.el==='N');
-  // Ca: the carbon bonded to N that is NOT the carboxyl carbon
-  const Ca = nb(N).find(i=>el(i)==='C' && nb(i).filter(j=>el(j)==='O').length===0);
+  // Ca, given a nitrogen: its carbon neighbour that carries no O of its own but
+  // is bonded to a two-oxygen (carboxyl) carbon. Among a NITROGEN'S neighbours
+  // only Ca fits — elsewhere in the molecule others can (glutamic acid's Cg also
+  // sits next to a carboxyl carbon), which is why this only ever runs on nb(n).
+  const alphaOf = n => nb(n).find(i=>el(i)==='C'
+                                  && nb(i).filter(j=>el(j)==='O').length===0
+                                  && nb(i).some(j=>el(j)==='C'
+                                       && nb(j).filter(k=>el(k)==='O').length===2));
+  // NOT simply the first N in the file: glutamine and asparagine carry a second,
+  // side-chain amide N, and the SDF may list it first — that N has no Ca by the
+  // test above, so it is skipped. For single-N residues this picks the same atom
+  // the old findIndex did.
+  const N  = m.atoms.findIndex((a,i)=>a.el==='N' && alphaOf(i)!=null);
+  const Ca = alphaOf(N);
   const Cc = nb(Ca).find(i=>el(i)==='C' && nb(i).filter(j=>el(j)==='O').length===2);
   const Os = nb(Cc).filter(i=>el(i)==='O');
   const Ocarbonyl = Os.find(i=>nb(i).length===1);          // =O has no H
