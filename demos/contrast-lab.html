@@ -466,12 +466,23 @@ function applySpin(){
   updateDebug();
 }
 
-/* ---------- debug panel: rotation state ----------
- * Scratch tool for the drag-axis question — shows each visible molecule's
- * Euler rotation (order included, since 'YXZ' vs 'XYZ' changes what a single
- * component means) plus its parent's, so it's visible whether a "one-axis"
- * drag is staying one-axis on the actual Object3D or not. Delete once that's
- * settled; this isn't part of the lesson. */
+/* ---------- debug panel: rotation state + VIEW tuning readout ----------
+ * Started as a scratch tool for a drag-axis question (shows each visible
+ * molecule's Euler rotation, order included, since 'YXZ' vs 'XYZ' changes
+ * what a single component means) and is kept on as the tuning tool for
+ * VIEW.* in molecules.js: it's easy to assume the numbers here live in the
+ * same space as spec.view and just add degrees to it, but they don't —
+ * this rotation is the group's live drag (spin/lean), Euler order 'YXZ',
+ * applied on TOP of geometry that already has spec.view baked in as a
+ * separate 'ZYX' Euler (scene.js buildMolecule). Two different orders
+ * composed at two different times: reading x/y off here and adding them to
+ * VIEW's x/y does not reproduce what you see on screen.
+ *
+ * The "paste VIEW" line below does the composition for you: drag the
+ * molecule to the pose you want, read that line, and paste it straight in
+ * as the new VIEW.* array — it's the single 'ZYX' triplet that reproduces
+ * the CURRENT on-screen pose with spin/lean back at zero, so there's no
+ * order-mismatch math to do by hand. */
 const debugEl=document.getElementById('debugpanel');
 const deg=r=>(r*180/Math.PI).toFixed(1)+'°';
 function updateDebug(){
@@ -484,9 +495,23 @@ function updateDebug(){
   lines.push('');
   ks.forEach(k=>{
     const g=built[k];
+    const spec=specOf(k);
     lines.push(`${k}  order=${g.rotation.order}`);
     lines.push(`  rot  x=${deg(g.rotation.x)} y=${deg(g.rotation.y)} z=${deg(g.rotation.z)}`);
     lines.push(`  pos  ${g.position.x.toFixed(2)}, ${g.position.y.toFixed(2)}, ${g.position.z.toFixed(2)}`);
+    if(spec.view){
+      // Fold the live drag (YXZ) onto the baked view (ZYX) into one combined
+      // quaternion, then re-decompose it as a single ZYX Euler — the same
+      // order buildMolecule reads spec.view in. That triplet, with drag at
+      // zero, renders identically to the current dragged pose.
+      const viewQ=new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'));
+      const dragQ=new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(g.rotation.x, g.rotation.y, g.rotation.z, 'YXZ'));
+      const totalE=new THREE.Euler().setFromQuaternion(dragQ.multiply(viewQ), 'ZYX');
+      lines.push(`  paste VIEW: [${deg(totalE.x)}, ${deg(totalE.y)}, ${deg(totalE.z)}]`);
+      lines.push(`              [${totalE.x.toFixed(4)}, ${totalE.y.toFixed(4)}, ${totalE.z.toFixed(4)}]`);
+    }
   });
   debugEl.textContent=lines.join('\n');
 }

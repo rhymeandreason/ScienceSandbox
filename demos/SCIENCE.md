@@ -136,10 +136,22 @@ lesson: maltose is starch's repeat, cellobiose is cellulose's.
 **Both share one linkage conformation, deliberately.** A disaccharide's φ/ψ are
 floppy, so per §1.6 the pose is a schematic and is *not* asserted — which makes
 it a knob, and a knob tuned per-molecule would put part of the visible difference
-outside the chemistry. So one slot-and-spin pair is used for both, chosen as the
-best pose that clears every non-bonded pair in *both* molecules (1.03, against
-the checker's floor of 0). Each alone would sit roomier; sharing means every
-difference on screen traces back to the one axial/equatorial choice at C1.
+outside the chemistry. So one slot-and-spin pair is used for both. Each alone
+would sit roomier; sharing means every difference on screen traces back to the
+one axial/equatorial choice at C1.
+
+**A pose can satisfy every check and still be unpresentable, and that is a
+geometry bug, not a camera one.** The shared pose was first chosen for maximum
+clearance, which left the two ring planes near *perpendicular*. Every check
+passed — no overlaps, correct configuration — and no viewing angle exists that
+shows both rings as chairs from one camera, so the second residue rendered as a
+blob and several rounds of tuning `VIEW.disaccharide` could not fix it. It is
+now swept for **near-coplanar ring planes** (0.87 of parallel), which is also the
+extended shape the real disaccharides take; clearance drops to 0.64, still far
+above the checker's floor of 0. The general rule: for a multi-ring spec,
+*presentability is a property of the conformation*, and the checker cannot see
+it — §1.5's "no page may mix families" has the same shape. Reach for the view
+table only once the geometry admits a good view.
 
 **How a distinguishing feature gets declared.** One of these goes on the spec,
 and `check-molecules.js` fails if the geometry disagrees:

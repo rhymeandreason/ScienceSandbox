@@ -860,15 +860,8 @@
     pyranose:[1.5387, 0.0241, -0.2],
     // Tuned -30.5° y off an earlier [-0.89, -2.723, -1.257] pass.
     furanose:[-0.89, -3.2553, -1.257],
-    // Two pyranose rings across a glycosidic link (maltose/cellobiose). NOT
-    // VIEW.pyranose: that angle is solved for one ring at the origin, and a
-    // dimer built outward from the first ring's C1 needs turning so the LINK
-    // faces the camera — the link is the entire lesson of that pair. Solved by
-    // sweeping all three angles for the largest PROJECTED separation of the two
-    // ring centroids (neither residue foreshortened, and the bridging oxygen
-    // clear of both rings) with both rings still reading as chairs, over the two
-    // specs at once. −110° / −100° / 80°.
-    disaccharide:[-1.9199, -1.7453, 1.3963],
+    // Two pyranose rings across a glycosidic link (maltose/cellobiose).
+    disaccharide:[-1.3828, -0.1882, -1.0656],
     // Flat aromatics are built in the xz-plane, so they need turning face-on.
     // Tuned -6.5° x / -20.8° y off an earlier [-Math.PI/2, 0.35, 0] pass.
     flatRing:[-1.6842, -0.013, 0],
@@ -1294,15 +1287,23 @@
     //   conformation. They were swept and baked in as literals (the same
     //   process palmitoleate's coordinates went through).
     //
+    //   Swept for NEAR-COPLANAR RING PLANES (0.87 of parallel), which is both the
+    //   extended shape real maltose and cellobiose take and the only family of
+    //   poses a single camera can present: with the two ring planes at right
+    //   angles — which a pose picked for clearance alone happily gives — no
+    //   viewing angle exists that shows both rings as chairs, and the second
+    //   residue renders as a blob whatever VIEW.disaccharide does. That was the
+    //   first version's mistake, and the page's whole claim is "same molecule
+    //   except here", which cannot survive one half being unreadable.
+    //
     //   ONE pair of values, shared by both molecules — not one tuned per
-    //   molecule. Each on its own would sit in a roomier pose (α at spin 345°,
-    //   β at 225°, both ~2.28 clear), but then part of what the student sees
-    //   would come from a knob rather than from the chemistry. Sharing them
-    //   means every visible difference traces back to the axial/equatorial
-    //   choice at C1, which is the only thing this pair claims. The shared pose
-    //   still clears every non-bonded pair by 1.64 in the tighter of the two,
-    //   far above the checker's floor.
-    const LINK = { slot:0, spin:216*Math.PI/180 };
+    //   molecule. Each alone would sit roomier, but then part of what the student
+    //   sees would come from a knob rather than from the chemistry. Sharing them
+    //   means every visible difference traces back to the axial/equatorial choice
+    //   at C1, which is the only thing this pair claims. The shared pose clears
+    //   every non-bonded pair by 0.64 in the tighter of the two — tighter than
+    //   the roomiest poses, still an order of magnitude above the checker's floor.
+    const LINK = { slot:0, spin:166*Math.PI/180 };
     const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
     // Rotate v about unit axis k by angle t (Rodrigues).
     const spinAbout=(v,k,t)=>{ const c=Math.cos(t), s=Math.sin(t);
