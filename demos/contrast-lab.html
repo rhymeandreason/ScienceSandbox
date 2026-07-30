@@ -66,6 +66,13 @@
     width:44px;height:44px;border-radius:50%;cursor:pointer;
     border:2px solid var(--ink);background:rgba(255,255,255,.7);color:var(--ink);
     font-size:18px;display:flex;align-items:center;justify-content:center}
+
+  /* Debug scratch panel — rotation state for the drag-axis investigation.
+     Not part of the lesson; delete this block once that's resolved. */
+  #debugpanel{position:absolute;right:16px;top:16px;z-index:9;margin:0;
+    font-family:ui-monospace,'SF Mono',Consolas,monospace;font-size:11.5px;line-height:1.6;
+    color:#eee;background:rgba(20,18,16,.82);border-radius:8px;padding:10px 13px;
+    white-space:pre;pointer-events:none}
   .navbtn:hover{background:rgba(255,255,255,.95)}
   #navprev{left:22px}
   #navnext{right:22px}
@@ -92,6 +99,7 @@
       <label><input type="checkbox" id="showh"> show C–H hydrogens</label>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <pre id="debugpanel"></pre>
   </div>
 </div>
 
@@ -130,13 +138,17 @@
 /* ---------- shared stage (scene.js) ---------- */
 const canvas=document.getElementById('gl');
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  // Orthographic, not perspective: this page's entire claim is "these two are
+  // the same size except for one feature", and a perspective lens quietly
+  // undermines that at the edges of a wide stage — whichever molecule sits
+  // further from screen-centre reads slightly smaller than its partner even
+  // when they are geometrically identical. An orthographic projection has no
+  // depth-based scaling at all, so shape and relative size read the same
+  // wherever a molecule lands on screen.
+  ortho:true,
   // Face-on by default, NOT the livelier three-quarter angle the other pages
-  // open at. Two molecules side by side at an oblique angle are at different
-  // depths, so the near one is perspective-magnified — and "these two are the
-  // same size except here" is exactly the claim this page is making. The user
-  // can still spin to any angle; the default just must not lie.
-  // theta stays 0 — a horizontal camera swing puts one half nearer than the
-  // other and perspective magnifies it. phi is free, because the two are
+  // open at. The user can still spin to any angle; the default just must not
+  // present the two at different attitudes. phi is free, because the two are
   // separated along X: raising the camera tilts both equally and keeps them at
   // the same depth. 1.30 is glycolysis-lab's angle, which together with the
   // specs' own baked orientation is what makes a pyranose read as a 3/4 chair
@@ -432,6 +444,32 @@ function applySpin(){
     built[k].rotation.y=spin;      // 0 at rest — the spec's own orientation
     built[k].rotation.x=lean;      // 0 at rest; only the user's drag leans it
   });
+  updateDebug();
+}
+
+/* ---------- debug panel: rotation state ----------
+ * Scratch tool for the drag-axis question — shows each visible molecule's
+ * Euler rotation (order included, since 'YXZ' vs 'XYZ' changes what a single
+ * component means) plus its parent's, so it's visible whether a "one-axis"
+ * drag is staying one-axis on the actual Object3D or not. Delete once that's
+ * settled; this isn't part of the lesson. */
+const debugEl=document.getElementById('debugpanel');
+const deg=r=>(r*180/Math.PI).toFixed(1)+'°';
+function updateDebug(){
+  const ks=membersOf(PAIRS[selected]);
+  const lines=[`spin=${spin.toFixed(3)}  lean=${lean.toFixed(3)}`, ''];
+  const parent=built[ks[0]].parent;
+  lines.push(`parent (${parent===root?'root':parent===scene?'scene':'?'}) order=${parent.rotation.order}`);
+  lines.push(`  rot  x=${deg(parent.rotation.x)} y=${deg(parent.rotation.y)} z=${deg(parent.rotation.z)}`);
+  lines.push(`  pos  ${parent.position.x.toFixed(2)}, ${parent.position.y.toFixed(2)}, ${parent.position.z.toFixed(2)}`);
+  lines.push('');
+  ks.forEach(k=>{
+    const g=built[k];
+    lines.push(`${k}  order=${g.rotation.order}`);
+    lines.push(`  rot  x=${deg(g.rotation.x)} y=${deg(g.rotation.y)} z=${deg(g.rotation.z)}`);
+    lines.push(`  pos  ${g.position.x.toFixed(2)}, ${g.position.y.toFixed(2)}, ${g.position.z.toFixed(2)}`);
+  });
+  debugEl.textContent=lines.join('\n');
 }
 
 /* ---------- pair navigation ---------- */

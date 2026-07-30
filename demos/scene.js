@@ -265,6 +265,16 @@
     const hw=Math.max(...boxes.map(b=>Math.abs(b.x||0)+b.rxz));
     const hh=Math.max(...boxes.map(b=>Math.max( (b.y||0)+b.hy+o.top,
                                                -(b.y||0)+b.hy+o.bottom)));
+    // An orthographic camera's apparent size comes from the frustum's
+    // half-extents, not from standing distance — there is no fov to solve a
+    // `d` against, so fit left/right/top/bottom directly instead of cam.r.
+    if(camera.isOrthographicCamera){
+      const halfH=Math.max(hh, hw/camera.aspect)*o.pad;
+      camera.top=halfH; camera.bottom=-halfH;
+      camera.left=-halfH*camera.aspect; camera.right=halfH*camera.aspect;
+      camera.updateProjectionMatrix();
+      return cam.r;
+    }
     const tan=Math.tan(camera.fov*Math.PI/360);
     const d=Math.max(hh/tan, hw/(tan*camera.aspect))*o.pad;
     cam.r=Math.max(o.min, Math.min(o.max, d));
@@ -273,7 +283,12 @@
 
   /* ---- the stage: renderer + scene + camera + orbit + resize ---- */
   // opts: cam {theta,phi,r} initial · phiMin/phiMax pitch clamp · rMin/rMax zoom
-  // clamp · wheel step · onZoom(r) / onDrag() side-effect hooks (per-page state).
+  // clamp · wheel step · onZoom(r) / onDrag() side-effect hooks (per-page state)
+  // · ortho:true swaps in an OrthographicCamera — no perspective foreshortening,
+  //   so a shape read off one side of the frame is the same size as the same
+  //   shape read off the other. `frame()` fits its frustum directly; `cam.r`
+  //   still only sets standing distance (harmless for an ortho camera, never
+  //   drives apparent size).
   function create(canvas, opts={}){
     const o=Object.assign({ phiMin:0.25, phiMax:2.85, rMin:5, rMax:60, wheel:0.08,
       onZoom:null, onDrag:null }, opts);
@@ -282,7 +297,9 @@
     const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
     const scene=new THREE.Scene();
-    const camera=new THREE.PerspectiveCamera(45,1,0.1,1000);
+    const camera=o.ortho
+      ? new THREE.OrthographicCamera(-1,1,1,-1,0.1,1000)
+      : new THREE.PerspectiveCamera(45,1,0.1,1000);
     const root=new THREE.Group(); scene.add(root);
 
     scene.add(new THREE.AmbientLight(0xffffff,.55));
