@@ -146,6 +146,18 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   // Dragging turns the MOLECULES, not the camera (see the drag handler below).
   orbit:false });
 
+// Zoom disabled: fitCamera() is what sizes each pair (from the real geometry,
+// re-solved on every resize/pair switch), so a free scroll-zoom would just let
+// a student "fix" a size difference that's supposed to be read off the models,
+// not the camera. scene.js's own wheel listener is already bound to the canvas
+// (rMin/rMax there only clamp it, they can't turn it off), so this listener is
+// added on the stage in the CAPTURE phase — capture on an ancestor always runs
+// before a bubble listener on the descendant target, so stopping propagation
+// here keeps scene.js's handler from ever firing.
+document.getElementById('stage').addEventListener('wheel',e=>{
+  e.preventDefault(); e.stopPropagation();
+},{capture:true,passive:false});
+
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
