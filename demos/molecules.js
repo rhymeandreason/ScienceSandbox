@@ -289,6 +289,20 @@
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12] ],
       optH:[4,10,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
+      // contrast-lab.html: alanine is the L (reference) half of the L-/D-alanine
+      // pair. Every atom position differs from D-alanine (a true mirror image,
+      // not a rotation), so there is no single distinguishing atom the way
+      // galactose's C4 is one — `diff` instead marks the whole stereocentre:
+      // Cα and its four substituents, the group whose spatial arrangement is
+      // the entire lesson.
+      contrast:{ pair:'alanine-D-alanine', partner:'dAlanine',
+        differs:'handedness',
+        lesson:'why life is homochiral',
+        diff:[3,0,4,5,9],
+        note:'Every ribosome on Earth builds proteins from L-amino acids only. '
+           + 'The choice of L over D looks like an early accident — but once '
+           + 'translation locked onto one hand, every enzyme that reads a '
+           + 'protein chain came to expect it, and a D-residue jams the machinery.' },
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
       // alanine doubles as the PROTEIN monomer in macromolecule-lab.html's
       // gallery, so it carries the same `groups` index map the other three
@@ -413,7 +427,19 @@
         { key:'saturated', label:'Saturated', formula:'no C=C', atoms:[],
           note:'Every C–C is single, so the chain lies straight and packs tightly — solid at room temperature. One cis double bond would kink it, and that is an oil.' },
       ],
-    },
+      // contrast-lab.html: palmitate is the saturated (reference) half of the
+      // saturated/unsaturated pair. `diff` marks C9-C10 — the exact backbone
+      // position that's a single bond here and palmitoleate's cis C=C there —
+      // so the highlight lands on the same chain segment in both columns even
+      // though only one of them kinks.
+      contrast:{ pair:'palmitate-palmitoleate', partner:'palmitoleate',
+        differs:'one C=C, cis',
+        lesson:"why butter is solid and oil is not",
+        diff:[7,8,9,10],
+        note:'No double bond anywhere in this chain, so every C–C rotates freely '
+           + 'into the same all-anti zigzag. Straight chains stack against each '
+           + 'other like pencils in a box — tight packing is what makes a '
+           + 'saturated fat solid at room temperature.' } },
 
     // — NUCLEIC ACID. Derived from the PubChem 3D record for AMP
     //   (tools/sdf2spec-generic.js): the furanose ring shape and the 2′-OH are
@@ -528,6 +554,7 @@
     CC: 1.54*SCALE,   // 2.93  C–C single
     CO: 1.43*SCALE,   // 2.72  C–O single (hydroxyl, phosphate ester bridge)
     CdO:1.23*SCALE,   // 2.34  C=O — and the carboxylate C–O⁻, which is nearly it
+    CdC:1.33*SCALE,   // 2.53  C=C — a fatty acid's one unsaturation
     OH: 0.97*SCALE,   // 1.84  O–H
     CH: 1.09*SCALE,   // 2.07  C–H
     OP: 1.60*SCALE,   // 3.04  P–O ester (the bridging oxygen)
@@ -833,6 +860,15 @@
     pyranose:[1.5387, 0.0241, -0.2],
     // Tuned -30.5° y off an earlier [-0.89, -2.723, -1.257] pass.
     furanose:[-0.89, -3.2553, -1.257],
+    // Two pyranose rings across a glycosidic link (maltose/cellobiose). NOT
+    // VIEW.pyranose: that angle is solved for one ring at the origin, and a
+    // dimer built outward from the first ring's C1 needs turning so the LINK
+    // faces the camera — the link is the entire lesson of that pair. Solved by
+    // sweeping all three angles for the largest PROJECTED separation of the two
+    // ring centroids (neither residue foreshortened, and the bridging oxygen
+    // clear of both rings) with both rings still reading as chairs, over the two
+    // specs at once. −110° / −100° / 80°.
+    disaccharide:[-1.9199, -1.7453, 1.3963],
     // Flat aromatics are built in the xz-plane, so they need turning face-on.
     // Tuned -6.5° x / -20.8° y off an earlier [-Math.PI/2, 0.35, 0] pass.
     flatRing:[-1.6842, -0.013, 0],
@@ -1157,6 +1193,248 @@
         note:'A and G are purines — two fused rings, the wide ones. Every base pair '
            + 'is one wide plus one narrow, so the DNA ladder keeps a constant 2 nm '
            + 'rung. Two purines would bulge; two pyrimidines would pinch.' } });
+  }
+  {
+    // — D-alanine: the exact mirror image of `alanine` above, not a rotation.
+    // Negating one coordinate component is a reflection (determinant -1), which
+    // flips every CIP-priority signed volume without touching a single bond
+    // length or angle — the same trick check-molecules.js's comment on the
+    // chirality check describes ("negated one output component"). Z is chosen
+    // arbitrarily; any single axis works.
+    const mirror=p=>[p[0],p[1],-p[2]];
+    CONTRAST.dAlanine={ name:'D-Alanine', formula:'C₃H₇NO₂', class:'aminoacid',
+      res:'D-Ala', side:'–CH₃',
+      atoms:MOLECULES.alanine.atoms.map(a=>({ el:a.el, pos:mirror(a.pos) })),
+      bonds:MOLECULES.alanine.bonds.map(b=>b.slice()),
+      optH:MOLECULES.alanine.optH.slice(),
+      chirality:'D',   // asserted by check-molecules.js — the mirror life doesn't use
+      pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      contrast:{ pair:'alanine-D-alanine', partner:'alanine',
+        differs:'handedness',
+        lesson:'why life is homochiral',
+        diff:[3,0,4,5,9],
+        note:'Same four groups on Cα as L-alanine — amino, carboxyl, H, methyl — '
+           + 'just mirrored. Bacteria use D-alanine to cross-link cell walls, and it '
+           + 'turns up in a few peptide antibiotics, but no ribosome on Earth reads it.' } };
+  }
+  {
+    // — palmitoleate: palmitate's exact carbon count (16) with one cis C=C at
+    // Δ9 (atoms 8,9 here — C9=C10 in 1-indexed chemistry numbering), the real
+    // structure of palmitoleic acid. Built the same way palmitate was — a flat,
+    // schematic, real-angle zigzag (SCIENCE.md §1.6) — not a PubChem conformer,
+    // so the two sit in the exact same visual language and only the one
+    // feature differs.
+    //
+    // A cis double bond is invisible to bond length/angle alone: both cis and
+    // trans use the same C=C length (GL.CdC) and the same ~120° angles at each
+    // alkene carbon (`SP2` below vs the chain's usual `TET`) — only the
+    // TORSION about the C=C differs, which is exactly what `cis:` asserts
+    // (see check-molecules.js). Geometrically, the two backbone carbons
+    // flanking the double bond are folded to the SAME side of it (dihedral
+    // 0°) rather than continuing the ordinary alternating zigzag (which would
+    // read trans, dihedral 180°) — worked out and verified against the
+    // dihedral formula before being baked in as literals here, the same way
+    // the VIEW angles were.
+    //
+    // The carboxyl head (atoms 16,17,18) is copied verbatim from palmitate's,
+    // offset onto this spec's own C0 — the two chains start identically for
+    // eight carbons, so the head sits in exactly the same place relative to
+    // C0 in both molecules.
+    const chain=[
+      [0,0], [2.389,1.689], [4.779,0], [7.168,1.689], [9.558,0],
+      [11.947,1.689], [14.337,0], [16.726,1.689], [19.116,0],
+      [21.411,1.058], [21.679,3.972], [24.515,4.692], [24.782,7.606],
+      [27.618,8.326], [27.886,11.24], [30.722,11.96],
+    ];
+    CONTRAST.palmitoleate={ name:'Palmitoleic acid', formula:'C₁₆H₃₀O₂', class:'lipid',
+      atoms:[
+        ...chain.map(p=>({ el:'C', pos:[p[0],p[1],0] })),
+        { el:'O', pos:[-2.123,0.978,0] },
+        { el:'O', pos:[0.236,-2.573,0] },
+        { el:'H', pos:[2.034,-2.98,0] },
+      ],
+      bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9,2],[9,10],
+              [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
+      hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+      cis:{ atoms:[7,8,9,10], value:true },   // asserted by check-molecules.js
+      contrast:{ pair:'palmitate-palmitoleate', partner:'palmitate',
+        differs:'one C=C, cis',
+        lesson:"why butter is solid and oil is not",
+        diff:[7,8,9,10],
+        note:'One cis double bond, and the whole back half of the chain bends '
+           + 'away. That kink is why vegetable oil stays liquid in the fridge: a '
+           + 'bent chain cannot stack flush against its neighbours the way a '
+           + 'straight one does.' } };
+  }
+  {
+    // — maltose and cellobiose: two glucoses joined C1→C4, and the ONLY
+    //   difference between them is whether that link leaves the anomeric carbon
+    //   axial (α, starch) or equatorial (β, cellulose). Named as the
+    //   disaccharides rather than as "starch" and "cellulose" on purpose
+    //   (SCIENCE.md rule 1): a polymer's coil-vs-ribbon shape is an emergent
+    //   property of many repeats, and drawing two repeats does not earn the
+    //   polymer's name. What IS rendered exactly is the linkage, which is the
+    //   whole lesson — maltose is starch's repeat, cellobiose is cellulose's.
+    //
+    //   Both residues are built by the same two functions, in the same order,
+    //   from the same `ringPyranose()` as glucose — so the pair cannot drift
+    //   apart into some difference that is not the difference. `alpha` reaches
+    //   exactly one call: which slot at C1 the bridging oxygen takes.
+    //
+    //   The glycosidic linkage is declared (`glycosidic:`, a new claim type)
+    //   and check-molecules.js fails if the geometry disagrees — α and β differ
+    //   by nothing a bond length, a bond angle or a render can see, exactly the
+    //   class of error SCIENCE.md §1.3 is about.
+    //
+    //   The two TORSIONS about the linkage (which slot on the bridge O the
+    //   second ring hangs from, and the spin about that bond) are not asserted
+    //   and are not claimed to be a real conformer: a disaccharide's φ/ψ are
+    //   floppy in solution, so per SCIENCE.md §1.6 this is a deliberate
+    //   schematic — the lesson is the linkage's configuration, not its
+    //   conformation. They were swept and baked in as literals (the same
+    //   process palmitoleate's coordinates went through).
+    //
+    //   ONE pair of values, shared by both molecules — not one tuned per
+    //   molecule. Each on its own would sit in a roomier pose (α at spin 345°,
+    //   β at 225°, both ~2.28 clear), but then part of what the student sees
+    //   would come from a knob rather than from the chemistry. Sharing them
+    //   means every visible difference traces back to the axial/equatorial
+    //   choice at C1, which is the only thing this pair claims. The shared pose
+    //   still clears every non-bonded pair by 1.64 in the tighter of the two,
+    //   far above the checker's floor.
+    const LINK = { slot:0, spin:216*Math.PI/180 };
+    const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+    // Rotate v about unit axis k by angle t (Rodrigues).
+    const spinAbout=(v,k,t)=>{ const c=Math.cos(t), s=Math.sin(t);
+      return vadd(vadd(vmul(v,c), vmul(vcross(k,v),s)), vmul(k, vdot(k,v)*(1-c))); };
+    // Minimal rotation carrying unit u onto unit w — the two-vector problem has a
+    // free spin about w, which is why `spin` above exists as a separate knob.
+    function alignTo(u,w){
+      const d=Math.max(-1,Math.min(1,vdot(u,w)));
+      const ax=vcross(u,w);
+      if(vlen(ax)<1e-6) return d>0 ? (v=>v) : (v=>spinAbout(v,perpTo(u),Math.PI));
+      const k=vnorm(ax), t=Math.acos(d);
+      return v=>spinAbout(v,k,t);
+    }
+    // Copy `src`'s atoms and bonds into `dst`, offsetting every bond index.
+    // Returns the offset, so the caller can map a src index onto its new home
+    // rather than counting atoms by hand.
+    function absorb(dst,src){
+      const off=dst.atoms.length;
+      src.atoms.forEach(a=>dst.atoms.push({ el:a.el, pos:a.pos.slice() }));
+      src.bonds.forEach(b=>dst.bonds.push(b.length>2?[b[0]+off,b[1]+off,b[2]]:[b[0]+off,b[1]+off]));
+      return off;
+    }
+
+    // The residue that donates C1 — the non-reducing end. `alpha` picks the
+    // anomeric slot: axial gives α-D-glucose (starch), equatorial gives β
+    // (cellulose). Everything else is glucose's own all-equatorial pattern.
+    function donor(alpha){
+      const s=ringPyranose(), RING=[0,1,2,3,4,5], c1=1;
+      const bo=s.grow(c1,'O',GL.CO,'sp3', alpha ? s.axial(c1,RING) : s.equatorial(c1,RING));
+      const OH=[2,3,4].map(k=>s.hydroxyl(k, s.equatorial(k,RING)));
+      const c6=s.grow(5,'C',GL.CC,'sp3', s.equatorial(5,RING));
+      OH.push(s.hydroxyl(c6,0));
+      // C–H last, as everywhere else in this file: every index above stays put.
+      // Each ring carbon has three bonds by now, so exactly one slot is free.
+      const CH=[1,2,3,4,5].map(k=>s.grow(k,'H',GL.CH,'sp3',0));
+      CH.push(s.grow(c6,'H',GL.CH,'sp3',0), s.grow(c6,'H',GL.CH,'sp3',0));
+      return { s, RING, c1, bo, OH, c6, CH };
+    }
+    // The residue that accepts at C4 — the reducing end. Its C4 –OH is the one
+    // the linkage replaced, so C4 carries the bridge instead (linked after the
+    // rings are merged) and its H goes axial. `dir4` is the direction that bond
+    // leaves in, captured BEFORE anything is grown on C4, and is what the
+    // placement solves against.
+    function acceptor(){
+      const s=ringPyranose(), RING=[0,1,2,3,4,5], c4=4;
+      const dir4=s.freeTet(c4)[s.equatorial(c4,RING)];
+      const h4=s.grow(c4,'H',GL.CH,'sp3', s.axial(c4,RING));
+      const OH=[1,2,3].map(k=>s.hydroxyl(k, s.equatorial(k,RING)));
+      const c6=s.grow(5,'C',GL.CC,'sp3', s.equatorial(5,RING));
+      OH.push(s.hydroxyl(c6,0));
+      const CH=[1,2,3,5].map(k=>s.grow(k,'H',GL.CH,'sp3',0));
+      CH.push(s.grow(c6,'H',GL.CH,'sp3',0), s.grow(c6,'H',GL.CH,'sp3',0));
+      // h4 belongs in the C–H list too — it is grown early only because C4's two
+      // free slots have to be claimed before the linkage takes one of them.
+      CH.push(h4);
+      return { s, RING, c4, dir4, h4, OH, c6, CH };
+    }
+    function disaccharide(alpha, tune){
+      const d=donor(alpha), a=acceptor();
+      const { slot, spin } = tune || LINK;
+      // Where the second ring hangs off the bridge oxygen: one of the O's three
+      // remaining sp3 slots, so the C1–O–C4 angle is tetrahedral by construction
+      // (real glycosidic O is ~116°, a little wider) rather than picked.
+      const out=d.s.freeTet(d.bo)[slot];
+      const c4Target=vadd(d.s.at(d.bo), vmul(out, GL.CO));
+      // Carry the acceptor's own C4→O direction onto −out, so its C4 ends up
+      // bonded to the bridge O and not merely near it, then spin about the new
+      // bond to open the two rings away from each other.
+      const rot=alignTo(a.dir4, vmul(out,-1));
+      const c4Local=a.s.at(a.c4);
+      a.s.atoms.forEach(at=>{
+        const p=spinAbout(rot(vsub(V(at.pos[0],at.pos[1],at.pos[2]), c4Local)), out, spin);
+        at.pos=[p.x+c4Target.x, p.y+c4Target.y, p.z+c4Target.z];
+      });
+      const off=absorb(d.s, a.s);
+      d.s.link(d.bo, a.c4+off);
+      const ohH=(s,o)=>{ const b=s.bonds.find(b=>(b[0]===o||b[1]===o)&&s.atoms[b[0]===o?b[1]:b[0]].el==='H');
+        return b[0]===o?b[1]:b[0]; };
+      return { s:d.s, d, a, off,
+        c1:d.c1, bo:d.bo, c4:a.c4+off,
+        optH:[...d.CH, ...a.CH.map(i=>i+off)],
+        // the anomeric H — part of the difference, since it swaps places with
+        // the bridge O when the configuration flips
+        h1:d.CH[0],
+        ohH:o=>ohH(d.s,o) };
+    }
+
+    const m=disaccharide(true);
+    CONTRAST.maltose=m.s.spec({ name:'Maltose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
+      // α: the bridge leaves C1 AXIAL. Every other substituent on both rings is
+      // equatorial (glucose's own pattern), and the checker verifies that too —
+      // `{axial:[…]}` is checked in both directions, per ring.
+      stereo:{ axial:[m.c1] },
+      glycosidic:{ anomeric:m.c1, bridge:m.bo, partner:m.c4, config:'alpha', link:'1→4' },
+      view:VIEW.disaccharide,
+      optH:m.optH,
+      contrast:{ pair:'starch-cellulose', partner:'cellobiose',
+        differs:'α- vs β-1,4 linkage',
+        lesson:'why we can’t digest wood',
+        diff:[m.c1, m.bo, m.c4, m.h1],
+        // Registered on the FIRST ring — the two donor residues are built
+        // identically apart from the anomeric slot, so registering there lands
+        // them exactly on top of each other and the difference reads as where
+        // the SECOND ring ends up: α swings it out of line (chain these and
+        // starch coils), β carries it onward (cellulose runs as a ribbon).
+        // Aligning on the linkage instead would split that difference between
+        // the two halves and hide it. The cost is purine's cost — the pivot sits
+        // a ring off centre, so a drag swings the dimer rather than turning it
+        // perfectly in place — and it is worth paying here, because unlike
+        // purine's fused ring this IS the feature.
+        align:m.d.RING,
+        note:'The bridge leaves C1 pointing axial — down, out of the ring plane. '
+           + 'Chain these and the backbone has to curl: starch coils into a helix '
+           + 'loose enough for amylase to reach in, which is why bread is food.' } });
+
+    const c=disaccharide(false);
+    CONTRAST.cellobiose=c.s.spec({ name:'Cellobiose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
+      // β: the bridge is equatorial, so the whole molecule is all-equatorial —
+      // the same declaration glucose itself carries, now over two rings.
+      stereo:'all-equatorial',
+      glycosidic:{ anomeric:c.c1, bridge:c.bo, partner:c.c4, config:'beta', link:'1→4' },
+      view:VIEW.disaccharide,
+      optH:c.optH,
+      contrast:{ pair:'starch-cellulose', partner:'maltose',
+        differs:'α- vs β-1,4 linkage',
+        lesson:'why we can’t digest wood',
+        diff:[c.c1, c.bo, c.c4, c.h1],
+        align:c.d.RING,
+        note:'The bridge leaves C1 equatorial — straight out, in the ring plane. '
+           + 'Chain these and the backbone stays flat and straight: cellulose '
+           + 'ribbons stack into fibres no human enzyme can open. Wood is glucose '
+           + 'we cannot reach.' } });
   }
   Object.assign(MOLECULES, CONTRAST);
 

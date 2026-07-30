@@ -188,6 +188,22 @@ const PAIRS=[
   { left:'purine', right:'pyrimidine', accent:0x6a5acd, kind:'Bases',
     ask:'The two shapes every DNA base is built on. A and G are one, C and T the '
       + 'other. Count the rings, then think about what a ladder needs.' },
+  { left:'alanine', right:'dAlanine', accent:0xc2762a, kind:'Amino acids',
+    ask:'Same four groups on the same carbon — amino, carboxyl, hydrogen, methyl. '
+      + 'Mirror images, not rotations of each other. Only one of these is what '
+      + 'your ribosomes actually build with.' },
+  // Maltose/cellobiose, not "starch"/"cellulose": the pair renders two repeats,
+  // and a polymer's coil-vs-ribbon shape is a property of hundreds (SCIENCE.md
+  // rule 1). The linkage IS rendered exactly, and it is the whole lesson.
+  { left:'maltose', right:'cellobiose', accent:0x2f8f6f, kind:'Sugars',
+    ask:'Two glucoses, joined at the same two carbons through the same oxygen. '
+      + 'One of these is the link in starch, the other the link in cellulose. '
+      + 'You can digest one and not the other — look at where the bridge leaves '
+      + 'the ring.' },
+  { left:'palmitate', right:'palmitoleate', accent:0xc9962e, kind:'Lipids',
+    ask:'Same sixteen-carbon chain, same carboxyl head. One is dead straight; '
+      + 'the other bends partway down. Find the one bond that is not like the '
+      + 'others.' },
 ];
 const specOf=k=>MolLib.MOLECULES[k];
 const membersOf=p=>[p.left,p.right];
@@ -250,7 +266,7 @@ const NOTE_GAP=0.6;      // gap between the molecule's underside and the text
 const LIFT=0;
 
 /* ---------- build every molecule once ---------- */
-// All six up front, shown/hidden per pair — same reasoning as the gallery: it is
+// All of them up front, shown/hidden per pair — same reasoning as the gallery: it is
 // nothing to hold in memory, and rebuilding would drop the highlight and the
 // C–H toggle on every click.
 const built={};

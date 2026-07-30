@@ -97,19 +97,49 @@ feature is the entire point. That feature must be exactly right **and asserted b
 <!-- ENUM: flip the Built column when a pair ships; add a row for a new contrast. -->
 | Contrast | Differs by | The lesson | Built |
 |---|---|---|---|
-| starch vs cellulose | α- vs β-1,4 linkage | why we can't digest wood | — |
-| saturated vs unsaturated fat | one C=C, *cis* | why butter is solid and oil is not | — |
+| starch vs cellulose | α- vs β-1,4 linkage | why we can't digest wood | ✓ `glycosidic` |
+| saturated vs unsaturated fat | one C=C, *cis* | why butter is solid and oil is not | ✓ `cis` |
 | ribose vs deoxyribose | one –OH at 2′ | why DNA is the stable archive | ✓ `stereo:{faces}` |
 | glucose vs galactose | one –OH orientation | why galactosemia is a disease | ✓ `stereo:{axial}` |
-| L- vs D-amino acids | handedness | why life is homochiral | — |
+| L- vs D-amino acids | handedness | why life is homochiral | ✓ `chirality` |
 | purine vs pyrimidine | two rings vs one | why A–T and G–C are equal width | ✓ `topology` |
 
-The three built pairs are `contrast-lab.html`. The three unbuilt ones each need a
-**new assertion type** before they can ship, which is the point of rule 2 below —
-*cis*-C=C needs a torsion check, starch/cellulose needs a check across a
-glycosidic linkage, and L/D on a sugar needs a signed-volume test like the one
-`chirality` already does for amino acids. None of them is blocked on geometry;
-they are blocked on being checkable.
+All six pairs are `contrast-lab.html`. L-/D-alanine needed no new
+assertion type to join them — `chirality` was already generic over both hands
+(`actual = vol>0?'L':'D'`), since it exists to catch a reflection slipping into
+an L-only build, not to assume the answer is always L. D-alanine is that spec's
+coordinates mirrored (one component negated), same trick a bad SDF converter
+would produce by accident.
+
+Saturated/unsaturated fat needed a genuinely new declaration — `cis:{atoms:
+[i,j,k,l], value}` — because a cis and a trans double bond share the same C=C
+length and the same ~120° flanking angles; only the torsion about the C=C
+differs, and nothing above that check could see it. `palmitoleate`'s bend was
+worked out by hand (a same-side vs. alternating turn at the two sp2 vertices)
+and verified against the dihedral formula before being baked in as literals —
+the same process as a `VIEW` tuning pass, just for a whole spec instead of an
+orientation.
+
+Starch vs cellulose was the last row, and it shipped the way rule 2 below says
+it had to: with a **new assertion type**, `glycosidic:`, added in the same commit
+as the molecules. It was never blocked on geometry — it was blocked on being
+checkable.
+
+Two things about how it shipped are worth keeping:
+
+**It is rendered as `maltose` and `cellobiose`, not as starch and cellulose** —
+rule 1. Coil-versus-ribbon is an *emergent* property of hundreds of repeats
+(§6's discipline applied to a polymer), and two rings do not earn the polymer's
+name. What the pair does render exactly is the linkage, which is the entire
+lesson: maltose is starch's repeat, cellobiose is cellulose's.
+
+**Both share one linkage conformation, deliberately.** A disaccharide's φ/ψ are
+floppy, so per §1.6 the pose is a schematic and is *not* asserted — which makes
+it a knob, and a knob tuned per-molecule would put part of the visible difference
+outside the chemistry. So one slot-and-spin pair is used for both, chosen as the
+best pose that clears every non-bonded pair in *both* molecules (1.03, against
+the checker's floor of 0). Each alone would sit roomier; sharing means every
+difference on screen traces back to the one axial/equatorial choice at C1.
 
 **How a distinguishing feature gets declared.** One of these goes on the spec,
 and `check-molecules.js` fails if the geometry disagrees:
@@ -122,6 +152,8 @@ and `check-molecules.js` fails if the geometry disagrees:
 | `stereo:{faces:{i:'a',…}}` | which ring atoms' substituents share a face — checked as a *relative* pattern, since the ring normal's sign is arbitrary | ribose, deoxyribose |
 | `topology:{rings:[…],fused:true}` | ring count, ring sizes, and that a bicycle shares an edge | purine, pyrimidine |
 | `chirality:'L'` | signed volume over CIP priorities | the amino acids |
+| `cis:{atoms:[i,j,k,l],value}` | i-j-k-l dihedral about the j-k (C=C) bond is ~0° if `value` is true, ~180° if false | palmitoleate |
+| `glycosidic:{anomeric,bridge,partner,config,link}` | the bridging O joins the anomeric carbon of one ring to carbon 4 of *another* ring, and the bond leaving the anomeric carbon is axial (`'alpha'`) or equatorial (`'beta'`) | maltose, cellobiose |
 
 `{faces}` deliberately cannot catch a *global* mirror (flip every substituent and
 the relative pattern is unchanged, so L-ribose would pass as D-). No page makes a
@@ -159,7 +191,7 @@ trap. There are two families:
 | Family | Specs | Rule | Implied scale |
 |---|---|---|---|
 | **A. hand-written** | water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
-| **B. derived** | amino acids, palmitate, AMP, glucose + all glycolysis intermediates | real Å × one global `SCALE` | **1.9×**, relative lengths truthful |
+| **B. derived** | amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec (incl. the two disaccharides) | real Å × one global `SCALE` | **1.9×**, relative lengths truthful |
 
 Family A cannot be normalised, and should not be. `water-lab.html` and
 `molecule-lab.html` hard-code `HL=1.55` and tune the whole solvation engine
@@ -210,10 +242,10 @@ in the comment, exactly as the open-chain Fischer-projection intermediates in §
 instancing rather than N built groups, and should be validated at the monomer,
 not the assembly.
 
-The declaration vocabulary is in §1.4; the unbuilt rows of its contrast table are
-blocked on **extending it**, not on geometry. Nearest gap: **cis/trans is
-unchecked** — bond order 2 renders, but nothing asserts an unsaturated fatty
-acid's double bond is *cis*, and the kink is the whole reason that lesson exists.
+The declaration vocabulary is in §1.4, and its contrast table now has no unbuilt
+rows. The two most recent additions were both cases where the render could not
+settle the question: `cis:{atoms,value}` (palmitoleate) and
+`glycosidic:{…,config}` (maltose/cellobiose).
 
 ## 2. Polarity & charge
 

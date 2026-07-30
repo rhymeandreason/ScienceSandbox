@@ -18,7 +18,7 @@
  *  when a spec DECLARES what it should be, so the declaration is not optional
  *  decoration; SCIENCE.md §1.3 has the two incidents that established this.
  *
- *  Four declarations, each FAILing if the geometry disagrees (SCIENCE.md §1.4
+ *  Six declarations, each FAILing if the geometry disagrees (SCIENCE.md §1.4
  *  is the reference; add a new claim type here in the same commit that adds
  *  the molecule making the claim):
  *
@@ -35,6 +35,19 @@
  *    chirality:'L'                signed volume over CIP priorities
  *                                 N > C(carboxyl) > R > H. Requires `pep`, so
  *                                 amino acids only        [the amino acids]
+ *    cis:{ atoms:[i,j,k,l],       the i-j-k-l dihedral about the j-k bond is
+ *           value:true }         ~0° (cis/Z) if true, ~180° (trans/E) if
+ *                                 false — a double bond's C=C length and its
+ *                                 ~120° flanking angles are identical either
+ *                                 way, so only the torsion tells them apart
+ *                                 [palmitoleate]
+ *    glycosidic:{ anomeric:i,     a sugar–sugar link: the bridge O joins the
+ *      bridge:o, partner:j,       anomeric carbon of ONE ring to carbon 4 of
+ *      config:'alpha'|'beta',     ANOTHER, and the bond leaving the anomeric
+ *      link:'1→4' }               carbon is axial (α) or equatorial (β). α and β
+ *                                 are the same two sugars, the same bridge and
+ *                                 the same angles — starch vs cellulose
+ *                                 [maltose, cellobiose]
  *
  *  A spec with no declaration gets its ring pattern printed for eyeballing.
  * ===================================================================== */
@@ -61,6 +74,18 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1],
                          a[0] * b[1] - a[1] * b[0]];
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unit = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
+// Signed torsion (degrees) of p0-p1-p2-p3 about the p1-p2 bond: 0° means p0
+// and p3 eclipse on the SAME side (cis/Z), ±180° means opposite sides
+// (trans/E). Standard atan2 form so it stays well-defined even when p1-p2
+// is exactly in-plane with p0/p3, which is the common case for a double bond
+// drawn flat (SCIENCE.md §1.6 schematic style) rather than as a real 3D
+// conformer.
+const dihedral = (p0, p1, p2, p3) => {
+  const b1 = sub(p1, p0), b2 = sub(p2, p1), b3 = sub(p3, p2);
+  const n1 = cross(b1, b2), n2 = cross(b2, b3);
+  const m1 = cross(n1, unit(b2));
+  return Math.atan2(dot3(m1, n2), dot3(n1, n2)) * 180 / Math.PI;
+};
 
 // Smallest cycles in the bond graph: for each bond, look for another route
 // between its two ends. Rings here are 5- or 6-membered sugars; anything larger
@@ -183,6 +208,29 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- alkene cis/trans --------------------------------------------------
+  // A cis double bond has the same C=C bond length and the same ~120° angles
+  // at each alkene carbon as trans does — the render, the bond-length table
+  // and the angle table above all look identical either way. What differs is
+  // the torsion about the C=C: `cis:{atoms:[i,j,k,l], value}` names the four
+  // atoms i-j=k-l (the double bond is j-k), and asserts the dihedral is near
+  // 0° (cis/Z) when value is true, or near 180° (trans/E) when false.
+  if (mol.cis) {
+    const [i, j, k, l] = mol.cis.atoms;
+    const dh = dihedral(P(i), P(j), P(k), P(l));
+    const isCis = Math.abs(dh) < 90;
+    if (isCis !== mol.cis.value) {
+      stereoFails++;
+      console.log(`   CIS/TRANS FAIL: spec declares ${mol.cis.value ? 'cis' : 'trans'} `
+        + `but the ${label(i)}-${label(j)}-${label(k)}-${label(l)} dihedral is ${dh.toFixed(1)}°`);
+      console.log(`     Same bond length, same bond angles, same render either way —`);
+      console.log(`     only the torsion about the C=C tells cis from trans.`);
+    } else {
+      console.log(`   cis/trans OK: ${mol.cis.value ? 'cis' : 'trans'} as declared `
+        + `(${label(i)}-${label(j)}-${label(k)}-${label(l)} dihedral ${dh.toFixed(1)}°)`);
+    }
+  }
+
   // ---- ring topology ---------------------------------------------------
   // Purine vs pyrimidine makes no stereochemical claim at all — its claim is
   // COUNT. Two fused rings vs one, which is why every DNA base pair is one wide
@@ -211,6 +259,85 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
       }
     } else {
       console.log(`   topology OK: rings [${sizes.join(', ')}] as declared`);
+    }
+  }
+
+  // ---- glycosidic linkage (α vs β) -------------------------------------
+  // The one that decides whether a glucose polymer is food or firewood. Maltose
+  // (starch's repeat) and cellobiose (cellulose's) are the same two glucoses,
+  // joined at the same two carbons, through the same bridging oxygen, at the
+  // same tetrahedral angle — the difference is only WHICH slot at the anomeric
+  // carbon the bridge leaves from: axial (α) or equatorial (β). Every bond
+  // length matches, every angle matches, and the two renders are near enough to
+  // the same picture that no screenshot settles it.
+  //
+  // Three things are checked, because a wrong one of each is a different
+  // molecule that would still look right: that the bridge really joins TWO
+  // rings (not a second bond inside one), that it lands 1→4 (not 1→6, a
+  // branch point, which is a real linkage but a different polymer), and the
+  // α/β configuration itself.
+  if (mol.glycosidic) {
+    const { anomeric: i, bridge: o, partner: j, config } = mol.glycosidic;
+    const link = mol.glycosidic.link || '1→4';
+    const rings = findRings(mol.atoms.length, bonds);
+    const ringOf = a => rings.find(r => r.includes(a));
+    const linked = (a, b) => bonded.has(a < b ? `${a},${b}` : `${b},${a}`);
+    const exoO = a => bonds.some(([p, q]) => {
+      const k = p === a ? q : q === a ? p : null;
+      return k !== null && mol.atoms[k].el === 'O' && !(ringOf(a) || []).includes(k);
+    });
+    const rA = ringOf(i), rB = ringOf(j);
+    const fail = msg => { stereoFails++; console.log(`   GLYCOSIDIC FAIL: ${msg}`); };
+    if (!linked(i, o) || !linked(o, j)) {
+      fail(`${label(o)} is not bonded to both ${label(i)} and ${label(j)} — `
+        + `the declared bridge is not a bridge.`);
+    } else if (!rA || !rB) {
+      fail(`${label(!rA ? i : j)} is not in a ring — a glycosidic link joins two sugar rings.`);
+    } else if (rA.some(a => rB.includes(a))) {
+      fail(`${label(i)} and ${label(j)} are in the SAME ring — that is a ring closure, `
+        + `not a link between two residues.`);
+    } else if (!rA.some(a => mol.atoms[a].el === 'O' && linked(a, i))) {
+      fail(`${label(i)} is not adjacent to its own ring's oxygen, so it is not the `
+        + `anomeric carbon. α/β is a claim about the anomeric position only.`);
+    } else {
+      // Position of the link on the ACCEPTOR ring, counted from that ring's own
+      // anomeric carbon — the ring carbon that sits next to the ring oxygen and
+      // carries a second, exocyclic oxygen. A pyranose ring alone cannot tell C2
+      // from C4 (both are two steps from the ring O, in mirror-image positions);
+      // it is the substituent pattern that breaks the tie.
+      const oB = rB.find(a => mol.atoms[a].el === 'O');
+      const c1B = rB.find(a => a !== oB && linked(a, oB) && exoO(a));
+      const want = (() => { const m = /^(\d+)\D+(\d+)$/.exec(link); return m ? +m[2] - +m[1] : null; })();
+      const step = (() => {
+        if (c1B === undefined) return null;
+        const d = Math.abs(rB.indexOf(j) - rB.indexOf(c1B));
+        return Math.min(d, rB.length - d);
+      })();
+      if (step === null) {
+        fail(`the ring holding ${label(j)} has no anomeric carbon (no ring carbon next `
+          + `to the ring O carrying a second oxygen), so the link position is unverifiable.`);
+      } else if (want !== null && step !== want) {
+        fail(`spec declares a ${link} link but ${label(j)} is ${step} ring bond(s) from `
+          + `${label(c1B)}, its own ring's anomeric carbon — that is a 1→${step + 1} link.`);
+      } else {
+        // The configuration itself, measured the same way the ring-stereo check
+        // below measures every other substituent, so α/β and axial/equatorial
+        // cannot disagree about the same bond.
+        const n = ringNormal(rA, P);
+        const tilt = 90 - Math.acos(Math.abs(dot3(unit(sub(P(o), P(i))), n))) * 180 / Math.PI;
+        const actual = tilt <= EQ_MAX_TILT ? 'beta' : 'alpha';
+        if (actual !== config) {
+          fail(`spec declares ${config}-${link} but ${label(i)}->${label(o)} is `
+            + `${actual === 'beta' ? 'equatorial (β)' : 'axial (α)'} `
+            + `— tilt ${tilt.toFixed(0)}° from the ring plane.`);
+          console.log(`     α and β share every bond length, every bond angle and very`);
+          console.log(`     nearly the same render — and one is bread, the other is wood.`);
+        } else {
+          console.log(`   glycosidic OK: ${config}-${link} as declared `
+            + `(${label(i)}->${label(o)} tilt ${tilt.toFixed(0)}°, `
+            + `${label(j)} is ${step} ring bond(s) from ${label(c1B)})`);
+        }
+      }
     }
   }
 
