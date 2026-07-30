@@ -45,9 +45,9 @@ order matters — each script assumes the ones above it:
 <!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
 | Page | Loads |
 |---|---|
-| `contrast-lab` | molecules, scene |
-| `water-lab`, `molecule-lab`, `aminoacid-lab`, `glycolysis-lab`, `macromolecule-lab` | + fx |
+| `water-lab`, `molecule-lab`, `aminoacid-lab`, `glycolysis-lab`, `macromolecule-lab` | molecules, scene, fx |
 | `molecule-builder` | + atomkit, covalent-drag, ionic-drag |
+| `contrast-lab` | molecules, scene, haworth |
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
