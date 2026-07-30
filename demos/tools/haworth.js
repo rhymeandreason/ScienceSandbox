@@ -99,70 +99,111 @@ function faces(m, ring, names) {
 }
 
 /* ---- geometry of the standard Haworth picture -------------------------
- * A pyranose is drawn as a flattened hexagon seen edge-on: back edge short and
- * high, front edge long and low, ring O at the back right, C1 at the right.
- * Bold front bonds carry the perspective. Substituents leave straight up or
- * straight down — that verticality IS the convention, and it is why one flipped
- * -OH reads instantly.
+ * A ring drawn edge-on from slightly above: back edge high, front edge low,
+ * ring O at the BACK RIGHT and C1 at the RIGHT, which is what puts the anomeric
+ * carbon where a reader expects it. Substituents leave straight up or straight
+ * down — that verticality IS the convention, and it is why one flipped -OH
+ * reads instantly.
+ *
+ * Vertices are listed in ring order starting at C1, so the first three bonds
+ * (C1-C2, C2-C3, C3-C4) are always the near side and always the bold ones.
  */
-const PYRANOSE = [                        // C1..C5, O5 — clockwise from the right
-  { x: 152, y: 62 }, { x: 112, y: 78 }, { x: 44, y: 78 },
-  { x: 14, y: 62 }, { x: 54, y: 44 }, { x: 122, y: 44 },
+const PYRANOSE = [                       // C1, C2, C3, C4, C5, O5
+  { x: 170, y: 60 }, { x: 132, y: 84 }, { x: 58, y: 84 },
+  { x: 20, y: 60 }, { x: 58, y: 36 }, { x: 132, y: 36 },
 ];
-const FURANOSE = [
-  { x: 140, y: 66 }, { x: 104, y: 84 }, { x: 46, y: 84 },
-  { x: 16, y: 60 }, { x: 78, y: 40 },
+const FURANOSE = [                       // C1, C2, C3, C4, O4
+  { x: 152, y: 64 }, { x: 118, y: 92 }, { x: 50, y: 92 },
+  { x: 16, y: 64 }, { x: 84, y: 34 },
 ];
-const FRONT = { pyranose: [[1, 2], [2, 3]], furanose: [[1, 2], [2, 3]] };
+const FRONT_BONDS = 3;                   // the first three are the near side
+const RING_STEP = 232;                   // x offset between residues of a disaccharide
 
 function ringLayout(size) { return size === 6 ? PYRANOSE : FURANOSE; }
 
+/* The oxygen of a glycosidic bond: bonded to ring carbons in TWO different
+ * rings. It belongs to neither ring's substituent list — drawn as a dangling
+ * -OH on both (as the first draft did) it reads as two separate sugars rather
+ * than one disaccharide. */
+function bridgeOxygen(m, rings) {
+  if (rings.length < 2) return null;
+  const adj = adjacency(m);
+  const ringOf = new Map();
+  rings.forEach((r, k) => r.forEach(i => ringOf.set(i, k)));
+  for (let j = 0; j < m.atoms.length; j++) {
+    if (m.atoms[j].el !== 'O' || ringOf.has(j)) continue;
+    const touch = adj[j].filter(i => ringOf.has(i)).map(i => ringOf.get(i));
+    if (new Set(touch).size === 2) return { o: j, ends: adj[j].filter(i => ringOf.has(i)) };
+  }
+  return null;
+}
+
 /* Build the SVG for one ring plus its substituents. */
-function drawRing(m, info, names, opts, xOff) {
+function drawRing(m, info, opts, xOff, skip) {
   const { faces: F, ring, ringCs } = info;
-  const kind = ring.length === 6 ? 'pyranose' : 'furanose';
   const pts = ringLayout(ring.length);
-  // order the ring so C1 is first and the ring O last, matching the template
   const O = ring.find(i => m.atoms[i].el === 'O');
-  const ordered = [...ringCs, O];
+  const ordered = [...ringCs, O];        // C1 first, ring O last — matches the template
   const pos = new Map(ordered.map((i, k) => [i, { x: pts[k].x + xOff, y: pts[k].y }]));
 
   const S = [];
   const hi = opts.highlight || new Set();
   const col = el => opts.colors[el] || opts.colors.C;
-  const HL = opts.highlightColour;
 
-  // ring bonds, front two bold for the edge-on perspective
+  // ring bonds — the first three are the near side and carry the perspective
   for (let k = 0; k < ordered.length; k++) {
-    const a = ordered[k], b = ordered[(k + 1) % ordered.length];
-    const pa = pos.get(a), pb = pos.get(b);
-    const bold = FRONT[kind].some(([p, q]) => (p === k || q === k) && k < ordered.length - 1);
+    const pa = pos.get(ordered[k]), pb = pos.get(ordered[(k + 1) % ordered.length]);
     S.push(`<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" `
-      + `stroke="${opts.ink}" stroke-width="${bold ? 3.4 : 1.4}" stroke-linecap="round"/>`);
+      + `stroke="${opts.ink}" stroke-width="${k < FRONT_BONDS ? 3.6 : 1.4}" `
+      + `stroke-linecap="round"/>`);
   }
-  // ring oxygen label sits on the vertex, over a knockout so the bonds stop cleanly
+  // ring oxygen label over a knockout so the bonds stop cleanly behind it
   const po = pos.get(O);
-  S.push(`<circle cx="${po.x}" cy="${po.y}" r="8" fill="${opts.paper}"/>`);
+  S.push(`<circle cx="${po.x}" cy="${po.y}" r="8.5" fill="${opts.paper}"/>`);
   S.push(`<text x="${po.x}" y="${po.y}" text-anchor="middle" dominant-baseline="central" `
-    + `font-size="13" fill="${col('O')}">O</text>`);
+    + `font-size="13.5" fill="${col('O')}">O</text>`);
 
-  // substituents: straight up or straight down
   for (const [j, f] of F) {
+    if (skip && skip.has(j)) continue;                        // the glycosidic O
     if (m.atoms[j].el === 'H' && !opts.showH && !hi.has(j)) continue;
-    const p = pos.get(f.on);
-    const dy = f.up ? -22 : 22;
-    const on = hi.has(j);
+    const p = pos.get(f.on), dy = f.up ? -23 : 23, on = hi.has(j);
     S.push(`<line x1="${p.x}" y1="${p.y}" x2="${p.x}" y2="${p.y + dy}" `
-      + `stroke="${on ? HL : opts.ink}" stroke-width="${on ? 2.6 : 1.4}" stroke-linecap="round"/>`);
+      + `stroke="${on ? opts.highlightColour : opts.ink}" `
+      + `stroke-width="${on ? 2.8 : 1.4}" stroke-linecap="round"/>`);
     const label = f.name.startsWith('O') ? 'OH'
                 : f.name.startsWith('C') ? 'CH₂OH'
                 : m.atoms[j].el;
-    const ly = p.y + dy + (f.up ? -7 : 11);
-    if (on) S.push(`<ellipse cx="${p.x}" cy="${ly - 3}" rx="${label.length * 4.6 + 5}" ry="10" `
+    const ly = p.y + dy + (f.up ? -7 : 12);
+    if (on) S.push(`<ellipse cx="${p.x}" cy="${ly - 4}" rx="${label.length * 4.4 + 6}" ry="10.5" `
       + `fill="${opts.highlightFill}"/>`);
     S.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" font-size="12.5" `
       + `fill="${col(m.atoms[j].el)}">${label}</text>`);
   }
+  return { svg: S.join(''), pos };
+}
+
+/* The glycosidic bond itself: C1 of one residue, out to the bridging O, across
+ * to C4 of the other. The O sits BELOW the join for an alpha linkage and above
+ * for a beta one, which is the whole maltose/cellobiose lesson — so its height
+ * comes from the same face calculation as every other substituent. */
+function drawBridge(m, bridge, infos, positions, opts) {
+  const { o, ends } = bridge;
+  const hi = opts.highlight || new Set();
+  const on = hi.has(o);
+  const col = on ? opts.highlightColour : opts.ink;
+  const pts = ends.map(e => positions.find(p => p.has(e)).get(e));
+  // face of the O relative to the residue that donated its anomeric carbon
+  const donor = infos.find(inf => inf.faces.has(o));
+  const up = donor ? donor.faces.get(o).up : false;
+  const mid = { x: (pts[0].x + pts[1].x) / 2, y: Math.max(pts[0].y, pts[1].y) + (up ? -26 : 26) };
+  const S = [];
+  if (on) S.push(`<ellipse cx="${mid.x}" cy="${mid.y}" rx="13" ry="10.5" fill="${opts.highlightFill}"/>`);
+  for (const p of pts)
+    S.push(`<line x1="${p.x}" y1="${p.y}" x2="${mid.x}" y2="${mid.y}" `
+      + `stroke="${col}" stroke-width="${on ? 2.8 : 1.4}" stroke-linecap="round"/>`);
+  S.push(`<circle cx="${mid.x}" cy="${mid.y}" r="8.5" fill="${on ? opts.highlightFill : opts.paper}"/>`);
+  S.push(`<text x="${mid.x}" y="${mid.y}" text-anchor="middle" dominant-baseline="central" `
+    + `font-size="13.5" fill="${opts.colors.O}">O</text>`);
   return S.join('');
 }
 
@@ -173,13 +214,23 @@ function haworth(m, options) {
     highlight: new Set(), highlightColour: '#8a6a3a', highlightFill: '#dcd8d0',
     colors: { C: '#222', O: '#c0392b', N: '#2b6cb0', H: '#666' },
   }, options || {});
-  const rings = findRings(m);
+  let rings = findRings(m);
   if (!rings.length) throw new Error(`${m.name}: no 5- or 6-membered ring to project`);
-  const body = rings
-    .map((r, k) => drawRing(m, faces(m, r, m.names), m.names, opts, k * 186))
-    .join('');
-  const w = 176 + (rings.length - 1) * 186;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 8 ${w + 28} 116" `
+  // the residue donating its anomeric carbon to the linkage is drawn on the
+  // LEFT, so maltose and cellobiose read left-to-right the way they are named
+  if (m.glycosidic) {
+    const donor = m.glycosidic.anomeric;
+    rings = rings.slice().sort((a, b) => (b.includes(donor) ? 1 : 0) - (a.includes(donor) ? 1 : 0));
+  }
+  const bridge = bridgeOxygen(m, rings);
+  const skip = bridge ? new Set([bridge.o]) : null;
+  const infos = rings.map(r => faces(m, r, m.names));
+  const drawn = infos.map((inf, k) => drawRing(m, inf, opts, k * RING_STEP, skip));
+  let body = drawn.map(d => d.svg).join('');
+  if (bridge) body += drawBridge(m, bridge, infos, drawn.map(d => d.pos), opts);
+
+  const w = 190 + (rings.length - 1) * RING_STEP;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -4 ${w + 36} 136" `
     + `width="${opts.width}" height="${opts.height}" `
     + `font-family="'Zilla Slab',Georgia,serif">${body}</svg>`;
 }
