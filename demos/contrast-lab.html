@@ -22,8 +22,7 @@
     padding:11px 17px 12px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
   #lesson .lbody{font-family:var(--font-sans);font-size:14px;line-height:1.45;color:#3a352f}
 
-  /* Molecule names are PAGE CHROME, not geometry: HTML sitting over the canvas,
- */
+  /* Molecule names are PAGE CHROME, not geometry: HTML sitting over the canvas. */
   .molname{position:absolute;z-index:5;transform:translate(-50%,0);
     pointer-events:none;white-space:nowrap;text-align:center}
   .molname .mnname{font-family:var(--font-marker);font-weight:400;font-size:26px;line-height:1.05}
@@ -119,56 +118,38 @@
 /* =============================================================
  *  SPOT THE DIFFERENCE — the contrast pairs
  *
- *  This page renders SCIENCE.md's Tier-2 table: pairs of near-identical
- *  molecules where exactly one feature is the entire lesson. It is a
- *  comparison gallery like macromolecule-lab.html, not a simulation — no
- *  physics loop, no reactions. It therefore does NOT load fx.js, which is the
- *  one place this page departs from the standard four-script head: nothing on
- *  it forms or breaks a bond, and §9's rule is that a non-event stays visually
- *  silent.
+ *  Renders SCIENCE.md's Tier-2 table: near-identical molecule pairs where
+ *  exactly one feature is the lesson. A comparison gallery, not a
+ *  simulation — no physics loop, no reactions, so unlike the other pages
+ *  it does not load fx.js.
  *
- *  Two rules make this page work, and both are enforced elsewhere:
- *
- *   1. BOTH HALVES MUST BE THE SAME SCALE FAMILY. Every spec here is
- *      family B (real Å × 1.9), so "these are the same size except here"
- *      is a true statement. A family-A molecule on this page would make
- *      the comparison a lie. See the note at the top of molecules.js.
- *
- *   2. THE DIFFERENCE IS ASSERTED, NOT DRAWN. Each spec declares its
- *      distinguishing feature (`stereo` / `topology`) and
- *      check-molecules.js fails if the geometry disagrees. This file
- *      never decides what the difference IS — it reads `contrast.diff`
- *      off the spec and dims everything else. That index map lives with
- *      the geometry for the same reason `pep` and `gly` do: re-ordering
- *      a build would silently point the highlight at the wrong atoms.
+ *  Two rules, enforced elsewhere:
+ *   1. Both halves must be the same scale family (real Å × 1.9), or "same
+ *      size except here" stops being true. See the note atop molecules.js.
+ *   2. The difference is asserted, not drawn: each spec declares its
+ *      distinguishing feature and check-molecules.js fails if the geometry
+ *      disagrees. This file just reads `contrast.diff` off the spec and
+ *      dims everything else — it never decides what the difference is.
  * ============================================================= */
 
 /* ---------- shared stage (scene.js) ---------- */
 const canvas=document.getElementById('gl');
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
-  // Orthographic, not perspective: this page's entire claim is "these two are
-  // the same size except for one feature", and a perspective lens quietly
-  // undermines that at the edges of a wide stage — whichever molecule sits
-  // further from screen-centre reads slightly smaller than its partner even
-  // when they are geometrically identical. An orthographic projection has no
-  // depth-based scaling at all, so shape and relative size read the same
-  // wherever a molecule lands on screen.
+  // Orthographic, not perspective: a perspective lens shrinks whichever
+  // molecule sits further from screen-centre, quietly breaking the "same
+  // size except here" claim the page is built on.
   ortho:true,
-  // Face-on by default, NOT the livelier three-quarter angle the other pages
-  // open at. The user can still spin to any angle; the default just must not
-  // present the two at different attitudes. phi is free, because the two are
-  // separated along X: raising the camera tilts both equally and keeps them at
-  // the same depth. 
+  // Face-on by default (not the three-quarter angle other pages open at):
+  // the two must present at the same attitude. phi is free — raising the
+  // camera tilts both equally since they're separated along X, not depth.
   cam:{theta:0,phi:1.30,r:30}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
   // Dragging turns the MOLECULES, not the camera (see the drag handler below).
   orbit:false });
 
-// Zoom disabled: fitCamera() is what sizes each pair (from the real geometry,
-// re-solved on every resize/pair switch). scene.js's own wheel listener is already bound to the canvas
-// (rMin/rMax there only clamp it, they can't turn it off), so this listener is
-// added on the stage in the CAPTURE phase — capture on an ancestor always runs
-// before a bubble listener on the descendant target, so stopping propagation
-// here keeps scene.js's handler from ever firing.
+// Zoom disabled: fitCamera() is what sizes each pair. scene.js's own wheel
+// listener is bound to the canvas and rMin/rMax there only clamp zoom, they
+// can't turn it off — so this is added on an ancestor in the CAPTURE phase,
+// which runs before scene.js's bubble-phase listener and stops it there.
 document.getElementById('stage').addEventListener('wheel',e=>{
   e.preventDefault(); e.stopPropagation();
 },{capture:true,passive:false});
@@ -227,28 +208,21 @@ const specOf=k=>MolLib.MOLECULES[k];
 const membersOf=p=>[p.left,p.right];
 
 /* ---------- layout ---------- */
-// Same true-relative-size discipline as macromolecule-lab: nothing here
-// normalises the two halves to a common size, because "these are the same size"
-// is part of what the student is checking.
-// Extents and framing come from scene.js (Stage.measure / Stage.frame) — this
-// page used to carry its own copy of both, as macromolecule-lab still does.
-// `rxz` is the horizontal radius swept by the turntable and `hy` the half-height
-// a vertical spin never changes; see the notes on measure() for why a cylinder
-// and not a sphere.
-// Registration point: the centroid of the atoms this molecule shares with its
-// partner (`contrast.align`, declared in molecules.js), which keeps the shared
-// skeleton in the same place in both columns as the molecule turns. Falls back
-// to the molecule's OWN bounding box (Stage.centerOf) when a spec declares no
-// `align` — which is now purine/pyrimidine's case on purpose: registering
-// purine on the ring it shares with pyrimidine put the pivot well off purine's
-// own centre, and the extra (fused) ring swung around it under drag instead of
-// the molecule just turning in place. Losing registration for that one pair was
-// worth it for a drag that feels right on every pair.
+// Nothing here normalises the two halves to a common size — "these are the
+// same size" is part of what the student is checking. Extents and framing
+// come from scene.js (Stage.measure/Stage.frame).
 //
-// Always resolve to a concrete [x,y,z] array here, never a bare `true` — unlike
+// Registration point: the centroid of the atoms this molecule shares with its
+// partner (`contrast.align`, declared in molecules.js), so the shared
+// skeleton stays put in both columns as the molecule turns. Falls back to the
+// molecule's own bounding box (Stage.centerOf) when a spec declares no
+// `align` — purine/pyrimidine's case on purpose: registering purine on its
+// shared ring put the pivot off-centre and the fused ring swung under drag.
+//
+// Always resolve to a concrete [x,y,z] array, never a bare `true` — unlike
 // Stage.buildMolecule, Stage.measure does `opts.center||centerOf(spec)`, so a
-// literal `true` short-circuits the `||` and silently measures against `true`
-// instead of a point, producing NaN extents.
+// literal `true` short-circuits the `||` and silently measures against `true`,
+// producing NaN extents.
 function alignCenter(spec){
   const idx=spec.contrast&&spec.contrast.align;
   if(!idx||!idx.length) return Stage.centerOf(spec);
@@ -268,11 +242,11 @@ PAIRS.forEach(p=>membersOf(p).forEach(k=>{ EXT[k]=Stage.measure(specOf(k),{cente
  * model is scaled to fit its box rather than the box being derived from the
  * model.
  *
- * The earlier version framed the camera against world-unit reserves for the
- * captions and solved for a fit. That coupled everything to everything: a
- * reserve for the flat structure changed the zoom, which changed the pixel
- * height of the notes, which changed the reserve needed. Sizes here are what
- * they say they are, and CSS can be tuned without re-deriving a camera.
+ * An earlier version framed the camera against world-unit reserves and
+ * solved for a fit, which coupled everything to everything — changing the
+ * flat-structure reserve changed the zoom, which changed the notes' pixel
+ * height, and so on. Sizes here are what they say they are, and CSS can be
+ * tuned without re-deriving a camera.
  */
 const NAME_TOP=50;               // px from the top of the stage to the name plate
 const MODEL_TOP=124;             // px — top of the 3D band
@@ -318,18 +292,15 @@ let spin=0;          // shared turntable angle (about the vertical)
 let lean=0;          // user's extra tilt, added to the pair's own `tilt`
 
 /* ---------- the highlight ----------
- * Dim to GREY, in place — not hidden, not ghosted. The claim being made is
- * "everything else about these two is identical", and that claim is only
- * visible while everything else is still on screen. Hiding the shared skeleton
- * would leave two lone hydroxyls floating in space, which proves nothing.
+ * Dim to GREY, in place — not hidden, not ghosted. The claim is "everything
+ * else about these two is identical", which only holds up if everything
+ * else stays on screen; hiding the shared skeleton would leave two lone
+ * hydroxyls floating in space, and transparency sorts a couple dozen spheres
+ * into a muddy, unreadable stack.
  *
- * Grey rather than transparent for the same reason: two dozen translucent
- * spheres sort against each other into a muddy stack, and the shape stops being
- * readable at exactly the moment the student needs to confirm it is unchanged.  */
-// A NEUTRAL grey, and a hard fade. The paper here is warm cream, so an earlier
-// warm grey left the dimmed oxygens reading as distinctly pink — which on a page
-// whose entire instruction is "find the one coloured thing" is the worst
-// possible failure mode. Shared skeleton must read as unmistakably colourless.
+ * A NEUTRAL grey specifically: against this page's warm cream paper, an
+ * earlier warm grey left dimmed oxygens reading as pink — the one thing a
+ * "find the coloured atom" page can't afford. */
 const GREY=new THREE.Color(0x8d8a86);
 const MIX=0.9;       // how far the shared skeleton fades toward grey
 function applyHighlight(){
@@ -396,26 +367,18 @@ function posOf(k){
   return V(k===ks[0]?-dx:dx, y, 0);
 }
 
-/* Resting orientation is the SPEC'S OWN — no per-pair correction at all.
+/* Resting orientation is the SPEC'S OWN — no per-pair correction. Each spec's
+ * rotate() is already chosen to present the molecule well (glucose's makes
+ * the pyranose read as a 3/4 chair); tilting it further to expose the
+ * differing bond isn't worth it — tried an X tilt (laid the ring on its
+ * side) and a Y phase for the bond (turned the ring edge-on), both traded
+ * whole-molecule legibility for one bond's visibility, and the difference
+ * doesn't need to be maximal at rest anyway: the pair turns continuously,
+ * the reveal colours it, and the note names it.
  *
- * Each spec already ends with a rotate() chosen to present the molecule well
- * (glucose's `rotate(1.05,0.45,-0.2)` is what makes the pyranose read as a 3/4
- * chair), and with the camera at glycolysis-lab's phi that is exactly the view
- * that page shows. Two earlier attempts to "improve" on it were both wrong:
- *
- *   · an X tilt, to swing an axial -OH into view — it laid the ring on its side,
- *     and a pyranose that no longer reads as a chair costs more than the
- *     substituent gains;
- *   · a Y phase solved to put the differing bond in the screen plane — it scored
- *     0.97 on that metric and turned the ring edge-on, which is worse still.
- *
- * Both optimised one bond's visibility against the legibility of the whole
- * molecule. The difference does not need to be maximally exposed at rest: the
- * pair turns continuously, the reveal colours it, and the note names it.
- *
- * The camera may be raised (phi) but never swung (theta): the halves are
- * separated along X, so phi tilts both equally while theta puts one nearer than
- * the other and perspective magnifies it. */
+ * Camera may be raised (phi) but never swung (theta): the halves sit along
+ * X, so phi tilts both equally while theta would put one nearer and let
+ * perspective magnify it. */
 function applyLayout(){
   // fitCamera FIRST: it sets the orthographic frustum, and posOf() converts the
   // fixed pixel column centres into world units through that frustum. Placing
@@ -448,13 +411,6 @@ function applyLayout(){
 const nameL=document.getElementById('nameL'), nameR=document.getElementById('nameR');
 const noteL=document.getElementById('noteL'), noteR=document.getElementById('noteR');
 const flatL=document.getElementById('flatL'), flatR=document.getElementById('flatR');
-
-/* ---------- the flat structure under each model ----------
- * A second VIEW of the same spec, not a second source of truth: the ring, the
- * numbering and the faces are all read out of the same `atoms`/`bonds`/`names`
- * the 3D model is built from, and the highlight comes from the same
- * `contrast.diff`. There is nothing here that can disagree with the model above
- * it — which is the only reason it is safe to show them side by side.
 
 // Element colours shared by BOTH flat renderers, so a Haworth ring and a
 // SmilesDrawer skeleton read as one visual language rather than two libraries.
