@@ -1,9 +1,14 @@
 # How a molecule gets into the library
 
 `molecules.js` grew one app at a time, and so did the ways of getting geometry
-into it. There are now **four** different paths a spec can have taken, nothing in
-a spec records which one it took, and only some of them can be re-run. This doc
-is the audit and the plan to fix it.
+into it. There are **five** different paths a spec can have taken, and only some
+of them can be re-run. This doc is the audit and the plan to fix it.
+
+Until item 1 shipped, nothing in a spec recorded which path it took — which is
+how the survey below came to list four paths rather than five, and how two
+constructed molecules spent the sweep being measured against a database record
+they were never derived from. Every spec now carries `src:{path:…}` and
+`check-molecules.js` fails one that does not.
 
 It is the companion to
 [chemistry-rendering-libraries.md](chemistry-rendering-libraries.md), which
@@ -32,7 +37,7 @@ The plan below is therefore mostly about **not losing work** — provenance,
 reproducibility, one way in — rather than about precision. That is the part that
 scales to more apps.
 
-## The four paths, as they actually exist
+## The five paths, as they actually exist
 
 **1. Hand-written coordinates.** `water`, `nacl`, `kcl`, `ethanol`, `ammonia`,
 `methane`, `co2`, `carbonic`, `bicarbonate`, `hydronium` — the solvation set.
@@ -44,8 +49,9 @@ A" the header comment in `molecules.js` warns about.
 forces the library's fixed backbone order, because `pep:{…}` and
 `aminoacid-lab.html` index into it), `tools/sdf2spec-generic.js` for everything
 else that keeps the record's own atom order. Real ångströms × one global
-`SCALE` of 1.9 — "family B". Used for the amino acids, `palmitate`,
-`palmitoleate`, `amp`.
+`SCALE` of 1.9 — "family B". Used for the amino acids and `amp`. (This
+originally also listed `palmitate` and `palmitoleate`; it was wrong — they are
+path 5. See the correction in item 0.)
 
 **3. Built in code from idealised geometry.** The `Skel` builder plus the `GL`
 and `AR` bond-length tables construct the molecule from VSEPR angles at load
@@ -57,9 +63,17 @@ touched PubChem.
 **4. Derived from another spec, in file.** `dAlanine` is `alanine` with one
 coordinate component negated — a reflection, computed at load time.
 
-The important thing this survey turned up: **paths 2 and 3 are both "family B"
-and look identical in the file**, but one is measured and one is constructed.
-Nothing in a spec distinguishes them, and they fail in different ways.
+**5. Constructed by hand from literals.** `palmitate` and `palmitoleate`: an
+idealised all-anti zigzag at a real 109.5°, united-atom, worked out once and
+written in as numbers. Family B, but neither measured like path 2 nor
+regenerable like path 3 — the comment above each spec is the only account of how
+the coordinates were reached, which is why `src.path:'built'` requires a
+`method:` string.
+
+The important thing this survey turned up: **paths 2, 3 and 5 are all "family B"
+and look identical in the file**, but one is measured and two are constructed in
+different ways. Nothing in a spec distinguished them, and they fail differently.
+`src:` is now that distinction.
 
 ## What can be re-run today
 
@@ -67,14 +81,16 @@ Nothing in a spec distinguishes them, and they fail in different ways.
 |---|---|---|
 | 3 (Skel-built) | **Yes**, completely | the code *is* the source; re-running the file regenerates the coordinates |
 | 4 (mirrored) | **Yes**, completely | same — it is four lines of transform |
-| 2 (PubChem SDF) | **No** | both converters read `${name}.sdf` from the working directory, and no `.sdf` is committed anywhere. Re-fetching does not rescue it either — see item 0: only 4 of 9 reproduce |
+| 2 (PubChem SDF) | **Mostly, now** | item 2 committed the inputs to `demos/tools/sdf/`: 5 of 7 rebuild exactly, `proline` needs its hand reindex, and `glutamine`/`glutamate` no longer have a published source at all |
 | 1 (hand-written) | N/A | hand-authored numbers are their own source, but no per-number reasoning is recorded |
+| 5 (built from literals) | N/A | same — but `src.method` now at least records the construction in one line |
 
 So the molecules whose geometry is *measured against reality* are exactly the
 ones we cannot re-derive or re-check, and the ones we can regenerate perfectly
-are the ones with no external reference at all. Items 1–4 address the first half.
-The second half mostly does not need addressing — see the calibration note above
-and item 6.
+are the ones with no external reference at all. Items 1 and 2 address the first
+half — and are the ones the AP Bio expansion makes urgent, since it routes ~15
+new molecules straight down path 2. The second half mostly does not need
+addressing — see the calibration note above and item 6.
 
 Set against that, the checking story is now genuinely good. Each spec carries up
 to three descriptions of the same molecule — coordinates, `names`, `smiles` — and
@@ -117,24 +133,87 @@ already an O(1) lookup.
 
 The real costs are that one 1,694-line file is hard to navigate, and that all
 eight pages load all 37 specs — `water-lab.html` pays for 13 sugars it never
-shows. Both are addressed by splitting files (items 3 and 4 below), not by
-changing where the data lives.
+shows. Both are addressed by splitting files (item 3 below), not by changing
+where the data lives.
 
-**Revisit only if** a single page's unused payload becomes a measurable cost, or
-the library passes roughly 150 molecules. Even then the answer is per-domain
-files plus a manifest, loaded by the pages that need them — committed, diffable,
-greppable. The filesystem is the right amount of database for 36 KB.
+The answer at any size is **per-domain files plus a manifest**, loaded by the
+pages that need them — committed, diffable, greppable. The filesystem is the
+right amount of database for 36 KB, and it stays the right amount at 150. That
+split is now item 3, scheduled rather than deferred; the section below says why
+the trigger arrived earlier than the 150-molecule threshold this doc used to
+name.
+
+## What this plan is now for: the AP Bio expansion
+
+The plan below was written against a library that grows a molecule at a time,
+when a page needs one. Two facts have since changed what is worth building.
+
+**First, the remaining curriculum is now counted.** Auditing the library against
+the AP Bio units, the gap to full coverage is **~27 molecules** for the
+curriculum-complete set and **~34** counting everything flagged — roughly
+doubling a library of 37. The big absences: no positively charged amino acid
+side chain at all (so no salt bridge, no pH-dependent charge), no ATP or ADP
+despite `amp` being present, no nucleotides or base pairs behind the existing
+purine/pyrimidine ring contrast, and nothing to esterify `palmitate` onto, so the
+membrane lesson has no molecule.
+
+That total is small enough to settle the database question for good — see above —
+and large enough to change which items here pay for themselves. It also lands
+**unevenly across the four paths**. The nucleobases, sucrose, fructose, glycerol
+and the base pairs are all path 3: the code is the source, they are already the
+best-provenanced things here, and they need nothing from this plan. But the six
+amino acids, ATP, ADP, NAD⁺/NADH, FAD/FADH₂, acetyl-CoA, cholesterol,
+chlorophyll a and the phospholipid — call it **fifteen molecules — go through
+path 2**, the one path item 0 proves cannot be regenerated five times in nine.
+
+They are also its worst cases. ATP and ADP build directly on `amp`, whose
+undocumented deprotonation is one of the five failures; the large cofactors make
+hydrogen-stripping unavoidable rather than optional. Adding them as things stand
+takes a 5-of-9 failure rate and roughly triples the population it applies to.
+
+**Second, an agent adds each entry.** Every molecule in the recent expansion was
+written into `molecules.js` by an AI agent working from `tools/README.md` and the
+surrounding comments. This inverts the case for item 4 and strengthens the case
+for items 1 and 2.
+
+Item 4 argues that "three manual steps and a README" does not scale. That is a
+claim about *human effort per molecule*, and an agent running three terminal
+steps does not tire at molecule twenty — the labour it saves is not being spent.
+What agent authoring does not fix is item 0's actual finding: every one of the
+five failures was an **unrecorded judgement call** — strip the nonpolar
+hydrogens, deprotonate to the anion, accept whatever rotamer the record served.
+An agent is *more* exposed to that than a person, not less. It makes the call
+correctly and invisibly, and it carries nothing between sessions, so the agent
+adding ATP has no way to learn what the agent that added AMP decided. The gap is
+provenance, not ergonomics. Item 0's diagnosis was right; item 4 aimed one step
+past it.
 
 ## The plan
 
-Ordered by value per unit of risk. Items 1–6 are additive and safe; item 7 can
-break working physics and may never be worth doing.
+**Do items 1, 2, 3 and 5 before the expansion; add item 8. Item 4 is not worth
+building; items 6 and 7 stay where they are.** The rationale for each verdict
+sits with its item. Numbering is unchanged from the original draft because six
+places in this doc cite it.
+
+| Item | Verdict | Why |
+|---|---|---|
+| 1 · provenance in the spec | **DONE** | all 37 specs carry `src:`; checker enforces it |
+| 2 · commit the SDFs | **DONE** | 8 files in `tools/sdf/`; 5 of 7 rebuild exactly |
+| 3 · extract the builder **+ split per-domain** | **do next** | do it before 34 specs land in the same file |
+| 4 · one entry point | **skip** | solves human labour that an agent does not spend |
+| 5 · close the mirror gap | **do — cheap route only** | one condition in `spec2smiles.js` |
+| 6 · measured structures | **unchanged — record and move on** | the doc already argues itself out of this |
+| 7 · collapse scale families | **unchanged — last, or never** | can break working physics |
+| 8 · make the checkers unskippable | **do first** | new; larger exposure than any item above |
+
+Within that, items 1–6 remain additive and safe; item 7 can break working physics.
 
 ### 0. The reproducibility sweep — run 2026-07-30, and it failed
 
 Before designing anything, every path-2 spec was re-fetched from PubChem and
 re-converted, then compared against what is committed. **Four of nine
-reproduce.** The results are the reason item 1 looks the way it does.
+reproduce.** *(Both numbers were wrong — the correction below and item 2 make it
+five of seven.)* The results are the reason item 1 looks the way it does.
 
 **This is about regenerating, not about rendering.** Every spec below is correct
 and every page works — `check-molecules.js` passes on all of them. What the sweep
@@ -145,9 +224,29 @@ The converters are Node tools run at a terminal; no page loads one.
 |---|---|
 | `glycine`, `alanine`, `serine`, `cysteine` | **yes, exactly** — 0.000 coordinate delta; bonds identical up to endpoint order |
 | `proline` | **no** — the converter throws on it |
-| `glutamine`, `glutamate` | no — side-chain rotamer differs |
-| `palmitate`, `palmitoleate` | no — fetched has 32 H, committed has 1 |
-| `amp` | no — fetched has 14 H, committed has 12 |
+| `glutamine`, `glutamate` | no — side-chain rotamer differs, and item 2 found the source conformer is no longer published at all |
+| ~~`palmitate`, `palmitoleate`~~ | **not path 2 at all — see the correction below** |
+| ~~`amp`~~ | **overturned — reproduces exactly.** See item 2 |
+
+> **Correction, made while implementing item 1.** The two fatty acids do not
+> belong in this table. Their own comments in `molecules.js`, and
+> `tools/README.md`'s list of what each converter was used for, both say plainly
+> that they were **constructed** — an idealised all-anti zigzag at a real
+> 109.5°, united-atom, written in as literals — and were never PubChem
+> conversions. The sweep fetched a record they were not derived from, found 32
+> hydrogens against 1, and recorded that as a stripping step. There was no
+> stripping step: a united-atom spec has one hydrogen because that is what
+> united-atom *means*.
+>
+> They now carry `src:{path:'built'}`. The reason the misreading was available
+> is that SCIENCE.md §1.2 enumerated three geometry sources when five existed,
+> so "constructed from literals" had no category to be filed under and fell into
+> the nearest one. §1.2 now lists all five.
+>
+> **So the real sweep result is 4 of 7 path-2 specs reproducing, not 4 of 9** —
+> better than recorded, and with one fewer distinct failure mode. The `strip`
+> field in item 1 survives this correction, but on current evidence only `amp`
+> may need it, and see that spec's own note for why even that is unsettled.
 
 The four that reproduce are exactly the four `tools/README.md` documents. Every
 other spec took an extra step between the record and the file:
@@ -171,10 +270,14 @@ other spec took an extra step between the record and the file:
   does not. **A CID alone does not identify a conformer** — PubChem 3D records
   carry `PUBCHEM_CONFORMER_ID`, and for anything with a rotatable side chain
   that is the field that has to be pinned.
-- **`palmitate`, `palmitoleate` and `amp` were post-processed.** The fatty acids
-  had their nonpolar hydrogens stripped (32 H down to the single acid H); `amp`
-  was deprotonated to the anion its own `note:` describes. Both are correct
-  decisions. Neither is written down anywhere.
+- **`amp` was NOT post-processed** — settled by item 2, and the spec's own
+  comment was right all along. It is committed as the dianion because the record
+  supplies the dianion: CID 15938965 rebuilds it to 0.0000. This sweep queried
+  the *name* `AMP`, got CID 6083 (the neutral acid, two extra H on the phosphate
+  oxygens), and read the difference as a stripping step. **The lesson is about
+  identifiers, not about hydrogens:** a name query pins neither a stereocentre
+  nor a charge state. ~~The fatty acids had their nonpolar hydrogens
+  stripped~~ — withdrawn; see the correction above.
 
 None of this is drift or rot, and nothing here is a bug on a page — the specs are
 right and the lessons render correctly. The gap is that for five of the nine, the
@@ -182,7 +285,34 @@ transformation from record to spec exists only in whoever ran it (proline
 excepted, which wrote it down). That is what makes the sweep worth repeating
 after any change to the converters.
 
-### 1. Record provenance *and* transformation in the spec
+### 1. Record provenance *and* transformation in the spec — DONE
+
+**Shipped.** All 37 specs carry `src:`, and `check-molecules.js` now fails any
+spec without one. Coverage as built: `hand` 10 · `pubchem` 8 · `skel` 16 ·
+`built` 2 · `mirror` 1.
+
+Three things came out differently from the sketch below:
+
+- **Five paths, not four.** `built` — constructed from hand-derived literals,
+  neither typed per-bond nor produced by `Skel` — is a real category that the
+  original survey folded into path 2. Finding that is what produced the
+  correction in item 0.
+- **`skel` is stamped, not written.** `Skel.prototype.spec` defaults
+  `src:{path:'skel'}`, so all 16 constructed specs are labelled without anyone
+  deciding to, and so will the next one. A field that needs remembering is a
+  field that goes stale; this one cannot.
+- **A three-value rule turned out to be necessary.** Present / `null` / absent
+  mean three different things — decided, *deliberately never pinned*, and not
+  applicable. `conformer:null` on all 8 pubchem specs is the load-bearing case:
+  it is an active claim that item 0's rotamer failure applies. The checker
+  tests `'conformer' in src` rather than truthiness so a null cannot be tidied
+  into an absence.
+
+The audit is **unconditional** — unlike `stereo:` or `chirality:`, a spec cannot
+decline it. By this doc's own rule (CLAUDE.md, "when a checker lands, retire the
+prose it replaces") that means the argument for *why* provenance matters can now
+live in one line rather than a war story: the checker fires without being read.
+The design sketch below is kept only because items 2 and 4 refer to its fields.
 
 A `src:` field on every molecule. The sweep above shows it cannot just name a
 database row — it has to describe what happened to it:
@@ -204,53 +334,146 @@ The CID must be the **anomer- or stereo-specific** record: PubChem's generic
 anomeric carbon unmarked, which would silently describe a different molecule than
 the spec claims. β-D-glucopyranose is CID 64689, α is 79025.
 
-### 2. Commit the SDF inputs
+### 2. Commit the SDF inputs — DONE
 
-Roughly ten small text files. No new tooling, and it closes path 2's gap on its
-own — the coordinates become checkable against the record they came from. Do
-this with item 1 or before it.
+**Shipped.** Eight files, 36 KB, in `demos/tools/sdf/`, with a README carrying
+the per-file table and a `.gitignore` for the converter outputs. Every
+`path:'pubchem'` spec now names its input in `src.sdf`, and
+`check-molecules.js` fails if that file is missing.
 
-### 3. Extract the builder into its own module
+It did not close path 2's gap on its own, and the ways it fell short are the
+result worth keeping:
 
-`Skel` plus the `GL` and `AR` bond-length tables is about 212 lines of code that
-has nothing to do with any particular molecule. It is a library sitting inside a
-data file, and it is an eighth of the file's bulk.
+**Re-running the sweep with the records in hand changed two verdicts.**
 
-Pulling it out as `skel.js` makes it independently testable, which item 5 wants
-anyway — the stereo work runs straight through `ringNormal` / `equatorial`. It
-also draws the line this doc is really about: the builder is *code*, the specs
-are *data plus reasoning*, and they have different rules for changing.
+| | before | after |
+|---|---|---|
+| `glycine`, `alanine`, `serine`, `cysteine` | exact | exact — confirmed |
+| `amp` | "deprotonated, unrecorded" | **exact** — wrong CID had been fetched |
+| `proline` | converter throws | throws — confirmed, `regen:'manual'` |
+| `glutamine`, `glutamate` | "rotamer differs" | **worse: source gone**, `regen:'lost'` |
 
-Low risk, mechanical, and it should happen before the tool in item 4 starts
-writing specs.
+So **5 of 7 rebuild exactly**, not 4 of 9 as originally recorded — the fatty
+acids were never path 2 (item 0 correction) and `amp` was a fetch error, not a
+post-processing step.
 
-### 4. One entry point, and it owns its output
+**`amp` is settled, and the answer was the spec's.** Its comment always said the
+record supplied the dianion. The sweep had queried the NAME `AMP`, which returns
+CID 6083 — the neutral acid, 37 atoms, two extra H on the phosphate oxygens —
+and read the difference as stripping. The real source is CID 15938965,
+`adenosine 5'-monophosphate(2-)`, which rebuilds the spec to 0.0000. **A name
+query pins neither a stereocentre nor a charge state**, which generalises the
+anomer warning in item 1 below: the charge state is *in* the CID.
 
-A single `add-molecule` tool that fetches, converts, runs `check-molecules.js`,
-and emits the spec with `src:` already filled. It should **wrap** the two
-existing converters, not replace them — the amino-acid reindexing contract is
-real and worth keeping separate.
+**`glutamine` and `glutamate` cannot be pinned at all.** All ten published
+conformers of each CID were fetched and converted; none reproduces the committed
+spec (best |Δ| 6.357 and 5.827). PubChem regenerates conformer sets and the
+originals are no longer published, so `conformer:` stays null for these two —
+not because nobody pinned it, but because there is nothing left to pin it to.
+The committed `.sdf` is the closest available record, explicitly not a
+reproduction, and **the specs are now their own source**. Both carry a warning
+not to refresh them: the amide's edge-on presentation is a property of the lost
+conformer, and the contrast lesson depends on it.
 
-The sweep in item 0 is its requirements list. The tool has to own the three steps
-that are currently done by hand and unrecorded — **conformer pinning**,
-**hydrogen stripping**, and **protonation state** — plus the fourth that *is*
-recorded but only in prose: the **secondary-amine backbone**, where proline's
-ring nitrogen breaks `reindex`'s fixed order. Supporting it or refusing it with a
-message pointing at proline's comment in `molecules.js` are both fine; a
-`TypeError` out of `reindex` is not. Nothing is broken today — proline's spec is
-committed and correct — but this is the first wall the one-way-in tool hits.
+That last case is the argument for item 2 restated more sharply than the
+original one-liner. Committing inputs is not only about being able to re-run a
+converter — it is about the window closing. Two specs fell out of that window
+before anything was committed, and nothing in this repo would have noticed.
 
-**The tool writes to a file it owns outright, which humans never edit.**
-Programmatically editing a 1,694-line hand-authored source file is a codegen
-problem nobody wants; the underscore-prefixed convention already in `demos/`
-(`_generated-specs.json`, `_old-specs.json`) is the precedent, and
-`tools/check-docs.js` already excludes `_`-prefixed files from the sources it
-audits. This keeps the generated and the hand-authored halves of the library
-separable by inspection — the distinction the four paths above have been missing
-all along.
+### 3. Extract the builder, then split the specs per domain
 
-Today the end-to-end method is three manual steps and a README; that is the
-thing that does not scale to more apps.
+Two mechanical moves, in that order, and **both belong before the expansion
+starts** rather than after.
+
+**3a. `Skel` out into `skel.js`.** The builder plus the `GL` and `AR`
+bond-length tables is about 212 lines that has nothing to do with any particular
+molecule — a library sitting inside a data file, an eighth of the file's bulk.
+Pulling it out makes it independently testable, which item 5 wants anyway (the
+stereo work runs straight through `ringNormal` / `equatorial`). It also draws the
+line this doc is really about: the builder is *code*, the specs are *data plus
+reasoning*, and they have different rules for changing.
+
+The expansion sharpens the timing beyond the original argument. Several
+additions — chlorophyll's porphyrin, cholesterol's fused ring system, the
+phospholipid — are larger than anything `Skel` has built, so the helpers will
+need extending. Doing that while 34 specs land in the same 1,694-line file means
+every builder change and every spec addition collide in one diff. Split first;
+it is the cheapest it will ever be.
+
+**3b. Per-domain spec files plus a manifest.** The database section above settles
+that the filesystem is the right store. What it deferred to ~150 molecules was
+the *split*, on the grounds that no page's unused payload had become a
+measurable cost. At 37 → ~74 specs the file roughly doubles and `water-lab.html`
+starts paying for chlorophyll, so bring it forward — not because the payload is
+yet painful, but because splitting 74 hand-authored specs is strictly more work
+than splitting 37, and the domain boundaries are about to be drawn by what gets
+added anyway.
+
+The boundaries the library already has, which are the ones to cut along: the
+solvation set (path 1, family A, and the only specs the water pages want), the
+monomers, the glycolysis pathway, and the contrast pairs. Cofactors and
+nucleotides are new domains the expansion creates.
+
+Keep the manifest a committed, greppable index — not a loader that fetches. Every
+source in this doc is a build-time input and none is ever a page dependency; that
+rule applies to our own files too. Pages address molecules by name today, and
+that must keep working unchanged across the split.
+
+**This is an enumeration change, so it invalidates docs mechanically.**
+`CLAUDE.md`'s module index and per-page script table both enumerate what a page
+loads, and `tools/check-docs.js` audits the script table against the real
+`<script>` tags — it will fail until the table matches. `SCIENCE.md` §1.5's
+family table is the one that needs a human. Update all three in the same commit,
+per CLAUDE.md's rule.
+
+Note that `check-docs.js` reads `demos/` only, so **this doc is not audited by
+it** — the file names above are proposals and nothing checks that they ever get
+built. That asymmetry is worth knowing when reading any plan here.
+
+### 4. One entry point — designed, then declined
+
+**Not being built.** Kept in full because the reasoning is the useful part, and
+because someone will propose it again the next time the library grows.
+
+The design: a single `add-molecule` tool that fetches, converts, runs
+`check-molecules.js`, and emits the spec with `src:` already filled, **wrapping**
+the two existing converters rather than replacing them — the amino-acid
+reindexing contract is real and worth keeping separate.
+
+What killed it is the premise in its last line, that "three manual steps and a
+README" does not scale. That is a cost in human attention per molecule, and the
+molecules are being added by an agent that pays it without complaint. Meanwhile
+the failures the tool was meant to prevent are all recording failures, and
+`src:` (item 1) records them for a fraction of the work — a field an agent fills
+in, not a pipeline it has to be routed through.
+
+The one piece worth salvaging is the proline wall below: a `TypeError` out of
+`reindex` is a bad failure mode whether or not a tool wraps it. None of the six
+amino acids the expansion adds is a secondary amine, so it will not bite during
+this round. Fix it when a second secondary-amine residue is actually wanted.
+
+Had it been built, the sweep in item 0 would have been its requirements list. It
+would have had to own the three steps currently done by hand and unrecorded —
+**conformer pinning**, **hydrogen stripping**, and **protonation state** — plus
+the fourth that *is* recorded but only in prose: the **secondary-amine
+backbone**, where proline's ring nitrogen breaks `reindex`'s fixed order.
+Supporting it or refusing it with a message pointing at proline's comment in
+`molecules.js` are both fine; a `TypeError` out of `reindex` is not. Nothing is
+broken today — proline's spec is committed and correct.
+
+Those first three are exactly what `src:` now records instead. That is the
+substitution: **item 1 captures the decisions, item 4 would have automated
+them**, and only the first is load-bearing.
+
+One design note worth keeping if this is ever revived: **a generating tool must
+write to a file it owns outright, which humans never edit.** Programmatically
+editing a hand-authored source file is a codegen problem nobody wants; the
+underscore-prefixed convention already in `demos/` (`_generated-specs.json`,
+`_old-specs.json`) is the precedent, and `tools/check-docs.js` already excludes
+`_`-prefixed files from the sources it audits. The generated and hand-authored
+halves stay separable by inspection — the distinction the four paths above have
+been missing all along. Item 3b's split does not achieve this on its own; its
+files are all hand-authored.
 
 ### 5. Close the mirror gap
 
@@ -277,6 +500,12 @@ Two independent ways to close it; either is enough:
 The first is less code and adds a second independent witness; prefer it. Item 6
 offers a third route, and the only one that settles handedness against a
 measurement rather than by internal consistency.
+
+**Take the one-condition route and stop there.** The expansion adds sugars and —
+via the nucleotides — more furanoses, so the mirror gap widens with every one of
+them. But it widens along exactly the axis the SMILES round-trip already covers,
+so a one-condition change in `tools/spec2smiles.js` scales with the additions for
+free. Do not spend the extended chirality check on top of it.
 
 ### 6. Reach for a measured structure only when a claim is genuinely in doubt
 
@@ -332,13 +561,44 @@ and tune their entire solvation engine around it — `EQ`, `MIN`, `hbThreshold`,
 the ice lattice spacing. Rescaling water means re-tuning that physics. This is
 the only item on the list that can break something that currently works.
 
-### The constraint that spans items 4 and 7
+### 8. Make the two checkers unskippable
+
+New, and it addresses a larger exposure than anything above it.
+
+Nothing runs automatically here — no CI, no git hook — so
+`check-molecules.js` and `tools/check-docs.js` are both hand-run. SCIENCE.md
+§1.4 rule 2, that a chemical claim ships with its assertion in the same commit,
+is enforced by attention alone.
+
+That was tolerable at one molecule per page. It is not tolerable at ~34 added by
+an agent that may or may not remember to run either checker, on claims — the
+first charged side chains, the first base pairs, the first fused ring systems —
+that are precisely the ones a merged-sphere or bad-stereo failure would reach a
+student through.
+
+Either a `pre-commit` hook running both, or a hard non-optional line in
+`demos/CLAUDE.md`'s "Adding a new page" step 2. A hook is stronger; the doc line
+is weaker but costs nothing and cannot itself break a commit. This is a smaller
+change than any other item here and probably prevents more bad lessons than all
+of them.
+
+Note what it does *not* cover: `check-molecules.js` only audits claims a spec
+**declares**. Running it religiously on a spec that declares nothing proves
+nothing — which is the argument for declaring, made at length in §1.3.
+
+### The constraint that spans items 3, 4 and 7
 
 **Regeneration must not renumber atoms.** `names`, `groups`, `gly`, `pep`,
 `optH`, `contrast.diff`, and now `haworth.js` all address atoms positionally or
 by name. A uniform rescale is safe for all of them; the reindex step in
 `sdf2spec.js` is the actual hazard. Any regeneration path has to preserve atom
 order or update every contract in the same commit.
+
+Item 3b inherits a weaker form of the same rule: **moving a spec between files
+must not renumber it, and must not change the name a page looks it up by.** The
+split is a pure relocation. If it is tempting to tidy an atom order while a spec
+is already being moved, don't — that is two changes in one diff, and only one of
+them is mechanical.
 
 ## What we are deliberately not doing
 

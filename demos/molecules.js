@@ -97,23 +97,89 @@
   //              H-bond engine for molecular (polar) solutes.
   //   dissociates — ionic only: [{ion, charge, radius}] produced on dissolving
   //   hydrophobic — indices of nonpolar atoms (tail), for the exclusion lesson
+  //   src      — WHERE THE COORDINATES CAME FROM, and what was done to them.
+  //              See the provenance note below.
   //
   // Geometry notes: united-atom where a group is nonpolar filler (ethanol's
   // CH3/CH2 are single C spheres); explicit H's where they carry the lesson.
+  //
+  // ---------------------------------------------------------------------
+  //  PROVENANCE — `src:` on every spec (docs/molecule-pipeline.md item 1)
+  // ---------------------------------------------------------------------
+  //  Four different paths produce geometry in this file and, until this field
+  //  existed, nothing in a spec recorded which one it took. Two of them
+  //  ('pubchem' and 'skel') even produce the same bond-length family, so they
+  //  are indistinguishable by inspection while failing in completely different
+  //  ways. `src.path` is the discriminator:
+  //
+  //    'hand'    — coordinates typed by a person, each bond length chosen to
+  //                clear its two display radii. Family A. Its own source.
+  //    'pubchem' — a real measured 3D record through one of the converters in
+  //                tools/. Family B. The ONLY path that cannot be re-run from
+  //                this repo alone (no .sdf is committed yet — item 2).
+  //    'skel'    — constructed at load time from idealised VSEPR angles by the
+  //                Skel builder below. Family B. Fully reproducible, because
+  //                the code IS the source. Defaulted by Skel.prototype.spec,
+  //                so a new Skel molecule is labelled without anyone deciding.
+  //    'built'   — constructed, but from literals worked out once by hand
+  //                rather than by Skel. Family B. Reproducible only in the
+  //                sense that the comment above the spec explains the
+  //                construction; nothing re-derives it.
+  //    'mirror'  — reflected from another spec in this file at load time.
+  //
+  //  THE THREE-VALUE RULE, which is the point of the field:
+  //
+  //    a field PRESENT   — this decision was made, and here it is.
+  //    a field NULL      — this decision was never pinned. Regenerating may
+  //                        silently produce a different molecule.
+  //    a field ABSENT    — not applicable to this path.
+  //
+  //  `conformer:null` is therefore a claim, not a gap: it says the sweep in
+  //  molecule-pipeline.md item 0 applies to this spec — a CID alone does not
+  //  identify a conformer, so anything with a rotatable side chain may come
+  //  back different. Do not "tidy" a null into an absence.
+  //
+  //  Fields for path 'pubchem': `cid` or `query` (how the record was asked
+  //  for — a bare NAME is weaker than a CID and is recorded as such, because
+  //  a name pins neither a stereocentre nor a CHARGE STATE; see `amp` for what
+  //  that one cost), `record` (the record_type), `conformer`
+  //  (PUBCHEM_CONFORMER_ID), `tool` (which converter), `sdf` (the committed
+  //  input in tools/sdf/), `regen` (below), `reindex` if the fixed backbone
+  //  order was imposed by hand, `strip`/`charge` for post-processing,
+  //  `fetched` when the date is known.
+  //
+  //  `regen` — HOW COMPLETELY the committed .sdf rebuilds this spec. A recorded
+  //  verdict from a real run, not something re-derived at load:
+  //    'exact'  — the .sdf regenerates these coordinates to 0.000.
+  //    'manual' — the .sdf is the true source, but a hand step sits in the
+  //               middle, so it does not rebuild on its own [proline].
+  //    'lost'   — NO published record reproduces this spec any more. The
+  //               committed .sdf is the closest available, NOT a reproduction,
+  //               and THE SPEC IS NOW THE SOURCE. Refreshing one of these from
+  //               PubChem silently swaps a conformer [glutamine, glutamate].
+  //  tools/sdf/README.md has the per-file table and the two cautionary cases.
   const MOLECULES = {
     water: {
       name:'Water', formula:'H₂O', class:'solvent',
       atoms:[ {el:'O',pos:[0,0,0]}, {el:'H',pos:[1.226,-0.948,0]}, {el:'H',pos:[-1.226,-0.948,0]} ],
       bonds:[ [0,1],[0,2] ],
       sites:{ donors:[{atom:1},{atom:2}], acceptors:[{atom:0, lonePairs:2}] },
+      // The O–H of 1.55 against radii summing to 1.50 is the constant the whole
+      // solvation engine is tuned around (HL in water-lab/molecule-lab), which
+      // is why family A cannot be rescaled — see the header and item 7.
+      src:{path:'hand'},
     },
     nacl: {
       name:'Salt', formula:'NaCl', class:'ionic',
       dissociates:[ {ion:'Na', charge:+1, radius:0.70}, {ion:'Cl', charge:-1, radius:1.24} ],
+      // No coordinates at all — an ionic solute is only ever drawn as the two
+      // dissociated ions. `path:'hand'` covers the chosen radii and charges.
+      src:{path:'hand'},
     },
     kcl: {
       name:'Potassium chloride', formula:'KCl', class:'ionic',
       dissociates:[ {ion:'K', charge:+1, radius:0.85}, {ion:'Cl', charge:-1, radius:1.24} ],
+      src:{path:'hand'},
     },
     ethanol: {
       name:'Ethanol', formula:'C₂H₅OH', class:'polar',
@@ -136,6 +202,7 @@
       bonds:[ [0,1],[1,2],[2,3],[0,4],[0,5],[0,6],[1,7],[1,8] ],
       sites:{ donors:[{atom:3}], acceptors:[{atom:2, lonePairs:2}] },
       hydrophobic:[0,1,4,5,6,7,8],
+      src:{path:"hand"},
     },
     ammonia: {
       name:'Ammonia', formula:'NH₃', class:'polar',
@@ -146,6 +213,7 @@
               {el:'H',pos:[-0.695,-0.562,-1.204]} ],
       bonds:[ [0,1],[0,2],[0,3] ],
       sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[{atom:0, lonePairs:1}] },
+      src:{path:"hand"},
     },
     methane: {
       name:'Methane', formula:'CH₄', class:'nonpolar',
@@ -156,6 +224,7 @@
       bonds:[ [0,1],[0,2],[0,3],[0,4] ],
       sites:{ donors:[], acceptors:[] },
       hydrophobic:[0,1,2,3,4],
+      src:{path:"hand"},
     },
     co2: {
       name:'Carbon dioxide', formula:'CO₂', class:'reactive',
@@ -173,6 +242,7 @@
       // reaction chain driven by molecule-lab's updateReactions():
       //   CO₂ + H₂O → H₂CO₃ → HCO₃⁻ + H⁺(as H₃O⁺)
       reactsTo:'carbonic',
+      src:{path:"hand"},
     },
 
     // ---- carbonation products -------------------------------------------
@@ -196,6 +266,7 @@
       sites:{ donors:[{atom:4},{atom:5}],
               acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
       ionizesTo:'bicarbonate',   // loses ONE H (pKa1 = 3.6 — it is a genuine acid)
+      src:{path:"hand"},
     },
     bicarbonate: {
       name:'Bicarbonate', formula:'HCO₃⁻', class:'ion', product:true, charge:-1,
@@ -211,6 +282,7 @@
       bonds:[ [0,1,2],[0,2],[0,3],[3,4] ],
       sites:{ donors:[{atom:4}],
               acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
+      src:{path:"hand"},
     },
     hydronium: {
       name:'Hydronium', formula:'H₃O⁺', class:'ion', product:true, charge:+1,
@@ -223,6 +295,7 @@
               {el:'H',pos:[-0.719,-0.581,-1.244]} ],
       bonds:[ [0,1],[0,2],[0,3] ],
       sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[] },
+      src:{path:"hand"},
     },
 
     // ---- amino acids ----------------------------------------------------
@@ -255,6 +328,12 @@
     // Re-generate rather than hand-editing these numbers.
     glycine: {
       name:'Glycine', formula:'C₂H₅NO₂', class:'aminoacid', res:'Gly', side:'–H',
+      // Re-verified 2026-07-30 against the committed sdf/glycine.sdf: 0.000
+      // coordinate delta, bonds identical. `query` is kept because it records how
+      // this was originally asked for; `cid` is what now identifies it.
+      src:{path:'pubchem', cid:750, query:'glycine', record:'3d',
+           conformer:'000002EE00000001', sdf:'glycine.sdf',
+           tool:'sdf2spec', regen:'exact', fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.225,0.942,1.34]},
               {el:'H',pos:[-2.194,2.878,1.394]},
               {el:'H',pos:[-2.195,0.34,3.18]},
@@ -289,6 +368,12 @@
     },
     alanine: {
       name:'Alanine', formula:'C₃H₇NO₂', class:'aminoacid', res:'Ala', side:'–CH₃',
+      // The name 'alanine' resolves to CID 5950, which is L-alanine — the right
+      // one, but by PubChem's choice rather than ours. Now pinned to the CID, and
+      // chirality:'L' below is the assertion that would catch it if that ever moved.
+      src:{path:'pubchem', cid:5950, query:'alanine', record:'3d',
+           conformer:'0000173E00000001', sdf:'alanine.sdf',
+           tool:'sdf2spec', regen:'exact', fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.227,0.979,-1.339]},
               {el:'H',pos:[-3.836,0.37,-0.449]},
               {el:'H',pos:[-2.301,0.234,-3.127]},
@@ -340,6 +425,9 @@
     },
     serine: {
       name:'Serine', formula:'C₃H₇NO₃', class:'aminoacid', res:'Ser', side:'–CH₂OH',
+      src:{path:'pubchem', cid:5951, query:'serine', record:'3d',
+           conformer:'0000173F00000001', sdf:'serine.sdf',
+           tool:'sdf2spec', regen:'exact', fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.216,0.977,-1.36]},
               {el:'H',pos:[-2.211,0.344,-3.191]},
               {el:'H',pos:[-2.143,2.91,-1.44]},
@@ -362,6 +450,9 @@
     },
     cysteine: {
       name:'Cysteine', formula:'C₃H₇NO₂S', class:'aminoacid', res:'Cys', side:'–CH₂SH',
+      src:{path:'pubchem', cid:5862, query:'cysteine', record:'3d',
+           conformer:'000016E600000001', sdf:'cysteine.sdf',
+           tool:'sdf2spec', regen:'exact', fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.223,1.021,-1.326]},
               {el:'H',pos:[-2.255,2.949,-1.148]},
               {el:'H',pos:[-3.839,0.374,-0.477]},
@@ -416,6 +507,14 @@
     //   really the carboxylate, palmitate.
     palmitate: {
       name:'Palmitic acid', formula:'C₁₆H₃₂O₂', class:'lipid', mono:'lipid',
+      // NOT a PubChem conversion, despite sitting in family B — see the comment
+      // above: an idealised all-anti zigzag at a real 109.5°, united-atom, worked
+      // out once and baked in as literals. molecule-pipeline.md item 0 listed this
+      // as a path-2 spec that failed to reproduce (32 fetched H vs 1 committed)
+      // and read that as hydrogen stripping. It is not: the record was never the
+      // source, and the H count is what united-atom MEANS. `path:'built'` is the
+      // whole reason that misreading was possible.
+      src:{path:'built', method:'all-anti zigzag, united-atom', charge:0},
       atoms:[ {el:'C',pos:[-15.099,-0.47,0]},
               {el:'C',pos:[-12.71,1.218,0]},
               {el:'C',pos:[-10.32,-0.47,0]},
@@ -470,6 +569,21 @@
     //   cytosolic pH, and the same convention the glycolysis phosphates use.
     amp: {
       name:'Adenosine monophosphate', formula:'C₁₀H₁₂N₅O₇P²⁻', class:'nucleotide', mono:'nucleic acid',
+      // SETTLED 2026-07-30, and the comment above was right: the record supplies
+      // the dianion. CID 15938965 is adenosine 5'-monophosphate(2-), and it
+      // regenerates this spec EXACTLY (0.0000 delta, bonds identical). There was
+      // no deprotonation step, so there is no `strip`.
+      //
+      // The trap that produced the wrong story: querying the NAME 'AMP' returns
+      // CID 6083, the neutral acid — 37 atoms, two extra H sitting on the
+      // phosphate oxygens, and a different conformer besides. The item 0 sweep
+      // fetched that, read 14 H against 12, and inferred a stripping step that
+      // never happened. Never identify this spec by name; the CID IS the charge
+      // state, which is exactly the hazard molecule-pipeline.md item 1 warns
+      // about for anomers.
+      src:{path:'pubchem', cid:15938965, record:'3d',
+           conformer:'00F3359500000005', sdf:'amp.sdf',
+           tool:'sdf2spec-generic', charge:-2, regen:'exact', fetched:'2026-07-30'},
       atoms:[ {el:'P',pos:[-6.419,-4.966,-4.143]},
               {el:'O',pos:[-2.061,-1.359,1.881]},
               {el:'O',pos:[-1.333,5.382,2.698]},
@@ -750,8 +864,13 @@
     return this;
   };
 
+  // `src:{path:'skel'}` is defaulted rather than written 21 times, and it is
+  // the one path that stays true without anyone maintaining it: everything
+  // this function returns was, by construction, built by the code above it.
+  // `extra` still wins, so a spec that is Skel-built and then post-processed
+  // can say so.
   Skel.prototype.spec=function(extra){
-    return Object.assign({ atoms:this.atoms, bonds:this.bonds }, extra);
+    return Object.assign({ atoms:this.atoms, bonds:this.bonds, src:{path:'skel'} }, extra);
   };
 
   // ---- backbone scaffolds ----------------------------------------------
@@ -1226,6 +1345,9 @@
     // arbitrarily; any single axis works.
     const mirror=p=>[p[0],p[1],-p[2]];
     CONTRAST.dAlanine={ name:'D-Alanine', formula:'C₃H₇NO₂', class:'aminoacid',
+      // Reflection of `alanine` (determinant -1), computed at load time, so it
+      // inherits alanine's provenance and cannot drift from it.
+      src:{path:'mirror', of:'alanine', axis:'z'},
       res:'D-Ala', side:'–CH₃',
       atoms:MOLECULES.alanine.atoms.map(a=>({ el:a.el, pos:mirror(a.pos) })),
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','HB3'],
@@ -1267,6 +1389,19 @@
     //   side chain beyond H) makes the cleaner point anyway: even the
     //   plainest possible amino acid still has a free N-H. Proline does not.
     CONTRAST.proline={ name:'Proline', formula:'C₅H₉NO₂', class:'aminoacid', res:'Pro', side:'ring to N',
+      // The one spec whose extra step was written down. reindex:'by-hand' is
+      // load-bearing: sdf2spec.js THROWS on proline (its reindex assumes two H
+      // on the amino N), so only reframe() was used. Anything that regenerates
+      // this must reproduce the hand reindex or hit the same TypeError.
+      // The .sdf is committed and the conformer pinned, but `regen:'manual'` is
+      // the honest ceiling: sdf2spec.js still throws on this record (verified
+      // again 2026-07-30), so the committed file documents the SOURCE without
+      // making the spec re-derivable. Reproducing it means repeating the hand
+      // reindex described above.
+      src:{path:'pubchem', cid:145742, record:'3d',
+           conformer:'0002394E00000001', sdf:'proline.sdf',
+           tool:'sdf2spec:reframe-only', reindex:'by-hand',
+           regen:'manual', fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.239,0.902,-1.378]},
               {el:'H',pos:[-1.931,2.599,-2.254]},
               {el:'C',pos:[-2.905,-1.084,-3.195]},
@@ -1365,6 +1500,23 @@
     //   lesson is the amide->acid swap; the ionisation that follows from it is
     //   named in the note rather than drawn.
     CONTRAST.glutamine={ name:'Glutamine', formula:'C₅H₁₀N₂O₃', class:'aminoacid', res:'Gln', side:'–CH₂CH₂CONH₂',
+      // conformer:null is the ACTIVE claim here, and 2026-07-30 made it worse
+      // rather than better. ALL TEN currently-published conformers of CID 5961
+      // were fetched and converted; none reproduces this spec (best |Δ| 6.357,
+      // default record 7.056). The deviation climbs outward from the backbone
+      // (N 0.5 → NE2 5.3 → terminal H 7.1): the backbone reproduces, the
+      // flexible tail does not, and the tail is where this spec's lesson lives.
+      //
+      // So the source geometry is LOST — PubChem regenerates conformer sets, and
+      // whichever one this came from is no longer published. sdf/glutamine.sdf is
+      // committed as the closest available record, NOT as a reproduction; that is
+      // what regen:'lost' means. THIS SPEC IS NOW ITS OWN SOURCE. Do not
+      // 'refresh' it from PubChem — you would silently swap the rotamer, and the
+      // amide's edge-on presentation that the contrast lesson depends on is a
+      // property of THIS conformer.
+      src:{path:'pubchem', cid:5961, record:'3d', conformer:null,
+           sdf:'glutamine.sdf', tool:'sdf2spec', regen:'lost',
+           fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.23,0.639,-1.531]},
               {el:'H',pos:[-2.194,-0.33,-3.207]},
               {el:'H',pos:[-2.188,2.519,-1.994]},
@@ -1400,6 +1552,15 @@
            + 'ends in an amide — neutral, and nothing your immune system objects to. '
            + 'An enzyme in your gut wall swaps that –NH₂ for an –OH.' } };
     CONTRAST.glutamate={ name:'Glutamic acid', formula:'C₅H₉NO₄', class:'aminoacid', res:'Glu', side:'–CH₂CH₂COOH',
+      // Same as glutamine, and checked the same way: all ten published
+      // conformers of CID 33032 fetched and converted 2026-07-30, none
+      // reproducing this spec (best |Δ| 5.827). Note these two are INDEPENDENT
+      // conformers, not one spec edited into the other, which is why their
+      // shared atoms do not share coordinates — and why losing the source hits
+      // them separately. This spec is now its own source; see glutamine.
+      src:{path:'pubchem', cid:33032, record:'3d', conformer:null,
+           sdf:'glutamate.sdf', tool:'sdf2spec', regen:'lost',
+           fetched:'2026-07-30'},
       atoms:[ {el:'N',pos:[-2.225,0.629,-1.537]},
               {el:'H',pos:[-2.253,2.533,-1.895]},
               {el:'H',pos:[-3.837,0.244,-0.536]},
@@ -1465,6 +1626,12 @@
       [27.618,8.326], [27.886,11.24], [30.722,11.96],
     ];
     CONTRAST.palmitoleate={ name:'Palmitoleic acid', formula:'C₁₆H₃₀O₂', class:'lipid',
+      // Built exactly as palmitate was, and for the same reason — the pair must
+      // sit in one visual language so the single cis C=C is the only difference.
+      // The cis torsion was worked out against the dihedral formula and verified
+      // before being written as literals; `cis:` asserts it at check time.
+      src:{path:'built', method:'all-anti zigzag, united-atom, one cis C=C at Δ9',
+           charge:0, like:'palmitate'},
       atoms:[
         ...chain.map(p=>({ el:'C', pos:[p[0],p[1],0] })),
         { el:'O', pos:[-2.123,0.978,0] },

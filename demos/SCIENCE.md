@@ -26,25 +26,55 @@ shipping. The guiding principle:
 
 ### 1.2 Where geometry comes from
 
-Three sources, and the choice is not about how "complex" a molecule looks. The
-question is whether its shape follows from **one or two known constants** or
-**emerges from many coupled constraints**.
+**Five sources, and every spec names its own in `src:{path:…}`** —
+`check-molecules.js` fails a spec that does not. The provenance note at the top
+of `molecules.js` defines the field and its three-value rule (present / null /
+absent); this section is about which source to *choose*. That choice is not
+about how "complex" a molecule looks: the question is whether its shape follows
+from **one or two known constants** or **emerges from many coupled
+constraints**.
 
-1. **Hand-written** — small molecules defined by a known angle, where the spec
+This list said "three sources" for a long time while five existed, and the gap
+had a cost. `palmitate` and `palmitoleate` are constructed, but with no listed
+category to be constructed *into*, they were filed as PubChem conversions —
+and docs/molecule-pipeline.md item 0 then read their united-atom hydrogen count
+(32 in the record, 1 committed) as evidence of a stripping step that never
+happened. An enumeration that quietly excludes a real member does not stay
+harmless.
+
+1. **Hand-written** (`src.path:'hand'`) — small molecules defined by a known angle, where the spec
    doubles as teaching material in its comments. Water (104.5°), methane (109.5°),
    ammonia (~107°), CO₂ (linear), the small ions. These are verifiably right today;
    don't churn them, and don't trade their readable annotated layout for an opaque
    coordinate block.
-2. **Generated from a real record** (`tools/sdf2spec.js`, PubChem 3D) — branching
+2. **Generated from a real record** (`src.path:'pubchem'`; `tools/sdf2spec.js`,
+   PubChem 3D) — branching
    skeletons, conformational freedom, or more than a handful of coordinates to
    type. The amino acids. The cost is real: generated specs are unreadable numbers
    carrying a "regenerate, don't hand-edit" warning, so only pay it when hand
-   placement would actually drift.
-3. **Generated from VSEPR** (`Skel` in `molecules.js`) — the glycolysis
+   placement would actually drift. It is also the **only** path that cannot be
+   re-run from this repo alone — no `.sdf` is committed yet — so it is the one
+   that has to record how the record was asked for, and for anything with a
+   rotatable side chain a CID alone is not enough (item 0).
+3. **Generated from VSEPR** (`src.path:'skel'`; `Skel` in `molecules.js`) — the glycolysis
    intermediates. First-principles derivation rather than a database, so it also
    covers the charged species PubChem has no 3D conformer for (bicarbonate,
    pyruvate, HPO₄²⁻), and it produces the deliberate flat Fischer-projection
    layout the lesson wants. Don't "upgrade" these to PubChem — it's a downgrade.
+   `Skel.prototype.spec` stamps `src` itself, so this path stays labelled
+   without anyone remembering to.
+4. **Constructed by hand from literals** (`src.path:'built'`) — the fatty acids.
+   Neither typed per-bond like (1) nor derived by a builder like (3): a geometry
+   worked out once against real angles, verified, then written in as numbers.
+   Reach for this when the lesson is a *topology* a real conformer would obscure
+   — a floppy palmitate renders as spaghetti, and "long nonpolar tail, one small
+   polar head" reads far better as an idealised zigzag (§1.6). Requires a
+   `method:` in `src`, because that string is the only record of how the numbers
+   were arrived at.
+5. **Mirrored from another spec** (`src.path:'mirror'`) — `dAlanine` only.
+   Computed at load, so it inherits its partner's provenance and cannot drift
+   from it. Note a reflection is a determinant −1 transform; negating one
+   component is the intended operation here and a *bug* anywhere else (§1.3).
 
 Whatever the source, run `check-molecules.js`.
 

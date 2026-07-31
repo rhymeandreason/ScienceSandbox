@@ -3,10 +3,22 @@
 Converts a PubChem 3D record into a `MolLib` amino-acid spec, so the geometry in
 `molecules.js` is derived rather than hand-guessed.
 
+**The inputs are committed** — see `sdf/README.md`. You do not need to fetch
+anything to re-run a conversion, and for `glutamine`/`glutamate` you must not:
+their source conformers are no longer published, so a fresh fetch silently swaps
+the geometry.
+
 ```bash
-cd tools
-curl -o glycine.sdf "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/glycine/SDF?record_type=3d"
-node sdf2spec.js glycine alanine serine cysteine   # -> generated-specs.json
+cd tools/sdf
+node ../sdf2spec.js glycine alanine serine cysteine   # -> generated-specs.json
+```
+
+Fetching a NEW molecule, for reference — note the CID form, not the name form:
+a bare name pins neither a stereocentre nor a charge state (`sdf/README.md` has
+the case where that went wrong):
+
+```bash
+curl -o lysine.sdf "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/5962/SDF?record_type=3d"
 ```
 
 What it does, and why each step exists:

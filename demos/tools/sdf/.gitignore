@@ -1,0 +1,7 @@
+# Converter OUTPUTS, produced by running sdf2spec*.js in this directory.
+# The .sdf files here are inputs and are committed; these are not — a committed
+# output is a second copy of molecules.js that drifts. tools/check-docs.js
+# asserts both of these ABSENT via its KNOWN_ABSENT map, so committing one
+# fails the doc check.
+generated-specs.json
+generated-specs-generic.json

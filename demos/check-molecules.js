@@ -12,6 +12,15 @@
  *  molecule's shape can be eyeballed against its real VSEPR geometry.
  *  Run this after adding or editing anything in MOLECULES.
  *
+ *  It also audits PROVENANCE, unconditionally: every spec must carry a `src:`
+ *  naming which of the five paths produced its coordinates
+ *  (hand | pubchem | skel | built | mirror), plus the fields that path needs to
+ *  be answerable — a pubchem spec without a cid/query, a record, a tool and an
+ *  explicit `conformer` (null counts, and means "never pinned") FAILs. This
+ *  checks shape, not truth: nothing here can tell whether a CID is the RIGHT
+ *  CID. See the provenance note in molecules.js and docs/molecule-pipeline.md
+ *  items 1–2. Unlike the claims below, it does not wait to be opted into.
+ *
  *  It also audits the DISTINGUISHING-FEATURE CLAIMS a spec declares — the
  *  error class nothing above can see, because a wrong stereocentre has perfect
  *  bond lengths, textbook angles, and renders beautifully. It is only caught
@@ -134,7 +143,83 @@ function ringNormal(ring, P) {
   return unit(n);
 }
 
-let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0, nameFails = 0, smilesFails = 0;
+let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0, nameFails = 0,
+    smilesFails = 0, srcFails = 0;
+
+/* ---- provenance ------------------------------------------------------
+ * Every spec must say where its coordinates came from. This is the one audit
+ * here that is UNCONDITIONAL — it does not wait for a spec to opt in, because
+ * the failure it prevents is a spec silently joining the library with no
+ * record of what produced it, which is exactly how the reproducibility sweep
+ * in docs/molecule-pipeline.md item 0 ended up with five unregenerable specs.
+ *
+ * It checks shape, not truth: nothing here can tell whether a CID is the right
+ * CID. What it can guarantee is that the question is always answerable.
+ * Note `conformer` is checked with `in`, not for truthiness — null is a
+ * deliberate claim ("never pinned") and must not be confused with absent.
+ */
+const SRC_PATHS = ['hand', 'pubchem', 'skel', 'built', 'mirror'];
+// How completely a spec can be rebuilt from its committed source. This is a
+// RECORDED VERDICT from an actual run, not something re-derived here — checking
+// it for real needs the converters and (for 'lost') the network.
+//   exact  — the committed .sdf regenerates this spec to 0.000
+//   manual — the .sdf is the true source, but a hand step sits in the middle
+//   lost   — no published record reproduces it; the SPEC is now the source
+const SRC_REGEN = ['exact', 'manual', 'lost'];
+const SDF_DIR = require('path').join(__dirname, 'tools', 'sdf');
+console.log('\n== provenance (`src:` on every spec)');
+{
+  const byPath = {};
+  let unpinned = 0;
+  for (const [key, mol] of Object.entries(MOLECULES)) {
+    const s = mol.src;
+    const bad = m => { srcFails++; console.log(`  SRC FAIL  ${key}: ${m}`); };
+    if (!s || !s.path) { bad('no `src:` — see the provenance note in molecules.js'); continue; }
+    if (!SRC_PATHS.includes(s.path)) { bad(`unknown src.path '${s.path}' (expected ${SRC_PATHS.join('|')})`); continue; }
+    (byPath[s.path] = byPath[s.path] || []).push(key);
+    if (s.path === 'pubchem') {
+      if (!s.cid && !s.query) bad('src.path pubchem needs a `cid` or a `query`');
+      if (!s.record) bad('src.path pubchem needs a `record` (e.g. "3d")');
+      if (!s.tool) bad('src.path pubchem needs a `tool` (which converter)');
+      if (!('conformer' in s)) bad('src.path pubchem must state `conformer` — use null '
+        + 'to record that it was never pinned; absent is not the same claim');
+      else if (s.conformer === null) unpinned++;
+      if (!s.regen) bad('src.path pubchem needs `regen` (' + SRC_REGEN.join('|') + ')');
+      else if (!SRC_REGEN.includes(s.regen)) bad(`unknown src.regen '${s.regen}'`);
+      // A committed .sdf that isn't there is worse than none: it makes a spec
+      // look reproducible while nothing backs the claim.
+      if (s.sdf) {
+        if (!require('fs').existsSync(require('path').join(SDF_DIR, s.sdf)))
+          bad(`src.sdf '${s.sdf}' is not in tools/sdf/`);
+      } else if (s.regen === 'exact') {
+        bad("regen:'exact' claims the source regenerates this spec, so `sdf` must "
+          + 'name the committed record that does it');
+      }
+      // conformer:null with regen:'exact' is contradictory — an exact rebuild
+      // means the conformer IS pinned, whether or not anyone wrote it down.
+      if (s.regen === 'exact' && s.conformer === null)
+        bad("regen:'exact' contradicts conformer:null — if it rebuilds exactly, pin the conformer");
+    }
+    if (s.path === 'mirror') {
+      if (!s.of) bad('src.path mirror needs `of`');
+      else if (!MOLECULES[s.of]) bad(`src.of '${s.of}' is not a spec in this library`);
+    }
+    if (s.path === 'built' && !s.method) bad('src.path built needs a `method` — it is the '
+      + 'only record of how the literals were derived');
+  }
+  if (!srcFails) {
+    console.log('  ok    ' + Object.keys(byPath).sort()
+      .map(p => `${p} ${byPath[p].length}`).join(' · ')
+      + `  (${Object.keys(MOLECULES).length} specs)`);
+    const regen = {};
+    for (const m of Object.values(MOLECULES)) if (m.src && m.src.regen)
+      regen[m.src.regen] = (regen[m.src.regen] || 0) + 1;
+    console.log(`  ok    regen: ` + Object.keys(regen).sort().map(r => `${r} ${regen[r]}`).join(" · "));
+    if (unpinned) console.log(`  note  ${unpinned} spec(s) carry conformer:null — no published `
+      + `record reproduces them, so the SPEC is the source. Do not refresh these from `
+      + `PubChem; see their comments in molecules.js.`);
+  }
+}
 
 for (const [key, mol] of Object.entries(MOLECULES)) {
   if (!mol.atoms) continue;            // ionic entries carry no geometry
@@ -532,8 +617,9 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails || chiralFails || nameFails || smilesFails) {
+if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails) {
   const parts = [];
+  if (srcFails) parts.push(`${srcFails} spec(s) with missing or malformed \`src:\` provenance`);
   if (nameFails) parts.push(`${nameFails} broken atom-name reference(s)`);
   if (smilesFails) parts.push(`${smilesFails} stale generated SMILES`);
   if (failures) parts.push(`${failures} overlapping pair(s)`);
@@ -543,6 +629,6 @@ if (failures || stereoFails || chiralFails || nameFails || smilesFails) {
   console.log(`FAIL: ${parts.join(' + ')}`);
   process.exit(1);
 }
-console.log(`PASS: no sphere overlaps; every atom reference resolves; every `
-  + `declared stereo/topology/chirality claim holds`
+console.log(`PASS: every spec records its provenance; no sphere overlaps; every `
+  + `atom reference resolves; every declared stereo/topology/chirality claim holds`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));

@@ -60,6 +60,7 @@ order matters — each script assumes the ones above it:
 | `sandbox.css` | cream paper, torn-edge panel, fonts, `#app` grid, stage/panel chrome | — |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
+| `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
 
 Things that are easy to get wrong and are not visible from the API:
 
