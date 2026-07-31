@@ -708,6 +708,15 @@ is byte-identical, and all four checkers pass.
 output pastes straight into a spec. Left unfixed, they would have silently
 produced 1.9× specs for the ~15 `pubchem` molecules the AP Bio expansion adds.
 
+**A family-B page can now show a small molecule, which was the actual need.**
+`mol-small.js` carries water, ammonia, methane, CO₂ and ethanol built from
+measured lengths in real ångströms. It defines the same keys as
+`mol-solvation.js` and `register()` throws if both load, so a page picks one.
+That retired the `aminoacid-lab` water this doc recorded under item 3 as a known
+exception — ~15% short among its residues — **without touching the solvation
+engine at all**. The expensive fix was never the only one; it was just the only
+one visible while the two waters had to be the same object.
+
 **Family A is still not converted, and "not yet" is the wrong way to read it.**
 Family A is not ångströms awaiting a multiply: its lengths were each picked
 individually to clear their own display radii, varying *within* a molecule

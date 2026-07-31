@@ -296,6 +296,33 @@ molecule times any single factor — that is what makes it family A — so
 un-baking it is not a units change but a geometry change, and it still means
 re-tuning the solvation engine.
 
+**Which is why the small molecules exist twice.** `mol-small.js` carries water,
+ammonia, methane, CO₂ and ethanol built from measured lengths, in real
+ångströms, as family B. `mol-solvation.js` keeps the family-A versions. A page
+loads one or the other:
+
+| page needs | load |
+|---|---|
+| solvation physics (H-bonds, ice, dissolving) | `mol-solvation.js` |
+| a small molecule **beside** an amino acid, sugar or lipid | `mol-small.js` |
+
+They define the same keys deliberately, and `register()` throws if both load, so
+choosing wrong is a loud failure rather than a molecule that is quietly 15% off.
+
+This is the one place the project's "one molecule, not two" rule is broken on
+purpose, so the reason is worth stating: **a family-A water is a tuned parameter
+of a physics engine and a family-B water is a picture of a water molecule.**
+Changing the first re-tunes `EQ`, `MIN`, `hbThreshold` and the ice lattice;
+changing the second changes a picture. They are different objects that happen to
+share a name. What is *not* duplicated is anything scale-free — `nacl` and
+`kcl` carry no coordinates at all, only dissociation records, so they belong to
+no family and are reusable as they are.
+
+It also retired the known exception this section used to record:
+`aminoacid-lab.html` draws a real water for every dehydration and was getting
+the family-A one, ~15% short among its residues. It loads `mol-small.js` now.
+The solvation engine was never touched.
+
 Family A cannot be normalised, and should not be. `water-lab.html` and
 `molecule-lab.html` hard-code `HL=1.55` and tune the whole solvation engine
 around that scale — `EQ`, `MIN`, `hbThreshold`, the ice lattice `iceBond`.
@@ -307,16 +334,15 @@ molecule-to-molecule, so only family B may make a size claim.
 
 **This was written as an invariant — "every page satisfies this" — and it was
 not true.** `aminoacid-lab.html` builds `MOLECULES.water` for every dehydration
-it shows, so a family-A water (O–H 1.55) appears among family-B residues that
-would draw it at 1.84: **about 16% short**. The claim survived because the
+it shows, so a family-A water (O–H 1.55) appeared among family-B residues that
+would draw it at 1.84: **about 15% short**. The claim survived because the
 dependency was invisible while every page loaded every spec; splitting the
-library made `aminoacid-lab.html` name `mol-solvation.js` out loud, and the
+library made `aminoacid-lab.html` name its solvation file out loud, and the
 exception fell out immediately.
 
-Left as-is on purpose. The released water is a small transient nobody is asked
-to measure, and the alternative is re-tuning the solvation engine. What changed
-is that it is now written down where the next person will look, rather than
-asserted away.
+**Fixed** — see `mol-small.js` below. Not by re-tuning the solvation engine,
+which was the expensive option this section assumed, but by giving family-B
+pages a to-scale water to load instead.
 
 Learned the expensive way, and it is the §1.4 failure shape exactly. `Skel`'s
 table (`GL`) was family A while the amino acids were family B; every page drew

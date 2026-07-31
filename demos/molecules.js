@@ -53,21 +53,25 @@
  *  PubChem alanine and AMP under the words "true relative size", and glucose
  *  was ~0.7× everything around it. GL is now family B.
  *
- *  KNOWN EXCEPTION, found when item 3 split this file: aminoacid-lab.html
- *  shows both. Its residues are family B, and the water released by each
- *  dehydration is family A — it really does `buildMol(MOLECULES.water)`. So
- *  that water is drawn with a 1.55 O–H against the 1.84 the surrounding specs
- *  would use: about 16% short. Nobody noticed because the header used to
- *  assert the invariant held everywhere, and the dependency was invisible while
- *  every page loaded every spec. The script tags now make it explicit —
- *  aminoacid-lab.html loads mol-solvation.js, and that line is the tell.
+ *  HOW A FAMILY-B PAGE SHOWS A SMALL MOLECULE: load mol-small.js, not
+ *  mol-solvation.js. It carries water, ammonia, methane, CO₂ and ethanol built
+ *  from MEASURED lengths in real ångströms, so they sit correctly beside an
+ *  amino acid or a sugar. mol-solvation.js keeps the family-A versions, which
+ *  are the solvation engine's tuned particles and are not to scale.
  *
- *  It is deliberately NOT fixed here. Rescaling water means re-tuning the
- *  solvation engine (item 7), and the released water is a small transient the
- *  lesson never asks anyone to measure. Recorded rather than silently
- *  corrected, because the wrong move is to "tidy" the coordinate and break
- *  water-lab. If you add a page that shows a solvation molecule next to a
- *  derived one, that is the same problem and it needs solving here.
+ *  The two files define the SAME KEYS on purpose, and register() throws if both
+ *  load — so picking the wrong one is a loud failure rather than a molecule
+ *  that is quietly 15% wrong.
+ *
+ *  This is what fixed the exception found when item 3 split this file:
+ *  aminoacid-lab.html draws a real water for every dehydration, and was getting
+ *  the family-A one — a 1.55 O–H among residues drawn at 1.84, about 15%
+ *  short. Nobody could see it while every page loaded every spec. It now loads
+ *  mol-small.js and the released water is exactly to scale, with no change to
+ *  the solvation engine at all.
+ *
+ *  The salts are not duplicated: nacl/kcl carry no coordinates, only
+ *  dissociation records, so they are scale-free and belong to no family.
  * ===================================================================== */
 (function(global){
   'use strict';
@@ -249,6 +253,17 @@
         for(const a of spec.atoms) a.pos = [a.pos[0]*SCALE, a.pos[1]*SCALE, a.pos[2]*SCALE];
         spec._scaled = true;
       }
+      // Two domain files claiming the same name is never intentional, and
+      // letting the last one silently win is how a page draws a molecule from
+      // a family it did not mean to load. mol-solvation.js and mol-small.js
+      // deliberately define the SAME keys at different scales, so this is what
+      // stands between "wrong file in the script tags" and "everything looks
+      // fine but the water is 16% small".
+      if(MOLECULES[key] && MOLECULES[key] !== spec) throw new Error(
+        `molecules.js: '${key}' is already registered — two domain files define `
+        + `it. Check the page's <script> tags: mol-solvation.js (family A, the `
+        + `solvation engine's particles) and mol-small.js (family B, to scale) `
+        + `both define the small molecules and must never load together.`);
       MOLECULES[key] = spec;
     }
     return MOLECULES;
@@ -267,6 +282,15 @@
     'mol-monomers.js',     // family B, PubChem + literals — needs no builder
     'mol-glycolysis.js',   // needs skel.js
     'mol-contrast.js',     // needs skel.js AND mol-monomers.js
+  ];
+
+  // Files that REPLACE one of the above rather than adding to it. They define
+  // the same keys at a different scale, so register() throws if both load —
+  // which is the point. Anything walking the library for checking has to load
+  // an alternate SEPARATELY (see lib-node.js), never alongside what it swaps.
+  //   ENUM: a new either/or domain file goes here, not in DOMAINS.
+  const DOMAIN_ALTERNATES = [
+    { file:'mol-small.js', replaces:'mol-solvation.js' },
   ];
 
   /* ---------- atom references by name ----------
@@ -303,5 +327,5 @@
   // SCALE is exported so Stage.measure() can divide it back out and report real
   // angstroms. Pages used to hard-code 1.9 to do that, which silently becomes
   // wrong the day this constant moves.
-  global.MolLib = { PALETTE, MOLECULES, SCALE, VIEW, DOMAINS, register, atomIndex, resolveAtoms };
+  global.MolLib = { PALETTE, MOLECULES, SCALE, VIEW, DOMAINS, DOMAIN_ALTERNATES, register, atomIndex, resolveAtoms };
 })(this);

@@ -67,7 +67,7 @@ units. §1.5 has the why, and `check-molecules.js` requires the field.
 |---|---|
 | `water-lab`, `molecule-lab` | molecules, mol-solvation, scene, fx |
 | `molecule-builder` | molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
-| `aminoacid-lab` | molecules, mol-monomers, mol-solvation, scene, fx |
+| `aminoacid-lab` | molecules, mol-monomers, mol-small, scene, fx |
 | `glycolysis-lab` | molecules, skel, mol-glycolysis, scene, fx |
 | `macromolecule-lab` | molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
@@ -75,9 +75,11 @@ units. §1.5 has the why, and `check-molecules.js` requires the field.
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
 
-`aminoacid-lab` loading `mol-solvation` is not a mistake: dehydration synthesis
-releases a real water molecule, which it builds. See the family-A/B caveat in
-`molecules.js` — that page genuinely shows both families.
+`aminoacid-lab` loads `mol-small` because dehydration synthesis releases a real
+water molecule and that water has to sit correctly beside the residues. **A
+family-B page that needs a small molecule loads `mol-small.js`; only the
+solvation pages load `mol-solvation.js`.** The two define the same keys and
+`register()` throws if both are present.
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
@@ -85,6 +87,7 @@ releases a real water molecule, which it builds. See the family-A/B caveat in
 | `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `register` (applies the display scale) · `atomIndex`/`resolveAtoms` | `SCIENCE.md` §1 |
 | `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds. The builder, not data — and it has no dependencies at all | §1.2, §1.5 |
 | `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | §1.2, §1.5 |
+| `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or with it — `register()` throws if both load | own header, §1.5 |
 | `lib-node.js` | the whole library for Node checkers, by walking `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §10 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
