@@ -311,11 +311,9 @@ optional. New claim type in `check-molecules.js` → §1.4's table *and* the
 script's header; they've drifted apart once already. Changed a constant with a
 reason → the reason lives in the doc, not the commit message.
 
-**Delete rather than hedge**, and **retire a story once a checker replaces
-it.** A rule that no longer holds gets removed, not softened; a bug that's now
+**Delete rather than hedge**, and **retire a story once it is solidly fixed and we have a path forward** A rule that no longer holds gets removed, not softened; a bug that's now
 mechanically caught (merged spheres, doc/file mismatches) gets its war story
-cut to a one-line rule, since the checker is the better documentation — it
-can't go stale. A bug that's only caught when someone opts in (`stereo:`,
+cut to a one-line rule, since the checker is the better documentation. A bug that's only caught when someone opts in (`stereo:`,
 `chirality:` — §1.4) keeps its story, because the prose is what argues for
 opting in. Anything still unenforced (scale families, *cis*/*trans*, whether
 prose is true) keeps its story as the only defence. History earns space only

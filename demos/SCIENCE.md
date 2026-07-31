@@ -327,15 +327,6 @@ docs/molecule-pipeline.md, the one item that can break something working).
 **The rule: one page, one family.** Only family B is comparable
 molecule-to-molecule, so only family B may make a size claim.
 
-Learned the expensive way, and it is the §1.4 failure shape exactly. `Skel`'s
-table (`GL`) was family A while the amino acids were family B; every page drew
-from one family, so nothing showed it — until `macromolecule-lab.html` put
-`Skel` glucose beside PubChem alanine under the words *"true relative size"* and
-glucose came out ~0.7× everything around it. No bond-length check, no angle and
-no screenshot of any *existing* page could have caught it. `GL` is now family B,
-and the fix also split `GL.CC`/`GL.CO` (C–O is the shorter bond) and gave C=O
-its own `GL.CdO`.
-
 **Known residual, measured:** `ringPyranose()` builds a *regular* hexagon, so a
 pyranose's ring C–O comes out as long as its ring C–C. Against the real PubChem
 β-D-glucopyranose record that leaves the ring 3.13 Å wide vs 2.90, and the
