@@ -32,6 +32,7 @@ order matters — each script assumes the ones above it:
 <link rel="stylesheet" href="sandbox.css">   <!-- after fonts/icons, before page <style> -->
 ...
 <script src=".../three.min.js"></script>
+<script src="palette.js"></script>     <!-- always, first — atom/bond colours + radii -->
 <script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
 <script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
@@ -64,12 +65,12 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 <!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
 | Page | Loads |
 |---|---|
-| `water-lab`, `molecule-lab` | molecules, mol-solvation, scene, fx |
-| `molecule-builder` | molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
-| `aminoacid-lab` | molecules, mol-monomers, mol-small, scene, fx |
-| `glycolysis-lab` | molecules, skel, mol-glycolysis, scene, fx |
-| `macromolecule-lab` | molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
-| `contrast-lab` | molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
+| `water-lab`, `molecule-lab` | palette, molecules, mol-solvation, scene, fx |
+| `molecule-builder` | palette, molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
+| `aminoacid-lab` | palette, molecules, mol-monomers, mol-small, scene, fx |
+| `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |
+| `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
+| `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
 
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
@@ -83,6 +84,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
 |---|---|---|
+| `palette.js` | `MolPalette` — atom colours, bond colours, display radii, bond colours, display radii. Loads before `molecules.js`, which re-exports it as `MolLib.PALETTE` | own header |
 | `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `register` (applies the display scale) · `atomIndex`/`resolveAtoms` | `MolecularGeometry.md` §1 |
 | `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds. The builder, not data — and it has no dependencies at all | MolecularGeometry.md §1.2, §1.5 |
 | `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |

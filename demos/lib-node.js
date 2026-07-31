@@ -22,6 +22,7 @@ const vm = require('vm');
 const path = require('path');
 const here = f => require(path.join(__dirname, f));
 
+here('palette.js');                          // colours/radii — before molecules.js
 const MolLib = here('molecules.js').MolLib;   // core: PALETTE, SCALE, VIEW, registry
 here('skel.js');                              // the builder — no dependencies
 MolLib.DOMAINS.forEach(here);                 // the specs themselves
@@ -46,6 +47,7 @@ for (const alt of MolLib.DOMAIN_ALTERNATES || []) {
   const load = f => vm.runInContext(
     fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
 
+  load('palette.js');
   load('molecules.js');
   load('skel.js');
   // Everything the alternate does NOT replace, so cross-file references still

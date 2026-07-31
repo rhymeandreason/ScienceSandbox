@@ -45,7 +45,7 @@ for (const page of fs.readdirSync(ROOT).filter(f => f.endsWith('.html')).sort())
   // Local scripts only, in page order; CDN Three is not our concern.
   const libs = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])
     .filter(s => !s.includes('/'))
-    .filter(s => s === 'molecules.js' || s === 'skel.js' || /^mol-/.test(s));
+    .filter(s => s === 'palette.js' || s === 'molecules.js' || s === 'skel.js' || /^mol-/.test(s));
 
   // A fresh window per page — exactly what the browser hands it.
   const sandbox = { console, Math, JSON, Object, Array, String, Number, Error, Boolean };

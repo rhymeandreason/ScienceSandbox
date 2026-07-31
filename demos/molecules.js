@@ -65,35 +65,19 @@
 
 
   // ---- colours (hex ints) ---------------------------------------------
-  // Atom colours double as the swatches in water-lab's Debug ▸ Colours tab;
-  // editing PALETTE.atoms live keeps every molecule on the page consistent.
-  const PALETTE = {
-    atoms: {
-      O:  0xd6362e,   // oxygen   — red
-      H:  0xb9c2d0,   // hydrogen — pale steel
-      Na: 0x9a3fe0,   // sodium   — violet
-      Cl: 0x1fa968,   // chloride — green
-      K:  0x0054C0,   // potassium — blue (distinct from Na)
-      C:  0x3a3a3a,   // carbon   — charcoal
-      N:  0x3f6ae0,   // nitrogen — blue
-      S:  0xe0b93a,   // sulfur   — goldenrod (cysteine / methionine)
-      P:  0xe07b1f,   // phosphorus — orange (CPK). Deliberately the warmest atom
-                      // in the palette: in glycolysis the phosphate IS the energy
-                      // currency, so every P a student sees is "something ATP paid
-                      // for or will be paid back". No other lesson uses P, so it
-                      // can't be confused with sulfur's goldenrod.
-    },
-    bonds: {
-      covalent:  0xb3a892,   // covalent stick — muted stone on cream
-      hbond:     0x0042aa,   // hydrogen bond  — deep blue
-      iondipole: 0xd9791e,   // ion–dipole bond — deep amber
-      peptide:   0x6a5acd,   // peptide (amide C–N) bond — slate violet, so the
-                             // newly-formed backbone link reads distinct from the
-                             // ordinary covalent sticks within each residue
-    },
-    // default display radii (scene units, stylised — enlarged for legibility)
-    radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85, P:1.00 },
-  };
+  // The numbers live in palette.js — the house atom colours plus the
+  // bond colours and display radii. This file only re-exports them as
+  // MolLib.PALETTE, which is what every page and module reads. Atom colours
+  // also double as the swatches in water-lab's Debug ▸ Colours tab; editing
+  // MolLib.PALETTE.atoms live keeps every molecule on the page consistent.
+  //
+  // Browser: <script src="palette.js"> goes BEFORE this file.
+  // Node (lib-node.js and the checkers): required directly.
+  const PALETTE =
+    (typeof window!=='undefined' && window.MolPalette) ||
+    (typeof globalThis!=='undefined' && globalThis.MolPalette) ||
+    (typeof require==='function' ? require('./palette.js').PALETTE : null);
+  if(!PALETTE) throw new Error('molecules.js: palette.js must load before molecules.js');
 
   // ---- molecule library ----------------------------------------------
   // Each entry:
