@@ -8,7 +8,7 @@
   const Lib = global.MolLib
     || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
   if (!Lib) throw new Error(SELFNAME + ': molecules.js must be loaded first');
-  const { MOLECULES, VIEW } = Lib;
+  const { MOLECULES, VIEW, register } = Lib;
   // Builder + bond-length tables from skel.js. This file cannot be loaded
   // without it; the page script table in CLAUDE.md is the enumeration that
   // keeps that true.
@@ -219,5 +219,5 @@
     GLYCOLYSIS.pi=s.spec({ name:'Inorganic phosphate', formula:'HPO₄²⁻', class:'ion',
       gly:{ carbons:0, phosphates:1, free:true } });
   }
-  Object.assign(MOLECULES, GLYCOLYSIS);
+  register(GLYCOLYSIS);
 })(this);

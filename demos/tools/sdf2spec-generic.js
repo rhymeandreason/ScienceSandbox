@@ -25,7 +25,6 @@
 const fs = require('fs');
 
 const RADII = { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, P:1.00 };
-const SCALE = 1.9;        // the same global factor sdf2spec.js uses
 const MIN_GAP = 0.10;
 
 // ---- 1. parse (identical to sdf2spec.js) -----------------------------
@@ -124,7 +123,7 @@ function reframe(m){
   return {
     atoms: m.atoms.map(a=>{
       const v = sub(a.pos, ctr);
-      return { el:a.el, pos:[dot(v,e1)*SCALE, dot(v,e2)*SCALE, dot(v,e3)*SCALE]
+      return { el:a.el, pos:[dot(v,e1), dot(v,e2), dot(v,e3)]
                             .map(x=>+x.toFixed(3)) };
     }),
     bonds: m.bonds.map(b=>b[2]===1?[b[0],b[1]]:[b[0],b[1],b[2]]),

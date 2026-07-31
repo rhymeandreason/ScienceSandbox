@@ -175,8 +175,18 @@ console.log('\n== provenance (`src:` on every spec)');
   for (const [key, mol] of Object.entries(MOLECULES)) {
     const s = mol.src;
     const bad = m => { srcFails++; console.log(`  SRC FAIL  ${key}: ${m}`); };
+    // `units` says whether the FILE holds real angstroms (register() applies
+    // the display scale) or numbers already in scene units. It is not inferable
+    // from anything else, and getting it wrong is a silent 1.9x — large enough
+    // to see, small enough to be mistaken for a styling choice.
+    if (!['angstrom', 'scene'].includes(mol.units))
+      bad(`units must be 'angstrom' or 'scene', got ${JSON.stringify(mol.units)}`
+        + ' — see the units note in molecules.js');
     if (!s || !s.path) { bad('no `src:` — see the provenance note in molecules.js'); continue; }
     if (!SRC_PATHS.includes(s.path)) { bad(`unknown src.path '${s.path}' (expected ${SRC_PATHS.join('|')})`); continue; }
+    // A Skel spec is built from GL/AR, which are real angstroms by definition.
+    if (s.path === 'skel' && mol.units !== 'angstrom')
+      bad("src.path 'skel' must be units:'angstrom' — GL/AR are real angstroms");
     (byPath[s.path] = byPath[s.path] || []).push(key);
     if (s.path === 'pubchem') {
       if (!s.cid && !s.query) bad('src.path pubchem needs a `cid` or a `query`');

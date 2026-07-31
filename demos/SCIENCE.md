@@ -268,11 +268,33 @@ trap. There are two families:
 | Family | Specs | Rule | Implied scale |
 |---|---|---|---|
 | **A. hand-written** | everything in `mol-solvation.js` — water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium, and the two salts | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
-| **B. derived** | everything in `mol-monomers.js`, `mol-glycolysis.js` and `mol-contrast.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec (incl. the two disaccharides) | real Å × one global `SCALE` | **1.9×**, relative lengths truthful |
+| **B. derived** | everything in `mol-monomers.js`, `mol-glycolysis.js` and `mol-contrast.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec (incl. the two disaccharides) | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
 
 Since item 3 the families line up with the domain files, so **a page's script
 tags now show which families it is mixing**. That is the only mechanical signal
 there is — nothing fails a build.
+
+**Since item 7, family B stores real ångströms.** A spec declares
+`units:'angstrom'` and `MolLib.register()` multiplies by `SCALE` once as it is
+registered; `units:'scene'` means the numbers are already display units and are
+left alone. `check-molecules.js` requires the field, because getting it wrong is
+a silent 1.9× — big enough to see, small enough to look like a styling choice.
+
+Two consequences worth knowing:
+
+- **The display scale is now one number in one place.** Changing `SCALE` moves
+  all 26 family-B specs together, including the eleven that used to have it
+  multiplied into their literals. `skel.js` no longer knows `SCALE` exists.
+- **The scale is applied at registration, not at render.** `Stage.buildMolecule`
+  is not the only reader — `glycolysis-lab`, `contrast-lab`, `_compare` and
+  `haworth.js` all index `spec.atoms[i].pos` directly and compare it against
+  `PALETTE.radii`, which are scene units. Scaling at render would leave every
+  one of those comparing ångströms against scene units.
+
+Family A is **not** "ångströms not yet converted". It is not expressible as any
+molecule times any single factor — that is what makes it family A — so
+un-baking it is not a units change but a geometry change, and it still means
+re-tuning the solvation engine.
 
 Family A cannot be normalised, and should not be. `water-lab.html` and
 `molecule-lab.html` hard-code `HL=1.55` and tune the whole solvation engine

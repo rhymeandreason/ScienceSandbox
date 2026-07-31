@@ -31,11 +31,17 @@
  *       their entire solvation engine around it (EQ, MIN, hbThreshold, the
  *       ice lattice spacing). Rescaling water means re-tuning that physics.
  *       Do not touch this family to make some other page tidy.
+ *       These specs carry `units:'scene'` — the numbers ARE display units and
+ *       register() leaves them alone. Family A is not "ångströms not yet
+ *       converted": it is not expressible as any molecule × any single factor,
+ *       which is exactly why item 7 could un-bake family B and not this.
  *
  *    B. DERIVED (the amino acids, palmitate, amp, and everything the Skel
  *       builder makes — glucose and the glycolysis intermediates).
- *       Real ångströms × ONE global factor, SCALE = 1.9. Relative lengths
- *       are truthful, so these molecules are comparable to each other.
+ *       These specs STORE REAL ÅNGSTRÖMS (`units:'angstrom'`) and register()
+ *       multiplies by SCALE = 1.9 once, on the way in. Relative lengths are
+ *       truthful, so these molecules are comparable to each other — and the
+ *       file now says what a chemist would say.
  *
  *  THE RULE: a page should show molecules from ONE family. Mixing them means
  *  two molecules side by side at different scales, with nothing on screen
@@ -203,10 +209,50 @@
     flatRing:[-1.6842, -0.013, 0],
   };
 
-  // The registry. Domain files (mol-*.js) assign into this; molecules.js on its
-  // own deliberately holds NO specs. Which files a page loads is what decides
-  // which molecules exist on it — see CLAUDE.md's script table.
+  // The registry. Domain files (mol-*.js) register into this; molecules.js on
+  // its own deliberately holds NO specs. Which files a page loads is what
+  // decides which molecules exist on it — see CLAUDE.md's script table.
   const MOLECULES = {};
+
+  /* ---- units, and where the display scale is applied ------------------
+   * A spec's coordinates ON DISK are REAL ÅNGSTRÖMS (`units:'angstrom'`).
+   * They are multiplied by SCALE exactly once, here, as the spec is
+   * registered. So the FILE is honest and instrument-comparable, while
+   * everything downstream still sees the stylised scene units it always has.
+   *
+   * The display scale is applied at REGISTRATION rather than at render, and
+   * that is deliberate: `Stage.buildMolecule` is not the only reader.
+   * glycolysis-lab, contrast-lab, _compare and haworth.js all index
+   * `spec.atoms[i].pos` directly and compare it against PALETTE.radii, which
+   * are scene units. Scaling at render would leave every one of those
+   * comparing ångströms to scene units — a class of bug that renders as
+   * "everything is suddenly tiny" in some places and not others.
+   *
+   * `units:'scene'` means the numbers are already display-scale and must NOT
+   * be touched. Two groups carry it:
+   *   · the family-A solvation set, whose lengths were each hand-picked to
+   *     clear their display radii and are not a real molecule × any factor
+   *     (SCIENCE.md §1.5). Converting those is a separate, riskier job —
+   *     it means re-tuning the solvation engine.
+   *   · specs DERIVED from an already-registered spec (dAlanine mirrors
+   *     alanine), which are therefore already scaled.
+   *
+   * Scaling is idempotent: a spec is stamped once and never re-scaled, so a
+   * double registration cannot silently double a molecule's size.
+   */
+  function register(specs){
+    for(const [key, spec] of Object.entries(specs)){
+      if(!spec.units) throw new Error(
+        `molecules.js: ${key} has no \`units\` — 'angstrom' (real, scaled here) `
+        + `or 'scene' (already display-scale). See the units note in molecules.js.`);
+      if(spec.units === 'angstrom' && !spec._scaled && spec.atoms){
+        for(const a of spec.atoms) a.pos = [a.pos[0]*SCALE, a.pos[1]*SCALE, a.pos[2]*SCALE];
+        spec._scaled = true;
+      }
+      MOLECULES[key] = spec;
+    }
+    return MOLECULES;
+  }
 
   // THE MANIFEST: every domain file, in dependency order. A page loads the
   // subset it needs (that is the point of the split); anything wanting the
@@ -257,5 +303,5 @@
   // SCALE is exported so Stage.measure() can divide it back out and report real
   // angstroms. Pages used to hard-code 1.9 to do that, which silently becomes
   // wrong the day this constant moves.
-  global.MolLib = { PALETTE, MOLECULES, SCALE, VIEW, DOMAINS, atomIndex, resolveAtoms };
+  global.MolLib = { PALETTE, MOLECULES, SCALE, VIEW, DOMAINS, register, atomIndex, resolveAtoms };
 })(this);

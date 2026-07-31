@@ -16,16 +16,16 @@
  *  molecule in the library; editing a spec moves one. Anything that consumes
  *  this is `src:{path:'skel'}` (Skel.prototype.spec stamps it).
  *
- *  SCALE lives here rather than in molecules.js because it is the builder's
- *  constant: GL and AR are both defined in terms of it. molecules.js re-exports
- *  it on MolLib so Stage.measure can divide it back out and report real
- *  ångströms.
+ *  IT WORKS IN REAL ÅNGSTRÖMS. GL and AR are measured bond lengths, and every
+ *  spec this produces is units:'angstrom' — MolLib.register() applies the
+ *  display scale once, as the spec is registered. The builder does not know
+ *  what SCALE is, and should not: that is a presentation decision, not a
+ *  geometric one. (molecule-pipeline.md item 7)
  * ===================================================================== */
 (function(global){
   'use strict';
 
-  // Bond lengths: REAL ångströms × SCALE — the derived scale family (see the
-  // "Bond-length scale families" note at the top of this file).
+  // Bond lengths, in real ångströms.
   //
   // These used to be picked one at a time to just clear the display radii
   // (C+C 1.70 · C+O 1.80 · O+H 1.50 · O+P 1.95 · C+H 1.40), which is the
@@ -38,22 +38,20 @@
   //
   // Every value below still clears its radii sum by a wide margin (the tightest
   // is O–H at 1.84 against 1.50); check-molecules.js asserts that.
-  // SCALE is the LIBRARY's constant, defined in molecules.js, because the
-  // PubChem converters apply the same factor to specs this builder never
-  // touches. Read back here so GL and AR have exactly one source.
-  const Lib = global.MolLib
-    || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
-  if (!Lib) throw new Error('skel.js: molecules.js must be loaded before it');
-  const SCALE = Lib.SCALE;
+  // REAL ANGSTROMS — the measured values, not display units. The builder works
+  // in the units a chemist would quote and MolLib.register() applies the display
+  // scale once, when the finished spec is registered. These used to read
+  // `1.54*SCALE`: the real number and the display number were the same field,
+  // and neither was stated. (molecule-pipeline.md item 7)
   const GL = {
-    CC: 1.54*SCALE,   // 2.93  C–C single
-    CO: 1.43*SCALE,   // 2.72  C–O single (hydroxyl, phosphate ester bridge)
-    CdO:1.23*SCALE,   // 2.34  C=O — and the carboxylate C–O⁻, which is nearly it
-    CdC:1.33*SCALE,   // 2.53  C=C — a fatty acid's one unsaturation
-    OH: 0.97*SCALE,   // 1.84  O–H
-    CH: 1.09*SCALE,   // 2.07  C–H
-    OP: 1.60*SCALE,   // 3.04  P–O ester (the bridging oxygen)
-    PO: 1.50*SCALE,   // 2.85  P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
+    CC: 1.54,   // C–C single
+    CO: 1.43,   // C–O single (hydroxyl, phosphate ester bridge)
+    CdO:1.23,   // C=O — and the carboxylate C–O⁻, which is nearly it
+    CdC:1.33,   // C=C — a fatty acid's one unsaturation
+    OH: 0.97,   // O–H
+    CH: 1.09,   // C–H
+    OP: 1.60,   // P–O ester (the bridging oxygen)
+    PO: 1.50,   // P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
   };
   const TET = 109.5, SP2 = 120;
 
@@ -229,7 +227,9 @@
   // `extra` still wins, so a spec that is Skel-built and then post-processed
   // can say so.
   Skel.prototype.spec=function(extra){
-    return Object.assign({ atoms:this.atoms, bonds:this.bonds, src:{path:'skel'} }, extra);
+    // units:'angstrom' because GL/AR are real — register() scales this once.
+    return Object.assign({ atoms:this.atoms, bonds:this.bonds,
+      src:{path:'skel'}, units:'angstrom' }, extra);
   };
 
   // ---- backbone scaffolds ----------------------------------------------
@@ -307,7 +307,8 @@
   // molecule is delocalised — no bond is truly single or double — but every
   // textbook draws a Kekulé form, and alternating orders at least keep every
   // atom's valence correct, which a uniform "aromatic" stick would not show.
-  const AR = { CC: 1.39*SCALE, CN: 1.34*SCALE, CH: 1.08*SCALE, NH: 1.01*SCALE };
+  // Real angstroms, like GL above.
+  const AR = { CC: 1.39, CN: 1.34, CH: 1.08, NH: 1.01 };
   // Regular polygon of `n` sides, side length AR.CC, in the xz-plane.
   function flatRing(n, els){
     const s=new Skel(), R=AR.CC/(2*Math.sin(Math.PI/n));

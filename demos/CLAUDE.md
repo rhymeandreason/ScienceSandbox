@@ -51,10 +51,16 @@ all — it is the registry (`PALETTE`, `SCALE`, `VIEW`, `DOMAINS`) — and the
 molecules exist on a page, and getting them wrong is a `MOLECULES.x is
 undefined`, not a silent wrong render.
 
-Load order is **`molecules.js` → `skel.js` → `mol-*.js`**: the builder reads
-`SCALE` back off `MolLib`, and `mol-contrast.js` mirrors alanine out of
-`mol-monomers.js`. Only pages showing a Skel-built molecule (sugars, glycolysis)
-need `skel.js` at all.
+Load order is **`molecules.js` → `skel.js` → `mol-*.js`**. `skel.js` itself has
+no dependencies since item 7 (it works in real ångströms and never sees
+`SCALE`), but the domain files need both, and `mol-contrast.js` mirrors alanine
+out of `mol-monomers.js`. Only pages showing a Skel-built molecule (sugars,
+glycolysis) need `skel.js` at all.
+
+**A spec's coordinates on disk are real ångströms** (`units:'angstrom'`);
+`register()` multiplies by `SCALE` once, on the way into the registry. The
+family-A solvation set is `units:'scene'` — those numbers are already display
+units. §1.5 has the why, and `check-molecules.js` requires the field.
 
 <!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
 | Page | Loads |
@@ -76,9 +82,9 @@ releases a real water molecule, which it builds. See the family-A/B caveat in
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
 |---|---|---|
-| `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `atomIndex`/`resolveAtoms` | `SCIENCE.md` §1 |
-| `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables + ring/chain scaffolds. The builder, not data | §1.2 |
-| `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each `Object.assign`s its specs into `MolLib.MOLECULES` | §1.2, §1.5 |
+| `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `register` (applies the display scale) · `atomIndex`/`resolveAtoms` | `SCIENCE.md` §1 |
+| `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds. The builder, not data — and it has no dependencies at all | §1.2, §1.5 |
+| `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | §1.2, §1.5 |
 | `lib-node.js` | the whole library for Node checkers, by walking `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §10 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
@@ -97,7 +103,11 @@ Things that are easy to get wrong and are not visible from the API:
   with `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied
   by `Stage.buildMolecule`), and add new angles to the `VIEW` table so two specs
   share a view by name rather than by copying three constants.
-- **Specs come in two bond-length families** and a page may show only one. §1.5.
+- **Specs come in two bond-length families** and a page should show only one. §1.5.
+- **Coordinates in a `mol-*.js` file are real ångströms** unless the spec says
+  `units:'scene'`. Never paste display-scale numbers into an `angstrom` spec —
+  it is a silent 1.9×, which reads as a styling choice rather than a bug.
+  `tools/sdf2spec*.js` emit ångströms, so their output pastes in directly.
 - **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve the distance
   from the real frustum; a hand-picked `r:` is only right at the size it was tuned
   for. Pass `orbit:false` on a side-by-side page — orbiting puts one molecule

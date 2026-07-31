@@ -8,7 +8,7 @@
   const Lib = global.MolLib
     || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
   if (!Lib) throw new Error(SELFNAME + ': molecules.js must be loaded first');
-  const { MOLECULES, VIEW } = Lib;
+  const { MOLECULES, VIEW, register } = Lib;
   // Builder + bond-length tables from skel.js. This file cannot be loaded
   // without it; the page script table in CLAUDE.md is the enumeration that
   // keeps that true.
@@ -214,6 +214,10 @@
     CONTRAST.dAlanine={ name:'D-Alanine', formula:'C₃H₇NO₂', class:'aminoacid',
       // Reflection of `alanine` (determinant -1), computed at load time, so it
       // inherits alanine's provenance and cannot drift from it.
+      // Mirrors MOLECULES.alanine, which register() has already scaled — so
+      // these coordinates are scene units, not Angstroms. Scaling again would
+      // double it.
+      units:'scene',
       src:{path:'mirror', of:'alanine', axis:'z'},
       res:'D-Ala', side:'–CH₃',
       atoms:MOLECULES.alanine.atoms.map(a=>({ el:a.el, pos:mirror(a.pos) })),
@@ -265,27 +269,28 @@
       // again 2026-07-30), so the committed file documents the SOURCE without
       // making the spec re-derivable. Reproducing it means repeating the hand
       // reindex described above.
+      units:'angstrom',
       src:{path:'pubchem', cid:145742, record:'3d',
            conformer:'0002394E00000001', sdf:'proline.sdf',
            tool:'sdf2spec:reframe-only', reindex:'by-hand',
            regen:'manual', fetched:'2026-07-30'},
-      atoms:[ {el:'N',pos:[-2.239,0.902,-1.378]},
-              {el:'H',pos:[-1.931,2.599,-2.254]},
-              {el:'C',pos:[-2.905,-1.084,-3.195]},
+      atoms:[ {el:'N',pos:[-1.1784,0.4747,-0.7253]},
+              {el:'H',pos:[-1.0163,1.3679,-1.1863]},
+              {el:'C',pos:[-1.5289,-0.5705,-1.6816]},
               {el:'C',pos:[0,0,0]},
-              {el:'H',pos:[0.021,0.795,1.922]},
-              {el:'C',pos:[2.321,0.902,-1.378]},
-              {el:'O',pos:[2.308,2.187,-3.312]},
-              {el:'O',pos:[4.457,0.093,-0.188]},
-              {el:'H',pos:[6,0.662,-1.065]},
-              {el:'C',pos:[-0.195,-2.891,0]},
-              {el:'H',pos:[-0.526,-3.628,1.919]},
-              {el:'H',pos:[1.512,-3.818,-0.75]},
-              {el:'C',pos:[-2.466,-3.498,-1.691]},
-              {el:'H',pos:[-2.115,-5.141,-2.916]},
-              {el:'H',pos:[-4.128,-3.925,-0.507]},
-              {el:'H',pos:[-1.662,-1.013,-4.864]},
-              {el:'H',pos:[-4.875,-0.91,-3.832]} ],
+              {el:'H',pos:[0.0111,0.4184,1.0116]},
+              {el:'C',pos:[1.2216,0.4747,-0.7253]},
+              {el:'O',pos:[1.2147,1.1511,-1.7432]},
+              {el:'O',pos:[2.3458,0.0489,-0.0989]},
+              {el:'H',pos:[3.1579,0.3484,-0.5605]},
+              {el:'C',pos:[-0.1026,-1.5216,0]},
+              {el:'H',pos:[-0.2768,-1.9095,1.01]},
+              {el:'H',pos:[0.7958,-2.0095,-0.3947]},
+              {el:'C',pos:[-1.2979,-1.8411,-0.89]},
+              {el:'H',pos:[-1.1132,-2.7058,-1.5347]},
+              {el:'H',pos:[-2.1726,-2.0658,-0.2668]},
+              {el:'H',pos:[-0.8747,-0.5332,-2.56]},
+              {el:'H',pos:[-2.5658,-0.4789,-2.0168]} ],
       names:['N','H','CD','CA','HA','C','O','OXT','HXT','CB','HB1','HB2','CG','HG1','HG2','HD1','HD2'],
       smiles:'O=C(O)[C@@H]1CC[CH2:1][NH:1]1',
       bonds:[ [0,1],[0,2],[0,3],[2,15],[2,16],[3,4],[3,5],[3,9],
@@ -381,29 +386,30 @@
       // 'refresh' it from PubChem — you would silently swap the rotamer, and the
       // amide's edge-on presentation that the contrast lesson depends on is a
       // property of THIS conformer.
+      units:'angstrom',
       src:{path:'pubchem', cid:5961, record:'3d', conformer:null,
            sdf:'glutamine.sdf', tool:'sdf2spec', regen:'lost',
            fetched:'2026-07-30'},
-      atoms:[ {el:'N',pos:[-2.23,0.639,-1.531]},
-              {el:'H',pos:[-2.194,-0.33,-3.207]},
-              {el:'H',pos:[-2.188,2.519,-1.994]},
+      atoms:[ {el:'N',pos:[-1.1737,0.3363,-0.8058]},
+              {el:'H',pos:[-1.1547,-0.1737,-1.6879]},
+              {el:'H',pos:[-1.1516,1.3258,-1.0495]},
               {el:'C',pos:[0,0,0]},
-              {el:'H',pos:[-0.004,1.251,1.666]},
-              {el:'C',pos:[2.359,0.639,-1.531]},
-              {el:'O',pos:[2.378,1.393,-3.731]},
-              {el:'O',pos:[4.522,0.311,-0.159]},
-              {el:'H',pos:[6.043,0.737,-1.148]},
-              {el:'C',pos:[-0.073,-2.778,0.903]},
-              {el:'C',pos:[-0.248,-4.807,-1.18]},
-              {el:'H',pos:[1.615,-3.168,2.065]},
-              {el:'H',pos:[-1.704,-3.003,2.186]},
-              {el:'C',pos:[-0.529,-7.49,-0.183]},
-              {el:'H',pos:[-1.893,-4.446,-2.405]},
-              {el:'H',pos:[1.456,-4.738,-2.377]},
-              {el:'O',pos:[1.311,-8.796,0.413]},
-              {el:'N',pos:[-3.007,-8.314,-0.053]},
-              {el:'H',pos:[-4.491,-7.197,-0.57]},
-              {el:'H',pos:[-3.432,-10.085,0.576]} ],
+              {el:'H',pos:[-0.0021,0.6584,0.8768]},
+              {el:'C',pos:[1.2416,0.3363,-0.8058]},
+              {el:'O',pos:[1.2516,0.7332,-1.9637]},
+              {el:'O',pos:[2.38,0.1637,-0.0837]},
+              {el:'H',pos:[3.1805,0.3879,-0.6042]},
+              {el:'C',pos:[-0.0384,-1.4621,0.4753]},
+              {el:'C',pos:[-0.1305,-2.53,-0.6211]},
+              {el:'H',pos:[0.85,-1.6674,1.0868]},
+              {el:'H',pos:[-0.8968,-1.5805,1.1505]},
+              {el:'C',pos:[-0.2784,-3.9421,-0.0963]},
+              {el:'H',pos:[-0.9963,-2.34,-1.2658]},
+              {el:'H',pos:[0.7663,-2.4937,-1.2511]},
+              {el:'O',pos:[0.69,-4.6295,0.2174]},
+              {el:'N',pos:[-1.5826,-4.3758,-0.0279]},
+              {el:'H',pos:[-2.3637,-3.7879,-0.3]},
+              {el:'H',pos:[-1.8063,-5.3079,0.3032]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','CG','HB1','HB2','CD','HG1','HG2','OE1','NE2','HE21','HE22'],
       smiles:'N[C@@H](CCC(=O)[NH2:1])C(=O)O',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
@@ -425,28 +431,29 @@
       // conformers, not one spec edited into the other, which is why their
       // shared atoms do not share coordinates — and why losing the source hits
       // them separately. This spec is now its own source; see glutamine.
+      units:'angstrom',
       src:{path:'pubchem', cid:33032, record:'3d', conformer:null,
            sdf:'glutamate.sdf', tool:'sdf2spec', regen:'lost',
            fetched:'2026-07-30'},
-      atoms:[ {el:'N',pos:[-2.225,0.629,-1.537]},
-              {el:'H',pos:[-2.253,2.533,-1.895]},
-              {el:'H',pos:[-3.837,0.244,-0.536]},
+      atoms:[ {el:'N',pos:[-1.1711,0.3311,-0.8089]},
+              {el:'H',pos:[-1.1858,1.3332,-0.9974]},
+              {el:'H',pos:[-2.0195,0.1284,-0.2821]},
               {el:'C',pos:[0,0,0]},
-              {el:'H',pos:[-0.009,1.25,1.666]},
-              {el:'C',pos:[2.359,0.629,-1.537]},
-              {el:'O',pos:[2.374,1.373,-3.742]},
-              {el:'O',pos:[4.523,0.268,-0.176]},
-              {el:'H',pos:[6.046,0.671,-1.172]},
-              {el:'C',pos:[-0.025,-2.783,0.891]},
-              {el:'C',pos:[0.241,-4.799,-1.19]},
-              {el:'H',pos:[-1.779,-3.141,1.964]},
-              {el:'H',pos:[1.526,-3.049,2.262]},
-              {el:'C',pos:[0.388,-7.482,-0.194]},
-              {el:'H',pos:[-1.387,-4.694,-2.481]},
-              {el:'H',pos:[1.98,-4.458,-2.282]},
-              {el:'O',pos:[-1.908,-8.655,-0.15]},
-              {el:'O',pos:[2.356,-8.496,0.521]},
-              {el:'H',pos:[-1.788,-10.393,0.512]} ],
+              {el:'H',pos:[-0.0047,0.6579,0.8768]},
+              {el:'C',pos:[1.2416,0.3311,-0.8089]},
+              {el:'O',pos:[1.2495,0.7226,-1.9695]},
+              {el:'O',pos:[2.3805,0.1411,-0.0926]},
+              {el:'H',pos:[3.1821,0.3532,-0.6168]},
+              {el:'C',pos:[-0.0132,-1.4647,0.4689]},
+              {el:'C',pos:[0.1268,-2.5258,-0.6263]},
+              {el:'H',pos:[-0.9363,-1.6532,1.0337]},
+              {el:'H',pos:[0.8032,-1.6047,1.1905]},
+              {el:'C',pos:[0.2042,-3.9379,-0.1021]},
+              {el:'H',pos:[-0.73,-2.4705,-1.3058]},
+              {el:'H',pos:[1.0421,-2.3463,-1.2011]},
+              {el:'O',pos:[-1.0042,-4.5553,-0.0789]},
+              {el:'O',pos:[1.24,-4.4716,0.2742]},
+              {el:'H',pos:[-0.9411,-5.47,0.2695]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','CG','HB1','HB2','CD','HG1','HG2','OE2','OE1','HE2'],
       smiles:'N[C@@H](CCC(=O)[OH:1])C(=O)O',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],
@@ -487,23 +494,24 @@
     // eight carbons, so the head sits in exactly the same place relative to
     // C0 in both molecules.
     const chain=[
-      [0,0], [2.389,1.689], [4.779,0], [7.168,1.689], [9.558,0],
-      [11.947,1.689], [14.337,0], [16.726,1.689], [19.116,0],
-      [21.411,1.058], [21.679,3.972], [24.515,4.692], [24.782,7.606],
-      [27.618,8.326], [27.886,11.24], [30.722,11.96],
+      [0,0], [1.2574,0.8889], [2.5153,0], [3.7726,0.8889], [5.0305,0],
+      [6.2879,0.8889], [7.5458,0], [8.8032,0.8889], [10.0611,0],
+      [11.2689,0.5568], [11.41,2.0905], [12.9026,2.4695], [13.0432,4.0032],
+      [14.5358,4.3821], [14.6768,5.9158], [16.1695,6.2947],
     ];
     CONTRAST.palmitoleate={ name:'Palmitoleic acid', formula:'C₁₆H₃₀O₂', class:'lipid',
       // Built exactly as palmitate was, and for the same reason — the pair must
       // sit in one visual language so the single cis C=C is the only difference.
       // The cis torsion was worked out against the dihedral formula and verified
       // before being written as literals; `cis:` asserts it at check time.
+      units:'angstrom',
       src:{path:'built', method:'all-anti zigzag, united-atom, one cis C=C at Δ9',
            charge:0, like:'palmitate'},
       atoms:[
         ...chain.map(p=>({ el:'C', pos:[p[0],p[1],0] })),
-        { el:'O', pos:[-2.123,0.978,0] },
-        { el:'O', pos:[0.236,-2.573,0] },
-        { el:'H', pos:[2.034,-2.98,0] },
+        { el:'O', pos:[-1.1174,0.5147,0] },
+        { el:'O', pos:[0.1242,-1.3542,0] },
+        { el:'H', pos:[1.0705,-1.5684,0] },
       ],
       names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
       smiles:'CCCCC[CH2:1]/[CH:1]=[CH:1]\\[CH2:1]CCCCCCC(=O)O',
@@ -690,5 +698,5 @@
            + 'ribbons stack into fibres no human enzyme can open. Wood is glucose '
            + 'we cannot reach.' } });
   }
-  Object.assign(MOLECULES, CONTRAST);
+  register(CONTRAST);
 })(this);

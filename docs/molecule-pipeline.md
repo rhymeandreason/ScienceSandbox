@@ -203,7 +203,7 @@ places in this doc cite it.
 | 4 · one entry point | **skip** | solves human labour that an agent does not spend |
 | 5 · close the mirror gap | **DONE** | found every sugar was the L-enantiomer; fixed |
 | 6 · measured structures | **unchanged — record and move on** | the doc already argues itself out of this |
-| 7 · collapse scale families | **unchanged — last, or never** | can break working physics |
+| 7 · un-bake the display scale | **DONE for family B** | specs store real Å; family A still last-or-never |
 | 8 · make the checkers unskippable | **DONE** | pre-commit hook, 3 offline checkers, 4 negative tests |
 
 Within that, items 1–6 remain additive and safe; item 7 can break working physics.
@@ -662,7 +662,65 @@ the crystal is the other anomer. Read it before trusting a new COD id.
 stale, a network call inside a guard is a liability, and choosing the reference
 needs judgement a script cannot supply.
 
-### 7. Collapse the two scale families — last, or never
+### 7. Un-bake the display scale — DONE for family B
+
+**Shipped, and it turned out to be two separable jobs rather than one.** The
+item was written as "collapse the two scale families", and its cost was that
+`water-lab` and `molecule-lab` tune a whole solvation engine around
+`HL=1.55`. That cost is real and unchanged — but it only applies to family A,
+and item 3 put family A in its own file. The tractable half and the risky half
+are no longer the same change.
+
+**What shipped.** Family-B specs now STORE REAL ÅNGSTRÖMS. A spec declares
+`units:'angstrom'` and `MolLib.register()` multiplies by `SCALE` once, as it
+joins the registry. `units:'scene'` means the numbers are already display units
+and are left alone. `check-molecules.js` requires the field.
+
+| | before | after |
+|---|---|---|
+| `skel` (16) | `GL.CC = 1.54*SCALE` | `GL.CC = 1.54`; `skel.js` has **no dependencies at all** |
+| `pubchem` (8), `built` (2) | literals pre-multiplied by 1.9 | literals are ångströms |
+| `mirror` (1) | — | `units:'scene'`: derived from an already-registered spec |
+| `hand` (10) | — | `units:'scene'`, untouched |
+
+The display scale is now **one number in one place**, and 26 specs move
+together when it changes. It used to be a constant multiplied into eleven sets
+of literals plus two tables.
+
+**Applied at registration, not at render** — deliberately. `Stage.buildMolecule`
+is not the only reader: `glycolysis-lab`, `contrast-lab`, `_compare` and
+`haworth.js` all index `spec.atoms[i].pos` directly and compare it against
+`PALETTE.radii`, which are scene units. Scaling at render would have left every
+one of those comparing ångströms to scene units. Registration is the one seam
+every consumer is downstream of.
+
+**Verification.** The mechanical conversion moved runtime geometry by 1.5e-9
+scene units (float round-trip only). Then the five specs that regenerate
+exactly were **reseated from their converters' full-precision output** rather
+than kept as divided-down values, which moves geometry by up to 0.001 Å — the
+resolution limit of the source data, ~0.07% of a bond, far under the 0.03
+merged-sphere threshold. That was worth doing: `regen:'exact'` is now literally
+true, verified at 0.00e+0 against the committed `.sdf`. The Haworth 2D output
+is byte-identical, and all four checkers pass.
+
+**The converters were part of the change.** `sdf2spec.js` and
+`sdf2spec-generic.js` no longer multiply by 1.9 — they emit ångströms, so their
+output pastes straight into a spec. Left unfixed, they would have silently
+produced 1.9× specs for the ~15 `pubchem` molecules the AP Bio expansion adds.
+
+**Family A is still not converted, and "not yet" is the wrong way to read it.**
+Family A is not ångströms awaiting a multiply: its lengths were each picked
+individually to clear their own display radii, varying *within* a molecule
+(ethanol: C–C 1.19×, C–O 1.33×, O–H 1.61×). There is no factor that turns it
+into real geometry. Converting it means *changing the geometry* and re-tuning
+`EQ`, `MIN`, `hbThreshold` and the ice lattice — which also remains the only
+way to fix the `aminoacid-lab` water noted in item 3. Still last, or never.
+
+---
+
+The original framing of this item:
+
+### 7b. Collapse the two scale families — last, or never
 
 Store true ångströms and apply the display scale at render time. That would
 retire the "a single page may only show molecules from ONE family" invariant,

@@ -8,13 +8,13 @@
   const Lib = global.MolLib
     || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
   if (!Lib) throw new Error(SELFNAME + ': molecules.js must be loaded first');
-  const { MOLECULES, VIEW } = Lib;
+  const { MOLECULES, VIEW, register } = Lib;
 
   // FAMILY A. Every bond length here was chosen individually to clear its two
   // display radii, and water-lab/molecule-lab hard-code HL=1.55 and tune their
   // whole solvation engine around it. A page may not mix these with family B —
   // see the scale-families note in molecules.js. Needs no builder.
-  Object.assign(MOLECULES, {
+  register({
     water: {
       name:'Water', formula:'H₂O', class:'solvent',
       atoms:[ {el:'O',pos:[0,0,0]}, {el:'H',pos:[1.226,-0.948,0]}, {el:'H',pos:[-1.226,-0.948,0]} ],
@@ -23,6 +23,7 @@
       // The O–H of 1.55 against radii summing to 1.50 is the constant the whole
       // solvation engine is tuned around (HL in water-lab/molecule-lab), which
       // is why family A cannot be rescaled — see the header and item 7.
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:'hand'},
     },
     nacl: {
@@ -30,11 +31,13 @@
       dissociates:[ {ion:'Na', charge:+1, radius:0.70}, {ion:'Cl', charge:-1, radius:1.24} ],
       // No coordinates at all — an ionic solute is only ever drawn as the two
       // dissociated ions. `path:'hand'` covers the chosen radii and charges.
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:'hand'},
     },
     kcl: {
       name:'Potassium chloride', formula:'KCl', class:'ionic',
       dissociates:[ {ion:'K', charge:+1, radius:0.85}, {ion:'Cl', charge:-1, radius:1.24} ],
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:'hand'},
     },
     ethanol: {
@@ -58,6 +61,7 @@
       bonds:[ [0,1],[1,2],[2,3],[0,4],[0,5],[0,6],[1,7],[1,8] ],
       sites:{ donors:[{atom:3}], acceptors:[{atom:2, lonePairs:2}] },
       hydrophobic:[0,1,4,5,6,7,8],
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
     ammonia: {
@@ -69,6 +73,7 @@
               {el:'H',pos:[-0.695,-0.562,-1.204]} ],
       bonds:[ [0,1],[0,2],[0,3] ],
       sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[{atom:0, lonePairs:1}] },
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
     methane: {
@@ -80,6 +85,7 @@
       bonds:[ [0,1],[0,2],[0,3],[0,4] ],
       sites:{ donors:[], acceptors:[] },
       hydrophobic:[0,1,2,3,4],
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
     co2: {
@@ -98,6 +104,7 @@
       // reaction chain driven by molecule-lab's updateReactions():
       //   CO₂ + H₂O → H₂CO₃ → HCO₃⁻ + H⁺(as H₃O⁺)
       reactsTo:'carbonic',
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
 
@@ -122,6 +129,7 @@
       sites:{ donors:[{atom:4},{atom:5}],
               acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
       ionizesTo:'bicarbonate',   // loses ONE H (pKa1 = 3.6 — it is a genuine acid)
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
     bicarbonate: {
@@ -138,6 +146,7 @@
       bonds:[ [0,1,2],[0,2],[0,3],[3,4] ],
       sites:{ donors:[{atom:4}],
               acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
     hydronium: {
@@ -151,6 +160,7 @@
               {el:'H',pos:[-0.719,-0.581,-1.244]} ],
       bonds:[ [0,1],[0,2],[0,3] ],
       sites:{ donors:[{atom:1},{atom:2},{atom:3}], acceptors:[] },
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
   });

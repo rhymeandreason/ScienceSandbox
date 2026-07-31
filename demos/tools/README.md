@@ -29,10 +29,12 @@ What it does, and why each step exists:
   (`0 N · 1 H · 2 H · 3 Ca · 4 H · 5 C · 6 O(=O) · 7 O(–OH) · 8 H · 9.. R`),
   because `pep:{cC,oOH,hOH,nN,hN}` and `aminoacid-lab.html` index into it.
   A converter that reshuffled indices would silently break the peptide reaction.
-- **reframe** — recentre on Ca, backbone N→C to +X, side chain to −Y, then apply
-  ONE global `SCALE` (1.9). Display radii in this project are enlarged for
-  legibility, so true Ångström coordinates bury every stick inside its spheres —
-  a uniform scale clears them while keeping relative bond lengths truthful.
+- **reframe** — recentre on Ca, backbone N→C to +X, side chain to −Y. Output is
+  **real ångströms**: since molecule-pipeline.md item 7 the specs store ångströms
+  and `MolLib.register()` applies the display scale (1.9) once, as the spec is
+  registered. This converter used to multiply it in here, which meant the real
+  number and the display number were the same field and neither was stated.
+  Paste the output straight into a `units:'angstrom'` spec.
 - **optH** — flags nonpolar C–H for the lab's "show C–H hydrogens" toggle.
   H on N/O/S is never flagged: those are the H-bond donors.
 
@@ -66,7 +68,7 @@ Differences from `sdf2spec.js`:
   pyranose lands face-on and the axial/equatorial pattern `check-molecules.js`
   audits is the thing you actually see. Otherwise the longest heavy-atom axis
   becomes +X.
-- same global `SCALE` (1.9), same `optH` policy, same right-handed basis rule —
+- same real-ångström output, same `optH` policy, same right-handed basis rule —
   negating one output component is a reflection and silently mirrors the
   molecule (see the comment in `sdf2spec.js`).
 
