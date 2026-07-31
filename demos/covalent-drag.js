@@ -839,9 +839,22 @@
       ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
     }
     /* The core is grabbable too, and returns a sentinel rather than a ligand:
-     * moving it is a different operation (see moveCore) even though it starts
+     * moving it is a different operation (see moveFrame) even though it starts
      * from the same pointerdown. */
     const CORE={};
+    /* A covalent bond does not come apart because you pulled on it. Once a ligand
+     * is in a slot, dragging it moves the WHOLE MOLECULE — the same operation as
+     * dragging the core — instead of stretching until it snaps. That is the
+     * lesson the salt tabs are the control for: there, the two ions can be pulled
+     * apart, because what holds them is attraction between charges rather than a
+     * shared pair. Making the covalent bond literally unbreakable by hand is a
+     * stronger statement of "stronger" than any wording in a toast.
+     *
+     * The one bond that still lets go is ammonia's DATIVE bond, and it is not an
+     * exception to the rule so much as different chemistry: NH4+ ⇌ NH3 + H+ is a
+     * genuinely reversible acid-base equilibrium, and dragging the proton back
+     * off is the second half of that tab's lesson. See unbond()/deprotonate(). */
+    function framed(h){ return h===CORE || (h && h.slot!=null && !h.isProton); }
     function pick(e){
       toNdc(e); ray.setFromCamera(ndc, camera);
       const targets=ligands.map(h=>h.sphere);
@@ -852,8 +865,9 @@
       return ligands.find(h=>h.sphere===hits[0].object)||null;
     }
 
-    /* Dragging the core moves the molecule's whole FRAME — the group — rather
-     * than the core inside it. Every piece of bonded geometry (slot positions,
+    /* Dragging anything framed() moves the molecule's whole FRAME — the group —
+     * rather than that atom inside it. Every piece of bonded geometry (slot
+     * positions,
      * ghost markers, sticks, shared pairs, lone pairs) is expressed relative to
      * a core sitting at the group's origin, and rewriting all of that to carry an
      * offset would be a large change with a lot of places to get subtly wrong.
@@ -862,10 +876,17 @@
      * The catch, and the reason for the second half: a LOOSE ligand is not part
      * of the molecule and must not be towed along by it. So each unbonded atom is
      * pushed back by the same delta in group space, which pins it where it was in
-     * the world while the frame slides out from under it. */
-    function moveCore(worldTarget){
+     * the world while the frame slides out from under it.
+     *
+     * `anchor` is the grabbed atom's group: the frame shifts by however far THAT
+     * has to travel to reach the pointer, which is what makes dragging a bonded
+     * hydrogen feel like towing the molecule by it rather than like moving the
+     * core from a distance. */
+    function moveFrame(worldTarget, anchor){
+      const at=anchor.getWorldPosition(new THREE.Vector3());
       const before=group.position.clone();
-      group.position.copy(group.parent.worldToLocal(worldTarget.clone()));
+      group.position.copy(group.parent.worldToLocal(
+        group.getWorldPosition(new THREE.Vector3()).add(worldTarget.clone().sub(at))));
       const delta=group.position.clone().sub(before);
       ligands.forEach(h=>{
         if(h.slot==null && h!==held) h.group.position.sub(delta);
@@ -902,8 +923,12 @@
         return;
       }
       const p=pointerOnPlane(e); if(!p) return;
-      if(held===CORE){ moveCore(p.add(grabOffset)); return; }
+      if(framed(held)){
+        moveFrame(p.add(grabOffset), held===CORE?core.group:held.group);
+        return;
+      }
       const want=group.worldToLocal(p.add(grabOffset));   // atoms live in group space
+      // only the dative proton can still be pulled off — see framed()
       if(held.slot!=null && want.distanceTo(slotPos(held.slot))>S.BREAK) unbond(held);
       held.group.position.copy(want);
     }
