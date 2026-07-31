@@ -318,11 +318,6 @@ share a name. What is *not* duplicated is anything scale-free — `nacl` and
 `kcl` carry no coordinates at all, only dissociation records, so they belong to
 no family and are reusable as they are.
 
-It also retired the known exception this section used to record:
-`aminoacid-lab.html` draws a real water for every dehydration and was getting
-the family-A one, ~15% short among its residues. It loads `mol-small.js` now.
-The solvation engine was never touched.
-
 Family A cannot be normalised, and should not be. `water-lab.html` and
 `molecule-lab.html` hard-code `HL=1.55` and tune the whole solvation engine
 around that scale — `EQ`, `MIN`, `hbThreshold`, the ice lattice `iceBond`.
@@ -331,18 +326,6 @@ docs/molecule-pipeline.md, the one item that can break something working).
 
 **The rule: one page, one family.** Only family B is comparable
 molecule-to-molecule, so only family B may make a size claim.
-
-**This was written as an invariant — "every page satisfies this" — and it was
-not true.** `aminoacid-lab.html` builds `MOLECULES.water` for every dehydration
-it shows, so a family-A water (O–H 1.55) appeared among family-B residues that
-would draw it at 1.84: **about 15% short**. The claim survived because the
-dependency was invisible while every page loaded every spec; splitting the
-library made `aminoacid-lab.html` name its solvation file out loud, and the
-exception fell out immediately.
-
-**Fixed** — see `mol-small.js` below. Not by re-tuning the solvation engine,
-which was the expensive option this section assumed, but by giving family-B
-pages a to-scale water to load instead.
 
 Learned the expensive way, and it is the §1.4 failure shape exactly. `Skel`'s
 table (`GL`) was family A while the amino acids were family B; every page drew
