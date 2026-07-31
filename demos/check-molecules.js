@@ -62,9 +62,10 @@
  * ===================================================================== */
 'use strict';
 
-// molecules.js is a browser script ending in `})(this)`; under CommonJS
-// `this` is module.exports, so MolLib lands there.
-const { PALETTE, MOLECULES } = require('./molecules.js').MolLib;
+// lib-node.js walks MolLib.DOMAINS and loads every domain file, so this sees
+// the whole library even though no single PAGE does. (The `})(this)` at the
+// foot of each module is what puts MolLib on module.exports under CommonJS.)
+const { PALETTE, MOLECULES } = require('./lib-node.js');
 
 const TIGHT = 0.03;   // a positive but very small gap: renders, but barely
 

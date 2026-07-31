@@ -21,7 +21,7 @@
  *
  *   npm i @rdkit/rdkit && node tools/spec2smiles.js
  */
-const { MOLECULES } = require('../molecules.js').MolLib;
+const { MOLECULES } = require('../lib-node.js');
 
 const pad = (s, w) => String(s).padStart(w);
 

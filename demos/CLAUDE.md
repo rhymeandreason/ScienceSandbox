@@ -33,7 +33,10 @@ order matters — each script assumes the ones above it:
 <link rel="stylesheet" href="sandbox.css">   <!-- after fonts/icons, before page <style> -->
 ...
 <script src=".../three.min.js"></script>
-<script src="molecules.js"></script>   <!-- always — PALETTE (colours/radii) + MOLECULES (specs) -->
+<script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
+<script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
+<script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
+<script src="mol-monomers.js"></script>    <!-- ...see the per-page table below -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
 <script src="fx.js"></script>          <!-- if the page fires any effect -->
 <script src="atomkit.js"></script>     <!-- bonding builder only -->
@@ -42,17 +45,41 @@ order matters — each script assumes the ones above it:
 <script> /* page-specific code */ </script>
 ```
 
+**A page loads only the molecules it shows.** `molecules.js` holds no specs at
+all — it is the registry (`PALETTE`, `SCALE`, `VIEW`, `DOMAINS`) — and the
+`mol-*.js` domain files assign into it. So the script tags are what decide which
+molecules exist on a page, and getting them wrong is a `MOLECULES.x is
+undefined`, not a silent wrong render.
+
+Load order is **`molecules.js` → `skel.js` → `mol-*.js`**: the builder reads
+`SCALE` back off `MolLib`, and `mol-contrast.js` mirrors alanine out of
+`mol-monomers.js`. Only pages showing a Skel-built molecule (sugars, glycolysis)
+need `skel.js` at all.
+
 <!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
 | Page | Loads |
 |---|---|
-| `water-lab`, `molecule-lab`, `aminoacid-lab`, `glycolysis-lab`, `macromolecule-lab` | molecules, scene, fx |
-| `molecule-builder` | + atomkit, covalent-drag, ionic-drag |
-| `contrast-lab` | molecules, scene, haworth |
+| `water-lab`, `molecule-lab` | molecules, mol-solvation, scene, fx |
+| `molecule-builder` | molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
+| `aminoacid-lab` | molecules, mol-monomers, mol-solvation, scene, fx |
+| `glycolysis-lab` | molecules, skel, mol-glycolysis, scene, fx |
+| `macromolecule-lab` | molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
+| `contrast-lab` | molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
+
+Rows are explicit — no row inherits from the one above it any more, because the
+sets stopped being nested once pages began loading different domains.
+
+`aminoacid-lab` loading `mol-solvation` is not a mistake: dehydration synthesis
+releases a real water molecule, which it builds. See the family-A/B caveat in
+`molecules.js` — that page genuinely shows both families.
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
 |---|---|---|
-| `molecules.js` | `MolLib.PALETTE` (colours/radii), `MolLib.MOLECULES` (specs), `Skel`, `VIEW` | `SCIENCE.md` §1 |
+| `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `atomIndex`/`resolveAtoms` | `SCIENCE.md` §1 |
+| `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables + ring/chain scaffolds. The builder, not data | §1.2 |
+| `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each `Object.assign`s its specs into `MolLib.MOLECULES` | §1.2, §1.5 |
+| `lib-node.js` | the whole library for Node checkers, by walking `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §10 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
@@ -90,10 +117,16 @@ what belongs in a shared module: `SCIENCE.md` §10.**
 ## Adding a new page
 
 1. Copy the head (fonts/icons + `sandbox.css` + the scripts you need — see the
-   table above) and the `#app` layout skeleton from `contrast-lab.html` (the
-   smallest page: two scripts, no FX, no simulation loop).
-2. Add any new molecules to `molecules.js` — prefer generating the geometry with
-   `tools/sdf2spec.js` over typing coordinates, then run `check-molecules.js`.
+   table above) and the `#app` layout skeleton from `aminoacid-lab.html`, or
+   `contrast-lab.html` if you want the no-FX, no-simulation-loop shape.
+   **Load only the `mol-*.js` domains your page shows**, and put them after
+   `molecules.js` (and after `skel.js` if any of them needs the builder).
+2. Add any new molecules to the right `mol-*.js` domain file — never to
+   `molecules.js`, which holds no specs. A molecule in the wrong domain is a
+   molecule some page pays for and never draws. Prefer generating geometry with
+   `tools/sdf2spec.js` (its inputs are committed in `tools/sdf/`) over typing
+   coordinates, give it a `src:` (`check-molecules.js` requires one), then run
+   the checkers. A new domain file also goes in `MolLib.DOMAINS`.
 3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
    then `const FXi=FX.create(THREE,root,camera);` — skip FX entirely if the page
    fires no effects at all (`contrast-lab.html` does; `macromolecule-lab.html`
@@ -179,7 +212,7 @@ Nothing runs automatically: there is no CI and no git hook, so both checkers are
 hand-run. The two together:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js
 ```
 
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
@@ -198,7 +231,13 @@ Most of those are now mechanically checked:
 node tools/check-docs.js
 ```
 
-It audits the per-page script table against the real `<script>` tags, every
+`tools/check-pages.js` is its companion: it runs each page's scripts in a fresh
+context and fails if the page names a molecule its `mol-*.js` set does not
+provide. `check-docs.js` proves the table matches the tags; `check-pages.js`
+proves the tags are *enough*. Neither existed as one check because they fail
+for different reasons.
+
+check-docs.js audits the per-page script table against the real `<script>` tags, every
 file named in a doc against the filesystem, and every `§n` reference against
 `SCIENCE.md`'s actual headings (including that no section is missing from
 CLAUDE.md's index). A file a doc names *on purpose* that doesn't exist —
@@ -219,6 +258,8 @@ so you do not have to remember; the unmarked rows are the ones that need you.
 | Enumeration | Goes stale when you… | |
 |---|---|---|
 | `CLAUDE.md` → per-page script table | change any page's `<script>` tags | ✓ |
+| a page's `mol-*.js` set vs the molecules it names | use a new molecule on a page | ✓ |
+| `MolLib.DOMAINS` manifest | add a `mol-*.js` domain file | ✓ (paths) |
 | `CLAUDE.md` → `SCIENCE.md` section index | add a `## n.` section to `SCIENCE.md` | ✓ |
 | any doc's file references | rename or delete a file | ✓ |
 | `CLAUDE.md` → Pages table | add or repurpose a `*-lab.html` | |

@@ -52,11 +52,12 @@ harmless.
    skeletons, conformational freedom, or more than a handful of coordinates to
    type. The amino acids. The cost is real: generated specs are unreadable numbers
    carrying a "regenerate, don't hand-edit" warning, so only pay it when hand
-   placement would actually drift. It is also the **only** path that cannot be
-   re-run from this repo alone — no `.sdf` is committed yet — so it is the one
-   that has to record how the record was asked for, and for anything with a
-   rotatable side chain a CID alone is not enough (item 0).
-3. **Generated from VSEPR** (`src.path:'skel'`; `Skel` in `molecules.js`) — the glycolysis
+   placement would actually drift. Its inputs are committed in `tools/sdf/`, so
+   it can be re-run offline — but re-running is not the same as reproducing:
+   `proline` needs a hand reindex and two specs no longer have a published
+   source at all. `src.regen` records which. Ask for a record by **CID**, never
+   by name: a name pins neither a stereocentre nor a charge state.
+3. **Generated from VSEPR** (`src.path:'skel'`; `Skel` in `skel.js`) — the glycolysis
    intermediates. First-principles derivation rather than a database, so it also
    covers the charged species PubChem has no 3D conformer for (bicarbonate,
    pyruvate, HPO₄²⁻), and it produces the deliberate flat Fischer-projection
@@ -232,17 +233,34 @@ trap. There are two families:
 <!-- ENUM: update when a spec is added, or SCALE / the GL constants change. -->
 | Family | Specs | Rule | Implied scale |
 |---|---|---|---|
-| **A. hand-written** | water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
-| **B. derived** | amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec (incl. the two disaccharides) | real Å × one global `SCALE` | **1.9×**, relative lengths truthful |
+| **A. hand-written** | everything in `mol-solvation.js` — water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium, and the two salts | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
+| **B. derived** | everything in `mol-monomers.js`, `mol-glycolysis.js` and `mol-contrast.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec (incl. the two disaccharides) | real Å × one global `SCALE` | **1.9×**, relative lengths truthful |
+
+Since item 3 the families line up with the domain files, so **a page's script
+tags now show which families it is mixing**. That is the only mechanical signal
+there is — nothing fails a build.
 
 Family A cannot be normalised, and should not be. `water-lab.html` and
 `molecule-lab.html` hard-code `HL=1.55` and tune the whole solvation engine
 around that scale — `EQ`, `MIN`, `hbThreshold`, the ice lattice `iceBond`.
-Rescaling water means re-tuning that physics for no visible gain, because
-nothing ever shows water beside an amino acid.
+Rescaling water means re-tuning that physics (item 7 in
+docs/molecule-pipeline.md, the one item that can break something working).
 
-**The invariant: one page, one family.** Only family B is comparable
+**The rule: one page, one family.** Only family B is comparable
 molecule-to-molecule, so only family B may make a size claim.
+
+**This was written as an invariant — "every page satisfies this" — and it was
+not true.** `aminoacid-lab.html` builds `MOLECULES.water` for every dehydration
+it shows, so a family-A water (O–H 1.55) appears among family-B residues that
+would draw it at 1.84: **about 16% short**. The claim survived because the
+dependency was invisible while every page loaded every spec; splitting the
+library made `aminoacid-lab.html` name `mol-solvation.js` out loud, and the
+exception fell out immediately.
+
+Left as-is on purpose. The released water is a small transient nobody is asked
+to measure, and the alternative is re-tuning the solvation engine. What changed
+is that it is now written down where the next person will look, rather than
+asserted away.
 
 Learned the expensive way, and it is the §1.4 failure shape exactly. `Skel`'s
 table (`GL`) was family A while the amino acids were family B; every page drew

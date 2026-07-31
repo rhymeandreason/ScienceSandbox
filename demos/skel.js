@@ -1,0 +1,346 @@
+/* =====================================================================
+ *  skel.js — the molecule BUILDER: idealised geometry from VSEPR angles.
+ *  Loaded as a classic script BEFORE molecules.js, which cannot build its
+ *  Skel-derived specs without it.
+ *
+ *  This is a library, not data. It knows about tetrahedral centres, ring
+ *  normals and bond-length tables; it knows nothing about glucose. Everything
+ *  here is reusable across molecules, and that is the test for what belongs:
+ *  a fact about ONE molecule goes in that molecule's spec, next to the comment
+ *  explaining it.
+ *
+ *  It lived inside molecules.js until docs/molecule-pipeline.md item 3 pulled
+ *  it out. The split is not about line count — it is that the builder is CODE
+ *  and the specs are DATA PLUS REASONING, and the two have different rules for
+ *  changing. Editing a bond length here silently moves every Skel-built
+ *  molecule in the library; editing a spec moves one. Anything that consumes
+ *  this is `src:{path:'skel'}` (Skel.prototype.spec stamps it).
+ *
+ *  SCALE lives here rather than in molecules.js because it is the builder's
+ *  constant: GL and AR are both defined in terms of it. molecules.js re-exports
+ *  it on MolLib so Stage.measure can divide it back out and report real
+ *  ångströms.
+ * ===================================================================== */
+(function(global){
+  'use strict';
+
+  // Bond lengths: REAL ångströms × SCALE — the derived scale family (see the
+  // "Bond-length scale families" note at the top of this file).
+  //
+  // These used to be picked one at a time to just clear the display radii
+  // (C+C 1.70 · C+O 1.80 · O+H 1.50 · O+P 1.95 · C+H 1.40), which is the
+  // hand-written family's rule. It kept every stick visible and was internally
+  // fine — this page only ever shows its own specs — but it made C–C and C–O
+  // the SAME length when C–O is really the shorter of the two, used one number
+  // for both C–O and C=O, and put the whole page at ~0.7× the derived specs.
+  // That last one only surfaced when macromolecule-lab.html put this glucose
+  // next to alanine and AMP under the words "true relative size".
+  //
+  // Every value below still clears its radii sum by a wide margin (the tightest
+  // is O–H at 1.84 against 1.50); check-molecules.js asserts that.
+  // SCALE is the LIBRARY's constant, defined in molecules.js, because the
+  // PubChem converters apply the same factor to specs this builder never
+  // touches. Read back here so GL and AR have exactly one source.
+  const Lib = global.MolLib
+    || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
+  if (!Lib) throw new Error('skel.js: molecules.js must be loaded before it');
+  const SCALE = Lib.SCALE;
+  const GL = {
+    CC: 1.54*SCALE,   // 2.93  C–C single
+    CO: 1.43*SCALE,   // 2.72  C–O single (hydroxyl, phosphate ester bridge)
+    CdO:1.23*SCALE,   // 2.34  C=O — and the carboxylate C–O⁻, which is nearly it
+    CdC:1.33*SCALE,   // 2.53  C=C — a fatty acid's one unsaturation
+    OH: 0.97*SCALE,   // 1.84  O–H
+    CH: 1.09*SCALE,   // 2.07  C–H
+    OP: 1.60*SCALE,   // 3.04  P–O ester (the bridging oxygen)
+    PO: 1.50*SCALE,   // 2.85  P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
+  };
+  const TET = 109.5, SP2 = 120;
+
+  const V  = (x,y,z)=>({x,y,z});
+  const vadd=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
+  const vsub=(a,b)=>V(a.x-b.x,a.y-b.y,a.z-b.z);
+  const vmul=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+  const vlen=a=>Math.hypot(a.x,a.y,a.z);
+  const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+  const vcross=(a,b)=>V(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
+  const rad=d=>d*Math.PI/180;
+
+  // ---- Skel: an atoms+bonds accumulator that knows VSEPR ----------------
+  // The point of it: you never state a substituent's position, you state which
+  // atom it hangs off and how it's hybridised. Directions come out of the
+  // geometry already committed, so angles are correct by construction and
+  // successive calls on the same atom automatically take the next free slot.
+  function Skel(){ this.atoms=[]; this.bonds=[]; }
+  Skel.prototype.put=function(el,p){ this.atoms.push({el,pos:[p.x,p.y,p.z]}); return this.atoms.length-1; };
+  Skel.prototype.at =function(i){ const p=this.atoms[i].pos; return V(p[0],p[1],p[2]); };
+  Skel.prototype.link=function(i,j,order){ this.bonds.push(order?[i,j,order]:[i,j]); return this; };
+  Skel.prototype.nbrs=function(i){ const A=this.at(i);
+    return this.bonds.filter(b=>b[0]===i||b[1]===i)
+      .map(b=>vnorm(vsub(this.at(b[0]===i?b[1]:b[0]),A))); };
+  // Set the order of an already-linked pair. Aromatic rings are laid out as a
+  // polygon first and given their Kekulé orders after, so the geometry code
+  // never has to care which bonds are double.
+  Skel.prototype.order=function(i,j,o){
+    const b=this.bonds.find(b=>(b[0]===i&&b[1]===j)||(b[0]===j&&b[1]===i));
+    if(!b) throw new Error(`order(): no bond ${i}-${j}`);
+    b[2]=o; return this;
+  };
+
+  // any unit vector perpendicular to `a` (picks a seed axis that isn't parallel)
+  function perpTo(a){
+    let t=vcross(a,V(0,0,1));
+    if(vlen(t)<0.25) t=vcross(a,V(1,0,0));
+    return vnorm(t);
+  }
+  Skel.prototype.centroid=function(){
+    return vmul(this.atoms.reduce((s,a)=>vadd(s,V(a.pos[0],a.pos[1],a.pos[2])),V(0,0,0)),
+      1/(this.atoms.length||1));
+  };
+  // When an atom has only ONE bond so far, the correct bond ANGLE still leaves a
+  // free rotation about that bond — and picking that azimuth arbitrarily is how a
+  // phosphate ends up folded back through the carbon chain it hangs off (the first
+  // version of this file did exactly that; check-molecules.js caught it as a
+  // 1.5-unit C..O overlap). So: seed the cone so slot 0 points as far as possible
+  // AWAY from the centroid of everything already placed. Backbones are always
+  // built before their substituents, so "away from the centroid" means "out into
+  // open space", and groups splay outward instead of collapsing inward.
+  Skel.prototype.outwardAt=function(i,a){
+    const away=vsub(this.at(i), this.centroid());
+    const t=vsub(away, vmul(a, away.x*a.x+away.y*a.y+away.z*a.z));   // ⊥ component
+    return vlen(t)<0.05 ? perpTo(a) : vnorm(t);
+  };
+  // remaining sp3 bond directions at atom i, each `TET` from every existing bond
+  Skel.prototype.freeTet=function(i){
+    const nb=this.nbrs(i);
+    if(nb.length===0) return [V(0,1,0),V(0,-1,0)];
+    if(nb.length===1){
+      const a=nb[0], t=this.outwardAt(i,a), u=vnorm(vcross(a,t));
+      const c=Math.cos(rad(TET)), s=Math.sin(rad(TET));
+      return [0,1,2].map(k=>{ const ph=k*2*Math.PI/3;
+        return vnorm(vadd(vmul(a,c), vadd(vmul(t,s*Math.cos(ph)), vmul(u,s*Math.sin(ph))))); });
+    }
+    if(nb.length===2){
+      // the two open slots straddle the plane of the existing pair, opening away
+      // from it — the classic axial/equatorial pair on a ring carbon
+      const bis=vnorm(vmul(vadd(nb[0],nb[1]),-1)), p=vnorm(vcross(nb[0],nb[1]));
+      const h=rad(TET/2), c=Math.cos(h), s=Math.sin(h);
+      return [ vnorm(vadd(vmul(bis,c), vmul(p, s))), vnorm(vadd(vmul(bis,c), vmul(p,-s))) ];
+    }
+    return [ vnorm(vmul(nb.reduce(vadd,V(0,0,0)),-1)) ];   // 3 bonds → one slot left
+  };
+  // remaining sp2 (trigonal planar, 120°) directions — carbonyl + carboxylate carbons
+  Skel.prototype.freeSp2=function(i){
+    const nb=this.nbrs(i);
+    if(nb.length===1){
+      const a=nb[0], t=this.outwardAt(i,a);      // same outward rule as freeTet
+      const c=Math.cos(rad(SP2)), s=Math.sin(rad(SP2));
+      return [ vnorm(vadd(vmul(a,c), vmul(t,s))), vnorm(vadd(vmul(a,c), vmul(t,-s))) ];
+    }
+    return [ vnorm(vmul(nb.reduce(vadd,V(0,0,0)),-1)) ];
+  };
+  // hang one atom off atom i in its next free slot; `hyb` picks the geometry
+  Skel.prototype.grow=function(i,el,dist,hyb,slot,order){
+    const dirs=(hyb==='sp2'?this.freeSp2(i):this.freeTet(i));
+    const j=this.put(el, vadd(this.at(i), vmul(dirs[slot||0], dist)));
+    this.link(i,j,order); return j;
+  };
+
+  // ---- ring stereochemistry ---------------------------------------------
+  // freeTet() on a ring carbon returns its AXIAL and EQUATORIAL slots, but in an
+  // order that falls out of the cross-product sign, not out of chemistry. Taking
+  // slot 0 every time therefore alternates axial/equatorial around the ring — an
+  // arbitrary stereoisomer wearing glucose's name. `equatorial()` picks by
+  // geometry instead: of the free slots, the one most PERPENDICULAR to the ring
+  // axis. β-D-glucopyranose is all-equatorial, which is exactly why it is the
+  // most stable hexose and the one the whole pathway is built around.
+  Skel.prototype.ringNormal=function(ring){
+    const c=vmul(ring.reduce((s,i)=>vadd(s,this.at(i)),V(0,0,0)), 1/ring.length);
+    let n=V(0,0,0);
+    for(let k=0;k<ring.length;k++)
+      n=vadd(n, vcross(vsub(this.at(ring[k]),c), vsub(this.at(ring[(k+1)%ring.length]),c)));
+    return vnorm(n);
+  };
+  Skel.prototype.equatorial=function(i,ring){
+    const n=this.ringNormal(ring), dirs=this.freeTet(i);
+    let best=0, bestDot=Infinity;
+    dirs.forEach((d,k)=>{ const v=Math.abs(d.x*n.x+d.y*n.y+d.z*n.z);
+      if(v<bestDot){ bestDot=v; best=k; } });
+    return best;
+  };
+  // The other one. Glucose never needs this; galactose is glucose with C4 axial,
+  // and that single flip is the whole difference between a sugar we metabolise
+  // and one that poisons an infant who cannot (galactosemia). Defined as "not
+  // equatorial" rather than "most parallel to the axis" on purpose: the two
+  // free slots on a ring carbon are a pair, so deriving one from the other
+  // guarantees they can never both resolve to the same slot.
+  Skel.prototype.axial=function(i,ring){
+    return this.freeTet(i).length===2 ? 1-this.equatorial(i,ring) : 0;
+  };
+  // Which FACE of a near-planar ring a substituent points to. A furanose is too
+  // flat for the axial/equatorial distinction to mean much — ribose's identity is
+  // carried by which side of the ring each –OH sits on. `side` is +1 or −1
+  // against the ring normal; the normal's own sign is arbitrary (it falls out of
+  // the ring's traversal order), so only the RELATIVE faces are meaningful, and
+  // that is exactly what check-molecules.js asserts.
+  Skel.prototype.face=function(i,ring,side){
+    const n=this.ringNormal(ring), dirs=this.freeTet(i);
+    let best=0, bestDot=-Infinity;
+    dirs.forEach((d,k)=>{ const v=side*(d.x*n.x+d.y*n.y+d.z*n.z);
+      if(v>bestDot){ bestDot=v; best=k; } });
+    return best;
+  };
+
+  // ---- functional groups ------------------------------------------------
+  Skel.prototype.hydroxyl=function(i,slot){                 // –OH
+    const o=this.grow(i,'O',GL.CO,'sp3',slot);
+    this.grow(o,'H',GL.OH,'sp3',0);                         // C–O–H ≈ 109.5°
+    return o;
+  };
+  Skel.prototype.carbonyl=function(i,slot){                 // C=O (double bond)
+    return this.grow(i,'O',GL.CdO,'sp2',slot,2);
+  };
+  // –O–PO₃²⁻ : a bridging ester O, then a tetrahedral P with three more O's.
+  // Returns the P index — the page uses it as the effect anchor, because the P
+  // is what visibly arrives from ATP and later leaves for ADP.
+  Skel.prototype.phosphate=function(i,slot){
+    const o=this.grow(i,'O',GL.CO,'sp3',slot);
+    const p=this.grow(o,'P',GL.OP,'sp3',0);
+    for(let k=0;k<3;k++) this.grow(p,'O',GL.PO,'sp3',0);
+    return p;
+  };
+  Skel.prototype.rotate=function(rx,ry,rz){
+    const cx=Math.cos(rx), sx=Math.sin(rx);
+    const cy=Math.cos(ry), sy=Math.sin(ry);
+    const cz=Math.cos(rz), sz=Math.sin(rz);
+    this.atoms.forEach(a=>{
+      let [x,y,z]=a.pos;
+      let y1=y*cx-z*sx, z1=y*sx+z*cx;
+      let x2=x*cy+z1*sy, z2=-x*sy+z1*cy;
+      let x3=x2*cz-y1*sz, y3=x2*sz+y1*cz;
+      a.pos=[x3,y3,z2];
+    });
+    return this;
+  };
+
+  // `src:{path:'skel'}` is defaulted rather than written 21 times, and it is
+  // the one path that stays true without anyone maintaining it: everything
+  // this function returns was, by construction, built by the code above it.
+  // `extra` still wins, so a spec that is Skel-built and then post-processed
+  // can say so.
+  Skel.prototype.spec=function(extra){
+    return Object.assign({ atoms:this.atoms, bonds:this.bonds, src:{path:'skel'} }, extra);
+  };
+
+  // ---- backbone scaffolds ----------------------------------------------
+  // Open carbon chain in the textbook orientation: C1 at the TOP, growing down
+  // −Y in a zig-zag through the real ~111° chain angle, all carbons in the z=0
+  // plane so substituents splay toward the viewer in ±z and the backbone stays
+  // readable head-on. Carbons land at indices 0…n−1 = C1…Cn.
+  function chainC(n){
+    const s=new Skel(), half=rad(111/2);
+    const dy=GL.CC*Math.sin(half), dx=GL.CC*Math.cos(half);
+    for(let k=0;k<n;k++){
+      s.put('C', V((k%2?dx:0)-dx/2, (n-1)*dy/2 - k*dy, 0));
+      if(k) s.link(k-1,k);
+    }
+    return s;
+  }
+  // β-D-glucopyranose ring: six-membered, O5 at index 0 then C1…C5 at 1…5, laid
+  // in the xz-plane with an alternating ±y pucker (the chair — a flat hexagon is
+  // as wrong for a pyranose as a linear water is for H₂O). C6 is exocyclic on C5.
+  function ringPyranose(){
+    const s=new Skel(), R=GL.CC;             // regular hexagon: side = circumradius
+    // Pucker is a FRACTION of the ring, not a fixed offset: it was 0.34 when
+    // GL.CC was 1.95, and leaving it absolute after the rescale would have
+    // flattened the chair toward a hexagon as the ring grew. `equatorial()`
+    // picks substituent slots off this pucker, so a flatter ring is not a
+    // cosmetic difference — it is what decides which stereoisomer gets built.
+    const pucker=0.174*R;
+    for(let k=0;k<6;k++){ const th=k*Math.PI/3;
+      s.put(k===0?'O':'C', V(R*Math.cos(th), (k%2?pucker:-pucker), R*Math.sin(th))); }
+    for(let k=0;k<6;k++) s.link(k,(k+1)%6);
+    return s;
+  }
+  // β-D-ribofuranose ring: five-membered, O4′ at index 0 then C1′…C4′ at 1…4.
+  // Puckered as a C3′-endo envelope — four atoms near-coplanar, one lifted. Real
+  // furanoses are never flat, but the pucker here is deliberately SMALL: unlike a
+  // pyranose chair, nothing about ribose's identity rides on it (the –OH faces
+  // carry that), and a strong pucker would tempt `equatorial()` into reporting
+  // an ax/eq split that means nothing on a five-ring. Use `face()` on this ring.
+  function ringFuranose(){
+    const s=new Skel(), R=GL.CC/(2*Math.sin(Math.PI/5));   // side → circumradius
+    const pucker=0.12*R;
+    for(let k=0;k<5;k++){ const th=k*2*Math.PI/5;
+      // index 3 is C3′ — the one atom out of the plane (C3′-endo)
+      s.put(k===0?'O':'C', V(R*Math.cos(th), k===3?pucker:0, R*Math.sin(th))); }
+    for(let k=0;k<5;k++) s.link(k,(k+1)%5);
+    return s;
+  }
+  // ---- aromatic ring systems -------------------------------------------
+  // Purine and pyrimidine are FLAT — every ring atom is sp2, and the delocalised
+  // π system is what holds them planar. So these are laid out as regular polygons
+  // in the xz-plane rather than grown through freeTet(): a tetrahedral builder
+  // would pucker them, and a puckered base would break the one claim this pair
+  // makes, which is about WIDTH. Two rings vs one is why A–T and G–C are the same
+  // width and the DNA backbone stays a constant 2 nm apart.
+  //
+  // Bond orders below are one Kekulé structure of the aromatic ring. The real
+  // molecule is delocalised — no bond is truly single or double — but every
+  // textbook draws a Kekulé form, and alternating orders at least keep every
+  // atom's valence correct, which a uniform "aromatic" stick would not show.
+  const AR = { CC: 1.39*SCALE, CN: 1.34*SCALE, CH: 1.08*SCALE, NH: 1.01*SCALE };
+  // Regular polygon of `n` sides, side length AR.CC, in the xz-plane.
+  function flatRing(n, els){
+    const s=new Skel(), R=AR.CC/(2*Math.sin(Math.PI/n));
+    for(let k=0;k<n;k++){ const th=k*2*Math.PI/n;
+      s.put(els[k], V(R*Math.cos(th), 0, R*Math.sin(th))); }
+    for(let k=0;k<n;k++) s.link(k,(k+1)%n);
+    return s;
+  }
+  // Fuse a regular `n`-gon onto the existing edge i–j, coplanar with the ring and
+  // opening AWAY from `awayFrom` (the parent ring's centre). Returns the new atom
+  // indices in order walking from j round to i. This is how the imidazole gets
+  // onto the pyrimidine ring to make a purine — sharing the C4–C5 edge, which is
+  // the definition of the fused bicycle.
+  // Both rings live in the xz-plane, so this is 2D trigonometry about the y-axis
+  // — not a general 3D fuse. Keeping it 2D is the point: a general version would
+  // silently tolerate a non-planar purine, which is the one thing that must not
+  // happen here.
+  function fuseRing(s, n, i, j, awayFrom, els){
+    const a=s.at(i), b=s.at(j);
+    const mid=vmul(vadd(a,b),0.5);
+    const out=vnorm(vsub(mid, awayFrom));            // already in-plane (all y=0)
+    const side=vlen(vsub(b,a));
+    const apo=side/(2*Math.tan(Math.PI/n));          // centre → edge midpoint
+    const c=vadd(mid, vmul(out, apo));               // polygon centre
+    const R=side/(2*Math.sin(Math.PI/n));
+    const ang=p=>Math.atan2(p.z-c.z, p.x-c.x);
+    const thB=ang(b), step=2*Math.PI/n;
+    // step in whichever direction walks AWAY from a — i.e. the direction whose
+    // first vertex is not a. a and b are adjacent, so one of ±step lands on a.
+    const dA=((ang(a)-thB)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+    const dir=(Math.abs(dA-step)<Math.abs(dA-(2*Math.PI-step))) ? -1 : +1;
+    const idx=[];
+    for(let k=1;k<=n-2;k++){
+      const th=thB+dir*k*step;
+      idx.push(s.put(els[k-1], V(c.x+R*Math.cos(th), 0, c.z+R*Math.sin(th))));
+    }
+    s.link(j, idx[0]);
+    for(let k=0;k<idx.length-1;k++) s.link(idx[k], idx[k+1]);
+    s.link(idx[idx.length-1], i);
+    return idx;
+  }
+  // Hang an H off a flat ring atom, in the ring plane, bisecting its two
+  // neighbours from the outside. Doing this with freeTet() would push the H out
+  // of the plane and make the ring look puckered when it is not.
+  function flatH(s, i, dist){
+    const dir=vnorm(vmul(s.nbrs(i).reduce(vadd,V(0,0,0)),-1));
+    const h=s.put('H', vadd(s.at(i), vmul(dir, dist)));
+    s.link(i,h);
+    return h;
+  }
+
+  global.SkelLib = { GL, AR, TET, SP2, V, vadd, vsub, vmul, vlen, vnorm, vcross, rad,
+    perpTo, Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing, flatH };
+})(this);

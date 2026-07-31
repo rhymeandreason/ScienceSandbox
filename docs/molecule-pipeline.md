@@ -199,7 +199,7 @@ places in this doc cite it.
 |---|---|---|
 | 1 · provenance in the spec | **DONE** | all 37 specs carry `src:`; checker enforces it |
 | 2 · commit the SDFs | **DONE** | 8 files in `tools/sdf/`; 5 of 7 rebuild exactly |
-| 3 · extract the builder **+ split per-domain** | **do next** | do it before 34 specs land in the same file |
+| 3 · extract the builder **+ split per-domain** | **DONE** | 7 files; all 37 specs byte-identical; water-lab loads 10 not 37 |
 | 4 · one entry point | **skip** | solves human labour that an agent does not spend |
 | 5 · close the mirror gap | **do — cheap route only** | one condition in `spec2smiles.js` |
 | 6 · measured structures | **unchanged — record and move on** | the doc already argues itself out of this |
@@ -380,7 +380,43 @@ original one-liner. Committing inputs is not only about being able to re-run a
 converter — it is about the window closing. Two specs fell out of that window
 before anything was committed, and nothing in this repo would have noticed.
 
-### 3. Extract the builder, then split the specs per domain
+### 3. Extract the builder, then split the specs per domain — DONE
+
+**Shipped, both halves.** `molecules.js` went from 1,861 lines holding
+everything to a 250-line core holding no specs at all:
+
+| File | Lines | |
+|---|---|---|
+| `molecules.js` | ~250 | PALETTE, SCALE, VIEW, the empty registry, the DOMAINS manifest |
+| `skel.js` | ~346 | the builder: Skel, GL/AR, ring and chain scaffolds |
+| `mol-solvation.js` | ~157 | family A, needs no builder |
+| `mol-monomers.js` | ~356 | family B, PubChem + literals, needs no builder |
+| `mol-glycolysis.js` | ~222 | needs skel.js |
+| `mol-contrast.js` | ~675 | needs skel.js and mol-monomers.js |
+| `lib-node.js` | ~30 | loads everything for the checkers, by walking DOMAINS |
+
+**All 37 specs are byte-identical afterwards, in the same key order** — checked
+by loading the pre-split file alongside the split one and deep-comparing. No
+coordinate moved.
+
+The payoff is per-page: `water-lab.html` went from loading 37 specs to 10, and
+**four of eight pages no longer load the builder at all**. A page's script tags
+are now the statement of what it shows.
+
+Two things worth recording:
+
+**The manifest is real, and it is `MolLib.DOMAINS`.** Four Node consumers
+(`check-molecules.js`, `spec2smiles.js`, `name-atoms.js`, `cod-check.js`) each
+needed the full library, and four hand-maintained copies of a load order is
+precisely the enumeration failure this repo keeps hitting. They all go through
+`lib-node.js`, which walks the manifest. Adding a domain file means editing one
+list, and `check-docs.js` asserts every name in it is a real file.
+
+**The split falsified a documented invariant.** See below.
+
+---
+
+The original plan for this item, kept for the reasoning:
 
 Two mechanical moves, in that order, and **both belong before the expansion
 starts** rather than after.
@@ -418,6 +454,25 @@ Keep the manifest a committed, greppable index — not a loader that fetches. Ev
 source in this doc is a build-time input and none is ever a page dependency; that
 rule applies to our own files too. Pages address molecules by name today, and
 that must keep working unchanged across the split.
+
+**What it turned up: one page has been mixing scale families all along.**
+`aminoacid-lab.html` builds `MOLECULES.water` for every dehydration it shows,
+so a family-A water (O–H 1.55) has been sitting among family-B residues that
+would draw it at 1.84 — **about 16% short**. The header of `molecules.js`
+asserted the opposite ("every page satisfies this"), naming that page as pure
+family B.
+
+It survived because the dependency was invisible: every page loaded every spec,
+so nothing distinguished "uses water" from "happens to have water in scope".
+Splitting the library forced `aminoacid-lab.html` to name `mol-solvation.js` in
+its script tags, and the exception fell out of the first load-check. That is the
+argument for 3b restated — **the split does not just reduce payload, it makes
+cross-domain dependencies say their own names**.
+
+Left unfixed on purpose: rescaling water means re-tuning the solvation engine
+(item 7), and the released water is a transient nobody measures. Now recorded in
+`molecules.js` and SCIENCE.md §1.5 as a known exception rather than asserted
+away.
 
 **This is an enumeration change, so it invalidates docs mechanically.**
 `CLAUDE.md`'s module index and per-page script table both enumerate what a page
