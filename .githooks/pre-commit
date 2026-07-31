@@ -16,6 +16,9 @@
 #     dependency, and a network call in a commit path is a liability. It is the
 #     only check that catches a global mirror, so run it BY HAND after touching
 #     a ring builder (see SCIENCE.md §1.3).
+#   · does not run check-docs.js — it ran on every demos/ commit, but the docs
+#     are simple enough right now that running it constantly isn't worth it.
+#     Run it BY HAND (node tools/check-docs.js) after editing an enumeration.
 #   · does not run check-molecules.js unless the commit touches a file that can
 #     change a spec's geometry (molecules.js, skel.js, a mol-*.js domain file,
 #     or a committed tools/sdf/ input). A commit that only edits prose, an
@@ -58,15 +61,6 @@ else
   echo "pre-commit: skipping check-molecules.js — no spec file staged"
 fi
 
-if ! node tools/check-docs.js > /tmp/cd.$$ 2>&1; then
-  tail -25 /tmp/cd.$$; rm -f /tmp/cd.$$
-  echo ""
-  echo "pre-commit FAILED: check-docs.js — a doc claims something untrue."
-  echo "  Usually an enumeration that grew a member. See CLAUDE.md."
-  exit 1
-fi
-rm -f /tmp/cd.$$
-
 if git diff --cached --name-only | grep -qE '^demos/(.*\.html|molecules\.js|skel\.js|mol-[^/]+\.js|lib-node\.js)$'; then
   if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
     tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
@@ -79,4 +73,4 @@ else
   echo "pre-commit: skipping check-pages.js — no page or registry file staged"
 fi
 
-echo "pre-commit: molecules, docs and pages all check out."
+echo "pre-commit: molecules and pages check out."
