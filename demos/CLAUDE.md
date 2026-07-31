@@ -170,7 +170,8 @@ what belongs in a shared module: `SCIENCE.md` §10.**
    nearer than the other and perspective magnifies it.
 5. Fire `FXi.spawnRing/popGlow/…` at your reaction/event sites; call `FXi.step()`
    in the render loop before `renderer.render`.
-6. Build the lesson's *mechanic* custom — don't try to unify paradigms.
+6. Build the lesson's *mechanic* custom — see "share the plumbing, not the
+   physics" above.
 
 ## Scientific accuracy
 
@@ -258,34 +259,25 @@ _`old/` holds earlier prototypes and notes — reference only, not loaded by any
 
 ## Keeping the docs true
 
-These docs are load-bearing: they are the only record of *why* a constant, a
-geometry or a module boundary is what it is, so a stale one actively misleads.
-Every doc error this project has shipped was the same shape — **an enumeration
-that grew a new member and wasn't updated**. Not prose going out of date; a
-list, table or index that claims to be complete and silently isn't.
-
-Most of those are now mechanically checked:
+These docs are the only record of *why* a constant, geometry, or module
+boundary is what it is, so a stale one actively misleads. Every doc error this
+project has shipped was the same shape — **an enumeration that grew a new
+member and wasn't updated.** Most of those are now caught automatically:
 
 ```bash
-node tools/check-docs.js
+node tools/check-docs.js && node tools/check-pages.js
 ```
 
-`tools/check-pages.js` is its companion: it runs each page's scripts in a fresh
-context and fails if the page names a molecule its `mol-*.js` set does not
-provide. `check-docs.js` proves the table matches the tags; `check-pages.js`
-proves the tags are *enough*. Neither existed as one check because they fail
-for different reasons.
+`check-docs.js` audits the per-page script table, file references, and `§n`
+references against the filesystem and `SCIENCE.md`'s real headings. A file a
+doc names *on purpose* that doesn't exist (`engine.js`, TESTING.md's
+proposals) goes in the script's `KNOWN_ABSENT` map so it's asserted absent
+instead of flagged missing. `check-pages.js` runs each page's scripts in a
+fresh context and fails if it names a molecule its `mol-*.js` set doesn't
+provide — `check-docs.js` proves the table matches the tags, this proves the
+tags are *enough*.
 
-check-docs.js audits the per-page script table against the real `<script>` tags, every
-file named in a doc against the filesystem, and every `§n` reference against
-`SCIENCE.md`'s actual headings (including that no section is missing from
-CLAUDE.md's index). A file a doc names *on purpose* that doesn't exist —
-`engine.js`, TESTING.md's proposals — goes in the script's `KNOWN_ABSENT` map
-with a reason, and is then asserted **absent**: build it and the check fails
-until the doc that called it hypothetical is updated.
-
-It cannot check whether prose is *true* — nothing mechanical would have caught
-the stale `stereo:` vocabulary. The rest is on the reader:
+Neither can check whether prose is *true* — that's on the reader:
 
 > **If your change adds a member to a set, find every enumeration of that set
 > and update it in the same commit.** A doc claim gets asserted the same way a
@@ -311,60 +303,30 @@ so you do not have to remember; the unmarked rows are the ones that need you.
 | `check-molecules.js` header | add a claim type or a new audit | |
 | `MolLib.VIEW` table | add a shared viewing angle | |
 
-**Checklist for the unchecked ones:**
+**Checklist for the unchecked ones:** new page → Pages table (+ a `##`
+`SCIENCE.md` section only if it constrains shared code or another page —
+page-internal decisions go in a header comment instead). New molecule → §1.4
+(tier, claim) + §1.5 (family) + the assertion, same commit — §1.4 rule 2 isn't
+optional. New claim type in `check-molecules.js` → §1.4's table *and* the
+script's header; they've drifted apart once already. Changed a constant with a
+reason → the reason lives in the doc, not the commit message.
 
-- **New page** → Pages table, and a `##` section in `SCIENCE.md` only if the page
-  constrains shared code or another page. Decisions internal to the page belong
-  in a comment block at the top of the page, where the invalidating edit happens.
-- **New molecule** → §1.4 (what tier, what does it assert), §1.5 (which family),
-  and the assertion itself, all in one commit. §1.4 rule 2 is not optional.
-- **New claim type in `check-molecules.js`** → §1.4's declaration table *and* the
-  script's own header. They drifted apart once already.
-- **Changed a constant with a reason** → the reason lives in the doc, not the
-  commit message. Nobody greps git log for why `SCALE` is 1.9.
-
-**Delete rather than hedge.** A rule that no longer holds should be removed, not
-softened — SCIENCE.md's value is that every line in it is currently true. If a
-decision was reversed, say so and why; that is the one case where history earns
-its space (§1.5 is the model).
-
-### When a checker lands, retire the prose it replaces
-
-The docs carry war stories — the ethanol bond length, the mirrored amino acids,
-the family-A glucose — because a bug that could recur is worth more than the
-lines it costs. But a story stops earning its space the moment something catches
-the bug for you. So:
-
-> **When a rule becomes mechanically enforced, cut its story to the rule.** The
-> checker is the better documentation: it can't go stale and it fires without
-> being read.
-
-The test is whether enforcement is **unconditional**:
-
-- **Unconditional** — every spec is checked whether or not it opts in (merged
-  spheres, non-bonded overlap, doc file references, the script table). Story
-  retires; state the rule in one line.
-- **Conditional on a declaration** — only checked if someone writes `stereo:` or
-  `chirality:` (§1.4). The prose still has to argue for declaring, so the story
-  **stays**. This is why §1.3 keeps both incidents at length.
-- **Unenforced** — scale families, size-across-hydrogens, *cis*/*trans*, and
-  whether any prose is actually true. Story stays, and is the only defence.
-
-**Write for an agent, not for a newcomer.** An agent reads the code accurately
-and fast, so prose describing *what the code does* is worse than absent — it goes
-stale and gets believed over the source. Spend the words on what code cannot
-state: intent, alternatives already rejected, invariants that span files, and
-failures that would otherwise be repeated. Mechanism goes in the code.
+**Delete rather than hedge**, and **retire a story once a checker replaces
+it.** A rule that no longer holds gets removed, not softened; a bug that's now
+mechanically caught (merged spheres, doc/file mismatches) gets its war story
+cut to a one-line rule, since the checker is the better documentation — it
+can't go stale. A bug that's only caught when someone opts in (`stereo:`,
+`chirality:` — §1.4) keeps its story, because the prose is what argues for
+opting in. Anything still unenforced (scale families, *cis*/*trans*, whether
+prose is true) keeps its story as the only defence. History earns space only
+when a decision was reversed and the reversal isn't otherwise obvious (§1.5 is
+the model).
 
 Where a fact belongs follows from **which edit invalidates it**: one file → a
-comment in that file; several → a doc. Never both — the `stereo:` vocabulary
-drifted precisely because it lived in two places.
-
-Budget note: **CLAUDE.md is read on every task**, whether or not it's relevant,
-so its job is routing and prohibitions — not explanation. `SCIENCE.md` is read on
-demand and can afford length; optimise it for navigability instead. If CLAUDE.md
-grows in proportion to the number of pages, it is holding something that belongs
-in a page comment or a `SCIENCE.md` section.
+comment in that file; several → a doc, never both — the `stereo:` vocabulary
+drifted precisely because it lived in two places. And write for an agent, not
+a newcomer: skip prose that restates what the code already shows; spend words
+on intent, rejected alternatives, and cross-file invariants instead.
 
 ## Later
 glycolysis-lab ending fork — pyruvate ×2 sitting there, two doors: O₂ present → Krebs, absent → fermentation. Not built; it's the hook to the next lesson.
