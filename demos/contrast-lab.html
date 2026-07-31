@@ -444,6 +444,36 @@ function fitSvgToContent(svg){
   svg.setAttribute('height', Math.round(vh*s));
 }
 
+/* Vertical mirror of a finished SmilesDrawer panel, with the glyphs kept
+ * upright. SmilesDrawer chooses its own layout direction, and for palmitoleate
+ * it sends the Δ9 kink DOWN while the hand-built coordinates send it UP — two
+ * views of one molecule disagreeing about which way the chain bends is exactly
+ * the confusion this page exists to remove. The flat drawing is the view that
+ * gives: the 3D coordinates are asserted geometry (the cis torsion, the head
+ * shared with palmitate) and are not moved to suit a layout engine.
+ *
+ * Opt-in per spec (`flatFlipY`), never automatic, because a mirror is a
+ * REFLECTION — only safe where there is no chirality to invert. It must never
+ * reach the enantiomer pair, whose whole lesson is that the mirror image is a
+ * different molecule.
+ */
+function flipSvgY(svg){
+  const vb=(svg.getAttribute('viewBox')||'').split(/[\s,]+/).map(Number);
+  if(vb.length!==4||!vb[3]) return;
+  const axis=2*vb[1]+vb[3];              // mirror about the viewBox centre line
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('transform',`matrix(1,0,0,-1,0,${axis})`);
+  while(svg.firstChild) g.appendChild(svg.firstChild);
+  svg.appendChild(g);
+  /* Un-mirror each label about its own anchor, so 'HO' does not read upside
+   * down. Counter-flipping the <text> restores the ordinary frame for its
+   * whole subtree, so tspan dy subscripts come back the right way up too. */
+  g.querySelectorAll('text').forEach(t=>{
+    const y=parseFloat(t.getAttribute('y'))||0;
+    t.setAttribute('transform',`matrix(1,0,0,-1,0,${2*y})`);
+  });
+}
+
 // The highlight set, resolved exactly as the 3D view resolves it, then folded
 // so every entry lands on something a flat drawing actually draws: a hydrogen
 // has no glyph of its own there, it is part of its parent's -NH2 / -OH label.
@@ -499,6 +529,7 @@ function paintFlat(){
         }).draw(tree, svg, 'light', null, false,
                 showDiff?[[1, FLAT_HL]]:[]);
         fitSvgToContent(svg);
+        if(spec.flatFlipY) flipSvgY(svg);
       }, ()=>{ el.innerHTML=''; });
     }catch(e){ el.innerHTML=''; }
   });

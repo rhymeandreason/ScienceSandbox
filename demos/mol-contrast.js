@@ -515,6 +515,12 @@
       ],
       names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
       smiles:'CCCCC[CH2:1]/[CH:1]=[CH:1]\\[CH2:1]CCCCCCC(=O)O',
+      // SmilesDrawer lays this chain out kinking DOWN; the coordinates above
+      // kink UP. Mirror the flat panel so the two views agree about which way
+      // the chain bends — the model is the geometry that is asserted, so it is
+      // the drawing that moves, not the molecule. Safe here only because
+      // nothing in this molecule is chiral: a cis C=C reflects to a cis C=C.
+      flatFlipY:true,
       bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9,2],[9,10],
               [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
       hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
