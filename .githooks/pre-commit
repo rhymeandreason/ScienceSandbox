@@ -20,6 +20,10 @@
 #     change a spec's geometry (molecules.js, skel.js, a mol-*.js domain file,
 #     or a committed tools/sdf/ input). A commit that only edits prose, an
 #     .html page, or fx.js cannot make a claim check-molecules.js audits.
+#   · does not run check-pages.js unless the commit touches a *.html page or a
+#     file that supplies the registry it reads (molecules.js, skel.js, a
+#     mol-*.js domain file, lib-node.js). A prose-only or fx.js/scene.js commit
+#     cannot change which molecule a page loads or names.
 #   · does not check staged content in isolation. It runs against the working
 #     tree, so a partially-staged commit is checked as what is on disk, not as
 #     what is being committed. That is the honest 95% answer; the alternative is
@@ -63,12 +67,16 @@ if ! node tools/check-docs.js > /tmp/cd.$$ 2>&1; then
 fi
 rm -f /tmp/cd.$$
 
-if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
-  tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
-  echo ""
-  echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load."
-  exit 1
+if git diff --cached --name-only | grep -qE '^demos/(.*\.html|molecules\.js|skel\.js|mol-[^/]+\.js|lib-node\.js)$'; then
+  if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
+    tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
+    echo ""
+    echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load."
+    exit 1
+  fi
+  rm -f /tmp/cp.$$
+else
+  echo "pre-commit: skipping check-pages.js — no page or registry file staged"
 fi
-rm -f /tmp/cp.$$
 
 echo "pre-commit: molecules, docs and pages all check out."
