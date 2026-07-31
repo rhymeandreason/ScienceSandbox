@@ -1,3 +1,17 @@
+/* ---------------------------------------------------------------------------
+   Fonts load HERE, not in the pages. Every page already links sandbox.css, so
+   this @import is the one place the font set is declared — adding a family or a
+   weight is a single edit instead of seven. Pages keep only the two
+   <link rel=preconnect> hints (an @import is discovered late, after this file
+   is fetched and parsed, so the early handshake is worth the duplicated line;
+   those two lines never change when the font set does).
+
+   --font-sans is Nunito, the closest freely-licensed stand-in for Proxima Soft.
+   The Proxima names stay ahead of it in the stack, so a machine that has the
+   real thing installed uses it and everyone else gets Nunito.
+   --------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap');
+
  :root {
    --paper: #efe6d6;
    --paper-line: #e2d8c6;
@@ -16,7 +30,7 @@
    --font-marker: 'Permanent Marker', cursive;
    --font-slab: 'Zilla Slab', Georgia, serif;
    --font-hand: 'Caveat', cursive;
-   --font-sans: 'Proxima Soft', 'Proxima Nova', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+   --font-sans: 'Proxima Soft', 'Proxima Nova', 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
    --torn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
  }
 

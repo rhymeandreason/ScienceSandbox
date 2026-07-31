@@ -229,7 +229,7 @@
     const group=new THREE.Group(); root.add(group);
     let mode='electrons';
     let dim='3d';             // '2d' = straight-on Lewis view, rotation locked
-    let ligands=[], core=null, sticks=[], sharedPairs=[];
+    let ligands=[], core=null, sticks=[], sharedPairs=[], labels=[];
     let protonated=false, proton=null;
     // after the proton lands the molecule is a different shape with one more
     // slot, so every direction lookup goes through here
@@ -252,6 +252,13 @@
     }
 
     function v3(a){ return new THREE.Vector3(a[0],a[1],a[2]); }
+
+    /* Every element symbol goes through here so that (a) nobody picks an ink by
+     * hand — atomkit owns which view gets light letters and which gets dark —
+     * and (b) the sprite is on a list setDim() can walk when the view flips. */
+    function atomLabel(el){
+      const s=label(el, el); s.setDim(dim); labels.push(s); return s;
+    }
 
     /* Two vectors perpendicular to `dir`, for anything that has to fan out
      * AROUND an axis: the electrons on a double bond's slot, the two shared
@@ -287,8 +294,7 @@
       const og=new THREE.Group();
       const osphere=Stage.atom(P.atoms[R.core], P.radii[R.core], new THREE.Vector3(), R.core);
       const ocloud=cloud(R.core);
-      // white letter on the dark core sphere; the ligands take ink on pale steel
-      og.add(osphere, ocloud, label(R.core, R.core, '#ffffff'));
+      og.add(osphere, ocloud, atomLabel(R.core));
       // two lone PAIRS (four electrons, spoken for) — positions come from
       // layoutLone(), because they move when the view flips to 2D
       const lonePairs=[];
@@ -339,7 +345,7 @@
           const pair=[dot(P.atoms[R.ligand]), dot(P.atoms[R.ligand])];
           pair.forEach(m=>hg.add(m)); lone.push(pair);
         }
-        hg.add(sphere, hcloud, e, label(R.ligand, R.ligand, '#2b2b2b'));
+        hg.add(sphere, hcloud, e, atomLabel(R.ligand));
         group.add(hg);
         ligands.push({ group:hg, sphere, cloud:hcloud, electron:e, lone,
                          vel:new THREE.Vector3(), slot:null, dragging:false,
@@ -420,6 +426,7 @@
      * "nearer". step() keeps holding them there while the mode lasts. */
     function setDim(d){
       dim=(d==='2d')?'2d':'3d';
+      labels.forEach(s=>s.setDim(dim));   // light letters in 3D, dark on flat paper
       layoutLone();
       layoutBonds();          // the slots themselves moved — see layoutBonds()
       applyCel();
@@ -716,7 +723,7 @@
                               new THREE.Vector3(), R.ligand);
       const badge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.ligand]).getHexString(),
                              R.ligand);
-      g.add(sphere, label(R.ligand, R.ligand, '#2b2b2b'), badge);
+      g.add(sphere, atomLabel(R.ligand), badge);
       group.add(g);
       proton={ group:g, sphere, badge, cloud:null,
                electron:{visible:false, position:new THREE.Vector3()},
@@ -997,7 +1004,7 @@
 
     function reset(){
       [...group.children].forEach(c=>group.remove(c));
-      ligands=[]; sticks=[]; sharedPairs=[]; core=null; held=null;
+      ligands=[]; sticks=[]; sharedPairs=[]; labels=[]; core=null; held=null;
       protonated=false; proton=null; staggers=[]; dative=null;
       build();
       setDim(dim);

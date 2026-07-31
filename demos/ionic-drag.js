@@ -133,9 +133,12 @@
       const g=new THREE.Group(); g.position.copy(pos);
       const sphere=Stage.atom(P.atoms[el], P.radii[el], new THREE.Vector3(), el);
       const cl2=kit.cloud(el);
-      g.add(sphere, cl2, kit.label(el, el, '#ffffff'));
+      // atomkit owns which view gets light letters and which gets dark; keep the
+      // sprite so setDim() can re-ink it when the view flips
+      const tag=kit.label(el, el); tag.setDim(dim);
+      g.add(sphere, cl2, tag);
       group.add(g);
-      return { el, group:g, sphere, cloud:cl2, count, dots:[],
+      return { el, group:g, sphere, cloud:cl2, label:tag, count, dots:[],
                vel:new THREE.Vector3(), dragging:false };
     }
 
@@ -403,6 +406,7 @@
     }
     function setDim(d){
       dim=(d==='2d')?'2d':'3d';
+      [na,cl].forEach(a=>{ if(a) a.label.setDim(dim); });
       applyCel();
       if(na) drawDots(na);
       if(cl) drawDots(cl);

@@ -29,7 +29,7 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, and t
 order matters — each script assumes the ones above it:
 
 ```html
-<link rel="stylesheet" href="sandbox.css">   <!-- after fonts/icons, before page <style> -->
+<link rel="stylesheet" href="sandbox.css">   <!-- loads the fonts too; after icons, before page <style> -->
 ...
 <script src=".../three.min.js"></script>
 <script src="palette.js"></script>     <!-- always, first — atom/bond colours + radii -->
@@ -94,7 +94,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
-| `sandbox.css` | cream paper, torn-edge panel, fonts, `#app` grid, stage/panel chrome | — |
+| `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** the webfonts, so no page carries a font `<link>` (only the two preconnect hints) | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |

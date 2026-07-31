@@ -22,8 +22,9 @@
  *
  *  Usage:
  *    const kit = AtomKit.create(THREE);
- *    kit.dot(0xd6362e);  kit.cloud('O');  kit.label('O','O','#fff');
- *    kit.cel(meshes, on);
+ *    kit.dot(0xd6362e);  kit.cloud('O');  kit.cel(meshes, on);
+ *    const tag = kit.label('O','O');   // ink chosen by labelInk(), not by you
+ *    tag.setDim('2d');                 // …and re-inked when the view flips
  * ========================================================================== */
 (function(global){
   'use strict';
@@ -82,18 +83,64 @@
      * neighbour once the two are touching — at bonding distance the spheres are
      * a hair apart, so a depth-tested label would flicker in and out at exactly
      * the moment the student is watching. */
+    /* WHICH ink a symbol takes is a property of the VIEW, not of the caller, so
+     * the rule lives here and every lesson gets the same answer:
+     *
+     *   3D — the atom is a saturated sphere and the letter sits on top of it, so
+     *        the letter is light. Hydrogen is the exception: its sphere is pale
+     *        steel (--H), and white on that is unreadable.
+     *   2D — the Lewis view drops the shading, so the letter is dark on paper.
+     *        Carbon is the exception, for the mirror-image reason: it stays dark
+     *        enough in flat view that dark ink disappears into it.
+     *
+     * The exceptions are per-element and deliberate; do not "simplify" them into
+     * a luminance test, because the answer has to be stable across a lesson, not
+     * derived per atom.
+     */
+    const LIGHT='#ffffff', DARK='#2b2b2b';
+    function labelInk(el, dim){
+      return dim==='2d' ? (el==='C' ? LIGHT : DARK)
+                        : (el==='H' ? DARK  : LIGHT);
+    }
+
     function label(text, el, ink){
       const c=document.createElement('canvas'); c.width=c.height=128;
       const x=c.getContext('2d');
       const size=text.length>1?66:92;
-      x.fillStyle=ink||INK; x.font='bold '+size+'px "Zilla Slab", Georgia, serif';
-      x.textAlign='center'; x.textBaseline='middle';
-      x.fillText(text, 64, 68);
+      let cur=ink||labelInk(el,'3d');
+      // element symbols use the sans stack (--font-sans in sandbox.css), not the
+      // slab — a canvas can't read a CSS var, so the stack is repeated here
+      function draw(){
+        x.clearRect(0,0,128,128);
+        x.fillStyle=cur||INK;
+        x.font='bold '+size+'px "Proxima Soft", "Proxima Nova", Nunito, -apple-system, '+
+               'BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        x.textAlign='center'; x.textBaseline='middle';
+        x.fillText(text, 64, 68);
+      }
+      draw();
+      const tex=new THREE.CanvasTexture(c);
+      /* A canvas bakes whatever font is loaded AT DRAW TIME — build the scene
+       * before Nunito arrives and every symbol is permanently Helvetica, with
+       * nothing on screen to say so. Redraw once the webfonts settle. */
+      if(document.fonts&&document.fonts.ready)
+        document.fonts.ready.then(()=>{ draw(); tex.needsUpdate=true; });
       const s=new THREE.Sprite(new THREE.SpriteMaterial({
-        map:new THREE.CanvasTexture(c), transparent:true,
+        map:tex, transparent:true,
         depthTest:false, depthWrite:false }));
       s.renderOrder=30;                       // above the electron dots (20)
       s.scale.setScalar((P.radii[el]||0.7)*1.6);
+      /* The letter outlives the view it was drawn for — the 2D/3D toggle keeps
+       * the same sprites and only moves things — so it has to be able to re-ink
+       * itself. A caller that passed an explicit `ink` keeps it: an override is
+       * an override in both views. */
+      s.setDim=function(dim){
+        if(ink) return s;
+        const next=labelInk(el,dim);
+        if(next===cur) return s;
+        cur=next; draw(); tex.needsUpdate=true;
+        return s;
+      };
       return s;
     }
 
@@ -159,7 +206,7 @@
       });
     }
 
-    return { dot, cloud, label, charge, cel, DOT_GAP, INK, INK_HEX };
+    return { dot, cloud, label, labelInk, charge, cel, DOT_GAP, INK, INK_HEX };
   }
 
   global.AtomKit={ create };
