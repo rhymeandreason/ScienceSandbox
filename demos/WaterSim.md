@@ -50,7 +50,7 @@ Every "special property of water" lesson should visibly connect to hydrogen bond
 - **Solvent** — polar water surrounds ions in **hydration shells**: δ− O faces
   cations (e.g. Na⁺), δ+ H faces anions (e.g. Cl⁻). Orientation must be correct.
 
-## 4 Physics / simulation integrity
+## 4. Physics / simulation integrity
 
 - **No interpenetration.** Spheres representing atoms/molecules must not visibly
   overlap during animation. Use position-based collision resolution or a repulsion

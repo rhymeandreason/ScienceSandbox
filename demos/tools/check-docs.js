@@ -6,7 +6,7 @@
  *
  *  Why this exists: the same reason check-molecules.js does. This project's
  *  rule is that a claim ships with its assertion rather than relying on
- *  someone noticing (SCIENCE.md §1.4, rule 2) — and the docs make claims
+ *  someone noticing (MolecularGeometry.md §1.4, rule 2) — and the docs make claims
  *  too. Every doc error found in the audit of 2026-07-29 was an ENUMERATION
  *  that grew a member and wasn't updated: a page was added and the script
  *  table didn't say so, `stereo:` grew {axial}/{faces} while two files still
@@ -172,18 +172,38 @@ for (const [n, docs] of [...named].sort()) {
 ok(`${named.size} distinct file references scanned`);
 
 /* ---- 3. SECTIONS --------------------------------------------------- */
+// Section rules used to live only in SCIENCE.md. Now MolecularGeometry.md
+// (§1.x) and WaterSim.md (§1–4) carry their own numbered headings too, so a
+// bare §N could mean any of three files. Heuristic: whichever *.md is named
+// most recently on the SAME LINE governs every §-ref on that line; a line
+// with no filename mention defaults to SCIENCE.md, since that's still the
+// rulebook everything else was split out of.
 console.log('\n== 3. section references resolve');
 
-const tops = new Set();       // "1", "2", …
-const subs = new Set();       // "1.4", …
-for (const m of SCIENCE.matchAll(/^## (\d+)\./gm)) tops.add(m[1]);
-for (const m of SCIENCE.matchAll(/^### (\d+\.\d+)/gm)) subs.add(m[1]);
+function headings(src) {
+  const tops = new Set(), subs = new Set();
+  for (const m of src.matchAll(/^## (\d+)\./gm)) tops.add(m[1]);
+  for (const m of src.matchAll(/^### (\d+\.\d+)/gm)) subs.add(m[1]);
+  return { tops, subs };
+}
+
+const SECTIONED = {
+  'SCIENCE.md': headings(SCIENCE),
+  'MolecularGeometry.md': headings(rd('MolecularGeometry.md')),
+  'WaterSim.md': headings(rd('WaterSim.md')),
+};
+const { tops, subs } = SECTIONED['SCIENCE.md']; // only SCIENCE.md's index is audited below
 
 for (const [doc, src] of [['CLAUDE.md', CLAUDE], ['SCIENCE.md', SCIENCE]]) {
-  for (const m of src.matchAll(/§+\s?(\d+(?:\.\d+)?)/g)) {
-    const ref = m[1];
-    const known = ref.includes('.') ? subs.has(ref) : tops.has(ref);
-    if (!known) fail('sections', `${doc} references §${ref}, which is not a heading in SCIENCE.md`);
+  for (const line of src.split('\n')) {
+    const namedFile = [...line.matchAll(/([A-Za-z][\w-]*\.md)/g)].pop();
+    const file = namedFile && SECTIONED[namedFile[1]] ? namedFile[1] : 'SCIENCE.md';
+    const { tops: fTops, subs: fSubs } = SECTIONED[file];
+    for (const m of line.matchAll(/§+\s?(\d+(?:\.\d+)?)/g)) {
+      const ref = m[1];
+      const known = ref.includes('.') ? fSubs.has(ref) : fTops.has(ref);
+      if (!known) fail('sections', `${doc} references §${ref}, which is not a heading in ${file}`);
+    }
   }
 }
 

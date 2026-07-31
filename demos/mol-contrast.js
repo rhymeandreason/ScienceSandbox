@@ -474,7 +474,7 @@
     // — palmitoleate: palmitate's exact carbon count (16) with one cis C=C at
     // Δ9 (atoms 8,9 here — C9=C10 in 1-indexed chemistry numbering), the real
     // structure of palmitoleic acid. Built the same way palmitate was — a flat,
-    // schematic, real-angle zigzag (SCIENCE.md §1.6) — not a PubChem conformer,
+    // schematic, real-angle zigzag (MolecularGeometry.md §1.6) — not a PubChem conformer,
     // so the two sit in the exact same visual language and only the one
     // feature differs.
     //
@@ -546,12 +546,12 @@
     //   The glycosidic linkage is declared (`glycosidic:`, a new claim type)
     //   and check-molecules.js fails if the geometry disagrees — α and β differ
     //   by nothing a bond length, a bond angle or a render can see, exactly the
-    //   class of error SCIENCE.md §1.3 is about.
+    //   class of error MolecularGeometry.md §1.3 is about.
     //
     //   The two TORSIONS about the linkage (which slot on the bridge O the
     //   second ring hangs from, and the spin about that bond) are not asserted
     //   and are not claimed to be a real conformer: a disaccharide's φ/ψ are
-    //   floppy in solution, so per SCIENCE.md §1.6 this is a deliberate
+    //   floppy in solution, so per MolecularGeometry.md §1.6 this is a deliberate
     //   schematic — the lesson is the linkage's configuration, not its
     //   conformation. They were swept and baked in as literals (the same
     //   process palmitoleate's coordinates went through).

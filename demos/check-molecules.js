@@ -25,9 +25,9 @@
  *  error class nothing above can see, because a wrong stereocentre has perfect
  *  bond lengths, textbook angles, and renders beautifully. It is only caught
  *  when a spec DECLARES what it should be, so the declaration is not optional
- *  decoration; SCIENCE.md §1.3 has the two incidents that established this.
+ *  decoration; MolecularGeometry.md §1.3 has the two incidents that established this.
  *
- *  Six declarations, each FAILing if the geometry disagrees (SCIENCE.md §1.4
+ *  Six declarations, each FAILing if the geometry disagrees (MolecularGeometry.md §1.4
  *  is the reference; add a new claim type here in the same commit that adds
  *  the molecule making the claim):
  *
@@ -88,7 +88,7 @@ const unit = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); }
 // and p3 eclipse on the SAME side (cis/Z), ±180° means opposite sides
 // (trans/E). Standard atan2 form so it stays well-defined even when p1-p2
 // is exactly in-plane with p0/p3, which is the common case for a double bond
-// drawn flat (SCIENCE.md §1.6 schematic style) rather than as a real 3D
+// drawn flat (MolecularGeometry.md §1.6 schematic style) rather than as a real 3D
 // conformer.
 const dihedral = (p0, p1, p2, p3) => {
   const b1 = sub(p1, p0), b2 = sub(p2, p1), b3 = sub(p3, p2);

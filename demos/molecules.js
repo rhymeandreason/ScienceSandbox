@@ -223,7 +223,7 @@
    * be touched. Two groups carry it:
    *   · the family-A solvation set, whose lengths were each hand-picked to
    *     clear their display radii and are not a real molecule × any factor
-   *     (SCIENCE.md §1.5). Converting those is a separate, riskier job —
+   *     (MolecularGeometry.md §1.5). Converting those is a separate, riskier job —
    *     it means re-tuning the solvation engine.
    *   · specs DERIVED from an already-registered spec (dAlanine mirrors
    *     alanine), which are therefore already scaled.

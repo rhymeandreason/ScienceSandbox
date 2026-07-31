@@ -59,7 +59,7 @@ glycolysis) need `skel.js` at all.
 **A spec's coordinates on disk are real ångströms** (`units:'angstrom'`);
 `register()` multiplies by `SCALE` once, on the way into the registry. The
 family-A solvation set is `units:'scene'` — those numbers are already display
-units. §1.5 has the why, and `check-molecules.js` requires the field.
+units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires the field.
 
 <!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
 | Page | Loads |
@@ -83,10 +83,10 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
 |---|---|---|
-| `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `register` (applies the display scale) · `atomIndex`/`resolveAtoms` | `SCIENCE.md` §1 |
-| `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds. The builder, not data — and it has no dependencies at all | §1.2, §1.5 |
-| `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | §1.2, §1.5 |
-| `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or with it — `register()` throws if both load | own header, §1.5 |
+| `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `register` (applies the display scale) · `atomIndex`/`resolveAtoms` | `MolecularGeometry.md` §1 |
+| `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds. The builder, not data — and it has no dependencies at all | MolecularGeometry.md §1.2, §1.5 |
+| `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
+| `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or with it — `register()` throws if both load | own header, MolecularGeometry.md §1.5 |
 | `lib-node.js` | the whole library for Node checkers, by walking `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
@@ -97,7 +97,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit, sugars included | `tools/README.md` |
-| `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, §1.3 |
+| `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
 
 Things that are easy to get wrong and are not visible from the API:
 
@@ -105,7 +105,7 @@ Things that are easy to get wrong and are not visible from the API:
   with `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied
   by `Stage.buildMolecule`), and add new angles to the `VIEW` table so two specs
   share a view by name rather than by copying three constants.
-- **Specs come in two bond-length families** and a page should show only one. §1.5.
+- **Specs come in two bond-length families** and a page should show only one. MolecularGeometry.md §1.5.
 - **Coordinates in a `mol-*.js` file are real ångströms** unless the spec says
   `units:'scene'`. Never paste display-scale numbers into an `angstrom` spec —
   it is a silent 1.9×, which reads as a styling choice rather than a bug.
@@ -142,7 +142,7 @@ what belongs in a shared module: `SCIENCE.md` §6.**
    coordinates, give it a `src:` (`check-molecules.js` requires one), then run
    the checkers. A new domain file also goes in `MolLib.DOMAINS`.
    **A molecule that makes a chemical claim ships with the assertion that checks
-   it, in the same commit** (SCIENCE.md §1.4 rule 2). This is not advisory: an
+   it, in the same commit** (MolecularGeometry.md §1.4 rule 2). This is not advisory: an
    undeclared claim is one nothing can ever catch, which is how every sugar in
    this library spent months being the wrong enantiomer.
 3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
@@ -175,8 +175,10 @@ what belongs in a shared module: `SCIENCE.md` §6.**
 ## Scientific accuracy
 
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
-rulebook. §1 covers adding any molecule (geometry, sources, stereochemistry,
-fidelity tiers, scale families); §§2–3 polarity and covalent bonding; §4
+rulebook. `MolecularGeometry.md` §1 covers adding any molecule (geometry,
+sources, stereochemistry, fidelity tiers, scale families) — it moved out of
+SCIENCE.md for length, not because it's optional; §§2–3 polarity and covalent
+bonding; §4
 rendering caveats; §5 the fx/colour conventions; §6 module architecture.
 Water/solvation physics
 (hydrogen bonds, ice, emergent properties) is in `WaterSim.md` — it only
@@ -187,7 +189,7 @@ their own header comments (`molecule-builder.html`, `covalent-drag.js`/
 acid comments; `macromolecule-lab.html` and the relevant `molecules.js`/
 `glycolysis-lab.html` spec comments), not in SCIENCE.md — they're
 page-internal, not cross-cutting.
-Before adding a **new molecule**, read §1.4 — it sets how much fidelity a molecule
+Before adding a **new molecule**, read MolecularGeometry.md §1.4 — it sets how much fidelity a molecule
 owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.
 Pedagogical exaggerations (enlarged bond lengths for legibility, neutral vs.
@@ -215,7 +217,7 @@ python3 -m http.server 8818     # no injection, no live reload
 ```
 
 `check-molecules.js` prints every spec's bond angles, audits each declared
-`stereo` / `topology` / `chirality` claim (§1.4 lists them), and **exits FAIL if
+`stereo` / `topology` / `chirality` claim (MolecularGeometry.md §1.4 lists them), and **exits FAIL if
 any bonded pair's spheres merge** — a merged pair buries the stick inside the
 atoms, which is how a double bond can be correctly tagged yet render as nothing.
 Run it after any geometry change.
@@ -244,7 +246,7 @@ node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js
 Those three are offline and have no dependencies. **`tools/check-handedness.js`
 is separate on purpose** — it needs the network and RDKit (`npm i`), and it is
 the only thing here that can catch a *global mirror*, which every internal check
-is blind to by construction (§1.3). Run it after touching a ring builder or
+is blind to by construction (MolecularGeometry.md §1.3). Run it after touching a ring builder or
 adding a stereocentre:
 
 ```bash

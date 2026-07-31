@@ -205,7 +205,7 @@
      *
      *  Each carries a `groups` map: the functional groups the gallery labels,
      *  as {key, label, formula, atoms:[…], note}. This is the same kind of
-     *  index contract as `pep` / `gly` (SCIENCE.md §1, rule 4) — the page
+     *  index contract as `pep` / `gly` (MolecularGeometry.md §1, rule 4) — the page
      *  addresses atoms by position, so a reindex would silently mislabel
      *  chemistry rather than crash. Regenerate; don't renumber by hand.
      * ------------------------------------------------------------------- */
@@ -214,13 +214,13 @@
     //  below — one glucose in the library, not two. It gained `groups`, `optH`
     //  and its C–H there rather than being duplicated here.
     //
-    // — LIPID. SCHEMATIC ON PURPOSE (SCIENCE.md §1, "derive when shape carries
+    // — LIPID. SCHEMATIC ON PURPOSE (MolecularGeometry.md §1, "derive when shape carries
     //   the lesson; schematize when topology does"). A real palmitate conformer
     //   is floppy and renders as spaghetti; the lesson here is "long nonpolar
     //   tail, one small polar head", which an idealised all-anti zigzag shows
     //   far better. So: 16 carbons at a real 109.5° C–C–C, planar, united-atom
     //   (the CH₂'s are single C spheres, the same convention ethanol uses).
-    //   SATURATED deliberately — SCIENCE.md §1 notes that nothing yet asserts a
+    //   SATURATED deliberately — MolecularGeometry.md §1 notes that nothing yet asserts a
     //   double bond is *cis*, and the cis kink is the entire point of the
     //   unsaturated contrast, so that molecule waits for a torsion check.
     //   Drawn as the neutral acid so the –COOH head is legible; at cell pH it is
