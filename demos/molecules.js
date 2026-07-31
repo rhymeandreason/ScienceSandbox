@@ -47,12 +47,6 @@
  *  two molecules side by side at different scales, with nothing on screen
  *  saying so.
  *
- *  This was learned the expensive way. The Skel table (GL, in skel.js) used to
- *  be family A while the amino acids were family B; nothing showed it, because
- *  no page mixed them. macromolecule-lab.html then put Skel glucose beside
- *  PubChem alanine and AMP under the words "true relative size", and glucose
- *  was ~0.7× everything around it. GL is now family B.
- *
  *  HOW A FAMILY-B PAGE SHOWS A SMALL MOLECULE: load mol-small.js, not
  *  mol-solvation.js. It carries water, ammonia, methane, CO₂ and ethanol built
  *  from MEASURED lengths in real ångströms, so they sit correctly beside an
@@ -62,13 +56,6 @@
  *  The two files define the SAME KEYS on purpose, and register() throws if both
  *  load — so picking the wrong one is a loud failure rather than a molecule
  *  that is quietly 15% wrong.
- *
- *  This is what fixed the exception found when item 3 split this file:
- *  aminoacid-lab.html draws a real water for every dehydration, and was getting
- *  the family-A one — a 1.55 O–H among residues drawn at 1.84, about 15%
- *  short. Nobody could see it while every page loaded every spec. It now loads
- *  mol-small.js and the released water is exactly to scale, with no change to
- *  the solvation engine at all.
  *
  *  The salts are not duplicated: nacl/kcl carry no coordinates, only
  *  dissociation records, so they are scale-free and belong to no family.
