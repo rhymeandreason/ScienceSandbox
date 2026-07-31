@@ -204,7 +204,7 @@ places in this doc cite it.
 | 5 · close the mirror gap | **DONE** | found every sugar was the L-enantiomer; fixed |
 | 6 · measured structures | **unchanged — record and move on** | the doc already argues itself out of this |
 | 7 · collapse scale families | **unchanged — last, or never** | can break working physics |
-| 8 · make the checkers unskippable | **do first** | new; larger exposure than any item above |
+| 8 · make the checkers unskippable | **DONE** | pre-commit hook, 3 offline checkers, 4 negative tests |
 
 Within that, items 1–6 remain additive and safe; item 7 can break working physics.
 
@@ -673,9 +673,46 @@ and tune their entire solvation engine around it — `EQ`, `MIN`, `hbThreshold`,
 the ice lattice spacing. Rescaling water means re-tuning that physics. This is
 the only item on the list that can break something that currently works.
 
-### 8. Make the two checkers unskippable
+### 8. Make the checkers unskippable — DONE
 
-New, and it addresses a larger exposure than anything above it.
+**Shipped.** `.githooks/pre-commit` runs the three offline checkers —
+`check-molecules.js`, `check-docs.js`, `check-pages.js` — on any commit that
+touches `demos/`. `npm i` installs it by pointing `core.hooksPath` at
+`.githooks/` (the `prepare` script); `npm run hooks` re-installs by hand.
+
+Four negative tests, each blocking a commit that would previously have landed:
+a stripped `src:`, a page missing a domain file, an untabled `<script>` tag,
+and — the subtle one — a page and the script table changed *consistently* while
+still leaving the page short a molecule it names. That last case is the one only
+`check-pages.js` sees, and it is the failure mode item 3 introduced.
+
+Three deliberate limits, all written into the hook header:
+
+- **It does not run `check-handedness.js`.** Network plus a dev dependency in a
+  commit path is a liability — the same reasoning that keeps `cod-check.js` out.
+  It is also the only check that catches a global mirror, so it stays a hand-run
+  audit after touching a ring builder.
+- **It checks the working tree, not the staged content.** A partially-staged
+  commit is checked as what is on disk. That is the honest 95% answer; the
+  alternative is a temp checkout on every commit.
+- **`--no-verify` still works.** The goal is that nobody *forgets*, not that
+  nobody can decide.
+
+The doc-side half shipped too: CLAUDE.md's "Adding a new page" step 2 now states
+SCIENCE.md §1.4 rule 2 as non-optional, with the sugar mirror as the reason it is
+not advisory.
+
+Worth being clear about what this buys. The hook enforces that declared claims
+hold — it cannot make anyone declare one. `check-molecules.js` audits a spec
+that opts in, and a spec asserting nothing passes vacuously. That gap is
+structural, and item 5 is the proof of how expensive it gets: four checks passed
+for months on molecules that were the wrong enantiomer, because not one of them
+was looking at absolute handedness. Enforcement raises the floor. It does not
+raise the ceiling.
+
+---
+
+The original argument for this item:
 
 Nothing runs automatically here — no CI, no git hook — so
 `check-molecules.js` and `tools/check-docs.js` are both hand-run. SCIENCE.md

@@ -1,0 +1,66 @@
+#!/bin/sh
+# =====================================================================
+#  pre-commit — run the offline checkers before a commit touching demos/
+#
+#  molecule-pipeline.md item 8. Every checker in this repo was hand-run, and
+#  SCIENCE.md §1.4's rule — a chemical claim ships with its assertion in the
+#  same commit — was enforced by nothing but attention. That was survivable at
+#  one molecule per page. It is not survivable at ~34 more added by an agent
+#  that has no memory of the last session.
+#
+#  Installed by `npm i` in demos/ (the `prepare` script points core.hooksPath
+#  here). To disable:  git config --unset core.hooksPath
+#
+#  WHAT IT DOES NOT DO, deliberately:
+#   · does not run tools/check-handedness.js — that needs the network and a dev
+#     dependency, and a network call in a commit path is a liability. It is the
+#     only check that catches a global mirror, so run it BY HAND after touching
+#     a ring builder (see SCIENCE.md §1.3).
+#   · does not check staged content in isolation. It runs against the working
+#     tree, so a partially-staged commit is checked as what is on disk, not as
+#     what is being committed. That is the honest 95% answer; the alternative is
+#     a temp checkout on every commit.
+#   · does not stop you. `git commit --no-verify` skips it. The goal is that
+#     nobody FORGETS, not that nobody can decide.
+# =====================================================================
+set -e
+
+# Only care about commits that touch the molecule sandbox.
+if git diff --cached --name-only | grep -q '^demos/'; then
+  :
+else
+  exit 0
+fi
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT/demos"
+
+echo "pre-commit: checking demos/ ..."
+
+if ! node check-molecules.js > /tmp/cm.$$ 2>&1; then
+  tail -25 /tmp/cm.$$; rm -f /tmp/cm.$$
+  echo ""
+  echo "pre-commit FAILED: check-molecules.js"
+  echo "  Fix it, or commit with --no-verify if you know why it is wrong."
+  exit 1
+fi
+rm -f /tmp/cm.$$
+
+if ! node tools/check-docs.js > /tmp/cd.$$ 2>&1; then
+  tail -25 /tmp/cd.$$; rm -f /tmp/cd.$$
+  echo ""
+  echo "pre-commit FAILED: check-docs.js — a doc claims something untrue."
+  echo "  Usually an enumeration that grew a member. See CLAUDE.md."
+  exit 1
+fi
+rm -f /tmp/cd.$$
+
+if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
+  tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
+  echo ""
+  echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load."
+  exit 1
+fi
+rm -f /tmp/cp.$$
+
+echo "pre-commit: molecules, docs and pages all check out."

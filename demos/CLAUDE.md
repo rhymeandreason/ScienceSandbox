@@ -129,6 +129,10 @@ what belongs in a shared module: `SCIENCE.md` §10.**
    `tools/sdf2spec.js` (its inputs are committed in `tools/sdf/`) over typing
    coordinates, give it a `src:` (`check-molecules.js` requires one), then run
    the checkers. A new domain file also goes in `MolLib.DOMAINS`.
+   **A molecule that makes a chemical claim ships with the assertion that checks
+   it, in the same commit** (SCIENCE.md §1.4 rule 2). This is not advisory: an
+   undeclared claim is one nothing can ever catch, which is how every sugar in
+   this library spent months being the wrong enantiomer.
 3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
    then `const FXi=FX.create(THREE,root,camera);` — skip FX entirely if the page
    fires no effects at all (`contrast-lab.html` does; `macromolecule-lab.html`
@@ -210,8 +214,18 @@ angle, one aspect or one toggle state).
 
 `tools/check-docs.js` audits what the docs *claim* — see "Keeping the docs true".
 
-Nothing runs automatically: there is no CI and no git hook, so both checkers are
-hand-run. The two together:
+**The three offline checkers run automatically on commit.** `npm i` in `demos/`
+points `core.hooksPath` at `.githooks/`, whose `pre-commit` runs them whenever a
+commit touches `demos/`. Install or re-install it by hand with `npm run hooks`;
+disable it with `git config --unset core.hooksPath`; skip it once with
+`git commit --no-verify`. The goal is that nobody *forgets*, not that nobody can
+decide.
+
+It checks the working tree, not the staged content, so a partially-staged commit
+is checked as what is on disk. And it never runs `check-handedness.js` — network
+plus a dev dependency does not belong in a commit path.
+
+There is still no CI. To run them by hand:
 
 ```bash
 node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js

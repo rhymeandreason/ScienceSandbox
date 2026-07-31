@@ -16,7 +16,15 @@ survives until someone wants it.
 | `tools/spec2smiles.js` | **absolute** stereochemistry, by regenerating `smiles` through RDKit | by hand, needs `npm i` |
 | — | everything about **layout**: framing, spacing, rotation, captions | nothing |
 
-There is no CI and no git hook. Nothing runs automatically.
+There is no CI. The three offline checkers **do** now run automatically: `npm i`
+in `demos/` points `core.hooksPath` at `.githooks/`, and its `pre-commit` runs
+them on any commit touching `demos/`. `--no-verify` skips it, and
+`git config --unset core.hooksPath` disables it — it exists so nobody forgets,
+not so nobody can decide.
+
+Two honest limits: it checks the working tree rather than the staged content, so
+a partially-staged commit is checked as what is on disk; and it deliberately
+omits `check-handedness.js`, which needs the network and a dev dependency.
 
 There **is** now a `package.json`, which this file used to say there deliberately
 was not. It exists for exactly one reason: `tools/spec2smiles.js` needs RDKit,
