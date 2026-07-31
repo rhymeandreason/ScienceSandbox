@@ -1,8 +1,9 @@
 # Scientific Accuracy Rules
 
 The rulebook for every page in this project. **§1 governs adding any molecule**
-(§1.1–§1.6); §§2–8 are chemistry and the water/solvation physics; §§9–13 are
-per-page. When adding or tweaking a visualization, check it against these before
+(§1.1–§1.6); §§2–3 are chemistry (polarity, covalent bonding); §§4–6 are
+per-page. Water/solvation physics (hydrogen bonds, ice, emergent properties)
+moved to `WaterSim.md` — it only applies to the solvation apps. When adding or tweaking a visualization, check it against these before
 shipping. The guiding principle:
 
 > **Accuracy comes from the coordinates and the forces, not from the rendering
@@ -194,7 +195,7 @@ Two things about how it shipped are worth keeping:
 
 **It is rendered as `maltose` and `cellobiose`, not as starch and cellulose** —
 rule 1. Coil-versus-ribbon is an *emergent* property of hundreds of repeats
-(§6's discipline applied to a polymer), and two rings do not earn the polymer's
+(WaterSim.md §3's discipline applied to a polymer), and two rings do not earn the polymer's
 name. What the pair does render exactly is the linkage, which is the entire
 lesson: maltose is starch's repeat, cellobiose is cellulose's.
 
@@ -414,71 +415,8 @@ settle the question: `cis:{atoms,value}` (palmitoleate) and
   over the oxygens; doubling one of them would assert a localisation that isn't
   there. Same reasoning as drawing bicarbonate's two bare O's identically.
 
-## 4. Hydrogen bonds
 
-- An H-bond is an **intermolecular** attraction between a **δ+ H of one molecule**
-  and a **δ− O (lone pair) of another** — never within the same molecule, never
-  H-to-H or O-to-O.
-- **Strength:** ~1/20 of a covalent bond. State this ratio; don't draw H-bonds
-  with the same weight/style as covalent bonds. Convention here: covalent = solid
-  stick, H-bond = **dashed** teal connector.
-- **Directionality:** strongest when **O–H···O is close to linear**. Detection and
-  forces are weighted by the alignment (dot product of the O–H direction and the
-  H···O direction); bent geometries are weaker or rejected.
-- **One donor H → at most one H-bond.** Each H forms a single H-bond (to the best
-  aligned, nearest acceptor within range), so counts stay physical. A real water
-  molecule participates in up to 4 H-bonds total (2 as donor, 2 as acceptor).
-- **It is an attractive force.** When a bond forms it must actually *pull* the two
-  molecules together toward an **equilibrium O···O distance**, balanced by
-  short-range steric (Pauli) repulsion as a hard core. Molecules should latch into
-  a cohesive network, not drift through each other. (Distances in `water-lab.html` are
-  scene units, not Ångström — the *behavior* is what must be right: attract when
-  far, repel when too close, settle at equilibrium.)
-
-## 5. Ice (solid water)
-
-- Freezing produces the **real hexagonal ice (Iₕ) lattice**, built from actual
-  crystallography — not a decorative grid:
-  - Each oxygen is **tetrahedrally bonded to four others**.
-  - Structure is **puckered hexagonal bilayers, ABAB-stacked** (hexagonal, not
-    cubic ABCABC).
-  - **One hydrogen bridges every O···O** linkage (ice rules: each O donates 2 H,
-    accepts 2).
-  - Real **O···O ≈ 2.76 Å**; the lattice is **more open than liquid**.
-- **Ice is less dense than liquid water → it floats.** The frozen state must
-  visibly occupy more volume / be more open than the liquid state. This is the
-  whole point of the lesson; never let ice look denser than liquid.
-- No atom overlap during the freeze/melt animation — molecules must not pass
-  through each other (enforced by collision resolution, see §7).
-
-## 6. Emergent properties must trace back to H-bonding
-
-Every "special property" lesson should visibly connect to hydrogen bonding:
-
-- **Cohesion / surface tension** — H-bonds pull molecules together.
-- **Adhesion / capillary action** — narrower tube → higher rise (correct
-  direction of the effect).
-- **High specific heat / heat of vaporization** — added heat first goes into
-  **breaking H-bonds** before molecules speed up / escape. Evaporation happens at
-  high energy, not low.
-- **Solvent** — polar water surrounds ions in **hydration shells**: δ− O faces
-  cations (e.g. Na⁺), δ+ H faces anions (e.g. Cl⁻). Orientation must be correct.
-
-## 7. Physics / simulation integrity
-
-- **No interpenetration.** Spheres representing atoms/molecules must not visibly
-  overlap during animation. Use position-based collision resolution or a repulsion
-  force with a floor below any attractive equilibrium.
-- **Stable integration.** Damp velocities; keep force constants low enough that the
-  sim doesn't explode. Sanity-check by measuring max velocity after settling.
-- **Equilibrium first.** When both attraction and repulsion act on the same pair,
-  set the steric floor *below* the attractive equilibrium so bonded pairs rest at
-  the intended distance instead of the two forces fighting.
-- **Counts must be believable.** If a readout reports a quantity (e.g. number of
-  H-bonds), verify it against the geometry — an 8-molecule cluster showing 100+
-  H-bonds is a bug (it was: molecules had collapsed with no repulsion).
-
-## 8. Rendering caveats to remember
+## 4. Rendering caveats to remember
 
 - **WebGL ignores line width** — thin `THREE.Line` H-bonds are effectively
   invisible and get occluded. Render bonds that need to be *seen* as thin
@@ -499,7 +437,7 @@ Every "special property" lesson should visibly connect to hydrogen bonding:
 
 ---
 
-## 9. Reaction & event animation reference (`fx.js`)
+## 5. Reaction & event animation reference (`fx.js`)
 
 Every "something happened" moment in a simulation is marked by a transient effect.
 These live in the shared **`fx.js`** module (same reuse pattern as `molecules.js`)
@@ -613,7 +551,7 @@ New pages: add `<script src="fx.js">`, call `FX.create(THREE, root, camera)` onc
 
 ---
 
-## 10. Module architecture — share the plumbing, not the physics
+## 6. Module architecture — share the plumbing, not the physics
 
 There is deliberately **no monolithic `engine.js`**. The lessons fall into distinct
 paradigms — solvation, molecular assembly, pathways, bonding — that do not share a

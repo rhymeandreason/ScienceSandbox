@@ -757,7 +757,7 @@
       core.charge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.core]).getHexString(), R.core);
       core.group.add(core.charge);
       layoutBonds();                       // 107° → 109.5°: the other three move
-      /* Amber, and a ring rather than the ionic flash: SCIENCE.md §9 gives proton
+      /* Amber, and a ring rather than the ionic flash: SCIENCE.md §5 gives proton
        * chemistry the warm amber vocabulary, and this IS the moment the molecule
        * becomes an ion. Fired here rather than by the page because only the
        * module knows where the proton landed. */
@@ -767,7 +767,7 @@
          * donor's own colour, because it does not: nitrogen paid for it. Same
          * effect, moved and recoloured — the variant should read as "a covalent
          * bond, but from here", which is what a dative bond is.
-         * The shimmer stays amber (SCIENCE.md §9, proton/acid chemistry) because
+         * The shimmer stays amber (SCIENCE.md §5, proton/acid chemistry) because
          * the other half of this moment is that the molecule became an ion. */
         fx.spawnRing(core.group.getWorldPosition(new THREE.Vector3()), P.atoms[R.core]);
         fx.settleShimmer(core.sphere, 0xffc24d);

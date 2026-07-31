@@ -14,7 +14,7 @@
  *    // in the render loop, once per frame, before renderer.render():
  *    fx.step();
  *
- *  The colour language (documented in SCIENCE.md §9):
+ *  The colour language (documented in SCIENCE.md §5):
  *    cool blue  → water-driven step (hydration, water attacking)
  *    warm amber → acid / proton chemistry
  *    ion palette→ dissociation (each ion flares its own colour)

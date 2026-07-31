@@ -88,8 +88,8 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | §1.2, §1.5 |
 | `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or with it — `register()` throws if both load | own header, §1.5 |
 | `lib-node.js` | the whole library for Node checkers, by walking `MolLib.DOMAINS`. No page loads it | own header |
-| `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §10 |
-| `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §9 |
+| `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
+| `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
 | `sandbox.css` | cream paper, torn-edge panel, fonts, `#app` grid, stage/panel chrome | — |
@@ -126,7 +126,7 @@ Things that are easy to get wrong and are not visible from the API:
 There is deliberately **no monolithic `engine.js`** — the lessons are distinct
 paradigms (solvation, assembly, pathways, bonding) with no shared simulation core,
 so only the universal scaffolding is extracted. **Full rationale and the test for
-what belongs in a shared module: `SCIENCE.md` §10.**
+what belongs in a shared module: `SCIENCE.md` §6.**
 
 ## Adding a new page
 
@@ -176,8 +176,11 @@ what belongs in a shared module: `SCIENCE.md` §10.**
 
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook. §1 covers adding any molecule (geometry, sources, stereochemistry,
-fidelity tiers, scale families); §§2–8 chemistry and the solvation physics;
-§9 the fx/colour conventions; §10 module architecture. The bonding builder's,
+fidelity tiers, scale families); §§2–3 polarity and covalent bonding; §4
+rendering caveats; §5 the fx/colour conventions; §6 module architecture.
+Water/solvation physics
+(hydrogen bonds, ice, emergent properties) is in `WaterSim.md` — it only
+applies to the solvation apps. The bonding builder's,
 the amino-acid page's, and the macromolecule gallery's own rules live in
 their own header comments (`molecule-builder.html`, `covalent-drag.js`/
 `ionic-drag.js`; `aminoacid-lab.html` and the relevant `molecules.js` amino-
