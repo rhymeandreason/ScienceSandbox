@@ -430,7 +430,13 @@
       layoutLone();
       layoutBonds();          // the slots themselves moved — see layoutBonds()
       applyCel();
-      if(dim==='2d') ligands.forEach(h=>{ h.group.position.z=0; h.vel.z=0; });
+      // the frame itself can be off z=0 now that the core is draggable, and a
+      // molecule floating in front of the Lewis plane is exactly the "bigger vs
+      // nearer" confusion the flat view exists to remove
+      if(dim==='2d'){
+        group.position.z=0;
+        ligands.forEach(h=>{ h.group.position.z=0; h.vel.z=0; });
+      }
     }
 
     /* ---- bonding ------------------------------------------------------- */
@@ -832,12 +838,38 @@
       const r=canvas.getBoundingClientRect();
       ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
     }
+    /* The core is grabbable too, and returns a sentinel rather than a ligand:
+     * moving it is a different operation (see moveCore) even though it starts
+     * from the same pointerdown. */
+    const CORE={};
     function pick(e){
       toNdc(e); ray.setFromCamera(ndc, camera);
       const targets=ligands.map(h=>h.sphere);
+      if(core) targets.push(core.sphere);
       const hits=ray.intersectObjects(targets, false);
       if(!hits.length) return null;
+      if(core && hits[0].object===core.sphere) return CORE;
       return ligands.find(h=>h.sphere===hits[0].object)||null;
+    }
+
+    /* Dragging the core moves the molecule's whole FRAME — the group — rather
+     * than the core inside it. Every piece of bonded geometry (slot positions,
+     * ghost markers, sticks, shared pairs, lone pairs) is expressed relative to
+     * a core sitting at the group's origin, and rewriting all of that to carry an
+     * offset would be a large change with a lot of places to get subtly wrong.
+     * Moving the frame keeps all of it exactly true, for free.
+     *
+     * The catch, and the reason for the second half: a LOOSE ligand is not part
+     * of the molecule and must not be towed along by it. So each unbonded atom is
+     * pushed back by the same delta in group space, which pins it where it was in
+     * the world while the frame slides out from under it. */
+    function moveCore(worldTarget){
+      const before=group.position.clone();
+      group.position.copy(group.parent.worldToLocal(worldTarget.clone()));
+      const delta=group.position.clone().sub(before);
+      ligands.forEach(h=>{
+        if(h.slot==null && h!==held) h.group.position.sub(delta);
+      });   // the ammonia proton is in `ligands` too, so it is covered here
     }
     // the drag plane faces the camera and passes through the grabbed atom, so
     // the atom tracks the pointer exactly at its own depth
@@ -855,8 +887,9 @@
       const h=pick(e);
       if(!h) return;                       // let the orbit handler have it
       e.stopPropagation(); e.preventDefault();
-      held=h; h.dragging=true; h.vel.set(0,0,0);
-      const world=h.group.getWorldPosition(new THREE.Vector3());
+      held=h;
+      if(h!==CORE){ h.dragging=true; h.vel.set(0,0,0); }
+      const world=(h===CORE?core.group:h.group).getWorldPosition(new THREE.Vector3());
       planeAt(world);
       const p=pointerOnPlane(e);
       grabOffset.copy(p ? world.clone().sub(p) : new THREE.Vector3());
@@ -869,13 +902,15 @@
         return;
       }
       const p=pointerOnPlane(e); if(!p) return;
+      if(held===CORE){ moveCore(p.add(grabOffset)); return; }
       const want=group.worldToLocal(p.add(grabOffset));   // atoms live in group space
       if(held.slot!=null && want.distanceTo(slotPos(held.slot))>S.BREAK) unbond(held);
       held.group.position.copy(want);
     }
     function onUp(){
       if(!held) return;
-      held.dragging=false; held=null;
+      if(held!==CORE) held.dragging=false;
+      held=null;
       canvas.style.cursor='';
     }
     surface.addEventListener('pointerdown', onDown, true);
@@ -1004,6 +1039,7 @@
 
     function reset(){
       [...group.children].forEach(c=>group.remove(c));
+      group.position.set(0,0,0);      // Reset re-centres the frame, not just the atoms
       ligands=[]; sticks=[]; sharedPairs=[]; labels=[]; core=null; held=null;
       protonated=false; proton=null; staggers=[]; dative=null;
       build();
