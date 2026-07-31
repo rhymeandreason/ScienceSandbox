@@ -109,6 +109,40 @@ ring axis"). A sugar needing a *specific* mixed pattern — galactose differs fr
 glucose at one carbon — must come from a real record, not from a face-naming
 convention invented on the spot.
 
+**A RELATIVE assertion cannot catch a GLOBAL MIRROR, and every sugar here was
+one.** This is the third incident of this shape and by far the longest-lived:
+`ringPyranose` laid its chair pucker down in the wrong phase relative to the
+ring traversal, so **every Skel-built sugar in this library was the
+L-enantiomer** — L-glucose, L-galactose, L-ribose, L-deoxyribose and both
+disaccharides. They shipped, rendered, and taught.
+
+Four checks were satisfied the whole time, and none of them *could* have failed:
+
+- `stereo:'all-equatorial'`, `{axial}` and `{faces}` assert **relative**
+  patterns. The ring normal's sign falls out of traversal order, so flipping
+  every substituent at once leaves the declared pattern intact.
+- `cod-check.js` compares ring-plane tilt and torsions — also relative. It
+  "validated" glucose against a crystal structure and could not have seen this.
+- `haworth.js` **anchors** the normal to the D convention rather than reading
+  it, so the 2D diagrams drew correct D-sugars from mirrored coordinates. Their
+  output is byte-identical before and after the fix.
+- Bond lengths, bond angles and the render are identical between enantiomers by
+  definition.
+
+> **A mirror is invisible from the inside.** Internal consistency is precisely
+> what it preserves. Catching one needs an ABSOLUTE external reference, which is
+> what `tools/check-handedness.js` is for: it compares each spec's generated
+> `smiles` against a stereo-specific PubChem record, and carries a control group
+> of specs that came *from* PubChem so a failure indicts the geometry rather
+> than the exporter.
+
+The two sugar families needed **different fixes**, for a reason worth keeping:
+`equatorial()` is normal-sign-independent, so flipping the pyranose ring frame
+genuinely mirrors the molecule; `face()` is sign-dependent, so flipping the
+furanose frame does nothing at all and the UP/DOWN tags had to be swapped
+instead. If you mirror a ring builder, verify the result rather than assuming
+the two behave alike.
+
 ### 1.4 Adding a molecule: how much fidelity does it owe?
 
 Fidelity is not a global dial. Every geometry bug this project has shipped had

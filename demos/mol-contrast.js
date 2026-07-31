@@ -56,6 +56,7 @@
     });
     CONTRAST.galactose=g.spec({ name:'Galactose', formula:'C₆H₁₂O₆', class:'sugar',
       names:['O5','C1','C2','C3','C4','C5','O1','HO1','O2','HO2','O3','HO3','O4','HO4','C6','O6','HO6','H1','H2','H3','H4','H5','H61','H62'],
+      smiles:'OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@H:1]1[OH:1]',
       // C4 axial, every other substituent equatorial. `all-equatorial` here would
       // be glucose — and the render of the two is very nearly the same picture.
       stereo:{ axial:[C4] },
@@ -76,7 +77,21 @@
     //   the identical sequence and swaps a single hydroxyl for a hydrogen.
     //   β-D-ribofuranose faces: 1′-OH and 5′ up (that pairing is what β- means),
     //   2′-OH and 3′-OH down.
-    const UP=+1, DOWN=-1;
+    // Face TAGS, relative to the sign ringNormal() returns for this ring's fixed
+    // traversal. That sign is arbitrary but deterministic, so which of ±1 means
+    // "up" is a fact to be established, not assumed — and it was established
+    // wrong: with UP=+1 this built L-ribose and L-deoxyribose (item 5).
+    //
+    // The pyranose fix in skel.js does NOT transfer here, and flipping this
+    // ring's frame the way ringPyranose's was flipped does exactly nothing:
+    // face() is defined against the ring normal, so reversing the traversal
+    // reverses the normal too and every substituent follows it. For a furanose
+    // the only thing that mirrors the molecule is swapping these tags. That
+    // asymmetry — equatorial() is normal-sign-INdependent, face() is
+    // sign-dependent — is why the two sugar families needed different fixes.
+    //
+    // Asserted by the committed `smiles` on both specs.
+    const UP=-1, DOWN=+1;
     function riboFuranose(deoxy){
       const s=ringFuranose();
       const RING=[0,1,2,3,4];             // O4′, C1′, C2′, C3′, C4′
@@ -105,6 +120,7 @@
     const r=riboFuranose(false);
     CONTRAST.ribose=r.s.spec({ name:'Ribose', formula:'C₅H₁₀O₅', class:'sugar',
       names:['O4','C1','C2','C3','C4','O1','HO1','O2','HO2','O3','HO3','C5','O5','HO5','H1','H2','H3','H4','H51','H52'],
+      smiles:'OC[C@H]1O[C@@H](O)[C@H]([OH:1])[C@@H]1O',
       stereo:{ faces:FACES },
       view:VIEW.furanose,
       optH:r.CH,
@@ -120,6 +136,7 @@
     const d=riboFuranose(true);
     CONTRAST.deoxyribose=d.s.spec({ name:'Deoxyribose', formula:'C₅H₁₀O₄', class:'sugar',
       names:['O4','C1','C2','C3','C4','O1','HO1','H21','O3','HO3','C5','O5','HO5','H1','H22','H3','H4','H51','H52'],
+      smiles:'OC[C@H]1O[C@@H](O)[CH2:1][C@@H]1O',
       // C2′ carries no heavy substituent at all now, so it drops out of the face
       // declaration — asserting a face for an atom that isn't there would pass
       // vacuously and tell us nothing.
@@ -638,6 +655,7 @@
     const m=disaccharide(true);
     CONTRAST.maltose=m.s.spec({ name:'Maltose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
       names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
+      smiles:'OC[C@H]1O[C@H:1]([O:1][C@H:1]2[C@H](O)[C@@H](O)[C@H](O)O[C@@H]2CO)[C@H](O)[C@@H](O)[C@@H]1O',
       // α: the bridge leaves C1 AXIAL. Every other substituent on both rings is
       // equatorial (glucose's own pattern), and the checker verifies that too —
       // `{axial:[…]}` is checked in both directions, per ring.
@@ -656,6 +674,7 @@
     const c=disaccharide(false);
     CONTRAST.cellobiose=c.s.spec({ name:'Cellobiose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
       names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
+      smiles:'OC[C@H]1O[C@@H:1]([O:1][C@H:1]2[C@H](O)[C@@H](O)[C@H](O)O[C@@H]2CO)[C@H](O)[C@@H](O)[C@@H]1O',
       // β: the bridge is equatorial, so the whole molecule is all-equatorial —
       // the same declaration glucose itself carries, now over two rings.
       stereo:'all-equatorial',

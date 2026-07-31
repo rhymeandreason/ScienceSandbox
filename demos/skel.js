@@ -257,8 +257,26 @@
     // picks substituent slots off this pucker, so a flatter ring is not a
     // cosmetic difference — it is what decides which stereoisomer gets built.
     const pucker=0.174*R;
+    // THE PUCKER PHASE IS THE HANDEDNESS, and the -z below is what sets it.
+    // Ring atoms are laid down in sugar numbering order (O5, C1…C5) around the
+    // circle while the chair alternates ±y; whether that traversal runs
+    // clockwise or anticlockwise *relative to the alternation* is what makes
+    // the result D or L. It was inverted here, so every pyranose in this
+    // library was the L-sugar — L-glucose, L-galactose and both disaccharides —
+    // until item 5 generated SMILES and compared them against PubChem's
+    // beta-D-glucopyranose (CID 64689).
+    //
+    // Nothing could see it. `stereo:{axial}` / `{faces}` assert RELATIVE
+    // patterns, because the ring normal's sign is arbitrary; cod-check.js
+    // compares only torsions and ring-plane tilt; and haworth.js re-anchors the
+    // normal to the D convention, so the 2D diagrams drew correct D-sugars from
+    // mirrored 3D coordinates. A global mirror is invisible to every check that
+    // does not reach outside for an ABSOLUTE reference.
+    //
+    // Do not "tidy" this sign away. Every sugar's committed `smiles` asserts
+    // it; re-run tools/spec2smiles.js if you touch this function.
     for(let k=0;k<6;k++){ const th=k*Math.PI/3;
-      s.put(k===0?'O':'C', V(R*Math.cos(th), (k%2?pucker:-pucker), R*Math.sin(th))); }
+      s.put(k===0?'O':'C', V(R*Math.cos(th), (k%2?pucker:-pucker), -R*Math.sin(th))); }
     for(let k=0;k<6;k++) s.link(k,(k+1)%6);
     return s;
   }

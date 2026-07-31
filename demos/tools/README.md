@@ -118,6 +118,30 @@ SCIENCE.md claiming `stereo:` understood only `all-equatorial` long after it
 learned `{axial}` and `{faces}`. See CLAUDE.md "Keeping the docs true" for the
 part that is still on the reader.
 
+# tools/check-handedness.js — the only mirror check
+
+```bash
+npm i && node tools/check-handedness.js
+```
+
+Compares every spec's committed `smiles` against a **stereo-specific** PubChem
+record. This is the only check in the repo that can catch a global mirror, and
+it caught a real one: every Skel-built sugar was the L-enantiomer (SCIENCE.md
+§1.3). Internal checks cannot do this — a mirror preserves exactly the internal
+consistency they test.
+
+Two things make it trustworthy:
+
+- **The control group.** Specs that came *from* PubChem are checked too. If those
+  fail, the spec → molblock → RDKit path is broken and the geometry is innocent.
+  `dAlanine` is in the list deliberately: it must come back **D**.
+- **Anomer-specific reference names.** A bare `glucose` (CID 5793) leaves the
+  anomeric centre undefined and would prove nothing. Every name is pinned.
+
+Not wired into `check-molecules.js` — network plus a dev dependency, the same
+reasoning as `cod-check.js` below. Run it after touching a ring builder or
+adding a stereocentre.
+
 # tools/cod-check.js — an audit, not a guard
 
 Compares a Skel-built sugar against a **measured** crystal structure from the

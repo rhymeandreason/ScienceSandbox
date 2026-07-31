@@ -201,7 +201,7 @@ places in this doc cite it.
 | 2 · commit the SDFs | **DONE** | 8 files in `tools/sdf/`; 5 of 7 rebuild exactly |
 | 3 · extract the builder **+ split per-domain** | **DONE** | 7 files; all 37 specs byte-identical; water-lab loads 10 not 37 |
 | 4 · one entry point | **skip** | solves human labour that an agent does not spend |
-| 5 · close the mirror gap | **do — cheap route only** | one condition in `spec2smiles.js` |
+| 5 · close the mirror gap | **DONE** | found every sugar was the L-enantiomer; fixed |
 | 6 · measured structures | **unchanged — record and move on** | the doc already argues itself out of this |
 | 7 · collapse scale families | **unchanged — last, or never** | can break working physics |
 | 8 · make the checkers unskippable | **do first** | new; larger exposure than any item above |
@@ -530,7 +530,64 @@ halves stay separable by inspection — the distinction the four paths above hav
 been missing all along. Item 3b's split does not achieve this on its own; its
 files are all hand-authored.
 
-### 5. Close the mirror gap
+### 5. Close the mirror gap — DONE, and it was not hypothetical
+
+**Shipped, and it found the bug it was written to find.** Generating `smiles`
+for the sugars was supposed to be a cheap belt-and-braces assertion. On the
+first run, every Skel-built sugar came back as **the exact mirror of its
+reference**: L-glucose, L-galactose, L-ribose, L-deoxyribose, and both
+disaccharides. The library had been shipping the wrong enantiomer of every
+sugar it teaches.
+
+**The control is what makes it conclusive.** Six `path:'pubchem'` specs run
+through the identical spec → molblock → RDKit path match their references
+exactly, `dAlanine` included — it comes back D, so the path reads both
+handednesses correctly. And `beta-D-glucopyranose` resolves to CID 64689, the
+same record item 1 independently names as the right anomer-specific reference.
+
+**Why four checks all passed.** `stereo:{axial}`/`{faces}` assert relative
+patterns; `cod-check.js` compares torsions and ring-plane tilt, also relative;
+`haworth.js` *anchors* the ring normal to the D convention rather than reading
+it, so the 2D diagrams drew correct D-sugars from mirrored coordinates; and
+bond lengths, angles and the render are identical between enantiomers by
+definition. Item 5 said the Haworth convention was "the only thing standing
+between a mirrored spec and a diagram that renders beautifully and teaches the
+wrong sugar". That was exactly right, and it had already happened.
+
+**The fix needed two different changes, which is the technical lesson.**
+
+| | root cause | fix |
+|---|---|---|
+| pyranoses | chair pucker phase inverted relative to ring traversal | one sign in `ringPyranose` |
+| furanoses | UP/DOWN face tags inverted | swap the tags in `mol-contrast.js` |
+
+Flipping the *furanose* ring frame the way the pyranose was flipped does
+**nothing at all**: `equatorial()` is normal-sign-independent, so reversing the
+traversal genuinely mirrors a pyranose, but `face()` is sign-dependent, so
+reversing it flips the normal and every substituent follows. Do not assume the
+two ring builders behave alike.
+
+**Blast radius, measured.** Every sugar coordinate moved. The Haworth 2D output
+is **byte-identical** before and after — the anchor was already forcing the
+right answer — so `contrast-lab`'s diagrams are untouched and only the 3D
+models changed. `check-molecules.js` still passes every stereo, topology,
+glycosidic and cis claim, and `beta-maltose`/`beta-cellobiose` both match, which
+confirms the α/β distinction survived.
+
+**`tools/check-handedness.js` is new and is now the record.** Deliberately not
+wired into `check-molecules.js`: it needs the network and a dev-only
+dependency, the same reasoning that keeps `cod-check.js` out. Run it after
+touching a ring builder.
+
+This also settles the doubt item 6 reserved for furanose face assignment — the
+absolute question is now answerable offline-ish and cheaply, and the answer is
+recorded per spec rather than argued about.
+
+---
+
+The original plan for this item, kept because the reasoning held up:
+
+### 5b. The alternatives, as originally weighed
 
 `check-molecules.js` states plainly that `stereo:{faces:…}` is a relative
 pattern only and **cannot catch a global mirror** — it names `ribose` and

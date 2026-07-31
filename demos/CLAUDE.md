@@ -88,6 +88,8 @@ releases a real water molecule, which it builds. See the family-A/B caveat in
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
+| `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit, sugars included | `tools/README.md` |
+| `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, §1.3 |
 
 Things that are easy to get wrong and are not visible from the API:
 
@@ -213,6 +215,16 @@ hand-run. The two together:
 
 ```bash
 node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js
+```
+
+Those three are offline and have no dependencies. **`tools/check-handedness.js`
+is separate on purpose** — it needs the network and RDKit (`npm i`), and it is
+the only thing here that can catch a *global mirror*, which every internal check
+is blind to by construction (§1.3). Run it after touching a ring builder or
+adding a stereocentre:
+
+```bash
+npm i && node tools/check-handedness.js
 ```
 
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._

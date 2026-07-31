@@ -91,6 +91,7 @@
     });
     GLYCOLYSIS.glucose=g.spec({ name:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',
       names:['O5','C1','C2','C3','C4','C5','O1','HO1','O2','HO2','O3','HO3','O4','HO4','C6','O6','HO6','H1','H2','H3','H4','H5','H61','H62'],
+      smiles:'OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H:1]1[OH:1]',
       // asserted by check-molecules.js — the one property that no bond length,
       // bond angle or screenshot can confirm, and the one that makes it glucose
       stereo:'all-equatorial',

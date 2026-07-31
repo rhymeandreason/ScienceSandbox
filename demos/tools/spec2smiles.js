@@ -62,7 +62,14 @@ require('@rdkit/rdkit')().then(RDKit => {
   const rows = [];
   let bad = 0;
   for (const [key, m] of Object.entries(MOLECULES)) {
-    if (!m.contrast || m.class === 'sugar') continue;   // sugars use haworth.js
+    // Sugars are NOT drawn from this string — haworth.js draws them from the
+    // geometry. They are generated anyway, as a committed ASSERTION:
+    // `stereo:{faces}` can only check a RELATIVE pattern, because the ring
+    // normal's sign is arbitrary, so it cannot catch a global mirror — flip
+    // every substituent at once and L-ribose passes as D-. RDKit's canonical
+    // SMILES distinguishes [C@H] from [C@@H], which is exactly the
+    // discrimination `faces` lacks. See molecule-pipeline.md item 5.
+    if (!m.contrast) continue;
     if (!m.names) { console.log(`${key}: no \`names\` yet — skipped`); bad++; continue; }
 
     const probe = molblock(key, m, null);

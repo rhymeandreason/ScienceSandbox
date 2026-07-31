@@ -67,6 +67,14 @@ function findRings(m) {
 
 /* Which side of the ring each substituent sits on.
  *
+ * NOTE (item 5): this anchoring is why a mirrored spec drew a correct diagram
+ * for so long. Every Skel-built sugar was the L-enantiomer, and because the
+ * anchor FORCES the D convention rather than reading it, these projections came
+ * out right anyway — the 2D output is byte-identical before and after the
+ * geometry fix. That is the intended behaviour of an anchor, and it is also
+ * exactly why the 2D view could never have revealed the bug. Absolute
+ * handedness is checked by tools/check-handedness.js, not here.
+ *
  * The ring normal's sign is arbitrary — it flips with traversal direction — so
  * it is ANCHORED, not trusted: in a D-sugar the exocyclic carbon on the last
  * ring carbon (C6 of a pyranose, C5 of a furanose) is drawn UP by convention,

@@ -10,11 +10,22 @@ survives until someone wants it.
 
 | Checker | Covers | Runs |
 |---|---|---|
-| `check-molecules.js` | sphere overlap, bond angles, ring stereochemistry (`stereo`), ring topology (`topology`), L/D handedness (`chirality`) | `node check-molecules.js`, by hand |
+| `check-molecules.js` | sphere overlap, bond angles, provenance (`src`), ring stereochemistry (`stereo`), ring topology (`topology`), L/D handedness (`chirality`), generated `smiles` freshness | `node check-molecules.js`, by hand |
+| `tools/check-docs.js` | the claims CLAUDE.md and SCIENCE.md make about the code | by hand |
+| `tools/check-pages.js` | each page loads every molecule it names | by hand |
+| `tools/spec2smiles.js` | **absolute** stereochemistry, by regenerating `smiles` through RDKit | by hand, needs `npm i` |
 | — | everything about **layout**: framing, spacing, rotation, captions | nothing |
 
-There is no CI, no git hook and no `package.json` in the repo. Nothing runs
-automatically, including `check-molecules.js`.
+There is no CI and no git hook. Nothing runs automatically.
+
+There **is** now a `package.json`, which this file used to say there deliberately
+was not. It exists for exactly one reason: `tools/spec2smiles.js` needs RDKit,
+and RDKit is what caught the one error class nothing else here could see — a
+global mirror. Every sugar in the library was the L-enantiomer, and no internal
+check could prove it, because `stereo:` asserts only RELATIVE patterns. The
+dependency is **dev-only and never ships**: the pages still load from the
+working tree with no build step, and the committed `smiles` strings are the
+result, not the tool.
 
 That split is not arbitrary. `check-molecules.js` exists because chemistry errors
 are *invisible* — a molecule with the wrong stereochemistry renders beautifully.

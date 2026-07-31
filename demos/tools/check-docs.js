@@ -43,7 +43,6 @@ const SCIENCE = rd('SCIENCE.md');
 const KNOWN_ABSENT = {
   'engine.js':          'the monolith CLAUDE.md/§10 exist to argue against',
   'water.html':         "CLAUDE.md's example of a rename that outlived its file",
-  'package.json':       'TESTING.md notes there is deliberately none',
   'layout.js':          'TESTING.md proposal — not built',
   'check-layout.js':    'TESTING.md proposal — not built',
   'contrast-layout.js': 'TESTING.md proposal — not built',
