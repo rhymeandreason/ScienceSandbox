@@ -42,18 +42,21 @@
      as two lessons, not eight unrelated molecules. Positive margin here beats
      the lap rather than adding to it */
   .goal[data-lesson="nacl"]{margin-left:20px}
-  /* dealt by hand, so no two sit at quite the same angle. Cycles every five, and
-     the values are small on purpose — past about a degree the baselines stop
-     agreeing and the strip reads as broken rather than as paper.
-     The angle is a custom property, not a bare transform, because every other
-     rule that moves a card has to carry the tilt along with it — a hover that
-     wrote plain translateY() would silently flatten the card it lifts. */
-  .goal{--tilt:0deg;transform:rotate(var(--tilt))}
-  .goal:nth-child(5n+1){--tilt:-0.7deg}
-  .goal:nth-child(5n+2){--tilt:0.5deg}
-  .goal:nth-child(5n+3){--tilt:-0.3deg}
-  .goal:nth-child(5n+4){--tilt:0.8deg}
-  .goal:nth-child(5n+5){--tilt:-0.5deg}
+  /* Dealt by hand, so no two sit at quite the same angle OR quite the same
+     height. Cycles every five, and the two offsets are deliberately out of step
+     with each other — a card that is both the most tilted and the lowest reads
+     as placed, while the mismatch reads as dropped.
+     Both are custom properties rather than bare transforms, because everything
+     else that moves a card has to carry them along: a hover writing plain
+     translateY() would silently flatten and re-align the card it lifts.
+     Values stay under 5px. Enough to break the baseline, not enough to look
+     like the strip failed to lay out. */
+  .goal{--tilt:0deg;--dy:0px;transform:translateY(var(--dy)) rotate(var(--tilt))}
+  .goal:nth-child(5n+1){--tilt:-0.7deg;--dy:2px}
+  .goal:nth-child(5n+2){--tilt:0.5deg; --dy:4px}
+  .goal:nth-child(5n+3){--tilt:-0.3deg;--dy:0px}
+  .goal:nth-child(5n+4){--tilt:0.8deg; --dy:3px}
+  .goal:nth-child(5n+5){--tilt:-0.5deg;--dy:1px}
   /* hover and the live card both come OUT of the stack — z-index, or the card to
      the right keeps its corner over the one you are pointing at */
   .goal:hover{background:#fbf7ee;z-index:2}
@@ -65,11 +68,17 @@
      Not on .on — the live card is already lifted, and animating it would drop
      it 1px to bounce it back up. */
   .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
+  /* every keyframe lifts FROM the card's own resting height, so a low card in
+     the stagger rises the same distance a high one does */
   @keyframes cardLift{
-    0%  {transform:translateY(0)    rotate(var(--tilt))}
-    55% {transform:translateY(-7px) rotate(var(--tilt))}
-    100%{transform:translateY(-4px) rotate(var(--tilt))}}
-  .goal.on{background:#fffdf7;z-index:3;transform:translateY(-5px) rotate(0deg);
+    0%  {transform:translateY(var(--dy))              rotate(var(--tilt))}
+    55% {transform:translateY(calc(var(--dy) - 7px))  rotate(var(--tilt))}
+    100%{transform:translateY(calc(var(--dy) - 4px))  rotate(var(--tilt))}}
+  /* the live card comes all the way out: straightened, and lifted off its own
+     staggered height rather than to a shared one, so selecting a card never
+     slides it sideways up the strip */
+  .goal.on{background:#fffdf7;z-index:3;
+    transform:translateY(calc(var(--dy) - 5px)) rotate(0deg);
     box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30),
       0 22px 30px -18px rgba(43,39,35,.55)}
   .goal .gname{font-family:var(--font-slab);font-size:18px;line-height:1.1;
