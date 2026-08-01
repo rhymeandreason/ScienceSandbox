@@ -193,22 +193,17 @@
     background:#fff;color:var(--ink);cursor:pointer;
     box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
   #dock button.act:hover{background:var(--ink);color:var(--paper)}
-  #etoggle{display:flex;align-items:center;gap:6px;font-family:var(--font-sans);
-    font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap}
-  /* electrons wear their atom's colour, so the switch label doubles as the
-     legend: red = oxygen's electrons, steel = hydrogen's */
-  .edot{display:inline-block;width:9px;height:9px;border-radius:50%;
-    background:#d6362e;border:1px solid rgba(0,0,0,.55);vertical-align:middle}
-  .edot.h{background:#b9c2d0;margin-left:-3px}
-
-  /* ---------- view-mode switch ---------- */
-  #modes,#dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+  /* ---------- view switch ----------
+     One switch, not two: electrons-vs-sticks follows the view now, so the
+     electron swatches that used to double as a legend on that button went with
+     it. */
+  #dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
     box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
-  #modes .mode,#dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+  #dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
     padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
     display:inline-flex;align-items:center;gap:6px}
-  #modes .mode + .mode,#dims .mode + .mode{border-left:1.5px solid var(--ink)}
-  #modes .mode.on,#dims .mode.on{background:var(--ink);color:var(--paper)}
+  #dims .mode + .mode{border-left:1.5px solid var(--ink)}
+  #dims .mode.on{background:var(--ink);color:var(--paper)}
 
   /* the PNG button and the dock both want the bottom strip — move it up */
   #savepng{bottom:22px;right:26px;left:auto}
@@ -259,11 +254,6 @@
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="dock">
-      <div id="modes" role="group" aria-label="View">
-        <button class="mode on" data-mode="electrons">valence electrons<i class="edot"></i><i class="edot h"></i></button>
-        <button class="mode" data-mode="sticks">stick bonds</button>
-      </div>
-      <div class="dsep"></div>
       <div id="dims" role="group" aria-label="View angle">
         <button class="mode" data-dim="3d">3D</button>
         <button class="mode on" data-dim="2d">2D</button>
@@ -335,24 +325,42 @@
    cross draws) with 3D one click away. atomkit.js's cel() adds the flat-Toon +
    ink-outline shading that reads as "diagram mode" alongside the camera change.
 
-   The camera itself must not have perspective: at 45° an atom parked off to the
-   side is drawn skewed, and a hydrogen nearer the camera reads as BIGGER rather
-   than NEARER — both of which are lies in a view whose whole job is letting you
-   count and compare. The fix is a long lens rather than a real
-   OrthographicCamera: fx.js captures its camera in a closure with no setter, and
-   swapping the camera object means surgery on a module four pages share. Dropping
-   to a 12° FOV and pulling back by the matching factor is orthographic to the eye
-   at this scale, and costs one page-local line. */
-const FOV_3D=45, FOV_2D=12;
-const LENS=Math.tan(FOV_3D/2*Math.PI/180)/Math.tan(FOV_2D/2*Math.PI/180);
-const ZOOM={ '3d':[6,26], '2d':[6*LENS,26*LENS] };   // same framing, longer throw
+   The camera must not have perspective, and now genuinely does not: Stage takes
+   `ortho:true`. This used to be a 12° lens pulled back by the matching factor —
+   orthographic to the eye, but only in the flat view, and only while the two
+   lenses were kept in step by a cam.r multiply on every toggle.
+
+   Both views are orthographic now, which is a bigger win in 3D than in 2D. The
+   flat view was already near enough; the round one was the view still telling
+   the lie, drawing an atom parked off to the side skewed and a hydrogen nearer
+   the camera BIGGER rather than nearer. Both are lies on a page whose whole
+   subject is comparing sizes and counting things, and orbiting made them move.
+
+   With no fov there is no lens to switch, so the toggle stops touching the
+   camera at all and the LENS/ZOOM compensation is gone. Apparent size comes from
+   the frustum instead: cam.r is standing distance only (Stage still drives it
+   from the wheel, and it must stay large enough that no atom crosses the near
+   plane), and ZOOM.k maps it to the half-height actually shown. */
+const ZOOM={ min:30, max:130, k:0.08 };   // cam.r ⇒ world half-height on screen
 
 const canvas=document.getElementById('gl');
 let userSpun=false;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
-  cam:{theta:0.6,phi:1.15,r:12}, rMin:6, rMax:26*LENS,
+  ortho:true, cam:{theta:0.6,phi:1.15,r:62}, rMin:ZOOM.min, rMax:ZOOM.max,
+  onZoom:()=>applyZoom(),
   onDrag:()=>{userSpun=true;}
 });
+/* An ortho camera's apparent size is its frustum, so zoom and resize both have
+   to rewrite it — there is no fov and no distance for them to work through. */
+function applyZoom(){
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h) return;
+  const halfH=cam.r*ZOOM.k, a=w/h;
+  camera.top=halfH; camera.bottom=-halfH;
+  camera.left=-halfH*a; camera.right=halfH*a;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(applyZoom).observe(canvas);
 const fx=FX.create(THREE, root, camera);
 
 const elSay=document.getElementById('say');
@@ -714,8 +722,8 @@ function load(k){
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
   sim=L.make();
-  sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
   sim.setDim(flat?'2d':'3d');
+  sim.setMode(modeFor());          // after setDim: the mode is derived from it
   say(L.open);
 }
 
@@ -723,14 +731,14 @@ document.querySelectorAll('.goal').forEach(c=>{
   c.addEventListener('click',()=>{ if(c.dataset.lesson!==key) load(c.dataset.lesson); });
 });
 
-/* ---------- controls ---------- */
-document.querySelectorAll('#modes .mode').forEach(b=>{
-  b.addEventListener('click',()=>{
-    document.querySelectorAll('#modes .mode').forEach(o=>o.classList.remove('on'));
-    b.classList.add('on');
-    sim.setMode(b.dataset.mode);
-  });
-});
+/* ---------- controls ----------
+   Electrons-vs-sticks is no longer a switch of its own: it FOLLOWS the view,
+   and the two toggles were really one question asked twice. The flat view
+   exists to be counted, so it draws every valence electron; the 3D view exists
+   for shape, where a cloud of dots hides the geometry it is there to show, so
+   it draws the bonds. A student who wanted dots in 3D was, in practice, a
+   student who had left the flat view by accident. */
+function modeFor(){ return flat ? 'electrons' : 'sticks'; }
 
 /* 2D is the default: straight-on, rotation locked, every electron countable.
    3D is the thing you switch to once you want to ask where the lone pairs
@@ -738,12 +746,17 @@ document.querySelectorAll('#modes .mode').forEach(b=>{
 let flat=true;
 document.querySelectorAll('#dims .mode').forEach(b=>{
   b.addEventListener('click',()=>{
+    // clicking the view you are already in is a no-op
+    if((b.dataset.dim==='2d')===flat) return;
     document.querySelectorAll('#dims .mode').forEach(o=>o.classList.remove('on'));
     b.classList.add('on');
     flat=(b.dataset.dim==='2d');
     sim.setDim(flat?'2d':'3d');
-    camera.fov=flat?FOV_2D:FOV_3D; camera.updateProjectionMatrix();
-    cam.r*=flat?LENS:1/LENS;         // same apparent size through the new lens
+    sim.setMode(modeFor());        // dots in the flat view, sticks in the round one
+    /* Nothing to do to the camera any more. One ortho frustum serves both views,
+       so the apparent size a student is looking at survives the toggle for free
+       — it used to take a lens swap and a matching change of throw, kept in step
+       by hand. All that is left is where the camera stands. */
     if(flat){ userSpun=true; }        // no idle turntable behind a locked view
     else { cam.theta=0.6; cam.phi=1.15; applyCam(); userSpun=false; }
     say(flat ? L.flatSay : 'Free view — drag the background to spin it.');
@@ -753,7 +766,7 @@ document.querySelectorAll('#dims .mode').forEach(b=>{
 document.getElementById('clearmol').addEventListener('click',()=>{
   rung=false; saidExtra=false;
   sim.reset();
-  sim.setMode(document.querySelector('#modes .mode.on').dataset.mode);
+  sim.setMode(modeFor());
   say(L.open);
 });
 
@@ -773,9 +786,7 @@ function frame(now){
      handler: the handler belongs to the shared stage, and a page has no business
      reaching in to disable it. Re-applying the camera afterwards is the same
      result from the outside — the view simply cannot be rotated. */
-  // Stage's wheel clamp spans BOTH lenses, so each mode re-clamps to its own
-  const z=ZOOM[flat?'2d':'3d'];
-  cam.r=Math.max(z[0],Math.min(z[1],cam.r));
+  // no per-mode re-clamp: one frustum, one zoom range, both views
   if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
   sim.step(dt);
@@ -783,7 +794,7 @@ function frame(now){
   renderer.render(scene,camera);
 }
 resize();
-camera.fov=FOV_2D; camera.updateProjectionMatrix(); cam.r*=LENS;
+applyZoom();          // the frustum is the framing; nothing is shown until it is set
 load('water');
 requestAnimationFrame(frame);
 </script>
