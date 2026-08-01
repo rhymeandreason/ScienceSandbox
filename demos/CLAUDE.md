@@ -12,7 +12,7 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 
 ## Pages (lessons)
 
-<!-- ENUM: add a row when a *-lab.html is added or repurposed. See "Keeping the docs true". -->
+<!-- ENUM: add a row when a *-lab.html is added or repurposed. -->
 | Page | Lesson | Paradigm |
 |---|---|---|
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics |
@@ -62,10 +62,11 @@ glycolysis) need `skel.js` at all.
 family-A solvation set is `units:'scene'` — those numbers are already display
 units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires the field.
 
-<!-- ENUM: update when any page's <script> tags change. See "Keeping the docs true". -->
+<!-- ENUM: update when any page's <script> tags change.  -->
 | Page | Loads |
 |---|---|
-| `water-lab`, `molecule-lab` | palette, molecules, mol-solvation, scene, fx |
+| `water-lab` | palette, molecules, mol-solvation, scene, fx, atomkit |  <!-- atomkit: step 1's element letters + δ badges -->
+| `molecule-lab` | palette, molecules, mol-solvation, scene, fx |
 | `molecule-builder` | palette, molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
 | `aminoacid-lab` | palette, molecules, mol-monomers, mol-small, scene, fx |
 | `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |

@@ -76,6 +76,7 @@
 <script src="mol-solvation.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<script src="atomkit.js"></script>   <!-- step-1 element letters + δ badges (same as the bonding builder) -->
 <script>
 "use strict";
 /* =============================================================
@@ -107,7 +108,10 @@ let bondColor=MolLib.PALETTE.bonds.covalent;        // covalent stick, muted sto
 let hbColor=MolLib.PALETTE.bonds.hbond;             // hydrogen bond, deep blue
 let ionColor=MolLib.PALETTE.bonds.iondipole;        // ion–dipole bond, deep amber
 // step-1 detail decorations (electrons + charge text)
-let eBondColor=0xe0a92e, eLoneColor=0x444444, dNegColor=0x444444, dPosColor=0x444444;
+// δ badges wear their own atom's colour (red O, steel H) so the sign reads as
+// belonging to that atom rather than as a separate annotation layer
+let eBondColor=0xe0a92e, eLoneColor=0x444444,
+    dNegColor=MolLib.PALETTE.atoms.O, dPosColor=MolLib.PALETTE.atoms.H;
 let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
@@ -242,24 +246,6 @@ function dashTube(a,b,mat=_hbMat){
   return g;
 }
 const hbondTube=(a,b)=>dashTube(a,b,_hbMat);
-function drawLabelTex(txt,color,size){
-  const c=document.createElement('canvas'); const x=c.getContext('2d');
-  x.font=`bold ${size}px sans-serif`;
-  const w=Math.max(128,Math.ceil(x.measureText(txt).width)+24); c.width=w; c.height=128;
-  x.font=`bold ${size}px sans-serif`; x.fillStyle=color;
-  x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,w/2,68);
-  return {tex:new THREE.CanvasTexture(c), w};
-}
-function label(txt,color='#e9eef8',size=64){
-  const {tex,w}=drawLabelTex(txt,color,size);
-  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
-  s.scale.set(1.1*w/128,1.1,1); s.userData.txt=txt; s.userData.size=size; return s;
-}
-// redraw an existing label's texture in a new colour (text/size unchanged)
-function setLabelColor(sprite,hexNum){
-  const {tex}=drawLabelTex(sprite.userData.txt, hx(hexNum), sprite.userData.size);
-  sprite.material.map.dispose(); sprite.material.map=tex; sprite.material.needsUpdate=true;
-}
 function arrow(from,to,color=0x6fe3c4){
   const dir=new THREE.Vector3().subVectors(to,from);
   return new THREE.ArrowHelper(dir.clone().normalize(),from,dir.length(),color,0.35,0.22);
@@ -451,10 +437,29 @@ const detail=new THREE.Group(); first.add(detail);
 const cloud=atom(0x4ea1ff,1.9,new THREE.Vector3(0,0.2,0));
 cloud.material=new THREE.MeshBasicMaterial({color:0x4ea1ff,transparent:true,opacity:0.12}); detail.add(cloud);
 const dip=arrow(new THREE.Vector3(0,-1.4,0),new THREE.Vector3(0,1.5,0),0xffd166); detail.add(dip);
-const dO=label('δ−',hx(dNegColor)); dO.position.set(0,1.35,0);
-const dH1=label('δ+',hx(dPosColor)); dH1.position.copy(H1L).multiplyScalar(1.35);
-const dH2=label('δ+',hx(dPosColor)); dH2.position.copy(H2L).multiplyScalar(1.35);
-detail.add(dO,dH1,dH2);
+
+/* Element letters and δ badges come from atomkit.js — the SAME drawing the
+ * bonding builder uses, so a student reads step 1 with the vocabulary the
+ * builder taught (letter at the atom's centre, charge in a circled badge off
+ * the shoulder). Each sprite needs a parent sitting AT its atom, because
+ * kit.faceCamera() rewrites sprite.position every frame from `base` + lift. */
+const kit=AtomKit.create(THREE);
+function atomHolder(pos){ const g=new THREE.Group(); g.position.copy(pos); detail.add(g); return g; }
+const holdO=atomHolder(new THREE.Vector3(0,0,0)), holdH1=atomHolder(H1L), holdH2=atomHolder(H2L);
+holdO.add(kit.label('O','O'));
+holdH1.add(kit.label('H','H'));
+holdH2.add(kit.label('H','H'));
+// the badges are rebuilt on a colour change (a canvas texture bakes its colour)
+let dO,dH1,dH2;
+function buildCharges(){
+  [[holdO,dO],[holdH1,dH1],[holdH2,dH2]].forEach(([h,s])=>{ if(s){ h.remove(s); kit.forget(s); } });
+  dO=kit.charge('δ−',hx(dNegColor),'O',1);   holdO.add(dO);   // default shoulder: upper-right
+  // a hydrogen's badge is parked on the far side of its own atom, pointing AWAY
+  // from the oxygen, so it never lands on the O–H stick or the shared pair
+  dH1=kit.charge('δ+',hx(dPosColor),'H',0.8); holdH1.add(kit.place(dH1,H1L.clone().normalize().multiplyScalar(0.62)));
+  dH2=kit.charge('δ+',hx(dPosColor),'H',0.8); holdH2.add(kit.place(dH2,H2L.clone().normalize().multiplyScalar(0.62)));
+  applyDetail();
+}
 const eGroup=new THREE.Group(); detail.add(eGroup);
 [H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),eBondColor,'eBond')); });
 const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
@@ -464,18 +469,19 @@ function recolorElectrons(role,hexNum){
   if(role==='eBond') eBondColor=hexNum; else eLoneColor=hexNum;
   eGroup.traverse(o=>{ if(o.isMesh && o.userData.role===role){
     o.material.color.setHex(hexNum); if(o.material.emissive) o.material.emissive.setHex(hexNum); } });
-  if(role==='eLone') setLabelColor(eLbl,hexNum);
 }
 function recolorChargeText(which,hexNum){
-  if(which==='dNeg'){ dNegColor=hexNum; setLabelColor(dO,hexNum); }
-  else { dPosColor=hexNum; setLabelColor(dH1,hexNum); setLabelColor(dH2,hexNum); }
+  if(which==='dNeg') dNegColor=hexNum; else dPosColor=hexNum;
+  buildCharges();          // a badge's colour is baked into its canvas texture
 }
 const dset={electrons:false,charge:true,dipole:false,cloud:false};
 function applyDetail(){
   detail.visible=(S.step===0);
-  eGroup.visible=dset.electrons; dO.visible=dH1.visible=dH2.visible=dset.charge;
+  eGroup.visible=dset.electrons;
+  if(dO) dO.visible=dH1.visible=dH2.visible=dset.charge;
   dip.visible=dset.dipole; cloud.visible=dset.cloud;
 }
+buildCharges();
 
 /* ---- ice Iₕ lattice (built to fit the current molecule count) ---- */
 function frameQuat(u,v){
@@ -951,23 +957,8 @@ function tempDescriptor(p){
   return 'Liquid\nH-bonds forming\n& reforming';
 }
 
-// on-stage toggle chips (step-1 detail toggles + hydrogen-bond visibility)
+// on-stage chip rail (empty since step 1 lost its display-layer toggles)
 const chipsEl=document.getElementById('chips');
-function chip(container,txt,on,onClick){
-  const b=document.createElement('div');
-  b.className='chip'+(on?' on':'');
-  b.innerHTML=`<span class="layer-name">${txt}</span><i class="ph-bold ${on?'ph-eye':'ph-eye-slash'} eye-icon"></i>`;
-  b.onclick=()=>{
-    const nextOn=onClick(b);
-    b.classList.toggle('on',nextOn);
-    const icon=b.querySelector('.eye-icon');
-    if(icon){
-      icon.className=`ph-bold ${nextOn?'ph-eye':'ph-eye-slash'} eye-icon`;
-    }
-  };
-  container.appendChild(b);
-  return b;
-}
 function fitDistance(){ let rad=1.6; sim.mols.forEach(w=>{ if(!w.userData.escaped) rad=Math.max(rad,w.position.length()); });
   // skip any crystal still falling in from high above — it would balloon the fit
   // radius and make the whole view zoom out until it settles into the water
@@ -982,18 +973,10 @@ function outerPoint(margin=1.6){
 }
 
 function buildControls(){
+  // Step 1 shows one fixed, labelled molecule — no display-layer toggles. The
+  // dset flags survive for the Debug panel and for any later step that wants
+  // the dipole arrow or the electron cloud back.
   chipsEl.innerHTML='';
-  if(S.step===0){
-    const panel=document.createElement('div');
-    panel.className='layer-panel';
-    panel.innerHTML='<div class="layer-panel-header">Display Layers</div>';
-    chipsEl.appendChild(panel);
-
-    chip(panel,'Lone Pairs',dset.electrons,()=>{dset.electrons=!dset.electrons;applyDetail();return dset.electrons;});
-    chip(panel,'Charges δ',dset.charge,()=>{dset.charge=!dset.charge;applyDetail();return dset.charge;});
-    chip(panel,'Dipole',dset.dipole,()=>{dset.dipole=!dset.dipole;applyDetail();return dset.dipole;});
-    chip(panel,'Electron Cloud',dset.cloud,()=>{dset.cloud=!dset.cloud;applyDetail();return dset.cloud;});
-  }
 }
 // water +/- (top formula card) and salt +/clear (bottom card)
 function addWater(){ if(sim.mols.length<60){ sim.spawn(outerPoint(2.5)); if(salt.length&&!anyDescending()) assignShells(); } }
@@ -1011,7 +994,12 @@ function applyStep(n){
   if(n===0){ while(sim.mols.length>1) sim.remove();
     // the surviving molecule may have drifted while part of a larger cluster on
     // other steps — recentre it so it rotates in place instead of off-axis
-    const w=sim.mols[0]; if(w){ w.position.set(0,0,0); w.userData.vel.set(0,0,0); } }
+    // …and ENTER the step front-on: O up, both H's square to the viewer, which
+    // is the portrait the text describes. Zero the molecule's rotation and put
+    // the camera on its plane (theta 0, phi 90°); dragging still orbits from
+    // there, so the student can turn it and come back by re-entering step 1.
+    const w=sim.mols[0]; if(w){ w.position.set(0,0,0); w.userData.vel.set(0,0,0); w.rotation.set(0,0,0); }
+    cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
   if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
   if(n<4) clearSalt();
@@ -1263,6 +1251,9 @@ function loop(){
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
   renderReadout(p,r,escaping);
   FXi.step();
+  // letters/badges ride just proud of their own atom's front surface — see
+  // atomkit.js faceCamera(); needs the camera's final position for this frame
+  if(detail.visible) kit.faceCamera(camera);
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
 
