@@ -162,6 +162,30 @@
       // with the bond going E. Eight around chlorine, two shared with hydrogen
       loneFlat: [[0,1,0],[-1,0,0],[0,-1,0]],
       start:[[5.2,1.6,-1.0]],
+      /* The acid half of the same reaction ammonia does. There water GIVES a
+       * proton; here it TAKES one, and it is the same water either way — which
+       * is the thing worth meeting twice. HCl + H₂O → H₃O⁺ + Cl⁻, and that
+       * arrow is what "hydrochloric acid" names: not a different molecule, this
+       * one in water. See the water reagent's `role`. */
+      /* Dealt further out than ammonia's, because the two lessons do not reach
+       * the same distance. Ammonia's target is a lone pair sitting ON the core
+       * (1.5 out), so water dealt at ~4.9 is comfortably outside the capture
+       * radius. HCl's target is the hydrogen STICKING OUT of the molecule (1.85
+       * out, on the same side the water comes from), which puts the reacting end
+       * about a unit and a half closer for the same start — inside the capture,
+       * where it flew in on its own and the drag never happened. Measured, not
+       * nudged: the reaching lone pair starts ~3.5 from the hydrogen against a
+       * capture of 2.2. */
+      water:{ start:[6.2,-2.4,0.6], role:'accept' },
+      /* What chlorine looks like once the proton has gone. The fourth pair is
+       * the BOND — the two electrons hydrogen left behind, now pointing straight
+       * down the axis it left along — so the octet is the same eight it always
+       * was, rearranged, and the −1 is the one electron that was hydrogen's.
+       * Ordered with that pair LAST so it keeps the index it is pushed in at. */
+      anion:{
+        lone:     [[-0.3333,0.9428,0],[-0.3333,-0.4714,0.8165],[-0.3333,-0.4714,-0.8165],[1,0,0]],
+        loneFlat: [[0,1,0],[-1,0,0],[0,-1,0],[1,0,0]],
+      },
     },
     methane: {
       core:'C', ligand:'H', bond:1.50, polar:0,      // the nonpolar control
@@ -282,11 +306,19 @@
     // sticks suppressed while a view change is still moving the atoms — setDim()
     let stickHold=false, holdT=null;
     let protonated=false, proton=null;
+    /* The core has lost its proton to water (HCl only). Like `protonated` it is
+     * a different molecule from here on, so it swaps the lone-pair set — and it
+     * closes the slot, because a chloride ION is not a chlorine looking for a
+     * partner. */
+    let anion=false;
     // after the proton lands the molecule is a different shape with one more
     // slot, so every direction lookup goes through here
     function G(){ return (protonated && R.proton) ? R.proton : R; }
     function slotDirs(){ return (dim==='2d')?G().slots2d:G().slots; }
-    function loneDirs(){ return (dim==='2d')?G().loneFlat:G().lone; }
+    function loneDirs(){
+      const g=(anion&&R.anion)?R.anion:G();
+      return (dim==='2d')?g.loneFlat:g.lone;
+    }
     let t=0;
 
     /* ---- pieces: the shared dressing lives in atomkit.js --------------
@@ -511,6 +543,7 @@
     function slotTaken(i){ return ligands.some(h=>h.slot===i); }
     // nearest OPEN slot to a ligand, or null when the core is full
     function bestSlot(h){
+      if(anion) return null;              // the ion is done reacting
       let best=null, bd=Infinity;
       slotDirs().forEach((d,i)=>{
         if(slotTaken(i)) return;
@@ -919,24 +952,34 @@
     /* ---- the water reagent: where the proton actually comes from ---------
      * A whole H2O molecule, drawn to the same rules as the water TAB (same
      * dirs, same bond length, two lone pairs, a shared pair in each gap), that
-     * the student drags at ammonia's lone pair. Close enough and it hands over
-     * a proton — the H goes, its electron does NOT, and what is left is
-     * hydroxide.
+     * the student drags at the molecule on the bench. It plays BOTH parts:
+     *
+     *   role 'donate'  ammonia. Water hands a proton over. The H goes, its
+     *                  electron does not, and water is left as hydroxide.
+     *   role 'accept'  hydrogen chloride. Water TAKES the proton. The H comes
+     *                  across without its electron, chlorine keeps the pair,
+     *                  and water is left as hydronium.
+     *
+     * Two roles rather than two files, because it is one mechanic — bring the
+     * molecules together and one hydrogen changes hands — and one substance
+     * playing both parts is the whole point. Water is the base against HCl and
+     * the acid against ammonia; a student who meets it doing both has met
+     * amphoterism without the word, and putting the two in separate code would
+     * be claiming they are separate ideas.
      *
      * The electron bookkeeping is the lesson, so it is animated rather than
-     * stated: the two dots that were in the O–H gap do not vanish and get
-     * replaced by a lone pair, they MOVE OUT to where the lone pair belongs,
-     * and the H-coloured one turns oxygen-coloured on the way. That is the same
-     * sentence ionic-drag.js writes when its electron changes colour in flight
-     * — an electron wears its owner's colour — and it is what makes "OH⁻ keeps
-     * both electrons" something you can watch instead of something you are
-     * told. It is also why the charge lands on oxygen: it kept an electron that
-     * used to be hydrogen's.
+     * stated: the two dots of the broken bond do not vanish and get redrawn
+     * somewhere else, they MOVE to where they now belong, and the one that
+     * changed owner changes colour on the way. That is the sentence
+     * ionic-drag.js writes when its electron recolours in flight — an electron
+     * wears its owner's colour — and it is what makes "the H left without its
+     * own" something you can watch. It is also where each charge comes from:
+     * whoever ends up holding an electron that was not theirs wears the minus.
      *
      * Deliberately NOT a second CovalentDrag instance. Water here is a reagent,
      * not a lesson: it is never built, never taken apart, and has no slots to
      * fill. Sharing the class would mean carrying a whole molecule's worth of
-     * interaction to draw one that only has to arrive and split.
+     * interaction to draw one that only has to arrive and react.
      */
     const WATER={
       bond:1.55,
@@ -948,12 +991,11 @@
        * the lesson is built on never happened. Short enough that the last
        * stretch is still not the mouse's doing, and no further. */
       capture:2.2,
-      /* How near the donor hydrogen has to get before the proton goes. Its own
-       * number rather than S.SNAP (0.42, which a covalent bond earns by landing
-       * IN a slot): nothing is being aimed here — an approaching acid and base
-       * do not have to line up, they only have to meet — so the reaction should
-       * fire from the distance a student reads as "touching", not from the
-       * tolerance a slot needs. */
+      /* How near before the proton goes. Its own number rather than S.SNAP
+       * (0.42, which a covalent bond earns by landing IN a slot): nothing is
+       * being aimed here — an approaching acid and base do not have to line up,
+       * they only have to meet — so it fires from the distance a student reads
+       * as "touching", not from the tolerance a slot needs. */
       snap:1.0,
       dirs:   [[0.7910,-0.6116,0], [-0.7910,-0.6116,0]],
       lone:    [[0,0.6116,0.7910], [0,0.6116,-0.7910]],
@@ -961,6 +1003,16 @@
     };
     let water=null;
     function hexOf(el){ return '#'+new THREE.Color(P.atoms[el]).getHexString(); }
+    function waterRole(){ return (R.water&&R.water.role)||'donate'; }
+
+    /* A site on the reagent, in ITS frame, for the current view: `li` names one
+     * of water's lone-pair directions, and everything hanging off a lone pair
+     * (the pair itself, and on hydronium the hydrogen that landed in it) has to
+     * follow that direction when the view flips. Explicit `dir` for the pair
+     * hydroxide inherits, which points along a bond that is no longer there and
+     * so is in no table. */
+    function loneDir(li){ return v3((dim==='2d'?WATER.loneFlat:WATER.lone)[li]); }
+    function siteDir(o){ return o.li!=null ? loneDir(o.li).normalize() : o.dir.clone(); }
 
     function offerWater(){
       if(water || !R.water || !protonReady()) return;
@@ -977,50 +1029,51 @@
         return { group:hg, sphere:hg.children[0], dir:v3(d).normalize() };
       });
       /* One dot from each atom, exactly as every other bond on this page draws
-       * one — which is what makes the split legible later: you can see WHICH of
-       * the two stays behind. */
-      const pairs=hs.map(()=>[dot(P.atoms.O,{overlay:true}), dot(P.atoms.H,{overlay:true})]);
-      pairs.forEach(p=>p.forEach(m=>g.add(m)));
-      const lones=[[dot(P.atoms.O),dot(P.atoms.O)], [dot(P.atoms.O),dot(P.atoms.O)]];
-      lones.forEach(p=>p.forEach(m=>g.add(m)));
+       * one — which is what makes the reaction legible later: you can see WHICH
+       * of the two stays behind. */
+      const pairs=hs.map(h=>({ dots:[dot(P.atoms.O,{overlay:true}), dot(P.atoms.H,{overlay:true})],
+                               h }));
+      pairs.forEach(p=>p.dots.forEach(m=>g.add(m)));
+      const lones=[0,1].map(li=>({ dots:[dot(P.atoms.O), dot(P.atoms.O)], li }));
+      lones.forEach(p=>p.dots.forEach(m=>g.add(m)));
       const wsticks=hs.map(h=>{
         const st=Stage.bond(new THREE.Vector3(), h.group.position, P.bonds.covalent, 0.10, 1);
         st.userData.len=WATER.bond;
         g.add(st); return st;
       });
       water={ group:g, sphere:osphere, hs, pairs, lones, sticks:wsticks, badge:null,
-              vel:new THREE.Vector3(), slot:null, dragging:false, spent:false, split:null };
+              vel:new THREE.Vector3(), slot:null, dragging:false, spent:false, move:null };
       layoutWater();
       applyCel(); applyMode();
       onChange(state());
     }
 
     /* Same job layoutLone()/layoutBonds() do for the core, for the reagent: the
-     * lone pairs swing into the plane in 2D, and a shared pair straddles the
-     * bond across an axis the camera can see. */
+     * lone pairs swing into the plane in 2D, a shared pair straddles its bond
+     * across an axis the camera can see, and a hydrogen that arrived in a lone
+     * pair rides that pair's direction. */
     function layoutWater(){
       if(!water) return;
-      const lone=(dim==='2d')?WATER.loneFlat:WATER.lone;
-      water.lones.forEach((pair,i)=>{
-        /* The pair hydroxide inherited is the last one, and it does not sit on a
-         * lone-pair DIRECTION from the table — it sits along the bond that is no
-         * longer there, which is the whole point of it. Skipped entirely while
-         * the split animation still owns its dots. */
-        const d=(i<lone.length) ? v3(lone[i]) : (water.freeDir||new THREE.Vector3(0,1,0));
-        if(i>=lone.length && water.split) return;
-        const base=d.clone().normalize().multiplyScalar(P.radii.O+GAP);
-        const across=basis(d).u;
-        pair.forEach((m,k)=>m.position.copy(base).addScaledVector(across,(k?1:-1)*0.16));
+      water.hs.forEach(h=>{
+        if(!h || h.li==null) return;            // a born hydrogen sits where it was built
+        h.group.position.copy(siteDir(h).multiplyScalar(WATER.bond));
       });
-      water.hs.forEach((h,i)=>{
-        const pair=water.pairs[i]; if(!pair) return;
+      water.lones.forEach(p=>{
+        if(water.move && water.move.pair===p) return;   // mid-animation, it owns itself
+        const d=siteDir(p);
+        const base=d.clone().multiplyScalar(P.radii.O+GAP);
+        const across=basis(d).u;
+        p.dots.forEach((m,k)=>m.position.copy(base).addScaledVector(across,(k?1:-1)*0.16));
+      });
+      water.pairs.forEach(p=>{
+        if(!p || (water.move && water.move.pair===p)) return;
         // the pinch between the two surfaces, leaning toward oxygen: O–H is the
         // page's most unequal covalent bond and water's own tab draws it so
-        const b=h.group.position;
+        const b=p.h.group.position;
         const centre=b.clone().normalize().multiplyScalar(
           P.radii.O + (WATER.bond-P.radii.O-P.radii.H)*0.5 - 0.12);
         const across=basis(b).u;
-        pair.forEach((m,k)=>m.position.copy(centre).addScaledVector(across,(k?1:-1)*0.17));
+        p.dots.forEach((m,k)=>m.position.copy(centre).addScaledVector(across,(k?1:-1)*0.17));
       });
       water.sticks.forEach((st,i)=>{
         const h=water.hs[i]; if(!st || !h || !st.visible) return;
@@ -1030,19 +1083,29 @@
       });
     }
 
-    /* Which H is going to leave: whichever one is already nearest the lone pair.
-     * Chosen per frame rather than fixed at build time, so a student who
-     * approaches from the other side donates the other hydrogen — the molecule
-     * is symmetric and the page should not pretend one of them is special. */
     function waterPos(local){
       return local.clone().applyQuaternion(water.group.quaternion).add(water.group.position);
     }
-    function donorH(target){
-      let best=null, bd=Infinity;
+    /* What on the reagent is doing the reacting, and where it has to get to.
+     *  donate — one of water's hydrogens, aiming at the core's lone pair.
+     *           Whichever H is already nearest, chosen per frame: the molecule
+     *           is symmetric and the page should not pretend one is special.
+     *  accept — water's own lone pair, aiming at the hydrogen ON the molecule.
+     */
+    function waterReach(){
+      if(waterRole()==='accept'){
+        const h=ligands.find(x=>x.slot!=null && !x.isProton);
+        if(!h) return null;
+        const site=siteDir(water.lones[0]).multiplyScalar(WATER.bond);
+        return { local:site, target:h.group.position.clone(), h,
+                 dist:waterPos(site).distanceTo(h.group.position) };
+      }
+      const target=protonTarget(); if(!target) return null;
+      let best=null;
       water.hs.forEach((h,i)=>{
         if(!h) return;
         const d=waterPos(h.group.position).distanceTo(target);
-        if(d<bd){ bd=d; best={h, i, dist:d}; }
+        if(!best || d<best.dist) best={ local:h.group.position.clone(), target, h, i, dist:d };
       });
       return best;
     }
@@ -1051,19 +1114,19 @@
       if(!water) return;
       if(dim==='2d'){ water.group.position.z=0; water.vel.z=0; }
       /* Solid nuclei, the same rule shell() gives a loose ligand: a student who
-       * drags the water straight at the nitrogen must not be able to push it
+       * drags the water straight at the core must not be able to push it
        * THROUGH — two molecules interpenetrating is the one thing that makes
        * this stop reading as matter. Stopping it just outside also leaves the
-       * donor hydrogen exactly where the approach can take over. */
+       * reacting end exactly where the approach can take over. */
       const wshell=P.radii.O+P.radii[R.core]+0.55;
       const d0=water.group.position.length();
       if(d0<wshell && d0>1e-4) water.group.position.multiplyScalar(wshell/d0);
-      if(water.split) stepSplit(dt);
-      if(water.spent){                       // hydroxide: drifting away, inert
+      if(water.move) stepMove(dt);
+      if(water.spent){                       // the product: drifting clear, inert
         /* And once it has arrived, the park is DROPPED. It is expressed in group
-         * space, so a live one drags the hydroxide along behind the ammonium
-         * every time the student moves the molecule — which says the two are one
-         * object. They are not: the proton left, and what is on the paper is two
+         * space, so a live one drags the product along behind the molecule every
+         * time the student moves it — which says the two are one object. They
+         * are not: the proton changed hands and what is on the paper is two
          * separate species. (They do attract — opposite charges, the salt tabs'
          * whole lesson — but that is a force between two things, not a frame
          * they share.) Dropped, moveFrame's push-back is the only thing left
@@ -1074,102 +1137,204 @@
         }
         return;
       }
-      const target=protonTarget(); if(!target) return;
-      const d=donorH(target); if(!d) return;
+      const r=waterReach(); if(!r) return;
       /* Turn to face before closing: a water molecule that arrived sideways and
-       * then teleported its hydrogen into the bond would undo the one thing the
+       * then teleported a hydrogen into the bond would undo the one thing the
        * approach is for. Slerp, so it reads as the molecule orienting itself the
        * way a real one does in a field. */
-      if(d.dist<WATER.capture*3){          // turns to face well before it closes
+      if(r.dist<WATER.capture*3){
         const want=new THREE.Quaternion().setFromUnitVectors(
-          d.h.dir, target.clone().sub(water.group.position).normalize());
+          r.local.clone().normalize(), r.target.clone().sub(water.group.position).normalize());
         water.group.quaternion.slerp(want, 1-Math.pow(0.02, dt));
       }
-      if(d.dist<WATER.capture){
-        // where the oxygen has to stand for its hydrogen to be ON the lone pair
-        const stand=target.clone().sub(
-          d.h.dir.clone().applyQuaternion(water.group.quaternion).multiplyScalar(WATER.bond));
-        /* The reaction fires DURING the drag, not on release. Ammonia taking a
-         * proton off water is the easiest thing on this page — it happens in
-         * every glass of ammonia solution without anyone deciding to do it — so
-         * making the student carry the water in and then let go put a deliberate
-         * act in front of a spontaneous one. Same shape as a ligand's approach
-         * in step(): inside the capture radius the molecule stops tracking the
-         * pointer exactly and leans in, harder the closer it gets, so you feel
-         * the lone pair take it before it goes. */
+      if(r.dist<WATER.capture){
+        // where the oxygen has to stand for its reacting end to be ON the target
+        const stand=r.target.clone().sub(
+          r.local.clone().applyQuaternion(water.group.quaternion));
+        /* The reaction fires DURING the drag, not on release. A proton moving
+         * between an acid and a base is the most spontaneous thing on this page
+         * — it happens in every glass of either without anyone deciding to do
+         * it — so making the student carry the water in and then let go put a
+         * deliberate act in front of one that is not. Same shape as a ligand's
+         * approach in step(): inside the capture radius the molecule stops
+         * tracking the pointer exactly and leans in, harder the closer it gets,
+         * so you feel the reaction take it before it goes. */
         if(water.dragging){
           const lean=stand.clone().sub(water.group.position);
-          const k=1-(d.dist/WATER.capture);          // 0 at the edge → 1 at the pair
+          const k=1-(r.dist/WATER.capture);          // 0 at the edge → 1 on contact
           if(lean.lengthSq()>1e-8)
             water.group.position.addScaledVector(lean.normalize(), lean.length()*k*k*0.55);
         }else{
           water.group.position.lerp(stand, 1-Math.pow(0.004, dt));
         }
-        if(d.dist<WATER.snap) splitWater(d);
+        if(r.dist<WATER.snap) react(r);
       }else if(!water.dragging){
         water.vel.multiplyScalar(Math.pow(S.DAMP, dt*60));
         water.group.position.addScaledVector(water.vel, dt);
       }
     }
 
-    /* The reaction. The H leaves as a bare proton (spawnProton + protonate, the
-     * same two calls the old dealt-out H+ went through, so the dative bond, the
-     * flare, the ring and the +1 all happen exactly as before) and everything
-     * else here is about what STAYS. */
-    function splitWater(d){
-      const at=waterPos(d.h.group.position);
-      water.group.remove(d.h.group);
-      water.hs[d.i]=null;
-      const stick=water.sticks[d.i];
-      if(stick){ water.group.remove(stick); water.sticks[d.i]=null; }
-      /* The gap's two electrons stay, and become a lone pair pointing where the
-       * bond used to. Animated by stepSplit(): they slide out from the pinch to
-       * the lone-pair site, and hydrogen's dot turns oxygen's colour, because it
-       * now belongs to oxygen. */
-      const pair=water.pairs[d.i];
-      water.pairs[d.i]=null;
-      water.lones.push(pair);
-      water.freeDir=d.h.dir.clone();
-      water.split={ k:0, pair, from:pair.map(m=>m.position.clone()),
-                    dir:d.h.dir.clone(),
-                    c0:new THREE.Color(P.atoms.H), c1:new THREE.Color(P.atoms.O) };
+    function react(r){
+      if(waterRole()==='accept') acceptProton(r); else donateProton(r);
+      /* Let go of it. The student is still holding the pointer down on what is
+       * now a different substance, and leaving the grab attached would have them
+       * dragging the product around while it is trying to drift clear — and
+       * fighting the park. The reaction ends the drag, which is also how it
+       * reads: the thing you were holding is not the thing that is there now. */
+      if(held===water){ held=null; water.dragging=false; canvas.style.cursor=''; }
       water.spent=true;
+      /* The two products have to SEPARATE, or the student reads the toast over a
+       * product parked on top of the one it came off. Back to where the water
+       * was dealt, which is already chosen to be clear paper — "away from the
+       * molecule" points wherever the student happened to approach from, which,
+       * coming over the top, parks it on the molecule. */
+      water.park=v3(R.water.start).multiplyScalar(1.1);
+      applyCel(); applyMode();
+      layoutWater();
+    }
+
+    /* ammonia: water GIVES. The H leaves as a bare proton through the same
+     * spawnProton + protonate the dealt proton used, so the dative bond, the
+     * flare, the ring and the +1 are untouched. Everything here is what STAYS. */
+    function donateProton(r){
+      const at=waterPos(r.h.group.position);
+      water.group.remove(r.h.group);
+      water.hs[r.i]=null;
+      const stick=water.sticks[r.i];
+      if(stick){ water.group.remove(stick); water.sticks[r.i]=null; }
+      // the gap's two electrons stay, and become a lone pair pointing where the
+      // bond used to — see stepMove()
+      const p=water.pairs.find(x=>x&&x.h===r.h);
+      water.pairs[water.pairs.indexOf(p)]=null;
+      const lone={ dots:p.dots, dir:r.h.dir.clone() };
+      water.lones.push(lone);
+      startMove(lone, r.h.dir.clone().multiplyScalar(P.radii.O+GAP), P.atoms.H, P.atoms.O);
       /* Hydroxide, and the minus goes on the OXYGEN: it is holding an electron
        * that used to be hydrogen's. Same badge vocabulary as the salt tabs. */
       water.badge=kit.charge('−', hexOf('O'), 'O');
       water.group.add(water.badge);
-      /* The two products have to SEPARATE, or the student reads the toast over
-       * a hydroxide parked on top of the ammonium it came off. A parking spot
-       * rather than a shove: velocity through this module's damping dies in
-       * about a tenth of a second and would barely move it.
-       * Back to where the water was dealt, rather than along the line it came
-       * in on: that spot is already chosen to be clear paper, while "away from
-       * the molecule" points wherever the student happened to approach from —
-       * which, coming over the top, parks the hydroxide on the ammonium. */
-      water.park=v3(R.water.start).multiplyScalar(1.1);
-      /* Let go of it. The student is still holding the pointer down on what is
-       * now a hydroxide, and leaving the grab attached would have them dragging
-       * the product around while it is trying to drift clear — and fighting the
-       * park. The reaction ends the drag, which is also how it reads: the thing
-       * you were holding is not the thing that is there now. */
-      if(held===water){ held=null; water.dragging=false; canvas.style.cursor=''; }
       spawnProton(at);
       protonate(proton);
-      applyCel(); applyMode();
-      layoutWater();
     }
-    function stepSplit(dt){
-      const sp=water.split;
-      sp.k=Math.min(1, sp.k+dt/0.55);
-      // the site the vacated bond direction becomes: straight out along it
-      const base=sp.dir.clone().multiplyScalar(P.radii.O+GAP);
-      const across=basis(sp.dir).u;
-      sp.pair.forEach((m,k)=>{
-        const to=base.clone().addScaledVector(across,(k?1:-1)*0.16);
-        m.position.lerpVectors(sp.from[k], to, sp.k);
-        if(k===1) m.material.color.copy(sp.c0).lerp(sp.c1, sp.k);   // it changed owner
+
+    /* HCl: water TAKES. The mirror of the above, and the reason the reagent has
+     * roles at all — same molecules, same contact, opposite direction. The
+     * hydrogen crosses without its electron, so chlorine ends up holding a pair
+     * that was half hydrogen's (Cl⁻) and oxygen ends up sharing a pair that was
+     * all its own (H₃O⁺, a dative bond, exactly ammonium's). */
+    function acceptProton(r){
+      const h=r.h, i=h.slot;
+      /* Off the core first: its bond dots become chlorine's fourth lone pair,
+       * pointing straight down the bond that just broke — the same move water
+       * makes in donateProton(), which is the point. */
+      const p=sharedPairs.find(x=>x.slot===i);
+      const dir=v3(slotDirs()[i]).normalize();
+      if(p){
+        sharedPairs.splice(sharedPairs.indexOf(p),1);
+        core.lonePairs.push(p.dots);
+        /* Re-parented onto the core, because that is whose electrons they are
+         * now — and because layoutLone() places every lone pair in the core's
+         * frame. The perpendicular is computed the way layoutLone computes it,
+         * or the dots would slide to one place and be re-placed at another the
+         * next time the view flipped. */
+        p.dots.forEach(m=>core.group.add(m));
+        const perp=new THREE.Vector3().crossVectors(dir,
+          Math.abs(dir.z)<0.9?new THREE.Vector3(0,0,1):new THREE.Vector3(0,1,0)).normalize();
+        const base=dir.clone().multiplyScalar(P.radii[R.core]+GAP);
+        coreMove={ dots:p.dots, k:0,
+                   from:p.dots.map(m=>m.position.clone()),
+                   to:[0,1].map(k=>base.clone().addScaledVector(perp,(k?1:-1)*0.16)),
+                   c0:new THREE.Color(P.atoms[R.ligand]), c1:new THREE.Color(P.atoms[R.core]) };
+      }
+      sticks.filter(st=>st.userData.slot===i).forEach(st=>group.remove(st));
+      sticks=sticks.filter(st=>st.userData.slot!==i);
+      dropStagger(i);
+      ligands.splice(ligands.indexOf(h),1);
+      group.remove(h.group);
+      hidePolarity(h);
+      if(core.delta){ core.group.remove(core.delta); kit.forget(core.delta); core.delta=null; }
+      anion=true;                               // four lone pairs now, and no slot
+      core.charge=kit.charge('−', hexOf(R.core), R.core);
+      core.group.add(core.charge);
+      layoutLone();
+      /* …and onto the water, in the lone pair that took it. The pair does not
+       * move out of the way — it becomes the bond, which is what a dative bond
+       * is and what the student already watched nitrogen do one tab over. */
+      const lone=water.lones.shift();
+      h.group.position.copy(siteDir(lone).multiplyScalar(WATER.bond));
+      h.slot=null; h.vel.set(0,0,0);
+      water.group.add(h.group);
+      const nh={ group:h.group, sphere:h.sphere, li:lone.li };
+      water.hs.push(nh);
+      const bp={ dots:lone.dots, h:nh };
+      water.pairs.push(bp);
+      const st=Stage.bond(new THREE.Vector3(), h.group.position, P.bonds.covalent, 0.10, 1);
+      st.userData.len=WATER.bond;
+      water.group.add(st); water.sticks.push(st);
+      // both dots stay oxygen's colour: it paid for the whole bond
+      startMove(bp, null, null, null);
+      water.badge=kit.charge('+', hexOf('O'), 'O');
+      water.group.add(water.badge);
+      if(fx) fx.settleShimmer(water.sphere, 0xffc24d);   // §5: amber for proton chemistry
+      onChange(state());
+    }
+
+    /* The two electrons sliding to their new home. `to` null means "wherever
+     * layoutWater would put you now", which is the case when a lone pair becomes
+     * a bond; a colour pair means one of the dots changed owner and says so the
+     * way ionic-drag.js does, by changing colour on the way. */
+    function startMove(pair, to, c0, c1){
+      water.move={ pair, k:0, from:pair.dots.map(m=>m.position.clone()), to,
+                   c0:c0!=null?new THREE.Color(c0):null,
+                   c1:c1!=null?new THREE.Color(c1):null };
+    }
+    function stepMove(dt){
+      const mv=water.move;
+      mv.k=Math.min(1, mv.k+dt/0.55);
+      let to=mv.to;
+      if(!to){                                   // a pair that became a bond
+        const b=mv.pair.h.group.position;
+        const centre=b.clone().normalize().multiplyScalar(
+          P.radii.O + (WATER.bond-P.radii.O-P.radii.H)*0.5 - 0.12);
+        const across=basis(b).u;
+        to=[0,1].map(k=>centre.clone().addScaledVector(across,(k?1:-1)*0.17));
+      }else if(!Array.isArray(to)){              // a pair that became a lone pair
+        const across=basis(mv.pair.dir).u;
+        to=[0,1].map(k=>to.clone().addScaledVector(across,(k?1:-1)*0.16));
+      }
+      mv.pair.dots.forEach((m,k)=>{
+        m.position.lerpVectors(mv.from[k], to[k], mv.k);
+        if(k===1 && mv.c0) m.material.color.copy(mv.c0).lerp(mv.c1, mv.k);
       });
-      if(sp.k>=1) water.split=null;
+      /* The colour is SET at the end, not left wherever the lerp finished: an
+       * electron that stopped 96% of the way to its new owner's colour is a
+       * rendering artefact standing exactly where the lesson is. */
+      if(mv.k>=1){
+        if(mv.c1) mv.pair.dots[1].material.color.copy(mv.c1);
+        water.move=null; layoutWater();
+      }
+    }
+    /* The core's half of the accept reaction — same animation, but the dots
+     * belong to the molecule on the bench rather than to the reagent. */
+    let coreMove=null;
+    function stepCoreMove(dt){
+      if(!coreMove) return;
+      coreMove.k=Math.min(1, coreMove.k+dt/0.55);
+      coreMove.dots.forEach((m,k)=>{
+        m.position.lerpVectors(coreMove.from[k], coreMove.to[k], coreMove.k);
+        if(k===1) m.material.color.copy(coreMove.c0).lerp(coreMove.c1, coreMove.k);
+      });
+      /* Both dots end in chlorine's colour, not just the one that moved house.
+       * That is ionic-drag.js's rule at the end of its electron's flight —
+       * chloride's eight are eight green electrons afterwards, indistinguishable
+       * — and it is the chemistry: once the pair is chlorine's there is no
+       * "hydrogen's one" among them any more. The lerp is what says which one
+       * changed owner; the end state says the distinction has stopped meaning
+       * anything. */
+      if(coreMove.k>=1){
+        coreMove.dots.forEach(m=>m.material.color.copy(coreMove.c1));
+        coreMove=null; layoutLone();
+      }
     }
 
     /* ---- dragging ------------------------------------------------------
@@ -1374,6 +1539,7 @@
       stepDative(dt);
       stepStagger(dt);
       stepWater(dt);
+      stepCoreMove(dt);
 
       // ghosts breathe, and brighten when a ligand is close enough to be caught
       core.ghosts.forEach((g,i)=>{
@@ -1389,8 +1555,8 @@
     function applyMode(){
       const e=(mode==='electrons');
       core.lonePairs.forEach(p=>p.forEach(m=>m.visible=e));
-      core.slotDots.forEach((m,i)=>m.visible=e && !slotTaken(i));
-      core.ghosts.forEach((m,i)=>m.visible=e && !slotTaken(i));
+      core.slotDots.forEach((m,i)=>m.visible=e && !slotTaken(i) && !anion);
+      core.ghosts.forEach((m,i)=>m.visible=e && !slotTaken(i) && !anion);
       core.cloud.visible=e;
       sharedPairs.forEach(p=>p.dots.forEach(d=>d.visible=e));
       ligands.forEach(h=>{
@@ -1401,9 +1567,15 @@
         if(h.lone) h.lone.forEach(pr=>pr.forEach(m=>m.visible=e));
       });
       sticks.forEach(s=>s.visible=!e && !stickHold);
+      /* The reagent obeys the same rule as everything else: dots in the flat
+       * view, sticks in the round one. Its pairs are {dots,…} records rather
+       * than bare arrays (a pair has to remember WHICH lone-pair direction it
+       * rides, so it can follow the view) — reaching for .forEach on the record
+       * threw here, and a throw halfway down applyMode() left every mesh below
+       * this line at whatever visibility it was born with. */
       if(water){
-        water.lones.forEach(p=>p.forEach(m=>m.visible=e));
-        water.pairs.forEach(p=>{ if(p) p.forEach(m=>m.visible=e); });
+        water.lones.forEach(p=>p.dots.forEach(m=>m.visible=e));
+        water.pairs.forEach(p=>{ if(p) p.dots.forEach(m=>m.visible=e); });
         water.sticks.forEach(st=>{ if(st) st.visible=!e; });
         if(!e) layoutWater();          // a stick only gets placed while it is shown
       }
@@ -1415,7 +1587,7 @@
 
     /* The reagent is only offered to a FINISHED, un-protonated molecule: the
      * lone pair has to exist and be free for the reaction to mean anything. */
-    function protonReady(){ return !!R.proton && !protonated &&
+    function protonReady(){ return !!R.water && !protonated && !anion &&
                             bondedCount()>=R.slots.length; }
     function bondedCount(){ return ligands.filter(h=>h.slot!=null && !h.isProton).length; }
     function state(){
@@ -1427,7 +1599,11 @@
                   in, and whether it has already done its job */
                canOfferWater:!!R.water && protonReady() && !water,
                hasWater:!!water && !water.spent,
-               hydroxide:!!water && water.spent,
+               /* named for what the LEFTOVER is, since that is what each
+                  lesson's closing note is about */
+               hydroxide:!!water && water.spent && waterRole()==='donate',
+               hydronium:!!water && water.spent && waterRole()==='accept',
+               anion,
                free:ligands.length-bonded,
                /* Bond order, and whether the bond dipoles survive being added up.
                   Both are recipe facts rather than run-time ones, but the page
@@ -1445,6 +1621,7 @@
       ligands=[]; sticks=[]; sharedPairs=[]; core=null; held=null;
       kit.clear();                    // the old letters and dots go with them
       protonated=false; proton=null; staggers=[]; dative=null; water=null;
+      anion=false; coreMove=null;
       build();
       setDim(dim);
     }

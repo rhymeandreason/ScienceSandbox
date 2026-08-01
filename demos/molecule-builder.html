@@ -559,15 +559,44 @@ const LESSONS={
       'the <b>same Cl</b> as salt, <b>shared</b> not taken',
       'in water it <b>lets the H go</b> → an <b>acid</b>',
       'ammonia <b>accepts</b> that H⁺ — acid and base, two tabs apart' ] },
+    notes2:{ title:'Hydrochloric acid &middot; H₃O⁺ + Cl⁻', tags:['ion','liquid'], facts:[
+      'the <b>H⁺</b> left — its electron did <b>not</b>',
+      'Cl⁻ has <b>four</b> lone pairs — the same eight, rearranged',
+      'water <b>accepted</b> it → <b>H₃O⁺</b>, a <b>dative</b> bond',
+      'an <b>acid</b> is a proton <b>donor</b> — ammonia was the acceptor' ] },
     flatSay:'Flat view — eight around chlorine: three lone pairs and the one it shares.',
-    stats:s=>s.complete
+    stats:s=>s.anion
+      ? '<b>Cl⁻</b> &nbsp;·&nbsp; lone pairs: <b>4</b> &nbsp;·&nbsp; it kept the <b>whole pair</b>'
+      : s.complete
       ? 'shared pairs: <b>1</b> &nbsp;·&nbsp; lone pairs on Cl: <b>3</b>'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
-    /* HCl gas and hydrochloric acid solution are named apart on purpose — same molecule, two states */
-    sticky:s=>s.complete ? {
-      title:'Add water to make hydrochloric acid',
-      body:'HCl as a gas is toxic. Why burning PVC plastic is bad.' } : null,
+    /* HCl gas and hydrochloric acid solution are named apart on purpose — same molecule, two states.
+       Three states narrated, the same shape ammonia's sticky has: it IS ammonia's
+       reaction run the other way, and a student who recognises the beat is
+       halfway to noticing that water played both parts. */
+    sticky:s=>{
+      /* No `place:'low'` here, unlike ammonia's: this reagent is dealt low and
+         parks low, so the rail's normal spot is the clear one. */
+      if(s.hydronium||s.anion) return {
+        title:'That is hydrochloric acid',
+        body:'The <b>H⁺</b> went to water. <b>Cl⁻</b> kept both electrons, and <b>H₃O⁺</b> '+
+             'is what an <b>acid</b> actually is in water.' };
+      if(!s.complete) return null;
+      if(s.hasWater) return null;              // the toast has it from here
+      return {
+        title:'Add water to make hydrochloric acid',
+        body:'HCl as a gas is toxic. Why burning PVC plastic is bad.',
+        action:{ label:"Let's do it &rarr;", run:()=>{
+          setView(true, true);
+          sim.offerWater();
+          say('Drag the water at the <b>hydrogen</b> — it wants the proton.');
+        } } };
+    },
     step:()=>null,
+    extra:s=>s.anion
+      ? 'The hydrogen went <b>without its electron</b>. Chlorine kept the pair — <b>Cl⁻</b> — '+
+        'and water took the proton: <b>H₃O⁺</b>.'
+      : null,
     after:()=>'Chlorine took an electron outright from <b>sodium</b>, and <b>shares</b> one with '+
              'hydrogen. Same atom, both times — so <b>ionic or covalent is about the pair</b>, '+
              'not about the element.',
