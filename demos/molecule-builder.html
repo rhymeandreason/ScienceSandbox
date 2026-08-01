@@ -21,14 +21,14 @@
      read as two lessons of two, not four unrelated molecules */
   .goal[data-lesson="nacl"]{margin-left:24px}
   .goal{text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
-    border-radius:8px 12px 9px 11px;padding:8px 13px 10px;min-width:132px;max-width:176px;
+    border-radius:var(--radius);padding:8px;min-width:132px;max-width:176px;
     font-family:inherit;color:var(--ink);cursor:pointer;
     box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px);
     opacity:.5;transition:opacity .12s ease,transform .12s ease}
   .goal:hover{opacity:.8}
   .goal.on{opacity:1;transform:translateY(-2px)}
-  .goal .gname{font-family:var(--font-marker);font-size:19px;color:var(--ink);line-height:1.1;margin-top:3px}
-  .goal .gform{font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--muted)}
+  .goal .gname{font-family:var(--font-slab);font-size:18px;color:var(--ink);line-height:1.1;}
+  .goal .gform{font-family:var(--font-sans);font-weight:700;font-size:16px;color:var(--muted); margin-top:8px}
   .goal.done{border-color:#2e8b57}
   .goal.done .gname{color:#2e8b57}
 
@@ -176,6 +176,10 @@
       <button class="goal" data-lesson="n2">
         <div class="gname">Nitrogen gas</div>
         <div class="gform">N&#8322;</div>
+      </button>
+      <button class="goal" data-lesson="hcl">
+        <div class="gname">Hydrogen chloride</div>
+        <div class="gform">HCl</div>
       </button>
       <button class="goal" data-lesson="nacl">
         <div class="gname">Salt</div>
@@ -441,6 +445,36 @@ const LESSONS={
     step:()=>null,
     after:()=>'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
              'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.',
+  },
+  /* HCl is the hinge of the tab strip, and it is placed here on purpose: last of
+     the covalent tabs, immediately before the two ionic ones. Its chlorine is
+     the SAME chlorine the salt tabs use, and the student meets it twice in a
+     row getting what it wants two different ways — shared here, handed over
+     there. Everything else on the page varies the molecule; this pair varies
+     only the partner, which is what makes "the bond type belongs to the pair"
+     something you can see rather than something the page asserts.
+     Its `after` is the one line that says so out loud, and it fires as the
+     student is one click away from the salt tab. */
+  hcl:{
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'hcl', onChange:report}),
+    open:'Chlorine again — but this time the partner is hydrogen, not sodium.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'<b>Hydrogen chloride</b>. A <b>covalent bond</b> — chlorine <b>shared</b> this time.',
+    notes:{ title:'Hydrogen chloride &middot; HCl', tags:['covalent','polar'], facts:[
+      '<b>linear</b> — only two atoms',
+      '1 bonding pair + <b>3 lone pairs</b> on Cl',
+      '<b>δ−</b> on Cl, <b>δ+</b> on H — very unequal sharing',
+      'the <b>same Cl</b> as salt, <b>shared</b> not taken',
+      'in water it <b>lets the H go</b> → an <b>acid</b>',
+      'ammonia <b>accepts</b> that H⁺ — acid and base, two tabs apart' ] },
+    flatSay:'Flat view — eight around chlorine: three lone pairs and the one it shares.',
+    stats:s=>s.complete
+      ? 'shared pairs: <b>1</b> &nbsp;·&nbsp; lone pairs on Cl: <b>3</b>'
+      : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
+    step:()=>null,
+    after:()=>'Chlorine took an electron outright from <b>sodium</b>, and <b>shares</b> one with '+
+             'hydrogen. Same atom, both times — so <b>ionic or covalent is about the pair</b>, '+
+             'not about the element.',
   },
   nacl:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),

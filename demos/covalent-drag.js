@@ -114,6 +114,36 @@
         start:[4.6,4.2,0],
       },
     },
+    /* Hydrogen chloride is on this page for one reason: it is the SAME chlorine
+     * the salt tabs use, on the other side of the argument. Sodium hands its
+     * electron over and two ions are left holding each other by charge;
+     * hydrogen shares one, and what is in the gap is a pair belonging to both.
+     * Same atom, opposite outcome — which is the point students most often have
+     * backwards, that a bond type is a property of the PAIR and not of an
+     * element. Reading the tab strip left to right, it is also the acid to
+     * ammonia's base: the H+ the lone pair accepts three tabs earlier is the one
+     * this bond gives up in water.
+     *
+     * polar 0.8 sits where the electronegativity gap says it should: H–Cl is
+     * 0.96, against O–H's 1.24 (weight 1) and N–H's 0.84 (weight 0.7). The core
+     * is the electronegative end here, as in water and ammonia, so the default
+     * direction is right and polarToward stays unset.
+     *
+     * Bond 1.85 is drawn-radius arithmetic, not ångströms: Cl 1.24 + H 0.55 =
+     * 1.79, plus water's 0.05 of daylight. (The real thing is 1.27 Å.)
+     */
+    hcl: {
+      core:'Cl', ligand:'H', bond:1.85, polar:0.8,
+      slots:   [[1,0,0]],
+      slots2d: [[1,0,0]],
+      // three lone pairs, tetrahedral about the bond: cos(109.47°) = −1/3, and
+      // the remaining 0.9428 spread evenly around the axis at 120°
+      lone:     [[-0.3333,0.9428,0],[-0.3333,-0.4714,0.8165],[-0.3333,-0.4714,-0.8165]],
+      // flat view puts them where they can be counted: N, W and S of the Cl,
+      // with the bond going E. Eight around chlorine, two shared with hydrogen
+      loneFlat: [[0,1,0],[-1,0,0],[0,-1,0]],
+      start:[[5.2,1.6,-1.0]],
+    },
     methane: {
       core:'C', ligand:'H', bond:1.50, polar:0,      // the nonpolar control
       slots:   [[S3,S3,S3],[S3,-S3,-S3],[-S3,S3,-S3],[-S3,-S3,S3]],
