@@ -171,10 +171,6 @@
       drawDots(na); drawDots(cl);
       startHop();
 
-      badges=[ kit.charge('+', '#'+new THREE.Color(P.atoms[R.metal]).getHexString(), R.metal),
-               kit.charge('−', '#'+new THREE.Color(P.atoms[R.nonmetal]).getHexString(), R.nonmetal) ];
-      na.group.add(badges[0]); cl.group.add(badges[1]);
-
       /* The stick is a STICK-VIEW object only. In the electron view drawing a
        * cylinder would contradict the lesson — there is no shared pair in that
        * gap, only two charges — but stick view is the schematic the rest of the
@@ -186,6 +182,19 @@
       group.add(stick);
       applyCel(); applyMode();
       onChange(state());
+    }
+
+    /* The + and − go on when the electron LANDS, not when it sets off. A charge
+     * is the consequence of the transfer, and badging both atoms while the
+     * electron is still in the air says the opposite — that they were already
+     * ions and the flight is decoration. Held back the length of the hop, the
+     * badges become the punctuation on it: the dot arrives, and the charges are
+     * what it left behind. (unbond() takes them off again the same way.) */
+    function showCharges(){
+      if(badges.length) return;
+      badges=[ kit.charge('+', '#'+new THREE.Color(P.atoms[R.metal]).getHexString(), R.metal),
+               kit.charge('−', '#'+new THREE.Color(P.atoms[R.nonmetal]).getHexString(), R.nonmetal) ];
+      na.group.add(badges[0]); cl.group.add(badges[1]);
     }
 
     /* the flight: sodium's own dot, re-parented to the pair and animated across */
@@ -215,6 +224,7 @@
         const at=hop.m.position.clone();
         group.remove(hop.m); hop=null;
         cl.count=8; drawDots(cl);                                // it has arrived
+        showCharges();
         /* The pulse goes where the ELECTRON lands, not on the chlorine as a
          * whole: the event is one electron arriving at one place on the shell,
          * and a glow over the entire ion would say the ion changed rather than

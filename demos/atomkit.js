@@ -177,14 +177,40 @@
     function charge(text, color, el, scale){
       const c=document.createElement('canvas'); c.width=c.height=96;
       const x=c.getContext('2d');
-      x.fillStyle='rgba(255,255,255,0.94)'; x.beginPath(); x.arc(48,48,40,0,7); x.fill();
-      x.lineWidth=6; x.strokeStyle=INK; x.stroke();
-      x.fillStyle=color;
-      // δ− needs two glyphs in the same circle a bare + gets to itself
-      x.font='bold '+(text.length>1?40:66)+'px sans-serif';
-      x.textAlign='center'; x.textBaseline='middle'; x.fillText(text,48,51);
+      /* A bare ion charge is DRAWN, not typed. As a glyph it inherits whichever
+       * font answered, and a font centres '+' and '−' on the math axis rather
+       * than on the circle they are sitting in — which is why they read low.
+       * Two strokes have no metrics to argue with: dead centre at 48,48, at a
+       * weight chosen to match the ink ring around them. */
+      function draw(){
+        x.clearRect(0,0,96,96);
+        x.fillStyle='rgba(255,255,255,0.94)'; x.beginPath(); x.arc(48,48,40,0,7); x.fill();
+        x.lineWidth=6; x.strokeStyle=INK; x.stroke();
+        if(text==='+' || text==='−' || text==='-'){
+          const arm=17;
+          x.strokeStyle=color; x.lineWidth=11; x.lineCap='round';
+          x.beginPath();
+          x.moveTo(48-arm,48); x.lineTo(48+arm,48);            // the bar of both
+          if(text==='+'){ x.moveTo(48,48-arm); x.lineTo(48,48+arm); }
+          x.stroke();
+        }else{
+          // δ+ / δ− stay type: they are two glyphs in the circle a bare sign gets
+          // to itself, and the δ has to look like the δ in the notes rail
+          x.fillStyle=color;
+          x.font='bold '+(text.length>1?40:66)+'px "Proxima Soft", "Proxima Nova", '+
+                 'Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, '+
+                 'Helvetica, Arial, sans-serif';
+          x.textAlign='center'; x.textBaseline='middle'; x.fillText(text,48,50);
+        }
+      }
+      draw();
+      const tex=new THREE.CanvasTexture(c);
+      // the δ badges are type now, so they inherit label()'s bake hazard: a
+      // canvas keeps whatever font was loaded when it was drawn
+      if(document.fonts&&document.fonts.ready)
+        document.fonts.ready.then(()=>{ draw(); tex.needsUpdate=true; });
       const s=new THREE.Sprite(new THREE.SpriteMaterial({
-        map:new THREE.CanvasTexture(c), transparent:true,
+        map:tex, transparent:true,
         depthTest:false, depthWrite:false }));
       s.renderOrder=31;
       s.scale.setScalar(0.62*(scale||1));
