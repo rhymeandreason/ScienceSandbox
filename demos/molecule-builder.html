@@ -381,6 +381,14 @@ const LESSONS={
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>'+
         (s.hasProton?' &nbsp;\u00b7&nbsp; a bare <b>proton</b> is waiting':''),
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
+    /* Up only between the two stages: the finished NH₃ is the one moment the
+       lone pair is visible AND still free, which is the whole setup for what
+       happens next. Clears on protonation — by then it is the answer to a
+       question the student has already done. */
+    sticky:s=>s.complete && !s.protonated ? {
+      title:'Add water to make ammonium',
+      body:'The lone pair steals an <b>H⁺</b> off a water molecule, leaving <b>OH⁻</b> '+
+           'behind. Taking a proton is what makes something a <b>base</b>.' } : null,
     /* own sentence: the proton brought no electron, nitrogen paid for the whole bond */
     extra:s=>s.protonated
       ? 'The proton brought <b>no electron</b> — nitrogen paid for both. That is a '+
