@@ -11,73 +11,41 @@
 <style>
   :root{ --ionic:#d9791e; --covalent:#7a6f58; }
 
-  /* ---------- goal cards, top-center: one per lesson, and they are TABS ----
-     Both molecules stay on screen as cards so the pair reads as one lesson with
-     two halves — share vs. give — rather than two unrelated pages. The inactive
-     card is dimmed but never hidden: the comparison is the content. */
-  /* They are dealt out like a hand of cards rather than drawn as a row of tabs:
-     no outline, paper stock, and each one lapping the card to its left. The
-     overlap is what makes them read as OBJECTS on the page — a strip of
-     touching rectangles reads as UI, a stack with edges and shadows reads as
-     something you could pick up. Depth does the work an outline used to:
-     card-on-card shadow for the stacking, and the live card lifted clear of it. */
+  /* ---------- goal cards, top-center: one per lesson, tabs styled as a dealt
+     hand of cards (no outline, overlapping) so the strip reads as objects you
+     could pick up rather than UI. Inactive cards stay visible, never hidden —
+     the comparison across cards is the content. */
   #goals{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
     display:flex;gap:0;align-items:stretch;padding:10px 6px 16px}
-  /* Paper is OPAQUE, and an inactive card is dimmed by its ink rather than by
-     element opacity. A translucent card is fine while it has an ink outline
-     holding its shape; without one, the molecule shows straight through the
-     stock and the card stops being a card. */
+  /* Paper is opaque; dimming an inactive card is done via its ink colour, not
+     element opacity — a translucent card would show the molecule through it. */
   .goal{text-align:center;background:#f7f2e7;border:none;
     border-radius:3px 4px 3px 4px;padding:10px 12px 12px;min-width:132px;max-width:176px;
     font-family:inherit;cursor:pointer;
-    /* a contact shadow to sit the card on the one beneath, then a soft cast */
     box-shadow:0 1px 1px rgba(43,39,35,.16), 0 3px 5px -2px rgba(43,39,35,.20),
       0 12px 20px -14px rgba(43,39,35,.55);
     transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
-  /* the lap. -14px is about a card's corner radius plus its shadow, so the edge
-     of each one stays visible — overlap far enough to stack, not far enough to
-     swallow the neighbour's first letter */
+  /* -14px ≈ corner radius + shadow, so each card still shows its edge */
   .goal + .goal{margin-left:-14px}
-  /* the covalent set and the ionic set, still set apart: the strip should read
-     as two lessons, not eight unrelated molecules. Positive margin here beats
-     the lap rather than adding to it */
-  .goal[data-lesson="nacl"]{margin-left:20px}
-  /* Dealt by hand, so no two sit at quite the same angle OR quite the same
-     height. Cycles every five, and the two offsets are deliberately out of step
-     with each other — a card that is both the most tilted and the lowest reads
-     as placed, while the mismatch reads as dropped.
-     Both are custom properties rather than bare transforms, because everything
-     else that moves a card has to carry them along: a hover writing plain
-     translateY() would silently flatten and re-align the card it lifts.
-     Values stay under 5px. Enough to break the baseline, not enough to look
-     like the strip failed to lay out. */
+  .goal[data-lesson="nacl"]{margin-left:20px}   /* separates covalent set from ionic set */
+  /* Staggered tilt/height so no two cards sit alike (values <5px, cycling every
+     5). Custom properties rather than bare transforms so hover/lift can carry
+     them along instead of flattening the card back to level. */
   .goal{--tilt:0deg;--dy:0px;transform:translateY(var(--dy)) rotate(var(--tilt))}
   .goal:nth-child(5n+1){--tilt:-0.7deg;--dy:2px}
   .goal:nth-child(5n+2){--tilt:0.5deg; --dy:4px}
   .goal:nth-child(5n+3){--tilt:-0.3deg;--dy:0px}
   .goal:nth-child(5n+4){--tilt:0.8deg; --dy:3px}
   .goal:nth-child(5n+5){--tilt:-0.5deg;--dy:1px}
-  /* hover and the live card both come OUT of the stack — z-index, or the card to
-     the right keeps its corner over the one you are pointing at */
-  .goal:hover{background:#fbf7ee;z-index:2}
-  /* Picked up rather than slid: the card overshoots its resting height and
-     settles back, which is what a light object does when a hand lifts it. An
-     animation rather than a transition because the overshoot needs a middle
-     keyframe; `forwards` holds the lifted pose, and the transform transition
-     above carries it back down when the pointer leaves.
-     Not on .on — the live card is already lifted, and animating it would drop
-     it 1px to bounce it back up. */
+  .goal:hover{background:#fbf7ee;z-index:2}   /* hover/live cards raise z so their corner shows over the neighbour to the right */
+  /* Overshoot-then-settle on hover, like a hand lifting a light object; skipped
+     on .on since the live card is already lifted. */
   .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
-  /* every keyframe lifts FROM the card's own resting height, so a low card in
-     the stagger rises the same distance a high one does */
   @keyframes cardLift{
     0%  {transform:translateY(var(--dy))              rotate(var(--tilt))}
     55% {transform:translateY(calc(var(--dy) - 7px))  rotate(var(--tilt))}
     100%{transform:translateY(calc(var(--dy) - 4px))  rotate(var(--tilt))}}
-  /* the live card comes all the way out: straightened, and lifted off its own
-     staggered height rather than to a shared one, so selecting a card never
-     slides it sideways up the strip */
-  .goal.on{background:#fffdf7;z-index:3;
+  .goal.on{background:#fffdf7;z-index:3;   /* straightened + lifted off its own staggered height, so selecting never shifts it sideways */
     transform:translateY(calc(var(--dy) - 5px)) rotate(0deg);
     box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30),
       0 22px 30px -18px rgba(43,39,35,.55)}
@@ -118,12 +86,10 @@
   #notes .ntag.nonpolar{background:#eceae4;color:var(--muted);border-color:var(--hair)}
   #notes .ntag.dative{background:#ded7f5}
   #notes .ntag.ion{background:#f6dcb4}
-  /* State at room temperature — a DIFFERENT kind of claim from the tags above
-     it. Those say what the bond is; this says what the substance is like on a
-     bench, which is the payoff question ("so what IS it?") and the one a student
-     can check against their own kitchen. Dashed, so the strip reads as two sorts
-     of label rather than one list where "polar" and "gas" answer the same
-     question. Colours run cold → warm as the particles get freer. */
+  /* Room-temperature state is a different kind of claim than the tags above it
+     (bond type vs. what the substance is like on a bench) — dashed border keeps
+     the two kinds of label visually distinct. Colours run cold → warm as the
+     particles get freer. */
   #notes .ntag.solid,#notes .ntag.liquid,#notes .ntag.gas{border-style:dashed}
   #notes .ntag.solid{background:#e0dbcd}
   #notes .ntag.liquid{background:#cfe4f2}
@@ -136,16 +102,12 @@
   #notes li b{font-weight:600}
 
   /* ---------- sticky note, right rail ----------
-     The mirror of #notes, and deliberately NOT the same object. Notes are the
-     keywords a student is revising toward, earned by finishing; a sticky is an
-     aside about the state the molecule is in right now, and it leaves again when
-     that state does. So: opposite side, paper instead of bare rail, tilted, and
-     stuck on with a sticker — it should read as something pinned to the page
-     rather than part of it. */
-  /* Clear of the tab strip rather than level with #notes on the left. The notes
-     rail starts at 150 and gets away with tucking under the cards because it is
-     bare text on paper; this is an opaque card with a border, and one card
-     overlapping another just reads as broken layout. */
+     Mirrors #notes but deliberately not the same object: notes are keywords
+     earned by finishing, a sticky is a passing aside about the current state
+     that leaves when that state does — hence paper + tilt + sticker instead of
+     bare rail text. Sits lower than #notes (which tucks under the tab strip
+     fine as bare text) since an opaque bordered card overlapping the strip
+     would read as broken layout. */
   #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;height:224px;
     background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
     border:none;border-radius:0;box-sizing:border-box;overflow:visible;
@@ -154,8 +116,7 @@
       6px 10px 16px -6px rgba(0,0,0,.35);
     display:none;opacity:0;transition:opacity .22s ease,transform .22s ease}
   #sticky.show{display:block;opacity:1;transform:rotate(1.6deg) translateY(0)}
-  /* the sticker rides the top-left corner, half off the paper, so the note reads
-     as stuck down by it rather than as a box with a picture inside */
+  /* sticker rides the top-left corner, half off the paper — reads as stuck on */
   #sticky .simg{position:absolute;left:-19px;top:-50px;width:80px;;
     transform:rotate(-13deg);pointer-events:none;
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
@@ -166,11 +127,9 @@
   #sticky .sbody b{font-weight:600; font-style:italic;}
 
   /* ---------- feedback toast ----------
-     Below the molecule, just above the dock: up top it was wedged between the
-     tab strip and the atoms and had to stay short. Down here a line can run
-     wide, and it sits next to the controls that caused it. It rises INTO place
-     from below for the same reason — the motion should come from where the
-     hands are. */
+     Sits above the dock rather than up top (wedged between tab strip and atoms,
+     had to stay short) — down here it can run wide and rises up from near the
+     controls that caused it. */
   #say{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);z-index:12;
     pointer-events:none;text-align:center;width:min(760px,86%);opacity:0;
     font-family:var(--font-sans);font-size:21px;line-height:1.35;color:var(--muted)}
@@ -187,10 +146,8 @@
   @keyframes shk{0%,100%{transform:translateX(0)}22%{transform:translateX(-7px)}
     58%{transform:translateX(6px)}80%{transform:translateX(-3px)}}
 
-  /* ---------- single-column while we tune the water interaction ----------
-     The bench lives ON the stage instead of in a side panel: with one target
-     there is nothing to browse, and keeping hand and molecule in the same
-     field of view is what the interaction is being tuned for. */
+  /* single-column: the bench lives on the stage, not a side panel — one target
+     at a time, so keep hand and molecule in the same field of view */
   #app{grid-template-columns:1fr}
   #side{display:none}
   #stage{grid-column:1}
@@ -203,10 +160,7 @@
     background:#fff;color:var(--ink);cursor:pointer;
     box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
   #dock button.act:hover{background:var(--ink);color:var(--paper)}
-  /* ---------- view switch ----------
-     One switch, not two: electrons-vs-sticks follows the view now, so the
-     electron swatches that used to double as a legend on that button went with
-     it. */
+  /* view switch: electrons-vs-sticks now follows the view rather than its own toggle */
   #dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
     box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
   #dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
@@ -214,10 +168,7 @@
     display:inline-flex;align-items:center;gap:6px}
   #dims .mode + .mode{border-left:1.5px solid var(--ink)}
   #dims .mode.on{background:var(--ink);color:var(--paper)}
-  /* Hidden until the molecule is finished — there is no shape to turn until then,
-     and the switch offers one anyway. Faded rather than removed: the dock is a
-     row, and pulling an element out of it would slide Reset sideways every time
-     a student completes or breaks a molecule. */
+  /* faded, not removed, until finished — removing it would slide Reset sideways every completion/reset */
   #dims{opacity:0;pointer-events:none;transition:opacity .3s ease}
   #dims.armed{opacity:1;pointer-events:auto}
 
@@ -307,20 +258,15 @@
  *                    showing the behaviour belongs to metal + nonmetal, not
  *                    to sodium
  *
- *  All the chemistry and all the feel live in covalent-drag.js (H2O, CH4, NH3)
- *  and ionic-drag.js (NaCl, KCl) — two files because filling a valence slot and
- *  handing an electron over are different MECHANICS, not one mechanic with a
- *  flag. This file is UI only. Its job is to narrate what the hands just did:
- *  name the pull when it starts, name the shared pair when it forms, count the
- *  slots still open, and count the electrons out loud when one changes owner.
- *  Every rule is enforced in 3D, never in a dialog (covalent-drag.js and
- *  ionic-drag.js own the per-mechanic claims — solid nuclei, conserved
- *  electron counts, slots lifted from MolLib.MOLECULES).
+ *  Chemistry and feel live in covalent-drag.js (H2O, CH4, NH3) and
+ *  ionic-drag.js (NaCl, KCl) — separate files because filling a valence slot
+ *  and handing an electron over are different MECHANICS. This file is UI
+ *  only: it narrates what the hands just did (name the pull, name the pair,
+ *  count slots/electrons). Every rule is enforced in 3D, never in a dialog.
  *
- *  Angles, as check-molecules.js reports them against the real specs: H2O
- *  104.6 deg, NH3 106.8 deg, CH4 and NH4+ 109.5 deg. The notes rail quotes the
- *  textbook values (104.5, 107) instead, since that's what a student writes
- *  down — the gap is spec rounding, not a second claim.
+ *  Angles per check-molecules.js: H2O 104.6°, NH3 106.8°, CH4/NH4+ 109.5°.
+ *  The notes rail quotes textbook values (104.5°, 107°) instead — that's
+ *  what a student writes down; the gap is spec rounding, not a second claim.
  *
  *  MODEL SIMPLIFICATIONS (deliberate, kept explicit):
  *   - `polar` weights are stylised, from electronegativity difference, not
@@ -338,29 +284,17 @@
  * ============================================================= */
 
 /* 2D is a PROJECTION FOR COUNTING, not a claim about shape — water's lone pairs
-   really do stick out of the H-O-H plane and methane really is a tetrahedron.
-   Three things carry that: the flat layouts move only what would otherwise hide
-   behind the core, bond angles and the underlying slot geometry stay untouched,
-   and the notes/teach text state the real angle (109.5°, not the 90° a flat
-   cross draws) with 3D one click away. atomkit.js's cel() adds the flat-Toon +
-   ink-outline shading that reads as "diagram mode" alongside the camera change.
+   really do stick out of the H-O-H plane, methane really is a tetrahedron.
+   Bond angles and slot geometry stay untouched; only the flat layout moves
+   what would otherwise hide behind the core, and notes/teach text state the
+   real angle (109.5°, not the flat cross's 90°) with 3D one click away.
 
-   The camera must not have perspective, and now genuinely does not: Stage takes
-   `ortho:true`. This used to be a 12° lens pulled back by the matching factor —
-   orthographic to the eye, but only in the flat view, and only while the two
-   lenses were kept in step by a cam.r multiply on every toggle.
-
-   Both views are orthographic now, which is a bigger win in 3D than in 2D. The
-   flat view was already near enough; the round one was the view still telling
-   the lie, drawing an atom parked off to the side skewed and a hydrogen nearer
-   the camera BIGGER rather than nearer. Both are lies on a page whose whole
-   subject is comparing sizes and counting things, and orbiting made them move.
-
-   With no fov there is no lens to switch, so the toggle stops touching the
-   camera at all and the LENS/ZOOM compensation is gone. Apparent size comes from
-   the frustum instead: cam.r is standing distance only (Stage still drives it
-   from the wheel, and it must stay large enough that no atom crosses the near
-   plane), and ZOOM.k maps it to the half-height actually shown. */
+   Both views are orthographic (Stage's `ortho:true`) — perspective was a lie
+   on a page whose whole subject is comparing sizes: an atom off to the side
+   read skewed, and a nearer hydrogen read BIGGER rather than closer. With no
+   fov, apparent size comes from the frustum instead: cam.r is standing
+   distance (must stay large enough no atom crosses the near plane), and
+   ZOOM.k maps it to the half-height actually shown. */
 const ZOOM={ min:30, max:130, k:0.08 };   // cam.r ⇒ world half-height on screen
 
 const canvas=document.getElementById('gl');
@@ -387,19 +321,14 @@ const elSay=document.getElementById('say');
 const elNotes=document.getElementById('notes');
 const elSticky=document.getElementById('sticky');
 
-/* ---------- the two lessons ----------------------------------------------
- * Four tabs, in two pairs, because every comparison here IS a lesson. Water and
- * methane are the same rule at two slot counts, so methane reads as "the rule
- * generalises" rather than as a new fact. Salt and KCl are the same transfer
- * from two different metals, so KCl reads as the control that shows the
- * behaviour belongs to metal + nonmetal rather than to sodium. And covalent vs
- * ionic is the comparison the whole page exists for: same hands, same drag, same
- * attraction — then one pair shares a slot and the other hands an electron over
- * and never gets it back.
- *
- * Two modules back the four (covalent-drag.js, ionic-drag.js): same mechanic
- * means same file with a recipe, different mechanic means a different file. This
- * table is only the words that go around them.
+/* ---------- the lessons ---------------------------------------------------
+ * Every tab pair is a comparison: water/methane is the same rule at two slot
+ * counts, salt/KCl is the same transfer from two metals (so KCl is the
+ * control showing it's metal+nonmetal, not sodium specifically), and
+ * covalent vs. ionic is the comparison the page exists for — same drag, same
+ * attraction, but one pair shares a slot and the other hands an electron over
+ * for good. covalent-drag.js and ionic-drag.js hold the mechanics; this table is
+ * only the words around them.
  */
 const LESSONS={
   water:{
@@ -420,16 +349,11 @@ const LESSONS={
       'the <b>universal solvent</b>' ] },
     flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
-    /* One hydrogen on, and the screen reads as hydroxide. It isn't, by exactly
-       one electron: the core draws its own unpaired electron in every open slot,
-       so this is the neutral radical, while OH⁻ has that slot's pair complete
-       and carries the charge. Same shape as the CO note next door — the TITLE
-       carries the "not quite", and the body spends its room on where the real
-       thing comes from instead of on the correction.
-       And the answer is not "pull a hydrogen off", which is what the student
-       just did. Water makes hydroxide by handing a proton to another water and
-       keeping the pair — the bond comes apart unevenly, which is the same
-       lesson about unequal sharing this whole tab is built on. */
+    /* One H on reads as hydroxide but isn't — it's the neutral radical (one
+       unpaired electron in the open slot); OH⁻ has that slot's pair complete.
+       The fix isn't "pull an H off" — water makes hydroxide by handing a
+       proton to a neighbour and keeping the pair, same unequal-sharing lesson
+       as the rest of this tab. */
     sticky:s=>s.bonded===1 ? {
       title:'Is that hydroxide?',
       body:'Not quite. <b>OH⁻</b> comes from water splitting itself: a proton hops to a '+
@@ -457,8 +381,7 @@ const LESSONS={
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>'+
         (s.hasProton?' &nbsp;\u00b7&nbsp; a bare <b>proton</b> is waiting':''),
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
-    /* The second stage is its own moment, and its own sentence: the proton
-       brought no electron, so nitrogen paid for the whole bond. */
+    /* own sentence: the proton brought no electron, nitrogen paid for the whole bond */
     extra:s=>s.protonated
       ? 'The proton brought <b>no electron</b> — nitrogen paid for both. That is a '+
         '<b>dative bond</b>, and the molecule is now <b>NH\u2084\u207a</b>.'
@@ -479,25 +402,18 @@ const LESSONS={
     flatSay:'Flat view — the four bonds spread out so you can count them. They are '+
             'really at 109.5\u00b0, not 90\u00b0; switch to 3D.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
-    /* Three on, one slot open — and unlike the water and CO2 asides, this
-       fragment is not a near-miss at something real. The open slot IS the
-       attachment point: bond it to anything and you have a methyl group, which
-       is what makes it worth naming three-quarters of the way through rather
-       than at the end. Methane is the version where the fourth partner happens
-       to be another hydrogen.
-       (As drawn, standing alone with its unpaired electron, it is the methyl
-       RADICAL — hence "bond it to something" rather than "this is".) */
+    /* Three on, one slot open: unlike the water/CO2 asides this fragment isn't
+       a near-miss — the open slot IS the attachment point (bond it to
+       anything = a methyl group), worth naming here rather than at the end.
+       Drawn alone it's technically the methyl radical, hence "bond it to
+       something" rather than "this is". */
     sticky:s=>s.bonded===3 ? {
       title:'That’s a methyl group',
       body:"Tag one onto DNA and the gene underneath goes <b>quiet</b>. That's how <b>epigenetics</b> works!" } : null,
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
   },
-  /* CO2 is where "fill the slots" stops being the whole rule. Carbon has four
-     electrons and only two neighbours, so a slot has to take two pairs — and the
-     student finds that out by watching it happen, not by being told first.
-     Its second job is the harder one: every bond here is polar, and the molecule
-     is not. That is the distinction water spent four tabs setting up, and CO2 is
-     the case that proves the two are separable. */
+  /* CO2 breaks "fill the slots": carbon has 4 electrons, 2 neighbours, so a
+     slot must take two pairs. It also proves polar bonds ≠ polar molecule. */
   co2:{
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'co2', onChange:report}),
     open:'Carbon has four electrons to share — and only two oxygens to share them with.',
@@ -518,28 +434,20 @@ const LESSONS={
     step:s=>s.open>0
       ? 'A <b>double covalent bond</b> — two pairs, not one.'
       : null,
-    /* Halfway through CO2 the screen shows one carbon joined to one oxygen, and
-       that is exactly the picture a student reads as carbon monoxide. It isn't —
-       CO is C≡O with a lone pair on carbon, a different bond order and a
-       different molecule, and what is on screen is a fragment with carbon still
-       two electrons short. Rather than have the step line scold ("not a molecule
-       yet"), the interesting answer goes on a sticky: CO is real, it is just
-       made somewhere else and by something else. Tied to bonded===1, so it
-       arrives with the half-built state and leaves with it. */
+    /* Halfway through, one C–O looks like carbon monoxide — it isn't (CO is
+       C≡O, a different molecule). Rather than scold via the step line, the
+       real answer goes on a sticky, tied to bonded===1 so it tracks the
+       half-built state. */
     sticky:s=>s.bonded===1 ? {
       title:'Why do you not make Carbon Monoxide?',
       body:'CO is a product of <b>incomplete combustion</b>, burning carbon fuel '+
            'when oxygen is limited.' } : null,
-    /* The dipole point lands AFTER the win line, on its own, because it is a
-       separate claim from "you made CO2" and the one students lose. */
+    /* separate line from the win message — the dipole cancellation is its own claim */
     after:()=>'Both bonds pull toward oxygen — but in <b>opposite directions</b>, '+
              'along one straight line. They <b>cancel</b>: polar bonds, <b>nonpolar molecule</b>.',
   },
-  /* And N2 is the same doubling pushed to its limit, with the polarity argument
-     switched off entirely — two identical atoms have nothing to argue about, so
-     all that is left is the count. It earns its place in a biology page by being
-     the reason nitrogen fixation is expensive: three pairs is the strongest bond
-     on the whole site, and life has to break it to build an amino acid. */
+  /* N2 pushes the doubling further, no polarity (identical atoms) — its payoff
+     is why nitrogen fixation is expensive: the strongest bond on the site. */
   n2:{
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'n2', onChange:report}),
     open:'Two nitrogens, three electrons each to share. Watch how many pairs it takes.',
@@ -557,13 +465,9 @@ const LESSONS={
     stats:s=>s.complete
       ? 'shared pairs: <b>'+s.pairs+'</b> &nbsp;·&nbsp; a <b>triple</b> bond'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
-    /* CO2's sticky hangs on a half-built state; N2 has none to hang on — it goes
-       straight from nothing to complete — and it does not need one, because the
-       aside IS about the finished bond. The student is looking at the strongest
-       bond on the site, in the gas that is 78% of the air they are breathing,
-       and the obvious next question is how anything alive ever gets at it.
-       The `after` toast names the cost; this names who pays it, and it stays up
-       while the molecule does rather than sliding away in 3 seconds. */
+    /* Unlike CO2, N2 goes straight from nothing to complete — the aside is
+       about the finished bond, not a half-built state. `after` names the cost
+       of breaking it; this names who pays, and stays up rather than fading. */
     sticky:s=>s.complete ? {
       title:'How do plants get nitrogen?',
       body:'Some plants have root nodules with <b>nitrogen-fixing bacteria</b> that can break N≡N into nitrate and ammonium.' } : null,
@@ -571,15 +475,10 @@ const LESSONS={
     after:()=>'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
              'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.',
   },
-  /* HCl is the hinge of the tab strip, and it is placed here on purpose: last of
-     the covalent tabs, immediately before the two ionic ones. Its chlorine is
-     the SAME chlorine the salt tabs use, and the student meets it twice in a
-     row getting what it wants two different ways — shared here, handed over
-     there. Everything else on the page varies the molecule; this pair varies
-     only the partner, which is what makes "the bond type belongs to the pair"
-     something you can see rather than something the page asserts.
-     Its `after` is the one line that says so out loud, and it fires as the
-     student is one click away from the salt tab. */
+  /* HCl is the hinge before the ionic tabs on purpose: same chlorine as the
+     salt tabs, sharing here vs. handed over there — makes "bond type belongs
+     to the pair, not the element" visible rather than asserted. `after` says
+     so explicitly, right before the student clicks into salt. */
   hcl:{
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'hcl', onChange:report}),
     open:'Chlorine again — but this time the partner is hydrogen, not sodium.',
@@ -596,10 +495,7 @@ const LESSONS={
     stats:s=>s.complete
       ? 'shared pairs: <b>1</b> &nbsp;·&nbsp; lone pairs on Cl: <b>3</b>'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
-    /* Named apart from the compound on purpose: HCl the gas and
-       hydrochloric acid the solution are the same molecule in two places, and a
-       student who never meets that difference reads every "HCl" in a textbook as
-       the bottle in the lab.  */
+    /* HCl gas and hydrochloric acid solution are named apart on purpose — same molecule, two states */
     sticky:s=>s.complete ? {
       title:'Add water to make hydrochloric acid',
       body:'HCl as a gas is toxic. Why burning PVC plastic is bad.' } : null,
@@ -611,20 +507,13 @@ const LESSONS={
   nacl:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
     open:'Drag the sodium and the chlorine together.',
-    /* No ring — ionic-drag.js already flashes and sparks where the electron
-       lands. The ionic moment is one electron arriving at one place, not the
-       molecule acquiring something, and giving it the enclosing ring would say
-       the two bond types are the same event in different colours. */
+    /* No ring — ionic-drag.js already flashes/sparks where the electron lands;
+       an enclosing ring would wrongly equate the two bond types visually. */
     ring:null,
-    /* The invitation is the lesson: charge holds these two together, and the
-       way to show that it is only charge is to let the student undo it. Pulling
-       far enough sends the electron home (ionic-drag's unbond), so "weaker" is
-       something they do rather than something they are told.
-       Scoped to a PAIR on purpose. An ion pair comes apart more easily than a
-       covalent bond does, and in water it comes apart on its own — which is the
-       AP Bio claim. Bulk salt is a different sentence (a lattice is held by
-       every neighbour at once, which is why it melts at 801 °C), and the notes'
-       "dissociates in water" is the bridge to it. */
+    /* Letting the student pull it apart (ionic-drag's unbond) shows "weaker"
+       as something they discover rather than are told. Scoped to a PAIR: bulk
+       salt is a lattice (melts at 801°C) — a different claim than this ion
+       pair coming apart on its own in water, which is the notes' "dissociates". */
     won:'<b>Ionic bond.</b> Held by <b>charge</b> only. Weaker than a covalent bond, which is why salt dissolves in water. '+
         'Drag one away and see.',
     notes:{ title:'Salt &middot; NaCl', tags:['ionic','ion','solid'], facts:[
@@ -654,10 +543,8 @@ const LESSONS={
              'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
     step:()=>null,
   },
-  /* The first tab where the METAL's count decides the formula. NaCl and KCl both
-     move one electron and so never have to answer "why one chlorine?" — with
-     magnesium's two, one chlorine is visibly not enough, because chlorine is one
-     short of full and not two. Dock them one at a time and watch 2 → 1 → 0. */
+  /* First tab where the METAL's electron count decides the formula: Mg has two
+     to give, so one Cl (one short of full) isn't enough. Dock one at a time. */
   mgcl2:{
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'mgcl2', onChange:report}),
     open:'Magnesium has <b>two</b> to give. One chlorine can only take one.',
@@ -738,19 +625,13 @@ function showNotes(list){
   elNotes.classList.add('show');
 }
 
-/* A lesson's sticky is a function of the CURRENT state, not an event, so it is
-   re-evaluated on every report and goes away by itself when the state that
-   earned it does. That is the whole difference from say(): a toast is "this just
-   happened", a sticky is "this is what you are looking at".
-
-   It arrives a beat LATE on purpose so that it reads as somebody sticking a note to the page after
-   watching what happened.
-
-    A sticky tied to FINISHING a molecule has a longer delay. A sticky tied to 
-filling one slot MID-BUILD happens faster so it appears before the student is reaching for the next atom.
-
-   Leaving is NOT delayed either way. */
-const STICKY_DELAY_STEP=350;   // mid-build 
+/* A sticky is a function of CURRENT state, re-evaluated every report and
+   cleared when the state that earned it ends — unlike say()'s "this just
+   happened" toast, it's "this is what you're looking at". Arrives a beat
+   late (as if pinned after the fact); mid-build stickies land faster than
+   completion ones so they don't lag behind the student reaching for the next
+   atom. Leaving is never delayed. */
+const STICKY_DELAY_STEP=350;   // mid-build
 const STICKY_DELAY_WIN=900;    // completion
 let stickyTimer=null, stickyPending=null;
 function hideSticky(){
@@ -776,43 +657,28 @@ function showSticky(note, delay){
     elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
       '<div class="stitle">'+note.title+'</div>'+
       '<div class="sbody">'+note.body+'</div>';
-    /* display:none → block and .show in one frame skips the transition, so the
-       note used to pop. It got away with that while it appeared inside the
-       flash; arriving on its own it has to fade. Same reflow idiom as say(). */
+    /* forced reflow so display:none→block and .show don't collapse into one frame and skip the fade */
     elSticky.style.display='block';
     void elSticky.offsetWidth;
     elSticky.classList.add('show');
-    // the long one if a caller forgets: overlapping a flash is the worse miss
-  }, delay==null ? STICKY_DELAY_WIN : delay);
+  }, delay==null ? STICKY_DELAY_WIN : delay);   // default to the longer delay if a caller forgets
 }
 
-/* The completion ring is one-per-molecule, so it stays an event rather than a
-   status light. Salt reports twice after finishing (the transfer, then the
-   electron landing) and pulling a bond apart re-arms it — which is the useful
-   behaviour: rebuild the molecule and you earn the ring again. */
+/* One-per-molecule, not a status light: pulling a bond apart re-arms it, so
+   rebuilding earns the ring again (salt reports this twice — transfer, then landing). */
 let rung=false;
-/* `extra` is for a lesson with a stage AFTER completion — ammonia's proton.
-   Checked first, so the protonation line is not shadowed by the win line the
-   molecule already earned. */
+/* `extra`: a lesson with a stage AFTER completion (ammonia's proton). Checked
+   first so it isn't shadowed by the win line already earned. */
 let saidExtra=false;
-/* `after` is the OTHER kind of second line, and the distinction matters because
-   getting it wrong silently costs a lesson its ending. `extra` replaces the win
-   — ammonia's protonation is a new stage, and the molecule that finished is not
-   the molecule on screen any more. `after` follows the win — CO2's two dipoles
-   cancelling is a second sentence about the SAME completion, so the ring, the
-   won line and the done card all still have to happen first. Routing that
-   through `extra` returned before win() ever ran and quietly took all three. */
+/* `after` is a second line that FOLLOWS a win rather than replacing it (unlike
+   `extra`) — e.g. CO2's dipole-cancelling sentence about the same completion,
+   after the ring/win-line/done-card have already fired. */
 let saidAfter=false, afterTimer=null;
-/* True only for the length of a fill() — a lesson being re-opened finished
-   rather than finished now. Everything in win() that is an EVENT reads it. */
+/* Set only for the duration of a fill() — a lesson re-opening already
+   finished, not finishing now. win() reads it to skip one-time EVENTS. */
 let restoring=false;
 function report(s){
-  /* Ahead of every early return below, because a sticky belongs to the state
-     rather than to a branch: completing the molecule has to be able to take it
-     down, and win() returns before the end of this function. */
-  /* Which delay is read off the state rather than declared per lesson, because
-     the thing being waited out is the completion flash and `complete` is exactly
-     when that fires. A lesson never has to remember to say so. */
+  // ahead of every early return: a sticky belongs to the state, not a branch, and win() returns before this function ends
   showSticky(L.sticky && L.sticky(s),
              s.complete ? STICKY_DELAY_WIN : STICKY_DELAY_STEP);
   const more=L.extra && L.extra(s);
@@ -832,80 +698,49 @@ function win(s){
   card().classList.add('done');
   showNotes(L.notes);
   say(L.won);
-  /* The follow-up lands as the win line is fading rather than on top of it: two
-     sentences about the same moment, read in order. 3.2s against say()'s 3.4s
-     hold, so the toast never goes empty in between. */
+  /* lands as the win line fades, not on top of it — 3.2s vs. say()'s 3.4s hold, so the toast never goes empty between them */
   if(L.after && !saidAfter && !restoring){
     saidAfter=true;
     clearTimeout(afterTimer);
     afterTimer=setTimeout(()=>say(L.after(s)), 3200);
   }
-  /* Each bond type finishes in its own visual language, which is the cheapest
-     way to say they are different KINDS of event:
-       covalent — a ring expanding from the anchor atom through the molecule
-       ionic    — a white flash and green sparks where the electron lands, fired
-                  by ionic-drag.js at the arrival point, not from here
-     Centred by asking the lesson for its anchor's position rather than assuming
-     the world origin — that assumption is what previously bloomed the ring out
-     of empty space beside a salt pair dragged off-centre. */
-  /* The anchor, not just the point: a bonded ligand tows the whole molecule
-     (covalent-drag's framed()), so a student who finishes the molecule and keeps
-     dragging would otherwise pull it out from under its own ring and leave the
-     ring expanding over blank paper. */
+  /* covalent rings out from the anchor; ionic flashes/sparks instead, fired by
+     ionic-drag.js at the arrival point. Centred on the lesson's anchor (not
+     world origin) so a covalent ligand towing the molecule mid-drag doesn't
+     leave the ring expanding over blank paper. */
   if(fx && !rung && L.ring && !restoring){
     rung=true;
     fx.spawnRing(sim.center(), L.ring(), sim.anchor && sim.anchor());
   }
-  /* Then hand the finished molecule over to the 3D view so the student can see the actual geometry. 
-     Once per completion, like the ring: win() re-runs on every report while the
-     molecule stands, and a student who deliberately goes back to 2D to recount
-     the dots must not be dragged out of it again. */
+  // once per completion — a student who returns to 2D on purpose shouldn't be auto-spun back to 3D
   if(flat && !spun && !restoring){ spun=true; spinTimer=setTimeout(()=>{ spinTimer=null; setView(false,true); }, 900); }
 }
-/* Cancelled by anything that ends the completion — a tab change, a clear, or the
-   student reaching for the toggle themselves before it fires. */
 let spinTimer=null, spun=false;
 
-/* Tabs tear the old lesson down rather than hiding it: both modules bind
-   pointer handlers to the stage, and a hidden-but-live one would keep grabbing
-   atoms the student can no longer see. */
+/* tabs tear down the old lesson rather than hide it — both modules bind
+   pointer handlers to the stage, and a hidden-but-live one keeps grabbing atoms */
 let last=0;
 function load(k){
   if(sim) sim.destroy();
   rung=false; saidAfter=false; clearTimeout(afterTimer);
   spun=false; spinTimer=clearTimeout(spinTimer);
   key=k; L=LESSONS[k]; saidExtra=false;
-  /* Hand the card back to whatever this lesson had earned before — null for one
-     the student has not finished yet, which then falls through to hiding it. */
   pinnedNotes=null; showNotes(null);
-  showNotes(earnedNotes[k]||null);
+  showNotes(earnedNotes[k]||null);   // restores whatever this lesson had earned, or stays hidden
   showSticky(null);
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
-  /* Back to the flat view to start a new lesson.
-     viewState + the class directly rather than arm(false), because the old sim
-     is already destroyed here and the new one does not exist yet — setView
-     would be talking to neither. */
+  // uses viewState directly rather than arm(false): the old sim is gone and the new one doesn't exist yet, so setView has nothing to talk to
   document.getElementById('dims').classList.remove('armed');
   viewState(true);
   sim=L.make();
   sim.setDim(flat?'2d':'3d');
   sim.setMode(modeFor());          // after setDim: the mode is derived from it
-  /* A lesson already finished re-opens FINISHED. Coming back to a card you have
-     earned to find a bare atom again reads as the page having forgotten, and
-     makes the strip a set of exercises to redo rather than a set of molecules
-     you have. Reset is right there for building it again by hand.
-     Silently: `restoring` holds for the whole fill, and win() reads it to skip
-     the completion ring and the automatic turn to 3D. Those are rewards for the
-     moment the bond forms, and replaying them for a molecule the student is only
-     revisiting would spend the ending twice. The done card, the notes and the 3D
-     toggle still arrive, through win() — they are state, not celebration.
-     A flag rather than pre-setting `rung`/`spun`, because fill() bonds one atom
-     at a time: every bond before the last reports an UNFINISHED molecule, and
-     report() clears both of those on its way past. Water's ring survived exactly
-     that — the ionic tabs looked fixed only because they have no ring to fire.
-     And no opening line: fill() runs win(), so saying "start here" first would
-     be a prompt the molecule has already answered by the time it is read. */
+  /* A finished lesson re-opens finished (via fill()) rather than as a bare atom
+     — `restoring` tells win() to skip the completion ring/auto-3D-turn (those
+     are rewards for the moment of bonding, not for revisiting), while the done
+     card, notes, and 3D toggle still arrive as plain state. No opening line
+     either, since fill() runs win() and answers "start here" before it's read. */
   if(earnedNotes[k] && sim.fill){ restoring=true; sim.fill(); restoring=false; }
   else say(L.open);
 }
@@ -915,44 +750,31 @@ document.querySelectorAll('.goal').forEach(c=>{
 });
 
 /* ---------- controls ----------
-   Electrons-vs-sticks is no longer a switch of its own: it FOLLOWS the view,
-   and the two toggles were really one question asked twice. The flat view
-   exists to be counted, so it draws every valence electron; the 3D view exists
-   for shape, where a cloud of dots hides the geometry it is there to show, so
-   it draws the bonds. A student who wanted dots in 3D was, in practice, a
-   student who had left the flat view by accident. */
+   electrons-vs-sticks follows the view rather than its own toggle: flat draws
+   every valence electron since it exists to be counted, 3D draws bonds since
+   a cloud of dots would hide the shape it exists to show. */
 function modeFor(){ return flat ? 'electrons' : 'sticks'; }
 
-/* 2D is the default: straight-on, rotation locked, every electron countable.
-   3D is the thing you switch to once you want to ask where the lone pairs
-   really are — which is the question the flat view provokes. */
-let flat=true;
-/* The switch itself only exists once the molecule is completed. Un-arming also returns the student to 2D. */
+let flat=true;   // 2D is the default (locked, countable); 3D is where you go to check the geometry
+// switch only exists once the molecule is completed; un-arming returns to 2D
 function arm(on){
   document.getElementById('dims').classList.toggle('armed', on);
   if(!on) setView(true,true);
 }
 
-/* One place that actually changes the view, so the button, the automatic switch
-   after a completion and a lesson change cannot drift apart.
-   Split from setView because load() has to pick the view BEFORE the sim exists:
-   it makes the new sim and then hands it the dimension itself, so the two would
-   otherwise fight over which one is authoritative. This half is the button
-   lights and the camera; setView adds the sim and the toast. */
+/* Single place that changes the view so the button, auto-switch, and lesson
+   change can't drift apart. Split from setView because load() must pick the
+   view before the sim exists — this half sets the button lights and camera;
+   setView adds the sim and toast. */
 function viewState(toFlat){
   flat=toFlat;
   document.querySelectorAll('#dims .mode').forEach(o=>
     o.classList.toggle('on', (o.dataset.dim==='2d')===flat));
-  /* Nothing to do to the camera any more. One ortho frustum serves both views*/
   if(flat){ userSpun=true; }        // no idle turntable behind a locked view
-  /* Close to the flat view's own camera (theta 0, phi π/2) rather than a
-     three-quarter pose: the switch is a continuation of the molecule the
-     student was just counting, so it has to arrive recognisable and then turn.
-     Far enough off dead-on to read as depth; the idle turntable does the rest. */
+  // three-quarter camera, close enough to the flat one to read as a continuation before it turns
   else { cam.theta=0.3; cam.phi=1.4; applyCam(); userSpun=false; }
 }
-/* `quiet` skips the toast for the automatic switch after a completion — the win
-   line is still on screen and is the thing to read. */
+// `quiet` skips the toast on the automatic post-completion switch, since the win line is still the thing to read
 function setView(toFlat,quiet){
   if(toFlat===flat) return;         // already there — a no-op, not a re-render
   viewState(toFlat);
@@ -985,11 +807,7 @@ document.getElementById('savepng').addEventListener('click',()=>{
 function frame(now){
   requestAnimationFrame(frame);
   const dt=last?(now-last)/1000:0.016; last=now;
-  /* The 2D lock is re-asserted per frame rather than by unbinding Stage's orbit
-     handler: the handler belongs to the shared stage, and a page has no business
-     reaching in to disable it. Re-applying the camera afterwards is the same
-     result from the outside — the view simply cannot be rotated. */
-  // no per-mode re-clamp: one frustum, one zoom range, both views
+  // 2D lock re-asserted per frame rather than unbinding Stage's shared orbit handler
   if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
   sim.step(dt);
