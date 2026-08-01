@@ -112,9 +112,13 @@ let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
 // material factories honour the current render mode
+// MATTE: a tight specular highlight reads as wet plastic at these sizes, and on
+// a big atom it competes with the element letter beside it. Same numbers as
+// Stage.atomMat in scene.js — this page predates that extraction and still owns
+// its own factories, so the value lives in two places by history.
 function atomMat(color){ return toonMode
   ? new THREE.MeshToonMaterial({color})
-  : new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1}); }
+  : new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
 function bondMat(color){ return toonMode
   ? new THREE.MeshToonMaterial({color})
   : new THREE.MeshStandardMaterial({color,roughness:.5}); }
@@ -182,10 +186,13 @@ function convertMat(mesh){
   if(!!s.isMeshToonMaterial===toonMode) return;              // already correct type
   const o={color:s.color.getHex(), transparent:s.transparent, opacity:s.opacity};
   const em=s.emissive && s.emissive.getHex();
-  if(em) o.emissive=em;
-  const nm=toonMode ? new THREE.MeshToonMaterial(o)
-                    : new THREE.MeshStandardMaterial(Object.assign({roughness:.4,metalness:.08},o));
-  if(em) nm.emissiveIntensity=s.emissiveIntensity;
+  /* Rebuild through the factories above rather than naming roughness here: this
+     carried its own copy of the numbers, so a mesh toggled to Toon and back came
+     home glossier than one that never left. atomMat/bondMat honour toonMode
+     themselves, so they answer for both directions. */
+  const nm=em ? glowMat(o.color, s.emissiveIntensity)
+              : (mesh.userData.role==='covalent' ? bondMat(o.color) : atomMat(o.color));
+  nm.transparent=o.transparent; nm.opacity=o.opacity;
   mesh.material=nm;
 }
 function applyRenderMode(){
