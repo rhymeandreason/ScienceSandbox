@@ -708,15 +708,24 @@ function showNotes(list){
    earned it does. That is the whole difference from say(): a toast is "this just
    happened", a sticky is "this is what you are looking at".
 
-   It arrives a beat LATE on purpose. The state that earns it is always the same
-   state that just fired something loud — the completion ring runs 0.87s, and the
-   win toast lands under it — and a note appearing in the same frame reads as
-   part of that flash instead of as a comment on it. Held back, it reads as
-   somebody sticking a note to the page after watching what happened.
+   It arrives a beat LATE on purpose: a note appearing in the same frame as the
+   thing that earned it reads as part of that event instead of as a comment on
+   it. Held back, it reads as somebody sticking a note to the page after
+   watching what happened.
 
-   Leaving is NOT delayed: the state that earned it is gone now, and a note that
-   lingers is making a claim about the molecule that has stopped being true. */
-const STICKY_DELAY=900;
+   How long a beat depends on how loud the event was, which is why there are two
+   numbers rather than one. FINISHING a molecule fires the ring, a core flash, a
+   spark burst and the win toast — nearly a second of noise the note has to let
+   pass. Filling one slot MID-BUILD fires only settleShimmer, a soft glow on the
+   one atom that just landed, which the note is welcome to overlap. Using the
+   completion delay for both left the mid-build notes feeling like lag, because
+   the student is already reaching for the next atom by then.
+
+   Leaving is NOT delayed either way: the state that earned it is gone now, and
+   a note that lingers is making a claim about the molecule that has stopped
+   being true. */
+const STICKY_DELAY_STEP=350;   // mid-build — only a shimmer to stay clear of
+const STICKY_DELAY_WIN=900;    // completion — the ring alone runs 0.87s
 let stickyTimer=null, stickyPending=null;
 function hideSticky(){
   clearTimeout(stickyTimer); stickyTimer=null; stickyPending=null;
@@ -727,7 +736,7 @@ function hideSticky(){
   // stays overridden and an invisible card keeps sitting over the stage
   elSticky.style.display='';
 }
-function showSticky(note){
+function showSticky(note, delay){
   if(!note){ hideSticky(); return; }
   // Already up, or already on its way up. report() fires many times a second, so
   // without the pending check every one of them would restart the timer and the
@@ -747,7 +756,8 @@ function showSticky(note){
     elSticky.style.display='block';
     void elSticky.offsetWidth;
     elSticky.classList.add('show');
-  }, STICKY_DELAY);
+    // the long one if a caller forgets: overlapping a flash is the worse miss
+  }, delay==null ? STICKY_DELAY_WIN : delay);
 }
 
 /* The completion ring is one-per-molecule, so it stays an event rather than a
@@ -771,7 +781,11 @@ function report(s){
   /* Ahead of every early return below, because a sticky belongs to the state
      rather than to a branch: completing the molecule has to be able to take it
      down, and win() returns before the end of this function. */
-  showSticky(L.sticky && L.sticky(s));
+  /* Which delay is read off the state rather than declared per lesson, because
+     the thing being waited out is the completion flash and `complete` is exactly
+     when that fires. A lesson never has to remember to say so. */
+  showSticky(L.sticky && L.sticky(s),
+             s.complete ? STICKY_DELAY_WIN : STICKY_DELAY_STEP);
   const more=L.extra && L.extra(s);
   if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
   saidExtra=false;
