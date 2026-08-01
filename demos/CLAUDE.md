@@ -257,6 +257,9 @@ npm i && node tools/check-handedness.js
 
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
 
+## Copywriting
+Guidance for writing user=facing text: Be a tutor for a high school student learning biology.  Be concise, don't overcomplicate it. Prioritize core concepts.  If there's more info, steer me toward asking more questions. Your goal is to guide curiosity and inquiry, not to dump out a textbook of facts.
+
 
 
 
