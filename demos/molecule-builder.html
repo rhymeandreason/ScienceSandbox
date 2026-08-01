@@ -450,9 +450,14 @@ const LESSONS={
         } } };
     },
     /* own sentence: the proton brought no electron, nitrogen paid for the whole bond */
+    /* Names the reaction TYPE the moment the student has done it, the same way
+       HCl's line does — and deliberately in the same words, because it IS the
+       same reaction. Only the direction changed: here water is the one that
+       gave the proton away. */
     extra:s=>s.protonated
-      ? 'The proton brought <b>no electron</b> — nitrogen paid for both. That is a '+
-        '<b>dative bond</b>, and the molecule is now <b>NH\u2084\u207a</b>.'
+      ? 'An <b>acid–base proton transfer</b> (Brønsted–Lowry). The proton brought <b>no '+
+        'electron</b> — nitrogen paid for both, so that is a <b>dative bond</b>, and the '+
+        'molecule is now <b>NH\u2084\u207a</b>.'
       : null,
   },
   methane:{
@@ -593,9 +598,12 @@ const LESSONS={
         } } };
     },
     step:()=>null,
+    /* Names the reaction TYPE, now that the student has just done it: the term
+       is worth having once the thing it names is on the screen, and this is the
+       one line that fires at the moment it finishes. */
     extra:s=>s.anion
-      ? 'The hydrogen went <b>without its electron</b>. Chlorine kept the pair — <b>Cl⁻</b> — '+
-        'and water took the proton: <b>H₃O⁺</b>.'
+      ? 'An <b>acid–base proton transfer</b> (Brønsted–Lowry). The H went <b>without its '+
+        'electron</b> — chlorine kept the pair (<b>Cl⁻</b>), water took the proton (<b>H₃O⁺</b>).'
       : null,
     after:()=>'Chlorine took an electron outright from <b>sodium</b>, and <b>shares</b> one with '+
              'hydrogen. Same atom, both times — so <b>ionic or covalent is about the pair</b>, '+
