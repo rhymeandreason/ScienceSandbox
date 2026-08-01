@@ -1042,7 +1042,8 @@
         g.add(st); return st;
       });
       water={ group:g, sphere:osphere, hs, pairs, lones, sticks:wsticks, badge:null,
-              vel:new THREE.Vector3(), slot:null, dragging:false, spent:false, move:null };
+              vel:new THREE.Vector3(), slot:null, dragging:false, spent:false,
+              move:null, arriving:null };
       layoutWater();
       applyCel(); applyMode();
       onChange(state());
@@ -1055,7 +1056,7 @@
     function layoutWater(){
       if(!water) return;
       water.hs.forEach(h=>{
-        if(!h || h.li==null) return;            // a born hydrogen sits where it was built
+        if(!h || h.li==null || h===water.arriving) return;   // born here, or still on its way
         h.group.position.copy(siteDir(h).multiplyScalar(WATER.bond));
       });
       water.lones.forEach(p=>{
@@ -1122,6 +1123,12 @@
       const d0=water.group.position.length();
       if(d0<wshell && d0>1e-4) water.group.position.multiplyScalar(wshell/d0);
       if(water.move) stepMove(dt);
+      if(water.arriving){                    // the proton finishing its trip
+        const nh=water.arriving;
+        const to=siteDir(nh).multiplyScalar(WATER.bond);
+        nh.group.position.lerp(to, 1-Math.pow(0.002, dt));
+        if(nh.group.position.distanceTo(to)<0.02){ nh.group.position.copy(to); water.arriving=null; }
+      }
       if(water.spent){                       // the product: drifting clear, inert
         /* And once it has arrived, the park is DROPPED. It is expressed in group
          * space, so a live one drags the product along behind the molecule every
@@ -1213,6 +1220,7 @@
        * that used to be hydrogen's. Same badge vocabulary as the salt tabs. */
       water.badge=kit.charge('−', hexOf('O'), 'O');
       water.group.add(water.badge);
+      if(fx) fx.settleShimmer(water.sphere, 0xffc24d);   // §5: amber, it changed too
       spawnProton(at);
       protonate(proton);
     }
@@ -1261,21 +1269,45 @@
        * move out of the way — it becomes the bond, which is what a dative bond
        * is and what the student already watched nitrogen do one tab over. */
       const lone=water.lones.shift();
-      h.group.position.copy(siteDir(lone).multiplyScalar(WATER.bond));
       h.slot=null; h.vel.set(0,0,0);
+      /* Re-parented WITHOUT moving: the local position is whatever keeps it
+       * exactly where it already is in the world, and stepWater() glides it the
+       * last stretch onto the lone pair. protonate() makes the same point for
+       * ammonium — you watch the proton arrive rather than find it arrived —
+       * and a hydrogen that teleported across the gap would be the one frame
+       * where this stops looking like two molecules meeting. */
+      const at=h.group.getWorldPosition(new THREE.Vector3());
       water.group.add(h.group);
+      h.group.position.copy(water.group.worldToLocal(at));
       const nh={ group:h.group, sphere:h.sphere, li:lone.li };
       water.hs.push(nh);
+      water.arriving=nh;
       const bp={ dots:lone.dots, h:nh };
       water.pairs.push(bp);
       const st=Stage.bond(new THREE.Vector3(), h.group.position, P.bonds.covalent, 0.10, 1);
       st.userData.len=WATER.bond;
       water.group.add(st); water.sticks.push(st);
-      // both dots stay oxygen's colour: it paid for the whole bond
-      startMove(bp, null, null, null);
+      // both dots stay oxygen's colour: it paid for the whole bond, so there is
+      // no owner change to announce — only the swell that says they ARE the bond
+      startMove(bp, null, null, null, true);
       water.badge=kit.charge('+', hexOf('O'), 'O');
       water.group.add(water.badge);
-      if(fx) fx.settleShimmer(water.sphere, 0xffc24d);   // §5: amber for proton chemistry
+      /* Off the FLANK, not the default shoulder. A badge parks up-and-right of
+       * its atom, which is exactly where the proton just landed — the + was
+       * sitting on top of the two dots that had become the bond, hiding the one
+       * thing this stage is about. Hydronium's free directions are its flanks:
+       * three hydrogens below and around, one lone pair above. */
+      kit.place(water.badge, new THREE.Vector3(P.radii.O*0.98, 0, 0));
+      /* Same three effects protonate() fires for ammonium, because it is the
+       * same event: a dative bond forming. The ring expands from the DONOR in
+       * the donor's colour — oxygen paid for this one — and the amber shimmer is
+       * SCIENCE.md §5's vocabulary for proton chemistry. */
+      if(fx){
+        fx.spawnRing(water.group.getWorldPosition(new THREE.Vector3()), P.atoms.O, water.group);
+        fx.settleShimmer(water.sphere, 0xffc24d);
+        // …and the other product changed too: chloride is holding a new pair
+        fx.settleShimmer(core.sphere, 0xffc24d);
+      }
       onChange(state());
     }
 
@@ -1283,8 +1315,8 @@
      * layoutWater would put you now", which is the case when a lone pair becomes
      * a bond; a colour pair means one of the dots changed owner and says so the
      * way ionic-drag.js does, by changing colour on the way. */
-    function startMove(pair, to, c0, c1){
-      water.move={ pair, k:0, from:pair.dots.map(m=>m.position.clone()), to,
+    function startMove(pair, to, c0, c1, swell){
+      water.move={ pair, k:0, from:pair.dots.map(m=>m.position.clone()), to, swell,
                    c0:c0!=null?new THREE.Color(c0):null,
                    c1:c1!=null?new THREE.Color(c1):null };
     }
@@ -1305,12 +1337,18 @@
       mv.pair.dots.forEach((m,k)=>{
         m.position.lerpVectors(mv.from[k], to[k], mv.k);
         if(k===1 && mv.c0) m.material.color.copy(mv.c0).lerp(mv.c1, mv.k);
+        /* The swell is flarePair()'s, borrowed: "these two, the ones that were
+         * already here, are now the bond". Deliberately small — a dot that
+         * balloons stops reading as an electron and starts reading as an
+         * effect, and this one has to stay the same two electrons throughout. */
+        if(mv.swell) m.scale.setScalar(0.1*(1+0.35*Math.sin(mv.k*Math.PI)));
       });
       /* The colour is SET at the end, not left wherever the lerp finished: an
        * electron that stopped 96% of the way to its new owner's colour is a
        * rendering artefact standing exactly where the lesson is. */
       if(mv.k>=1){
         if(mv.c1) mv.pair.dots[1].material.color.copy(mv.c1);
+        if(mv.swell) mv.pair.dots.forEach(m=>m.scale.setScalar(0.1));
         water.move=null; layoutWater();
       }
     }
