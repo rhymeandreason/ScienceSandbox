@@ -116,6 +116,12 @@
       6px 10px 16px -6px rgba(0,0,0,.35);
     display:none;opacity:0;transition:opacity .22s ease,transform .22s ease}
   #sticky.show{display:block;opacity:1;transform:rotate(1.6deg) translateY(0)}
+  /* Dropped down the rail for a note whose subject is up in the top-right
+     corner — the hydroxide drifts back to where the water was dealt, and the
+     note explaining it must not be sitting on top of it. Opt-in per note
+     (`place:'low'`), because it is a fact about that one molecule's path, not
+     about stickies. */
+  #sticky.low{top:490px}
   /* sticker rides the top-left corner, half off the paper — reads as stuck on */
   #sticky .simg{position:absolute;left:-19px;top:-50px;width:80px;;
     transform:rotate(-13deg);pointer-events:none;
@@ -125,6 +131,25 @@
   #sticky .sbody{font-family:var(--font-sans);font-size:16px;line-height:1.34;
     color:var(--ink)}
   #sticky .sbody b{font-weight:600; font-style:italic;}
+  /* A sticky is normally something to READ, so the one that can be acted on has
+     to look like paper someone wrote a button onto rather than UI dropped on the
+     note: marker face, hand-drawn ink border, and it sits at the bottom of the
+     note where a "do it" belongs. Only ammonia has one — see `action` in the
+     lesson table. */
+  #sticky .sact{position:absolute;left:20px;right:20px;bottom:18px;
+    font-family:var(--font-marker);font-size:19px;line-height:1;
+    padding:9px 10px 10px;cursor:pointer;color:var(--ink);
+    background:#fffdf2;border:2px solid var(--ink);border-radius:12px 9px 13px 8px;
+    transform:rotate(-0.8deg);
+    box-shadow:1px 2px 0 rgba(43,39,35,.30);
+    transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
+  #sticky .sact:hover{background:#fff;transform:rotate(-0.8deg) translateY(-1px);
+    box-shadow:1px 3px 0 rgba(43,39,35,.34)}
+  /* pressed: down onto the paper, shadow gone — the only motion that reads as a
+     button being pushed rather than a card being hovered */
+  #sticky .sact:active{transform:rotate(-0.8deg) translateY(2px);box-shadow:0 0 0 rgba(0,0,0,0)}
+  /* the body has to stop short of the button, or a long note runs under it */
+  #sticky.acting .sbody{padding-bottom:46px}
 
   /* ---------- feedback toast ----------
      Sits above the dock rather than up top (wedged between tab strip and atoms,
@@ -364,7 +389,7 @@ const LESSONS={
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'ammonia', onChange:report}),
     open:'Nitrogen has three slots — and a lone pair it keeps.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
-    won:'Ammonia. The <b>lone pair</b> is left over — now drag the <b>H\u207a</b> into it.',
+    won:'Ammonia. The <b>lone pair</b> is left over — it is what makes this a <b>base</b>.',
     notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar','gas'], facts:[
       '<b>trigonal pyramidal</b> &middot; <b>107\u00b0</b>',
       '3 bonding pairs + <b>1 lone pair</b> on N',
@@ -379,16 +404,51 @@ const LESSONS={
     stats:s=>s.protonated
       ? 'ammonium <b>NH\u2084\u207a</b> &nbsp;\u00b7&nbsp; the lone pair became a <b>bond</b>'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>'+
-        (s.hasProton?' &nbsp;\u00b7&nbsp; a bare <b>proton</b> is waiting':''),
+        (s.hasWater?' &nbsp;\u00b7&nbsp; <b>water</b> is waiting':''),
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
     /* Up only between the two stages: the finished NH₃ is the one moment the
        lone pair is visible AND still free, which is the whole setup for what
        happens next. Clears on protonation — by then it is the answer to a
        question the student has already done. */
-    sticky:s=>s.complete && !s.protonated ? {
-      title:'Add water to make ammonium',
-      body:'The lone pair steals an <b>H⁺</b> off a water molecule, leaving <b>OH⁻</b> '+
-           'behind. Taking a proton is what makes something a <b>base</b>.' } : null,
+    /* Three states, three notes — the sticky is the narrator for a stage the
+       molecule cannot tell on its own. Before: what water is for. After: what
+       just happened to the leftovers. The button is the pour. */
+    sticky:s=>{
+      if(s.hydroxide||s.protonated) return {
+        place:'low',                       // the OH⁻ parks where this note used to sit
+        title:'That leftover is hydroxide',
+        body:'<b>OH⁻</b> kept <b>both</b> electrons — the H left without its own. Spare OH⁻ '+
+             'is what makes a solution <b>basic</b>.' };
+      if(!s.complete) return null;
+      /* Nothing while the water is on the bench: what to do with it is a
+         one-line instruction for right now, which is the toast's job, and the
+         sticky is for the aside that outlives the moment. Two of them up at once
+         also left the student reading while the thing they were told to drag sat
+         there. */
+      if(s.hasWater) return null;
+      return {
+        /* Shorter than the other stickies on purpose: this one carries a
+           button, and the note is a fixed square. */
+        title:'Add water to make ammonium',
+        body:'The lone pair takes an <b>H⁺</b> straight off a water molecule.',
+        /* say() AFTER the pour, not before: offerWater() reports its own state
+           change, which runs win() and puts the win line up — a toast written
+           first would be overwritten by it within the same tick. */
+        /* Flat view FIRST, then pour. The reaction is an electron argument —
+           which pair leaves with which atom — and the flat view is the one that
+           draws every electron; in the round view the dots are hidden and a
+           student watching would see two molecules touch and a charge appear.
+           It also makes the drag easy: 2D locks rotation and puts the lone pair
+           and the water in the same plane, so "on top of the nitrogen" is
+           somewhere you can actually aim. Quietly, so the toast below is what
+           the student reads rather than the view-switch line.
+           The 3D toggle stays armed — the shape is still one click away. */
+        action:{ label:"Let's do it &rarr;", run:()=>{
+          setView(true, true);
+          sim.offerWater();
+          say('Drag the water at the <b>lone pair</b> on top of the nitrogen.');
+        } } };
+    },
     /* own sentence: the proton brought no electron, nitrogen paid for the whole bond */
     extra:s=>s.protonated
       ? 'The proton brought <b>no electron</b> — nitrogen paid for both. That is a '+
@@ -664,7 +724,17 @@ function showSticky(note, delay){
     elSticky.dataset.key=note.title;
     elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
       '<div class="stitle">'+note.title+'</div>'+
-      '<div class="sbody">'+note.body+'</div>';
+      '<div class="sbody">'+note.body+'</div>'+
+      (note.action?'<button class="sact" type="button">'+note.action.label+'</button>':'');
+    /* The handler is bound to the freshly written button rather than delegated,
+       because innerHTML above throws the old one away every time a note changes
+       — a delegated listener would have to re-find which lesson's action it is
+       firing, which is exactly the state the note already carries. */
+    elSticky.classList.toggle('acting', !!note.action);
+    elSticky.classList.toggle('low', note.place==='low');
+    if(note.action){
+      elSticky.querySelector('.sact').addEventListener('click', ()=>note.action.run());
+    }
     /* forced reflow so display:none→block and .show don't collapse into one frame and skip the fade */
     elSticky.style.display='block';
     void elSticky.offsetWidth;
