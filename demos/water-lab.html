@@ -46,7 +46,6 @@
 
     <div id="chips"></div>
     <div id="saltinfo"></div>
-    <div id="stats"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="saltcard">
@@ -892,7 +891,6 @@ const stepMeta=[
 const stage=document.getElementById('stage');
 const cardEl=document.getElementById('card');
 const stepsEl=document.getElementById('steps');
-const statsEl=document.getElementById('stats');
 const saltinfoEl=document.getElementById('saltinfo');
 const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
 
@@ -1169,10 +1167,6 @@ function setMolOpacity(w,op){
 }
 let wasFreezing=false, wasBoiling=false;
 function renderReadout(p,r,escaping){
-  // bottom-left: just the counts, mirroring the mockup
-  let s=`${sim.mols.length} molecule${sim.mols.length===1?'':'s'}<br>${r.hbondCount} hydrogen bond${r.hbondCount===1?'':'s'}`;
-  if(salt.length) s+=`<br>${salt.length/2} ${MolLib.MOLECULES[currentSalt].formula} dissolved`;
-  statsEl.innerHTML=s;
   // handwritten phase descriptor beside the temperature readout
   if(S.tempEnabled && tdescEl) tdescEl.textContent=tempDescriptor(p);
   // step-5 salt readout: ion:water ratio + calculated (colligative) phase-change points
