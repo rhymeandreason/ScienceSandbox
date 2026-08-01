@@ -15,22 +15,75 @@
      Both molecules stay on screen as cards so the pair reads as one lesson with
      two halves — share vs. give — rather than two unrelated pages. The inactive
      card is dimmed but never hidden: the comparison is the content. */
+  /* They are dealt out like a hand of cards rather than drawn as a row of tabs:
+     no outline, paper stock, and each one lapping the card to its left. The
+     overlap is what makes them read as OBJECTS on the page — a strip of
+     touching rectangles reads as UI, a stack with edges and shadows reads as
+     something you could pick up. Depth does the work an outline used to:
+     card-on-card shadow for the stacking, and the live card lifted clear of it. */
   #goals{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
-    display:flex;gap:8px;align-items:stretch}
-  /* the covalent pair and the ionic pair, set apart: the tab strip itself should
-     read as two lessons of two, not four unrelated molecules */
-  .goal[data-lesson="nacl"]{margin-left:24px}
-  .goal{text-align:center;background:rgba(255,255,255,.66);border:2px solid var(--ink);
-    border-radius:var(--radius);padding:8px;min-width:132px;max-width:176px;
-    font-family:inherit;color:var(--ink);cursor:pointer;
-    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px);
-    opacity:.5;transition:opacity .12s ease,transform .12s ease}
-  .goal:hover{opacity:.8}
-  .goal.on{opacity:1;transform:translateY(-2px)}
-  .goal .gname{font-family:var(--font-slab);font-size:18px;color:var(--ink);line-height:1.1;}
-  .goal .gform{font-family:var(--font-sans);font-weight:700;font-size:16px;color:var(--muted); margin-top:8px}
-  .goal.done{border-color:#2e8b57}
-  .goal.done .gname{color:#2e8b57}
+    display:flex;gap:0;align-items:stretch;padding:10px 6px 16px}
+  /* Paper is OPAQUE, and an inactive card is dimmed by its ink rather than by
+     element opacity. A translucent card is fine while it has an ink outline
+     holding its shape; without one, the molecule shows straight through the
+     stock and the card stops being a card. */
+  .goal{text-align:center;background:#f7f2e7;border:none;
+    border-radius:3px 4px 3px 4px;padding:10px 12px 12px;min-width:132px;max-width:176px;
+    font-family:inherit;cursor:pointer;
+    /* a contact shadow to sit the card on the one beneath, then a soft cast */
+    box-shadow:0 1px 1px rgba(43,39,35,.16), 0 3px 5px -2px rgba(43,39,35,.20),
+      0 12px 20px -14px rgba(43,39,35,.55);
+    transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+  /* the lap. -14px is about a card's corner radius plus its shadow, so the edge
+     of each one stays visible — overlap far enough to stack, not far enough to
+     swallow the neighbour's first letter */
+  .goal + .goal{margin-left:-14px}
+  /* the covalent set and the ionic set, still set apart: the strip should read
+     as two lessons, not eight unrelated molecules. Positive margin here beats
+     the lap rather than adding to it */
+  .goal[data-lesson="nacl"]{margin-left:20px}
+  /* dealt by hand, so no two sit at quite the same angle. Cycles every five, and
+     the values are small on purpose — past about a degree the baselines stop
+     agreeing and the strip reads as broken rather than as paper.
+     The angle is a custom property, not a bare transform, because every other
+     rule that moves a card has to carry the tilt along with it — a hover that
+     wrote plain translateY() would silently flatten the card it lifts. */
+  .goal{--tilt:0deg;transform:rotate(var(--tilt))}
+  .goal:nth-child(5n+1){--tilt:-0.7deg}
+  .goal:nth-child(5n+2){--tilt:0.5deg}
+  .goal:nth-child(5n+3){--tilt:-0.3deg}
+  .goal:nth-child(5n+4){--tilt:0.8deg}
+  .goal:nth-child(5n+5){--tilt:-0.5deg}
+  /* hover and the live card both come OUT of the stack — z-index, or the card to
+     the right keeps its corner over the one you are pointing at */
+  .goal:hover{background:#fbf7ee;z-index:2}
+  /* Picked up rather than slid: the card overshoots its resting height and
+     settles back, which is what a light object does when a hand lifts it. An
+     animation rather than a transition because the overshoot needs a middle
+     keyframe; `forwards` holds the lifted pose, and the transform transition
+     above carries it back down when the pointer leaves.
+     Not on .on — the live card is already lifted, and animating it would drop
+     it 1px to bounce it back up. */
+  .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
+  @keyframes cardLift{
+    0%  {transform:translateY(0)    rotate(var(--tilt))}
+    55% {transform:translateY(-7px) rotate(var(--tilt))}
+    100%{transform:translateY(-4px) rotate(var(--tilt))}}
+  .goal.on{background:#fffdf7;z-index:3;transform:translateY(-5px) rotate(0deg);
+    box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30),
+      0 22px 30px -18px rgba(43,39,35,.55)}
+  .goal .gname{font-family:var(--font-slab);font-size:18px;line-height:1.1;
+    color:#a19686}
+  .goal .gform{font-family:var(--font-sans);font-weight:700;font-size:16px;
+    color:#b9ae9d;margin-top:8px}
+  .goal:hover .gname{color:#6f6557}
+  .goal.on .gname{color:var(--ink)}
+  .goal.on .gform{color:var(--muted)}
+  /* finished: the paper itself goes faintly green, since there is no longer an
+     outline to recolour. Last, so it wins over the active card's ink */
+  .goal.done{background:#f2f7f1}
+  .goal.done.on{background:#f8fcf7}
+  .goal.done .gname,.goal.done.on .gname{color:#2e8b57}
 
   /* ---------- notes: the test-answer keywords, revealed on completion ----
      Left rail rather than a card over the stage: it is reference material to
