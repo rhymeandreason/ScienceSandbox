@@ -153,7 +153,7 @@
     color:var(--ink);margin:2px 0 8px 13px}
   #sticky .sbody{font-family:var(--font-sans);font-size:16px;line-height:1.34;
     color:var(--ink)}
-  #sticky .sbody b{font-weight:600}
+  #sticky .sbody b{font-weight:600; font-style:italic;}
 
   /* ---------- feedback toast ----------
      Below the molecule, just above the dock: up top it was wedged between the
@@ -516,6 +516,16 @@ const LESSONS={
     stats:s=>s.complete
       ? 'shared pairs: <b>'+s.pairs+'</b> &nbsp;·&nbsp; a <b>triple</b> bond'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
+    /* CO2's sticky hangs on a half-built state; N2 has none to hang on — it goes
+       straight from nothing to complete — and it does not need one, because the
+       aside IS about the finished bond. The student is looking at the strongest
+       bond on the site, in the gas that is 78% of the air they are breathing,
+       and the obvious next question is how anything alive ever gets at it.
+       The `after` toast names the cost; this names who pays it, and it stays up
+       while the molecule does rather than sliding away in 3 seconds. */
+    sticky:s=>s.complete ? {
+      title:'How do plants get nitrogen?',
+      body:'Some plants have root nodules with <b>nitrogen-fixing bacteria</b> that can break N≡N into nitrate and ammonium.' } : null,
     step:()=>null,
     after:()=>'Three pairs is the <b>strongest bond</b> on this page. Air is 78% N₂ and '+
              'almost nothing can use it — breaking this bond is what <b>nitrogen fixation</b> costs.',
@@ -671,17 +681,48 @@ function showNotes(list){
 /* A lesson's sticky is a function of the CURRENT state, not an event, so it is
    re-evaluated on every report and goes away by itself when the state that
    earned it does. That is the whole difference from say(): a toast is "this just
-   happened", a sticky is "this is what you are looking at". */
-function showSticky(note){
+   happened", a sticky is "this is what you are looking at".
+
+   It arrives a beat LATE on purpose. The state that earns it is always the same
+   state that just fired something loud — the completion ring runs 0.87s, and the
+   win toast lands under it — and a note appearing in the same frame reads as
+   part of that flash instead of as a comment on it. Held back, it reads as
+   somebody sticking a note to the page after watching what happened.
+
+   Leaving is NOT delayed: the state that earned it is gone now, and a note that
+   lingers is making a claim about the molecule that has stopped being true. */
+const STICKY_DELAY=900;
+let stickyTimer=null, stickyPending=null;
+function hideSticky(){
+  clearTimeout(stickyTimer); stickyTimer=null; stickyPending=null;
   // the key is cleared on the way out, so peeling a bond off and rebuilding it
   // earns the note again rather than leaving a hidden div that thinks it is up
-  if(!note){ elSticky.classList.remove('show'); elSticky.dataset.key=''; return; }
-  if(elSticky.dataset.key===note.title){ return; }   // already up — don't re-animate
-  elSticky.dataset.key=note.title;
-  elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
-    '<div class="stitle">'+note.title+'</div>'+
-    '<div class="sbody">'+note.body+'</div>';
-  elSticky.classList.add('show');
+  elSticky.classList.remove('show'); elSticky.dataset.key='';
+  // and the inline display the entrance set, or the stylesheet's display:none
+  // stays overridden and an invisible card keeps sitting over the stage
+  elSticky.style.display='';
+}
+function showSticky(note){
+  if(!note){ hideSticky(); return; }
+  // Already up, or already on its way up. report() fires many times a second, so
+  // without the pending check every one of them would restart the timer and the
+  // note would keep being pushed into the future and never arrive.
+  if(elSticky.dataset.key===note.title || stickyPending===note.title) return;
+  hideSticky();                       // a DIFFERENT note: the old one is stale now
+  stickyPending=note.title;
+  stickyTimer=setTimeout(()=>{
+    stickyTimer=null; stickyPending=null;
+    elSticky.dataset.key=note.title;
+    elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
+      '<div class="stitle">'+note.title+'</div>'+
+      '<div class="sbody">'+note.body+'</div>';
+    /* display:none → block and .show in one frame skips the transition, so the
+       note used to pop. It got away with that while it appeared inside the
+       flash; arriving on its own it has to fade. Same reflow idiom as say(). */
+    elSticky.style.display='block';
+    void elSticky.offsetWidth;
+    elSticky.classList.add('show');
+  }, STICKY_DELAY);
 }
 
 /* The completion ring is one-per-molecule, so it stays an event rather than a
