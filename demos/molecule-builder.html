@@ -737,7 +737,14 @@ function win(s){
      Centred by asking the lesson for its anchor's position rather than assuming
      the world origin — that assumption is what previously bloomed the ring out
      of empty space beside a salt pair dragged off-centre. */
-  if(fx && !rung && L.ring){ rung=true; fx.spawnRing(sim.center(), L.ring()); }
+  /* The anchor, not just the point: a bonded ligand tows the whole molecule
+     (covalent-drag's framed()), so a student who finishes the molecule and keeps
+     dragging would otherwise pull it out from under its own ring and leave the
+     ring expanding over blank paper. */
+  if(fx && !rung && L.ring){
+    rung=true;
+    fx.spawnRing(sim.center(), L.ring(), sim.anchor && sim.anchor());
+  }
 }
 
 /* Tabs tear the old lesson down rather than hiding it: both modules bind

@@ -310,9 +310,13 @@
          * that it gained a specific electron. Core + sparks, not spawnRing —
          * the full ring stays reserved for finishing a molecule, so it keeps
          * meaning "done" instead of firing twice a second apart. */
+        /* Anchored to the chloride, not to the point in space where it was
+         * standing: the ions are still settling into the bond as this plays,
+         * and on MgCl₂ the second landing is followed by the whole swing to
+         * 180°. The flash belongs to the shell it landed on. */
         if(fx){
-          fx.spawnCore(at, 0xffffff);
-          fx.spawnBurst(at, P.atoms[R.nonmetal], 14);
+          fx.spawnCore(at, 0xffffff, a.group);
+          fx.spawnBurst(at, P.atoms[R.nonmetal], 14, a.group);
         }
         onChange(state());
       }
@@ -602,6 +606,9 @@
                return anchor ? anchor.group.getWorldPosition(new THREE.Vector3())
                              : new THREE.Vector3();
              },
+             // the same place as the OBJECT, so an effect can ride the ion
+             // instead of being pinned where it was when it fired (fx.js)
+             anchor:()=>{ const a=(N>1)?metal:(nons[0]||metal); return a?a.group:null; },
              get mode(){return mode;}, get dim(){return dim;} };
   }
 

@@ -816,7 +816,8 @@
          * bond, but from here", which is what a dative bond is.
          * The shimmer stays amber (SCIENCE.md §5, proton/acid chemistry) because
          * the other half of this moment is that the molecule became an ion. */
-        fx.spawnRing(core.group.getWorldPosition(new THREE.Vector3()), P.atoms[R.core]);
+        fx.spawnRing(core.group.getWorldPosition(new THREE.Vector3()), P.atoms[R.core],
+                     core.group);   // NH₄⁺ is still draggable — ride it (fx.js)
         fx.settleShimmer(core.sphere, 0xffc24d);
       }
       onChange(state());
@@ -1115,6 +1116,13 @@
                 completion ring in empty space in the salt tab. */
              center:()=>core ? core.group.getWorldPosition(new THREE.Vector3())
                                : new THREE.Vector3(),
+             /* The same place, as the OBJECT rather than a reading of it. An
+                effect handed only center() is pinned to wherever the molecule
+                was at the instant it fired — and a bonded ligand tows the whole
+                frame (see framed()), so finishing a molecule and carrying on
+                dragging used to leave the completion ring behind in empty
+                paper. Pass this to fx and the ring rides along. */
+             anchor:()=>core?core.group:null,
              get mode(){return mode;}, get dim(){return dim;} };
   }
 

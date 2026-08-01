@@ -11,6 +11,10 @@
  *                                                  // molecules live in; camera:
  *                                                  // the scene camera (for billboards)
  *    fx.spawnRing(pos, color);  fx.popGlow(g, color);  …
+ *    // spawnRing/spawnCore/spawnBurst take an optional trailing `follow`
+ *    // Object3D. Pass it when the thing the effect fired ON can still move
+ *    // (a molecule that is being dragged, an ion still settling) — see
+ *    // tracker() below. Omit it and the effect stays where it was fired.
  *    // in the render loop, once per frame, before renderer.render():
  *    fx.step();
  *
@@ -40,13 +44,48 @@
         if(k>=1){ if(e.cleanup) e.cleanup(); fx.splice(i,1); } }
     }
 
+    /* ---- where an effect fires, when that place can MOVE -----------------
+     * Every spawn below took a Vector3 and copied it once, which is right for a
+     * reaction that happens at a fixed spot and wrong for one that happens ON
+     * something the user can still drag. The completion ring was the case that
+     * showed it: finish a molecule in the builder and keep dragging — a bonded
+     * ligand tows the whole frame — and the molecule slides out from under its
+     * own ring, leaving it expanding in empty paper.
+     *
+     * So a spawn may take an optional `follow` Object3D. The OFFSET between the
+     * fire point and that object is locked at spawn and re-applied every frame,
+     * which keeps effects that fire at a specific spot on a molecule (the
+     * electron landing on a chloride, say) riding that spot rather than the
+     * centre.
+     *
+     * Deliberately not solved by parenting the meshes to the molecule's group:
+     * they would inherit its scale, and popGlow punches that to 1.7× on exactly
+     * the frames the ring is alive — the ring would pulse with it.
+     */
+    function tracker(pos, follow){
+      const fixed=(pos||new THREE.Vector3()).clone();
+      if(!follow) return ()=>fixed;
+      const out=fixed.clone(), tmp=new THREE.Vector3();
+      const off=fixed.clone().sub(follow.getWorldPosition(tmp));
+      return ()=>{
+        /* Switching tabs destroys a sim while its effects are still in flight.
+         * An anchor that is off the graph has no meaningful world position — it
+         * would report its bare local one — so hold the last good point and let
+         * the effect finish where it was rather than teleport it. */
+        if(follow.parent) out.copy(follow.getWorldPosition(tmp)).add(off);
+        return out;
+      };
+    }
+
     // bright soft core flash at a point — the white-hot instant of the event.
     const _coreGeo=new THREE.CircleGeometry(1,40);
-    function spawnCore(pos,color){
+    function spawnCore(pos,color,follow){
       const m=new THREE.Mesh(_coreGeo,new THREE.MeshBasicMaterial(
         {color,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
-      m.position.copy(pos); m.renderOrder=12; root.add(m);
+      const at=tracker(pos,follow);
+      m.position.copy(at()); m.renderOrder=12; root.add(m);
       fx.push({t:0,dur:0.34,update(k){
+        m.position.copy(at());
         m.scale.setScalar(0.4+k*2.4);
         m.material.opacity=(1-k)*(1-k);
         m.quaternion.copy(camera.quaternion);
@@ -55,17 +94,18 @@
 
     // a spray of little glowing sparks flying outward — the "energy released" debris.
     const _sparkGeo=new THREE.SphereGeometry(0.12,8,6);
-    function spawnBurst(pos,color,n=14){
+    function spawnBurst(pos,color,n=14,follow){
+      const at=tracker(pos,follow);
       for(let i=0;i<n;i++){
         const m=new THREE.Mesh(_sparkGeo,new THREE.MeshBasicMaterial(
           {color,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));
-        m.position.copy(pos); m.renderOrder=11; root.add(m);
+        m.position.copy(at()); m.renderOrder=11; root.add(m);
         // random direction on a sphere, varied speed
         const dir=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5)
           .normalize().multiplyScalar(2.6+Math.random()*2.4);
         const dur=0.5+Math.random()*0.35;
         fx.push({t:0,dur,update(k){
-          m.position.copy(pos).addScaledVector(dir,k*(2-k));   // ease-out flight
+          m.position.copy(at()).addScaledVector(dir,k*(2-k));  // ease-out flight
           m.scale.setScalar(1-k*0.7);
           m.material.opacity=(1-k);
         },cleanup(){ root.remove(m); m.material.dispose(); }});
@@ -76,22 +116,27 @@
     // ring + core flash + spark burst so the moment really lands. Billboarded to
     // the camera each frame so it always reads as a flat disc facing the viewer.
     const _ringGeo=new THREE.RingGeometry(0.60,0.86,56);
-    function _ring(pos,color,delay,scale,dur){
+    function _ring(pos,color,delay,scale,dur,follow){
       const m=new THREE.Mesh(_ringGeo,new THREE.MeshBasicMaterial(
         {color,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
-      m.position.copy(pos); m.renderOrder=10; root.add(m);
+      const at=tracker(pos,follow);
+      m.position.copy(at()); m.renderOrder=10; root.add(m);
       fx.push({t:0,dur:dur+delay,update(k){
         const kk=Math.max(0,Math.min((k*(dur+delay)-delay)/dur,1));
+        m.position.copy(at());
         m.scale.setScalar(0.4+kk*scale);
         m.material.opacity=1.0*(1-kk)*(1-kk)*(kk>0?1:0);
         m.quaternion.copy(camera.quaternion);
       },cleanup(){ root.remove(m); m.material.dispose(); }});
     }
-    function spawnRing(pos,color){
-      spawnCore(pos,0xffffff);
-      _ring(pos,color,0,   5.4,0.75);   // fast leading ring
-      _ring(pos,color,0.12,4.0,0.85);   // trailing echo
-      spawnBurst(pos,color,16);
+    /* `follow` is optional and every caller that omits it behaves exactly as
+     * before. Pass the molecule's anchor Object3D on any page where the thing
+     * that just completed can still be dragged. */
+    function spawnRing(pos,color,follow){
+      spawnCore(pos,0xffffff,follow);
+      _ring(pos,color,0,   5.4,0.75,follow);   // fast leading ring
+      _ring(pos,color,0.12,4.0,0.85,follow);   // trailing echo
+      spawnBurst(pos,color,16,follow);
     }
 
     // pop a freshly-formed molecule: strong scale overshoot + emissive flash on
