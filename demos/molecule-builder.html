@@ -497,8 +497,32 @@ function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); 
    than replacing them: ammonium is not a correction to ammonia, it is what
    ammonia became, and a student revising wants both — the base and what
    happened when it accepted a proton — side by side. */
+/* Once a lesson has been completed ONCE, its notes stay up for the rest of that
+   lesson. They are the revision card — the keywords a student is meant to copy
+   down — and having them appear at the win only to vanish the moment anything
+   moves means the one thing worth writing down is the one thing that will not
+   hold still.
+
+   Recorded PER LESSON rather than as one flag, so the tab strip is a set of
+   places you can leave and come back to rather than a set of things you can
+   lose. Build water, go read the salt tab, come back — the water card is where
+   you left it. Completing a molecule is a thing the student did, and switching
+   tabs is not an undo. */
+const earnedNotes={};
+let pinnedNotes=null;
 function showNotes(list){
-  if(!list){ elNotes.classList.remove('show'); return; }
+  if(!list){
+    if(pinnedNotes) return;                 // earned already — leave it up
+    elNotes.classList.remove('show'); elNotes.dataset.key=''; return;
+  }
+  pinnedNotes=earnedNotes[key]=list;
+  /* `stamp`, not `key`: `key` is the current LESSON, read on the line above, and
+     a local of that name would shadow it across the whole function. */
+  const stamp=[].concat(list).map(n=>n.title).join('|');
+  // titles are the identity: re-rendering identical HTML on every frame of a
+  // completed state re-triggers the reveal transition
+  if(elNotes.dataset.key===stamp) return;
+  elNotes.dataset.key=stamp;
   elNotes.innerHTML=[].concat(list).map(n=>
     '<div class="nblock"><div class="ntitle">'+n.title+'</div><div class="ntags">'+
     n.tags.map(t=>'<span class="ntag '+t+'">'+t+'</span>').join('')+'</div><ul>'+
@@ -586,7 +610,11 @@ function load(k){
   if(sim) sim.destroy();
   rung=false; saidAfter=false; clearTimeout(afterTimer);
   key=k; L=LESSONS[k]; saidExtra=false;
-  showNotes(null); showSticky(null);
+  /* Hand the card back to whatever this lesson had earned before — null for one
+     the student has not finished yet, which then falls through to hiding it. */
+  pinnedNotes=null; showNotes(null);
+  showNotes(earnedNotes[k]||null);
+  showSticky(null);
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
   sim=L.make();
