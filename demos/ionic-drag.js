@@ -56,7 +56,12 @@
   const S = {
     CAPTURE: 4.2,             // ionic attraction reaches further than a slot does
     SNAP: 0.5,
-    BREAK: 1.6,
+    /* How far off the bond length a dragged ion has to be pulled before the
+     * transfer un-does itself. Scaled per recipe by `hold` below — this is the
+     * NaCl figure, and it is deliberately larger than a covalent BREAK (1.35):
+     * an ion pair that came apart as easily as a slot lets go of a ligand
+     * teaches the opposite of what the tab is for. */
+    BREAK: 1.9,
     DAMP: 0.86,
     PULL: 30,               // approach, before the electron moves
     SPRING: 34,             // the charge hold afterwards, about NACL
@@ -85,11 +90,31 @@
    *
    * `n` is how many nonmetals the metal has to supply, which for these recipes
    * is also how many electrons it starts with: one each.
+   *
+   * `hold` is how hard the pair is to pull apart, and it is the one number on
+   * this page a student can FEEL rather than count. It comes from the lattice
+   * enthalpies — KCl 715, NaCl 787, MgCl₂ 2526 kJ/mol — taken as a ratio against
+   * NaCl and square-rooted: 0.95, 1, 1.79. The square root is a legibility
+   * choice and nothing else. MgCl₂ really is ~3× the energy, but a bond that
+   * needed a drag three times the length of the stage would just read as broken
+   * UI, so the ordering is kept exact and the spread compressed.
+   *
+   * The ordering is the whole point, and it is two separate reasons stacked:
+   * K⁺ is a bigger ion than Na⁺, so its bond is longer and weaker (KCl melts at
+   * 770 °C against NaCl's 801); Mg²⁺ carries twice the charge on a smaller ion,
+   * and charge is the term that dominates — doubling it does far more than the
+   * size difference between K and Na ever could. A student who drags all three
+   * learns that "ionic" is not one strength.
+   * NOT claimed here: that lattice energy orders melting points. MgCl₂ melts
+   * LOWER than NaCl despite ~3× the lattice energy, which is a real and separate
+   * lesson (the small, hard Mg²⁺ distorts chloride and the bond picks up
+   * covalent character). This page is only saying how hard the pair is to pull
+   * apart, so it stays with the energy and does not borrow the melting point.
    */
   const RECIPES = {
-    nacl:  { metal:'Na', nonmetal:'Cl', bond:2.55, n:1 },
-    kcl:   { metal:'K',  nonmetal:'Cl', bond:2.70, n:1 },
-    mgcl2: { metal:'Mg', nonmetal:'Cl', bond:2.35, n:2 },
+    nacl:  { metal:'Na', nonmetal:'Cl', bond:2.55, n:1, hold:1 },
+    kcl:   { metal:'K',  nonmetal:'Cl', bond:2.70, n:1, hold:0.95 },
+    mgcl2: { metal:'Mg', nonmetal:'Cl', bond:2.35, n:2, hold:1.79 },
   };
 
   /* Where the atoms are dealt. The n:1 pair is unchanged. For MgCl₂ both
@@ -117,6 +142,9 @@
     const kit=AtomKit.create(THREE);
     const R=RECIPES[opts.recipe||'nacl'];
     const REST=R.bond;
+    // per-recipe bond strength — see `hold` on the recipes above
+    const HOLD=R.hold||1;
+    const BREAK=S.BREAK*HOLD;
     const N=R.n||1;
     const TOUCH=(P.radii[R.metal]+P.radii[R.nonmetal])*1.06;   // solid nuclei
     const TOUCH_NN=(P.radii[R.nonmetal]*2)*1.06;               // ...and between anions
@@ -402,10 +430,10 @@
       // chloride breaks only its own.
       if(held===metal){
         nons.forEach(a=>{
-          if(a.given && want.distanceTo(a.group.position)>REST+S.BREAK) unbond(a);
+          if(a.given && want.distanceTo(a.group.position)>REST+BREAK) unbond(a);
         });
       }else if(held.given &&
-               want.distanceTo(metal.group.position)>REST+S.BREAK){
+               want.distanceTo(metal.group.position)>REST+BREAK){
         unbond(held);
       }
       held.group.position.copy(want);
@@ -455,7 +483,11 @@
            * as readily as it pulls together — that is what "held by charge at a
            * distance" looks like, and an inverse-square term here diverges at
            * rest and parks the pair short of the bond length. */
-          mag=S.SPRING*(d-REST);
+          /* HOLD here too, so the difference is not only in where the bond
+           * gives: stretch a pair without breaking it and the stiffer one
+           * snaps back faster. Same charge argument, and it is the half a
+           * student meets first, since most drags do not reach BREAK. */
+          mag=S.SPRING*HOLD*(d-REST);
         }
         if(!metal.dragging) metal.vel.addScaledVector(u,  mag*dt);
         if(!a.dragging)     a.vel.addScaledVector(u, -mag*dt);

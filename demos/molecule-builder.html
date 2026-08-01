@@ -599,7 +599,17 @@ const LESSONS={
        molecule acquiring something, and giving it the enclosing ring would say
        the two bond types are the same event in different colours. */
     ring:null,
-    won:'<b>Ionic bond.</b> Two <b>ions</b> held by charge.',
+    /* The invitation is the lesson: charge holds these two together, and the
+       way to show that it is only charge is to let the student undo it. Pulling
+       far enough sends the electron home (ionic-drag's unbond), so "weaker" is
+       something they do rather than something they are told.
+       Scoped to a PAIR on purpose. An ion pair comes apart more easily than a
+       covalent bond does, and in water it comes apart on its own — which is the
+       AP Bio claim. Bulk salt is a different sentence (a lattice is held by
+       every neighbour at once, which is why it melts at 801 °C), and the notes'
+       "dissociates in water" is the bridge to it. */
+    won:'<b>Ionic bond.</b> Held by <b>charge</b> only. Weaker than a covalent bond, which is why salt dissolves in water. '+
+        'Drag one away and see.',
     notes:{ title:'Salt &middot; NaCl', tags:['ionic','ion'], facts:[
       '<b>metal + nonmetal</b> \u2192 electron <b>transferred</b>',
       'Na <b>0e\u207b</b>, Cl <b>8e\u207b</b> \u2014 both now stable',
@@ -615,7 +625,8 @@ const LESSONS={
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'kcl', onChange:report}),
     open:'A different metal. Does the same thing happen?',
     ring:null,
-    won:'<b>Ionic bond.</b> Two <b>ions</b> held by charge — same story, different metal.',
+    won:'<b>Ionic bond.</b> Same story, different metal — and K\u207a is bigger, so this '+
+        'one pulls apart <b>even easier</b>. Try it.',
     notes:{ title:'Potassium chloride &middot; KCl', tags:['ionic','ion'], facts:[
       'same transfer, <b>different metal</b>',
       'behaviour belongs to <b>metal + nonmetal</b>, not to sodium',
@@ -634,7 +645,8 @@ const LESSONS={
     make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'mgcl2', onChange:report}),
     open:'Magnesium has <b>two</b> to give. One chlorine can only take one.',
     ring:null,
-    won:'<b>MgCl₂.</b> One <b>Mg²⁺</b>, two <b>Cl⁻</b> — and they sit opposite.',
+    won:'<b>MgCl₂.</b> One <b>Mg²⁺</b>, two <b>Cl⁻</b>, sitting opposite. Pull one off — '+
+        '<b>2+</b> holds tighter than 1+.',
     notes:{ title:'Magnesium chloride &middot; MgCl&#8322;', tags:['ionic','ion'], facts:[
       'Mg is <b>2,8,2</b> — <b>two</b> loose electrons, not one',
       'Cl is one short of full → it takes <b>one</b> each',
