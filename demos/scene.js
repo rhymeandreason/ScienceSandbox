@@ -25,9 +25,14 @@
   /* ---- material system (Standard by default; optional cel-shaded Toon) ---- */
   let toon=false;
   function setToon(b){ toon=!!b; }
+  /* Atoms are MATTE. roughness .35 + a touch of metalness gave every sphere a
+   * small hard highlight, and at these sizes that reads as wet plastic — worse,
+   * on a big atom the hotspot competes with the element letter sitting right
+   * next to it. Broad diffuse shading still says which atom is nearer, which is
+   * the only job the lighting has here. */
   function atomMat(color){ return toon
     ? new THREE.MeshToonMaterial({color})
-    : new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1}); }
+    : new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
   function bondMat(color){ return toon
     ? new THREE.MeshToonMaterial({color})
     : new THREE.MeshStandardMaterial({color,roughness:.5}); }

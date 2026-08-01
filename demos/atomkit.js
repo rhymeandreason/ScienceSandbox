@@ -225,9 +225,16 @@
       if(!m || m.isMeshBasicMaterial) return;                 // dots, clouds, ghosts
       if(!!m.isMeshToonMaterial===on) return;                 // already right
       const o={color:m.color.getHex(), transparent:m.transparent, opacity:m.opacity};
+      /* Coming BACK from 2D, rebuild through Stage.atomMat rather than naming
+       * roughness here: this used to carry its own copy of the numbers, so an
+       * atom that had been flipped to the diagram view and back came home
+       * glossier than one that never left. */
+      // …and assign only the flags: `o.color` is a hex NUMBER, and writing that
+      // over the material's THREE.Color leaves the shader with a uniform it
+      // cannot upload — a blank canvas and a WebGL error, not a wrong tint.
       mesh.material = on ? new THREE.MeshToonMaterial(o)
-                         : new THREE.MeshStandardMaterial(
-                             Object.assign({roughness:.35, metalness:.1}, o));
+                         : Object.assign(Stage.atomMat(o.color),
+                             {transparent:o.transparent, opacity:o.opacity});
       m.dispose();
     }
     function outline(mesh, on){
