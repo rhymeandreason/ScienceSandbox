@@ -246,6 +246,10 @@
         <div class="gname">Potassium chloride</div>
         <div class="gform">KCl</div>
       </button>
+      <button class="goal" data-lesson="mgcl2">
+        <div class="gname">Magnesium chloride</div>
+        <div class="gform">MgCl&#8322;</div>
+      </button>
     </div>
     <div id="notes" aria-live="polite"></div>
     <div id="sticky" aria-live="polite"></div>
@@ -580,6 +584,36 @@ const LESSONS={
     stats:s=>'K: <b>'+s.metalCount+'e\u207b</b> &nbsp;\u00b7&nbsp; Cl: <b>'+s.nonmetalCount+
              'e\u207b</b>'+(s.given?' &nbsp;\u00b7&nbsp; <b>ions</b> — held by charge':''),
     step:()=>null,
+  },
+  /* The first tab where the METAL's count decides the formula. NaCl and KCl both
+     move one electron and so never have to answer "why one chlorine?" — with
+     magnesium's two, one chlorine is visibly not enough, because chlorine is one
+     short of full and not two. Dock them one at a time and watch 2 → 1 → 0. */
+  mgcl2:{
+    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'mgcl2', onChange:report}),
+    open:'Magnesium has <b>two</b> to give. One chlorine can only take one.',
+    ring:null,
+    won:'<b>MgCl₂.</b> One <b>Mg²⁺</b>, two <b>Cl⁻</b> — and they sit opposite.',
+    notes:{ title:'Magnesium chloride &middot; MgCl&#8322;', tags:['ionic','ion'], facts:[
+      'Mg is <b>2,8,2</b> — <b>two</b> loose electrons, not one',
+      'Cl is one short of full → it takes <b>one</b> each',
+      'so the formula is <b>MgCl₂</b> — the counts, not a rule to memorise',
+      '<b>Mg²⁺</b> and two <b>Cl⁻</b>: charge <b>magnitude</b>, not just sign',
+      'the two Cl⁻ <b>repel</b> → they settle <b>opposite</b> (180°)',
+      'Mg²⁺ is <b>smaller</b> than Na⁺ — two charges, same shells' ] },
+    flatSay:'Flat view — count all three: 0 on magnesium, 8 on each chlorine.',
+    stats:s=>'Mg: <b>'+s.metalCount+'e⁻</b>'+
+             s.nonmetalCounts.map(c=>' &nbsp;·&nbsp; Cl: <b>'+c+'e⁻</b>').join('')+
+             (s.complete?' &nbsp;·&nbsp; <b>Mg²⁺ + 2 Cl⁻</b>':''),
+    /* Only once the first electron has LANDED (a count of 8), so the line does
+       not fire twice — report() runs both when the transfer starts and when the
+       hop finishes. */
+    step:s=>(s.transfers===1 && s.nonmetalCounts.filter(c=>c===8).length===1)
+      ? 'One gone — magnesium is <b>Mg⁺</b>. It still has one to lose.'
+      : null,
+    after:()=>'Nothing put those chlorides opposite each other — they are both '+
+             '<b>negative</b>, so they push apart until they are as far from each '+
+             'other as the bonds allow. Drag one and watch the other follow.',
   },
 };
 let key='water', L=LESSONS[key], sim=null;

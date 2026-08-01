@@ -33,6 +33,10 @@
       Na: 0x9a3fe0,   // sodium   — violet
       Cl: 0x1fa968,   // chloride — green
       K:  0x0054C0,   // potassium — blue (distinct from Na)
+      Mg: 0xcf3b74,   // magnesium — rose. Third metal on the builder's ionic
+                      // tabs, so it has to clear violet AND blue as well as
+                      // chlorine's green: pushed warm and pink, the one
+                      // direction Na and K are not.
       C:  0x3a3a3a,   // carbon   — charcoal
       N:  0x3f6ae0,   // nitrogen — blue
       S:  0xe0b93a,   // sulfur   — goldenrod (cysteine / methionine)
@@ -54,7 +58,12 @@
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
     // every bond clears the sum of its two. See molecules.js's header.
-    radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85, P:1.00 },
+    // Mg is SMALLER than Na (0.60 vs 0.70) and that is not a styling choice:
+    // Mg²⁺ pulls two charges' worth on the same shell count, so the ion is
+    // tighter than Na⁺ despite magnesium sitting one place to the right. The
+    // builder's MgCl₂ tab is where a student can see it next to NaCl.
+    radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85, P:1.00,
+             Mg:0.60 },
   };
 
   global.MolPalette = PALETTE;
