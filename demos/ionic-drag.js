@@ -87,7 +87,7 @@
      * together and the odd one stands alone, so "one short of full" is visible
      * on chlorine before anything happens. */
     function clearDots(atom){
-      atom.dots.forEach(d=>atom.group.remove(d)); atom.dots=[];
+      atom.dots.forEach(d=>{ atom.group.remove(d); kit.forget(d); }); atom.dots=[];
     }
     function drawDots(atom){
       clearDots(atom);
@@ -243,7 +243,7 @@
       drawDots(na); drawDots(cl);
       if(stick){ group.remove(stick); stick=null; }
       if(hop){ group.remove(hop.m); hop=null; }
-      badges.forEach(s=>s.parent&&s.parent.remove(s)); badges=[];
+      badges.forEach(s=>{ if(s.parent) s.parent.remove(s); kit.forget(s); }); badges=[];
       onChange(state());
     }
 
@@ -316,6 +316,7 @@
     /* ---- per-frame ------------------------------------------------------ */
     function step(dt){
       dt=Math.min(dt||0.016, 0.05); t+=dt;
+      kit.faceCamera(camera);   // 3D letters ride their own front surface
       const pair=[na,cl];
       if(dim==='2d') pair.forEach(a=>{ a.group.position.z=0; a.vel.z=0; });
 
@@ -406,7 +407,7 @@
     }
     function setDim(d){
       dim=(d==='2d')?'2d':'3d';
-      [na,cl].forEach(a=>{ if(a) a.label.setDim(dim); });
+      kit.setDim(dim);   // letter ink, and solid vs overlay for letters and dots
       applyCel();
       if(na) drawDots(na);
       if(cl) drawDots(cl);
@@ -423,6 +424,7 @@
     function reset(){
       [...group.children].forEach(c=>group.remove(c));
       na=cl=null; stick=null; badges=[]; hop=null; given=false; held=null;
+      kit.clear();                  // the old letters and dots go with them
       build();
       setDim(dim);
     }

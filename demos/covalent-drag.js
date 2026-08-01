@@ -229,7 +229,7 @@
     const group=new THREE.Group(); root.add(group);
     let mode='electrons';
     let dim='3d';             // '2d' = straight-on Lewis view, rotation locked
-    let ligands=[], core=null, sticks=[], sharedPairs=[], labels=[];
+    let ligands=[], core=null, sticks=[], sharedPairs=[];
     let protonated=false, proton=null;
     // after the proton lands the molecule is a different shape with one more
     // slot, so every direction lookup goes through here
@@ -253,11 +253,11 @@
 
     function v3(a){ return new THREE.Vector3(a[0],a[1],a[2]); }
 
-    /* Every element symbol goes through here so that (a) nobody picks an ink by
-     * hand — atomkit owns which view gets light letters and which gets dark —
-     * and (b) the sprite is on a list setDim() can walk when the view flips. */
+    /* Every element symbol goes through here so nobody picks an ink or a depth
+     * mode by hand: atomkit owns both, and registers the sprite so kit.setDim()
+     * can find it again when the view flips. */
     function atomLabel(el){
-      const s=label(el, el); s.setDim(dim); labels.push(s); return s;
+      const s=label(el, el); s.setDim(dim); return s;
     }
 
     /* Two vectors perpendicular to `dir`, for anything that has to fan out
@@ -362,7 +362,7 @@
     /* Rebuildable, because ammonia's lone pair is not permanent furniture: a
      * proton lands in it and it becomes a bond. Deprotonating puts it back. */
     function buildLonePairs(){
-      core.lonePairs.forEach(pair=>pair.forEach(m=>core.group.remove(m)));
+      core.lonePairs.forEach(pair=>pair.forEach(m=>{ core.group.remove(m); kit.forget(m); }));
       core.lonePairs=loneDirs().map(()=>{
         const pair=[dot(P.atoms[R.core]), dot(P.atoms[R.core])];
         pair.forEach(m=>core.group.add(m));
@@ -426,7 +426,7 @@
      * "nearer". step() keeps holding them there while the mode lasts. */
     function setDim(d){
       dim=(d==='2d')?'2d':'3d';
-      labels.forEach(s=>s.setDim(dim));   // light letters in 3D, dark on flat paper
+      kit.setDim(dim);   // light letters in 3D, dark on flat paper — and solid vs overlay
       layoutLone();
       layoutBonds();          // the slots themselves moved — see layoutBonds()
       applyCel();
@@ -517,7 +517,11 @@
          * there is no second colour to show. */
         (dative ? [P.atoms[R.core], P.atoms[R.core]]
                 : [P.atoms[R.core], P.atoms[R.ligand]]).forEach(col=>{
-          const m=dot(col); group.add(m); pair.dots.push(m);
+          /* overlay: a shared pair sits in the pinch BETWEEN two surfaces, which
+             for water is 0.92 against an oxygen of radius 0.95 — inside the
+             nucleus. Depth-testing it would not dim it, it would delete it, and
+             with it the count the bond is made of. */
+          const m=dot(col, {overlay:true}); group.add(m); pair.dots.push(m);
         });
         sharedPairs.push(pair);
         // a guide-line stick for the other view mode — thin, because in electron
@@ -672,8 +676,8 @@
         // parked on the far side of the ligand, pointing away from the core: the
         // kit's default shoulder position aims at the core on half the bonds,
         // straight into the shared pair the badge is supposed to be explaining
-        x.delta.position.copy(x.group.position).normalize()
-          .multiplyScalar(P.radii[R.ligand]*1.15);
+        kit.place(x.delta, x.group.position.clone().normalize()
+                            .multiplyScalar(P.radii[R.ligand]*1.15));
         // SCIENCE.md §2: the density is drawn shifted toward whichever atom wants
         // the electrons more, never symmetric. For O–H that is the core, so the
         // ligand's haze leans back along its own bond; for C=O it is the oxygen,
@@ -683,10 +687,10 @@
       });
     }
     function hidePolarity(h){
-      if(h && h.delta){ h.group.remove(h.delta); h.delta=null;
+      if(h && h.delta){ h.group.remove(h.delta); kit.forget(h.delta); h.delta=null;
                         if(h.cloud) h.cloud.position.set(0,0,0); }
       const anyBonded=ligands.some(x=>x.slot!=null && !x.isProton);
-      if(!anyBonded && core && core.delta){ core.group.remove(core.delta); core.delta=null; }
+      if(!anyBonded && core && core.delta){ core.group.remove(core.delta); kit.forget(core.delta); core.delta=null; }
     }
 
     function bond(h, i){
@@ -757,7 +761,7 @@
        * not arrive and then sit there being carried by one atom, it became a
        * property of the whole ion. Two badges would say it is still the
        * hydrogen's. */
-      h.group.remove(h.badge);
+      h.group.remove(h.badge); kit.forget(h.badge);
       /* Every δ comes off, not just nitrogen's. Ammonium's charge is a whole +1
        * belonging to the ION, spread over all five atoms — four separate δ+
        * badges would read as four partial charges that happen to add up, which
@@ -765,8 +769,8 @@
        * is no hydrogen to single out anyway. The bonds are still polar and the
        * clouds still lean toward nitrogen; what is gone is the labelling of
        * partial charges on a species whose charge is not partial. */
-      if(core.delta){ core.group.remove(core.delta); core.delta=null; }
-      ligands.forEach(x=>{ if(x.delta){ x.group.remove(x.delta); x.delta=null; } });
+      if(core.delta){ core.group.remove(core.delta); kit.forget(core.delta); core.delta=null; }
+      ligands.forEach(x=>{ if(x.delta){ x.group.remove(x.delta); kit.forget(x.delta); x.delta=null; } });
       core.charge=kit.charge('+', '#'+new THREE.Color(P.atoms[R.core]).getHexString(), R.core);
       core.group.add(core.charge);
       layoutBonds();                       // 107° → 109.5°: the other three move
@@ -816,7 +820,7 @@
       const i=h.slot; h.slot=null;
       dropSharedPair(i);
       dative=null;
-      if(core.charge){ core.group.remove(core.charge); core.charge=null; }
+      if(core.charge){ core.group.remove(core.charge); kit.forget(core.charge); core.charge=null; }
       h.group.add(h.badge);                // it leaves as a proton, as it arrived
       buildLonePairs();
       showPolarity();                      // back to a neutral polar molecule                    // the pair goes back to being a pair
@@ -965,6 +969,7 @@
     function step(dt){
       dt=Math.min(dt||0.016, 0.05);
       t+=dt;
+      kit.faceCamera(camera);   // 3D letters ride their own front surface
 
       ligands.forEach(h=>{
         if(dim==='2d'){ h.group.position.z=0; h.vel.z=0; }
@@ -1065,7 +1070,8 @@
     function reset(){
       [...group.children].forEach(c=>group.remove(c));
       group.position.set(0,0,0);      // Reset re-centres the frame, not just the atoms
-      ligands=[]; sticks=[]; sharedPairs=[]; labels=[]; core=null; held=null;
+      ligands=[]; sticks=[]; sharedPairs=[]; core=null; held=null;
+      kit.clear();                    // the old letters and dots go with them
       protonated=false; proton=null; staggers=[]; dative=null;
       build();
       setDim(dim);
