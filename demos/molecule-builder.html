@@ -326,7 +326,7 @@ const canvas=document.getElementById('gl');
 let userSpun=false;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   ortho:true, cam:{theta:0.6,phi:1.15,r:62}, rMin:ZOOM.min, rMax:ZOOM.max,
-  onZoom:()=>applyZoom(),
+  onZoom:()=>{ userZoomed=true; applyZoom(); },   // the wheel wins from then on
   onDrag:()=>{userSpun=true;}
 });
 /* An ortho camera's apparent size is its frustum, so zoom and resize both have
@@ -340,6 +340,16 @@ function applyZoom(){
   camera.updateProjectionMatrix();
 }
 new ResizeObserver(applyZoom).observe(canvas);
+/* One molecule fits at 62; the proton-transfer stages put a SECOND one on the
+   bench, dealt out at the edge of the frame so it is not already inside the
+   reaction, and at 62 that reagent lands half off the paper on a narrow window.
+   80 is sized for the worst case rather than for this laptop: HCl's water
+   reaches x≈7.4, so the frustum has to be ~9 wide at an aspect as low as 1.4.
+   Eased rather than cut, because the student is looking at the molecule when it
+   happens and a jump reads as the molecule shrinking, not the view widening. */
+const R_ONE=62, R_TWO=80;
+let rWant=R_ONE, userZoomed=false;
+function wantZoom(r){ rWant=r; }
 const fx=FX.create(THREE, root, camera);
 
 const elSay=document.getElementById('say');
@@ -445,6 +455,7 @@ const LESSONS={
            The 3D toggle stays armed — the shape is still one click away. */
         action:{ label:"Let's do it &rarr;", run:()=>{
           setView(true, true);
+          wantZoom(R_TWO);            // two molecules on the bench now
           sim.offerWater();
           say('Drag the water at the <b>lone pair</b> on top of the nitrogen.');
         } } };
@@ -583,7 +594,7 @@ const LESSONS={
       /* No `place:'low'` here, unlike ammonia's: this reagent is dealt low and
          parks low, so the rail's normal spot is the clear one. */
       if(s.hydronium||s.anion) return {
-        title:'That is hydrochloric acid',
+        title:'Hydrochloric acid',
         body:'The <b>H⁺</b> went to water. <b>Cl⁻</b> kept both electrons, and <b>H₃O⁺</b> '+
              'is what an <b>acid</b> actually is in water.' };
       if(!s.complete) return null;
@@ -593,6 +604,7 @@ const LESSONS={
         body:'HCl as a gas is toxic. Why burning PVC plastic is bad.',
         action:{ label:"Let's do it &rarr;", run:()=>{
           setView(true, true);
+          wantZoom(R_TWO);            // two molecules on the bench now
           sim.offerWater();
           say('Drag the water at the <b>hydrogen</b> — it wants the proton.');
         } } };
@@ -848,6 +860,7 @@ function load(k){
   // uses viewState directly rather than arm(false): the old sim is gone and the new one doesn't exist yet, so setView has nothing to talk to
   document.getElementById('dims').classList.remove('armed');
   viewState(true);
+  wantZoom(R_ONE); userZoomed=false;   // one molecule again, and its own framing
   sim=L.make();
   sim.setDim(flat?'2d':'3d');
   sim.setMode(modeFor());          // after setDim: the mode is derived from it
@@ -905,6 +918,7 @@ document.getElementById('clearmol').addEventListener('click',()=>{
   rung=false; saidExtra=false;
   spun=false; spinTimer=clearTimeout(spinTimer);
   arm(false);
+  wantZoom(R_ONE);        // Reset takes the reagent away with everything else
   sim.reset();
   sim.setMode(modeFor());
   say(L.open);
@@ -925,6 +939,13 @@ function frame(now){
   // 2D lock re-asserted per frame rather than unbinding Stage's shared orbit handler
   if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
+  /* Eased here rather than tweened on a timer: this is the only place that
+     knows the frame rate, and applyZoom() is cheap enough to call while it
+     moves. Stops calling it once it has arrived. */
+  if(!userZoomed && Math.abs(cam.r-rWant)>0.05){
+    cam.r+=(rWant-cam.r)*(1-Math.pow(0.02, dt));
+    applyZoom();
+  }
   sim.step(dt);
   fx.step();
   renderer.render(scene,camera);
