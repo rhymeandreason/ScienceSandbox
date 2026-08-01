@@ -404,6 +404,20 @@ const LESSONS={
       'the <b>universal solvent</b>' ] },
     flatSay:'Flat view — all eight of oxygen\u2019s electrons in one plane.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
+    /* One hydrogen on, and the screen reads as hydroxide. It isn't, by exactly
+       one electron: the core draws its own unpaired electron in every open slot,
+       so this is the neutral radical, while OH⁻ has that slot's pair complete
+       and carries the charge. Same shape as the CO note next door — the TITLE
+       carries the "not quite", and the body spends its room on where the real
+       thing comes from instead of on the correction.
+       And the answer is not "pull a hydrogen off", which is what the student
+       just did. Water makes hydroxide by handing a proton to another water and
+       keeping the pair — the bond comes apart unevenly, which is the same
+       lesson about unequal sharing this whole tab is built on. */
+    sticky:s=>s.bonded===1 ? {
+      title:'Is that hydroxide?',
+      body:'Not quite. <b>OH⁻</b> comes from water splitting itself: a proton hops to a '+
+           'neighbour, and the oxygen it leaves keeps <b>both electrons</b>.' } : null,
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
   },
   ammonia:{
@@ -449,6 +463,17 @@ const LESSONS={
     flatSay:'Flat view — the four bonds spread out so you can count them. They are '+
             'really at 109.5\u00b0, not 90\u00b0; switch to 3D.',
     stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
+    /* Three on, one slot open — and unlike the water and CO2 asides, this
+       fragment is not a near-miss at something real. The open slot IS the
+       attachment point: bond it to anything and you have a methyl group, which
+       is what makes it worth naming three-quarters of the way through rather
+       than at the end. Methane is the version where the fourth partner happens
+       to be another hydrogen.
+       (As drawn, standing alone with its unpaired electron, it is the methyl
+       RADICAL — hence "bond it to something" rather than "this is".) */
+    sticky:s=>s.bonded===3 ? {
+      title:'That’s a methyl group',
+      body:"Tag one onto DNA and the gene underneath goes <b>quiet</b>. That's how <b>epigenetics</b> works!" } : null,
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
   },
   /* CO2 is where "fill the slots" stops being the whole rule. Carbon has four
