@@ -118,6 +118,16 @@
   #notes .ntag.nonpolar{background:#eceae4;color:var(--muted);border-color:var(--hair)}
   #notes .ntag.dative{background:#ded7f5}
   #notes .ntag.ion{background:#f6dcb4}
+  /* State at room temperature — a DIFFERENT kind of claim from the tags above
+     it. Those say what the bond is; this says what the substance is like on a
+     bench, which is the payoff question ("so what IS it?") and the one a student
+     can check against their own kitchen. Dashed, so the strip reads as two sorts
+     of label rather than one list where "polar" and "gas" answer the same
+     question. Colours run cold → warm as the particles get freer. */
+  #notes .ntag.solid,#notes .ntag.liquid,#notes .ntag.gas{border-style:dashed}
+  #notes .ntag.solid{background:#e0dbcd}
+  #notes .ntag.liquid{background:#cfe4f2}
+  #notes .ntag.gas{background:#f7eddd}
   #notes ul{list-style:none;margin:0;padding:0}
   #notes li{font-family:var(--font-sans);font-size:15px;line-height:1.32;
     color:var(--ink);padding-left:13px;position:relative;margin-bottom:4px}
@@ -401,7 +411,7 @@ const LESSONS={
     /* Keywords, not sentences: what a student would be asked to NAME. The page
        already taught the mechanism by drawing it; this is the part that ends up
        on an exam. */
-    notes:{ title:'Water &middot; H\u2082O', tags:['covalent','polar'], facts:[
+    notes:{ title:'Water &middot; H\u2082O', tags:['covalent','polar','liquid'], facts:[
       '<b>bent</b> &middot; <b>104.5\u00b0</b>',
       '2 bonding pairs + <b>2 lone pairs</b> on O',
       'lone pairs squeeze the bonds \u2192 not 109.5\u00b0',
@@ -431,7 +441,7 @@ const LESSONS={
     open:'Nitrogen has three slots — and a lone pair it keeps.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'Ammonia. The <b>lone pair</b> is left over — now drag the <b>H\u207a</b> into it.',
-    notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar'], facts:[
+    notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar','gas'], facts:[
       '<b>trigonal pyramidal</b> &middot; <b>107\u00b0</b>',
       '3 bonding pairs + <b>1 lone pair</b> on N',
       '<b>\u03b4\u2212</b> on N, <b>\u03b4+</b> on H',
@@ -459,7 +469,7 @@ const LESSONS={
     open:'Carbon has four slots. Same rule — fill them all.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'You made <b>methane</b>. Four slots, four hydrogens, nothing left over.',
-    notes:{ title:'Methane &middot; CH\u2084', tags:['covalent','nonpolar'], facts:[
+    notes:{ title:'Methane &middot; CH\u2084', tags:['covalent','nonpolar','gas'], facts:[
       '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
       '4 bonding pairs + <b>0 lone pairs</b>',
       'C\u2013H barely differ \u2192 <b>nonpolar</b>',
@@ -493,7 +503,7 @@ const LESSONS={
     open:'Carbon has four electrons to share — and only two oxygens to share them with.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'<b>Carbon dioxide</b>. Each bond took <b>two pairs</b> — a <b>double covalent bond</b>.',
-    notes:{ title:'Carbon dioxide &middot; CO₂', tags:['covalent','nonpolar'], facts:[
+    notes:{ title:'Carbon dioxide &middot; CO₂', tags:['covalent','nonpolar','gas'], facts:[
       '<b>linear</b> &middot; <b>180°</b>',
       '<b>2 double bonds</b> — 4 shared pairs',
       'each O keeps <b>2 lone pairs</b>',
@@ -535,7 +545,7 @@ const LESSONS={
     open:'Two nitrogens, three electrons each to share. Watch how many pairs it takes.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'<b>Nitrogen gas</b>. A <b>triple covalent bond</b> — <b>three</b> shared pairs.',
-    notes:{ title:'Nitrogen gas &middot; N₂', tags:['covalent','nonpolar'], facts:[
+    notes:{ title:'Nitrogen gas &middot; N₂', tags:['covalent','nonpolar','gas'], facts:[
       '<b>linear</b> — only two atoms',
       '<b>triple bond</b> — 3 shared pairs',
       '1 lone pair left on <b>each</b> N',
@@ -575,7 +585,7 @@ const LESSONS={
     open:'Chlorine again — but this time the partner is hydrogen, not sodium.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'<b>Hydrogen chloride</b>. A <b>covalent bond</b> — chlorine <b>shared</b> this time.',
-    notes:{ title:'Hydrogen chloride &middot; HCl', tags:['covalent','polar'], facts:[
+    notes:{ title:'Hydrogen chloride &middot; HCl', tags:['covalent','polar','gas'], facts:[
       '<b>linear</b> — only two atoms',
       '1 bonding pair + <b>3 lone pairs</b> on Cl',
       '<b>δ−</b> on Cl, <b>δ+</b> on H — very unequal sharing',
@@ -586,6 +596,13 @@ const LESSONS={
     stats:s=>s.complete
       ? 'shared pairs: <b>1</b> &nbsp;·&nbsp; lone pairs on Cl: <b>3</b>'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
+    /* Named apart from the compound on purpose: HCl the gas and
+       hydrochloric acid the solution are the same molecule in two places, and a
+       student who never meets that difference reads every "HCl" in a textbook as
+       the bottle in the lab.  */
+    sticky:s=>s.complete ? {
+      title:'Add water to make hydrochloric acid',
+      body:'HCl as a gas is toxic. Why burning PVC plastic is bad.' } : null,
     step:()=>null,
     after:()=>'Chlorine took an electron outright from <b>sodium</b>, and <b>shares</b> one with '+
              'hydrogen. Same atom, both times — so <b>ionic or covalent is about the pair</b>, '+
@@ -610,7 +627,7 @@ const LESSONS={
        "dissociates in water" is the bridge to it. */
     won:'<b>Ionic bond.</b> Held by <b>charge</b> only. Weaker than a covalent bond, which is why salt dissolves in water. '+
         'Drag one away and see.',
-    notes:{ title:'Salt &middot; NaCl', tags:['ionic','ion'], facts:[
+    notes:{ title:'Salt &middot; NaCl', tags:['ionic','ion','solid'], facts:[
       '<b>metal + nonmetal</b> \u2192 electron <b>transferred</b>',
       'Na <b>0e\u207b</b>, Cl <b>8e\u207b</b> \u2014 both now stable',
       '<b>Na\u207a</b> and <b>Cl\u207b</b>, held by <b>opposite charge</b>',
@@ -627,7 +644,7 @@ const LESSONS={
     ring:null,
     won:'<b>Ionic bond.</b> Same story, different metal — and K\u207a is bigger, so this '+
         'one pulls apart <b>even easier</b>. Try it.',
-    notes:{ title:'Potassium chloride &middot; KCl', tags:['ionic','ion'], facts:[
+    notes:{ title:'Potassium chloride &middot; KCl', tags:['ionic','ion','solid'], facts:[
       'same transfer, <b>different metal</b>',
       'behaviour belongs to <b>metal + nonmetal</b>, not to sodium',
       '<b>K\u207a</b> and <b>Cl\u207b</b>, held by <b>opposite charge</b>',
@@ -647,7 +664,7 @@ const LESSONS={
     ring:null,
     won:'<b>MgCl₂.</b> One <b>Mg²⁺</b>, two <b>Cl⁻</b>, sitting opposite. Pull one off — '+
         '<b>2+</b> holds tighter than 1+.',
-    notes:{ title:'Magnesium chloride &middot; MgCl&#8322;', tags:['ionic','ion'], facts:[
+    notes:{ title:'Magnesium chloride &middot; MgCl&#8322;', tags:['ionic','ion','solid'], facts:[
       'Mg is <b>2,8,2</b> — <b>two</b> loose electrons, not one',
       'Cl is one short of full → it takes <b>one</b> each',
       'so the formula is <b>MgCl₂</b> — the counts, not a rule to memorise',
