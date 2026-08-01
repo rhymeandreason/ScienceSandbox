@@ -260,6 +260,8 @@
     let mode='electrons';
     let dim='3d';             // '2d' = straight-on Lewis view, rotation locked
     let ligands=[], core=null, sticks=[], sharedPairs=[];
+    // sticks suppressed while a view change is still moving the atoms — setDim()
+    let stickHold=false, holdT=null;
     let protonated=false, proton=null;
     // after the proton lands the molecule is a different shape with one more
     // slot, so every direction lookup goes through here
@@ -455,7 +457,17 @@
      * otherwise drift toward the camera and read as "bigger" rather than
      * "nearer". step() keeps holding them there while the mode lasts. */
     function setDim(d){
+      const moved=(dim!==((d==='2d')?'2d':'3d'));
       dim=(d==='2d')?'2d':'3d';
+      /* A slot that moved takes its stick with it INSTANTLY — layoutBonds puts
+       * the stick on the new axis in one frame — while the atom it connects
+       * only lerps there over the next few (step()). So for a moment the sticks
+       * are drawn in the new geometry and the spheres are still in the old one,
+       * which reads as the bonds coming loose. Holding them until the atoms
+       * have arrived turns that into: the molecule folds up, THEN it is bonded.
+       * Long enough to cover step()'s lerp, which is ~95% settled by 0.3s. */
+      if(moved){ stickHold=true; clearTimeout(holdT);
+                 holdT=setTimeout(()=>{ stickHold=false; applyMode(); }, 340); }
       kit.setDim(dim);   // light letters in 3D, dark on flat paper — and solid vs overlay
       layoutLone();
       layoutBonds();          // the slots themselves moved — see layoutBonds()
@@ -593,7 +605,7 @@
       sharedPairs.forEach(p=>{ if(p.slot===s.slot)
         p.dots.forEach(m=>m.visible = e && p.index<shown); });
       sticks.forEach(st=>{ if(st.userData.slot===s.slot)
-        st.visible = !e && st.userData.index<shown; });
+        st.visible = !e && !stickHold && st.userData.index<shown; });
       return shown>=s.n;
     }
     function stepStagger(dt){
@@ -981,6 +993,7 @@
      * itself off the page completely — a stale pointer handler would keep
      * grabbing atoms that are no longer visible. */
     function destroy(){
+      clearTimeout(holdT); stickHold=false;   // no applyMode() on a torn-down sim
       surface.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
@@ -1074,7 +1087,7 @@
         // so unlike its offered electrons they stay on once the bond forms
         if(h.lone) h.lone.forEach(pr=>pr.forEach(m=>m.visible=e));
       });
-      sticks.forEach(s=>s.visible=!e);
+      sticks.forEach(s=>s.visible=!e && !stickHold);
       // a multiple bond mid-arrival owns its own pairs' visibility; letting the
       // blanket assignments above stand would pop the whole bond in at once
       staggers.forEach(applyStagger);

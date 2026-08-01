@@ -204,6 +204,12 @@
     display:inline-flex;align-items:center;gap:6px}
   #dims .mode + .mode{border-left:1.5px solid var(--ink)}
   #dims .mode.on{background:var(--ink);color:var(--paper)}
+  /* Hidden until the molecule is finished — there is no shape to turn until then,
+     and the switch offers one anyway. Faded rather than removed: the dock is a
+     row, and pulling an element out of it would slide Reset sideways every time
+     a student completes or breaks a molecule. */
+  #dims{opacity:0;pointer-events:none;transition:opacity .3s ease}
+  #dims.armed{opacity:1;pointer-events:auto}
 
   /* the PNG button and the dock both want the bottom strip — move it up */
   #savepng{bottom:22px;right:26px;left:auto}
@@ -781,14 +787,16 @@ function report(s){
   if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
   saidExtra=false;
   if(s.complete){ win(s); return; }
-  rung=false; saidAfter=false;
-  clearTimeout(afterTimer);
+  rung=false; saidAfter=false; spun=false;
+  clearTimeout(afterTimer); spinTimer=clearTimeout(spinTimer);
+  arm(false);      // pulled a bond apart — no finished molecule, no switch
   card().classList.remove('done');
   showNotes(null);
   const line=L.step(s); if(line) say(line);
 }
 
 function win(s){
+  arm(true);
   card().classList.add('done');
   showNotes(L.notes);
   say(L.won);
@@ -816,7 +824,15 @@ function win(s){
     rung=true;
     fx.spawnRing(sim.center(), L.ring(), sim.anchor && sim.anchor());
   }
+  /* Then hand the finished molecule over to the 3D view so the student can see the actual geometry. 
+     Once per completion, like the ring: win() re-runs on every report while the
+     molecule stands, and a student who deliberately goes back to 2D to recount
+     the dots must not be dragged out of it again. */
+  if(flat && !spun){ spun=true; spinTimer=setTimeout(()=>{ spinTimer=null; setView(false,true); }, 900); }
 }
+/* Cancelled by anything that ends the completion — a tab change, a clear, or the
+   student reaching for the toggle themselves before it fires. */
+let spinTimer=null, spun=false;
 
 /* Tabs tear the old lesson down rather than hiding it: both modules bind
    pointer handlers to the stage, and a hidden-but-live one would keep grabbing
@@ -825,6 +841,7 @@ let last=0;
 function load(k){
   if(sim) sim.destroy();
   rung=false; saidAfter=false; clearTimeout(afterTimer);
+  spun=false; spinTimer=clearTimeout(spinTimer);
   key=k; L=LESSONS[k]; saidExtra=false;
   /* Hand the card back to whatever this lesson had earned before — null for one
      the student has not finished yet, which then falls through to hiding it. */
@@ -833,6 +850,12 @@ function load(k){
   showSticky(null);
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
+  /* Back to the flat view to start a new lesson.
+     viewState + the class directly rather than arm(false), because the old sim
+     is already destroyed here and the new one does not exist yet — setView
+     would be talking to neither. */
+  document.getElementById('dims').classList.remove('armed');
+  viewState(true);
   sim=L.make();
   sim.setDim(flat?'2d':'3d');
   sim.setMode(modeFor());          // after setDim: the mode is derived from it
@@ -856,27 +879,47 @@ function modeFor(){ return flat ? 'electrons' : 'sticks'; }
    3D is the thing you switch to once you want to ask where the lone pairs
    really are — which is the question the flat view provokes. */
 let flat=true;
+/* The switch itself only exists once the molecule is completed. Un-arming also returns the student to 2D. */
+function arm(on){
+  document.getElementById('dims').classList.toggle('armed', on);
+  if(!on) setView(true,true);
+}
+
+/* One place that actually changes the view, so the button, the automatic switch
+   after a completion and a lesson change cannot drift apart.
+   Split from setView because load() has to pick the view BEFORE the sim exists:
+   it makes the new sim and then hands it the dimension itself, so the two would
+   otherwise fight over which one is authoritative. This half is the button
+   lights and the camera; setView adds the sim and the toast. */
+function viewState(toFlat){
+  flat=toFlat;
+  document.querySelectorAll('#dims .mode').forEach(o=>
+    o.classList.toggle('on', (o.dataset.dim==='2d')===flat));
+  /* Nothing to do to the camera any more. One ortho frustum serves both views*/
+  if(flat){ userSpun=true; }        // no idle turntable behind a locked view
+  /* Close to the flat view's own camera (theta 0, phi π/2) rather than a
+     three-quarter pose: the switch is a continuation of the molecule the
+     student was just counting, so it has to arrive recognisable and then turn.
+     Far enough off dead-on to read as depth; the idle turntable does the rest. */
+  else { cam.theta=0.3; cam.phi=1.4; applyCam(); userSpun=false; }
+}
+/* `quiet` skips the toast for the automatic switch after a completion — the win
+   line is still on screen and is the thing to read. */
+function setView(toFlat,quiet){
+  if(toFlat===flat) return;         // already there — a no-op, not a re-render
+  viewState(toFlat);
+  sim.setDim(flat?'2d':'3d');
+  sim.setMode(modeFor());        // dots in the flat view, sticks in the round one
+  if(!quiet) say(flat ? L.flatSay : 'Free view — drag the background to spin it.');
+}
 document.querySelectorAll('#dims .mode').forEach(b=>{
-  b.addEventListener('click',()=>{
-    // clicking the view you are already in is a no-op
-    if((b.dataset.dim==='2d')===flat) return;
-    document.querySelectorAll('#dims .mode').forEach(o=>o.classList.remove('on'));
-    b.classList.add('on');
-    flat=(b.dataset.dim==='2d');
-    sim.setDim(flat?'2d':'3d');
-    sim.setMode(modeFor());        // dots in the flat view, sticks in the round one
-    /* Nothing to do to the camera any more. One ortho frustum serves both views,
-       so the apparent size a student is looking at survives the toggle for free
-       — it used to take a lens swap and a matching change of throw, kept in step
-       by hand. All that is left is where the camera stands. */
-    if(flat){ userSpun=true; }        // no idle turntable behind a locked view
-    else { cam.theta=0.6; cam.phi=1.15; applyCam(); userSpun=false; }
-    say(flat ? L.flatSay : 'Free view — drag the background to spin it.');
-  });
+  b.addEventListener('click',()=>{ spinTimer=clearTimeout(spinTimer); setView(b.dataset.dim==='2d'); });
 });
 
 document.getElementById('clearmol').addEventListener('click',()=>{
   rung=false; saidExtra=false;
+  spun=false; spinTimer=clearTimeout(spinTimer);
+  arm(false);
   sim.reset();
   sim.setMode(modeFor());
   say(L.open);
