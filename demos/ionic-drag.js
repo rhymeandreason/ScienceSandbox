@@ -60,10 +60,15 @@
     PULL: 30,               // approach, before the electron moves
     SPRING: 34,             // the charge hold afterwards, about NACL
     HOP: 0.55,                // seconds for the electron to cross
-    /* Two Cl⁻ push each other apart. Kept well under SPRING so it can only
-     * argue about the ANGLE — the bond length is the metal's to set. This is
-     * the only thing making MgCl₂ linear: see the repulsion pass in step(). */
-    REPEL: 40,
+    /* Two Cl⁻ push each other apart — the only thing making MgCl₂ linear. It is
+     * applied tangentially (see the repulsion pass in step()), so it can only
+     * ever argue about the ANGLE and the bond length stays exactly REST however
+     * large this gets. That is what sets the number: nothing here trades against
+     * geometry, so it is chosen purely on how long the swing to 180° should
+     * take. ~4s from a right angle — slow enough to read as a settle, not so
+     * slow the student has stopped watching. Approach is exponential (the
+     * restoring force vanishes at 180°), so halving this roughly doubles it. */
+    REPEL: 450,
   };
 
   /* Separations are roomier than any covalent bond in the project (O–H is 1.55
@@ -453,15 +458,31 @@
        * student can drag one chloride round and watch the other swing to stay
        * opposite, which is VSEPR arrived at rather than asserted. Neutral
        * chlorines do NOT repel: there is no charge yet, and the solid-nuclei
-       * push below is what keeps them out of each other meanwhile. */
+       * push below is what keeps them out of each other meanwhile.
+       *
+       * The push is TANGENTIAL: the component along an ion's own bond axis is
+       * projected out before it is applied, so repulsion moves each chloride
+       * around the metal and never along its bond. That splits the job the way
+       * the chemistry is taught — the bond sets the distance, repulsion sets the
+       * angle — and it is what lets REPEL be large. Left radial, the same
+       * strength would stretch Mg–Cl past Na–Cl and cost the tab its point
+       * (Mg²⁺ is the SMALLER, harder-pulling ion), so the honest way to settle
+       * faster is to stop the force doing a job that was never its own. */
       for(let i=0;i<nons.length;i++) for(let j=i+1;j<nons.length;j++){
         const a=nons[i], b=nons[j];
         if(!(a.given && b.given)) continue;
         const sep=new THREE.Vector3().subVectors(b.group.position, a.group.position);
         const d=Math.max(sep.length(), 0.5);
         const f=sep.multiplyScalar(1/d).multiplyScalar(S.REPEL/(d*d)*dt);
-        if(!b.dragging) b.vel.add(f);
-        if(!a.dragging) a.vel.sub(f);
+        // each ion swings on its own radius, so each gets its own projection
+        function tangential(ion, vec){
+          const rad=new THREE.Vector3().subVectors(ion.group.position, metal.group.position);
+          if(rad.lengthSq()<1e-6) return vec;
+          rad.normalize();
+          return vec.clone().addScaledVector(rad, -vec.dot(rad));
+        }
+        if(!b.dragging) b.vel.add(tangential(b, f));
+        if(!a.dragging) a.vel.sub(tangential(a, f));
       }
 
       list.forEach(a=>{
