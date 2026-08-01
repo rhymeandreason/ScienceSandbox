@@ -48,6 +48,7 @@
  *    const s = IonicDrag.create({THREE, root, camera, canvas, fx, onChange,
  *                                recipe:'nacl'});
  *    s.setMode('electrons'|'sticks');  s.setDim('2d'|'3d');  s.reset();
+ *    s.fill();   // snap straight to the transferred pair (a re-opened lesson)
  * ========================================================================== */
 (function(global){
   'use strict';
@@ -227,16 +228,21 @@
      * One nonmetal at a time. On MgCl₂ the second chloride can be sitting far
      * away, or nowhere near yet, and the first bond is complete without it.
      */
-    function transfer(a){
+    /* `instant` is for fill(): the electron is ALREADY across. No flight, no
+     * flash — the transfer is the thing this tab is about, and replaying it for
+     * a lesson the student is only re-opening claims something just happened. */
+    function transfer(a, instant){
       a.given=true;
       // Counts change NOW, not when the flight lands: the callback only runs
       // while the frame loop does, so a backgrounded tab would otherwise leave
       // the readout stale. The flight is animation over already-correct state,
       // and during it the eighth electron is simply the one in transit.
       metal.count=N-moved();
-      a.count=7;
+      a.count=instant?8:7;
       drawDots(metal); drawDots(a);
-      startHop(a);
+      // what stepHop() would have done on landing, minus the landing
+      if(instant){ showCharge(a); metalCharge(); }
+      else startHop(a);
 
       /* The stick is a STICK-VIEW object only. In the electron view drawing a
        * cylinder would contradict the lesson — there is no shared pair in that
@@ -574,6 +580,29 @@
       if(dim==='2d') all().forEach(a=>{ a.group.position.z=0; a.vel.z=0; });
     }
 
+    /* The covalent fill()'s counterpart — re-open a pair the student already
+     * made. The nonmetals have to be MOVED first: transfer() draws the bond
+     * stick between wherever the two atoms are, and an ion still parked at its
+     * start position would be handed a stick the width of the stage. Placed at
+     * REST and, on MgCl₂, on opposite sides — the same arrangement the anions'
+     * own repulsion arrives at, so nothing lurches once step() takes over. */
+    function fill(){
+      if(!metal) return;
+      /* The metal comes to the middle first. It is dealt off to the LEFT, and a
+       * pair assembled around it where it stands would sit against the edge of
+       * the stage — during play the student drags it wherever they like, but a
+       * lesson that opens finished has to open framed. */
+      metal.group.position.set(0,0,0); metal.vel.set(0,0,0);
+      nons.forEach((a,i)=>{
+        if(a.given) return;
+        const ang=(nons.length>1) ? i*Math.PI : 0;
+        a.group.position.copy(metal.group.position)
+          .add(new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0).multiplyScalar(REST));
+        a.vel.set(0,0,0);
+        transfer(a, true);
+      });
+    }
+
     function state(){
       // element-neutral names: the page's KCl tab reads the same fields.
       // nonmetalCount stays a scalar — the first nonmetal — so the 1:1 tabs
@@ -595,7 +624,7 @@
     }
 
     build();
-    return { group, step, setMode, setDim, reset, destroy, state,
+    return { group, step, setMode, setDim, reset, destroy, state, fill,
              /* What the pair reads as. With one nonmetal that is the CHLORIDE:
               * it is the bigger ion and the one that ends up holding the
               * electron. With two it has to be the metal — it is the atom both

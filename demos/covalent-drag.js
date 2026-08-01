@@ -31,6 +31,7 @@
  *    const w = CovalentDrag.create({THREE, root, camera, canvas, fx, onChange,
  *                                   recipe:'water'});
  *    w.setMode('electrons'|'sticks');  w.setDim('2d'|'3d');  w.reset();
+ *    w.fill();   // snap straight to the finished molecule (a re-opened lesson)
  * ========================================================================== */
 (function(global){
   'use strict';
@@ -549,7 +550,7 @@
       return { center, out, end:b };
     }
 
-    function makeSharedPair(i, dative){
+    function makeSharedPair(i, dative, quiet){
       const n=orderOf(G(), i);
       for(let idx=0; idx<n; idx++){
         const pair={slot:i, index:idx, dots:[]};
@@ -575,7 +576,7 @@
         group.add(st); sticks.push(st);
       }
       // a multiple bond arrives one pair at a time — see stepStagger()
-      if(n>1) stagger(i, n);
+      if(n>1 && !quiet) stagger(i, n);
       layoutBonds();
       applyCel();                       // a stick born in 2D is born cel-shaded
       applyMode();
@@ -735,7 +736,10 @@
       if(!anyBonded && core && core.delta){ core.group.remove(core.delta); kit.forget(core.delta); core.delta=null; }
     }
 
-    function bond(h, i){
+    /* `quiet` is fill()'s: the bond is being restored, not made, so it gets no
+     * settle shimmer and its shared pair is placed rather than staggered in.
+     * Every effect on this page means "this just happened", and none of it did. */
+    function bond(h, i, quiet){
       h.slot=i; h.vel.set(0,0,0);
       h.group.position.copy(slotPos(i));
       // the two electrons that merge into the shared pair are the two that were
@@ -745,11 +749,24 @@
       // electron of its own — its pair came from the lone pair
       if(core.slotDots[i]) core.slotDots[i].visible=false;
       if(core.ghosts[i]) core.ghosts[i].visible=false;
-      makeSharedPair(i);
-      if(fx) fx.settleShimmer(h.sphere, P.atoms[R.core]);
+      makeSharedPair(i, false, quiet);
+      if(fx && !quiet) fx.settleShimmer(h.sphere, P.atoms[R.core]);
       showPolarity();
       if(R.proton && !proton && bondedCount()===R.slots.length) spawnProton();
       onChange(state());
+    }
+    /* Re-open a molecule the student has already built: every free ligand lands
+     * in a slot at once, through the same bond() a drag would call. Not a second
+     * way to be bonded — a shortcut to the state the mechanic itself produces,
+     * which is why the shared pairs, the polarity badges and (on ammonia) the
+     * proton all arrive with it. The neutral molecule only: the extra stage is
+     * still something to do, not something to be handed. */
+    function fill(){
+      ligands.forEach(h=>{
+        if(h.slot!=null || h.isProton) return;
+        const b=bestSlot(h);
+        if(b) bond(h, b.i, true);
+      });
     }
     function unbond(h){
       if(h.isProton) return deprotonate(h);
@@ -1122,7 +1139,7 @@
     }
 
     build();
-    return { group, step, setMode, setDim, reset, destroy, state,
+    return { group, step, setMode, setDim, reset, destroy, state, fill,
              /* Where the molecule IS, for effects that have to fire somewhere.
                 The core happens to sit at the origin, but read the mesh
                 rather than assuming it — the assumption is exactly what put the

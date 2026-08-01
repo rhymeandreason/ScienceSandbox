@@ -774,6 +774,9 @@ let saidExtra=false;
    won line and the done card all still have to happen first. Routing that
    through `extra` returned before win() ever ran and quietly took all three. */
 let saidAfter=false, afterTimer=null;
+/* True only for the length of a fill() — a lesson being re-opened finished
+   rather than finished now. Everything in win() that is an EVENT reads it. */
+let restoring=false;
 function report(s){
   /* Ahead of every early return below, because a sticky belongs to the state
      rather than to a branch: completing the molecule has to be able to take it
@@ -803,7 +806,7 @@ function win(s){
   /* The follow-up lands as the win line is fading rather than on top of it: two
      sentences about the same moment, read in order. 3.2s against say()'s 3.4s
      hold, so the toast never goes empty in between. */
-  if(L.after && !saidAfter){
+  if(L.after && !saidAfter && !restoring){
     saidAfter=true;
     clearTimeout(afterTimer);
     afterTimer=setTimeout(()=>say(L.after(s)), 3200);
@@ -820,7 +823,7 @@ function win(s){
      (covalent-drag's framed()), so a student who finishes the molecule and keeps
      dragging would otherwise pull it out from under its own ring and leave the
      ring expanding over blank paper. */
-  if(fx && !rung && L.ring){
+  if(fx && !rung && L.ring && !restoring){
     rung=true;
     fx.spawnRing(sim.center(), L.ring(), sim.anchor && sim.anchor());
   }
@@ -828,7 +831,7 @@ function win(s){
      Once per completion, like the ring: win() re-runs on every report while the
      molecule stands, and a student who deliberately goes back to 2D to recount
      the dots must not be dragged out of it again. */
-  if(flat && !spun){ spun=true; spinTimer=setTimeout(()=>{ spinTimer=null; setView(false,true); }, 900); }
+  if(flat && !spun && !restoring){ spun=true; spinTimer=setTimeout(()=>{ spinTimer=null; setView(false,true); }, 900); }
 }
 /* Cancelled by anything that ends the completion — a tab change, a clear, or the
    student reaching for the toggle themselves before it fires. */
@@ -859,7 +862,23 @@ function load(k){
   sim=L.make();
   sim.setDim(flat?'2d':'3d');
   sim.setMode(modeFor());          // after setDim: the mode is derived from it
-  say(L.open);
+  /* A lesson already finished re-opens FINISHED. Coming back to a card you have
+     earned to find a bare atom again reads as the page having forgotten, and
+     makes the strip a set of exercises to redo rather than a set of molecules
+     you have. Reset is right there for building it again by hand.
+     Silently: `restoring` holds for the whole fill, and win() reads it to skip
+     the completion ring and the automatic turn to 3D. Those are rewards for the
+     moment the bond forms, and replaying them for a molecule the student is only
+     revisiting would spend the ending twice. The done card, the notes and the 3D
+     toggle still arrive, through win() — they are state, not celebration.
+     A flag rather than pre-setting `rung`/`spun`, because fill() bonds one atom
+     at a time: every bond before the last reports an UNFINISHED molecule, and
+     report() clears both of those on its way past. Water's ring survived exactly
+     that — the ionic tabs looked fixed only because they have no ring to fire.
+     And no opening line: fill() runs win(), so saying "start here" first would
+     be a prompt the molecule has already answered by the time it is read. */
+  if(earnedNotes[k] && sim.fill){ restoring=true; sim.fill(); restoring=false; }
+  else say(L.open);
 }
 
 document.querySelectorAll('.goal').forEach(c=>{
