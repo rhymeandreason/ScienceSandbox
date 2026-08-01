@@ -708,24 +708,15 @@ function showNotes(list){
    earned it does. That is the whole difference from say(): a toast is "this just
    happened", a sticky is "this is what you are looking at".
 
-   It arrives a beat LATE on purpose: a note appearing in the same frame as the
-   thing that earned it reads as part of that event instead of as a comment on
-   it. Held back, it reads as somebody sticking a note to the page after
+   It arrives a beat LATE on purpose so that it reads as somebody sticking a note to the page after
    watching what happened.
 
-   How long a beat depends on how loud the event was, which is why there are two
-   numbers rather than one. FINISHING a molecule fires the ring, a core flash, a
-   spark burst and the win toast — nearly a second of noise the note has to let
-   pass. Filling one slot MID-BUILD fires only settleShimmer, a soft glow on the
-   one atom that just landed, which the note is welcome to overlap. Using the
-   completion delay for both left the mid-build notes feeling like lag, because
-   the student is already reaching for the next atom by then.
+    A sticky tied to FINISHING a molecule has a longer delay. A sticky tied to 
+filling one slot MID-BUILD happens faster so it appears before the student is reaching for the next atom.
 
-   Leaving is NOT delayed either way: the state that earned it is gone now, and
-   a note that lingers is making a claim about the molecule that has stopped
-   being true. */
-const STICKY_DELAY_STEP=350;   // mid-build — only a shimmer to stay clear of
-const STICKY_DELAY_WIN=900;    // completion — the ring alone runs 0.87s
+   Leaving is NOT delayed either way. */
+const STICKY_DELAY_STEP=350;   // mid-build 
+const STICKY_DELAY_WIN=900;    // completion
 let stickyTimer=null, stickyPending=null;
 function hideSticky(){
   clearTimeout(stickyTimer); stickyTimer=null; stickyPending=null;
