@@ -392,7 +392,15 @@ const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.
 const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in angstroms
 
 function frameFrom(P) {
-  if (userZoom || !P) return;
+  const f = solveFrame(P);
+  if (!f) return;
+  cam.target.copy(f.target); cam.r = f.r; applyCam();
+}
+
+/* The same solve, without applying it — the transition needs somewhere to
+   travel TO, not an instant jump. */
+function solveFrame(P) {
+  if (userZoom || !P || !P.length) return null;
   const h = canvas.clientHeight, w = canvas.clientWidth;
   if (!h || !w) return;
 
@@ -418,8 +426,6 @@ function frameFrom(P) {
   let cx = 0, cy = 0, cz = 0;
   for (let i = 0; i < P.length; i++) { cx += P[i].x; cy += P[i].y; cz += P[i].z; }
   cx /= P.length; cy /= P.length; cz /= P.length;
-  cam.target.set(cx, cy, cz);
-
   let halfW = 0, halfH = 0;
   for (let i = 0; i < P.length; i++) {
     const dx = P[i].x - cx, dy = P[i].y - cy, dz = P[i].z - cz;
@@ -441,8 +447,7 @@ function frameFrom(P) {
      villin's roomiest arrangement is 160 A end to end and was being clamped,
      so the protein sat cropped on exactly the arrangements that make the
      "no single shape" point most strongly. */
-  cam.r = Math.max(6, Math.min(600, d));
-  applyCam();
+  return { r: Math.max(6, Math.min(600, d)), target: new THREE.Vector3(cx, cy, cz) };
 }
 
 function frameAt(tt) { if (traj) frameFrom(posOf(tt)); }
@@ -619,6 +624,8 @@ function updateReadout(formed) {
 const RUNG = { FOLD: 0, HEADPIECE: 1, VILLIN: 2 };
 let rung = RUNG.FOLD, arrangement = 0, villin = null, villinGroup = null;
 let hoverHP = false;
+/* where the folded chain sits inside villin, once solved (see placeFoldGroup) */
+let foldSeat = new THREE.Matrix4();
 
 /* Tube radius matches what a bead would have been: the house radius/bond
    ratio (0.2934) applied to the 3.8 A Ca-Ca virtual bond. So swapping from
@@ -717,33 +724,36 @@ function buildVillin() {
   if (villinGroup) { root.remove(villinGroup); disposeTree(villinGroup); }
   villinGroup = new THREE.Group();
   root.add(villinGroup);
-  if (!villin || rung === RUNG.FOLD) return;
+  if (!villin) return;
 
-  const lo = rung === RUNG.HEADPIECE ? villin.domains[villin.domains.length-1][0] : villin.nums[0];
-  const hi = villin.nums[villin.residues - 1];
+  const first = villin.nums[0], hi = villin.nums[villin.residues - 1];
+  const hpDomStart = villin.domains[villin.domains.length - 1][0];
   const byPLDDT = document.getElementById('showplddt').checked;
 
-  /* One tube per rigid body, plus a thinner one per linker. Split this way
-     rather than as a single tube so the parts the model is confident about
-     and the parts it is not can look different, which is the whole reason
-     this rung exists. */
+  /* The WHOLE protein is built every time, at every rung, and the rung then
+     decides only what is OPAQUE. Building just the visible part meant a rung
+     change was a rebuild, and a rebuild cannot be faded — the tube either
+     existed or it did not, so the step from the folded chain to its domain
+     was a cut. Nothing about that cut said "same chain, drawn simpler",
+     which is the one thing that step has to say.
+
+     Every mesh is tagged with the phase it belongs to:
+       'hp'   HP35 itself — the chain the student folded
+       'own'  the rest of its domain, the headpiece
+       'rest' the other six repeats and the linkers between them */
   const spans = [];
   villin.domains.forEach(([a, b], d) => {
-    if (b < lo || a > hi) return;
-    /* Stop the domain tube where HP35 begins. HP35 gets its own tube along
-       the same path, and drawing both left two surfaces coincident — the grey
-       domain shimmered through the blue in shards wherever the depth test
-       went the other way. Clipping is the fix; a radius difference only hides
-       it at some angles. */
     let end = Math.min(b, hi);
     if (a < VillinLib.HP35.start && end >= VillinLib.HP35.start) end = VillinLib.HP35.start;
     if (end <= a) return;
-    spans.push({ a: Math.max(a, lo), b: end, domain: d, linker: false });
+    spans.push({ a: Math.max(a, first), b: end, domain: d, linker: false,
+                 phase: a >= hpDomStart ? 'own' : 'rest' });
   });
   for (let k = 0; k + 1 < villin.domains.length; k++) {
     const a = villin.domains[k][1], b = villin.domains[k+1][0];
-    if (b - a <= 1 || b < lo || a > hi) continue;
-    spans.push({ a: Math.max(a, lo), b: Math.min(b, hi), domain: -1, linker: true });
+    if (b - a <= 1) continue;
+    spans.push({ a, b, domain: -1, linker: true,
+                 phase: a >= hpDomStart ? 'own' : 'rest' });
   }
 
   for (const sp of spans) {
@@ -752,35 +762,30 @@ function buildVillin() {
     const curve = new THREE.CatmullRomCurve3(pts);
     const geo = new THREE.TubeGeometry(curve, Math.max(8, pts.length * 2),
                                        sp.linker ? LINK_R : TUBE_R, 10, false);
-    let col, opacity = 1;
-    if (sp.linker) {
-      col = 0xb3a892; opacity = 0.55;
-    } else if (byPLDDT) {
-      col = plddtColor(sp.a, sp.b);
-    } else {
-      col = DOM_COLORS[sp.domain % DOM_COLORS.length];
-    }
-    const mat = Stage.bondMat(col);
-    if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.userData.span = sp;
+    const col = sp.linker ? 0xb3a892
+              : byPLDDT ? plddtColor(sp.a, sp.b)
+              : DOM_COLORS[sp.domain % DOM_COLORS.length];
+    const mesh = new THREE.Mesh(geo, Stage.bondMat(col));
+    /* Linkers stay part-transparent even at full strength: they are the part
+       of the model that cannot be placed, and they should not look as solid
+       as the domains they join. */
+    mesh.userData = { phase: sp.phase, span: sp, maxOpacity: sp.linker ? 0.55 : 1 };
     villinGroup.add(mesh);
   }
 
-  /* HP35 is drawn again on top, in the highlight colour and slightly fatter,
-     because "the bit you folded" has to be findable at a glance. */
   const hpPts = villinPoints(arrangement, VillinLib.HP35.start, VillinLib.HP35.end);
   if (hpPts.length > 1) {
-    /* Same radius as the domains, not fatter: the chain is continuous and
-       should look continuous. Colour alone marks it out. */
+    /* Same radius as the domains: the chain is continuous and should look
+       continuous. Colour alone marks HP35 out. */
     const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hpPts),
                                      hpPts.length * 2, TUBE_R, 10, false);
     const m = new THREE.Mesh(g, Stage.bondMat(HP_COLOR));
-    m.userData.isHP = true;
+    m.userData = { phase: 'hp', isHP: true, maxOpacity: 1 };
     villinGroup.add(m);
   }
 
   placeFoldGroup(hpPts);
+  applyFade(true);
 }
 
 function plddtColor(a, b) {
@@ -801,9 +806,9 @@ function placeFoldGroup(hpPts) {
     if (i != null) mine.push(new THREE.Vector3(...traj.key[traj.count-1].slice(i*3, i*3+3)));
   }
   if (mine.length !== hpPts.length) return;
-  const M = superpose(mine, hpPts);
-  foldGroup.matrixAutoUpdate = false;
-  foldGroup.matrix.copy(M);
+  /* Stored, not applied. The move onto this seat is the transition's first
+     beat, so it has to be a destination rather than a jump. */
+  foldSeat = superpose(mine, hpPts);
 }
 
 function disposeTree(g) {
@@ -821,16 +826,160 @@ const ZNOTES = [
   'are eight of them below rather than one picture.',
 ];
 
+/* ---------- the transition ----------
+   Stepping out a rung is choreographed rather than cut, in three beats:
+
+     1. the folded chain MOVES to its seat inside the protein
+     2. HP35's tube fades in as the atoms fade out, on the same spot
+     3. the rest of the structure fades in around it
+
+   The order carries the argument. Moving first, while the model is still all
+   atoms, says the thing being carried is the chain the student just folded.
+   Crossfading atoms into tube in place says the representation changed, not
+   the molecule. Only then does the context arrive. A cut says none of this,
+   and this page's whole claim is that the chain and the protein are the same
+   object seen at two scales.
+
+   Reversed on the way back down, so the protein resolves back into the atoms
+   it was made of rather than blinking out. */
+const T_DUR = 1.7;                       // seconds for a full rung change
+let anim = null;
+
+/* Smoothstep over a sub-range of the transition, so beats overlap slightly
+   instead of starting and stopping dead. */
+function beat(p, from, to) {
+  const x = Math.max(0, Math.min(1, (p - from) / (to - from)));
+  return x * x * (3 - 2 * x);
+}
+
+/* Opacity each phase should end at, per rung. */
+function fadeTargets(n) {
+  return { fold: n === RUNG.FOLD ? 1 : 0,
+           hp:   n === RUNG.FOLD ? 0 : 1,
+           own:  n === RUNG.FOLD ? 0 : 1,
+           rest: n === RUNG.VILLIN ? 1 : 0 };
+}
+
+/* Read the current opacity of a phase, so a transition interrupted halfway
+   continues from where it actually is rather than snapping. */
+function currentFade() {
+  const out = { fold: foldOpacity, hp: 0, own: 0, rest: 0 }, seen = {};
+  if (villinGroup) villinGroup.children.forEach(m => {
+    const ph = m.userData.phase;
+    if (seen[ph]) return;
+    seen[ph] = true;
+    out[ph] = m.material.opacity / (m.userData.maxOpacity || 1);
+  });
+  return out;
+}
+
+let foldOpacity = 1;
+let fadeNow = { fold: 1, hp: 0, own: 0, rest: 0 };
+
 function setRung(n) {
   if (!villin && n !== RUNG.FOLD) return;
+  const wasRung = rung;
   rung = n;
   document.querySelectorAll('.zstep').forEach(b =>
     b.classList.toggle('on', +b.dataset.rung === rung));
   document.getElementById('znote').innerHTML = ZNOTES[rung];
   document.getElementById('arrangements').hidden = (rung !== RUNG.VILLIN);
-  buildVillin();
-  updateVisibility();
-  frameCurrent();
+
+  if (!villinGroup) buildVillin();
+
+  const camTo = solveFrame(currentPoints());
+  anim = {
+    p: 0,
+    up: n > wasRung,
+    from: currentFade(),
+    to: fadeTargets(n),
+    matFrom: decompose(foldGroup.matrix),
+    matTo: decompose(rung === RUNG.FOLD ? new THREE.Matrix4() : foldSeat),
+    camFrom: { r: cam.r, target: cam.target.clone() },
+    camTo,
+  };
+  foldGroup.matrixAutoUpdate = false;
+}
+
+function decompose(m) {
+  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  m.decompose(p, q, s);
+  return { p, q, s };
+}
+
+function stepTransition(dt) {
+  if (!anim) return;
+  anim.p = Math.min(1, anim.p + dt / T_DUR);
+  const p = anim.p;
+
+  /* Beat windows, written in the OUTWARD order. Every factor still runs 0->1
+     as the transition runs 0->1 — what reverses is the order the windows sit
+     in, so coming back down the context leaves first and the chain returning
+     to the origin is the last thing that happens. Mirroring the factor
+     instead of the window was wrong: it made a reverse transition mix back
+     towards where it started and land on the wrong state. */
+  const win = (lo, hi) => anim.up ? beat(p, lo, hi) : beat(p, 1 - hi, 1 - lo);
+  const mMove = win(0.00, 0.45);
+  const mHp   = win(0.34, 0.70);
+  const mOwn  = win(0.52, 0.84);
+  const mRest = win(0.66, 1.00);
+
+  const mix = (from, to, m) => from + (to - from) * m;
+  fadeNow = {
+    fold: mix(anim.from.fold, anim.to.fold, mHp),   // atoms leave as HP35 arrives
+    hp:   mix(anim.from.hp,   anim.to.hp,   mHp),
+    own:  mix(anim.from.own,  anim.to.own,  mOwn),
+    rest: mix(anim.from.rest, anim.to.rest, mRest),
+  };
+  foldOpacity = fadeNow.fold;
+
+  // the chain moves to its seat first, while it is still atoms
+  const f = anim.matFrom, tg = anim.matTo;
+  foldGroup.matrix.compose(
+    f.p.clone().lerp(tg.p, mMove),
+    f.q.clone().slerp(tg.q, mMove),
+    f.s.clone().lerp(tg.s, mMove));
+
+  // camera travels with the move rather than after it
+  if (!userZoom && anim.camTo) {
+    cam.r = mix(anim.camFrom.r, anim.camTo.r, mMove);
+    cam.target.lerpVectors(anim.camFrom.target, anim.camTo.target, mMove);
+    applyCam();
+  }
+
+  applyFade(false);
+  if (p >= 1) { anim = null; applyFade(true); }
+}
+
+/* Push fadeNow onto the materials. Opaque meshes drop out of the transparent
+   pass entirely — leaving 12 tubes permanently transparent would sort them
+   against each other every frame for no reason, and transparent surfaces of
+   the same colour overlapping read as banding. */
+function applyFade(immediate) {
+  if (immediate) fadeNow = fadeTargets(rung);
+  if (immediate) foldOpacity = fadeNow.fold;
+
+  if (villinGroup) villinGroup.children.forEach(m => {
+    const max = m.userData.maxOpacity || 1;
+    let o = (fadeNow[m.userData.phase] || 0) * max;
+    if (m.userData.isHP && hoverHP) o = 0;      // hover swaps tube for atoms
+    m.visible = o > 0.01;
+    m.material.transparent = o < 0.999;
+    m.material.opacity = o;
+    m.material.depthWrite = o > 0.5;
+  });
+
+  const fo = hoverHP && rung !== RUNG.FOLD ? 1 : foldOpacity;
+  foldGroup.visible = fo > 0.01;
+  foldGroup.traverse(o => {
+    if (!o.material) return;
+    o.material.transparent = fo < 0.999;
+    o.material.opacity = fo;
+    o.material.depthWrite = fo > 0.5;
+  });
+  if (rung === RUNG.FOLD && !anim) {
+    foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity();
+  }
 }
 
 function setArrangement(k) {
@@ -838,7 +987,6 @@ function setArrangement(k) {
   [...document.getElementById('abtns').children].forEach((b, i) =>
     b.classList.toggle('on', i === k));
   buildVillin();
-  updateVisibility();
   frameCurrent();
 }
 
@@ -854,19 +1002,6 @@ function buildArrangementButtons() {
     host.appendChild(b);
   }
   [...host.children][0].classList.add('on');
-}
-
-/* At the fold rung the atomic model IS the lesson. Higher up it is hidden
-   under the tube and returns only on demand — the hover reveal chosen so the
-   clean view stays clean without losing the link back to the atoms. */
-function updateVisibility() {
-  const atFold = rung === RUNG.FOLD;
-  foldGroup.visible = atFold || hoverHP;
-  if (atFold) { foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity(); }
-  else foldGroup.matrixAutoUpdate = false;
-  if (villinGroup) villinGroup.traverse(o => {
-    if (o.userData && o.userData.isHP) o.visible = !hoverHP;
-  });
 }
 
 /* What the camera should be looking at right now. */
@@ -885,13 +1020,13 @@ document.querySelectorAll('.zstep').forEach(b =>
    protein is not doing hit tests on every mouse move. */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 canvas.addEventListener('pointermove', e => {
-  if (rung === RUNG.FOLD || !villinGroup) return;
+  if (rung === RUNG.FOLD || !villinGroup || anim) return;
   const r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2 - 1, -((e.clientY-r.top)/r.height)*2 + 1);
   ray.setFromCamera(ndc, camera);
   const hp = villinGroup.children.filter(o => o.userData && o.userData.isHP);
   const hit = hp.length && ray.intersectObjects(hp, false).length > 0;
-  if (hit !== hoverHP) { hoverHP = hit; updateVisibility(); canvas.style.cursor = hit ? 'pointer' : ''; }
+  if (hit !== hoverHP) { hoverHP = hit; applyFade(false); canvas.style.cursor = hit ? 'pointer' : ''; }
 });
 
 /* ---------- transport ---------- */
@@ -928,6 +1063,8 @@ let last = performance.now();
 (function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+  stepTransition(dt);
 
   if (playing && traj) {
     const nt = t + dt / PLAY_SECONDS;
