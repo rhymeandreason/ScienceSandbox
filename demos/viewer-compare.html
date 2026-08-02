@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<!--
+  viewer-compare.html — 3Dmol.js vs ChemDoodle Web, same protein, same moment.
+
+  Evaluation scratch page, NOT a lesson. It deliberately loads neither
+  sandbox.css nor any of the mol-*.js modules: the point is to judge the two
+  libraries unmixed with our own rendering. Delete it once we've picked one.
+
+  Both viewers get the identical PDB text (one fetch from RCSB, shared), so any
+  visual difference is the library, not the data.
+-->
+<meta charset="utf-8">
+<title>3Dmol.js vs ChemDoodle Web</title>
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+<!-- vendored: no npm, no CDN — see vendor/chemdoodle/README.md -->
+<link rel="stylesheet" href="vendor/chemdoodle/ChemDoodleWeb.css">
+<script src="vendor/chemdoodle/ChemDoodleWeb.js"></script>
+<style>
+  :root { --ink:#2b2a26; --line:#d8d2c4; --paper:#fbf7ef; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,sans-serif; color:var(--ink); background:var(--paper); }
+  header { padding:14px 20px 10px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 8px; font-size:19px; font-weight:600; }
+  .controls { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:14px; }
+  .controls label { display:flex; gap:6px; align-items:center; }
+  select { font:inherit; padding:3px 6px; }
+  #grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); }
+  .pane { background:#fff; display:flex; flex-direction:column; min-width:0; }
+  .pane h2 { margin:0; padding:8px 12px; font-size:13px; font-weight:600; letter-spacing:.04em;
+             text-transform:uppercase; border-bottom:1px solid var(--line); display:flex;
+             justify-content:space-between; }
+  .pane h2 .t { font-weight:400; color:#8a8madd; color:#8a857a; text-transform:none; letter-spacing:0; }
+  .stage { position:relative; height:62vh; min-height:380px; }
+  /* 3Dmol needs an explicitly positioned host element */
+  #viewer3dmol { position:absolute; inset:0; }
+  #cdholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .note { padding:8px 12px; border-top:1px solid var(--line); font-size:13px; color:#6b6558; min-height:34px; }
+  footer { padding:14px 20px 28px; font-size:13.5px; color:#4a453c; max-width:70em; }
+  footer li { margin-bottom:5px; }
+  code { background:#efe9dc; padding:1px 4px; border-radius:3px; font-size:12.5px; }
+</style>
+
+<header>
+  <h1>3Dmol.js vs ChemDoodle Web — same file, same style, side by side</h1>
+  <div class="controls">
+    <label>Structure
+      <select id="pdb">
+        <option value="1LYZ">1LYZ — lysozyme (small, α-helix rich)</option>
+        <option value="3CYT">3CYT — cytochrome c (heme cofactor)</option>
+        <option value="1IGT">1IGT — antibody (β-sheet, 4 chains, big)</option>
+        <option value="1BNA">1BNA — B-DNA dodecamer</option>
+        <option value="1ATN">1ATN — G-actin + ATP</option>
+        <!-- the surface tests: on these, "cartoon" and "surface" teach different things -->
+        <option value="2POR">2POR — porin (β-barrel: a literal hole)</option>
+        <option value="1BL8">1BL8 — KcsA K⁺ channel (selectivity filter)</option>
+        <option value="1J4N">1J4N — aquaporin-1 (water pore)</option>
+        <option value="1AON">1AON — GroEL/GroES (~58k atoms, the stress test)</option>
+      </select>
+    </label>
+    <label>Style
+      <select id="style">
+        <option value="cartoon">Cartoon / ribbon</option>
+        <option value="stick">Sticks</option>
+        <option value="sphere">Spheres (space-fill)</option>
+        <option value="surface">Molecular surface</option>
+      </select>
+    </label>
+    <label>Colour
+      <select id="color">
+        <option value="ss">Secondary structure — custom (ChemDoodle-like)</option>
+        <option value="ssJmol">Secondary structure — Jmol default</option>
+        <option value="chain">By chain</option>
+        <option value="spectrum">N→C spectrum</option>
+        <option value="element">By element</option>
+      </select>
+    </label>
+    <label>Orientation
+      <select id="orient">
+        <option value="pca">Principal axes (widest face)</option>
+        <option value="axis">Down the long axis</option>
+        <option value="deposited">As deposited</option>
+      </select>
+    </label>
+    <label>Shading
+      <select id="shading">
+        <option value="default">Default (glossy)</option>
+        <option value="outline">Ink outline</option>
+        <option value="ao">Ambient occlusion</option>
+        <option value="both">Outline + AO</option>
+      </select>
+    </label>
+    <span id="status" style="color:#8a857a"></span>
+  </div>
+</header>
+
+<div id="grid">
+  <section class="pane">
+    <h2>3Dmol.js <span class="t" id="t3d"></span></h2>
+    <div class="stage"><div id="viewer3dmol"></div></div>
+    <div class="note" id="n3d"></div>
+  </section>
+  <section class="pane">
+    <h2>ChemDoodle Web <span class="t" id="tcd"></span></h2>
+    <div class="stage"><div id="cdholder"></div></div>
+    <div class="note" id="ncd"></div>
+  </section>
+</div>
+
+<footer>
+  <strong>What to look at:</strong>
+  <ul>
+    <li><b>Load time</b> in each header — same bytes, parsed twice.</li>
+    <li><b>Cartoon quality.</b> 3Dmol draws proper secondary-structure cartoons (arrows on strands, tubes on loops); ChemDoodle draws a ribbon. Compare on 1IGT, which is nearly all β-sheet.</li>
+    <li><b>Molecular surface.</b> 3Dmol computes one (SES/SAS); ChemDoodle Web has no surface — pick "Molecular surface" and read the right-hand note.</li>
+    <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook.</li>
+    <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully?</li>
+    <li><b>Licence.</b> 3Dmol.js is BSD-3. ChemDoodle Web is GPLv3 (or paid commercial) — GPL would mean this whole repo, published on GitHub Pages, inherits GPL terms. Worth settling before we invest.</li>
+  </ul>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const cache = new Map();
+let v3d = null, current = null;
+
+function fetchPDB(id) {
+  if (cache.has(id)) return Promise.resolve(cache.get(id));
+  return fetch(`https://files.rcsb.org/download/${id}.pdb`)
+    .then(r => { if (!r.ok) throw new Error(`RCSB ${r.status}`); return r.text(); })
+    .then(t => { cache.set(id, t); return t; });
+}
+
+/* ---- orientation -------------------------------------------------------- *
+   Neither library reorients anything: ChemDoodle's loadMolecule only centres,
+   and 3Dmol's zoomTo only fits the bounding box. Both show the coordinates as
+   deposited, which is an accident of crystallography rather than a chosen view.
+
+   So we rotate the coordinates ourselves, before either library sees them —
+   which also means both panes start from the same view, the only way the
+   side-by-side is a fair comparison.
+
+   The axes come from the covariance of the Ca atoms (P for nucleic acids):
+   the largest eigenvector is the molecule's long axis. For a channel that IS
+   the pore axis, which is why "down the long axis" is worth its own option. */
+
+// Jacobi rotation for a symmetric 3x3. Eigenvalues descending.
+function jacobiEigen(A) {
+  A = A.map(r => r.slice());
+  let V = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let sweep = 0; sweep < 24; sweep++) {
+    if (A[0][1]**2 + A[0][2]**2 + A[1][2]**2 < 1e-14) break;
+    for (const [p, q] of [[0,1],[0,2],[1,2]]) {
+      if (Math.abs(A[p][q]) < 1e-15) continue;
+      const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+      const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta*theta + 1));
+      const c = 1 / Math.sqrt(t*t + 1), s = t * c;
+      for (let k = 0; k < 3; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = c*a - s*b; A[k][q] = s*a + c*b; }
+      for (let k = 0; k < 3; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = c*a - s*b; A[q][k] = s*a + c*b; }
+      for (let k = 0; k < 3; k++) { const a = V[k][p], b = V[k][q]; V[k][p] = c*a - s*b; V[k][q] = s*a + c*b; }
+    }
+  }
+  return [0,1,2].map(i => ({ val: A[i][i], vec: [V[0][i], V[1][i], V[2][i]] }))
+                .sort((a, b) => b.val - a.val);
+}
+
+const det3 = m =>
+    m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1])
+  - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0])
+  + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]);
+
+function orientPDB(pdb, mode) {
+  if (mode === 'deposited') return pdb;
+
+  const lines = pdb.split('\n');
+  const all = [], ref = [];
+  for (const l of lines) {
+    if (!l.startsWith('ATOM') && !l.startsWith('HETATM')) continue;
+    const p = [+l.slice(30,38), +l.slice(38,46), +l.slice(46,54)];
+    if (!p.every(Number.isFinite)) continue;
+    all.push(p);
+    const name = l.slice(12,16).trim();
+    if (name === 'CA' || name === 'P') ref.push(p);   // backbone only: side chains would bias the axes
+  }
+  const pts = ref.length > 10 ? ref : all;
+  if (pts.length < 3) return pdb;
+
+  const n = pts.length;
+  const c = [0,1,2].map(i => pts.reduce((s, p) => s + p[i], 0) / n);
+  const C = [[0,0,0],[0,0,0],[0,0,0]];
+  for (const p of pts)
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) C[i][j] += (p[i]-c[i]) * (p[j]-c[j]) / n;
+
+  const e = jacobiEigen(C).map(x => x.vec);
+  // Rows of R are the axes that become screen x, y, z. 'pca' lays the long axis
+  // across the screen; 'axis' points it at the camera (looking down the pore).
+  let R = mode === 'axis' ? [e[1], e[2], e[0]] : [e[0], e[1], e[2]];
+
+  // An eigenvector's sign is arbitrary, so R comes out left-handed about half
+  // the time — and a left-handed rotation MIRRORS the structure. Silently
+  // showing a protein's non-existent enantiomer is exactly the bug this repo's
+  // handedness checks exist to prevent. Flip one axis to restore det = +1.
+  if (det3(R) < 0) R = [R[0], R[1], R[2].map(v => -v)];
+
+  const f = v => v.toFixed(3).padStart(8).slice(0, 8);
+  return lines.map(l => {
+    if (!l.startsWith('ATOM') && !l.startsWith('HETATM')) return l;
+    const p = [+l.slice(30,38), +l.slice(38,46), +l.slice(46,54)];
+    if (!p.every(Number.isFinite)) return l;
+    const d = [p[0]-c[0], p[1]-c[1], p[2]-c[2]];
+    const q = R.map(ax => ax[0]*d[0] + ax[1]*d[1] + ax[2]*d[2]);
+    return l.slice(0, 30) + f(q[0]) + f(q[1]) + f(q[2]) + l.slice(54);
+  }).join('\n');
+}
+
+/* ---- 3Dmol -------------------------------------------------------------- */
+
+/* 3Dmol's atom.ss is only 'h' | 's' | 'c' — it folds 3-10 and pi helices into
+   plain helix. The PDB file does distinguish them, in the HELIX record's
+   helixClass column, so we read it ourselves and re-style those residues.
+
+   HELIX is fixed-column (PDB v3.3):
+     22-25  initSeqNum    32     endChainID
+     20     initChainID   34-37  endSeqNum
+     39-40  helixClass    1 = right-handed alpha, 3 = pi, 5 = 3-10
+   Columns are 1-indexed in the spec and half-open here, hence the -1. */
+function helixClasses(pdb) {
+  const out = { pi: {}, three10: {} };
+  for (const line of pdb.split('\n')) {
+    if (!line.startsWith('HELIX ')) continue;
+    const cls = parseInt(line.slice(38, 40), 10);
+    const bucket = cls === 5 ? out.three10 : cls === 3 ? out.pi : null;
+    if (!bucket) continue;                       // class 1 (alpha) is the default colour
+    const chain = line.slice(19, 20).trim() || line.slice(31, 32).trim();
+    const start = parseInt(line.slice(21, 25), 10);
+    const end   = parseInt(line.slice(33, 37), 10);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    (bucket[chain] = bucket[chain] || []).push(`${start}-${end}`);
+  }
+  return out;
+}
+
+/* setStyle over the residues found above, after the base cartoon is in place —
+   3Dmol replaces style per atom, so the later, narrower call wins. */
+function paintHelixClasses(pdb, ribbon) {
+  const { three10, pi } = helixClasses(pdb);
+  const paint = (byChain, hex) => {
+    for (const chain in byChain) {
+      const sel = { resi: byChain[chain] };
+      if (chain) sel.chain = chain;
+      v3d.setStyle(sel, { cartoon: Object.assign({}, ribbon, { color: hex }) });
+    }
+  };
+  paint(pi, 0x2f9ee0);        // pi helix — rare; blue so it can't be mistaken for 3-10
+  paint(three10, 0x34d882);   // 3-10 helix — ChemDoodle's green
+  const n = Object.values(three10).reduce((s, r) => s + r.length, 0);
+  $('n3d').textContent = n ? `${n} 3-10 helix segment${n === 1 ? '' : 's'} in green (3Dmol calls these plain helix; read from the HELIX records)` : '';
+}
+
+function render3d(pdb, style, color, shading) {
+  const t0 = performance.now();
+  if (!v3d) v3d = $3Dmol.createViewer($('viewer3dmol'), { backgroundColor: 'white' });
+
+  // 3Dmol exposes no per-material specular/shininess, so the glossy plastic look
+  // can't be dialled down directly. These are the two renderer effects it does
+  // offer: an ink edge, and soft contact shading. Both are viewer-wide.
+  v3d.setViewStyle(
+    shading === 'outline' ? { style: 'outline', color: 'black', width: 0.06 }
+  : shading === 'ao'      ? { style: 'ambientOcclusion', strength: 0.8, radius: 6 }
+  : shading === 'both'    ? { style: 'outline ambientOcclusion', color: 'black', width: 0.06, strength: 0.8, radius: 6 }
+                          : { style: '' });          // '' turns both back off
+
+  v3d.clear();
+  $('n3d').textContent = '';
+  v3d.addModel(pdb, 'pdb');
+
+  // ChemDoodle's ribbon palette, sampled: purple helix, tan sheet, yellow coil.
+  // Same shape as the built-in $3Dmol.ssColors.Jmol, just our own values.
+  const ssMap = { colorscheme: { prop: 'ss', map: { h: 0xa03fd8, s: 0xd9c3ae, c: 0xf2e05a } } };
+
+  const scheme = color === 'ss' ? ssMap
+               : color === 'ssJmol' ? { colorscheme: 'ssJmol' }
+               : color === 'chain' ? { colorscheme: 'chain' }
+               : color === 'spectrum' ? { color: 'spectrum' }
+               : { colorscheme: 'Jmol' };
+
+  // 3Dmol's defaults, deliberately. Thickening the ribbon or rounding its edge
+  // ('oval') reads as bloated: ChemDoodle looks better because it is thin and
+  // flat, so the only thing worth borrowing from it is the palette.
+  const ribbon = { arrows: true };
+
+  if (style === 'cartoon') {
+    v3d.setStyle({}, { cartoon: Object.assign({}, ribbon, scheme) });
+    if (color === 'ss') paintHelixClasses(pdb, ribbon);
+    // hetero atoms have no secondary structure — cartoon would drop them entirely
+    v3d.setStyle({ hetflag: true }, { stick: { radius: 0.18, colorscheme: 'Jmol' } });
+  } else if (style === 'stick') {
+    v3d.setStyle({}, { stick: Object.assign({ radius: 0.15 }, scheme) });
+  } else if (style === 'sphere') {
+    v3d.setStyle({}, { sphere: scheme });
+  } else {
+    v3d.setStyle({}, { cartoon: Object.assign({}, ribbon, scheme) });
+    v3d.setStyle({ hetflag: true }, { stick: { radius: 0.18, colorscheme: 'Jmol' } });
+    // addSurface is async — the timing below is only honest if we wait for it
+    // not white — a white surface on a white background is invisible
+    // the atom selection is NOT optional — omit it and you get a silent empty surface
+    v3d.addSurface($3Dmol.SurfaceType.MS, { opacity: 0.7, color: '#9fb4c7' }, {})
+       .then(() => { v3d.render(); $('t3d').textContent = `${Math.round(performance.now() - t0)} ms (incl. surface)`; });
+  }
+  v3d.zoomTo();
+  v3d.render();
+  if (style !== 'surface') $('t3d').textContent = `${Math.round(performance.now() - t0)} ms`;
+  else $('t3d').textContent = 'computing surface…';
+  // note: paintHelixClasses may already have written here, so only the surface
+  // branch overwrites — the general clear happens at the top of this function
+  if (style === 'surface')
+    $('n3d').textContent = 'Surface is computed in the browser — note how long it takes on the bigger files.';
+}
+
+/* ---- ChemDoodle --------------------------------------------------------- */
+function renderCD(pdb, style, color) {
+  const holder = $('cdholder');
+  holder.innerHTML = '<canvas id="cdcanvas"></canvas>';
+  const w = holder.clientWidth, h = holder.clientHeight;
+  const t0 = performance.now();
+
+  const c = new ChemDoodle.TransformCanvas3D('cdcanvas', w, h);
+  c.styles.backgroundColor = 'white';
+  c.styles.atoms_displayLabels_3D = false;
+  c.styles.macro_showWater = false;
+  c.styles.proteins_ribbonCartoonize = true;
+
+  // 'none' leaves ChemDoodle's own per-secondary-structure ribbon colours in place
+  c.styles.proteins_residueColor = color === 'spectrum' ? 'rainbow'
+                                 : color === 'element'  ? 'shapely' : 'none';
+  c.styles.macro_colorByChain = (color === 'chain');
+
+  if (style === 'cartoon') {
+    c.styles.proteins_displayRibbon = true;
+    c.styles.nucleics_display = true;
+    c.styles.macro_displayBonds = false;   // ribbon only; ligands still drawn
+  } else {
+    c.styles.proteins_displayRibbon = false;
+    c.styles.macro_displayBonds = true;
+    c.styles.macro_atomToLigandDistance = -1;   // draw the whole macromolecule
+    c.styles.set3DRepresentation(style === 'sphere' ? 'van der Waals Spheres' : 'Stick');
+  }
+
+  c.loadMolecule(ChemDoodle.readPDB(pdb));
+  $('tcd').textContent = `${Math.round(performance.now() - t0)} ms`;
+  $('ncd').textContent = style === 'surface'
+    ? 'ChemDoodle Web has no molecular-surface renderer — showing its ribbon instead. This is a hard capability gap, not a setting.'
+    : (color === 'element' && style === 'cartoon'
+        ? 'Ribbons are coloured per chain/residue; element colouring only applies to drawn atoms.'
+        : '');
+}
+
+/* ---- driver ------------------------------------------------------------- */
+function draw() {
+  const id = $('pdb').value, style = $('style').value, color = $('color').value;
+  const shading = $('shading').value;   // 3Dmol only — ChemDoodle exposes no equivalent
+  $('status').textContent = `loading ${id}…`;
+  fetchPDB(id).then(raw => {
+    const atoms = raw.split('\n').filter(l => l.startsWith('ATOM') || l.startsWith('HETATM')).length;
+    // orient once, then hand the SAME coordinates to both viewers
+    const pdb = orientPDB(raw, $('orient').value);
+    $('status').textContent = `${id} — ${atoms} atom records`;
+    current = raw;
+    try { render3d(pdb, style, color, shading); } catch (e) { $('n3d').textContent = '3Dmol error: ' + e.message; }
+    try { renderCD(pdb, style === 'surface' ? 'cartoon' : style, color); }
+    catch (e) { $('ncd').textContent = 'ChemDoodle error: ' + e.message; }
+    if (style === 'surface') $('ncd').textContent =
+      'ChemDoodle Web has no molecular-surface renderer — showing its ribbon instead. This is a hard capability gap, not a setting.';
+  }).catch(e => { $('status').textContent = 'fetch failed: ' + e.message; });
+}
+
+['pdb', 'style', 'color', 'shading', 'orient'].forEach(id => $(id).addEventListener('change', draw));
+// the ChemDoodle canvas is sized in pixels at construction, so a resize means a rebuild
+window.addEventListener('resize', () => { if (current) draw(); });
+draw();
+</script>

@@ -40,7 +40,13 @@ const ALL = Object.keys(require(path.join(ROOT, 'lib-node.js')).MOLECULES);
 let fails = 0;
 const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
 
-for (const page of fs.readdirSync(ROOT).filter(f => f.endsWith('.html')).sort()) {
+// Pages that render deposited PDB structures through a third-party viewer
+// (RenderingLibraries.md). They touch none of the spec library — coordinates
+// come from pdb/*.pdb, not MolLib — so there is no molecule reference to check.
+// Their own assertions live in tools/check-pdb.js.
+const PDB_PAGES = new Set(['viewer-compare.html', 'protein-lab.html']);
+
+for (const page of fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && !PDB_PAGES.has(f)).sort()) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
   // Local scripts only, in page order; CDN Three is not our concern.
   const libs = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])
