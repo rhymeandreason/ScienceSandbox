@@ -161,7 +161,31 @@ if (fs.existsSync(VII)) {
   else if (formed !== 14) fail('1VII fold', `only ${formed}/14 H-bonds formed at the end`);
   else ok(`fold lands ${rmsd.toFixed(2)} A RMSD from deposited, all 14 H-bonds formed`);
 
-  /* CLAIM 5 — the COMMITTED trajectory is the one this solver produces.
+  /* CLAIM 5 — the atoms still fit on their bonds.
+     folding-lab draws in real angstroms and takes its display radii from the
+     house palette, divided by SCALE. That keeps its ball-and-stick proportions
+     identical to every other page — but it also means a change to
+     PALETTE.radii silently changes THIS page's geometry, and check-molecules
+     cannot catch it because this page has no spec in the registry. So apply
+     check-molecules' own rule here: two bonded spheres must not merge, or the
+     stick between them is buried inside the atoms and the bond renders as
+     nothing. */
+  const LIB = require('../lib-node.js');
+  const RAD = Object.fromEntries(['C','N','O','H']
+    .map(e => [e, LIB.PALETTE.radii[e] / LIB.SCALE]));
+  const I = FoldLib.IDEAL;
+  const BONDED = [['N','H',I.N_H], ['C','O',I.C_O], ['C','N',I.C_N],
+                  ['N','C',I.N_CA], ['C','C',I.CA_C]];
+  let merged = null, tightest = Infinity;
+  for (const [a, b, L] of BONDED) {
+    const clear = L - (RAD[a] + RAD[b]);
+    if (clear < tightest) { tightest = clear; }
+    if (clear <= 0) merged = `${a}-${b} at ${L.toFixed(3)} A vs radii summing ${(RAD[a]+RAD[b]).toFixed(3)}`;
+  }
+  if (merged) fail('1VII radii', `bonded spheres merge — ${merged}; the stick renders as nothing`);
+  else ok(`display radii clear every backbone bond (tightest ${tightest.toFixed(3)} A, N-H)`);
+
+  /* CLAIM 6 — the COMMITTED trajectory is the one this solver produces.
      folding-lab.html no longer folds anything: it plays pdb/1VII.fold.bin.
      That file is only trustworthy while it matches the code, and nothing
      about a stale one looks wrong — it animates a perfectly plausible fold

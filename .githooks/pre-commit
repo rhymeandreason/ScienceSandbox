@@ -80,7 +80,11 @@ fi
 # changed BOTH the solver and the baked trajectory — exactly the case the
 # staleness guard exists for. A stale trajectory cannot be seen from the
 # animation: it plays a plausible fold the current code would never produce.
-if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|folding\.js|tools/(check-pdb|bake-fold)\.js|pdb/.*\.(pdb|bin))$'; then
+# palette.js is here for the same reason from the other direction: folding-lab
+# derives its display radii from PALETTE.radii / SCALE, so a palette retune can
+# bury that page's bond sticks inside its atoms. check-molecules cannot catch
+# that one — the page has no spec in the registry for it to audit.
+if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|folding\.js|palette\.js|tools/(check-pdb|bake-fold)\.js|pdb/.*\.(pdb|bin))$'; then
   if ! node tools/check-pdb.js > /tmp/cq.$$ 2>&1; then
     tail -25 /tmp/cq.$$; rm -f /tmp/cq.$$
     echo ""

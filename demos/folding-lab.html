@@ -132,14 +132,23 @@ const PAL = MolLib.PALETTE;
 const CORE_RESIDUES = [47, 51, 58];        // the three phenylalanines
 const CORE_COLOR = 0xc2571b;
 
-/* Stick radius, in angstroms. NOT a free parameter: the rest of the sandbox
-   draws bonds at about 0.165x the radius of the atoms they join (0.14 stick
-   against a 0.85 carbon in PALETTE's display space), and this page's atoms
-   are real-angstrom-scaled to roughly a third of that size. Carrying the
-   house STICK width over to house-ratio-breaking ATOM radii is what made the
-   first cut read as pipes with beads on it — the ratio is the house look, not
-   either number on its own. */
-const STICK = FoldLib.RADII.C * 0.165;     // ≈0.056
+/* Display radii, in ANGSTROMS, derived from the house palette rather than
+   chosen here. Every other page draws in a space where 1 A = MolLib.SCALE
+   units, so PALETTE.radii are in those units; this page works in real
+   angstroms, and the conversion is the division. Doing it by hand is what
+   went wrong the first time: hand-picked radii came out 1.32x too small
+   against real bond lengths, which does not read as "small atoms" but as
+   "long bonds", and it also lost the palette's O > N > C ordering. Derived,
+   it cannot drift — retune PALETTE and this page follows.
+
+   These are display radii, not van der Waals radii, and they belong to the
+   PAGE: folding.js renders nothing and has no business holding them. */
+const RADII = {};
+for (const el of ['C', 'N', 'O', 'H']) RADII[el] = PAL.radii[el] / MolLib.SCALE;
+
+/* Bond radius is likewise the house ratio, not a free number: the sandbox
+   draws sticks at about 0.165x the radius of the atoms they join. */
+const STICK = RADII.C * 0.165;
 const CORE_STICK = STICK * 0.85;           // side chains a touch finer
 const PLAY_SECONDS = 15;                   // wall-clock length of one fold
 
@@ -158,7 +167,7 @@ const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(ca
      azimuth reintroduces the diagonal this page was fighting. */
   cam: { theta: 0, phi: 1.18, r: 46 }, phiMin: 0.3, phiMax: 2.7,
   rMin: 4, rMax: 200,
-  onDrag: () => { userSpun = true; frameAt(t); },
+  onDrag: () => { userSpun = true; },
   onZoom: () => { userZoom = true; } });
 const FXi = FX.create(THREE, root, camera);
 
@@ -213,7 +222,7 @@ function build() {
 
   parsed.nodes.forEach((nd, i) => {
     const col = isCore(i) ? CORE_COLOR : (PAL.atoms[nd.el] || 0x888888);
-    const m = Stage.atom(col, FoldLib.RADII[nd.el] || 0.3,
+    const m = Stage.atom(col, RADII[nd.el] || 0.3,
                          new THREE.Vector3(...nd.native), nd.el);
     m.userData.core = isCore(i);
     root.add(m); atomMeshes.push(m);
@@ -289,20 +298,36 @@ function build() {
    The reserves are in PIXELS because what they clear is HTML chrome: the
    caption card above and the transport below sit at fixed pixel offsets, so a
    world-space band would over-reserve when zoomed in and under-reserve when
-   zoomed out. */
+   zoomed out.
+
+   ROTATION DELIBERATELY DOES NOT REFIT. The fit depends on the camera basis,
+   so re-solving it while the student drags would change the distance as they
+   turn — and on a rod that is violent: a quarter turn about the vertical takes
+   the projected width from 64 A to about 2, so the camera lunges. Worse,
+   scene.js calls onDrag BEFORE it updates cam.theta/phi, so a refit from
+   there solves the previous angle and the distance trails the rotation by one
+   pointer event, which is what made it read as a random jolt rather than a
+   glide. Distance is driven by `t` alone: dragging turns the molecule and
+   nothing else. The next seek refits against whatever angle the student left
+   it at, so playback still frames correctly afterwards. */
 const RESERVE = { top: 118, intro: 172, bottom: 96 };
+const FIT_THETA = cam.theta, FIT_PHI = cam.phi;   // captured before any drag
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
-const MAX_R = 0.4;                         // biggest display radius, in angstroms
+const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in angstroms
 
 function frameFrom(P) {
   if (userZoom || !P) return;
   const h = canvas.clientHeight, w = canvas.clientWidth;
   if (!h || !w) return;
 
-  // camera basis: direction depends on theta/phi only, never on distance
-  _fwd.set(Math.sin(cam.phi) * Math.sin(cam.theta),
-           Math.cos(cam.phi),
-           Math.sin(cam.phi) * Math.cos(cam.theta)).normalize();
+  /* Fitted from the CANONICAL basis, not the live one, so cam.r is a pure
+     function of t. Using the live basis is what coupled rotation into
+     distance; see the note above. A student who turns the chain end-on now
+     simply sees it foreshortened, which is what turning it actually does,
+     instead of the camera chasing the projection. */
+  _fwd.set(Math.sin(FIT_PHI) * Math.sin(FIT_THETA),
+           Math.cos(FIT_PHI),
+           Math.sin(FIT_PHI) * Math.cos(FIT_THETA)).normalize();
   _right.crossVectors(_fwd, new THREE.Vector3(0, 1, 0));
   if (_right.lengthSq() < 1e-8) _right.set(1, 0, 0);     // camera straight overhead
   _right.normalize();

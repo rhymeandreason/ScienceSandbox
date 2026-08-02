@@ -46,12 +46,6 @@
 
 const FoldLib = (function () {
 
-  /* Backbone-only display radii, in angstroms. NOT MolLib.PALETTE.radii:
-     those are stylised for the SCALE=1.9 display space of the Three.js
-     lesson pages, and pasting them in here would draw atoms roughly twice
-     the size of the bonds joining them. */
-  const RADII = { N: 0.34, C: 0.34, O: 0.32, H: 0.19 };
-
   /* Ideal backbone internal coordinates for building the EXTENDED start
      state (Engh & Huber). Only the start state uses these; every later
      frame's geometry comes from the deposited file. */
@@ -723,7 +717,7 @@ const FoldLib = (function () {
   }
 
   return { parse, hbonds, extended, orient, Folder, SCHEDULE, encode, decode,
-           RADII, IDEAL, BAKE: { frames: 1100, keep: 6 },
+           IDEAL, BAKE: { frames: 1100, keep: 6 },
            _v3: v3, _place: place };
 })();
 

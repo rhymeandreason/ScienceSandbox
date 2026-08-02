@@ -95,8 +95,10 @@ lessons, because its chain moves every frame and its hydrogen-bond dashes are
 the lesson — neither of which ChemDoodle can do, and going that way would also
 pull the page into the GPL. So it loads `palette.js` + `molecules.js` for
 `PALETTE` alone and no `mol-*.js` at all: every coordinate is a real ångström
-off the PDB, never a `SCALE`d spec, and `FoldLib.RADII` exists precisely
-because `PALETTE.radii` is stylised for the ×1.9 display space. Its chemical
+off the PDB, never a `SCALE`d spec. Display radii are the house `PALETTE.radii`
+**divided by `SCALE`**, computed in the page — that is what keeps its
+ball-and-stick proportions identical to every other page, and `folding.js`
+deliberately holds no radii of its own since it renders nothing. Its chemical
 claims are asserted at the foot of `tools/check-pdb.js`.
 
 **The fold itself is precomputed and committed.** The page loads
@@ -125,7 +127,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
-| `folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE` | own header |
+| `folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing | own header |
 | `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** the webfonts, so no page carries a font `<link>` (only the two preconnect hints) | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
@@ -279,8 +281,8 @@ with `npm run hooks`; disable it with `git config --unset core.hooksPath`; skip
 it once with `git commit --no-verify`.
 
 Each one is gated on the files it can actually judge, so most commits run one
-or none. **`check-pdb` fires on `pdb.js`, `folding.js`, `tools/bake-fold.js`,
-`tools/check-pdb.js` and anything in `pdb/`** — the solver and the baked
+or none. **`check-pdb` fires on `pdb.js`, `folding.js`, `palette.js`,
+`tools/bake-fold.js`, `tools/check-pdb.js` and anything in `pdb/`** — the solver and the baked
 trajectory are in that list deliberately: it once fired only on `*.pdb` and so
 sat out a commit that changed both the solver and `pdb/1VII.fold.bin`, which is
 exactly the pair the staleness assertion exists to catch. Widen the pattern
