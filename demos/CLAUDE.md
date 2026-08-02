@@ -272,11 +272,20 @@ Layout — framing, spacing, rotation, captions — the human tests in the brows
 
 `tools/check-docs.js` audits what the docs *claim*
 
-**check-molecules and check-pages run automatically on commit.** `npm i` in `demos/`
-points `core.hooksPath` at `.githooks/`, whose `pre-commit` runs them whenever a
-commit touches `demos/`. Install or re-install it by hand with `npm run hooks`;
-disable it with `git config --unset core.hooksPath`; skip it once with
-`git commit --no-verify`.
+**check-molecules, check-pages and check-pdb run automatically on commit.**
+`npm i` in `demos/` points `core.hooksPath` at `.githooks/`, whose `pre-commit`
+runs them whenever a commit touches `demos/`. Install or re-install it by hand
+with `npm run hooks`; disable it with `git config --unset core.hooksPath`; skip
+it once with `git commit --no-verify`.
+
+Each one is gated on the files it can actually judge, so most commits run one
+or none. **`check-pdb` fires on `pdb.js`, `folding.js`, `tools/bake-fold.js`,
+`tools/check-pdb.js` and anything in `pdb/`** — the solver and the baked
+trajectory are in that list deliberately: it once fired only on `*.pdb` and so
+sat out a commit that changed both the solver and `pdb/1VII.fold.bin`, which is
+exactly the pair the staleness assertion exists to catch. Widen the pattern
+alongside any new derived artefact, because nothing about a stale one is
+visible from the page that plays it.
 
 
 
