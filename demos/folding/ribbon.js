@@ -100,9 +100,56 @@ const RibbonLib = (() => {
      can COUNT, which is the thing the ribbon is drawn for. */
   const PROFILE = {
     H: [1.30, 0.22],     // alpha helix — a flat band, 2.6 A x 0.44 A
-    E: [1.50, 0.22],     // beta strand — wider than a helix, same thinness
-    C: [0.32, 0.22],     // coil — the same band, narrowed to a cord
+    E: [1.60, 0.22],     // beta strand — wider than a helix, same thinness
+    /* Coil is a ROUND TUBE of this radius, so the second number is unused
+       and kept only so every entry has the same shape. A loop has no
+       orientation worth showing — a flat band there claims something the
+       structure does not say, and disappears to a line seen edge-on. */
+    C: [0.32, 0.32],     // coil — a cord, radius only
   };
+
+  /* The arrowhead on a beta strand's last residue, as half-widths.
+
+     WITHOUT THIS A STRAND IS NOT READABLE, and the first version shipped
+     without it on the reasoning that E is already wider than H. It is — by
+     1.23x, which on screen is nothing. A strand read as "a straight piece of
+     ribbon that might be slightly wider", indistinguishable at a glance from
+     a helix seen end-on, and a sheet read as a pile of loose bands.
+
+     The arrow is most of the signal, and it carries information the width
+     cannot: DIRECTION. Which way a strand runs is what makes a sheet
+     parallel or antiparallel, and that is the one thing a student is
+     supposed to be able to see in a beta sheet.
+
+     `head` is the barb, `tip` the point. The barb is a genuine
+     DISCONTINUITY — the band steps from body width to head width between
+     two samples, with no ramp. Easing it produces a lozenge rather than an
+     arrow, which is why the width interpolation below is deliberately
+     bypassed for the residue before the head.
+
+     TIP IS ZERO, AND IT HAS TO BE. It was 0.30 first, on the reasoning that
+     a zero-width ring is degenerate geometry. It is — the last ring
+     collapses and its cap has no area — but a degenerate triangle simply
+     does not rasterise, which costs nothing and is exactly what a point is.
+     What 0.30 bought instead was a 0.6 A stub across the end of a 4.9 A
+     barb: an arrow with its tip snipped off, which reads as a blunt flag
+     rather than something pointing.
+
+     Note the point is a knife EDGE, not a vertex: width goes to zero but
+     the 0.44 A thickness stays, so the head is a flat triangle seen from
+     above and a wedge from the side. That is what every viewer draws and
+     what makes the arrow still read when the sheet is edge-on.
+
+     `length` IS IN ANGSTROMS, MEASURED ALONG THE CURVE — not in residues,
+     which is what it was first. A residue is not a fixed distance along the
+     drawn path: the spline stretches where the chain turns, and a strand's
+     last residues are exactly where it starts bending into a loop. So a
+     "two-residue" head came out a different physical size on every strand,
+     and on the ones running into a tight turn it stretched into a long
+     dart. An arrowhead is a glyph. It should be the same size everywhere,
+     like a font's arrow, and 6.0 A against a 4.9 A barb is the proportion
+     that reads as one. */
+  const ARROW = { head: 2.45, tip: 0, length: 6.0 };
 
   const SUB = 10;        // interpolated samples per residue
 
@@ -343,18 +390,47 @@ const RibbonLib = (() => {
      turn and the next. folding/tools/check-folding.js pins the retention
      between 40% and 80% so neither extreme can come back unnoticed.
 
-     Coil is never smoothed: a loop's wiggle IS its shape, and rounding it
-     off would quietly straighten the parts of the chain the model is least
-     sure about. Residues at a run's boundary get half weight so the join
-     into coil has no kink. */
+     A STRAND NEEDS A COMPLETELY DIFFERENT WEIGHT, and using one number for
+     both is why the first sheets came out lumpy — a row of caterpillars
+     rather than flat bands.
+
+     The arithmetic above is per-geometry, and a beta strand is not a helix.
+     Its Ca alternate about 0.9 A either side of the strand's mean plane —
+     the PLEAT, 180 degrees per residue, not 100 — so the same formula gives
+     |1 - w(1 - cos 180)| = |1 - 2w|:
+
+         w = 0.20  ->  60% of the pleat survives   (visibly bumpy)
+         w = 0.50  ->  0%                          (exactly flat)
+
+     0.50 annihilates it, exactly, because cos 180 is -1. And that is the
+     RIGHT thing to do here where it would be vandalism on a helix, because
+     the two features are not the same kind of thing. A helix's coil IS its
+     shape and a cartoon that flattens it has drawn a different diagram. A
+     strand's pleat is a side-chain alternation that no cartoon has ever
+     drawn — every viewer renders a strand as a flat band, and the pleat is
+     precisely the noise that has to go for the band to read flat.
+
+     Hence a weight per secondary structure rather than one number.
+
+     Coil stays at zero: a loop's wiggle IS its shape, and rounding it off
+     would quietly straighten the parts of the chain the model is least sure
+     about. Residues at a run's boundary get half weight so the join into
+     coil has no kink. */
+  const SMOOTH_W = { H: 0.20, E: 0.50, C: 0 };
+  /* `w` is either a single number (every structure smoothed the same, which
+     is what the checker uses to measure one geometry at a time) or a table
+     keyed by SS code. Default is the table — see SMOOTH_W above for why one
+     number cannot serve a helix and a strand at once. */
   function smooth(P, ss, passes, w) {
+    const table = (w == null) ? SMOOTH_W : w;
+    const weight = c => (typeof table === 'number' ? table : (table[c] || 0));
     let cur = P.map(p => p.slice());
     for (let it = 0; it < passes; it++) {
       const next = cur.map(p => p.slice());
       for (let i = 1; i + 1 < cur.length; i++) {
         if ((ss[i] || 'C') === 'C') continue;
         const edge = ss[i - 1] !== ss[i] || ss[i + 1] !== ss[i];
-        const k = w * (edge ? 0.5 : 1);
+        const k = weight(ss[i]) * (edge ? 0.5 : 1);
         for (let c = 0; c < 3; c++) {
           const mid = (cur[i - 1][c] + cur[i + 1][c]) / 2;
           next[i][c] = cur[i][c] + (mid - cur[i][c]) * k;
@@ -377,9 +453,39 @@ const RibbonLib = (() => {
      unsmoothed Ca keeps it well-conditioned no matter how hard the path is
      smoothed, because the real helix always curves hard.
 
-     `path` defaults to `pts`, so callers that do not smooth are unaffected. */
-  function frames(pts, path) {
+     `path` defaults to `pts`, so callers that do not smooth are unaffected.
+
+     ---------------------------------------------------------------------
+     SIGN CONTINUITY IS FOR STRANDS AND LOOPS, NEVER FOR HELICES
+     ---------------------------------------------------------------------
+     `ss` decides whether the usual `if (dot(n, prev) < 0) n = -n` runs at a
+     given residue, and both answers are wrong everywhere except where they
+     belong. This file has now shipped each mistake once.
+
+     ON A HELIX IT MUST NOT RUN. The frame genuinely advances 100 degrees
+     per residue, cos(100) is negative, and the guard cannot tell that from
+     a spurious 180-degree flip. It fired on every residue, the step became
+     180 - 100 = 80, and the band alternated instead of rotating — each turn
+     flaring open and shut like a cone.
+
+     ON A STRAND IT MUST. A beta strand is PLEATED: the Ca alternate about
+     0.9 A either side of the strand's mean plane, so the bisector points
+     first one way and then the other, a true 180 degrees per residue.
+     Measured on the bench, exactly 180. Without the guard the ribbon face
+     reverses at every residue and the band rolls along its own length.
+
+     The two cases look identical in the code and are opposite in fact,
+     which is why this takes `ss` rather than a global policy. A helix's
+     frame really does turn; a strand's alternation is really an artefact.
+     Coil follows the strand rule: its curvature is well conditioned and
+     varies slowly, so continuity is what it wants too.
+
+     Unknown/absent `ss` is treated as coil, i.e. the guard runs. That is
+     the safe default — a caller who forgets to pass `ss` gets a slightly
+     over-constrained loop rather than a silently shredded strand. */
+  function frames(pts, path, ss) {
     path = path || pts;
+    ss = ss || [];
     const n = pts.length;
     const out = [];
     let prev = null;
@@ -402,26 +508,12 @@ const RibbonLib = (() => {
       /* Orthogonalise against the tangent, then keep the sign continuous. */
       const proj = dot(nrm, t);
       nrm = norm([nrm[0] - t[0]*proj, nrm[1] - t[1]*proj, nrm[2] - t[2]*proj]);
-      /* NO SIGN-CONTINUITY FLIP HERE. There used to be one —
-             if (dot(nrm, prev) < 0) nrm = -nrm;
-         — and on a helix it fires on EVERY residue and is the single reason
-         the band curled into cups instead of wrapping.
-
-         That guard assumes the frame turns less than 90 degrees per step,
-         so a reversal must be spurious. An alpha helix advances 100 degrees
-         per residue, cos(100) is negative, and the test cannot tell a real
-         100-degree rotation from a spurious 180-degree flip. It "corrected"
-         every one: the measured step became 180 - 100 = 80 degrees and the
-         frame ALTERNATED about the axis rather than rotating around it, so
-         each turn of the ribbon flared open and closed like a cone.
-
-         It is only needed for a normal with a genuine sign ambiguity, which
-         is what the binormal this used to compute had. The bisector has
-         none — it always points at the local centre of curvature, so its
-         direction is determined, and forcing continuity onto something
-         already continuous can only corrupt it. The degenerate case is
-         handled above by inheriting `prev`, which is the only place a
-         previous frame legitimately gets a say. */
+      /* Sign continuity — everywhere EXCEPT a helix. See the header above:
+         a helix's frame really turns 100 degrees per residue and must not
+         be "corrected"; a strand's pleat really does alternate 180 and must
+         be. */
+      if (prev && (ss[i] || 'C') !== 'H' && dot(nrm, prev) < 0)
+        nrm = [-nrm[0], -nrm[1], -nrm[2]];
       prev = nrm;
       out.push({ t, n: nrm });
     }
@@ -435,7 +527,8 @@ const RibbonLib = (() => {
        ss      per-point 'H' | 'E' | 'C'
        opts    { coil }    the coil's half-width, so a page can make its
                           loops exactly as thick as the tube they replace
-               { smooth } guide-point smoothing weight, default 0.20
+               { smooth } guide-point smoothing weight — a number for all
+                          structures, or a table by SS code; default SMOOTH_W
                { passes } smoothing passes, default 1; 0 disables it
                { sub }    samples per residue, default SUB (10)
 
@@ -496,13 +589,14 @@ const RibbonLib = (() => {
 
     const P = points.map(p => [p.x, p.y, p.z]);
     const passes = (opts && opts.passes != null) ? opts.passes : 1;
-    const w = (opts && opts.smooth != null) ? opts.smooth : 0.20;
+    const w = (opts && opts.smooth != null) ? opts.smooth : SMOOTH_W;
     const SM = passes > 0 ? smooth(P, ss, passes, w) : P;
-    const F = frames(P, SM);
-    const prof = i => {
-      const c = ss[i] || 'C';
-      return c === 'C' ? [coil, PROFILE.C[1]] : PROFILE[c] || [coil, PROFILE.C[1]];
-    };
+    const F = frames(P, SM, ss);
+
+    /* Arrowheads sit at the end of every strand run, pointing the way the
+       chain runs — N to C. Their geometry is built in strandPlan() below,
+       sized in angstroms rather than residues; ARROW carries the constants
+       and the reasoning. */
 
     const pos = [], nor = [], idx = [];
     const samples = [];
@@ -555,7 +649,8 @@ const RibbonLib = (() => {
       const u = s / total;
       const f = s / step;
       const i0 = Math.min(n - 1, Math.floor(f)), i1 = Math.min(n - 1, i0 + 1);
-      const t = smoothstep(f - i0);
+      const raw = f - i0;                 // the arrow taper is linear, not eased
+      const t = smoothstep(raw);
       const cp = curve.getPoint(u), ep = edge.getPoint(u);
       const tan = norm([...curve.getTangent(u).toArray()]);
 
@@ -571,58 +666,206 @@ const RibbonLib = (() => {
       const nrm = norm(cross(side, tan));
       prevN = nrm;
 
-      const w0 = prof(i0), w1 = prof(i1);
-      samples.push({
-        p: [cp.x, cp.y, cp.z], n: nrm, s: side,
-        w: w0[0] + (w1[0] - w0[0]) * t,
-        h: w0[1] + (w1[1] - w0[1]) * t,
-      });
+      /* Width belongs to the element, not to the sample, so it is resolved
+         per run below. Only the frame is global. */
+      void t; void i1;
+      samples.push({ p: [cp.x, cp.y, cp.z], n: nrm, s: side, i: i0, raw });
     }
 
-    for (const S of samples) {
-      const side = S.s;
-      const N = S.n, W = S.w, H = S.h;
-      const c = [
-        [S.p[0] + side[0]*W + N[0]*H, S.p[1] + side[1]*W + N[1]*H, S.p[2] + side[2]*W + N[2]*H],
-        [S.p[0] - side[0]*W + N[0]*H, S.p[1] - side[1]*W + N[1]*H, S.p[2] - side[2]*W + N[2]*H],
-        [S.p[0] - side[0]*W - N[0]*H, S.p[1] - side[1]*W - N[1]*H, S.p[2] - side[2]*W - N[2]*H],
-        [S.p[0] + side[0]*W - N[0]*H, S.p[1] + side[1]*W - N[1]*H, S.p[2] + side[2]*W - N[2]*H],
-      ];
-      const negN = [-N[0], -N[1], -N[2]], negS = [-side[0], -side[1], -side[2]];
-      /* face order: top(+N) left(-side) bottom(-N) right(+side) */
-      const ring = [[c[0], N], [c[1], N], [c[1], negS], [c[2], negS],
-                    [c[2], negN], [c[3], negN], [c[3], side], [c[0], side]];
-      for (const [v, nv] of ring) { pos.push(v[0], v[1], v[2]); nor.push(nv[0], nv[1], nv[2]); }
+    /* ---------------------------------------------------------------
+       ONE PIECE PER ELEMENT, BUTTED — not one band that morphs
+       ---------------------------------------------------------------
+       This used to be a single continuous tube whose cross-section was
+       interpolated from coil into helix and back. It is the obvious
+       construction and it looks wrong at exactly the place a cartoon is
+       read: the join. A 0.64 A cord easing into a 2.6 A band over one
+       residue is a short twisted funnel, and with four flat faces it
+       catches the light as a crease. Every helix and every strand had two
+       of them.
+
+       Mol* and PyMOL do not morph. Each secondary-structure element is its
+       own piece with its own constant cross-section, and the coil is a
+       separate ROUND tube that simply meets it. The join reads as one thing
+       ending and another starting, which is what it is, and the eye stops
+       looking at it.
+
+       Two consequences worth keeping straight:
+
+       - The frame is still solved over the WHOLE chain, above. Only the
+         geometry is split. Solving each element separately would let the
+         twist restart at every boundary, which is a worse artefact than the
+         funnel it replaces.
+
+       - Runs meet at the MIDPOINT of the boundary bond — run [a..b] owns
+         samples from (a-0.5) to (b+0.5) residues — so consecutive pieces
+         share a sample position exactly and there is neither a gap nor an
+         overlap to z-fight.
+
+       Coil being round is the other half of it. A loop has no orientation
+       worth showing, so a flat band there is claiming something the
+       structure does not say, and its edge-on view vanishes to a line. A
+       tube reads the same from every angle, which is what you want for the
+       part of the chain that is just getting from one element to the next. */
+    const runs = [];
+    for (let i = 0; i < n; ) {
+      let j = i;
+      while (j + 1 < n && (ss[j+1] || 'C') === (ss[i] || 'C')) j++;
+      runs.push({ a: i, b: j, code: ss[i] || 'C' });
+      i = j + 1;
     }
 
-    for (let s = 0; s + 1 < samples.length; s++) {
-      const a = s * 8, b = (s + 1) * 8;
-      for (let f = 0; f < 4; f++) {
-        const a0 = a + f*2, a1 = a + f*2 + 1, b0 = b + f*2, b1 = b + f*2 + 1;
-        idx.push(a0, b0, b1, a0, b1, a1);
+    const meta = [];
+    const TUBE_SIDES = 8;
+
+    /* The ring plan for a strand: body, then a barb, then a straight taper
+       to the point. Measured in ANGSTROMS ALONG THE CURVE, backwards from
+       the run's drawn end.
+
+       WHY ARC LENGTH AND NOT RESIDUES. A residue is not a fixed distance
+       along the drawn path — the spline stretches through a turn, and a
+       strand's last residues are precisely where it starts bending into
+       one. Sizing the head in residues therefore made it a different
+       physical size on every strand, longest on exactly the strands whose
+       ends curve most, which is what turned some heads into long darts.
+
+       THE BARB IS TWO RINGS AT ONE POSITION. Stepping the width between two
+       ADJACENT samples still leaves a shoulder slanted by however far apart
+       those samples are — at 10 per residue that is 0.33 A of run against
+       0.73 A of rise per side, so the corner came out at roughly 25 degrees
+       off square and read as a swept-back dart rather than an arrow.
+       Emitting the body ring and the head ring at the SAME sample makes the
+       connecting quad zero-length, so the shoulder is exactly perpendicular
+       to the band and the corner is a true 90 degrees.
+
+       The taper is linear, not smoothstepped: easing it gives the arrow
+       curved sides, which reads as a leaf. */
+    const strandPlan = (s0, s1) => {
+      /* Arc length from the run's start to each sample. */
+      const arc = [0];
+      for (let s = s0 + 1; s <= s1; s++)
+        arc.push(arc[arc.length - 1] + len(sub(samples[s].p, samples[s-1].p)));
+      const total = arc[arc.length - 1];
+      /* Never let the head eat the whole strand — a triangle with no shaft
+         behind it does not say which way it came from. */
+      const headLen = Math.min(ARROW.length, total * 0.6);
+      const barbAt = total - headLen;
+
+      const plan = [];
+      let barbed = false;
+      for (let k = 0; k <= s1 - s0; k++) {
+        const S = samples[s0 + k], a = arc[k];
+        if (a < barbAt) { plan.push({ S, w: PROFILE.E[0] }); continue; }
+        if (!barbed) {
+          barbed = true;
+          /* Square shoulder: body width and head width at one position. */
+          plan.push({ S, w: PROFILE.E[0] });
+          plan.push({ S, w: ARROW.head });
+        }
+        const u = headLen > 0 ? Math.min(1, (a - barbAt) / headLen) : 1;
+        plan.push({ S, w: ARROW.head + (ARROW.tip - ARROW.head) * u });
       }
-    }
-
-    /* Flat caps, so an end reads as cut rather than hollow.
-
-       The ring lays down each corner twice, once per adjoining face, so the
-       cap has to pick one copy of each: c0 c1 c2 c3 live at +0 +1 +3 +5.
-       (+7 is c0's second copy, not c3 — using it drew a degenerate quad,
-       i.e. no cap at all, which is invisible until an end faces the
-       camera.) */
-    const capAt = (s, flip) => {
-      const base = s * 8;
-      const q = [base + 0, base + 1, base + 3, base + 5];   // c0 c1 c2 c3
-      if (flip) idx.push(q[0], q[2], q[1], q[0], q[3], q[2]);
-      else idx.push(q[0], q[1], q[2], q[0], q[2], q[3]);
+      return plan;
     };
-    capAt(0, true);
-    capAt(samples.length - 1, false);
+
+    /* `plan` is a list of {S, w} — a sample and the half-width to use there.
+       It is a list rather than a width function of the sample because the
+       arrowhead's barb needs TWO rings at the SAME sample, one at body
+       width and one at head width, and no per-sample function can express
+       that. See the barb note in the strand plan below. */
+    const emitBand = (plan, half) => {
+      const base = pos.length / 3;
+      for (const { S, w } of plan) {
+        const side = S.s, N = S.n;
+        const W = w, H = half;
+        const c = [
+          [S.p[0] + side[0]*W + N[0]*H, S.p[1] + side[1]*W + N[1]*H, S.p[2] + side[2]*W + N[2]*H],
+          [S.p[0] - side[0]*W + N[0]*H, S.p[1] - side[1]*W + N[1]*H, S.p[2] - side[2]*W + N[2]*H],
+          [S.p[0] - side[0]*W - N[0]*H, S.p[1] - side[1]*W - N[1]*H, S.p[2] - side[2]*W - N[2]*H],
+          [S.p[0] + side[0]*W - N[0]*H, S.p[1] + side[1]*W - N[1]*H, S.p[2] + side[2]*W - N[2]*H],
+        ];
+        const negN = [-N[0], -N[1], -N[2]], negS = [-side[0], -side[1], -side[2]];
+        /* face order: top(+N) left(-side) bottom(-N) right(+side); corners
+           duplicated per face so the edges shade crisply instead of
+           smearing round them. */
+        const ring = [[c[0], N], [c[1], N], [c[1], negS], [c[2], negS],
+                      [c[2], negN], [c[3], negN], [c[3], side], [c[0], side]];
+        for (const [v, nv] of ring) { pos.push(v[0], v[1], v[2]); nor.push(nv[0], nv[1], nv[2]); }
+      }
+      const rings = plan.length - 1;
+      for (let k = 0; k < rings; k++) {
+        const a = base + k*8, b = base + (k+1)*8;
+        for (let f = 0; f < 4; f++) {
+          const a0 = a + f*2, a1 = a + f*2 + 1, b0 = b + f*2, b1 = b + f*2 + 1;
+          idx.push(a0, b0, b1, a0, b1, a1);
+        }
+      }
+      /* Flat caps. The ring lays each corner down twice, once per adjoining
+         face, so a cap has to pick one copy of each: c0 c1 c2 c3 live at
+         +0 +1 +3 +5. (+7 is c0's second copy — using it drew a degenerate
+         quad, i.e. no cap, invisible until an end faced the camera.) */
+      const cap = (ringBase, flip) => {
+        const q = [ringBase, ringBase + 1, ringBase + 3, ringBase + 5];
+        if (flip) idx.push(q[0], q[2], q[1], q[0], q[3], q[2]);
+        else idx.push(q[0], q[1], q[2], q[0], q[2], q[3]);
+      };
+      cap(base, true);
+      cap(base + rings*8, false);
+    };
+
+    const emitTube = (s0, s1, radius) => {
+      const base = pos.length / 3;
+      for (let s = s0; s <= s1; s++) {
+        const S = samples[s], side = S.s, N = S.n;
+        for (let k = 0; k < TUBE_SIDES; k++) {
+          const a = 2 * Math.PI * k / TUBE_SIDES;
+          const ca = Math.cos(a), sa = Math.sin(a);
+          const nv = [side[0]*ca + N[0]*sa, side[1]*ca + N[1]*sa, side[2]*ca + N[2]*sa];
+          pos.push(S.p[0] + nv[0]*radius, S.p[1] + nv[1]*radius, S.p[2] + nv[2]*radius);
+          nor.push(nv[0], nv[1], nv[2]);   // smooth around the tube, no duplication
+        }
+      }
+      const rings = s1 - s0;
+      for (let r = 0; r < rings; r++) {
+        for (let k = 0; k < TUBE_SIDES; k++) {
+          const k2 = (k + 1) % TUBE_SIDES;
+          const a0 = base + r*TUBE_SIDES + k,  a1 = base + r*TUBE_SIDES + k2;
+          const b0 = a0 + TUBE_SIDES,          b1 = a1 + TUBE_SIDES;
+          idx.push(a0, b0, b1, a0, b1, a1);
+        }
+      }
+      for (const [ringBase, flip] of [[base, true], [base + rings*TUBE_SIDES, false]])
+        for (let k = 1; k + 1 < TUBE_SIDES; k++)
+          flip ? idx.push(ringBase, ringBase + k + 1, ringBase + k)
+               : idx.push(ringBase, ringBase + k, ringBase + k + 1);
+    };
+
+    for (const r of runs) {
+      const s0 = Math.max(0, Math.round((r.a - 0.5) * step));
+      const s1 = Math.min(total, Math.round((r.b + 0.5) * step));
+      if (s1 <= s0) continue;
+      const from = idx.length;
+      if (r.code === 'H') {
+        const plan = [];
+        for (let s = s0; s <= s1; s++) plan.push({ S: samples[s], w: PROFILE.H[0] });
+        emitBand(plan, PROFILE.H[1]);
+      }
+      else if (r.code === 'E') emitBand(strandPlan(s0, s1), PROFILE.E[1]);
+      else emitTube(s0, s1, coil);
+      meta.push({ ss: r.code, from: r.a, to: r.b,
+                  indexStart: from, indexCount: idx.length - from });
+    }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     geo.setIndex(idx);
+    /* Which index range belongs to which element, so a caller can colour by
+       secondary structure without re-deriving it — and, more importantly,
+       without slicing the chain and calling build() per element, which
+       re-runs the arrowhead logic on every slice and draws duplicate heads. */
+    geo.userData.runs = meta;
+    for (const m of meta) geo.addGroup(m.indexStart, m.indexCount,
+      m.ss === 'H' ? 1 : m.ss === 'E' ? 2 : 0);
     geo.computeBoundingSphere();
     return geo;
   }
@@ -638,7 +881,7 @@ const RibbonLib = (() => {
   const HP35_HELICES = [[794, 798], [805, 808], [813, 822]];
 
   return { build, assign, detect, dssp, parseBackbone, frames, smooth,
-           PROFILE, HP35_HELICES, HP35_OFFSET };
+           PROFILE, ARROW, SMOOTH_W, HP35_HELICES, HP35_OFFSET };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = RibbonLib;

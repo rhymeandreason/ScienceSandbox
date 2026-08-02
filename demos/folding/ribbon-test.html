@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ribbon.js — beta sheet test bench</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere, delete with
+     folding-lab-ribbon.html when that evaluation is decided.
+
+     WHY THIS EXISTS. Beta strands are the hardest part of ribbon.js to
+     judge inside folding-lab-ribbon.html: villin's sheets sit in the
+     middle of an 826-residue tangle at 10 nm, mutually occluded and two
+     pixels wide, so "the arrows do not read" and "the arrows are wrong"
+     look identical on that page. Every geometric bug this file has had —
+     the binormal frame, the alternating sign, the scalloped curve — was
+     found by isolating the thing and measuring it, not by looking at the
+     lesson.
+
+     WHAT IT SEPARATES. Two independent things can make a sheet wrong:
+
+       1. ASSIGNMENT — dssp() saying the wrong residues are strand.
+       2. RENDERING  — build() drawing a correct assignment badly.
+
+     The synthetic modes have hand-set secondary structure, so nothing DSSP
+     does can reach them: what you see is purely (2). The villin mode runs
+     the real path end to end, so a disagreement between the two isolates
+     (1). Debug in that order.
+
+     The synthetic sheet is IDEALISED GEOMETRY, not a structure. Real
+     antiparallel sheet: 3.3 A rise per residue along a strand, 4.8 A
+     between strands, and a 0.9 A pleat alternating side to side, which is
+     what makes a beta sheet "pleated" and what gives the ribbon something
+     to twist along. It is a fair test of the renderer and it is not a
+     claim about any protein, which is why it is here and not in a lesson.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  #app{grid-template-columns:1fr 300px}
+  #stage{position:relative}
+  canvas{width:100%;height:100%;display:block}
+  /* sandbox.css's .panel expects the lesson pages' own chrome; on its own
+     it inherits a dark fill and the text vanishes. This page is scratch and
+     does not need that chrome, so it states its own. */
+  .panel{padding:14px 16px;overflow-y:auto;font-family:var(--font-sans);font-size:13px;
+    background:var(--paper,#f4ede2);color:#2c2a26;border-left:1.5px solid var(--hair,#d9d0c2)}
+  .panel h2{font-family:var(--font-hand);font-size:17px;margin:0 0 4px}
+  .panel h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a8175;
+    margin:16px 0 6px;font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .row label{flex:1;color:#4a453d}
+  .row input[type=range]{width:120px}
+  .val{font-variant-numeric:tabular-nums;color:#0042aa;min-width:34px;text-align:right;font-weight:600}
+  button.mode{display:block;width:100%;text-align:left;margin:3px 0;padding:7px 10px;
+    border:1.5px solid var(--hair);border-radius:7px;background:#fff;cursor:pointer;
+    font-family:var(--font-sans);font-size:12.5px}
+  button.mode[aria-current=true]{border-color:#0042aa;box-shadow:0 0 0 2px rgba(0,66,170,.15);font-weight:600}
+  .ss{font-family:var(--font-mono,monospace);font-size:11px;line-height:1.5;word-break:break-all;
+    background:#fff;border:1px solid var(--hair);border-radius:6px;padding:7px}
+  .ss b{color:#c2571b}          /* E */
+  .ss i{color:#0042aa;font-style:normal}  /* H */
+  .ss span{color:#b8b0a4}       /* C */
+  .stat{display:flex;justify-content:space-between;padding:2px 0;color:#4a453d}
+  .stat b{font-variant-numeric:tabular-nums}
+  .note{color:#8a8175;font-size:11.5px;line-height:1.45;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div class="panel">
+    <h2>β-sheet test bench</h2>
+    <div class="note">Scratch page for <code>folding/ribbon.js</code>. Drag to orbit, wheel to zoom.</div>
+
+    <h3>subject</h3>
+    <button class="mode" data-mode="sheet">Synthetic 4-strand sheet<br><span style="color:#8a8175">antiparallel, hand-set SS — tests rendering only</span></button>
+    <button class="mode" data-mode="strand">One strand, isolated<br><span style="color:#8a8175">the arrow with nothing else in the way</span></button>
+    <button class="mode" data-mode="mixed">Strand → helix → strand<br><span style="color:#8a8175">do the three profiles read apart?</span></button>
+    <button class="mode" data-mode="villin">Villin sheet (real DSSP)<br><span style="color:#8a8175">the actual path the lesson uses</span></button>
+
+    <h3>geometry</h3>
+    <div class="row"><label>samples / residue</label><input type="range" id="sub" min="2" max="16" value="10"><span class="val" id="subv">10</span></div>
+    <!-- Off by default so the bench shows what the LESSON shows. The
+         override is one weight for every structure, which is exactly the
+         mistake that made the first sheets lumpy — a helix and a strand
+         need different weights — so it is worth being able to reproduce
+         it here on purpose. -->
+    <div class="row"><label><input type="checkbox" id="smon"> override smoothing</label></div>
+    <div class="row"><label>&nbsp;&nbsp;weight (all SS)</label><input type="range" id="sm" min="0" max="60" value="20"><span class="val" id="smv">0.20</span></div>
+    <div class="row"><label><input type="checkbox" id="wire"> wireframe</label></div>
+    <div class="row"><label><input type="checkbox" id="cas"> show Cα</label></div>
+    <div class="row"><label><input type="checkbox" id="spin" checked> spin</label></div>
+
+    <h3>what is drawn</h3>
+    <div class="ss" id="ssout"></div>
+    <div style="margin-top:8px">
+      <div class="stat"><span>residues</span><b id="nres">–</b></div>
+      <div class="stat"><span>strand runs (arrows)</span><b id="nE">–</b></div>
+      <div class="stat"><span>helix runs</span><b id="nH">–</b></div>
+      <div class="stat"><span>triangles</span><b id="ntri">–</b></div>
+    </div>
+
+    <h3>profile, in ångströms</h3>
+    <div class="ss" id="prof"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="ribbon.js"></script>
+<script>
+'use strict';
+
+const {scene, camera, renderer, root, cam, applyCam} =
+  Stage.create(document.getElementById('cv'), {rMin:8, rMax:400, cam:{theta:0.6, phi:1.25, r:60}});
+
+const COL = {E:0xc2571b, H:0x0042aa, C:0x7d8c7a};
+
+/* ---------- synthetic geometry ----------
+
+   Idealised beta strand: the chain advances 3.3 A per residue and the Ca
+   alternate 0.9 A either side of the strand's mean plane. That pleat is not
+   decoration — it is what a real sheet does, and it is what gives the
+   ribbon's frame something to derive a twist from. A perfectly flat strand
+   is a degenerate case (three collinear Ca, zero curvature) and would test
+   the frame's fallback path rather than its normal one. */
+function strand(n, origin, dir, side, pleat) {
+  const p = [];
+  for (let i = 0; i < n; i++) {
+    const s = (i % 2 ? 1 : -1) * pleat;
+    p.push(new THREE.Vector3(
+      origin.x + dir.x * 3.3 * i + side.x * s,
+      origin.y + dir.y * 3.3 * i + side.y * s,
+      origin.z + dir.z * 3.3 * i + side.z * s));
+  }
+  return p;
+}
+
+/* A hairpin turn between two antiparallel strands: three residues swinging
+   round the end. Kept crude on purpose — the turn is not what is under
+   test, it just has to be a plausible loop so the arrow has something to
+   end into. */
+function turn(from, to) {
+  const mid = from.clone().add(to).multiplyScalar(0.5);
+  const out = to.clone().sub(from).length();
+  const n = new THREE.Vector3(0, 0, 1).cross(to.clone().sub(from)).normalize();
+  return [
+    from.clone().lerp(mid, 0.45).add(n.clone().multiplyScalar(out * 0.30)),
+    mid.clone().add(n.clone().multiplyScalar(out * 0.42)),
+    to.clone().lerp(mid, 0.45).add(n.clone().multiplyScalar(out * 0.30)),
+  ];
+}
+
+function buildSheet(nStrands, len) {
+  const pts = [], ss = [];
+  const dir = new THREE.Vector3(1, 0, 0), side = new THREE.Vector3(0, 0, 1);
+  for (let s = 0; s < nStrands; s++) {
+    const d = s % 2 ? dir.clone().negate() : dir.clone();
+    const x0 = s % 2 ? (len - 1) * 3.3 : 0;
+    const sp = strand(len, new THREE.Vector3(x0, s * 4.8, 0), d, side, 0.9);
+    if (s > 0) turn(pts[pts.length - 1], sp[0]).forEach(p => { pts.push(p); ss.push('C'); });
+    sp.forEach(p => { pts.push(p); ss.push('E'); });
+  }
+  return {pts, ss};
+}
+
+function subject(mode) {
+  if (mode === 'strand') {
+    const p = strand(9, new THREE.Vector3(0,0,0), new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,1), 0.9);
+    const pts = [], ss = [];
+    // a little coil either side, so the entry ramp and the point both show
+    for (let i = 3; i > 0; i--) { pts.push(new THREE.Vector3(-3.6*i, i*0.8, 0)); ss.push('C'); }
+    p.forEach(q => { pts.push(q); ss.push('E'); });
+    for (let i = 1; i <= 3; i++) { pts.push(new THREE.Vector3((9-1)*3.3 + 3.6*i, i*0.8, 0)); ss.push('C'); }
+    return {pts, ss};
+  }
+  if (mode === 'sheet') return buildSheet(4, 8);
+  if (mode === 'mixed') {
+    const pts = [], ss = [];
+    strand(7, new THREE.Vector3(0,0,0), new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,1), 0.9)
+      .forEach(p => { pts.push(p); ss.push('E'); });
+    for (let i = 1; i <= 3; i++) { pts.push(new THREE.Vector3(20 + i*3, -2 - i, 2)); ss.push('C'); }
+    // ideal alpha helix, 2.3 A radius, 100 deg/residue, 1.5 A rise, running +x
+    for (let i = 0; i < 16; i++) {
+      const a = i * 100 * Math.PI/180;
+      pts.push(new THREE.Vector3(30 + 1.5*i, -6 + 2.3*Math.cos(a), 2 + 2.3*Math.sin(a)));
+      ss.push('H');
+    }
+    for (let i = 1; i <= 3; i++) { pts.push(new THREE.Vector3(54 + i*3, -6 - i, 2)); ss.push('C'); }
+    strand(7, new THREE.Vector3(66,-10,2), new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,1), 0.9)
+      .forEach(p => { pts.push(p); ss.push('E'); });
+    return {pts, ss};
+  }
+  return null;   // villin — async, handled by the caller
+}
+
+/* ---------- villin, through the real path ---------- */
+let villinCache = null;
+async function villinSubject() {
+  if (!villinCache) {
+    const txt = await (await fetch('data/AF-P02640-villin.pdb')).text();
+    const bb = RibbonLib.parseBackbone(txt);
+    villinCache = {bb, ss: RibbonLib.dssp(bb)};
+  }
+  /* Repeat 2 (residues 130-242) is the sheet-richest single domain that
+     still fits on screen — one gelsolin fold, so the strands belong to one
+     sheet rather than several stacked in front of each other. */
+  const {bb, ss} = villinCache;
+  const pts = [], out = [];
+  bb.nums.forEach((num, i) => {
+    if (num < 130 || num > 242) return;
+    pts.push(new THREE.Vector3(...bb.CA[i]));
+    out.push(ss[i]);
+  });
+  return {pts, ss: out};
+}
+
+/* ---------- draw ---------- */
+let group = null, mode = 'sheet';
+
+function runs(ss, code) {
+  let n = 0;
+  for (let i = 0; i < ss.length; i++) if (ss[i] === code && ss[i+1] !== code) n++;
+  return n;
+}
+
+function draw(sub) {
+  if (group) { root.remove(group); group.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }
+  group = new THREE.Group(); root.add(group);
+  const {pts, ss} = sub;
+
+  const opts = { sub: +document.getElementById('sub').value };
+  if (document.getElementById('smon').checked)
+    opts.smooth = +document.getElementById('sm').value / 100;
+
+  /* ONE mesh for the whole chain, coloured per vertex.
+
+     The first version of this bench built one mesh per secondary-structure
+     run, with the runs overlapping by a residue so the width taper at a
+     boundary had somewhere to happen. That is wrong in a way that wasted a
+     debugging round: build() re-runs its arrowhead logic on every slice, so
+     the coil mesh borrowing the last strand residue drew its OWN copy of
+     the arrowhead, in coil grey, overlapping the real one. It looked
+     exactly like a broken arrow in ribbon.js and was a bug in this file.
+
+     Slicing a ribbon is not a neutral operation. Build the whole thing once
+     — which is also what the lesson does for each span — and put the
+     colour in a vertex attribute. build() lays down 8 vertices per sample
+     in sample order, so a vertex's residue is recoverable from its index. */
+  const geo = RibbonLib.build(THREE, pts, ss, opts);
+  /* build() emits one draw group per element, tagged 0 coil / 1 helix /
+     2 strand, so colouring is a material array and needs no mapping from
+     vertex index back to residue. That mapping was what the earlier
+     per-vertex version did, and it broke the moment elements stopped being
+     one continuous strip with a uniform ring size. */
+  const mats = [COL.C, COL.H, COL.E].map(c => {
+    const mm = Stage.bondMat(c);
+    mm.side = THREE.DoubleSide;
+    mm.wireframe = document.getElementById('wire').checked;
+    return mm;
+  });
+  group.add(new THREE.Mesh(geo, mats));
+  const tris = geo.index.count / 3;
+
+  if (document.getElementById('cas').checked) {
+    const g = new THREE.SphereGeometry(0.35, 10, 8);
+    for (const p of pts) {
+      const m = new THREE.Mesh(g, Stage.bondMat(0x333333));
+      m.position.copy(p); group.add(m);
+    }
+  }
+
+  // centre and frame from the real bounding sphere, never a hand-picked r
+  const box = new THREE.Box3().setFromObject(group);
+  const c = box.getCenter(new THREE.Vector3());
+  group.position.sub(c);
+  const radius = box.getSize(new THREE.Vector3()).length() / 2;
+  cam.r = radius / Math.tan(camera.fov * Math.PI / 360) * 1.25;
+  applyCam();
+
+  document.getElementById('ssout').innerHTML = ss.map(c =>
+    c === 'E' ? '<b>E</b>' : c === 'H' ? '<i>H</i>' : '<span>·</span>').join('');
+  document.getElementById('nres').textContent = ss.length;
+  document.getElementById('nE').textContent = runs(ss, 'E');
+  document.getElementById('nH').textContent = runs(ss, 'H');
+  document.getElementById('ntri').textContent = tris.toLocaleString();
+}
+
+async function refresh() {
+  const sub = mode === 'villin' ? await villinSubject() : subject(mode);
+  draw(sub);
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll('button.mode').forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('button.mode').forEach(x =>
+    x.setAttribute('aria-current', x === b ? 'true' : 'false'));
+  refresh();
+}));
+document.querySelector('button.mode').setAttribute('aria-current', 'true');
+
+for (const id of ['sub','sm','smon','wire','cas']) {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById('subv').textContent = document.getElementById('sub').value;
+    document.getElementById('smv').textContent = (+document.getElementById('sm').value/100).toFixed(2);
+    refresh();
+  });
+}
+
+const P = RibbonLib.PROFILE, A = RibbonLib.ARROW;
+document.getElementById('prof').innerHTML =
+  `helix &nbsp;${(P.H[0]*2).toFixed(2)} wide × ${(P.H[1]*2).toFixed(2)} thick<br>` +
+  `strand ${(P.E[0]*2).toFixed(2)} wide × ${(P.E[1]*2).toFixed(2)} thick<br>` +
+  `coil &nbsp;&nbsp;${(P.C[0]*2).toFixed(2)} wide<br>` +
+  `arrow &nbsp;barb ${(A.head*2).toFixed(2)} → tip ${(A.tip*2).toFixed(2)}`;
+
+let t = 0;
+(function loop(){
+  requestAnimationFrame(loop);
+  if (document.getElementById('spin').checked && group) { t += 0.004; cam.theta = 0.6 + t; applyCam(); }
+  renderer.render(scene, camera);
+})();
+
+refresh();
+</script>
+</body>
+</html>
