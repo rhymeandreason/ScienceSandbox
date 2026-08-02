@@ -239,6 +239,14 @@ Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —
 so an automated screenshot may freeze on the last painted frame. Verify logic by
 driving the page's functions directly rather than trusting a single screenshot.
 
+**Set the viewport before judging any layout.** The agent browser pane keeps
+whatever size it was last given, which is often phone-width — and every page here
+is built for a landscape stage beside a 372px panel, with a `@media
+(max-width:920px)` breakpoint that stacks it. Judging a wide layout in a narrow
+pane produces confident, wrong conclusions: call `resize_window` to roughly
+1440x900 first. It cuts both ways — widening the pane is what exposed a canvas
+rendering at twice its box on a retina screen, which was invisible at 496px.
+
 Layout — framing, spacing, rotation, captions — the human tests in the browser.
 
 `tools/check-docs.js` audits what the docs *claim*
