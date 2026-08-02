@@ -624,8 +624,6 @@ function updateReadout(formed) {
 const RUNG = { FOLD: 0, HEADPIECE: 1, VILLIN: 2 };
 let rung = RUNG.FOLD, arrangement = 0, villin = null, villinGroup = null;
 let hoverHP = false;
-/* where the folded chain sits inside villin, once solved (see placeFoldGroup) */
-let foldSeat = new THREE.Matrix4();
 
 /* Tube radius matches what a bead would have been: the house radius/bond
    ratio (0.2934) applied to the 3.8 A Ca-Ca virtual bond. So swapping from
@@ -656,15 +654,54 @@ fetch('pdb/AF-P02640-villin.poses.bin')
     console.warn('act 3 unavailable — ' + e.message + ' (run: node tools/bake-villin.js)');
   });
 
-/* Ca positions of one arrangement, as Vector3s. */
+/* Ca positions of one arrangement, as Vector3s, IN THE FOLD'S FRAME.
+
+   The alignment is the point. Villin's coordinates and 1VII's are unrelated
+   frames tens of angstroms apart, so drawing villin where it sits meant the
+   camera had to travel from one to the other — and a camera panning past a
+   stationary tube looks exactly like the tube sliding in from off-screen.
+   Superposing each arrangement's HP35 onto the folded chain instead puts the
+   two where they belong: on top of each other. The tube then fades in
+   precisely over the atoms it replaces, which is the claim the page is making
+   anyway — same 36 residues, drawn two ways.
+
+   It also means HP35 stays put when the arrangement changes, so the eight
+   buttons swing the rest of the protein around the chain the student folded
+   rather than throwing everything across the screen at once. */
 function villinPoints(k, from, to) {
   const a = villin.poses[k], out = [];
+  const M = alignFor(k);
   for (let i = 0; i < villin.residues; i++) {
     const r = villin.nums[i];
     if (from != null && (r < from || r > to)) continue;
-    out.push(new THREE.Vector3(a[i*3], a[i*3+1], a[i*3+2]));
+    const v = new THREE.Vector3(a[i*3], a[i*3+1], a[i*3+2]);
+    if (M) v.applyMatrix4(M);
+    out.push(v);
   }
   return out;
+}
+
+/* Cached per arrangement: superposing 36 points is cheap but villinPoints is
+   called several times per rebuild. */
+const alignCache = new Map();
+function alignFor(k) {
+  if (alignCache.has(k)) return alignCache.get(k);
+  if (!villin || !traj || !parsed) return null;
+  const a = villin.poses[k], theirs = [];
+  for (let i = 0; i < villin.residues; i++) {
+    const r = villin.nums[i];
+    if (r < VillinLib.HP35.start || r > VillinLib.HP35.end) continue;
+    theirs.push(new THREE.Vector3(a[i*3], a[i*3+1], a[i*3+2]));
+  }
+  const last = traj.key[traj.count - 1], mine = [];
+  for (const r of parsed.residues) {
+    const i = r.atoms.CA;
+    if (i != null) mine.push(new THREE.Vector3(last[i*3], last[i*3+1], last[i*3+2]));
+  }
+  const M = (theirs.length === mine.length && theirs.length > 2)
+    ? superpose(theirs, mine) : null;
+  alignCache.set(k, M);
+  return M;
 }
 
 /* Superpose A onto B (Kabsch) -> THREE.Matrix4.
@@ -784,7 +821,6 @@ function buildVillin() {
     villinGroup.add(m);
   }
 
-  placeFoldGroup(hpPts);
   applyFade(true);
 }
 
@@ -795,20 +831,6 @@ function plddtColor(a, b) {
   const v = n ? s / n : 0;
   // AlphaFold's own confidence bands, so the colours mean what they mean there
   return v >= 90 ? 0x0053d6 : v >= 70 ? 0x65cbf3 : v >= 50 ? 0xffdb13 : 0xff7d45;
-}
-
-/* Seat the atomic model on HP35's Ca's, ready for the hover reveal. */
-function placeFoldGroup(hpPts) {
-  if (!hpPts || hpPts.length < 3) return;
-  const mine = [];
-  for (const r of parsed.residues) {
-    const i = r.atoms.CA;
-    if (i != null) mine.push(new THREE.Vector3(...traj.key[traj.count-1].slice(i*3, i*3+3)));
-  }
-  if (mine.length !== hpPts.length) return;
-  /* Stored, not applied. The move onto this seat is the transition's first
-     beat, so it has to be a destination rather than a jump. */
-  foldSeat = superpose(mine, hpPts);
 }
 
 function disposeTree(g) {
@@ -829,12 +851,13 @@ const ZNOTES = [
 /* ---------- the transition ----------
    Stepping out a rung is choreographed rather than cut, in three beats:
 
-     1. the folded chain MOVES to its seat inside the protein
-     2. HP35's tube fades in as the atoms fade out, on the same spot
+     1. the camera pulls back to take in the domain
+     2. HP35's tube fades in as the atoms fade out, exactly where they are
      3. the rest of the structure fades in around it
 
-   The order carries the argument. Moving first, while the model is still all
-   atoms, says the thing being carried is the chain the student just folded.
+   Beat 1 is the CAMERA only — the chain itself never moves, because villin is
+   drawn in the fold's own frame (see villinPoints). Nothing slides: the tube
+   arrives on the exact spot the atoms occupy, which is the claim being made.
    Crossfading atoms into tube in place says the representation changed, not
    the molecule. Only then does the context arrive. A cut says none of this,
    and this page's whole claim is that the chain and the protein are the same
@@ -842,7 +865,7 @@ const ZNOTES = [
 
    Reversed on the way back down, so the protein resolves back into the atoms
    it was made of rather than blinking out. */
-const T_DUR = 1.7;                       // seconds for a full rung change
+const T_DUR = 2.2;                       // seconds for a full rung change
 let anim = null;
 
 /* Smoothstep over a sub-range of the transition, so beats overlap slightly
@@ -893,18 +916,9 @@ function setRung(n) {
     up: n > wasRung,
     from: currentFade(),
     to: fadeTargets(n),
-    matFrom: decompose(foldGroup.matrix),
-    matTo: decompose(rung === RUNG.FOLD ? new THREE.Matrix4() : foldSeat),
     camFrom: { r: cam.r, target: cam.target.clone() },
     camTo,
   };
-  foldGroup.matrixAutoUpdate = false;
-}
-
-function decompose(m) {
-  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-  m.decompose(p, q, s);
-  return { p, q, s };
 }
 
 function stepTransition(dt) {
@@ -919,10 +933,13 @@ function stepTransition(dt) {
      instead of the window was wrong: it made a reverse transition mix back
      towards where it started and land on the wrong state. */
   const win = (lo, hi) => anim.up ? beat(p, lo, hi) : beat(p, 1 - hi, 1 - lo);
-  const mMove = win(0.00, 0.45);
-  const mHp   = win(0.34, 0.70);
-  const mOwn  = win(0.52, 0.84);
-  const mRest = win(0.66, 1.00);
+  /* The camera finishes BEFORE anything fades. Overlapping the two was what
+     made the tube look like it slid in: a fade running while the view is
+     still travelling reads as the arriving object moving, not the camera. */
+  const mMove = win(0.00, 0.30);
+  const mHp   = win(0.36, 0.74);
+  const mOwn  = win(0.64, 0.90);
+  const mRest = win(0.74, 1.00);
 
   const mix = (from, to, m) => from + (to - from) * m;
   fadeNow = {
@@ -932,13 +949,6 @@ function stepTransition(dt) {
     rest: mix(anim.from.rest, anim.to.rest, mRest),
   };
   foldOpacity = fadeNow.fold;
-
-  // the chain moves to its seat first, while it is still atoms
-  const f = anim.matFrom, tg = anim.matTo;
-  foldGroup.matrix.compose(
-    f.p.clone().lerp(tg.p, mMove),
-    f.q.clone().slerp(tg.q, mMove),
-    f.s.clone().lerp(tg.s, mMove));
 
   // camera travels with the move rather than after it
   if (!userZoom && anim.camTo) {
