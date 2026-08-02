@@ -21,6 +21,8 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 | `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway |
 | `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂). HCl and NaCl are a deliberate pair — the same chlorine, shared then taken; MgCl₂ is where the metal's count, not a rule, decides the formula | bonding assembly |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery |
+| `protein-lab.html` | The four levels of protein structure. Levels 1–3 are one molecule (lysozyme) restyled, never swapped — that they are the *same chain* at three scales is the lesson; level 4 changes molecule (an antibody) because it must | PDB structure viewer |
+| `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. Loads no shared module on purpose, so the libraries are judged unmixed with our own rendering. Delete it once the first protein page ships (`RenderingLibraries.md`) | evaluation scratch |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery |
 
 ## Shared modules
@@ -72,9 +74,18 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 | `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
+| `protein-lab` | pdb |
 
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
+
+**`protein-lab` is a different kind of page and its one-word row is not an
+oversight.** Pages that render *deposited* structures (PDB files in `pdb/`) share
+`pdb.js` and `sandbox.css` and nothing else: no Three.js, no `scene.js`, no
+MolLib. They draw through vendored ChemDoodle Web, which is **GPLv3 and makes any
+page loading it GPLv3** — `RenderingLibraries.md` and `vendor/chemdoodle/README.md`
+carry the reasoning. `tools/check-pages.js` skips them because there is no
+molecule reference to check; `tools/check-pdb.js` is what audits them instead.
 
 `aminoacid-lab` loads `mol-small` because dehydration synthesis releases a real
 water molecule and that water has to sit correctly beside the residues. **A

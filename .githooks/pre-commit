@@ -73,4 +73,18 @@ else
   echo "pre-commit: skipping check-pages.js — no page or registry file staged"
 fi
 
+if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|pdb/.*\.pdb)$'; then
+  if ! node tools/check-pdb.js > /tmp/cq.$$ 2>&1; then
+    tail -25 /tmp/cq.$$; rm -f /tmp/cq.$$
+    echo ""
+    echo "pre-commit FAILED: check-pdb.js — orientation is not a rotation."
+    echo "  A MIRRORED result is the one to take seriously: it silently shows the"
+    echo "  enantiomer, and nothing else in this repo can catch it."
+    exit 1
+  fi
+  rm -f /tmp/cq.$$
+else
+  echo "pre-commit: skipping check-pdb.js — no pdb.js or structure staged"
+fi
+
 echo "pre-commit: molecules and pages check out."
