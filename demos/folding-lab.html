@@ -82,10 +82,18 @@
   .zstep .zsize{font-size:11px;color:var(--muted);white-space:nowrap}
   .zstep.on{border-color:var(--ink);background:#fff}
   .zstep.on .zname{color:var(--hb)}
+  /* The last step is not another scale rung — it is the same size as villin,
+     shown to answer the question the prediction leaves open. Marked out so it
+     does not read as "even bigger". */
+  .zstep.coda .zname{font-style:italic}
+  .zstep.coda.on .zname{color:var(--core)}
   .zarrow{display:flex;align-items:center;color:var(--hair);font-size:14px}
   .znote{margin-top:7px;padding-top:7px;border-top:1px solid var(--hair);
     font-size:11.5px;line-height:1.45;color:var(--muted);text-align:center}
   .znote b{color:#3a352f}
+  /* Caveats inline in the note rather than in a footnote nobody reads: the
+     limits of a rung belong beside the claim it makes. */
+  .znote .zcav{display:block;margin-top:4px;font-style:italic;opacity:.85}
 
   /* The eight arrangements. Deliberately NOT styled like a structure viewer's
      model selector, because these are generated and those are measured. */
@@ -141,6 +149,14 @@
         <button class="zstep" data-rung="2">
           <span class="zname">the whole protein</span>
           <span class="zsize">villin · 826 residues · ~10 nm</span></button>
+        <span class="zarrow"><i class="ph-bold ph-caret-right"></i></span>
+        <button class="zstep" data-rung="3">
+          <span class="zname">what it grips</span>
+          <span class="zsize">actin filament · 13 subunits · ~40 nm</span></button>
+        <span class="zarrow"><i class="ph-bold ph-dot-outline"></i></span>
+        <button class="zstep coda" data-rung="4">
+          <span class="zname">measured, not predicted</span>
+          <span class="zsize">villin gripping actin · X-ray 2.7 Å</span></button>
       </div>
       <div class="znote" id="znote"></div>
     </div>
@@ -174,6 +190,7 @@
 <script src="fx.js"></script>
 <script src="folding.js"></script>
 <script src="villin.js"></script>
+<script src="actin.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -621,8 +638,16 @@ function updateReadout(formed) {
  *  rather than one picture, and hence the note under the legend.
  * ============================================================ */
 
-const RUNG = { FOLD: 0, HEADPIECE: 1, VILLIN: 2 };
+const RUNG = { FOLD: 0, HEADPIECE: 1, VILLIN: 2, FILAMENT: 3, COMPLEX: 4 };
+/* Two greys for the filament's two long-pitch strands. F-actin's subunits
+   alternate between the two strands, so colouring odd and even differently is
+   not decoration — it is what makes the double helix visible. The first pair
+   were too close in value and 13 subunits read as one rope; pushed well apart,
+   the strands separate and the crossover repeat can be seen. */
+const ACTIN_COLOR = 0x5d6b7d, ACTIN_ALT = 0xb3bcc6;
+const ACTIN_R = 3.8 * 0.2934 * 0.85;      // slightly finer than villin's tube
 let rung = RUNG.FOLD, arrangement = 0, villin = null, villinGroup = null;
+let actin = null, actinGroup = null;
 let hoverHP = false;
 
 /* Tube radius matches what a bead would have been: the house radius/bond
@@ -644,6 +669,11 @@ const LINK_R = TUBE_R * 0.45;
 const DOM_COLORS = [0x8c7f6a, 0xa8927a, 0x7d8f7a, 0x94836b,
                     0x8a8f9c, 0x9c8a7d, 0xa39a86, 0x6f7f74];
 const HP_COLOR = 0x0042aa;
+
+fetch('pdb/actin.bin')
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+  .then(buf => { actin = ActinLib.decode(buf); })
+  .catch(e => console.warn('rungs 4-5 unavailable — ' + e.message + ' (run: node tools/bake-actin.js)'));
 
 fetch('pdb/AF-P02640-villin.poses.bin')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
@@ -824,6 +854,110 @@ function buildVillin() {
   applyFade(true);
 }
 
+/* Build the filament and the measured complex. Like villin's tube, both are
+   built once and revealed by opacity — a rung change must be fadeable, and a
+   rebuild is not.
+
+   ALIGNED TO VILLIN, for the same reason villin is aligned to the fold: these
+   structures are in unrelated crystal and cryo-EM frames, and drawing them
+   where they sit would send the camera on a long pan that reads as the object
+   sliding in. The filament is placed so its axis runs across the view beside
+   villin; the complex is superposed on villin's own core so the two can be
+   compared without the eye having to travel. */
+function buildActin() {
+  if (actinGroup) { root.remove(actinGroup); disposeTree(actinGroup); }
+  actinGroup = new THREE.Group();
+  root.add(actinGroup);
+  if (!actin || !villin) return;
+
+  const sub = actin.subunit.map(p => new THREE.Vector3(...p));
+  const gen = ActinLib.extend(actin.subunit.map(p => ({ p })), actin.screw, ActinLib.SUBUNITS);
+
+  /* LAY THE FILAMENT ACROSS THE VIEW. Its helical axis has to be turned onto
+     world X, which the canonical camera maps to screen-right.
+
+     Not cosmetic. As deposited, the axis pointed almost straight into the
+     screen, and two things went wrong at once: perspective magnified the near
+     end until it spilled off the stage, while the framing solve — which fits
+     a roughly compact object — saw only the 151 A the 398 A rod projected
+     onto the screen plane and duly parked the camera far too close. A rod
+     aimed at the camera is the one shape that framing cannot reason about.
+     Turned side-on it is both legible and solvable, and a 40 nm filament
+     across a wide stage is the shot this rung wants anyway. */
+  const axis = new THREE.Vector3(...actin.screw.axis).normalize();
+  const toX = new THREE.Quaternion().setFromUnitVectors(axis, new THREE.Vector3(1, 0, 0));
+
+  const vPts = villinPoints(arrangement);
+  const vc = new THREE.Vector3();
+  vPts.forEach(p => vc.add(p)); vc.divideScalar(vPts.length);
+  let vr = 0; vPts.forEach(p => vr = Math.max(vr, p.distanceTo(vc)));
+
+  const turned = gen.map(su => su.map(p =>
+    new THREE.Vector3(p[0], p[1], p[2]).applyQuaternion(toX)));
+  const fc = new THREE.Vector3();
+  const flat = turned.flat();
+  flat.forEach(p => fc.add(p)); fc.divideScalar(flat.length);
+  let fr = 0; flat.forEach(p => fr = Math.max(fr, Math.abs(p.y - fc.y)));
+
+  /* Villin above, filament below, clear of each other. */
+  const shift = new THREE.Vector3().copy(vc).sub(fc)
+    .add(new THREE.Vector3(0, -(vr + fr + 12), 0));
+
+  turned.forEach((subunit, k) => {
+    const pts = subunit.map(p => p.clone().add(shift));
+    const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),
+                                       Math.max(8, pts.length), ACTIN_R, 8, false);
+    const m = new THREE.Mesh(geo, Stage.bondMat(k % 2 ? ACTIN_ALT : ACTIN_COLOR));
+    m.userData = { phase: 'actin', maxOpacity: 1 };
+    actinGroup.add(m);
+  });
+
+  /* The measured complex, superposed onto villin so the predicted and solved
+     arrangements sit in the same place and can actually be compared. */
+  const cv = actin.complexVillin.map(p => new THREE.Vector3(...p));
+  const ca = actin.complexActin.map(p => new THREE.Vector3(...p));
+  const M = complexAlign(cv);
+  const put = v => { const q = v.clone(); if (M) q.applyMatrix4(M); return q; };
+
+  /* NOT the HP35 blue. Blue means "the chain you folded" everywhere else on
+     this page, and this is a different animal's villin — using the same colour
+     would quietly claim it is the same molecule. The coda's orange is already
+     the legend's marker for "measured, not predicted". */
+  addTube(actinGroup, cv.map(put), TUBE_R, CORE_COLOR, 'complex');
+  // the actin trimer comes as three 365-ish residue chains, drawn separately
+  const per = Math.round(ca.length / 3);
+  for (let c = 0; c < 3; c++)
+    addTube(actinGroup, ca.slice(c*per, (c+1)*per).map(put), ACTIN_R,
+            c % 2 ? ACTIN_ALT : ACTIN_COLOR, 'complex');
+
+  applyFade(true);
+}
+
+function addTube(group, pts, radius, color, phase) {
+  if (pts.length < 2) return;
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),
+                                     Math.max(8, pts.length), radius, 8, false);
+  const m = new THREE.Mesh(geo, Stage.bondMat(color));
+  m.userData = { phase, maxOpacity: 1 };
+  group.add(m);
+}
+
+/* Superpose the solved villin onto the predicted one, using the stretch both
+   have in common. The two are different animals' proteins of different
+   lengths, so this is a rough registration for COMPARISON, not a claim that
+   the residues correspond one to one. */
+let complexAlignCache = null;
+function complexAlign(cv) {
+  if (complexAlignCache) return complexAlignCache;
+  const vp = villinPoints(arrangement);
+  const n = Math.min(cv.length, vp.length);
+  if (n < 50) return null;
+  const a = [], b = [];
+  for (let i = 0; i < n; i += Math.max(1, Math.floor(n / 200))) { a.push(cv[i]); b.push(vp[i]); }
+  complexAlignCache = superpose(a, b);
+  return complexAlignCache;
+}
+
 function plddtColor(a, b) {
   let s = 0, n = 0;
   for (let i = 0; i < villin.residues; i++)
@@ -846,6 +980,17 @@ const ZNOTES = [
   '<b>This is an AlphaFold prediction, not a measured structure</b> — and it is confident about each ' +
   'domain’s shape while knowing essentially nothing about how they are arranged, which is why there ' +
   'are eight of them below rather than one picture.',
+
+  'An <b>actin filament</b> — the cable villin works on. Microvilli in your gut lining are built from ' +
+  'bundles of these, and villin is one of the proteins that ties them together: it holds one filament ' +
+  'with its core while the headpiece reaches out for a second. That is what the flexible linker is for. ' +
+  '<span class="zcav">Five subunits were observed; the other eight are the file’s own helix repeated, ' +
+  'measured at 27.6 Å rise and −166.6° twist.</span>',
+
+  'And here is the answer the prediction could not give: <b>villin actually gripping actin</b>, solved by ' +
+  'X-ray at 2.7 Å, every domain placed. Same size as the previous step — this is not a bigger view but a ' +
+  'better-evidenced one. <span class="zcav">This villin is from a deep-sea vent worm, because nobody has ' +
+  'solved a vertebrate one. Homologous and the same architecture, but not the chicken protein you folded.</span>',
 ];
 
 /* ---------- the transition ----------
@@ -889,26 +1034,29 @@ function beat(p, from, to) {
 /* Opacity each phase should end at, per rung. */
 function fadeTargets(n) {
   return { fold: n === RUNG.FOLD ? 1 : 0,
-           hp:   n === RUNG.FOLD ? 0 : 1,
-           own:  n === RUNG.FOLD ? 0 : 1,
-           rest: n === RUNG.VILLIN ? 1 : 0 };
+           hp:   n === RUNG.FOLD ? 0 : (n === RUNG.COMPLEX ? 0 : 1),
+           own:  n === RUNG.FOLD ? 0 : (n === RUNG.COMPLEX ? 0 : 1),
+           rest: (n === RUNG.VILLIN || n === RUNG.FILAMENT) ? 1 : 0,
+           actin: n === RUNG.FILAMENT ? 1 : 0,
+           complex: n === RUNG.COMPLEX ? 1 : 0 };
 }
 
 /* Read the current opacity of a phase, so a transition interrupted halfway
    continues from where it actually is rather than snapping. */
 function currentFade() {
-  const out = { fold: foldOpacity, hp: 0, own: 0, rest: 0 }, seen = {};
-  if (villinGroup) villinGroup.children.forEach(m => {
+  const out = { fold: foldOpacity, hp: 0, own: 0, rest: 0, actin: 0, complex: 0 }, seen = {};
+  const groups = [villinGroup, actinGroup].filter(Boolean);
+  groups.forEach(g => g.children.forEach(m => {
     const ph = m.userData.phase;
     if (seen[ph]) return;
     seen[ph] = true;
     out[ph] = m.material.opacity / (m.userData.maxOpacity || 1);
-  });
+  }));
   return out;
 }
 
 let foldOpacity = 1;
-let fadeNow = { fold: 1, hp: 0, own: 0, rest: 0 };
+let fadeNow = { fold: 1, hp: 0, own: 0, rest: 0, actin: 0, complex: 0 };
 
 function setRung(n) {
   if (!villin && n !== RUNG.FOLD) return;
@@ -920,6 +1068,7 @@ function setRung(n) {
   document.getElementById('arrangements').hidden = (rung !== RUNG.VILLIN);
 
   if (!villinGroup) buildVillin();
+  if (!actinGroup && actin) buildActin();
 
   const camTo = solveFrame(currentPoints());
   anim = {
@@ -958,6 +1107,8 @@ function stepTransition(dt) {
     hp:   mix(anim.from.hp,   anim.to.hp,   mHp),
     own:  mix(anim.from.own,  anim.to.own,  mOwn),
     rest: mix(anim.from.rest, anim.to.rest, mRest),
+    actin:   mix(anim.from.actin,   anim.to.actin,   mRest),
+    complex: mix(anim.from.complex, anim.to.complex, mRest),
   };
   foldOpacity = fadeNow.fold;
 
@@ -980,7 +1131,7 @@ function applyFade(immediate) {
   if (immediate) fadeNow = fadeTargets(rung);
   if (immediate) foldOpacity = fadeNow.fold;
 
-  if (villinGroup) villinGroup.children.forEach(m => {
+  [villinGroup, actinGroup].filter(Boolean).forEach(g => g.children.forEach(m => {
     const max = m.userData.maxOpacity || 1;
     let o = (fadeNow[m.userData.phase] || 0) * max;
     if (m.userData.isHP) o *= 1 - hoverMix * (1 - HOVER_FLOOR);
@@ -988,7 +1139,7 @@ function applyFade(immediate) {
     m.material.transparent = o < 0.999;
     m.material.opacity = o;
     m.material.depthWrite = o > 0.5;
-  });
+  }));
 
   /* The atoms come up as the ribbon thins, so the two cross over rather than
      one replacing the other. */
@@ -1019,9 +1170,11 @@ function stepHover(dt) {
 
 function setArrangement(k) {
   arrangement = k;
+  complexAlignCache = null;
   [...document.getElementById('abtns').children].forEach((b, i) =>
     b.classList.toggle('on', i === k));
   buildVillin();
+  if (actin) buildActin();
   frameCurrent();
 }
 
@@ -1042,9 +1195,21 @@ function buildArrangementButtons() {
 /* What the camera should be looking at right now. */
 function currentPoints() {
   if (rung === RUNG.FOLD || !villin) return posOf(t);
-  return rung === RUNG.HEADPIECE
-    ? villinPoints(arrangement, villin.domains[villin.domains.length-1][0], villin.nums[villin.residues-1])
-    : villinPoints(arrangement);
+  if (rung === RUNG.HEADPIECE)
+    return villinPoints(arrangement, villin.domains[villin.domains.length-1][0], villin.nums[villin.residues-1]);
+  if (rung === RUNG.VILLIN || !actinGroup) return villinPoints(arrangement);
+  /* Rungs 4-5 frame whatever geometry that rung actually shows, read straight
+     off the built meshes — the filament sits beside villin and the complex on
+     top of it, so neither can be framed from villin's points alone. */
+  const want = rung === RUNG.FILAMENT ? 'actin' : 'complex';
+  const pts = [];
+  actinGroup.children.forEach(m => {
+    if (m.userData.phase !== want) return;
+    const a = m.geometry.attributes.position;
+    for (let i = 0; i < a.count; i += 24) pts.push(new THREE.Vector3(a.getX(i), a.getY(i), a.getZ(i)));
+  });
+  if (rung === RUNG.FILAMENT) villinPoints(arrangement).forEach(p => pts.push(p));
+  return pts.length ? pts : villinPoints(arrangement);
 }
 function frameCurrent() { frameFrom(currentPoints()); }
 

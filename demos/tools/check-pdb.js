@@ -326,5 +326,108 @@ if (fs.existsSync(AFMODEL)) {
   }
 }
 
+/* =====================================================================
+ *  folding-lab rungs 4-5 — the filament, and the measured complex.
+ * ===================================================================== */
+const FIL = path.join(DIR, '9ZZI.pdb'), CPX = path.join(DIR, '9JUS.pdb');
+const ABIN = path.join(DIR, 'actin.bin');
+if (fs.existsSync(FIL) && fs.existsSync(CPX)) {
+  console.log('\nfolding-lab rungs 4-5 (actin):');
+  const Actin = require('../actin.js');
+  const fil = Actin.parseCA(fs.readFileSync(FIL, 'utf8'), 'ABCDE');
+  const order = Object.keys(fil).sort();
+  const screws = [];
+  for (let i = 0; i + 1 < order.length; i++)
+    screws.push(Actin.screwOf(fil[order[i]], fil[order[i + 1]]));
+
+  // CLAIM 1 — the helix we extend by is F-actin's, not one we chose
+  const rises = screws.map(s => s.rise), twists = screws.map(s => s.twist);
+  const rise = rises.reduce((a, b) => a + b) / rises.length;
+  const twist = twists.reduce((a, b) => a + b) / twists.length;
+  const spreadR = Math.max(...rises) - Math.min(...rises);
+  const spreadT = Math.max(...twists) - Math.min(...twists);
+  if (Math.abs(rise - Actin.RISE_REF) > 1.0 || Math.abs(twist - Actin.TWIST_REF) > 1.5)
+    fail('actin helix', `rise ${rise.toFixed(2)}/twist ${twist.toFixed(2)} is not F-actin ` +
+      `(expected ~${Actin.RISE_REF} / ~${Actin.TWIST_REF})`);
+  else if (spreadR > 0.05 || spreadT > 0.2)
+    fail('actin helix', `subunit steps disagree (rise spread ${spreadR.toFixed(3)}, twist ${spreadT.toFixed(3)}) — not a clean helical polymer`);
+  else ok(`helical symmetry measured from the file: rise ${rise.toFixed(2)} A, twist ${twist.toFixed(2)} deg, ` +
+          `${screws.length} steps agreeing to ${spreadR.toFixed(3)} A`);
+
+  /* CLAIM 2 — THE ONE THAT MATTERS. The page shows 13 subunits where only 5
+     were observed. Applying the screw k times must land on the deposited
+     chains, or the extra subunits are fiction rather than symmetry. */
+  const gen = Actin.extend(fil[order[0]], screws[0], order.length);
+  let worst = 0;
+  order.forEach((c, k) => {
+    const dep = fil[c].map(a => a.p);
+    let s2 = 0;
+    for (let i = 0; i < dep.length; i++) {
+      const d = Math.hypot(dep[i][0]-gen[k][i][0], dep[i][1]-gen[k][i][1], dep[i][2]-gen[k][i][2]);
+      s2 += d * d;
+    }
+    worst = Math.max(worst, Math.sqrt(s2 / dep.length));
+  });
+  if (worst > 0.1)
+    fail('actin extension', `a symmetry copy misses its deposited chain by ${worst.toFixed(3)} A — the extra subunits are not where the helix puts them`);
+  else ok(`repeating the screw reproduces every deposited subunit (worst ${worst.toFixed(3)} A RMSD) — the extension is symmetry, not invention`);
+
+  // CLAIM 3 — the rendered filament is the width F-actin actually is
+  const all = Actin.extend(fil[order[0]], screws[0], Actin.SUBUNITS).flat();
+  const lo = [1e9,1e9,1e9], hi = [-1e9,-1e9,-1e9];
+  all.forEach(p => { for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); } });
+  const ext = [0,1,2].map(k => hi[k] - lo[k]).sort((a, b) => a - b);
+  const widthNm = ext[0] / 10, lenNm = ext[2] / 10;
+  if (widthNm < 6 || widthNm > 11)
+    fail('actin width', `filament is ${widthNm.toFixed(1)} nm across; F-actin is 7-9`);
+  else ok(`${Actin.SUBUNITS} subunits = ${lenNm.toFixed(0)} nm long, ${widthNm.toFixed(1)} nm wide (F-actin is 7-9 nm)`);
+
+  /* CLAIM 4 — the species caveat is warranted. Every villin-actin structure
+     is from a vent worm, and the page says so. If a vertebrate one ever
+     replaces this file, that note becomes wrong and should be revisited
+     rather than left standing. */
+  const AA3 = { ALA:'A',ARG:'R',ASN:'N',ASP:'D',CYS:'C',GLN:'Q',GLU:'E',GLY:'G',HIS:'H',
+                ILE:'I',LEU:'L',LYS:'K',MET:'M',PHE:'F',PRO:'P',SER:'S',THR:'T',TRP:'W',TYR:'Y',VAL:'V' };
+  const seqOfChain = (file, ch) => {
+    const d = {};
+    for (const l of fs.readFileSync(file, 'utf8').split('\n'))
+      if (l.startsWith('ATOM') && l[21] === ch && l.slice(12,16).trim() === 'CA')
+        d[+l.slice(22,26)] = AA3[l.slice(17,20).trim()] || 'X';
+    return Object.keys(d).map(Number).sort((a,b)=>a-b).map(k => d[k]).join('');
+  };
+  const wormV = seqOfChain(CPX, 'v');
+  const chickV = fs.existsSync(AFMODEL) ? seqOfChain(AFMODEL, 'A') : '';
+  if (chickV) {
+    const n = Math.min(wormV.length, chickV.length);
+    let same = 0;
+    for (let i = 0; i < n; i++) if (wormV[i] === chickV[i]) same++;
+    const pct = same / n * 100;
+    /* Ungapped, position-by-position. That makes it a fine DIFFERENCE
+       detector and a poor homology measure — the two are genuinely homologous
+       and this number badly understates that, so it must not be quoted as an
+       identity. All it establishes is that they are not the same sequence,
+       which is what the caveat rests on. */
+    if (pct > 90)
+      fail('villin species', `9JUS villin matches the chicken model position-for-position (${pct.toFixed(0)}%) — the page's "different animal" note may no longer be right`);
+    else ok(`9JUS villin is not the chicken sequence (ungapped match ${pct.toFixed(0)}%, a difference test not a homology measure) — species caveat warranted`);
+  }
+
+  // CLAIM 5 — the committed reduction matches this code
+  if (!fs.existsSync(ABIN)) {
+    fail('actin bake', 'pdb/actin.bin is missing — run: node tools/bake-actin.js');
+  } else {
+    const cpx = Actin.parseCA(fs.readFileSync(CPX, 'utf8'), 'fgpv');
+    const fresh = Buffer.from(Actin.encode({
+      screw: Object.assign({}, screws[0], { rise, twist }),
+      subunit: fil[order[0]].map(a => a.p),
+      complexActin: ['f','g','p'].flatMap(c => (cpx[c] || []).map(a => a.p)),
+      complexVillin: (cpx.v || []).map(a => a.p) }));
+    const onDisk = fs.readFileSync(ABIN);
+    if (!onDisk.equals(fresh))
+      fail('actin bake', 'pdb/actin.bin does not match this code — re-run: node tools/bake-actin.js');
+    else ok(`baked actin on disk matches a fresh bake exactly (${(onDisk.length/1024).toFixed(0)} KB from 6.1 MB)`);
+  }
+}
+
 if (failures) { console.log(`\nFAIL: ${failures} assertion(s) failed`); process.exit(1); }
 console.log('\nPASS: orientation is a rotation — rigid, well-formed, and never mirrored');

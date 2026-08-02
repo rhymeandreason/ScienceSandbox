@@ -22,7 +22,7 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 | `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂). HCl and NaCl are a deliberate pair — the same chlorine, shared then taken; MgCl₂ is where the metal's count, not a rule, decides the formula | bonding assembly |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery |
 | `protein-lab.html` | The four levels of protein structure. Levels 1–3 are one molecule (lysozyme) restyled, never swapped — that they are the *same chain* at three scales is the lesson; level 4 changes molecule (an antibody) because it must | PDB structure viewer |
-| `folding-lab.html` | How a protein folds: villin headpiece (PDB 1VII) collapses from an extended chain. Two acts with two different causes — hydrogen bonds coil the helices (12 of its 14 are i→i+4), then the hydrophobic core packs them. Act 3 zooms out at true relative size — HP35 → the headpiece → all 826 residues of villin (AlphaFold), in eight arrangements, because the prediction knows each domain's shape and not their layout. It is `protein-lab`'s *why* to that page's *what* | folding animation |
+| `folding-lab.html` | How a protein folds: villin headpiece (PDB 1VII) collapses from an extended chain. Two acts with two different causes — hydrogen bonds coil the helices (12 of its 14 are i→i+4), then the hydrophobic core packs them. Act 3 zooms out at true relative size — HP35 → the headpiece → villin (AlphaFold, eight arrangements, because the prediction knows each domain's shape and not their layout) → the actin filament it grips → and a coda showing villin-on-actin *measured* by X-ray, which is the answer the prediction could not give. It is `protein-lab`'s *why* to that page's *what* | folding animation |
 | `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. Loads no shared module on purpose, so the libraries are judged unmixed with our own rendering. Delete it once the first protein page ships (`RenderingLibraries.md`) | evaluation scratch |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery |
 
@@ -76,7 +76,7 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
 | `protein-lab` | pdb |
-| `folding-lab` | palette, molecules, scene, fx, folding, villin |
+| `folding-lab` | palette, molecules, scene, fx, folding, villin, actin |
 
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
@@ -113,6 +113,17 @@ ensemble uses, with completely different epistemic status, which is why the
 legend note and the button tooltips say so. `villin.js`'s header carries the
 full argument, including why uncertainty must not be presented as motion.
 
+**Rungs 4–5 add two more structures and two more caveats.** The filament is
+9ZZI (F-actin, cryo-EM 2.06 Å) — five subunits deposited, extended to 13 by the
+helical screw **measured from the file itself** (27.60 Å rise, −166.60° twist,
+four steps agreeing to 0.024 Å, both matching the literature). `check-pdb.js`
+asserts that repeating the screw reproduces every deposited chain, which is
+what makes the extra subunits symmetry rather than invention. The coda is 9JUS
+(villin gripping an actin trimer, X-ray 2.7 Å) — and **its villin is from a
+deep-sea vent worm**, because no vertebrate villin–actin structure exists. That
+species jump is stated on the page and asserted in the checker, and the complex
+is deliberately *not* drawn in HP35's blue.
+
 **The fold itself is precomputed and committed.** The page loads
 `pdb/1VII.fold.bin` and plays it; it runs no solver. `folding.js` still
 contains the solver because `tools/bake-fold.js` and the checker need it —
@@ -139,6 +150,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
+| `actin.js` | `ActinLib` = `parseCA` + `screwOf` (the helical operation, measured from the file) + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
 | `villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` (generated arrangements) + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
 | `folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing | own header |
 | `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** the webfonts, so no page carries a font `<link>` (only the two preconnect hints) | own header |
@@ -146,6 +158,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit, sugars included | `tools/README.md` |
+| `tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one actin protomer, the screw that stacks it, and the complex's Cα traces. The page rebuilds the other twelve subunits | own header |
 | `tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE matrix and rejection-samples the eight arrangements, writing `pdb/AF-P02640-villin.poses.bin`. The PAE stays in `tools/pae/` as a committed input and never reaches the browser | own header |
 | `tools/bake-fold.js` | solves the villin fold once and writes `pdb/1VII.fold.bin` (433 KB, 181 keyframes). `folding-lab.html` plays that file and folds nothing itself. **Re-run after any change to `folding.js`'s solver, schedule or H-bond cutoffs** — `check-pdb.js` compares the committed file against a fresh bake and fails if they differ | own header |
 | `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
