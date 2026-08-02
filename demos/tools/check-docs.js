@@ -155,9 +155,11 @@ for (const doc of DOCS) {
 // Docs sometimes write a path from the repo root rather than from demos/.
 const norm = n => n.replace(/^demos\//, '');
 // Prose names a script the way a reader says it — `check-molecules.js` lives at
-// the top level and `check-docs.js` in tools/, and neither gets a directory in
-// running text. So resolve a bare name against both.
-const SEARCH = ['.', 'tools'];
+// the top level, `check-docs.js` in tools/ and `ribbon.js` in folding/, and
+// none of them gets a directory in running text. So resolve a bare name
+// against all three. folding/ joined the list when folding-lab's modules moved
+// there; before that, any comment naming one of them bare failed here.
+const SEARCH = ['.', 'tools', 'folding'];
 const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
 for (const [n, docs] of [...named].sort()) {
