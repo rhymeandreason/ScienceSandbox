@@ -75,8 +75,8 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 | `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
-| `protein-lab` | pdb |
-| `folding-lab` | palette, molecules, scene, fx, folding, villin, actin |
+| `protein-lab` | pdb, vendor/chemdoodle/ChemDoodleWeb |
+| `folding-lab` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin |
 
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
@@ -97,7 +97,7 @@ pull the page into the GPL. So it loads `palette.js` + `molecules.js` for
 `PALETTE` alone and no `mol-*.js` at all: every coordinate is a real ångström
 off the PDB, never a `SCALE`d spec. Display radii are the house `PALETTE.radii`
 **divided by `SCALE`**, computed in the page — that is what keeps its
-ball-and-stick proportions identical to every other page, and `folding.js`
+ball-and-stick proportions identical to every other page, and `folding/folding.js`
 deliberately holds no radii of its own since it renders nothing. Its chemical
 claims are asserted at the foot of `tools/check-pdb.js`.
 
@@ -110,13 +110,13 @@ model cannot place its own domains**: ~2 Å within HP35, but pinned at the
 31.75 Å ceiling between headpiece and core. Domains are moved rigidly and only
 linkers change. They are *generated, not observed* — the same interface an NMR
 ensemble uses, with completely different epistemic status, which is why the
-legend note and the button tooltips say so. `villin.js`'s header carries the
+legend note and the button tooltips say so. `folding/villin.js`'s header carries the
 full argument, including why uncertainty must not be presented as motion.
 
 **Rungs 4–5 add two more structures and two more caveats.** The filament is
 9ZZI (F-actin, cryo-EM 2.06 Å) — five subunits deposited, extended to 13 by the
 helical screw **measured from the file itself** (27.60 Å rise, −166.60° twist,
-four steps agreeing to 0.024 Å, both matching the literature). `check-pdb.js`
+four steps agreeing to 0.024 Å, both matching the literature). `folding/tools/check-folding.js`
 asserts that repeating the screw reproduces every deposited chain, which is
 what makes the extra subunits symmetry rather than invention. The coda is 9JUS
 (villin gripping an actin trimer, X-ray 2.7 Å) — and **its villin is from a
@@ -125,10 +125,10 @@ species jump is stated on the page and asserted in the checker, and the complex
 is deliberately *not* drawn in HP35's blue.
 
 **The fold itself is precomputed and committed.** The page loads
-`pdb/1VII.fold.bin` and plays it; it runs no solver. `folding.js` still
-contains the solver because `tools/bake-fold.js` and the checker need it —
+`folding/data/1VII.fold.bin` and plays it; it runs no solver. `folding/folding.js` still
+contains the solver because `folding/tools/bake-fold.js` and the checker need it —
 but nothing in the browser calls `Folder`. Change the solver and you must
-re-run `node tools/bake-fold.js`, or `check-pdb.js` fails: a stale trajectory
+re-run `node folding/tools/bake-fold.js`, or `folding/tools/check-folding.js` fails: a stale trajectory
 is invisible from the animation, which is exactly why it is checked.
 
 `aminoacid-lab` loads `mol-small` because dehydration synthesis releases a real
@@ -150,17 +150,17 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
-| `actin.js` | `ActinLib` = `parseCA` + `screwOf` (the helical operation, measured from the file) + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
-| `villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` (generated arrangements) + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
-| `folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing | own header |
+| `folding/actin.js` | `ActinLib` = `parseCA` + `screwOf` (the helical operation, measured from the file) + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
+| `folding/villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` (generated arrangements) + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
+| `folding/folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing | own header |
 | `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** the webfonts, so no page carries a font `<link>` (only the two preconnect hints) | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit, sugars included | `tools/README.md` |
-| `tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one actin protomer, the screw that stacks it, and the complex's Cα traces. The page rebuilds the other twelve subunits | own header |
-| `tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE matrix and rejection-samples the eight arrangements, writing `pdb/AF-P02640-villin.poses.bin`. The PAE stays in `tools/pae/` as a committed input and never reaches the browser | own header |
-| `tools/bake-fold.js` | solves the villin fold once and writes `pdb/1VII.fold.bin` (433 KB, 181 keyframes). `folding-lab.html` plays that file and folds nothing itself. **Re-run after any change to `folding.js`'s solver, schedule or H-bond cutoffs** — `check-pdb.js` compares the committed file against a fresh bake and fails if they differ | own header |
+| `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one actin protomer, the screw that stacks it, and the complex's Cα traces. The page rebuilds the other twelve subunits | own header |
+| `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE matrix and rejection-samples the eight arrangements, writing `pdb/AF-P02640-villin.poses.bin`. The PAE stays in `folding/data/` as a committed input and never reaches the browser | own header |
+| `folding/tools/bake-fold.js` | solves the villin fold once and writes `folding/data/1VII.fold.bin` (433 KB, 181 keyframes). `folding-lab.html` plays that file and folds nothing itself. **Re-run after any change to `folding/folding.js`'s solver, schedule or H-bond cutoffs** — `folding/tools/check-folding.js` compares the committed file against a fresh bake and fails if they differ | own header |
 | `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
 
 Things that are easy to get wrong and are not visible from the API:
@@ -308,10 +308,10 @@ with `npm run hooks`; disable it with `git config --unset core.hooksPath`; skip
 it once with `git commit --no-verify`.
 
 Each one is gated on the files it can actually judge, so most commits run one
-or none. **`check-pdb` fires on `pdb.js`, `folding.js`, `palette.js`,
-`tools/bake-fold.js`, `tools/check-pdb.js` and anything in `pdb/`** — the solver and the baked
+or none. **`check-pdb` fires on `pdb.js`, `folding/folding.js`, `palette.js`,
+`folding/tools/bake-fold.js`, `tools/check-pdb.js` and anything in `pdb/`** — the solver and the baked
 trajectory are in that list deliberately: it once fired only on `*.pdb` and so
-sat out a commit that changed both the solver and `pdb/1VII.fold.bin`, which is
+sat out a commit that changed both the solver and `folding/data/1VII.fold.bin`, which is
 exactly the pair the staleness assertion exists to catch. Widen the pattern
 alongside any new derived artefact, because nothing about a stale one is
 visible from the page that plays it.

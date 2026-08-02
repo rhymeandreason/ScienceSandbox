@@ -9,12 +9,12 @@
  *  deterministic — same input file, same solver, same trajectory — so it
  *  belongs on disk next to the structure it came from.
  *
- *  Writes pdb/1VII.fold.bin. Run it after ANY change to folding.js's solver,
- *  its schedule, or the H-bond cutoffs; tools/check-pdb.js re-bakes and
+ *  Writes folding/data/1VII.fold.bin. Run it after ANY change to folding.js's solver,
+ *  its schedule, or the H-bond cutoffs; folding/tools/check-folding.js re-bakes and
  *  compares, so a stale file fails the build rather than quietly animating
  *  something the current code would not produce.
  *
- *  Run:  node tools/bake-fold.js        (offline, no dependencies)
+ *  Run:  node folding/tools/bake-fold.js        (offline, no dependencies)
  * ===================================================================== */
 'use strict';
 
@@ -22,9 +22,9 @@ const fs = require('fs');
 const path = require('path');
 const FoldLib = require('../folding.js');
 
-const ROOT = path.join(__dirname, '..');
-const SRC = path.join(ROOT, 'pdb', '1VII.pdb');
-const OUT = path.join(ROOT, 'pdb', '1VII.fold.bin');
+const HERE = path.join(__dirname, '..');   // demos/folding
+const SRC = path.join(HERE, 'data', '1VII.pdb');
+const OUT = path.join(HERE, 'data', '1VII.fold.bin');
 
 /* Must match folding-lab.html's CORE_RESIDUES: the three phenylalanines are
    in the trajectory as atoms, so baking a different set writes a file with a
@@ -32,7 +32,7 @@ const OUT = path.join(ROOT, 'pdb', '1VII.fold.bin');
 const CORE_RESIDUES = [47, 51, 58];
 
 if (!fs.existsSync(SRC)) {
-  console.error('missing ' + path.relative(ROOT, SRC));
+  console.error('missing ' + path.relative(HERE, SRC));
   process.exit(1);
 }
 
@@ -46,4 +46,4 @@ fs.writeFileSync(OUT, buf);
 const formed = folder.formation().filter(x => x > 0.5).length;
 console.log(`baked ${traj.count} keyframes x ${traj.atoms} atoms in ${Date.now() - t0} ms`);
 console.log(`  lands ${folder.rmsd().toFixed(2)} A RMSD from deposited, ${formed}/${traj.formed[0].length} H-bonds formed`);
-console.log(`  wrote ${path.relative(ROOT, OUT)} (${(buf.length / 1024).toFixed(0)} KB)`);
+console.log(`  wrote ${path.relative(HERE, OUT)} (${(buf.length / 1024).toFixed(0)} KB)`);

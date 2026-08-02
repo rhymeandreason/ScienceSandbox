@@ -110,7 +110,7 @@
   .abtns button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 
   /* Load curtain. Only covers two fetches now that the trajectory is a
-     committed file (tools/bake-fold.js) — on a warm cache it barely shows. */
+     committed file (folding/tools/bake-fold.js) — on a warm cache it barely shows. */
   #loading{position:absolute;inset:0;z-index:20;display:flex;align-items:center;
     justify-content:center;background:rgba(253,250,243,.92);
     font-family:var(--font-hand);font-size:22px;color:var(--muted)}
@@ -188,15 +188,15 @@
 <script src="molecules.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
-<script src="folding.js"></script>
-<script src="villin.js"></script>
-<script src="actin.js"></script>
+<script src="folding/folding.js"></script>
+<script src="folding/villin.js"></script>
+<script src="folding/actin.js"></script>
 <script>
 "use strict";
 /* =============================================================
  *  HOW A PROTEIN FOLDS — villin headpiece subdomain (PDB 1VII)
  *
- *  The science, the honesty caveats and the solver all live in folding.js;
+ *  The science, the honesty caveats and the solver all live in folding/folding.js;
  *  read its header first. This file is only the page: it renders what the
  *  solver produces and says what is happening.
  *
@@ -229,7 +229,7 @@ const CORE_COLOR = 0xc2571b;
    it cannot drift — retune PALETTE and this page follows.
 
    These are display radii, not van der Waals radii, and they belong to the
-   PAGE: folding.js renders nothing and has no business holding them. */
+   PAGE: folding/folding.js renders nothing and has no business holding them. */
 const RADII = {};
 for (const el of ['C', 'N', 'O', 'H']) RADII[el] = PAL.radii[el] / MolLib.SCALE;
 
@@ -247,7 +247,7 @@ let userSpun = false;
    conflict with a solved distance. */
 let userZoom = false;
 const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(canvas, {
-  /* theta=0 is not a taste call. folding.js's orient() rotates the whole
+  /* theta=0 is not a taste call. folding/folding.js's orient() rotates the whole
      fold so the extended chain lies along world X, and the orbit's `right`
      vector is (-cos theta, 0, sin theta) — so theta=0 puts `right` exactly on
      X and the chain exactly horizontal on screen, at any elevation. Any other
@@ -275,15 +275,15 @@ const foldGroup = new THREE.Group(); root.add(foldGroup);
    Two fetches, no solving. The PDB gives the topology to draw (which atoms,
    which bonds, which pairs are hydrogen-bonded); the .bin gives the whole
    precomputed trajectory. Nothing here recomputes the fold — see
-   tools/bake-fold.js for why it is a committed file rather than work the
+   folding/tools/bake-fold.js for why it is a committed file rather than work the
    browser repeats on every visit. */
 Promise.all([
-  fetch('pdb/1VII.pdb').then(r => {
-    if (!r.ok) throw new Error('pdb/1VII.pdb — HTTP ' + r.status);
+  fetch('folding/data/1VII.pdb').then(r => {
+    if (!r.ok) throw new Error('folding/data/1VII.pdb — HTTP ' + r.status);
     return r.text(); }),
-  fetch('pdb/1VII.fold.bin').then(r => {
-    if (!r.ok) throw new Error('pdb/1VII.fold.bin — HTTP ' + r.status +
-      ' (run: node tools/bake-fold.js)');
+  fetch('folding/data/1VII.fold.bin').then(r => {
+    if (!r.ok) throw new Error('folding/data/1VII.fold.bin — HTTP ' + r.status +
+      ' (run: node folding/tools/bake-fold.js)');
     return r.arrayBuffer(); }),
 ]).then(([text, bin]) => {
   parsed = FoldLib.parse(text, { sideChains: CORE_RESIDUES });
@@ -297,10 +297,10 @@ Promise.all([
      Cheap to check, impossible to debug from the picture. */
   if (traj.atoms !== parsed.nodes.length)
     throw new Error(`baked fold has ${traj.atoms} atoms, structure has ` +
-      `${parsed.nodes.length} — re-run: node tools/bake-fold.js`);
+      `${parsed.nodes.length} — re-run: node folding/tools/bake-fold.js`);
   if (traj.formed[0].length !== hb.length)
     throw new Error(`baked fold has ${traj.formed[0].length} H-bonds, ` +
-      `structure has ${hb.length} — re-run: node tools/bake-fold.js`);
+      `structure has ${hb.length} — re-run: node folding/tools/bake-fold.js`);
 
   build(); seek(0);
   document.getElementById('loading').classList.add('done');
@@ -370,7 +370,7 @@ function build() {
    the real frustum (CLAUDE.md). The extents are measured once at load from
    the baked keyframes, so this costs a lerp per frame, not a scan.
 
-   No re-targeting: the fold's centroid does not move (folding.js recentres
+   No re-targeting: the fold's centroid does not move (folding/folding.js recentres
    the extended start on the deposited centroid), measured at 0.00 A drift
    across the whole trajectory. Only the distance changes. */
 /* Fitted in SCREEN space, not by a bounding cylinder. Stage.frame models a
@@ -560,7 +560,7 @@ const INTRO = {
         'build itself. <b>Two different forces do the work, one after the ' +
         'other</b>, and telling them apart is the whole lesson.',
   /* The caveats belong where a student can see them, not only in a source
-     comment — folding.js's header explains each at length. Shown before play
+     comment — folding/folding.js's header explains each at length. Shown before play
      because that is when there is room; the running caption must stay small. */
   note: '<b>What this animation fakes:</b> real folding is thermal chaos over about ' +
         '4 microseconds, not a smooth collapse. The <i>order</i> of events is right; ' +
@@ -631,7 +631,7 @@ function updateReadout(formed) {
  *  HP35 stays a visible lobe on the whole protein rather than vanishing.
  *
  *  The whole-protein rung is an AlphaFold PREDICTION and must never read as
- *  a structure. villin.js's header has the full reasoning; the short version
+ *  a structure. folding/villin.js's header has the full reasoning; the short version
  *  is that AlphaFold knows each domain's shape well (PAE ~2 A inside HP35)
  *  and knows essentially nothing about how they are arranged (PAE pinned at
  *  its 31.75 A ceiling between headpiece and core). Hence eight arrangements
@@ -670,18 +670,18 @@ const DOM_COLORS = [0x8c7f6a, 0xa8927a, 0x7d8f7a, 0x94836b,
                     0x8a8f9c, 0x9c8a7d, 0xa39a86, 0x6f7f74];
 const HP_COLOR = 0x0042aa;
 
-fetch('pdb/actin.bin')
+fetch('folding/data/actin.bin')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
   .then(buf => { actin = ActinLib.decode(buf); })
-  .catch(e => console.warn('rungs 4-5 unavailable — ' + e.message + ' (run: node tools/bake-actin.js)'));
+  .catch(e => console.warn('rungs 4-5 unavailable — ' + e.message + ' (run: node folding/tools/bake-actin.js)'));
 
-fetch('pdb/AF-P02640-villin.poses.bin')
+fetch('folding/data/AF-P02640-villin.poses.bin')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
   .then(buf => { villin = VillinLib.decode(buf); buildArrangementButtons(); })
   .catch(e => {
     /* Act 3 is additive: acts 1-2 are a complete lesson on their own, so a
        missing villin file disables the zoom rather than breaking the page. */
-    console.warn('act 3 unavailable — ' + e.message + ' (run: node tools/bake-villin.js)');
+    console.warn('act 3 unavailable — ' + e.message + ' (run: node folding/tools/bake-villin.js)');
   });
 
 /* Ca positions of one arrangement, as Vector3s, IN THE FOLD'S FRAME.

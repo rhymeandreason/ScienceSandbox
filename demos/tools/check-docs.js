@@ -98,10 +98,13 @@ if (!scriptRows) {
 
   for (const page of pages) {
     const key = page.replace(/\.html$/, '');
-    // Local scripts only — three.min.js comes from a CDN and is not the
-    // table's subject.
+    /* Local scripts only — three.min.js comes from a CDN and is not the
+       table's subject. Exempting anything containing a slash used to do that
+       job, but it also exempted every script in a subfolder, so when a page's
+       own modules moved into one they silently stopped being checked. Only
+       REMOTE scripts are exempt now. */
     const actual = new Set([...rd(page).matchAll(/<script\s+src="([^"]+)"/g)]
-      .map(m => m[1]).filter(s => !s.includes('/')));
+      .map(m => m[1]).filter(s => !/^(https?:)?\/\//.test(s)));
     const want = declared.get(key);
     if (!want) { fail('scripts', `${page} is not in the table at all`); continue; }
     const missing = [...actual].filter(s => !want.has(s));
