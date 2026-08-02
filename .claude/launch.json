@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sandbox",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/dev-server.js", "8817"],
+      "cwd": "demos",
+      "port": 8817
+    }
+  ]
+}
