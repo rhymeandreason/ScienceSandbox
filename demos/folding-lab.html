@@ -11,6 +11,11 @@
 <style>
   :root{ --hb:#0042aa; --core:#c2571b; }
 
+  /* No side panel: the two acts already say what a panel would, and the
+     chain is a 121 A rod at t=0 that wants every pixel of width it can get.
+     The intro that used to sit in the panel is the card's first state. */
+  #app{grid-template-columns:1fr}
+
   /* The act caption, top-centre — which of the two mechanisms is running. */
   #act{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:6;
     max-width:min(560px,80%);text-align:center;pointer-events:none;
@@ -20,6 +25,15 @@
   #act .actbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;
     color:#3a352f;margin-top:4px}
   #act .actname.a1{color:var(--hb)} #act .actname.a2{color:var(--core)}
+  /* Intro state: bigger title, and the caveats visible before play. Once the
+     fold starts the card is a running caption and must stay small. */
+  #act.intro{max-width:min(640px,84%);padding:14px 22px 16px}
+  #act.intro .actname{font-size:29px}
+  #act.intro .actbody{font-size:14.5px;margin-top:7px}
+  #act .actnote{display:none}
+  #act.intro .actnote{display:block;font-family:var(--font-sans);font-size:11.5px;
+    line-height:1.45;color:var(--muted);margin-top:10px;padding-top:9px;
+    border-top:1px solid var(--hair);text-align:left}
 
   /* Transport: play/pause + scrub, bottom-centre. */
   #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
@@ -55,17 +69,6 @@
     font-family:var(--font-hand);font-size:22px;color:var(--muted)}
   #loading.done{display:none}
 
-  #side .note{font-size:12.5px;color:var(--muted);line-height:1.5;
-    border-left:2.5px solid var(--hair);padding-left:11px;margin-top:14px}
-  #side .lvl{margin-top:15px;padding-top:13px;border-top:1px solid var(--hair)}
-  #side .lvl h3{font-family:var(--font-slab);font-size:13.5px;margin:0 0 5px}
-  #side .lvl.a1 h3{color:var(--hb)} #side .lvl.a2 h3{color:var(--core)}
-  #side .lvl p{margin:0;font-size:13px;line-height:1.5}
-  #side .lvl.on{background:rgba(255,255,255,.55);border-radius:8px;
-    padding:11px 12px 12px;margin-left:-12px;margin-right:-12px}
-  #side .seq{font-family:ui-monospace,'SF Mono',Consolas,monospace;font-size:10.5px;
-    line-height:1.6;color:var(--muted);word-break:break-all;margin-top:5px}
-
   @media (max-width:920px){
     #act{top:12px;max-width:90%} #transport{width:90%;bottom:14px}
     #tally{left:12px;top:auto;bottom:76px}
@@ -76,7 +79,8 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="act"><div class="actname a1"></div><div class="actbody"></div></div>
+    <div id="act" class="intro"><div class="actname"></div>
+      <div class="actbody"></div><div class="actnote"></div></div>
     <div id="tally"><span class="big" id="hbcount">0</span> / 14 hydrogen bonds
       <div class="sub" id="hbsub">holding the chain</div></div>
     <div id="transport">
@@ -91,30 +95,6 @@
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
     <div id="loading">loading…</div>
-  </div>
-  <div id="side">
-    <h1 id="labtitle">How a protein folds</h1>
-    <p id="labintro">This is <b>villin headpiece</b> — 36 amino acids, one of the
-      smallest things that folds like a real protein. Press play and watch the
-      chain build itself. <b>Two different forces do the work, one after the
-      other</b>, and telling them apart is the whole lesson.</p>
-
-    <div class="lvl a1" id="lvl1">
-      <h3>1 · Hydrogen bonds coil the chain</h3>
-      <p>Every backbone <b>C=O</b> reaches <b>four residues</b> down the chain and
-        grabs the <b>N–H</b> there. Do that over and over and the chain has no
-        choice but to spiral — that spiral is an <b>α-helix</b>. Count the blue
-        dashes: 12 of the 14 are exactly this i→i+4 grip.</p>
-    </div>
-    <div class="lvl a2" id="lvl2">
-      <h3>2 · Water packs the helices together</h3>
-      <p>Now the hydrogen bonds are done — <b>not one of them runs between
-        helices</b>. What folds the three helices into a bundle is the three
-        orange <b>phenylalanines</b> hiding from water. Oily side chains get
-        pushed inward; the protein closes around them.</p>
-    </div>
-
-    <div class="note" id="honesty"></div>
   </div>
 </div>
 
@@ -165,14 +145,28 @@ const PLAY_SECONDS = 15;                   // wall-clock length of one fold
 
 const canvas = document.getElementById('gl');
 let userSpun = false;
+/* Once the student wheels the camera themselves, the per-frame auto-framing
+   stops for good — otherwise every frame would yank their chosen zoom back,
+   which reads as the page fighting them. Orbiting is left alone: it does not
+   conflict with a solved distance. */
+let userZoom = false;
 const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(canvas, {
-  cam: { theta: 0.5, phi: 1.25, r: 46 }, phiMin: 0.3, phiMax: 2.7,
-  rMin: 12, rMax: 160, onDrag: () => { userSpun = true; } });
+  /* theta=0 is not a taste call. folding.js's orient() rotates the whole
+     fold so the extended chain lies along world X, and the orbit's `right`
+     vector is (-cos theta, 0, sin theta) — so theta=0 puts `right` exactly on
+     X and the chain exactly horizontal on screen, at any elevation. Any other
+     azimuth reintroduces the diagonal this page was fighting. */
+  cam: { theta: 0, phi: 1.18, r: 46 }, phiMin: 0.3, phiMax: 2.7,
+  rMin: 4, rMax: 200,
+  onDrag: () => { userSpun = true; frameAt(t); },
+  onZoom: () => { userZoom = true; } });
 const FXi = FX.create(THREE, root, camera);
 
 /* ---------- state ---------- */
 let parsed = null, hb = null, traj = null;
 let t = 0, playing = false, lastFormed = null;
+/* false until the student first plays or scrubs — drives the card's intro state */
+let started = false;
 const atomMeshes = [], bondMeshes = [], hbGroups = [];
 
 /* ---------- load ----------
@@ -206,7 +200,7 @@ Promise.all([
     throw new Error(`baked fold has ${traj.formed[0].length} H-bonds, ` +
       `structure has ${hb.length} — re-run: node tools/bake-fold.js`);
 
-  build(); frameCamera(); seek(0);
+  build(); seek(0);
   document.getElementById('loading').classList.add('done');
 }).catch(e => {
   document.getElementById('loading').textContent = 'could not start — ' + e.message;
@@ -261,24 +255,82 @@ function build() {
   });
 }
 
-/* ---------- camera ---------- */
-/* Framed on the EXTENDED chain, not the folded one. The extended state is
-   by far the widest thing shown, and a camera fitted to the compact fold
-   would send the chain off-screen for the first half of the animation —
-   the half the lesson is about. Never hand-tuned: solved from the real
-   frustum by Stage.frame (CLAUDE.md). */
-function frameCamera() {
-  const P = FoldLib.extended(parsed);
-  let rxz = 0, hy = 0;
-  const c = P.reduce((a, p) => [a[0]+p[0]/P.length, a[1]+p[1]/P.length, a[2]+p[2]/P.length], [0,0,0]);
-  P.forEach(p => {
-    rxz = Math.max(rxz, Math.hypot(p[0]-c[0], p[2]-c[2]));
-    hy  = Math.max(hy, Math.abs(p[1]-c[1]));
-  });
-  Stage.frame(camera, cam, [{ x: 0, y: 0, rxz, hy }], { pad: 1.18, top: 3, bottom: 3 });
+/* ---------- camera ----------
+   THE CAMERA MOVES IN, because the molecule shrinks 5.4x as it folds. A
+   single framing cannot serve both ends: fit the extended chain and the
+   folded bundle is a speck for the whole second half; fit the bundle and
+   the chain is off-screen for the whole first half. So the framing is
+   solved PER FRAME against the chain's actual extent at that moment, which
+   keeps it filling the stage throughout and makes the collapse read as the
+   protein compacting rather than the camera retreating.
+
+   Still never hand-tuned — every distance comes from Stage.frame solving
+   the real frustum (CLAUDE.md). The extents are measured once at load from
+   the baked keyframes, so this costs a lerp per frame, not a scan.
+
+   No re-targeting: the fold's centroid does not move (folding.js recentres
+   the extended start on the deposited centroid), measured at 0.00 A drift
+   across the whole trajectory. Only the distance changes. */
+/* Fitted in SCREEN space, not by a bounding cylinder. Stage.frame models a
+   molecule as (radius in xz, half-height in y), which is invariant to how the
+   camera is turned — fine for a compact molecule, useless here: at t=0 this
+   chain is a 121 A rod lying diagonally, and the cylinder model reports it as
+   a 54 A-radius blob, framing it as though it were as deep as it is long. The
+   result was a rod occupying a third of a wide canvas.
+
+   So project every atom onto the camera's own right/up axes and fit those
+   half-extents directly. Still solved from the real frustum rather than
+   hand-picked — CLAUDE.md's rule is against magic numbers, not against
+   measuring the right thing — and it now exploits a wide stage properly,
+   because a rod that is wide and thin is finally described as wide and thin.
+   Recomputed per frame from live positions, so it stays correct when the
+   student orbits, which a precomputed table could not.
+
+   The reserves are in PIXELS because what they clear is HTML chrome: the
+   caption card above and the transport below sit at fixed pixel offsets, so a
+   world-space band would over-reserve when zoomed in and under-reserve when
+   zoomed out. */
+const RESERVE = { top: 118, intro: 172, bottom: 96 };
+const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
+const MAX_R = 0.4;                         // biggest display radius, in angstroms
+
+function frameFrom(P) {
+  if (userZoom || !P) return;
+  const h = canvas.clientHeight, w = canvas.clientWidth;
+  if (!h || !w) return;
+
+  // camera basis: direction depends on theta/phi only, never on distance
+  _fwd.set(Math.sin(cam.phi) * Math.sin(cam.theta),
+           Math.cos(cam.phi),
+           Math.sin(cam.phi) * Math.cos(cam.theta)).normalize();
+  _right.crossVectors(_fwd, new THREE.Vector3(0, 1, 0));
+  if (_right.lengthSq() < 1e-8) _right.set(1, 0, 0);     // camera straight overhead
+  _right.normalize();
+  _up.crossVectors(_right, _fwd).normalize();
+
+  let halfW = 0, halfH = 0;
+  for (let i = 0; i < P.length; i++) {
+    const p = P[i];
+    halfW = Math.max(halfW, Math.abs(p.x*_right.x + p.y*_right.y + p.z*_right.z));
+    halfH = Math.max(halfH, Math.abs(p.x*_up.x    + p.y*_up.y    + p.z*_up.z));
+  }
+  // extents are to sphere CENTRES; without this the outer atoms clip in half
+  halfW += MAX_R; halfH += MAX_R;
+
+  // give back the pixels the chrome covers, by asking the frustum for more
+  const top = (document.getElementById('act').classList.contains('intro')
+               ? RESERVE.intro : RESERVE.top);
+  const usable = Math.max(0.25, (h - top - RESERVE.bottom) / h);
+  halfH /= usable;
+
+  const tan = Math.tan(camera.fov * Math.PI / 360);
+  const d = Math.max(halfH / tan, halfW / (tan * camera.aspect)) * 1.06;
+  cam.r = Math.max(6, Math.min(220, d));
   applyCam();
 }
-new ResizeObserver(() => { resize(); if (parsed) frameCamera(); }).observe(canvas);
+
+function frameAt(tt) { if (traj) frameFrom(posOf(tt)); }
+new ResizeObserver(() => { resize(); frameAt(t); }).observe(canvas);
 
 /* ---------- sample the baked trajectory ---------- */
 /* Playback reads stored coordinates and lerps between keyframes; no physics
@@ -348,10 +400,33 @@ function seek(tt) {
   });
   lastFormed = formed;
 
+  /* Readout first: it sets the card's intro/caption state, and frameFrom
+     reserves a different pixel band for each. Framing first would size one
+     frame against the state the card is leaving. */
   updateReadout(formed);
+  frameFrom(P);
 }
 
-/* ---------- panel + captions ---------- */
+/* ---------- the card ----------
+   One card, three states. Before play it is the page's title and standfirst
+   (there is no side panel to put them in, and a student needs to know what
+   they are looking at before it starts moving); during the fold it is a
+   running caption for whichever mechanism is currently doing the work. */
+const INTRO = {
+  name: 'How a protein folds',
+  body: 'This is <b>villin headpiece</b> — 36 amino acids, one of the smallest ' +
+        'things that folds like a real protein. Press play and watch the chain ' +
+        'build itself. <b>Two different forces do the work, one after the ' +
+        'other</b>, and telling them apart is the whole lesson.',
+  /* The caveats belong where a student can see them, not only in a source
+     comment — folding.js's header explains each at length. Shown before play
+     because that is when there is room; the running caption must stay small. */
+  note: '<b>What this animation fakes:</b> real folding is thermal chaos over about ' +
+        '4 microseconds, not a smooth collapse. The <i>order</i> of events is right; ' +
+        'the path is not. And act 2’s core is drawn as an attraction between the ' +
+        'phenylalanines, when the real cause is water pushing them together.',
+};
+
 const ACTS = [
   { name: 'Act 1 · hydrogen bonds coil the chain',
     body: 'Each C=O grabs the N–H four residues down. Three separate stretches spiral into α-helices.' },
@@ -362,13 +437,14 @@ const ACTS = [
 function updateReadout(formed) {
   const s = FoldLib.SCHEDULE(t);
   const act = document.getElementById('act');
-  const a = ACTS[s.act - 1];
-  act.querySelector('.actname').className = 'actname a' + s.act;
-  act.querySelector('.actname').textContent = a.name;
-  act.querySelector('.actbody').textContent = a.body;
+  const intro = !started;
+  const a = intro ? INTRO : ACTS[s.act - 1];
 
-  document.getElementById('lvl1').classList.toggle('on', s.act === 1);
-  document.getElementById('lvl2').classList.toggle('on', s.act === 2);
+  act.classList.toggle('intro', intro);
+  act.querySelector('.actname').className = 'actname' + (intro ? '' : ' a' + s.act);
+  act.querySelector('.actname').textContent = a.name;
+  act.querySelector('.actbody').innerHTML = a.body;
+  act.querySelector('.actnote').innerHTML = intro ? INTRO.note : '';
 
   const nf = formed.filter(x => x > 0.5).length;
   document.getElementById('hbcount').textContent = nf;
@@ -381,14 +457,6 @@ function updateReadout(formed) {
   document.getElementById('scrub').value = Math.round(t * 1000);
 }
 
-/* The caveats, in the student's own view rather than only in a comment —
-   folding.js's header explains each at length. */
-document.getElementById('honesty').innerHTML =
-  '<b>What this animation fakes:</b> real folding is thermal chaos over about ' +
-  '4 microseconds, not a smooth collapse. The <i>order</i> of events is right; ' +
-  'the path is not. And act 2’s core is drawn as an attraction between the ' +
-  'phenylalanines, when the real cause is water pushing them together.';
-
 /* ---------- transport ---------- */
 const playBtn = document.getElementById('playbtn'), scrub = document.getElementById('scrub');
 function setPlaying(p) {
@@ -397,12 +465,14 @@ function setPlaying(p) {
 }
 playBtn.addEventListener('click', () => {
   if (!traj) return;
+  started = true;
   if (t >= 0.999 && !playing) { lastFormed = null; seek(0); }
   setPlaying(!playing);
 });
 scrub.addEventListener('input', () => {
   if (!traj) return;
   setPlaying(false);
+  started = true;
   lastFormed = null;                       // no ring storm while dragging
   seek(+scrub.value / 1000);
 });

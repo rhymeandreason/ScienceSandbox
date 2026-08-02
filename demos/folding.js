@@ -212,7 +212,7 @@ const FoldLib = (function () {
      chain to change its internal shape. */
   function extended(parsed) {
     const { nodes, residues } = parsed;
-    const P = nodes.map(n => n.native.slice());
+    let P = nodes.map(n => n.native.slice());
     const I = IDEAL;
 
     let prevC = null, prevCA = null, prevO = null, prevN = null;
@@ -261,6 +261,11 @@ const FoldLib = (function () {
        helping the fold: without it the guide spends its whole budget
        dragging the chain across the scene instead of folding it, and the
        collapse needs an order of magnitude more frames to converge. */
+    /* Into the viewing frame, if one has been solved. The natives were
+       rotated in place by orient(), so the extended chain has to follow or
+       the guide would be pulling toward a target in a different basis. */
+    if (parsed.orientation) P = P.map(q => apply(parsed.orientation, q));
+
     const c = centroid(P, P.map((_, i) => i));
     return P.map(q => v3.sub(q, c)).map(q => v3.add(q, centroid(
       nodes.map(nd => nd.native), nodes.map((_, i) => i))));
@@ -282,7 +287,89 @@ const FoldLib = (function () {
                   v3.add(v3.mul(F.e2, l[1]), v3.mul(F.e3, l[2]))));
   }
 
-  /* ---------------- 4. the schedule ---------------- */
+  /* ---------------- 4. put the problem in a viewable frame ---------------- */
+
+  /* orient(parsed) — rotate the whole fold onto the extended chain's own
+     principal axes, so it starts lying along X.
+
+     WHY. The extended chain is built outward from an arbitrary seed frame,
+     which left its long axis pointing 0.84/0.54/0.05 — a 33 degree tilt out
+     of the horizontal plane. On screen that is a rod running corner to corner
+     across the stage, using about a third of a wide canvas and looking like
+     an accident rather than a molecule. It cannot be fixed from the camera:
+     the orbit's `right` vector is always horizontal (it is cross(fwd, +Y), so
+     its y component is identically zero), and no azimuth can flatten an axis
+     that is genuinely tilted. The best any camera could do here was 0.841 of
+     the chain's length across the screen.
+
+     So this is a CHANGE OF BASIS, not a fudge. The same rotation is applied
+     to the extended start and to every native target, so the fold's dynamics
+     are untouched — every distance, every H-bond, the RMSD, all identical.
+     Only the frame the whole thing is expressed in changes. The folded end
+     state is compact, so its orientation does not matter; the extended start
+     is the only state whose framing is worth solving for. This is exactly
+     what pdb.js does for deposited coordinates, applied to the one structure
+     here that pdb.js never sees.
+
+     HANDEDNESS. An eigenvector's sign is arbitrary, so the basis comes out
+     left-handed about half the time, and a left-handed basis MIRRORS the
+     protein into its enantiomer — the failure MolecularGeometry.md 1.3 calls
+     out as invisible to internal checks. Guarded to det = +1 here, the same
+     way pdb.js guards it.
+
+     Idempotent, and called by Folder, so a caller cannot bake an unoriented
+     trajectory by forgetting a step. */
+  function orient(parsed) {
+    if (parsed.orientation) return parsed;
+
+    const E = extended(parsed);            // no orientation set yet: raw frame
+    const n = E.length;
+    const c = [0,1,2].map(k => E.reduce((s, p) => s + p[k], 0) / n);
+    const C = [[0,0,0],[0,0,0],[0,0,0]];
+    for (const p of E)
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 3; j++) C[i][j] += (p[i]-c[i]) * (p[j]-c[j]) / n;
+
+    const ev = jacobiEigen(C).map(x => x.vec);
+    let R = [ev[0], ev[1], ev[2]];         // longest axis becomes screen X
+    if (det3(R) < 0) R = [R[0], R[1], R[2].map(v => -v)];   // never mirror
+
+    parsed.orientation = R;
+    parsed.nodes.forEach(nd => { nd.native = apply(R, nd.native); });
+    return parsed;
+  }
+
+  const apply = (R, p) => R.map(ax => ax[0]*p[0] + ax[1]*p[1] + ax[2]*p[2]);
+
+  /* A symmetric 3x3 eigen-decomposition and a determinant. Same jobs as
+     pdb.js's, duplicated rather than imported because folding.js is loaded by
+     pages that do not load pdb.js at all, and a 3x3 solver is smaller than
+     the coupling would be. */
+  function jacobiEigen(A) {
+    A = A.map(r => r.slice());
+    const V = [[1,0,0],[0,1,0],[0,0,1]];
+    for (let sweep = 0; sweep < 24; sweep++) {
+      if (A[0][1]**2 + A[0][2]**2 + A[1][2]**2 < 1e-14) break;
+      for (const [p, q] of [[0,1],[0,2],[1,2]]) {
+        if (Math.abs(A[p][q]) < 1e-15) continue;
+        const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+        const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta*theta + 1));
+        const cs = 1 / Math.sqrt(t*t + 1), sn = t * cs;
+        for (let k = 0; k < 3; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = cs*a - sn*b; A[k][q] = sn*a + cs*b; }
+        for (let k = 0; k < 3; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = cs*a - sn*b; A[q][k] = sn*a + cs*b; }
+        for (let k = 0; k < 3; k++) { const a = V[k][p], b = V[k][q]; V[k][p] = cs*a - sn*b; V[k][q] = sn*a + cs*b; }
+      }
+    }
+    return [0,1,2].map(i => ({ val: A[i][i], vec: [V[0][i], V[1][i], V[2][i]] }))
+                  .sort((a, b) => b.val - a.val);
+  }
+
+  const det3 = m =>
+      m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1])
+    - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0])
+    + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]);
+
+  /* ---------------- 5. the schedule ---------------- */
 
   /* SCHEDULE(t) — the whole shape of the animation in one place, t = 0..1
      across the entire fold.
@@ -301,7 +388,7 @@ const FoldLib = (function () {
              hbGain: a1, coreGain: a2, guide: 0.04 * a1 + 0.55 * a2 * a2 };
   }
 
-  /* ---------------- 5. the solver ---------------- */
+  /* ---------------- 6. the solver ---------------- */
 
   /* Folder — a small constrained relaxation, not a force field.
    *
@@ -332,6 +419,7 @@ const FoldLib = (function () {
    *  and a reader can see exactly how much help is being given.
    */
   function Folder(parsed, opts) {
+    orient(parsed);                        // idempotent; see its header
     const o = Object.assign({ hbondLen: 1.9, coreLen: 5.2, damping: 0.86,
                               steps: 6, dt: 0.05 }, opts || {});
     const { nodes, bonds } = parsed;
@@ -566,7 +654,7 @@ const FoldLib = (function () {
                                bake, reset: () => seek(0, 1) });
   }
 
-  /* ---------------- 6. the baked trajectory on disk ---------------- */
+  /* ---------------- 7. the baked trajectory on disk ---------------- */
 
   /* The fold is deterministic and nobody tunes it twice, so it is solved
      ONCE by tools/bake-fold.js and committed as a file. The page then loads
@@ -575,6 +663,14 @@ const FoldLib = (function () {
      for every student, to recompute a number that cannot change.
      tools/check-pdb.js re-bakes and compares, so the committed file can
      never quietly fall out of step with the solver that produced it.
+
+     900 frames was enough before folding.js gained orient(); expressing the
+     same fold in a different basis shifts the arithmetic slightly, and the
+     structure's weakest hydrogen bond (C=O 45 -> H-N 49, only 2.41 A and 154
+     degrees in the deposited file) landed just short of formed. 1100 frames
+     closes it and improves the final RMSD to 0.77 A. The budget is spent at
+     build time and costs the browser nothing, so it is set by what converges
+     rather than by what is quick.
 
      Layout — magic, then five uint32, then three Float32 blocks:
        'FOLD' | version | frames | atoms | hbonds | (pad)
@@ -626,8 +722,8 @@ const FoldLib = (function () {
     return v3.mul(c, 1 / idx.length);
   }
 
-  return { parse, hbonds, extended, Folder, SCHEDULE, encode, decode,
-           RADII, IDEAL, BAKE: { frames: 900, keep: 5 },
+  return { parse, hbonds, extended, orient, Folder, SCHEDULE, encode, decode,
+           RADII, IDEAL, BAKE: { frames: 1100, keep: 6 },
            _v3: v3, _place: place };
 })();
 
