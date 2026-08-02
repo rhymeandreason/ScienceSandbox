@@ -712,6 +712,21 @@ function villinPoints(k, from, to) {
   return out;
 }
 
+/* villinSS(from, to) -> ['C','H','E',...] for exactly the residues
+   villinPoints(k, from, to) returns, in the same order. The two walk the
+   same nums array under the same filter on purpose: a ribbon whose SS array
+   is off by one residue from its points draws a helix that starts in the
+   wrong place, and nothing on screen says so. */
+function villinSS(from, to) {
+  const out = [];
+  for (let i = 0; i < villin.residues; i++) {
+    const r = villin.nums[i];
+    if (from != null && (r < from || r > to)) continue;
+    out.push(villin.ss[i]);
+  }
+  return out;
+}
+
 /* Cached per arrangement: superposing 36 points is cheap but villinPoints is
    called several times per rebuild. */
 const alignCache = new Map();
@@ -783,11 +798,17 @@ function invT(M) {
   return [[c[0][0],c[1][0],c[2][0]],[c[0][1],c[1][1],c[2][1]],[c[0][2],c[1][2],c[2][2]]];
 }
 
-/* Build (or rebuild) the tube for the current rung and arrangement.
-   Rebuilt on demand rather than cached per arrangement: 826 points takes a
-   few milliseconds, which a button click can easily afford, and caching eight
-   full tube geometries would hold a lot of vertices for a page that shows one
-   at a time. */
+/* Build (or rebuild) the ribbon for the current rung and arrangement.
+   Rebuilt on demand rather than cached per arrangement: ~67 ms for 826
+   residues, which a button click can afford, and caching eight full
+   geometries would hold 224k triangles for a page that shows one at a time.
+
+   That figure is the reason the ribbon is sampled at 4 per residue here
+   rather than ribbon.js's default 10 — see the build() call below. At the
+   default it was 141 ms and 66k triangles per arrangement, which is a hitch
+   you can feel on buttons whose whole purpose is to be clicked one after
+   another. If this ever creeps back up, sampling is the first knob, not
+   caching. */
 function buildVillin() {
   if (villinGroup) { root.remove(villinGroup); disposeTree(villinGroup); }
   villinGroup = new THREE.Group();
@@ -827,13 +848,42 @@ function buildVillin() {
   for (const sp of spans) {
     const pts = villinPoints(arrangement, sp.a, sp.b);
     if (pts.length < 2) continue;
-    const curve = new THREE.CatmullRomCurve3(pts);
-    const geo = new THREE.TubeGeometry(curve, Math.max(8, pts.length * 2),
-                                       sp.linker ? LINK_R : TUBE_R, 10, false);
+    /* RIBBON, NOT TUBE — villin included, which is the point of this page
+       now rather than just HP35.
+
+       The secondary structure is DSSP's, computed at bake time from the
+       AlphaFold model's own N/CA/C/O and carried one byte per residue in
+       the poses file (see folding/tools/bake-villin.js). It is NOT
+       ribbon.js's detect() and NOT a guess: a helix drawn here is one the
+       standard algorithm found in the model's backbone hydrogen bonds, the
+       same way Mol* cartoons a file that ships no HELIX records.
+
+       What that does and does not claim is worth being exact about, because
+       the ink is identical to HP35's. HP35's helices come from 1VII, an
+       experiment. Villin's come from a prediction, so they are the model's
+       secondary structure and not necessarily the protein's. That is the
+       mild version of this page's standing caveat — AlphaFold's local fold
+       is its most reliable output, and the PAE argument that drives the
+       eight arrangements is about where the domains SIT, not how they fold.
+       The linkers stay part-transparent, which is where the uncertainty
+       that matters is actually shown.
+
+       Linkers keep LINK_R as their coil width so they remain visible at
+       10 nm; a domain's loops take ribbon.js's own thinner cord, which is
+       what gives the helices and strands something to read against. */
+    const ss = villinSS(sp.a, sp.b);
+    /* 4 samples per residue, not ribbon.js's default 10. Villin is 826
+       residues seen at 10 nm, where a residue is a couple of pixels — the
+       default costs 66k triangles and 141 ms per rebuild to resolve
+       curvature well below one pixel, and every arrangement button pays it.
+       HP35 keeps the default, because at rung 1 it fills the stage. */
+    const geo = RibbonLib.build(THREE, pts, ss,
+      Object.assign({ sub: 4 }, sp.linker ? { coil: LINK_R } : null));
     const col = sp.linker ? 0xb3a892
               : byPLDDT ? plddtColor(sp.a, sp.b)
               : DOM_COLORS[sp.domain % DOM_COLORS.length];
     const mesh = new THREE.Mesh(geo, Stage.bondMat(col));
+    mesh.material.side = THREE.DoubleSide;   // a ribbon is thin; both faces show
     /* Linkers stay part-transparent even at full strength: they are the part
        of the model that cannot be placed, and they should not look as solid
        as the domains they join. */
@@ -998,8 +1048,13 @@ function disposeTree(g) {
 /* ---------- rung + arrangement ---------- */
 const ZNOTES = [
   '',
+  /* This used to end "now shown as a tube because at this size individual
+     atoms stop meaning anything" — inherited from folding-lab.html and left
+     behind when HP35 became a ribbon. It was arguing for the representation
+     this page exists to replace, on the page that replaces it. */
   'Zoomed out one step. HP35 is the C-terminal half of villin’s <b>headpiece</b> — ' +
-  'the same 36 residues, now shown as a tube because at this size individual atoms stop meaning anything.',
+  'the same 36 residues, now drawn as a ribbon: individual atoms stop meaning anything at this ' +
+  'size, but the three helices you just watched form still do.',
   'The whole protein: six gelsolin-like repeats and the headpiece, joined by flexible linkers. ' +
   '<b>This is an AlphaFold prediction, not a measured structure</b> — and it is confident about each ' +
   'domain’s shape while knowing essentially nothing about how they are arranged, which is why there ' +

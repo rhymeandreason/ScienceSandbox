@@ -19,6 +19,12 @@
 const fs = require('fs');
 const path = require('path');
 
+/* Hoisted, unlike folding.js/villin.js/actin.js below, which are required
+   inside blocks guarded on their data files existing. ribbon.js reads no
+   data of its own and is now needed by both the villin section and the
+   ribbon section. */
+const Ribbon = require('../ribbon.js');
+
 const HERE = path.join(__dirname, '..');          // demos/folding
 const DATA = path.join(HERE, 'data');
 const ROOT = path.join(HERE, '..');               // demos
@@ -230,9 +236,65 @@ if (fs.existsSync(AFMODEL)) {
         fail('villin poses', `two arrangements put the headpiece only ${minMove.toFixed(1)} A apart — buttons would show the same picture`);
       else ok(`every pair of arrangements moves HP35 at least ${minMove.toFixed(1)} A — all eight are distinct`);
 
+      /* CLAIM 3b — the secondary structure the ribbon draws is DSSP's, and
+         DSSP here agrees with an experiment where one exists.
+
+         The page now draws all 826 residues as a cartoon, and every helix
+         and strand in it is computed rather than deposited, because
+         AlphaFold DB ships no HELIX or SHEET records. That makes the
+         implementation itself load-bearing: a wrong DSSP would draw
+         confident secondary structure that is simply not there, in the same
+         ink as HP35's measured helices.
+
+         1VII is the one place the computation can be checked against an
+         experiment. It is villin 791-826, so run this DSSP over the
+         deposited file and compare to its own HELIX records. Recall is
+         allowed to fall short — depositors habitually extend a HELIX record
+         a residue or two past where the H-bond pattern really holds, and
+         over the whole of 9ZZI this implementation matches 97% of what it
+         calls helix while missing 135 record residues at helix ENDS against
+         only 15 anywhere in a middle. Precision is the property worth
+         pinning: almost everything it calls a helix should be one. */
+      const vii = fs.readFileSync(VII, 'utf8');
+      const rec = new Set();
+      for (const l of vii.split('\n'))
+        if (l.startsWith('HELIX'))
+          for (let r = +l.slice(21, 25); r <= +l.slice(33, 37); r++) rec.add(r);
+      const bbV = Ribbon.parseBackbone(vii);
+      const ssV = Ribbon.dssp(bbV);
+      let called = 0, agreed = 0;
+      ssV.forEach((c, i) => { if (c === 'H') { called++; if (rec.has(bbV.nums[i])) agreed++; } });
+      const prec = called ? agreed / called : 0;
+      if (!called)
+        fail('dssp', 'this DSSP finds no helix at all in 1VII, which is three helices of deposited record');
+      else if (prec < 0.90)
+        fail('dssp', `only ${(100*prec).toFixed(0)}% of the helix this DSSP finds in 1VII is inside its ` +
+             `deposited HELIX records (${agreed}/${called}) — it is inventing secondary structure`);
+      else
+        ok(`DSSP agrees with 1VII's HELIX records: ${agreed}/${called} of the helix it finds is deposited ` +
+           `(${(100*prec).toFixed(0)}%) — the same algorithm then runs on the AlphaFold model`);
+
+      /* And the SS on disk must be what this DSSP produces from the model,
+         for the same reason the arrangements must: a stale byte per residue
+         draws a helix in the wrong place and nothing about the picture says
+         so. Folded into the byte-for-byte comparison below via encode(). */
+      const bbM = Ribbon.parseBackbone(fs.readFileSync(AFMODEL, 'utf8'));
+      const ssByNum = new Map();
+      Ribbon.dssp(bbM).forEach((c, i) => ssByNum.set(bbM.nums[i], c));
+      const ssM = Array.from(model.nums, nu => ssByNum.get(nu) || 'C');
+      const onDiskSS = Array.from(m.ss).join('');
+      if (onDiskSS !== ssM.join(''))
+        fail('villin ss', 'the secondary structure in the poses file is not what this DSSP produces ' +
+             '— re-run: node folding/tools/bake-villin.js');
+      else {
+        const pc = c => (100 * ssM.filter(x => x === c).length / ssM.length).toFixed(0);
+        ok(`baked secondary structure matches a fresh DSSP (${pc('H')}% helix, ${pc('E')}% strand, ${pc('C')}% coil)`);
+      }
+
       // CLAIM 4 — the committed arrangements are the ones this code produces
       const fresh = Buffer.from(Villin.encode({
-        nums: model.nums, plddt: model.plddt, domains, poses: Villin.poses(model, domains) }));
+        nums: model.nums, plddt: model.plddt, domains,
+        poses: Villin.poses(model, domains), ss: ssM }));
       if (!raw.equals(fresh))
         fail('villin poses', 'folding/data/AF-P02640-villin.poses.bin does not match this generator — re-run: node folding/tools/bake-villin.js');
       else ok(`baked arrangements on disk match a fresh bake exactly (${(raw.length/1024).toFixed(0)} KB)`);
@@ -352,7 +414,6 @@ if (fs.existsSync(FIL) && fs.existsSync(CPX)) {
    Without this, a ribbon could confidently draw helices the structure does
    not have and nothing would notice. */
 {
-  const Ribbon = require('../ribbon.js');
   const Villin = require('../villin.js');
   const recs = fs.readFileSync(VII, 'utf8').split('\n')
     .filter(l => l.startsWith('HELIX'))

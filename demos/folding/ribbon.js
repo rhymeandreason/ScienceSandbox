@@ -147,6 +147,160 @@ const RibbonLib = (() => {
     return ss;
   }
 
+  /* ---------------- DSSP ---------------- */
+
+  /* parseBackbone(pdbText) -> { nums, chains, N, CA, C, O }, parallel arrays.
+     Every residue missing any of the four backbone atoms is dropped, because
+     dssp() cannot say anything about one.
+
+     KEYED BY CHAIN AND NUMBER, NOT NUMBER ALONE. The first version of this
+     used the residue number as the whole key, which is correct for the
+     single-chain AlphaFold model it was written for and silently destructive
+     everywhere else: 9ZZI's five actin subunits collapsed onto one another
+     into 370 residues instead of ~1850, and 9JUS's villin overwrote the
+     actin it grips. The symptom was not an error but a plausible-looking
+     agreement score, 84% against the deposited records instead of the high
+     90s. Residue numbering restarts in every chain of every multi-chain
+     structure, so this is the general case and not an edge case. */
+  function parseBackbone(pdbText) {
+    const byRes = new Map();
+    const order = [];
+    for (const l of pdbText.split('\n')) {
+      if (!l.startsWith('ATOM')) continue;
+      const name = l.slice(12, 16).trim();
+      if (name !== 'N' && name !== 'CA' && name !== 'C' && name !== 'O') continue;
+      const alt = l[16];
+      if (alt !== ' ' && alt !== 'A') continue;      // first altloc only
+      const chain = l[21];
+      const num = parseInt(l.slice(22, 26), 10);
+      const icode = l[26] === ' ' ? '' : l[26];
+      const p = [+l.slice(30, 38), +l.slice(38, 46), +l.slice(46, 54)];
+      if (!Number.isFinite(num) || !p.every(Number.isFinite)) continue;
+      const key = chain + '|' + num + icode;
+      if (!byRes.has(key)) { byRes.set(key, { chain, num }); order.push(key); }
+      const r = byRes.get(key);
+      if (r[name] == null) r[name] = p;
+    }
+    const out = { nums: [], chains: [], N: [], CA: [], C: [], O: [] };
+    for (const key of order) {                       // file order, per chain
+      const r = byRes.get(key);
+      if (!r.N || !r.CA || !r.C || !r.O) continue;
+      out.nums.push(r.num); out.chains.push(r.chain); out.CA.push(r.CA);
+      out.N.push(r.N); out.C.push(r.C); out.O.push(r.O);
+    }
+    return out;
+  }
+
+  /* dssp(bb) -> ['C','H','E',...], one per residue of parseBackbone's output.
+
+     Kabsch & Sander (1983), reduced to the three states a cartoon draws.
+
+     WHY A REAL DSSP AND NOT detect(). detect() reads Ca spacing and is a
+     guess; this reads the backbone hydrogen bonds that DEFINE the secondary
+     structure, which is the same thing the deposited HELIX records report
+     and the same algorithm Mol* runs when it cartoons a file with no
+     records. That distinction is the whole reason villin can be drawn as a
+     ribbon at all: a helix here is computed from the model's own N, CA, C
+     and O by the standard method, not invented from Ca positions.
+
+     WHAT IT STILL DOES NOT LICENSE. Run on an AlphaFold model this reports
+     THE MODEL'S secondary structure, which is not the same claim as the
+     protein's. It is the mild form of the caveat villin.js already makes at
+     length: AlphaFold's local secondary structure is its most reliable
+     output and the PAE argument is about where domains sit, not how they
+     fold. folding/tools/check-folding.js checks this implementation against
+     1VII's deposited HELIX records over the 36 residues where an experiment
+     and the prediction overlap, which is the only place the two can be
+     compared at all.
+
+     The amide H is placed by DSSP's own approximation: 1 A from N along the
+     direction opposite the preceding residue's C=O. Bond energy is the
+     electrostatic term with q1*q2*f = 0.42 * 0.20 * 332 kcal/mol/A, and a
+     bond exists below -0.5 kcal/mol. HBond(i,j) means the C=O of i donates
+     to the N-H of j — the argument order matters and reversing it silently
+     turns parallel sheet into antiparallel. */
+  const HB_COUPLE = 0.42 * 0.20 * 332;
+  const HB_CUTOFF = -0.5;
+
+  function dssp(bb) {
+    const n = bb.nums.length;
+    const ss = new Array(n).fill('C');
+    if (n < 4) return ss;
+
+    /* Amide hydrogens. A residue that does not directly follow its
+       predecessor in numbering starts a new chain and has no preceding
+       C=O to place one from, so it can never accept in an H-bond. */
+    const H = new Array(n).fill(null);
+    const chain = bb.chains || new Array(n).fill('A');
+    for (let i = 1; i < n; i++) {
+      if (chain[i] !== chain[i - 1] || bb.nums[i] !== bb.nums[i - 1] + 1) continue;
+      const d = norm(sub(bb.C[i - 1], bb.O[i - 1]));
+      H[i] = [bb.N[i][0] + d[0], bb.N[i][1] + d[1], bb.N[i][2] + d[2]];
+    }
+
+    const dist = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]) || 1e-6;
+    const cache = new Map();
+    /* hb(i, j): does the C=O of i donate to the N-H of j? */
+    function hb(i, j) {
+      if (i < 0 || j < 0 || i >= n || j >= n || !H[j]) return false;
+      /* Neighbours cannot bond — but only within a chain. Applying this
+         across chains would suppress the real inter-subunit sheet wherever
+         two chains happen to reuse a residue number, which is always. */
+      if (chain[i] === chain[j] && Math.abs(bb.nums[i] - bb.nums[j]) < 2) return false;
+      const key = i * n + j;
+      const hit = cache.get(key);
+      if (hit !== undefined) return hit;
+      let val = false;
+      if (dist(bb.CA[i], bb.CA[j]) <= 9) {           // DSSP's own prefilter
+        const E = HB_COUPLE * (1 / dist(bb.O[i], bb.N[j]) + 1 / dist(bb.C[i], H[j])
+                             - 1 / dist(bb.O[i], H[j]) - 1 / dist(bb.C[i], bb.N[j]));
+        val = E < HB_CUTOFF;
+      }
+      cache.set(key, val);
+      return val;
+    }
+
+    /* Helices, from n-turns. Two consecutive 4-turns make an alpha helix;
+       two consecutive 3-turns make 3-10, which a cartoon draws as a helix
+       too, so both land in 'H'. The 4-turn pass runs second and overwrites,
+       because DSSP gives alpha priority over 3-10. */
+    const mark = (from, to, code) => {
+      for (let k = Math.max(0, from); k <= Math.min(n - 1, to); k++) ss[k] = code;
+    };
+    /* A turn is a claim about consecutive residues, so every index it spans
+       has to be one chain with no numbering gap. Without this a helix can be
+       declared across the join between two subunits. */
+    const run = (i, k) => {
+      if (i < 0 || k >= n) return false;
+      for (let m = i + 1; m <= k; m++)
+        if (chain[m] !== chain[m - 1] || bb.nums[m] !== bb.nums[m - 1] + 1) return false;
+      return true;
+    };
+    for (let i = 0; i + 4 < n; i++)
+      if (run(i, i + 4) && hb(i, i + 3) && hb(i + 1, i + 4)) mark(i + 1, i + 3, 'H');
+    for (let i = 0; i + 5 < n; i++)
+      if (run(i, i + 5) && hb(i, i + 4) && hb(i + 1, i + 5)) mark(i + 1, i + 4, 'H');
+
+    /* Bridges. A residue pair is bridged when the H-bond pattern between
+       them is one of the four Kabsch & Sander cases. */
+    const bridge = new Array(n).fill(false);
+    for (let i = 1; i + 1 < n; i++) {
+      for (let j = i + 3; j + 1 < n; j++) {
+        const anti = (hb(i, j) && hb(j, i)) || (hb(i - 1, j + 1) && hb(j - 1, i + 1));
+        const para = (hb(i - 1, j) && hb(j, i + 1)) || (hb(j - 1, i) && hb(i, j + 1));
+        if (anti || para) { bridge[i] = true; bridge[j] = true; }
+      }
+    }
+    /* A LADDER, NOT A LONE BRIDGE. DSSP calls an isolated bridge 'B' and
+       only a run of them 'E'. Drawing a single bridged residue as a strand
+       puts a one-residue arrowhead in the middle of a loop, which reads as
+       noise, so require a bridged neighbour. */
+    for (let i = 0; i < n; i++)
+      if (bridge[i] && ss[i] === 'C' && (bridge[i - 1] || bridge[i + 1])) ss[i] = 'E';
+
+    return ss;
+  }
+
   /* ---------------- guide-point smoothing ---------------- */
 
   /* A helix's Ca trace is ITSELF a spiral — the Ca sit 2.3 A off the axis
@@ -283,6 +437,17 @@ const RibbonLib = (() => {
                           loops exactly as thick as the tube they replace
                { smooth } guide-point smoothing weight, default 0.20
                { passes } smoothing passes, default 1; 0 disables it
+               { sub }    samples per residue, default SUB (10)
+
+     SUB IS A SCALE KNOB, NOT A QUALITY KNOB. 10 is right when one chain
+     fills the stage and a single residue is tens of pixels across. Drawing
+     826 residues at 10 nm the same way costs 66k triangles and 141 ms to
+     rebuild — a visible hitch every time an arrangement button is clicked —
+     to resolve curvature far below one pixel. Lower it as the subject gets
+     smaller on screen, the same reasoning that makes the far rungs tubes
+     rather than ribbons at all. What it must NOT be used for is hiding the
+     scallop a wrong curve tension produces; that is a different defect and
+     more samples never fixed it (see the tension note below).
 
      THE HELIX IS NOT SCALED WITH IT, and that is deliberate. A single
      multiplier over every profile was an early version and it was wrong:
@@ -381,11 +546,14 @@ const RibbonLib = (() => {
       SM.map((p, i) => V3([p[0] + F[i].n[0], p[1] + F[i].n[1], p[2] + F[i].n[2]])));
 
     const smoothstep = t => t * t * (3 - 2 * t);
-    const total = (n - 1) * SUB;
+    /* Not `sub` — that is this module's vector subtraction, and shadowing it
+       here throws "sub is not a function" further down build(). */
+    const step = Math.max(2, (opts && opts.sub) || SUB);
+    const total = (n - 1) * step;
     let prevN = null;
     for (let s = 0; s <= total; s++) {
       const u = s / total;
-      const f = s / SUB;
+      const f = s / step;
       const i0 = Math.min(n - 1, Math.floor(f)), i1 = Math.min(n - 1, i0 + 1);
       const t = smoothstep(f - i0);
       const cp = curve.getPoint(u), ep = edge.getPoint(u);
@@ -469,7 +637,8 @@ const RibbonLib = (() => {
   const HP35_OFFSET = 750;
   const HP35_HELICES = [[794, 798], [805, 808], [813, 822]];
 
-  return { build, assign, detect, frames, smooth, PROFILE, HP35_HELICES, HP35_OFFSET };
+  return { build, assign, detect, dssp, parseBackbone, frames, smooth,
+           PROFILE, HP35_HELICES, HP35_OFFSET };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = RibbonLib;

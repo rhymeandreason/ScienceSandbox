@@ -157,9 +157,12 @@ const norm = n => n.replace(/^demos\//, '');
 // Prose names a script the way a reader says it — `check-molecules.js` lives at
 // the top level, `check-docs.js` in tools/ and `ribbon.js` in folding/, and
 // none of them gets a directory in running text. So resolve a bare name
-// against all three. folding/ joined the list when folding-lab's modules moved
-// there; before that, any comment naming one of them bare failed here.
-const SEARCH = ['.', 'tools', 'folding'];
+// against all four. folding/ and folding/tools/ joined the list when
+// folding-lab's modules and bake scripts moved there; before that, any comment
+// naming one of them bare failed here. Every directory that holds a script
+// prose might name belongs in this list — the failure mode is a checker that
+// cries wolf at correct documentation, which trains people to ignore it.
+const SEARCH = ['.', 'tools', 'folding', 'folding/tools'];
 const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
 for (const [n, docs] of [...named].sort()) {

@@ -339,15 +339,30 @@ const VillinLib = (function () {
        plddt   Float32[residues]
        doms    Int32[domains*2]      start,end residue numbers
        pos     Float32[poses*residues*3]
+       ss      Uint8[residues]       'H' | 'E' | 'C', from DSSP at bake time
+
+     SS GOES LAST, AND THAT IS NOT A STYLE CHOICE. Typed-array views onto an
+     ArrayBuffer must start on a multiple of their element size, and
+     `residues` is 826 — not a multiple of 4. Putting a Uint8 block anywhere
+     before the Int32 or Float32 sections throws "start offset of Float32Array
+     should be a multiple of 4" at decode. At the end it costs nothing and
+     needs no padding.
+
+     Version 2 added it. There is no fallback for a version 1 file on
+     purpose: it has no secondary structure, so the page would silently draw
+     villin as unbroken coil, which looks like a deliberate representation
+     rather than a stale file. Better to refuse to load and say so.
   */
   const MAGIC = 0x4e4c4956;      // 'VILN'
-  const VERSION = 1;
+  const VERSION = 2;
   const HEADER = 24;
 
   function encode(model) {
-    const { nums, plddt, domains, poses: ps } = model;
+    const { nums, plddt, domains, poses: ps, ss } = model;
     const R = nums.length, D = domains.length, K = ps.length;
-    const buf = new ArrayBuffer(HEADER + 4*R + 4*R + 4*D*2 + 4*K*R*3);
+    if (!ss || ss.length !== R)
+      throw new Error(`villin encode: need ${R} secondary-structure codes, got ${ss ? ss.length : 0}`);
+    const buf = new ArrayBuffer(HEADER + 4*R + 4*R + 4*D*2 + 4*K*R*3 + R);
     const dv = new DataView(buf);
     dv.setUint32(0, MAGIC, true); dv.setUint32(4, VERSION, true);
     dv.setUint32(8, K, true); dv.setUint32(12, R, true); dv.setUint32(16, D, true);
@@ -355,8 +370,10 @@ const VillinLib = (function () {
     new Int32Array(buf, off, R).set(nums);                    off += 4*R;
     new Float32Array(buf, off, R).set(plddt);                 off += 4*R;
     new Int32Array(buf, off, D*2).set(domains.flat());        off += 4*D*2;
-    const all = new Float32Array(buf, off, K*R*3);
+    const all = new Float32Array(buf, off, K*R*3);            off += 4*K*R*3;
     ps.forEach((p, k) => all.set(p, k*R*3));
+    new Uint8Array(buf, off, R).set(
+      Array.from(ss, c => (typeof c === 'string' ? c.charCodeAt(0) : c)));
     return buf;
   }
 
@@ -366,18 +383,20 @@ const VillinLib = (function () {
     const version = dv.getUint32(4, true);
     if (version !== VERSION) throw new Error(`villin file is version ${version}, expected ${VERSION}`);
     const K = dv.getUint32(8, true), R = dv.getUint32(12, true), D = dv.getUint32(16, true);
-    const need = HEADER + 4*R + 4*R + 4*D*2 + 4*K*R*3;
+    const need = HEADER + 4*R + 4*R + 4*D*2 + 4*K*R*3 + R;
     if (buf.byteLength !== need) throw new Error(`villin file truncated: ${buf.byteLength} of ${need}`);
     let off = HEADER;
     const nums = new Int32Array(buf, off, R);            off += 4*R;
     const plddt = new Float32Array(buf, off, R);         off += 4*R;
     const flatD = new Int32Array(buf, off, D*2);         off += 4*D*2;
-    const all = new Float32Array(buf, off, K*R*3);
+    const all = new Float32Array(buf, off, K*R*3);       off += 4*K*R*3;
+    const ssRaw = new Uint8Array(buf, off, R);
+    const ss = Array.from(ssRaw, c => String.fromCharCode(c));
     const domains = [];
     for (let d = 0; d < D; d++) domains.push([flatD[d*2], flatD[d*2+1]]);
     const poses = [];
     for (let k = 0; k < K; k++) poses.push(all.subarray(k*R*3, (k+1)*R*3));
-    return { nums, plddt, domains, poses, residues: R, count: K };
+    return { nums, plddt, domains, poses, ss, residues: R, count: K };
   }
 
   return { parseCA, segment, linkers, poses, encode, decode, extent,

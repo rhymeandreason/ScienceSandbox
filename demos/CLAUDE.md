@@ -23,7 +23,7 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery |
 | `protein-lab.html` | The four levels of protein structure. Levels 1–3 are one molecule (lysozyme) restyled, never swapped — that they are the *same chain* at three scales is the lesson; level 4 changes molecule (an antibody) because it must | PDB structure viewer |
 | `folding-lab.html` | How a protein folds: villin headpiece (PDB 1VII) collapses from an extended chain. Two acts with two different causes — hydrogen bonds coil the helices (12 of its 14 are i→i+4), then the hydrophobic core packs them. Act 3 zooms out at true relative size — HP35 → the headpiece → villin (AlphaFold, eight arrangements, because the prediction knows each domain's shape and not their layout) → the actin filament it grips → and a coda showing villin-on-actin *measured* by X-ray, which is the answer the prediction could not give. It is `protein-lab`'s *why* to that page's *what* | folding animation |
-| `folding-lab-ribbon.html` | **Evaluation copy of `folding-lab`, not a second lesson.** Identical except that HP35 is drawn as a ribbon — its three α-helices as coiled bands instead of a featureless tube — so the two can be compared side by side. Delete it once one of them wins | folding animation |
+| `folding-lab-ribbon.html` | **Evaluation copy of `folding-lab`, not a second lesson.** Identical except that act 3 is drawn as a cartoon instead of tubes — HP35's three α-helices from 1VII's own HELIX records, and all 826 residues of villin from a DSSP run at bake time on the AlphaFold model's backbone. Rungs 4–5 stay tubes: at 40 nm a ribbon is sub-pixel. Delete it once one of them wins | folding animation |
 | `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. Loads no shared module on purpose, so the libraries are judged unmixed with our own rendering. Delete it once the first protein page ships (`RenderingLibraries.md`) | evaluation scratch |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery |
 
@@ -115,6 +115,28 @@ ensemble uses, with completely different epistemic status, which is why the
 legend note and the button tooltips say so. `folding/villin.js`'s header carries the
 full argument, including why uncertainty must not be presented as motion.
 
+**Where `folding-lab-ribbon`'s secondary structure comes from, and what each
+source licenses.** Three different answers, and the difference is the point:
+HP35's helices are 1VII's own **HELIX records** — an experiment; villin's 826
+residues are **DSSP** (`RibbonLib.dssp`, Kabsch & Sander) run at bake time on
+the AlphaFold model's N/CA/C/O, because AlphaFold DB ships no HELIX or SHEET
+records at all; and `RibbonLib.detect()`, a Cα-spacing heuristic, is used by
+**nothing** and should stay that way. The distinction matters because all
+three render in identical ink. DSSP on a prediction reports *the model's*
+secondary structure, not the protein's — the mild form of this page's standing
+caveat, defensible because AlphaFold's local fold is its most reliable output
+while the PAE argument driving the eight arrangements is about where domains
+*sit*. `check-folding.js` validates the DSSP against 1VII's records over the
+36 residues where experiment and prediction overlap, which is the only place
+the two can be compared, and asserts the baked bytes match a fresh run.
+
+The backbone the DSSP needs never reaches the browser: `villin.js`'s `parseCA`
+is Cα-only by design, so the answer is computed once and carried as one byte
+per residue in `AF-P02640-villin.poses.bin` (format **version 2**; the SS block
+goes last so the Float32 views stay 4-aligned). Change `ribbon.js`'s DSSP and
+you must re-run `node folding/tools/bake-villin.js`, exactly as with the fold
+and the actin bins.
+
 **Rungs 4–5 add two more structures and two more caveats.** The filament is
 9ZZI (F-actin, cryo-EM 2.06 Å) — five subunits deposited, extended to 13 by the
 helical screw **measured from the file itself** (27.60 Å rise, −166.60° twist,
@@ -154,7 +176,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
 | `folding/actin.js` | `ActinLib` = `parseCA` + `screwOf` (the helical operation, measured from the file) + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
 | `folding/villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` (generated arrangements) + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
-| `folding/ribbon.js` | `RibbonLib` = `build` (Cα trace + secondary structure → a ribbon `BufferGeometry`) + `assign`/`detect` + `HP35_HELICES`. `folding-lab-ribbon.html` only. Real ångströms, no materials — the page owns those | own header |
+| `folding/ribbon.js` | `RibbonLib` = `build` (Cα trace + secondary structure → a ribbon `BufferGeometry`) + `dssp`/`parseBackbone` (Kabsch & Sander, the real thing, needs N/CA/C/O) + `assign`/`detect` + `HP35_HELICES`. `folding-lab-ribbon.html` and `bake-villin.js`. Real ångströms, no materials — the page owns those | own header |
 | `folding/folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing | own header |
 | `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** the webfonts, so no page carries a font `<link>` (only the two preconnect hints) | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
@@ -162,7 +184,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `tools/sdf/` | the committed PubChem inputs (8 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit, sugars included | `tools/README.md` |
 | `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one actin protomer, the screw that stacks it, and the complex's Cα traces. The page rebuilds the other twelve subunits | own header |
-| `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE matrix and rejection-samples the eight arrangements, writing `pdb/AF-P02640-villin.poses.bin`. The PAE stays in `folding/data/` as a committed input and never reaches the browser | own header |
+| `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE matrix, rejection-samples the eight arrangements, and runs `RibbonLib.dssp` over the model's full backbone, writing `folding/data/AF-P02640-villin.poses.bin`. The PAE stays in `folding/data/` as a committed input and never reaches the browser; neither does the backbone, so the DSSP has to happen here | own header |
 | `folding/tools/bake-fold.js` | solves the villin fold once and writes `folding/data/1VII.fold.bin` (433 KB, 181 keyframes). `folding-lab.html` plays that file and folds nothing itself. **Re-run after any change to `folding/folding.js`'s solver, schedule or H-bond cutoffs** — `folding/tools/check-folding.js` compares the committed file against a fresh bake and fails if they differ | own header |
 | `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
 
