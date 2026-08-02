@@ -15,8 +15,34 @@
      hand of cards (no outline, overlapping) so the strip reads as objects you
      could pick up rather than UI. Inactive cards stay visible, never hidden —
      the comparison across cards is the content. */
-  #goals{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:12;
-    display:flex;gap:0;align-items:stretch;padding:10px 6px 16px}
+  #goals{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:0;align-items:stretch;padding:10px 6px 12px}
+  /* The reaction row, tucked under the build row and centred on it. Same cards,
+     smaller: a second row of full-size cards would read as nine more lessons
+     rather than as what the first row leads to. */
+  #bonus{position:absolute;top:132px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:0;align-items:stretch;padding:6px 6px 14px}
+  #bonus .goal{min-width:150px;max-width:200px;padding:8px 12px 10px}
+  #bonus .gname{font-size:16px}
+  #bonus .gform{font-size:14px;margin-top:5px}
+  /* Locked: face down. Kept the same SIZE and place as the card it will become,
+     so unlocking turns a card over rather than making one appear — the student
+     knows there is something there to earn, which is the only reason to show it
+     at all. Paper goes flat and cool; no lift, no hover. */
+  .goal.locked{background:#efeade;box-shadow:0 1px 1px rgba(43,39,35,.10),
+    0 2px 4px -2px rgba(43,39,35,.14);cursor:default}
+  .goal.locked:hover{background:#efeade;animation:none}
+  .goal.locked .gname,.goal.locked .gform{visibility:hidden}
+  .goal.locked::after{content:'???';position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-marker);font-size:26px;color:#b9ae9d;letter-spacing:2px}
+  .goal.bonus{position:relative}
+  /* The turn: it flips up onto its face once, so the unlock is something you
+     SEE happen even if you were looking at the molecule when it did. */
+  .goal.turning{animation:cardTurn .5s cubic-bezier(.32,.72,.4,1)}
+  @keyframes cardTurn{
+    0%  {transform:translateY(var(--dy)) rotate(var(--tilt)) rotateY(-90deg)}
+    100%{transform:translateY(var(--dy)) rotate(var(--tilt)) rotateY(0)}}
   /* Paper is opaque; dimming an inactive card is done via its ink colour, not
      element opacity — a translucent card would show the molecule through it. */
   .goal{text-align:center;background:#f7f2e7;border:none;
@@ -216,7 +242,7 @@
       </button>
       <button class="goal" data-lesson="ammonia">
         <div class="gname">Ammonia</div>
-        <div class="gform">NH&#8323; &rarr; NH&#8324;<sup>+</sup></div>
+        <div class="gform">NH&#8323;</div>
       </button>
       <button class="goal" data-lesson="co2">
         <div class="gname">Carbon dioxide</div>
@@ -243,10 +269,24 @@
         <div class="gform">MgCl&#8322;</div>
       </button>
     </div>
+    <!-- Second row: what those molecules DO. Each one is a reaction rather than
+         a build, so it needs its reactant to exist first — dealt face down until
+         the student has made it, and turned over the moment they do. The lock is
+         not a gate for its own sake: a reaction card opened cold would hand over
+         a finished molecule the student never built and call it their work. -->
+    <div id="bonus">
+      <button class="goal bonus" data-lesson="ammonium" data-needs="ammonia">
+        <div class="gname">Ammonium</div>
+        <div class="gform">NH&#8323; + H&#8322;O &rarr; NH&#8324;<sup>+</sup></div>
+      </button>
+      <button class="goal bonus" data-lesson="hydronium" data-needs="hcl">
+        <div class="gname">Hydrochloric acid</div>
+        <div class="gform">HCl + H&#8322;O &rarr; H&#8323;O<sup>+</sup></div>
+      </button>
+    </div>
     <div id="notes" aria-live="polite"></div>
     <div id="sticky" aria-live="polite"></div>
     <div id="say" aria-live="polite"></div>
-    <div id="brand"><span class="drop"><i class="ph-bold ph-atom"></i></span><h1>Build a Molecule</h1></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="dock">
@@ -405,71 +445,15 @@ const LESSONS={
       '3 bonding pairs + <b>1 lone pair</b> on N',
       '<b>\u03b4\u2212</b> on N, <b>\u03b4+</b> on H',
       'the lone pair accepts H\u207a \u2192 a <b>base</b>' ] },
-    notes2:{ title:'Ammonium &middot; NH\u2084\u207a', tags:['covalent','dative','ion'], facts:[
-      '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
-      '<b>dative</b> (coordinate) bond \u2014 N gave both electrons',
-      'the <b>proton</b> brought the charge \u2014 no electron came with it',
-      'the four N\u2013H bonds are now <b>identical</b>' ] },
     flatSay:'Flat view — three bonds and the lone pair on top.',
-    stats:s=>s.protonated
-      ? 'ammonium <b>NH\u2084\u207a</b> &nbsp;\u00b7&nbsp; the lone pair became a <b>bond</b>'
-      : 'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>'+
-        (s.hasWater?' &nbsp;\u00b7&nbsp; <b>water</b> is waiting':''),
+    stats:s=>'bonded: <b>'+s.bonded+'</b> &nbsp;\u00b7&nbsp; open slots: <b>'+s.open+'</b>',
     step:s=>s.open>0?'A <b>covalent bond</b> — one shared pair.':null,
-    /* Up only between the two stages: the finished NH₃ is the one moment the
-       lone pair is visible AND still free, which is the whole setup for what
-       happens next. Clears on protonation — by then it is the answer to a
-       question the student has already done. */
-    /* Three states, three notes — the sticky is the narrator for a stage the
-       molecule cannot tell on its own. Before: what water is for. After: what
-       just happened to the leftovers. The button is the pour. */
-    sticky:s=>{
-      if(s.hydroxide||s.protonated) return {
-        place:'low',                       // the OH⁻ parks where this note used to sit
-        title:'That leftover is hydroxide',
-        body:'<b>OH⁻</b> kept <b>both</b> electrons — the H left without its own. Spare OH⁻ '+
-             'is what makes a solution <b>basic</b>.' };
-      if(!s.complete) return null;
-      /* Nothing while the water is on the bench: what to do with it is a
-         one-line instruction for right now, which is the toast's job, and the
-         sticky is for the aside that outlives the moment. Two of them up at once
-         also left the student reading while the thing they were told to drag sat
-         there. */
-      if(s.hasWater) return null;
-      return {
-        /* Shorter than the other stickies on purpose: this one carries a
-           button, and the note is a fixed square. */
-        title:'Add water to make ammonium',
-        body:'The lone pair takes an <b>H⁺</b> straight off a water molecule.',
-        /* say() AFTER the pour, not before: offerWater() reports its own state
-           change, which runs win() and puts the win line up — a toast written
-           first would be overwritten by it within the same tick. */
-        /* Flat view FIRST, then pour. The reaction is an electron argument —
-           which pair leaves with which atom — and the flat view is the one that
-           draws every electron; in the round view the dots are hidden and a
-           student watching would see two molecules touch and a charge appear.
-           It also makes the drag easy: 2D locks rotation and puts the lone pair
-           and the water in the same plane, so "on top of the nitrogen" is
-           somewhere you can actually aim. Quietly, so the toast below is what
-           the student reads rather than the view-switch line.
-           The 3D toggle stays armed — the shape is still one click away. */
-        action:{ label:"Let's do it &rarr;", run:()=>{
-          setView(true, true);
-          wantZoom(R_TWO);            // two molecules on the bench now
-          sim.offerWater();
-          say('Drag the water at the <b>lone pair</b> on top of the nitrogen.');
-        } } };
-    },
-    /* own sentence: the proton brought no electron, nitrogen paid for the whole bond */
-    /* Names the reaction TYPE the moment the student has done it, the same way
-       HCl's line does — and deliberately in the same words, because it IS the
-       same reaction. Only the direction changed: here water is the one that
-       gave the proton away. */
-    extra:s=>s.protonated
-      ? 'An <b>acid–base proton transfer</b> (Brønsted–Lowry). The proton brought <b>no '+
-        'electron</b> — nitrogen paid for both, so that is a <b>dative bond</b>, and the '+
-        'molecule is now <b>NH\u2084\u207a</b>.'
-      : null,
+    /* Points at the card the student has just earned rather than carrying the
+       reaction itself. The lone pair is the whole setup for it, and this is the
+       one moment it is finished AND still free. */
+    sticky:s=>s.complete ? {
+      title:'That lone pair can react',
+      body:'It can take an <b>H⁺</b> right off a water molecule. New card below.' } : null,
   },
   methane:{
     make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'methane', onChange:report}),
@@ -575,48 +559,16 @@ const LESSONS={
       'the <b>same Cl</b> as salt, <b>shared</b> not taken',
       'in water it <b>lets the H go</b> → an <b>acid</b>',
       'ammonia does the <b>opposite</b> — it takes one <b>off</b> water' ] },
-    notes2:{ title:'Hydrochloric acid &middot; H₃O⁺ + Cl⁻', tags:['ion','liquid'], facts:[
-      'the <b>H⁺</b> left — its electron did <b>not</b>',
-      'Cl⁻ has <b>four</b> lone pairs — the same eight, rearranged',
-      'water <b>accepted</b> it → <b>H₃O⁺</b>, a <b>dative</b> bond',
-      'an <b>acid</b> is a proton <b>donor</b> — ammonia was the acceptor' ] },
     flatSay:'Flat view — eight around chlorine: three lone pairs and the one it shares.',
-    stats:s=>s.anion
-      ? '<b>Cl⁻</b> &nbsp;·&nbsp; lone pairs: <b>4</b> &nbsp;·&nbsp; it kept the <b>whole pair</b>'
-      : s.complete
+    stats:s=>s.complete
       ? 'shared pairs: <b>1</b> &nbsp;·&nbsp; lone pairs on Cl: <b>3</b>'
       : 'bonded: <b>'+s.bonded+'</b> &nbsp;·&nbsp; open slots: <b>'+s.open+'</b>',
-    /* HCl gas and hydrochloric acid solution are named apart on purpose — same molecule, two states.
-       Three states narrated, the same shape ammonia's sticky has: it IS ammonia's
-       reaction run the other way, and a student who recognises the beat is
-       halfway to noticing that water played both parts. */
-    sticky:s=>{
-      /* No `place:'low'` here, unlike ammonia's: this reagent is dealt low and
-         parks low, so the rail's normal spot is the clear one. */
-      if(s.hydronium||s.anion) return {
-        title:'Hydrochloric acid',
-        body:'The <b>H⁺</b> went to water. <b>Cl⁻</b> kept both electrons, and <b>H₃O⁺</b> '+
-             'is what an <b>acid</b> actually is in water.' };
-      if(!s.complete) return null;
-      if(s.hasWater) return null;              // the toast has it from here
-      return {
-        title:'Add water to make hydrochloric acid',
-        body:'HCl as a gas is toxic. Why burning PVC plastic is bad.',
-        action:{ label:"Let's do it &rarr;", run:()=>{
-          setView(true, true);
-          wantZoom(R_TWO);            // two molecules on the bench now
-          sim.offerWater();
-          say('Drag the water at the <b>hydrogen</b> — it wants the proton.');
-        } } };
-    },
     step:()=>null,
-    /* Names the reaction TYPE, now that the student has just done it: the term
-       is worth having once the thing it names is on the screen, and this is the
-       one line that fires at the moment it finishes. */
-    extra:s=>s.anion
-      ? 'An <b>acid–base proton transfer</b> (Brønsted–Lowry). The H went <b>without its '+
-        'electron</b> — chlorine kept the pair (<b>Cl⁻</b>), water took the proton (<b>H₃O⁺</b>).'
-      : null,
+    /* HCl gas and hydrochloric acid solution are named apart on purpose — same
+       molecule, two states — and the second one is now its own card. */
+    sticky:s=>s.complete ? {
+      title:'This one is not the acid yet',
+      body:'HCl as a gas is <b>toxic</b>. It becomes an <b>acid</b> in water. New card below.' } : null,
     after:()=>'Chlorine took an electron outright from <b>sodium</b>, and <b>shares</b> one with '+
              'hydrogen. Same atom, both times — so <b>ionic or covalent is about the pair</b>, '+
              'not about the element.',
@@ -689,6 +641,79 @@ const LESSONS={
              '<b>negative</b>, so they push apart until they are as far from each '+
              'other as the bonds allow. Drag one and watch the other follow.',
   },
+
+  /* ---------- the bonus row: what those molecules DO ---------------------
+   * A reaction, not a build. Each one needs a molecule the student has already
+   * made, so the card stays face down until they have made it — and when it
+   * opens it hands them that molecule finished, with the reagent poured, at the
+   * exact state their own build ended in. `base` is the recipe to stand up,
+   * `needs` is the card that has to be green first, and `primed` is what tells
+   * load() to fill it and pour.
+   *
+   * These were the second halves of the ammonia and HCl tabs. Moved out because
+   * one card was carrying two lessons: a molecule and a reaction, one narrated
+   * by stickies that had to describe three different states in a 224px square.
+   * Split, each half gets its own card, its own notes and its own ending. */
+  ammonium:{
+    bonus:true, needs:'ammonia', base:'ammonia', primed:true,
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'ammonia', onChange:report}),
+    open:'Your ammonia, and some water. Drag the water at the <b>lone pair</b> on top.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    // only seen if the student pulls the proton back off — NH4+ ⇌ NH3 + H+ is
+    // a real equilibrium and this tab lets them run it backwards
+    won:'Ammonia again, with its <b>lone pair</b> free. Bring the water back.',
+    notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar','gas'], facts:[
+      'the <b>lone pair</b> is the reactive part',
+      'it <b>accepts</b> a proton \u2192 that is what a <b>base</b> is' ] },
+    notes2:{ title:'Ammonium &middot; NH\u2084\u207a', tags:['covalent','dative','ion'], facts:[
+      '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
+      '<b>dative</b> (coordinate) bond \u2014 N gave both electrons',
+      'the <b>proton</b> brought the charge \u2014 no electron came with it',
+      'the four N\u2013H bonds are now <b>identical</b>' ] },
+    flatSay:'Flat view — every electron, including the pair that became the bond.',
+    stats:s=>s.protonated
+      ? 'ammonium <b>NH\u2084\u207a</b> &nbsp;\u00b7&nbsp; the lone pair became a <b>bond</b>'
+      : 'water is waiting &nbsp;\u00b7&nbsp; aim for the <b>lone pair</b>',
+    step:()=>null,
+    sticky:s=>(s.hydroxide||s.protonated) ? {
+      place:'low',                       // the OH⁻ parks where this note would sit
+      title:'That leftover is hydroxide',
+      body:'<b>OH⁻</b> kept <b>both</b> electrons — the H left without its own. Spare OH⁻ '+
+           'is what makes a solution <b>basic</b>.' } : null,
+    extra:s=>s.protonated
+      ? 'An <b>acid–base proton transfer</b> (Brønsted–Lowry). The proton brought <b>no '+
+        'electron</b> — nitrogen paid for both, so that is a <b>dative bond</b>, and the '+
+        'molecule is now <b>NH\u2084\u207a</b>.'
+      : null,
+  },
+  hydronium:{
+    bonus:true, needs:'hcl', base:'hcl', primed:true,
+    make:()=>CovalentDrag.create({THREE, root, camera, canvas, fx, recipe:'hcl', onChange:report}),
+    open:'Your HCl, and some water. Drag the water at the <b>hydrogen</b> — it wants the proton.',
+    ring:()=>MolLib.PALETTE.bonds.covalent,
+    won:'<b>HCl</b> again. In water it cannot hold on to that hydrogen.',
+    notes:{ title:'Hydrogen chloride &middot; HCl', tags:['covalent','polar','gas'], facts:[
+      '<b>δ+</b> on H — the bond is already leaning',
+      'water only has to <b>finish the job</b>' ] },
+    notes2:{ title:'Hydrochloric acid &middot; H₃O⁺ + Cl⁻', tags:['ion','liquid'], facts:[
+      'the <b>H⁺</b> left — its electron did <b>not</b>',
+      'Cl⁻ has <b>four</b> lone pairs — the same eight, rearranged',
+      'water <b>accepted</b> it → <b>H₃O⁺</b>, a <b>dative</b> bond',
+      'an <b>acid</b> is a proton <b>donor</b> — ammonia was the acceptor' ] },
+    flatSay:'Flat view — watch which atom the pair stays with.',
+    stats:s=>s.anion
+      ? '<b>Cl⁻</b> &nbsp;·&nbsp; lone pairs: <b>4</b> &nbsp;·&nbsp; it kept the <b>whole pair</b>'
+      : 'water is waiting &nbsp;·&nbsp; aim for the <b>hydrogen</b>',
+    step:()=>null,
+    sticky:s=>(s.hydronium||s.anion) ? {
+      title:'That is hydrochloric acid',
+      body:'The <b>H⁺</b> went to water. <b>Cl⁻</b> kept both electrons, and <b>H₃O⁺</b> '+
+           'is what an <b>acid</b> actually is in water.' } : null,
+    extra:s=>s.anion
+      ? 'An <b>acid–base proton transfer</b> (Brønsted–Lowry). The H went <b>without its '+
+        'electron</b> — chlorine kept the pair (<b>Cl⁻</b>), water took the proton (<b>H₃O⁺</b>).'
+      : null,
+  },
 };
 let key='water', L=LESSONS[key], sim=null;
 
@@ -721,6 +746,11 @@ function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); 
    you left it. Completing a molecule is a thing the student did, and switching
    tabs is not an undo. */
 const earnedNotes={};
+/* Finishing the REACTION on a bonus card, which is not the same event as its
+   notes going up: a reaction card puts its reactant's notes up the moment it
+   opens, so `earnedNotes` alone would call it done before the student has done
+   anything. This is written where the second-stage line fires. */
+const earnedStage={};
 let pinnedNotes=null;
 function showNotes(list){
   if(!list){
@@ -728,6 +758,9 @@ function showNotes(list){
     elNotes.classList.remove('show'); elNotes.dataset.key=''; return;
   }
   pinnedNotes=earnedNotes[key]=list;
+  /* Earning a molecule is what turns its reaction card over, and this is the
+     moment that record is written — so the two can never disagree. */
+  refreshLocks();
   /* `stamp`, not `key`: `key` is the current LESSON, read on the line above, and
      a local of that name would shadow it across the whole function. */
   const stamp=[].concat(list).map(n=>n.title).join('|');
@@ -809,7 +842,11 @@ function report(s){
   showSticky(L.sticky && L.sticky(s),
              s.complete ? STICKY_DELAY_WIN : STICKY_DELAY_STEP);
   const more=L.extra && L.extra(s);
-  if(more){ if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); } return; }
+  if(more){
+    earnedStage[key]=true;
+    if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); }
+    return;
+  }
   saidExtra=false;
   if(s.complete){ win(s); return; }
   rung=false; saidAfter=false; spun=false;
@@ -847,6 +884,26 @@ let spinTimer=null, spun=false;
 /* tabs tear down the old lesson rather than hide it — both modules bind
    pointer handlers to the stage, and a hidden-but-live one keeps grabbing atoms */
 let last=0;
+/* Which cards are face down. A bonus card needs its reactant EARNED — the
+   notes it left behind are the record of that, so `earnedNotes` is the same
+   thing the green card reads from and there is no second source of truth. */
+function locked(c){ return c.dataset.needs && !earnedNotes[c.dataset.needs]; }
+function refreshLocks(){
+  document.querySelectorAll('.goal.bonus').forEach(c=>{
+    const was=c.classList.contains('locked'), now=locked(c);
+    c.classList.toggle('locked', now);
+    c.setAttribute('aria-disabled', now?'true':'false');
+    /* Turned over, once. The unlock usually happens while the student is
+       looking at the molecule they just finished, so it has to be visible as
+       an EVENT out of the corner of the eye — a card that had silently changed
+       by the next time they looked up would just be a card they had missed. */
+    if(was && !now){
+      c.classList.add('turning');
+      setTimeout(()=>c.classList.remove('turning'), 520);
+    }
+  });
+}
+
 function load(k){
   if(sim) sim.destroy();
   rung=false; saidAfter=false; clearTimeout(afterTimer);
@@ -860,10 +917,36 @@ function load(k){
   // uses viewState directly rather than arm(false): the old sim is gone and the new one doesn't exist yet, so setView has nothing to talk to
   document.getElementById('dims').classList.remove('armed');
   viewState(true);
-  wantZoom(R_ONE); userZoomed=false;   // one molecule again, and its own framing
+  wantZoom(L.primed?R_TWO:R_ONE); userZoomed=false;   // a reaction card opens with two molecules
   sim=L.make();
   sim.setDim(flat?'2d':'3d');
   sim.setMode(modeFor());          // after setDim: the mode is derived from it
+  /* A reaction card stands its reactant up ready-made and pours the water. Not
+     a shortcut past the build — the build is the card ABOVE, and this one is
+     unlocked by having done it. Silently, for the same reason a re-opened
+     lesson is: the ring and the win line belong to the moment it was made. */
+  if(L.primed){
+    /* `restoring` spans the pour as well as the fill. offerWater() reports its
+       own state change, which runs win() — and win() is where the automatic
+       turn to 3D lives, so leaving the flag off for that one call opened every
+       reaction card in the round view, which is the one view that does not draw
+       electrons. The whole card is about which pair goes where. */
+    restoring=true;
+    sim.fill();
+    sim.offerWater();
+    /* …and if they have already done this one, it re-opens DONE, the same way a
+       finished build card re-opens built. Coming back to a reaction you have
+       run to find it waiting to be run again says the page forgot. Reset is
+       there to do it over. */
+    if(earnedStage[k]) sim.finishReaction();
+    restoring=false;
+    /* No opening line on a restored one: finishReaction() reports through to the
+       second-stage line, which is the true caption for what is on screen — and
+       "drag the water at the lone pair" written over a molecule that has already
+       taken the proton is an instruction for a job that is done. */
+    if(!earnedStage[k]) say(L.open);
+    return;
+  }
   /* A finished lesson re-opens finished (via fill()) rather than as a bare atom
      — `restoring` tells win() to skip the completion ring/auto-3D-turn (those
      are rewards for the moment of bonding, not for revisiting), while the done
@@ -874,8 +957,12 @@ function load(k){
 }
 
 document.querySelectorAll('.goal').forEach(c=>{
-  c.addEventListener('click',()=>{ if(c.dataset.lesson!==key) load(c.dataset.lesson); });
+  c.addEventListener('click',()=>{
+    if(locked(c)) return;                 // face down is not a tab
+    if(c.dataset.lesson!==key) load(c.dataset.lesson);
+  });
 });
+refreshLocks();
 
 /* ---------- controls ----------
    electrons-vs-sticks follows the view rather than its own toggle: flat draws

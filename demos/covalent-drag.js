@@ -897,7 +897,7 @@
        * chemistry the warm amber vocabulary, and this IS the moment the molecule
        * becomes an ion. Fired here rather than by the page because only the
        * module knows where the proton landed. */
-      if(fx){
+      if(fx && !hush){
         /* A covalent bond's ring expands from the molecule, because the bond
          * belongs to both atoms. A DATIVE bond's expands from the DONOR, in the
          * donor's own colour, because it does not: nitrogen paid for it. Same
@@ -1002,6 +1002,12 @@
       loneFlat:[[0.6116,0.7910,0], [-0.6116,0.7910,0]],
     };
     let water=null;
+    /* Effects off. A reaction being RESTORED — a card the student finished
+     * earlier, re-opened — has to arrive at the same state without the ring and
+     * the shimmer, which mean "this just happened". Same argument as the page's
+     * `restoring`, one layer down, because these effects are fired from in here
+     * where the module knows where the bond formed. */
+    let hush=false;
     function hexOf(el){ return '#'+new THREE.Color(P.atoms[el]).getHexString(); }
     function waterRole(){ return (R.water&&R.water.role)||'donate'; }
 
@@ -1181,6 +1187,21 @@
       }
     }
 
+    /* The reaction, already over. fill()'s counterpart for the stage AFTER the
+     * build: it stands the water on its docking spot and runs the same react()
+     * a drag would, with the effects hushed. The small position animations still
+     * play — the dots sliding to their new owner, the proton's last stretch —
+     * because those are the bookkeeping rather than a celebration, and a
+     * molecule that snapped into place with no motion at all reads as a
+     * different drawing rather than the same one settled. */
+    function finishReaction(){
+      if(!water || water.spent) return;
+      let r=waterReach(); if(!r) return;
+      water.group.position.copy(
+        r.target.clone().sub(r.local.clone().applyQuaternion(water.group.quaternion)));
+      r=waterReach();
+      hush=true; react(r); hush=false;
+    }
     function react(r){
       if(waterRole()==='accept') acceptProton(r); else donateProton(r);
       /* Let go of it. The student is still holding the pointer down on what is
@@ -1220,7 +1241,7 @@
        * that used to be hydrogen's. Same badge vocabulary as the salt tabs. */
       water.badge=kit.charge('−', hexOf('O'), 'O');
       water.group.add(water.badge);
-      if(fx) fx.settleShimmer(water.sphere, 0xffc24d);   // §5: amber, it changed too
+      if(fx && !hush) fx.settleShimmer(water.sphere, 0xffc24d);   // §5: amber, it changed too
       spawnProton(at);
       protonate(proton);
     }
@@ -1302,7 +1323,7 @@
        * same event: a dative bond forming. The ring expands from the DONOR in
        * the donor's colour — oxygen paid for this one — and the amber shimmer is
        * SCIENCE.md §5's vocabulary for proton chemistry. */
-      if(fx){
+      if(fx && !hush){
         fx.spawnRing(water.group.getWorldPosition(new THREE.Vector3()), P.atoms.O, water.group);
         fx.settleShimmer(water.sphere, 0xffc24d);
         // …and the other product changed too: chloride is holding a new pair
@@ -1666,6 +1687,7 @@
 
     build();
     return { group, step, setMode, setDim, reset, destroy, state, fill, offerWater,
+             finishReaction,
              /* Where the molecule IS, for effects that have to fire somewhere.
                 The core happens to sit at the origin, but read the mesh
                 rather than assuming it — the assumption is exactly what put the
