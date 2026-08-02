@@ -114,5 +114,76 @@ for (const file of files) {
   console.log(`        helices: ${n('alpha')} alpha, ${n('three10')} 3-10, ${n('pi')} pi`);
 }
 
+/* =====================================================================
+ *  folding-lab.html — the claims folding.js makes about 1VII.
+ *
+ *  MolecularGeometry.md §1.4 rule 2: a chemical claim ships with the
+ *  assertion that checks it. folding-lab.html makes four, and all four are
+ *  things a student is told in so many words, so none of them may drift
+ *  silently if the H-bond cutoffs or the solver are ever retuned.
+ * ===================================================================== */
+const VII = path.join(DIR, '1VII.pdb');
+if (fs.existsSync(VII)) {
+  console.log('\nfolding-lab (1VII):');
+  const FoldLib = require('../folding.js');
+  const parsed = FoldLib.parse(fs.readFileSync(VII, 'utf8'), { sideChains: [47, 51, 58] });
+  const hb = FoldLib.hbonds(parsed);
+
+  // CLAIM 1 — "12 of the 14 are exactly this i->i+4 grip" (side panel)
+  const i4 = hb.filter(b => b.sep === 4).length;
+  if (hb.length !== 14) fail('1VII h-bonds', `expected 14 backbone H-bonds, found ${hb.length}`);
+  else if (i4 !== 12)   fail('1VII i+4', `expected 12 i+4 H-bonds, found ${i4}`);
+  else ok(`14 backbone H-bonds, ${i4} of them i->i+4 — the helix rule the page teaches`);
+
+  // CLAIM 2 — "not one of them runs between helices" (act 2's whole premise).
+  // A tertiary contact would show up as a large sequence separation; every
+  // bond being local is exactly what makes act 2 need a different mechanism.
+  const maxSep = Math.max(...hb.map(b => Math.abs(b.sep)));
+  if (maxSep > 4) fail('1VII locality',
+    `an H-bond spans ${maxSep} residues — act 2 claims none is tertiary`);
+  else ok(`every H-bond is local (max separation ${maxSep}) — none packs the helices`);
+
+  // CLAIM 3 — the start state is genuinely extended, so act 1 shows a real
+  // collapse rather than a nudge
+  const E = FoldLib.extended(parsed), v = FoldLib._v3;
+  const ca = parsed.residues.map(r => r.atoms.CA).filter(x => x != null);
+  const span = v.dist(E[ca[0]], E[ca[ca.length - 1]]);
+  const nativeSpan = v.dist(parsed.nodes[ca[0]].native, parsed.nodes[ca[ca.length - 1]].native);
+  if (span < 100) fail('1VII extended', `start state only ${span.toFixed(1)} A end-to-end`);
+  else ok(`starts ${span.toFixed(0)} A end-to-end, folds to ${nativeSpan.toFixed(1)} A`);
+
+  // CLAIM 4 — the fold actually arrives. If this drifts, the animation ends
+  // on something that is not the deposited structure and the page is lying.
+  const folder = FoldLib.Folder(parsed);
+  const fresh = folder.bake(FoldLib.BAKE.frames, FoldLib.BAKE.keep);
+  const rmsd = folder.rmsd(), formed = folder.formation().filter(x => x > 0.5).length;
+  if (rmsd > 1.0)        fail('1VII fold', `ends ${rmsd.toFixed(2)} A from the deposited structure`);
+  else if (formed !== 14) fail('1VII fold', `only ${formed}/14 H-bonds formed at the end`);
+  else ok(`fold lands ${rmsd.toFixed(2)} A RMSD from deposited, all 14 H-bonds formed`);
+
+  /* CLAIM 5 — the COMMITTED trajectory is the one this solver produces.
+     folding-lab.html no longer folds anything: it plays pdb/1VII.fold.bin.
+     That file is only trustworthy while it matches the code, and nothing
+     about a stale one looks wrong — it animates a perfectly plausible fold
+     that the current solver would never generate. Compared byte-for-byte,
+     which is exact because the format stores the solver's own Float32s. */
+  const BIN = path.join(DIR, '1VII.fold.bin');
+  if (!fs.existsSync(BIN)) {
+    fail('1VII baked fold', 'pdb/1VII.fold.bin is missing — run: node tools/bake-fold.js');
+  } else {
+    const onDisk = fs.readFileSync(BIN);
+    const expect = Buffer.from(FoldLib.encode(fresh));
+    if (!onDisk.equals(expect)) {
+      const why = onDisk.length !== expect.length
+        ? `different size — ${onDisk.length} bytes on disk vs ${expect.length} fresh`
+        : `same size, different contents — first differs at byte ${
+            [...onDisk].findIndex((b, i) => b !== expect[i])}`;
+      fail('1VII baked fold',
+        `pdb/1VII.fold.bin does not match this solver (${why}) — re-run: node tools/bake-fold.js`);
+    }
+    else ok(`baked trajectory on disk matches a fresh bake exactly (${(onDisk.length/1024).toFixed(0)} KB)`);
+  }
+}
+
 if (failures) { console.log(`\nFAIL: ${failures} assertion(s) failed`); process.exit(1); }
 console.log('\nPASS: orientation is a rotation — rigid, well-formed, and never mirrored');
