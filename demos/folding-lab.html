@@ -11,6 +11,11 @@
 <style>
   :root{ --hb:#0042aa; --core:#c2571b; }
 
+  /* Our own display:flex rules outrank the browser's [hidden]{display:none},
+     so several act-3 elements stayed on screen with the attribute set. This
+     is the fix, and it has to be !important to win. */
+  [hidden]{display:none !important}
+
   /* No side panel: the two acts already say what a panel would, and the
      chain is a 121 A rod at t=0 that wants every pixel of width it can get.
      The intro that used to sit in the panel is the card's first state. */
@@ -58,9 +63,43 @@
 
   #toggles{position:absolute;right:20px;bottom:24px;z-index:6;display:flex;
     flex-direction:column;align-items:flex-end;gap:7px}
+  #foldtoggles{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
   #toggles label{display:flex;align-items:center;gap:6px;font-size:12.5px;opacity:.8;
     cursor:pointer;background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
     border-radius:8px;padding:6px 10px}
+
+  /* ---- act 3: the zoom legend, which replaces #act once the fold is done ---- */
+  #zoom{position:absolute;left:50%;top:20px;transform:translateX(-50%);z-index:6;
+    max-width:min(880px,94%);
+    background:rgba(255,255,255,.74);border:2px solid var(--ink);border-radius:10px;
+    padding:9px 14px 10px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  .zsteps{display:flex;align-items:stretch;justify-content:center;gap:4px}
+  .zstep{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+    background:none;border:1.5px solid transparent;border-radius:8px;padding:5px 11px;
+    color:var(--ink);font-family:inherit;text-align:center}
+  .zstep:hover{border-color:var(--hair);background:rgba(255,255,255,.6)}
+  .zstep .zname{font-family:var(--font-slab);font-weight:700;font-size:13px;white-space:nowrap}
+  .zstep .zsize{font-size:11px;color:var(--muted);white-space:nowrap}
+  .zstep.on{border-color:var(--ink);background:#fff}
+  .zstep.on .zname{color:var(--hb)}
+  .zarrow{display:flex;align-items:center;color:var(--hair);font-size:14px}
+  .znote{margin-top:7px;padding-top:7px;border-top:1px solid var(--hair);
+    font-size:11.5px;line-height:1.45;color:var(--muted);text-align:center}
+  .znote b{color:#3a352f}
+
+  /* The eight arrangements. Deliberately NOT styled like a structure viewer's
+     model selector, because these are generated and those are measured. */
+  #arrangements{position:absolute;left:50%;bottom:76px;transform:translateX(-50%);z-index:6;
+    display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
+    padding:6px 11px}
+  #arrangements .alab{font-family:var(--font-slab);font-size:11.5px;color:var(--muted)}
+  .abtns{display:flex;gap:3px}
+  .abtns button{width:25px;height:25px;border-radius:6px;cursor:pointer;
+    border:1.5px solid var(--hair);background:#fff;color:var(--ink);
+    font-family:var(--font-slab);font-size:11.5px;line-height:1}
+  .abtns button:hover{border-color:var(--ink)}
+  .abtns button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 
   /* Load curtain. Only covers two fetches now that the trajectory is a
      committed file (tools/bake-fold.js) — on a warm cache it barely shows. */
@@ -72,6 +111,9 @@
   @media (max-width:920px){
     #act{top:12px;max-width:90%} #transport{width:90%;bottom:14px}
     #tally{left:12px;top:auto;bottom:76px}
+    #zoom{top:10px;max-width:96%;padding:7px 9px 8px}
+    .zstep .zname{font-size:11.5px} .zstep .zsize{font-size:10px}
+    #arrangements{bottom:70px}
   }
 </style>
 </head>
@@ -83,15 +125,42 @@
       <div class="actbody"></div><div class="actnote"></div></div>
     <div id="tally"><span class="big" id="hbcount">0</span> / 14 hydrogen bonds
       <div class="sub" id="hbsub">holding the chain</div></div>
+
+    <!-- Act 3. Replaces #act once the fold finishes: the caption's job is done
+         and the question becomes "what is this thing part of?" -->
+    <div id="zoom" hidden>
+      <div class="zsteps">
+        <button class="zstep" data-rung="0">
+          <span class="zname">the chain you folded</span>
+          <span class="zsize">HP35 · 36 residues · ~2 nm</span></button>
+        <span class="zarrow"><i class="ph-bold ph-caret-right"></i></span>
+        <button class="zstep" data-rung="1">
+          <span class="zname">its domain</span>
+          <span class="zsize">headpiece · 61 residues · ~3 nm</span></button>
+        <span class="zarrow"><i class="ph-bold ph-caret-right"></i></span>
+        <button class="zstep" data-rung="2">
+          <span class="zname">the whole protein</span>
+          <span class="zsize">villin · 826 residues · ~10 nm</span></button>
+      </div>
+      <div class="znote" id="znote"></div>
+    </div>
+
+    <div id="arrangements" hidden>
+      <span class="alab">arrangement</span>
+      <span class="abtns" id="abtns"></span>
+    </div>
     <div id="transport">
       <button id="playbtn" aria-label="play or pause"><i class="ph-bold ph-play"></i></button>
       <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="fold progress">
       <span id="tlabel">unfolded</span>
     </div>
     <div id="toggles">
+      <span id="foldtoggles">
       <label><input type="checkbox" id="showhb" checked> hydrogen bonds</label>
       <label><input type="checkbox" id="showcore" checked> hydrophobic core</label>
+      </span>
       <label><input type="checkbox" id="spin"> spin</label>
+      <label id="plddtrow" hidden><input type="checkbox" id="showplddt"> AlphaFold confidence</label>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
     <div id="loading">loading…</div>
@@ -104,6 +173,7 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="folding.js"></script>
+<script src="villin.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -166,7 +236,7 @@ const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(ca
      X and the chain exactly horizontal on screen, at any elevation. Any other
      azimuth reintroduces the diagonal this page was fighting. */
   cam: { theta: 0, phi: 1.18, r: 46 }, phiMin: 0.3, phiMax: 2.7,
-  rMin: 4, rMax: 200,
+  rMin: 4, rMax: 600,
   onDrag: () => { userSpun = true; },
   onZoom: () => { userZoom = true; } });
 const FXi = FX.create(THREE, root, camera);
@@ -176,7 +246,13 @@ let parsed = null, hb = null, traj = null;
 let t = 0, playing = false, lastFormed = null;
 /* false until the student first plays or scrubs — drives the card's intro state */
 let started = false;
+/* the zoom legend is introduced once, when the fold first completes */
+let zoomShown = false;
 const atomMeshes = [], bondMeshes = [], hbGroups = [];
+/* Everything belonging to the FOLD lives in one group, so act 3 can carry the
+   whole atomic model onto its place inside villin with a single transform
+   instead of moving 199 atoms and 201 bonds individually. */
+const foldGroup = new THREE.Group(); root.add(foldGroup);
 
 /* ---------- load ----------
    Two fetches, no solving. The PDB gives the topology to draw (which atoms,
@@ -225,7 +301,7 @@ function build() {
     const m = Stage.atom(col, RADII[nd.el] || 0.3,
                          new THREE.Vector3(...nd.native), nd.el);
     m.userData.core = isCore(i);
-    root.add(m); atomMeshes.push(m);
+    foldGroup.add(m); atomMeshes.push(m);
   });
 
   /* Bonds are rebuilt in place every frame rather than recreated: one
@@ -239,7 +315,7 @@ function build() {
     const geo = new THREE.CylinderGeometry(r, r, L, 10);
     const m = new THREE.Mesh(geo, Stage.bondMat(core ? CORE_COLOR : PAL.bonds.covalent));
     m.userData = { i, j, core };
-    root.add(m); bondMeshes.push(m);
+    foldGroup.add(m); bondMeshes.push(m);
   });
 
   /* One hydrogen bond = a row of short dashes from the carbonyl O to the
@@ -260,7 +336,7 @@ function build() {
       g.add(d);
     }
     g.userData = { b, mat };
-    root.add(g); hbGroups.push(g);
+    foldGroup.add(g); hbGroups.push(g);
   });
 }
 
@@ -333,11 +409,22 @@ function frameFrom(P) {
   _right.normalize();
   _up.crossVectors(_right, _fwd).normalize();
 
+  /* Extents are measured about the points' OWN centre, and the camera is
+     aimed there. Measuring from the world origin instead works only while the
+     subject happens to sit on it — true for the fold, false the moment act 3
+     frames the headpiece, which is a lobe well off villin's centre. That bug
+     framed a 3 nm domain further away than the 10 nm protein containing it,
+     because what was really being measured was its distance from the origin. */
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < P.length; i++) { cx += P[i].x; cy += P[i].y; cz += P[i].z; }
+  cx /= P.length; cy /= P.length; cz /= P.length;
+  cam.target.set(cx, cy, cz);
+
   let halfW = 0, halfH = 0;
   for (let i = 0; i < P.length; i++) {
-    const p = P[i];
-    halfW = Math.max(halfW, Math.abs(p.x*_right.x + p.y*_right.y + p.z*_right.z));
-    halfH = Math.max(halfH, Math.abs(p.x*_up.x    + p.y*_up.y    + p.z*_up.z));
+    const dx = P[i].x - cx, dy = P[i].y - cy, dz = P[i].z - cz;
+    halfW = Math.max(halfW, Math.abs(dx*_right.x + dy*_right.y + dz*_right.z));
+    halfH = Math.max(halfH, Math.abs(dx*_up.x    + dy*_up.y    + dz*_up.z));
   }
   // extents are to sphere CENTRES; without this the outer atoms clip in half
   halfW += MAX_R; halfH += MAX_R;
@@ -350,12 +437,16 @@ function frameFrom(P) {
 
   const tan = Math.tan(camera.fov * Math.PI / 360);
   const d = Math.max(halfH / tan, halfW / (tan * camera.aspect)) * 1.06;
-  cam.r = Math.max(6, Math.min(220, d));
+  /* Ceiling raised for act 3: the fold needs ~130 at its most extended, but
+     villin's roomiest arrangement is 160 A end to end and was being clamped,
+     so the protein sat cropped on exactly the arrangements that make the
+     "no single shape" point most strongly. */
+  cam.r = Math.max(6, Math.min(600, d));
   applyCam();
 }
 
 function frameAt(tt) { if (traj) frameFrom(posOf(tt)); }
-new ResizeObserver(() => { resize(); frameAt(t); }).observe(canvas);
+new ResizeObserver(() => { resize(); if (typeof rung !== 'undefined' && rung !== RUNG.FOLD) frameCurrent(); else frameAt(t); }).observe(canvas);
 
 /* ---------- sample the baked trajectory ---------- */
 /* Playback reads stored coordinates and lerps between keyframes; no physics
@@ -418,8 +509,11 @@ function seek(tt) {
     }
   });
 
-  // a ring at the moment a bond first closes — the event the lesson is about
-  if (lastFormed) hb.forEach((b, k) => {
+  /* A ring at the moment a bond first closes — the event the lesson is about.
+     Suppressed once the fold is over: the rings are anchored in world space at
+     the fold's coordinates, so in act 3 they bloom somewhere off in the
+     corner, detached from anything the student is looking at. */
+  if (lastFormed && t < 0.999) hb.forEach((b, k) => {
     if (lastFormed[k] < 0.5 && formed[k] >= 0.5)
       FXi.spawnRing(P[b.h].clone(), PAL.bonds.hbond);
   });
@@ -429,7 +523,7 @@ function seek(tt) {
      reserves a different pixel band for each. Framing first would size one
      frame against the state the card is leaving. */
   updateReadout(formed);
-  frameFrom(P);
+  if (rung === RUNG.FOLD) frameFrom(P);
 }
 
 /* ---------- the card ----------
@@ -462,6 +556,32 @@ const ACTS = [
 function updateReadout(formed) {
   const s = FoldLib.SCHEDULE(t);
   const act = document.getElementById('act');
+
+  /* Once the chain is folded the caption has said everything it has to say,
+     and the question changes from "what is happening" to "what is this part
+     of". So the card hands the top of the stage over to the zoom legend. */
+  const done = t >= 0.999;
+  act.hidden = done;
+  document.getElementById('zoom').hidden = !done || !villin;
+  document.getElementById('plddtrow').hidden = !done || !villin;
+  /* The H-bond tally counts the fold's own event and means nothing once the
+     zoom leaves that scale — villin's other 790 residues have hydrogen bonds
+     too, and a stalled "14 / 14" beside a whole protein would read as a claim
+     about the protein. Hidden rather than frozen. */
+  document.getElementById('tally').hidden = done;
+  document.getElementById('foldtoggles').hidden = done;
+  if (done && villin && !zoomShown) { zoomShown = true; setRung(RUNG.FOLD); }
+  if (!done && rung !== RUNG.FOLD) setRung(RUNG.FOLD);
+
+  /* The transport is updated on BOTH sides of this branch: it stays usable in
+     act 3 as the way back down to the fold, so its label and position must
+     keep tracking t. Returning before this left it reading "unfolded" while
+     the finished protein sat on screen. */
+  document.getElementById('tlabel').textContent =
+    t <= 0.001 ? 'unfolded' : t >= 0.999 ? 'folded' : Math.round(t * 100) + '%';
+  document.getElementById('scrub').value = Math.round(t * 1000);
+  if (done) return;
+
   const intro = !started;
   const a = intro ? INTRO : ACTS[s.act - 1];
 
@@ -477,10 +597,302 @@ function updateReadout(formed) {
     nf === 0 ? 'chain is extended' :
     s.act === 1 ? 'coiling the helices' : 'helices done — core packing';
 
-  document.getElementById('tlabel').textContent =
-    t <= 0.001 ? 'unfolded' : t >= 0.999 ? 'folded' : Math.round(t * 100) + '%';
-  document.getElementById('scrub').value = Math.round(t * 1000);
 }
+
+/* ============================================================
+ *  ACT 3 — what the chain is part of
+ *
+ *  Acts 1-2 answer "how does this fold". Act 3 answers "what is this",
+ *  and the answer is that it is not a protein at all: it is the last 36
+ *  residues of one. The zoom is only ~4.5x across its three rungs (2 nm to
+ *  10 nm), so it runs at TRUE RELATIVE SIZE with no cuts and no cheating —
+ *  HP35 stays a visible lobe on the whole protein rather than vanishing.
+ *
+ *  The whole-protein rung is an AlphaFold PREDICTION and must never read as
+ *  a structure. villin.js's header has the full reasoning; the short version
+ *  is that AlphaFold knows each domain's shape well (PAE ~2 A inside HP35)
+ *  and knows essentially nothing about how they are arranged (PAE pinned at
+ *  its 31.75 A ceiling between headpiece and core). Hence eight arrangements
+ *  rather than one picture, and hence the note under the legend.
+ * ============================================================ */
+
+const RUNG = { FOLD: 0, HEADPIECE: 1, VILLIN: 2 };
+let rung = RUNG.FOLD, arrangement = 0, villin = null, villinGroup = null;
+let hoverHP = false;
+
+/* Tube radius matches what a bead would have been: the house radius/bond
+   ratio (0.2934) applied to the 3.8 A Ca-Ca virtual bond. So swapping from
+   atoms to a tube does not change how thick the chain looks — only how much
+   detail it carries, which is the honest difference. Linkers are drawn
+   thinner because they are the part the model cannot place. */
+const TUBE_R = 3.8 * 0.2934;
+const LINK_R = TUBE_R * 0.45;
+
+/* Domain colours: muted enough for cream paper, distinct enough to count
+   six repeats. HP35 takes the page's existing H-bond blue so the chain the
+   student folded is the one thing they can find instantly. */
+/* No blue in this list: blue is reserved for HP35 alone. The headpiece
+   domain used to take the highlight colour itself, which made the whole
+   61-residue domain one solid blue and destroyed the middle rung's entire
+   point — that HP35 is the C-terminal HALF of the headpiece. You cannot see
+   "half of" when both halves are the same colour. */
+const DOM_COLORS = [0x8c7f6a, 0xa8927a, 0x7d8f7a, 0x94836b,
+                    0x8a8f9c, 0x9c8a7d, 0xa39a86, 0x6f7f74];
+const HP_COLOR = 0x0042aa;
+
+fetch('pdb/AF-P02640-villin.poses.bin')
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+  .then(buf => { villin = VillinLib.decode(buf); buildArrangementButtons(); })
+  .catch(e => {
+    /* Act 3 is additive: acts 1-2 are a complete lesson on their own, so a
+       missing villin file disables the zoom rather than breaking the page. */
+    console.warn('act 3 unavailable — ' + e.message + ' (run: node tools/bake-villin.js)');
+  });
+
+/* Ca positions of one arrangement, as Vector3s. */
+function villinPoints(k, from, to) {
+  const a = villin.poses[k], out = [];
+  for (let i = 0; i < villin.residues; i++) {
+    const r = villin.nums[i];
+    if (from != null && (r < from || r > to)) continue;
+    out.push(new THREE.Vector3(a[i*3], a[i*3+1], a[i*3+2]));
+  }
+  return out;
+}
+
+/* Superpose A onto B (Kabsch) -> THREE.Matrix4.
+   Used to carry the folded atomic model onto its seat inside villin. The two
+   are the same 36 residues from different sources — 1VII is NMR, this is a
+   prediction — and they agree to 2.03 A Ca RMSD, which is why the handoff can
+   be a rigid move rather than a dissolve. */
+function superpose(A, B) {
+  const n = Math.min(A.length, B.length);
+  const cA = new THREE.Vector3(), cB = new THREE.Vector3();
+  for (let i = 0; i < n; i++) { cA.add(A[i]); cB.add(B[i]); }
+  cA.divideScalar(n); cB.divideScalar(n);
+  // 3x3 covariance, then rotation by iterative polar decomposition — enough
+  // for a 36-point fit and far less code than a general SVD.
+  let H = [[0,0,0],[0,0,0],[0,0,0]];
+  for (let i = 0; i < n; i++) {
+    const a = [A[i].x-cA.x, A[i].y-cA.y, A[i].z-cA.z];
+    const b = [B[i].x-cB.x, B[i].y-cB.y, B[i].z-cB.z];
+    for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) H[x][y] += a[x]*b[y];
+  }
+  let R = H.map(r => r.slice());
+  for (let it = 0; it < 64; it++) {
+    const inv = invT(R);
+    if (!inv) break;
+    R = R.map((row, i) => row.map((vv, j) => 0.5 * (vv + inv[i][j])));
+  }
+  const m = new THREE.Matrix4().set(
+    R[0][0], R[1][0], R[2][0], 0,
+    R[0][1], R[1][1], R[2][1], 0,
+    R[0][2], R[1][2], R[2][2], 0,
+    0, 0, 0, 1);
+  const out = new THREE.Matrix4();
+  out.multiply(new THREE.Matrix4().makeTranslation(cB.x, cB.y, cB.z));
+  out.multiply(m);
+  out.multiply(new THREE.Matrix4().makeTranslation(-cA.x, -cA.y, -cA.z));
+  return out;
+}
+function invT(M) {
+  const d = M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
+          - M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
+          + M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+  if (Math.abs(d) < 1e-12) return null;
+  const c = [[0,0,0],[0,0,0],[0,0,0]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const a = (i+1)%3, b = (i+2)%3, x = (j+1)%3, y = (j+2)%3;
+    c[j][i] = (M[a][x]*M[b][y] - M[a][y]*M[b][x]) / d;   // transpose of inverse
+  }
+  return [[c[0][0],c[1][0],c[2][0]],[c[0][1],c[1][1],c[2][1]],[c[0][2],c[1][2],c[2][2]]];
+}
+
+/* Build (or rebuild) the tube for the current rung and arrangement.
+   Rebuilt on demand rather than cached per arrangement: 826 points takes a
+   few milliseconds, which a button click can easily afford, and caching eight
+   full tube geometries would hold a lot of vertices for a page that shows one
+   at a time. */
+function buildVillin() {
+  if (villinGroup) { root.remove(villinGroup); disposeTree(villinGroup); }
+  villinGroup = new THREE.Group();
+  root.add(villinGroup);
+  if (!villin || rung === RUNG.FOLD) return;
+
+  const lo = rung === RUNG.HEADPIECE ? villin.domains[villin.domains.length-1][0] : villin.nums[0];
+  const hi = villin.nums[villin.residues - 1];
+  const byPLDDT = document.getElementById('showplddt').checked;
+
+  /* One tube per rigid body, plus a thinner one per linker. Split this way
+     rather than as a single tube so the parts the model is confident about
+     and the parts it is not can look different, which is the whole reason
+     this rung exists. */
+  const spans = [];
+  villin.domains.forEach(([a, b], d) => {
+    if (b < lo || a > hi) return;
+    /* Stop the domain tube where HP35 begins. HP35 gets its own tube along
+       the same path, and drawing both left two surfaces coincident — the grey
+       domain shimmered through the blue in shards wherever the depth test
+       went the other way. Clipping is the fix; a radius difference only hides
+       it at some angles. */
+    let end = Math.min(b, hi);
+    if (a < VillinLib.HP35.start && end >= VillinLib.HP35.start) end = VillinLib.HP35.start;
+    if (end <= a) return;
+    spans.push({ a: Math.max(a, lo), b: end, domain: d, linker: false });
+  });
+  for (let k = 0; k + 1 < villin.domains.length; k++) {
+    const a = villin.domains[k][1], b = villin.domains[k+1][0];
+    if (b - a <= 1 || b < lo || a > hi) continue;
+    spans.push({ a: Math.max(a, lo), b: Math.min(b, hi), domain: -1, linker: true });
+  }
+
+  for (const sp of spans) {
+    const pts = villinPoints(arrangement, sp.a, sp.b);
+    if (pts.length < 2) continue;
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const geo = new THREE.TubeGeometry(curve, Math.max(8, pts.length * 2),
+                                       sp.linker ? LINK_R : TUBE_R, 10, false);
+    let col, opacity = 1;
+    if (sp.linker) {
+      col = 0xb3a892; opacity = 0.55;
+    } else if (byPLDDT) {
+      col = plddtColor(sp.a, sp.b);
+    } else {
+      col = DOM_COLORS[sp.domain % DOM_COLORS.length];
+    }
+    const mat = Stage.bondMat(col);
+    if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData.span = sp;
+    villinGroup.add(mesh);
+  }
+
+  /* HP35 is drawn again on top, in the highlight colour and slightly fatter,
+     because "the bit you folded" has to be findable at a glance. */
+  const hpPts = villinPoints(arrangement, VillinLib.HP35.start, VillinLib.HP35.end);
+  if (hpPts.length > 1) {
+    /* Same radius as the domains, not fatter: the chain is continuous and
+       should look continuous. Colour alone marks it out. */
+    const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hpPts),
+                                     hpPts.length * 2, TUBE_R, 10, false);
+    const m = new THREE.Mesh(g, Stage.bondMat(HP_COLOR));
+    m.userData.isHP = true;
+    villinGroup.add(m);
+  }
+
+  placeFoldGroup(hpPts);
+}
+
+function plddtColor(a, b) {
+  let s = 0, n = 0;
+  for (let i = 0; i < villin.residues; i++)
+    if (villin.nums[i] >= a && villin.nums[i] <= b) { s += villin.plddt[i]; n++; }
+  const v = n ? s / n : 0;
+  // AlphaFold's own confidence bands, so the colours mean what they mean there
+  return v >= 90 ? 0x0053d6 : v >= 70 ? 0x65cbf3 : v >= 50 ? 0xffdb13 : 0xff7d45;
+}
+
+/* Seat the atomic model on HP35's Ca's, ready for the hover reveal. */
+function placeFoldGroup(hpPts) {
+  if (!hpPts || hpPts.length < 3) return;
+  const mine = [];
+  for (const r of parsed.residues) {
+    const i = r.atoms.CA;
+    if (i != null) mine.push(new THREE.Vector3(...traj.key[traj.count-1].slice(i*3, i*3+3)));
+  }
+  if (mine.length !== hpPts.length) return;
+  const M = superpose(mine, hpPts);
+  foldGroup.matrixAutoUpdate = false;
+  foldGroup.matrix.copy(M);
+}
+
+function disposeTree(g) {
+  g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+}
+
+/* ---------- rung + arrangement ---------- */
+const ZNOTES = [
+  '',
+  'Zoomed out one step. HP35 is the C-terminal half of villin’s <b>headpiece</b> — ' +
+  'the same 36 residues, now shown as a tube because at this size individual atoms stop meaning anything.',
+  'The whole protein: six gelsolin-like repeats and the headpiece, joined by flexible linkers. ' +
+  '<b>This is an AlphaFold prediction, not a measured structure</b> — and it is confident about each ' +
+  'domain’s shape while knowing essentially nothing about how they are arranged, which is why there ' +
+  'are eight of them below rather than one picture.',
+];
+
+function setRung(n) {
+  if (!villin && n !== RUNG.FOLD) return;
+  rung = n;
+  document.querySelectorAll('.zstep').forEach(b =>
+    b.classList.toggle('on', +b.dataset.rung === rung));
+  document.getElementById('znote').innerHTML = ZNOTES[rung];
+  document.getElementById('arrangements').hidden = (rung !== RUNG.VILLIN);
+  buildVillin();
+  updateVisibility();
+  frameCurrent();
+}
+
+function setArrangement(k) {
+  arrangement = k;
+  [...document.getElementById('abtns').children].forEach((b, i) =>
+    b.classList.toggle('on', i === k));
+  buildVillin();
+  updateVisibility();
+  frameCurrent();
+}
+
+function buildArrangementButtons() {
+  const host = document.getElementById('abtns');
+  host.innerHTML = '';
+  for (let k = 0; k < villin.count; k++) {
+    const b = document.createElement('button');
+    b.textContent = k + 1;
+    b.title = k === 0 ? 'AlphaFold’s own layout'
+                      : 'generated: domains rigid, linkers re-posed — not an observed conformation';
+    b.addEventListener('click', () => setArrangement(k));
+    host.appendChild(b);
+  }
+  [...host.children][0].classList.add('on');
+}
+
+/* At the fold rung the atomic model IS the lesson. Higher up it is hidden
+   under the tube and returns only on demand — the hover reveal chosen so the
+   clean view stays clean without losing the link back to the atoms. */
+function updateVisibility() {
+  const atFold = rung === RUNG.FOLD;
+  foldGroup.visible = atFold || hoverHP;
+  if (atFold) { foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity(); }
+  else foldGroup.matrixAutoUpdate = false;
+  if (villinGroup) villinGroup.traverse(o => {
+    if (o.userData && o.userData.isHP) o.visible = !hoverHP;
+  });
+}
+
+/* What the camera should be looking at right now. */
+function currentPoints() {
+  if (rung === RUNG.FOLD || !villin) return posOf(t);
+  return rung === RUNG.HEADPIECE
+    ? villinPoints(arrangement, villin.domains[villin.domains.length-1][0], villin.nums[villin.residues-1])
+    : villinPoints(arrangement);
+}
+function frameCurrent() { frameFrom(currentPoints()); }
+
+document.querySelectorAll('.zstep').forEach(b =>
+  b.addEventListener('click', () => setRung(+b.dataset.rung)));
+
+/* Hover reveal. Raycast only against the HP35 tube, so the whole rest of the
+   protein is not doing hit tests on every mouse move. */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+canvas.addEventListener('pointermove', e => {
+  if (rung === RUNG.FOLD || !villinGroup) return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX-r.left)/r.width)*2 - 1, -((e.clientY-r.top)/r.height)*2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hp = villinGroup.children.filter(o => o.userData && o.userData.isHP);
+  const hit = hp.length && ray.intersectObjects(hp, false).length > 0;
+  if (hit !== hoverHP) { hoverHP = hit; updateVisibility(); canvas.style.cursor = hit ? 'pointer' : ''; }
+});
 
 /* ---------- transport ---------- */
 const playBtn = document.getElementById('playbtn'), scrub = document.getElementById('scrub');
@@ -502,6 +914,7 @@ scrub.addEventListener('input', () => {
   seek(+scrub.value / 1000);
 });
 document.getElementById('showhb').addEventListener('change', () => seek(t));
+document.getElementById('showplddt').addEventListener('change', () => buildVillin());
 document.getElementById('showcore').addEventListener('change', e => {
   atomMeshes.forEach(m => { if (m.userData.core) m.visible = e.target.checked; });
   bondMeshes.forEach(m => { if (m.userData.core) m.visible = e.target.checked; });

@@ -209,5 +209,122 @@ if (fs.existsSync(VII)) {
   }
 }
 
+/* =====================================================================
+ *  folding-lab act 3 — villin, and what an AlphaFold model may be said to be.
+ *
+ *  The claims here are unusually easy to get wrong in a direction nobody
+ *  notices, because a prediction renders exactly as confidently as a
+ *  structure does. These assertions pin the ones the page makes out loud.
+ * ===================================================================== */
+const AFMODEL = path.join(DIR, 'AF-P02640-villin.pdb');
+const POSES = path.join(DIR, 'AF-P02640-villin.poses.bin');
+if (fs.existsSync(AFMODEL)) {
+  console.log('\nfolding-lab act 3 (villin, AF-P02640):');
+  const Villin = require('../villin.js');
+  const model = Villin.parseCA(fs.readFileSync(AFMODEL, 'utf8'));
+
+  // CLAIM 1 — "the chain you folded is the last 36 residues of villin"
+  const AA3 = { ALA:'A',ARG:'R',ASN:'N',ASP:'D',CYS:'C',GLN:'Q',GLU:'E',GLY:'G',HIS:'H',
+                ILE:'I',LEU:'L',LYS:'K',MET:'M',PHE:'F',PRO:'P',SER:'S',THR:'T',TRP:'W',TYR:'Y',VAL:'V' };
+  const seqOf = f => {
+    const d = {};
+    for (const l of fs.readFileSync(f, 'utf8').split('\n'))
+      if (l.startsWith('ATOM') && l.slice(12,16).trim() === 'CA')
+        d[+l.slice(22,26)] = AA3[l.slice(17,20).trim()] || 'X';
+    return d;
+  };
+  const af = seqOf(AFMODEL), vii = seqOf(VII);
+  const afSeq = Object.keys(af).map(Number).sort((a,b)=>a-b).map(k=>af[k]).join('');
+  const viiSeq = Object.keys(vii).map(Number).sort((a,b)=>a-b).map(k=>vii[k]).join('');
+  const window = afSeq.slice(Villin.HP35.start - 1, Villin.HP35.end);
+  const same = [...window].filter((c, i) => c === viiSeq[i]).length;
+  if (window.length !== viiSeq.length)
+    fail('villin HP35', `length mismatch: ${window.length} vs ${viiSeq.length}`);
+  else if (same < 35)
+    fail('villin HP35', `only ${same}/36 residues match 1VII at ${Villin.HP35.start}-${Villin.HP35.end}`);
+  else ok(`1VII is villin ${Villin.HP35.start}-${Villin.HP35.end}: ${same}/36 identical ` +
+          `(the one difference is the construct's initiator Met)`);
+
+  // CLAIM 2 — the domain split is villin's real architecture, from PAE alone
+  const paeFile = path.join(ROOT, 'tools/pae/AF-P02640-F1-pae_v6.json');
+  if (!fs.existsSync(paeFile)) {
+    fail('villin domains', 'tools/pae/AF-P02640-F1-pae_v6.json is missing');
+  } else {
+    const rawPae = JSON.parse(fs.readFileSync(paeFile, 'utf8'));
+    const pae = (Array.isArray(rawPae) ? rawPae[0] : rawPae).predicted_aligned_error;
+    const domains = Villin.segment(pae);
+    const hpDom = domains.filter(([s, e]) => s <= Villin.HP35.start && e >= Villin.HP35.end);
+    if (domains.length < 7)
+      fail('villin domains', `PAE gave ${domains.length} rigid bodies; villin has six gelsolin repeats plus a headpiece`);
+    else if (hpDom.length !== 1)
+      fail('villin domains', 'HP35 is not contained in exactly one rigid body');
+    else ok(`PAE alone yields ${domains.length} rigid bodies, HP35 inside one of them ` +
+            `(${hpDom[0][0]}-${hpDom[0][1]}) — villin's known architecture, not hand-typed`);
+
+    // CLAIM 3 — the generated arrangements are honest polypeptides
+    if (fs.existsSync(POSES)) {
+      const raw = fs.readFileSync(POSES);
+      const m = Villin.decode(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));
+      const idx = new Map([...m.nums].map((r, i) => [r, i]));
+      const at = k => { const a = m.poses[k]; return i => [a[i*3], a[i*3+1], a[i*3+2]]; };
+      const dist = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+
+      // domains must be moved, never deformed
+      let rigidErr = 0;
+      for (let k = 1; k < m.count; k++) {
+        const A = at(0), B = at(k);
+        for (const [s, e] of m.domains) {
+          const ii = [];
+          for (let r = s; r <= e; r++) { const i = idx.get(r); if (i != null) ii.push(i); }
+          for (let x = 0; x < ii.length; x += 7)
+            for (let y = x + 7; y < ii.length; y += 13)
+              rigidErr = Math.max(rigidErr, Math.abs(dist(A(ii[x]), A(ii[y])) - dist(B(ii[x]), B(ii[y]))));
+        }
+      }
+      // the chain must stay a chain: no bond may leave the model's own range
+      const refL = Villin.bondLengths(model.ca, model.nums);
+      let lo = Infinity, hi = 0;
+      for (const l of refL) if (l) { lo = Math.min(lo, l); hi = Math.max(hi, l); }
+      let outside = 0;
+      for (let k = 0; k < m.count; k++) {
+        const A = at(k);
+        for (let i = 0; i + 1 < m.residues; i++) {
+          if (m.nums[i+1] !== m.nums[i] + 1) continue;
+          const L = dist(A(i), A(i+1));
+          if (L < lo - 1e-3 || L > hi + 1e-3) outside++;
+        }
+      }
+      if (rigidErr > 0.01)
+        fail('villin poses', `a domain was deformed by ${rigidErr.toFixed(3)} A — only linkers may change`);
+      else if (outside)
+        fail('villin poses', `${outside} backbone bonds fall outside the model's own ${lo.toFixed(2)}-${hi.toFixed(2)} A range`);
+      else ok(`${m.count} arrangements: domains rigid (max ${rigidErr.toFixed(5)} A), ` +
+              `every bond inside the model's own ${lo.toFixed(2)}-${hi.toFixed(2)} A range`);
+
+      // and they must actually differ, or the buttons are a lie
+      const hp = [];
+      for (let r = Villin.HP35.start; r <= Villin.HP35.end; r++) { const i = idx.get(r); if (i != null) hp.push(i); }
+      const cent = k => { const A = at(k), s = [0,0,0];
+        hp.forEach(i => { const p = A(i); s[0]+=p[0]; s[1]+=p[1]; s[2]+=p[2]; });
+        return s.map(x => x / hp.length); };
+      let minMove = Infinity;
+      for (let a = 0; a < m.count; a++)
+        for (let b = a + 1; b < m.count; b++) minMove = Math.min(minMove, dist(cent(a), cent(b)));
+      if (minMove < 5)
+        fail('villin poses', `two arrangements put the headpiece only ${minMove.toFixed(1)} A apart — buttons would show the same picture`);
+      else ok(`every pair of arrangements moves HP35 at least ${minMove.toFixed(1)} A — all eight are distinct`);
+
+      // CLAIM 4 — the committed arrangements are the ones this code produces
+      const fresh = Buffer.from(Villin.encode({
+        nums: model.nums, plddt: model.plddt, domains, poses: Villin.poses(model, domains) }));
+      if (!raw.equals(fresh))
+        fail('villin poses', 'pdb/AF-P02640-villin.poses.bin does not match this generator — re-run: node tools/bake-villin.js');
+      else ok(`baked arrangements on disk match a fresh bake exactly (${(raw.length/1024).toFixed(0)} KB)`);
+    } else {
+      fail('villin poses', 'pdb/AF-P02640-villin.poses.bin is missing — run: node tools/bake-villin.js');
+    }
+  }
+}
+
 if (failures) { console.log(`\nFAIL: ${failures} assertion(s) failed`); process.exit(1); }
 console.log('\nPASS: orientation is a rotation — rigid, well-formed, and never mirrored');

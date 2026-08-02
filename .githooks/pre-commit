@@ -84,7 +84,7 @@ fi
 # derives its display radii from PALETTE.radii / SCALE, so a palette retune can
 # bury that page's bond sticks inside its atoms. check-molecules cannot catch
 # that one — the page has no spec in the registry for it to audit.
-if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|folding\.js|palette\.js|tools/(check-pdb|bake-fold)\.js|pdb/.*\.(pdb|bin))$'; then
+if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|folding\.js|villin\.js|palette\.js|tools/(check-pdb|bake-fold|bake-villin)\.js|tools/pae/.*|pdb/.*\.(pdb|bin))$'; then
   if ! node tools/check-pdb.js > /tmp/cq.$$ 2>&1; then
     tail -25 /tmp/cq.$$; rm -f /tmp/cq.$$
     echo ""
