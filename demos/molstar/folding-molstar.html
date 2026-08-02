@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mol* evaluation — stage 1 — villin fold</title>
+
+<!-- ===================================================================
+     STAGE 1 of the Mol* evaluation. See molstar/README.md for the terms,
+     the stages, and the delete condition.
+
+     This page answers exactly two questions and deliberately nothing else:
+
+       1. Can Mol* mount inside OUR page chrome, with none of its own UI?
+       2. Can the trajectory be DRIVEN frame-by-frame from our own code,
+          rather than only scrubbed by Mol*'s player?
+
+     (2) is the one that matters. A viewer that will only play its own
+     timeline can show a fold; it cannot narrate one, and `folding-lab`'s
+     whole design is narration — dashes cued to a schedule, two acts with
+     two named causes. If (2) fails, Mol* is fine for protein-lab-style
+     pages and wrong for lesson pages, and the evaluation stops here.
+
+     NOT DONE HERE, on purpose: palette parity (stage 2), H-bond dashes and
+     camera choreography (stage 3), the act-3 ladder (stage 4). Building
+     those ahead of order is most of the work and none of the information.
+
+     The narration copy is lifted VERBATIM from folding-lab.html so the
+     renderer is the only variable. Do not improve it here.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+<!-- Pinned. `@latest` in a committed page is a page that changes under you. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.css">
+
+<style>
+  :root{ --hb:#0042aa; --core:#c2571b; }
+  [hidden]{display:none !important}
+  #app{grid-template-columns:1fr}
+
+  /* Mol* owns this box and nothing outside it. If any of its own chrome
+     appears here, question 1 has failed and we will see it immediately. */
+  #molstar{position:absolute;inset:0;z-index:1}
+  /* Mol*'s viewport paints its own background; let the paper show instead
+     so the comparison is against our page, not against a black rectangle. */
+  #molstar .msp-plugin, #molstar .msp-viewport{background:transparent}
+
+  /* FINDING (stage 1): the Viewer.create options below are NOT sufficient to
+     mount headless. `layoutShow*` and `viewportShow*` remove the panels, the
+     sequence bar and the log, but the viewport button cluster survives all of
+     them — Reset Zoom, fit, "lay flat", screenshot, fullscreen, illumination
+     and a VR button — floating over the top-right of our stage. There is no
+     documented option that removes it, so it takes a CSS rule.
+     One rule is a cheap price; the point is that "headless" is a CSS claim
+     here, not a configuration one, and a Mol* upgrade could rename this
+     class and put eight buttons back on the lesson. */
+  #molstar .msp-viewport-controls{display:none !important}
+
+  #act{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:6;
+    max-width:min(560px,80%);text-align:center;pointer-events:none;
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:9px 12px 8px 11px;
+    padding:10px 18px 11px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #act .actname{font-family:var(--font-marker);font-size:20px;line-height:1.1}
+  #act .actbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;
+    color:#3a352f;margin-top:4px}
+  #act .actname.a1{color:var(--hb)} #act .actname.a2{color:var(--core)}
+
+  #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
+    display:flex;align-items:center;gap:12px;width:min(560px,82%);
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:10px;
+    padding:9px 15px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #playbtn{width:38px;height:38px;flex:0 0 auto;border-radius:50%;cursor:pointer;
+    border:2px solid var(--ink);background:#fff;color:var(--ink);
+    font-size:16px;display:flex;align-items:center;justify-content:center}
+  #playbtn:hover{background:var(--ink);color:#fff}
+  #scrub{flex:1;accent-color:var(--hb);cursor:pointer}
+  #tlabel{font-family:var(--font-slab);font-size:12.5px;color:var(--muted);
+    min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* The evaluation's own readout. This is scratch, not lesson chrome — it
+     exists so the stage-1 verdict is a measurement rather than an impression. */
+  #diag{position:absolute;left:22px;top:22px;z-index:6;
+    background:rgba(255,255,255,.82);border:1.5px solid var(--hair);border-radius:9px;
+    padding:11px 14px;font-family:var(--font-slab);font-size:12px;line-height:1.6;
+    max-width:290px}
+  #diag h4{font-family:var(--font-marker);font-size:15px;margin:0 0 6px}
+  #diag .row{display:flex;justify-content:space-between;gap:14px}
+  #diag .k{color:var(--muted)}
+  #diag .v{font-variant-numeric:tabular-nums}
+  #diag .verdict{margin-top:8px;padding-top:7px;border-top:1px solid var(--hair);
+    font-family:var(--font-sans);font-size:11.5px;line-height:1.45}
+  .pass{color:#1a7f37} .fail{color:#b3261e}
+
+  #caveat{position:absolute;right:22px;top:22px;z-index:6;max-width:250px;
+    background:rgba(255,255,255,.82);border:1.5px solid var(--hair);border-radius:9px;
+    padding:10px 13px;font-family:var(--font-sans);font-size:11px;line-height:1.45;
+    color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="molstar"></div>
+
+    <div id="act"><div class="actname"></div><div class="actbody"></div></div>
+
+    <div id="diag">
+      <h4>stage 1 · instrumentation</h4>
+      <div class="row"><span class="k">Mol* version</span><span class="v" id="d-ver">—</span></div>
+      <div class="row"><span class="k">bundle + init</span><span class="v" id="d-init">—</span></div>
+      <div class="row"><span class="k">structure load</span><span class="v" id="d-load">—</span></div>
+      <div class="row"><span class="k">models found</span><span class="v" id="d-models">—</span></div>
+      <div class="row"><span class="k">own UI visible</span><span class="v" id="d-ui">—</span></div>
+      <div class="row"><span class="k">frame set from JS</span><span class="v" id="d-drive">—</span></div>
+      <div class="row"><span class="k">ms / frame</span><span class="v" id="d-ms">—</span></div>
+      <div class="verdict" id="d-verdict">initialising…</div>
+    </div>
+
+    <div id="caveat">
+      Solver output, not experimental data. Only the final frame matches the
+      deposited structure (PDB 1VII); every other frame is a constrained
+      relaxation with no experimental basis.
+    </div>
+
+    <div id="transport">
+      <button id="playbtn" aria-label="play or pause"><i class="ph-bold ph-play"></i></button>
+      <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="fold progress">
+      <span id="tlabel">unfolded</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.js"></script>
+<script>
+'use strict';
+
+/* Verbatim from folding-lab.html. The lesson is held constant; only the
+   renderer changes. */
+const ACTS = [
+  { name: 'Act 1 · hydrogen bonds coil the chain',
+    body: 'Each C=O grabs the N–H four residues down. Three separate stretches spiral into α-helices.' },
+  { name: 'Act 2 · water packs the helices together',
+    body: 'No hydrogen bond runs between helices. The three phenylalanines hide from water, and the bundle closes.' },
+];
+/* folding-lab hands act 1 to act 2 partway through; the exact schedule lives
+   in FoldLib.SCHEDULE and is not loaded here. Half is close enough to test
+   whether the caption can be driven at all, which is all stage 1 asks. */
+const ACT2_AT = 0.5;
+
+const $ = id => document.getElementById(id);
+const set = (id, text, cls) => { const e = $(id); e.textContent = text; if (cls) e.className = 'v ' + cls; };
+
+let plugin = null, modelRef = null, nModels = 0, frame = 0;
+let playing = false, msTotal = 0, msCount = 0;
+
+const T0 = performance.now();
+
+molstar.Viewer.create('molstar', {
+  /* Question 1: every one of these must hold, or Mol* is drawing its own
+     application inside our lesson. */
+  layoutIsExpanded: false,
+  layoutShowControls: false,
+  layoutShowRemoteState: false,
+  layoutShowSequence: false,
+  layoutShowLog: false,
+  layoutShowLeftPanel: false,
+  viewportShowExpand: false,
+  viewportShowSelectionMode: false,
+  viewportShowAnimation: false,
+  viewportShowControls: false,
+  viewportShowSettings: false,
+  viewportShowTrajectoryControls: false,
+}).then(async viewer => {
+  plugin = viewer.plugin;
+  set('d-ver', (molstar.PLUGIN_VERSION || '5.11.0'));
+  set('d-init', (performance.now() - T0).toFixed(0) + ' ms');
+
+  const t1 = performance.now();
+  await viewer.loadStructureFromUrl('data/1VII.fold.pdb', 'pdb', false);
+  set('d-load', (performance.now() - t1).toFixed(0) + ' ms');
+
+  /* Find the ModelFromTrajectory cell by transformer name rather than by
+     importing StateTransforms — the viewer bundle does not re-export the
+     transform registry, and matching on the name keeps this page to the
+     one script tag it advertises. */
+  for (const cell of plugin.state.data.cells.values()) {
+    const id = cell.transform && cell.transform.transformer && cell.transform.transformer.id;
+    if (id && id.indexOf('model-from-trajectory') >= 0) { modelRef = cell.transform.ref; break; }
+  }
+  const traj = [...plugin.state.data.cells.values()]
+    .find(c => c.obj && c.obj.type && c.obj.type.name === 'Trajectory');
+  nModels = (traj && traj.obj && traj.obj.data && traj.obj.data.frameCount) || 0;
+  set('d-models', nModels || 'not found', nModels ? 'pass' : 'fail');
+
+  /* Question 1, measured rather than eyeballed: does Mol* put any of its own
+     chrome in our box? */
+  const chrome = document.querySelectorAll(
+    '#molstar .msp-layout-left, #molstar .msp-layout-right, #molstar .msp-sequence, ' +
+    '#molstar .msp-log, #molstar .msp-viewport-controls');
+  const visible = [...chrome].filter(e => e.offsetParent !== null).length;
+  set('d-ui', visible === 0 ? 'none' : visible + ' element(s)', visible === 0 ? 'pass' : 'fail');
+
+  await setFrame(0);
+  verdict();
+}).catch(err => {
+  set('d-verdict', 'Mol* failed to initialise: ' + err.message);
+  $('d-verdict').className = 'verdict fail';
+  console.error(err);
+});
+
+/* THE STAGE-1 GATE. Setting modelIndex from our own code is what separates
+   "a viewer with a scrubber" from "a renderer we can narrate through". */
+async function setFrame(i) {
+  if (!plugin || !modelRef || !nModels) return;
+  frame = Math.max(0, Math.min(nModels - 1, i | 0));
+  const t = performance.now();
+  await plugin.state.data.build().to(modelRef).update({ modelIndex: frame }).commit();
+  const ms = performance.now() - t;
+  msTotal += ms; msCount++;
+  set('d-ms', (msTotal / msCount).toFixed(1) + ' avg · ' + ms.toFixed(1) + ' last');
+  set('d-drive', 'yes', 'pass');
+  paint();
+}
+
+function paint() {
+  const p = nModels > 1 ? frame / (nModels - 1) : 0;
+  $('scrub').value = Math.round(p * 1000);
+  $('tlabel').textContent = p >= 0.999 ? 'folded'
+                          : p <= 0.001 ? 'unfolded'
+                          : 'frame ' + (frame + 1) + ' / ' + nModels;
+  const a = ACTS[p < ACT2_AT ? 0 : 1];
+  const nm = document.querySelector('#act .actname');
+  nm.textContent = a.name;
+  nm.className = 'actname ' + (p < ACT2_AT ? 'a1' : 'a2');
+  document.querySelector('#act .actbody').textContent = a.body;
+}
+
+function verdict() {
+  const uiClean = $('d-ui').textContent === 'none';
+  const driven = $('d-drive').textContent === 'yes';
+  const e = $('d-verdict');
+  if (uiClean && driven) {
+    e.className = 'verdict pass';
+    e.textContent = 'PASS — mounts headless in our chrome, and the frame is set '
+      + 'from our code. Stage 3 (cued dashes, camera) is the real test.';
+  } else {
+    e.className = 'verdict fail';
+    e.textContent = 'FAIL — ' + (!uiClean ? 'Mol* renders its own UI here. ' : '')
+      + (!driven ? 'Frame could not be driven from JS.' : '');
+  }
+}
+
+$('scrub').addEventListener('input', e => {
+  playing = false; $('playbtn').innerHTML = '<i class="ph-bold ph-play"></i>';
+  setFrame(Math.round((+e.target.value / 1000) * (nModels - 1)));
+});
+
+$('playbtn').addEventListener('click', () => {
+  playing = !playing;
+  $('playbtn').innerHTML = playing ? '<i class="ph-bold ph-pause"></i>'
+                                   : '<i class="ph-bold ph-play"></i>';
+  if (playing && frame >= nModels - 1) frame = 0;
+  tick();
+});
+
+/* Sequential, not on a timer: each frame waits for the state update to
+   commit, so the measured ms/frame is real work and not queue depth. */
+async function tick() {
+  while (playing && frame < nModels - 1) await setFrame(frame + 1);
+  if (frame >= nModels - 1) {
+    playing = false;
+    $('playbtn').innerHTML = '<i class="ph-bold ph-play"></i>';
+  }
+}
+</script>
+</body>
+</html>
