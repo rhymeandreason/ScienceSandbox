@@ -866,6 +866,17 @@ const ZNOTES = [
    Reversed on the way back down, so the protein resolves back into the atoms
    it was made of rather than blinking out. */
 const T_DUR = 2.2;                       // seconds for a full rung change
+
+/* Hovering HP35 turns its tube to glass rather than removing it. The floor is
+   what stops it disappearing: at zero the chain seems to swap for a different
+   object, and the point of the gesture is the opposite — that the atoms and
+   the ribbon are the same 36 residues in the same place. Keeping a quarter of
+   the blue means the ribbon is still legibly there, holding its shape around
+   the atoms it is drawn from. Eased rather than switched, because an instant
+   swap at these two very different levels of detail reads as a glitch. */
+const HOVER_FLOOR = 0.25;
+const HOVER_DUR = 0.5;                   // seconds to reach full reveal
+let hoverMix = 0;                        // 0 = solid ribbon, 1 = fully revealed
 let anim = null;
 
 /* Smoothstep over a sub-range of the transition, so beats overlap slightly
@@ -972,14 +983,16 @@ function applyFade(immediate) {
   if (villinGroup) villinGroup.children.forEach(m => {
     const max = m.userData.maxOpacity || 1;
     let o = (fadeNow[m.userData.phase] || 0) * max;
-    if (m.userData.isHP && hoverHP) o = 0;      // hover swaps tube for atoms
+    if (m.userData.isHP) o *= 1 - hoverMix * (1 - HOVER_FLOOR);
     m.visible = o > 0.01;
     m.material.transparent = o < 0.999;
     m.material.opacity = o;
     m.material.depthWrite = o > 0.5;
   });
 
-  const fo = hoverHP && rung !== RUNG.FOLD ? 1 : foldOpacity;
+  /* The atoms come up as the ribbon thins, so the two cross over rather than
+     one replacing the other. */
+  const fo = Math.max(foldOpacity, hoverMix);
   foldGroup.visible = fo > 0.01;
   foldGroup.traverse(o => {
     if (!o.material) return;
@@ -990,6 +1003,18 @@ function applyFade(immediate) {
   if (rung === RUNG.FOLD && !anim) {
     foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity();
   }
+}
+
+/* Ease the hover reveal toward wherever the pointer currently is. Driven from
+   the render loop so it keeps moving after the pointer stops, which is the
+   whole difference between a fade and a toggle. */
+function stepHover(dt) {
+  const want = (hoverHP && rung !== RUNG.FOLD && !anim) ? 1 : 0;
+  if (hoverMix === want) return;
+  const step = dt / HOVER_DUR;
+  hoverMix = want > hoverMix ? Math.min(want, hoverMix + step)
+                             : Math.max(want, hoverMix - step);
+  applyFade(false);
 }
 
 function setArrangement(k) {
@@ -1036,7 +1061,7 @@ canvas.addEventListener('pointermove', e => {
   ray.setFromCamera(ndc, camera);
   const hp = villinGroup.children.filter(o => o.userData && o.userData.isHP);
   const hit = hp.length && ray.intersectObjects(hp, false).length > 0;
-  if (hit !== hoverHP) { hoverHP = hit; applyFade(false); canvas.style.cursor = hit ? 'pointer' : ''; }
+  if (hit !== hoverHP) { hoverHP = hit; canvas.style.cursor = hit ? 'pointer' : ''; }
 });
 
 /* ---------- transport ---------- */
@@ -1075,6 +1100,7 @@ let last = performance.now();
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
   stepTransition(dt);
+  stepHover(dt);
 
   if (playing && traj) {
     const nt = t + dt / PLAY_SECONDS;
