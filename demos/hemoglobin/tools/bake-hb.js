@@ -587,6 +587,12 @@ function decode(buf) {
 /* ------------------------------------------------------------------ run */
 
 if (require.main === module) {
+  console.error('bake-hb.js is superseded and no longer writes the trajectory.');
+  console.error('Run instead:  node hemoglobin/tools/bake-unfold.js');
+  process.exit(1);
+}
+
+if (0) {
   if (!fs.existsSync(SRC)) {
     console.error('missing ' + path.relative(HERE, SRC));
     process.exit(1);

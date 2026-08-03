@@ -89,8 +89,8 @@
 
   /* TWO readouts, side by side, and that pairing IS the lesson.
      The H-bond count is level 2; the width of the molecule is level 3. The
-     measured trajectory separates them cleanly — between t=0.59 and t=0.85
-     the bond count sits still at 79 while the chain goes 172 Å to 49 — so showing
+     measured trajectory separates them cleanly — between t=0.49 and t=0.88
+     the bond count sits still at exactly 83 while the chain goes 174 Å to 65 — so showing
      both at once lets a student SEE one finish and the other take over,
      which is the whole distinction between the two levels. */
   #tally{position:absolute;right:20px;bottom:118px;z-index:6;pointer-events:none;
@@ -189,7 +189,7 @@
         <h4>Level 3 · tertiary</h4>
         <p>Watch the two numbers at the right. Around the two-thirds mark the
           hydrogen-bond count <b>stops climbing</b> while the molecule keeps
-          shrinking — from 166 Å across to 45. The helices are already made;
+          shrinking — from 174 Å across to 45. The helices are already made;
           now they pack against each other, driven by <b>water pushing the
           oily side chains inward</b>. The pocket that forms in the middle is
           where the iron and its oxygen go.</p>
@@ -206,14 +206,11 @@
         <h4>What this animation fakes</h4>
         <p>Real folding is thermal chaos, not a smooth collapse. More than
           that: this is an <b>animation of a known answer</b>, not a
-          prediction. The finished shape was measured first, and the
-          calculation is steered toward it — so the <b>order</b> of events is
-          right and the <b>path</b> is invented. The calculation on its own
-          gets to within 1.24 Å; over the last stretch it is eased onto the
-          measured coordinates, so <b>the final frame is the real crystal
-          structure</b> rather than our approximation of it. Turn on
-          &ldquo;finished shape&rdquo; to see the target it is aiming at the
-          whole way.</p>
+          prediction — and it is made <b>backwards</b>. The computer takes the
+          real measured structure and pulls it apart into the open chain,
+          then plays that film in reverse. So every frame you see is a step
+          on a path that ends, exactly, at the real crystal structure. The
+          <b>order</b> of events is right; the <b>path</b> is invented.</p>
       </section>
       <section>
         <h4>Where the ribbon comes from</h4>
@@ -221,6 +218,17 @@
           crystallographers assigned, not a guess by us. Running the standard
           algorithm (DSSP) on the same coordinates agrees on 83% of residues
           and finds no β-sheet either.</p>
+      </section>
+      <section>
+        <h4>Why the helices move as units</h4>
+        <p>Once a helix is made, this animation treats it as a <b>rigid
+          object on a string</b> — it can swing and slide, but not bend or
+          unravel. That is a real model of folding, not a shortcut: helices
+          form first and then drift together and dock, which is why the bond
+          count can sit still while the shape keeps changing. Real helices do
+          flex a little, especially at their ends, so this is an
+          approximation — a good one over the few microseconds that matter
+          here.</p>
       </section>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
@@ -284,25 +292,30 @@ const PAL = MolLib.PALETTE;
 
        t     H-bonds   size across
        0.00      0        503 A      <- the extended chain: level 1
-       0.26      3        386
-       0.46     62        252        <- bonds forming fast: level 2
-       0.59     79        172
-       0.65     76        138        <- bonds STOP; size keeps falling
-       0.79     84         67        <- level 3, and nothing else
-       0.85     80         49
-       1.00    103         45        <- the landing seats the last bonds
+       0.10      8        484
+       0.24     32        357        <- bonds forming fast: level 2
+       0.44     61        209
+       0.49     84        174        <- bonds STOP at 83
+       0.64     83        102
+       0.83     83         73        <- level 3, and nothing else
+       0.93     85         61
+       1.00    103         45        <- the inter-helix bonds seat
 
-   The gap between 0.59 and 0.85 is the lesson: the hydrogen-bond count is
-   flat there while the molecule shrinks from 172 A to 49. Two different
-   mechanisms, visibly taking turns, in one trajectory nobody tuned to make
-   that happen.
+   The plateau from t=0.49 to t=0.88 is the lesson, and this trajectory
+   states it far more sharply than the forward one did: the hydrogen-bond
+   count sits at EXACTLY 83 for two fifths of the animation while the
+   molecule shrinks from 174 A across to 65. Two mechanisms, visibly taking
+   turns.
 
-   The last stretch is where hemoglobin/tools/bake-hb.js eases the chain onto
-   the deposited coordinates (see its `land`), which is why the tally finishes
-   at the full 103 rather than the solver's 96 — a frame that IS the measured
-   structure necessarily has every bond that was found on it.
+   It is that sharp because of how the trajectory is made.
+   hemoglobin/tools/bake-unfold.js does not fold the chain — it UNFOLDS the deposited
+   structure and plays the film backwards, holding the helices rigid for
+   the first part of the unfold. Reversed, that rigid stage is the plateau:
+   the helices are already made and are only being moved. Read its header
+   before changing any of this; the two acts are a property of the method,
+   not numbers chosen to fit the captions.
 
-   If the solver ever changes, RE-READ THESE rather than nudging them —
+   If the method ever changes, RE-READ THESE rather than nudging them —
    hemoglobin/tools/check-hb.js will tell you the trajectory moved, but not
    that the captions stopped describing it. */
 const ACTS = [
@@ -310,24 +323,24 @@ const ACTS = [
     body: 'This is the whole instruction your DNA gives: 146 amino acids in ' +
           'a particular order. Stretched out it is 503 Å long. Nothing about ' +
           'its shape is specified anywhere — the shape is what happens next.' },
-  { t: 0.26, cls: 'a1', name: 'Level 2 · the backbone bonds to itself',
+  { t: 0.10, cls: 'a1', name: 'Level 2 · the backbone bonds to itself',
     body: 'Hydrogen bonds form along the backbone, almost all of them ' +
           'joining a residue to the one four places along. That spacing ' +
           'makes a spiral. Eight stretches of the chain coil into α-helices.' },
-  { t: 0.62, cls: 'a2', name: 'Level 3 · the helices pack',
+  { t: 0.49, cls: 'a2', name: 'Level 3 · the helices pack',
     body: 'The bond count has stopped — level 2 is finished. The molecule ' +
           'keeps shrinking anyway, because water is pushing the oily side ' +
           'chains together and the finished helices fold in against ' +
           'each other.' },
-  { t: 0.93, cls: 'a2', name: 'One chain, done',
+  { t: 0.94, cls: 'a2', name: 'One chain, done',
     body: 'A globin fold: eight helices around a pocket. The real protein ' +
           'puts an iron in that pocket and then does this three more times — ' +
           'that is level 4, and it is not on this page yet.' },
 ];
 
 const SEGMENTS = [
-  { to: 0.26, label: 'primary' },
-  { to: 0.62, label: 'secondary — helices coil' },
+  { to: 0.10, label: 'primary' },
+  { to: 0.49, label: 'secondary — helices coil' },
   { to: 1.00, label: 'tertiary — helices pack' },
 ];
 

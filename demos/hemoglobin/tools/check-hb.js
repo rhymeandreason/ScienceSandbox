@@ -18,7 +18,9 @@ const path = require('path');
 const FoldLib = require('../../folding/folding.js');
 const RibbonLib = require('../../folding/ribbon.js');
 const { extract } = require('./chain.js');
-const { bake, encode, decode, CHAIN } = require('./bake-hb.js');
+const { encode, decode, CHAIN } = require('./bake-hb.js');
+const { bakeUnfold } = require('./bake-unfold.js');
+const bake = bakeUnfold;   // the committed trajectory comes from the unfold
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', '2HHB.pdb');
@@ -108,7 +110,7 @@ ok(fs.existsSync(BIN), 'the baked trajectory is committed');
 const onDisk = fs.readFileSync(BIN);
 const fresh = encode(bake()).buf;
 ok(onDisk.length === fresh.length && onDisk.equals(fresh),
-   'the committed bake matches a fresh one (re-run bake-hb.js if this fails)',
+   'the committed bake matches a fresh one (re-run bake-unfold.js if this fails)',
    `${onDisk.length} vs ${fresh.length} bytes`);
 
 /* ---------------- what the page will actually read back ---------------- */
@@ -160,14 +162,67 @@ ok(dErr < 1e-3, 'the page decoder and the baker agree at every keyframe',
 ok(page.ss.join('') === d.ss.join('') && page.first === d.first && page.B === d.B,
    'both decoders read the same secondary structure and numbering');
 
-/* The fold has to arrive somewhere near the measured structure, or the
-   animation is of something else. 1.74 A is what the crystal was solved at;
-   landing inside 2 A of it is the claim the page is entitled to make. */
-ok(b.folder.rmsd() < 2.0, 'the fold lands within 2 A RMSD of the deposited chain',
-   `${b.folder.rmsd().toFixed(2)} A`);
-const formed = b.folder.formation().filter(x => x > 0.5).length;
-ok(formed / hb.length > 0.9, 'the fold forms >90% of the native H-bonds',
-   `${formed}/${hb.length}`);
+/* THE TRAJECTORY IS AN UNFOLD PLAYED BACKWARDS, so "does the fold arrive
+   near the measured structure" is not the question any more — it starts
+   there, and the landing assertion above proves it. What has to be checked
+   instead is the OTHER end: that reversing the unfold still opens on the
+   same extended chain the page has always opened on, rather than on
+   whatever conformation the unfold happened to reach. */
+{
+  const ext = FoldLib.extended(b.parsed);
+  let e = 0;
+  for (let i = 0; i < d.R; i++)
+    for (let k = 0; k < 3; k++)
+      e = Math.max(e, Math.abs(d.key[0][i * 3 + k] - ext[b.caIdx[i]][k]));
+  /* NOT an equality. The unfold is driven toward the extended conformation
+     by a clamped drift under constraints, so it approaches asymptotically
+     and stops a little short — 1.9 A per atom on a rod 503 A long, which is
+     0.4% and invisible. Snapping the frame onto the target exactly would
+     buy nothing and would put a discontinuity at the one frame the student
+     looks at longest. What matters is that it is still recognisably THE
+     extended chain rather than some other open conformation, so the shape
+     is checked as well as the distance. */
+  const P0 = [];
+  for (let i = 0; i < d.R; i++) P0.push([d.key[0][i*3], d.key[0][i*3+1], d.key[0][i*3+2]]);
+  const c0 = [0,1,2].map(k => P0.reduce((s, p) => s + p[k], 0) / P0.length);
+  const span0 = 2 * Math.max(...P0.map(p => Math.hypot(p[0]-c0[0], p[1]-c0[1], p[2]-c0[2])));
+  ok(e < 3.0, 'the animation still opens on FoldLib.extended — the primary chain',
+     `max ${e.toFixed(2)} A per atom over a ${span0.toFixed(0)} A rod`);
+  ok(span0 > 480, 'and it really is extended, not merely open', `${span0.toFixed(0)} A across`);
+  ok([...d.formed[0]].every(x => x <= 0.5),
+     'with no hydrogen bonds at all — primary structure is sequence and nothing else',
+     `${[...d.formed[0]].filter(x => x > 0.5).length} formed`);
+}
+
+/* THE PLATEAU IS THE LESSON, so it is asserted rather than left to the
+   captions. Between these times the hydrogen-bond count must sit still
+   while the molecule keeps collapsing — that is the whole claim that level
+   2 finishes and level 3 then does its own work, and it is the one thing
+   a change of method could quietly destroy while every other check here
+   still passed. */
+{
+  const at = t => {
+    let f = 0;
+    while (f < d.K - 1 && d.ts[f] < t) f++;
+    return f;
+  };
+  const span = (f) => {
+    const P = [];
+    for (let i = 0; i < d.R; i++) P.push([d.key[f][i*3], d.key[f][i*3+1], d.key[f][i*3+2]]);
+    const c = [0,1,2].map(k => P.reduce((s, p) => s + p[k], 0) / P.length);
+    return 2 * Math.max(...P.map(p => Math.hypot(p[0]-c[0], p[1]-c[1], p[2]-c[2])));
+  };
+  const f0 = at(0.52), f1 = at(0.85);
+  let lo = Infinity, hi = 0;
+  for (let f = f0; f <= f1; f++) {
+    const n = [...d.formed[f]].filter(x => x > 0.5).length;
+    lo = Math.min(lo, n); hi = Math.max(hi, n);
+  }
+  ok(hi - lo <= 2, 'the H-bond count holds still across the tertiary act (level 2 is done)',
+     `${lo}..${hi} bonds between t=0.52 and t=0.85`);
+  ok(span(f0) / span(f1) > 1.8, '...while the molecule keeps collapsing (level 3 is not)',
+     `${span(f0).toFixed(0)} A -> ${span(f1).toFixed(0)} A`);
+}
 
 /* ---------------- the landing ----------------
    bake-hb.js blends the last 14% of the trajectory onto the deposited
@@ -252,13 +307,18 @@ ok(minOmega > 3.4, 'every peptide bond stays trans (cis would close Ca-Ca to ~2.
    steps are 0.7; walking the frames in order fixed it. The threshold is
    the solver's own largest step through the same window. */
 let maxStep = 0;
-for (let f = 1; f < d.K; f++)
+const allSteps = [];
+for (let f = 1; f < d.K; f++) {
+  let worst = 0;
   for (let i = 0; i < d.R; i++) {
     const s = Math.hypot(d.key[f][i*3] - d.key[f-1][i*3],
                          d.key[f][i*3+1] - d.key[f-1][i*3+1],
                          d.key[f][i*3+2] - d.key[f-1][i*3+2]);
-    if (s > maxStep) maxStep = s;
+    if (s > worst) worst = s;
   }
+  allSteps.push(worst);
+  if (worst > maxStep) maxStep = worst;
+}
 /* Loosened from 2.2 when de-clashing arrived, and the number deserves
    stating rather than just raising. The median step is 1.80 A and 176 of
    184 frames are under 2.2; the eight that are not sit between t=0.86 and
@@ -267,8 +327,18 @@ for (let f = 1; f < d.K; f++)
    helical rather than a flapping terminus, each moving quickly for a frame
    or two. This is the loosest assertion in the file and the one to tighten
    if the collapse ever reads as jumpy. */
-ok(maxStep < 5.5, 'no keyframe-to-keyframe jump — the landing is a glide, not a cut',
-   `largest step ${maxStep.toFixed(2)} A, median 1.80`);
+/* Tightened right back down now that the trajectory is resampled by arc
+   length: every keyframe is the same distance of travel from the last, so
+   the largest step and the median sit within a few percent of each other
+   instead of a factor of two and a half. The RATIO is the real check —
+   an absolute bound would pass a trajectory that crawled and then lunged,
+   which is exactly what the forward bake did. */
+{
+  const sorted = allSteps.slice().sort((x, y) => x - y);
+  const median = sorted[sorted.length >> 1];
+  ok(maxStep / median < 1.35, 'the chain moves at an even rate — no crawl-then-lunge',
+     `largest ${maxStep.toFixed(2)} A vs median ${median.toFixed(2)} A`);
+}
 
 /* ---------------- handedness: the one mirror an internal check CAN catch ---------------- */
 
@@ -305,17 +375,17 @@ function handedness(P) {
   return { right, left };
 }
 
-/* TESTED ON THE SOLVER'S UNBLENDED FINAL FRAME, not on the trajectory's.
-   bake-hb.js pins t=1 to the deposited coordinates, so a handedness test
-   there would only re-measure the crystal structure and would pass however
-   badly mirrored the fold itself had become — a check that cannot fail is
-   worse than no check, because it reads as coverage. bake() hands back the
-   solver's own last frame from before the blend for exactly this. */
+/* TESTED MID-TRAJECTORY, not at t=1. The last frame is the deposited
+   structure by construction, so a handedness test there would only
+   re-measure the crystal and would pass however badly mirrored the
+   computed part had become — a check that cannot fail is worse than no
+   check, because it reads as coverage. t=0.70 is inside the plateau: the
+   helices are fully formed and are being moved by the calculation, which
+   is exactly where a mirrored basis would show. */
+const midF = (() => { let f = 0; while (f < d.K - 1 && d.ts[f] < 0.70) f++; return f; })();
 const CA = [];
-for (let i = 0; i < d.R; i++) {
-  const j = b.caIdx[i] * 3;
-  CA.push([b.preLand[j], b.preLand[j+1], b.preLand[j+2]]);
-}
+for (let i = 0; i < d.R; i++)
+  CA.push([d.key[midF][i*3], d.key[midF][i*3+1], d.key[midF][i*3+2]]);
 
 /* The deposited chain is the calibration: it is a measured alpha helix, so
    there is no tolerance to give it. */
@@ -330,7 +400,7 @@ ok(dep.left === 0 && dep.right > 50, 'every alpha turn in the deposited chain is
    room for the fold to be locally scruffy without hiding a flip. */
 const fold = handedness(CA);
 ok(fold.right / (fold.right + fold.left) > 0.85,
-   "the solver's own fold is right-handed too (a mirror would invert this ratio)",
+   'the computed part of the trajectory is right-handed too (a mirror would invert this)',
    `${fold.right} right / ${fold.left} left`);
 
 console.log(fails ? `\n${fails} FAILED` : '\nall checks passed');
