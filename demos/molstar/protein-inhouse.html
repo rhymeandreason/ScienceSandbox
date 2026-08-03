@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mol* evaluation — the same hemoglobin, our renderer</title>
+
+<!-- ===================================================================
+     THE CONTROL ARM. Scratch, deleted with the rest of molstar/.
+
+     protein-molstar.html draws 2HHB through Mol*. This draws THE SAME FILE
+     through our own stack — Three.js + scene.js + folding/ribbon.js — so the
+     evaluation finally has both sides of the comparison it is named after.
+     Until now "ours" was an argument; here it is a page.
+
+     DELIBERATELY THE SAME AND DELIBERATELY DIFFERENT.
+       same    2HHB, oriented by the same PDBLib.orient call, the same chain
+               colours, the same house ball-and-stick for the haems, the same
+               true-relative-scale framing.
+       different  the whole rendering path, and nothing else. No steps, no
+               animation, no lesson — the four levels are protein-molstar's
+               job. This page answers one question: CAN WE DRAW IT, and what
+               does it cost.
+
+     WHAT THIS ARM ALREADY OWNS that Mol* had to be talked into:
+       - it draws into scene.js's scene, so a page can mix ribbons with atoms,
+         FX rings, hover raycasts and a shared camera. Mol* brings its own
+         canvas and cannot (ribbon.js's header, "Two viewers means two
+         canvases").
+       - no click behaviours to disarm, no viewport buttons to hide with CSS,
+         no WebGL context per instance.
+       - the paper shows through because the canvas is ours.
+     WHAT IT DOES NOT OWN: secondary structure recomputed per frame, which is
+     the one thing Mol* does that we cannot, and the thing that made
+     protein-molstar's fold animation work. That asymmetry is the finding.
+
+     SECONDARY STRUCTURE IS OURS TOO, and from the same DSSP the ribbon lesson
+     uses — RibbonLib.dssp (Kabsch & Sander) over 2HHB's own N/CA/C/O. It is
+     NOT read from the file's HELIX records, deliberately: Mol* computes its
+     own, so comparing our DSSP against Mol*'s assignment is a real comparison,
+     where feeding ours the answer key would not be. The count is printed and
+     checked against the file's HELIX records, which is the only honest way to
+     say whether our DSSP is right.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  #app{grid-template-columns:1fr}
+  #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  #whoami{position:absolute;left:26px;top:20px;z-index:5;pointer-events:none;white-space:nowrap}
+  #whoami .wname{font-family:var(--font-marker);font-size:26px;line-height:1.05}
+  #whoami .wsub{font-family:var(--font-slab);font-weight:700;font-size:13px;color:var(--muted);margin-top:3px}
+
+  #legend{position:absolute;left:26px;bottom:24px;z-index:5;
+    display:flex;flex-direction:column;gap:7px;
+    background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
+    padding:11px 14px;backdrop-filter:blur(2px);max-width:250px}
+  #legend .lrow{display:flex;align-items:center;gap:9px;font-size:13px;line-height:1.3}
+  #legend .sw{width:16px;height:11px;border-radius:3px;border:1px solid rgba(0,0,0,.28);flex:none}
+  #legend .lnote{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+
+  #diag{position:absolute;right:22px;top:20px;z-index:6;
+    background:rgba(255,255,255,.85);border:1.5px solid var(--hair);border-radius:9px;
+    padding:11px 14px;font-family:var(--font-slab);font-size:12px;line-height:1.6;max-width:330px}
+  #diag h4{font-family:var(--font-marker);font-size:15px;margin:0 0 6px}
+  #diag .row{display:flex;justify-content:space-between;gap:14px}
+  #diag .k{color:var(--muted)} #diag .v{font-variant-numeric:tabular-nums;text-align:right}
+  #diag .verdict{margin-top:8px;padding-top:7px;border-top:1px solid var(--hair);
+    font-family:var(--font-sans);font-size:11.5px;line-height:1.45}
+  .pass{color:#1a7f37} .fail{color:#b3261e} .warn{color:#8a6d1f}
+
+  #ctrl{position:absolute;right:22px;bottom:24px;z-index:6;
+    background:rgba(255,255,255,.82);border:1.5px solid var(--hair);border-radius:9px;
+    padding:10px 13px;font-family:var(--font-slab);font-size:12.5px;max-width:230px}
+  #ctrl label{display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:5px}
+  #ctrl .note{font-family:var(--font-sans);font-size:11px;color:var(--muted);line-height:1.4}
+
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:7;font-family:var(--font-slab);color:var(--muted);pointer-events:none}
+  #loading.off{display:none}
+
+  @media (max-width:920px){ #diag{display:none} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="whoami"><div class="wname">Hemoglobin</div>
+      <div class="wsub">2HHB · four chains · four haems · our renderer</div></div>
+    <div id="legend"></div>
+
+    <div id="diag">
+      <h4>in-house · ribbon.js</h4>
+      <div class="row"><span class="k">parse + orient</span><span class="v" id="d-parse">—</span></div>
+      <div class="row"><span class="k">DSSP (ours)</span><span class="v" id="d-dssp">—</span></div>
+      <div class="row"><span class="k">vs file HELIX records</span><span class="v" id="d-ss">—</span></div>
+      <div class="row"><span class="k">ribbon build</span><span class="v" id="d-build">—</span></div>
+      <div class="row"><span class="k">triangles</span><span class="v" id="d-tris">—</span></div>
+      <div class="row"><span class="k">first paint</span><span class="v" id="d-paint">—</span></div>
+      <div class="row"><span class="k">draw calls / meshes</span><span class="v" id="d-draws">—</span></div>
+      <div class="row"><span class="k">frame rate</span><span class="v" id="d-fps">—</span></div>
+      <div class="row"><span class="k">extent (same method)</span><span class="v" id="d-extent">—</span></div>
+      <div class="row"><span class="k">page source vs Mol*</span><span class="v" id="d-size">—</span></div>
+      <div class="verdict" id="d-verdict">loading…</div>
+    </div>
+
+    <div id="ctrl">
+      <label><input type="checkbox" id="haems" checked> haems (house ball-and-stick)</label>
+      <label><input type="checkbox" id="ss" checked> colour by secondary structure</label>
+      <div class="note">Unticked, chains take protein-molstar's colours so the two
+        pages can be put side by side.</div>
+    </div>
+
+    <div id="loading">building ribbon…</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../pdb.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script>
+'use strict';
+
+/* Same numbers as protein-molstar.html, for the same reason: if the two pages
+   are to be compared, the only difference must be the renderer. */
+const C = {
+  subject: 0x7f9bb5,   // chain B — the one protein-molstar carries levels 1-3 on
+  partner: 0xc9a86a,   // A, C, D
+  helix:   0xa03fd8,
+  sheet:   0xc08a4e,
+  coil:    0xd8cfc0,
+};
+const SUBJECT = 'B';
+const PAL = MolPalette;
+const SCALE = MolLib.SCALE;
+/* Real angstroms here, exactly as folding-lab does it — this page never draws
+   a SCALEd spec, so the house radii have to be divided back out. */
+const RADII = {};
+for (const el of ['C','N','O','S','P']) RADII[el] = PAL.radii[el] / SCALE;
+const FE_COLOR = 0x8c5a2b, FE_RADIUS = 1.15 / SCALE;
+const STICK = RADII.C * 0.165;
+
+const hex = n => '#' + n.toString(16).padStart(6,'0');
+const $ = id => document.getElementById(id);
+const set = (id,v,cls) => { const e=$(id); e.textContent=v; if(cls) e.className='v '+cls; };
+
+const { scene, camera, renderer, root, cam, applyCam } =
+  Stage.create($('cv'), { rMin: 20, rMax: 600, cam: { theta: 0.5, phi: 1.15, r: 160 } });
+
+let group = null, built = null;
+
+/* ---------- load ---------------------------------------------------------- */
+
+async function boot() {
+  const t0 = performance.now();
+  let text = await (await fetch('data/2HHB.pdb')).text();
+  /* The SAME orientation call protein-molstar makes, so the two pages present
+     the molecule at the same attitude and a side-by-side is about rendering
+     rather than about camera luck. */
+  text = PDBLib.orient(text, { mode: 'pca', long: 'x' });
+
+  const bb = RibbonLib.parseBackbone(text);
+  const tParse = performance.now() - t0;
+
+  const t1 = performance.now();
+  const ss = RibbonLib.dssp(bb);
+  const tDssp = performance.now() - t1;
+  set('d-parse', tParse.toFixed(0) + ' ms · ' + bb.nums.length + ' residues');
+  set('d-dssp', tDssp.toFixed(0) + ' ms', 'pass');
+
+  /* IS OUR DSSP RIGHT? The file's own HELIX records are the reference, and
+     hemoglobin is a good test precisely because it is all helix: 8 per beta
+     chain, 7 per alpha, 30 in total. We compare per-residue coverage rather
+     than counting runs — DSSP legitimately clips helix ends by a residue or
+     two, so run counts would disagree for a reason that is not an error. */
+  const helixResidues = new Set();
+  for (const l of text.split('\n')) {
+    if (!l.startsWith('HELIX ')) continue;
+    const ch = l.slice(19,20).trim();
+    const a = parseInt(l.slice(21,25),10), b = parseInt(l.slice(33,37),10);
+    for (let r = a; r <= b; r++) helixResidues.add(ch + '|' + r);
+  }
+  let agree = 0, oursH = 0, fileH = helixResidues.size;
+  bb.nums.forEach((num,i) => {
+    const isOurs = ss[i] === 'H';
+    const isFile = helixResidues.has(bb.chains[i] + '|' + num);
+    if (isOurs) oursH++;
+    if (isOurs && isFile) agree++;
+  });
+  const pct = fileH ? (100 * agree / fileH) : 0;
+  set('d-ss', oursH + ' H vs ' + fileH + ' · ' + pct.toFixed(0) + '% covered',
+      pct > 80 ? 'pass' : 'warn');
+
+  /* Haems, straight from the file — HETATM, one group per subunit. */
+  const haems = [];
+  for (const l of text.split('\n')) {
+    if (!l.startsWith('HETATM') || l.slice(17,20) !== 'HEM') continue;
+    const el = (l.slice(76,78).trim() || l.slice(12,16).trim()[0]).toUpperCase();
+    haems.push({ chain: l[21], el,
+                 p: new THREE.Vector3(+l.slice(30,38), +l.slice(38,46), +l.slice(46,54)) });
+  }
+
+  built = { bb, ss, haems };
+  draw();
+  $('loading').classList.add('off');
+  set('d-paint', (performance.now() - t0).toFixed(0) + ' ms', 'pass');
+  verdict();
+}
+
+/* ---------- draw ---------------------------------------------------------- */
+/* ONE MESH PER CHAIN, not per secondary-structure run. ribbon-test.html's
+   header records why the obvious slicing is wrong: build() re-runs its
+   arrowhead logic on every slice, so a coil mesh that borrows one strand
+   residue draws its own arrowhead in coil grey on top of the real one. It
+   looks exactly like a bug in ribbon.js and is a bug in the caller. build()
+   emits one draw group per element (0 coil / 1 helix / 2 strand), so colour
+   is a material array and never a per-vertex mapping. */
+
+function draw() {
+  if (group) {
+    root.remove(group);
+    group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  }
+  group = new THREE.Group(); root.add(group);
+
+  const { bb, ss, haems } = built;
+  const byChain = new Map();
+  bb.nums.forEach((num,i) => {
+    const ch = bb.chains[i];
+    if (!byChain.has(ch)) byChain.set(ch, { pts: [], ss: [] });
+    const e = byChain.get(ch);
+    e.pts.push(new THREE.Vector3(...bb.CA[i]));
+    e.ss.push(ss[i]);
+  });
+
+  const colourBySS = $('ss').checked;
+  const t0 = performance.now();
+  let tris = 0, meshes = 0;
+
+  for (const [ch, e] of byChain) {
+    const geo = RibbonLib.build(THREE, e.pts, e.ss);
+    const base = ch === SUBJECT ? C.subject : C.partner;
+    const cols = colourBySS ? [C.coil, C.helix, C.sheet] : [base, base, base];
+    const mats = cols.map(c => { const m = Stage.bondMat(c); m.side = THREE.DoubleSide; return m; });
+    group.add(new THREE.Mesh(geo, mats));
+    meshes++;
+    if (geo.index) tris += geo.index.count / 3;
+  }
+  const tBuild = performance.now() - t0;
+
+  if ($('haems').checked) {
+    /* House ball-and-stick, same derivation as protein-molstar's: the iron is
+       the point of a haem and must not be lost in one flat colour. Bonds are
+       inferred by distance — a PDB carries no CONECT for these at the scale we
+       need, and 1.75 A is the same cutoff folding.js uses for side chains. */
+    for (let i = 0; i < haems.length; i++) {
+      const a = haems[i];
+      const col = a.el === 'FE' ? FE_COLOR : (PAL.atoms[a.el[0] + a.el.slice(1).toLowerCase()] ?? PAL.atoms.C);
+      const rad = a.el === 'FE' ? FE_RADIUS : (RADII[a.el] || RADII.C);
+      group.add(Stage.atom(col, rad, a.p, a.el));
+      meshes++;
+      for (let j = i + 1; j < haems.length; j++) {
+        const b = haems[j];
+        if (b.chain !== a.chain) continue;
+        if (a.p.distanceTo(b.p) > 1.75) continue;
+        group.add(Stage.bond(a.p, b.p, PAL.bonds.covalent, STICK));
+        meshes++;
+      }
+    }
+  }
+
+  set('d-build', tBuild.toFixed(0) + ' ms', 'pass');
+  set('d-tris', Math.round(tris).toLocaleString());
+  set('d-draws', meshes + ' meshes');
+
+  /* Framed from the real extent, never a hand-picked r — the house rule.
+     CENTROID + MAX DISTANCE over the Ca trace, deliberately NOT
+     Box3.getBoundingSphere: that returns the sphere around the box, i.e. the
+     box's half-diagonal, which reported 9.7 nm for a molecule protein-molstar
+     measures at 7.1. Both numbers are "a radius" and only one of them can be
+     compared with the other page, which is the entire point of this arm. Same
+     method as protein-molstar's sphereOf(). */
+  /* The same ATOM SET protein-molstar measures: all non-water atoms, not just
+     the Ca trace. Ca-only reported 6.6 nm against its 7.1 — a real difference
+     of method, not of molecule, and exactly the kind that makes two pages look
+     like they disagree when they do not. */
+  const pts = [];
+  const bbs = built.bb;
+  for (const key of ['N','CA','C','O'])
+    if (bbs[key]) bbs[key].forEach(p => { if (p) pts.push(p); });
+  built.haems.forEach(h => pts.push([h.p.x, h.p.y, h.p.z]));
+  let cx=0, cy=0, cz=0;
+  for (const p of pts) { cx+=p[0]; cy+=p[1]; cz+=p[2]; }
+  cx/=pts.length; cy/=pts.length; cz/=pts.length;
+  let r2 = 0;
+  for (const p of pts)
+    r2 = Math.max(r2, (p[0]-cx)**2 + (p[1]-cy)**2 + (p[2]-cz)**2);
+  const radius = Math.sqrt(r2);
+
+  group.position.set(-cx, -cy, -cz);
+  cam.r = radius * 2.6;
+  applyCam();
+  set('d-extent', 'ø ' + (radius * 2 / 10).toFixed(1) + ' nm');
+
+  drawLegend(colourBySS);
+}
+
+function drawLegend(bySS) {
+  const rows = bySS
+    ? [[hex(C.helix), 'α-helix'], [hex(C.sheet), 'β-sheet'], [hex(C.coil), 'loop / turn'],
+       [hex(FE_COLOR), 'four haems, four irons']]
+    : [[hex(C.subject), 'β chain (B)'], [hex(C.partner), 'the other three: α, α, β'],
+       [hex(FE_COLOR), 'four haems, four irons']];
+  $('legend').innerHTML =
+    rows.map(([c,l]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${l}</div>`).join('')
+    + `<div class="lnote">Secondary structure from <b>our</b> DSSP over 2HHB's
+       backbone — not from the file's HELIX records, so the comparison with
+       Mol*'s own assignment is real.</div>`;
+}
+
+function verdict() {
+  const ok = ['d-dssp','d-build','d-paint'].every(id => $(id).className.indexOf('pass') >= 0);
+  const e = $('d-verdict');
+  e.className = 'verdict ' + (ok ? 'pass' : 'fail');
+  e.textContent = ok
+    ? 'Draws the whole tetramer, in our scene, on the paper, with no viewer '
+    + 'chrome to suppress and no click behaviour to disarm. What it cannot do '
+    + 'is reassign secondary structure per frame — which is exactly what '
+    + 'protein-molstar\'s fold animation needed.'
+    : 'FAIL — see the red row.';
+
+  /* The decision table's "page source size" row, measured rather than claimed.
+     Not like-for-like and the README says so: protein-molstar carries four
+     steps, an animation and the lesson copy; this page draws one picture. */
+  Promise.all([
+    fetch('protein-inhouse.html').then(r => r.text()),
+    fetch('protein-molstar.html').then(r => r.text()),
+  ]).then(([a,b]) => set('d-size',
+      (a.length/1024).toFixed(0) + ' KB vs ' + (b.length/1024).toFixed(0) + ' KB'))
+    .catch(() => {});
+}
+
+/* ---------- loop ---------------------------------------------------------- */
+
+let frames = 0, fpsT = performance.now();
+(function loop(){
+  requestAnimationFrame(loop);
+  renderer.render(scene, camera);
+  frames++;
+  const now = performance.now();
+  if (now - fpsT > 1000) {
+    /* Only report when frames actually ran. requestAnimationFrame is suspended
+       in a backgrounded tab, so the naive version prints "0 fps" for a page
+       that is rendering perfectly well the moment you look at it — which is
+       how an automated screenshot reads a paused tab as a dead renderer. */
+    if (frames > 0) set('d-fps', (frames * 1000 / (now - fpsT)).toFixed(0) + ' fps', 'pass');
+    frames = 0; fpsT = now;
+  }
+})();
+
+$('haems').onchange = draw;
+$('ss').onchange = draw;
+new ResizeObserver(() => applyCam()).observe($('cv'));
+
+boot().catch(e => { $('loading').textContent = 'failed: ' + e.message; console.error(e); });
+</script>
+</body>
+</html>

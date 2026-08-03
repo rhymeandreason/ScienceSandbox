@@ -36,6 +36,8 @@ looks better because someone restyled it, nothing has been learned.
 | **2** | Match `PALETTE`, ball-and-stick proportions, cartoon style | skipped for stages 3–4; **done for stage 5** |
 | **3** | H-bond dashes + camera choreography | **done — passed** |
 | **4** | Act 3's multi-structure ladder at true relative scale | **done — passed, with the sharpest caveat of the evaluation** |
+| **5** | `protein-lab` rebuilt on hemoglobin, as a lesson | **done — passed** |
+| **6** | The same molecule through our own renderer, for comparison | **done** |
 
 ### Stage 3 result — passed, and it changed what the page should do
 
@@ -513,6 +515,63 @@ that `protein-lab.html`'s header admits for lysozyme is *not* fixed by changing
 subject. Step 2 states it outright, because "β chain" and "β sheet" sitting on
 one page unexplained is worse than the gap itself.
 
+## Stage 6 — the control arm: the same hemoglobin, our renderer
+
+`molstar/protein-inhouse.html`. **The comparison this folder is named after
+finally has both sides.** Until now "ours" was an argument; this is a page.
+Same file, same `PDBLib.orient` call, same chain colours, same house
+ball-and-stick for the haems — Three.js + `scene.js` + `folding/ribbon.js`
+instead of Mol\*, and nothing else different. No steps and no animation: the
+four levels are `protein-molstar`'s job, and this arm answers only *can we draw
+it, and what does it cost*.
+
+Secondary structure is **our** `RibbonLib.dssp` over 2HHB's own N/CA/C/O, not
+the file's HELIX records — deliberately, because Mol\* computes its own, and
+feeding ours the answer key would not be a comparison.
+
+| | in-house | Mol\* |
+|---|---|---|
+| first paint | **195 ms** | 305 ms init + 347 ms load |
+| ribbon build (4 chains, 574 residues) | **76–94 ms** | n/a (its own pipeline) |
+| triangles | 77,364 | not exposed |
+| bundle | **0 KB** (modules already loaded) | ~3.4 MB CDN |
+| page source | **18 KB** | 65 KB |
+| extent, same method | 6.8 nm | 7.1 nm |
+| DSSP vs the file's HELIX records | 458 H vs 448 · **92 % covered** | — |
+
+The 92 % is the number to keep. DSSP legitimately clips helix ends by a residue
+or two, so per-residue coverage is the fair measure and run-counting is not —
+hemoglobin is a good test for exactly this reason, being 30 helices and almost
+no sheet.
+
+**What this arm owns outright**, and every one of these cost Mol\* work earlier
+in this document:
+
+- it draws into `scene.js`'s scene, so ribbons can mix with atoms, FX rings,
+  hover raycasts and one shared camera. Mol\* brings its own canvas and cannot
+  (`ribbon.js`'s header, "Two viewers means two canvases").
+- nothing to disarm: no click-to-focus, no viewport button cluster needing a
+  CSS rule that a version bump can rename, no WebGL context per instance.
+- the paper shows through because the canvas is ours — no `transparentBackground`
+  plus `checkeredTransparentBackground` pair to discover.
+- no licence question, which for `protein-lab` is the whole argument on the
+  other side.
+
+**What it cannot do, and it is the one that matters:** reassign secondary
+structure per frame. That is precisely what made `protein-molstar`'s step-2 fold
+work — the cartoon becoming helical exactly when the geometry does. Our ribbon
+takes an `ss` array as an argument, so animating a fold through it means calling
+`dssp()` per frame (77 ms here, on 574 residues) and rebuilding the geometry
+(76 ms) — ~150 ms a frame, against Mol\*'s ~25 ms including its own assignment.
+On the 20-residue segment the lesson actually animates that gap would shrink a
+lot, and **nobody has measured it** — which is the honest next experiment rather
+than a conclusion.
+
+So the shape of the answer is: **for a static structure our renderer wins on
+every axis that was measured, and the case for Mol\* rests on the licence and on
+per-frame secondary structure.** Whether that second one is worth 3.4 MB and a
+viewer's worth of defaults is a lesson decision, and it now has numbers.
+
 ## Deciding it
 
 Written down before building, so the conclusion cannot be retrofitted:
@@ -536,6 +595,7 @@ molstar/
   folding-molstar-narrated.html  stage 3 — always-on H-bonds + camera
   folding-molstar-ladder.html    stage 4 — the four-rung zoom-out
   protein-molstar.html           stage 5 — protein-lab on hemoglobin
+  protein-inhouse.html           stage 6 — the same molecule, OUR renderer
   tools/fold2pdb.js              1VII.fold.bin -> multi-MODEL PDB
   tools/ladder2pdb.js            actin.bin -> filament + coda PDB
   tools/fetch-hemoglobin.js      2HHB from RCSB, chain/haem counts verified
