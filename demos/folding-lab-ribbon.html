@@ -596,25 +596,30 @@ const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in
    show the beat more bluntly while asserting a formation ORDER that nobody
    has measured, and this page already spends its credibility carefully. */
 const FOCUS = { lo: 63, hi: 72 };     // helix 3, from 1VII's HELIX record 3
-/* Wide at t=0 — the extended chain IS the primary-structure beat and has to
-   be seen whole before anything closes in on part of it. Then in, hold across
-   the coiling window (all three helices finish by t=0.41), and out again
-   before act 2 opens at t=0.62. */
-const FOCUS_IN   = [0.04, 0.16];      // wide → one helix
-const FOCUS_OUT  = [0.46, 0.58];      // one helix → wide again
+/* THE PAGE OPENS ALREADY CLOSE IN, on the stretch that is about to coil.
+   There used to be a zoom-in over t=0.04..0.16, on the reasoning that the
+   extended chain is the primary-structure beat and should be seen whole
+   first. In practice the whole chain at t=0 is a 121 A rod — on screen a
+   thin line — so "seen whole" bought a poor picture and then moved away from
+   it. Starting on the segment means the first thing a student looks at is
+   amino acids in a row at a size where they are legible, and the fold begins
+   in the same frame rather than after a move. So there is no way in, only a
+   way out: hold across the coiling window (all three helices finish by
+   t=0.41), then pull back before act 2 opens at t=0.62. */
+const FOCUS_OUT  = [0.46, 0.58];      // one helix → the whole chain
 const DIM = 0.16;                     // opacity of the rest of the chain, focused
+const DIM_IN = 0.05;                  // fold-fraction over which that dim eases in
 const FOCUS_PAD = 1.9;                // room around the close-up (see frameFrom)
 
 const smoothstep = x => x * x * (3 - 2 * x);
 
-/* 1 = framed on helix 3 alone, 0 = the whole chain. Smoothstepped at both
-   ends so each move reads as a move rather than a cut. */
+/* 1 = framed on helix 3 alone, 0 = the whole chain. Starts at 1 — the page
+   opens here — and smoothsteps out once, so the only camera move in act 1 is
+   the pull-back that reveals the other two helices. */
 function focusW(tt) {
-  if (tt <= FOCUS_IN[0] || tt >= FOCUS_OUT[1]) return 0;
-  if (tt >= FOCUS_IN[1] && tt <= FOCUS_OUT[0]) return 1;
-  return tt < FOCUS_IN[1]
-    ? smoothstep((tt - FOCUS_IN[0]) / (FOCUS_IN[1] - FOCUS_IN[0]))
-    : 1 - smoothstep((tt - FOCUS_OUT[0]) / (FOCUS_OUT[1] - FOCUS_OUT[0]));
+  if (tt >= FOCUS_OUT[1]) return 0;
+  if (tt <= FOCUS_OUT[0]) return 1;
+  return 1 - smoothstep((tt - FOCUS_OUT[0]) / (FOCUS_OUT[1] - FOCUS_OUT[0]));
 }
 
 let focusIdx = null;                  // atom indices inside FOCUS, filled by build()
@@ -725,7 +730,19 @@ function updateRibbons(P, formed) {
    are written — this scales them rather than replacing them, so a bond that
    is only half formed stays half faded. */
 function applyFocus(rw) {
-  const w = focusIdx ? focusW(t) : 0;
+  /* THE HIGHLIGHT WAITS FOR PLAY. Before the student presses play the whole
+     chain is at full strength: the opening frame is a picture of primary
+     structure, and dimming most of it there would say some of those amino
+     acids matter less than the others — which is exactly what primary
+     structure does not say. The dim is a reading aid for the coiling, so it
+     belongs to the coiling.
+
+     Eased in over the first DIM_IN of the fold rather than switched on with
+     the play button, because a step change in opacity on click reads as the
+     page glitching rather than as the subject being pointed at. */
+  const w = focusIdx
+    ? focusW(t) * (started ? smoothstep(Math.min(1, t / DIM_IN)) : 0)
+    : 0;
   const dim = 1 - (1 - DIM) * w;
   /* The backbone gives way as the ribbons arrive — a cross-fade, not an
      overlay. Left at full strength underneath them a 2.6 A band and 1.5 A
@@ -958,9 +975,12 @@ function seek(tt) {
    away rather than in the way; folding/folding.js's header has them at length. */
 const INTRO = {
   name: 'Primary → secondary → tertiary',
-  body: 'What you see now is <b>primary structure</b>: 36 amino acids in order, ' +
-        'nothing more. Press play and watch levels 2 and 3 build themselves — ' +
-        '<b>a different force makes each one</b>.',
+  /* "a close-up of" is doing real work: the page now opens on ten residues,
+     not on all 36, and a standfirst that says "36 amino acids" over a picture
+     of ten is the kind of small untruth a student notices later. */
+  body: 'What you see now is <b>primary structure</b>: amino acids in a row and ' +
+        'nothing more — a close-up of a 36-unit chain. Press play and watch ' +
+        'levels 2 and 3 build themselves, <b>each by a different force</b>.',
 };
 
 /* Named by the structure level each act produces, not by its mechanism — the
