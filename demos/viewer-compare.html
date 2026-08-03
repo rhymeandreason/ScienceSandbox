@@ -1,25 +1,39 @@
 <!DOCTYPE html>
 <!--
-  viewer-compare.html — 3Dmol.js vs ChemDoodle Web, same protein, same moment.
+  viewer-compare.html — 3Dmol.js vs ChemDoodle Web vs Mol*, same protein, same
+  moment.
 
-  SETTLED — neither library was adopted. The verdict is in
+  SETTLED — none of the three was adopted. The verdict is in
   RenderingLibraries.md: we draw proteins ourselves, with Three.js + scene.js +
-  folding/ribbon.js. This page is kept as the record of the first comparison,
-  not as an open question, and is deliberately NOT deleted: it is worth showing.
+  folding/ribbon.js. This page is kept as the record of the comparison, not as
+  an open question, and is deliberately NOT deleted: it is worth showing.
+
+  Mol* was added to this page AFTER that verdict, and does not reopen it. The
+  decision turned on a structural argument (a viewer brings its own WebGL
+  context and canvas, so it cannot draw into scene.js's scene) — not on which
+  library styles a ribbon best, which is what this page is for. What it is
+  good for now is the STYLE MENU: three renderers' answers to "cartoon",
+  "surface", "by chain" side by side is the fastest way to see what a
+  representation is conventionally supposed to look like before we build our
+  own version of it. Treat it as a reference for OUR renderer's targets.
 
   Evaluation scratch page, NOT a lesson. It deliberately loads neither
-  sandbox.css nor any of the mol-*.js modules: the point was to judge the two
+  sandbox.css nor any of the mol-*.js modules: the point was to judge the
   libraries unmixed with our own rendering.
 
-  Both viewers get the identical PDB text (one fetch from RCSB, shared), so any
-  visual difference is the library, not the data.
+  All three viewers get the identical PDB text (one fetch from RCSB, shared,
+  reoriented once before any of them sees it), so a visual difference is the
+  library, not the data.
 -->
 <meta charset="utf-8">
-<title>3Dmol.js vs ChemDoodle Web</title>
+<title>3Dmol.js vs ChemDoodle Web vs Mol*</title>
 <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
 <!-- vendored: no npm, no CDN — see vendor/chemdoodle/README.md -->
 <link rel="stylesheet" href="vendor/chemdoodle/ChemDoodleWeb.css">
 <script src="vendor/chemdoodle/ChemDoodleWeb.js"></script>
+<!-- same version the molstar/ evaluation pinned, so the two agree -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.css">
+<script src="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.js"></script>
 <style>
   :root { --ink:#2b2a26; --line:#d8d2c4; --paper:#fbf7ef; }
   * { box-sizing: border-box; }
@@ -29,7 +43,10 @@
   .controls { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:14px; }
   .controls label { display:flex; gap:6px; align-items:center; }
   select { font:inherit; padding:3px 6px; }
-  #grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); }
+  #grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1px; background:var(--line); }
+  /* three panes need the width; below this they stack two-up, then one */
+  @media (max-width:1200px) { #grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (max-width:760px)  { #grid { grid-template-columns:minmax(0,1fr); } }
   .pane { background:#fff; display:flex; flex-direction:column; min-width:0; }
   .pane h2 { margin:0; padding:8px 12px; font-size:13px; font-weight:600; letter-spacing:.04em;
              text-transform:uppercase; border-bottom:1px solid var(--line); display:flex;
@@ -39,6 +56,11 @@
   /* 3Dmol needs an explicitly positioned host element */
   #viewer3dmol { position:absolute; inset:0; }
   #cdholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  /* Mol* ships a full plugin UI; this page wants only its viewport. Same
+     suppression the molstar/ evaluation uses — and the same caveat: these are
+     class names, so a version bump can rename them out from under us. */
+  #viewermolstar { position:absolute; inset:0; }
+  #viewermolstar .msp-viewport-controls { display:none !important; }
   .note { padding:8px 12px; border-top:1px solid var(--line); font-size:13px; color:#6b6558; min-height:34px; }
   footer { padding:14px 20px 28px; font-size:13.5px; color:#4a453c; max-width:70em; }
   footer li { margin-bottom:5px; }
@@ -46,7 +68,7 @@
 </style>
 
 <header>
-  <h1>3Dmol.js vs ChemDoodle Web — same file, same style, side by side</h1>
+  <h1>3Dmol.js vs ChemDoodle Web vs Mol* — same file, same style, side by side</h1>
   <div class="controls">
     <label>Structure
       <select id="pdb">
@@ -114,18 +136,24 @@
     <div class="stage"><div id="cdholder"></div></div>
     <div class="note" id="ncd"></div>
   </section>
+  <section class="pane">
+    <h2>Mol* <span class="t" id="tms"></span></h2>
+    <div class="stage"><div id="viewermolstar"></div></div>
+    <div class="note" id="nms"></div>
+  </section>
 </div>
 
 <footer>
   <strong>What to look at:</strong>
   <ul>
-    <li><b>Load time</b> in each header — same bytes, parsed twice.</li>
-    <li><b>Cartoon quality.</b> 3Dmol draws proper secondary-structure cartoons (arrows on strands, tubes on loops); ChemDoodle draws a ribbon. Compare on 1IGT, which is nearly all β-sheet.</li>
-    <li><b>Molecular surface.</b> 3Dmol computes one (SES/SAS); ChemDoodle Web has no surface — pick "Molecular surface" and read the right-hand note.</li>
+    <li><b>Load time</b> in each header — same bytes, parsed three times. Mol*'s first number includes ~300 ms of one-time plugin boot; every later change is cheaper.</li>
+    <li><b>Cartoon quality.</b> 3Dmol draws proper secondary-structure cartoons (arrows on strands, tubes on loops); ChemDoodle draws a ribbon; Mol* draws the most refined of the three. Compare on 1IGT, which is nearly all β-sheet — the arrowheads and the strand twist are what to watch.</li>
+    <li><b>Molecular surface.</b> 3Dmol and Mol* both compute one (SES/SAS); ChemDoodle Web has no surface at all — pick "Molecular surface" and read the middle note. On 2HHB, 3Dmol took 5.7 s and Mol* 9.4 s, but Mol* builds on a worker and stays responsive while it does. <b>This is the one capability our own renderer also lacks</b> — see the gaps list in <code>docs/bio-rendering-thorough.md</code>.</li>
     <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook.</li>
     <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully? 2HHB has four haems, one per subunit, so it asks the same question four times over.</li>
     <li><b>Colour schemes, on 2HHB.</b> The default structure, and the one to cycle the Colour menu on. Four chains make "by chain" meaningful; being all-α makes a secondary-structure scheme a clean two-colour test (helix vs loop) instead of three colours fighting; and the four haems show whether a scheme reaches HETATM at all or quietly leaves them to a fallback. Note that ChemDoodle's chain colours are <em>its own and cannot be overridden</em> — that finding is why <code>protein-lab.html</code> reads them back out of the molecule instead of setting them.</li>
-    <li><b>Licence.</b> 3Dmol.js is BSD-3. ChemDoodle Web is GPLv3 (or paid commercial) — GPL would mean this whole repo, published on GitHub Pages, inherits GPL terms. Worth settling before we invest.</li>
+    <li><b>Licence.</b> 3Dmol.js is BSD-3, Mol* is MIT, ChemDoodle Web is GPLv3 (or paid commercial) — GPL means the page loading it inherits GPL terms. <b>Settled:</b> ChemDoodle is dropped for exactly this reason, and neither permissive alternative was adopted either — see <code>RenderingLibraries.md</code>.</li>
+    <li><b>Why three panes, given we adopted none of them.</b> The decision was structural, not aesthetic: every viewer here brings its own WebGL context and camera, so none can draw into <code>scene.js</code>'s scene alongside our FX, raycasting and shared zoom ladder. What survives is this page as a <em>style reference</em> — when we build a representation ourselves, these three are the convention to measure it against. Read the Style menu as a spec, not as a shortlist.</li>
   </ul>
 </footer>
 
@@ -366,14 +394,119 @@ function renderCD(pdb, style, color) {
         : '');
 }
 
+/* ---- Mol* --------------------------------------------------------------- *
+   Added after the verdict, as a style reference rather than as a candidate —
+   see the file header. Mol* is the only one of the three that draws every
+   representation on this page's menu, so it is the closest thing here to a
+   "what is this supposed to look like" control.
+
+   Structural note that decided the real question and is visible right here:
+   this pane is a SEPARATE WebGL context with its own camera. The Orientation
+   menu works only because we rotate the coordinates before any viewer sees
+   them — nothing below sets a camera. */
+
+let msViewer = null, msBooting = null, msGen = 0, msKey = null;
+
+/* Viewer.create is async and slow (~300 ms of plugin init), so it happens once
+   and is reused. Every later draw clears and reloads into the same plugin. */
+function molstarReady() {
+  if (msViewer) return Promise.resolve(msViewer);
+  if (msBooting) return msBooting;
+  msBooting = molstar.Viewer.create('viewermolstar', {
+    layoutIsExpanded: false, layoutShowControls: false, layoutShowRemoteState: false,
+    layoutShowSequence: false, layoutShowLog: false, layoutShowLeftPanel: false,
+    viewportShowExpand: false, viewportShowSelectionMode: false,
+    viewportShowAnimation: false, viewportShowTrajectoryControls: false,
+  }).then(v => { msViewer = v; return v; });
+  return msBooting;
+}
+
+/* The menus are written in 3Dmol's vocabulary, so each one is translated.
+   Where Mol* has no equivalent the pane says so rather than silently
+   substituting — a quiet fallback is how a comparison page starts lying. */
+const MS_TYPE = { cartoon:'cartoon', stick:'ball-and-stick', sphere:'spacefill', surface:'molecular-surface' };
+const MS_COLOR = {
+  ss:'secondary-structure', ssJmol:'secondary-structure',
+  chain:'chain-id', spectrum:'sequence-id', element:'element-symbol',
+};
+
+/* THE ONE ASYNC PANE, AND THE ONE THAT CAN RACE ITSELF.
+   `draw` also runs on window resize, so a second render can start while the
+   first is between its `clear()` and its `addRepresentation()`. The two
+   interleave and the pane ends up empty with no error anywhere — it looks
+   exactly like a viewer that failed to load. 3Dmol and ChemDoodle are
+   synchronous and cannot do this.
+
+   Fix: every call takes a generation number, and any call that is no longer
+   the newest returns without touching the plugin. Bail out AFTER each await,
+   since that is where a newer call can overtake. */
+async function renderMS(pdb, style, color, shading) {
+  const gen = ++msGen;
+  const stale = () => gen !== msGen;
+  const t0 = performance.now();
+  const viewer = await molstarReady();
+  if (stale()) return;
+  const plugin = viewer.plugin;
+
+  /* Outline and ambient occlusion are postprocessing props, not per-model
+     settings — the same viewer-wide scope 3Dmol's setViewStyle has, which is
+     what makes the Shading menu comparable across the two at all. */
+  const on = (...names) => names.reduce((o, n) => (o[n] = { name:'on', params:{} }, o), {});
+  plugin.canvas3d.setProps({
+    postprocessing: Object.assign(
+      { outline:{ name:'off', params:{} }, occlusion:{ name:'off', params:{} } },
+      shading === 'outline' ? on('outline')
+      : shading === 'ao'    ? on('occlusion')
+      : shading === 'both'  ? on('outline', 'occlusion') : {}),
+    /* the little RGB axes gizmo, on by default. It is chrome, not molecule,
+       and the other two panes have no equivalent — leaving it in would make
+       the comparison read as "Mol* draws more" */
+    camera: { helper: { axes: { name:'off', params:{} } } },
+  });
+
+  await plugin.clear();
+  if (stale()) return;
+  const data = await plugin.builders.data.rawData({ data: pdb });
+  const traj = await plugin.builders.structure.parseTrajectory(data, 'pdb');
+  const model = await plugin.builders.structure.createModel(traj);
+  const struct = await plugin.builders.structure.createStructure(model);
+  if (stale()) return;
+
+  const type = MS_TYPE[style], colorTheme = MS_COLOR[color];
+  const R = plugin.builders.structure.representation;
+
+  const polymer = await plugin.builders.structure.tryCreateComponentStatic(struct, 'polymer');
+  if (stale()) return;
+  if (polymer) await R.addRepresentation(polymer, { type, color: colorTheme });
+  if (stale()) return;
+
+  /* Ligands never carry secondary structure, so a cartoon drops them — the
+     same trap 3Dmol has above, handled the same way: a separate component in
+     sticks. On 2HHB this is the four haems. */
+  const ligand = await plugin.builders.structure.tryCreateComponentStatic(struct, 'ligand');
+  if (stale()) return;
+  if (ligand) await R.addRepresentation(ligand, { type:'ball-and-stick', color:'element-symbol' });
+  if (stale()) return;
+
+  $('tms').textContent = `${Math.round(performance.now() - t0)} ms`;
+  /* style note first: 'ss' is the DEFAULT colour, so testing it first would
+     mask every other note on this pane permanently. */
+  $('nms').textContent =
+      style === 'surface'
+        ? 'Mol* is the slower of the two that can do this at all — measured 9.4 s on 2HHB against 3Dmol’s 5.7 s. It builds on a worker, so the page keeps responding while it waits; 3Dmol blocks.'
+    : color === 'ss'
+        ? 'Mol* has its own secondary-structure palette; the custom ChemDoodle-like values are not replicated here, so read this pane for the SHAPE of the cartoon, not its colours.'
+    : '';
+}
+
 /* ---- driver ------------------------------------------------------------- */
 function draw() {
   const id = $('pdb').value, style = $('style').value, color = $('color').value;
-  const shading = $('shading').value;   // 3Dmol only — ChemDoodle exposes no equivalent
+  const shading = $('shading').value;   // 3Dmol and Mol* only — ChemDoodle exposes no equivalent
   $('status').textContent = `loading ${id}…`;
   fetchPDB(id).then(raw => {
     const atoms = raw.split('\n').filter(l => l.startsWith('ATOM') || l.startsWith('HETATM')).length;
-    // orient once, then hand the SAME coordinates to both viewers
+    // orient once, then hand the SAME coordinates to all three viewers
     const pdb = orientPDB(raw, $('orient').value);
     $('status').textContent = `${id} — ${atoms} atom records`;
     current = raw;
@@ -382,6 +515,19 @@ function draw() {
     catch (e) { $('ncd').textContent = 'ChemDoodle error: ' + e.message; }
     if (style === 'surface') $('ncd').textContent =
       'ChemDoodle Web has no molecular-surface renderer — showing its ribbon instead. This is a hard capability gap, not a setting.';
+    /* ChemDoodle sizes its canvas at construction, so a resize forces a full
+       rebuild and `draw` is wired to the resize event for its sake. Mol*
+       resizes its own canvas and needs nothing — rebuilding it on every
+       resize just blanks the pane for ~350 ms for no reason. So skip when
+       nothing that affects the Mol* scene actually changed. */
+    const key = [id, style, color, shading, $('orient').value].join('|');
+    if (key !== msKey) {
+      msKey = key;
+      // async, and the only one that is — so its timing lands after the others
+      $('tms').textContent = '…';
+      renderMS(pdb, style, color, shading)
+        .catch(e => { $('tms').textContent = ''; $('nms').textContent = 'Mol* error: ' + e.message; });
+    }
   }).catch(e => { $('status').textContent = 'fetch failed: ' + e.message; });
 }
 
