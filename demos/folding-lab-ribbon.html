@@ -740,14 +740,30 @@ function applyFocus(rw) {
   const backAll = 1 - 0.55 * ((rw && rw.all) || 0);
   const backFocus = 1 - 0.55 * ((rw && rw.focus) || 0);
   const set = m => {
-    const target = m.userData.core ? 1
-                 : m.userData.focus ? backFocus : dim * backAll;
+    const own = m.userData.core ? 1
+              : m.userData.focus ? backFocus : dim * backAll;
+    const target = own * foldFade;
     m.material.opacity = target;
     m.material.transparent = target < 0.999;   // opaque again once full, so depth sorting stops mattering
+    m.material.depthWrite = target > 0.5;
   };
   atomMeshes.forEach(set); bondMeshes.forEach(set);
-  hbGroups.forEach(g => { if (!g.userData.focus) g.userData.mat.opacity *= dim; });
+  hbGroups.forEach(g => {
+    g.userData.mat.opacity =
+      (g.userData.baseOp || 0) * (g.userData.focus ? 1 : dim) * foldFade;
+  });
 }
+
+/* Re-apply the fold's own opacities without re-running seek().
+   `foldFade` is act 3's multiplier over all of them — the reveal fading the
+   ball-and-stick out, or the hover reveal bringing it back. It has to
+   MULTIPLY rather than replace, which is the bug this exists to fix: act 3
+   used to write one flat opacity over every mesh in foldGroup, so the moment
+   the reveal took over, the backbone that act 2 had faded to 0.45 and the
+   phenylalanines it had kept at 1.0 all snapped to the same value. The atoms
+   visibly popped back to full at the boundary. */
+let foldFade = 1, lastRW = null;
+function applyFoldOpacity() { applyFocus(lastRW); }
 
 function frameFrom(P) {
   const w = focusIdx ? focusW(t) : 0;
@@ -890,7 +906,10 @@ function seek(tt) {
   hbGroups.forEach((g, k) => {
     const b = g.userData.b, amt = formed[k];
     g.visible = amt > 0.02;
-    g.userData.mat.opacity = Math.min(1, amt) * 0.92;
+    /* Stored as the dash's OWN strength; applyFocus scales it. Written
+       absolutely rather than multiplied in place, because the fold's
+       opacities are now re-applied on frames where seek() has not run. */
+    g.userData.baseOp = Math.min(1, amt) * 0.92;
     if (!g.visible) return;
     const O = P[b.o], H = P[b.h];
     const n = g.children.length;
@@ -917,6 +936,7 @@ function seek(tt) {
   /* Ribbons first: they decide how far the backbone fades, so applyFocus has
      to know their strength before it writes any opacity. */
   const rw = updateRibbons(P, formed);
+  lastRW = rw;
   applyFocus(rw);
 
   /* Readout first: it sets the card's intro/caption state, and frameFrom
@@ -1820,19 +1840,15 @@ function applyFade(immediate) {
   }));
 
   /* The atoms come up as the ribbon thins, so the two cross over rather than
-     one replacing the other. */
+     one replacing the other. Applied as a MULTIPLIER over each mesh's own
+     level — see applyFoldOpacity — so the cross-fade act 2 set up survives
+     into act 3 instead of being flattened. The ribbon is deliberately outside
+     this: it is in foldGroup but is not one of the atoms, and during the
+     reveal it is on its own handover schedule. */
   const fo = Math.max(foldOpacity, hoverMix);
   foldGroup.visible = fo > 0.01;
-  foldGroup.traverse(o => {
-    /* The ribbon is in foldGroup but is NOT one of the atoms: during the
-       reveal it is the mesh being handed over to villin's HP35, on its own
-       schedule. Letting this blanket write reach it made it pop to full
-       opacity for the hold beat and then leave with the atoms. */
-    if (!o.material || o === ribbon) return;
-    o.material.transparent = fo < 0.999;
-    o.material.opacity = fo;
-    o.material.depthWrite = fo > 0.5;
-  });
+  foldFade = fo;
+  applyFoldOpacity();
   /* Act 2's helix ribbons belong to the fold and nowhere else. The traverse
      above would otherwise bring them up with the atoms during act 3's hover
      reveal, laid over rung 0's own HP35 cartoon — two ribbons of the same
