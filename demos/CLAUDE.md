@@ -38,7 +38,7 @@ evaluation is only worth keeping while it still says what was decided.
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | |
 | `protein-lab.html` | **No longer the protein-structure lesson — `folding-lab-ribbon.html` is.** Kept as a worked example of the ChemDoodle path and as the source of the level-4 antibody, which the ribbon lesson has no equivalent for (its protein is a single chain). Still the four levels: 1–3 are one molecule (lysozyme) restyled, never swapped; level 4 changes molecule because it must. Treat it as reference, not as a page to keep polished | PDB structure viewer | |
 | `folding-lab.html` | How a protein folds: villin headpiece (PDB 1VII) collapses from an extended chain. Two acts with two different causes — hydrogen bonds coil the helices (12 of its 14 are i→i+4), then the hydrophobic core packs them. Act 3 zooms out at true relative size — HP35 → the headpiece → villin (AlphaFold, eight arrangements, because the prediction knows each domain's shape and not their layout) → the actin filament it grips → and a coda showing villin-on-actin *measured* by X-ray, which is the answer the prediction could not give. **Superseded by `folding-lab-ribbon.html`** — kept as the tubes fallback, and its text still reads as a folding lesson rather than a structure-levels one. Change the ribbon page, not this one | folding animation | |
-| `folding-lab-ribbon.html` | **The protein-structure lesson, and one of the most important pages here.** Same content as `folding-lab` but reframed around the levels rather than around folding: the extended chain at t=0 *is* primary structure, act 1 builds secondary (backbone H-bonds → α-helices), act 2 builds tertiary (side chains, the phenylalanine core). Level 4 is named in the info panel only, to say this protein is one chain and stops at 3. **Watching a level get built is what this page has and a static viewer cannot**, which is why it, not `protein-lab`, is the lesson. The wordy standfirst moved behind an ⓘ button; acts 1–2 run as a bottom caption in `molecule-builder`'s toast style. It also **won the evaluation against `folding-lab`'s tubes**: identical except that act 3 is drawn as a cartoon instead of tubes — HP35's three α-helices from 1VII's own HELIX records, and all 826 residues of villin from a DSSP run at bake time on the AlphaFold model's backbone. Rungs 4–5 stay tubes: at 40 nm a ribbon is sub-pixel. `folding-lab.html` is kept as the tubes fallback in Lessons WIP | folding animation | ✅ |
+| `folding-lab-ribbon.html` | **The protein-structure lesson, and one of the most important pages here.** Levels 1→3, and the thing a static viewer cannot do is *watch a level get built*: the extended chain at t=0 **is** primary structure, act 1 builds secondary (backbone H-bonds → α-helices), act 2 builds tertiary (side chains, the phenylalanine core). Level 4 is named in the ⓘ panel only, to say this protein is one chain and stops at 3 — `protein-lab`'s antibody is where level 4 actually lives. **Act 1 opens on ONE helix** (residues 63–72, 7 of the 14 bonds) with the rest of the chain dimmed, then pulls out to reveal the same event happened three times — because all three helices coil in the same window (0.32–0.41, measured), so at full-chain framing the level-2 and level-3 events are indistinguishable. **Act 2 draws one continuous cartoon**, loops included, grown from that helix outward. **Act 3 is played, not clicked**: chain → headpiece → whole protein is a single 11 s reveal, and the only buttons left are the two optional actin rungs, which toggle. One timeline covers all 26 s, segmented primary/secondary/tertiary/the protein with divisions read out of the solver and the trajectory rather than typed. It also **won the evaluation against `folding-lab`'s tubes** — villin's 826 residues get their secondary structure from a DSSP run at bake time on the AlphaFold model's backbone, and rungs 4–5 stay tubes because at 40 nm a ribbon is sub-pixel | folding animation | ✅ |
 | `folding/ribbon-test.html` | Not a lesson — the test bench for `folding/ribbon.js`, which now backs the featured `folding-lab-ribbon.html`. Synthetic β-sheet, single strand, strand→helix→strand, and one real villin domain through the actual DSSP path. The synthetic modes have hand-set secondary structure, so they isolate *rendering* bugs from *assignment* bugs. Every geometry bug in `ribbon.js` was found by measuring here, not by looking at the lesson. Kept as the record | evaluation scratch | |
 | `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. Loads no shared module on purpose, so the libraries are judged unmixed with our own rendering. **Settled: neither was adopted** (`RenderingLibraries.md`). Kept as the record, not deleted | evaluation scratch | |
 | `molstar/` | Not a lesson — the six-stage Mol\* evaluation, including `molstar/protein-molstar.html` (a hemoglobin `protein-lab` rebuilt on Mol\*) and `molstar/protein-inhouse.html` (the same molecule through our own renderer, and the template for the `protein-lab` rewrite). **Settled: Mol\* was not adopted**; `molstar/README.md` is the detail behind `RenderingLibraries.md`. Kept | evaluation scratch | |
@@ -172,6 +172,33 @@ but nothing in the browser calls `Folder`. Change the solver and you must
 re-run `node folding/tools/bake-fold.js`, or `folding/tools/check-folding.js` fails: a stale trajectory
 is invisible from the animation, which is exactly why it is checked.
 
+**What the solver constrains, and why a cartoon is what found the bugs.** The
+relaxation holds bond lengths (1-2) and angles (1-3) at their deposited
+values, and for a long time that was all — which let it drive the chain
+through geometry no peptide can adopt, because the two things that make a
+backbone a backbone are neither. **ω is a 1-4 torsion** (CA–C–N–CA), so
+nothing reached it and consecutive Cα closed to 2.72 Å mid-fold, tighter than
+cis (2.9 Å) in a protein that has no cis bond; it is now pinned trans by two
+deposited pairs per peptide bond. And **a point-to-point O···H spring defines
+a contact, not a helix** — every bond could be satisfied while Cα(i)···Cα(i+4)
+sat at 4.6 Å against a deposited 6.1, an over-wound coil. Each hydrogen bond
+now also pulls its donor N to the deposited O···N distance (which is what
+makes the bond near-linear, the same ≥130° that `hbonds()` demands when
+*reading* them) and holds the two Cα atoms it spans at their deposited
+separation.
+
+Two things about that are worth keeping. **Ball-and-stick hid all of it** —
+overlapping spheres conceal a squashed backbone — and it only became visible
+when a ribbon was drawn over the same coordinates, which is the general lesson:
+a cartoon is a measurement of the frame under it. And **the obvious fix was
+wrong**: leaning on `guide` (the global pull toward native) fixed the rise at
+the strength that also dragged the three phenylalanines to their native
+separation by t=0.5, so act 1 quietly performed act 2's packing and the page's
+two causes became one. The fix had to be local, and `check-folding.js` now
+asserts all three over the WHOLE trajectory rather than its endpoint — trans
+backbone, helix rise through act 1, and **core still open when act 1 ends**,
+which exists to stop anyone re-introducing that shortcut.
+
 `aminoacid-lab` loads `mol-small` because dehydration synthesis releases a real
 water molecule and that water has to sit correctly beside the residues. **A
 family-B page that needs a small molecule loads `mol-small.js`; only the
@@ -193,8 +220,8 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
 | `folding/actin.js` | `ActinLib` = `parseCA` + `screwOf` (the helical operation, measured from the file) + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
 | `folding/villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` (generated arrangements) + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
-| `folding/ribbon.js` | `RibbonLib` = `build` (Cα trace + secondary structure → a ribbon `BufferGeometry`) + `dssp`/`parseBackbone` (Kabsch & Sander, the real thing, needs N/CA/C/O) + `assign`/`detect` + `HP35_HELICES`. `folding-lab-ribbon.html` and `bake-villin.js`. Real ångströms, no materials — the page owns those | own header |
-| `folding/folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `Folder` (the constrained relaxation and its `bake`). `folding-lab.html` only. Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing | own header |
+| `folding/ribbon.js` | `RibbonLib` = `build` (Cα trace + secondary structure → a ribbon `BufferGeometry`) + `dssp`/`parseBackbone` (Kabsch & Sander, the real thing, needs N/CA/C/O) + `assign`/`detect` + `HP35_HELICES`. `folding-lab-ribbon.html` and `bake-villin.js`. Real ångströms, no materials — the page owns those. **Now used by acts 1–2 as well as act 3**: `build` is called per frame on live fold coordinates, so a ribbon there is only ever as trustworthy as the solver's frame under it | own header |
+| `folding/folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` (PDB text → backbone, its H-bonds, an extended start state) + `orient` (principal-axis frame) + `SCHEDULE` (the act boundary, which the page bisects rather than duplicating) + `Folder` (the constrained relaxation and its `bake`). Real ångströms; never sees `SCALE`, and holds no display radii — it renders nothing. **The constraint set holds the peptide bond trans and gives each H-bond its deposited rise** — see below | own header |
 | `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** the webfonts, so no page carries a font `<link>` (only the two preconnect hints) | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
@@ -202,7 +229,7 @@ solvation pages load `mol-solvation.js`.** The two define the same keys and
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit, sugars included | `tools/README.md` |
 | `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one actin protomer, the screw that stacks it, and the complex's Cα traces. The page rebuilds the other twelve subunits | own header |
 | `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE matrix, rejection-samples the eight arrangements, and runs `RibbonLib.dssp` over the model's full backbone, writing `folding/data/AF-P02640-villin.poses.bin`. The PAE stays in `folding/data/` as a committed input and never reaches the browser; neither does the backbone, so the DSSP has to happen here | own header |
-| `folding/tools/bake-fold.js` | solves the villin fold once and writes `folding/data/1VII.fold.bin` (433 KB, 181 keyframes). `folding-lab.html` plays that file and folds nothing itself. **Re-run after any change to `folding/folding.js`'s solver, schedule or H-bond cutoffs** — `folding/tools/check-folding.js` compares the committed file against a fresh bake and fails if they differ | own header |
+| `folding/tools/bake-fold.js` | solves the villin fold once and writes `folding/data/1VII.fold.bin` (442 KB, 185 keyframes). Both folding pages play that file and fold nothing themselves. **Re-run after any change to `folding/folding.js`'s solver, schedule or H-bond cutoffs** — `folding/tools/check-folding.js` compares the committed file against a fresh bake and fails if they differ | own header |
 | `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
 
 Things that are easy to get wrong and are not visible from the API:

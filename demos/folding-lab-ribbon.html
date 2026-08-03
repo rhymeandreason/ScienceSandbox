@@ -693,14 +693,15 @@ function closeUpW(formed) {
    already dimmed for the close-up) while act 2 fades the whole backbone. */
 function updateRibbons(P, formed) {
   if (!ribbon) return { all: 0, focus: 0 };
-  /* Off the moment act 3 starts. From there the representation is act 3's to
-     choose — rung 0 is deliberately atoms and rung 1 is where the page says
-     "the same 36 residues, now drawn as a ribbon". Two ribbon systems on the
-     same molecule would make that line a lie, and act 3's uniform fade would
-     drive ours to full opacity anyway. */
-  const done = t >= 0.999;
-  const w = done ? 0 : closeUpW(formed);      // is the ribbon there at all
-  const grow = done ? 0 : ribbonW(t);         // how much of the chain it covers
+  /* NOT gated on t=1. It used to be — "off the moment act 3 starts" — back
+     when t=1 and act 3 were the same instant. They are not: t=1 is the last
+     frame of tertiary, where the finished cartoon is the whole point, and
+     killing it there left that frame showing bare ball-and-stick. The reveal
+     takes the ribbon over from here (applyRevealAt drives the handover to
+     villin's HP35), and applyFade hides it once the fold is no longer the
+     subject — so nothing else has to look at t. */
+  const w = closeUpW(formed);      // is the ribbon there at all
+  const grow = ribbonW(t);         // how much of the chain it covers
 
   ribbon.visible = w > 0.006;
   ribbon.material.opacity = w * RIBBON_MAX;
@@ -969,43 +970,56 @@ const beatAt = (s, tt) => s.act === 2 ? '2'
 
 let capAct = null;   // which caption beat ('1a' | '1b' | '2') is on screen
 
+/* WHICH CHROME BELONGS TO WHICH ACT — one owner, called from both clocks.
+
+   This used to be inline in updateReadout and keyed off `done` (t >= 0.999),
+   which was right when t=1 meant "act 3 starts now". It does not any more:
+   t=1 is the END of tertiary, and the reveal that follows is a separate
+   stretch of the timeline. Keyed to `done`, the last frame of tertiary lost
+   its caption, its tally and its ribbon and gained act 3's legend — a frame
+   belonging to neither act.
+
+   Keyed to the RUNG instead, the rule is simple: the fold owns the stage
+   while rung is FOLD, whatever t says, and act 3's legend belongs to the
+   reveal only once the reveal has finished. It has to be callable from
+   applyRevealAt as well, because updateReadout runs on `seek` and the reveal
+   never seeks — leaving it in one place is what left the fold's caption and
+   tally sitting over the whole protein. */
+function syncChrome() {
+  const foldOn = rung === RUNG.FOLD;
+  const act3Ready = !!villin && !foldOn && !(reveal && reveal.p < 1);
+  document.getElementById('act').hidden = !foldOn || started;   // intro card only
+  document.getElementById('saycap').hidden = !foldOn || !started;
+  document.getElementById('zoom').hidden = !act3Ready;
+  document.getElementById('plddtrow').hidden = !act3Ready;
+  /* The tally counts the fold's own event. Before play it would read "0 / 14"
+     beside a chain that has not been asked to do anything yet, which looks
+     like a broken counter rather than a starting point; and once the zoom
+     leaves this scale it means nothing, since villin's other 790 residues
+     have hydrogen bonds too and a stalled "14 / 14" beside a whole protein
+     would read as a claim about the protein. Hidden, not frozen. Keyed to
+     `started`, not to `playing`: pausing mid-fold is how a student stops to
+     READ the count, so it must survive a pause. */
+  document.getElementById('tally').hidden = !foldOn || !started;
+  document.getElementById('foldtoggles').hidden = !foldOn;
+}
+
 function updateReadout(formed) {
   const s = FoldLib.SCHEDULE(t);
   const act = document.getElementById('act');
 
-  /* Once the chain is folded the caption has said everything it has to say,
-     and the question changes from "what is happening" to "what is this part
-     of". So the card hands the top of the stage over to the zoom legend. */
-  const done = t >= 0.999;
-  const cap = document.getElementById('saycap');
-  act.hidden = done || started;      // intro card only
-  cap.hidden = done || !started;     // running caption only
-  document.getElementById('zoom').hidden = !done || !villin || !!reveal;
-  document.getElementById('plddtrow').hidden = !done || !villin;
-  /* The tally is only on while the fold itself is on screen. Before play it
-     would read "0 / 14" beside a chain that has not been asked to do anything
-     yet, which looks like a broken counter rather than a starting point. And
-     once the zoom leaves this scale it means nothing — villin's other 790
-     residues have hydrogen bonds too, so a stalled "14 / 14" beside a whole
-     protein would read as a claim about the protein. Hidden, not frozen.
-     Deliberately keyed to `started`, not to `playing`: pausing mid-fold is how
-     a student stops to *read* the count, so it must survive a pause. */
-  document.getElementById('tally').hidden = done || !started;
-  document.getElementById('foldtoggles').hidden = done;
   /* The reveal is entered by seekU, which owns the lesson clock — not from
      here. All this still has to do is put the fold back if the student has
      scrubbed out of act 3 without going through seekU (the arrangement and
      rung buttons can leave `rung` elsewhere). */
-  if (!done && !reveal && rung !== RUNG.FOLD) setRung(RUNG.FOLD);
+  if (t < 0.999 && !reveal && rung !== RUNG.FOLD) setRung(RUNG.FOLD);
+  syncChrome();
 
-  /* The transport is updated on BOTH sides of this branch: it stays usable in
-     act 3 as the way back down to the fold, so its label and position must
-     keep tracking t. Returning before this left it reading "unfolded" while
-     the finished protein sat on screen. */
-  /* The bar is written by seekU, which knows the lesson clock. updateReadout
-     only knows t, and writing from here would erase the reveal's share of the
-     bar every time the fold seeks. */
-  if (done) return;
+  /* The bar and its label are written by seekU, which knows the lesson clock.
+     updateReadout only knows t, and writing them from here would erase the
+     reveal's share of the bar every time the fold seeks. */
+  const cap = document.getElementById('saycap');
+  if (rung !== RUNG.FOLD) return;
 
   const intro = !started;
   if (intro) {
@@ -1641,10 +1655,8 @@ function enterReveal() {
   reveal = { p: 0, mSolid: 0, mOwn: 0, mRest: 0 };
   fadeNow = { fold: 1, hp: 0, own: 0, rest: 0, actin: 0, complex: 0 };
   foldOpacity = 1;
-  /* seek(1) has just hidden act 2's ribbon — updateRibbons stops at t=1 and
-     cannot know a reveal is about to start. Put it back, at the strength act
-     2 left it, so the hold beat opens on exactly the frame act 2 ended on. */
-  if (ribbon) { ribbon.visible = true; ribbon.material.opacity = RIBBON_MAX; }
+  /* The hold beat opens on exactly the frame tertiary ended on — updateRibbons
+     no longer stops at t=1, so act 2's ribbon is already up and at strength. */
 }
 
 /* Leaving the reveal SNAPS rather than animating. setRung's 2.2 s transition
@@ -1734,7 +1746,7 @@ function applyRevealAt(p, snap) {
 
   applyFade(p >= 1);
   const doneNow = p >= 1;
-  document.getElementById('zoom').hidden = !doneNow;
+  syncChrome();
   document.getElementById('arrangements').hidden = !doneNow;
   if (doneNow) {
     document.getElementById('znote').innerHTML = ZNOTES[RUNG.VILLIN];
