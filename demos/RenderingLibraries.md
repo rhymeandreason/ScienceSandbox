@@ -4,11 +4,20 @@
 `folding/ribbon.js`. ChemDoodle Web is dropped. Mol\* is not adopted. No
 third-party molecular viewer ships in this repo.
 
-This file is the record eight other files point at. It exists because two
-evaluations (`viewer-compare.html`, `molstar/`) were built with an explicit
-delete condition — "delete when RenderingLibraries.md records a decision either
-way" — and a kept-around evaluation with no verdict is worse than none, because
-the next person cannot tell whether it was abandoned or is still authoritative.
+This file is the record eight other files point at. Several of them were built
+with a delete condition worded "delete when RenderingLibraries.md records a
+decision either way" — because a kept-around evaluation with no verdict is
+worse than none: the next person cannot tell whether it was abandoned or is
+still authoritative.
+
+**The verdict is now recorded, and nothing is being deleted.** This is a
+prototype repo, the evaluations are the working it out, and they are meant to be
+shown to people. What those delete conditions were really protecting against is
+*ambiguity*, and a recorded decision fixes that on its own. So they are
+downgraded from "delete" to "settled — kept as reference", and this file is what
+they point at to say so. See **Status of the evaluation pages**, below.
+
+The deletions happen at the **move to a production repo**, not here.
 
 ---
 
@@ -132,6 +141,26 @@ and it should not be quietly forgotten because the decision went the other way.
 
 ---
 
+## Status of the evaluation pages — all kept
+
+Nothing here is scheduled for deletion. This is a prototype repo; the
+evaluations are how the decision was reached and they are worth showing to
+people. Each is now labelled **settled** rather than **pending**, which is the
+distinction the old delete conditions actually cared about.
+
+| | what it is now |
+|---|---|
+| `viewer-compare.html` | settled — ChemDoodle vs 3Dmol, the first comparison. Kept |
+| `molstar/` | settled — six stages, the thorough one. `molstar/README.md` is the detail behind this file's summary. Kept |
+| `molstar/protein-molstar.html` | the Mol\* lesson prototype. Kept as the "what a viewer buys you" exhibit |
+| `molstar/protein-inhouse.html` | the control arm, and the template for the `protein-lab` rewrite. Kept |
+| `vendor/chemdoodle/` | kept while `protein-lab.html` still loads it |
+| `folding-lab-ribbon.html`, `folding/ribbon-test.html` | unrelated to this decision, and also kept — see `CLAUDE.md` |
+
+**Read them as history, not as instructions.** Every one of those pages was
+written to answer a question that is now answered here; where a page's own
+header still argues for a renderer, this file overrides it.
+
 ## Consequences — what this decision obliges
 
 1. **`protein-lab.html` is rewritten** on Three.js + `scene.js` +
@@ -140,23 +169,29 @@ and it should not be quietly forgotten because the decision went the other way.
    draws a whole tetramer with our DSSP, our palette and our haems. The rewrite
    also lets the page finally colour that 3₁₀ helix, which is the open item its
    own header flags.
-2. **`vendor/chemdoodle/` is deleted** once nothing loads it, and the GPLv3
-   obligation goes with it. `tools/check-pdb.js` keeps auditing the deposited
-   structures; `tools/check-pages.js` can stop skipping `protein-lab.html` once
-   that page draws through the normal stack.
-3. **`viewer-compare.html` is deleted.** Its delete condition — a recorded
-   decision — is this file.
-4. **`molstar/` is deleted**, including its bake tools and its gitignored data.
-   Same delete condition. `molstar/README.md`'s findings do not survive the
-   folder, so anything worth keeping is quoted here or moved into the module it
-   concerns before the `rm -r`.
-5. **`CLAUDE.md`'s page table and module notes** stop describing `protein-lab`
+2. **`CLAUDE.md`'s page table and module notes** stop describing `protein-lab`
    as a different kind of page that shares nothing but `pdb.js` and
    `sandbox.css`. After the rewrite it is an ordinary Three.js lesson that
    happens to read a deposited file — the same shape as `folding-lab`.
+   `tools/check-pages.js` can then stop skipping it.
 
-Until step 1 lands, `protein-lab.html` still loads ChemDoodle and is still
-GPLv3. **The decision is recorded; the cleanup is not done.**
+That is the whole list. Deleting `vendor/chemdoodle/`, `viewer-compare.html`
+and `molstar/` belongs to the **production-repo move**, along with dropping the
+scratch data and the bake tooling — not to this decision.
+
+### The one thing to carry to that move
+
+**`protein-lab.html` is GPLv3 for as long as it loads ChemDoodle**, and so is
+anything built from it. That is fine here: this repo is open source and
+publishes its own source from the working tree, which is what the GPL asks for.
+It stops being automatically fine the moment the work is repackaged under a
+different licence, or a page derived from it is shipped somewhere that does not
+publish source. `vendor/chemdoodle/README.md` calls it a one-way door for a
+reason — GPL'd pages cannot be relicensed permissively later without every
+contributor agreeing.
+
+So: no urgency, but do the rewrite **before** the production move rather than
+after, so the question never has to be answered under deadline.
 
 ---
 

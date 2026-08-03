@@ -23,10 +23,17 @@ mechanism. Re-derive it by repeating the steps above.
 ## Licence — this reaches the rest of the repo
 
 GPLv3. Serving JavaScript to a browser is distribution, so **any page that loads
-this file is itself GPLv3**, and its source has to stay available. That is a
-deliberate, accepted choice — see `RenderingLibraries.md` — and it is a one-way
-door: GPL'd pages cannot be relicensed permissively later without every
+this file is itself GPLv3**, and its source has to stay available. It is a
+one-way door: GPL'd pages cannot be relicensed permissively later without every
 contributor agreeing.
+
+**`RenderingLibraries.md` has since decided against ChemDoodle** — protein pages
+are drawn with Three.js + `scene.js` + `folding/ribbon.js`. This directory stays
+until `protein-lab.html` is rewritten, which is the last page loading it, and
+that rewrite should land BEFORE any move to a production repo rather than after.
+Until then `protein-lab.html` is GPLv3, which is fine while this repo is open
+source and publishes its own source from the working tree — that is exactly what
+the GPL asks for.
 
 Pages that do *not* load it (every Three.js lesson in this repo) are unaffected.
 

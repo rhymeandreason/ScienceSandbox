@@ -1,15 +1,23 @@
 # Mol\* evaluation — `folding-lab` rebuilt by someone else's renderer
 
-**This folder is scratch, and is meant to be deleted.** Everything specific to
-the evaluation lives here so it can be removed in one `rm -r` if Mol\* loses, or
-promoted deliberately if it wins. Nothing outside this folder has been changed.
-Same intent as `viewer-compare.html` (see `demos/RenderingLibraries.md`), which
-is the precedent for an evaluation page that ships with its own delete
-condition.
+> ## SETTLED — Mol\* was not adopted
+>
+> **The verdict is in `demos/RenderingLibraries.md`: we draw proteins ourselves**
+> (Three.js + `scene.js` + `folding/ribbon.js`). Read that first; this folder is
+> the working that led to it.
+>
+> **Nothing here is being deleted.** This is a prototype repo and the
+> evaluation is worth showing. The original plan was to `rm -r` this folder on a
+> verdict — that was really about not leaving an *ambiguous* evaluation lying
+> around, and a recorded decision fixes the ambiguity on its own. Deleting it
+> belongs to the eventual production-repo move, not to the decision.
+>
+> So: **read what follows as history, not as an open question.** Where it
+> weighs Mol\* against our renderer, the weighing is done.
 
-**Delete when:** `demos/RenderingLibraries.md` records a decision either way. A
-kept-around evaluation with no verdict is worse than none, because the next
-person cannot tell whether it was abandoned or is still authoritative.
+Everything specific to the evaluation lives in this folder, and nothing outside
+it was changed — which is still worth preserving, because it is what makes the
+folder readable as one self-contained argument.
 
 **There are now two questions in this folder**, and stages 0–4 below answer only
 the first. The second — `protein-lab`, rebuilt on hemoglobin — is stage 5, at
