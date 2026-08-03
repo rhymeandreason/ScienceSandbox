@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
 # Start the demos dev server (demos/tools/dev-server.js) if it's not already
-# running, wait for it to answer, then open the app pages in the browser.
+# running, wait for it to answer, then open the lesson index in the browser.
+# Pass lesson names to open those too:  ./dev-open.sh water-lab contrast-lab
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=8817
 BASE_URL="http://localhost:${PORT}"
 LOG_FILE="/tmp/sciencesandbox-dev-server.log"
-PAGES=(
-  "${BASE_URL}/"
-  "${BASE_URL}/water-lab.html"
-  "${BASE_URL}/molecule-builder.html"
-)
+# Just the lesson index by default — it links to every lesson, so opening two
+# more tabs only guessed at which one you wanted. Name pages as arguments to
+# open them too, either way round:  ./dev-open.sh water-lab  molecule-builder
+#
+# The server's root is the REPO root, not demos/ — that is what GitHub Pages
+# publishes, so a local URL is the URL that ships. `/` is the index; a lesson
+# is `/demos/…`, and a bare name gets that prefix and `.html` filled in.
+PAGES=("${BASE_URL}/")
+for arg in "$@"; do
+  case "${arg}" in
+    http*)     PAGES+=("${arg}") ;;
+    /*)        PAGES+=("${BASE_URL}${arg}") ;;
+    *.html)    PAGES+=("${BASE_URL}/demos/${arg}") ;;
+    *)         PAGES+=("${BASE_URL}/demos/${arg}.html") ;;
+  esac
+done
 
 notify() {
   osascript -e "display notification \"$1\" with title \"Science Sandbox\"" 2>/dev/null || true

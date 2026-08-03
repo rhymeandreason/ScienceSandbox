@@ -13,6 +13,18 @@
  *     texture — reloading the page to check a border colour means rebuilding
  *     every molecule and losing where you were.
  *
+ *     AND ONLY THE PAGES THAT USE THE FILE RELOAD. With a dozen lessons open,
+ *     a broadcast reload throws away eleven scenes to show you one change. So
+ *     the server records what each page actually loaded — every subresource
+ *     request carries a `Referer` naming the page that asked for it, which is
+ *     the real dependency graph, not a parse of the script tags — and a save
+ *     wakes only the pages whose set contains the changed file. Editing
+ *     `folding/ribbon.js` reloads the two folding lessons and leaves
+ *     `water-lab` alone; editing `sandbox.css` still swaps CSS everywhere,
+ *     because everything loads it. A page the server has no record of (it
+ *     restarted while the tab sat open) is reloaded — conservative is right
+ *     when the alternative is a tab that silently stops updating.
+ *
  *  2. NO CACHING. python's server sends Last-Modified and nothing else, so a
  *     browser will happily reuse a stale scene.js for the rest of the session.
  *     That has cost real debugging time on this project: a fix appears not to
@@ -58,7 +70,9 @@ const TYPES = {
 const CLIENT = `
 <script>
 (() => {
-  const es = new EventSource('/__dev/reload');
+  // The page names itself on connect, so the server can decide whether a given
+  // change is any of this page's business.
+  const es = new EventSource('/__dev/reload?page=' + encodeURIComponent(location.pathname));
   es.onmessage = e => {
     if (e.data === 'css') {
       // Re-point every stylesheet at a fresh URL. The page keeps its state —
@@ -78,21 +92,48 @@ const CLIENT = `
 </script>
 `;
 
+/* ---- who loaded what ------------------------------------------------------ */
+// page URL path → the set of URL paths that page requested. Built from the
+// Referer header on each request, so it is what the browser actually fetched:
+// dynamic imports, fetch()ed .bin files and PDB text all land in it, and a
+// script tag that is present but commented out does not.
+const deps = new Map();
+
+// fs.watch reports paths relative to ROOT with the platform separator; URLs are
+// '/'-separated and absolute. One canonical form: a leading-slash URL path.
+const urlOf = file => '/' + file.split(path.sep).join('/');
+
+function record(pagePath, urlPath) {
+  let set = deps.get(pagePath);
+  if (!set) deps.set(pagePath, set = new Set());
+  set.add(urlPath);
+}
+
 /* ---- watch ---------------------------------------------------------------- */
-const clients = new Set();
-let timer = null, cssOnly = true;
+const clients = new Set();          // { res, page }
+let timer = null, changed = new Set();
 
 function notify(file) {
-  const ext = path.extname(file).toLowerCase();
-  if (ext !== '.css') cssOnly = false;          // any non-CSS change → full reload
+  changed.add(urlOf(file));
   clearTimeout(timer);
   // Debounced: editors write a file in several syscalls, and a save that touched
   // three files should be one reload, not three.
   timer = setTimeout(() => {
-    const kind = cssOnly ? 'css' : 'reload';
-    for (const res of clients) res.write(`data: ${kind}\n\n`);
-    console.log(`  → ${kind}${clients.size ? '' : ' (no browser connected)'}`);
-    cssOnly = true;
+    const batch = changed; changed = new Set();
+    let woke = 0;
+    for (const c of clients) {
+      const set = deps.get(c.page);
+      // No record of this page — the server restarted under an open tab, and its
+      // EventSource reconnected without re-requesting anything. Reload it rather
+      // than let it go quietly stale.
+      const hits = set ? [...batch].filter(f => set.has(f)) : [...batch];
+      if (!hits.length) continue;
+      const kind = hits.every(f => f.endsWith('.css')) ? 'css' : 'reload';
+      c.res.write(`data: ${kind}\n\n`);
+      console.log(`  → ${kind}: ${c.page}`);
+      woke++;
+    }
+    if (!woke) console.log(`  → no page uses ${[...batch].join(', ')}`);
   }, 60);
 }
 
@@ -113,12 +154,29 @@ const server = http.createServer((req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
 
   if (url === '/__dev/reload') {
+    const q = new URL(req.url, 'http://localhost');
+    let page = q.searchParams.get('page') || '/';
+    if (page.endsWith('/')) page += 'index.html';   // same key the serve path uses
     res.writeHead(200, { 'Content-Type':'text/event-stream',
                          'Cache-Control':'no-store', 'Connection':'keep-alive' });
     res.write(':ok\n\n');
-    clients.add(res);
-    req.on('close', () => clients.delete(res));
+    const client = { res, page };
+    clients.add(client);
+    req.on('close', () => clients.delete(client));
     return;
+  }
+
+  // Attribute this request to the page that made it. An HTML response is its own
+  // page and starts a fresh set — a reload should forget what the *previous*
+  // version of the page loaded, or a removed script tag keeps waking it forever.
+  if (/\.html?$/.test(url) || url.endsWith('/')) {
+    const self = url.endsWith('/') ? url + 'index.html' : url;
+    deps.set(self, new Set([self]));
+  } else if (req.headers.referer) {
+    try {
+      const from = new URL(req.headers.referer).pathname;
+      record(from.endsWith('/') ? from + 'index.html' : from, url);
+    } catch { /* unparseable referer — nothing to attribute */ }
   }
 
   // Resolve inside ROOT only — a dev server still should not serve the whole
@@ -173,7 +231,8 @@ server.on('listening', () => {
   const port = server.address().port;
   console.log(`\n  dev server → http://localhost:${port}/`);
   console.log(`  serving     ${ROOT}`);
-  console.log(`  live reload on; CSS swaps in place, everything else reloads`);
+  console.log(`  live reload on; only pages that loaded the changed file react`);
+  console.log(`  CSS swaps in place, everything else reloads`);
   console.log(`  (published files are untouched — the client is injected per response)\n`);
 });
 
