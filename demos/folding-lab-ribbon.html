@@ -21,7 +21,9 @@
      The intro that used to sit in the panel is the card's first state. */
   #app{grid-template-columns:1fr}
 
-  /* The act caption, top-centre — which of the two mechanisms is running. */
+  /* #act is now the INTRO card only — the title/standfirst before play. Once
+     the fold starts the running caption moves to #saycap at the bottom (see
+     below), so the top of the stage is clear while the chain is moving. */
   #act{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:6;
     max-width:min(560px,80%);text-align:center;pointer-events:none;
     background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:9px 12px 8px 11px;
@@ -29,7 +31,6 @@
   #act .actname{font-family:var(--font-marker);font-size:20px;line-height:1.1}
   #act .actbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;
     color:#3a352f;margin-top:4px}
-  #act .actname.a1{color:var(--hb)} #act .actname.a2{color:var(--core)}
   /* Intro state: bigger title, and the caveats visible before play. Once the
      fold starts the card is a running caption and must stay small. */
   #act.intro{max-width:min(640px,84%);padding:14px 22px 16px}
@@ -39,6 +40,24 @@
   #act.intro .actnote{display:block;font-family:var(--font-sans);font-size:11.5px;
     line-height:1.45;color:var(--muted);margin-top:10px;padding-top:9px;
     border-top:1px solid var(--hair);text-align:left}
+
+  /* ---------- running caption (acts 1-2) ----------
+     Same shape as molecule-builder's #say toast: bare text over the paper,
+     bottom-centre, rising out of the transport that is driving it. No card,
+     because during the fold the thing to look at is the chain — the caption
+     is a voice-over, not a panel. It sits above the transport and stays put
+     for the whole act; only the change from act 1 to act 2 re-fades it, which
+     is exactly the moment the student is meant to notice. */
+  #saycap{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);z-index:6;
+    pointer-events:none;text-align:center;width:min(720px,86%)}
+  #saycap .capname{font-family:var(--font-marker);font-size:21px;line-height:1.15}
+  #saycap .capbody{font-family:var(--font-sans);font-size:15px;line-height:1.4;
+    color:#3a352f;margin-top:3px}
+  #saycap .capname.a1{color:var(--hb)} #saycap .capname.a2{color:var(--core)}
+  #saycap.fade{animation:capIn .5s ease-out}
+  @keyframes capIn{
+    0%{opacity:0;transform:translateX(-50%) translateY(7px)}
+    100%{opacity:1;transform:translateX(-50%) translateY(0)}}
 
   /* Transport: play/pause + scrub, bottom-centre. */
   #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
@@ -119,6 +138,9 @@
   @media (max-width:920px){
     #act{top:12px;max-width:90%} #transport{width:90%;bottom:14px}
     #tally{left:12px;top:auto;bottom:76px}
+    /* clears the tally, which moves to the bottom-left on this breakpoint */
+    #saycap{bottom:124px;width:92%}
+    #saycap .capname{font-size:18px} #saycap .capbody{font-size:13px}
     #zoom{top:10px;max-width:96%;padding:7px 9px 8px}
     .zstep .zname{font-size:11.5px} .zstep .zsize{font-size:10px}
     #arrangements{bottom:70px}
@@ -131,6 +153,7 @@
     <canvas id="gl"></canvas>
     <div id="act" class="intro"><div class="actname"></div>
       <div class="actbody"></div><div class="actnote"></div></div>
+    <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
     <div id="tally"><span class="big" id="hbcount">0</span> / 14 hydrogen bonds
       <div class="sub" id="hbsub">holding the chain</div></div>
 
@@ -404,7 +427,11 @@ function build() {
    glide. Distance is driven by `t` alone: dragging turns the molecule and
    nothing else. The next seek refits against whatever angle the student left
    it at, so playback still frames correctly afterwards. */
-const RESERVE = { top: 118, intro: 172, bottom: 96 };
+/* Two chrome layouts, not one: before play the intro card holds the top and
+   only the transport is below; during the fold the top is clear (the tally is
+   off to the left) and the caption sits above the transport instead. Same
+   pixels, other end of the stage. */
+const RESERVE = { top: 34, intro: 172, bottom: 96, capBottom: 158 };
 const FIT_THETA = cam.theta, FIT_PHI = cam.phi;   // captured before any drag
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in angstroms
@@ -454,9 +481,10 @@ function solveFrame(P) {
   halfW += MAX_R; halfH += MAX_R;
 
   // give back the pixels the chrome covers, by asking the frustum for more
-  const top = (document.getElementById('act').classList.contains('intro')
-               ? RESERVE.intro : RESERVE.top);
-  const usable = Math.max(0.25, (h - top - RESERVE.bottom) / h);
+  const introCard = !document.getElementById('act').hidden;
+  const top = introCard ? RESERVE.intro : RESERVE.top;
+  const bottom = introCard ? RESERVE.bottom : RESERVE.capBottom;
+  const usable = Math.max(0.25, (h - top - bottom) / h);
   halfH /= usable;
 
   const tan = Math.tan(camera.fov * Math.PI / 360);
@@ -576,6 +604,8 @@ const ACTS = [
     body: 'No hydrogen bond runs between helices. The three phenylalanines hide from water, and the bundle closes.' },
 ];
 
+let capAct = 0;   // which act the bottom caption is currently showing
+
 function updateReadout(formed) {
   const s = FoldLib.SCHEDULE(t);
   const act = document.getElementById('act');
@@ -584,7 +614,9 @@ function updateReadout(formed) {
      and the question changes from "what is happening" to "what is this part
      of". So the card hands the top of the stage over to the zoom legend. */
   const done = t >= 0.999;
-  act.hidden = done;
+  const cap = document.getElementById('saycap');
+  act.hidden = done || started;      // intro card only
+  cap.hidden = done || !started;     // running caption only
   document.getElementById('zoom').hidden = !done || !villin;
   document.getElementById('plddtrow').hidden = !done || !villin;
   /* The H-bond tally counts the fold's own event and means nothing once the
@@ -606,13 +638,26 @@ function updateReadout(formed) {
   if (done) return;
 
   const intro = !started;
-  const a = intro ? INTRO : ACTS[s.act - 1];
-
-  act.classList.toggle('intro', intro);
-  act.querySelector('.actname').className = 'actname' + (intro ? '' : ' a' + s.act);
-  act.querySelector('.actname').textContent = a.name;
-  act.querySelector('.actbody').innerHTML = a.body;
-  act.querySelector('.actnote').innerHTML = intro ? INTRO.note : '';
+  if (intro) {
+    capAct = 0;                       // so a replay re-fades act 1 in
+    act.classList.add('intro');
+    act.querySelector('.actname').className = 'actname';
+    act.querySelector('.actname').textContent = INTRO.name;
+    act.querySelector('.actbody').innerHTML = INTRO.body;
+    act.querySelector('.actnote').innerHTML = INTRO.note;
+  } else {
+    /* Only re-write on an act change — scrubbing calls this every frame, and
+       reassigning the animation class each time would hold the caption at the
+       first keyframe forever. */
+    const a = ACTS[s.act - 1];
+    if (capAct !== s.act) {
+      capAct = s.act;
+      cap.querySelector('.capname').className = 'capname a' + s.act;
+      cap.querySelector('.capname').textContent = a.name;
+      cap.querySelector('.capbody').innerHTML = a.body;
+      cap.classList.remove('fade'); void cap.offsetWidth; cap.classList.add('fade');
+    }
+  }
 
   const nf = formed.filter(x => x > 0.5).length;
   document.getElementById('hbcount').textContent = nf;
