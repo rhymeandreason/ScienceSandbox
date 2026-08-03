@@ -1,3 +1,16 @@
+> **Superseded in part, 2026-08-02 — we draw proteins ourselves.**
+> The 3D-viewer question is closed: Three.js + `scene.js` + `folding/ribbon.js`,
+> no third-party molecular viewer, ChemDoodle dropped, Mol\* evaluated and not
+> adopted. `demos/RenderingLibraries.md` is the decision record and overrides
+> every viewer recommendation below; this file has been updated to match.
+>
+> **The boundary is scale, not subject: everything up to and including a folded
+> protein is ours** — approaches A/B/C/D. The one genuinely open case is the
+> megadalton assembly (the ribosome row), where the choice is between a baked
+> mesh and reopening the viewer question. See *Where ours stops*, below.
+>
+> The 2D and charting recommendations are untouched and still stand.
+
 Two corrections to things I said earlier, since both are licence claims you'd be deciding on: **OpenChemLib is BSD-3-Clause, not MIT** (still permissive, still fine), and there are two viewers I should have raised — NGL and Miew — that sit between 3Dmol and Mol\* in weight.
 
 ## Legend
@@ -9,7 +22,8 @@ Two corrections to things I said earlier, since both are licence claims you'd be
 | **B** | Instanced repeat — one subunit + a rule (`actin.js`) | any |
 | **C** | Baked static mesh | any, no motion |
 | **D** | Coarse-grained beads (~1/residue) | ~500k, keeps motion |
-| **V** | Viewer library (Mol\*/NGL) — deposited structure, we don't author | ~10⁶ |
+| **R** | Our ribbon — `folding/ribbon.js` over a Cα trace + SS | ~600 res. measured, no hard ceiling |
+| ~~**V**~~ | ~~Viewer library~~ — **not adopted**, kept only to read the old rows | — |
 
 **2D approaches**
 | | Approach |
@@ -31,10 +45,10 @@ Two corrections to things I said earlier, since both are licence claims you'd be
 | 1 | Four macromolecule classes | ✅ A | **S** | done in 3D; 2D missing |
 | 1 | Isomers / stereochemistry | ✅ A | **S ‼** | `contrast-lab`. Wedge/dash fidelity is non-negotiable |
 | 1 | Dehydration / hydrolysis | ✅ A | **H** | `aminoacid-lab`. 2D reaction arrows |
-| 1 | Protein structure levels | ✅ V | — | `protein-lab`. See Mol\* item |
+| 1 | Protein structure levels | **A + R** | — | `protein-lab`, **rewrite pending** off ChemDoodle. `molstar/protein-inhouse.html` is the proof |
 | 1 | Folding | ✅ A | — | `folding-lab`, done |
 | **2** | **Phospholipid bilayer** | **B** | **H** | Highest payoff in the course. 2D = the textbook cross-section |
-| 2 | Membrane transport proteins | **A / V** | **H** | Aquaporin 1J4N, Na⁺-K⁺ 2ZXE. Surfaces needed |
+| 2 | Membrane transport proteins | **A + R** | **H** | Aquaporin 1J4N, Na⁺-K⁺ 2ZXE. Surfaces are the gap — we have no SES/SAS code |
 | 2 | Passive / active transport | **B** | **G** | Motion + a concentration graph |
 | 2 | Surface-area : volume | **E→ geometry** | **G** | Pure math. Chart, not structure |
 | 2 | Organelles / whole cell | **C** | **I** | Where Goodsell earns his place — see below |
@@ -45,7 +59,7 @@ Two corrections to things I said earlier, since both are licence claims you'd be
 | **3** | **ATP synthase** | **D** | **H** | Best motion story in biology. Forces coarse-graining |
 | 3 | Cristae / mitochondrion | **C** | **I** | Organelle-scale container |
 | 3 | Photosystems / thylakoid | **A + B** | **H** | Same membrane machinery reused |
-| 4 | GPCR + ligand | **A / V** | **G** | Two states, morph between — `folding-lab`'s trick |
+| 4 | GPCR + ligand | **A + R** | **G** | Two states, morph between — `folding-lab`'s trick, and a viewer could not have done it |
 | 4 | Signal cascade | — | **G ‼** | Amplification is a *number*. Pure diagram |
 | 4 | Cell cycle / checkpoints | — | **G** | Diagram |
 | 4 | Mitosis / spindle | **B** | **H** | Tubulin + helical rule. `actin.js` transfers |
@@ -56,7 +70,7 @@ Two corrections to things I said earlier, since both are licence claims you'd be
 | 6 | **Nucleosome** (1KX5) | **A**, borderline | — | Packaging → regulation |
 | 6 | Replication fork | **B** | **H ‼** | Leading/lagging reads far better in 2D |
 | 6 | Transcription / RNA pol | **A + C** | **H** | |
-| 6 | **Ribosome / translation** | **V or C** | **H** | The 150k-atom case. Forces the C/V decision |
+| 6 | **Ribosome / translation** | **C**, or reopen | **H** | The 150k-atom case — **the one row the verdict does not settle**. See below |
 | 6 | Codon table, mutations | — | **G** | |
 | 6 | Operons (lac/trp) | — | **G** | |
 | 7 | Hardy–Weinberg, selection | — | **G** | Simulation + charts |
@@ -72,10 +86,10 @@ Two corrections to things I said earlier, since both are licence claims you'd be
 | Need | Recommendation | Licence | Why |
 |---|---|---|---|
 | Our own 3D (A/B/C/D) | **Three.js** — keep | MIT | Already the spine. Nothing displaces it |
-| Deposited structures (V) | **Mol\*** | MIT | Best representations, biggest ceiling, closes the GPL door |
-| ↳ lighter alternative | **NGL Viewer** | MIT | Mol\*'s predecessor, ~⅓ the size, simpler API. Real option if Mol\* feels heavy |
-| ↳ lighter still | **Miew** (EPAM) | MIT | Smallest of the three. Fewer modes |
-| ↳ current | ~~ChemDoodle~~ | **GPLv3** | Replace. Nothing unique survives (2D included — see below) |
+| Deposited structures | **ours** — `scene.js` + `folding/ribbon.js` | ours | **The decision.** ~19 KB gzipped marginal, one canvas, no defaults to fight |
+| ↳ ~~evaluated~~ | ~~Mol\*~~ | MIT | **Not adopted.** Best-in-class and still wrong here: second WebGL context, second camera |
+| ↳ ~~evaluated~~ | ~~NGL~~ · ~~Miew~~ | MIT | Not adopted — same structural objection, less capability |
+| ↳ ~~current~~ | ~~ChemDoodle~~ | **GPLv3** | **Dropped.** `protein-lab` rewrite pending; nothing unique survives |
 | 2D skeletal (S) | **SmilesDrawer** | MIT | Tiny, one job. Prototype first |
 | ↳ if fidelity fails | **RDKit.js** | BSD-3 | Gold-standard depiction incl. stereo — but ~7 MB WASM |
 | ↳ full suite | Kekule.js | MIT | 2D+3D+sketcher in one. Heavier, less maintained |
@@ -113,4 +127,20 @@ Also worth naming so you can stop wondering about it: **BioRender** is the stand
 
 **ChemDoodle's last argument is gone.** I'd raised 2D and the sketcher as its unique contributions; Ketcher (Apache-2.0) and SmilesDrawer/RDKit.js (MIT/BSD) cover both, better. Nothing justifies GPLv3.
 
-**Three dependencies would cover almost everything:** Mol\* (deposited 3D), SmilesDrawer or RDKit.js (2D skeletal), Observable Plot (charts). Everything else stays hand-built in Three.js and SVG — which is the repo's thesis, and the chart supports it.
+**Two dependencies now cover almost everything** — down from three, because the 3D one was the one we dropped: SmilesDrawer or RDKit.js (2D skeletal) and Observable Plot (charts). All 3D stays hand-built in Three.js. That is the repo's thesis, and the viewer evaluation ended by confirming it rather than by finding an exception.
+
+---
+
+## Where ours stops
+
+The verdict covers **everything up to and including a folded protein**, and the chart above now reflects that. Worth being precise about what is and isn't settled, because "we draw it ourselves" can quietly become a rule nobody re-examines.
+
+**Settled, and for a structural reason.** Any lesson where the molecule *does* something — folds, morphs between states, gets raycast, shares a camera with another object, or has FX fired at it — must be ours, at any size. A viewer brings its own WebGL context and canvas and cannot draw into `scene.js`'s scene, so those interactions would land on the wrong side of it. This is why the GPCR two-state row is ours despite being a large membrane protein: the morph is the lesson.
+
+**Genuinely open: the megadalton assembly.** The ribosome (~150k atoms) is the one row the decision does not reach. It is a static subject at a scale we have never rendered, and the honest options are a baked mesh (approach C, no motion, and someone has to author it offline) or reopening the viewer question for that page alone. Don't resolve it here — resolve it when the lesson is designed and the motion requirement is known.
+
+**Known gaps in ours, so they aren't discovered late:**
+
+- **No molecular surface.** We have no SES/SAS implementation. The membrane-transport row wants one — a channel's pore reads far better as a surface than as sticks — and every viewer ships this for free. This is the largest single capability we gave up.
+- **No live per-frame secondary structure.** `RibbonLib.build` takes `ss` as an argument, so animating a fold through the ribbon means re-running DSSP and rebuilding geometry each frame. `RenderingLibraries.md` names this as the one finding that could overturn the verdict, with precomputation as the current answer.
+- **Nothing above ~600 residues is measured.** The 2HHB timings are our ceiling evidence. Treat larger claims as untested.

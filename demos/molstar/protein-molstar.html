@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mol* evaluation — protein-lab rebuilt on hemoglobin</title>
+
+<!-- ===================================================================
+     PROTEIN-LAB, REBUILT — Mol* as the renderer, hemoglobin as the subject.
+     Scratch. See molstar/README.md; delete with the rest of this folder.
+
+     TWO CHANGES AT ONCE, AND THAT IS DELIBERATE.
+     Building the hemoglobin version on ChemDoodle first would have meant
+     building it twice, because the lesson below is not expressible there:
+     it needs a residue-range selection (step 2), per-chain colours (step 4)
+     and a camera that is driven rather than fitted (all of it).
+
+       1. THE SUBJECT.  protein-lab.html carries levels 1-3 on lysozyme and
+          then swaps to an antibody for level 4. The swap is where the lesson
+          breaks: molecule, file, palette and framing all change at once, so
+          "quaternary" reads as a different protein rather than the next level
+          up. Hemoglobin has the property lysozyme lacks — its own subunit IS
+          one of the four. Levels 1-3 run on the beta chain; level 4 is that
+          same chain with three more around it, still in its own colour.
+
+       2. THE RENDERER.  Mol* is MIT. protein-lab is the only GPLv3 page in
+          the repo, and it is GPLv3 solely because ChemDoodle is vendored into
+          it. That is the strongest form of the licence argument anywhere in
+          this evaluation: folding-lab owns its renderer and has no licence
+          question at all.
+
+     THE FOUR LEVELS ARE ONE ZOOM-OUT, AND THE CAMERA DOES THE TEACHING:
+        1  one chain, every atom              primary   — the order
+        2  twenty residues of it, one helix   secondary — backbone H-bonds
+        3  the whole chain again              tertiary  — side-chain packing
+        4  four chains                        quaternary— chains meeting chains
+     The molecule is never swapped. Step 4 does not load anything new; it makes
+     three already-loaded chains visible.
+
+     SCALE LOCK — the stage-4 finding, applied.
+     Mol* recomputes camera distance from `radius` and the field of view so the
+     scene fits the viewport. Frame each step by its own extent and every step
+     fills the screen equally: one helix and a whole tetramer render the same
+     size, every caption still reads correctly, and the zoom-out that IS the
+     lesson is gone with nothing on screen to say so. So the radius is locked
+     to the tetramer's for every step; the subject shrinks as the levels go up
+     because it really is smaller. The toggle shows the comfortable, dishonest
+     version. Same trap as the act-3 ladder, same fix — which is the evidence
+     that it is a property of Mol*, not of one page.
+
+     WHAT THIS PAGE IS NOT: palette parity with the rest of the sandbox
+     (stage 2 of the evaluation was skipped on purpose). Colours here are
+     chosen for the lesson, not matched to PALETTE.
+
+     SCIENTIFIC CHOICES, and the honest cost of each
+     - 2HHB, human deoxyhaemoglobin (Fermi & Perutz 1984, 1.74 A). Chains A/C
+       alpha (141 residues), B/D beta (146), one haem per subunit. Deoxy, not
+       oxy: the T state is the one whose story is cooperativity.
+     - The beta chain carries levels 1-3 because sickle-cell is a beta-chain
+       mutation, which makes step 1's fact and step 4's molecule the same story
+       rather than two unrelated ones.
+     - BETA-GLOBIN HAS NO BETA-SHEET. It is 8 alpha-helices and turns. This is
+       the same gap lysozyme had (helix-dominated, sheet thin until the
+       antibody arrived) and it is NOT fixed by the change of subject — it is
+       stated on step 2 instead of hidden, because "beta chain" and "beta
+       sheet" sitting on one page unexplained is worse than the gap.
+     - Helix E is the highlighted one: 20 residues, long enough to read as a
+       helix, and it carries His63, the distal histidine over the haem. Its
+       range comes from the file's own HELIX records via PDBLib.helices(),
+       not from a constant typed here.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.css">
+
+<style>
+  [hidden]{display:none !important}
+  #molstar{position:absolute;inset:0;z-index:1}
+  #molstar .msp-plugin, #molstar .msp-viewport{background:transparent}
+  /* Stage 1 finding: no documented option removes this cluster, and a Mol*
+     upgrade that renames the class puts eight buttons back on a lesson. */
+  #molstar .msp-viewport-controls{display:none !important}
+
+  #whoami{position:absolute;left:26px;top:20px;z-index:5;
+    text-align:left;pointer-events:none;white-space:nowrap}
+  #whoami .wname{font-family:var(--font-marker);font-size:26px;line-height:1.05}
+  #whoami .wsub{font-family:var(--font-slab);font-weight:700;font-size:13px;color:var(--muted);margin-top:3px}
+
+  #legend{position:absolute;left:26px;bottom:24px;z-index:5;
+    display:flex;flex-direction:column;gap:7px;
+    background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
+    padding:11px 14px;backdrop-filter:blur(2px);max-width:236px}
+  #legend .lrow{display:flex;align-items:center;gap:9px;font-size:13px;line-height:1.3}
+  #legend .sw{width:16px;height:11px;border-radius:3px;border:1px solid rgba(0,0,0,.28);flex:none}
+  #legend .lnote{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+
+  /* The scale lock is a control, not chrome: it changes what the page claims. */
+  #scale{position:absolute;right:22px;bottom:24px;z-index:6;
+    background:rgba(255,255,255,.82);border:1.5px solid var(--hair);border-radius:9px;
+    padding:9px 12px;max-width:230px;font-family:var(--font-sans);font-size:11.5px;
+    line-height:1.4;color:var(--muted)}
+  #scale label{display:flex;align-items:center;gap:8px;font-family:var(--font-slab);
+    font-size:12.5px;color:var(--ink);cursor:pointer;margin-bottom:5px}
+  #scale .sizing{font-variant-numeric:tabular-nums}
+
+  #diag{position:absolute;right:22px;top:20px;z-index:6;
+    background:rgba(255,255,255,.85);border:1.5px solid var(--hair);border-radius:9px;
+    padding:11px 14px;font-family:var(--font-slab);font-size:12px;line-height:1.6;max-width:300px}
+  #diag h4{font-family:var(--font-marker);font-size:15px;margin:0 0 6px}
+  #diag .row{display:flex;justify-content:space-between;gap:14px}
+  #diag .k{color:var(--muted)} #diag .v{font-variant-numeric:tabular-nums;text-align:right}
+  #diag .verdict{margin-top:8px;padding-top:7px;border-top:1px solid var(--hair);
+    font-family:var(--font-sans);font-size:11.5px;line-height:1.45}
+  .pass{color:#1a7f37} .fail{color:#b3261e} .warn{color:#8a6d1f}
+
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:7;font-family:var(--font-slab);color:var(--muted);pointer-events:none;
+    opacity:0;transition:opacity .15s}
+  #loading.on{opacity:1}
+
+  @media (max-width:920px){
+    #legend{left:14px;bottom:14px;max-width:180px;padding:9px 11px}
+    #whoami .wname{font-size:21px}
+    #diag{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="molstar"></div>
+    <div id="whoami"></div>
+    <div id="legend"></div>
+
+    <div id="scale">
+      <label><input type="checkbox" id="lockbox" checked> true relative scale</label>
+      <div class="sizing" id="sizingnote">—</div>
+    </div>
+
+    <div id="diag">
+      <h4>Mol* · protein-lab</h4>
+      <div class="row"><span class="k">plugin init</span><span class="v" id="d-init">—</span></div>
+      <div class="row"><span class="k">structure load</span><span class="v" id="d-load">—</span></div>
+      <div class="row"><span class="k">chains / haems</span><span class="v" id="d-chains">—</span></div>
+      <div class="row"><span class="k">helices in chain B</span><span class="v" id="d-helix">—</span></div>
+      <div class="row"><span class="k">extended strand</span><span class="v" id="d-strand">—</span></div>
+      <div class="row"><span class="k">fold path</span><span class="v" id="d-fold">—</span></div>
+      <div class="row"><span class="k">β → α (handedness)</span><span class="v" id="d-rama">—</span></div>
+      <div class="row"><span class="k">fold playback</span><span class="v" id="d-play">—</span></div>
+      <div class="row"><span class="k">components built</span><span class="v" id="d-comp">—</span></div>
+      <div class="row"><span class="k">Mol* click behaviour</span><span class="v" id="d-clicks">—</span></div>
+      <div class="row"><span class="k">step switch</span><span class="v" id="d-step">—</span></div>
+      <div class="row"><span class="k">page source vs current</span><span class="v" id="d-size">—</span></div>
+      <div class="verdict" id="d-verdict">initialising…</div>
+    </div>
+
+    <div id="loading">loading structure…</div>
+  </div>
+
+  <div id="side">
+    <div id="steps"></div>
+    <div id="card"></div>
+    <footer>
+      <button id="prev">Previous</button>
+      <button id="next">Next</button>
+    </footer>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.js"></script>
+<!-- the real modules, not copies: the helix ranges come from PDBLib.helices(),
+     and step 1's extended strand from the same FoldLib.extended() that builds
+     folding-lab's start state — so the two pages cannot disagree about what an
+     unfolded chain looks like. -->
+<script src="../pdb.js"></script>
+<script src="../folding/folding.js"></script>
+<!-- for PALETTE and SCALE only, exactly as folding-lab.html loads them: the
+     ball-and-stick colours and radii are DERIVED from the house numbers, never
+     copied, so retuning palette.js retunes this page too. molecules.js is here
+     for SCALE alone — no mol-*.js domain loads, so the registry stays empty. -->
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script>
+'use strict';
+
+/* ---------- palette ------------------------------------------------------- */
+
+/* CARTOON colours. The house palette has none — PALETTE.atoms is per-element
+   and a ribbon is not an element — so these stay protein-lab.html's, which is
+   the nearest thing to a precedent this repo has. Only the ball-and-stick
+   below is derived. */
+const C = {
+  helix:   0xa03fd8,   // the highlighted helix — protein-lab's helix purple
+  ghost:   0x9aa8b4,   // the rest of the chain, behind it
+  subject: 0x7f9bb5,   // the beta chain as one shape — protein-lab's `plain`
+  partner: 0xc9a86a,   // the other three subunits
+};
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+
+/* ---------- house ball-and-stick ------------------------------------------ */
+/* DERIVED FROM palette.js, NOT COPIED — the same discipline folding-lab.html
+   uses, and for the same reason: hand-picked radii there came out 1.32x too
+   small against real bond lengths, which does not read as "small atoms" but
+   as "long bonds", and it also silently lost the palette's O > N > C ordering.
+
+   The division by SCALE is the whole conversion. Every Three.js page draws in
+   a space where 1 A = MolLib.SCALE units, so PALETTE.radii are in those units;
+   this page, like folding-lab, works in real angstroms.
+
+   NOTE THE ORDERING, because it is why Mol*'s built-in size theme cannot do
+   this job: the house radii run O (0.95) > N (0.90) > C (0.85), and van der
+   Waals — which is all `sizeTheme: 'physical'` offers — runs the other way,
+   C (1.70) > N (1.55) > O (1.52). No scale factor turns one into the other.
+   Hence the registered theme below. */
+const PAL = window.MolPalette;
+const SCALE = MolLib.SCALE;
+const RADII = {};
+for (const el of ['C', 'N', 'O', 'H', 'S', 'P']) RADII[el.toUpperCase()] = PAL.radii[el] / SCALE;
+
+/* Iron is NOT in the house palette, because until hemoglobin no lesson had a
+   metal cofactor. This is a page-local addition, deliberately warm-dark so it
+   is not confused with oxygen's red sitting a bond away from it in the haem.
+   IF HEMOGLOBIN SHIPS, Fe belongs in palette.js and this line should go. */
+const FE_COLOR = 0x8c5a2b, FE_RADIUS = 1.15 / SCALE;
+
+/* The house stick ratio, copied from folding-lab.html's derivation: the
+   sandbox draws sticks at about 0.165x the radius of the atoms they join.
+   Mol* multiplies its size theme by sizeAspectRatio for the cylinders, which
+   is the same arithmetic, so the ratio transfers unchanged. */
+const STICK_RATIO = 0.165;
+
+/* PALETTE.atoms keyed the way Mol*'s element-symbol theme wants them: upper
+   case. Everything the four steps can show — plus S, which lysozyme-style
+   disulfides would need and hemoglobin's two cysteines already have. */
+const HOUSE_ELEMENTS = { FE: FE_COLOR };
+for (const el of ['C', 'N', 'O', 'H', 'S', 'P']) HOUSE_ELEMENTS[el.toUpperCase()] = PAL.atoms[el];
+
+/* Mol* CAN take a full element map — `colors: {name:'custom'}` on the built-in
+   element-symbol theme — so the colours need no custom theme at all, which is
+   the upgrade-safe way round. Two params have to be neutralised or the house
+   hexes come out wrong: `lightness` defaults to 0.2 (darkens every atom) and
+   `carbonColor` defaults to CHAIN-ID, which would colour carbon by subunit and
+   quietly override PALETTE.atoms.C. */
+const HOUSE_COLOR = {
+  name: 'element-symbol',
+  params: {
+    saturation: 0, lightness: 0,
+    carbonColor: { name: 'element-symbol', params: {} },
+    colors: { name: 'custom', params: HOUSE_ELEMENTS },
+  },
+};
+
+/* The size theme is the part Mol* has no built-in for, so it is registered.
+   `granularity: 'group'` is load-bearing — 'element' looks like the obvious
+   choice for a per-atom size and fails with a bare
+   "Cannot read properties of undefined (reading 'dUsePalette')" from inside
+   the renderer, which names nothing that would lead you here. Every built-in
+   per-atom theme uses 'group'. */
+function registerHouseSize() {
+  const SP = molstar.lib.structure.StructureProperties;
+  plugin.representation.structure.themes.sizeThemeRegistry.add({
+    name: 'house-radius', label: 'House radius', category: '',
+    factory: () => ({
+      granularity: 'group',
+      size: loc => {
+        let s = 'C';
+        try { s = String(SP.atom.type_symbol(loc)).toUpperCase(); } catch (e) { /* not an atom */ }
+        return s === 'FE' ? FE_RADIUS : (RADII[s] || RADII.C);
+      },
+      props: {}, description: 'PALETTE.radii / SCALE',
+    }),
+    getParams: () => ({}), defaultValues: {}, isApplicable: () => true,
+  });
+}
+
+/* One place, so no representation can drift from the house look. */
+const HOUSE_BALL_STICK = {
+  type: 'ball-and-stick',
+  color: HOUSE_COLOR.name, colorParams: HOUSE_COLOR.params,
+  size: 'house-radius', sizeParams: {},
+  typeParams: { sizeFactor: 1, sizeAspectRatio: STICK_RATIO },
+};
+
+/* ---------- the lesson ---------------------------------------------------- */
+/* `show` is the whole difference between steps. Nothing loads, nothing is
+   rebuilt: each step is a set of representation visibilities plus a camera
+   subject. That is the property ChemDoodle could not give us — there, a
+   change of style meant constructing a new canvas. */
+
+const STEPS = [{
+  key: 'primary',
+  name: 'β-globin', sub: 'one chain · 146 amino acids',
+  title: 'Primary structure',
+  show: { strand: true },
+  camera: 'strand',
+  body: `<p class="lead">A protein starts as one chain of amino acids, joined
+         end to end — with no shape of its own.</p>
+         <p>This is 20 of β-globin's 146, laid out straight. Every residue has
+         the same backbone; what differs is the <b>side chain</b> hanging off
+         each one, and those are the letters of the sequence.</p>
+         <p><b>Primary structure is only the order</b> those amino acids come
+         in. Not how it sits, not what shape it takes. And the order is the one
+         part your DNA actually specifies.</p>`,
+  fact: `Position 6 of this chain is glutamic acid. Change it to valine — one
+         amino acid out of 146 — and the molecules stick to each other, the red
+         cell deforms, and that is <b>sickle-cell anaemia</b>. One DNA base.
+         Everything else on this page is downstream of the order.`,
+  // from PALETTE, so the key cannot disagree with what is drawn
+  legend: [[hex(PAL.atoms.C), 'carbon'], [hex(PAL.atoms.N), 'nitrogen'],
+           [hex(PAL.atoms.O), 'oxygen']],
+  legendNote: 'A built conformation, not a measured one — a sequence has no shape to measure.'
+}, {
+  key: 'secondary',
+  name: 'Helix E', sub: '20 residues of the same chain',
+  title: 'Secondary structure',
+  show: { betaGhost: true, helix: true },
+  animate: 'fold',
+  camera: 'beta',
+  body: `<p class="lead">The same 20 residues you just saw straight — coiled up,
+         and back in the chain they belong to.</p>
+         <p>Secondary structure is <b>local</b> — a repeating pattern over a
+         short run of residues, not a property of the whole protein. This one
+         is an <b>α-helix</b>: the backbone spirals, 3.6 residues per turn.</p>
+         <p>What holds it is a <b>hydrogen bond between backbone atoms</b> —
+         each C=O grabbing the N–H four residues further along. Not side
+         chains. The backbone itself.</p>`,
+  fact: `β-globin has <b>eight</b> of these helices, named A to H, and
+         <b>no β-sheet at all</b> — the "β" in β-globin is the chain's name,
+         not a sheet. Sheets are real and common; this protein just doesn't use
+         them. The helix you're looking at is E, and the histidine at its
+         far end is about to matter.`,
+  // the range is filled in from the file's HELIX records at boot, not typed here
+  legend: [[hex(C.helix), 'α-helix E'], [hex(C.ghost), 'the rest of the chain']],
+  // clicking the already-active step re-runs applyStep, which replays the fold
+  legendNote: 'Backbone hydrogen bonds, i → i+4. Local, not global. '
+            + '<b>Click 2 again to watch the fold once more.</b>'
+}, {
+  key: 'tertiary',
+  name: 'β-globin', sub: 'the whole chain, folded',
+  title: 'Tertiary structure',
+  show: { betaCartoon: true, haemB: true },
+  camera: 'beta',
+  body: `<p class="lead">Back out to the whole chain — one colour, because now
+         the subject is the overall <b>shape</b>.</p>
+         <p>All eight helices packed against each other into one blob.
+         What holds <i>this</i> together is different: interactions between the
+         <b>side chains</b> — water-fearing ones buried inside, plus hydrogen
+         bonds and ionic bonds.</p>
+         <p>The fold leaves a pocket, and there's something sitting in it.</p>`,
+  fact: `That flat disc of atoms isn't an amino acid at all — it's <b>haem</b>,
+         and the single bronze atom at its centre is <b>iron</b>. That one atom
+         is what actually holds the oxygen. The chain doesn't bind O₂; it folds
+         a pocket that holds the thing that does, and His92 reaches up and bonds
+         the iron directly.`,
+  legend: [[hex(C.subject), 'one chain, one shape'],
+           [hex(PAL.atoms.C), 'haem — drawn as atoms, not a ribbon'],
+           [hex(FE_COLOR), 'its one iron']],
+  legendNote: 'Shape comes from side-chain interactions — and shape is what makes the pocket.'
+}, {
+  key: 'quaternary',
+  name: 'Hemoglobin', sub: 'four chains · four haems',
+  title: 'Quaternary structure',
+  show: { betaCartoon: true, haemB: true, others: true, haemOther: true },
+  camera: 'all',
+  body: `<p class="lead">Nothing new was loaded. Three more chains were just
+         switched on around the one you've been looking at.</p>
+         <p>Quaternary structure exists only when <b>separate folded chains
+         assemble</b> into a working unit. Here that's four: two α and two β.
+         Your chain is still blue, still exactly where it was.</p>
+         <p>Each of the four went through levels 1–3 on its own first.
+         Quaternary is what happens after.</p>`,
+  fact: `Four haems means four oxygens — but not independently. When the first
+         O₂ binds, the whole assembly shifts shape and the other three get
+         <b>easier</b> to fill. That's <b>cooperativity</b>, it's why the
+         oxygen curve is S-shaped, and it is a property of the assembly. One
+         chain alone cannot do it.`,
+  legend: [[hex(C.subject), 'β chain (B) · the one from steps 1–3'],
+           [hex(C.partner), 'the other three: α, α, β'],
+           [hex(FE_COLOR), 'four haems — four irons']],
+  legendNote: 'Pull the four apart and cooperativity is gone.'
+}];
+
+/* ---------- MolScript ----------------------------------------------------- */
+/* TWO TRAPS FOUND BY MEASURING, both of which FAIL SILENTLY — the component
+   builds, resolves to Null, and the page renders nothing where a helix should
+   be. Neither throws.
+
+   1. BARE SYMBOLS, NOT QUOTED STRINGS. `(= (atom.auth_asym_id) "B")` selects
+      NOTHING; `(= (atom.auth_asym_id) B)` selects 1225 atoms. Quoting is the
+      natural thing to write.
+   2. NO ARRAY ARGUMENTS. `(core.logic.and [a b])` does not filter — it
+      returns the unfiltered set. Pass the arguments plainly: `(core.logic.and a b)`.
+   Also: `core.rel.inRange` is NOT implemented in the 5.11.0 viewer bundle,
+   though it is in the language. It throws, which at least is loud.
+
+   Counts asserted below (checkComponents) so a silent Null cannot ship. */
+
+const Q = {
+  chainPolymer: ch =>
+    `(sel.atom.atom-groups :entity-test (= (atom.entity-type) polymer)` +
+    ` :chain-test (= (atom.auth_asym_id) ${ch}))`,
+  notChainPolymer: ch =>
+    `(sel.atom.atom-groups :entity-test (= (atom.entity-type) polymer)` +
+    ` :chain-test (core.rel.neq (atom.auth_asym_id) ${ch}))`,
+  residueRange: (ch, a, b) =>
+    `(sel.atom.atom-groups :chain-test (= (atom.auth_asym_id) ${ch})` +
+    ` :residue-test (core.logic.and (core.rel.gre (atom.auth_seq_id) ${a})` +
+    ` (core.rel.lte (atom.auth_seq_id) ${b})))`,
+  haemIn: ch =>
+    `(sel.atom.atom-groups :chain-test (= (atom.auth_asym_id) ${ch})` +
+    ` :residue-test (= (atom.label_comp_id) HEM))`,
+  haemNotIn: ch =>
+    `(sel.atom.atom-groups :chain-test (core.rel.neq (atom.auth_asym_id) ${ch})` +
+    ` :residue-test (= (atom.label_comp_id) HEM))`,
+};
+
+/* ---------- state --------------------------------------------------------- */
+
+const SUBJECT = 'B';            // the chain that carries levels 1-3
+const $ = id => document.getElementById(id);
+const set = (id, v, cls) => { const e = $(id); e.textContent = v; if (cls) e.className = 'v ' + cls; };
+
+let plugin = null, structRef = null, strandRef = null, T = null;
+let strandModelRef = null, nFoldFrames = 0, playToken = 0, foldSpheres = null;
+
+/* PACING. The first version ran the frames as fast as Mol* could commit them
+   and the whole fold was over in about a second — too fast to watch, which
+   makes it decoration rather than the lesson. These two numbers are the
+   lesson's, not the renderer's:
+     FOLD_FRAMES    resolution of the path (more = smoother, and it is only
+                    geometry, so it costs page-load milliseconds, not fps)
+     FOLD_SECONDS   how long a student gets to watch it happen
+   120 frames over 5 s is ~24 fps if the machine keeps up. */
+const FOLD_FRAMES = 120;
+const FOLD_SECONDS = 5;
+const HOLD_MS = 600;            // beat on the finished helix before the cross-fade
+let reprs = {};                 // name -> representation ref
+let spheres = {};               // camera subject -> {center, radius}
+let helixE = null, nHelices = 0;
+let cur = -1, locked = true;
+let stepMs = [0, 0];
+
+/* ---------- geometry, computed from the coordinates we parsed -------------- */
+/* Not from canvas3d.boundingSphere: stage-4 finding — it is lazy, still
+   describes the previous state after a commit, and forcing it costs a full
+   scene commit just to ask a question. We already know where the atoms are. */
+
+function sphereOf(pts) {
+  const n = pts.length;
+  let cx = 0, cy = 0, cz = 0;
+  for (const p of pts) { cx += p[0]; cy += p[1]; cz += p[2]; }
+  cx /= n; cy /= n; cz /= n;
+  let r2 = 0;
+  for (const p of pts) {
+    const dx = p[0]-cx, dy = p[1]-cy, dz = p[2]-cz;
+    r2 = Math.max(r2, dx*dx + dy*dy + dz*dz);
+  }
+  return { center: [cx, cy, cz], radius: Math.sqrt(r2) };
+}
+
+/* Parse once, in the page, for the camera and the diagnostics. Cheap (4779
+   atoms) and it means the camera never has to ask Mol* a question whose answer
+   arrives a frame late. */
+function scan(text) {
+  const chains = {}, byChain = {};
+  let haems = 0;
+  const beta = [], all = [], helix = [];
+  for (const l of text.split('\n')) {
+    const isAtom = l.startsWith('ATOM'), isHet = l.startsWith('HETATM');
+    if (!isAtom && !isHet) continue;
+    const p = [+l.slice(30,38), +l.slice(38,46), +l.slice(46,54)];
+    if (!p.every(Number.isFinite)) continue;
+    const ch = l.slice(21,22), res = l.slice(17,20), seq = parseInt(l.slice(22,26), 10);
+    if (res === 'HOH') continue;                        // waters are not the molecule
+    all.push(p);
+    if (isAtom) {
+      (byChain[ch] = byChain[ch] || new Set()).add(l.slice(22,27));
+      if (ch === SUBJECT) {
+        beta.push(p);
+        if (helixE && seq >= helixE[0] && seq <= helixE[1]) helix.push(p);
+      }
+    } else if (res === 'HEM' && l.slice(12,16).trim() === 'FE') haems++;
+  }
+  for (const k in byChain) chains[k] = byChain[k].size;
+  return { chains, haems, spheres: { beta: sphereOf(beta), all: sphereOf(all),
+                                     helix: helix.length ? sphereOf(helix) : null } };
+}
+
+/* ---------- step 1's extended strand -------------------------------------- */
+/* WHY THIS EXISTS AT ALL. Primary structure is a SEQUENCE — an order, with no
+   conformation. Drawing the folded coordinates for it (which is what this page
+   did first, and what protein-lab.html still does with lysozyme) quietly
+   asserts that the shape is part of level 1, which is the exact confusion the
+   four levels are meant to take apart. Textbooks draw beads on a string for
+   this reason, and they are right to.
+
+   WHY 20 RESIDUES AND NOT 146. All 146 extended is ~51 nm — seven times the
+   width of the whole tetramer, so it cannot share a frame with anything else
+   on this page and the scale lock would break on the first step. Twenty is
+   the run step 2 coils, which makes step 1 -> step 2 one continuous claim:
+   the same residues, straight, then helical.
+
+   WHAT IT IS NOT. These are BUILT coordinates, not measured ones, and the
+   legend says so. FoldLib.extended() is the same function that builds
+   folding-lab's start state: real bond lengths and angles throughout with the
+   two rotatable dihedrals set to beta values, so it is a physically possible
+   conformation rather than a drawn straight line. It is still not a state this
+   protein is ever in. A sequence has no shape to measure, which is the point
+   being made — but "generated, not observed" is the standing rule for this
+   folder and it applies here too.
+
+   SIDE CHAINS ARE CARRIED, deliberately. A bare backbone is identical for
+   every sequence in existence; the side chains are the only thing that makes
+   these 20 residues *these* 20. Level 1 without them would be a picture of the
+   one part of a protein that carries no sequence information at all.
+
+   ---------------------------------------------------------------------------
+   AND IT MOVES. Frame 0 is the extended chain above; the last frame is the
+   deposited helix, exactly. Step 2 plays the frames between.
+
+   HOW THE PATH IS MADE, and why not with FoldLib.Folder.
+   The obvious move was to reuse folding-lab's solver. It was tried and
+   rejected on measurements, not taste:
+     - 2HHB is X-RAY and carries NO HYDROGENS, so FoldLib.hbonds() finds zero
+       backbone H-bonds and the relaxation has nothing to coil with. Adding
+       amide H's geometrically fixed that — 16 bonds, 14 of them i->i+4, which
+       is right for a 20-residue helix — but:
+     - the Folder's SCHEDULE is tuned for villin. On a 20-mer it OVERWOUND:
+       Ca(i)-Ca(i+4) came out 4.76 A against the deposited 6.29, and only 9 of
+       16 H-bonds closed. Re-tuning another page's solver for a fragment would
+       make folding-lab's numbers depend on this page's.
+
+   So the path is a DIHEDRAL INTERPOLATION instead: every backbone phi/psi/omega
+   is measured on the deposited residue, and each frame lerps from an extended
+   beta conformation (phi -139, psi 135 — folding.js's own start values, and a
+   real region of the Ramachandran plot rather than a straight line) to that
+   measured value, rebuilding the chain by NeRF. Bond lengths and bond angles
+   are taken from the deposited structure and never interpolated at all, so
+   they are EXACT IN EVERY FRAME — measured worst-case error over 60 frames:
+   0.000000 A. The last frame reproduces the deposited backbone to 0.00000 A,
+   which is what lets step 2 cross-fade into the deposited helix with the two
+   perfectly registered.
+
+   WHAT IT IS AND IS NOT. This is a legitimate *interpolation between two real
+   conformations*, and dihedrals are the actual degrees of freedom a chain
+   folds through — but it is NOT a folding pathway. Real folding does not
+   rotate every dihedral in lockstep. It is the same epistemic status as
+   folding-lab's trajectory (constrained, generated, only the endpoint
+   experimental) and the page says so.
+
+   SIGN CONVENTION, and it cost an hour. `place()`-style NeRF takes the true
+   IUPAC dihedral, and the textbook atan2 form
+       atan2(dot(cross(n1,n2), b2hat), dot(n1,n2))
+   returns its NEGATIVE. Get it wrong in both the measurement and the build and
+   the two errors cancel: the final frame lands on the deposited coordinates
+   exactly, every assertion passes, and the animation is a MIRROR IMAGE the
+   whole way — a left-handed helix reading phi +65 / psi +37. It was caught by
+   measuring phi/psi back off the built frames, which is now asserted. */
+
+const DEG = 180 / Math.PI;
+const BETA_START = { phi: -139, psi: 135, omega: 180 };
+
+const vsub = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const vadd = (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+const vmul = (a,s) => [a[0]*s, a[1]*s, a[2]*s];
+const vdot = (a,b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+const vcross = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const vlen = a => Math.hypot(a[0], a[1], a[2]);
+const vnorm = a => { const L = vlen(a) || 1; return [a[0]/L, a[1]/L, a[2]/L]; };
+const vdist = (a,b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+
+const angleOf = (A,B,C) => Math.acos(Math.max(-1, Math.min(1,
+  vdot(vnorm(vsub(A,B)), vnorm(vsub(C,B)))))) * DEG;
+
+/* NOTE THE MINUS. See the sign-convention paragraph above. */
+function dihedralOf(A,B,C,D) {
+  const b1 = vsub(B,A), b2 = vsub(C,B), b3 = vsub(D,C);
+  const n1 = vcross(b1,b2), n2 = vcross(b2,b3);
+  const m = vcross(n1, vnorm(b2));
+  return -Math.atan2(vdot(m,n2), vdot(n1,n2)) * DEG;
+}
+
+function place(A,B,C,len,angDeg,dihDeg) {
+  const ang = angDeg/DEG, dih = dihDeg/DEG;
+  const bc = vnorm(vsub(C,B));
+  let n = vcross(vsub(B,A), bc);
+  if (vlen(n) < 1e-6) n = vcross(bc, [bc[0]+1, bc[1], bc[2]]);
+  n = vnorm(n);
+  const m = vcross(n, bc);
+  const d = [-len*Math.cos(ang), len*Math.sin(ang)*Math.cos(dih), len*Math.sin(ang)*Math.sin(dih)];
+  return [C[0]+d[0]*bc[0]+d[1]*m[0]+d[2]*n[0],
+          C[1]+d[0]*bc[1]+d[1]*m[1]+d[2]*n[1],
+          C[2]+d[0]*bc[2]+d[1]*m[2]+d[2]*n[2]];
+}
+
+// take the short way round, or a lerp from 170 to -170 sweeps 340 degrees
+const shortest = (from,to) => { let d = to-from; while (d > 180) d -= 360; while (d < -180) d += 360; return d; };
+
+const frameOf = (N,CA,C) => {
+  const e1 = vnorm(vsub(C,N));
+  let u = vsub(CA,N); u = vsub(u, vmul(e1, vdot(u,e1)));
+  const e2 = vnorm(u);
+  return { o: CA, e1, e2, e3: vcross(e1,e2) };
+};
+const toLocal = (F,p) => { const d = vsub(p,F.o); return [vdot(d,F.e1), vdot(d,F.e2), vdot(d,F.e3)]; };
+const toWorld = (F,l) => vadd(F.o, vadd(vmul(F.e1,l[0]), vadd(vmul(F.e2,l[1]), vmul(F.e3,l[2]))));
+
+const BACKBONE = ['N', 'CA', 'C', 'O'];
+
+function foldStrandPDB(orientedText, first, last, frames) {
+  const byRes = {};
+  for (const l of orientedText.split('\n')) {
+    if (!l.startsWith('ATOM') || l.slice(21,22) !== SUBJECT) continue;
+    const seq = parseInt(l.slice(22,26), 10);
+    if (seq < first || seq > last) continue;
+    const nm = l.slice(12,16).trim();
+    const r = (byRes[seq] = byRes[seq] || { num: seq, resName: l.slice(17,20).trim(),
+                                            side: {}, order: [], el: {} });
+    const p = [+l.slice(30,38), +l.slice(38,46), +l.slice(46,54)];
+    if (!p.every(Number.isFinite)) continue;
+    if (BACKBONE.includes(nm)) r[nm] = p; else r.side[nm] = p;
+    r.el[nm] = (l.slice(76,78).trim() || nm[0]).toUpperCase();
+    r.order.push(nm);
+  }
+  const res = Object.keys(byRes).map(Number).sort((a,b) => a-b).map(k => byRes[k]);
+
+  /* Internal coordinates, measured once off the deposited residue. Bond
+     lengths and angles come from here and are NEVER interpolated. */
+  const geo = res.map((r,k) => {
+    const p = res[k-1], g = {
+      N_CA: vdist(r.N, r.CA), CA_C: vdist(r.CA, r.C),
+      ang_N_CA_C: angleOf(r.N, r.CA, r.C),
+      C_O: r.O ? vdist(r.C, r.O) : 1.231,
+      ang_CA_C_O: r.O ? angleOf(r.CA, r.C, r.O) : 120.8,
+      psi_O: r.O ? dihedralOf(r.N, r.CA, r.C, r.O) : null,
+    };
+    if (p) {
+      g.C_N = vdist(p.C, r.N);
+      g.ang_CA_C_N = angleOf(p.CA, p.C, r.N);
+      g.ang_C_N_CA = angleOf(p.C, r.N, r.CA);
+      g.omega = dihedralOf(p.CA, p.C, r.N, r.CA);
+      g.phi   = dihedralOf(p.C, r.N, r.CA, r.C);
+      g.psi_prev = dihedralOf(p.N, p.CA, p.C, r.N);
+    }
+    return g;
+  });
+
+  const models = [];
+  for (let f = 0; f < frames; f++) {
+    const u = frames === 1 ? 1 : f / (frames - 1);
+    const cur = res.map(() => ({}));
+    for (let k = 0; k < res.length; k++) {
+      const r = res[k], g = geo[k];
+      if (k === 0) {
+        /* Seeded on the DEPOSITED first residue, which is what makes the final
+           frame land on the deposited helix in place rather than merely in
+           shape — the cross-fade in step 2 depends on it. */
+        cur[0].N = r.N.slice(); cur[0].CA = r.CA.slice(); cur[0].C = r.C.slice();
+      } else {
+        const pv = cur[k-1];
+        const psi = BETA_START.psi   + shortest(BETA_START.psi,   g.psi_prev) * u;
+        const omg = BETA_START.omega + shortest(BETA_START.omega, g.omega)    * u;
+        const phi = BETA_START.phi   + shortest(BETA_START.phi,   g.phi)      * u;
+        cur[k].N  = place(pv.N,  pv.CA, pv.C,     g.C_N,  g.ang_CA_C_N, psi);
+        cur[k].CA = place(pv.CA, pv.C,  cur[k].N, g.N_CA, g.ang_C_N_CA, omg);
+        cur[k].C  = place(pv.C,  cur[k].N, cur[k].CA, g.CA_C, g.ang_N_CA_C, phi);
+      }
+      if (g.psi_O != null)
+        cur[k].O = place(cur[k].N, cur[k].CA, cur[k].C, g.C_O, g.ang_CA_C_O, g.psi_O);
+      // side chains ride rigidly on their own residue's N-CA-C frame
+      const F0 = frameOf(r.N, r.CA, r.C), F1 = frameOf(cur[k].N, cur[k].CA, cur[k].C);
+      for (const nm of Object.keys(r.side)) cur[k][nm] = toWorld(F1, toLocal(F0, r.side[nm]));
+    }
+    models.push(cur);
+  }
+
+  /* ---- assertions, because every failure mode here is silent ---- */
+  const meanPhiPsi = fr => {
+    const a = [], b = [];
+    for (let k = 1; k < res.length - 1; k++) {
+      a.push(dihedralOf(fr[k-1].C, fr[k].N, fr[k].CA, fr[k].C));
+      b.push(dihedralOf(fr[k].N, fr[k].CA, fr[k].C, fr[k+1].N));
+    }
+    const m = x => x.reduce((p,q) => p+q, 0) / x.length;
+    return [m(a), m(b)];
+  };
+  let endDev = 0, bondErr = 0;
+  const lastF = models[models.length-1];
+  res.forEach((r,k) => { for (const nm of BACKBONE) if (r[nm] && lastF[k][nm])
+    endDev = Math.max(endDev, vdist(r[nm], lastF[k][nm])); });
+  for (const fr of models) for (let k = 0; k < res.length; k++) {
+    bondErr = Math.max(bondErr, Math.abs(vdist(fr[k].N, fr[k].CA) - geo[k].N_CA));
+    if (k) bondErr = Math.max(bondErr, Math.abs(vdist(fr[k-1].C, fr[k].N) - geo[k].C_N));
+  }
+  const [phi0, psi0] = meanPhiPsi(models[0]);
+  const [phiN, psiN] = meanPhiPsi(lastF);
+
+  /* ---- multi-MODEL PDB, the format Mol* plays natively ---- */
+  const f8 = v => v.toFixed(3).padStart(8).slice(0,8);
+  const out = [];
+  models.forEach((fr, mi) => {
+    out.push('MODEL ' + String(mi+1).padStart(8));
+    let serial = 1;
+    res.forEach((r,k) => {
+      for (const nm of r.order) {
+        const p = fr[k][nm]; if (!p) continue;
+        const name = nm.length < 4 ? ' ' + nm.padEnd(3) : nm;
+        out.push('ATOM  ' + String(serial++).padStart(5) + ' ' + name + ' ' +
+                 r.resName.padEnd(3) + ' ' + SUBJECT + String(r.num).padStart(4) + '    ' +
+                 f8(p[0]) + f8(p[1]) + f8(p[2]) + '  1.00  0.00          ' +
+                 (r.el[nm] || nm[0]).padStart(2));
+      }
+    });
+    out.push('ENDMDL');
+  });
+  out.push('END');
+
+  const ptsOf = fr => { const a = []; fr.forEach(x => { for (const nm in x) a.push(x[nm]); }); return a; };
+
+  /* PER-FRAME SPHERES, and they are not a nicety. The chain is rebuilt outward
+     from its seeded first residue, so while it coils the far end sweeps a wide
+     arc — aim the camera at the finished helix and the middle of the animation
+     walks off the top of the stage, which reads as a rendering fault. The
+     camera follows this instead, and because it is computed here it costs the
+     playback nothing: no commit, no boundingSphere query (stage-3 finding). */
+  const spheresPerFrame = models.map(fr => sphereOf(ptsOf(fr)));
+
+  return {
+    text: out.join('\n'), frames: models.length, residues: res.length,
+    atoms: ptsOf(models[0]).length,
+    startPoints: ptsOf(models[0]), endPoints: ptsOf(lastF),
+    spheresPerFrame,
+    maxFrameRadius: Math.max(...spheresPerFrame.map(s => s.radius)),
+    check: { endDev, bondErr, phi0, psi0, phiN, psiN },
+  };
+}
+
+/* ---------- Mol*'s own interactions, switched off ------------------------- */
+/* MOL* IS A VIEWER AND THIS IS A LESSON, and the difference shows up here
+   first. Out of the box, clicking a residue makes Mol* focus it: it inserts a
+   ball-and-stick component plus an `interactions` representation around the
+   click, flies the camera, and marks the selection. That is exactly right for
+   someone exploring a structure and exactly wrong for a student on step 2, who
+   clicks the helix, gets an unexplained cage of sticks and dashes over it, and
+   has no way back. It also breaks this page's own rule that a colour change
+   must mean something — the highlight and selection colours mean nothing here.
+
+   Four behaviours are bound to the pointer, and no viewer option turns them
+   off; the bindings themselves have to be emptied:
+
+     representation-focus-loci      click -> sticks + interactions on the residue
+     camera-focus-loci              click -> camera flies to it
+     representation-select-loci     click -> selection marking
+     representation-highlight-loci  HOVER -> highlight colour
+
+   Hover is included deliberately. It is not what was confusing, but a colour
+   that appears under the mouse and means nothing is the same problem in a
+   quieter form. Re-enable it by dropping it from TARGETS.
+
+   WHAT SURVIVES, and must: trackball orbit and zoom live on canvas3d, not in
+   these behaviours, so the student can still turn the molecule. That is the
+   line — camera control is theirs, scene composition is the lesson's.
+
+   FOR THE EVALUATION: this is a point in Mol*'s favour, not against it. The
+   defaults are wrong for a lesson but they are *reachable* and they came off
+   cleanly in one pass, which is the question a lesson prototype exists to
+   answer. */
+const DISARM = ['representation-focus-loci', 'camera-focus-loci',
+                'representation-select-loci', 'representation-highlight-loci'];
+
+async function disarmDefaultInteractions() {
+  const b = plugin.state.behaviors.build();
+  let n = 0;
+  for (const cell of plugin.state.behaviors.cells.values()) {
+    const id = cell.transform.transformer.id.replace('ms-plugin.', '');
+    if (!DISARM.includes(id)) continue;
+    const p = cell.transform.params || {};
+    const bindings = {};
+    for (const k of Object.keys(p.bindings || {})) bindings[k] = { ...p.bindings[k], triggers: [] };
+    b.to(cell.transform.ref).update({ ...p, bindings });
+    n++;
+  }
+  await plugin.runTask(plugin.state.behaviors.updateTree(b));
+  set('d-clicks', n + ' behaviours disarmed', n === DISARM.length ? 'pass' : 'fail');
+}
+
+/* ---------- boot ---------------------------------------------------------- */
+
+async function boot() {
+  $('loading').classList.add('on');
+
+  const t0 = performance.now();
+  const viewer = await molstar.Viewer.create('molstar', {
+    layoutIsExpanded: false, layoutShowControls: false, layoutShowRemoteState: false,
+    layoutShowSequence: false, layoutShowLog: false, layoutShowLeftPanel: false,
+    viewportShowExpand: false, viewportShowSelectionMode: false, viewportShowAnimation: false,
+    viewportShowTrajectoryControls: false,
+  });
+  plugin = viewer.plugin;
+  T = molstar.lib.plugin.StateTransforms;
+
+  plugin.canvas3d.setProps({
+    /* THE PAPER SHOWS THROUGH, but it takes both flags. `transparentBackground`
+       alone composites over the page AND draws Mol*'s own grey checkerboard
+       behind the molecule to indicate the transparency — which lands on the
+       stage looking like a broken texture, and is easy to mistake for proof
+       that transparency is unusable. `checkeredTransparentBackground: false`
+       is the other half, and with it the sandbox's dot pattern runs under the
+       molecule exactly as it does on every Three.js page here. */
+    transparentBackground: true,
+    checkeredTransparentBackground: false,
+
+    /* FOG OFF. Mol* fogs toward the far clip plane at intensity 15 by default,
+       and `radius` drives that plane — so under the scale lock, where the
+       radius describes the whole tetramer, the far end of a frame-sized object
+       dissolves into the background. On step 1 that erased the last two
+       residues of the extended strand, which reads as the molecule being cut
+       off rather than as depth. Fog is a depth cue that costs atoms here, and
+       this page has a better one: the scale lock. */
+    cameraFog: { name: 'off', params: {} },
+  });
+
+  set('d-init', (performance.now() - t0).toFixed(0) + ' ms', 'pass');
+
+  const t1 = performance.now();
+  let text = await (await fetch('data/2HHB.pdb')).text();
+
+  /* Orient before Mol* sees it, with the sandbox's own module — the widest
+     face to the camera, long axis across the screen. Stage 4 found that
+     inheriting a viewing angle can point the camera straight down a
+     structure's long axis; here the angle is decided once, from the
+     coordinates, and every step keeps it so that ONLY the size changes. */
+  text = PDBLib.orient(text, { mode: 'pca', long: 'x' });
+
+  /* The helix ranges come from the file's HELIX records, not from a constant
+     typed into this page. Chain B is the classic globin fold: helices A-H. */
+  const hel = PDBLib.helices(text).alpha[SUBJECT] || [];
+  nHelices = hel.length;
+  const E = hel[4];                                     // A,B,C,D,E — the fifth
+  helixE = E ? E.split('-').map(Number) : [57, 76];
+  set('d-helix', nHelices + (nHelices === 8 ? ' (A–H)' : ' — expected 8'),
+      nHelices === 8 ? 'pass' : 'fail');
+  const nRes = helixE[1] - helixE[0] + 1;
+  STEPS[0].sub = `residues ${helixE[0]}–${helixE[1]} · ${nRes} of its 146`;
+  STEPS[1].legend[0][1] = `α-helix E (${helixE[0]}–${helixE[1]})`;
+  STEPS[1].sub = `the same ${nRes} residues, coiled`;
+
+  const info = scan(text);
+  spheres = info.spheres;
+  const chainStr = Object.keys(info.chains).sort().map(k => k + ':' + info.chains[k]).join(' ');
+  const chainsOK = info.chains.A === 141 && info.chains.B === 146
+                && info.chains.C === 141 && info.chains.D === 146 && info.haems === 4;
+  set('d-chains', chainStr + ' · ' + info.haems + ' Fe', chainsOK ? 'pass' : 'fail');
+
+  /* rawData rather than loadStructureFromUrl, because the bytes we want Mol*
+     to parse are the ORIENTED ones, which exist only in memory. */
+  const data = await plugin.builders.data.rawData({ data: text, label: '2HHB (oriented)' });
+  const traj = await plugin.builders.structure.parseTrajectory(data, 'pdb');
+  const model = await plugin.builders.structure.createModel(traj);
+  const struct = await plugin.builders.structure.createStructure(model);
+  structRef = struct.ref;
+  set('d-load', (performance.now() - t1).toFixed(0) + ' ms', 'pass');
+
+  /* Step 1's strand is a SECOND structure, not a component of the first: its
+     coordinates are built, not deposited, and mixing built atoms into the
+     experimental structure's state tree would make every later selection
+     ambiguous about which it meant. */
+  const strand = foldStrandPDB(text, helixE[0], helixE[1], FOLD_FRAMES);
+  spheres.strand = sphereOf(strand.startPoints);
+  spheres.strandEnd = sphereOf(strand.endPoints);
+  foldSpheres = strand.spheresPerFrame;
+  const sData = await plugin.builders.data.rawData(
+    { data: strand.text, label: 'helix E, extended -> folded (built)' });
+  const sTraj = await plugin.builders.structure.parseTrajectory(sData, 'pdb');
+  const sModel = await plugin.builders.structure.createModel(sTraj);
+  strandModelRef = sModel.ref;
+  nFoldFrames = strand.frames;
+  strandRef = (await plugin.builders.structure.createStructure(sModel)).ref;
+
+  /* Every one of these can fail silently — a mirrored helix looks like a helix,
+     and a stretched bond mid-animation is gone before anyone can pause on it. */
+  const k = strand.check;
+  const geomOK = k.endDev < 0.001 && k.bondErr < 0.001;
+  const handOK = k.phiN < -30 && k.phiN > -100 && k.psiN < 0;   // right-handed alpha
+  const startOK = Math.abs(k.phi0 - BETA_START.phi) < 1 && Math.abs(k.psi0 - BETA_START.psi) < 1;
+  set('d-fold', strand.frames + ' frames · end ' + k.endDev.toFixed(3) + ' Å · bond ' +
+      k.bondErr.toFixed(3) + ' Å · widest ' + (strand.maxFrameRadius*2/10).toFixed(1) + ' nm',
+      geomOK ? 'pass' : 'fail');
+  set('d-rama', 'φ/ψ ' + k.phi0.toFixed(0) + '/' + k.psi0.toFixed(0) + ' → ' +
+      k.phiN.toFixed(0) + '/' + k.psiN.toFixed(0),
+      (handOK && startOK) ? 'pass' : 'fail');
+
+  /* Measured, not assumed: 20 residues unrolled against the width of the whole
+     tetramer. This is the number that decides whether the strand can share the
+     locked frame at all, so it goes on screen rather than in a comment. */
+  const strandNm = (spheres.strand.radius * 2 / 10).toFixed(1);
+  const frameNm = (spheres.all.radius * 2 / 10).toFixed(1);
+  set('d-strand', strand.residues + ' res · ' + strandNm + ' nm vs ' + frameNm + ' nm frame',
+      spheres.strand.radius <= spheres.all.radius ? 'pass' : 'warn');
+
+  await disarmDefaultInteractions();
+  registerHouseSize();
+  await buildRepresentations();
+  bindUI();
+  await applyStep(0);
+  $('loading').classList.remove('on');
+  verdict();
+}
+
+/* ---------- representations ----------------------------------------------- */
+/* Every representation the lesson will ever need is built ONCE, here, and the
+   steps only change visibility. That is why a step switch is a couple of
+   milliseconds and why step 4 loads nothing: the other three chains have been
+   in the scene, invisible, since boot.
+
+   Stage-4 finding, and it applies here too: hide the REPRESENTATION, not the
+   structure. Hiding a component cell leaves its representations drawn. */
+
+async function component(expression, label, parent) {
+  const b = plugin.state.data.build().to(parent || structRef).apply(T.Model.StructureComponent, {
+    type: { name: 'script', params: { language: 'mol-script', expression } }, label });
+  const ref = b.ref;
+  await b.commit();
+  const cell = plugin.state.data.cells.get(ref);
+  const n = cell && cell.obj && cell.obj.data ? cell.obj.data.elementCount : 0;
+  return { ref, n: n || 0 };
+}
+
+const R = () => plugin.builders.structure.representation;
+
+async function buildRepresentations() {
+  const comps = {};
+  comps.beta   = await component(Q.chainPolymer(SUBJECT), 'β chain');
+  comps.helix  = await component(Q.residueRange(SUBJECT, helixE[0], helixE[1]), 'helix E');
+  comps.others = await component(Q.notChainPolymer(SUBJECT), 'the other three chains');
+  comps.haemB  = await component(Q.haemIn(SUBJECT), 'haem of β');
+  comps.haemO  = await component(Q.haemNotIn(SUBJECT), 'the other three haems');
+
+  const add = async (compRef, params) => (await R().addRepresentation(compRef, params)).ref;
+
+  /* Step 1: the built strand, in HOUSE ball-and-stick — charcoal carbon, red
+     oxygen, blue nitrogen, at PALETTE radii. It is deliberately NOT painted
+     step 2's purple any more: an all-atom view is where this sandbox always
+     shows elements, and level 1's whole claim is that the residues DIFFER from
+     one another, which one flat colour hides. The continuity with step 2 is
+     carried by the residue range and the copy instead. */
+  /* `(sel.atom.atom-groups)` with no test matches NOTHING — measured, and it
+     is one more silent Null. The static 'polymer' selector is the reliable
+     way to say "all of it" for a peptide. */
+  comps.strand = await component(
+    '(sel.atom.atom-groups :entity-test (= (atom.entity-type) polymer))',
+    'extended strand', strandRef);
+  reprs.strand = await add(comps.strand.ref, HOUSE_BALL_STICK);
+  reprs.betaCartoon = await add(comps.beta.ref,
+    { type: 'cartoon', color: 'uniform', colorParams: { value: C.subject } });
+  /* The ghost is the SAME chain at low alpha, not a different object: step 2
+     is a zoom, and the rest of the chain has to still be there behind it or
+     the student loses where the helix sits. */
+  reprs.betaGhost = await add(comps.beta.ref,
+    { type: 'cartoon', color: 'uniform', colorParams: { value: C.ghost }, typeParams: { alpha: 0.16 } });
+  reprs.helix = await add(comps.helix.ref,
+    { type: 'cartoon', color: 'uniform', colorParams: { value: C.helix } });
+  reprs.others = await add(comps.others.ref,
+    { type: 'cartoon', color: 'uniform', colorParams: { value: C.partner } });
+  /* The haems get the same house treatment rather than one flat colour, and
+     that is a science decision as much as a styling one: the IRON is the point
+     of a haem, and a uniformly-coloured haem hides the one atom the whole
+     assembly exists to carry. */
+  reprs.haemB = await add(comps.haemB.ref, HOUSE_BALL_STICK);
+  reprs.haemOther = await add(comps.haemO.ref, HOUSE_BALL_STICK);
+
+  /* ASSERTED, because a bad MolScript expression resolves to Null silently and
+     the only symptom is an empty stage. See the trap note above. */
+  /* The strand must carry the SAME ATOM COUNT as the deposited residues it was
+     built from (143), or extended() dropped something — a silent difference
+     between what step 1 draws and what step 2 claims it is. */
+  const want = { beta: 1123, helix: 143, strand: 143, others: 3261, haemB: 43, haemO: 129 };
+  const bad = Object.keys(want).filter(k => comps[k].n !== want[k]);
+  set('d-comp', Object.keys(comps).length + ' · ' +
+      (bad.length ? 'MISMATCH ' + bad.join(',') : 'atom counts ok'),
+      bad.length ? 'fail' : 'pass');
+}
+
+/* ---------- the fold animation -------------------------------------------- */
+/* MOL* HAS NO FOLDING METHOD, and it is worth being exact about what it does
+   supply, because this is the capability the whole evaluation turns on:
+
+     ours    the conformational path (foldStrandPDB, above)
+     Mol*'s  frame playback of a multi-MODEL file, and — the part that is
+             genuinely a win — SECONDARY STRUCTURE RECOMPUTED PER MODEL.
+
+   That second one is what makes "the helix shape dissolves in" cost nothing.
+   We do not fade a helix in on a timer and hope the geometry agrees: Mol*
+   re-assigns SS on every model, so a cartoon drawn on this trajectory becomes
+   helical exactly when the coordinates become helical. Our own renderer draws
+   atoms and bonds and cannot do this. It is the same finding stage 1 recorded
+   on villin, reproduced on a different molecule.
+
+   The cross-fade at the end is ours: the built strand hands over to the
+   DEPOSITED helix cartoon. That hand-off is only invisible because the last
+   frame reproduces the deposited backbone to 0.00000 A — asserted at boot.
+   Anything looser and the helix would jump at the moment of the swap. */
+
+async function setFoldFrame(i, track) {
+  await plugin.state.data.build().to(strandModelRef).update({ modelIndex: i }).commit();
+  if (!track || !foldSpheres) return;
+  /* Follow the strand. Camera only — setState + requestDraw, never commit(true):
+     a full scene commit per frame is what stage 3 measured at 40 ms and 23 fps.
+     The RADIUS is untouched, so the scale lock still holds while it moves; only
+     where the camera looks changes. */
+  const c3 = plugin.canvas3d, s = foldSpheres[i];
+  const cam = c3.camera, st = cam.state;
+  const dir = [st.position[0]-st.target[0], st.position[1]-st.target[1], st.position[2]-st.target[2]];
+  const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+  const d = st.radius * 2.6;
+  const V3 = molstar.lib.math.LinearAlgebra.Vec3;
+  cam.setState({
+    target: V3.create(s.center[0], s.center[1], s.center[2]),
+    position: V3.create(s.center[0] + dir[0]/len*d, s.center[1] + dir[1]/len*d,
+                        s.center[2] + dir[2]/len*d),
+    radius: st.radius,
+  });
+  c3.requestDraw();
+}
+
+/* Alpha is a representation parameter, so a fade is N state commits. Cheap at
+   8 steps (~20 ms each); do NOT reach for 60. */
+async function fadeRepr(ref, from, to, steps, token, pace) {
+  const cell = plugin.state.data.cells.get(ref);
+  const base = cell.transform.params;
+  for (let s = 1; s <= steps; s++) {
+    if (token !== playToken) return;
+    const a = from + (to - from) * (s / steps);
+    await plugin.state.data.build().to(ref).update({
+      ...base, type: { ...base.type, params: { ...base.type.params, alpha: a } },
+    }).commit();
+    if (pace) await new Promise(r => setTimeout(r, pace));
+  }
+}
+
+async function playFold() {
+  const token = ++playToken;
+  /* Only the built strand is on screen while it moves; the deposited helix and
+     the ghost arrive at the end. */
+  await showOnly({ strand: true });
+  await frame('beta');
+
+  /* TIME-DRIVEN, NOT FRAME-DRIVEN. Stepping the frames in a plain loop makes
+     the duration a property of the machine — the fold finished in about a
+     second here and would crawl on a school Chromebook. Driving from the clock
+     instead means it takes FOLD_SECONDS everywhere, and a slow machine drops
+     frames (the fold looks steppier) rather than running long (the student
+     waits). That is the right way round for a lesson. */
+  const t0 = performance.now(), dur = FOLD_SECONDS * 1000;
+  let shown = -1;
+  for (;;) {
+    if (token !== playToken) return;          // the student clicked another step
+    const t = Math.min(1, (performance.now() - t0) / dur);
+    const i = Math.round(t * (nFoldFrames - 1));
+    if (i !== shown) { shown = i; await setFoldFrame(i, true); }
+    if (t >= 1) break;
+    await new Promise(r => setTimeout(r, 8));
+  }
+  /* Let the finished helix sit for a beat. Without it the cartoon swap lands
+     on the same tick the coiling stops and the two read as one event. */
+  await new Promise(r => setTimeout(r, HOLD_MS));
+  if (token !== playToken) return;
+
+  /* Hand over to the deposited structure. The ghost comes in with the helix so
+     the student sees where in the chain it sits. */
+  /* Zero the alphas BEFORE unhiding. Both reprs still hold the alpha they were
+     built with, so unhiding first flashes the finished helix at full opacity
+     for one frame and the fade reads as a stutter. */
+  await fadeRepr(reprs.helix, 0, 0, 1, token);
+  await fadeRepr(reprs.betaGhost, 0, 0, 1, token);
+  if (token !== playToken) return;
+  plugin.state.data.updateCellState(reprs.helix, { isHidden: false });
+  plugin.state.data.updateCellState(reprs.betaGhost, { isHidden: false });
+  await new Promise(r => setTimeout(r, 0));
+  await Promise.all([
+    fadeRepr(reprs.helix, 0, 1, 14, token, 25),
+    fadeRepr(reprs.betaGhost, 0, 0.16, 14, token, 25),
+    fadeRepr(reprs.strand, 1, 0, 14, token, 25),
+  ]);
+  if (token !== playToken) return;
+  plugin.state.data.updateCellState(reprs.strand, { isHidden: true });
+  await fadeRepr(reprs.strand, 0, 1, 1, token);   // restore alpha for next time
+  set('d-play', ((performance.now() - t0) / 1000).toFixed(1) + ' s watched', 'pass');
+}
+
+/* ---------- steps --------------------------------------------------------- */
+
+/* Stage-4 finding, and it is why this hides reprs and not components: hiding a
+   component cell leaves its representations drawn, so the previous step ghosts
+   through the next one. */
+/* `updateCellState` returns UNDEFINED, not a promise — it is fire-and-forget,
+   applied on the state's own schedule. So there is nothing to await, and a
+   `commit(true)` issued immediately afterwards can commit the PREVIOUS
+   visibility: the scene sphere is then computed for the wrong set, the camera
+   is aimed from it, and the redraw that the visibility change eventually
+   triggers races the camera that was set from stale numbers. Symptom, seen
+   twice: a step that renders nothing until something else forces a draw.
+   Yielding one macrotask is enough for the state to flush. NOT
+   requestAnimationFrame, which is the obvious choice and the wrong one:
+   rAF is suspended in a backgrounded tab, so a step change would never
+   complete for a student who switched tabs and came back — the await would
+   sit there until the tab was looked at again. setTimeout is throttled in the
+   background but it does fire. */
+async function showOnly(want) {
+  for (const name of Object.keys(reprs))
+    plugin.state.data.updateCellState(reprs[name], { isHidden: !want[name] });
+  await new Promise(r => setTimeout(r, 0));
+}
+
+/* THE SCALE LOCK. Locked, every step is framed with the TETRAMER's radius, so
+   one helix really is a twentieth of the assembly on screen. Unlocked, each
+   step is framed by its own extent — comfortable, and it silently deletes the
+   lesson. Both are one click apart on purpose. */
+async function frame(subject) {
+  const c3 = plugin.canvas3d;
+  if (!c3) return;
+
+  /* COMMIT BEFORE FRAMING — stage 4 found this and it bites harder here.
+     canvas3d.boundingSphere is lazy: straight after a visibility change (and
+     on the very first frame) it still reports the PREVIOUS scene, radius 0
+     before anything has been drawn. Mol* then clamps `radius` to a floor of
+     10 and derives the clipping planes from that, so the whole molecule falls
+     outside the frustum: a correct camera, a correct structure, and an empty
+     stage that looks exactly like a failed load. Measured here: bs = 0,
+     requested radius 35.3, camera reported 10.
+     Cheap at four clicks. It is NOT cheap per animation frame, which is why
+     the narrated page computes its sphere by hand instead. */
+  await c3.commit(true);
+
+  /* Two different spheres, and the difference IS the lock.
+       `aim`   what the camera points at — the chain for steps 1-3 (so the
+               helix can be seen in its place), the tetramer for step 4.
+       `shown` what the step is actually teaching. Unlocked, this is what
+               gets fitted to the window, which is the helpful, comfortable,
+               wrong version: 20 residues and 574 fill the screen equally. */
+  const aim = spheres[subject] || spheres.all;
+  const shown = STEPS[cur].show.strand ? spheres.strand
+              : STEPS[cur].show.helix ? spheres.helix
+              : STEPS[cur].show.others ? spheres.all
+              : spheres.beta;
+  const s = locked ? aim : shown;
+  const radius = locked ? spheres.all.radius : shown.radius;
+
+  /* MEASURED: `radius` is honoured exactly on the way DOWN and clamped on the
+     way UP, at the scene's bounding sphere (37.8 A here). Asking for 5, 10,
+     17.9, 26.6 and 35.3 gave back all five; asking for 60 gave 37.8. Since
+     every representation is built at boot, that sphere is the TETRAMER's from
+     the first frame — so the locked radius can never be clipped by it, and
+     the lock is free. Worth knowing before anyone "optimises" the components
+     into being created per step: doing that would make the ceiling move with
+     the step, and the scale lock would quietly stop locking. */
+  const cam = c3.camera, st = cam.state;
+  const dir = [st.position[0] - st.target[0], st.position[1] - st.target[1],
+               st.position[2] - st.target[2]];
+  const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+  const d = radius * 2.6;
+  const V3 = molstar.lib.math.LinearAlgebra.Vec3;
+  /* radius is load-bearing for the clipping planes (stage-3 finding): it must
+     describe the scene actually being drawn, so it is set, never eased. */
+  cam.setState({
+    target: V3.create(s.center[0], s.center[1], s.center[2]),
+    position: V3.create(s.center[0] + dir[0]/len*d,
+                        s.center[1] + dir[1]/len*d,
+                        s.center[2] + dir[2]/len*d),
+    radius,
+  });
+  /* FINDING, and it cost an hour: camera.setState does NOT schedule a draw.
+     Outside an animation loop nothing repaints, so the stage stays empty with
+     a camera that is provably correct — every number right, nothing on
+     screen, and it reads exactly like a failed structure load. The narrated
+     page never hit this because it moves the camera inside playback, where
+     the next frame draws anyway. A page whose camera only moves on a click
+     has to ask. */
+  c3.requestDraw();
+
+  const nm = r => (r * 2 / 10).toFixed(1);
+  $('sizingnote').innerHTML = locked
+    ? `subject ⌀ ${nm(shown.radius)} nm · frame ⌀ ${nm(spheres.all.radius)} nm — one radius
+       for all four steps, so the levels sit in true proportion.`
+    : `refitted to the window. Every level now looks the same size, every caption
+       still reads correctly, and the zoom-out is gone.`;
+}
+
+async function applyStep(n) {
+  const t0 = performance.now();
+  const s = STEPS[n];
+  cur = n;
+
+  [...$('steps').children].forEach((b, k) => b.classList.toggle('active', k === n));
+  $('card').innerHTML =
+    `<div class="cardtext"><h2>${s.title}</h2>${s.body}</div>` +
+    `<div class="factwrap"><img class="bulb" src="../sticker_idea.png" alt="reveal fact"
+       title="Reveal the interesting bit"><div class="fact">${s.fact}</div></div>`;
+  $('card').querySelector('.cardtext').scrollTop = 0;
+  $('whoami').innerHTML = `<div class="wname">${s.name}</div><div class="wsub">${s.sub}</div>`;
+  $('legend').innerHTML =
+    s.legend.map(([c, l]) => `<div class="lrow"><span class="sw" style="background:${c}"></span>${l}</div>`).join('')
+    + (s.legendNote ? `<div class="lnote">${s.legendNote}</div>` : '');
+
+  $('prev').disabled = (n === 0);
+  $('next').disabled = (n === STEPS.length - 1);
+  $('next').textContent = n === STEPS.length - 1 ? 'Finish' : 'Next';
+
+  /* Any step change cancels a fold in flight, and resets what it left behind:
+     alphas and the trajectory frame are page state, not step state. */
+  playToken++;
+  if (s.animate === 'fold') {
+    await setFoldFrame(0);
+    playFold();                                 // deliberately not awaited
+    stepMs[0] += performance.now() - t0; stepMs[1]++;
+    set('d-step', (stepMs[0] / stepMs[1]).toFixed(1) + ' ms avg');
+    return;
+  }
+  if (s.show.strand) await setFoldFrame(0);     // step 1 is always the extended frame
+
+  await showOnly(s.show);
+  await frame(s.camera);
+
+  stepMs[0] += performance.now() - t0; stepMs[1]++;
+  set('d-step', (stepMs[0] / stepMs[1]).toFixed(1) + ' ms avg');
+}
+
+function bindUI() {
+  STEPS.forEach((s, i) => {
+    const b = document.createElement('div');
+    b.className = 'stepnum'; b.textContent = i + 1;
+    b.onclick = () => applyStep(i);
+    $('steps').appendChild(b);
+  });
+  $('prev').onclick = () => applyStep(Math.max(0, cur - 1));
+  $('next').onclick = () => applyStep(Math.min(STEPS.length - 1, cur + 1));
+  $('lockbox').onchange = e => { locked = e.target.checked; frame(STEPS[cur].camera); };
+
+  $('card').addEventListener('click', e => {
+    const bulb = e.target.closest('.bulb'); if (!bulb) return;
+    const f = bulb.nextElementSibling; if (!f) return;
+    bulb.classList.toggle('lit', f.classList.toggle('show'));
+  });
+
+  /* Mol* owns its own canvas sizing, so a resize needs nothing rebuilt — the
+     whole ResizeObserver dance protein-lab.html carries (rebuild the canvas,
+     re-orient, re-fit) exists only because ChemDoodle sizes in pixels at
+     construction. Reframing is enough, and it is one call. */
+  let rt = null;
+  new ResizeObserver(() => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { if (cur >= 0) frame(STEPS[cur].camera); }, 120);
+  }).observe($('molstar'));
+}
+
+function verdict() {
+  const okAll = ['d-chains', 'd-helix', 'd-comp', 'd-clicks', 'd-fold', 'd-rama']
+    .every(id => $(id).className.indexOf('pass') >= 0);
+  const e = $('d-verdict');
+  e.className = 'verdict ' + (okAll ? 'pass' : 'fail');
+  e.textContent = okAll
+    ? 'PASS — four levels, one molecule, no swap. Steps are visibility changes '
+      + 'on representations built once; step 4 loads nothing. The helix range and '
+      + 'the chain counts come from the file, not from constants.'
+    : 'FAIL — see the red row above.';
+  /* The page-source measure from README.md's decision table. */
+  fetch('protein-molstar.html').then(r => r.text()).then(t =>
+    fetch('../protein-lab.html').then(r => r.text()).then(o =>
+      set('d-size', (t.length/1024).toFixed(0) + ' KB vs ' + (o.length/1024).toFixed(0) + ' KB',
+          t.length <= o.length ? 'pass' : 'warn'))).catch(() => {});
+}
+
+boot().catch(e => {
+  $('loading').classList.add('on');
+  $('loading').textContent = 'failed: ' + e.message;
+  set('d-verdict', 'FAILED: ' + e.message, 'fail');
+  console.error(e);
+});
+</script>
+</body>
+</html>
