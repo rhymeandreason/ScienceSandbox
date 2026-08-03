@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — One Hemoglobin Chain Folds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  :root{ --hb:#0042aa; --core:#c2571b; --coil:#8a8378; }
+
+  [hidden]{display:none !important}
+
+  /* No side panel, same reasoning as folding-lab-ribbon: the captions say
+     what a panel would, and at t=0 this chain is a 503 A rod that wants
+     every pixel of width there is. */
+  #app{grid-template-columns:1fr}
+
+  #act{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:6;
+    max-width:min(560px,80%);text-align:center;pointer-events:none;
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:9px 12px 8px 11px;
+    padding:10px 18px 11px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #act .actname{font-family:var(--font-marker);font-size:20px;line-height:1.1}
+  #act .actbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;
+    color:#3a352f;margin-top:4px}
+  #act.intro{max-width:min(640px,84%);padding:14px 22px 16px}
+  #act.intro .actname{font-size:29px}
+  #act.intro .actbody{font-size:14.5px;margin-top:7px}
+
+  /* Running caption — molecule-builder's toast shape, as in the villin page:
+     during the fold the thing to look at is the chain, so the words are a
+     voice-over at the bottom rather than a card in the way. */
+  #saycap{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);z-index:6;
+    pointer-events:none;text-align:center;width:min(760px,86%)}
+  #saycap .capname{font-family:var(--font-marker);font-size:21px;line-height:1.15}
+  #saycap .capbody{font-family:var(--font-sans);font-size:15px;line-height:1.4;
+    color:#3a352f;margin-top:3px}
+  #saycap .capname.a0{color:var(--ink)}
+  #saycap .capname.a1{color:var(--hb)}
+  #saycap .capname.a2{color:var(--core)}
+  #saycap.fade{animation:capIn .5s ease-out}
+  @keyframes capIn{
+    0%{opacity:0;transform:translateX(-50%) translateY(7px)}
+    100%{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+  #infobtn{position:absolute;right:20px;top:20px;z-index:8;width:36px;height:36px;
+    border-radius:50%;cursor:pointer;border:2px solid var(--ink);background:#fff;
+    color:var(--ink);font-size:17px;display:flex;align-items:center;
+    justify-content:center;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
+  #infobtn:hover,#infobtn.on{background:var(--ink);color:var(--paper)}
+  #infopanel{position:absolute;right:20px;top:64px;z-index:8;width:min(360px,84vw);
+    max-height:calc(100% - 96px);overflow-y:auto;
+    background:rgba(255,255,255,.94);border:2px solid var(--ink);
+    border-radius:9px 12px 8px 11px;padding:13px 16px 15px;
+    box-shadow:0 6px 18px -8px rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+  #infopanel h4{font-family:var(--font-marker);font-size:16px;line-height:1.15;
+    margin:0 0 3px}
+  #infopanel section + section{margin-top:12px;padding-top:11px;
+    border-top:1px solid var(--hair)}
+  #infopanel p{font-family:var(--font-sans);font-size:12.5px;line-height:1.5;
+    color:#3a352f;margin:0}
+  #infopanel b{color:var(--ink)}
+
+  #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
+    display:flex;align-items:center;gap:12px;width:min(560px,82%);
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:10px;
+    padding:9px 15px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #playbtn{width:38px;height:38px;flex:0 0 auto;border-radius:50%;cursor:pointer;
+    border:2px solid var(--ink);background:#fff;color:var(--ink);
+    font-size:16px;display:flex;align-items:center;justify-content:center}
+  #playbtn:hover{background:var(--ink);color:#fff}
+  #segbar{flex:1;display:flex;gap:3px;align-items:stretch;height:27px;
+    cursor:pointer;user-select:none;touch-action:none}
+  #segbar:focus-visible{outline:2px solid var(--hb);outline-offset:3px;border-radius:7px}
+  #segbar .seg{position:relative;flex-basis:0;min-width:54px;border-radius:5px;
+    overflow:hidden;background:rgba(43,39,35,.09);
+    display:flex;align-items:center;justify-content:center}
+  #segbar .segfill{position:absolute;left:0;top:0;bottom:0;width:0;
+    background:var(--hb);opacity:.22}
+  #segbar .seglab{position:relative;font-family:var(--font-slab);font-size:10.5px;
+    color:var(--muted);white-space:nowrap;padding:0 5px;overflow:hidden;
+    text-overflow:ellipsis}
+  #segbar .seg.cur{box-shadow:inset 0 0 0 1.5px var(--hb)}
+  #segbar .seg.cur .seglab{color:var(--hb);font-weight:700}
+  #tlabel{font-family:var(--font-slab);font-size:12.5px;color:var(--muted);
+    min-width:86px;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* TWO readouts, side by side, and that pairing IS the lesson.
+     The H-bond count is level 2; the width of the molecule is level 3. The
+     measured trajectory separates them cleanly — between t=0.59 and t=0.85
+     the bond count sits still at 79 while the chain goes 172 Å to 49 — so showing
+     both at once lets a student SEE one finish and the other take over,
+     which is the whole distinction between the two levels. */
+  #tally{position:absolute;right:20px;bottom:118px;z-index:6;pointer-events:none;
+    text-align:right;display:flex;gap:18px;align-items:flex-start;
+    background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
+    padding:9px 13px;font-family:var(--font-slab);font-size:12.5px;line-height:1.45}
+  #tally .col{text-align:right}
+  #tally .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;
+    display:block;line-height:1.1}
+  #tally .hbnum{color:var(--hb)} #tally .rgnum{color:var(--core)}
+  #tally .sub{color:var(--muted);font-size:11px;display:block}
+  /* the readout that is currently DOING something gets the ink */
+  #tally .col.idle{opacity:.42}
+
+  #toggles{position:absolute;right:20px;bottom:24px;z-index:6;display:flex;
+    flex-direction:column;align-items:flex-end;gap:7px}
+  #toggles label{display:flex;align-items:center;gap:6px;font-size:12.5px;opacity:.8;
+    cursor:pointer;background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
+    border-radius:8px;padding:6px 10px}
+
+  #loading{position:absolute;inset:0;z-index:20;display:flex;align-items:center;
+    justify-content:center;background:rgba(253,250,243,.92);
+    font-family:var(--font-hand);font-size:22px;color:var(--muted)}
+  #loading.done{display:none}
+
+  @media (max-width:920px){
+    #act,#act.intro{top:12px;max-width:78%} #transport{width:90%;bottom:14px}
+    #infobtn{top:10px;right:10px;width:32px;height:32px;font-size:15px}
+    #infopanel{top:48px;right:10px}
+    #tally{right:12px;bottom:110px;gap:12px;font-size:11.5px}
+    #tally .big{font-size:18px}
+    #saycap{bottom:124px;width:92%}
+    #saycap .capname{font-size:18px} #saycap .capbody{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="act" class="intro"><div class="actname"></div>
+      <div class="actbody"></div></div>
+    <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
+
+    <div id="tally">
+      <span class="col" id="hbcol">
+        <span class="big hbnum" id="hbcount">0</span>
+        <span class="sub">of 103 hydrogen bonds</span>
+        <span class="sub">level 2 · secondary</span>
+      </span>
+      <span class="col" id="rgcol">
+        <span class="big rgnum" id="rgval">—</span>
+        <span class="sub">Å across</span>
+        <span class="sub">level 3 · tertiary</span>
+      </span>
+    </div>
+
+    <div id="transport">
+      <button id="playbtn" aria-label="play or pause"><i class="ph-bold ph-play"></i></button>
+      <div id="segbar" role="slider" tabindex="0" aria-label="lesson progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+      <span id="tlabel">unfolded</span>
+    </div>
+
+    <div id="toggles">
+      <label><input type="checkbox" id="showhb" checked> hydrogen bonds</label>
+      <label><input type="checkbox" id="showdep"> finished shape</label>
+    </div>
+
+    <button id="infobtn" aria-label="About this animation" title="About this animation"
+      aria-expanded="false"><i class="ph-bold ph-info"></i></button>
+    <div id="infopanel" hidden>
+      <section>
+        <h4>The molecule</h4>
+        <p>One <b>β chain of human haemoglobin</b> — 146 amino acids, measured
+          by X-ray crystallography at 1.74 Å as <b>PDB 2HHB</b>. Your blood
+          carries about 270 million copies of the finished protein per red
+          cell.</p>
+      </section>
+      <section>
+        <h4>Level 1 · primary</h4>
+        <p>The order of the 146 amino acids, and nothing else — the only part
+          your DNA specifies. The stretched-out chain you see before you press
+          play <b>is</b> level 1. Everything after it follows.</p>
+      </section>
+      <section>
+        <h4>Level 2 · secondary</h4>
+        <p>103 <b>backbone</b> hydrogen bonds form. <b>78 of them link a
+          residue to the one four places along the chain</b>, and that spacing
+          is what makes a spiral instead of a loop — it turns eight stretches
+          of the chain into eight α-helices. Almost all the rest are i→i+3, at
+          the ends of those same helices. There is <b>no β-sheet anywhere in
+          this protein</b>.</p>
+      </section>
+      <section>
+        <h4>Level 3 · tertiary</h4>
+        <p>Watch the two numbers at the right. Around the two-thirds mark the
+          hydrogen-bond count <b>stops climbing</b> while the molecule keeps
+          shrinking — from 166 Å across to 45. The helices are already made;
+          now they pack against each other, driven by <b>water pushing the
+          oily side chains inward</b>. The pocket that forms in the middle is
+          where the iron and its oxygen go.</p>
+      </section>
+      <section>
+        <h4>Level 4 · quaternary</h4>
+        <p>Haemoglobin <b>does</b> have one — this is the protein AP Bio uses
+          to teach it. The working molecule is <b>four</b> finished chains
+          (two α, two β) gripping four irons, and they cooperate: oxygen
+          binding to one makes the next one easier. This page folds one chain
+          only. The other three are not shown yet.</p>
+      </section>
+      <section>
+        <h4>What this animation fakes</h4>
+        <p>Real folding is thermal chaos, not a smooth collapse. More than
+          that: this is an <b>animation of a known answer</b>, not a
+          prediction. The finished shape was measured first, and the
+          calculation is steered toward it — so the <b>order</b> of events is
+          right and the <b>path</b> is invented. The calculation on its own
+          gets to within 1.24 Å; over the last stretch it is eased onto the
+          measured coordinates, so <b>the final frame is the real crystal
+          structure</b> rather than our approximation of it. Turn on
+          &ldquo;finished shape&rdquo; to see the target it is aiming at the
+          whole way.</p>
+      </section>
+      <section>
+        <h4>Where the ribbon comes from</h4>
+        <p>The eight helices are 2HHB's own <b>HELIX records</b> — what the
+          crystallographers assigned, not a guess by us. Running the standard
+          algorithm (DSSP) on the same coordinates agrees on 83% of residues
+          and finds no β-sheet either.</p>
+      </section>
+    </div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <div id="loading">loading…</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="folding/ribbon.js"></script>
+<script src="hemoglobin/hbfold.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  ONE HEMOGLOBIN CHAIN FOLDS — 2HHB chain B, 146 residues
+ *
+ *  RELATIONSHIP TO folding-lab-ribbon.html. That page is the protein
+ *  STRUCTURE lesson and it is built on villin, which is 36 residues and
+ *  one chain — so it can only take a student to level 3, and its own info
+ *  panel has to say "not here" about level 4. This page exists because
+ *  haemoglobin is the molecule that finishes the sentence: it is the
+ *  standard AP Bio example of quaternary structure, and one of its chains
+ *  is a clean, self-contained tertiary story on the way there.
+ *
+ *  It is NOT a replacement. Villin folds in 4 microseconds and is the
+ *  protein folding is actually studied on; this one is 4x bigger, has a
+ *  ligand that this page does not draw, and its level 3 is only
+ *  three-quarters of the point. Watch villin to learn what folding is.
+ *  Watch this to see it at the size real proteins come in, and to have
+ *  somewhere to put level 4.
+ *
+ *  WHY RIBBON ONLY, WITH NO BALL-AND-STICK UNDERNEATH. The villin page
+ *  draws 199 atoms and lays a transparent cartoon over them, because at 36
+ *  residues you can still see individual atoms and the cartoon is a
+ *  summary of something legible. At 146 residues the backbone alone is 729
+ *  atoms and it is spaghetti at every zoom level — the cartoon is not a
+ *  summary here, it is the only readable representation, which is exactly
+ *  why real structure viewers switch to it as proteins get big. So the
+ *  baked file carries no side chains and no full backbone at all; see
+ *  hemoglobin/hbfold.js for what it does carry and why.
+ *
+ *  WHAT IS MEASURED AND WHAT IS DRAWN.
+ *    measured   the deposited chain (PDB 2HHB, X-ray 1.74 A) and its own
+ *               HELIX records, which decide where the ribbon widens
+ *    computed   the hydrogen bonds, by folding/folding.js's geometric test
+ *    invented   the PATH from extended chain to folded protein. A steered
+ *               relaxation, aimed at the answer. The info panel says so.
+ *
+ *  Every coordinate here is a real angstrom. This page loads no mol-*.js
+ *  and never sees MolLib.SCALE — MolLib is here for PALETTE alone, the
+ *  same arrangement folding-lab.html uses.
+ * ============================================================= */
+
+const PAL = MolLib.PALETTE;
+
+/* ---------- the acts, measured off the trajectory ----------
+   These boundaries are not taste. Sampling the baked fold (hemoglobin/tools/
+   hemoglobin/tools/bake-hb.js writes it; the numbers below came from reading it back):
+
+       t     H-bonds   size across
+       0.00      0        503 A      <- the extended chain: level 1
+       0.26      3        386
+       0.46     61        252        <- bonds forming fast: level 2
+       0.59     79        172
+       0.65     77        138        <- bonds STOP; size keeps falling
+       0.79     84         67        <- level 3, and nothing else
+       0.85     79         49
+       1.00    103         45        <- the landing seats the last bonds
+
+   The gap between 0.59 and 0.85 is the lesson: the hydrogen-bond count is
+   flat there while the molecule shrinks from 172 A to 49. Two different
+   mechanisms, visibly taking turns, in one trajectory nobody tuned to make
+   that happen.
+
+   The last stretch is where hemoglobin/tools/bake-hb.js eases the chain onto
+   the deposited coordinates (see its `land`), which is why the tally finishes
+   at the full 103 rather than the solver's 96 — a frame that IS the measured
+   structure necessarily has every bond that was found on it.
+
+   If the solver ever changes, RE-READ THESE rather than nudging them —
+   hemoglobin/tools/check-hb.js will tell you the trajectory moved, but not
+   that the captions stopped describing it. */
+const ACTS = [
+  { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the beads',
+    body: 'This is the whole instruction your DNA gives: 146 amino acids in ' +
+          'a particular order. Stretched out it is 503 Å long. Nothing about ' +
+          'its shape is specified anywhere — the shape is what happens next.' },
+  { t: 0.26, cls: 'a1', name: 'Level 2 · the backbone bonds to itself',
+    body: 'Hydrogen bonds form along the backbone, almost all of them ' +
+          'joining a residue to the one four places along. That spacing ' +
+          'makes a spiral. Eight stretches of the chain coil into α-helices.' },
+  { t: 0.62, cls: 'a2', name: 'Level 3 · the helices pack',
+    body: 'The bond count has stopped — level 2 is finished. The molecule ' +
+          'keeps shrinking anyway, because water is pushing the oily side ' +
+          'chains together and the finished helices fold in against ' +
+          'each other.' },
+  { t: 0.93, cls: 'a2', name: 'One chain, done',
+    body: 'A globin fold: eight helices around a pocket. The real protein ' +
+          'puts an iron in that pocket and then does this three more times — ' +
+          'that is level 4, and it is not on this page yet.' },
+];
+
+const SEGMENTS = [
+  { to: 0.26, label: 'primary' },
+  { to: 0.62, label: 'secondary — helices coil' },
+  { to: 1.00, label: 'tertiary — helices pack' },
+];
+
+const PLAY_SECONDS = 22;      // 4x villin's residue count wants a slower read
+
+/* Ribbon ink. The helices take the hydrogen-bond blue because the helix IS
+   what those bonds made — the same argument the villin page makes for its
+   cartoon colour. Loops stay a quiet stone, so the WIDTH change and the
+   COLOUR change say the same thing rather than competing. */
+const HELIX_COLOR = 0x0042aa;
+const COIL_COLOR  = 0x8a8378;
+
+/* SUB IS A SCALE KNOB — ribbon.js's header is explicit that it should come
+   down as the subject gets smaller on screen, and a residue here is a
+   quarter the size villin's is at the same stage width. 10 costs 14,776
+   vertices and 8.0 ms a frame; 6 costs 8,896 and 4.9 ms, and resolves
+   curvature well below a pixel either way. Measured, not guessed. */
+const RIBBON_SUB = 6;
+
+const canvas = document.getElementById('gl');
+let userZoom = false;
+const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(canvas, {
+  /* theta=0 for the same reason as the villin page: folding.js's orient()
+     lays the extended chain along world X, and the orbit's `right` vector is
+     on X only at theta=0. Any other azimuth puts a 503 A rod back on the
+     diagonal. */
+  cam: { theta: 0, phi: 1.18, r: 300 }, phiMin: 0.3, phiMax: 2.7,
+  rMin: 6, rMax: 2000,
+  onZoom: () => { userZoom = true; } });
+
+/* ---------- state ---------- */
+let fold = null;
+let t = 0, playing = false, started = false;
+let ribbon = null, depRibbon = null;
+const hbGroups = [];
+const chainGroup = new THREE.Group(); root.add(chainGroup);
+
+/* ---------- load ----------
+   ONE fetch. The trajectory, the secondary structure and the hydrogen-bond
+   list are all in the baked file — see hemoglobin/tools/bake-hb.js for why the
+   fold is a committed artefact rather than 8.5 seconds of solving in front
+   of the student. */
+fetch('hemoglobin/data/2HHB-B.fold.bin')
+  .then(r => {
+    if (!r.ok) throw new Error('hemoglobin/data/2HHB-B.fold.bin — HTTP ' + r.status +
+      ' (run: node hemoglobin/tools/bake-hb.js)');
+    return r.arrayBuffer();
+  })
+  .then(buf => {
+    fold = HbFold.decode(buf);
+
+    /* The captions quote these numbers out loud, so a file that disagrees
+       with them must not render — a caption saying "103 hydrogen bonds"
+       over a chain with a different count is worse than a broken page,
+       because it looks fine. */
+    if (fold.R !== 146)
+      throw new Error(`baked chain has ${fold.R} residues, this page is written for 146`);
+    document.getElementById('hbcount').nextElementSibling.textContent =
+      `of ${fold.B} hydrogen bonds`;
+
+    build();
+    buildCovers();
+    buildSegments();
+    seek(0);
+    document.getElementById('loading').classList.add('done');
+  })
+  .catch(e => {
+    document.getElementById('loading').textContent = 'could not start — ' + e.message;
+  });
+
+/* ---------- build ---------- */
+function build() {
+  /* The ribbon is ONE mesh with two materials, split by ribbon.js's own
+     per-run groups: index 0 coil, 1 helix, 2 strand. Strand gets the helix
+     material rather than a third colour because this protein has no strand
+     — if one ever appeared it should look wrong and obvious, not quietly
+     take on a colour that says "helix". */
+  const mats = [Stage.bondMat(COIL_COLOR), Stage.bondMat(HELIX_COLOR),
+                Stage.bondMat(HELIX_COLOR)];
+  mats.forEach(m => { m.side = THREE.DoubleSide; });   // a ribbon is thin; both faces show
+  ribbon = new THREE.Mesh(new THREE.BufferGeometry(), mats);
+  chainGroup.add(ribbon);
+
+  /* The deposited chain, behind everything, off by default. This is the
+     "finished shape" toggle: the answer the fold is steered toward, drawn
+     in a flat ghost so it can never be mistaken for the moving chain. It
+     is the honest way to show what the caveat in the info panel means —
+     the target was known before the animation started. */
+  const ghost = Stage.bondMat(0x000000);
+  ghost.transparent = true; ghost.opacity = 0.13;
+  ghost.depthWrite = false; ghost.side = THREE.DoubleSide;
+  depRibbon = new THREE.Mesh(
+    RibbonLib.build(THREE, fold.native.map(p => new THREE.Vector3(...p)), fold.ss,
+                    { sub: RIBBON_SUB }),
+    ghost);
+  depRibbon.visible = false;
+  chainGroup.add(depRibbon);
+
+  /* One hydrogen bond = a row of short dashes, O to H. Dashes rather than a
+     stick because an H-bond is not a covalent bond and must never read as
+     one (SCIENCE.md §5) — and thinner than a covalent stick for the same
+     reason, with colour rather than width carrying the prominence. */
+  const DASHES = 4;
+  const DASH_R = 0.10;                    // angstroms; finer than any stick here
+  for (let k = 0; k < fold.B; k++) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: PAL.bonds.hbond,
+      roughness: .5, transparent: true, opacity: 0 });
+    for (let d = 0; d < DASHES; d++)
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(DASH_R, DASH_R, 1, 6), mat));
+    g.userData = { mat };
+    g.visible = false;
+    chainGroup.add(g); hbGroups.push(g);
+  }
+}
+
+/* ---------- camera ----------
+   Solved per frame against the chain's actual extent, because the molecule
+   shrinks 11x as it folds (503 A to 45) and no single framing serves both
+   ends. Same construction as folding-lab-ribbon: project every point onto
+   the camera's own right/up axes and fit those half-extents, rather than
+   Stage.frame's bounding-cylinder model — which describes a long thin rod
+   as a fat blob and wastes most of a wide stage on it.
+
+   Fitted from the CANONICAL basis, not the live one, so distance is a pure
+   function of t and turning the chain does not move the camera. */
+const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 196 };
+const FIT_THETA = cam.theta, FIT_PHI = cam.phi;
+const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Vector3();
+
+function frameFrom(P) {
+  if (userZoom || !P || !P.length) return;
+  const h = canvas.clientHeight, w = canvas.clientWidth;
+  if (!h || !w) return;
+
+  _fwd.set(Math.sin(FIT_PHI) * Math.sin(FIT_THETA),
+           Math.cos(FIT_PHI),
+           Math.sin(FIT_PHI) * Math.cos(FIT_THETA)).normalize();
+  _right.crossVectors(_fwd, new THREE.Vector3(0, 1, 0));
+  if (_right.lengthSq() < 1e-8) _right.set(1, 0, 0);
+  _right.normalize();
+  _up.crossVectors(_right, _fwd).normalize();
+
+  let cx = 0, cy = 0, cz = 0;
+  for (const p of P) { cx += p[0]; cy += p[1]; cz += p[2]; }
+  cx /= P.length; cy /= P.length; cz /= P.length;
+
+  let halfW = 0, halfH = 0;
+  for (const p of P) {
+    const dx = p[0] - cx, dy = p[1] - cy, dz = p[2] - cz;
+    halfW = Math.max(halfW, Math.abs(dx*_right.x + dy*_right.y + dz*_right.z));
+    halfH = Math.max(halfH, Math.abs(dx*_up.x    + dy*_up.y    + dz*_up.z));
+  }
+  /* The extents are to the ribbon's CENTRE LINE, so give back its half-width
+     or the band clips along the edges of the stage. PROFILE.H[0] is 1.30 A. */
+  halfW += 1.4; halfH += 1.4;
+
+  const introCard = !document.getElementById('act').hidden;
+  const top = introCard ? RESERVE.intro : RESERVE.top;
+  const bottom = introCard ? RESERVE.bottom : RESERVE.capBottom;
+  const usable = Math.max(0.25, (h - top - bottom) / h);
+  halfH /= usable;
+
+  const tan = Math.tan(camera.fov * Math.PI / 360);
+  const d = Math.max(halfH / tan, halfW / (tan * camera.aspect)) * 1.06;
+  cam.r = Math.max(8, Math.min(1400, d));
+  cam.target.set(cx, cy, cz);
+  applyCam();
+}
+
+new ResizeObserver(() => { resize(); if (fold) seek(t); }).observe(canvas);
+
+/* ---------- secondary structure over time ----------
+   THE RIBBON MUST NOT SHOW A HELIX BEFORE ITS BONDS EXIST. The first
+   version of this page passed fold.ss — the deposited assignment — to
+   RibbonLib.build on every frame, so the extended chain at t=0 was drawn
+   with eight wide blue bands already in it. That is a picture of level 2
+   being finished before level 1 has been read, and it quietly contradicts
+   the caption underneath it and the whole reason the page exists.
+
+   So the assignment is DERIVED PER FRAME from the hydrogen bonds that have
+   actually formed. A residue is drawn helical when a formed H-bond spans
+   it — and only where the deposited records say a helix belongs, so this
+   can reveal the crystal's answer early or late but can never invent a
+   helix the structure does not have. The width and the colour then arrive
+   exactly where the bonds arrive, which is the claim act 2 is making.
+
+   `covers` is built once: for each residue, the bonds whose span contains
+   it. A bond from residue a to residue b covers a..b, which for the i->i+3
+   and i->i+4 bonds that make up 97% of this chain is the turn of spiral
+   that bond is holding shut. */
+let covers = null;
+function buildCovers() {
+  covers = Array.from({ length: fold.R }, () => []);
+  fold.bonds.forEach((b, k) => {
+    const lo = Math.min(b.from, b.to) - fold.first;
+    const hi = Math.max(b.from, b.to) - fold.first;
+    for (let i = Math.max(0, lo); i <= Math.min(fold.R - 1, hi); i++) covers[i].push(k);
+  });
+}
+
+const _ss = [];
+function ssAt(formed) {
+  for (let i = 0; i < fold.R; i++) {
+    if (fold.ss[i] !== 'H') { _ss[i] = fold.ss[i]; continue; }
+    let held = 0;
+    for (const k of covers[i]) held = Math.max(held, formed[k]);
+    _ss[i] = held > 0.5 ? 'H' : 'C';
+  }
+  return _ss;
+}
+
+/* ---------- seek ---------- */
+const _v = [];      // scratch Vector3s for the ribbon, reused every frame
+
+function seek(tt) {
+  t = Math.max(0, Math.min(1, tt));
+  const s = fold.at(t);
+
+  /* Ribbon. Rebuilt rather than morphed: the geometry's triangle count
+     depends on the path, so there is no fixed vertex buffer to update. The
+     dispose() is not optional — without it every frame leaks a
+     BufferGeometry on the GPU and the page dies after a minute. */
+  for (let i = 0; i < fold.R; i++) {
+    _v[i] = _v[i] || new THREE.Vector3();
+    _v[i].set(s.CA[i][0], s.CA[i][1], s.CA[i][2]);
+  }
+  ribbon.geometry.dispose();
+  ribbon.geometry = RibbonLib.build(THREE, _v.slice(0, fold.R), ssAt(s.formed),
+                                    { sub: RIBBON_SUB });
+
+  /* Hydrogen bonds. Visibility tracks formation only — there is no schedule
+     here, `formed` is measured on the live coordinates at bake time, so a
+     dash can never fade in on a bond the geometry has not actually made. */
+  const showHb = document.getElementById('showhb').checked;
+  let formedCount = 0;
+  hbGroups.forEach((g, k) => {
+    const amt = s.formed[k];
+    if (amt > 0.5) formedCount++;
+    g.visible = showHb && amt > 0.02;
+    if (!g.visible) return;
+    g.userData.mat.opacity = Math.min(1, amt) * 0.85;
+    _a.set(s.O[k][0], s.O[k][1], s.O[k][2]);
+    _b.set(s.H[k][0], s.H[k][1], s.H[k][2]);
+    const n = g.children.length;
+    for (let d = 0; d < n; d++) {
+      const f0 = (d + 0.18) / n, f1 = (d + 0.82) / n;
+      const p0 = _m.copy(_a).lerp(_b, f0).clone();
+      const p1 = _m.copy(_a).lerp(_b, f1).clone();
+      const seg = g.children[d];
+      seg.position.copy(p0).lerp(p1, 0.5);
+      const dir = p1.sub(p0);
+      seg.scale.set(1, dir.length(), 1);
+      seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    }
+  });
+
+  depRibbon.visible = document.getElementById('showdep').checked;
+
+  frameFrom(s.CA);
+  updateReadout(s.CA, formedCount);
+  updateCaption();
+  updateTransport();
+}
+
+/* ---------- readouts ----------
+   "Å across" is the chain's greatest width as seen, i.e. twice the largest
+   distance from its own centre — NOT the radius of gyration, which is the
+   more standard measure but which a student has no way to picture. What is
+   wanted here is a number that matches what the eye is doing: the thing on
+   screen is this many angstroms wide, and that number is falling. */
+function updateReadout(CA, formedCount) {
+  let cx = 0, cy = 0, cz = 0;
+  for (const p of CA) { cx += p[0]; cy += p[1]; cz += p[2]; }
+  cx /= CA.length; cy /= CA.length; cz /= CA.length;
+  let far = 0;
+  for (const p of CA)
+    far = Math.max(far, Math.hypot(p[0]-cx, p[1]-cy, p[2]-cz));
+
+  document.getElementById('hbcount').textContent = formedCount;
+  document.getElementById('rgval').textContent = Math.round(far * 2);
+
+  /* Grey out whichever level is not currently the one doing the work. This
+     is the readout saying what the caption says, in the place the student is
+     actually looking — and it is keyed to the same measured boundaries. */
+  const act = actIndex();
+  document.getElementById('hbcol').classList.toggle('idle', act !== 1);
+  document.getElementById('rgcol').classList.toggle('idle', act < 2);
+}
+
+/* ---------- captions ---------- */
+let shownAct = -1;
+function actIndex() {
+  let k = 0;
+  for (let i = 0; i < ACTS.length; i++) if (t >= ACTS[i].t) k = i;
+  return k;
+}
+function updateCaption() {
+  const k = actIndex();
+  if (k === shownAct) return;
+  shownAct = k;
+  const a = ACTS[k], cap = document.getElementById('saycap');
+  if (!started) return;
+  cap.hidden = false;
+  cap.querySelector('.capname').className = 'capname ' + a.cls;
+  cap.querySelector('.capname').textContent = a.name;
+  cap.querySelector('.capbody').textContent = a.body;
+  cap.classList.remove('fade'); void cap.offsetWidth; cap.classList.add('fade');
+}
+
+/* ---------- transport ---------- */
+function buildSegments() {
+  const bar = document.getElementById('segbar');
+  bar.innerHTML = '';
+  let from = 0;
+  SEGMENTS.forEach(sg => {
+    const el = document.createElement('div');
+    el.className = 'seg';
+    el.style.flexGrow = String(sg.to - from);
+    el.innerHTML = '<span class="segfill"></span><span class="seglab"></span>';
+    el.querySelector('.seglab').textContent = sg.label;
+    el.dataset.from = from; el.dataset.to = sg.to;
+    bar.appendChild(el);
+    from = sg.to;
+  });
+}
+
+function updateTransport() {
+  document.querySelectorAll('#segbar .seg').forEach(el => {
+    const a = +el.dataset.from, b = +el.dataset.to;
+    const p = Math.max(0, Math.min(1, (t - a) / (b - a)));
+    el.querySelector('.segfill').style.width = (p * 100) + '%';
+    el.classList.toggle('cur', t >= a && t < b || (b === 1 && t >= 1));
+  });
+  document.getElementById('segbar').setAttribute('aria-valuenow', Math.round(t * 100));
+  document.getElementById('tlabel').textContent =
+    t <= 0 ? 'unfolded' : t >= 1 ? 'folded' : Math.round(t * 100) + '%';
+}
+
+function setPlaying(on) {
+  playing = on;
+  document.getElementById('playbtn').innerHTML =
+    on ? '<i class="ph-bold ph-pause"></i>' : '<i class="ph-bold ph-play"></i>';
+  if (on) beginIfNeeded();
+}
+
+/* The intro card is the standfirst and it goes as soon as anything happens —
+   the caption takes over at the bottom so the top of the stage is clear
+   while the chain is moving. */
+function beginIfNeeded() {
+  if (started) return;
+  started = true;
+  document.getElementById('act').hidden = true;
+  shownAct = -1;
+  updateCaption();
+}
+
+document.getElementById('playbtn').addEventListener('click', () => {
+  if (!playing && t >= 1) { t = 0; shownAct = -1; }
+  setPlaying(!playing);
+});
+
+const bar = document.getElementById('segbar');
+function scrubTo(clientX) {
+  const r = bar.getBoundingClientRect();
+  beginIfNeeded();
+  setPlaying(false);
+  seek((clientX - r.left) / r.width);
+}
+bar.addEventListener('pointerdown', e => { bar.setPointerCapture(e.pointerId); scrubTo(e.clientX); });
+bar.addEventListener('pointermove', e => { if (bar.hasPointerCapture(e.pointerId)) scrubTo(e.clientX); });
+bar.addEventListener('keydown', e => {
+  const step = e.shiftKey ? 0.1 : 0.02;
+  if (e.key === 'ArrowRight') { beginIfNeeded(); setPlaying(false); seek(t + step); e.preventDefault(); }
+  if (e.key === 'ArrowLeft')  { beginIfNeeded(); setPlaying(false); seek(t - step); e.preventDefault(); }
+});
+
+document.getElementById('showhb').addEventListener('change', () => seek(t));
+document.getElementById('showdep').addEventListener('change', () => seek(t));
+
+const infobtn = document.getElementById('infobtn'), infopanel = document.getElementById('infopanel');
+infobtn.addEventListener('click', () => {
+  const on = infopanel.hidden;
+  infopanel.hidden = !on;
+  infobtn.classList.toggle('on', on);
+  infobtn.setAttribute('aria-expanded', String(on));
+});
+
+document.getElementById('savepng').addEventListener('click', () => {
+  renderer.render(scene, camera);
+  const a = document.createElement('a');
+  a.download = 'hemoglobin-fold.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+/* ---------- intro ---------- */
+const actEl = document.getElementById('act');
+actEl.querySelector('.actname').textContent = 'One chain of haemoglobin, folding';
+actEl.querySelector('.actbody').textContent =
+  '146 amino acids in the order your DNA specified — 503 Å of chain with no ' +
+  'shape at all. Press play and watch it become a protein in two distinct ' +
+  'steps. The ⓘ says what is measured here and what is invented.';
+
+/* ---------- loop ----------
+   THE SCENE UPDATES AT 30 Hz AND RENDERS AT 60, and that is not a
+   concession — it is matching the rebuild rate to the rate at which there
+   is anything new to draw.
+
+   Measured in the browser, one seek() costs 15.8 ms, of which 15.3 is
+   RibbonLib.build: a cartoon over 146 residues is ~8,900 vertices and it
+   has to be rebuilt from scratch every time the chain moves, because the
+   triangle count depends on the path. At 60 Hz that is a 56 fps ceiling
+   before a single pixel is rendered, so the page would miss frames and the
+   fold would stutter.
+
+   Rebuilding at 30 Hz instead costs half the budget and loses nothing,
+   because THE TRAJECTORY DOES NOT HOLD 60 Hz OF INFORMATION. It is 185
+   keyframes played over 22 seconds — about 8.4 keyframes a second. At 30 Hz
+   the page is already drawing three and a half interpolated frames per
+   keyframe; at 60 it draws seven, of geometry that was linearly interpolated
+   between the same two stored frames either way. The extra rebuilds redraw a
+   straight line through the same two points.
+
+   Everything moves together: the camera, the ribbon and the dashes all come
+   off the same seek(), so they cannot drift apart the way they would if only
+   the expensive one were throttled. Scrubbing bypasses the throttle
+   entirely — a dragged scrubber must answer the pointer immediately. */
+const UPDATE_HZ = 30;
+let last = performance.now(), lastUpdate = 0;
+(function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing && fold) {
+    const nt = t + dt / PLAY_SECONDS;
+    if (nt >= 1) { seek(1); setPlaying(false); }
+    else if (now - lastUpdate >= 1000 / UPDATE_HZ) { lastUpdate = now; seek(nt); }
+    else t = nt;              // time advances every frame; the geometry does not
+  }
+  renderer.render(scene, camera);
+})(last);
+</script>
+</body>
+</html>

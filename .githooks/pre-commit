@@ -114,4 +114,24 @@ else
   echo "pre-commit: skipping check-folding.js — nothing under demos/folding/ staged"
 fi
 
+# The haemoglobin page's trajectory has TWO upstream dependencies outside its
+# own folder, and both can make it stale without touching it: folding.js's
+# solver produces the fold, and ribbon.js's dssp is cross-checked against
+# 2HHB's HELIX records. check-folding.js does not look at this file, so
+# without this block a solver change would be caught for villin and silently
+# ignored for haemoglobin — the exact asymmetry that makes a stale bake hard
+# to notice, since the page still animates a perfectly plausible fold.
+if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|folding/folding\.js|folding/ribbon\.js)$'; then
+  if ! node hemoglobin/tools/check-hb.js > /tmp/ch.$$ 2>&1; then
+    tail -30 /tmp/ch.$$; rm -f /tmp/ch.$$
+    echo ""
+    echo "pre-commit FAILED: check-hb.js"
+    echo "  If the baked fold is stale, re-run:  node hemoglobin/tools/bake-hb.js"
+    exit 1
+  fi
+  rm -f /tmp/ch.$$
+else
+  echo "pre-commit: skipping check-hb.js — nothing under demos/hemoglobin/ staged"
+fi
+
 echo "pre-commit: molecules and pages check out."
