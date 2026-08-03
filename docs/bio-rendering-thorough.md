@@ -9,9 +9,8 @@
 > megadalton assembly (the ribosome row), where the choice is between a baked
 > mesh and reopening the viewer question. See *Where ours stops*, below.
 >
-> The 2D and charting recommendations are untouched and still stand.
 
-Two corrections to things I said earlier, since both are licence claims you'd be deciding on: **OpenChemLib is BSD-3-Clause, not MIT** (still permissive, still fine), and there are two viewers I should have raised — NGL and Miew — that sit between 3Dmol and Mol\* in weight.
+
 
 ## Legend
 
