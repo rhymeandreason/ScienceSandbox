@@ -46,7 +46,12 @@ const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
 // Their own assertions live in tools/check-pdb.js.
 const PDB_PAGES = new Set(['viewer-compare.html', 'protein-lab.html']);
 
-for (const page of fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && !PDB_PAGES.has(f)).sort()) {
+// index.html draws nothing at all — it is a redirect up to the lesson index at
+// the repo root, which is where GitHub Pages serves it from.
+const NO_SCENE = new Set(['index.html']);
+
+for (const page of fs.readdirSync(ROOT)
+       .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort()) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
   // Local scripts only, in page order; CDN Three is not our concern.
   const libs = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])

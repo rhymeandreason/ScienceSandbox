@@ -51,7 +51,6 @@ const KNOWN_ABSENT = {
   // Build outputs and runtime strings, not repo files.
   'generated-specs.json':         'sdf2spec.js writes it; not committed',
   'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',
-  'index.html':                   "dev-server.js's directory-index default",
 };
 
 let fails = 0;
@@ -91,10 +90,13 @@ if (!scriptRows) {
     for (const p of pages) declared.set(p, new Set(running.map(n => `${n}.js`)));
   }
 
-  // viewer-compare.html is an evaluation page, not a lesson: it loads no shared
-  // module by design, so the script table has nothing to say about it.
+  // Two pages are not lessons and load no shared module by design, so the
+  // script table has nothing to say about either: viewer-compare.html is the
+  // rendering-library evaluation (kept unmixed with our own code on purpose),
+  // and index.html is a redirect up to the real lesson index at the repo root.
+  const NOT_LESSONS = new Set(['viewer-compare.html', 'index.html']);
   const pages = fs.readdirSync(ROOT)
-    .filter(f => f.endsWith('.html') && !f.startsWith('_') && f !== 'viewer-compare.html');
+    .filter(f => f.endsWith('.html') && !f.startsWith('_') && !NOT_LESSONS.has(f));
 
   for (const page of pages) {
     const key = page.replace(/\.html$/, '');

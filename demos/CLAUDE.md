@@ -297,6 +297,11 @@ Serve the folder — the dev server gives live reload and, importantly, sends
 node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
 ```
 
+**It serves the repo root, not `demos/`**, because that is what GitHub Pages
+publishes — so a local URL is the URL that ships. `/` is the lesson index
+(`../index.html`); a lesson is `/demos/water-lab.html`. `demos/index.html` is a
+redirect up to the root index and nothing else, so the index exists once.
+
 Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet
 in place instead, so the scene keeps its camera angle, its selection and its
 toggle states while you tune the paper texture.
@@ -306,7 +311,7 @@ this repo publishes to GitHub Pages straight from the working tree, so anything
 committed ships. To see exactly what deploys, serve it statically instead:
 
 ```bash
-python3 -m http.server 8818     # no injection, no live reload
+python3 -m http.server 8818     # run from the repo root; no injection, no reload
 ```
 
 `check-molecules.js` prints every spec's bond angles, audits each declared

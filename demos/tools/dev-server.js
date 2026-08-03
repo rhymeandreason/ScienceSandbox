@@ -34,7 +34,12 @@ const http = require('http');
 const fs   = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');          // demos/
+// The repo root, not demos/ — because that is what GitHub Pages publishes, so
+// this is the only root where a local URL is the URL that ships. The lesson
+// index lives at the root and links to `demos/…`; serving demos/ instead made
+// `/` mean two different pages locally and in production.
+const ROOT  = path.resolve(__dirname, '../..');      // repo root
+const DEMOS = path.resolve(__dirname, '..');         // demos/ — for the 404 list
 const ASKED = process.argv[2] || process.env.PORT;   // explicit port, if any
 const PORT  = Number(ASKED || 8817);
 
@@ -196,8 +201,8 @@ function listOrMiss(url, res) {
   res.writeHead(404, { 'Content-Type':'text/html; charset=utf-8',
                        'Cache-Control':'no-store' });
   res.end(`<pre>404 — no such file: ${url}\n\n`
-    + fs.readdirSync(ROOT).filter(f => f.endsWith('.html'))
-        .map(f => `<a href="/${f}">${f}</a>`).join('\n')
+    + fs.readdirSync(DEMOS).filter(f => f.endsWith('.html'))
+        .map(f => `<a href="/demos/${f}">/demos/${f}</a>`).join('\n')
     + `</pre>${CLIENT}`);
 }
 
