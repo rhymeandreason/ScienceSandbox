@@ -414,7 +414,7 @@ const FoldLib = (function () {
    */
   function Folder(parsed, opts) {
     orient(parsed);                        // idempotent; see its header
-    const o = Object.assign({ hbondLen: 1.9, coreLen: 5.2, damping: 0.86,
+    const o = Object.assign({ hbondLen: 1.9, hbondLinear: 0.8, hbondRise: 1.0, coreLen: 5.2, damping: 0.86,
                               steps: 6, dt: 0.05 }, opts || {});
     const { nodes, bonds } = parsed;
     const n = nodes.length;
@@ -441,6 +441,47 @@ const FoldLib = (function () {
           cons.push([i, j, v3.dist(nodes[i].native, nodes[j].native)]);
         }
 
+    /* THE PEPTIDE BOND IS PLANAR AND TRANS, and 1-2 plus 1-3 does not say so.
+       Omega is a 1-4 torsion (CA-C-N-CA), so nothing above constrains it, and
+       the relaxation duly rotated through it: mid-fold, consecutive CA atoms
+       closed to 2.72 A. Trans is 3.8 A and even cis — which this protein does
+       not have — is 2.9, so the chain was passing through backbone geometry no
+       peptide can adopt. Invisible in ball-and-stick, because overlapping
+       spheres hide a squashed backbone; a cartoon over the same coordinates
+       showed it immediately, which is how it was found.
+
+       This is not a fudge for the renderer. Omega really is rigid: the C-N
+       bond has partial double-bond character, the unit is planar, and the
+       barrier to rotation is ~20 kcal/mol — a protein does not explore it on
+       any timescale this animation depicts. Phi and psi, which ARE the fold's
+       degrees of freedom, stay completely free.
+
+       Two pairs per peptide bond, both targeted at the deposited value:
+       CA(i)-CA(i+1) picks trans over cis, and O(i)-CA(i+1) holds the unit
+       flat. Everything else about the backbone is left alone. */
+    const caOf = new Map(), oOf = new Map();
+    nodes.forEach(nd => {
+      if (nd.name === 'CA') caOf.set(nd.res, nd.i);
+      if (nd.name === 'O')  oOf.set(nd.res, nd.i);
+    });
+    let omegaPairs = 0;
+    bonds.forEach(([i, j]) => {
+      const a = nodes[i], b = nodes[j];
+      let C = null, N = null;
+      if (a.name === 'C' && b.name === 'N' && b.res === a.res + 1) { C = a; N = b; }
+      else if (b.name === 'C' && a.name === 'N' && a.res === b.res + 1) { C = b; N = a; }
+      if (!C) return;
+      const ca1 = caOf.get(C.res), ca2 = caOf.get(N.res), o1 = oOf.get(C.res);
+      [[ca1, ca2], [o1, ca2]].forEach(([p, q]) => {
+        if (p == null || q == null) return;
+        const key = Math.min(p, q) + ':' + Math.max(p, q);
+        if (seen.has(key)) return;
+        seen.add(key);
+        cons.push([p, q, v3.dist(nodes[p].native, nodes[q].native)]);
+        omegaPairs++;
+      });
+    });
+
     /* Side-chain centroids, for the act-2 core term. */
     const sideGroups = [];
     const bySide = new Map();
@@ -455,7 +496,7 @@ const FoldLib = (function () {
     const nb = nodes.map(() => new Set());
     cons.forEach(([i, j]) => { nb[i].add(j); nb[j].add(i); });
 
-    const st = { pos, vel, hb, nodes, bonds, sideGroups,
+    const st = { pos, vel, hb, nodes, bonds, sideGroups, omegaPairs,
                  hbGain: 0, coreGain: 0, guide: 0 };
 
     function schedule(t) {
@@ -494,6 +535,21 @@ const FoldLib = (function () {
     cons.forEach((c, k) => { cI[k] = c[0]; cJ[k] = c[1]; cL[k] = c[2]; });
     const nbFlat = nb.map(s => Int32Array.from(s).sort());
     const hbO = Int32Array.from(hb.map(b => b.o)), hbH = Int32Array.from(hb.map(b => b.h));
+    // the donor N and its deposited O...N distance — the directional half of
+    // the H-bond term; see the two-spring note in step()
+    const hbN = Int32Array.from(hb.map(b => b.n));
+    const hbON = Float64Array.from(hb.map(b => v3.dist(nodes[b.o].native, nodes[b.n].native)));
+    /* The CA pair each hydrogen bond spans, and its deposited separation —
+       the rise term. -1 where a residue has no CA to hang it off. */
+    const caByRes = new Map();
+    nodes.forEach(nd => { if (nd.name === 'CA') caByRes.set(nd.res, nd.i); });
+    const caIx = r => (caByRes.has(r) ? caByRes.get(r) : -1);
+    const hbCA1 = Int32Array.from(hb.map(b => caIx(b.from)));
+    const hbCA2 = Int32Array.from(hb.map(b => caIx(b.to)));
+    const hbCAd = Float64Array.from(hb.map(b => {
+      const p = caIx(b.from), q = caIx(b.to);
+      return p >= 0 && q >= 0 ? v3.dist(nodes[p].native, nodes[q].native) : 0;
+    }));
 
     const pull = () => { for (let i = 0; i < n; i++) { X[i] = pos[i][0]; Y[i] = pos[i][1]; Z[i] = pos[i][2];
                                                        VX[i] = vel[i][0]; VY[i] = vel[i][1]; VZ[i] = vel[i][2]; } };
@@ -507,7 +563,26 @@ const FoldLib = (function () {
       for (let rep = 0; rep < o.steps; rep++) {
         FX.fill(0); FY.fill(0); FZ.fill(0);
 
-        // the lesson's force: native hydrogen bonds reeling in
+        /* The lesson's force: native hydrogen bonds reeling in.
+
+           TWO springs per bond, not one, and the second is what makes a helix
+           instead of a knot. O...H alone defines a CONTACT: the backbone is
+           free to crumple around a satisfied bond, and it did — with all 14
+           O...H at 2.3 A, CA(i)-CA(i+4) came out at 4.1-5.1 A against a
+           deposited 6.0-6.5, so the coil was over-wound and the ribbon drawn
+           over it was a blob rather than a spiral.
+
+           A real hydrogen bond is DIRECTIONAL: N-H...O wants to be near
+           linear, which is why hbonds() already refuses any pair under 130
+           degrees when it reads them off the deposited structure. Pulling the
+           donor N to its deposited O...N distance as well restores that here.
+           With N-H held rigid by the constraint set, satisfying O...H and
+           O...N together forces the bond near-linear, and a chain of linear
+           i->i+4 bonds has only one shape available to it: the helix, at its
+           real rise.
+
+           Targets are per-bond deposited distances rather than one constant,
+           for the same reason every other target in this solver is. */
         if (st.hbGain > 0) for (let b = 0; b < hbO.length; b++) {
           const i = hbO[b], j = hbH[b];
           const dx = X[j]-X[i], dy = Y[j]-Y[i], dz = Z[j]-Z[i];
@@ -515,6 +590,42 @@ const FoldLib = (function () {
           const k = 2.4 * st.hbGain * (L - o.hbondLen) / L;
           FX[i] += dx*k; FY[i] += dy*k; FZ[i] += dz*k;
           FX[j] -= dx*k; FY[j] -= dy*k; FZ[j] -= dz*k;
+
+          const m = hbN[b];
+          const ex = X[m]-X[i], ey = Y[m]-Y[i], ez = Z[m]-Z[i];
+          const M = Math.sqrt(ex*ex + ey*ey + ez*ez) || 1e-6;
+          const k2 = 2.4 * o.hbondLinear * st.hbGain * (M - hbON[b]) / M;
+          FX[i] += ex*k2; FY[i] += ey*k2; FZ[i] += ez*k2;
+          FX[m] -= ex*k2; FY[m] -= ey*k2; FZ[m] -= ez*k2;
+
+          /* ...and the RISE. Even with the bond held linear, the two springs
+             above fix only where O, H and N sit; the CA trace they hang off
+             can still bunch, and it did — CA(i)..CA(i+4) came out at 4.6 A
+             against a deposited 6.1, an over-wound coil that satisfies every
+             hydrogen bond and is not an alpha-helix.
+
+             What really sets the rise is phi/psi, and this solver has no
+             torsion term — it is a constrained relaxation, not a force field.
+             The cheap global substitute (leaning on `guide`) was tried and is
+             WRONG for this page: at the strength needed to fix the rise, by
+             t=0.5 it had also pulled the three phenylalanines to their native
+             separation, so act 1 quietly performed act 2's packing and the
+             two-cause lesson collapsed into one.
+
+             So the restraint is LOCAL and rides on the bond itself: each
+             hydrogen bond also holds the two CA atoms it spans at their
+             deposited distance. Same list, same source, gated by the same
+             hbGain — the bond forming is still what makes the helix. It says
+             nothing whatever about how the helices sit relative to each
+             other, which is act 2's to do and stays untouched. */
+          const p = hbCA1[b], q = hbCA2[b];
+          if (p >= 0 && q >= 0) {
+            const gx = X[q]-X[p], gy = Y[q]-Y[p], gz = Z[q]-Z[p];
+            const G = Math.sqrt(gx*gx + gy*gy + gz*gz) || 1e-6;
+            const k3 = 2.4 * o.hbondRise * st.hbGain * (G - hbCAd[b]) / G;
+            FX[p] += gx*k3; FY[p] += gy*k3; FZ[p] += gz*k3;
+            FX[q] -= gx*k3; FY[q] -= gy*k3; FZ[q] -= gz*k3;
+          }
         }
 
         // act 2: the hydrophobic core draws together

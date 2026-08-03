@@ -85,6 +85,91 @@ if (fs.existsSync(VII)) {
   else if (formed !== 14) fail('1VII fold', `only ${formed}/14 H-bonds formed at the end`);
   else ok(`fold lands ${rmsd.toFixed(2)} A RMSD from deposited, all 14 H-bonds formed`);
 
+  /* CLAIM 4b — THE BACKBONE IS PHYSICAL AT EVERY FRAME, not just at the end.
+     Claim 4 only checks where the fold lands, and the trajectory used to pass
+     it while travelling through geometry no peptide can adopt: consecutive CA
+     atoms closed to 2.72 A mid-fold, because omega is a 1-4 torsion that the
+     bond and 1-3 constraints do not reach. Trans is 3.8 A and even cis, which
+     this protein does not have, is 2.9. Ball-and-stick hid it — overlapping
+     spheres conceal a squashed backbone — so nothing caught it until a ribbon
+     was drawn over the same coordinates. Hence a check on the WHOLE path.
+
+     3.5 A is the gate: comfortably below the 3.8 A trans value the peptide
+     constraints now hold, comfortably above the 2.9 A cis geometry that would
+     mean the chain had rotated through omega. */
+  const caIdx = parsed.residues.map(r => r.atoms.CA).filter(x => x != null);
+  // fresh is { key:[Float32Array], count, ... } — one flat xyz array per keyframe
+  const XYZ = (P, i) => [P[i*3], P[i*3+1], P[i*3+2]];
+  let worstCA = Infinity, worstAt = 0;
+  for (let k = 0; k < fresh.count; k++) {
+    const P = fresh.key[k];
+    for (let m = 1; m < caIdx.length; m++) {
+      const dd = v.dist(XYZ(P, caIdx[m]), XYZ(P, caIdx[m - 1]));
+      if (dd < worstCA) { worstCA = dd; worstAt = k / (fresh.count - 1); }
+    }
+  }
+  if (worstCA < 3.5) fail('1VII omega',
+    `consecutive CA reach ${worstCA.toFixed(2)} A at t=${worstAt.toFixed(2)} — the chain ` +
+    `rotates through the peptide bond; trans is 3.8 A and cis is 2.9`);
+  else ok(`backbone stays trans the whole way — closest consecutive CA ${worstCA.toFixed(2)} A (deposited 3.8)`);
+
+  /* CLAIM 4c — a helix on screen has a helix's RISE, not just its H-bonds.
+     The hydrogen-bond springs alone satisfy every O...H while letting the CA
+     trace bunch: CA(i)..CA(i+4) came out at 4.6 A against a deposited 6.1, an
+     over-wound coil that is not an alpha-helix and that a cartoon renders as a
+     blob. Measured over helix 3 (1VII's own HELIX record 3) from t=0.42 —
+     after its own hydrogen bonds have closed, which is the first moment the
+     page calls it a helix — to the end of act 1. Before that the chain is
+     still coiling and being too LONG is not a defect. */
+  const caRes = new Map(parsed.residues
+    .filter(r => r.atoms.CA != null).map(r => [r.num, r.atoms.CA]));
+  let worstRise = 0, riseAt = 0, riseObs = 0;
+  for (let k = 0; k < fresh.count; k++) {
+    const t = k / (fresh.count - 1);
+    if (t < 0.42 || t > 0.62) continue;          // act 1, once the helix has closed
+    const P = fresh.key[k];
+    for (let r = 63; r <= 68; r++) {
+      const a = caRes.get(r), b = caRes.get(r + 4);
+      if (a == null || b == null) continue;
+      const obs = v.dist(XYZ(P, a), XYZ(P, b));
+      const nat = v.dist(parsed.nodes[a].native, parsed.nodes[b].native);
+      if (Math.abs(obs - nat) > worstRise) { worstRise = Math.abs(obs - nat); riseAt = t; riseObs = obs; }
+    }
+  }
+  /* 1.3 A, not the 1.0 the current bake happens to sit on: the failure this
+     guards against was 1.5 A out, and a gate set flush against today's value
+     fails on noise rather than on the defect. */
+  if (worstRise > 1.3) fail('1VII helix rise',
+    `CA(i)..CA(i+4) is ${riseObs.toFixed(1)} A at t=${riseAt.toFixed(2)}, ` +
+    `${worstRise.toFixed(1)} A off deposited — that is not an alpha-helix's rise`);
+  else ok(`helix 3 keeps its rise through act 1 (CA i->i+4 within ${worstRise.toFixed(1)} A of deposited)`);
+
+  /* CLAIM 4d — ACT 1 DOES NOT DO ACT 2'S JOB. The obvious fix for the rise
+     was to lean on `guide`, and at the strength that fixed it the fold had
+     also pulled the three phenylalanines to their native separation by t=0.5,
+     so the hydrophobic core packed itself during act 1 and the page's two
+     causes became one. The rise fix therefore has to stay local, and this is
+     the assertion that keeps it local. */
+  const pheAt = (P, r) => {
+    const ix = parsed.nodes.filter(nd => nd.res === r &&
+      !['N','CA','C','O','H'].includes(nd.name)).map(nd => nd.i);
+    let x = 0, y = 0, z = 0;
+    ix.forEach(i => { const p = P(i); x += p[0]; y += p[1]; z += p[2]; });
+    return [x / ix.length, y / ix.length, z / ix.length];
+  };
+  const kAct1 = fresh.key[Math.round(0.62 * (fresh.count - 1))];
+  const endAct1 = i => XYZ(kAct1, i);
+  const nat = i => parsed.nodes[i].native;
+  const spread = P => {
+    const c = [47, 51, 58].map(r => pheAt(P, r));
+    return (v.dist(c[0], c[1]) + v.dist(c[0], c[2]) + v.dist(c[1], c[2])) / 3;
+  };
+  const s1 = spread(endAct1), sN = spread(nat);
+  if (s1 < sN * 1.5) fail('1VII act separation',
+    `the core is already packed at the end of act 1 (${s1.toFixed(1)} A vs native ${sN.toFixed(1)} A) — ` +
+    `act 1 is doing act 2's work`);
+  else ok(`core still open when act 1 ends (${s1.toFixed(1)} A vs native ${sN.toFixed(1)} A) — act 2 has work left`);
+
   /* CLAIM 5 — the atoms still fit on their bonds.
      folding-lab draws in real angstroms and takes its display radii from the
      house palette, divided by SCALE. That keeps its ball-and-stick proportions

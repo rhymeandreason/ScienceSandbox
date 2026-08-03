@@ -458,6 +458,35 @@ function build() {
     g.userData = { b, mat, focus: inFocus(b.o) && inFocus(b.h) };
     foldGroup.add(g); hbGroups.push(g);
   });
+
+  /* ---- act 2's ribbon overlays, one per deposited helix ----
+     Transparent with depth-write off, so the atoms and the blue dashes stay
+     readable THROUGH them: this is a summary laid over the molecule, not a
+     switch to a different representation. A solid cartoon here would hide the
+     hydrogen bonds that act 1 just spent its whole length building.
+
+     Coloured PAL.bonds.hbond — the dashes' own blue — because the shape IS
+     what those bonds made, not a new thing arriving on screen. */
+  // the framed helix's own hydrogen bonds — what the close-up's ribbon waits on
+  focusBonds = hb.reduce((a, b, k) =>
+    (inFocus(b.o) && inFocus(b.h) ? (a.push(k), a) : a), []);
+
+  helixCA = HELICES.map(([lo, hi]) => parsed.nodes.reduce((a, nd, i) =>
+    (nd.name === 'CA' && nd.res >= lo && nd.res <= hi ? (a.push(i), a) : a), []));
+  helixCA.forEach((ix, h) => {
+    if (ix.length < 2)
+      throw new Error(`helix ${h + 1} (${HELICES[h].join('-')}) has ${ix.length} CA — no ribbon to draw`);
+  });
+  helixRibbons = helixCA.map(() => {
+    const m = new THREE.Mesh(new THREE.BufferGeometry(), Stage.bondMat(PAL.bonds.hbond));
+    m.material.transparent = true;
+    m.material.opacity = 0;
+    m.material.depthWrite = false;
+    m.material.side = THREE.DoubleSide;   // a ribbon is thin; both faces show
+    m.visible = false;
+    foldGroup.add(m);
+    return m;
+  });
 }
 
 /* ---------- camera ----------
@@ -532,6 +561,7 @@ const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in
    whole reason to do it this way. Staggering the helices in the bake would
    show the beat more bluntly while asserting a formation ORDER that nobody
    has measured, and this page already spends its credibility carefully. */
+const FOCUS_HELIX = 2;                // index into HELICES below — the 10-residue one
 const FOCUS = { lo: 63, hi: 72 };     // helix 3, from 1VII's HELIX record 3
 /* Wide at t=0 — the extended chain IS the primary-structure beat and has to
    be seen whole before anything closes in on part of it. Then in, hold across
@@ -555,6 +585,85 @@ function focusW(tt) {
 }
 
 let focusIdx = null;                  // atom indices inside FOCUS, filled by build()
+/* ---------- act 2's ribbons ----------
+   Late in act 2 the three helices are drawn as translucent cartoons. This is
+   what makes level 3 legible: without it act 2 is atoms rearranging, and the
+   student cannot see that what moves is three FINISHED objects rather than a
+   chain still coiling. With it, tertiary structure reads as what it is —
+   named shapes packing around a core.
+
+   ACT 1'S CLOSE-UP GETS ONE TOO, on the helix it is framing, and the history
+   is worth keeping. It could not, at first: the solver drove the chain
+   through geometry no peptide can adopt — consecutive Ca down to 2.72 A, and
+   an over-wound coil whose Ca(i)..Ca(i+4) was 4.6 A against a deposited 6.1.
+   Ball-and-stick hid all of that, because overlapping spheres conceal a
+   squashed backbone; the cartoon is what made it visible, as a blob where a
+   spiral should be. folding.js now holds the peptide bond trans and gives
+   each hydrogen bond its deposited rise, so the close-up's helix measures
+   5.6-5.7 A against 6.1 and draws as a helix. `check-folding.js` asserts both,
+   over the whole trajectory rather than at the end.
+
+   So a ribbon here is only ever as trustworthy as the frame under it. If the
+   solver changes, re-measure before trusting what this draws. */
+const HELICES = [[44, 48], [55, 58], [63, 72]];   // 1VII's own HELIX records
+const RIBBON_IN = [0.82, 0.92];   // fade-in window; see the measurement above
+const RIBBON_MAX = 0.62;          // an overlay on the atoms, never a replacement
+let helixCA = null, helixRibbons = null;
+
+const ribbonW = tt => tt <= RIBBON_IN[0] ? 0 : tt >= RIBBON_IN[1] ? 1
+  : smoothstep((tt - RIBBON_IN[0]) / (RIBBON_IN[1] - RIBBON_IN[0]));
+
+/* The close-up's own ribbon, on the framed helix only. Keyed to the measured
+   formation of THAT helix's hydrogen bonds rather than to a time, so it can
+   never announce a helix the geometry has not made — the rule the tally
+   follows.
+
+   ONCE IN, IT STAYS. Deliberately not tied to focusW: the helix does not stop
+   being a helix when the camera pulls back, and fading its ribbon out would
+   say that it did. It carries through the pull-out and into act 2, where the
+   other two join it — which also makes the reveal land better, since what
+   arrives at t=0.82 is then two more of something already understood rather
+   than three new objects at once. */
+let focusBonds = null;
+function closeUpW(formed) {
+  if (!focusBonds || !focusBonds.length) return 0;
+  const c = focusBonds.reduce((s, k) => s + Math.min(1, formed[k]), 0) / focusBonds.length;
+  /* `formed` is a continuous distance measure, not a flag: these bonds
+     plateau near 0.85 rather than 1.0, so a ramp aimed at 1.0 would leave the
+     ribbon stuck part-way in. 0.5 is the threshold the tally counts at. */
+  return smoothstep(Math.max(0, Math.min(1, (c - 0.5) / 0.3)));
+}
+
+/* Rebuilt from LIVE coordinates every frame rather than built once and posed:
+   the helices are still moving while this is on screen — that movement is the
+   whole of act 2 — and a ribbon lagging its own atoms by a frame would read as
+   a separate object floating over them. Nineteen residues total, so the cost
+   is nothing. */
+/* Returns { all, focus } — how far the atoms under each fade back. Two
+   numbers because act 1 fades only the framed helix (the rest of the chain is
+   already dimmed for the close-up) while act 2 fades the whole backbone. */
+function updateHelixRibbons(P, formed) {
+  if (!helixRibbons) return { all: 0, focus: 0 };
+  /* Off the moment act 3 starts. From there the representation is act 3's to
+     choose — rung 0 is deliberately atoms and rung 1 is where the page says
+     "the same 36 residues, now drawn as a ribbon". Two ribbon systems on the
+     same molecule would make that line a lie, and act 3's uniform fade would
+     drive ours to full opacity anyway. */
+  const done = t >= 0.999;
+  const all = done ? 0 : ribbonW(t);
+  const focus = done ? 0 : closeUpW(formed);
+  helixRibbons.forEach((m, h) => {
+    const w = h === FOCUS_HELIX ? Math.max(all, focus) : all;
+    m.visible = w > 0.006;
+    m.material.opacity = w * RIBBON_MAX;
+    if (!m.visible) return;
+    const pts = helixCA[h].map(i => P[i]);
+    m.geometry.dispose();
+    // every span here IS a helix, by the deposited HELIX record — not a guess
+    m.geometry = RibbonLib.build(THREE, pts, pts.map(() => 'H'));
+  });
+  return { all, focus: Math.max(all, focus) };
+}
 
 /* Fade the rest of the chain back while act 1 is on its one helix. It is
    DIMMED, never hidden: the other two helices are coiling at the same time,
@@ -562,13 +671,26 @@ let focusIdx = null;                  // atom indices inside FOCUS, filled by bu
    nothing else is happening. Called from seek(), after the H-bond opacities
    are written — this scales them rather than replacing them, so a bond that
    is only half formed stays half faded. */
-function applyFocus() {
+function applyFocus(rw) {
   const w = focusIdx ? focusW(t) : 0;
   const dim = 1 - (1 - DIM) * w;
+  /* The backbone gives way as the ribbons arrive — a cross-fade, not an
+     overlay. Left at full strength underneath them a 2.6 A band and 1.5 A
+     spheres occupy the same space and the result is a blue blob; backing the
+     atoms off is what lets a shape be seen AS a shape. They stay half-there
+     rather than vanishing, so a ribbon never stops being a summary of the
+     atoms behind it.
+
+     THE PHENYLALANINES DO NOT FADE. They are act 2's subject — the ribbons
+     exist to show what the core is packing, so dimming the core along with
+     everything else would fade out the actual cause and leave the effect. */
+  const backAll = 1 - 0.55 * ((rw && rw.all) || 0);
+  const backFocus = 1 - 0.55 * ((rw && rw.focus) || 0);
   const set = m => {
-    if (m.userData.focus) { if (m.material.opacity !== 1) { m.material.opacity = 1; m.material.transparent = false; } return; }
-    m.material.opacity = dim;
-    m.material.transparent = dim < 0.999;   // opaque again once wide, so depth sorting stops mattering
+    const target = m.userData.core ? 1
+                 : m.userData.focus ? backFocus : dim * backAll;
+    m.material.opacity = target;
+    m.material.transparent = target < 0.999;   // opaque again once full, so depth sorting stops mattering
   };
   atomMeshes.forEach(set); bondMeshes.forEach(set);
   hbGroups.forEach(g => { if (!g.userData.focus) g.userData.mat.opacity *= dim; });
@@ -730,7 +852,10 @@ function seek(tt) {
       FXi.spawnRing(P[b.h].clone(), PAL.bonds.hbond);
   });
   lastFormed = formed;
-  applyFocus();
+  /* Ribbons first: they decide how far the backbone fades, so applyFocus has
+     to know their strength before it writes any opacity. */
+  const rw = updateHelixRibbons(P, formed);
+  applyFocus(rw);
 
   /* Readout first: it sets the card's intro/caption state, and frameFrom
      reserves a different pixel band for each. Framing first would size one
@@ -778,7 +903,8 @@ const CAPS = {
    pulling out, not where focusW crosses a half — the first few percent of the
    fold is still wide while the camera moves in, and '1a' has to be true there
    too, which is why it says "watch one helix" rather than "close up". */
-const beatAt = (s, tt) => s.act === 2 ? '2' : (tt < FOCUS_OUT[0] ? '1a' : '1b');
+const beatAt = (s, tt) => s.act === 2 ? '2'
+  : (tt < (FOCUS_OUT[0] + FOCUS_OUT[1]) / 2 ? '1a' : '1b');
 
 let capAct = null;   // which caption beat ('1a' | '1b' | '2') is on screen
 
@@ -1454,6 +1580,13 @@ function applyFade(immediate) {
     o.material.opacity = fo;
     o.material.depthWrite = fo > 0.5;
   });
+  /* Act 2's helix ribbons belong to the fold and nowhere else. The traverse
+     above would otherwise bring them up with the atoms during act 3's hover
+     reveal, laid over rung 0's own HP35 cartoon — two ribbons of the same
+     molecule in two different blues. */
+  if (helixRibbons && (rung !== RUNG.FOLD || t >= 0.999))
+    helixRibbons.forEach(m => { m.visible = false; });
+
   if (rung === RUNG.FOLD && !anim) {
     foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity();
   }
