@@ -405,11 +405,20 @@ function build() {
   const isCore = i => CORE_RESIDUES.includes(parsed.nodes[i].res) &&
                       !['N','CA','C','O','H'].includes(parsed.nodes[i].name);
 
+  /* Act 1's close-up subject, by residue number off the deposited HELIX
+     record — never by atom index, which would silently move if the parse or
+     the side-chain selection ever changed. */
+  const inFocus = i => parsed.nodes[i].res >= FOCUS.lo && parsed.nodes[i].res <= FOCUS.hi;
+  focusIdx = parsed.nodes.map((_, i) => i).filter(inFocus);
+  if (!focusIdx.length)
+    throw new Error(`no atoms in residues ${FOCUS.lo}-${FOCUS.hi} — act 1 has nothing to focus on`);
+
   parsed.nodes.forEach((nd, i) => {
     const col = isCore(i) ? CORE_COLOR : (PAL.atoms[nd.el] || 0x888888);
     const m = Stage.atom(col, RADII[nd.el] || 0.3,
                          new THREE.Vector3(...nd.native), nd.el);
     m.userData.core = isCore(i);
+    m.userData.focus = inFocus(i);
     foldGroup.add(m); atomMeshes.push(m);
   });
 
@@ -423,7 +432,9 @@ function build() {
     const r = core ? CORE_STICK : STICK;
     const geo = new THREE.CylinderGeometry(r, r, L, 10);
     const m = new THREE.Mesh(geo, Stage.bondMat(core ? CORE_COLOR : PAL.bonds.covalent));
-    m.userData = { i, j, core };
+    // a bond counts as in-focus only if BOTH ends are — the two linkers into
+    // helix 3 should fade with the chain they lead away to, not with it
+    m.userData = { i, j, core, focus: inFocus(i) && inFocus(j) };
     foldGroup.add(m); bondMeshes.push(m);
   });
 
@@ -444,7 +455,7 @@ function build() {
       const d = new THREE.Mesh(new THREE.CylinderGeometry(STICK*0.8, STICK*0.8, 1, 8), mat);
       g.add(d);
     }
-    g.userData = { b, mat };
+    g.userData = { b, mat, focus: inFocus(b.o) && inFocus(b.h) };
     foldGroup.add(g); hbGroups.push(g);
   });
 }
@@ -504,15 +515,93 @@ const FIT_THETA = cam.theta, FIT_PHI = cam.phi;   // captured before any drag
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in angstroms
 
+/* ---------- act 1's two beats ----------
+   HP35 is 36 residues and its three helices coil in the SAME window — all
+   three are half-formed by t=0.32 and finished by t=0.41 (measured off the
+   baked trajectory, not assumed). At full-chain framing that reads as one
+   undifferentiated tangle, and the student cannot tell the level-2 event
+   (a chain coiling) from the level-3 one (coiled things packing).
+
+   So act 1 opens on ONE helix. Helix 3 — residues 63-72 by 1VII's own HELIX
+   records, 7 of the 14 hydrogen bonds — fills the frame while the rest of the
+   chain is dimmed back, and at t=FOCUS_HOLD the camera pulls out and the ink
+   returns: the same event was happening in three places at once.
+
+   Nothing about the molecule changes. The trajectory, the H-bond schedule and
+   the solver are untouched — this is framing and opacity only, which is the
+   whole reason to do it this way. Staggering the helices in the bake would
+   show the beat more bluntly while asserting a formation ORDER that nobody
+   has measured, and this page already spends its credibility carefully. */
+const FOCUS = { lo: 63, hi: 72 };     // helix 3, from 1VII's HELIX record 3
+/* Wide at t=0 — the extended chain IS the primary-structure beat and has to
+   be seen whole before anything closes in on part of it. Then in, hold across
+   the coiling window (all three helices finish by t=0.41), and out again
+   before act 2 opens at t=0.62. */
+const FOCUS_IN   = [0.04, 0.16];      // wide → one helix
+const FOCUS_OUT  = [0.46, 0.58];      // one helix → wide again
+const DIM = 0.16;                     // opacity of the rest of the chain, focused
+const FOCUS_PAD = 1.9;                // room around the close-up (see frameFrom)
+
+const smoothstep = x => x * x * (3 - 2 * x);
+
+/* 1 = framed on helix 3 alone, 0 = the whole chain. Smoothstepped at both
+   ends so each move reads as a move rather than a cut. */
+function focusW(tt) {
+  if (tt <= FOCUS_IN[0] || tt >= FOCUS_OUT[1]) return 0;
+  if (tt >= FOCUS_IN[1] && tt <= FOCUS_OUT[0]) return 1;
+  return tt < FOCUS_IN[1]
+    ? smoothstep((tt - FOCUS_IN[0]) / (FOCUS_IN[1] - FOCUS_IN[0]))
+    : 1 - smoothstep((tt - FOCUS_OUT[0]) / (FOCUS_OUT[1] - FOCUS_OUT[0]));
+}
+
+let focusIdx = null;                  // atom indices inside FOCUS, filled by build()
+
+/* Fade the rest of the chain back while act 1 is on its one helix. It is
+   DIMMED, never hidden: the other two helices are coiling at the same time,
+   and cutting them would turn a framing choice into a false claim that
+   nothing else is happening. Called from seek(), after the H-bond opacities
+   are written — this scales them rather than replacing them, so a bond that
+   is only half formed stays half faded. */
+function applyFocus() {
+  const w = focusIdx ? focusW(t) : 0;
+  const dim = 1 - (1 - DIM) * w;
+  const set = m => {
+    if (m.userData.focus) { if (m.material.opacity !== 1) { m.material.opacity = 1; m.material.transparent = false; } return; }
+    m.material.opacity = dim;
+    m.material.transparent = dim < 0.999;   // opaque again once wide, so depth sorting stops mattering
+  };
+  atomMeshes.forEach(set); bondMeshes.forEach(set);
+  hbGroups.forEach(g => { if (!g.userData.focus) g.userData.mat.opacity *= dim; });
+}
+
 function frameFrom(P) {
-  const f = solveFrame(P);
-  if (!f) return;
-  cam.target.copy(f.target); cam.r = f.r; applyCam();
+  const w = focusIdx ? focusW(t) : 0;
+  const full = solveFrame(P);
+  if (!full) return;
+  /* Interpolate between the two SOLVED frames rather than between two camera
+     states: both ends stay correctly fitted for the aspect ratio the student
+     actually has, at every point in the move. */
+  const f = w > 0 ? solveFrame(P, focusIdx) : null;
+  if (!f) { cam.target.copy(full.target); cam.r = full.r; }
+  else {
+    /* A tight fit on ten residues fills the stage with individual spheres and
+       the coil stops being visible AS a coil — which loses the one thing the
+       close-up exists to show. FOCUS_PAD backs off far enough that the whole
+       turn of the spiral is in frame, with the neighbouring chain dimly
+       around it for context. Padding a solved fit, not a hand-picked r. */
+    cam.target.copy(full.target).lerp(f.target, w);
+    cam.r = full.r + (f.r * FOCUS_PAD - full.r) * w;
+  }
+  applyCam();
 }
 
 /* The same solve, without applying it — the transition needs somewhere to
    travel TO, not an instant jump. */
-function solveFrame(P) {
+/* `idx`, when given, fits a SUBSET of the atoms — act 1's single helix. The
+   rest of the chain is still drawn (dimmed) and is allowed to fall outside
+   the frame, which is the point: a subset fit that respected the whole
+   molecule's extents would not be a close-up. */
+function solveFrame(P, idx) {
   if (userZoom || !P || !P.length) return null;
   const h = canvas.clientHeight, w = canvas.clientWidth;
   if (!h || !w) return;
@@ -536,12 +625,15 @@ function solveFrame(P) {
      frames the headpiece, which is a lobe well off villin's centre. That bug
      framed a 3 nm domain further away than the 10 nm protein containing it,
      because what was really being measured was its distance from the origin. */
+  const S = idx && idx.length ? idx : null;
+  const n = S ? S.length : P.length, at = k => P[S ? S[k] : k];
   let cx = 0, cy = 0, cz = 0;
-  for (let i = 0; i < P.length; i++) { cx += P[i].x; cy += P[i].y; cz += P[i].z; }
-  cx /= P.length; cy /= P.length; cz /= P.length;
+  for (let k = 0; k < n; k++) { const p = at(k); cx += p.x; cy += p.y; cz += p.z; }
+  cx /= n; cy /= n; cz /= n;
   let halfW = 0, halfH = 0;
-  for (let i = 0; i < P.length; i++) {
-    const dx = P[i].x - cx, dy = P[i].y - cy, dz = P[i].z - cz;
+  for (let k = 0; k < n; k++) {
+    const p = at(k);
+    const dx = p.x - cx, dy = p.y - cy, dz = p.z - cz;
     halfW = Math.max(halfW, Math.abs(dx*_right.x + dy*_right.y + dz*_right.z));
     halfH = Math.max(halfH, Math.abs(dx*_up.x    + dy*_up.y    + dz*_up.z));
   }
@@ -638,6 +730,7 @@ function seek(tt) {
       FXi.spawnRing(P[b.h].clone(), PAL.bonds.hbond);
   });
   lastFormed = formed;
+  applyFocus();
 
   /* Readout first: it sets the card's intro/caption state, and frameFrom
      reserves a different pixel band for each. Framing first would size one
@@ -665,15 +758,29 @@ const INTRO = {
 
 /* Named by the structure level each act produces, not by its mechanism — the
    mechanism is the second half of the line. Level 1 is the extended chain at
-   t=0, which is why there is no act for it. */
-const ACTS = [
-  { name: 'Level 2 · secondary structure',
-    body: 'Backbone hydrogen bonds: each C=O grabs the N–H four residues down. Three stretches spiral into <b>α-helices</b>.' },
-  { name: 'Level 3 · tertiary structure',
-    body: 'Now the <b>side chains</b>. No hydrogen bond runs between helices — the three phenylalanines hide from water, and the whole chain closes into one shape.' },
-];
+   t=0, which is why there is no act for it.
 
-let capAct = 0;   // which act the bottom caption is currently showing
+   Act 1 has TWO captions because it has two beats: the close-up on one helix,
+   then the pull-out that reveals the same thing happened three times. Both are
+   level 2 — the second line's job is to stop the pull-out reading as a new
+   mechanism, since the camera moving is the most conspicuous thing on screen
+   at that moment. */
+const CAPS = {
+  '1a': { act: 1, name: 'Level 2 · secondary structure',
+    body: 'Watch one helix. Each C=O grabs the N–H <b>four residues along</b> — that spacing is what makes a spiral instead of a loop.' },
+  '1b': { act: 1, name: 'Level 2 · three times over',
+    body: 'Same event, whole chain: <b>three α-helices</b>. Still just backbone hydrogen bonds — the side chains have done nothing yet.' },
+  '2':  { act: 2, name: 'Level 3 · tertiary structure',
+    body: 'The helices are finished. Now the <b>side chains</b> — three phenylalanines hide from water and pull the helices together into one shape.' },
+};
+
+/* Which caption belongs to time tt. Act 1 splits where the camera starts
+   pulling out, not where focusW crosses a half — the first few percent of the
+   fold is still wide while the camera moves in, and '1a' has to be true there
+   too, which is why it says "watch one helix" rather than "close up". */
+const beatAt = (s, tt) => s.act === 2 ? '2' : (tt < FOCUS_OUT[0] ? '1a' : '1b');
+
+let capAct = null;   // which caption beat ('1a' | '1b' | '2') is on screen
 
 function updateReadout(formed) {
   const s = FoldLib.SCHEDULE(t);
@@ -712,7 +819,7 @@ function updateReadout(formed) {
 
   const intro = !started;
   if (intro) {
-    capAct = 0;                       // so a replay re-fades act 1 in
+    capAct = null;                    // so a replay re-fades the first beat in
     act.classList.add('intro');
     act.querySelector('.actname').className = 'actname';
     act.querySelector('.actname').textContent = INTRO.name;
@@ -721,10 +828,10 @@ function updateReadout(formed) {
     /* Only re-write on an act change — scrubbing calls this every frame, and
        reassigning the animation class each time would hold the caption at the
        first keyframe forever. */
-    const a = ACTS[s.act - 1];
-    if (capAct !== s.act) {
-      capAct = s.act;
-      cap.querySelector('.capname').className = 'capname a' + s.act;
+    const key = beatAt(s, t), a = CAPS[key];
+    if (capAct !== key) {
+      capAct = key;
+      cap.querySelector('.capname').className = 'capname a' + a.act;
       cap.querySelector('.capname').textContent = a.name;
       cap.querySelector('.capbody').innerHTML = a.body;
       cap.classList.remove('fade'); void cap.offsetWidth; cap.classList.add('fade');
