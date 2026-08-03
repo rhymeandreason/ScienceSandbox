@@ -489,22 +489,20 @@ function build() {
   if (!chainSS.includes('H'))
     throw new Error(`no helix in residues ${firstRes}+ — HELICES may not match this file's numbering`);
 
-  focusCA = parsed.nodes.reduce((a, nd, i) =>
-    (nd.name === 'CA' && inFocus(i) ? (a.push(i), a) : a), []);
-  if (focusCA.length < 2)
-    throw new Error(`the framed helix ${FOCUS.lo}-${FOCUS.hi} has ${focusCA.length} CA — no ribbon to draw`);
+  /* Where the framed helix sits INSIDE that trace — the span the ribbon
+     starts as and grows out of. Indices into chainCA, not residue numbers. */
+  const inSpan = chainCA.map(i => inFocus(i));
+  focusSpan = [inSpan.indexOf(true), inSpan.lastIndexOf(true)];
+  if (focusSpan[0] < 0 || focusSpan[1] - focusSpan[0] < 1)
+    throw new Error(`the framed helix ${FOCUS.lo}-${FOCUS.hi} is not in the CA trace`);
 
-  const mkRibbon = () => {
-    const m = new THREE.Mesh(new THREE.BufferGeometry(), Stage.bondMat(PAL.bonds.hbond));
-    m.material.transparent = true;
-    m.material.opacity = 0;
-    m.material.depthWrite = false;
-    m.material.side = THREE.DoubleSide;   // a ribbon is thin; both faces show
-    m.visible = false;
-    foldGroup.add(m);
-    return m;
-  };
-  ribbons = { chain: mkRibbon(), focus: mkRibbon() };
+  ribbon = new THREE.Mesh(new THREE.BufferGeometry(), Stage.bondMat(PAL.bonds.hbond));
+  ribbon.material.transparent = true;
+  ribbon.material.opacity = 0;
+  ribbon.material.depthWrite = false;
+  ribbon.material.side = THREE.DoubleSide;   // a ribbon is thin; both faces show
+  ribbon.visible = false;
+  foldGroup.add(ribbon);
 }
 
 /* ---------- camera ----------
@@ -625,7 +623,7 @@ let focusIdx = null;                  // atom indices inside FOCUS, filled by bu
 const HELICES = [[44, 48], [55, 58], [63, 72]];   // 1VII's own HELIX records
 const RIBBON_IN = [0.82, 0.92];   // fade-in window; see the measurement above
 const RIBBON_MAX = 0.62;          // an overlay on the atoms, never a replacement
-let chainCA = null, chainSS = null, focusCA = null, ribbons = null;
+let chainCA = null, chainSS = null, focusSpan = null, ribbon = null;
 
 const ribbonW = tt => tt <= RIBBON_IN[0] ? 0 : tt >= RIBBON_IN[1] ? 1
   : smoothstep((tt - RIBBON_IN[0]) / (RIBBON_IN[1] - RIBBON_IN[0]));
@@ -657,36 +655,48 @@ function closeUpW(formed) {
    a separate object floating over them. Thirty-six residues, so the cost is
    nothing.
 
-   Returns { all, focus }: how far the atoms under each ribbon fade back. Two
+   ONE MESH, NOT TWO, and this was learned the hard way. Drawing the close-up's
+   helix and the full-chain cartoon as separate meshes put two surfaces over
+   the same ten residues, and they are not the same surface: ribbon.js smooths
+   each residue against its NEIGHBOURS, so helix 3 flanked by loops in the
+   whole-chain trace comes out slightly different from helix 3 built alone.
+   The two interpenetrated, which on screen is a speckled mess exactly where
+   the lesson is looking. Fading one against the other reduced it and could
+   never fix it, because the defect is geometric, not alpha.
+
+   So there is a single ribbon whose SPAN GROWS. It starts as the framed helix
+   and extends outward along the chain until it covers all 36 residues. That
+   is the honest version of the same reveal — the cartoon spreads from the
+   helix the student just watched form, out through the loops, to the other
+   two — and being one mesh it cannot self-intersect.
+
+   Returns { all, focus }: how far the atoms under the ribbon fade back. Two
    numbers because act 1 fades only the framed helix (the rest of the chain is
    already dimmed for the close-up) while act 2 fades the whole backbone. */
 function updateRibbons(P, formed) {
-  if (!ribbons) return { all: 0, focus: 0 };
+  if (!ribbon) return { all: 0, focus: 0 };
   /* Off the moment act 3 starts. From there the representation is act 3's to
      choose — rung 0 is deliberately atoms and rung 1 is where the page says
      "the same 36 residues, now drawn as a ribbon". Two ribbon systems on the
      same molecule would make that line a lie, and act 3's uniform fade would
      drive ours to full opacity anyway. */
   const done = t >= 0.999;
-  const all = done ? 0 : ribbonW(t);
-  /* The close-up's helix hands over to the full chain rather than sitting
-     under it: the two coincide over those ten residues, and two transparent
-     surfaces in the same place read as a brighter, harder-edged band exactly
-     where the cartoon should be most ordinary. */
-  const focus = done ? 0 : closeUpW(formed) * (1 - all);
+  const w = done ? 0 : closeUpW(formed);      // is the ribbon there at all
+  const grow = done ? 0 : ribbonW(t);         // how much of the chain it covers
 
-  const draw = (m, w, ix, ss) => {
-    m.visible = w > 0.006;
-    m.material.opacity = w * RIBBON_MAX;
-    if (!m.visible) return;
-    const pts = ix.map(i => P[i]);
-    m.geometry.dispose();
-    m.geometry = RibbonLib.build(THREE, pts, ss);
-  };
+  ribbon.visible = w > 0.006;
+  ribbon.material.opacity = w * RIBBON_MAX;
+  if (!ribbon.visible) return { all: 0, focus: 0 };
+
+  // grow outward from the framed helix; smoothstepped so both ends ease open
+  const g = smoothstep(grow);
+  const i0 = Math.round(focusSpan[0] * (1 - g));
+  const i1 = Math.round(focusSpan[1] + (chainCA.length - 1 - focusSpan[1]) * g);
+  const ix = chainCA.slice(i0, i1 + 1);
+  ribbon.geometry.dispose();
   // helices from the deposited HELIX records, everything else coil — no guess
-  draw(ribbons.chain, all, chainCA, chainSS);
-  draw(ribbons.focus, focus, focusCA, focusCA.map(() => 'H'));
-  return { all, focus: Math.max(all, focus) };
+  ribbon.geometry = RibbonLib.build(THREE, ix.map(i => P[i]), chainSS.slice(i0, i1 + 1));
+  return { all: w * grow, focus: w };
 }
 
 /* Fade the rest of the chain back while act 1 is on its one helix. It is
@@ -1608,8 +1618,7 @@ function applyFade(immediate) {
      above would otherwise bring them up with the atoms during act 3's hover
      reveal, laid over rung 0's own HP35 cartoon — two ribbons of the same
      molecule in two different blues. */
-  if (ribbons && (rung !== RUNG.FOLD || t >= 0.999))
-    [ribbons.chain, ribbons.focus].forEach(m => { m.visible = false; });
+  if (ribbon && (rung !== RUNG.FOLD || t >= 0.999)) ribbon.visible = false;
 
   if (rung === RUNG.FOLD && !anim) {
     foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity();
