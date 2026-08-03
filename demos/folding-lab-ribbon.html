@@ -1339,17 +1339,30 @@ function buildVillin() {
     villinGroup.add(mesh);
   }
 
-  /* Chain order for the reveal, as a 0..1 rank per `rest` mesh: 0 is the
-     repeat nearest the headpiece, 1 the far end of the protein. HP35 is
+  /* Chain order for the reveal, as a 0..1 rank per piece: 0 is the piece
+     nearest HP35 — the rest of the headpiece — and 1 the far end of the
+     protein. Every piece after HP35 is ranked here, headpiece remainder
+     included, because they all walk in at one cadence. HP35 is
      C-TERMINAL (791-826 of 826), so walking away from it means walking DOWN
      the residue numbers — hence the descending sort, which is the one detail
      here that is easy to get backwards and looks merely odd rather than
      wrong when you do: the protein would assemble from its far tip inward.
      Linkers rank with the domain they lead to, so a linker never arrives
      before there is something on the end of it. */
-  const rest = villinGroup.children.filter(m => m.userData.phase === 'rest');
-  rest.sort((x, y) => y.userData.span.a - x.userData.span.a);
-  rest.forEach((m, k) => { m.userData.order = rest.length > 1 ? k / (rest.length - 1) : 0; });
+  const walk = villinGroup.children.filter(isWalk);
+  walk.sort((x, y) => y.userData.span.a - x.userData.span.a);
+  walk.forEach((m, k) => {
+    m.userData.order = walk.length > 1 ? k / (walk.length - 1) : 0;
+    m.userData.startSec = walkStartSec(k);
+  });
+  walkPieces = walk;
+  /* The schedule has to fit inside the reveal, and it is written in seconds
+     while REVEAL_DUR is a separate constant — so say so rather than silently
+     truncating the far end of the protein. */
+  const endsAt = walkStartSec(walk.length - 1) + REVEAL_S.fade;
+  if (endsAt > REVEAL_DUR)
+    console.warn(`reveal walk needs ${endsAt.toFixed(1)}s but REVEAL_DUR is ${REVEAL_DUR}s ` +
+                 `— the last pieces will be cut off`);
 
   const hpPts = villinPoints(arrangement, VillinLib.HP35.start, VillinLib.HP35.end);
   if (hpPts.length > 1) {
@@ -1639,11 +1652,14 @@ function setRung(n) {
  *    3. OPEN OUT. The rest of the headpiece arrives around it while the
  *       camera is already travelling, so the new material is what the camera
  *       is making room for.
- *    4. THE PROTEIN. The other six repeats arrive DOMAIN BY DOMAIN, walking
- *       outward from the headpiece along the chain, with the camera fitting
- *       as they land. Arriving all at once would read as a different, bigger
- *       molecule being substituted; arriving in chain order reads as the one
- *       chain continuing, which is the only claim this page wants to make.
+ *    4. THE PROTEIN. Everything else arrives PIECE BY PIECE at one steady
+ *       cadence, walking outward from HP35 along the chain, with the camera
+ *       fitting as each lands. Arriving all at once would read as a
+ *       different, bigger molecule being substituted; arriving in chain order
+ *       reads as the one chain continuing, which is the only claim this page
+ *       wants to make. The rest of the headpiece is the first step of that
+ *       walk and nothing more — it used to have a window to itself, which
+ *       gave it a significance in the story that it does not have.
  *
  *  HP35 is handed from act 2's ribbon to villin's own copy during beat 2.
  *  They are the same 36 residues about 2 A apart (1VII superposed on the
@@ -1655,24 +1671,53 @@ function setRung(n) {
  *  Deliberately long. `REVEAL_DUR` is the pace of the whole argument, and a
  *  scale change that happens quickly is one a student reads as a cut.
  * ============================================================ */
-const REVEAL_DUR = 11;                    // seconds, chain to whole protein
-const REVEAL_BEATS = {
-  /* The handover is SHORT — 0.73 s, a third of what it was. It is a change of
-     representation, not an event in the lesson, and drawn out it reads as
-     something being decided. The camera leaves with it rather than after it,
-     so the shot is already opening while the ribbon goes solid. */
-  solid: [0.06, 0.127],                   // atoms out, ribbon solid, HP35 handed over
-  /* `own` starts INSIDE the handover, and that is what actually makes the
-     camera move with it. The camera fits whatever has arrived, so setting the
-     cam gate early on its own bought nothing — with only HP35 on screen the
-     fit is the frame it is already in (r went 39 to 41 across the whole
-     handover). The shot opens when there is something to open for. */
-  own:   [0.08, 0.38],                    // the rest of the headpiece
-  rest:  [0.42, 1.00],                    // the other six repeats, staggered
-  cam:   0.06,                            // camera starts WITH the handover
+/* TIMED IN SECONDS, not in fractions of the whole. The beats used to be
+   normalised windows, which was fine while every piece arrived at one rate —
+   but the walk now has two rates, and in fraction-space the stagger, the
+   per-piece fade length and the window length are all coupled to each other:
+   changing the cadence silently changed how long a single piece takes to
+   appear. Seconds decouple them, and they are what the pacing is actually
+   argued in. `pFrom` converts. */
+const REVEAL_DUR = 8.0;                   // seconds, chain to whole protein
+const REVEAL_S = {
+  hold:      0.65,   // the finished chain sits still before anything moves
+  handover:  0.75,   // atoms out, ribbon solid, HP35 handed to villin's copy
+  walkStart: 1.5,    // when the first piece after HP35 begins to arrive
+  /* TWO CADENCES. The first few pieces arrive while the camera is still
+     opening, and they need room to be read as separate arrivals. Once the
+     shot is wide — about four pieces in — the remaining seven are context
+     rather than events, and at the same spacing the end of the reveal simply
+     drags. So they come twice as fast. */
+  slow:      0.70,   // seconds between the first arrivals
+  fast:      0.35,   // ...and between the rest
+  fastAfter: 4,      // pieces this many in, the cadence doubles
+  fade:      1.6,    // how long one piece takes to fade in
 };
-const REVEAL_STAGGER = 0.55;              // of the `rest` window spent walking outward
-let reveal = null;
+const pFrom = sec => sec / REVEAL_DUR;    // seconds -> reveal progress
+
+const REVEAL_BEATS = {
+  /* The handover is SHORT. It is a change of representation, not an event in
+     the lesson, and drawn out it reads as something being decided. The camera
+     leaves with it rather than after it, so the shot is already opening while
+     the ribbon goes solid — and the first pieces start arriving inside it,
+     which is what actually makes the camera move: the camera fits whatever
+     has ARRIVED, so gating it early bought nothing on its own (r went 39 to
+     41 across the entire handover when HP35 was all there was). */
+  solid: [pFrom(REVEAL_S.hold), pFrom(REVEAL_S.hold + REVEAL_S.handover)],
+  cam:    pFrom(REVEAL_S.hold),
+};
+
+/* When each piece STARTS, in seconds — the two-cadence schedule above, walked
+   out once. Everything after HP35 is in here, the rest of the headpiece
+   included: it is simply the piece nearest the chain you folded, and giving
+   it a window of its own made it look like a chapter of the story. */
+function walkStartSec(k) {
+  let t = REVEAL_S.walkStart;
+  for (let i = 1; i <= k; i++)
+    t += (i < REVEAL_S.fastAfter ? REVEAL_S.slow : REVEAL_S.fast);
+  return t;
+}
+let reveal = null, walkPieces = null;
 
 function enterReveal() {
   if (reveal || !villin) return;
@@ -1682,7 +1727,7 @@ function enterReveal() {
   rung = RUNG.VILLIN;                     // where it lands; the buttons read this
   document.getElementById('arrangements').hidden = true;   // until it finishes
   document.getElementById('zoom').hidden = true;
-  reveal = { p: 0, mSolid: 0, mOwn: 0, mRest: 0 };
+  reveal = { p: 0, mSolid: 0, mWalk: 0 };
   fadeNow = { fold: 1, hp: 0, own: 0, rest: 0, actin: 0, complex: 0 };
   foldOpacity = 1;
   /* The hold beat opens on exactly the frame tertiary ended on — updateRibbons
@@ -1709,25 +1754,21 @@ function cancelReveal() {
    inside a frame sized for its ending. */
 function revealPoints(r) {
   const pts = villinPoints(arrangement, VillinLib.HP35.start, villin.nums[villin.residues - 1]);
-  if (r.mOwn > 0.02 && villinGroup) {
-    const dom = villin.domains[villin.domains.length - 1];
-    villinPoints(arrangement, dom[0], VillinLib.HP35.start).forEach(p => pts.push(p));
-  }
-  if (r.mRest > 0.02 && villinGroup)
-    villinGroup.children.forEach(m => {
-      if (m.userData.phase !== 'rest' || restAt(r, m) < 0.02) return;
-      const sp = m.userData.span;
-      villinPoints(arrangement, sp.a, sp.b).forEach(p => pts.push(p));
-    });
+  if (villinGroup) villinGroup.children.forEach(m => {
+    if (!isWalk(m) || pieceAt(r, m) < 0.02) return;
+    const sp = m.userData.span;
+    villinPoints(arrangement, sp.a, sp.b).forEach(p => pts.push(p));
+  });
   return pts;
 }
 
-/* How far along a single `rest` mesh is, given the reveal's progress. Each
-   one gets its own slice of the window, ordered by how far down the chain it
-   sits from the headpiece — see beat 4. */
-function restAt(r, m) {
-  const s = (m.userData.order || 0) * REVEAL_STAGGER;
-  return smoothstep(Math.max(0, Math.min(1, (r.mRest - s) / (1 - REVEAL_STAGGER))));
+/* How far along one piece of the walk is, from its own start time. Each takes
+   the same REVEAL_S.fade to arrive; only when they START differs. */
+const isWalk = m => m.userData.phase === 'own' || m.userData.phase === 'rest';
+function pieceAt(r, m) {
+  const t0 = m.userData.startSec;
+  if (t0 == null) return 0;
+  return smoothstep(Math.max(0, Math.min(1, (r.p * REVEAL_DUR - t0) / REVEAL_S.fade)));
 }
 
 /* The reveal as a pure function of its progress, so it can be SCRUBBED like
@@ -1745,11 +1786,16 @@ function applyRevealAt(p, snap) {
   const B = REVEAL_BEATS, win = ([lo, hi]) => beat(p, lo, hi);
 
   reveal.mSolid = win(B.solid);
-  reveal.mOwn   = win(B.own);
-  reveal.mRest  = win(B.rest);
+  /* The walk has no window of its own any more — each piece runs off its own
+     start time in seconds (walkStartSec), so the cadence is a schedule rather
+     than a subdivision. This is only kept for anything reading it in bulk. */
+  reveal.mWalk = walkPieces
+    ? walkPieces.reduce((a, m) => a + pieceAt(reveal, m), 0) / walkPieces.length : 0;
 
+  /* own/rest are left at the walk's overall progress for anything that reads
+     fadeNow in bulk; the per-mesh opacities come from pieceAt in applyFade. */
   fadeNow = { fold: 1 - reveal.mSolid, hp: reveal.mSolid,
-              own: reveal.mOwn, rest: reveal.mRest, actin: 0, complex: 0 };
+              own: reveal.mWalk, rest: reveal.mWalk, actin: 0, complex: 0 };
   foldOpacity = fadeNow.fold;
 
   /* Act 2's ribbon leaves as villin's HP35 arrives — the handover. Driven
@@ -1836,11 +1882,11 @@ function applyFade(immediate) {
 
   [villinGroup, actinGroup].filter(Boolean).forEach(g => g.children.forEach(m => {
     const max = m.userData.maxOpacity || 1;
-    /* During the reveal the six repeats do NOT share one opacity — each walks
-       in on its own slice of the window, so the protein grows along the chain
+    /* During the reveal the pieces do NOT share one opacity — each walks in on
+       its own slice of the window, so the protein grows along the chain
        instead of materialising whole. Everything else reads fadeNow. */
-    let o = (reveal && m.userData.phase === 'rest')
-      ? restAt(reveal, m) * max
+    let o = (reveal && isWalk(m))
+      ? pieceAt(reveal, m) * max
       : (fadeNow[m.userData.phase] || 0) * max;
     if (m.userData.isHP) o *= 1 - hoverMix * (1 - HOVER_FLOOR);
     m.visible = o > 0.01;
