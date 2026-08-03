@@ -441,6 +441,99 @@ const RibbonLib = (() => {
     return cur;
   }
 
+  /* ---------------- the path ---------------- */
+
+  /* Curve tension PER SECONDARY STRUCTURE, and it has to be per-knot for the
+     same reason the smoothing weight and the sign-continuity guard did: a
+     helix and a loop are not the same kind of curve and one number cannot
+     serve both. That is now the third global parameter in this file to have
+     been split this way, which is worth noticing before adding a fourth.
+
+     WHY HELICES WANT 0.94. A Catmull-Rom tangent at a knot is the chord from
+     the previous knot to the next. On a helix the guide points are 100
+     degrees apart, so that chord is far shorter than the arc it stands for
+     and the cubic between knots sags inward — measured on an ideal helix,
+     from 1.76 A off axis at each residue to 1.46 A between them. A 17%
+     scallop, once per residue. Not a sampling problem: raising SUB draws the
+     same scallop with more triangles. Scaling the tangents up is the fix,
+     and 0.94 takes that measurement to 0.27%.
+
+     LOOPS WANT IT TOO, WHICH WAS NOT THE EXPECTED ANSWER. Kinks in the coil
+     look exactly like spline overshoot, and lowering the tension there is
+     the obvious cure. It is the wrong one, and the numbers are not close.
+     Peak curvature in villin's loops, over 15414 steps:
+
+         tension 0.94   min radius 0.84 A      0 steps under 0.6 A
+         tension 0.50   min radius 0.43 A    157
+         tension 0.25   min radius 0.12 A   1772
+
+     Low tension means short tangents, so the curve nearly stalls at each
+     knot and then has to turn hard to reach the next — cusps AT the knots,
+     which is the very thing it was supposed to prevent. At tension 0 every
+     knot is a cusp exactly.
+
+     The measurement that argued for lowering it was total turn accumulated
+     across a corner, which looked like overshoot at 0.94 and less at 0.50.
+     That window spans two intervals, so it also counts the neighbouring
+     corners turning legitimately, and it cannot reach zero however good the
+     curve is. Peak curvature is the metric that corresponds to a visible
+     kink; total turn over a window is not. The real cause of the kinks was
+     sampling — see COIL_X below.
+
+     So: one tension, and this stays a plain constant rather than the
+     per-structure table that the smoothing weight and the continuity guard
+     both had to become. Two of those splits were right and this one was
+     not; the table was written and then measured away. */
+  const TENSION = 0.94;
+
+  /* hermite(K) -> { point(i, t), tangent(i, t) }, a uniform cubic Hermite
+     through the knots K at TENSION.
+
+     Replaces THREE.CatmullRomCurve3. It is the same family of curve — at a
+     tension of 0.5 this IS Catmull-Rom — and it was written when the plan
+     was a per-knot tension, which the measurements above then rejected. It
+     stays because it is equivalent, verified against the same assertions,
+     and one less dependency on three.js's curve parameterisation quirks
+     (its 'catmullrom' type is the only one that accepts a tension at all).
+
+     Indexed by segment rather than by a normalised u, because build() walks
+     residues and already knows which segment it is on — going through a
+     0..1 parameter would only convert back. */
+  function hermite(K) {
+    const N = K.length;
+    const m = [];
+    for (let i = 0; i < N; i++) {
+      const a = K[Math.max(0, i - 1)], b = K[Math.min(N - 1, i + 1)];
+      /* Interior tangents span two intervals; the ends see only one, so
+         double them or the curve starts and finishes visibly slack. */
+      const w = TENSION * ((i === 0 || i === N - 1) ? 2 : 1);
+      m.push([(b[0]-a[0]) * w, (b[1]-a[1]) * w, (b[2]-a[2]) * w]);
+    }
+    const seg = (i, t) => {
+      if (i >= N - 1) return [N - 2 < 0 ? 0 : N - 2, N - 2 < 0 ? 0 : 1];
+      return [i, t];
+    };
+    return {
+      point(i0, t0) {
+        const [i, t] = seg(i0, t0), j = Math.min(N - 1, i + 1);
+        const t2 = t*t, t3 = t2*t;
+        const h00 = 2*t3 - 3*t2 + 1, h10 = t3 - 2*t2 + t;
+        const h01 = -2*t3 + 3*t2,    h11 = t3 - t2;
+        const A = K[i], B = K[j], MA = m[i], MB = m[j];
+        return [0, 1, 2].map(c => h00*A[c] + h10*MA[c] + h01*B[c] + h11*MB[c]);
+      },
+      tangent(i0, t0) {
+        const [i, t] = seg(i0, t0), j = Math.min(N - 1, i + 1);
+        const t2 = t*t;
+        const d00 = 6*t2 - 6*t, d10 = 3*t2 - 4*t + 1;
+        const d01 = -6*t2 + 6*t, d11 = 3*t2 - 2*t;
+        const A = K[i], B = K[j], MA = m[i], MB = m[j];
+        const d = [0, 1, 2].map(c => d00*A[c] + d10*MA[c] + d01*B[c] + d11*MB[c]);
+        return len(d) < 1e-9 ? [1, 0, 0] : norm(d);
+      },
+    };
+  }
+
   /* ---------------- frames ---------------- */
 
   /* One orientation frame per residue.
@@ -601,64 +694,62 @@ const RibbonLib = (() => {
     const pos = [], nor = [], idx = [];
     const samples = [];
 
-    const V3 = p => new THREE.Vector3(p[0], p[1], p[2]);
-
-    /* TENSION 0.94, NOT THE DEFAULT, and it is the difference between a
-       smooth coil and a scalloped one.
-
-       three.js's CatmullRomCurve3 defaults to centripetal parameterisation
-       at the standard tension, whose tangent at a knot is half the chord
-       from the previous knot to the next. On a curve as tightly wound as an
-       alpha helix that chord is far shorter than the arc it stands for —
-       the guide points are 100 degrees apart — so the cubic between two
-       knots sags inward. Measured on an ideal helix it dropped from 1.76 A
-       off axis at each residue to 1.46 A between them: a 17% scallop, once
-       per residue, which is exactly the jaggedness this file had after the
-       frame was finally right.
-
-       IT IS NOT A SAMPLING PROBLEM AND SUB CANNOT FIX IT. The scallop is in
-       the curve, not in how finely the curve is walked; raising SUB just
-       draws the same scallop with more triangles. Scaling the tangents up
-       is what fixes it — 0.94 takes the same measurement to 0.27%.
-
-       Uniform parameterisation ('catmullrom') is required to pass a
-       tension at all, and is safe here for a reason specific to protein
-       backbones: centripetal exists to stop unevenly spaced knots throwing
-       cusps, and consecutive Ca are 3.8 A apart the whole length of any
-       chain. Checked against the real HP35 trace, where the tighter loops
-       are the risk: the curve's worst excursion from its guide points grows
-       only 1.96 -> 2.09 A, well inside one Ca step.
-
-       Both curves take it. They are differenced to recover the frame, so a
-       tension on one and not the other would put the difference back into
-       the wobble this removes. */
-    const CURVE = v => new THREE.CatmullRomCurve3(v, false, 'catmullrom', 0.94);
-
-    /* The centre line, and its twin one angstrom along the frame normal. */
-    const curve = CURVE(SM.map(V3));
-    const edge  = CURVE(
-      SM.map((p, i) => V3([p[0] + F[i].n[0], p[1] + F[i].n[1], p[2] + F[i].n[2]])));
+    /* The centre line, and its twin one angstrom along the frame normal.
+       Both at the same tension: they are differenced to recover the frame,
+       so treating them differently would put that difference straight back
+       into the wobble this removes. */
+    const curve = hermite(SM);
+    const edge  = hermite(
+      SM.map((p, i) => [p[0] + F[i].n[0], p[1] + F[i].n[1], p[2] + F[i].n[2]]));
 
     const smoothstep = t => t * t * (3 - 2 * t);
     /* Not `sub` — that is this module's vector subtraction, and shadowing it
        here throws "sub is not a function" further down build(). */
-    const step = Math.max(2, (opts && opts.sub) || SUB);
-    const total = (n - 1) * step;
+    const band = Math.max(2, (opts && opts.sub) || SUB);
+
+    /* COIL IS SAMPLED COIL_X TIMES FINER THAN THE BANDS, and this — not the
+       curve tension — is what removes the kinks in the loops.
+
+       A loop turns far harder than a helix or a strand, for two compounding
+       reasons: it is the part of the chain that actually changes direction,
+       and it is the one structure that is never smoothed, so its corners
+       arrive at full strength. Villin's tightest loop bend has a radius of
+       0.84 A. Walked at the bands' rate that is a 46 degree direction change
+       between adjacent tube rings, and 553 steps in the chain turn more than
+       30 — every one of them a visible corner in a round tube.
+
+           coil rate     worst step     steps over 30 deg
+              x1            46              553
+              x2            28                0
+              x3            18                0
+
+       Raising the rate for the WHOLE chain would work and costs three times
+       the geometry across 826 residues. Raising it only where the curvature
+       is pays for it where it is needed: helices and strands are smoothed
+       and regular, and gain nothing from the extra rings.
+
+       The frame is still solved once, over the fine grid, for the same
+       reason the curve is global — the twist must not restart at a boundary.
+       Bands simply take every COIL_X'th sample. Run endpoints are pinned
+       exactly, so a band and the tube beside it still share their boundary
+       sample and butt with no gap. */
+    const COIL_X = 3;
+    const fine = band * COIL_X;
+    const total = (n - 1) * fine;
     let prevN = null;
     for (let s = 0; s <= total; s++) {
-      const u = s / total;
-      const f = s / step;
+      const f = s / fine;
       const i0 = Math.min(n - 1, Math.floor(f)), i1 = Math.min(n - 1, i0 + 1);
       const raw = f - i0;                 // the arrow taper is linear, not eased
       const t = smoothstep(raw);
-      const cp = curve.getPoint(u), ep = edge.getPoint(u);
-      const tan = norm([...curve.getTangent(u).toArray()]);
+      const cp = curve.point(i0, raw), ep = edge.point(i0, raw);
+      const tan = curve.tangent(i0, raw);
 
       /* Frame from the two curves: the offset direction gives the face, and
          crossing twice drops whatever component of it drifted off
          perpendicular. side = t x r, then n = side x t is r with its
          parallel part removed — one step, no explicit projection. */
-      let r = sub([ep.x, ep.y, ep.z], [cp.x, cp.y, cp.z]);
+      let r = sub(ep, cp);
       if (len(r) < 1e-6) r = prevN || (Math.abs(tan[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]);
       let side = cross(tan, r);
       if (len(side) < 1e-6) side = cross(tan, Math.abs(tan[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]);
@@ -669,7 +760,7 @@ const RibbonLib = (() => {
       /* Width belongs to the element, not to the sample, so it is resolved
          per run below. Only the frame is global. */
       void t; void i1;
-      samples.push({ p: [cp.x, cp.y, cp.z], n: nrm, s: side, i: i0, raw });
+      samples.push({ p: cp, n: nrm, s: side, i: i0, raw });
     }
 
     /* ---------------------------------------------------------------
@@ -715,7 +806,14 @@ const RibbonLib = (() => {
     }
 
     const meta = [];
-    const TUBE_SIDES = 8;
+    /* Six, not eight. The coil is a 0.64 A cord — at the scales this page
+       draws, a couple of pixels across — so the cross-section is nowhere
+       near the limiting factor, while COIL_X has just tripled how many of
+       these rings there are. Six sides with smooth normals is
+       indistinguishable and pays most of that back. Tubes cost twice a
+       band's triangles per ring even so, which is why the coil dominates
+       the geometry budget once it is sampled finely. */
+    const TUBE_SIDES = 6;
 
     /* The ring plan for a strand: body, then a barb, then a straight taper
        to the point. Measured in ANGSTROMS ALONG THE CURVE, backwards from
@@ -739,11 +837,11 @@ const RibbonLib = (() => {
 
        The taper is linear, not smoothstepped: easing it gives the arrow
        curved sides, which reads as a leaf. */
-    const strandPlan = (s0, s1) => {
+    const strandPlan = list => {
       /* Arc length from the run's start to each sample. */
       const arc = [0];
-      for (let s = s0 + 1; s <= s1; s++)
-        arc.push(arc[arc.length - 1] + len(sub(samples[s].p, samples[s-1].p)));
+      for (let k = 1; k < list.length; k++)
+        arc.push(arc[k-1] + len(sub(samples[list[k]].p, samples[list[k-1]].p)));
       const total = arc[arc.length - 1];
       /* Never let the head eat the whole strand — a triangle with no shaft
          behind it does not say which way it came from. */
@@ -752,8 +850,8 @@ const RibbonLib = (() => {
 
       const plan = [];
       let barbed = false;
-      for (let k = 0; k <= s1 - s0; k++) {
-        const S = samples[s0 + k], a = arc[k];
+      for (let k = 0; k < list.length; k++) {
+        const S = samples[list[k]], a = arc[k];
         if (a < barbAt) { plan.push({ S, w: PROFILE.E[0] }); continue; }
         if (!barbed) {
           barbed = true;
@@ -812,9 +910,9 @@ const RibbonLib = (() => {
       cap(base + rings*8, false);
     };
 
-    const emitTube = (s0, s1, radius) => {
+    const emitTube = (list, radius) => {
       const base = pos.length / 3;
-      for (let s = s0; s <= s1; s++) {
+      for (const s of list) {
         const S = samples[s], side = S.s, N = S.n;
         for (let k = 0; k < TUBE_SIDES; k++) {
           const a = 2 * Math.PI * k / TUBE_SIDES;
@@ -824,7 +922,7 @@ const RibbonLib = (() => {
           nor.push(nv[0], nv[1], nv[2]);   // smooth around the tube, no duplication
         }
       }
-      const rings = s1 - s0;
+      const rings = list.length - 1;
       for (let r = 0; r < rings; r++) {
         for (let k = 0; k < TUBE_SIDES; k++) {
           const k2 = (k + 1) % TUBE_SIDES;
@@ -840,17 +938,23 @@ const RibbonLib = (() => {
     };
 
     for (const r of runs) {
-      const s0 = Math.max(0, Math.round((r.a - 0.5) * step));
-      const s1 = Math.min(total, Math.round((r.b + 0.5) * step));
+      const s0 = Math.max(0, Math.round((r.a - 0.5) * fine));
+      const s1 = Math.min(total, Math.round((r.b + 0.5) * fine));
       if (s1 <= s0) continue;
+
+      /* Coil walks every sample; bands take every COIL_X'th. The final
+         index is pinned to s1 whatever the stride, so the last ring lands
+         exactly on the boundary its neighbour starts from — otherwise a
+         band would stop short of the tube beside it and leave a gap. */
+      const stride = r.code === 'C' ? 1 : COIL_X;
+      const list = [];
+      for (let s = s0; s < s1; s += stride) list.push(s);
+      list.push(s1);
+
       const from = idx.length;
-      if (r.code === 'H') {
-        const plan = [];
-        for (let s = s0; s <= s1; s++) plan.push({ S: samples[s], w: PROFILE.H[0] });
-        emitBand(plan, PROFILE.H[1]);
-      }
-      else if (r.code === 'E') emitBand(strandPlan(s0, s1), PROFILE.E[1]);
-      else emitTube(s0, s1, coil);
+      if (r.code === 'H')      emitBand(list.map(s => ({ S: samples[s], w: PROFILE.H[0] })), PROFILE.H[1]);
+      else if (r.code === 'E') emitBand(strandPlan(list), PROFILE.E[1]);
+      else                     emitTube(list, coil);
       meta.push({ ss: r.code, from: r.a, to: r.b,
                   indexStart: from, indexCount: idx.length - from });
     }
@@ -881,7 +985,7 @@ const RibbonLib = (() => {
   const HP35_HELICES = [[794, 798], [805, 808], [813, 822]];
 
   return { build, assign, detect, dssp, parseBackbone, frames, smooth,
-           PROFILE, ARROW, SMOOTH_W, HP35_HELICES, HP35_OFFSET };
+           PROFILE, ARROW, SMOOTH_W, TENSION, HP35_HELICES, HP35_OFFSET };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = RibbonLib;
