@@ -88,9 +88,31 @@
     border:2px solid var(--ink);background:#fff;color:var(--ink);
     font-size:16px;display:flex;align-items:center;justify-content:center}
   #playbtn:hover{background:var(--ink);color:#fff}
-  #scrub{flex:1;accent-color:var(--hb);cursor:pointer}
+  /* The scrub bar is SEGMENTED, one block per part of the lesson, sized by
+     how long that part actually lasts. A plain 0-100% slider said nothing
+     about what was in the timeline; the blocks say what the parts are and
+     roughly how long each takes, which is most of what a progress bar is
+     for. Divisions are measured, not typed — see buildSegments(). */
+  #segbar{flex:1;display:flex;gap:3px;align-items:stretch;height:27px;
+    cursor:pointer;user-select:none;touch-action:none}
+  #segbar:focus-visible{outline:2px solid var(--hb);outline-offset:3px;border-radius:7px}
+  /* min-width is a small, deliberate lie about duration: `primary` is 2.3 s
+     of 26 and at true proportion its label truncates to "pri...", which reads
+     as broken rather than as short. 54px is what the shortest label needs.
+     Everything longer than that stays honestly proportional. */
+  #segbar .seg{position:relative;flex-basis:0;min-width:54px;border-radius:5px;
+    overflow:hidden;background:rgba(43,39,35,.09);
+    display:flex;align-items:center;justify-content:center}
+  #segbar .segfill{position:absolute;left:0;top:0;bottom:0;width:0;
+    background:var(--hb);opacity:.22}
+  #segbar .seglab{position:relative;font-family:var(--font-slab);font-size:10.5px;
+    color:var(--muted);white-space:nowrap;padding:0 5px;overflow:hidden;
+    text-overflow:ellipsis}
+  /* the part you are in is named in its own colour — the rest stay quiet */
+  #segbar .seg.cur{box-shadow:inset 0 0 0 1.5px var(--hb)}
+  #segbar .seg.cur .seglab{color:var(--hb);font-weight:700}
   #tlabel{font-family:var(--font-slab);font-size:12.5px;color:var(--muted);
-    min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
+    min-width:86px;text-align:right;font-variant-numeric:tabular-nums}
 
   /* Live H-bond tally, lower right — stacked above the toggles, with the rest
      of the readout chrome rather than alone in a corner of its own. It is a
@@ -212,7 +234,8 @@
     </div>
     <div id="transport">
       <button id="playbtn" aria-label="play or pause"><i class="ph-bold ph-play"></i></button>
-      <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="fold progress">
+      <div id="segbar" role="slider" tabindex="0" aria-label="lesson progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
       <span id="tlabel">unfolded</span>
     </div>
     <div id="toggles">
@@ -351,7 +374,6 @@ let t = 0, playing = false, lastFormed = null;
 /* false until the student first plays or scrubs — drives the card's intro state */
 let started = false;
 /* the zoom legend is introduced once, when the fold first completes */
-let zoomShown = false;
 const atomMeshes = [], bondMeshes = [], hbGroups = [];
 /* Everything belonging to the FOLD lives in one group, so act 3 can carry the
    whole atomic model onto its place inside villin with a single transform
@@ -389,7 +411,7 @@ Promise.all([
     throw new Error(`baked fold has ${traj.formed[0].length} H-bonds, ` +
       `structure has ${hb.length} — re-run: node folding/tools/bake-fold.js`);
 
-  build(); seek(0);
+  build(); buildSegments(); seekU(0, true);
   document.getElementById('loading').classList.add('done');
 }).catch(e => {
   document.getElementById('loading').textContent = 'could not start — ' + e.message;
@@ -970,18 +992,19 @@ function updateReadout(formed) {
      a student stops to *read* the count, so it must survive a pause. */
   document.getElementById('tally').hidden = done || !started;
   document.getElementById('foldtoggles').hidden = done;
-  /* The fold runs straight on into the reveal — no click, no rung stepper.
-     Scrubbing back out of `done` cancels it and returns to the chain. */
-  if (done && villin && !zoomShown) { zoomShown = true; startReveal(); }
-  if (!done && (rung !== RUNG.FOLD || reveal)) { cancelReveal(); setRung(RUNG.FOLD); }
+  /* The reveal is entered by seekU, which owns the lesson clock — not from
+     here. All this still has to do is put the fold back if the student has
+     scrubbed out of act 3 without going through seekU (the arrangement and
+     rung buttons can leave `rung` elsewhere). */
+  if (!done && !reveal && rung !== RUNG.FOLD) setRung(RUNG.FOLD);
 
   /* The transport is updated on BOTH sides of this branch: it stays usable in
      act 3 as the way back down to the fold, so its label and position must
      keep tracking t. Returning before this left it reading "unfolded" while
      the finished protein sat on screen. */
-  document.getElementById('tlabel').textContent =
-    t <= 0.001 ? 'unfolded' : t >= 0.999 ? 'folded' : Math.round(t * 100) + '%';
-  document.getElementById('scrub').value = Math.round(t * 1000);
+  /* The bar is written by seekU, which knows the lesson clock. updateReadout
+     only knows t, and writing from here would erase the reveal's share of the
+     bar every time the fold seeks. */
   if (done) return;
 
   const intro = !started;
@@ -1607,8 +1630,8 @@ const REVEAL_BEATS = {
 const REVEAL_STAGGER = 0.55;              // of the `rest` window spent walking outward
 let reveal = null;
 
-function startReveal() {
-  if (!villin) return;
+function enterReveal() {
+  if (reveal || !villin) return;
   if (!villinGroup) buildVillin();
   if (!actinGroup && actin) buildActin();
   anim = null;
@@ -1624,10 +1647,18 @@ function startReveal() {
   if (ribbon) { ribbon.visible = true; ribbon.material.opacity = RIBBON_MAX; }
 }
 
+/* Leaving the reveal SNAPS rather than animating. setRung's 2.2 s transition
+   is right for a click and wrong for a scrub: dragging back through the bar
+   would queue a transition per frame and the chain would arrive late, still
+   dissolving, after the pointer had stopped. */
 function cancelReveal() {
   if (!reveal) return;
   reveal = null;
+  anim = null;
+  rung = RUNG.FOLD;
   document.getElementById('zoom').hidden = true;
+  document.getElementById('arrangements').hidden = true;
+  applyFade(true);
 }
 
 /* The points the camera should be fitting RIGHT NOW — only what has actually
@@ -1657,11 +1688,19 @@ function restAt(r, m) {
   return smoothstep(Math.max(0, Math.min(1, (r.mRest - s) / (1 - REVEAL_STAGGER))));
 }
 
-function stepReveal(dt) {
+/* The reveal as a pure function of its progress, so it can be SCRUBBED like
+   the fold rather than only played. Everything below is derived from `p`
+   alone — which is what makes the single timeline possible.
+
+   The camera is the one piece with memory: during playback it eases toward
+   the fit so the pull-back has weight, but a scrub has to land on the frame
+   for where the pointer is, not glide toward it from wherever the last drag
+   left off. Hence `snap`. */
+function applyRevealAt(p, snap) {
   if (!reveal) return;
-  reveal.p = Math.min(1, reveal.p + dt / REVEAL_DUR);
-  const p = reveal.p, B = REVEAL_BEATS;
-  const win = ([lo, hi]) => beat(p, lo, hi);
+  p = Math.max(0, Math.min(1, p));
+  reveal.p = p;
+  const B = REVEAL_BEATS, win = ([lo, hi]) => beat(p, lo, hi);
 
   reveal.mSolid = win(B.solid);
   reveal.mOwn   = win(B.own);
@@ -1686,19 +1725,18 @@ function stepReveal(dt) {
   if (!userZoom && p > B.cam) {
     const f = solveFrame(revealPoints(reveal));
     if (f) {
-      const k = Math.min(1, dt * 1.7);
+      const k = snap ? 1 : reveal.k;
       cam.r += (f.r - cam.r) * k;
       cam.target.lerp(f.target, k);
       applyCam();
     }
   }
 
-  applyFade(false);
-  if (p >= 1) {
-    reveal = null;
-    applyFade(true);
-    document.getElementById('zoom').hidden = false;
-    document.getElementById('arrangements').hidden = false;
+  applyFade(p >= 1);
+  const doneNow = p >= 1;
+  document.getElementById('zoom').hidden = !doneNow;
+  document.getElementById('arrangements').hidden = !doneNow;
+  if (doneNow) {
     document.getElementById('znote').innerHTML = ZNOTES[RUNG.VILLIN];
     if (ribbon) ribbon.visible = false;
   }
@@ -1833,6 +1871,13 @@ function buildArrangementButtons() {
 /* What the camera should be looking at right now. */
 function currentPoints() {
   if (rung === RUNG.FOLD || !villin) return posOf(t);
+  /* Mid-reveal the answer is "whatever has arrived so far", not villin. The
+     rung already reads VILLIN while the reveal plays — that is what the
+     buttons and the chrome reserve key off — so without this a resize (or any
+     other frameCurrent) solves the frame for the finished protein and drops
+     the camera onto a centroid that is nowhere near the part on screen. It
+     looks like the molecule has slid into a corner. */
+  if (reveal) return revealPoints(reveal);
   if (rung === RUNG.HEADPIECE)
     return villinPoints(arrangement, villin.domains[villin.domains.length-1][0], villin.nums[villin.residues-1]);
   if (rung === RUNG.VILLIN || !actinGroup) return villinPoints(arrangement);
@@ -1876,8 +1921,104 @@ canvas.addEventListener('pointermove', e => {
   if (hit !== hoverHP) { hoverHP = hit; canvas.style.cursor = hit ? 'pointer' : ''; }
 });
 
+/* ============================================================
+ *  THE TIMELINE — one clock over the whole lesson
+ *
+ *  There are two mechanisms underneath: the baked fold, parameterised by t in
+ *  0..1, and the reveal, parameterised by its own p. They used to be two
+ *  clocks with only the first on the scrub bar, which left the last third of
+ *  the lesson — the zoom out to the whole protein — with nothing on screen
+ *  representing it and no way to replay it short of refolding.
+ *
+ *  So `u` runs 0..1 across BOTH, split by wall-clock: 15 s of fold then 11 s
+ *  of reveal. Everything the bar does is in u; seekU maps it onto whichever
+ *  mechanism owns that stretch.
+ *
+ *  THE DIVISIONS ARE MEASURED, NOT TYPED. The act boundary is read out of
+ *  FoldLib.SCHEDULE by bisection, so it cannot drift from the solver, and the
+ *  primary/secondary line is the first frame of the baked trajectory in which
+ *  any hydrogen bond is actually formed. Typing 0.15 and 0.62 here would have
+ *  been two more constants to keep in sync with two other files.
+ * ============================================================ */
+const TL = { fold: PLAY_SECONDS, reveal: REVEAL_DUR };
+TL.total = TL.fold + TL.reveal;
+TL.split = TL.fold / TL.total;            // where the fold hands over
+
+let SEGMENTS = null, timeU = 0;
+const segbar = document.getElementById('segbar');
+
+function buildSegments() {
+  // the act 1 -> act 2 boundary, from the solver rather than from a constant
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const m = (lo + hi) / 2;
+    if (FoldLib.SCHEDULE(m).act === 1) lo = m; else hi = m;
+  }
+  const actBreak = hi;
+
+  /* Where primary structure stops being the whole story: the first frame with
+     a formed hydrogen bond. Until then the chain really is just a sequence,
+     which is the claim the first block makes. */
+  let firstBond = 0;
+  for (let k = 0; k < traj.count; k++)
+    if (Array.from(traj.formed[k]).some(x => x > 0.5)) { firstBond = k / (traj.count - 1); break; }
+
+  const f = x => x * TL.split;             // fold t -> lesson u
+  SEGMENTS = [
+    { name: 'primary',   u0: 0,               u1: f(firstBond) },
+    { name: 'secondary', u0: f(firstBond),    u1: f(actBreak)  },
+    { name: 'tertiary',  u0: f(actBreak),     u1: TL.split     },
+    { name: 'the protein', u0: TL.split,      u1: 1            },
+  ];
+
+  segbar.innerHTML = '';
+  SEGMENTS.forEach(sg => {
+    const d = document.createElement('div');
+    d.className = 'seg';
+    // sized by DURATION, so the bar does not lie about how long a part takes
+    d.style.flexGrow = (sg.u1 - sg.u0) * TL.total;
+    d.innerHTML = '<div class="segfill"></div><span class="seglab"></span>';
+    d.querySelector('.seglab').textContent = sg.name;
+    sg.el = d; sg.fill = d.querySelector('.segfill');
+    segbar.appendChild(d);
+  });
+  updateBar();
+}
+
+function updateBar() {
+  if (!SEGMENTS) return;
+  SEGMENTS.forEach(sg => {
+    const w = Math.max(0, Math.min(1, (timeU - sg.u0) / (sg.u1 - sg.u0)));
+    sg.fill.style.width = (w * 100) + '%';
+    sg.el.classList.toggle('cur', timeU >= sg.u0 && (timeU < sg.u1 || sg.u1 >= 1));
+  });
+  segbar.setAttribute('aria-valuenow', Math.round(timeU * 100));
+  const cur = SEGMENTS.find(sg => timeU >= sg.u0 && (timeU < sg.u1 || sg.u1 >= 1));
+  segbar.setAttribute('aria-valuetext', Math.round(timeU * 100) + '% — ' + (cur ? cur.name : ''));
+}
+
+/* Map one lesson position onto whichever mechanism owns it. `snap` is set for
+   a drag: the camera lands where the pointer says instead of easing there. */
+function seekU(u, snap) {
+  timeU = Math.max(0, Math.min(1, u));
+  if (timeU < TL.split) {
+    if (reveal) cancelReveal();
+    seek(timeU / TL.split);
+  } else {
+    if (t < 0.999) seek(1);                // fold has to be finished under it
+    enterReveal();
+    applyRevealAt((timeU - TL.split) / (1 - TL.split), snap);
+  }
+  updateBar();
+  document.getElementById('tlabel').textContent =
+    timeU <= 0.001 ? 'unfolded'
+    : timeU < TL.split ? Math.round((timeU / TL.split) * 100) + '%'
+    : timeU >= 0.999 ? 'whole protein'
+    : 'zooming out';
+}
+
 /* ---------- transport ---------- */
-const playBtn = document.getElementById('playbtn'), scrub = document.getElementById('scrub');
+const playBtn = document.getElementById('playbtn');
 function setPlaying(p) {
   playing = p;
   playBtn.innerHTML = '<i class="ph-bold ph-' + (p ? 'pause' : 'play') + '"></i>';
@@ -1885,16 +2026,42 @@ function setPlaying(p) {
 playBtn.addEventListener('click', () => {
   if (!traj) return;
   started = true;
-  if (t >= 0.999 && !playing) { lastFormed = null; seek(0); }
+  if (timeU >= 0.999 && !playing) { lastFormed = null; seekU(0, true); }
   setPlaying(!playing);
 });
-scrub.addEventListener('input', () => {
+
+/* Pointer scrubbing on the segmented bar. A range input would have been less
+   code, but it cannot show the parts — and the parts are the point. */
+let dragging = false;
+const uAt = e => {
+  const r = segbar.getBoundingClientRect();
+  return (e.clientX - r.left) / r.width;
+};
+segbar.addEventListener('pointerdown', e => {
   if (!traj) return;
-  setPlaying(false);
-  started = true;
-  lastFormed = null;                       // no ring storm while dragging
-  seek(+scrub.value / 1000);
+  dragging = true; segbar.setPointerCapture(e.pointerId);
+  setPlaying(false); started = true; lastFormed = null;   // no ring storm while dragging
+  seekU(uAt(e), true);
 });
+segbar.addEventListener('pointermove', e => { if (dragging) seekU(uAt(e), true); });
+segbar.addEventListener('pointerup', e => {
+  dragging = false;
+  if (segbar.hasPointerCapture(e.pointerId)) segbar.releasePointerCapture(e.pointerId);
+});
+segbar.addEventListener('keydown', e => {
+  if (!traj) return;
+  const step = e.shiftKey ? 0.05 : 0.01;
+  let u = timeU;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') u -= step;
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') u += step;
+  else if (e.key === 'Home') u = 0;
+  else if (e.key === 'End') u = 1;
+  else return;
+  e.preventDefault();
+  setPlaying(false); started = true;
+  seekU(u, true);
+});
+
 document.getElementById('showplddt').addEventListener('change', () => buildVillin());
 document.getElementById('showcore').addEventListener('change', e => {
   atomMeshes.forEach(m => { if (m.userData.core) m.visible = e.target.checked; });
@@ -1910,13 +2077,13 @@ let last = performance.now();
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
-  stepReveal(dt);
   stepTransition(dt);
   stepHover(dt);
 
   if (playing && traj) {
-    const nt = t + dt / PLAY_SECONDS;
-    if (nt >= 1) { seek(1); setPlaying(false); } else seek(nt);
+    if (reveal) reveal.k = Math.min(1, dt * 1.7);   // camera ease, not a snap
+    const nu = timeU + dt / TL.total;
+    if (nu >= 1) { seekU(1, false); setPlaying(false); } else seekU(nu, false);
   }
   FXi.step();
   renderer.render(scene, camera);
