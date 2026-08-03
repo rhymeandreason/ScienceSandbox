@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Molecule Sandbox — How a Protein Folds (ribbon)</title>
+<title>Molecule Sandbox — Protein Structure: Watch Levels 1→3 Happen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
@@ -36,10 +36,6 @@
   #act.intro{max-width:min(640px,84%);padding:14px 22px 16px}
   #act.intro .actname{font-size:29px}
   #act.intro .actbody{font-size:14.5px;margin-top:7px}
-  #act .actnote{display:none}
-  #act.intro .actnote{display:block;font-family:var(--font-sans);font-size:11.5px;
-    line-height:1.45;color:var(--muted);margin-top:10px;padding-top:9px;
-    border-top:1px solid var(--hair);text-align:left}
 
   /* ---------- running caption (acts 1-2) ----------
      Same shape as molecule-builder's #say toast: bare text over the paper,
@@ -59,6 +55,30 @@
     0%{opacity:0;transform:translateX(-50%) translateY(7px)}
     100%{opacity:1;transform:translateX(-50%) translateY(0)}}
 
+  /* ---------- the info button and its panel ----------
+     The intro card is the standfirst and nothing more — a student needs to
+     know what they are looking at before it moves, and every sentence past
+     that is a sentence they read instead of pressing play. The supporting
+     facts and the caveats are real and have to be on the page, so they live
+     one click away here rather than in the way. */
+  #infobtn{position:absolute;right:20px;top:20px;z-index:8;width:36px;height:36px;
+    border-radius:50%;cursor:pointer;border:2px solid var(--ink);background:#fff;
+    color:var(--ink);font-size:17px;display:flex;align-items:center;
+    justify-content:center;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
+  #infobtn:hover,#infobtn.on{background:var(--ink);color:var(--paper)}
+  #infopanel{position:absolute;right:20px;top:64px;z-index:8;width:min(360px,84vw);
+    max-height:calc(100% - 96px);overflow-y:auto;
+    background:rgba(255,255,255,.94);border:2px solid var(--ink);
+    border-radius:9px 12px 8px 11px;padding:13px 16px 15px;
+    box-shadow:0 6px 18px -8px rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+  #infopanel h4{font-family:var(--font-marker);font-size:16px;line-height:1.15;
+    margin:0 0 3px}
+  #infopanel section + section{margin-top:12px;padding-top:11px;
+    border-top:1px solid var(--hair)}
+  #infopanel p{font-family:var(--font-sans);font-size:12.5px;line-height:1.5;
+    color:#3a352f;margin:0}
+  #infopanel b{color:var(--ink)}
+
   /* Transport: play/pause + scrub, bottom-centre. */
   #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
     display:flex;align-items:center;gap:12px;width:min(560px,82%);
@@ -72,8 +92,12 @@
   #tlabel{font-family:var(--font-slab);font-size:12.5px;color:var(--muted);
     min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
 
-  /* Live H-bond tally, top-left of the stage. */
-  #tally{position:absolute;left:22px;top:22px;z-index:6;pointer-events:none;
+  /* Live H-bond tally, lower right — stacked above the toggles, with the rest
+     of the readout chrome rather than alone in a corner of its own. It is a
+     running count of something happening, so it belongs near the transport
+     driving it, not up top where the page's titles live. */
+  #tally{position:absolute;right:20px;bottom:72px;z-index:6;pointer-events:none;
+    text-align:right;
     background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
     padding:9px 13px;font-family:var(--font-slab);font-size:13px;line-height:1.5}
   #tally .big{font-size:23px;color:var(--hb);font-weight:700;
@@ -136,9 +160,12 @@
   #loading.done{display:none}
 
   @media (max-width:920px){
-    #act{top:12px;max-width:90%} #transport{width:90%;bottom:14px}
-    #tally{left:12px;top:auto;bottom:76px}
-    /* clears the tally, which moves to the bottom-left on this breakpoint */
+    /* narrower than the stage, because the info button owns the top-right corner */
+    #act,#act.intro{top:12px;max-width:78%} #transport{width:90%;bottom:14px}
+    #infobtn{top:10px;right:10px;width:32px;height:32px;font-size:15px}
+    #infopanel{top:48px;right:10px}
+    #tally{right:12px;bottom:64px}
+    /* clears the tally and the toggles, which crowd the bottom on this breakpoint */
     #saycap{bottom:124px;width:92%}
     #saycap .capname{font-size:18px} #saycap .capbody{font-size:13px}
     #zoom{top:10px;max-width:96%;padding:7px 9px 8px}
@@ -152,10 +179,10 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="act" class="intro"><div class="actname"></div>
-      <div class="actbody"></div><div class="actnote"></div></div>
+      <div class="actbody"></div></div>
     <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
     <div id="tally"><span class="big" id="hbcount">0</span> / 14 hydrogen bonds
-      <div class="sub" id="hbsub">holding the chain</div></div>
+      <div class="sub" id="hbsub">primary structure only</div></div>
 
     <!-- Act 3. Replaces #act once the fold finishes: the caption's job is done
          and the question becomes "what is this thing part of?" -->
@@ -195,11 +222,54 @@
     </div>
     <div id="toggles">
       <span id="foldtoggles">
-      <label><input type="checkbox" id="showhb" checked> hydrogen bonds</label>
       <label><input type="checkbox" id="showcore" checked> hydrophobic core</label>
       </span>
-      <label><input type="checkbox" id="spin"> spin</label>
       <label id="plddtrow" hidden><input type="checkbox" id="showplddt"> AlphaFold confidence</label>
+    </div>
+    <button id="infobtn" aria-label="About this animation" title="About this animation"
+      aria-expanded="false"><i class="ph-bold ph-info"></i></button>
+    <div id="infopanel" hidden>
+      <section>
+        <h4>The molecule</h4>
+        <p><b>Villin headpiece (HP35)</b> — the last 36 amino acids of a much
+          bigger protein, solved by X-ray crystallography as <b>PDB 1VII</b>.
+          It folds in about 4 microseconds, which is why it is the one everybody
+          uses to study folding.</p>
+      </section>
+      <section>
+        <h4>Level 1 · primary</h4>
+        <p>The order of the amino acids, and nothing else — that is the only
+          part your DNA specifies. Everything you are about to watch follows
+          from it.</p>
+      </section>
+      <section>
+        <h4>Level 2 · secondary</h4>
+        <p>Fourteen <b>backbone</b> hydrogen bonds form. <b>Twelve of them link
+          a residue to the one four places along the chain</b> — that spacing
+          is what makes a spiral instead of a loop, and it is why three
+          stretches turn into three α-helices. The other level-2 shape,
+          the β-sheet, does not appear in this protein.</p>
+      </section>
+      <section>
+        <h4>Level 3 · tertiary</h4>
+        <p>Now the <b>side chains</b> do the work instead. Three
+          phenylalanines — oily, and water will not mix with them — end up
+          buried in the middle with the helices packed around them. That is
+          the whole chain's final shape.</p>
+      </section>
+      <section>
+        <h4>Level 4 · quaternary</h4>
+        <p>Not here: this protein is one chain, so it stops at level 3. Level 4
+          is what happens when <b>several finished chains</b> assemble into one
+          working unit — see the protein structure lesson's antibody.</p>
+      </section>
+      <section>
+        <h4>What this animation fakes</h4>
+        <p>Real folding is thermal chaos, not a smooth collapse: the
+          <b>order</b> of events here is right, the path is not. And act 2 is
+          drawn as the phenylalanines attracting each other, when the real
+          cause is <b>water pushing them together</b>.</p>
+      </section>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
     <div id="loading">loading…</div>
@@ -264,7 +334,6 @@ const CORE_STICK = STICK * 0.85;           // side chains a touch finer
 const PLAY_SECONDS = 15;                   // wall-clock length of one fold
 
 const canvas = document.getElementById('gl');
-let userSpun = false;
 /* Once the student wheels the camera themselves, the per-frame auto-framing
    stops for good — otherwise every frame would yank their chosen zoom back,
    which reads as the page fighting them. Orbiting is left alone: it does not
@@ -278,7 +347,6 @@ const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(ca
      azimuth reintroduces the diagonal this page was fighting. */
   cam: { theta: 0, phi: 1.18, r: 46 }, phiMin: 0.3, phiMax: 2.7,
   rMin: 4, rMax: 600,
-  onDrag: () => { userSpun = true; },
   onZoom: () => { userZoom = true; } });
 const FXi = FX.create(THREE, root, camera);
 
@@ -428,10 +496,10 @@ function build() {
    nothing else. The next seek refits against whatever angle the student left
    it at, so playback still frames correctly afterwards. */
 /* Two chrome layouts, not one: before play the intro card holds the top and
-   only the transport is below; during the fold the top is clear (the tally is
-   off to the left) and the caption sits above the transport instead. Same
-   pixels, other end of the stage. */
-const RESERVE = { top: 34, intro: 172, bottom: 96, capBottom: 158 };
+   only the transport is below; during the fold the top is clear (the tally and
+   the toggles are off to the right) and the caption sits above the transport
+   instead. Same pixels, other end of the stage. */
+const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 158 };
 const FIT_THETA = cam.theta, FIT_PHI = cam.phi;   // captured before any drag
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in angstroms
@@ -541,10 +609,11 @@ function seek(tt) {
       _a.subVectors(b, a).normalize());
   });
 
-  const showHB = document.getElementById('showhb').checked;
+  /* No toggle: the hydrogen bonds ARE act 1's lesson, so they are always
+     drawn. Visibility tracks only whether the bond has formed yet. */
   hbGroups.forEach((g, k) => {
     const b = g.userData.b, amt = formed[k];
-    g.visible = showHB && amt > 0.02;
+    g.visible = amt > 0.02;
     g.userData.mat.opacity = Math.min(1, amt) * 0.92;
     if (!g.visible) return;
     const O = P[b.o], H = P[b.h];
@@ -582,26 +651,26 @@ function seek(tt) {
    (there is no side panel to put them in, and a student needs to know what
    they are looking at before it starts moving); during the fold it is a
    running caption for whichever mechanism is currently doing the work. */
+/* Short on purpose. Everything a student would ask next — which molecule, why
+   the helices, what the animation fakes — is in the info panel behind the (i)
+   button, because a standfirst long enough to answer it is a standfirst they
+   read instead of pressing play. The caveats are still on the page, one click
+   away rather than in the way; folding/folding.js's header has them at length. */
 const INTRO = {
-  name: 'How a protein folds',
-  body: 'This is <b>villin headpiece</b> — 36 amino acids, one of the smallest ' +
-        'things that folds like a real protein. Press play and watch the chain ' +
-        'build itself. <b>Two different forces do the work, one after the ' +
-        'other</b>, and telling them apart is the whole lesson.',
-  /* The caveats belong where a student can see them, not only in a source
-     comment — folding/folding.js's header explains each at length. Shown before play
-     because that is when there is room; the running caption must stay small. */
-  note: '<b>What this animation fakes:</b> real folding is thermal chaos over about ' +
-        '4 microseconds, not a smooth collapse. The <i>order</i> of events is right; ' +
-        'the path is not. And act 2’s core is drawn as an attraction between the ' +
-        'phenylalanines, when the real cause is water pushing them together.',
+  name: 'Primary → secondary → tertiary',
+  body: 'What you see now is <b>primary structure</b>: 36 amino acids in order, ' +
+        'nothing more. Press play and watch levels 2 and 3 build themselves — ' +
+        '<b>a different force makes each one</b>.',
 };
 
+/* Named by the structure level each act produces, not by its mechanism — the
+   mechanism is the second half of the line. Level 1 is the extended chain at
+   t=0, which is why there is no act for it. */
 const ACTS = [
-  { name: 'Act 1 · hydrogen bonds coil the chain',
-    body: 'Each C=O grabs the N–H four residues down. Three separate stretches spiral into α-helices.' },
-  { name: 'Act 2 · water packs the helices together',
-    body: 'No hydrogen bond runs between helices. The three phenylalanines hide from water, and the bundle closes.' },
+  { name: 'Level 2 · secondary structure',
+    body: 'Backbone hydrogen bonds: each C=O grabs the N–H four residues down. Three stretches spiral into <b>α-helices</b>.' },
+  { name: 'Level 3 · tertiary structure',
+    body: 'Now the <b>side chains</b>. No hydrogen bond runs between helices — the three phenylalanines hide from water, and the whole chain closes into one shape.' },
 ];
 
 let capAct = 0;   // which act the bottom caption is currently showing
@@ -619,11 +688,15 @@ function updateReadout(formed) {
   cap.hidden = done || !started;     // running caption only
   document.getElementById('zoom').hidden = !done || !villin;
   document.getElementById('plddtrow').hidden = !done || !villin;
-  /* The H-bond tally counts the fold's own event and means nothing once the
-     zoom leaves that scale — villin's other 790 residues have hydrogen bonds
-     too, and a stalled "14 / 14" beside a whole protein would read as a claim
-     about the protein. Hidden rather than frozen. */
-  document.getElementById('tally').hidden = done;
+  /* The tally is only on while the fold itself is on screen. Before play it
+     would read "0 / 14" beside a chain that has not been asked to do anything
+     yet, which looks like a broken counter rather than a starting point. And
+     once the zoom leaves this scale it means nothing — villin's other 790
+     residues have hydrogen bonds too, so a stalled "14 / 14" beside a whole
+     protein would read as a claim about the protein. Hidden, not frozen.
+     Deliberately keyed to `started`, not to `playing`: pausing mid-fold is how
+     a student stops to *read* the count, so it must survive a pause. */
+  document.getElementById('tally').hidden = done || !started;
   document.getElementById('foldtoggles').hidden = done;
   if (done && villin && !zoomShown) { zoomShown = true; setRung(RUNG.FOLD); }
   if (!done && rung !== RUNG.FOLD) setRung(RUNG.FOLD);
@@ -644,7 +717,6 @@ function updateReadout(formed) {
     act.querySelector('.actname').className = 'actname';
     act.querySelector('.actname').textContent = INTRO.name;
     act.querySelector('.actbody').innerHTML = INTRO.body;
-    act.querySelector('.actnote').innerHTML = INTRO.note;
   } else {
     /* Only re-write on an act change — scrubbing calls this every frame, and
        reassigning the animation class each time would hold the caption at the
@@ -662,8 +734,8 @@ function updateReadout(formed) {
   const nf = formed.filter(x => x > 0.5).length;
   document.getElementById('hbcount').textContent = nf;
   document.getElementById('hbsub').textContent =
-    nf === 0 ? 'chain is extended' :
-    s.act === 1 ? 'coiling the helices' : 'helices done — core packing';
+    nf === 0 ? 'primary structure only' :
+    s.act === 1 ? 'building level 2' : 'helices done — level 3 packing';
 
 }
 
@@ -1372,7 +1444,6 @@ scrub.addEventListener('input', () => {
   lastFormed = null;                       // no ring storm while dragging
   seek(+scrub.value / 1000);
 });
-document.getElementById('showhb').addEventListener('change', () => seek(t));
 document.getElementById('showplddt').addEventListener('change', () => buildVillin());
 document.getElementById('showcore').addEventListener('change', e => {
   atomMeshes.forEach(m => { if (m.userData.core) m.visible = e.target.checked; });
@@ -1395,14 +1466,27 @@ let last = performance.now();
     const nt = t + dt / PLAY_SECONDS;
     if (nt >= 1) { seek(1); setPlaying(false); } else seek(nt);
   }
-  if (document.getElementById('spin').checked && !userSpun) {
-    cam.theta += dt * 0.25; applyCam();
-  }
   FXi.step();
   renderer.render(scene, camera);
 })(performance.now());
 
 /* ---------- PNG ---------- */
+/* The info panel. A plain toggle — it does not pause playback, because the
+   facts in it are about what is on screen and reading them while the chain
+   moves is the point. Escape and a click on the stage close it. */
+{
+  const btn = document.getElementById('infobtn'), panel = document.getElementById('infopanel');
+  const setOpen = open => {
+    panel.hidden = !open;
+    btn.classList.toggle('on', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  btn.addEventListener('click', e => { e.stopPropagation(); setOpen(panel.hidden); });
+  panel.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+}
+
 document.getElementById('savepng').addEventListener('click', () => {
   renderer.render(scene, camera);
   const a = document.createElement('a');
