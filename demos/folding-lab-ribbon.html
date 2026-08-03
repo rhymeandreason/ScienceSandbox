@@ -1634,10 +1634,11 @@ function setRung(n) {
  *    1. HOLD. The finished chain sits still for a beat. Nothing arrives
  *       while the eye is still reading what it just watched happen.
  *    2. SOLIDIFY. The ball-and-stick fades out while the ribbon goes solid,
- *       in place. Representation changes; the molecule does not.
- *    3. OPEN OUT. The rest of the headpiece arrives around it and the camera
- *       starts pulling back — together, so the new material is what the
- *       camera is making room for.
+ *       in place, and the camera starts opening at the same moment.
+ *       Representation changes; the molecule does not.
+ *    3. OPEN OUT. The rest of the headpiece arrives around it while the
+ *       camera is already travelling, so the new material is what the camera
+ *       is making room for.
  *    4. THE PROTEIN. The other six repeats arrive DOMAIN BY DOMAIN, walking
  *       outward from the headpiece along the chain, with the camera fitting
  *       as they land. Arriving all at once would read as a different, bigger
@@ -1656,10 +1657,19 @@ function setRung(n) {
  * ============================================================ */
 const REVEAL_DUR = 11;                    // seconds, chain to whole protein
 const REVEAL_BEATS = {
-  solid: [0.06, 0.26],                    // atoms out, ribbon solid, HP35 handed over
-  own:   [0.22, 0.46],                    // the rest of the headpiece
+  /* The handover is SHORT — 0.73 s, a third of what it was. It is a change of
+     representation, not an event in the lesson, and drawn out it reads as
+     something being decided. The camera leaves with it rather than after it,
+     so the shot is already opening while the ribbon goes solid. */
+  solid: [0.06, 0.127],                   // atoms out, ribbon solid, HP35 handed over
+  /* `own` starts INSIDE the handover, and that is what actually makes the
+     camera move with it. The camera fits whatever has arrived, so setting the
+     cam gate early on its own bought nothing — with only HP35 on screen the
+     fit is the frame it is already in (r went 39 to 41 across the whole
+     handover). The shot opens when there is something to open for. */
+  own:   [0.08, 0.38],                    // the rest of the headpiece
   rest:  [0.42, 1.00],                    // the other six repeats, staggered
-  cam:   0.20,                            // camera starts moving with `own`
+  cam:   0.06,                            // camera starts WITH the handover
 };
 const REVEAL_STAGGER = 0.55;              // of the `rest` window spent walking outward
 let reveal = null;
