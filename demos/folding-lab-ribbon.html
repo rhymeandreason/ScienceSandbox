@@ -471,13 +471,30 @@ function build() {
   focusBonds = hb.reduce((a, b, k) =>
     (inFocus(b.o) && inFocus(b.h) ? (a.push(k), a) : a), []);
 
-  helixCA = HELICES.map(([lo, hi]) => parsed.nodes.reduce((a, nd, i) =>
-    (nd.name === 'CA' && nd.res >= lo && nd.res <= hi ? (a.push(i), a) : a), []));
-  helixCA.forEach((ix, h) => {
-    if (ix.length < 2)
-      throw new Error(`helix ${h + 1} (${HELICES[h].join('-')}) has ${ix.length} CA — no ribbon to draw`);
-  });
-  helixRibbons = helixCA.map(() => {
+  /* Act 2's ribbon is ONE CONTINUOUS CARTOON over the whole chain, not three
+     separate helices — the loops between them are drawn too. Three floating
+     bands read as three unconnected objects, which is the opposite of act 2's
+     point: they are three parts of ONE molecule being pulled together, and
+     the connecting chain is what makes that legible.
+
+     It is also what every structure viewer does, for the same reason.
+     ribbon.js's PROFILE is already built for it — a 1.30 A band through
+     helices against a 0.32 A round cord through loops, so the WIDTH CHANGE
+     carries the secondary structure and the chain stays continuous. Nothing
+     new is being claimed by drawing the loops: a loop is exactly what the
+     cartoon says it is, the part with no secondary structure. */
+  chainCA = parsed.nodes.reduce((a, nd, i) => (nd.name === 'CA' ? (a.push(i), a) : a), []);
+  const firstRes = parsed.nodes[chainCA[0]].res;
+  chainSS = RibbonLib.assign(chainCA.length, firstRes, HELICES, 'H');
+  if (!chainSS.includes('H'))
+    throw new Error(`no helix in residues ${firstRes}+ — HELICES may not match this file's numbering`);
+
+  focusCA = parsed.nodes.reduce((a, nd, i) =>
+    (nd.name === 'CA' && inFocus(i) ? (a.push(i), a) : a), []);
+  if (focusCA.length < 2)
+    throw new Error(`the framed helix ${FOCUS.lo}-${FOCUS.hi} has ${focusCA.length} CA — no ribbon to draw`);
+
+  const mkRibbon = () => {
     const m = new THREE.Mesh(new THREE.BufferGeometry(), Stage.bondMat(PAL.bonds.hbond));
     m.material.transparent = true;
     m.material.opacity = 0;
@@ -486,7 +503,8 @@ function build() {
     m.visible = false;
     foldGroup.add(m);
     return m;
-  });
+  };
+  ribbons = { chain: mkRibbon(), focus: mkRibbon() };
 }
 
 /* ---------- camera ----------
@@ -561,7 +579,6 @@ const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in
    whole reason to do it this way. Staggering the helices in the bake would
    show the beat more bluntly while asserting a formation ORDER that nobody
    has measured, and this page already spends its credibility carefully. */
-const FOCUS_HELIX = 2;                // index into HELICES below — the 10-residue one
 const FOCUS = { lo: 63, hi: 72 };     // helix 3, from 1VII's HELIX record 3
 /* Wide at t=0 — the extended chain IS the primary-structure beat and has to
    be seen whole before anything closes in on part of it. Then in, hold across
@@ -608,7 +625,7 @@ let focusIdx = null;                  // atom indices inside FOCUS, filled by bu
 const HELICES = [[44, 48], [55, 58], [63, 72]];   // 1VII's own HELIX records
 const RIBBON_IN = [0.82, 0.92];   // fade-in window; see the measurement above
 const RIBBON_MAX = 0.62;          // an overlay on the atoms, never a replacement
-let helixCA = null, helixRibbons = null;
+let chainCA = null, chainSS = null, focusCA = null, ribbons = null;
 
 const ribbonW = tt => tt <= RIBBON_IN[0] ? 0 : tt >= RIBBON_IN[1] ? 1
   : smoothstep((tt - RIBBON_IN[0]) / (RIBBON_IN[1] - RIBBON_IN[0]));
@@ -620,10 +637,10 @@ const ribbonW = tt => tt <= RIBBON_IN[0] ? 0 : tt >= RIBBON_IN[1] ? 1
 
    ONCE IN, IT STAYS. Deliberately not tied to focusW: the helix does not stop
    being a helix when the camera pulls back, and fading its ribbon out would
-   say that it did. It carries through the pull-out and into act 2, where the
-   other two join it — which also makes the reveal land better, since what
-   arrives at t=0.82 is then two more of something already understood rather
-   than three new objects at once. */
+   say that it did. It carries through the pull-out until act 2's full-chain
+   cartoon takes over from it — which also makes that reveal land better,
+   since what arrives at t=0.82 is then the REST of something already
+   understood rather than a new object. */
 let focusBonds = null;
 function closeUpW(formed) {
   if (!focusBonds || !focusBonds.length) return 0;
@@ -635,15 +652,16 @@ function closeUpW(formed) {
 }
 
 /* Rebuilt from LIVE coordinates every frame rather than built once and posed:
-   the helices are still moving while this is on screen — that movement is the
+   the chain is still moving while this is on screen — that movement is the
    whole of act 2 — and a ribbon lagging its own atoms by a frame would read as
-   a separate object floating over them. Nineteen residues total, so the cost
-   is nothing. */
-/* Returns { all, focus } — how far the atoms under each fade back. Two
+   a separate object floating over them. Thirty-six residues, so the cost is
+   nothing.
+
+   Returns { all, focus }: how far the atoms under each ribbon fade back. Two
    numbers because act 1 fades only the framed helix (the rest of the chain is
    already dimmed for the close-up) while act 2 fades the whole backbone. */
-function updateHelixRibbons(P, formed) {
-  if (!helixRibbons) return { all: 0, focus: 0 };
+function updateRibbons(P, formed) {
+  if (!ribbons) return { all: 0, focus: 0 };
   /* Off the moment act 3 starts. From there the representation is act 3's to
      choose — rung 0 is deliberately atoms and rung 1 is where the page says
      "the same 36 residues, now drawn as a ribbon". Two ribbon systems on the
@@ -651,17 +669,23 @@ function updateHelixRibbons(P, formed) {
      drive ours to full opacity anyway. */
   const done = t >= 0.999;
   const all = done ? 0 : ribbonW(t);
-  const focus = done ? 0 : closeUpW(formed);
-  helixRibbons.forEach((m, h) => {
-    const w = h === FOCUS_HELIX ? Math.max(all, focus) : all;
+  /* The close-up's helix hands over to the full chain rather than sitting
+     under it: the two coincide over those ten residues, and two transparent
+     surfaces in the same place read as a brighter, harder-edged band exactly
+     where the cartoon should be most ordinary. */
+  const focus = done ? 0 : closeUpW(formed) * (1 - all);
+
+  const draw = (m, w, ix, ss) => {
     m.visible = w > 0.006;
     m.material.opacity = w * RIBBON_MAX;
     if (!m.visible) return;
-    const pts = helixCA[h].map(i => P[i]);
+    const pts = ix.map(i => P[i]);
     m.geometry.dispose();
-    // every span here IS a helix, by the deposited HELIX record — not a guess
-    m.geometry = RibbonLib.build(THREE, pts, pts.map(() => 'H'));
-  });
+    m.geometry = RibbonLib.build(THREE, pts, ss);
+  };
+  // helices from the deposited HELIX records, everything else coil — no guess
+  draw(ribbons.chain, all, chainCA, chainSS);
+  draw(ribbons.focus, focus, focusCA, focusCA.map(() => 'H'));
   return { all, focus: Math.max(all, focus) };
 }
 
@@ -854,7 +878,7 @@ function seek(tt) {
   lastFormed = formed;
   /* Ribbons first: they decide how far the backbone fades, so applyFocus has
      to know their strength before it writes any opacity. */
-  const rw = updateHelixRibbons(P, formed);
+  const rw = updateRibbons(P, formed);
   applyFocus(rw);
 
   /* Readout first: it sets the card's intro/caption state, and frameFrom
@@ -1584,8 +1608,8 @@ function applyFade(immediate) {
      above would otherwise bring them up with the atoms during act 3's hover
      reveal, laid over rung 0's own HP35 cartoon — two ribbons of the same
      molecule in two different blues. */
-  if (helixRibbons && (rung !== RUNG.FOLD || t >= 0.999))
-    helixRibbons.forEach(m => { m.visible = false; });
+  if (ribbons && (rung !== RUNG.FOLD || t >= 0.999))
+    [ribbons.chain, ribbons.focus].forEach(m => { m.visible = false; });
 
   if (rung === RUNG.FOLD && !anim) {
     foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity();
