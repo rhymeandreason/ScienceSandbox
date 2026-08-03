@@ -50,6 +50,11 @@
   <div class="controls">
     <label>Structure
       <select id="pdb">
+        <!-- default: the molecule RenderingLibraries.md's decision was argued on,
+             and the best one here for judging COLOUR — 4 chains so "by chain" has
+             something to say, 4 haems so ligand handling shows, and all-α so a
+             secondary-structure scheme is a two-colour test rather than a mess. -->
+        <option value="2HHB">2HHB — haemoglobin (4 chains, 4 haems, all-α)</option>
         <option value="1LYZ">1LYZ — lysozyme (small, α-helix rich)</option>
         <option value="3CYT">3CYT — cytochrome c (heme cofactor)</option>
         <option value="1IGT">1IGT — antibody (β-sheet, 4 chains, big)</option>
@@ -118,7 +123,8 @@
     <li><b>Cartoon quality.</b> 3Dmol draws proper secondary-structure cartoons (arrows on strands, tubes on loops); ChemDoodle draws a ribbon. Compare on 1IGT, which is nearly all β-sheet.</li>
     <li><b>Molecular surface.</b> 3Dmol computes one (SES/SAS); ChemDoodle Web has no surface — pick "Molecular surface" and read the right-hand note.</li>
     <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook.</li>
-    <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully?</li>
+    <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully? 2HHB has four haems, one per subunit, so it asks the same question four times over.</li>
+    <li><b>Colour schemes, on 2HHB.</b> The default structure, and the one to cycle the Colour menu on. Four chains make "by chain" meaningful; being all-α makes a secondary-structure scheme a clean two-colour test (helix vs loop) instead of three colours fighting; and the four haems show whether a scheme reaches HETATM at all or quietly leaves them to a fallback. Note that ChemDoodle's chain colours are <em>its own and cannot be overridden</em> — that finding is why <code>protein-lab.html</code> reads them back out of the molecule instead of setting them.</li>
     <li><b>Licence.</b> 3Dmol.js is BSD-3. ChemDoodle Web is GPLv3 (or paid commercial) — GPL would mean this whole repo, published on GitHub Pages, inherits GPL terms. Worth settling before we invest.</li>
   </ul>
 </footer>
