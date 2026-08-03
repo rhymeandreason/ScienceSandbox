@@ -187,19 +187,14 @@
     <!-- Act 3. Replaces #act once the fold finishes: the caption's job is done
          and the question becomes "what is this thing part of?" -->
     <div id="zoom" hidden>
+      <!-- The first three rungs are no longer buttons. Chain → domain → whole
+           protein is now one continuous reveal that plays itself when the fold
+           finishes (see the REVEAL block), so there is nothing left to click:
+           a stepper beside an animation that already stepped is just a way to
+           interrupt it. What remains is the two rungs that are genuinely
+           OPTIONAL — the filament and the measured complex — and they toggle,
+           since with rung 2's button gone they are also the way back. -->
       <div class="zsteps">
-        <button class="zstep" data-rung="0">
-          <span class="zname">the chain you folded</span>
-          <span class="zsize">HP35 · 36 residues · ~2 nm</span></button>
-        <span class="zarrow"><i class="ph-bold ph-caret-right"></i></span>
-        <button class="zstep" data-rung="1">
-          <span class="zname">its domain</span>
-          <span class="zsize">headpiece · 61 residues · ~3 nm</span></button>
-        <span class="zarrow"><i class="ph-bold ph-caret-right"></i></span>
-        <button class="zstep" data-rung="2">
-          <span class="zname">the whole protein</span>
-          <span class="zsize">villin · 826 residues · ~10 nm</span></button>
-        <span class="zarrow"><i class="ph-bold ph-caret-right"></i></span>
         <button class="zstep" data-rung="3">
           <span class="zname">what it grips</span>
           <span class="zsize">actin filament · 13 subunits · ~40 nm</span></button>
@@ -555,7 +550,8 @@ function build() {
    only the transport is below; during the fold the top is clear (the tally and
    the toggles are off to the right) and the caption sits above the transport
    instead. Same pixels, other end of the stage. */
-const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 158 };
+const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 158,
+                  zoomTop: 178, zoomBottom: 112 };
 const FIT_THETA = cam.theta, FIT_PHI = cam.phi;   // captured before any drag
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const MAX_R = Math.max(...Object.values(RADII));   // biggest display radius, in angstroms
@@ -797,9 +793,18 @@ function solveFrame(P, idx) {
   halfW += MAX_R; halfH += MAX_R;
 
   // give back the pixels the chrome covers, by asking the frustum for more
+  /* THREE chrome layouts, not two. Before play the intro card holds the top;
+     during the fold the caption sits above the transport; and in act 3 the
+     zoom legend takes the top back while the arrangement bar joins the
+     transport at the bottom. Act 3 is keyed to the RUNG rather than to the
+     legend being visible, so the reveal — which plays with the legend still
+     hidden — is framed for the layout it is about to land in and does not
+     have to re-fit at the end. */
   const introCard = !document.getElementById('act').hidden;
-  const top = introCard ? RESERVE.intro : RESERVE.top;
-  const bottom = introCard ? RESERVE.bottom : RESERVE.capBottom;
+  const act3 = rung !== RUNG.FOLD;
+  const top = act3 ? RESERVE.zoomTop : introCard ? RESERVE.intro : RESERVE.top;
+  const bottom = act3 ? RESERVE.zoomBottom
+               : introCard ? RESERVE.bottom : RESERVE.capBottom;
   const usable = Math.max(0.25, (h - top - bottom) / h);
   halfH /= usable;
 
@@ -953,7 +958,7 @@ function updateReadout(formed) {
   const cap = document.getElementById('saycap');
   act.hidden = done || started;      // intro card only
   cap.hidden = done || !started;     // running caption only
-  document.getElementById('zoom').hidden = !done || !villin;
+  document.getElementById('zoom').hidden = !done || !villin || !!reveal;
   document.getElementById('plddtrow').hidden = !done || !villin;
   /* The tally is only on while the fold itself is on screen. Before play it
      would read "0 / 14" beside a chain that has not been asked to do anything
@@ -965,8 +970,10 @@ function updateReadout(formed) {
      a student stops to *read* the count, so it must survive a pause. */
   document.getElementById('tally').hidden = done || !started;
   document.getElementById('foldtoggles').hidden = done;
-  if (done && villin && !zoomShown) { zoomShown = true; setRung(RUNG.FOLD); }
-  if (!done && rung !== RUNG.FOLD) setRung(RUNG.FOLD);
+  /* The fold runs straight on into the reveal — no click, no rung stepper.
+     Scrubbing back out of `done` cancels it and returns to the chain. */
+  if (done && villin && !zoomShown) { zoomShown = true; startReveal(); }
+  if (!done && (rung !== RUNG.FOLD || reveal)) { cancelReveal(); setRung(RUNG.FOLD); }
 
   /* The transport is updated on BOTH sides of this branch: it stays usable in
      act 3 as the way back down to the fold, so its label and position must
@@ -1275,6 +1282,18 @@ function buildVillin() {
     villinGroup.add(mesh);
   }
 
+  /* Chain order for the reveal, as a 0..1 rank per `rest` mesh: 0 is the
+     repeat nearest the headpiece, 1 the far end of the protein. HP35 is
+     C-TERMINAL (791-826 of 826), so walking away from it means walking DOWN
+     the residue numbers — hence the descending sort, which is the one detail
+     here that is easy to get backwards and looks merely odd rather than
+     wrong when you do: the protein would assemble from its far tip inward.
+     Linkers rank with the domain they lead to, so a linker never arrives
+     before there is something on the end of it. */
+  const rest = villinGroup.children.filter(m => m.userData.phase === 'rest');
+  rest.sort((x, y) => y.userData.span.a - x.userData.span.a);
+  rest.forEach((m, k) => { m.userData.order = rest.length > 1 ? k / (rest.length - 1) : 0; });
+
   const hpPts = villinPoints(arrangement, VillinLib.HP35.start, VillinLib.HP35.end);
   if (hpPts.length > 1) {
     /* HP35 AS A RIBBON, not a tube — the one difference between this page
@@ -1544,6 +1563,147 @@ function setRung(n) {
   };
 }
 
+/* ============================================================
+ *  THE REVEAL — chain → domain → whole protein, played not clicked
+ *
+ *  These three used to be buttons, and as buttons they taught the wrong
+ *  thing: a student clicked "the whole protein" and a whole protein appeared,
+ *  which says these are three pictures. They are one object. So the fold now
+ *  runs straight on into a single continuous shot that opens outward from the
+ *  chain the student just folded, and never cuts.
+ *
+ *  The order of beats is the argument:
+ *
+ *    1. HOLD. The finished chain sits still for a beat. Nothing arrives
+ *       while the eye is still reading what it just watched happen.
+ *    2. SOLIDIFY. The ball-and-stick fades out while the ribbon goes solid,
+ *       in place. Representation changes; the molecule does not.
+ *    3. OPEN OUT. The rest of the headpiece arrives around it and the camera
+ *       starts pulling back — together, so the new material is what the
+ *       camera is making room for.
+ *    4. THE PROTEIN. The other six repeats arrive DOMAIN BY DOMAIN, walking
+ *       outward from the headpiece along the chain, with the camera fitting
+ *       as they land. Arriving all at once would read as a different, bigger
+ *       molecule being substituted; arriving in chain order reads as the one
+ *       chain continuing, which is the only claim this page wants to make.
+ *
+ *  HP35 is handed from act 2's ribbon to villin's own copy during beat 2.
+ *  They are the same 36 residues about 2 A apart (1VII superposed on the
+ *  AlphaFold model), so the swap happens while act 2's ribbon is on its way
+ *  DOWN and villin's is on its way up — never both at full, which would ghost.
+ *  After it, HP35 is villin's, so the chain connects properly to the domain
+ *  that follows it.
+ *
+ *  Deliberately long. `REVEAL_DUR` is the pace of the whole argument, and a
+ *  scale change that happens quickly is one a student reads as a cut.
+ * ============================================================ */
+const REVEAL_DUR = 11;                    // seconds, chain to whole protein
+const REVEAL_BEATS = {
+  solid: [0.06, 0.26],                    // atoms out, ribbon solid, HP35 handed over
+  own:   [0.22, 0.46],                    // the rest of the headpiece
+  rest:  [0.42, 1.00],                    // the other six repeats, staggered
+  cam:   0.20,                            // camera starts moving with `own`
+};
+const REVEAL_STAGGER = 0.55;              // of the `rest` window spent walking outward
+let reveal = null;
+
+function startReveal() {
+  if (!villin) return;
+  if (!villinGroup) buildVillin();
+  if (!actinGroup && actin) buildActin();
+  anim = null;
+  rung = RUNG.VILLIN;                     // where it lands; the buttons read this
+  document.getElementById('arrangements').hidden = true;   // until it finishes
+  document.getElementById('zoom').hidden = true;
+  reveal = { p: 0, mSolid: 0, mOwn: 0, mRest: 0 };
+  fadeNow = { fold: 1, hp: 0, own: 0, rest: 0, actin: 0, complex: 0 };
+  foldOpacity = 1;
+  /* seek(1) has just hidden act 2's ribbon — updateRibbons stops at t=1 and
+     cannot know a reveal is about to start. Put it back, at the strength act
+     2 left it, so the hold beat opens on exactly the frame act 2 ended on. */
+  if (ribbon) { ribbon.visible = true; ribbon.material.opacity = RIBBON_MAX; }
+}
+
+function cancelReveal() {
+  if (!reveal) return;
+  reveal = null;
+  document.getElementById('zoom').hidden = true;
+}
+
+/* The points the camera should be fitting RIGHT NOW — only what has actually
+   arrived. Fitting villin's full extent from the start would pull the camera
+   back off a protein that is not on screen yet, and the reveal would play out
+   inside a frame sized for its ending. */
+function revealPoints(r) {
+  const pts = villinPoints(arrangement, VillinLib.HP35.start, villin.nums[villin.residues - 1]);
+  if (r.mOwn > 0.02 && villinGroup) {
+    const dom = villin.domains[villin.domains.length - 1];
+    villinPoints(arrangement, dom[0], VillinLib.HP35.start).forEach(p => pts.push(p));
+  }
+  if (r.mRest > 0.02 && villinGroup)
+    villinGroup.children.forEach(m => {
+      if (m.userData.phase !== 'rest' || restAt(r, m) < 0.02) return;
+      const sp = m.userData.span;
+      villinPoints(arrangement, sp.a, sp.b).forEach(p => pts.push(p));
+    });
+  return pts;
+}
+
+/* How far along a single `rest` mesh is, given the reveal's progress. Each
+   one gets its own slice of the window, ordered by how far down the chain it
+   sits from the headpiece — see beat 4. */
+function restAt(r, m) {
+  const s = (m.userData.order || 0) * REVEAL_STAGGER;
+  return smoothstep(Math.max(0, Math.min(1, (r.mRest - s) / (1 - REVEAL_STAGGER))));
+}
+
+function stepReveal(dt) {
+  if (!reveal) return;
+  reveal.p = Math.min(1, reveal.p + dt / REVEAL_DUR);
+  const p = reveal.p, B = REVEAL_BEATS;
+  const win = ([lo, hi]) => beat(p, lo, hi);
+
+  reveal.mSolid = win(B.solid);
+  reveal.mOwn   = win(B.own);
+  reveal.mRest  = win(B.rest);
+
+  fadeNow = { fold: 1 - reveal.mSolid, hp: reveal.mSolid,
+              own: reveal.mOwn, rest: reveal.mRest, actin: 0, complex: 0 };
+  foldOpacity = fadeNow.fold;
+
+  /* Act 2's ribbon leaves as villin's HP35 arrives — the handover. Driven
+     from here rather than from updateRibbons, which stops at t=1. */
+  if (ribbon) {
+    const o = RIBBON_MAX * (1 - reveal.mSolid);
+    ribbon.visible = o > 0.006;
+    ribbon.material.opacity = o;
+  }
+
+  /* The camera FOLLOWS rather than being keyframed: the fit is re-solved
+     against whatever has arrived, and cam.r eases toward it. A keyframed pull
+     would have to know the final size before the protein is there, and would
+     drift out of step the moment an arrangement or an aspect ratio differed. */
+  if (!userZoom && p > B.cam) {
+    const f = solveFrame(revealPoints(reveal));
+    if (f) {
+      const k = Math.min(1, dt * 1.7);
+      cam.r += (f.r - cam.r) * k;
+      cam.target.lerp(f.target, k);
+      applyCam();
+    }
+  }
+
+  applyFade(false);
+  if (p >= 1) {
+    reveal = null;
+    applyFade(true);
+    document.getElementById('zoom').hidden = false;
+    document.getElementById('arrangements').hidden = false;
+    document.getElementById('znote').innerHTML = ZNOTES[RUNG.VILLIN];
+    if (ribbon) ribbon.visible = false;
+  }
+}
+
 function stepTransition(dt) {
   if (!anim) return;
   anim.p = Math.min(1, anim.p + dt / T_DUR);
@@ -1596,7 +1756,12 @@ function applyFade(immediate) {
 
   [villinGroup, actinGroup].filter(Boolean).forEach(g => g.children.forEach(m => {
     const max = m.userData.maxOpacity || 1;
-    let o = (fadeNow[m.userData.phase] || 0) * max;
+    /* During the reveal the six repeats do NOT share one opacity — each walks
+       in on its own slice of the window, so the protein grows along the chain
+       instead of materialising whole. Everything else reads fadeNow. */
+    let o = (reveal && m.userData.phase === 'rest')
+      ? restAt(reveal, m) * max
+      : (fadeNow[m.userData.phase] || 0) * max;
     if (m.userData.isHP) o *= 1 - hoverMix * (1 - HOVER_FLOOR);
     m.visible = o > 0.01;
     m.material.transparent = o < 0.999;
@@ -1609,7 +1774,11 @@ function applyFade(immediate) {
   const fo = Math.max(foldOpacity, hoverMix);
   foldGroup.visible = fo > 0.01;
   foldGroup.traverse(o => {
-    if (!o.material) return;
+    /* The ribbon is in foldGroup but is NOT one of the atoms: during the
+       reveal it is the mesh being handed over to villin's HP35, on its own
+       schedule. Letting this blanket write reach it made it pop to full
+       opacity for the hold beat and then leave with the atoms. */
+    if (!o.material || o === ribbon) return;
     o.material.transparent = fo < 0.999;
     o.material.opacity = fo;
     o.material.depthWrite = fo > 0.5;
@@ -1618,7 +1787,7 @@ function applyFade(immediate) {
      above would otherwise bring them up with the atoms during act 3's hover
      reveal, laid over rung 0's own HP35 cartoon — two ribbons of the same
      molecule in two different blues. */
-  if (ribbon && (rung !== RUNG.FOLD || t >= 0.999)) ribbon.visible = false;
+  if (ribbon && rung !== RUNG.FOLD && !reveal) ribbon.visible = false;
 
   if (rung === RUNG.FOLD && !anim) {
     foldGroup.matrixAutoUpdate = true; foldGroup.matrix.identity();
@@ -1629,7 +1798,7 @@ function applyFade(immediate) {
    the render loop so it keeps moving after the pointer stops, which is the
    whole difference between a fade and a toggle. */
 function stepHover(dt) {
-  const want = (hoverHP && rung !== RUNG.FOLD && !anim) ? 1 : 0;
+  const want = (hoverHP && rung !== RUNG.FOLD && !anim && !reveal) ? 1 : 0;
   if (hoverMix === want) return;
   const step = dt / HOVER_DUR;
   hoverMix = want > hoverMix ? Math.min(want, hoverMix + step)
@@ -1682,14 +1851,23 @@ function currentPoints() {
 }
 function frameCurrent() { frameFrom(currentPoints()); }
 
-document.querySelectorAll('.zstep').forEach(b =>
-  b.addEventListener('click', () => setRung(+b.dataset.rung)));
+/* Toggles, not a stepper. With rung 2's button gone these are the only way
+   back to the whole protein, so clicking the rung you are already on returns
+   there — and the title says so, because a toggle that looks like a tab is a
+   dead end otherwise. */
+document.querySelectorAll('.zstep').forEach(b => {
+  b.title = 'show it in context — click again to come back to the protein';
+  b.addEventListener('click', () => {
+    const want = +b.dataset.rung;
+    setRung(rung === want ? RUNG.VILLIN : want);
+  });
+});
 
 /* Hover reveal. Raycast only against the HP35 tube, so the whole rest of the
    protein is not doing hit tests on every mouse move. */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 canvas.addEventListener('pointermove', e => {
-  if (rung === RUNG.FOLD || !villinGroup || anim) return;
+  if (rung === RUNG.FOLD || !villinGroup || anim || reveal) return;
   const r = canvas.getBoundingClientRect();
   ndc.set(((e.clientX-r.left)/r.width)*2 - 1, -((e.clientY-r.top)/r.height)*2 + 1);
   ray.setFromCamera(ndc, camera);
@@ -1732,6 +1910,7 @@ let last = performance.now();
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
+  stepReveal(dt);
   stepTransition(dt);
   stepHover(dt);
 
