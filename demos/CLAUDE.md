@@ -46,7 +46,17 @@ kinked cartoon even though the number sounds fine. Two traps are recorded there:
 repairing bond lengths without the 1-3 angle pairs crushes Cα–Cα to 1.83 Å, and
 projecting each frame independently puts a 2.7 Å jolt into a stretch where the
 solver's own steps are 0.7. Handedness is checked on the solver's **unblended**
-final frame, or the test would just re-measure the crystal and never fail. **Level 4 itself is not built yet** — the other three chains are named, not drawn | folding animation | |
+final frame, or the test would just re-measure the crystal and never fail.
+`settle()` also **de-clashes**: the solver lets the chain thread through itself
+during the collapse (0.89 Å between non-neighbouring Cα, where the deposited
+minimum is 4.16), because its steric push only fires once atoms are already
+within 2.7 Å and a fast strand crosses that shell between substeps. Two
+constraints had to join the relaxation before that was safe — the **omega
+pairs**, without which it rotated the peptide past cis and crushed Cα–Cα to
+2.56 Å, and **holds on the H-bonds the solver had already made**, without which
+the de-clashing dissolved the helices and level 2 appeared to undo itself
+during level 3. Sterics, bonds, angles, omega and H-bonds all relax together;
+alternating two solvers does not converge. **Level 4 itself is not built yet** — the other three chains are named, not drawn | folding animation | |
 | `folding/ribbon-test.html` | Not a lesson — the test bench for `folding/ribbon.js`, which now backs the featured `folding-lab-ribbon.html`. Synthetic β-sheet, single strand, strand→helix→strand, and one real villin domain through the actual DSSP path. The synthetic modes have hand-set secondary structure, so they isolate *rendering* bugs from *assignment* bugs. Every geometry bug in `ribbon.js` was found by measuring here, not by looking at the lesson. Kept as the record | evaluation scratch | |
 | `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. Loads no shared module on purpose, so the libraries are judged unmixed with our own rendering. **Settled: neither was adopted** (`RenderingLibraries.md`). Kept as the record, not deleted | evaluation scratch | |
 | `molstar/` | Not a lesson — the six-stage Mol\* evaluation, including `molstar/protein-molstar.html` (a hemoglobin `protein-lab` rebuilt on Mol\*) and `molstar/protein-inhouse.html` (the same molecule through our own renderer, and the template for the `protein-lab` rewrite). **Settled: Mol\* was not adopted**; `molstar/README.md` is the detail behind `RenderingLibraries.md`. Kept | evaluation scratch | |

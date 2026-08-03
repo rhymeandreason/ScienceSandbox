@@ -97,10 +97,59 @@ const VERSION = 1;
  *  villin's fold as a side effect of fixing haemoglobin's.
  */
 const LAND_FROM = 0.86;                  // t at which the blend starts
-const LAND_PASSES = 150;                   // Jacobi passes, warm-started (see land())
+
+/* ------------------------------------------------------------- de-clashing
+ *
+ *  THE CHAIN PASSED THROUGH ITSELF DURING THE TERTIARY COLLAPSE, and on a
+ *  ribbon that is unmissable: two helices drawn as solid bands slide across
+ *  each other around 50% of the way through act 3.
+ *
+ *  Measured on the trajectory before this existed, over Ca pairs at least
+ *  CLASH_SEP apart along the chain:
+ *
+ *      t      closest non-local Ca-Ca      pairs under 5.2 A
+ *      0.44           3.86 A                     11
+ *      0.65           1.08 A                     73
+ *      0.79           1.25 A                    196
+ *      0.83           0.89 A                    183
+ *      1.00           4.17 A                     13
+ *      deposited      4.16 A                     13
+ *
+ *  0.89 A between two alpha carbons is not a tight contact, it is one
+ *  strand occupying the same space as another. The deposited protein never
+ *  goes below 4.16.
+ *
+ *  WHY THE SOLVER LETS IT. folding.js does have a steric term, but it is a
+ *  soft push that only switches on once two atoms are ALREADY within 2.7 A,
+ *  and the constraint projection that runs after it — eight passes over
+ *  bond lengths and angles — knows nothing about sterics and is free to
+ *  shove the pair back through each other to satisfy a bond. At villin's
+ *  36 residues and 199 atoms the chain rarely gets the chance. Haemoglobin
+ *  collapsing from 503 A to 45 gets it constantly.
+ *
+ *  FIXED HERE AND NOT IN folding.js, deliberately, for the same reason the
+ *  landing is: that solver is shared with folding-lab, and stiffening its
+ *  sterics would restate villin's fold as a side effect of fixing this one.
+ *
+ *  Corrections are applied PER RESIDUE, rigidly — the whole N/CA/C/O/H set
+ *  moves with its alpha carbon. Pushing lone atoms apart would tear the
+ *  residue open and hand the projection a mess to clean up; moving the
+ *  residue as a unit leaves its internal geometry exactly right and leaves
+ *  only the inter-residue bonds for the projection, which is what it is
+ *  good at.
+ *
+ *  4.1 A rather than something roomier because the deposited structure
+ *  itself sits at 4.16, and a threshold the real protein cannot satisfy
+ *  would fight the landing all the way to t=1. It is comfortably enough for
+ *  the cartoon: the helix band is 2.6 A wide, so 4.1 A between centre lines
+ *  cannot intersect. */
+const CLASH_MIN = 3.6;                   // A, closest allowed non-local Ca-Ca
+const CLASH_SEP = 3;                     // |i-j| below this is the chain itself
+const CLASH_PASSES = 400;                // combined relaxation passes per frame
+
 const smoothstep = x => x * x * (3 - 2 * x);
 
-function land(traj, parsed, hb) {
+function settle(traj, parsed, hb, caIdx) {
   const nodes = parsed.nodes, n = nodes.length;
 
   /* BOND LENGTHS ARE NOT ENOUGH, and the first version of this got it
@@ -138,6 +187,45 @@ function land(traj, parsed, hb) {
     for (let a = 0; a < adj[k].length; a++)
       for (let b = a + 1; b < adj[k].length; b++) addPair(adj[k][a], adj[k][b]);
 
+  /* THE OMEGA PAIRS, and leaving them out was this post-process's own version
+     of a bug folding.js already had and already fixed — its comment even
+     records that a cartoon is what exposed it. Omega is the CA-C-N-CA
+     torsion, a 1-4 relationship, so 1-2 and 1-3 say nothing about it and a
+     relaxation will happily rotate the peptide toward cis. Consecutive alpha
+     carbons then close from 3.80 A (trans) to about 2.9 (cis), and the
+     backbone reads as crushed. Measured here at 2.56 A before these pairs
+     were added — below even cis, so through geometry no peptide can adopt —
+     and it was stubbornly independent of every steric knob, which is what
+     gave it away as a different bug entirely.
+
+     Omega really is rigid: the C-N bond has partial double-bond character
+     and the barrier is ~20 kcal/mol. Phi and psi, the actual degrees of
+     freedom, stay free. Same two pairs folding.js uses, same deposited
+     targets — CA(i)-CA(i+1) picks trans over cis, O(i)-CA(i+1) holds the
+     unit flat. */
+  const caOf = new Map(), oOf = new Map();
+  nodes.forEach(nd => {
+    if (nd.name === 'CA') caOf.set(nd.res, nd.i);
+    if (nd.name === 'O')  oOf.set(nd.res, nd.i);
+  });
+  let omegaPairs = 0;
+  for (const [i, j] of parsed.bonds) {
+    const A = nodes[i], B = nodes[j];
+    let C = null, N = null;
+    if (A.name === 'C' && B.name === 'N' && B.res === A.res + 1) { C = A; N = B; }
+    else if (B.name === 'C' && A.name === 'N' && A.res === B.res + 1) { C = B; N = A; }
+    if (!C) continue;
+    const ca1 = caOf.get(C.res), ca2 = caOf.get(N.res), o1 = oOf.get(C.res);
+    for (const [q, r] of [[ca1, ca2], [o1, ca2]]) {
+      if (q == null || r == null) continue;
+      const before = cI.length;
+      addPair(q, r);
+      if (cI.length > before) omegaPairs++;
+    }
+  }
+  if (omegaPairs < 2 * (parsed.residues.length - 1))
+    throw new Error(`only ${omegaPairs} omega pairs for ${parsed.residues.length} residues`);
+
   /* THE PROJECTION IS PATH-DEPENDENT, SO THE FRAMES MUST BE WALKED IN ORDER.
      Blending each frame and projecting it from scratch, independently of its
      neighbours, was the second thing this got wrong. A Jacobi projection on
@@ -159,46 +247,160 @@ function land(traj, parsed, hb) {
      different basin than its predecessor. Drift does not accumulate,
      because the pull toward native reaches full strength at t=1 and pins
      the last frame exactly regardless of the path taken to it. */
-  const fStart = traj.ts.findIndex(t => t > LAND_FROM);
-  if (fStart <= 0) return traj;
+  /* Each residue's atoms, so a steric correction can move the residue as a
+     unit rather than tearing one atom out of it. */
+  const groups = parsed.residues.map(r => Object.values(r.atoms).filter(i => i != null));
+  const R = caIdx.length;
 
-  /* The raw frames, snapshotted before anything is overwritten — the deltas
-     have to come from the solver's trajectory, not from the corrected one
-     being written over the top of it. */
-  const rawFrames = traj.key.slice(fStart - 1).map(a => Float64Array.from(a));
+  /* ONE RELAXATION, NOT TWO ALTERNATING ONES — this is the third thing this
+     post-process got wrong and the one that took longest to see. Pushing
+     clashing residues apart and THEN projecting the bonds back is two
+     solvers taking turns undoing each other: the push tears the peptide
+     geometry, the projection drags the residue back toward whatever it was
+     inside, and neither ever wins. Every knob made it worse somewhere else —
+     more rounds bought separation (0.89 A -> 4.08) at the cost of Ca-Ca
+     bonds crushed to 2.43 A and 5 A jumps between neighbouring keyframes.
+
+     So the steric term becomes just another constraint in the SAME Jacobi
+     sweep as the bonds and angles, and the whole thing relaxes together.
+     The difference is that bonds are equalities — always pulled to their
+     deposited length — while a steric pair is a UNILATERAL constraint that
+     does nothing at all unless the pair is too close. That is the standard
+     position-based formulation and it converges where the alternating
+     version could not.
+
+     Sterics act on the alpha carbons alone and let the bond and angle
+     constraints carry the rest of each residue along, rather than moving
+     residues rigidly. Rigid moves were the earlier version and they are
+     what put the peptide bond under strain in the first place. */
+
+  /* Candidate steric pairs, rebuilt per frame: only non-local Ca pairs
+     already within NEAR are worth testing every pass, which turns 10,585
+     tests into a few hundred and is what makes running them inside the
+     relaxation affordable. */
+  const NEAR = 9.0;
+  let sI = [], sJ = [];
+  const findNear = P => {
+    sI = []; sJ = [];
+    for (let i = 0; i < R; i++) {
+      const a = caIdx[i] * 3;
+      for (let j = i + CLASH_SEP; j < R; j++) {
+        const b = caIdx[j] * 3;
+        const dx = P[b] - P[a], dy = P[b+1] - P[a+1], dz = P[b+2] - P[a+2];
+        if (dx*dx + dy*dy + dz*dz < NEAR * NEAR) { sI.push(caIdx[i]); sJ.push(caIdx[j]); }
+      }
+    }
+  };
+
+  /* Per-frame constraints holding shut the hydrogen bonds the SOLVER had
+     already made. Without these the de-clashing dissolved the helices: bond
+     lengths, angles and omega are all pinned, but PHI AND PSI ARE FREE — they
+     are the fold's actual degrees of freedom — so a steric push rearranges
+     them, and an alpha helix is nothing but a phi/psi pattern held by its
+     i->i+4 hydrogen bonds. At t=0.81 the tally fell from 84 formed bonds to
+     21 and two thirds of the ribbon reverted to coil, which reads as level 2
+     UNDOING itself during level 3: the exact opposite of what the caption
+     underneath it says, and a worse error than the intersecting helices this
+     was all meant to fix.
+
+     So a bond that had formed in the raw trajectory is held at the length it
+     had there. This does not invent secondary structure — a bond that the
+     solver had not made is not in the list, and one it makes later joins the
+     list on the frame it makes it. It only stops the clean-up from taking
+     apart what the fold had already built. */
+  let hI = [], hJ = [], hL = [];
+  const holdBonds = raw => {
+    hI = []; hJ = []; hL = [];
+    for (let k = 0; k < hb.length; k++) {
+      const o = hb[k].o * 3, h = hb[k].h * 3;
+      const L = Math.hypot(raw[o] - raw[h], raw[o+1] - raw[h+1], raw[o+2] - raw[h+2]);
+      if (L > 3.2) continue;                  // not formed in the solver's own frame
+      hI.push(hb[k].o); hJ.push(hb[k].h); hL.push(L);
+    }
+  };
+
+  const relax = (P, passes, steric) => {
+    for (let pass = 0; pass < passes; pass++) {
+      for (let c = 0; c < hI.length; c++) {
+        const a = hI[c] * 3, b = hJ[c] * 3;
+        const dx = P[b] - P[a], dy = P[b+1] - P[a+1], dz = P[b+2] - P[a+2];
+        const L = Math.hypot(dx, dy, dz) || 1e-6;
+        const s = 0.5 * (L - hL[c]) / L;
+        P[a] += dx * s; P[a+1] += dy * s; P[a+2] += dz * s;
+        P[b] -= dx * s; P[b+1] -= dy * s; P[b+2] -= dz * s;
+      }
+      // equalities: bond lengths and the 1-3 pairs that hold the angles
+      for (let c = 0; c < cI.length; c++) {
+        const a = cI[c] * 3, b = cJ[c] * 3;
+        const dx = P[b] - P[a], dy = P[b+1] - P[a+1], dz = P[b+2] - P[a+2];
+        const L = Math.hypot(dx, dy, dz) || 1e-6;
+        const s = 0.5 * (L - cL[c]) / L;
+        P[a] += dx * s; P[a+1] += dy * s; P[a+2] += dz * s;
+        P[b] -= dx * s; P[b+1] -= dy * s; P[b+2] -= dz * s;
+      }
+      if (!steric) continue;
+      // unilateral: separate only what is actually interpenetrating
+      for (let c = 0; c < sI.length; c++) {
+        const a = sI[c] * 3, b = sJ[c] * 3;
+        const dx = P[b] - P[a], dy = P[b+1] - P[a+1], dz = P[b+2] - P[a+2];
+        const L2 = dx*dx + dy*dy + dz*dz;
+        if (L2 >= CLASH_MIN * CLASH_MIN) continue;
+        const L = Math.sqrt(L2) || 1e-6;
+        const s = 0.5 * (L - CLASH_MIN) / L;
+        P[a] += dx * s; P[a+1] += dy * s; P[a+2] += dz * s;
+        P[b] -= dx * s; P[b+1] -= dy * s; P[b+2] -= dz * s;
+      }
+    }
+  };
+
+  /* THE WHOLE TRAJECTORY IS WALKED, not just the landing: the chain starts
+     passing through itself around t=0.4, long before the blend begins. */
+  const rawFrames = traj.key.map(a => Float64Array.from(a));
   const carried = Float64Array.from(rawFrames[0]);
 
-  for (let f = fStart; f < traj.count; f++) {
-    const w = smoothstep(Math.min(1, (traj.ts[f] - LAND_FROM) / (1 - LAND_FROM)));
+  for (let f = 0; f < traj.count; f++) {
+    const w = traj.ts[f] <= LAND_FROM ? 0
+            : smoothstep(Math.min(1, (traj.ts[f] - LAND_FROM) / (1 - LAND_FROM)));
     const P = traj.key[f];
-    const cur = rawFrames[f - fStart + 1], prev = rawFrames[f - fStart];
 
     // carry the corrected chain forward by the solver's own step
-    for (let i = 0; i < n * 3; i++) carried[i] += cur[i] - prev[i];
+    if (f > 0)
+      for (let i = 0; i < n * 3; i++) carried[i] += rawFrames[f][i] - rawFrames[f-1][i];
 
-    // then pull it onto the measured coordinates
-    for (let i = 0; i < n; i++) {
-      const nat = nodes[i].native;
-      for (let k = 0; k < 3; k++)
-        carried[i * 3 + k] += (nat[k] - carried[i * 3 + k]) * w;
+    // pull it onto the measured coordinates
+    if (w > 0 && w < 1) {
+      for (let i = 0; i < n; i++) {
+        const nat = nodes[i].native;
+        for (let k = 0; k < 3; k++)
+          carried[i * 3 + k] += (nat[k] - carried[i * 3 + k]) * w;
+      }
     }
 
-    /* Restore what the pull bent. Warm-started, so a handful of passes is
-       enough — and unlike the from-scratch version, more of them converge
-       toward the same answer the previous frame reached rather than away
-       from it. At w=1 the frame is already exactly deposited and this is a
-       no-op. */
+    /* Separate anything that ended up inside something else, then put the
+       geometry back. Alternated rather than done once each, because a steric
+       push bends bonds and a projection can shove a pair back into contact —
+       they have to converge together.
+
+       THIS RUNS AFTER THE LANDING BLEND, NOT BEFORE IT. When it ran first,
+       the blend and its 150 projection passes were free to walk a separated
+       pair back into each other, and they did: the closest non-local contact
+       sagged to 3.03 A at t=0.92 in a trajectory that was otherwise held at
+       4.1. De-clashing has to be the last thing that touches the frame, or
+       it is only a suggestion. */
     if (w < 1) {
-      for (let pass = 0; pass < LAND_PASSES; pass++)
-        for (let c = 0; c < cI.length; c++) {
-          const a = cI[c] * 3, b = cJ[c] * 3;
-          const dx = carried[b] - carried[a], dy = carried[b+1] - carried[a+1],
-                dz = carried[b+2] - carried[a+2];
-          const L = Math.hypot(dx, dy, dz) || 1e-6;
-          const s = 0.5 * (L - cL[c]) / L;
-          carried[a]   += dx * s; carried[a+1] += dy * s; carried[a+2] += dz * s;
-          carried[b]   -= dx * s; carried[b+1] -= dy * s; carried[b+2] -= dz * s;
-        }
+      /* STERICS STAY ON THROUGH THE LANDING, and the obvious-looking
+         optimisation of switching them off there is wrong. The target is
+         the deposited chain, whose own closest non-local contact is 4.16 A,
+         so it is tempting to argue the blend is already walking toward a
+         clash-free state and the steric term is only picking fights. It
+         was tried: the closest contact went straight back to 0.67 A. A
+         straight Cartesian blend between two conformations that individually
+         do not clash can still take a strand through another on the way,
+         because every atom travels in a straight line and the chain does
+         not. */
+      findNear(carried);
+      holdBonds(rawFrames[f]);
+      relax(carried, CLASH_PASSES, true);
     } else {
       for (let i = 0; i < n; i++)
         for (let k = 0; k < 3; k++) carried[i * 3 + k] = nodes[i].native[k];
@@ -239,15 +441,16 @@ function bake() {
      the folder's own state and are likewise unaffected by the blend. */
   const preLand = Float64Array.from(traj.key[traj.count - 1]);
 
-  land(traj, parsed, hb);
-
   /* Which node index is which. The trajectory is indexed by node, so the
-     three subsets the page draws are just index lists into each frame. */
+     three subsets the page draws are just index lists into each frame.
+     Needed BEFORE settle(), which de-clashes on alpha carbons. */
   const caIdx = parsed.residues.map(r => r.atoms.CA);
   if (caIdx.some(i => i == null))
     throw new Error('a residue of chain ' + CHAIN + ' has no CA');
   const oIdx = hb.map(b => b.o);
   const hIdx = hb.map(b => b.h);
+
+  settle(traj, parsed, hb, caIdx);
 
   /* Secondary structure, from the deposited HELIX records. */
   const first = parsed.residues[0].num;
