@@ -20,7 +20,10 @@ const RibbonLib = require('../../folding/ribbon.js');
 const { extract } = require('./chain.js');
 const { encode, decode, CHAIN } = require('./bake-hb.js');
 const { bakeUnfold } = require('./bake-unfold.js');
-const bake = bakeUnfold;   // the committed trajectory comes from the unfold
+/* Memoised: the unfold takes ~55 s and this file wanted it twice — once to
+   compare against the committed bytes and once for its geometry. */
+let _baked = null;
+const bake = () => (_baked || (_baked = bakeUnfold()));
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', '2HHB.pdb');
@@ -402,6 +405,50 @@ const fold = handedness(CA);
 ok(fold.right / (fold.right + fold.left) > 0.85,
    'the computed part of the trajectory is right-handed too (a mirror would invert this)',
    `${fold.right} right / ${fold.left} left`);
+
+/* ---------------- the comparison bake ----------------
+   hemoglobin/data/2HHB-B.fold.flip.bin is the same unfold run against an
+   extended target turned end for end (bake-unfold.js --flip). It is a
+   committed artefact, so it gets checked rather than taken on trust — but
+   only for GEOMETRY, not for staleness: re-baking it would double an
+   already slow check for a file the lesson does not load by default. If it
+   ever becomes the default, move it above and give it the full treatment. */
+const FLIP_BIN = path.join(HERE, 'data', '2HHB-B.fold.flip.bin');
+if (fs.existsSync(FLIP_BIN)) {
+  const v = decode(fs.readFileSync(FLIP_BIN));
+  const gv = (f, i) => [v.key[f][i*3], v.key[f][i*3+1], v.key[f][i*3+2]];
+  const dd = (a, b2) => Math.hypot(a[0]-b2[0], a[1]-b2[1], a[2]-b2[2]);
+
+  let vNL = Infinity, vBond = Infinity, vStep = 0;
+  const vSteps = [];
+  for (let f = 0; f < v.K; f++) {
+    for (let i = 0; i < v.R; i++) {
+      if (i + 1 < v.R) vBond = Math.min(vBond, dd(gv(f, i), gv(f, i+1)));
+      for (let j = i + 3; j < v.R; j++) vNL = Math.min(vNL, dd(gv(f, i), gv(f, j)));
+    }
+    if (f) {
+      let w = 0;
+      for (let i = 0; i < v.R; i++) w = Math.max(w, dd(gv(f, i), gv(f-1, i)));
+      vSteps.push(w); vStep = Math.max(vStep, w);
+    }
+  }
+  let vEnd = 0;
+  for (let i = 0; i < v.R; i++) vEnd = Math.max(vEnd, dd(gv(v.K - 1, i), v.native[i]));
+  const vMed = vSteps.slice().sort((x, y) => x - y)[vSteps.length >> 1];
+
+  ok(v.R === d.R && v.B === d.B && v.ss.join('') === d.ss.join(''),
+     'flip variant describes the same molecule as the default');
+  ok(vNL > 2.8, 'flip variant: the chain never passes through itself',
+     `closest ${vNL.toFixed(2)} A`);
+  ok(vBond > 3.4, 'flip variant: every peptide bond stays trans',
+     `closest consecutive Ca ${vBond.toFixed(2)} A`);
+  ok(vStep / vMed < 1.35, 'flip variant: moves at an even rate',
+     `largest ${vStep.toFixed(2)} A vs median ${vMed.toFixed(2)} A`);
+  ok(vEnd < 0.02, 'flip variant: last frame IS the deposited chain',
+     `max ${vEnd.toFixed(4)} A`);
+} else {
+  console.log('  --    flip variant not baked (node hemoglobin/tools/bake-unfold.js --flip)');
+}
 
 console.log(fails ? `\n${fails} FAILED` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

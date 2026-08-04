@@ -383,10 +383,17 @@ const chainGroup = new THREE.Group(); root.add(chainGroup);
    list are all in the baked file — see hemoglobin/tools/bake-hb.js for why the
    fold is a committed artefact rather than 8.5 seconds of solving in front
    of the student. */
-fetch('hemoglobin/data/2HHB-B.fold.bin')
+/* ?fold=flip loads the variant baked with the extended target turned end
+   for end — see hemoglobin/tools/bake-unfold.js. Two tabs, same page, so the
+   two unfolds can be watched against each other rather than remembered. */
+const FOLD_VARIANT = new URLSearchParams(location.search).get('fold') === 'flip';
+const FOLD_BIN = FOLD_VARIANT ? 'hemoglobin/data/2HHB-B.fold.flip.bin'
+                              : 'hemoglobin/data/2HHB-B.fold.bin';
+
+fetch(FOLD_BIN)
   .then(r => {
-    if (!r.ok) throw new Error('hemoglobin/data/2HHB-B.fold.bin — HTTP ' + r.status +
-      ' (run: node hemoglobin/tools/bake-hb.js)');
+    if (!r.ok) throw new Error(FOLD_BIN + ' — HTTP ' + r.status +
+      ' (run: node hemoglobin/tools/bake-unfold.js' + (FOLD_VARIANT ? ' --flip)' : ')'));
     return r.arrayBuffer();
   })
   .then(buf => {
@@ -400,6 +407,17 @@ fetch('hemoglobin/data/2HHB-B.fold.bin')
       throw new Error(`baked chain has ${fold.R} residues, this page is written for 146`);
     document.getElementById('hbcount').nextElementSibling.textContent =
       `of ${fold.B} hydrogen bonds`;
+
+    if (FOLD_VARIANT) {
+      const tag = document.createElement('div');
+      tag.textContent = 'flipped target';
+      tag.style.cssText = 'position:absolute;left:20px;top:20px;z-index:9;' +
+        'font-family:var(--font-slab);font-size:12px;color:var(--core);' +
+        'background:rgba(255,255,255,.8);border:1.5px solid var(--core);' +
+        'border-radius:7px;padding:5px 10px';
+      document.getElementById('stage').appendChild(tag);
+      document.title += ' — flipped';
+    }
 
     build();
     buildCovers();

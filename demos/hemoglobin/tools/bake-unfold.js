@@ -96,7 +96,40 @@ const { encode, CHAIN } = require('./bake-hb.js');
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', '2HHB.pdb');
-const OUT = path.join(HERE, 'data', '2HHB-B.fold.bin');
+
+/* ------------------------------------------------------- which end is which
+ *
+ *  `--flip` turns the extended target end for end before the unfold is run
+ *  against it, and writes a separate file so the two can be compared side
+ *  by side in the browser (hemoglobin-lab.html?fold=flip).
+ *
+ *  WHY IT MIGHT MATTER. The extended conformation comes out of FoldLib's
+ *  NeRF build and then gets laid along X by orient(), and NOTHING in either
+ *  step knows anything about where the chain's residues sit in the FOLDED
+ *  structure. Measured on the current pair, the correlation between a
+ *  residue's position along the long axis natively and its position along
+ *  that axis when extended is -0.337 — NEGATIVE. The unfold is being asked
+ *  to turn the chain inside out relative to its own native layout.
+ *
+ *  It shows up hardest at the ends. Both termini sit on the -X side of the
+ *  folded protein (res 1 at -13 A, res 146 at -18 A), but the extended
+ *  target sends res 1 to -251 and res 146 to +251: the C-terminus has to
+ *  travel 270 A straight across the whole molecule, past everything else,
+ *  to reach its place. That is a tangle imposed by the target rather than
+ *  produced by the dynamics, and no amount of steric work fixes a route
+ *  that was wrong before the first step.
+ *
+ *  A 180 DEGREE ROTATION, NOT A SIGN FLIP. Negating X alone is a
+ *  REFLECTION — det = -1 — and it would hand back the mirror image of the
+ *  extended chain, which is the enantiomer error MolecularGeometry.md 1.3
+ *  calls out as invisible to most checks. Rotating 180 degrees about Z
+ *  ((x,y,z) -> (-x,-y,z)) reverses the long axis with det = +1 and leaves
+ *  the handedness alone. check-hb.js measures helix handedness on the
+ *  computed part of the trajectory and would fail if this were got wrong.
+ */
+const FLIP = process.argv.includes('--flip');
+const OUT = path.join(HERE, 'data',
+                      FLIP ? '2HHB-B.fold.flip.bin' : '2HHB-B.fold.bin');
 
 /* ---------------- the unfold ---------------- */
 
@@ -136,6 +169,14 @@ function build() {
      opens on the same 503 A rod the page has always opened on. */
   const native = nodes.map(nd => nd.native.slice());
   const target = FoldLib.extended(parsed);
+
+  if (FLIP) {
+    const c = [0, 1, 2].map(k => target.reduce((s, p) => s + p[k], 0) / target.length);
+    for (const p of target) {                       // 180 deg about Z, det = +1
+      const x = p[0] - c[0], y = p[1] - c[1];
+      p[0] = c[0] - x; p[1] = c[1] - y;
+    }
+  }
 
   /* ---- constraints ---- */
   const cI = [], cJ = [], cL = [];
@@ -423,7 +464,8 @@ if (require.main === module) {
   const { buf } = encode(b);
   fs.writeFileSync(OUT, buf);
   const last = b.traj.formed[b.traj.count - 1];
-  console.log(`unfolded and reversed ${b.traj.count} keyframes in ${Date.now() - t0} ms`);
+  console.log(`unfolded and reversed ${b.traj.count} keyframes in ${Date.now() - t0} ms` +
+              (FLIP ? '  [--flip: extended target turned end for end]' : ''));
   console.log(`  ${[...last].filter(x => x > 0.5).length}/${b.hb.length} H-bonds formed at t=1`);
   console.log(`  wrote ${path.relative(HERE, OUT)} (${(buf.length / 1024).toFixed(0)} KB)`);
 }
