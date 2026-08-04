@@ -181,10 +181,11 @@
         <h4>Level 1 · primary</h4>
         <p>The order of the 146 amino acids, and nothing else — the only part
           your DNA specifies. Everything after it follows.</p>
-        <p style="margin-top:7px">The page opens on <b>residues 4–18</b>,
-          drawn as real atoms so you can see what a link in the chain
-          actually is: <b>N — C — C</b>, repeating, with each residue's C
-          joined to the next one's N. That join is the <b>peptide bond</b>.
+        <p style="margin-top:7px">The page opens on <b>residues 129–143</b>
+          — fifteen near the far end of the chain — drawn as real atoms so
+          you can see what a link in the chain actually is: <b>N — C — C</b>,
+          repeating, with each residue's C joined to the next one's N. That
+          join is the <b>peptide bond</b>.
           What is <i>not</i> drawn is the side chains — the part that differs
           from one amino acid to the next, and the reason the names above the
           chain are different words. They are left out because this
@@ -449,12 +450,20 @@ const ACTS = [
   /* POSTED LATE IN THE PULL-OUT, not at the start of it. A camera moving
      from 26 Å to 500 crops the chain for most of the move — unavoidable,
      since no framing in between holds a 300 Å rod — and this caption tells
-     the student to look at eight helices. Posted at 0.40 it lands as the
+     the student to look at eight helices. Posted at 0.34 it lands as the
      move finishes, so the words and the picture arrive together. */
-  { t: 0.40, cls: 'a1', name: '…and in seven other places at once',
-    body: 'The same thing has been happening all along the chain: eight ' +
-          'α-helices. The ribbon is a line through the atoms you were just ' +
-          'watching — the only way to see all 146 residues at once.' },
+  /* "SEVEN OTHER PLACES AT ONCE" WAS NOT TRUE WHEN IT APPEARED. The eight
+     helices do not coil together — measured, they reach 85% of their bonds
+     anywhere from t=0.20 to t=0.55 — so at the moment this caption posts,
+     the chain has coiled at its two ENDS and the middle is still a bare
+     thread. A student reading "eight" and counting two is being told the
+     picture is wrong. The staggering is a real and better fact, so the
+     caption now says it. */
+  { t: 0.34, cls: 'a1', name: '…and it is happening elsewhere too',
+    body: 'The ends of the chain have coiled; the middle has not started. ' +
+          'Eight stretches become α-helices in all, each at its own pace. ' +
+          'The ribbon is a line through the atoms you were just watching — ' +
+          'the only way to see all 146 residues at once.' },
   { t: 0.54, cls: 'a2', name: 'Level 3 · the helices pack',
     body: 'The bond count has stopped — level 2 is finished. The molecule ' +
           'keeps shrinking anyway, because water is pushing the oily side ' +
@@ -588,13 +597,15 @@ const RIBBON_SUB = 6;
  *  thing ever offered — and the coil that just formed turns out to be
  *  happening in seven other places as well.
  *
- *  WHY THIS SEGMENT. Helix BA, 2HHB's own first HELIX record for chain B.
- *  It is at the start of the sequence, so "the order" is something a
- *  student can begin counting from 1; and measured on the trajectory it is
- *  the FIRST helix to close — 8 of its 12 hydrogen bonds by t=0.11, all 12
- *  by t=0.44 — so the close-up shows a helix forming from beginning to end
- *  rather than joining one already half made. Neither fact was chosen; both
- *  were measured, and bake-hb.js's FOCUS block is where the segment is set.
+ *  WHY THIS SEGMENT. Residues 129-143 — the last fifteen of helix BH, at
+ *  the C-terminal end of the chain. Measured over all eight helices it is
+ *  the EARLIEST to close: 11 hydrogen bonds, 85% of them shut by t=0.20,
+ *  against t=0.32 for the N-terminal helix this replaced and t=0.55 for the
+ *  latest. So the close-up watches a coil complete and then leaves, rather
+ *  than pulling away from one still forming. Which end of the extended rod
+ *  a stretch lands on is a property of the bake, not the protein —
+ *  bake-hb.js's FOCUS block carries that, the full table, and what moving
+ *  off the start of the sequence costs.
  *
  *  BACKBONE ONLY. The trajectory has no side chains in it — see FOCUS in
  *  bake-hb.js — so the close-up shows N-CA-C repeating, with the peptide
@@ -607,11 +618,17 @@ const RIBBON_SUB = 6;
  *  one extra set of meshes over coordinates the solver already produced —
  *  the same discipline the villin page's close-up keeps. No caption's
  *  number moves, and check-hb.js re-bakes and compares to prove it. */
-const FOCUS_OUT = [0.34, 0.48];   // fold t: close-up -> whole chain
-/* Held until 0.34 because 11 of the segment's 12 bonds are shut by then and
-   the twelfth is a fraying end; finished by 0.48, comfortably before the
-   tertiary act opens at 0.54, so the pull-out never competes with the
-   collapse for attention. */
+const FOCUS_OUT = [0.26, 0.40];   // fold t: close-up -> whole chain
+/* Held to 0.26 — the segment's bonds are 85% shut by t=0.20, so there is a
+   beat of FINISHED helix on screen before the camera leaves it, which is
+   what makes the pull-out feel like the end of something rather than an
+   interruption. Out by 0.40, well clear of the tertiary act at 0.54, so
+   the move never competes with the collapse for attention.
+
+   THESE TWO NUMBERS TRACK THE SEGMENT. Move FOCUS in bake-hb.js and this
+   window has to be re-measured against the new stretch's bonds, not
+   nudged; check-hb.js asserts the helix is made before the camera goes,
+   and quotes FOCUS_OUT[0] to do it. */
 
 /* Display radii in ANGSTROMS, from the house palette rather than picked
    here. Every other page draws where 1 Å = MolLib.SCALE units, so

@@ -237,10 +237,16 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
      H, and the close-up is the only thing here that draws one. chain.js
      builds an H on every proline anyway (see focusOf in bake-hb.js for why
      that is left alone), so this asserts the drawn set is right — every
-     focus residue has its H except the prolines, which have none. */
+     focus residue has its H except the prolines, which have none.
+
+     STATED AS AN EQUALITY so it survives moving FOCUS. The current segment
+     contains no proline at all, which makes both sides empty; the previous
+     one held exactly one. Either is correct, and what would not be is an H
+     on a proline or a missing H anywhere else — which is what this
+     compares, rather than asserting a count that only suited one segment. */
   const noH = [...byRes.entries()].filter(([, s]) => !s.has('H')).map(([r]) => r);
   const pros = [...byRes.keys()].filter(r => d.resNames[r - d.first] === 'PRO');
-  ok(pros.length > 0 && noH.join(' ') === pros.join(' '),
+  ok(noH.join(' ') === pros.join(' '),
      'the focus residues missing an amide H are exactly the prolines',
      `no H: [${noH.join(' ')}]  prolines: [${pros.join(' ')}]`);
 }
@@ -300,7 +306,7 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
    The 0.34 is the page's number, repeated here on purpose — the two moving
    apart is the failure this catches. */
 {
-  const FOCUS_OUT_0 = 0.34;
+  const FOCUS_OUT_0 = 0.26;
   const ks = d.bonds.map((b, k) => [b, k])
     .filter(([b]) => Math.min(b.from, b.to) >= foc.lo && Math.max(b.from, b.to) <= foc.hi)
     .map(([, k]) => k);
@@ -312,6 +318,28 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
   ok(shut / ks.length > 0.85,
      `the segment's helix is made before the camera leaves it (t=${FOCUS_OUT_0})`,
      `${shut}/${ks.length} bonds formed`);
+
+  /* THE PULL-OUT'S CAPTION SAYS "the ends of the chain have coiled; the
+     middle has not started", which is a claim about the picture at the
+     moment it posts. The helices do not form together — that is the point —
+     so this asserts the shape of the stagger rather than any one time:
+     at the end of the camera move the two terminal helices are made and
+     the four middle ones are not. If the trajectory ever changes so they
+     coil evenly, the caption becomes false while still reading fine. */
+  const FOCUS_OUT_1 = 0.40;
+  let g = 0;
+  while (g < d.K - 1 && d.ts[g] < FOCUS_OUT_1) g++;
+  const frac = ([a, b]) => {
+    const kk = d.bonds.map((x, k) => [x, k])
+      .filter(([x]) => Math.min(x.from, x.to) >= a && Math.max(x.from, x.to) <= b)
+      .map(([, k]) => k);
+    return kk.filter(k => d.formed[g][k] > 0.5).length / kk.length;
+  };
+  const ends = [[4, 18], [19, 34], [123, 143]].map(frac);
+  const middle = [[50, 56], [57, 76], [85, 93], [99, 117]].map(frac);
+  ok(Math.min(...ends) > 0.8 && Math.max(...middle) < 0.6,
+     `at the pull-out the ends have coiled and the middle has not (t=${FOCUS_OUT_1})`,
+     `ends ${ends.map(x => (x * 100) | 0).join('/')}%, middle ${middle.map(x => (x * 100) | 0).join('/')}%`);
 }
 
 /* THE TRAJECTORY IS AN UNFOLD PLAYED BACKWARDS, so "does the fold arrive

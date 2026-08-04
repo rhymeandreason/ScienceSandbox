@@ -66,11 +66,45 @@ const VERSION = 2;        // v2 adds residue names + the focus segment's atoms
  *  says nothing about units or joins — the villin page draws ball-and-stick
  *  for exactly this reason.
  *
- *  So ONE SEGMENT keeps its atoms. Helix BA, residues 4-18 by 2HHB's own
- *  HELIX record — the first helix of the chain, so the opening close-up is
- *  at the beginning of the sequence where "the order" is a thing a student
- *  can start counting, and the stretch on screen is one that goes on to
- *  coil. The camera pulls out from it into the whole chain.
+ *  So ONE SEGMENT keeps its atoms: residues 129-143, the last fifteen of
+ *  helix BH by 2HHB's own HELIX record, three short of the C-terminus. The
+ *  camera pulls out from it into the whole chain.
+ *
+ *  WHY THIS END OF THE CHAIN. The trajectory is an unfold played backwards,
+ *  and bake-unfold.js turns the extended target end for end before running
+ *  it — see its header, where the rotation is what stops the C-terminus
+ *  having to travel 270 A across the whole molecule. The upshot at t=0 is
+ *  that the chain lies along X with residue 1 at +276 A and residue 146 at
+ *  -226: which END of the rod a given stretch sits on is a property of the
+ *  bake, not of the protein. This is the C-terminal end. The segment was
+ *  moved here deliberately after watching the other one.
+ *
+ *  AND IT IS THE BETTER SEGMENT ON THE ONE THING THAT CAN BE MEASURED.
+ *  A close-up has to WATCH a helix form, so what matters is when its own
+ *  hydrogen bonds shut. Across all eight helices, the fraction of each
+ *  one's bonds that are shut reaches 85% at:
+ *
+ *      BH 123-143    t=0.23      <- the earliest of the eight
+ *      BB  19-34     t=0.31
+ *      BA   4-18     t=0.32          (the segment this replaced)
+ *      BC  35-41     t=0.35
+ *      BG  99-117    t=0.45
+ *      BE  57-76     t=0.51
+ *      BD  50-56     t=0.54
+ *      BF  85-93     t=0.55
+ *
+ *  and the fifteen-residue window 129-143 is earlier still: 11 bonds, 85%
+ *  of them shut by t=0.20. The coil completes soonest here, so the camera
+ *  can pull out earlier and leave the whole tertiary act uncluttered. A
+ *  close-up on a late helix would spend its length watching a stretch that
+ *  has not begun.
+ *
+ *  WHAT IT COSTS. The old segment was residues 4-18, at the START of the
+ *  sequence, where the number ruler counted from near 1 and "the order"
+ *  began where a student would begin. Here the ruler reads 130, 135, 140 —
+ *  still position in the chain, and the caption still says which of the 146
+ *  these are, but the beat no longer opens at the beginning of the
+ *  sequence. That is the trade.
  *
  *  BACKBONE ONLY, AND THAT IS A HARD LIMIT RATHER THAN A CHOICE. The solver
  *  integrates N, CA, C, O and the amide H — FoldLib.parse is called with no
@@ -88,7 +122,7 @@ const VERSION = 2;        // v2 adds residue names + the focus segment's atoms
  *  403 KB file, and no extra quantisation error — the focus points ride in
  *  the same int16 block, under the same bounding box, as everything else.
  */
-const FOCUS = { lo: 4, hi: 18 };
+const FOCUS = { lo: 129, hi: 143 };
 
 /* ---------------------------------------------------------------- bake */
 
