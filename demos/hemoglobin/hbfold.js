@@ -7,7 +7,9 @@
  *    bonds  [{from,to}]     the two residue numbers each H-bond joins
  *    native [[x,y,z]]       the DEPOSITED Ca trace, for reference
  *    ts     [t]             0..1, one per keyframe
- *    at(t)  -> { CA, O, H, formed }
+ *    resNames ['VAL',...]   one per residue, in chain order          (v2)
+ *    focus  { lo, hi, atoms:[{name,res,el}], bonds:[[i,j]] }         (v2)
+ *    at(t)  -> { CA, O, H, F, formed }
  *  }
  *
  *  Real angstroms throughout — this page never sees MolLib.SCALE, the same
@@ -17,7 +19,13 @@
  *  fold trajectory of all of them is 1.6 MB. This page draws a RIBBON, which
  *  needs one point per residue, plus dashes, which need two points each. So
  *  the bake keeps 146 Ca + 103 O + 103 H per keyframe and drops the rest —
- *  every atom missing here is an atom nothing draws. hemoglobin/tools/bake-hb.js
+ *  every atom missing here is an atom nothing draws.
+ *
+ *  THE ONE EXCEPTION IS THE FOCUS SEGMENT (v2): the full backbone of
+ *  residues 4-18, which the page opens on as ball-and-stick before pulling
+ *  out to the ribbon. That is the level-1 beat, and a tube cannot carry it.
+ *  bake-hb.js's FOCUS block explains the choice of segment and why the atoms
+ *  stop at the backbone. hemoglobin/tools/bake-hb.js
  *  writes it; its header carries the format and the reasoning, and its own
  *  decode() must stay in step with this one. THEY ARE TWO COPIES OF ONE
  *  FORMAT and check-hb.js is what keeps them honest: it decodes the
@@ -41,8 +49,9 @@ const HbFold = (() => {
       throw new Error('not a baked hemoglobin fold (bad magic)');
     p += 4;
     const version = dv.getUint16(p, true); p += 2;
-    if (version !== 1)
-      throw new Error('fold file is version ' + version + ', this reader is version 1');
+    if (version !== 2)
+      throw new Error('fold file is version ' + version + ', this reader is version 2' +
+                      ' — re-run node hemoglobin/tools/bake-unfold.js');
     const R = dv.getUint16(p, true); p += 2;
     const K = dv.getUint16(p, true); p += 2;
     const B = dv.getUint16(p, true); p += 2;
@@ -72,11 +81,32 @@ const HbFold = (() => {
     const ts = [];
     for (let i = 0; i < K; i++) { ts.push(dv.getFloat32(p, true)); p += 4; }
 
+    const dec = new TextDecoder('latin1');
+    const raw = new Uint8Array(dv.buffer, dv.byteOffset);
+    const resNames = [];
+    for (let i = 0; i < R; i++)
+      resNames.push(dec.decode(raw.subarray(p + i * 3, p + i * 3 + 3)).trim());
+    p += pad4(R * 3);
+
+    /* The focus segment: the one stretch of chain that keeps its atoms. */
+    const focus = { lo: dv.getUint16(p, true), hi: dv.getUint16(p + 2, true),
+                    atoms: [], bonds: [] };
+    const F = dv.getUint16(p + 4, true), FB = dv.getUint16(p + 6, true);
+    p += 8;
+    for (let i = 0; i < F; i++)
+      focus.atoms.push({ name: dec.decode(raw.subarray(p + i * 8, p + i * 8 + 4)).trim(),
+                         res: dv.getUint16(p + i * 8 + 4, true),
+                         el: String.fromCharCode(dv.getUint8(p + i * 8 + 6)) });
+    p += F * 8;
+    for (let i = 0; i < FB; i++)
+      focus.bonds.push([dv.getUint16(p + i * 4, true), dv.getUint16(p + i * 4 + 2, true)]);
+    p += FB * 4;
+
     /* Keyframes stay as int16 in the buffer and are dequantised on demand.
        Expanding all of them to Float32 up front would be 185 x 352 x 3
        floats resident for a trajectory the page reads two keyframes of at a
        time; the multiply is cheaper than the memory. */
-    const pts = R + B + B;
+    const pts = R + B + B + F;
     const frames = [], formed = [];
     for (let f = 0; f < K; f++) {
       frames.push(new Int16Array(dv.buffer, dv.byteOffset + p, pts * 3));
@@ -87,9 +117,10 @@ const HbFold = (() => {
 
     /* Scratch, reused across calls: at() runs once per rendered frame and
        must not allocate 352 arrays each time. */
-    const outCA = [], outO = [], outH = [], outF = new Float32Array(B);
+    const outCA = [], outO = [], outH = [], outFA = [], outF = new Float32Array(B);
     for (let i = 0; i < R; i++) outCA.push([0, 0, 0]);
     for (let i = 0; i < B; i++) { outO.push([0, 0, 0]); outH.push([0, 0, 0]); }
+    for (let i = 0; i < F; i++) outFA.push([0, 0, 0]);
 
     /* at(t) -> the chain at t in 0..1, linearly interpolated between the two
        nearest keyframes. Playback reads stored coordinates; NOTHING here
@@ -127,13 +158,15 @@ const HbFold = (() => {
       put(outCA, 0);
       put(outO, R);
       put(outH, R + B);
+      put(outFA, R + B + B);
       const fa = formed[k0], fb = formed[k1];
       for (let i = 0; i < B; i++)
         outF[i] = (fa[i] + (fb[i] - fa[i]) * u) / 255;
-      return { CA: outCA, O: outO, H: outH, formed: outF };
+      return { CA: outCA, O: outO, H: outH, F: outFA, formed: outF };
     }
 
-    return { version, R, K, B, first, ss, bonds, native, ts, at };
+    return { version, R, K, B, F, first, ss, bonds, native, ts,
+             resNames, focus, at };
   }
 
   return { decode, MAGIC };

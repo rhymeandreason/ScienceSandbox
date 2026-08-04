@@ -52,7 +52,43 @@ const OUT = path.join(HERE, 'data', '2HHB-B.fold.bin');
 
 const CHAIN = 'B';        // the beta chain: 146 residues, helices BA..BH
 const MAGIC = 0x48424631; // 'HBF1'
-const VERSION = 1;
+const VERSION = 2;        // v2 adds residue names + the focus segment's atoms
+
+/* ------------------------------------------------- the focus segment (v2)
+ *
+ *  THE PAGE OPENS ON REAL ATOMS, and this is where they come from.
+ *
+ *  Everything else in this file is a RIBBON's worth of data: one point per
+ *  residue, because at 146 residues a cartoon is the only readable
+ *  representation (hemoglobin-lab.html's header argues that at length, and
+ *  none of it has changed). But a ribbon cannot open the lesson. Level 1 is
+ *  "a chain of amino acids joined in a particular order", and a smooth tube
+ *  says nothing about units or joins — the villin page draws ball-and-stick
+ *  for exactly this reason.
+ *
+ *  So ONE SEGMENT keeps its atoms. Helix BA, residues 4-18 by 2HHB's own
+ *  HELIX record — the first helix of the chain, so the opening close-up is
+ *  at the beginning of the sequence where "the order" is a thing a student
+ *  can start counting, and the stretch on screen is one that goes on to
+ *  coil. The camera pulls out from it into the whole chain.
+ *
+ *  BACKBONE ONLY, AND THAT IS A HARD LIMIT RATHER THAN A CHOICE. The solver
+ *  integrates N, CA, C, O and the amide H — FoldLib.parse is called with no
+ *  `sideChains`, so side chains are not in the trajectory at all. Adding
+ *  them would change the atom count, the constraint set and therefore every
+ *  measured number this page quotes. Writing out atoms the solver already
+ *  moved changes nothing: the trajectory is bit-for-bit what it was, and
+ *  check-hb.js's re-bake comparison still holds. What the close-up shows is
+ *  the BACKBONE — N-CA-C repeating, with the peptide bond joining one
+ *  residue's C to the next one's N — which is precisely the thing level 1
+ *  is about. The side chains are named in the caption and left undrawn, the
+ *  same treatment the hydrophobic packing gets in level 3.
+ *
+ *  Cost: 15 residues x 5 atoms x 185 keyframes x 6 bytes = 83 KB on a
+ *  403 KB file, and no extra quantisation error — the focus points ride in
+ *  the same int16 block, under the same bounding box, as everything else.
+ */
+const FOCUS = { lo: 4, hi: 18 };
 
 /* ---------------------------------------------------------------- bake */
 
@@ -462,17 +498,66 @@ function bake() {
 
 /* -------------------------------------------------------------- encode */
 
+/* focusOf(parsed) -> { atoms, bonds } for the residues FOCUS covers.
+   `atoms` are node indices into the trajectory; `bonds` are pairs of
+   positions WITHIN that array, so the page never has to know a node index.
+
+   ORDERED BY RESIDUE, THEN N-H-CA-C-O. The order is not cosmetic: it is
+   what makes the written block readable as a chain, so check-hb.js can
+   assert consecutive CA spacing and the peptide link without a lookup
+   table. Any atom the parse did not keep is simply absent — the encoder
+   writes what exists rather than assuming five per residue, because the
+   terminal residue of a chain and residue 1's amide H are exactly the
+   cases that break that assumption. */
+/* PROLINE HAS NO AMIDE HYDROGEN, and the close-up must not draw one.
+   chain.js builds an N-H on every residue but the first, proline included —
+   which is wrong, because proline's nitrogen is inside its own ring and
+   carries no H. That was harmless while nothing drew it: FoldLib.hbonds
+   never picks a proline H as a donor (measured — none of the 103 bonds is
+   one), so the trajectory, the bond count and every number this page quotes
+   are untouched by its existence. The close-up is the first thing to
+   RENDER an amide H, so it is the first place the error would be visible,
+   as a white sphere on a nitrogen that cannot have one.
+
+   Dropped here rather than in chain.js on purpose. Removing it at the
+   source would change the solver's atom list, and therefore the trajectory
+   and every measured number on the page, to correct seven atoms that
+   nothing draws — a re-bake and a re-reading of every caption for no
+   visible gain. This is the same trade the rest of the file makes: the
+   drawing is right, and the thing that is wrong is named. */
+const FOCUS_ORDER = ['N', 'H', 'CA', 'C', 'O'];
+function focusOf(parsed) {
+  const inRange = nd => nd.res >= FOCUS.lo && nd.res <= FOCUS.hi &&
+                        !(nd.name === 'H' && nd.resName === 'PRO');
+  const atoms = parsed.nodes.filter(inRange).sort((a, b) =>
+    a.res - b.res || FOCUS_ORDER.indexOf(a.name) - FOCUS_ORDER.indexOf(b.name));
+  if (!atoms.length)
+    throw new Error(`no atoms in residues ${FOCUS.lo}-${FOCUS.hi} — the close-up has nothing to draw`);
+  const at = new Map(atoms.map((nd, k) => [nd.i, k]));
+  const bonds = [];
+  for (const [i, j] of parsed.bonds)
+    if (at.has(i) && at.has(j)) bonds.push([at.get(i), at.get(j)]);
+  return { atoms, bonds };
+}
+
 /* Layout, little-endian throughout. Every int16 block is a whole number of
    4-byte words by construction (3 coords x an even count would not be, so
    each block is padded to 4 rather than assumed aligned). */
 function encode(b) {
   const { traj, caIdx, oIdx, hIdx, ss, first, hb, folder } = b;
   const K = traj.count, R = caIdx.length, B = hb.length;
-  const pts = R + B + B;                       // points stored per keyframe
+  /* The focus segment's atoms ride in the SAME per-keyframe block as the Ca
+     trace and the bond endpoints, appended after them. One block means one
+     bounding box and one scale, so the close-up is quantised exactly as
+     finely as the ribbon it sits inside — a separate block would have
+     invited a second, subtly different, dequantisation path. */
+  const foc = focusOf(b.parsed);
+  const F = foc.atoms.length, FB = foc.bonds.length;
+  const pts = R + B + B + F;                   // points stored per keyframe
 
   /* Bounding box over everything that will actually be written. */
   let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-  const idx = caIdx.concat(oIdx, hIdx);
+  const idx = caIdx.concat(oIdx, hIdx, foc.atoms.map(nd => nd.i));
   for (const frame of traj.key)
     for (const i of idx)
       for (let k = 0; k < 3; k++) {
@@ -488,7 +573,10 @@ function encode(b) {
   const staticBytes = pad4(R) +                // ss, one byte per residue
                       pad4(B * 4) +            // bond from/to residue numbers
                       R * 3 * 4 +              // deposited Ca, float32
-                      K * 4;                   // ts, float32
+                      K * 4 +                  // ts, float32
+                      pad4(R * 3) +            // v2: residue names, 3 ascii each
+                      8 +                      // v2: focus header
+                      F * 8 + FB * 4;          // v2: focus atoms, focus bonds
   const frameBytes = K * (pad4(pts * 3 * 2) + pad4(B));
   const buf = Buffer.alloc(headerBytes + staticBytes + frameBytes);
 
@@ -518,6 +606,31 @@ function encode(b) {
   }
   for (let i = 0; i < K; i++) { buf.writeFloatLE(traj.ts[i], p); p += 4; }
 
+  /* v2: the residue names, three ASCII each, in chain order. The whole
+     sequence rather than just the focus segment's — 438 bytes, and it is
+     the one fact about level 1 the file did not carry. */
+  for (let i = 0; i < R; i++)
+    buf.write((b.parsed.residues[i].name + '   ').slice(0, 3), p + i * 3, 3, 'latin1');
+  p += pad4(R * 3);
+
+  /* v2: the focus segment. Its residue RANGE is written out rather than
+     left implicit in the atom list, so the page can label and frame the
+     span without scanning for its ends. */
+  buf.writeUInt16LE(FOCUS.lo, p); buf.writeUInt16LE(FOCUS.hi, p + 2);
+  buf.writeUInt16LE(F, p + 4);    buf.writeUInt16LE(FB, p + 6);
+  p += 8;
+  foc.atoms.forEach((nd, k) => {
+    buf.write((nd.name + '    ').slice(0, 4), p + k * 8, 4, 'latin1');
+    buf.writeUInt16LE(nd.res, p + k * 8 + 4);
+    buf.writeUInt8(nd.el.charCodeAt(0), p + k * 8 + 6);
+    buf.writeUInt8(0, p + k * 8 + 7);          // pad, keeps the record 8 wide
+  });
+  p += F * 8;
+  foc.bonds.forEach(([i, j], k) => {
+    buf.writeUInt16LE(i, p + k * 4); buf.writeUInt16LE(j, p + k * 4 + 2);
+  });
+  p += FB * 4;
+
   /* Keyframes. */
   for (let f = 0; f < K; f++) {
     const frame = traj.key[f];
@@ -532,7 +645,7 @@ function encode(b) {
     p += pad4(B);
   }
 
-  return { buf, lo, scale, R, K, B };
+  return { buf, lo, scale, R, K, B, F, FB };
 }
 
 /* ------------------------------------------------------------ round trip */
@@ -569,7 +682,24 @@ function decode(buf) {
   const ts = [];
   for (let i = 0; i < K; i++) { ts.push(u8.readFloatLE(p)); p += 4; }
 
-  const pts = R + B + B;
+  const resNames = [];
+  for (let i = 0; i < R; i++) resNames.push(u8.toString('latin1', p + i * 3, p + i * 3 + 3).trim());
+  p += pad4(R * 3);
+
+  const focus = { lo: u8.readUInt16LE(p), hi: u8.readUInt16LE(p + 2),
+                  atoms: [], bonds: [] };
+  const F = u8.readUInt16LE(p + 4), FB = u8.readUInt16LE(p + 6);
+  p += 8;
+  for (let i = 0; i < F; i++)
+    focus.atoms.push({ name: u8.toString('latin1', p + i * 8, p + i * 8 + 4).trim(),
+                       res: u8.readUInt16LE(p + i * 8 + 4),
+                       el: String.fromCharCode(u8.readUInt8(p + i * 8 + 6)) });
+  p += F * 8;
+  for (let i = 0; i < FB; i++)
+    focus.bonds.push([u8.readUInt16LE(p + i * 4), u8.readUInt16LE(p + i * 4 + 2)]);
+  p += FB * 4;
+
+  const pts = R + B + B + F;
   const key = [], formed = [];
   for (let f = 0; f < K; f++) {
     const a = new Float32Array(pts * 3);
@@ -581,7 +711,8 @@ function decode(buf) {
     p += pad4(B);
     key.push(a); formed.push(fm);
   }
-  return { version, R, K, B, first, ss, bonds, native, ts, key, formed };
+  return { version, R, K, B, first, ss, bonds, native, ts, key, formed,
+           resNames, focus };
 }
 
 /* ------------------------------------------------------------------ run */
@@ -610,4 +741,4 @@ if (0) {
   console.log(`  wrote ${path.relative(HERE, OUT)} (${(buf.length / 1024).toFixed(0)} KB)`);
 }
 
-module.exports = { bake, encode, decode, CHAIN, MAGIC, VERSION };
+module.exports = { bake, encode, decode, focusOf, CHAIN, MAGIC, VERSION, FOCUS };

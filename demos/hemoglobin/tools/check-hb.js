@@ -196,6 +196,124 @@ ok(dErr < 1e-3, 'the page decoder and the baker agree at every keyframe',
 ok(page.ss.join('') === d.ss.join('') && page.first === d.first && page.B === d.B,
    'both decoders read the same secondary structure and numbering');
 
+/* ---------------- the opening close-up (format v2) ----------------
+   The page opens on residues 4-18 as real atoms and pulls out to the
+   ribbon. Everything it says while doing so is checkable, and none of it
+   is visible from watching: a close-up on the wrong residues, or on atoms
+   that have quietly stopped matching the ribbon drawn through them, plays
+   exactly as smoothly as a correct one. */
+ok(d.version === 2 && page.version === 2, 'the file is format v2 (it carries the close-up)',
+   `baker ${d.version}, page ${page.version}`);
+ok(JSON.stringify(page.focus) === JSON.stringify(d.focus),
+   'both decoders read the same focus segment');
+ok(d.resNames.length === 146 && d.resNames.slice(0, 6).join('') === 'VALHISLEUTHRPROGLU',
+   'the sequence is human beta-globin, from residue 1',
+   d.resNames.slice(0, 6).join(' '));
+
+const foc = d.focus;
+/* THE SEGMENT MUST BE ONE THE STUDENT WATCHES BECOME A HELIX. The caption
+   says "watch this stretch wind into an alpha-helix", so the range has to
+   be inside a deposited HELIX record — not merely near one. */
+ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
+   'the close-up sits wholly inside a deposited helix record',
+   `${foc.lo}-${foc.hi} vs ${ex.helices.map(h => h.join('-')).join(' ')}`);
+
+/* Every residue in it has a full backbone to draw. The amide H is the one
+   legitimate absence — proline has no N-H, and residue 5 IS a proline, so
+   this asserts the exception rather than tripping over it. */
+{
+  const byRes = new Map();
+  foc.atoms.forEach(a => {
+    if (!byRes.has(a.res)) byRes.set(a.res, new Set());
+    byRes.get(a.res).add(a.name);
+  });
+  const nRes = foc.hi - foc.lo + 1;
+  ok(byRes.size === nRes, `all ${nRes} focus residues have atoms`, `got ${byRes.size}`);
+  const missing = [...byRes.entries()].filter(([, s]) =>
+    !['N', 'CA', 'C', 'O'].every(n => s.has(n)));
+  ok(missing.length === 0, 'every focus residue has N, CA, C and O',
+     missing.map(([r]) => r).join(' '));
+  /* Proline is the exception and it must BE the exception: it has no amide
+     H, and the close-up is the only thing here that draws one. chain.js
+     builds an H on every proline anyway (see focusOf in bake-hb.js for why
+     that is left alone), so this asserts the drawn set is right — every
+     focus residue has its H except the prolines, which have none. */
+  const noH = [...byRes.entries()].filter(([, s]) => !s.has('H')).map(([r]) => r);
+  const pros = [...byRes.keys()].filter(r => d.resNames[r - d.first] === 'PRO');
+  ok(pros.length > 0 && noH.join(' ') === pros.join(' '),
+     'the focus residues missing an amide H are exactly the prolines',
+     `no H: [${noH.join(' ')}]  prolines: [${pros.join(' ')}]`);
+}
+
+/* THE CLOSE-UP'S ATOMS ARE THE RIBBON'S ATOMS. The focus block duplicates
+   the alpha carbons that are already in the Ca trace, so there are two
+   copies of the same point in the file and nothing but this stops them
+   drifting apart. If they ever did, the atoms and the cartoon laid through
+   them would be different molecules — which is precisely what the pull-out
+   claims they are not. */
+{
+  const off = d.R + d.B + d.B;
+  let worst = 0;
+  foc.atoms.forEach((a, i) => {
+    if (a.name !== 'CA') return;
+    const r = a.res - d.first;
+    for (let f = 0; f < d.K; f++)
+      for (let k = 0; k < 3; k++)
+        worst = Math.max(worst,
+          Math.abs(d.key[f][(off + i) * 3 + k] - d.key[f][r * 3 + k]));
+  });
+  ok(worst < 1e-6, 'the close-up\'s alpha carbons are the ribbon\'s, at every keyframe',
+     `max ${worst.toExponential(1)} A`);
+}
+
+/* A BACKBONE THAT STAYS A BACKBONE. Ball-and-stick shows bond lengths that
+   a ribbon hides completely — the villin page learned this the hard way,
+   where a cartoon exposed a squashed chain that spheres had concealed.
+   Here the atoms are the drawing, so a stretched peptide bond is a visible
+   gap between two atoms. Checked over the WHOLE trajectory, not just the
+   deposited end. */
+{
+  const off = d.R + d.B + d.B;
+  const at = (f, i, k) => d.key[f][(off + i) * 3 + k];
+  const dist = (f, i, j) => Math.hypot(at(f,i,0)-at(f,j,0), at(f,i,1)-at(f,j,1),
+                                       at(f,i,2)-at(f,j,2));
+  const find = (res, nm) => foc.atoms.findIndex(a => a.res === res && a.name === nm);
+  let caMin = Infinity, caMax = 0, pepMin = Infinity, pepMax = 0;
+  for (let f = 0; f < d.K; f++)
+    for (let r = foc.lo; r < foc.hi; r++) {
+      const ca1 = find(r, 'CA'), ca2 = find(r + 1, 'CA');
+      const c1 = find(r, 'C'), n2 = find(r + 1, 'N');
+      const dc = dist(f, ca1, ca2), dp = dist(f, c1, n2);
+      caMin = Math.min(caMin, dc); caMax = Math.max(caMax, dc);
+      pepMin = Math.min(pepMin, dp); pepMax = Math.max(pepMax, dp);
+    }
+  ok(caMin > 3.6 && caMax < 4.0, 'consecutive alpha carbons stay 3.6-4.0 A apart',
+     `${caMin.toFixed(2)}-${caMax.toFixed(2)} A`);
+  ok(pepMin > 1.25 && pepMax < 1.45, 'the peptide bond C-N stays 1.25-1.45 A',
+     `${pepMin.toFixed(2)}-${pepMax.toFixed(2)} A`);
+}
+
+/* THE CAMERA MAY NOT PULL OUT BEFORE THE HELIX IS MADE. hemoglobin-lab.html
+   holds the close-up to t=FOCUS_OUT[0] and its caption says the student
+   watches this stretch coil; if the segment's own hydrogen bonds are not
+   shut by then, the page pulls away from an event it promised to show.
+   The 0.34 is the page's number, repeated here on purpose — the two moving
+   apart is the failure this catches. */
+{
+  const FOCUS_OUT_0 = 0.34;
+  const ks = d.bonds.map((b, k) => [b, k])
+    .filter(([b]) => Math.min(b.from, b.to) >= foc.lo && Math.max(b.from, b.to) <= foc.hi)
+    .map(([, k]) => k);
+  ok(ks.length >= 10, 'the focus segment has a helix\'s worth of hydrogen bonds',
+     `${ks.length} bonds`);
+  let f = 0;
+  while (f < d.K - 1 && d.ts[f] < FOCUS_OUT_0) f++;
+  const shut = ks.filter(k => d.formed[f][k] > 0.5).length;
+  ok(shut / ks.length > 0.85,
+     `the segment's helix is made before the camera leaves it (t=${FOCUS_OUT_0})`,
+     `${shut}/${ks.length} bonds formed`);
+}
+
 /* THE TRAJECTORY IS AN UNFOLD PLAYED BACKWARDS, so "does the fold arrive
    near the measured structure" is not the question any more — it starts
    there, and the landing assertion above proves it. What has to be checked
