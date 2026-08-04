@@ -117,8 +117,7 @@ Three checks, chosen because every doc error found so far was one of them — an
 
 It does **not** check whether prose is true. Nothing mechanical would have caught
 SCIENCE.md claiming `stereo:` understood only `all-equatorial` long after it
-learned `{axial}` and `{faces}`. See CLAUDE.md "Keeping the docs true" for the
-part that is still on the reader.
+learned `{axial}` and `{faces}`. Keeping the docs true is still on the reader.
 
 # tools/check-handedness.js — the only mirror check
 
