@@ -369,19 +369,60 @@ const PAL = MolLib.PALETTE;
    that the captions stopped describing it. */
 
 /* ---------- two clocks, one scrubber ----------
-   `u` is the LESSON clock, 0..1 over the whole 32 s. The fold owns u=0..
+   `u` is the LESSON clock, 0..1 over the whole run. The fold owns u=0..
    FOLD_END and level 4 owns the rest, split in proportion to the seconds
    each takes so the scrubber moves at one speed throughout. Everything
    measured — the act boundaries above, the H-bond plateau — stays quoted
    in FOLD t, because those numbers are properties of the trajectory and
    must not silently rescale if the assembly gets longer. `uOf` is the one
    place the two meet. */
-const PLAY_SECONDS = 22;      // the fold; 4x villin's residue count wants a slower read
-const ASSEMBLY_SECONDS = 10;  // the other three chains arriving
+const PLAY_SECONDS = 11;      // the fold
+const ASSEMBLY_SECONDS = 5;   // the other three chains arriving
+
 const TOTAL_SECONDS = PLAY_SECONDS + ASSEMBLY_SECONDS;
 const FOLD_END = PLAY_SECONDS / TOTAL_SECONDS;
 const uOf = (phase, x) => phase === 'fold' ? x * FOLD_END
                                            : FOLD_END + x * (1 - FOLD_END);
+
+/* ONE STRETCH PLAYS AT DOUBLE RATE, and it is a viewing decision rather
+   than a claim about the physics. From u=0.54 to the end of the fold the
+   molecule goes from about 86 A across to 45 — the collapse is nearly
+   finished, the hydrogen-bond count has been flat since the plateau began,
+   and what is left is the last of the helices settling against each other.
+   Very little changes per second of screen time, so at an even rate it
+   reads as a stall rather than as an ending.
+
+   NOTHING ABOUT THE TRAJECTORY CHANGES. This is playback speed only — the
+   same keyframes in the same order, and the scrubber still reads the same
+   u at the same point in the fold, so every number the page quotes is
+   untouched. The bar simply fills faster here, which is honest: it is
+   faster. */
+const FAST = { from: 0.54, rate: 2 };
+const rateAt = x => (x >= FAST.from && x < FOLD_END) ? FAST.rate : 1;
+
+/* A BEAT AT THE END OF THE FOLD. Playback stops for HOLD_SECONDS just
+   before level 4 begins, and the caption up during it is "One chain,
+   done".
+
+   It is there because the last fold caption had become unreadable: it
+   spans t 0.94..1.0, which was 1.3 s when the fold ran 22 seconds AND the
+   animation stopped there — nothing followed it, so it sat on a paused
+   screen for as long as you liked. Level 4 turned it into a transient, and
+   the two speed-ups since took it to a third of a second.
+
+   The beat is also the better edit. Without it the page cuts from a chain
+   still collapsing straight to a chain being docked onto, and there is no
+   instant where the finished tertiary structure is simply THERE — which is
+   the thing three acts were spent building, and the "before" that level 4
+   is a change to.
+
+   HELD JUST SHORT OF FOLD_END, not at it, because the act boundary is at
+   FOLD_END exactly: pausing on the boundary would post level 4's caption
+   over a molecule that has no partners yet. The 1e-4 is invisible in the
+   geometry (t = 0.99985, the last keyframe either way) and keeps the
+   caption and the readouts on the right side of the line. */
+const HOLD_SECONDS = 1.2;
+const HOLD_AT = FOLD_END - 1e-4;
 
 const ACTS = [
   { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the beads',
@@ -1046,7 +1087,7 @@ function beginIfNeeded() {
 }
 
 document.getElementById('playbtn').addEventListener('click', () => {
-  if (!playing && u >= 1) { u = 0; shownAct = -1; }
+  if (!playing && u >= 1) { u = 0; shownAct = -1; holdLeft = HOLD_SECONDS; }
   setPlaying(!playing);
 });
 
@@ -1055,7 +1096,12 @@ function scrubTo(clientX) {
   const r = bar.getBoundingClientRect();
   beginIfNeeded();
   setPlaying(false);
-  seek((clientX - r.left) / r.width);
+  const to = (clientX - r.left) / r.width;
+  /* Scrubbing back before the beat re-arms it, so pressing play again
+     replays the ending as it is meant to be seen rather than skipping it
+     because the clock already spent it once. */
+  if (to < HOLD_AT) holdLeft = HOLD_SECONDS;
+  seek(to);
 }
 bar.addEventListener('pointerdown', e => { bar.setPointerCapture(e.pointerId); scrubTo(e.clientX); });
 bar.addEventListener('pointermove', e => { if (bar.hasPointerCapture(e.pointerId)) scrubTo(e.clientX); });
@@ -1107,11 +1153,17 @@ actEl.querySelector('.actbody').textContent =
 
    Rebuilding at 30 Hz instead costs half the budget and loses nothing,
    because THE TRAJECTORY DOES NOT HOLD 60 Hz OF INFORMATION. It is 185
-   keyframes played over 22 seconds — about 8.4 keyframes a second. At 30 Hz
-   the page is already drawing three and a half interpolated frames per
-   keyframe; at 60 it draws seven, of geometry that was linearly interpolated
+   keyframes played over 11 seconds — about 17 keyframes a second. At 30 Hz
+   the page is still drawing nearly two interpolated frames per keyframe; at
+   60 it draws three and a half, of geometry that was linearly interpolated
    between the same two stored frames either way. The extra rebuilds redraw a
    straight line through the same two points.
+
+   THE MARGIN IS THINNER AT THIS SPEED THAN IT WAS AT 22 SECONDS, where the
+   ratio was 3.5 rather than 1.8. It is still above 1, so 30 Hz is still
+   sampling the trajectory rather than the interpolation — but halve the
+   duration again and the throttle starts dropping real keyframes, and the
+   fix then is a faster rebuild, not a faster clock.
 
    Everything moves together: the camera, the ribbon and the dashes all come
    off the same seek(), so they cannot drift apart the way they would if only
@@ -1119,11 +1171,29 @@ actEl.querySelector('.actbody').textContent =
    entirely — a dragged scrubber must answer the pointer immediately. */
 const UPDATE_HZ = 30;
 let last = performance.now(), lastUpdate = 0;
+let holdLeft = HOLD_SECONDS;      // re-armed whenever playback restarts
 (function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (playing && fold) {
-    const nu = u + dt / TOTAL_SECONDS;
+    /* Rate sampled at the START of the step. The error is at most one
+       frame's worth at each boundary — 8 ms of a 15 s animation — and the
+       alternative (integrating the rate across the step) buys nothing a
+       viewer could see. */
+    const nu = u + dt / TOTAL_SECONDS * rateAt(u);
+
+    /* The beat. Sit at HOLD_AT and spend the clock on the hold instead of
+       on u. Scrubbing past it by hand is untouched — this is the play
+       loop only, and a viewer who drags the scrubber has already seen
+       whatever they wanted to see. */
+    if (holdLeft > 0 && nu >= HOLD_AT && u <= HOLD_AT) {
+      if (u !== HOLD_AT) seek(HOLD_AT);
+      holdLeft -= dt;
+      FXi.step();
+      renderer.render(scene, camera);
+      return;
+    }
+
     if (nu >= 1) { seek(1); setPlaying(false); }
     else if (now - lastUpdate >= 1000 / UPDATE_HZ) { lastUpdate = now; seek(nu); }
     else u = nu;              // time advances every frame; the geometry does not
