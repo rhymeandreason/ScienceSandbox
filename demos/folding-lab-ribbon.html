@@ -844,25 +844,33 @@ function applyFocus(rw) {
 let foldFade = 1, lastRW = null;
 function applyFoldOpacity() { applyFocus(lastRW); }
 
-function frameFrom(P) {
+/* The fold's framing, solved but not applied — so the play button can ease
+   toward it instead of snapping, and so `frameFrom` has exactly one
+   definition of what "framed" means. */
+function foldFrame(P) {
   const w = focusIdx ? focusW(t) : 0;
   const full = solveFrame(P);
-  if (!full) return;
+  if (!full) return null;
   /* Interpolate between the two SOLVED frames rather than between two camera
      states: both ends stay correctly fitted for the aspect ratio the student
      actually has, at every point in the move. */
   const f = w > 0 ? solveFrame(P, focusIdx) : null;
-  if (!f) { cam.target.copy(full.target); cam.r = full.r; }
-  else {
+  if (!f) return { r: full.r, target: full.target.clone() };
+  {
     /* A tight fit on ten residues fills the stage with individual spheres and
        the coil stops being visible AS a coil — which loses the one thing the
        close-up exists to show. FOCUS_PAD backs off far enough that the whole
        turn of the spiral is in frame, with the neighbouring chain dimly
        around it for context. Padding a solved fit, not a hand-picked r. */
-    cam.target.copy(full.target).lerp(f.target, w);
-    cam.r = full.r + (f.r * FOCUS_PAD - full.r) * w;
+    return { r: full.r + (f.r * FOCUS_PAD - full.r) * w,
+             target: full.target.clone().lerp(f.target, w) };
   }
-  applyCam();
+}
+
+function frameFrom(P) {
+  const fr = foldFrame(P);
+  if (!fr) return;
+  cam.target.copy(fr.target); cam.r = fr.r; applyCam();
 }
 
 /* The same solve, without applying it — the transition needs somewhere to
@@ -2205,10 +2213,98 @@ function setPlaying(p) {
 }
 playBtn.addEventListener('click', () => {
   if (!traj) return;
+  if (!playing && (panOffset !== 0 || userZoom)) { recenterThenPlay(); return; }
   started = true;
   if (timeU >= 0.999 && !playing) { lastFormed = null; seekU(0, true); }
   setPlaying(!playing);
 });
+
+/* ---------- reading along the chain, before it folds ----------
+   The opening frame is a close-up, so most of the 36 residues are off screen.
+   Until the fold starts, dragging left/right WALKS THE CHAIN rather than
+   orbiting it: the one thing a student might reasonably want to do with a
+   picture of a sequence is read along it, and orbiting a straight chain buys
+   nothing. Once the fold starts, drag goes back to being orbit — by then the
+   subject is a shape, and turning it is the useful gesture.
+
+   scene.js binds its orbit handlers on the canvas itself, so this listens on
+   the stage in the CAPTURE phase: capture on an ancestor runs before any
+   at-target listener, whatever order they were registered in. Registering
+   capture on the canvas would not have worked — at the target, listeners run
+   in registration order and scene.js got there first. */
+let panOffset = 0, panBase = null, panDrag = null, recenter = null;
+const _panRight = new THREE.Vector3();
+
+function panLimit() {                       // how far along you can walk
+  if (!traj) return 0;
+  const P = posOf(t);
+  _panRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+  let lo = Infinity, hi = -Infinity;
+  P.forEach(p => { const d = p.dot(_panRight); lo = Math.min(lo, d); hi = Math.max(hi, d); });
+  return (hi - lo) / 2;                     // either end reachable, no further
+}
+
+function applyPan() {
+  if (!panBase) return;
+  _panRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+  cam.target.copy(panBase).addScaledVector(_panRight, panOffset);
+  applyCam();
+}
+
+const stage = document.getElementById('stage');
+stage.addEventListener('pointerdown', e => {
+  if (started || !traj || e.target !== canvas) return;
+  panDrag = { x: e.clientX, limit: panLimit() };
+  if (!panBase) panBase = cam.target.clone();
+  canvas.setPointerCapture(e.pointerId);
+  e.stopPropagation();                      // scene.js must not also orbit
+}, true);
+stage.addEventListener('pointermove', e => {
+  if (!panDrag) return;
+  e.stopPropagation();
+  /* World units per pixel at the target's distance. The vertical and
+     horizontal rates are the same number — the aspect ratio cancels — so one
+     conversion covers both. */
+  const wpp = 2 * cam.r * Math.tan(camera.fov * Math.PI / 360) / canvas.clientHeight;
+  panOffset = Math.max(-panDrag.limit, Math.min(panDrag.limit,
+    panOffset - (e.clientX - panDrag.x) * wpp));
+  panDrag.x = e.clientX;
+  applyPan();
+}, true);
+stage.addEventListener('pointerup', e => {
+  if (!panDrag) return;
+  panDrag = null; e.stopPropagation();
+}, true);
+
+/* Walk back to the framing the fold was designed around before playing — both
+   the pan and a wheel-zoom. A student who has wandered to the far end of the
+   chain, or zoomed until it is a speck, should not have to undo that by hand
+   to watch the animation; and the fold's own camera work assumes it starts
+   from the solved frame.
+
+   Clearing userZoom is the substantive half: it is the flag that turns the
+   per-frame auto-framing off for good once the wheel is touched, so without
+   clearing it the fold would play at whatever distance was left behind and
+   never re-fit. It is cleared BEFORE solving, because solveFrame declines to
+   answer while it is set. */
+const RECENTER_DUR = 0.45;                  // seconds
+function recenterThenPlay() {
+  userZoom = false;
+  const fr = traj ? foldFrame(posOf(t)) : null;
+  recenter = { fromPan: panOffset, fromR: cam.r, toR: fr ? fr.r : cam.r, p: 0 };
+}
+function stepRecenter(dt) {
+  if (!recenter) return;
+  recenter.p = Math.min(1, recenter.p + dt / RECENTER_DUR);
+  const e = smoothstep(recenter.p);
+  panOffset = recenter.fromPan * (1 - e);
+  cam.r = recenter.fromR + (recenter.toR - recenter.fromR) * e;
+  if (panBase) applyPan(); else applyCam();
+  if (recenter.p < 1) return;
+  recenter = null; panOffset = 0; panBase = null;
+  started = true;
+  setPlaying(true);
+}
 
 /* Pointer scrubbing on the segmented bar. A range input would have been less
    code, but it cannot show the parts — and the parts are the point. */
@@ -2253,6 +2349,7 @@ let last = performance.now();
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
+  stepRecenter(dt);
   stepTransition(dt);
   stepHover(dt);
 
