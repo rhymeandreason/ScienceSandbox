@@ -102,110 +102,35 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
 
-**`protein-lab` is a different kind of page and its one-word row is not an
-oversight.** Pages that render *deposited* structures (PDB files in `pdb/`) share
-`pdb.js` and `sandbox.css` and nothing else: no Three.js, no `scene.js`, no
-MolLib. They draw through vendored ChemDoodle Web, which is **GPLv3 and makes any
-page loading it GPLv3** — `RenderingLibraries.md` and `vendor/chemdoodle/README.md`
-carry the reasoning. `tools/check-pages.js` skips them because there is no
-molecule reference to check; `tools/check-pdb.js` is what audits them instead.
+**Three kinds of page share this table, not two.** Most load `scene.js` +
+MolLib as above. `protein-lab` renders *deposited* structures through vendored
+ChemDoodle Web instead — no Three.js, no MolLib — which is **GPLv3 and makes
+any page loading it GPLv3** (`RenderingLibraries.md`); `tools/check-pdb.js`
+audits it instead of `check-pages.js`. `folding-lab` is a third kind:
+deposited coordinates (from `pdb/`) drawn through `scene.js` like the Three.js
+lessons, because its chain animates and its H-bond dashes need the same scene
+— so it loads `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`,
+and its display radii are the house `PALETTE.radii` **divided by `SCALE`**
+(computed in the page, since every coordinate is a real ångström off the PDB).
 
-**`folding-lab` is a THIRD kind of page: deposited coordinates, drawn by us.**
-It reads `pdb/1VII.pdb` but renders through `scene.js` like the Three.js
-lessons, because its chain moves every frame and its hydrogen-bond dashes are
-the lesson — neither of which ChemDoodle can do, and going that way would also
-pull the page into the GPL. So it loads `palette.js` + `molecules.js` for
-`PALETTE` alone and no `mol-*.js` at all: every coordinate is a real ångström
-off the PDB, never a `SCALE`d spec. Display radii are the house `PALETTE.radii`
-**divided by `SCALE`**, computed in the page — that is what keeps its
-ball-and-stick proportions identical to every other page, and `folding/folding.js`
-deliberately holds no radii of its own since it renders nothing. Its chemical
-claims are asserted at the foot of `tools/check-pdb.js`.
+**The design reasoning for `folding-lab`'s three acts, `folding-lab-ribbon`'s
+secondary-structure sourcing, and the actin rungs lives in the source files'
+own headers**, not here: `folding/folding.js` (the H-bond/hydrophobic-core
+argument and the solver's constraints), `folding/villin.js` (why act 3 is an
+AlphaFold prediction, not a structure, and the eight generated arrangements),
+`folding/ribbon.js` (HELIX records vs. DSSP vs. the unused Cα heuristic, and
+why a cartoon is what finds solver bugs a ball-and-stick hides), and
+`folding/actin.js` (the measured helical screw that extends 5 deposited
+subunits to 13, and the species jump in the 9JUS coda). Each trajectory is
+precomputed and committed (`folding/data/*.bin`); re-run the matching
+`folding/tools/bake-*.js` after touching the file that produced it, or
+`folding/tools/check-folding.js` fails.
 
-**Act 3 is an AlphaFold prediction and the page says so.** There is no
-deposited full-length villin. `pdb/AF-P02640-villin.pdb` is AlphaFold's model
-of chicken villin-1 (UniProt P02640), and 1VII is residues **791–826** of it —
-35 of 36 identical, 2.03 Å Cα RMSD, so the folded chain seats onto the model by
-a rigid superposition. The eight arrangements exist because **PAE says the
-model cannot place its own domains**: ~2 Å within HP35, but pinned at the
-31.75 Å ceiling between headpiece and core. Domains are moved rigidly and only
-linkers change. They are *generated, not observed* — the same interface an NMR
-ensemble uses, with completely different epistemic status, which is why the
-legend note and the button tooltips say so. `folding/villin.js`'s header carries the
-full argument, including why uncertainty must not be presented as motion.
-
-**Where `folding-lab-ribbon`'s secondary structure comes from, and what each
-source licenses.** Three different answers, and the difference is the point:
-HP35's helices are 1VII's own **HELIX records** — an experiment; villin's 826
-residues are **DSSP** (`RibbonLib.dssp`, Kabsch & Sander) run at bake time on
-the AlphaFold model's N/CA/C/O, because AlphaFold DB ships no HELIX or SHEET
-records at all; and `RibbonLib.detect()`, a Cα-spacing heuristic, is used by
-**nothing** and should stay that way. The distinction matters because all
-three render in identical ink. DSSP on a prediction reports *the model's*
-secondary structure, not the protein's — the mild form of this page's standing
-caveat, defensible because AlphaFold's local fold is its most reliable output
-while the PAE argument driving the eight arrangements is about where domains
-*sit*. `check-folding.js` validates the DSSP against 1VII's records over the
-36 residues where experiment and prediction overlap, which is the only place
-the two can be compared, and asserts the baked bytes match a fresh run.
-
-The backbone the DSSP needs never reaches the browser: `villin.js`'s `parseCA`
-is Cα-only by design, so the answer is computed once and carried as one byte
-per residue in `AF-P02640-villin.poses.bin` (format **version 2**; the SS block
-goes last so the Float32 views stay 4-aligned). Change `ribbon.js`'s DSSP and
-you must re-run `node folding/tools/bake-villin.js`, exactly as with the fold
-and the actin bins.
-
-**Rungs 4–5 add two more structures and two more caveats.** The filament is
-9ZZI (F-actin, cryo-EM 2.06 Å) — five subunits deposited, extended to 13 by the
-helical screw **measured from the file itself** (27.60 Å rise, −166.60° twist,
-four steps agreeing to 0.024 Å, both matching the literature). `folding/tools/check-folding.js`
-asserts that repeating the screw reproduces every deposited chain, which is
-what makes the extra subunits symmetry rather than invention. The coda is 9JUS
-(villin gripping an actin trimer, X-ray 2.7 Å) — and **its villin is from a
-deep-sea vent worm**, because no vertebrate villin–actin structure exists. That
-species jump is stated on the page and asserted in the checker, and the complex
-is deliberately *not* drawn in HP35's blue.
-
-**The fold itself is precomputed and committed.** The page loads
-`folding/data/1VII.fold.bin` and plays it; it runs no solver. `folding/folding.js` still
-contains the solver because `folding/tools/bake-fold.js` and the checker need it —
-but nothing in the browser calls `Folder`. Change the solver and you must
-re-run `node folding/tools/bake-fold.js`, or `folding/tools/check-folding.js` fails: a stale trajectory
-is invisible from the animation, which is exactly why it is checked.
-
-**What the solver constrains, and why a cartoon is what found the bugs.** The
-relaxation holds bond lengths (1-2) and angles (1-3) at their deposited
-values, and for a long time that was all — which let it drive the chain
-through geometry no peptide can adopt, because the two things that make a
-backbone a backbone are neither. **ω is a 1-4 torsion** (CA–C–N–CA), so
-nothing reached it and consecutive Cα closed to 2.72 Å mid-fold, tighter than
-cis (2.9 Å) in a protein that has no cis bond; it is now pinned trans by two
-deposited pairs per peptide bond. And **a point-to-point O···H spring defines
-a contact, not a helix** — every bond could be satisfied while Cα(i)···Cα(i+4)
-sat at 4.6 Å against a deposited 6.1, an over-wound coil. Each hydrogen bond
-now also pulls its donor N to the deposited O···N distance (which is what
-makes the bond near-linear, the same ≥130° that `hbonds()` demands when
-*reading* them) and holds the two Cα atoms it spans at their deposited
-separation.
-
-Two things about that are worth keeping. **Ball-and-stick hid all of it** —
-overlapping spheres conceal a squashed backbone — and it only became visible
-when a ribbon was drawn over the same coordinates, which is the general lesson:
-a cartoon is a measurement of the frame under it. And **the obvious fix was
-wrong**: leaning on `guide` (the global pull toward native) fixed the rise at
-the strength that also dragged the three phenylalanines to their native
-separation by t=0.5, so act 1 quietly performed act 2's packing and the page's
-two causes became one. The fix had to be local, and `check-folding.js` now
-asserts all three over the WHOLE trajectory rather than its endpoint — trans
-backbone, helix rise through act 1, and **core still open when act 1 ends**,
-which exists to stop anyone re-introducing that shortcut.
-
-`aminoacid-lab` loads `mol-small` because dehydration synthesis releases a real
-water molecule and that water has to sit correctly beside the residues. **A
-family-B page that needs a small molecule loads `mol-small.js`; only the
-solvation pages load `mol-solvation.js`.** The two define the same keys and
-`register()` throws if both are present.
+`aminoacid-lab` loads `mol-small` (not `mol-solvation`) because dehydration
+synthesis releases a real water molecule that has to sit correctly beside the
+residues — **a family-B page needing a small molecule loads `mol-small.js`;
+only solvation pages load `mol-solvation.js`.** The two define the same keys
+and `register()` throws if both are present.
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 | Module | Exposes | Rules |
