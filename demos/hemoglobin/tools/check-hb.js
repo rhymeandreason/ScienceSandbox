@@ -431,5 +431,111 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
    'the computed part of the trajectory is right-handed too (a mirror would invert this)',
    `${fold.right} right / ${fold.left} left`);
 
+/* ---------------- level 4: the other three chains ----------------
+   The quaternary act is DEPOSITED coordinates placed in the trajectory's
+   frame, so the two things that can be wrong are invisible from the page:
+   a stale file, and a frame that does not match. Both are checked here. */
+{
+  const QBIN = path.join(HERE, 'data', '2HHB-quaternary.json');
+  const { bakeQuaternary } = require('./bake-quaternary.js');
+  const committed = JSON.parse(fs.readFileSync(QBIN, 'utf8'));
+  const fresh = bakeQuaternary();
+  ok(JSON.stringify(committed) === JSON.stringify(fresh),
+     'hemoglobin/data/2HHB-quaternary.json is not stale',
+     're-run: node hemoglobin/tools/bake-quaternary.js');
+
+  ok(committed.order.join('') === 'ACD' && committed.folded === CHAIN,
+     'the three placed chains are A, C, D and the folded one is B');
+  ok(committed.chains.A.kind === 'alpha' && committed.chains.C.kind === 'alpha' &&
+     committed.chains.D.kind === 'beta',
+     'two alpha and one more beta — the page colours them by kind');
+  ok(committed.chains.A.CA.length === 141 && committed.chains.C.CA.length === 141,
+     'each alpha chain is 141 residues',
+     `${committed.chains.A.CA.length}/${committed.chains.C.CA.length}`);
+  ok(committed.chains.D.CA.length === 146, 'the second beta chain is 146, same as ours');
+  ok(Object.keys(committed.iron).length === 4 &&
+     ['A','B','C','D'].every(id => committed.iron[id]),
+     'four heme irons, one per chain');
+
+  /* THE FRAME. bake-quaternary re-derives orient()'s rotation; if it ever
+     stops matching, the tetramer assembles around a chain lying in a
+     different basis and the picture is quietly, plausibly wrong. */
+  let maxDev = 0;
+  for (let i = 0; i < d.R; i++)
+    maxDev = Math.max(maxDev, Math.hypot(
+      d.native[i][0] - committed.foldedTrace[i][0],
+      d.native[i][1] - committed.foldedTrace[i][1],
+      d.native[i][2] - committed.foldedTrace[i][2]));
+  ok(maxDev < 0.02, 'the placed chains are in the trajectory\'s own frame',
+     `chain B agrees to ${maxDev.toFixed(3)} A (2-dp rounding)`);
+
+  /* THE ARRIVAL ORDER IS A MEASURED FACT, and the captions now quote the
+     numbers, so they are asserted. alpha1-beta1 is the large tight
+     interface that assembles first; alpha1-beta2 is the smaller one that
+     slides during the T->R switch; the two beta chains do not touch each
+     other at all. Counted the way bake-quaternary counts contact. */
+  const CT = committed.contactRadius;
+  const pairs = (X, Y) => {
+    let n = 0;
+    for (const a of X) for (const b of Y)
+      if (Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]) <= CT) n++;
+    return n;
+  };
+  const AB = pairs(committed.chains.A.CA, committed.foldedTrace);
+  const CB = pairs(committed.chains.C.CA, committed.foldedTrace);
+  const DB = pairs(committed.chains.D.CA, committed.foldedTrace);
+  ok(AB === 72 && CB === 43,
+     'alpha1-beta1 is the bigger interface, and the panel quotes both numbers',
+     `A-B ${AB}, C-B ${CB} contacts within ${CT} A`);
+  ok(AB > CB * 1.5, 'the page arrives A first because A-B is the tighter join');
+  ok(DB === 0, 'the two beta chains never touch — as the panel says', `${DB} contacts`);
+
+  /* Every arriving chain lands on a real interface and makes real bonds on
+     the way in. A chain with no bonds would dock in silence, and a chain
+     with dozens would be the old error back again — the page draws one dash
+     per entry here, so this is also a cap on how much ink the cue can
+     spend. */
+  for (const id of committed.order) {
+    const c = committed.chains[id];
+    ok(c.contact.self > 15 && c.contact.other > 15,
+       `chain ${id} lands on a real interface`,
+       `${c.contact.self} of its own residues against ${c.contact.other}`);
+    ok(c.bonds.length >= 6 && c.bonds.length <= 20,
+       `chain ${id} makes a drawable number of interface hydrogen bonds`,
+       `${c.bonds.length} dashes`);
+    ok(c.bonds.every(b => b.d <= committed.polarRadius),
+       `chain ${id}'s interface bonds are all within the polar cutoff`);
+  }
+
+  /* THE NUMBER THE PANEL SAYS OUT LOUD: "only eight of them between alpha1
+     and your beta chain". Nothing else is on screen when A arrives, so its
+     bond list IS that eight. */
+  ok(committed.chains.A.bonds.length === 8,
+     'alpha1 docks with the eight hydrogen bonds the panel claims',
+     `${committed.chains.A.bonds.length}`);
+
+  /* And the packing is the majority — the claim that stops the dashes from
+     reading as "this is what holds it". */
+  ok(committed.chains.A.contact.self > committed.chains.A.bonds.length * 2,
+     'far more residues touch than bond, which is why the packing is named not drawn',
+     `${committed.chains.A.contact.self} contact vs ${committed.chains.A.bonds.length} bonds`);
+
+  /* His F8 of every chain holds its own iron: 2.0-2.5 A Fe-NE2 in the
+     deposited structure. Checked on the irons AS PLACED, so it also
+     catches a rotation applied to one and not the other. */
+  const rawAll = fs.readFileSync(SRC, 'utf8');
+  const F8 = { A: 87, B: 92, C: 87, D: 92 };
+  let worst = 0;
+  for (const id of ['A', 'B', 'C', 'D']) {
+    const CAtrace = id === CHAIN ? committed.foldedTrace : committed.chains[id].CA;
+    const first = id === CHAIN ? 1 : committed.chains[id].first;
+    const ca = CAtrace[F8[id] - first];
+    const fe = committed.iron[id];
+    worst = Math.max(worst, Math.hypot(ca[0]-fe[0], ca[1]-fe[1], ca[2]-fe[2]));
+  }
+  ok(worst < 12, 'each iron sits in its own chain\'s pocket, by His F8',
+     `furthest Ca(F8)-Fe is ${worst.toFixed(1)} A`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

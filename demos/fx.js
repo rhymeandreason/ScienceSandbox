@@ -79,14 +79,14 @@
 
     // bright soft core flash at a point — the white-hot instant of the event.
     const _coreGeo=new THREE.CircleGeometry(1,40);
-    function spawnCore(pos,color,follow){
+    function spawnCore(pos,color,follow,size=1){
       const m=new THREE.Mesh(_coreGeo,new THREE.MeshBasicMaterial(
         {color,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
       const at=tracker(pos,follow);
       m.position.copy(at()); m.renderOrder=12; root.add(m);
       fx.push({t:0,dur:0.34,update(k){
         m.position.copy(at());
-        m.scale.setScalar(0.4+k*2.4);
+        m.scale.setScalar((0.4+k*2.4)*size);
         m.material.opacity=(1-k)*(1-k);
         m.quaternion.copy(camera.quaternion);
       },cleanup(){ root.remove(m); m.material.dispose(); }});
@@ -94,7 +94,7 @@
 
     // a spray of little glowing sparks flying outward — the "energy released" debris.
     const _sparkGeo=new THREE.SphereGeometry(0.12,8,6);
-    function spawnBurst(pos,color,n=14,follow){
+    function spawnBurst(pos,color,n=14,follow,size=1){
       const at=tracker(pos,follow);
       for(let i=0;i<n;i++){
         const m=new THREE.Mesh(_sparkGeo,new THREE.MeshBasicMaterial(
@@ -102,11 +102,11 @@
         m.position.copy(at()); m.renderOrder=11; root.add(m);
         // random direction on a sphere, varied speed
         const dir=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5)
-          .normalize().multiplyScalar(2.6+Math.random()*2.4);
+          .normalize().multiplyScalar((2.6+Math.random()*2.4)*size);
         const dur=0.5+Math.random()*0.35;
         fx.push({t:0,dur,update(k){
           m.position.copy(at()).addScaledVector(dir,k*(2-k));  // ease-out flight
-          m.scale.setScalar(1-k*0.7);
+          m.scale.setScalar((1-k*0.7)*size);
           m.material.opacity=(1-k);
         },cleanup(){ root.remove(m); m.material.dispose(); }});
       }
@@ -116,7 +116,7 @@
     // ring + core flash + spark burst so the moment really lands. Billboarded to
     // the camera each frame so it always reads as a flat disc facing the viewer.
     const _ringGeo=new THREE.RingGeometry(0.60,0.86,56);
-    function _ring(pos,color,delay,scale,dur,follow){
+    function _ring(pos,color,delay,scale,dur,follow,size=1){
       const m=new THREE.Mesh(_ringGeo,new THREE.MeshBasicMaterial(
         {color,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
       const at=tracker(pos,follow);
@@ -124,19 +124,27 @@
       fx.push({t:0,dur:dur+delay,update(k){
         const kk=Math.max(0,Math.min((k*(dur+delay)-delay)/dur,1));
         m.position.copy(at());
-        m.scale.setScalar(0.4+kk*scale);
+        m.scale.setScalar((0.4+kk*scale)*size);
         m.material.opacity=1.0*(1-kk)*(1-kk)*(kk>0?1:0);
         m.quaternion.copy(camera.quaternion);
       },cleanup(){ root.remove(m); m.material.dispose(); }});
     }
     /* `follow` is optional and every caller that omits it behaves exactly as
      * before. Pass the molecule's anchor Object3D on any page where the thing
-     * that just completed can still be dragged. */
-    function spawnRing(pos,color,follow){
-      spawnCore(pos,0xffffff,follow);
-      _ring(pos,color,0,   5.4,0.75,follow);   // fast leading ring
-      _ring(pos,color,0.12,4.0,0.85,follow);   // trailing echo
-      spawnBurst(pos,color,16,follow);
+     * that just completed can still be dragged.
+     *
+     * `size` is a plain multiplier on the whole effect, default 1, and it
+     * exists because THESE RADII ARE IN ANGSTROMS. The ring was tuned on the
+     * solvation pages, where the event is one bond between two atoms a few
+     * angstroms apart; on hemoglobin-lab the same ring marks a bond on a
+     * 65 A molecule and reads as a spark. Scale it at the CALL, per page —
+     * a shared default that drifts to suit the biggest subject would shrink
+     * the effect on every page that was right already. */
+    function spawnRing(pos,color,follow,size=1){
+      spawnCore(pos,0xffffff,follow,size);
+      _ring(pos,color,0,   5.4,0.75,follow,size);   // fast leading ring
+      _ring(pos,color,0.12,4.0,0.85,follow,size);   // trailing echo
+      spawnBurst(pos,color,16,follow,size);
     }
 
     // pop a freshly-formed molecule: strong scale overshoot + emissive flash on

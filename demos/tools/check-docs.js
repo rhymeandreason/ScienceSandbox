@@ -149,6 +149,10 @@ for (const doc of DOCS) {
         /(^|[^\w./*-])([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:html|js|css|json))\b/gm)) {
     const n = m[2];
     if (n.includes('..') || n === 'Three.js') continue;         // prose, not a path
+    // A METHOD CALL IS NOT A PATH. `res.json()` in a page's fetch chain reads
+    // as the file "res.json" — flagged the first time a lesson loaded JSON
+    // instead of a binary. Anything immediately followed by '(' is code.
+    if (src[m.index + m[0].length] === '(') continue;
     if (!named.has(n)) named.set(n, new Set());
     named.get(n).add(doc);
   }

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Molecule Sandbox — One Hemoglobin Chain Folds</title>
+<title>Molecule Sandbox — Hemoglobin: One Chain Folds, Four Chains Assemble</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="sandbox.css">
 <style>
-  :root{ --hb:#0042aa; --core:#c2571b; --coil:#8a8378; }
+  :root{ --hb:#0042aa; --core:#c2571b; --coil:#8a8378; --quat:#8a5a12; }
 
   [hidden]{display:none !important}
 
@@ -40,6 +40,7 @@
   #saycap .capname.a0{color:var(--ink)}
   #saycap .capname.a1{color:var(--hb)}
   #saycap .capname.a2{color:var(--core)}
+  #saycap .capname.a4{color:var(--quat)}
   #saycap.fade{animation:capIn .5s ease-out}
   @keyframes capIn{
     0%{opacity:0;transform:translateX(-50%) translateY(7px)}
@@ -101,6 +102,7 @@
   #tally .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;
     display:block;line-height:1.1}
   #tally .hbnum{color:var(--hb)} #tally .rgnum{color:var(--core)}
+  #tally .qnum{color:var(--quat)}
   #tally .sub{color:var(--muted);font-size:11px;display:block}
   /* the readout that is currently DOING something gets the ink */
   #tally .col.idle{opacity:.42}
@@ -145,6 +147,11 @@
         <span class="big rgnum" id="rgval">—</span>
         <span class="sub">Å across</span>
         <span class="sub">level 3 · tertiary</span>
+      </span>
+      <span class="col" id="qcol" hidden>
+        <span class="big qnum" id="qval">1</span>
+        <span class="sub">of 4 chains</span>
+        <span class="sub">level 4 · quaternary</span>
       </span>
     </div>
 
@@ -196,11 +203,31 @@
       </section>
       <section>
         <h4>Level 4 · quaternary</h4>
-        <p>Haemoglobin <b>does</b> have one — this is the protein AP Bio uses
-          to teach it. The working molecule is <b>four</b> finished chains
-          (two α, two β) gripping four irons, and they cooperate: oxygen
-          binding to one makes the next one easier. This page folds one chain
-          only. The other three are not shown yet.</p>
+        <p>The working molecule is <b>four</b> finished chains — two α (141
+          amino acids each) and two β (146) — each gripping an iron. After
+          the fold, watch them arrive one at a time: <b>α1 first</b>, because
+          α1 with your β makes the pair that binds tightest and comes
+          together first, then the second pair. Nothing about the chains
+          changes as they dock; level 4 is <b>which finished chains touch
+          which</b>, and that is what lets them cooperate — oxygen binding to
+          one iron makes the next one easier.</p>
+        <p style="margin-top:7px">The dashes that appear as each chain lands
+          are <b>hydrogen bonds across the new interface</b> — the same bond
+          act 2 used to build the helices, now holding two chains together.
+          There are only <b>eight</b> of them between α1 and your β chain,
+          across about thirty residues in contact. <b>Most of an interface
+          is not bonds</b>: it is hydrophobic packing, the same thing that
+          drove level 3, and it is left undrawn here for the same reason
+          it was left undrawn there — it has no endpoints.</p>
+        <p style="margin-top:7px">Why this order: measuring contact on the
+          crystal structure (α carbons within 8.5 Å), α1 makes <b>72
+          contacts with your β chain and the second α makes 43</b> — and the
+          two β chains never touch at all. The big tight pair forms first;
+          the weaker join is the one that shifts when oxygen binds.</p>
+        <p style="margin-top:7px">Those three chains are <b>not folded by
+          this page</b>. They are the deposited crystal coordinates, moved
+          into place — placed, not solved. A tetramer is four finished
+          tertiary structures, so that is the honest way to show it.</p>
       </section>
       <section>
         <h4>What this animation fakes</h4>
@@ -240,6 +267,7 @@
 <script src="palette.js"></script>
 <script src="molecules.js"></script>
 <script src="scene.js"></script>
+<script src="fx.js"></script>
 <script src="folding/ribbon.js"></script>
 <script src="hemoglobin/hbfold.js"></script>
 <script>
@@ -254,6 +282,20 @@
  *  haemoglobin is the molecule that finishes the sentence: it is the
  *  standard AP Bio example of quaternary structure, and one of its chains
  *  is a clean, self-contained tertiary story on the way there.
+ *
+ *  LEVEL 4 IS A DIFFERENT MECHANISM, AND IT LOOKS LIKE ONE. The fold is a
+ *  computed trajectory; the other three chains are DEPOSITED coordinates
+ *  slid into place, one at a time, and nothing about them changes as they
+ *  arrive. That is the claim: quaternary structure is finished tertiary
+ *  structures touching, so the animation must not appear to fold them.
+ *  hemoglobin/tools/bake-quaternary.js writes them, in this page's frame;
+ *  its header explains why the frame is the part that is easy to get
+ *  wrong.
+ *
+ *  ONE AT A TIME, IN A PARTICULAR ORDER: alpha1 (chain A) first, because
+ *  the alpha1-beta1 pair is the tightest interface in the molecule and the
+ *  one that assembles first, then the second pair (C, D). The order is a
+ *  real fact about how the tetramer comes together, not a staging choice.
  *
  *  It is NOT a replacement. Villin folds in 4 microseconds and is the
  *  protein folding is actually studied on; this one is 4x bigger, has a
@@ -325,6 +367,22 @@ const PAL = MolLib.PALETTE;
    If the method ever changes, RE-READ THESE rather than nudging them —
    hemoglobin/tools/check-hb.js will tell you the trajectory moved, but not
    that the captions stopped describing it. */
+
+/* ---------- two clocks, one scrubber ----------
+   `u` is the LESSON clock, 0..1 over the whole 32 s. The fold owns u=0..
+   FOLD_END and level 4 owns the rest, split in proportion to the seconds
+   each takes so the scrubber moves at one speed throughout. Everything
+   measured — the act boundaries above, the H-bond plateau — stays quoted
+   in FOLD t, because those numbers are properties of the trajectory and
+   must not silently rescale if the assembly gets longer. `uOf` is the one
+   place the two meet. */
+const PLAY_SECONDS = 22;      // the fold; 4x villin's residue count wants a slower read
+const ASSEMBLY_SECONDS = 10;  // the other three chains arriving
+const TOTAL_SECONDS = PLAY_SECONDS + ASSEMBLY_SECONDS;
+const FOLD_END = PLAY_SECONDS / TOTAL_SECONDS;
+const uOf = (phase, x) => phase === 'fold' ? x * FOLD_END
+                                           : FOLD_END + x * (1 - FOLD_END);
+
 const ACTS = [
   { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the beads',
     body: 'This is the whole instruction your DNA gives: 146 amino acids in ' +
@@ -340,18 +398,33 @@ const ACTS = [
           'chains together and the finished helices fold in against ' +
           'each other.' },
   { t: 0.94, cls: 'a2', name: 'One chain, done',
-    body: 'A globin fold: eight helices around a pocket. The real protein ' +
-          'puts an iron in that pocket and then does this three more times — ' +
-          'that is level 4, and it is not on this page yet.' },
+    body: 'A globin fold: eight helices around a pocket. That pocket is not ' +
+          'decoration — it is the shape the whole collapse was making.' },
+
+  /* LEVEL 4 GETS ONE CAPTION, NOT ONE PER CHAIN. An earlier version
+     narrated each arrival — alpha1, then the second pair, then a finale —
+     and that is three captions saying the same sentence with different
+     subjects. The act has one idea in it (four separate molecules make one
+     working protein, held by bonds and by packing), so it gets one card,
+     posted as the act opens and left up while all three chains dock. The
+     chains arriving are the thing to watch; the words should not keep
+     interrupting to announce what is already visible. */
+  { phase: 'quat', t: 0.00, cls: 'a4', name: 'Level 4 · four chains, one molecule',
+    body: 'Two α chains and one more β dock onto yours — each already folded, ' +
+          'each carrying its own iron. Dashes mark the hydrogen bonds that ' +
+          'snap shut where they meet; most of the grip is the same oily ' +
+          'packing that folded each chain. Only four together can hand ' +
+          'oxygen from one iron to the next.' },
 ];
 
+/* The scrubber in lesson units. The fold\'s three measured segments are
+   squeezed into u=0..FOLD_END; level 4 is the rest. */
 const SEGMENTS = [
   { to: 0.10, label: 'primary' },
   { to: 0.54, label: 'secondary — helices coil' },
   { to: 1.00, label: 'tertiary — helices pack' },
-];
-
-const PLAY_SECONDS = 22;      // 4x villin's residue count wants a slower read
+].map(s => ({ to: uOf('fold', s.to), label: s.label }))
+ .concat([{ to: 1.00, label: 'quaternary — four chains' }]);
 
 /* Ribbon ink. The helices take the hydrogen-bond blue because the helix IS
    what those bonds made — the same argument the villin page makes for its
@@ -359,6 +432,69 @@ const PLAY_SECONDS = 22;      // 4x villin's residue count wants a slower read
    COLOUR change say the same thing rather than competing. */
 const HELIX_COLOR = 0x0042aa;
 const COIL_COLOR  = 0x8a8378;
+
+/* The three chains that arrive in level 4 are drawn FLAT — one colour each,
+   no helix/coil split — for the same reason they are not folded: they are
+   context, and the chain the student has been watching must stay the
+   subject. Colour carries the one fact that matters about them, which is
+   which KIND each is: the two alphas share an ink and the second beta takes
+   a lighter version of this page's blue, so "two of these and two of those"
+   is legible without a legend. */
+const ALPHA_COLOR = 0xb07a24;
+const BETA2_COLOR = 0x4a7fc4;
+const IRON_COLOR  = 0xa8321a;   // not from PALETTE: no page here has drawn an Fe
+
+/* When each chain arrives, in ASSEMBLY units (0..1 across the level-4 act).
+   Windows are disjoint on purpose — "section by section" means one thing
+   moving at a time, and two chains sliding in together read as a single
+   blob arriving. Iron B leads, because it is the payoff of the pocket the
+   tertiary act just closed. */
+const ARRIVE = {
+  A: [0.10, 0.34],
+  C: [0.42, 0.64],
+  D: [0.68, 0.90],
+};
+const IRON_B = [0.02, 0.12];
+
+/* HOW FAR OUT A CHAIN STARTS. 30 A, not the 55 this began at. The slide has
+   to say "this arrived from elsewhere, already finished" — which is the one
+   thing separating level 4 from level 3 — without saying "this is an
+   unrelated molecule that happens to be nearby". At 55 A the chain spent
+   most of its window clear of the protein and read as a second molecule
+   passing; at 30 it is never further out than its own width, so it reads as
+   a subunit coming in to dock.
+   AND IT SEATS. The position uses an ease-OUT (fast, then slow) while the
+   opacity stays symmetric, so the last few angstroms take a
+   disproportionate share of the window and the chain visibly settles
+   against its interface instead of arriving at constant speed and stopping. */
+const SLIDE_A = 30;
+/* Exponent measured, not picked: cubic (the obvious ease-out) puts the
+   chain within 4 A of home while it is still half transparent, so the whole
+   second half of the window is a fade with nothing moving in it. 1.7 leaves
+   31% of the distance to cover in the last half of the window — still
+   decelerating, but the final approach is something you can watch. */
+const easeSeat = a => 1 - Math.pow(1 - a, 1.7);
+
+/* THE DOCKING CUE IS DASHES, AND THE COUNT IS THE POINT. When a chain
+   seats, the hydrogen bonds it makes across the new interface are drawn —
+   in the SAME ink and the same dash as the backbone H-bonds of act 2,
+   because they are the same bond doing the same job one level up. Eight of
+   them hold alpha1 to your beta chain.
+
+   WHAT IS DELIBERATELY NOT DRAWN. About thirty residues are in contact at
+   that interface and only eight bonds are among them; the rest is
+   hydrophobic packing, which has no endpoints and is not a bond. An earlier
+   version marked every contact residue with a sphere, which drew thirty
+   interactions where there are eight and put them in an ink this page uses
+   for nothing else. The packing is now named in the caption and left
+   undrawn — the same treatment level 3 gives it. */
+const BOND_IN = 0.82;           // fraction of the approach before bonds appear
+
+/* fx.js's ring is sized in angstroms and was tuned where an event is one
+   bond between two atoms; here it marks a bond on a 65 A tetramer, so at
+   the default it read as a spark. 1.5x, passed at the call — see
+   spawnRing's header for why this is not a change to the default. */
+const RING_SIZE = 1.5;
 
 /* SUB IS A SCALE KNOB — ribbon.js's header is explicit that it should come
    down as the subject gets smaller on screen, and a residue here is a
@@ -378,10 +514,19 @@ const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(ca
   rMin: 6, rMax: 2000,
   onZoom: () => { userZoom = true; } });
 
+/* FX is here for ONE event: a hydrogen bond forming across a new interface
+   in level 4. The fold itself fires nothing — 103 bonds appearing over 12
+   seconds would be a firework display, and act 2 already has a counter that
+   says the same thing quietly. Eight bonds landing at once when a chain
+   docks is exactly the moment the house ring was made for. */
+const FXi = FX.create(THREE, root, camera);
+
 /* ---------- state ---------- */
-let fold = null;
-let t = 0, playing = false, started = false;
+let fold = null, quat = null;
+let u = 0, t = 0, playing = false, started = false;
 let ribbon = null, depRibbon = null;
+const partners = [];            // {id, kind, mesh, mat, dir, win}
+const irons = [];               // {id, mesh, mat, win}
 const hbGroups = [];
 const chainGroup = new THREE.Group(); root.add(chainGroup);
 
@@ -390,14 +535,23 @@ const chainGroup = new THREE.Group(); root.add(chainGroup);
    list are all in the baked file — see hemoglobin/tools/bake-hb.js for why the
    fold is a committed artefact rather than 8.5 seconds of solving in front
    of the student. */
-fetch('hemoglobin/data/2HHB-B.fold.bin')
-  .then(r => {
+Promise.all([
+  fetch('hemoglobin/data/2HHB-B.fold.bin').then(r => {
     if (!r.ok) throw new Error('hemoglobin/data/2HHB-B.fold.bin — HTTP ' + r.status +
       ' (run: node hemoglobin/tools/bake-unfold.js)');
     return r.arrayBuffer();
-  })
-  .then(buf => {
+  }),
+  /* Level 4's three chains. Same frame as the trajectory, which is the
+     thing that has to be true — see hemoglobin/tools/bake-quaternary.js. */
+  fetch('hemoglobin/data/2HHB-quaternary.json').then(res => {
+    if (!res.ok) throw new Error('hemoglobin/data/2HHB-quaternary.json — HTTP ' + res.status +
+      ' (run: node hemoglobin/tools/bake-quaternary.js)');
+    return res.json();
+  }),
+])
+  .then(([buf, qjson]) => {
     fold = HbFold.decode(buf);
+    quat = qjson;
 
     /* The captions quote these numbers out loud, so a file that disagrees
        with them must not render — a caption saying "103 hydrogen bonds"
@@ -408,7 +562,11 @@ fetch('hemoglobin/data/2HHB-B.fold.bin')
     document.getElementById('hbcount').nextElementSibling.textContent =
       `of ${fold.B} hydrogen bonds`;
 
+    if (quat.order.length !== 3 || !quat.iron[quat.folded])
+      throw new Error('the quaternary file is not three chains and four irons');
+
     build();
+    buildQuaternary();
     buildCovers();
     buildSegments();
     seek(0);
@@ -417,6 +575,35 @@ fetch('hemoglobin/data/2HHB-B.fold.bin')
   .catch(e => {
     document.getElementById('loading').textContent = 'could not start — ' + e.message;
   });
+
+/* ---------- one hydrogen bond, drawn ----------
+   A row of short dashes, not a stick: an H-bond is not a covalent bond and
+   must never read as one (SCIENCE.md 5). Shared by act 2's backbone bonds
+   and level 4's interface bonds because they ARE the same bond — the only
+   difference is whether the two atoms are in the same chain. */
+const DASHES = 4;
+const DASH_R = 0.10;                    // angstroms; finer than any stick here
+
+function newDashGroup(mat) {
+  const g = new THREE.Group();
+  for (let d = 0; d < DASHES; d++)
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(DASH_R, DASH_R, 1, 6), mat));
+  return g;
+}
+
+const _p0 = new THREE.Vector3(), _p1 = new THREE.Vector3();
+function layDashes(g, a, b) {
+  const n = g.children.length;
+  for (let d = 0; d < n; d++) {
+    _p0.copy(a).lerp(b, (d + 0.18) / n);
+    _p1.copy(a).lerp(b, (d + 0.82) / n);
+    const seg = g.children[d];
+    seg.position.copy(_p0).lerp(_p1, 0.5);
+    const dir = _p1.sub(_p0);
+    seg.scale.set(1, dir.length(), 1);
+    seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  }
+}
 
 /* ---------- build ---------- */
 function build() {
@@ -446,22 +633,153 @@ function build() {
   depRibbon.visible = false;
   chainGroup.add(depRibbon);
 
-  /* One hydrogen bond = a row of short dashes, O to H. Dashes rather than a
-     stick because an H-bond is not a covalent bond and must never read as
-     one (SCIENCE.md §5) — and thinner than a covalent stick for the same
-     reason, with colour rather than width carrying the prominence. */
-  const DASHES = 4;
-  const DASH_R = 0.10;                    // angstroms; finer than any stick here
+  /* Act 2's backbone bonds, O to H — one dash group each, built by the
+     shared helper above so level 4's interface bonds are visibly the same
+     object. */
   for (let k = 0; k < fold.B; k++) {
-    const g = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color: PAL.bonds.hbond,
       roughness: .5, transparent: true, opacity: 0 });
-    for (let d = 0; d < DASHES; d++)
-      g.add(new THREE.Mesh(new THREE.CylinderGeometry(DASH_R, DASH_R, 1, 6), mat));
+    const g = newDashGroup(mat);
     g.userData = { mat };
     g.visible = false;
     chainGroup.add(g); hbGroups.push(g);
   }
+}
+
+/* ---------- level 4 ----------
+   Three deposited chains and four irons, all built once at their FINAL
+   positions and then displaced outward until it is their turn. The slide
+   is along each chain's own direction from the tetramer's centre, so a
+   chain comes in the way it would have to: from outside, straight onto its
+   own interface, never through the middle of anything already there.
+
+   THE SLIDE IS ANIMATION AND THE DESTINATION IS DATA. Nothing about a
+   chain's shape changes on the way in — the mesh is built once, from the
+   crystal's coordinates, and only its position and opacity are touched.
+   That is the level-4 claim rendered literally: the chains are finished
+   before they arrive. */
+function buildQuaternary() {
+  const centre = tetramerCentre();
+
+  quat.order.forEach(id => {
+    const c = quat.chains[id];
+    const pts = c.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    const mat = Stage.bondMat(c.kind === 'alpha' ? ALPHA_COLOR : BETA2_COLOR);
+    mat.side = THREE.DoubleSide;
+    mat.transparent = true; mat.opacity = 0;
+    const mesh = new THREE.Mesh(
+      RibbonLib.build(THREE, pts, c.ss.split(''), { sub: RIBBON_SUB }), mat);
+    mesh.visible = false;
+
+    let cx = 0, cy = 0, cz = 0;
+    for (const p of c.CA) { cx += p[0]; cy += p[1]; cz += p[2]; }
+    const n = c.CA.length;
+    const dir = new THREE.Vector3(cx / n, cy / n, cz / n).sub(centre);
+    if (dir.lengthSq() < 1e-6) dir.set(1, 0, 0);
+    dir.normalize();
+
+    /* The interface hydrogen bonds. One shared material per chain, so the
+       whole set fades with a single write, and one dash group per bond —
+       the same construction as the backbone bonds, which is what makes
+       them read as the same thing. */
+    const bondMat = new THREE.MeshStandardMaterial({ color: PAL.bonds.hbond,
+      roughness: .5, transparent: true, opacity: 0 });
+    const bonds = c.bonds.map(() => {
+      const g = newDashGroup(bondMat);
+      g.visible = false;
+      chainGroup.add(g);
+      return g;
+    });
+
+    chainGroup.add(mesh);
+    partners.push({ id, kind: c.kind, mesh, mat, dir, win: ARRIVE[id], CA: c.CA,
+                    bondMat, bonds, bondData: c.bonds, fired: false });
+  });
+
+  /* The irons. One sphere each, 1.4 A — smaller than the ribbon is wide, so
+     it reads as an atom sitting in a pocket rather than a ball the protein
+     is wrapped around. Chain B's arrives first and alone. */
+  Object.entries(quat.iron).forEach(([id, p]) => {
+    const mat = new THREE.MeshStandardMaterial({ color: IRON_COLOR, roughness: .35,
+      metalness: .35, transparent: true, opacity: 0 });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 20, 14), mat);
+    mesh.position.set(p[0], p[1], p[2]);
+    mesh.visible = false;
+    chainGroup.add(mesh);
+    irons.push({ id, mesh, mat,
+      win: id === quat.folded ? IRON_B : ARRIVE[id], pos: p,
+      dir: partners.find(pt => pt.id === id) ? partners.find(pt => pt.id === id).dir : null });
+  });
+}
+
+function tetramerCentre() {
+  let cx = 0, cy = 0, cz = 0, n = 0;
+  const add = P => { for (const p of P) { cx += p[0]; cy += p[1]; cz += p[2]; n++; } };
+  quat.order.forEach(id => add(quat.chains[id].CA));
+  add(fold.native);
+  return new THREE.Vector3(cx / n, cy / n, cz / n);
+}
+
+const smoothstep = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+const amountIn = (q, win) => smoothstep((q - win[0]) / (win[1] - win[0]));
+
+/* q is 0..1 across the level-4 act, or -1 while the chain is still folding.
+   Returns the number of chains present, for the readout. */
+function revealQuaternary(q) {
+  let chains = 1;
+  for (const p of partners) {
+    const a = q < 0 ? 0 : amountIn(q, p.win);
+    p.mesh.visible = a > 0.005;
+    p.mat.opacity = a;
+    const off = (1 - easeSeat(a)) * SLIDE_A;
+    p.mesh.position.copy(p.dir).multiplyScalar(off);
+    if (a > 0.5) chains++;
+
+    /* The bonds arrive with the last of the approach and then STAY, because
+       they are part of the molecule from here on — unlike a highlight,
+       which would have to fade to stop being a claim. They obey the same
+       "hydrogen bonds" checkbox as act 2's. */
+    const bond = smoothstep((a - BOND_IN) / (1 - BOND_IN));
+    const showBonds = document.getElementById('showhb').checked && bond > 0.01;
+    p.bondMat.opacity = bond * 0.9;
+    p.bonds.forEach((g, k) => {
+      g.visible = showBonds;
+      if (!g.visible) return;
+      const b = p.bondData[k];
+      _a.set(b.self[0], b.self[1], b.self[2]).addScaledVector(p.dir, off);
+      _b.set(b.other[0], b.other[1], b.other[2]);
+      layDashes(g, _a, _b);
+    });
+
+    /* One ring per bond as the set lands — the house's "a bond just
+       happened" mark (SCIENCE.md 5), fired once and re-armed if the
+       scrubber goes back before the interface. */
+    if (bond > 0.55 && !p.fired) {
+      p.fired = true;
+      p.bondData.forEach(b => FXi.spawnRing(
+        new THREE.Vector3((b.self[0] + b.other[0]) / 2,
+                          (b.self[1] + b.other[1]) / 2,
+                          (b.self[2] + b.other[2]) / 2),
+        PAL.bonds.hbond, null, RING_SIZE));
+    } else if (bond < 0.2) p.fired = false;
+  }
+  for (const ir of irons) {
+    const a = q < 0 ? 0 : amountIn(q, ir.win);
+    ir.mesh.visible = a > 0.005;
+    ir.mat.opacity = a;
+    if (ir.dir) ir.mesh.position.set(ir.pos[0], ir.pos[1], ir.pos[2])
+      .addScaledVector(ir.dir, (1 - easeSeat(a)) * SLIDE_A);   // rides its chain
+  }
+  return chains;
+}
+
+/* What the camera has to hold: the folding chain always, plus each partner
+   weighted by how much of it has arrived. Weighted rather than switched on,
+   so the view opens out continuously instead of jumping the moment a chain
+   appears. */
+function quaternaryGroups(q) {
+  if (q < 0) return [];
+  return partners.map(p => ({ P: p.CA, w: amountIn(q, p.win) })).filter(g => g.w > 0.005);
 }
 
 /* ---------- camera ----------
@@ -477,10 +795,13 @@ function build() {
 const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 196 };
 const FIT_THETA = cam.theta, FIT_PHI = cam.phi;
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Vector3();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 
-function frameFrom(P) {
-  if (userZoom || !P || !P.length) return;
+/* frameFrom(groups) — each group is {P, w}, w in 0..1. A partly-arrived
+   chain contributes a fraction of its extent, which is what keeps the
+   camera from stepping outward the instant a chain switches on. */
+function frameFrom(groups) {
+  if (userZoom || !groups.length) return;
   const h = canvas.clientHeight, w = canvas.clientWidth;
   if (!h || !w) return;
 
@@ -492,15 +813,19 @@ function frameFrom(P) {
   _right.normalize();
   _up.crossVectors(_right, _fwd).normalize();
 
-  let cx = 0, cy = 0, cz = 0;
-  for (const p of P) { cx += p[0]; cy += p[1]; cz += p[2]; }
-  cx /= P.length; cy /= P.length; cz /= P.length;
+  let cx = 0, cy = 0, cz = 0, wt = 0;
+  for (const g of groups) {
+    for (const p of g.P) { cx += p[0]*g.w; cy += p[1]*g.w; cz += p[2]*g.w; }
+    wt += g.P.length * g.w;
+  }
+  if (wt <= 0) return;
+  cx /= wt; cy /= wt; cz /= wt;
 
   let halfW = 0, halfH = 0;
-  for (const p of P) {
+  for (const g of groups) for (const p of g.P) {
     const dx = p[0] - cx, dy = p[1] - cy, dz = p[2] - cz;
-    halfW = Math.max(halfW, Math.abs(dx*_right.x + dy*_right.y + dz*_right.z));
-    halfH = Math.max(halfH, Math.abs(dx*_up.x    + dy*_up.y    + dz*_up.z));
+    halfW = Math.max(halfW, g.w * Math.abs(dx*_right.x + dy*_right.y + dz*_right.z));
+    halfH = Math.max(halfH, g.w * Math.abs(dx*_up.x    + dy*_up.y    + dz*_up.z));
   }
   /* The extents are to the ribbon's CENTRE LINE, so give back its half-width
      or the band clips along the edges of the stage. PROFILE.H[0] is 1.30 A. */
@@ -519,7 +844,7 @@ function frameFrom(P) {
   applyCam();
 }
 
-new ResizeObserver(() => { resize(); if (fold) seek(t); }).observe(canvas);
+new ResizeObserver(() => { resize(); if (fold) seek(u); }).observe(canvas);
 
 /* ---------- secondary structure over time ----------
    THE RIBBON MUST NOT SHOW A HELIX BEFORE ITS BONDS EXIST. The first
@@ -564,8 +889,12 @@ function ssAt(formed) {
 /* ---------- seek ---------- */
 const _v = [];      // scratch Vector3s for the ribbon, reused every frame
 
-function seek(tt) {
-  t = Math.max(0, Math.min(1, tt));
+function seek(uu) {
+  u = Math.max(0, Math.min(1, uu));
+  /* Two clocks: `t` runs the fold and pins at 1 for the whole of level 4;
+     `q` is -1 until the fold is done and then runs 0..1. */
+  t = Math.min(1, u / FOLD_END);
+  const q = u <= FOLD_END ? -1 : (u - FOLD_END) / (1 - FOLD_END);
   const s = fold.at(t);
 
   /* Ribbon. Rebuilt rather than morphed: the geometry's triangle count
@@ -583,33 +912,33 @@ function seek(tt) {
   /* Hydrogen bonds. Visibility tracks formation only — there is no schedule
      here, `formed` is measured on the live coordinates at bake time, so a
      dash can never fade in on a bond the geometry has not actually made. */
-  const showHb = document.getElementById('showhb').checked;
+  /* The dashes are level 2's ink, and by level 4 they are 103 of them inside
+     a four-chain molecule — noise over the one thing this act is about. They
+     fade out as the first partner arrives rather than being switched off, so
+     nothing blinks. */
+  const hbFade = q < 0 ? 1 : 1 - smoothstep(q / 0.14);
+  const showHb = document.getElementById('showhb').checked && hbFade > 0.01;
   let formedCount = 0;
   hbGroups.forEach((g, k) => {
     const amt = s.formed[k];
     if (amt > 0.5) formedCount++;
     g.visible = showHb && amt > 0.02;
     if (!g.visible) return;
-    g.userData.mat.opacity = Math.min(1, amt) * 0.85;
+    g.userData.mat.opacity = Math.min(1, amt) * 0.85 * hbFade;
     _a.set(s.O[k][0], s.O[k][1], s.O[k][2]);
     _b.set(s.H[k][0], s.H[k][1], s.H[k][2]);
-    const n = g.children.length;
-    for (let d = 0; d < n; d++) {
-      const f0 = (d + 0.18) / n, f1 = (d + 0.82) / n;
-      const p0 = _m.copy(_a).lerp(_b, f0).clone();
-      const p1 = _m.copy(_a).lerp(_b, f1).clone();
-      const seg = g.children[d];
-      seg.position.copy(p0).lerp(p1, 0.5);
-      const dir = p1.sub(p0);
-      seg.scale.set(1, dir.length(), 1);
-      seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-    }
+    layDashes(g, _a, _b);
   });
 
-  depRibbon.visible = document.getElementById('showdep').checked;
+  /* The "finished shape" ghost is the fold's target, so it has no business
+     being on screen once the fold is over — at t=1 it sits exactly on the
+     chain and only doubles its edges. */
+  depRibbon.visible = document.getElementById('showdep').checked && q < 0;
 
-  frameFrom(s.CA);
-  updateReadout(s.CA, formedCount);
+  const chains = revealQuaternary(q);
+
+  frameFrom([{ P: s.CA, w: 1 }].concat(quaternaryGroups(q)));
+  updateReadout(s.CA, formedCount, q, chains);
   updateCaption();
   updateTransport();
 }
@@ -620,7 +949,7 @@ function seek(tt) {
    more standard measure but which a student has no way to picture. What is
    wanted here is a number that matches what the eye is doing: the thing on
    screen is this many angstroms wide, and that number is falling. */
-function updateReadout(CA, formedCount) {
+function updateReadout(CA, formedCount, q, chains) {
   let cx = 0, cy = 0, cz = 0;
   for (const p of CA) { cx += p[0]; cy += p[1]; cz += p[2]; }
   cx /= CA.length; cy /= CA.length; cz /= CA.length;
@@ -634,16 +963,26 @@ function updateReadout(CA, formedCount) {
   /* Grey out whichever level is not currently the one doing the work. This
      is the readout saying what the caption says, in the place the student is
      actually looking — and it is keyed to the same measured boundaries. */
-  const act = actIndex();
-  document.getElementById('hbcol').classList.toggle('idle', act !== 1);
-  document.getElementById('rgcol').classList.toggle('idle', act < 2);
+  const act = ACTS[actIndex()];
+  const inFold = q < 0;
+  document.getElementById('hbcol').classList.toggle('idle',
+    !(inFold && act.name.startsWith('Level 2')));
+  document.getElementById('rgcol').classList.toggle('idle',
+    !(inFold && (act.name.startsWith('Level 3') || act.name.startsWith('One chain'))));
+
+  /* The chain counter only exists once there is a second chain to count. */
+  const qcol = document.getElementById('qcol');
+  qcol.hidden = inFold;
+  qcol.classList.toggle('idle', inFold);
+  document.getElementById('qval').textContent = chains;
 }
 
 /* ---------- captions ---------- */
 let shownAct = -1;
 function actIndex() {
   let k = 0;
-  for (let i = 0; i < ACTS.length; i++) if (t >= ACTS[i].t) k = i;
+  for (let i = 0; i < ACTS.length; i++)
+    if (u >= uOf(ACTS[i].phase || 'fold', ACTS[i].t)) k = i;
   return k;
 }
 function updateCaption() {
@@ -679,13 +1018,13 @@ function buildSegments() {
 function updateTransport() {
   document.querySelectorAll('#segbar .seg').forEach(el => {
     const a = +el.dataset.from, b = +el.dataset.to;
-    const p = Math.max(0, Math.min(1, (t - a) / (b - a)));
+    const p = Math.max(0, Math.min(1, (u - a) / (b - a)));
     el.querySelector('.segfill').style.width = (p * 100) + '%';
-    el.classList.toggle('cur', t >= a && t < b || (b === 1 && t >= 1));
+    el.classList.toggle('cur', u >= a && u < b || (b === 1 && u >= 1));
   });
-  document.getElementById('segbar').setAttribute('aria-valuenow', Math.round(t * 100));
+  document.getElementById('segbar').setAttribute('aria-valuenow', Math.round(u * 100));
   document.getElementById('tlabel').textContent =
-    t <= 0 ? 'unfolded' : t >= 1 ? 'folded' : Math.round(t * 100) + '%';
+    u <= 0 ? 'unfolded' : u >= 1 ? 'assembled' : Math.round(u * 100) + '%';
 }
 
 function setPlaying(on) {
@@ -707,7 +1046,7 @@ function beginIfNeeded() {
 }
 
 document.getElementById('playbtn').addEventListener('click', () => {
-  if (!playing && t >= 1) { t = 0; shownAct = -1; }
+  if (!playing && u >= 1) { u = 0; shownAct = -1; }
   setPlaying(!playing);
 });
 
@@ -722,12 +1061,12 @@ bar.addEventListener('pointerdown', e => { bar.setPointerCapture(e.pointerId); s
 bar.addEventListener('pointermove', e => { if (bar.hasPointerCapture(e.pointerId)) scrubTo(e.clientX); });
 bar.addEventListener('keydown', e => {
   const step = e.shiftKey ? 0.1 : 0.02;
-  if (e.key === 'ArrowRight') { beginIfNeeded(); setPlaying(false); seek(t + step); e.preventDefault(); }
-  if (e.key === 'ArrowLeft')  { beginIfNeeded(); setPlaying(false); seek(t - step); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { beginIfNeeded(); setPlaying(false); seek(u + step); e.preventDefault(); }
+  if (e.key === 'ArrowLeft')  { beginIfNeeded(); setPlaying(false); seek(u - step); e.preventDefault(); }
 });
 
-document.getElementById('showhb').addEventListener('change', () => seek(t));
-document.getElementById('showdep').addEventListener('change', () => seek(t));
+document.getElementById('showhb').addEventListener('change', () => seek(u));
+document.getElementById('showdep').addEventListener('change', () => seek(u));
 
 const infobtn = document.getElementById('infobtn'), infopanel = document.getElementById('infopanel');
 infobtn.addEventListener('click', () => {
@@ -747,11 +1086,12 @@ document.getElementById('savepng').addEventListener('click', () => {
 
 /* ---------- intro ---------- */
 const actEl = document.getElementById('act');
-actEl.querySelector('.actname').textContent = 'One chain of haemoglobin, folding';
+actEl.querySelector('.actname').textContent = 'Haemoglobin, all four levels';
 actEl.querySelector('.actbody').textContent =
   '146 amino acids in the order your DNA specified — 503 Å of chain with no ' +
-  'shape at all. Press play and watch it become a protein in two distinct ' +
-  'steps. The ⓘ says what is measured here and what is invented.';
+  'shape at all. Press play: it coils, it packs, and then the other three ' +
+  'chains arrive one at a time to make the molecule your blood actually ' +
+  'uses. The ⓘ says what is measured here and what is invented.';
 
 /* ---------- loop ----------
    THE SCENE UPDATES AT 30 Hz AND RENDERS AT 60, and that is not a
@@ -783,11 +1123,12 @@ let last = performance.now(), lastUpdate = 0;
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (playing && fold) {
-    const nt = t + dt / PLAY_SECONDS;
-    if (nt >= 1) { seek(1); setPlaying(false); }
-    else if (now - lastUpdate >= 1000 / UPDATE_HZ) { lastUpdate = now; seek(nt); }
-    else t = nt;              // time advances every frame; the geometry does not
+    const nu = u + dt / TOTAL_SECONDS;
+    if (nu >= 1) { seek(1); setPlaying(false); }
+    else if (now - lastUpdate >= 1000 / UPDATE_HZ) { lastUpdate = now; seek(nu); }
+    else u = nu;              // time advances every frame; the geometry does not
   }
+  FXi.step();
   renderer.render(scene, camera);
 })(last);
 </script>
