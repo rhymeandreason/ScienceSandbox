@@ -19,25 +19,24 @@ a change that degrades one is a regression; also listed under "Featured" on
 the top-level `index.html`. **Prototype** = a work in progress, not yet held
 to that bar. **Reference** = superseded, kept as a fallback or a worked
 example — don't spend polish here, and don't quietly repurpose it. **Test** =
-an evaluation record, not a lesson at all — kept only while it still says
-what was decided; don't tidy it into a lesson.
+an evaluation record, not a lesson at all — kept only because the human wants to, may be deleted later.
 
 | Page | Lesson | Paradigm | Status |
 |---|---|---|---|
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics | featured lesson |
+| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | bonding assembly | featured lesson |
+| `folding-lab-ribbon.html` | The protein-structure lesson — levels 1→3 built live (secondary → tertiary → whole protein), level 4 pointing to `hemoglobin-lab` | folding animation | featured lesson |
+| `hemoglobin-lab.html` | Level 4: one β chain of haemoglobin folds, then the other three chains dock to build the tetramer | folding animation | featured lesson |
+| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | featured lesson |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
 | `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway | prototype |
-| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | bonding assembly | featured lesson |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | prototype |
 | `protein-lab.html` | Superseded PDB structure viewer — kept as the ChemDoodle (GPL) worked example, see its own header | PDB structure viewer | reference |
 | `folding-lab.html` | How a protein folds: villin headpiece collapses from an extended chain, then zooms out to the whole protein. Superseded by `folding-lab-ribbon.html` | folding animation | reference |
-| `folding-lab-ribbon.html` | The protein-structure lesson — levels 1→3 built live (secondary → tertiary → whole protein), level 4 pointing to `hemoglobin-lab` | folding animation | featured lesson |
-| `hemoglobin-lab.html` | Level 4: one β chain of haemoglobin folds, then the other three chains dock to build the tetramer | folding animation | featured lesson |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` — synthetic secondary structure + one real villin domain | evaluation scratch | test |
 | `viewer-compare.html` | ChemDoodle Web vs 3Dmol.js evaluation — settled: neither was adopted | evaluation scratch | test |
 | `molstar/` | Six-stage Mol\* evaluation — settled: not adopted | evaluation scratch | test |
-| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | featured lesson |
 
 ## Shared modules
 
@@ -97,15 +96,17 @@ Rows are explicit — no row inherits from the one above it any more, because th
 sets stopped being nested once pages began loading different domains.
 
 **Three kinds of page share this table, not two.** Most load `scene.js` +
-MolLib as above. `protein-lab` renders *deposited* structures through vendored
-ChemDoodle Web instead — no Three.js, no MolLib — which is **GPLv3 and makes
-any page loading it GPLv3** (`RenderingLibraries.md`); `tools/check-pdb.js`
-audits it instead of `check-pages.js`. `folding-lab` is a third kind:
-deposited coordinates (from `pdb/`) drawn through `scene.js` like the Three.js
-lessons, because its chain animates and its H-bond dashes need the same scene
-— so it loads `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`,
-and its display radii are the house `PALETTE.radii` **divided by `SCALE`**
-(computed in the page, since every coordinate is a real ångström off the PDB).
+MolLib as above. A second kind — `folding-lab`, `folding-lab-ribbon`,
+`hemoglobin-lab` — draws *deposited* coordinates (PDB files or baked
+trajectories) through `scene.js` like the Three.js lessons, because the chain
+animates and needs the same scene, but loads `palette.js`/`molecules.js` for
+`PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström, and
+display radii are the house `PALETTE.radii` **divided by `SCALE`**, computed
+in the page. `protein-lab` is the third kind and the only page of it: it
+renders deposited structures through vendored ChemDoodle Web instead — no
+Three.js, no MolLib — which is **GPLv3 and makes any page loading it GPLv3**
+(`RenderingLibraries.md`); `tools/check-pdb.js` audits it instead of
+`check-pages.js`. Don't add a second ChemDoodle page.
 
 **The design reasoning for `folding-lab`'s three acts, `folding-lab-ribbon`'s
 secondary-structure sourcing, and the actin rungs lives in the source files'
