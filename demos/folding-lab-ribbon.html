@@ -128,6 +128,14 @@
 
   #toggles{position:absolute;right:20px;bottom:24px;z-index:6;display:flex;
     flex-direction:column;align-items:flex-end;gap:7px}
+  /* the pearl key: four swatches, only while the pearls are on */
+  /* Rows are LEFT-aligned inside a right-aligned box: the dots have to form a
+     column, and flex-end put each row's dot wherever its own label ended. */
+  #pearlkey{display:flex;flex-direction:column;gap:3px;align-items:stretch;
+    background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
+    border-radius:8px;padding:6px 10px}
+  #pearlkey div{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#3a352f}
+  #pearlkey i{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto}
   #toggles label{display:flex;align-items:center;gap:6px;font-size:12.5px;opacity:.8;
     cursor:pointer;background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
     border-radius:8px;padding:6px 10px}
@@ -242,6 +250,8 @@
          its colour when act 2 begins (see coreMix). A checkbox for hiding the
          thing the lesson is about was answering a question nobody has. -->
     <div id="toggles">
+      <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
+      <div id="pearlkey" hidden></div>
       <label id="plddtrow" hidden><input type="checkbox" id="showplddt"> AlphaFold confidence</label>
     </div>
     <button id="infobtn" aria-label="About this animation" title="About this animation"
@@ -370,6 +380,82 @@ const CORE_STICK = STICK * 0.85;           // side chains a touch finer
    One translucent sphere per core atom, parented to the atom so it inherits
    position and scale for free. depthWrite off and drawn a little larger, so
    it reads as light around the side chain rather than as a bigger atom. */
+/* ---------- amino acid classes, for the intro's pearls ----------
+   The four-class grouping AP Bio teaches — nonpolar, polar uncharged, acidic,
+   basic — and NOT one of the viewer conventions. Clustal X and Zappo are
+   alignment-tool palettes rather than chemistry ones, and both spend blue on
+   a class: Clustal on hydrophobic, Zappo on positive. Blue on this page is
+   the hydrogen bond, so either would state a residue class in the ink of the
+   OTHER mechanism, which is the one thing act 1 and act 2 exist to separate.
+
+   So the colours are page-native. Nonpolar takes the hydrophobic core's warm
+   amber, a shade lighter than CORE_COLOR itself: act 2's three phenylalanines
+   are then visibly a subset of a class the student already met in the intro,
+   rather than a new marking. Glycine sits in nonpolar (no side chain to be
+   anything else) and tyrosine in polar (its -OH), which is where a textbook
+   puts them; alignment viewers often split both out. */
+const AA_CLASS = {
+  ALA:'nonpolar', VAL:'nonpolar', LEU:'nonpolar', ILE:'nonpolar', PRO:'nonpolar',
+  PHE:'nonpolar', TRP:'nonpolar', MET:'nonpolar', GLY:'nonpolar',
+  SER:'polar', THR:'polar', CYS:'polar', TYR:'polar', ASN:'polar', GLN:'polar',
+  ASP:'acidic', GLU:'acidic',
+  LYS:'basic', ARG:'basic', HIS:'basic',
+};
+const AA_INK = {
+  nonpolar: { color: 0xd98b4a, label: 'nonpolar — hides from water' },
+  polar:    { color: 0x3d8b7d, label: 'polar' },
+  acidic:   { color: 0xc0392b, label: 'acidic (−)' },
+  basic:    { color: 0x7d5ba6, label: 'basic (+)' },
+};
+const PEARL_ALPHA = 0.55;
+/* Labels. The three-letter code above every bead and a position number under
+   every fifth — the two things primary structure IS: which units, in what
+   order. Three-letter rather than one-letter because "K" for lysine is
+   notation a beginner has not met, and the point here is that the chain is
+   made of NAMED things.
+
+   THE NUMBERS COUNT FROM 1, and this file does not: 1VII numbers its residues
+   41-76, because HP35 is a fragment of a construct. A ruler starting at 41
+   asks a question the intro cannot answer, so these count position in THIS
+   chain. Act 3 is where the real numbering belongs, and it already tells them
+   these are villin's last 36 residues. */
+const PEARL_LABEL_EVERY = 5;                // ...residues, for the number ruler
+const PEARL_TITLE = { MET:'Met', LEU:'Leu', SER:'Ser', ASP:'Asp', GLU:'Glu',
+  PHE:'Phe', LYS:'Lys', ALA:'Ala', VAL:'Val', GLY:'Gly', THR:'Thr', ARG:'Arg',
+  ASN:'Asn', PRO:'Pro', TRP:'Trp', GLN:'Gln', ILE:'Ile', CYS:'Cys', TYR:'Tyr',
+  HIS:'His' };
+
+/* A sprite of text, drawn once into a canvas. depthTest off so a label is
+   never swallowed by the atom it belongs to — a half-occluded label reads as
+   a rendering fault, and these are annotation rather than scene. */
+function textSprite(text, hex, px, worldH) {
+  const pad = 8, c = document.createElement('canvas'), g = c.getContext('2d');
+  const font = px + 'px "Nunito", system-ui, sans-serif';
+  g.font = font;
+  c.width = Math.ceil(g.measureText(text).width) + pad * 2;
+  c.height = px + pad * 2;
+  const g2 = c.getContext('2d');
+  g2.font = font; g2.textBaseline = 'middle'; g2.textAlign = 'center';
+  g2.fillStyle = hex;
+  g2.fillText(text, c.width / 2, c.height / 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true,
+    depthTest: false, depthWrite: false }));
+  sp.scale.set(worldH * c.width / c.height, worldH, 1);
+  sp.renderOrder = 20;
+  return sp;
+}
+/* Big enough to CONTAIN one residue, not just to divide the chain evenly.
+   Half the 3.8 A CA-CA spacing (1.9) is the residue's fair share of the
+   backbone, and it looked it: a residue's own atoms reach 2.4 A from its CA
+   (the carbonyl O; the amide H is 2.14), so the bead cut them off and read as
+   undersized. 2.5 contains the backbone with a little air, at the price of
+   neighbours overlapping by about a fifth of their width — which is what
+   beads on a string do anyway. */
+const PEARL_R = 2.5;
+let pearls = null;                          // one billboarded disc per residue
+
 const HALO_SCALE = 1.85;                   // times the atom it surrounds
 const HALO_MAX = 0.30;                     // its opacity once act 2 has it
 let coreHalos = [];
@@ -561,6 +647,43 @@ function build() {
   focusSpan = [inSpan.indexOf(true), inSpan.lastIndexOf(true)];
   if (focusSpan[0] < 0 || focusSpan[1] - focusSpan[0] < 1)
     throw new Error(`the framed helix ${FOCUS.lo}-${FOCUS.hi} is not in the CA trace`);
+
+  /* ONE DISC PER RESIDUE, sized to cover that residue's own atoms. Billboarded
+     and pushed back along the view axis each frame, so it reads as a pearl
+     BEHIND the amino acid rather than a bubble around it — the atoms occlude
+     it where they overlap, which is what makes the string look threaded
+     through. Intro only: once the chain starts folding, residues stack in
+     depth and 36 overlapping discs stop being a diagram. */
+  pearls = new THREE.Group();
+  pearls.visible = false;
+  foldGroup.add(pearls);
+  /* One bead per residue, ALL THE SAME SIZE, centred on the alpha carbon.
+     Sizing each to its own atoms was the obvious thing and is wrong twice
+     over: consecutive CA sit 3.8 A apart while a residue's atoms span ~6 A,
+     so the beads merged into a stripe; and only three residues here have
+     their side chains drawn, so "bigger residue" would have meant "residue we
+     happened to draw more of" — a claim about the rendering, not the
+     chemistry. PEARL_R is half the CA spacing, so neighbours touch. */
+  parsed.residues.forEach((res, ri) => {
+    const ca = res.atoms.CA;
+    if (ca == null) return;
+    const cls = AA_CLASS[res.name] || 'polar';
+    const m = new THREE.Mesh(new THREE.CircleGeometry(PEARL_R, 40),
+      new THREE.MeshBasicMaterial({ color: AA_INK[cls].color, transparent: true,
+        opacity: PEARL_ALPHA, depthWrite: false }));
+    m.userData = { ca, cls };
+    pearls.add(m);
+
+    const k = ri + 1;                    // position in THIS chain, not the file's
+    const name = textSprite(PEARL_TITLE[res.name] || res.name, '#3a352f', 40, 1.15);
+    name.userData = { ca, above: true };
+    pearls.add(name);
+    if (k === 1 || k % PEARL_LABEL_EVERY === 0) {
+      const num = textSprite(String(k), '#8a857a', 34, 0.95);
+      num.userData = { ca, above: false };
+      pearls.add(num);
+    }
+  });
 
   ribbon = new THREE.Mesh(new THREE.BufferGeometry(), Stage.bondMat(PAL.bonds.hbond));
   ribbon.material.transparent = true;
@@ -1125,6 +1248,7 @@ function syncChrome() {
      would read as a claim about the protein. Hidden, not frozen. Keyed to
      `started`, not to `playing`: pausing mid-fold is how a student stops to
      READ the count, so it must survive a pause. */
+  syncPearls();
   document.getElementById('tally').hidden = !foldOn || !started;
 }
 
@@ -2219,6 +2343,54 @@ playBtn.addEventListener('click', () => {
   setPlaying(!playing);
 });
 
+/* Face the camera, sit behind the atoms, and follow the chain. Called from
+   the render loop rather than from seek(), because a pan moves the camera
+   without seeking and a billboard that ignores that shears visibly. */
+const _pearlRay = new THREE.Vector3(), _pearlC = new THREE.Vector3(),
+      _pearlUp = new THREE.Vector3();
+function stepPearls() {
+  if (!pearls || !pearls.visible || !traj) return;
+  const P = posOf(t);
+  _pearlUp.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+  /* Labels sit on ONE LINE rather than riding each residue's own height. The
+     backbone zigzags by design, and labels that zigzag with it stop reading as
+     a sequence — the eye has to hunt for the next one instead of running along
+     a row. Each label still sits directly over its own bead horizontally,
+     which is what ties it to the residue; only the height is shared. */
+  let mid = 0;
+  pearls.children.forEach(m => { if (!m.isSprite) mid += P[m.userData.ca].dot(_pearlUp); });
+  mid /= Math.max(1, pearls.children.filter(m => !m.isSprite).length);
+  pearls.children.forEach(m => {
+    _pearlC.copy(P[m.userData.ca]);
+    if (m.isSprite) {                                       // a label, not a bead
+      const lift = m.userData.above ? PEARL_R + 1.1 : -(PEARL_R + 1.0);
+      m.position.copy(_pearlC)
+        .addScaledVector(_pearlUp, mid - _pearlC.dot(_pearlUp) + lift);
+      return;
+    }
+    /* Pushed away from the camera so the atoms occlude it and it reads as
+       BEHIND the residue — but along THIS bead's own ray from the camera, not
+       along the camera's Z axis. A single shared direction only preserves the
+       projected position for points on the view axis; every bead off-centre
+       slid sideways, by up to 0.19 in NDC at the ends of the chain, so the
+       beads visibly did not line up with their own amino acids. */
+    _pearlRay.copy(_pearlC).sub(camera.position).normalize();
+    m.position.copy(_pearlC).addScaledVector(_pearlRay, 1.8);
+    m.quaternion.copy(camera.quaternion);
+  });
+}
+
+/* The pearls belong to the intro. `showpearls` is a student's own choice, so
+   it is remembered rather than reset — but the chain folding takes the
+   diagram away regardless, because 36 discs stacked in depth is not one. */
+function syncPearls() {
+  if (!pearls) return;
+  const on = !started && document.getElementById('showpearls').checked;
+  pearls.visible = on;
+  document.getElementById('pearlkey').hidden = !on;
+  document.getElementById('pearlrow').hidden = started;
+}
+
 /* ---------- reading along the chain, before it folds ----------
    The opening frame is a close-up, so most of the 36 residues are off screen.
    Until the fold starts, dragging left/right WALKS THE CHAIN rather than
@@ -2338,6 +2510,17 @@ segbar.addEventListener('keydown', e => {
   seekU(u, true);
 });
 
+document.getElementById('showpearls').addEventListener('change', () => { syncPearls(); stepPearls(); });
+{
+  const key = document.getElementById('pearlkey');
+  Object.values(AA_INK).forEach(v => {
+    const row = document.createElement('div');
+    row.innerHTML = '<i style="background:#' + v.color.toString(16).padStart(6, '0') + '"></i>';
+    row.appendChild(document.createTextNode(v.label));
+    key.appendChild(row);
+  });
+}
+
 document.getElementById('showplddt').addEventListener('change', () => buildVillin());
 addEventListener('keydown', e => {
   if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
@@ -2349,6 +2532,7 @@ let last = performance.now();
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
+  stepPearls();
   stepRecenter(dt);
   stepTransition(dt);
   stepHover(dt);
