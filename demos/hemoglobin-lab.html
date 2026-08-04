@@ -13,15 +13,12 @@
 
   [hidden]{display:none !important}
 
-  /* No side panel, same reasoning as folding-lab-ribbon: the captions say
-     what a panel would, and at t=0 this chain is a 503 A rod that wants
-     every pixel of width there is. */
+  /* No side panel,full screen app*/
   #app{grid-template-columns:1fr}
 
   #act{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:6;
     max-width:min(560px,80%);text-align:center;pointer-events:none;
-    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:9px 12px 8px 11px;
-    padding:10px 18px 11px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+    border-radius:var(--radius); backdrop-filter:blur(2px)}
   #act .actname{font-family:var(--font-marker);font-size:20px;line-height:1.1}
   #act .actbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;
     color:#3a352f;margin-top:4px}
@@ -29,7 +26,7 @@
   #act.intro .actname{font-size:29px}
   #act.intro .actbody{font-size:14.5px;margin-top:7px}
 
-  /* Running caption — molecule-builder's toast shape, as in the villin page:
+  /* Running caption:
      during the fold the thing to look at is the chain, so the words are a
      voice-over at the bottom rather than a card in the way. */
   #saycap{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);z-index:6;
@@ -66,8 +63,7 @@
 
   #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
     display:flex;align-items:center;gap:12px;width:min(560px,82%);
-    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:10px;
-    padding:9px 15px;box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+    backdrop-filter:blur(2px)}
   #playbtn{width:38px;height:38px;flex:0 0 auto;border-radius:50%;cursor:pointer;
     border:2px solid var(--ink);background:#fff;color:var(--ink);
     font-size:16px;display:flex;align-items:center;justify-content:center}
@@ -1847,13 +1843,10 @@ document.getElementById('savepng').addEventListener('click', () => {
 
 /* ---------- intro ---------- */
 const actEl = document.getElementById('act');
-actEl.querySelector('.actname').textContent = 'Haemoglobin, all four levels';
+actEl.querySelector('.actname').textContent = 'Protein Structure';
 actEl.querySelector('.actbody').textContent =
-  'All 146 of its amino acids, joined end to end and 503 Å long — a chain ' +
-  'with no shape at all yet. Drag left and right to read along it. Press ' +
-  'play and one stretch coils, the camera pulls back to the whole chain, it ' +
-  'packs, and then the other three chains arrive to make the molecule your ' +
-  'blood actually uses. The ⓘ says what is measured and what is invented.';
+  'Protein folding is critical to its function.'
+;
 
 /* ---------- loop ----------
    THE SCENE UPDATES AT 30 Hz AND RENDERS AT 60, and that is not a
