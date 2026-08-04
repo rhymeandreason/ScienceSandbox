@@ -9,7 +9,21 @@
  *  from watching the animation — it just plays a fold the current code
  *  would no longer produce.
  *
- *  Run:  node hemoglobin/tools/check-hb.js      (offline, no dependencies)
+ *  Run:  node hemoglobin/tools/check-hb.js            (offline, ~57 s)
+ *        node hemoglobin/tools/check-hb.js --quick    (~1 s)
+ *
+ *  WHAT --quick DROPS, AND WHY IT IS SAFE TO DROP IT SOMETIMES. Two of the
+ *  assertions here re-run the unfold — the staleness compare and the
+ *  quantisation bound — and that bake is 56 of this file's 57 seconds.
+ *  Everything else reads the COMMITTED file and takes about a second.
+ *
+ *  A stale trajectory can only be produced by a change to the code that
+ *  produces it: bake-unfold.js, or folding.js's solver, or ribbon.js's
+ *  DSSP. Editing the page, the captions, the quaternary baker or this file
+ *  cannot make 2HHB-B.fold.bin disagree with its source, so re-deriving it
+ *  to prove it still matches is a minute spent to learn nothing. The
+ *  pre-commit hook picks the mode on exactly that basis; a bare run is
+ *  always the full one, so nobody gets the cheap answer by accident.
  * ===================================================================== */
 'use strict';
 
@@ -28,6 +42,9 @@ const bake = () => (_baked || (_baked = bakeUnfold()));
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', '2HHB.pdb');
 const BIN = path.join(HERE, 'data', '2HHB-B.fold.bin');
+
+/* --quick: skip the two assertions that need a fresh bake. See the header. */
+const QUICK = process.argv.includes('--quick');
 
 let fails = 0;
 function ok(cond, label, detail) {
@@ -111,10 +128,14 @@ ok(agree / dssp.length > 0.78, 'DSSP and the deposited HELIX records agree on >7
 
 ok(fs.existsSync(BIN), 'the baked trajectory is committed');
 const onDisk = fs.readFileSync(BIN);
-const fresh = encode(bake()).buf;
-ok(onDisk.length === fresh.length && onDisk.equals(fresh),
-   'the committed bake matches a fresh one (re-run bake-unfold.js if this fails)',
-   `${onDisk.length} vs ${fresh.length} bytes`);
+if (QUICK) {
+  console.log('  --    skipping the staleness re-bake (--quick)');
+} else {
+  const fresh = encode(bake()).buf;
+  ok(onDisk.length === fresh.length && onDisk.equals(fresh),
+     'the committed bake matches a fresh one (re-run bake-unfold.js if this fails)',
+     `${onDisk.length} vs ${fresh.length} bytes`);
+}
 
 /* ---------------- what the page will actually read back ---------------- */
 
@@ -127,16 +148,26 @@ ok(d.ss.length === 146 && d.ss.filter(x => x === 'H').length > 100,
    'the ribbon gets a helix assignment for most of the chain',
    `${d.ss.filter(x => x === 'H').length}/146 helix`);
 
-/* Quantisation: the whole point of int16 is that it costs nothing visible. */
-const b = bake();
-const idx = b.caIdx.concat(b.oIdx, b.hIdx);
-let qErr = 0;
-for (let f = 0; f < d.K; f++)
-  for (let i = 0; i < idx.length; i++)
-    for (let k = 0; k < 3; k++)
-      qErr = Math.max(qErr, Math.abs(d.key[f][i * 3 + k] - b.traj.key[f][idx[i] * 3 + k]));
-ok(qErr < 0.02, 'int16 quantisation costs under 0.02 A anywhere in the trajectory',
-   `max ${qErr.toFixed(4)} A`);
+/* Quantisation: the whole point of int16 is that it costs nothing visible.
+   Needs the un-quantised trajectory, so it is the other assertion --quick
+   drops — and it is measuring the ENCODER, which only bake-unfold.js and
+   bake-hb.js can change. */
+/* The un-quantised trajectory, or null under --quick. Memoised in bake(),
+   so the assertions below share this one minute. */
+const b = QUICK ? null : bake();
+
+if (QUICK) {
+  console.log('  --    skipping the quantisation bound (--quick)');
+} else {
+  const idx = b.caIdx.concat(b.oIdx, b.hIdx);
+  let qErr = 0;
+  for (let f = 0; f < d.K; f++)
+    for (let i = 0; i < idx.length; i++)
+      for (let k = 0; k < 3; k++)
+        qErr = Math.max(qErr, Math.abs(d.key[f][i * 3 + k] - b.traj.key[f][idx[i] * 3 + k]));
+  ok(qErr < 0.02, 'int16 quantisation costs under 0.02 A anywhere in the trajectory',
+     `max ${qErr.toFixed(4)} A`);
+}
 
 /* THE PAGE'S DECODER MUST AGREE WITH THE BAKER'S. hbfold.js and bake-hb.js
    are two implementations of one format — the browser cannot use the
@@ -172,11 +203,18 @@ ok(page.ss.join('') === d.ss.join('') && page.first === d.first && page.B === d.
    same extended chain the page has always opened on, rather than on
    whatever conformation the unfold happened to reach. */
 {
-  const ext = b.target;          // the rotated target the unfold ran against
+  /* Only the first of the three assertions here needs the bake — the target
+     it compares against is what the unfold ran toward. The other two are
+     properties of the committed first frame and survive --quick, which is
+     the point of splitting them: the SHAPE of the opening chain is still
+     checked in the fast mode. */
   let e = 0;
-  for (let i = 0; i < d.R; i++)
-    for (let k = 0; k < 3; k++)
-      e = Math.max(e, Math.abs(d.key[0][i * 3 + k] - ext[b.caIdx[i]][k]));
+  if (!QUICK) {
+    const ext = b.target;        // the rotated target the unfold ran against
+    for (let i = 0; i < d.R; i++)
+      for (let k = 0; k < 3; k++)
+        e = Math.max(e, Math.abs(d.key[0][i * 3 + k] - ext[b.caIdx[i]][k]));
+  }
   /* NOT an equality. The unfold is driven toward the extended conformation
      by a clamped drift under constraints, so it approaches asymptotically
      and stops a little short — 1.9 A per atom on a rod 503 A long, which is
@@ -189,7 +227,8 @@ ok(page.ss.join('') === d.ss.join('') && page.first === d.first && page.B === d.
   for (let i = 0; i < d.R; i++) P0.push([d.key[0][i*3], d.key[0][i*3+1], d.key[0][i*3+2]]);
   const c0 = [0,1,2].map(k => P0.reduce((s, p) => s + p[k], 0) / P0.length);
   const span0 = 2 * Math.max(...P0.map(p => Math.hypot(p[0]-c0[0], p[1]-c0[1], p[2]-c0[2])));
-  ok(e < 3.0, 'the animation still opens on FoldLib.extended — the primary chain',
+  if (QUICK) console.log('  --    skipping the FoldLib.extended compare (--quick)');
+  else ok(e < 3.0, 'the animation still opens on FoldLib.extended — the primary chain',
      `max ${e.toFixed(2)} A per atom over a ${span0.toFixed(0)} A rod`);
   ok(span0 > 480, 'and it really is extended, not merely open', `${span0.toFixed(0)} A across`);
   ok([...d.formed[0]].every(x => x <= 0.5),

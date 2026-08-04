@@ -121,12 +121,34 @@ fi
 # without this block a solver change would be caught for villin and silently
 # ignored for haemoglobin — the exact asymmetry that makes a stale bake hard
 # to notice, since the page still animates a perfectly plausible fold.
+#
+# TWO MODES, because the full check re-runs the unfold and that is 56 of its
+# 57 seconds. A stale trajectory can only be PRODUCED by a change to the code
+# that produces it, so only those files pay for it:
+#
+#   full    bake-unfold.js, bake-hb.js (the encoder), folding/folding.js,
+#           folding/ribbon.js  — re-bakes and compares the bytes
+#   quick   the page, the captions, bake-quaternary.js, check-hb.js itself
+#           — 56 of the 59 assertions, off the committed file, in 0.3 s
+#
+# Editing a caption cannot make 2HHB-B.fold.bin disagree with its source, and
+# spending a minute to prove it did not is how a hook teaches people to reach
+# for --no-verify.
 if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|folding/folding\.js|folding/ribbon\.js)$'; then
-  if ! node hemoglobin/tools/check-hb.js > /tmp/ch.$$ 2>&1; then
+  if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/tools/bake-unfold\.js|hemoglobin/tools/bake-hb\.js|folding/folding\.js|folding/ribbon\.js)$'; then
+    HBMODE=""
+    echo "pre-commit: check-hb.js — full run, a bake input changed (~57 s) ..."
+  else
+    HBMODE="--quick"
+  fi
+  if ! node hemoglobin/tools/check-hb.js $HBMODE > /tmp/ch.$$ 2>&1; then
     tail -30 /tmp/ch.$$; rm -f /tmp/ch.$$
     echo ""
     echo "pre-commit FAILED: check-hb.js"
-    echo "  If the baked fold is stale, re-run:  node hemoglobin/tools/bake-hb.js"
+    echo "  If a baked file is stale, re-run the matching tool:"
+    echo "    node hemoglobin/tools/bake-unfold.js      (the fold trajectory, ~60 s)"
+    echo "    node hemoglobin/tools/bake-quaternary.js  (level 4's other chains)"
+    echo "  NOT bake-hb.js — it is superseded and refuses to run."
     exit 1
   fi
   rm -f /tmp/ch.$$
