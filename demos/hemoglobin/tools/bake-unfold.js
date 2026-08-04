@@ -99,11 +99,10 @@ const SRC = path.join(HERE, 'data', '2HHB.pdb');
 
 /* ------------------------------------------------------- which end is which
  *
- *  `--flip` turns the extended target end for end before the unfold is run
- *  against it, and writes a separate file so the two can be compared side
- *  by side in the browser (hemoglobin-lab.html?fold=flip).
+ *  THE EXTENDED TARGET IS TURNED END FOR END BEFORE THE UNFOLD RUNS, and
+ *  that single rotation is worth more than every steric fix in this file.
  *
- *  WHY IT MIGHT MATTER. The extended conformation comes out of FoldLib's
+ *  WHY. The extended conformation comes out of FoldLib's
  *  NeRF build and then gets laid along X by orient(), and NOTHING in either
  *  step knows anything about where the chain's residues sit in the FOLDED
  *  structure. Measured on the current pair, the correlation between a
@@ -119,6 +118,22 @@ const SRC = path.join(HERE, 'data', '2HHB.pdb');
  *  produced by the dynamics, and no amount of steric work fixes a route
  *  that was wrong before the first step.
  *
+ *  Rotating the target 180 degrees takes that correlation to +0.337, and
+ *  the result is better on every measure that has been fought for here:
+ *
+ *                          before     after
+ *    closest non-local Ca   3.85 A    3.98 A
+ *    min Ca-Ca bond         3.53 A    3.62 A
+ *    largest step           2.31 A    1.90 A
+ *    keyframes over 2.2 A     88         0
+ *
+ *  It also changes the collapse PROFILE for the better: the chain stays
+ *  visibly separated much longer (263 A across at t=0.49 against 174), so
+ *  the helices are seen drifting together as units rather than compacting
+ *  early and rearranging inside a blob. That is the picture the lesson
+ *  claims, and here it is the geometry producing it rather than the
+ *  captions asserting it.
+ *
  *  A 180 DEGREE ROTATION, NOT A SIGN FLIP. Negating X alone is a
  *  REFLECTION — det = -1 — and it would hand back the mirror image of the
  *  extended chain, which is the enantiomer error MolecularGeometry.md 1.3
@@ -127,9 +142,7 @@ const SRC = path.join(HERE, 'data', '2HHB.pdb');
  *  the handedness alone. check-hb.js measures helix handedness on the
  *  computed part of the trajectory and would fail if this were got wrong.
  */
-const FLIP = process.argv.includes('--flip');
-const OUT = path.join(HERE, 'data',
-                      FLIP ? '2HHB-B.fold.flip.bin' : '2HHB-B.fold.bin');
+const OUT = path.join(HERE, 'data', '2HHB-B.fold.bin');
 
 /* ---------------- the unfold ---------------- */
 
@@ -170,9 +183,10 @@ function build() {
   const native = nodes.map(nd => nd.native.slice());
   const target = FoldLib.extended(parsed);
 
-  if (FLIP) {
+  /* Turn it end for end — see the header. 180 deg about Z, det = +1. */
+  {
     const c = [0, 1, 2].map(k => target.reduce((s, p) => s + p[k], 0) / target.length);
-    for (const p of target) {                       // 180 deg about Z, det = +1
+    for (const p of target) {
       const x = p[0] - c[0], y = p[1] - c[1];
       p[0] = c[0] - x; p[1] = c[1] - y;
     }
@@ -451,6 +465,11 @@ function bakeUnfold() {
     oIdx: m.hb.map(b => b.o),
     hIdx: m.hb.map(b => b.h),
     ss: m.ss, first: m.first, helices: m.helices,
+    /* The target the unfold actually ran against, turned end for end. The
+       checker compares the animation's opening frame to THIS rather than
+       re-deriving it, so the two cannot drift apart — re-deriving it is
+       exactly what broke when the rotation became the default. */
+    target: m.target,
     /* The unfold's first frame is the deposited structure, so the fold's
        "unblended final frame" — what check-hb.js measures handedness on —
        is the reversed trajectory's last, which is that same structure. */
@@ -464,8 +483,7 @@ if (require.main === module) {
   const { buf } = encode(b);
   fs.writeFileSync(OUT, buf);
   const last = b.traj.formed[b.traj.count - 1];
-  console.log(`unfolded and reversed ${b.traj.count} keyframes in ${Date.now() - t0} ms` +
-              (FLIP ? '  [--flip: extended target turned end for end]' : ''));
+  console.log(`unfolded and reversed ${b.traj.count} keyframes in ${Date.now() - t0} ms`);
   console.log(`  ${[...last].filter(x => x > 0.5).length}/${b.hb.length} H-bonds formed at t=1`);
   console.log(`  wrote ${path.relative(HERE, OUT)} (${(buf.length / 1024).toFixed(0)} KB)`);
 }

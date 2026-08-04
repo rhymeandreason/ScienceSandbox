@@ -89,8 +89,8 @@
 
   /* TWO readouts, side by side, and that pairing IS the lesson.
      The H-bond count is level 2; the width of the molecule is level 3. The
-     measured trajectory separates them cleanly — between t=0.49 and t=0.88
-     the bond count sits still at exactly 83 while the chain goes 174 Å to 65 — so showing
+     measured trajectory separates them cleanly — between t=0.46 and t=0.90
+     the bond count sits still at exactly 83 while the chain goes 286 Å to 84 — so showing
      both at once lets a student SEE one finish and the other take over,
      which is the whole distinction between the two levels. */
   #tally{position:absolute;right:20px;bottom:118px;z-index:6;pointer-events:none;
@@ -189,7 +189,7 @@
         <h4>Level 3 · tertiary</h4>
         <p>Watch the two numbers at the right. Around the two-thirds mark the
           hydrogen-bond count <b>stops climbing</b> while the molecule keeps
-          shrinking — from 174 Å across to 45. The helices are already made;
+          shrinking — from 286 Å across to 45. The helices are already made;
           now they pack against each other, driven by <b>water pushing the
           oily side chains inward</b>. The pocket that forms in the middle is
           where the iron and its oxygen go.</p>
@@ -292,20 +292,19 @@ const PAL = MolLib.PALETTE;
 
        t     H-bonds   size across
        0.00      0        503 A      <- the extended chain: level 1
-       0.10      8        484
-       0.24     32        357        <- bonds forming fast: level 2
-       0.44     61        209
-       0.49     84        174        <- bonds STOP at 83
-       0.64     83        102
-       0.83     83         73        <- level 3, and nothing else
-       0.93     85         61
+       0.16     16        482
+       0.33     40        371        <- bonds forming fast: level 2
+       0.41     71        313
+       0.46     83        286        <- bonds STOP at 83
+       0.65     83        177
+       0.82     83        110        <- level 3, and nothing else
+       0.90     85         84
        1.00    103         45        <- the inter-helix bonds seat
 
-   The plateau from t=0.49 to t=0.88 is the lesson, and this trajectory
+   The plateau from t=0.46 to t=0.90 is the lesson, and this trajectory
    states it far more sharply than the forward one did: the hydrogen-bond
-   count sits at EXACTLY 83 for two fifths of the animation while the
-   molecule shrinks from 174 A across to 65. Two mechanisms, visibly taking
-   turns.
+   count sits at EXACTLY 83 for nearly half the animation while the molecule
+   shrinks from 286 A across to 84. Two mechanisms, visibly taking turns.
 
    It is that sharp because of how the trajectory is made.
    hemoglobin/tools/bake-unfold.js does not fold the chain — it UNFOLDS the deposited
@@ -327,7 +326,7 @@ const ACTS = [
     body: 'Hydrogen bonds form along the backbone, almost all of them ' +
           'joining a residue to the one four places along. That spacing ' +
           'makes a spiral. Eight stretches of the chain coil into α-helices.' },
-  { t: 0.49, cls: 'a2', name: 'Level 3 · the helices pack',
+  { t: 0.47, cls: 'a2', name: 'Level 3 · the helices pack',
     body: 'The bond count has stopped — level 2 is finished. The molecule ' +
           'keeps shrinking anyway, because water is pushing the oily side ' +
           'chains together and the finished helices fold in against ' +
@@ -340,7 +339,7 @@ const ACTS = [
 
 const SEGMENTS = [
   { to: 0.10, label: 'primary' },
-  { to: 0.49, label: 'secondary — helices coil' },
+  { to: 0.47, label: 'secondary — helices coil' },
   { to: 1.00, label: 'tertiary — helices pack' },
 ];
 
@@ -383,17 +382,10 @@ const chainGroup = new THREE.Group(); root.add(chainGroup);
    list are all in the baked file — see hemoglobin/tools/bake-hb.js for why the
    fold is a committed artefact rather than 8.5 seconds of solving in front
    of the student. */
-/* ?fold=flip loads the variant baked with the extended target turned end
-   for end — see hemoglobin/tools/bake-unfold.js. Two tabs, same page, so the
-   two unfolds can be watched against each other rather than remembered. */
-const FOLD_VARIANT = new URLSearchParams(location.search).get('fold') === 'flip';
-const FOLD_BIN = FOLD_VARIANT ? 'hemoglobin/data/2HHB-B.fold.flip.bin'
-                              : 'hemoglobin/data/2HHB-B.fold.bin';
-
-fetch(FOLD_BIN)
+fetch('hemoglobin/data/2HHB-B.fold.bin')
   .then(r => {
-    if (!r.ok) throw new Error(FOLD_BIN + ' — HTTP ' + r.status +
-      ' (run: node hemoglobin/tools/bake-unfold.js' + (FOLD_VARIANT ? ' --flip)' : ')'));
+    if (!r.ok) throw new Error('hemoglobin/data/2HHB-B.fold.bin — HTTP ' + r.status +
+      ' (run: node hemoglobin/tools/bake-unfold.js)');
     return r.arrayBuffer();
   })
   .then(buf => {
@@ -407,17 +399,6 @@ fetch(FOLD_BIN)
       throw new Error(`baked chain has ${fold.R} residues, this page is written for 146`);
     document.getElementById('hbcount').nextElementSibling.textContent =
       `of ${fold.B} hydrogen bonds`;
-
-    if (FOLD_VARIANT) {
-      const tag = document.createElement('div');
-      tag.textContent = 'flipped target';
-      tag.style.cssText = 'position:absolute;left:20px;top:20px;z-index:9;' +
-        'font-family:var(--font-slab);font-size:12px;color:var(--core);' +
-        'background:rgba(255,255,255,.8);border:1.5px solid var(--core);' +
-        'border-radius:7px;padding:5px 10px';
-      document.getElementById('stage').appendChild(tag);
-      document.title += ' — flipped';
-    }
 
     build();
     buildCovers();
