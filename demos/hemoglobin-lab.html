@@ -1271,7 +1271,12 @@ function quaternaryGroups(q) {
    residues that fills the stage and one swimming in space. It is still not
    the LIVE basis: a student's drag moves cam.phi and must not re-solve the
    distance, which is the jolt folding-lab-ribbon's header describes. */
-const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 196 };
+/* Pixels of stage the framing must leave clear for HTML chrome. `capBottom`
+   covers the caption and the transport under it and is now used at every
+   point in the lesson; `intro` is the standfirst card, `top` the bare stage
+   once it has gone. (There was a fourth, `bottom`, for the intro's
+   transport-only state — that state no longer exists.) */
+const RESERVE = { top: 34, intro: 132, capBottom: 196 };
 const FIT_THETA = cam.theta;
 /* The scripted elevation: top-down while the close-up holds, PHI_FOLD once
    it is gone. Driven by the same weight as the pull-back, so the rise and
@@ -1317,9 +1322,13 @@ function solveFrame(groups, phi) {
      or the band clips along the edges of the stage. PROFILE.H[0] is 1.30 A. */
   halfW += 1.4; halfH += 1.4;
 
+  /* The BOTTOM reserve is the caption's, always — the caption is on screen
+     from load now, so there is no longer a state with the transport below
+     and nothing above it. Only the top changes, depending on whether the
+     intro card is still up. */
   const introCard = !document.getElementById('act').hidden;
   const top = introCard ? RESERVE.intro : RESERVE.top;
-  const bottom = introCard ? RESERVE.bottom : RESERVE.capBottom;
+  const bottom = RESERVE.capBottom;
   const usable = Math.max(0.25, (h - top - bottom) / h);
   halfH /= usable;
 
@@ -1606,12 +1615,22 @@ function actIndex() {
     if (u >= uOf(ACTS[i].phase || 'fold', ACTS[i].t)) k = i;
   return k;
 }
+/* THE LEVEL 1 CAPTION IS UP BEFORE PLAY IS PRESSED.
+   It used to wait for `started`, on the reasoning that the intro card was
+   the standfirst and the captions belonged to the animation. That was true
+   when the opening frame was a static picture; it is not now. The intro is
+   a beat the student can act on — pan along the chain, read the names — and
+   level 1 is what that beat IS. Making them press play to be told what they
+   are already looking at gets the lesson the wrong way round.
+
+   The two cards say different things and both are wanted: the intro card up
+   top is the standfirst for the whole page (what this molecule is, what
+   pressing play will do), and the caption at the bottom is level 1 itself. */
 function updateCaption() {
   const k = actIndex();
   if (k === shownAct) return;
   shownAct = k;
   const a = ACTS[k], cap = document.getElementById('saycap');
-  if (!started) return;
   cap.hidden = false;
   cap.querySelector('.capname').className = 'capname ' + a.cls;
   cap.querySelector('.capname').textContent = a.name;
@@ -1655,14 +1674,16 @@ function setPlaying(on) {
   if (on) beginIfNeeded();
 }
 
-/* The intro card is the standfirst and it goes as soon as anything happens —
-   the caption takes over at the bottom so the top of the stage is clear
-   while the chain is moving. */
+/* The intro card is the standfirst and it goes as soon as anything happens,
+   clearing the top of the stage while the chain is moving. The caption below
+   is ALREADY showing level 1 by then and is deliberately left alone —
+   forcing it to re-render would re-run its fade-in, which reads as the text
+   flinching at the moment the student clicks. It changes when the act does,
+   and not before. */
 function beginIfNeeded() {
   if (started) return;
   started = true;
   document.getElementById('act').hidden = true;
-  shownAct = -1;
   updateCaption();
 }
 
