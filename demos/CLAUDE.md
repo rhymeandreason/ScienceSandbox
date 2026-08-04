@@ -13,37 +13,31 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 ## Pages (lessons)
 
 <!-- ENUM: add a row when a *-lab.html is added or repurposed. -->
-**Featured** = intentional, polished design; listed under "Featured" on the top-level `index.html`, not just "Lessons WIP".
+**Status** is one of four values. **Featured lesson** = a real lesson anyone
+is meant to use — text written for a student, layout tested in a browser, and
+a change that degrades one is a regression; also listed under "Featured" on
+the top-level `index.html`. **Prototype** = a work in progress, not yet held
+to that bar. **Reference** = superseded, kept as a fallback or a worked
+example — don't spend polish here, and don't quietly repurpose it. **Test** =
+an evaluation record, not a lesson at all — kept only while it still says
+what was decided; don't tidy it into a lesson.
 
-**The ✅ column is the answer to "which pages matter".** Only four pages are
-real lessons anyone is meant to use — `water-lab`, `molecule-builder`,
-`folding-lab-ribbon` and `contrast-lab`. They get the care: their text is
-written for a student, their layout is tested in a browser, and a change that
-degrades one is a regression. Everything unticked is one of three other
-things, and the row says which: a **work in progress** (`molecule-lab`,
-`aminoacid-lab`, `glycolysis-lab`, `macromolecule-lab`), a **superseded page
-kept as a fallback or a worked example** (`protein-lab`, `folding-lab`), or an
-**evaluation record that is not a lesson at all** and should not be tidied into
-one (`viewer-compare`, `molstar/`, `folding/ribbon-test`). Don't spend polish
-on the second and third groups, and don't quietly repurpose them — a settled
-evaluation is only worth keeping while it still says what was decided.
-
-| Page | Lesson | Paradigm | Featured |
+| Page | Lesson | Paradigm | Status |
 |---|---|---|---|
-| `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics | ✅ |
-| `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | |
-| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | |
-| `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway | |
-| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | bonding assembly | ✅ |
-| `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | |
-| `protein-lab.html` | **Superseded**: `folding-lab-ribbon.html` is now the protein-structure lesson and `hemoglobin-lab.html` now does level 4. Kept as the worked example of the ChemDoodle (GPL) path — see its own header for detail. Treat as reference, not a page to keep polished | PDB structure viewer | |
-| `folding-lab.html` | How a protein folds: villin headpiece (PDB 1VII) collapses from an extended chain, then act 3 zooms out to the full villin protein, AlphaFold, and the actin filament it grips. **Superseded by `folding-lab-ribbon.html`** (kept as the tubes fallback) — see its own header for the full argument. Change the ribbon page, not this one | folding animation | |
-| `folding-lab-ribbon.html` | **The protein-structure lesson.** Levels 1→3 built live rather than shown static: primary at t=0, act 1 builds secondary (H-bonds → helices, opening on one helix before pulling out to all three), act 2 builds tertiary (side chains, the phenylalanine core), act 3 is a played 11s reveal out to the whole protein. Level 4 is named only in the ⓘ panel, pointing to `hemoglobin-lab`. Won the evaluation against `folding-lab`'s tubes; see its own header for the full design reasoning | folding animation | ✅ |
-| `hemoglobin-lab.html` | **Level 4 is why this page exists** — one β chain of haemoglobin (PDB 2HHB) folds from an extended chain to the globin fold, then the other three chains dock to build the quaternary structure `folding-lab-ribbon` can't reach (villin is one chain). The trajectory is an unfold played backwards (`hemoglobin/tools/bake-unfold.js`); the full design reasoning — why unfold-reversed, the rigid-helix plateau, the docking sequence and its H-bond counts, the orientation fix, playback pacing — lives in that file's and this page's own header comments, not here | folding animation | |
-| `folding/ribbon-test.html` | Not a lesson — the test bench for `folding/ribbon.js` (synthetic secondary structure + one real villin domain, isolates rendering bugs from assignment bugs). Kept as the record | evaluation scratch | |
-| `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. **Settled: neither was adopted** (`RenderingLibraries.md`). Kept as the record | evaluation scratch | |
-| `molstar/` | Not a lesson — the six-stage Mol\* evaluation. **Settled: Mol\* was not adopted**; `molstar/README.md` has the detail. Kept | evaluation scratch | |
-| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | ✅ |
+| `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics | featured lesson |
+| `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
+| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
+| `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway | prototype |
+| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | bonding assembly | featured lesson |
+| `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | prototype |
+| `protein-lab.html` | **Superseded**: `folding-lab-ribbon.html` is now the protein-structure lesson and `hemoglobin-lab.html` now does level 4. Kept as the worked example of the ChemDoodle (GPL) path — see its own header for detail | PDB structure viewer | reference |
+| `folding-lab.html` | How a protein folds: villin headpiece (PDB 1VII) collapses from an extended chain, then act 3 zooms out to the full villin protein, AlphaFold, and the actin filament it grips. **Superseded by `folding-lab-ribbon.html`** (kept as the tubes fallback) — see its own header for the full argument. Change the ribbon page, not this one | folding animation | reference |
+| `folding-lab-ribbon.html` | **The protein-structure lesson.** Levels 1→3 built live rather than shown static: primary at t=0, act 1 builds secondary (H-bonds → helices, opening on one helix before pulling out to all three), act 2 builds tertiary (side chains, the phenylalanine core), act 3 is a played 11s reveal out to the whole protein. Level 4 is named only in the ⓘ panel, pointing to `hemoglobin-lab`. Won the evaluation against `folding-lab`'s tubes; see its own header for the full design reasoning | folding animation | featured lesson |
+| `hemoglobin-lab.html` | **Level 4 is why this page exists** — one β chain of haemoglobin (PDB 2HHB) folds from an extended chain to the globin fold, then the other three chains dock to build the quaternary structure `folding-lab-ribbon` can't reach (villin is one chain). The trajectory is an unfold played backwards (`hemoglobin/tools/bake-unfold.js`); the full design reasoning — why unfold-reversed, the rigid-helix plateau, the docking sequence and its H-bond counts, the orientation fix, playback pacing — lives in that file's and this page's own header comments, not here | folding animation | featured lesson |
+| `folding/ribbon-test.html` | Not a lesson — the test bench for `folding/ribbon.js` (synthetic secondary structure + one real villin domain, isolates rendering bugs from assignment bugs). Kept as the record | evaluation scratch | test |
+| `viewer-compare.html` | Not a lesson — the ChemDoodle Web vs 3Dmol.js evaluation. **Settled: neither was adopted** (`RenderingLibraries.md`). Kept as the record | evaluation scratch | test |
+| `molstar/` | Not a lesson — the six-stage Mol\* evaluation. **Settled: Mol\* was not adopted**; `molstar/README.md` has the detail. Kept | evaluation scratch | test |
+| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | featured lesson |
 
 ## Shared modules
 
@@ -333,11 +327,7 @@ unfold**, which is 56 of its 57 seconds; `--quick` skips that and the two
 other assertions needing the un-quantised trajectory, leaving 56 of 59
 running off the committed file in 0.3 s. The hook picks: **full** when
 `bake-unfold.js`, `bake-hb.js` (the encoder), `folding/folding.js` or
-`folding/ribbon.js` is staged, **quick** otherwise. The principle is that a
-stale trajectory can only be *produced* by a change to the code that
-produces it — editing a caption cannot make `2HHB-B.fold.bin` disagree with
-its source, and spending a minute to prove it did not is how a hook teaches
-people to reach for `--no-verify`.
+`folding/ribbon.js` is staged, **quick** otherwise. 
 
 **The hook prints only on skip or failure**, so a silent checker is a
 checker that ran and passed. Do not read silence as "it did not fire".
