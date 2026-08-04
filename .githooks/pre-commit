@@ -134,7 +134,12 @@ fi
 # Editing a caption cannot make 2HHB-B.fold.bin disagree with its source, and
 # spending a minute to prove it did not is how a hook teaches people to reach
 # for --no-verify.
-if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|folding/folding\.js|folding/ribbon\.js)$'; then
+# hemoglobin-lab.html is in the gate because check-hb.js asserts numbers the
+# PAGE says out loud — "eight hydrogen bonds", 72 vs 43 contacts, 103, 146.
+# The page is the likeliest file to change one of those, and it lives outside
+# hemoglobin/, so leaving it out made the checker blind to the edit it most
+# needs to see. Quick mode: a caption cannot make a bake stale.
+if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|hemoglobin-lab\.html|folding/folding\.js|folding/ribbon\.js)$'; then
   if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/tools/bake-unfold\.js|hemoglobin/tools/bake-hb\.js|folding/folding\.js|folding/ribbon\.js)$'; then
     HBMODE=""
     echo "pre-commit: check-hb.js — full run, a bake input changed (~57 s) ..."

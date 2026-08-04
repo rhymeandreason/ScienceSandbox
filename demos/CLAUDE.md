@@ -400,7 +400,7 @@ is why the patterns look wider than the checkers do:
 | `check-pages.js` | any `*.html`, plus the registry files it reads | 0.2 s |
 | `check-pdb.js` | `pdb.js`, `tools/check-pdb.js`, anything in `pdb/` — pdb.js's orientation is its single subject | 0.3 s |
 | `check-folding.js` | anything under `folding/`, plus `palette.js` (folding-lab derives its display radii from `PALETTE.radii / SCALE`) | |
-| `check-hb.js` | anything under `hemoglobin/`, plus `folding/folding.js` and `folding/ribbon.js` — **two modes**, below | 0.3 s or 57 s |
+| `check-hb.js` | anything under `hemoglobin/`, **plus `hemoglobin-lab.html`** (it asserts numbers the page says out loud), plus `folding/folding.js` and `folding/ribbon.js` — **two modes**, below | 0.3 s or 57 s |
 
 `check-hb.js` is the one worth understanding, because it is the only check
 here expensive enough to change behaviour. Its full run **re-bakes the
