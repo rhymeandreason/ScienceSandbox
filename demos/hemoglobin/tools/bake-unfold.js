@@ -142,6 +142,63 @@ const SRC = path.join(HERE, 'data', '2HHB.pdb');
  *  the handedness alone. check-hb.js measures helix handedness on the
  *  computed part of the trajectory and would fail if this were got wrong.
  */
+/* ---------------------------------------------------- where the pull acts
+ *
+ *  `--ends` changes WHERE the drift is applied during the rigid stage, and
+ *  writes a separate file so the two can be watched against each other
+ *  (hemoglobin-lab.html?fold=ends).
+ *
+ *  DEFAULT: every linker atom is driven toward its own extended position,
+ *  the helices being rigid and dragged along behind. That extends all six
+ *  linkers at once and independently, which is what makes the loops read as
+ *  though something has hold of them in several places at the same time.
+ *
+ *  --ends: only the two chain TERMINI are driven, and everything else moves
+ *  because the chain it is attached to is being pulled. Tension propagates
+ *  from the ends inward, so outer linkers straighten before inner ones —
+ *  a string pulled taut rather than six strings tugged at once.
+ *
+ *  IT CAN ONLY APPLY TO THE RIGID STAGE. Once the helices are released they
+ *  have to unwind into the extended chain, and nothing but a distributed
+ *  pull makes a helix unwind — pulling its two ends would stretch the chain
+ *  before it uncoiled it. So the second stage is unchanged in both modes.
+ *  That is not a compromise: the artefact this addresses is in the rigid
+ *  stage, which reversed is the whole of the tertiary act.
+ */
+/* ---------------------------------------------------- where the pull acts
+ *
+ *  EACH LINKER IS DRIVEN AT ITS TWO JUNCTIONS WITH THE HELICES IT JOINS,
+ *  and nowhere else. The loop between them hangs rather than being dragged
+ *  along its length.
+ *
+ *  WHY NOT ALONG THE WHOLE LINKER. That was the first version, and it made
+ *  all six linkers extend at once and independently, which reads on screen
+ *  as though something has hold of the chain in several places at the same
+ *  time. A string pulled taut is pulled at its ends; every point of it is
+ *  not separately dragged.
+ *
+ *  WHY NOT AT THE TWO CHAIN TERMINI, which is the purer version of the same
+ *  idea and looks better still. Because it costs the lesson. Pulling only
+ *  the ends lets the whole chain collapse gently inward, so the inter-helix
+ *  hydrogen bonds seat GRADUALLY: measured, the count runs 50, 59, 87, 94,
+ *  98 straight through the tertiary act instead of sitting flat. Bonds and
+ *  compaction then happen together, which is precisely the conflation this
+ *  page exists to break. Driving the junctions still separates the helices,
+ *  and separation is what stops those bonds forming early.
+ *
+ *  It is a genuine trade — naturalism against the sharpness of the plateau —
+ *  and this is the middle of it, not a free win. The plateau is looser than
+ *  the whole-linker version's (82 to 87 across the tertiary act, against a
+ *  flat 83) and check-hb.js's tolerance was widened to match. What is not
+ *  looser is the contrast the lesson rests on: the count climbs by 82
+ *  during the secondary act and by 5 during the tertiary one, while the
+ *  molecule shrinks 2.7x.
+ *
+ *  IT ONLY APPLIES TO THE RIGID STAGE. Once the helices are released they
+ *  have to unwind into the extended chain, and nothing but a distributed
+ *  pull makes a helix unwind — pulling its ends would stretch the chain
+ *  before it uncoiled. The second stage is unchanged.
+ */
 const OUT = path.join(HERE, 'data', '2HHB-B.fold.bin');
 
 /* ---------------- the unfold ---------------- */
@@ -256,6 +313,24 @@ function build() {
         rI.push(i); rJ.push(j); rL.push(at(i, j));
       }
 
+  /* The residues where a linker meets a helix — the junctions. For
+     --linkends the pull acts here and nowhere else, so each loop is drawn
+     out by its two attachment points instead of along its whole length. */
+  const isJunction = new Uint8Array(n);
+  {
+    const helical = new Uint8Array(parsed.residues.length);
+    for (const [a2, b2] of ex.helices)
+      parsed.residues.forEach((r, k) => { if (r.num >= a2 && r.num <= b2) helical[k] = 1; });
+    parsed.residues.forEach((r, k) => {
+      if (helical[k]) return;                       // junctions are loop residues...
+      const prevH = k > 0 && helical[k - 1];        // ...that touch a helix
+      const nextH = k < helical.length - 1 && helical[k + 1];
+      const isTerm = k === 0 || k === helical.length - 1;
+      if (prevH || nextH || isTerm)
+        for (const i of Object.values(r.atoms)) if (i != null) isJunction[i] = 1;
+    });
+  }
+
   /* Which atoms are inside a deposited helix. During the rigid stage the
      pull is applied to everything EXCEPT these — see unfold(). */
   const inHelix = new Uint8Array(n);
@@ -276,11 +351,11 @@ function build() {
   }
 
   return { parsed, hb, nodes, n, caIdx, R, native, target, ss, first,
-           helices: ex.helices, cI, cJ, cL, nFixed, rI, rJ, rL, inHelix };
+           helices: ex.helices, cI, cJ, cL, nFixed, rI, rJ, rL, inHelix, isJunction };
 }
 
 function unfold(m) {
-  const { n, R, caIdx, native, target, cI, cJ, cL, rI, rJ, rL, inHelix } = m;
+  const { n, R, caIdx, native, target, cI, cJ, cL, rI, rJ, rL, inHelix, isJunction } = m;
 
   const P = new Float64Array(n * 3);
   native.forEach((p, i) => { P[i*3] = p[0]; P[i*3+1] = p[1]; P[i*3+2] = p[2]; });
@@ -379,7 +454,7 @@ function unfold(m) {
        ran. Capping the per-step move turns the drift into a constant-speed
        drag, which the constraints can follow exactly. */
     for (let i = 0; i < n; i++) {
-      if (rigid > 0.5 && inHelix[i]) continue;
+      if (rigid > 0.5 && !isJunction[i]) continue;
       let dx = (target[i][0] - P[i*3]) * PULL,
           dy = (target[i][1] - P[i*3+1]) * PULL,
           dz = (target[i][2] - P[i*3+2]) * PULL;

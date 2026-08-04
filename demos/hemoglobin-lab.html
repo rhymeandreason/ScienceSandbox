@@ -89,8 +89,8 @@
 
   /* TWO readouts, side by side, and that pairing IS the lesson.
      The H-bond count is level 2; the width of the molecule is level 3. The
-     measured trajectory separates them cleanly — between t=0.46 and t=0.90
-     the bond count sits still at exactly 83 while the chain goes 286 Å to 84 — so showing
+     measured trajectory separates them cleanly — between t=0.55 and t=0.90
+     the bond count moves by five while the chain goes 204 Å to 73 — so showing
      both at once lets a student SEE one finish and the other take over,
      which is the whole distinction between the two levels. */
   #tally{position:absolute;right:20px;bottom:118px;z-index:6;pointer-events:none;
@@ -189,7 +189,7 @@
         <h4>Level 3 · tertiary</h4>
         <p>Watch the two numbers at the right. Around the two-thirds mark the
           hydrogen-bond count <b>stops climbing</b> while the molecule keeps
-          shrinking — from 286 Å across to 45. The helices are already made;
+          shrinking — from 204 Å across to 45. The helices are already made;
           now they pack against each other, driven by <b>water pushing the
           oily side chains inward</b>. The pocket that forms in the middle is
           where the iron and its oxygen go.</p>
@@ -292,19 +292,27 @@ const PAL = MolLib.PALETTE;
 
        t     H-bonds   size across
        0.00      0        503 A      <- the extended chain: level 1
-       0.16     16        482
-       0.33     40        371        <- bonds forming fast: level 2
-       0.41     71        313
-       0.46     83        286        <- bonds STOP at 83
-       0.65     83        177
-       0.82     83        110        <- level 3, and nothing else
-       0.90     85         84
+       0.16     15        455
+       0.33     40        351        <- bonds forming fast: level 2
+       0.49     62        250
+       0.57     85        204        <- bonds STOP climbing
+       0.73     84        109
+       0.82     87         86        <- level 3, and nothing else
+       0.90     87         73
        1.00    103         45        <- the inter-helix bonds seat
 
-   The plateau from t=0.46 to t=0.90 is the lesson, and this trajectory
-   states it far more sharply than the forward one did: the hydrogen-bond
-   count sits at EXACTLY 83 for nearly half the animation while the molecule
-   shrinks from 286 A across to 84. Two mechanisms, visibly taking turns.
+   The plateau from t=0.55 to t=0.90 is the lesson: the hydrogen-bond count
+   moves from 83 to 87 — five bonds — while the molecule shrinks from 204 A
+   across to 73. Set against the secondary act, where the count climbs by 82
+   over a comparable collapse, that is the two mechanisms visibly taking
+   turns.
+
+   It is NOT dead flat, and the earlier version of this trajectory was. That
+   version drove every linker atom independently, which held the count at
+   exactly 83 but made all six loops extend at once and read as though the
+   chain were being pulled at several points. hemoglobin/tools/bake-unfold.js's
+   header carries the trade; the short version is that a looser plateau was
+   worth a chain that moves like a chain.
 
    It is that sharp because of how the trajectory is made.
    hemoglobin/tools/bake-unfold.js does not fold the chain — it UNFOLDS the deposited
@@ -326,7 +334,7 @@ const ACTS = [
     body: 'Hydrogen bonds form along the backbone, almost all of them ' +
           'joining a residue to the one four places along. That spacing ' +
           'makes a spiral. Eight stretches of the chain coil into α-helices.' },
-  { t: 0.47, cls: 'a2', name: 'Level 3 · the helices pack',
+  { t: 0.54, cls: 'a2', name: 'Level 3 · the helices pack',
     body: 'The bond count has stopped — level 2 is finished. The molecule ' +
           'keeps shrinking anyway, because water is pushing the oily side ' +
           'chains together and the finished helices fold in against ' +
@@ -339,7 +347,7 @@ const ACTS = [
 
 const SEGMENTS = [
   { to: 0.10, label: 'primary' },
-  { to: 0.47, label: 'secondary — helices coil' },
+  { to: 0.54, label: 'secondary — helices coil' },
   { to: 1.00, label: 'tertiary — helices pack' },
 ];
 

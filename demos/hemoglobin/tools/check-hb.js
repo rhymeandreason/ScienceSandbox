@@ -215,14 +215,39 @@ ok(page.ss.join('') === d.ss.join('') && page.first === d.first && page.B === d.
     const c = [0,1,2].map(k => P.reduce((s, p) => s + p[k], 0) / P.length);
     return 2 * Math.max(...P.map(p => Math.hypot(p[0]-c[0], p[1]-c[1], p[2]-c[2])));
   };
-  const f0 = at(0.52), f1 = at(0.85);
+  const f0 = at(0.55), f1 = at(0.88);
   let lo = Infinity, hi = 0;
   for (let f = f0; f <= f1; f++) {
     const n = [...d.formed[f]].filter(x => x > 0.5).length;
     lo = Math.min(lo, n); hi = Math.max(hi, n);
   }
-  ok(hi - lo <= 2, 'the H-bond count holds still across the tertiary act (level 2 is done)',
-     `${lo}..${hi} bonds between t=0.52 and t=0.85`);
+  /* WIDENED FROM 2 TO 6, DELIBERATELY, and the history matters because 6 is
+     not the original intent. An earlier trajectory drove every linker atom
+     toward its own extended position and held this at exactly 83 — dead
+     flat. It also made all six loops extend at once and independently,
+     which read on screen as the chain being pulled at several points, so
+     the pull was moved to each linker's two junctions instead. That lets a
+     few inter-helix bonds seat during the tertiary act rather than all at
+     the finish, and the plateau loosened from 0 to about 4.
+
+     What must NOT loosen is the contrast. Pulling only the chain's two
+     termini looks better still and was rejected here: it takes the count
+     straight through 50, 59, 87, 94, 98 across the same window, which is
+     bonds and compaction happening together — the exact conflation this
+     page exists to break. If this assertion ever needs widening again,
+     that is the thing to check it against, not the number. */
+  ok(hi - lo <= 6, 'the H-bond count nearly holds still across the tertiary act (level 2 is done)',
+     `${lo}..${hi} bonds between t=0.55 and t=0.88`);
+
+  /* The contrast itself, asserted rather than left implied: the count has
+     to climb far more during the secondary act than during the tertiary
+     one, over comparable collapses. This is the claim the captions make. */
+  const nAt = f => [...d.formed[f]].filter(x => x > 0.5).length;
+  const secGain = nAt(f0) - nAt(at(0.10));
+  const terGain = hi - lo;
+  ok(secGain > 8 * Math.max(1, terGain),
+     'and it climbed far more during the secondary act — the two levels are distinct',
+     `+${secGain} bonds secondary vs +${terGain} tertiary`);
   ok(span(f0) / span(f1) > 1.8, '...while the molecule keeps collapsing (level 3 is not)',
      `${span(f0).toFixed(0)} A -> ${span(f1).toFixed(0)} A`);
 }
