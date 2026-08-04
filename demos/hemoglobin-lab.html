@@ -178,34 +178,25 @@
         <p>The order of the 146 amino acids, and nothing else — the only part
           your DNA specifies. Everything after it follows.</p>
         <p style="margin-top:7px">The page opens on the <b>whole chain</b> as
-          real atoms — <b>drag left and right to read along all 146</b> — with
-          <b>residues 129–143</b> lit and the rest dimmed once you press play.
-          What a link in the chain actually is: <b>N — C — C</b>, repeating,
+          real atoms — <b>drag left and right to read along all 146</b>.
+          A link in the chain is <b>N — C — C</b>, repeating,
           with each residue's C joined to the next one's N. That join is the
           <b>peptide bond</b>.
-          What is <i>not</i> drawn is the side chains — the part that differs
-          from one amino acid to the next, and the reason the names above the
-          chain are different words. They are left out because this
+        </p>
+        <p style="margin-top:7px">
+        <b>Not drawn:</b> the side chains — the part that differs
+          from one amino acid to the next. They are left out because this
           animation moves only the backbone.</p>
-        <p style="margin-top:7px">Stretched out, all 146 would be <b>503 Å</b>
-          long. Once this stretch has coiled, the camera pulls back to the
-          whole chain and the atoms hand over to a <b>ribbon</b> — a line
-          through those same backbone atoms, which is the only way to see a
-          protein this size at once.</p>
       </section>
       <section>
         <h4>Level 2 · secondary</h4>
-        <p>103 <b>backbone</b> hydrogen bonds form. <b>78 of them link a
-          residue to the one four places along the chain</b>, and that spacing
-          is what makes a spiral instead of a loop — it turns eight stretches
-          of the chain into eight α-helices. Almost all the rest are i→i+3, at
-          the ends of those same helices. There is <b>no β-sheet anywhere in
+        <p>103 <b>backbone</b> hydrogen bonds form. It turns eight stretches
+          of the chain into eight α-helices. There are <b>no β-sheet anywhere in
           this protein</b>.</p>
       </section>
       <section>
         <h4>Level 3 · tertiary</h4>
-        <p>Watch the two numbers at the right. Around the two-thirds mark the
-          hydrogen-bond count <b>stops climbing</b> while the molecule keeps
+        <p>This actually happens at the same time as secondary structures forming, but we have made it more separate in this animation to differentiate. Watch the two numbers at the right. Around the two-thirds mark the hydrogen-bond count <b>stops climbing</b> while the molecule keeps
           shrinking — from 204 Å across to 45. The helices are already made;
           now they pack against each other, driven by <b>water pushing the
           oily side chains inward</b>. The pocket that forms in the middle is
@@ -213,31 +204,21 @@
       </section>
       <section>
         <h4>Level 4 · quaternary</h4>
-        <p>The working molecule is <b>four</b> finished chains — two α (141
-          amino acids each) and two β (146) — each gripping an iron. After
-          the fold, watch them arrive one at a time: <b>α1 first</b>, because
+        <p>The working molecule is <b>four</b> finished chains — two α and two β — each gripping an iron. In this animation, watch them arrive one at a time: <b>α1 first</b>, because
           α1 with your β makes the pair that binds tightest and comes
           together first, then the second pair. Nothing about the chains
           changes as they dock; level 4 is <b>which finished chains touch
           which</b>, and that is what lets them cooperate — oxygen binding to
           one iron makes the next one easier.</p>
         <p style="margin-top:7px">The dashes that appear as each chain lands
-          are <b>hydrogen bonds across the new interface</b> — the same bond
+          are <b>hydrogen bonds</b> — the same bond
           act 2 used to build the helices, now holding two chains together.
-          There are only <b>eight</b> of them between α1 and your β chain,
-          across about thirty residues in contact. <b>Most of an interface
+          There are only <b>eight</b> of them between α1 and your β chain. <b>Most of an interface
           is not bonds</b>: it is hydrophobic packing, the same thing that
-          drove level 3, and it is left undrawn here for the same reason
-          it was left undrawn there — it has no endpoints.</p>
-        <p style="margin-top:7px">Why this order: measuring contact on the
-          crystal structure (α carbons within 8.5 Å), α1 makes <b>72
-          contacts with your β chain and the second α makes 43</b> — and the
-          two β chains never touch at all. The big tight pair forms first;
-          the weaker join is the one that shifts when oxygen binds.</p>
-        <p style="margin-top:7px">Those three chains are <b>not folded by
-          this page</b>. They are the deposited crystal coordinates, moved
-          into place — placed, not solved. A tetramer is four finished
-          tertiary structures, so that is the honest way to show it.</p>
+          drove level 3.</p>
+
+        <p style="margin-top:7px"> A tetramer is four finished
+          tertiary structures.</p>
       </section>
       <section>
         <h4>What this animation fakes</h4>
@@ -261,8 +242,7 @@
         <p>Once a helix is made, this animation treats it as a <b>rigid
           object on a string</b> — it can swing and slide, but not bend or
           unravel. That is a real model of folding, not a shortcut: helices
-          form first and then drift together and dock, which is why the bond
-          count can sit still while the shape keeps changing. Real helices do
+          form first and then drift together and dock. Real helices do
           flex a little, especially at their ends, so this is an
           approximation — a good one over the few microseconds that matter
           here.</p>
@@ -435,10 +415,8 @@ const HOLD_SECONDS = 1.2;
 const HOLD_AT = FOLD_END - 1e-4;
 
 const ACTS = [
-  { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the beads',
-    body: 'Fifteen of the 146 are lit; the rest of the chain runs off both ' +
-          'sides. Each is one unit, joined to the next through its backbone ' +
-          '— N, then C, then C, over and over. Their order is the whole ' +
+  { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the amino acids',
+    body: 'Their order is the whole ' +
           'instruction your DNA gives; the shape is not specified anywhere.' },
   { t: 0.10, cls: 'a1', name: 'Level 2 · the backbone bonds to itself',
     body: 'Hydrogen bonds form along the backbone, almost all of them ' +
@@ -1845,7 +1823,7 @@ document.getElementById('savepng').addEventListener('click', () => {
 const actEl = document.getElementById('act');
 actEl.querySelector('.actname').textContent = 'Protein Structure';
 actEl.querySelector('.actbody').textContent =
-  'Protein folding is critical to its function.'
+  'Hemoglobin'
 ;
 
 /* ---------- loop ----------
