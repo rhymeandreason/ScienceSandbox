@@ -181,11 +181,12 @@
         <h4>Level 1 · primary</h4>
         <p>The order of the 146 amino acids, and nothing else — the only part
           your DNA specifies. Everything after it follows.</p>
-        <p style="margin-top:7px">The page opens on <b>residues 129–143</b>
-          — fifteen near the far end of the chain — drawn as real atoms so
-          you can see what a link in the chain actually is: <b>N — C — C</b>,
-          repeating, with each residue's C joined to the next one's N. That
-          join is the <b>peptide bond</b>.
+        <p style="margin-top:7px">The page opens on the <b>whole chain</b> as
+          real atoms — <b>drag left and right to read along all 146</b> — with
+          <b>residues 129–143</b> lit and the rest dimmed once you press play.
+          What a link in the chain actually is: <b>N — C — C</b>, repeating,
+          with each residue's C joined to the next one's N. That join is the
+          <b>peptide bond</b>.
           What is <i>not</i> drawn is the side chains — the part that differs
           from one amino acid to the next, and the reason the names above the
           chain are different words. They are left out because this
@@ -439,10 +440,10 @@ const HOLD_AT = FOLD_END - 1e-4;
 
 const ACTS = [
   { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the beads',
-    body: 'Close in on fifteen of the 146 amino acids. Each is one unit of ' +
-          'the chain, joined to the next through its backbone — N, then C, ' +
-          'then C, over and over. Their order is the whole instruction your ' +
-          'DNA gives; nothing about the shape is specified anywhere.' },
+    body: 'Fifteen of the 146 are lit; the rest of the chain runs off both ' +
+          'sides. Each is one unit, joined to the next through its backbone ' +
+          '— N, then C, then C, over and over. Their order is the whole ' +
+          'instruction your DNA gives; the shape is not specified anywhere.' },
   { t: 0.10, cls: 'a1', name: 'Level 2 · the backbone bonds to itself',
     body: 'Hydrogen bonds form along the backbone, almost all of them ' +
           'joining a residue to the one four places along. That spacing ' +
@@ -568,6 +569,47 @@ const BOND_IN = 0.82;           // fraction of the approach before bonds appear
    spawnRing's header for why this is not a change to the default. */
 const RING_SIZE = 1.5;
 
+/* ---------- rings on the backbone bonds, levels 1 and 2 ----------
+   THE PAGE USED TO FIRE NOTHING DURING THE FOLD, and the argument for that
+   is in this file's header: 103 rings over twelve seconds is a firework
+   display, and the tally already says the same thing quietly. That
+   reasoning was written when the whole fold was watched from far enough
+   away to hold a 503 A chain, where every bond is two atoms a few pixels
+   apart and a ring on it is confetti.
+
+   The close-up changes the premise. Level 1 and level 2 are now watched
+   from 26 A, where a hydrogen bond forming is a legible event between two
+   atoms you can see — which is exactly the case fx.js's ring was built for
+   (SCIENCE.md 5: a ring means "a bond just happened"). Marking it is the
+   house convention; NOT marking it here was the exception, and it was an
+   exception made for a shot this page no longer opens on.
+
+   SIZED AGAINST THE CAMERA, because this is the one page where a single
+   event is watched from 26 A and from 250. A ring fixed in angstroms is
+   either a saucer around the close-up or invisible at full-chain framing.
+   cam.r/70 is not a free parameter: it is the ratio level 4 already uses
+   (RING_SIZE 1.5 at its r of about 104), so a bond forming reads at the
+   same size on screen wherever the camera is standing when it happens.
+
+   STOPS AT THE TERTIARY ACT. Level 3's claim is that the bond count has
+   STOPPED and the shape keeps changing; rings still popping through it
+   would say the opposite of the caption and of the readout beside it. */
+const RING_R = 70;                 // angstroms of camera distance per unit ring
+const ringNow = () => Math.max(0.25, Math.min(4, cam.r / RING_R));
+const FOLD_RING_UNTIL = 0.54;      // the tertiary boundary — ACTS' own number
+const FORM_AT = 0.5, REARM_AT = 0.35;   // hysteresis, so a scrub cannot flicker
+/* WHILE THE CLOSE-UP HOLDS, ONLY THE BONDS IN IT RING. The other seven
+   helices are coiling at the same time and their bonds are off the edge of
+   a 26 A frame, so ringing them spends the effect on events nobody can see
+   — and drops the occasional unexplained flash at the frame edge, which
+   reads as a rendering fault rather than as chemistry. Once the camera
+   pulls back they all ring, and that burst across the whole chain is the
+   pull-out's own point: this was happening everywhere. */
+const RING_FOCUS_ONLY_ABOVE = 0.5;      // close-up weight above which to scope
+let bondInFocus = null;                  // filled by build()
+let focusIdx = null;                     // positions in the atom array, ditto
+const _focusPts = [];                    // scratch: those atoms' live coordinates
+
 /* SUB IS A SCALE KNOB — ribbon.js's header is explicit that it should come
    down as the subject gets smaller on screen, and a residue here is a
    quarter the size villin's is at the same stage width. 10 costs 14,776
@@ -661,17 +703,62 @@ const FOCUS_NAME_INK = '#3a352f', FOCUS_NUM_INK = '#8a857a';
    10 of 146) and it collides just as badly. */
 const LABEL_OUT = [0.04, 0.12];
 
-/* HOW FAR THE RIBBON GIVES WAY UNDER THE CLOSE-UP. It is drawn through the
-   atoms — that is the point of showing both, and what makes the handover at
-   the pull-out mean something — but at full strength a 1.3 Å opaque band
-   through a row of 1.5 Å spheres simply buries them, and the beat about
-   what the chain is MADE of is lost under the summary of it. Backed off, it
-   reads as a line traced through the atoms, which is what it is. It comes
-   back to full as the camera pulls out and the atoms fade. */
+/* THE REST OF THE CHAIN IS DIMMED, NEVER CUT — folding-lab-ribbon's rule,
+   its value, and its reasoning. Cutting the out-of-focus chain "turns a
+   framing choice into a false claim that nothing else is happening"; the
+   intro would be saying the protein IS fifteen amino acids rather than that
+   we are looking at fifteen of 146.
+
+   WHAT IS DIMMED IS NOW THE ATOMS. The intro draws every backbone atom of
+   all 146 residues, so the context is a real ball-and-stick chain running
+   off both sides of the frame rather than a stand-in for one. DIM is the
+   opacity the unfocused part falls to once play is pressed, and DIM_IN is
+   how much of the fold it takes to get there. */
+const DIM = 0.16;                 // folding-lab-ribbon's value, same job
+const DIM_IN = 0.05;              // fold-fraction over which the dim eases in
+
+/* The ribbon is a summary of SECONDARY structure, so it has no business on
+   screen during level 1 — the atoms are the whole claim there, and now
+   there are enough of them to carry it alone. It fades in with the
+   secondary act, at the caption that introduces the backbone bonding to
+   itself, and the pull-out then hands the atoms over to something the
+   student has already watched arrive. */
+const RIBBON_IN = [0.10, 0.19];   // fold t; ACTS' level-2 caption posts at 0.10
+/* How far it still gives way while the close-up is up. Once it is carrying
+   level 2 it must still not bury what it summarises — a 1.3 Å opaque band
+   through a row of 1.5 Å spheres does exactly that. */
 const RIBBON_UNDER = 0.45;
+
+/* THE OPENING IS A TOP-DOWN SHOT, and the elevation is measured rather
+   than picked — the same method folding-lab-ribbon.html uses for the same
+   beat. `phi` is the angle from straight down the Y axis, so a smaller
+   number is a higher camera. The question is how much of the segment's
+   own thickness lies along the view axis, because depth is what turns
+   "amino acids in a row" into a huddle. Measured on the focus segment at
+   t=0, its out-of-plane spread is:
+
+       phi   0.30   0.35   0.45   0.60   0.80   1.00   1.18   1.40
+       Å     1.65   1.63   1.59   1.62   2.01   2.38   2.77   3.15
+
+   — a clean minimum at 0.45, and 1.7x worse at the 1.18 this page used to
+   open on. The on-screen WIDTH does not change with phi at all (51.1 Å
+   throughout), because the chain lies along X and the orbit's right vector
+   is on X at any elevation, so the flatter view costs nothing to buy.
+
+   IT IS NOT WHERE THE PAGE STAYS. A folded globin and a four-chain
+   tetramer are compact and read better from the raised angle the rest of
+   the lesson was built at, so the camera rises out of the top-down shot on
+   exactly the schedule it pulls back on — one move, not two. */
+const PHI_OPEN = 0.45;              // the top-down opening
+const PHI_FOLD = 1.18;              // where the rest of the lesson sits
 
 const canvas = document.getElementById('gl');
 let userZoom = false;
+/* Set the moment the student turns the molecule themselves, and never
+   cleared. The scripted rise from PHI_OPEN to PHI_FOLD writes cam.phi every
+   frame, which would otherwise yank a chosen angle back — the same courtesy
+   userZoom already extends to a chosen distance. */
+let userTurn = false;
 const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(canvas, {
   /* The azimuth must put the orbit's `right` vector on X, because folding.js's
      orient() lays the extended chain along world X and any other angle puts a
@@ -685,9 +772,13 @@ const { scene, camera, renderer, root, cam, applyCam, resize } = Stage.create(ca
      It is a rotation of the VIEWPOINT, not of the molecule, so nothing about
      handedness moves — check-hb.js measures helix handedness on the
      coordinates and is untouched by where the camera stands. */
-  cam: { theta: Math.PI, phi: 1.18, r: 300 }, phiMin: 0.3, phiMax: 2.7,
+  /* Opens top-down on the close-up and rises to PHI_FOLD as the camera
+     pulls out — see the PHI_OPEN block. phiMin stays 0.3, below which the
+     orbit's right vector starts to degenerate. */
+  cam: { theta: Math.PI, phi: PHI_OPEN, r: 300 }, phiMin: 0.3, phiMax: 2.7,
   rMin: 6, rMax: 2000,
-  onZoom: () => { userZoom = true; } });
+  onZoom: () => { userZoom = true; },
+  onDrag: () => { userTurn = true; } });
 
 /* FX is here for ONE event: a hydrogen bond forming across a new interface
    in level 4. The fold itself fires nothing — 103 bonds appearing over 12
@@ -820,6 +911,24 @@ function build() {
     chainGroup.add(g); hbGroups.push(g);
   }
 
+  /* Which bonds lie inside the close-up, by residue number off the baked
+     focus range — never by index, which would silently move if the segment
+     or the bond list ever changed. */
+  bondInFocus = fold.bonds.map(b =>
+    Math.min(b.from, b.to) >= fold.focus.lo && Math.max(b.from, b.to) <= fold.focus.hi);
+
+  /* Where the intro may pan to: the extended chain's own X extent, measured
+     off the opening frame rather than assumed to be the quoted 503 Å (that
+     number is a diameter through space, not a span along one axis). */
+  {
+    const P0 = fold.at(0).P;
+    chainXlo = Infinity; chainXhi = -Infinity;
+    for (const p of P0) {
+      if (p[0] < chainXlo) chainXlo = p[0];
+      if (p[0] > chainXhi) chainXhi = p[0];
+    }
+  }
+
   buildFocus();
 }
 
@@ -858,35 +967,57 @@ function textSprite(text, hex, px, worldH) {
   return sp;
 }
 
+/* THE WHOLE BACKBONE IS BUILT, not just the close-up's fifteen residues.
+   The intro is a ball-and-stick model of the entire chain that the student
+   pans along; the close-up is then a REGION of it that stays lit while the
+   rest dims, rather than a separate object that appears. That is what makes
+   the dimming read as "look here" instead of "here is a different molecule".
+
+   722 spheres and 721 cylinders is a lot of draw calls, and they are only
+   worth paying for while the atoms are on screen — `atomGroup.visible` goes
+   false the moment the pull-out finishes them off, and after that the page
+   costs exactly what it did before this existed. */
 function buildFocus() {
   const f = fold.focus;
-  if (!f || !f.atoms.length)
-    throw new Error('the baked file carries no focus segment — re-run bake-unfold.js');
+  if (!fold.atoms || !fold.atoms.length)
+    throw new Error('the baked file carries no backbone — re-run bake-unfold.js');
 
   focusGroup = new THREE.Group();
   chainGroup.add(focusGroup);
 
-  f.atoms.forEach(a => {
+  const inFocus = a => a.res >= f.lo && a.res <= f.hi;
+  /* The close-up's atoms, as positions in the trajectory's atom array —
+     what the camera fits on. Derived from the residue RANGE rather than
+     stored, so it cannot disagree with what is drawn lit. */
+  focusIdx = fold.atoms.reduce((a, at, i) => (inFocus(at) ? (a.push(i), a) : a), []);
+  if (!focusIdx.length)
+    throw new Error(`no atoms in residues ${f.lo}-${f.hi} — the close-up has nothing to frame`);
+
+  fold.atoms.forEach(a => {
     const m = Stage.atom(PAL.atoms[a.el] || 0x888888, RADII[a.el] || 0.3,
                          new THREE.Vector3(), a.el);
     m.material.transparent = true;
+    m.userData.focus = inFocus(a);
     focusGroup.add(m); focusAtoms.push(m);
   });
 
-  f.bonds.forEach(([i, j]) => {
+  fold.abonds.forEach(([i, j]) => {
     const mat = Stage.bondMat(PAL.bonds.covalent);
     mat.transparent = true;
     const m = new THREE.Mesh(new THREE.CylinderGeometry(STICK, STICK, 1, 10), mat);
-    m.userData = { i, j };
+    /* A bond counts as in-focus only if BOTH ends are, so the two peptide
+       links leading out of the segment dim with the chain they lead away
+       to rather than with the segment they leave. */
+    m.userData = { i, j, focus: inFocus(fold.atoms[i]) && inFocus(fold.atoms[j]) };
     focusGroup.add(m); focusSticks.push(m);
   });
 
-  /* One name per residue, anchored on its alpha carbon — the atom a student
-     is told is "the" carbon of an amino acid, and the one the ribbon is
-     drawn through. Every fifth residue also gets its number, so the segment
-     announces WHERE in the 146 it is rather than floating free. */
+  /* Names ONLY on the close-up's residues. All 146 would be 146 overlapping
+     words at any zoom that shows more than a handful — the labels are for
+     the stretch being read, and the rest of the chain is there to be seen
+     as chain. */
   const caOf = new Map();
-  f.atoms.forEach((a, k) => { if (a.name === 'CA') caOf.set(a.res, k); });
+  fold.atoms.forEach((a, k) => { if (a.name === 'CA' && inFocus(a)) caOf.set(a.res, k); });
   caOf.forEach((k, res) => {
     const nm = fold.resNames[res - fold.first] || '???';
     const title = nm[0] + nm.slice(1).toLowerCase();       // VAL -> Val
@@ -929,11 +1060,27 @@ function updateFocus(s, w) {
   focusGroup.visible = on;
   if (!on) return;
 
-  const P = s.F;
+  /* THE DIM WAITS FOR PLAY, and eases rather than switches.
+     Before the student presses play the whole chain is at full strength:
+     the intro is a picture of primary structure, and dimming most of it
+     there would say some of those amino acids matter less than the others
+     — which is exactly what primary structure does not say. The dim is a
+     reading aid for the coiling, so it belongs to the coiling.
+
+     Eased in over the first DIM_IN of the fold rather than switched on with
+     the play button, because a step change in opacity on click reads as the
+     page glitching rather than as the subject being pointed at. Both the
+     value and the argument are folding-lab-ribbon's. */
+  const dimmed = started
+    ? 1 - (1 - DIM) * smoothstep(Math.min(1, t / DIM_IN))
+    : 1;
+
+  const P = s.P;
   focusAtoms.forEach((m, i) => {
     m.position.set(P[i][0], P[i][1], P[i][2]);
-    m.material.opacity = w;
-    m.material.depthWrite = w > 0.5;
+    const o = w * (m.userData.focus ? 1 : dimmed);
+    m.material.opacity = o;
+    m.material.depthWrite = o > 0.5;
   });
   focusSticks.forEach(m => {
     const { i, j } = m.userData;
@@ -944,15 +1091,17 @@ function updateFocus(s, w) {
     m.position.copy(_fa).addScaledVector(_fm, 0.5);
     m.scale.set(1, L, 1);                 // the length is written every frame
     m.quaternion.setFromUnitVectors(_yAxis, _fm.divideScalar(L));
-    m.material.opacity = w;
-    m.material.depthWrite = w > 0.5;
+    const o = w * (m.userData.focus ? 1 : dimmed);
+    m.material.opacity = o;
+    m.material.depthWrite = o > 0.5;
   });
 
   /* Labels ride 2.6 Å off their alpha carbon along the camera's own up
      axis, so they clear the atom whichever way the student has turned the
      molecule. Billboarded by Sprite already; only the offset needs the
      basis. */
-  const lw = w * (1 - smoothstep((t - LABEL_OUT[0]) / (LABEL_OUT[1] - LABEL_OUT[0])));
+  const lw = w * (started
+    ? 1 - smoothstep((t - LABEL_OUT[0]) / (LABEL_OUT[1] - LABEL_OUT[0])) : 1);
   camera.getWorldDirection(_fm);
   _fa.crossVectors(_fm, _yAxis).normalize();
   _fb.crossVectors(_fa, _fm).normalize();          // camera up
@@ -1110,10 +1259,24 @@ function quaternaryGroups(q) {
    Stage.frame's bounding-cylinder model — which describes a long thin rod
    as a fat blob and wastes most of a wide stage on it.
 
-   Fitted from the CANONICAL basis, not the live one, so distance is a pure
-   function of t and turning the chain does not move the camera. */
+   Fitted from the SCRIPTED basis, not the live one, so distance is a pure
+   function of t and turning the chain does not move the camera.
+
+   "Scripted" rather than "canonical" because the elevation is no longer a
+   constant: the page opens top-down at PHI_OPEN and rises to PHI_FOLD
+   across the pull-out. The fit has to use the angle the camera will
+   actually be at, or the close-up is framed for an elevation it is not
+   being viewed from — at PHI_OPEN vs PHI_FOLD the segment's projected
+   height differs by about 40%, which is the difference between a row of
+   residues that fills the stage and one swimming in space. It is still not
+   the LIVE basis: a student's drag moves cam.phi and must not re-solve the
+   distance, which is the jolt folding-lab-ribbon's header describes. */
 const RESERVE = { top: 34, intro: 132, bottom: 96, capBottom: 196 };
-const FIT_THETA = cam.theta, FIT_PHI = cam.phi;
+const FIT_THETA = cam.theta;
+/* The scripted elevation: top-down while the close-up holds, PHI_FOLD once
+   it is gone. Driven by the same weight as the pull-back, so the rise and
+   the retreat are one move rather than two things happening at once. */
+const phiAt = w => PHI_FOLD + (PHI_OPEN - PHI_FOLD) * w;
 const _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 
@@ -1122,14 +1285,15 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3();
    camera from stepping outward the instant a chain switches on.
    Returns { r, target } without applying it, so the close-up can be
    interpolated against the full-chain fit rather than against a camera. */
-function solveFrame(groups) {
+function solveFrame(groups, phi) {
   if (!groups.length) return null;
   const h = canvas.clientHeight, w = canvas.clientWidth;
   if (!h || !w) return null;
 
-  _fwd.set(Math.sin(FIT_PHI) * Math.sin(FIT_THETA),
-           Math.cos(FIT_PHI),
-           Math.sin(FIT_PHI) * Math.cos(FIT_THETA)).normalize();
+  const ph = phi == null ? PHI_FOLD : phi;
+  _fwd.set(Math.sin(ph) * Math.sin(FIT_THETA),
+           Math.cos(ph),
+           Math.sin(ph) * Math.cos(FIT_THETA)).normalize();
   _right.crossVectors(_fwd, new THREE.Vector3(0, 1, 0));
   if (_right.lengthSq() < 1e-8) _right.set(1, 0, 0);
   _right.normalize();
@@ -1171,24 +1335,79 @@ function solveFrame(groups) {
    distance, which is the rule that matters (CLAUDE.md). */
 const FOCUS_PAD = 1.18;
 
+/* ---------- panning the intro ----------
+   THE INTRO IS A CHAIN YOU READ ALONG, so dragging moves the camera ALONG
+   it rather than orbiting around it. At t=0 the molecule is a 503 Å rod
+   lying on X and the close-up holds about 50 Å of it, so there are ten
+   screenfuls of protein either side — orbiting a rod shows you nothing new,
+   and panning shows you the other 131 residues.
+
+   IT REPLACES THE ORBIT ONLY WHILE THE INTRO IS UP. Once the fold starts
+   the chain stops being a rod and the orbit is the useful gesture again, so
+   the interception ends with the intro. That is also why the pan eases back
+   to zero on play rather than being left wherever the student parked it:
+   the lesson's first beat is framed on the close-up, and starting it
+   somewhere else would leave the caption talking about atoms off-screen.
+
+   panX is an offset along WORLD X, which is the chain's own long axis
+   (folding.js's orient() put it there), added to the solved camera target.
+   Clamped to the rod's own extent so there is no panning into empty space. */
+let panX = 0, chainXlo = 0, chainXhi = 0;
+const PAN_DECAY = 0.12;           // per frame, once play starts
+
+/* CLAMPED AGAINST THE CHAIN'S OWN ENDS, not by a symmetric budget either
+   side of the close-up — which is what it was, and it was wrong for the
+   reason the segment was chosen: the close-up sits near the C-TERMINUS, so
+   an equal allowance in both directions runs a quarter of the way up the
+   chain in one direction and hundreds of angstroms into empty space in the
+   other. The limits are the extreme atoms, so a pan stops where the
+   protein stops. */
+function panClamp(cx) {
+  const lim = 6;                  // a little air past the terminal atom
+  return [chainXlo - lim - cx, chainXhi + lim - cx];
+}
+
 /* frameFrom(groups, s, w) — the full-chain fit, blended toward the
    close-up's own fit by w. Interpolating the two SOLVED frames rather than
    two camera states keeps both ends correctly fitted for the aspect ratio
    the student actually has, at every point in the move. */
 function frameFrom(groups, s, w) {
-  if (userZoom) return;
-  const full = solveFrame(groups);
+  /* The elevation rises with the pull-out even if the student has taken
+     the DISTANCE over, because the two are independent choices: someone who
+     has zoomed in still wants the camera to stop looking at the folded
+     protein from directly overhead. Only a drag stops the rise. */
+  const phi = phiAt(w);
+  if (!userTurn && Math.abs(cam.phi - phi) > 1e-4) cam.phi = phi;
+  if (userZoom) { applyCam(); return; }
+  /* Both fits are solved at the elevation the camera is actually at, so
+     neither end of the move is framed for an angle it is not seen from. */
+  const full = solveFrame(groups, phi);
   if (!full) return;
   let r = full.r, cx = full.cx, cy = full.cy, cz = full.cz;
-  if (w > 0.001 && s && s.F && s.F.length) {
-    const near = solveFrame([{ P: s.F, w: 1 }]);
+  if (w > 0.001 && s && s.P && focusIdx) {
+    _focusPts.length = 0;
+    for (const i of focusIdx) _focusPts.push(s.P[i]);
+    const near = solveFrame([{ P: _focusPts, w: 1 }], phi);
     if (near) {
       r  += (near.r * FOCUS_PAD - r) * w;
       cx += (near.cx - cx) * w; cy += (near.cy - cy) * w; cz += (near.cz - cz) * w;
     }
   }
   cam.r = r;
-  cam.target.set(cx, cy, cz);
+  /* The student's pan rides on top of the solved target. It decays away
+     once the fold is running, so the close-up is centred by the time the
+     first caption is talking about it. Clamped HERE rather than where the
+     drag is read, because the limit depends on the solved centre — which
+     the drag handler does not have and which moves as the chain folds. */
+  if (started && panX !== 0) {
+    panX *= (1 - PAN_DECAY);
+    if (Math.abs(panX) < 0.05) panX = 0;
+  }
+  if (panX !== 0) {
+    const [pLo, pHi] = panClamp(cx);
+    panX = Math.max(pLo, Math.min(pHi, panX));
+  }
+  cam.target.set(cx + panX, cy, cz);
   applyCam();
 }
 
@@ -1245,6 +1464,13 @@ function seek(uu) {
   const q = u <= FOLD_END ? -1 : (u - FOLD_END) / (1 - FOLD_END);
   const s = fold.at(t);
 
+  /* How much the close-up still owns the frame. Computed up here because
+     three things need it — which bonds may ring, the ribbon's opacity, and
+     the camera — and they must all agree within a frame. Only during the
+     fold: once a second chain is on screen the subject is the tetramer, and
+     `focusW` is zero long before then anyway. */
+  const fw = q < 0 ? focusW(t) : 0;
+
   /* Ribbon. Rebuilt rather than morphed: the geometry's triangle count
      depends on the path, so there is no fixed vertex buffer to update. The
      dispose() is not optional — without it every frame leaks a
@@ -1266,10 +1492,30 @@ function seek(uu) {
      nothing blinks. */
   const hbFade = q < 0 ? 1 : 1 - smoothstep(q / 0.14);
   const showHb = document.getElementById('showhb').checked && hbFade > 0.01;
+  /* A ring fires the frame a bond closes, through levels 1 and 2 — see
+     RING_R above. Gated on `started` so loading the page does not let off
+     seven of them behind the intro card, and on the same checkbox as the
+     dashes, because a ring marking a bond the student has hidden is an
+     effect with no cause on screen. */
+  const ringing = started && q < 0 && t < FOLD_RING_UNTIL &&
+                  document.getElementById('showhb').checked;
+  const rsize = ringNow();
   let formedCount = 0;
   hbGroups.forEach((g, k) => {
     const amt = s.formed[k];
     if (amt > 0.5) formedCount++;
+    /* Fire once per closing, re-armed only when the bond genuinely opens
+       again — scrubbing backward through the fold replays the events, which
+       is right, but a bond hovering at the threshold must not stutter. */
+    if (amt > FORM_AT && !g.userData.fired) {
+      g.userData.fired = true;
+      if (ringing && (fw <= RING_FOCUS_ONLY_ABOVE || bondInFocus[k])) {
+        _a.set(s.O[k][0], s.O[k][1], s.O[k][2]);
+        _b.set(s.H[k][0], s.H[k][1], s.H[k][2]);
+        FXi.spawnRing(_a.clone().lerp(_b, 0.5), PAL.bonds.hbond, null, rsize);
+      }
+    } else if (amt < REARM_AT) g.userData.fired = false;
+
     g.visible = showHb && amt > 0.02;
     if (!g.visible) return;
     g.userData.mat.opacity = Math.min(1, amt) * 0.85 * hbFade;
@@ -1285,20 +1531,29 @@ function seek(uu) {
 
   const chains = revealQuaternary(q);
 
-  /* The close-up, and the camera that is still on it. Only during the fold:
-     once a second chain is on screen the subject is the tetramer, and
-     `focusW` is zero long before then anyway. */
-  const fw = q < 0 ? focusW(t) : 0;
   updateFocus(s, fw);
 
-  /* The ribbon gives way under the close-up — a cross-fade, not an overlay.
-     depthWrite goes off with it, so every atom shows through rather than
-     only the ones in front of the band; left on, a translucent ribbon still
-     occludes, which is the worst of both. Restored to an opaque,
-     depth-writing surface the moment the close-up is gone, so the sorting
-     of the ordinary case is exactly what it always was. */
+  /* The ribbon: absent for the whole of level 1, then faded in with the
+     secondary act, then giving way under the close-up until the pull-out
+     hands the atoms over to it.
+
+     depthWrite goes off whenever it is translucent, so every atom shows
+     through rather than only the ones in front of the band; left on, a
+     translucent ribbon still occludes, which is the worst of both. Restored
+     to an opaque, depth-writing surface the moment it is at full strength,
+     so the sorting of the ordinary case is exactly what it always was.
+
+     `q < 0` keeps level 4 out of it: the ribbon is the molecule from the
+     pull-out onward and must never fade again. */
+  /* DIM while the close-up owns the frame, rising to RIBBON_UNDER as level
+     2 starts, and to full as the pull-out hands the atoms over. The last
+     step is driven by `fw` rather than by t, so the ribbon reaches full
+     strength exactly when the thing it replaces has gone. */
+  const near = q < 0 ? RIBBON_UNDER * amountIn(t, RIBBON_IN) : RIBBON_UNDER;
+  const rop = near + (1 - near) * (1 - fw);
+  ribbon.visible = rop > 0.004;
   ribbon.material.forEach(m => {
-    m.opacity = 1 - (1 - RIBBON_UNDER) * fw;
+    m.opacity = rop;
     m.transparent = m.opacity < 0.999;
     m.depthWrite = !m.transparent;
   });
@@ -1411,8 +1666,74 @@ function beginIfNeeded() {
   updateCaption();
 }
 
+/* ---------- coming home before the lesson starts ----------
+   THE VIEW THE STUDENT LEFT IS NOT THE VIEW THE LESSON IS WRITTEN FOR.
+   The intro invites them to pan along the chain, turn it and zoom it, so by
+   the time they press play the camera can be anywhere — halfway up the
+   sequence, from underneath, at any distance. Starting the fold from there
+   means the first caption talks about a stretch that is off-screen, and the
+   auto-framing cannot rescue it: `userZoom` and `userTurn` exist precisely
+   to stop the page overriding a choice the student made.
+
+   So play GLIDES BACK FIRST and then runs. The homing releases those two
+   flags — the student's choice governed the intro, and the lesson takes the
+   camera back for the fold — and eases every degree of freedom at once:
+   the pan to zero, the distance and target to whatever frameFrom solves for
+   t=0, and the elevation to PHI_OPEN.
+
+   It is a GLIDE rather than a cut because the whole point is to show them
+   where they are going: a cut would look like the page had reset, where a
+   move says "back to the stretch we were reading". Skipped entirely when
+   nothing was moved, so the common case is unchanged — press play, it
+   plays. */
+const HOME_SECONDS = 0.7;
+let homing = null;      // {t0, from:{r,theta,phi,tx,ty,tz,pan}} while gliding
+
+function viewMoved() {
+  return userZoom || userTurn || Math.abs(panX) > 0.5;
+}
+
+function startHoming(then) {
+  homing = { t0: performance.now(), then,
+             from: { r: cam.r, theta: cam.theta, phi: cam.phi, pan: panX,
+                     tx: cam.target.x, ty: cam.target.y, tz: cam.target.z } };
+  /* Released here, not when the glide ends: the solve the glide is aiming
+     at has to be the unconstrained one, and frameFrom returns early while
+     userZoom is set. */
+  userZoom = false; userTurn = false;
+}
+
+/* Called from the render loop. Returns true while it still owns the camera,
+   so the loop knows not to advance the fold underneath it. */
+function stepHoming() {
+  if (!homing) return false;
+  const k = Math.min(1, (performance.now() - homing.t0) / (HOME_SECONDS * 1000));
+  const e = smoothstep(k);
+  const f = homing.from;
+  /* Solve the destination fresh each frame rather than once at the start —
+     the canvas can be resized mid-glide, and a target computed against the
+     old aspect would land wrong. */
+  panX = f.pan * (1 - e);
+  const keep = { r: cam.r, tx: cam.target.x, ty: cam.target.y, tz: cam.target.z };
+  cam.theta = f.theta + (FIT_THETA - f.theta) * e;
+  seek(u);                         // re-solves r, target and phi for t=0
+  cam.r = keep.r + (cam.r - keep.r) * e;
+  cam.target.set(keep.tx + (cam.target.x - keep.tx) * e,
+                 keep.ty + (cam.target.y - keep.ty) * e,
+                 keep.tz + (cam.target.z - keep.tz) * e);
+  applyCam();
+  if (k >= 1) { const then = homing.then; homing = null; if (then) then(); }
+  return true;
+}
+
 document.getElementById('playbtn').addEventListener('click', () => {
   if (!playing && u >= 1) { u = 0; shownAct = -1; holdLeft = HOLD_SECONDS; }
+  /* Only on the way INTO playing, and only from the intro: pausing halfway
+     through the fold and resuming must not yank the camera anywhere. */
+  if (!playing && !started && viewMoved()) {
+    startHoming(() => setPlaying(true));
+    return;
+  }
   setPlaying(!playing);
 });
 
@@ -1435,6 +1756,54 @@ bar.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') { beginIfNeeded(); setPlaying(false); seek(u + step); e.preventDefault(); }
   if (e.key === 'ArrowLeft')  { beginIfNeeded(); setPlaying(false); seek(u - step); e.preventDefault(); }
 });
+
+/* ---------- the intro's pan ----------
+   Bound on #stage in the CAPTURE phase, which is the whole trick: capture
+   runs ancestor-first, so this sees the pointerdown before the canvas's own
+   orbit listener does and can stop it. Registering on the canvas itself
+   would not work — listeners on the event's target fire in registration
+   order regardless of the capture flag, and scene.js registered first.
+
+   Only while the intro is up; after that the events fall through to the
+   orbit untouched, and this costs one comparison per pointer event. */
+{
+  const stage = document.getElementById('stage');
+  let pan = null;
+  const worldPerPixel = () => {
+    const h = canvas.clientHeight || 1;
+    return (2 * cam.r * Math.tan(camera.fov * Math.PI / 360)) / h;
+  };
+  /* ONLY WHEN THE POINTER IS ON THE CANVAS. #stage also contains the
+     transport, the toggles and the info button, and a capture listener that
+     swallowed every pointerdown swallowed the PLAY BUTTON's — the control
+     the whole page is waiting on. Capture phase is what makes this
+     intercept the orbit at all, so it has to be selective rather than
+     early-return-free: the target test is the whole guard. */
+  stage.addEventListener('pointerdown', e => {
+    if (started || !fold || e.target !== canvas) return;
+    pan = { x: e.clientX };
+    stage.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  }, true);
+  stage.addEventListener('pointermove', e => {
+    if (!pan) return;
+    e.stopPropagation();
+    /* Drag right, the molecule goes right — the chain is grabbed, not the
+       camera. Screen right is -X at this azimuth, so following the pointer
+       means ADDING to panX. frameFrom clamps it to the chain's own ends. */
+    panX += (e.clientX - pan.x) * worldPerPixel();
+    pan.x = e.clientX;
+    seek(u);
+  }, true);
+  const end = e => {
+    if (!pan) return;
+    pan = null;
+    if (stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId);
+    e.stopPropagation();
+  };
+  stage.addEventListener('pointerup', end, true);
+  stage.addEventListener('pointercancel', end, true);
+}
 
 document.getElementById('showhb').addEventListener('change', () => seek(u));
 document.getElementById('showdep').addEventListener('change', () => seek(u));
@@ -1459,11 +1828,11 @@ document.getElementById('savepng').addEventListener('click', () => {
 const actEl = document.getElementById('act');
 actEl.querySelector('.actname').textContent = 'Haemoglobin, all four levels';
 actEl.querySelector('.actbody').textContent =
-  'You are looking at fifteen of its 146 amino acids, close up — a chain ' +
-  'with no shape at all yet. Press play: this stretch coils, the camera ' +
-  'pulls back to all 503 Å of it, the whole thing packs, and then the other ' +
-  'three chains arrive to make the molecule your blood actually uses. ' +
-  'The ⓘ says what is measured here and what is invented.';
+  'All 146 of its amino acids, joined end to end and 503 Å long — a chain ' +
+  'with no shape at all yet. Drag left and right to read along it. Press ' +
+  'play and one stretch coils, the camera pulls back to the whole chain, it ' +
+  'packs, and then the other three chains arrive to make the molecule your ' +
+  'blood actually uses. The ⓘ says what is measured and what is invented.';
 
 /* ---------- loop ----------
    THE SCENE UPDATES AT 30 Hz AND RENDERS AT 60, and that is not a
@@ -1501,6 +1870,14 @@ let holdLeft = HOLD_SECONDS;      // re-armed whenever playback restarts
 (function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  /* The glide home owns the camera while it runs and the fold does not
+     advance underneath it — the student asked to watch the fold from the
+     framed view, so the fold starts when the view gets there. */
+  if (fold && stepHoming()) {
+    FXi.step();
+    renderer.render(scene, camera);
+    return;
+  }
   if (playing && fold) {
     /* Rate sampled at the START of the step. The error is at most one
        frame's worth at each boundary — 8 ms of a 15 s animation — and the

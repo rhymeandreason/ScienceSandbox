@@ -9,14 +9,27 @@
  *  loading pause, it is a page that appears broken.
  *
  *  WHY A FORMAT OF ITS OWN, AND NOT FoldLib.encode. encode() writes every
- *  atom of every keyframe: 185 x 729 x 3 floats, 1.6 MB. But this page
- *  draws a RIBBON, and a ribbon needs one atom per residue — the Ca. The
- *  only other thing on screen is act 1's hydrogen-bond dashes, and a dash
- *  needs exactly two points, the acceptor O and the donor H. So the file
- *  carries 146 Ca + 103 O + 103 H per keyframe instead of 729 atoms,
- *  quantised to int16 against the trajectory's own bounding box, and comes
- *  out at roughly a quarter the size. Everything dropped is something
- *  nothing draws.
+ *  atom of every keyframe as float32: 185 x 729 x 3 floats, 1.6 MB. This
+ *  carries the same atoms quantised to int16 against the trajectory's own
+ *  bounding box, which halves it, and adds the things the page needs and
+ *  FoldLib knows nothing about — the secondary structure, the H-bond list,
+ *  the formation ramp, the sequence and the focus range.
+ *
+ *  IT DID NOT ALWAYS CARRY EVERY ATOM. v1 and v2 stored 146 Ca + 103 O +
+ *  103 H per keyframe — a ribbon needs one point per residue, and a dash
+ *  needs its two endpoints, so everything else was something nothing drew.
+ *  v2 added the close-up's fifteen residues as a fourth block. The intro
+ *  changed the premise: it draws a ball-and-stick model of the WHOLE chain
+ *  that the student pans along, so every backbone atom is on screen before
+ *  the fold starts and all 729 have to be in the file.
+ *
+ *  Once they are, the other three blocks stop being data and become INDEX
+ *  LISTS into them. That is the v3 layout, and it is smaller than the sum
+ *  of its parts would have been: 722 points a keyframe (729 less the seven
+ *  proline amide hydrogens, which are chemically wrong and are dropped —
+ *  see backboneOf), 814 KB against v2's 486. The intro costs about 330 KB,
+ *  and in exchange "the close-up's alpha carbons ARE the ribbon's" stopped
+ *  being an assertion about two copies and became a property of one.
  *
  *  QUANTISATION. int16 across a box that never exceeds ~500 A gives about
  *  0.008 A per step — two orders of magnitude below the 1.24 A the fold
@@ -52,7 +65,7 @@ const OUT = path.join(HERE, 'data', '2HHB-B.fold.bin');
 
 const CHAIN = 'B';        // the beta chain: 146 residues, helices BA..BH
 const MAGIC = 0x48424631; // 'HBF1'
-const VERSION = 2;        // v2 adds residue names + the focus segment's atoms
+const VERSION = 3;        // v3 stores the whole backbone; Ca/O/H are index lists
 
 /* ------------------------------------------------- the focus segment (v2)
  *
@@ -560,18 +573,28 @@ function bake() {
    visible gain. This is the same trade the rest of the file makes: the
    drawing is right, and the thing that is wrong is named. */
 const FOCUS_ORDER = ['N', 'H', 'CA', 'C', 'O'];
-function focusOf(parsed) {
-  const inRange = nd => nd.res >= FOCUS.lo && nd.res <= FOCUS.hi &&
-                        !(nd.name === 'H' && nd.resName === 'PRO');
-  const atoms = parsed.nodes.filter(inRange).sort((a, b) =>
+
+/* backboneOf(parsed) -> { atoms, bonds } for the WHOLE chain (v3).
+   `atoms` are the parse's nodes, ordered by residue then N-H-CA-C-O;
+   `bonds` are pairs of positions WITHIN that array, so the page never has
+   to know a node index.
+
+   ORDERED, and the order is not cosmetic: it is what makes the written
+   block readable as a chain, so check-hb.js can assert consecutive CA
+   spacing and the peptide link without a lookup table. Any atom the parse
+   did not keep is simply absent — the encoder writes what exists rather
+   than assuming five per residue, because the terminal residue and residue
+   1's missing amide H are exactly the cases that break that assumption. */
+function backboneOf(parsed) {
+  const keep = nd => !(nd.name === 'H' && nd.resName === 'PRO');
+  const atoms = parsed.nodes.filter(keep).sort((a, b) =>
     a.res - b.res || FOCUS_ORDER.indexOf(a.name) - FOCUS_ORDER.indexOf(b.name));
-  if (!atoms.length)
-    throw new Error(`no atoms in residues ${FOCUS.lo}-${FOCUS.hi} — the close-up has nothing to draw`);
+  if (!atoms.length) throw new Error('the parse produced no backbone atoms');
   const at = new Map(atoms.map((nd, k) => [nd.i, k]));
   const bonds = [];
   for (const [i, j] of parsed.bonds)
     if (at.has(i) && at.has(j)) bonds.push([at.get(i), at.get(j)]);
-  return { atoms, bonds };
+  return { atoms, bonds, at };
 }
 
 /* Layout, little-endian throughout. Every int16 block is a whole number of
@@ -580,18 +603,30 @@ function focusOf(parsed) {
 function encode(b) {
   const { traj, caIdx, oIdx, hIdx, ss, first, hb, folder } = b;
   const K = traj.count, R = caIdx.length, B = hb.length;
-  /* The focus segment's atoms ride in the SAME per-keyframe block as the Ca
-     trace and the bond endpoints, appended after them. One block means one
-     bounding box and one scale, so the close-up is quantised exactly as
-     finely as the ribbon it sits inside — a separate block would have
-     invited a second, subtly different, dequantisation path. */
-  const foc = focusOf(b.parsed);
-  const F = foc.atoms.length, FB = foc.bonds.length;
-  const pts = R + B + B + F;                   // points stored per keyframe
+  /* v3 STORES THE WHOLE BACKBONE ONCE AND INDEXES INTO IT.
+     v2 wrote four overlapping blocks per keyframe — the Ca trace, the
+     H-bond acceptors, the H-bond donors and the close-up's atoms — and
+     three of those were subsets of the fourth's parent set. The intro now
+     draws every atom of the chain, so the full backbone has to be in the
+     file anyway; once it is, the other three are index lists into it
+     rather than copies. That is 729 points a keyframe instead of 427 and
+     roughly 814 KB instead of 486, which is the real cost of the intro —
+     but it removes the duplication rather than adding to it, and it makes
+     "the close-up's alpha carbons ARE the ribbon's" true by construction
+     instead of by assertion. */
+  const bb = backboneOf(b.parsed);
+  const A = bb.atoms.length, NB = bb.bonds.length;
+  const pts = A;                               // points stored per keyframe
+  /* The index lists, in terms of positions in `bb.atoms`. */
+  const caPos = caIdx.map(i => bb.at.get(i));
+  const oPos  = oIdx.map(i => bb.at.get(i));
+  const hPos  = hIdx.map(i => bb.at.get(i));
+  if ([...caPos, ...oPos, ...hPos].some(x => x == null))
+    throw new Error('a Ca or H-bond endpoint is missing from the backbone set');
 
   /* Bounding box over everything that will actually be written. */
   let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-  const idx = caIdx.concat(oIdx, hIdx, foc.atoms.map(nd => nd.i));
+  const idx = bb.atoms.map(nd => nd.i);
   for (const frame of traj.key)
     for (const i of idx)
       for (let k = 0; k < 3; k++) {
@@ -609,8 +644,9 @@ function encode(b) {
                       R * 3 * 4 +              // deposited Ca, float32
                       K * 4 +                  // ts, float32
                       pad4(R * 3) +            // v2: residue names, 3 ascii each
-                      8 +                      // v2: focus header
-                      F * 8 + FB * 4;          // v2: focus atoms, focus bonds
+                      8 +                      // v3: focus range + counts
+                      A * 8 + NB * 4 +         // v3: backbone atoms, bonds
+                      pad4(R * 2) + pad4(B * 2) * 2;  // v3: ca / o / h index lists
   const frameBytes = K * (pad4(pts * 3 * 2) + pad4(B));
   const buf = Buffer.alloc(headerBytes + staticBytes + frameBytes);
 
@@ -647,23 +683,33 @@ function encode(b) {
     buf.write((b.parsed.residues[i].name + '   ').slice(0, 3), p + i * 3, 3, 'latin1');
   p += pad4(R * 3);
 
-  /* v2: the focus segment. Its residue RANGE is written out rather than
-     left implicit in the atom list, so the page can label and frame the
-     span without scanning for its ends. */
+  /* v3: the focus RANGE — which residues the close-up frames. The atoms of
+     it are no longer a separate list; they are whichever backbone atoms
+     fall in this range, which is what makes the close-up and the ribbon
+     provably the same molecule. */
   buf.writeUInt16LE(FOCUS.lo, p); buf.writeUInt16LE(FOCUS.hi, p + 2);
-  buf.writeUInt16LE(F, p + 4);    buf.writeUInt16LE(FB, p + 6);
+  buf.writeUInt16LE(A, p + 4);    buf.writeUInt16LE(NB, p + 6);
   p += 8;
-  foc.atoms.forEach((nd, k) => {
+  bb.atoms.forEach((nd, k) => {
     buf.write((nd.name + '    ').slice(0, 4), p + k * 8, 4, 'latin1');
     buf.writeUInt16LE(nd.res, p + k * 8 + 4);
     buf.writeUInt8(nd.el.charCodeAt(0), p + k * 8 + 6);
     buf.writeUInt8(0, p + k * 8 + 7);          // pad, keeps the record 8 wide
   });
-  p += F * 8;
-  foc.bonds.forEach(([i, j], k) => {
+  p += A * 8;
+  bb.bonds.forEach(([i, j], k) => {
     buf.writeUInt16LE(i, p + k * 4); buf.writeUInt16LE(j, p + k * 4 + 2);
   });
-  p += FB * 4;
+  p += NB * 4;
+
+  /* v3: the three index lists into the atom array. The Ca trace the ribbon
+     is built from, and the acceptor/donor of each hydrogen bond. */
+  for (let i = 0; i < R; i++) buf.writeUInt16LE(caPos[i], p + i * 2);
+  p += pad4(R * 2);
+  for (let i = 0; i < B; i++) buf.writeUInt16LE(oPos[i], p + i * 2);
+  p += pad4(B * 2);
+  for (let i = 0; i < B; i++) buf.writeUInt16LE(hPos[i], p + i * 2);
+  p += pad4(B * 2);
 
   /* Keyframes. */
   for (let f = 0; f < K; f++) {
@@ -679,7 +725,7 @@ function encode(b) {
     p += pad4(B);
   }
 
-  return { buf, lo, scale, R, K, B, F, FB };
+  return { buf, lo, scale, R, K, B, A, NB };
 }
 
 /* ------------------------------------------------------------ round trip */
@@ -720,20 +766,28 @@ function decode(buf) {
   for (let i = 0; i < R; i++) resNames.push(u8.toString('latin1', p + i * 3, p + i * 3 + 3).trim());
   p += pad4(R * 3);
 
-  const focus = { lo: u8.readUInt16LE(p), hi: u8.readUInt16LE(p + 2),
-                  atoms: [], bonds: [] };
-  const F = u8.readUInt16LE(p + 4), FB = u8.readUInt16LE(p + 6);
+  const focus = { lo: u8.readUInt16LE(p), hi: u8.readUInt16LE(p + 2) };
+  const A = u8.readUInt16LE(p + 4), NB = u8.readUInt16LE(p + 6);
   p += 8;
-  for (let i = 0; i < F; i++)
-    focus.atoms.push({ name: u8.toString('latin1', p + i * 8, p + i * 8 + 4).trim(),
-                       res: u8.readUInt16LE(p + i * 8 + 4),
-                       el: String.fromCharCode(u8.readUInt8(p + i * 8 + 6)) });
-  p += F * 8;
-  for (let i = 0; i < FB; i++)
-    focus.bonds.push([u8.readUInt16LE(p + i * 4), u8.readUInt16LE(p + i * 4 + 2)]);
-  p += FB * 4;
+  const atoms = [], abonds = [];
+  for (let i = 0; i < A; i++)
+    atoms.push({ name: u8.toString('latin1', p + i * 8, p + i * 8 + 4).trim(),
+                 res: u8.readUInt16LE(p + i * 8 + 4),
+                 el: String.fromCharCode(u8.readUInt8(p + i * 8 + 6)) });
+  p += A * 8;
+  for (let i = 0; i < NB; i++)
+    abonds.push([u8.readUInt16LE(p + i * 4), u8.readUInt16LE(p + i * 4 + 2)]);
+  p += NB * 4;
 
-  const pts = R + B + B + F;
+  const caPos = [], oPos = [], hPos = [];
+  for (let i = 0; i < R; i++) caPos.push(u8.readUInt16LE(p + i * 2));
+  p += pad4(R * 2);
+  for (let i = 0; i < B; i++) oPos.push(u8.readUInt16LE(p + i * 2));
+  p += pad4(B * 2);
+  for (let i = 0; i < B; i++) hPos.push(u8.readUInt16LE(p + i * 2));
+  p += pad4(B * 2);
+
+  const pts = A;
   const key = [], formed = [];
   for (let f = 0; f < K; f++) {
     const a = new Float32Array(pts * 3);
@@ -745,8 +799,8 @@ function decode(buf) {
     p += pad4(B);
     key.push(a); formed.push(fm);
   }
-  return { version, R, K, B, first, ss, bonds, native, ts, key, formed,
-           resNames, focus };
+  return { version, R, K, B, A, first, ss, bonds, native, ts, key, formed,
+           resNames, focus, atoms, abonds, caPos, oPos, hPos };
 }
 
 /* ------------------------------------------------------------------ run */
@@ -775,4 +829,4 @@ if (0) {
   console.log(`  wrote ${path.relative(HERE, OUT)} (${(buf.length / 1024).toFixed(0)} KB)`);
 }
 
-module.exports = { bake, encode, decode, focusOf, CHAIN, MAGIC, VERSION, FOCUS };
+module.exports = { bake, encode, decode, backboneOf, CHAIN, MAGIC, VERSION, FOCUS };

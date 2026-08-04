@@ -32,7 +32,7 @@ const path = require('path');
 const FoldLib = require('../../folding/folding.js');
 const RibbonLib = require('../../folding/ribbon.js');
 const { extract } = require('./chain.js');
-const { encode, decode, CHAIN } = require('./bake-hb.js');
+const { encode, decode, backboneOf, CHAIN } = require('./bake-hb.js');
 const { bakeUnfold } = require('./bake-unfold.js');
 /* Memoised: the unfold takes ~55 s and this file wanted it twice — once to
    compare against the committed bytes and once for its geometry. */
@@ -140,6 +140,14 @@ if (QUICK) {
 /* ---------------- what the page will actually read back ---------------- */
 
 const d = decode(onDisk);
+/* THE Ca TRACE IS NO LONGER THE FIRST R POINTS OF A KEYFRAME. v3 stores the
+   whole backbone and points at the alpha carbons through `caPos`, so every
+   assertion about the trace has to go through this accessor. Getting it
+   wrong does not throw — it silently measures N-to-N distances and reports
+   a chain with 1 A bonds, which is what happened on the way here. */
+const caK = (f, i, k) => d.key[f][d.caPos[i] * 3 + k];
+const caP = (f, i) => [caK(f, i, 0), caK(f, i, 1), caK(f, i, 2)];
+
 ok(d.R === 146 && d.first === 1, 'decodes to 146 residues starting at 1',
    `R=${d.R} first=${d.first}`);
 ok(d.K === d.ts.length && d.ts[0] === 0 && Math.abs(d.ts[d.K - 1] - 1) < 1e-6,
@@ -159,7 +167,10 @@ const b = QUICK ? null : bake();
 if (QUICK) {
   console.log('  --    skipping the quantisation bound (--quick)');
 } else {
-  const idx = b.caIdx.concat(b.oIdx, b.hIdx);
+  /* v3: the keyframe block IS the backbone, in backboneOf's order — not
+     caIdx+oIdx+hIdx concatenated, which is what v2 wrote. Derived from the
+     same function the encoder uses, so the two cannot fall out of step. */
+  const idx = backboneOf(b.parsed).atoms.map(nd => nd.i);
   let qErr = 0;
   for (let f = 0; f < d.K; f++)
     for (let i = 0; i < idx.length; i++)
@@ -179,16 +190,23 @@ if (QUICK) {
    drawing the chain up to 1.13 A away from the trajectory it had baked. */
 const HbFold = require('../hbfold.js');
 const page = HbFold.decode(onDisk);
+/* v3: every atom of every keyframe, not just the Ca and the bond ends —
+   the intro draws all of them, so all of them have to survive the round
+   trip. The Ca/O/H checks below then ride on the index lists, which is
+   also what catches an index list that has drifted out of step. */
 let dErr = 0;
 for (let f = 0; f < d.K; f++) {
   const s = page.at(d.ts[f]);
+  for (let i = 0; i < d.A; i++)
+    for (let k = 0; k < 3; k++)
+      dErr = Math.max(dErr, Math.abs(s.P[i][k] - d.key[f][i * 3 + k]));
   for (let i = 0; i < d.R; i++)
     for (let k = 0; k < 3; k++)
-      dErr = Math.max(dErr, Math.abs(s.CA[i][k] - d.key[f][i * 3 + k]));
+      dErr = Math.max(dErr, Math.abs(s.CA[i][k] - d.key[f][d.caPos[i] * 3 + k]));
   for (let i = 0; i < d.B; i++)
     for (let k = 0; k < 3; k++) {
-      dErr = Math.max(dErr, Math.abs(s.O[i][k] - d.key[f][(d.R + i) * 3 + k]));
-      dErr = Math.max(dErr, Math.abs(s.H[i][k] - d.key[f][(d.R + d.B + i) * 3 + k]));
+      dErr = Math.max(dErr, Math.abs(s.O[i][k] - d.key[f][d.oPos[i] * 3 + k]));
+      dErr = Math.max(dErr, Math.abs(s.H[i][k] - d.key[f][d.hPos[i] * 3 + k]));
     }
 }
 ok(dErr < 1e-3, 'the page decoder and the baker agree at every keyframe',
@@ -196,21 +214,54 @@ ok(dErr < 1e-3, 'the page decoder and the baker agree at every keyframe',
 ok(page.ss.join('') === d.ss.join('') && page.first === d.first && page.B === d.B,
    'both decoders read the same secondary structure and numbering');
 
-/* ---------------- the opening close-up (format v2) ----------------
-   The page opens on residues 4-18 as real atoms and pulls out to the
-   ribbon. Everything it says while doing so is checkable, and none of it
-   is visible from watching: a close-up on the wrong residues, or on atoms
-   that have quietly stopped matching the ribbon drawn through them, plays
-   exactly as smoothly as a correct one. */
-ok(d.version === 2 && page.version === 2, 'the file is format v2 (it carries the close-up)',
+/* ---------------- the intro and the close-up (format v3) ----------------
+   The page opens on a ball-and-stick model of the WHOLE chain, which the
+   student pans along, and the close-up is a lit region of it. Everything
+   that says is checkable, and none of it is visible from watching: a
+   close-up on the wrong residues, or a backbone that has quietly stopped
+   matching the ribbon drawn through it, plays exactly as smoothly as a
+   correct one. */
+ok(d.version === 3 && page.version === 3, 'the file is format v3 (it carries the whole backbone)',
    `baker ${d.version}, page ${page.version}`);
-ok(JSON.stringify(page.focus) === JSON.stringify(d.focus),
-   'both decoders read the same focus segment');
+ok(JSON.stringify(page.focus) === JSON.stringify(d.focus) &&
+   JSON.stringify(page.atoms) === JSON.stringify(d.atoms) &&
+   JSON.stringify(page.abonds) === JSON.stringify(d.abonds),
+   'both decoders read the same backbone and focus range');
 ok(d.resNames.length === 146 && d.resNames.slice(0, 6).join('') === 'VALHISLEUTHRPROGLU',
    'the sequence is human beta-globin, from residue 1',
    d.resNames.slice(0, 6).join(' '));
 
+/* THE INTRO DRAWS EVERY RESIDUE, so every residue must have a backbone to
+   draw. This is the assertion the intro rests on: a gap anywhere in the
+   chain is a hole the student can pan to and find. */
+{
+  const seen = new Map();
+  d.atoms.forEach(a => {
+    if (!seen.has(a.res)) seen.set(a.res, new Set());
+    seen.get(a.res).add(a.name);
+  });
+  ok(seen.size === d.R, 'every one of the 146 residues has atoms in the file',
+     `${seen.size}/${d.R}`);
+  const gaps = [...seen.entries()]
+    .filter(([, s]) => !['N', 'CA', 'C', 'O'].every(n => s.has(n))).map(([r]) => r);
+  ok(gaps.length === 0, 'every residue in the chain has N, CA, C and O',
+     gaps.length ? `missing at ${gaps.join(' ')}` : '');
+  /* Proline is the exception and it must BE the exception: it has no amide
+     H, and the intro is what draws them. chain.js builds an H on every
+     proline anyway (see backboneOf in bake-hb.js for why that is left
+     alone), so this asserts the DRAWN set is right — stated as an equality
+     over the whole chain, which no longer depends on where FOCUS sits. */
+  const noH = [...seen.entries()].filter(([, s]) => !s.has('H')).map(([r]) => r);
+  const pros = [...seen.keys()].filter(r => d.resNames[r - d.first] === 'PRO');
+  ok(noH.join(' ') === [d.first, ...pros].join(' '),
+     'the only residues without an amide H are residue 1 and the prolines',
+     `no H: [${noH.join(' ')}]  expected: [${[d.first, ...pros].join(' ')}]`);
+}
+
 const foc = d.focus;
+/* The close-up's atoms are now simply those in the focus RANGE. */
+const focAtoms = d.atoms.map((a, i) => ({ ...a, i }))
+                        .filter(a => a.res >= foc.lo && a.res <= foc.hi);
 /* THE SEGMENT MUST BE ONE THE STUDENT WATCHES BECOME A HELIX. The caption
    says "watch this stretch wind into an alpha-helix", so the range has to
    be inside a deposited HELIX record — not merely near one. */
@@ -218,58 +269,32 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
    'the close-up sits wholly inside a deposited helix record',
    `${foc.lo}-${foc.hi} vs ${ex.helices.map(h => h.join('-')).join(' ')}`);
 
-/* Every residue in it has a full backbone to draw. The amide H is the one
-   legitimate absence — proline has no N-H, and residue 5 IS a proline, so
-   this asserts the exception rather than tripping over it. */
-{
-  const byRes = new Map();
-  foc.atoms.forEach(a => {
-    if (!byRes.has(a.res)) byRes.set(a.res, new Set());
-    byRes.get(a.res).add(a.name);
-  });
-  const nRes = foc.hi - foc.lo + 1;
-  ok(byRes.size === nRes, `all ${nRes} focus residues have atoms`, `got ${byRes.size}`);
-  const missing = [...byRes.entries()].filter(([, s]) =>
-    !['N', 'CA', 'C', 'O'].every(n => s.has(n)));
-  ok(missing.length === 0, 'every focus residue has N, CA, C and O',
-     missing.map(([r]) => r).join(' '));
-  /* Proline is the exception and it must BE the exception: it has no amide
-     H, and the close-up is the only thing here that draws one. chain.js
-     builds an H on every proline anyway (see focusOf in bake-hb.js for why
-     that is left alone), so this asserts the drawn set is right — every
-     focus residue has its H except the prolines, which have none.
+ok(focAtoms.length > 0 && new Set(focAtoms.map(a => a.res)).size === foc.hi - foc.lo + 1,
+   `all ${foc.hi - foc.lo + 1} close-up residues have atoms`,
+   `${focAtoms.length} atoms`);
 
-     STATED AS AN EQUALITY so it survives moving FOCUS. The current segment
-     contains no proline at all, which makes both sides empty; the previous
-     one held exactly one. Either is correct, and what would not be is an H
-     on a proline or a missing H anywhere else — which is what this
-     compares, rather than asserting a count that only suited one segment. */
-  const noH = [...byRes.entries()].filter(([, s]) => !s.has('H')).map(([r]) => r);
-  const pros = [...byRes.keys()].filter(r => d.resNames[r - d.first] === 'PRO');
-  ok(noH.join(' ') === pros.join(' '),
-     'the focus residues missing an amide H are exactly the prolines',
-     `no H: [${noH.join(' ')}]  prolines: [${pros.join(' ')}]`);
-}
-
-/* THE CLOSE-UP'S ATOMS ARE THE RIBBON'S ATOMS. The focus block duplicates
-   the alpha carbons that are already in the Ca trace, so there are two
-   copies of the same point in the file and nothing but this stops them
-   drifting apart. If they ever did, the atoms and the cartoon laid through
-   them would be different molecules — which is precisely what the pull-out
-   claims they are not. */
+/* THE CLOSE-UP'S ATOMS ARE THE RIBBON'S ATOMS — now true by construction
+   rather than by luck, and this asserts the construction. v2 stored the
+   close-up's alpha carbons a second time and this check existed to stop
+   the two copies drifting; v3 stores the backbone once and points the Ca
+   trace at it, so what is checked now is that the INDEX LIST is right.
+   A caPos that pointed at the wrong atom would put the ribbon through
+   something that is not the alpha carbon, which is the same failure with a
+   different cause. */
 {
-  const off = d.R + d.B + d.B;
-  let worst = 0;
-  foc.atoms.forEach((a, i) => {
-    if (a.name !== 'CA') return;
-    const r = a.res - d.first;
-    for (let f = 0; f < d.K; f++)
-      for (let k = 0; k < 3; k++)
-        worst = Math.max(worst,
-          Math.abs(d.key[f][(off + i) * 3 + k] - d.key[f][r * 3 + k]));
-  });
-  ok(worst < 1e-6, 'the close-up\'s alpha carbons are the ribbon\'s, at every keyframe',
-     `max ${worst.toExponential(1)} A`);
+  let bad = 0;
+  for (let i = 0; i < d.R; i++) {
+    const a = d.atoms[d.caPos[i]];
+    if (!a || a.name !== 'CA' || a.res !== d.first + i) bad++;
+  }
+  ok(bad === 0, 'the ribbon\'s Ca index list points at the actual alpha carbons',
+     `${bad} wrong of ${d.R}`);
+  let bo = 0;
+  for (let i = 0; i < d.B; i++) {
+    if (d.atoms[d.oPos[i]].name !== 'O' || d.atoms[d.hPos[i]].name !== 'H') bo++;
+  }
+  ok(bo === 0, 'every hydrogen bond runs from a carbonyl O to an amide H',
+     `${bo} wrong of ${d.B}`);
 }
 
 /* A BACKBONE THAT STAYS A BACKBONE. Ball-and-stick shows bond lengths that
@@ -279,24 +304,61 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
    gap between two atoms. Checked over the WHOLE trajectory, not just the
    deposited end. */
 {
-  const off = d.R + d.B + d.B;
-  const at = (f, i, k) => d.key[f][(off + i) * 3 + k];
+  const at = (f, i, k) => d.key[f][i * 3 + k];
   const dist = (f, i, j) => Math.hypot(at(f,i,0)-at(f,j,0), at(f,i,1)-at(f,j,1),
                                        at(f,i,2)-at(f,j,2));
-  const find = (res, nm) => foc.atoms.findIndex(a => a.res === res && a.name === nm);
-  let caMin = Infinity, caMax = 0, pepMin = Infinity, pepMax = 0;
+  const byKey = new Map();
+  d.atoms.forEach((a, i) => byKey.set(a.res + ':' + a.name, i));
+  const find = (res, nm) => byKey.get(res + ':' + nm);
+
+  /* THE PEPTIDE BOND, OVER THE WHOLE CHAIN, WHILE IT IS ON SCREEN.
+     New in v3, and it is the intro that earns it: every one of the 145
+     links is now drawn as a stick the student can pan to, so a stretched
+     one is a visible gap between two atoms rather than a number nothing
+     renders.
+
+     BOUNDED OVER THE DRAWN RANGE, NOT THE WHOLE TRAJECTORY, and the
+     difference is the point. The atoms fade out at FOCUS_OUT[1]; up to
+     there the worst link in the chain is 1.383 A. Afterwards the solver
+     stretches one loop (residues 77-81) to 1.474 at t=0.58 — 23 of 26,825
+     measurements, none of them rendered, because by then the page is
+     showing a ribbon. Asserting the tight bound over the whole run would
+     fail on geometry nobody can see; asserting the loose one everywhere
+     would stop catching a stretched stick in the intro, which is the thing
+     this is for. So it is bounded where it is drawn, and the tail is
+     bounded separately and loosely below. */
+  const DRAWN_UNTIL = 0.40;                   // the page's FOCUS_OUT[1]
+  let pepMin = Infinity, pepMax = 0, pepTail = 0;
+  for (let f = 0; f < d.K; f++)
+    for (let r = d.first; r < d.first + d.R - 1; r++) {
+      const c1 = find(r, 'C'), n2 = find(r + 1, 'N');
+      if (c1 == null || n2 == null) continue;
+      const dp = dist(f, c1, n2);
+      if (d.ts[f] <= DRAWN_UNTIL) {
+        if (dp < pepMin) pepMin = dp;
+        if (dp > pepMax) pepMax = dp;
+      } else if (dp > pepTail) pepTail = dp;
+    }
+  ok(pepMin > 1.25 && pepMax < 1.40,
+     `every peptide bond stays 1.25-1.40 A while the atoms are drawn (t<=${DRAWN_UNTIL})`,
+     `${pepMin.toFixed(3)}-${pepMax.toFixed(3)} A`);
+  ok(pepTail < 1.55, 'and never runs away after they are gone',
+     `worst ${pepTail.toFixed(3)} A`);
+
+  /* And the close-up's own alpha carbons, held to the tighter band the
+     segment actually keeps — the whole chain runs looser (the global Ca
+     assertion above allows to 4.2), but this stretch is the one shown at
+     26 A where a stretched backbone is unmissable. */
+  let caMin = Infinity, caMax = 0;
   for (let f = 0; f < d.K; f++)
     for (let r = foc.lo; r < foc.hi; r++) {
-      const ca1 = find(r, 'CA'), ca2 = find(r + 1, 'CA');
-      const c1 = find(r, 'C'), n2 = find(r + 1, 'N');
-      const dc = dist(f, ca1, ca2), dp = dist(f, c1, n2);
-      caMin = Math.min(caMin, dc); caMax = Math.max(caMax, dc);
-      pepMin = Math.min(pepMin, dp); pepMax = Math.max(pepMax, dp);
+      const dc = dist(f, find(r, 'CA'), find(r + 1, 'CA'));
+      if (dc < caMin) caMin = dc;
+      if (dc > caMax) caMax = dc;
     }
-  ok(caMin > 3.6 && caMax < 4.0, 'consecutive alpha carbons stay 3.6-4.0 A apart',
+  ok(caMin > 3.6 && caMax < 4.0,
+     'the close-up\'s consecutive alpha carbons stay 3.6-4.0 A apart',
      `${caMin.toFixed(2)}-${caMax.toFixed(2)} A`);
-  ok(pepMin > 1.25 && pepMax < 1.45, 'the peptide bond C-N stays 1.25-1.45 A',
-     `${pepMin.toFixed(2)}-${pepMax.toFixed(2)} A`);
 }
 
 /* THE CAMERA MAY NOT PULL OUT BEFORE THE HELIX IS MADE. hemoglobin-lab.html
@@ -326,6 +388,20 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
      at the end of the camera move the two terminal helices are made and
      the four middle ones are not. If the trajectory ever changes so they
      coil evenly, the caption becomes false while still reading fine. */
+  /* THE RIBBON IS HELD OFF THE SCREEN UNTIL THE SECONDARY ACT, and the
+     point of holding it is that a cartoon is a summary of secondary
+     structure — so it must not arrive over a chain that has none. The page
+     fades it in over RIBBON_IN, starting at the level-2 caption; assert
+     that bonds have actually begun forming by then. Paired with the t=0
+     assertion above (no bonds at all, primary structure is sequence), this
+     brackets the claim from both sides. */
+  const RIBBON_IN_0 = 0.10;
+  let r0 = 0;
+  while (r0 < d.K - 1 && d.ts[r0] < RIBBON_IN_0) r0++;
+  const begun = [...d.formed[r0]].filter(x => x > 0.5).length;
+  ok(begun > 0, `the backbone has begun bonding when the ribbon fades in (t=${RIBBON_IN_0})`,
+     `${begun}/${d.B} bonds formed`);
+
   const FOCUS_OUT_1 = 0.40;
   let g = 0;
   while (g < d.K - 1 && d.ts[g] < FOCUS_OUT_1) g++;
@@ -359,7 +435,7 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
     const ext = b.target;        // the rotated target the unfold ran against
     for (let i = 0; i < d.R; i++)
       for (let k = 0; k < 3; k++)
-        e = Math.max(e, Math.abs(d.key[0][i * 3 + k] - ext[b.caIdx[i]][k]));
+        e = Math.max(e, Math.abs(caK(0, i, k) - ext[b.caIdx[i]][k]));
   }
   /* NOT an equality. The unfold is driven toward the extended conformation
      by a clamped drift under constraints, so it approaches asymptotically
@@ -370,7 +446,7 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
      extended chain rather than some other open conformation, so the shape
      is checked as well as the distance. */
   const P0 = [];
-  for (let i = 0; i < d.R; i++) P0.push([d.key[0][i*3], d.key[0][i*3+1], d.key[0][i*3+2]]);
+  for (let i = 0; i < d.R; i++) P0.push(caP(0, i));
   const c0 = [0,1,2].map(k => P0.reduce((s, p) => s + p[k], 0) / P0.length);
   const span0 = 2 * Math.max(...P0.map(p => Math.hypot(p[0]-c0[0], p[1]-c0[1], p[2]-c0[2])));
   if (QUICK) console.log('  --    skipping the FoldLib.extended compare (--quick)');
@@ -396,7 +472,7 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
   };
   const span = (f) => {
     const P = [];
-    for (let i = 0; i < d.R; i++) P.push([d.key[f][i*3], d.key[f][i*3+1], d.key[f][i*3+2]]);
+    for (let i = 0; i < d.R; i++) P.push(caP(f, i));
     const c = [0,1,2].map(k => P.reduce((s, p) => s + p[k], 0) / P.length);
     return 2 * Math.max(...P.map(p => Math.hypot(p[0]-c[0], p[1]-c[1], p[2]-c[2])));
   };
@@ -449,7 +525,7 @@ ok(ex.helices.some(([a, b]) => a <= foc.lo && foc.hi <= b),
 let landErr = 0;
 for (let i = 0; i < d.R; i++)
   for (let k = 0; k < 3; k++)
-    landErr = Math.max(landErr, Math.abs(d.key[d.K - 1][i * 3 + k] - d.native[i][k]));
+    landErr = Math.max(landErr, Math.abs(caK(d.K - 1, i, k) - d.native[i][k]));
 ok(landErr < 0.02, 'the last frame IS the deposited chain, not an approximation of it',
    `max ${landErr.toFixed(4)} A`);
 
@@ -464,9 +540,7 @@ ok([...d.formed[d.K - 1]].every(x => x > 0.5),
 let minCA = Infinity, maxCA = 0;
 for (let f = 0; f < d.K; f++)
   for (let i = 0; i + 1 < d.R; i++) {
-    const a = f * 0 + i;   // readability: index into this frame's Ca block
-    const p = [d.key[f][a*3], d.key[f][a*3+1], d.key[f][a*3+2]];
-    const q = [d.key[f][(a+1)*3], d.key[f][(a+1)*3+1], d.key[f][(a+1)*3+2]];
+    const p = caP(f, i), q = caP(f, i + 1);
     const L = Math.hypot(p[0]-q[0], p[1]-q[1], p[2]-q[2]);
     if (L < minCA) minCA = L;
     if (L > maxCA) maxCA = L;
@@ -487,9 +561,9 @@ let minNL = Infinity, nlAt = 0;
 for (let f = 0; f < d.K; f++)
   for (let i = 0; i < d.R; i++)
     for (let j = i + 3; j < d.R; j++) {
-      const L = Math.hypot(d.key[f][i*3] - d.key[f][j*3],
-                           d.key[f][i*3+1] - d.key[f][j*3+1],
-                           d.key[f][i*3+2] - d.key[f][j*3+2]);
+      const L = Math.hypot(caK(f,i,0) - caK(f,j,0),
+                           caK(f,i,1) - caK(f,j,1),
+                           caK(f,i,2) - caK(f,j,2));
       if (L < minNL) { minNL = L; nlAt = d.ts[f]; }
     }
 ok(minNL > 2.8, 'no two non-neighbouring Ca ever come closer than the ribbon is wide',
@@ -507,9 +581,9 @@ ok(minNL > 2.8, 'no two non-neighbouring Ca ever come closer than the ribbon is 
 let minOmega = Infinity;
 for (let f = 0; f < d.K; f++)
   for (let i = 0; i + 1 < d.R; i++) {
-    const L = Math.hypot(d.key[f][i*3] - d.key[f][(i+1)*3],
-                         d.key[f][i*3+1] - d.key[f][(i+1)*3+1],
-                         d.key[f][i*3+2] - d.key[f][(i+1)*3+2]);
+    const L = Math.hypot(caK(f,i,0) - caK(f,i+1,0),
+                         caK(f,i,1) - caK(f,i+1,1),
+                         caK(f,i,2) - caK(f,i+1,2));
     if (L < minOmega) minOmega = L;
   }
 ok(minOmega > 3.4, 'every peptide bond stays trans (cis would close Ca-Ca to ~2.9 A)',
@@ -524,9 +598,9 @@ const allSteps = [];
 for (let f = 1; f < d.K; f++) {
   let worst = 0;
   for (let i = 0; i < d.R; i++) {
-    const s = Math.hypot(d.key[f][i*3] - d.key[f-1][i*3],
-                         d.key[f][i*3+1] - d.key[f-1][i*3+1],
-                         d.key[f][i*3+2] - d.key[f-1][i*3+2]);
+    const s = Math.hypot(caK(f,i,0) - caK(f-1,i,0),
+                         caK(f,i,1) - caK(f-1,i,1),
+                         caK(f,i,2) - caK(f-1,i,2));
     if (s > worst) worst = s;
   }
   allSteps.push(worst);
@@ -598,7 +672,7 @@ function handedness(P) {
 const midF = (() => { let f = 0; while (f < d.K - 1 && d.ts[f] < 0.70) f++; return f; })();
 const CA = [];
 for (let i = 0; i < d.R; i++)
-  CA.push([d.key[midF][i*3], d.key[midF][i*3+1], d.key[midF][i*3+2]]);
+  CA.push(caP(midF, i));
 
 /* The deposited chain is the calibration: it is a measured alpha helix, so
    there is no tolerance to give it. */
