@@ -271,9 +271,14 @@
  *    invented   the PATH from extended chain to folded protein. A steered
  *               relaxation, aimed at the answer. The info panel says so.
  *
- *  Every coordinate here is a real angstrom. This page loads no mol-*.js
- *  and never sees MolLib.SCALE — MolLib is here for PALETTE alone, the
- *  same arrangement folding-lab.html uses.
+ *  EVERY COORDINATE HERE IS A REAL ANGSTROM, and there are four sources of
+ *  them: the baked fold trajectory (hemoglobin/hbfold.js), the deposited
+ *  chains and hemes (hemoglobin/data/2HHB-quaternary.json), the twenty
+ *  side chains level 1 grafts on (residues.js), and the flat chain this
+ *  page builds itself from bond lengths and angles. Not one is a MolLib
+ *  spec — no mol-*.js loads — so MolLib is here for PALETTE, plus SCALE as
+ *  the single divisor turning the house display radii back into angstroms
+ *  (RADII, below).
  * ============================================================= */
 
 const PAL = MolLib.PALETTE;
