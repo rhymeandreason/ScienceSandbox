@@ -916,19 +916,394 @@ function build() {
   bondInFocus = fold.bonds.map(b =>
     Math.min(b.from, b.to) >= fold.focus.lo && Math.max(b.from, b.to) <= fold.focus.hi);
 
-  /* Where the intro may pan to: the extended chain's own X extent, measured
-     off the opening frame rather than assumed to be the quoted 503 Å (that
-     number is a diameter through space, not a span along one axis). */
+  buildFlatChain();
+
+  /* Where the intro may pan to: the chain's own X extent. Measured over
+     BOTH poses — the flat chain is the longer of the two (528 Å against
+     503, since it is ideally extended and the trajectory's start is not),
+     so measuring only the trajectory would fence the pan short of the
+     sequence the student is being invited to read. */
   {
-    const P0 = fold.at(0).P;
     chainXlo = Infinity; chainXhi = -Infinity;
-    for (const p of P0) {
-      if (p[0] < chainXlo) chainXlo = p[0];
-      if (p[0] > chainXhi) chainXhi = p[0];
-    }
+    for (const P of [fold.at(0).P, flatP])
+      for (const p of P) {
+        if (p[0] < chainXlo) chainXlo = p[0];
+        if (p[0] > chainXhi) chainXhi = p[0];
+      }
   }
 
   buildFocus();
+}
+
+/* ---------- level 1's flat chain ----------
+ *  THE PAGE OPENS ON A CHAIN THAT IS NOT IN THE TRAJECTORY. Level 1 is the
+ *  sequence and nothing else — 146 named things in an order — and the
+ *  trajectory's first frame is not quite that: it is where the unfold
+ *  stopped, so it carries gentle bows of 8-15 degrees around residues 40,
+ *  72 and 115 and a 1.6 Å out-of-plane wander. Nothing about those says
+ *  anything, and a student reading the chain has to read past them.
+ *
+ *  So level 1 shows the IDEAL ALL-TRANS EXTENDED conformation instead:
+ *  phi = -180, psi = 180, omega = 180, with textbook bond lengths and
+ *  angles. That is a real state, the limit a beta strand approaches, and
+ *  it is exactly planar — it lies in the XZ plane, which at the opening
+ *  camera (phi = 0.45, nearly straight down Y) is the screen. Every
+ *  residue is side-on and legible, and the pleat reads as the pleat.
+ *
+ *  IT IS STILL A ZIGZAG, and that is not a compromise. The peptide unit is
+ *  planar and rigid, so a chain can only pivot either side of each alpha
+ *  carbon; drawing the sequence as a straight line would need bond angles
+ *  that do not exist, and would teach a student something to unlearn when
+ *  they meet a beta PLEATED sheet. What the flat chain removes is the
+ *  wander, not the geometry: Ca-Ca is 3.804 Å at every link and
+ *  Ca-Ca-Ca is 146.5 degrees at every residue.
+ *
+ *  GENERATED, NOT BAKED. There is no measurement in it — it is bond
+ *  lengths, bond angles and three fixed torsions, so a data file would add
+ *  an artefact, a decoder and a staleness gate to something that is a
+ *  formula. check-hb.js asserts the geometry directly instead.
+ *
+ *  Then pressing play LERPS it into the trajectory's own first frame
+ *  before the fold proper starts — see FLAT_SETTLE. */
+const IDEAL = {                     // ångströms and degrees, textbook values
+  N_CA: 1.458, CA_C: 1.525, C_N: 1.329, C_O: 1.231, N_H: 1.010,
+  ang_N_CA_C: 111.0, ang_CA_C_N: 116.2, ang_C_N_CA: 121.7,
+  ang_CA_C_O: 120.8, ang_C_N_H: 119.0,
+};
+/* How much of the fold the settle from flat to trajectory takes. 0.06 of
+   11 seconds is about two-thirds of a second — long enough to read as the
+   chain relaxing, short enough to be over before level 2's first bond. */
+const FLAT_SETTLE = 0.06;
+
+/* Place one atom from three already placed: bond length to `c`, bond angle
+   at `c`, torsion about `b`-`c`. The standard NeRF construction.
+
+   THE TORSION IS THE IUPAC DIHEDRAL, sign and all. The sign is not a
+   formality — it is chirality, and a builder that has it backwards makes
+   the mirror image of what it was asked for. It WAS backwards here, and
+   the flat chain could not show it: every torsion in an ideal extended
+   chain is 180 or 0, and both are their own negatives. Anything reusing
+   this to build a real conformation has to check the sign itself. */
+function placeAtom(a, b, c, len, angDeg, torDeg) {
+  const ang = angDeg * Math.PI / 180, tor = torDeg * Math.PI / 180;
+  const bc = new THREE.Vector3(c[0]-b[0], c[1]-b[1], c[2]-b[2]).normalize();
+  const ab = new THREE.Vector3(b[0]-a[0], b[1]-a[1], b[2]-a[2]);
+  const n = new THREE.Vector3().crossVectors(ab, bc).normalize();
+  const m = new THREE.Vector3().crossVectors(n, bc);
+  const d = [-len * Math.cos(ang), len * Math.sin(ang) * Math.cos(tor),
+                                  -len * Math.sin(ang) * Math.sin(tor)];
+  return [c[0] + d[0]*bc.x + d[1]*m.x + d[2]*n.x,
+          c[1] + d[0]*bc.y + d[1]*m.y + d[2]*n.y,
+          c[2] + d[0]*bc.z + d[1]*m.z + d[2]*n.z];
+}
+
+let flatP = null;                   // positions parallel to fold.atoms
+let flatPose = null, blendPose = null;
+let caIdx = [], oIdx = [], hIdx = [];
+
+function buildFlatChain() {
+  /* WHICH ENTRY OF P IS WHICH is read off the decoder rather than
+     reconstructed: hbfold's CA/O/H are REFERENCES into P, so the index is
+     recoverable by identity and the two can never disagree. */
+  const s0 = fold.at(0);
+  const idxOf = new Map(s0.P.map((p, i) => [p, i]));
+  caIdx = s0.CA.map(p => idxOf.get(p));
+  oIdx = s0.O.map(p => idxOf.get(p));
+  hIdx = s0.H.map(p => idxOf.get(p));
+
+  const R = fold.R, N = [], CA = [], C = [], O = [], H = [];
+  /* The first three atoms fix the plane; everything after them is torsions
+     of 180, so the whole chain stays in it. y = 0 for all three puts that
+     plane at XZ — the screen, at the opening camera. */
+  N[0] = [0, 0, 0];
+  CA[0] = [IDEAL.N_CA, 0, 0];
+  C[0] = [CA[0][0] - IDEAL.CA_C * Math.cos(IDEAL.ang_N_CA_C * Math.PI / 180), 0,
+          IDEAL.CA_C * Math.sin(IDEAL.ang_N_CA_C * Math.PI / 180)];
+  for (let i = 0; i < R - 1; i++) {
+    N[i+1]  = placeAtom(N[i],  CA[i], C[i],   IDEAL.C_N,  IDEAL.ang_CA_C_N, 180);   // psi
+    CA[i+1] = placeAtom(CA[i], C[i],  N[i+1], IDEAL.N_CA, IDEAL.ang_C_N_CA, 180);   // omega
+    C[i+1]  = placeAtom(C[i],  N[i+1], CA[i+1], IDEAL.CA_C, IDEAL.ang_N_CA_C, -180); // phi
+  }
+  /* The carbonyl O sits anti to the next residue's N (psi = 180 puts the
+     torsion N-CA-C-O at 0), and the amide H anti to this residue's own CA,
+     which is what omega = 180 means. Proline has no amide H and residue 1
+     has none either; both are simply absent from the baked atom list, so
+     scattering by name skips them without a special case. */
+  for (let i = 0; i < R; i++) O[i] = placeAtom(N[i], CA[i], C[i], IDEAL.C_O, IDEAL.ang_CA_C_O, 0);
+  for (let i = 1; i < R; i++) H[i] = placeAtom(CA[i-1], C[i-1], N[i], IDEAL.N_H, IDEAL.ang_C_N_H, 0);
+
+  /* Into the trajectory's own frame. Two operations, and no superposition
+     solver: a spin about Y to put the chain on the axis folding.js's
+     orient() laid the real one along, then a translation.
+
+     THE TRANSLATION ANCHORS THE CLOSE-UP, not the whole chain. The flat
+     chain is 25 Å longer than the trajectory's start, so something has to
+     move when it settles; anchoring on the framed segment spends all of
+     that at the FAR end, which is off screen while the settle happens.
+     Anchoring on the centroid instead would have halved the largest
+     displacement and put 12 Å of it through the middle of the shot. */
+  const gen = { N, CA, C, O, H };
+  const ax = new THREE.Vector3(CA[R-1][0] - CA[0][0], 0, CA[R-1][2] - CA[0][2]);
+  const c0 = s0.CA[0], c1 = s0.CA[R-1];
+  const target = (c1[0] - c0[0]) >= 0 ? 0 : Math.PI;
+  const th = target - Math.atan2(ax.z, ax.x);
+  const cs = Math.cos(th), sn = Math.sin(th);
+  for (const k in gen) gen[k].forEach(p => {
+    if (!p) return;
+    const x = p[0]; p[0] = x * cs - p[2] * sn; p[2] = x * sn + p[2] * cs;
+  });
+
+  const lo = fold.focus.lo - fold.first, hi = fold.focus.hi - fold.first;
+  const mean = arr => {
+    const c = [0, 0, 0];
+    for (let i = lo; i <= hi; i++) for (let k = 0; k < 3; k++) c[k] += arr[i][k];
+    return c.map(v => v / (hi - lo + 1));
+  };
+  const from = mean(CA), to = mean(s0.CA);
+  for (const k in gen) gen[k].forEach(p => { if (p) for (let i = 0; i < 3; i++) p[i] += to[i] - from[i]; });
+
+  /* Scatter into an array parallel to fold.atoms, so the flat pose is a
+     drop-in for anything that reads a trajectory frame. */
+  flatP = fold.atoms.map(a => {
+    const p = gen[a.name] && gen[a.name][a.res - fold.first];
+    if (!p) throw new Error(`the flat chain has no ${a.name} for residue ${a.res}`);
+    return p.slice();
+  });
+  flatPose = poseOver(flatP);
+
+  /* The settle's machinery: the build order, the flat chain's internals
+     (fixed), and the scratch the morph rebuilds into. The trajectory end's
+     internals are measured per frame, in poseAt. */
+  _tri = buildResidues();
+  const main = i => fold.atoms[i].name !== 'O' && fold.atoms[i].name !== 'H';
+  fixable = fold.abonds.reduce((a, [i, j], k) =>
+    (main(i) && main(j) ? (a.push(k), a) : a), []);
+  foldNow = flatP.map(() => [0, 0, 0]);
+  blendPose = poseOver(flatP.map(() => [0, 0, 0]));
+  framesOf(flatP, _fFlat);
+  _flatPend = pendantsOf(flatP);
+  _flatL = bondLengths(flatP);
+}
+
+/* A pose in the shape hbfold's at() returns: CA/O/H as references into P,
+   never copies, exactly as the decoder does it. */
+function poseOver(P) {
+  return { P, CA: caIdx.map(i => P[i]), O: oIdx.map(i => P[i]),
+           H: hIdx.map(i => P[i]), formed: null };
+}
+
+/* ---------- the settle, residue by rigid residue ----------
+   TWO OBVIOUS WAYS TO DO THIS ARE BOTH WRONG, and the wreckage of each is
+   worth keeping written down, because the second one looks like the fix
+   for the first.
+
+   A PER-ATOM LERP breaks bonds. The two poses put the same residue's pleat
+   in different directions, so a 1.3 Å bond can be near enough antiparallel
+   between them, and lerping its two ends independently walks it through
+   its own midpoint: measured, the worst covalent bond lost 98% of its
+   length halfway through — inside the close-up, where an atom is a
+   sizeable fraction of the frame.
+
+   INTERPOLATING TORSIONS fixes every bond length by construction and then
+   whips the chain. A torsion is a lever: this chain is 500 Å long, and a
+   few degrees of change near the anchored end swing the far end through an
+   arc. Measured, 78 Å of travel for one atom in a single frame.
+
+   SO NEITHER THE ATOMS NOR THE ANGLES ARE THE THING TO INTERPOLATE — the
+   RESIDUES are. Each residue is carried rigidly: its position lerps in a
+   straight line and its orientation slerps, so its own five atoms keep
+   their exact geometry and nothing travels further than the 24 Å the
+   settle is actually worth. What is left approximate is the peptide bond
+   BETWEEN residues, since neighbours are carried independently — that is
+   measured below and pulled back into line by a short projection pass.
+
+   THE CHAIN ROLLS AS IT SETTLES, and that is this, not a fault. The flat
+   chain's pleat is built into the screen plane on purpose; the
+   trajectory's own is not, and slerping each residue from one orientation
+   to the other turns the whole chain about its long axis on the way over.
+   It is the same roll every run. Kept, because it reads as the sequence
+   handing over to the molecule — the flat chain is an orientation we
+   chose for reading, and the real one was never lined up with a page. */
+let foldNow = null;                 // the trajectory frame being blended toward
+let resAtoms = null;                // slot -> its atom indices
+const _fFlat = { pos: [], quat: [], loc: [] };   // per-residue frames + local coords
+const _fFold = { pos: [], quat: [], loc: [] };
+
+const _u = new THREE.Vector3(), _w = new THREE.Vector3();
+const _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3();
+const _m1 = new THREE.Matrix4();
+const _qA = new THREE.Quaternion();
+const _pA = new THREE.Vector3();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(),
+      _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3(), _v6 = new THREE.Vector3(),
+      _v7 = new THREE.Vector3(), _v8 = new THREE.Vector3(), _v9 = new THREE.Vector3(),
+      _v10 = new THREE.Vector3(), _v11 = new THREE.Vector3();
+let pend = null;                    // [atom, a, b, c] for every O and H
+let _flatPend = null, _foldPend = null;
+
+function buildResidues() {
+  const at = {};
+  fold.atoms.forEach((a, i) => { (at[a.name] = at[a.name] || {})[a.res] = i; });
+  resAtoms = [];
+  const slot = new Map();
+  fold.atoms.forEach((a, i) => {
+    if (!slot.has(a.res)) { slot.set(a.res, resAtoms.length); resAtoms.push([]); }
+    resAtoms[slot.get(a.res)].push(i);
+  });
+  /* THE FRAME IS N-CA-C, and ONLY those three atoms are carried by it.
+     The other two are not rigid in it: the carbonyl O swings about the
+     CA-C axis with psi, and the amide H hangs off the PREVIOUS residue's
+     carbonyl carbon. Blending their local coordinates lerps a rotation
+     through its own centre and shortens the bond — measured, C=O lost 14%
+     of its length in the middle of the settle. So they are rebuilt from
+     their neighbours afterwards instead, at a torsion taken the short way
+     round between the two poses. `pend` is that list. */
+  pend = [];
+  for (const r of slot.keys()) {
+    pend.push([at.O[r], at.N[r], at.CA[r], at.C[r]]);
+    if (at.H[r] != null && at.C[r-1] != null)
+      pend.push([at.H[r], at.CA[r-1], at.C[r-1], at.N[r]]);
+  }
+  return [...slot.keys()].map(r => [at.N[r], at.CA[r], at.C[r]]);
+}
+
+/* (length, angle, torsion) for each pendant atom off the three that place
+   it — the same quantities placeAtom() consumes, in the same convention. */
+function pendantsOf(P, into) {
+  const out = into || { len: new Float64Array(pend.length),
+                        ang: new Float64Array(pend.length),
+                        tor: new Float64Array(pend.length) };
+  const V = (i, v) => v.set(P[i][0], P[i][1], P[i][2]);
+  pend.forEach(([d, a, b, c], k) => {
+    const pa = V(a, _v1), pb = V(b, _v2), pc = V(c, _v3), pd = V(d, _v4);
+    out.len[k] = pc.distanceTo(pd);
+    out.ang[k] = _u.subVectors(pb, pc).angleTo(_w.subVectors(pd, pc)) * 180 / Math.PI;
+    const b1 = _v5.subVectors(pb, pa), b2 = _v6.subVectors(pc, pb), b3 = _v7.subVectors(pd, pc);
+    const n1 = _v8.crossVectors(b1, b2), n2 = _v9.crossVectors(b2, b3);
+    const m = _v10.crossVectors(n1, _v11.copy(b2).normalize());
+    out.tor[k] = Math.atan2(m.dot(n2), n1.dot(n2)) * 180 / Math.PI;
+  });
+  return out;
+}
+
+/* The short way round: a torsion must never take the long path through a
+   conformation neither pose is in. */
+function angLerp(a, b, w) {
+  let d = b - a;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return a + d * w;
+}
+
+/* A residue's own frame, and its atoms written in it. Reused per frame for
+   the trajectory end, which moves while the settle runs. */
+let _tri = null;
+function framesOf(P, out) {
+  for (let s = 0; s < _tri.length; s++) {
+    const [iN, iCA, iC] = _tri[s];
+    _pA.set(P[iCA][0], P[iCA][1], P[iCA][2]);
+    _bx.set(P[iC][0], P[iC][1], P[iC][2]).sub(_pA).normalize();
+    _u.set(P[iN][0], P[iN][1], P[iN][2]).sub(_pA);
+    _bz.crossVectors(_bx, _u).normalize();
+    _by.crossVectors(_bz, _bx);
+    _m1.makeBasis(_bx, _by, _bz);
+    out.pos[s] = out.pos[s] || new THREE.Vector3();
+    out.quat[s] = out.quat[s] || new THREE.Quaternion();
+    out.pos[s].copy(_pA);
+    out.quat[s].setFromRotationMatrix(_m1);
+    _qA.copy(out.quat[s]).invert();
+    for (const i of resAtoms[s]) {
+      out.loc[i] = out.loc[i] || new THREE.Vector3();
+      out.loc[i].set(P[i][0], P[i][1], P[i][2]).sub(_pA).applyQuaternion(_qA);
+    }
+  }
+}
+
+/* THE BOND THE BLEND GETS WRONG IS THE PEPTIDE BOND — the C-N link is the
+   one place two independently carried residues have to meet, and it is off
+   by hundredths of an Å. A few passes of Gauss-Seidel projection pull each
+   bond back to the length the blend asks for.
+
+   IT RUNS OVER THE WHOLE N-CA-C BACKBONE, not over the peptide bonds
+   alone. Correcting C-N moves the N, and with nothing else in the list
+   there is nothing to pull it back onto its own Cα: restricting the pass
+   to peptide bonds put a 20% error into N-CA, which is worse than the
+   thing it was fixing. The pendant O and H stay out of it because they are
+   rebuilt afterwards regardless, and every constraint left out is one less
+   for the projection to fight. */
+const BOND_FIX_PASSES = 4;
+let fixable = null;                 // indices into fold.abonds
+function fixBonds(P, w, flatL, foldL) {
+  for (let pass = 0; pass < BOND_FIX_PASSES; pass++) {
+    for (const k of fixable) {
+      const [i, j] = fold.abonds[k];
+      const want = foldL[k] + (flatL[k] - foldL[k]) * w;
+      const dx = P[j][0]-P[i][0], dy = P[j][1]-P[i][1], dz = P[j][2]-P[i][2];
+      const L = Math.hypot(dx, dy, dz) || 1e-9;
+      const f = 0.5 * (L - want) / L;
+      P[i][0] += dx*f; P[i][1] += dy*f; P[i][2] += dz*f;
+      P[j][0] -= dx*f; P[j][1] -= dy*f; P[j][2] -= dz*f;
+    }
+  }
+}
+
+let _flatL = null, _foldL = null;
+function bondLengths(P, into) {
+  const out = into || new Float64Array(fold.abonds.length);
+  fold.abonds.forEach(([i, j], k) => {
+    out[k] = Math.hypot(P[j][0]-P[i][0], P[j][1]-P[i][1], P[j][2]-P[i][2]);
+  });
+  return out;
+}
+
+/* 1 = the flat chain, 0 = the trajectory's own frame. */
+const flatW = tt => 1 - smoothstep(tt / FLAT_SETTLE);
+
+/* The chain at t: the flat chain until the settle starts, the trajectory
+   once it is over, and the residue-by-residue blend in between. Both ends
+   are returned as themselves, never as a rebuild of themselves. */
+function poseAt(t) {
+  const s = fold.at(t);
+  const w = flatW(t);
+  if (w <= 0) return s;
+  if (w >= 1) { flatPose.formed = s.formed; return flatPose; }
+
+  /* The blend's other end is the CURRENT trajectory frame, not frame 0 —
+     the fold is already running underneath the settle, and handing over to
+     a frame the chain has left would jump. */
+  for (let i = 0; i < foldNow.length; i++)
+    for (let k = 0; k < 3; k++) foldNow[i][k] = s.P[i][k];
+  framesOf(foldNow, _fFold);
+  _foldPend = pendantsOf(foldNow, _foldPend);
+  _foldL = bondLengths(foldNow, _foldL);
+
+  /* Each residue's N, CA and C carried rigidly: position lerped, rotation
+     slerped, own geometry untouched. */
+  const P = blendPose.P;
+  for (let sl = 0; sl < _tri.length; sl++) {
+    _pA.copy(_fFold.pos[sl]).lerp(_fFlat.pos[sl], w);
+    _qA.copy(_fFold.quat[sl]).slerp(_fFlat.quat[sl], w);
+    for (const i of _tri[sl]) {
+      _u.copy(_fFold.loc[i]).lerp(_fFlat.loc[i], w).applyQuaternion(_qA).add(_pA);
+      P[i][0] = _u.x; P[i][1] = _u.y; P[i][2] = _u.z;
+    }
+  }
+  /* The peptide bonds pulled back into line BEFORE the pendants go on, so
+     the O and H sit on a backbone that has stopped moving. */
+  fixBonds(P, w, _flatL, _foldL);
+
+  /* Then the O's and H's, rebuilt onto that backbone rather than carried
+     with it, so their bond lengths and angles come out exact. */
+  for (let k = 0; k < pend.length; k++) {
+    const [d, a, b, c] = pend[k];
+    const q = placeAtom(P[a], P[b], P[c],
+      _foldPend.len[k] + (_flatPend.len[k] - _foldPend.len[k]) * w,
+      _foldPend.ang[k] + (_flatPend.ang[k] - _foldPend.ang[k]) * w,
+      angLerp(_foldPend.tor[k], _flatPend.tor[k], w));
+    P[d][0] = q[0]; P[d][1] = q[1]; P[d][2] = q[2];
+  }
+  blendPose.formed = s.formed;
+  return blendPose;
 }
 
 /* ---------- the opening close-up ----------
@@ -1530,8 +1905,8 @@ function seek(uu) {
      `q` is -1 until the fold is done and then runs 0..1. */
   t = Math.min(1, u / FOLD_END);
   const q = u <= FOLD_END ? -1 : (u - FOLD_END) / (1 - FOLD_END);
-  const s = fold.at(t);
-  posedP = s.P;                    // what the pearls billboard against
+  const s = poseAt(t);             // flat for level 1, the trajectory after
+  posedP = s.P;                  // what the pearls billboard against
 
   /* How much the close-up still owns the frame. Computed up here because
      three things need it — which bonds may ring, the ribbon's opacity, and

@@ -796,5 +796,121 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
      `furthest Ca(F8)-Fe is ${worst.toFixed(1)} A`);
 }
 
+/* ---------------- level 1's flat chain ----------------
+   The page opens on a chain that is in no data file: the ideal all-trans
+   extended conformation, generated in hemoglobin-lab.html from bond
+   lengths, bond angles and three fixed torsions. That is a chemical claim
+   with no measurement behind it to keep it honest, so it is asserted here
+   — and the assertions run THE PAGE'S OWN SOURCE, lifted out of the HTML,
+   rather than a copy of the generator that could drift from it.
+
+   THE SIGN OF A TORSION IS THE POINT OF THE LAST ASSERTION. placeAtom()
+   feeds the same convention icOf-style measurement reads back, and when it
+   was inverted the flat chain could not show it: every torsion in an ideal
+   extended chain is 180 or 0, and both are their own negatives. A mirrored
+   builder is exactly the class of bug MolecularGeometry.md 1.3 says no
+   internal check can catch by looking at the output, so it is caught here
+   at the input instead. */
+{
+  /* The three Vector3 operations the generator uses, so the page's code
+     can run outside a browser. Anything more and this would be a second
+     implementation to keep in step, which is the thing it exists to avoid. */
+  class V3 {
+    constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+    normalize() { const n = Math.hypot(this.x, this.y, this.z);
+                  this.x /= n; this.y /= n; this.z /= n; return this; }
+    crossVectors(a, b) { this.x = a.y*b.z - a.z*b.y; this.y = a.z*b.x - a.x*b.z;
+                         this.z = a.x*b.y - a.y*b.x; return this; }
+  }
+  const html = fs.readFileSync(path.join(__dirname, '..', '..', 'hemoglobin-lab.html'), 'utf8');
+  const from = html.indexOf('const IDEAL = {');
+  const to = html.indexOf('/* ---------- the settle, residue by rigid residue');
+  ok(from > 0 && to > from, 'the page still has a flat-chain generator to check');
+
+  const HbFold = require('../hbfold.js');
+  const fold = HbFold.decode(fs.readFileSync(BIN).buffer);
+  const src = html.slice(from, to);
+  const api = new Function('fold', 'THREE', 'smoothstep',
+    src + '\n return { IDEAL, placeAtom, buildFlatChain, get flatP() { return flatP; } };'
+  )(fold, { Vector3: V3 }, x => x);
+
+  /* buildFlatChain also wires up the settle, which needs more of THREE than
+     is stubbed here; the generator runs first, so catch the later throw. */
+  let flatP = null;
+  try { api.buildFlatChain(); } catch (e) { /* expected: the blend needs Quaternion */ }
+  flatP = api.flatP;
+  ok(flatP && flatP.length === fold.A,
+     'the flat chain covers every backbone atom', `${flatP ? flatP.length : 0} of ${fold.A}`);
+
+  if (flatP) {
+    const at = {};
+    fold.atoms.forEach((a, i) => { (at[a.name] = at[a.name] || {})[a.res] = i; });
+    const D = (i, j) => Math.hypot(flatP[i][0]-flatP[j][0], flatP[i][1]-flatP[j][1],
+                                   flatP[i][2]-flatP[j][2]);
+    const ANG = (i, j, k) => {
+      const u = [flatP[i][0]-flatP[j][0], flatP[i][1]-flatP[j][1], flatP[i][2]-flatP[j][2]];
+      const v = [flatP[k][0]-flatP[j][0], flatP[k][1]-flatP[j][1], flatP[k][2]-flatP[j][2]];
+      return Math.acos((u[0]*v[0]+u[1]*v[1]+u[2]*v[2]) /
+                       (Math.hypot(...u)*Math.hypot(...v))) * 180 / Math.PI;
+    };
+    const span = a => [Math.min(...a), Math.max(...a)];
+    const R = fold.R, r0 = fold.first;
+    const caca = [], tau = [], nca = [], cac = [], cn = [], co = [];
+    for (let r = r0; r < r0 + R; r++) {
+      nca.push(D(at.N[r], at.CA[r])); cac.push(D(at.CA[r], at.C[r]));
+      co.push(D(at.C[r], at.O[r])); tau.push(ANG(at.N[r], at.CA[r], at.C[r]));
+      if (r + 1 < r0 + R) { cn.push(D(at.C[r], at.N[r+1])); caca.push(D(at.CA[r], at.CA[r+1])); }
+    }
+    const near = (a, want, tol) => span(a).every(v => Math.abs(v - want) < tol);
+    ok(near(nca, api.IDEAL.N_CA, 1e-6) && near(cac, api.IDEAL.CA_C, 1e-6) &&
+       near(cn, api.IDEAL.C_N, 1e-6) && near(co, api.IDEAL.C_O, 1e-6),
+       'every flat-chain bond is its textbook length',
+       `N-CA ${nca[0].toFixed(3)}, CA-C ${cac[0].toFixed(3)}, C-N ${cn[0].toFixed(3)}`);
+    ok(near(tau, api.IDEAL.ang_N_CA_C, 1e-6),
+       'every N-CA-C angle is the textbook 111 degrees', `${tau[0].toFixed(2)}`);
+
+    /* 3.8 Å is the trans peptide's own spacing — a cis one would be 2.9,
+       which is the single number that says the chain is built right. */
+    const [cLo, cHi] = span(caca);
+    ok(cLo > 3.79 && cHi < 3.81 && cHi - cLo < 1e-6,
+       'consecutive alpha carbons sit 3.80 A apart, every link (trans)',
+       `${cLo.toFixed(3)}-${cHi.toFixed(3)} A`);
+
+    /* Flat means FLAT: one plane, to floating-point noise. It is what the
+       opening top-down camera is for, and the reason a student can read
+       the sequence along the chain at all. */
+    const ys = flatP.map(p => p[1]);
+    const thick = Math.max(...ys) - Math.min(...ys);
+    ok(thick < 1e-9, 'the flat chain lies in one plane', `${thick.toExponential(1)} A thick`);
+
+    /* Extended, not coiled: 3.6 A of rise per residue. An alpha helix is
+       1.5, so this cannot silently become one. */
+    const rise = Math.hypot(flatP[at.CA[r0+R-1]][0] - flatP[at.CA[r0]][0],
+                            flatP[at.CA[r0+R-1]][1] - flatP[at.CA[r0]][1],
+                            flatP[at.CA[r0+R-1]][2] - flatP[at.CA[r0]][2]) / (R - 1);
+    ok(rise > 3.5 && rise < 3.7, 'the chain is extended, ~3.6 A per residue',
+       `${rise.toFixed(2)} A`);
+  }
+
+  /* The torsion convention, at the input: ask for +60 and measure +60. */
+  const dihedral = (a, b, c, d) => {
+    const s = (u, v) => [u[0]-v[0], u[1]-v[1], u[2]-v[2]];
+    const cr = (u, v) => [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+    const dt = (u, v) => u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+    const b1 = s(b, a), b2 = s(c, b), b3 = s(d, c);
+    const n1 = cr(b1, b2), n2 = cr(b2, b3);
+    const nb2 = Math.hypot(...b2), m = cr(n1, b2.map(v => v / nb2));
+    return Math.atan2(dt(m, n2), dt(n1, n2)) * 180 / Math.PI;
+  };
+  let worstTor = 0;
+  for (const want of [30, 60, -60, 120, -120, 175]) {
+    const a = [0,0,0], b = [1.5,0,0], c = [2.0,1.4,0];
+    const got = dihedral(a, b, c, api.placeAtom(a, b, c, 1.5, 110, want));
+    worstTor = Math.max(worstTor, Math.abs(got - want));
+  }
+  ok(worstTor < 1e-6, 'placeAtom builds the torsion it is asked for, SIGN INCLUDED',
+     `worst ${worstTor.toExponential(1)} deg — a flipped sign here mirrors the molecule`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall checks passed');
 process.exit(fails ? 1 : 0);
