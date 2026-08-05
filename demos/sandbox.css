@@ -112,10 +112,20 @@
    }
  }
 
+ /* NOTHING ON THE STAGE IS SELECTABLE. Dragging the canvas turns the model,
+    and without this the same drag also sweeps a text selection through
+    everything sitting over it — the caption, the title, the readout, the
+    callout labels — so orbiting a molecule left the page streaked with
+    highlighted text. The stage is a control surface, not prose: the words
+    on it are chrome, and the real text lives in #side, which stays
+    selectable. Set here rather than per page because the drag surface is
+    the same on all of them. */
  #stage {
    grid-column: 1;
    position: relative;
    overflow: hidden;
+   user-select: none;
+   -webkit-user-select: none;
    background-color: var(--paper);
    background-image: radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
    background-size: 26px 26px;
@@ -126,6 +136,19 @@
    display: block;
    width: 100%;
    height: 100%
+ }
+
+ /* ...EXCEPT PROSE. The rule above is about the drag, and the drag never
+    starts inside a panel that sits over the stage — those take the pointer
+    themselves, so nothing is lost by leaving their text selectable, and
+    something real is lost by not: the info panel is the page explaining
+    itself, which is exactly the text a reader wants to copy or quote.
+    `.selectable` is the hook for the next such panel, so this rule does
+    not have to grow an id every time one is added. */
+ #infopanel,
+ .selectable {
+   user-select: text;
+   -webkit-user-select: text
  }
 
  /* wordmark */

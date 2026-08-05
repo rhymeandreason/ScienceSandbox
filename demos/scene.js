@@ -331,7 +331,13 @@
     // the pointer themselves; wheel zoom stays either way.
     let drag=null;
     if(o.orbit!==false){
-      canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+      // preventDefault stops the browser starting a TEXT SELECTION on the same
+      // drag — sandbox.css also sets user-select:none on #stage, and both are
+      // wanted: the CSS covers pages that take the pointer themselves
+      // (orbit:false, where this handler does not exist), this covers a drag
+      // that begins on the canvas and sweeps out of the stage entirely.
+      canvas.addEventListener('pointerdown',e=>{e.preventDefault();
+        drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
       canvas.addEventListener('pointermove',e=>{ if(!drag)return; if(o.onDrag)o.onDrag();
         cam.theta-=(e.clientX-drag.x)*0.008;
         cam.phi=Math.max(o.phiMin,Math.min(o.phiMax,cam.phi-(e.clientY-drag.y)*0.008));

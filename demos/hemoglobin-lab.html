@@ -91,8 +91,7 @@
     z-index:6;font-size:12.5px;color:var(--muted);
     text-align:center;font-variant-numeric:tabular-nums;pointer-events:none}
 
-  /* ONE readout: how many of the 103 hydrogen bonds have closed. 
-     Hidden until play. */
+  /* Bottom right corner display info readouts and supporting UI */
   #cornerstack{position:absolute;right:20px;bottom:24px;z-index:6;
     display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 
@@ -170,10 +169,10 @@
          including while the pearl key is open and toggles grows taller. -->
     <div id="cornerstack">
       <div id="tally" hidden>
+        <!-- Simply the count of hydrogen bonds -->
         <span class="col" id="hbcol">
           <span class="big hbnum" id="hbcount">0</span>
-          <span class="sub">of 103 hydrogen bonds</span>
-          <span class="sub">level 2 · secondary</span>
+          <span class="sub">hydrogen bonds</span>
         </span>
       </div>
 
@@ -183,18 +182,14 @@
         <div id="pearlkey" hidden></div>
         <!-- level 1 only: the row goes when the fold starts -->
         <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
-        <!-- level 4 only, and only once the heme is on screen: naming the
-             parts of the group the whole protein was built around. The mode
-             is exposed because the three are useful in different settings —
-             'reveal' when the animation is running, 'always on' for a
-             screenshot or a printed figure, 'click a dot' for a student
-             poking at it. -->
-        <label id="annotrow" hidden><input type="checkbox" id="showannot" checked> heme labels</label>
-        <select id="annotmode" aria-label="how the heme labels appear" hidden>
-          <option value="reveal">reveal them</option>
-          <option value="on">always on</option>
-          <option value="click">click a dot</option>
-        </select>
+        <!-- The heme callouts have NO control here on purpose. They are
+             scheduled: they wipe in during the coda and fade out as level 4
+             opens, which is the lesson's own timing and not a preference.
+             A checkbox for something that appears and leaves on its own is a
+             control that is wrong most of the time it is on screen, and the
+             mode picker offered three answers to a question the page had
+             already decided. annotate.js still has all three modes for the
+             pages that want them. -->
       </div>
     </div>
 
@@ -901,8 +896,13 @@ Promise.all([
        because it looks fine. */
     if (fold.R !== 146)
       throw new Error(`baked chain has ${fold.R} residues, this page is written for 146`);
-    document.getElementById('hbcount').nextElementSibling.textContent =
-      `of ${fold.B} hydrogen bonds`;
+    /* The readout no longer prints the total — but the INFO PANEL still
+       says "103 backbone hydrogen bonds form" in prose, and that sentence
+       used to be kept honest by the fact that the tally wrote fold.B into
+       itself at load. With the tally simplified, nothing did, so the check
+       becomes explicit rather than a side effect of rendering. */
+    if (fold.B !== 103)
+      throw new Error(`baked chain has ${fold.B} hydrogen bonds; the info panel says 103`);
 
     if (quat.order.length !== 3 || !quat.iron[quat.folded])
       throw new Error('the quaternary file is not three chains and four irons');
@@ -2002,20 +2002,12 @@ function updateAnnots() {
   const there = codaC > LABELS_AT;
   const out = quatQ < 0 ? 0
             : smoothstep((quatQ - LABELS_OUT[0]) / (LABELS_OUT[1] - LABELS_OUT[0]));
-  const want = there && document.getElementById('showannot').checked;
-  /* The controls go with the labels: a checkbox for something that has
-     faded out is a control with nothing to control. Same threshold
-     annotate.js drops the layer at, so the row and the labels leave on the
-     same frame instead of the row outliving them by a few. */
-  const showRow = there && (1 - out) > 0.002;
-  document.getElementById('annotrow').hidden = !showRow;
-  document.getElementById('annotmode').hidden = !showRow;
-  if (want !== annotOn) {
-    annotOn = want;
-    notes.show(want);
+  if (there !== annotOn) {
+    annotOn = there;
+    notes.show(there);
     /* Re-run the wipe each time it comes back, rather than having it
        arrive already finished — the reveal is the gesture. */
-    if (want && notes.mode === 'reveal') notes.play();
+    if (there && notes.mode === 'reveal') notes.play();
   }
   notes.fade(1 - out);
   notes.step();
@@ -2431,12 +2423,20 @@ function seek(uu) {
 }
 
 /* ---------- the readout ----------
-   One number: the hydrogen bonds that have closed, of the 103 the finished
-   chain holds. It appears with the fold — before play there is nothing
-   counting, and "0 of 103" over a still chain reads as a thing already
-   missed rather than a thing about to happen. */
+   One number: the hydrogen bonds that have closed as the chain folds. It
+   appears with the fold — before play there is nothing counting, and a 0
+   over a still chain reads as a thing already missed rather than a thing
+   about to happen.
+
+   AND IT LEAVES WHEN THE FOLD DOES. The count is a property of this one
+   chain's backbone, so it stops moving the moment the chain is finished —
+   and a number frozen on screen while three more subunits arrive invites
+   exactly the wrong reading: that the assembly is failing to add any. The
+   interface bonds level 4 draws are a different set and are not counted
+   here. Gone through the coda too, where the chain is done and the subject
+   is the heme. */
 function updateReadout(formedCount) {
-  document.getElementById('tally').hidden = !started;
+  document.getElementById('tally').hidden = !started || codaC > 0;
   document.getElementById('hbcount').textContent = formedCount;
 }
 
@@ -2507,8 +2507,7 @@ function setPlaying(on) {
   if (on) beginIfNeeded();
 }
 
-/* `started` alone now gates the top reserve (see frameFrom) — there is no
-   more intro card to hide. The caption below is ALREADY showing level 1 by
+/* `started` alone gates the top reserve (see frameFrom). The caption is ALREADY showing level 1 by
    then and is deliberately left alone — forcing it to re-render would re-run
    its fade-in, which reads as the text flinching at the moment the student
    clicks. It changes when the act does, and not before. */
@@ -2672,11 +2671,6 @@ document.getElementById('showpearls').addEventListener('change', e => {
     key.appendChild(row);
   });
 }
-
-document.getElementById('annotmode').addEventListener('change', e => {
-  if (!notes) return;
-  notes.setMode(e.target.value);     // 'reveal' replays itself on the way in
-});
 
 const infobtn = document.getElementById('infobtn'), infopanel = document.getElementById('infopanel');
 infobtn.addEventListener('click', () => {
