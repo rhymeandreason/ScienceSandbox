@@ -1,6 +1,6 @@
 # Clean up comments
 
-Look through this file's comments and clean up information that's no longer relevant. Also reduce redundancies to make it more concise. Comments should be written in active voice, not document the current relevant information, not a chain of past work getting here. Examples:
+Look through this file's comments and clean up information that's no longer relevant. Also reduce redundancies to make it more concise. Only keep a history-shaped comment if it records a live trap. Comments should be written in active voice, document the current relevant information, not a chain of past work getting here. Examples:
 
 Before:
 THE PANEL DOES NOT RE-TEACH THE LEVELS. The captions say what each
