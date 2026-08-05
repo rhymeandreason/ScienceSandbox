@@ -82,6 +82,16 @@
  *  'reveal' finishes in the 'on' state: the wipe is how the labels ARRIVE,
  *  not a state they stay in.
  *
+ *  How they LEAVE is show(false) or fade(x), and those are different
+ *  things on purpose. show() is the switch a student flicks: these do not
+ *  apply here. fade() is the dimmer a page drives: these are on their way
+ *  out because the subject is changing. They multiply, and either reaching
+ *  zero drops the layer out of the document — which is also what stops a
+ *  faded-out callout catching clicks in 'click' mode. There is deliberately
+ *  no staggered EXIT to match the wipe: arriving is an event worth making,
+ *  leaving is the page moving on, and animating both makes the second one
+ *  look like the first.
+ *
  *  ---- USE -------------------------------------------------------------
  *
  *    const notes = Annot.create(THREE, document.getElementById('stage'),
@@ -119,6 +129,7 @@ window.Annot = (function () {
     const _v = new THREE.Vector3();
     let mode = 'on';
     let visible = opts.visible !== false;
+    let alpha = opts.alpha === undefined ? 1 : opts.alpha;
     let revealT0 = -1;
 
     /* ---- the fan ----
@@ -251,10 +262,26 @@ window.Annot = (function () {
       return api;
     }
 
-    function show(on) { visible = !!on; layer.style.display = on ? '' : 'none'; return api; }
+    /* show() is the switch, fade() is the dimmer, and they are separate
+       because a page needs both: "these do not apply here" (a toggle a
+       student flicks) and "these are on their way out" (a page taking them
+       off as the subject changes). They multiply — fade(0.4) on a hidden
+       layer stays hidden — and either one reaching zero drops the layer
+       out of the document, which is also what stops a faded-out callout
+       from still catching clicks in click mode. */
+    function paint() {
+      layer.style.opacity = alpha;
+      layer.style.display = (visible && alpha > 0.002) ? '' : 'none';
+    }
+    function show(on) { visible = !!on; paint(); return api; }
+    function fade(x) {
+      alpha = x <= 0 ? 0 : x >= 1 ? 1 : x;
+      paint();
+      return api;
+    }
 
     function step() {
-      if (!visible) return;
+      if (!visible || alpha <= 0.002) return;   // display:none — nothing to place
       /* Trap 3: the element's CSS box, never the canvas backing store. */
       const w = stageEl.clientWidth, h = stageEl.clientHeight;
       if (!w || !h) return;
@@ -303,14 +330,15 @@ window.Annot = (function () {
     }
 
     const api = {
-      add, step, play, show, setMode,
+      add, step, play, show, fade, setMode,
       clear() { while (notes.length) notes[0].remove(); return api; },
       get mode() { return mode; },
+      get alpha() { return alpha; },
       get notes() { return notes.slice(); },
       el: layer,
     };
     if (opts.mode) setMode(opts.mode); else applyMode();
-    if (!visible) show(false);
+    paint();
     return api;
   }
 

@@ -404,7 +404,7 @@ const PAL = MolLib.PALETTE;
    must not silently rescale if the assembly gets longer. `uOf` is the one
    place the two meet. */
 const PLAY_SECONDS = 11;      // the fold
-const CODA_SECONDS = 3.5;     // the finished chain: its heme arrives, and it turns
+const CODA_SECONDS = 2.5;     // the finished chain: its heme arrives, and it turns
 const ASSEMBLY_SECONDS = 5;   // the other three chains arriving
 
 const TOTAL_SECONDS = PLAY_SECONDS + CODA_SECONDS + ASSEMBLY_SECONDS;
@@ -423,11 +423,7 @@ const uOf = (phase, x) =>
    Very little changes per second of screen time, so at an even rate it
    reads as a stall rather than as an ending.
 
-   NOTHING ABOUT THE TRAJECTORY CHANGES. This is playback speed only — the
-   same keyframes in the same order, and the scrubber still reads the same
-   u at the same point in the fold, so every number the page quotes is
-   untouched. The bar simply fills faster here, which is honest: it is
-   faster. */
+   NOTHING ABOUT THE TRAJECTORY CHANGES. This is playback speed only. The bar simply fills faster here. */
 const FAST = { from: 0.54, rate: 2 };
 const rateAt = x => (x >= FAST.from && x < FOLD_END) ? FAST.rate : 1;
 
@@ -440,25 +436,35 @@ const rateAt = x => (x >= FAST.from && x < FOLD_END) ? FAST.rate : 1;
    already promised "that pocket holds the iron that attracts oxygen", and
    now the iron shows up while the sentence is still on screen.
 
-   THIS REPLACED A DEAD PAUSE. It used to be a 1.2 s freeze at
-   HOLD_AT = FOLD_END - 1e-4: playback stopped, the same still frame stayed
-   up, and the student was asked to admire something that had already
-   finished moving. A hold is the right instinct and the wrong mechanism —
-   it buys attention with time but gives nothing to spend it on. The coda
-   buys the same beat with an EVENT, and being real lesson time rather than
-   a stopped clock it also scrubs: drag to the middle of it and you get the
-   middle of it, which the freeze could never do.
-
    It sits in `u`, so the scrubber runs at one speed throughout and every
    fold number stays quoted in fold t, unrescaled. `t` is already
    min(1, u/FOLD_END) and so pins at 1 here without a special case. */
-const CODA_SPIN = 0.6;        // radians the camera swings across the coda
+const CODA_SPIN = 0.7;        // radians the camera swings across the coda
 
 /* When the heme lands, in CODA units. Early enough that it is not a
    surprise at the end, finished by half way — the rest of the coda is the
    turn and the labels, which need the group already there to be about. */
 const HEME_IN = [0.06, 0.46];
-const LABELS_AT = 0.55;       // callouts once the group is unmistakably there
+/* The callouts start while the heme is still FADING IN, not after. It was
+   0.55 — past the end of HEME_IN, on the reasoning that the group should
+   finish arriving and then be named — and that read as a wait: the heme is
+   already unmistakable about two thirds of the way through its fade, and
+   the labels sat there not saying so. At 0.30 the naming starts on a group
+   the student can already see, and because the wipe takes about 0.9 s the
+   labels still SETTLE just after the heme is fully in. Arriving together,
+   finishing in order. */
+const LABELS_AT = 0.30;       // coda units; u≈0.62, which is where the heme reads
+
+/* AND THE CALLOUTS GO WHEN LEVEL 4 DOES, in assembly units. They belong to
+   the coda's subject — this chain, and the group it just closed around —
+   and level 4's subject is a different one: four chains meeting. Left up,
+   they would sit over the arrivals naming a part of one subunit while the
+   lesson is about all four, and there are three more identical hemes
+   coming that they conspicuously do not label.
+
+   Finished before chain A starts moving at 0.10, so the naming clears the
+   stage rather than dissolving underneath something already sliding in. */
+const LABELS_OUT = [0.00, 0.08];
 
 const ACTS = [
   { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the amino acids',
@@ -1982,15 +1988,28 @@ function buildHemeNotes() {
 let annotOn = false;
 function updateAnnots() {
   if (!notes) return;
-  /* Shown once the coda's heme has actually arrived, so the labels never
-     point at something not yet drawn — and they stay for the rest of the
-     lesson, because codaC holds at 1. LABELS_AT is past the end of HEME_IN
-     on purpose: the group finishes fading, THEN gets named, rather than
-     the two happening over each other. */
+  /* IN on the coda, OUT on level 4 — two separate clocks, because the two
+     ends are different kinds of event. LABELS_AT starts the naming while
+     the heme is still fading in (see there), and the wipe finishes just
+     after it lands. LABELS_OUT then takes them off as the assembly opens,
+     before the first chain moves.
+
+     The going is a FADE and the coming is not, which is the asymmetry the
+     lesson wants: arriving is the event (each label wipes in on its own
+     beat), leaving is just the subject changing, and a staggered exit
+     would make an event of something that should read as the page moving
+     on. */
   const there = codaC > LABELS_AT;
+  const out = quatQ < 0 ? 0
+            : smoothstep((quatQ - LABELS_OUT[0]) / (LABELS_OUT[1] - LABELS_OUT[0]));
   const want = there && document.getElementById('showannot').checked;
-  document.getElementById('annotrow').hidden = !there;
-  document.getElementById('annotmode').hidden = !there;
+  /* The controls go with the labels: a checkbox for something that has
+     faded out is a control with nothing to control. Same threshold
+     annotate.js drops the layer at, so the row and the labels leave on the
+     same frame instead of the row outliving them by a few. */
+  const showRow = there && (1 - out) > 0.002;
+  document.getElementById('annotrow').hidden = !showRow;
+  document.getElementById('annotmode').hidden = !showRow;
   if (want !== annotOn) {
     annotOn = want;
     notes.show(want);
@@ -1998,6 +2017,7 @@ function updateAnnots() {
        arrive already finished — the reveal is the gesture. */
     if (want && notes.mode === 'reveal') notes.play();
   }
+  notes.fade(1 - out);
   notes.step();
 }
 
