@@ -84,24 +84,21 @@
   #tlabel{font-family:var(--font-slab);font-size:12.5px;color:var(--muted);
     min-width:86px;text-align:right;font-variant-numeric:tabular-nums}
 
-  /* TWO readouts, side by side, and that pairing IS the lesson.
-     The H-bond count is level 2; the width of the molecule is level 3. The
-     measured trajectory separates them cleanly — between t=0.55 and t=0.90
-     the bond count moves by five while the chain goes 204 Å to 73 — so showing
-     both at once lets a student SEE one finish and the other take over,
-     which is the whole distinction between the two levels. */
+  /* ONE readout: how many of the 103 hydrogen bonds have closed. It is a
+     count of a thing the student can see happening — every dash on screen
+     is one of them — which is what a number beside an animation is for.
+     Hidden until play, because before that it reads 0 of 103 and invites
+     the student to wonder what they have missed. */
   #tally{position:absolute;right:20px;bottom:118px;z-index:6;pointer-events:none;
     text-align:right;display:flex;gap:18px;align-items:flex-start;
     background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
     padding:9px 13px;font-family:var(--font-slab);font-size:12.5px;line-height:1.45}
+  #tally[hidden]{display:none}
   #tally .col{text-align:right}
   #tally .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;
     display:block;line-height:1.1}
-  #tally .hbnum{color:var(--hb)} #tally .rgnum{color:var(--core)}
-  #tally .qnum{color:var(--quat)}
+  #tally .hbnum{color:var(--hb)}
   #tally .sub{color:var(--muted);font-size:11px;display:block}
-  /* the readout that is currently DOING something gets the ink */
-  #tally .col.idle{opacity:.42}
 
   #toggles{position:absolute;right:20px;bottom:24px;z-index:6;display:flex;
     flex-direction:column;align-items:flex-end;gap:7px}
@@ -140,21 +137,11 @@
       <div class="actbody"></div></div>
     <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
 
-    <div id="tally">
+    <div id="tally" hidden>
       <span class="col" id="hbcol">
         <span class="big hbnum" id="hbcount">0</span>
         <span class="sub">of 103 hydrogen bonds</span>
         <span class="sub">level 2 · secondary</span>
-      </span>
-      <span class="col" id="rgcol">
-        <span class="big rgnum" id="rgval">—</span>
-        <span class="sub">Å across</span>
-        <span class="sub">level 3 · tertiary</span>
-      </span>
-      <span class="col" id="qcol" hidden>
-        <span class="big qnum" id="qval">1</span>
-        <span class="sub">of 4 chains</span>
-        <span class="sub">level 4 · quaternary</span>
       </span>
     </div>
 
@@ -166,11 +153,11 @@
     </div>
 
     <div id="toggles">
-      <label><input type="checkbox" id="showhb" checked> hydrogen bonds</label>
-      <label><input type="checkbox" id="showdep"> finished shape</label>
+      <!-- the key opens ABOVE its own checkbox, so the control the student
+           just clicked stays put instead of being pushed up the stage -->
+      <div id="pearlkey" hidden></div>
       <!-- level 1 only: the row goes when the fold starts -->
       <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
-      <div id="pearlkey" hidden></div>
     </div>
 
     <button id="infobtn" aria-label="About this animation" title="About this animation"
@@ -206,7 +193,7 @@
       </section>
       <section>
         <h4>Level 3 · tertiary</h4>
-        <p>This actually happens at the same time as secondary structures forming, but we have made it more separate in this animation to differentiate. Watch the two numbers at the right. Around the two-thirds mark the hydrogen-bond count <b>stops climbing</b> while the molecule keeps
+        <p>This actually happens at the same time as secondary structures forming, but we have made it more separate in this animation to differentiate. Around the two-thirds mark the hydrogen-bond count <b>stops climbing</b> while the molecule keeps
           shrinking — from 204 Å across to 45. The helices are already made;
           now they pack against each other, driven by <b>water pushing the
           oily side chains inward</b>. The pocket that forms in the middle is
@@ -582,6 +569,23 @@ const RING_R = 70;                 // angstroms of camera distance per unit ring
 const ringNow = () => Math.max(0.25, Math.min(4, cam.r / RING_R));
 const FOLD_RING_UNTIL = 0.54;      // the tertiary boundary — ACTS' own number
 const FORM_AT = 0.5, REARM_AT = 0.35;   // hysteresis, so a scrub cannot flicker
+
+/* WHEN THE DASHES GO — the 23% mark on the scrubber, which is fold t 0.335.
+   Quoted in fold t like every other measured boundary here, so it does not
+   silently rescale if the assembly gets longer; uOf is the conversion.
+
+   A dash is the right ink for one bond in a close-up and the wrong ink for
+   a hundred across a whole chain: past this point they stop reading as
+   individual bonds and start reading as a mesh laid over the molecule.
+   Level 3 has none at all, which is the level's own claim — nothing new is
+   bonding, the finished helices are packing. What still marks a bond
+   closing is the ring the FX fires at the moment it happens, and the
+   count in the readout.
+
+   The fade takes about half a second, ending on the mark rather than
+   starting there: dashes switched off on a frame read as the page
+   glitching. */
+const DASH_OUT = [0.29, 0.335];
 /* WHILE THE CLOSE-UP HOLDS, ONLY THE BONDS IN IT RING. The other seven
    helices are coiling at the same time and their bonds are off the edge of
    a 26 A frame, so ringing them spends the effect on events nobody can see
@@ -800,7 +804,7 @@ const FXi = FX.create(THREE, root, camera);
 /* ---------- state ---------- */
 let fold = null, quat = null;
 let u = 0, t = 0, playing = false, started = false;
-let ribbon = null, depRibbon = null;
+let ribbon = null;
 const partners = [];            // {id, kind, mesh, mat, dir, win}
 const irons = [];               // {id, mesh, mat, win}
 const hbGroups = [];
@@ -893,21 +897,6 @@ function build() {
   mats.forEach(m => { m.side = THREE.DoubleSide; });   // a ribbon is thin; both faces show
   ribbon = new THREE.Mesh(new THREE.BufferGeometry(), mats);
   chainGroup.add(ribbon);
-
-  /* The deposited chain, behind everything, off by default. This is the
-     "finished shape" toggle: the answer the fold is steered toward, drawn
-     in a flat ghost so it can never be mistaken for the moving chain. It
-     is the honest way to show what the caveat in the info panel means —
-     the target was known before the animation started. */
-  const ghost = Stage.bondMat(0x000000);
-  ghost.transparent = true; ghost.opacity = 0.13;
-  ghost.depthWrite = false; ghost.side = THREE.DoubleSide;
-  depRibbon = new THREE.Mesh(
-    RibbonLib.build(THREE, fold.native.map(p => new THREE.Vector3(...p)), fold.ss,
-                    { sub: RIBBON_SUB }),
-    ghost);
-  depRibbon.visible = false;
-  chainGroup.add(depRibbon);
 
   /* Act 2's backbone bonds, O to H — one dash group each, built by the
      shared helper above so level 4's interface bonds are visibly the same
@@ -1277,10 +1266,9 @@ function revealQuaternary(q) {
 
     /* The bonds arrive with the last of the approach and then STAY, because
        they are part of the molecule from here on — unlike a highlight,
-       which would have to fade to stop being a claim. They obey the same
-       "hydrogen bonds" checkbox as act 2's. */
+       which would have to fade to stop being a claim. */
     const bond = smoothstep((a - BOND_IN) / (1 - BOND_IN));
-    const showBonds = document.getElementById('showhb').checked && bond > 0.01;
+    const showBonds = bond > 0.01;
     p.bondMat.opacity = bond * 0.9;
     p.bonds.forEach((g, k) => {
       g.visible = showBonds;
@@ -1567,19 +1555,18 @@ function seek(uu) {
   /* Hydrogen bonds. Visibility tracks formation only — there is no schedule
      here, `formed` is measured on the live coordinates at bake time, so a
      dash can never fade in on a bond the geometry has not actually made. */
-  /* The dashes are level 2's ink, and by level 4 they are 103 of them inside
-     a four-chain molecule — noise over the one thing this act is about. They
-     fade out as the first partner arrives rather than being switched off, so
-     nothing blinks. */
-  const hbFade = q < 0 ? 1 : 1 - smoothstep(q / 0.14);
-  const showHb = document.getElementById('showhb').checked && hbFade > 0.01;
+  /* THE DASHES LEAVE PART-WAY THROUGH LEVEL 2, and never come back — see
+     DASH_OUT. What marks a bond forming after that is the ring the FX fires
+     as it closes, which says the same thing at the moment it happens
+     instead of accumulating into a mesh over the molecule. */
+  const hbFade = q < 0
+    ? 1 - smoothstep((t - DASH_OUT[0]) / (DASH_OUT[1] - DASH_OUT[0]))
+    : 0;
+  const showHb = hbFade > 0.01;
   /* A ring fires the frame a bond closes, through levels 1 and 2 — see
      RING_R above. Gated on `started` so loading the page does not let off
-     seven of them behind the intro card, and on the same checkbox as the
-     dashes, because a ring marking a bond the student has hidden is an
-     effect with no cause on screen. */
-  const ringing = started && q < 0 && t < FOLD_RING_UNTIL &&
-                  document.getElementById('showhb').checked;
+     seven of them behind the intro card. */
+  const ringing = started && q < 0 && t < FOLD_RING_UNTIL;
   const rsize = ringNow();
   let formedCount = 0;
   hbGroups.forEach((g, k) => {
@@ -1605,12 +1592,7 @@ function seek(uu) {
     layDashes(g, _a, _b);
   });
 
-  /* The "finished shape" ghost is the fold's target, so it has no business
-     being on screen once the fold is over — at t=1 it sits exactly on the
-     chain and only doubles its edges. */
-  depRibbon.visible = document.getElementById('showdep').checked && q < 0;
-
-  const chains = revealQuaternary(q);
+  revealQuaternary(q);          // poses level 4's chains; nothing reads its count
 
   updateFocus(s, fw);
 
@@ -1640,43 +1622,19 @@ function seek(uu) {
   });
 
   frameFrom([{ P: s.CA, w: 1 }].concat(quaternaryGroups(q)), s, fw);
-  updateReadout(s.CA, formedCount, q, chains);
+  updateReadout(formedCount);
   updateCaption();
   updateTransport();
 }
 
-/* ---------- readouts ----------
-   "Å across" is the chain's greatest width as seen, i.e. twice the largest
-   distance from its own centre — NOT the radius of gyration, which is the
-   more standard measure but which a student has no way to picture. What is
-   wanted here is a number that matches what the eye is doing: the thing on
-   screen is this many angstroms wide, and that number is falling. */
-function updateReadout(CA, formedCount, q, chains) {
-  let cx = 0, cy = 0, cz = 0;
-  for (const p of CA) { cx += p[0]; cy += p[1]; cz += p[2]; }
-  cx /= CA.length; cy /= CA.length; cz /= CA.length;
-  let far = 0;
-  for (const p of CA)
-    far = Math.max(far, Math.hypot(p[0]-cx, p[1]-cy, p[2]-cz));
-
+/* ---------- the readout ----------
+   One number: the hydrogen bonds that have closed, of the 103 the finished
+   chain holds. It appears with the fold — before play there is nothing
+   counting, and "0 of 103" over a still chain reads as a thing already
+   missed rather than a thing about to happen. */
+function updateReadout(formedCount) {
+  document.getElementById('tally').hidden = !started;
   document.getElementById('hbcount').textContent = formedCount;
-  document.getElementById('rgval').textContent = Math.round(far * 2);
-
-  /* Grey out whichever level is not currently the one doing the work. This
-     is the readout saying what the caption says, in the place the student is
-     actually looking — and it is keyed to the same measured boundaries. */
-  const act = ACTS[actIndex()];
-  const inFold = q < 0;
-  document.getElementById('hbcol').classList.toggle('idle',
-    !(inFold && act.name.startsWith('Level 2')));
-  document.getElementById('rgcol').classList.toggle('idle',
-    !(inFold && (act.name.startsWith('Level 3') || act.name.startsWith('One chain'))));
-
-  /* The chain counter only exists once there is a second chain to count. */
-  const qcol = document.getElementById('qcol');
-  qcol.hidden = inFold;
-  qcol.classList.toggle('idle', inFold);
-  document.getElementById('qval').textContent = chains;
 }
 
 /* ---------- captions ---------- */
@@ -1898,8 +1856,6 @@ bar.addEventListener('keydown', e => {
   stage.addEventListener('pointercancel', end, true);
 }
 
-document.getElementById('showhb').addEventListener('change', () => seek(u));
-document.getElementById('showdep').addEventListener('change', () => seek(u));
 document.getElementById('showpearls').addEventListener('change', updatePearls);
 {
   const key = document.getElementById('pearlkey');
