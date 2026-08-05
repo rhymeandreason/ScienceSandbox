@@ -256,6 +256,7 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="folding/ribbon.js"></script>
+<script src="residues.js"></script>
 <script src="hemoglobin/hbfold.js"></script>
 <script>
 "use strict";
@@ -667,7 +668,10 @@ const FOCUS_OUT = [0.26, 0.40];   // fold t: close-up -> whole chain
    and for the same reason: hand-picked radii drift out of proportion with
    real bond lengths and read as wrong bond LENGTHS, not as small atoms. */
 const RADII = {};
-for (const el of ['C', 'N', 'O', 'H']) RADII[el] = PAL.radii[el] / MolLib.SCALE;
+/* S is here for the side chains: cysteine and methionine are the only
+   residues that carry it, and without it their SG/SD would fall back to a
+   default radius that is not the house one. */
+for (const el of ['C', 'N', 'O', 'H', 'S']) RADII[el] = PAL.radii[el] / MolLib.SCALE;
 const STICK = RADII.C * 0.165;    // the house ratio of stick to atom
 
 /* The ruler is 2HHB's own numbering, and here that is also position in the
@@ -917,6 +921,7 @@ function build() {
     Math.min(b.from, b.to) >= fold.focus.lo && Math.max(b.from, b.to) <= fold.focus.hi);
 
   buildFlatChain();
+  buildSideChains();
 
   /* Where the intro may pan to: the chain's own X extent. Measured over
      BOTH poses — the flat chain is the longer of the two (528 Å against
@@ -1306,6 +1311,106 @@ function poseAt(t) {
   return blendPose;
 }
 
+/* ---------- level 1's side chains ----------
+ *  THE R GROUPS, ON ALL 146 RESIDUES, FOR THE INTRO ONLY. The trajectory
+ *  is backbone-only — 146 side chains through a fold is not what was
+ *  baked, and the info panel says so — but level 1 is a static chain the
+ *  student pans along, and there the R groups are the entire subject:
+ *  "the order of the amino acids" means nothing if every amino acid on
+ *  screen looks identical.
+ *
+ *  The geometry comes from residues.js, which measured each of the twenty
+ *  off deposited structures; grafting is one rigid transform per residue
+ *  off its own N, CA and C. Read that file's header before trusting a
+ *  conformation: the CONNECTIVITY is exact, and the shape is one real
+ *  rotamer of several the residue visits, not a canonical pose.
+ *
+ *  THEY GO WHEN THE FOLD STARTS, on the same schedule the flat chain
+ *  settles on. Not for tidiness: past the settle the coordinates under
+ *  them are a trajectory that never had side chains, so leaving them on
+ *  would be inventing the one thing the animation does not know. Fading
+ *  them out exactly as the measured chain takes over is the honest seam.
+ *
+ *  GRAFTED EVERY FRAME rather than once. They are only alive during the
+ *  settle and the still frame before it, where the backbone under them is
+ *  moving, and re-grafting is 146 transforms — cheaper than being wrong. */
+let sideGroup = null;
+const sideRes = [];                 // per residue: its atoms, sticks and backbone slots
+
+function buildSideChains() {
+  if (typeof ResidueLib === 'undefined')
+    throw new Error('residues.js is not loaded — level 1 has no side chains to draw');
+
+  sideGroup = new THREE.Group();
+  sideGroup.visible = false;
+  chainGroup.add(sideGroup);
+
+  const at = {};
+  fold.atoms.forEach((a, i) => { (at[a.name] = at[a.name] || {})[a.res] = i; });
+
+  for (let k = 0; k < fold.R; k++) {
+    const res = fold.first + k;
+    const type = fold.resNames[k];
+    const spec = ResidueLib.SIDE[type];
+    if (!spec || !spec.atoms.length) continue;        // glycine, and only glycine
+    const rec = { type, N: at.N[res], CA: at.CA[res], C: at.C[res],
+                  atoms: [], sticks: [], pos: [] };
+
+    spec.atoms.forEach(([, el]) => {
+      const m = Stage.atom(PAL.atoms[el] || 0x888888, RADII[el] || 0.3,
+                           new THREE.Vector3(), el);
+      m.material.transparent = true;
+      sideGroup.add(m); rec.atoms.push(m);
+      rec.pos.push(new THREE.Vector3());
+    });
+    /* Bonds within the side chain, and the anchors that join it to the
+       backbone — CB to CA for every residue, plus proline's CD to N,
+       which is the bond that makes proline a ring rather than a tail. */
+    const link = (a, b) => {
+      const mat = Stage.bondMat(PAL.bonds.covalent);
+      mat.transparent = true;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(STICK, STICK, 1, 8), mat);
+      sideGroup.add(m); rec.sticks.push({ m, a, b });
+    };
+    spec.bonds.forEach(([i, j]) => link({ side: i }, { side: j }));
+    spec.anchors.forEach(([i, name]) => link({ side: i }, { back: at[name][res] }));
+
+    sideRes.push(rec);
+  }
+}
+
+/* Level 1's own opacity: full while the chain is still, gone by the time
+   the settle is over. `flatW` is the settle, so this rides it exactly —
+   the R groups and the flat chain they belong to leave together. */
+const _sa = new THREE.Vector3(), _sb = new THREE.Vector3(), _sm = new THREE.Vector3();
+function updateSideChains(P, w) {
+  if (!sideGroup) return;
+  const on = w > 0.004;
+  sideGroup.visible = on;
+  if (!on) return;
+
+  for (const r of sideRes) {
+    const got = ResidueLib.graft(r.type, P[r.N], P[r.CA], P[r.C]);
+    got.forEach((g, i) => {
+      r.pos[i].set(g.p[0], g.p[1], g.p[2]);
+      r.atoms[i].position.copy(r.pos[i]);
+      r.atoms[i].material.opacity = w;
+      r.atoms[i].material.depthWrite = w > 0.5;
+    });
+    for (const st of r.sticks) {
+      const A = st.a.side != null ? r.pos[st.a.side] : _sa.fromArray(P[st.a.back]);
+      const B = st.b.side != null ? r.pos[st.b.side] : _sb.fromArray(P[st.b.back]);
+      _sm.subVectors(B, A);
+      const L = _sm.length() || 1e-6;
+      st.m.position.copy(A).addScaledVector(_sm, 0.5);
+      st.m.scale.set(1, L, 1);
+      st.m.quaternion.setFromUnitVectors(_yAxis, _sm.divideScalar(L));
+      st.m.material.opacity = w;
+      st.m.material.depthWrite = w > 0.5;
+    }
+  }
+}
+
 /* ---------- the opening close-up ----------
    One mesh per backbone atom of the focus segment and one cylinder per
    bond, plus a name over every residue. Built once and re-posed every
@@ -1453,24 +1558,46 @@ function updatePearls() {
   document.getElementById('pearlkey').hidden = !on;
   document.getElementById('pearlrow').hidden = started;
   if (!on) return;
-  /* The labels clear the DISC, not the atom: the name sits PEARL_R + 1.1 Å
-     above its bead and the number PEARL_R + 1.0 below, along the camera's
-     own up axis, so they stay clear whichever way the chain has been
-     turned. Those are folding-lab-ribbon's offsets.
-     WHAT IS NOT COPIED is that page's shared label line. Thirty-six
-     residues zigzag by a couple of angstroms and read better on one row;
-     146 residues wander over hundreds, so a shared height would strand a
-     name a long way from the amino acid it names. Here each label rides
-     its own residue. */
   camera.getWorldDirection(_fm);
   _fa.crossVectors(_fm, _yAxis).normalize();
   _pearlUp.crossVectors(_fa, _fm).normalize();          // camera up
+
+  /* HOW FAR THE LABELS HAVE TO CLEAR. Not the disc — the SIDE CHAINS. A
+     name 1.1 Å above a 2.5 Å bead was fine when the chain was backbone
+     only; a tyrosine reaches 6.6 Å from its own alpha carbon and lands on
+     top of the word. So the clearance is measured off what is actually
+     drawn, once per frame, along the camera's up axis: the labels sit
+     above everything and the numbers below everything.
+
+     THAT MAKES IT A SHARED ROW, which is folding-lab-ribbon's arrangement
+     after all, and for its reason — a sequence has to read as a row, and
+     labels that ride each residue's own height make the eye hunt for the
+     next one. The flat chain is what makes it work here: level 1 is
+     straight, so one height is near every residue. It would be wrong on a
+     folded chain, and the labels are gone by then. */
+  let hi = -Infinity, lo = Infinity;
+  for (let i = 0; i < P.length; i++) {
+    const h = P[i][0]*_pearlUp.x + P[i][1]*_pearlUp.y + P[i][2]*_pearlUp.z;
+    if (h > hi) hi = h;
+    if (h < lo) lo = h;
+  }
+  if (sideGroup && sideGroup.visible)
+    for (const r of sideRes) for (const q of r.pos) {
+      const h = q.dot(_pearlUp);
+      if (h > hi) hi = h;
+      if (h < lo) lo = h;
+    }
+  const above = hi + 1.6, below = lo - 1.6;
+
   pearls.children.forEach(m => {
     const p = P[m.userData.k];
     _pearlC.set(p[0], p[1], p[2]);
     if (m.isSprite) {                                   // a label, not a bead
+      /* Directly over its own bead horizontally — that is what ties a name
+         to a residue — and on the shared line vertically. */
+      const own = _pearlC.dot(_pearlUp);
       m.position.copy(_pearlC).addScaledVector(_pearlUp,
-        m.userData.above ? PEARL_R + 1.1 : -(PEARL_R + 1.0));
+        (m.userData.above ? above : below) - own);
       return;
     }
     /* Along THIS bead's own ray from the camera, not along the camera's Z
@@ -1970,6 +2097,7 @@ function seek(uu) {
   revealQuaternary(q);          // poses level 4's chains; nothing reads its count
 
   updateFocus(s, fw);
+  updateSideChains(s.P, flatW(t) * (q < 0 ? 1 : 0));
 
   /* The ribbon: absent for the whole of level 1, then faded in with the
      secondary act, then giving way under the close-up until the pull-out

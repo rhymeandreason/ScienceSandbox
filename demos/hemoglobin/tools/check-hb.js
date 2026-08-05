@@ -912,5 +912,31 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
      `worst ${worstTor.toExponential(1)} deg — a flipped sign here mirrors the molecule`);
 }
 
+/* ---------------- level 1's side chains ----------------
+   The page grafts an R group onto all 146 residues from residues.js. A
+   type missing from that table would draw nothing at all for that
+   residue — a bare backbone in a row of side chains, which reads as a
+   glycine rather than as a fault. So the coverage is asserted here, where
+   the chain's own sequence is known. */
+{
+  const ResidueLib = require('../../residues.js');
+  const d2 = decode(fs.readFileSync(BIN));
+  const missing = [...new Set(d2.resNames)].filter(t => !ResidueLib.SIDE[t]);
+  ok(missing.length === 0,
+     'residues.js covers every residue type in this chain',
+     missing.length ? 'MISSING: ' + missing.join(' ')
+                    : `${new Set(d2.resNames).size} distinct types over 146 residues`);
+
+  /* Glycine is the only one that legitimately draws nothing, and the
+     count is a property of this chain worth pinning: a table that started
+     returning empty side chains would otherwise look like more glycine. */
+  const gly = d2.resNames.filter(t => t === 'GLY').length;
+  const empty = d2.resNames.filter(t => ResidueLib.SIDE[t] &&
+                                        !ResidueLib.SIDE[t].atoms.length).length;
+  ok(gly === empty && gly === 13,
+     'the 13 residues with no side chain drawn are exactly the glycines',
+     `${gly} glycine, ${empty} empty`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

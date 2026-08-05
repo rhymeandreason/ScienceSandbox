@@ -90,7 +90,7 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 | `protein-lab` | pdb, vendor/chemdoodle/ChemDoodleWeb |
 | `folding-lab` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin |
 | `folding-lab-ribbon` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin, folding/ribbon |
-| `hemoglobin-lab` | palette, molecules, scene, fx, folding/ribbon, hemoglobin/hbfold |
+| `hemoglobin-lab` | palette, molecules, scene, fx, folding/ribbon, residues, hemoglobin/hbfold |  <!-- residues: level 1's side chains, grafted onto the flat chain -->
 
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
