@@ -1523,7 +1523,7 @@ function buildPearls() {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
       color: AA_INK[cls].color, transparent: true,
       opacity: PEARL_ALPHA, depthWrite: false }));
-    m.userData = { k };
+    m.userData = { k, base: PEARL_ALPHA };
     pearls.add(m);
 
     /* The name over every residue and the position number under every
@@ -1534,13 +1534,46 @@ function buildPearls() {
        starts at 1, so there is nothing to reconcile. */
     const sp = textSprite(nm[0] + nm.slice(1).toLowerCase(),   // VAL -> Val
                           FOCUS_NAME_INK, 40, 1.5);
-    sp.userData = { k, above: true };
+    sp.userData = { k, above: true, base: 1 };
     pearls.add(sp);
     if (a.res === fold.first || a.res % FOCUS_LABEL_EVERY === 0) {
       const num = textSprite(String(a.res), FOCUS_NUM_INK, 34, 1.2);
-      num.userData = { k, above: false };
+      num.userData = { k, above: false, base: 1 };
       pearls.add(num);
     }
+  });
+}
+
+/* ---------- the reveal ----------
+   The key does not switch on, it SWEEPS on, left to right across whatever
+   the student is looking at. 146 discs appearing at once is a wall; one
+   after another is the chain being read, which is the claim level 1 is
+   making — this order, and the order is the information.
+
+   THE STAGGER IS BY SCREEN POSITION, NOT BY RESIDUE NUMBER. Staggering by
+   index looks identical when the whole chain is in frame and is wrong
+   whenever it is not: the opening shot holds about fifteen residues out
+   of 146, and an index-ordered sweep would spend most of its time off
+   screen, so the student would toggle the key and watch nothing happen
+   for most of a second. Projecting each bead and delaying by its own x
+   means the sweep always crosses the VIEW, at whatever zoom, in the time
+   it is given. Left to right because that is the direction this chain
+   reads — the camera azimuth was chosen to put residue 1 on the left.
+
+   Re-seeded on every switch-on, because the view will have moved. */
+const REVEAL_SWEEP = 0.55;         // seconds for the wipe to cross the screen
+const REVEAL_RISE = 0.3;           // seconds one disc takes to arrive
+const REVEAL_LIFT = 1.4;           // angstroms a name travels up into its row
+let revealT0 = -1;
+function seedReveal() {
+  revealT0 = performance.now() / 1000;
+  if (!pearls || !posedP) return;
+  pearls.children.forEach(m => {
+    _pearlC.fromArray(posedP[m.userData.k]).project(camera);
+    /* Clamped, so everything off screen queues at one end or the other
+       rather than being given a delay nobody is waiting through. */
+    const x = Math.max(0, Math.min(1, (_pearlC.x + 1) / 2));
+    m.userData.delay = x * REVEAL_SWEEP;
   });
 }
 
@@ -1589,17 +1622,36 @@ function updatePearls() {
     }
   const above = hi + 1.6, below = lo - 1.6;
 
+  /* The wipe's clock. Computed here rather than in a second pass because
+     the arrival is a MOVE as well as a fade, so the position depends on
+     it. */
+  const el = performance.now() / 1000 - revealT0;
+
   pearls.children.forEach(m => {
     const p = P[m.userData.k];
     _pearlC.set(p[0], p[1], p[2]);
+    const a = smoothstep((el - (m.userData.delay || 0)) / REVEAL_RISE);
+    m.material.opacity = m.userData.base * a;
+
     if (m.isSprite) {                                   // a label, not a bead
       /* Directly over its own bead horizontally — that is what ties a name
-         to a residue — and on the shared line vertically. */
+         to a residue — and on the shared line vertically.
+
+         A NAME RISES INTO ITS ROW as it fades in, from REVEAL_LIFT below.
+         Small on purpose: far enough to give the word a direction, near
+         enough that it never reads as a second row of labels drifting
+         about. It settles as it reaches full strength, so the movement
+         and the fade finish together. */
       const own = _pearlC.dot(_pearlUp);
-      m.position.copy(_pearlC).addScaledVector(_pearlUp,
-        (m.userData.above ? above : below) - own);
+      const line = (m.userData.above ? above : below) - REVEAL_LIFT * (1 - a);
+      m.position.copy(_pearlC).addScaledVector(_pearlUp, line - own);
       return;
     }
+    /* A disc also grows into place from three-quarter size — a bead that
+       only fades reads as a rendering artefact settling, and one that
+       scales reads as a thing arriving. */
+    const k = 0.75 + 0.25 * a;
+    m.scale.set(k, k, 1);
     /* Along THIS bead's own ray from the camera, not along the camera's Z
        axis: one shared direction only preserves the projected position for
        points on the view axis, and every bead off-centre slides sideways
@@ -1608,6 +1660,7 @@ function updatePearls() {
     m.position.copy(_pearlC).addScaledVector(_pearlRay, 1.8);
     m.quaternion.copy(camera.quaternion);
   });
+
 }
 
 /* 1 = framed on the segment, 0 = the whole chain. Starts at 1 — the page
@@ -2359,7 +2412,14 @@ bar.addEventListener('keydown', e => {
   stage.addEventListener('pointercancel', end, true);
 }
 
-document.getElementById('showpearls').addEventListener('change', updatePearls);
+document.getElementById('showpearls').addEventListener('change', e => {
+  /* Seeded BEFORE the first pose, not after: seedReveal projects the
+     trajectory's own coordinates rather than the meshes', so it needs no
+     posed frame — and doing it the other way round showed one frame of
+     every disc at full strength before the wipe took hold. */
+  if (e.target.checked) seedReveal();
+  updatePearls();
+});
 {
   const key = document.getElementById('pearlkey');
   Object.values(AA_INK).forEach(v => {
