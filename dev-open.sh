@@ -3,6 +3,10 @@
 # running, wait for it to answer, then open the lesson index in the browser.
 # Pass lesson names to open those too:  ./dev-open.sh water-lab contrast-lab
 set -euo pipefail
+# Monitor mode: puts the backgrounded server in its own process group, so it
+# survives signals sent to this script's group (e.g. Studio's own dev-server
+# restarts) instead of dying with them.
+set -m
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=8817
