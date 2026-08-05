@@ -76,12 +76,12 @@
     display:flex;align-items:center;justify-content:center}
   #segbar .segfill{position:absolute;left:0;top:0;bottom:0;width:0;
     background:var(--hb);opacity:.22}
-  #segbar .seglab{position:relative;font-family:var(--font-slab);font-size:10.5px;
+  #segbar .seglab{position:relative;font-size:12px;
     color:var(--muted);white-space:nowrap;padding:0 5px;overflow:hidden;
     text-overflow:ellipsis}
   #segbar .seg.cur{box-shadow:inset 0 0 0 1.5px var(--hb)}
   #segbar .seg.cur .seglab{color:var(--hb);font-weight:700}
-  #tlabel{font-family:var(--font-slab);font-size:12.5px;color:var(--muted);
+  #tlabel{font-size:12.5px;color:var(--muted);
     min-width:86px;text-align:right;font-variant-numeric:tabular-nums}
 
   /* ONE readout: how many of the 103 hydrogen bonds have closed. It is a
@@ -446,10 +446,10 @@ const ACTS = [
    squeezed into u=0..FOLD_END; level 4 is the rest. */
 const SEGMENTS = [
   { to: 0.10, label: 'primary' },
-  { to: 0.54, label: 'secondary — helices coil' },
-  { to: 1.00, label: 'tertiary — helices pack' },
+  { to: 0.54, label: 'secondary' },
+  { to: 1.00, label: 'tertiary' },
 ].map(s => ({ to: uOf('fold', s.to), label: s.label }))
- .concat([{ to: 1.00, label: 'quaternary — four chains' }]);
+ .concat([{ to: 1.00, label: 'quaternary' }]);
 
 /* Ribbon ink. The helices take the hydrogen-bond blue because the helix IS
    what those bonds made — the same argument the villin page makes for its
