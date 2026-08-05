@@ -110,6 +110,16 @@
   #pearlkey{display:flex;flex-direction:column;gap:3px;align-items:stretch;
     background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
     border-radius:8px;padding:6px 10px}
+  /* The key ARRIVES, like the discs it explains: fades in and rises the
+     same short distance, so the two read as one gesture rather than as a
+     panel that blinked on beside an animation.
+     Keyed to the animation rather than a transition because the element is
+     display:none between showings — a transition has nothing to run from,
+     while re-entering layout restarts an animation, which is exactly the
+     moment worth animating. */
+  @keyframes keyrise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+  #pearlkey:not([hidden]){animation:keyrise .34s cubic-bezier(.22,.61,.36,1) both}
+  @media (prefers-reduced-motion:reduce){ #pearlkey:not([hidden]){animation:none} }
   #pearlkey div{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#3a352f}
   #pearlkey i{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto}
 
@@ -1641,9 +1651,15 @@ function updatePearls() {
          Small on purpose: far enough to give the word a direction, near
          enough that it never reads as a second row of labels drifting
          about. It settles as it reaches full strength, so the movement
-         and the fade finish together. */
+         and the fade finish together.
+
+         THE NUMBERS DO NOT MOVE, they only fade. The ruler is a fixed
+         thing the chain is measured against — 130, 135, 140 — and a
+         measuring line that slides into place undercuts what it is for.
+         It also reads badly next to the names: two rows drifting in
+         opposite directions is motion for its own sake. */
       const own = _pearlC.dot(_pearlUp);
-      const line = (m.userData.above ? above : below) - REVEAL_LIFT * (1 - a);
+      const line = m.userData.above ? above - REVEAL_LIFT * (1 - a) : below;
       m.position.copy(_pearlC).addScaledVector(_pearlUp, line - own);
       return;
     }
