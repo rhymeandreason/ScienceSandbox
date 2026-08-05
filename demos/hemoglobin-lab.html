@@ -402,17 +402,7 @@ const rateAt = x => (x >= FAST.from && x < FOLD_END) ? FAST.rate : 1;
    before level 4 begins, and the caption up during it is "One chain,
    done".
 
-   It is there because the last fold caption had become unreadable: it
-   spans t 0.94..1.0, which was 1.3 s when the fold ran 22 seconds AND the
-   animation stopped there — nothing followed it, so it sat on a paused
-   screen for as long as you liked. Level 4 turned it into a transient, and
-   the two speed-ups since took it to a third of a second.
-
-   The beat is also the better edit. Without it the page cuts from a chain
-   still collapsing straight to a chain being docked onto, and there is no
-   instant where the finished tertiary structure is simply THERE — which is
-   the thing three acts were spent building, and the "before" that level 4
-   is a change to.
+   This highlights the finished tertiary structure before moving on to the quaternary.
 
    HELD JUST SHORT OF FOLD_END, not at it, because the act boundary is at
    FOLD_END exactly: pausing on the boundary would post level 4's caption
@@ -438,8 +428,7 @@ const ACTS = [
 
   { phase: 'quat', t: 0.00, cls: 'a4', name: 'Level 4 · four chains, one molecule',
     body: 'Two α chains and 2 β chains together form a complete hemoglobin ' +
-          'Hydrogen bonds and hydrophobic interactions join them together. ' +
-'Only four together can hand oxygen from one iron to the next.' },
+          'Hydrogen bonds and hydrophobic interactions join them together. ' },
 ];
 
 /* The scrubber in lesson units. The fold\'s three measured segments are
@@ -461,8 +450,7 @@ const COIL_COLOR  = 0x8a8378;
 /* The three chains that arrive in level 4 are drawn FLAT — one colour each,
    no helix/coil split — for the same reason they are not folded: they are
    context, and the chain the student has been watching must stay the
-   subject. Colour carries the one fact that matters about them, which is
-   which KIND each is: the two alphas share an ink and the second beta takes
+   subject. Colour tells what KIND each is: the two alphas share an ink and the second beta takes
    a lighter version of this page's blue, so "two of these and two of those"
    is legible without a legend. */
 const ALPHA_COLOR = 0xb07a24;
@@ -481,13 +469,9 @@ const ARRIVE = {
 };
 const IRON_B = [0.02, 0.12];
 
-/* HOW FAR OUT A CHAIN STARTS. 30 A, not the 55 this began at. The slide has
+/* HOW FAR OUT A CHAIN STARTS. The slide has
    to say "this arrived from elsewhere, already finished" — which is the one
-   thing separating level 4 from level 3 — without saying "this is an
-   unrelated molecule that happens to be nearby". At 55 A the chain spent
-   most of its window clear of the protein and read as a second molecule
-   passing; at 30 it is never further out than its own width, so it reads as
-   a subunit coming in to dock.
+   thing separating level 4 from level 3.
    AND IT SEATS. The position uses an ease-OUT (fast, then slow) while the
    opacity stays symmetric, so the last few angstroms take a
    disproportionate share of the window and the chain visibly settles
@@ -508,11 +492,7 @@ const easeSeat = a => 1 - Math.pow(1 - a, 1.7);
 
    WHAT IS DELIBERATELY NOT DRAWN. About thirty residues are in contact at
    that interface and only eight bonds are among them; the rest is
-   hydrophobic packing, which has no endpoints and is not a bond. An earlier
-   version marked every contact residue with a sphere, which drew thirty
-   interactions where there are eight and put them in an ink this page uses
-   for nothing else. The packing is now named in the caption and left
-   undrawn — the same treatment level 3 gives it. */
+   hydrophobic packing, which has no endpoints and is not a bond. */
 const BOND_IN = 0.82;           // fraction of the approach before bonds appear
 
 /* fx.js's ring is sized in angstroms and was tuned where an event is one
