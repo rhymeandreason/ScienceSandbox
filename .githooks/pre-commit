@@ -114,6 +114,25 @@ else
   echo "pre-commit: skipping check-folding.js — nothing under demos/folding/ staged"
 fi
 
+# residues.js is generated from structures this repo commits, so it can go
+# stale two ways: the baker changes, or a source structure does. Both patterns
+# are here. It is cheap (instant) and it carries the L/D assertion, which is
+# one of only two places in this repo that can catch a mirrored molecule.
+if git diff --cached --name-only | grep -qE '^demos/(residues\.js|tools/(bake|check)-residues\.js|hemoglobin/data/2HHB\.pdb|folding/data/9ZZI\.pdb)$'; then
+  if ! node tools/check-residues.js > /tmp/cr.$$ 2>&1; then
+    tail -25 /tmp/cr.$$; rm -f /tmp/cr.$$
+    echo ""
+    echo "pre-commit FAILED: check-residues.js"
+    echo "  If the table is stale:  node tools/bake-residues.js"
+    echo "  A D-AMINO ACID failure is the one to take seriously — it means the"
+    echo "  side chains are mirrored, and they render exactly the same."
+    exit 1
+  fi
+  rm -f /tmp/cr.$$
+else
+  echo "pre-commit: skipping check-residues.js — no residue table or source staged"
+fi
+
 # The haemoglobin page's trajectory has TWO upstream dependencies outside its
 # own folder, and both can make it stale without touching it: folding.js's
 # solver produces the fold, and ribbon.js's dssp is cross-checked against

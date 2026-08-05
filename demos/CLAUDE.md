@@ -133,6 +133,7 @@ and `register()` throws if both are present.
 | `palette.js` | `MolPalette` — atom colours, bond colours, display radii, bond colours, display radii. Loads before `molecules.js`, which re-exports it as `MolLib.PALETTE` | own header |
 | `molecules.js` | `MolLib` = `PALETTE` (colours/radii) · `MOLECULES` (the registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` (the manifest) · `register` (applies the display scale) · `atomIndex`/`resolveAtoms` | `MolecularGeometry.md` §1 |
 | `skel.js` | `SkelLib` = `Skel` + the `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds. The builder, not data — and it has no dependencies at all | MolecularGeometry.md §1.2, §1.5 |
+| `residues.js` | `ResidueLib` = `SIDE` (the twenty standard side chains, heavy atoms, in each residue's own N–CA–C frame) + `graft` (place one on a backbone) + `TYPES`. **Generated** by `tools/bake-residues.js` — real ångströms, no `SCALE`, no MolLib. Not a domain file and not in `DOMAINS`: it holds pieces of molecules, not molecules | own header |
 | `mol-solvation.js` · `mol-monomers.js` · `mol-glycolysis.js` · `mol-contrast.js` | nothing — each calls `register()` to add its specs to `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
 | `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or with it — `register()` throws if both load | own header, MolecularGeometry.md §1.5 |
 | `lib-node.js` | the whole library for Node checkers, by walking `MolLib.DOMAINS`. No page loads it | own header |
@@ -158,6 +159,8 @@ and `register()` throws if both are present.
 | `hemoglobin/tools/bake-quaternary.js` | level 4's other three chains: deposited Cα traces of 2HHB's A, C and D plus the four heme irons, rotated into the trajectory's frame by re-deriving `FoldLib.orient()`'s matrix. Writes `hemoglobin/data/2HHB-quaternary.json` (12 KB) — JSON, not a binary, because 428 points need no format and no second decoder to keep in step | own header |
 | `hemoglobin/tools/check-hb.js` | the ~85 assertions behind the haemoglobin page: staleness, quantisation, the two decoders agreeing, DSSP vs the deposited HELIX records, the opening close-up (its atoms are the ribbon's, and its helix is made before the camera leaves it), **level 1's flat chain** (generated in the page, so the checker lifts the generator out of the HTML and runs it — including that `placeAtom` builds the torsion's SIGN right, the one input a mirrored molecule comes from), and **helix handedness**, which is the one global mirror an internal check can actually catch | own header |
 | `folding/tools/bake-fold.js` | solves the villin fold once and writes `folding/data/1VII.fold.bin` (442 KB, 185 keyframes). Both folding pages play that file and fold nothing themselves. **Re-run after any change to `folding/folding.js`'s solver, schedule or H-bond cutoffs** — `folding/tools/check-folding.js` compares the committed file against a fresh bake and fails if they differ | own header |
+| `tools/bake-residues.js` | writes `residues.js` by MEASURING the twenty side chains off structures already committed here — 2HHB for nineteen, 9ZZI for isoleucine, which haemoglobin does not contain. Keeps one real instance of each (the medoid), never an average of rotamers | own header |
+| `tools/check-residues.js` | re-bakes `residues.js` and compares, then asserts the chemistry: the textbook heavy-atom count of every type, ring closure, proline's ring onto the backbone N, and **L-configuration** — one of only two checks here that can catch a mirrored molecule | own header |
 | `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
 
 Things that are easy to get wrong and are not visible from the API:
@@ -320,6 +323,7 @@ is why the patterns look wider than the checkers do:
 | `check-pages.js` | any `*.html`, plus the registry files it reads | 0.2 s |
 | `check-pdb.js` | `pdb.js`, `tools/check-pdb.js`, anything in `pdb/` — pdb.js's orientation is its single subject | 0.3 s |
 | `check-folding.js` | anything under `folding/`, plus `palette.js` (folding-lab derives its display radii from `PALETTE.radii / SCALE`) | |
+| `check-residues.js` | `residues.js`, either `tools/*-residues.js`, and the two structures it measures (`2HHB.pdb`, `9ZZI.pdb`) | 0.2 s |
 | `check-hb.js` | anything under `hemoglobin/`, **plus `hemoglobin-lab.html`** (it asserts numbers the page says out loud), plus `folding/folding.js` and `folding/ribbon.js` — **two modes**, below | 0.3 s or 57 s |
 
 `check-hb.js` is the one worth understanding, because it is the only check
@@ -339,7 +343,7 @@ stale one is visible from the page that plays it.
 There is still no CI. To run them by hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js
 ```
 
 Those three are offline and have no dependencies. **`tools/check-handedness.js`
