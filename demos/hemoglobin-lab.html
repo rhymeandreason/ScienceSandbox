@@ -108,6 +108,13 @@
   #toggles label{display:flex;align-items:center;gap:6px;font-size:12.5px;opacity:.8;
     cursor:pointer;background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
     border-radius:8px;padding:6px 10px}
+  /* the pearl key: four swatches, only while the pearls are on. Rows are
+     LEFT-aligned inside a right-aligned box, so the dots form a column. */
+  #pearlkey{display:flex;flex-direction:column;gap:3px;align-items:stretch;
+    background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
+    border-radius:8px;padding:6px 10px}
+  #pearlkey div{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#3a352f}
+  #pearlkey i{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto}
 
   #loading{position:absolute;inset:0;z-index:20;display:flex;align-items:center;
     justify-content:center;background:rgba(253,250,243,.92);
@@ -161,6 +168,9 @@
     <div id="toggles">
       <label><input type="checkbox" id="showhb" checked> hydrogen bonds</label>
       <label><input type="checkbox" id="showdep"> finished shape</label>
+      <!-- level 1 only: the row goes when the fold starts -->
+      <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
+      <div id="pearlkey" hidden></div>
     </div>
 
     <button id="infobtn" aria-label="About this animation" title="About this animation"
@@ -656,26 +666,52 @@ const RADII = {};
 for (const el of ['C', 'N', 'O', 'H']) RADII[el] = PAL.radii[el] / MolLib.SCALE;
 const STICK = RADII.C * 0.165;    // the house ratio of stick to atom
 
-/* Three-letter codes, not one-letter: "K" for lysine is notation a student
-   has not met, and the point of this beat is that the chain is made of
-   NAMED things. The ruler counts from 1 in the chain, and here that is also
-   the file's own numbering — 2HHB numbers chain B from 1, so unlike villin
-   there is nothing to reconcile. */
+/* The ruler is 2HHB's own numbering, and here that is also position in the
+   chain — 2HHB numbers chain B from 1, so unlike villin there is nothing to
+   reconcile. A number under every fifth residue; a name over all of them.
+
+   THE NAMES BELONG TO THE PEARLS, and go when they do. Extended, the
+   residues are 3.8 Å apart along a line and the names sit in a readable
+   row. Coiled, they are 1.5 Å apart along the helix axis and stacked
+   three-deep around it — the same labels become a heap of overlapping
+   words lying across the one thing level 2 wants looked at. They are level
+   1's content anyway: which units, in what order. */
 const FOCUS_LABEL_EVERY = 5;
 const FOCUS_NAME_INK = '#3a352f', FOCUS_NUM_INK = '#8a857a';
 
-/* THE NAMES GO WHEN THE COILING STARTS, well before the camera moves.
-   Extended, the residues are 3.8 Å apart along a line and fifteen names sit
-   in a readable row. Coiled, they are 1.5 Å apart along the helix axis and
-   stacked three-deep around it — the same fifteen labels become a heap of
-   overlapping words lying across the one thing act 2 wants looked at. They
-   are level 1's content anyway: which units, in what order. Once the
-   backbone starts bonding to itself the subject has changed, so the names
-   have done their job and leave.
+/* ---------- amino acid classes, for the intro's pearls ----------
+   The four-class grouping AP Bio teaches — nonpolar, polar uncharged,
+   acidic, basic. The table, the colours and the argument for them are
+   folding-lab-ribbon's, kept identical on purpose: a student meets this
+   key on the folding page and must not have to re-learn it here. Blue is
+   the hydrogen bond on both pages, so no class may take it; nonpolar takes
+   the warm amber that level 3's hydrophobic core also uses.
 
-   The number ruler goes with them. It is the same claim (this is position
-   10 of 146) and it collides just as badly. */
-const LABEL_OUT = [0.04, 0.12];
+   Glycine sits in nonpolar (no side chain to be anything else) and tyrosine
+   in polar (its -OH), which is where a textbook puts them. */
+const AA_CLASS = {
+  ALA:'nonpolar', VAL:'nonpolar', LEU:'nonpolar', ILE:'nonpolar', PRO:'nonpolar',
+  PHE:'nonpolar', TRP:'nonpolar', MET:'nonpolar', GLY:'nonpolar',
+  SER:'polar', THR:'polar', CYS:'polar', TYR:'polar', ASN:'polar', GLN:'polar',
+  ASP:'acidic', GLU:'acidic',
+  LYS:'basic', ARG:'basic', HIS:'basic',
+};
+const AA_INK = {
+  nonpolar: { color: 0xd98b4a, label: 'nonpolar — hides from water' },
+  polar:    { color: 0x3d8b7d, label: 'polar' },
+  acidic:   { color: 0xc0392b, label: 'acidic (−)' },
+  basic:    { color: 0x7d5ba6, label: 'basic (+)' },
+};
+/* One disc per residue, all the same size, centred on the alpha carbon and
+   big enough to CONTAIN that residue's backbone: half the 3.8 Å Cα–Cα
+   spacing is the residue's fair share of the chain but cuts its own atoms
+   off, and 2.5 Å holds them with a little air. Neighbours then overlap by
+   about a fifth of their width, which is what beads on a string do.
+   Same size for every residue: only the backbone is drawn here, so a bead
+   sized to its atoms would state how much we happened to draw rather than
+   how big the amino acid is. */
+const PEARL_R = 2.5;
+const PEARL_ALPHA = 0.55;
 
 /* THE REST OF THE CHAIN IS DIMMED, NEVER CUT — folding-lab-ribbon's rule,
    its value, and its reasoning. Cutting the out-of-focus chain "turns a
@@ -919,7 +955,7 @@ function build() {
    up to 0.06 Å over the run. Small, but a cylinder whose length is a lie is
    a stick poking out of an atom, so the length is written each frame. */
 let focusGroup = null;
-const focusAtoms = [], focusSticks = [], focusLabels = [];
+const focusAtoms = [], focusSticks = [];
 
 function textSprite(text, hex, px, worldH) {
   const pad = 8, c = document.createElement('canvas'), g = c.getContext('2d');
@@ -986,23 +1022,100 @@ function buildFocus() {
     focusGroup.add(m); focusSticks.push(m);
   });
 
-  /* Names ONLY on the close-up's residues. All 146 would be 146 overlapping
-     words at any zoom that shows more than a handful — the labels are for
-     the stretch being read, and the rest of the chain is there to be seen
-     as chain. */
-  const caOf = new Map();
-  fold.atoms.forEach((a, k) => { if (a.name === 'CA' && inFocus(a)) caOf.set(a.res, k); });
-  caOf.forEach((k, res) => {
-    const nm = fold.resNames[res - fold.first] || '???';
-    const title = nm[0] + nm.slice(1).toLowerCase();       // VAL -> Val
-    const sp = textSprite(title, FOCUS_NAME_INK, 40, 1.5);
+  /* The names and the number ruler belong to the pearls, not to the
+     close-up — they are the same claim (which amino acid, in what position)
+     and they now run the whole chain, so they are built and shown with the
+     discs. */
+  buildPearls();
+}
+
+/* ---------- "amino acid types": one coloured disc per residue ----------
+   Billboarded and pushed a little away from the camera each frame, so a
+   pearl reads as sitting BEHIND its amino acid rather than as a bubble
+   around it — the backbone atoms occlude it where they overlap, which is
+   what makes the chain look threaded through the string of beads.
+
+   INTRO ONLY, like the villin page's. Once the chain coils, residues stack
+   three-deep around the helix axis and 146 overlapping discs stop being a
+   diagram; and the claim itself belongs to level 1 — this is what the chain
+   is made of, in this order — so it leaves when level 1 does. */
+let pearls = null;
+let posedP = null;          // the atom positions of the last frame seek() posed
+
+function buildPearls() {
+  pearls = new THREE.Group();
+  pearls.visible = false;
+  chainGroup.add(pearls);
+  const geo = new THREE.CircleGeometry(PEARL_R, 40);
+  fold.atoms.forEach((a, k) => {
+    if (a.name !== 'CA') return;
+    const nm = fold.resNames[a.res - fold.first] || '???';
+    const cls = AA_CLASS[nm] || 'polar';
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: AA_INK[cls].color, transparent: true,
+      opacity: PEARL_ALPHA, depthWrite: false }));
+    m.userData = { k };
+    pearls.add(m);
+
+    /* The name over every residue and the position number under every
+       fifth — the two things primary structure IS: which units, in what
+       order. Three-letter codes, not one-letter: "K" for lysine is notation
+       a student has not met, and the point is that the chain is made of
+       NAMED things. The ruler is 2HHB's own numbering, which for chain B
+       starts at 1, so there is nothing to reconcile. */
+    const sp = textSprite(nm[0] + nm.slice(1).toLowerCase(),   // VAL -> Val
+                          FOCUS_NAME_INK, 40, 1.5);
     sp.userData = { k, above: true };
-    focusGroup.add(sp); focusLabels.push(sp);
-    if (res === fold.first || res % FOCUS_LABEL_EVERY === 0) {
-      const num = textSprite(String(res), FOCUS_NUM_INK, 34, 1.2);
+    pearls.add(sp);
+    if (a.res === fold.first || a.res % FOCUS_LABEL_EVERY === 0) {
+      const num = textSprite(String(a.res), FOCUS_NUM_INK, 34, 1.2);
       num.userData = { k, above: false };
-      focusGroup.add(num); focusLabels.push(num);
+      pearls.add(num);
     }
+  });
+}
+
+/* Called from the RENDER LOOP, not from seek(): orbiting and zooming move
+   the camera without advancing the trajectory, and a billboard that ignores
+   that shears visibly. The positions come from the last frame seek() posed,
+   which is the same chain the atoms are drawn on. */
+const _pearlRay = new THREE.Vector3(), _pearlC = new THREE.Vector3(),
+      _pearlUp = new THREE.Vector3();
+function updatePearls() {
+  if (!pearls || !posedP) return;
+  const P = posedP;
+  const on = !started && document.getElementById('showpearls').checked;
+  pearls.visible = on;
+  document.getElementById('pearlkey').hidden = !on;
+  document.getElementById('pearlrow').hidden = started;
+  if (!on) return;
+  /* The labels clear the DISC, not the atom: the name sits PEARL_R + 1.1 Å
+     above its bead and the number PEARL_R + 1.0 below, along the camera's
+     own up axis, so they stay clear whichever way the chain has been
+     turned. Those are folding-lab-ribbon's offsets.
+     WHAT IS NOT COPIED is that page's shared label line. Thirty-six
+     residues zigzag by a couple of angstroms and read better on one row;
+     146 residues wander over hundreds, so a shared height would strand a
+     name a long way from the amino acid it names. Here each label rides
+     its own residue. */
+  camera.getWorldDirection(_fm);
+  _fa.crossVectors(_fm, _yAxis).normalize();
+  _pearlUp.crossVectors(_fa, _fm).normalize();          // camera up
+  pearls.children.forEach(m => {
+    const p = P[m.userData.k];
+    _pearlC.set(p[0], p[1], p[2]);
+    if (m.isSprite) {                                   // a label, not a bead
+      m.position.copy(_pearlC).addScaledVector(_pearlUp,
+        m.userData.above ? PEARL_R + 1.1 : -(PEARL_R + 1.0));
+      return;
+    }
+    /* Along THIS bead's own ray from the camera, not along the camera's Z
+       axis: one shared direction only preserves the projected position for
+       points on the view axis, and every bead off-centre slides sideways
+       off its own amino acid. */
+    _pearlRay.copy(_pearlC).sub(camera.position).normalize();
+    m.position.copy(_pearlC).addScaledVector(_pearlRay, 1.8);
+    m.quaternion.copy(camera.quaternion);
   });
 }
 
@@ -1025,9 +1138,10 @@ const _yAxis = new THREE.Vector3(0, 1, 0);
    fade is the representation changing, which is the beat: you have seen
    what the tube is made of, now watch the tube.
 
-   The labels go FIRST and faster. Text does not scale down gracefully — at
-   half the pull-out the names are already unreadable smears over the
-   molecule, so they are gone by then rather than shrinking into litter. */
+   The residue names are not here at all any more: they hang off the pearls
+   and leave with them the moment play is pressed, which is well before this
+   pull-out. Text does not scale down gracefully, and by half the pull-out
+   they would be unreadable smears lying over the molecule. */
 function updateFocus(s, w) {
   if (!focusGroup) return;
   const on = w > 0.004;
@@ -1070,23 +1184,6 @@ function updateFocus(s, w) {
     m.material.depthWrite = o > 0.5;
   });
 
-  /* Labels ride 2.6 Å off their alpha carbon along the camera's own up
-     axis, so they clear the atom whichever way the student has turned the
-     molecule. Billboarded by Sprite already; only the offset needs the
-     basis. */
-  const lw = w * (started
-    ? 1 - smoothstep((t - LABEL_OUT[0]) / (LABEL_OUT[1] - LABEL_OUT[0])) : 1);
-  camera.getWorldDirection(_fm);
-  _fa.crossVectors(_fm, _yAxis).normalize();
-  _fb.crossVectors(_fa, _fm).normalize();          // camera up
-  focusLabels.forEach(sp => {
-    sp.visible = lw > 0.01;
-    if (!sp.visible) return;
-    const k = sp.userData.k;
-    sp.position.set(P[k][0], P[k][1], P[k][2])
-      .addScaledVector(_fb, sp.userData.above ? 2.6 : -2.6);
-    sp.material.opacity = lw;
-  });
 }
 
 /* ---------- level 4 ----------
@@ -1446,6 +1543,7 @@ function seek(uu) {
   t = Math.min(1, u / FOLD_END);
   const q = u <= FOLD_END ? -1 : (u - FOLD_END) / (1 - FOLD_END);
   const s = fold.at(t);
+  posedP = s.P;                    // what the pearls billboard against
 
   /* How much the close-up still owns the frame. Computed up here because
      three things need it — which bonds may ring, the ribbon's opacity, and
@@ -1802,6 +1900,16 @@ bar.addEventListener('keydown', e => {
 
 document.getElementById('showhb').addEventListener('change', () => seek(u));
 document.getElementById('showdep').addEventListener('change', () => seek(u));
+document.getElementById('showpearls').addEventListener('change', updatePearls);
+{
+  const key = document.getElementById('pearlkey');
+  Object.values(AA_INK).forEach(v => {
+    const row = document.createElement('div');
+    row.innerHTML = '<i style="background:#' + v.color.toString(16).padStart(6, '0') + '"></i>';
+    row.appendChild(document.createTextNode(v.label));
+    key.appendChild(row);
+  });
+}
 
 const infobtn = document.getElementById('infobtn'), infopanel = document.getElementById('infopanel');
 infobtn.addEventListener('click', () => {
@@ -1862,6 +1970,7 @@ let holdLeft = HOLD_SECONDS;      // re-armed whenever playback restarts
 (function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  updatePearls();                  // billboards, so it tracks the camera not the clock
   /* The glide home owns the camera while it runs and the fold does not
      advance underneath it — the student asked to watch the fold from the
      framed view, so the fold starts when the view gets there. */
