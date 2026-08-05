@@ -16,20 +16,19 @@
   /* No side panel,full screen app*/
   #app{grid-template-columns:1fr}
 
-  #act{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:6;
-    max-width:min(560px,80%);text-align:center;pointer-events:none;
-    border-radius:var(--radius); backdrop-filter:blur(2px)}
-  #act .actname{font-family:var(--font-marker);font-size:20px;line-height:1.1}
-  #act .actbody{font-family:var(--font-sans);font-size:13.5px;line-height:1.45;
-    color:#3a352f;margin-top:4px}
-  #act.intro{max-width:min(640px,84%);padding:14px 22px 16px}
-  #act.intro .actname{font-size:29px}
-  #act.intro .actbody{font-size:14.5px;margin-top:7px}
+  /* static labels — page title above the running caption, molecule name
+     above the transport controls. Neither changes with the animation. */
+  #pagetitle{position:absolute;left:50%;top:14px;transform:translateX(-50%);
+    z-index:6;font-family:var(--font-marker);font-size:16px;color:var(--muted);
+    text-align:center;pointer-events:none}
+  #molname{position:absolute;left:50%;bottom:100px;transform:translateX(-50%);
+    z-index:6;font-size:16px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;
+    text-align:center;pointer-events:none}
 
   /* Running caption:
      during the fold the thing to look at is the chain, so the words are a
      voice-over at the bottom rather than a card in the way. */
-  #saycap{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);z-index:6;
+  #saycap{position:absolute;left:50%;top:44px;transform:translateX(-50%);z-index:6;
     pointer-events:none;text-align:center;width:min(760px,86%)}
   #saycap .capname{font-family:var(--font-marker);font-size:21px;line-height:1.15}
   #saycap .capbody{font-family:var(--font-sans);font-size:15px;line-height:1.4;
@@ -44,10 +43,16 @@
     100%{opacity:1;transform:translateX(-50%) translateY(0)}}
 
   #infobtn{position:absolute;right:20px;top:20px;z-index:8;width:36px;height:36px;
-    border-radius:50%;cursor:pointer;border:2px solid var(--ink);background:#fff;
-    color:var(--ink);font-size:17px;display:flex;align-items:center;
-    justify-content:center;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
-  #infobtn:hover,#infobtn.on{background:var(--ink);color:var(--paper)}
+    border-radius:50%;cursor:pointer;border:none;background:transparent;
+    color:var(--muted);font-size:17px;display:flex;align-items:center;
+    justify-content:center}
+  #infobtn:hover,#infobtn.on{color:var(--ink)}
+
+  /* de-emphasized on this page: not part of the lesson, so it shouldn't
+     compete with the transport controls or tally for attention. */
+  #savepng{font-weight:400;color:var(--muted);background:transparent;
+    border:1.5px solid var(--hair)}
+  #savepng:hover{background:var(--muted);color:var(--paper);border-color:var(--muted)}
   #infopanel{position:absolute;right:20px;top:64px;z-index:8;width:min(360px,84vw);
     max-height:calc(100% - 96px);overflow-y:auto;
     background:rgba(255,255,255,.94);border:2px solid var(--ink);
@@ -89,7 +94,10 @@
      is one of them — which is what a number beside an animation is for.
      Hidden until play, because before that it reads 0 of 103 and invites
      the student to wonder what they have missed. */
-  #tally{position:absolute;right:20px;bottom:118px;z-index:6;pointer-events:none;
+  #cornerstack{position:absolute;right:20px;bottom:24px;z-index:6;
+    display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+
+  #tally{pointer-events:none;
     text-align:right;display:flex;gap:18px;align-items:flex-start;
     background:rgba(255,255,255,.72);border:1.5px solid var(--hair);border-radius:9px;
     padding:9px 13px;font-family:var(--font-slab);font-size:12.5px;line-height:1.45}
@@ -100,7 +108,7 @@
   #tally .hbnum{color:var(--hb)}
   #tally .sub{color:var(--muted);font-size:11px;display:block}
 
-  #toggles{position:absolute;right:20px;bottom:24px;z-index:6;display:flex;
+  #toggles{display:flex;
     flex-direction:column;align-items:flex-end;gap:7px}
   #toggles label{display:flex;align-items:center;gap:6px;font-size:12.5px;opacity:.8;
     cursor:pointer;background:rgba(255,255,255,.7);border:1.5px solid var(--hair);
@@ -129,12 +137,15 @@
   #loading.done{display:none}
 
   @media (max-width:920px){
-    #act,#act.intro{top:12px;max-width:78%} #transport{width:90%;bottom:14px}
+    #transport{width:90%;bottom:14px}
     #infobtn{top:10px;right:10px;width:32px;height:32px;font-size:15px}
     #infopanel{top:48px;right:10px}
-    #tally{right:12px;bottom:110px;gap:12px;font-size:11.5px}
+    #cornerstack{right:12px;bottom:14px;gap:8px}
+    #tally{gap:12px;font-size:11.5px}
     #tally .big{font-size:18px}
-    #saycap{bottom:124px;width:92%}
+    #pagetitle{top:10px;font-size:14px}
+    #molname{bottom:56px;font-size:12.5px}
+    #saycap{top:30px;width:92%}
     #saycap .capname{font-size:18px} #saycap .capbody{font-size:13px}
   }
 </style>
@@ -143,18 +154,10 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="act" class="intro"><div class="actname"></div>
-      <div class="actbody"></div></div>
+    <div id="pagetitle">Protein Structure</div>
     <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
 
-    <div id="tally" hidden>
-      <span class="col" id="hbcol">
-        <span class="big hbnum" id="hbcount">0</span>
-        <span class="sub">of 103 hydrogen bonds</span>
-        <span class="sub">level 2 · secondary</span>
-      </span>
-    </div>
-
+    <div id="molname">Hemoglobin</div>
     <div id="transport">
       <button id="playbtn" aria-label="play or pause"><i class="ph-bold ph-play"></i></button>
       <div id="segbar" role="slider" tabindex="0" aria-label="lesson progress"
@@ -162,12 +165,25 @@
       <span id="tlabel">unfolded</span>
     </div>
 
-    <div id="toggles">
-      <!-- the key opens ABOVE its own checkbox, so the control the student
-           just clicked stays put instead of being pushed up the stage -->
-      <div id="pearlkey" hidden></div>
-      <!-- level 1 only: the row goes when the fold starts -->
-      <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
+    <!-- both anchor to the same bottom-right corner, stacked in one flex
+         column so the tally always sits flush above the toggles box —
+         including while the pearl key is open and toggles grows taller. -->
+    <div id="cornerstack">
+      <div id="tally" hidden>
+        <span class="col" id="hbcol">
+          <span class="big hbnum" id="hbcount">0</span>
+          <span class="sub">of 103 hydrogen bonds</span>
+          <span class="sub">level 2 · secondary</span>
+        </span>
+      </div>
+
+      <div id="toggles">
+        <!-- the key opens ABOVE its own checkbox, so the control the student
+             just clicked stays put instead of being pushed up the stage -->
+        <div id="pearlkey" hidden></div>
+        <!-- level 1 only: the row goes when the fold starts -->
+        <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
+      </div>
     </div>
 
     <button id="infobtn" aria-label="About this animation" title="About this animation"
@@ -1906,8 +1922,7 @@ function solveFrame(groups, phi) {
      from load now, so there is no longer a state with the transport below
      and nothing above it. Only the top changes, depending on whether the
      intro card is still up. */
-  const introCard = !document.getElementById('act').hidden;
-  const top = introCard ? RESERVE.intro : RESERVE.top;
+  const top = !started ? RESERVE.intro : RESERVE.top;
   const bottom = RESERVE.capBottom;
   const usable = Math.max(0.25, (h - top - bottom) / h);
   halfH /= usable;
@@ -2226,16 +2241,14 @@ function setPlaying(on) {
   if (on) beginIfNeeded();
 }
 
-/* The intro card is the standfirst and it goes as soon as anything happens,
-   clearing the top of the stage while the chain is moving. The caption below
-   is ALREADY showing level 1 by then and is deliberately left alone —
-   forcing it to re-render would re-run its fade-in, which reads as the text
-   flinching at the moment the student clicks. It changes when the act does,
-   and not before. */
+/* `started` alone now gates the top reserve (see frameFrom) — there is no
+   more intro card to hide. The caption below is ALREADY showing level 1 by
+   then and is deliberately left alone — forcing it to re-render would re-run
+   its fade-in, which reads as the text flinching at the moment the student
+   clicks. It changes when the act does, and not before. */
 function beginIfNeeded() {
   if (started) return;
   started = true;
-  document.getElementById('act').hidden = true;
   updateCaption();
 }
 
@@ -2412,12 +2425,6 @@ document.getElementById('savepng').addEventListener('click', () => {
   a.click();
 });
 
-/* ---------- intro ---------- */
-const actEl = document.getElementById('act');
-actEl.querySelector('.actname').textContent = 'Protein Structure';
-actEl.querySelector('.actbody').textContent =
-  'Hemoglobin'
-;
 
 /* ---------- loop ----------
    THE SCENE UPDATES AT 30 Hz AND RENDERS AT 60, and that is not a
