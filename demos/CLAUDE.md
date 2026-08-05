@@ -18,8 +18,8 @@ is meant to use — text written for a student, layout tested in a browser, and
 a change that degrades one is a regression; also listed under "Featured" on
 the top-level `index.html`. **Prototype** = a work in progress, not yet held
 to that bar. **Reference** = superseded, kept as a fallback or a worked
-example — don't spend polish here, and don't quietly repurpose it. **Test** =
-an evaluation record, not a lesson at all — kept only because the human wants to, may be deleted later.
+example — don't look at it unless the human says so. **Test** =
+an evaluation record, not a lesson at all — kept only because the human wants to, may be deleted later
 
 | Page | Lesson | Paradigm | Status |
 |---|---|---|---|
@@ -242,21 +242,11 @@ what belongs in a shared module: `SCIENCE.md` §6.**
 
 **Read `SCIENCE.md` before adding or changing any visualization.** It's the
 rulebook. `MolecularGeometry.md` §1 covers adding any molecule (geometry,
-sources, stereochemistry, fidelity tiers, scale families) — it moved out of
-SCIENCE.md for length, not because it's optional; §§2–3 polarity and covalent
-bonding; §4
-rendering caveats; §5 the fx/colour conventions; §6 module architecture.
-Water/solvation physics
-(hydrogen bonds, ice, emergent properties) is in `WaterSim.md` — it only
-applies to the solvation apps. The bonding builder's,
-the amino-acid page's, and the macromolecule gallery's own rules live in
-their own header comments (`molecule-builder.html`, `covalent-drag.js`/
-`ionic-drag.js`; `aminoacid-lab.html` and the relevant `molecules.js` amino-
-acid comments; `macromolecule-lab.html` and the relevant `molecules.js`/
-`glycolysis-lab.html` spec comments), not in SCIENCE.md — they're
-page-internal, not cross-cutting.
-Before adding a **new molecule**, read MolecularGeometry.md §1.4 — it sets how much fidelity a molecule
-owes based on the claim it makes (prop / contrast / subject), and requires that
+sources, stereochemistry, fidelity tiers, scale families) ; §§2–3 polarity and covalent
+bonding; §4 rendering caveats; §5 the fx/colour conventions; §6 module architecture.
+Water/solvation physics (hydrogen bonds, ice, emergent properties) is in `WaterSim.md` — it only
+applies to the solvation apps. Each page also has documentation in its own comments.
+Before adding a **new molecule**, read MolecularGeometry.md §1.4 — it sets how much fidelity a molecule owes based on the claim it makes (prop / contrast / subject), and requires that
 any chemical claim ship with a `check-molecules.js` assertion in the same commit.
 Pedagogical exaggerations (enlarged bond lengths for legibility, neutral vs.
 zwitterion forms) must stay **explicit in comments**.
@@ -288,8 +278,7 @@ python3 -m http.server 8818     # run from the repo root; no injection, no reloa
 ```
 
 `check-molecules.js` prints every spec's bond angles, audits each declared
-`stereo` / `topology` / `chirality` claim (MolecularGeometry.md §1.4 lists them), and **exits FAIL if
-any bonded pair's spheres merge** — a merged pair buries the stick inside the
+`stereo` / `topology` / `chirality` claim (MolecularGeometry.md §1.4 lists them), and **exits FAIL if any bonded pair's spheres merge** — a merged pair buries the stick inside the
 atoms, which is how a double bond can be correctly tagged yet render as nothing.
 Run it after any geometry change.
 Note: when a browser tab is backgrounded, `requestAnimationFrame` pauses —
@@ -328,8 +317,7 @@ is why the patterns look wider than the checkers do:
 | `check-residues.js` | `residues.js`, either `tools/*-residues.js`, and the two structures it measures (`2HHB.pdb`, `9ZZI.pdb`) | 0.2 s |
 | `check-hb.js` | anything under `hemoglobin/`, **plus `hemoglobin-lab.html`** (it asserts numbers the page says out loud), plus `folding/folding.js` and `folding/ribbon.js` — **two modes**, below | 0.3 s or 57 s |
 
-`check-hb.js` is the one worth understanding, because it is the only check
-here expensive enough to change behaviour. Its full run **re-bakes the
+`check-hb.js` is a special case because it's expensive to run. Its full run **re-bakes the
 unfold**, which is 56 of its 57 seconds; `--quick` skips that and the two
 other assertions needing the un-quantised trajectory, leaving 56 of 59
 running off the committed file in 0.3 s. The hook picks: **full** when
@@ -361,7 +349,15 @@ npm i && node tools/check-handedness.js
 _`old/` holds earlier prototypes and notes — reference only, not loaded by any page._
 
 ## Copywriting
-Guidance for writing user=facing text: Be a tutor for a high school student learning biology.  Be concise, don't overcomplicate it. Prioritize core concepts.  If there's more info, steer me toward asking more questions. Your goal is to guide curiosity and inquiry, not to dump out a textbook of facts.
+Guidance for writing user=facing text: Be a tutor for a high school student learning biology.  Be concise, don't overcomplicate it. Don't repeat yourself in the text. The text is there to support the visuals and interaction. Prioritize core concepts.  If there's more info, steer me toward asking more questions. Your goal is to guide curiosity and inquiry, not to dump out a textbook of facts.
+
+**If a number in user-facing text comes from the data, the text must read it
+from the data at render time — never type it in, because a typed number is a
+claim that nothing checks and that a re-bake silently makes false.**
+**Read it from where the fact actually lives, not from the nearest thing that
+resembles it — counting helices in a trajectory's `ss` gives five, because
+adjacent ones merge, so the eight the page says has to be carried across from
+the HELIX records by the baker.**
 
 
 

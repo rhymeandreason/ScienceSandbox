@@ -361,7 +361,8 @@ function bakeQuaternary() {
 
   /* Interfaces, in arrival order: each chain against everything on screen
      when it lands. The folded chain is always there. */
-  const folded = traceOf(raw, CHAIN, R).CA;
+  const foldedTr = traceOf(raw, CHAIN, R);
+  const folded = foldedTr.CA;
   const present = [folded];
   const presentPolar = [polarAtoms(raw, CHAIN, R)];
   for (const c of OTHERS) {
@@ -382,6 +383,13 @@ function bakeQuaternary() {
     contactRadius: CONTACT, polarRadius: POLAR,
     iron: irons(raw, R),
     heme: withSites(hemes(raw, R), proximalNE2(raw, R)),
+    /* The folded chain's HELIX-record count. The page says "eight helices"
+       out loud and must pull that number rather than hold a copy of it, and
+       it cannot derive it from the trajectory's own `ss`: adjacent helices
+       with no coil between them merge into one run there, which counts 5.
+       Eight is a property of the deposited HELIX records, so it comes from
+       the same place they do. */
+    foldedHelices: foldedTr.helices,
     foldedTrace: folded,                      // for check-hb.js only
   };
 }

@@ -185,97 +185,46 @@
         <!-- The heme callouts have NO control here on purpose. They are
              scheduled: they wipe in during the coda and fade out as level 4
              opens, which is the lesson's own timing and not a preference.
-             A checkbox for something that appears and leaves on its own is a
-             control that is wrong most of the time it is on screen, and the
-             mode picker offered three answers to a question the page had
-             already decided. annotate.js still has all three modes for the
-             pages that want them. -->
+              -->
       </div>
     </div>
 
     <button id="infobtn" aria-label="About this animation" title="About this animation"
       aria-expanded="false"><i class="ph-bold ph-info"></i></button>
+    <!-- THE PANEL DOES NOT RE-TEACH THE LEVELS. 
+         This is supporting information: where this structure
+         came from, and what the animation is faking.
+
+         EVERY NUMBER HERE IS PULLED FROM THE DATA — see fillPanelNumbers().
+         Don’t type static numbers into the prose. -->
     <div id="infopanel" hidden>
       <section>
         <h4>The molecule</h4>
-        <p>One <b>β chain of human haemoglobin</b> — 146 amino acids, measured
-          by X-ray crystallography at 1.74 Å as <b>PDB 2HHB</b>. Your blood
-          carries about 270 million copies of the finished protein per red
-          cell.</p>
+        <p>One <b>β chain of human haemoglobin</b> — <b data-num="residues"></b>
+          amino acids. The structure is real: <b>PDB <span data-num="source"></span></b>,
+          measured by X-ray crystallography at <b data-num="resolution"></b>.
+          Your blood carries about 270 million copies per red cell.</p>
       </section>
       <section>
-        <h4>Level 1 · primary</h4>
-        <p>The order of the 146 amino acids, and nothing else — the only part
-          your DNA specifies. Everything after it follows.</p>
-        <p style="margin-top:7px">The page opens on the <b>whole chain</b> as
-          real atoms — <b>drag left and right to read along all 146</b>.
-          A link in the chain is <b>N — C — C</b>, repeating,
-          with each residue's C joined to the next one's N. That join is the
-          <b>peptide bond</b>.
-        </p>
-        <p style="margin-top:7px">
-        <b>Not drawn:</b> the side chains — the part that differs
-          from one amino acid to the next. They are left out because this
-          animation moves only the backbone.</p>
-      </section>
-      <section>
-        <h4>Level 2 · secondary</h4>
-        <p>103 <b>backbone</b> hydrogen bonds form. It turns eight stretches
-          of the chain into eight α-helices. There are <b>no β-sheet anywhere in
-          this protein</b>.</p>
-      </section>
-      <section>
-        <h4>Level 3 · tertiary</h4>
-        <p>This actually happens at the same time as secondary structures forming, but we have made it more separate in this animation to differentiate. Around the two-thirds mark the hydrogen-bond count <b>stops climbing</b> while the molecule keeps
-          shrinking — from 204 Å across to 45. The helices are already made;
-          now they pack against each other, driven by <b>water pushing the
-          oily side chains inward</b>. The pocket that forms in the middle is
-          where the iron and its oxygen go.</p>
-      </section>
-      <section>
-        <h4>Level 4 · quaternary</h4>
-        <p>The working molecule is <b>four</b> finished chains — two α and two β — each gripping an iron. In this animation, watch them arrive one at a time: <b>α1 first</b>, because
-          α1 with your β makes the pair that binds tightest and comes
-          together first, then the second pair. Nothing about the chains
-          changes as they dock; level 4 is <b>which finished chains touch
-          which</b>, and that is what lets them cooperate — oxygen binding to
-          one iron makes the next one easier.</p>
-        <p style="margin-top:7px">The dashes that appear as each chain lands
-          are <b>hydrogen bonds</b> — the same bond
-          act 2 used to build the helices, now holding two chains together.
-          There are only <b>eight</b> of them between α1 and your β chain. <b>Most of an interface
-          is not bonds</b>: it is hydrophobic packing, the same thing that
-          drove level 3.</p>
-
-        <p style="margin-top:7px"> A tetramer is four finished
-          tertiary structures.</p>
+        <h4>Where the shapes come from</h4>
+        <p>The <b data-num="helices"></b> helices are 2HHB's own
+          <b>HELIX records</b> — what the crystallographers assigned, not a
+          guess by us. Running the standard algorithm (DSSP) on the same
+          coordinates agrees, and finds no β-sheet either. The other
+          <b data-num="others"></b> chains are deposited coordinates too, slid
+          into place unchanged.</p>
       </section>
       <section>
         <h4>What this animation fakes</h4>
-        <p>Real folding is thermal chaos, not a smooth collapse. More than
-          that: this is an <b>animation of a known answer</b>, not a
-          prediction — and it is made <b>backwards</b>. The computer takes the
-          real measured structure and pulls it apart into the open chain,
-          then plays that film in reverse. So every frame you see is a step
-          on a path that ends, exactly, at the real crystal structure. The
-          <b>order</b> of events is right; the <b>path</b> is invented.</p>
-      </section>
-      <section>
-        <h4>Where the ribbon comes from</h4>
-        <p>The eight helices are 2HHB's own <b>HELIX records</b> — what the
-          crystallographers assigned, not a guess by us. Running the standard
-          algorithm (DSSP) on the same coordinates agrees on 83% of residues
-          and finds no β-sheet either.</p>
-      </section>
-      <section>
-        <h4>Why the helices move as units</h4>
-        <p>Once a helix is made, this animation treats it as a <b>rigid
-          object on a string</b> — it can swing and slide, but not bend or
-          unravel. That is a real model of folding, not a shortcut: helices
-          form first and then drift together and dock. Real helices do
-          flex a little, especially at their ends, so this is an
-          approximation — a good one over the few microseconds that matter
-          here.</p>
+        <p>Real folding is thermal chaos, not a smooth collapse — and this is
+          an <b>animation of a known answer</b>, made <b>backwards</b>. The
+          computer pulls the real structure apart into an open chain, then
+          plays that film in reverse. Every frame ends exactly at the real
+          crystal structure: the <b>order</b> of events is right, the
+          <b>path</b> is invented.</p>
+        <p style="margin-top:7px">Two more simplifications: <b>side chains
+          aren't drawn</b> (only the backbone moves), and once a helix forms
+          it is <b>held rigid</b> — real ones flex a little at the ends.</p>
       </section>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
@@ -297,13 +246,8 @@
 /* =============================================================
  *  ONE HEMOGLOBIN CHAIN FOLDS — 2HHB chain B, 146 residues
  *
- *  RELATIONSHIP TO folding-lab-ribbon.html. That page is the protein
- *  STRUCTURE lesson and it is built on villin, which is 36 residues and
- *  one chain — so it can only take a student to level 3, and its own info
- *  panel has to say "not here" about level 4. This page exists because
- *  haemoglobin is the molecule that finishes the sentence: it is the
- *  standard AP Bio example of quaternary structure, and one of its chains
- *  is a clean, self-contained tertiary story on the way there.
+ *  Haemoglobin is the molecule that is the
+ *  standard AP Bio example of protein structure, including the Quaternery level.
  *
  *  LEVEL 4 IS A DIFFERENT MECHANISM, AND IT LOOKS LIKE ONE. The fold is a
  *  computed trajectory; the other three chains are DEPOSITED coordinates
@@ -319,22 +263,6 @@
  *  one that assembles first, then the second pair (C, D). The order is a
  *  real fact about how the tetramer comes together, not a staging choice.
  *
- *  It is NOT a replacement. Villin folds in 4 microseconds and is the
- *  protein folding is actually studied on; this one is 4x bigger, has a
- *  ligand that this page does not draw, and its level 3 is only
- *  three-quarters of the point. Watch villin to learn what folding is.
- *  Watch this to see it at the size real proteins come in, and to have
- *  somewhere to put level 4.
- *
- *  WHY RIBBON ONLY, WITH NO BALL-AND-STICK UNDERNEATH. The villin page
- *  draws 199 atoms and lays a transparent cartoon over them, because at 36
- *  residues you can still see individual atoms and the cartoon is a
- *  summary of something legible. At 146 residues the backbone alone is 729
- *  atoms and it is spaghetti at every zoom level — the cartoon is not a
- *  summary here, it is the only readable representation, which is exactly
- *  why real structure viewers switch to it as proteins get big. So the
- *  baked file carries no side chains and no full backbone at all; see
- *  hemoglobin/hbfold.js for what it does carry and why.
  *
  *  WHAT IS MEASURED AND WHAT IS DRAWN.
  *    measured   the deposited chain (PDB 2HHB, X-ray 1.74 A) and its own
@@ -890,19 +818,12 @@ Promise.all([
     fold = HbFold.decode(buf);
     quat = qjson;
 
-    /* The captions quote these numbers out loud, so a file that disagrees
-       with them must not render — a caption saying "103 hydrogen bonds"
-       over a chain with a different count is worse than a broken page,
-       because it looks fine. */
+    /* This throw is about the LESSON, not the text: the
+       close-up window, the arrival windows and the camera were all tuned
+       against this chain, and a different one would render plausibly and
+       be staged wrong. */
     if (fold.R !== 146)
       throw new Error(`baked chain has ${fold.R} residues, this page is written for 146`);
-    /* The readout no longer prints the total — but the INFO PANEL still
-       says "103 backbone hydrogen bonds form" in prose, and that sentence
-       used to be kept honest by the fact that the tally wrote fold.B into
-       itself at load. With the tally simplified, nothing did, so the check
-       becomes explicit rather than a side effect of rendering. */
-    if (fold.B !== 103)
-      throw new Error(`baked chain has ${fold.B} hydrogen bonds; the info panel says 103`);
 
     if (quat.order.length !== 3 || !quat.iron[quat.folded])
       throw new Error('the quaternary file is not three chains and four irons');
@@ -911,6 +832,7 @@ Promise.all([
     if (!quat.heme || Object.keys(quat.heme).length !== 4)
       throw new Error('the quaternary file has no hemes — re-run bake-quaternary.js');
 
+    fillPanelNumbers();
     build();
     buildQuaternary();
     buildHemeNotes();
@@ -1797,6 +1719,42 @@ function updateFocus(s, w) {
     m.material.depthWrite = o > 0.5;
   });
 
+}
+
+/* ---------- the info panel's numbers ----------
+   THE PROSE HOLDS NO NUMBERS. Every figure the panel states is written in
+   here from the file it describes, so a re-bake cannot leave the page
+   saying something the data stopped supporting. This is better than writing checkers.
+
+   NOT EVERY NUMBER CAN COME FROM HERE, and pretending otherwise is how a
+   wrong one gets in. The helix count is the case in point: counting runs of
+   'H' in the trajectory's own `ss` gives FIVE, because helices that meet
+   with no coil between them merge into a single run. Eight is a property of
+   2HHB's HELIX records, so bake-quaternary.js carries it across as
+   `foldedHelices` rather than the page inferring it from the wrong thing.
+
+   "270 million copies per red cell" stays typed, because nothing here
+   measures it — it is a fact about blood, not about this file. */
+const NUMWORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
+                 'seven', 'eight', 'nine', 'ten'];
+function fillPanelNumbers() {
+  const put = (key, value) => {
+    const els = document.querySelectorAll(`[data-num="${key}"]`);
+    if (!els.length) throw new Error(`nothing in the panel reads data-num="${key}"`);
+    els.forEach(el => { el.textContent = value; });
+  };
+  const word = n => NUMWORD[n] !== undefined ? NUMWORD[n] : String(n);
+
+  put('residues', fold.R);
+  put('source', quat.source);
+  /* The baker stores the method as one string ("X-ray 1.74 A") because that
+     is how a structure paper writes it; the panel wants the resolution on
+     its own, with the unit it is spoken with. */
+  const res = (quat.method || '').match(/([\d.]+)\s*A/);
+  if (!res) throw new Error(`no resolution in quat.method: ${quat.method}`);
+  put('resolution', `${res[1]} Å`);
+  put('helices', word(quat.foldedHelices));
+  put('others', word(quat.order.length));
 }
 
 /* ---------- level 4 ----------
