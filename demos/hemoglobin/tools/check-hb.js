@@ -756,6 +756,67 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
        `${lo.toFixed(2)}-${hi.toFixed(2)} A`);
   }
 
+  /* ---- the two axial sites, which is what the callouts name ----
+     "O2 binds here" is a claim about a LOCATION, so the location is
+     checked. The iron has one axial site each side of the ring: the
+     proximal one holds His F8, the distal one is where oxygen goes. Get
+     the sign backwards and the label sits inside the protein, pointing at
+     the histidine it is supposed to be pointing away from — which looks
+     entirely plausible from any one camera angle. */
+  const PROX_RES = { A: 87, C: 87, B: 92, D: 92 };   // alpha and beta number F8 differently
+  const dist3 = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+  for (const id of ['A','B','C','D']) {
+    const h = committed.heme[id];
+    const fe = h.atoms.find(a => a.el === 'FE').p;
+    const D = dist3;
+
+    ok(h.proxRes === PROX_RES[id], `chain ${id}'s heme hangs off His F8 (${PROX_RES[id]})`,
+       `His${h.proxRes}`);
+    const dProx = D(h.prox, fe);
+    ok(dProx > 1.9 && dProx < 2.3, `chain ${id}: Fe-NE2 is a real bond`, `${dProx.toFixed(2)} A`);
+    ok(Math.abs(D(h.o2, fe) - 1.8) < 0.01, `chain ${id}: the O2 site is 1.8 A off the iron`);
+
+    /* The two sites are TRANS — 180 degrees apart through the iron. This is
+       the geometric statement that they are opposite faces of the ring, and
+       it is what a sign error breaks first. */
+    let cos = 0;
+    for (let k = 0; k < 3; k++) cos += (h.prox[k]-fe[k]) * (h.o2[k]-fe[k]);
+    cos /= dProx * 1.8;
+    /* Clamped, and it has to be: a site that is EXACTLY trans puts cos a
+       float's width past -1, and acos of that is NaN — which fails the
+       assertion for being too correct. */
+    const ang = Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI;
+    ok(ang > 170, `chain ${id}: the O2 site is trans to the histidine, across the ring`,
+       `${ang.toFixed(1)} deg`);
+  }
+
+  /* THE INDEPENDENT CHECK ON THE SIGN. Everything above is derived from the
+     same ring normal, so it would all agree with itself if the normal were
+     flipped. His E7 is not: it is the DISTAL histidine, the one that gates
+     the oxygen pocket from the other side, and the page already names it.
+     If the site is really where oxygen binds it must be nearer E7 than F8. */
+  const DISTAL_RES = { A: 58, C: 58, B: 63, D: 63 };
+  const rawPdb = fs.readFileSync(SRC, 'utf8');
+  /* One parse, not four: the rotation is a property of the bake, the same
+     matrix for every chain. */
+  const Rq = (function () {
+    const p = FoldLib.parse(extract(rawPdb, CHAIN).text, {});
+    FoldLib.orient(p); return p.orientation;
+  })();
+  for (const id of ['A','B','C','D']) {
+    const h = committed.heme[id];
+    const e7 = extract(rawPdb, id).residues.find(r => r.num === DISTAL_RES[id]);
+    ok(e7 && e7.name === 'HIS',
+       `chain ${id} residue ${DISTAL_RES[id]} is His E7, the distal gate`);
+    /* Rotated into the frame the heme is in, the way everything else that
+       meets these coordinates has to be. */
+    const ne2 = Rq.map(ax => ax[0]*e7.atoms.NE2[0] + ax[1]*e7.atoms.NE2[1] + ax[2]*e7.atoms.NE2[2]);
+    ok(dist3(ne2, h.o2) < dist3(ne2, h.prox),
+       `chain ${id}: the O2 site is on His E7's side of the ring, not His F8's`,
+       `E7 is ${dist3(ne2, h.o2).toFixed(1)} A from the site, ` +
+       `${dist3(ne2, h.prox).toFixed(1)} from F8`);
+  }
+
   /* The ring is FLAT — that is the whole visual point of drawing it, and it
      is the one property a wrong frame or a bad rotation would destroy while
      leaving every distance above intact. Plane fitted to the 24 macrocycle

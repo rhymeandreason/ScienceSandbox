@@ -220,6 +220,7 @@ What *is* extracted is the scaffolding nobody's lesson is about:
 | `scene.js` | renderer/camera/orbit/lights/resize, `atom`/`bond`/`buildMolecule` | any page's physics |
 | `fx.js` | transient event effects | when an event happened |
 | `atomkit.js` | how an atom is **drawn** for the bonding lessons | how a bond **forms** |
+| `annotate.js` | how a callout **looks** and how it **tracks** a point on a model | what a callout **says**, and which atom it points at |
 
 The test for whether something belongs in a shared module: **would two lessons
 disagree about it?** Colours, radii and the look of an electron must not vary

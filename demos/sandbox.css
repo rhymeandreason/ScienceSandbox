@@ -861,6 +861,126 @@
  }
 
 
+ /* ---------- callouts on the model (annotate.js) ----------
+    The look lives here rather than in the module so a callout is styled by
+    the same stylesheet as every other piece of chrome — it is the house
+    voice applied to a label, and a page must not be able to invent its own.
+    annotate.js writes ONLY transform, opacity, z-index and display; every
+    other property is here.
+
+    The layer sits over the whole stage, so it must never take the mouse —
+    the module sets pointer-events on the dots and only in click mode, and
+    this rule is the backstop. An invisible overlay that eats orbit drags
+    is the single worst bug this feature can have, because nothing on
+    screen suggests a cause. */
+ .annot-layer {
+   position: absolute;
+   inset: 0;
+   overflow: hidden;
+   pointer-events: none;
+   z-index: 7
+ }
+
+ /* Positioned by transform at the anchor's projected point; the dot is
+    centred ON that point and the label hangs off it. */
+ .annot {
+   position: absolute;
+   top: 0;
+   left: 0;
+   will-change: transform, opacity
+ }
+
+ .annot-dot {
+   position: absolute;
+   left: -5px;
+   top: -5px;
+   width: 10px;
+   height: 10px;
+   padding: 0;
+   border-radius: 50%;
+   border: 2px solid var(--ink);
+   background: var(--panel);
+   box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+   cursor: default
+ }
+
+ .annot-layer.is-click .annot-dot {
+   cursor: pointer
+ }
+
+ .annot-layer.is-click .annot-dot:hover,
+ .annot-dot:focus-visible {
+   background: var(--ink);
+   outline: none
+ }
+
+ /* The leader. A drawn line rather than a gap, so a label reads as
+    BELONGING to its dot even where several are close together — which on a
+    single heme they always are. Length and angle are solved by annotate.js
+    when the note is added and handed over as --alen/--aang. */
+ .annot-leader {
+   position: absolute;
+   left: 0;
+   top: 0;
+   height: 0;
+   width: var(--alen, 18px);
+   border-top: 1.5px solid var(--hair);
+   transform-origin: 0 0;
+   transform: rotate(var(--aang, 0deg));
+   pointer-events: none
+ }
+
+ .annot-label {
+   position: absolute;
+   left: 0;
+   top: 0;
+   transform: translate(var(--adx, 18px), var(--ady, 0px)) translateY(-50%);
+   white-space: nowrap;
+   padding: 4px 9px;
+   font-family: var(--font-sans);
+   font-size: 13px;
+   font-weight: 600;
+   line-height: 1.2;
+   color: var(--ink);
+   background: rgba(255, 255, 255, .88);
+   backdrop-filter: blur(6px);
+   border: 1.5px solid var(--hair);
+   border-radius: var(--radius);
+   box-shadow: 0 3px 10px rgba(0, 0, 0, .12);
+   opacity: 1;
+   transition: opacity .18s ease
+ }
+
+ /* Left-hand callouts: the label hangs off the other side of its offset, so
+    the text ends at the leader instead of starting on top of it. */
+ .annot-left .annot-label {
+   transform: translate(var(--adx, -18px), var(--ady, 0px)) translate(-100%, -50%)
+ }
+
+ /* Closed is the click mode's resting state: the dot stays, the label
+    goes. Kept in the layout (not display:none) so opening it costs no
+    reflow and the fade has something to fade. */
+ .annot:not(.is-open) .annot-label {
+   opacity: 0;
+   pointer-events: none
+ }
+
+ /* Tones. A callout naming the iron should carry the iron's ink, the way
+    every other coloured thing on these pages does. */
+ .annot-iron .annot-dot {
+   border-color: #a8321a
+ }
+
+ .annot-iron .annot-label {
+   color: #8d2a16
+ }
+
+ @media (prefers-reduced-motion:reduce) {
+   .annot-label {
+     transition: none
+   }
+ }
+
  @media (max-width:920px) {
    #app {
      grid-template-columns: 1fr;

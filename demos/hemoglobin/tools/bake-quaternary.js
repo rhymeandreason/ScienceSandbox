@@ -184,6 +184,92 @@ function hemes(raw, R) {
   return out;
 }
 
+/* -------------------------------------------------- where the oxygen goes
+ *
+ *  The page's callout says the iron "binds O2". Nothing on screen is drawn
+ *  at the site itself — the oxygen binds the METAL, so one label on the
+ *  iron says it once — but the site is still computed here, for two
+ *  reasons that outlive the label: it is what turns "binds O2" into a
+ *  claim about a place, and its two assertions in check-hb.js are the only
+ *  thing establishing that the heme sits the right way round in its
+ *  pocket. Derived from the structure, never nudged into place by eye.
+ *
+ *  The iron sits in the middle of the porphyrin with two axial sites, one
+ *  each side of the ring plane. One is taken: His F8's NE2, the proximal
+ *  histidine, the covalent link holding the heme to the protein. Oxygen
+ *  binds the OTHER one, the distal site. So the construction is exact —
+ *  the ring normal, signed to point AWAY from the proximal histidine, 1.8 A
+ *  out, which is where an Fe-O2 bond puts the first oxygen.
+ *
+ *  THE SITE IS EMPTY IN THIS FILE AND THAT IS THE POINT. 2HHB is
+ *  DEOXYhaemoglobin — the T state, no oxygen bound anywhere in it — so
+ *  there is no atom here to point at and the label points at a vacancy.
+ *  That is honest and it is the better lesson: the pocket the tertiary act
+ *  spent its whole run building is a waiting space, and what the student is
+ *  looking at is a molecule that has not picked up its oxygen yet.
+ *
+ *  The normal comes from the two N-N diagonals of the pyrrole nitrogens,
+ *  which are square to a fraction of a degree, rather than a plane fit —
+ *  a cross product of two diagonals of a square IS its normal, and it
+ *  needs no eigenvectors to say so.
+ */
+const O2_DIST = 1.8;         // A, an Fe-O2 bond
+
+function o2Site(h) {
+  const at = n => h.atoms.find(a => a.name === n);
+  const P = n => at(n).p;
+  const [NA, NB, NC, ND, FE] = ['NA','NB','NC','ND','FE'].map(P);
+  const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+  const cross = (u, v) => [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+  const dot = (u, v) => u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+
+  let n = cross(sub(NC, NA), sub(ND, NB));
+  const L = Math.hypot(n[0], n[1], n[2]);
+  n = n.map(c => c / L);
+
+  /* Signed away from the proximal histidine. h.prox is its NE2, already in
+     the same frame; without it there is no way to tell the two axial sites
+     apart and the label could land on the side the protein occupies. */
+  if (!h.prox) throw new Error('no proximal NE2 — cannot tell the distal side from the proximal one');
+  if (dot(n, sub(h.prox, FE)) > 0) n = n.map(c => -c);
+
+  return FE.map((c, i) => r2(c + n[i] * O2_DIST));
+}
+
+/* His F8's NE2, per chain: the nitrogen within bonding range of that
+   chain's iron. Found by distance rather than by residue number because F8
+   is a helix-position name and the two chain types number it differently
+   (87 in alpha, 92 in beta) — the bond is the same fact in both. */
+function proximalNE2(raw, R) {
+  const out = {};
+  const fe = irons(raw, R);
+  for (const line of raw.split('\n')) {
+    if (!line.startsWith('ATOM')) continue;
+    if (line.slice(17, 20).trim() !== 'HIS') continue;
+    if (line.slice(12, 16).trim() !== 'NE2') continue;
+    const ch = line[21];
+    if (!fe[ch]) continue;
+    const p = apply(R, [+line.slice(30, 38), +line.slice(38, 46), +line.slice(46, 54)]);
+    const d = Math.hypot(p[0]-fe[ch][0], p[1]-fe[ch][1], p[2]-fe[ch][2]);
+    if (d < 2.6 && (!out[ch] || d < out[ch].d)) out[ch] = { p: p.map(r2), d, num: +line.slice(22, 26) };
+  }
+  return out;
+}
+
+/* Everything the callouts need, added to each heme: the proximal NE2 that
+   defines which side is which, the empty distal site, and the ring's own
+   centre — which is the iron, but named so a label reading "Heme group"
+   can point at the group rather than at the metal. */
+function withSites(hs, prox) {
+  for (const [ch, h] of Object.entries(hs)) {
+    if (!prox[ch]) throw new Error(`chain ${ch}'s heme has no proximal histidine within 2.6 A`);
+    h.prox = prox[ch].p;
+    h.proxRes = prox[ch].num;
+    h.o2 = o2Site(h);
+  }
+  return hs;
+}
+
 /* ------------------------------------------------ what holds an interface
  *
  *  MEASURED FIRST, DRAWN SECOND, and the measurement is the reason the
@@ -295,7 +381,7 @@ function bakeQuaternary() {
     chains,
     contactRadius: CONTACT, polarRadius: POLAR,
     iron: irons(raw, R),
-    heme: hemes(raw, R),
+    heme: withSites(hemes(raw, R), proximalNE2(raw, R)),
     foldedTrace: folded,                      // for check-hb.js only
   };
 }

@@ -183,6 +183,18 @@
         <div id="pearlkey" hidden></div>
         <!-- level 1 only: the row goes when the fold starts -->
         <label id="pearlrow"><input type="checkbox" id="showpearls"> amino acid types</label>
+        <!-- level 4 only, and only once the heme is on screen: naming the
+             parts of the group the whole protein was built around. The mode
+             is exposed because the three are useful in different settings —
+             'reveal' when the animation is running, 'always on' for a
+             screenshot or a printed figure, 'click a dot' for a student
+             poking at it. -->
+        <label id="annotrow" hidden><input type="checkbox" id="showannot" checked> heme labels</label>
+        <select id="annotmode" aria-label="how the heme labels appear" hidden>
+          <option value="reveal">reveal them</option>
+          <option value="on">always on</option>
+          <option value="click">click a dot</option>
+        </select>
       </div>
     </div>
 
@@ -281,6 +293,7 @@
 <script src="molecules.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<script src="annotate.js"></script>
 <script src="folding/ribbon.js"></script>
 <script src="residues.js"></script>
 <script src="hemoglobin/hbfold.js"></script>
@@ -819,6 +832,7 @@ const partners = [];            // {id, kind, mesh, mat, dir, win}
 const irons = [];               // one heme each: {id, mesh:Group, mats, win, pos:Fe}
 const hbGroups = [];
 const chainGroup = new THREE.Group(); root.add(chainGroup);
+let quatQ = -1;                 // level-4 clock, mirrored out of seek() for the callouts
 
 /* ---------- load ----------
    ONE fetch. The trajectory, the secondary structure and the hydrogen-bond
@@ -861,6 +875,7 @@ Promise.all([
 
     build();
     buildQuaternary();
+    buildHemeNotes();
     buildCovers();
     buildSegments();
     seek(0);
@@ -1861,6 +1876,92 @@ function buildQuaternary() {
   });
 }
 
+/* ---------- the heme callouts ----------
+   TWO LABELS, ON ONE HEME. The tetramer carries four identical groups
+   and labelling them all would print every word four times — so the
+   callouts go on the FOLDED chain's heme, which is the one the student
+   watched a pocket get built for, and the other three are left to be read
+   as "the same thing again".
+
+   The anchors are FUNCTIONS, which is the whole reason annotate.js takes
+   them that way: chainGroup turns under the user's drag and the heme rides
+   its chain in on a slide, so a point captured at build time would be
+   right for exactly one frame. localToWorld is what makes a label stick to
+   an atom rather than to a place on the screen.
+
+   NOTHING IS BOUND IN THIS STRUCTURE. 2HHB is deoxyhaemoglobin, so the
+   iron's outward-facing site is empty and "binds O2" is a statement about
+   what WILL happen there, not about an atom on screen. That is the better
+   lesson anyway — the pocket the tertiary act spent its whole run building
+   is a waiting space — but it is why the label names the metal rather than
+   pointing at a gap. bake-quaternary.js still computes the site (from the
+   ring normal, signed away from His F8) and check-hb.js still asserts it,
+   because those two assertions are what establish that the heme is
+   oriented correctly inside its pocket; see both. */
+let notes = null;
+const _annotP = new THREE.Vector3();
+function buildHemeNotes() {
+  const h = quat.heme[quat.folded];
+  const ir = irons.find(i => i.id === quat.folded);
+  const at = p => () => {
+    /* The group's world matrix is written during render, and this runs
+       BEFORE it — so without this the first frame projects against an
+       identity matrix and every label lands off the top of the stage.
+       Ancestors and self only; the 93 children are not needed. */
+    chainGroup.updateWorldMatrix(true, false);
+    _annotP.set(p[0], p[1], p[2]).add(ir.mesh.position);   // the slide, if any
+    return chainGroup.localToWorld(_annotP);
+  };
+  const fe = h.atoms.find(a => a.el === 'FE').p;
+
+  notes = Annot.create(THREE, document.getElementById('stage'), camera,
+                       { mode: 'reveal', visible: false });
+
+  /* TWO LABELS, NOT THREE. There was an 'O2 binds here' pointing at the
+     empty distal site as well, and it was naming the same fact twice: the
+     oxygen binds the IRON, at that site, so a callout on the site and a
+     callout on the metal are one claim split across two labels a few
+     pixels apart. The site is still computed and still checked — it is
+     what makes 'binds O2' a located statement rather than a slogan, and
+     its two assertions are how we know the heme is oriented correctly
+     inside its pocket — but the student reads one label.
+
+     FANNED, and it has to be. Both anchors are inside one 10 A group, so
+     on screen they are within about forty pixels of each other and two
+     unoffset labels overlap. The dots stay on their atoms; only the type
+     moves. */
+  notes.add({ text: 'Iron (Fe) — binds O₂', at: at(fe), tone: 'iron', offset: [26, -20] });
+  /* The ring, not the metal: anchored on a pyrrole nitrogen out at the
+     edge of the macrocycle, and thrown left so the group's own name does
+     not queue up behind the label about its middle. */
+  notes.add({ text: 'Heme group', at: at(h.atoms.find(a => a.name === 'NC').p),
+              offset: [-16, 38] });
+}
+
+/* Called from the RENDER LOOP, not from seek() — annotate.js's first trap.
+   The camera moves when the user orbits, which advances no clock at all,
+   and a label that only updates when the model does shears off its atom. */
+let annotOn = false;
+function updateAnnots() {
+  if (!notes) return;
+  /* Shown once the folded chain's own heme has actually arrived, so the
+     labels never point at something not yet drawn. Same window the heme
+     fades in on. */
+  const ir = irons.find(i => i.id === quat.folded);
+  const there = quatQ >= 0 && amountIn(quatQ, ir.win) > 0.6;
+  const want = there && document.getElementById('showannot').checked;
+  document.getElementById('annotrow').hidden = !there;
+  document.getElementById('annotmode').hidden = !there;
+  if (want !== annotOn) {
+    annotOn = want;
+    notes.show(want);
+    /* Re-run the wipe each time it comes back, rather than having it
+       arrive already finished — the reveal is the gesture. */
+    if (want && notes.mode === 'reveal') notes.play();
+  }
+  notes.step();
+}
+
 function tetramerCentre() {
   let cx = 0, cy = 0, cz = 0, n = 0;
   const add = P => { for (const p of P) { cx += p[0]; cy += p[1]; cz += p[2]; n++; } };
@@ -2153,6 +2254,7 @@ function seek(uu) {
      `q` is -1 until the fold is done and then runs 0..1. */
   t = Math.min(1, u / FOLD_END);
   const q = u <= FOLD_END ? -1 : (u - FOLD_END) / (1 - FOLD_END);
+  quatQ = q;                       // the callouts read it from the render loop
   const s = poseAt(t);             // flat for level 1, the trajectory after
   posedP = s.P;                  // what the pearls billboard against
 
@@ -2496,6 +2598,11 @@ document.getElementById('showpearls').addEventListener('change', e => {
   });
 }
 
+document.getElementById('annotmode').addEventListener('change', e => {
+  if (!notes) return;
+  notes.setMode(e.target.value);     // 'reveal' replays itself on the way in
+});
+
 const infobtn = document.getElementById('infobtn'), infopanel = document.getElementById('infopanel');
 infobtn.addEventListener('click', () => {
   const on = infopanel.hidden;
@@ -2550,6 +2657,7 @@ let holdLeft = HOLD_SECONDS;      // re-armed whenever playback restarts
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   updatePearls();                  // billboards, so it tracks the camera not the clock
+  updateAnnots();                  // DOM over the canvas, same reason: camera, not clock
   /* The glide home owns the camera while it runs and the fold does not
      advance underneath it — the student asked to watch the fold from the
      framed view, so the fold starts when the view gets there. */

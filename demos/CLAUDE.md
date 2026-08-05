@@ -54,6 +54,7 @@ order matters — each script assumes the ones above it:
 <script src="mol-monomers.js"></script>    <!-- ...see the per-page table below -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
 <script src="fx.js"></script>          <!-- if the page fires any effect -->
+<script src="annotate.js"></script>    <!-- if the page labels parts of a model -->
 <script src="atomkit.js"></script>     <!-- bonding builder only -->
 <script src="covalent-drag.js"></script>  <!-- bonding builder only -->
 <script src="ionic-drag.js"></script>     <!-- bonding builder only -->
@@ -90,7 +91,7 @@ units. MolecularGeometry.md §1.5 has the why, and `check-molecules.js` requires
 | `protein-lab` | pdb, vendor/chemdoodle/ChemDoodleWeb |
 | `folding-lab` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin |
 | `folding-lab-ribbon` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin, folding/ribbon |
-| `hemoglobin-lab` | palette, molecules, scene, fx, folding/ribbon, residues, hemoglobin/hbfold |  <!-- residues: level 1's side chains, grafted onto the flat chain -->
+| `hemoglobin-lab` | palette, molecules, scene, fx, annotate, folding/ribbon, residues, hemoglobin/hbfold |  <!-- residues: level 1's side chains, grafted onto the flat chain; annotate: the heme callouts -->
 
 Rows are explicit — no row inherits from the one above it any more, because the
 sets stopped being nested once pages began loading different domains.
@@ -140,6 +141,7 @@ and `register()` throws if both are present.
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
+| `annotate.js` | `Annot.create` → `add`, `step`, `play`, `setMode`, `show`, `clear`. Callouts pinned to a point on a model: a dot on the atom, a fanned label, three reveal modes. DOM over the canvas, not sprites | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
 | `folding/actin.js` | `ActinLib` = `parseCA` + `screwOf` (the helical operation, measured from the file) + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
 | `folding/villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` (generated arrangements) + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
