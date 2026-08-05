@@ -716,6 +716,72 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
      ['A','B','C','D'].every(id => committed.iron[id]),
      'four heme irons, one per chain');
 
+  /* THE HEME, which level 4 now draws ball-and-stick — the only atoms this
+     page shows at the tetramer scale, so what they claim has to be checked.
+     Protoporphyrin IX with its iron is C34 H32 FE N4 O4; heavy atoms only,
+     that is 34 C + 4 N + 4 O + 1 Fe = 43. The connectivity comes from
+     2HHB's CONECT records, so what is worth asserting is not the bond count
+     but the SHAPE it makes: the iron four-coordinate to the four pyrrole
+     nitrogens (it is what the ring is holding, and a distance-cutoff bond
+     list gets this wrong by also joining the nitrogens to each other), no
+     atom left unbonded, and every bond a real bond length. */
+  for (const id of ['A','B','C','D']) {
+    const h = committed.heme[id];
+    const count = el => h.atoms.filter(a => a.el === el).length;
+    ok(h.atoms.length === 43 && count('C') === 34 && count('N') === 4 &&
+       count('O') === 4 && count('FE') === 1,
+       `heme ${id} is protoporphyrin IX + Fe — 34 C, 4 N, 4 O, 1 Fe`,
+       `${h.atoms.length} atoms: ${count('C')}/${count('N')}/${count('O')}/${count('FE')}`);
+
+    const fe = h.atoms.findIndex(a => a.el === 'FE');
+    const held = h.bonds.filter(b => b.includes(fe))
+                        .map(b => h.atoms[b[0] === fe ? b[1] : b[0]].name).sort();
+    ok(held.join(' ') === 'NA NB NC ND',
+       `heme ${id}'s iron is held by its four pyrrole nitrogens`, held.join(' ') || 'nothing');
+
+    const deg = new Array(h.atoms.length).fill(0);
+    h.bonds.forEach(([i, j]) => { deg[i]++; deg[j]++; });
+    const loose = deg.reduce((n, d2) => n + (d2 === 0 ? 1 : 0), 0);
+    ok(loose === 0, `heme ${id} has no unbonded atom`, `${loose} floating`);
+
+    /* 1.2 A is a C=O, 2.1 A is the Fe-N coordination bond; anything outside
+       that is not a bond and would draw as a stick through empty space. */
+    let lo = Infinity, hi = 0;
+    for (const [i, j] of h.bonds) {
+      const a = h.atoms[i].p, b = h.atoms[j].p;
+      const L = Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+      lo = Math.min(lo, L); hi = Math.max(hi, L);
+    }
+    ok(lo > 1.15 && hi < 2.2, `heme ${id}'s bonds are all real bond lengths`,
+       `${lo.toFixed(2)}-${hi.toFixed(2)} A`);
+  }
+
+  /* The ring is FLAT — that is the whole visual point of drawing it, and it
+     is the one property a wrong frame or a bad rotation would destroy while
+     leaving every distance above intact. Plane fitted to the 24 macrocycle
+     atoms by the smallest principal axis. */
+  for (const id of ['A','B','C','D']) {
+    const h = committed.heme[id];
+    const ring = h.atoms.filter(a => /^(C[1-4][A-D]|CH[A-D]|N[A-D])$/.test(a.name)).map(a => a.p);
+    const c = [0,1,2].map(k => ring.reduce((s, p) => s + p[k], 0) / ring.length);
+    /* Covariance, then the smallest eigenvalue by inverse iteration is
+       overkill for 24 points — sweep directions instead and keep the best. */
+    let best = Infinity;
+    for (let t = 0; t < 400; t++) {
+      const th = Math.acos(1 - 2 * (t + 0.5) / 400), ph = t * 2.399963;
+      const n = [Math.sin(th)*Math.cos(ph), Math.sin(th)*Math.sin(ph), Math.cos(th)];
+      let rms = 0;
+      for (const p of ring) {
+        const d2 = n[0]*(p[0]-c[0]) + n[1]*(p[1]-c[1]) + n[2]*(p[2]-c[2]);
+        rms += d2 * d2;
+      }
+      best = Math.min(best, Math.sqrt(rms / ring.length));
+    }
+    ok(ring.length === 24 && best < 0.35,
+       `heme ${id}'s macrocycle is planar`,
+       `${ring.length} ring atoms, rms ${best.toFixed(2)} A off the best plane`);
+  }
+
   /* THE FRAME. bake-quaternary re-derives orient()'s rotation; if it ever
      stops matching, the tetramer assembles around a chain lying in a
      different basis and the picture is quietly, plausibly wrong. */

@@ -473,6 +473,7 @@ const ALPHA_COLOR = 0xb07a24;
 const BETA2_COLOR = 0x4a7fc4;
 const IRON_COLOR  = 0xa8321a;   // not from PALETTE: no page here has drawn an Fe
 
+
 /* When each chain arrives, in ASSEMBLY units (0..1 across the level-4 act).
    Windows are disjoint on purpose — "section by section" means one thing
    moving at a time, and two chains sliding in together read as a single
@@ -650,6 +651,35 @@ const RADII = {};
 for (const el of ['C', 'N', 'O', 'H', 'S']) RADII[el] = PAL.radii[el] / MolLib.SCALE;
 const STICK = RADII.C * 0.165;    // the house ratio of stick to atom
 
+/* ---- the heme's own ball-and-stick proportions ----
+   Here rather than up with the level-4 colours, because they are derived
+   from RADII and STICK and have to read against them.
+
+   HEME_BALL shrinks the house radii so the porphyrin reads as a RING rather
+   than as a clump of touching spheres. FE_BALL is a multiple of the shrunk
+   carbon, not an absolute: the iron has to stay the biggest atom in the
+   group at any size the rest is drawn.
+
+   THE STICKS ARE FATTER THAN THE HOUSE ONES, and have to be. STICK is the
+   ratio the close-up uses, where the camera sits a few angstroms off the
+   backbone; level 4 views the same bond from across a 65 A tetramer, and at
+   that distance the house width comes out about a pixel — a cobweb, not a
+   bond. So the ratio is set for the distance the bond is actually seen
+   from, which is what keeps a stick reading as a stick. Judge it at the
+   level-4 framing, never zoomed in.
+
+   HEME_STICK shares STICK's base — a fraction of the FULL carbon radius —
+   so the two can be read against each other: 0.36 against 0.165 is a stick
+   a bit over twice as wide. Against the ball it actually sits beside that
+   is about half the ball's diameter, the usual ball-and-stick proportion.
+   It is deliberately NOT tied to HEME_BALL: the stick width is set by how
+   far away the bond is seen from, the ball size by how much volume the
+   ring should have, and tying them would make one un-tunable without the
+   other. */
+const HEME_BALL  = 0.72;
+const FE_BALL    = 2.7;
+const HEME_STICK = RADII.C * 0.36;
+
 /* The ruler is 2HHB's own numbering, and here that is also position in the
    chain — 2HHB numbers chain B from 1, so unlike villin there is nothing to
    reconcile. A number under every fifth residue; a name over all of them.
@@ -786,7 +816,7 @@ let fold = null, quat = null;
 let u = 0, t = 0, playing = false, started = false;
 let ribbon = null;
 const partners = [];            // {id, kind, mesh, mat, dir, win}
-const irons = [];               // {id, mesh, mat, win}
+const irons = [];               // one heme each: {id, mesh:Group, mats, win, pos:Fe}
 const hbGroups = [];
 const chainGroup = new THREE.Group(); root.add(chainGroup);
 
@@ -824,6 +854,10 @@ Promise.all([
 
     if (quat.order.length !== 3 || !quat.iron[quat.folded])
       throw new Error('the quaternary file is not three chains and four irons');
+    /* An old quaternary file has irons and no hemes, and would draw level 4
+       with the ring silently missing rather than fail. */
+    if (!quat.heme || Object.keys(quat.heme).length !== 4)
+      throw new Error('the quaternary file has no hemes — re-run bake-quaternary.js');
 
     build();
     buildQuaternary();
@@ -1762,18 +1796,67 @@ function buildQuaternary() {
                     bondMat, bonds, bondData: c.bonds, fired: false });
   });
 
-  /* The irons. One sphere each, 1.4 A — smaller than the ribbon is wide, so
-     it reads as an atom sitting in a pocket rather than a ball the protein
-     is wrapped around. Chain B's arrives first and alone. */
-  Object.entries(quat.iron).forEach(([id, p]) => {
-    const mat = new THREE.MeshStandardMaterial({ color: IRON_COLOR, roughness: .35,
-      metalness: .35, transparent: true, opacity: 0 });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 20, 14), mat);
-    mesh.position.set(p[0], p[1], p[2]);
-    mesh.visible = false;
-    chainGroup.add(mesh);
-    irons.push({ id, mesh, mat,
-      win: id === quat.folded ? IRON_B : ARRIVE[id], pos: p,
+  /* The hemes. Ball-and-stick — the ONLY atoms this page ever draws at the
+     tetramer scale, and the exception earns itself: 43 atoms is a shape you
+     can read at 10 A across, where 146 residues of the same treatment is the
+     confetti the ribbon exists to avoid. It is also how every published
+     haemoglobin figure draws the group, so a student who looks the molecule
+     up sees the thing they saw here.
+
+     WHAT THE RING IS FOR. The iron alone was a sphere floating in a gap.
+     With the porphyrin under it the pocket has a floor: four nitrogens
+     holding the metal in the middle of a flat disc, which is the claim the
+     tertiary act spent its whole run building up to.
+
+     SMALLER BALLS AND FATTER STICKS THAN THE CLOSE-UP, deliberately. At
+     level 1 the atoms ARE the subject and carry the house radii; here the
+     subject is the ring's SHAPE, so the balls shrink and the sticks widen
+     — the same trade every ball-and-stick figure makes when it wants
+     connectivity to read over volume. See HEME_BALL/HEME_STICK for the
+     proportions and for why the house stick width is a cobweb at this
+     distance. Only the iron stays big relative to its neighbours, because
+     it is what the ring is holding. */
+  Object.entries(quat.heme).forEach(([id, h]) => {
+    const group = new THREE.Group();
+    const mats = [];
+    const matFor = el => {
+      const m = new THREE.MeshStandardMaterial({
+        color: el === 'FE' ? IRON_COLOR : (PAL.atoms[el] || 0x888888),
+        roughness: el === 'FE' ? .35 : .5, metalness: el === 'FE' ? .35 : 0,
+        transparent: true, opacity: 0 });
+      mats.push(m); return m;
+    };
+    /* One material per element, not per atom: the whole heme fades with
+       five writes instead of forty-three. */
+    const byEl = {};
+    h.atoms.forEach(a => {
+      const r = a.el === 'FE' ? HEME_BALL * RADII.C * FE_BALL
+                              : HEME_BALL * (RADII[a.el] || RADII.C);
+      const mat = byEl[a.el] || (byEl[a.el] = matFor(a.el));
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat);
+      m.position.set(a.p[0], a.p[1], a.p[2]);
+      group.add(m);
+    });
+
+    const bondMat = Stage.bondMat(PAL.bonds.covalent);
+    bondMat.transparent = true; bondMat.opacity = 0;
+    mats.push(bondMat);
+    h.bonds.forEach(([i, j]) => {
+      const A = h.atoms[i].p, B = h.atoms[j].p;
+      _a.set(A[0], A[1], A[2]); _b.set(B[0], B[1], B[2]);
+      const d = _b.clone().sub(_a), L = d.length() || 1e-6;
+      const m = new THREE.Mesh(
+        new THREE.CylinderGeometry(HEME_STICK, HEME_STICK, L, 8), bondMat);
+      m.position.copy(_a).addScaledVector(d, 0.5);
+      m.quaternion.setFromUnitVectors(_yAxis, d.divideScalar(L));
+      group.add(m);
+    });
+
+    group.visible = false;
+    chainGroup.add(group);
+    const fe = h.atoms.find(a => a.el === 'FE').p;
+    irons.push({ id, mesh: group, mats,
+      win: id === quat.folded ? IRON_B : ARRIVE[id], pos: fe,
       dir: partners.find(pt => pt.id === id) ? partners.find(pt => pt.id === id).dir : null });
   });
 }
@@ -1831,9 +1914,13 @@ function revealQuaternary(q) {
   for (const ir of irons) {
     const a = q < 0 ? 0 : amountIn(q, ir.win);
     ir.mesh.visible = a > 0.005;
-    ir.mat.opacity = a;
-    if (ir.dir) ir.mesh.position.set(ir.pos[0], ir.pos[1], ir.pos[2])
-      .addScaledVector(ir.dir, (1 - easeSeat(a)) * SLIDE_A);   // rides its chain
+    for (const m of ir.mats) m.opacity = a;
+    /* The heme's atoms carry the crystal's own coordinates, so the group
+       sits at the origin and only the SLIDE moves it — the offset, not the
+       position. Same displacement as the chain it belongs to, so the two
+       arrive as one object. */
+    ir.mesh.position.set(0, 0, 0);
+    if (ir.dir) ir.mesh.position.addScaledVector(ir.dir, (1 - easeSeat(a)) * SLIDE_A);
   }
   return chains;
 }

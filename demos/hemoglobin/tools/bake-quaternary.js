@@ -36,10 +36,12 @@
  *  the T->R switch. check-hb.js asserts A-B is the bigger of the two, so
  *  the arrival order is a measured statement rather than a staging choice.
  *
- *  It also writes the four heme irons. They are one atom each and they
- *  are the reason the protein exists — the pocket the tertiary act builds
- *  is where this atom sits — so the page can finish on the thing the
- *  whole structure is for.
+ *  It also writes the four hemes — 43 heavy atoms and their deposited
+ *  connectivity each, plus the iron on its own for the code that only wants
+ *  the centre. They are the reason the protein exists: the pocket the
+ *  tertiary act builds is where the iron sits, so the page can finish on
+ *  the thing the whole structure is for. See "the whole heme" below for why
+ *  the bonds come from CONECT rather than from a distance cutoff.
  *
  *  JSON, not a binary. Three Ca traces is ~430 points; the trajectory is
  *  185 keyframes of 352 and had to be quantised. 90 KB of text needs no
@@ -103,6 +105,81 @@ function irons(raw, R) {
     if (line.slice(12, 16).trim() !== 'FE') continue;
     out[line[21]] = apply(R, [+line.slice(30, 38), +line.slice(38, 46),
                               +line.slice(46, 54)]).map(r2);
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------- the whole heme
+ *
+ *  The iron alone was a sphere in space. Protoporphyrin IX is what makes it
+ *  a POCKET: a flat ring of four pyrroles whose four nitrogens hold the Fe
+ *  in the middle, two vinyls on one side and two propionate arms on the
+ *  other. Drawn ball-and-stick it reads the way every published haemoglobin
+ *  figure draws it, and it is the one place on this page where atoms are
+ *  individually visible — the backbone is a ribbon precisely because 146
+ *  residues of ball-and-stick is confetti, and 43 atoms is not.
+ *
+ *  CONNECTIVITY IS DEPOSITED, NOT INFERRED. 2HHB carries CONECT records for
+ *  every heme atom, so the bond list here is the crystallographers' and not
+ *  a distance cutoff of mine. That matters more than it looks: a cutoff
+ *  wide enough for the 2.0 A Fe-N coordination bonds also catches
+ *  1,3 neighbours across the pyrroles and draws a ring with its diagonals
+ *  filled in. Bond ORDERS are not deposited and are not read — the ring is
+ *  drawn as single sticks, which is the usual convention for a delocalised
+ *  aromatic macrocycle and avoids claiming a particular Kekule structure.
+ *
+ *  The four Fe-NE2 bonds to His F8 are CONECT'd too, but their partner is a
+ *  protein atom, not a heme atom, so they fall outside this residue and are
+ *  dropped. The proximal histidine is a separate lesson and this page draws
+ *  no side chains.
+ */
+function hemes(raw, R) {
+  const lines = raw.split('\n');
+  const bySerial = new Map();               // serial -> {chain, i}
+  const out = {};
+
+  for (const line of lines) {
+    if (!line.startsWith('HETATM')) continue;
+    if (line.slice(17, 20).trim() !== 'HEM') continue;
+    const alt = line[16];
+    if (alt !== ' ' && alt !== 'A') continue;
+    const ch = line[21];
+    const h = out[ch] || (out[ch] = { atoms: [], bonds: [] });
+    bySerial.set(+line.slice(6, 11), { chain: ch, i: h.atoms.length });
+    h.atoms.push({
+      name: line.slice(12, 16).trim(),
+      el: line.slice(76, 78).trim() || line.slice(12, 14).trim(),
+      p: apply(R, [+line.slice(30, 38), +line.slice(38, 46),
+                   +line.slice(46, 54)]).map(r2),
+    });
+  }
+
+  /* CONECT is symmetric in the file, so keep each pair once (i < j) and
+     keep only pairs whose ends are both in the same heme. */
+  const seen = new Set();
+  for (const line of lines) {
+    if (!line.startsWith('CONECT')) continue;
+    const a = bySerial.get(+line.slice(6, 11));
+    if (!a) continue;
+    for (let c = 11; c + 5 <= line.length; c += 5) {
+      const field = line.slice(c, c + 5).trim();
+      if (!field) continue;
+      const b = bySerial.get(+field);
+      if (!b || b.chain !== a.chain) continue;      // His NE2 and the like
+      const lo = Math.min(a.i, b.i), hi = Math.max(a.i, b.i);
+      const key = `${a.chain}:${lo}:${hi}`;
+      if (lo === hi || seen.has(key)) continue;
+      seen.add(key);
+      out[a.chain].bonds.push([lo, hi]);
+    }
+  }
+
+  for (const [ch, h] of Object.entries(out)) {
+    if (h.atoms.length !== 43)
+      throw new Error(`heme ${ch} has ${h.atoms.length} heavy atoms, expected 43`);
+    if (!h.atoms.some(a => a.name === 'FE'))
+      throw new Error(`heme ${ch} has no FE`);
+    h.bonds.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
   }
   return out;
 }
@@ -218,6 +295,7 @@ function bakeQuaternary() {
     chains,
     contactRadius: CONTACT, polarRadius: POLAR,
     iron: irons(raw, R),
+    heme: hemes(raw, R),
     foldedTrace: folded,                      // for check-hb.js only
   };
 }
@@ -230,6 +308,8 @@ if (require.main === module) {
   const n = Object.values(data.chains).reduce((s, c) => s + c.CA.length, 0);
   console.log(`wrote ${path.relative(process.cwd(), OUT)} — ` +
     `${Object.keys(data.chains).length} chains, ${n} residues, ` +
-    `${Object.keys(data.iron).length} irons, ` +
+    `${Object.keys(data.heme).length} hemes ` +
+    `(${Object.values(data.heme)[0].atoms.length} atoms, ` +
+    `${Object.values(data.heme)[0].bonds.length} bonds each), ` +
     `${(fs.statSync(OUT).size / 1024).toFixed(0)} KB`);
 }
