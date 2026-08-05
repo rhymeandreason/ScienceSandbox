@@ -404,12 +404,16 @@ const PAL = MolLib.PALETTE;
    must not silently rescale if the assembly gets longer. `uOf` is the one
    place the two meet. */
 const PLAY_SECONDS = 11;      // the fold
+const CODA_SECONDS = 3.5;     // the finished chain: its heme arrives, and it turns
 const ASSEMBLY_SECONDS = 5;   // the other three chains arriving
 
-const TOTAL_SECONDS = PLAY_SECONDS + ASSEMBLY_SECONDS;
+const TOTAL_SECONDS = PLAY_SECONDS + CODA_SECONDS + ASSEMBLY_SECONDS;
 const FOLD_END = PLAY_SECONDS / TOTAL_SECONDS;
-const uOf = (phase, x) => phase === 'fold' ? x * FOLD_END
-                                           : FOLD_END + x * (1 - FOLD_END);
+const CODA_END = (PLAY_SECONDS + CODA_SECONDS) / TOTAL_SECONDS;
+const uOf = (phase, x) =>
+  phase === 'fold' ? x * FOLD_END :
+  phase === 'coda' ? FOLD_END + x * (CODA_END - FOLD_END)
+                   : CODA_END + x * (1 - CODA_END);
 
 /* ONE STRETCH PLAYS AT DOUBLE RATE, and it is a viewing decision rather
    than a claim about the physics. From u=0.54 to the end of the fold the
@@ -427,19 +431,34 @@ const uOf = (phase, x) => phase === 'fold' ? x * FOLD_END
 const FAST = { from: 0.54, rate: 2 };
 const rateAt = x => (x >= FAST.from && x < FOLD_END) ? FAST.rate : 1;
 
-/* A BEAT AT THE END OF THE FOLD. Playback stops for HOLD_SECONDS just
-   before level 4 begins, and the caption up during it is "One chain,
-   done".
+/* ---------- THE CODA: a beat at the end of the fold ----------
+   Between the finished chain and the first partner arriving, u=FOLD_END..
+   CODA_END, the molecule is DONE and nothing is folding. What happens
+   instead is the payoff: the heme arrives in its pocket, the callouts name
+   it, and the chain turns a little so the group is seen face-on rather
+   than edge-on. The caption up throughout is "One chain, done" — which
+   already promised "that pocket holds the iron that attracts oxygen", and
+   now the iron shows up while the sentence is still on screen.
 
-   This highlights the finished tertiary structure before moving on to the quaternary.
+   THIS REPLACED A DEAD PAUSE. It used to be a 1.2 s freeze at
+   HOLD_AT = FOLD_END - 1e-4: playback stopped, the same still frame stayed
+   up, and the student was asked to admire something that had already
+   finished moving. A hold is the right instinct and the wrong mechanism —
+   it buys attention with time but gives nothing to spend it on. The coda
+   buys the same beat with an EVENT, and being real lesson time rather than
+   a stopped clock it also scrubs: drag to the middle of it and you get the
+   middle of it, which the freeze could never do.
 
-   HELD JUST SHORT OF FOLD_END, not at it, because the act boundary is at
-   FOLD_END exactly: pausing on the boundary would post level 4's caption
-   over a molecule that has no partners yet. The 1e-4 is invisible in the
-   geometry (t = 0.99985, the last keyframe either way) and keeps the
-   caption and the readouts on the right side of the line. */
-const HOLD_SECONDS = 1.2;
-const HOLD_AT = FOLD_END - 1e-4;
+   It sits in `u`, so the scrubber runs at one speed throughout and every
+   fold number stays quoted in fold t, unrescaled. `t` is already
+   min(1, u/FOLD_END) and so pins at 1 here without a special case. */
+const CODA_SPIN = 0.6;        // radians the camera swings across the coda
+
+/* When the heme lands, in CODA units. Early enough that it is not a
+   surprise at the end, finished by half way — the rest of the coda is the
+   turn and the labels, which need the group already there to be about. */
+const HEME_IN = [0.06, 0.46];
+const LABELS_AT = 0.55;       // callouts once the group is unmistakably there
 
 const ACTS = [
   { t: 0.00, cls: 'a0', name: 'Level 1 · the order of the amino acids',
@@ -460,14 +479,21 @@ const ACTS = [
           'Hydrogen bonds and hydrophobic interactions join them together. ' },
 ];
 
-/* The scrubber in lesson units. The fold\'s three measured segments are
-   squeezed into u=0..FOLD_END; level 4 is the rest. */
+/* The scrubber in lesson units. The fold's three measured segments are
+   squeezed into u=0..FOLD_END; level 4 is the rest.
+
+   THE CODA BELONGS TO 'tertiary', which is why that segment ends at
+   CODA_END rather than at FOLD_END. It is still one chain — the heme
+   settling into the pocket the tertiary structure just built is the last
+   thing that act does, not the first thing the next one does. Giving it
+   its own segment would put a fifth box on a bar that names the four
+   levels of protein structure, and there is no fifth level. */
 const SEGMENTS = [
-  { to: 0.10, label: 'primary' },
-  { to: 0.54, label: 'secondary' },
-  { to: 1.00, label: 'tertiary' },
-].map(s => ({ to: uOf('fold', s.to), label: s.label }))
- .concat([{ to: 1.00, label: 'quaternary' }]);
+  { to: uOf('fold', 0.10), label: 'primary' },
+  { to: uOf('fold', 0.54), label: 'secondary' },
+  { to: CODA_END,          label: 'tertiary' },
+  { to: 1.00,              label: 'quaternary' },
+];
 
 /* Ribbon ink. The helices take the hydrogen-bond blue because the helix IS
    what those bonds made — the same argument the villin page makes for its
@@ -490,14 +516,20 @@ const IRON_COLOR  = 0xa8321a;   // not from PALETTE: no page here has drawn an F
 /* When each chain arrives, in ASSEMBLY units (0..1 across the level-4 act).
    Windows are disjoint on purpose — "section by section" means one thing
    moving at a time, and two chains sliding in together read as a single
-   blob arriving. Iron B leads, because it is the payoff of the pocket the
-   tertiary act just closed. */
+   blob arriving.
+
+   THE FOLDED CHAIN'S OWN HEME IS NOT IN HERE. It used to lead this list at
+   [0.02, 0.12], which put it a fifth of the way into an act about OTHER
+   chains arriving and overlapping chain A's slide — so the payoff of the
+   tertiary act was competing with the opening of the quaternary one. It
+   now belongs to the coda (HEME_IN), before any partner exists. The three
+   partner hemes still ride their own chains in and so keep this table's
+   windows. */
 const ARRIVE = {
   A: [0.10, 0.34],
   C: [0.42, 0.64],
   D: [0.68, 0.90],
 };
-const IRON_B = [0.02, 0.12];
 
 /* HOW FAR OUT A CHAIN STARTS. The slide has
    to say "this arrived from elsewhere, already finished" — which is the one
@@ -832,7 +864,7 @@ const partners = [];            // {id, kind, mesh, mat, dir, win}
 const irons = [];               // one heme each: {id, mesh:Group, mats, win, pos:Fe}
 const hbGroups = [];
 const chainGroup = new THREE.Group(); root.add(chainGroup);
-let quatQ = -1;                 // level-4 clock, mirrored out of seek() for the callouts
+let quatQ = -1, codaC = 0;      // level-4 and coda clocks, mirrored out of seek() for the callouts
 
 /* ---------- load ----------
    ONE fetch. The trajectory, the secondary structure and the hydrogen-bond
@@ -1870,8 +1902,14 @@ function buildQuaternary() {
     group.visible = false;
     chainGroup.add(group);
     const fe = h.atoms.find(a => a.el === 'FE').p;
-    irons.push({ id, mesh: group, mats,
-      win: id === quat.folded ? IRON_B : ARRIVE[id], pos: fe,
+    /* TWO CLOCKS, one per kind of heme. The folded chain's own heme is the
+       coda's event and reads HEME_IN in coda units; the other three are
+       cargo on arriving chains and read ARRIVE in assembly units. Storing
+       which clock each one is on beats deriving it at every frame from
+       whether the id happens to equal quat.folded. */
+    const mine = id === quat.folded;
+    irons.push({ id, mesh: group, mats, coda: mine,
+      win: mine ? HEME_IN : ARRIVE[id], pos: fe,
       dir: partners.find(pt => pt.id === id) ? partners.find(pt => pt.id === id).dir : null });
   });
 }
@@ -1944,11 +1982,12 @@ function buildHemeNotes() {
 let annotOn = false;
 function updateAnnots() {
   if (!notes) return;
-  /* Shown once the folded chain's own heme has actually arrived, so the
-     labels never point at something not yet drawn. Same window the heme
-     fades in on. */
-  const ir = irons.find(i => i.id === quat.folded);
-  const there = quatQ >= 0 && amountIn(quatQ, ir.win) > 0.6;
+  /* Shown once the coda's heme has actually arrived, so the labels never
+     point at something not yet drawn — and they stay for the rest of the
+     lesson, because codaC holds at 1. LABELS_AT is past the end of HEME_IN
+     on purpose: the group finishes fading, THEN gets named, rather than
+     the two happening over each other. */
+  const there = codaC > LABELS_AT;
   const want = there && document.getElementById('showannot').checked;
   document.getElementById('annotrow').hidden = !there;
   document.getElementById('annotmode').hidden = !there;
@@ -1973,9 +2012,11 @@ function tetramerCentre() {
 const smoothstep = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
 const amountIn = (q, win) => smoothstep((q - win[0]) / (win[1] - win[0]));
 
-/* q is 0..1 across the level-4 act, or -1 while the chain is still folding.
+/* q is 0..1 across the level-4 act, or -1 before it; c is 0..1 across the
+   coda and stays at 1 once level 4 is running, so the heme that arrived
+   there does not vanish when the partners start showing up.
    Returns the number of chains present, for the readout. */
-function revealQuaternary(q) {
+function revealQuaternary(q, c) {
   let chains = 1;
   for (const p of partners) {
     const a = q < 0 ? 0 : amountIn(q, p.win);
@@ -2013,7 +2054,8 @@ function revealQuaternary(q) {
     } else if (bond < 0.2) p.fired = false;
   }
   for (const ir of irons) {
-    const a = q < 0 ? 0 : amountIn(q, ir.win);
+    const a = ir.coda ? amountIn(c, ir.win)
+                      : (q < 0 ? 0 : amountIn(q, ir.win));
     ir.mesh.visible = a > 0.005;
     for (const m of ir.mats) m.opacity = a;
     /* The heme's atoms carry the crystal's own coordinates, so the group
@@ -2250,11 +2292,26 @@ const _v = [];      // scratch Vector3s for the ribbon, reused every frame
 
 function seek(uu) {
   u = Math.max(0, Math.min(1, uu));
-  /* Two clocks: `t` runs the fold and pins at 1 for the whole of level 4;
-     `q` is -1 until the fold is done and then runs 0..1. */
+  /* THREE clocks now. `t` runs the fold and pins at 1 for everything after
+     it. `c` runs the coda and then STAYS at 1 — what arrives there is part
+     of the molecule from then on, so a clock that reset would take the
+     heme back off the moment level 4 began. `q` is -1 until the coda is
+     over and then runs 0..1 across the assembly. */
   t = Math.min(1, u / FOLD_END);
-  const q = u <= FOLD_END ? -1 : (u - FOLD_END) / (1 - FOLD_END);
-  quatQ = q;                       // the callouts read it from the render loop
+  const c = u <= FOLD_END ? 0
+          : Math.min(1, (u - FOLD_END) / (CODA_END - FOLD_END));
+  const q = u <= CODA_END ? -1 : (u - CODA_END) / (1 - CODA_END);
+  codaC = c; quatQ = q;            // the callouts read these from the render loop
+
+  /* THE TURN. A slow swing of the camera across the coda, so the heme is
+     seen face-on instead of edge-on by the time the labels land — a flat
+     ring viewed from its rim is a line, and the whole reason for drawing
+     the porphyrin is that it has a shape. Held at the end rather than
+     unwound, because snapping back would undo the view it just gave.
+
+     A drag switches it off for good, the same rule the elevation follows:
+     once the student has taken the camera, the page stops steering it. */
+  if (!userTurn && c > 0) cam.theta = FIT_THETA + CODA_SPIN * smoothstep(c);
   const s = poseAt(t);             // flat for level 1, the trajectory after
   posedP = s.P;                  // what the pearls billboard against
 
@@ -2317,7 +2374,7 @@ function seek(uu) {
     layDashes(g, _a, _b);
   });
 
-  revealQuaternary(q);          // poses level 4's chains; nothing reads its count
+  revealQuaternary(q, c);       // poses level 4's chains; nothing reads its count
 
   updateFocus(s, fw);
   updateSideChains(s.P, flatW(t) * (q < 0 ? 1 : 0));
@@ -2502,7 +2559,7 @@ function stepHoming() {
 }
 
 document.getElementById('playbtn').addEventListener('click', () => {
-  if (!playing && u >= 1) { u = 0; shownAct = -1; holdLeft = HOLD_SECONDS; }
+  if (!playing && u >= 1) { u = 0; shownAct = -1; }
   /* Only on the way INTO playing, and only from the intro: pausing halfway
      through the fold and resuming must not yank the camera anywhere. */
   if (!playing && !started && viewMoved()) {
@@ -2518,10 +2575,8 @@ function scrubTo(clientX) {
   beginIfNeeded();
   setPlaying(false);
   const to = (clientX - r.left) / r.width;
-  /* Scrubbing back before the beat re-arms it, so pressing play again
-     replays the ending as it is meant to be seen rather than skipping it
-     because the clock already spent it once. */
-  if (to < HOLD_AT) holdLeft = HOLD_SECONDS;
+  /* No beat to re-arm any more: the coda is lesson time like any other, so
+     scrubbing back into it simply plays it again. */
   seek(to);
 }
 bar.addEventListener('pointerdown', e => { bar.setPointerCapture(e.pointerId); scrubTo(e.clientX); });
@@ -2652,7 +2707,6 @@ document.getElementById('savepng').addEventListener('click', () => {
    entirely — a dragged scrubber must answer the pointer immediately. */
 const UPDATE_HZ = 30;
 let last = performance.now(), lastUpdate = 0;
-let holdLeft = HOLD_SECONDS;      // re-armed whenever playback restarts
 (function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -2672,18 +2726,6 @@ let holdLeft = HOLD_SECONDS;      // re-armed whenever playback restarts
        alternative (integrating the rate across the step) buys nothing a
        viewer could see. */
     const nu = u + dt / TOTAL_SECONDS * rateAt(u);
-
-    /* The beat. Sit at HOLD_AT and spend the clock on the hold instead of
-       on u. Scrubbing past it by hand is untouched — this is the play
-       loop only, and a viewer who drags the scrubber has already seen
-       whatever they wanted to see. */
-    if (holdLeft > 0 && nu >= HOLD_AT && u <= HOLD_AT) {
-      if (u !== HOLD_AT) seek(HOLD_AT);
-      holdLeft -= dt;
-      FXi.step();
-      renderer.render(scene, camera);
-      return;
-    }
 
     if (nu >= 1) { seek(1); setPlaying(false); }
     else if (now - lastUpdate >= 1000 / UPDATE_HZ) { lastUpdate = now; seek(nu); }
