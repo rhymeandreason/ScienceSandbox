@@ -299,12 +299,11 @@ const PAL = MolLib.PALETTE;
    over a comparable collapse, that is the two mechanisms visibly taking
    turns.
 
-   It is NOT dead flat, and the earlier version of this trajectory was. That
-   version drove every linker atom independently, which held the count at
-   exactly 83 but made all six loops extend at once and read as though the
-   chain were being pulled at several points. hemoglobin/tools/bake-unfold.js's
-   header carries the trade; the short version is that a looser plateau was
-   worth a chain that moves like a chain.
+   It is NOT dead flat, and must not be made so: holding the count at
+   exactly 83 takes driving every linker atom independently, which extends
+   all six loops at once and reads as the chain being pulled at several
+   points. hemoglobin/tools/bake-unfold.js's header carries the trade — a
+   looser plateau is worth a chain that moves like a chain.
 
    It is that sharp because of how the trajectory is made.
    hemoglobin/tools/bake-unfold.js does not fold the chain — it UNFOLDS the deposited
@@ -368,14 +367,11 @@ const CODA_SPIN = 0.7;        // radians the camera swings across the coda
    surprise at the end, finished by half way — the rest of the coda is the
    turn and the labels, which need the group already there to be about. */
 const HEME_IN = [0.06, 0.46];
-/* The callouts start while the heme is still FADING IN, not after. It was
-   0.55 — past the end of HEME_IN, on the reasoning that the group should
-   finish arriving and then be named — and that read as a wait: the heme is
-   already unmistakable about two thirds of the way through its fade, and
-   the labels sat there not saying so. At 0.30 the naming starts on a group
-   the student can already see, and because the wipe takes about 0.9 s the
-   labels still SETTLE just after the heme is fully in. Arriving together,
-   finishing in order. */
+/* The callouts start while the heme is still FADING IN, not after it
+   lands. The group is already unmistakable two thirds of the way through
+   its fade, so naming it then costs no clarity — and since the wipe takes
+   about 0.9 s the labels still SETTLE just after the heme is fully in.
+   Arriving together, finishing in order. */
 const LABELS_AT = 0.30;       // coda units; u≈0.62, which is where the heme reads
 
 /* AND THE CALLOUTS GO WHEN LEVEL 4 DOES, in assembly units. They belong to
@@ -447,13 +443,10 @@ const IRON_COLOR  = 0xa8321a;   // not from PALETTE: no page here has drawn an F
    moving at a time, and two chains sliding in together read as a single
    blob arriving.
 
-   THE FOLDED CHAIN'S OWN HEME IS NOT IN HERE. It used to lead this list at
-   [0.02, 0.12], which put it a fifth of the way into an act about OTHER
-   chains arriving and overlapping chain A's slide — so the payoff of the
-   tertiary act was competing with the opening of the quaternary one. It
-   now belongs to the coda (HEME_IN), before any partner exists. The three
-   partner hemes still ride their own chains in and so keep this table's
-   windows. */
+   THE FOLDED CHAIN'S OWN HEME IS NOT IN HERE — it belongs to the coda
+   (HEME_IN), before any partner exists, so the payoff of the tertiary act
+   does not compete with the opening of the quaternary one. The three
+   partner hemes ride their own chains in and keep this table's windows. */
 const ARRIVE = {
   A: [0.10, 0.34],
   C: [0.42, 0.64],
@@ -503,9 +496,8 @@ const RING_SIZE = 1.5;
    The close-up changes the premise. Level 1 and level 2 are now watched
    from 26 A, where a hydrogen bond forming is a legible event between two
    atoms you can see — which is exactly the case fx.js's ring was built for
-   (SCIENCE.md 5: a ring means "a bond just happened"). Marking it is the
-   house convention; NOT marking it here was the exception, and it was an
-   exception made for a shot this page no longer opens on.
+   (SCIENCE.md 5: a ring means "a bond just happened"), so marking it is
+   simply the house convention.
 
    SIZED AGAINST THE CAMERA, because this is the one page where a single
    event is watched from 26 A and from 250. A ring fixed in angstroms is
@@ -738,8 +730,7 @@ const RIBBON_UNDER = 0.45;
        phi   0.30   0.35   0.45   0.60   0.80   1.00   1.18   1.40
        Å     1.65   1.63   1.59   1.62   2.01   2.38   2.77   3.15
 
-   — a clean minimum at 0.45, and 1.7x worse at the 1.18 this page used to
-   open on. The on-screen WIDTH does not change with phi at all (51.1 Å
+   — a clean minimum at 0.45, and 1.7x worse at 1.18. The on-screen WIDTH does not change with phi at all (51.1 Å
    throughout), because the chain lies along X and the orbit's right vector
    is on X at any elevation, so the flatter view costs nothing to buy.
 
@@ -1439,8 +1430,8 @@ function textSprite(text, hex, px, worldH) {
 
    722 spheres and 721 cylinders is a lot of draw calls, and they are only
    worth paying for while the atoms are on screen — `atomGroup.visible` goes
-   false the moment the pull-out finishes them off, and after that the page
-   costs exactly what it did before this existed. */
+   false the moment the pull-out finishes them off, and the group is free
+   from then on. */
 function buildFocus() {
   const f = fold.focus;
   if (!fold.atoms || !fold.atoms.length)
@@ -1919,14 +1910,12 @@ function buildHemeNotes() {
   notes = Annot.create(THREE, document.getElementById('stage'), camera,
                        { mode: 'reveal', visible: false });
 
-  /* TWO LABELS, NOT THREE. There was an 'O2 binds here' pointing at the
-     empty distal site as well, and it was naming the same fact twice: the
-     oxygen binds the IRON, at that site, so a callout on the site and a
-     callout on the metal are one claim split across two labels a few
-     pixels apart. The site is still computed and still checked — it is
-     what makes 'binds O2' a located statement rather than a slogan, and
-     its two assertions are how we know the heme is oriented correctly
-     inside its pocket — but the student reads one label.
+  /* TWO LABELS, AND DO NOT ADD A THIRD AT THE DISTAL SITE. Oxygen binds
+     the IRON, at that site, so a callout on the site and a callout on the
+     metal are one claim split across two labels a few pixels apart. The
+     site is still computed and still checked — its two assertions are how
+     we know the heme is oriented correctly in its pocket — but the student
+     reads one label.
 
      FANNED, and it has to be. Both anchors are inside one 10 A group, so
      on screen they are within about forty pixels of each other and two
@@ -2058,7 +2047,7 @@ function quaternaryGroups(q) {
    Fitted from the SCRIPTED basis, not the live one, so distance is a pure
    function of t and turning the chain does not move the camera.
 
-   "Scripted" rather than "canonical" because the elevation is no longer a
+   "Scripted" rather than "canonical" because the elevation is not a
    constant: the page opens top-down at PHI_OPEN and rises to PHI_FOLD
    across the pull-out. The fit has to use the angle the camera will
    actually be at, or the close-up is framed for an elevation it is not
@@ -2068,10 +2057,9 @@ function quaternaryGroups(q) {
    the LIVE basis: a student's drag moves cam.phi and must not re-solve the
    distance, which is the jolt folding-lab-ribbon's header describes. */
 /* Pixels of stage the framing must leave clear for HTML chrome. `capBottom`
-   covers the caption and the transport under it and is now used at every
-   point in the lesson; `intro` is the standfirst card, `top` the bare stage
-   once it has gone. (There was a fourth, `bottom`, for the intro's
-   transport-only state — that state no longer exists.) */
+   covers the caption and the transport under it and applies at every point
+   in the lesson; `intro` is the standfirst card, `top` the bare stage once
+   it has gone. */
 const RESERVE = { top: 34, intro: 132, capBottom: 196 };
 const FIT_THETA = cam.theta;
 /* The scripted elevation: top-down while the close-up holds, PHI_FOLD once
@@ -2119,9 +2107,8 @@ function solveFrame(groups, phi) {
   halfW += 1.4; halfH += 1.4;
 
   /* The BOTTOM reserve is the caption's, always — the caption is on screen
-     from load now, so there is no longer a state with the transport below
-     and nothing above it. Only the top changes, depending on whether the
-     intro card is still up. */
+     from load, so the transport is never down there alone. Only the top
+     changes, depending on whether the intro card is still up. */
   const top = !started ? RESERVE.intro : RESERVE.top;
   const bottom = RESERVE.capBottom;
   const usable = Math.max(0.25, (h - top - bottom) / h);
@@ -2159,13 +2146,11 @@ const FOCUS_PAD = 1.18;
 let panX = 0, chainXlo = 0, chainXhi = 0;
 const PAN_DECAY = 0.12;           // per frame, once play starts
 
-/* CLAMPED AGAINST THE CHAIN'S OWN ENDS, not by a symmetric budget either
-   side of the close-up — which is what it was, and it was wrong for the
-   reason the segment was chosen: the close-up sits near the C-TERMINUS, so
-   an equal allowance in both directions runs a quarter of the way up the
-   chain in one direction and hundreds of angstroms into empty space in the
-   other. The limits are the extreme atoms, so a pan stops where the
-   protein stops. */
+/* CLAMPED AGAINST THE CHAIN'S OWN ENDS, never by a symmetric budget either
+   side of the close-up: the segment sits near the C-TERMINUS, so an equal
+   allowance in both directions runs a quarter of the way up the chain one
+   way and hundreds of angstroms into empty space the other. The limits are
+   the extreme atoms, so a pan stops where the protein stops. */
 function panClamp(cx) {
   const lim = 6;                  // a little air past the terminal atom
   return [chainXlo - lim - cx, chainXhi + lim - cx];
@@ -2406,13 +2391,11 @@ function actIndex() {
     if (u >= uOf(ACTS[i].phase || 'fold', ACTS[i].t)) k = i;
   return k;
 }
-/* THE LEVEL 1 CAPTION IS UP BEFORE PLAY IS PRESSED.
-   It used to wait for `started`, on the reasoning that the intro card was
-   the standfirst and the captions belonged to the animation. That was true
-   when the opening frame was a static picture; it is not now. The intro is
-   a beat the student can act on — pan along the chain, read the names — and
-   level 1 is what that beat IS. Making them press play to be told what they
-   are already looking at gets the lesson the wrong way round.
+/* THE LEVEL 1 CAPTION IS UP BEFORE PLAY IS PRESSED, and must not be made
+   to wait for `started`. The intro is a beat the student can act on — pan
+   along the chain, read the names — and level 1 is what that beat IS.
+   Making them press play to be told what they are already looking at gets
+   the lesson the wrong way round.
 
    The two cards say different things and both are wanted: the intro card up
    top is the standfirst for the whole page (what this molecule is, what

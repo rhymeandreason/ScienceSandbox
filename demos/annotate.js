@@ -1,11 +1,8 @@
 /* =====================================================================
  *  annotate.js — callouts pinned to a point on a 3D model.
  *
- *  A label with a leader dot that names part of a molecule: "Iron (Fe)",
- *  "Heme group", "O2 binds here". The kind of thing every textbook figure
- *  has and no page here had, because each page that wanted text near an
- *  atom grew its own canvas sprite — `textSprite` was duplicated verbatim
- *  in hemoglobin-lab.html and folding-lab-ribbon.html before this file.
+ *  A label with a leader dot that names part of a molecule: "Iron (Fe) —
+ *  binds O2", "Heme group". The callout every textbook figure has.
  *
  *  WHAT THIS OWNS AND WHAT IT DOES NOT (SCIENCE.md 6). It owns how a
  *  callout LOOKS and how it TRACKS: the dot, the leader, the type, the
@@ -24,14 +21,11 @@
  *  sliding subunit, a heme riding its chain in — because the anchor is
  *  "wherever atom N is now" rather than a position captured at build time.
  *
- *  This is worth stating because the obvious commercial alternative does
- *  it the other way. H5P's ThreeDModel viewer, the reference for this
- *  file, pins each annotation to a TRIANGLE of the mesh — mesh index,
- *  three vertex indices and a barycentric coordinate — because a baked
- *  glTF gives it no semantic handle to hold. That is the right answer for
- *  an opaque asset and the wrong one here: every model on this site is
- *  built from named atoms that move, and a baked surface point would come
- *  adrift the moment the thing it names does anything.
+ *  NEVER capture the point at build time. Baking an anchor — a coordinate,
+ *  or a spot on the mesh — is what a viewer has to do when it is handed an
+ *  opaque asset, and it is wrong here: every model on this site is built
+ *  from named atoms that move, so a baked point comes adrift the moment
+ *  the thing it names does anything.
  *
  *  ---- DOM, NOT SPRITES ------------------------------------------------
  *
@@ -42,9 +36,8 @@
  *  gets the house type from sandbox.css for free, stays crisp at every
  *  zoom, and can be read by a screen reader. The cost is that the layer
  *  cannot be occluded by geometry, which is not a cost: a label
- *  half-swallowed by the atom it names reads as a rendering fault, so
- *  every label here was already drawn depthTest-off. These are annotation
- *  OVER the scene, deliberately.
+ *  half-swallowed by the atom it names reads as a rendering fault. These
+ *  are annotation OVER the scene, deliberately.
  *
  *  Labels are still depth-SORTED against each other by z-index, so two
  *  callouts that overlap stack the way the model does.
@@ -54,8 +47,8 @@
  *  1. step() BELONGS IN THE RENDER LOOP, not in whatever advances your
  *     animation. Orbiting and zooming move the camera without advancing
  *     anything, and a label that only updates when the model does shears
- *     off its atom the moment the user drags. hemoglobin-lab learned this
- *     with its pearls; the same rule applies here and for the same reason.
+ *     off its atom the moment the user drags. Same rule as
+ *     hemoglobin-lab's pearls, for the same reason.
  *
  *  2. THE LAYER MUST NOT EAT THE MOUSE. It covers the whole stage, so it
  *     is pointer-events:none, and only the dots turn pointer events back
@@ -136,10 +129,10 @@ window.Annot = (function () {
        THE DOT IS THE TRUTH AND THE LABEL IS THE TYPESETTING. A dot sits
        exactly on its anchor and never moves; the label is pushed off by a
        fixed screen-space offset and joined back by a drawn leader. This is
-       not decoration, it is the only way three callouts on one 10 A group
-       are readable at all — anchored strictly, the labels for an iron, the
-       ring holding it and the site above it land within forty pixels of
-       each other and the top one hides the rest.
+       not decoration, it is the only way two callouts on one 10 A group
+       are readable at all — anchored strictly, a label on the iron and one
+       on the ring holding it land within forty pixels of each other and
+       the top one hides the other.
 
        `offset` is [dx, dy] in CSS pixels from the dot. dx<0 puts the label
        on the left and flips the leader with it. The leader's length and
@@ -238,14 +231,13 @@ window.Annot = (function () {
        the stage, and the add order is whatever the page found convenient.
        Re-seeded on every play() because the camera will have moved.
 
-       BY RANK, NOT BY RAW X, and the difference is the whole feature. The
-       obvious version scales each label's screen x straight into a delay,
-       which works only when the labels are spread across the stage. Three
+       BY RANK, NOT BY RAW X. Scaling each label's screen x straight into a
+       delay works only when the labels are spread across the stage:
        callouts on ONE heme sit within a few percent of each other and all
-       arrive on the same frame — a stagger that silently stops staggering
-       exactly when the set is small enough to want it most. Ranking spaces
-       them evenly however tightly they are clustered, and still runs left
-       to right because the rank is by x. */
+       arrive on the same frame, so the stagger stops staggering exactly
+       when the set is small enough to want it. Ranking spaces them evenly
+       however tightly they cluster, and still runs left to right because
+       the rank is by x. */
     function play() {
       revealT0 = performance.now() / 1000;
       const order = [];
@@ -319,12 +311,11 @@ window.Annot = (function () {
         live.push({ n, depth });
       }
 
-      /* Nearer labels on top — BY RANK, not by the projected z. The
-         obvious version maps p.z into a z-index band and silently does
-         nothing: perspective z is so nonlinear that everything more than a
-         few molecule-widths out lands at 0.99-something, and three labels
-         on the same heme all come out identical. Ranking by true camera
-         distance is what the eye expects and costs a sort of three. */
+      /* Nearer labels on top — BY RANK, not by the projected z. Mapping
+         p.z into a z-index band silently does nothing: perspective z is so
+         nonlinear that everything more than a few molecule-widths out
+         lands at 0.99-something, and labels on one heme come out
+         identical. Ranking by true camera distance costs a sort of two. */
       live.sort((a, b) => b.depth - a.depth);
       live.forEach((e, i) => { e.n.el.style.zIndex = 100 + i; });
     }

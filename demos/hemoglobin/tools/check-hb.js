@@ -2,8 +2,9 @@
 /* =====================================================================
  *  check-hb.js — assert what the hemoglobin page claims.
  *
- *  Everything here is a statement the lesson makes out loud, turned into
- *  something that fails the build when it stops being true. A stale bake
+ *  Everything here is a claim the lesson makes — in prose, or by what it
+ *  draws and the order it draws it in — turned into something that fails
+ *  the build when it stops being true. A stale bake
  *  is the reason this file exists: the trajectory is committed, the solver
  *  is not frozen, and NOTHING about a mismatch between them is visible
  *  from watching the animation — it just plays a fold the current code
@@ -250,7 +251,7 @@ ok(d.resNames.length === 146 && d.resNames.slice(0, 6).join('') === 'VALHISLEUTH
      H, and the intro is what draws them. chain.js builds an H on every
      proline anyway (see backboneOf in bake-hb.js for why that is left
      alone), so this asserts the DRAWN set is right — stated as an equality
-     over the whole chain, which no longer depends on where FOCUS sits. */
+     over the whole chain, so it is independent of where FOCUS sits. */
   const noH = [...seen.entries()].filter(([, s]) => !s.has('H')).map(([r]) => r);
   const pros = [...seen.keys()].filter(r => d.resNames[r - d.first] === 'PRO');
   ok(noH.join(' ') === [d.first, ...pros].join(' '),
@@ -871,16 +872,16 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
   const CB = pairs(committed.chains.C.CA, committed.foldedTrace);
   const DB = pairs(committed.chains.D.CA, committed.foldedTrace);
   ok(AB === 72 && CB === 43,
-     'alpha1-beta1 is the bigger interface, and the panel quotes both numbers',
+     'alpha1-beta1 is the bigger interface — the measurement ARRIVE is staged on',
      `A-B ${AB}, C-B ${CB} contacts within ${CT} A`);
   ok(AB > CB * 1.5, 'the page arrives A first because A-B is the tighter join');
-  ok(DB === 0, 'the two beta chains never touch — as the panel says', `${DB} contacts`);
+  ok(DB === 0, 'the two beta chains never touch, so D docks on the alphas only',
+     `${DB} contacts`);
 
   /* Every arriving chain lands on a real interface and makes real bonds on
-     the way in. A chain with no bonds would dock in silence, and a chain
-     with dozens would be the old error back again — the page draws one dash
-     per entry here, so this is also a cap on how much ink the cue can
-     spend. */
+     the way in. A chain with no bonds docks in silence; a chain with dozens
+     buries the molecule in dashes, since the page draws one per entry here.
+     So this is also a cap on how much ink the cue can spend. */
   for (const id of committed.order) {
     const c = committed.chains[id];
     ok(c.contact.self > 15 && c.contact.other > 15,
@@ -893,17 +894,16 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
        `chain ${id}'s interface bonds are all within the polar cutoff`);
   }
 
-  /* THE NUMBER THE PANEL SAYS OUT LOUD: "only eight of them between alpha1
-     and your beta chain". Nothing else is on screen when A arrives, so its
-     bond list IS that eight. */
+  /* Nothing else is on screen when A arrives, so its bond list IS the
+     alpha1-beta1 interface, and the page draws one dash for each. */
   ok(committed.chains.A.bonds.length === 8,
-     'alpha1 docks with the eight hydrogen bonds the panel claims',
+     'alpha1 docks with eight hydrogen bonds, and eight dashes are drawn',
      `${committed.chains.A.bonds.length}`);
 
-  /* And the packing is the majority — the claim that stops the dashes from
-     reading as "this is what holds it". */
+  /* The packing is the majority, which is why it must stay undrawn: a dash
+     per contact would say the interface is held by bonds. */
   ok(committed.chains.A.contact.self > committed.chains.A.bonds.length * 2,
-     'far more residues touch than bond, which is why the packing is named not drawn',
+     'far more residues touch than bond, so the dashes cannot be the whole join',
      `${committed.chains.A.contact.self} contact vs ${committed.chains.A.bonds.length} bonds`);
 
   /* His F8 of every chain holds its own iron: 2.0-2.5 A Fe-NE2 in the
@@ -931,13 +931,12 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
    — and the assertions run THE PAGE'S OWN SOURCE, lifted out of the HTML,
    rather than a copy of the generator that could drift from it.
 
-   THE SIGN OF A TORSION IS THE POINT OF THE LAST ASSERTION. placeAtom()
-   feeds the same convention icOf-style measurement reads back, and when it
-   was inverted the flat chain could not show it: every torsion in an ideal
-   extended chain is 180 or 0, and both are their own negatives. A mirrored
-   builder is exactly the class of bug MolecularGeometry.md 1.3 says no
-   internal check can catch by looking at the output, so it is caught here
-   at the input instead. */
+   THE SIGN OF A TORSION IS THE POINT OF THE LAST ASSERTION. An inverted
+   placeAtom() cannot be caught by looking at the flat chain: every torsion
+   in an ideal extended chain is 180 or 0, and both are their own
+   negatives. A mirrored builder is exactly the class of bug
+   MolecularGeometry.md 1.3 says no internal check can catch from the
+   output, so it is caught here at the input instead. */
 {
   /* The three Vector3 operations the generator uses, so the page's code
      can run outside a browser. Anything more and this would be a second

@@ -111,8 +111,8 @@ function irons(raw, R) {
 
 /* ---------------------------------------------------------- the whole heme
  *
- *  The iron alone was a sphere in space. Protoporphyrin IX is what makes it
- *  a POCKET: a flat ring of four pyrroles whose four nitrogens hold the Fe
+ *  Protoporphyrin IX is what makes the iron a POCKET rather than a sphere
+ *  in space: a flat ring of four pyrroles whose four nitrogens hold the Fe
  *  in the middle, two vinyls on one side and two propionate arms on the
  *  other. Drawn ball-and-stick it reads the way every published haemoglobin
  *  figure draws it, and it is the one place on this page where atoms are
@@ -120,8 +120,8 @@ function irons(raw, R) {
  *  residues of ball-and-stick is confetti, and 43 atoms is not.
  *
  *  CONNECTIVITY IS DEPOSITED, NOT INFERRED. 2HHB carries CONECT records for
- *  every heme atom, so the bond list here is the crystallographers' and not
- *  a distance cutoff of mine. That matters more than it looks: a cutoff
+ *  every heme atom, so the bond list here is the crystallographers', not a
+ *  distance cutoff. That matters more than it looks: a cutoff
  *  wide enough for the 2.0 A Fe-N coordination bonds also catches
  *  1,3 neighbours across the pyrroles and draws a ring with its diagonals
  *  filled in. Bond ORDERS are not deposited and are not read — the ring is
@@ -186,13 +186,11 @@ function hemes(raw, R) {
 
 /* -------------------------------------------------- where the oxygen goes
  *
- *  The page's callout says the iron "binds O2". Nothing on screen is drawn
- *  at the site itself — the oxygen binds the METAL, so one label on the
- *  iron says it once — but the site is still computed here, for two
- *  reasons that outlive the label: it is what turns "binds O2" into a
- *  claim about a place, and its two assertions in check-hb.js are the only
- *  thing establishing that the heme sits the right way round in its
- *  pocket. Derived from the structure, never nudged into place by eye.
+ *  Nothing is drawn at the site — the page's callout names the IRON, since
+ *  that is what oxygen binds — but the site is computed anyway, because its
+ *  two assertions in check-hb.js are the only thing establishing that the
+ *  heme sits the right way round in its pocket. Derived from the structure,
+ *  never nudged into place by eye.
  *
  *  The iron sits in the middle of the porphyrin with two axial sites, one
  *  each side of the ring plane. One is taken: His F8's NE2, the proximal
@@ -276,18 +274,17 @@ function withSites(hs, prox) {
  *  page draws what it draws. At the alpha1-beta1 interface of 2HHB about
  *  thirty residues are in contact and only EIGHT hydrogen bonds hold them.
  *  Everything else is hydrophobic packing — which is not a bond, has no
- *  endpoints, and must not be drawn as though it had: an earlier version
- *  marked all thirty contact residues and so claimed thirty interactions
- *  that do not exist.
+ *  endpoints, and must not be drawn as though it had. Marking all thirty
+ *  contact residues would claim thirty interactions that do not exist.
  *
  *  So two different things come out of here, deliberately unlike each
  *  other:
  *
  *    contact   COUNTS ONLY. How big the patch is, per interface. This is
- *              what makes the arrival order a measured statement (A-B is
- *              72 Ca contacts, C-B is 43), and it is quoted in the panel.
- *              No coordinates, because nothing draws it — the packing is
- *              named in words and left undrawn.
+ *              what makes the arrival order a measured statement rather
+ *              than a staging choice: A-B is 72 Ca contacts, C-B is 43, so
+ *              A lands first. No coordinates, because nothing draws it —
+ *              the packing is left undrawn.
  *
  *    bonds     COORDINATES. The individual hydrogen bonds across the new
  *              interface, donor/acceptor heavy atoms, which the page draws
