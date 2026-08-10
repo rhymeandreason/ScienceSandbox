@@ -23,7 +23,13 @@
      state but one — every real step is driven from the stage, so a footer
      button could only ever mirror it — and a permanently greyed control teaches
      students to ignore that corner of the screen. */
-  #app{grid-template-rows:minmax(0,1fr)}
+     Scoped to the WIDE layout on purpose: below 920px sandbox.css stacks the
+     page with `grid-template-rows: 56vh 1fr`, and this override — being later
+     in the cascade — replaced that with a single row, so #side took its full
+     content height and starved the stage down to 172px. */
+  @media (min-width:921px){
+    #app{grid-template-rows:minmax(0,1fr)}
+  }
   #stage,#side{min-height:0}
   #side{overflow:hidden}
   #card{min-height:0}
@@ -34,7 +40,7 @@
      are the anchor in canvas pixels; the translate pulls the label up and
      centres it on that point, so the anchor is the label's bottom-middle. */
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
-  .plate{position:absolute;transform:translate(-50%,-100%);
+  .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
     text-align:center;white-space:nowrap;line-height:1.15}
   .plate .pn{font-family:var(--font-slab);font-weight:700;font-size:19px;
     color:var(--ink);letter-spacing:.2px}
@@ -43,24 +49,42 @@
     .plate .pn{font-size:16px}.plate .pf{font-size:12.5px}
   }
 
-  /* ---------- reaction toast, top-center of the stage ---------- */
-  #rxmsg{position:absolute;top:76px;left:50%;transform:translateX(-50%);
-    z-index:12;pointer-events:none;text-align:center;max-width:72%;opacity:0;
-    font-family:var(--font-hand);font-size:21px;color:var(--muted);letter-spacing:.2px;
-    background:rgba(255,255,255,.55);padding:8px 16px;border-radius:var(--radius)}
-  #rxmsg b{font-weight:600;color:var(--ink)}
+  /* ---------- the bottom bar: action button over the step caption ----------
+     ONE CONTAINER, CONSTANT HEIGHT. The camera fit measures this and nothing
+     else along the bottom edge, so the framing cannot change with which button
+     or caption happens to be up. #actbtn is hidden with `visibility` for the
+     same reason — its slot is always reserved, which also stops the caption
+     jumping up and down as the button comes and goes between steps. */
+  #bottombar{position:absolute;left:0;right:0;bottom:18px;z-index:8;
+    display:flex;flex-direction:column;align-items:center;gap:11px;
+    pointer-events:none}
+  #bottombar>*{pointer-events:auto}
+
+  /* THE STEP CAPTION. Was a 4.6s toast in the handwriting face at the TOP of
+     the stage, which put the essential sentence of each step in the one place
+     a student is not looking (they are watching the molecule) and then took it
+     away while they were still reading. Now it is a fixed band at the bottom,
+     wide enough for three lines, set in the sans face at reading size, and it
+     does not time out — it is replaced when the next step produces a new one.
+     `min-height` is what reserves the band whether or not there is text in it. */
+  #rxmsg{width:min(680px,64%);min-height:74px;text-align:center;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
+    color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
+  #rxmsg p{margin:0}
+  #rxmsg b{font-weight:700;color:var(--ink)}
   #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
-  #rxmsg.show{animation:rxFade 4.6s ease-out forwards}
-  @keyframes rxFade{
-    0%{opacity:0;transform:translateX(-50%) translateY(-6px)}
-    7%{opacity:1;transform:translateX(-50%) translateY(0)}
-    84%{opacity:1;transform:translateX(-50%) translateY(0)}
-    100%{opacity:0;transform:translateX(-50%) translateY(-4px)}}
+  #rxmsg.show{opacity:1}
+  #rxmsg.in{animation:rxIn .5s ease-out}
+  @keyframes rxIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px;min-height:62px} }
 
   /* ---------- the ledger: the whole point of the page ---------- */
   /* Always visible, never resets. Students watch ATP dip below its start value
-     and climb back past it — that dip is the "investment phase" made physical. */
-  #ledger{position:absolute;left:26px;top:74px;z-index:6;min-width:186px;
+     and climb back past it — that dip is the "investment phase" made physical.
+     Sits on the RIGHT, opposite the pools it summarises: the tray is the raw
+     counts, this is what they add up to. Below #restart, which owns the corner. */
+  #ledger{position:absolute;right:26px;top:74px;z-index:6;min-width:186px;
     background:rgba(255,255,255,.72);border:2px solid var(--ink);
     border-radius:8px 12px 9px 11px;padding:12px 14px 13px;
     box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
@@ -76,7 +100,7 @@
   #ledger .bump{animation:bump .7s ease}
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
 
-  /* ---------- reagent tray, bottom-center: the cell's pools ----------
+  /* ---------- reagent tray, LEFT EDGE: the cell's pools ----------
      THE TRAY IS A LEDGER, NOT A MENU. Every pool stays on screen all the way
      through, because the counts are themselves the lesson and each one only
      reads as one while it is NOT the active reagent: ATP goes 4 → 2 → 6, and
@@ -89,23 +113,33 @@
      inactive pool is a plain readout with no card chrome at all; the card,
      border, pulse and lift belong to the live one alone. They used to all be
      bordered cards, which promised five actions and delivered one. */
-  #tray{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:7;
-    display:flex;flex-direction:column;align-items:center;gap:6px}
-  .tstrip{display:flex;gap:4px;align-items:flex-end}
-  /* Named so the group cannot be misread as a toolbar. Sits BELOW the strip:
-     the live card's "Spend 1 ATP ↓" prompt occupies the space above it. */
+  /* A COLUMN ON THE LEFT, not a strip along the bottom. The bottom edge now
+     belongs to the step caption, which needs the width; the pools do not — five
+     short rows stack happily down the side, and a vertical list is closer to
+     how a stock of something reads anyway. */
+  #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
+    display:flex;flex-direction:column;align-items:stretch;gap:3px}
+  .tstrip{display:flex;flex-direction:column;gap:2px}
+  /* Named so the group cannot be misread as a toolbar. */
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
-    text-transform:uppercase;color:var(--muted);opacity:.8}
+    text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
 
-  .reag{position:relative;min-width:74px;padding:9px 12px 8px;cursor:default;
+  /* Each pool is a two-column grid: label and its gloss on the left, the count
+     big on the right. Keeping the number hard-right means the five of them line
+     up as a readable column of digits, which is the point of the tray. */
+  .reag{position:relative;width:152px;padding:5px 10px;cursor:default;
+    display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;
     background:none;border:2.5px solid transparent;border-radius:9px;
-    text-align:center;user-select:none;transition:transform .15s,border-color .15s,background .15s}
-  .reag .rname{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);line-height:1.1}
+    text-align:left;user-select:none;transition:transform .15s,border-color .15s,background .15s}
+  .reag .rname{grid-column:1;grid-row:1;
+    font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);line-height:1.15}
   .reag .rname sub,.reag .rname sup{font-size:.68em}
-  .reag .rcount{font-family:var(--font-slab);font-weight:700;font-size:22px;line-height:1.15;
+  .reag .rsub{grid-column:1;grid-row:2;
+    font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--muted);line-height:1.2}
+  .reag .rcount{grid-column:2;grid-row:1/span 2;
+    font-family:var(--font-slab);font-weight:700;font-size:24px;line-height:1;
     color:var(--ink);font-variant-numeric:tabular-nums}
-  .reag .rsub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
-    text-transform:uppercase;color:var(--muted)}
   /* A pool at zero is MUTED, never hidden. It used to fade to --hair, which
      erased the two numbers the lesson ends on: NAD⁺ 0 is why fermentation
      exists, and Pi 0 is where step 6's phosphate went. */
@@ -114,27 +148,25 @@
   /* the reagent this step needs: the only card, and the only button */
   .reag.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
     box-shadow:0 0 0 4px rgba(224,123,31,.18);animation:reagPulse 1.9s ease-in-out infinite}
-  .reag.live:hover{transform:translateY(-3px) scale(1.04)}
+  .reag.live:hover{transform:translateX(3px) scale(1.03)}
   @keyframes reagPulse{0%,100%{box-shadow:0 0 0 3px rgba(224,123,31,.14)}
     50%{box-shadow:0 0 0 8px rgba(224,123,31,.05)}}
-  .reag .need{position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  /* the prompt points RIGHT at the column now, not down at a strip */
+  .reag .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
     font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
   .reag.live .need{display:block}
 
-  /* At the intro the tray is hidden, so Begin takes ITS slot rather than the
-     action button's — the student's first click lands exactly where every
-     later one will. */
-  #actbtn.begin{bottom:40px;font-size:17px;padding:13px 30px}
-
-  /* the no-reagent action button (the split), just above the tray */
-  #actbtn{position:absolute;left:50%;bottom:126px;transform:translateX(-50%);z-index:8;display:none;
+  /* the action button (Begin, and every no-reagent step), inside #bottombar.
+     `visibility` rather than `display` — see the bottombar comment. */
+  #actbtn{visibility:hidden;
     font-family:var(--font-slab);font-weight:700;font-size:15px;letter-spacing:.3px;
     padding:11px 24px;border-radius:var(--radius);cursor:pointer;
     border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
     box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
-  #actbtn:hover{background:#000;transform:translateX(-50%) translateY(-2px)}
-  #actbtn .hint{display:block;font-family:var(--font-hand);font-weight:500;font-size:14px;
-    letter-spacing:0;opacity:.72;margin-top:1px}
+  #actbtn:hover{background:#000;transform:translateY(-2px)}
+  #actbtn.begin{font-size:17px;padding:13px 30px}
+  #actbtn .hint{display:block;font-family:var(--font-sans);font-weight:500;font-size:12.5px;
+    letter-spacing:.2px;opacity:.75;margin-top:2px}
 
   /* ---------- right panel ---------- */
   /* PATHWAY RAIL — the ten steps, blocked into the five stages.
@@ -226,7 +258,10 @@
   #restart:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
   /* ---------- the ending fork ---------- */
-  #fork{position:absolute;left:50%;bottom:126px;transform:translateX(-50%);z-index:8;
+  /* Sits above #bottombar rather than inside it: it is tall and appears only in
+     the final state, so putting it in the bar would have made the bar's height
+     — and therefore the camera distance — a function of being finished. */
+  #fork{position:absolute;left:50%;bottom:190px;transform:translateX(-50%);z-index:8;
     display:none;gap:14px}
   #fork .door{width:184px;padding:12px 14px;background:rgba(255,255,255,.8);
     border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
@@ -236,14 +271,30 @@
   #fork .door .db{font-family:var(--font-sans);font-size:12.5px;line-height:1.45;color:#5a5346}
 
   @media (max-width:920px){
-    #ledger{top:auto;bottom:96px;left:14px;min-width:0;padding:9px 11px}
-    #ledger .row{font-size:12.5px}
-    #tray{gap:6px;bottom:14px}.reag{min-width:56px;padding:7px 8px 6px}
-    /* Three doors stacked is taller than the stage, so on narrow screens the
-       fork scrolls in its own strip rather than growing off the top. */
-    #fork{flex-direction:column;bottom:110px;gap:8px;
-      max-height:52vh;overflow-y:auto;padding:2px}
-    #fork .door{width:250px;flex:none}
+    /* The stacked stage is far too short to carry a full-height column down one
+       side and a card down the other, so the two readouts shrink and hug the
+       top corners, under the brand and Restart. */
+    #ledger{right:12px;top:62px;min-width:0;padding:8px 10px}
+    #ledger .row{font-size:12px;padding:1.5px 0}
+    #ledger .lhead{margin-bottom:5px}
+    #tray{left:12px;top:62px;transform:none}
+    .reag{width:116px;padding:3px 7px}
+    .reag .rcount{font-size:19px}
+    .reag .rsub{display:none}          /* the gloss is the first thing to go */
+    /* Stacked, three doors are taller than the whole stage and simply buried
+       the two pyruvate. So down here the fork stays a ROW and scrolls
+       sideways instead — one short band above the caption, molecules intact. */
+    #fork{flex-direction:row;bottom:156px;gap:8px;
+      max-width:94%;overflow-x:auto;padding:2px 0}
+    #fork .door{width:176px;flex:none;padding:9px 11px}
+    #fork .door .dh{font-size:12.5px}
+    /* PNG joins Restart in the top-right rather than holding the bottom-left
+       corner: down here the caption band spans nearly the full width, and the
+       40px it was costing is exactly what the fork needs to clear the lanes. */
+    #savepng{left:auto;right:146px;top:22px;bottom:auto;padding:5px 12px;font-size:12px}
+    /* the caption band spans nearly the full width down here, so lift it clear
+       of the PNG chip in the bottom-left corner */
+    #bottombar{bottom:18px}
     #fork .door .db{font-size:12px}
   }
 </style>
@@ -253,12 +304,21 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
-    <div id="rxmsg" aria-live="polite"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-flow-arrow"></i></span><h1>Glycolysis</h1></div>
     <div id="ledger"></div>
-    <button id="actbtn"></button>
-    <div id="fork"></div>
     <div id="tray"></div>
+    <div id="fork"></div>
+    <!-- The bottom bar is ONE element so the camera has one thing to measure.
+         It always occupies its full height — the action button is hidden with
+         `visibility`, not `display` — which is what keeps the framing identical
+         whether or not a button or a caption happens to be showing. -->
+    <div id="bottombar">
+      <button id="actbtn"></button>
+      <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
+           the element that HOLDS the rich text makes every <b> and bare text
+           node its own flex item, which shreds the sentence into columns -->
+      <div id="rxmsg" aria-live="polite"><p></p></div>
+    </div>
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
@@ -617,7 +677,11 @@ function spawnLane(key,i,n,topY){
   Stage.setOptionalH(g,false);          // no C–H on this page — see visibleAtoms
   g.position.set(laneX(i,n),0,0);
   root.add(g);
-  return {g,key,plate:makePlate(spec),topY};
+  const plate=makePlate(spec);
+  // Natural width at full size, measured ONCE while nothing constrains it —
+  // drawPlates scales against this every frame and cannot re-measure, because
+  // by then the element is already scaled.
+  return {g,key,plate,topY,natW:plate.offsetWidth};
 }
 function clearLanes(){
   lanes.forEach(l=>{ root.remove(l.g); l.plate.remove(); });
@@ -636,13 +700,31 @@ const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP;
 // live rather than from laneX() so the labels ride the halves apart during the
 // split instead of snapping to the final lane positions.
 const projV=new THREE.Vector3();
+const PLATE_GAP_PX_X=14;
 function drawPlates(){
   const w=canvas.clientWidth, h=canvas.clientHeight;
   camera.updateMatrixWorld();          // safe to call off-loop (restart, resize)
-  lanes.forEach(l=>{
+  const xs=lanes.map(l=>{
     projV.set(l.g.position.x, l.topY, 0).project(camera);
-    l.plate.style.left=((projV.x*0.5+0.5)*w)+'px';
-    l.plate.style.top =((-projV.y*0.5+0.5)*h)+'px';
+    return {x:(projV.x*0.5+0.5)*w, y:(-projV.y*0.5+0.5)*h};
+  });
+  // A LABEL'S WIDTH IS IN PIXELS AND THE LANES' SEPARATION IS NOT. Back when
+  // these were sprites both scaled together, so two lanes could never collide;
+  // a DOM label keeps its width as the camera pulls back, so on a narrow stage
+  // the two names ran straight through each other. Give each one the space
+  // actually between the lanes and let a long name wrap instead of overlapping.
+  const budget = xs.length>1
+    ? Math.max(90, Math.abs(xs[1].x-xs[0].x)-PLATE_GAP_PX_X)
+    : Math.max(120, w-40);
+  lanes.forEach((l,i)=>{
+    // SHRINK, don't wrap. A systematic name has no space to break at, so
+    // letting it wrap chopped "bisphosphogl / ycerate" mid-word. Scaling about
+    // the label's bottom-centre keeps it anchored to the molecule while it
+    // shrinks, and the floor stops it becoming unreadable rather than overlapping.
+    const s=Math.max(0.62, Math.min(1, budget/Math.max(1, l.natW)));
+    l.plate.style.left=xs[i].x+'px';
+    l.plate.style.top =xs[i].y+'px';
+    l.plate.style.transform=`translate(-50%,-100%) scale(${s.toFixed(3)})`;
   });
 }
 
@@ -679,62 +761,66 @@ function fitFor(states){
   const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
   const u=usable();
   const R=Math.max(15, Math.min(90,
-    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp))*1.14));
-  // Centre the molecule in the band ABOVE the tray by dropping the camera
-  // target, rather than insetting both edges. The tray obstructs ONE edge, so
-  // charging the fit at top and bottom paid twice for it — on the stacked
-  // narrow layout, where the tray is half the stage's height, that shrank
-  // glucose to a speck. A shift costs the fit nothing.
+    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp*u.h))*1.14));
+  // Vertically, centre the molecule in the band between the label strip and the
+  // bottom bar by DROPPING THE TARGET rather than insetting both edges —
+  // charging the fit twice for one obstructed edge shrank the stacked layout to
+  // a speck. Horizontally there is no equivalent shift: offsetting the target
+  // sideways would swing the molecule off-centre as the camera orbits, since
+  // that offset lives in world space and rotates with theta. The vertical shift
+  // is safe precisely because Y is the orbit axis. So left and right take a
+  // symmetric inset instead — see usable().
   return { Y: Y - u.shift*R*HALF_FOV, R };
 }
 
-// THE STAGE IS NOT AN EMPTY RECTANGLE. The reagent tray sits over its bottom
-// edge, dead centre, so a molecule fitted to the raw canvas is fitted to space
-// that is already spoken for — which is how glucose's C6 ended up behind the
-// tray. The intrusion is MEASURED off the live element rather than typed as a
-// constant, so restyling the tray moves the camera with it.
+// THE STAGE IS NOT AN EMPTY RECTANGLE — it has chrome on all four edges, and a
+// molecule fitted to the raw canvas is fitted to space that is already spoken
+// for. Every intrusion is MEASURED off the live element rather than typed as a
+// constant, so restyling any of them moves the camera to match.
 //
-// ONLY THE TRAY COUNTS. The ledger overlaps the stage too, but it is
-// translucent, sits at the TOP-left rather than down the whole edge, and the
-// molecules here are tall and narrow — charging the fit for it halved every
-// molecule on screen to buy clearance nothing needed. Vertical only.
-// `v` is the fraction of the canvas height left over once the obstructed strips
-// at top and bottom are removed; `shift` is how far (as a fraction of full
-// canvas height) the camera target must move to centre the molecule in what
-// remains. A positive shift drops the target, pushing the molecule up-screen.
+//   top     the species labels. They are HTML now, so they occupy a fixed PIXEL
+//           band rather than a world-space box the projection scaled with —
+//           which is why the reservation happens here, in pixels, and not
+//           inside fitFor.
+//   bottom  #bottombar: the action button over the step caption. One element
+//           of CONSTANT height on purpose (the button is hidden with
+//           `visibility`), because this page's framing rule is that ONE camera
+//           distance covers every state — otherwise the split stops reading as
+//           a halving. The ending fork is deliberately NOT measured: it is tall
+//           and only ever up in the final state, so it would make the distance
+//           a function of being finished. It clears the bar via its own
+//           `bottom` instead, which is a stacking problem, not a camera one.
+//   left    the reagent tray (absent during the intro, when nothing can be spent)
+//   right   the running ledger
 //
-// TWO STRIPS NOW, NOT ONE. The tray covers the bottom, and since the species
-// labels became HTML they occupy a fixed PIXEL band at the top rather than a
-// world-space box the projection scaled with — so the top is reserved here, in
-// the same units, instead of inside fitFor. That is the whole reason the label
-// height is measured off a live element: it is chrome, exactly like the tray.
+// `v`/`h` are the fractions of height and width left over. `shift` moves the
+// camera target down so the molecule centres in the band that remains — only
+// vertically; see the note in fitFor for why there is no horizontal twin.
 function usable(){
   const c=canvas.getBoundingClientRect();
-  if(!c.height) return {v:1,shift:0};
-  // THE TRAY, AND DELIBERATELY NOT the action button or the ending fork, even
-  // though both sit above it and are taller. They come and go per step, so
-  // measuring them would make the camera distance a function of which chrome
-  // happens to be visible — and this page's whole framing rule is that ONE
-  // distance covers every state, or the split stops reading as a halving.
-  // Measured: with the tray alone the fit is a flat 49.4 across all eleven
-  // states and every molecule still clears whatever chrome is up, the tightest
-  // being ~14px during priming. The fork only ever had to clear the TRAY, which
-  // is a stacking problem (its own `bottom`), not a camera one.
-  // …with ONE substitution: the tray is hidden during the intro, and the Begin
-  // button stands in its slot, so measure that instead when the tray is gone.
-  // This does not reintroduce the state-dependence warned about above — the
-  // tray is visible for every one of the ten steps, so the pathway's single
-  // distance is still solved against the tray and only the intro, which already
-  // has a framing of its own, sees the button.
-  const tray=document.getElementById('tray'), begin=document.getElementById('actbtn');
-  const e=(tray&&tray.getClientRects().length) ? tray
-        : (begin&&begin.getClientRects().length ? begin : null);
-  const bottom=e ? Math.max(0, c.bottom-e.getBoundingClientRect().top) : 0;
-  const top=plateHeightPx();
-  const cap=c.height*0.6;                     // never eat more than 60% in total
-  const k=(top+bottom)>cap ? cap/(top+bottom) : 1;
+  if(!c.height||!c.width) return {v:1,h:1,shift:0};
+  const reach=(id,edge)=>{
+    const e=document.getElementById(id);
+    if(!e||!e.getClientRects().length) return 0;
+    const r=e.getBoundingClientRect();
+    return Math.max(0, edge==='left' ? r.right-c.left
+                     : edge==='right' ? c.right-r.left
+                     : c.bottom-r.top);
+  };
+  const top=plateHeightPx(), bottom=reach('bottombar','bottom');
+  // Symmetric, because the molecule stays centred: whichever side reaches
+  // further sets the inset on both. The tray and ledger are close enough in
+  // width that this costs almost nothing, and these molecules are tall and
+  // narrow — the vertical constraint binds in every single-lane state anyway.
+  const side=Math.max(reach('tray','left'), reach('ledger','right'))+10;
+
+  const vcap=c.height*0.6, hcap=c.width*0.72;    // never eat more than this
+  const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
   const t=top*k, b=bottom*k;
-  return { v:Math.max(0.4, (c.height-t-b)/c.height), shift:(b-t)/c.height };
+  const s=Math.min(side, hcap/2);
+  return { v:Math.max(0.4, (c.height-t-b)/c.height),
+           h:Math.max(0.28, (c.width-2*s)/c.width),
+           shift:(b-t)/c.height };
 }
 let fitR=24, fitY=0;
 function computeFit(){
@@ -859,7 +945,7 @@ function runStep(){
       // The parting is a rAF ease, so in a hidden tab it never ran; land them on
       // their marks here so the two halves can't come back stacked on each other.
       lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; FXi.popGlow(o.g,GLOW); });
-      busy=false; refresh(); flashMsg(st.msg); }, SPLIT);
+      busy=false; refresh(); }, SPLIT);
     return;
 
   } else if(st.fx==='move'){
@@ -889,7 +975,7 @@ function runStep(){
 
   later(()=>{ done=to; renderLanes(to);
     lanes.forEach(o=>FXi.popGlow(o.g,GLOW));
-    busy=false; refresh(); flashMsg(st.msg); }, dur);
+    busy=false; refresh(); }, dur);
 }
 
 function rewind(){
@@ -904,8 +990,23 @@ function restart(){ cancelTimers(); busy=false; done=0; intro=true;
  *  UI
  * ============================================================= */
 const rxmsgEl=document.getElementById('rxmsg');
-function flashMsg(html){ if(!html) return; rxmsgEl.innerHTML=html;
-  rxmsgEl.classList.remove('show'); void rxmsgEl.offsetWidth; rxmsgEl.classList.add('show'); }
+// THE CAPTION IS DERIVED, like everything else here: it is the message of the
+// step that PRODUCED the state now on screen. That is what makes rewinding work
+// — the caption for step 6 reappears when you step back onto it, without
+// anything having to remember which toast was last fired. It used to be pushed
+// imperatively by runStep and then expire on a timer, which meant a rewound
+// state showed either the wrong sentence or none.
+const captionAt=i=>(!intro && i>0) ? STEPS[i-1].msg : '';
+let shownCaption=null;
+function drawCaption(){
+  const html=captionAt(done);
+  if(html===shownCaption) return;              // don't restart the fade on every refresh
+  shownCaption=html;
+  rxmsgEl.firstElementChild.innerHTML=html;
+  rxmsgEl.classList.toggle('show', !!html);
+  rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
+  if(html) rxmsgEl.classList.add('in');
+}
 
 const ledgerEl=document.getElementById('ledger');
 let prevLedger=null;
@@ -939,7 +1040,7 @@ function drawTray(){
     const live=!!st && st.reagent===r.key && !busy;
     const d=document.createElement('div');
     d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
-    d.innerHTML=(live?`<span class="need">${st.need} ↓</span>`:'')
+    d.innerHTML=(live?`<span class="need">← ${st.need}</span>`:'')
       +`<div class="rname">${r.name}</div>`
       +`<div class="rcount">${pool[r.key]}</div>`
       +`<div class="rsub">${r.sub}</div>`;
@@ -955,7 +1056,7 @@ function drawAct(){
   // sidebar: Begin sits in the tray's slot (the tray is hidden until then), and
   // from the first step on it sits just above the tray.
   if(intro){
-    actEl.style.display='block';
+    actEl.style.visibility='visible';
     actEl.className='begin';
     actEl.innerHTML=`Begin →<span class="hint">one glucose, ten steps to pyruvate</span>`;
     actEl.onclick=()=>{ intro=false; refresh(); };
@@ -964,10 +1065,10 @@ function drawAct(){
   actEl.className='';
   const st=done<nSteps?stepAt(done):null;
   if(st && !st.reagent && !busy){
-    actEl.style.display='block';
+    actEl.style.visibility='visible';
     actEl.innerHTML=`${st.act}<span class="hint">${st.actHint}</span>`;
     actEl.onclick=runStep;
-  } else actEl.style.display='none';
+  } else { actEl.style.visibility='hidden'; actEl.onclick=null; }
 }
 
 const railEl=document.getElementById('rail');
@@ -1112,7 +1213,7 @@ function drawFork(){
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
 function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawCard();
-  drawNote(); drawFork(); computeFit(); }
+  drawNote(); drawCaption(); drawFork(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
