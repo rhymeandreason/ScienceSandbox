@@ -109,14 +109,6 @@
     letter-spacing:0;opacity:.72;margin-top:1px}
 
   /* ---------- right panel ---------- */
-  #labtitle .stageno{font-family:var(--font-slab);font-size:13px;font-weight:700;letter-spacing:1.4px;
-    text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
-  #phase{font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:1.2px;
-    text-transform:uppercase;padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:12px}
-  #phase.invest{background:rgba(200,69,46,.13);color:#a8371f}
-  #phase.payoff{background:rgba(47,125,92,.14);color:#1f6146}
-  #phase.split{background:rgba(224,123,31,.15);color:#a4560e}
-
   /* pathway rail — the 5 stages, with each one's bookkeeping delta */
   #rail{display:flex;flex-direction:column;gap:0;margin:6px 0 18px}
   .rstage{display:flex;gap:11px;align-items:flex-start;padding:7px 0;cursor:pointer;
@@ -223,7 +215,6 @@
   </div>
   <div id="side">
     <h1 id="labtitle"></h1>
-    <div id="phase"></div>
     <div id="rail"></div>
     <div id="card"><div class="cardtext" id="cardtext"></div>
       <div id="stepnote"></div>
@@ -374,7 +365,7 @@ const STEPS=[
 // printed on the rail whether or not they read the prose. `steps` is derived
 // from STEPS below rather than typed, so the two can never drift.
 const STAGES=[
-  { n:0, title:'Glucose', phase:null, label:'Start: one glucose', delta:'6 C',
+  { n:0, title:'Glucose', label:'Start: one glucose', delta:'6 C',
     body:`<p>One molecule of <b>glucose</b> — six carbons, drawn as the <b>pyranose
       ring</b> it mostly adopts in water.</p>
       <p>Glycolysis runs in the <b>cytosol</b> and uses <b>no oxygen</b>. Every domain
@@ -383,7 +374,7 @@ const STAGES=[
       <p class="misc">Watch two numbers in the ledger: the <b>carbon count</b>, which
       never changes, and <b>ATP</b>, which is about to go <i>down</i>.</p>` },
 
-  { n:1, title:'Investment', phase:'invest', label:'Priming: spend 2 ATP', delta:'−2 ATP',
+  { n:1, title:'Investment', label:'Priming: spend 2 ATP', delta:'−2 ATP',
     body:`<p>Three steps, two of them spending ATP. Phosphorylating a sugar is
       thermodynamically uphill; <b>coupling</b> each one to ATP hydrolysis is what
       makes the pair go downhill together.</p>
@@ -394,7 +385,7 @@ const STAGES=[
       turning an aldose into a ketose — without which the six-carbon chain could not
       be cut into two halves that each carry a phosphate.</p>` },
 
-  { n:2, title:'The split', phase:'split', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
+  { n:2, title:'The split', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
     body:`<p>Aldolase cuts the chain between <b>carbon 3 and carbon 4</b>. One molecule
       becomes <b>two</b>: <b>DHAP</b> and <b>G3P</b>.</p>
       <p>They are isomers, not copies — so triose-phosphate isomerase converts DHAP
@@ -403,10 +394,11 @@ const STAGES=[
       pathway gets its name. From here every step happens <b>twice</b>, once per lane.
       Nothing on screen says "×2" — you just see both.</p>` },
 
-  { n:3, title:'Oxidation', phase:'payoff', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
-    body:`<p>The <b>only oxidation in the whole pathway</b>, and worth being precise
-      about: G3P <b>loses electrons</b>, so it is oxidised. <b>NAD⁺</b> gains them
-      (two electrons and a proton — a hydride) and becomes <b>NADH</b>.</p>
+  { n:3, title:'Oxidation', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
+    body:`<p>The <b>payoff phase</b> starts here — and it starts with the
+      <b>only oxidation in the whole pathway</b>. Worth being precise about: G3P
+      <b>loses electrons</b>, so it is oxidised. <b>NAD⁺</b> gains them (two
+      electrons and a proton — a hydride) and becomes <b>NADH</b>.</p>
       <p>A <b>free phosphate</b> from the cytosol, not from ATP, fills the vacated
       position. The product is an <b>acyl phosphate</b>, and the oxidation is what
       paid for it.</p>
@@ -414,7 +406,7 @@ const STAGES=[
       worth roughly 2.5 ATP downstream — so these 2 NADH outweigh the pathway's 2
       net ATP several times over.</p>` },
 
-  { n:4, title:'Payoff', phase:'payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
+  { n:4, title:'Payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
     body:`<p>Four steps, two of which charge ADP. Both work by <b>substrate-level
       phosphorylation</b>: an enzyme hands a phosphate straight from a substrate to
       ADP — no membrane, no gradient, no oxygen.</p>
@@ -426,7 +418,7 @@ const STAGES=[
       <p class="misc">Count the phosphates leaving the screen. Four out, and every one
       of them lands on an ADP.</p>` },
 
-  { n:5, title:'The tally', phase:null, label:'Tally & what comes next', delta:'net +2 ATP',
+  { n:5, title:'The tally', label:'Tally & what comes next', delta:'net +2 ATP',
     body:`<p>Two <b>pyruvate</b>. Six carbons in, six carbons out — nothing was lost;
       it was cut in half and drained of a little energy.</p>
       <p>Per glucose: <b>4 ATP made − 2 ATP spent = net 2 ATP</b>, plus <b>2 NADH</b>.
@@ -933,21 +925,18 @@ function drawRail(){
   });
 }
 
-const cardEl=document.getElementById('cardtext'), titleEl=document.getElementById('labtitle'),
-      phaseEl=document.getElementById('phase');
+const cardEl=document.getElementById('cardtext'), titleEl=document.getElementById('labtitle');
+// JUST THE TITLE. This used to carry two more lines above it — a "Stage 2 of 5 ·
+// Step 4 of 10" eyebrow and a coloured phase pill — and both restated something
+// already on screen. The rail below numbers every stage, marks the current one,
+// expands it into its steps and prints each one's bookkeeping delta, so the
+// eyebrow was the rail in words; and the pill read "The split" directly under a
+// heading reading "The split". The one thing the pill carried that a title does
+// not is that stage 3's oxidation already belongs to the payoff phase, so that
+// moved into stage 3's own prose, where it is a sentence rather than a label.
 function drawCard(){
   const s=STAGES[stageAt(done)], st=(!intro&&done<nSteps)?stepAt(done):null;
-  // The eyebrow carries BOTH numbers when there is a step to carry: the stage is
-  // the arc, the step is the position, and a student who only reads one of them
-  // should still be able to place themselves.
-  const eyebrow = !s.n ? 'Starting point'
-    : st ? `Stage ${s.n} of 5 · Step ${st.n} of ${nSteps}`
-    : `Stage ${s.n} of 5`;
-  titleEl.innerHTML=`<span class="stageno">${eyebrow}</span>${s.title}`;
-  phaseEl.textContent=s.phase==='invest'?'Investment phase'
-    :s.phase==='payoff'?'Payoff phase':s.phase==='split'?'The split':'';
-  phaseEl.className=s.phase||'';
-  phaseEl.style.display=s.phase?'inline-block':'none';
+  titleEl.textContent=s.title;
   cardEl.innerHTML=(st?`<p class="enz">Next enzyme: <b>${st.enz}</b></p>`:'')+s.body;
 }
 
