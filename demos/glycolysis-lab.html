@@ -11,21 +11,22 @@
 <style>
   :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a; }
 
-  /* This page's side panel is the tallest in the sandbox (rail + prose + the
-     10-step list + footer). A grid row of `1fr` still floors at its content's
-     auto height, so the row grew past 100vh and #app's overflow:hidden ate the
-     bottom of BOTH columns — the reagent tray and the footer buttons vanished.
-     minmax(0,…) plus min-height:0 lets the row actually shrink; the prose then
-     scrolls inside .cardtext (which already has overflow-y:auto) instead. */
+  /* This page's side panel is the tallest in the sandbox — a sixteen-row rail
+     plus prose. A grid row of `1fr` still floors at its content's auto height,
+     so the row grew past 100vh and #app's overflow:hidden ate the bottom of
+     BOTH columns. minmax(0,…) plus min-height:0 lets the row actually shrink;
+     the card then takes the overflow and scrolls.
+
+     THE SIDEBAR HAS NO FOOTER. Its two buttons moved onto the stage: Restart to
+     the top-right corner, and Begin into the tray's slot, where the thing you
+     are meant to click already lives. The old Next button was disabled in every
+     state but one — every real step is driven from the stage, so a footer
+     button could only ever mirror it — and a permanently greyed control teaches
+     students to ignore that corner of the screen. */
   #app{grid-template-rows:minmax(0,1fr)}
   #stage,#side{min-height:0}
   #side{overflow:hidden}
-  /* …and the same story one level down: #card is flex:1 inside #side, but a flex
-     item's default min-height:auto still floors it at its content, so the card
-     shoved the footer off the bottom. min-height:0 lets it yield; .cardtext then
-     takes the overflow and scrolls. The footer must never be the thing that gives. */
   #card{min-height:0}
-  footer{flex:none}
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
      Positioned every frame from the projected anchor (drawPlates), so they
@@ -75,11 +76,29 @@
   #ledger .bump{animation:bump .7s ease}
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
 
-  /* ---------- reagent tray, bottom-center: the cell's pools ---------- */
-  #tray{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:7;
-    display:flex;gap:9px;align-items:flex-end}
+  /* ---------- reagent tray, bottom-center: the cell's pools ----------
+     THE TRAY IS A LEDGER, NOT A MENU. Every pool stays on screen all the way
+     through, because the counts are themselves the lesson and each one only
+     reads as one while it is NOT the active reagent: ATP goes 4 → 2 → 6, and
+     the dip below its starting value is the net +2 made physical; NAD⁺ runs to
+     exactly 0 at step 6, which is the entire setup for the fermentation fork;
+     Pi goes 2 → 0, which is the visible proof that step 6's phosphate came from
+     the cytosol and not from an ATP.
+
+     So only ONE of them is ever a button, and the styling now says so. An
+     inactive pool is a plain readout with no card chrome at all; the card,
+     border, pulse and lift belong to the live one alone. They used to all be
+     bordered cards, which promised five actions and delivered one. */
+  #tray{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:7;
+    display:flex;flex-direction:column;align-items:center;gap:6px}
+  .tstrip{display:flex;gap:4px;align-items:flex-end}
+  /* Named so the group cannot be misread as a toolbar. Sits BELOW the strip:
+     the live card's "Spend 1 ATP ↓" prompt occupies the space above it. */
+  .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
+    text-transform:uppercase;color:var(--muted);opacity:.8}
+
   .reag{position:relative;min-width:74px;padding:9px 12px 8px;cursor:default;
-    background:rgba(255,255,255,.66);border:1.5px solid var(--hair);border-radius:9px;
+    background:none;border:2.5px solid transparent;border-radius:9px;
     text-align:center;user-select:none;transition:transform .15s,border-color .15s,background .15s}
   .reag .rname{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);line-height:1.1}
   .reag .rname sub,.reag .rname sup{font-size:.68em}
@@ -87,19 +106,28 @@
     color:var(--ink);font-variant-numeric:tabular-nums}
   .reag .rsub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
     text-transform:uppercase;color:var(--muted)}
-  .reag.empty .rcount{color:var(--hair)}
-  /* the reagent this step needs: lit, clickable, pulsing */
-  .reag.live{cursor:pointer;border-color:var(--ink);border-width:2.5px;background:rgba(255,255,255,.95);
+  /* A pool at zero is MUTED, never hidden. It used to fade to --hair, which
+     erased the two numbers the lesson ends on: NAD⁺ 0 is why fermentation
+     exists, and Pi 0 is where step 6's phosphate went. */
+  .reag.empty .rname,.reag.empty .rcount{color:var(--muted);opacity:.75}
+
+  /* the reagent this step needs: the only card, and the only button */
+  .reag.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
     box-shadow:0 0 0 4px rgba(224,123,31,.18);animation:reagPulse 1.9s ease-in-out infinite}
   .reag.live:hover{transform:translateY(-3px) scale(1.04)}
   @keyframes reagPulse{0%,100%{box-shadow:0 0 0 3px rgba(224,123,31,.14)}
     50%{box-shadow:0 0 0 8px rgba(224,123,31,.05)}}
-  .reag .need{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  .reag .need{position:absolute;top:-13px;left:50%;transform:translateX(-50%);
     font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
   .reag.live .need{display:block}
 
-  /* the no-reagent action button (the split), same slot as the tray prompt */
-  #actbtn{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:8;display:none;
+  /* At the intro the tray is hidden, so Begin takes ITS slot rather than the
+     action button's — the student's first click lands exactly where every
+     later one will. */
+  #actbtn.begin{bottom:40px;font-size:17px;padding:13px 30px}
+
+  /* the no-reagent action button (the split), just above the tray */
+  #actbtn{position:absolute;left:50%;bottom:126px;transform:translateX(-50%);z-index:8;display:none;
     font-family:var(--font-slab);font-weight:700;font-size:15px;letter-spacing:.3px;
     padding:11px 24px;border-radius:var(--radius);cursor:pointer;
     border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
@@ -186,12 +214,19 @@
   .eff .e:last-child{margin-bottom:0}
   .eff .e b{display:block;color:var(--ink);font-weight:600}
 
-  footer{margin-top:14px}
-  #restart{background:transparent;color:var(--muted);border-color:var(--hair)}
-  #restart:hover{background:rgba(0,0,0,.04);color:var(--ink);border-color:var(--muted)}
+  /* Restart, top-right of the stage. Mirrors #savepng's chip (bottom-left, from
+     sandbox.css) so the two utility controls read as a pair and neither
+     competes with the lesson's own button. Quiet by default — it throws work
+     away, so it should never be the most inviting thing on screen. */
+  #restart{position:absolute;right:26px;top:22px;z-index:9;
+    font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
+    color:var(--muted);background:transparent;border:2px solid var(--hair);
+    border-radius:var(--radius);padding:6px 15px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #restart:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
   /* ---------- the ending fork ---------- */
-  #fork{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:8;
+  #fork{position:absolute;left:50%;bottom:126px;transform:translateX(-50%);z-index:8;
     display:none;gap:14px}
   #fork .door{width:184px;padding:12px 14px;background:rgba(255,255,255,.8);
     border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
@@ -224,6 +259,7 @@
     <button id="actbtn"></button>
     <div id="fork"></div>
     <div id="tray"></div>
+    <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
   <div id="side">
@@ -232,10 +268,6 @@
     <div id="card"><div class="cardtext" id="cardtext"></div>
       <div id="stepnote"></div>
     </div>
-    <footer>
-      <button id="restart">Restart</button>
-      <button id="next">Next</button>
-    </footer>
   </div>
 </div>
 
@@ -303,9 +335,16 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 // exactly 0 — which is the setup for the fermentation fork at the end.
 const POOL0={ATP:4, ADP:4, NAD:2, NADH:0, Pi:2};
 
+// `sub` says what the MOLECULE is, never what the pathway has done — the number
+// above it is a pool, not a running total. ATP and ADP used to read "energy
+// spent" and "energy made", which are the ledger's two rows: the tray ended
+// showing "ATP 6 · ENERGY SPENT" when 2 had been spent, contradicting the
+// ledger directly above it on the one number this page exists to land.
+// Charged/discharged also puts ATP:ADP in the same shape as NAD⁺:NADH, which is
+// the analogy worth having — both are carriers that cycle, not fuels consumed.
 const REAGENTS=[
-  {key:'ATP',  name:'ATP',   sub:'energy spent'},
-  {key:'ADP',  name:'ADP',   sub:'energy made'},
+  {key:'ATP',  name:'ATP',   sub:'charged'},
+  {key:'ADP',  name:'ADP',   sub:'discharged'},
   {key:'Pi',   name:'P<sub>i</sub>', sub:'free phosphate'},
   {key:'NAD',  name:'NAD<sup>+</sup>',  sub:'empty carrier'},
   {key:'NADH', name:'NADH',  sub:'loaded carrier'},
@@ -672,9 +711,25 @@ function fitFor(states){
 function usable(){
   const c=canvas.getBoundingClientRect();
   if(!c.height) return {v:1,shift:0};
-  const e=document.getElementById('tray');
-  const bottom=(e&&e.getClientRects().length)
-    ? Math.max(0, c.bottom-e.getBoundingClientRect().top) : 0;
+  // THE TRAY, AND DELIBERATELY NOT the action button or the ending fork, even
+  // though both sit above it and are taller. They come and go per step, so
+  // measuring them would make the camera distance a function of which chrome
+  // happens to be visible — and this page's whole framing rule is that ONE
+  // distance covers every state, or the split stops reading as a halving.
+  // Measured: with the tray alone the fit is a flat 49.4 across all eleven
+  // states and every molecule still clears whatever chrome is up, the tightest
+  // being ~14px during priming. The fork only ever had to clear the TRAY, which
+  // is a stacking problem (its own `bottom`), not a camera one.
+  // …with ONE substitution: the tray is hidden during the intro, and the Begin
+  // button stands in its slot, so measure that instead when the tray is gone.
+  // This does not reintroduce the state-dependence warned about above — the
+  // tray is visible for every one of the ten steps, so the pathway's single
+  // distance is still solved against the tray and only the intro, which already
+  // has a framing of its own, sees the button.
+  const tray=document.getElementById('tray'), begin=document.getElementById('actbtn');
+  const e=(tray&&tray.getClientRects().length) ? tray
+        : (begin&&begin.getClientRects().length ? begin : null);
+  const bottom=e ? Math.max(0, c.bottom-e.getBoundingClientRect().top) : 0;
   const top=plateHeightPx();
   const cap=c.height*0.6;                     // never eat more than 60% in total
   const k=(top+bottom)>cap ? cap/(top+bottom) : 1;
@@ -871,8 +926,15 @@ function drawLedger(){
 
 const trayEl=document.getElementById('tray');
 function drawTray(){
-  const pool=poolAt(done), st=(!intro&&done<nSteps)?stepAt(done):null;
-  trayEl.innerHTML='';
+  // Hidden until Begin. At the intro nothing can be spent, and a row of inert
+  // pools sitting next to the Begin button just invites clicking the wrong
+  // thing — the tray arriving WITH the first step is also what makes it read as
+  // the lesson's instrument rather than as page furniture.
+  if(intro){ trayEl.style.display='none'; trayEl.innerHTML=''; return; }
+  trayEl.style.display='flex';
+  const pool=poolAt(done), st=done<nSteps?stepAt(done):null;
+  trayEl.innerHTML='<div class="tstrip"></div><div class="tcap">In the cytosol</div>';
+  const strip=trayEl.firstElementChild;
   REAGENTS.forEach(r=>{
     const live=!!st && st.reagent===r.key && !busy;
     const d=document.createElement('div');
@@ -882,13 +944,25 @@ function drawTray(){
       +`<div class="rcount">${pool[r.key]}</div>`
       +`<div class="rsub">${r.sub}</div>`;
     if(live) d.onclick=runStep;
-    trayEl.appendChild(d);
+    strip.appendChild(d);
   });
 }
 
 const actEl=document.getElementById('actbtn');
 function drawAct(){
-  const st=(!intro&&done<nSteps)?stepAt(done):null;
+  // ONE BUTTON, ONE PLACE. The intro's Begin and every no-reagent step share
+  // this element, so the thing to click never jumps between the stage and the
+  // sidebar: Begin sits in the tray's slot (the tray is hidden until then), and
+  // from the first step on it sits just above the tray.
+  if(intro){
+    actEl.style.display='block';
+    actEl.className='begin';
+    actEl.innerHTML=`Begin →<span class="hint">one glucose, ten steps to pyruvate</span>`;
+    actEl.onclick=()=>{ intro=false; refresh(); };
+    return;
+  }
+  actEl.className='';
+  const st=done<nSteps?stepAt(done):null;
   if(st && !st.reagent && !busy){
     actEl.style.display='block';
     actEl.innerHTML=`${st.act}<span class="hint">${st.actHint}</span>`;
@@ -1011,19 +1085,6 @@ function drawNote(){
        only to bypass those three.</p>`;
 }
 
-const nextEl=document.getElementById('next');
-function drawFooter(){
-  // Next is a real button only for the intro gate. Every actual chemical step is
-  // driven from the stage — you click the reagent you're spending, or the cleave
-  // button — so the footer must not offer a second way to do it. It labels where
-  // the action is instead, and stays disabled.
-  if(intro){ nextEl.textContent='Begin →'; nextEl.disabled=false; return; }
-  if(done>=nSteps){ nextEl.textContent='Complete'; nextEl.disabled=true; return; }
-  const st=stepAt(done);
-  nextEl.textContent=busy?'…':(st.reagent?`Click ${st.reagent==='NAD'?'NAD⁺':st.reagent} ↙`:'Use the button ↙');
-  nextEl.disabled=true;
-}
-
 const forkEl=document.getElementById('fork');
 function drawFork(){
   if(intro || done<nSteps){ forkEl.style.display='none'; return; }
@@ -1048,10 +1109,11 @@ function drawFork(){
         <b>NAD⁺</b> so glycolysis can keep turning.</div></div>`;
 }
 
+// drawTray runs BEFORE drawAct: the tray's visibility decides which element
+// usable() measures, and drawAct's Begin state is the stand-in for it.
 function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawCard();
-  drawNote(); drawFooter(); drawFork(); }
+  drawNote(); drawFork(); computeFit(); }
 
-nextEl.onclick=()=>{ if(intro){ intro=false; refresh(); } };
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
 addEventListener('keydown',e=>{
