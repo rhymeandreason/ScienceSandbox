@@ -109,44 +109,57 @@
     letter-spacing:0;opacity:.72;margin-top:1px}
 
   /* ---------- right panel ---------- */
-  /* pathway rail — the 5 stages, with each one's bookkeeping delta */
-  #rail{display:flex;flex-direction:column;gap:0;margin:6px 0 18px}
-  .rstage{display:flex;gap:11px;align-items:flex-start;padding:7px 0;cursor:pointer;
-    border-top:1px solid rgba(0,0,0,.07)}
-  .rstage:first-child{border-top:none}
-  .rstage .rdot{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--hair);
-    background:var(--panel);font-family:var(--font-slab);font-weight:700;font-size:12px;
-    display:flex;align-items:center;justify-content:center;color:var(--muted);margin-top:1px}
-  .rstage.done .rdot{background:var(--ink);border-color:var(--ink);color:var(--panel)}
-  .rstage.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
+  /* PATHWAY RAIL — the ten steps, blocked into the five stages.
+     The DOTS carry the canonical step numbers 1–10, so the rail lines up with
+     the numbering every textbook and lecture uses. The stages are block
+     HEADINGS over them, not a second numbered sequence competing with it: two
+     numberings on one rail meant "3" could mean step 3 or stage 3, and the one
+     a student can check against their book is the step. */
+  #rail{display:flex;flex-direction:column;gap:0;margin:6px 0 16px}
+
+  /* block heading: stage name + the bookkeeping delta it is responsible for */
+  /* Sixteen rows is the whole pathway on screen at once, which is the point —
+     but it is also the tallest this panel gets, and the card underneath is what
+     pays for it. Padding here is deliberately tight for that reason. */
+  .rblock{display:flex;align-items:baseline;gap:10px;cursor:pointer;
+    padding:9px 0 3px;border-top:1px solid rgba(0,0,0,.07)}
+  .rblock:first-child{border-top:none}
+  .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:11px;
+    letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
+  .rblock .bd{margin-left:auto;font-family:var(--font-slab);font-weight:700;
+    font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .rblock.cur .bt,.rblock.cur .bd{color:var(--phos)}
+  .rblock.future{opacity:.5}
+
+  /* one row per step, and the two bookend states either side of the ten */
+  .rrow{display:flex;gap:11px;align-items:center;padding:1.5px 0}
+  .rrow .rdot{flex:none;width:21px;height:21px;border-radius:50%;
+    border:2px solid var(--hair);background:var(--panel);
+    font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .rrow.done .rdot{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+  .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
     box-shadow:0 0 0 3px rgba(43,39,35,.1)}
-  .rstage .rlab{font-family:var(--font-sans);font-size:14.5px;font-weight:600;color:var(--muted);line-height:1.3}
-  .rstage.cur .rlab,.rstage.done .rlab{color:var(--ink)}
-  .rstage .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);font-weight:700;font-size:12px;
-    color:var(--muted);white-space:nowrap;margin-top:2px}
-  .rstage.cur .rdelta{color:var(--phos)}
-  .rstage.future{opacity:.55}
+  .rrow .rlab{font-family:var(--font-sans);font-size:14px;color:var(--muted);line-height:1.25}
+  .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
+  .rrow.cur .rlab{font-weight:600}
+  .rrow.done{cursor:pointer}
+  .rrow.done:hover .rlab{color:var(--phos)}
+  .rrow.future{opacity:.5}
+  /* the one-way marker. Only three steps carry it, and that is the lesson. */
+  .rrow .rirr{margin-left:auto;flex:none;font-size:14px;color:var(--phos);opacity:.75}
+  /* bookends carry no step number, because they are not steps */
+  .rrow.bookend{padding:6px 0;border-top:1px solid rgba(0,0,0,.07)}
+  .rrow.bookend:first-child{border-top:none}
+  .rrow.bookend .rlab{font-weight:600}
+  .rrow.bookend .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);
+    font-weight:700;font-size:11.5px;color:var(--muted);white-space:nowrap}
 
   #card .enz{font-family:var(--font-slab);font-size:13px;color:var(--muted);margin:0 0 12px}
   #card .enz b{color:var(--ink);font-weight:700}
   #card .rxn{font-family:var(--font-slab);font-weight:700;font-size:14.5px;color:var(--phos);
     margin:0 0 14px;line-height:1.45}
   #card .misc{font-size:13.5px;color:var(--muted)}
-
-  /* the current stage's steps, indented under it */
-  .rstage .rlab .rsteps{display:block;font-family:var(--font-slab);font-size:11px;
-    font-weight:400;letter-spacing:.5px;color:var(--muted);margin-top:1px}
-  .rsub{margin:0 0 2px 33px;padding:2px 0 6px;border-left:1.5px solid var(--hair)}
-  .rstep{display:flex;align-items:baseline;gap:8px;padding:2.5px 0 2.5px 11px;
-    font-family:var(--font-slab);font-size:12.5px;line-height:1.3;color:var(--muted)}
-  .rstep .sn{flex:none;width:15px;text-align:right;font-weight:700}
-  .rstep .se{flex:1}
-  .rstep .sirr{flex:none;font-size:14px;color:var(--phos);opacity:.8}
-  .rstep.sdone{cursor:pointer}
-  .rstep.sdone:hover{color:var(--ink)}
-  .rstep.scur{color:var(--ink);font-weight:700}
-  .rstep.scur .sn{color:var(--phos)}
-  .rstep.sfuture{opacity:.5}
 
   /* The note panel under the card. sandbox.css pins a card's footer block to the
      bottom and scrolls only .cardtext, which works for a one-line note — but
@@ -316,7 +329,8 @@ const STEPS=[
     msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent and nothing is made — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
-    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', rev:false, commit:true,
+    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', short:'Phosphofructokinase-1',
+    rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
     msg:`A second <b>ATP</b> phosphorylates carbon 1. This is the <b>committed step</b> — and the one the cell regulates.` },
 
@@ -333,7 +347,8 @@ const STEPS=[
     msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Both lanes are now identical — everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
-    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', rev:true,
+    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase',
+    short:'G3P dehydrogenase', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
     msg:`The <b>only oxidation in the pathway</b>. Each G3P loses two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP was spent here.</b>` },
 
@@ -374,7 +389,7 @@ const STAGES=[
       <p class="misc">Watch two numbers in the ledger: the <b>carbon count</b>, which
       never changes, and <b>ATP</b>, which is about to go <i>down</i>.</p>` },
 
-  { n:1, title:'Investment', label:'Priming: spend 2 ATP', delta:'−2 ATP',
+  { n:1, title:'Investment', block:'Priming', label:'Priming: spend 2 ATP', delta:'−2 ATP',
     body:`<p>Three steps, two of them spending ATP. Phosphorylating a sugar is
       thermodynamically uphill; <b>coupling</b> each one to ATP hydrolysis is what
       makes the pair go downhill together.</p>
@@ -385,7 +400,7 @@ const STAGES=[
       turning an aldose into a ketose — without which the six-carbon chain could not
       be cut into two halves that each carry a phosphate.</p>` },
 
-  { n:2, title:'The split', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
+  { n:2, title:'The split', block:'Cleavage', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
     body:`<p>Aldolase cuts the chain between <b>carbon 3 and carbon 4</b>. One molecule
       becomes <b>two</b>: <b>DHAP</b> and <b>G3P</b>.</p>
       <p>They are isomers, not copies — so triose-phosphate isomerase converts DHAP
@@ -394,7 +409,7 @@ const STAGES=[
       pathway gets its name. From here every step happens <b>twice</b>, once per lane.
       Nothing on screen says "×2" — you just see both.</p>` },
 
-  { n:3, title:'Oxidation', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
+  { n:3, title:'Oxidation', block:'Oxidation', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
     body:`<p>The <b>payoff phase</b> starts here — and it starts with the
       <b>only oxidation in the whole pathway</b>. Worth being precise about: G3P
       <b>loses electrons</b>, so it is oxidised. <b>NAD⁺</b> gains them (two
@@ -406,7 +421,7 @@ const STAGES=[
       worth roughly 2.5 ATP downstream — so these 2 NADH outweigh the pathway's 2
       net ATP several times over.</p>` },
 
-  { n:4, title:'Payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
+  { n:4, title:'Payoff', block:'Payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
     body:`<p>Four steps, two of which charge ADP. Both work by <b>substrate-level
       phosphorylation</b>: an enzyme hands a phosphate straight from a substrate to
       ADP — no membrane, no gradient, no oxygen.</p>
@@ -430,11 +445,10 @@ const STAGES=[
       about.</p>` },
 ];
 
-// Where each stage's steps come from — derived, never typed, so adding a step
-// cannot leave a stage claiming the wrong range.
+// Which steps sit under a stage — derived, never typed. The rail now prints
+// every step number itself, so nothing has to state a range and then be kept
+// true; a step moved between stages re-blocks the rail on its own.
 const stageSteps=n=>STEPS.filter(s=>s.stage===n);
-const stageRange=n=>{ const k=stageSteps(n); return k.length? (k.length===1?`Step ${k[0].n}`
-  :`Steps ${k[0].n}–${k[k.length-1].n}`) : ''; };
 
 /* ---- the regulation panel: PFK-1, and why the cell controls step 3 ----------
  * Attached to the step, not the stage, so it appears exactly when the student is
@@ -886,42 +900,54 @@ const railEl=document.getElementById('rail');
 function drawRail(){
   const cur=stageAt(done);
   railEl.innerHTML='';
-  // Jump to the state just BEFORE step k, so the student re-runs it rather than
-  // landing on its aftermath. Shared by the stage rows and the step rows.
-  const goto=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
-  STAGES.forEach(s=>{
-    const cls=s.n<cur?'done':(s.n===cur?'cur':'future');
-    const d=document.createElement('div');
-    d.className='rstage '+cls;
-    d.innerHTML=`<div class="rdot">${s.n||'·'}</div>`
-      +`<div class="rlab">${s.label}`
-      +(stageRange(s.n)?`<span class="rsteps">${stageRange(s.n)}</span>`:'')+`</div>`
-      +`<div class="rdelta">${s.delta}</div>`;
-    d.onclick=()=>{ if(busy||s.n>cur) return;
-      const k=STEPS.findIndex(x=>x.stage===s.n);
-      intro=(s.n===0);
-      done=(s.n===0?0:(s.n===5?nSteps:(k<0?done:k)));
-      renderLanes(done); refresh(); };
-    railEl.appendChild(d);
+  // Jump to the state just BEFORE step k, so the student re-runs the step rather
+  // than landing on its aftermath.
+  const goStep=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
+  const goStage=s=>{ if(busy||s.n>cur) return;
+    const k=STEPS.findIndex(x=>x.stage===s.n);
+    intro=(s.n===0);
+    done=(s.n===0?0:(s.n===5?nSteps:(k<0?done:k)));
+    renderLanes(done); refresh(); };
+  const stageCls=n=>n<cur?'done':(n===cur?'cur':'future');
 
-    // The current stage expands into its steps. Only the current one: ten rows
-    // permanently on screen is a list to skim past, five with three showing is a
-    // position in a pathway.
-    if(s.n===cur && stageSteps(s.n).length){
-      const wrap=document.createElement('div');
-      wrap.className='rsub';
-      stageSteps(s.n).forEach(st=>{
-        const idx=STEPS.indexOf(st);
-        const state=idx<done?'sdone':(idx===done?'scur':'sfuture');
-        const r=document.createElement('div');
-        r.className='rstep '+state;
-        r.innerHTML=`<span class="sn">${st.n}</span><span class="se">${st.enz}</span>`
-          +(st.rev===false?`<span class="sirr" title="effectively irreversible in the cell">⇢</span>`:'');
-        if(idx<done) r.onclick=()=>goto(idx);
-        wrap.appendChild(r);
-      });
-      railEl.appendChild(wrap);
+  STAGES.forEach(s=>{
+    const steps=stageSteps(s.n);
+
+    // The two bookends — the starting point and the final tally — are STATES,
+    // not steps, so they get a mark rather than a number. Numbering them would
+    // push the ten out of alignment with the textbook, which is the whole point.
+    if(!steps.length){
+      const d=document.createElement('div');
+      d.className='rrow bookend '+stageCls(s.n);
+      d.innerHTML=`<div class="rdot">${s.n===0?'·':'✓'}</div>`
+        +`<div class="rlab">${s.label}</div>`
+        +`<div class="rdelta">${s.delta}</div>`;
+      d.onclick=()=>goStage(s);
+      railEl.appendChild(d);
+      return;
     }
+
+    const h=document.createElement('div');
+    h.className='rblock '+stageCls(s.n);
+    h.innerHTML=`<span class="bt">${s.block}</span><span class="bd">${s.delta}</span>`;
+    h.onclick=()=>goStage(s);
+    railEl.appendChild(h);
+
+    steps.forEach(st=>{
+      const idx=STEPS.indexOf(st);
+      // `intro` gates the reading, not the chemistry — at done=0 step 1 is
+      // already next, so without this check the rail would light step 1 as
+      // current while the student is still being introduced to glucose.
+      const state=idx<done?'done':(idx===done&&!intro?'cur':'future');
+      const r=document.createElement('div');
+      r.className='rrow '+state;
+      r.innerHTML=`<div class="rdot">${st.n}</div>`
+        +`<div class="rlab">${st.short||st.enz}</div>`
+        +(st.rev===false
+          ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '');
+      if(idx<done) r.onclick=()=>goStep(idx);
+      railEl.appendChild(r);
+    });
   });
 }
 
