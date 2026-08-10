@@ -141,9 +141,24 @@
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p3:p, phosphates:1 } });
   }
   {
-    // — fructose-1,6-bisphosphate: both ENDS phosphorylated, and the carbonyl has
-    //   moved C1 → C2 (aldose → ketose). That shift is the isomerase step, shown
-    //   as a visible change rather than given its own stage.
+    // — fructose-6-phosphate: the aldose→ketose isomerisation, and nothing else.
+    //   G6P's C1 aldehyde has become a C1 hydroxyl and the C=O has moved to C2.
+    //   That shift is the whole point of step 2: an aldose cannot be cut into two
+    //   phosphorylatable three-carbon halves, a ketose can, so the cell pays a
+    //   step to move the carbonyl one carbon in before it pays its second ATP.
+    const g=chainC(6);
+    g.hydroxyl(0,0);                                       // C1 –OH (was the aldehyde)
+    g.carbonyl(1,0);                                       // C2 ketone
+    for(let k=2;k<=4;k++) g.hydroxyl(k, k%2);              // C3…C5 –OH
+    const p6=g.phosphate(5,0);                             // C6 –O–PO₃, carried over
+    GLYCOLYSIS.f6p=g.spec({ name:'Fructose-6-phosphate', formula:'C₆H₁₃O₉P²⁻', class:'sugar',
+      gly:{ carbons:6, cN:[0,1,2,3,4,5], p1:null, p3:p6, phosphates:1,
+            c1:0,                     // where PFK-1's phosphate lands next
+            note:'drawn open-chain (Fischer); really a furanose ring in solution' } });
+  }
+  {
+    // — fructose-1,6-bisphosphate: both ENDS phosphorylated. PFK-1's product, and
+    //   the committed step — past here the carbon has no fate but glycolysis.
     const g=chainC(6);
     const p1=g.phosphate(0,0);                             // C1 –O–PO₃
     g.carbonyl(1,0);                                       // C2 ketone
@@ -196,8 +211,50 @@
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // carboxylate: two O's
     g.hydroxyl(1,1);
     const p=g.phosphate(2,0);
+    // `hot` is deliberately ABSENT here, unlike on 1,3-BPG and PEP. 3-PG's C3
+    // phosphate is an ordinary low-energy ester — it cannot phosphorylate ADP,
+    // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
+    // phosphate to C2 and then dehydrate the molecule to make it transferable.
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', formula:'C₃H₆O₇P²⁻', class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, hot:p } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1 } });
+  }
+  {
+    // — 2-phosphoglycerate: the same atoms as 3-PG with the phosphate moved from
+    //   C3 to C2. Phosphoglycerate mutase does nothing to the energy books — no
+    //   ATP, no NADH, no carbon — and that is the reason to show it: it sets up
+    //   the dehydration that follows, which is what actually creates a
+    //   high-energy phosphate out of a low-energy one.
+    const g=chainC(3);
+    g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
+    const p=g.phosphate(1,0);                              // C2 –O–PO₃
+    const oh=g.hydroxyl(2,0);                              // C3 –OH — the OH enolase removes
+    GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', formula:'C₃H₆O₇P²⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh } });
+  }
+  {
+    // — phosphoenolpyruvate: 2-PG minus a water. Enolase pulls the C3 –OH and a
+    //   C2 hydrogen out as H₂O, leaving a C2=C3 double bond and trapping the
+    //   molecule in its ENOL form. That is the whole trick: the enol is strained
+    //   relative to the keto form pyruvate would rather be, and losing the
+    //   phosphate is what lets it relax. PEP therefore has the highest
+    //   phosphoryl-transfer potential of any biological molecule — well above
+    //   ATP's — which is why step 10 is both spontaneous and irreversible.
+    // Only C1–C2 comes from chainC. C3 is GROWN off C2 instead of laid down by
+    // the scaffold, because chainC's backbone angle is the tetrahedral-ish 111°
+    // and C2 here is sp2 — every angle around it has to be 120°, and the C2=C3
+    // bond has to be 1.33 Å rather than the single-bond 1.54. Both fall out of
+    // grow() once the parent's hybridisation is stated; neither does if C3 is
+    // repositioned after the fact.
+    const g=chainC(2);
+    g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
+    // The enol ester oxygen hangs off an sp2 carbon, so it is grown at 120° —
+    // Skel.phosphate() assumes a tetrahedral parent and would put it at 109.5°.
+    const o=g.grow(1,'O',GL.CO,'sp2',0);
+    const c3=g.grow(1,'C',GL.CdC,'sp2',0,2);               // C2=C3, the enol double bond
+    const p=g.grow(o,'P',GL.OP,'sp3',0);
+    for(let k=0;k<3;k++) g.grow(p,'O',GL.PO,'sp3',0);
+    GLYCOLYSIS.pep=g.spec({ name:'Phosphoenolpyruvate', formula:'C₃H₄O₆P³⁻', class:'sugar',
+      gly:{ carbons:3, cN:[0,1,c3], p2:p, phosphates:1, hot:p, enol:[1,c3] } });
   }
   {
     // — pyruvate: the finish line. Three carbons, no phosphate left, and a

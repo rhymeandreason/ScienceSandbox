@@ -16,7 +16,7 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | featured lesson |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
-| `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway | prototype |
+| `glycolysis-lab.html` | All ten steps, grouped into five stages: carbon bookkeeping (why it costs 2 ATP to make ATP), PFK-1 as the regulated committed step, the pathway's one oxidation, and which three steps are irreversible | pathway | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | prototype |
 | `protein-lab.html` | Superseded PDB structure viewer — kept as the ChemDoodle (GPL) worked example, see its own header | PDB structure viewer | reference |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin, with level 4 only pointed at. Superseded by `hemoglobin-lab`, which carries all four on one molecule — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |

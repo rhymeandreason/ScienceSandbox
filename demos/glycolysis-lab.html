@@ -27,6 +27,21 @@
   #card{min-height:0}
   footer{flex:none}
 
+  /* ---------- species labels: DOM over the canvas, one per lane ----------
+     Positioned every frame from the projected anchor (drawPlates), so they
+     track their molecule on orbit the way the old sprites did. `left`/`top`
+     are the anchor in canvas pixels; the translate pulls the label up and
+     centres it on that point, so the anchor is the label's bottom-middle. */
+  #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
+  .plate{position:absolute;transform:translate(-50%,-100%);
+    text-align:center;white-space:nowrap;line-height:1.15}
+  .plate .pn{font-family:var(--font-slab);font-weight:700;font-size:19px;
+    color:var(--ink);letter-spacing:.2px}
+  .plate .pf{font-family:var(--font-slab);font-weight:500;font-size:14px;color:var(--muted)}
+  @media (max-width:920px){
+    .plate .pn{font-size:16px}.plate .pf{font-size:12.5px}
+  }
+
   /* ---------- reaction toast, top-center of the stage ---------- */
   #rxmsg{position:absolute;top:76px;left:50%;transform:translateX(-50%);
     z-index:12;pointer-events:none;text-align:center;max-width:72%;opacity:0;
@@ -126,19 +141,45 @@
     margin:0 0 14px;line-height:1.45}
   #card .misc{font-size:13.5px;color:var(--muted)}
 
-  /* "show the real steps" — the honours escape hatch, off by default */
-  #realwrap{margin-top:auto;padding-top:14px;border-top:1.5px dashed var(--hair)}
-  #realtoggle{font-family:var(--font-slab);font-weight:700;font-size:12px;letter-spacing:.9px;
-    text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none;
-    display:flex;align-items:center;gap:6px}
-  #realtoggle:hover{color:var(--ink)}
-  #reallist{display:none;margin-top:10px;max-height:184px;overflow-y:auto}
-  #reallist.open{display:block}
-  #reallist .rs{display:flex;gap:9px;font-family:var(--font-slab);font-size:12.5px;
-    color:var(--muted);padding:3.5px 0;line-height:1.35}
-  #reallist .rs .n{flex:none;width:15px;text-align:right;font-weight:700}
-  #reallist .rs.here{color:var(--ink)}
-  #reallist .rs.here .n{color:var(--phos)}
+  /* the current stage's steps, indented under it */
+  .rstage .rlab .rsteps{display:block;font-family:var(--font-slab);font-size:11px;
+    font-weight:400;letter-spacing:.5px;color:var(--muted);margin-top:1px}
+  .rsub{margin:0 0 2px 33px;padding:2px 0 6px;border-left:1.5px solid var(--hair)}
+  .rstep{display:flex;align-items:baseline;gap:8px;padding:2.5px 0 2.5px 11px;
+    font-family:var(--font-slab);font-size:12.5px;line-height:1.3;color:var(--muted)}
+  .rstep .sn{flex:none;width:15px;text-align:right;font-weight:700}
+  .rstep .se{flex:1}
+  .rstep .sirr{flex:none;font-size:14px;color:var(--phos);opacity:.8}
+  .rstep.sdone{cursor:pointer}
+  .rstep.sdone:hover{color:var(--ink)}
+  .rstep.scur{color:var(--ink);font-weight:700}
+  .rstep.scur .sn{color:var(--phos)}
+  .rstep.sfuture{opacity:.5}
+
+  /* The note panel under the card. sandbox.css pins a card's footer block to the
+     bottom and scrolls only .cardtext, which works for a one-line note — but
+     PFK-1's regulation block runs ~400px and squeezed the prose to zero height.
+     So this page scrolls #card as ONE column: the note is reading material here,
+     not chrome, and it should follow the prose rather than compete with it.
+     Safe because this page has no .factwrap lightbulb to spill past the edge. */
+  #card{overflow-y:auto}
+  #card .cardtext{overflow:visible;flex:none}
+  #stepnote{margin-top:18px;padding-top:13px;border-top:1.5px dashed var(--hair)}
+  #stepnote .nhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
+  #stepnote .nhead.reg{color:var(--phos)}
+  #stepnote .nhead.irr{color:var(--atp)}
+  #stepnote .nhead.rev{color:var(--nad)}
+  #stepnote .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
+  #stepnote .nbody:last-child{margin-bottom:0}
+  .effrow{display:flex;gap:9px;margin:0 0 10px}
+  .eff{flex:1;padding:8px 9px;border-radius:7px;background:rgba(0,0,0,.03)}
+  .eff .eh{font-family:var(--font-slab);font-weight:700;font-size:10.5px;letter-spacing:.8px;
+    text-transform:uppercase;margin-bottom:5px}
+  .eff.on .eh{color:#1f6146}.eff.off .eh{color:#a8371f}
+  .eff .e{font-size:12px;line-height:1.35;margin-bottom:5px;color:var(--muted)}
+  .eff .e:last-child{margin-bottom:0}
+  .eff .e b{display:block;color:var(--ink);font-weight:600}
 
   footer{margin-top:14px}
   #restart{background:transparent;color:var(--muted);border-color:var(--hair)}
@@ -147,7 +188,7 @@
   /* ---------- the ending fork ---------- */
   #fork{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);z-index:8;
     display:none;gap:14px}
-  #fork .door{width:196px;padding:13px 15px;background:rgba(255,255,255,.8);
+  #fork .door{width:184px;padding:12px 14px;background:rgba(255,255,255,.8);
     border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
     box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
   #fork .door .dh{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);margin-bottom:4px}
@@ -158,7 +199,12 @@
     #ledger{top:auto;bottom:96px;left:14px;min-width:0;padding:9px 11px}
     #ledger .row{font-size:12.5px}
     #tray{gap:6px;bottom:14px}.reag{min-width:56px;padding:7px 8px 6px}
-    #fork{flex-direction:column;bottom:150px}#fork .door{width:250px}
+    /* Three doors stacked is taller than the stage, so on narrow screens the
+       fork scrolls in its own strip rather than growing off the top. */
+    #fork{flex-direction:column;bottom:110px;gap:8px;
+      max-height:52vh;overflow-y:auto;padding:2px}
+    #fork .door{width:250px;flex:none}
+    #fork .door .db{font-size:12px}
   }
 </style>
 </head>
@@ -166,6 +212,7 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
+    <div id="plates" aria-live="polite"></div>
     <div id="rxmsg" aria-live="polite"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-flow-arrow"></i></span><h1>Glycolysis</h1></div>
     <div id="ledger"></div>
@@ -179,10 +226,7 @@
     <div id="phase"></div>
     <div id="rail"></div>
     <div id="card"><div class="cardtext" id="cardtext"></div>
-      <div id="realwrap">
-        <div id="realtoggle"><i class="ph-bold ph-caret-right" id="realcaret"></i> Show the real 10 steps</div>
-        <div id="reallist"></div>
-      </div>
+      <div id="stepnote"></div>
     </div>
     <footer>
       <button id="restart">Restart</button>
@@ -208,11 +252,23 @@
  *  a scripted sequence of TRANSFORMATIONS plus a running LEDGER, so this page
  *  shares only scene.js's bootstrap and fx.js's effects — see SCIENCE.md §10.
  *
- *  WHY 5 STAGES AND NOT 10: AP Bio (Topic 3.5) does not assess the ten enzymes
- *  by name. It assesses the bookkeeping — 6C → 2×3C, net 2 ATP, 2 NADH, and the
- *  fact that you must SPEND ATP before you make any. So the ten canonical steps
- *  are grouped into the five events that change that bookkeeping, and the real
- *  ten are one toggle away for whoever wants them (#reallist).
+ *  AUDIENCE: introductory college biology (Bio 101), not AP. That is a content
+ *  decision, not a styling one, and it is why this page runs all TEN canonical
+ *  steps rather than the five-event summary it used to. An intro college course
+ *  holds students to the enzymes, to PFK-1 as the regulated committed step, and
+ *  to why a phosphate can charge ADP at steps 7 and 10 but not at step 8.
+ *
+ *  THE FIVE STAGES SURVIVE AS GROUPING, NOT AS CONTENT. Ten clicks with no
+ *  structure is a list; the five stages are what make the ARC legible — spend 2,
+ *  cut in half, oxidise once, collect 4. So the rail shows five stages and
+ *  expands the current one into its steps. Bookkeeping deltas stay on the stage,
+ *  because that is the level at which they mean anything.
+ *
+ *  NO ΔG NUMBERS ARE PRINTED. The thermodynamics is taught as REVERSIBILITY —
+ *  three steps (1, 3, 10) are effectively irreversible in a cell, the other
+ *  seven sit near equilibrium — because that is the fact the regulation and the
+ *  gluconeogenesis bypass both hang off, and because a per-step kJ/mol table
+ *  would be typed numbers that nothing in this repo can check.
  *
  *  THE ×2 IS SHOWN, NEVER LABELLED. After the split, both three-carbon halves
  *  stay on screen in parallel lanes and every later step visibly fires twice.
@@ -251,121 +307,162 @@ const REAGENTS=[
   {key:'NADH', name:'NADH',  sub:'loaded carrier'},
 ];
 
-// One entry per user action. `species` is the resulting contents of the lanes,
-// so the lane count doubling at the split falls out of the data.
+// One entry per user action — the ten canonical steps. `species` is the
+// resulting contents of the lanes, so the lane count doubling at the split falls
+// out of the data. `rev:false` marks the three steps that are effectively
+// irreversible in a cell; those same three are the regulated ones and the ones
+// gluconeogenesis has to bypass, which is not a coincidence and is the point.
 const STEPS=[
-  { stage:1, reagent:'ATP', need:'Spend 1 ATP',
-    species:['g6p'], enz:'Hexokinase',
+  { n:1, stage:1, reagent:'ATP', need:'Spend 1 ATP',
+    species:['g6p'], enz:'Hexokinase', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
-    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6. The ring opens — and the charged phosphate means glucose can no longer leave the cell.` },
+    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. Phosphorylating a sugar is uphill on its own — <b>coupling</b> it to ATP hydrolysis is what makes it go.` },
 
-  { stage:1, reagent:'ATP', need:'Spend 1 more ATP',
-    species:['f16bp'], enz:'Phosphofructokinase (PFK)',
+  { n:2, stage:1, reagent:null,
+    act:'Shift the carbonyl to C2', actHint:'phosphoglucose isomerase · aldose → ketose',
+    species:['f6p'], enz:'Phosphoglucose isomerase', rev:true,
+    fx:'iso',
+    msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent and nothing is made — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
+
+  { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
+    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
-    msg:`A second <b>ATP</b> phosphorylates the far end. Both ends now carry a <span class="p">phosphate</span> — and the C=O has shifted to carbon 2.` },
+    msg:`A second <b>ATP</b> phosphorylates carbon 1. This is the <b>committed step</b> — and the one the cell regulates.` },
 
-  { stage:2, reagent:null, need:'Cleave C3–C4',
-    act:'Snap the six-carbon chain', actHint:'aldolase cuts between C3 and C4',
-    species:['dhap','g3p'], enz:'Aldolase',
+  { n:4, stage:2, reagent:null,
+    act:'Cleave the C3–C4 bond', actHint:'aldolase · 6 carbons → 3 + 3',
+    species:['dhap','g3p'], enz:'Aldolase', rev:true,
     fx:'split',
     msg:`Six carbons become <b>3 + 3</b>. Each half keeps one <span class="p">phosphate</span> — which is why two were paid in.` },
 
-  { stage:2, reagent:null, need:'Isomerise DHAP',
-    act:'Convert DHAP → G3P', actHint:'the two halves are not identical yet',
-    species:['g3p','g3p'], enz:'Triose-phosphate isomerase',
+  { n:5, stage:2, reagent:null,
+    act:'Convert DHAP → G3P', actHint:'triose-phosphate isomerase · the halves are not identical yet',
+    species:['g3p','g3p'], enz:'Triose-phosphate isomerase', rev:true,
     fx:'iso',
-    msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Now both lanes are identical — everything from here happens <b>twice</b>.` },
+    msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Both lanes are now identical — everything from here happens <b>twice</b>.` },
 
-  { stage:3, reagent:'NAD', need:'Load both NAD⁺',
-    species:['bpg13','bpg13'], enz:'G3P dehydrogenase',
+  { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
+    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
-    msg:`Each G3P is <b>oxidised</b> — it loses its H and 2 electrons to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol takes that spot. <b>No ATP was spent here.</b>` },
+    msg:`The <b>only oxidation in the pathway</b>. Each G3P loses two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP was spent here.</b>` },
 
-  { stage:4, reagent:'ADP', need:'Charge 2 ADP',
-    species:['pga3','pga3'], enz:'Phosphoglycerate kinase',
+  { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
+    species:['pga3','pga3'], enz:'Phosphoglycerate kinase', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
-    msg:`The high-energy <span class="p">phosphate</span> on carbon 1 is handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
+    msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it can be handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
 
-  { stage:4, reagent:'ADP', need:'Charge 2 more ADP',
-    species:['pyruvate','pyruvate'], enz:'Pyruvate kinase',
-    pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p3',
-    msg:`The last <span class="p">phosphate</span> goes to <b>ADP</b> too — <b>2 more ATP</b>. What is left is <b>pyruvate</b>: three carbons, no phosphate.` },
+  { n:8, stage:4, reagent:null,
+    act:'Move the phosphate C3 → C2', actHint:'phosphoglycerate mutase · no ATP, no carbon change',
+    species:['pga2','pga2'], enz:'Phosphoglycerate mutase', rev:true,
+    fx:'move', anchor:'p3', dest:'p2',
+    msg:`The phosphate slides from carbon 3 to carbon 2. On C3 it was an ordinary ester and <b>could not</b> charge ADP — this move sets up the step that changes that.` },
+
+  { n:9, stage:4, reagent:null,
+    act:'Remove a water', actHint:'enolase · dehydration creates the high-energy bond',
+    species:['pep','pep'], enz:'Enolase', rev:true,
+    fx:'lose', anchor:'oh3',
+    msg:`A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. No energy was added — the molecule was <i>rearranged</i> into a strained form, and that strain is now stored in the phosphate bond.` },
+
+  { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
+    species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', rev:false,
+    pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
+    msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell — well above ATP's. The phosphate goes to <b>ADP</b> and the enol snaps to the keto form: <b>pyruvate</b>.` },
 ];
 
-// The five stages. `delta` is the bookkeeping change students should be able to
-// recite for each one — it is printed on the rail whether or not they read the prose.
+// The five stages, kept as the GROUPING over the ten steps. `delta` is the
+// bookkeeping change students should be able to recite for each one — it is
+// printed on the rail whether or not they read the prose. `steps` is derived
+// from STEPS below rather than typed, so the two can never drift.
 const STAGES=[
   { n:0, title:'Glucose', phase:null, label:'Start: one glucose', delta:'6 C',
-    body:`<p>One molecule of <b>glucose</b> — six carbons, and the cell's default fuel.
-      It is drawn here as the <b>ring</b> (pyranose) form, which is what it mostly
-      looks like dissolved in water.</p>
-      <p>Glycolysis will cut it in half and skim off a little energy. All of it happens
-      in the <b>cytosol</b>, and <b>none of it needs oxygen</b> — which is why this
-      pathway is shared by nearly everything alive.</p>
+    body:`<p>One molecule of <b>glucose</b> — six carbons, drawn as the <b>pyranose
+      ring</b> it mostly adopts in water.</p>
+      <p>Glycolysis runs in the <b>cytosol</b> and uses <b>no oxygen</b>. Every domain
+      of life has it, which is the usual argument that it is very old — older than
+      the oxygen it doesn't need.</p>
       <p class="misc">Watch two numbers in the ledger: the <b>carbon count</b>, which
-      must never change, and <b>ATP</b>, which is about to go <i>down</i>.</p>` },
+      never changes, and <b>ATP</b>, which is about to go <i>down</i>.</p>` },
 
   { n:1, title:'Investment', phase:'invest', label:'Priming: spend 2 ATP', delta:'−2 ATP',
-    body:`<p>To make energy, the cell first has to <b>spend</b> it. Two ATP go in,
-      one phosphate onto each end of the sugar.</p>
-      <p>Why bother? Two reasons. The <b>charge</b> traps the sugar inside the cell —
-      it can't slip back out through its transporter. And it makes the molecule
-      <b>unstable</b>, primed to be broken.</p>
-      <p class="misc">This is the step students forget on the exam. Glycolysis makes
-      <b>4</b> ATP but <i>nets</i> <b>2</b>, because of these two right here.</p>` },
+    body:`<p>Three steps, two of them spending ATP. Phosphorylating a sugar is
+      thermodynamically uphill; <b>coupling</b> each one to ATP hydrolysis is what
+      makes the pair go downhill together.</p>
+      <p>The phosphates buy two things. Their <b>charge</b> traps the sugar inside the
+      cell — GLUT transporters won't carry it back out. And they <b>destabilise</b>
+      the molecule, which is what lets step 4 break it in half.</p>
+      <p class="misc">Step 2 spends nothing. It moves the carbonyl from C1 to C2,
+      turning an aldose into a ketose — without which the six-carbon chain could not
+      be cut into two halves that each carry a phosphate.</p>` },
 
   { n:2, title:'The split', phase:'split', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
-    body:`<p>The six-carbon chain is cut clean between <b>carbon 3 and carbon 4</b>.
-      One molecule becomes <b>two</b>.</p>
-      <p>The first fragment is <b>DHAP</b>, the second is <b>G3P</b>. They aren't the
-      same molecule yet — so one gets rearranged into the other, leaving <b>two
-      identical G3P</b>.</p>
-      <p class="misc">This is where "glycolysis" gets its name: <i>glyco-</i> sugar,
-      <i>-lysis</i> splitting. From here on, every step happens <b>twice</b> — once
-      per lane. Nothing on screen will say "×2"; you'll just see both.</p>` },
+    body:`<p>Aldolase cuts the chain between <b>carbon 3 and carbon 4</b>. One molecule
+      becomes <b>two</b>: <b>DHAP</b> and <b>G3P</b>.</p>
+      <p>They are isomers, not copies — so triose-phosphate isomerase converts DHAP
+      into a second G3P. Only then does the pathway have two identical substrates.</p>
+      <p class="misc"><i>Glyco-</i> sugar, <i>-lysis</i> splitting: this is where the
+      pathway gets its name. From here every step happens <b>twice</b>, once per lane.
+      Nothing on screen says "×2" — you just see both.</p>` },
 
   { n:3, title:'Oxidation', phase:'payoff', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
-    body:`<p>Each G3P is <b>oxidised</b>: it loses two electrons and a hydrogen, and
-      <b>NAD⁺</b> catches them to become <b>NADH</b>. Two lanes, so <b>2 NADH</b>.</p>
-      <p>A <b>free phosphate</b> already floating in the cytosol fills the empty spot.
-      It did <b>not</b> cost an ATP — a very common misreading.</p>
-      <p class="misc">NADH is the real prize. Later, in the mitochondrion, each NADH
-      is worth roughly <b>2.5 ATP</b> — so this pathway's 2 NADH quietly outweigh
-      its 2 net ATP, <i>if</i> oxygen is around.</p>` },
+    body:`<p>The <b>only oxidation in the whole pathway</b>, and worth being precise
+      about: G3P <b>loses electrons</b>, so it is oxidised. <b>NAD⁺</b> gains them
+      (two electrons and a proton — a hydride) and becomes <b>NADH</b>.</p>
+      <p>A <b>free phosphate</b> from the cytosol, not from ATP, fills the vacated
+      position. The product is an <b>acyl phosphate</b>, and the oxidation is what
+      paid for it.</p>
+      <p class="misc">NADH is the larger prize. If oxygen is available, each one is
+      worth roughly 2.5 ATP downstream — so these 2 NADH outweigh the pathway's 2
+      net ATP several times over.</p>` },
 
   { n:4, title:'Payoff', phase:'payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
-    body:`<p>Now the phosphates come back off — and each one is handed <b>directly</b>
-      to an ADP. Two phosphates per lane, two lanes: <b>4 ATP</b>.</p>
-      <p>This is <b>substrate-level phosphorylation</b>: an enzyme moves a phosphate
-      straight from a substrate onto ADP. No membrane, no gradient, no oxygen —
-      unlike the ATP synthase that does the bulk of the work later.</p>
+    body:`<p>Four steps, two of which charge ADP. Both work by <b>substrate-level
+      phosphorylation</b>: an enzyme hands a phosphate straight from a substrate to
+      ADP — no membrane, no gradient, no oxygen.</p>
+      <p>That only works when the donor's <b>phosphoryl-transfer potential</b> is
+      higher than ATP's. The acyl phosphate of 1,3-BPG qualifies; the plain ester on
+      3-phosphoglycerate does not, which is exactly why steps 8 and 9 exist — to
+      move that phosphate and then dehydrate the molecule into <b>PEP</b>, the
+      highest-potential phosphate donor in the cell.</p>
       <p class="misc">Count the phosphates leaving the screen. Four out, and every one
       of them lands on an ADP.</p>` },
 
   { n:5, title:'The tally', phase:null, label:'Tally & what comes next', delta:'net +2 ATP',
-    body:`<p>Two <b>pyruvate</b>. Six carbons in, six carbons out — nothing was lost,
+    body:`<p>Two <b>pyruvate</b>. Six carbons in, six carbons out — nothing was lost;
       it was cut in half and drained of a little energy.</p>
       <p>Per glucose: <b>4 ATP made − 2 ATP spent = net 2 ATP</b>, plus <b>2 NADH</b>.
-      That's under 5% of the energy in the glucose. The rest is still locked up in
+      That is roughly <b>5%</b> of the energy in the glucose. The rest is still in
       those two pyruvate.</p>
-      <p class="misc">Notice the ledger: <b>NAD⁺ is now 0</b>. Glycolysis cannot run
-      another round until NAD⁺ is regenerated — and <i>how</i> the cell does that is
-      exactly what the fork below is about.</p>` },
+      <p class="misc">Look at the ledger: <b>NAD⁺ is 0</b>. NAD⁺ is a <i>carrier</i>,
+      not a fuel — the cell has a fixed, small pool of it. Glycolysis stops dead
+      until it is regenerated, and that constraint is what the fork below is really
+      about.</p>` },
 ];
 
-// The canonical ten, for the toggle. `stage` says which of our five covers it.
-const REAL_STEPS=[
-  {n:1, stage:1, t:'Glucose → G6P', e:'hexokinase', note:'spends ATP'},
-  {n:2, stage:1, t:'G6P → fructose-6-phosphate', e:'phosphoglucose isomerase'},
-  {n:3, stage:1, t:'F6P → fructose-1,6-bisphosphate', e:'phosphofructokinase', note:'spends ATP · main control point'},
-  {n:4, stage:2, t:'F1,6BP → DHAP + G3P', e:'aldolase'},
-  {n:5, stage:2, t:'DHAP → G3P', e:'triose-phosphate isomerase'},
-  {n:6, stage:3, t:'G3P → 1,3-BPG', e:'G3P dehydrogenase', note:'makes NADH · adds free Pi'},
-  {n:7, stage:4, t:'1,3-BPG → 3-phosphoglycerate', e:'phosphoglycerate kinase', note:'makes ATP'},
-  {n:8, stage:4, t:'3-PG → 2-phosphoglycerate', e:'phosphoglycerate mutase'},
-  {n:9, stage:4, t:'2-PG → phosphoenolpyruvate', e:'enolase', note:'releases water'},
-  {n:10,stage:4, t:'PEP → pyruvate', e:'pyruvate kinase', note:'makes ATP'},
-];
+// Where each stage's steps come from — derived, never typed, so adding a step
+// cannot leave a stage claiming the wrong range.
+const stageSteps=n=>STEPS.filter(s=>s.stage===n);
+const stageRange=n=>{ const k=stageSteps(n); return k.length? (k.length===1?`Step ${k[0].n}`
+  :`Steps ${k[0].n}–${k[k.length-1].n}`) : ''; };
+
+/* ---- the regulation panel: PFK-1, and why the cell controls step 3 ----------
+ * Attached to the step, not the stage, so it appears exactly when the student is
+ * about to click PFK-1 and not a moment before. The three irreversible steps are
+ * derived from STEPS' `rev` flags rather than listed again here. */
+const PFK={
+  title:'PFK-1 — the committed step',
+  body:`Steps 1 and 2 are reversible detours: G6P can still leave for glycogen or
+    the pentose phosphate pathway. Once PFK-1 acts, the carbon has no fate but
+    pyruvate. A pathway is regulated at its <b>first irreversible, committed</b>
+    step, and that is this one.`,
+  on:[ ['AMP','the cell is short of energy'],
+       ['Fructose-2,6-bisphosphate','signals plenty of glucose'] ],
+  off:[ ['ATP','the cell already has energy'],
+        ['Citrate','the Krebs cycle is backed up'] ],
+  note:`This is <b>allosteric</b> regulation — the effectors bind away from the
+    active site and change the enzyme's shape. Note that ATP is both PFK-1's
+    substrate and its inhibitor: at high concentration it binds a second, lower-
+    affinity site and slows the enzyme down. That is negative feedback.`
+};
 
 /* =============================================================
  *  DERIVED STATE — everything is a function of `done`
@@ -398,23 +495,35 @@ const LANE=5.6;                               // half-separation of the two lane
 let lanes=[];                                 // [{g, key, label}] left→right
 let busy=false;                               // a transition is animating
 
-// Species name plates, drawn to canvas and billboarded as sprites. Kept in the
-// 3D scene rather than as HTML overlays so they orbit and scale WITH the
-// molecule they name — an HTML label would drift off its molecule on rotate.
-function makePlate(text, sub){
-  const c=document.createElement('canvas'), s=2;         // s = supersample
-  c.width=520*s; c.height=150*s;
-  const x=c.getContext('2d'); x.scale(s,s);
-  x.font='700 44px "Zilla Slab", Georgia, serif';
-  x.textAlign='center'; x.textBaseline='middle';
-  x.fillStyle='#2b2723'; x.fillText(text,260,44);
-  x.font='500 32px "Zilla Slab", Georgia, serif';
-  x.fillStyle='#8a8073'; x.fillText(sub||'',260,92);
-  const t=new THREE.CanvasTexture(c); t.anisotropy=4;
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));
-  sp.scale.set(7.0,2.02,1); sp.renderOrder=9;
-  return sp;
+// SPECIES NAMES ARE HTML, NOT SPRITES. They used to be canvas textures
+// billboarded in the scene, so they would follow the molecule on orbit for
+// free. The cost was everything else: text resampled at every zoom, the webfont
+// baked into a texture (so the first paint had to be thrown away and redrawn
+// once the font landed), no selecting or copying a name, and a label whose size
+// was tied to the camera rather than to the page's type scale.
+//
+// So they are DOM now, and the tracking that came free is paid for explicitly:
+// every frame, each lane's anchor point is projected through the camera and the
+// label is positioned over it (drawPlates, called from the render loop). That
+// is the one thing that must not be dropped — an HTML label that is not
+// re-projected drifts off its molecule the moment the scene rotates.
+const platesEl=document.getElementById('plates');
+function makePlate(spec){
+  const d=document.createElement('div');
+  d.className='plate';
+  d.innerHTML=`<div class="pn">${spec.name}</div><div class="pf">${spec.formula}</div>`;
+  platesEl.appendChild(d);
+  return d;
 }
+// How tall the label strip is, in PIXELS — the fit reserves this at the top of
+// the stage the same way it reserves the tray at the bottom. Measured off a
+// live label rather than assumed, so restyling the type moves the camera with
+// it. Falls back to a sane guess before the first label exists.
+function plateHeightPx(){
+  const d=platesEl.firstElementChild;
+  return d ? d.getBoundingClientRect().height+PLATE_GAP_PX : 46;
+}
+const PLATE_GAP_PX=10;
 
 function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
 
@@ -424,9 +533,25 @@ function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
 // them behind a toggle), so they are hidden on build and excluded from every
 // measurement below — otherwise a hydrogen nobody can see would still push
 // glucose's name plate up and widen the shared camera fit.
+// EVERY MEASUREMENT BELOW HAPPENS IN THE ORIENTATION THE MOLECULE IS BUILT IN.
+// Stage.buildMolecule applies `spec.view` AFTER laying the atoms out, and
+// Stage.measure re-applies it before measuring for precisely this reason. This
+// page's fit used to read `a.pos[1]` raw — fine for the pathway's chains, which
+// declare no view, and wrong for glucose, the one spec here that does: the page
+// opened framed for a molecule in an orientation it is never drawn in, so the
+// ring hung off two edges and the name plate landed on top of it.
+const viewQuat=spec=>spec.view
+  ? new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'))
+  : null;
 const visibleAtoms=spec=>{
-  const opt=new Set(spec.optH||[]);
-  return spec.atoms.filter((_,i)=>!opt.has(i));
+  const opt=new Set(spec.optH||[]), q=viewQuat(spec);
+  const keep=spec.atoms.filter((_,i)=>!opt.has(i));
+  if(!q) return keep;
+  return keep.map(a=>{
+    const v=new THREE.Vector3(a.pos[0],a.pos[1],a.pos[2]).applyQuaternion(q);
+    return {el:a.el, pos:[v.x,v.y,v.z]};
+  });
 };
 
 // highest / lowest point of a spec including sphere radii — the specs vary from a
@@ -446,17 +571,35 @@ function spawnLane(key,i,n,topY){
   const g=Stage.buildMolecule(spec);
   Stage.setOptionalH(g,false);          // no C–H on this page — see visibleAtoms
   g.position.set(laneX(i,n),0,0);
-  const long=spec.name.length>22;
-  const plate=makePlate(long?spec.formula:spec.name, long?spec.name:spec.formula);
-  plate.position.set(0, topY, 0);
-  g.add(plate);
   root.add(g);
-  return {g,key,plate};
+  return {g,key,plate:makePlate(spec),topY};
 }
-function clearLanes(){ lanes.forEach(l=>root.remove(l.g)); lanes=[]; }
+function clearLanes(){
+  lanes.forEach(l=>{ root.remove(l.g); l.plate.remove(); });
+  lanes=[];
+}
 
-const PLATE_H=2.02, PLATE_GAP=1.5;
-const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP+PLATE_H/2;
+// The world point a lane's label is pinned above. `topY` is shared across the
+// lanes rather than derived per molecule: DHAP carries its phosphate on C1 and
+// G3P on C3, so per-molecule anchors differed by 3.3 units and the two labels
+// sat at visibly different heights — which reads as "these are different sizes".
+const PLATE_GAP=0.8;
+const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP;
+
+// Project each lane's anchor and park its label over it. Called every frame
+// from the render loop — see the note on makePlate. `l.g.position.x` is read
+// live rather than from laneX() so the labels ride the halves apart during the
+// split instead of snapping to the final lane positions.
+const projV=new THREE.Vector3();
+function drawPlates(){
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  camera.updateMatrixWorld();          // safe to call off-loop (restart, resize)
+  lanes.forEach(l=>{
+    projV.set(l.g.position.x, l.topY, 0).project(camera);
+    l.plate.style.left=((projV.x*0.5+0.5)*w)+'px';
+    l.plate.style.top =((-projV.y*0.5+0.5)*h)+'px';
+  });
+}
 
 // ---- framing ---------------------------------------------------------------
 // ONE SCALE FOR THE WHOLE PATHWAY. Auto-fitting each state to the frame would
@@ -479,8 +622,8 @@ function fitFor(states){
       visibleAtoms(M[k]).forEach(a=>{ const r=PAL.radii[a.el]||0.7;
         lo=Math.min(lo,a.pos[1]-r); hi=Math.max(hi,a.pos[1]+r);
         wide=Math.max(wide, x+Math.abs(a.pos[0])+r); }); });
-    top=Math.max(top, plateY(keys)+PLATE_H/2);
-    wide=Math.max(wide, (n>1?LANE:0)+3.6);            // name plates are ~7 wide
+    top=Math.max(top, plateY(keys));
+    wide=Math.max(wide, (n>1?LANE:0)+2.0);
   });
   // Centre on the MOLECULES, not on the molecules-plus-label: letting the plate
   // pull the centre up shoved the molecule down into the reagent tray. The plate
@@ -489,8 +632,48 @@ function fitFor(states){
   const halfNeeded=Math.max(top-Y, Y-lo);
   // aspect is NaN until the first ResizeObserver tick, so don't trust it blindly
   const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
-  return { Y, R:Math.max(15, Math.min(52,
-    Math.max(halfNeeded/HALF_FOV, wide/(HALF_FOV*asp))*1.14)) };
+  const u=usable();
+  const R=Math.max(15, Math.min(90,
+    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp))*1.14));
+  // Centre the molecule in the band ABOVE the tray by dropping the camera
+  // target, rather than insetting both edges. The tray obstructs ONE edge, so
+  // charging the fit at top and bottom paid twice for it — on the stacked
+  // narrow layout, where the tray is half the stage's height, that shrank
+  // glucose to a speck. A shift costs the fit nothing.
+  return { Y: Y - u.shift*R*HALF_FOV, R };
+}
+
+// THE STAGE IS NOT AN EMPTY RECTANGLE. The reagent tray sits over its bottom
+// edge, dead centre, so a molecule fitted to the raw canvas is fitted to space
+// that is already spoken for — which is how glucose's C6 ended up behind the
+// tray. The intrusion is MEASURED off the live element rather than typed as a
+// constant, so restyling the tray moves the camera with it.
+//
+// ONLY THE TRAY COUNTS. The ledger overlaps the stage too, but it is
+// translucent, sits at the TOP-left rather than down the whole edge, and the
+// molecules here are tall and narrow — charging the fit for it halved every
+// molecule on screen to buy clearance nothing needed. Vertical only.
+// `v` is the fraction of the canvas height left over once the obstructed strips
+// at top and bottom are removed; `shift` is how far (as a fraction of full
+// canvas height) the camera target must move to centre the molecule in what
+// remains. A positive shift drops the target, pushing the molecule up-screen.
+//
+// TWO STRIPS NOW, NOT ONE. The tray covers the bottom, and since the species
+// labels became HTML they occupy a fixed PIXEL band at the top rather than a
+// world-space box the projection scaled with — so the top is reserved here, in
+// the same units, instead of inside fitFor. That is the whole reason the label
+// height is measured off a live element: it is chrome, exactly like the tray.
+function usable(){
+  const c=canvas.getBoundingClientRect();
+  if(!c.height) return {v:1,shift:0};
+  const e=document.getElementById('tray');
+  const bottom=(e&&e.getClientRects().length)
+    ? Math.max(0, c.bottom-e.getBoundingClientRect().top) : 0;
+  const top=plateHeightPx();
+  const cap=c.height*0.6;                     // never eat more than 60% in total
+  const k=(top+bottom)>cap ? cap/(top+bottom) : 1;
+  const t=top*k, b=bottom*k;
+  return { v:Math.max(0.4, (c.height-t-b)/c.height), shift:(b-t)/c.height };
 }
 let fitR=24, fitY=0;
 function computeFit(){
@@ -618,6 +801,29 @@ function runStep(){
       busy=false; refresh(); flashMsg(st.msg); }, SPLIT);
     return;
 
+  } else if(st.fx==='move'){
+    // THE MUTASE: the phosphate does not leave and does not come from the pool —
+    // it slides from C3 to C2 on the same molecule. Drawn as a short flight
+    // between the two sites so it reads as the SAME phosphate relocating, which
+    // is the difference between step 8 and every other phosphate beat here.
+    lanes.forEach((l,j)=>{
+      const src=anchorWorld(l,st.anchor);
+      const dst=siteWorld(keys[j],st.dest,laneX(j,n));
+      flyPhosphate(src,dst);
+      later(()=>FXi.spawnRing(dst,PAL.atoms.P), FLY);
+    });
+
+  } else if(st.fx==='lose'){
+    // ENOLASE: a water leaves. It goes UP and out, in the same direction NAD⁺
+    // took the hydride at step 6, because both are "something departs" — the
+    // phosphate beats all move along the vertical axis in the opposite sense.
+    lanes.forEach(l=>{
+      const idx=M[l.key].gly[st.anchor];
+      const pos=idx!=null? l.g.userData.atomWorld(idx) : anchorWorld(l,'p2');
+      FXi.spawnRing(pos, PAL.atoms.O);
+      FXi.protonHop(pos, V(l.g.position.x, OFFSCREEN, 0));
+    });
+
   } else dur=280;                              // 'iso': a plain rearrangement
 
   later(()=>{ done=to; renderLanes(to);
@@ -688,19 +894,42 @@ const railEl=document.getElementById('rail');
 function drawRail(){
   const cur=stageAt(done);
   railEl.innerHTML='';
+  // Jump to the state just BEFORE step k, so the student re-runs it rather than
+  // landing on its aftermath. Shared by the stage rows and the step rows.
+  const goto=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
   STAGES.forEach(s=>{
     const cls=s.n<cur?'done':(s.n===cur?'cur':'future');
     const d=document.createElement('div');
     d.className='rstage '+cls;
-    d.innerHTML=`<div class="rdot">${s.n||'·'}</div><div class="rlab">${s.label}</div>`
+    d.innerHTML=`<div class="rdot">${s.n||'·'}</div>`
+      +`<div class="rlab">${s.label}`
+      +(stageRange(s.n)?`<span class="rsteps">${stageRange(s.n)}</span>`:'')+`</div>`
       +`<div class="rdelta">${s.delta}</div>`;
-    // clicking a completed stage rewinds to its first step — teachers re-show steps
     d.onclick=()=>{ if(busy||s.n>cur) return;
       const k=STEPS.findIndex(x=>x.stage===s.n);
       intro=(s.n===0);
       done=(s.n===0?0:(s.n===5?nSteps:(k<0?done:k)));
       renderLanes(done); refresh(); };
     railEl.appendChild(d);
+
+    // The current stage expands into its steps. Only the current one: ten rows
+    // permanently on screen is a list to skim past, five with three showing is a
+    // position in a pathway.
+    if(s.n===cur && stageSteps(s.n).length){
+      const wrap=document.createElement('div');
+      wrap.className='rsub';
+      stageSteps(s.n).forEach(st=>{
+        const idx=STEPS.indexOf(st);
+        const state=idx<done?'sdone':(idx===done?'scur':'sfuture');
+        const r=document.createElement('div');
+        r.className='rstep '+state;
+        r.innerHTML=`<span class="sn">${st.n}</span><span class="se">${st.enz}</span>`
+          +(st.rev===false?`<span class="sirr" title="effectively irreversible in the cell">⇢</span>`:'');
+        if(idx<done) r.onclick=()=>goto(idx);
+        wrap.appendChild(r);
+      });
+      railEl.appendChild(wrap);
+    }
   });
 }
 
@@ -708,7 +937,13 @@ const cardEl=document.getElementById('cardtext'), titleEl=document.getElementByI
       phaseEl=document.getElementById('phase');
 function drawCard(){
   const s=STAGES[stageAt(done)], st=(!intro&&done<nSteps)?stepAt(done):null;
-  titleEl.innerHTML=`<span class="stageno">${s.n?'Stage '+s.n+' of 5':'Starting point'}</span>${s.title}`;
+  // The eyebrow carries BOTH numbers when there is a step to carry: the stage is
+  // the arc, the step is the position, and a student who only reads one of them
+  // should still be able to place themselves.
+  const eyebrow = !s.n ? 'Starting point'
+    : st ? `Stage ${s.n} of 5 · Step ${st.n} of ${nSteps}`
+    : `Stage ${s.n} of 5`;
+  titleEl.innerHTML=`<span class="stageno">${eyebrow}</span>${s.title}`;
   phaseEl.textContent=s.phase==='invest'?'Investment phase'
     :s.phase==='payoff'?'Payoff phase':s.phase==='split'?'The split':'';
   phaseEl.className=s.phase||'';
@@ -716,17 +951,50 @@ function drawCard(){
   cardEl.innerHTML=(st?`<p class="enz">Next enzyme: <b>${st.enz}</b></p>`:'')+s.body;
 }
 
-const realListEl=document.getElementById('reallist');
-function drawReal(){
-  const cur=stageAt(done);
-  realListEl.innerHTML=REAL_STEPS.map(r=>
-    `<div class="rs${r.stage===cur?' here':''}"><span class="n">${r.n}</span>`
-    +`<span>${r.t} — <i>${r.e}</i>${r.note?` · ${r.note}`:''}</span></div>`).join('');
+/* The panel under the card. It shows ONE of three things, in priority order:
+ * PFK-1's regulation when that step is next (the page's one piece of real
+ * regulatory biology, and it should not have to compete for attention), the
+ * current step's reversibility otherwise, and the gluconeogenesis consequence
+ * once the pathway is finished. */
+const noteEl=document.getElementById('stepnote');
+const irrevSteps=()=>STEPS.filter(s=>s.rev===false);
+function drawNote(){
+  const st=(!intro&&done<nSteps)?stepAt(done):null;
+  if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
+  noteEl.style.display='block';
+
+  if(st && st.commit){
+    noteEl.innerHTML=`<div class="nhead reg">${PFK.title}</div>`
+      +`<p class="nbody">${PFK.body}</p>`
+      +`<div class="effrow"><div class="eff on"><div class="eh">Speeds it up</div>`
+        +PFK.on.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div>`
+      +`<div class="eff off"><div class="eh">Slows it down</div>`
+        +PFK.off.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div></div>`
+      +`<p class="nbody">${PFK.note}</p>`;
+    return;
+  }
+  if(st){
+    // Reversibility is stated per step because it is the property that decides
+    // which steps CAN be regulated — a near-equilibrium step run backwards is
+    // just the same enzyme, so controlling it controls nothing.
+    noteEl.innerHTML = st.rev===false
+      ? `<div class="nhead irr">Irreversible in the cell</div>`
+        +`<p class="nbody">This step releases too much free energy to run backwards.
+           That makes it a place the cell <b>can</b> regulate — and a place
+           gluconeogenesis has to route around with a different enzyme.</p>`
+      : `<div class="nhead rev">Near equilibrium — reversible</div>`
+        +`<p class="nbody">This step sits close to equilibrium, so the same enzyme
+           runs it in either direction depending on which side is more
+           concentrated. Nothing here is worth regulating.</p>`;
+    return;
+  }
+  noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
+    +`<p class="nbody">Only <b>${irrevSteps().map(s=>s.n).join(', ')}</b> —
+       ${irrevSteps().map(s=>s.enz.replace(/ \(.*\)/,'')).join(', ')} — are
+       irreversible. The other seven run in both directions, which is why
+       <b>gluconeogenesis</b> reuses seven of these ten enzymes and needs new ones
+       only to bypass those three.</p>`;
 }
-document.getElementById('realtoggle').onclick=()=>{
-  const open=realListEl.classList.toggle('open');
-  document.getElementById('realcaret').className='ph-bold ph-caret-'+(open?'down':'right');
-};
 
 const nextEl=document.getElementById('next');
 function drawFooter(){
@@ -745,17 +1013,28 @@ const forkEl=document.getElementById('fork');
 function drawFork(){
   if(intro || done<nSteps){ forkEl.style.display='none'; return; }
   forkEl.style.display='flex';
+  // Three fates, not two. The two fermentations are different reactions with
+  // different products and different organisms, and collapsing them into
+  // "fermentation" is what leaves students unable to say why muscle makes
+  // lactate and yeast makes ethanol. All three are framed by the SAME question —
+  // where does NAD⁺ come from — because that is the constraint that picks one.
   forkEl.innerHTML=
      `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
-        <div class="db">Pyruvate enters the <b>mitochondrion</b> → Krebs cycle →
-        electron transport. ~30 more ATP per glucose.</div></div>`
-    +`<div class="door"><div class="dh">Without O₂ <i>— fermentation</i></div>
-        <div class="db">Pyruvate accepts the NADH's electrons instead, regenerating
-        <b>NAD⁺</b> so glycolysis can keep running. <b>No extra ATP.</b></div></div>`;
+        <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
+        acetyl-CoA, then the citric acid cycle and the electron transport chain.
+        <b>~30 ATP</b> per glucose, and NAD⁺ is regenerated there.</div></div>`
+    +`<div class="door"><div class="dh">No O₂ <i>— lactic acid</i></div>
+        <div class="db">Pyruvate itself takes the <b>NADH</b>'s electrons and becomes
+        <b>lactate</b>. Muscle under load, and most bacteria. <b>No extra ATP</b> —
+        the only product that matters is <b>NAD⁺</b>.</div></div>`
+    +`<div class="door"><div class="dh">No O₂ <i>— ethanol</i></div>
+        <div class="db">Yeast decarboxylates pyruvate to acetaldehyde first, losing
+        a <b>CO₂</b>, then reduces that to <b>ethanol</b>. Same purpose: regenerate
+        <b>NAD⁺</b> so glycolysis can keep turning.</div></div>`;
 }
 
 function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawCard();
-  drawReal(); drawFooter(); drawFork(); }
+  drawNote(); drawFooter(); drawFork(); }
 
 nextEl.onclick=()=>{ if(intro){ intro=false; refresh(); } };
 document.getElementById('restart').onclick=restart;
@@ -777,23 +1056,56 @@ function loop(){
   if(!userZoom) cam.r+=(fitR-cam.r)*0.05;        // ease to the computed framing
   cam.target.y+=(fitY-cam.target.y)*0.06;        // …and re-centre vertically
   applyCam(); FXi.step();
-  renderer.render(scene,camera); requestAnimationFrame(loop);
+  renderer.render(scene,camera);
+  // AFTER the render, never before. Vector3.project() reads the camera's
+  // matrixWorldInverse, which only gets refreshed when the scene is rendered —
+  // so projecting first positions the labels with the PREVIOUS frame's camera.
+  // That is invisible during the idle drift and very visible during the zoom
+  // ease and the split, when the camera moves a long way in one frame.
+  drawPlates();
+  requestAnimationFrame(loop);
 }
 
 renderLanes(0); refresh(); applyCam(); resize();
+// Re-solve AFTER refresh(). The first computeFit happens inside renderLanes(),
+// which runs before the tray has any children — so it measures a zero-height
+// tray, insets nothing, and the page would open one frame too close before the
+// loop eased it back out. refresh() has drawn the tray by here.
+computeFit();
 cam.target.y=fitY; cam.r=fitR; applyCam();      // open already framed, don't ease in
 requestAnimationFrame(loop);
 // the fit depends on camera.aspect, so it has to be redone whenever the stage
 // reshapes (window resize, or the sidebar stacking under it on a narrow screen)
 new ResizeObserver(computeFit).observe(canvas);
-// name plates are canvas text: redraw them once the webfont actually lands,
-// otherwise the first paint bakes the Georgia fallback into the texture
-if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>renderLanes(done));
+// The labels are DOM, so the webfont swaps into them on its own — but their
+// HEIGHT is chrome the fit reserves, and that height changes when the real font
+// replaces the fallback. So re-solve once the font lands. (This used to redraw
+// the whole scene, because the font had been baked into a canvas texture.)
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(computeFit);
 
 document.getElementById('savepng').onclick=()=>{
   renderer.render(scene,camera);
+  // The species labels are DOM now, so they are NOT in the WebGL buffer and a
+  // straight canvas.toDataURL() would export unnamed molecules. Composite them
+  // back in from the same projected anchors drawPlates() uses. This is the one
+  // place canvas text survives, and it is worth the duplication: an export that
+  // silently drops the labels is worse than fifteen lines of 2D drawing.
+  const w=canvas.width, h=canvas.height, s=w/(canvas.clientWidth||w);   // DPR
+  const out=document.createElement('canvas'); out.width=w; out.height=h;
+  const x=out.getContext('2d');
+  x.drawImage(canvas,0,0);
+  x.textAlign='center';
+  lanes.forEach(l=>{
+    const spec=M[l.key];
+    projV.set(l.g.position.x,l.topY,0).project(camera);
+    const px=(projV.x*0.5+0.5)*w, py=(-projV.y*0.5+0.5)*h;
+    x.font=`500 ${14*s}px "Zilla Slab", Georgia, serif`;
+    x.fillStyle='#8a8073'; x.fillText(spec.formula, px, py-3*s);
+    x.font=`700 ${19*s}px "Zilla Slab", Georgia, serif`;
+    x.fillStyle='#2b2723'; x.fillText(spec.name, px, py-20*s);
+  });
   const a=document.createElement('a'); a.download='glycolysis.png';
-  a.href=canvas.toDataURL('image/png'); a.click();
+  a.href=out.toDataURL('image/png'); a.click();
 };
 </script>
 </body>
