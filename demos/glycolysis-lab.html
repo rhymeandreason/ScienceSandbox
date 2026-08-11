@@ -60,21 +60,6 @@
     pointer-events:none}
   #bottombar>*{pointer-events:auto}
 
-  /* THE ENZYME, directly over the caption it belongs to. It names the ACTION
-     the student just watched, which is why it is on the stage and not in the
-     rail — the rail numbers the molecules now. Reserved with `visibility` and a
-     fixed line box for the same reason #actbtn is: #bottombar's height is what
-     the camera measures along the bottom edge, so a slot that appears and
-     disappears would re-frame the whole scene between steps. */
-  #enzyme{min-height:15px;line-height:15px;font-family:var(--font-slab);
-    font-weight:700;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;
-    color:var(--muted);text-align:center;visibility:hidden}
-  #enzyme.show{visibility:visible}
-  /* the three one-way steps carry their marker here too, so the stage and the
-     rail agree about which steps a cell cannot run backwards */
-  #enzyme .irr{color:var(--phos);letter-spacing:0}
-  @media (max-width:920px){ #enzyme{font-size:10px} }
-
   /* THE STEP CAPTION. Was a 4.6s toast in the handwriting face at the TOP of
      the stage, which put the essential sentence of each step in the one place
      a student is not looking (they are watching the molecule) and then took it
@@ -202,6 +187,12 @@
     box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
   #actbtn:hover{background:#000;transform:translateY(-2px)}
   #actbtn.begin{font-size:17px;padding:13px 30px}
+  /* the reagent steps' caption in the same slot: it names the enzyme but must
+     not look like the thing to click — that is the reagent. So it keeps the
+     type and loses everything that says "button": fill, border, shadow, hover. */
+  #actbtn.ghost{background:none;border-color:transparent;color:var(--ink);
+    box-shadow:none;cursor:default}
+  #actbtn.ghost:hover{background:none;transform:none}
   #actbtn .hint{display:block;font-family:var(--font-sans);font-weight:500;font-size:12.5px;
     letter-spacing:.2px;opacity:.75;margin-top:2px}
 
@@ -375,9 +366,6 @@
          whether or not a button or a caption happens to be showing. -->
     <div id="bottombar">
       <button id="actbtn"></button>
-      <!-- the enzyme that just acted. On the stage, not the rail, because it
-           names an ACTION and the action is what the student just watched -->
-      <div id="enzyme"></div>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
            node its own flex item, which shreds the sentence into columns -->
@@ -492,7 +480,7 @@ const STEPS=[
     msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. Phosphorylating a sugar is uphill on its own — <b>coupling</b> it to ATP hydrolysis is what makes it go. The charge also <b>traps the sugar inside the cell</b>: no transporter will carry it back out.` },
 
   { n:2, stage:1, reagent:null,
-    act:'Shift the carbonyl to C2', actHint:'phosphoglucose isomerase · aldose → ketose',
+    act:'Shift the carbonyl to C2',
     species:['f6p'], enz:'Phosphoglucose isomerase', rev:true,
     fx:'iso',
     msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent and nothing is made — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
@@ -505,13 +493,13 @@ const STEPS=[
     msg:`A second <b>ATP</b> phosphorylates carbon 1. This is the <b>committed step</b> — and the one the cell regulates.` },
 
   { n:4, stage:2, reagent:null,
-    act:'Cleave the C3–C4 bond', actHint:'aldolase · 6 carbons → 3 + 3',
+    act:'Cleave the C3–C4 bond',
     species:['dhap','g3p'], enz:'Aldolase', rev:true,
     fx:'split',
     msg:`Six carbons become <b>3 + 3</b>. Each half keeps one <span class="p">phosphate</span> — which is why two were paid in. <i>Glyco-</i> sugar, <i>-lysis</i> splitting: this is the step the pathway is named after.` },
 
   { n:5, stage:2, reagent:null,
-    act:'Convert DHAP → G3P', actHint:'triose-phosphate isomerase · the halves are not identical yet',
+    act:'Convert DHAP → G3P',
     species:['g3p','g3p'], enz:'Triose-phosphate isomerase', rev:true,
     fx:'iso',
     msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Both lanes are now identical — everything from here happens <b>twice</b>.` },
@@ -529,13 +517,13 @@ const STEPS=[
     msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it can be handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
-    act:'Move the phosphate C3 → C2', actHint:'phosphoglycerate mutase · no ATP, no carbon change',
+    act:'Move the phosphate C3 → C2',
     species:['pga2','pga2'], enz:'Phosphoglycerate mutase', rev:true,
     fx:'move', anchor:'p3', dest:'p2',
     msg:`The phosphate slides from carbon 3 to carbon 2. On C3 it was an ordinary ester and <b>could not</b> charge ADP — this move sets up the step that changes that.` },
 
   { n:9, stage:4, reagent:null,
-    act:'Remove a water', actHint:'enolase · dehydration creates the high-energy bond',
+    act:'Remove a water',
     species:['pep','pep'], enz:'Enolase', rev:true,
     fx:'lose', anchor:'oh3',
     msg:`A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. No energy was added — the molecule was <i>rearranged</i> into a strained form, and that strain is now stored in the phosphate bond.` },
@@ -565,8 +553,8 @@ const STEPS=[
 //   each NADH is worth ~2.5 ATP later  → the aerobic door of the fork
 //   net 2 ATP ≈ 5% of glucose's energy → step 10's caption
 //
-// Everything else the bodies said is on screen already: the rail names every
-// enzyme, the ledger carries the carbon count and the running totals, the tray
+// Everything else the bodies said is on screen already: the action button names
+// the enzyme, the ledger carries the carbon count and the running totals, the tray
 // carries the pools, and #stepnote carries reversibility and PFK-1.
 const STAGES=[
   { n:0,                     label:'Start: one glucose', delta:'6 C' },   // no title: stage 0 keeps the lesson name
@@ -1098,7 +1086,6 @@ function restart(){ cancelTimers(); busy=false; done=0; intro=true;
  *  UI
  * ============================================================= */
 const rxmsgEl=document.getElementById('rxmsg');
-const enzEl=document.getElementById('enzyme');
 // THE CAPTION IS DERIVED, like everything else here: it is the message of the
 // step that PRODUCED the state now on screen. That is what makes rewinding work
 // — the caption for step 6 reappears when you step back onto it, without
@@ -1110,19 +1097,10 @@ const enzEl=document.getElementById('enzyme');
 const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
   +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
 const captionAt=i=>intro ? INTRO_MSG : (i>0 ? STEPS[i-1].msg : '');
-// The enzyme is read off the SAME step as the caption — the one that produced
-// what is on screen — so the two lines are one credit for one action, and a
-// rewind restores them together without either remembering anything.
-const enzymeAt=i=>intro||i===0 ? null : STEPS[i-1];
+// NO SEPARATE ENZYME LINE ON THE STAGE. The action button names the enzyme
+// ABOUT to act, which is the only place the name does any work — printing it
+// again underneath after the fact was the same word twice on one screen.
 let shownCaption=null;
-function drawEnzyme(){
-  const st=enzymeAt(done);
-  enzEl.classList.toggle('show', !!st);
-  enzEl.innerHTML = st
-    ? st.enz + (st.rev===false
-        ? ` <span class="irr" title="effectively irreversible in the cell">⇢</span>` : '')
-    : '';
-}
 function drawCaption(){
   const html=captionAt(done);
   if(html===shownCaption) return;              // don't restart the fade on every refresh
@@ -1187,17 +1165,35 @@ function drawAct(){
   if(intro){
     actEl.style.visibility='visible';
     actEl.className='begin';
-    actEl.innerHTML=`Begin →<span class="hint">one glucose, ten steps to pyruvate</span>`;
+    // The enzyme is the main text here too, because the enzyme is what starts
+    // the reaction — Begin is only how you tell it to go.
+    actEl.innerHTML=`${STEPS[0].enz}<span class="hint">Begin →</span>`;
     actEl.onclick=()=>{ intro=false; refresh(); };
     return;
   }
   actEl.className='';
   const st=done<nSteps?stepAt(done):null;
-  if(st && !st.reagent && !busy){
-    actEl.style.visibility='visible';
-    actEl.innerHTML=`${st.act}<span class="hint">${st.actHint}</span>`;
+  if(!st || busy){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+  actEl.style.visibility='visible';
+  // THE ENZYME IS THE MAIN TEXT, on every step and on Begin — the enzyme is what
+  // starts the reaction, so it is what you press. The action it performs drops to
+  // the hint line, in one short phrase; the second clause each step used to carry
+  // there (`actNote`) is gone, because a button is not where a lesson goes.
+  if(st.reagent){
+    // A REAGENT STEP HAS NO BUTTON — the click belongs on the reagent, which is
+    // the lesson (you cannot phosphorylate anything without spending an ATP).
+    // So the slot becomes a caption instead of a control: it names the enzyme
+    // about to act and stays visibly unclickable, while the tray's own arrow
+    // says what to spend. Same slot, same height, no second way to advance.
+    actEl.className='ghost';
+    // The hint stays generic: `need` is already printed beside the live reagent,
+    // and saying it twice on one screen is the repetition this pass removes.
+    actEl.innerHTML=`${st.enz}<span class="hint">click the highlighted reagent</span>`;
+    actEl.onclick=null;
+  } else {
+    actEl.innerHTML=`${st.enz}<span class="hint">${st.act.charAt(0).toLowerCase()+st.act.slice(1)}</span>`;
     actEl.onclick=runStep;
-  } else { actEl.style.visibility='hidden'; actEl.onclick=null; }
+  }
 }
 
 const railEl=document.getElementById('rail');
@@ -1268,7 +1264,7 @@ const LESSON=titleEl.textContent.trim();
 // this heading in turn, each because something else on screen already said it:
 // a "Stage 2 of 5 \u00b7 Step 4 of 10" eyebrow (the rail, in words), a coloured
 // phase pill (which read "The split" directly under a heading reading "The
-// split"), a "Next enzyme: \u2026" line (the enzyme is on the stage now), and the
+// split"), a "Next enzyme: \u2026" line (the action button names it), and the
 // three-paragraph stage body \u2014 see the note on STAGES. What was left was a
 // lone word at the top of the sidebar, duplicating the chrome of a heading the
 // stage already had. So it moved into #brand: before the pathway starts the h1
@@ -1437,7 +1433,7 @@ function drawFork(){
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
 function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawTitle();
-  drawNote(); drawEnzyme(); drawCaption(); drawFork(); computeFit(); }
+  drawNote(); drawCaption(); drawFork(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
