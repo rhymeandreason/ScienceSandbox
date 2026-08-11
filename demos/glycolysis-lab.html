@@ -380,16 +380,26 @@
   #massmodal .mnet span{font-family:var(--font-slab);font-weight:700;font-size:13px;
     letter-spacing:1px;text-transform:uppercase;text-align:center;
     transition:color .25s ease}
-  /* ΔE, AND NOTHING ELSE. This started as a two-row table of both barriers with
-     their percentages, which is a lot of arithmetic to put in front of someone
-     whose question was "how much further down is it". One number, computed from
-     DROP at render time — never typed, because a number in user-facing text that
-     does not read from the thing it describes is a claim nothing checks. */
-  #massmodal .meq{display:flex;align-items:center;justify-content:center;gap:9px;
+  /* ΔE, AS A PICTURE AND A NUMBER. The captions kept saying one molecule "sits
+     below" another — free energy drawn as height, which is the convention the
+     side panel's coupled-reaction figure uses and which this box, all sideways
+     motion and no axis, never earned. So the two levels are drawn: literal for
+     the drop, flat for the flat step. Both the gap's label and the levels
+     themselves come from DROP at render time, never typed. */
+  #massmodal .meq{display:flex;align-items:center;justify-content:center;gap:13px;
     margin-top:8px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
-  #massmodal .meq i{font-size:15px;line-height:1}
+  #massmodal .meq svg{flex:none;width:176px;height:64px;overflow:visible}
   #massmodal .meq b{font-family:var(--font-slab);font-size:15px;color:var(--ink);
     letter-spacing:.2px}
+  #massmodal .meq .lvl{stroke-width:2.5;stroke-linecap:round}
+  #massmodal .meq .gap{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:3 3}
+  #massmodal .meq .gaparr{stroke:var(--ink);stroke-width:1.4}
+  #massmodal .meq .lb{font-family:var(--font-slab);font-weight:700;font-size:9.5px}
+  #massmodal .meq .ax{font-family:var(--font-sans);font-weight:600;font-size:8px;
+    fill:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+  @media (max-width:920px){
+    #massmodal .meq{flex-direction:column;gap:6px;text-align:center}
+  }
   #massmodal .mctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   #massmodal .mctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
     padding:7px 13px;border-radius:8px;border:1.5px solid var(--ink);
@@ -1954,9 +1964,9 @@ const Mass=(()=>{
       split evened out is only <b>how often</b> each direction comes up, because
       that depends on how many of each are around to collide with it. Crowd one
       side and watch the net direction flip.`,
-    drop:`<b>Step 10.</b> Pyruvate sits far below PEP, so climbing back means
-      finding all that energy again at once — and <b>big energies are steeply
-      rarer</b>, not just a bit rarer. Watch which colour glows: blue almost
+    drop:`<b>Step 10.</b> Pyruvate <b>holds far less energy</b> than PEP — the
+      reaction gave that energy up. Climbing back means finding all of it again
+      at once, and <b>big energies are steeply rarer</b>, not just a bit rarer. Watch which colour glows: blue almost
       always has enough to go forward, violet almost never has enough to go back. Nothing about the enzyme
       changed, and adding more pyruvate no longer helps. That is what
       <b>irreversible in the cell</b> means, and it is true of only <b>three</b>
@@ -2005,16 +2015,32 @@ const Mass=(()=>{
     ui.net.style.borderColor = !hot ? 'rgba(58,52,44,.14)'
       : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.25+0.35*k).toFixed(2)+')';
   }
-  // How much MORE energy the reverse needs — the one number the two tabs differ
-  // by, and the whole of what "further downhill" means. Computed from DROP, so
-  // retuning the model moves the text with it.
+  // The two levels, with free energy as HEIGHT — the same convention the side
+  // panel's coupled figure uses, so a student meets one picture twice rather
+  // than two. Geometry comes from DROP: a flat step draws them level because ΔE
+  // is zero, not because a second drawing was written for it.
   function drawEq(m){
-    const d=DROP[m];
-    ui.eq.innerHTML = d===0
-      ? `<i class="ph-bold ph-arrows-left-right"></i>`
-        +`<span>same barrier both ways — nothing extra to go back</span>`
-      : `<i class="ph-bold ph-arrow-left" style="color:${COL[0]}"></i>`
-        +`<span>going back needs an extra</span> <b>+${d.toFixed(1)} kT</b>`;
+    const d=DROP[m], nm=SPECIES[m];
+    const yA = d===0 ? 34 : 18, yB = d===0 ? 34 : 52;   // level lines, viewBox units
+    const arrow = d===0 ? '' :
+       `<path class="gap" d="M62,18 H92"/><path class="gap" d="M92,52 H122"/>`
+      +`<path class="gaparr" d="M92,20 V50"/>`
+      +`<path class="gaparr" d="M92,18 l3.4,7 h-6.8 z" fill="var(--ink)" stroke="none"/>`
+      +`<path class="gaparr" d="M92,52 l3.4,-7 h-6.8 z" fill="var(--ink)" stroke="none"/>`;
+    ui.eq.innerHTML =
+      `<svg viewBox="0 0 176 68" role="img" aria-label="${nm[0]} and ${nm[1]}`
+      +` ${d===0?'at the same free energy':'with '+nm[1]+' lower in free energy'}">`
+      +`<text class="ax" transform="translate(7,44) rotate(-90)">energy</text>`
+      +`<path class="gap" d="M14,8 V60" stroke-dasharray="none" stroke-opacity=".35"/>`
+      +arrow
+      +`<path class="lvl" d="M22,${yA} H62" stroke="${COL[0]}"/>`
+      +`<text class="lb" x="42" y="${yA-6}" text-anchor="middle" fill="${COL[0]}">${nm[0]}</text>`
+      +`<path class="lvl" d="M122,${yB} H166" stroke="${COL[1]}"/>`
+      +`<text class="lb" x="144" y="${yB-6}" text-anchor="middle" fill="${COL[1]}">${nm[1]}</text>`
+      +`</svg>`
+      + (d===0
+          ? `<span>Same level — <b>nothing extra</b> to go back.</span>`
+          : `<span>Going back needs an extra <b>+${d.toFixed(1)} kT</b>.</span>`);
   }
   function setMode(m){
     mode=m;
