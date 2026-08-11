@@ -377,8 +377,9 @@
     transition:background .3s ease,border-color .3s ease}
   #massmodal .mnet i{font-size:30px;line-height:1;
     transition:color .25s ease,transform .3s cubic-bezier(.34,.9,.3,1)}
-  #massmodal .mnet span{font-family:var(--font-slab);font-weight:700;font-size:14px;
-    letter-spacing:1.2px;text-transform:uppercase;transition:color .25s ease}
+  #massmodal .mnet span{font-family:var(--font-slab);font-weight:700;font-size:13px;
+    letter-spacing:1px;text-transform:uppercase;text-align:center;
+    transition:color .25s ease}
   #massmodal .mctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   #massmodal .mctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
     padding:7px 13px;border-radius:8px;border:1.5px solid var(--ink);
@@ -619,7 +620,7 @@
       <div class="mspec"><span class="mdot" style="background:#a855f7"></span>
         <span class="mnm" id="mnmB">F6P</span><span class="mct" id="mctB">0</span></div>
     </div>
-    <div class="mnet"><i id="mnetar" class="ph-bold ph-arrows-left-right"></i><span id="mnetlb">balanced</span></div>
+    <div class="mnet"><i id="mnetar" class="ph-bold ph-pause"></i><span id="mnetlb">nothing left to convert</span></div>
     <div class="mctl">
       <button id="maddA">Add 15 <span id="mlbA">G6P</span></button>
       <button id="maddB">Add 15 <span id="mlbB">F6P</span></button>
@@ -1776,13 +1777,27 @@ const Mass=(()=>{
   // cannot wait a second to answer "which way is it going", and a raw per-frame
   // count is 0 or 1. So the arrow runs off its own exponential average — same
   // events, smoothed over TAU rather than chopped into buckets.
-  let ema=[0,0];
+  let ema=[0,0], age=0;
   const TAU=0.9;
   // Below this many net conversions per second, call it balanced rather than
   // drawing an arrow: at equilibrium the difference is random jitter around
   // zero, and an arrow that flickers left and right says the opposite of what
   // is happening.
   const NET_EPS=1.6;
+  // "NOTHING LEFT TO CONVERT" IS ABOUT THE POPULATION, NOT THE RATE. A flat step
+  // at equilibrium and a drop step run to completion both have a net of zero,
+  // and reading "balanced" for both would collapse the one distinction this demo
+  // exists to draw. The tempting test is low throughput — but that is a guess
+  // about how busy this particular box happens to be, and it flickers whenever
+  // traffic dips. The real condition is that one side has RUN OUT, which is
+  // exactly what completion means and is something a flat step parked at 27/27
+  // can never satisfy. So: one species below this share of the total, AND
+  // near-zero traffic to confirm it.
+  const SPENT_FRAC=0.06, BUSY_EPS=1.2;
+  // The average needs a moment to mean anything — it starts at zero on every
+  // open, reset and tab switch, so without this the bar announces "nothing left
+  // to convert" during the one second the reaction is most obviously going.
+  const WARMUP=1.4;
 
   const rnd=(a,b)=>a+Math.random()*(b-a);
   function spawn(type,n){
@@ -1796,7 +1811,7 @@ const Mass=(()=>{
   function reset(){
     // START LOPSIDED. An even start settles instantly and shows nothing; the
     // lesson is watching the crowded side empty into the empty one.
-    parts=[]; spawn(0,N0); hits=[0,0]; rate=[0,0]; acc=0; ema=[0,0];
+    parts=[]; spawn(0,N0); hits=[0,0]; rate=[0,0]; acc=0; ema=[0,0]; age=0;
   }
 
   function step(dt,w,h){
@@ -1867,22 +1882,43 @@ const Mass=(()=>{
     const a=parts.filter(p=>p.t===0).length;
     ui.A.textContent=a; ui.B.textContent=parts.length-a;
     ui.rf.textContent=rate[0].toFixed(1); ui.rb.textContent=rate[1].toFixed(1);
-    const net=ema[0]-ema[1];
-    const big=Math.abs(net)>=NET_EPS;
-    const icon = !big ? 'ph-arrows-left-right' : (net>0 ? 'ph-arrow-right' : 'ph-arrow-left');
+    // FOUR TESTS, AND THE ORDER MATTERS.
+    //   any   — is anything happening at all
+    //   both  — is EACH direction running, which is what "both ways at once"
+    //           claims. Testing only |net| said it about the drop step's tail,
+    //           where forward is fading to zero and backward has never run: the
+    //           gap closes, and a one-way reaction gets described as balanced.
+    //   spent — one species has run out (the population, not the rate — see
+    //           SPENT_FRAC), which is what completion actually means
+    const net=ema[0]-ema[1], busy=ema[0]+ema[1];
+    const any  = busy>=BUSY_EPS;
+    const both = Math.min(ema[0],ema[1])>=BUSY_EPS;
+    const big  = Math.abs(net)>=NET_EPS;
+    const spent= parts.length ? Math.min(a,parts.length-a)/parts.length < SPENT_FRAC : false;
+    const state = (!any && spent && age>WARMUP) ? 'spent'
+                : !any                          ? 'quiet'      // warm-up, or a lull
+                : (both && !big)                ? 'balanced'
+                : 'net';
+    const icon = state==='spent' ? 'ph-pause'
+               : state==='net'   ? (net>0 ? 'ph-arrow-right' : 'ph-arrow-left')
+               : 'ph-arrows-left-right';
     // Only touch className when it actually changes — rewriting it every frame
     // restarts nothing visibly but does make the icon font re-resolve 60×/s.
     if(ui.ar.dataset.icon!==icon){
       ui.ar.className='ph-bold '+icon; ui.ar.dataset.icon=icon;
     }
-    ui.lb.textContent = !big ? 'balanced' : (net>0 ? 'net forward' : 'net backward');
-    const k=Math.min(1,Math.abs(net)/9);
-    const col = !big ? 'var(--muted)' : COL[net>0?1:0];
+    ui.lb.textContent = state==='spent'    ? 'nothing left to convert'
+                      : state==='balanced' ? 'balanced — both ways at once'
+                      : state==='quiet'    ? 'balanced'
+                      : (net>0 ? 'net forward' : 'net backward');
+    const hot = state==='net';
+    const k = hot?Math.min(1,Math.abs(net)/9):0;
+    const col = hot ? COL[net>0?1:0] : 'var(--muted)';
     ui.ar.style.color=col; ui.lb.style.color=col;
     ui.ar.style.transform=`scale(${(0.92+0.3*k).toFixed(2)})`;
-    ui.net.style.background = !big ? 'rgba(58,52,44,.05)'
+    ui.net.style.background = !hot ? 'rgba(58,52,44,.05)'
       : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.06+0.12*k).toFixed(2)+')';
-    ui.net.style.borderColor = !big ? 'rgba(58,52,44,.14)'
+    ui.net.style.borderColor = !hot ? 'rgba(58,52,44,.14)'
       : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.25+0.35*k).toFixed(2)+')';
   }
   function setMode(m){
@@ -1908,7 +1944,7 @@ const Mass=(()=>{
     }
     ctx.setTransform(cv.width/w,0,0,cv.width/w,0,0);
     step(dt,w,h); draw(w,h);
-    const d=Math.exp(-dt/TAU); ema[0]*=d; ema[1]*=d;
+    const d=Math.exp(-dt/TAU); ema[0]*=d; ema[1]*=d; age+=dt;
     // conversions/second, resampled once a second so the number is readable
     acc+=dt;
     if(acc>=1){ rate=[hits[0]/acc, hits[1]/acc]; hits=[0,0]; acc=0; }
@@ -1919,6 +1955,7 @@ const Mass=(()=>{
   function show(){
     el.hidden=false; open=true; last=performance.now();
     setMode('flat');            // setMode resets
+    drawUI();                   // paint a real state, not the markup placeholder
     raf=requestAnimationFrame(frame);
     el.querySelector('.mclose').focus();
   }
