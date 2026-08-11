@@ -199,7 +199,13 @@
   .rblock.future{opacity:.5}
 
   /* one row per step, and the two bookend states either side of the ten */
-  .rrow{display:flex;gap:11px;align-items:center;padding:1.5px 0}
+  .rrow{display:flex;gap:11px;align-items:center;padding:1.5px 0;border-radius:5px}
+  /* the current step is the one thing on a sixteen-row rail a student has to
+     find at a glance, so it gets a highlighter band rather than only weight.
+     The negative margin lets the band bleed past the row's text box without
+     shifting any row, so nothing moves as the highlight travels down. */
+  .rrow.cur{background:rgba(245,196,54,.34);
+    margin:0 -8px;padding-left:8px;padding-right:8px}
   .rrow .rdot{flex:none;width:21px;height:21px;border-radius:50%;
     border:2px solid var(--hair);background:var(--panel);
     font-family:var(--font-slab);font-weight:700;font-size:11.5px;
@@ -393,10 +399,18 @@
 
 /* ---------- shared stage (scene.js) + effects (fx.js) ---------- */
 const canvas=document.getElementById('gl');
-let userSpun=false, userZoom=false;
+let userZoom=false;
+// The opening angle, kept as a constant because restart returns the camera to
+// it. Nothing else moves theta — the stage no longer turns on its own.
+const OPEN_THETA=0.10;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
-  cam:{theta:0.10,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
-  onDrag:()=>{userSpun=true;}, onZoom:()=>{userZoom=true;} });
+  // Orthographic: this stage lays molecules out in parallel lanes, and under
+  // perspective the lane nearer the camera reads as the bigger molecule — the
+  // same reason a side-by-side page never swings theta. No foreshortening also
+  // means the two halves after step 4 stay visibly identical.
+  ortho:true,
+  cam:{theta:OPEN_THETA,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
+  onZoom:()=>{userZoom=true;} });
 const FXi=FX.create(THREE,root,camera);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
@@ -733,6 +747,23 @@ function drawPlates(){
 // live bounding box, because during the split the halves are still easing apart —
 // a measured bbox would fit the stacked pair and be wrong a frame later.
 const HALF_FOV=Math.tan(22.5*Math.PI/180);
+
+// The camera is orthographic, so distance no longer decides apparent size — the
+// frustum's half-extents do. Rather than rewrite the fit solver, keep `cam.r`
+// as the page's single measure of "how far back we are" and convert it here:
+// a perspective camera at distance r sees a world half-height of r*HALF_FOV, so
+// an ortho frustum of that half-height shows exactly the same field. Everything
+// downstream — fitFor's R, the ease in loop(), the wheel's rMin/rMax clamp,
+// u.shift's conversion of pixels to world units — keeps its meaning verbatim.
+// Called every frame because cam.r eases, and it is one matrix update.
+function orthoFrustum(){
+  if(!camera.isOrthographicCamera) return;
+  const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
+  const halfH=cam.r*HALF_FOV;
+  camera.top=halfH; camera.bottom=-halfH;
+  camera.left=-halfH*asp; camera.right=halfH*asp;
+  camera.updateProjectionMatrix();
+}
 function fitFor(states){
   let lo=0, hi=0, top=0, wide=0;      // lo/hi = atoms only · top = incl. name plate
   states.forEach(keys=>{
@@ -976,7 +1007,7 @@ function rewind(){
   done--; renderLanes(done); refresh();
 }
 function restart(){ cancelTimers(); busy=false; done=0; intro=true;
-  renderLanes(0); refresh(); userSpun=false; userZoom=false; }
+  renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
 
 /* =============================================================
  *  UI
@@ -1297,16 +1328,15 @@ function loop(){
   // lanes ease toward their slots (used by the split, and after any respawn)
   lanes.forEach(l=>{ if(l.g.userData.tx!=null)
     l.g.position.x+=(l.g.userData.tx-l.g.position.x)*0.10; });
-  if(!userSpun) cam.theta+=0.0013;              // slow idle turn until grabbed
   if(!userZoom) cam.r+=(fitR-cam.r)*0.05;        // ease to the computed framing
   cam.target.y+=(fitY-cam.target.y)*0.06;        // …and re-centre vertically
-  applyCam(); FXi.step();
+  applyCam(); orthoFrustum(); FXi.step();
   renderer.render(scene,camera);
   // AFTER the render, never before. Vector3.project() reads the camera's
   // matrixWorldInverse, which only gets refreshed when the scene is rendered —
   // so projecting first positions the labels with the PREVIOUS frame's camera.
-  // That is invisible during the idle drift and very visible during the zoom
-  // ease and the split, when the camera moves a long way in one frame.
+  // That is barely visible on a slow drag and very visible during the zoom ease
+  // and the split, when the camera moves a long way in one frame.
   drawPlates();
   requestAnimationFrame(loop);
 }
@@ -1317,7 +1347,7 @@ renderLanes(0); refresh(); applyCam(); resize();
 // tray, insets nothing, and the page would open one frame too close before the
 // loop eased it back out. refresh() has drawn the tray by here.
 computeFit();
-cam.target.y=fitY; cam.r=fitR; applyCam();      // open already framed, don't ease in
+cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();  // open already framed
 requestAnimationFrame(loop);
 // the fit depends on camera.aspect, so it has to be redone whenever the stage
 // reshapes (window resize, or the sidebar stacking under it on a narrow screen)
