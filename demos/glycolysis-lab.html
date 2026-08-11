@@ -201,30 +201,43 @@
   .reag.live .need{display:block}
 
   /* the action button (Begin, and every no-reagent step), inside #bottombar.
-     `visibility` rather than `display` — see the bottombar comment. */
+     `visibility` rather than `display` — see the bottombar comment.
+     THE BASE METRICS ARE SHARED BY THE BLOB AND THE GHOST, and have to be: the
+     two alternate down the pathway (a carrier step is a ghost, an action step is
+     a blob), #bottombar's height is what usable() reserves along the bottom
+     edge, and a camera that re-frames between step 5 and step 6 breaks the one
+     rule this page's framing has. So the blob keeps a TRANSPARENT border rather
+     than dropping it — `border:none` is 5px shorter, which is exactly the kind
+     of difference that moves a camera. */
   #actbtn{visibility:hidden;
-    font-family:var(--font-slab);font-weight:700;font-size:15px;letter-spacing:.3px;
-    padding:11px 24px;border-radius:var(--radius);cursor:pointer;
+    font-family:var(--font-slab);font-weight:700;font-size:17px;letter-spacing:.3px;
+    padding:15px 34px;border-radius:var(--radius);cursor:pointer;
     border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
     box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
   #actbtn:hover{background:#000;transform:translateY(-2px)}
-  /* BEGIN IS THE BLOB. Not a rectangle with a blob behind it — the button's own
-     shape is the wobble, and the label sits inside it. It is the only control on
-     screen at the intro, so it can afford the room, and the movement is what
-     says the enzyme is already there and waiting rather than summoned by the
-     click. Bigger than the step buttons on purpose: nothing competes with it. */
-  #actbtn.begin{font-size:21px;padding:26px 54px;color:#fff;
-    position:relative;z-index:0;
-    border:none;border-radius:46% 54% 52% 48%/58% 44% 56% 42%;
+
+  /* EVERY ENZYME IS A BLOB. The button's own shape is the wobble and the label
+     sits inside it — a rectangle with a blob behind it would read as a button
+     that happens to be decorated, and the point is that the enzyme IS the thing
+     you press. Purely decorative: it carries no shape claim about any of these
+     proteins, which is why one silhouette serves all six. */
+  #actbtn.blob{color:#fff;position:relative;z-index:0;
+    border:2.5px solid transparent;
+    border-radius:46% 54% 52% 48%/58% 44% 56% 42%;
     background:linear-gradient(105deg,#7b3fe4 0%,#4f5bd5 38%,#2f7de0 68%,#8b5cf6 100%);
     background-size:220% 220%;
     box-shadow:0 10px 30px -10px rgba(79,91,213,.8);
     animation:enzmorph 7.5s ease-in-out infinite, enzdrift 9s ease-in-out infinite}
   /* the drift already carries a scale pulse; the shared lift would fight it */
-  #actbtn.begin:hover{background:linear-gradient(105deg,#8b4cf0 0%,#5a66e6 38%,#3a8bf0 68%,#9b6cff 100%);
+  #actbtn.blob:hover{background:linear-gradient(105deg,#8b4cf0 0%,#5a66e6 38%,#3a8bf0 68%,#9b6cff 100%);
     background-size:220% 220%;transform:none;filter:brightness(1.06)}
+  /* Begin is the same blob with room to spare — it is the only control on screen
+     at the intro, and nothing competes with it. Its height is allowed to differ
+     because leaving the intro re-solves the fit (see beginPathway). */
+  #actbtn.begin{font-size:21px;padding:26px 54px}
+
   /* the reagent steps' caption in the same slot: it names the enzyme but must
-     not look like the thing to click — that is the reagent. So it keeps the
+     not look like the thing to click — that is the carrier. So it keeps the
      type and loses everything that says "button": fill, border, shadow, hover. */
   #actbtn.ghost{background:none;border-color:transparent;color:var(--ink);
     box-shadow:none;cursor:default}
@@ -247,21 +260,21 @@
      Begin: no bond forms and no molecule changes, and SCIENCE.md §5's rule is
      that the loudness of an effect tracks what actually happened. A spawnRing
      here would announce a reaction that has not occurred yet. */
-  #actbtn.begin::before,#actbtn.begin::after{content:'';position:absolute;inset:0;
+  #actbtn.blob::before,#actbtn.blob::after{content:'';position:absolute;inset:0;
     border-radius:inherit;background:inherit;background-size:220% 220%;
     opacity:0;pointer-events:none;z-index:-1}
-  #actbtn.begin.burst::before{animation:enzburst .62s ease-out forwards}
-  #actbtn.begin.burst::after {animation:enzburst .62s .13s ease-out forwards}
+  #actbtn.blob.burst::before{animation:enzburst .62s ease-out forwards}
+  #actbtn.blob.burst::after {animation:enzburst .62s .13s ease-out forwards}
   @keyframes enzburst{
     from{opacity:.5;transform:scale(1)}
     to  {opacity:0;  transform:scale(2.05)}}
 
   /* The ghost caption is NOT a button, so it keeps the blob as a backing behind
-     the name only — Begin, which is one, becomes the blob outright above. It
-     arrives by settling DOWN out of the Begin blob's size, which is what makes
-     the two read as the same object shrinking to the corner rather than one
-     control vanishing and another appearing. Muted, because from here on the
-     thing to press is the carrier in the tray, not this. */
+     the name only — the real buttons become the blob outright above. It arrives
+     by settling DOWN out of the pressed blob's size, which is what makes the two
+     read as one object shrinking rather than one control vanishing and another
+     appearing. Muted, because on a carrier step the thing to press is in the
+     tray, not here. */
   #actbtn.ghost .enzname{color:var(--ink);padding:2px 4px;
     animation:enzarrive .46s cubic-bezier(.2,.9,.3,1)}
   @keyframes enzarrive{
@@ -287,8 +300,8 @@
     0%,100%{background-position:0% 50%;   transform:scale(1)}
     50%    {background-position:100% 50%; transform:scale(1.035)}}
   @media (prefers-reduced-motion:reduce){
-    #actbtn.ghost .enzname::before,#actbtn.ghost .enzname,#actbtn.begin{animation:none}
-    #actbtn.begin.burst::before,#actbtn.begin.burst::after{animation:none}
+    #actbtn.ghost .enzname::before,#actbtn.ghost .enzname,#actbtn.blob{animation:none}
+    #actbtn.blob.burst::before,#actbtn.blob.burst::after{animation:none}
   }
 
   /* ---------- right panel ---------- */
@@ -1175,7 +1188,7 @@ function rewind(){
   if(done===0){ intro=true; refresh(); return; }   // step back off stage 1 onto the intro
   done--; renderLanes(done); refresh();
 }
-function restart(){ cancelTimers(); busy=false; beginning=false; done=0; intro=true;
+function restart(){ cancelTimers(); busy=false; pressing=false; done=0; intro=true;
   renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -1249,7 +1262,7 @@ function drawTray(){
       +`<div class="rname">${r.name}</div>`
       +`<div class="rcount">${pool[r.key]}</div>`
       +`<div class="rsub">${r.sub}</div>`;
-    if(live) d.onclick=runStep;
+    if(live) d.onclick=()=>press(runStep);
     strip.appendChild(d);
   });
 }
@@ -1264,23 +1277,35 @@ const actEl=document.getElementById('actbtn');
 // — a backgrounded tab must still arrive at step 1 (see the note on `later`).
 const BURST_MS=380;
 const pulseEl=document.getElementById('stagepulse');
-let beginning=false;
-function beginPathway(){
-  if(beginning || !intro) return;
-  beginning=true;
+let pressing=false;
+// EVERY BLOB IS PRESSED THE SAME WAY, Begin and the five action steps alike:
+// the ripple runs first and the work happens under its tail, so the blob is
+// still on screen while it expands — acting immediately would re-render the
+// button out from under the animation on the same frame it started. BURST_MS is
+// shorter than the .62s ripple on purpose: the last stretch is nearly
+// transparent, and waiting it out just makes the click feel slow.
+// setTimeout, not a transitionend, for the reason every other beat here uses one
+// — a backgrounded tab must still arrive at the next state (see `later`).
+function press(fn){
+  if(pressing || busy) return;
+  pressing=true;
   actEl.classList.add('burst');
-  // Restart → Begin again has to replay it, and re-adding a class the element
-  // already carries does not restart a CSS animation. Drop it, force a reflow,
-  // re-add.
+  // Re-adding a class the element already carries does not restart a CSS
+  // animation, and the second press lands on the same element. Drop it, force a
+  // reflow, re-add.
   pulseEl.classList.remove('pulse'); void pulseEl.offsetWidth;
   pulseEl.classList.add('pulse');
-  later(()=>{
-    beginning=false; intro=false; refresh();
-    // computeFit AFTER the toggle: Begin is much taller than the step buttons,
-    // so leaving the intro shortens #bottombar — and usable() measures that live.
+  later(()=>{ pressing=false; fn(); }, BURST_MS);
+}
+function beginPathway(){
+  if(!intro) return;
+  press(()=>{
+    intro=false; refresh();
+    // computeFit AFTER the toggle: Begin is taller than the step buttons, so
+    // leaving the intro shortens #bottombar — and usable() measures that live.
     // Nothing else recomputes here, because no lane changes.
     computeFit();
-  }, BURST_MS);
+  });
 }
 function drawAct(){
   // ONE BUTTON, ONE PLACE. The intro's Begin and every no-reagent step share
@@ -1289,7 +1314,7 @@ function drawAct(){
   // from the first step on it sits just above the tray.
   if(intro){
     actEl.style.visibility='visible';
-    actEl.className='begin';
+    actEl.className='blob begin';
     // The enzyme is the main text here too, because the enzyme is what starts
     // the reaction — Begin is only how you tell it to go.
     actEl.innerHTML=`<span class="enzname">${STEPS[0].enz}</span><span class="hint">Begin →</span>`;
@@ -1320,8 +1345,9 @@ function drawAct(){
     actEl.innerHTML=`<span class="enzname">${st.enz}</span><span class="hint">&nbsp;</span>`;
     actEl.onclick=null;
   } else {
+    actEl.className='blob';
     actEl.innerHTML=`<span class="enzname">${st.enz}</span><span class="hint">${st.act.charAt(0).toLowerCase()+st.act.slice(1)}</span>`;
-    actEl.onclick=runStep;
+    actEl.onclick=()=>press(runStep);
   }
 }
 
@@ -1568,7 +1594,7 @@ document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
 addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
-    if(intro){ beginPathway(); } else runStep(); }
+    if(intro){ beginPathway(); } else press(runStep); }
   if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
 });
 
