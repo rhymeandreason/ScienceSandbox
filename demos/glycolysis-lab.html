@@ -451,6 +451,20 @@
      full-strength text, no band. The negative margin lets the band bleed past
      the row's text box without shifting any row, so nothing moves as the
      highlight travels down. */
+  /* perspective on the ROW, so the label's flip has depth to rotate through —
+     a rotateX with no perspective is just a vertical squash. */
+  .rrow{perspective:520px}
+  .rrow .rlab.eq{font-size:12px;letter-spacing:-.1px}
+  .rrow .rlab .arw{color:var(--muted);padding:0 5px;font-weight:400}
+  /* Played on a freshly built element, not transitioned: drawRail replaces
+     every row on every refresh, so there is no previous state to ease from. */
+  .rrow.flip .rlab{animation:rlabflip .5s cubic-bezier(.2,.9,.3,1);
+    transform-origin:50% 50%}
+  @keyframes rlabflip{
+    0%  {transform:rotateX(-88deg);opacity:0}
+    55% {opacity:1}
+    100%{transform:none;opacity:1}}
+  @media (prefers-reduced-motion:reduce){ .rrow.flip .rlab{animation:none} }
   .rrow.cur{background:rgba(245,196,54,.34);
     margin:0 -8px;padding-left:8px;padding-right:8px}
   .rrow .rdot{flex:none;width:21px;height:21px;border-radius:50%;
@@ -458,15 +472,17 @@
     font-family:var(--font-slab);font-weight:700;font-size:11.5px;
     display:flex;align-items:center;justify-content:center;color:var(--muted)}
   /* a run step's dot is filled — including the highlighted one, which is run */
-  .rrow.done .rdot,.rrow.cur .rdot{background:var(--ink);border-color:var(--ink);
+  .rrow.done .rdot{background:var(--ink);border-color:var(--ink);
     color:var(--panel)}
-  .rrow.next .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
+  /* the active step's dot is HOLLOW — it has not run. Filled means done. */
+  .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
     box-shadow:0 0 0 3px rgba(43,39,35,.1)}
   .rrow .rlab{font-family:var(--font-sans);font-size:14px;color:var(--muted);line-height:1.25}
-  .rrow.done .rlab,.rrow.cur .rlab,.rrow.next .rlab{color:var(--ink)}
+  .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
   .rrow.cur .rlab{font-weight:600}
-  .rrow.done,.rrow.cur{cursor:pointer}
-  .rrow.done:hover .rlab,.rrow.cur:hover .rlab{color:var(--phos)}
+  /* only a COMPLETED row rewinds — the active one is where you already are */
+  .rrow.done{cursor:pointer}
+  .rrow.done:hover .rlab{color:var(--phos)}
   .rrow.future{opacity:.5}
   /* the one-way marker. Only three steps carry it, and that is the lesson. */
   .rrow .rirr{margin-left:auto;flex:none;font-size:14px;color:var(--phos);opacity:.75}
@@ -512,6 +528,28 @@
   .cpl.n .cl{stroke:var(--nad)}  .cpl.n .ch{fill:var(--nad)}  .cpl.n .cs{fill:var(--nad)}
   .cpl .cm,.cpl .cs{font-family:var(--font-slab);font-weight:700;font-size:14px}
   .cpl .cm{fill:var(--ink)}
+  /* THE CURVE VIEW, a second reading of the same step. Same axis rule as the
+     arrows — a hint, no ticks, no numbers — because this page still has no
+     per-step ΔG and a proportioned curve would assert one. What it adds is
+     SHAPE: the reaction alone as one trace, the coupled reaction as another,
+     so "coupling flips the direction" is a thing you see rather than infer
+     from two arrows pointing opposite ways. The barrier is drawn because a
+     student who has met the mass-action modal has already been told a molecule
+     must climb something, and the arrows never showed it. */
+  .cpl .rc{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .cpl .rc.alone{stroke:var(--muted);stroke-dasharray:5 4;opacity:.85}
+  .cpl.p .rc.with{stroke:var(--phos)} .cpl.n .rc.with{stroke:var(--nad)}
+  .cpl .et{font-family:var(--font-sans);font-weight:600;font-size:10px}
+  .cpl .et.alone{fill:var(--muted)}
+  .cpl.p .et.with{fill:var(--phos)} .cpl.n .et.with{fill:var(--nad)}
+  /* the two views' tab strip. Tighter than the modal's — this is a 372px panel,
+     and the strip must not read as louder than the figure under it. */
+  #stepnote .ftabs{display:flex;gap:3px;margin:1px 0 3px}
+  #stepnote .ftabs button{font-family:var(--font-sans);font-weight:600;font-size:10.5px;
+    letter-spacing:.3px;padding:3px 9px 4px;border:none;background:none;
+    color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+  #stepnote .ftabs button:hover{color:var(--ink)}
+  #stepnote .ftabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
   /* the axis is a hint, not a scale — hairline, no ticks */
   .cpl .axl{fill:none;stroke:var(--hair);stroke-width:1.5}
   .cpl .axh{fill:var(--hair)}
@@ -1305,7 +1343,7 @@ function runStep(){
     const top=plateY(keys);
     lanes=keys.map((k,j)=>{ const o=spawnLane(k,j,n,top);
       o.g.position.set(0,0,0); o.g.userData.tx=laneX(j,n); return o; });
-    later(()=>{ done=to;                       // lanes already correct — don't respawn
+    later(()=>{ done=to; pendingFlip=to-1;     // lanes already correct — don't respawn
       // The parting is a rAF ease, so in a hidden tab it never ran; land them on
       // their marks here so the two halves can't come back stacked on each other.
       lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; FXi.popGlow(o.g,GLOW); });
@@ -1337,7 +1375,7 @@ function runStep(){
 
   } else dur=280;                              // 'iso': a plain rearrangement
 
-  later(()=>{ done=to; renderLanes(to);
+  later(()=>{ done=to; pendingFlip=to-1; renderLanes(to);
     lanes.forEach(o=>FXi.popGlow(o.g,GLOW));
     busy=false; refresh(); }, dur);
 }
@@ -1510,7 +1548,29 @@ function drawAct(){
   }
 }
 
+// THE ACTIVE ROW SHOWS THE REACTION, THE DONE ROWS SHOW THE RESULT. A rail of
+// product names answers "what did I make"; the row you are about to run has not
+// made anything yet, so it names what the step DOES instead and swaps to the
+// product once it has one.
+//
+// NO CARRIERS IN IT, on purpose. "2 G3P + 2 Pi + 2 NAD+ → 2 1,3-BPG + 2 NADH"
+// is 42 characters in a 372px panel, and every one of those coefficients is a
+// second place for the stoichiometry to be wrong — the tray, the ledger and the
+// coupling figure already carry them, and they agree with each other because
+// they read the same `pool`. The molecules alone top out at 20 characters.
+// Counts ARE kept (`2 G3P`), because after the split everything happens twice
+// and a rail that hid that would contradict the lanes.
+const eqOf=st=>{
+  const i=STEPS.indexOf(st);
+  const side=keys=>[...new Set(keys)].map(k=>{
+    const n=keys.filter(x=>x===k).length;
+    return (n>1?n+' ':'')+(M[k].short||M[k].name);
+  }).join(' + ');
+  return `${side(speciesAt(i))}<span class="arw">→</span>${side(st.species)}`;
+};
+
 const railEl=document.getElementById('rail');
+let pendingFlip=null;      // the step index whose row should flip on the next draw
 function drawRail(){
   const cur=stageAt(done);
   railEl.innerHTML='';
@@ -1524,6 +1584,7 @@ function drawRail(){
     renderLanes(done); refresh(); };
   const stageCls=n=>n<cur?'done':(n===cur?'cur':'future');
 
+  const flipStep=pendingFlip; pendingFlip=null;   // one draw only
   STAGES.forEach(s=>{
     const steps=stageSteps(s.n);
 
@@ -1550,18 +1611,36 @@ function drawRail(){
 
     steps.forEach(st=>{
       const idx=STEPS.indexOf(st);
-      // `cur` is the step that PRODUCED what is on the stage — done-1, not done
-      // — because the row is named for that product. `next` is the one the
-      // student is about to run. `intro` gates the reading, not the chemistry:
-      // at done=0 step 1 is already next, so without this check the rail would
-      // ring step 1 while the student is still being introduced to glucose.
-      const state=idx===done-1?'cur'
+      // `cur` IS THE STEP ABOUT TO RUN, which is what "where am I" means on a
+      // rail you drive. It used to be done-1, the step that produced what is on
+      // the stage, on the reasoning that the row is named for that product —
+      // coherent for a list of molecules, and wrong for everything else on
+      // screen: the action button names the NEXT enzyme, the side panel draws
+      // the NEXT step's coupling, and the stage headings on this very rail
+      // highlight stageAt(done), the next step's stage. So at step 4 the rail
+      // could show "The split" as the current stage with the yellow row still
+      // sitting in "Priming" — the rail disagreeing with itself.
+      //
+      // The cost is that the highlighted row now names a molecule that does not
+      // exist yet. The dot carries the step number and the button carries the
+      // enzyme, so the row reads as the thing you are about to make, which is
+      // the same tense as everything it sits beside.
+      //
+      // `intro` gates the reading, not the chemistry: at done=0 step 1 is
+      // already next, so without this check the rail would light step 1 while
+      // the student is still being introduced to glucose.
+      const state=(idx===done&&!intro)?'cur'
                  :idx<done?'done'
-                 :(idx===done&&!intro?'next':'future');
+                 :'future';
       const r=document.createElement('div');
-      r.className='rrow '+state;
+      // The row that just ran flips from its equation to its product. drawRail
+      // rebuilds every row on every refresh, so a CSS transition has nothing to
+      // transition FROM — the animation is played on the newly built element
+      // instead, and runStep says which one by setting flipStep.
+      r.className='rrow '+state+(idx===flipStep?' flip':'');
       r.innerHTML=`<div class="rdot">${st.n}</div>`
-        +`<div class="rlab">${productOf(st)}</div>`
+        +`<div class="rlab${state==='cur'?' eq':''}">`
+          +`${state==='cur'?eqOf(st):productOf(st)}</div>`
         +(st.rev===false
           ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '');
       if(idx<done) r.onclick=()=>goStep(idx);
@@ -1662,6 +1741,64 @@ function coupleFig(c){
     <text class="cs" x="186" y="110">${sup(botCpl)}</text>
   </svg>`;
 }
+/* The same step as a REACTION COORDINATE, offered beside the arrows rather than
+ * instead of them. The arrows say what coupling does; the curve says what the
+ * step looks like on the way, barrier included — and the barrier is the piece
+ * the arrows can never show, which is exactly what a student asks about after
+ * meeting the mass-action modal.
+ *
+ * TWO TRACES, ONE CLAIM. Dashed is the sugar reaction on its own; solid is the
+ * same reaction coupled to its carrier. For an uphill step the dashed trace ends
+ * ABOVE where it started and the solid one ends below — coupling turning a
+ * reaction that will not go into one that will. For a downhill step the dashed
+ * one falls further than the solid: the difference is the part that was banked
+ * into ATP or NADH instead of being lost.
+ *
+ * STILL NO MAGNITUDES. The heights are fixed constants shared by every step, so
+ * the figure claims a SIGN and nothing more — the page has no per-step ΔG, and
+ * one drawn to scale would assert values it cannot source. Same rule the arrows
+ * were built on; see the header above.
+ */
+const RC_Y={ hi:34, mid:76, lo:120, peak:22 };
+function coupleCurve(c){
+  const Y=RC_Y;
+  // Both traces leave the same place: it is the same molecule before the step.
+  const start=c.up ? Y.lo : Y.hi;
+  const endAlone=c.up ? Y.mid : Y.lo;      // uphill alone / the full drop alone
+  const endWith =c.up ? Y.lo+16 : Y.mid;   // coupled: over the top, or part banked
+  const peak=Math.min(start,endAlone,endWith)-Y.peak;
+  const trace=(y0,y1)=>`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
+                      +` C174,${peak} 180,${y1} 212,${y1} H266`;
+  return `<svg class="cpl ${c.tone==='n'?'n':'p'}" viewBox="0 0 300 152" role="img"
+      aria-label="${c.from} to ${c.to}: on its own the step runs ${c.up?'uphill':'downhill'};
+        coupled to ${c.up?c.cin:c.cout} it runs ${c.up?'downhill':'less far down'}">
+    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
+    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
+    <!-- COUPLED FIRST, ALONE ON TOP. The two share a start and a peak, so they
+         are superimposed for the whole climb and only part after it; whichever
+         is drawn second is the one you see there. The dashed trace goes on top
+         because a dashed line over a solid one reads as BOTH — the other order
+         hides it completely and the figure looks like one curve that forks. -->
+    <path class="rc with"  d="${trace(start,endWith)}"/>
+    <path class="rc alone" d="${trace(start,endAlone)}"/>
+    <!-- ABOVE the trace it names, right-aligned to where the trace ends. These
+         used to sit after the line at x=270 and ran straight off a 300-wide
+         viewBox — "on its own" rendered as "on its o". There is no room to the
+         RIGHT of a trace that already runs to x=266, so the label goes over it. -->
+    <text class="et alone" x="266" y="${endAlone-7}" text-anchor="end">on its own</text>
+    <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">with ${c.up?c.cin:c.cout}</text>
+  </svg>`;
+}
+
+// The two views of one step. `figTab` is module-level because drawNote replaces
+// #stepnote's innerHTML on every refresh — a selection stored in the DOM would
+// reset itself every time the student ran a step.
+const FIGTABS=[['pair','Coupling'],['curve','Energy curve']];
+let figTab='pair';
+const figTabStrip=()=>`<div class="ftabs">`
+  + FIGTABS.map(([k,lb])=>`<button data-figtab="${k}"${figTab===k?' class="on"':''}>${lb}</button>`).join('')
+  + `</div>`;
+
 // One line, because the picture is doing the work. Named so it reads as the
 // principle rather than as a description of the drawing.
 const coupleLine=c=>c.up
@@ -1675,7 +1812,11 @@ const coupleLine=c=>c.up
 // tally. Delegated rather than bound, because drawNote replaces this element's
 // innerHTML on every refresh and a bound handler would die with it.
 const MASS_LINK=`<button class="minfo" data-mass>What decides the direction? →</button>`;
-noteEl.addEventListener('click',e=>{ if(e.target.closest('[data-mass]')) Mass.show(); });
+noteEl.addEventListener('click',e=>{
+  if(e.target.closest('[data-mass]')) { Mass.show(); return; }
+  const t=e.target.closest('[data-figtab]');
+  if(t){ figTab=t.dataset.figtab; drawNote(); }
+});
 
 function drawNote(){
   const st=(!intro&&done<nSteps)?stepAt(done):null;
@@ -1687,8 +1828,10 @@ function drawNote(){
   // are both properties of it.
   const cpl = st && st.couple ? resolveCouple(st) : null;
   const fig = cpl
-    ? `<div class="nhead cpl-h">Coupled reaction</div>${coupleFig(cpl)}`
-      +`<p class="nbody">${coupleLine(cpl)}</p>`
+    ? `<div class="nhead cpl-h">Coupled reaction</div>`
+      + figTabStrip()
+      + (figTab==='curve' ? coupleCurve(cpl) : coupleFig(cpl))
+      + `<p class="nbody">${coupleLine(cpl)}</p>`
     : '';
 
   if(st && st.commit){
