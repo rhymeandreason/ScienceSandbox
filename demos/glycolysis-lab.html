@@ -380,6 +380,16 @@
   #massmodal .mnet span{font-family:var(--font-slab);font-weight:700;font-size:13px;
     letter-spacing:1px;text-transform:uppercase;text-align:center;
     transition:color .25s ease}
+  /* ΔE, AND NOTHING ELSE. This started as a two-row table of both barriers with
+     their percentages, which is a lot of arithmetic to put in front of someone
+     whose question was "how much further down is it". One number, computed from
+     DROP at render time — never typed, because a number in user-facing text that
+     does not read from the thing it describes is a claim nothing checks. */
+  #massmodal .meq{display:flex;align-items:center;justify-content:center;gap:9px;
+    margin-top:8px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
+  #massmodal .meq i{font-size:15px;line-height:1}
+  #massmodal .meq b{font-family:var(--font-slab);font-size:15px;color:var(--ink);
+    letter-spacing:.2px}
   #massmodal .mctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   #massmodal .mctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
     padding:7px 13px;border-radius:8px;border:1.5px solid var(--ink);
@@ -622,6 +632,7 @@
         <span class="mnm" id="mnmB">F6P</span><span class="mct" id="mctB">0</span></div>
     </div>
     <div class="mnet"><i id="mnetar" class="ph-bold ph-pause"></i><span id="mnetlb">nothing left to convert</span></div>
+    <div class="meq" id="meq"></div>
     <div class="mctl">
       <button id="maddA">Add 15 <span id="mlbA">G6P</span></button>
       <button id="maddB">Add 15 <span id="mlbB">F6P</span></button>
@@ -1757,6 +1768,7 @@ const Mass=(()=>{
              title:document.getElementById('mmtitle'),
              ar:document.getElementById('mnetar'), lb:document.getElementById('mnetlb'),
              net:document.querySelector('#massmodal .mnet'),
+             eq:document.getElementById('meq'),
              text:document.getElementById('mtext') };
   const COL=['#4f5bd5','#a855f7'];
   // EACH MODE IS A REAL STEP OF THIS PATHWAY, not a toy A⇄B. The flat one is
@@ -1993,6 +2005,17 @@ const Mass=(()=>{
     ui.net.style.borderColor = !hot ? 'rgba(58,52,44,.14)'
       : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.25+0.35*k).toFixed(2)+')';
   }
+  // How much MORE energy the reverse needs — the one number the two tabs differ
+  // by, and the whole of what "further downhill" means. Computed from DROP, so
+  // retuning the model moves the text with it.
+  function drawEq(m){
+    const d=DROP[m];
+    ui.eq.innerHTML = d===0
+      ? `<i class="ph-bold ph-arrows-left-right"></i>`
+        +`<span>same barrier both ways — nothing extra to go back</span>`
+      : `<i class="ph-bold ph-arrow-left" style="color:${COL[0]}"></i>`
+        +`<span>going back needs an extra</span> <b>+${d.toFixed(1)} kT</b>`;
+  }
   function setMode(m){
     mode=m;
     [['mflat','flat'],['mdrop','drop']].forEach(([id,k])=>{
@@ -2000,6 +2023,7 @@ const Mass=(()=>{
       b.classList.toggle('on',m===k); b.setAttribute('aria-selected',m===k);
     });
     ui.title.textContent=TITLE[m];
+    drawEq(m);
     ui.nA.textContent=ui.bA.textContent=SPECIES[m][0];
     ui.nB.textContent=ui.bB.textContent=SPECIES[m][1];
     ui.text.innerHTML=TEXT[m];
