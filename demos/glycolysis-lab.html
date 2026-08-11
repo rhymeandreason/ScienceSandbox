@@ -106,18 +106,33 @@
      and climb back past it — that dip is the "investment phase" made physical.
      Sits on the RIGHT, opposite the pools it summarises: the tray is the raw
      counts, this is what they add up to. Below #restart, which owns the corner. */
+  /* A POST-IT, not another framed card. The stage already has two ink-outlined
+     panels (the tray and the note card) and a third made the ledger read as
+     chrome; a sticky note reads as something a person put there, which is what
+     a running tally is. Square corners, no border — the edge is the paper — and
+     the shadow does the lifting: tight and dark where the note touches the page
+     at the top, long and soft at the bottom where it curls away. The tilt is
+     small on purpose (1.2°): enough to sit apart from the grid, not enough to
+     make tabular numbers look crooked. */
   #ledger{position:absolute;right:26px;top:74px;z-index:6;min-width:186px;
-    background:rgba(255,255,255,.72);border:2px solid var(--ink);
-    border-radius:8px 12px 9px 11px;padding:12px 14px 13px;
-    box-shadow:0 4px 14px -6px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+    background:linear-gradient(168deg,#fdf0a8 0%,#fbe88c 62%,#f6de79 100%);
+    padding:13px 15px 15px;transform:rotate(-1.2deg);transform-origin:top right;
+    box-shadow:0 1px 1px rgba(0,0,0,.16), 0 10px 18px -10px rgba(0,0,0,.42)}
+  /* the lifted bottom-left corner: a triangle of shade folding off the page */
+  #ledger::after{content:'';position:absolute;left:0;bottom:0;width:22px;height:18px;
+    background:linear-gradient(48deg,rgba(0,0,0,.13) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
+    pointer-events:none}
+  /* Type warms up to sit on yellow: --muted and --hair were mixed against cream
+     and go muddy here, so the heading and the two rules are ink at low alpha
+     instead. Everything else keeps its meaning — the red net, the grey carbons. */
   #ledger .lhead{font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:1.3px;
-    text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+    text-transform:uppercase;color:rgba(60,50,28,.62);margin-bottom:9px}
   #ledger .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-    font-family:var(--font-slab);font-size:14px;color:#4a443c;padding:2.5px 0}
+    font-family:var(--font-slab);font-size:14px;color:#4a4232;padding:2.5px 0}
   #ledger .row .v{font-weight:700;font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
-  #ledger .row.net{border-top:1.5px dashed var(--hair);margin-top:7px;padding-top:7px}
+  #ledger .row.net{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
   #ledger .row.net .v{font-size:20px;color:var(--atp)}
-  #ledger .row.carb{border-top:1.5px dashed var(--hair);margin-top:7px;padding-top:7px}
+  #ledger .row.carb{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
   #ledger .row.carb .v{font-size:15px;color:var(--carbon);letter-spacing:.5px}
   #ledger .bump{animation:bump .7s ease}
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
