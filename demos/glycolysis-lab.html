@@ -455,6 +455,12 @@
      a rotateX with no perspective is just a vertical squash. */
   .rrow{perspective:520px}
   .rrow .rlab.eq{font-size:12px;letter-spacing:-.1px}
+  /* the unrun step's placeholder: holds the row's height and reads as "not yet"
+     rather than as a row that failed to render */
+  .rrow .rlab.veiled{position:relative}
+  .rrow .rlab.veiled::before{content:'';position:absolute;left:0;top:calc(50% - 1px);
+    width:46px;height:2px;border-radius:1px;
+    background:repeating-linear-gradient(90deg,var(--hair) 0 6px,transparent 6px 11px)}
   .rrow .rlab .arw{color:var(--muted);padding:0 5px;font-weight:400}
   /* Played on a freshly built element, not transitioned: drawRail replaces
      every row on every refresh, so there is no previous state to ease from. */
@@ -1638,9 +1644,15 @@ function drawRail(){
       // transition FROM — the animation is played on the newly built element
       // instead, and runStep says which one by setting flipStep.
       r.className='rrow '+state+(idx===flipStep?' flip':'');
+      // A FUTURE ROW KEEPS ITS NUMBER AND LOSES ITS NAME. Reading the whole
+      // pathway off the rail before running any of it turns each step into a
+      // confirmation of something already read rather than something found —
+      // and the names are long, so ten of them greyed out is most of the panel
+      // spent on text nobody can act on. The dash keeps the row's height, so
+      // the rail does not resize as it fills in.
       r.innerHTML=`<div class="rdot">${st.n}</div>`
-        +`<div class="rlab${state==='cur'?' eq':''}">`
-          +`${state==='cur'?eqOf(st):productOf(st)}</div>`
+        +`<div class="rlab${state==='cur'?' eq':state==='future'?' veiled':''}">`
+          +`${state==='future'?'':state==='cur'?eqOf(st):productOf(st)}</div>`
         +(st.rev===false
           ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '');
       if(idx<done) r.onclick=()=>goStep(idx);
