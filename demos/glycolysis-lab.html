@@ -60,6 +60,21 @@
     pointer-events:none}
   #bottombar>*{pointer-events:auto}
 
+  /* THE ENZYME, directly over the caption it belongs to. It names the ACTION
+     the student just watched, which is why it is on the stage and not in the
+     rail — the rail numbers the molecules now. Reserved with `visibility` and a
+     fixed line box for the same reason #actbtn is: #bottombar's height is what
+     the camera measures along the bottom edge, so a slot that appears and
+     disappears would re-frame the whole scene between steps. */
+  #enzyme{min-height:15px;line-height:15px;font-family:var(--font-slab);
+    font-weight:700;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;
+    color:var(--muted);text-align:center;visibility:hidden}
+  #enzyme.show{visibility:visible}
+  /* the three one-way steps carry their marker here too, so the stage and the
+     rail agree about which steps a cell cannot run backwards */
+  #enzyme .irr{color:var(--phos);letter-spacing:0}
+  @media (max-width:920px){ #enzyme{font-size:10px} }
+
   /* THE STEP CAPTION. Was a 4.6s toast in the handwriting face at the TOP of
      the stage, which put the essential sentence of each step in the one place
      a student is not looking (they are watching the molecule) and then took it
@@ -200,24 +215,30 @@
 
   /* one row per step, and the two bookend states either side of the ten */
   .rrow{display:flex;gap:11px;align-items:center;padding:1.5px 0;border-radius:5px}
-  /* the current step is the one thing on a sixteen-row rail a student has to
-     find at a glance, so it gets a highlighter band rather than only weight.
-     The negative margin lets the band bleed past the row's text box without
-     shifting any row, so nothing moves as the highlight travels down. */
+  /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Rows are
+     named for what a step LEAVES behind, so the yellow band has to sit on the
+     step already run — otherwise it names a molecule that does not exist yet,
+     which is exactly how it read while these rows still named enzymes.
+     "Up next" is a separate, quieter state below it: an open ring on the dot,
+     full-strength text, no band. The negative margin lets the band bleed past
+     the row's text box without shifting any row, so nothing moves as the
+     highlight travels down. */
   .rrow.cur{background:rgba(245,196,54,.34);
     margin:0 -8px;padding-left:8px;padding-right:8px}
   .rrow .rdot{flex:none;width:21px;height:21px;border-radius:50%;
     border:2px solid var(--hair);background:var(--panel);
     font-family:var(--font-slab);font-weight:700;font-size:11.5px;
     display:flex;align-items:center;justify-content:center;color:var(--muted)}
-  .rrow.done .rdot{background:var(--ink);border-color:var(--ink);color:var(--panel)}
-  .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
+  /* a run step's dot is filled — including the highlighted one, which is run */
+  .rrow.done .rdot,.rrow.cur .rdot{background:var(--ink);border-color:var(--ink);
+    color:var(--panel)}
+  .rrow.next .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
     box-shadow:0 0 0 3px rgba(43,39,35,.1)}
   .rrow .rlab{font-family:var(--font-sans);font-size:14px;color:var(--muted);line-height:1.25}
-  .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
+  .rrow.done .rlab,.rrow.cur .rlab,.rrow.next .rlab{color:var(--ink)}
   .rrow.cur .rlab{font-weight:600}
-  .rrow.done{cursor:pointer}
-  .rrow.done:hover .rlab{color:var(--phos)}
+  .rrow.done,.rrow.cur{cursor:pointer}
+  .rrow.done:hover .rlab,.rrow.cur:hover .rlab{color:var(--phos)}
   .rrow.future{opacity:.5}
   /* the one-way marker. Only three steps carry it, and that is the lesson. */
   .rrow .rirr{margin-left:auto;flex:none;font-size:14px;color:var(--phos);opacity:.75}
@@ -327,6 +348,8 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
+    <!-- The h1 carries the lesson name until the pathway starts, then the STAGE
+         the student is in. One title on screen, in the place a title goes. -->
     <div id="brand"><span class="drop"><i class="ph-bold ph-flow-arrow"></i></span><h1>Glycolysis</h1></div>
     <div id="ledger"></div>
     <div id="tray"></div>
@@ -337,6 +360,9 @@
          whether or not a button or a caption happens to be showing. -->
     <div id="bottombar">
       <button id="actbtn"></button>
+      <!-- the enzyme that just acted. On the stage, not the rail, because it
+           names an ACTION and the action is what the student just watched -->
+      <div id="enzyme"></div>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
            node its own flex item, which shreds the sentence into columns -->
@@ -346,7 +372,6 @@
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
   <div id="side">
-    <h1 id="labtitle"></h1>
     <div id="rail"></div>
     <div id="card"><div id="stepnote"></div></div>
   </div>
@@ -448,7 +473,7 @@ const STEPS=[
   { n:1, stage:1, reagent:'ATP', need:'Spend 1 ATP',
     species:['g6p'], enz:'Hexokinase', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
-    couple:{ from:'Glucose', to:'G6P', up:true, cin:'ATP', cout:'ADP', tone:'p' },
+    couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
     msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. Phosphorylating a sugar is uphill on its own — <b>coupling</b> it to ATP hydrolysis is what makes it go. The charge also <b>traps the sugar inside the cell</b>: no transporter will carry it back out.` },
 
   { n:2, stage:1, reagent:null,
@@ -458,10 +483,10 @@ const STEPS=[
     msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent and nothing is made — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
-    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', short:'Phosphofructokinase-1',
+    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)',
     rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
-    couple:{ from:'F6P', to:'F1,6-BP', up:true, cin:'ATP', cout:'ADP', tone:'p' },
+    couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
     msg:`A second <b>ATP</b> phosphorylates carbon 1. This is the <b>committed step</b> — and the one the cell regulates.` },
 
   { n:4, stage:2, reagent:null,
@@ -477,16 +502,15 @@ const STEPS=[
     msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Both lanes are now identical — everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
-    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase',
-    short:'G3P dehydrogenase', rev:true,
+    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
-    couple:{ from:'G3P + Pi', to:'1,3-BPG', up:false, cin:'NAD+', cout:'NADH', tone:'n' },
+    couple:{ up:false, plus:'Pi', cin:'NAD+', cout:'NADH', tone:'n' },
     msg:`The <b>only oxidation in the pathway</b>. Each G3P loses two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP was spent here.</b>` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
     species:['pga3','pga3'], enz:'Phosphoglycerate kinase', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
-    couple:{ from:'1,3-BPG', to:'3-PG', up:false, cin:'ADP', cout:'ATP', tone:'p' },
+    couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
     msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it can be handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
@@ -504,7 +528,7 @@ const STEPS=[
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
     species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', rev:false,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
-    couple:{ from:'PEP', to:'Pyruvate', up:false, cin:'ADP', cout:'ATP', tone:'p' },
+    couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
     msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell — well above ATP's. The phosphate goes to <b>ADP</b> and the enol snaps to the keto form: <b>pyruvate</b>. Net <b>2 ATP</b> and <b>2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
@@ -530,7 +554,7 @@ const STEPS=[
 // enzyme, the ledger carries the carbon count and the running totals, the tray
 // carries the pools, and #stepnote carries reversibility and PFK-1.
 const STAGES=[
-  { n:0, title:'Glucose',    label:'Start: one glucose', delta:'6 C' },
+  { n:0,                     label:'Start: one glucose', delta:'6 C' },   // no title: stage 0 keeps the lesson name
   { n:1, title:'Investment', block:'Priming',   label:'Priming: spend 2 ATP',    delta:'−2 ATP' },
   { n:2, title:'The split',  block:'Cleavage',  label:'Cleavage: 6C → 3C + 3C',  delta:'1 → 2' },
   { n:3, title:'Oxidation',  block:'Oxidation', label:'Oxidation: make 2 NADH',  delta:'+2 NADH' },
@@ -599,6 +623,24 @@ function ledgerAt(i){ const L={spent:0,made:0,nadh:0};
 const stageAt=i=>intro?0:(i>=nSteps?5:STEPS[i].stage);
 const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+M[k].gly.carbons,0);
 
+// WHAT A STEP LEAVES ON THE STAGE, named the way the plate names it — this is
+// the rail's label, so a numbered row and the molecule under that number are
+// the same word. (The rows used to name the ENZYME, which meant nothing in the
+// sidebar ever matched anything on the stage.) The `2 ×` is not decoration: it
+// is where the rail says out loud that everything after the split happens
+// twice, which the two lanes show and no other text stated.
+//
+// SYSTEMATIC NAME, NOT THE ABBREVIATION. The rail is where a student reads the
+// pathway top to bottom, and "F1,6-BP" only means something once you already
+// know what it stands for. The abbreviation stays where space is genuinely
+// scarce — the coupling figure, and a plate with another lane beside it.
+function productOf(st){
+  const keys=st.species, nameOf=k=>M[k].name;
+  return keys.every(k=>k===keys[0]) && keys.length>1
+    ? `${keys.length} × ${nameOf(keys[0])}`
+    : keys.map(nameOf).join(' + ');
+}
+
 /* =============================================================
  *  3D: lanes, labels, transitions
  * ============================================================= */
@@ -619,6 +661,13 @@ let busy=false;                               // a transition is animating
 // is the one thing that must not be dropped — an HTML label that is not
 // re-projected drifts off its molecule the moment the scene rotates.
 const platesEl=document.getElementById('plates');
+// EVERY MOLECULE HAS TWO NAMES AND BOTH ARE ON SCREEN. The plate carries the
+// systematic name; the coupling figure in the side panel carries the
+// abbreviation a student actually writes ("F1,6-BP"). Both now come from the
+// spec's `name`/`short`, so the two never disagree about what a molecule is
+// called — they used to, because the figure's names were typed into STEPS.
+// The plate falls back to the abbreviation when the systematic name will not
+// fit the space between the lanes; see drawPlates.
 function makePlate(spec){
   const d=document.createElement('div');
   d.className='plate';
@@ -686,8 +735,16 @@ function spawnLane(key,i,n,topY){
   const plate=makePlate(spec);
   // Natural width at full size, measured ONCE while nothing constrains it —
   // drawPlates scales against this every frame and cannot re-measure, because
-  // by then the element is already scaled.
-  return {g,key,plate,topY,natW:plate.offsetWidth};
+  // by then the element is already scaled. Both spellings are measured here,
+  // for the same reason: by draw time the element carries whichever one is
+  // currently showing, so its live width answers the wrong question.
+  const nameEl=plate.querySelector('.pn');
+  const natW=plate.offsetWidth;
+  nameEl.textContent=spec.short||spec.name;
+  const shortW=plate.offsetWidth;
+  nameEl.textContent=spec.name;
+  return {g,key,plate,nameEl,topY,natW,shortW,
+          full:spec.name, abbr:spec.short||spec.name, showing:'full'};
 }
 function clearLanes(){
   lanes.forEach(l=>{ root.remove(l.g); l.plate.remove(); });
@@ -722,12 +779,25 @@ function drawPlates(){
   const budget = xs.length>1
     ? Math.max(90, Math.abs(xs[1].x-xs[0].x)-PLATE_GAP_PX_X)
     : Math.max(120, w-40);
+  // ONE DECISION FOR BOTH LANES. Deciding per lane let DHAP abbreviate while
+  // the wider "Glyceraldehyde-3-phosphate" beside it stayed systematic, so the
+  // matched pair read as two different KINDS of thing — the same reason the two
+  // labels share one baseline (see plateY). Widest name wins for everyone.
+  const wide = lanes.every(l=>budget>=l.natW);
   lanes.forEach((l,i)=>{
+    // ABBREVIATE FIRST, THEN SHRINK. "1,3-bisphosphoglycerate" at 0.62 scale is
+    // a smear; "1,3-BPG" at full size is the name the student is going to write
+    // down anyway, and it is the one the coupling figure beside it uses. So the
+    // plate drops to the spec's `short` as soon as the systematic name stops
+    // fitting between the lanes, and only scales below that. No oscillation:
+    // `budget` is a property of the lanes, not of the label's own width.
+    const want = wide?'full':'abbr';
+    if(l.showing!==want){ l.nameEl.textContent = wide?l.full:l.abbr; l.showing=want; }
     // SHRINK, don't wrap. A systematic name has no space to break at, so
     // letting it wrap chopped "bisphosphogl / ycerate" mid-word. Scaling about
     // the label's bottom-centre keeps it anchored to the molecule while it
     // shrinks, and the floor stops it becoming unreadable rather than overlapping.
-    const s=Math.max(0.62, Math.min(1, budget/Math.max(1, l.natW)));
+    const s=Math.max(0.62, Math.min(1, budget/Math.max(1, wide?l.natW:l.shortW)));
     l.plate.style.left=xs[i].x+'px';
     l.plate.style.top =xs[i].y+'px';
     l.plate.style.transform=`translate(-50%,-100%) scale(${s.toFixed(3)})`;
@@ -1013,6 +1083,7 @@ function restart(){ cancelTimers(); busy=false; done=0; intro=true;
  *  UI
  * ============================================================= */
 const rxmsgEl=document.getElementById('rxmsg');
+const enzEl=document.getElementById('enzyme');
 // THE CAPTION IS DERIVED, like everything else here: it is the message of the
 // step that PRODUCED the state now on screen. That is what makes rewinding work
 // — the caption for step 6 reappears when you step back onto it, without
@@ -1024,7 +1095,19 @@ const rxmsgEl=document.getElementById('rxmsg');
 const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
   +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
 const captionAt=i=>intro ? INTRO_MSG : (i>0 ? STEPS[i-1].msg : '');
+// The enzyme is read off the SAME step as the caption — the one that produced
+// what is on screen — so the two lines are one credit for one action, and a
+// rewind restores them together without either remembering anything.
+const enzymeAt=i=>intro||i===0 ? null : STEPS[i-1];
 let shownCaption=null;
+function drawEnzyme(){
+  const st=enzymeAt(done);
+  enzEl.classList.toggle('show', !!st);
+  enzEl.innerHTML = st
+    ? st.enz + (st.rev===false
+        ? ` <span class="irr" title="effectively irreversible in the cell">⇢</span>` : '')
+    : '';
+}
 function drawCaption(){
   const html=captionAt(done);
   if(html===shownCaption) return;              // don't restart the fade on every refresh
@@ -1142,14 +1225,18 @@ function drawRail(){
 
     steps.forEach(st=>{
       const idx=STEPS.indexOf(st);
-      // `intro` gates the reading, not the chemistry — at done=0 step 1 is
-      // already next, so without this check the rail would light step 1 as
-      // current while the student is still being introduced to glucose.
-      const state=idx<done?'done':(idx===done&&!intro?'cur':'future');
+      // `cur` is the step that PRODUCED what is on the stage — done-1, not done
+      // — because the row is named for that product. `next` is the one the
+      // student is about to run. `intro` gates the reading, not the chemistry:
+      // at done=0 step 1 is already next, so without this check the rail would
+      // ring step 1 while the student is still being introduced to glucose.
+      const state=idx===done-1?'cur'
+                 :idx<done?'done'
+                 :(idx===done&&!intro?'next':'future');
       const r=document.createElement('div');
       r.className='rrow '+state;
       r.innerHTML=`<div class="rdot">${st.n}</div>`
-        +`<div class="rlab">${st.short||st.enz}</div>`
+        +`<div class="rlab">${productOf(st)}</div>`
         +(st.rev===false
           ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '');
       if(idx<done) r.onclick=()=>goStep(idx);
@@ -1158,14 +1245,22 @@ function drawRail(){
   });
 }
 
-const titleEl=document.getElementById('labtitle');
-// JUST THE TITLE, and by now that is all there is. Three things have been taken
-// off this heading in turn, each because something else on screen already said
-// it: a "Stage 2 of 5 · Step 4 of 10" eyebrow (the rail, in words), a coloured
+const titleEl=document.querySelector('#brand h1');
+// read out of the markup rather than typed again here, so the lesson is named
+// in exactly one place and the page still says "Glycolysis" with JS switched off
+const LESSON=titleEl.textContent.trim();
+// THE PAGE HAS ONE TITLE AND IT IS THE STAGE. Four things have been taken off
+// this heading in turn, each because something else on screen already said it:
+// a "Stage 2 of 5 \u00b7 Step 4 of 10" eyebrow (the rail, in words), a coloured
 // phase pill (which read "The split" directly under a heading reading "The
-// split"), a "Next enzyme: …" line (the rail bolds the current step's enzyme),
-// and finally the three-paragraph stage body — see the note on STAGES.
-function drawCard(){ titleEl.textContent=STAGES[stageAt(done)].title; }
+// split"), a "Next enzyme: \u2026" line (the enzyme is on the stage now), and the
+// three-paragraph stage body \u2014 see the note on STAGES. What was left was a
+// lone word at the top of the sidebar, duplicating the chrome of a heading the
+// stage already had. So it moved into #brand: before the pathway starts the h1
+// names the LESSON, and from the first step on it names the stage.
+function drawTitle(){
+  titleEl.textContent = stageAt(done)===0 ? LESSON : STAGES[stageAt(done)].title;
+}
 
 /* The panel under the card. It shows ONE of three things, in priority order:
  * PFK-1's regulation when that step is next (the page's one piece of real
@@ -1193,6 +1288,21 @@ const irrevSteps=()=>STEPS.filter(s=>s.rev===false);
  * work: it separates the steps that move energy from the steps that move atoms,
  * which nothing else on the page says.
  */
+// The figure's two species names are READ OFF THE MOLECULES, not typed into the
+// step: `from` is whatever is standing in the lanes before the step runs, `to`
+// is what the step leaves there, and both are the spec's own `short`. They used
+// to be two strings in STEPS, which is how the panel came to call a molecule
+// "F1,6-BP" while the plate over it read "Fructose-1,6-bisphosphate" — a name
+// typed in a second place is a name that can disagree with the molecule.
+// `plus` is for the one step that consumes a second substrate (step 6's Pi);
+// nothing else on the pathway takes two.
+function resolveCouple(st){
+  const i=STEPS.indexOf(st), c=st.couple;
+  const nameOf=k=>M[k].short||M[k].name;
+  return Object.assign({}, c, {
+    from: nameOf(speciesAt(i)[0]) + (c.plus?` + ${c.plus}`:''),
+    to:   nameOf(st.species[0]) });
+}
 function coupleFig(c){
   // Higher-energy species on top. For an uphill main reaction the product is
   // the higher one; for a downhill reaction the substrate is.
@@ -1243,9 +1353,10 @@ function drawNote(){
   // The coupling figure comes FIRST where there is one — it is the mechanism of
   // the step the student is about to run, where reversibility and regulation
   // are both properties of it.
-  const fig = st && st.couple
-    ? `<div class="nhead cpl-h">Coupled reaction</div>${coupleFig(st.couple)}`
-      +`<p class="nbody">${coupleLine(st.couple)}</p>`
+  const cpl = st && st.couple ? resolveCouple(st) : null;
+  const fig = cpl
+    ? `<div class="nhead cpl-h">Coupled reaction</div>${coupleFig(cpl)}`
+      +`<p class="nbody">${coupleLine(cpl)}</p>`
     : '';
 
   if(st && st.commit){
@@ -1310,8 +1421,8 @@ function drawFork(){
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
-function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawCard();
-  drawNote(); drawCaption(); drawFork(); computeFit(); }
+function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawTitle();
+  drawNote(); drawEnzyme(); drawCaption(); drawFork(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
@@ -1377,7 +1488,9 @@ document.getElementById('savepng').onclick=()=>{
     x.font=`500 ${14*s}px "Zilla Slab", Georgia, serif`;
     x.fillStyle='#8a8073'; x.fillText(spec.formula, px, py-3*s);
     x.font=`700 ${19*s}px "Zilla Slab", Georgia, serif`;
-    x.fillStyle='#2b2723'; x.fillText(spec.name, px, py-20*s);
+    // whichever spelling the plate is currently showing — an export that
+    // renames the molecules is not a picture of what is on screen
+    x.fillStyle='#2b2723'; x.fillText(l.nameEl.textContent, px, py-20*s);
   });
   const a=document.createElement('a'); a.download='glycolysis.png';
   a.href=out.toDataURL('image/png'); a.click();
