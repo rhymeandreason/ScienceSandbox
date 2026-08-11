@@ -388,13 +388,17 @@
      themselves come from DROP at render time, never typed. */
   #massmodal .meq{display:flex;align-items:center;justify-content:center;gap:13px;
     margin-top:8px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
-  #massmodal .meq svg{flex:none;width:176px;height:64px;overflow:visible}
+  #massmodal .meq svg{flex:none;width:212px;height:124px;overflow:visible}
   #massmodal .meq b{font-family:var(--font-slab);font-size:15px;color:var(--ink);
     letter-spacing:.2px}
-  #massmodal .meq .lvl{stroke-width:2.5;stroke-linecap:round}
+  #massmodal .meq .rc{fill:none;stroke:var(--ink);stroke-width:2.5;
+    stroke-linecap:round;stroke-linejoin:round;opacity:.72}
+  #massmodal .meq .axl{stroke:var(--muted);stroke-width:1.2;opacity:.35}
+  #massmodal .meq .ea{font-family:var(--font-slab);font-weight:700;font-size:11px;
+    fill:var(--ink)}
   #massmodal .meq .gap{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:3 3}
   #massmodal .meq .gaparr{stroke:var(--ink);stroke-width:1.4}
-  #massmodal .meq .lb{font-family:var(--font-slab);font-weight:700;font-size:9.5px}
+  #massmodal .meq .lb{font-family:var(--font-slab);font-weight:700;font-size:10.5px}
   #massmodal .meq .ax{font-family:var(--font-sans);font-weight:600;font-size:8px;
     fill:var(--muted);letter-spacing:.5px;text-transform:uppercase}
   @media (max-width:920px){
@@ -2015,32 +2019,48 @@ const Mass=(()=>{
     ui.net.style.borderColor = !hot ? 'rgba(58,52,44,.14)'
       : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.25+0.35*k).toFixed(2)+')';
   }
-  // The two levels, with free energy as HEIGHT — the same convention the side
-  // panel's coupled figure uses, so a student meets one picture twice rather
-  // than two. Geometry comes from DROP: a flat step draws them level because ΔE
-  // is zero, not because a second drawing was written for it.
+  // THE REACTION COORDINATE, drawn rather than described. Two levels alone left
+  // the barrier invisible: the page said a molecule needs energy to react, and
+  // the picture had nothing to climb. With the hump in, "the reverse barrier is
+  // EA + ΔE" stops being algebra — it is the SAME peak reached from a lower
+  // start, which is a thing you can see and not a formula to accept.
+  //
+  // ONE SCALE FOR BOTH TABS, fixed at the drop step's full span. EA is the same
+  // number on both, so its hump must be the same height on both — auto-fitting
+  // each tab would draw the flat step's little barrier as tall as the drop's and
+  // say, wrongly, that they differ. The cost is that the flat step is a small
+  // bump adrift in a big box, which is exactly what it is.
+  const EPX = 88/(EA+DROP.drop);          // px per kT — see above
   function drawEq(m){
     const d=DROP[m], nm=SPECIES[m];
-    const yA = d===0 ? 34 : 18, yB = d===0 ? 34 : 52;   // level lines, viewBox units
-    const arrow = d===0 ? '' :
-       `<path class="gap" d="M62,18 H92"/><path class="gap" d="M92,52 H122"/>`
-      +`<path class="gaparr" d="M92,20 V50"/>`
-      +`<path class="gaparr" d="M92,18 l3.4,7 h-6.8 z" fill="var(--ink)" stroke="none"/>`
-      +`<path class="gaparr" d="M92,52 l3.4,-7 h-6.8 z" fill="var(--ink)" stroke="none"/>`;
+    // Energies, product taken as zero: only differences mean anything.
+    const ePk=EA+d, span=ePk*EPX, top=12+(88-span)/2;
+    const y=e=>top+(ePk-e)*EPX;
+    const ySub=y(d), yPk=y(ePk), yPrd=y(0);
+    const gap = d===0 ? '' :
+       `<path class="gap" d="M68,${ySub} H186"/>`
+      +`<path class="gaparr" d="M180,${ySub+3} V${yPrd-3}"/>`
+      +`<path class="gaparr" d="M180,${ySub} l3.2,6.6 h-6.4 z" fill="var(--ink)" stroke="none"/>`
+      +`<path class="gaparr" d="M180,${yPrd} l3.2,-6.6 h-6.4 z" fill="var(--ink)" stroke="none"/>`;
     ui.eq.innerHTML =
-      `<svg viewBox="0 0 176 68" role="img" aria-label="${nm[0]} and ${nm[1]}`
-      +` ${d===0?'at the same free energy':'with '+nm[1]+' lower in free energy'}">`
-      +`<text class="ax" transform="translate(7,44) rotate(-90)">energy</text>`
-      +`<path class="gap" d="M14,8 V60" stroke-dasharray="none" stroke-opacity=".35"/>`
-      +arrow
-      +`<path class="lvl" d="M22,${yA} H62" stroke="${COL[0]}"/>`
-      +`<text class="lb" x="42" y="${yA-6}" text-anchor="middle" fill="${COL[0]}">${nm[0]}</text>`
-      +`<path class="lvl" d="M122,${yB} H166" stroke="${COL[1]}"/>`
-      +`<text class="lb" x="144" y="${yB-6}" text-anchor="middle" fill="${COL[1]}">${nm[1]}</text>`
+      `<svg viewBox="0 0 210 122" role="img" aria-label="Reaction coordinate: ${nm[0]}`
+      +` climbs a barrier and falls to ${nm[1]}`
+      +`${d===0?', which sits at the same energy':', which sits far lower'}">`
+      +`<text class="ax" transform="translate(9,74) rotate(-90)">energy</text>`
+      +`<path class="axl" d="M17,10 V112"/>`
+      + gap
+      // the hump: level in, up and over the peak, down and level out
+      +`<path class="rc" d="M26,${ySub} H68`
+        +` C84,${ySub} 90,${yPk} 106,${yPk}`
+        +` C122,${yPk} 128,${yPrd} 144,${yPrd} H196"/>`
+      +`<text class="lb" x="40" y="${ySub-7}" fill="${COL[0]}">${nm[0]}</text>`
+      +`<text class="lb" x="182" y="${yPrd-7}" text-anchor="end" fill="${COL[1]}">${nm[1]}</text>`
+      +`<text class="ea" x="106" y="${yPk-8}" text-anchor="middle">E<tspan dy="2.5" font-size="7">A</tspan></text>`
       +`</svg>`
       + (d===0
-          ? `<span>Same level — <b>nothing extra</b> to go back.</span>`
-          : `<span>Going back needs an extra <b>+${d.toFixed(1)} kT</b>.</span>`);
+          ? `<span>Same peak from both sides — <b>nothing extra</b> to go back.</span>`
+          : `<span>Going back means climbing to the same peak from lower down:
+             an extra <b>+${d.toFixed(1)} kT</b>.</span>`);
   }
   function setMode(m){
     mode=m;
