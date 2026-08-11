@@ -64,9 +64,16 @@
      the stage, which put the essential sentence of each step in the one place
      a student is not looking (they are watching the molecule) and then took it
      away while they were still reading. Now it is a fixed band at the bottom,
-     wide enough for three lines, set in the sans face at reading size, and it
-     does not time out — it is replaced when the next step produces a new one.
-     `min-height` is what reserves the band whether or not there is text in it. */
+     set in the sans face at reading size, and it does not time out — it is
+     replaced when the next step produces a new one. `min-height` is what
+     reserves the band whether or not there is text in it.
+
+     THREE LINES IS THE BUDGET, and it is a hard one: #bottombar's height is
+     what the camera measures along the bottom edge, so a caption that outgrows
+     this band would change the framing of every state at once. At 680px and
+     15.5px that is ~270 characters — which is exactly what step 10 uses, so
+     there is no slack. A longer message means growing the band here and
+     re-checking the fit, not just adding words in STEPS. */
   #rxmsg{width:min(680px,64%);min-height:74px;text-align:center;
     display:flex;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
@@ -215,21 +222,11 @@
   .rrow.bookend .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);
     font-weight:700;font-size:11.5px;color:var(--muted);white-space:nowrap}
 
-  #card .enz{font-family:var(--font-slab);font-size:13px;color:var(--muted);margin:0 0 12px}
-  #card .enz b{color:var(--ink);font-weight:700}
-  #card .rxn{font-family:var(--font-slab);font-weight:700;font-size:14.5px;color:var(--phos);
-    margin:0 0 14px;line-height:1.45}
-  #card .misc{font-size:13.5px;color:var(--muted)}
-
-  /* The note panel under the card. sandbox.css pins a card's footer block to the
-     bottom and scrolls only .cardtext, which works for a one-line note — but
-     PFK-1's regulation block runs ~400px and squeezed the prose to zero height.
-     So this page scrolls #card as ONE column: the note is reading material here,
-     not chrome, and it should follow the prose rather than compete with it.
-     Safe because this page has no .factwrap lightbulb to spill past the edge. */
+  /* The card now holds ONE thing — the note panel — so it simply scrolls.
+     (It used to hold three paragraphs of stage prose above this, which is why
+     it needed the overflow juggling that sandbox.css's .cardtext does.) */
   #card{overflow-y:auto}
-  #card .cardtext{overflow:visible;flex:none}
-  #stepnote{margin-top:18px;padding-top:13px;border-top:1.5px dashed var(--hair)}
+  #stepnote{padding-top:2px}
   #stepnote .nhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
     letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
   #stepnote .nhead.reg{color:var(--phos)}
@@ -237,6 +234,26 @@
   #stepnote .nhead.rev{color:var(--nad)}
   #stepnote .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
   #stepnote .nbody:last-child{margin-bottom:0}
+  /* the coupled-reaction figure. Two arrows running opposite ways, with height
+     standing in for free energy — no ticks and no numbers, because it makes no
+     quantitative claim (see coupleFig). The coupled half is tinted with the
+     page's existing colour language: orange for phosphate traffic, green for
+     the NAD⁺/NADH carrier, matching #rxmsg .p and .n. */
+  #stepnote .nhead.cpl-h{color:var(--ink)}
+  .cpl{display:block;width:100%;height:auto;margin:2px 0 9px}
+  .cpl .ml{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
+  .cpl .mh{fill:var(--ink)}
+  .cpl .cl{fill:none;stroke-width:2.2;stroke-linecap:round}
+  .cpl.p .cl{stroke:var(--phos)} .cpl.p .ch{fill:var(--phos)} .cpl.p .cs{fill:var(--phos)}
+  .cpl.n .cl{stroke:var(--nad)}  .cpl.n .ch{fill:var(--nad)}  .cpl.n .cs{fill:var(--nad)}
+  .cpl .cm,.cpl .cs{font-family:var(--font-slab);font-weight:700;font-size:14px}
+  .cpl .cm{fill:var(--ink)}
+  /* the axis is a hint, not a scale — hairline, no ticks */
+  .cpl .axl{fill:none;stroke:var(--hair);stroke-width:1.5}
+  .cpl .axh{fill:var(--hair)}
+  .cpl .ax{font-family:var(--font-sans);font-size:9px;letter-spacing:1.1px;
+    text-transform:uppercase;fill:var(--muted)}
+
   .effrow{display:flex;gap:9px;margin:0 0 10px}
   .eff{flex:1;padding:8px 9px;border-radius:7px;background:rgba(0,0,0,.03)}
   .eff .eh{font-family:var(--font-slab);font-weight:700;font-size:10.5px;letter-spacing:.8px;
@@ -325,9 +342,7 @@
   <div id="side">
     <h1 id="labtitle"></h1>
     <div id="rail"></div>
-    <div id="card"><div class="cardtext" id="cardtext"></div>
-      <div id="stepnote"></div>
-    </div>
+    <div id="card"><div id="stepnote"></div></div>
   </div>
 </div>
 
@@ -419,7 +434,8 @@ const STEPS=[
   { n:1, stage:1, reagent:'ATP', need:'Spend 1 ATP',
     species:['g6p'], enz:'Hexokinase', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
-    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. Phosphorylating a sugar is uphill on its own — <b>coupling</b> it to ATP hydrolysis is what makes it go.` },
+    couple:{ from:'Glucose', to:'G6P', up:true, cin:'ATP', cout:'ADP', tone:'p' },
+    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. Phosphorylating a sugar is uphill on its own — <b>coupling</b> it to ATP hydrolysis is what makes it go. The charge also <b>traps the sugar inside the cell</b>: no transporter will carry it back out.` },
 
   { n:2, stage:1, reagent:null,
     act:'Shift the carbonyl to C2', actHint:'phosphoglucose isomerase · aldose → ketose',
@@ -431,13 +447,14 @@ const STEPS=[
     species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', short:'Phosphofructokinase-1',
     rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
+    couple:{ from:'F6P', to:'F1,6-BP', up:true, cin:'ATP', cout:'ADP', tone:'p' },
     msg:`A second <b>ATP</b> phosphorylates carbon 1. This is the <b>committed step</b> — and the one the cell regulates.` },
 
   { n:4, stage:2, reagent:null,
     act:'Cleave the C3–C4 bond', actHint:'aldolase · 6 carbons → 3 + 3',
     species:['dhap','g3p'], enz:'Aldolase', rev:true,
     fx:'split',
-    msg:`Six carbons become <b>3 + 3</b>. Each half keeps one <span class="p">phosphate</span> — which is why two were paid in.` },
+    msg:`Six carbons become <b>3 + 3</b>. Each half keeps one <span class="p">phosphate</span> — which is why two were paid in. <i>Glyco-</i> sugar, <i>-lysis</i> splitting: this is the step the pathway is named after.` },
 
   { n:5, stage:2, reagent:null,
     act:'Convert DHAP → G3P', actHint:'triose-phosphate isomerase · the halves are not identical yet',
@@ -449,11 +466,13 @@ const STEPS=[
     species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase',
     short:'G3P dehydrogenase', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
+    couple:{ from:'G3P + Pi', to:'1,3-BPG', up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     msg:`The <b>only oxidation in the pathway</b>. Each G3P loses two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP was spent here.</b>` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
     species:['pga3','pga3'], enz:'Phosphoglycerate kinase', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
+    couple:{ from:'1,3-BPG', to:'3-PG', up:false, cin:'ADP', cout:'ATP', tone:'p' },
     msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it can be handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
@@ -471,83 +490,56 @@ const STEPS=[
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
     species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', rev:false,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
-    msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell — well above ATP's. The phosphate goes to <b>ADP</b> and the enol snaps to the keto form: <b>pyruvate</b>.` },
+    couple:{ from:'PEP', to:'Pyruvate', up:false, cin:'ADP', cout:'ATP', tone:'p' },
+    msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell — well above ATP's. The phosphate goes to <b>ADP</b> and the enol snaps to the keto form: <b>pyruvate</b>. Net <b>2 ATP</b> and <b>2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
 // The five stages, kept as the GROUPING over the ten steps. `delta` is the
-// bookkeeping change students should be able to recite for each one — it is
-// printed on the rail whether or not they read the prose. `steps` is derived
-// from STEPS below rather than typed, so the two can never drift.
+// bookkeeping change students should be able to recite for each one, and it is
+// printed on the rail.
+//
+// THE STAGES CARRY NO PROSE ANY MORE. Each used to own three paragraphs in the
+// side panel, and laid against the ten step captions almost every sentence was
+// already being said twice — the caption for step 6 and the body of stage 3
+// made the same three points, one of them while the student was looking at the
+// molecule and the other while they were not. A wall of text next to a
+// simulation is text nobody reads. So the bodies are gone and the five facts
+// that were NOT duplicated moved to where they are actually needed:
+//
+//   cytosol · no oxygen · universal    → the intro caption (captionAt)
+//   the charge traps the sugar in the cell → step 1's caption
+//   glyco- sugar, -lysis splitting     → step 4's caption
+//   each NADH is worth ~2.5 ATP later  → the aerobic door of the fork
+//   net 2 ATP ≈ 5% of glucose's energy → step 10's caption
+//
+// Everything else the bodies said is on screen already: the rail names every
+// enzyme, the ledger carries the carbon count and the running totals, the tray
+// carries the pools, and #stepnote carries reversibility and PFK-1.
 const STAGES=[
-  { n:0, title:'Glucose', label:'Start: one glucose', delta:'6 C',
-    body:`<p>One molecule of <b>glucose</b> — six carbons, drawn as the <b>pyranose
-      ring</b> it mostly adopts in water.</p>
-      <p>Glycolysis runs in the <b>cytosol</b> and uses <b>no oxygen</b>. Every domain
-      of life has it, which is the usual argument that it is very old — older than
-      the oxygen it doesn't need.</p>
-      <p class="misc">Watch two numbers in the ledger: the <b>carbon count</b>, which
-      never changes, and <b>ATP</b>, which is about to go <i>down</i>.</p>` },
-
-  { n:1, title:'Investment', block:'Priming', label:'Priming: spend 2 ATP', delta:'−2 ATP',
-    body:`<p>Three steps, two of them spending ATP. Phosphorylating a sugar is
-      thermodynamically uphill; <b>coupling</b> each one to ATP hydrolysis is what
-      makes the pair go downhill together.</p>
-      <p>The phosphates buy two things. Their <b>charge</b> traps the sugar inside the
-      cell — GLUT transporters won't carry it back out. And they <b>destabilise</b>
-      the molecule, which is what lets step 4 break it in half.</p>
-      <p class="misc">Step 2 spends nothing. It moves the carbonyl from C1 to C2,
-      turning an aldose into a ketose — without which the six-carbon chain could not
-      be cut into two halves that each carry a phosphate.</p>` },
-
-  { n:2, title:'The split', block:'Cleavage', label:'Cleavage: 6C → 3C + 3C', delta:'1 → 2',
-    body:`<p>Aldolase cuts the chain between <b>carbon 3 and carbon 4</b>. One molecule
-      becomes <b>two</b>: <b>DHAP</b> and <b>G3P</b>.</p>
-      <p>They are isomers, not copies — so triose-phosphate isomerase converts DHAP
-      into a second G3P. Only then does the pathway have two identical substrates.</p>
-      <p class="misc"><i>Glyco-</i> sugar, <i>-lysis</i> splitting: this is where the
-      pathway gets its name. From here every step happens <b>twice</b>, once per lane.
-      Nothing on screen says "×2" — you just see both.</p>` },
-
-  { n:3, title:'Oxidation', block:'Oxidation', label:'Oxidation: make 2 NADH', delta:'+2 NADH',
-    body:`<p>The <b>payoff phase</b> starts here — and it starts with the
-      <b>only oxidation in the whole pathway</b>. Worth being precise about: G3P
-      <b>loses electrons</b>, so it is oxidised. <b>NAD⁺</b> gains them (two
-      electrons and a proton — a hydride) and becomes <b>NADH</b>.</p>
-      <p>A <b>free phosphate</b> from the cytosol, not from ATP, fills the vacated
-      position. The product is an <b>acyl phosphate</b>, and the oxidation is what
-      paid for it.</p>
-      <p class="misc">NADH is the larger prize. If oxygen is available, each one is
-      worth roughly 2.5 ATP downstream — so these 2 NADH outweigh the pathway's 2
-      net ATP several times over.</p>` },
-
-  { n:4, title:'Payoff', block:'Payoff', label:'Payoff: make 4 ATP', delta:'+4 ATP',
-    body:`<p>Four steps, two of which charge ADP. Both work by <b>substrate-level
-      phosphorylation</b>: an enzyme hands a phosphate straight from a substrate to
-      ADP — no membrane, no gradient, no oxygen.</p>
-      <p>That only works when the donor's <b>phosphoryl-transfer potential</b> is
-      higher than ATP's. The acyl phosphate of 1,3-BPG qualifies; the plain ester on
-      3-phosphoglycerate does not, which is exactly why steps 8 and 9 exist — to
-      move that phosphate and then dehydrate the molecule into <b>PEP</b>, the
-      highest-potential phosphate donor in the cell.</p>
-      <p class="misc">Count the phosphates leaving the screen. Four out, and every one
-      of them lands on an ADP.</p>` },
-
-  { n:5, title:'The tally', label:'Tally & what comes next', delta:'net +2 ATP',
-    body:`<p>Two <b>pyruvate</b>. Six carbons in, six carbons out — nothing was lost;
-      it was cut in half and drained of a little energy.</p>
-      <p>Per glucose: <b>4 ATP made − 2 ATP spent = net 2 ATP</b>, plus <b>2 NADH</b>.
-      That is roughly <b>5%</b> of the energy in the glucose. The rest is still in
-      those two pyruvate.</p>
-      <p class="misc">Look at the ledger: <b>NAD⁺ is 0</b>. NAD⁺ is a <i>carrier</i>,
-      not a fuel — the cell has a fixed, small pool of it. Glycolysis stops dead
-      until it is regenerated, and that constraint is what the fork below is really
-      about.</p>` },
+  { n:0, title:'Glucose',    label:'Start: one glucose', delta:'6 C' },
+  { n:1, title:'Investment', block:'Priming',   label:'Priming: spend 2 ATP',    delta:'−2 ATP' },
+  { n:2, title:'The split',  block:'Cleavage',  label:'Cleavage: 6C → 3C + 3C',  delta:'1 → 2' },
+  { n:3, title:'Oxidation',  block:'Oxidation', label:'Oxidation: make 2 NADH',  delta:'+2 NADH' },
+  { n:4, title:'Payoff',     block:'Payoff',    label:'Payoff: make 4 ATP',      delta:'+4 ATP' },
+  { n:5, title:'The tally',  label:'Tally & what comes next', delta:'net +2 ATP' },
 ];
 
 // Which steps sit under a stage — derived, never typed. The rail now prints
 // every step number itself, so nothing has to state a range and then be kept
 // true; a step moved between stages re-blocks the rail on its own.
 const stageSteps=n=>STEPS.filter(s=>s.stage===n);
+
+// A STAGE'S DELTA IS A RECORD, NOT A PROMISE. All six used to print from the
+// first frame, so "net +2 ATP" sat on the rail before a single ATP had been
+// spent — the rail gave away the exact number the ledger exists to reveal, and
+// the dip below zero stopped being a surprise. A delta now appears only once
+// its stage's steps are actually done. Stage 0 is the exception: "6 C" is a
+// statement about the molecule already on screen, not a result to come.
+const stageComplete=n=>{
+  const k=stageSteps(n);
+  if(!k.length) return n===0 || done>=nSteps;      // the two bookends
+  return !intro && STEPS.indexOf(k[k.length-1]) < done;
+};
 
 /* ---- the regulation panel: PFK-1, and why the cell controls step 3 ----------
  * Attached to the step, not the stage, so it appears exactly when the student is
@@ -996,7 +988,11 @@ const rxmsgEl=document.getElementById('rxmsg');
 // anything having to remember which toast was last fired. It used to be pushed
 // imperatively by runStep and then expire on a timer, which meant a rewound
 // state showed either the wrong sentence or none.
-const captionAt=i=>(!intro && i>0) ? STEPS[i-1].msg : '';
+// The intro gets the band too — it was sitting empty, and the orientation the
+// stage-0 body used to carry is exactly one sentence long.
+const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
+  +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
+const captionAt=i=>intro ? INTRO_MSG : (i>0 ? STEPS[i-1].msg : '');
 let shownCaption=null;
 function drawCaption(){
   const html=captionAt(done);
@@ -1020,7 +1016,11 @@ function drawLedger(){
     // typographic minus, not a hyphen — "−2" is a quantity, and the dip to −2 is
     // the single number this whole page is built to make land
     +`<div class="row net"><span>Net ATP</span><span class="v">${net>0?'+':net<0?'−':''}${Math.abs(net)}</span></div>`
-    +`<div class="row"><span>NADH</span><span class="v${bumped('nadh')}">${L.nadh}</span></div>`
+    // NADH is DELIBERATELY not here. The tray already carries it, with the same
+    // number at every step, and there it is the loaded half of a carrier pair
+    // rather than a lone tally — which is the more useful reading, and the one
+    // that makes NAD⁺ running to 0 mean something. What is left in this box is
+    // exactly the arithmetic no other surface does.
     +`<div class="row carb"><span>Carbons</span><span class="v">${c.join(' + ')}${c.length>1?' = 6':''}</span></div>`;
   prevLedger=L;
 }
@@ -1096,7 +1096,7 @@ function drawRail(){
       d.className='rrow bookend '+stageCls(s.n);
       d.innerHTML=`<div class="rdot">${s.n===0?'·':'✓'}</div>`
         +`<div class="rlab">${s.label}</div>`
-        +`<div class="rdelta">${s.delta}</div>`;
+        +(stageComplete(s.n)?`<div class="rdelta">${s.delta}</div>`:'');
       d.onclick=()=>goStage(s);
       railEl.appendChild(d);
       return;
@@ -1104,7 +1104,8 @@ function drawRail(){
 
     const h=document.createElement('div');
     h.className='rblock '+stageCls(s.n);
-    h.innerHTML=`<span class="bt">${s.block}</span><span class="bd">${s.delta}</span>`;
+    h.innerHTML=`<span class="bt">${s.block}</span>`
+      +(stageComplete(s.n)?`<span class="bd">${s.delta}</span>`:'');
     h.onclick=()=>goStage(s);
     railEl.appendChild(h);
 
@@ -1126,20 +1127,14 @@ function drawRail(){
   });
 }
 
-const cardEl=document.getElementById('cardtext'), titleEl=document.getElementById('labtitle');
-// JUST THE TITLE. This used to carry two more lines above it — a "Stage 2 of 5 ·
-// Step 4 of 10" eyebrow and a coloured phase pill — and both restated something
-// already on screen. The rail below numbers every stage, marks the current one,
-// expands it into its steps and prints each one's bookkeeping delta, so the
-// eyebrow was the rail in words; and the pill read "The split" directly under a
-// heading reading "The split". The one thing the pill carried that a title does
-// not is that stage 3's oxidation already belongs to the payoff phase, so that
-// moved into stage 3's own prose, where it is a sentence rather than a label.
-function drawCard(){
-  const s=STAGES[stageAt(done)], st=(!intro&&done<nSteps)?stepAt(done):null;
-  titleEl.textContent=s.title;
-  cardEl.innerHTML=(st?`<p class="enz">Next enzyme: <b>${st.enz}</b></p>`:'')+s.body;
-}
+const titleEl=document.getElementById('labtitle');
+// JUST THE TITLE, and by now that is all there is. Three things have been taken
+// off this heading in turn, each because something else on screen already said
+// it: a "Stage 2 of 5 · Step 4 of 10" eyebrow (the rail, in words), a coloured
+// phase pill (which read "The split" directly under a heading reading "The
+// split"), a "Next enzyme: …" line (the rail bolds the current step's enzyme),
+// and finally the three-paragraph stage body — see the note on STAGES.
+function drawCard(){ titleEl.textContent=STAGES[stageAt(done)].title; }
 
 /* The panel under the card. It shows ONE of three things, in priority order:
  * PFK-1's regulation when that step is next (the page's one piece of real
@@ -1148,13 +1143,83 @@ function drawCard(){
  * once the pathway is finished. */
 const noteEl=document.getElementById('stepnote');
 const irrevSteps=()=>STEPS.filter(s=>s.rev===false);
+
+/* ---- the coupled-reaction figure ------------------------------------------
+ * VERTICAL POSITION IS FREE ENERGY. That is the whole trick, and it is why
+ * there is no axis to read: the higher-energy species is simply drawn higher,
+ * so an uphill reaction points up and a downhill one points down. The coupled
+ * arrow then ALWAYS runs opposite the main one, which is the entire concept —
+ * an uphill reaction happens because something steeper is running downhill
+ * beside it, and a downhill reaction is worth having because it pushes
+ * something uphill.
+ *
+ * NO NUMBERS. The arrows carry direction, not magnitude, so the figure makes no
+ * quantitative claim it cannot back up — the same reason the page prints no
+ * per-step ΔG. It is a schematic and is drawn to look like one.
+ *
+ * It appears at FIVE of the ten steps. The other five get nothing, because
+ * nothing is coupled there — they are rearrangements. That absence is doing
+ * work: it separates the steps that move energy from the steps that move atoms,
+ * which nothing else on the page says.
+ */
+function coupleFig(c){
+  // Higher-energy species on top. For an uphill main reaction the product is
+  // the higher one; for a downhill reaction the substrate is.
+  const topMain = c.up ? c.to : c.from, botMain = c.up ? c.from : c.to;
+  // The carrier's charged form (ATP, NADH) is always the higher-energy one.
+  const topCpl  = c.up ? c.cin : c.cout, botCpl = c.up ? c.cout : c.cin;
+  const mainLine = c.up ? 'M66,116 L66,34' : 'M66,30 L66,112';
+  const mainHead = c.up ? 'M66,24 l6.5,13 h-13 z' : 'M66,122 l6.5,-13 h-13 z';
+  // Both directions written out. The curve is the same shape either way; only
+  // which end carries the arrowhead changes, so the two are explicit rather
+  // than one derived from the other by string surgery.
+  const CURVE_DOWN='M176,42 C126,48 90,58 90,74 C90,90 126,100 176,106';
+  const CURVE_UP  ='M176,106 C126,100 90,90 90,74 C90,58 126,48 176,42';
+  const cplLine = c.up ? CURVE_DOWN : CURVE_UP;      // opposite the main arrow
+  const cplHead = c.up ? 'M176,106' : 'M176,42';
+  // Only a '+' that sits directly against the preceding character is a CHARGE
+  // (NAD+). One with a space around it is arithmetic (G3P + Pi) and must stay
+  // on the baseline — superscripting that one turned "G3P plus Pi" into
+  // something that reads as a cation.
+  const sup=t=>t.replace(/(\S)\+/g,'$1<tspan baseline-shift="super" font-size="9">+</tspan>')
+                .replace(/Pi\b/,'P<tspan baseline-shift="sub" font-size="9">i</tspan>');
+  return `<svg class="cpl ${c.tone==='n'?'n':'p'}" viewBox="0 0 300 152" role="img"
+      aria-label="${c.from} to ${c.to} runs ${c.up?'uphill':'downhill'}; coupled to ${c.cin} becoming ${c.cout}, which runs the opposite way">
+    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
+    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
+    <text class="cm" x="66" y="16" text-anchor="middle">${sup(topMain)}</text>
+    <path class="ml" d="${mainLine}"/><path class="mh" d="${mainHead}"/>
+    <text class="cm" x="66" y="147" text-anchor="middle">${sup(botMain)}</text>
+    <path class="cl" d="${cplLine}"/>
+    <path class="ch" d="${cplHead} l-11,-4.5 v9 z"/>
+    <text class="cs" x="186" y="46">${sup(topCpl)}</text>
+    <text class="cs" x="186" y="110">${sup(botCpl)}</text>
+  </svg>`;
+}
+// One line, because the picture is doing the work. Named so it reads as the
+// principle rather than as a description of the drawing.
+const coupleLine=c=>c.up
+  ? `On its own this step runs <b>uphill</b>. It happens because <b>ATP</b> is
+     running further downhill alongside it — that is <b>coupling</b>.`
+  : `This step runs <b>downhill</b>, and the drop is not wasted: it drives
+     <b>${c.cout}</b> the other way, <b>uphill</b>.`;
+
 function drawNote(){
   const st=(!intro&&done<nSteps)?stepAt(done):null;
   if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
   noteEl.style.display='block';
 
+  // The coupling figure comes FIRST where there is one — it is the mechanism of
+  // the step the student is about to run, where reversibility and regulation
+  // are both properties of it.
+  const fig = st && st.couple
+    ? `<div class="nhead cpl-h">Coupled reaction</div>${coupleFig(st.couple)}`
+      +`<p class="nbody">${coupleLine(st.couple)}</p>`
+    : '';
+
   if(st && st.commit){
-    noteEl.innerHTML=`<div class="nhead reg">${PFK.title}</div>`
+    noteEl.innerHTML=fig
+      +`<div class="nhead reg">${PFK.title}</div>`
       +`<p class="nbody">${PFK.body}</p>`
       +`<div class="effrow"><div class="eff on"><div class="eh">Speeds it up</div>`
         +PFK.on.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div>`
@@ -1167,7 +1232,7 @@ function drawNote(){
     // Reversibility is stated per step because it is the property that decides
     // which steps CAN be regulated — a near-equilibrium step run backwards is
     // just the same enzyme, so controlling it controls nothing.
-    noteEl.innerHTML = st.rev===false
+    noteEl.innerHTML = fig + (st.rev===false
       ? `<div class="nhead irr">Irreversible in the cell</div>`
         +`<p class="nbody">This step releases too much free energy to run backwards.
            That makes it a place the cell <b>can</b> regulate — and a place
@@ -1175,7 +1240,7 @@ function drawNote(){
       : `<div class="nhead rev">Near equilibrium — reversible</div>`
         +`<p class="nbody">This step sits close to equilibrium, so the same enzyme
            runs it in either direction depending on which side is more
-           concentrated. Nothing here is worth regulating.</p>`;
+           concentrated. Nothing here is worth regulating.</p>`);
     return;
   }
   noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
@@ -1199,7 +1264,9 @@ function drawFork(){
      `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
         <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
         acetyl-CoA, then the citric acid cycle and the electron transport chain.
-        <b>~30 ATP</b> per glucose, and NAD⁺ is regenerated there.</div></div>`
+        Each <b>NADH</b> is worth roughly <b>2.5 ATP</b> here — so glycolysis's
+        2 NADH outweigh its 2 net ATP. <b>~30 ATP</b> per glucose in total, and
+        NAD⁺ is regenerated.</div></div>`
     +`<div class="door"><div class="dh">No O₂ <i>— lactic acid</i></div>
         <div class="db">Pyruvate itself takes the <b>NADH</b>'s electrons and becomes
         <b>lactate</b>. Muscle under load, and most bacteria. <b>No extra ATP</b> —
