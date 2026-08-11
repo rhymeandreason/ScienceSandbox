@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Molecule Sandbox — Glycolysis</title>
+<title>Glycolysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
@@ -510,14 +510,17 @@
   #stepnote .nhead.irr{color:var(--atp)}
   #stepnote .nhead.rev{color:var(--nad)}
   #stepnote .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
-  /* the door to the mass-action demo. Sits under the reversibility note because
-     that is the claim it backs up — "the same enzyme runs it in either
-     direction" is a sentence a student can read twenty times without picturing
-     anything, and the demo is the picture. */
+  /* the door to the mass-action demo. Sits under the reversibility verdict
+     because that is the claim it backs up — and since that verdict is now a
+     heading and nothing else, the link is the only explanation of it there is,
+     which is the point: the demo is the picture, and a paragraph was not. */
   #stepnote .minfo{font-family:var(--font-sans);font-weight:600;font-size:12px;
     letter-spacing:.2px;color:#4f5bd5;background:none;border:none;padding:0;
     cursor:pointer;text-decoration:underline;text-underline-offset:3px;
     text-decoration-thickness:1.5px;margin:-4px 0 9px}
+  /* ...but the -4px was pulling it up under a PARAGRAPH's line box. Straight
+     after a heading there is no descender to close up, so drop it. */
+  #stepnote .nhead + .minfo{margin-top:0}
   #stepnote .minfo:hover{color:#7b3fe4}
   #stepnote .nbody:last-child{margin-bottom:0}
   /* the coupled-reaction figure. Two arrows running opposite ways, with height
@@ -1859,15 +1862,13 @@ function drawNote(){
     // Reversibility is stated per step because it is the property that decides
     // which steps CAN be regulated — a near-equilibrium step run backwards is
     // just the same enzyme, so controlling it controls nothing.
+    // THE VERDICT IS THE HEADING, AND NOTHING ELSE. The paragraph under it was
+    // explaining a claim the modal one click away actually demonstrates, on a
+    // card the student is reading while the molecule waits — so it is a label
+    // now, and the link is the way in.
     noteEl.innerHTML = fig + (st.rev===false
       ? `<div class="nhead irr">Irreversible in the cell</div>`
-        +`<p class="nbody">This step releases too much free energy to run backwards
-           — so the cell <b>can</b> regulate it, and gluconeogenesis has to route
-           around it with a different enzyme.</p>`
-      : `<div class="nhead rev">Near equilibrium — reversible</div>`
-        +`<p class="nbody">Close to equilibrium: the same enzyme runs it either way,
-           depending on which side is more concentrated. Nothing here is worth
-           regulating.</p>`)
+      : `<div class="nhead rev">Near equilibrium — reversible</div>`)
       + MASS_LINK;
     return;
   }
