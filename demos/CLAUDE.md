@@ -73,7 +73,7 @@ Rows are explicit — no row inherits from the one above it any more, because th
 
 **Three kinds of page share this table, not two.** Most load `scene.js` + MolLib as above. A second kind — `folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab` — draws *deposited* coordinates (PDB files or baked trajectories) through `scene.js` like the Three.js lessons, because the chain animates and needs the same scene, but loads `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström, and display radii are the house `PALETTE.radii` **divided by `SCALE`**, computed in the page. `protein-lab` is the third kind and the only page of it: it renders deposited structures through vendored ChemDoodle Web instead — no Three.js, no MolLib — which is **GPLv3 and makes any page loading it GPLv3** (`RenderingLibraries.md`); `tools/check-pdb.js` audits it instead of `check-pages.js`. Don't add a second ChemDoodle page.
 
-**The design reasoning for `folding-lab`'s three acts, `folding-lab-ribbon`'s secondary-structure sourcing, and the actin rungs lives in the source files' own headers**, not here: `folding/folding.js` (the H-bond/hydrophobic-core argument and the solver's constraints), `folding/villin.js` (why act 3 is an AlphaFold prediction, not a structure, and the eight generated arrangements), `folding/ribbon.js` (HELIX records vs. DSSP vs. the unused Cα heuristic, and why a cartoon is what finds solver bugs a ball-and-stick hides), and `folding/actin.js` (the measured helical screw that extends 5 deposited subunits to 13, and the species jump in the 9JUS coda). Each trajectory is precomputed and committed (`folding/data/*.bin`); re-run the matching `folding/tools/bake-*.js` after touching the file that produced it, or `folding/tools/check-folding.js` fails.
+**The design reasoning for `folding-lab`'s three acts, `folding-lab-ribbon`'s secondary-structure sourcing, and the actin rungs lives in the source files' own headers**: `folding/folding.js` (the H-bond/hydrophobic-core argument and the solver's constraints), `folding/villin.js` (why act 3 is an AlphaFold prediction, not a structure, and the eight generated arrangements), `folding/ribbon.js` (HELIX records vs. DSSP vs. the unused Cα heuristic, and why a cartoon is what finds solver bugs a ball-and-stick hides), and `folding/actin.js` (the measured helical screw that extends 5 deposited subunits to 13, and the species jump in the 9JUS coda). Each trajectory is precomputed and committed (`folding/data/*.bin`); re-run the matching `folding/tools/bake-*.js` after touching the file that produced it, or `folding/tools/check-folding.js` fails.
 
 `aminoacid-lab` loads `mol-small` (not `mol-solvation`) because dehydration synthesis releases a real water molecule that has to sit correctly beside the residues — **a family-B page needing a small molecule loads `mol-small.js`; only solvation pages load `mol-solvation.js`.** The two define the same keys and `register()` throws if both are present.
 
@@ -123,18 +123,7 @@ Things that are easy to get wrong and are not visible from the API:
 * **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve the distance from the real frustum; a hand-picked `r:` is only right at the size it was tuned for. Pass `orbit:false` on a side-by-side page — orbiting puts one molecule nearer the camera and perspective magnifies it.
 * **`Stage.bond` takes a bond order**; `[i,j,2]` in a spec draws a double bond as a pair of sticks. `setOptionalH` toggles *visibility* of the C–H's listed in `optH`, so it can never resurrect a reaction-removed atom.
 * **`atomkit.js` owns what a student learns to *read***, never how a bond forms.
-* **`glycolysis-lab.html` carries a second simulation.** The mass-action modal
-  behind the reversibility note is a plain 2D canvas — no Three.js, no MolLib,
-  no spec — because its dots stand for *populations*, not molecules, and the
-  moment they looked like molecules they would make a geometry claim nothing
-  backs. It has its own physics: molecules carry an energy drawn from the
-  thermal distribution and react when they clear a barrier, `EA` forward and
-  `EA + ΔE` back. **`EA` is a legibility knob** (it is the number that makes
-  about half of arrivals react), so the claims resting on it — a flat step
-  settling even with both directions still running, a drop step running to
-  completion with a rare-but-not-forbidden reverse — are asserted by
-  `tools/check-massaction.js`, which lifts the constants out of the HTML rather
-  than holding its own copy.
+* **`glycolysis-lab.html` carries a second simulation.** The mass-action modal behind the reversibility note is a plain 2D canvas — no Three.js, no MolLib, no spec — because its dots stand for *populations*, not molecules, and the moment they looked like molecules they would make a geometry claim nothing backs. It has its own physics: molecules carry an energy drawn from the thermal distribution and react when they clear a barrier, `EA` forward and `EA + ΔE` back. **`EA` is a legibility knob** (it is the number that makes about half of arrivals react), so the claims resting on it — a flat step settling even with both directions still running, a drop step running to completion with a rare-but-not-forbidden reverse — are asserted by `tools/check-massaction.js`, which lifts the constants out of the HTML rather than holding its own copy.
 * Page-specific, not plumbing: the drag modules are *mechanics*. Same mechanic, different constants → a recipe in the same file; different mechanic → new file.
 
 ## Architecture principle: **share the plumbing, not the physics**
@@ -170,7 +159,7 @@ There is deliberately **no monolithic `engine.js`** — the lessons are distinct
 
 `MolecularGeometry.md` §1 covers adding any molecule (geometry, sources, stereochemistry, fidelity tiers, scale families) ; §§2–3 polarity and covalent bonding; §4 rendering caveats; §5 the fx/colour conventions; §6 module architecture. Before adding a **new molecule**, read MolecularGeometry.md §1.4 — it sets how much fidelity a molecule owes based on the claim it makes (prop / contrast / subject), and requires that any chemical claim ship with a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (enlarged bond lengths for legibility, neutral vs. zwitterion forms) must stay **explicit in comments**.
 
-Water/solvation physics (hydrogen bonds, ice, emergent properties) is in `WaterSim.md` — it only applies to the solvation apps. Each page also has documentation in its own comments. 
+Water/solvation physics (hydrogen bonds, ice, emergent properties) is in `WaterSim.md` — it only applies to the solvation apps. Each page also has documentation in its own comments.
 
 ## Run / test locally
 
@@ -234,6 +223,6 @@ npm i && node tools/check-handedness.js
 
 ## Copywriting
 
-Guidance for writing user=facing text: Be a tutor for a high school student learning biology.  Be concise, don't overcomplicate it. Don't repeat yourself in the text. The text is there to support the visuals and interaction. Prioritize core concepts.  If there's more info, steer me toward asking more questions. Your goal is to guide curiosity and inquiry, not to dump out a textbook of facts.
+Guidance for writing user-facing text: Be a tutor for a high school student learning biology.  Be concise, don't overcomplicate it. Don't repeat yourself in the text. The text is there to support the visuals and interaction. Prioritize core concepts.  If there's more info, steer me toward asking more questions. Your goal is to guide curiosity and inquiry, not to dump out a textbook of facts.
 
 **If a number in user-facing text comes from the data, the text must read it from the data at render time — never type it in, because a typed number is a claim that nothing checks and that a re-bake silently makes false.** **Read it from where the fact actually lives, not from the nearest thing that resembles it — counting helices in a trajectory's `ss` gives five, because adjacent ones merge, so the eight the page says has to be carried across from the HELIX records by the baker.**

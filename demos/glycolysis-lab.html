@@ -673,11 +673,10 @@
     </div>
     <div class="mkick">Mass action</div>
     <h2 id="mmtitle"></h2>
-    <p class="msub">Each dot is one molecule, and it <b>flips colour when it
-      drifts through an enzyme</b> — that is the reaction happening. A dot's
-      <b>speed is its energy</b>, knocked about at random. A dot <b>glows when it
-      has enough to react</b> — so a glowing one converts the moment it reaches an
-      enzyme, and a dull one drifts straight through.</p>
+    <p class="msub">Each dot is one molecule. A dot's <b>speed is its energy</b>,
+      determined randomly. A dot <b>glows where it has enough energy to react</b>.
+      When a glowing dot drifts through an enzyme, it <b>converts (flips
+      colour)</b>.</p>
     <canvas id="masscanvas"></canvas>
     <div class="mrow">
       <div class="mspec"><span class="mdot" style="background:#4f5bd5"></span>
@@ -789,26 +788,26 @@ const STEPS=[
     species:['g6p'], enz:'Hexokinase', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. Phosphorylating a sugar is uphill on its own — <b>coupling</b> it to ATP hydrolysis is what makes it go. The charge also <b>traps the sugar inside the cell</b>: no transporter will carry it back out.` },
+    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. The charge <b>traps the sugar inside the cell</b> — no transporter will carry it back out.` },
 
   { n:2, stage:1, reagent:null,
     act:'Shift the carbonyl to C2',
     species:['f6p'], enz:'Phosphoglucose isomerase', rev:true,
     fx:'iso',
-    msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent and nothing is made — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
+    msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
     species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)',
     rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`A second <b>ATP</b> phosphorylates carbon 1. This is the <b>committed step</b> — and the one the cell regulates.` },
+    msg:`A second <b>ATP</b> phosphorylates carbon 1 — the <b>committed step</b>.` },
 
   { n:4, stage:2, reagent:null,
     act:'Cleave the C3–C4 bond',
     species:['dhap','g3p'], enz:'Aldolase', rev:true,
     fx:'split',
-    msg:`Six carbons become <b>3 + 3</b>. Each half keeps one <span class="p">phosphate</span> — which is why two were paid in. <i>Glyco-</i> sugar, <i>-lysis</i> splitting: this is the step the pathway is named after.` },
+    msg:`Six carbons become <b>3 + 3</b>, each half keeping one <span class="p">phosphate</span> — that is why two were paid in. <i>Glyco-</i> sugar, <i>-lysis</i> splitting: the step the pathway is named after.` },
 
   { n:5, stage:2, reagent:null,
     act:'Convert DHAP → G3P',
@@ -820,31 +819,31 @@ const STEPS=[
     species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
     couple:{ up:false, plus:'Pi', cin:'NAD+', cout:'NADH', tone:'n' },
-    msg:`The <b>only oxidation in the pathway</b>. Each G3P loses two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP was spent here.</b>` },
+    msg:`The pathway's <b>only oxidation</b>. Each G3P gives two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP spent.</b>` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
     species:['pga3','pga3'], enz:'Phosphoglycerate kinase', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
-    msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it can be handed straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>. This is <b>substrate-level phosphorylation</b>.` },
+    msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it goes straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>: <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
     act:'Move the phosphate C3 → C2',
     species:['pga2','pga2'], enz:'Phosphoglycerate mutase', rev:true,
     fx:'move', anchor:'p3', dest:'p2',
-    msg:`The phosphate slides from carbon 3 to carbon 2. On C3 it was an ordinary ester and <b>could not</b> charge ADP — this move sets up the step that changes that.` },
+    msg:`The phosphate slides from carbon 3 to carbon 2. On C3 it was an ordinary ester and <b>could not</b> charge ADP; this move sets up the step that changes that.` },
 
   { n:9, stage:4, reagent:null,
     act:'Remove a water',
     species:['pep','pep'], enz:'Enolase', rev:true,
     fx:'lose', anchor:'oh3',
-    msg:`A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. No energy was added — the molecule was <i>rearranged</i> into a strained form, and that strain is now stored in the phosphate bond.` },
+    msg:`A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. No energy was added — the <i>rearrangement</i> itself stores strain in the phosphate bond.` },
 
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
     species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', rev:false,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
-    msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell — well above ATP's. The phosphate goes to <b>ADP</b> and the enol snaps to the keto form: <b>pyruvate</b>. Net <b>2 ATP</b> and <b>2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
+    msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell. The phosphate goes to <b>ADP</b> and the enol snaps to keto: <b>pyruvate</b>. Net <b>2 ATP</b> and <b>2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
 // The five stages, kept as the GROUPING over the ten steps. `delta` is the
@@ -900,18 +899,17 @@ const stageComplete=n=>{
  * derived from STEPS' `rev` flags rather than listed again here. */
 const PFK={
   title:'PFK-1 — the committed step',
-  body:`Steps 1 and 2 are reversible detours: G6P can still leave for glycogen or
-    the pentose phosphate pathway. Once PFK-1 acts, the carbon has no fate but
-    pyruvate. A pathway is regulated at its <b>first irreversible, committed</b>
-    step, and that is this one.`,
+  body:`Until now the sugar could still leave for glycogen or the pentose phosphate
+    pathway. Once PFK-1 acts, the carbon has no fate but pyruvate — and a pathway
+    is regulated at its <b>first irreversible step</b>.`,
   on:[ ['AMP','the cell is short of energy'],
        ['Fructose-2,6-bisphosphate','signals plenty of glucose'] ],
   off:[ ['ATP','the cell already has energy'],
         ['Citrate','the Krebs cycle is backed up'] ],
   note:`This is <b>allosteric</b> regulation — the effectors bind away from the
-    active site and change the enzyme's shape. Note that ATP is both PFK-1's
-    substrate and its inhibitor: at high concentration it binds a second, lower-
-    affinity site and slows the enzyme down. That is negative feedback.`
+    active site and change the enzyme's shape. ATP is both PFK-1's substrate and
+    its inhibitor: at high concentration it binds a second, lower-affinity site
+    and slows the enzyme. That is negative feedback.`
 };
 
 /* =============================================================
@@ -1863,22 +1861,22 @@ function drawNote(){
     // just the same enzyme, so controlling it controls nothing.
     noteEl.innerHTML = fig + (st.rev===false
       ? `<div class="nhead irr">Irreversible in the cell</div>`
-        +`<p class="nbody">This step releases too much free energy to run backwards.
-           That makes it a place the cell <b>can</b> regulate — and a place
-           gluconeogenesis has to route around with a different enzyme.</p>`
+        +`<p class="nbody">This step releases too much free energy to run backwards
+           — so the cell <b>can</b> regulate it, and gluconeogenesis has to route
+           around it with a different enzyme.</p>`
       : `<div class="nhead rev">Near equilibrium — reversible</div>`
-        +`<p class="nbody">This step sits close to equilibrium, so the same enzyme
-           runs it in either direction depending on which side is more
-           concentrated. Nothing here is worth regulating.</p>`)
+        +`<p class="nbody">Close to equilibrium: the same enzyme runs it either way,
+           depending on which side is more concentrated. Nothing here is worth
+           regulating.</p>`)
       + MASS_LINK;
     return;
   }
   noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
     +`<p class="nbody">Only <b>${irrevSteps().map(s=>s.n).join(', ')}</b> —
        ${irrevSteps().map(s=>s.enz.replace(/ \(.*\)/,'')).join(', ')} — are
-       irreversible. The other seven run in both directions, which is why
+       irreversible. The other seven run both ways — which is why
        <b>gluconeogenesis</b> reuses seven of these ten enzymes and needs new ones
-       only to bypass those three.</p>`
+       only for those three.</p>`
     + MASS_LINK;
 }
 
@@ -2116,20 +2114,17 @@ const Mass=(()=>{
   }
 
   const TEXT={
-    flat:`<b>Step 2.</b> The barrier is the same height from both sides, so a
-      G6P and an F6P need the same energy to get over it — and about as many of
-      each are holding it. Both counters keep ticking. The enzyme never stopped — it is still
-      converting in <b>both</b> directions, and always was. What changed as the
-      split evened out is only <b>how often</b> each direction comes up, because
-      that depends on how many of each are around to collide with it. Crowd one
-      side and watch the net direction flip.`,
-    drop:`<b>Step 10.</b> Pyruvate <b>holds far less energy</b> than PEP — the
-      reaction gave that energy up. Climbing back means finding all of it again
-      at once, and <b>big energies are steeply rarer</b>, not just a bit rarer. Watch which colour glows: blue almost
-      always has enough to go forward, violet almost never has enough to go back. Nothing about the enzyme
-      changed, and adding more pyruvate no longer helps. That is what
-      <b>irreversible in the cell</b> means, and it is true of only <b>three</b>
-      of these ten steps.`
+    flat:`<b>Step 2.</b> The barrier is the same height from both sides, so G6P
+      and F6P need the same energy to clear it. The enzyme keeps converting in
+      <b>both</b> directions — what changed as the split evened out is only
+      <b>how often</b> each direction comes up, which depends on how many of each
+      are around. Crowd one side and watch the net flip.`,
+    drop:`<b>Step 10.</b> Pyruvate <b>holds far less energy</b> than PEP, so
+      climbing back means finding all of it again at once — and <b>big energies
+      are steeply rarer</b>. Watch which colour glows: blue almost always has
+      enough to go forward, violet almost never has enough to go back. Adding
+      more pyruvate barely helps. That's what <b>irreversible in the cell</b>
+      means, true of only <b>three</b> of these ten steps.`
   };
   function drawUI(){
     const a=parts.filter(p=>p.t===0).length;
@@ -2284,18 +2279,17 @@ function drawFork(){
   forkEl.innerHTML=
      `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
         <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
-        acetyl-CoA, then the citric acid cycle and the electron transport chain.
-        Each <b>NADH</b> is worth roughly <b>2.5 ATP</b> here — so glycolysis's
-        2 NADH outweigh its 2 net ATP. <b>~30 ATP</b> per glucose in total, and
-        NAD⁺ is regenerated.</div></div>`
+        acetyl-CoA, then the citric acid cycle and electron transport chain. Each
+        <b>NADH</b> is worth roughly <b>2.5 ATP</b> there, so glycolysis's 2 NADH
+        outweigh its 2 net ATP — <b>~30 ATP</b> per glucose, and NAD⁺ back.</div></div>`
     +`<div class="door"><div class="dh">No O₂ <i>— lactic acid</i></div>
         <div class="db">Pyruvate itself takes the <b>NADH</b>'s electrons and becomes
         <b>lactate</b>. Muscle under load, and most bacteria. <b>No extra ATP</b> —
-        the only product that matters is <b>NAD⁺</b>.</div></div>`
+        the product that matters is <b>NAD⁺</b>.</div></div>`
     +`<div class="door"><div class="dh">No O₂ <i>— ethanol</i></div>
-        <div class="db">Yeast decarboxylates pyruvate to acetaldehyde first, losing
-        a <b>CO₂</b>, then reduces that to <b>ethanol</b>. Same purpose: regenerate
-        <b>NAD⁺</b> so glycolysis can keep turning.</div></div>`;
+        <div class="db">Yeast strips a <b>CO₂</b> from pyruvate, then reduces the
+        acetaldehyde to <b>ethanol</b>. Same purpose: regenerate <b>NAD⁺</b> so
+        glycolysis keeps turning.</div></div>`;
 }
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
