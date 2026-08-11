@@ -39,6 +39,19 @@
      track their molecule on orbit the way the old sprites did. `left`/`top`
      are the anchor in canvas pixels; the translate pulls the label up and
      centres it on that point, so the anchor is the label's bottom-middle. */
+  /* THE STAGE ANSWERS THE CLICK. A wash of the button's own colour rises from
+     where the button is (bottom-centre) and clears — so pressing Begin reads as
+     something the whole scene registered, not just a control lighting up. Kept
+     faint and short: it is feedback, not an event, and the cream paper has to
+     still be the page's colour a second later. Under the labels and over the
+     canvas, so it tints the molecule rather than washing out its name. */
+  #stagepulse{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;
+    background:radial-gradient(ellipse 70% 60% at 50% 92%,
+      rgba(107,79,216,.26) 0%, rgba(47,125,224,.12) 42%, rgba(47,125,224,0) 74%)}
+  #stagepulse.pulse{animation:stagepulse .95s ease-out}
+  @keyframes stagepulse{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){ #stagepulse.pulse{animation:none} }
+
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
   .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
     text-align:center;white-space:nowrap;line-height:1.15}
@@ -142,6 +155,15 @@
   #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
+  /* THE INSTRUCTION SITS OVER THE THING IT IS ABOUT. It used to be the hint line
+     under the enzyme caption on the stage, which put "click the highlighted
+     carrier" as far from the carriers as the layout allows. Reserved with
+     `visibility` rather than toggled with `display`, so the tray's height — and
+     therefore the camera's left inset, which usable() measures off it — does not
+     change between a carrier step and an action step. */
+  .tcue{visibility:hidden;font-family:var(--font-sans);font-weight:600;font-size:11.5px;
+    letter-spacing:.2px;color:var(--ink);opacity:.8;margin-bottom:5px;padding-left:2px}
+  .tcue.show{visibility:visible}
   /* Named so the group cannot be misread as a toolbar. */
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
@@ -186,7 +208,21 @@
     border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
     box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
   #actbtn:hover{background:#000;transform:translateY(-2px)}
-  #actbtn.begin{font-size:17px;padding:13px 30px}
+  /* BEGIN IS THE BLOB. Not a rectangle with a blob behind it — the button's own
+     shape is the wobble, and the label sits inside it. It is the only control on
+     screen at the intro, so it can afford the room, and the movement is what
+     says the enzyme is already there and waiting rather than summoned by the
+     click. Bigger than the step buttons on purpose: nothing competes with it. */
+  #actbtn.begin{font-size:21px;padding:26px 54px;color:#fff;
+    position:relative;z-index:0;
+    border:none;border-radius:46% 54% 52% 48%/58% 44% 56% 42%;
+    background:linear-gradient(105deg,#7b3fe4 0%,#4f5bd5 38%,#2f7de0 68%,#8b5cf6 100%);
+    background-size:220% 220%;
+    box-shadow:0 10px 30px -10px rgba(79,91,213,.8);
+    animation:enzmorph 7.5s ease-in-out infinite, enzdrift 9s ease-in-out infinite}
+  /* the drift already carries a scale pulse; the shared lift would fight it */
+  #actbtn.begin:hover{background:linear-gradient(105deg,#8b4cf0 0%,#5a66e6 38%,#3a8bf0 68%,#9b6cff 100%);
+    background-size:220% 220%;transform:none;filter:brightness(1.06)}
   /* the reagent steps' caption in the same slot: it names the enzyme but must
      not look like the thing to click — that is the reagent. So it keeps the
      type and loses everything that says "button": fill, border, shadow, hover. */
@@ -195,6 +231,65 @@
   #actbtn.ghost:hover{background:none;transform:none}
   #actbtn .hint{display:block;font-family:var(--font-sans);font-weight:500;font-size:12.5px;
     letter-spacing:.2px;opacity:.75;margin-top:2px}
+
+  /* THE ENZYME IS ON THE CLOCK WHILE THE STEP WAITS. On a reagent step the slot
+     is a caption, not a control (see .ghost) — so nothing on it moves, and a
+     student reading "Hexokinase · click the highlighted carrier" gets no signal
+     that anything is happening yet. The blob is that signal and nothing more:
+     it is DECORATIVE, carries no shape claim about the protein, and rides only
+     the ghost state. It reads as "this enzyme is here, working" — which is the
+     true part (an enzyme is present and waiting on its substrates, not
+     summoned by the click). */
+  #actbtn .enzname{position:relative;display:inline-block;z-index:0}
+  /* THE CLICK, AND WHAT IT IS AND IS NOT. Two copies of the blob's own shape and
+     gradient expand out of it and fade — a UI ripple, in the DOM, deliberately
+     NOT one of fx.js's in-scene effects. Nothing chemical happens when you press
+     Begin: no bond forms and no molecule changes, and SCIENCE.md §5's rule is
+     that the loudness of an effect tracks what actually happened. A spawnRing
+     here would announce a reaction that has not occurred yet. */
+  #actbtn.begin::before,#actbtn.begin::after{content:'';position:absolute;inset:0;
+    border-radius:inherit;background:inherit;background-size:220% 220%;
+    opacity:0;pointer-events:none;z-index:-1}
+  #actbtn.begin.burst::before{animation:enzburst .62s ease-out forwards}
+  #actbtn.begin.burst::after {animation:enzburst .62s .13s ease-out forwards}
+  @keyframes enzburst{
+    from{opacity:.5;transform:scale(1)}
+    to  {opacity:0;  transform:scale(2.05)}}
+
+  /* The ghost caption is NOT a button, so it keeps the blob as a backing behind
+     the name only — Begin, which is one, becomes the blob outright above. It
+     arrives by settling DOWN out of the Begin blob's size, which is what makes
+     the two read as the same object shrinking to the corner rather than one
+     control vanishing and another appearing. Muted, because from here on the
+     thing to press is the carrier in the tray, not this. */
+  #actbtn.ghost .enzname{color:var(--ink);padding:2px 4px;
+    animation:enzarrive .46s cubic-bezier(.2,.9,.3,1)}
+  @keyframes enzarrive{
+    from{opacity:0;transform:scale(1.45)}
+    to  {opacity:1;transform:scale(1)}}
+  #actbtn.ghost .enzname::before{opacity:.42;
+    content:'';position:absolute;inset:-9px -20px;z-index:-1;
+    background:linear-gradient(105deg,#7b3fe4 0%,#4f5bd5 38%,#2f7de0 68%,#8b5cf6 100%);
+    background-size:220% 220%;
+    box-shadow:0 6px 20px -8px rgba(79,91,213,.75);
+    border-radius:46% 54% 52% 48%/58% 44% 56% 42%;
+    animation:enzmorph 7.5s ease-in-out infinite, enzdrift 9s ease-in-out infinite;}
+  /* the wobble: four corner radii on their own beat, so no two frames repeat and
+     the edge never resolves into a rectangle */
+  @keyframes enzmorph{
+    0%,100%{border-radius:46% 54% 52% 48%/58% 44% 56% 42%}
+    25%    {border-radius:58% 42% 46% 54%/44% 58% 42% 56%}
+    50%    {border-radius:50% 50% 58% 42%/52% 48% 60% 40%}
+    75%    {border-radius:42% 58% 44% 56%/48% 56% 46% 54%}}
+  /* the gradient slides under the wobble, which is what makes it read as ACTIVE
+     rather than as a shape that happens to be moving */
+  @keyframes enzdrift{
+    0%,100%{background-position:0% 50%;   transform:scale(1)}
+    50%    {background-position:100% 50%; transform:scale(1.035)}}
+  @media (prefers-reduced-motion:reduce){
+    #actbtn.ghost .enzname::before,#actbtn.ghost .enzname,#actbtn.begin{animation:none}
+    #actbtn.begin.burst::before,#actbtn.begin.burst::after{animation:none}
+  }
 
   /* ---------- right panel ---------- */
   /* PATHWAY RAIL — the ten steps, blocked into the five stages.
@@ -353,6 +448,7 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
+    <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
     <!-- The h1 carries the lesson name until the pathway starts, then the STAGE
          the student is in. One title on screen, in the place a title goes. -->
@@ -1079,7 +1175,7 @@ function rewind(){
   if(done===0){ intro=true; refresh(); return; }   // step back off stage 1 onto the intro
   done--; renderLanes(done); refresh();
 }
-function restart(){ cancelTimers(); busy=false; done=0; intro=true;
+function restart(){ cancelTimers(); busy=false; beginning=false; done=0; intro=true;
   renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -1141,8 +1237,10 @@ function drawTray(){
   if(intro){ trayEl.style.display='none'; trayEl.innerHTML=''; return; }
   trayEl.style.display='flex';
   const pool=poolAt(done), st=done<nSteps?stepAt(done):null;
-  trayEl.innerHTML='<div class="tstrip"></div><div class="tcap">In the cytosol</div>';
-  const strip=trayEl.firstElementChild;
+  const cue=!!st && !!st.reagent && !busy;
+  trayEl.innerHTML=`<div class="tcue${cue?' show':''}">Click the highlighted carrier</div>`
+    +'<div class="tstrip"></div><div class="tcap">In the cytosol</div>';
+  const strip=trayEl.children[1];
   REAGENTS.forEach(r=>{
     const live=!!st && st.reagent===r.key && !busy;
     const d=document.createElement('div');
@@ -1157,6 +1255,33 @@ function drawTray(){
 }
 
 const actEl=document.getElementById('actbtn');
+// LEAVING THE INTRO. The ripple runs first and the state swaps under its tail,
+// so the Begin blob is still on screen while it expands — swapping immediately
+// would re-render the button out from under the animation on the same frame it
+// started. BURST_MS is shorter than the .62s ripple on purpose: the last stretch
+// is nearly transparent, and waiting it out just makes the click feel slow.
+// setTimeout, not a transitionend, for the reason every other beat here uses one
+// — a backgrounded tab must still arrive at step 1 (see the note on `later`).
+const BURST_MS=380;
+const pulseEl=document.getElementById('stagepulse');
+let beginning=false;
+function beginPathway(){
+  if(beginning || !intro) return;
+  beginning=true;
+  actEl.classList.add('burst');
+  // Restart → Begin again has to replay it, and re-adding a class the element
+  // already carries does not restart a CSS animation. Drop it, force a reflow,
+  // re-add.
+  pulseEl.classList.remove('pulse'); void pulseEl.offsetWidth;
+  pulseEl.classList.add('pulse');
+  later(()=>{
+    beginning=false; intro=false; refresh();
+    // computeFit AFTER the toggle: Begin is much taller than the step buttons,
+    // so leaving the intro shortens #bottombar — and usable() measures that live.
+    // Nothing else recomputes here, because no lane changes.
+    computeFit();
+  }, BURST_MS);
+}
 function drawAct(){
   // ONE BUTTON, ONE PLACE. The intro's Begin and every no-reagent step share
   // this element, so the thing to click never jumps between the stage and the
@@ -1167,8 +1292,8 @@ function drawAct(){
     actEl.className='begin';
     // The enzyme is the main text here too, because the enzyme is what starts
     // the reaction — Begin is only how you tell it to go.
-    actEl.innerHTML=`${STEPS[0].enz}<span class="hint">Begin →</span>`;
-    actEl.onclick=()=>{ intro=false; refresh(); };
+    actEl.innerHTML=`<span class="enzname">${STEPS[0].enz}</span><span class="hint">Begin →</span>`;
+    actEl.onclick=beginPathway;
     return;
   }
   actEl.className='';
@@ -1186,12 +1311,16 @@ function drawAct(){
     // about to act and stays visibly unclickable, while the tray's own arrow
     // says what to spend. Same slot, same height, no second way to advance.
     actEl.className='ghost';
-    // The hint stays generic: `need` is already printed beside the live reagent,
-    // and saying it twice on one screen is the repetition this pass removes.
-    actEl.innerHTML=`${st.enz}<span class="hint">click the highlighted reagent</span>`;
+    // THE HINT LINE IS EMPTY HERE, NOT ABSENT. The instruction moved to the top
+    // of the tray (.tcue) — it is about the carriers, so it belongs over them —
+    // but dropping the line outright would shorten #bottombar on exactly the
+    // five steps that have a ghost caption, and #bottombar's height is what
+    // usable() reserves along the bottom edge. A camera that re-frames between
+    // step 5 and step 6 breaks the one rule this page's framing has.
+    actEl.innerHTML=`<span class="enzname">${st.enz}</span><span class="hint">&nbsp;</span>`;
     actEl.onclick=null;
   } else {
-    actEl.innerHTML=`${st.enz}<span class="hint">${st.act.charAt(0).toLowerCase()+st.act.slice(1)}</span>`;
+    actEl.innerHTML=`<span class="enzname">${st.enz}</span><span class="hint">${st.act.charAt(0).toLowerCase()+st.act.slice(1)}</span>`;
     actEl.onclick=runStep;
   }
 }
@@ -1439,7 +1568,7 @@ document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
 addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
-    if(intro){ intro=false; refresh(); } else runStep(); }
+    if(intro){ beginPathway(); } else runStep(); }
   if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
 });
 
