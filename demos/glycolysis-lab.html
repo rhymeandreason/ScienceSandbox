@@ -606,9 +606,10 @@
     <div class="mkick">Mass action</div>
     <h2 id="mmtitle"></h2>
     <p class="msub">Each dot is one molecule, and it <b>flips colour when it
-      drifts through an enzyme</b> — that is the reaction happening. The enzyme
-      has no preference either way, so whichever colour there is more of hits it
-      more often. That alone sets the direction.</p>
+      drifts through an enzyme</b> — that is the reaction happening. A dot's
+      <b>speed is its energy</b>, knocked about at random. A dot <b>glows when it
+      has enough to react</b> — so a glowing one converts the moment it reaches an
+      enzyme, and a dull one drifts straight through.</p>
     <canvas id="masscanvas"></canvas>
     <div class="mrow">
       <div class="mspec"><span class="mdot" style="background:#4f5bd5"></span>
@@ -1712,18 +1713,31 @@ function drawNote(){
  *  That counter is the whole demo; a student watching the split settle assumes
  *  the reaction stopped, and it has not.
  *
+ *  AND THE SECOND TAB EARNS ITS OWN ANSWER. "The reverse barely happens" was a
+ *  stipulation until the molecules carried energy: the reverse rate was typed in
+ *  at 1/200, so the picture explaining why contained no energy to look at. Now a
+ *  molecule reacts when it is holding enough to clear the barrier, energies come
+ *  from the thermal distribution, and speed and glow both track them — so the
+ *  rare pyruvate that does make it back is visibly one of the fast ones.
+ *
  *  WHAT IS SIMPLIFIED, deliberately and visibly (see MolecularGeometry.md §1.4's
  *  rule about explicit exaggerations):
- *    · The two species convert with the SAME rate constant on a flat step, so it
- *      settles at 1:1. A real near-equilibrium step settles NEAR even, not on it
- *      — step 2's own equilibrium sits around 1 part F6P to 2 parts G6P. An even
- *      split is the readable version of "neither side is favoured".
- *    · The drop step's reverse rate is 1/200th of its forward one, not zero. It
- *      is meant to be seen failing to happen, not declared impossible — the
- *      point is that the reverse is overwhelmed, not forbidden.
- *    · Molecules move in straight lines and bounce off the walls. Real cytosol
- *      is a diffusive random walk; this reads as motion at 60fps and a random
- *      walk reads as jitter.
+ *    · The flat step's barrier is the SAME height from both sides, so it settles
+ *      at 1:1. A real near-equilibrium step settles NEAR even, not on it — step
+ *      2's own equilibrium sits around 1 part F6P to 2 parts G6P. An even split
+ *      is the readable version of "neither side is favoured".
+ *    · The drop step's reverse is ~1/200 of its forward, not zero. It is meant to
+ *      be seen failing to happen, not declared impossible — the point is that the
+ *      reverse is overwhelmed, not forbidden. A real step 10 is far more lopsided
+ *      than that, and you would never catch one going back.
+ *    · The barrier heights are schematic. EA = 0.6 kT is far too low to be a real
+ *      activation energy; it is the number that makes about half of arrivals
+ *      react, which is what a demo needs. Only the RATIO between the two
+ *      directions is meant to carry anything.
+ *    · A molecule is re-jostled into a new energy every 0.3–0.85 s, and keeps its
+ *      heading. Real collisions are enormously more frequent and do re-aim it;
+ *      at 60fps that is a flicker travelling nowhere, and both the speed and the
+ *      path have to stay readable.
  *    · No volume, no units, no rate law. The counter is conversions per second
  *      in this box, and the box means nothing beyond itself.
  *
@@ -1759,12 +1773,34 @@ const Mass=(()=>{
   // GATE the molecules have to pass through, which is the one thing this is not.
   // The enzyme is dissolved in the same solution they are.
   const SITES=[[.22,.30],[.50,.62],[.78,.28],[.36,.76],[.68,.84]], SITE_R=30;
-  // PER ENCOUNTER, not per frame. A molecule that drifts into an enzyme either
-  // reacts on that visit or does not — it is decided once, on arrival, and the
-  // dot is then locked until it leaves. The old per-frame roll let one dot flip,
-  // flip back and flip again inside a single pass, which reads as flicker and is
-  // not what an enzyme does: it binds, converts, releases.
-  const P_FWD=0.55, P_BACK_FLAT=0.55, P_BACK_DROP=0.55/200;
+  // ---- ENERGY, IN UNITS OF kT --------------------------------------------
+  // THE REVERSE RATE IS NOT TYPED IN ANY MORE. It used to be: forward 0.55 per
+  // encounter, backward the same on a flat step and 0.55/200 on a drop. Both
+  // numbers were stipulations, so the demo asserted the very thing a student
+  // comes to it confused about — WHY the reverse is rare — while containing no
+  // energy for them to see.
+  //
+  // Now each molecule carries an energy, re-drawn from random jostling, and a
+  // reaction happens when the molecule that arrives is holding enough to clear
+  // the barrier. Two consequences fall out instead of being declared:
+  //   · Energies are exponentially distributed, so a barrier twice as tall is
+  //     not half as often cleared — it is exponentially rarer. That steepness is
+  //     the whole reason "a bit further downhill" becomes "essentially never".
+  //   · A CATALYST CANNOT CHANGE THE EQUILIBRIUM. EA is the same number for both
+  //     directions here; the only asymmetry is DROP, which belongs to the
+  //     reaction and not to the enzyme. Lowering EA speeds both ways at once,
+  //     which is exactly the thing a catalyst is allowed to do.
+  //
+  // P(E >= x) = exp(-x) for an exponential with mean kT, so the old numbers come
+  // back out of these two: exp(-EA) = 0.55 per forward encounter, and the drop
+  // step's reverse is exp(-DROP) = 1/200 of that.
+  const EA=0.6;                                  // barrier, both directions
+  const DROP={ flat:0, drop:Math.log(200) };     // how much further downhill
+  // How often a molecule gets re-jostled into a new energy. Real collisions are
+  // far more frequent than this; at 60fps a truly fast redraw is a flicker, and
+  // the point is to SEE that a dot is hot for a moment.
+  const KICK=[0.30,0.85];
+  const VSPD=34;                                 // px/s at one kT — speed is sqrt(E)
   // How long a bound molecule sits still before it turns. Catalysis is not
   // instantaneous, and a dot that changes colour the instant it touches the
   // circle gives a student nothing to see — the pause IS the event.
@@ -1800,11 +1836,15 @@ const Mass=(()=>{
   const WARMUP=1.4;
 
   const rnd=(a,b)=>a+Math.random()*(b-a);
+  // One draw from the thermal distribution: exponential, mean 1 kT. Most
+  // molecules are near the bottom and a few are far up the tail — which is the
+  // fact the drop step turns on, so it is sampled rather than approximated.
+  const sampleE=()=>-Math.log(1-Math.random());
   function spawn(type,n){
     for(let i=0;i<n;i++){
-      const th=rnd(0,Math.PI*2), sp=rnd(26,52);
+      const th=rnd(0,Math.PI*2), e=sampleE();
       parts.push({ t:type, x:rnd(.06,.94), y:rnd(.08,.92),
-                   vx:Math.cos(th)*sp, vy:Math.sin(th)*sp,
+                   dir:th, e, kick:rnd(KICK[0],KICK[1]),
                    site:-1, bound:0, will:false });
     }
   }
@@ -1815,7 +1855,7 @@ const Mass=(()=>{
   }
 
   function step(dt,w,h){
-    const pBack = mode==='drop' ? P_BACK_DROP : P_BACK_FLAT;
+    const drop=DROP[mode];
     parts.forEach(p=>{
       // BOUND: held by the enzyme, not moving. Turns when the clock runs out.
       if(p.bound>0){
@@ -1823,9 +1863,15 @@ const Mass=(()=>{
         if(p.bound<=0){ if(p.will){ hits[p.t]++; ema[p.t]+=1/TAU; p.t=1-p.t; p.will=false; } }
         return;
       }
-      p.x+=p.vx*dt/w; p.y+=p.vy*dt/h;
-      if(p.x<.03){p.x=.03;p.vx=Math.abs(p.vx);} if(p.x>.97){p.x=.97;p.vx=-Math.abs(p.vx);}
-      if(p.y<.05){p.y=.05;p.vy=Math.abs(p.vy);} if(p.y>.95){p.y=.95;p.vy=-Math.abs(p.vy);}
+      // RE-JOSTLED: a new energy from the bath. The DIRECTION is left alone —
+      // re-aiming on every kick is a true random walk and reads as jitter, and
+      // the quantity this demo needs to be legible is the speed.
+      p.kick-=dt;
+      if(p.kick<=0){ p.e=sampleE(); p.kick=rnd(KICK[0],KICK[1]); }
+      const sp=VSPD*Math.sqrt(p.e);
+      p.x+=Math.cos(p.dir)*sp*dt/w; p.y+=Math.sin(p.dir)*sp*dt/h;
+      if(p.x<.03){p.x=.03;p.dir=Math.PI-p.dir;} if(p.x>.97){p.x=.97;p.dir=Math.PI-p.dir;}
+      if(p.y<.05){p.y=.05;p.dir=-p.dir;}       if(p.y>.95){p.y=.95;p.dir=-p.dir;}
       // Which site it is in, if any. A COLLISION IS THE ONLY THING THAT CONVERTS
       // ANYTHING — nothing here reads the counts. The counts win because a
       // crowded species collides more often, which is the entire point and would
@@ -1835,10 +1881,12 @@ const Mass=(()=>{
         const dx=(p.x-SITES[i][0])*w, dy=(p.y-SITES[i][1])*h;
         if(dx*dx+dy*dy < SITE_R*SITE_R){ now=i; break; }
       }
-      // Decided ONCE, on arrival: most encounters do nothing and the molecule
-      // drifts straight through, which is itself worth seeing.
-      if(now>=0 && now!==p.site){
-        if(Math.random() < (p.t===0?P_FWD:pBack)){ p.bound=BOUND; p.will=true; }
+      // Decided ONCE, on arrival, and by the energy the molecule happens to be
+      // holding — not by a dice roll. Going forward it must clear EA; going back
+      // it must clear EA plus everything the reaction released. Most arrivals do
+      // neither and drift straight through, which is itself worth seeing.
+      if(now>=0 && now!==p.site && p.e >= EA + (p.t===0?0:drop)){
+        p.bound=BOUND; p.will=true;
       }
       p.site=now;
     });
@@ -1853,7 +1901,27 @@ const Mass=(()=>{
     ctx.font='600 9px system-ui,sans-serif'; ctx.fillStyle='rgba(58,52,44,.42)';
     ctx.textAlign='center';
     SITES.forEach(s=>ctx.fillText('enzyme', s[0]*w, s[1]*h+SITE_R+11));
+    const drop=DROP[mode];
     parts.forEach(p=>{
+      // TWO CHANNELS, AND THEY SAY DIFFERENT THINGS.
+      //   speed — how much energy this molecule has, plainly
+      //   glow  — whether that is ENOUGH, measured against the barrier IT faces,
+      //           which is EA forward and EA+DROP back
+      // The glow used to be a second reading of raw energy, keyed to a threshold
+      // that matched neither barrier: it lit at E>1 while the forward barrier is
+      // 0.6, and saturated at 3.6 while the drop step's reverse barrier is 5.9.
+      // So the caption said "watch the glow for a pyruvate that could climb
+      // back" and the glow topped out long before that energy. Now glowing means
+      // exactly one thing — this one will react if it reaches an enzyme — which
+      // is why blue dots glow constantly on the drop tab and violet ones almost
+      // never do. That contrast IS the lesson, visible without reading anything.
+      const thr=EA+(p.t===0?0:drop);
+      const over=p.e/thr;
+      if(over>=1){
+        const hot=Math.min(1,(over-1)/1.2);
+        ctx.beginPath(); ctx.arc(p.x*w,p.y*h,R+2.5+hot*4.5,0,Math.PI*2);
+        ctx.fillStyle=COL[p.t]; ctx.globalAlpha=0.18+0.24*hot; ctx.fill(); ctx.globalAlpha=1;
+      }
       ctx.beginPath(); ctx.arc(p.x*w,p.y*h,R,0,Math.PI*2);
       ctx.fillStyle=COL[p.t]; ctx.fill();
       // a held molecule wears a ring that closes as its clock runs down, so the
@@ -1867,16 +1935,20 @@ const Mass=(()=>{
   }
 
   const TEXT={
-    flat:`<b>Step 2.</b> Both counters keep ticking. The enzyme never stopped — it is still
+    flat:`<b>Step 2.</b> The barrier is the same height from both sides, so a
+      G6P and an F6P need the same energy to get over it — and about as many of
+      each are holding it. Both counters keep ticking. The enzyme never stopped — it is still
       converting in <b>both</b> directions, and always was. What changed as the
       split evened out is only <b>how often</b> each direction comes up, because
       that depends on how many of each are around to collide with it. Crowd one
       side and watch the net direction flip.`,
-    drop:`<b>Step 10.</b> Now the reverse barely happens. Nothing about the
-      enzyme changed — pyruvate simply sits far enough downhill that collisions
-      on that side almost never make it back over. Adding more pyruvate no longer
-      helps. That is what <b>irreversible in the cell</b> means, and it is true
-      of only <b>three</b> of these ten steps.`
+    drop:`<b>Step 10.</b> Pyruvate sits far below PEP, so climbing back means
+      finding all that energy again at once — and <b>big energies are steeply
+      rarer</b>, not just a bit rarer. Watch which colour glows: blue almost
+      always has enough to go forward, violet almost never has enough to go back. Nothing about the enzyme
+      changed, and adding more pyruvate no longer helps. That is what
+      <b>irreversible in the cell</b> means, and it is true of only <b>three</b>
+      of these ten steps.`
   };
   function drawUI(){
     const a=parts.filter(p=>p.t===0).length;
