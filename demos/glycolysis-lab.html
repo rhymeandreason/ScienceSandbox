@@ -304,6 +304,69 @@
     #actbtn.blob.burst::before,#actbtn.blob.burst::after{animation:none}
   }
 
+
+  /* ---------- the mass-action modal ----------
+     WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page states it
+     twice (the per-step note, and the closing tally) and both times it is a
+     sentence about "concentration" that lands only if you already know what
+     concentration DOES. So: a box of molecules, an enzyme with no preference,
+     and a counter proving both directions run at once.
+     A MODAL, not a page and not a panel — it is a general fact about enzymes
+     rather than a fact about glycolysis, so it does not belong in the pathway's
+     own furniture, and this page is already the densest in the sandbox. */
+  #massmodal{position:fixed;inset:0;z-index:60;display:flex;
+    align-items:center;justify-content:center;padding:24px}
+  #massmodal[hidden]{display:none}
+  #massmodal .mback{position:absolute;inset:0;background:rgba(38,33,26,.52);
+    backdrop-filter:blur(2px);animation:mfade .22s ease-out}
+  #massmodal .mcard{position:relative;width:min(660px,100%);max-height:100%;
+    overflow:auto;background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:20px 22px 18px;
+    box-shadow:0 24px 60px -20px rgba(0,0,0,.6);animation:mrise .26s cubic-bezier(.2,.9,.3,1)}
+  @keyframes mfade{from{opacity:0}to{opacity:1}}
+  @keyframes mrise{from{opacity:0;transform:translateY(14px) scale(.98)}
+                   to  {opacity:1;transform:none}}
+  /* THE TERM, over the title. The demo is about a named principle and a student
+     should leave with the name — it is what they will meet again in enzyme
+     kinetics and in every equilibrium problem after this. Styled as the panel's
+     own section heads are, so it reads as a label rather than as a second title. */
+  #massmodal .mkick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    letter-spacing:1.5px;text-transform:uppercase;color:#4f5bd5;margin:0 0 5px}
+  #massmodal h2{font-family:var(--font-slab);font-weight:700;font-size:19px;
+    margin:0 0 3px;color:var(--ink)}
+  #massmodal .msub{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+    margin:0 0 14px}
+  #massmodal .mclose{position:absolute;top:10px;right:12px;font-size:22px;
+    line-height:1;background:none;border:none;color:var(--muted);cursor:pointer;padding:4px}
+  #massmodal .mclose:hover{color:var(--ink)}
+  #masscanvas{display:block;width:100%;height:250px;border-radius:10px;
+    background:rgba(255,255,255,.6);border:1.5px solid rgba(58,52,44,.16)}
+  /* the two species and the tally of conversions each way. THE BACK COUNTER IS
+     THE POINT — a student watching a flat step settle assumes it stopped, and
+     the number ticking up says it did not. */
+  #massmodal .mrow{display:flex;gap:14px;align-items:stretch;margin:12px 0 0}
+  #massmodal .mspec{flex:1;display:flex;align-items:center;gap:8px;
+    padding:7px 10px;border:1.5px solid rgba(58,52,44,.18);border-radius:8px}
+  #massmodal .mdot{width:13px;height:13px;border-radius:50%;flex:none}
+  #massmodal .mnm{font-family:var(--font-slab);font-weight:700;font-size:13px}
+  #massmodal .mct{margin-left:auto;font-family:var(--font-slab);font-weight:700;font-size:20px}
+  #massmodal .mrate{display:flex;flex-direction:column;justify-content:center;
+    gap:2px;min-width:118px;font-family:var(--font-sans);font-size:11.5px;color:var(--muted)}
+  #massmodal .mrate b{font-family:var(--font-slab);font-size:13px;color:var(--ink)}
+  #massmodal .mctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  #massmodal .mctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
+    padding:7px 13px;border-radius:8px;border:1.5px solid var(--ink);
+    background:none;color:var(--ink);cursor:pointer}
+  #massmodal .mctl button:hover{background:var(--ink);color:var(--paper)}
+  #massmodal .mctl button.on{background:var(--ink);color:var(--paper)}
+  #massmodal .mctl .msp{flex:1}
+  #massmodal .mtext{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
+  #massmodal .mtext b{color:var(--ink)}
+  @media (max-width:920px){
+    #masscanvas{height:200px}
+    #massmodal .mrow{flex-wrap:wrap}
+  }
+
   /* ---------- right panel ---------- */
   /* PATHWAY RAIL — the ten steps, blocked into the five stages.
      The DOTS carry the canonical step numbers 1–10, so the rail lines up with
@@ -374,6 +437,15 @@
   #stepnote .nhead.irr{color:var(--atp)}
   #stepnote .nhead.rev{color:var(--nad)}
   #stepnote .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
+  /* the door to the mass-action demo. Sits under the reversibility note because
+     that is the claim it backs up — "the same enzyme runs it in either
+     direction" is a sentence a student can read twenty times without picturing
+     anything, and the demo is the picture. */
+  #stepnote .minfo{font-family:var(--font-sans);font-weight:600;font-size:12px;
+    letter-spacing:.2px;color:#4f5bd5;background:none;border:none;padding:0;
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+    text-decoration-thickness:1.5px;margin:-4px 0 9px}
+  #stepnote .minfo:hover{color:#7b3fe4}
   #stepnote .nbody:last-child{margin-bottom:0}
   /* the coupled-reaction figure. Two arrows running opposite ways, with height
      standing in for free energy — no ticks and no numbers, because it makes no
@@ -496,6 +568,37 @@
 <script src="mol-glycolysis.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<div id="massmodal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mmtitle">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <div class="mkick">Mass action</div>
+    <h2 id="mmtitle">Why a step can run backwards</h2>
+    <p class="msub">An enzyme has no preferred direction. Whichever molecule
+      there is more of collides with it more often — and that alone decides which
+      way the reaction runs.</p>
+    <canvas id="masscanvas"></canvas>
+    <div class="mrow">
+      <div class="mspec"><span class="mdot" style="background:#4f5bd5"></span>
+        <span class="mnm" id="mnmA">G6P</span><span class="mct" id="mctA">0</span></div>
+      <div class="mrate">
+        <span>forward <b id="mrf">0</b>/s</span>
+        <span>backward <b id="mrb">0</b>/s</span>
+      </div>
+      <div class="mspec"><span class="mdot" style="background:#a855f7"></span>
+        <span class="mnm" id="mnmB">F6P</span><span class="mct" id="mctB">0</span></div>
+    </div>
+    <div class="mctl">
+      <button id="mflat" class="on">Flat step</button>
+      <button id="mdrop">Drop step</button>
+      <span class="msp"></span>
+      <button id="maddA">Add 15 <span id="mlbA">G6P</span></button>
+      <button id="maddB">Add 15 <span id="mlbB">F6P</span></button>
+      <button id="mreset">Reset</button>
+    </div>
+    <p class="mtext" id="mtext"></p>
+  </div>
+</div>
 <script>
 "use strict";
 /* =============================================================================
@@ -1511,6 +1614,13 @@ const coupleLine=c=>c.up
   : `This step runs <b>downhill</b>, and the drop is not wasted: it drives
      <b>${c.cout}</b> the other way, <b>uphill</b>.`;
 
+// ONE STRING, THREE PLACES. The link rides both the per-step note (either
+// verdict — the demo shows the pair, so it belongs on both) and the closing
+// tally. Delegated rather than bound, because drawNote replaces this element's
+// innerHTML on every refresh and a bound handler would die with it.
+const MASS_LINK=`<button class="minfo" data-mass>What decides the direction? →</button>`;
+noteEl.addEventListener('click',e=>{ if(e.target.closest('[data-mass]')) Mass.show(); });
+
 function drawNote(){
   const st=(!intro&&done<nSteps)?stepAt(done):null;
   if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
@@ -1548,7 +1658,8 @@ function drawNote(){
       : `<div class="nhead rev">Near equilibrium — reversible</div>`
         +`<p class="nbody">This step sits close to equilibrium, so the same enzyme
            runs it in either direction depending on which side is more
-           concentrated. Nothing here is worth regulating.</p>`);
+           concentrated. Nothing here is worth regulating.</p>`)
+      + MASS_LINK;
     return;
   }
   noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
@@ -1556,8 +1667,183 @@ function drawNote(){
        ${irrevSteps().map(s=>s.enz.replace(/ \(.*\)/,'')).join(', ')} — are
        irreversible. The other seven run in both directions, which is why
        <b>gluconeogenesis</b> reuses seven of these ten enzymes and needs new ones
-       only to bypass those three.</p>`;
+       only to bypass those three.</p>`
+    + MASS_LINK;
 }
+
+
+/* =============================================================
+ *  MASS ACTION — the modal behind the reversibility note
+ *
+ *  THE CLAIM, and it is the only one: an enzyme has no preferred direction. It
+ *  converts whatever collides with it, so the NET direction is decided by which
+ *  species there is more of. Both directions are running the whole time — which
+ *  is why the backward counter is on screen and never reads zero on a flat step.
+ *  That counter is the whole demo; a student watching the split settle assumes
+ *  the reaction stopped, and it has not.
+ *
+ *  WHAT IS SIMPLIFIED, deliberately and visibly (see MolecularGeometry.md §1.4's
+ *  rule about explicit exaggerations):
+ *    · The two species convert with the SAME rate constant on a flat step, so it
+ *      settles at 1:1. A real near-equilibrium step settles NEAR even, not on it
+ *      — step 2's own equilibrium sits around 1 part F6P to 2 parts G6P. An even
+ *      split is the readable version of "neither side is favoured".
+ *    · The drop step's reverse rate is 1/200th of its forward one, not zero. It
+ *      is meant to be seen failing to happen, not declared impossible — the
+ *      point is that the reverse is overwhelmed, not forbidden.
+ *    · Molecules move in straight lines and bounce off the walls. Real cytosol
+ *      is a diffusive random walk; this reads as motion at 60fps and a random
+ *      walk reads as jitter.
+ *    · No volume, no units, no rate law. The counter is conversions per second
+ *      in this box, and the box means nothing beyond itself.
+ *
+ *  It is a plain 2D canvas — no Three.js, no MolLib, nothing from the pathway's
+ *  scene. There are no coordinates here to get right: these are dots standing
+ *  for populations, and the moment they looked like molecules they would be
+ *  making a geometry claim this file cannot back up.
+ * ============================================================= */
+const Mass=(()=>{
+  const el=document.getElementById('massmodal');
+  const cv=document.getElementById('masscanvas');
+  const ctx=cv.getContext('2d');
+  const ui={ A:document.getElementById('mctA'), B:document.getElementById('mctB'),
+             nA:document.getElementById('mnmA'), nB:document.getElementById('mnmB'),
+             rf:document.getElementById('mrf'), rb:document.getElementById('mrb'),
+             bA:document.getElementById('mlbA'), bB:document.getElementById('mlbB'),
+             text:document.getElementById('mtext') };
+  const COL=['#4f5bd5','#a855f7'];
+  // EACH MODE IS A REAL STEP OF THIS PATHWAY, not a toy A⇄B. The flat one is
+  // step 2, which genuinely sits near equilibrium; the drop is step 10, one of
+  // the three that do not. Naming them means the demo hands straight back to the
+  // rail instead of being a separate world with its own letters — and it stops
+  // the drop mode from libelling the isomerase as one-way, which is what a
+  // single fixed pair of names would have done.
+  const SPECIES={ flat:['G6P','F6P'], drop:['PEP','Pyruvate'] };
+  const N0=54, R=5.5;
+  // Five enzyme copies rather than one: a single site in the middle reads as a
+  // GATE the molecules have to pass through, which is the one thing this is not.
+  // The enzyme is dissolved in the same solution they are.
+  const SITES=[[.22,.30],[.50,.62],[.78,.28],[.36,.76],[.68,.84]], SITE_R=30;
+  const P_FWD=0.55, P_BACK_FLAT=0.55, P_BACK_DROP=0.55/200;
+
+  let parts=[], mode='flat', open=false, raf=0, last=0;
+  let hits=[0,0];                       // conversions this second, [forward, back]
+  let rate=[0,0], acc=0;
+
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  function spawn(type,n){
+    for(let i=0;i<n;i++){
+      const th=rnd(0,Math.PI*2), sp=rnd(26,52);
+      parts.push({ t:type, x:rnd(.06,.94), y:rnd(.08,.92),
+                   vx:Math.cos(th)*sp, vy:Math.sin(th)*sp, cd:0 });
+    }
+  }
+  function reset(){
+    // START LOPSIDED. An even start settles instantly and shows nothing; the
+    // lesson is watching the crowded side empty into the empty one.
+    parts=[]; spawn(0,N0); hits=[0,0]; rate=[0,0]; acc=0;
+  }
+
+  function step(dt,w,h){
+    const pBack = mode==='drop' ? P_BACK_DROP : P_BACK_FLAT;
+    parts.forEach(p=>{
+      p.x+=p.vx*dt/w; p.y+=p.vy*dt/h;
+      if(p.x<.03){p.x=.03;p.vx=Math.abs(p.vx);} if(p.x>.97){p.x=.97;p.vx=-Math.abs(p.vx);}
+      if(p.y<.05){p.y=.05;p.vy=Math.abs(p.vy);} if(p.y>.95){p.y=.95;p.vy=-Math.abs(p.vy);}
+      if(p.cd>0){ p.cd-=dt; return; }
+      // A COLLISION IS THE ONLY THING THAT CONVERTS ANYTHING. Nothing here reads
+      // the counts — the counts win because a crowded species collides more
+      // often, which is the entire point and would be a lie if the code took a
+      // shortcut and consulted the totals.
+      for(const s of SITES){
+        const dx=(p.x-s[0])*w, dy=(p.y-s[1])*h;
+        if(dx*dx+dy*dy < SITE_R*SITE_R){
+          const pr = p.t===0 ? P_FWD : pBack;
+          if(Math.random()<pr*dt*3.2){ hits[p.t]++; p.t=1-p.t; p.cd=0.42; }
+          break;
+        }
+      }
+    });
+  }
+
+  function draw(w,h){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='rgba(58,52,44,.055)'; ctx.strokeStyle='rgba(58,52,44,.16)';
+    ctx.lineWidth=1.5;
+    SITES.forEach(s=>{ ctx.beginPath();
+      ctx.arc(s[0]*w,s[1]*h,SITE_R,0,Math.PI*2); ctx.fill(); ctx.stroke(); });
+    ctx.font='600 9px system-ui,sans-serif'; ctx.fillStyle='rgba(58,52,44,.42)';
+    ctx.textAlign='center';
+    SITES.forEach(s=>ctx.fillText('enzyme', s[0]*w, s[1]*h+SITE_R+11));
+    parts.forEach(p=>{ ctx.beginPath();
+      ctx.arc(p.x*w,p.y*h,R,0,Math.PI*2); ctx.fillStyle=COL[p.t]; ctx.fill(); });
+  }
+
+  const TEXT={
+    flat:`<b>Step 2.</b> Both counters keep ticking. The enzyme never stopped — it is still
+      converting in <b>both</b> directions, and always was. What changed as the
+      split evened out is only <b>how often</b> each direction comes up, because
+      that depends on how many of each are around to collide with it. Crowd one
+      side and watch the net direction flip.`,
+    drop:`<b>Step 10.</b> Now the reverse barely happens. Nothing about the
+      enzyme changed — pyruvate simply sits far enough downhill that collisions
+      on that side almost never make it back over. Adding more pyruvate no longer
+      helps. That is what <b>irreversible in the cell</b> means, and it is true
+      of only <b>three</b> of these ten steps.`
+  };
+  function drawUI(){
+    const a=parts.filter(p=>p.t===0).length;
+    ui.A.textContent=a; ui.B.textContent=parts.length-a;
+    ui.rf.textContent=rate[0].toFixed(1); ui.rb.textContent=rate[1].toFixed(1);
+  }
+  function setMode(m){
+    mode=m;
+    document.getElementById('mflat').classList.toggle('on',m==='flat');
+    document.getElementById('mdrop').classList.toggle('on',m==='drop');
+    ui.nA.textContent=ui.bA.textContent=SPECIES[m][0];
+    ui.nB.textContent=ui.bB.textContent=SPECIES[m][1];
+    ui.text.innerHTML=TEXT[m];
+    reset();          // each mode starts lopsided, or there is nothing to watch
+  }
+
+  function frame(now){
+    if(!open) return;
+    const dt=Math.min(0.05,(now-last)/1000||0); last=now;
+    const w=cv.clientWidth, h=cv.clientHeight;
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){
+      cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+    }
+    ctx.setTransform(cv.width/w,0,0,cv.width/w,0,0);
+    step(dt,w,h); draw(w,h);
+    // conversions/second, resampled once a second so the number is readable
+    acc+=dt;
+    if(acc>=1){ rate=[hits[0]/acc, hits[1]/acc]; hits=[0,0]; acc=0; }
+    drawUI();
+    raf=requestAnimationFrame(frame);
+  }
+
+  function show(){
+    el.hidden=false; open=true; last=performance.now();
+    setMode('flat');            // setMode resets
+    raf=requestAnimationFrame(frame);
+    el.querySelector('.mclose').focus();
+  }
+  function hide(){ open=false; cancelAnimationFrame(raf); el.hidden=true; }
+
+  el.querySelector('.mback').onclick=hide;
+  el.querySelector('.mclose').onclick=hide;
+  document.getElementById('mflat').onclick=()=>setMode('flat');
+  document.getElementById('mdrop').onclick=()=>setMode('drop');
+  document.getElementById('maddA').onclick=()=>spawn(0,15);
+  document.getElementById('maddB').onclick=()=>spawn(1,15);
+  document.getElementById('mreset').onclick=reset;
+  // Esc closes, and the modal swallows the key so it cannot also reach the
+  // page's own shortcuts underneath.
+  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
+
+  return {show, hide, isOpen:()=>open};
+})();
 
 const forkEl=document.getElementById('fork');
 function drawFork(){
@@ -1662,5 +1948,6 @@ document.getElementById('savepng').onclick=()=>{
   a.href=out.toDataURL('image/png'); a.click();
 };
 </script>
+
 </body>
 </html>
