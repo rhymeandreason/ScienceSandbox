@@ -16,7 +16,7 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | featured lesson |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
-| `glycolysis-lab.html` | All ten steps, grouped into five stages: carbon bookkeeping (why it costs 2 ATP to make ATP), PFK-1 as the regulated committed step, the pathway's one oxidation, and which three steps are irreversible | pathway | prototype |
+| `glycolysis-lab.html` | All ten steps, grouped into five stages: carbon bookkeeping (why it costs 2 ATP to make ATP), PFK-1 as the regulated committed step, the pathway's one oxidation, and which three steps are irreversible — plus a **mass-action modal** off the reversibility note, which is a second simulation with its own physics (see below) | pathway | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | prototype |
 | `protein-lab.html` | Superseded PDB structure viewer — kept as the ChemDoodle (GPL) worked example, see its own header | PDB structure viewer | reference |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin, with level 4 only pointed at. Superseded by `hemoglobin-lab`, which carries all four on one molecule — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |
@@ -123,6 +123,18 @@ Things that are easy to get wrong and are not visible from the API:
 * **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve the distance from the real frustum; a hand-picked `r:` is only right at the size it was tuned for. Pass `orbit:false` on a side-by-side page — orbiting puts one molecule nearer the camera and perspective magnifies it.
 * **`Stage.bond` takes a bond order**; `[i,j,2]` in a spec draws a double bond as a pair of sticks. `setOptionalH` toggles *visibility* of the C–H's listed in `optH`, so it can never resurrect a reaction-removed atom.
 * **`atomkit.js` owns what a student learns to *read***, never how a bond forms.
+* **`glycolysis-lab.html` carries a second simulation.** The mass-action modal
+  behind the reversibility note is a plain 2D canvas — no Three.js, no MolLib,
+  no spec — because its dots stand for *populations*, not molecules, and the
+  moment they looked like molecules they would make a geometry claim nothing
+  backs. It has its own physics: molecules carry an energy drawn from the
+  thermal distribution and react when they clear a barrier, `EA` forward and
+  `EA + ΔE` back. **`EA` is a legibility knob** (it is the number that makes
+  about half of arrivals react), so the claims resting on it — a flat step
+  settling even with both directions still running, a drop step running to
+  completion with a rare-but-not-forbidden reverse — are asserted by
+  `tools/check-massaction.js`, which lifts the constants out of the HTML rather
+  than holding its own copy.
 * Page-specific, not plumbing: the drag modules are *mechanics*. Same mechanic, different constants → a recipe in the same file; different mechanic → new file.
 
 ## Architecture principle: **share the plumbing, not the physics**
@@ -197,6 +209,7 @@ Each one is gated on the files it can actually judge, so most commits run one or
 | `check-pdb.js` | `pdb.js`, `tools/check-pdb.js`, anything in `pdb/` — pdb.js's orientation is its single subject | 0.3 s |
 | `check-folding.js` | anything under `folding/`, plus `palette.js` (folding-lab derives its display radii from `PALETTE.radii / SCALE`) |  |
 | `check-residues.js` | `residues.js`, either `tools/*-residues.js`, and the two structures it measures (`2HHB.pdb`, `9ZZI.pdb`) | 0.2 s |
+| `check-massaction.js` | `glycolysis-lab.html`, `tools/check-massaction.js` — the modal's physics lives *in* the page, so there is no module folder to gate it | 1.5 s |
 | `check-hb.js` | anything under `hemoglobin/`, **plus `hemoglobin-lab.html`** (it asserts numbers the page says out loud), plus `folding/folding.js` and `folding/ribbon.js` — **two modes**, below | 0.3 s or 57 s |
 
 `check-hb.js` is a special case because it's expensive to run. Its full run **re-bakes the unfold**, which is 56 of its 57 seconds; `--quick` skips that and the two other assertions needing the un-quantised trajectory, leaving 56 of 59 running off the committed file in 0.3 s. The hook picks: **full** when `bake-unfold.js`, `bake-hb.js` (the encoder), `folding/folding.js` or `folding/ribbon.js` is staged, **quick** otherwise.
@@ -208,10 +221,10 @@ Widen a pattern alongside any new derived artefact, because nothing about a stal
 There is still no CI. To run them by hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node tools/check-massaction.js
 ```
 
-Those three are offline and have no dependencies. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit (`npm i`), and it is the only thing here that can catch a *global mirror*, which every internal check is blind to by construction (MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
+Those are offline and have no dependencies. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit (`npm i`), and it is the only thing here that can catch a *global mirror*, which every internal check is blind to by construction (MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
 
 ```bash
 npm i && node tools/check-handedness.js

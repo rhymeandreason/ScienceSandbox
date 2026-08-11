@@ -73,6 +73,22 @@ else
   echo "pre-commit: skipping check-pages.js — no page or registry file staged"
 fi
 
+# The mass-action modal's physics lives inside glycolysis-lab.html, so this
+# fires on the page itself — there is no separate module whose folder could
+# gate it, and EA is a legibility knob somebody will reach for.
+if git diff --cached --name-only | grep -qE '^demos/(glycolysis-lab\.html|tools/check-massaction\.js)$'; then
+  if ! node tools/check-massaction.js > /tmp/cma.$$ 2>&1; then
+    tail -25 /tmp/cma.$$; rm -f /tmp/cma.$$
+    echo ""
+    echo "pre-commit FAILED: check-massaction.js — the mass-action modal no longer"
+    echo "  teaches what it claims. See the header for which claim broke."
+    exit 1
+  fi
+  rm -f /tmp/cma.$$
+else
+  echo "pre-commit: skipping check-massaction.js — glycolysis-lab.html not staged"
+fi
+
 # check-pdb.js is back to its original single subject — pdb.js's orientation —
 # so it fires on pdb.js and the structures pdb.js actually orients.
 if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|tools/check-pdb\.js|pdb/.*\.pdb)$'; then
