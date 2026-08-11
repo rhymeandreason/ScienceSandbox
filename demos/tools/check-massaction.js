@@ -171,6 +171,68 @@ const shown = DROP.drop.toFixed(1);
 ok(!new RegExp(`\\+${shown}\\s*kT`).test(html),
    `and nothing types "+${shown} kT" as a literal anywhere`);
 
+/* ---- 7. the DRAWING agrees with the model ----------------------------- */
+/* The reaction-coordinate curve makes geometric claims — the hump IS EA, the
+ * climb back IS EA + DROP, and the hump is the SAME height on both tabs
+ * because the enzyme is the same. Those are exactly as breakable as the
+ * numbers, and more tempting to break: somebody nudges a control point to
+ * make the curve prettier and the picture quietly stops matching the physics
+ * it is drawn from. So the page's own drawEq is lifted and run, and the path
+ * it emits is measured. */
+const mEpx = html.match(/const EPX = [^;]+;/);
+const dFrom = html.indexOf('  function drawEq(m){');
+const dTo = html.indexOf('  function setMode(m){');
+const mCol = html.match(/const COL=\[[^\]]+\];/);
+const mSpc = html.match(/const SPECIES=\{[^}]+\};/);
+ok(!!(mEpx && mCol && mSpc && dFrom > 0 && dTo > dFrom),
+   'the page still has a drawEq to measure');
+
+if (mEpx && mCol && mSpc && dFrom > 0 && dTo > dFrom) {
+  let painted = '';
+  const ui = { eq: { set innerHTML(v) { painted = v; } } };
+  const draw = new Function('ui', 'EA', 'DROP',
+    mCol[0] + mSpc[0] + mEpx[0] + html.slice(dFrom, dTo) + '\n return drawEq;'
+  )(ui, EA, DROP);
+
+  const EPX = new Function('EA', 'DROP', mEpx[0] + '\n return EPX;')(EA, DROP);
+
+  // M26,<sub> H68 C…,…,<peak> C…,…,<prod> H196
+  const RC = /M[\d.]+,([\d.]+) H[\d.]+ C[\d.-]+,[\d.-]+ [\d.-]+,[\d.-]+ [\d.-]+,([\d.-]+) C[\d.-]+,[\d.-]+ [\d.-]+,[\d.-]+ [\d.-]+,([\d.-]+) H/;
+  const measure = m => {
+    draw(m);
+    const d = (painted.match(/class="rc" d="([^"]+)"/) || [])[1] || '';
+    const g = d.replace(/\s+/g, ' ').match(RC);
+    if (!g) return null;
+    const [sub, peak, prod] = [+g[1], +g[2], +g[3]];
+    return { sub, peak, prod,
+             hump: sub - peak,          // y grows downward
+             fall: prod - sub,
+             climb: prod - peak,
+             kT: (painted.match(/\+([\d.]+) kT/) || [])[1] };
+  };
+  const gF = measure('flat'), gD = measure('drop');
+  ok(!!(gF && gD), 'both tabs draw a reaction coordinate');
+
+  if (gF && gD) {
+    const near = (a, b, t = 0.02) => Math.abs(a - b) < t;
+    ok(near(gF.hump, EA * EPX),
+       'the flat hump is EA tall', `${gF.hump.toFixed(2)}px vs ${(EA*EPX).toFixed(2)}px`);
+    ok(near(gD.hump, EA * EPX),
+       'the drop hump is EA tall', `${gD.hump.toFixed(2)}px`);
+    ok(near(gF.hump, gD.hump),
+       'and the two humps are the SAME — one enzyme, one barrier');
+    ok(near(gF.fall, 0),
+       'the flat step ends where it started', `${gF.fall.toFixed(2)}px`);
+    ok(near(gD.fall, DROP.drop * EPX),
+       'the drop falls by DROP', `${gD.fall.toFixed(2)}px vs ${(DROP.drop*EPX).toFixed(2)}px`);
+    ok(near(gD.climb, (EA + DROP.drop) * EPX),
+       'and climbing back is EA + DROP — the same peak, from lower down',
+       `${gD.climb.toFixed(2)}px vs ${((EA+DROP.drop)*EPX).toFixed(2)}px`);
+    ok(gD.kT === DROP.drop.toFixed(1),
+       'the sentence prints the DROP the curve draws', `+${gD.kT} kT`);
+  }
+}
+
 console.log('');
 if (fails) {
   console.log(`FAIL: ${fails} of ${checks} checks failed.`);
