@@ -22,15 +22,12 @@
     #side{grid-column:2;grid-row:2}
   }
   #stage,#side{min-height:0}
-  /* The whole sidebar scrolls as one column — ledger, coupling sheet and note
-     together — so no piece has to be sized to fit a fixed height. */
-  /* No top padding: the ledger is sticky and flush to the top edge, so nothing
-     scrolls through a gap above it. No grid paper, no torn edge and no cast
-     shadow either — these are readouts sitting beside the stage, not a second
-     document competing with it. */
-  /* Same dotted paper as the stage, and no rule between them: the readouts are
-     things sitting ON the page beside the molecule, not a second document — a
-     border made the sidebar a panel again, which is what it stopped being. */
+  /* THE SIDEBAR IS READOUTS ON THE PAGE, NOT A PANEL. It scrolls as one column
+     — ledger, coupling sheet and note together — so no piece needs a fixed
+     height. No top padding, since the ledger is sticky and flush to the top
+     edge. And it carries the stage's own dotted paper with no border, grid
+     paper, torn edge or cast shadow: any of those would read as a second
+     document competing with the stage. */
   #side{overflow-y:auto; padding:0 20px 30px; box-shadow:none; border:none;
     background-color:var(--paper);
     background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
@@ -151,10 +148,9 @@
 
   /* ---------- the coupling box, under the ledger ----------
      The step's energy picture — A SHEET OF PAPER, like everything else on this
-     desk. It used to be an inked card, which read as UI sitting on the page
-     rather than as something lying on it; the ledger beside it is a post-it and
-     the sidebar is torn grid paper, so a hard 2px border was the only object
-     here pretending to be a control. Same idiom as the ledger and mirrored: it
+     desk, not an inked card: the ledger beside it is a post-it and the sidebar
+     is torn grid paper, so a hard 2px border would be the only object here
+     pretending to be a control. Same idiom as the ledger and mirrored: it
      tilts the other way and lifts its opposite corner, so the two read as two
      sheets dropped on a desk rather than as a repeated component.
      Its contents are the shared `.note` styles (.nhead, .nbody, .cpl, .ftabs). */
@@ -197,12 +193,10 @@
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
 
-  /* NO COUNTS. The tray used to carry a running tally per carrier, which read
-     as bookkeeping the student was meant to track — but the accounting that
-     matters is ATP spent / made / net, and the post-it already keeps it. What
-     the tray is FOR is naming the five carriers and showing which one this step
-     needs, so that is all it says now. A pool at zero is still muted, because
-     NAD+ at zero is why fermentation exists. */
+  /* NO COUNTS. The tray's job is naming the five carriers and showing which one
+     this step needs — a running per-carrier tally would duplicate the ledger's
+     ATP spent/made/net, which is the accounting that actually matters. A pool
+     at zero is still muted, because NAD+ at zero is why fermentation exists. */
   .reag{position:relative;width:152px;padding:5px 10px;cursor:default;
     display:grid;grid-template-columns:1fr;align-items:center;
     background:none;border:2.5px solid transparent;border-radius:9px;
@@ -370,9 +364,9 @@
      TEN NUMBERS. The rail says where you are in the pathway and nothing else:
      the numbers are the canonical 1-10 every textbook uses, the lit one is the
      step whose product is on the stage, and a step you have already run is a
-     click back to it. Everything the rail used to carry — names, carriers, the
-     one-way markers, the stage blocking — is behind Show 10 steps, where it can
-     be read as a list instead of squeezed into a strip. */
+     click back to it. Names, carriers, one-way markers and stage blocking live
+     in Show 10 steps instead, where they can be read as a list rather than
+     squeezed into a strip. */
   #railbar{display:flex;align-items:center;justify-content:center;
     padding:12px 22px 10px;z-index:7;
     /* the same dotted paper as the stage and the sidebar — the numbers sit on
@@ -469,8 +463,8 @@
   .cpl .ax{font-family:var(--font-sans);font-size:9px;letter-spacing:1.1px;
     text-transform:uppercase;fill:var(--muted)}
 
-  /* the two effector lists, side by side. Sized for the sidebar they used to
-     live in; in the modal they simply have more room. */
+  /* the two effector lists, side by side. Base sizing fits the sidebar;
+     #pfkbody overrides below give them the modal's extra room. */
   .effrow{display:flex;gap:9px;margin:0 0 10px}
   #pfkbody .mtext{margin:0 0 14px}
   #pfkbody .effrow{margin:0 0 14px;gap:14px}
@@ -635,8 +629,8 @@
        column you can read down. -->
   <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
-  <!-- The right column is no longer a panel with its own voice — it is a stack
-       of readouts beside the stage: the tally, the step's energy picture, and
+  <!-- The right column is not a panel with its own voice — it is a stack of
+       readouts beside the stage: the tally, the step's energy picture, and
        whatever commentary the step carries. -->
   <div id="side">
     <div id="ledger"></div>
@@ -876,20 +870,6 @@ const STEPS=[
 // bookkeeping change students should be able to recite for each one, and it is
 // printed on the rail.
 //
-// THE STAGES CARRY NO PROSE. A wall of text next to a simulation is text
-// nobody reads, and it would say the same things as the ten step captions. The
-// five facts that a caption doesn't already carry live where they're needed:
-//
-//   cytosol · no oxygen · universal    → the intro caption (captionAt)
-//   the charge traps the sugar in the cell → step 1's caption
-//   glyco- sugar, -lysis splitting     → step 4's caption
-//   each NADH is worth ~2.5 ATP later  → the aerobic door of the fork
-//   net 2 ATP ≈ 5% of glucose's energy → step 10's caption
-//
-// Everything else the bodies said is on screen already: the action button names
-// the enzyme, the ledger carries the carbon count and the running totals, the tray
-// carries the pools, #couplebox carries coupling and reversibility, and #stepnote
-// carries PFK-1.
 const STAGES=[
   // Stage 0 is a STATE, not a group of steps: it is where the page opens and
   // where Restart returns to, and it has no step to list.
@@ -1693,11 +1673,8 @@ const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k; rende
 
 const railEl=document.getElementById('rail');
 function drawRail(){
-  // TEN NUMBERS, NOTHING ELSE. The rail's only job is "where am I in the ten" —
-  // the molecule on the stage is what you are looking at, the side panel says
-  // what the step does, and the full list is behind Show 10 steps. A rail that
-  // also carried names, chips and markers was answering questions nothing had
-  // asked yet, in the widest strip on the page.
+  // The rail's only job is "where am I in the ten" (see the CSS header above)
+  // — the molecule on stage, the side panel and Show 10 steps carry the rest.
   railEl.innerHTML='';
   STEPS.forEach((st,idx)=>{
     // `done` is how many steps have RUN, so the number you are viewing is the
