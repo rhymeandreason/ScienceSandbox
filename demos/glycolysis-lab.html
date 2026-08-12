@@ -93,7 +93,7 @@
      15.5px that is ~270 characters — which is exactly what step 10 uses, so
      there is no slack. A longer message means growing the band here and
      re-checking the fit, not just adding words in STEPS. */
-  #rxmsg{width:min(680px,64%);min-height:96px;text-align:center;
+  #rxmsg{width:min(680px,64%);min-height:84px;text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
     color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
@@ -986,7 +986,12 @@ function chipOf(st){
 /* =============================================================
  *  3D: lanes, labels, transitions
  * ============================================================= */
-const LANE=5.6;                               // half-separation of the two lanes
+// HALF-SEPARATION OF THE TWO LANES. The camera is sized by the VERTICAL need
+// here — the tallest state is about twice as demanding as the widest — so the
+// pair can be spread this far apart and cost nothing: the frame does not grow
+// until `wide` roughly doubles (see fitFor's two terms). The room buys the two
+// name plates space of their own, which at 5 they were sharing.
+const LANE=8.0;
 let lanes=[];                                 // [{g, key, label}] left→right
 let busy=false;                               // a transition is animating
 // THE BEAT AFTER A STEP LANDS. A step is three screens, not two: read what is
@@ -1235,7 +1240,7 @@ function fitFor(states){
   const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
   const u=usable();
   const R=Math.max(15, Math.min(90,
-    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp*u.h))*1.14));
+    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp*u.h))*1.10));
   // Vertically, centre the molecule in the band between the label strip and the
   // bottom bar by DROPPING THE TARGET rather than insetting both edges —
   // insetting both would double-charge the fit for one obstructed edge and
@@ -1300,7 +1305,10 @@ function usable(){
            // moved the molecule twice as far as the band did, which read as
            // "floating high" once the wide sidebar went and there was nothing
            // else up there to balance it.
-           shift:(b-t)/(2*c.height) };
+           shift:(b-t)/(2*c.height),
+           // the reserves themselves, as fractions of the canvas height — the
+           // top-anchor below needs the edge, not the centre of the leftover
+           tf:t/c.height, bf:b/c.height };
 }
 let fitR=24, fitY=0, fitHS=0;
 // The DOM layers over the canvas take the same slide as the frustum, in pixels
@@ -1315,8 +1323,32 @@ function computeFit(){
   // every state from the first phosphorylation to the last pyruvate, unioned
   const path=fitFor(STEPS.map(s=>s.species));
   const f=(intro&&done===0)?intro0:path;
-  fitR=f.R; fitY=f.Y; fitHS=usable().hshift;
+  fitR=f.R; fitY=topAnchoredY(f.R, f.Y); fitHS=usable().hshift;
   applyStageShift();
+}
+
+// THE CAMERA IS SIZED FOR THE WHOLE PATHWAY, so no single state fills it — one
+// molecule inside a frame cut for two lanes has slack, and centring that slack
+// splits it evenly above and below. The button sits at the bottom of the band
+// anyway, so the slack is worth more there than above the name: this pulls the
+// state UP, most of the way from centred toward hanging its own name plate off
+// the top of the usable band.
+//
+// TOP_PULL is damped rather than 1, and has to be: the camera orbits at an
+// elevation, so a shift in world Y does not travel a matching number of pixels
+// on screen — solving the anchor exactly, as if it did, walked the label off the
+// top edge. Damping keeps the same solved offset (restyle the plate or grow the
+// caption band and it follows) without trusting that conversion.
+const TOP_PULL=0.5;
+function topAnchoredY(R, centredY){
+  const u=usable();
+  const topNow=plateY(speciesAt(intro?0:done));   // world Y of this state's plate
+  const H=R*HALF_FOV;                             // visible world half-height
+  const anchored=topNow-H*(1-2*u.tf);             // plate hung off the top edge
+  // A SMALLER TARGET Y IS A HIGHER MOLECULE (the frame drops, the content does
+  // not), so never take the larger of the two: on a state that already fills the
+  // frame the pull is zero and centring stands.
+  return centredY + Math.min(0, anchored-centredY)*TOP_PULL;
 }
 
 // Snap the scene to the state at index i, with no animation. Used by restart,
