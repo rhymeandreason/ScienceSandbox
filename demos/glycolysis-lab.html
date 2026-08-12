@@ -28,8 +28,13 @@
      scrolls through a gap above it. No grid paper, no torn edge and no cast
      shadow either — these are readouts sitting beside the stage, not a second
      document competing with it. */
-  #side{overflow-y:auto; background-image:none; background:var(--paper);
-    padding:0 20px 30px; box-shadow:none; border-left:1px solid var(--hair)}
+  /* Same dotted paper as the stage, and no rule between them: the readouts are
+     things sitting ON the page beside the molecule, not a second document — a
+     border made the sidebar a panel again, which is what it stopped being. */
+  #side{overflow-y:auto; padding:0 20px 30px; box-shadow:none; border:none;
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+    background-size:26px 26px; background-position:13px 13px}
   #side::before{display:none}
   #card{min-height:0}
 
@@ -645,16 +650,23 @@
   .eff .e:last-child{margin-bottom:0}
   .eff .e b{display:block;color:var(--ink);font-weight:600}
 
-  /* Restart, top-right of the stage. Mirrors #savepng's chip (bottom-left, from
-     sandbox.css) so the two utility controls read as a pair and neither
-     competes with the lesson's own button. Quiet by default — it throws work
-     away, so it should never be the most inviting thing on screen. */
-  #restart{position:absolute;right:26px;top:22px;z-index:9;
+  /* THE TWO UTILITY CONTROLS SIT IN THE BOTTOM CORNERS, both quiet. Restart
+     throws work away and PNG is a side errand, so neither should ever be more
+     inviting than the lesson's own button between them — and the top of the
+     stage is where the molecule's name goes, not where chrome goes. PNG takes
+     the muted treatment from #restart, overriding sandbox.css's ink chip. */
+  #restart,#savepng{bottom:22px;z-index:20;
     font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
     color:var(--muted);background:transparent;border:2px solid var(--hair);
     border-radius:var(--radius);padding:6px 15px;cursor:pointer;
     display:inline-flex;align-items:center;gap:6px}
-  #restart:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  /* fixed, so it holds the SCREEN's corner past the readout column, and the
+     sidebar scrolling underneath cannot carry it away */
+  #restart{position:fixed;right:26px;top:auto}
+  #savepng{position:absolute;left:26px;top:auto}
+  /* room under the last readout so the button never lands on it */
+  #side{padding-bottom:64px}
+  #restart:hover,#savepng:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
   /* ---------- the ending fork ----------
      THE THREE FATES ARE A MODAL, behind the last button. On the stage they were
@@ -683,9 +695,9 @@
     .reag{width:116px;padding:3px 7px}
     .reag .rcount{font-size:19px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
-    /* PNG joins Restart in the top-right rather than holding the bottom-left
-       corner: down here the caption band spans nearly the full width. */
-    #savepng{left:auto;right:146px;top:22px;bottom:auto;padding:5px 12px;font-size:12px}
+    /* Both corners tighten in; the caption band between them is narrower here. */
+    #restart,#savepng{bottom:16px;padding:5px 12px;font-size:12px}
+    #savepng{left:14px} #restart{right:14px}
     #bottombar{bottom:18px}
   }
 </style>
@@ -717,9 +729,12 @@
            node its own flex item, which shreds the sentence into columns -->
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
-    <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
+  <!-- Restart lives at PAGE level, not on the stage: it applies to the whole
+       lesson (the rail and the readouts reset with it), so it belongs at the
+       screen's own bottom-right rather than at the stage's. -->
+  <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
   <!-- The right column is no longer a panel with its own voice — it is a stack
        of readouts beside the stage: the tally, the step's energy picture, and
        whatever commentary the step carries. -->
