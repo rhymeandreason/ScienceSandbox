@@ -93,17 +93,25 @@
      15.5px that is ~270 characters — which is exactly what step 10 uses, so
      there is no slack. A longer message means growing the band here and
      re-checking the fit, not just adding words in STEPS. */
-  #rxmsg{width:min(680px,64%);min-height:74px;text-align:center;
-    display:flex;align-items:center;justify-content:center;
+  #rxmsg{width:min(680px,64%);min-height:96px;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
     color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
   #rxmsg p{margin:0}
+  /* STEP NUMBER AND ITS HOOK, one line above the sentence. The number ties the
+     band to the rail's lit circle and to every textbook's numbering; the hook
+     is the one word to carry away, which is why it is the heading and not
+     something to find inside the paragraph. */
+  #rxmsg .rxhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);
+    margin-bottom:6px}
+  #rxmsg .rxhead em{font-style:normal;color:var(--phos)}
   #rxmsg b{font-weight:700;color:var(--ink)}
   #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
   #rxmsg.show{opacity:1}
   #rxmsg.in{animation:rxIn .5s ease-out}
   @keyframes rxIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px;min-height:62px} }
+  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px;min-height:84px} }
 
   /* ---------- the ledger: the whole point of the page ---------- */
   /* Always visible, never resets. Students watch ATP dip below its start value
@@ -227,16 +235,6 @@
   #actbtn:hover{background:#000;transform:translateY(-2px)}
   #actbtn i{font-size:15px;vertical-align:-1px;margin-left:2px}
 
-  /* ONE PLAIN BUTTON: Next. The enzyme used to BE the button — a wobbling blob
-     you pressed — which made every step look like a different control and put
-     the page's loudest object between the student and the molecule. The step is
-     the same either way, so the control is now the same too: one button in one
-     place, one word on it. No caption — the step's name is on the rail, its
-     enzyme is in the side panel, and the button is not where a lesson goes, so
-     it says only what pressing it does.
-
-     Begin is that button with room to spare; its height is allowed to differ
-     because leaving the intro re-solves the fit (see beginPathway). */
   #actbtn.begin{font-size:21px;padding:22px 48px}
   /* the press: a short flash of the button's own fill, in the DOM. Nothing
      chemical has happened yet, so this stays UI feedback and not one of fx.js's
@@ -615,8 +613,10 @@
       <button id="actbtn"></button>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
-           node its own flex item, which shreds the sentence into columns -->
-      <div id="rxmsg" aria-live="polite"><p></p></div>
+           node its own flex item, which shreds the sentence into columns.
+           The heading rides above it in the same band, so the pair moves as one
+           block and the band's height is what the camera reserves. -->
+      <div id="rxmsg" aria-live="polite"><div class="rxhead"></div><p></p></div>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
@@ -803,65 +803,65 @@ const REAGENTS=[
 // gluconeogenesis has to bypass, which is not a coincidence and is the point.
 const STEPS=[
   { n:1, stage:1, reagent:'ATP', need:'Spend 1 ATP',
-    species:['g6p'], enz:'Hexokinase', rev:false,
+    species:['g6p'], enz:'Hexokinase', hook:'Trapping', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`<b>Hexokinase — trapping.</b> A <span class="p">phosphate</span> from ATP goes onto carbon 6. The negative charge <b>locks the sugar in the cell</b>: no GLUT transporter will carry a charged molecule back out.` },
+    msg:`<b>Hexokinase.</b> A <span class="p">phosphate</span> from ATP goes onto carbon 6. The negative charge <b>locks the sugar in the cell</b>: no GLUT transporter will carry a charged molecule back out.` },
 
   { n:2, stage:1, reagent:null,
     act:'Shift the carbonyl to C2',
-    species:['f6p'], enz:'Phosphoglucose isomerase', rev:true,
+    species:['f6p'], enz:'Phosphoglucose isomerase', hook:'Shuffling', rev:true,
     fx:'iso',
-    msg:`<b>Phosphoglucose isomerase — shuffling.</b> Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>, rearranged from a glucose to a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can.` },
+    msg:`<b>Phosphoglucose isomerase.</b> Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>, rearranged from a glucose to a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can.` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
-    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)',
+    species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', hook:'Symmetry & instability',
     rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`<b>PFK-1 — symmetry and instability.</b> A second ATP phosphorylates carbon 1. Charged at <b>both ends</b>, the molecule is symmetrical and unstable — primed to split. This is the <b>committed step</b>.` },
+    msg:`<b>PFK-1.</b> A second ATP phosphorylates carbon 1. Charged at <b>both ends</b>, the molecule is symmetrical and unstable — primed to split. This is the <b>committed step</b>.` },
 
   { n:4, stage:2, reagent:null,
     act:'Cleave the C3–C4 bond',
-    species:['dhap','g3p'], enz:'Aldolase', rev:true,
+    species:['dhap','g3p'], enz:'Aldolase', hook:'The split', rev:true,
     fx:'split',
-    msg:`<b>Aldolase — the split.</b> The unstable six-carbon sugar is cleaved down the middle into <b>two different three-carbon molecules</b>, DHAP and G3P, each keeping one <span class="p">phosphate</span> — which is what the two ATP bought.` },
+    msg:`<b>Aldolase.</b> The unstable six-carbon sugar is cleaved down the middle into <b>two different three-carbon molecules</b>, DHAP and G3P, each keeping one <span class="p">phosphate</span> — which is what the two ATP bought.` },
 
   { n:5, stage:2, reagent:null,
     act:'Convert DHAP to G3P',
-    species:['g3p','g3p'], enz:'Triose-phosphate isomerase', rev:true,
+    species:['g3p','g3p'], enz:'Triose-phosphate isomerase', hook:'Streamlining', rev:true,
     fx:'iso',
-    msg:`<b>Triose-phosphate isomerase — streamlining.</b> DHAP becomes a second <b>G3P</b>. The lanes are now identical, so everything from here happens <b>twice</b>.` },
+    msg:`<b>Triose-phosphate isomerase.</b> DHAP becomes a second <b>G3P</b>. The lanes are now identical, so everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
-    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', rev:true,
+    species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', hook:'Electron theft', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
     couple:{ up:false, plus:'Pi', cin:'NAD+', cout:'NADH', tone:'n' },
-    msg:`<b>G3P dehydrogenase — electron theft.</b> Each G3P gives up two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span> (2 in all), and a <span class="p">free phosphate</span> from the cytosol takes the empty spot — <b>no ATP spent</b>. The pathway's only oxidation.` },
+    msg:`<b>G3P dehydrogenase.</b> Each G3P gives up two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span> (2 in all), and a <span class="p">free phosphate</span> from the cytosol takes the empty spot — <b>no ATP spent</b>. The pathway's only oxidation.` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
-    species:['pga3','pga3'], enz:'Phosphoglycerate kinase', rev:true,
+    species:['pga3','pga3'], enz:'Phosphoglycerate kinase', hook:'Break-even', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
-    msg:`<b>Phosphoglycerate kinase — break-even.</b> That phosphate has a higher transfer potential than ATP's, so it goes straight to ADP. Two lanes, <b>2 ATP</b> — exactly what phase 1 cost. This is <b>substrate-level phosphorylation</b>.` },
+    msg:`<b>Phosphoglycerate kinase.</b> That phosphate has a higher transfer potential than ATP's, so it goes straight to ADP. Two lanes, <b>2 ATP</b> — exactly what phase 1 cost. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
     act:'Move the phosphate to C2',
-    species:['pga2','pga2'], enz:'Phosphoglycerate mutase', rev:true,
+    species:['pga2','pga2'], enz:'Phosphoglycerate mutase', hook:'Position shift', rev:true,
     fx:'move', anchor:'p3', dest:'p2',
-    msg:`<b>Phosphoglycerate mutase — position shift.</b> The remaining phosphate simply moves from carbon 3 to carbon 2. On C3 it <b>could not</b> charge ADP; this move sets up the step that changes that.` },
+    msg:`<b>Phosphoglycerate mutase.</b> The remaining phosphate simply moves from carbon 3 to carbon 2. On C3 it <b>could not</b> charge ADP; this move sets up the step that changes that.` },
 
   { n:9, stage:4, reagent:null,
     act:'Remove a water',
-    species:['pep','pep'], enz:'Enolase', rev:true,
+    species:['pep','pep'], enz:'Enolase', hook:'High-energy setup', rev:true,
     fx:'lose', anchor:'oh3',
-    msg:`<b>Enolase — high-energy setup.</b> A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. Nothing was added — the rearrangement itself loads strain into the phosphate bond.` },
+    msg:`<b>Enolase.</b> A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. Nothing was added — the rearrangement itself loads strain into the phosphate bond.` },
 
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
-    species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', rev:false,
+    species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', hook:'Net profit', rev:false,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
-    msg:`<b>Pyruvate kinase — net profit.</b> The last phosphate goes to ADP and the enol snaps to keto: <b>pyruvate</b>. Two more ATP, so <b>net 2 ATP and 2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
+    msg:`<b>Pyruvate kinase.</b> The last phosphate goes to ADP and the enol snaps to keto: <b>pyruvate</b>. Two more ATP, so <b>net 2 ATP and 2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
 // The five stages, kept as the GROUPING over the ten steps. `delta` is the
@@ -989,6 +989,16 @@ function chipOf(st){
 const LANE=5.6;                               // half-separation of the two lanes
 let lanes=[];                                 // [{g, key, label}] left→right
 let busy=false;                               // a transition is animating
+// THE BEAT AFTER A STEP LANDS. A step is three screens, not two: read what is
+// about to happen, watch it happen, then LOOK AT WHAT YOU MADE — and that third
+// screen needs its own click to leave, or the page overwrites the result with
+// the next step's explanation while the student is still looking at it. While
+// `reviewing` is true the panels describe the step that just RAN (done-1), the
+// tray is not armed, and the only control is Next.
+let reviewing=false;
+// Which step the panels are describing: the one just run while reviewing it,
+// otherwise the one about to run. Everything that reads a step goes through it.
+const focusStep=()=>reviewing?done-1:done;
 
 // SPECIES NAMES ARE DOM ELEMENTS, NOT CANVAS SPRITES — text stays sharp at any
 // zoom, a name can be selected or copied, and its size is tied to the page's
@@ -1417,7 +1427,7 @@ function runStep(){
     const top=plateY(keys);
     lanes=keys.map((k,j)=>{ const o=spawnLane(k,j,n,top);
       o.g.position.set(0,0,0); o.g.userData.tx=laneOrigin(k,j,n); return o; });
-    later(()=>{ done=to;                   // lanes already correct — don't respawn
+    later(()=>{ done=to; reviewing=true;   // lanes already correct — don't respawn
       // The parting is a rAF ease, so in a hidden tab it never ran; land them on
       // their marks here so the two halves can't come back stacked on each other.
       lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; FXi.popGlow(o.g,GLOW); });
@@ -1449,17 +1459,20 @@ function runStep(){
 
   } else dur=280;                              // 'iso': a plain rearrangement
 
-  later(()=>{ done=to; renderLanes(to);
+  later(()=>{ done=to; reviewing=true; renderLanes(to);
     lanes.forEach(o=>FXi.popGlow(o.g,GLOW));
     busy=false; refresh(); }, dur);
 }
 
 function rewind(){
   if(busy) return;
+  // the review screen steps back to its own step's explanation, not to the
+  // step before it — one click, one screen, in both directions
+  if(reviewing){ reviewing=false; refresh(); return; }
   if(done===0){ intro=true; refresh(); return; }   // step back off stage 1 onto the intro
   done--; renderLanes(done); refresh();
 }
-function restart(){ cancelTimers(); busy=false; pressing=false; done=0; intro=true;
+function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false; done=0; intro=true;
   renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -1479,17 +1492,29 @@ const rxmsgEl=document.getElementById('rxmsg');
 const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
   +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
 const captionAt=i=>intro ? INTRO_MSG
-  : i<nSteps ? STEPS[i].msg          // the step about to run
-  : STEPS[nSteps-1].msg;             // pathway finished: the closing tally stands
+  : i<nSteps ? STEPS[i].msg          // the step about to run — or, while
+  : STEPS[nSteps-1].msg;             // reviewing, the one just run (see focusStep)
+                                     // pathway finished: the closing tally stands
 // NO SEPARATE ENZYME LINE ON THE STAGE. The action button names the enzyme
 // ABOUT to act, which is the only place the name does any work — printing it
 // again underneath after the fact was the same word twice on one screen.
-let shownCaption=null;
+// The heading over the caption: which of the ten this is, and the one word to
+// carry away. Both are read off the step — the number is its canonical `n`, so
+// the band, the rail's lit circle and a textbook all say the same "step 6".
+const headAt=i=>{ const st=STEPS[i]; return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
+let shownCaption=null, shownHead=null;
 function drawCaption(){
-  const html=captionAt(done);
-  if(html===shownCaption) return;              // don't restart the fade on every refresh
-  shownCaption=html;
-  rxmsgEl.firstElementChild.innerHTML=html;
+  // NO CAPTION ON THE REVIEW SCREEN. That beat is for looking at what you made —
+  // the words were read before it ran, and repeating them under the result just
+  // gives the eye somewhere else to go. The band keeps its height, so nothing
+  // moves and the camera does not re-frame.
+  const i=focusStep();
+  const html=reviewing?'':captionAt(i);
+  const head=(reviewing||intro||i>=nSteps)?'':headAt(i);
+  if(html===shownCaption && head===shownHead) return;   // don't restart the fade
+  shownCaption=html; shownHead=head;
+  rxmsgEl.querySelector('.rxhead').innerHTML=head;
+  rxmsgEl.querySelector('p').innerHTML=html;
   rxmsgEl.classList.toggle('show', !!html);
   rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
   if(html) rxmsgEl.classList.add('in');
@@ -1529,7 +1554,7 @@ function drawTray(){
     +'<div class="tstrip"></div>';
   const strip=trayEl.children[1];
   REAGENTS.forEach(r=>{
-    const live=!!st && st.reagent===r.key && !busy;
+    const live=!!st && st.reagent===r.key && !busy && !reviewing;
     const d=document.createElement('div');
     d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
     d.innerHTML=(live?`<span class="need">← ${st.need}</span>`:'')
@@ -1583,6 +1608,16 @@ function drawAct(){
     return;
   }
   actEl.className='';
+  // THE REVIEW SCREEN'S ONE CONTROL. The molecule you just made is on the stage
+  // and the panels explain the step that made it; Next is how you say you have
+  // looked at it. This is also the last beat of step 10 — press it and the
+  // pathway's closing question is what comes up.
+  if(reviewing){
+    actEl.style.visibility='visible';
+    actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=()=>{ reviewing=false; refresh(); };
+    return;
+  }
   const st=done<nSteps?stepAt(done):null;
   // THE LAST BUTTON IS IN THE SAME SLOT AS EVERY OTHER. Ten steps in, the thing
   // to press has always been here — so the question the pathway ends on is here
@@ -1614,7 +1649,7 @@ function drawAct(){
 // Jump to the state just BEFORE step k, so the student re-runs the step rather
 // than landing on its aftermath. Shared, because two surfaces rewind now: the
 // rail's cards and the all-steps list.
-const goToStep=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
+const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k; renderLanes(done); refresh(); };
 
 const railEl=document.getElementById('rail');
 function drawRail(){
@@ -1633,7 +1668,7 @@ function drawRail(){
     // flight; both are the same thing to a student, so both read as AWAKE but
     // still hollow, because filled means made and nothing is made until the
     // transition lands. idx===done-1 is what you just made and is filled.
-    const state = (!intro && idx===done)   ? 'run'
+    const state = (!intro && !reviewing && idx===done) ? 'run'
                 : (!intro && idx===done-1) ? 'cur'
                 : (idx < done)             ? 'past'
                 :                            'future';
@@ -1843,7 +1878,8 @@ noteEl.addEventListener('click',noteClick);
 const cplEl=document.getElementById('couplebox');
 cplEl.addEventListener('click',noteClick);
 function drawCouple(){
-  const st=(!intro&&done<nSteps)?stepAt(done):null;
+  const i=focusStep();
+  const st=(!intro&&i<nSteps)?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; return; }
   // A coupled step has both views and a tab strip; an uncoupled one has only
   // the curve, so it gets no strip — a single tab is a control that does nothing.
@@ -1864,7 +1900,8 @@ function drawCouple(){
 }
 
 function drawNote(){
-  const st=(!intro&&done<nSteps)?stepAt(done):null;
+  const i=focusStep();
+  const st=(!intro&&i<nSteps)?stepAt(i):null;
   if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
   noteEl.style.display='block';
 
@@ -2363,7 +2400,9 @@ document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
 addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
-    if(intro){ beginPathway(); } else press(runStep); }
+    if(intro){ beginPathway(); }
+    else if(reviewing){ reviewing=false; refresh(); }
+    else press(runStep); }
   if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
 });
 
