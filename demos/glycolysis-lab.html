@@ -152,14 +152,27 @@
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
 
   /* ---------- the coupling box, under the ledger ----------
-     The step's energy picture. A framed card rather than more panel text,
-     because it is a figure and it changes with every step — it should read as
-     an instrument, the way the ledger's post-it reads as a tally.
+     The step's energy picture — A SHEET OF PAPER, like everything else on this
+     desk. It used to be an inked card, which read as UI sitting on the page
+     rather than as something lying on it; the ledger beside it is a post-it and
+     the sidebar is torn grid paper, so a hard 2px border was the only object
+     here pretending to be a control. Same idiom as the ledger and mirrored: it
+     tilts the other way and lifts its opposite corner, so the two read as two
+     sheets dropped on a desk rather than as a repeated component.
      Its contents are the shared `.note` styles (.nhead, .nbody, .cpl, .ftabs). */
-  #couplebox{display:none;margin:0 0 16px;padding:12px 14px 13px;
-    background:rgba(255,255,255,.86);
-    border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
-    box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
+  #couplebox{display:none;position:relative;margin:0 0 18px;padding:13px 15px 14px;
+    background:#fdfaf2;
+    /* the faint ruling of the sheet — the sidebar's own grid, one shade softer */
+    background-image:linear-gradient(rgba(120,105,75,.09) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,105,75,.09) 1px,transparent 1px);
+    background-size:22px 22px;
+    border:none;border-radius:2px;
+    transform:rotate(.7deg);transform-origin:top left;
+    box-shadow:0 1px 1px rgba(0,0,0,.14), 0 10px 18px -10px rgba(0,0,0,.4)}
+  /* the lifted corner, bottom-RIGHT — the ledger lifts its bottom-left */
+  #couplebox::after{content:'';position:absolute;right:0;bottom:0;width:22px;height:18px;
+    background:linear-gradient(-48deg,rgba(0,0,0,.12) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
+    pointer-events:none}
   #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
 
   /* ---------- reagent tray, LEFT EDGE: the cell's pools ----------
