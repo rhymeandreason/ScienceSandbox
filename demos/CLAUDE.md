@@ -4,6 +4,8 @@ Let the human test in the browser for visual changes, it's faster than taking sc
 
 Try to model scientific accuracy, especially when building atoms and molecules.
 
+In all interactions and commit messages, be extremely concise and sacrifice grammar for the sake of concision.
+
 ## Pages (lessons)
 
 <!-- ENUM: add a row when a \*-lab.html is added or repurposed. --> **Status** is one of four values. **Featured lesson** = a real lesson anyone is meant to use — text written for a student, layout tested in a browser, and a change that degrades one is a regression; also listed under "Featured" on the top-level `index.html`. **Prototype** = a work in progress, not yet held to that bar. **Reference** = superseded, kept as a fallback or a worked example — don't look at it unless the human says so. **Test** = an evaluation record, not a lesson at all — kept only because the human wants to, may be deleted later
