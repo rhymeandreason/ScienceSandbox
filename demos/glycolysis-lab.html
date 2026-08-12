@@ -445,31 +445,43 @@
      numberings on one rail meant "3" could mean step 3 or stage 3, and the one
      a student can check against their book is the step.
 
-     A step is still a ROW — number then name, the way it reads — but the ten
-     rows are dealt into five stacks, one under each stage heading, and the
-     stacks sit side by side. That is what the horizontal rail buys: the
-     pathway advances left to right by STAGE and down by step, so the blocking
-     is visible in the shape rather than only in the headings. */
-  #railbar{display:flex;align-items:stretch;padding:10px 22px 8px;
-    background:var(--paper);border-bottom:1px solid var(--hair);
-    box-shadow:0 6px 16px -14px rgba(0,0,0,.5);z-index:7}
+     ONE CARD PER STEP, in one scrolling row. A card is self-contained — it
+     repeats its own stage heading over its own step — so the ten read as one
+     left-to-right sequence with no stack to read downward and no stage column
+     whose height is set by its deepest member. The stage heading repeating
+     across a stage's cards is what BLOCKS them: three cards saying PAYOFF in a
+     row is the grouping, said by the cards themselves. */
+  #railbar{display:flex;align-items:center;gap:8px;padding:10px 14px 8px;
+    z-index:7;
+    /* the same dotted paper as the stage and the sidebar — the cards float on
+       the page, so the bar itself is not a surface */
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+    background-size:26px 26px; background-position:13px 13px}
   /* the rail scrolls sideways rather than wrapping: a wrapped pathway stops
      reading as one sequence, and below the breakpoint there is no width for it */
-  #rail{flex:1;min-width:0;display:flex;align-items:flex-start;gap:0;
-    overflow-x:auto;overflow-y:hidden}
-  /* one group per stage: its heading, then its steps stacked under it. Equal
-     widths, so the five stacks read as five columns and no stage's label
-     length decides how much room the next one gets. */
-  .rstage{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;
-    padding:0 14px;border-left:1px solid rgba(0,0,0,.09)}
-  .rstage:first-child{border-left:none;padding-left:0}
-  .rsteps{display:flex;flex-direction:column;gap:1px}
-  /* A stage of four steps runs as TWO columns, filled downward — otherwise
-     Payoff alone is a row taller than every other stage, and the rail's height
-     is the stage's height. See drawRail for where the class is set. */
-  .rstage.split{flex:1.7}
-  .rstage.split .rsteps{display:grid;grid-auto-flow:column;
-    grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,auto);column-gap:14px}
+  #rail{flex:1;min-width:0;display:flex;align-items:stretch;gap:8px;
+    overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;
+    scroll-snap-type:x proximity;scrollbar-width:none}
+  #rail::-webkit-scrollbar{display:none}
+  /* the arrows. Quiet until hovered — they are steering, not an action, and the
+     one action on this page is the enzyme button on the stage. */
+  .rarrow{flex:none;width:26px;height:26px;border-radius:50%;
+    border:1px solid var(--hair);background:var(--panel);color:var(--muted);
+    font-size:13px;line-height:1;cursor:pointer;display:flex;
+    align-items:center;justify-content:center}
+  .rarrow:hover{color:var(--ink);border-color:var(--ink)}
+  .rarrow:disabled{opacity:.25;cursor:default}
+  /* ONE CARD = ONE STEP. Fixed width, so a long name wraps inside the card
+     instead of making its card wider than its neighbours — the ten cards are
+     one measure and the eye can count them. */
+  .rcard{flex:none;width:216px;display:flex;flex-direction:column;gap:2px;
+    padding:6px 9px 7px;border-radius:9px;background:var(--panel);
+    border:1px solid var(--hair);scroll-snap-align:center}
+  .rcard.future{background:transparent}
+  /* the step you are on LIFTS off the paper — the rail's only shadow, so it
+     marks one card rather than the whole bar */
+  .rcard.cur{box-shadow:0 3px 10px -4px rgba(0,0,0,.35)}
 
   /* block heading: stage name + the bookkeeping delta it is responsible for */
   .rblock{display:flex;align-items:baseline;gap:8px;cursor:pointer;padding:0 2px}
@@ -528,7 +540,7 @@
      sized for two. The rail is a GRID ROW, so a label that grew past its
      reserve would change the stage's height and move the camera under it. */
   .rrow .rlab{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
-    line-height:1.3}
+    line-height:1.3;flex:1;min-width:0}
   .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
   .rrow.cur .rlab{font-weight:600}
   /* only a COMPLETED row rewinds — the active one is where you already are */
@@ -711,7 +723,9 @@
        was the widest thing on the row and the thing the row could least afford.
        The lesson is named in <title> and by the index page that links here. -->
   <div id="railbar">
+    <button class="rarrow" id="railprev" aria-label="Earlier steps">‹</button>
     <div id="rail"></div>
+    <button class="rarrow" id="railnext" aria-label="Later steps">›</button>
   </div>
   <div id="stage">
     <canvas id="gl"></canvas>
@@ -1754,34 +1768,30 @@ function drawRail(){
   const stageCls=n=>n<cur?'done':(n===cur?'cur':'future');
 
   const flipStep=pendingFlip; pendingFlip=null;   // one draw only
+  let curCard=null;
   STAGES.forEach(s=>{
     const steps=stageSteps(s.n);
 
     // THE RAIL CARRIES STEPS ONLY. The opening and closing states have none,
     // and both are fully on screen when you are in them — so a stage with no
-    // steps has no row here.
+    // steps has no card here.
     if(!steps.length) return;
-
-    // Every stage is a GROUP in the row — heading over its own steps — so the
-    // blocking reads the same sideways as it did down the panel.
-    const g=document.createElement('div');
-    // Four steps is one row taller than any other stage, and the tallest stage
-    // sets the rail — so a stage that deep splits into two columns instead.
-    g.className='rstage'+(steps.length>3?' split':'');
-    railEl.appendChild(g);
-
-    const h=document.createElement('div');
-    h.className='rblock '+stageCls(s.n);
-    h.innerHTML=`<span class="bt">${s.block}</span>`
-      +`<span class="bd${stageComplete(s.n)?'':' off'}">${s.delta}</span>`;
-    h.onclick=()=>goStage(s);
-    g.appendChild(h);
-    const rowsEl=document.createElement('div');
-    rowsEl.className='rsteps';
-    g.appendChild(rowsEl);
 
     steps.forEach(st=>{
       const idx=STEPS.indexOf(st);
+      // ONE CARD PER STEP, carrying its own stage heading. The heading repeats
+      // across a stage's cards on purpose: that repetition is the blocking,
+      // and it is what lets a card stand alone in a row you scroll.
+      const g=document.createElement('div');
+      railEl.appendChild(g);
+
+      const h=document.createElement('div');
+      h.className='rblock '+stageCls(s.n);
+      h.innerHTML=`<span class="bt">${s.block}</span>`
+        +`<span class="bd${stageComplete(s.n)?'':' off'}">${s.delta}</span>`;
+      h.onclick=()=>goStage(s);
+      g.appendChild(h);
+      const rowsEl=g;
       // `cur` IS THE STEP ABOUT TO RUN, which is what "where am I" means on a
       // rail you drive. Using done-1 (the step that produced what's on the
       // stage) would make this row alone lag behind everything else on screen:
@@ -1801,6 +1811,8 @@ function drawRail(){
       const state=(idx===done&&!intro)?'cur'
                  :idx<done?'done'
                  :'future';
+      g.className='rcard '+state;
+      if(state==='cur') curCard=g;
       const r=document.createElement('div');
       // The row that just ran flips from its equation to its product. drawRail
       // rebuilds every row on every refresh, so a CSS transition has nothing to
@@ -1829,7 +1841,27 @@ function drawRail(){
       rowsEl.appendChild(r);
     });
   });
+  // KEEP THE STEP YOU ARE ON IN VIEW. The rail is longer than the window now,
+  // so advancing the pathway has to bring its own card along or the student is
+  // driving something off screen.
+  if(curCard) curCard.scrollIntoView({block:'nearest',inline:'center'});
+  railArrows();
 }
+
+/* The two arrows. They page by roughly three cards — a stage's worth — and go
+   dim at the ends, so the rail says how much of the pathway is off screen. */
+const prevBtn=document.getElementById('railprev');
+const nextBtn=document.getElementById('railnext');
+function railArrows(){
+  const max=railEl.scrollWidth-railEl.clientWidth-1;
+  prevBtn.disabled=railEl.scrollLeft<=0;
+  nextBtn.disabled=railEl.scrollLeft>=max;
+}
+const railPage=d=>{ railEl.scrollLeft+=d*(railEl.clientWidth*0.8); };
+prevBtn.onclick=()=>railPage(-1);
+nextBtn.onclick=()=>railPage(1);
+railEl.addEventListener('scroll',railArrows,{passive:true});
+addEventListener('resize',railArrows);
 
 /* The panel under the card. It shows ONE of three things, in priority order:
  * PFK-1's regulation when that step is next (the page's one piece of real
