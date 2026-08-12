@@ -67,9 +67,14 @@
      or caption happens to be up. #actbtn is hidden with `visibility` for the
      same reason — its slot is always reserved, which also stops the caption
      jumping up and down as the button comes and goes between steps. */
+  /* --stagedx is the same slide the camera's frustum takes (see orthoFrustum):
+     the tray sits on the left, so the space the lesson actually has is off
+     centre, and the button and caption belong over the molecule rather than
+     over the canvas. Set from the page, in pixels, by applyStageShift(). */
   #bottombar{position:absolute;left:0;right:0;bottom:18px;z-index:8;
     display:flex;flex-direction:column;align-items:center;gap:11px;
-    pointer-events:none}
+    pointer-events:none;transform:translateX(var(--stagedx,0px));
+    transition:transform .35s ease}
   #bottombar>*{pointer-events:auto}
 
   /* THE STEP CAPTION. A fixed band at the bottom of the stage, set in the sans
@@ -654,7 +659,8 @@
   /* Sits above #bottombar rather than inside it: it is tall and appears only in
      the final state, so putting it in the bar would have made the bar's height
      — and therefore the camera distance — a function of being finished. */
-  #fork{position:absolute;left:50%;bottom:190px;transform:translateX(-50%);z-index:8;
+  #fork{position:absolute;left:50%;bottom:190px;z-index:8;
+    transform:translateX(calc(-50% + var(--stagedx,0px)));
     display:none;gap:14px}
   #fork .door{width:184px;padding:12px 14px;background:rgba(255,255,255,.8);
     border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
@@ -679,7 +685,7 @@
     /* Three doors stacked would be taller than the whole stage and bury the two
        pyruvate, so down here the fork stays a ROW and scrolls sideways instead
        — one short band above the caption, molecules intact. */
-    #fork{flex-direction:row;bottom:156px;gap:8px;
+    #fork{flex-direction:row;bottom:156px;gap:8px;transform:translateX(-50%);
       max-width:94%;overflow-x:auto;padding:2px 0}
     #fork .door{width:176px;flex:none;padding:9px 11px}
     #fork .door .dh{font-size:12.5px}
@@ -1100,6 +1106,30 @@ const PLATE_CLEAR_PX=14;
 
 function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
 
+// A LANE IS CENTRED ON THE MOLECULE IN IT, not on the molecule's origin. A spec
+// is drawn about whatever origin its source used, so a lopsided one (glucose is
+// the worst here) sat visibly off the lane's axis — read as the whole stage
+// being off-centre once the wide sidebar went and there was nothing beside it to
+// hide the gap. Measured on the VISIBLE atoms and after the spec's `view`, the
+// same two rules fitFor and Stage.measure follow, and cached because it is a
+// property of the spec and the render loop asks per frame.
+const XC=new Map();
+function laneShift(key){
+  if(XC.has(key)) return XC.get(key);
+  let lo=Infinity, hi=-Infinity;
+  // visibleAtoms already hides the C–H and applies `view`, so these are the
+  // coordinates the student actually sees
+  visibleAtoms(M[key]).forEach(a=>{
+    const R=PAL.radii[a.el]||0.7;
+    lo=Math.min(lo,a.pos[0]-R); hi=Math.max(hi,a.pos[0]+R);
+  });
+  const c=isFinite(lo)?(lo+hi)/2:0;
+  XC.set(key,c); return c;
+}
+// where a lane's molecule actually sits — every flight target has to use this,
+// not laneX, or a phosphate lands beside the atom it is aiming at
+const laneOrigin=(key,i,n)=>laneX(i,n)-laneShift(key);
+
 // This page draws no C–H anywhere: the lesson is carbon and phosphate
 // bookkeeping, and a hydrogen on every carbon is noise the ledger never counts.
 // Glucose is the one spec that carries its C–H (macromolecule-lab.html offers
@@ -1143,7 +1173,7 @@ function spawnLane(key,i,n,topY){
   const spec=M[key];
   const g=Stage.buildMolecule(spec);
   Stage.setOptionalH(g,false);          // no C–H on this page — see visibleAtoms
-  g.position.set(laneX(i,n),0,0);
+  g.position.set(laneOrigin(key,i,n),0,0);
   root.add(g);
   const plate=makePlate(spec);
   // Natural width at full size, measured ONCE while nothing constrains it —
@@ -1240,19 +1270,25 @@ const HALF_FOV=Math.tan(22.5*Math.PI/180);
 function orthoFrustum(){
   if(!camera.isOrthographicCamera) return;
   const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
-  const halfH=cam.r*HALF_FOV;
+  const halfH=cam.r*HALF_FOV, halfW=halfH*asp;
+  // THE HORIZONTAL SHIFT IS IN THE FRUSTUM, NOT IN THE TARGET. Offsetting the
+  // camera's target sideways would swing the molecule off-centre as the camera
+  // orbits, because that offset lives in world space and rotates with theta.
+  // Sliding the frustum is a screen-space move: it survives any orbit, and the
+  // plates follow for free because they project through this same matrix.
+  const dx=fitHS*2*halfW;
   camera.top=halfH; camera.bottom=-halfH;
-  camera.left=-halfH*asp; camera.right=halfH*asp;
+  camera.left=-halfW-dx; camera.right=halfW-dx;
   camera.updateProjectionMatrix();
 }
 function fitFor(states){
   let lo=0, hi=0, top=0, wide=0;      // lo/hi = atoms only · top = incl. name plate
   states.forEach(keys=>{
     const n=keys.length;
-    keys.forEach((k,j)=>{ const x=Math.abs(laneX(j,n));
+    keys.forEach((k,j)=>{ const x=Math.abs(laneX(j,n)), xc=laneShift(k);
       visibleAtoms(M[k]).forEach(a=>{ const r=PAL.radii[a.el]||0.7;
         lo=Math.min(lo,a.pos[1]-r); hi=Math.max(hi,a.pos[1]+r);
-        wide=Math.max(wide, x+Math.abs(a.pos[0])+r); }); });
+        wide=Math.max(wide, x+Math.abs(a.pos[0]-xc)+r); }); });
     top=Math.max(top, plateY(keys));
     wide=Math.max(wide, (n>1?LANE:0)+2.0);
   });
@@ -1269,12 +1305,9 @@ function fitFor(states){
   // Vertically, centre the molecule in the band between the label strip and the
   // bottom bar by DROPPING THE TARGET rather than insetting both edges —
   // insetting both would double-charge the fit for one obstructed edge and
-  // shrink the layout to a speck. Horizontally there is no equivalent shift:
-  // offsetting the target sideways would swing the molecule off-centre as the
-  // camera orbits, since that offset lives in world space and rotates with
-  // theta. The vertical shift is safe precisely because Y is the orbit axis.
-  // So left and right take a
-  // symmetric inset instead — see usable().
+  // shrink the layout to a speck. The vertical shift is safe in world space
+  // precisely because Y is the orbit axis; the horizontal one is NOT, so it
+  // happens in the frustum instead — see orthoFrustum and usable().hshift.
   return { Y: Y - u.shift*R*HALF_FOV, R };
 }
 
@@ -1312,26 +1345,46 @@ function usable(){
                      : c.bottom-r.top);
   };
   const top=plateHeightPx(), bottom=reach('bottombar','bottom');
-  // Symmetric, because the molecule stays centred: the tray is the only
-  // horizontal intrusion left (the ledger and the coupling box moved into the
-  // sidebar, off the canvas), so its reach sets the inset on both sides.
-  const side=reach('tray','left')+10;
+  // The tray is the only horizontal intrusion left — the ledger and the coupling
+  // box moved into the sidebar, off the canvas. It is on ONE side, so the space
+  // left over is not centred on the canvas and neither is the molecule: the band
+  // between the tray and the right edge is what gets framed, and `hshift` slides
+  // the frustum to sit on it. (The old symmetric inset kept the molecule on the
+  // canvas centre and paid for the tray twice — which read as the whole stage
+  // hanging left, once the wide sidebar was gone.)
+  const tray=reach('tray','left');            // 0 during the intro — no tray yet
+  const left=tray ? Math.min(tray+10, c.width*0.36) : 0;
 
-  const vcap=c.height*0.6, hcap=c.width*0.72;    // never eat more than this
+  const vcap=c.height*0.6;
   const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
   const t=top*k, b=bottom*k;
-  const s=Math.min(side, hcap/2);
   return { v:Math.max(0.4, (c.height-t-b)/c.height),
-           h:Math.max(0.28, (c.width-2*s)/c.width),
-           shift:(b-t)/c.height };
+           h:Math.max(0.28, (c.width-left)/c.width),
+           // fraction of the canvas WIDTH to move the content right by: half the
+           // tray's reach, which is where the leftover band's centre sits
+           hshift:(left/2)/c.width,
+           // HALF the difference: the centre of the band left over sits (b−t)/2
+           // from the canvas centre, not (b−t). The whole-difference version
+           // moved the molecule twice as far as the band did, which read as
+           // "floating high" once the wide sidebar went and there was nothing
+           // else up there to balance it.
+           shift:(b-t)/(2*c.height) };
 }
-let fitR=24, fitY=0;
+let fitR=24, fitY=0, fitHS=0;
+// The DOM layers over the canvas take the same slide as the frustum, in pixels
+// — the enzyme button, the step caption and the ending fork are ABOUT the
+// molecule, so they belong over it and not over the canvas's own middle.
+function applyStageShift(){
+  const w=canvas.clientWidth||0;
+  document.getElementById('stage').style.setProperty('--stagedx', (fitHS*w).toFixed(1)+'px');
+}
 function computeFit(){
   const intro0=fitFor([['glucose']]);
   // every state from the first phosphorylation to the last pyruvate, unioned
   const path=fitFor(STEPS.map(s=>s.species));
   const f=(intro&&done===0)?intro0:path;
-  fitR=f.R; fitY=f.Y;
+  fitR=f.R; fitY=f.Y; fitHS=usable().hshift;
+  applyStageShift();
 }
 
 // Snap the scene to the state at index i, with no animation. Used by restart,
@@ -1406,7 +1459,7 @@ function runStep(){
   if(st.fx==='in'){
     // a phosphate flies in from the cytosol onto the site it is ABOUT to occupy
     keys.forEach((key,j)=>{
-      const x=laneX(j,n), tp=siteWorld(key,st.anchor,x);
+      const x=laneOrigin(key,j,n), tp=siteWorld(key,st.anchor,x);
       flyPhosphate(V(x,OFFSCREEN,0), tp);
       later(()=>FXi.spawnRing(tp,PAL.atoms.P), FLY);
     });
@@ -1441,7 +1494,7 @@ function runStep(){
     clearLanes();
     const top=plateY(keys);
     lanes=keys.map((k,j)=>{ const o=spawnLane(k,j,n,top);
-      o.g.position.set(0,0,0); o.g.userData.tx=laneX(j,n); return o; });
+      o.g.position.set(0,0,0); o.g.userData.tx=laneOrigin(k,j,n); return o; });
     later(()=>{ done=to; pendingFlip=to-1;     // lanes already correct — don't respawn
       // The parting is a rAF ease, so in a hidden tab it never ran; land them on
       // their marks here so the two halves can't come back stacked on each other.
@@ -1456,7 +1509,7 @@ function runStep(){
     // is the difference between step 8 and every other phosphate beat here.
     lanes.forEach((l,j)=>{
       const src=anchorWorld(l,st.anchor);
-      const dst=siteWorld(keys[j],st.dest,laneX(j,n));
+      const dst=siteWorld(keys[j],st.dest,laneOrigin(keys[j],j,n));
       flyPhosphate(src,dst);
       later(()=>FXi.spawnRing(dst,PAL.atoms.P), FLY);
     });
