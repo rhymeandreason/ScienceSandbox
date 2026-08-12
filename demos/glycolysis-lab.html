@@ -805,13 +805,11 @@
 <!-- All ten steps in one column, behind the button above Restart. -->
 <div id="stepsmodal" class="modal" hidden>
   <div class="mback"></div>
-  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="stepstitle">
+  <!-- No title and no standfirst: the button said what this is, and the four
+       stage headings say it again. The list is the whole content. -->
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="stepskick">
     <button class="mclose" aria-label="Close">&times;</button>
-    <div class="mkick">The pathway</div>
-    <h2 id="stepstitle">All ten steps</h2>
-    <p class="msub">Each step is named for <b>what it leaves behind</b> — so
-      reading down the column is reading the carbon's route from glucose to
-      pyruvate.</p>
+    <div class="mkick" id="stepskick">The pathway</div>
     <div id="stepsbody"></div>
   </div>
 </div>
