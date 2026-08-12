@@ -18,7 +18,11 @@
     #app{grid-template-rows:minmax(0,1fr)}
   }
   #stage,#side{min-height:0}
-  #side{overflow:hidden; background-image: none;}
+  /* The whole sidebar scrolls as one column — rail, ledger and note together —
+     so no piece has to be sized to fit a fixed height. */
+  /* No top padding: the ledger is sticky and flush to the top edge, so nothing
+     scrolls through a gap above it. */
+  #side{overflow-y:auto; background-image:none; padding-top:0}
   #card{min-height:0}
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
@@ -86,8 +90,9 @@
   /* ---------- the ledger: the whole point of the page ---------- */
   /* Always visible, never resets. Students watch ATP dip below its start value
      and climb back past it — that dip is the "investment phase" made physical.
-     Sits on the RIGHT, opposite the pools it summarises: the tray is the raw
-     counts, this is what they add up to. Below #restart, which owns the corner.
+     Lives at the TOP OF THE SIDEBAR and sticks there, so it stays on screen
+     while the rail and the note scroll under it. The stage keeps the raw pools
+     (the tray); the sidebar keeps what they add up to.
 
      A POST-IT, not another framed card. The stage already has two ink-outlined
      panels (the tray and the note card), and a third would read as chrome; a
@@ -97,7 +102,7 @@
      the top, long and soft at the bottom where it curls away. The tilt is small
      on purpose (1.2°): enough to sit apart from the grid, not enough to make
      tabular numbers look crooked. */
-  #ledger{position:absolute;right:26px;top:74px;z-index:6;min-width:186px;
+  #ledger{position:sticky;top:0;z-index:6;flex:none;margin:0 0 16px;
     background:linear-gradient(168deg,#fdf0a8 0%,#fbe88c 62%,#f6de79 100%);
     padding:13px 15px 15px;transform:rotate(-1.2deg);transform-origin:top right;
     box-shadow:0 1px 1px rgba(0,0,0,.16), 0 10px 18px -10px rgba(0,0,0,.42)}
@@ -119,6 +124,19 @@
   #ledger .row.carb .v{font-size:15px;color:var(--carbon);letter-spacing:.5px}
   #ledger .bump{animation:bump .7s ease}
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
+
+  /* ---------- the coupling box, RIGHT EDGE of the stage ----------
+     The mechanism of the step the student is about to run, beside the molecule
+     it happens to — not in the sidebar, where it was one more block of panel
+     text. A framed card like #fork .door, because it is about the stage; the
+     ledger's post-it is a tally and reads differently on purpose.
+     Its contents are the #stepnote styles (.nhead, .nbody, .cpl, .ftabs),
+     which is why those selectors are scoped to both boxes. */
+  #couplebox{position:absolute;right:26px;top:74px;z-index:6;width:262px;
+    display:none;padding:13px 15px 14px;background:rgba(255,255,255,.86);
+    border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
+    box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
+  #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
 
   /* ---------- reagent tray, LEFT EDGE: the cell's pools ----------
      THE TRAY IS A LEDGER, NOT A MENU. Every pool stays on screen all the way
@@ -477,34 +495,34 @@
   .rrow.bookend .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);
     font-weight:700;font-size:11.5px;color:var(--muted);white-space:nowrap}
 
-  /* The card holds ONE thing — the note panel — so it simply scrolls. */
-  #card{overflow-y:auto}
+  /* The sidebar scrolls, not the card. */
+  #card{overflow:visible;flex:none}
   #stepnote{padding-top:2px}
-  #stepnote .nhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+  .note .nhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
     letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
-  #stepnote .nhead.reg{color:var(--phos)}
-  #stepnote .nhead.irr{color:var(--atp)}
-  #stepnote .nhead.rev{color:var(--nad)}
-  #stepnote .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
+  .note .nhead.reg{color:var(--phos)}
+  .note .nhead.irr{color:var(--atp)}
+  .note .nhead.rev{color:var(--nad)}
+  .note .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
   /* the door to the mass-action demo. Sits under the reversibility verdict
      because that is the claim it backs up — the verdict is a heading and
      nothing else, so the link is the only explanation of it there is: the demo
      is the picture, and a paragraph is not. */
-  #stepnote .minfo{font-family:var(--font-sans);font-weight:600;font-size:12px;
+  .note .minfo{font-family:var(--font-sans);font-weight:600;font-size:12px;
     letter-spacing:.2px;color:#4f5bd5;background:none;border:none;padding:0;
     cursor:pointer;text-decoration:underline;text-underline-offset:3px;
     text-decoration-thickness:1.5px;margin:-4px 0 9px}
   /* Straight after a heading there is no descender to close up, so the -4px
      offset used elsewhere is dropped here. */
-  #stepnote .nhead + .minfo{margin-top:0}
-  #stepnote .minfo:hover{color:#7b3fe4}
-  #stepnote .nbody:last-child{margin-bottom:0}
+  .note .nhead + .minfo{margin-top:0}
+  .note .minfo:hover{color:#7b3fe4}
+  .note .nbody:last-child{margin-bottom:0}
   /* the coupled-reaction figure. Two arrows running opposite ways, with height
      standing in for free energy — no ticks and no numbers, because it makes no
      quantitative claim (see coupleFig). The coupled half is tinted with the
      page's existing colour language: orange for phosphate traffic, green for
      the NAD⁺/NADH carrier, matching #rxmsg .p and .n. */
-  #stepnote .nhead.cpl-h{color:var(--ink)}
+  .note .nhead.cpl-h{color:var(--ink)}
   .cpl{display:block;width:100%;height:auto;margin:2px 0 9px}
   .cpl .ml{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
   .cpl .mh{fill:var(--ink)}
@@ -523,18 +541,21 @@
      must climb something, and the arrows never showed it. */
   .cpl .rc{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
   .cpl .rc.alone{stroke:var(--muted);stroke-dasharray:5 4;opacity:.85}
+  /* the uncoupled step's single trace: ink, because there is no carrier to tint
+     it with and nothing hypothetical about it — it is the only reaction there */
+  .cpl .rc.solo{stroke:var(--ink)}
   .cpl.p .rc.with{stroke:var(--phos)} .cpl.n .rc.with{stroke:var(--nad)}
   .cpl .et{font-family:var(--font-sans);font-weight:600;font-size:10px}
   .cpl .et.alone{fill:var(--muted)}
   .cpl.p .et.with{fill:var(--phos)} .cpl.n .et.with{fill:var(--nad)}
   /* the two views' tab strip. Tighter than the modal's — this is a 372px panel,
      and the strip must not read as louder than the figure under it. */
-  #stepnote .ftabs{display:flex;gap:3px;margin:1px 0 3px}
-  #stepnote .ftabs button{font-family:var(--font-sans);font-weight:600;font-size:10.5px;
+  .note .ftabs{display:flex;gap:3px;margin:1px 0 3px}
+  .note .ftabs button{font-family:var(--font-sans);font-weight:600;font-size:10.5px;
     letter-spacing:.3px;padding:3px 9px 4px;border:none;background:none;
     color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
-  #stepnote .ftabs button:hover{color:var(--ink)}
-  #stepnote .ftabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+  .note .ftabs button:hover{color:var(--ink)}
+  .note .ftabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
   /* the axis is a hint, not a scale — hairline, no ticks */
   .cpl .axl{fill:none;stroke:var(--hair);stroke-width:1.5}
   .cpl .axh{fill:var(--hair)}
@@ -578,9 +599,12 @@
     /* The stacked stage is far too short to carry a full-height column down one
        side and a card down the other, so the two readouts shrink and hug the
        top corners, under the brand and Restart. */
-    #ledger{right:12px;top:62px;min-width:0;padding:8px 10px}
+    #ledger{padding:9px 12px}
     #ledger .row{font-size:12px;padding:1.5px 0}
     #ledger .lhead{margin-bottom:5px}
+    /* the stacked stage is short — the coupling box hugs the top-right corner
+       under Restart, and gives up some width for it */
+    #couplebox{right:12px;top:62px;width:210px;padding:9px 11px}
     #tray{left:12px;top:62px;transform:none}
     .reag{width:116px;padding:3px 7px}
     .reag .rcount{font-size:19px}
@@ -610,7 +634,7 @@
     <!-- The h1 carries the lesson name until the pathway starts, then the STAGE
          the student is in. One title on screen, in the place a title goes. -->
     <div id="brand"><span class="drop"><i class="ph-bold ph-flow-arrow"></i></span><h1>Glycolysis</h1></div>
-    <div id="ledger"></div>
+    <div id="couplebox" class="note"></div>
     <div id="tray"></div>
     <div id="fork"></div>
     <!-- The bottom bar is ONE element so the camera has one thing to measure.
@@ -628,8 +652,9 @@
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
   <div id="side">
+    <div id="ledger"></div>
     <div id="rail"></div>
-    <div id="card"><div id="stepnote"></div></div>
+    <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
 </div>
 
@@ -837,7 +862,8 @@ const STEPS=[
 //
 // Everything else the bodies said is on screen already: the action button names
 // the enzyme, the ledger carries the carbon count and the running totals, the tray
-// carries the pools, and #stepnote carries reversibility and PFK-1.
+// carries the pools, #couplebox carries coupling and reversibility, and #stepnote
+// carries PFK-1.
 const STAGES=[
   { n:0,                     label:'Start: one glucose', delta:'6 C' },   // no title: stage 0 keeps the lesson name
   { n:1, title:'Investment', block:'Priming',   label:'Priming: spend 2 ATP',    delta:'−2 ATP' },
@@ -1160,7 +1186,7 @@ function fitFor(states){
 //           a function of being finished. It clears the bar via its own
 //           `bottom` instead, which is a stacking problem, not a camera one.
 //   left    the reagent tray (absent during the intro, when nothing can be spent)
-//   right   the running ledger
+//   right   the coupling box
 //
 // `v`/`h` are the fractions of height and width left over. `shift` moves the
 // camera target down so the molecule centres in the band that remains — only
@@ -1181,7 +1207,7 @@ function usable(){
   // further sets the inset on both. The tray and ledger are close enough in
   // width that this costs almost nothing, and these molecules are tall and
   // narrow — the vertical constraint binds in every single-lane state anyway.
-  const side=Math.max(reach('tray','left'), reach('ledger','right'))+10;
+  const side=Math.max(reach('tray','left'), reach('couplebox','right'))+10;
 
   const vcap=c.height*0.6, hcap=c.width*0.72;    // never eat more than this
   const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
@@ -1739,11 +1765,43 @@ function coupleCurve(c){
   </svg>`;
 }
 
+/* THE OTHER FIVE STEPS, on the same axes. They are rearrangements — no carrier,
+ * so there is no second trace and nothing to compare — but the barrier and the
+ * levels are the same picture, and leaving them blank made "energy curve" look
+ * like a property of coupled steps rather than of every reaction.
+ *
+ * FLAT BECAUSE THE DATA SAYS FLAT. The trace ends where it started, and the
+ * claim behind that is `rev:true` read off the step — a step near equilibrium is
+ * a step whose two sides sit at nearly the same free energy, which is the same
+ * fact stated as a picture. No magnitudes here either: same rule as above.
+ */
+function soloCurve(st){
+  const Y=RC_Y, nameOf=k=>M[k].short||M[k].name;
+  const i=STEPS.indexOf(st);
+  const from=nameOf(speciesAt(i)[0]), to=nameOf(st.species[0]);
+  const y=Y.mid, peak=y-Y.peak;
+  const trace=`M34,${y} H88 C120,${y} 126,${peak} 150,${peak}`
+             +` C174,${peak} 180,${y} 212,${y} H266`;
+  return `<svg class="cpl" viewBox="0 0 300 152" role="img"
+      aria-label="${from} to ${to}: substrate and product sit at nearly the same
+        free energy, with a barrier between them">
+    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
+    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
+    <path class="rc solo" d="${trace}"/>
+    <text class="et alone" x="34" y="${y+18}">${from}</text>
+    <text class="et alone" x="266" y="${y+18}" text-anchor="end">${to}</text>
+  </svg>`;
+}
+const soloLine=`Nothing is coupled here — the atoms only rearrange. Both sides sit
+   at nearly the <b>same energy</b>, so the step runs either way.`;
+
 // The two views of one step. `figTab` is module-level because drawNote replaces
 // #stepnote's innerHTML on every refresh — a selection stored in the DOM would
 // reset itself every time the student ran a step.
 const FIGTABS=[['pair','Coupling'],['curve','Energy curve']];
-let figTab='pair';
+// Opens on the CURVE: it is the view every step has, so the box shows the same
+// kind of picture whichever step you are on until the student switches.
+let figTab='curve';
 const figTabStrip=()=>`<div class="ftabs">`
   + FIGTABS.map(([k,lb])=>`<button data-figtab="${k}"${figTab===k?' class="on"':''}>${lb}</button>`).join('')
   + `</div>`;
@@ -1761,31 +1819,48 @@ const coupleLine=c=>c.up
 // tally. Delegated rather than bound, because drawNote replaces this element's
 // innerHTML on every refresh and a bound handler would die with it.
 const MASS_LINK=`<button class="minfo" data-mass>What decides the direction? →</button>`;
-noteEl.addEventListener('click',e=>{
+const noteClick=e=>{
   if(e.target.closest('[data-mass]')) { Mass.show(); return; }
   const t=e.target.closest('[data-figtab]');
-  if(t){ figTab=t.dataset.figtab; drawNote(); }
-});
+  if(t){ figTab=t.dataset.figtab; drawCouple(); }
+};
+noteEl.addEventListener('click',noteClick);
+
+/* THE COUPLING BOX, on the stage. The mechanism of the step about to run —
+ * the figure where there is one, then the reversibility verdict and the way
+ * into the mass-action demo. It sits beside the molecule rather than in the
+ * sidebar because it is about what is happening in the lanes; the sidebar
+ * keeps the running arithmetic and the pathway's own commentary. */
+const cplEl=document.getElementById('couplebox');
+cplEl.addEventListener('click',noteClick);
+function drawCouple(){
+  const st=(!intro&&done<nSteps)?stepAt(done):null;
+  if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; return; }
+  // A coupled step has both views and a tab strip; an uncoupled one has only
+  // the curve, so it gets no strip — a single tab is a control that does nothing.
+  const c = st.couple ? resolveCouple(st) : null;
+  cplEl.style.display='block';
+  cplEl.innerHTML=(c
+      ? `<div class="nhead cpl-h">Coupled reaction</div>`
+        + figTabStrip()
+        + (figTab==='curve' ? coupleCurve(c) : coupleFig(c))
+        + `<p class="nbody">${coupleLine(c)}</p>`
+      : `<div class="nhead cpl-h">Energy curve</div>`
+        + soloCurve(st)
+        + `<p class="nbody">${soloLine}</p>`)
+    + (st.rev===false
+        ? `<div class="nhead irr">Irreversible in the cell</div>`
+        : `<div class="nhead rev">Near equilibrium — reversible</div>`)
+    + MASS_LINK;
+}
 
 function drawNote(){
   const st=(!intro&&done<nSteps)?stepAt(done):null;
   if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
   noteEl.style.display='block';
 
-  // The coupling figure comes FIRST where there is one — it is the mechanism of
-  // the step the student is about to run, where reversibility and regulation
-  // are both properties of it.
-  const cpl = st && st.couple ? resolveCouple(st) : null;
-  const fig = cpl
-    ? `<div class="nhead cpl-h">Coupled reaction</div>`
-      + figTabStrip()
-      + (figTab==='curve' ? coupleCurve(cpl) : coupleFig(cpl))
-      + `<p class="nbody">${coupleLine(cpl)}</p>`
-    : '';
-
   if(st && st.commit){
-    noteEl.innerHTML=fig
-      +`<div class="nhead reg">${PFK.title}</div>`
+    noteEl.innerHTML=`<div class="nhead reg">${PFK.title}</div>`
       +`<p class="nbody">${PFK.body}</p>`
       +`<div class="effrow"><div class="eff on"><div class="eh">Speeds it up</div>`
         +PFK.on.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div>`
@@ -1794,19 +1869,9 @@ function drawNote(){
       +`<p class="nbody">${PFK.note}</p>`;
     return;
   }
-  if(st){
-    // Reversibility is stated per step because it is the property that decides
-    // which steps CAN be regulated — a near-equilibrium step run backwards is
-    // just the same enzyme, so controlling it controls nothing.
-    // THE VERDICT IS THE HEADING, AND NOTHING ELSE — the modal one click away
-    // demonstrates the claim, so a paragraph here would only repeat it while
-    // the molecule waits. The link is the way in.
-    noteEl.innerHTML = fig + (st.rev===false
-      ? `<div class="nhead irr">Irreversible in the cell</div>`
-      : `<div class="nhead rev">Near equilibrium — reversible</div>`)
-      + MASS_LINK;
-    return;
-  }
+  // Reversibility now rides the coupling box on the stage (drawCouple), so a
+  // plain step leaves this panel empty and the rail above it holds the sidebar.
+  if(st){ noteEl.innerHTML=''; return; }
   noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
     +`<p class="nbody">Only <b>${irrevSteps().map(s=>s.n).join(', ')}</b> —
        ${irrevSteps().map(s=>s.enz.replace(/ \(.*\)/,'')).join(', ')} — are
@@ -2216,7 +2281,7 @@ function drawFork(){
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
 function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawTitle();
-  drawNote(); drawCaption(); drawFork(); computeFit(); }
+  drawNote(); drawCouple(); drawCaption(); drawFork(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
