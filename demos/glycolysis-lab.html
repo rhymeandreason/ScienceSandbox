@@ -184,11 +184,14 @@
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
 
-  /* Each pool is a two-column grid: label and its gloss on the left, the count
-     big on the right. Keeping the number hard-right means the five of them line
-     up as a readable column of digits, which is the point of the tray. */
+  /* NO COUNTS. The tray used to carry a running tally per carrier, which read
+     as bookkeeping the student was meant to track — but the accounting that
+     matters is ATP spent / made / net, and the post-it already keeps it. What
+     the tray is FOR is naming the five carriers and showing which one this step
+     needs, so that is all it says now. A pool at zero is still muted, because
+     NAD+ at zero is why fermentation exists. */
   .reag{position:relative;width:152px;padding:5px 10px;cursor:default;
-    display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;
+    display:grid;grid-template-columns:1fr;align-items:center;
     background:none;border:2.5px solid transparent;border-radius:9px;
     text-align:left;user-select:none;transition:transform .15s,border-color .15s,background .15s}
   .reag .rname{grid-column:1;grid-row:1;
@@ -197,13 +200,7 @@
   .reag .rsub{grid-column:1;grid-row:2;
     font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
     text-transform:uppercase;color:var(--muted);line-height:1.2}
-  .reag .rcount{grid-column:2;grid-row:1/span 2;
-    font-family:var(--font-slab);font-weight:700;font-size:24px;line-height:1;
-    color:var(--ink);font-variant-numeric:tabular-nums}
-  /* A pool at zero is MUTED, never hidden — NAD⁺ 0 is why fermentation exists,
-     and Pi 0 is where step 6's phosphate went, so both numbers must stay
-     legible. */
-  .reag.empty .rname,.reag.empty .rcount{color:var(--muted);opacity:.75}
+  .reag.empty .rname{color:var(--muted);opacity:.75}
 
   /* the reagent this step needs: the only card, and the only button */
   .reag.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
@@ -584,7 +581,6 @@
     #ledger .lhead{margin-bottom:5px}
     #tray{left:12px;top:16px;transform:none}
     .reag{width:116px;padding:3px 7px}
-    .reag .rcount{font-size:19px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
     /* Both corners tighten in; the caption band between them is narrower here. */
     #restart,#savepng,#allsteps{padding:5px 12px;font-size:12px}
@@ -810,62 +806,62 @@ const STEPS=[
     species:['g6p'], enz:'Hexokinase', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`<b>ATP</b> hands a <span class="p">phosphate</span> to carbon 6, and the ring opens. The charge <b>traps the sugar inside the cell</b> — no transporter will carry it back out.` },
+    msg:`<b>Hexokinase — trapping.</b> A <span class="p">phosphate</span> from ATP goes onto carbon 6. The negative charge <b>locks the sugar in the cell</b>: no GLUT transporter will carry a charged molecule back out.` },
 
   { n:2, stage:1, reagent:null,
     act:'Shift the carbonyl to C2',
     species:['f6p'], enz:'Phosphoglucose isomerase', rev:true,
     fx:'iso',
-    msg:`The C=O moves from carbon 1 to carbon 2. Nothing is spent — but an <b>aldose</b> cannot be cut into two phosphorylatable halves, and a <b>ketose</b> can.` },
+    msg:`<b>Phosphoglucose isomerase — shuffling.</b> Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>, rearranged from a glucose to a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can.` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
     species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)',
     rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`A second <b>ATP</b> phosphorylates carbon 1 — the <b>committed step</b>.` },
+    msg:`<b>PFK-1 — symmetry and instability.</b> A second ATP phosphorylates carbon 1. Charged at <b>both ends</b>, the molecule is symmetrical and unstable — primed to split. This is the <b>committed step</b>.` },
 
   { n:4, stage:2, reagent:null,
     act:'Cleave the C3–C4 bond',
     species:['dhap','g3p'], enz:'Aldolase', rev:true,
     fx:'split',
-    msg:`Six carbons become <b>3 + 3</b>, each half keeping one <span class="p">phosphate</span> — that is why two were paid in. <i>Glyco-</i> sugar, <i>-lysis</i> splitting: the step the pathway is named after.` },
+    msg:`<b>Aldolase — the split.</b> The unstable six-carbon sugar is cleaved down the middle into <b>two different three-carbon molecules</b>, DHAP and G3P, each keeping one <span class="p">phosphate</span> — which is what the two ATP bought.` },
 
   { n:5, stage:2, reagent:null,
-    act:'Convert DHAP → G3P',
+    act:'Convert DHAP to G3P',
     species:['g3p','g3p'], enz:'Triose-phosphate isomerase', rev:true,
     fx:'iso',
-    msg:`<b>DHAP</b> rearranges into a second <b>G3P</b>. Both lanes are now identical — everything from here happens <b>twice</b>.` },
+    msg:`<b>Triose-phosphate isomerase — streamlining.</b> DHAP becomes a second <b>G3P</b>. The lanes are now identical, so everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
     species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
     couple:{ up:false, plus:'Pi', cin:'NAD+', cout:'NADH', tone:'n' },
-    msg:`The pathway's <b>only oxidation</b>. Each G3P gives two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span>. A <span class="p">free phosphate</span> from the cytosol fills the spot — <b>no ATP spent.</b>` },
+    msg:`<b>G3P dehydrogenase — electron theft.</b> Each G3P gives up two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span> (2 in all), and a <span class="p">free phosphate</span> from the cytosol takes the empty spot — <b>no ATP spent</b>. The pathway's only oxidation.` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
     species:['pga3','pga3'], enz:'Phosphoglycerate kinase', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
-    msg:`The <b>acyl phosphate</b> on carbon 1 has a higher transfer potential than ATP's, so it goes straight to <b>ADP</b>. Two lanes → <b>2 ATP</b>: <b>substrate-level phosphorylation</b>.` },
+    msg:`<b>Phosphoglycerate kinase — break-even.</b> That phosphate has a higher transfer potential than ATP's, so it goes straight to ADP. Two lanes, <b>2 ATP</b> — exactly what phase 1 cost. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
-    act:'Move the phosphate C3 → C2',
+    act:'Move the phosphate to C2',
     species:['pga2','pga2'], enz:'Phosphoglycerate mutase', rev:true,
     fx:'move', anchor:'p3', dest:'p2',
-    msg:`The phosphate slides from carbon 3 to carbon 2. On C3 it was an ordinary ester and <b>could not</b> charge ADP; this move sets up the step that changes that.` },
+    msg:`<b>Phosphoglycerate mutase — position shift.</b> The remaining phosphate simply moves from carbon 3 to carbon 2. On C3 it <b>could not</b> charge ADP; this move sets up the step that changes that.` },
 
   { n:9, stage:4, reagent:null,
     act:'Remove a water',
     species:['pep','pep'], enz:'Enolase', rev:true,
     fx:'lose', anchor:'oh3',
-    msg:`A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. No energy was added — the <i>rearrangement</i> itself stores strain in the phosphate bond.` },
+    msg:`<b>Enolase — high-energy setup.</b> A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. Nothing was added — the rearrangement itself loads strain into the phosphate bond.` },
 
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
     species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', rev:false,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
-    msg:`<b>PEP</b> has the highest phosphoryl-transfer potential of any molecule in the cell. The phosphate goes to <b>ADP</b> and the enol snaps to keto: <b>pyruvate</b>. Net <b>2 ATP</b> and <b>2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
+    msg:`<b>Pyruvate kinase — net profit.</b> The last phosphate goes to ADP and the enol snaps to keto: <b>pyruvate</b>. Two more ATP, so <b>net 2 ATP and 2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
 // The five stages, kept as the GROUPING over the ten steps. `delta` is the
@@ -1470,14 +1466,21 @@ function restart(){ cancelTimers(); busy=false; pressing=false; done=0; intro=tr
  *  UI
  * ============================================================= */
 const rxmsgEl=document.getElementById('rxmsg');
-// THE CAPTION IS DERIVED, like everything else here: it is the message of the
-// step that PRODUCED the state now on screen. That is what makes rewinding work
-// — the caption for step 6 reappears when you step back onto it, without
-// anything having to remember which toast was last fired. The intro gets the
-// band too, with a one-sentence orientation to glucose.
+// THE CAPTION IS THE STEP YOU ARE ABOUT TO RUN, not the one you just ran. It is
+// read on the beat BEFORE the molecule changes — the molecule is standing
+// there, the caption says what is about to happen to it and why, and the button
+// says the action. Reading an explanation after the animation has already
+// answered it is reading a caption for something you have stopped looking at.
+//
+// Still DERIVED, so rewinding works: stepping back onto step 6 brings step 6's
+// caption back without anything remembering which toast was last fired. The
+// intro gets the band too, with a one-sentence orientation to glucose, and the
+// finished pathway keeps step 10's, which is where the net tally is said.
 const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
   +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
-const captionAt=i=>intro ? INTRO_MSG : (i>0 ? STEPS[i-1].msg : '');
+const captionAt=i=>intro ? INTRO_MSG
+  : i<nSteps ? STEPS[i].msg          // the step about to run
+  : STEPS[nSteps-1].msg;             // pathway finished: the closing tally stands
 // NO SEPARATE ENZYME LINE ON THE STAGE. The action button names the enzyme
 // ABOUT to act, which is the only place the name does any work — printing it
 // again underneath after the fact was the same word twice on one screen.
@@ -1531,7 +1534,6 @@ function drawTray(){
     d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
     d.innerHTML=(live?`<span class="need">← ${st.need}</span>`:'')
       +`<div class="rname">${r.name}</div>`
-      +`<div class="rcount">${pool[r.key]}</div>`
       +`<div class="rsub">${r.sub}</div>`;
     if(live) d.onclick=()=>press(runStep);
     strip.appendChild(d);
@@ -1600,7 +1602,12 @@ function drawAct(){
   // "← Spend 1 ATP" arrow is what says where to click instead.
   if(st.reagent){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
   actEl.style.visibility='visible';
-  actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
+  // THE BUTTON NAMES THE ACTION, not the direction. "Next" moves a slideshow;
+  // "Cleave the C3-C4 bond" is a thing you are doing to the molecule in front of
+  // you, and reading it is the beat where a student works out what is about to
+  // happen — which is the beat a carrier step gets for free from the tray. The
+  // words are the step's own `act`, so nothing is typed twice.
+  actEl.innerHTML=`${st.act} <i class="ph-bold ph-arrow-right"></i>`;
   actEl.onclick=()=>press(runStep);
 }
 
