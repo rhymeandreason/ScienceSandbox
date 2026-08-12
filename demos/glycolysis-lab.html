@@ -320,12 +320,15 @@
      A MODAL, not a page and not a panel — it is a general fact about enzymes
      rather than a fact about glycolysis, so it does not belong in the pathway's
      own furniture, and this page is already the densest in the sandbox. */
-  #massmodal{position:fixed;inset:0;z-index:60;display:flex;
+  /* Chrome shared by BOTH modals on this page — the mass-action demo and
+     PFK-1's regulation. `.modal` is the shell (backdrop, card, close, kick,
+     title); everything still scoped to #massmodal below is that demo's own. */
+  .modal{position:fixed;inset:0;z-index:60;display:flex;
     align-items:center;justify-content:center;padding:24px}
-  #massmodal[hidden]{display:none}
-  #massmodal .mback{position:absolute;inset:0;background:rgba(38,33,26,.52);
+  .modal[hidden]{display:none}
+  .modal .mback{position:absolute;inset:0;background:rgba(38,33,26,.52);
     backdrop-filter:blur(2px);animation:mfade .22s ease-out}
-  #massmodal .mcard{position:relative;width:min(660px,100%);max-height:100%;
+  .modal .mcard{position:relative;width:min(660px,100%);max-height:100%;
     overflow:auto;background:var(--paper);border:2.5px solid var(--ink);
     border-radius:var(--radius);padding:20px 22px 18px;
     box-shadow:0 24px 60px -20px rgba(0,0,0,.6);animation:mrise .26s cubic-bezier(.2,.9,.3,1)}
@@ -348,16 +351,16 @@
     margin-bottom:-1.5px}
   #massmodal .mtabs button:hover{color:var(--ink)}
   #massmodal .mtabs button.on{color:#4f5bd5;border-bottom-color:#4f5bd5}
-  #massmodal .mkick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+  .modal .mkick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
     letter-spacing:1.5px;text-transform:uppercase;color:#4f5bd5;margin:0 0 5px}
-  #massmodal h2{font-family:var(--font-slab);font-weight:700;font-size:19px;
+  .modal h2{font-family:var(--font-slab);font-weight:700;font-size:19px;
     margin:0 0 3px;color:var(--ink)}
-  #massmodal .msub{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+  .modal .msub{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
     line-height:1.5;margin:0 0 14px}
-  #massmodal .msub b{color:var(--ink);font-weight:600}
-  #massmodal .mclose{position:absolute;top:10px;right:12px;font-size:22px;
+  .modal .msub b{color:var(--ink);font-weight:600}
+  .modal .mclose{position:absolute;top:10px;right:12px;font-size:22px;
     line-height:1;background:none;border:none;color:var(--muted);cursor:pointer;padding:4px}
-  #massmodal .mclose:hover{color:var(--ink)}
+  .modal .mclose:hover{color:var(--ink)}
   #masscanvas{display:block;width:100%;height:250px;border-radius:10px;
     background:rgba(255,255,255,.6);border:1.5px solid rgba(58,52,44,.16)}
   /* the two species and the tally of conversions each way. THE BACK COUNTER IS
@@ -415,8 +418,8 @@
   #massmodal .mctl button:hover{background:var(--ink);color:var(--paper)}
   #massmodal .mctl button.on{background:var(--ink);color:var(--paper)}
   #massmodal .mctl .msp{flex:1}
-  #massmodal .mtext{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
-  #massmodal .mtext b{color:var(--ink)}
+  .modal .mtext{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
+  .modal .mtext b{color:var(--ink)}
   @media (max-width:920px){
     #masscanvas{height:200px}
     #massmodal .mrow{flex-wrap:wrap}
@@ -528,6 +531,15 @@
   .rrow .rdotwrap{flex:none;display:flex;align-items:center}
   .rrow .rirr{flex:none;padding-left:6px;
     font-size:13px;line-height:1;color:var(--phos);opacity:.75}
+  /* THE STAR IS A DOOR, not a status. Only one step carries it — the committed
+     step — and what is behind it is the page's one piece of real regulatory
+     biology, which used to sit in the sidebar under the coupling box where it
+     competed with the step in front of the student. Sized and coloured like
+     the one-way marker so the rail keeps two marks, not two vocabularies. */
+  .rrow .rstar{flex:none;margin-left:4px;padding:2px 3px;border:none;
+    background:none;cursor:pointer;font-size:13px;line-height:1;
+    color:var(--phos);opacity:.85}
+  .rrow .rstar:hover{opacity:1;transform:scale(1.18)}
 
   /* The sidebar scrolls, not the card. */
   #card{overflow:visible;flex:none}
@@ -596,7 +608,13 @@
   .cpl .ax{font-family:var(--font-sans);font-size:9px;letter-spacing:1.1px;
     text-transform:uppercase;fill:var(--muted)}
 
+  /* the two effector lists, side by side. Sized for the sidebar they used to
+     live in; in the modal they simply have more room. */
   .effrow{display:flex;gap:9px;margin:0 0 10px}
+  #pfkbody .mtext{margin:0 0 14px}
+  #pfkbody .effrow{margin:0 0 14px;gap:14px}
+  #pfkbody .eff{padding:11px 13px}
+  #pfkbody .eff .e{font-size:12.5px}
   .eff{flex:1;padding:8px 9px;border-radius:7px;background:rgba(0,0,0,.03)}
   .eff .eh{font-family:var(--font-slab);font-weight:700;font-size:10.5px;letter-spacing:.8px;
     text-transform:uppercase;margin-bottom:5px}
@@ -699,6 +717,19 @@
   </div>
 </div>
 
+<!-- PFK-1's regulation, behind the star on step 3's rail row. A MODAL for the
+     same reason the mass-action demo is one: it is a side road off the pathway,
+     and read inline it competed with the step the student is actually running. -->
+<div id="pfkmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="pfktitle">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <div class="mkick">Regulation</div>
+    <h2 id="pfktitle"></h2>
+    <div id="pfkbody"></div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="palette.js"></script>
 <script src="molecules.js"></script>
@@ -706,7 +737,7 @@
 <script src="mol-glycolysis.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
-<div id="massmodal" hidden>
+<div id="massmodal" class="modal" hidden>
   <div class="mback"></div>
   <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mmtitle">
     <button class="mclose" aria-label="Close">&times;</button>
@@ -1678,8 +1709,14 @@ function drawRail(){
         +`<div class="rlab${state==='cur'?' eq':state==='future'?' veiled':''}">`
           +`${state==='future'?'':state==='cur'?eqOf(st):productOf(st)}</div>`
         +(st.rev===false
-          ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '');
+          ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '')
+        // one step is regulated, and the star is the way into why
+        +(st.commit
+          ? `<button class="rstar" data-pfk aria-label="Why this step is the one the cell controls">★</button>` : '');
       if(idx<done) r.onclick=()=>goStep(idx);
+      const star=r.querySelector('[data-pfk]');
+      // stopPropagation, because a run row's own click rewinds the pathway
+      if(star) star.onclick=e=>{ e.stopPropagation(); Pfk.show(); };
       rowsEl.appendChild(r);
     });
   });
@@ -1900,18 +1937,8 @@ function drawNote(){
   if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
   noteEl.style.display='block';
 
-  if(st && st.commit){
-    noteEl.innerHTML=`<div class="nhead reg">${PFK.title}</div>`
-      +`<p class="nbody">${PFK.body}</p>`
-      +`<div class="effrow"><div class="eff on"><div class="eh">Speeds it up</div>`
-        +PFK.on.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div>`
-      +`<div class="eff off"><div class="eh">Slows it down</div>`
-        +PFK.off.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div></div>`
-      +`<p class="nbody">${PFK.note}</p>`;
-    return;
-  }
-  // Reversibility now rides the coupling box on the stage (drawCouple), so a
-  // plain step leaves this panel empty and the rail above it holds the sidebar.
+  // PFK-1's regulation is behind the rail's star now (Pfk.show), and
+  // reversibility rides the coupling box — so a step leaves this panel empty.
   if(st){ noteEl.innerHTML=''; return; }
   noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
     +`<p class="nbody">Only <b>${irrevSteps().map(s=>s.n).join(', ')}</b> —
@@ -1963,6 +1990,28 @@ function drawNote(){
  *  for populations, and the moment they looked like molecules they would be
  *  making a geometry claim this file cannot back up.
  * ============================================================= */
+/* PFK-1's regulation, behind the rail's star. The content is PFK's, rendered
+ * once — the modal is markup with two holes, so the facts still live in one
+ * place and the star is only a door onto them. */
+const Pfk=(()=>{
+  const el=document.getElementById('pfkmodal');
+  const body=document.getElementById('pfkbody');
+  document.getElementById('pfktitle').textContent=PFK.title;
+  body.innerHTML=`<p class="mtext">${PFK.body}</p>`
+    +`<div class="effrow"><div class="eff on"><div class="eh">Speeds it up</div>`
+      +PFK.on.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div>`
+    +`<div class="eff off"><div class="eh">Slows it down</div>`
+      +PFK.off.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div></div>`
+    +`<p class="mtext">${PFK.note}</p>`;
+  let open=false;
+  const show=()=>{ el.hidden=false; open=true; el.querySelector('.mclose').focus(); };
+  const hide=()=>{ open=false; el.hidden=true; };
+  el.querySelector('.mback').onclick=hide;
+  el.querySelector('.mclose').onclick=hide;
+  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
+  return {show, hide, isOpen:()=>open};
+})();
+
 const Mass=(()=>{
   const el=document.getElementById('massmodal');
   const cv=document.getElementById('masscanvas');
