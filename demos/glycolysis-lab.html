@@ -531,6 +531,22 @@
   .rrow .rdotwrap{flex:none;display:flex;align-items:center}
   .rrow .rirr{flex:none;padding-left:6px;
     font-size:13px;line-height:1;color:var(--phos);opacity:.75}
+  /* THE CARRIER CHIP: which carrier this step spent or made, and which way.
+     Five steps carry one and five carry nothing, which is the rail's way of
+     separating the steps that move ENERGY from the steps that move atoms.
+     Colours are the page's existing language — orange for phosphate traffic
+     out (matching #rxmsg .p and the coupling figure), red for ATP banked (the
+     ledger's own "made" colour), green for the NAD⁺/NADH carrier. The sign is
+     the ledger's too, so the chips visibly sum to what the post-it says.
+     A RECORD, NOT A PROMISE: drawn only once the step has run, the same rule
+     the stage deltas follow — "−ATP" on an unrun step 3 gives away the dip. */
+  .rrow .rchip{flex:none;margin-left:6px;padding:1px 5px;border-radius:4px;
+    font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:.4px;
+    white-space:nowrap}
+  .rrow .rchip.spend{color:var(--phos);background:rgba(224,123,31,.13)}
+  .rrow .rchip.atp  {color:var(--atp); background:rgba(200,69,46,.13)}
+  .rrow .rchip.nadh {color:var(--nad); background:rgba(47,125,92,.13)}
+
   /* THE STAR IS A DOOR, not a status. Only one step carries it — the committed
      step — and what is behind it is the page's one piece of real regulatory
      biology, which used to sit in the sidebar under the coupling box where it
@@ -1027,6 +1043,16 @@ function productOf(st){
     : keys.map(nameOf).join(' + ');
 }
 
+// THE CARRIER A STEP MOVED, read off the step's own `couple` — an uphill step
+// spends the carrier it is coupled to, a downhill one banks the one it makes.
+// Nothing is typed per step, so a step whose coupling changes changes its chip.
+function chipOf(st){
+  const c=st.couple; if(!c) return '';
+  const carrier = c.up ? c.cin : c.cout;              // spent, or made
+  const cls = c.up ? 'spend' : (c.tone==='n' ? 'nadh' : 'atp');
+  return `<span class="rchip ${cls}">${c.up?'−':'+'}${carrier}</span>`;
+}
+
 /* =============================================================
  *  3D: lanes, labels, transitions
  * ============================================================= */
@@ -1518,7 +1544,7 @@ function drawTray(){
   trayEl.style.display='flex';
   const pool=poolAt(done), st=done<nSteps?stepAt(done):null;
   trayEl.innerHTML=`<div class="tcue">Carriers</div>`
-    +'<div class="tstrip"></div><div class="tcap">In the cytosol</div>';
+    +'<div class="tstrip"></div>';
   const strip=trayEl.children[1];
   REAGENTS.forEach(r=>{
     const live=!!st && st.reagent===r.key && !busy;
@@ -1708,6 +1734,7 @@ function drawRail(){
       r.innerHTML=`<div class="rdotwrap"><div class="rdot">${st.n}</div></div>`
         +`<div class="rlab${state==='cur'?' eq':state==='future'?' veiled':''}">`
           +`${state==='future'?'':state==='cur'?eqOf(st):productOf(st)}</div>`
+        +(state==='done'?chipOf(st):'')
         +(st.rev===false
           ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '')
         // one step is regulated, and the star is the way into why
