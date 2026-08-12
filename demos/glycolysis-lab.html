@@ -22,8 +22,8 @@
     #side{grid-column:2;grid-row:2}
   }
   #stage,#side{min-height:0}
-  /* The whole sidebar scrolls as one column — rail, ledger and note together —
-     so no piece has to be sized to fit a fixed height. */
+  /* The whole sidebar scrolls as one column — ledger, coupling sheet and note
+     together — so no piece has to be sized to fit a fixed height. */
   /* No top padding: the ledger is sticky and flush to the top edge, so nothing
      scrolls through a gap above it. No grid paper, no torn edge and no cast
      shadow either — these are readouts sitting beside the stage, not a second
@@ -66,11 +66,11 @@
     .plate .pn{font-size:16px}.plate .pf{font-size:12.5px}
   }
 
-  /* ---------- the bottom bar: action button over the step caption ----------
+  /* ---------- the bottom bar: heading, action button, step caption ----------
      ONE CONTAINER, CONSTANT HEIGHT. The camera fit measures this and nothing
-     else along the bottom edge, so the framing cannot change with which button
-     or caption happens to be up. #actbtn is hidden with `visibility` for the
-     same reason — its slot is always reserved, which also stops the caption
+     else along the bottom edge, so the framing cannot change with which
+     heading, button or caption happens to be up. #actbtn and #stephead are
+     hidden with `visibility` for the same reason — its slot is always reserved, which also stops the caption
      jumping up and down as the button comes and goes between steps. */
   /* --stagedx is the same slide the camera's frustum takes (see orthoFrustum):
      the tray sits on the left, so the space the lesson actually has is off
@@ -117,13 +117,11 @@
   /* Always visible, never resets. Students watch ATP dip below its start value
      and climb back past it — that dip is the "investment phase" made physical.
      Lives at the TOP OF THE SIDEBAR and sticks there, so it stays on screen
-     while the rail and the note scroll under it. The stage keeps the raw pools
+     while the rest of the column scrolls under it. The stage keeps the carriers
      (the tray); the sidebar keeps what they add up to.
 
-     A POST-IT, not another framed card. The stage already has two ink-outlined
-     panels (the tray and the note card), and a third would read as chrome; a
-     sticky note reads as something a person put there, which is what a running
-     tally is. Square corners, no border — the edge is the paper — and the
+     A POST-IT. A sticky note reads as something a person put there, which is
+     what a running tally is. Square corners, no border — the edge is the paper — and the
      shadow does the lifting: tight and dark where the note touches the page at
      the top, long and soft at the bottom where it curls away. The tilt is small
      on purpose (1.2°): enough to sit apart from the grid, not enough to make
@@ -176,17 +174,11 @@
   #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
 
   /* ---------- reagent tray, LEFT EDGE: the cell's pools ----------
-     THE TRAY IS A LEDGER, NOT A MENU. Every pool stays on screen all the way
-     through, because the counts are themselves the lesson and each one only
-     reads as one while it is NOT the active reagent: ATP goes 4 → 2 → 6, and
-     the dip below its starting value is the net +2 made physical; NAD⁺ runs to
-     exactly 0 at step 6, which is the entire setup for the fermentation fork;
-     Pi goes 2 → 0, which is the visible proof that step 6's phosphate came from
-     the cytosol and not from an ATP.
-
-     So only ONE of them is ever a button, and the styling says so. An
-     inactive pool is a plain readout with no card chrome at all; the card,
-     border, pulse and lift belong to the live one alone. */
+     THE FIVE CARRIERS, NOT A MENU. All five stay on screen all the way through,
+     so the one a step reaches for is read against the four it does not — and
+     only ONE of them is ever a button. The styling says so: an inactive carrier
+     is a plain readout with no card chrome at all; the card, border, pulse and
+     lift belong to the live one alone. */
   /* A COLUMN ON THE LEFT, not a strip along the bottom. The bottom edge now
      belongs to the step caption, which needs the width; the pools do not — five
      short rows stack happily down the side, and a vertical list is closer to
@@ -568,11 +560,7 @@
   #stepsbody .rstar:hover{opacity:1;transform:scale(1.18)}
 
   /* ---------- the ending fork ----------
-     THE THREE FATES ARE A MODAL, behind the last button. On the stage they were
-     three tall cards standing over the two pyruvate the student had just made —
-     the molecules are the answer to "what did glycolysis produce", and the
-     cards buried them. Behind a button they are a place you go when you are
-     ready, and the pathway's last frame stays the pathway's last frame. */
+     THE THREE FATES ARE A MODAL, behind the last button.  */
   #forkbody{display:flex;gap:14px;align-items:stretch}
   #forkbody .door{flex:1;padding:12px 14px;background:rgba(255,255,255,.6);
     border:2px solid var(--ink);border-radius:9px 12px 10px 11px}
@@ -582,8 +570,8 @@
   @media (max-width:920px){ #forkbody{flex-direction:column} }
 
   @media (max-width:920px){
-    /* Stacked: rail on top, stage, then the readouts under it. The rail keeps
-       its sideways scroll, which is what makes it survive a phone at all. */
+    /* Stacked: rail on top, stage, then the readouts under it. Ten numbers fit
+       across a phone, which is what makes the rail survive one. */
     #app{grid-template-rows:auto 52vh 1fr}
     #railbar{grid-column:1;padding:10px 14px 8px}
     #side{padding:0 16px 24px}
@@ -642,9 +630,9 @@
   <!-- Restart lives at PAGE level, not on the stage: it applies to the whole
        lesson (the rail and the readouts reset with it), so it belongs at the
        screen's own bottom-right rather than at the stage's. -->
-  <!-- The whole pathway at once, behind a button above Restart. The rail is a
-       scroller you drive one card at a time; this is the map of it — all ten
-       steps, named and grouped, in one column you can read down. -->
+  <!-- The whole pathway at once, behind a button above Restart. The rail is ten
+       numbers; this is the map of it — all ten steps, named and grouped, in one
+       column you can read down. -->
   <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
   <!-- The right column is no longer a panel with its own voice — it is a stack
@@ -682,7 +670,8 @@
   </div>
 </div>
 
-<!-- PFK-1's regulation, behind the star on step 3's rail row. A MODAL for the
+<!-- PFK-1's regulation, behind the star on step 3's row in the ten-steps list.
+     A MODAL for the
      same reason the mass-action demo is one: it is a side road off the pathway,
      and read inline it competed with the step the student is actually running. -->
 <div id="pfkmodal" class="modal" hidden>
@@ -755,9 +744,9 @@
  *
  *  THE FIVE STAGES SURVIVE AS GROUPING, NOT AS CONTENT. Ten clicks with no
  *  structure is a list; the five stages are what make the ARC legible — spend 2,
- *  cut in half, oxidise once, collect 4. So the rail shows five stages and
- *  expands the current one into its steps. Bookkeeping deltas stay on the stage,
- *  because that is the level at which they mean anything.
+ *  cut in half, oxidise once, collect 4. So the ten-steps list groups by stage
+ *  and hangs each stage's bookkeeping delta off its heading, because that is the
+ *  level at which a delta means anything.
  *
  *  NO ΔG NUMBERS ARE PRINTED. The thermodynamics is taught as REVERSIBILITY —
  *  three steps (1, 3, 10) are effectively irreversible in a cell, the other
@@ -902,29 +891,25 @@ const STEPS=[
 // carries the pools, #couplebox carries coupling and reversibility, and #stepnote
 // carries PFK-1.
 const STAGES=[
-  // Stage 0 is a STATE, not a rail entry: it is where the page opens, Restart
-  // is how you get back to it, and a row saying "one glucose" beside a screen
-  // showing one glucose was the rail's widest item earning the least.
+  // Stage 0 is a STATE, not a group of steps: it is where the page opens and
+  // where Restart returns to, and it has no step to list.
   { n:0 },
   { n:1, block:'Priming',    label:'Priming: spend 2 ATP',    delta:'−2 ATP' },
   { n:2, block:'Cleavage',   label:'Cleavage: 6C → 3C + 3C',  delta:'1 → 2' },
   { n:3, block:'Oxidation',  label:'Oxidation: make 2 NADH',  delta:'+2 NADH' },
   { n:4, block:'Payoff',     label:'Payoff: make 4 ATP',      delta:'+4 ATP' },
   // Stage 5 is a STATE too: reaching it puts the tally on screen — the ledger's
-  // net, the fork, the closing note — so a rail row announcing it said a third
-  // time what two surfaces already say the moment it happens.
+  // net, the fork, the closing note — and it has no step of its own either.
   { n:5 },
 ];
 
-// Which steps sit under a stage — derived, never typed. The rail now prints
-// every step number itself, so nothing has to state a range and then be kept
-// true; a step moved between stages re-blocks the rail on its own.
+// Which steps sit under a stage — derived, never typed, so a step moved between
+// stages re-groups the ten-steps list on its own.
 const stageSteps=n=>STEPS.filter(s=>s.stage===n);
 
-// A STAGE'S DELTA IS A RECORD, NOT A PROMISE — it appears only once its
-// stage's steps are actually done, so the rail never gives away a number
-// (e.g. "−2 ATP") before it's earned; the dip below zero has to stay a
-// surprise.
+// A STAGE'S DELTA IS A RECORD, NOT A PROMISE — it is true only once its stage's
+// steps are actually done, so nothing gives away a number (e.g. "−2 ATP")
+// before it's earned; the dip below zero has to stay a surprise.
 const stageComplete=n=>{
   const k=stageSteps(n);
   if(!k.length) return done>=nSteps;               // the two step-less states
@@ -975,16 +960,14 @@ const stageAt=i=>intro?0:(i>=nSteps?5:STEPS[i].stage);
 const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+M[k].gly.carbons,0);
 
 // WHAT A STEP LEAVES ON THE STAGE, named the way the plate names it — this is
-// the rail's label, so a numbered row and the molecule under that number are
-// the same word. The `2 ×` is not decoration: it is where the rail says out
-// loud that everything after the split happens twice, which the two lanes
+// the ten-steps list's label, so a numbered row and the molecule that number
+// made are the same word. The `2 ×` is not decoration: it is where the list says
+// out loud that everything after the split happens twice, which the two lanes
 // show and no other text states.
 //
-// THE SYSTEMATIC NAME, because a run step's row has the width for it: the
-// stacks are wide and a name may take a second line. "F1,6-BP" means nothing
-// until you already know what it stands for, so the rail spells out what the
-// step LEFT — and a card exists only once the step has run, so a name is all
-// it ever has to say.
+// THE SYSTEMATIC NAME, because the list has the width for it: "F1,6-BP" means
+// nothing until you already know what it stands for, so the name is spelled out
+// where a student meets the step.
 function productOf(st){
   const keys=st.species, nameOf=k=>M[k].name;
   return keys.every(k=>k===keys[0]) && keys.length>1
@@ -1055,9 +1038,9 @@ function plateHeightPx(){
   return d ? d.getBoundingClientRect().height+PLATE_GAP_PX+PLATE_CLEAR_PX : 58;
 }
 const PLATE_GAP_PX=10;
-// Clearance ABOVE the top label. The rail now runs along the stage's top edge,
-// so a label fitted exactly to the reserve sits against a hard border instead
-// of against paper. Reserve only — the anchor's own gap is world-space
+// Clearance ABOVE the top label — the rail runs along the stage's top edge, so
+// a label fitted exactly to the reserve sits against it rather than against
+// paper. Reserve only — the anchor's own gap is world-space
 // (PLATE_GAP), so raising this pushes the molecule down without moving the
 // label up with it.
 const PLATE_CLEAR_PX=14;
@@ -1278,9 +1261,9 @@ function fitFor(states){
 //           band rather than a world-space box the projection scaled with —
 //           which is why the reservation happens here, in pixels, and not
 //           inside fitFor.
-//   bottom  #bottombar: the action button over the step caption. One element
-//           of CONSTANT height on purpose (the button is hidden with
-//           `visibility`), because this page's framing rule is that ONE camera
+//   bottom  #bottombar: the step's heading, its button and its caption. One
+//           element of CONSTANT height on purpose (heading and button are
+//           hidden with `visibility`), because the framing rule is that ONE camera
 //           distance covers every state — otherwise the split stops reading as
 //           a halving. Nothing else on the stage is measured: the ending fork
 //           is a modal now, so no state puts a tall element over the lanes.
@@ -1331,7 +1314,7 @@ function usable(){
 }
 let fitR=24, fitY=0, fitHS=0;
 // The DOM layers over the canvas take the same slide as the frustum, in pixels
-// — the enzyme button and the step caption are ABOUT the molecule, so they
+// — the action button and the step caption are ABOUT the molecule, so they
 // belong over it and not over the canvas's own middle.
 function applyStageShift(){
   const w=canvas.clientWidth||0;
@@ -1546,9 +1529,6 @@ const captionAt=i=>intro ? INTRO_MSG
   : i<nSteps ? STEPS[i].msg          // the step about to run — or, while
   : STEPS[nSteps-1].msg;             // reviewing, the one just run (see focusStep)
                                      // pathway finished: the closing tally stands
-// NO SEPARATE ENZYME LINE ON THE STAGE. The action button names the enzyme
-// ABOUT to act, which is the only place the name does any work — printing it
-// again underneath after the fact was the same word twice on one screen.
 // The heading over the BUTTON — drawn by drawAct, not here, because that is
 // where it sits. Which of the ten this is, and the one word to carry away; both
 // read off the step, so the heading, the rail's lit circle and a textbook all
@@ -1708,7 +1688,7 @@ function drawAct(){
 
 // Jump to the state just BEFORE step k, so the student re-runs the step rather
 // than landing on its aftermath. Shared, because two surfaces rewind now: the
-// rail's cards and the all-steps list.
+// rail's numbers and the all-steps list.
 const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k; renderLanes(done); refresh(); };
 
 const railEl=document.getElementById('rail');
@@ -1965,7 +1945,7 @@ function drawNote(){
   if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
   noteEl.style.display='block';
 
-  // PFK-1's regulation is behind the rail's star now (Pfk.show), and
+  // PFK-1's regulation is behind the ten-steps list's star now (Pfk.show), and
   // reversibility rides the coupling box — so a step leaves this panel empty.
   if(st){ noteEl.innerHTML=''; return; }
   noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
@@ -2018,7 +1998,7 @@ function drawNote(){
  *  for populations, and the moment they looked like molecules they would be
  *  making a geometry claim this file cannot back up.
  * ============================================================= */
-/* PFK-1's regulation, behind the rail's star. The content is PFK's, rendered
+/* PFK-1's regulation, behind the ten-steps list's star. The content is PFK's, rendered
  * once — the modal is markup with two holes, so the facts still live in one
  * place and the star is only a door onto them. */
 const Pfk=(()=>{
@@ -2041,12 +2021,12 @@ const Pfk=(()=>{
 })();
 
 /* ---- all ten steps, in one column -----------------------------------------
- * THE MAP, not the rail. The rail is a scroller you drive one card at a time and
- * it veils what has not run — that reveal is what makes each step a finding. A
- * student who asks for all ten has opted out of that, so this list names every
- * product, chip and marker outright. Nothing here is typed: the rows are built
- * from STEPS by the same productOf/chipOf the rail uses, so a step that changes
- * changes in both places. A run step rewinds the pathway, same as on the rail. */
+ * THE MAP, not the rail. The rail is ten numbers and shows nothing of a step
+ * until it has run — that reveal is what makes each step a finding. A student
+ * who asks for all ten has opted out of that, so this list names every product,
+ * chip and marker outright. Nothing here is typed: the rows are built
+ * from STEPS by productOf/chipOf, so a step that changes changes here with it.
+ * A run step rewinds the pathway, the same as clicking its number on the rail. */
 const AllSteps=(()=>{
   const el=document.getElementById('stepsmodal');
   const body=document.getElementById('stepsbody');
