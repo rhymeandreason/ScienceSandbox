@@ -11,11 +11,9 @@
 <style>
   :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a; }
 
-  /* 
-     Scoped to the WIDE layout on purpose: below 920px sandbox.css stacks the
-     page with `grid-template-rows: 56vh 1fr`, and this override — being later
-     in the cascade — replaced that with a single row, so #side took its full
-     content height and starved the stage down to 172px. */
+  /* Scoped to the WIDE layout on purpose: sandbox.css stacks the page below
+     920px with `grid-template-rows: 56vh 1fr`, and applying this single-row
+     override there would starve the stage down to a sliver. */
   @media (min-width:921px){
     #app{grid-template-rows:minmax(0,1fr)}
   }
@@ -25,9 +23,9 @@
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
      Positioned every frame from the projected anchor (drawPlates), so they
-     track their molecule on orbit the way the old sprites did. `left`/`top`
-     are the anchor in canvas pixels; the translate pulls the label up and
-     centres it on that point, so the anchor is the label's bottom-middle. */
+     track their molecule as the camera orbits. `left`/`top` are the anchor in
+     canvas pixels; the translate pulls the label up and centres it on that
+     point, so the anchor is the label's bottom-middle. */
   /* THE STAGE ANSWERS THE CLICK. A wash of the button's own colour rises from
      where the button is (bottom-centre) and clears — so pressing Begin reads as
      something the whole scene registered, not just a control lighting up. Kept
@@ -62,13 +60,10 @@
     pointer-events:none}
   #bottombar>*{pointer-events:auto}
 
-  /* THE STEP CAPTION. Was a 4.6s toast in the handwriting face at the TOP of
-     the stage, which put the essential sentence of each step in the one place
-     a student is not looking (they are watching the molecule) and then took it
-     away while they were still reading. Now it is a fixed band at the bottom,
-     set in the sans face at reading size, and it does not time out — it is
-     replaced when the next step produces a new one. `min-height` is what
-     reserves the band whether or not there is text in it.
+  /* THE STEP CAPTION. A fixed band at the bottom of the stage, set in the sans
+     face at reading size; it does not time out — it is replaced when the next
+     step produces a new one. `min-height` is what reserves the band whether or
+     not there is text in it.
 
      THREE LINES IS THE BUDGET, and it is a hard one: #bottombar's height is
      what the camera measures along the bottom edge, so a caption that outgrows
@@ -92,15 +87,16 @@
   /* Always visible, never resets. Students watch ATP dip below its start value
      and climb back past it — that dip is the "investment phase" made physical.
      Sits on the RIGHT, opposite the pools it summarises: the tray is the raw
-     counts, this is what they add up to. Below #restart, which owns the corner. */
-  /* A POST-IT, not another framed card. The stage already has two ink-outlined
-     panels (the tray and the note card) and a third made the ledger read as
-     chrome; a sticky note reads as something a person put there, which is what
-     a running tally is. Square corners, no border — the edge is the paper — and
-     the shadow does the lifting: tight and dark where the note touches the page
-     at the top, long and soft at the bottom where it curls away. The tilt is
-     small on purpose (1.2°): enough to sit apart from the grid, not enough to
-     make tabular numbers look crooked. */
+     counts, this is what they add up to. Below #restart, which owns the corner.
+
+     A POST-IT, not another framed card. The stage already has two ink-outlined
+     panels (the tray and the note card), and a third would read as chrome; a
+     sticky note reads as something a person put there, which is what a running
+     tally is. Square corners, no border — the edge is the paper — and the
+     shadow does the lifting: tight and dark where the note touches the page at
+     the top, long and soft at the bottom where it curls away. The tilt is small
+     on purpose (1.2°): enough to sit apart from the grid, not enough to make
+     tabular numbers look crooked. */
   #ledger{position:absolute;right:26px;top:74px;z-index:6;min-width:186px;
     background:linear-gradient(168deg,#fdf0a8 0%,#fbe88c 62%,#f6de79 100%);
     padding:13px 15px 15px;transform:rotate(-1.2deg);transform-origin:top right;
@@ -133,10 +129,9 @@
      Pi goes 2 → 0, which is the visible proof that step 6's phosphate came from
      the cytosol and not from an ATP.
 
-     So only ONE of them is ever a button, and the styling now says so. An
+     So only ONE of them is ever a button, and the styling says so. An
      inactive pool is a plain readout with no card chrome at all; the card,
-     border, pulse and lift belong to the live one alone. They used to all be
-     bordered cards, which promised five actions and delivered one. */
+     border, pulse and lift belong to the live one alone. */
   /* A COLUMN ON THE LEFT, not a strip along the bottom. The bottom edge now
      belongs to the step caption, which needs the width; the pools do not — five
      short rows stack happily down the side, and a vertical list is closer to
@@ -144,12 +139,11 @@
   #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
-  /* A NAME, NOT AN INSTRUCTION. This used to read "click the highlighted
-     carrier", which was the same instruction the live tile's own "← Spend 1 ATP"
-     arrow already gives, three centimetres away and pointing at the thing to
-     click. So the line names the group instead — and being constant, it also
-     keeps the tray's height fixed, which is what the camera's left inset
-     (usable()) measures off. */
+  /* A NAME, NOT AN INSTRUCTION — the live tile's own "← Spend 1 ATP" arrow
+     already gives the instruction, three centimetres away and pointing at the
+     thing to click. So the line names the group instead — and being constant,
+     it also keeps the tray's height fixed, which is what the camera's left
+     inset (usable()) measures off. */
   .tcue{font-family:var(--font-sans);font-weight:600;font-size:11.5px;
     letter-spacing:.2px;color:var(--ink);opacity:.8;margin-bottom:5px;padding-left:2px}
   /* Named so the group cannot be misread as a toolbar. */
@@ -172,9 +166,9 @@
   .reag .rcount{grid-column:2;grid-row:1/span 2;
     font-family:var(--font-slab);font-weight:700;font-size:24px;line-height:1;
     color:var(--ink);font-variant-numeric:tabular-nums}
-  /* A pool at zero is MUTED, never hidden. It used to fade to --hair, which
-     erased the two numbers the lesson ends on: NAD⁺ 0 is why fermentation
-     exists, and Pi 0 is where step 6's phosphate went. */
+  /* A pool at zero is MUTED, never hidden — NAD⁺ 0 is why fermentation exists,
+     and Pi 0 is where step 6's phosphate went, so both numbers must stay
+     legible. */
   .reag.empty .rname,.reag.empty .rcount{color:var(--muted);opacity:.75}
 
   /* the reagent this step needs: the only card, and the only button */
@@ -183,7 +177,7 @@
   .reag.live:hover{transform:translateX(3px) scale(1.03)}
   @keyframes reagPulse{0%,100%{box-shadow:0 0 0 3px rgba(224,123,31,.14)}
     50%{box-shadow:0 0 0 8px rgba(224,123,31,.05)}}
-  /* the prompt points RIGHT at the column now, not down at a strip */
+  /* the prompt points RIGHT at the column, not down at a strip */
   .reag .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
     font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
   .reag.live .need{display:block}
@@ -368,11 +362,9 @@
   #massmodal .mnet span{font-family:var(--font-slab);font-weight:700;font-size:13px;
     letter-spacing:1px;text-transform:uppercase;text-align:center;
     transition:color .25s ease}
-  /* ΔE, AS A PICTURE AND A NUMBER. The captions kept saying one molecule "sits
-     below" another — free energy drawn as height, which is the convention the
-     side panel's coupled-reaction figure uses and which this box, all sideways
-     motion and no axis, never earned. So the two levels are drawn: literal for
-     the drop, flat for the flat step. Both the gap's label and the levels
+  /* ΔE, AS A PICTURE AND A NUMBER. Free energy is drawn as height, matching the
+     side panel's coupled-reaction figure — so the two levels are drawn: literal
+     for the drop, flat for the flat step. Both the gap's label and the levels
      themselves come from DROP at render time, never typed. */
   #massmodal .meq{display:flex;align-items:center;justify-content:center;gap:13px;
     margin-top:8px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
@@ -432,13 +424,11 @@
   /* one row per step, and the two bookend states either side of the ten */
   .rrow{display:flex;gap:12px;align-items:center;padding:4px 0;border-radius:5px}
   /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Rows are
-     named for what a step LEAVES behind, so the yellow band has to sit on the
-     step already run — otherwise it names a molecule that does not exist yet,
-     which is exactly how it read while these rows still named enzymes.
-     "Up next" is a separate, quieter state below it: an open ring on the dot,
-     full-strength text, no band. The negative margin lets the band bleed past
-     the row's text box without shifting any row, so nothing moves as the
-     highlight travels down. */
+     named for what a step LEAVES behind, so the yellow band sits on the step
+     already run. "Up next" is a separate, quieter state below it: an open ring
+     on the dot, full-strength text, no band. The negative margin lets the band
+     bleed past the row's text box without shifting any row, so nothing moves as
+     the highlight travels down. */
   /* perspective on the ROW, so the label's flip has depth to rotate through —
      a rotateX with no perspective is just a vertical squash. */
   .rrow{perspective:520px}
@@ -487,9 +477,7 @@
   .rrow.bookend .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);
     font-weight:700;font-size:11.5px;color:var(--muted);white-space:nowrap}
 
-  /* The card now holds ONE thing — the note panel — so it simply scrolls.
-     (It used to hold three paragraphs of stage prose above this, which is why
-     it needed the overflow juggling that sandbox.css's .cardtext does.) */
+  /* The card holds ONE thing — the note panel — so it simply scrolls. */
   #card{overflow-y:auto}
   #stepnote{padding-top:2px}
   #stepnote .nhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
@@ -499,15 +487,15 @@
   #stepnote .nhead.rev{color:var(--nad)}
   #stepnote .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
   /* the door to the mass-action demo. Sits under the reversibility verdict
-     because that is the claim it backs up — and since that verdict is now a
-     heading and nothing else, the link is the only explanation of it there is,
-     which is the point: the demo is the picture, and a paragraph was not. */
+     because that is the claim it backs up — the verdict is a heading and
+     nothing else, so the link is the only explanation of it there is: the demo
+     is the picture, and a paragraph is not. */
   #stepnote .minfo{font-family:var(--font-sans);font-weight:600;font-size:12px;
     letter-spacing:.2px;color:#4f5bd5;background:none;border:none;padding:0;
     cursor:pointer;text-decoration:underline;text-underline-offset:3px;
     text-decoration-thickness:1.5px;margin:-4px 0 9px}
-  /* ...but the -4px was pulling it up under a PARAGRAPH's line box. Straight
-     after a heading there is no descender to close up, so drop it. */
+  /* Straight after a heading there is no descender to close up, so the -4px
+     offset used elsewhere is dropped here. */
   #stepnote .nhead + .minfo{margin-top:0}
   #stepnote .minfo:hover{color:#7b3fe4}
   #stepnote .nbody:last-child{margin-bottom:0}
@@ -597,19 +585,17 @@
     .reag{width:116px;padding:3px 7px}
     .reag .rcount{font-size:19px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
-    /* Stacked, three doors are taller than the whole stage and simply buried
-       the two pyruvate. So down here the fork stays a ROW and scrolls
-       sideways instead — one short band above the caption, molecules intact. */
+    /* Three doors stacked would be taller than the whole stage and bury the two
+       pyruvate, so down here the fork stays a ROW and scrolls sideways instead
+       — one short band above the caption, molecules intact. */
     #fork{flex-direction:row;bottom:156px;gap:8px;
       max-width:94%;overflow-x:auto;padding:2px 0}
     #fork .door{width:176px;flex:none;padding:9px 11px}
     #fork .door .dh{font-size:12.5px}
     /* PNG joins Restart in the top-right rather than holding the bottom-left
-       corner: down here the caption band spans nearly the full width, and the
-       40px it was costing is exactly what the fork needs to clear the lanes. */
+       corner: down here the caption band spans nearly the full width, and that
+       is exactly the space the fork needs to clear the lanes. */
     #savepng{left:auto;right:146px;top:22px;bottom:auto;padding:5px 12px;font-size:12px}
-    /* the caption band spans nearly the full width down here, so lift it clear
-       of the PNG chip in the bottom-left corner */
     #bottombar{bottom:18px}
     #fork .door .db{font-size:12px}
   }
@@ -701,9 +687,9 @@
  *
  *  AUDIENCE: introductory college biology (Bio 101), not AP. That is a content
  *  decision, not a styling one, and it is why this page runs all TEN canonical
- *  steps rather than the five-event summary it used to. An intro college course
- *  holds students to the enzymes, to PFK-1 as the regulated committed step, and
- *  to why a phosphate can charge ADP at steps 7 and 10 but not at step 8.
+ *  steps: an intro college course holds students to the enzymes, to PFK-1 as
+ *  the regulated committed step, and to why a phosphate can charge ADP at
+ *  steps 7 and 10 but not at step 8.
  *
  *  THE FIVE STAGES SURVIVE AS GROUPING, NOT AS CONTENT. Ten clicks with no
  *  structure is a list; the five stages are what make the ARC legible — spend 2,
@@ -731,7 +717,7 @@
 const canvas=document.getElementById('gl');
 let userZoom=false;
 // The opening angle, kept as a constant because restart returns the camera to
-// it. Nothing else moves theta — the stage no longer turns on its own.
+// it. Nothing else moves theta — the stage does not turn on its own.
 const OPEN_THETA=0.10;
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   // Orthographic: this stage lays molecules out in parallel lanes, and under
@@ -755,10 +741,8 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const POOL0={ATP:4, ADP:4, NAD:2, NADH:0, Pi:2};
 
 // `sub` says what the MOLECULE is, never what the pathway has done — the number
-// above it is a pool, not a running total. ATP and ADP used to read "energy
-// spent" and "energy made", which are the ledger's two rows: the tray ended
-// showing "ATP 6 · ENERGY SPENT" when 2 had been spent, contradicting the
-// ledger directly above it on the one number this page exists to land.
+// above it is a pool, not a running total. Labels like "energy spent"/"energy
+// made" would duplicate, and could contradict, the ledger's own rows.
 // Charged/discharged also puts ATP:ADP in the same shape as NAD⁺:NADH, which is
 // the analogy worth having — both are carriers that cycle, not fuels consumed.
 const REAGENTS=[
@@ -841,13 +825,9 @@ const STEPS=[
 // bookkeeping change students should be able to recite for each one, and it is
 // printed on the rail.
 //
-// THE STAGES CARRY NO PROSE ANY MORE. Each used to own three paragraphs in the
-// side panel, and laid against the ten step captions almost every sentence was
-// already being said twice — the caption for step 6 and the body of stage 3
-// made the same three points, one of them while the student was looking at the
-// molecule and the other while they were not. A wall of text next to a
-// simulation is text nobody reads. So the bodies are gone and the five facts
-// that were NOT duplicated moved to where they are actually needed:
+// THE STAGES CARRY NO PROSE. A wall of text next to a simulation is text
+// nobody reads, and it would say the same things as the ten step captions. The
+// five facts that a caption doesn't already carry live where they're needed:
 //
 //   cytosol · no oxygen · universal    → the intro caption (captionAt)
 //   the charge traps the sugar in the cell → step 1's caption
@@ -872,12 +852,11 @@ const STAGES=[
 // true; a step moved between stages re-blocks the rail on its own.
 const stageSteps=n=>STEPS.filter(s=>s.stage===n);
 
-// A STAGE'S DELTA IS A RECORD, NOT A PROMISE. All six used to print from the
-// first frame, so "net +2 ATP" sat on the rail before a single ATP had been
-// spent — the rail gave away the exact number the ledger exists to reveal, and
-// the dip below zero stopped being a surprise. A delta now appears only once
-// its stage's steps are actually done. Stage 0 is the exception: "6 C" is a
-// statement about the molecule already on screen, not a result to come.
+// A STAGE'S DELTA IS A RECORD, NOT A PROMISE — it appears only once its
+// stage's steps are actually done, so the rail never gives away a number
+// (e.g. "net +2 ATP") before it's earned; the dip below zero has to stay a
+// surprise. Stage 0 is the exception: "6 C" is a statement about the molecule
+// already on screen, not a result to come.
 const stageComplete=n=>{
   const k=stageSteps(n);
   if(!k.length) return n===0 || done>=nSteps;      // the two bookends
@@ -929,10 +908,9 @@ const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+M[k].gly.carbons,0);
 
 // WHAT A STEP LEAVES ON THE STAGE, named the way the plate names it — this is
 // the rail's label, so a numbered row and the molecule under that number are
-// the same word. (The rows used to name the ENZYME, which meant nothing in the
-// sidebar ever matched anything on the stage.) The `2 ×` is not decoration: it
-// is where the rail says out loud that everything after the split happens
-// twice, which the two lanes show and no other text stated.
+// the same word. The `2 ×` is not decoration: it is where the rail says out
+// loud that everything after the split happens twice, which the two lanes
+// show and no other text states.
 //
 // SYSTEMATIC NAME, NOT THE ABBREVIATION. The rail is where a student reads the
 // pathway top to bottom, and "F1,6-BP" only means something once you already
@@ -952,26 +930,21 @@ const LANE=5.6;                               // half-separation of the two lane
 let lanes=[];                                 // [{g, key, label}] left→right
 let busy=false;                               // a transition is animating
 
-// SPECIES NAMES ARE HTML, NOT SPRITES. They used to be canvas textures
-// billboarded in the scene, so they would follow the molecule on orbit for
-// free. The cost was everything else: text resampled at every zoom, the webfont
-// baked into a texture (so the first paint had to be thrown away and redrawn
-// once the font landed), no selecting or copying a name, and a label whose size
-// was tied to the camera rather than to the page's type scale.
-//
-// So they are DOM now, and the tracking that came free is paid for explicitly:
-// every frame, each lane's anchor point is projected through the camera and the
-// label is positioned over it (drawPlates, called from the render loop). That
-// is the one thing that must not be dropped — an HTML label that is not
-// re-projected drifts off its molecule the moment the scene rotates.
+// SPECIES NAMES ARE DOM ELEMENTS, NOT CANVAS SPRITES — text stays sharp at any
+// zoom, a name can be selected or copied, and its size is tied to the page's
+// type scale rather than to the camera. The tracking a sprite would give for
+// free is paid for explicitly instead: every frame, each lane's anchor point is
+// projected through the camera and the label is positioned over it (drawPlates,
+// called from the render loop). That is the one thing that must not be dropped
+// — an HTML label that is not re-projected drifts off its molecule the moment
+// the scene rotates.
 const platesEl=document.getElementById('plates');
 // EVERY MOLECULE HAS TWO NAMES AND BOTH ARE ON SCREEN. The plate carries the
 // systematic name; the coupling figure in the side panel carries the
-// abbreviation a student actually writes ("F1,6-BP"). Both now come from the
-// spec's `name`/`short`, so the two never disagree about what a molecule is
-// called — they used to, because the figure's names were typed into STEPS.
-// The plate falls back to the abbreviation when the systematic name will not
-// fit the space between the lanes; see drawPlates.
+// abbreviation a student actually writes ("F1,6-BP"). Both come from the
+// spec's `name`/`short`, so the two can't disagree about what a molecule is
+// called. The plate falls back to the abbreviation when the systematic name
+// will not fit the space between the lanes; see drawPlates.
 function makePlate(spec){
   const d=document.createElement('div');
   d.className='plate';
@@ -999,11 +972,11 @@ function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
 // glucose's name plate up and widen the shared camera fit.
 // EVERY MEASUREMENT BELOW HAPPENS IN THE ORIENTATION THE MOLECULE IS BUILT IN.
 // Stage.buildMolecule applies `spec.view` AFTER laying the atoms out, and
-// Stage.measure re-applies it before measuring for precisely this reason. This
-// page's fit used to read `a.pos[1]` raw — fine for the pathway's chains, which
-// declare no view, and wrong for glucose, the one spec here that does: the page
-// opened framed for a molecule in an orientation it is never drawn in, so the
-// ring hung off two edges and the name plate landed on top of it.
+// Stage.measure re-applies it before measuring for precisely this reason:
+// reading `a.pos[1]` raw is fine for the pathway's chains, which declare no
+// view, but wrong for any spec that does (glucose is the one here) — the
+// molecule would be measured in an orientation it is never drawn in, so the
+// ring hangs off two edges and the name plate lands on top of it.
 const viewQuat=spec=>spec.view
   ? new THREE.Quaternion().setFromEuler(
       new THREE.Euler(spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'))
@@ -1056,9 +1029,8 @@ function clearLanes(){
 }
 
 // The world point a lane's label is pinned above. `topY` is shared across the
-// lanes rather than derived per molecule: DHAP carries its phosphate on C1 and
-// G3P on C3, so per-molecule anchors differed by 3.3 units and the two labels
-// sat at visibly different heights — which reads as "these are different sizes".
+// lanes for the same reason spawnLane takes it as a parameter rather than
+// deriving it per molecule — see the note there.
 const PLATE_GAP=0.8;
 const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP;
 
@@ -1075,10 +1047,9 @@ function drawPlates(){
     projV.set(l.g.position.x, l.topY, 0).project(camera);
     return {x:(projV.x*0.5+0.5)*w, y:(-projV.y*0.5+0.5)*h};
   });
-  // A LABEL'S WIDTH IS IN PIXELS AND THE LANES' SEPARATION IS NOT. Back when
-  // these were sprites both scaled together, so two lanes could never collide;
-  // a DOM label keeps its width as the camera pulls back, so on a narrow stage
-  // the two names ran straight through each other. Give each one the space
+  // A LABEL'S WIDTH IS IN PIXELS AND THE LANES' SEPARATION IS NOT — a DOM label
+  // keeps its width as the camera pulls back, so on a narrow stage the two
+  // names can run straight through each other. Give each one the space
   // actually between the lanes and let a long name wrap instead of overlapping.
   const budget = xs.length>1
     ? Math.max(90, Math.abs(xs[1].x-xs[0].x)-PLATE_GAP_PX_X)
@@ -1161,11 +1132,12 @@ function fitFor(states){
     Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp*u.h))*1.14));
   // Vertically, centre the molecule in the band between the label strip and the
   // bottom bar by DROPPING THE TARGET rather than insetting both edges —
-  // charging the fit twice for one obstructed edge shrank the stacked layout to
-  // a speck. Horizontally there is no equivalent shift: offsetting the target
-  // sideways would swing the molecule off-centre as the camera orbits, since
-  // that offset lives in world space and rotates with theta. The vertical shift
-  // is safe precisely because Y is the orbit axis. So left and right take a
+  // insetting both would double-charge the fit for one obstructed edge and
+  // shrink the layout to a speck. Horizontally there is no equivalent shift:
+  // offsetting the target sideways would swing the molecule off-centre as the
+  // camera orbits, since that offset lives in world space and rotates with
+  // theta. The vertical shift is safe precisely because Y is the orbit axis.
+  // So left and right take a
   // symmetric inset instead — see usable().
   return { Y: Y - u.shift*R*HALF_FOV, R };
 }
@@ -1244,15 +1216,13 @@ const anchorWorld=(l,which)=>{
 };
 
 /* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
-// TIMERS, NOT FRAMES, ADVANCE THE LESSON.
-// requestAnimationFrame stops entirely in a backgrounded tab (README says so, and
-// document.hidden confirmed it). The first version of this page completed each
-// transition from INSIDE the fly animation's rAF callback — so switching tabs
-// mid-step left `busy` stuck true forever, the tray permanently dark and the
-// lesson unrecoverable without a reload. So: setTimeout owns every state change
-// (it still fires while hidden), and rAF owns only the pixels. Worst case a
-// hidden tab skips the animation and the student comes back to the finished step,
-// which is exactly the right failure mode.
+// TIMERS, NOT FRAMES, ADVANCE THE LESSON. requestAnimationFrame stops entirely
+// in a backgrounded tab, so setTimeout owns every state change (it still fires
+// while hidden) and rAF owns only the pixels — completing a transition from
+// inside a rAF callback would leave `busy` stuck true in a hidden tab, the tray
+// permanently dark and the lesson unrecoverable without a reload. Worst case a
+// hidden tab skips the animation and the student comes back to the finished
+// step, which is the right failure mode.
 let timers=[];
 const later=(fn,ms)=>{ timers.push(setTimeout(fn,ms)); };
 const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[]; };
@@ -1390,11 +1360,8 @@ const rxmsgEl=document.getElementById('rxmsg');
 // THE CAPTION IS DERIVED, like everything else here: it is the message of the
 // step that PRODUCED the state now on screen. That is what makes rewinding work
 // — the caption for step 6 reappears when you step back onto it, without
-// anything having to remember which toast was last fired. It used to be pushed
-// imperatively by runStep and then expire on a timer, which meant a rewound
-// state showed either the wrong sentence or none.
-// The intro gets the band too — it was sitting empty, and the orientation the
-// stage-0 body used to carry is exactly one sentence long.
+// anything having to remember which toast was last fired. The intro gets the
+// band too, with a one-sentence orientation to glucose.
 const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
   +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
 const captionAt=i=>intro ? INTRO_MSG : (i>0 ? STEPS[i-1].msg : '');
@@ -1459,13 +1426,6 @@ function drawTray(){
 }
 
 const actEl=document.getElementById('actbtn');
-// LEAVING THE INTRO. The ripple runs first and the state swaps under its tail,
-// so the Begin blob is still on screen while it expands — swapping immediately
-// would re-render the button out from under the animation on the same frame it
-// started. BURST_MS is shorter than the .62s ripple on purpose: the last stretch
-// is nearly transparent, and waiting it out just makes the click feel slow.
-// setTimeout, not a transitionend, for the reason every other beat here uses one
-// — a backgrounded tab must still arrive at step 1 (see the note on `later`).
 const BURST_MS=380;
 const pulseEl=document.getElementById('stagepulse');
 let pressing=false;
@@ -1517,9 +1477,8 @@ function drawAct(){
   if(!st || busy){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
   actEl.style.visibility='visible';
   // THE ENZYME IS THE MAIN TEXT, on every step and on Begin — the enzyme is what
-  // starts the reaction, so it is what you press. The action it performs drops to
-  // the hint line, in one short phrase; the second clause each step used to carry
-  // there (`actNote`) is gone, because a button is not where a lesson goes.
+  // starts the reaction, so it is what you press. The action it performs drops
+  // to the hint line, in one short phrase — a button is not where a lesson goes.
   if(st.reagent){
     // A REAGENT STEP HAS NO BUTTON — the click belongs on the reagent, which is
     // the lesson (you cannot phosphorylate anything without spending an ATP).
@@ -1606,16 +1565,14 @@ function drawRail(){
     steps.forEach(st=>{
       const idx=STEPS.indexOf(st);
       // `cur` IS THE STEP ABOUT TO RUN, which is what "where am I" means on a
-      // rail you drive. It used to be done-1, the step that produced what is on
-      // the stage, on the reasoning that the row is named for that product —
-      // coherent for a list of molecules, and wrong for everything else on
-      // screen: the action button names the NEXT enzyme, the side panel draws
-      // the NEXT step's coupling, and the stage headings on this very rail
-      // highlight stageAt(done), the next step's stage. So at step 4 the rail
-      // could show "The split" as the current stage with the yellow row still
-      // sitting in "Priming" — the rail disagreeing with itself.
+      // rail you drive. Using done-1 (the step that produced what's on the
+      // stage) would make this row alone lag behind everything else on screen:
+      // the action button names the NEXT enzyme, the side panel draws the NEXT
+      // step's coupling, and this rail's own stage headings highlight
+      // stageAt(done), the next step's stage — done-1 would let the rail
+      // disagree with itself.
       //
-      // The cost is that the highlighted row now names a molecule that does not
+      // The cost is that the highlighted row names a molecule that does not
       // exist yet. The dot carries the step number and the button carries the
       // enzyme, so the row reads as the thing you are about to make, which is
       // the same tense as everything it sits beside.
@@ -1653,15 +1610,10 @@ const titleEl=document.querySelector('#brand h1');
 // read out of the markup rather than typed again here, so the lesson is named
 // in exactly one place and the page still says "Glycolysis" with JS switched off
 const LESSON=titleEl.textContent.trim();
-// THE PAGE HAS ONE TITLE AND IT IS THE STAGE. Four things have been taken off
-// this heading in turn, each because something else on screen already said it:
-// a "Stage 2 of 5 \u00b7 Step 4 of 10" eyebrow (the rail, in words), a coloured
-// phase pill (which read "The split" directly under a heading reading "The
-// split"), a "Next enzyme: \u2026" line (the action button names it), and the
-// three-paragraph stage body \u2014 see the note on STAGES. What was left was a
-// lone word at the top of the sidebar, duplicating the chrome of a heading the
-// stage already had. So it moved into #brand: before the pathway starts the h1
-// names the LESSON, and from the first step on it names the stage.
+// THE PAGE HAS ONE TITLE AND IT IS THE STAGE \u2014 nothing else on screen repeats
+// it: the rail states progress in words, the action button names the next
+// enzyme, and STAGES carries no prose (see its note). Before the pathway
+// starts the h1 names the LESSON; from the first step on it names the stage.
 function drawTitle(){
   titleEl.textContent = stageAt(done)===0 ? LESSON : STAGES[stageAt(done)].title;
 }
@@ -1694,9 +1646,7 @@ const irrevSteps=()=>STEPS.filter(s=>s.rev===false);
  */
 // The figure's two species names are READ OFF THE MOLECULES, not typed into the
 // step: `from` is whatever is standing in the lanes before the step runs, `to`
-// is what the step leaves there, and both are the spec's own `short`. They used
-// to be two strings in STEPS, which is how the panel came to call a molecule
-// "F1,6-BP" while the plate over it read "Fructose-1,6-bisphosphate" — a name
+// is what the step leaves there, and both are the spec's own `short` — a name
 // typed in a second place is a name that can disagree with the molecule.
 // `plus` is for the one step that consumes a second substrate (step 6's Pi);
 // nothing else on the pathway takes two.
@@ -1781,10 +1731,9 @@ function coupleCurve(c){
          hides it completely and the figure looks like one curve that forks. -->
     <path class="rc with"  d="${trace(start,endWith)}"/>
     <path class="rc alone" d="${trace(start,endAlone)}"/>
-    <!-- ABOVE the trace it names, right-aligned to where the trace ends. These
-         used to sit after the line at x=270 and ran straight off a 300-wide
-         viewBox — "on its own" rendered as "on its o". There is no room to the
-         RIGHT of a trace that already runs to x=266, so the label goes over it. -->
+    <!-- ABOVE the trace it names, right-aligned to where the trace ends — there
+         is no room to the RIGHT of a trace that already runs to x=266, so the
+         label goes over it. -->
     <text class="et alone" x="266" y="${endAlone-7}" text-anchor="end">on its own</text>
     <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">with ${c.up?c.cin:c.cout}</text>
   </svg>`;
@@ -1849,10 +1798,9 @@ function drawNote(){
     // Reversibility is stated per step because it is the property that decides
     // which steps CAN be regulated — a near-equilibrium step run backwards is
     // just the same enzyme, so controlling it controls nothing.
-    // THE VERDICT IS THE HEADING, AND NOTHING ELSE. The paragraph under it was
-    // explaining a claim the modal one click away actually demonstrates, on a
-    // card the student is reading while the molecule waits — so it is a label
-    // now, and the link is the way in.
+    // THE VERDICT IS THE HEADING, AND NOTHING ELSE — the modal one click away
+    // demonstrates the claim, so a paragraph here would only repeat it while
+    // the molecule waits. The link is the way in.
     noteEl.innerHTML = fig + (st.rev===false
       ? `<div class="nhead irr">Irreversible in the cell</div>`
       : `<div class="nhead rev">Near equilibrium — reversible</div>`)
@@ -1879,12 +1827,9 @@ function drawNote(){
  *  That counter is the whole demo; a student watching the split settle assumes
  *  the reaction stopped, and it has not.
  *
- *  AND THE SECOND TAB EARNS ITS OWN ANSWER. "The reverse barely happens" was a
- *  stipulation until the molecules carried energy: the reverse rate was typed in
- *  at 1/200, so the picture explaining why contained no energy to look at. Now a
- *  molecule reacts when it is holding enough to clear the barrier, energies come
- *  from the thermal distribution, and speed and glow both track them — so the
- *  rare pyruvate that does make it back is visibly one of the fast ones.
+ *  AND THE SECOND TAB EARNS ITS OWN ANSWER: a molecule reacts when it is
+ *  holding enough energy to clear the barrier (see the ENERGY comment below),
+ *  so the rare pyruvate that does make it back is visibly one of the fast ones.
  *
  *  WHAT IS SIMPLIFIED, deliberately and visibly (see MolecularGeometry.md §1.4's
  *  rule about explicit exaggerations):
@@ -1941,15 +1886,9 @@ const Mass=(()=>{
   // The enzyme is dissolved in the same solution they are.
   const SITES=[[.22,.30],[.50,.62],[.78,.28],[.36,.76],[.68,.84]], SITE_R=30;
   // ---- ENERGY, IN UNITS OF kT --------------------------------------------
-  // THE REVERSE RATE IS NOT TYPED IN ANY MORE. It used to be: forward 0.55 per
-  // encounter, backward the same on a flat step and 0.55/200 on a drop. Both
-  // numbers were stipulations, so the demo asserted the very thing a student
-  // comes to it confused about — WHY the reverse is rare — while containing no
-  // energy for them to see.
-  //
-  // Now each molecule carries an energy, re-drawn from random jostling, and a
+  // Each molecule carries an energy, re-drawn from random jostling, and a
   // reaction happens when the molecule that arrives is holding enough to clear
-  // the barrier. Two consequences fall out instead of being declared:
+  // the barrier. Two consequences fall out of that instead of being declared:
   //   · Energies are exponentially distributed, so a barrier twice as tall is
   //     not half as often cleared — it is exponentially rarer. That steepness is
   //     the whole reason "a bit further downhill" becomes "essentially never".
@@ -1958,9 +1897,9 @@ const Mass=(()=>{
   //     reaction and not to the enzyme. Lowering EA speeds both ways at once,
   //     which is exactly the thing a catalyst is allowed to do.
   //
-  // P(E >= x) = exp(-x) for an exponential with mean kT, so the old numbers come
-  // back out of these two: exp(-EA) = 0.55 per forward encounter, and the drop
-  // step's reverse is exp(-DROP) = 1/200 of that.
+  // P(E >= x) = exp(-x) for an exponential with mean kT: exp(-EA) = 0.55 per
+  // forward encounter, and the drop step's reverse is exp(-DROP) = 1/200 of
+  // that.
   const EA=0.6;                                  // barrier, both directions
   const DROP={ flat:0, drop:Math.log(200) };     // how much further downhill
   // How often a molecule gets re-jostled into a new energy. Real collisions are
@@ -2070,18 +2009,14 @@ const Mass=(()=>{
     SITES.forEach(s=>ctx.fillText('enzyme', s[0]*w, s[1]*h+SITE_R+11));
     const drop=DROP[mode];
     parts.forEach(p=>{
-      // TWO CHANNELS, AND THEY SAY DIFFERENT THINGS.
+      // TWO CHANNELS
       //   speed — how much energy this molecule has, plainly
       //   glow  — whether that is ENOUGH, measured against the barrier IT faces,
       //           which is EA forward and EA+DROP back
-      // The glow used to be a second reading of raw energy, keyed to a threshold
-      // that matched neither barrier: it lit at E>1 while the forward barrier is
-      // 0.6, and saturated at 3.6 while the drop step's reverse barrier is 5.9.
-      // So the caption said "watch the glow for a pyruvate that could climb
-      // back" and the glow topped out long before that energy. Now glowing means
-      // exactly one thing — this one will react if it reaches an enzyme — which
-      // is why blue dots glow constantly on the drop tab and violet ones almost
-      // never do. That contrast IS the lesson, visible without reading anything.
+      // Glowing means exactly one thing — this one will react if it reaches an
+      // enzyme — which is why blue dots glow constantly on the drop tab and
+      // violet ones almost never do. That contrast IS the lesson, visible
+      // without reading anything.
       const thr=EA+(p.t===0?0:drop);
       const over=p.e/thr;
       if(over>=1){
@@ -2324,13 +2259,12 @@ requestAnimationFrame(loop);
 new ResizeObserver(computeFit).observe(canvas);
 // The labels are DOM, so the webfont swaps into them on its own — but their
 // HEIGHT is chrome the fit reserves, and that height changes when the real font
-// replaces the fallback. So re-solve once the font lands. (This used to redraw
-// the whole scene, because the font had been baked into a canvas texture.)
+// replaces the fallback. So re-solve once the font lands.
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(computeFit);
 
 document.getElementById('savepng').onclick=()=>{
   renderer.render(scene,camera);
-  // The species labels are DOM now, so they are NOT in the WebGL buffer and a
+  // The species labels are DOM, so they are NOT in the WebGL buffer and a
   // straight canvas.toDataURL() would export unnamed molecules. Composite them
   // back in from the same projected anchors drawPlates() uses. This is the one
   // place canvas text survives, and it is worth the duplication: an export that
