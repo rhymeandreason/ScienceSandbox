@@ -11,18 +11,26 @@
 <style>
   :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a; }
 
-  /* Scoped to the WIDE layout on purpose: sandbox.css stacks the page below
-     920px with `grid-template-rows: 56vh 1fr`, and applying this single-row
-     override there would starve the stage down to a sliver. */
+  /* TWO ROWS, TWO COLUMNS: the rail spans the top, the stage takes the width
+     that is left, and the readouts stack down the right. The stage is the
+     widest thing on the page because the molecules are the lesson — the rail
+     went horizontal to give it that width back. */
   @media (min-width:921px){
-    #app{grid-template-rows:minmax(0,1fr)}
+    #app{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
+    #railbar{grid-column:1 / -1}
+    #stage{grid-column:1;grid-row:2}
+    #side{grid-column:2;grid-row:2}
   }
   #stage,#side{min-height:0}
   /* The whole sidebar scrolls as one column — rail, ledger and note together —
      so no piece has to be sized to fit a fixed height. */
   /* No top padding: the ledger is sticky and flush to the top edge, so nothing
-     scrolls through a gap above it. */
-  #side{overflow-y:auto; background-image:none; padding-top:0}
+     scrolls through a gap above it. No grid paper, no torn edge and no cast
+     shadow either — these are readouts sitting beside the stage, not a second
+     document competing with it. */
+  #side{overflow-y:auto; background-image:none; background:var(--paper);
+    padding:0 20px 30px; box-shadow:none; border-left:1px solid var(--hair)}
+  #side::before{display:none}
   #card{min-height:0}
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
@@ -125,15 +133,13 @@
   #ledger .bump{animation:bump .7s ease}
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
 
-  /* ---------- the coupling box, RIGHT EDGE of the stage ----------
-     The mechanism of the step the student is about to run, beside the molecule
-     it happens to — not in the sidebar, where it was one more block of panel
-     text. A framed card like #fork .door, because it is about the stage; the
-     ledger's post-it is a tally and reads differently on purpose.
-     Its contents are the #stepnote styles (.nhead, .nbody, .cpl, .ftabs),
-     which is why those selectors are scoped to both boxes. */
-  #couplebox{position:absolute;right:26px;top:74px;z-index:6;width:262px;
-    display:none;padding:13px 15px 14px;background:rgba(255,255,255,.86);
+  /* ---------- the coupling box, under the ledger ----------
+     The step's energy picture. A framed card rather than more panel text,
+     because it is a figure and it changes with every step — it should read as
+     an instrument, the way the ledger's post-it reads as a tally.
+     Its contents are the shared `.note` styles (.nhead, .nbody, .cpl, .ftabs). */
+  #couplebox{display:none;margin:0 0 16px;padding:12px 14px 13px;
+    background:rgba(255,255,255,.86);
     border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
     box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
   #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
@@ -416,48 +422,64 @@
     #massmodal .mrow{flex-wrap:wrap}
   }
 
-  /* ---------- right panel ---------- */
-  /* PATHWAY RAIL — the ten steps, blocked into the five stages.
+  /* ---------- PATHWAY RAIL, across the top ----------
+     The ten steps, blocked into the five stages, read LEFT TO RIGHT — which is
+     the direction a pathway runs and the reason the stage got its width back.
      The DOTS carry the canonical step numbers 1–10, so the rail lines up with
      the numbering every textbook and lecture uses. The stages are block
      HEADINGS over them, not a second numbered sequence competing with it: two
      numberings on one rail meant "3" could mean step 3 or stage 3, and the one
-     a student can check against their book is the step. */
-  #rail{display:flex;flex-direction:column;gap:0;margin:6px 0 16px}
+     a student can check against their book is the step.
+
+     A step is still a ROW — number then name, the way it reads — but the ten
+     rows are dealt into five stacks, one under each stage heading, and the
+     stacks sit side by side. That is what the horizontal rail buys: the
+     pathway advances left to right by STAGE and down by step, so the blocking
+     is visible in the shape rather than only in the headings. */
+  #railbar{display:flex;align-items:stretch;padding:10px 22px 8px;
+    background:var(--paper);border-bottom:1px solid var(--hair);
+    box-shadow:0 6px 16px -14px rgba(0,0,0,.5);z-index:7}
+  /* the rail scrolls sideways rather than wrapping: a wrapped pathway stops
+     reading as one sequence, and below the breakpoint there is no width for it */
+  #rail{flex:1;min-width:0;display:flex;align-items:flex-start;gap:0;
+    overflow-x:auto;overflow-y:hidden}
+  /* one group per stage: its heading, then its steps stacked under it. Equal
+     widths, so the five stacks read as five columns and no stage's label
+     length decides how much room the next one gets. */
+  .rstage{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;
+    padding:0 14px;border-left:1px solid rgba(0,0,0,.09)}
+  .rstage:first-child{border-left:none;padding-left:0}
+  .rsteps{display:flex;flex-direction:column;gap:1px}
 
   /* block heading: stage name + the bookkeeping delta it is responsible for */
-  /* Sixteen rows is the whole pathway on screen at once, which is the point —
-     but it is also the tallest this panel gets, and the card underneath is what
-     pays for it. Padding here is deliberately tight for that reason. */
-  .rblock{display:flex;align-items:baseline;gap:10px;cursor:pointer;
-    padding:9px 0 3px;border-top:1px solid rgba(0,0,0,.07)}
-  .rblock:first-child{border-top:none}
-  .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:11px;
-    letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
-  .rblock .bd{margin-left:auto;font-family:var(--font-slab);font-weight:700;
-    font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .rblock{display:flex;align-items:baseline;gap:8px;cursor:pointer;padding:0 2px}
+  .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:10px;
+    letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .rblock .bd{font-family:var(--font-slab);font-weight:700;
+    font-size:10.5px;color:var(--muted);white-space:nowrap}
   .rblock.cur .bt,.rblock.cur .bd{color:var(--phos)}
-  .rblock.future{}
+  /* reserved, not absent — see drawRail */
+  .rblock .bd.off,.rrow .rdelta.off{visibility:hidden}
 
   /* one row per step, and the two bookend states either side of the ten */
-  .rrow{display:flex;gap:12px;align-items:center;padding:4px 0;border-radius:5px}
-  /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Rows are
-     named for what a step LEAVES behind, so the yellow band sits on the step
-     already run. "Up next" is a separate, quieter state below it: an open ring
-     on the dot, full-strength text, no band. The negative margin lets the band
-     bleed past the row's text box without shifting any row, so nothing moves as
-     the highlight travels down. */
+  .rrow{display:flex;align-items:center;gap:8px;
+    padding:2px 5px;border-radius:6px}
+  /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Steps are
+     named for what they LEAVE behind, so the yellow band sits on the step
+     already run. "Up next" is a separate, quieter state beside it: an open ring
+     on the dot, full-strength text, no band. */
   /* perspective on the ROW, so the label's flip has depth to rotate through —
      a rotateX with no perspective is just a vertical squash. */
   .rrow{perspective:520px}
-  .rrow .rlab.eq{font-size:12px;letter-spacing:-.1px}
-  /* the unrun step's placeholder: holds the row's height and reads as "not yet"
-     rather than as a row that failed to render */
+  .rrow .rlab.eq{font-size:11px;letter-spacing:-.1px}
+  /* the unrun step's placeholder: holds the row's height and reads as "not
+     yet" rather than as a step that failed to render */
   .rrow .rlab.veiled{position:relative}
-  .rrow .rlab.veiled::before{content:'';position:absolute;left:0;top:calc(50% - 1px);
-    width:46px;height:2px;border-radius:1px;
+  .rrow .rlab.veiled::before{content:'';position:absolute;left:0;
+    top:calc(50% - 1px);
+    width:34px;height:2px;border-radius:1px;
     background:repeating-linear-gradient(90deg,var(--hair) 0 6px,transparent 6px 11px)}
-  .rrow .rlab .arw{color:var(--muted);padding:0 5px;font-weight:400}
+  .rrow .rlab .arw{color:var(--muted);padding:0 3px;font-weight:400}
   /* Played on a freshly built element, not transitioned: drawRail replaces
      every row on every refresh, so there is no previous state to ease from. */
   .rrow.flip .rlab{animation:rlabflip .5s cubic-bezier(.2,.9,.3,1);
@@ -467,8 +489,7 @@
     55% {opacity:1}
     100%{transform:none;opacity:1}}
   @media (prefers-reduced-motion:reduce){ .rrow.flip .rlab{animation:none} }
-  .rrow.cur{background:rgba(245,196,54,.34);
-    margin:0 -8px;padding-left:8px;padding-right:8px}
+  .rrow.cur{background:rgba(245,196,54,.34)}
   .rrow .rdot{flex:none;width:21px;height:21px;border-radius:50%;
     border:2px solid var(--hair);background:var(--panel);
     font-family:var(--font-slab);font-weight:700;font-size:11.5px;
@@ -479,21 +500,30 @@
   /* the active step's dot is HOLLOW — it has not run. Filled means done. */
   .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
     box-shadow:0 0 0 3px rgba(43,39,35,.1)}
-  .rrow .rlab{font-family:var(--font-sans);font-size:14px;color:var(--muted);line-height:1.25}
+  /* ONE LINE, NEVER TWO. The rail is a GRID ROW, so a label that wrapped would
+     change the stage's height and move the camera under it — and every label
+     here is an abbreviation chosen to fit. The stacks are equal-width, so the
+     longest of them (step 4's equation) is what sets the rail's width. */
+  .rrow .rlab{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+    line-height:1.35;white-space:nowrap;min-height:17px}
   .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
   .rrow.cur .rlab{font-weight:600}
   /* only a COMPLETED row rewinds — the active one is where you already are */
   .rrow.done{cursor:pointer}
   .rrow.done:hover .rlab{color:var(--phos)}
   .rrow.future{opacity:.5}
-  /* the one-way marker. Only three steps carry it, and that is the lesson. */
-  .rrow .rirr{margin-left:auto;flex:none;font-size:14px;color:var(--phos);opacity:.75}
+  /* the one-way marker. Only three steps carry it, and that is the lesson.
+     It follows the label rather than hanging off the stack's right edge —
+     the stacks are equal-width, so an edge-hung marker floats far from the
+     step it belongs to. */
+  .rrow .rdotwrap{flex:none;display:flex;align-items:center}
+  .rrow .rirr{flex:none;padding-left:6px;
+    font-size:13px;line-height:1;color:var(--phos);opacity:.75}
   /* bookends carry no step number, because they are not steps */
-  .rrow.bookend{padding:8px 8px;border-top:1px solid rgba(0,0,0,.07)}
-  .rrow.bookend:first-child{border-top:none}
+  .rrow.bookend .rlab{white-space:normal}
   .rrow.bookend .rlab{font-weight:600}
-  .rrow.bookend .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);
-    font-weight:700;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .rrow.bookend .rdelta{font-family:var(--font-slab);
+    font-weight:700;font-size:10.5px;color:var(--muted);white-space:nowrap}
 
   /* The sidebar scrolls, not the card. */
   #card{overflow:visible;flex:none}
@@ -596,16 +626,15 @@
   #fork .door .db{font-family:var(--font-sans);font-size:12.5px;line-height:1.45;color:#5a5346}
 
   @media (max-width:920px){
-    /* The stacked stage is far too short to carry a full-height column down one
-       side and a card down the other, so the two readouts shrink and hug the
-       top corners, under the brand and Restart. */
+    /* Stacked: rail on top, stage, then the readouts under it. The rail keeps
+       its sideways scroll, which is what makes it survive a phone at all. */
+    #app{grid-template-rows:auto 52vh 1fr}
+    #railbar{grid-column:1;padding:10px 14px 8px}
+    #side{padding:0 16px 24px}
     #ledger{padding:9px 12px}
     #ledger .row{font-size:12px;padding:1.5px 0}
     #ledger .lhead{margin-bottom:5px}
-    /* the stacked stage is short — the coupling box hugs the top-right corner
-       under Restart, and gives up some width for it */
-    #couplebox{right:12px;top:62px;width:210px;padding:9px 11px}
-    #tray{left:12px;top:62px;transform:none}
+    #tray{left:12px;top:16px;transform:none}
     .reag{width:116px;padding:3px 7px}
     .reag .rcount{font-size:19px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
@@ -627,14 +656,19 @@
 </head>
 <body>
 <div id="app">
+  <!-- THE PATHWAY RAIL, across the top and spanning both columns. The pathway
+       is a sequence, and read left-to-right it costs the stage no width at all
+       — which is what the molecules needed. NO TITLE RIDES IT: the rail names
+       every stage in its own block headings, so a heading repeating one of them
+       was the widest thing on the row and the thing the row could least afford.
+       The lesson is named in <title> and by the index page that links here. -->
+  <div id="railbar">
+    <div id="rail"></div>
+  </div>
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
-    <!-- The h1 carries the lesson name until the pathway starts, then the STAGE
-         the student is in. One title on screen, in the place a title goes. -->
-    <div id="brand"><span class="drop"><i class="ph-bold ph-flow-arrow"></i></span><h1>Glycolysis</h1></div>
-    <div id="couplebox" class="note"></div>
     <div id="tray"></div>
     <div id="fork"></div>
     <!-- The bottom bar is ONE element so the camera has one thing to measure.
@@ -651,9 +685,12 @@
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
+  <!-- The right column is no longer a panel with its own voice — it is a stack
+       of readouts beside the stage: the tally, the step's energy picture, and
+       whatever commentary the step carries. -->
   <div id="side">
     <div id="ledger"></div>
-    <div id="rail"></div>
+    <div id="couplebox" class="note"></div>
     <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
 </div>
@@ -865,12 +902,15 @@ const STEPS=[
 // carries the pools, #couplebox carries coupling and reversibility, and #stepnote
 // carries PFK-1.
 const STAGES=[
-  { n:0,                     label:'Start: one glucose', delta:'6 C' },   // no title: stage 0 keeps the lesson name
-  { n:1, title:'Investment', block:'Priming',   label:'Priming: spend 2 ATP',    delta:'−2 ATP' },
-  { n:2, title:'The split',  block:'Cleavage',  label:'Cleavage: 6C → 3C + 3C',  delta:'1 → 2' },
-  { n:3, title:'Oxidation',  block:'Oxidation', label:'Oxidation: make 2 NADH',  delta:'+2 NADH' },
-  { n:4, title:'Payoff',     block:'Payoff',    label:'Payoff: make 4 ATP',      delta:'+4 ATP' },
-  { n:5, title:'The tally',  label:'Tally & what comes next', delta:'net +2 ATP' },
+  // Stage 0 is a STATE, not a rail entry: it is where the page opens, Restart
+  // is how you get back to it, and a row saying "one glucose" beside a screen
+  // showing one glucose was the rail's widest item earning the least.
+  { n:0 },
+  { n:1, block:'Priming',    label:'Priming: spend 2 ATP',    delta:'−2 ATP' },
+  { n:2, block:'Cleavage',   label:'Cleavage: 6C → 3C + 3C',  delta:'1 → 2' },
+  { n:3, block:'Oxidation',  label:'Oxidation: make 2 NADH',  delta:'+2 NADH' },
+  { n:4, block:'Payoff',     label:'Payoff: make 4 ATP',      delta:'+4 ATP' },
+  { n:5,                     label:'Tally & what comes next', delta:'net +2 ATP' },
 ];
 
 // Which steps sit under a stage — derived, never typed. The rail now prints
@@ -938,12 +978,14 @@ const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+M[k].gly.carbons,0);
 // loud that everything after the split happens twice, which the two lanes
 // show and no other text states.
 //
-// SYSTEMATIC NAME, NOT THE ABBREVIATION. The rail is where a student reads the
-// pathway top to bottom, and "F1,6-BP" only means something once you already
-// know what it stands for. The abbreviation stays where space is genuinely
-// scarce — the coupling figure, and a plate with another lane beside it.
+// THE ABBREVIATION, because the rail is now a ROW and a column is one name
+// wide. It used to carry the systematic name, on the argument that "F1,6-BP"
+// means nothing until you know what it stands for — that argument is now paid
+// for by the PLATE, which prints the systematic name in full over the molecule
+// the moment a step makes it, at the size the stage gives it. Same rule as
+// `eqOf`, which was always short for the same reason.
 function productOf(st){
-  const keys=st.species, nameOf=k=>M[k].name;
+  const keys=st.species, nameOf=k=>M[k].short||M[k].name;
   return keys.every(k=>k===keys[0]) && keys.length>1
     ? `${keys.length} × ${nameOf(keys[0])}`
     : keys.map(nameOf).join(' + ');
@@ -984,9 +1026,15 @@ function makePlate(spec){
 // it. Falls back to a sane guess before the first label exists.
 function plateHeightPx(){
   const d=platesEl.firstElementChild;
-  return d ? d.getBoundingClientRect().height+PLATE_GAP_PX : 46;
+  return d ? d.getBoundingClientRect().height+PLATE_GAP_PX+PLATE_CLEAR_PX : 58;
 }
 const PLATE_GAP_PX=10;
+// Clearance ABOVE the top label. The rail now runs along the stage's top edge,
+// so a label fitted exactly to the reserve sits against a hard border instead
+// of against paper. Reserve only — the anchor's own gap is world-space
+// (PLATE_GAP), so raising this pushes the molecule down without moving the
+// label up with it.
+const PLATE_CLEAR_PX=14;
 
 function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
 
@@ -1186,7 +1234,6 @@ function fitFor(states){
 //           a function of being finished. It clears the bar via its own
 //           `bottom` instead, which is a stacking problem, not a camera one.
 //   left    the reagent tray (absent during the intro, when nothing can be spent)
-//   right   the coupling box
 //
 // `v`/`h` are the fractions of height and width left over. `shift` moves the
 // camera target down so the molecule centres in the band that remains — only
@@ -1203,11 +1250,10 @@ function usable(){
                      : c.bottom-r.top);
   };
   const top=plateHeightPx(), bottom=reach('bottombar','bottom');
-  // Symmetric, because the molecule stays centred: whichever side reaches
-  // further sets the inset on both. The tray and ledger are close enough in
-  // width that this costs almost nothing, and these molecules are tall and
-  // narrow — the vertical constraint binds in every single-lane state anyway.
-  const side=Math.max(reach('tray','left'), reach('couplebox','right'))+10;
+  // Symmetric, because the molecule stays centred: the tray is the only
+  // horizontal intrusion left (the ledger and the coupling box moved into the
+  // sidebar, off the canvas), so its reach sets the inset on both sides.
+  const side=reach('tray','left')+10;
 
   const vcap=c.height*0.6, hcap=c.width*0.72;    // never eat more than this
   const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
@@ -1567,26 +1613,40 @@ function drawRail(){
   STAGES.forEach(s=>{
     const steps=stageSteps(s.n);
 
-    // The two bookends — the starting point and the final tally — are STATES,
-    // not steps, so they get a mark rather than a number. Numbering them would
-    // push the ten out of alignment with the textbook, which is the whole point.
+    if(s.n===0) return;                  // the opening state has no rail entry
+
+    // The closing tally is a STATE, not a step, so it gets a mark rather than a
+    // number. Numbering it would push the ten out of alignment with the
+    // textbook, which is the whole point.
+    // Every stage is a GROUP in the row — heading over its own steps — so the
+    // blocking reads the same sideways as it did down the panel.
+    const g=document.createElement('div');
+    g.className='rstage';
+    railEl.appendChild(g);
+
     if(!steps.length){
       const d=document.createElement('div');
       d.className='rrow bookend '+stageCls(s.n);
-      d.innerHTML=`<div class="rdot">${s.n===0?'·':'✓'}</div>`
+      // The delta is always PRESENT and only sometimes visible: the rail is a
+      // grid row, so anything that appears mid-pathway would change the rail's
+      // height and move the camera under it.
+      d.innerHTML=`<div class="rdotwrap"><div class="rdot">${s.n===0?'·':'✓'}</div></div>`
         +`<div class="rlab">${s.label}</div>`
-        +(stageComplete(s.n)?`<div class="rdelta">${s.delta}</div>`:'');
+        +`<div class="rdelta${stageComplete(s.n)?'':' off'}">${s.delta}</div>`;
       d.onclick=()=>goStage(s);
-      railEl.appendChild(d);
+      g.appendChild(d);
       return;
     }
 
     const h=document.createElement('div');
     h.className='rblock '+stageCls(s.n);
     h.innerHTML=`<span class="bt">${s.block}</span>`
-      +(stageComplete(s.n)?`<span class="bd">${s.delta}</span>`:'');
+      +`<span class="bd${stageComplete(s.n)?'':' off'}">${s.delta}</span>`;
     h.onclick=()=>goStage(s);
-    railEl.appendChild(h);
+    g.appendChild(h);
+    const rowsEl=document.createElement('div');
+    rowsEl.className='rsteps';
+    g.appendChild(rowsEl);
 
     steps.forEach(st=>{
       const idx=STEPS.indexOf(st);
@@ -1621,27 +1681,15 @@ function drawRail(){
       // and the names are long, so ten of them greyed out is most of the panel
       // spent on text nobody can act on. The dash keeps the row's height, so
       // the rail does not resize as it fills in.
-      r.innerHTML=`<div class="rdot">${st.n}</div>`
+      r.innerHTML=`<div class="rdotwrap"><div class="rdot">${st.n}</div></div>`
         +`<div class="rlab${state==='cur'?' eq':state==='future'?' veiled':''}">`
           +`${state==='future'?'':state==='cur'?eqOf(st):productOf(st)}</div>`
         +(st.rev===false
           ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '');
       if(idx<done) r.onclick=()=>goStep(idx);
-      railEl.appendChild(r);
+      rowsEl.appendChild(r);
     });
   });
-}
-
-const titleEl=document.querySelector('#brand h1');
-// read out of the markup rather than typed again here, so the lesson is named
-// in exactly one place and the page still says "Glycolysis" with JS switched off
-const LESSON=titleEl.textContent.trim();
-// THE PAGE HAS ONE TITLE AND IT IS THE STAGE \u2014 nothing else on screen repeats
-// it: the rail states progress in words, the action button names the next
-// enzyme, and STAGES carries no prose (see its note). Before the pathway
-// starts the h1 names the LESSON; from the first step on it names the stage.
-function drawTitle(){
-  titleEl.textContent = stageAt(done)===0 ? LESSON : STAGES[stageAt(done)].title;
 }
 
 /* The panel under the card. It shows ONE of three things, in priority order:
@@ -2280,7 +2328,7 @@ function drawFork(){
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
-function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail(); drawTitle();
+function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail();
   drawNote(); drawCouple(); drawCaption(); drawFork(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
