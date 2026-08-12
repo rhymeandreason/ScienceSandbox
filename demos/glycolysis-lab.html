@@ -218,13 +218,10 @@
 
   /* the action button (Begin, and every no-reagent step), inside #bottombar.
      `visibility` rather than `display` — see the bottombar comment.
-     THE BASE METRICS ARE SHARED BY THE BLOB AND THE GHOST, and have to be: the
-     two alternate down the pathway (a carrier step is a ghost, an action step is
-     a blob), #bottombar's height is what usable() reserves along the bottom
-     edge, and a camera that re-frames between step 5 and step 6 breaks the one
-     rule this page's framing has. So the blob keeps a TRANSPARENT border rather
-     than dropping it — `border:none` is 5px shorter, which is exactly the kind
-     of difference that moves a camera. */
+     ONE SET OF METRICS FOR EVERY STEP, and it has to be one: #bottombar's height
+     is what usable() reserves along the bottom edge, so a button that changed
+     size between steps would re-frame the camera under the molecule. The label
+     is one word on every step, which is the simplest way to guarantee it. */
   #actbtn{visibility:hidden;
     font-family:var(--font-slab);font-weight:700;font-size:17px;letter-spacing:.3px;
     padding:15px 34px;border-radius:var(--radius);cursor:pointer;
@@ -233,93 +230,26 @@
   #actbtn:hover{background:#000;transform:translateY(-2px)}
   #actbtn i{font-size:15px;vertical-align:-1px;margin-left:2px}
 
-  /* EVERY ENZYME IS A BLOB. The button's own shape is the wobble and the label
-     sits inside it — a rectangle with a blob behind it would read as a button
-     that happens to be decorated, and the point is that the enzyme IS the thing
-     you press. Purely decorative: it carries no shape claim about any of these
-     proteins, which is why one silhouette serves all six. */
-  #actbtn.blob{color:#fff;position:relative;z-index:0;
-    border:2.5px solid transparent;
-    border-radius:46% 54% 52% 48%/58% 44% 56% 42%;
-    background:linear-gradient(105deg,#7b3fe4 0%,#4f5bd5 38%,#2f7de0 68%,#8b5cf6 100%);
-    background-size:220% 220%;
-    box-shadow:0 10px 30px -10px rgba(79,91,213,.8);
-    animation:enzmorph 7.5s ease-in-out infinite, enzdrift 9s ease-in-out infinite}
-  /* the drift already carries a scale pulse; the shared lift would fight it */
-  #actbtn.blob:hover{background:linear-gradient(105deg,#8b4cf0 0%,#5a66e6 38%,#3a8bf0 68%,#9b6cff 100%);
-    background-size:220% 220%;transform:none;filter:brightness(1.06)}
-  /* Begin is the same blob with room to spare — it is the only control on screen
-     at the intro, and nothing competes with it. Its height is allowed to differ
+  /* ONE PLAIN BUTTON: Next. The enzyme used to BE the button — a wobbling blob
+     you pressed — which made every step look like a different control and put
+     the page's loudest object between the student and the molecule. The step is
+     the same either way, so the control is now the same too: one button in one
+     place, one word on it. No caption — the step's name is on the rail, its
+     enzyme is in the side panel, and the button is not where a lesson goes, so
+     it says only what pressing it does.
+
+     Begin is that button with room to spare; its height is allowed to differ
      because leaving the intro re-solves the fit (see beginPathway). */
-  #actbtn.begin{font-size:21px;padding:26px 54px}
-
-  /* the reagent steps' caption in the same slot: it names the enzyme but must
-     not look like the thing to click — that is the carrier. So it keeps the
-     type and loses everything that says "button": fill, border, shadow, hover. */
-  #actbtn.ghost{background:none;border-color:transparent;color:var(--ink);
-    box-shadow:none;cursor:default; }
-  #actbtn.ghost:hover{background:none;transform:none}
-  #actbtn .hint{display:block;font-family:var(--font-sans);font-weight:500;font-size:12.5px;
-    letter-spacing:.2px;opacity:.75;margin-top:2px}
-
-  /* THE ENZYME IS ON THE CLOCK WHILE THE STEP WAITS. On a reagent step the slot
-     is a caption, not a control (see .ghost) — so nothing on it moves, and a
-     student reading "Hexokinase · click the highlighted carrier" gets no signal
-     that anything is happening yet. The blob is that signal and nothing more:
-     it is DECORATIVE, carries no shape claim about the protein, and rides only
-     the ghost state. It reads as "this enzyme is here, working" — which is the
-     true part (an enzyme is present and waiting on its substrates, not
-     summoned by the click). */
-  #actbtn .enzname{position:relative;display:inline-block;z-index:0}
-  /* THE CLICK, AND WHAT IT IS AND IS NOT. Two copies of the blob's own shape and
-     gradient expand out of it and fade — a UI ripple, in the DOM, deliberately
-     NOT one of fx.js's in-scene effects. Nothing chemical happens when you press
-     Begin: no bond forms and no molecule changes, and SCIENCE.md §5's rule is
-     that the loudness of an effect tracks what actually happened. A spawnRing
-     here would announce a reaction that has not occurred yet. */
-  #actbtn.blob::before,#actbtn.blob::after{content:'';position:absolute;inset:0;
-    border-radius:inherit;background:inherit;background-size:220% 220%;
-    opacity:0;pointer-events:none;z-index:-1}
-  #actbtn.blob.burst::before{animation:enzburst .62s ease-out forwards}
-  #actbtn.blob.burst::after {animation:enzburst .62s .13s ease-out forwards}
-  @keyframes enzburst{
-    from{opacity:.5;transform:scale(1)}
-    to  {opacity:0;  transform:scale(2.05)}}
-
-  /* The ghost caption is NOT a button, so it keeps the blob as a backing behind
-     the name only — the real buttons become the blob outright above. It arrives
-     by settling DOWN out of the pressed blob's size, which is what makes the two
-     read as one object shrinking rather than one control vanishing and another
-     appearing. Muted, because on a carrier step the thing to press is in the
-     tray, not here. */
-  #actbtn.ghost .enzname{color:var(--ink);padding:2px 4px;
-    animation:enzarrive .46s cubic-bezier(.2,.9,.3,1); opacity: .7;}
-  @keyframes enzarrive{
-    from{opacity:0;transform:scale(1.45)}
-    to  {opacity:1;transform:scale(1)}}
-  #actbtn.ghost .enzname::before{opacity:.42;
-    content:'';position:absolute;inset:-9px -20px;z-index:-1;
-    background:linear-gradient(105deg,#7b3fe4 0%,#4f5bd5 38%,#2f7de0 68%,#8b5cf6 100%);
-    background-size:220% 220%;
-    box-shadow:0 6px 20px -8px rgba(79,91,213,.75);
-    border-radius:46% 54% 52% 48%/58% 44% 56% 42%;
-    animation:enzmorph 7.5s ease-in-out infinite, enzdrift 9s ease-in-out infinite;}
-  /* the wobble: four corner radii on their own beat, so no two frames repeat and
-     the edge never resolves into a rectangle */
-  @keyframes enzmorph{
-    0%,100%{border-radius:46% 54% 52% 48%/58% 44% 56% 42%}
-    25%    {border-radius:58% 42% 46% 54%/44% 58% 42% 56%}
-    50%    {border-radius:50% 50% 58% 42%/52% 48% 60% 40%}
-    75%    {border-radius:42% 58% 44% 56%/48% 56% 46% 54%}}
-  /* the gradient slides under the wobble, which is what makes it read as ACTIVE
-     rather than as a shape that happens to be moving */
-  @keyframes enzdrift{
-    0%,100%{background-position:0% 50%;   transform:scale(1)}
-    50%    {background-position:100% 50%; transform:scale(1.035)}}
-  @media (prefers-reduced-motion:reduce){
-    #actbtn.ghost .enzname::before,#actbtn.ghost .enzname,#actbtn.blob{animation:none}
-    #actbtn.blob.burst::before,#actbtn.blob.burst::after{animation:none}
-  }
+  #actbtn.begin{font-size:21px;padding:22px 48px}
+  /* the press: a short flash of the button's own fill, in the DOM. Nothing
+     chemical has happened yet, so this stays UI feedback and not one of fx.js's
+     in-scene effects (SCIENCE.md §5). */
+  #actbtn.burst{animation:actpress .3s ease-out}
+  @keyframes actpress{
+    0%  {transform:scale(1)}
+    40% {transform:scale(.96)}
+    100%{transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){ #actbtn.burst{animation:none} }
 
 
   /* ---------- the mass-action modal ----------
@@ -460,7 +390,9 @@
     background-size:26px 26px; background-position:13px 13px}
   /* the rail scrolls sideways rather than wrapping: a wrapped pathway stops
      reading as one sequence, and below the breakpoint there is no width for it */
-  #rail{flex:1;min-width:0;display:flex;align-items:stretch;gap:8px;
+  /* flex-start, so a collapsed stage's heading lines up with the open stage's
+     heading rather than dropping to the bottom of the taller group */
+  #rail{flex:1;min-width:0;display:flex;align-items:flex-start;gap:20px;
     overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;
     scroll-snap-type:x proximity;scrollbar-width:none}
   #rail::-webkit-scrollbar{display:none}
@@ -472,11 +404,16 @@
     align-items:center;justify-content:center}
   .rarrow:hover{color:var(--ink);border-color:var(--ink)}
   .rarrow:disabled{opacity:.25;cursor:default}
+  /* ONE GROUP = ONE STAGE: its name above, its step cards in a row beneath.
+     The heading spans its own cards, so the blocking is drawn by width and no
+     card has to repeat it. */
+  .rgroup{flex:none;display:flex;flex-direction:column;gap:3px}
+  .rgcards{display:flex;gap:8px}
   /* ONE CARD = ONE STEP. Fixed width, so a long name wraps inside the card
      instead of making its card wider than its neighbours — the ten cards are
      one measure and the eye can count them. */
   .rcard{flex:none;width:272px;display:flex;flex-direction:column;gap:2px;
-    padding:7px 11px 8px;border-radius:9px;background:var(--panel);
+    padding:5px 11px 6px;border-radius:9px;background:var(--panel);
     border:1px solid var(--hair);scroll-snap-align:center}
   .rcard.future{background:transparent}
   /* the step you are on LIFTS off the paper — the rail's only shadow, so it
@@ -484,7 +421,7 @@
   .rcard.cur{box-shadow:0 3px 10px -4px rgba(0,0,0,.35)}
 
   /* block heading: stage name + the bookkeeping delta it is responsible for */
-  .rblock{display:flex;align-items:baseline;gap:8px;cursor:pointer;padding:0 2px}
+  .rblock{display:flex;align-items:baseline;gap:8px;cursor:pointer;padding:0 0 0 11px}
   .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:11px;
     letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
   .rblock .bd{font-family:var(--font-slab);font-weight:700;
@@ -1686,15 +1623,13 @@ function drawTray(){
 }
 
 const actEl=document.getElementById('actbtn');
-const BURST_MS=380;
+const BURST_MS=190;   // just under the .3s press flash
 const pulseEl=document.getElementById('stagepulse');
 let pressing=false;
-// EVERY BLOB IS PRESSED THE SAME WAY, Begin and the five action steps alike:
-// the ripple runs first and the work happens under its tail, so the blob is
-// still on screen while it expands — acting immediately would re-render the
-// button out from under the animation on the same frame it started. BURST_MS is
-// shorter than the .62s ripple on purpose: the last stretch is nearly
-// transparent, and waiting it out just makes the click feel slow.
+// EVERY PRESS RUNS THE SAME WAY, Begin, a tray tile and every step alike: the
+// flash runs first and the work happens under its tail, so the button is still
+// on screen while it plays — acting immediately would re-render the button out
+// from under the animation on the same frame it started.
 // setTimeout, not a transitionend, for the reason every other beat here uses one
 // — a backgrounded tab must still arrive at the next state (see `later`).
 function press(fn){
@@ -1719,16 +1654,13 @@ function beginPathway(){
   });
 }
 function drawAct(){
-  // ONE BUTTON, ONE PLACE. The intro's Begin and every no-reagent step share
-  // this element, so the thing to click never jumps between the stage and the
-  // sidebar: Begin sits in the tray's slot (the tray is hidden until then), and
-  // from the first step on it sits just above the tray.
+  // ONE BUTTON, ONE PLACE, ONE WORD. The intro's Begin and every step share this
+  // element, so the thing to click never jumps between the stage and the
+  // sidebar — and from step to step it never changes shape or wording either.
   if(intro){
     actEl.style.visibility='visible';
-    actEl.className='blob begin';
-    // The enzyme is the main text here too, because the enzyme is what starts
-    // the reaction — Begin is only how you tell it to go.
-    actEl.innerHTML=`<span class="enzname">${STEPS[0].enz}</span><span class="hint">Begin →</span>`;
+    actEl.className='begin';
+    actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=beginPathway;
     return;
   }
@@ -1738,39 +1670,22 @@ function drawAct(){
   // to press has always been here — so the question the pathway ends on is here
   // too, rather than three cards arriving over the pyruvate that answer it.
   if(!st && !busy){
-    // NOT A BLOB: a blob is an enzyme, and nothing is being catalysed here. This
-    // is the page's plain button — the shared base metrics, so the bar keeps the
-    // height usable() reserves and the camera does not move on the last step.
     actEl.style.visibility='visible';
     actEl.innerHTML=`What's next? <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=()=>Fork.show();
     return;
   }
   if(!st || busy){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+  // A REAGENT STEP HAS NO BUTTON. The click belongs on the carrier itself —
+  // you cannot phosphorylate anything without spending an ATP, and that is the
+  // lesson — so a Next here would be a second, easier way past the one thing
+  // the step is asking you to do. `visibility`, not `display`: #bottombar's
+  // height is what usable() reserves along the bottom edge, and the tray's own
+  // "← Spend 1 ATP" arrow is what says where to click instead.
+  if(st.reagent){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
   actEl.style.visibility='visible';
-  // THE ENZYME IS THE MAIN TEXT, on every step and on Begin — the enzyme is what
-  // starts the reaction, so it is what you press. The action it performs drops
-  // to the hint line, in one short phrase — a button is not where a lesson goes.
-  if(st.reagent){
-    // A REAGENT STEP HAS NO BUTTON — the click belongs on the reagent, which is
-    // the lesson (you cannot phosphorylate anything without spending an ATP).
-    // So the slot becomes a caption instead of a control: it names the enzyme
-    // about to act and stays visibly unclickable, while the tray's own arrow
-    // says what to spend. Same slot, same height, no second way to advance.
-    actEl.className='ghost';
-    // THE HINT LINE IS EMPTY HERE, NOT ABSENT. The instruction lives on the live
-    // carrier itself now (its "← Spend 1 ATP" arrow), which is the tile you are
-    // meant to click — but dropping the line outright would shorten #bottombar on exactly the
-    // five steps that have a ghost caption, and #bottombar's height is what
-    // usable() reserves along the bottom edge. A camera that re-frames between
-    // step 5 and step 6 breaks the one rule this page's framing has.
-    actEl.innerHTML=`<span class="enzname">${st.enz}</span><span class="hint">&nbsp;</span>`;
-    actEl.onclick=null;
-  } else {
-    actEl.className='blob';
-    actEl.innerHTML=`<span class="enzname">${st.enz}</span><span class="hint">${st.act.charAt(0).toLowerCase()+st.act.slice(1)}</span>`;
-    actEl.onclick=()=>press(runStep);
-  }
+  actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
+  actEl.onclick=()=>press(runStep);
 }
 
 // THE ACTIVE ROW SHOWS THE REACTION, THE DONE ROWS SHOW THE RESULT. A rail of
@@ -1822,20 +1737,33 @@ function drawRail(){
     // steps has no card here.
     if(!steps.length) return;
 
+    // THE STAGE NAME SITS ABOVE ITS CARDS, once, spanning them — so the
+    // grouping is drawn by the heading's width rather than said again on every
+    // card. Each stage is a group in the scroller: heading on top, its step
+    // cards in a row underneath.
+    const grp=document.createElement('div');
+    grp.className='rgroup';
+    const h=document.createElement('div');
+    h.className='rblock '+stageCls(s.n);
+    h.innerHTML=`<span class="bt">${s.block}</span>`
+      +`<span class="bd${stageComplete(s.n)?'':' off'}">${s.delta}</span>`;
+    h.onclick=()=>goStage(s);
+    grp.appendChild(h);
+    const cardsEl=document.createElement('div');
+    cardsEl.className='rgcards';
+    grp.appendChild(cardsEl);
+    railEl.appendChild(grp);
+
+    // ONLY THE ACTIVE STAGE IS OPEN. The other stages are their headings alone
+    // — the pathway's shape stays on screen the whole way through, but the ten
+    // cards do not compete with the one step in front of the student. Clicking
+    // a heading goes to that stage, which opens it.
+    if(stageCls(s.n)!=='cur') return;
+
     steps.forEach(st=>{
       const idx=STEPS.indexOf(st);
-      // ONE CARD PER STEP, carrying its own stage heading. The heading repeats
-      // across a stage's cards on purpose: that repetition is the blocking,
-      // and it is what lets a card stand alone in a row you scroll.
       const g=document.createElement('div');
-      railEl.appendChild(g);
-
-      const h=document.createElement('div');
-      h.className='rblock '+stageCls(s.n);
-      h.innerHTML=`<span class="bt">${s.block}</span>`
-        +`<span class="bd${stageComplete(s.n)?'':' off'}">${s.delta}</span>`;
-      h.onclick=()=>goStage(s);
-      g.appendChild(h);
+      cardsEl.appendChild(g);
       const rowsEl=g;
       // `cur` IS THE STEP ABOUT TO RUN, which is what "where am I" means on a
       // rail you drive. Using done-1 (the step that produced what's on the
