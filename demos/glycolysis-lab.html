@@ -226,6 +226,7 @@
     border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
     box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
   #actbtn:hover{background:#000;transform:translateY(-2px)}
+  #actbtn i{font-size:15px;vertical-align:-1px;margin-left:2px}
 
   /* EVERY ENZYME IS A BLOB. The button's own shape is the wobble and the label
      sits inside it — a rectangle with a blob behind it would read as a button
@@ -655,19 +656,19 @@
     display:inline-flex;align-items:center;gap:6px}
   #restart:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
-  /* ---------- the ending fork ---------- */
-  /* Sits above #bottombar rather than inside it: it is tall and appears only in
-     the final state, so putting it in the bar would have made the bar's height
-     — and therefore the camera distance — a function of being finished. */
-  #fork{position:absolute;left:50%;bottom:190px;z-index:8;
-    transform:translateX(calc(-50% + var(--stagedx,0px)));
-    display:none;gap:14px}
-  #fork .door{width:184px;padding:12px 14px;background:rgba(255,255,255,.8);
-    border:2px solid var(--ink);border-radius:9px 12px 10px 11px;
-    box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
-  #fork .door .dh{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);margin-bottom:4px}
-  #fork .door .dh i{color:var(--muted);font-weight:500}
-  #fork .door .db{font-family:var(--font-sans);font-size:12.5px;line-height:1.45;color:#5a5346}
+  /* ---------- the ending fork ----------
+     THE THREE FATES ARE A MODAL, behind the last button. On the stage they were
+     three tall cards standing over the two pyruvate the student had just made —
+     the molecules are the answer to "what did glycolysis produce", and the
+     cards buried them. Behind a button they are a place you go when you are
+     ready, and the pathway's last frame stays the pathway's last frame. */
+  #forkbody{display:flex;gap:14px;align-items:stretch}
+  #forkbody .door{flex:1;padding:12px 14px;background:rgba(255,255,255,.6);
+    border:2px solid var(--ink);border-radius:9px 12px 10px 11px}
+  #forkbody .door .dh{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);margin-bottom:4px}
+  #forkbody .door .dh i{color:var(--muted);font-weight:500}
+  #forkbody .door .db{font-family:var(--font-sans);font-size:12.5px;line-height:1.45;color:#5a5346}
+  @media (max-width:920px){ #forkbody{flex-direction:column} }
 
   @media (max-width:920px){
     /* Stacked: rail on top, stage, then the readouts under it. The rail keeps
@@ -682,19 +683,10 @@
     .reag{width:116px;padding:3px 7px}
     .reag .rcount{font-size:19px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
-    /* Three doors stacked would be taller than the whole stage and bury the two
-       pyruvate, so down here the fork stays a ROW and scrolls sideways instead
-       — one short band above the caption, molecules intact. */
-    #fork{flex-direction:row;bottom:156px;gap:8px;transform:translateX(-50%);
-      max-width:94%;overflow-x:auto;padding:2px 0}
-    #fork .door{width:176px;flex:none;padding:9px 11px}
-    #fork .door .dh{font-size:12.5px}
     /* PNG joins Restart in the top-right rather than holding the bottom-left
-       corner: down here the caption band spans nearly the full width, and that
-       is exactly the space the fork needs to clear the lanes. */
+       corner: down here the caption band spans nearly the full width. */
     #savepng{left:auto;right:146px;top:22px;bottom:auto;padding:5px 12px;font-size:12px}
     #bottombar{bottom:18px}
-    #fork .door .db{font-size:12px}
   }
 </style>
 </head>
@@ -714,7 +706,6 @@
     <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
     <div id="tray"></div>
-    <div id="fork"></div>
     <!-- The bottom bar is ONE element so the camera has one thing to measure.
          It always occupies its full height — the action button is hidden with
          `visibility`, not `display` — which is what keeps the framing identical
@@ -736,6 +727,19 @@
     <div id="ledger"></div>
     <div id="couplebox" class="note"></div>
     <div id="card"><div id="stepnote" class="note"></div></div>
+  </div>
+</div>
+
+<!-- Where pyruvate goes, behind the last button. -->
+<div id="forkmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="forktitle">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <div class="mkick">What's next</div>
+    <h2 id="forktitle">Where the two pyruvate go</h2>
+    <p class="msub">All three answers are the same question — <b>where does NAD⁺
+      come from?</b> — because that is the constraint that picks one.</p>
+    <div id="forkbody"></div>
   </div>
 </div>
 
@@ -1324,10 +1328,8 @@ function fitFor(states){
 //           of CONSTANT height on purpose (the button is hidden with
 //           `visibility`), because this page's framing rule is that ONE camera
 //           distance covers every state — otherwise the split stops reading as
-//           a halving. The ending fork is deliberately NOT measured: it is tall
-//           and only ever up in the final state, so it would make the distance
-//           a function of being finished. It clears the bar via its own
-//           `bottom` instead, which is a stacking problem, not a camera one.
+//           a halving. Nothing else on the stage is measured: the ending fork
+//           is a modal now, so no state puts a tall element over the lanes.
 //   left    the reagent tray (absent during the intro, when nothing can be spent)
 //
 // `v`/`h` are the fractions of height and width left over. `shift` moves the
@@ -1372,8 +1374,8 @@ function usable(){
 }
 let fitR=24, fitY=0, fitHS=0;
 // The DOM layers over the canvas take the same slide as the frustum, in pixels
-// — the enzyme button, the step caption and the ending fork are ABOUT the
-// molecule, so they belong over it and not over the canvas's own middle.
+// — the enzyme button and the step caption are ABOUT the molecule, so they
+// belong over it and not over the canvas's own middle.
 function applyStageShift(){
   const w=canvas.clientWidth||0;
   document.getElementById('stage').style.setProperty('--stagedx', (fitHS*w).toFixed(1)+'px');
@@ -1661,6 +1663,18 @@ function drawAct(){
   }
   actEl.className='';
   const st=done<nSteps?stepAt(done):null;
+  // THE LAST BUTTON IS IN THE SAME SLOT AS EVERY OTHER. Ten steps in, the thing
+  // to press has always been here — so the question the pathway ends on is here
+  // too, rather than three cards arriving over the pyruvate that answer it.
+  if(!st && !busy){
+    // NOT A BLOB: a blob is an enzyme, and nothing is being catalysed here. This
+    // is the page's plain button — the shared base metrics, so the bar keeps the
+    // height usable() reserves and the camera does not move on the last step.
+    actEl.style.visibility='visible';
+    actEl.innerHTML=`What's next? <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=()=>Fork.show();
+    return;
+  }
   if(!st || busy){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
   actEl.style.visibility='visible';
   // THE ENZYME IS THE MAIN TEXT, on every step and on Begin — the enzyme is what
@@ -2423,16 +2437,15 @@ const Mass=(()=>{
   return {show, hide, isOpen:()=>open};
 })();
 
-const forkEl=document.getElementById('fork');
-function drawFork(){
-  if(intro || done<nSteps){ forkEl.style.display='none'; return; }
-  forkEl.style.display='flex';
-  // Three fates, not two. The two fermentations are different reactions with
-  // different products and different organisms, and collapsing them into
-  // "fermentation" is what leaves students unable to say why muscle makes
-  // lactate and yeast makes ethanol. All three are framed by the SAME question —
-  // where does NAD⁺ come from — because that is the constraint that picks one.
-  forkEl.innerHTML=
+/* WHERE PYRUVATE GOES, behind the last button. Three fates, not two: the two
+ * fermentations are different reactions with different products and different
+ * organisms, and collapsing them into "fermentation" is what leaves students
+ * unable to say why muscle makes lactate and yeast makes ethanol. All three are
+ * framed by the SAME question — where does NAD⁺ come from — because that is the
+ * constraint that picks one. Rendered once; nothing here depends on state. */
+const Fork=(()=>{
+  const el=document.getElementById('forkmodal');
+  document.getElementById('forkbody').innerHTML=
      `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
         <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
         acetyl-CoA, then the citric acid cycle and electron transport chain. Each
@@ -2446,12 +2459,19 @@ function drawFork(){
         <div class="db">Yeast strips a <b>CO₂</b> from pyruvate, then reduces the
         acetaldehyde to <b>ethanol</b>. Same purpose: regenerate <b>NAD⁺</b> so
         glycolysis keeps turning.</div></div>`;
-}
+  let open=false;
+  const show=()=>{ el.hidden=false; open=true; el.querySelector('.mclose').focus(); };
+  const hide=()=>{ open=false; el.hidden=true; };
+  el.querySelector('.mback').onclick=hide;
+  el.querySelector('.mclose').onclick=hide;
+  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
+  return {show, hide, isOpen:()=>open};
+})();
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
 function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail();
-  drawNote(); drawCouple(); drawCaption(); drawFork(); computeFit(); }
+  drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds
