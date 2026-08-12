@@ -81,6 +81,13 @@
     pointer-events:none;transform:translateX(var(--stagedx,0px));
     transition:transform .35s ease}
   #bottombar>*{pointer-events:auto}
+  /* the step's heading, over the button: which of the ten this is, and either
+     the hook it is about to demonstrate or the fact that it is done. */
+  #stephead{visibility:hidden;min-height:15px;
+    font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+  #stephead.on{visibility:visible}
+  #stephead em{font-style:normal;color:var(--phos)}
 
   /* THE STEP CAPTION. A fixed band at the bottom of the stage, set in the sans
      face at reading size; it does not time out — it is replaced when the next
@@ -93,25 +100,18 @@
      15.5px that is ~270 characters — which is exactly what step 10 uses, so
      there is no slack. A longer message means growing the band here and
      re-checking the fit, not just adding words in STEPS. */
-  #rxmsg{width:min(680px,64%);min-height:84px;text-align:center;
+  #rxmsg{width:min(680px,64%);min-height:74px;text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
     color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
   #rxmsg p{margin:0}
-  /* STEP NUMBER AND ITS HOOK, one line above the sentence. The number ties the
-     band to the rail's lit circle and to every textbook's numbering; the hook
-     is the one word to carry away, which is why it is the heading and not
-     something to find inside the paragraph. */
-  #rxmsg .rxhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
-    letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);
-    margin-bottom:6px}
-  #rxmsg .rxhead em{font-style:normal;color:var(--phos)}
+
   #rxmsg b{font-weight:700;color:var(--ink)}
   #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
   #rxmsg.show{opacity:1}
   #rxmsg.in{animation:rxIn .5s ease-out}
   @keyframes rxIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px;min-height:84px} }
+  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px;min-height:62px} }
 
   /* ---------- the ledger: the whole point of the page ---------- */
   /* Always visible, never resets. Students watch ATP dip below its start value
@@ -610,13 +610,19 @@
          `visibility`, not `display` — which is what keeps the framing identical
          whether or not a button or a caption happens to be showing. -->
     <div id="bottombar">
+      <!-- THE STEP'S HEADING, over the button on every screen: "Step 4 (The
+           split)" while you are about to run it, "Step 4 complete" once you
+           have. One slot, so the two beats of a step are titled in one place
+           and the eye does not have to find the title in a different corner
+           depending on which beat it is on. It holds its height when it says
+           nothing (visibility, not display), so the bar the camera reserves
+           never changes. -->
+      <div id="stephead"></div>
       <button id="actbtn"></button>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
-           node its own flex item, which shreds the sentence into columns.
-           The heading rides above it in the same band, so the pair moves as one
-           block and the band's height is what the camera reserves. -->
-      <div id="rxmsg" aria-live="polite"><div class="rxhead"></div><p></p></div>
+           node its own flex item, which shreds the sentence into columns -->
+      <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
@@ -1530,22 +1536,20 @@ const captionAt=i=>intro ? INTRO_MSG
 // NO SEPARATE ENZYME LINE ON THE STAGE. The action button names the enzyme
 // ABOUT to act, which is the only place the name does any work — printing it
 // again underneath after the fact was the same word twice on one screen.
-// The heading over the caption: which of the ten this is, and the one word to
-// carry away. Both are read off the step — the number is its canonical `n`, so
-// the band, the rail's lit circle and a textbook all say the same "step 6".
+// The heading over the BUTTON — drawn by drawAct, not here, because that is
+// where it sits. Which of the ten this is, and the one word to carry away; both
+// read off the step, so the heading, the rail's lit circle and a textbook all
+// say the same "step 6".
 const headAt=i=>{ const st=STEPS[i]; return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
-let shownCaption=null, shownHead=null;
+let shownCaption=null;
 function drawCaption(){
   // NO CAPTION ON THE REVIEW SCREEN. That beat is for looking at what you made —
   // the words were read before it ran, and repeating them under the result just
   // gives the eye somewhere else to go. The band keeps its height, so nothing
   // moves and the camera does not re-frame.
-  const i=focusStep();
-  const html=reviewing?'':captionAt(i);
-  const head=(reviewing||intro||i>=nSteps)?'':headAt(i);
-  if(html===shownCaption && head===shownHead) return;   // don't restart the fade
-  shownCaption=html; shownHead=head;
-  rxmsgEl.querySelector('.rxhead').innerHTML=head;
+  const html=reviewing?'':captionAt(focusStep());
+  if(html===shownCaption) return;              // don't restart the fade
+  shownCaption=html;
   rxmsgEl.querySelector('p').innerHTML=html;
   rxmsgEl.classList.toggle('show', !!html);
   rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
@@ -1598,6 +1602,7 @@ function drawTray(){
 }
 
 const actEl=document.getElementById('actbtn');
+const stepHeadEl=document.getElementById('stephead');
 const BURST_MS=190;   // just under the .3s press flash
 const pulseEl=document.getElementById('stagepulse');
 let pressing=false;
@@ -1629,6 +1634,16 @@ function beginPathway(){
   });
 }
 function drawAct(){
+  // THE HEADING TRACKS THE BEAT: the step and its hook on the way in, the same
+  // step reported done on the way out, nothing at the intro or at the end. It
+  // holds its height when it says nothing, so the bar never changes size.
+  const hi=focusStep();
+  const head = intro ? ''
+             : reviewing ? `Step ${STEPS[done-1].n} complete`
+             : hi<nSteps ? headAt(hi)
+             : '';
+  stepHeadEl.innerHTML=head;
+  stepHeadEl.classList.toggle('on', !!head);
   // ONE BUTTON, ONE PLACE, ONE WORD. The intro's Begin and every step share this
   // element, so the thing to click never jumps between the stage and the
   // sidebar — and from step to step it never changes shape or wording either.
