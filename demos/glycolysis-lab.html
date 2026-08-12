@@ -367,155 +367,40 @@
   }
 
   /* ---------- PATHWAY RAIL, across the top ----------
-     The ten steps, blocked into the five stages, read LEFT TO RIGHT — which is
-     the direction a pathway runs and the reason the stage got its width back.
-     The DOTS carry the canonical step numbers 1–10, so the rail lines up with
-     the numbering every textbook and lecture uses. The stages are block
-     HEADINGS over them, not a second numbered sequence competing with it: two
-     numberings on one rail meant "3" could mean step 3 or stage 3, and the one
-     a student can check against their book is the step.
-
-     ONE CARD PER STEP, in one scrolling row. A card is self-contained — it
-     repeats its own stage heading over its own step — so the ten read as one
-     left-to-right sequence with no stack to read downward and no stage column
-     whose height is set by its deepest member. The stage heading repeating
-     across a stage's cards is what BLOCKS them: three cards saying PAYOFF in a
-     row is the grouping, said by the cards themselves. */
-  #railbar{display:flex;align-items:center;gap:8px;padding:10px 14px 8px;
-    z-index:7;
-    /* the same dotted paper as the stage and the sidebar — the cards float on
+     TEN NUMBERS. The rail says where you are in the pathway and nothing else:
+     the numbers are the canonical 1-10 every textbook uses, the lit one is the
+     step whose product is on the stage, and a step you have already run is a
+     click back to it. Everything the rail used to carry — names, carriers, the
+     one-way markers, the stage blocking — is behind Show 10 steps, where it can
+     be read as a list instead of squeezed into a strip. */
+  #railbar{display:flex;align-items:center;justify-content:center;
+    padding:12px 22px 10px;z-index:7;
+    /* the same dotted paper as the stage and the sidebar — the numbers sit on
        the page, so the bar itself is not a surface */
     background-color:var(--paper);
     background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
     background-size:26px 26px; background-position:13px 13px}
-  /* the rail scrolls sideways rather than wrapping: a wrapped pathway stops
-     reading as one sequence, and below the breakpoint there is no width for it */
-  /* flex-start, so a collapsed stage's heading lines up with the open stage's
-     heading rather than dropping to the bottom of the taller group */
-  #rail{flex:1;min-width:0;display:flex;align-items:flex-start;gap:20px;
-    overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;
-    scroll-snap-type:x proximity;scrollbar-width:none}
-  #rail::-webkit-scrollbar{display:none}
-  /* the arrows. Quiet until hovered — they are steering, not an action, and the
-     one action on this page is the enzyme button on the stage. */
-  .rarrow{flex:none;width:26px;height:26px;border-radius:50%;
-    border:1px solid var(--hair);background:var(--panel);color:var(--muted);
-    font-size:13px;line-height:1;cursor:pointer;display:flex;
-    align-items:center;justify-content:center}
-  .rarrow:hover{color:var(--ink);border-color:var(--ink)}
-  .rarrow:disabled{opacity:.25;cursor:default}
-  /* ONE GROUP = ONE STAGE: its name above, its step cards in a row beneath.
-     The heading spans its own cards, so the blocking is drawn by width and no
-     card has to repeat it. */
-  .rgroup{flex:none;display:flex;flex-direction:column;gap:3px}
-  .rgcards{display:flex;gap:8px}
-  /* ONE CARD = ONE STEP. Fixed width, so a long name wraps inside the card
-     instead of making its card wider than its neighbours — the ten cards are
-     one measure and the eye can count them. */
-  .rcard{flex:none;width:272px;display:flex;flex-direction:column;gap:2px;
-    padding:5px 11px 6px;border-radius:9px;background:var(--panel);
-    border:1px solid var(--hair);scroll-snap-align:center}
-  .rcard.future{background:transparent}
-  /* the step you are on LIFTS off the paper — the rail's only shadow, so it
-     marks one card rather than the whole bar */
-  .rcard.cur{box-shadow:0 3px 10px -4px rgba(0,0,0,.35)}
-
-  /* block heading: stage name + the bookkeeping delta it is responsible for */
-  .rblock{display:flex;align-items:baseline;gap:8px;cursor:pointer;padding:0 0 0 11px}
-  .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:11px;
-    letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-  .rblock .bd{font-family:var(--font-slab);font-weight:700;
-    font-size:11.5px;color:var(--muted);white-space:nowrap}
-  .rblock.cur .bt,.rblock.cur .bd{color:var(--phos)}
-  /* reserved, not absent — see drawRail */
-  .rblock .bd.off{visibility:hidden}
-
-  /* one row per step — the rail holds nothing else */
-  /* THE ROW CARRIES THE RESERVE, NOT THE LABEL. Two lines' worth is held by
-     the row itself, so a one-line step and a two-line one are the same height
-     and their dots sit an even distance apart — reserving inside the label
-     instead left short rows with all the slack under the text. */
-  .rrow{display:flex;align-items:center;gap:9px;min-height:42px;
-    padding:2px 5px;border-radius:6px}
-  /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Steps are
-     named for what they LEAVE behind, so the yellow band sits on the step
-     already run. "Up next" is a separate, quieter state beside it: an open ring
-     on the dot, full-strength text, no band. */
-  /* perspective on the ROW, so the label's flip has depth to rotate through —
-     a rotateX with no perspective is just a vertical squash. */
-  .rrow{perspective:520px}
-  .rrow .rlab.eq{font-size:12.5px;letter-spacing:-.1px}
-  /* the unrun step's placeholder: holds the row's height and reads as "not
-     yet" rather than as a step that failed to render */
-  .rrow .rlab.veiled{position:relative}
-  .rrow .rlab.veiled::before{content:'';position:absolute;left:0;
-    top:calc(50% - 1px);
-    width:34px;height:2px;border-radius:1px;
-    background:repeating-linear-gradient(90deg,var(--hair) 0 6px,transparent 6px 11px)}
-  .rrow .rlab .arw{color:var(--muted);padding:0 3px;font-weight:400}
-  /* Played on a freshly built element, not transitioned: drawRail replaces
-     every row on every refresh, so there is no previous state to ease from. */
-  .rrow.flip .rlab{animation:rlabflip .5s cubic-bezier(.2,.9,.3,1);
-    transform-origin:50% 50%}
-  @keyframes rlabflip{
-    0%  {transform:rotateX(-88deg);opacity:0}
-    55% {opacity:1}
-    100%{transform:none;opacity:1}}
-  @media (prefers-reduced-motion:reduce){ .rrow.flip .rlab{animation:none} }
-  .rrow.cur{background:rgba(245,196,54,.34)}
-  .rrow .rdot{flex:none;width:24px;height:24px;border-radius:50%;
-    border:2px solid var(--hair);background:var(--panel);
-    font-family:var(--font-slab);font-weight:700;font-size:13px;
-    display:flex;align-items:center;justify-content:center;color:var(--muted)}
-  /* a run step's dot is filled — including the highlighted one, which is run */
-  .rrow.done .rdot{background:var(--ink);border-color:var(--ink);
-    color:var(--panel)}
-  /* the active step's dot is HOLLOW — it has not run. Filled means done. */
-  .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);border-width:2.5px;
-    box-shadow:0 0 0 3px rgba(43,39,35,.1)}
-  /* TWO LINES AT MOST — no label here needs a third, and the row's reserve is
-     sized for two. The rail is a GRID ROW, so a label that grew past its
-     reserve would change the stage's height and move the camera under it. */
-  .rrow .rlab{font-family:var(--font-sans);font-size:14px;color:var(--muted);
-    line-height:1.3;flex:1;min-width:0}
-  .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
-  .rrow.cur .rlab{font-weight:600}
-  /* only a COMPLETED row rewinds — the active one is where you already are */
-  .rrow.done{cursor:pointer}
-  .rrow.done:hover .rlab{color:var(--phos)}
-  .rrow.future{opacity:.5}
-  /* the one-way marker. Only three steps carry it, and that is the lesson.
-     It follows the label rather than hanging off the stack's right edge —
-     the stacks are equal-width, so an edge-hung marker floats far from the
-     step it belongs to. */
-  .rrow .rdotwrap{flex:none;display:flex;align-items:center}
-  .rrow .rirr{flex:none;padding-left:6px;
-    font-size:14px;line-height:1;color:var(--phos);opacity:.75}
-  /* THE CARRIER CHIP: which carrier this step spent or made, and which way.
-     Five steps carry one and five carry nothing, which is the rail's way of
-     separating the steps that move ENERGY from the steps that move atoms.
-     Colours are the page's existing language — orange for phosphate traffic
-     out (matching #rxmsg .p and the coupling figure), red for ATP banked (the
-     ledger's own "made" colour), green for the NAD⁺/NADH carrier. The sign is
-     the ledger's too, so the chips visibly sum to what the post-it says.
-     A RECORD, NOT A PROMISE: drawn only once the step has run, the same rule
-     the stage deltas follow — "−ATP" on an unrun step 3 gives away the dip. */
-  .rrow .rchip{flex:none;margin-left:6px;padding:1px 5px;border-radius:4px;
-    font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:.4px;
-    white-space:nowrap}
-  .rrow .rchip.spend{color:var(--phos);background:rgba(224,123,31,.13)}
-  .rrow .rchip.atp  {color:var(--atp); background:rgba(200,69,46,.13)}
-  .rrow .rchip.nadh {color:var(--nad); background:rgba(47,125,92,.13)}
-
-  /* THE STAR IS A DOOR, not a status. Only one step carries it — the committed
-     step — and what is behind it is the page's one piece of real regulatory
-     biology, which used to sit in the sidebar under the coupling box where it
-     competed with the step in front of the student. Sized and coloured like
-     the one-way marker so the rail keeps two marks, not two vocabularies. */
-  .rrow .rstar{flex:none;margin-left:4px;padding:2px 3px;border:none;
-    background:none;cursor:pointer;font-size:14px;line-height:1;
-    color:var(--phos);opacity:.85}
-  .rrow .rstar:hover{opacity:1;transform:scale(1.18)}
+  #rail{display:flex;align-items:center;gap:10px}
+  .rnum{width:30px;height:30px;padding:0;border-radius:50%;
+    border:2px solid var(--hair);background:var(--panel);color:var(--muted);
+    font-family:var(--font-slab);font-weight:700;font-size:14px;line-height:1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer}
+  /* a step already run is filled — the trail you can count and click back into */
+  .rnum.past{background:var(--ink);border-color:var(--ink);color:var(--panel);
+    opacity:.45}
+  .rnum.past:hover{opacity:1}
+  /* WHERE YOU ARE: filled, full strength, and lifted off the paper */
+  .rnum.cur{background:var(--ink);border-color:var(--ink);color:var(--panel);
+    box-shadow:0 3px 10px -3px rgba(0,0,0,.5);cursor:default}
+  /* THE STEP YOU ARE ON: awake but empty — from the moment it becomes yours to
+     run until the moment it lands. The only number that is neither dim nor
+     filled, which is exactly its state: happening, not yet made. */
+  .rnum.run{opacity:1;border-color:var(--ink);color:var(--ink);border-width:2.5px;
+    box-shadow:0 0 0 3px rgba(43,39,35,.1);cursor:default}
+  /* what has not run yet: an empty circle. It keeps its number, so the ten are
+     always ten, but it is not a place you can go — forward is the page's own
+     button, and skipping ahead hands over a molecule you never made. */
+  .rnum.future{opacity:.4;cursor:default}
 
   /* The sidebar scrolls, not the card. */
   #card{overflow:visible;flex:none}
@@ -622,11 +507,10 @@
   #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
   /* ---------- all ten steps, in one column ----------
-     Reuses the rail's own row (.rrow, .rdot, .rchip, .rirr, .rstar) so the two
-     surfaces say the same thing in the same words — a step looks the same
-     wherever the student meets it. What changes is the grouping: here the four
-     stages are HEADINGS with their steps under them, which is the shape a list
-     wants and the shape the rail gave up when it went sideways. */
+     THE LIST IS WHERE THE DETAIL LIVES now that the rail is ten numbers: the
+     product each step leaves, the carrier it moved, the one-way marker, the
+     star into PFK-1's regulation, grouped under the four stage headings. It
+     owns these styles outright — nothing else on the page draws a step row. */
   #stepsbody .sgroup{margin-top:14px}
   #stepsbody .sgroup:first-child{margin-top:6px}
   #stepsbody .sghead{display:flex;align-items:baseline;gap:9px;
@@ -635,11 +519,45 @@
     letter-spacing:1.1px;text-transform:uppercase;color:var(--ink)}
   #stepsbody .sghead .bd{font-family:var(--font-slab);font-weight:700;
     font-size:12px;color:var(--muted)}
+
+  #stepsbody .rrow{display:flex;align-items:center;gap:9px;min-height:34px;
+    padding:2px 5px;border-radius:6px}
   /* nothing is dimmed here — the list is the one place that shows the whole
      pathway outright, so a step you have not run is still fully legible */
-  #stepsbody .rrow{min-height:34px}
-  #stepsbody .rrow.future{opacity:1}
-  #stepsbody .rrow.future .rlab{color:var(--ink)}
+  #stepsbody .rrow.cur{background:rgba(245,196,54,.34)}
+  #stepsbody .rdotwrap{flex:none;display:flex;align-items:center}
+  #stepsbody .rdot{width:24px;height:24px;border-radius:50%;
+    border:2px solid var(--hair);background:var(--panel);
+    font-family:var(--font-slab);font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  /* filled means RUN — the same reading the rail's numbers use */
+  #stepsbody .rrow.done .rdot{background:var(--ink);border-color:var(--ink);
+    color:var(--panel)}
+  #stepsbody .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);
+    border-width:2.5px;box-shadow:0 0 0 3px rgba(43,39,35,.1)}
+  #stepsbody .rlab{flex:1;min-width:0;font-family:var(--font-sans);font-size:14px;
+    line-height:1.3;color:var(--ink)}
+  /* only a COMPLETED row rewinds — the others are not places you can go */
+  #stepsbody .rrow.done{cursor:pointer}
+  #stepsbody .rrow.done:hover .rlab{color:var(--phos)}
+  /* the one-way marker: only three steps carry it, and that is the lesson */
+  #stepsbody .rirr{flex:none;padding-left:6px;font-size:14px;line-height:1;
+    color:var(--phos);opacity:.75}
+  /* THE CARRIER CHIP: which carrier this step spent or made, and which way.
+     Colours are the page's existing language — orange for phosphate traffic
+     out, red for ATP banked, green for the NAD+/NADH carrier — and the sign is
+     the ledger's, so the chips visibly sum to what the post-it says. */
+  #stepsbody .rchip{flex:none;margin-left:6px;padding:1px 5px;border-radius:4px;
+    font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:.4px;
+    white-space:nowrap}
+  #stepsbody .rchip.spend{color:var(--phos);background:rgba(224,123,31,.13)}
+  #stepsbody .rchip.atp  {color:var(--atp); background:rgba(200,69,46,.13)}
+  #stepsbody .rchip.nadh {color:var(--nad); background:rgba(47,125,92,.13)}
+  /* THE STAR IS A DOOR, not a status — one step carries it, the committed one */
+  #stepsbody .rstar{flex:none;margin-left:4px;padding:2px 3px;border:none;
+    background:none;cursor:pointer;font-size:14px;line-height:1;
+    color:var(--phos);opacity:.85}
+  #stepsbody .rstar:hover{opacity:1;transform:scale(1.18)}
 
   /* ---------- the ending fork ----------
      THE THREE FATES ARE A MODAL, behind the last button. On the stage they were
@@ -686,9 +604,7 @@
        was the widest thing on the row and the thing the row could least afford.
        The lesson is named in <title> and by the index page that links here. -->
   <div id="railbar">
-    <button class="rarrow" id="railprev" aria-label="Earlier steps">‹</button>
     <div id="rail"></div>
-    <button class="rarrow" id="railnext" aria-label="Later steps">›</button>
   </div>
   <div id="stage">
     <canvas id="gl"></canvas>
@@ -1052,8 +968,8 @@ const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+M[k].gly.carbons,0);
 // THE SYSTEMATIC NAME, because a run step's row has the width for it: the
 // stacks are wide and a name may take a second line. "F1,6-BP" means nothing
 // until you already know what it stands for, so the rail spells out what the
-// step LEFT and `eqOf` keeps the abbreviations for the step about to run,
-// where a whole equation has to fit on one row.
+// step LEFT — and a card exists only once the step has run, so a name is all
+// it ever has to say.
 function productOf(st){
   const keys=st.species, nameOf=k=>M[k].name;
   return keys.every(k=>k===keys[0]) && keys.length>1
@@ -1505,7 +1421,7 @@ function runStep(){
     const top=plateY(keys);
     lanes=keys.map((k,j)=>{ const o=spawnLane(k,j,n,top);
       o.g.position.set(0,0,0); o.g.userData.tx=laneOrigin(k,j,n); return o; });
-    later(()=>{ done=to; pendingFlip=to-1;     // lanes already correct — don't respawn
+    later(()=>{ done=to;                   // lanes already correct — don't respawn
       // The parting is a rAF ease, so in a hidden tab it never ran; land them on
       // their marks here so the two halves can't come back stacked on each other.
       lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; FXi.popGlow(o.g,GLOW); });
@@ -1537,7 +1453,7 @@ function runStep(){
 
   } else dur=280;                              // 'iso': a plain rearrangement
 
-  later(()=>{ done=to; pendingFlip=to-1; renderLanes(to);
+  later(()=>{ done=to; renderLanes(to);
     lanes.forEach(o=>FXi.popGlow(o.g,GLOW));
     busy=false; refresh(); }, dur);
 }
@@ -1688,153 +1604,47 @@ function drawAct(){
   actEl.onclick=()=>press(runStep);
 }
 
-// THE ACTIVE ROW SHOWS THE REACTION, THE DONE ROWS SHOW THE RESULT. A rail of
-// product names answers "what did I make"; the row you are about to run has not
-// made anything yet, so it names what the step DOES instead and swaps to the
-// product once it has one.
-//
-// NO CARRIERS IN IT, on purpose. "2 G3P + 2 Pi + 2 NAD+ → 2 1,3-BPG + 2 NADH"
-// is 42 characters in a 372px panel, and every one of those coefficients is a
-// second place for the stoichiometry to be wrong — the tray, the ledger and the
-// coupling figure already carry them, and they agree with each other because
-// they read the same `pool`. The molecules alone top out at 20 characters.
-// Counts ARE kept (`2 G3P`), because after the split everything happens twice
-// and a rail that hid that would contradict the lanes.
-const eqOf=st=>{
-  const i=STEPS.indexOf(st);
-  const side=keys=>[...new Set(keys)].map(k=>{
-    const n=keys.filter(x=>x===k).length;
-    return (n>1?n+' ':'')+(M[k].short||M[k].name);
-  }).join(' + ');
-  return `${side(speciesAt(i))}<span class="arw">→</span>${side(st.species)}`;
-};
-
 // Jump to the state just BEFORE step k, so the student re-runs the step rather
 // than landing on its aftermath. Shared, because two surfaces rewind now: the
 // rail's cards and the all-steps list.
 const goToStep=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
 
 const railEl=document.getElementById('rail');
-let pendingFlip=null;      // the step index whose row should flip on the next draw
 function drawRail(){
-  const cur=stageAt(done);
+  // TEN NUMBERS, NOTHING ELSE. The rail's only job is "where am I in the ten" —
+  // the molecule on the stage is what you are looking at, the side panel says
+  // what the step does, and the full list is behind Show 10 steps. A rail that
+  // also carried names, chips and markers was answering questions nothing had
+  // asked yet, in the widest strip on the page.
   railEl.innerHTML='';
-  const goStep=goToStep;
-  const goStage=s=>{ if(busy||s.n>cur) return;
-    const k=STEPS.findIndex(x=>x.stage===s.n);
-    intro=(s.n===0);
-    done=(s.n===0?0:(s.n===5?nSteps:(k<0?done:k)));
-    renderLanes(done); refresh(); };
-  const stageCls=n=>n<cur?'done':(n===cur?'cur':'future');
-
-  const flipStep=pendingFlip; pendingFlip=null;   // one draw only
-  let curCard=null;
-  STAGES.forEach(s=>{
-    const steps=stageSteps(s.n);
-
-    // THE RAIL CARRIES STEPS ONLY. The opening and closing states have none,
-    // and both are fully on screen when you are in them — so a stage with no
-    // steps has no card here.
-    if(!steps.length) return;
-
-    // THE STAGE NAME SITS ABOVE ITS CARDS, once, spanning them — so the
-    // grouping is drawn by the heading's width rather than said again on every
-    // card. Each stage is a group in the scroller: heading on top, its step
-    // cards in a row underneath.
-    const grp=document.createElement('div');
-    grp.className='rgroup';
-    const h=document.createElement('div');
-    h.className='rblock '+stageCls(s.n);
-    h.innerHTML=`<span class="bt">${s.block}</span>`
-      +`<span class="bd${stageComplete(s.n)?'':' off'}">${s.delta}</span>`;
-    h.onclick=()=>goStage(s);
-    grp.appendChild(h);
-    const cardsEl=document.createElement('div');
-    cardsEl.className='rgcards';
-    grp.appendChild(cardsEl);
-    railEl.appendChild(grp);
-
-    // ONLY THE ACTIVE STAGE IS OPEN. The other stages are their headings alone
-    // — the pathway's shape stays on screen the whole way through, but the ten
-    // cards do not compete with the one step in front of the student. Clicking
-    // a heading goes to that stage, which opens it.
-    if(stageCls(s.n)!=='cur') return;
-
-    steps.forEach(st=>{
-      const idx=STEPS.indexOf(st);
-      const g=document.createElement('div');
-      cardsEl.appendChild(g);
-      const rowsEl=g;
-      // `cur` IS THE STEP ABOUT TO RUN, which is what "where am I" means on a
-      // rail you drive. Using done-1 (the step that produced what's on the
-      // stage) would make this row alone lag behind everything else on screen:
-      // the action button names the NEXT enzyme, the side panel draws the NEXT
-      // step's coupling, and this rail's own stage headings highlight
-      // stageAt(done), the next step's stage — done-1 would let the rail
-      // disagree with itself.
-      //
-      // The cost is that the highlighted row names a molecule that does not
-      // exist yet. The dot carries the step number and the button carries the
-      // enzyme, so the row reads as the thing you are about to make, which is
-      // the same tense as everything it sits beside.
-      //
-      // `intro` gates the reading, not the chemistry: at done=0 step 1 is
-      // already next, so without this check the rail would light step 1 while
-      // the student is still being introduced to glucose.
-      const state=(idx===done&&!intro)?'cur'
-                 :idx<done?'done'
-                 :'future';
-      g.className='rcard '+state;
-      if(state==='cur') curCard=g;
-      const r=document.createElement('div');
-      // The row that just ran flips from its equation to its product. drawRail
-      // rebuilds every row on every refresh, so a CSS transition has nothing to
-      // transition FROM — the animation is played on the newly built element
-      // instead, and runStep says which one by setting flipStep.
-      r.className='rrow '+state+(idx===flipStep?' flip':'');
-      // A FUTURE ROW KEEPS ITS NUMBER AND LOSES ITS NAME. Reading the whole
-      // pathway off the rail before running any of it turns each step into a
-      // confirmation of something already read rather than something found —
-      // and the names are long, so ten of them greyed out is most of the panel
-      // spent on text nobody can act on. The dash keeps the row's height, so
-      // the rail does not resize as it fills in.
-      r.innerHTML=`<div class="rdotwrap"><div class="rdot">${st.n}</div></div>`
-        +`<div class="rlab${state==='cur'?' eq':state==='future'?' veiled':''}">`
-          +`${state==='future'?'':state==='cur'?eqOf(st):productOf(st)}</div>`
-        +(state==='done'?chipOf(st):'')
-        +(st.rev===false
-          ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '')
-        // one step is regulated, and the star is the way into why
-        +(st.commit
-          ? `<button class="rstar" data-pfk aria-label="Why this step is the one the cell controls">★</button>` : '');
-      if(idx<done) r.onclick=()=>goStep(idx);
-      const star=r.querySelector('[data-pfk]');
-      // stopPropagation, because a run row's own click rewinds the pathway
-      if(star) star.onclick=e=>{ e.stopPropagation(); Pfk.show(); };
-      rowsEl.appendChild(r);
-    });
+  STEPS.forEach((st,idx)=>{
+    // `done` is how many steps have RUN, so the number you are viewing is the
+    // last one that ran — its product is what stands in the lanes. At the intro
+    // nothing has run and no number is lit.
+    // THREE READINGS, and `done` (how many steps have RUN) separates them.
+    // idx===done is the step you are ON — waiting for your click or already in
+    // flight; both are the same thing to a student, so both read as AWAKE but
+    // still hollow, because filled means made and nothing is made until the
+    // transition lands. idx===done-1 is what you just made and is filled.
+    const state = (!intro && idx===done)   ? 'run'
+                : (!intro && idx===done-1) ? 'cur'
+                : (idx < done)             ? 'past'
+                :                            'future';
+    const b=document.createElement('button');
+    b.className='rnum '+state;
+    b.textContent=st.n;
+    b.setAttribute('aria-label',`Step ${st.n}`);
+    if(state==='cur') b.setAttribute('aria-current','step');
+    // Only a step that has run can be returned to — going FORWARD is the
+    // pathway's own button, and skipping to step 7 would hand over a molecule
+    // the student never made.
+    if(state==='past') b.onclick=()=>goToStep(idx+1);
+    else if(state!=='cur') b.disabled=true;
+    // a disabled button cannot be styled awake in every browser's default sheet,
+    // and the running number is not a control anyway — it is a state
+    railEl.appendChild(b);
   });
-  // KEEP THE STEP YOU ARE ON IN VIEW. The rail is longer than the window now,
-  // so advancing the pathway has to bring its own card along or the student is
-  // driving something off screen.
-  if(curCard) curCard.scrollIntoView({block:'nearest',inline:'center'});
-  railArrows();
 }
-
-/* The two arrows. They page by roughly three cards — a stage's worth — and go
-   dim at the ends, so the rail says how much of the pathway is off screen. */
-const prevBtn=document.getElementById('railprev');
-const nextBtn=document.getElementById('railnext');
-function railArrows(){
-  const max=railEl.scrollWidth-railEl.clientWidth-1;
-  prevBtn.disabled=railEl.scrollLeft<=0;
-  nextBtn.disabled=railEl.scrollLeft>=max;
-}
-const railPage=d=>{ railEl.scrollLeft+=d*(railEl.clientWidth*0.8); };
-prevBtn.onclick=()=>railPage(-1);
-nextBtn.onclick=()=>railPage(1);
-railEl.addEventListener('scroll',railArrows,{passive:true});
-addEventListener('resize',railArrows);
 
 /* The panel under the card. It shows ONE of three things, in priority order:
  * PFK-1's regulation when that step is next (the page's one piece of real
