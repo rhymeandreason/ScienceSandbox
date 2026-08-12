@@ -475,8 +475,8 @@
   /* ONE CARD = ONE STEP. Fixed width, so a long name wraps inside the card
      instead of making its card wider than its neighbours — the ten cards are
      one measure and the eye can count them. */
-  .rcard{flex:none;width:216px;display:flex;flex-direction:column;gap:2px;
-    padding:6px 9px 7px;border-radius:9px;background:var(--panel);
+  .rcard{flex:none;width:272px;display:flex;flex-direction:column;gap:2px;
+    padding:7px 11px 8px;border-radius:9px;background:var(--panel);
     border:1px solid var(--hair);scroll-snap-align:center}
   .rcard.future{background:transparent}
   /* the step you are on LIFTS off the paper — the rail's only shadow, so it
@@ -485,10 +485,10 @@
 
   /* block heading: stage name + the bookkeeping delta it is responsible for */
   .rblock{display:flex;align-items:baseline;gap:8px;cursor:pointer;padding:0 2px}
-  .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:10px;
-    letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .rblock .bt{font-family:var(--font-slab);font-weight:700;font-size:11px;
+    letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
   .rblock .bd{font-family:var(--font-slab);font-weight:700;
-    font-size:10.5px;color:var(--muted);white-space:nowrap}
+    font-size:11.5px;color:var(--muted);white-space:nowrap}
   .rblock.cur .bt,.rblock.cur .bd{color:var(--phos)}
   /* reserved, not absent — see drawRail */
   .rblock .bd.off{visibility:hidden}
@@ -498,7 +498,7 @@
      the row itself, so a one-line step and a two-line one are the same height
      and their dots sit an even distance apart — reserving inside the label
      instead left short rows with all the slack under the text. */
-  .rrow{display:flex;align-items:center;gap:8px;min-height:38px;
+  .rrow{display:flex;align-items:center;gap:9px;min-height:42px;
     padding:2px 5px;border-radius:6px}
   /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Steps are
      named for what they LEAVE behind, so the yellow band sits on the step
@@ -507,7 +507,7 @@
   /* perspective on the ROW, so the label's flip has depth to rotate through —
      a rotateX with no perspective is just a vertical squash. */
   .rrow{perspective:520px}
-  .rrow .rlab.eq{font-size:11px;letter-spacing:-.1px}
+  .rrow .rlab.eq{font-size:12.5px;letter-spacing:-.1px}
   /* the unrun step's placeholder: holds the row's height and reads as "not
      yet" rather than as a step that failed to render */
   .rrow .rlab.veiled{position:relative}
@@ -526,9 +526,9 @@
     100%{transform:none;opacity:1}}
   @media (prefers-reduced-motion:reduce){ .rrow.flip .rlab{animation:none} }
   .rrow.cur{background:rgba(245,196,54,.34)}
-  .rrow .rdot{flex:none;width:21px;height:21px;border-radius:50%;
+  .rrow .rdot{flex:none;width:24px;height:24px;border-radius:50%;
     border:2px solid var(--hair);background:var(--panel);
-    font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    font-family:var(--font-slab);font-weight:700;font-size:13px;
     display:flex;align-items:center;justify-content:center;color:var(--muted)}
   /* a run step's dot is filled — including the highlighted one, which is run */
   .rrow.done .rdot{background:var(--ink);border-color:var(--ink);
@@ -539,7 +539,7 @@
   /* TWO LINES AT MOST — no label here needs a third, and the row's reserve is
      sized for two. The rail is a GRID ROW, so a label that grew past its
      reserve would change the stage's height and move the camera under it. */
-  .rrow .rlab{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+  .rrow .rlab{font-family:var(--font-sans);font-size:14px;color:var(--muted);
     line-height:1.3;flex:1;min-width:0}
   .rrow.done .rlab,.rrow.cur .rlab{color:var(--ink)}
   .rrow.cur .rlab{font-weight:600}
@@ -553,7 +553,7 @@
      step it belongs to. */
   .rrow .rdotwrap{flex:none;display:flex;align-items:center}
   .rrow .rirr{flex:none;padding-left:6px;
-    font-size:13px;line-height:1;color:var(--phos);opacity:.75}
+    font-size:14px;line-height:1;color:var(--phos);opacity:.75}
   /* THE CARRIER CHIP: which carrier this step spent or made, and which way.
      Five steps carry one and five carry nothing, which is the rail's way of
      separating the steps that move ENERGY from the steps that move atoms.
@@ -564,7 +564,7 @@
      A RECORD, NOT A PROMISE: drawn only once the step has run, the same rule
      the stage deltas follow — "−ATP" on an unrun step 3 gives away the dip. */
   .rrow .rchip{flex:none;margin-left:6px;padding:1px 5px;border-radius:4px;
-    font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:.4px;
+    font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:.4px;
     white-space:nowrap}
   .rrow .rchip.spend{color:var(--phos);background:rgba(224,123,31,.13)}
   .rrow .rchip.atp  {color:var(--atp); background:rgba(200,69,46,.13)}
@@ -576,7 +576,7 @@
      competed with the step in front of the student. Sized and coloured like
      the one-way marker so the rail keeps two marks, not two vocabularies. */
   .rrow .rstar{flex:none;margin-left:4px;padding:2px 3px;border:none;
-    background:none;cursor:pointer;font-size:13px;line-height:1;
+    background:none;cursor:pointer;font-size:14px;line-height:1;
     color:var(--phos);opacity:.85}
   .rrow .rstar:hover{opacity:1;transform:scale(1.18)}
 
@@ -667,18 +667,42 @@
      inviting than the lesson's own button between them — and the top of the
      stage is where the molecule's name goes, not where chrome goes. PNG takes
      the muted treatment from #restart, overriding sandbox.css's ink chip. */
-  #restart,#savepng{bottom:22px;z-index:20;
+  /* the pathway map's door, stacked directly above Restart and styled as its
+     twin — both are page-level utilities, neither competes with the enzyme
+     button on the stage. */
+  #allsteps{position:fixed;right:26px;bottom:64px;top:auto}
+  #restart,#savepng,#allsteps{z-index:20;
     font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
     color:var(--muted);background:transparent;border:2px solid var(--hair);
     border-radius:var(--radius);padding:6px 15px;cursor:pointer;
     display:inline-flex;align-items:center;gap:6px}
   /* fixed, so it holds the SCREEN's corner past the readout column, and the
      sidebar scrolling underneath cannot carry it away */
-  #restart{position:fixed;right:26px;top:auto}
-  #savepng{position:absolute;left:26px;top:auto}
-  /* room under the last readout so the button never lands on it */
-  #side{padding-bottom:64px}
-  #restart:hover,#savepng:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  #restart{position:fixed;right:26px;bottom:22px;top:auto}
+  #savepng{position:absolute;left:26px;bottom:22px;top:auto}
+  /* room under the last readout so the buttons never land on it */
+  #side{padding-bottom:110px}
+  #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+  /* ---------- all ten steps, in one column ----------
+     Reuses the rail's own row (.rrow, .rdot, .rchip, .rirr, .rstar) so the two
+     surfaces say the same thing in the same words — a step looks the same
+     wherever the student meets it. What changes is the grouping: here the four
+     stages are HEADINGS with their steps under them, which is the shape a list
+     wants and the shape the rail gave up when it went sideways. */
+  #stepsbody .sgroup{margin-top:14px}
+  #stepsbody .sgroup:first-child{margin-top:6px}
+  #stepsbody .sghead{display:flex;align-items:baseline;gap:9px;
+    padding:0 0 4px;border-bottom:1px solid var(--hair);margin-bottom:3px}
+  #stepsbody .sghead .bt{font-family:var(--font-slab);font-weight:700;font-size:12px;
+    letter-spacing:1.1px;text-transform:uppercase;color:var(--ink)}
+  #stepsbody .sghead .bd{font-family:var(--font-slab);font-weight:700;
+    font-size:12px;color:var(--muted)}
+  /* nothing is dimmed here — the list is the one place that shows the whole
+     pathway outright, so a step you have not run is still fully legible */
+  #stepsbody .rrow{min-height:34px}
+  #stepsbody .rrow.future{opacity:1}
+  #stepsbody .rrow.future .rlab{color:var(--ink)}
 
   /* ---------- the ending fork ----------
      THE THREE FATES ARE A MODAL, behind the last button. On the stage they were
@@ -708,8 +732,10 @@
     .reag .rcount{font-size:19px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
     /* Both corners tighten in; the caption band between them is narrower here. */
-    #restart,#savepng{bottom:16px;padding:5px 12px;font-size:12px}
+    #restart,#savepng,#allsteps{padding:5px 12px;font-size:12px}
+    #restart,#savepng{bottom:16px}
     #savepng{left:14px} #restart{right:14px}
+    #allsteps{right:14px;bottom:54px}
     #bottombar{bottom:18px}
   }
 </style>
@@ -748,6 +774,10 @@
   <!-- Restart lives at PAGE level, not on the stage: it applies to the whole
        lesson (the rail and the readouts reset with it), so it belongs at the
        screen's own bottom-right rather than at the stage's. -->
+  <!-- The whole pathway at once, behind a button above Restart. The rail is a
+       scroller you drive one card at a time; this is the map of it — all ten
+       steps, named and grouped, in one column you can read down. -->
+  <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
   <!-- The right column is no longer a panel with its own voice — it is a stack
        of readouts beside the stage: the tally, the step's energy picture, and
@@ -769,6 +799,20 @@
     <p class="msub">All three answers are the same question — <b>where does NAD⁺
       come from?</b> — because that is the constraint that picks one.</p>
     <div id="forkbody"></div>
+  </div>
+</div>
+
+<!-- All ten steps in one column, behind the button above Restart. -->
+<div id="stepsmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="stepstitle">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <div class="mkick">The pathway</div>
+    <h2 id="stepstitle">All ten steps</h2>
+    <p class="msub">Each step is named for <b>what it leaves behind</b> — so
+      reading down the column is reading the carbon's route from glucose to
+      pyruvate.</p>
+    <div id="stepsbody"></div>
   </div>
 </div>
 
@@ -1752,14 +1796,17 @@ const eqOf=st=>{
   return `${side(speciesAt(i))}<span class="arw">→</span>${side(st.species)}`;
 };
 
+// Jump to the state just BEFORE step k, so the student re-runs the step rather
+// than landing on its aftermath. Shared, because two surfaces rewind now: the
+// rail's cards and the all-steps list.
+const goToStep=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
+
 const railEl=document.getElementById('rail');
 let pendingFlip=null;      // the step index whose row should flip on the next draw
 function drawRail(){
   const cur=stageAt(done);
   railEl.innerHTML='';
-  // Jump to the state just BEFORE step k, so the student re-runs the step rather
-  // than landing on its aftermath.
-  const goStep=k=>{ if(busy) return; intro=false; done=k; renderLanes(done); refresh(); };
+  const goStep=goToStep;
   const goStage=s=>{ if(busy||s.n>cur) return;
     const k=STEPS.findIndex(x=>x.stage===s.n);
     intro=(s.n===0);
@@ -2149,6 +2196,55 @@ const Pfk=(()=>{
   const hide=()=>{ open=false; el.hidden=true; };
   el.querySelector('.mback').onclick=hide;
   el.querySelector('.mclose').onclick=hide;
+  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
+  return {show, hide, isOpen:()=>open};
+})();
+
+/* ---- all ten steps, in one column -----------------------------------------
+ * THE MAP, not the rail. The rail is a scroller you drive one card at a time and
+ * it veils what has not run — that reveal is what makes each step a finding. A
+ * student who asks for all ten has opted out of that, so this list names every
+ * product, chip and marker outright. Nothing here is typed: the rows are built
+ * from STEPS by the same productOf/chipOf the rail uses, so a step that changes
+ * changes in both places. A run step rewinds the pathway, same as on the rail. */
+const AllSteps=(()=>{
+  const el=document.getElementById('stepsmodal');
+  const body=document.getElementById('stepsbody');
+  let open=false;
+  const hide=()=>{ open=false; el.hidden=true; };
+  function draw(){
+    body.innerHTML='';
+    STAGES.forEach(s=>{
+      const steps=stageSteps(s.n);
+      if(!steps.length) return;                 // the two step-less states
+      const g=document.createElement('div');
+      g.className='sgroup';
+      g.innerHTML=`<div class="sghead"><span class="bt">${s.block}</span>`
+        +`<span class="bd">${s.delta}</span></div>`;
+      steps.forEach(st=>{
+        const idx=STEPS.indexOf(st);
+        const state=(idx===done&&!intro)?'cur':idx<done?'done':'future';
+        const r=document.createElement('div');
+        r.className='rrow '+state;
+        r.innerHTML=`<div class="rdotwrap"><div class="rdot">${st.n}</div></div>`
+          +`<div class="rlab">${productOf(st)}</div>`
+          +chipOf(st)
+          +(st.rev===false
+            ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '')
+          +(st.commit
+            ? `<button class="rstar" data-pfk aria-label="Why this step is the one the cell controls">★</button>` : '');
+        if(idx<done) r.onclick=()=>{ hide(); goToStep(idx); };
+        const star=r.querySelector('[data-pfk]');
+        if(star) star.onclick=e=>{ e.stopPropagation(); hide(); Pfk.show(); };
+        g.appendChild(r);
+      });
+      body.appendChild(g);
+    });
+  }
+  const show=()=>{ draw(); el.hidden=false; open=true; el.querySelector('.mclose').focus(); };
+  el.querySelector('.mback').onclick=hide;
+  el.querySelector('.mclose').onclick=hide;
+  document.getElementById('allsteps').onclick=show;
   addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
   return {show, hide, isOpen:()=>open};
 })();
