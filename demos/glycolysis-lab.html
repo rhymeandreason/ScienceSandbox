@@ -11,18 +11,7 @@
 <style>
   :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a; }
 
-  /* This page's side panel is the tallest in the sandbox — a sixteen-row rail
-     plus prose. A grid row of `1fr` still floors at its content's auto height,
-     so the row grew past 100vh and #app's overflow:hidden ate the bottom of
-     BOTH columns. minmax(0,…) plus min-height:0 lets the row actually shrink;
-     the card then takes the overflow and scrolls.
-
-     THE SIDEBAR HAS NO FOOTER. Its two buttons moved onto the stage: Restart to
-     the top-right corner, and Begin into the tray's slot, where the thing you
-     are meant to click already lives. The old Next button was disabled in every
-     state but one — every real step is driven from the stage, so a footer
-     button could only ever mirror it — and a permanently greyed control teaches
-     students to ignore that corner of the screen. */
+  /* 
      Scoped to the WIDE layout on purpose: below 920px sandbox.css stacks the
      page with `grid-template-rows: 56vh 1fr`, and this override — being later
      in the cascade — replaced that with a single row, so #side took its full
@@ -31,7 +20,7 @@
     #app{grid-template-rows:minmax(0,1fr)}
   }
   #stage,#side{min-height:0}
-  #side{overflow:hidden}
+  #side{overflow:hidden; background-image: none;}
   #card{min-height:0}
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
@@ -155,15 +144,14 @@
   #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
-  /* THE INSTRUCTION SITS OVER THE THING IT IS ABOUT. It used to be the hint line
-     under the enzyme caption on the stage, which put "click the highlighted
-     carrier" as far from the carriers as the layout allows. Reserved with
-     `visibility` rather than toggled with `display`, so the tray's height — and
-     therefore the camera's left inset, which usable() measures off it — does not
-     change between a carrier step and an action step. */
-  .tcue{visibility:hidden;font-family:var(--font-sans);font-weight:600;font-size:11.5px;
+  /* A NAME, NOT AN INSTRUCTION. This used to read "click the highlighted
+     carrier", which was the same instruction the live tile's own "← Spend 1 ATP"
+     arrow already gives, three centimetres away and pointing at the thing to
+     click. So the line names the group instead — and being constant, it also
+     keeps the tray's height fixed, which is what the camera's left inset
+     (usable()) measures off. */
+  .tcue{font-family:var(--font-sans);font-weight:600;font-size:11.5px;
     letter-spacing:.2px;color:var(--ink);opacity:.8;margin-bottom:5px;padding-left:2px}
-  .tcue.show{visibility:visible}
   /* Named so the group cannot be misread as a toolbar. */
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
@@ -240,7 +228,7 @@
      not look like the thing to click — that is the carrier. So it keeps the
      type and loses everything that says "button": fill, border, shadow, hover. */
   #actbtn.ghost{background:none;border-color:transparent;color:var(--ink);
-    box-shadow:none;cursor:default}
+    box-shadow:none;cursor:default; }
   #actbtn.ghost:hover{background:none;transform:none}
   #actbtn .hint{display:block;font-family:var(--font-sans);font-weight:500;font-size:12.5px;
     letter-spacing:.2px;opacity:.75;margin-top:2px}
@@ -276,7 +264,7 @@
      appearing. Muted, because on a carrier step the thing to press is in the
      tray, not here. */
   #actbtn.ghost .enzname{color:var(--ink);padding:2px 4px;
-    animation:enzarrive .46s cubic-bezier(.2,.9,.3,1)}
+    animation:enzarrive .46s cubic-bezier(.2,.9,.3,1); opacity: .7;}
   @keyframes enzarrive{
     from{opacity:0;transform:scale(1.45)}
     to  {opacity:1;transform:scale(1)}}
@@ -439,10 +427,10 @@
   .rblock .bd{margin-left:auto;font-family:var(--font-slab);font-weight:700;
     font-size:11.5px;color:var(--muted);white-space:nowrap}
   .rblock.cur .bt,.rblock.cur .bd{color:var(--phos)}
-  .rblock.future{opacity:.5}
+  .rblock.future{}
 
   /* one row per step, and the two bookend states either side of the ten */
-  .rrow{display:flex;gap:11px;align-items:center;padding:1.5px 0;border-radius:5px}
+  .rrow{display:flex;gap:12px;align-items:center;padding:4px 0;border-radius:5px}
   /* THE HIGHLIGHT MARKS THE MOLECULE ON THE STAGE, NOT THE NEXT CLICK. Rows are
      named for what a step LEAVES behind, so the yellow band has to sit on the
      step already run — otherwise it names a molecule that does not exist yet,
@@ -493,7 +481,7 @@
   /* the one-way marker. Only three steps carry it, and that is the lesson. */
   .rrow .rirr{margin-left:auto;flex:none;font-size:14px;color:var(--phos);opacity:.75}
   /* bookends carry no step number, because they are not steps */
-  .rrow.bookend{padding:6px 0;border-top:1px solid rgba(0,0,0,.07)}
+  .rrow.bookend{padding:8px 8px;border-top:1px solid rgba(0,0,0,.07)}
   .rrow.bookend:first-child{border-top:none}
   .rrow.bookend .rlab{font-weight:600}
   .rrow.bookend .rdelta{margin-left:auto;flex:none;font-family:var(--font-slab);
@@ -1454,8 +1442,7 @@ function drawTray(){
   if(intro){ trayEl.style.display='none'; trayEl.innerHTML=''; return; }
   trayEl.style.display='flex';
   const pool=poolAt(done), st=done<nSteps?stepAt(done):null;
-  const cue=!!st && !!st.reagent && !busy;
-  trayEl.innerHTML=`<div class="tcue${cue?' show':''}">Click the highlighted carrier</div>`
+  trayEl.innerHTML=`<div class="tcue">Carriers</div>`
     +'<div class="tstrip"></div><div class="tcap">In the cytosol</div>';
   const strip=trayEl.children[1];
   REAGENTS.forEach(r=>{
@@ -1540,9 +1527,9 @@ function drawAct(){
     // about to act and stays visibly unclickable, while the tray's own arrow
     // says what to spend. Same slot, same height, no second way to advance.
     actEl.className='ghost';
-    // THE HINT LINE IS EMPTY HERE, NOT ABSENT. The instruction moved to the top
-    // of the tray (.tcue) — it is about the carriers, so it belongs over them —
-    // but dropping the line outright would shorten #bottombar on exactly the
+    // THE HINT LINE IS EMPTY HERE, NOT ABSENT. The instruction lives on the live
+    // carrier itself now (its "← Spend 1 ATP" arrow), which is the tile you are
+    // meant to click — but dropping the line outright would shorten #bottombar on exactly the
     // five steps that have a ghost caption, and #bottombar's height is what
     // usable() reserves along the bottom edge. A camera that re-frames between
     // step 5 and step 6 breaks the one rule this page's framing has.
@@ -2115,17 +2102,15 @@ const Mass=(()=>{
   }
 
   const TEXT={
-    flat:`<b>Step 2.</b> The barrier is the same height from both sides, so G6P
-      and F6P need the same energy to clear it. The enzyme keeps converting in
-      <b>both</b> directions — what changed as the split evened out is only
-      <b>how often</b> each direction comes up, which depends on how many of each
-      are around. Crowd one side and watch the net flip.`,
-    drop:`<b>Step 10.</b> Pyruvate <b>holds far less energy</b> than PEP, so
-      climbing back means finding all of it again at once — and <b>big energies
-      are steeply rarer</b>. Watch which colour glows: blue almost always has
-      enough to go forward, violet almost never has enough to go back. Adding
-      more pyruvate barely helps. That's what <b>irreversible in the cell</b>
-      means, true of only <b>three</b> of these ten steps.`
+    flat:`<b>Step 2.</b> The enzyme keeps converting in <b>both</b> directions —
+      what changed as the split evened out is only <b>how often</b> each
+      direction comes up, which depends on how many of each are around. Crowd
+      one side and watch the net flip.`,
+    drop:`<b>Step 10.</b> Finding that much energy at once is <b>steeply</b>
+      rarer, not just a bit rarer. Watch which colour glows: blue almost always
+      has enough to go forward, violet almost never has enough to go back.
+      Adding more pyruvate barely helps. That's what <b>irreversible in the
+      cell</b> means, true of only <b>three</b> of these ten steps.`
   };
   function drawUI(){
     const a=parts.filter(p=>p.t===0).length;
