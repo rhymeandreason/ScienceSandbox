@@ -204,7 +204,13 @@
      belongs to the step caption, which needs the width; the pools do not — five
      short rows stack happily down the side, and a vertical list is closer to
      how a stock of something reads anyway. */
+  /* THE WIDTH IS RESERVED, ALWAYS. usable() measures this element to decide how
+     far right the lesson sits, and the tray now shows only the carriers the
+     current step touches — so without a floor its width would change with the
+     step and slide the whole stage sideways as you work through the pathway.
+     152px is the tile width; keep the two in step. */
   #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
+    min-width:152px;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
   /* A NAME, NOT AN INSTRUCTION — the live tile's own "← Spend 1 ATP" arrow
@@ -821,6 +827,10 @@ const REAGENTS=[
   {key:'NAD',  name:'NAD<sup>+</sup>',  sub:'empty carrier'},
   {key:'NADH', name:'NADH',  sub:'loaded carrier'},
 ];
+
+// The couple table names carriers as the figure prints them ("NAD+"); the tray
+// keys them as the pools are keyed ("NAD"). One place converts.
+const carrierKey=n=>n==='NAD+'?'NAD':n;
 
 // One entry per user action — the ten canonical steps. `species` is the
 // resulting contents of the lanes, so the lane count doubling at the split falls
@@ -1612,11 +1622,28 @@ function drawTray(){
   trayEl.style.display='flex';
   trayEl.style.visibility = intro ? 'hidden' : 'visible';
   trayEl.style.pointerEvents = intro ? 'none' : '';
-  const pool=poolAt(done), st=done<nSteps?stepAt(done):null;
+  // ONLY THE CARRIERS THIS STEP TOUCHES. The five used to stand there all the
+  // way through as a running tally, but the ledger carries the arithmetic now
+  // (ATP spent/made/net, NADH, pyruvate), so the full list was five tiles of
+  // which four were inert at any moment — and the one that mattered had to win
+  // your attention against them. What this costs is the trajectory: NAD⁺ walking
+  // down to 0 and Pi to 0 were visible in the standing list and are not here.
+  // Read off the step, never typed: the carrier it spends or makes (`couple`),
+  // the reagent you click, and step 6's second substrate.
+  const i=focusStep();
+  const st=(!intro&&i<nSteps)?stepAt(i):null;
+  const pool=poolAt(done);
+  const c=st&&st.couple;
+  const want=new Set();
+  if(st&&st.reagent) want.add(st.reagent);
+  if(c){ want.add(carrierKey(c.cin)); want.add(carrierKey(c.cout)); if(c.plus) want.add(c.plus); }
+  // A rearrangement touches no carrier at all. The tray keeps its SPACE — it is
+  // what usable() measures to place the lesson — and simply shows nothing.
+  if(!want.size){ trayEl.style.visibility='hidden'; }
   trayEl.innerHTML=`<div class="tcue">Carriers</div>`
     +'<div class="tstrip"></div>';
   const strip=trayEl.children[1];
-  REAGENTS.forEach(r=>{
+  REAGENTS.filter(r=>want.has(r.key)).forEach(r=>{
     const live=!!st && st.reagent===r.key && !busy && !reviewing;
     const d=document.createElement('div');
     d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
