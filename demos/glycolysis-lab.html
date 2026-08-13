@@ -955,13 +955,13 @@ const STEPS=[
     species:['g6p'], enz:'Hexokinase', hook:'Trapping', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
-    msg:`<b>Hexokinase.</b> A <span class="p">phosphate</span> from ATP goes onto carbon 6. The negative charge <b>locks the sugar in the cell</b>: no GLUT transporter will carry a charged molecule back out.` },
+    msg:`<b>Hexokinase.</b> A <span class="p">phosphate</span> from ATP goes onto carbon 6 — the carbon sticking out of the ring, so the <b>ring itself is untouched</b>. The negative charge <b>locks the sugar in the cell</b>: no GLUT transporter will carry a charged molecule back out.` },
 
   { n:2, stage:1, reagent:null,
-    act:'Shift the carbonyl to C2',
+    act:'Open the ring and shift the carbonyl',
     species:['f6p'], enz:'Phosphoglucose isomerase', hook:'Shuffling', rev:true,
-    fx:'iso',
-    msg:`<b>Phosphoglucose isomerase.</b> Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>, rearranged from a glucose to a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can.` },
+    fx:'open',
+    msg:`<b>Phosphoglucose isomerase.</b> The ring <b>opens</b> — it has to, because moving the C=O from carbon 1 to carbon 2 happens on the straight chain. Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>: a glucose has become a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can. <i>Everything from here is drawn open, so the six carbons stay countable.</i>` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
     species:['f16bp'], enz:'Phosphofructokinase-1 (PFK-1)', hook:'Symmetry & instability',
@@ -1686,6 +1686,20 @@ function runStep(){
       FXi.spawnRing(pos, PAL.atoms.O);
       FXi.protonHop(pos, V(l.g.position.x, OFFSCREEN, 0));
     });
+
+  } else if(st.fx==='open'){
+    // THE RING OPENS — and this is the step where it actually does. The
+    // isomerase runs through the open-chain aldehyde, so C1–O5 breaks here.
+    // Marked on that bond, the same way every other bond event on this page is
+    // marked, and given room to read: from here on the pathway is drawn as a
+    // straight chain, which is the change the ring flying open has to earn.
+    lanes.forEach(l=>{
+      const o=M[l.key].gly.open;
+      if(!o) return;
+      const mid=l.g.userData.atomWorld(o[0]).add(l.g.userData.atomWorld(o[1])).multiplyScalar(.5);
+      FXi.spawnRing(mid, PAL.atoms.O);
+    });
+    dur=560;
 
   } else dur=280;                              // 'iso': a plain rearrangement
 

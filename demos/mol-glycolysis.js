@@ -40,13 +40,18 @@
    *      (see `bond()` in scene.js / the labs). P=O is the exception: the three
    *      phosphate O's are all drawn as single sticks, because the charge is
    *      delocalised over them and picking one to double up would be a lie.
-   *   3. After the first phosphorylation the sugar is drawn as an OPEN CHAIN,
-   *      the way every textbook draws glycolysis (Fischer projection), not as
-   *      the furanose ring F1,6-bisphosphate actually is in solution. Glucose
-   *      itself IS drawn as its real pyranose ring, and the ring visibly opens
-   *      during priming — glucose genuinely ring-opens and closes in water.
-   *      The open chain is what makes "six carbons in a row snap into 3 + 3"
-   *      legible, which is the whole reason this page exists.
+   *   3. From the ISOMERISATION on, the sugar is drawn as an OPEN CHAIN, the
+   *      way every textbook draws glycolysis (Fischer projection), not as the
+   *      furanose ring F1,6-bisphosphate actually is in solution. The open
+   *      chain is what makes "six carbons in a row snap into 3 + 3" legible,
+   *      which is the whole reason this page exists.
+   *      WHERE THE CHAIN STARTS IS ITSELF THE CLAIM. Glucose and G6P are both
+   *      drawn as real pyranose rings, because phosphorylating C6 — a carbon
+   *      outside the ring — opens nothing; the ring opens at step 2, where the
+   *      aldose→ketose isomerisation genuinely runs through the open-chain
+   *      aldehyde. Opening it at step 1 instead (as this file did until the
+   *      ring G6P landed) put the biggest event on the page's most-watched
+   *      step on a change of drawing style rather than on chemistry.
    *   4. Phosphate/carboxylate charges live in the labels and the ledger, not
    *      in a force model — this page has no electrostatics (it is not the
    *      solvation engine).
@@ -130,15 +135,39 @@
            + 'hexose — and the one sugar nearly every organism runs on.' } });
   }
   {
-    // — glucose-6-phosphate: ring has opened to the aldose chain; P on C6.
-    //   Hexokinase's product, and the step that traps glucose inside the cell
-    //   (the phosphate's charge means it can't slip back out through GLUT).
-    const g=chainC(6);
-    g.carbonyl(0,0); g.grow(0,'H',GL.CH,'sp2',0);          // C1 aldehyde, incl. its H
-    for(let k=1;k<=4;k++) g.hydroxyl(k, k%2);              // C2…C5 –OH, alternating face
-    const p=g.phosphate(5,0);                              // C6 –O–PO₃
+    // — glucose-6-phosphate: STILL A RING. Hexokinase phosphorylates C6, which
+    //   is the exocyclic carbon hanging off C5 — it is not in the ring, and
+    //   putting a phosphate on it does not open one. G6P in solution is a
+    //   pyranose just as glucose is.
+    //
+    //   This spec was an open chain, and drawing it that way made step 1 look
+    //   like hexokinase tore the ring apart. The ring DOES open on the way to
+    //   fructose-6-phosphate — the aldose→ketose isomerisation at step 2 runs
+    //   through the open-chain aldehyde — so the opening belongs to step 2,
+    //   where it is chemistry, rather than to step 1, where it was only the
+    //   picture changing style. `open` is the bond that breaks when it goes:
+    //   C1–O5, the ring's anomeric bond.
+    const g=ringPyranose();
+    const C=[1,2,3,4,5];                  // ring C1…C5
+    const RING=[0,1,2,3,4,5];             // O5 + C1…C5
+    const OH=[];
+    C.forEach(k=>{ if(k<5) OH.push(g.hydroxyl(k, g.equatorial(k,RING))); });
+    const c6=g.grow(5,'C',GL.CC,'sp3',g.equatorial(5,RING));   // C6, exocyclic
+    const p=g.phosphate(c6,0);            // …and the phosphate goes on THAT
+    // C–H last, so every index above is unchanged — same order glucose uses
+    const CH=[];
+    C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
+    CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
     GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', short:'G6P', formula:'C₆H₁₃O₉P²⁻', class:'sugar',
-      gly:{ carbons:6, cN:[0,1,2,3,4,5], p3:p, phosphates:1 } });
+      // the same two claims glucose carries, because it is the same ring
+      stereo:'all-equatorial',
+      topology:{ rings:[6] },
+      view:VIEW.pyranose,
+      optH:CH,
+      gly:{ carbons:6, ring:true, cN:[...C,c6], p3:p, phosphates:1,
+            open:[1,0],               // C1–O5: the bond that breaks at step 2
+            note:'still a pyranose — C6 is outside the ring, so phosphorylating '
+               + 'it opens nothing' } });
   }
   {
     // — fructose-6-phosphate: the aldose→ketose isomerisation, and nothing else.
