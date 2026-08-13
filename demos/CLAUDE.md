@@ -127,7 +127,7 @@ both load.
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
-| `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has`, `viewEuler` (the pose on screen folded back into a spec's `view:`), `resetPose`, `setSpin`. Opens a spec at its declared `view:`, or at a PCA pose if it declares none; the turntable is off unless a page switches it on · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
+| `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has`, `viewEuler` (the pose on screen folded back into a spec's `view:`), `resetPose`, `setSpin`, `atDeclaredView`. `defaultView()` is the ONLY source of an opening angle — a spec's declared `view:` where it has one, a PCA pose where it does not; the turntable is off unless a page switches it on · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `annotate.js` | `Annot.create` → `add`, `step`, `play`, `setMode`, `show`, `clear`. Callouts pinned to a model: dot on the atom, fanned label, three reveal modes. DOM over the canvas, not sprites | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
@@ -161,10 +161,21 @@ Easy to get wrong, invisible from the API:
   `Stage.buildMolecule`), and add new angles to `VIEW` so specs share a view by
   name, not by copied constants. An angle only ONE spec uses stays inline
   (`atpSkel`): a `VIEW` entry with a single user is a name nobody can reuse.
-  Either way it is a DECLARATION — `molecule-viewer.html` opens a spec that has
-  one at exactly that angle, and falls back to its own PCA pose only for a spec
-  that has none, so an angle nobody chose is an angle nobody sees. Tune one by
-  dragging there and pasting its copy button's output.
+* **A declared `view:` is what the student sees. A page's own rotation is an
+  OFFSET from it, and must be zero at rest.** `Stage.buildMolecule` bakes `view:`
+  into the meshes and leaves the group free for the page; compose anything on
+  top of it at rest and the spec's angle is one nobody ever sees, while the file,
+  the checkers and the docs all still say otherwise. `contrast-lab.html` holds to
+  it by construction (`rotation.y=spin` — *0 at rest*); `molecule-viewer.html`
+  broke it twice, once with a PCA opening pose and once by carrying a pose
+  across its derivation switch, and nothing caught either — the composition
+  happens in THREE at runtime, so no offline checker can see it — and neither
+  can a runtime one, since anything downstream of the spec derives the "expected"
+  angle from the same field it is checking. So it is **one code path, not an
+  assertion**: `molview.js`'s `defaultView()` is the only place an opening angle
+  comes from, and it returns identity for a spec that declares a view precisely
+  because `buildMolecule` has already baked it in. Tune an angle by dragging in
+  `molecule-viewer.html` and pasting its copy button's output.
 * **Specs come in two bond-length families**; a page shows one.
   MolecularGeometry.md §1.5.
 * **`mol-*.js` coordinates are real ångströms** unless `units:'scene'`. Pasting

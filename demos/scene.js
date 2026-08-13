@@ -158,6 +158,18 @@
     // Baking it here instead keeps that free, and keeps atom/bond meshes as
     // direct children so removeAtoms() and friends still work.
     //
+    // WHICH LEAVES THE PAGE ONE OBLIGATION: that rotation is an OFFSET, and it
+    // must be ZERO AT REST. A spec's `view:` is a declaration about how the
+    // molecule should be seen; anything composed on top of it at rest means the
+    // declared angle is one nobody ever sees, while the file still says
+    // otherwise. contrast-lab.html holds to it by construction
+    // (`rotation.y=spin` — 0 at rest); molecule-viewer.html broke it twice, and
+    // is fixed by routing every opening angle through one function
+    // (molview.js's defaultView) rather than by checking afterwards — a check
+    // downstream of the spec derives its expectation from the same field it is
+    // checking, so it cannot see a view that never arrived. CLAUDE.md carries
+    // the rule.
+    //
     // Pass opts.view to override, or null for the spec's canonical coordinates.
     const view = opts.view!==undefined ? opts.view : spec.view;
     if(view){

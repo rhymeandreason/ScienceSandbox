@@ -111,12 +111,15 @@ function fitSvg(svg){
  * angle, every other page renders it at that angle, and the group's rotation is
  * therefore ZERO at rest — which is exactly how contrast-lab.html holds its
  * pairs ("0 at rest — the spec's own orientation") and what makes its own
- * paste-VIEW readout round-trip. This module now matches it, for the same
- * reason and one more: viewEuler() is only worth pasting if pasting it back
- * reproduces the picture, and PCA composed on top of the baked view would mean
- * a number that never came true.
+ * paste-VIEW readout round-trip. This module matches it, for the same reason
+ * and one more: viewEuler() is only worth pasting if pasting it back reproduces
+ * the picture, and PCA composed on top of the baked view would mean a number
+ * that never came true.
  *
- * flatPose below is the fallback for a spec with no `view:` — see its note.
+ * EVERY path that puts a molecule on screen goes through here — show(), the
+ * derivation switch, resetPose() — so a declared view is used because there is
+ * nowhere else for an angle to come from, not because something checks after
+ * the fact. flatPose below is the fallback for a spec with no `view:`.
  */
 function viewQ(spec){
   const q=new THREE.Quaternion();
@@ -124,9 +127,12 @@ function viewQ(spec){
     spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'));
   return q;
 }
-function openingPose(spec){
-  const q=new THREE.Quaternion();
-  return spec.view ? q : flatPose(spec);
+function defaultView(spec){
+  // A spec that declares `view:` HAS a default view, and Stage.buildMolecule has
+  // already baked it into the meshes — so the pose that shows it is IDENTITY.
+  // Returning that here, by name, is the whole mechanism: there is no second
+  // place a default angle can come from, and nothing to remember to call.
+  return spec.view ? new THREE.Quaternion() : flatPose(spec);
 }
 
 /* ---------- flatPose: an opening angle for a spec that declares none ----------
@@ -446,7 +452,7 @@ function create(opt){
     // Start facing you. A dinucleotide dropped in at whatever attitude its
     // PubChem conformer happens to carry reads as a tangle; its own widest plane
     // is the one pose that is about the molecule rather than about the record.
-    pose.copy(keep ? keep.multiply(viewQ(spec).invert()) : openingPose(spec));
+    pose.copy(keep ? keep.multiply(viewQ(spec).invert()) : defaultView(spec));
     snap();
     applyFocus(); paintFlat();
   }
@@ -548,7 +554,7 @@ function create(opt){
    */
   function resetPose(){
     if(!spec) return;
-    pose.copy(openingPose(spec));
+    pose.copy(defaultView(spec));
   }
 
   /* ---------- the angle on screen, as a spec would write it ----------
@@ -575,8 +581,25 @@ function create(opt){
     return [e.x, e.y, e.z];
   }
 
+  /* Is the picture on screen the spec's own committed angle?
+   * The one question a `view:` exists to answer, and the one this page has now
+   * twice got wrong in a way nothing noticed — first by composing a PCA pose on
+   * top of it, then by carrying a pose across the derivation cut. Both times the
+   * spec was right, the render was wrong, and every check passed. So it is
+   * answerable, out loud, rather than by eye: null for a spec that declares
+   * nothing, true/false for one that does. Compared as an ANGLE between
+   * quaternions, not component by component — two Euler triplets can differ in
+   * all three numbers and mean the same rotation. */
+  function atDeclaredView(tol){
+    if(!spec||!spec.view||!built) return null;
+    const want=viewQ(spec);
+    const got=new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(...viewEuler(), 'ZYX'));
+    return want.angleTo(got) <= (tol==null?1e-3:tol);
+  }
+
   return {
-    show, setMode, step, fit, snap, viewEuler, resetPose,
+    show, setMode, step, fit, snap, viewEuler, resetPose, atDeclaredView,
     setSpin(on){ spinning=!!on; },
     get spinning(){ return spinning; },
     setHighlight(on){ showFocus=!!on; applyFocus(); paintFlat(); },

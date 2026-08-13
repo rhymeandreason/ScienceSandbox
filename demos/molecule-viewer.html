@@ -105,6 +105,14 @@
     transition:opacity .15s ease}
   #vout b{font-weight:600;color:var(--ink)}
   #vout .vhint{font-family:var(--font-sans);font-style:italic}
+  /* Is what you are looking at the angle the spec committed to? The whole point
+     of setting one, and until now only answerable by eye — so it is stated.
+     Green for yes, plain for "you have moved off it", and the departed-from
+     value printed beside it so Reset is not the only way to see it again. */
+  #vout .vis{font-family:var(--font-sans);font-weight:600;font-style:normal;
+    color:#3f7d52}
+  #vout .vis i{font-size:11px;vertical-align:-1px;margin-right:3px}
+  #vout .vno{font-family:var(--font-sans);font-style:italic;color:#9a7b3f}
   /* The copy affordance is an ICON, not a hover title. The line is a thing you
      TAKE, and a tooltip only says so to whoever already guessed and hovered —
      this whole panel exists to be pasted somewhere, so the button that does it
@@ -548,7 +556,19 @@ function showView(){
     const e=v.viewEuler(), r=e.map(x=>x.toFixed(4));
     const deg=e.map(x=>Math.round(x*180/Math.PI));
     copy=`view:[${r.join(', ')}],`;
-    html=`<span class="vhint">this angle as a spec field</span><br>`
+    // THREE STATES, because "did my view: actually get used?" is the question
+    // this panel exists to answer and it has been wrong twice:
+    //   on it    — the spec declares an angle and you are looking at it
+    //   moved    — it declares one and you have dragged off; say what from
+    //   none     — it declares none, so this is the page's own opening pose
+    const at=v.atDeclaredView(), dec=v.spec.view;
+    const head =
+      at===true  ? `<span class="vis"><i class="ph-bold ph-check-circle"></i>`
+                 + `the spec’s own view:</span>`
+    : at===false ? `<span class="vno">moved off spec.view `
+                 + `[${dec.map(x=>x.toFixed(4)).join(', ')}]</span>`
+    :              `<span class="vhint">no view: on this spec — paste to set one</span>`;
+    html=head+`<br>`
        + `view:<b>[${r.join(', ')}]</b><br>`
        + `<span class="vhint">${deg[0]}° x · ${deg[1]}° y · ${deg[2]}° z</span>`
        + `<div class="vfoot">`
