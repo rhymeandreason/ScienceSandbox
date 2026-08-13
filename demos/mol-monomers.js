@@ -289,7 +289,7 @@
     //   from DNA. Drawn as the dianion the record supplies — accurate at
     //   cytosolic pH, and the same convention the glycolysis phosphates use.
     amp: {
-      name:'Adenosine monophosphate', formula:'C₁₀H₁₂N₅O₇P²⁻', class:'nucleotide', mono:'nucleic acid',
+      name:'Adenosine monophosphate', formula:'C₁₀H₁₂N₅O₇P²⁻', charge:-2, class:'nucleotide', mono:'nucleic acid',
       // SETTLED 2026-07-30, and the comment above was right: the record supplies
       // the dianion. CID 15938965 is adenosine 5'-monophosphate(2-), and it
       // regenerates this spec EXACTLY (0.0000 delta, bonds identical). There was

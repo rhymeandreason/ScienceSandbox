@@ -114,6 +114,25 @@ molecule; `face()` is sign-dependent, so flipping the furanose frame does nothin
 and the UP/DOWN tags had to be swapped instead. Mirroring a ring builder: verify,
 don't assume the two behave alike.
 
+### 1.3b `formula` and `charge`
+
+`formula` is the string under the molecule's name on screen, so it is read as a
+fact rather than as a picture. Give it alongside **`charge:`** (an integer; `0`
+counts and must be written) whenever the spec has one, and keep the two saying
+the same thing — `check-molecules.js` FAILs a formula whose trailing charge
+disagrees with `charge:`, and a formula that states a charge on a spec that
+declares none.
+
+`charge` is what any on-screen ± badge reads, so the field is the single source
+of truth and the formula is checked against it, not the other way round.
+
+**Hydrogen is not checked and cannot be.** These pages draw no C–H, so a spec's
+H count is a drawing decision while the formula's is a chemical one. The heavy
+elements *are* checked against the spec's atoms. This is the gap that let every
+phosphorylated glycolysis intermediate ship carrying the **neutral acid's**
+hydrogen count with an anionic charge attached — `C₆H₁₃O₉P²⁻` for a 2− anion
+that is `C₆H₁₁O₉P²⁻`. Write the anion you are drawing, not the acid.
+
 ### 1.4 Adding a molecule: how much fidelity does it owe?
 
 Fidelity is not a global dial. Every geometry bug shipped here had one shape —

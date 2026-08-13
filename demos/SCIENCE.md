@@ -105,7 +105,7 @@ occur, and methane's silence is itself the lesson about nonpolar solutes.
 | `spawnRing(pos,color)` | white core flash + double additive shockwave ring + 16-spark burst | bond break/form events |
 | `popGlow(g,color)` | emissive flash (2.2×) + springy scale overshoot on a molecule's atoms | a molecule freshly formed / an ion tearing free |
 | `settleShimmer(g,color)` | soft emissive breathe in-and-out, **no** scale/ring/sparks | a polar solute locking into its hydration shell |
-| `protonHop(from,to,onArrive)` | glowing proton arcing between points with a fading comet trail | the H⁺ transfer of an acid ionization |
+| `protonHop(from,to,onArrive,opt)` | glowing proton arcing between points with a fading comet trail | the H⁺ transfer of an acid ionization. `opt` is optional: `{color}` where a hop must not read as the effect firing beside it, `{dur}` in seconds, `{away}` for a proton a reaction **displaces** — snaps off the bond, then drifts and fades instead of landing |
 | `colorOf(g)` | reads a molecule's first **atom** colour (skips covalent-bond meshes) | tinting an effect to whatever it decorates |
 
 ### Per-molecule event → effect → colour

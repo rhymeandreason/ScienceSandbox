@@ -21,6 +21,14 @@
  *  CID. See the provenance note in molecules.js and docs/molecule-pipeline.md
  *  items 1–2. Unlike the claims below, it does not wait to be opted into.
  *
+ *  It also audits the FORMULA STRING, unconditionally where one exists: its
+ *  heavy-element counts against the spec's own atoms, and its trailing charge
+ *  against `charge:`. Hydrogen is excluded on purpose — these pages draw no
+ *  C–H, so a spec's H count is a drawing decision and the formula's is a
+ *  chemical one. This is the check that found every phosphorylated glycolysis
+ *  intermediate carrying the NEUTRAL ACID's hydrogen count with an anionic
+ *  charge on it (C₆H₁₃O₉P²⁻ for a 2− anion that is C₆H₁₁O₉P²⁻).
+ *
  *  It also audits the DISTINGUISHING-FEATURE CLAIMS a spec declares — the
  *  error class nothing above can see, because a wrong stereocentre has perfect
  *  bond lengths, textbook angles, and renders beautifully. It is only caught
@@ -70,6 +78,7 @@
 // foot of each module is what puts MolLib on module.exports under CommonJS.)
 const { PALETTE, MOLECULES } = require('./lib-node.js');
 
+let formulaFails = 0;
 const TIGHT = 0.03;   // a positive but very small gap: renders, but barely
 
 const EQ_MAX_TILT = 45;   // substituent within this angle of the ring PLANE = equatorial
@@ -277,6 +286,57 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
     if (mol.names.length === mol.atoms.length && !dupes.length && !wrong.length)
       console.log(`   names OK: ${mol.atoms.length} unique labels, elements agree`);
+  }
+  // ---- the formula string vs the spec, and vs `charge` ----------------
+  // A FORMULA IS A CLAIM, and it is the one claim on this page a student reads
+  // as a fact rather than as a picture: it sits under the molecule's name on
+  // every frame. Nothing checked it, and every phosphorylated glycolysis spec
+  // carried the NEUTRAL ACID's hydrogen count with an anionic charge attached —
+  // C₆H₁₃O₉P²⁻ for glucose-6-phosphate, whose 2− anion is C₆H₁₁O₉P²⁻.
+  //
+  // Two invariants, and between them they pin the string to something real:
+  //   · every HEAVY element count must match the spec's own atoms. Hydrogen is
+  //     excluded and has to be: these pages draw no C–H (see glycolysis-lab's
+  //     visibleAtoms), so a spec's H count is a DRAWING decision and the
+  //     formula's is a chemical one. They are not the same number and must not
+  //     be compared.
+  //   · the trailing charge must equal `charge:`. That is what makes the field
+  //     the single source of truth — a charge badge on screen reads `charge`,
+  //     the label reads `formula`, and this is what stops the two diverging.
+  if (mol.formula) {
+    const SUB = '₀₁₂₃₄₅₆₇₈₉', SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+    const digits = (str, set) => str ? [...str].map(c => set.indexOf(c)).join('') : '';
+    // split the trailing charge off first, so P₂⁴⁻ cannot read as part of P's count
+    const mCharge = mol.formula.match(/([⁰¹²³⁴⁵⁶⁷⁸⁹]*)([⁺⁻])$/);
+    const body = mCharge ? mol.formula.slice(0, -mCharge[0].length) : mol.formula;
+    const stated = mCharge
+      ? (mCharge[2] === '⁻' ? -1 : 1) * (+digits(mCharge[1], SUP) || 1)
+      : 0;
+    const want = {};
+    for (const m of body.matchAll(/([A-Z][a-z]?)([₀-₉]*)/g))
+      want[m[1]] = (want[m[1]] || 0) + (+digits(m[2], SUB) || 1);
+    const have = {};
+    for (const a of mol.atoms) have[a.el] = (have[a.el] || 0) + 1;
+    const bad = [...new Set([...Object.keys(want), ...Object.keys(have)])]
+      .filter(el => el !== 'H' && (want[el] || 0) !== (have[el] || 0))
+      .map(el => `${el}: formula ${want[el] || 0} vs atoms ${have[el] || 0}`);
+    if (bad.length) {
+      formulaFails++;
+      console.log(`   FORMULA FAIL: ${mol.formula} — ${bad.join(', ')}`);
+    }
+    if (mol.charge === undefined) {
+      if (stated) {
+        formulaFails++;
+        console.log(`   FORMULA FAIL: ${mol.formula} states a charge but the spec `
+          + `declares no \`charge:\` — the badge and the label would disagree silently`);
+      }
+    } else if (mol.charge !== stated) {
+      formulaFails++;
+      console.log(`   FORMULA FAIL: ${mol.formula} reads ${stated}, `
+        + `but \`charge:\` is ${mol.charge}`);
+    } else if (!bad.length) {
+      console.log(`   formula OK: ${mol.formula} matches the spec's atoms, charge ${stated}`);
+    }
   }
   // ---- the generated SMILES ------------------------------------------
   // `smiles` is produced by tools/spec2smiles.js and committed, so it can drift
@@ -823,8 +883,9 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails) {
+if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails || formulaFails) {
   const parts = [];
+  if (formulaFails) parts.push(`${formulaFails} formula/charge mismatch(es)`);
   if (srcFails) parts.push(`${srcFails} spec(s) with missing or malformed \`src:\` provenance`);
   if (nameFails) parts.push(`${nameFails} broken atom-name reference(s)`);
   if (smilesFails) parts.push(`${smilesFails} stale generated SMILES`);
@@ -836,5 +897,6 @@ if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFai
   process.exit(1);
 }
 console.log(`PASS: every spec records its provenance; no sphere overlaps; every `
-  + `atom reference resolves; every declared stereo/topology/chirality claim holds`
+  + `atom reference resolves; every formula matches its atoms and its \`charge\`; `
+  + `every declared stereo/topology/chirality claim holds`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));

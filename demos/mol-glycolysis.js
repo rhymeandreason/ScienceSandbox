@@ -94,7 +94,7 @@
       const b=g.bonds.find(b=>(b[0]===o||b[1]===o) && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
       return b[0]===o?b[1]:b[0];
     });
-    GLYCOLYSIS.glucose=g.spec({ name:'Glucose', short:'Glucose', formula:'C₆H₁₂O₆', class:'sugar',
+    GLYCOLYSIS.glucose=g.spec({ name:'Glucose', short:'Glucose', formula:'C₆H₁₂O₆', charge:0, class:'sugar',
       names:['O5','C1','C2','C3','C4','C5','O1','HO1','O2','HO2','O3','HO3','O4','HO4','C6','O6','HO6','H1','H2','H3','H4','H5','H61','H62'],
       smiles:'OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H:1]1[OH:1]',
       // asserted by check-molecules.js — the one property that no bond length,
@@ -158,7 +158,7 @@
     const CH=[];
     C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
     CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
-    GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', short:'G6P', formula:'C₆H₁₃O₉P²⁻', class:'sugar',
+    GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', short:'G6P', formula:'C₆H₁₁O₉P²⁻', charge:-2, class:'sugar',
       // the same two claims glucose carries, because it is the same ring
       stereo:'all-equatorial',
       topology:{ rings:[6] },
@@ -196,7 +196,7 @@
     // the assertion that it cannot drift again.
     for(let k=2;k<=4;k++) g.hydroxyl(k, k===4 ? 1 : k%2);
     const p6=g.phosphate(5,0);                             // C6 –O–PO₃, carried over
-    GLYCOLYSIS.f6p=g.spec({ name:'Fructose-6-phosphate', short:'F6P', formula:'C₆H₁₃O₉P²⁻', class:'sugar',
+    GLYCOLYSIS.f6p=g.spec({ name:'Fructose-6-phosphate', short:'F6P', formula:'C₆H₁₁O₉P²⁻', charge:-2, class:'sugar',
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p1:null, p3:p6, phosphates:1,
             c1:0,                     // where PFK-1's phosphate lands next
             dCentre:[4,3,5],          // C5 (–O, C4, C6) — must match glucose's C5
@@ -210,7 +210,7 @@
     g.carbonyl(1,0);                                       // C2 ketone
     for(let k=2;k<=4;k++) g.hydroxyl(k, k===4 ? 1 : k%2);  // C3…C5 –OH; C5, see f6p
     const p6=g.phosphate(5,0);                             // C6 –O–PO₃
-    GLYCOLYSIS.f16bp=g.spec({ name:'Fructose-1,6-bisphosphate', short:'F1,6-BP', formula:'C₆H₁₄O₁₂P₂⁴⁻', class:'sugar',
+    GLYCOLYSIS.f16bp=g.spec({ name:'Fructose-1,6-bisphosphate', short:'F1,6-BP', formula:'C₆H₁₀O₁₂P₂⁴⁻', charge:-4, class:'sugar',
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p1, p3:p6, phosphates:2,
             cleave:[2,3],           // aldolase cuts C3–C4 → DHAP (C1-3) + G3P (C4-6)
             dCentre:[4,3,5],        // C5 — survives the cut as G3P's C2
@@ -223,7 +223,7 @@
     const p=g.phosphate(0,0);
     g.carbonyl(1,0);
     g.hydroxyl(2,1);
-    GLYCOLYSIS.dhap=g.spec({ name:'Dihydroxyacetone phosphate', short:'DHAP', formula:'C₃H₇O₆P²⁻', class:'sugar',
+    GLYCOLYSIS.dhap=g.spec({ name:'Dihydroxyacetone phosphate', short:'DHAP', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], p1:p, phosphates:1 } });
   }
   {
@@ -233,7 +233,7 @@
     g.carbonyl(0,0); const h=g.grow(0,'H',GL.CH,'sp2',0);
     g.hydroxyl(1,1);
     const p=g.phosphate(2,0);
-    GLYCOLYSIS.g3p=g.spec({ name:'Glyceraldehyde-3-phosphate', short:'G3P', formula:'C₃H₇O₆P²⁻', class:'sugar',
+    GLYCOLYSIS.g3p=g.spec({ name:'Glyceraldehyde-3-phosphate', short:'G3P', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h, dCentre:[1,0,2] } });
   }
   {
@@ -246,7 +246,7 @@
     const p1=g.phosphate(0,1);                             // C1 acyl phosphate
     g.hydroxyl(1,1);
     const p3=g.phosphate(2,0);
-    GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', short:'1,3-BPG', formula:'C₃H₈O₁₀P₂⁴⁻', class:'sugar',
+    GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', short:'1,3-BPG', formula:'C₃H₄O₁₀P₂⁴⁻', charge:-4, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, dCentre:[1,0,2] } });
   }
   {
@@ -262,7 +262,7 @@
     // phosphate is an ordinary low-energy ester — it cannot phosphorylate ADP,
     // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
     // phosphate to C2 and then dehydrate the molecule to make it transferable.
-    GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₆O₇P²⁻', class:'sugar',
+    GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, dCentre:[1,0,2] } });
   }
   {
@@ -279,7 +279,7 @@
     // F6P's C5, caught by the same assertion.
     const p=g.phosphate(1,1);                              // C2 –O–PO₃
     const oh=g.hydroxyl(2,0);                              // C3 –OH — the OH enolase removes
-    GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', short:'2-PG', formula:'C₃H₆O₇P²⁻', class:'sugar',
+    GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', short:'2-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, dCentre:[1,0,2] } });
   }
   {
@@ -304,7 +304,7 @@
     const c3=g.grow(1,'C',GL.CdC,'sp2',0,2);               // C2=C3, the enol double bond
     const p=g.grow(o,'P',GL.OP,'sp3',0);
     for(let k=0;k<3;k++) g.grow(p,'O',GL.PO,'sp3',0);
-    GLYCOLYSIS.pep=g.spec({ name:'Phosphoenolpyruvate', short:'PEP', formula:'C₃H₄O₆P³⁻', class:'sugar',
+    GLYCOLYSIS.pep=g.spec({ name:'Phosphoenolpyruvate', short:'PEP', formula:'C₃H₂O₆P³⁻', charge:-3, class:'sugar',
       gly:{ carbons:3, cN:[0,1,c3], p2:p, phosphates:1, hot:p, enol:[1,c3] } });
   }
   {
@@ -313,7 +313,7 @@
     const g=chainC(3);
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
     g.carbonyl(1,0);                                       // C2 ketone
-    GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', short:'Pyruvate', formula:'C₃H₃O₃⁻', class:'sugar',
+    GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', short:'Pyruvate', formula:'C₃H₃O₃⁻', charge:-1, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true } });
   }
   {
@@ -324,7 +324,7 @@
     [[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].forEach(d=>{
       s.link(0, s.put('O', vmul(vnorm(V(d[0],d[1],d[2])), GL.PO))); });
     s.grow(1,'H',GL.OH,'sp3',0);
-    GLYCOLYSIS.pi=s.spec({ name:'Inorganic phosphate', short:'Pᵢ', formula:'HPO₄²⁻', class:'ion',
+    GLYCOLYSIS.pi=s.spec({ name:'Inorganic phosphate', short:'Pᵢ', formula:'HPO₄²⁻', charge:-2, class:'ion',
       gly:{ carbons:0, phosphates:1, free:true } });
     // — ATP, the carrier the priming steps spend and the payoff steps recharge.
     //   NOT built by Skel: adenine + ribose + a triphosphate chain is 31 heavy
@@ -353,7 +353,7 @@
     //   molecule-viewer.html teaches ABOUT it rather than spending it. That is
     //   the upgrade this comment used to ask for; `amp` still has neither.
     GLYCOLYSIS.atp={ name:'Adenosine triphosphate', short:'ATP',
-      formula:'C₁₀H₁₂N₅O₁₃P₃⁴⁻', class:'nucleotide',
+      formula:'C₁₀H₁₂N₅O₁₃P₃⁴⁻', charge:-4, class:'nucleotide',
       units:'angstrom',
       src:{path:'pubchem', cid:5461108, record:'3d',
            conformer:'0053547400000001', sdf:'atp.sdf',
@@ -455,7 +455,7 @@
     //   does chemistry; the adenine half is a handle the enzyme grips. `nic`
     //   names the working end so a page can point at it instead of guessing.
     GLYCOLYSIS.nadh={ name:'Nicotinamide adenine dinucleotide (reduced)', short:'NADH',
-      formula:'C₂₁H₂₉N₇O₁₄P₂', class:'nucleotide',
+      formula:'C₂₁H₂₉N₇O₁₄P₂', charge:0, class:'nucleotide',
       units:'angstrom',
       src:{path:'pubchem', cid:439153, record:'3d',
            conformer:'0006B37100000001', sdf:'nadh.sdf',

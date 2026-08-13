@@ -80,7 +80,7 @@ this order — each script assumes the ones above it:
 | `molecule-lab` | palette, molecules, mol-solvation, scene, fx |
 | `molecule-builder` | palette, molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
 | `aminoacid-lab` | palette, molecules, mol-monomers, mol-small, scene, fx |
-| `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |
+| `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx, atomkit |
 | `molecule-viewer` | palette, molecules, skel, mol-glycolysis, scene |
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
