@@ -140,8 +140,9 @@ both load.
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
-| `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit | `tools/README.md` |
-| `tools/bake-flat2d.js` | the 2D LAYOUT (`flat2d`) each `flat:true` spec's atoms slide onto — RDKit's depiction coordinates, returned in the spec's own atom order so no graph matching is needed, scaled to the molecule's own mean bond | own header |
+| `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit. `--write` puts it in the spec instead of printing it to paste | `tools/README.md` |
+| `tools/specfile.js` | writes a generated field back into the spec that owns it, for the two bakers above. Replaces a field that is already there and refuses to invent a position for one that is not; verifies every write by re-loading the library | own header |
+| `tools/bake-flat2d.js` | `--write` as above. The 2D LAYOUT (`flat2d`) each `flat:true` spec's atoms slide onto — RDKit's depiction coordinates, returned in the spec's own atom order so no graph matching is needed, scaled to the molecule's own mean bond | own header |
 | `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one protomer, the screw that stacks it, the complex's Cα traces. The page rebuilds the other twelve | own header |
 | `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE, samples the eight arrangements, runs `RibbonLib.dssp` over the full backbone → `folding/data/AF-P02640-villin.poses.bin`. Neither the PAE nor the backbone reaches the browser, so the DSSP happens here | own header |
 | `hemoglobin/tools/chain.js` | pulls one chain out of 2HHB and builds the amide hydrogens it doesn't deposit — `FoldLib.parse` reads no chain ID, and `hbonds` needs an H an X-ray structure lacks | own header |

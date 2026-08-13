@@ -2,7 +2,8 @@
 /* =====================================================================
  *  bake-flat2d.js — a textbook 2D LAYOUT for every spec marked `flat:true`.
  *
- *  Run:  npm i @rdkit/rdkit && node tools/bake-flat2d.js
+ *  Run:  npm i @rdkit/rdkit && node tools/bake-flat2d.js           # print the rows
+ *        npm i @rdkit/rdkit && node tools/bake-flat2d.js --write   # write them in
  *        (offline; prints rows to paste into the spec, like spec2smiles.js)
  *
  *  WHAT THIS IS FOR. molecule-viewer.html's 2D view is not a camera angle. It
@@ -45,6 +46,11 @@
 const path = require('path');
 const { MOLECULES } = require(path.join(__dirname, '..', 'lib-node.js'));
 const SCALE = require(path.join(__dirname, '..', 'lib-node.js')).SCALE || 1.9;
+
+const specfile = require('./specfile.js');
+// --write edits each spec's own mol-*.js in place instead of printing rows to
+// paste. See tools/specfile.js for why that hand-off was the weak link.
+const WRITE = process.argv.includes('--write');
 
 const pad = (v, w) => String(v).padStart(w);
 
@@ -139,8 +145,17 @@ require('@rdkit/rdkit')().then(RDKit => {
       + `mean bond ${real.toFixed(3)} Å, closest pair `
       + `${m.atoms[keep[pair[0]]].el}/${m.atoms[keep[pair[1]]].el} ${worst.toFixed(2)} Å`);
 
-    rows.push(`      // ${n} heavy atoms, in spec order — tools/bake-flat2d.js\n`
-      + `      flat2d:[${put.map(p => `[${p[0]},${p[1]}]`).join(',')}],`);
+    const text = `[${put.map(p => `[${p[0]},${p[1]}]`).join(',')}]`;
+    if (WRITE && ok) {
+      // register() does not scale flat2d, so what the library reads back is
+      // exactly what is written — verify against `put` directly.
+      const w = specfile.write(key, m, 'flat2d', text, put);
+      if (!w.ok) { bad++; console.log(`     WRITE FAILED: ${w.note}`); }
+      else if (w.note !== 'unchanged') console.log(`     -> ${m.domain}`);
+    } else {
+      rows.push(`      // ${n} heavy atoms, in spec order — tools/bake-flat2d.js\n`
+        + `      flat2d:${text},`);
+    }
   }
   console.log(`\n${rows.length} baked, ${bad} failing\n`);
   rows.forEach(r => console.log(r + '\n'));

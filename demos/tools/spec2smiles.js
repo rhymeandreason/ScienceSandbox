@@ -19,9 +19,14 @@
  * RDKit is a DEV dependency and never ships: this runs at a terminal, the
  * output is committed, and the page loads only SmilesDrawer.
  *
- *   npm i @rdkit/rdkit && node tools/spec2smiles.js
+ *   npm i @rdkit/rdkit && node tools/spec2smiles.js            # print the rows
+ *   npm i @rdkit/rdkit && node tools/spec2smiles.js --write    # write them in
  */
 const { MOLECULES } = require('../lib-node.js');
+const specfile = require('./specfile.js');
+// --write edits each spec's own mol-*.js in place instead of printing rows to
+// paste. See tools/specfile.js for why that hand-off was the weak link.
+const WRITE = process.argv.includes('--write');
 
 const pad = (s, w) => String(s).padStart(w);
 
@@ -128,9 +133,16 @@ require('@rdkit/rdkit')().then(RDKit => {
     console.log(`     ${smiles}`);
     // cis/trans bonds are written with / and \ — the backslash has to survive
     // being pasted into a JS string literal (palmitoleate's Δ9 has one)
-    rows.push(`      smiles:'${smiles.replace(/\\/g, '\\\\')}',`);
+    const text = `'${smiles.replace(/\\/g, '\\\\')}'`;
+    if (WRITE && ok) {
+      const w = specfile.write(key, m, 'smiles', text, smiles);
+      if (!w.ok) { bad++; console.log(`     WRITE FAILED: ${w.note}`); }
+      else if (w.note !== 'unchanged') console.log(`     -> ${m.domain}`);
+    } else {
+      rows.push(`      smiles:${text},`);
+    }
     mapped.delete(); plain.delete();
   }
-  console.log(`\n${rows.length} generated, ${bad} failing\n`);
+  console.log(`\n${rows.length + (WRITE ? 0 : 0)} generated, ${bad} failing\n`);
   rows.forEach(r => console.log(r));
 }).catch(e => console.log('ERR', e.message));

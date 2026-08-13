@@ -1,3 +1,22 @@
+# Regenerating a derived field: use `--write`
+
+`spec2smiles.js` and `bake-flat2d.js` both take `--write`, which edits each
+spec's own `mol-*.js` in place instead of printing a row to paste:
+
+```bash
+npm i @rdkit/rdkit
+node tools/spec2smiles.js --write && node tools/bake-flat2d.js --write
+node check-molecules.js
+```
+
+Both are idempotent — on an up-to-date tree they leave no diff, so running them
+is also how you check whether anything is stale. They replace a field that is
+already present and refuse to invent a position for one that is not, so a new
+spec needs an empty `smiles:''` / `flat2d:[]` line first; `tools/specfile.js`
+has the reasoning. Every write is verified by re-loading the library.
+
+---
+
 # tools/sdf2spec.js
 
 Converts a PubChem 3D record into a `MolLib` amino-acid spec, so the geometry in
