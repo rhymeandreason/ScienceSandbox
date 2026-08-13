@@ -115,7 +115,7 @@ Rows are explicit — no row inherits from the one above it any more, because th
 | `folding/tools/bake-fold.js` | solves the villin fold once and writes `folding/data/1VII.fold.bin` (442 KB, 185 keyframes). Both folding pages play that file and fold nothing themselves. **Re-run after any change to `folding/folding.js`'s solver, schedule or H-bond cutoffs** — `folding/tools/check-folding.js` compares the committed file against a fresh bake and fails if they differ | own header |
 | `tools/bake-residues.js` | writes `residues.js` by MEASURING the twenty side chains off structures already committed here — 2HHB for nineteen, 9ZZI for isoleucine, which haemoglobin does not contain. Keeps one real instance of each (the medoid), never an average of rotamers | own header |
 | `tools/check-residues.js` | re-bakes `residues.js` and compares, then asserts the chemistry: the textbook heavy-atom count of every type, ring closure, proline's ring onto the backbone N, and **L-configuration** — one of only two checks here that can catch a mirrored molecule | own header |
-| `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network | own header, MolecularGeometry.md §1.3 |
+| `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network. Covers the glycolysis pathway too, deriving the SMILES from the spec's own geometry where none is committed | own header, MolecularGeometry.md §1.3 |
 
 Things that are easy to get wrong and are not visible from the API:
 
