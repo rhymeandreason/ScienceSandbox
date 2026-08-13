@@ -143,9 +143,16 @@
     font-family:var(--font-sans);font-weight:700;font-size:10.5px;line-height:1;
     display:grid;place-items:center;transition:color .15s,border-color .15s}
   .infobtn:hover,.infobtn:focus{color:var(--ink);border-color:var(--ink);outline:none}
-  .tip{position:absolute;bottom:calc(100% + 16px);left:50%;
+  /* CENTRED ON THE BAND, NOT ON THE ICON. The icon sits at the right-hand end
+     of the heading, which is itself off-centre on the stage, so a tooltip
+     centred on it ran past the stage's right edge and was clipped there. The
+     band already spans the usable width and is already where the camera puts
+     the lesson, so hanging the tooltip off that centres it on the same space
+     the molecule is framed in. It is a child of #bottombar for that reason —
+     which also means it survives the heading's innerHTML being rewritten. */
+  #steptip{position:absolute;bottom:calc(100% + 14px);left:50%;
     transform:translateX(-50%) translateY(4px);
-    width:min(520px,72vw);padding:13px 17px;border-radius:12px;
+    width:min(520px,86%);padding:13px 17px;border-radius:12px;
     background:var(--panel);border:1.5px solid var(--hair);
     box-shadow:0 14px 34px -14px rgba(60,50,28,.55);
     font-family:var(--font-sans);font-size:14.5px;line-height:1.5;
@@ -154,11 +161,15 @@
        and cannot hold itself open once the pointer leaves the icon */
     pointer-events:none;opacity:0;visibility:hidden;
     transition:opacity .16s ease, transform .16s ease}
-  .infobtn:hover + .tip,.infobtn:focus + .tip{
+  /* The icon and the tooltip are no longer siblings, so the sibling combinator
+     cannot open it — the band asks whether the icon inside it is hovered. */
+  #bottombar:has(.infobtn:hover) #steptip,
+  #bottombar:has(.infobtn:focus) #steptip{
     opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
-  .tip b{font-weight:700;color:var(--ink)}
-  .tip .p{color:var(--phos)} .tip .n{color:var(--nad)}
-  @media (prefers-reduced-motion:reduce){ .tip{transition:none} }
+  #steptip b{font-weight:700;color:var(--ink)}
+  #steptip .p{color:var(--phos)} #steptip .n{color:var(--nad)}
+  #steptip:empty{display:none}
+  @media (prefers-reduced-motion:reduce){ #steptip{transition:none} }
   /* the review beat's shared entry — same timing as #couplebox.in, so the
      verdict, the button and the figure arrive together and only once the
      molecule has finished landing */
@@ -834,6 +845,10 @@
            nothing (visibility, not display), so the bar the camera reserves
            never changes. -->
       <div id="stephead"></div>
+      <!-- the step's caption, opened by the ⓘ in the heading. A child of the
+           BAND, not of the heading: centred on the stage rather than on the
+           icon, and out of reach of the heading's innerHTML. -->
+      <div id="steptip" role="tooltip"></div>
       <button id="actbtn"></button>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
@@ -2424,6 +2439,7 @@ function drawTray(){
 
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
+const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;   // just under the .3s press flash
 const pulseEl=document.getElementById('stagepulse');
 let pressing=false;
@@ -2471,9 +2487,10 @@ function drawAct(){
   const tip = head ? captionAt(hi) : '';
   stepHeadEl.innerHTML = head + (tip
     ? `<span class="infowrap"><button class="infobtn" type="button"
-         aria-label="What happens in this step">i</button><span class="tip"
-         role="tooltip">${tip}</span></span>`
+         aria-describedby="steptip"
+         aria-label="What happens in this step">i</button></span>`
     : '');
+  stepTipEl.innerHTML = tip;
   stepHeadEl.classList.toggle('on', !!head);
   // THE REVIEW BEAT ARRIVES AS ONE THING, and after the molecule does. The
   // verdict, the button and the coupling box are the same announcement — "that
