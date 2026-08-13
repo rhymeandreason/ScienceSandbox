@@ -68,15 +68,7 @@ const REF = {
   // needs one), and a committed depiction string with four stereocentres in it
   // is exactly the thing that must not be allowed to be the mirror image.
   atp: 'ATP',
-  // the hand-built control (mol-compare.js). Same reference as `atp` on
-  // purpose: matching it is what proves the two differ by METHOD and nothing
-  // else, which is the only reason the comparison means anything.
-  atpSkel: 'ATP',
   nadh: 'NADH',
-  // and the second hand-built control. Eight stereocentres — two riboses — so
-  // it has more to get mirrored than atpSkel does, and the same reference as
-  // `nadh` for the same reason.
-  nadhSkel: 'NADH',
   g6p: 'beta-D-glucose 6-phosphate',
   f6p: 'keto-D-fructose 6-phosphate',
   f16bp: 'keto-D-fructose 1,6-bisphosphate',
@@ -85,6 +77,41 @@ const REF = {
   pga3: '3-phospho-D-glyceric acid',
   pga2: '2-phospho-D-glyceric acid',
 };
+
+/* THE HAND-BUILT CONTROLS REFERENCE THEMSELVES.
+ *
+ * A spec in mol-compare.js is one molecule derived twice: `atpSkel` is `atp`
+ * built from ideal geometry, and it says so — `compare:{against:'atp'}`. What
+ * makes that comparison mean anything is that BOTH canonicalise to the same
+ * external record, because a hand-built ribose has four stereocentres and no
+ * internal check can catch a global mirror (MolecularGeometry.md §1.3). Without
+ * it, "the two look different" confounds "different method" with "I got the
+ * sugar wrong", which is the one confusion the comparison exists to remove.
+ *
+ * So the entry is DERIVED from `compare.against` rather than typed. Typed, it
+ * was two lines saying what the spec already said, and the failure mode was
+ * silent in the worst way: add a skel twin, forget the line, and the tool
+ * reports every spec passing while never having looked at the new one. Nothing
+ * about a molecule that is quietly unchecked is visible from its render.
+ *
+ * A control whose partner has no reference is an ERROR, not a skip: it means
+ * the comparison has no anchor at either end.
+ */
+let anchorless = 0;
+for (const [key, m] of Object.entries(MOLECULES)) {
+  if (!m.compare || !m.compare.against) continue;
+  const target = m.compare.against;
+  if (!REF[target]) {
+    // Counted, not just printed. This ran as a bare `process.exitCode = 1` at
+    // first, which the summary below overwrote with its own process.exit — so
+    // it printed FAIL and exited PASS, the one outcome worse than no check.
+    console.log(`  FAIL  ${key}: compares against \`${target}\`, which has no REF entry `
+      + `— the comparison would rest on nothing`);
+    anchorless++;
+    continue;
+  }
+  REF[key] = REF[target];
+}
 
 // A spec with no committed `smiles` is described by its own coordinates: heavy
 // atoms into a V2000 molblock with the chiral flag set, and RDKit reads the
@@ -173,6 +200,10 @@ require('@rdkit/rdkit')().then(RDKit => {
   }
 
   console.log('');
+  if (anchorless) {
+    console.log(`FAIL: ${anchorless} control(s) compare against a spec with no reference`);
+    process.exit(1);
+  }
   if (bad) { console.log(`FAIL: ${bad} spec(s) disagree with their reference`); process.exit(1); }
   console.log(`PASS: every checked spec matches its reference`
     + (skipped ? ` (${skipped} skipped)` : ''));

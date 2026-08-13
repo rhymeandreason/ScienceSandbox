@@ -192,7 +192,11 @@ Easy to get wrong, invisible from the API:
 * **`mol-compare.js` holds controls, not lessons.** `atpSkel` and `nadhSkel` are
   the same molecules as `atp` and `nadh`, built the other way, and they earn
   their place by matching the SAME `check-handedness.js` reference — that is what
-  makes a visible difference between them method rather than a mistake. The pair
+  makes a visible difference between them method rather than a mistake. That
+  reference is **derived from `compare:{against:…}`**, not typed: a control added
+  without one would leave the tool reporting every spec passing while never
+  having looked at the new one. A control whose partner has no reference fails
+  the run. The pair
   is deliberate: NADH is twice the molecule, so it shows the schematic's cost
   GROWING with size (1.01 Å out of plane and 21.4 Å across, against the
   conformer's 1.91 and 12.0). Its own domain file because
