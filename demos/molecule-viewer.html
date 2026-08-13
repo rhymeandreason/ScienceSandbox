@@ -633,9 +633,17 @@ document.getElementById('dims').onclick=e=>{
  * two presentations", and these are two independent DERIVATIONS. Cutting
  * between them is the honest edit, and the flicker is the point.
  *
- * The view survives the switch. You stay in 3D or 2D or Diagram, at the pose
- * you were at (`keepPose`), because the question being asked is "what changed?"
- * and moving anything else would answer it wrong. */
+ * The view survives the switch — you stay in 3D or 2D or Diagram — and so does
+ * the ANGLE, because the question being asked is "what changed?" and moving
+ * anything else would answer it wrong.
+ *
+ * UNLESS THE INCOMING SPEC HAS AN OPINION. A `view:` is a deliberate statement
+ * about how that derivation should be seen (atpSkel's frames the phosphate
+ * chain; atp declares none and opens on its widest plane), and a pose carried
+ * over from the other derivation would quietly overrule it — the angle would
+ * load from the card but not from this switch, which is the kind of
+ * inconsistency you notice and cannot explain. So: a declaration wins, and
+ * `keepPose` covers only the case where the arriving spec has said nothing. */
 const elSrc=document.getElementById('src');
 elSrc.onclick=e=>{
   const b=e.target.closest('.mode');
@@ -643,7 +651,8 @@ elSrc.onclick=e=>{
   source=b.dataset.src;
   [...elSrc.querySelectorAll('.mode')].forEach(o=>
     o.classList.toggle('on', o.dataset.src===source));
-  v.show(specOf(SHELF[selected]), {keepPose:true});
+  const next=specOf(SHELF[selected]);
+  v.show(next, {keepPose:!next.view});
   note(); showRecipe();
 };
 const hbtn=document.getElementById('hbtn');
