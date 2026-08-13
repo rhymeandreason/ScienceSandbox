@@ -17,17 +17,32 @@
   @media (min-width:921px){
     #app{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
     #railbar{grid-column:1 / -1}
-    #stage{grid-column:1;grid-row:2}
-    #side{grid-column:2;grid-row:2}
+    /* THE STAGE TAKES THE WHOLE WIDTH AND THE NOTES SIT ON TOP OF IT, in the
+       right-hand column of the same row. The notes are sticky notes ON the page
+       — they are not a panel the lesson has to make room for — so the molecule
+       centres on the PAGE and the readouts add themselves at the edge without
+       moving it. (They used to own a 316px column, which pushed the whole
+       lesson left of centre by half that.) */
+    #stage{grid-column:1 / -1;grid-row:2}
+    #side{grid-column:2;grid-row:2;z-index:9;pointer-events:none;
+      /* no paper of its own up here — it is sitting ON the stage's, and an
+         opaque column would cut a rectangle out of the scene behind it */
+      background:none}
+    #side>*{pointer-events:auto}
   }
   #stage,#side{min-height:0}
   /* THE SIDEBAR IS STICKY NOTES ON THE PAGE, NOT A PANEL. It scrolls as one column
      — ledger, coupling sheet and note together — so no piece needs a fixed
      height. */
-  #side{overflow-y:auto; padding:0 20px 30px; box-shadow:none; border:none;
-    background-color:var(--paper);
-    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
-    background-size:26px 26px; background-position:13px 13px}
+  /* No paper of its own on a wide screen — see the grid block above, where it
+     lies over the stage and takes the stage's. It gets its own back when the
+     layout stacks and it is a strip of page under the canvas instead. */
+  #side{overflow-y:auto; padding:0 20px 30px; box-shadow:none; border:none}
+  @media (max-width:920px){
+    #side{background-color:var(--paper);
+      background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+      background-size:26px 26px; background-position:13px 13px}
+  }
   #side::before{display:none}
   #card{min-height:0}
 
