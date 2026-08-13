@@ -503,6 +503,21 @@ function create(opt){
     return arrived;
   }
 
+  /* ---------- back to the opening pose ----------
+   * flatPose again — the angle show() starts a molecule at, not the spec's
+   * `view:`. Those are different things on a page like this: `view:` is baked
+   * into the meshes and flatPose is turned on top of it, so zeroing the pose
+   * would show the spec's committed angle rather than the one the student was
+   * given. This is the undo for a drag, so it returns the picture the card
+   * dealt. Clearing userSpun with it hands the idle turntable back too, which
+   * is part of that picture.
+   */
+  function resetPose(){
+    if(!spec) return;
+    pose.copy(flatPose(spec));
+    userSpun=false;
+  }
+
   /* ---------- the angle on screen, as a spec would write it ----------
    * `spec.view` is [x,y,z]
    * radians, and Stage.buildMolecule bakes it into the MESHES; this module then
@@ -530,7 +545,7 @@ function create(opt){
   }
 
   return {
-    show, setMode, step, fit, snap, viewEuler,
+    show, setMode, step, fit, snap, viewEuler, resetPose,
     setHighlight(on){ showFocus=!!on; applyFocus(); paintFlat(); },
     setOptionalH(on){
       showH=!!on;

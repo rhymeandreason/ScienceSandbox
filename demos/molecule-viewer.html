@@ -101,8 +101,8 @@
      into one [x,y,z] in `view:`'s own ZYX order. */
   #vout{margin-top:15px;padding-top:13px;border-top:1.5px dashed var(--hair);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
-    line-height:1.6;color:var(--muted);cursor:pointer;
-    transition:color .15s ease}
+    line-height:1.6;color:var(--muted);
+    transition:opacity .15s ease}
   #vout b{font-weight:600;color:var(--ink)}
   #vout .vhint{font-family:var(--font-sans);font-style:italic}
   /* The copy affordance is an ICON, not a hover title. The line is a thing you
@@ -110,24 +110,27 @@
      this whole panel exists to be pasted somewhere, so the button that does it
      is on screen from the start. Sized and coloured to sit beside the label
      rather than compete with the number, which is the actual content. */
-  #vout .vhead{display:flex;align-items:center;justify-content:space-between;
-    gap:8px;margin-bottom:2px}
-  #vout .vcopy{display:inline-flex;align-items:center;gap:4px;flex:none;
+  /* Both buttons on one footer row, under the number rather than beside the
+     label: the panel is 224px and "this angle as a spec field" already fills
+     that line. The number is the content and stays the widest thing here. */
+  #vout .vfoot{display:flex;gap:6px;margin-top:8px}
+  #vout .vbtn{display:inline-flex;align-items:center;justify-content:center;
+    gap:4px;flex:1;
     font-family:var(--font-sans);font-weight:600;font-size:10px;
     letter-spacing:.4px;text-transform:uppercase;
-    padding:3px 7px;border:1.5px solid var(--hair);border-radius:6px;
-    background:#fff;color:var(--muted);
+    padding:4px 7px;border:1.5px solid var(--hair);border-radius:6px;
+    background:#fff;color:var(--muted);cursor:pointer;
     transition:border-color .15s ease,color .15s ease,background .15s ease}
-  #vout .vcopy i{font-size:12px}
-  #vout:hover .vcopy{border-color:var(--ink);color:var(--ink)}
+  #vout .vbtn i{font-size:12px}
+  #vout .vbtn:hover{border-color:var(--ink);color:var(--ink)}
   /* Taken. Green rather than the ink hover, because "it worked" and "you are
      pointing at it" must not look the same. */
-  #vout .vcopy.done{border-color:#3f7d52;color:#3f7d52;background:#eef6ef}
+  #vout .vbtn.done{border-color:#3f7d52;color:#3f7d52;background:#eef6ef}
   /* Flat views have no angle to report — the layout is the layout. Quiet
      rather than stale: a number left on screen in 2D would be describing a
      model nobody is looking at, and there is nothing to take. */
   #vout.off{opacity:.35;pointer-events:none}
-  #vout.off .vcopy{display:none}
+  #vout.off .vfoot{display:none}
 
   /* single-column: the molecule is the page, not a side panel */
   #app{grid-template-columns:1fr}
@@ -529,21 +532,29 @@ function showView(){
     const e=v.viewEuler(), r=e.map(x=>x.toFixed(4));
     const deg=e.map(x=>Math.round(x*180/Math.PI));
     copy=`view:[${r.join(', ')}],`;
-    html=`<div class="vhead"><span class="vhint">this angle as a spec field</span>`
-       + `<span class="vcopy"><i class="ph-bold ph-copy"></i>copy</span></div>`
+    html=`<span class="vhint">this angle as a spec field</span><br>`
        + `view:<b>[${r.join(', ')}]</b><br>`
-       + `<span class="vhint">${deg[0]}° x · ${deg[1]}° y · ${deg[2]}° z</span>`;
+       + `<span class="vhint">${deg[0]}° x · ${deg[1]}° y · ${deg[2]}° z</span>`
+       + `<div class="vfoot">`
+       + `<button class="vbtn" data-copy><i class="ph-bold ph-copy"></i>copy</button>`
+       + `<button class="vbtn" data-reset><i class="ph-bold ph-arrow-counter-clockwise"></i>`
+       + `reset</button></div>`;
   }
   if(html===vLast) return;
   vLast=html; elView.innerHTML=html; elView.dataset.copy=copy;
 }
-// The BUTTON changes, not the line. Blanking the number to say "copied" takes
-// away the thing you just asked for at the moment you are most likely to want
-// to read it back — and it made the panel jump a line as the text shrank.
-elView.onclick=()=>{
-  if(!elView.dataset.copy) return;
+// Reset is the undo for a drag: back to the pose the card dealt, which is
+// molview's own opening angle and NOT the spec's committed `view:` — see
+// resetPose() there for why those are different things on this page. The
+// readout follows on the next frame, so it always describes what is drawn.
+elView.onclick=e=>{
+  if(e.target.closest('[data-reset]')){ v.resetPose(); return; }
+  if(!e.target.closest('[data-copy]') || !elView.dataset.copy) return;
   navigator.clipboard.writeText(elView.dataset.copy).then(()=>{
-    const b=elView.querySelector('.vcopy'); if(!b) return;
+    // The BUTTON changes, not the line. Blanking the number to say "copied"
+    // takes away the thing you just asked for at the moment you are most likely
+    // to want to read it back, and made the panel jump a line as it shrank.
+    const b=elView.querySelector('[data-copy]'); if(!b) return;
     vHold=true;                       // freeze the redraw so the state survives
     b.classList.add('done');
     b.innerHTML='<i class="ph-bold ph-check"></i>copied';
