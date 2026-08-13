@@ -111,17 +111,22 @@
   }
 
   /* ---------- the bottom bar: heading, action button, step caption ----------
-     ONE CONTAINER, CONSTANT HEIGHT. The camera fit measures this and nothing
-     else along the bottom edge, so the framing cannot change with which
-     heading, button or caption happens to be up. #actbtn and #stephead are
-     hidden with `visibility` for the same reason — its slot is always reserved, which also stops the caption
-     jumping up and down as the button comes and goes between steps. */
+     ONE CONTAINER, ONE FIXED HEIGHT — a typed number, not a measurement. The
+     camera reserves exactly --barh along the bottom edge on every screen, so
+     the framing cannot change with which heading, button or caption happens to
+     be up, and nothing in here can re-frame the shot by growing. #actbtn and
+     #stephead are hidden with `visibility` for the same reason, and #rxmsg is
+     out of flow entirely (it hangs ABOVE the bar, like #steptip) because its
+     text is the one thing here whose height genuinely varies.
+     Growing the button or the heading means changing --barh to match. */
   /* --stagedx is the same slide the camera's frustum takes (see orthoFrustum):
      the tray sits on the left, so the space the lesson actually has is off
      centre, and the button and caption belong over the molecule rather than
      over the canvas. Set from the page, in pixels, by applyStageShift(). */
-  #bottombar{position:absolute;left:0;right:0;bottom:18px;z-index:8;
-    display:flex;flex-direction:column;align-items:center;gap:11px;
+  #bottombar{--barh:88px;
+    position:absolute;left:0;right:0;bottom:18px;z-index:8;height:var(--barh);
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    gap:11px;
     pointer-events:none;transform:translateX(var(--stagedx,0px));
     transition:transform .35s ease}
   #bottombar>*{pointer-events:auto}
@@ -188,21 +193,26 @@
   @media (prefers-reduced-motion:reduce){ .revin{animation:none} }
   #stephead em{font-style:normal;color:var(--phos)}
 
-  /* THE STEP CAPTION. A fixed band at the bottom of the stage, set in the sans
-     face at reading size; it does not time out — it is replaced when the next
-     step produces a new one. `min-height` is what reserves the band whether or
-     not there is text in it.
+  /* THE STEP CAPTION, set in the sans face at reading size; it does not time
+     out — it is replaced when the next step produces a new one. It only carries
+     text on the intro and the closing screen.
 
-     THREE LINES IS THE BUDGET, and it is a hard one: #bottombar's height is
-     what the camera measures along the bottom edge, so a caption that outgrows
-     this band would change the framing of every state at once. At 680px and
-     15.5px that is ~270 characters — which is exactly what step 10 uses, so
-     there is no slack. A longer message means growing the band here and
-     re-checking the fit, not just adding words in STEPS. */
-  /* min-height 0: the band only carries text on the intro and the closing
-     screen now, and reserving a caption's worth of stage on the ten steps that
-     no longer have one is exactly the space this change was made to give back */
-  #rxmsg{width:min(680px,64%);min-height:0;text-align:center;
+     OUT OF FLOW, ABOVE THE BAR. Its height is the only thing down here that
+     varies with content, and while it sat in the bar it changed the bar's
+     height — which is the camera's bottom reserve, so the intro and the closing
+     screen were framed differently from the ten steps between them. Hanging it
+     off the top of the bar (the same trick #steptip uses) means it can say
+     whatever it needs to and the framing never hears about it. Its length is
+     now a legibility budget only: it opens upward over the stage, so a very
+     long one runs up into the molecule. */
+  /* --caph is what the camera reserves for it when it is showing (see
+     capReservePx) — a typed number, like --barh, so a longer caption never
+     re-frames anything; it just uses more of the room already set aside. Two
+     lines at this size, plus the gap. */
+  #rxmsg{--caph:70px;
+    position:absolute;bottom:calc(100% + 6px);left:50%;
+    transform:translateX(-50%);
+    width:min(680px,64%);text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
     color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
@@ -212,8 +222,12 @@
   #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
   #rxmsg.show{opacity:1}
   #rxmsg.in{animation:rxIn .5s ease-out}
-  @keyframes rxIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px;min-height:62px} }
+  /* the transform carries the caption's own centring now that it is out of
+     flow, so both keyframes have to restate it — `transform:none` would snap it
+     half its width to the right on the last frame */
+  @keyframes rxIn{from{opacity:0;transform:translateX(-50%) translateY(5px)}
+    to{opacity:1;transform:translateX(-50%)}}
+  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px} }
 
   /* ---------- the ledger: the whole point of the page ---------- */
   /* Always visible, never resets. Students watch ATP dip below its start value
@@ -1553,17 +1567,41 @@ function fitFor(states){
 //           band rather than a world-space box the projection scaled with —
 //           which is why the reservation happens here, in pixels, and not
 //           inside fitFor.
-//   bottom  #bottombar: the step's heading, its button and its caption. One
-//           element of CONSTANT height on purpose (heading and button are
-//           hidden with `visibility`), because the framing rule is that ONE camera
-//           distance covers every state — otherwise the split stops reading as
-//           a halving. Nothing else on the stage is measured: the ending fork
-//           is a modal now, so no state puts a tall element over the lanes.
+//   bottom  #bottombar, and it is a RESERVATION rather than a measurement: the
+//           bar's height is the typed --barh, read off the stylesheet, not off
+//           whatever the bar currently holds. That is the whole point — the
+//           framing rule is that ONE camera covers every state (otherwise the
+//           split stops reading as a halving), so the bottom edge must not move
+//           when a heading, a button or a caption comes and goes. Nothing else
+//           on the stage is reserved: the ending fork is a modal, so no state
+//           puts a tall element over the lanes.
 //   left    the reagent tray (absent during the intro, when nothing can be spent)
 //
 // `v`/`h` are the fractions of height and width left over. `shift` moves the
 // camera target down so the molecule centres in the band that remains — only
 // vertically; see the note in fitFor for why there is no horizontal twin.
+// The bottom reserve, in pixels: the bar's declared height plus the gap it
+// stands off the canvas edge. Taken from the STYLESHEET (--barh, and the
+// element's own `bottom`) rather than from the bar's live box, so it cannot
+// change with the bar's contents — a caption or a two-line heading that grew
+// would otherwise re-frame every state on the page at once.
+function barReservePx(){
+  const e=document.getElementById('bottombar');
+  if(!e) return 106;
+  const cs=getComputedStyle(e);
+  const h=parseFloat(cs.getPropertyValue('--barh'))||0;
+  return h+(parseFloat(cs.bottom)||0);
+}
+// The caption's reserve, and it is either the typed --caph or nothing: the
+// caption is only ever up on the intro and on the closing screen, both of which
+// stand outside the ten-step run that has to hold one framing. Its own height is
+// never read, so writing a longer caption cannot move the camera — it eats into
+// the room already set aside, and past that it runs up over the molecule.
+function capReservePx(){
+  const e=document.getElementById('rxmsg');
+  if(!e||!e.classList.contains('show')) return 0;
+  return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
+}
 function usable(){
   const c=canvas.getBoundingClientRect();
   // EVERY FIELD, even on the no-size path: this runs once before the first
@@ -1578,7 +1616,7 @@ function usable(){
                      : edge==='right' ? c.right-r.left
                      : c.bottom-r.top);
   };
-  const top=plateHeightPx(), bottom=reach('bottombar','bottom');
+  const top=plateHeightPx(), bottom=barReservePx()+capReservePx();
   // The tray is the only horizontal intrusion left — the ledger and the coupling
   // box moved into the sidebar, off the canvas. It is on ONE side, so the space
   // left over is not centred on the canvas and neither is the molecule: the band
@@ -1635,7 +1673,12 @@ function computeFit(){
   const close = done===0 && !busy;
   const f = close ? fitFor([['glucose']])
                   : fitFor(STEPS.map(s=>s.species));
-  fitR=f.R; fitY=topAnchoredY(f.R, f.Y); fitHS=usable().hshift;
+  // The anchor uses the PATHWAY'S tallest label line, not this state's, for the
+  // same reason the distance is solved from every state at once: a per-state
+  // anchor slid the whole scene up and down between steps, and rode the unfurl
+  // frame by frame while the ring straightened out.
+  const top = close ? plateY(['glucose']) : pathwayTopY();
+  fitR=f.R; fitY=topAnchoredY(f.R, f.Y, top); fitHS=usable().hshift;
   applyStageShift();
 }
 
@@ -1652,15 +1695,13 @@ function computeFit(){
 // top edge. Damping keeps the same solved offset (restyle the plate or grow the
 // caption band and it follows) without trusting that conversion.
 const TOP_PULL=0.5;
-function topAnchoredY(R, centredY){
+// The highest label line anywhere in the pathway. Solved once from the specs —
+// like the distance, and for the same reason: it is a property of the pathway,
+// not of the step you are on, and the camera should not move between steps.
+let _pathTop=null;
+const pathwayTopY=()=>_pathTop??(_pathTop=Math.max(...STEPS.map(s=>plateY(s.species))));
+function topAnchoredY(R, centredY, topNow){
   const u=usable();
-  // THE LANES' OWN ANCHOR, not the state's, whenever there are lanes: they
-  // agree except while a molecule is mid-change, and that is the case this has
-  // to get right. The unfurl walks its lane's topY from the ring's height to
-  // the chain's, so reading the state instead would hold the camera at the
-  // ring's anchor for the whole animation and then step it at the swap.
-  const topNow=lanes.length ? Math.max(...lanes.map(l=>l.topY))
-                            : plateY(speciesAt(intro?0:done));
   const H=R*HALF_FOV;                             // visible world half-height
   const anchored=topNow-H*(1-2*u.tf);             // plate hung off the top edge
   // A SMALLER TARGET Y IS A HIGHER MOLECULE (the frame drops, the content does
@@ -2033,7 +2074,9 @@ function runStep(){
       (function turn(){
         const k=Math.min((performance.now()-t0)/UNFURL,1);
         unfurlApply(l,plan,k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2);
-        computeFit();     // the anchor rides the lane's topY as it climbs
+        // NO REFIT HERE. The framing is fixed for the whole pathway, so the
+        // ring straightening out changes the molecule and nothing else — the
+        // camera used to ride its topY and pan through the animation.
         if(k<1) requestAnimationFrame(turn);
       })();
     });
