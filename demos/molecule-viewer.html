@@ -132,6 +132,20 @@
   #vout.off{opacity:.35;pointer-events:none}
   #vout.off .vfoot{display:none}
 
+  /* ---------- the turntable switch ----------
+     A CHECKBOX, not another button: the two beside it are verbs that happen
+     once (copy, reset) and this is a state that stays on. Outside #vout on
+     purpose — that block is rewritten from innerHTML as the angle changes, and
+     a control living inside it would be destroyed and rebuilt under the
+     pointer, losing focus mid-click. */
+  #spinbox{display:flex;align-items:center;gap:7px;margin-top:9px;
+    font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    cursor:pointer;user-select:none}
+  #spinbox input{width:14px;height:14px;margin:0;accent-color:var(--ink);
+    cursor:pointer}
+  #spinbox:hover{color:var(--ink)}
+  #spinbox.off{opacity:.35;pointer-events:none}
+
   /* single-column: the molecule is the page, not a side panel */
   #app{grid-template-columns:1fr}
   #side{display:none}
@@ -223,6 +237,7 @@
     <div id="rail">
       <div id="focus"></div>
       <div id="vout"></div>
+      <label id="spinbox"><input type="checkbox" id="spin">slowly turn</label>
     </div>
     <div id="say"></div>
     <div id="dock">
@@ -526,6 +541,7 @@ function showView(){
   if(vHold) return;
   const flat=mode!=='3d';
   elView.classList.toggle('off', flat);
+  document.getElementById('spinbox').classList.toggle('off', flat);
   let html, copy='';
   if(flat){ html='<span class="vhint">no angle in a flat view</span>'; }
   else {
@@ -543,6 +559,15 @@ function showView(){
   if(html===vLast) return;
   vLast=html; elView.innerHTML=html; elView.dataset.copy=copy;
 }
+// Off at load. ATP's idealized spec declares a `view:`, and a page that drifts
+// off a chosen angle within a second of arriving shows it to nobody — so the
+// molecule holds still and turning is something you ask for, by dragging or by
+// this. Unchecked also means a screenshot or the PNG button gets the angle the
+// spec actually asks for.
+const elSpin=document.getElementById('spin');
+elSpin.checked=false;
+elSpin.onchange=()=>v.setSpin(elSpin.checked);
+
 // Reset is the undo for a drag: back to the pose the card dealt, which is
 // molview's own opening angle and NOT the spec's committed `view:` — see
 // resetPose() there for why those are different things on this page. The

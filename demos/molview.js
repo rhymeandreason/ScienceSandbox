@@ -46,7 +46,7 @@
  *                               flatHost: document.getElementById('flat'),
  *                               usable: MolView.usableAround(canvas, {...}),
  *                               focusAtoms: spec => spec.gly.gamma });
- *    v.show(spec);  v.setMode('2d');  v.setHighlight(true);
+ *    v.show(spec);  v.setMode('2d');  v.setHighlight(true);  v.setSpin(true);
  *    (in the render loop, before renderer.render)  v.step();
  *    (in a ResizeObserver on the canvas)           v.fit();
  *
@@ -118,6 +118,12 @@ function fitSvg(svg){
  *
  * flatPose below is the fallback for a spec with no `view:` — see its note.
  */
+function viewQ(spec){
+  const q=new THREE.Quaternion();
+  if(spec&&spec.view) q.setFromEuler(new THREE.Euler(
+    spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'));
+  return q;
+}
 function openingPose(spec){
   const q=new THREE.Quaternion();
   return spec.view ? q : flatPose(spec);
@@ -203,7 +209,9 @@ function create(opt){
   const flatHost=opt.flatHost||null;
   const usable=opt.usable||(()=>({fw:1,fh:1}));
   const focusAtoms=opt.focusAtoms||(()=>[]);
-  const spinRate=opt.spin==null?0.0035:opt.spin;
+  // The turntable's SPEED. Whether it runs at all is `spinning` below, which a
+  // caller drives from a control — see setSpin().
+  const spinRate=opt.spinRate==null?0.0035:opt.spinRate;
   const dragEnabled=opt.drag!==false;
   const noFlatMsg=opt.noFlatMessage||'No flat drawing for this molecule yet.';
 
@@ -215,7 +223,12 @@ function create(opt){
   let spec=null, built=null;
   let mode='3d';
   let showH=false, showFocus=false;
-  let userSpun=false;                 // idle turntable stops the moment you drag
+  // OFF unless the caller asks. A spec that declares `view:` has stated the
+  // angle it should be seen at, and a page that drifts off it on load shows
+  // that angle for about a second — so the resting state is rest, and the spin
+  // is something you turn on to look around. It used to run until your first
+  // drag, back when the opening pose was a PCA guess nobody had committed to.
+  let spinning=opt.spin===true;
   const pose=new THREE.Quaternion();  // the model's own attitude, only 3D changes it
   let morph=0, morphTo=0;             // 0 = model, 1 = laid flat
   let home=[], target=[];             // per atom: where it is, where the layout wants it
@@ -412,7 +425,13 @@ function create(opt){
 
   /* ---------- build ---------- */
   function show(next, o={}){
-    const keep=o.keepPose?pose.clone():null;
+    // keepPose preserves what is ON SCREEN, not the group's quaternion. Two
+    // derivations of one molecule can declare different `view:` — atpSkel does
+    // and atp does not — and each is baked into its own meshes, so carrying the
+    // group rotation across would carry the pose and CHANGE the picture, which
+    // is the one thing a derivation cut must not do. Solve for the pose that
+    // leaves pose ∘ view where it was.
+    const keep=o.keepPose?pose.clone().multiply(viewQ(spec)):null;
     if(built){ root.remove(built); built=null; }
     spec=next;
     built=Stage.buildMolecule(spec,{center:true});
@@ -427,8 +446,7 @@ function create(opt){
     // Start facing you. A dinucleotide dropped in at whatever attitude its
     // PubChem conformer happens to carry reads as a tangle; its own widest plane
     // is the one pose that is about the molecule rather than about the record.
-    pose.copy(keep||openingPose(spec));
-    userSpun=false;
+    pose.copy(keep ? keep.multiply(viewQ(spec).invert()) : openingPose(spec));
     snap();
     applyFocus(); paintFlat();
   }
@@ -466,7 +484,7 @@ function create(opt){
     canvas.addEventListener('pointermove',e=>{
       if(!dragging) return;
       const dx=(e.clientX-last[0])*0.01, dy=(e.clientY-last[1])*0.01;
-      last=[e.clientX,e.clientY]; userSpun=true;
+      last=[e.clientX,e.clientY];
       // Turned about the CAMERA's axes, not the model's, so a drag right always
       // sends the near face right no matter how far it has already been turned.
       pose.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(dy,dx,0,'XYZ')));
@@ -503,8 +521,10 @@ function create(opt){
       applyMorph(ease);
     }
 
-    // idle turntable: only in 3D, only until you touch it
-    if(spinRate && mode==='3d' && morph===0 && !userSpun && !dragging){
+    // the turntable: only in 3D, only when the caller has switched it on
+    // Dragging does NOT cancel it. The control is the state, and one that
+    // silently switched itself off would leave a ticked box doing nothing.
+    if(spinning && spinRate && mode==='3d' && morph===0 && !dragging){
       pose.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,spinRate,0)));
     }
 
@@ -523,13 +543,12 @@ function create(opt){
   /* ---------- back to the opening pose ----------
    * Whatever show() started this molecule at: the spec's own `view:` where it
    * declares one, flatPose where it does not. The undo for a drag, so it
-   * returns the picture the card dealt. Clearing userSpun with it hands the
-   * idle turntable back too, which is part of that picture.
+   * returns the picture the card dealt. The spin, if it is on, keeps running:
+   * Reset answers "where does this start", not "stop moving".
    */
   function resetPose(){
     if(!spec) return;
     pose.copy(openingPose(spec));
-    userSpun=false;
   }
 
   /* ---------- the angle on screen, as a spec would write it ----------
@@ -545,14 +564,12 @@ function create(opt){
    * be pasted rather than guessed at.
    */
   function viewEuler(){
-    const q=new THREE.Quaternion();
-    if(spec&&spec.view) q.setFromEuler(new THREE.Euler(
-      spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'));
+    const q=viewQ(spec);
     // The GROUP's quaternion, not `pose`. step() copies pose onto the group and
     // THEN advances the idle turntable, so pose runs one tick ahead of what is
     // drawn; reporting it would describe a frame nobody saw. Only ~0.2° — and
-    // only while the turntable is running, which a drag stops — but this number
-    // is meant to be pasted, so it should be the picture, exactly.
+    // only while the turntable is running, which is off unless asked for — but
+    // this number is meant to be pasted, so it should be the picture, exactly.
     const now=built ? built.quaternion : pose;
     const e=new THREE.Euler().setFromQuaternion(now.clone().multiply(q), 'ZYX');
     return [e.x, e.y, e.z];
@@ -560,6 +577,8 @@ function create(opt){
 
   return {
     show, setMode, step, fit, snap, viewEuler, resetPose,
+    setSpin(on){ spinning=!!on; },
+    get spinning(){ return spinning; },
     setHighlight(on){ showFocus=!!on; applyFocus(); paintFlat(); },
     setOptionalH(on){
       showH=!!on;
