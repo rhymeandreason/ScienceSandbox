@@ -455,6 +455,52 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- the pathway's one surviving stereocentre ------------------------
+  // GLYCOLYSIS TOUCHES C5 AT NO STEP. Glucose's C5 is fixed by its
+  // all-equatorial claim above; every later intermediate inherits that centre —
+  // it becomes fructose's C5 and then, after aldolase, G3P's C2, and it is
+  // still there in 3-PG and 2-PG. So all of them must have the SAME handedness,
+  // and this measures it: the signed volume of (→O, →lower C, →higher C) about
+  // the centre, which flips sign if the substituents swap sides.
+  //
+  // This is a RELATIVE check, like `stereo:{faces}` — it cannot catch a global
+  // mirror (MolecularGeometry.md §1.3), and it does not need to. What it
+  // catches is a spec drifting away from the rest of the pathway, which is
+  // exactly what happened: `hydroxyl(k, k%2)` alternates FACES, which looks
+  // like a Fischer drawing but is not a configuration, and it put F6P's and
+  // F1,6-BP's C5 on the wrong side. The centre inverted at step 2 and inverted
+  // back at step 4 — both molecules rendering perfectly the whole time.
+  if (mol.gly && mol.gly.dCentre) {
+    const ref = MOLECULES.glucose;
+    const sign = (m, [c, lo, hi]) => {
+      const bonded = i => (m.bonds || []).filter(b => b[0] === i || b[1] === i)
+                                         .map(b => (b[0] === i ? b[1] : b[0]));
+      const o = bonded(c).find(i => m.atoms[i].el === 'O');
+      if (o == null) return null;
+      const v = (i, j) => [0, 1, 2].map(k => m.atoms[i].pos[k] - m.atoms[j].pos[k]);
+      const [a, b2, d] = [v(o, c), v(lo, c), v(hi, c)];
+      const cr = [a[1] * b2[2] - a[2] * b2[1], a[2] * b2[0] - a[0] * b2[2],
+                  a[0] * b2[1] - a[1] * b2[0]];
+      return Math.sign(cr[0] * d[0] + cr[1] * d[1] + cr[2] * d[2]);
+    };
+    // glucose's C5: its oxygen is the RING oxygen, and its neighbours are C4
+    // and the exocyclic C6 — the same three substituents, in the same order,
+    // that every chain spec's dCentre names.
+    const rc = ref.gly.cN;
+    const want = sign(ref, [rc[4], rc[3], rc[5]]);
+    const got = sign(mol, mol.gly.dCentre);
+    if (got == null || want == null) {
+      stereoFails++;
+      console.log(`   D-CENTRE FAIL: could not measure the centre`);
+    } else if (got !== want) {
+      stereoFails++;
+      console.log(`   D-CENTRE FAIL: this centre is INVERTED relative to glucose's C5 `
+        + `— nothing in glycolysis touches it, so it must match`);
+    } else {
+      console.log(`   d-centre OK: same handedness as glucose's C5`);
+    }
+  }
+
   // ---- phosphate count, and the chain when there is one ----------------
   // `gly.phosphates` was metadata that nothing read back against the atoms, so
   // a spec could say 2 and draw 1. It says P COUNT, and now it has to be true.

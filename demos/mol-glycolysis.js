@@ -187,11 +187,19 @@
     const g=chainC(6);
     g.hydroxyl(0,0);                                       // C1 –OH (was the aldehyde)
     g.carbonyl(1,0);                                       // C2 ketone
-    for(let k=2;k<=4;k++) g.hydroxyl(k, k%2);              // C3…C5 –OH
+    // C3…C5 –OH. C5 TAKES THE OTHER SLOT: `k%2` alternates faces, which is what
+    // a Fischer drawing looks like but is not a configuration — and at C5 it
+    // put the –OH on the wrong side. C5 is not touched by this reaction or by
+    // aldolase, so it must match glucose's C5 (which the ring's all-equatorial
+    // claim fixes) and G3P's C2 (which it becomes). It matched neither: the
+    // centre inverted at step 2 and inverted back at step 4. `dCentre` below is
+    // the assertion that it cannot drift again.
+    for(let k=2;k<=4;k++) g.hydroxyl(k, k===4 ? 1 : k%2);
     const p6=g.phosphate(5,0);                             // C6 –O–PO₃, carried over
     GLYCOLYSIS.f6p=g.spec({ name:'Fructose-6-phosphate', short:'F6P', formula:'C₆H₁₃O₉P²⁻', class:'sugar',
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p1:null, p3:p6, phosphates:1,
             c1:0,                     // where PFK-1's phosphate lands next
+            dCentre:[4,3,5],          // C5 (–O, C4, C6) — must match glucose's C5
             note:'drawn open-chain (Fischer); really a furanose ring in solution' } });
   }
   {
@@ -200,11 +208,12 @@
     const g=chainC(6);
     const p1=g.phosphate(0,0);                             // C1 –O–PO₃
     g.carbonyl(1,0);                                       // C2 ketone
-    for(let k=2;k<=4;k++) g.hydroxyl(k, k%2);              // C3…C5 –OH
+    for(let k=2;k<=4;k++) g.hydroxyl(k, k===4 ? 1 : k%2);  // C3…C5 –OH; C5, see f6p
     const p6=g.phosphate(5,0);                             // C6 –O–PO₃
     GLYCOLYSIS.f16bp=g.spec({ name:'Fructose-1,6-bisphosphate', short:'F1,6-BP', formula:'C₆H₁₄O₁₂P₂⁴⁻', class:'sugar',
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p1, p3:p6, phosphates:2,
             cleave:[2,3],           // aldolase cuts C3–C4 → DHAP (C1-3) + G3P (C4-6)
+            dCentre:[4,3,5],        // C5 — survives the cut as G3P's C2
             note:'drawn open-chain (Fischer) though it is really a furanose ring' } });
   }
   {
@@ -225,7 +234,7 @@
     g.hydroxyl(1,1);
     const p=g.phosphate(2,0);
     GLYCOLYSIS.g3p=g.spec({ name:'Glyceraldehyde-3-phosphate', short:'G3P', formula:'C₃H₇O₆P²⁻', class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h, dCentre:[1,0,2] } });
   }
   {
     // — 1,3-BPG: G3P oxidised. The aldehyde H is gone (it left with 2e⁻ on NAD⁺)
@@ -238,7 +247,7 @@
     g.hydroxyl(1,1);
     const p3=g.phosphate(2,0);
     GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', short:'1,3-BPG', formula:'C₃H₈O₁₀P₂⁴⁻', class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1 } });
+      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, dCentre:[1,0,2] } });
   }
   {
     // — 3-phosphoglycerate: C1 phosphate handed to ADP, leaving a carboxylate.
@@ -254,7 +263,7 @@
     // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
     // phosphate to C2 and then dehydrate the molecule to make it transferable.
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₆O₇P²⁻', class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1 } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, dCentre:[1,0,2] } });
   }
   {
     // — 2-phosphoglycerate: the same atoms as 3-PG with the phosphate moved from
@@ -264,10 +273,14 @@
     //   high-energy phosphate out of a low-energy one.
     const g=chainC(3);
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
-    const p=g.phosphate(1,0);                              // C2 –O–PO₃
+    // SLOT 1, matching 3-PG's C2 –OH. The mutase moves the phosphate between
+    // C3 and C2; it does not invert C2, and putting the new substituent in the
+    // other tetrahedral slot is exactly an inversion. Same class of slip as
+    // F6P's C5, caught by the same assertion.
+    const p=g.phosphate(1,1);                              // C2 –O–PO₃
     const oh=g.hydroxyl(2,0);                              // C3 –OH — the OH enolase removes
     GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', short:'2-PG', formula:'C₃H₆O₇P²⁻', class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh } });
+      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, dCentre:[1,0,2] } });
   }
   {
     // — phosphoenolpyruvate: 2-PG minus a water. Enolase pulls the C3 –OH and a
