@@ -123,6 +123,42 @@
     font-family:var(--font-marker);font-weight:700;font-size:16px;
     letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
   #stephead.on{visibility:visible}
+
+  /* ---------- the caption, on demand ----------
+     The step's explanation used to stand permanently under the button, four
+     lines of it, and it was the widest and tallest thing on the stage — space
+     the molecule wanted and a paragraph most students read once. It is now
+     behind the ⓘ beside the heading: the heading says which step and what it
+     demonstrates, and the sentence that explains why is a hover away.
+     THE TOOLTIP CHANGES NO LAYOUT. It is absolutely positioned out of flow
+     inside a zero-width wrapper, so the band it hangs off keeps its height and
+     the camera's bottom reserve — which usable() measures — never moves. It
+     opens UPWARD, over the stage, because that is the empty half of the screen;
+     downward would put it under the edge of the canvas. */
+  .infowrap{position:relative;display:inline-block;width:0;height:0;
+    vertical-align:middle}
+  .infobtn{position:absolute;left:7px;top:50%;transform:translateY(-50%);
+    width:17px;height:17px;padding:0;border-radius:50%;cursor:help;
+    border:1.5px solid var(--muted);background:none;color:var(--muted);
+    font-family:var(--font-sans);font-weight:700;font-size:10.5px;line-height:1;
+    display:grid;place-items:center;transition:color .15s,border-color .15s}
+  .infobtn:hover,.infobtn:focus{color:var(--ink);border-color:var(--ink);outline:none}
+  .tip{position:absolute;bottom:calc(100% + 16px);left:50%;
+    transform:translateX(-50%) translateY(4px);
+    width:min(520px,72vw);padding:13px 17px;border-radius:12px;
+    background:var(--panel);border:1.5px solid var(--hair);
+    box-shadow:0 14px 34px -14px rgba(60,50,28,.55);
+    font-family:var(--font-sans);font-size:14.5px;line-height:1.5;
+    letter-spacing:0;text-transform:none;color:#5a5346;text-align:center;
+    /* never a click target, so it cannot swallow a press meant for the stage
+       and cannot hold itself open once the pointer leaves the icon */
+    pointer-events:none;opacity:0;visibility:hidden;
+    transition:opacity .16s ease, transform .16s ease}
+  .infobtn:hover + .tip,.infobtn:focus + .tip{
+    opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .tip b{font-weight:700;color:var(--ink)}
+  .tip .p{color:var(--phos)} .tip .n{color:var(--nad)}
+  @media (prefers-reduced-motion:reduce){ .tip{transition:none} }
   /* the review beat's shared entry — same timing as #couplebox.in, so the
      verdict, the button and the figure arrive together and only once the
      molecule has finished landing */
@@ -144,7 +180,10 @@
      15.5px that is ~270 characters — which is exactly what step 10 uses, so
      there is no slack. A longer message means growing the band here and
      re-checking the fit, not just adding words in STEPS. */
-  #rxmsg{width:min(680px,64%);min-height:74px;text-align:center;
+  /* min-height 0: the band only carries text on the intro and the closing
+     screen now, and reserving a caption's worth of stage on the ten steps that
+     no longer have one is exactly the space this change was made to give back */
+  #rxmsg{width:min(680px,64%);min-height:0;text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
     color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
@@ -2020,14 +2059,17 @@ function drawCaption(){
   // the words were read before it ran, and repeating them under the result just
   // gives the eye somewhere else to go. The band keeps its height, so nothing
   // moves and the camera does not re-frame.
-  // …but the TEXT STAYS IN THE BOX and only its opacity goes. Emptying the <p>
-  // dropped the band from the caption's own height to #rxmsg's 74px floor —
-  // 24px — and usable() measures that band to decide how much stage is left. So
-  // the camera re-framed on the beat the molecule changed, which is the wobble
-  // at the swap that no amount of aligning the molecule could have fixed. The
-  // band keeping its height is what the note above always claimed; now it does.
-  const html=captionAt(focusStep());
-  const show=!reviewing;
+  // THE BAND IS NOW THE TWO SCREENS THAT HAVE NO STEP: the intro, which has to
+  // say what glucose is and where this happens, and the finished pathway, which
+  // is where the closing tally is said. Every step's own caption moved to the ⓘ
+  // on its heading — permanently printed, it was four lines of the stage's
+  // height for a paragraph read once.
+  // The band therefore holds ONE height for the whole of the ten steps (zero),
+  // which is what usable() wants: nothing along the bottom edge changes as you
+  // work through them, so the camera never re-frames mid-step.
+  const bare = intro || focusStep()>=nSteps;
+  const html = bare ? captionAt(focusStep()) : '';
+  const show = bare && !reviewing;
   if(html!==shownCaption){                     // don't restart the fade
     shownCaption=html;
     rxmsgEl.querySelector('p').innerHTML=html;
@@ -2422,7 +2464,16 @@ function drawAct(){
              : reviewing ? `Step ${STEPS[done-1].n} complete`
              : hi<nSteps ? headAt(hi)
              : '';
-  stepHeadEl.innerHTML=head;
+  // THE CAPTION HANGS OFF THE HEADING. Wherever there is a step to name there
+  // is a step to explain, so the ⓘ rides the heading and carries that step's
+  // own text — the same string the band used to print, read from the same
+  // place, so there is still only one caption per step.
+  const tip = head ? captionAt(hi) : '';
+  stepHeadEl.innerHTML = head + (tip
+    ? `<span class="infowrap"><button class="infobtn" type="button"
+         aria-label="What happens in this step">i</button><span class="tip"
+         role="tooltip">${tip}</span></span>`
+    : '');
   stepHeadEl.classList.toggle('on', !!head);
   // THE REVIEW BEAT ARRIVES AS ONE THING, and after the molecule does. The
   // verdict, the button and the coupling box are the same announcement — "that
