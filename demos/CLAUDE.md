@@ -127,7 +127,7 @@ both load.
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
-| `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has`, `viewEuler` (the pose on screen folded back into a spec's `view:`), `resetPose` · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
+| `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has`, `viewEuler` (the pose on screen folded back into a spec's `view:`), `resetPose`. Opens a spec at its declared `view:`, or at a PCA pose if it declares none · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `annotate.js` | `Annot.create` → `add`, `step`, `play`, `setMode`, `show`, `clear`. Callouts pinned to a model: dot on the atom, fanned label, three reveal modes. DOM over the canvas, not sprites | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
@@ -159,7 +159,12 @@ Easy to get wrong, invisible from the API:
 * **Spec coordinates are canonical.** Never bake a viewing angle in with
   `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied by
   `Stage.buildMolecule`), and add new angles to `VIEW` so specs share a view by
-  name, not by copied constants.
+  name, not by copied constants. An angle only ONE spec uses stays inline
+  (`atpSkel`): a `VIEW` entry with a single user is a name nobody can reuse.
+  Either way it is a DECLARATION — `molecule-viewer.html` opens a spec that has
+  one at exactly that angle, and falls back to its own PCA pose only for a spec
+  that has none, so an angle nobody chose is an angle nobody sees. Tune one by
+  dragging there and pasting its copy button's output.
 * **Specs come in two bond-length families**; a page shows one.
   MolecularGeometry.md §1.5.
 * **`mol-*.js` coordinates are real ångströms** unless `units:'scene'`. Pasting

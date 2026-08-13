@@ -107,6 +107,23 @@ function fitSvg(svg){
 }
 
 /* ---------- the opening pose ----------
+ * A SPEC THAT DECLARES `view:` HAS ALREADY ANSWERED THIS. Its author picked an
+ * angle, every other page renders it at that angle, and the group's rotation is
+ * therefore ZERO at rest — which is exactly how contrast-lab.html holds its
+ * pairs ("0 at rest — the spec's own orientation") and what makes its own
+ * paste-VIEW readout round-trip. This module now matches it, for the same
+ * reason and one more: viewEuler() is only worth pasting if pasting it back
+ * reproduces the picture, and PCA composed on top of the baked view would mean
+ * a number that never came true.
+ *
+ * flatPose below is the fallback for a spec with no `view:` — see its note.
+ */
+function openingPose(spec){
+  const q=new THREE.Quaternion();
+  return spec.view ? q : flatPose(spec);
+}
+
+/* ---------- flatPose: an opening angle for a spec that declares none ----------
  * PCA over the heavy atoms: the two directions the molecule is widest in become
  * screen X and Y, so the least of it is pointing at you. This is the MODEL's
  * resting attitude, not the flat view — a dinucleotide dropped in at whatever
@@ -410,7 +427,7 @@ function create(opt){
     // Start facing you. A dinucleotide dropped in at whatever attitude its
     // PubChem conformer happens to carry reads as a tangle; its own widest plane
     // is the one pose that is about the molecule rather than about the record.
-    pose.copy(keep||flatPose(spec));
+    pose.copy(keep||openingPose(spec));
     userSpun=false;
     snap();
     applyFocus(); paintFlat();
@@ -504,17 +521,14 @@ function create(opt){
   }
 
   /* ---------- back to the opening pose ----------
-   * flatPose again — the angle show() starts a molecule at, not the spec's
-   * `view:`. Those are different things on a page like this: `view:` is baked
-   * into the meshes and flatPose is turned on top of it, so zeroing the pose
-   * would show the spec's committed angle rather than the one the student was
-   * given. This is the undo for a drag, so it returns the picture the card
-   * dealt. Clearing userSpun with it hands the idle turntable back too, which
-   * is part of that picture.
+   * Whatever show() started this molecule at: the spec's own `view:` where it
+   * declares one, flatPose where it does not. The undo for a drag, so it
+   * returns the picture the card dealt. Clearing userSpun with it hands the
+   * idle turntable back too, which is part of that picture.
    */
   function resetPose(){
     if(!spec) return;
-    pose.copy(flatPose(spec));
+    pose.copy(openingPose(spec));
     userSpun=false;
   }
 

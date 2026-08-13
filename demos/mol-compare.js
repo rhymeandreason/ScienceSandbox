@@ -217,7 +217,14 @@
       // derivations agree about completely.
       flat2d:[[0.418,1.538],[0.264,3.008],[-1.182,3.315],[-1.92,2.035],[-0.932,0.938],[-1.783,4.665],[-3.39,1.881],[-1.239,-0.508],[-0.141,-1.496],[-0.448,-2.941],[-0.755,-4.387],[-1.893,-2.634],[0.997,-3.249],[-2.16,-4.843],[-3.566,-5.3],[-1.704,-6.248],[-2.617,-3.438],[-4.664,-4.311],[-5.652,-5.409],[-3.675,-3.213],[-5.762,-3.322],[5.762,3.689],[5.023,2.41],[3.545,2.41],[2.807,3.689],[3.545,4.969],[5.023,4.969],[2.557,6.067],[1.207,5.466],[1.362,3.996],[5.762,6.248]],
       topology:{ rings:[5,5,6], fused:true },
-      view:VIEW.pyranose,
+      // Tuned in molecule-viewer.html (drag, then its copy button) rather than
+      // inherited: VIEW.pyranose is the sugar-chair angle every hexose shares,
+      // and on a nucleotide it frames the ribose and lets the phosphate tail
+      // run off wherever it likes. This one is about the CHAIN, which is what
+      // ATP's picture claims. Inline rather than a VIEW entry because it is one
+      // molecule's angle — VIEW is for an angle two specs SHARE, and a table
+      // entry with a single user is a name nobody can reuse.
+      view:[-1.3882, -0.1018, -0.7511],
       optH:CH,
       gly:{ carbons:10, phosphates:3, carrier:true,
             pa:pa, pb:pb, pg:pg,
@@ -423,7 +430,13 @@
       // CONNECTIVITY and connectivity is what the two derivations agree about.
       flat2d:[[4.135,2.075],[3.982,3.528],[2.553,3.831],[1.823,2.566],[2.8,1.481],[1.959,5.166],[0.37,2.414],[2.497,0.052],[3.582,-0.926],[3.278,-2.355],[2.975,-3.784],[1.849,-2.051],[4.707,-2.658],[1.585,-4.235],[0.196,-4.687],[2.037,-5.625],[1.134,-2.846],[9.418,4.201],[8.688,2.936],[7.227,2.936],[6.497,4.201],[7.227,5.467],[8.688,5.467],[6.25,6.552],[4.915,5.958],[5.068,4.505],[9.418,6.732],[-3.461,-3.302],[-4.643,-4.161],[-4.191,-5.55],[-2.73,-5.55],[-2.279,-4.161],[-5.05,-6.732],[-1.872,-6.732],[-0.89,-3.709],[-6.032,-3.709],[-6.336,-2.28],[-7.725,-1.829],[-8.811,-2.806],[-8.507,-4.235],[-7.118,-4.687],[-8.029,-0.4],[-9.418,0.052],[-6.943,0.578]],
       topology:{ rings:[5,5,5,6,6], fused:true },
-      view:VIEW.pyranose,
+      // NO `view:` on purpose. It carried VIEW.pyranose, copied along with the
+      // rest of atpSkel's shape — a hexose chair angle, which says nothing
+      // about a dinucleotide and was only ever harmless because
+      // molecule-viewer used to override it. Now that a declared view IS the
+      // opening pose (molview.js openingPose), an angle nobody chose would be
+      // an angle everybody sees. Absent, the viewer opens it on its own widest
+      // plane, which is the honest default until someone tunes one.
       optH,
       gly:{ carbons:21, phosphates:2, carrier:true, nic:nicIdx,
             spent:{ name:'Nicotinamide adenine dinucleotide (oxidised)',
