@@ -52,6 +52,7 @@ this order — each script assumes the ones above it:
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
 <script src="mol-monomers.js"></script>    <!-- ...see the per-page table below -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
+<script src="molview.js"></script>     <!-- if the page shows one molecule three ways -->
 <script src="fx.js"></script>          <!-- if the page fires any effect -->
 <script src="annotate.js"></script>    <!-- if the page labels parts of a model -->
 <script src="atomkit.js"></script>     <!-- bonding builder only -->
@@ -81,7 +82,7 @@ this order — each script assumes the ones above it:
 | `molecule-builder` | palette, molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
 | `aminoacid-lab` | palette, molecules, mol-monomers, mol-small, scene, fx |
 | `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx, atomkit |
-| `molecule-viewer` | palette, molecules, skel, mol-glycolysis, mol-compare, scene |
+| `molecule-viewer` | palette, molecules, skel, mol-glycolysis, mol-compare, scene, molview |
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
 | `protein-lab` | pdb, vendor/chemdoodle/ChemDoodleWeb |
@@ -126,6 +127,7 @@ both load.
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
+| `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has` · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `annotate.js` | `Annot.create` → `add`, `step`, `play`, `setMode`, `show`, `clear`. Callouts pinned to a model: dot on the atom, fanned label, three reveal modes. DOM over the canvas, not sprites | own header |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |

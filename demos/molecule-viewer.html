@@ -199,6 +199,7 @@
      — the same library and the same strings contrast-lab.html uses. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
 <script src="scene.js"></script>
+<script src="molview.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -211,45 +212,23 @@
  *  SCIENCE.md §5 says never to dramatise a non-event, and selecting a card is
  *  the definitive non-event.
  *
- *  THREE VIEWS, and the difference between them is the point.
+ *  THREE VIEWS — 3D, the same spheres slid onto the diagram's layout, and the
+ *  drawn diagram — and the difference between them is the point. The views
+ *  themselves, the morph that carries one into the next, the framing and the
+ *  highlight all live in **molview.js**, because they are plumbing: any lesson
+ *  wanting to show a molecule three ways wants exactly that machinery and none
+ *  of this page's opinions. Read its header for why the flat view MOVES the
+ *  atoms rather than projecting them, and what it gives up by doing so.
  *
- *  3D ......... the molecule. Real coordinates, free to turn.
- *  2D ......... THE SAME SPHERES, MOVED. Every atom slides from where it really
- *               is to where a structural diagram would put it, and the bonds
- *               stretch to follow. Nothing is added and nothing is swapped —
- *               it is one continuous object the whole way, which is the only
- *               thing that can honestly say "the diagram and the model are the
- *               same molecule". molecule-builder.html's flip does this for five
- *               small molecules from hand-authored Lewis layouts; the layout
- *               here is `flat2d` on the spec, baked by tools/bake-flat2d.js.
- *  Diagram .... the drawing proper. SmilesDrawer over the spec's generated
- *               `smiles`, with labels, ring circles and stereo wedges — the
- *               things a diagram has and a pile of spheres cannot.
- *
- *  A PROJECTION of the 3D coordinates was tried first for the flat view, and it
- *  was wrong. A projection cannot untangle a molecule: ATP's phosphate tail
- *  genuinely folds back over its own ribose in the PubChem conformer, so
- *  flattening lands one on top of the other however you turn it. Hence the move:
- *  the atoms are relocated, not re-photographed, and the caption says so.
- *
- *  What every flat view here gives up is stated on the switch: the ANGLES AND
- *  DISTANCES ARE NOT THE MOLECULE'S. Bond LENGTHS are, near enough —
- *  bake-flat2d.js scales the layout to the molecule's own mean bond — which is
- *  what keeps the transition reading as a rearrangement rather than a zoom.
- *
- *  All three answer the one Highlight toggle, from one atom list (`flatMark`,
- *  which IS the `gly.gamma` / `gly.nic` array the model highlights) — two views
- *  of one molecule disagreeing about which part matters is the confusion this
- *  page exists to remove.
+ *  WHAT IS LEFT HERE is the lesson: which molecules are on the shelf, what the
+ *  rails say about them, which atoms are "the working end", that ATP has a
+ *  second derivation to cut to, and the recipe line that says how to ask for
+ *  this model somewhere else.
  *
  *  The model is orthographic, for the same reason contrast-lab.html is: a
  *  perspective lens makes whichever half of the molecule swung nearer look
  *  bigger, so "the two phosphates are the same size" would come and go as it
  *  turned.
- *
- *  The camera never moves. Dragging turns the MODEL — which is what lets the
- *  flat view be a lock rather than a suggestion, and keeps the lighting rig
- *  (parented to the camera in scene.js) fixed so highlights stay put.
  * ============================================================= */
 
 /* ---------- the shelf ----------
@@ -307,162 +286,33 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
 applyCam();
 
 /* ---------- state ----------
- * `morph` is the whole flat view: 0 = the atoms where they really are, 1 = the
- * atoms on the diagram's layout, and every value between is a frame of the
- * transition. There is no second model and no swap — 2D is this number reaching
- * 1, which is what makes the two views provably one molecule. */
+ * The views are MolView's; what this page tracks is which CARD is up and which
+ * DERIVATION is showing. `mode` is mirrored here only so the dock and the
+ * caption can read it without asking the view. */
 let selected=0;
-let built=null;                    // the current molecule's group
 let mode='3d';                     // '3d' | '2d' | 'diagram'
 let source='pubchem';              // 'pubchem' | 'skel' — which DERIVATION
 // Highlight starts OFF: the molecule arrives whole. Dimming five sixths of it
 // before the student has looked at any of it answers a question nobody asked —
 // the button is for when they want to know which part does the work.
 let showH=false, showFocus=false;
-let userSpun=false;                // idle turntable stops the moment you drag
-const pose=new THREE.Quaternion(); // the model's own attitude, only 3D changes it
-let morph=0, morphTo=0;            // 0 = model, 1 = laid flat
-let home=[], target=[];            // per atom: where it is, where the layout wants it
-let perp0=[];                      // per double bond: its original offset direction
-let halfNow=0, halfTo=0;           // the ortho frustum, eased with the morph
-const flatOf=m=>m==='3d'?0:1;
 
-/* ---------- the opening pose ----------
- * PCA over the heavy atoms: the two directions the molecule is widest in become
- * screen X and Y, so the least of it is pointing at you. This is the MODEL's
- * resting attitude, not the flat view — a dinucleotide dropped in at whatever
- * angle its PubChem conformer happens to carry reads as a tangle. Heavy atoms only, and
- * for the same reason Stage.measure counts only heavy atoms — hydroxyl
- * hydrogens are free rotors, so including them measures how the spec happens to
- * have been drawn rather than how the molecule is shaped.
- *
- * The basis MUST stay right-handed (e3 = e1 × e2). Flipping one axis to
- * "tidy up" the framing is a REFLECTION, and a reflection turns this molecule
- * into its mirror image while leaving every bond length, every angle and the
- * render identical (MolecularGeometry.md §1.3). It is exactly the bug that
- * cost this repo months of wrong sugars, and a viewer is the last place to
- * reintroduce it — nothing downstream would catch it here.
- */
-function flatPose(spec){
-  const pts=spec.atoms.filter(a=>a.el!=='H').map(a=>a.pos);
-  const c=[0,1,2].map(k=>pts.reduce((s,p)=>s+p[k],0)/pts.length);
-  const C=[[0,0,0],[0,0,0],[0,0,0]];
-  pts.forEach(p=>{ const d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]];
-    for(let i=0;i<3;i++) for(let j=0;j<3;j++) C[i][j]+=d[i]*d[j]; });
-  const mul=(M,v)=>[0,1,2].map(i=>M[i][0]*v[0]+M[i][1]*v[1]+M[i][2]*v[2]);
-  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-  const unit=v=>{ const l=Math.hypot(...v)||1; return v.map(x=>x/l); };
-  // power iteration, deflating after each axis — three eigenvectors is small
-  // enough that a full solver would be more code than it is worth
-  const axis=(M,seed)=>{ let v=unit(seed);
-    for(let k=0;k<80;k++) v=unit(mul(M,v)); return v; };
-  const e1=axis(C,[1,0.3,0.1]);
-  // deflate e1 out, then the next-widest direction is the leading eigenvector
-  const D=C.map((row,i)=>row.map((x,j)=>x-dot(mul(C,e1),e1)*e1[i]*e1[j]));
-  let e2=axis(D,[0.2,1,0.4]);
-  e2=unit(e2.map((x,i)=>x-dot(e2,e1)*e1[i]));          // re-orthogonalise
-  const e3=[e1[1]*e2[2]-e1[2]*e2[1],                   // right-handed, always
-            e1[2]*e2[0]-e1[0]*e2[2],
-            e1[0]*e2[1]-e1[1]*e2[0]];
-  // rows e1,e2,e3 — the rotation that sends the molecule's own axes to screen
-  const M=new THREE.Matrix4().set(e1[0],e1[1],e1[2],0,
-                                  e2[0],e2[1],e2[2],0,
-                                  e3[0],e3[1],e3[2],0,
-                                  0,0,0,1);
-  return new THREE.Quaternion().setFromRotationMatrix(M);
-}
-
-/* ---------- the flat drawing ----------
- * Colours are MolPalette's, so an oxygen is the same red in both views and the
- * orange phosphorus still reads as "the energy currency" (palette.js). Only the
- * bond ink is the page's, because a bond's colour there is a lesson about the
- * bond, and a structural diagram makes no such claim.
- *
- * `atomVisualization:'allballs'` is what makes this look like the model rather
- * than a line skeleton: every atom gets a disc, including the carbons a skeletal
- * drawing leaves as bare vertices — which is the point, since the left rail is
- * counting them.
- *
- * The highlight travels INSIDE the string, as atom-map class 1 (`[P:1]`), put
- * there by tools/spec2smiles.js from `flatMark`. Nothing is pasted in here and
- * nothing is re-derived: this file cannot decide which atoms matter. */
-const FLAT_INK='#3d3730';
-function flatColors(){
-  const A=MolLib.PALETTE.atoms, hx=n=>'#'+n.toString(16).padStart(6,'0');
-  const t={ BACKGROUND:'#00000000', BOND:FLAT_INK };
-  for(const el of ['C','O','N','P','S','H']) if(A[el]!=null) t[el]=hx(A[el]);
-  return t;
-}
-// The disc behind a highlighted atom. Warm and light: it has to read as a
-// spotlight under the element colours, never as another element.
-const FLAT_HL='#f3dca0';
-
-/* SmilesDrawer emits a SQUARE viewBox whatever size it was asked for, so a
- * molecule as wide as ATP arrives letterboxed into a sliver. Re-fit the viewBox
- * to what was actually drawn — measured, since the extent depends on how the
- * layout engine folded this particular molecule. */
-function fitSvg(svg){
-  let bb; try{ bb=svg.getBBox(); }catch(e){ return; }
-  if(!bb||!bb.width||!bb.height) return;
-  const pad=12;
-  svg.setAttribute('viewBox',`${bb.x-pad} ${bb.y-pad} ${bb.width+pad*2} ${bb.height+pad*2}`);
-  svg.removeAttribute('width'); svg.removeAttribute('height');
-  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
-  svg.style.width='100%'; svg.style.height='100%';
-}
-
+/* ---------- the view ----------
+ * `usable` is measured, not assumed: the rails, the card strip and the caption
+ * lie over the stage, so the full frustum is not the full picture — and the flat
+ * layout is nearly three times as wide as the model, which is exactly when it
+ * starts sliding under them. The narrow media query takes the rails off the
+ * stage and usableAround notices by itself. */
 const elFlat=document.getElementById('flat');
-function paintFlat(){
-  const spec=specOf(SHELF[selected]);
-  elFlat.innerHTML='';
-  if(!spec.smiles||typeof SmilesDrawer==='undefined'){
-    elFlat.innerHTML='<div class="fnone">No flat drawing for this molecule yet.</div>';
-    return;
-  }
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  elFlat.appendChild(svg);
-  try{
-    SmilesDrawer.parse(spec.smiles, tree=>{
-      new SmilesDrawer.SvgDrawer({
-        width:1100, height:620,
-        // 'allballs', not 'balls': 'balls' only draws a disc where there is a
-        // LABEL, which leaves every carbon as a bare vertex — and the left rail
-        // is asking the student to count carbons.
-        atomVisualization:'allballs',
-        bondThickness:1.4, terminalCarbons:true, compactDrawing:false,
-        themes:{ light:flatColors() },
-      }).draw(tree, svg, 'light', null, false, showFocus?[[1,FLAT_HL]]:[]);
-      fitSvg(svg);
-    }, ()=>{ elFlat.innerHTML=''; });
-  }catch(e){ elFlat.innerHTML=''; }
-}
-
-/* ---------- highlight ----------
- * Dim to grey in place, contrast-lab.html's treatment and for its reason: the
- * point is "this part of a molecule you can still see all of", so hiding the
- * rest would leave a phosphate floating in space with nothing to be the end of.
- * A neutral grey, because a warm one leaves dimmed oxygens reading as pink. */
-const GREY=new THREE.Color(0x8d8a86);
-function applyFocus(){
-  if(!built) return;
-  const e=SHELF[selected], set=new Set(showFocus?e.focus.atoms(specOf(e)):[]);
-  const paint=(m,on)=>{
-    m.traverse(o=>{
-      if(!o.isMesh||!o.material) return;
-      const base=o.userData.baseColor; if(base===undefined) return;
-      o.material.color.setHex(base);
-      if(showFocus&&!on) o.material.color.lerp(GREY,0.9);
-      if(o.material.emissive){
-        o.material.emissive.setHex(showFocus&&on?base:0x000000);
-        o.material.emissiveIntensity=showFocus&&on?0.45:0;
-      }
-    });
-  };
-  built.userData.atomMeshes.forEach((m,i)=>paint(m,set.has(i)));
-  // a bond is in the focus only if BOTH ends are — one end in would light the
-  // stick reaching out of the group and make it look larger than it is
-  built.userData.bondMeshes.forEach(m=>paint(m,m.userData.pair.every(p=>set.has(p))));
-}
+const el=id=>document.getElementById(id);
+const v=MolView.create({
+  canvas, camera, applyCam, root, flatHost:elFlat,
+  usable:MolView.usableAround(canvas,{ left:[el('notes')], right:[el('focus')],
+                                       top:[el('shelf')],  bottom:[el('say')] }),
+  // WHICH ATOMS MATTER is the lesson's to say, not the viewer's — the model's
+  // grey-out and the diagram's spotlight both come from this one list.
+  focusAtoms:spec=>SHELF[selected].focus.atoms(spec),
+});
 
 /* ---------- the notes rail ----------
  * Read from the spec, at render time. `topology.rings` is the declared ring list
@@ -545,16 +395,9 @@ function note(){
  * cheaper and more honest to name skel.js whenever the domain sits after it than
  * to keep a second list of which files build.
  */
-// view -> the spec field it reads, and the module that turns it into pixels.
-// Missing field = that view is unavailable for that molecule, which is a fact
-// worth showing rather than hiding.
-const VIEW_FIELD={
-  '3d':      { field:'atoms',  via:'Stage.buildMolecule', what:'ball-and-stick model' },
-  '2d':      { field:'flat2d', via:'Stage.buildMolecule + flat2d',
-               what:'flat layout, atoms moved' },
-  'diagram': { field:'smiles', via:'SmilesDrawer (atomVisualization:\'allballs\')',
-               what:'structural diagram' },
-};
+// Which spec field the current view reads, and what draws it, comes from
+// MolView — the module that actually does the reading. A copy here would be a
+// second answer to the same question, and this line exists to be quotable.
 function recipe(spec){
   const dom=spec.domain, all=MolLib.DOMAINS||[];
   const i=all.indexOf(dom);
@@ -566,13 +409,13 @@ function recipe(spec){
 }
 const elRecipe=document.getElementById('recipe');
 function showRecipe(){
-  const spec=specOf(SHELF[selected]), r=recipe(spec), v=VIEW_FIELD[mode];
+  const spec=specOf(SHELF[selected]), r=recipe(spec), f=v.field();
   const path=(spec.src&&spec.src.path)||'?';
-  const has=spec[v.field]!=null;
+  const has=v.has();
   elRecipe.innerHTML=(spec.compare?`<span class="rnote">${spec.compare.note}</span>`:'')
     + `<span class="rhint">ask an agent for</span> `
     + `<b>MolLib.MOLECULES.${r.key}</b><br>`
-    + `src.path <b>'${path}'</b> · draws spec.<b>${v.field}</b>`
+    + `src.path <b>'${path}'</b> · draws spec.<b>${f.field}</b>`
     + (has?'':' <span class="rmiss">(not baked)</span>');
   elRecipe.dataset.copy=
       `${spec.name} (${spec.formula})\n`
@@ -582,7 +425,7 @@ function showRecipe(){
                        : path==='pubchem' ? ` — PubChem CID ${spec.src.cid}, `
                          + `${spec.src.record} record, conformer ${spec.src.conformer}` : '')
       + `\n`
-    + `rendering: ${v.what} — reads spec.${v.field}, drawn by ${v.via}\n`
+    + `rendering: ${f.what} — reads spec.${f.field}, drawn by ${f.via}\n`
     + `domain:    ${r.dom}\n`
     + `scripts:   ${r.tags.join(', ')}\n`
     + (spec.compare?`note:      ${spec.compare.note}\n`:'');
@@ -613,172 +456,10 @@ function select(i){
   selected=i;
   [...document.querySelectorAll('#shelf .goal')].forEach((c,k)=>
     c.classList.toggle('on', k===i));
-  if(built){ root.remove(built); built=null; }
-  const s=specOf(SHELF[i]);
-  built=Stage.buildMolecule(s,{center:true});
-  // baseColor is what applyFocus() restores to; scene.js does not record it, and
-  // reading material.color instead would remember whatever the last dim left.
-  built.traverse(o=>{ if(o.isMesh&&o.material&&o.userData.baseColor===undefined)
-    o.userData.baseColor=o.material.color.getHex(); });
-  root.add(built);
-  Stage.setOptionalH(built,showH);
-  layout(s);
-  // Start facing you. A dinucleotide dropped in at whatever attitude its PubChem
-  // conformer happens to carry reads as a tangle; its own widest plane is the
-  // one pose that is about the molecule rather than about the record.
-  pose.copy(flatPose(s)); built.quaternion.copy(pose);
-  userSpun=false;
-  morph=morphTo=flatOf(mode);
-  halfNow=halfTo=halfFor(mode);
-  applyMorph();
+  v.show(specOf(SHELF[i]));
   elSrc.classList.toggle('solo', !SHELF[i].alt);
-  applyFocus(); paintFlat(); note(); say(); showRecipe();
+  note(); say(); showRecipe();
 }
-
-/* ---------- where every atom goes ----------
- * `flat2d` is heavy atoms only, in spec order, in real ångströms — so the page
- * applies SCALE (register() leaves the field alone) and walks the spec's atom
- * list in step with it. A hydrogen has no place in the layout, so it is sent to
- * the heavy atom it hangs on: on the way out it folds in and disappears, and on
- * the way back it grows out again. That reads as "the diagram doesn't draw
- * these", which is true, rather than as atoms being deleted.
- */
-function layout(spec){
-  const S=MolLib.SCALE||1.9, F=spec.flat2d||[];
-  const adj=spec.atoms.map(()=>[]);
-  (spec.bonds||[]).forEach(([i,j])=>{ adj[i].push(j); adj[j].push(i); });
-  let k=0; const flatIdx=spec.atoms.map(a=>a.el==='H'?-1:k++);
-  const at=i=>F[flatIdx[i]] ? new THREE.Vector3(F[flatIdx[i]][0]*S, F[flatIdx[i]][1]*S, 0) : null;
-  home=built.userData.atomMeshes.map(m=>m.position.clone());
-  target=spec.atoms.map((a,i)=>{
-    if(a.el!=='H') return at(i)||home[i].clone();
-    const parent=adj[i].find(j=>spec.atoms[j].el!=='H');
-    return (parent!=null && at(parent)) || home[i].clone();
-  });
-  // A double bond is a Group of two sticks offset along a perpendicular that
-  // scene.js chose from a neighbouring bond, and placeBond() refuses to move one
-  // because that plane cannot be recovered from two endpoints. It can be
-  // recovered HERE, because this page knows where the molecule is going: flat in
-  // XY, where the only sensible offset is in the plane of the page. So the
-  // original perpendicular is recorded now and eased toward that one.
-  // setOptionalH() owns the C–H sticks' visibility; record its verdict so
-  // applyMorph does not switch a hidden one back on next frame.
-  const opt=new Set(spec.optH||[]);
-  built.userData.bondMeshes.forEach(bm=>{
-    bm.userData.hiddenByH = !showH && bm.userData.pair.some(p=>opt.has(p)); });
-  // A DOUBLE BOND IS A GROUP, AND THE GROUP HAS ITS OWN TRANSFORM. buildMolecule
-  // centres the molecule by shifting every direct child, so each double-bond
-  // group carries position = -center (and `spec.view`'s rotation, where a spec
-  // has one) while its two sticks keep the coordinates they were built at. Its
-  // children therefore live in the GROUP's frame, not the molecule's — placing
-  // them at molecule-space coordinates puts every double bond off by exactly the
-  // centring offset, which reads as sticks floating away from their spheres. So
-  // the group's transform is flattened to the identity once, here, and its
-  // children are addressed in the molecule's frame from then on.
-  perp0=built.userData.bondMeshes.map(b=>{
-    if(!b.isGroup) return null;
-    const v=new THREE.Vector3().subVectors(b.children[1].position, b.children[0].position)
-      .applyQuaternion(b.quaternion);          // into the molecule's frame...
-    b.children.forEach(c=>{ c.position.applyQuaternion(b.quaternion).add(b.position);
-                            c.quaternion.premultiply(b.quaternion); });
-    b.position.set(0,0,0); b.quaternion.identity();   // ...and now the group is a no-op
-    return v.lengthSq()>1e-9 ? v.normalize() : new THREE.Vector3(0,0,1);
-  });
-}
-
-/* ---------- draw the current frame of the morph ----------
- * Bonds are re-placed rather than rebuilt: rebuilding 45 sticks' geometries and
- * materials at 60Hz is the churn scene.js's placeBond note warns about. */
-const _a=new THREE.Vector3(), _b=new THREE.Vector3(), _d=new THREE.Vector3(),
-      _p=new THREE.Vector3(), _z=new THREE.Vector3(0,0,1), _up=new THREE.Vector3(0,1,0);
-function applyMorph(){
-  if(!built) return;
-  const spec=specOf(SHELF[selected]), t=morph;
-  built.userData.atomMeshes.forEach((m,i)=>{
-    if(!m) return;
-    m.position.lerpVectors(home[i], target[i], t);
-    if(spec.atoms[i].el==='H'){
-      // shrink as it folds in, and stop drawing it once it is inside its parent
-      const k=1-t;
-      m.scale.setScalar(Math.max(k,0.001));
-      if(t>=1) m.visible=false;
-      else if(!spec.optH || !spec.optH.includes(i) || showH) m.visible=true;
-    }
-  });
-  built.userData.bondMeshes.forEach((bm,n)=>{
-    const [i,j]=bm.userData.pair;
-    _a.copy(built.userData.atomMeshes[i].position);
-    _b.copy(built.userData.atomMeshes[j].position);
-    _d.subVectors(_b,_a);
-    const len=_d.length();
-    if(len<1e-6){ bm.visible=false; return; }
-    if(!bm.userData.hiddenByH) bm.visible=true;
-    if(!bm.isGroup){ Stage.placeBond(bm,_a,_b); return; }
-    // ease the pair's offset from where scene.js put it to the page's plane
-    _p.crossVectors(_d,_z);
-    if(_p.lengthSq()<1e-6) _p.copy(perp0[n]); else _p.normalize();
-    if(_p.dot(perp0[n])<0) _p.negate();
-    _p.lerp(perp0[n],1-t).normalize();
-    _d.normalize();
-    bm.children.forEach((c,side)=>{
-      const off=(side?1:-1)*0.15;
-      c.position.copy(_a).addScaledVector(_d,len/2).addScaledVector(_p,off);
-      c.quaternion.setFromUnitVectors(_up,_d);
-      const base=c.geometry.parameters && c.geometry.parameters.height;
-      if(base) c.scale.y=len/base;
-    });
-  });
-}
-
-/* ---------- framing ----------
- * Two fits, eased together with the morph, so the molecule never jumps size at
- * the moment it is trying to show you that it is the same object. The 3D fit is
- * the full 3D radius (the model is free to turn, and fitting the current
- * silhouette would let a turn push the far end out of frame); the flat fit is
- * the layout's own box, which is much wider and much shorter. */
-// How much of the canvas the molecule may actually use. The rails, the card
-// strip and the caption are all over the stage, so the full frustum is not the
-// full picture — and the flat layout is nearly three times as wide as the model,
-// which is exactly when it starts sliding under them. MEASURED, not assumed: the
-// panels are sized in CSS and by their own text, so a constant here would be
-// right at one window size and one copy length.
-function usable(){
-  const r=canvas.getBoundingClientRect();
-  if(!r.width||!r.height) return {fw:1, fh:1};
-  const box=id=>document.getElementById(id).getBoundingClientRect();
-  const gap=18;
-  // stacked layout (the narrow media query) takes the rails off the stage
-  const stacked=getComputedStyle(document.getElementById('notes')).position==='static';
-  const l=stacked?0:Math.max(0, box('notes').right - r.left + gap);
-  const rt=stacked?0:Math.max(0, r.right - box('focus').left + gap);
-  const t=Math.max(0, box('shelf').bottom - r.top + gap);
-  const b=Math.max(0, r.bottom - box('say').top + gap);
-  return { fw:Math.max(0.25, (r.width-l-rt)/r.width),
-           fh:Math.max(0.25, (r.height-t-b)/r.height) };
-}
-function halfFor(m){
-  const spec=specOf(SHELF[selected]), pad=1.06;
-  const asp=camera.aspect||1, u=usable();
-  let hw, hh;
-  if(m==='3d'){
-    // the full 3D radius on both axes: the model is free to turn, and fitting the
-    // current silhouette would let a turn push the far end out of frame
-    hw=hh=Stage.measure(spec).radius;
-  } else {
-    const S=MolLib.SCALE||1.9, R=MolLib.PALETTE.radii;
-    const keep=spec.atoms.map((a,i)=>i).filter(i=>spec.atoms[i].el!=='H');
-    hw=hh=0;
-    spec.flat2d.forEach((p,k)=>{ const r=R[spec.atoms[keep[k]].el]||0.7;
-      hw=Math.max(hw, Math.abs(p[0])*S+r); hh=Math.max(hh, Math.abs(p[1])*S+r); });
-  }
-  return Math.max(hh/u.fh, hw/(asp*u.fw))*pad;
-}
-function applyHalf(){
-  camera.top=halfNow; camera.bottom=-halfNow;
-  camera.left=-halfNow*camera.aspect; camera.right=halfNow*camera.aspect;
-  camera.updateProjectionMatrix();
-}
-function fit(){ halfTo=halfFor(mode); halfNow=halfTo; applyHalf(); applyCam(); }
 
 /* ---------- view switch ---------- */
 function setDim(next){
@@ -786,12 +467,7 @@ function setDim(next){
   mode=next;
   [...document.querySelectorAll('#dims .mode')].forEach(o=>
     o.classList.toggle('on', o.dataset.dim===mode));
-  // Both flat views ride the SAME morph. Coming from 3D you watch the molecule
-  // lie down either way; the only difference is that Diagram then hands over to
-  // the drawing once it has arrived, so 2D and Diagram are the same layout with
-  // and without its labels — switching between them swaps nothing but the ink.
-  morphTo=flatOf(mode);
-  halfTo=halfFor(mode);
+  v.setMode(mode);
   // The 3D-only control goes quiet rather than lying: a flat layout shows the
   // hydrogens folded away whatever this button says.
   hbtn.disabled=mode!=='3d'; hbtn.style.opacity=mode==='3d'?1:0.4;
@@ -809,8 +485,8 @@ document.getElementById('dims').onclick=e=>{
  * between them is the honest edit, and the flicker is the point.
  *
  * The view survives the switch. You stay in 3D or 2D or Diagram, at the pose
- * you were at, because the question being asked is "what changed?" and moving
- * anything else would answer it wrong. */
+ * you were at (`keepPose`), because the question being asked is "what changed?"
+ * and moving anything else would answer it wrong. */
 const elSrc=document.getElementById('src');
 elSrc.onclick=e=>{
   const b=e.target.closest('.mode');
@@ -818,47 +494,18 @@ elSrc.onclick=e=>{
   source=b.dataset.src;
   [...elSrc.querySelectorAll('.mode')].forEach(o=>
     o.classList.toggle('on', o.dataset.src===source));
-  const keep=pose.clone();
-  select(selected);
-  pose.copy(keep);
-  morph=morphTo=flatOf(mode); halfNow=halfTo=halfFor(mode); applyHalf();
-  if(morph>=1) built.quaternion.identity(); else built.quaternion.copy(pose);
-  applyMorphEased(morph);
+  v.show(specOf(SHELF[selected]), {keepPose:true});
+  note(); showRecipe();
 };
 const hbtn=document.getElementById('hbtn');
 hbtn.onclick=e=>{
   showH=!showH; e.currentTarget.classList.toggle('on',showH);
-  Stage.setOptionalH(built,showH);
-  // setOptionalH owns bond visibility for these; remember it so applyMorph does
-  // not switch a hidden C–H bond back on next frame
-  const opt=new Set(specOf(SHELF[selected]).optH||[]);
-  built.userData.bondMeshes.forEach(bm=>{
-    bm.userData.hiddenByH = !showH && bm.userData.pair.some(p=>opt.has(p)); });
-  applyFocus(); };
-// One toggle, every view — see the note atop paintFlat().
+  v.setOptionalH(showH); };
+// One toggle, every view: the model greys out around the part, the diagram puts
+// a spotlight disc under it, and both read the same atom list.
 document.getElementById('focusbtn').onclick=e=>{
   showFocus=!showFocus; e.currentTarget.classList.toggle('on',showFocus);
-  applyFocus(); paintFlat(); };
-
-/* ---------- drag turns the MODEL ---------- */
-// 3D only. A flat layout you can tilt is not a layout, and the caption's promise
-// that the angles are not the molecule's would stop being legible the moment it
-// started turning in space.
-let dragging=false, last=null;
-canvas.addEventListener('pointerdown',e=>{
-  if(mode!=='3d') return; dragging=true; last=[e.clientX,e.clientY];
-  canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointermove',e=>{
-  if(!dragging) return;
-  const dx=(e.clientX-last[0])*0.01, dy=(e.clientY-last[1])*0.01;
-  last=[e.clientX,e.clientY]; userSpun=true;
-  // Turned about the CAMERA's axes, not the model's, so a drag right always
-  // sends the near face right no matter how far it has already been turned.
-  const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(dy,dx,0,'XYZ'));
-  pose.premultiply(q); });
-const stop=e=>{ dragging=false; };
-canvas.addEventListener('pointerup',stop);
-canvas.addEventListener('pointercancel',stop);
+  v.setHighlight(showFocus); };
 
 /* ---------- cards ---------- */
 document.getElementById('shelf').innerHTML=SHELF.map((e,i)=>{
@@ -879,58 +526,19 @@ document.getElementById('savepng').onclick=()=>{
   const a=document.createElement('a');
   a.download=SHELF[selected].key+'.png'; a.href=canvas.toDataURL('image/png'); a.click(); };
 
-/* ---------- loop ---------- */
+/* ---------- loop ----------
+ * MolView.step() advances the morph, the pose that has to get out of its way,
+ * the framing and the 2D/Diagram handover. Rendering stays here: the page owns
+ * its own canvas. */
 function loop(){
-  // ---- the morph, and the pose that has to get out of its way ----
-  // Standing the molecule up is part of lying it down: the layout is in the XY
-  // plane, so the model's own attitude has to reach identity by the time the
-  // atoms arrive, or a finished flat layout would still be tilted in space.
-  if(morph!==morphTo){
-    const step=0.055;
-    morph += Math.sign(morphTo-morph)*Math.min(step, Math.abs(morphTo-morph));
-    if(Math.abs(morph-morphTo)<1e-4) morph=morphTo;
-  }
-  const ease=morph<0.5 ? 2*morph*morph : 1-Math.pow(-2*morph+2,2)/2;
-  if(built){
-    if(morph>0||morphTo>0){
-      // pose eased toward identity by the same curve, so both finish together.
-      // Two steps, and a scratch quaternion rather than a fresh one per frame:
-      // three r128's slerpQuaternions() sets the receiver but returns undefined,
-      // so the tempting one-liner (`new Quaternion().slerpQuaternions(...)` fed
-      // straight to copy) throws — once per frame, invisibly, until the view is
-      // switched. Check THREE.REVISION before tidying this back up.
-      _q.slerpQuaternions(pose, IDENT, ease);
-      built.quaternion.copy(_q);
-    } else built.quaternion.copy(pose);
-  }
-  applyMorphEased(ease);
-
-  // ---- idle turntable: only in 3D, only until you touch it ----
-  if(mode==='3d' && morph===0 && !userSpun && !dragging){
-    pose.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0.0035,0)));
-  }
-
-  // ---- framing eases with the morph, so nothing jumps size ----
-  if(Math.abs(halfNow-halfTo)>1e-4){ halfNow += (halfTo-halfNow)*0.12; applyHalf(); }
-
-  // ---- Diagram hands over only once the model has actually arrived ----
-  // You watch it lie down, and then the labels come. Handing over early would be
-  // a cut, which is the one thing this page is built to avoid.
-  const arrived = mode==='diagram' && morph>=1;
-  elFlat.classList.toggle('on', arrived);
-  root.visible=!arrived;
-
+  v.step();
   renderer.render(scene,camera);
   requestAnimationFrame(loop);
 }
-const IDENT=new THREE.Quaternion(), _q=new THREE.Quaternion();
-// applyMorph() reads the raw `morph`; the loop wants the eased value, and the
-// two must not disagree — so the eased number is what gets written.
-function applyMorphEased(e){ const keep=morph; morph=e; applyMorph(); morph=keep; }
 
-// Stage.frame solves against camera.aspect, so the framing is only right once
-// the canvas has actually been measured — and again every time it changes.
-new ResizeObserver(()=>{ resize(); fit(); }).observe(canvas);
+// The framing solves against camera.aspect, so it is only right once the canvas
+// has actually been measured — and again every time it changes.
+new ResizeObserver(()=>{ resize(); v.fit(); }).observe(canvas);
 
 select(0);
 loop();
