@@ -84,6 +84,14 @@
     font-family:var(--font-marker);font-weight:700;font-size:16px;
     letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
   #stephead.on{visibility:visible}
+  /* the review beat's shared entry — same timing as #couplebox.in, so the
+     verdict, the button and the figure arrive together and only once the
+     molecule has finished landing */
+  .revin{animation:revin .42s cubic-bezier(.2,.9,.3,1) 1.5s backwards}
+  @keyframes revin{
+    from{opacity:0;transform:translateY(8px)}
+    to  {opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){ .revin{animation:none} }
   #stephead em{font-style:normal;color:var(--phos)}
 
   /* THE STEP CAPTION. A fixed band at the bottom of the stage, set in the sans
@@ -141,6 +149,10 @@
   #ledger .row .v{font-weight:700;font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
   #ledger .row.net{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
   #ledger .row.net .v{font-size:20px;color:var(--atp)}
+  #ledger .row.prod{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
+  /* the two other products keep the page's colours: green for the NAD⁺/NADH
+     carrier, ink for the pyruvate that are simply standing there */
+  #ledger .row.prod .v{color:var(--nad)}
   #ledger .row.carb{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
   #ledger .row.carb .v{font-size:15px;color:var(--carbon);letter-spacing:.5px}
   #ledger .bump{animation:bump .7s ease}
@@ -168,6 +180,19 @@
     background:linear-gradient(-48deg,rgba(0,0,0,.12) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
     pointer-events:none}
   #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
+  /* arrives with the molecule it explains — see drawCouple. Both keyframes
+     carry the sheet's own .7° tilt: `transform:none` would animate it flat and
+     leave it there, since the animation's end state wins over the rule above. */
+  /* The delay lets the molecule finish arriving first — the glow and the settle
+     are still playing when `reviewing` flips, and a panel sliding in over them
+     splits the attention the reaction has earned. `backwards` holds the opening
+     keyframe through the wait, so the box is invisible rather than popping in
+     at full strength and then animating. */
+  #couplebox.in{animation:cplin .42s cubic-bezier(.2,.9,.3,1) .8s backwards}
+  @keyframes cplin{
+    from{opacity:0;transform:translateY(10px) scale(.985) rotate(.7deg)}
+    to  {opacity:1;transform:rotate(.7deg)}}
+  @media (prefers-reduced-motion:reduce){ #couplebox.in{animation:none} }
 
   /* ---------- reagent tray, LEFT EDGE: the cell's pools ----------
      THE FIVE CARRIERS, NOT A MENU. All five stay on screen all the way through,
@@ -227,7 +252,7 @@
      size between steps would re-frame the camera under the molecule. The label
      is one word on every step, which is the simplest way to guarantee it. */
   #actbtn{visibility:hidden;
-    font-family:var(--font-slab);font-weight:700;font-size:17px;letter-spacing:.3px;
+    font-family:var(--font-sans);font-weight:700;font-size:17px;letter-spacing:.3px;
     padding:15px 34px;border-radius:var(--radius);cursor:pointer;
     border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
     box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
@@ -398,7 +423,7 @@
   /* The sidebar scrolls, not the card. */
   #card{overflow:visible;flex:none}
   #stepnote{padding-top:2px}
-  .note .nhead{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+  .note .nhead{font-family:var(--font-slab);font-weight:700;font-size:14px;
     letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
   .note .nhead.reg{color:var(--phos)}
   .note .nhead.irr{color:var(--atp)}
@@ -982,6 +1007,8 @@ let busy=false;                               // a transition is animating
 // `reviewing` is true the panels describe the step that just RAN (done-1), the
 // tray is not armed, and the only control is Next.
 let reviewing=false;
+// whether the review beat's entry animation has already played for this beat
+let shownReview=false;
 // Which step the panels are describing: the one just run while reviewing it,
 // otherwise the one about to run. Everything that reads a step goes through it.
 const focusStep=()=>reviewing?done-1:done;
@@ -1542,6 +1569,11 @@ const ledgerEl=document.getElementById('ledger');
 let prevLedger=null;
 function drawLedger(){
   const L=ledgerAt(done), net=L.made-L.spent, c=speciesAt(done).map(k=>M[k].gly.carbons);
+  // The two PRODUCTS, counted off the same state everything else here reads.
+  // NADH comes from the ledger (a carrier made and kept, step 6), pyruvate from
+  // what is actually standing in the lanes — so neither number can drift from
+  // the stage: the tray's NADH tile and these two pyruvate ARE these figures.
+  L.pyr=speciesAt(done).filter(k=>k==='pyruvate').length;
   const bumped=k=>prevLedger && prevLedger[k]!==L[k] ? ' bump':'';
   ledgerEl.innerHTML=
      `<div class="lhead">Running ledger</div>`
@@ -1550,11 +1582,14 @@ function drawLedger(){
     // typographic minus, not a hyphen — "−2" is a quantity, and the dip to −2 is
     // the single number this whole page is built to make land
     +`<div class="row net"><span>Net ATP</span><span class="v">${net>0?'+':net<0?'−':''}${Math.abs(net)}</span></div>`
-    // NADH is DELIBERATELY not here. The tray already carries it, with the same
-    // number at every step, and there it is the loaded half of a carrier pair
-    // rather than a lone tally — which is the more useful reading, and the one
-    // that makes NAD⁺ running to 0 mean something. What is left in this box is
-    // exactly the arithmetic no other surface does.
+    // THE OTHER TWO THINGS GLYCOLYSIS PRODUCES. ATP is the headline and it is
+    // the one that dips, but a student asked what glycolysis makes has to be
+    // able to say "2 ATP, 2 NADH and 2 pyruvate" — and only the ATP was being
+    // added up anywhere. The tray still carries NADH as the loaded half of a
+    // carrier pair, which is the reading that makes NAD⁺ running to 0 mean
+    // something; this is the tally beside it, not instead of it.
+    +`<div class="row prod"><span>NADH</span><span class="v${bumped('nadh')}">${L.nadh}</span></div>`
+    +`<div class="row"><span>Pyruvate</span><span class="v${bumped('pyr')}">${L.pyr}</span></div>`
     +`<div class="row carb"><span>Carbons</span><span class="v">${c.join(' + ')}${c.length>1?' = 6':''}</span></div>`;
   prevLedger=L;
 }
@@ -1631,6 +1666,18 @@ function drawAct(){
              : '';
   stepHeadEl.innerHTML=head;
   stepHeadEl.classList.toggle('on', !!head);
+  // THE REVIEW BEAT ARRIVES AS ONE THING, and after the molecule does. The
+  // verdict, the button and the coupling box are the same announcement — "that
+  // happened, look at it" — so they share the delay and the entry, and none of
+  // them lands while the glow and the settle are still playing. Played on the
+  // state CHANGE only: a refresh mid-review (a tab, a resize) must not replay it.
+  const entering = reviewing && !shownReview;
+  shownReview = reviewing;
+  // The class STAYS for the whole beat and is only restarted on the way in: a
+  // refresh mid-flight (a resize, a tab) would otherwise strip it and snap the
+  // two to full strength halfway through the run.
+  if(entering){ stepHeadEl.classList.remove('revin'); void stepHeadEl.offsetWidth; }
+  stepHeadEl.classList.toggle('revin', reviewing);
   // ONE BUTTON, ONE PLACE, ONE WORD. The intro's Begin and every step share this
   // element, so the thing to click never jumps between the stage and the
   // sidebar — and from step to step it never changes shape or wording either.
@@ -1641,7 +1688,7 @@ function drawAct(){
     actEl.onclick=beginPathway;
     return;
   }
-  actEl.className='';
+  actEl.className = reviewing ? 'revin' : '';
   // THE REVIEW SCREEN'S ONE CONTROL. The molecule you just made is on the stage
   // and the panels explain the step that made it; Next is how you say you have
   // looked at it. This is also the last beat of step 10 — press it and the
@@ -1908,10 +1955,23 @@ noteEl.addEventListener('click',noteClick);
  * keeps the running arithmetic and the pathway's own commentary. */
 const cplEl=document.getElementById('couplebox');
 cplEl.addEventListener('click',noteClick);
+// The box is REPLACED wholesale on every refresh, so an entry animation has to
+// be played on the newly built element rather than transitioned — same reason
+// the rail's label flip is (see drawRail). It plays when the box starts
+// describing a different step, which is what happens the moment a reaction
+// completes: the figure arrives with the molecule it explains, instead of
+// having sat there through the step it was predicting.
+let shownCplStep=null;
 function drawCouple(){
   const i=focusStep();
-  const st=(!intro&&i<nSteps)?stepAt(i):null;
-  if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; return; }
+  // ONLY ON THE REVIEW BEAT — the box arrives WITH the Next button, describing
+  // the reaction that just happened. Before the step runs it was a spoiler
+  // sitting in the corner: the student could read what the step was going to do
+  // while deciding whether to do it, and the figure had nothing on the stage to
+  // point at yet. Now the molecule lands, the energy picture explains it, and
+  // Next is how you say you have looked at it.
+  const st=(reviewing&&!intro&&i<nSteps)?stepAt(i):null;
+  if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
   // A coupled step has both views and a tab strip; an uncoupled one has only
   // the curve, so it gets no strip — a single tab is a control that does nothing.
   const c = st.couple ? resolveCouple(st) : null;
@@ -1928,6 +1988,12 @@ function drawCouple(){
         ? `<div class="nhead irr">Irreversible in the cell</div>`
         : `<div class="nhead rev">Near equilibrium — reversible</div>`)
     + MASS_LINK;
+  const key=`${i}`;
+  if(key!==shownCplStep){
+    shownCplStep=key;
+    cplEl.classList.remove('in'); void cplEl.offsetWidth;   // restart the run
+    cplEl.classList.add('in');
+  }
 }
 
 function drawNote(){
