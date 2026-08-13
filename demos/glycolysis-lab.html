@@ -119,16 +119,12 @@
      out of flow entirely (it hangs ABOVE the bar, like #steptip) because its
      text is the one thing here whose height genuinely varies.
      Growing the button or the heading means changing --barh to match. */
-  /* --stagedx is the same slide the camera's frustum takes (see orthoFrustum):
-     the tray sits on the left, so the space the lesson actually has is off
-     centre, and the button and caption belong over the molecule rather than
-     over the canvas. Set from the page, in pixels, by applyStageShift(). */
+  /* Centred on the stage, like the molecule above it — the camera's frustum is
+     centred too, so the two agree without either being told about the other. */
   #bottombar{--barh:88px;
     position:absolute;left:0;right:0;bottom:18px;z-index:8;height:var(--barh);
     display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-    gap:11px;
-    pointer-events:none;transform:translateX(var(--stagedx,0px));
-    transition:transform .35s ease}
+    gap:11px;pointer-events:none}
   #bottombar>*{pointer-events:auto}
   /* the step's heading, over the button: which of the ten this is, and either
      the hook it is about to demonstrate or the fact that it is done. */
@@ -1518,14 +1514,15 @@ function orthoFrustum(){
   if(!camera.isOrthographicCamera) return;
   const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
   const halfH=cam.r*HALF_FOV, halfW=halfH*asp;
-  // THE HORIZONTAL SHIFT IS IN THE FRUSTUM, NOT IN THE TARGET. Offsetting the
-  // camera's target sideways would swing the molecule off-centre as the camera
-  // orbits, because that offset lives in world space and rotates with theta.
-  // Sliding the frustum is a screen-space move: it survives any orbit, and the
-  // plates follow for free because they project through this same matrix.
-  const dx=fitHS*2*halfW;
+  // THE FRUSTUM IS CENTRED, and stays centred. The lesson lives on the middle
+  // of the page and the chrome is what works around it: the tray on the left
+  // and the readouts on the right add themselves without pushing the molecule
+  // sideways. (It used to slide left by half the tray's width, which framed the
+  // leftover band rather than the page — so putting anything on either edge
+  // moved the subject.) The width the tray costs is paid symmetrically instead,
+  // in usable().h.
   camera.top=halfH; camera.bottom=-halfH;
-  camera.left=-halfW-dx; camera.right=halfW-dx;
+  camera.left=-halfW; camera.right=halfW;
   camera.updateProjectionMatrix();
 }
 function fitFor(states){
@@ -1553,8 +1550,8 @@ function fitFor(states){
   // bottom bar by DROPPING THE TARGET rather than insetting both edges —
   // insetting both would double-charge the fit for one obstructed edge and
   // shrink the layout to a speck. The vertical shift is safe in world space
-  // precisely because Y is the orbit axis; the horizontal one is NOT, so it
-  // happens in the frustum instead — see orthoFrustum and usable().hshift.
+  // precisely because Y is the orbit axis. There is no horizontal twin, by
+  // design: the lesson stays on the page's centre line — see orthoFrustum.
   return { Y: Y - u.shift*R*HALF_FOV, R };
 }
 
@@ -1602,39 +1599,38 @@ function capReservePx(){
   if(!e||!e.classList.contains('show')) return 0;
   return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
 }
+// The tray's reserve: its inset from the stage's left edge plus its declared
+// column width, plus a little clearance. From the STYLESHEET again, not from the
+// tray's live box — the tray is empty during the intro and holds a different
+// number of tiles on different steps, and none of that may move the molecule.
+const TRAY_CLEAR_PX=12;
+function trayReservePx(){
+  const e=document.getElementById('tray');
+  if(!e) return 190;
+  const cs=getComputedStyle(e);
+  return (parseFloat(cs.left)||0)+(parseFloat(cs.minWidth)||0)+TRAY_CLEAR_PX;
+}
 function usable(){
   const c=canvas.getBoundingClientRect();
   // EVERY FIELD, even on the no-size path: this runs once before the first
   // ResizeObserver tick, and a missing field reaches the fit as NaN — which the
   // camera's ease then carries forever, leaving a blank stage.
-  if(!c.height||!c.width) return {v:1,h:1,shift:0,hshift:0,tf:0,bf:0};
-  const reach=(id,edge)=>{
-    const e=document.getElementById(id);
-    if(!e||!e.getClientRects().length) return 0;
-    const r=e.getBoundingClientRect();
-    return Math.max(0, edge==='left' ? r.right-c.left
-                     : edge==='right' ? c.right-r.left
-                     : c.bottom-r.top);
-  };
+  if(!c.height||!c.width) return {v:1,h:1,shift:0,tf:0,bf:0};
   const top=plateHeightPx(), bottom=barReservePx()+capReservePx();
   // The tray is the only horizontal intrusion left — the ledger and the coupling
-  // box moved into the sidebar, off the canvas. It is on ONE side, so the space
-  // left over is not centred on the canvas and neither is the molecule: the band
-  // between the tray and the right edge is what gets framed, and `hshift` slides
-  // the frustum to sit on it. (The old symmetric inset kept the molecule on the
-  // canvas centre and paid for the tray twice — which read as the whole stage
-  // hanging left, once the wide sidebar was gone.)
-  const tray=reach('tray','left');            // 0 during the intro — no tray yet
-  const left=tray ? Math.min(tray+10, c.width*0.36) : 0;
+  // box are in the sidebar, off the canvas. IT IS PAID FOR ON BOTH SIDES, even
+  // though it only sits on one: the lesson belongs on the page's centre line,
+  // and anything that comes and goes at an edge has to add itself without
+  // sliding the molecule. So the width is reserved symmetrically and the
+  // molecule stays put; the tray then fills the gap it was already charged for.
+  const left=Math.min(trayReservePx(), c.width*0.30);
 
   const vcap=c.height*0.6;
   const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
   const t=top*k, b=bottom*k;
   return { v:Math.max(0.4, (c.height-t-b)/c.height),
-           h:Math.max(0.28, (c.width-left)/c.width),
-           // fraction of the canvas WIDTH to move the content right by: half the
-           // tray's reach, which is where the leftover band's centre sits
-           hshift:(left/2)/c.width,
+           // BOTH sides — see the note on `left`
+           h:Math.max(0.28, (c.width-2*left)/c.width),
            // HALF the difference: the centre of the band left over sits (b−t)/2
            // from the canvas centre, not (b−t). The whole-difference version
            // moved the molecule twice as far as the band did, which read as
@@ -1645,22 +1641,9 @@ function usable(){
            // top-anchor below needs the edge, not the centre of the leftover
            tf:t/c.height, bf:b/c.height };
 }
-let fitR=24, fitY=0, fitHS=0;
-// The DOM layers over the canvas take the same slide as the frustum, in pixels
-// — the action button and the step caption are ABOUT the molecule, so they
-// belong over it and not over the canvas's own middle.
-// The FIRST shift is the initial placement, not a move: --stagedx starts at 0,
-// so transitioning to it slides the button and caption in from the left on load.
-// Set it with the transition suppressed, and let every later shift animate.
-let shifted=false;
-function applyStageShift(){
-  const w=canvas.clientWidth||0, bar=document.getElementById('bottombar');
-  if(!shifted) bar.style.transition='none';
-  document.getElementById('stage').style.setProperty('--stagedx', (fitHS*w).toFixed(1)+'px');
-  // only counts as placed once the canvas has a width — before that the shift
-  // is 0 and the real one would still slide in
-  if(!shifted){ bar.offsetWidth; bar.style.transition=''; if(w) shifted=true; }
-}
+// No horizontal counterpart: the heading and the button sit on the stage's own
+// centre line, which is where the molecule is (see orthoFrustum).
+let fitR=24, fitY=0;
 function computeFit(){
   // ONE FIT FOR THE WHOLE PATHWAY, and one closer one for the molecule you start
   // with. Glucose alone in a frame cut for two lanes is small, and the opening
@@ -1678,8 +1661,7 @@ function computeFit(){
   // anchor slid the whole scene up and down between steps, and rode the unfurl
   // frame by frame while the ring straightened out.
   const top = close ? plateY(['glucose']) : pathwayTopY();
-  fitR=f.R; fitY=topAnchoredY(f.R, f.Y, top); fitHS=usable().hshift;
-  applyStageShift();
+  fitR=f.R; fitY=topAnchoredY(f.R, f.Y, top);
 }
 
 // THE CAMERA IS SIZED FOR THE WHOLE PATHWAY, so no single state fills it — one
