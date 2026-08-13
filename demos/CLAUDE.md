@@ -28,7 +28,7 @@ evaluation record, not a lesson.
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
 | `glycolysis-lab.html` | Ten steps in five stages: carbon bookkeeping, PFK-1 as the committed step, the one oxidation, the three irreversible steps. ATP is drawn as a molecule losing and regaining its γ phosphate (schematic fallback behind "Show full molecules"); the reversibility note opens a mass-action modal — a second simulation with its own physics (below) | pathway | prototype |
-| `molecule-viewer.html` | Reference shelf: pick a molecule and look at it (ATP · NADH). Highlights the one part that does the chemistry; 2D is an orthographic projection down the molecule's own widest plane, not a structural formula | single-molecule viewer | prototype |
+| `molecule-viewer.html` | Reference shelf: pick a molecule and look at it (ATP · NADH). **Three views of one object** — 3D, then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). Highlights the part that does the chemistry in all three, off one atom list | single-molecule viewer | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | comparison gallery | prototype |
 | `protein-lab.html` | Superseded PDB viewer — the ChemDoodle (GPL) worked example, see its header | PDB structure viewer | reference |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin, level 4 only pointed at. Superseded by `hemoglobin-lab` — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |
@@ -139,6 +139,7 @@ both load.
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit | `tools/README.md` |
+| `tools/bake-flat2d.js` | the 2D LAYOUT (`flat2d`) each `flat:true` spec's atoms slide onto — RDKit's depiction coordinates, returned in the spec's own atom order so no graph matching is needed, scaled to the molecule's own mean bond | own header |
 | `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one protomer, the screw that stacks it, the complex's Cα traces. The page rebuilds the other twelve | own header |
 | `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE, samples the eight arrangements, runs `RibbonLib.dssp` over the full backbone → `folding/data/AF-P02640-villin.poses.bin`. Neither the PAE nor the backbone reaches the browser, so the DSSP happens here | own header |
 | `hemoglobin/tools/chain.js` | pulls one chain out of 2HHB and builds the amide hydrogens it doesn't deposit — `FoldLib.parse` reads no chain ID, and `hbonds` needs an H an X-ray structure lacks | own header |
@@ -169,6 +170,12 @@ Easy to get wrong, invisible from the API:
 * **`Stage.bond` takes a bond order** (`[i,j,2]` → double bond).
   `setOptionalH` toggles *visibility* of the `optH` C–H's, so it can never
   resurrect a reaction-removed atom.
+* **A `flat2d` layout is positions, not decoration.** molecule-viewer.html moves
+  the real atoms onto it, so a stale one flies them to the wrong places in front
+  of the student. Heavy atoms, in spec order, real ångströms; `register()` does
+  not scale it, so the page applies `SCALE` itself. Re-run `tools/bake-flat2d.js`
+  after touching the spec — `check-molecules.js` fails on the length, the scale
+  and any overlap.
 * **`atomkit.js` owns what a student learns to *read***, never how a bond forms.
 * **`glycolysis-lab.html` carries a second simulation.** The mass-action modal is
   a plain 2D canvas — no Three.js, no MolLib, no spec — because its dots stand
@@ -295,7 +302,7 @@ own folder** — that's why the patterns look wider than the checkers do:
 
 | checker | fires on | cost |
 | --- | --- | --- |
-| `check-molecules.js` | `molecules.js`, `skel.js`, `mol-*.js`, `tools/sdf/` | 0.1 s |
+| `check-molecules.js` | `molecules.js`, `skel.js`, `mol-*.js`, `tools/sdf/`, `tools/bake-flat2d.js`, `tools/spec2smiles.js` | 0.1 s |
 | `check-pages.js` | any `*.html`, plus the registry files it reads | 0.2 s |
 | `check-pdb.js` | `pdb.js`, `tools/check-pdb.js`, anything in `pdb/` | 0.3 s |
 | `check-folding.js` | anything under `folding/`, plus `palette.js` |  |

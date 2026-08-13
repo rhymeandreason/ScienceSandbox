@@ -348,16 +348,32 @@
     //   (MolecularGeometry.md §1.3) — this spec's guarantee is its provenance:
     //   a CID whose name fixes the configuration (2R,3S,4R,5R), through a
     //   converter that keeps its basis right-handed. That is exactly the cover
-    //   `amp` has in mol-monomers.js, and no more: neither carries a `smiles`,
-    //   so `tools/check-handedness.js` skips both. Give this one a `smiles` and
-    //   a REF entry if it ever becomes a molecule the page teaches ABOUT
-    //   rather than one it spends.
+    //   `amp` has in mol-monomers.js — except that this one now DOES carry a
+    //   `smiles` and a `tools/check-handedness.js` REF entry, because
+    //   molecule-viewer.html teaches ABOUT it rather than spending it. That is
+    //   the upgrade this comment used to ask for; `amp` still has neither.
     GLYCOLYSIS.atp={ name:'Adenosine triphosphate', short:'ATP',
       formula:'C₁₀H₁₂N₅O₁₃P₃⁴⁻', class:'nucleotide',
       units:'angstrom',
       src:{path:'pubchem', cid:5461108, record:'3d',
            conformer:'0053547400000001', sdf:'atp.sdf',
            tool:'sdf2spec-generic', charge:-4, regen:'exact', fetched:'2026-08-12'},
+      // FLAT DRAWING. `flat:true` says a page draws this molecule as a
+      // structural diagram as well as a model, which is what makes
+      // tools/spec2smiles.js generate the string below off these coordinates.
+      // Never typed — a hand-written SMILES is a second, unchecked description
+      // of the molecule sitting next to `atoms`/`bonds`, free to drift.
+      // It is a DEPICTION string: the molblock it comes from carries no formal
+      // charges, so this reads as the neutral acid while `formula` above says
+      // what the spec actually is. The flat drawing shows connectivity, and the
+      // page says the charge in words rather than letting the picture claim it.
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)O[P:1](=[O:1])([OH:1])[OH:1])[C@@H](O)[C@H]1O',
+      flat:true,
+      // THE 2D LAYOUT the page slides these atoms onto. Heavy atoms only,
+      // in spec order, real angstroms — baked by tools/bake-flat2d.js, which
+      // has the reasoning. `register()` leaves it alone, so the page applies
+      // SCALE itself.
+      flat2d:[[3.146,1.441],[5.636,0.911],[6.423,-1.51],[-1.145,-0.042],[-2.744,-3.493],[0.454,-3.493],[1.748,0.987],[4.544,1.895],[2.692,2.839],[3.6,0.043],[6.729,-0.072],[4.653,-0.181],[6.62,2.004],[4.985,-1.204],[6.117,-2.948],[7.861,-1.815],[-3.732,-0.451],[-6.11,-0.451],[-3.451,2.22],[-5.656,3.493],[-7.861,2.22],[-1.88,-2.303],[-0.41,-2.303],[-2.334,-0.905],[0.044,-0.905],[1.442,-0.451],[-4.186,0.947],[-4.921,-1.315],[-5.656,0.947],[-6.391,2.22],[-4.186,3.493]],
       // adenine is the fused bicycle, ribose the third ring
       topology:{rings:[5,5,6], fused:true},
       gly:{ carbons:10, phosphates:3, carrier:true,
@@ -413,12 +429,16 @@
       bonds:[[0,6,null],[0,7,null],[0,8,null],[0,9,2],[1,7,null],[1,10,null],[1,11,null],[1,12,2],[2,10,null],[2,13,null],[2,14,null],[2,15,2],[3,23,null],[3,24,null],[4,21,null],[4,37,null],[5,22,null],[5,38,null],[6,25,null],[16,23,null],[16,26,null],[16,27,null],[17,27,2],[17,28,null],[18,26,2],[18,30,null],[19,29,null],[19,30,2],[20,29,null],[20,41,null],[20,42,null],[21,22,null],[21,23,null],[21,31,null],[22,24,null],[22,32,null],[23,33,null],[24,25,null],[24,34,null],[25,35,null],[25,36,null],[26,28,null],[27,39,null],[28,29,2],[30,40,null]],
       optH:[31,32,33,34,35,36,39,40],
     };
+    // The flat drawing highlights the SAME atoms the model does. Not a copy of
+    // the list — the list itself, so the two views cannot drift apart and the
+    // assertion that already checks `gamma` covers this too.
+    GLYCOLYSIS.atp.flatMark = GLYCOLYSIS.atp.gly.gamma;
 
     // — NADH, the other carrier: the one glycolysis LOADS rather than spends.
     //   Same provenance and the same caveats as `atp` above — PubChem 3D by CID
     //   through tools/sdf2spec-generic.js, handedness inherited from the CID and
-    //   checked by nothing here (MolecularGeometry.md 1.3), no `smiles`, so
-    //   tools/check-handedness.js skips it.
+    //   checked by nothing here (MolecularGeometry.md 1.3) beyond the
+    //   `smiles`/REF pair it shares with ATP.
     //
     //   CHARGE STATE: the NEUTRAL molecule (CID 439153), not the physiological
     //   dianion ATP is stored as. Deliberate, because the two carriers make
@@ -440,6 +460,15 @@
       src:{path:'pubchem', cid:439153, record:'3d',
            conformer:'0006B37100000001', sdf:'nadh.sdf',
            tool:'sdf2spec-generic', charge:0, regen:'exact', fetched:'2026-08-13'},
+      // As ATP's above: generated, and a DEPICTION string only. `:1` marks are
+      // the highlight set, folded onto the heavy atoms a flat drawing draws.
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)OC[C@H]2O[C@@H]([N:1]3[CH:1]=[CH:1][CH2:1][C:1]([C:1]([NH2:1])=[O:1])=[CH:1]3)[C@H](O)[C@@H]2O)[C@@H](O)[C@H]1O',
+      flat:true,
+      // THE 2D LAYOUT the page slides these atoms onto. Heavy atoms only,
+      // in spec order, real angstroms — baked by tools/bake-flat2d.js, which
+      // has the reasoning. `register()` leaves it alone, so the page applies
+      // SCALE itself.
+      flat2d:[[-2.72,-3.465],[-0.425,-4.487],[-5.287,0.209],[3.777,-1.601],[-2.008,2.037],[-4.561,3.892],[3.721,-5.355],[6.604,-4.071],[-3.573,-2.291],[1.018,-4.335],[-1.868,-4.638],[-3.894,-4.317],[-0.576,-3.044],[-1.547,-2.612],[-0.273,-5.93],[11.191,0.113],[-7.115,2.037],[6.274,-0.932],[-9.463,2.037],[-6.838,4.673],[-9.014,5.93],[-11.191,4.673],[10.414,-2.277],[-3.388,1.588],[-4.561,2.441],[-3.836,0.209],[-5.735,1.588],[4.022,-3.936],[5.348,-3.346],[3.051,-2.858],[5.196,-1.903],[-2.983,-0.965],[1.608,-3.01],[-7.563,3.417],[7.654,-1.381],[-8.289,1.184],[5.973,0.487],[-9.014,3.417],[8.733,-0.41],[8.431,1.009],[7.051,1.458],[-9.74,4.673],[10.112,-0.858],[-7.563,5.93]],
       // two riboses (5), adenine's fused pair (5+6), nicotinamide (6)
       topology:{rings:[5,5,5,6,6], fused:true},
       gly:{ carbons:21, phosphates:2, carrier:true,
@@ -526,6 +555,14 @@
       bonds:[[0,8,null],[0,10,null],[0,11,null],[0,13,2],[1,9,null],[1,10,null],[1,12,null],[1,14,2],[2,25,null],[2,26,null],[3,29,null],[3,30,null],[4,23,null],[4,56,null],[5,24,null],[5,57,null],[6,27,null],[6,58,null],[7,28,null],[7,59,null],[8,31,null],[9,32,null],[11,67,null],[12,68,null],[15,42,2],[16,26,null],[16,33,null],[16,35,null],[17,30,null],[17,34,null],[17,36,null],[18,35,2],[18,37,null],[19,33,2],[19,43,null],[20,41,null],[20,43,2],[21,41,null],[21,69,null],[21,70,null],[22,42,null],[22,71,null],[22,72,null],[23,24,null],[23,25,null],[23,44,null],[24,26,null],[24,45,null],[25,31,null],[25,46,null],[26,47,null],[27,28,null],[27,29,null],[27,48,null],[28,30,null],[28,49,null],[29,32,null],[29,50,null],[30,51,null],[31,52,null],[31,53,null],[32,54,null],[32,55,null],[33,37,null],[34,38,2],[34,60,null],[35,61,null],[36,40,2],[36,62,null],[37,41,2],[38,39,null],[38,42,null],[39,40,null],[39,63,null],[39,64,null],[40,65,null],[43,66,null]],
       optH:[44,45,46,47,48,49,50,51,52,53,54,55,60,61,62,63,64,65,66],
     };
+    // Same rule as ATP's above: assembled from the checked `nic` block, never
+    // retyped. The two H's fold onto C4 in the flat drawing (a hydrogen has no
+    // glyph of its own there), which tools/spec2smiles.js does for every mark.
+    {
+      const n = GLYCOLYSIS.nadh.gly.nic;
+      GLYCOLYSIS.nadh.flatMark =
+        [...n.ring, n.c4, ...n.h, n.amide.c, n.amide.o, n.amide.n];
+    }
   }
   register(GLYCOLYSIS);
 })(this);

@@ -62,6 +62,13 @@ const REF = {
   // (keto) form where the spec is drawn open, because PubChem's default record
   // for a hexose phosphate is the furanose ring and that would report "differs"
   // for a molecule whose handedness is fine.
+  // the two carriers molecule-viewer.html teaches ABOUT. Both are PubChem
+  // conversions, so like the amino acids above they indict the pipeline rather
+  // than a hand-built ring — but both carry a `smiles` now (the flat drawing
+  // needs one), and a committed depiction string with four stereocentres in it
+  // is exactly the thing that must not be allowed to be the mirror image.
+  atp: 'ATP',
+  nadh: 'NADH',
   g6p: 'beta-D-glucose 6-phosphate',
   f6p: 'keto-D-fructose 6-phosphate',
   f16bp: 'keto-D-fructose 1,6-bisphosphate',

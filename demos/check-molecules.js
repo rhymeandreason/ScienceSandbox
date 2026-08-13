@@ -303,7 +303,10 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
     const adj = mol.atoms.map(() => []);
     (mol.bonds || []).forEach(([i, j]) => { adj[i].push(j); adj[j].push(i); });
-    const folded = new Set(((mol.contrast && mol.contrast.diff) || []).map(r => {
+    // `contrast.diff` on a comparison spec, `flatMark` on anything else that a
+    // page draws flat and highlights — same fold, same staleness check.
+    const refs = (mol.contrast && mol.contrast.diff) || mol.flatMark || [];
+    const folded = new Set(refs.map(r => {
       const i = typeof r === 'number' ? r : (mol.names || []).indexOf(r);
       return mol.atoms[i] && mol.atoms[i].el === 'H'
         ? adj[i].find(j => mol.atoms[j].el !== 'H') : i;
@@ -311,7 +314,7 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     const marks = (mol.smiles.match(/:1]/g) || []).length;
     if (marks !== folded.size) {
       smilesFails++;
-      console.log(`   SMILES FAIL: ${marks} highlight marks, but \`diff\` folds to `
+      console.log(`   SMILES FAIL: ${marks} highlight marks, but the mark list folds to `
         + `${folded.size} heavy atom(s) — re-run tools/spec2smiles.js`);
     }
     if (n === heavy && marks === folded.size)
@@ -539,6 +542,64 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
       }
     } else {
       console.log(`   phosphates OK: ${P.length} as declared`);
+    }
+  }
+
+  // ---- the 2D layout (`flat2d`) ----------------------------------------
+  // molecule-viewer.html slides the real atoms onto these positions, so a wrong
+  // one is not a wrong picture — it is an atom that flies to the wrong place in
+  // front of the student. Three ways it can be wrong, none visible from the API:
+  //
+  //   · WRONG LENGTH. The array is positional, heavy atoms in spec order. Add a
+  //     hydroxyl to the spec and re-run nothing, and every atom past it lands on
+  //     its neighbour's spot.
+  //   · WRONG SCALE. The layout is in ångströms like everything else on disk,
+  //     but nothing multiplies it on the way in, so a set of numbers pasted from
+  //     a display-scale source is a silent 1.9× that reads as a styling choice
+  //     (the trap MolecularGeometry.md §1.5 exists for). Caught by comparing its
+  //     mean bond length with the molecule's own.
+  //   · OVERLAPPING. A layout that puts two atoms on the same spot is not a
+  //     layout. Same rule as the 3D geometry above: the display spheres must
+  //     clear, because a merged pair buries the stick between them.
+  if (mol.flat2d) {
+    const S = require('./lib-node.js').SCALE || 1.9;
+    const keep = mol.atoms.map((a, i) => i).filter(i => mol.atoms[i].el !== 'H');
+    const fail = m => { stereoFails++; console.log(`   FLAT2D FAIL: ${m}`); };
+    if (mol.flat2d.length !== keep.length) {
+      fail(`${mol.flat2d.length} positions for ${keep.length} heavy atoms `
+        + `— re-run tools/bake-flat2d.js`);
+    } else {
+      const at = i => mol.flat2d[i];
+      const pairs = (mol.bonds || [])
+        .map(b => [keep.indexOf(b[0]), keep.indexOf(b[1])])
+        .filter(([i, j]) => i >= 0 && j >= 0);
+      const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
+      // spec coordinates arrive from lib-node.js already scaled; divide it back
+      // out so both figures are the ångströms an instrument would report
+      const real = mean(pairs.map(([i, j]) =>
+        Math.hypot(...mol.atoms[keep[i]].pos.map((v, c) => v - mol.atoms[keep[j]].pos[c])) / S));
+      const drawn = mean(pairs.map(([i, j]) =>
+        Math.hypot(at(i)[0] - at(j)[0], at(i)[1] - at(j)[1])));
+      if (Math.abs(drawn - real) / real > 0.05) {
+        fail(`mean bond is ${drawn.toFixed(3)} Å in the layout but `
+          + `${real.toFixed(3)} Å in the molecule — wrong scale`);
+      } else {
+        let merged = null;
+        for (let i = 0; i < keep.length && !merged; i++)
+          for (let j = i + 1; j < keep.length; j++) {
+            const d = Math.hypot(at(i)[0] - at(j)[0], at(i)[1] - at(j)[1]) * S;
+            const need = (PALETTE.radii[mol.atoms[keep[i]].el] || 0.7)
+                       + (PALETTE.radii[mol.atoms[keep[j]].el] || 0.7);
+            if (d - need < TIGHT) { merged = [i, j, d, need]; break; }
+          }
+        if (merged) {
+          fail(`atoms ${merged[0]} and ${merged[1]} are ${merged[2].toFixed(2)} apart `
+            + `but their spheres need ${merged[3].toFixed(2)} — the layout overlaps`);
+        } else {
+          console.log(`   flat2d OK: ${keep.length} positions, mean bond `
+            + `${drawn.toFixed(3)} Å, no overlaps`);
+        }
+      }
     }
   }
 

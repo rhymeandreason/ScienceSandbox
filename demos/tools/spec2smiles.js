@@ -31,12 +31,37 @@ function heavyDiff(m, map) {
   const adj = m.atoms.map(() => []);
   m.bonds.forEach(([i, j]) => { adj[i].push(j); adj[j].push(i); });
   const out = new Set();
-  for (const ref of (m.contrast && m.contrast.diff) || []) {
+  // A contrast pair marks its difference; anything else marking atoms for a
+  // flat drawing (`flatMark`, which molecule-viewer.html's highlight reads)
+  // goes through the same fold, for the same reason.
+  const refs = (m.contrast && m.contrast.diff) || m.flatMark || [];
+  for (const ref of refs) {
     const i = typeof ref === 'number' ? ref : m.names.indexOf(ref);
     out.add(m.atoms[i].el === 'H' ? adj[i].find(j => m.atoms[j].el !== 'H') : i);
   }
   return new Set([...out].map(i => map.get(i)).filter(x => x !== undefined));
 }
+
+/* Drop stereo descriptors on PHOSPHORUS.
+ *
+ * RDKit reads configuration off the 3D coordinates, and at a phosphate it finds
+ * four substituents in a definite arrangement and writes `[P@@]`. That is a
+ * claim, and it is false: a phosphate ester carries =O and two -OH, two of which
+ * are the same group, so the phosphorus is not a stereocentre at all. The
+ * arrangement it is reporting is just which way that particular conformer
+ * happened to have the oxygens.
+ *
+ * Left in, it costs twice. The flat drawing puts a wedge on a bond that has no
+ * stereochemistry to show, and tools/check-handedness.js reports every
+ * phosphorylated spec as differing from its PubChem reference — a real check
+ * failing on a fake difference, which is how a check stops being read.
+ *
+ * This is the one edit made to a generated string, it is made HERE rather than
+ * by hand in a spec, and it is proved by the thing it unblocks: with it, atp and
+ * nadh match PubChem's own records exactly, carbon stereocentres and all.
+ */
+const noPhosphorusStereo = s => s.replace(/\[P@@?(H\d?)?\]/g,
+  (m, h) => (h ? `[P${h}]` : 'P'));
 
 /* V2000 with the atom-atom map field (columns 61-63) set on the diff atoms.
  * Column placement is asserted by the caller: RDKit emitting `:1` on exactly
@@ -69,8 +94,12 @@ require('@rdkit/rdkit')().then(RDKit => {
     // every substituent at once and L-ribose passes as D-. RDKit's canonical
     // SMILES distinguishes [C@H] from [C@@H], which is exactly the
     // discrimination `faces` lacks. See molecule-pipeline.md item 5.
-    if (!m.contrast) continue;
-    if (!m.names) { console.log(`${key}: no \`names\` yet — skipped`); bad++; continue; }
+    // `contrast` specs need the string for contrast-lab.html. `flat:true` says
+    // some other page draws this molecule flat and needs one too — that is how
+    // ATP and NADH get theirs for molecule-viewer.html. Neither is a contrast
+    // pair, so there is no `diff` to mark and no `names` to resolve it through.
+    if (!m.contrast && !m.flat) continue;
+    if (m.contrast && !m.names) { console.log(`${key}: no \`names\` yet — skipped`); bad++; continue; }
 
     const probe = molblock(key, m, null);
     const d = heavyDiff(m, probe.map);
@@ -78,16 +107,18 @@ require('@rdkit/rdkit')().then(RDKit => {
 
     const mapped = RDKit.get_mol(mb);
     const plain = RDKit.get_mol(probe.mb);
-    const smiles = mapped.get_smiles();
+    const smiles = noPhosphorusStereo(mapped.get_smiles());
 
     // 1. the map must have landed on exactly the intended atoms
     const marks = (smiles.match(/:1[\]]/g) || []).length;
     // 2. stripping the map must give back the plain molecule — proves the map
     //    field changed metadata only, not the structure
-    const stripped = RDKit.get_mol(smiles.replace(/:1(?=])/g, '')).get_smiles();
-    const same = stripped === plain.get_smiles();
+    const bare = noPhosphorusStereo(plain.get_smiles());
+    const stripped = noPhosphorusStereo(
+      RDKit.get_mol(smiles.replace(/:1(?=])/g, '')).get_smiles());
+    const same = stripped === bare;
     // 3. and the plain form must survive its own round trip
-    const trip = RDKit.get_mol(plain.get_smiles()).get_smiles() === plain.get_smiles();
+    const trip = noPhosphorusStereo(RDKit.get_mol(bare).get_smiles()) === bare;
 
     const ok = marks === d.size && same && trip;
     if (!ok) bad++;
