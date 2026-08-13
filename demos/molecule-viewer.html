@@ -250,7 +250,7 @@ const SHELF=[
                + 'The bridging oxygen stays behind, and what is left is ADP.',
             atoms:s=>s.gly.gamma },
   },
-  { key:'nadh', card:'NADH',
+  { key:'nadh', card:'NADH', alt:'nadhSkel',
     blurb:'The cell’s spendable <b>electrons</b>. Two nucleotides joined tail to '
         + 'tail: an adenine half the enzyme grips by, and a nicotinamide half that '
         + 'does the chemistry. Glycolysis makes two of these, and they are worth '
@@ -271,8 +271,14 @@ const SHELF=[
  * nothing else on the page has to know there is a choice.
  *
  * A molecule with no `alt` silently stays on its own spec, and the switch
- * fades. That is the honest behaviour: NADH has no hand-built twin, and a live
- * button that did nothing would be a claim it does. */
+ * fades — a live button that did nothing would be a claim it does. Both
+ * molecules on the shelf now have a twin, so nothing on screen is currently
+ * faded; the branch stays because the next molecule added will not.
+ *
+ * NADH is the one worth switching. It is a DINUCLEOTIDE — twice the molecule
+ * ATP is, with a second sugar and eight stereocentres — so the schematic's cost
+ * shows up where a viewer can see it: the built one is 1.0 Å out of its own
+ * plane against the conformer's 1.9, and it is 21 Å across against 12. */
 const specOf=e=>MolLib.MOLECULES[(source==='skel' && e.alt) || e.key];
 
 /* ---------- stage ---------- */

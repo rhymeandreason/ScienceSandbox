@@ -2,19 +2,28 @@
  *  mol-compare.js — the SAME molecule, derived two ways.
  *
  *  Loaded only by molecule-viewer.html. Every other domain file holds molecules
- *  a lesson draws; this one holds a control. `atpSkel` is ATP built from ideal
- *  VSEPR angles and measured bond lengths, to sit beside `atp` in
- *  mol-glycolysis.js, which is a real PubChem conformer. Same molecule, same
- *  scale family, two derivations — and the page lets you switch between them
- *  under one camera.
+ *  a lesson draws; this one holds controls. `atpSkel` and `nadhSkel` are ATP and
+ *  NADH built from ideal VSEPR angles and measured bond lengths, to sit beside
+ *  `atp` and `nadh` in mol-glycolysis.js, which are real PubChem conformers.
+ *  Same molecules, same scale family, two derivations each — and the page lets
+ *  you switch between them under one camera.
  *
  *  WHY THIS EXISTS. MolecularGeometry.md §1.6 says derive when shape carries the
  *  lesson and schematize when topology does, and that the failure is doing one
  *  while claiming the other. That rule gets applied by argument every time a
- *  molecule is added. This makes it a thing you can look at: the schematic ATP
- *  is ~0.4 Å out of its own plane, the conformer is 1.33, and the question of
- *  whether that difference costs a student anything is answerable by eye in a
- *  way no paragraph settles.
+ *  molecule is added. This makes it a thing you can look at, and the two pairs
+ *  say different things about the same trade:
+ *
+ *    ATP    built 1.02 Å out of its own plane, 14.4 Å across
+ *           conformer 1.33 Å, 9.6 Å
+ *    NADH   built 1.01 Å, 21.4 Å  ·  conformer 1.91 Å, 12.0 Å
+ *
+ *  A schematic is flat and EXTENDED whatever you feed it, because every torsion
+ *  is set to open outward; a real conformer folds back on itself, and the bigger
+ *  the molecule the further it folds. So the cost of schematizing is not a
+ *  constant — it grows, and NADH is on the shelf to show it growing. Whether
+ *  that difference costs a student anything is answerable by eye in a way no
+ *  paragraph settles.
  *
  *  IT IS A SEPARATE FILE BECAUSE OF WHO PAYS. glycolysis-lab and
  *  macromolecule-lab both load mol-glycolysis.js; putting a second 43-atom ATP
@@ -23,12 +32,14 @@
  *
  *  WHAT MAKES THE COMPARISON HONEST. A hand-built ribose has four stereocentres
  *  and no internal check can catch a global mirror (MolecularGeometry.md §1.3) —
+ *  nadhSkel has TWO of them —
  *  so without an external reference, "the two look different" would confound
  *  "different method" with "I got the sugar wrong", which is exactly the
  *  confusion the page exists to remove. Hence `smiles` and a
- *  tools/check-handedness.js REF entry pointing at the SAME PubChem record
- *  `atp` matches. If both canonicalise to that record, every visible difference
- *  between them is method and nothing else.
+ *  tools/check-handedness.js REF entry pointing at the SAME PubChem record the
+ *  conformer matches. If both canonicalise to that record, every visible
+ *  difference between them is method and nothing else. NADH goes one better:
+ *  its generated `smiles` is byte-identical to `nadh`'s.
  * ===================================================================== */
 (function(global){
   'use strict';
@@ -45,6 +56,55 @@
           ringFuranose, flatRing, fuseRing, flatH } = SkelLib;
 
   const COMPARE = {};
+
+  // NOT +1/-1 by inspection — see skel.js's FURANOSE_UP. Getting this
+  // backwards builds L-ribose, which has every bond length, every angle and
+  // every pixel of the real thing. It was backwards here first, and
+  // check-handedness.js is what said so. Both nucleotides below ride on it.
+  const UP = FURANOSE_UP, DOWN = FURANOSE_DOWN;
+
+  /* — adenine, shared by both nucleotides below.
+   * A pure builder: it returns a FRESH Skel every call, so atpSkel's atom
+   * numbering is unaffected by nadhSkel existing. */
+  // --- adenine: purine with an amine at C6 ---------------------------
+  // Same construction as `purine` in mol-contrast.js — a flat six-ring with
+  // an imidazole fused across C4–C5 — because a base is planar and a
+  // tetrahedral builder would pucker it. Indices: 0…5 = N1 C2 N3 C4 C5 C6,
+  // then 6,7,8 = N7 C8 N9.
+  function adenine(){
+    const a = flatRing(6, ['N','C','N','C','C','C']);
+    const five = fuseRing(a, 5, 3, 4, V(0,0,0), ['N','C','N']);   // N7 C8 N9
+    const n7 = five[0], c8 = five[1], n9 = five[2];
+    // One Kekulé structure. The real ring is delocalised, but alternating
+    // orders keep every atom's valence right, which a uniform stick would not
+    // (skel.js's note on AR).  N1=C2 · N3=C4 · C5=C6 · N7=C8
+    a.order(0,1,2).order(2,3,2).order(4,5,2).order(n7,c8,2);
+    // the 6-amino group — what makes this adenine rather than purine. Grown
+    // in the ring plane at the aromatic C–N length, since it is conjugated
+    // into the ring and is not free to rotate out of it.
+    // placed like flatH: in the ring plane, bisecting C6's two neighbours from
+    // outside, so the amine cannot tip the base out of planarity
+    const n6 = (()=>{
+      const dir = vnorm(vmul(a.nbrs(5).reduce(vadd, V(0,0,0)), -1));
+      const j = a.put('N', vadd(a.at(5), vmul(dir, AR.CN)));
+      a.link(5, j); return j;
+    })();
+    flatH(a, 1, AR.CH);            // H2
+    flatH(a, c8, AR.CH);           // H8
+    // the amine's two H, in the plane, splayed off the C6–N bond
+    {
+      const back = vnorm(vsub(a.at(5), a.at(n6)));
+      const side = vnorm(V(-back.z, 0, back.x));      // in-plane perpendicular
+      const c = Math.cos(Math.PI/3), sn = Math.sin(Math.PI/3);
+      [1,-1].forEach(k=>{
+        const d = vnorm(vadd(vmul(back,-c), vmul(side, k*sn)));
+        const h = a.put('H', vadd(a.at(n6), vmul(d, AR.NH)));
+        a.link(n6, h);
+      });
+    }
+    return { s:a, n9 };
+  }
+
 
   {
     /* — atpSkel: ATP from ideal geometry.
@@ -64,51 +124,6 @@
      *  PATTERN, not as coordinates — arabinose, xylose and lyxose differ from
      *  ribose in nothing else.
      */
-    // NOT +1/-1 by inspection — see skel.js's FURANOSE_UP. Getting this
-    // backwards builds L-ribose, which has every bond length, every angle and
-    // every pixel of the real thing. It was backwards here first, and
-    // check-handedness.js is what said so.
-    const UP = FURANOSE_UP, DOWN = FURANOSE_DOWN;
-
-    // --- adenine: purine with an amine at C6 ---------------------------
-    // Same construction as `purine` in mol-contrast.js — a flat six-ring with
-    // an imidazole fused across C4–C5 — because a base is planar and a
-    // tetrahedral builder would pucker it. Indices: 0…5 = N1 C2 N3 C4 C5 C6,
-    // then 6,7,8 = N7 C8 N9.
-    function adenine(){
-      const a = flatRing(6, ['N','C','N','C','C','C']);
-      const five = fuseRing(a, 5, 3, 4, V(0,0,0), ['N','C','N']);   // N7 C8 N9
-      const n7 = five[0], c8 = five[1], n9 = five[2];
-      // One Kekulé structure. The real ring is delocalised, but alternating
-      // orders keep every atom's valence right, which a uniform stick would not
-      // (skel.js's note on AR).  N1=C2 · N3=C4 · C5=C6 · N7=C8
-      a.order(0,1,2).order(2,3,2).order(4,5,2).order(n7,c8,2);
-      // the 6-amino group — what makes this adenine rather than purine. Grown
-      // in the ring plane at the aromatic C–N length, since it is conjugated
-      // into the ring and is not free to rotate out of it.
-      // placed like flatH: in the ring plane, bisecting C6's two neighbours from
-      // outside, so the amine cannot tip the base out of planarity
-      const n6 = (()=>{
-        const dir = vnorm(vmul(a.nbrs(5).reduce(vadd, V(0,0,0)), -1));
-        const j = a.put('N', vadd(a.at(5), vmul(dir, AR.CN)));
-        a.link(5, j); return j;
-      })();
-      flatH(a, 1, AR.CH);            // H2
-      flatH(a, c8, AR.CH);           // H8
-      // the amine's two H, in the plane, splayed off the C6–N bond
-      {
-        const back = vnorm(vsub(a.at(5), a.at(n6)));
-        const side = vnorm(V(-back.z, 0, back.x));      // in-plane perpendicular
-        const c = Math.cos(Math.PI/3), sn = Math.sin(Math.PI/3);
-        [1,-1].forEach(k=>{
-          const d = vnorm(vadd(vmul(back,-c), vmul(side, k*sn)));
-          const h = a.put('H', vadd(a.at(n6), vmul(d, AR.NH)));
-          a.link(n6, h);
-        });
-      }
-      return { s:a, n9 };
-    }
-
     // --- ribose, and everything hung off it ----------------------------
     const s = ringFuranose();
     const RING = [0,1,2,3,4];            // O4′, C1′, C2′, C3′, C4′
@@ -217,6 +232,208 @@
                 note:'Ideal VSEPR angles, measured bond lengths, no conformer.' },
     });
     COMPARE.atpSkel.flatMark = COMPARE.atpSkel.gly.gamma;
+  }
+
+
+  {
+    /* — nadhSkel: NADH from ideal geometry.
+     *
+     *  The same exercise as atpSkel, one molecule further out: NADH is a
+     *  DINUCLEOTIDE, so where ATP ends after one sugar this one runs
+     *  adenine–ribose–P–O–P–ribose–nicotinamide, with a second furanose and its
+     *  four stereocentres on the far end of the bridge. That is the point of
+     *  building it — the schematic's cost is supposed to grow with the molecule,
+     *  and a viewer that only ever showed the cheap case would not say so.
+     *
+     *  FIVE RINGS, THREE BUILDERS, and each is the one the ring's own physics
+     *  asks for: adenine and the dihydronicotinamide are laid out flat
+     *  (`flatRing`/`fuseRing`) because sp2 ring systems ARE flat and a
+     *  tetrahedral builder would pucker them; both riboses come out of
+     *  `ringFuranose` and take their identity from `face()`.
+     *
+     *  CHARGE STATE follows `nadh` in mol-glycolysis.js: the NEUTRAL molecule,
+     *  so each phosphate carries its –OH rather than the bare O⁻ atpSkel shows.
+     *  A derivation control that differed in protonation as well as in method
+     *  would confound the two, which is the one thing it exists not to do.
+     *
+     *  WHAT IS SCHEMATIC HERE, declared per MolecularGeometry.md §1.6:
+     *   · The dihydronicotinamide ring is drawn as a regular planar hexagon at
+     *     the aromatic C–C length. The real 1,4-dihydropyridine is a shallow
+     *     boat, and its two bonds INTO the sp3 C4 are ~1.50 Å, not 1.39. What
+     *     the picture claims is the thing the lesson claims — C4 is sp3 and
+     *     carries two hydrogens, one of them the hydride, so the ring is no
+     *     longer aromatic — and that IS built: the two H's come from freeTet(),
+     *     which straddles the ring plane at the tetrahedral angle. It is also
+     *     the claim check-molecules.js's `gly.nic` block asserts.
+     *   · Both glycosidic torsions and the two ester torsions along the
+     *     pyrophosphate are set by a spin constant, the same standing the
+     *     disaccharides' φ/ψ have: floppy in solution, declared, unchecked.
+     */
+
+    // --- the adenosine half ---------------------------------------------
+    const s = ringFuranose();
+    const RING = [0,1,2,3,4];            // O4′, C1′, C2′, C3′, C4′
+    const c1 = 1, c2 = 2, c3 = 3, c4 = 4;
+    const n9dir = s.freeTet(c1)[s.face(c1, RING, UP)];      // β face — reserved
+    const n9pos = vadd(s.at(c1), vmul(n9dir, GL.CN));
+    s.hydroxyl(c2, s.face(c2, RING, DOWN));
+    s.hydroxyl(c3, s.face(c3, RING, DOWN));
+    const c5 = s.grow(c4, 'C', GL.CC, 'sp3', s.face(c4, RING, UP));
+
+    // --- the pyrophosphate bridge ----------------------------------------
+    // Every slot is 0 for atpSkel's reason (freeTet renumbers as slots fill),
+    // and each BRIDGING oxygen is grown before its phosphorus's terminal pair
+    // so the chain takes the outward direction and extends instead of folding
+    // back over the sugar it just left.
+    const o5  = s.grow(c5, 'O', GL.CO, 'sp3', 0);
+    const pa  = s.grow(o5, 'P', GL.OP, 'sp3', 0);
+    const oab = s.grow(pa, 'O', GL.OP, 'sp3', 0);      // α–β bridge, outward
+    s.grow(pa, 'O', GL.PO, 'sp3', 0, 2);               // Pα=O
+    s.grow(s.grow(pa, 'O', GL.PO, 'sp3', 0), 'H', GL.OH, 'sp3', 0);   // Pα–OH
+    const pb  = s.grow(oab, 'P', GL.OP, 'sp3', 0);
+    const o5b = s.grow(pb, 'O', GL.OP, 'sp3', 0);      // ester to ribose 2, outward
+    s.grow(pb, 'O', GL.PO, 'sp3', 0, 2);               // Pβ=O
+    s.grow(s.grow(pb, 'O', GL.PO, 'sp3', 0), 'H', GL.OH, 'sp3', 0);   // Pβ–OH
+
+    // --- join adenine on, then the sugar's C–H ---------------------------
+    // BEFORE the C–H, for atpSkel's reason: n9dir only RESERVED C1′'s β slot,
+    // and freeTet() reports what is free, not what is spoken for.
+    const CHI_A = 106 * Math.PI / 180;         // anti, as in atpSkel
+    const ade = adenine();
+    const outN9 = vnorm(vmul(ade.s.nbrs(ade.n9).reduce(vadd, V(0,0,0)), -1));
+    fitOnto(ade.s, ade.n9, outN9, vmul(n9dir, -1), n9pos, CHI_A);
+    const offA = absorb(s, ade.s);
+    s.link(c1, ade.n9 + offA);
+    const CH_A = [ s.grow(c1,'H',GL.CH,'sp3',0), s.grow(c2,'H',GL.CH,'sp3',0),
+                   s.grow(c3,'H',GL.CH,'sp3',0), s.grow(c4,'H',GL.CH,'sp3',0),
+                   s.grow(c5,'H',GL.CH,'sp3',0), s.grow(c5,'H',GL.CH,'sp3',0) ];
+
+    // --- the dihydronicotinamide ring ------------------------------------
+    // N1 C2 C3 C4 C5 C6 at 0…5. One Kekulé pair — C2=C3 and C5=C6 — with N1–C2,
+    // C3–C4, C4–C5 and C6–N1 single: that pattern IS 1,4-dihydro, and it is why
+    // C4 is left with two open tetrahedral slots below.
+    function nicotinamide(){
+      const r = flatRing(6, ['N','C','C','C','C','C']);
+      const n1 = 0, k2 = 1, k3 = 2, k4 = 3, k5 = 4, k6 = 5;
+      r.order(k2,k3,2).order(k5,k6,2);
+      // the carboxamide at C3, in the ring plane — it is conjugated with C2=C3
+      // and with its own carbonyl, so it is not free to rotate out of it. Grown
+      // the way adenine's 6-amino is: bisecting C3's two neighbours from
+      // outside, which cannot tip the ring.
+      const inPlane = (from, dir, el, dist) => {
+        const j = r.put(el, vadd(r.at(from), vmul(dir, dist)));
+        r.link(from, j); return j;
+      };
+      const outC3 = vnorm(vmul(r.nbrs(k3).reduce(vadd, V(0,0,0)), -1));
+      const cam = inPlane(k3, outC3, 'C', GL.CC);
+      // O and N off the amide carbon at ±120° in the same plane — a planar sp2
+      // amide, which is what the resonance makes it.
+      {
+        const back = vnorm(vsub(r.at(k3), r.at(cam)));
+        const side = vnorm(V(-back.z, 0, back.x));         // in-plane ⊥
+        const c = Math.cos(Math.PI/3), sn = Math.sin(Math.PI/3);
+        const arm = k => vnorm(vadd(vmul(back,-c), vmul(side, k*sn)));
+        var amO = inPlane(cam, arm( 1), 'O', GL.CdO); r.order(cam, amO, 2);
+        var amN = inPlane(cam, arm(-1), 'N', AR.CN);
+        // the amide N's two H, in the plane for the same reason
+        const nb = vnorm(vsub(r.at(cam), r.at(amN)));
+        const sd = vnorm(V(-nb.z, 0, nb.x));
+        [1,-1].forEach(k => inPlane(amN,
+          vnorm(vadd(vmul(nb,-c), vmul(sd, k*sn))), 'H', AR.NH));
+      }
+      // ring C–H: three flat ones, and THE TWO ON C4. Those two are the
+      // molecule — freeTet() at a carbon with two ring neighbours returns the
+      // pair of slots straddling the ring plane, so they come out above and
+      // below it at the tetrahedral angle, which is what an sp3 centre in a
+      // ring of sp2 ones looks like.
+      const hRing = [ flatH(r, k2, AR.CH), flatH(r, k5, AR.CH), flatH(r, k6, AR.CH) ];
+      const h4 = [ r.grow(k4,'H',GL.CH,'sp3',0), r.grow(k4,'H',GL.CH,'sp3',0) ];
+      return { s:r, n1, ring:[n1,k2,k3,k4,k5,k6], c4:k4, h4, hRing,
+               amide:{c:cam, o:amO, n:amN} };
+    }
+
+    // --- the nicotinamide riboside half ----------------------------------
+    const r = ringFuranose();
+    const RING2 = [0,1,2,3,4];
+    const b1 = 1, b2 = 2, b3 = 3, b4 = 4;
+    const n1dir = r.freeTet(b1)[r.face(b1, RING2, UP)];     // β face — reserved
+    const n1pos = vadd(r.at(b1), vmul(n1dir, GL.CN));
+    r.hydroxyl(b2, r.face(b2, RING2, DOWN));
+    r.hydroxyl(b3, r.face(b3, RING2, DOWN));
+    const b5 = r.grow(b4, 'C', GL.CC, 'sp3', r.face(b4, RING2, UP));
+    // RESERVE C5″'s bond to the bridge before anything else can take it — same
+    // trap as n9dir, and the reason C5″'s own hydrogens are grown last of all,
+    // after the ester link exists.
+    const outB5 = r.freeTet(b5)[0];
+
+    // N1 lands on C1″'s β face, exactly as N9 does on the other sugar. χ is
+    // declared schematic; 106° is atpSkel's value, and a pyridinium nucleoside
+    // sits anti like a purine one.
+    const nic = nicotinamide();
+    const outN1 = vnorm(vmul(nic.s.nbrs(nic.n1).reduce(vadd, V(0,0,0)), -1));
+    fitOnto(nic.s, nic.n1, outN1, vmul(n1dir, -1), n1pos, CHI_A);
+    const offN = absorb(r, nic.s);
+    r.link(b1, nic.n1 + offN);
+    const CH_B = [ r.grow(b1,'H',GL.CH,'sp3',0), r.grow(b2,'H',GL.CH,'sp3',0),
+                   r.grow(b3,'H',GL.CH,'sp3',0), r.grow(b4,'H',GL.CH,'sp3',0) ];
+
+    // --- and join the two halves at the bridge's far oxygen ---------------
+    const dirO5b = s.freeTet(o5b)[0];
+    // The bridge's own torsion, swept like the disaccharides' φ/ψ. Clearance
+    // does NOT decide it — over most of the circle the closest non-bonded pair
+    // is the ribose's own 2′/3′ hydroxyls at 2.53 Å, an order of magnitude above
+    // the checker's floor — so the two things a viewer can see decide instead,
+    // and they agree: 200° is both the most EXTENDED arrangement (21.4 Å across,
+    // so the two nucleotides read as two halves joined tail to tail rather than
+    // as one blob) and the FLATTEST (1.01 Å out of its own plane, against 1.16
+    // and worse either side). Declared schematic, unchecked, same standing as χ.
+    fitOnto(r, b5, outB5, vmul(dirO5b, -1),
+            vadd(s.at(o5b), vmul(dirO5b, GL.CO)), 200 * Math.PI / 180);
+    const offB = absorb(s, r);
+    s.link(o5b, b5 + offB);
+    // NOW C5″'s hydrogens: it has two real neighbours at last, so freeTet
+    // returns the two slots that are genuinely free.
+    const CH_B5 = [ s.grow(b5+offB,'H',GL.CH,'sp3',0),
+                    s.grow(b5+offB,'H',GL.CH,'sp3',0) ];
+
+    // Every index below is COMPUTED from the build, never counted off a
+    // rendering — the same discipline `nadh`'s own `nic` block is written with.
+    const N = i => i + offN + offB;
+    const nicIdx = { ring:nic.ring.map(N), n:N(nic.n1), c4:N(nic.c4),
+                     h:nic.h4.map(N),
+                     amide:{ c:N(nic.amide.c), o:N(nic.amide.o), n:N(nic.amide.n) } };
+    const optH = [ ...CH_A, ...CH_B.map(i=>i+offB), ...CH_B5,
+                   ...nic.hRing.map(N), ...nicIdx.h ];
+
+    COMPARE.nadhSkel = s.spec({
+      name:'Nicotinamide adenine dinucleotide (reduced)', short:'NADH (idealized)',
+      formula:'C₂₁H₂₉N₇O₁₄P₂', charge:0, class:'nucleotide',
+      // Generated by tools/spec2smiles.js from these coordinates, and the reason
+      // this spec can be trusted at all: check-handedness.js matches it against
+      // the same PubChem record `nadh` matches, so every visible difference
+      // between the two is method and not a mirrored sugar.
+      // — and it comes back BYTE-IDENTICAL to `nadh`'s, which is the strongest
+      // statement this file can make: two independent derivations of a molecule
+      // with eight stereocentres canonicalise to the same string.
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)OC[C@H]2O[C@@H]([N:1]3[CH:1]=[CH:1][CH2:1][C:1]([C:1]([NH2:1])=[O:1])=[CH:1]3)[C@H](O)[C@@H]2O)[C@@H](O)[C@H]1O',
+      flat:true,
+      // 44 heavy atoms, spec order, real ångströms — tools/bake-flat2d.js.
+      // Worth switching derivation while in 2D: the two layouts differ only in
+      // how RDKit folded each one, because a depiction is computed from
+      // CONNECTIVITY and connectivity is what the two derivations agree about.
+      flat2d:[[4.135,2.075],[3.982,3.528],[2.553,3.831],[1.823,2.566],[2.8,1.481],[1.959,5.166],[0.37,2.414],[2.497,0.052],[3.582,-0.926],[3.278,-2.355],[2.975,-3.784],[1.849,-2.051],[4.707,-2.658],[1.585,-4.235],[0.196,-4.687],[2.037,-5.625],[1.134,-2.846],[9.418,4.201],[8.688,2.936],[7.227,2.936],[6.497,4.201],[7.227,5.467],[8.688,5.467],[6.25,6.552],[4.915,5.958],[5.068,4.505],[9.418,6.732],[-3.461,-3.302],[-4.643,-4.161],[-4.191,-5.55],[-2.73,-5.55],[-2.279,-4.161],[-5.05,-6.732],[-1.872,-6.732],[-0.89,-3.709],[-6.032,-3.709],[-6.336,-2.28],[-7.725,-1.829],[-8.811,-2.806],[-8.507,-4.235],[-7.118,-4.687],[-8.029,-0.4],[-9.418,0.052],[-6.943,0.578]],
+      topology:{ rings:[5,5,5,6,6], fused:true },
+      view:VIEW.pyranose,
+      optH,
+      gly:{ carbons:21, phosphates:2, carrier:true, nic:nicIdx,
+            spent:{ name:'Nicotinamide adenine dinucleotide (oxidised)',
+                    short:'NAD⁺', formula:'C₂₁H₂₇N₇O₁₄P₂⁺' } },
+      compare:{ against:'nadh', method:'skel',
+                note:'Ideal VSEPR angles, measured bond lengths, no conformer.' },
+    });
+    COMPARE.nadhSkel.flatMark =
+      [...nicIdx.ring, nicIdx.c4, ...nicIdx.h,
+       nicIdx.amide.c, nicIdx.amide.o, nicIdx.amide.n];
   }
 
   register(COMPARE, SELFNAME);

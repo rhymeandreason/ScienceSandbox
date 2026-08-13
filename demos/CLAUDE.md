@@ -28,7 +28,7 @@ evaluation record, not a lesson.
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
 | `glycolysis-lab.html` | Ten steps in five stages: carbon bookkeeping, PFK-1 as the committed step, the one oxidation, the three irreversible steps. ATP is drawn as a molecule losing and regaining its γ phosphate (schematic fallback behind "Show full molecules"); the reversibility note opens a mass-action modal — a second simulation with its own physics (below) | pathway | prototype |
-| `molecule-viewer.html` | Reference shelf: pick a molecule and look at it (ATP · NADH). **Three views of one object** — 3D, then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). Highlights the part that does the chemistry in all three, off one atom list. Also switches ATP between its two **derivations** (measured conformer vs `skel.js` build, `mol-compare.js`) — MolecularGeometry.md §1.6's derive-or-schematize question as a thing you can look at | single-molecule viewer | prototype |
+| `molecule-viewer.html` | Reference shelf: pick a molecule and look at it (ATP · NADH). **Three views of one object** — 3D, then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). Highlights the part that does the chemistry in all three, off one atom list. Also switches ATP **and NADH** between their two **derivations** (measured conformer vs `skel.js` build, `mol-compare.js`) — MolecularGeometry.md §1.6's derive-or-schematize question as a thing you can look at | single-molecule viewer | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | comparison gallery | prototype |
 | `protein-lab.html` | Superseded PDB viewer — the ChemDoodle (GPL) worked example, see its header | PDB structure viewer | reference |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin, level 4 only pointed at. Superseded by `hemoglobin-lab` — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |
@@ -172,10 +172,13 @@ Easy to get wrong, invisible from the API:
 * **`Stage.bond` takes a bond order** (`[i,j,2]` → double bond).
   `setOptionalH` toggles *visibility* of the `optH` C–H's, so it can never
   resurrect a reaction-removed atom.
-* **`mol-compare.js` holds controls, not lessons.** `atpSkel` is the same
-  molecule as `atp`, built the other way, and it earns its place by matching the
-  SAME `check-handedness.js` reference — that is what makes a visible difference
-  between them method rather than a mistake. Its own domain file because
+* **`mol-compare.js` holds controls, not lessons.** `atpSkel` and `nadhSkel` are
+  the same molecules as `atp` and `nadh`, built the other way, and they earn
+  their place by matching the SAME `check-handedness.js` reference — that is what
+  makes a visible difference between them method rather than a mistake. The pair
+  is deliberate: NADH is twice the molecule, so it shows the schematic's cost
+  GROWING with size (1.01 Å out of plane and 21.4 Å across, against the
+  conformer's 1.91 and 12.0). Its own domain file because
   `glycolysis-lab` and `macromolecule-lab` load `mol-glycolysis.js` and must not
   pay for a spec they never draw.
 * **A `flat2d` layout is positions, not decoration.** molecule-viewer.html moves

@@ -73,6 +73,10 @@ const REF = {
   // else, which is the only reason the comparison means anything.
   atpSkel: 'ATP',
   nadh: 'NADH',
+  // and the second hand-built control. Eight stereocentres — two riboses — so
+  // it has more to get mirrored than atpSkel does, and the same reference as
+  // `nadh` for the same reason.
+  nadhSkel: 'NADH',
   g6p: 'beta-D-glucose 6-phosphate',
   f6p: 'keto-D-fructose 6-phosphate',
   f16bp: 'keto-D-fructose 1,6-bisphosphate',
