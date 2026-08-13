@@ -58,26 +58,39 @@
      Pinned every frame to the projected midpoint of the bond (drawSpots), the
      same way the name plates are pinned. Orange, like every other "click here"
      on this page — the tray's live tile and its arrow. */
+  /* TWO LAYERS, because the glow is BEHIND the molecule and the click cannot
+     be. The stage canvas is drawn with alpha, so a disc underneath it shows
+     through everywhere the molecule is not — which is what puts it behind the
+     atoms rather than washed over them. Nothing below the canvas can be
+     clicked, though (the canvas takes the pointer, for the orbit), so the
+     target is a transparent button in a layer above. Both are placed by the
+     same code, from the same projected point. */
+  #gl{position:relative;z-index:2}          /* over the glow, under everything */
+  #spotglow{position:absolute;inset:0;z-index:1;pointer-events:none}
+  .sglow{position:absolute;width:120px;height:120px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    /* soft-edged, so it reads as light under the molecule and not as a plate */
+    background:radial-gradient(circle,
+      rgba(107,79,216,.42) 0%, rgba(107,79,216,.28) 46%, rgba(107,79,216,0) 72%);
+    animation:sglowPulse 2.4s ease-in-out infinite}
+  @keyframes sglowPulse{
+    0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.75}
+    50%    {transform:translate(-50%,-50%) scale(1.12);opacity:1}}
+
   #spots{position:absolute;inset:0;z-index:6;pointer-events:none}
+  /* the target itself is invisible: the glow underneath is the affordance, and
+     a ring drawn on top of it would be a second one */
   .spot{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;
-    width:42px;height:42px;padding:0;border-radius:50%;
-    border:2.5px solid var(--phos);background:rgba(224,123,31,.16);
-    cursor:pointer;display:block}
-  /* the pulse is a SECOND ring travelling outward, not the button breathing:
-     a button that changes size is a button that is hard to hit */
-  .spot::after{content:'';position:absolute;inset:-4px;border-radius:50%;
-    border:2px solid var(--phos);animation:spotPulse 2s ease-out infinite}
-  @keyframes spotPulse{
-    0%  {transform:scale(.9);opacity:.6}
-    70% {transform:scale(1.6);opacity:0}
-    100%{opacity:0}}
-  .spot:hover{background:rgba(224,123,31,.34)}
-  .spot:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
-  .spot .shint{position:absolute;left:calc(100% + 11px);top:50%;
+    width:74px;height:74px;padding:0;border:none;border-radius:50%;
+    background:none;cursor:pointer;display:block}
+  .spot:hover ~ *,.spot:focus-visible{outline:none}
+  .spot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .spot .shint{position:absolute;left:calc(100% + 4px);top:50%;
     transform:translateY(-50%);font-family:var(--font-hand);font-size:15px;
-    color:var(--phos);white-space:nowrap;pointer-events:none}
-  @media (prefers-reduced-motion:reduce){ .spot::after{animation:none;opacity:.5} }
-  @media (max-width:920px){ .spot{width:36px;height:36px} .spot .shint{display:none} }
+    color:#6b4fd8;white-space:nowrap;pointer-events:none}
+  @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
+  @media (max-width:920px){ .sglow{width:92px;height:92px}
+    .spot{width:60px;height:60px} .spot .shint{display:none} }
 
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
   .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
@@ -760,6 +773,9 @@
     <div id="rail"></div>
   </div>
   <div id="stage">
+    <!-- UNDER the canvas: the click target's glow shows through the alpha, so
+         it sits behind the molecule rather than over it — see .sglow -->
+    <div id="spotglow"></div>
     <canvas id="gl"></canvas>
     <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
@@ -1311,6 +1327,7 @@ const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP;
  * not restart 60 times a second.
  */
 const spotsEl=document.getElementById('spots');
+const glowEl=document.getElementById('spotglow');
 const spotV=new THREE.Vector3();
 function drawSpots(){
   const st=(!intro && done<nSteps) ? stepAt(done) : null;
@@ -1322,19 +1339,24 @@ function drawSpots(){
     b.innerHTML='<span class="shint"></span>';
     b.onclick=()=>press(runStep);
     spotsEl.appendChild(b);
+    const g=document.createElement('div'); g.className='sglow';
+    glowEl.appendChild(g);
   }
-  [...spotsEl.children].forEach((el,i)=>el.style.display = i<n ? '' : 'none');
+  const show=(el,on)=>el.style.display = on ? '' : 'none';
+  [...spotsEl.children].forEach((el,i)=>show(el, i<n));
+  [...glowEl.children].forEach((el,i)=>show(el, i<n));
   if(!n) return;
   const w=canvas.clientWidth, h=canvas.clientHeight;
   lanes.forEach((l,i)=>{
-    const el=spotsEl.children[i];
+    const el=spotsEl.children[i], gl=glowEl.children[i];
     const pair=M[l.key].gly[st.spot.at];
     // A LANE THAT HAS NO SUCH BOND HAS NO TARGET, rather than one at the origin
-    if(!pair){ el.style.display='none'; return; }
+    if(!pair){ show(el,false); show(gl,false); return; }
     const u=l.g.userData;
     spotV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(.5).project(camera);
-    el.style.left=((spotV.x*0.5+0.5)*w)+'px';
-    el.style.top =((-spotV.y*0.5+0.5)*h)+'px';
+    const x=(spotV.x*0.5+0.5)*w, y=(-spotV.y*0.5+0.5)*h;
+    el.style.left=x+'px'; el.style.top =y+'px';
+    gl.style.left=x+'px'; gl.style.top =y+'px';
     // the hint only beside the first one — twice is an instruction shouted
     el.querySelector('.shint').textContent = i===0 ? (st.spot.say||'') : '';
     el.setAttribute('aria-label', st.act || 'run this step');
