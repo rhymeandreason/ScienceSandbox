@@ -140,6 +140,7 @@ both load.
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
+| `tools/resolve-catalog.js` | resolves the molecule catalog's NAMES to CIDs and asks whether each has a 3D conformer — **needs the network**, like `check-handedness.js`. Never picks between candidates; marks a row `Ambiguous` and reports every CID. Self-tests against the `src.cid` values already committed here | own header |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit. `--write` puts it in the spec instead of printing it to paste | `tools/README.md` |
 | `tools/specfile.js` | writes a generated field back into the spec that owns it, for the two bakers above. Replaces a field that is already there and refuses to invent a position for one that is not; verifies every write by re-loading the library | own header |
 | `tools/bake-flat2d.js` | `--write` as above. The 2D LAYOUT (`flat2d`) each `flat:true` spec's atoms slide onto — RDKit's depiction coordinates, returned in the spec's own atom order so no graph matching is needed, scaled to the molecule's own mean bond | own header |

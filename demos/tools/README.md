@@ -1,3 +1,42 @@
+# Resolving the molecule catalog: `resolve-catalog.js`
+
+`resources/AP_Bio_3D_Molecule_Catalog - Molecules.csv` identifies every PubChem
+molecule by NAME. **A bare name pins neither a stereocentre nor a charge state**
+(`sdf/README.md` has the case where that went wrong), and 28 of the 65 Core
+PubChem rows carry stereocentres — so resolve names to CIDs once, commit them,
+and fetch by CID from then on.
+
+```bash
+node tools/resolve-catalog.js --dry-run     # see what it would do
+node tools/resolve-catalog.js               # write CID + Has 3D into the CSV
+```
+
+```bash
+node tools/resolve-catalog.js --verify      # offline: our committed src.cid
+                                            # values vs the catalog's CIDs
+```
+
+Needs the network except for `--verify`. Idempotent — rows that already have a
+CID and a stereo verdict are skipped, so a re-run is free; `--recheck` forces
+them.
+
+**A CID is not automatically a pinned stereoisomer.** `glucose` resolves cleanly
+to CID 5793 — one CID, no ambiguity — and that record has one *undefined*
+stereocentre: the anomeric carbon. It is the CID `check-handedness.js` says
+proves nothing. So every row also records PubChem's `UndefinedAtomStereoCount`,
+and 14 rows came back needing a more specific name.
+
+**Nor a pinned charge state.** `--verify` caught two on its first run: the
+catalog's "ATP" and "AMP" resolve to the neutral free acids (CID 5957, 6083)
+while the specs here ship the physiological anions (5461108 charge −4, 15938965
+charge −2). Both are real records; only the CID tells them apart. It never chooses between candidates: a
+name that resolves to several CIDs is marked `Ambiguous` and every candidate
+goes in `resources/catalog-resolution-report.txt` for a human to settle by
+stereochemistry. Rows whose CID has no 3D conformer are marked too — those must
+be hand-written or Skel-built, per the `record_type=3d` caveat below.
+
+---
+
 # Regenerating a derived field: use `--write`
 
 `spec2smiles.js` and `bake-flat2d.js` both take `--write`, which edits each
