@@ -1673,12 +1673,28 @@ function unfurlPlan(l){
   // angles is the jump this whole animation exists to remove. So the molecule
   // turns as it opens: the backbone ends up along the axis the next spec draws
   // it on, and the swap then changes only what the reaction changed.
+  // A WHOLE FRAME, not just the axis. Matching C1→C6 alone leaves the chain
+  // free to ROLL about it, and a zigzag rolled even slightly lands with every
+  // carbon in the middle on the wrong side — the ends sit on the axis and agree
+  // while C2 and C5 are 2.5 units out, which is exactly the pop this was meant
+  // to remove. The second axis is C3's offset from the backbone, so the zigzag
+  // plane itself is what gets matched.
   const pos1=unfurlPos(plan,1);
-  const here=pos1[cN[cN.length-1]].clone().sub(pos1[cN[0]]).normalize();
   const f=M.f6p, fc=f.gly.cN;
-  const there=new THREE.Vector3().fromArray(f.atoms[fc[fc.length-1]].pos)
-    .sub(new THREE.Vector3().fromArray(f.atoms[fc[0]].pos)).normalize();
-  plan.qEnd=new THREE.Quaternion().setFromUnitVectors(here,there);
+  const fp=i=>new THREE.Vector3().fromArray(f.atoms[fc[i]].pos);
+  const frame=(p0,pN,pMid)=>{
+    const ax=pN.clone().sub(p0).normalize();
+    const v=pMid.clone().sub(p0);
+    v.addScaledVector(ax,-v.dot(ax));
+    if(v.lengthSq()<1e-6) return null;              // a straight line has no plane
+    v.normalize();
+    return new THREE.Matrix4().makeBasis(ax, v, ax.clone().cross(v));
+  };
+  const A=frame(pos1[cN[0]], pos1[cN[cN.length-1]], pos1[cN[2]]);
+  const B=frame(fp(0), fp(fc.length-1), fp(2));
+  plan.qEnd = A&&B
+    ? new THREE.Quaternion().setFromRotationMatrix(B.multiply(A.invert()))
+    : new THREE.Quaternion();
   // THE LABEL HAS TO CLIMB WITH IT. A chain is taller than the ring it came
   // from, so a name pinned at the ring's height ends up written across the
   // molecule. The label rides from where it is now to where the next spec will
@@ -1842,6 +1858,15 @@ function runStep(){
       })();
     });
     dur=UNFURL+180;                              // land, then swap to F6P
+    // WHAT IS LEFT AT THE SWAP IS THE REACTION, so it gets marked like every
+    // other one here. The backbones superimpose by now (0.19 RMSD, against 1.67
+    // before the roll was matched), so the only thing that changes is the thing
+    // the isomerase did: a proton off C2 and onto C1, moving the C=O one carbon
+    // in. Fired after the swap, on the molecule that has it.
+    later(()=>lanes.forEach(l=>{
+      const cN=M[l.key].gly.cN, u=l.g.userData;
+      FXi.protonHop(u.atomWorld(cN[1]), u.atomWorld(cN[0]));
+    }), dur+40);
 
   } else dur=280;                              // 'iso': a plain rearrangement
 
