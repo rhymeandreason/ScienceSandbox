@@ -67,11 +67,11 @@
      same code, from the same projected point. */
   #gl{position:relative;z-index:2}          /* over the glow, under everything */
   #spotglow{position:absolute;inset:0;z-index:1;pointer-events:none}
-  .sglow{position:absolute;width:120px;height:120px;border-radius:50%;
+  /* A FLAT DISC WITH AN EDGE, not a feathered glow: the edge is what makes it
+     read as a target you can hit rather than as lighting. */
+  .sglow{position:absolute;width:92px;height:92px;border-radius:50%;
     transform:translate(-50%,-50%);
-    /* soft-edged, so it reads as light under the molecule and not as a plate */
-    background:radial-gradient(circle,
-      rgba(107,79,216,.42) 0%, rgba(107,79,216,.28) 46%, rgba(107,79,216,0) 72%);
+    background:rgba(107,79,216,.30);
     animation:sglowPulse 2.4s ease-in-out infinite}
   @keyframes sglowPulse{
     0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.75}
@@ -89,7 +89,7 @@
     transform:translateY(-50%);font-family:var(--font-hand);font-size:15px;
     color:#6b4fd8;white-space:nowrap;pointer-events:none}
   @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
-  @media (max-width:920px){ .sglow{width:92px;height:92px}
+  @media (max-width:920px){ .sglow{width:72px;height:72px}
     .spot{width:60px;height:60px} .spot .shint{display:none} }
 
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
