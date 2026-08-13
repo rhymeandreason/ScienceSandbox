@@ -48,6 +48,9 @@ const KNOWN_ABSENT = {
   'contrast-layout.js': 'TESTING.md proposal — not built',
   'three.min.js':       'loaded from a CDN, deliberately not vendored',
   '3Dmol.js':           'a library NAME, not a file here — RenderingLibraries.md',
+  'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',
+  'Kekule.js':          'library NAME — bio-rendering-thorough.md weighs it, unadopted',
+  'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',
   // Build outputs and runtime strings, not repo files.
   'generated-specs.json':         'sdf2spec.js writes it; not committed',
   'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',
@@ -63,13 +66,20 @@ const ok = msg => console.log(`  ok    ${msg}`);
 // row ORDER is load-bearing — don't reorder without rereading this.
 console.log('\n== 1. per-page script table (CLAUDE.md)');
 
+// A blank line between the ENUM comment and the table is normal markdown, so
+// skip anything before the first "|" row rather than stopping at it. Reading
+// the marker line and then breaking on that blank is how this check spent a
+// while parsing zero rows and reporting every page as missing from a table it
+// had never actually read.
 function tableAfter(src, marker) {
   const at = src.indexOf(marker);
   if (at < 0) return null;
   const lines = src.slice(at).split('\n').slice(1);
   const rows = [];
   for (const ln of lines) {
-    if (!ln.startsWith('|')) break;
+    // Before the table: skip blanks only. Any other line means the marker's
+    // table is gone, and scanning on would silently adopt the next table down.
+    if (!ln.startsWith('|')) { if (rows.length || ln.trim()) break; continue; }
     const cells = ln.split('|').slice(1, -1).map(c => c.trim());
     if (cells.every(c => /^-+$/.test(c))) continue;      // separator
     rows.push(cells);
@@ -80,6 +90,10 @@ function tableAfter(src, marker) {
 const scriptRows = tableAfter(CLAUDE, "ENUM: update when any page's <script>");
 if (!scriptRows) {
   fail('scripts', 'could not find the script table (its ENUM marker is gone)');
+} else if (!scriptRows.length) {
+  // An empty table parses as "no page declares anything", which would otherwise
+  // spray one failure per page and hide the real cause.
+  fail('scripts', 'found the script table marker but parsed no rows out of it');
 } else {
   const declared = new Map();
   let running = [];

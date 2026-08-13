@@ -147,7 +147,7 @@ both load.
 | `folding/tools/bake-fold.js` | solves the villin fold once → `folding/data/1VII.fold.bin` (442 KB, 185 keyframes). Both folding pages play that file. **Re-run after any change to the solver, schedule or H-bond cutoffs** | own header |
 | `tools/bake-residues.js` | writes `residues.js` by MEASURING the twenty side chains off committed structures — 2HHB for nineteen, 9ZZI for isoleucine. Keeps one real instance each (the medoid), never an average of rotamers | own header |
 | `tools/check-residues.js` | re-bakes and compares, then asserts chemistry: heavy-atom counts, ring closure, proline's ring onto the backbone N, and **L-configuration** — one of two checks that catch a mirror | own header |
-| `tools/check-handedness.js` | the ONLY check that catches a global mirror — needs `npm i` + network. Covers glycolysis too, deriving SMILES from spec geometry where none is committed | own header, MolecularGeometry.md §1.3 |
+| `tools/check-handedness.js` | the ONLY check that catches a global mirror; needs `npm i` + network. Covers glycolysis too, deriving SMILES from spec geometry where none is committed | own header, MolecularGeometry.md §1.3 |
 
 Easy to get wrong, invisible from the API:
 
@@ -181,10 +181,9 @@ Easy to get wrong, invisible from the API:
 
 ## Architecture principle: **share the plumbing, not the physics**
 
-Deliberately **no monolithic `engine.js`** — the lessons are distinct paradigms
-(solvation, assembly, pathways, bonding) with no shared simulation core, so only
-universal scaffolding is extracted. Rationale and the test for what belongs in a
-shared module: `SCIENCE.md` §6.
+Deliberately **no monolithic `engine.js`**. What each shared module does and does
+not own, the test for whether something belongs in one, and the same split a
+level down inside the bonding builder: **`SCIENCE.md` §6.**
 
 ## Adding a new page
 
@@ -231,13 +230,16 @@ shared module: `SCIENCE.md` §6.
 **Read `SCIENCE.md` before adding or changing any visualization** — it's the
 rulebook. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
 
-`MolecularGeometry.md` §1 covers adding a molecule (geometry, sources,
-stereochemistry, fidelity tiers, scale families); §§2–3 polarity and covalent
-bonding; §4 rendering caveats; §5 fx/colour conventions; §6 module architecture.
-Before adding a **new molecule**, read §1.4 — it sets how much fidelity a
-molecule owes for the claim it makes (prop / contrast / subject) and requires a
-`check-molecules.js` assertion in the same commit. Pedagogical exaggerations
-(stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
+`MolecularGeometry.md` §1 covers adding a molecule — geometry, sources,
+stereochemistry, fidelity tiers, scale families. `SCIENCE.md` carries the rest:
+§§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour
+conventions, §6 module architecture.
+
+Before adding a **new molecule**, read `MolecularGeometry.md` §1.4 — it sets how
+much fidelity a molecule owes for the claim it makes (prop / contrast / subject)
+and requires a `check-molecules.js` assertion in the same commit. Pedagogical
+exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in
+comments**.
 
 Water/solvation physics is in `WaterSim.md` (solvation apps only). Each page
 documents itself in its own comments.
@@ -316,10 +318,9 @@ node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate
-on purpose** — it needs the network and RDKit, and it's the only thing that
-catches a *global mirror*, which every internal check is blind to by construction
-(MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a
-stereocentre:
+on purpose** — it needs the network and RDKit, and it is the only global-mirror
+check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or
+adding a stereocentre:
 
 ```bash
 npm i && node tools/check-handedness.js

@@ -34,27 +34,17 @@ reproducibility, one way in — rather than precision. That's the part that scal
 
 ## The five paths
 
-1. **Hand-written coordinates.** The solvation set: `water`, `nacl`, `kcl`,
-   `ethanol`, `ammonia`, `methane`, `co2`, `carbonic`, `bicarbonate`,
-   `hydronium`. Each length chosen individually to clear its two display radii,
-   so the implied scale runs ~1.2–1.6× and varies *within* a molecule — "family
-   A".
-2. **PubChem SDF → converter.** `tools/sdf2spec.js` for the amino acids (it
-   forces the library's fixed backbone order, which `pep:{…}` and
-   `aminoacid-lab.html` index into), `tools/sdf2spec-generic.js` for everything
-   keeping the record's own order. Real ångströms × `SCALE` 1.9 — "family B".
-   Amino acids and `amp`.
-3. **Built in code from idealised geometry.** `Skel` + the `GL`/`AR` tables
-   construct from VSEPR angles at load. **Every glycolysis intermediate and every
-   contrast sugar and base** — `glucose`, `galactose`, `ribose`, `deoxyribose`,
-   `maltose`, `cellobiose`, `purine`, `pyrimidine`, `g6p`…`pyruvate`. Never
-   touched PubChem.
-4. **Derived from another spec, in file.** `dAlanine` = `alanine` with one
-   component negated, computed at load.
-5. **Constructed by hand from literals.** `palmitate`, `palmitoleate`: an
-   idealised all-anti zigzag at a real 109.5°, united-atom, worked out once and
-   written in as numbers. Family B, but neither measured like path 2 nor
-   regenerable like path 3 — hence `src.path:'built'` requires a `method:`.
+**`MolecularGeometry.md` §1.2 defines them and says which to choose** — that's the
+canonical list, and the one an author reads while adding a molecule. Repeated
+here only as the index this doc's verdicts hang off:
+
+| Path | `src.path` | Population |
+|---|---|---|
+| 1 · hand-written coordinates | `hand` | the solvation set (family A) |
+| 2 · PubChem SDF → converter | `pubchem` | the amino acids, `amp` (family B) |
+| 3 · built in code from VSEPR | `skel` | every glycolysis intermediate, every contrast sugar and base |
+| 4 · derived from another spec | `mirror` | `dAlanine` |
+| 5 · constructed by hand from literals | `built` | `palmitate`, `palmitoleate` |
 
 The survey's real finding: **paths 2, 3 and 5 are all family B and look identical
 in the file**, but one is measured and two are constructed differently, and they
@@ -384,14 +374,11 @@ included — it comes back D, so the path reads both handednesses. And
 `beta-D-glucopyranose` resolves to CID 64689, the same record item 1
 independently names as the right anomer-specific reference.
 
-**Why four checks all passed.** `stereo:{axial}`/`{faces}` assert relative
-patterns; `cod-check.js` compares torsions and ring-plane tilt, also relative;
-`haworth.js` *anchors* the ring normal to the D convention rather than reading
-it, so the 2D diagrams drew correct D-sugars from mirrored coordinates; and
-lengths, angles and the render are identical between enantiomers by definition.
-The original item called the Haworth convention "the only thing standing between
-a mirrored spec and a diagram that renders beautifully and teaches the wrong
-sugar". That was exactly right, and it had already happened.
+**Why four checks all passed is in `MolecularGeometry.md` §1.3**, which is where
+the rule now lives — a relative assertion cannot catch a global mirror. The
+original item here called the Haworth anchoring convention "the only thing
+standing between a mirrored spec and a diagram that renders beautifully and
+teaches the wrong sugar". That was exactly right, and it had already happened.
 
 **The fix needed two different changes, which is the technical lesson.**
 
@@ -413,10 +400,9 @@ is **byte-identical** — the anchor was already forcing the right answer — so
 claim, and `beta-maltose`/`beta-cellobiose` both match, confirming the α/β
 distinction survived.
 
-**`tools/check-handedness.js` is the record.** Deliberately not wired into
-`check-molecules.js`: it needs the network and a dev-only dependency, the same
-reasoning that keeps `cod-check.js` out. Run it after touching a ring builder.
-This also settles the doubt item 6 reserved for furanose face assignment.
+**`tools/check-handedness.js` is the record** (MolecularGeometry.md §1.3 for what
+it does and when to run it). This also settles the doubt item 6 reserved for
+furanose face assignment.
 
 *Route chosen, from two candidates:* generate `smiles` for sugars too (a
 one-condition change in `spec2smiles.js`, since RDKit's round-trip distinguishes
@@ -534,8 +520,7 @@ one, and it's the failure mode item 3 introduced.
 Three deliberate limits, written into the hook header:
 
 - **It doesn't run `check-handedness.js`.** Network plus a dev dependency in a
-  commit path is a liability. It's also the only check that catches a global
-  mirror, so it stays a hand-run audit after touching a ring builder.
+  commit path is a liability. It stays a hand-run audit.
 - **It checks the working tree, not the staged content.** The honest 95% answer;
   the alternative is a temp checkout on every commit.
 - **`--no-verify` still works.** The goal is that nobody *forgets*, not that
