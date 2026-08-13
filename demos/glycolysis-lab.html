@@ -257,6 +257,18 @@
     background:linear-gradient(168deg,#fdf0a8 0%,#fbe88c 62%,#f6de79 100%);
     padding:13px 15px 15px;transform:rotate(-1.2deg);transform-origin:top right;
     box-shadow:0 1px 1px rgba(0,0,0,.16), 0 10px 18px -10px rgba(0,0,0,.42)}
+  /* NOT ON THE OPENING SCREEN. Nothing has been spent or made yet, so the
+     ledger opens as six zeroes — a tally of a lesson that has not started. It
+     is pinned up on Begin instead, which is also what makes it read as the
+     thing the lesson is about to write in. Safe to remove outright now that it
+     lies OVER the stage: it owns no column, so the molecule does not move when
+     it arrives. */
+  #ledger.hid{display:none}
+  #ledger.pin{animation:pinup .5s cubic-bezier(.2,.9,.3,1) backwards}
+  @keyframes pinup{
+    from{opacity:0;transform:rotate(-7deg) translateY(-16px) scale(.96)}
+    to  {opacity:1;transform:rotate(-1.2deg)}}
+  @media (prefers-reduced-motion:reduce){ #ledger.pin{animation:none} }
   /* the lifted bottom-left corner: a triangle of shade folding off the page */
   #ledger::after{content:'';position:absolute;left:0;bottom:0;width:22px;height:18px;
     background:linear-gradient(48deg,rgba(0,0,0,.13) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
@@ -907,7 +919,8 @@
        readouts beside the stage: the tally, the step's energy picture, and
        whatever commentary the step carries. -->
   <div id="side">
-    <div id="ledger"></div>
+    <!-- starts away: it is pinned up on Begin — see placeLedger -->
+    <div id="ledger" class="hid"></div>
     <div id="couplebox" class="note"></div>
     <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
@@ -2220,7 +2233,19 @@ function flySource(key,j){
   return platesEl.children[j] || platesEl.children[0];
 }
 let prevLedger=null, ledgerGen=0;
+// AWAY AT THE INTRO, PINNED UP ON BEGIN. The animation fires on the transition
+// only — a restart puts the page back at the intro, so the note comes off and
+// goes up again the next time, and every other redraw leaves it alone.
+function placeLedger(){
+  const hid=ledgerEl.classList.contains('hid');
+  if(intro){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
+  if(!hid) return;                       // already up: this is an ordinary redraw
+  ledgerEl.classList.remove('hid');
+  ledgerEl.classList.remove('pin'); void ledgerEl.offsetWidth;   // restart it
+  ledgerEl.classList.add('pin');
+}
 function drawLedger(){
+  placeLedger();
   const L=ledgerAt(done), net=L.made-L.spent, c=speciesAt(done).map(k=>M[k].gly.carbons);
   // The two PRODUCTS, counted off the same state everything else here reads.
   // NADH comes from the ledger (a carrier made and kept, step 6), pyruvate from
