@@ -1023,6 +1023,10 @@ const STEPS=[
     act:'Cleave the C3–C4 bond',
     species:['dhap','g3p'], enz:'Aldolase', hook:'The split', rev:true,
     fx:'split',
+    // The bond aldolase breaks is already named by the spec (`gly.cleave`, the
+    // one the fx flashes), so the target is that bond and not a second copy of
+    // where it is. Same contract as step 2's `open`.
+    spot:{ at:'cleave', say:'click to split it' },
     msg:`<b>Aldolase.</b> The unstable six-carbon sugar is cleaved down the middle into <b>two different three-carbon molecules</b>, DHAP and G3P, each keeping one <span class="p">phosphate</span> — which is what the two ATP bought.` },
 
   { n:5, stage:2, reagent:null,
