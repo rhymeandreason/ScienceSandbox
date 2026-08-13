@@ -49,6 +49,36 @@
   @keyframes stagepulse{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
   @media (prefers-reduced-motion:reduce){ #stagepulse.pulse{animation:none} }
 
+  /* ---------- the hotspot: click the bond that breaks ----------
+     A step whose whole content is "this bond comes apart" should be run BY
+     coming apart — pressing a button at the bottom of the screen and watching
+     something happen in the middle of it is a slideshow. So the ring opens
+     where you click, on the bond itself, and the button's slot stays empty for
+     the same reason a carrier step's does.
+     Pinned every frame to the projected midpoint of the bond (drawSpots), the
+     same way the name plates are pinned. Orange, like every other "click here"
+     on this page — the tray's live tile and its arrow. */
+  #spots{position:absolute;inset:0;z-index:6;pointer-events:none}
+  .spot{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;
+    width:42px;height:42px;padding:0;border-radius:50%;
+    border:2.5px solid var(--phos);background:rgba(224,123,31,.16);
+    cursor:pointer;display:block}
+  /* the pulse is a SECOND ring travelling outward, not the button breathing:
+     a button that changes size is a button that is hard to hit */
+  .spot::after{content:'';position:absolute;inset:-4px;border-radius:50%;
+    border:2px solid var(--phos);animation:spotPulse 2s ease-out infinite}
+  @keyframes spotPulse{
+    0%  {transform:scale(.9);opacity:.6}
+    70% {transform:scale(1.6);opacity:0}
+    100%{opacity:0}}
+  .spot:hover{background:rgba(224,123,31,.34)}
+  .spot:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+  .spot .shint{position:absolute;left:calc(100% + 11px);top:50%;
+    transform:translateY(-50%);font-family:var(--font-hand);font-size:15px;
+    color:var(--phos);white-space:nowrap;pointer-events:none}
+  @media (prefers-reduced-motion:reduce){ .spot::after{animation:none;opacity:.5} }
+  @media (max-width:920px){ .spot{width:36px;height:36px} .spot .shint{display:none} }
+
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
   .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
     text-align:center;white-space:nowrap;line-height:1.15}
@@ -733,6 +763,8 @@
     <canvas id="gl"></canvas>
     <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
+    <!-- the click targets that sit ON the molecule — see .spot -->
+    <div id="spots"></div>
     <div id="tray"></div>
     <!-- The bottom bar is ONE element so the camera has one thing to measure.
          It always occupies its full height — the action button is hidden with
@@ -957,6 +989,11 @@ const STEPS=[
     act:'Open the ring and shift the carbonyl',
     species:['f6p'], enz:'Phosphoglucose isomerase', hook:'Shuffling', rev:true,
     fx:'open',
+    // RUN BY BREAKING THE BOND. `at` names the spec's own bond (gly.open, the
+    // anomeric C1–O5), so the target is wherever that bond actually is on
+    // screen — not a coordinate typed here that a rebuilt spec would leave
+    // behind. Same contract as `anchor` on the phosphate steps.
+    spot:{ at:'open', say:'click to open the ring' },
     msg:`<b>Phosphoglucose isomerase.</b> The ring <b>opens</b> — it has to, because moving the C=O from carbon 1 to carbon 2 happens on the straight chain. Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>: a glucose has become a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can. <i>Everything from here is drawn open, so the six carbons stay countable.</i>` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
@@ -1265,6 +1302,44 @@ function clearLanes(){
 // deriving it per molecule — see the note there.
 const PLATE_GAP=0.8;
 const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])))+PLATE_GAP;
+
+/* ---------- the hotspot on the bond ----------
+ * One per lane, pinned to the projected midpoint of the bond the step names.
+ * Driven every frame from the render loop for the same reason the labels are:
+ * the camera eases, the molecule turns, and a target that does not follow is a
+ * target you miss. Elements are reused rather than rebuilt, so the pulse does
+ * not restart 60 times a second.
+ */
+const spotsEl=document.getElementById('spots');
+const spotV=new THREE.Vector3();
+function drawSpots(){
+  const st=(!intro && done<nSteps) ? stepAt(done) : null;
+  const live = !!st && !!st.spot && !busy && !reviewing;
+  const n = live ? lanes.length : 0;
+  while(spotsEl.children.length<n){
+    const b=document.createElement('button');
+    b.className='spot'; b.type='button';
+    b.innerHTML='<span class="shint"></span>';
+    b.onclick=()=>press(runStep);
+    spotsEl.appendChild(b);
+  }
+  [...spotsEl.children].forEach((el,i)=>el.style.display = i<n ? '' : 'none');
+  if(!n) return;
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  lanes.forEach((l,i)=>{
+    const el=spotsEl.children[i];
+    const pair=M[l.key].gly[st.spot.at];
+    // A LANE THAT HAS NO SUCH BOND HAS NO TARGET, rather than one at the origin
+    if(!pair){ el.style.display='none'; return; }
+    const u=l.g.userData;
+    spotV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(.5).project(camera);
+    el.style.left=((spotV.x*0.5+0.5)*w)+'px';
+    el.style.top =((-spotV.y*0.5+0.5)*h)+'px';
+    // the hint only beside the first one — twice is an instruction shouted
+    el.querySelector('.shint').textContent = i===0 ? (st.spot.say||'') : '';
+    el.setAttribute('aria-label', st.act || 'run this step');
+  });
+}
 
 // Project each lane's anchor and park its label over it. Called every frame
 // from the render loop — see the note on makePlate. `l.g.position.x` is read
@@ -2374,6 +2449,11 @@ function drawAct(){
   // height is what usable() reserves along the bottom edge, and the tray's own
   // "← Spend 1 ATP" arrow is what says where to click instead.
   if(st.reagent){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+  // A SPOT STEP HAS NO BUTTON EITHER, and for the same reason: the click is the
+  // bond coming apart, and a button doing it from the bottom of the screen
+  // would be the easier way past the one thing the step is asking you to look
+  // at. The hint beside the circle is what says where to click instead.
+  if(st.spot){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
   actEl.style.visibility='visible';
   // THE BUTTON NAMES THE ACTION, not the direction. "Next" moves a slideshow;
   // "Cleave the C3-C4 bond" is a thing you are doing to the molecule in front of
@@ -3177,6 +3257,7 @@ function loop(){
   // That is barely visible on a slow drag and very visible during the zoom ease
   // and the split, when the camera moves a long way in one frame.
   drawPlates();
+  drawSpots();
   // The carrier molecule is anchored to its DOM box, so it is repositioned on
   // the same schedule the labels are — after the render, with a current camera.
   placeCarrierMol();
