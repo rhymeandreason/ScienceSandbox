@@ -28,6 +28,7 @@ evaluation record, not a lesson.
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
 | `glycolysis-lab.html` | Ten steps in five stages: carbon bookkeeping, PFK-1 as the committed step, the one oxidation, the three irreversible steps. ATP is drawn as a molecule losing and regaining its γ phosphate (schematic fallback behind "Show full molecules"); the reversibility note opens a mass-action modal — a second simulation with its own physics (below) | pathway | prototype |
+| `molecule-viewer.html` | Reference shelf: pick a molecule and look at it (ATP · NADH). Highlights the one part that does the chemistry; 2D is an orthographic projection down the molecule's own widest plane, not a structural formula | single-molecule viewer | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | comparison gallery | prototype |
 | `protein-lab.html` | Superseded PDB viewer — the ChemDoodle (GPL) worked example, see its header | PDB structure viewer | reference |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin, level 4 only pointed at. Superseded by `hemoglobin-lab` — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |
@@ -80,6 +81,7 @@ this order — each script assumes the ones above it:
 | `molecule-builder` | palette, molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
 | `aminoacid-lab` | palette, molecules, mol-monomers, mol-small, scene, fx |
 | `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |
+| `molecule-viewer` | palette, molecules, skel, mol-glycolysis, scene |
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
 | `protein-lab` | pdb, vendor/chemdoodle/ChemDoodleWeb |

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Molecule Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  /* Layout, card strip, notes rail and dock are molecule-builder.html's, lifted
+     wholesale (CLAUDE.md "Adding a new page" step 0). What changed is only what
+     this page does differently: there is no lock/unlock, so the face-down card
+     styles are gone, and the notes rail is always up because it is reference
+     material about the molecule on screen rather than something to be earned. */
+
+  /* ---------- molecule cards, top-centre: a dealt hand, one per molecule ---- */
+  #shelf{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:0;align-items:stretch;padding:10px 6px 12px}
+  .goal{text-align:center;background:#f7f2e7;border:none;
+    border-radius:3px 4px 3px 4px;padding:10px 12px 12px;min-width:132px;max-width:176px;
+    font-family:inherit;cursor:pointer;
+    box-shadow:0 1px 1px rgba(43,39,35,.16), 0 3px 5px -2px rgba(43,39,35,.20),
+      0 12px 20px -14px rgba(43,39,35,.55);
+    transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+  /* -14px ≈ corner radius + shadow, so each card still shows its edge */
+  .goal + .goal{margin-left:-14px}
+  .goal{--tilt:0deg;--dy:0px;transform:translateY(var(--dy)) rotate(var(--tilt))}
+  .goal:nth-child(5n+1){--tilt:-0.7deg;--dy:2px}
+  .goal:nth-child(5n+2){--tilt:0.5deg; --dy:4px}
+  .goal:nth-child(5n+3){--tilt:-0.3deg;--dy:0px}
+  .goal:nth-child(5n+4){--tilt:0.8deg; --dy:3px}
+  .goal:nth-child(5n+5){--tilt:-0.5deg;--dy:1px}
+  .goal:hover{background:#fbf7ee;z-index:2}
+  .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
+  @keyframes cardLift{
+    0%  {transform:translateY(var(--dy))              rotate(var(--tilt))}
+    55% {transform:translateY(calc(var(--dy) - 7px))  rotate(var(--tilt))}
+    100%{transform:translateY(calc(var(--dy) - 4px))  rotate(var(--tilt))}}
+  .goal.on{background:#fffdf7;z-index:3;
+    transform:translateY(calc(var(--dy) - 5px)) rotate(0deg);
+    box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30),
+      0 22px 30px -18px rgba(43,39,35,.55)}
+  .goal .gname{font-family:var(--font-slab);font-size:18px;line-height:1.1;color:#a19686}
+  .goal .gform{font-family:var(--font-sans);font-weight:700;font-size:16px;
+    color:#b9ae9d;margin-top:8px}
+  .goal:hover .gname{color:#6f6557}
+  .goal.on .gname{color:var(--ink)}
+  .goal.on .gform{color:var(--muted)}
+
+  /* ---------- notes rail, left: what this molecule IS ----------
+     Every figure in here is read off the spec at render time, never typed
+     (CLAUDE.md, Copywriting). A hand-typed atom count is a claim nothing
+     checks, and a regenerated spec would falsify it silently. */
+  #notes{position:absolute;left:26px;top:190px;z-index:11;width:224px}
+  #notes .ntitle{font-family:var(--font-marker);font-size:24px;color:var(--ink);
+    line-height:1.1;margin-bottom:8px}
+  #notes .ntags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
+  #notes .ntag{font-weight:700;font-size:10px;letter-spacing:.7px;text-transform:uppercase;
+    padding:3px 7px;border-radius:5px;border:1.5px solid var(--ink);background:#fff;color:var(--ink)}
+  #notes .ntag.carrier{background:#cfe4f2}
+  #notes .ntag.count{background:#eceae4;color:var(--muted);border-color:var(--hair)}
+  #notes .nbody{font-family:var(--font-sans);font-size:15px;line-height:1.36;color:var(--ink)}
+  #notes .nbody b{font-weight:600}
+  #notes .nfacts{margin-top:13px;padding-top:12px;border-top:1.5px dashed var(--hair);
+    font-family:var(--font-sans);font-size:14px;line-height:1.5;color:var(--muted)}
+  #notes .nfacts b{font-weight:600;color:var(--ink)}
+
+  /* ---------- the focus card, right rail ----------
+     The one part of the molecule that does the chemistry. Paper, not UI: it is
+     an aside about what you are looking at, the same object molecule-builder's
+     sticky is. */
+  #focus{position:absolute;right:26px;top:190px;z-index:11;width:224px;
+    background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
+    box-sizing:border-box;padding:18px 20px 20px;transform:rotate(1.6deg);
+    box-shadow:0 1px 1px rgba(0,0,0,.15),2px 3px 6px rgba(0,0,0,.18),
+      6px 10px 16px -6px rgba(0,0,0,.35)}
+  #focus .ftitle{font-family:var(--font-marker);font-size:21px;line-height:1.16;
+    color:var(--ink);margin:0 0 8px}
+  #focus .fbody{font-family:var(--font-sans);font-size:15px;line-height:1.34;color:var(--ink)}
+  #focus .fbody b{font-weight:600;font-style:italic}
+
+  /* single-column: the molecule is the page, not a side panel */
+  #app{grid-template-columns:1fr}
+  #side{display:none}
+  #stage{grid-column:1}
+
+  /* ---------- dock ---------- */
+  #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
+    display:flex;align-items:center;gap:22px}
+  #dock button.act{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
+    background:#fff;color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dock button.act:hover{background:var(--ink);color:var(--paper)}
+  #dock button.act.on{background:var(--ink);color:var(--paper)}
+  #dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #dims .mode + .mode{border-left:1.5px solid var(--ink)}
+  #dims .mode.on{background:var(--ink);color:var(--paper)}
+
+  /* the caption under the dock: says what the current view IS, because the flat
+     view is a projection and must never be mistaken for a structural formula */
+  #say{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);z-index:12;
+    pointer-events:none;text-align:center;width:min(760px,86%);
+    font-family:var(--font-sans);font-size:16px;line-height:1.35;color:var(--muted)}
+  #say b{font-weight:600;color:var(--ink)}
+
+  #savepng{bottom:22px;right:26px;left:auto}
+
+  @media (max-width:920px){
+    #notes,#focus{position:static;width:auto;margin:12px 26px}
+    #focus{transform:none}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="shelf"></div>
+    <div id="notes"></div>
+    <div id="focus"></div>
+    <div id="say"></div>
+    <div id="dock">
+      <div id="dims" role="group" aria-label="View">
+        <button class="mode on" data-dim="3d">3D</button>
+        <button class="mode" data-dim="2d">2D</button>
+      </div>
+      <button class="act on" id="focusbtn">Highlight</button>
+      <button class="act" id="hbtn">C–H hydrogens</button>
+    </div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="skel.js"></script>
+<script src="mol-glycolysis.js"></script>
+<script src="scene.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  MOLECULE VIEWER — one molecule at a time, nothing happening to it
+ *
+ *  Every other page here is a lesson: something forms, dissolves, folds or is
+ *  spent. This one is the reference shelf. You pick a molecule and look at it.
+ *  That is deliberately a different job, and it is why this page loads no fx.js
+ *  — no bond breaks, nothing is transferred, so there is no event to ring.
+ *  SCIENCE.md §5 says never to dramatise a non-event, and selecting a card is
+ *  the definitive non-event.
+ *
+ *  WHAT "2D" MEANS HERE, and what it does not.
+ *  molecule-builder.html's 2D is a hand-authored Lewis layout, one per recipe;
+ *  haworth.js draws a Haworth projection, but only of a sugar ring. Neither can
+ *  draw a 44-heavy-atom dinucleotide, so this page's flat view is the third
+ *  thing: an ORTHOGRAPHIC PROJECTION of the real coordinates, with the molecule
+ *  turned so its own best-fit plane faces you and then held there.
+ *
+ *  That makes it honest but limited, and the caption says so on every switch.
+ *  It is the view for counting — how many phosphates, which ring carries the
+ *  amide — because nothing is nearer the camera than anything else and the
+ *  molecule cannot drift. It is NOT a structural formula: parts of a floppy
+ *  molecule genuinely sit behind other parts, and projecting flattens that onto
+ *  itself rather than untangling it. 3D is one click away and is where shape
+ *  questions get answered.
+ *
+ *  Orthographic in BOTH views, for the same reason contrast-lab.html is: a
+ *  perspective lens makes whichever half of the molecule swung nearer look
+ *  bigger, so "the two phosphates are the same size" would come and go as it
+ *  turned.
+ *
+ *  The camera never moves. Dragging turns the MODEL — which is what lets the
+ *  flat view be a lock rather than a suggestion, and keeps the lighting rig
+ *  (parented to the camera in scene.js) fixed so highlights stay put.
+ * ============================================================= */
+
+/* ---------- the shelf ----------
+ * `key` indexes MolLib.MOLECULES. Everything countable — formula, atom counts,
+ * rings, span, phosphates — is read off the spec by note(), never typed here.
+ * What IS typed is the sentence a tutor would say, and the name of the working
+ * end, which the spec identifies by index (`gly.gamma`, `gly.nic`) so the
+ * highlight can never point at the wrong atoms.
+ */
+const SHELF=[
+  { key:'atp', card:'ATP',
+    blurb:'The cell’s spendable energy. Adenine and a ribose — the same '
+        + 'handle RNA is built from — with <b>three phosphates</b> chained in a '
+        + 'row. The charge on those phosphates is why the chain is strained, and '
+        + 'the strain is what a reaction gets paid with.',
+    focus:{ title:'The γ phosphate',
+            body:'A kinase does not hand over the whole phosphate. It moves '
+               + '<b>PO₃⁻</b> — the end P and its three terminal oxygens. '
+               + 'The bridging oxygen stays behind, and what is left is ADP.',
+            atoms:s=>s.gly.gamma },
+  },
+  { key:'nadh', card:'NADH',
+    blurb:'The cell’s spendable <b>electrons</b>. Two nucleotides joined tail to '
+        + 'tail: an adenine half the enzyme grips by, and a nicotinamide half that '
+        + 'does the chemistry. Glycolysis makes two of these, and they are worth '
+        + 'more downstream than the ATP is.',
+    focus:{ title:'The loaded end',
+            body:'Ring carbon <b>C4</b> is carrying two hydrogens. One of them '
+               + 'arrived as a hydride from G3P, and the ring gave up its '
+               + 'aromaticity to take it. Hand it on and this is NAD⁺ again.',
+            // ring + the carbon that took the hydride + both its H + the amide
+            atoms:s=>{ const n=s.gly.nic;
+              return [...n.ring, n.c4, ...n.h, n.amide.c, n.amide.o, n.amide.n]; } },
+  },
+];
+
+const specOf=e=>MolLib.MOLECULES[e.key];
+
+/* ---------- stage ---------- */
+const canvas=document.getElementById('gl');
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  ortho:true,
+  // Straight down -Z. Every pose this page shows is the MODEL's, so the camera
+  // has exactly one job and never changes it.
+  cam:{theta:0,phi:Math.PI/2,r:40},
+  orbit:false });
+applyCam();
+
+/* ---------- state ---------- */
+let selected=0;
+let built=null;                    // the current molecule's group
+let flat=false;                    // 2D locked, 3D free (molecule-builder's sense)
+let showH=false, showFocus=true;
+let userSpun=false;                // idle turntable stops the moment you drag
+const pose=new THREE.Quaternion(); // where the model is now
+const want=new THREE.Quaternion(); // where it is heading (2D snaps to a plane)
+let easing=false;
+
+/* ---------- the flat pose ----------
+ * PCA over the heavy atoms: the two directions the molecule is widest in become
+ * screen X and Y, so the least of it is pointing at you. Heavy atoms only, and
+ * for the same reason Stage.measure counts only heavy atoms — hydroxyl
+ * hydrogens are free rotors, so including them measures how the spec happens to
+ * have been drawn rather than how the molecule is shaped.
+ *
+ * The basis MUST stay right-handed (e3 = e1 × e2). Flipping one axis to
+ * "tidy up" the framing is a REFLECTION, and a reflection turns this molecule
+ * into its mirror image while leaving every bond length, every angle and the
+ * render identical (MolecularGeometry.md §1.3). It is exactly the bug that
+ * cost this repo months of wrong sugars, and a viewer is the last place to
+ * reintroduce it — nothing downstream would catch it here.
+ */
+function flatPose(spec){
+  const pts=spec.atoms.filter(a=>a.el!=='H').map(a=>a.pos);
+  const c=[0,1,2].map(k=>pts.reduce((s,p)=>s+p[k],0)/pts.length);
+  const C=[[0,0,0],[0,0,0],[0,0,0]];
+  pts.forEach(p=>{ const d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]];
+    for(let i=0;i<3;i++) for(let j=0;j<3;j++) C[i][j]+=d[i]*d[j]; });
+  const mul=(M,v)=>[0,1,2].map(i=>M[i][0]*v[0]+M[i][1]*v[1]+M[i][2]*v[2]);
+  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const unit=v=>{ const l=Math.hypot(...v)||1; return v.map(x=>x/l); };
+  // power iteration, deflating after each axis — three eigenvectors is small
+  // enough that a full solver would be more code than it is worth
+  const axis=(M,seed)=>{ let v=unit(seed);
+    for(let k=0;k<80;k++) v=unit(mul(M,v)); return v; };
+  const e1=axis(C,[1,0.3,0.1]);
+  // deflate e1 out, then the next-widest direction is the leading eigenvector
+  const D=C.map((row,i)=>row.map((x,j)=>x-dot(mul(C,e1),e1)*e1[i]*e1[j]));
+  let e2=axis(D,[0.2,1,0.4]);
+  e2=unit(e2.map((x,i)=>x-dot(e2,e1)*e1[i]));          // re-orthogonalise
+  const e3=[e1[1]*e2[2]-e1[2]*e2[1],                   // right-handed, always
+            e1[2]*e2[0]-e1[0]*e2[2],
+            e1[0]*e2[1]-e1[1]*e2[0]];
+  // rows e1,e2,e3 — the rotation that sends the molecule's own axes to screen
+  const M=new THREE.Matrix4().set(e1[0],e1[1],e1[2],0,
+                                  e2[0],e2[1],e2[2],0,
+                                  e3[0],e3[1],e3[2],0,
+                                  0,0,0,1);
+  return new THREE.Quaternion().setFromRotationMatrix(M);
+}
+
+/* ---------- highlight ----------
+ * Dim to grey in place, contrast-lab.html's treatment and for its reason: the
+ * point is "this part of a molecule you can still see all of", so hiding the
+ * rest would leave a phosphate floating in space with nothing to be the end of.
+ * A neutral grey, because a warm one leaves dimmed oxygens reading as pink. */
+const GREY=new THREE.Color(0x8d8a86);
+function applyFocus(){
+  if(!built) return;
+  const e=SHELF[selected], set=new Set(showFocus?e.focus.atoms(specOf(e)):[]);
+  const paint=(m,on)=>{
+    m.traverse(o=>{
+      if(!o.isMesh||!o.material) return;
+      const base=o.userData.baseColor; if(base===undefined) return;
+      o.material.color.setHex(base);
+      if(showFocus&&!on) o.material.color.lerp(GREY,0.9);
+      if(o.material.emissive){
+        o.material.emissive.setHex(showFocus&&on?base:0x000000);
+        o.material.emissiveIntensity=showFocus&&on?0.45:0;
+      }
+    });
+  };
+  built.userData.atomMeshes.forEach((m,i)=>paint(m,set.has(i)));
+  // a bond is in the focus only if BOTH ends are — one end in would light the
+  // stick reaching out of the group and make it look larger than it is
+  built.userData.bondMeshes.forEach(m=>paint(m,m.userData.pair.every(p=>set.has(p))));
+}
+
+/* ---------- the notes rail ----------
+ * Read from the spec, at render time. `topology.rings` is the declared ring list
+ * that check-molecules.js re-derives from the geometry and fails on, so quoting
+ * it here quotes something that is actually checked; counting rings in this file
+ * would be a second, unchecked implementation of the same claim. */
+function note(){
+  const e=SHELF[selected], s=specOf(e), m=Stage.measure(s);
+  const heavy=s.atoms.filter(a=>a.el!=='H').length;
+  const rings=(s.topology&&s.topology.rings)||[];
+  const tags=[`<span class="ntag carrier">${s.class}</span>`,
+              `<span class="ntag count">${heavy} heavy atoms</span>`];
+  document.getElementById('notes').innerHTML=
+     `<div class="ntitle">${s.name}</div>`
+   + `<div class="ntags">${tags.join('')}</div>`
+   + `<div class="nbody">${e.blurb}</div>`
+   + `<div class="nfacts">`
+   + `<div>Formula <b>${s.formula}</b></div>`
+   + `<div>Atoms <b>${s.atoms.length}</b> (${heavy} heavy, `
+   + `${s.atoms.length-heavy} hydrogen)</div>`
+   + (rings.length?`<div>Rings <b>${rings.length}</b> — sizes `
+        + `${rings.join(', ')}${s.topology.fused?', two of them fused':''}</div>`:'')
+   + (s.gly&&s.gly.phosphates!=null?`<div>Phosphates <b>${s.gly.phosphates}</b></div>`:'')
+   + `<div>Widest span <b>${m.span.toFixed(1)} Å</b></div>`
+   + `</div>`;
+  document.getElementById('focus').innerHTML=
+     `<div class="ftitle">${e.focus.title}</div>`
+   + `<div class="fbody">${e.focus.body}</div>`;
+}
+
+function say(){
+  document.getElementById('say').innerHTML = flat
+    ? 'Flat view — the real coordinates seen straight down the molecule’s '
+      + 'widest plane. Good for <b>counting</b>; parts of it are genuinely behind '
+      + 'other parts, so switch to 3D for shape.'
+    : 'Free view — drag to turn it. Nothing is nearer the camera than anything '
+      + 'else, so sizes stay comparable as it moves.';
+}
+
+/* ---------- build ---------- */
+function select(i){
+  selected=i;
+  [...document.querySelectorAll('#shelf .goal')].forEach((c,k)=>
+    c.classList.toggle('on', k===i));
+  if(built){ root.remove(built); built=null; }
+  const s=specOf(SHELF[i]);
+  built=Stage.buildMolecule(s,{center:true});
+  // baseColor is what applyFocus() restores to; scene.js does not record it, and
+  // reading material.color instead would remember whatever the last dim left.
+  built.traverse(o=>{ if(o.isMesh&&o.material&&o.userData.baseColor===undefined)
+    o.userData.baseColor=o.material.color.getHex(); });
+  root.add(built);
+  Stage.setOptionalH(built,showH);
+  // Start facing you. A dinucleotide dropped in at whatever attitude its PubChem
+  // conformer happens to carry reads as a tangle; its own widest plane is the
+  // one pose that is about the molecule rather than about the record.
+  pose.copy(flatPose(s)); want.copy(pose); built.quaternion.copy(pose);
+  userSpun=false;
+  fit();
+  applyFocus(); note(); say();
+}
+
+// Framed on the full 3D radius, not the current silhouette: the model is free to
+// turn, and fitting what is on screen right now would let a turn push the far
+// end of the molecule out of frame.
+function fit(){
+  const m=Stage.measure(specOf(SHELF[selected]));
+  Stage.frame(camera, cam, [{x:0,y:0,rxz:m.radius,hy:m.radius}], {pad:1.18});
+  applyCam();
+}
+
+/* ---------- view switch ---------- */
+function setDim(toFlat){
+  if(toFlat===flat) return;
+  flat=toFlat;
+  [...document.querySelectorAll('#dims .mode')].forEach(o=>
+    o.classList.toggle('on',(o.dataset.dim==='2d')===flat));
+  if(flat){ want.copy(flatPose(specOf(SHELF[selected]))); easing=true; userSpun=true; }
+  else { want.copy(pose); easing=false; }
+  say();
+}
+document.getElementById('dims').onclick=e=>{
+  const b=e.target.closest('.mode'); if(b) setDim(b.dataset.dim==='2d'); };
+document.getElementById('hbtn').onclick=e=>{
+  showH=!showH; e.currentTarget.classList.toggle('on',showH);
+  Stage.setOptionalH(built,showH); applyFocus(); };
+document.getElementById('focusbtn').onclick=e=>{
+  showFocus=!showFocus; e.currentTarget.classList.toggle('on',showFocus); applyFocus(); };
+
+/* ---------- drag turns the MODEL ---------- */
+// Locked flat while the flat view is on: a projection you can tilt is not a
+// projection, and the caption would stop being true the moment you moved it.
+let dragging=false, last=null;
+canvas.addEventListener('pointerdown',e=>{
+  if(flat) return; dragging=true; last=[e.clientX,e.clientY];
+  canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=(e.clientX-last[0])*0.01, dy=(e.clientY-last[1])*0.01;
+  last=[e.clientX,e.clientY]; userSpun=true;
+  // Turned about the CAMERA's axes, not the model's, so a drag right always
+  // sends the near face right no matter how far it has already been turned.
+  const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(dy,dx,0,'XYZ'));
+  pose.premultiply(q); want.copy(pose); });
+const stop=e=>{ dragging=false; };
+canvas.addEventListener('pointerup',stop);
+canvas.addEventListener('pointercancel',stop);
+
+/* ---------- cards ---------- */
+document.getElementById('shelf').innerHTML=SHELF.map((e,i)=>{
+  const s=specOf(e);
+  return `<button class="goal${i===0?' on':''}" data-i="${i}">`
+       + `<div class="gname">${e.card}</div>`
+       + `<div class="gform">${s.formula}</div></button>`;
+}).join('');
+document.getElementById('shelf').onclick=e=>{
+  const b=e.target.closest('.goal'); if(b) select(+b.dataset.i); };
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download=SHELF[selected].key+'.png'; a.href=canvas.toDataURL('image/png'); a.click(); };
+
+/* ---------- loop ---------- */
+function loop(){
+  if(easing){
+    pose.slerp(want,0.16);
+    if(pose.angleTo(want)<0.002){ pose.copy(want); easing=false; }
+  } else if(!flat && !userSpun){
+    // Idle turntable, about the camera's vertical: something you have not
+    // touched yet should show you that it can be turned.
+    pose.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0.0035,0)));
+    want.copy(pose);
+  }
+  if(built) built.quaternion.copy(pose);
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+
+// Stage.frame solves against camera.aspect, so the framing is only right once
+// the canvas has actually been measured — and again every time it changes.
+new ResizeObserver(()=>{ resize(); fit(); }).observe(canvas);
+
+select(0);
+loop();
+</script>
+</body>
+</html>

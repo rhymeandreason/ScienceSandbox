@@ -413,6 +413,119 @@
       bonds:[[0,6,null],[0,7,null],[0,8,null],[0,9,2],[1,7,null],[1,10,null],[1,11,null],[1,12,2],[2,10,null],[2,13,null],[2,14,null],[2,15,2],[3,23,null],[3,24,null],[4,21,null],[4,37,null],[5,22,null],[5,38,null],[6,25,null],[16,23,null],[16,26,null],[16,27,null],[17,27,2],[17,28,null],[18,26,2],[18,30,null],[19,29,null],[19,30,2],[20,29,null],[20,41,null],[20,42,null],[21,22,null],[21,23,null],[21,31,null],[22,24,null],[22,32,null],[23,33,null],[24,25,null],[24,34,null],[25,35,null],[25,36,null],[26,28,null],[27,39,null],[28,29,2],[30,40,null]],
       optH:[31,32,33,34,35,36,39,40],
     };
+
+    // — NADH, the other carrier: the one glycolysis LOADS rather than spends.
+    //   Same provenance and the same caveats as `atp` above — PubChem 3D by CID
+    //   through tools/sdf2spec-generic.js, handedness inherited from the CID and
+    //   checked by nothing here (MolecularGeometry.md 1.3), no `smiles`, so
+    //   tools/check-handedness.js skips it.
+    //
+    //   CHARGE STATE: the NEUTRAL molecule (CID 439153), not the physiological
+    //   dianion ATP is stored as. Deliberate, because the two carriers make
+    //   different claims. ATP's claim is a chain of ionised phosphates that a
+    //   kinase moves the end of, so its charge IS the lesson. NADH's claim is
+    //   the nicotinamide ring: C4 (index 39) carries TWO hydrogens, one of them
+    //   the hydride G3P dehydrogenase just put there, and the ring's aromaticity
+    //   is broken to make room. That is visible in the geometry regardless of
+    //   what the diphosphate bridge is doing, and the neutral record is the one
+    //   a textbook draws.
+    //
+    //   THE MOLECULE IS A DIMER of two nucleotides joined tail to tail:
+    //   adenine-ribose-P-O-P-ribose-nicotinamide. Only the nicotinamide half
+    //   does chemistry; the adenine half is a handle the enzyme grips. `nic`
+    //   names the working end so a page can point at it instead of guessing.
+    GLYCOLYSIS.nadh={ name:'Nicotinamide adenine dinucleotide (reduced)', short:'NADH',
+      formula:'C₂₁H₂₉N₇O₁₄P₂', class:'nucleotide',
+      units:'angstrom',
+      src:{path:'pubchem', cid:439153, record:'3d',
+           conformer:'0006B37100000001', sdf:'nadh.sdf',
+           tool:'sdf2spec-generic', charge:0, regen:'exact', fetched:'2026-08-13'},
+      // two riboses (5), adenine's fused pair (5+6), nicotinamide (6)
+      topology:{rings:[5,5,5,6,6], fused:true},
+      gly:{ carbons:21, phosphates:2, carrier:true,
+            // the reduced end: ring, the carbon that took the hydride, and the
+            // two H's on it — one was there before, one arrived from G3P
+            nic:{ ring:[17,34,38,39,40,36], n:17, c4:39, h:[63,64],
+                  amide:{c:42, o:15, n:22} },
+            // what is left once C4 gives the hydride back, for the label beside it
+            spent:{ name:'Nicotinamide adenine dinucleotide (oxidised)',
+                    short:'NAD⁺', formula:'C₂₁H₂₇N₇O₁₄P₂⁺' } },
+      atoms:[ {el:'P',pos:[4.397,0.862,0.474]},
+              {el:'P',pos:[3.266,0.526,3.169]},
+              {el:'O',pos:[1.427,-1.871,-2.535]},
+              {el:'O',pos:[-0.999,1.171,3.218]},
+              {el:'O',pos:[1.383,0.689,-4.191]},
+              {el:'O',pos:[-1.042,0.705,-2.966]},
+              {el:'O',pos:[-2.705,-1.255,3.633]},
+              {el:'O',pos:[-3.304,-0.542,1.071]},
+              {el:'O',pos:[3.648,0.531,-0.922]},
+              {el:'O',pos:[1.702,0.506,3.58]},
+              {el:'O',pos:[3.222,0.834,1.583]},
+              {el:'O',pos:[5.248,-0.474,0.802]},
+              {el:'O',pos:[3.703,-1.03,3.225]},
+              {el:'O',pos:[5.208,2.126,0.468]},
+              {el:'O',pos:[4.136,1.457,3.962]},
+              {el:'O',pos:[1.891,3.751,-1.243]},
+              {el:'N',pos:[-0.832,-2.302,-1.948]},
+              {el:'N',pos:[-1.715,2.198,1.204]},
+              {el:'N',pos:[-1.549,-3.601,-0.285]},
+              {el:'N',pos:[-2.797,-2.328,-3.375]},
+              {el:'N',pos:[-4.578,-3.687,-2.406]},
+              {el:'N',pos:[-4.337,-4.815,-0.31]},
+              {el:'N',pos:[1.97,4.315,0.995]},
+              {el:'C',pos:[1.385,0.497,-2.777]},
+              {el:'C',pos:[0.017,0.021,-2.329]},
+              {el:'C',pos:[2.271,-0.7,-2.444]},
+              {el:'C',pos:[0.063,-1.447,-2.725]},
+              {el:'C',pos:[-1.612,-1.064,2.736]},
+              {el:'C',pos:[-2.031,-0.188,1.575]},
+              {el:'C',pos:[-0.578,-0.193,3.435]},
+              {el:'C',pos:[-2.015,1.198,2.198]},
+              {el:'C',pos:[2.852,-0.636,-1.039]},
+              {el:'C',pos:[0.827,-0.352,2.87]},
+              {el:'C',pos:[-2.105,-2.67,-2.278]},
+              {el:'C',pos:[-0.396,2.591,0.936]},
+              {el:'C',pos:[-0.543,-2.886,-0.743]},
+              {el:'C',pos:[-2.731,2.873,0.517]},
+              {el:'C',pos:[-2.532,-3.475,-1.234]},
+              {el:'C',pos:[-0.068,3.546,0.049]},
+              {el:'C',pos:[-1.12,4.287,-0.738]},
+              {el:'C',pos:[-2.522,3.841,-0.391]},
+              {el:'C',pos:[-3.821,-3.991,-1.324]},
+              {el:'C',pos:[1.343,3.872,-0.147]},
+              {el:'C',pos:[-4.027,-2.887,-3.351]},
+              {el:'H',pos:[1.683,1.44,-2.318]},
+              {el:'H',pos:[-0.088,0.134,-1.244]},
+              {el:'H',pos:[3.081,-0.808,-3.174]},
+              {el:'H',pos:[-0.191,-1.598,-3.782]},
+              {el:'H',pos:[-1.25,-2.05,2.431]},
+              {el:'H',pos:[-1.302,-0.268,0.761]},
+              {el:'H',pos:[-0.562,-0.348,4.52]},
+              {el:'H',pos:[-2.966,1.422,2.698]},
+              {el:'H',pos:[2.06,-0.623,-0.284]},
+              {el:'H',pos:[3.464,-1.524,-0.848]},
+              {el:'H',pos:[1.15,-1.389,2.998]},
+              {el:'H',pos:[0.863,-0.104,1.806]},
+              {el:'H',pos:[2.282,0.955,-4.449]},
+              {el:'H',pos:[-0.948,1.649,-2.751]},
+              {el:'H',pos:[-2.38,-1.789,4.378]},
+              {el:'H',pos:[-3.265,-1.478,0.811]},
+              {el:'H',pos:[0.364,2.061,1.491]},
+              {el:'H',pos:[0.406,-2.754,-0.241]},
+              {el:'H',pos:[-3.733,2.546,0.772]},
+              {el:'H',pos:[-0.956,4.127,-1.81]},
+              {el:'H',pos:[-1.033,5.361,-0.54]},
+              {el:'H',pos:[-3.36,4.318,-0.889]},
+              {el:'H',pos:[-4.661,-2.664,-4.202]},
+              {el:'H',pos:[5.886,-0.46,1.547]},
+              {el:'H',pos:[3.262,-1.68,2.638]},
+              {el:'H',pos:[-5.277,-5.177,-0.398]},
+              {el:'H',pos:[-3.775,-5.042,0.5]},
+              {el:'H',pos:[2.953,4.568,0.982]},
+              {el:'H',pos:[1.491,4.415,1.884]} ],
+      bonds:[[0,8,null],[0,10,null],[0,11,null],[0,13,2],[1,9,null],[1,10,null],[1,12,null],[1,14,2],[2,25,null],[2,26,null],[3,29,null],[3,30,null],[4,23,null],[4,56,null],[5,24,null],[5,57,null],[6,27,null],[6,58,null],[7,28,null],[7,59,null],[8,31,null],[9,32,null],[11,67,null],[12,68,null],[15,42,2],[16,26,null],[16,33,null],[16,35,null],[17,30,null],[17,34,null],[17,36,null],[18,35,2],[18,37,null],[19,33,2],[19,43,null],[20,41,null],[20,43,2],[21,41,null],[21,69,null],[21,70,null],[22,42,null],[22,71,null],[22,72,null],[23,24,null],[23,25,null],[23,44,null],[24,26,null],[24,45,null],[25,31,null],[25,46,null],[26,47,null],[27,28,null],[27,29,null],[27,48,null],[28,30,null],[28,49,null],[29,32,null],[29,50,null],[30,51,null],[31,52,null],[31,53,null],[32,54,null],[32,55,null],[33,37,null],[34,38,2],[34,60,null],[35,61,null],[36,40,2],[36,62,null],[37,41,2],[38,39,null],[38,42,null],[39,40,null],[39,63,null],[39,64,null],[40,65,null],[43,66,null]],
+      optH:[44,45,46,47,48,49,50,51,52,53,54,55,60,61,62,63,64,65,66],
+    };
   }
   register(GLYCOLYSIS);
 })(this);

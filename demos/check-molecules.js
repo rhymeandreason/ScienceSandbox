@@ -542,6 +542,44 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- the reduced nicotinamide ring (NADH) ----------------------------
+  // NADH's whole claim is that it is CARRYING something. Oxidised and reduced
+  // differ by one hydride on ring carbon C4 — same 44 heavy atoms, same two
+  // riboses, same diphosphate bridge, and at a glance the same picture. So the
+  // thing that makes it NADH rather than NAD⁺ is exactly two hydrogens on one
+  // carbon, and nothing else here would notice if the spec had one.
+  //
+  // Checked: the named ring is a real 6-cycle; the ring nitrogen is in it and
+  // carries three bonds (quaternary — it is the positive centre NAD⁺ is named
+  // for, still positive after reduction); C4 is in the ring, is sp3, and holds
+  // BOTH declared hydrogens; C4 is in no double bond (that is what "the
+  // aromaticity is broken to make room" means, and it is the difference); and
+  // the carboxamide hangs off the ring carbon next to C4.
+  if (mol.gly && mol.gly.nic) {
+    const n = mol.gly.nic, ring = n.ring || [];
+    const adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                          .map(b => (b[0] === i ? b[1] : b[0]));
+    const dbl = i => bonds.some(b => b[2] === 2 && (b[0] === i || b[1] === i));
+    const fail = m => { stereoFails++; console.log(`   NICOTINAMIDE FAIL: ${m}`); };
+    const closed = ring.length === 6 && ring.every((a, k) =>
+      adj(a).includes(ring[(k + 1) % 6]));
+    if (!closed) fail(`nic.ring [${ring.join(', ')}] is not a closed 6-ring`);
+    else if (!ring.includes(n.n) || mol.atoms[n.n].el !== 'N' || adj(n.n).length !== 3)
+      fail(`nic.n (${n.n}) is not a three-bonded ring nitrogen`);
+    else if (!ring.includes(n.c4) || mol.atoms[n.c4].el !== 'C')
+      fail(`nic.c4 (${n.c4}) is not a ring carbon`);
+    else if (dbl(n.c4))
+      fail(`C4 (${n.c4}) is in a double bond — that is NAD⁺, not NADH`);
+    else if (n.h.length !== 2 || !n.h.every(h => mol.atoms[h].el === 'H'
+                                              && adj(n.c4).includes(h)))
+      fail(`C4 (${n.c4}) does not carry both declared hydrogens [${n.h.join(', ')}]`);
+    else if (!adj(n.amide.c).includes(n.amide.o) || !adj(n.amide.c).includes(n.amide.n)
+             || !adj(n.amide.c).some(i => ring.includes(i)))
+      fail(`the carboxamide at C${n.amide.c} is not a C(=O)N on the ring`);
+    else console.log(`   nicotinamide OK: 6-ring, N⁺ 3-bonded, C4 sp3 with 2 H `
+      + `(reduced), carboxamide on the ring`);
+  }
+
   // ---- glycosidic linkage (α vs β) -------------------------------------
   // The one that decides whether a glucose polymer is food or firewood. Maltose
   // (starch's repeat) and cellobiose (cellulose's) are the same two glucoses,
