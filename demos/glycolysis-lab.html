@@ -1491,7 +1491,13 @@ function computeFit(){
 const TOP_PULL=0.5;
 function topAnchoredY(R, centredY){
   const u=usable();
-  const topNow=plateY(speciesAt(intro?0:done));   // world Y of this state's plate
+  // THE LANES' OWN ANCHOR, not the state's, whenever there are lanes: they
+  // agree except while a molecule is mid-change, and that is the case this has
+  // to get right. The unfurl walks its lane's topY from the ring's height to
+  // the chain's, so reading the state instead would hold the camera at the
+  // ring's anchor for the whole animation and then step it at the swap.
+  const topNow=lanes.length ? Math.max(...lanes.map(l=>l.topY))
+                            : plateY(speciesAt(intro?0:done));
   const H=R*HALF_FOV;                             // visible world half-height
   const anchored=topNow-H*(1-2*u.tf);             // plate hung off the top edge
   // A SMALLER TARGET Y IS A HIGHER MOLECULE (the frame drops, the content does
@@ -1854,6 +1860,7 @@ function runStep(){
       (function turn(){
         const k=Math.min((performance.now()-t0)/UNFURL,1);
         unfurlApply(l,plan,k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2);
+        computeFit();     // the anchor rides the lane's topY as it climbs
         if(k<1) requestAnimationFrame(turn);
       })();
     });
@@ -1916,13 +1923,21 @@ function drawCaption(){
   // the words were read before it ran, and repeating them under the result just
   // gives the eye somewhere else to go. The band keeps its height, so nothing
   // moves and the camera does not re-frame.
-  const html=reviewing?'':captionAt(focusStep());
-  if(html===shownCaption) return;              // don't restart the fade
-  shownCaption=html;
-  rxmsgEl.querySelector('p').innerHTML=html;
-  rxmsgEl.classList.toggle('show', !!html);
-  rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
-  if(html) rxmsgEl.classList.add('in');
+  // …but the TEXT STAYS IN THE BOX and only its opacity goes. Emptying the <p>
+  // dropped the band from the caption's own height to #rxmsg's 74px floor —
+  // 24px — and usable() measures that band to decide how much stage is left. So
+  // the camera re-framed on the beat the molecule changed, which is the wobble
+  // at the swap that no amount of aligning the molecule could have fixed. The
+  // band keeping its height is what the note above always claimed; now it does.
+  const html=captionAt(focusStep());
+  const show=!reviewing;
+  if(html!==shownCaption){                     // don't restart the fade
+    shownCaption=html;
+    rxmsgEl.querySelector('p').innerHTML=html;
+    rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
+    if(show) rxmsgEl.classList.add('in');
+  }
+  rxmsgEl.classList.toggle('show', show);
 }
 
 const ledgerEl=document.getElementById('ledger');
