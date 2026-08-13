@@ -134,6 +134,8 @@ There is deliberately **no monolithic `engine.js`** — the lessons are distinct
 
 ## Adding a new page
 
+0. **Pick a design starting point from the featured lessons, not a blank page.** Match by information complexity, not paradigm: a single-concept lesson (one idea, one interaction) → `water-lab.html` or `molecule-builder.html`; a multi-step or multi-stage lesson (sequence, levels, several linked facts) → `hemoglobin-lab.html`; a side-by-side comparison → `contrast-lab.html`. Copy that page's layout, panel structure, and copy tone wholesale — a new lesson's first-draft design quality comes from reusing a featured lesson's choices, not inventing new ones.
+
 1. Copy the head (fonts/icons + `sandbox.css` + the scripts you need — see the table above) and the `#app` layout skeleton from `aminoacid-lab.html`, or `contrast-lab.html` if you want the no-FX, no-simulation-loop shape. **Load only the `mol-*.js` domains your page shows**, and put them after `molecules.js` (and after `skel.js` if any of them needs the builder).
 
 2. Add any new molecules to the right `mol-*.js` domain file — never to `molecules.js`, which holds no specs. A molecule in the wrong domain is a molecule some page pays for and never draws. Prefer generating geometry with `tools/sdf2spec.js` (its inputs are committed in `tools/sdf/`) over typing coordinates, give it a `src:` (`check-molecules.js` requires one), then run the checkers. A new domain file also goes in `MolLib.DOMAINS`. **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** (MolecularGeometry.md §1.4 rule 2). This is not advisory: an undeclared claim is one nothing can ever catch, which is how every sugar in this library spent months being the wrong enantiomer.
