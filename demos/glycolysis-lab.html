@@ -397,13 +397,18 @@
      click back to it. Names, carriers, one-way markers and stage blocking live
      in Show 10 steps instead, where they can be read as a list rather than
      squeezed into a strip. */
-  #railbar{display:flex;align-items:center;justify-content:center;
+  #railbar{position:relative;display:flex;align-items:center;justify-content:center;
     padding:12px 22px 10px;z-index:7;
     /* the same dotted paper as the stage and the sidebar — the numbers sit on
        the page, so the bar itself is not a surface */
     background-color:var(--paper);
     background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
     background-size:26px 26px; background-position:13px 13px}
+  /* The lesson's name, top-left. Absolute so the rail stays centred on the row
+     regardless of how wide the word is. */
+  #pagetitle{position:absolute;left:22px;top:50%;transform:translateY(-50%);
+    margin:0;font-family:var(--font-marker);font-weight:700;font-size:24px;
+    letter-spacing:.2px;color:var(--ink)}
   #rail{display:flex;align-items:center;gap:10px}
   .rnum{width:30px;height:30px;padding:0;border-radius:50%;
     border:2px solid var(--hair);background:var(--panel);color:var(--muted);
@@ -597,7 +602,9 @@
     /* Stacked: rail on top, stage, then the readouts under it. Ten numbers fit
        across a phone, which is what makes the rail survive one. */
     #app{grid-template-rows:auto 52vh 1fr}
-    #railbar{grid-column:1;padding:10px 14px 8px}
+    #railbar{grid-column:1;padding:10px 14px 8px;flex-wrap:wrap;gap:6px}
+    /* narrow: the rail needs the full row, so the title sits above it in flow */
+    #pagetitle{position:static;transform:none;flex:0 0 100%;font-size:17px}
     #side{padding:0 16px 24px}
     #ledger{padding:9px 12px}
     #ledger .row{font-size:12px;padding:1.5px 0}
@@ -618,11 +625,11 @@
 <div id="app">
   <!-- THE PATHWAY RAIL, across the top and spanning both columns. The pathway
        is a sequence, and read left-to-right it costs the stage no width at all
-       — which is what the molecules needed. NO TITLE RIDES IT: the rail names
-       every stage in its own block headings, so a heading repeating one of them
-       was the widest thing on the row and the thing the row could least afford.
-       The lesson is named in <title> and by the index page that links here. -->
+       — which is what the molecules needed. The lesson's name rides the left end,
+       absolutely positioned so it costs the rail no width and leaves it centred
+       on the row. -->
   <div id="railbar">
+    <h1 id="pagetitle">Glycolysis</h1>
     <div id="rail"></div>
   </div>
   <div id="stage">
