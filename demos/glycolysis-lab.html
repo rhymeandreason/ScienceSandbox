@@ -441,6 +441,10 @@
     animation:none;width:290px}
   #carrier.full .cvis{height:270px}
   #carrier.full:hover{transform:none}
+  /* IN FULL MODE THE PHOSPHATE IS THE BUTTON, so the box that sits over the
+     molecule must not swallow the pointer — the γ group is hit-tested on the
+     stage instead. The name and prompt above it stay clickable as the fallback. */
+  #carrier.full .cvis{pointer-events:none}
   #carrier.full .cname{font-size:17px}
   /* the schematic: adenosine, then the chain. `.cp` is one phosphate. */
   #carrier .schem{display:flex;align-items:center;gap:3px;height:100%}
@@ -1770,25 +1774,71 @@ const UNFURL=1150;
 // molecule-builder makes: one ring at completion, no glow on the molecule.
 const OFFSCREEN=8.5;    // where reagents come from / products go to, in world Y
 
-// A phosphate arcing in from the cytosol or out toward the tray. This is the
-// page's signature beat: the student should be able to SEE that the thing ATP
-// gives up and the thing ADP receives are the same object. Purely decorative —
-// it reports nothing back, and its cleanup is on a timer so a hidden tab can't
-// leak a stranded mesh into the scene.
-function flyPhosphate(from,to){
-  const p=Stage.atom(PAL.atoms.P, PAL.radii.P*0.8, from.clone(), 'P');
-  p.material=Stage.glowMat(PAL.atoms.P,1.6);
-  const r0=PAL.radii.P*0.8;
-  root.add(p);
+// WHAT FLIES IS A PHOSPHORYL GROUP, not a token for one. It is built out of
+// ATP's OWN γ atoms — Pγ and its three terminal oxygens, recentred on the P —
+// so the thing crossing the stage is the same four atoms the drawing just lost
+// and the sugar is about to gain, at the same scale and in the same colours as
+// both. (It used to be a single glowing sphere, which said "energy moved" when
+// the claim the step actually makes is "this group moved". A kinase transfers
+// PO₃⁻; the bridging O stays behind — see `gamma` in mol-glycolysis.js.)
+//
+// IT IS BUILT IN THE GEOMETRY OF THE END IT LANDS ON, not in a generic one.
+// The flight ends on the same frame `renderLanes` swaps the substrate for the
+// product, so anything the flier does not share with the product's own
+// phosphate — a different P–O splay, a tumbled orientation, a scale pulse —
+// is a visible jolt on the handoff frame. Given the destination spec and its P,
+// the four atoms in the air are laid out exactly as the four about to replace
+// them, and the swap has nothing to show.
+//
+// `terminalO` is derived, never listed: the oxygens on a P that hang off it and
+// nothing else. A BRIDGING O has a second heavy neighbour — C6 on a sugar, Pβ
+// on ATP — and stays with the molecule it came from, which is what a kinase
+// actually does: it moves PO₃⁻ (see `gamma` in mol-glycolysis.js). Testing for
+// "not bonded to a carbon" is not enough; that keeps ATP's α–β–γ bridge and
+// flies four oxygens.
+function terminalO(spec,p){
+  const nb=i=>spec.bonds.filter(b=>b[0]===i||b[1]===i).map(b=>b[0]===i?b[1]:b[0]);
+  return nb(p).filter(i=>spec.atoms[i].el==='O' &&
+    !nb(i).some(j=>j!==p && spec.atoms[j].el!=='H'));
+}
+function phosphorylGroup(spec,p){
+  const c=spec.atoms[p].pos;
+  const at=i=>V(spec.atoms[i].pos[0]-c[0], spec.atoms[i].pos[1]-c[1],
+                spec.atoms[i].pos[2]-c[2]);
+  const g=new THREE.Group();
+  g.add(Stage.atom(PAL.atoms.P, PAL.radii.P, V(0,0,0), 'P'));
+  terminalO(spec,p).forEach(i=>{ const o=at(i);
+    g.add(Stage.bond(V(0,0,0), o, PAL.bonds.covalent));
+    g.add(Stage.atom(PAL.atoms.O, PAL.radii.O, o, 'O'));
+  });
+  return g;
+}
+// A phosphoryl arcing in from the carrier or out toward it. This is the page's
+// signature beat: the student should be able to SEE that the thing ATP gives up
+// and the thing ADP receives are the same object. Purely decorative — it reports
+// nothing back, and its cleanup is on a timer so a hidden tab can't leak a
+// stranded mesh into the scene.
+//
+// NO TUMBLE AND NO SNAP, for the reason above: it flies at a fixed orientation
+// and a fixed size, and simply arrives. `spec`/`p` name the phosphate it is a
+// copy of — the destination's wherever the destination is a molecule on stage
+// (steps 1, 3, 8), otherwise ATP's own γ.
+function flyPhosphate(from,to,spec,p){
+  const g=phosphorylGroup(spec||M.atp, spec?p:M.atp.gly.gamma[0]);
+  g.position.copy(from);
+  root.add(g);
   const t0=performance.now();
   (function fly(){
     const k=Math.min((performance.now()-t0)/FLY,1), e=k*(2-k);   // ease-out
-    p.position.lerpVectors(from,to,e);
-    p.position.y+=2.6*Math.sin(k*Math.PI);                        // arc over the top
-    p.scale.setScalar(r0*(0.75+0.45*Math.sin(k*Math.PI)));
+    g.position.lerpVectors(from,to,e);
+    g.position.y+=2.6*Math.sin(k*Math.PI);                       // arc over the top
     if(k<1) requestAnimationFrame(fly);
   })();
-  later(()=>{ root.remove(p); p.material.dispose(); }, FLY+60);
+  // REMOVED ON THE BEAT THE PRODUCT APPEARS, not a few frames after it. Both
+  // timers are queued at FLY and fire in the order they were registered — this
+  // one first — so the copy leaves and the real thing arrives on one frame,
+  // with no interval where two phosphates sit in the same place.
+  later(()=>{ root.remove(g); }, FLY);
 }
 
 // THE PHOSPHATE COMES OFF ATP, and you should be able to see that it does.
@@ -1991,7 +2041,9 @@ function runStep(){
       // off the carrier that is giving it up (the ATP tile), falling back to the
       // top of the frame if the tray is not on screen
       const from=tileWorld(carrierKey(st.couple.cin),tp) || V(x,OFFSCREEN,0);
-      flyPhosphate(from, tp);
+      // built as the product's OWN phosphate, so the frame it lands on is the
+      // frame the product replaces it and nothing moves
+      flyPhosphate(from, tp, M[key], M[key].gly[st.anchor]);
       later(()=>FXi.spawnRing(tp,PAL.atoms.P), FLY);
     });
 
@@ -2002,8 +2054,11 @@ function runStep(){
       FXi.spawnRing(src,PAL.atoms.P);
       // ...and it lands on the ADP tile that catches it — the same trip as
       // step 1, run backwards, which is the point of a coupled pair
+      // the registered end is the TAKEOFF here — it is a copy of the phosphate
+      // the sugar is losing, so it leaves from exactly where that one stands
       flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src)
-                        || V(l.g.position.x,-OFFSCREEN,0));
+                        || V(l.g.position.x,-OFFSCREEN,0),
+                   M[l.key], M[l.key].gly[st.anchor]);
     });
 
   } else if(st.fx==='ox'){
@@ -2044,7 +2099,7 @@ function runStep(){
     lanes.forEach((l,j)=>{
       const src=anchorWorld(l,st.anchor);
       const dst=siteWorld(keys[j],st.dest,laneOrigin(keys[j],j,n));
-      flyPhosphate(src,dst);
+      flyPhosphate(src, dst, M[keys[j]], M[keys[j]].gly[st.dest]);
       later(()=>FXi.spawnRing(dst,PAL.atoms.P), FLY);
     });
 
@@ -2384,6 +2439,61 @@ function setCarrierPhosphates(n){
   u.bondMeshes.forEach(bm=>{
     if(bm.userData.pair.some(p=>set.has(p))) bm.visible=!gone; });
 }
+/* ---------- CLICKING THE PHOSPHATE ITSELF ----------
+ * On a kinase step the thing you are being asked to spend is not "an ATP", it
+ * is the γ phosphoryl on the end of the chain — so in full-molecule mode that
+ * group IS the button. It is in the main scene, not the DOM, so the hit test is
+ * a raycast against the four γ meshes; hovering swells them, and the click runs
+ * the step, which then flies those same four atoms across (`flyPhosphate`).
+ * The `#carrier` box stays clickable behind it as the fallback path — schematic
+ * mode has no 3D to aim at, and a student who clicks the label should not be
+ * told nothing happened.
+ * Hidden γ meshes are ADP, and Raycaster skips invisible objects, so steps 7
+ * and 10 (where the phosphate arrives rather than leaves) offer no target here.
+ */
+let carrierLive=false;                 // set by drawCarrier, read by the hit test
+const gammaRay=new THREE.Raycaster(), gammaPtr=new THREE.Vector2();
+let gammaHot=false;
+function gammaMeshes(){
+  if(!cMol || !molFull || !carrierLive || !cMol.visible) return null;
+  const u=cMol.userData, set=new Set(M.atp.gly.gamma);
+  return M.atp.gly.gamma.map(i=>u.atomMeshes[i]).filter(Boolean)
+    .concat(u.bondMeshes.filter(bm=>bm.userData.pair.every(p=>set.has(p))));
+}
+function gammaHit(ev){
+  const ms=gammaMeshes(); if(!ms || !ms.length) return false;
+  const c=canvas.getBoundingClientRect();
+  gammaPtr.set((ev.clientX-c.left)/c.width*2-1, -((ev.clientY-c.top)/c.height*2-1));
+  gammaRay.setFromCamera(gammaPtr,camera);
+  return gammaRay.intersectObjects(ms,true).length>0;
+}
+function setGammaHot(on){
+  if(on===gammaHot) return;
+  gammaHot=on;
+  canvas.style.cursor = on ? 'pointer' : '';
+  const ms=gammaMeshes();
+  if(ms) ms.forEach(m=>{ if(m.userData.role!=='covalent') m.scale.setScalar(
+    (PAL.radii[m.userData.role]||1)*(on?1.22:1)); });
+}
+// Listeners on the STAGE, not the canvas: the tray, the ledger and the plates
+// are DOM boxes floating over it, and `#carrier .cvis` sits exactly on top of
+// the molecule — so a listener on the canvas alone never sees the pointer where
+// it matters most. In full mode that box also stops taking clicks (CSS), which
+// is what lets the phosphate be the target rather than the box around it.
+const stageEl=document.getElementById('stage');
+stageEl.addEventListener('pointermove', ev=>setGammaHot(gammaHit(ev)));
+stageEl.addEventListener('pointerleave', ()=>setGammaHot(false));
+// A CLICK, NOT A DRAG. The canvas is also the orbit control, so a click that
+// ended more than a few pixels from where it started was a camera move and must
+// not spend an ATP.
+let gammaDown=null;
+stageEl.addEventListener('pointerdown', ev=>{ gammaDown=[ev.clientX,ev.clientY]; });
+stageEl.addEventListener('pointerup', ev=>{
+  const d=gammaDown; gammaDown=null;
+  if(!d || Math.hypot(ev.clientX-d[0], ev.clientY-d[1])>4) return;
+  if(gammaHit(ev)){ setGammaHot(false); press(runStep); }
+});
+
 // KEEP IT OVER ITS OWN BOX. The molecule is in the scene, so it would otherwise
 // swing away from the tray on an orbit and drift on a zoom; anchoring it to the
 // reserved box every frame keeps the lesson's left column where the layout says
@@ -2444,6 +2554,10 @@ function drawCarrier(st, live, showKey){
   carrierEl.querySelector('.csub').textContent =
     `${n} phosphates · ${isATP?'charged':'discharged'}`;
   carrierEl.onclick = live ? ()=>press(runStep) : null;
+  // the γ group on the stage is the button in full mode; drop any hover state
+  // the moment the step stops being live, or it stays swollen
+  carrierLive = live && isATP;
+  if(!carrierLive) setGammaHot(false);
   const schem=carrierEl.querySelector('.schem');
   schem.style.display = molFull ? 'none' : '';
   // BOTH DRAWINGS ARE ALWAYS DRIVEN, whichever is on screen: the schematic's
