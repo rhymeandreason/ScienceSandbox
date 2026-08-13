@@ -81,7 +81,7 @@
   /* the step's heading, over the button: which of the ten this is, and either
      the hook it is about to demonstrate or the fact that it is done. */
   #stephead{visibility:hidden;min-height:15px;
-    font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    font-family:var(--font-marker);font-weight:700;font-size:16px;
     letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
   #stephead.on{visibility:visible}
   #stephead em{font-style:normal;color:var(--phos)}
@@ -234,7 +234,6 @@
   #actbtn:hover{background:#000;transform:translateY(-2px)}
   #actbtn i{font-size:15px;vertical-align:-1px;margin-left:2px}
 
-  #actbtn.begin{font-size:21px;padding:22px 48px}
   /* the press: a short flash of the button's own fill, in the DOM. Nothing
      chemical has happened yet, so this stays UI feedback and not one of fx.js's
      in-scene effects (SCIENCE.md §5). */
@@ -1254,7 +1253,10 @@ function fitFor(states){
 // vertically; see the note in fitFor for why there is no horizontal twin.
 function usable(){
   const c=canvas.getBoundingClientRect();
-  if(!c.height||!c.width) return {v:1,h:1,shift:0};
+  // EVERY FIELD, even on the no-size path: this runs once before the first
+  // ResizeObserver tick, and a missing field reaches the fit as NaN — which the
+  // camera's ease then carries forever, leaving a blank stage.
+  if(!c.height||!c.width) return {v:1,h:1,shift:0,hshift:0,tf:0,bf:0};
   const reach=(id,edge)=>{
     const e=document.getElementById(id);
     if(!e||!e.getClientRects().length) return 0;
@@ -1301,10 +1303,17 @@ function applyStageShift(){
   document.getElementById('stage').style.setProperty('--stagedx', (fitHS*w).toFixed(1)+'px');
 }
 function computeFit(){
-  const intro0=fitFor([['glucose']]);
-  // every state from the first phosphorylation to the last pyruvate, unioned
-  const path=fitFor(STEPS.map(s=>s.species));
-  const f=(intro&&done===0)?intro0:path;
+  // ONE FIT FOR THE WHOLE PATHWAY, and one closer one for the molecule you start
+  // with. Glucose alone in a frame cut for two lanes is small, and the opening
+  // screen is the one place nothing is being compared — so it gets its own
+  // framing, and the camera pulls back to the pathway's when the first step
+  // RUNS. Not at Begin: pressing Begin only puts the tray on screen, and a zoom
+  // there would have moved the molecule for a reason the student cannot see.
+  // The `busy` term starts the pull-back on the click that spends the ATP,
+  // rather than a beat later when the phosphate has landed.
+  const close = done===0 && !busy;
+  const f = close ? fitFor([['glucose']])
+                  : fitFor(STEPS.map(s=>s.species));
   fitR=f.R; fitY=topAnchoredY(f.R, f.Y); fitHS=usable().hshift;
   applyStageShift();
 }
@@ -1552,12 +1561,16 @@ function drawLedger(){
 
 const trayEl=document.getElementById('tray');
 function drawTray(){
-  // Hidden until Begin. At the intro nothing can be spent, and a row of inert
-  // pools sitting next to the Begin button just invites clicking the wrong
-  // thing — the tray arriving WITH the first step is also what makes it read as
-  // the lesson's instrument rather than as page furniture.
-  if(intro){ trayEl.style.display='none'; trayEl.innerHTML=''; return; }
+  // Invisible until Begin, but NOT absent. At the intro nothing can be spent,
+  // and a row of inert pools sitting next to the Begin button just invites
+  // clicking the wrong thing — the tray arriving WITH the first step is what
+  // makes it read as the lesson's instrument rather than as page furniture.
+  // It still occupies its space, though: usable() measures the tray to decide
+  // how far right the lesson sits, so a tray that took up no room at the intro
+  // made the whole opening screen jump sideways on the first click.
   trayEl.style.display='flex';
+  trayEl.style.visibility = intro ? 'hidden' : 'visible';
+  trayEl.style.pointerEvents = intro ? 'none' : '';
   const pool=poolAt(done), st=done<nSteps?stepAt(done):null;
   trayEl.innerHTML=`<div class="tcue">Carriers</div>`
     +'<div class="tstrip"></div>';
@@ -1600,9 +1613,10 @@ function beginPathway(){
   if(!intro) return;
   press(()=>{
     intro=false; refresh();
-    // computeFit AFTER the toggle: Begin is taller than the step buttons, so
-    // leaving the intro shortens #bottombar — and usable() measures that live.
-    // Nothing else recomputes here, because no lane changes.
+    // refresh() already re-solves the fit. Nothing about the framing changes
+    // here any more — Begin is the same size as every step button and the tray
+    // has been holding its space all along — but the caption does change, and
+    // usable() measures #bottombar live.
     computeFit();
   });
 }
@@ -1622,7 +1636,7 @@ function drawAct(){
   // sidebar — and from step to step it never changes shape or wording either.
   if(intro){
     actEl.style.visibility='visible';
-    actEl.className='begin';
+    actEl.className='';        // the same button, the same size, in the same slot
     actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=beginPathway;
     return;
