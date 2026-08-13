@@ -51,59 +51,13 @@
   const SkelLib = global.SkelLib
     || (typeof require === 'function' ? require('./skel.js').SkelLib : null);
   if (!SkelLib) throw new Error(SELFNAME + ': skel.js must be loaded first');
+  // adenine / ribosyl / phosphoUnit are skel.js's nucleotide fragments — the
+  // three pieces both molecules here are assembled from, and thirteen more
+  // catalog rows after them. See their notes there for the stereochemistry.
   const { GL, AR, V, vadd, vsub, vmul, vnorm, absorb, fitOnto,
-          FURANOSE_UP, FURANOSE_DOWN,
-          ringFuranose, flatRing, fuseRing, flatH } = SkelLib;
+          adenine, ribosyl, flatRing, flatH } = SkelLib;
 
   const COMPARE = {};
-
-  // NOT +1/-1 by inspection — see skel.js's FURANOSE_UP. Getting this
-  // backwards builds L-ribose, which has every bond length, every angle and
-  // every pixel of the real thing. It was backwards here first, and
-  // check-handedness.js is what said so. Both nucleotides below ride on it.
-  const UP = FURANOSE_UP, DOWN = FURANOSE_DOWN;
-
-  /* — adenine, shared by both nucleotides below.
-   * A pure builder: it returns a FRESH Skel every call, so atpSkel's atom
-   * numbering is unaffected by nadhSkel existing. */
-  // --- adenine: purine with an amine at C6 ---------------------------
-  // Same construction as `purine` in mol-contrast.js — a flat six-ring with
-  // an imidazole fused across C4–C5 — because a base is planar and a
-  // tetrahedral builder would pucker it. Indices: 0…5 = N1 C2 N3 C4 C5 C6,
-  // then 6,7,8 = N7 C8 N9.
-  function adenine(){
-    const a = flatRing(6, ['N','C','N','C','C','C']);
-    const five = fuseRing(a, 5, 3, 4, V(0,0,0), ['N','C','N']);   // N7 C8 N9
-    const n7 = five[0], c8 = five[1], n9 = five[2];
-    // One Kekulé structure. The real ring is delocalised, but alternating
-    // orders keep every atom's valence right, which a uniform stick would not
-    // (skel.js's note on AR).  N1=C2 · N3=C4 · C5=C6 · N7=C8
-    a.order(0,1,2).order(2,3,2).order(4,5,2).order(n7,c8,2);
-    // the 6-amino group — what makes this adenine rather than purine. Grown
-    // in the ring plane at the aromatic C–N length, since it is conjugated
-    // into the ring and is not free to rotate out of it.
-    // placed like flatH: in the ring plane, bisecting C6's two neighbours from
-    // outside, so the amine cannot tip the base out of planarity
-    const n6 = (()=>{
-      const dir = vnorm(vmul(a.nbrs(5).reduce(vadd, V(0,0,0)), -1));
-      const j = a.put('N', vadd(a.at(5), vmul(dir, AR.CN)));
-      a.link(5, j); return j;
-    })();
-    flatH(a, 1, AR.CH);            // H2
-    flatH(a, c8, AR.CH);           // H8
-    // the amine's two H, in the plane, splayed off the C6–N bond
-    {
-      const back = vnorm(vsub(a.at(5), a.at(n6)));
-      const side = vnorm(V(-back.z, 0, back.x));      // in-plane perpendicular
-      const c = Math.cos(Math.PI/3), sn = Math.sin(Math.PI/3);
-      [1,-1].forEach(k=>{
-        const d = vnorm(vadd(vmul(back,-c), vmul(side, k*sn)));
-        const h = a.put('H', vadd(a.at(n6), vmul(d, AR.NH)));
-        a.link(n6, h);
-      });
-    }
-    return { s:a, n9 };
-  }
 
 
   {
@@ -114,58 +68,31 @@
      *  as coordinates, and the joins go through skel.js's fitOnto/absorb — the
      *  same pair maltose and cellobiose are assembled with.
      *
-     *  STEREOCHEMISTRY IS THE WHOLE RISK, and it is confined to four calls.
-     *  The ribose is β-D-ribofuranose, and its identity is which FACE of the
-     *  near-flat ring each substituent sits on — a five-ring is too flat for
-     *  axial/equatorial to mean anything (skel.js, `face`). The face pattern
-     *  below is the one `ribose` in mol-contrast.js already carries and that
-     *  check-handedness.js already matches against beta-D-ribofuranose:
-     *  base UP at C1′, –OH DOWN at C2′ and C3′, C5′ UP at C4′. Copied as a
-     *  PATTERN, not as coordinates — arabinose, xylose and lyxose differ from
-     *  ribose in nothing else.
+     *  STEREOCHEMISTRY IS THE WHOLE RISK, and it now lives in skel.js's
+     *  ribosyl() — the ring, its 2′/3′ faces and the reserved β slot at C1′.
+     *  Read its note before touching a sugar face; getting one backwards builds
+     *  L-ribose, which renders identically.
      */
     // --- ribose, and everything hung off it ----------------------------
-    const s = ringFuranose();
-    const RING = [0,1,2,3,4];            // O4′, C1′, C2′, C3′, C4′
-    const c1 = 1, c2 = 2, c3 = 3, c4 = 4;
-
-    // Where the base attaches: C1′'s UP face, the β configuration. Taken as a
-    // DIRECTION rather than grown as an atom, because the atom it leads to is
-    // the far side of a ring system built elsewhere.
-    const n9dir = s.freeTet(c1)[s.face(c1, RING, UP)];
-    const n9pos = vadd(s.at(c1), vmul(n9dir, GL.CN));
-
-    const o2 = s.hydroxyl(c2, s.face(c2, RING, DOWN));
-    const o3 = s.hydroxyl(c3, s.face(c3, RING, DOWN));
-    const c5 = s.grow(c4, 'C', GL.CC, 'sp3', s.face(c4, RING, UP));
+    const rib = ribosyl(), s = rib.s;
+    const c1 = rib.c1, c2 = rib.c2, c3 = rib.c3, c4 = rib.c4, c5 = rib.c5;
+    const n9dir = rib.baseDir, n9pos = rib.basePos;
 
     // --- the triphosphate ----------------------------------------------
-    // Grown one atom at a time rather than through Skel.phosphate(), which
-    // builds a TERMINAL phosphate (P plus three O). Here the α and β phosphorus
-    // each spend a slot on a bridging oxygen instead, and that chain — three P
-    // in a row, γ on the end — is the only claim ATP's picture makes.
+    // Not Skel.phosphate(), which builds a TERMINAL phosphate (P plus three O).
+    // Here the α and β phosphorus each spend a slot on a bridging oxygen
+    // instead, and that chain — three P in a row, γ on the end — is the only
+    // claim ATP's picture makes. phosphoUnit() is one link of it; its note
+    // carries the slot-0 and bridge-first traps.
     //
-    // EVERY SLOT HERE IS 0, and that is not laziness. freeTet() returns the
-    // slots still FREE at that atom, so the numbering shifts down after each
-    // grow — asking for slot 2 on a phosphorus that already has three bonds
-    // reads past the end of a one-element list. Slot 0 is also seeded to point
-    // away from everything placed so far (skel.js's `outwardAt`), which is why
-    // each BRIDGE is grown before its phosphorus's terminal oxygens: the bridge
-    // takes the outward direction and the chain extends, instead of the second
-    // phosphate folding back over the sugar it just came off.
+    // Anionic, not acid: ATP is stored as the physiological tetra-anion, and
+    // the charge on those phosphates IS the lesson.
     const o5  = s.grow(c5, 'O', GL.CO, 'sp3', 0);
-    const pa  = s.grow(o5, 'P', GL.OP, 'sp3', 0);
-    const oab = s.grow(pa, 'O', GL.OP, 'sp3', 0);     // α–β bridge, outward
-    s.grow(pa, 'O', GL.PO, 'sp3', 0, 2);              // Pα=O
-    s.grow(pa, 'O', GL.PO, 'sp3', 0);                 // Pα–O⁻
-    const pb  = s.grow(oab, 'P', GL.OP, 'sp3', 0);
-    const obg = s.grow(pb, 'O', GL.OP, 'sp3', 0);     // β–γ bridge, outward
-    s.grow(pb, 'O', GL.PO, 'sp3', 0, 2);              // Pβ=O
-    s.grow(pb, 'O', GL.PO, 'sp3', 0);                 // Pβ–O⁻
-    const pg  = s.grow(obg, 'P', GL.OP, 'sp3', 0);
-    const g1  = s.grow(pg, 'O', GL.PO, 'sp3', 0, 2);  // Pγ=O
-    const g2  = s.grow(pg, 'O', GL.PO, 'sp3', 0);     // and its two O⁻ —
-    const g3  = s.grow(pg, 'O', GL.PO, 'sp3', 0);     // together, the γ group
+    const a1  = s.phosphoUnit(o5, {});                 // Pα + α–β bridge
+    const a2  = s.phosphoUnit(a1.bridge, {});          // Pβ + β–γ bridge
+    const a3  = s.phosphoUnit(a2.bridge, {terminal:true});   // Pγ and its three O
+    const pa = a1.p, pb = a2.p, pg = a3.p;
+    const [g1, g2, g3] = a3.oxy;                       // together, the γ group
 
     // --- join the base on -----------------------------------------------
     // N9 lands on the position C1′'s β face points at, with the base's own
@@ -278,29 +205,19 @@
      */
 
     // --- the adenosine half ---------------------------------------------
-    const s = ringFuranose();
-    const RING = [0,1,2,3,4];            // O4′, C1′, C2′, C3′, C4′
-    const c1 = 1, c2 = 2, c3 = 3, c4 = 4;
-    const n9dir = s.freeTet(c1)[s.face(c1, RING, UP)];      // β face — reserved
-    const n9pos = vadd(s.at(c1), vmul(n9dir, GL.CN));
-    s.hydroxyl(c2, s.face(c2, RING, DOWN));
-    s.hydroxyl(c3, s.face(c3, RING, DOWN));
-    const c5 = s.grow(c4, 'C', GL.CC, 'sp3', s.face(c4, RING, UP));
+    const ribA = ribosyl(), s = ribA.s;
+    const c1 = ribA.c1, c2 = ribA.c2, c3 = ribA.c3, c4 = ribA.c4, c5 = ribA.c5;
+    const n9dir = ribA.baseDir, n9pos = ribA.basePos;
 
     // --- the pyrophosphate bridge ----------------------------------------
-    // Every slot is 0 for atpSkel's reason (freeTet renumbers as slots fill),
-    // and each BRIDGING oxygen is grown before its phosphorus's terminal pair
-    // so the chain takes the outward direction and extends instead of folding
-    // back over the sugar it just left.
+    // `acid:true` — the NEUTRAL molecule, so each phosphorus keeps its –OH
+    // rather than the bare O⁻ atpSkel shows. phosphoUnit()'s note carries the
+    // slot-0 and bridge-first traps; the second unit's "bridge" is the ester
+    // that the nicotinamide ribose is fitted onto below.
     const o5  = s.grow(c5, 'O', GL.CO, 'sp3', 0);
-    const pa  = s.grow(o5, 'P', GL.OP, 'sp3', 0);
-    const oab = s.grow(pa, 'O', GL.OP, 'sp3', 0);      // α–β bridge, outward
-    s.grow(pa, 'O', GL.PO, 'sp3', 0, 2);               // Pα=O
-    s.grow(s.grow(pa, 'O', GL.PO, 'sp3', 0), 'H', GL.OH, 'sp3', 0);   // Pα–OH
-    const pb  = s.grow(oab, 'P', GL.OP, 'sp3', 0);
-    const o5b = s.grow(pb, 'O', GL.OP, 'sp3', 0);      // ester to ribose 2, outward
-    s.grow(pb, 'O', GL.PO, 'sp3', 0, 2);               // Pβ=O
-    s.grow(s.grow(pb, 'O', GL.PO, 'sp3', 0), 'H', GL.OH, 'sp3', 0);   // Pβ–OH
+    const u1  = s.phosphoUnit(o5, {acid:true});
+    const u2  = s.phosphoUnit(u1.bridge, {acid:true});
+    const pa = u1.p, pb = u2.p, o5b = u2.bridge;
 
     // --- join adenine on, then the sugar's C–H ---------------------------
     // BEFORE the C–H, for atpSkel's reason: n9dir only RESERVED C1′'s β slot,
@@ -360,14 +277,11 @@
     }
 
     // --- the nicotinamide riboside half ----------------------------------
-    const r = ringFuranose();
-    const RING2 = [0,1,2,3,4];
-    const b1 = 1, b2 = 2, b3 = 3, b4 = 4;
-    const n1dir = r.freeTet(b1)[r.face(b1, RING2, UP)];     // β face — reserved
-    const n1pos = vadd(r.at(b1), vmul(n1dir, GL.CN));
-    r.hydroxyl(b2, r.face(b2, RING2, DOWN));
-    r.hydroxyl(b3, r.face(b3, RING2, DOWN));
-    const b5 = r.grow(b4, 'C', GL.CC, 'sp3', r.face(b4, RING2, UP));
+    // The same sugar again, which is the point of ribosyl(): a dinucleotide's
+    // two halves differ in what they carry, not in the ribose that carries it.
+    const ribB = ribosyl(), r = ribB.s;
+    const b1 = ribB.c1, b2 = ribB.c2, b3 = ribB.c3, b4 = ribB.c4, b5 = ribB.c5;
+    const n1dir = ribB.baseDir, n1pos = ribB.basePos;
     // RESERVE C5″'s bond to the bridge before anything else can take it — same
     // trap as n9dir, and the reason C5″'s own hydrogens are grown last of all,
     // after the ester link exists.
