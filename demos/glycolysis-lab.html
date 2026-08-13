@@ -157,6 +157,35 @@
   #ledger .row.carb .v{font-size:15px;color:var(--carbon);letter-spacing:.5px}
   #ledger .bump{animation:bump .7s ease}
   @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
+  /* NET ATP SWELLS AND SETTLES rather than starting big — the other rows are
+     counts being incremented, but this one is the arithmetic changing its mind,
+     and a number that grows out of itself is the beat the whole page is for.
+     Bigger and slower than the plain bump, and it comes back to rest. */
+  #ledger .row.net .v.bump{animation:netpulse .78s cubic-bezier(.3,.8,.3,1)}
+  @keyframes netpulse{
+    0%  {transform:scale(1)}
+    32% {transform:scale(1.55);color:var(--phos)}
+    100%{transform:scale(1)}}
+
+  /* ---------- the chip that carries the count to the ledger ----------
+     A number appearing in the corner is a fact you have to go and find. The
+     thing the step just produced FLIES there — off the tray tile that spent or
+     caught it, or off the molecule's own label for pyruvate — and the row only
+     ticks when it lands. So the tally is visibly the consequence of the
+     reaction rather than a second thing to notice.
+     TWO ELEMENTS, ONE FLIGHT: the outer carries x, the inner carries y, on
+     different easings — that is what makes it an arc rather than a slide. */
+  #flylayer{position:fixed;inset:0;z-index:20;pointer-events:none}
+  #flylayer .fchip,#flylayer .fy{position:absolute;left:0;top:0;will-change:transform}
+  #flylayer .fy{position:static;display:block}
+  #flylayer .fchip span.fb{display:block;transform-origin:50% 50%;
+    font-family:var(--font-slab);font-weight:700;font-size:13px;line-height:1;
+    padding:4px 9px;border-radius:999px;background:var(--panel);
+    border:1.5px solid currentColor;white-space:nowrap;
+    box-shadow:0 3px 10px -3px rgba(60,50,28,.45)}
+  #flylayer .fchip.land span.fb{transform:scale(.5);opacity:0;
+    transition:transform .18s ease-in, opacity .18s ease-in}
+  @media (prefers-reduced-motion:reduce){ #flylayer{display:none} }
 
   /* ---------- the coupling box, under the ledger ----------
      The step's energy picture — A SHEET OF PAPER, like everything else on this
@@ -1342,9 +1371,17 @@ let fitR=24, fitY=0, fitHS=0;
 // The DOM layers over the canvas take the same slide as the frustum, in pixels
 // — the action button and the step caption are ABOUT the molecule, so they
 // belong over it and not over the canvas's own middle.
+// The FIRST shift is the initial placement, not a move: --stagedx starts at 0,
+// so transitioning to it slides the button and caption in from the left on load.
+// Set it with the transition suppressed, and let every later shift animate.
+let shifted=false;
 function applyStageShift(){
-  const w=canvas.clientWidth||0;
+  const w=canvas.clientWidth||0, bar=document.getElementById('bottombar');
+  if(!shifted) bar.style.transition='none';
   document.getElementById('stage').style.setProperty('--stagedx', (fitHS*w).toFixed(1)+'px');
+  // only counts as placed once the canvas has a width — before that the shift
+  // is 0 and the real one would still slide in
+  if(!shifted){ bar.offsetWidth; bar.style.transition=''; if(w) shifted=true; }
 }
 function computeFit(){
   // ONE FIT FOR THE WHOLE PATHWAY, and one closer one for the molecule you start
@@ -1411,7 +1448,10 @@ const anchorWorld=(l,which)=>{
 // step, which is the right failure mode.
 let timers=[];
 const later=(fn,ms)=>{ timers.push(setTimeout(fn,ms)); };
-const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[]; };
+// Chips in the air are driven by those timers, so they go with them — a
+// restart mid-flight must not leave one parked over the page.
+const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[];
+  flyLayer.replaceChildren(); };
 
 const FLY=620, SPLIT=840;
 // NO popGlow ON THIS PAGE. The product used to flash and punch out as it landed,
@@ -1589,7 +1629,67 @@ function drawCaption(){
 }
 
 const ledgerEl=document.getElementById('ledger');
-let prevLedger=null;
+
+/* ---------- the count flies to the ledger ----------
+ * The ledger is 300px away from where you are looking, and a number that
+ * changes there while the molecule is still landing changes unwatched. So the
+ * thing counted MAKES THE TRIP: a chip leaves the tray tile that spent or
+ * caught the carrier (the ATP tile for a spend, the ADP tile for a charge, the
+ * NAD⁺ tile for a hydride) — or the molecule's own name plate, for pyruvate —
+ * and the row holds its OLD number until the chip arrives. The tick is the
+ * landing, so cause and tally are one event and not two.
+ *
+ * ONE CHIP PER UNIT, staggered: two lanes each make one ATP, so two chips is
+ * what actually happened. Both take off from the same tile because the tray is
+ * a pool, not a pair of pools.
+ *
+ * Flights are fire-and-forget and the ledger is replaced wholesale on every
+ * refresh, so a landing re-finds its row by `data-row` and checks the
+ * generation it was launched for — a rewind or a jump mid-flight simply drops
+ * the tick, because that render already wrote the true number.
+ */
+const flyLayer=document.createElement('div');
+flyLayer.id='flylayer'; document.body.appendChild(flyLayer);
+const FLY_MS=FLY, FLY_GAP=110;   // the same flight time the phosphates take
+const ROWCOL={spent:'var(--atp)', made:'var(--atp)', nadh:'var(--nad)',
+              pyr:'var(--carbon)'};
+function flyChip(src,dst,text,color,delay,onLand){
+  const a=src&&src.getBoundingClientRect(), b=dst&&dst.getBoundingClientRect();
+  if(!a||!b||!b.width){ later(onLand, delay+FLY_MS); return; }   // still tick
+  const x0=a.left+a.width/2, y0=a.top+a.height/2;
+  const x1=b.left+b.width/2, y1=b.top+b.height/2;
+  const outer=document.createElement('div'); outer.className='fchip';
+  const fy=document.createElement('div'); fy.className='fy';
+  const face=document.createElement('span'); face.className='fb';
+  face.textContent=text; face.style.color=color;
+  fy.appendChild(face); outer.appendChild(fy); flyLayer.appendChild(outer);
+  // start on the source, centred on it (the chip's own box is measured now)
+  const r=face.getBoundingClientRect();
+  const ox=-r.width/2, oy=-r.height/2;
+  outer.style.transform=`translateX(${x0+ox}px)`;
+  fy.style.transform=`translateY(${y0+oy}px)`;
+  later(()=>{
+    // x eases out, y eases with a lift — together that is a throw, and a throw
+    // is what the eye follows across a gap this wide
+    outer.style.transition=`transform ${FLY_MS}ms cubic-bezier(.25,.6,.3,1)`;
+    fy.style.transition=`transform ${FLY_MS}ms cubic-bezier(.5,-0.35,.7,1)`;
+    outer.style.transform=`translateX(${x1+ox}px)`;
+    fy.style.transform=`translateY(${y1+oy}px)`;
+  }, delay);
+  later(()=>{ outer.classList.add('land'); onLand(); }, delay+FLY_MS);
+  later(()=>outer.remove(), delay+FLY_MS+240);
+}
+// Where a count takes off from. The carriers leave the tray tile they were
+// spent from or caught by; pyruvate leaves its own molecule's name plate,
+// because nothing in the tray made it.
+function flySource(key,j){
+  const tile=k=>trayEl.querySelector(`.reag[data-key="${k}"]`);
+  if(key==='spent') return tile('ATP')||tile('ADP');
+  if(key==='made')  return tile('ADP')||tile('ATP');
+  if(key==='nadh')  return tile('NAD')||tile('NADH');
+  return platesEl.children[j] || platesEl.children[0];
+}
+let prevLedger=null, ledgerGen=0;
 function drawLedger(){
   const L=ledgerAt(done), net=L.made-L.spent, c=speciesAt(done).map(k=>M[k].gly.carbons);
   // The two PRODUCTS, counted off the same state everything else here reads.
@@ -1597,24 +1697,66 @@ function drawLedger(){
   // what is actually standing in the lanes — so neither number can drift from
   // the stage: the tray's NADH tile and these two pyruvate ARE these figures.
   L.pyr=speciesAt(done).filter(k=>k==='pyruvate').length;
-  const bumped=k=>prevLedger && prevLedger[k]!==L[k] ? ' bump':'';
+  // A COUNT THAT WENT UP ON A STEP JUST RUN IS FLOWN IN; anything else — a
+  // rewind, a jump on the rail, a restart — is a state change and not an event,
+  // so it just appears. `reviewing && !busy` is the one moment a step has landed.
+  const gen=++ledgerGen, prev=prevLedger;
+  const flying={};
+  if(prev && reviewing && !busy) for(const k of ['spent','made','nadh','pyr'])
+    if(L[k]>prev[k]) flying[k]=L[k]-prev[k];
+  const inFlight=Object.keys(flying).length>0;
+  // rows in flight show the number they had until their chip lands
+  const shown=k=>flying[k]!=null ? prev[k] : L[k];
+  const bumped=k=>!flying[k] && prev && prev[k]!==L[k] ? ' bump':'';
+  const netNow = inFlight ? prev.made-prev.spent : net;
+  const netStr=v=>`${v>0?'+':v<0?'−':''}${Math.abs(v)}`;
   ledgerEl.innerHTML=
      `<div class="lhead">Running ledger</div>`
-    +`<div class="row"><span>ATP spent</span><span class="v${bumped('spent')}">${L.spent}</span></div>`
-    +`<div class="row"><span>ATP made</span><span class="v${bumped('made')}">${L.made}</span></div>`
+    +`<div class="row"><span>ATP spent</span><span class="v${bumped('spent')}" data-row="spent">${shown('spent')}</span></div>`
+    +`<div class="row"><span>ATP made</span><span class="v${bumped('made')}" data-row="made">${shown('made')}</span></div>`
     // typographic minus, not a hyphen — "−2" is a quantity, and the dip to −2 is
     // the single number this whole page is built to make land
-    +`<div class="row net"><span>Net ATP</span><span class="v">${net>0?'+':net<0?'−':''}${Math.abs(net)}</span></div>`
+    +`<div class="row net"><span>Net ATP</span><span class="v" data-row="net">${netStr(netNow)}</span></div>`
     // THE OTHER TWO THINGS GLYCOLYSIS PRODUCES. ATP is the headline and it is
     // the one that dips, but a student asked what glycolysis makes has to be
     // able to say "2 ATP, 2 NADH and 2 pyruvate" — and only the ATP was being
     // added up anywhere. The tray still carries NADH as the loaded half of a
     // carrier pair, which is the reading that makes NAD⁺ running to 0 mean
     // something; this is the tally beside it, not instead of it.
-    +`<div class="row prod"><span>NADH</span><span class="v${bumped('nadh')}">${L.nadh}</span></div>`
-    +`<div class="row"><span>Pyruvate</span><span class="v${bumped('pyr')}">${L.pyr}</span></div>`
+    +`<div class="row prod"><span>NADH</span><span class="v${bumped('nadh')}" data-row="nadh">${shown('nadh')}</span></div>`
+    +`<div class="row"><span>Pyruvate</span><span class="v${bumped('pyr')}" data-row="pyr">${shown('pyr')}</span></div>`
     +`<div class="row carb"><span>Carbons</span><span class="v">${c.join(' + ')}${c.length>1?' = 6':''}</span></div>`;
   prevLedger=L;
+  // LAUNCH AFTER THE REST OF THE REFRESH. The tray is redrawn after this
+  // function, and the tile a chip takes off from is the one that redraw leaves
+  // behind — measuring the old one would launch from a tile about to move.
+  if(inFlight){
+    // where each row stood before this step — a chip ticks its row by ONE, so
+    // two ATP arriving are counted 0→1→2 rather than snapping to 2 twice
+    const base={}; for(const k in flying) base[k]=prev[k];
+    const baseNet=prev.made-prev.spent;
+    later(()=>{
+      for(const k in flying){
+        const n=flying[k];
+        for(let j=0;j<n;j++) flyChip(
+          flySource(k,j), ledgerEl.querySelector(`[data-row="${k}"]`),
+          '+1', ROWCOL[k], j*FLY_GAP, ()=>{
+            if(gen!==ledgerGen) return;      // a rewind or jump already redrew it
+            tick(k, base[k]+j+1, true);
+            // the net row is the two ATP rows added up, so it ticks with them
+            if(k==='spent') tick('net', netStr(baseNet-j-1), true);
+            if(k==='made')  tick('net', netStr(baseNet+j+1), true);
+          });
+      }
+    }, 0);
+  }
+}
+// Write a landed number into its row and flash it.
+function tick(row,val,bump){
+  const el=ledgerEl.querySelector(`[data-row="${row}"]`);
+  if(!el) return;
+  el.textContent=val;
+  if(bump){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
 }
 
 const trayEl=document.getElementById('tray');
@@ -1654,6 +1796,7 @@ function drawTray(){
     const live=!!st && st.reagent===r.key && !busy && !reviewing;
     const d=document.createElement('div');
     d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
+    d.dataset.key=r.key;   // the flight to the ledger takes off from this tile
     d.innerHTML=(live?`<span class="need">← ${st.need}</span>`:'')
       +`<div class="rname">${r.name}</div>`
       +`<div class="rsub">${r.sub}</div>`;
