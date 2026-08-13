@@ -275,6 +275,93 @@
     s.grow(1,'H',GL.OH,'sp3',0);
     GLYCOLYSIS.pi=s.spec({ name:'Inorganic phosphate', short:'Pᵢ', formula:'HPO₄²⁻', class:'ion',
       gly:{ carbons:0, phosphates:1, free:true } });
+    // — ATP, the carrier the priming steps spend and the payoff steps recharge.
+    //   NOT built by Skel: adenine + ribose + a triphosphate chain is 31 heavy
+    //   atoms and three fused/ring systems, so it comes from the PubChem 3D
+    //   record for the TETRAANION (the cytosolic form) through
+    //   tools/sdf2spec-generic.js, the same path AMP took in mol-monomers.js.
+    //   Identified by CID, never by name: 'ATP' returns the neutral acid, which
+    //   is a different charge state and a different atom count.
+    //
+    //   THE CLAIM THIS MOLECULE MAKES is the phosphate chain: three of them in
+    //   a row, α through γ, with γ on the end. That is the whole reason ATP is
+    //   the currency and the whole reason the page can take one off. `gamma`
+    //   is the phosphoryl group that TRANSFERS — P plus its three terminal O.
+    //   The bridging O between β and γ stays behind and becomes a terminal
+    //   oxygen of ADP, which is what a kinase actually does: it moves PO₃⁻,
+    //   not the whole phosphate. Removing exactly these four atoms from a built
+    //   ATP therefore gives a correct ADP, which is how the page draws it.
+    //
+    //   HANDEDNESS IS INHERITED, NOT CHECKED HERE. The ribose has four
+    //   stereocentres and no internal check can catch a global mirror
+    //   (MolecularGeometry.md §1.3) — this spec's guarantee is its provenance:
+    //   a CID whose name fixes the configuration (2R,3S,4R,5R), through a
+    //   converter that keeps its basis right-handed. That is exactly the cover
+    //   `amp` has in mol-monomers.js, and no more: neither carries a `smiles`,
+    //   so `tools/check-handedness.js` skips both. Give this one a `smiles` and
+    //   a REF entry if it ever becomes a molecule the page teaches ABOUT
+    //   rather than one it spends.
+    GLYCOLYSIS.atp={ name:'Adenosine triphosphate', short:'ATP',
+      formula:'C₁₀H₁₂N₅O₁₃P₃⁴⁻', class:'nucleotide',
+      units:'angstrom',
+      src:{path:'pubchem', cid:5461108, record:'3d',
+           conformer:'0053547400000001', sdf:'atp.sdf',
+           tool:'sdf2spec-generic', charge:-4, regen:'exact', fetched:'2026-08-12'},
+      // adenine is the fused bicycle, ribose the third ring
+      topology:{rings:[5,5,6], fused:true},
+      gly:{ carbons:10, phosphates:3, carrier:true,
+            pa:0, pb:1, pg:2,
+            // the transferring phosphoryl: Pγ and its three terminal oxygens
+            gamma:[2,13,14,15],
+            // what is left once those four go, for the label beside it
+            spent:{ name:'Adenosine diphosphate', short:'ADP',
+                    formula:'C₁₀H₁₂N₅O₁₀P₂³⁻', phosphates:2 } },
+      atoms:[ {el:'P',pos:[-3,-1.42,-1.163]},
+              {el:'P',pos:[-0.234,-2.465,-1.045]},
+              {el:'P',pos:[2.258,-2.882,0.526]},
+              {el:'O',pos:[-1.352,0.358,1.474]},
+              {el:'O',pos:[-1.361,3.12,3.107]},
+              {el:'O',pos:[-3.831,2.91,1.972]},
+              {el:'O',pos:[-3.406,-0.055,-0.358]},
+              {el:'O',pos:[-1.563,-1.728,-0.448]},
+              {el:'O',pos:[-2.757,-1.091,-2.621]},
+              {el:'O',pos:[-3.971,-2.51,-0.768]},
+              {el:'O',pos:[0.713,-2.361,0.283]},
+              {el:'O',pos:[0.355,-1.595,-2.132]},
+              {el:'O',pos:[-0.561,-3.921,-1.296]},
+              {el:'O',pos:[2.565,-2.485,1.966]},
+              {el:'O',pos:[2.176,-4.387,0.296]},
+              {el:'O',pos:[3.076,-2.132,-0.52]},
+              {el:'N',pos:[0.297,1.59,0.292]},
+              {el:'N',pos:[0.774,1.777,-1.88]},
+              {el:'N',pos:[2.541,1.336,1.188]},
+              {el:'N',pos:[4.217,1.396,-0.584]},
+              {el:'N',pos:[3.64,1.675,-2.89]},
+              {el:'C',pos:[-1.399,2.744,1.731]},
+              {el:'C',pos:[-2.771,2.225,1.341]},
+              {el:'C',pos:[-0.501,1.524,1.517]},
+              {el:'C',pos:[-2.697,0.768,1.766]},
+              {el:'C',pos:[-3.679,-0.126,1.03]},
+              {el:'C',pos:[1.657,1.502,0.192]},
+              {el:'C',pos:[-0.187,1.754,-0.98]},
+              {el:'C',pos:[1.932,1.62,-1.161]},
+              {el:'C',pos:[3.27,1.562,-1.538]},
+              {el:'C',pos:[3.8,1.295,0.701]},
+              {el:'H',pos:[-1.11,3.627,1.153]},
+              {el:'H',pos:[-2.897,2.324,0.259]},
+              {el:'H',pos:[0.195,1.384,2.352]},
+              {el:'H',pos:[-2.863,0.667,2.846]},
+              {el:'H',pos:[-4.713,0.189,1.199]},
+              {el:'H',pos:[-3.572,-1.156,1.386]},
+              {el:'H',pos:[-0.453,3.406,3.304]},
+              {el:'H',pos:[-4.662,2.487,1.698]},
+              {el:'H',pos:[-1.241,1.843,-1.201]},
+              {el:'H',pos:[4.585,1.161,1.438]},
+              {el:'H',pos:[4.619,1.63,-3.139]},
+              {el:'H',pos:[2.935,1.799,-3.604]} ],
+      bonds:[[0,6,null],[0,7,null],[0,8,null],[0,9,2],[1,7,null],[1,10,null],[1,11,null],[1,12,2],[2,10,null],[2,13,null],[2,14,null],[2,15,2],[3,23,null],[3,24,null],[4,21,null],[4,37,null],[5,22,null],[5,38,null],[6,25,null],[16,23,null],[16,26,null],[16,27,null],[17,27,2],[17,28,null],[18,26,2],[18,30,null],[19,29,null],[19,30,2],[20,29,null],[20,41,null],[20,42,null],[21,22,null],[21,23,null],[21,31,null],[22,24,null],[22,32,null],[23,33,null],[24,25,null],[24,34,null],[25,35,null],[25,36,null],[26,28,null],[27,39,null],[28,29,2],[30,40,null]],
+      optH:[31,32,33,34,35,36,39,40],
+    };
   }
   register(GLYCOLYSIS);
 })(this);

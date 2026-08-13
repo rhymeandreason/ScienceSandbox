@@ -39,8 +39,11 @@
  *                                 mean anything. RELATIVE pattern only — the
  *                                 normal's sign is arbitrary, so this cannot
  *                                 catch a global mirror   [ribose, deoxyribose]
- *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that a
- *               fused:true }      bicycle shares an edge  [purine/pyrimidine]
+ *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that some
+ *               fused:true }      pair shares an edge     [purine/pyrimidine]
+ *    gly:{ phosphates:n }         n phosphorus atoms, and — where the spec also
+ *                                 names pa/pb/pg — that they form ONE chain
+ *                                 bridged by oxygen with γ on the end [ATP]
  *    chirality:'L'                signed volume over CIP priorities
  *                                 N > C(carboxyl) > R > H. Requires `pep`, so
  *                                 amino acids only        [the amino acids]
@@ -432,8 +435,14 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     } else if (mol.topology.fused) {
       // "fused" is a real structural claim, not decoration: two rings sharing a
       // single atom (spiro) or none at all is a different molecule entirely.
-      const shared = rings.length === 2
-        ? rings[0].filter(i => rings[1].includes(i)).length : 0;
+      // The claim is that SOME pair of these rings shares an edge — a molecule
+      // may carry a fused bicycle and an unrelated ring elsewhere (ATP: adenine
+      // fused 5+6, plus the ribose), and requiring exactly two rings would make
+      // the claim untellable there rather than false.
+      let shared = 0;
+      for (let a = 0; a < rings.length; a++)
+        for (let b = a + 1; b < rings.length; b++)
+          shared = Math.max(shared, rings[a].filter(i => rings[b].includes(i)).length);
       if (shared < 2) {
         stereoFails++;
         console.log(`   TOPOLOGY FAIL: spec declares fused rings but they share `
@@ -443,6 +452,47 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
       }
     } else {
       console.log(`   topology OK: rings [${sizes.join(', ')}] as declared`);
+    }
+  }
+
+  // ---- phosphate count, and the chain when there is one ----------------
+  // `gly.phosphates` was metadata that nothing read back against the atoms, so
+  // a spec could say 2 and draw 1. It says P COUNT, and now it has to be true.
+  //
+  // ATP goes further: it names pa/pb/pg, and its claim is that those three are
+  // ONE CHAIN bridged by oxygen with γ on the end. That is the claim the whole
+  // lesson rests on — a triphosphate branched at Pβ, or a γ that is not the
+  // terminal one, would still render as a plausible ATP and would make
+  // "the end phosphate comes off" a lie. `gly.gamma` is checked with it: it must
+  // be exactly Pγ plus its three TERMINAL oxygens, because those four atoms are
+  // what the page deletes to make ADP, and the bridging O has to stay behind.
+  if (mol.gly && mol.gly.phosphates != null) {
+    const P = mol.atoms.map((a, i) => [a.el, i]).filter(([e]) => e === 'P').map(([, i]) => i);
+    if (P.length !== mol.gly.phosphates) {
+      stereoFails++;
+      console.log(`   PHOSPHATE FAIL: spec declares ${mol.gly.phosphates} phosphate(s) `
+        + `but geometry has ${P.length} P atom(s)`);
+    } else if (mol.gly.pg != null) {
+      const g = mol.gly, adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                                        .map(b => (b[0] === i ? b[1] : b[0]));
+      const bridges = (i, j) => adj(i).some(o => mol.atoms[o].el === 'O' && adj(j).includes(o));
+      const term = i => adj(i).filter(o => mol.atoms[o].el === 'O' && adj(o).length === 1);
+      const fail = m => { stereoFails++; console.log(`   PHOSPHATE FAIL: ${m}`); };
+      if (!bridges(g.pa, g.pb) || !bridges(g.pb, g.pg))
+        fail(`Pα–Pβ–Pγ is not one O-bridged chain`);
+      else if (bridges(g.pa, g.pg))
+        fail(`Pα is bridged straight to Pγ — that is a ring, not a chain`);
+      else if (term(g.pg).length !== 3)
+        fail(`Pγ carries ${term(g.pg).length} terminal O, not 3 — it is not on the end`);
+      else {
+        const want = [g.pg, ...term(g.pg)].sort((a, b) => a - b);
+        const got = (g.gamma || []).slice().sort((a, b) => a - b);
+        if (got.join() !== want.join())
+          fail(`gamma is [${got.join(', ')}] but Pγ + its terminal O are [${want.join(', ')}]`);
+        else console.log(`   phosphates OK: α–β–γ chain, γ terminal, gamma = Pγ + 3 O`);
+      }
+    } else {
+      console.log(`   phosphates OK: ${P.length} as declared`);
     }
   }
 

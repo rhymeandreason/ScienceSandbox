@@ -269,6 +269,69 @@
     text-transform:uppercase;color:var(--muted);line-height:1.2}
   .reag.empty .rname{color:var(--muted);opacity:.75}
 
+  /* ---------- ATP/ADP drawn, not carded ----------
+     The two ATP tiles were the one place a student could not see what the step
+     did to the carrier: a card saying ATP became a card saying ADP, and the
+     phosphate that moved between them was only ever on the molecule's side of
+     the stage. So the pair collapses into ONE object that changes — three
+     phosphates becoming two, and back again at steps 7 and 10.
+     Two ways to draw it, because they answer different questions and a student
+     needs both: the SCHEMATIC (adenosine + three circles) is the diagram that
+     makes "the end one comes off" readable at a glance, and FULL shows what ATP
+     actually is — 31 heavy atoms, most of them not phosphate at all. The toggle
+     sits under it, so the two readings are one click apart.
+     Same 152px column as the tiles, so usable() measures the same inset either
+     way and the stage does not slide when you switch. */
+  #carrier{width:152px;position:relative;
+    padding:7px 8px 6px;border:2.5px solid transparent;border-radius:9px;
+    background:none;text-align:left;user-select:none;
+    transition:transform .15s,border-color .15s,background .15s}
+  #carrier.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
+    box-shadow:0 0 0 4px rgba(224,123,31,.18);animation:reagPulse 1.9s ease-in-out infinite}
+  #carrier.live:hover{transform:translateX(3px) scale(1.03)}
+  #carrier .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
+    font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
+  #carrier.live .need{display:block}
+  #carrier .cname{font-family:var(--font-slab);font-weight:700;font-size:14px;
+    color:var(--ink);line-height:1.15}
+  #carrier .csub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--muted);line-height:1.2;margin-bottom:5px}
+  /* THE BOX KEEPS ITS HEIGHT IN BOTH MODES, for the same reason the tray keeps
+     its width: it is what the camera's left inset is measured off. */
+  #carrier .cvis{position:relative;height:74px}
+  /* FULL MODE IS NOT A CARD. The molecule is drawn on the stage, at stage
+     scale, beside the sugar — so the box, its border and its visual slot all go
+     away and what is left is the name, the prompt, and the space the camera
+     insets for the molecule standing there. */
+  #carrier.full{border-color:transparent;background:none;box-shadow:none;
+    animation:none;width:290px}
+  #carrier.full .cvis{height:270px}
+  #carrier.full:hover{transform:none}
+  #carrier.full .cname{font-size:17px}
+  /* the schematic: adenosine, then the chain. `.cp` is one phosphate. */
+  #carrier .schem{display:flex;align-items:center;gap:3px;height:100%}
+  #carrier .aden{flex:none;width:44px;height:30px;border-radius:14px;
+    border:2px solid var(--ink);background:var(--panel);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-sans);font-weight:700;font-size:8px;letter-spacing:.3px;
+    text-transform:uppercase;color:var(--ink);text-align:center;line-height:1}
+  #carrier .cp{flex:none;width:22px;height:22px;border-radius:50%;
+    border:2px solid var(--phos);background:rgba(224,123,31,.16);color:var(--phos);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-slab);font-weight:700;font-size:11px;
+    transition:opacity .3s ease, transform .3s ease}
+  /* the one that leaves. Held in the layout (visibility, not display) so the
+     chain does not re-centre as it goes — the point is that it left the END. */
+  #carrier .cp.gone{opacity:0;transform:scale(.4) translateX(10px)}
+  #carrier .clink{flex:none;width:5px;height:2px;background:var(--hair)}
+  #carrier .clink.gone{opacity:.25}
+  /* the mode toggle, under the drawing and nowhere else — it changes this one
+     thing, so it lives on it rather than in the page's button corner */
+  #molmode{margin-top:5px;padding:2px 0;background:none;border:none;cursor:pointer;
+    font-family:var(--font-sans);font-size:10px;letter-spacing:.3px;color:var(--muted);
+    text-decoration:underline;text-underline-offset:2px}
+  #molmode:hover{color:var(--ink)}
+
   /* the reagent this step needs: the only card, and the only button */
   .reag.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
     box-shadow:0 0 0 4px rgba(224,123,31,.18);animation:reagPulse 1.9s ease-in-out infinite}
@@ -551,7 +614,15 @@
      twin — both are page-level utilities, neither competes with the enzyme
      button on the stage. */
   #allsteps{position:fixed;right:26px;bottom:64px;top:auto}
-  #restart,#savepng,#allsteps{z-index:20;
+  #fullmol{position:fixed;right:26px;bottom:106px;top:auto}
+  #fullmol .cbox{width:13px;height:13px;border-radius:3px;border:2px solid var(--hair);
+    display:inline-block;position:relative}
+  #fullmol[aria-checked="true"] .cbox{background:var(--ink);border-color:var(--ink)}
+  #fullmol[aria-checked="true"] .cbox::after{content:'';position:absolute;
+    left:3px;top:0;width:3.5px;height:7px;border:solid var(--paper);
+    border-width:0 2px 2px 0;transform:rotate(42deg)}
+  #fullmol:hover .cbox{border-color:var(--paper)}
+  #restart,#savepng,#allsteps,#fullmol{z-index:20;
     font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
     color:var(--muted);background:transparent;border:2px solid var(--hair);
     border-radius:var(--radius);padding:6px 15px;cursor:pointer;
@@ -562,7 +633,7 @@
   #savepng{position:absolute;left:26px;bottom:22px;top:auto}
   /* room under the last readout so the buttons never land on it */
   #side{padding-bottom:110px}
-  #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  #restart:hover,#savepng:hover,#allsteps:hover,#fullmol:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
   /* ---------- all ten steps, in one column ----------
      THE LIST IS WHERE THE DETAIL LIVES now that the rail is ten numbers: the
@@ -642,10 +713,11 @@
     .reag{width:116px;padding:3px 7px}
     .reag .rsub{display:none}          /* the gloss is the first thing to go */
     /* Both corners tighten in; the caption band between them is narrower here. */
-    #restart,#savepng,#allsteps{padding:5px 12px;font-size:12px}
+    #restart,#savepng,#allsteps,#fullmol{padding:5px 12px;font-size:12px}
     #restart,#savepng{bottom:16px}
     #savepng{left:14px} #restart{right:14px}
     #allsteps{right:14px;bottom:54px}
+    #fullmol{right:14px;bottom:90px}
     #bottombar{bottom:18px}
   }
 </style>
@@ -693,6 +765,11 @@
   <!-- The whole pathway at once, behind a button above Restart. The rail is ten
        numbers; this is the map of it — all ten steps, named and grouped, in one
        column you can read down. -->
+  <!-- A PAGE-LEVEL SETTING, so it sits with the page's other buttons rather than
+       on the thing it changes: it is a standing choice about how molecules are
+       drawn, not an action on this step. A checkbox and not a label that flips,
+       because the label has to say what it controls whether it is on or off. -->
+  <button id="fullmol" role="checkbox"><span class="cbox"></span> Show full molecules</button>
   <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
   <!-- The right column is not a panel with its own voice — it is a stack of
@@ -1496,15 +1573,25 @@ function flyPhosphate(from,to){
 // drop it onto, and matching the destination's depth is what keeps the
 // phosphate the same size at both ends.
 function tileWorld(key,ref){
-  const tile=trayEl.querySelector(`.reag[data-key="${key}"]`);
-  if(!tile || trayEl.style.visibility==='hidden') return null;
-  const r=tile.getBoundingClientRect(), c=canvas.getBoundingClientRect();
-  if(!r.width || !c.width || !c.height) return null;
+  const p=carrierPoint(key) || tilePoint(key);
+  if(!p) return null;
+  const c=canvas.getBoundingClientRect();
+  if(!c.width || !c.height) return null;
   camera.updateMatrixWorld();
   const z=ref.clone().project(camera).z;
   return new THREE.Vector3(
-    ((r.left+r.width/2)-c.left)/c.width*2-1,
-    -(((r.top+r.height/2)-c.top)/c.height*2-1), z).unproject(camera);
+    (p.x-c.left)/c.width*2-1, -((p.y-c.top)/c.height*2-1), z).unproject(camera);
+}
+// ATP and ADP are drawn rather than carded, and the flight then has a far
+// better anchor than a box: the γ phosphate itself, in whichever drawing is on.
+function carrierPoint(key){
+  return CARRIER.has(key) && carrierEl.isConnected ? carrierGammaPoint() : null;
+}
+function tilePoint(key){
+  const tile=trayEl.querySelector(`.reag[data-key="${key}"]`);
+  if(!tile || trayEl.style.visibility==='hidden') return null;
+  const r=tile.getBoundingClientRect();
+  return r.width ? {x:r.left+r.width/2, y:r.top+r.height/2} : null;
 }
 
 // Where an atom of a not-yet-built species WILL be, so a reagent can fly to the
@@ -1713,8 +1800,10 @@ function flyChip(src,dst,text,color,delay,onLand){
 // because nothing in the tray made it.
 function flySource(key,j){
   const tile=k=>trayEl.querySelector(`.reag[data-key="${k}"]`);
-  if(key==='spent') return tile('ATP')||tile('ADP');
-  if(key==='made')  return tile('ADP')||tile('ATP');
+  // the ATP/ADP pair is one drawing now, so both ATP counts leave from it
+  const atp=()=>carrierEl.isConnected ? carrierEl : null;
+  if(key==='spent') return atp()||tile('ATP')||tile('ADP');
+  if(key==='made')  return atp()||tile('ADP')||tile('ATP');
   if(key==='nadh')  return tile('NAD')||tile('NADH');
   return platesEl.children[j] || platesEl.children[0];
 }
@@ -1789,6 +1878,160 @@ function tick(row,val,bump){
 }
 
 const trayEl=document.getElementById('tray');
+
+/* =============================================================
+ *  THE ATP/ADP CARRIER — one object that changes, not two cards
+ * =============================================================
+ *  ATP and ADP were two tiles, and the thing that distinguishes them — one
+ *  phosphate — was never drawn. Here they are the same object: three
+ *  phosphates on the chain or two, spent at steps 1 and 3 and recharged at
+ *  7 and 10. Which one is showing is read off the step's `couple` (cin before
+ *  it runs, cout after), never tracked separately.
+ *
+ *  TWO DRAWINGS, ONE TOGGLE:
+ *   · schematic — adenosine as a capsule, the chain as three circles. This is
+ *     the diagram that makes "the LAST one comes off" legible, and it makes no
+ *     geometric claim it cannot keep.
+ *   · full — the real molecule (PubChem CID 5461108, the tetraanion), in its
+ *     own small canvas so the tray's DOM box stays the thing usable() measures
+ *     and the main camera is untouched. ADP is that same built molecule with
+ *     `gly.gamma` hidden — Pγ and its three terminal O — which is exactly the
+ *     PO₃⁻ a kinase moves. The bridging oxygen stays behind, on ADP, because
+ *     that is where it actually stays.
+ *  The full drawing is worth having because the schematic quietly implies ATP
+ *  is mostly phosphate; it is mostly adenosine, and three atoms in thirty-one
+ *  are what the cell spends.
+ */
+const CARRIER=new Set(['ATP','ADP']);
+// ON BY DEFAULT: the real molecule is the honest answer to "what is ATP", and
+// the schematic is the simplification you opt into — not the other way round.
+let molFull = (()=>{ try{ return localStorage.getItem('gly-fullmol')!=='0'; }
+                     catch(e){ return true; } })();
+const carrierEl=document.createElement('div');
+carrierEl.id='carrier';
+carrierEl.innerHTML=
+   '<span class="need"></span>'
+  +'<div class="cname"></div><div class="csub"></div>'
+  +'<div class="cvis"><div class="schem">'
+  +   '<div class="aden">Adeno&shy;sine</div>'
+  +   '<div class="clink"></div><div class="cp">P</div>'
+  +   '<div class="clink"></div><div class="cp">P</div>'
+  +   '<div class="clink last"></div><div class="cp last">P</div>'
+  + '</div></div>';
+
+// The full drawing gets its OWN renderer rather than a group in the main scene:
+// the tray is a DOM box the camera fit measures, and anything living in the
+// main scene would have to be kept in step with that box through every zoom and
+// orbit. A second small canvas is the cheaper truth. It is built on first use,
+// so the schematic default never pays for it.
+// THE FULL DRAWING IS A MOLECULE ON THE STAGE, not a picture in a box. It is
+// built into the SAME scene as the sugar, at the same scale and under the same
+// camera — which is the whole claim: this is another molecule in the cytosol,
+// not an icon for one. It stands in the space the tray reserves, and `#carrier`
+// keeps that space (and carries the name and the prompt) so the camera's left
+// inset is measured off DOM exactly as before.
+let cMol=null;
+function carrierMol(){
+  if(cMol) return cMol;
+  cMol=Stage.buildMolecule(M.atp,{center:true});
+  Stage.setOptionalH(cMol,false);        // same convention as the pathway lanes
+  root.add(cMol);
+  return cMol;
+}
+// ADP is ATP with the transferring phosphoryl hidden — `visible`, not removed,
+// because steps 7 and 10 put it back and a deleted mesh cannot come back.
+function setCarrierPhosphates(n){
+  if(!cMol) return;
+  const gone=n<3, u=cMol.userData, set=new Set(M.atp.gly.gamma);
+  M.atp.gly.gamma.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=!gone; });
+  u.bondMeshes.forEach(bm=>{
+    if(bm.userData.pair.some(p=>set.has(p))) bm.visible=!gone; });
+}
+// KEEP IT OVER ITS OWN BOX. The molecule is in the scene, so it would otherwise
+// swing away from the tray on an orbit and drift on a zoom; anchoring it to the
+// reserved box every frame keeps the lesson's left column where the layout says
+// it is. Position only — it still turns with the scene, because it is in it.
+const cAnchor=new THREE.Vector3();
+function placeCarrierMol(){
+  if(!cMol) return;
+  const vis = molFull && carrierEl.isConnected && trayEl.style.visibility!=='hidden';
+  cMol.visible=vis;
+  if(!vis) return;
+  const box=carrierEl.querySelector('.cvis').getBoundingClientRect();
+  const c=canvas.getBoundingClientRect();
+  if(!box.width || !c.width || !c.height) return;
+  camera.updateMatrixWorld();
+  const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
+  cMol.position.copy(new THREE.Vector3(
+    ((box.left+box.width/2)-c.left)/c.width*2-1,
+    -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
+  // A DELIBERATE SCALE EXAGGERATION, and the only one on this page: ATP is
+  // drawn SMALLER than its true size relative to the sugars. At true relative
+  // scale it is about twice glucose across — it would take the stage from the
+  // molecule the lesson is following. So it is fitted to its own column
+  // instead, and what it keeps is its shape, its atoms and its chain; what it
+  // gives up is the size comparison, which this page never makes.
+  // (macromolecule-lab.html is the page that shows monomers at true relative
+  // size — send anyone asking "how big is ATP really?" there.)
+  const m=Stage.measure(M.atp);
+  const pxPerWorld=c.width/(camera.right-camera.left);
+  cMol.scale.setScalar(Math.min(
+    box.width *0.94/(2*m.rxz*pxPerWorld),
+    box.height*0.94/(2*m.hy *pxPerWorld), 1));
+}
+// Where the phosphate flight starts or ends, in client pixels: the γ phosphate
+// itself in either drawing, so the thing that flies is the thing that left.
+function carrierGammaPoint(){
+  if(!carrierEl.isConnected || trayEl.style.visibility==='hidden') return null;
+  if(molFull && cMol){
+    const c=canvas.getBoundingClientRect();
+    if(!c.width||!c.height) return null;
+    const p=cMol.userData.atomMeshes[M.atp.gly.pg]
+      .getWorldPosition(new THREE.Vector3()).project(camera);
+    return {x:c.left+(p.x*.5+.5)*c.width, y:c.top+(-p.y*.5+.5)*c.height};
+  }
+  const dot=carrierEl.querySelector('.cp.last').getBoundingClientRect();
+  if(!dot.width) return null;
+  return {x:dot.left+dot.width/2, y:dot.top+dot.height/2};
+}
+// Draw the carrier for a step, in whichever mode is on. Called from drawTray;
+// the ELEMENT persists across refreshes (it is moved, never rebuilt) so the
+// schematic's phosphate can transition out instead of blinking.
+function drawCarrier(st, live, showKey){
+  const spec=M.atp, spent=spec.gly.spent;
+  const isATP = showKey==='ATP';
+  const n = isATP ? spec.gly.phosphates : spent.phosphates;
+  carrierEl.className = (live?'live ':'')+(molFull?'full':'');
+  carrierEl.querySelector('.need').textContent = live&&st ? `← ${st.need}` : '';
+  carrierEl.querySelector('.cname').innerHTML = isATP ? 'ATP' : 'ADP';
+  carrierEl.querySelector('.csub').textContent =
+    `${n} phosphates · ${isATP?'charged':'discharged'}`;
+  carrierEl.onclick = live ? ()=>press(runStep) : null;
+  const schem=carrierEl.querySelector('.schem');
+  schem.style.display = molFull ? 'none' : '';
+  // BOTH DRAWINGS ARE ALWAYS DRIVEN, whichever is on screen: the schematic's
+  // last phosphate transitions out, the molecule's γ atoms hide. Keeping them in
+  // step means switching modes mid-lesson lands on the right state rather than
+  // on whatever the other drawing was last told.
+  carrierEl.querySelectorAll('.last').forEach(e=>e.classList.toggle('gone', n<3));
+  if(molFull) carrierMol();
+  setCarrierPhosphates(n);
+  placeCarrierMol();
+}
+
+const fullBtn=document.getElementById('fullmol');
+function setMolMode(on){
+  molFull=on;
+  fullBtn.setAttribute('aria-checked', on?'true':'false');
+  try{ localStorage.setItem('gly-fullmol', on?'1':'0'); }catch(e){}
+  drawTray();
+  // the left inset changes with the mode — the molecule needs more room than
+  // the diagram — so the camera has to re-solve rather than keep the old fit
+  computeFit();
+}
+fullBtn.onclick=()=>setMolMode(!molFull);
+fullBtn.setAttribute('aria-checked', molFull?'true':'false');
+
 function drawTray(){
   // Invisible until Begin, but NOT absent. At the intro nothing can be spent,
   // and a row of inert pools sitting next to the Begin button just invites
@@ -1821,7 +2064,17 @@ function drawTray(){
   trayEl.innerHTML=`<div class="tcue">Carriers</div>`
     +'<div class="tstrip"></div>';
   const strip=trayEl.children[1];
-  REAGENTS.filter(r=>want.has(r.key)).forEach(r=>{
+  // ATP AND ADP ARE ONE ROW, NOT TWO. Where a step touches them it gets the
+  // drawing; every other carrier is still a card. Which of the pair is showing
+  // comes off the couple — cin until the step has run, cout after — so the
+  // object changes at exactly the moment the phosphate lands.
+  const pair = c && CARRIER.has(carrierKey(c.cin)) && CARRIER.has(carrierKey(c.cout));
+  if(pair){
+    const showKey = carrierKey(reviewing ? c.cout : c.cin);
+    drawCarrier(st, !!st && CARRIER.has(st.reagent) && !busy && !reviewing, showKey);
+    strip.appendChild(carrierEl);      // moved, never rebuilt — see drawCarrier
+  }
+  REAGENTS.filter(r=>want.has(r.key) && !(pair && CARRIER.has(r.key))).forEach(r=>{
     const live=!!st && st.reagent===r.key && !busy && !reviewing;
     const d=document.createElement('div');
     d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
@@ -2732,6 +2985,9 @@ function loop(){
   // That is barely visible on a slow drag and very visible during the zoom ease
   // and the split, when the camera moves a long way in one frame.
   drawPlates();
+  // The carrier molecule is anchored to its DOM box, so it is repositioned on
+  // the same schedule the labels are — after the render, with a current camera.
+  placeCarrierMol();
   requestAnimationFrame(loop);
 }
 
