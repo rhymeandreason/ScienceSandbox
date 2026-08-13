@@ -65,10 +65,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const CSV = path.join(__dirname, '..', '..', 'resources',
-                      'AP_Bio_3D_Molecule_Catalog - Molecules.csv');
-const REPORT = path.join(__dirname, '..', '..', 'resources',
-                         'catalog-resolution-report.txt');
+// TRACKED, and that is the point. This lived in the repo's `resources/` while
+// it was being resolved, which is .gitignored — so 147 verified CIDs existed in
+// one working tree and nowhere else, and the docs pointed at a path the repo
+// did not contain. Same reasoning as tools/sdf/: a build-time input that cannot
+// be cheaply re-derived gets committed. Re-deriving this one means 400 network
+// requests and a human ruling on 21 rows.
+//
+// `resources/` stays the drop zone for a fresh export from the spreadsheet.
+// Copy one in over this file, re-run, and `--verify` afterwards.
+const CSV = path.join(__dirname, 'catalog', 'molecule-catalog.csv');
+const REPORT = path.join(__dirname, 'catalog', 'resolution-report.txt');
 const PUG = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound';
 
 const DRY     = process.argv.includes('--dry-run');

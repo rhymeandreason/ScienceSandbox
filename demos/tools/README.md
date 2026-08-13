@@ -1,6 +1,6 @@
 # Resolving the molecule catalog: `resolve-catalog.js`
 
-`resources/AP_Bio_3D_Molecule_Catalog - Molecules.csv` identifies every PubChem
+`tools/catalog/molecule-catalog.csv` identifies every PubChem
 molecule by NAME. **A bare name pins neither a stereocentre nor a charge state**
 (`sdf/README.md` has the case where that went wrong), and 28 of the 65 Core
 PubChem rows carry stereocentres — so resolve names to CIDs once, commit them,
@@ -31,7 +31,7 @@ catalog's "ATP" and "AMP" resolve to the neutral free acids (CID 5957, 6083)
 while the specs here ship the physiological anions (5461108 charge −4, 15938965
 charge −2). Both are real records; only the CID tells them apart. It never chooses between candidates: a
 name that resolves to several CIDs is marked `Ambiguous` and every candidate
-goes in `resources/catalog-resolution-report.txt` for a human to settle by
+goes in `tools/catalog/resolution-report.txt` for a human to settle by
 stereochemistry. Rows whose CID has no 3D conformer are marked too — those must
 be hand-written or Skel-built, per the `record_type=3d` caveat below.
 
