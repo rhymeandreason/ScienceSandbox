@@ -1531,6 +1531,10 @@ const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[];
   flyLayer.replaceChildren(); };
 
 const FLY=620, SPLIT=840;
+// The ring straightening out. Slower than every other beat here on purpose: it
+// is a whole molecule changing shape rather than one group arriving, and it is
+// the step students read as "the picture changed" if it goes past too quickly.
+const UNFURL=1150;
 // NO popGlow ON THIS PAGE. The product used to flash and punch out as it landed,
 // and even at a quarter strength it lit every atom on the frames the review beat
 // exists to make you look at. The rings already mark WHERE the chemistry
@@ -1592,6 +1596,132 @@ function tilePoint(key){
   if(!tile || trayEl.style.visibility==='hidden') return null;
   const r=tile.getBoundingClientRect();
   return r.width ? {x:r.left+r.width/2, y:r.top+r.height/2} : null;
+}
+
+/* ---------- THE UNFURL: the ring straightening out, atom by atom ----------
+ * Step 2 used to cut from the ring to the chain, and a cut is the one thing
+ * that reads as "the picture changed" rather than "the molecule moved". What
+ * actually happens is a CONFORMATIONAL CHANGE: once C1–O5 is gone, nothing
+ * holds the carbons in a hexagon, and they rotate about the C–C single bonds
+ * into the extended chain. So that is what this does — every frame is a real
+ * conformation of the real molecule, reached by turning the backbone's
+ * dihedrals to anti (180°), one bond at a time from C1 outward.
+ *
+ * Rotating about bond i moves everything downstream of it RIGIDLY, which
+ * leaves every other dihedral untouched — so each bond's target angle can be
+ * measured once, at the start, and simply scaled by t. That is why this can
+ * replay from the starting coordinates each frame instead of accumulating
+ * error over hundreds of small rotations.
+ *
+ * It is the conformation that changes here, not the connectivity: the bond
+ * that breaks is broken before the first frame, and the proton that moves is
+ * drawn hopping by FX. The atoms that arrive with fructose-6-phosphate arrive
+ * with the swap at the end.
+ */
+// The IUPAC torsion: ±π is ANTI (the extended zigzag), 0 is eclipsed. Worth
+// stating, because the plane-normal form of this returns those the other way
+// round — and with the targets set to ±π against that convention the chain
+// folds itself into the eclipsed conformation while every dihedral reads
+// exactly 180°, which is a bug that checks out numerically and is nonsense.
+// f6p's own backbone reads ±180 here, which is the assertion that this is the
+// convention the specs are drawn in.
+function dihedralOf(p0,p1,p2,p3){
+  const b1=p2.clone().sub(p1).normalize();
+  const b0=p0.clone().sub(p1), b2=p3.clone().sub(p2);
+  const v=b0.clone().addScaledVector(b1,-b0.dot(b1));   // components across b1
+  const w=b2.clone().addScaledVector(b1,-b2.dot(b1));
+  return Math.atan2(b1.clone().cross(v).dot(w), v.dot(w));
+}
+// scratch, reused every frame — this runs per atom per turn per frame
+const Q=new THREE.Quaternion(), AX=new THREE.Vector3(), PV=new THREE.Vector3();
+// What to turn, and by how much. Measured off the built molecule, so it is the
+// thing on screen that unfurls and not a second copy of it.
+function unfurlPlan(l){
+  const spec=M[l.key], gly=spec.gly, cN=gly.cN, br=gly.open;
+  const u=l.g.userData;
+  const adj=spec.atoms.map(()=>[]);
+  spec.bonds.forEach(b=>{
+    const [i,j]=b;
+    if((i===br[0]&&j===br[1])||(i===br[1]&&j===br[0])) return;   // already broken
+    adj[i].push(j); adj[j].push(i);
+  });
+  // everything on the far side of a bond, found through the graph rather than
+  // by index ranges — the build order is not the chain order
+  const beyond=(from,thru)=>{
+    const seen=new Set([from,thru]), st=[thru];
+    while(st.length){ const k=st.pop();
+      for(const n of adj[k]) if(!seen.has(n)){ seen.add(n); st.push(n); } }
+    seen.delete(from); return [...seen];
+  };
+  const base=u.atomMeshes.map(m=>m?m.position.clone():null);
+  const turns=[];
+  // A dihedral needs four atoms, so the FIRST bond has no backbone carbon to
+  // measure from — its reference is the anomeric oxygen, the one becoming the
+  // aldehyde. Without it C1 keeps the pucker it had in the ring and the chain
+  // arrives visibly bent at the end the reaction is about.
+  for(let i=0;i<cN.length-2;i++){
+    const prev = i>0 ? cN[i-1] : (gly.anomeric&&gly.anomeric.o);
+    const a=cN[i], b=cN[i+1], next=cN[i+2];
+    if(prev==null || !base[prev]) continue;
+    const d0=dihedralOf(base[prev],base[a],base[b],base[next]);
+    // to anti, the short way round — ±π are the same conformation
+    turns.push({a,b,delta:(d0>=0?Math.PI:-Math.PI)-d0, set:beyond(a,b)});
+  }
+  const plan={base,turns};
+  // WHERE IT COMES TO REST. The unfurled chain and the fructose-6-phosphate it
+  // becomes are the same shape at different angles, and swapping between two
+  // angles is the jump this whole animation exists to remove. So the molecule
+  // turns as it opens: the backbone ends up along the axis the next spec draws
+  // it on, and the swap then changes only what the reaction changed.
+  const pos1=unfurlPos(plan,1);
+  const here=pos1[cN[cN.length-1]].clone().sub(pos1[cN[0]]).normalize();
+  const f=M.f6p, fc=f.gly.cN;
+  const there=new THREE.Vector3().fromArray(f.atoms[fc[fc.length-1]].pos)
+    .sub(new THREE.Vector3().fromArray(f.atoms[fc[0]].pos)).normalize();
+  plan.qEnd=new THREE.Quaternion().setFromUnitVectors(here,there);
+  // THE LABEL HAS TO CLIMB WITH IT. A chain is taller than the ring it came
+  // from, so a name pinned at the ring's height ends up written across the
+  // molecule. The label rides from where it is now to where the next spec will
+  // put it, which is the same anchor the swap lands on.
+  plan.topY0=l.topY;
+  plan.topY1=plateY(['f6p']);
+  return plan;
+}
+// The conformation at t, from the starting coordinates every time — see the
+// header: each turn leaves the others' dihedrals alone, so this cannot drift.
+function unfurlPos(plan,t){
+  const pos=plan.base.map(p=>p?p.clone():null);
+  plan.turns.forEach(tn=>{
+    AX.subVectors(pos[tn.b],pos[tn.a]).normalize();
+    Q.setFromAxisAngle(AX, tn.delta*t);
+    PV.copy(pos[tn.a]);
+    tn.set.forEach(i=>{ const p=pos[i]; if(p) p.sub(PV).applyQuaternion(Q).add(PV); });
+  });
+  return pos;
+}
+function unfurlApply(l,plan,t){
+  const u=l.g.userData;
+  const pos=unfurlPos(plan,t);
+  // KEEP IT CENTRED ON ITS OWN BOX, the way Stage.buildMolecule centres every
+  // spec. A chain is much longer than the ring it came from, so an unfurl about
+  // fixed coordinates walks the molecule down out of frame and then snaps back
+  // when the next spec is swapped in — recentring each frame is what makes that
+  // swap invisible. Same rule as centerOf: the middle of the extent, not the
+  // mean of the atoms, so one long arm cannot drag the molecule off centre.
+  const lo=[Infinity,Infinity,Infinity], hi=[-Infinity,-Infinity,-Infinity];
+  pos.forEach(p=>{ if(!p) return;
+    for(let k=0;k<3;k++){ const v=p.getComponent(k);
+      lo[k]=Math.min(lo[k],v); hi[k]=Math.max(hi[k],v); } });
+  const mid=new THREE.Vector3(...lo.map((v,k)=>(v+hi[k])/2));
+  pos.forEach(p=>{ if(p) p.sub(mid); });
+  // the turn onto the next spec's axis, and the label's climb, ride the same t
+  if(plan.qEnd) l.g.quaternion.identity().slerp(plan.qEnd,t);
+  if(plan.topY1!=null) l.topY=plan.topY0+(plan.topY1-plan.topY0)*t;
+  pos.forEach((p,i)=>{ const m=u.atomMeshes[i]; if(m&&p) m.position.copy(p); });
+  u.bondMeshes.forEach(bm=>{
+    const [i,j]=bm.userData.pair;
+    if(pos[i]&&pos[j]) Stage.placeBond(bm,pos[i],pos[j]);
+  });
 }
 
 // Where an atom of a not-yet-built species WILL be, so a reagent can fly to the
@@ -1689,17 +1819,29 @@ function runStep(){
 
   } else if(st.fx==='open'){
     // THE RING OPENS — and this is the step where it actually does. The
-    // isomerase runs through the open-chain aldehyde, so C1–O5 breaks here.
-    // Marked on that bond, the same way every other bond event on this page is
-    // marked, and given room to read: from here on the pathway is drawn as a
-    // straight chain, which is the change the ring flying open has to earn.
+    // isomerase runs through the open-chain aldehyde, so the hemiacetal at C1
+    // comes apart here: C1–O5 breaks, the anomeric –OH gives its proton to the
+    // ring oxygen (which leaves as C5's hydroxyl), and the chain then rotates
+    // out flat. Three beats in one gesture, in the order they happen.
     lanes.forEach(l=>{
-      const o=M[l.key].gly.open;
+      const gly=M[l.key].gly, o=gly.open, u=l.g.userData;
       if(!o) return;
-      const mid=l.g.userData.atomWorld(o[0]).add(l.g.userData.atomWorld(o[1])).multiplyScalar(.5);
+      const mid=u.atomWorld(o[0]).clone().add(u.atomWorld(o[1])).multiplyScalar(.5);
       FXi.spawnRing(mid, PAL.atoms.O);
+      // the bond goes FIRST — the atoms are about to move as though it had
+      u.bondMeshes.forEach(bm=>{ const [i,j]=bm.userData.pair;
+        if((i===o[0]&&j===o[1])||(i===o[1]&&j===o[0])) bm.visible=false; });
+      if(gly.anomeric) FXi.protonHop(u.atomWorld(gly.anomeric.h), u.atomWorld(o[1]));
+      // …then the unfurl itself, eased so it accelerates out of the ring and
+      // settles rather than arriving at speed
+      const plan=unfurlPlan(l), t0=performance.now();
+      (function turn(){
+        const k=Math.min((performance.now()-t0)/UNFURL,1);
+        unfurlApply(l,plan,k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2);
+        if(k<1) requestAnimationFrame(turn);
+      })();
     });
-    dur=560;
+    dur=UNFURL+180;                              // land, then swap to F6P
 
   } else dur=280;                              // 'iso': a plain rearrangement
 

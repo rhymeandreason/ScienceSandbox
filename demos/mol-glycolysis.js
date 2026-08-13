@@ -166,6 +166,15 @@
       optH:CH,
       gly:{ carbons:6, ring:true, cN:[...C,c6], p3:p, phosphates:1,
             open:[1,0],               // C1–O5: the bond that breaks at step 2
+            // THE PROTON THAT MOVES when the hemiacetal comes apart: the
+            // anomeric –OH on C1 gives its H to the ring oxygen, which leaves
+            // as C5's hydroxyl while C1 becomes the aldehyde. The page draws
+            // that hop, so it needs both ends by index. Found, not assumed —
+            // an O's H is grown right after it, but a Skel change would move it.
+            anomeric:{ o:OH[0], h:(()=>{ const o=OH[0];
+              const b=g.bonds.find(b=>(b[0]===o||b[1]===o)
+                && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
+              return b[0]===o?b[1]:b[0]; })() },
             note:'still a pyranose — C6 is outside the ring, so phosphorylating '
                + 'it opens nothing' } });
   }
