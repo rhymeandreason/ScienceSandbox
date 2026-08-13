@@ -503,8 +503,34 @@ function create(opt){
     return arrived;
   }
 
+  /* ---------- the angle on screen, as a spec would write it ----------
+   * `spec.view` is [x,y,z]
+   * radians, and Stage.buildMolecule bakes it into the MESHES; this module then
+   * turns the GROUP. So what is on screen is pose ∘ view, and pasting `pose`
+   * into a spec would be wrong by exactly the view already baked in. Compose
+   * the two into the ONE quaternion that reproduces this picture from the
+   * canonical coordinates, and hand it back in `view:`'s own ZYX order and
+   * units. That number is the deliverable — VIEW's entries in molecules.js were
+   * hand-tuned ("+28° x / -24.4° y off an earlier pass"); this returns the
+   * number that pass was looking for, so a page can print it and the angle can
+   * be pasted rather than guessed at.
+   */
+  function viewEuler(){
+    const q=new THREE.Quaternion();
+    if(spec&&spec.view) q.setFromEuler(new THREE.Euler(
+      spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'));
+    // The GROUP's quaternion, not `pose`. step() copies pose onto the group and
+    // THEN advances the idle turntable, so pose runs one tick ahead of what is
+    // drawn; reporting it would describe a frame nobody saw. Only ~0.2° — and
+    // only while the turntable is running, which a drag stops — but this number
+    // is meant to be pasted, so it should be the picture, exactly.
+    const now=built ? built.quaternion : pose;
+    const e=new THREE.Euler().setFromQuaternion(now.clone().multiply(q), 'ZYX');
+    return [e.x, e.y, e.z];
+  }
+
   return {
-    show, setMode, step, fit, snap,
+    show, setMode, step, fit, snap, viewEuler,
     setHighlight(on){ showFocus=!!on; applyFocus(); paintFlat(); },
     setOptionalH(on){
       showH=!!on;
