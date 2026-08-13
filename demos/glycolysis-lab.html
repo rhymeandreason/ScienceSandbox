@@ -94,7 +94,15 @@
 
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
   .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
-    text-align:center;white-space:nowrap;line-height:1.15}
+    text-align:center;white-space:nowrap;line-height:1.15;
+    transition:opacity .22s ease}
+  /* THE NAME GOES WHILE THE MOLECULE IS BECOMING SOMETHING ELSE. Through the
+     unfurl the label would be naming a shape that is halfway between two
+     molecules — and it is the old name, since the new one only arrives with the
+     swap. Opacity, never display: the label's HEIGHT is what the camera
+     reserves at the top of the stage (plateHeightPx), so removing it from the
+     layout would re-frame the shot in the middle of the animation. */
+  #plates.mute .plate{opacity:0}
   .plate .pn{font-family:var(--font-slab);font-weight:700;font-size:19px;
     color:var(--ink);letter-spacing:.2px}
   .plate .pf{font-family:var(--font-slab);font-weight:500;font-size:14px;color:var(--muted)}
@@ -1427,7 +1435,11 @@ function drawSpots(){
 // split instead of snapping to the final lane positions.
 const projV=new THREE.Vector3();
 const PLATE_GAP_PX_X=14;
+// Set while a molecule is mid-transformation — see #plates.mute. Cleared by
+// renderLanes, which is the moment there is a settled molecule to name again.
+let platesOff=false;
 function drawPlates(){
+  platesEl.classList.toggle('mute', platesOff);
   const w=canvas.clientWidth, h=canvas.clientHeight;
   camera.updateMatrixWorld();          // safe to call off-loop (restart, resize)
   const xs=lanes.map(l=>{
@@ -1660,6 +1672,12 @@ function topAnchoredY(R, centredY){
 // Snap the scene to the state at index i, with no animation. Used by restart,
 // rewind, and as the settling half of every animated transition.
 function renderLanes(i){
+  // whatever was mid-change is over: these are the molecules of a settled
+  // state, and they are named. The class goes with the flag rather than
+  // waiting for the next drawPlates — rAF does not run in a hidden tab, and a
+  // name that only comes back when you look at the tab is a name that is
+  // missing for as long as you are not.
+  platesOff=false; platesEl.classList.remove('mute');
   clearLanes();
   const keys=speciesAt(i), top=plateY(keys);
   lanes=keys.map((k,j)=>spawnLane(k,j,keys.length,top));
@@ -2005,6 +2023,10 @@ function runStep(){
       u.bondMeshes.forEach(bm=>{ const [i,j]=bm.userData.pair;
         if((i===o[0]&&j===o[1])||(i===o[1]&&j===o[0])) bm.visible=false; });
       if(gly.anomeric) FXi.protonHop(u.atomWorld(gly.anomeric.h), u.atomWorld(o[1]));
+      // the name goes with the ring: from here until the swap this is neither
+      // glucose-6-phosphate nor fructose-6-phosphate, and the label would be
+      // asserting the one it has stopped being
+      platesOff=true;
       // …then the unfurl itself, eased so it accelerates out of the ring and
       // settles rather than arriving at speed
       const plan=unfurlPlan(l), t0=performance.now();
