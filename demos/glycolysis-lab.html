@@ -1396,7 +1396,14 @@ let timers=[];
 const later=(fn,ms)=>{ timers.push(setTimeout(fn,ms)); };
 const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[]; };
 
-const FLY=620, SPLIT=840, GLOW=0xffe0b0;
+const FLY=620, SPLIT=840;
+// NO popGlow ON THIS PAGE. The product used to flash and punch out as it landed,
+// and even at a quarter strength it lit every atom on the frames the review beat
+// exists to make you look at. The rings already mark WHERE the chemistry
+// happened — on the bond, the site, the departing water — which is the claim
+// worth making; a whole molecule glowing only says "something happened here",
+// and the caption, the ledger and the rail all say that already. Same choice
+// molecule-builder makes: one ring at completion, no glow on the molecule.
 const OFFSCREEN=8.5;    // where reagents come from / products go to, in world Y
 
 // A phosphate arcing in from the cytosol or out toward the tray. This is the
@@ -1480,7 +1487,7 @@ function runStep(){
     later(()=>{ done=to; reviewing=true;   // lanes already correct — don't respawn
       // The parting is a rAF ease, so in a hidden tab it never ran; land them on
       // their marks here so the two halves can't come back stacked on each other.
-      lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; FXi.popGlow(o.g,GLOW); });
+      lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx; });
       busy=false; refresh(); }, SPLIT);
     return;
 
@@ -1510,7 +1517,6 @@ function runStep(){
   } else dur=280;                              // 'iso': a plain rearrangement
 
   later(()=>{ done=to; reviewing=true; renderLanes(to);
-    lanes.forEach(o=>FXi.popGlow(o.g,GLOW));
     busy=false; refresh(); }, dur);
 }
 
