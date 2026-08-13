@@ -102,14 +102,32 @@
   #vout{margin-top:15px;padding-top:13px;border-top:1.5px dashed var(--hair);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
     line-height:1.6;color:var(--muted);cursor:pointer;
-    opacity:.7;transition:opacity .15s ease}
-  #vout:hover{opacity:1}
+    transition:color .15s ease}
   #vout b{font-weight:600;color:var(--ink)}
   #vout .vhint{font-family:var(--font-sans);font-style:italic}
+  /* The copy affordance is an ICON, not a hover title. The line is a thing you
+     TAKE, and a tooltip only says so to whoever already guessed and hovered —
+     this whole panel exists to be pasted somewhere, so the button that does it
+     is on screen from the start. Sized and coloured to sit beside the label
+     rather than compete with the number, which is the actual content. */
+  #vout .vhead{display:flex;align-items:center;justify-content:space-between;
+    gap:8px;margin-bottom:2px}
+  #vout .vcopy{display:inline-flex;align-items:center;gap:4px;flex:none;
+    font-family:var(--font-sans);font-weight:600;font-size:10px;
+    letter-spacing:.4px;text-transform:uppercase;
+    padding:3px 7px;border:1.5px solid var(--hair);border-radius:6px;
+    background:#fff;color:var(--muted);
+    transition:border-color .15s ease,color .15s ease,background .15s ease}
+  #vout .vcopy i{font-size:12px}
+  #vout:hover .vcopy{border-color:var(--ink);color:var(--ink)}
+  /* Taken. Green rather than the ink hover, because "it worked" and "you are
+     pointing at it" must not look the same. */
+  #vout .vcopy.done{border-color:#3f7d52;color:#3f7d52;background:#eef6ef}
   /* Flat views have no angle to report — the layout is the layout. Quiet
      rather than stale: a number left on screen in 2D would be describing a
-     model nobody is looking at. */
-  #vout.off{opacity:.3;pointer-events:none}
+     model nobody is looking at, and there is nothing to take. */
+  #vout.off{opacity:.35;pointer-events:none}
+  #vout.off .vcopy{display:none}
 
   /* single-column: the molecule is the page, not a side panel */
   #app{grid-template-columns:1fr}
@@ -201,7 +219,7 @@
     <div id="notes"></div>
     <div id="rail">
       <div id="focus"></div>
-      <div id="vout" title="click to copy"></div>
+      <div id="vout"></div>
     </div>
     <div id="say"></div>
     <div id="dock">
@@ -497,9 +515,9 @@ elRecipe.onclick=()=>{
  * only one of the two is how a tidy 30° ends up pasted in as 30 radians. */
 const elView=document.getElementById('vout');
 // Called every frame, so it must not touch the DOM every frame: 60 innerHTML
-// writes a second would also stamp on the "copied" flash the moment it appeared.
-// Rewrite only when the text actually changes, and hold off entirely while the
-// flash is up.
+// writes a second is churn, and it would also stamp on the copied state the
+// instant it appeared. Rewrite only when the text actually changes, and hold
+// off entirely while that state is up.
 let vLast='', vHold=false;
 function showView(){
   if(vHold) return;
@@ -511,19 +529,25 @@ function showView(){
     const e=v.viewEuler(), r=e.map(x=>x.toFixed(4));
     const deg=e.map(x=>Math.round(x*180/Math.PI));
     copy=`view:[${r.join(', ')}],`;
-    html=`<span class="vhint">this angle as a spec field</span><br>`
+    html=`<div class="vhead"><span class="vhint">this angle as a spec field</span>`
+       + `<span class="vcopy"><i class="ph-bold ph-copy"></i>copy</span></div>`
        + `view:<b>[${r.join(', ')}]</b><br>`
        + `<span class="vhint">${deg[0]}° x · ${deg[1]}° y · ${deg[2]}° z</span>`;
   }
   if(html===vLast) return;
   vLast=html; elView.innerHTML=html; elView.dataset.copy=copy;
 }
+// The BUTTON changes, not the line. Blanking the number to say "copied" takes
+// away the thing you just asked for at the moment you are most likely to want
+// to read it back — and it made the panel jump a line as the text shrank.
 elView.onclick=()=>{
   if(!elView.dataset.copy) return;
   navigator.clipboard.writeText(elView.dataset.copy).then(()=>{
-    vHold=true;
-    elView.innerHTML='<span class="vhint">copied</span>';
-    setTimeout(()=>{ vHold=false; vLast=''; }, 900);   // vLast='' forces a redraw
+    const b=elView.querySelector('.vcopy'); if(!b) return;
+    vHold=true;                       // freeze the redraw so the state survives
+    b.classList.add('done');
+    b.innerHTML='<i class="ph-bold ph-check"></i>copied';
+    setTimeout(()=>{ vHold=false; vLast=''; }, 1100);   // vLast='' forces a redraw
   }).catch(()=>{});
 };
 
