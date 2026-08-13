@@ -564,5 +564,5 @@
         [...n.ring, n.c4, ...n.h, n.amide.c, n.amide.o, n.amide.n];
     }
   }
-  register(GLYCOLYSIS);
+  register(GLYCOLYSIS, SELFNAME);
 })(this);

@@ -50,6 +50,7 @@
     CdC:1.33,   // C=C — a fatty acid's one unsaturation
     OH: 0.97,   // O–H
     CH: 1.09,   // C–H
+    CN: 1.47,   // C–N single — an amine, and a nucleoside's glycosidic bond
     OP: 1.60,   // P–O ester (the bridging oxygen)
     PO: 1.50,   // P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
   };
@@ -143,6 +144,54 @@
     const j=this.put(el, vadd(this.at(i), vmul(dirs[slot||0], dist)));
     this.link(i,j,order); return j;
   };
+
+  // ---- joining two sub-skeletons ----------------------------------------
+  // A molecule with more than one ring system is built as separate Skels and
+  // then fitted together: a disaccharide is two pyranoses, a nucleotide is a
+  // base plus a furanose. These three do the fitting, and they lived in
+  // mol-contrast.js until ATP needed them too — which is this file's own test
+  // for what belongs here (a fact about ONE molecule goes in that molecule's
+  // spec; a capability every joined molecule needs goes in the builder).
+  //
+  // The pieces are deliberately small and separate. `alignTo` solves only the
+  // two-vector problem, which is underdetermined — carrying u onto w leaves a
+  // free spin about w — so `spinAbout` stays a knob the caller sets, rather
+  // than a hidden choice. That torsion is a CONFORMATION, and per
+  // MolecularGeometry.md §1.6 a floppy one is the caller's to declare
+  // schematic, not the builder's to invent.
+  const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  // Rotate v about unit axis k by angle t (Rodrigues).
+  const spinAbout=(v,k,t)=>{ const c=Math.cos(t), s=Math.sin(t);
+    return vadd(vadd(vmul(v,c), vmul(vcross(k,v),s)), vmul(k, vdot(k,v)*(1-c))); };
+  // Minimal rotation carrying unit u onto unit w.
+  function alignTo(u,w){
+    const d=Math.max(-1,Math.min(1,vdot(u,w)));
+    const ax=vcross(u,w);
+    if(vlen(ax)<1e-6) return d>0 ? (v=>v) : (v=>spinAbout(v,perpTo(u),Math.PI));
+    const k=vnorm(ax), t=Math.acos(d);
+    return v=>spinAbout(v,k,t);
+  }
+  // Copy `src`'s atoms and bonds into `dst`, offsetting every bond index.
+  // Returns the offset, so the caller can map a src index onto its new home
+  // rather than counting atoms by hand.
+  function absorb(dst,src){
+    const off=dst.atoms.length;
+    src.atoms.forEach(a=>dst.atoms.push({ el:a.el, pos:a.pos.slice() }));
+    src.bonds.forEach(b=>dst.bonds.push(b.length>2?[b[0]+off,b[1]+off,b[2]]:[b[0]+off,b[1]+off]));
+    return off;
+  }
+  // Move every atom of `src` so that its atom `anchor` lands on `target`, with
+  // its `from` direction carried onto `onto`, then spun by `spin` about `onto`.
+  // This is the whole join in one call: the caller says which atom bonds where
+  // and which way it points, and never touches a coordinate.
+  function fitOnto(src, anchor, from, onto, target, spin){
+    const rot=alignTo(from, onto), local=src.at(anchor);
+    src.atoms.forEach(at=>{
+      const p=spinAbout(rot(vsub(V(at.pos[0],at.pos[1],at.pos[2]), local)), onto, spin||0);
+      at.pos=[p.x+target.x, p.y+target.y, p.z+target.z];
+    });
+    return src;
+  }
 
   // ---- ring stereochemistry ---------------------------------------------
   // freeTet() on a ring carbon returns its AXIAL and EQUATORIAL slots, but in an
@@ -286,6 +335,18 @@
   // pyranose chair, nothing about ribose's identity rides on it (the –OH faces
   // carry that), and a strong pucker would tempt `equatorial()` into reporting
   // an ax/eq split that means nothing on a five-ring. Use `face()` on this ring.
+  // WHICH SIGN MEANS "UP" on a furanose. `face()` is defined against
+  // ringNormal(), whose sign falls out of this ring's fixed traversal order —
+  // arbitrary, but deterministic, so it is a fact to be ESTABLISHED, not
+  // assumed. It was assumed once and assumed wrong: +1 builds L-ribose, and the
+  // whole contrast pair shipped mirrored (docs/molecule-pipeline.md item 5).
+  //
+  // Reversing the traversal does not help — that reverses the normal too and
+  // every substituent follows it. For a furanose the ONLY thing that mirrors the
+  // molecule is swapping these two tags, which is why it lives here as one
+  // constant rather than as a literal in each spec that builds a furanose.
+  // Asserted by the committed `smiles` on `ribose`, `deoxyribose` and `atpSkel`.
+  const FURANOSE_UP = -1, FURANOSE_DOWN = +1;
   function ringFuranose(){
     const s=new Skel(), R=GL.CC/(2*Math.sin(Math.PI/5));   // side → circumradius
     const pucker=0.12*R;
@@ -361,5 +422,7 @@
   }
 
   global.SkelLib = { GL, AR, TET, SP2, V, vadd, vsub, vmul, vlen, vnorm, vcross, rad,
-    perpTo, Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing, flatH };
+    perpTo, vdot, spinAbout, alignTo, absorb, fitOnto,
+    FURANOSE_UP, FURANOSE_DOWN,
+    Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing, flatH };
 })(this);

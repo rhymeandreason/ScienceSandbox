@@ -68,6 +68,10 @@ const REF = {
   // needs one), and a committed depiction string with four stereocentres in it
   // is exactly the thing that must not be allowed to be the mirror image.
   atp: 'ATP',
+  // the hand-built control (mol-compare.js). Same reference as `atp` on
+  // purpose: matching it is what proves the two differ by METHOD and nothing
+  // else, which is the only reason the comparison means anything.
+  atpSkel: 'ATP',
   nadh: 'NADH',
   g6p: 'beta-D-glucose 6-phosphate',
   f6p: 'keto-D-fructose 6-phosphate',

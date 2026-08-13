@@ -358,5 +358,5 @@
           note:'Two fused rings — a purine. The base is the letter; the phosphate and sugar are just the tape it is written on.' },
       ],
     },
-  });
+  }, SELFNAME);
 })(this);

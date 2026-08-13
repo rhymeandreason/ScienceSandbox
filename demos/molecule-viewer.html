@@ -102,6 +102,17 @@
     display:inline-flex;align-items:center;gap:6px}
   #dims .mode + .mode{border-left:1.5px solid var(--ink)}
   #dims .mode.on{background:var(--ink);color:var(--paper)}
+  /* the derivation switch wears the same chrome as the view switch — they are
+     the same KIND of control (which of several equally real pictures) — but is
+     outlined rather than filled when set, so the view you are in stays the
+     louder of the two. Faded out for a molecule with only one derivation. */
+  #src{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #src .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer}
+  #src .mode + .mode{border-left:1.5px solid var(--ink)}
+  #src .mode.on{background:#efe9db;color:var(--ink)}
+  #src.solo{opacity:.35;pointer-events:none}
 
   /* the caption under the dock: says what the current view IS, because the flat
      view is a projection and must never be mistaken for a structural formula */
@@ -119,6 +130,28 @@
   #flat.on{display:flex}
   #flat svg{max-width:100%;max-height:100%}
   #flat .fnone{font-family:var(--font-sans);font-size:16px;color:var(--muted)}
+
+  /* ---------- the recipe line, bottom right ----------
+     What to say to get THIS model in another lesson: the spec key, which
+     DERIVATION it is, and which spec FIELD the current view draws from. Read
+     from the library at render time, never typed — a lookup table here would be
+     a claim nothing checks and would go stale the first time a molecule moved
+     file. The <script> tags are deliberately NOT on screen: they are the long,
+     mechanical part and CLAUDE.md's per-page table already enumerates them.
+     Click copies the full form, tags and provenance included. */
+  #recipe{position:absolute;left:26px;bottom:22px;z-index:12;max-width:min(52ch,40%);
+    text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;line-height:1.5;color:var(--muted);cursor:pointer;
+    opacity:.55;transition:opacity .15s ease}
+  #recipe:hover{opacity:1}
+  #recipe b{font-weight:600;color:var(--ink)}
+  /* the derivation's own description, when it has one. It sits HERE rather than
+     in the notes rail because it says what this MODEL is, which is this block's
+     job — and because the rail, left to grow, runs down into this corner. */
+  #recipe .rnote{display:block;margin-bottom:5px;font-family:var(--font-sans);
+    font-style:italic;font-size:12px;line-height:1.4;max-width:44ch}
+  #recipe .rhint{font-family:var(--font-sans);font-style:italic;opacity:.8}
+  #recipe .rmiss{color:#b3402f}
 
   #savepng{bottom:22px;right:26px;left:auto}
 
@@ -144,9 +177,14 @@
         <button class="mode" data-dim="2d">2D</button>
         <button class="mode" data-dim="diagram">Diagram</button>
       </div>
+      <div id="src" role="group" aria-label="Derivation">
+        <button class="mode on" data-src="pubchem">Measured</button>
+        <button class="mode" data-src="skel">Idealized</button>
+      </div>
       <button class="act" id="focusbtn">Highlight</button>
       <button class="act" id="hbtn">C–H hydrogens</button>
     </div>
+    <div id="recipe" title="click to copy"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
 </div>
@@ -156,6 +194,7 @@
 <script src="molecules.js"></script>
 <script src="skel.js"></script>
 <script src="mol-glycolysis.js"></script>
+<script src="mol-compare.js"></script>
 <!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
      — the same library and the same strings contrast-lab.html uses. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
@@ -221,7 +260,7 @@
  * highlight can never point at the wrong atoms.
  */
 const SHELF=[
-  { key:'atp', card:'ATP',
+  { key:'atp', card:'ATP', alt:'atpSkel',
     blurb:'The cell’s spendable energy. Adenine and a ribose — the same '
         + 'handle RNA is built from — with <b>three phosphates</b> chained in a '
         + 'row. The charge on those phosphates is why the chain is strained, and '
@@ -247,7 +286,15 @@ const SHELF=[
   },
 ];
 
-const specOf=e=>MolLib.MOLECULES[e.key];
+/* WHICH SPEC IS ON SCREEN. Two derivations of one molecule: the measured
+ * conformer (`key`) and the idealised build (`alt`). Everything downstream —
+ * layout, highlight, notes, framing — goes through this one function, so
+ * nothing else on the page has to know there is a choice.
+ *
+ * A molecule with no `alt` silently stays on its own spec, and the switch
+ * fades. That is the honest behaviour: NADH has no hand-built twin, and a live
+ * button that did nothing would be a claim it does. */
+const specOf=e=>MolLib.MOLECULES[(source==='skel' && e.alt) || e.key];
 
 /* ---------- stage ---------- */
 const canvas=document.getElementById('gl');
@@ -267,6 +314,7 @@ applyCam();
 let selected=0;
 let built=null;                    // the current molecule's group
 let mode='3d';                     // '3d' | '2d' | 'diagram'
+let source='pubchem';              // 'pubchem' | 'skel' — which DERIVATION
 // Highlight starts OFF: the molecule arrives whole. Dimming five sixths of it
 // before the student has looked at any of it answers a question nobody asked —
 // the button is for when they want to know which part does the work.
@@ -421,6 +469,27 @@ function applyFocus(){
  * that check-molecules.js re-derives from the geometry and fails on, so quoting
  * it here quotes something that is actually checked; counting rings in this file
  * would be a second, unchecked implementation of the same claim. */
+// Smallest principal spread of the heavy atoms — the thickness of the slab they
+// occupy. Heavy atoms only, for the reason Stage.measure counts only heavy
+// atoms: a hydroxyl H is a free rotor, so including it measures how the spec
+// happens to be drawn. Divided back out of SCALE so it reads in real ångströms.
+function thickness(spec){
+  const P=spec.atoms.filter(a=>a.el!=='H').map(a=>a.pos), n=P.length;
+  const c=[0,1,2].map(k=>P.reduce((t,p)=>t+p[k],0)/n);
+  const C=[[0,0,0],[0,0,0],[0,0,0]];
+  P.forEach(p=>{ const d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]];
+    for(let i=0;i<3;i++) for(let j=0;j<3;j++) C[i][j]+=d[i]*d[j]/n; });
+  // smallest eigenvalue by inverse power iteration on (tr·I − C), which is
+  // positive-definite and has its LARGEST eigenvalue where C has its smallest
+  const tr=C[0][0]+C[1][1]+C[2][2];
+  const M=C.map((r,i)=>r.map((v,j)=>(i===j?tr:0)-v));
+  const mul=(A,v)=>[0,1,2].map(i=>A[i][0]*v[0]+A[i][1]*v[1]+A[i][2]*v[2]);
+  const unit=v=>{ const l=Math.hypot(...v)||1; return v.map(x=>x/l); };
+  let v=unit([0.31,0.71,0.63]);
+  for(let k=0;k<200;k++) v=unit(mul(M,v));
+  const lam=v.reduce((t,x,i)=>t+x*mul(C,v)[i],0);
+  return Math.sqrt(Math.max(0,lam))/(MolLib.SCALE||1.9);
+}
 function note(){
   const e=SHELF[selected], s=specOf(e), m=Stage.measure(s);
   const heavy=s.atoms.filter(a=>a.el!=='H').length;
@@ -439,11 +508,92 @@ function note(){
         + `${rings.join(', ')}${s.topology.fused?', two of them fused':''}</div>`:'')
    + (s.gly&&s.gly.phosphates!=null?`<div>Phosphates <b>${s.gly.phosphates}</b></div>`:'')
    + `<div>Widest span <b>${m.span.toFixed(1)} Å</b></div>`
+   // The number the derivation switch is about, computed here rather than
+   // quoted: how far the molecule departs from its own best-fit plane. A
+   // schematic build is near-flat by construction; a real conformer is not.
+   + `<div>Out of plane <b>${thickness(s).toFixed(2)} Å</b></div>`
    + `</div>`;
   document.getElementById('focus').innerHTML=
      `<div class="ftitle">${e.focus.title}</div>`
    + `<div class="fbody">${e.focus.body}</div>`;
 }
+
+/* ---------- how to ask for this model ----------
+ * Three facts, and the point of all of them is that they are the words the
+ * CODEBASE uses, not labels invented for the dock. "Idealized" and "Diagram" are
+ * for a student; an agent being asked to build a lesson needs the field names.
+ *
+ *   WHICH MOLECULE   `MolLib.MOLECULES.<key>` — the key it is registered under.
+ *   WHICH DERIVATION  `spec.src.path`, one of check-molecules.js's five
+ *                     provenance paths. The dock's Measured/Idealized is
+ *                     'pubchem' vs 'skel', and those strings are what a spec
+ *                     actually carries and what the checker actually audits.
+ *   WHICH RENDERING   the spec FIELD each view draws from — `atoms` for the
+ *                     model, `flat2d` for the flat layout, `smiles` for the
+ *                     structural diagram. A view is not a mode flag on this
+ *                     page; it is which committed field is being read, so
+ *                     naming the field says exactly what a molecule needs to
+ *                     have baked before another page can show it that way.
+ *
+ * `spec.domain` says which mol-*.js registered it; MolLib.DOMAINS is that file's
+ * place in the load order, and everything before it in the list is what it may
+ * assume is already there. So the tag list is DERIVED from the same manifest
+ * the checkers walk, not from a copy of CLAUDE.md's script table.
+ *
+ * palette.js and molecules.js lead every page; skel.js is needed by any domain
+ * file that builds rather than stores, which the manifest's order encodes. It is
+ * cheaper and more honest to name skel.js whenever the domain sits after it than
+ * to keep a second list of which files build.
+ */
+// view -> the spec field it reads, and the module that turns it into pixels.
+// Missing field = that view is unavailable for that molecule, which is a fact
+// worth showing rather than hiding.
+const VIEW_FIELD={
+  '3d':      { field:'atoms',  via:'Stage.buildMolecule', what:'ball-and-stick model' },
+  '2d':      { field:'flat2d', via:'Stage.buildMolecule + flat2d',
+               what:'flat layout, atoms moved' },
+  'diagram': { field:'smiles', via:'SmilesDrawer (atomVisualization:\'allballs\')',
+               what:'structural diagram' },
+};
+function recipe(spec){
+  const dom=spec.domain, all=MolLib.DOMAINS||[];
+  const i=all.indexOf(dom);
+  const needsSkel=i>=0 && all.indexOf('mol-glycolysis.js')>=0 && i>=all.indexOf('mol-glycolysis.js');
+  const tags=['palette.js','molecules.js'].concat(needsSkel?['skel.js']:[])
+             .concat(dom?[dom]:[]).concat(['scene.js']);
+  return { key:Object.keys(MolLib.MOLECULES).find(k=>MolLib.MOLECULES[k]===spec),
+           dom, tags };
+}
+const elRecipe=document.getElementById('recipe');
+function showRecipe(){
+  const spec=specOf(SHELF[selected]), r=recipe(spec), v=VIEW_FIELD[mode];
+  const path=(spec.src&&spec.src.path)||'?';
+  const has=spec[v.field]!=null;
+  elRecipe.innerHTML=(spec.compare?`<span class="rnote">${spec.compare.note}</span>`:'')
+    + `<span class="rhint">ask an agent for</span> `
+    + `<b>MolLib.MOLECULES.${r.key}</b><br>`
+    + `src.path <b>'${path}'</b> · draws spec.<b>${v.field}</b>`
+    + (has?'':' <span class="rmiss">(not baked)</span>');
+  elRecipe.dataset.copy=
+      `${spec.name} (${spec.formula})\n`
+    + `spec:      MolLib.MOLECULES.${r.key}\n`
+    + `derivation: src.path '${path}'`
+      + (path==='skel' ? ' — built by skel.js from VSEPR angles'
+                       : path==='pubchem' ? ` — PubChem CID ${spec.src.cid}, `
+                         + `${spec.src.record} record, conformer ${spec.src.conformer}` : '')
+      + `\n`
+    + `rendering: ${v.what} — reads spec.${v.field}, drawn by ${v.via}\n`
+    + `domain:    ${r.dom}\n`
+    + `scripts:   ${r.tags.join(', ')}\n`
+    + (spec.compare?`note:      ${spec.compare.note}\n`:'');
+}
+elRecipe.onclick=()=>{
+  navigator.clipboard.writeText(elRecipe.dataset.copy||'').then(()=>{
+    const was=elRecipe.innerHTML;
+    elRecipe.innerHTML='<span class="rhint">copied</span>';
+    setTimeout(()=>{ elRecipe.innerHTML=was; }, 900);
+  }).catch(()=>{});
+};
 
 function say(){
   const t={
@@ -481,7 +631,8 @@ function select(i){
   morph=morphTo=flatOf(mode);
   halfNow=halfTo=halfFor(mode);
   applyMorph();
-  applyFocus(); paintFlat(); note(); say();
+  elSrc.classList.toggle('solo', !SHELF[i].alt);
+  applyFocus(); paintFlat(); note(); say(); showRecipe();
 }
 
 /* ---------- where every atom goes ----------
@@ -644,10 +795,36 @@ function setDim(next){
   // The 3D-only control goes quiet rather than lying: a flat layout shows the
   // hydrogens folded away whatever this button says.
   hbtn.disabled=mode!=='3d'; hbtn.style.opacity=mode==='3d'?1:0.4;
-  say();
+  say(); showRecipe();
 }
 document.getElementById('dims').onclick=e=>{
   const b=e.target.closest('.mode'); if(b) setDim(b.dataset.dim); };
+
+/* ---------- the derivation switch ----------
+ * A full rebuild, not a tween. The two derivations have the same ATOMS IN THE
+ * SAME ORDER — they are the same molecule, and check-handedness.js says so
+ * against PubChem's own record — so morphing between them would be possible.
+ * It would also be a lie: a morph is this page's way of saying "one object,
+ * two presentations", and these are two independent DERIVATIONS. Cutting
+ * between them is the honest edit, and the flicker is the point.
+ *
+ * The view survives the switch. You stay in 3D or 2D or Diagram, at the pose
+ * you were at, because the question being asked is "what changed?" and moving
+ * anything else would answer it wrong. */
+const elSrc=document.getElementById('src');
+elSrc.onclick=e=>{
+  const b=e.target.closest('.mode');
+  if(!b || b.dataset.src===source) return;
+  source=b.dataset.src;
+  [...elSrc.querySelectorAll('.mode')].forEach(o=>
+    o.classList.toggle('on', o.dataset.src===source));
+  const keep=pose.clone();
+  select(selected);
+  pose.copy(keep);
+  morph=morphTo=flatOf(mode); halfNow=halfTo=halfFor(mode); applyHalf();
+  if(morph>=1) built.quaternion.identity(); else built.quaternion.copy(pose);
+  applyMorphEased(morph);
+};
 const hbtn=document.getElementById('hbtn');
 hbtn.onclick=e=>{
   showH=!showH; e.currentTarget.classList.toggle('on',showH);
