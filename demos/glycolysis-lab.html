@@ -13,8 +13,7 @@
 
   /* TWO ROWS, TWO COLUMNS: the rail spans the top, the stage takes the width
      that is left, and the readouts stack down the right. The stage is the
-     widest thing on the page because the molecules are the lesson — the rail
-     went horizontal to give it that width back. */
+     widest thing on the page because the molecules are the lesson. */
   @media (min-width:921px){
     #app{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
     #railbar{grid-column:1 / -1}
@@ -22,12 +21,9 @@
     #side{grid-column:2;grid-row:2}
   }
   #stage,#side{min-height:0}
-  /* THE SIDEBAR IS READOUTS ON THE PAGE, NOT A PANEL. It scrolls as one column
+  /* THE SIDEBAR IS STICKY NOTES ON THE PAGE, NOT A PANEL. It scrolls as one column
      — ledger, coupling sheet and note together — so no piece needs a fixed
-     height. No top padding, since the ledger is sticky and flush to the top
-     edge. And it carries the stage's own dotted paper with no border, grid
-     paper, torn edge or cast shadow: any of those would read as a second
-     document competing with the stage. */
+     height. */
   #side{overflow-y:auto; padding:0 20px 30px; box-shadow:none; border:none;
     background-color:var(--paper);
     background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
@@ -2575,7 +2571,7 @@ function soloCurve(st){
     <text class="et alone" x="266" y="${y+18}" text-anchor="end">${to}</text>
   </svg>`;
 }
-const soloLine=`Nothing is coupled here — the atoms only rearrange. Both sides sit
+const soloLine=`Both sides sit
    at nearly the <b>same energy</b>, so the step runs either way.`;
 
 // The two views of one step. `figTab` is module-level because drawNote replaces
