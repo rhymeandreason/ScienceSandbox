@@ -148,31 +148,6 @@
   }
   .card:hover .name { color: var(--accent); }
 
-  /* ---- list rows ------------------------------------------------------ */
-
-  .rows { list-style: none; padding: 0; margin: 0; }
-
-  .row {
-    display: grid;
-    grid-template-columns: minmax(12rem, 20rem) 1fr auto;
-    align-items: baseline;
-    gap: 1.25rem;
-    padding: 0.85rem 0.25rem;
-    border-bottom: 1px solid var(--line);
-    color: inherit;
-    text-decoration: none;
-    transition: background .15s, padding-left .15s;
-  }
-  .row .name { font-size: 1.05rem; font-weight: 500; letter-spacing: -0.01em; }
-  .row .note { font-family: var(--serif); font-size: 0.9rem; color: var(--muted); }
-  .row .arrow { color: var(--line); transition: color .15s, transform .15s; }
-  .row:hover { background: #fff; padding-left: 0.75rem; }
-  .row:hover .name { color: var(--accent); }
-  .row:hover .arrow { color: var(--accent); transform: translateX(3px); }
-
-  .quiet .row .name { font-weight: 400; font-size: 0.98rem; color: var(--muted); }
-  .quiet .row:hover .name { color: var(--ink); }
-
   footer {
     margin-top: 4rem;
     padding-top: 1.5rem;
@@ -189,8 +164,6 @@
   @media (max-width: 700px) {
     .mast { grid-template-columns: 1fr; align-items: start; }
     .tagline { text-align: left; margin-top: 0.9rem; }
-    .row { grid-template-columns: 1fr auto; }
-    .row .note { grid-column: 1 / -1; }
   }
 </style>
 </head>
@@ -203,7 +176,7 @@
 </header>
 
 <section>
-  <div class="head"><h2>Featured lessons</h2><span class="rule"></span><span class="count">04</span></div>
+  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">04</span></div>
   <ul class="grid">
     <li><a class="card" href="demos/water-lab.html">
       <span class="idx">01</span>
@@ -226,39 +199,6 @@
       <span class="note">Six near-identical pairs, one feature apart</span>
     </a></li>
   </ul>
-</section>
-
-<section>
-  <div class="head"><h2>In progress</h2><span class="rule"></span></div>
-  <div class="rows">
-    <a class="row" href="demos/molecule-lab.html"><span class="name">Dissolving Sandbox</span><span class="note">polar · nonpolar · ionic · pH</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/aminoacid-lab.html"><span class="name">Build a Peptide</span><span class="note">dehydration synthesis</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/glycolysis-lab.html"><span class="name">Glycolysis</span><span class="note">ten steps, five stages, carbon bookkeeping</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/molecule-viewer.html"><span class="name">Molecule Viewer</span><span class="note">one molecule, three views — ATP · NADH</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/macromolecule-lab.html"><span class="name">Macromolecules Gallery</span><span class="note">four classes at true relative size</span><span class="arrow">→</span></a>
-  </div>
-</section>
-
-<section class="quiet">
-  <div class="head"><h2>Superseded</h2><span class="rule"></span></div>
-  <div class="rows">
-    <a class="row" href="demos/protein-lab.html"><span class="name">Four Levels of Protein Structure</span><span class="note">lysozyme · ChemDoodle viewer</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/folding-lab-ribbon.html"><span class="name">Levels of Protein Structure</span><span class="note">villin · 1 → 3, ribbons</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/folding-lab.html"><span class="name">How a Protein Folds</span><span class="note">villin · tubes</span><span class="arrow">→</span></a>
-  </div>
-</section>
-
-<section class="quiet">
-  <div class="head"><h2>Evaluation pages</h2><span class="rule"></span></div>
-  <div class="rows">
-    <a class="row" href="demos/folding/ribbon-test.html"><span class="name">Ribbon Renderer Test Bench</span><span class="note"></span><span class="arrow">→</span></a>
-    <a class="row" href="demos/viewer-compare.html"><span class="name">ChemDoodle vs 3Dmol.js vs Mol*</span><span class="note"></span><span class="arrow">→</span></a>
-    <a class="row" href="demos/molstar/protein-molstar.html"><span class="name">Mol* — Protein Lab</span><span class="note">hemoglobin</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/molstar/protein-inhouse.html"><span class="name">In-house Renderer — Protein Lab</span><span class="note">hemoglobin</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/molstar/folding-molstar.html"><span class="name">Mol* — Folding Lab</span><span class="note"></span><span class="arrow">→</span></a>
-    <a class="row" href="demos/molstar/folding-molstar-ladder.html"><span class="name">Mol* — Folding Lab</span><span class="note">ladder</span><span class="arrow">→</span></a>
-    <a class="row" href="demos/molstar/folding-molstar-narrated.html"><span class="name">Mol* — Folding Lab</span><span class="note">narrated</span><span class="arrow">→</span></a>
-  </div>
 </section>
 
 <footer>
