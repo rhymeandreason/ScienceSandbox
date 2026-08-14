@@ -238,4 +238,68 @@ With helices as first-class objects you get a handle for exactly that operation.
 
 ---
 
+Feedback from the bio teacher: Ultimately it’s less about the students getting the exact right shape, and more about seeing that some shapes are more stable than others and a sense that with time / wiggling / assistance in the rough ER, getting to an exact shape is deterministic.
+
+**The shift:** success metric moves from RMSD-to-native → stability + a visible improvement history. Show a score-over-time plot (Foldit's undo graph). That plot is the lesson. Pass the puzzle on a stability threshold, and let multiple distinct conformations qualify.
+
+**Wiggle vs. shake:** resolves the earlier determinism tension. Minimization stays deterministic — that's where student agency lives. Add a separate stochastic perturbation that re-descends. Repeated runs from the same start land in the same basin most of the time, which is exactly the convergence intuition she wants.
+
+**Chaperones, literally:** she named the rough ER, so build it. A chaperone is another fixed external body with a complementarity term — same object type as your ice lattice, heme, and HbS pocket. Student gets stuck → sends protein to chaperone → perturb and re-release. A hint button that's also biologically true.
+
+**Two unlocks:**
+
+* Side-by-side comparison of saved conformations. "This one is more stable than that one" needs a compare view, not a leaderboard.
+
+* Kinetically trapped states become teachable — the real misfolding story you had to drop for sickle cell.
+
+**Cut:** precision controls, angle readouts, decimal RMSD. Coarse handles, big feedback.
+
+**Ask her:** is landing in a wrong-but-stable minimum an acceptable outcome, or do students need to reach native? If wrong-but-stable passes, your scoring and puzzle design get dramatically simpler.
+
+Should we still do the unfolding hemoglobin first?
+
+Honestly — no, and her feedback is what changed it.
+
+### The problem
+
+I specced the unfolder as *no minimizer, no scoring function, no force field*. Those were the right cuts for an animation tool. But her lesson is entirely about stability and convergence, which means **the score and the minimizer are the lesson**. The unfolder skips exactly the two components that carry it.
+
+There's a worse version of this too. A recorded unfold played backward shows folding as a scripted path — the same movie every time. That teaches folding as choreography, when the thing she wants students to feel is descent they discover themselves. The animation isn't just insufficient; it's slightly misleading.
+
+### And its main byproduct is available cheaper
+
+The unfolder's practical payoff was generating puzzle start states. But you can get those by randomizing loop torsions within Ramachandran limits — about twenty lines, versus the whole trajectory system. The answer-key value also drops, since you're no longer scoring against native.
+
+### Revised order
+
+1. **Sickle cell demo** — still first. Mol\* plus a surface score, no engine. Gets something in her classroom in weeks.
+
+2. **Wiggle sandbox** — the minimal thing that teaches her lesson. Small single-domain protein, random perturbation, coarse helix handles, live score, descent plot, shake button. This is where score + minimizer get built, and it's the actual product she described.
+
+3. **Unfolder** — now cheap, because it reuses everything from step 2. Add trajectory recording and staged unfolding when you want the teaching animation.
+
+4. **Targets** — insulin, Type I AFP, myoglobin.
+
+### What survives from the unfolding discussion
+
+All of it, except the sequencing. Rigid-helices-on-a-string is still your data model. The kinematic tree, NeRF builder, and capsule sterics are all in step 2 regardless. Shared state between unfolder and game still holds — you're just building the game half first.
+
+And hemoglobin is still the wrong subject for any of it. Use it for sickle cell in step 1, then leave it alone.
+
+**Sickle cell demo:** a fixed-structure viewer with one mutation toggle and a docking interaction. No folding.
+
+**Data:** 2HHB (deoxy T-state), 2HBS (HbS fiber — gives real Val6→pocket geometry), a hydrophobicity scale.
+
+**Build:** Surface + cartoon rendering, hydrophobicity-colored (blue polar, orange nonpolar). Precompute the Glu6 and Val6 states — no rotamer sampling. Add rigid-body drag of a second tetramer, 6 DOF.
+
+**Score:** buried nonpolar area at the interface, plus Val6-in-pocket distance, plus a soft steric penalty. Live number and a visual — glow the patch when exposed, highlight when docked.
+
+**The interaction:** flip β6 → watch an orange patch appear on a blue surface → drag a second copy over → find where it sticks.
+
+**The lesson:** the protein folds correctly. Sequence fine, fold fine, oxygen binding fine. One surface patch is greasy, and greasy patches find each other. Say this explicitly — most classroom materials call it misfolding, and being right where they're wrong is your reason to be adopted.
+
+**Scope guard:** no fiber growth, no oxygen binding, no folding. Load, mutate, look, dock.
+
+---
+
 ---
