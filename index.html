@@ -199,19 +199,29 @@
   }
 
   .cta {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
     margin-top: clamp(2rem, 4vw, 3rem);
-    padding: 0.85rem 1.8rem;
-    border: 1px solid var(--ink);
+    padding: 1rem 2.2rem;
+    border: 1px solid var(--accent);
     border-radius: 999px;
-    color: var(--ink);
+    background: var(--accent);
+    color: #faf8f4;
     text-decoration: none;
-    font-size: 0.88rem;
+    font-size: 0.95rem;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    transition: background .18s, color .18s, border-color .18s;
+    transition: background .18s, border-color .18s, transform .18s, box-shadow .18s;
   }
-  .cta:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cta i { font-size: 1.1em; }
+  .cta:hover {
+    background: var(--spark);
+    border-color: var(--spark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(226,100,58,.25);
+  }
 
   footer {
     margin-top: 4rem;
@@ -225,6 +235,15 @@
     gap: 1rem;
     flex-wrap: wrap;
   }
+  footer a {
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 1px;
+    transition: color .15s, border-color .15s;
+  }
+  footer a:hover { color: var(--accent); border-color: var(--accent); }
+  footer .sep { opacity: .5; margin: 0 0.15rem; }
 
   @media (max-width: 700px) {
     .mast { grid-template-columns: 1fr; align-items: start; }
@@ -285,11 +304,11 @@
   attention reconciling pictures instead of learning the concept. These pages
   pull the scattered versions of an idea together into models you can turn in your hands.</p>
 
-  <a class="cta" href="demos/water-lab.html">Start with water</a>
+  <a class="cta" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener"><i class="ph-bold ph-heart" aria-hidden="true"></i>I love this</a>
 </section>
 
 <footer>
-  <span>Kodolab</span>
+  <span>Kodolab · <a href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Send feedback</a></span>
   <span>open source · CC-BY-4.0 · github coming soon</span>
 </footer>
 
