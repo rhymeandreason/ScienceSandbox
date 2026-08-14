@@ -6,7 +6,7 @@
 <title>Kodolab — interactive biology</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Futura where it exists on the machine; Jost is the geometric stand-in. */
@@ -148,6 +148,58 @@
   }
   .card:hover .name { color: var(--accent); }
 
+  /* ---- manifesto ------------------------------------------------------ */
+
+  .manifesto {
+    padding: clamp(5rem, 13vw, 10rem) 0 clamp(4rem, 9vw, 7rem);
+    max-width: 60rem;
+  }
+
+  .statement {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(1.9rem, 4.6vw, 3.5rem);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .statement em { font-style: italic; }
+
+  /* inline chips — a molecule motif set into the line, sized to the x-height */
+  .chip {
+    display: inline-block;
+    vertical-align: -0.12em;
+    width: 1.85em;
+    height: 0.86em;
+    margin: 0 0.18em;
+    border-radius: 0.14em;
+    overflow: hidden;
+  }
+  .chip svg { display: block; width: 100%; height: 100%; }
+
+  .manifesto .body {
+    max-width: 34rem;
+    margin: clamp(2.5rem, 5vw, 3.5rem) 0 0;
+    font-size: 0.98rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .cta {
+    display: inline-block;
+    margin-top: clamp(2rem, 4vw, 3rem);
+    padding: 0.85rem 1.8rem;
+    border: 1px solid var(--ink);
+    border-radius: 999px;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 0.88rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: background .18s, color .18s, border-color .18s;
+  }
+  .cta:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
   footer {
     margin-top: 4rem;
     padding-top: 1.5rem;
@@ -172,7 +224,7 @@
 
 <header class="mast">
   <h1 class="logo">kodo<em>lab</em><span class="dot">.</span></h1>
-  <p class="tagline">Interactive 3D simulations for college Bio&nbsp;101.</p>
+  <p class="tagline">Interactive 3D simulations for college level Biology.</p>
 </header>
 
 <section>
@@ -199,6 +251,22 @@
       <span class="note">Six near-identical pairs, one feature apart</span>
     </a></li>
   </ul>
+</section>
+
+<section class="manifesto">
+  <p class="statement">
+    Kodolab is a library of in-depth 3D interactives designed for teaching
+    <span class="chip" aria-hidden="true"><svg viewBox="0 0 74 34"><rect width="74" height="34" fill="#0e2b26"/><circle cx="27" cy="17" r="12" fill="#e8eef0"/><circle cx="46" cy="9" r="6.5" fill="#e2643a"/><circle cx="46" cy="25" r="6.5" fill="#e2643a"/></svg></span>
+    threshold concepts — the ideas a student has to cross before the rest of
+    biology makes sense. Work in progress, check back soon.
+  </p>
+
+  <p class="body">Seeing it beats reading about it. A static diagram flattens the thing it
+  explains, and the next textbook draws it differently. Students spend their
+  attention reconciling pictures instead of learning the concept. These pages
+  pull the scattered versions of an idea together into models you can turn in your hands.</p>
+
+  <a class="cta" href="demos/water-lab.html">Start with water</a>
 </section>
 
 <footer>
