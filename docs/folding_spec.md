@@ -1,4 +1,3 @@
-
 Summarize the key technical parts I need to build a folding UI from secondary structures for insulin and antifreeze proteins.
 
 ---
@@ -136,5 +135,107 @@ Don't model fiber growth, don't model oxygen binding, don't let anyone fold anyt
 **Student-friendly explanation:**
 
 Your body makes hemoglobin, the protein that carries oxygen in your blood, from a recipe written in your DNA — and in sickle cell anemia, exactly one letter of that recipe is different. That one change swaps a single building block on the protein's surface: out goes a water-loving one, in comes a grease-loving one. The protein still folds into the right shape and still carries oxygen just fine. The problem is that grease-loving patch. Water is everywhere in your cells, and grease hates water, so the patch goes looking for somewhere to hide — and the only thing nearby with a matching greasy spot is another hemoglobin molecule. They stick. Then another sticks to that one, and another, until they've stacked into long stiff rods that stretch the round red blood cell into a curved sickle shape, which jams in narrow blood vessels and causes pain and damage. So the whole disease comes down to a single misplaced patch on a surface — the protein isn't broken, it's just sticky in one spot it shouldn't be.
+
+---
+
+I'm thinking of making a tool to interactively unfold hemoglobin. this is largely for the purpose of making a nice animation. but could that also be a good way to build gradually?
+
+Unfolding as a build strategy is smarter than it sounds, for a reason that isn't the animation.
+
+### Why it's genuinely good scaffolding
+
+**You start from a correct structure, so every intermediate is scored against a known target.** Forward folding gives you a scoring function with no ground truth — you're asking "is this good?" with no way to check. Unfolding gives you RMSD-to-native for free at every frame. Your scoring function has an answer key while you're writing it.
+
+**It exercises the same machinery in the safe direction.** Unfolding is torsion changes propagating through a kinematic tree — identical code to folding, but you can never fail. There's no loop closure problem, no search, no local minima. You build the tree, the NeRF builder, the incremental rescoring, and the render pipeline, and you debug all of them against a case where you always know what correct looks like.
+
+**Then you reverse it and you have a game.** Record the unfold as a torsion trajectory. Play it backward and it's a folding animation. Stop partway, hand it to a player, and it's a puzzle with a guaranteed solution and a tunable difficulty knob — perturb 5 torsions for easy, 50 for hard. That's Foldit's "revisiting" puzzle format, and it's how you generate content without needing a research pipeline.
+
+### The bonus you've just unlocked
+
+**Rigid-body-on-a-string is exactly the topology representation.** Once helices are objects with position and orientation, the natural interaction isn't dragging atoms — it's dragging *helices*. Pick up helix E, move it, loops follow via IK.
+
+That's a better manipulation interface than Foldit has, it's the representation Baker-lab blueprint design actually uses, and it means the unfolder and the folding game share a data model rather than just sharing code.
+
+### Where it stops working
+
+All-helical proteins only. β-sheets break this cleanly — a strand isn't independent, the sheet is the rigid body, and register is a discrete long-range constraint that doesn't fit "rigid bodies on a string" at all.
+
+Which is fine. Myoglobin, hemoglobin, and Type I AFP are all-α. Insulin is all-α. You've got three targets and a build path before it matters, and by then you'll know whether the abstraction earned a second version.
+
+### Data model
+
+* Load PDB → assign helices (DSSP or use PDB HELIX records)
+
+* Represent as: N rigid bodies (helix local coords + transform) + connector loops (φ/ψ arrays)
+
+* Everything downstream operates on this, not on atom coordinates
+
+### Core components
+
+1. **NeRF builder** — internal coords → Cartesian. Fixed ideal bond lengths/angles, ω=180°. \~80 lines.
+
+2. **Kinematic chain** — helix transforms derived from upstream loop torsions; cache and invalidate downstream only.
+
+3. **Loop constraints** — Ramachandran clamp per residue type (Gly wide, Pro narrow); span check at 3.3 Å/residue.
+
+4. **Sterics** — capsule per helix for broad phase (axis + \~5 Å radius), atom pairs only on capsule overlap.
+
+5. **Trajectory recorder** — torsion arrays per keyframe, not XYZ. Scrubbable, reversible, reusable as puzzle states.
+
+### Rendering
+
+* In-house render
+
+* Helices as cylinders — your physics objects and visual objects are already the same objects
+
+### Interaction
+
+* Drag a helix (6 DOF); loops follow
+
+* Scrub the trajectory
+
+* Play reversed = folding animation
+
+### Known gotchas
+
+* Let helix terminal residues flex, or accept \~1 Å RMSD on refold
+
+* Stage the unfold (loops → packing → helices) if it's for teaching; linear interpolation looks wrong and teaches wrong
+
+* Start single-chain (myoglobin), not hemoglobin
+
+### Not needed yet
+
+Minimizer, loop closure IK, force field, rotamers, design, OpenMM.
+
+**Deliverable:** an animation tool. **What you actually have:** the folding engine's foundation, minus two components.
+
+---
+
+### 1. Better manipulation than Foldit
+
+Foldit's tools are **residue-level**. Pull grabs a residue and drags; the chain follows through IK. Bands pin residues together. Wiggle minimizes over all torsions.
+
+That's the right granularity for the problem Foldit was built for in 2008 — refining an approximately-correct model, where the moves that matter are local. But it means there's no way to say the thing a structural biologist actually thinks, which is *"helix E should pack against helix B, rotated about 20° from where it is."* In Foldit you approximate that with a band and a lot of wiggling, and you watch the helix deform in ways you didn't ask for while the minimizer finds its own path there.
+
+With helices as first-class objects you get a handle for exactly that operation. Grab helix E, rotate it, translate it; loops absorb the change; the helix stays a helix because it's rigid by construction. The move you intend is the move you make.
+
+**Where I'd hedge:** this is better for *topology-level* work — arranging a fold, packing a core, design. It's worse for refinement, where the interesting motion is precisely the local backbone deviation you've defined away. Foldit's residue tools aren't a design failure, they're tuned for a different task. You're not strictly improving on them; you're picking a different level of abstraction that's better suited to your targets and your audience.
+
+**Blueprint alignment.** Rosetta blueprints specify folds as per-residue SS/torsion-bin strings; parametric design describes helical bundles with a few Crick parameters. Neither is literally rigid-bodies-on-a-string, but both treat SSE topology as the primary design object — so your representation maps cleanly onto theirs and can round-trip. Verify against the Rosetta blueprint docs before making this claim publicly.
+
+**Shared data model.** The strongest of the three. Both tools operate on `{helix transforms, loop torsions}` — unfolding walks that state away from native, folding walks it back. Same program, two directions. Consequences:
+
+* Every unfold trajectory is a puzzle set; difficulty is how far you unfolded. No hand-authoring.
+
+* The trajectory is the answer key — enables partial scoring, hints, convergence measurement.
+
+* Player solutions and animations are the same object; replay is free.
+
+* One serialization format (\~60 floats) for undo, save, share, diff, and diff-against-native.
+
+**The upshot:** build the unfolder first not as a warm-up, but because it produces your content pipeline as a side effect. The animation tool *is* the level editor.
+
+---
 
 ---
