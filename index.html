@@ -3,162 +3,352 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eureka Prototypes</title>
+<title>Kodolab — interactive biology</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper:   #f7f5f0;
-    --ink:     #1c1c1a;
-    --muted:   #7c7770;
-    --line:    #e2ddd3;
-    --card:    #fffdf9;
-    --accent:  #2a5d8f;
-    --font-slab: 'Zilla Slab', Georgia, serif;
-    --font-sans: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Futura where it exists on the machine; Jost is the geometric stand-in. */
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Fraunces', Georgia, serif;
+
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;   /* deep green */
+    --spark:  #e2643a;   /* warm counterpoint */
+
+    --gap: clamp(1rem, 2.2vw, 1.5rem);
   }
 
   * { box-sizing: border-box; }
 
+  html { scroll-behavior: smooth; }
+
   body {
-    font-family: var(--font-sans);
+    font-family: var(--sans);
     background: var(--paper);
     color: var(--ink);
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 5rem 1.5rem 6rem;
-    line-height: 1.6;
+    margin: 0;
+    padding: clamp(3rem, 7vw, 6rem) clamp(1.25rem, 5vw, 4rem) 7rem;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    font-weight: 400;
   }
 
-  header { margin-bottom: 4rem; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
 
-  h1 {
-    font-family: var(--font-slab);
-    font-weight: 700;
-    font-size: clamp(2.4rem, 7vw, 3.4rem);
-    letter-spacing: -0.02em;
-    line-height: 1.05;
+  /* ---- masthead ------------------------------------------------------ */
+
+  .mast {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: var(--gap);
+    padding-bottom: 1.75rem;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: clamp(2.5rem, 6vw, 4.5rem);
+  }
+
+  .logo {
+    font-size: clamp(2.8rem, 9vw, 5.5rem);
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    line-height: 0.9;
+    margin: 0;
+    text-transform: lowercase;
+  }
+  .logo em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .logo .dot { color: var(--spark); }
+
+  .tagline {
+    font-family: var(--serif);
+    font-size: clamp(1rem, 1.6vw, 1.22rem);
+    color: var(--muted);
+    max-width: 26ch;
+    margin: 0 0 0.35rem;
+    text-align: right;
+    line-height: 1.35;
+  }
+
+  /* ---- section headers ----------------------------------------------- */
+
+  section { margin-bottom: clamp(3rem, 6vw, 4.5rem); }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin: 0 0 1.5rem;
+  }
+
+  h2 {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
     margin: 0;
   }
 
-  h1 .mark { color: var(--accent); }
+  .head .rule { flex: 1; height: 1px; background: var(--line); }
+  .head .count { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--muted); }
 
-  .tagline {
-    color: var(--muted);
-    font-size: 1.02rem;
-    margin: 0.9rem 0 0;
-    max-width: 34rem;
+  /* ---- featured grid -------------------------------------------------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--gap);
+    list-style: none;
+    padding: 0; margin: 0;
   }
 
-  section { margin-bottom: 3.25rem; }
-
-  h2 {
-    font-family: var(--font-sans);
-    font-size: 0.76rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--muted);
-    margin: 0 0 1rem;
-    padding-bottom: 0.55rem;
-    border-bottom: 1px solid var(--line);
-  }
-
-  ul { list-style: none; padding: 0; margin: 0; }
-  li + li { margin-top: 0.5rem; }
-
-  a {
+  .card {
     display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    padding: 0.85rem 1.1rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 100%;
+    padding: 1.5rem 1.4rem 1.6rem;
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 10px;
-    color: var(--ink);
+    border-radius: 4px;
+    color: inherit;
     text-decoration: none;
-    transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    transition: border-color .18s, transform .18s, box-shadow .18s;
   }
-
-  a:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(42, 93, 143, 0.08);
-  }
-
-  .name {
-    font-family: var(--font-slab);
+  .card .idx {
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    color: var(--spark);
     font-weight: 600;
-    font-size: 1.06rem;
   }
-
-  .note {
+  .card .name {
+    font-size: 1.35rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+  }
+  .card .note {
+    font-family: var(--serif);
+    font-size: 0.92rem;
     color: var(--muted);
-    font-size: 0.86rem;
-    margin-left: auto;
-    text-align: right;
+    margin-top: auto;
+    padding-top: 0.9rem;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 26px rgba(20,22,26,.07);
+  }
+  .card:hover .name { color: var(--accent); }
+
+  /* ---- coming soon ---------------------------------------------------- */
+
+  .card.soon {
+    background: transparent;
+    border-style: dashed;
+    cursor: default;
+  }
+  .card.soon .idx  { color: var(--muted); }
+  .card.soon .name { color: var(--muted); }
+  .card.soon:hover {
+    border-color: var(--line);
+    transform: none;
+    box-shadow: none;
+  }
+  .card.soon:hover .name { color: var(--muted); }
+
+  /* ---- manifesto ------------------------------------------------------ */
+
+  .manifesto {
+    padding: clamp(5rem, 13vw, 10rem) 0 clamp(4rem, 9vw, 7rem);
+    max-width: 60rem;
   }
 
-  section.quiet a { background: transparent; }
-  section.quiet .name { font-family: var(--font-sans); font-weight: 600; font-size: 0.98rem; }
+  .statement {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(1.9rem, 4.6vw, 3.5rem);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .statement em { font-style: italic; }
 
-  @media (max-width: 560px) {
-    body { padding-top: 3rem; }
-    a { flex-direction: column; gap: 0.15rem; }
-    .note { margin-left: 0; text-align: left; }
+  /* inline chips — a Phosphor glyph set into the line, sized to the cap height */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* `middle` centres the tile on the x-height, so it nests in the line
+       instead of hanging off the icon's own baseline. */
+    vertical-align: middle;
+    position: relative;
+    top: -0.09em;
+    width: 1.08em;
+    height: 0.82em;
+    line-height: 1;
+    margin: 0 0.2em 0 0.06em;
+    border-radius: 0.16em;
+    background: var(--accent);
+    color: #faf8f4;
+    font-size: 0.86em;   /* chips read as punctuation, not as headings */
+  }
+  .chip i { font-size: 0.6em; line-height: 1; }
+  .chip.spark { background: var(--spark); }
+  .chip.ink   { background: var(--ink); }
+
+  .manifesto .body {
+    max-width: 34rem;
+    margin: clamp(2.5rem, 5vw, 3.5rem) 0 0;
+    font-size: 0.98rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-top: clamp(2rem, 4vw, 3rem);
+    padding: 1rem 2.2rem;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    background: var(--accent);
+    color: #faf8f4;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: background .18s, border-color .18s, transform .18s, box-shadow .18s;
+  }
+  .cta i { font-size: 1.1em; }
+  .cta:hover {
+    background: var(--spark);
+    border-color: var(--spark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(226,100,58,.25);
+  }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  footer a {
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 1px;
+    transition: color .15s, border-color .15s;
+  }
+  footer a:hover { color: var(--accent); border-color: var(--accent); }
+  footer .sep { opacity: .5; margin: 0 0.15rem; }
+
+  @media (max-width: 700px) {
+    .mast { grid-template-columns: 1fr; align-items: start; }
+    .tagline { text-align: left; margin-top: 0.9rem; }
   }
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<header>
-  <h1>Eureka <span class="mark">Prototypes</span></h1>
-  <p class="tagline">Interactive sims for AP Bio.</p>
+<header class="mast">
+  <h1 class="logo">kodo<em>lab</em><span class="dot">.</span></h1>
+  <p class="tagline">Interactive 3D simulations for college level Biology.</p>
 </header>
 
 <section>
-  <h2>Featured</h2>
-  <ul>
-    <li><a href="demos/water-lab.html"><span class="name">Structure of Water</span><span class="note">the universal solvent</span></a></li>
-    <li><a href="demos/molecule-builder.html"><span class="name">Covalent &amp; Ionic Bonds</span><span class="note">build a bond by hand</span></a></li>
-    <li><a href="demos/hemoglobin-lab.html"><span class="name">Levels of Protein Structure</span><span class="note">haemoglobin · all four levels, built live</span></a></li>
-    <li><a href="demos/contrast-lab.html"><span class="name">Spot the Difference</span><span class="note">six near-identical pairs</span></a></li>
+  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">03</span></div>
+  <ul class="grid">
+    <li><a class="card" href="demos/water-lab.html">
+      <span class="idx">01</span>
+      <span class="name">Structure of Water</span>
+      <span class="note">H-bonds, ice, salt — the universal solvent</span>
+    </a></li>
+    <li><a class="card" href="demos/molecule-builder.html">
+      <span class="idx">02</span>
+      <span class="name">Covalent &amp; Ionic Bonds</span>
+      <span class="note">Drag atoms together and build a bond by hand</span>
+    </a></li>
+    <li><a class="card" href="demos/hemoglobin-lab.html">
+      <span class="idx">03</span>
+      <span class="name">Levels of Protein Structure</span>
+      <span class="note">Haemoglobin — all four levels, built live</span>
+    </a></li>
   </ul>
 </section>
 
 <section>
-  <h2>Lessons in progress</h2>
-  <ul>
-    <li><a href="demos/molecule-lab.html"><span class="name">Dissolving Sandbox</span><span class="note">polar · nonpolar · ionic</span></a></li>
-    <li><a href="demos/aminoacid-lab.html"><span class="name">Build a Peptide</span><span class="note">dehydration synthesis</span></a></li>
-    <li><a href="demos/glycolysis-lab.html"><span class="name">Glycolysis</span><span class="note">carbon bookkeeping</span></a></li>
-    <li><a href="demos/macromolecule-lab.html"><span class="name">Macromolecules Gallery</span><span class="note">four classes, true scale</span></a></li>
+  <div class="head"><h2>Coming soon</h2><span class="rule"></span><span class="count">04</span></div>
+  <ul class="grid">
+    <li><span class="card soon">
+      <span class="idx">04</span>
+      <span class="name">Glycolysis</span>
+      <span class="note">Ten steps, five stages — ATP as a real molecule</span>
+    </span></li>
+    <li><span class="card soon">
+      <span class="idx">05</span>
+      <span class="name">Enzymes</span>
+      <span class="note">The shape change <em>is</em> what lowers the barrier</span>
+    </span></li>
+    <li><span class="card soon">
+      <span class="idx">06</span>
+      <span class="name">The Membrane</span>
+      <span class="note">A real bilayer — and what osmosis actually moves</span>
+    </span></li>
+    <li><span class="card soon">
+      <span class="idx">07</span>
+      <span class="name">DNA</span>
+      <span class="note">Helix, grooves, antiparallel strands, real H-bonds</span>
+    </span></li>
   </ul>
 </section>
 
-<section class="quiet">
-  <h2>Superseded</h2>
-  <ul>
-    <li><a href="demos/protein-lab.html"><span class="name">Four Levels of Protein Structure</span><span class="note">lysozyme · ChemDoodle viewer</span></a></li>
-    <li><a href="demos/folding-lab-ribbon.html"><span class="name">Levels of Protein Structure</span><span class="note">villin · 1 → 3, ribbons</span></a></li>
-    <li><a href="demos/folding-lab.html"><span class="name">How a Protein Folds</span><span class="note">villin · tubes</span></a></li>
-  </ul>
+<section class="manifesto">
+  <p class="statement">
+    Kodolab is a library of in-depth
+    <span class="chip" aria-hidden="true"><i class="ph-bold ph-atom"></i></span>
+    3D interactives designed for teaching
+    <span class="chip spark" aria-hidden="true"><i class="ph-bold ph-door-open"></i></span>
+    <em>threshold concepts</em> — the ideas a student has to cross before the
+    rest of biology
+    <span class="chip ink" aria-hidden="true"><i class="ph-bold ph-eye"></i></span>
+    makes sense.
+    <span class="chip" aria-hidden="true"><i class="ph-bold ph-hammer"></i></span>
+    Work in progress, check back soon.
+  </p>
+
+  <p class="body">Seeing it beats reading about it. A static diagram flattens the thing it
+  explains, and the next textbook draws it differently. Students spend their
+  attention reconciling pictures instead of learning the concept. These pages
+  pull the scattered versions of an idea together into models you can turn in your hands.</p>
+
+  <a class="cta" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener"><i class="ph-bold ph-heart" aria-hidden="true"></i>I love this</a>
 </section>
 
-<section class="quiet">
-  <h2>Evaluation pages</h2>
-  <ul>
-    <li><a href="demos/folding/ribbon-test.html"><span class="name">Ribbon Renderer Test Bench</span></a></li>
-    <li><a href="demos/viewer-compare.html"><span class="name">ChemDoodle vs 3Dmol.js vs Mol*</span></a></li>
-    <li><a href="demos/molstar/protein-molstar.html"><span class="name">Mol* — Protein Lab (Hemoglobin)</span></a></li>
-    <li><a href="demos/molstar/protein-inhouse.html"><span class="name">In-house Renderer — Protein Lab (Hemoglobin)</span></a></li>
-    <li><a href="demos/molstar/folding-molstar.html"><span class="name">Mol* — Folding Lab</span></a></li>
-    <li><a href="demos/molstar/folding-molstar-ladder.html"><span class="name">Mol* — Folding Lab (Ladder)</span></a></li>
-    <li><a href="demos/molstar/folding-molstar-narrated.html"><span class="name">Mol* — Folding Lab (Narrated)</span></a></li>
-  </ul>
-</section>
+<footer>
+  <span>Kodolab · <a href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Send feedback</a></span>
+  <span>open source · CC-BY-4.0 · github coming soon</span>
+</footer>
 
+</div>
 </body>
 </html>
