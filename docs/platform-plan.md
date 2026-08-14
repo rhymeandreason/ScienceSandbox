@@ -6,17 +6,19 @@ is a historical record of what the project thought before the lessons existed;
 everything still live has been folded in here.) The lesson build order is
 `demos/LESSONS-ROADMAP.md` and this doc doesn't touch it.
 
+**What's out of scope, deferred, or considered and declined is at the bottom, in
+one section.** Everything before it is what gets built.
+
 ## Two standing constraints
 
 Everything below is designed against these. They're what keep this a small
 project rather than an ed-tech vendor.
 
 **1. Supplemental, never graded.** These pages are study material; the real
-assessment is the midterm and the final. No scores collected, no gradebook, no
-LMS grade passback, no completion tokens. Quizzes are retrieval practice, not
-measurement. This is the written answer to "can I see my students' scores" — it
-is *no*, on purpose, and it is what permanently excuses this project from
-accounts, identity and per-student storage.
+assessment is the midterm and the final, and those live where they already live.
+Quizzes are retrieval practice. This is the written answer to "can I see my
+students' scores" — it is *no*, on purpose, and it is what permanently excuses
+this project from accounts, identity and per-student storage.
 
 **2. Teachers author, students study.** Teachers scope lessons, write quiz items
 and eventually remix. Students get a link and work alone, often at 11pm with no
@@ -24,10 +26,9 @@ teacher in the room — so a page must teach without one.
 
 ## Where the project is
 
-Thirteen pages in `demos/` over shared modules, four featured lessons. No
-backend, no accounts, no AI, published straight from the working tree to GitHub
-Pages. The audience is **college Bio 101 — mostly adults**. Three findings from
-building them shape everything below.
+Thirteen pages in `demos/` over shared modules, four featured lessons, published
+straight from the working tree to GitHub Pages. The audience is **college Bio 101
+— mostly adults**. Three findings from building them shape everything below.
 
 **A lesson is not a standalone file.** It's a page plus `palette.js` →
 `molecules.js` → `skel.js` → `mol-*.js` → `scene.js`, in an order where wrong
@@ -43,32 +44,29 @@ spheres merge; `check-handedness.js` is the only global-mirror catch. Generated
 other remix-a-science-app product, and it should be load-bearing in the design,
 not a footnote.
 
-**An adult audience retires the heaviest constraint the project carried.** COPPA
-machinery, SOPIPA and the ~40 state student-privacy laws key on K-12 and largely
-don't reach higher ed. FERPA still binds the *institution*, and data minimization
-is still the posture — but now by choice. A compliance project becomes a design
-preference, which is much cheaper to hold.
+**An adult audience makes data minimization a design preference rather than a
+compliance project.** COPPA machinery, SOPIPA and the ~40 state student-privacy
+laws key on K-12 and largely don't reach higher ed. FERPA still binds the
+*institution*, and minimization is still the posture — but now by choice, which
+is much cheaper to hold.
 
-## The tension to name first
+## The config layer is the whole unlock
 
 `LESSONS-ROADMAP.md` is explicit: **"Pedagogy retrofits are a later tier.
 Quizzes, predict-before-you-see, scored interaction — real, and deliberately not
-now. Visualization first."** So this plan doesn't overrule the roadmap; it splits
-the work, and only one half is due:
+now. Visualization first."** This plan doesn't overrule that. It separates one
+piece and builds only that piece now:
 
-- **Making a lesson declarative** — pulling stages, copy and callouts out of the
-  page's `<script>` into a config. Not pedagogy. It's the refactor that makes
-  scoping, sharing, customization and remix possible, and it pays for itself the
-  first time a teacher wants steps 1–5 only.
-- **Quizzes and scored interaction** — the roadmap's later tier, still deferred.
-  The roadmap already names its host and shape: predict-before-you-see on
-  glycolysis, "ATP in or out?" before steps 1 and 7.
+**Making a lesson declarative** — pulling stages, copy and callouts out of the
+page's `<script>` into a config. Not pedagogy. It's the refactor that makes
+scoping, sharing, customization and remix possible, and it pays for itself the
+first time a teacher wants steps 1–5 only.
 
-Read the convergence the other way: both tiers want the *same* config layer.
-Building it once, now, for scoping makes the quiz tier nearly free later. That is
-the argument for doing this before the roadmap would reach it, and the only one.
-It is not a reason to start quizzes. Constraint 1 also *shrinks* the deferred
-tier — "scored interaction" was its expensive half.
+The pedagogy tier and the platform tier want the *same* config layer. The roadmap
+already names the quiz tier's host and shape — predict-before-you-see on
+glycolysis, "ATP in or out?" before steps 1 and 7 — so building the layer once,
+now, for scoping makes that tier nearly free later. **That is the argument for
+doing this before the roadmap would reach it, and the only one.**
 
 ## Pilot: `glycolysis-lab`
 
@@ -84,26 +82,25 @@ the page is finished, and starts *there* for reasons that aren't coincidence:
 - it's a prototype, so extracting its config can't regress a featured lesson —
   do this to a featured lesson and a mistake happens in front of students.
 
-## Stage 1 — the config layer (no AI, no backend)
+## Stage 1 — the config layer
 
 Extract one lesson's configurable surface by hand: which stages show, which
 callouts fire, panel copy overrides, whether the mass-action modal is offered,
 whether optional H's start visible.
 
 Encode it **in the URL** — `glycolysis-lab.html?c=<encoded>`. Possession of the
-link is the whole access model, and it buys: no database, no accounts, no login,
-no student data, no moderation queue; sharing and forking by copy-paste; the
-whole feature shipping on GitHub Pages before the Vercel move; and nothing to
-migrate afterwards. Move to stored configs only when links get unwieldy or
-teachers want to edit in place — a Vercel-era decision, not this one.
+link is the whole access model, which means teachers share and fork by
+copy-paste, the feature ships on GitHub Pages before the Vercel move, and there
+is nothing to migrate afterwards. Stored configs become a question only when
+links get unwieldy or teachers want to edit in place — a Vercel-era decision.
 
 **Two rules, or it rots:**
 
-1. **The page validates and falls back.** An unknown or malformed config renders
-   the default lesson, never a broken one. A stale link must not become a white
-   screen in a classroom.
-2. **A config can only *subset* or *relabel*, never assert new chemistry.** The
-   moment it can introduce a molecule or a claim, everything
+1. **The page validates it and falls back.** An unknown or malformed config
+   renders the default lesson. A stale link must not become a white screen in a
+   classroom.
+2. **A config *subsets* or *relabels*; chemistry comes only from the library.**
+   The moment a config can introduce a molecule or a claim, everything
    `check-molecules.js` guarantees stops covering what students see.
 
 `tools/check-pages.js` learns the config schema in the same commit, on the
@@ -121,36 +118,30 @@ quiz: [
 ]
 ```
 
-- `at` anchors an item to a stage the config already names — no second
-  vocabulary.
+- `at` anchors an item to a stage the config already names — one vocabulary.
 - `why` is shown after answering and is the field doing the teaching. A
   right/wrong badge teaches nothing, and under constraint 2 the explanation
   stands in for a teacher who isn't there.
-- **Multiple choice only.** Free text invites personal information, needs a model
-  to grade, and is the one input type that creates a moderation problem.
+- **Multiple choice**, so an item validates offline and no answer text ever
+  leaves the page.
 
-**Write items like exam questions, not interaction checks.** "Which step is
-irreversible, and why" — not "click the γ phosphate." A teacher recommending this
-to a class is implicitly claiming it helps on the midterm; interaction checks
-teach the interface.
+**Write items like exam questions.** "Which step is irreversible, and why" — not
+"click the γ phosphate." A teacher recommending this to a class is implicitly
+claiming it helps on the midterm; interaction checks teach the interface.
 
 **State, not scores.** Answers go in `localStorage`, keyed by a hash of the
 config, so an edited quiz starts fresh instead of restoring answers to questions
 that changed. Students are on personal laptops, so cross-session persistence is a
-feature — a student can finish that evening. A visible "start over" control is
-the whole mitigation for the shared library machine, and it's cheap. No score is
-kept, so re-answering is free and encouraged: that is what retrieval practice is.
+feature — a student can finish that evening. A visible "start over" control
+covers the shared library machine, and it's cheap. No score is kept, so
+re-answering is free and encouraged: that is what retrieval practice is.
 
-**The answers are visible in the URL.** View Source defeats any client-side quiz,
-and hashing four options defeats nothing. Under constraint 1 that costs nothing —
-there's no grade to protect — but never ship copy implying otherwise.
+Note the answers are visible in the URL — View Source defeats any client-side
+quiz, and hashing four options defeats nothing. Under constraint 1 that costs
+nothing, but never ship copy implying otherwise.
 
 `check-pages.js` gains item validation in the same commit: `correct` in range,
 `at` naming a real stage, `why` non-empty.
-
-**v2, later:** `gate: true` turns an item into predict-before-you-see, blocking
-the step instead of following it. Same schema, one flag, but it changes the
-page's control flow, which is why it isn't v1.
 
 ## Stage 2 — teacher authoring, with AI
 
@@ -164,81 +155,54 @@ project:
 
 Teacher types "I only cover through the committed step and I don't test
 stereochemistry"; the model emits config; the page validates, previews, hands
-back a link.
+back a link. The edit surface is one validated JSON object, so this is a system
+prompt plus schema-constrained output.
 
 **The proxy is the privacy chokepoint.** Forward the prompt with no identity
-attached. Don't log prompt or response bodies, or purge on a short TTL.
-Rate-limit on ephemeral or hashed-IP tokens, never persistent per-user tracking.
+attached, purge bodies on a short TTL, and rate-limit on ephemeral or hashed-IP
+tokens.
 
 **Provider choice matters less than expected** — every frontier model handles a
 small structured-output job like this. The real axes are **cost** (it scales per
 teacher, then per student) and terms: treat **no-training-on-data + short
 retention as a hard filter**, not a preference. Keep the provider swappable
-behind a thin interface. Note a personal ChatGPT/Claude *subscription* can't
-legitimately be fanned out to a class — this is pay-per-token API work, and
+behind a thin interface. This is pay-per-token API work — a personal
+ChatGPT/Claude *subscription* can't legitimately be fanned out to a class, and
 subscription auth (Codex, Claude Code) is single-user.
-
-**No general agent harness.** The edit surface is one validated JSON object, so
-this is a system prompt plus schema-constrained output, not a filesystem and a
-shell. Revisit only if free-code remix lands.
 
 This stage needs the proxy, which needs Vercel.
 
 ## Stage 3 — remix, bounded
 
-Two things argue against open chat-to-code:
+The first remix is **config + one custom step**: pick an existing mechanic, pick
+a molecule the library already holds, write your own copy. Real authorship,
+bounded blast radius, and it reuses Stage 1 entirely.
 
-- **The accuracy claim.** A remixed page can't run the checkers a committed one
-  does. If remixes live on a project URL, the project's central claim silently
-  covers output nobody verified. Decide the labelling — "community, unverified" —
-  *before* the first remix exists.
-- **A public gallery is a moderation commitment; private links are not.** With an
-  adult, teacher-first audience, unlisted capability links are enough. A
-  class-scoped gallery with join codes, and any username concept, are worth
-  revisiting only if students ever author — and if they do, generated handles
-  (`curious-mitochondria-7`), never free text.
+Sharing is by unlisted capability link, same model as Stage 1. Two things to
+settle before the first remix exists rather than after:
 
-So the first remix is **config + one custom step**: pick an existing mechanic,
-pick a molecule the library already holds, write your own copy. Real authorship,
-bounded blast radius, reuses Stage 1 entirely. Free code generation stays a
-dev-only tool until teachers have shown what they try to make.
+- **The labelling.** A remixed page can't run the checkers a committed one does.
+  If remixes live on a project URL, the project's central accuracy claim silently
+  covers output nobody verified — so "community, unverified" is decided up front.
+- **Shared snapshots are effectively public.** Unlisted ≠ private, and the share
+  UI says so.
 
-When free-code remix does come, the runtime stays lean: sandboxed iframe with the
-modules loaded and no network, plus a plain editor. No WebContainers, no npm, no
-dev server. Versioning is a visible snapshots timeline with restore; real git
-underneath stays deferred. Shared snapshots are effectively public — unlisted ≠
-private — so the share UI says so.
-
-## The molecule library question
-
-Should the library be pre-generated in anticipation of future lessons and
-remixing? **No.**
+## The molecule library: bake on demand
 
 `docs/molecule-grouping.md` establishes that the resolver was blocking a bulk
 baker, and that job is done: `tools/resolve-catalog.js` and `tools/catalog/`'s
-265 resolved rows are committed. So the tier-1 baker is unblocked and could emit
-~100 PubChem-derived specs. Three reasons not to, in order of weight:
+265 resolved rows are committed. Build **the baker, not the bulk output** — so
+adding a molecule is cheap, provenanced and checked *at the moment a lesson or a
+remix needs it*.
 
-1. **`CLAUDE.md`'s standing rule.** A page loads only the molecules it shows; a
-   molecule in the wrong domain is one some page pays for and never draws. A
-   hundred specs no lesson loads is that cost, ~100 times.
-2. **Every molecule making a chemical claim ships with the assertion that checks
-   it, in the same commit.** Bulk-generating specs means bulk-generating
-   unasserted claims — the exact failure that left every sugar here the wrong
-   enantiomer for months.
-3. **The roadmap prices the real demand and it's small**: enzymes needs ~1 new
-   molecule (ADP), membrane ~6, DNA ~9. Two new domain files, not ten.
-
-Build **the baker, not the bulk output** — so adding a molecule is cheap,
-provenanced and checked *at the moment a lesson or remix needs it*. The catalog
-stays the index it is; specs get generated one row at a time, with
+The catalog stays the index it is; specs get generated one row at a time, with
 `check-molecules.js` and `check-handedness.js` as the gate. An agent adding a
 tier-1 molecule edits the catalog row, not the library, which is what
 `molecule-grouping.md` recommended. That's also the honest answer for remix: a
 teacher wanting a molecule the library lacks is served by a fast checked path to
-*one* new spec, not a warehouse of unchecked ones.
+*one* new spec.
 
-Two cheap wins the roadmap flags stay worth doing on their own merits:
+Two cheap wins the roadmap flags are worth doing on their own merits:
 **hydroxide** (hydronium exists, so the pH story is asymmetric) and **O₂** as the
 nonpolar reference.
 
@@ -260,18 +224,19 @@ everything on a random per-session/per-project ID.
 `webgl_unavailable` earns its place because a page that fails to render is
 indistinguishable from one nobody opened.
 
-**Quiz aggregates are product telemetry, not assessment.** Constraint 1 rules out
-scores; what's worth counting is *which option people pick*, summed across
-everyone, never linked into a per-person sequence. "78% of answers to Q3 chose
-the same wrong option" means either the lesson fails at that exact point or the
-question is bad — both fixable, and invisible any other way. Counts per option,
-no session key, no ordering. Needs an endpoint, so it waits for Vercel.
+**Quiz aggregates are product telemetry, not assessment.** What's worth counting
+is *which option people pick*, summed across everyone: "78% of answers to Q3
+chose the same wrong option" means either the lesson fails at that exact point or
+the question is bad — both fixable, and invisible any other way. Counts per
+option, no session key, no ordering, never linked into a per-person sequence.
+Needs an endpoint, so it waits for Vercel.
 
-**Not loggable — gather by hand.** The questions that decide whether this works
-are qualitative: explanation quality on a 0–2 rubric (wrong / mechanical /
-conceptual — the North Star), a pre/post concept check, spot-checking the
-correctness of anything AI-generated, and the two adoption questions — *would the
-teacher assign it again*, and *did it run without you in the room*.
+**Gather by hand what analytics can't see.** The questions that decide whether
+this works are qualitative: explanation quality on a 0–2 rubric (wrong /
+mechanical / conceptual — the North Star), a pre/post concept check,
+spot-checking the correctness of anything AI-generated, and the two adoption
+questions — *would the teacher assign it again*, and *did it run without you in
+the room*.
 
 **Go / no-go, decided in advance.** Strong-go: students reach conceptual
 explanations, the teacher would reassign, generated configs are correct. Fixable:
@@ -282,16 +247,12 @@ the science, or the teacher won't reassign. **Fun ≠ learning.**
 
 College students, mostly on their own laptops. Real WebGL and a retina-capable
 canvas are safe to assume, which matters for the heavier pages
-(`hemoglobin-lab`'s trajectory, glycolysis' stage machinery). The old 1366×768
-Chromebook target is retired; `webgl_unavailable` stays a rare-event alarm, not a
-planning input.
-
-**Phones are explicitly not a target.** These are laptop lessons — a landscape
-stage beside a 372px panel, dragging atoms, orbiting a camera. The
-`@media (max-width:920px)` stack exists so a phone visit isn't broken, not so the
-lesson works there. Worth a sanity check that `index.html` and one lesson render
-without horizontal scroll, since a shared link does get tapped on a phone; not
-worth a redesign.
+(`hemoglobin-lab`'s trajectory, glycolysis' stage machinery). `webgl_unavailable`
+is a rare-event alarm, not a planning input. These are laptop lessons — a
+landscape stage beside a 372px panel, dragging atoms, orbiting a camera — and the
+`@media (max-width:920px)` stack exists so a phone visit isn't broken. Worth a
+sanity check that `index.html` and one lesson render without horizontal scroll,
+since a shared link does get tapped on a phone.
 
 ## Order
 
@@ -309,12 +270,36 @@ worth a redesign.
 
 Steps 1–4 need no API key, no backend and no vendor decision.
 
-## Deferred
+## Not building this
 
-Accounts, student authoring, public gallery, class/join-code concept, usernames,
-stored server-side configs, free-code remix, snapshot versioning, the tier-1 bulk
-bake, and predict-before-you-see (`gate: true`) until `LESSONS-ROADMAP.md`
-reaches it.
+**Permanently out, per constraint 1:** scores, gradebooks, LMS grade passback,
+completion tokens, and per-student storage of any kind. Accounts and identity go
+with them — nothing above needs a user record, and adding one would reopen every
+privacy question the adult audience just closed. Free-text quiz answers are out
+for the same reason: they invite personal information, need a model to grade, and
+are the one input type that creates a moderation problem.
 
-Permanently out, per constraint 1: scores, gradebooks, LMS grade passback,
-completion tokens, per-student storage of any kind.
+**Deferred, not rejected:** student authoring, a public gallery, class/join-code
+concepts, usernames, server-side stored configs, free-code remix, snapshot
+versioning, and predict-before-you-see (`gate: true`) until `LESSONS-ROADMAP.md`
+reaches it — `gate` is one flag on the Stage 1b schema, but it changes the page's
+control flow, which is why it isn't v1. A public gallery is a standing moderation
+commitment where unlisted links are none, so it's worth revisiting only if
+students ever author; if they do, generated handles (`curious-mitochondria-7`),
+never free text. If free-code remix does land, the runtime stays a sandboxed
+iframe with the modules loaded and no network, plus a plain editor — no
+WebContainers, no npm, no dev server, and a visible snapshots timeline rather
+than real git.
+
+**Considered and declined.** *Bulk-baking the molecule library* (~100
+PubChem-derived specs, now technically unblocked): a page loads only the
+molecules it shows, so a hundred specs no lesson loads is `CLAUDE.md`'s
+wrong-domain cost ~100 times; bulk-generating specs means bulk-generating
+unasserted claims, the exact failure that left every sugar here the wrong
+enantiomer for months; and the roadmap prices real demand small — enzymes needs
+~1 new molecule (ADP), membrane ~6, DNA ~9. *Open chat-to-code as the first
+remix*, because a remixed page can't run the checkers and free generation should
+wait until teachers have shown what they try to make. *A general agent harness*
+for Stage 2, since the edit surface is one JSON object. *Phones as a target* —
+the responsive stack keeps a phone visit from breaking, not from being the
+lesson. And the old 1366×768 Chromebook target, retired with the K-12 audience.
