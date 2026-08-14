@@ -51,6 +51,17 @@ const KNOWN_ABSENT = {
   'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',
   'Kekule.js':          'library NAME — bio-rendering-thorough.md weighs it, unadopted',
   'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',
+  // LESSONS-ROADMAP.md's domain-file plan. Absent BY DESIGN — the roadmap is
+  // the file that proposes them, so building one must fail here until that
+  // row moves from "after" to "now".
+  'mol-lipids.js':         'LESSONS-ROADMAP.md §2 — the membrane page, not built',
+  'mol-nucleic.js':        'LESSONS-ROADMAP.md §3 — the DNA page, not built',
+  'mol-photosynthesis.js': 'LESSONS-ROADMAP.md tier-after — deferred',
+  'mol-carbs.js':          'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',
+  'mol-aminoacids.js':     'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',
+  'mol-krebs.js':          'LESSONS-ROADMAP.md — out of scope',
+  'mol-signaling.js':      'LESSONS-ROADMAP.md — out of scope',
+  'mol-ecology.js':        'LESSONS-ROADMAP.md — out of scope',
   // Build outputs and runtime strings, not repo files.
   'generated-specs.json':         'sdf2spec.js writes it; not committed',
   'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',

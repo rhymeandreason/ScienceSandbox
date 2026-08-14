@@ -150,6 +150,22 @@
   }
   .card:hover .name { color: var(--accent); }
 
+  /* ---- coming soon ---------------------------------------------------- */
+
+  .card.soon {
+    background: transparent;
+    border-style: dashed;
+    cursor: default;
+  }
+  .card.soon .idx  { color: var(--muted); }
+  .card.soon .name { color: var(--muted); }
+  .card.soon:hover {
+    border-color: var(--line);
+    transform: none;
+    box-shadow: none;
+  }
+  .card.soon:hover .name { color: var(--muted); }
+
   /* ---- manifesto ------------------------------------------------------ */
 
   .manifesto {
@@ -260,7 +276,7 @@
 </header>
 
 <section>
-  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">04</span></div>
+  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">03</span></div>
   <ul class="grid">
     <li><a class="card" href="demos/water-lab.html">
       <span class="idx">01</span>
@@ -277,11 +293,32 @@
       <span class="name">Levels of Protein Structure</span>
       <span class="note">Haemoglobin — all four levels, built live</span>
     </a></li>
-    <li><a class="card" href="demos/contrast-lab.html">
+  </ul>
+</section>
+
+<section>
+  <div class="head"><h2>Coming soon</h2><span class="rule"></span><span class="count">04</span></div>
+  <ul class="grid">
+    <li><span class="card soon">
       <span class="idx">04</span>
-      <span class="name">Spot the Difference</span>
-      <span class="note">Six near-identical pairs, one feature apart</span>
-    </a></li>
+      <span class="name">Glycolysis</span>
+      <span class="note">Ten steps, five stages — ATP as a real molecule</span>
+    </span></li>
+    <li><span class="card soon">
+      <span class="idx">05</span>
+      <span class="name">Enzymes</span>
+      <span class="note">The shape change <em>is</em> what lowers the barrier</span>
+    </span></li>
+    <li><span class="card soon">
+      <span class="idx">06</span>
+      <span class="name">The Membrane</span>
+      <span class="note">A real bilayer — and what osmosis actually moves</span>
+    </span></li>
+    <li><span class="card soon">
+      <span class="idx">07</span>
+      <span class="name">DNA</span>
+      <span class="note">Helix, grooves, antiparallel strands, real H-bonds</span>
+    </span></li>
   </ul>
 </section>
 

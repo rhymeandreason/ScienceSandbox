@@ -24,7 +24,7 @@ evaluation record, not a lesson.
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics | featured lesson |
 | `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | bonding assembly | featured lesson |
 | `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | folding animation | featured lesson |
-| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | featured lesson |
+| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | prototype |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
 | `glycolysis-lab.html` | Ten steps in five stages: carbon bookkeeping, PFK-1 as the committed step, the one oxidation, the three irreversible steps. ATP is drawn as a molecule losing and regaining its γ phosphate — click the γ phosphate itself to spend it; the reversibility note opens a mass-action modal — a second simulation with its own physics (below) | pathway | prototype |
@@ -230,7 +230,7 @@ level down inside the bonding builder: **`SCIENCE.md` §6.**
 
 ## Adding a new page
 
-0. **Start from a featured lesson, not a blank page.** Match by information
+0. **Start from a built page, not a blank one.** Match by information
    complexity, not paradigm: single concept → `water-lab.html` or
    `molecule-builder.html`; multi-step or multi-stage → `hemoglobin-lab.html`;
    side-by-side → `contrast-lab.html`. Copy its layout, panel structure and copy
