@@ -151,6 +151,108 @@ diagram isn't *inconsistent*, just inert. And its mechanic is populations of
 dots — the one paradigm here that deliberately makes no geometry claim
 (`CLAUDE.md`, the mass-action note). It doesn't play to what this repo is for.
 
+## Molecule library
+
+Folded in from `docs/molecule-grouping.md` (grouping + storage) and
+`resources/Molecule groupings.md` (the wishlist). Both predate the current
+library; corrections are at the end of this section.
+
+**What exists: 44 specs across five domain files** (`mol-small.js` re-registers
+five of them at the other scale). Read it from the library, not from here:
+
+```bash
+node -e "const M=require('./lib-node.js').MolLib.MOLECULES;const b={};for(const k in M)(b[M[k].domain]??=[]).push(k);console.log(b)"
+```
+
+**Grouping: by topic, i.e. by lesson.** `docs/molecule-grouping.md` settles this
+— of 159 catalogued molecules only 7 appear in more than one topic, so the
+duplication that would force a chemical-class scheme (`mol-sugars`, `mol-acids`)
+doesn't exist. Topic grouping is also just what `CLAUDE.md`'s standing rule
+already demands: a page loads only the molecules it shows. New domain files
+below are named for lessons for that reason.
+
+**Storage: split on fidelity tier.** Tier 2/3 — contrast pairs, subjects, skel
+twins — stay hand-written, because their comments are load-bearing and a
+`skel.js` build *is* its own provenance (`MolecularGeometry.md` §1.6). Tier 1
+bulk PubChem props get generated from the catalog by a baker, on the
+`residues.js` / `folding/data/*.bin` precedent: a `Do not edit` header and a
+checker that re-bakes and fails on staleness. A generated `.js` still loads as a
+plain script, so the no-build contract holds; a runtime JSON fetch would not.
+
+### Cost per lesson
+
+| Lesson | New molecules | New file |
+| --- | --- | --- |
+| **1. Enzymes** | **~1** — ADP. Substrate and product specs already exist in `mol-glycolysis.js` | none |
+| **2. Membrane** | ~6 — glycerol, a phospholipid, cholesterol, O₂, triglyceride (optional), sucrose/fructose (optional) | `mol-lipids.js` |
+| **3. DNA** | ~9 — five nucleobases, one full nucleotide, an A–T and a G–C pair | `mol-nucleic.js` |
+| *tier after* — photosynthesis / ETC | chlorophyll a, acetyl-CoA, FAD/FADH₂ — the expensive builds | `mol-photosynthesis.js` |
+
+This independently confirms the build order. Enzymes is first partly because it
+costs one molecule; DNA is third partly because it costs nine — though `skel.js`
+already carries `adenine`, `ribosyl` and `phosphoUnit`, so the nucleotide is a
+build, not a transcription.
+
+Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so
+autoionization and the pH scale are currently asymmetric) and **O₂** as the
+nonpolar reference — which is also half of the membrane page's "why does O₂
+cross and glucose doesn't" argument.
+
+### Domain files
+
+`docs/molecule-grouping.md` proposes ~12 files covering the whole catalog. This
+is that plan cut down to what the roadmap actually builds — two new files, not
+ten. `now` is a snapshot; the one-liner above is the live count.
+
+| file | holds | now | after | needed by |
+| --- | --- | --- | --- | --- |
+| `mol-solvation.js` | water, salts, small polars/nonpolars — display units | 10 | 12 | `water-lab`, `molecule-lab`, `molecule-builder` |
+| `mol-small.js` | the same substances to scale (family B) — either/or | 5 | 7 | `aminoacid-lab` |
+| `mol-monomers.js` | amino acids, palmitate, AMP | 6 | 6 | `aminoacid-lab`, `macromolecule-lab` |
+| `mol-glycolysis.js` | glucose → pyruvate, ATP, NADH, Pi | 14 | 15 | `glycolysis-lab`, **enzymes**, and 3 more pages |
+| `mol-contrast.js` | the six near-identical pairs | 12 | 12 | `contrast-lab` |
+| `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |
+| **`mol-lipids.js`** | glycerol, phospholipid, cholesterol, triglyceride | — | ~5 | **membrane** |
+| **`mol-nucleic.js`** | five bases, a nucleotide, A–T and G–C pairs | — | ~9 | **DNA** |
+| *deferred* `mol-photosynthesis.js` | chlorophyll a, acetyl-CoA, FAD/FADH₂ | — | ~6 | photosynthesis / ETC |
+| *not now* `mol-carbs.js` | — carbs live in `mol-glycolysis` + `mol-contrast` | — | — | no lesson asks |
+| *not now* `mol-aminoacids.js` | — 7 specs in `mol-monomers`/`mol-contrast`, 20 side chains in `residues.js` | — | — | no lesson asks |
+| *not now* `mol-signaling.js`, `mol-ecology.js`, `mol-krebs.js` | — | — | — | out of scope (ch. 44+) |
+
+Three notes on the deltas:
+
+- **ADP lands in `mol-glycolysis.js`**, not a new file — it's the same reaction
+  the page already draws, from the other side.
+- **hydroxide and O₂ go in `mol-solvation.js` + `mol-small.js` both**, since
+  those two files define the same keys by contract and `register()` throws if
+  one drifts.
+- **`mol-carbs` and `mol-aminoacids` are the two the source plan wants most and
+  this roadmap wants least.** Splitting them out is a refactor of specs that
+  already work, serving no page — and it would break the `mol-glycolysis.js`
+  load line in five HTML files to move glucose somewhere new. Revisit when a
+  lesson needs a sugar that isn't in glycolysis or the contrast set.
+
+### Corrections to the source docs
+
+- **ATP and NADH already exist** (`mol-glycolysis.js`, plus `atpSkel`/`nadhSkel`
+  controls in `mol-compare.js`). The wishlist's wave 1 is largely already
+  shipped; **ADP** is the real gap, and glycolysis needs it anyway to show the
+  γ phosphate coming off onto something.
+- **Amino acids: 7 standalone specs, not 4** — glycine, alanine, serine,
+  cysteine, plus proline, glutamine, glutamate in `mol-contrast.js` (and
+  `dAlanine` as the mirror). Separately, `residues.js` holds **all twenty side
+  chains**, measured, in each residue's N–CA–C frame. So "no positively charged
+  side chain" is wrong for `SIDE` and right for the spec registry — wave 2
+  should graft from `residues.js` rather than fetch twenty PubChem records.
+- **The resolver is done.** `docs/molecule-grouping.md` closes on "the resolver
+  blocks everything above" — `tools/resolve-catalog.js` and the resolved
+  `tools/catalog/` (265 rows with CIDs) are committed. The tier-1 baker is
+  unblocked; that recommendation is spent.
+- **The wishlist is written against the AP CED.** This project's audience is
+  college Bio 101, so its "the CED does not require this" judgment calls —
+  Krebs intermediates especially — aren't binding here. They're still deferred,
+  but on build cost, not on that.
+
 ## Tier after
 
 **Photosynthesis and the electron transport chain.** Both badly drawn, both real
