@@ -385,20 +385,6 @@
      `.live` below). It sits in the tray at z-7, over the whole left column, so
      while it was interactive it swallowed every click aimed at the molecule
      behind it — including the one on the marked bond. */
-  #free{width:400px;position:relative;pointer-events:none;margin-top:2px}
-  /* SIDE BY SIDE, not stacked like the carriers. Two phosphates at true scale
-     would want a 500px column on top of the carrier's 470, which is taller than
-     the stage; in a row they share the width instead and come out about half
-     size. The row also says the right thing — these two are interchangeable
-     units of a pool, not one object in two states. */
-  #free .cvis{position:relative;height:132px;display:flex;gap:10px}
-  #free .cname{font-family:var(--font-slab);font-weight:700;font-size:15px;
-    color:var(--ink);line-height:1.15;margin-bottom:2px}
-  #free .cslot{position:relative;flex:1 1 0;min-height:0;transition:opacity .35s ease}
-  #free .clab{position:absolute;left:0;top:4px;
-    font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--muted)}
-  #free .cscale{font-family:var(--font-sans);font-size:9.5px;
-    color:var(--muted);line-height:1.25;margin-top:3px}
   #carrier{width:400px;position:relative;pointer-events:none;
     padding:7px 8px 6px;border:2.5px solid transparent;border-radius:9px;
     background:none;text-align:left;user-select:none}
@@ -2833,61 +2819,6 @@ const trayEl=document.getElementById('tray');
  *  phosphate. It is mostly adenosine, and three atoms in thirty-one are what
  *  the cell spends. With it went the toggle, since one drawing needs no switch.
  */
-/* ---------- THE FREE PHOSPHATES ----------
- *  Not a carrier: Pi has no two states and nothing cycles it. It is a reagent
- *  the cytosol supplies and the sugar keeps, so what the column shows is a
- *  POOL being drawn down — two of them at step 6, one going as each lane runs.
- *  That is the trajectory the standing tile list used to carry and this page
- *  gave up when the tray narrowed to the step's own carriers; here it costs
- *  nothing, because the thing being counted is on screen.
- *
- *  SHRUNK LIKE THE REST, and the caption says so. Measured, a free phosphate is
- *  241px across where glucose is 477 — genuinely about half the sugar, which is
- *  a comparison worth having — but two of them at that size need a taller
- *  column than the stage has once the carriers have theirs. So they share a row
- *  and land near half again.
- */
-const freeEl=document.createElement('div');
-freeEl.id='free';
-freeEl.innerHTML='<div class="cname">Free phosphate</div>'
-  +'<div class="cvis"></div><div class="cscale"></div>';
-let pMols=[];
-function freeMols(n){
-  while(pMols.length>n){ root.remove(pMols.pop()); }
-  while(pMols.length<n){
-    const g=Stage.buildMolecule(M.pi,{center:true});
-    root.add(g); pMols.push(g);
-  }
-  const vis=freeEl.querySelector('.cvis');
-  if(vis.children.length!==n){
-    vis.innerHTML=Array.from({length:n},()=>
-      '<div class="cslot"><span class="clab">P<sub>i</sub></span></div>').join('');
-  }
-  return pMols;
-}
-// SPENT, NOT MOVED. Lane j takes phosphate j, so it goes when that lane runs —
-// the same index that says which ADP was charged and which lane has a target.
-function drawFree(st){
-  const n=carrierCount(st);
-  freeMols(n);
-  const slots=freeEl.querySelectorAll('.cslot');
-  pMols.forEach((g,j)=>{
-    const gone=carrierRan(j);
-    g.userData.spent=gone;
-    if(slots[j]) slots[j].style.opacity=gone?0.18:1;
-  });
-  placeFreeMol();
-}
-function placeFreeMol(){
-  if(!pMols.length) return;
-  const vis = freeEl.isConnected && trayEl.style.visibility!=='hidden';
-  const fit=placeInSlots(freeEl, pMols, M.pi, vis);
-  // a used one is gone, not dimmed: the sugar has it now
-  pMols.forEach(g=>{ if(g.userData.spent) g.visible=false; });
-  if(fit) freeEl.querySelector('.cscale').textContent =
-    fit.k>=0.995 ? 'true size beside the sugar' : `shown at ${Math.round(fit.k*20)*5}%`;
-}
-
 /* ---------- THE CARRIER PAIRS ----------
  * A carrier is ONE object with two states, and the two differ by exactly one
  * group: ATP/ADP by the transferring phosphoryl, NADH/NAD⁺ by the hydride on
@@ -3062,40 +2993,6 @@ function arriveScale(j){
   if(t>=1){ arriveAt[j]=0; return 1; }
   return ARRIVE_FROM+(1-ARRIVE_FROM)*easeOut(t);
 }
-/* MOLECULES STANDING IN DOM BOXES — the shared half of both columns. The
- * carrier pair and the free phosphates are the same arrangement: N built
- * molecules anchored to N slots in an element the layout owns, at stage scale
- * under the stage camera. Only what they MEAN differs, so only that is
- * per-column. Returns the fitted scale, which is what the caption reports.
- */
-function placeInSlots(el, mols, spec, vis){
-  mols.forEach(g=>g.visible=vis);
-  if(!vis) return null;
-  const slots=el.querySelectorAll('.cslot');
-  const c=canvas.getBoundingClientRect();
-  if(!c.width || !c.height) return null;
-  camera.updateMatrixWorld();
-  const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
-  const m=Stage.measure(spec);
-  const pxPerWorld=c.width/(camera.right-camera.left);
-  let k=1;
-  mols.forEach((g,j)=>{
-    const box=slots[j] && slots[j].getBoundingClientRect();
-    if(!box || !box.width) return;
-    g.position.copy(new THREE.Vector3(
-      ((box.left+box.width/2)-c.left)/c.width*2-1,
-      -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
-    // FITTED TO ITS OWN SLOT, and never enlarged past true scale: the `1` in
-    // this min is what lets a small molecule be honest. The built ATP runs well
-    // over twice glucose across and would take the stage from the molecule the
-    // lesson is following, so it shrinks and the caption says by how much; a
-    // free phosphate is six atoms and simply stands there at its real size.
-    k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
-               box.height*0.94/(2*m.hy *pxPerWorld), 1);
-    g.scale.setScalar(k*(mols===cMols ? arriveScale(j) : 1));
-  });
-  return {k,m};
-}
 function placeCarrierMol(){
   if(!cMols.length) return;
   const vis = carrierEl.isConnected && trayEl.style.visibility!=='hidden';
@@ -3103,11 +3000,35 @@ function placeCarrierMol(){
   // if the carrier leaves the tray and comes back — never on a plain re-layout
   if(vis && !wasVis) cMols.forEach((_,j)=>popCarrier(j));
   wasVis=vis;
-  const fit=placeInSlots(carrierEl, cMols, cSpec||ATP, vis);
+  cMols.forEach(g=>g.visible=vis);
+  if(!vis) return;
+  const slots=carrierEl.querySelectorAll('.cslot');
+  const c=canvas.getBoundingClientRect();
+  if(!c.width || !c.height) return;
+  camera.updateMatrixWorld();
+  const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
+  const m=Stage.measure(cSpec||ATP);
+  const pxPerWorld=c.width/(camera.right-camera.left);
+  let k=1;
+  cMols.forEach((g,j)=>{
+    const box=slots[j] && slots[j].getBoundingClientRect();
+    if(!box || !box.width) return;
+    g.position.copy(new THREE.Vector3(
+      ((box.left+box.width/2)-c.left)/c.width*2-1,
+      -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
+    // FITTED TO ITS OWN SLOT, and never enlarged past true scale — the `1` in
+    // this min. The built carriers run well over twice glucose across and would
+    // take the stage from the molecule the lesson is following, so they shrink
+    // and the caption says by how much; with two of them the slot is half the
+    // height and they come out smaller again.
+    k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
+               box.height*0.94/(2*m.hy *pxPerWorld), 1);
+    g.scale.setScalar(k*arriveScale(j));
+  });
   // the CAPTION states the fitted scale, not the frame the entrance is on —
   // a number ticking 35 → 40 → 45 while the molecule grows is a measurement of
   // the animation, and what it claims is about the molecule
-  if(fit) setCarrierScaleNote(fit.k, fit.m);
+  setCarrierScaleNote(k, m);
 }
 // The line under the drawing. `k` is the shrink actually applied this frame;
 // the ratio beside it is what the student would see at scale 1, measured off
@@ -3275,12 +3196,10 @@ function drawTray(){
     strip.appendChild(carrierEl);      // moved, never rebuilt — see drawCarrier
     drawCarrier(st, !!st && CARRIER.has(st.reagent) && !busy && !reviewing, showKey);
   }
-  // …and the free phosphates beside them, when the step draws on the pool.
-  // Every reagent this page names is now a molecule: the cards are gone, and
-  // with them the last place a student read a NAME for something they could
-  // have been looking at.
-  if(want.has('Pi')){ strip.appendChild(freeEl); drawFree(st); }
-  else if(freeEl.isConnected) freeEl.remove();
+  // NO CARD FOR Pi, and no drawing of it standing here either: the phosphate
+  // this step uses is the one that drifts down out of the cytosol onto the
+  // sugar (see aboveFrame). A copy of it waiting in the tray would be the same
+  // molecule on screen twice, counted once.
 }
 
 const actEl=document.getElementById('actbtn');
@@ -4214,7 +4133,6 @@ function loop(){
   // The carrier molecule is anchored to its DOM box, so it is repositioned on
   // the same schedule the labels are — after the render, with a current camera.
   placeCarrierMol();
-  placeFreeMol();              // its sibling column, on the same schedule
   placeCarrierGlow();          // after it, so the bond is where the mark goes
   requestAnimationFrame(loop);
 }
