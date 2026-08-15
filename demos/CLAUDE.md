@@ -36,7 +36,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 ## Scientific accuracy
 
-**Read `SCIENCE.md` before adding or changing any visualization** — it's the rulebook. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
+**Read `SCIENCE.md` before adding a molecule, changing geometry, or changing what a motion implies happened** (a bond forming/breaking, a charge moving) — it's the rulebook. Polish on an already-reviewed animation (timing, easing, camera) doesn't need it. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
 
 `MolecularGeometry.md` §1 covers adding a molecule — geometry, sources, stereochemistry, fidelity tiers, scale families. `SCIENCE.md` carries the rest: §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture.
 
@@ -66,23 +66,11 @@ Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an au
 
 Framing, spacing, rotation, captions: the human tests in the browser. `tools/check-docs.js` audits what the docs *claim*.
 
-**check-molecules, check-pages and check-pdb run automatically on commit.** `npm i` in `demos/` points `core.hooksPath` at `.githooks/`. Reinstall with `npm run hooks`; disable with `git config --unset core.hooksPath`; skip once with `git commit --no-verify`.
+**Checkers run automatically on commit**, each gated to the files it can judge, so most commits run one or none — see `.githooks/pre-commit` for the exact patterns and reasoning. `npm i` in `demos/` points `core.hooksPath` there. Reinstall with `npm run hooks`; disable with `git config --unset core.hooksPath`; skip once with `git commit --no-verify`.
 
-Each checker is gated on the files it can judge, so most commits run one or none. **Each derived artefact is gated on the code that can make it stale, not on its own folder** — that's why the patterns look wider than the checkers do:
+**The hook prints only on skip or failure** — a silent checker ran and passed. Don't read silence as "it didn't fire". 
 
-| checker | fires on | cost |
-| --- | --- | --- |
-| `check-molecules.js` | `molecules.js`, `skel.js`, `mol-*.js`, `tools/sdf/`, `tools/bake-flat2d.js`, `tools/spec2smiles.js` | 0.1 s |
-| `check-pages.js` | any `*.html`, plus the registry files it reads | 0.2 s |
-| `check-pdb.js` | `pdb.js`, `tools/check-pdb.js`, anything in `pdb/` | 0.3 s |
-| `check-folding.js` | anything under `folding/`, plus `palette.js` |  |
-| `check-residues.js` | `residues.js`, either `tools/*-residues.js`, `2HHB.pdb`, `9ZZI.pdb` | 0.2 s |
-| `check-massaction.js` | `glycolysis-lab.html`, `tools/check-massaction.js` — the modal's physics lives *in* the page | 1.5 s |
-| `check-hb.js` | anything under `hemoglobin/`, **plus `hemoglobin-lab.html`**, plus `folding/folding.js` and `folding/ribbon.js` — **two modes** | 0.3 s or 57 s |
-
-`check-hb.js` full run re-bakes the unfold (56 of its 57 s); `--quick` skips that and two assertions needing the un-quantised trajectory, leaving 56 of 59 running off the committed file in 0.3 s. The hook picks **full** when `bake-unfold.js`, `bake-hb.js`, `folding/folding.js` or `folding/ribbon.js` is staged, **quick** otherwise.
-
-**The hook prints only on skip or failure** — a silent checker ran and passed. Don't read silence as "it didn't fire". Widen a pattern alongside any new derived artefact; nothing about a stale one is visible from the page that plays it.
+Widen a checker's gate pattern alongside any new derived artefact — nothing about a stale one is visible from the page that plays it.
 
 No CI. By hand:
 
@@ -95,8 +83,6 @@ Those are offline and dependency-free. **`tools/check-handedness.js` is separate
 ```bash
 npm i && node tools/check-handedness.js
 ```
-
-*`old/` holds earlier prototypes and notes — reference only, loaded by no page.*
 
 ## Copywriting
 
