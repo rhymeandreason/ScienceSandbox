@@ -82,6 +82,24 @@
      same code, from the same projected point. */
   #gl{position:relative;z-index:2}          /* over the glow, under everything */
   #spotglow{position:absolute;inset:0;z-index:1;pointer-events:none}
+  /* THE SAME DISC, ON THE CARRIER. A kinase step's clickable bond is the
+     β–γ one on ATP, so it gets the mark step 2 puts on the ring bond — same
+     class, same layer, same pulse. Its own container because #spotglow's
+     children are the per-lane spots and drawSpots hides them by index. */
+  #cglow{position:absolute;inset:0;z-index:1;pointer-events:none;display:none}
+  /* THE PROMPT GOES WITH THE MARK. "Spend 1 ATP" used to sit beside the
+     carrier's NAME, which is the one part of this that is not the thing to
+     click; the instruction now stands next to the bond it is an instruction
+     about. Same hand type and violet as .spot .shint — it is the same cue,
+     just on a molecule the lanes do not own. */
+  /* Sits in the same layer as the lane spots and takes the pointer the same
+     way; sized to the disc it covers, not to the 74px the lane targets use,
+     because here what is lit is small and what is clickable should match it. */
+  #cspot{position:absolute;z-index:8;width:50px;height:50px}   /* over the tray */
+  #cspot[hidden]{display:none}
+  #cglow .chint{position:absolute;transform:translateY(-50%);
+    font-family:var(--font-hand);font-size:15px;color:#6b4fd8;white-space:nowrap}
+  @media (max-width:920px){ #cglow .chint{display:none} }
   /* A FLAT DISC WITH AN EDGE, not a feathered glow: the edge is what makes it
      read as a target you can hit rather than as lighting. */
   .sglow{position:absolute;width:50px;height:50px;border-radius:50%;
@@ -418,14 +436,18 @@
      sugar — so the box, its border and its visual slot all go away, and what is
      left is the name, the prompt, and the space the camera insets for the
      molecule standing there. That space is what usable() measures. */
-  #carrier{width:290px;position:relative;
+  /* THE BOX TAKES NO POINTER unless it is itself the button (steps 7 and 10,
+     `.live` below). It sits in the tray at z-7, over the whole left column, so
+     while it was interactive it swallowed every click aimed at the molecule
+     behind it — including the one on the marked bond. */
+  #carrier{width:400px;position:relative;pointer-events:none;
     padding:7px 8px 6px;border:2.5px solid transparent;border-radius:9px;
     background:none;text-align:left;user-select:none}
   /* No card treatment when live, either: the thing to click is the γ phosphate
      on the stage, and a pulsing box around the NAME would point at the wrong
-     object. The cue is the `need` prompt and the badge swelling under the
-     pointer (see gammaMeshes). */
-  #carrier.live{cursor:pointer}
+     object. The cue is the `need` prompt and the disc pulsing behind the bond
+     that breaks (see #cglow). */
+  #carrier.live{cursor:pointer;pointer-events:auto}
   #carrier .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
     font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
   #carrier.live .need{display:block}
@@ -435,10 +457,15 @@
     text-transform:uppercase;color:var(--muted);line-height:1.2;margin-bottom:5px}
   /* The slot the molecule stands in. It keeps its height whatever the step is
      doing — it is what the camera's left inset is measured off — and it does
-     NOT take the pointer: the molecule is on the stage behind it, and the γ
-     phosphate is the button (the hit test is a raycast, see gammaMeshes). */
-  #carrier .cvis{position:relative;height:270px;pointer-events:none}
+     NOT take the pointer: the molecule is on the stage behind it, and the only
+     button on a spend step is the disc over the bond (#cspot). */
+  #carrier .cvis{position:relative;height:470px;pointer-events:none}
   #carrier .cname{font-size:17px}
+  /* THE SHRINK, STATED. The drawing is fitted to the column, so it is not at
+     the sugars' scale — and a molecule quietly drawn small is a size claim
+     nobody made. Written from the measured specs every frame, not typed. */
+  #carrier .cscale{font-family:var(--font-sans);font-size:9.5px;
+    color:var(--muted);line-height:1.25;margin-top:3px}
 
   /* the reagent this step needs: the only card, and the only button */
   .reag.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
@@ -836,11 +863,15 @@
     <!-- UNDER the canvas: the click target's glow shows through the alpha, so
          it sits behind the molecule rather than over it — see .sglow -->
     <div id="spotglow"></div>
+    <!-- the same disc on the carrier's own bond — see #cglow -->
+    <div id="cglow"><div class="sglow"></div><span class="chint">Break off a phosphate group</span></div>
     <canvas id="gl"></canvas>
     <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
     <div id="spots"></div>
+    <!-- the carrier's own target, on the bond the disc marks — see #cspot -->
+    <button id="cspot" class="spot" type="button" hidden></button>
     <div id="tray"></div>
     <!-- The bottom bar is ONE element so the camera has one thing to measure.
          It always occupies its full height — the action button is hidden with
@@ -930,6 +961,8 @@
 <script src="molecules.js"></script>
 <script src="skel.js"></script>
 <script src="mol-glycolysis.js"></script>
+<!-- the carrier is drawn from `atpSkel`, not the conformer — see ATP below -->
+<script src="mol-compare.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="atomkit.js"></script>
@@ -1028,6 +1061,22 @@ const FXi=FX.create(THREE,root,camera);
 // page draws no valence dots, no element letters and no 2D view.
 const KIT=AtomKit.create(THREE);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
+
+/* THE CARRIER IS THE IDEALIZED ATP (`atpSkel`, mol-compare.js), not the
+ * PubChem conformer (`atp`). Both are the same molecule in the same scale
+ * family and carry the same `gly` block, so this is a one-name switch — what
+ * differs is what the picture SAYS. A conformer folds its phosphate tail back
+ * over the ribose, which is true of one ATP in solution and unreadable here:
+ * the lesson is a chain of three phosphates with the end one coming off, and
+ * the built molecule lays that chain out straight because every torsion in it
+ * opens outward. That is a declared schematic (MolecularGeometry.md §1.6), and
+ * the honest version of it — the two derivations canonicalise to the same
+ * PubChem record under tools/check-handedness.js, so nothing about the sugar
+ * or the stereochemistry is being traded for the legibility.
+ * Every ATP fact this page reads — `gamma`, `pg`, `spent`, `phosphates` —
+ * comes off this spec, so the two never drift. molecule-viewer.html is where
+ * the two derivations stand side by side. */
+const ATP=M.atpSkel;
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 
 /* =============================================================
@@ -1906,7 +1955,7 @@ function phosphorylGroup(spec,p){
 // copy of — the destination's wherever the destination is a molecule on stage
 // (steps 1, 3, 8), otherwise ATP's own γ.
 function flyPhosphate(from,to,spec,p){
-  const g=phosphorylGroup(spec||M.atp, spec?p:M.atp.gly.gamma[0]);
+  const g=phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]);
   g.position.copy(from);
   root.add(g);
   const t0=performance.now();
@@ -2522,9 +2571,10 @@ const trayEl=document.getElementById('tray');
  *  7 and 10. Which one is showing is read off the step's `couple` (cin before
  *  it runs, cout after), never tracked separately.
  *
- *  ONE DRAWING: the real molecule (PubChem CID 5461108, the tetraanion), built
- *  into the main scene so it stands beside the sugar at the same scale under
- *  the same camera. ADP is that same built molecule with `gly.gamma` hidden —
+ *  ONE DRAWING: `atpSkel`, the tetraanion built from ideal geometry (see ATP
+ *  at the top of this script for why the built one and not the conformer),
+ *  put into the main scene so it stands beside the sugar under the same
+ *  camera. ADP is that same built molecule with `gly.gamma` hidden —
  *  Pγ and its three terminal O — which is exactly the PO₃⁻ a kinase moves. The
  *  bridging oxygen stays behind, on ADP, because that is where it actually
  *  stays.
@@ -2541,7 +2591,7 @@ carrierEl.id='carrier';
 carrierEl.innerHTML=
    '<span class="need"></span>'
   +'<div class="cname"></div><div class="csub"></div>'
-  +'<div class="cvis"></div>';
+  +'<div class="cvis"></div><div class="cscale"></div>';
 
 // THE DRAWING IS A MOLECULE ON THE STAGE, not a picture in a box. It is
 // built into the SAME scene as the sugar, at the same scale and under the same
@@ -2552,7 +2602,7 @@ carrierEl.innerHTML=
 let cMol=null;
 function carrierMol(){
   if(cMol) return cMol;
-  cMol=Stage.buildMolecule(M.atp,{center:true});
+  cMol=Stage.buildMolecule(ATP,{center:true});
   Stage.setOptionalH(cMol,false);        // same convention as the pathway lanes
   root.add(cMol);
   return cMol;
@@ -2561,65 +2611,27 @@ function carrierMol(){
 // because steps 7 and 10 put it back and a deleted mesh cannot come back.
 function setCarrierPhosphates(n){
   if(!cMol) return;
-  const gone=n<3, u=cMol.userData, set=new Set(M.atp.gly.gamma);
-  M.atp.gly.gamma.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=!gone; });
+  const gone=n<3, u=cMol.userData, set=new Set(ATP.gly.gamma);
+  ATP.gly.gamma.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=!gone; });
   u.bondMeshes.forEach(bm=>{
     if(bm.userData.pair.some(p=>set.has(p))) bm.visible=!gone; });
 }
-/* ---------- CLICKING THE PHOSPHATE ITSELF ----------
- * On a kinase step the thing you are being asked to spend is not "an ATP", it
- * is the γ phosphoryl on the end of the chain — so that group IS the button. It
- * is in the main scene, not the DOM, so the hit test is a raycast against the
- * four γ meshes; hovering swells them, and the click runs the step, which then
- * flies those same four atoms across (`flyPhosphate`).
- * The `#carrier` box stays clickable behind it as the fallback path: it carries
- * the name and the prompt, and a student who clicks those should not be told
- * nothing happened.
- * Hidden γ meshes are ADP, and Raycaster skips invisible objects, so steps 7
- * and 10 (where the phosphate arrives rather than leaves) offer no target here.
+/* ---------- CLICKING THE BOND THAT BREAKS ----------
+ * The target is the marked bond and nothing else: the disc is the affordance,
+ * so the disc is the hit area. It used to be a raycast against the four γ
+ * meshes with the whole #carrier box as a fallback, which meant the clickable
+ * region was the name, the sub-line and 400×470px of empty column — a student
+ * could run a kinase step by clicking nothing in particular and learn that a
+ * step is a button somewhere over there.
+ * So it is now exactly what step 2 uses on the sugar: a transparent circular
+ * button in the #spots layer, pinned to the same projected point as the disc
+ * (placeCarrierGlow places both). Same size as the disc, so what is clickable
+ * is what is lit.
+ * Steps 7 and 10 have no disc — the phosphate is arriving — and there the
+ * #carrier box IS the button, with its own `need` prompt on it. `carrierLive`
+ * is what separates the two cases, and drawCarrier sets it.
  */
-let carrierLive=false;                 // set by drawCarrier, read by the hit test
-const gammaRay=new THREE.Raycaster(), gammaPtr=new THREE.Vector2();
-let gammaHot=false;
-function gammaMeshes(){
-  if(!cMol || !carrierLive || !cMol.visible) return null;
-  const u=cMol.userData, set=new Set(M.atp.gly.gamma);
-  return M.atp.gly.gamma.map(i=>u.atomMeshes[i]).filter(Boolean)
-    .concat(u.bondMeshes.filter(bm=>bm.userData.pair.every(p=>set.has(p))));
-}
-function gammaHit(ev){
-  const ms=gammaMeshes(); if(!ms || !ms.length) return false;
-  const c=canvas.getBoundingClientRect();
-  gammaPtr.set((ev.clientX-c.left)/c.width*2-1, -((ev.clientY-c.top)/c.height*2-1));
-  gammaRay.setFromCamera(gammaPtr,camera);
-  return gammaRay.intersectObjects(ms,true).length>0;
-}
-function setGammaHot(on){
-  if(on===gammaHot) return;
-  gammaHot=on;
-  canvas.style.cursor = on ? 'pointer' : '';
-  const ms=gammaMeshes();
-  if(ms) ms.forEach(m=>{ if(m.userData.role!=='covalent') m.scale.setScalar(
-    (PAL.radii[m.userData.role]||1)*(on?1.22:1)); });
-}
-// Listeners on the STAGE, not the canvas: the tray, the ledger and the plates
-// are DOM boxes floating over it, and `#carrier .cvis` sits exactly on top of
-// the molecule — so a listener on the canvas alone never sees the pointer where
-// it matters most. In full mode that box also stops taking clicks (CSS), which
-// is what lets the phosphate be the target rather than the box around it.
-const stageEl=document.getElementById('stage');
-stageEl.addEventListener('pointermove', ev=>setGammaHot(gammaHit(ev)));
-stageEl.addEventListener('pointerleave', ()=>setGammaHot(false));
-// A CLICK, NOT A DRAG. The canvas is also the orbit control, so a click that
-// ended more than a few pixels from where it started was a camera move and must
-// not spend an ATP.
-let gammaDown=null;
-stageEl.addEventListener('pointerdown', ev=>{ gammaDown=[ev.clientX,ev.clientY]; });
-stageEl.addEventListener('pointerup', ev=>{
-  const d=gammaDown; gammaDown=null;
-  if(!d || Math.hypot(ev.clientX-d[0], ev.clientY-d[1])>4) return;
-  if(gammaHit(ev)){ setGammaHot(false); press(runStep); }
-});
+let carrierLive=false;              // a spend step, ATP showing: the disc is up
 
 // KEEP IT OVER ITS OWN BOX. The molecule is in the scene, so it would otherwise
 // swing away from the tray on an orbit and drift on a zoom; anchoring it to the
@@ -2639,19 +2651,84 @@ function placeCarrierMol(){
   cMol.position.copy(new THREE.Vector3(
     ((box.left+box.width/2)-c.left)/c.width*2-1,
     -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
-  // A DELIBERATE SCALE EXAGGERATION, and the only one on this page: ATP is
-  // drawn SMALLER than its true size relative to the sugars. At true relative
-  // scale it is about twice glucose across — it would take the stage from the
-  // molecule the lesson is following. So it is fitted to its own column
-  // instead, and what it keeps is its shape, its atoms and its chain; what it
-  // gives up is the size comparison, which this page never makes.
-  // (macromolecule-lab.html is the page that shows monomers at true relative
-  // size — send anyone asking "how big is ATP really?" there.)
-  const m=Stage.measure(M.atp);
+  // STILL SHRUNK, BUT IT SAYS SO NOW. The built ATP is laid out straight, so
+  // at true scale it runs well over twice glucose across and takes the stage
+  // from the molecule the lesson is following. It is therefore fitted to its
+  // own column — and the shrink is PRINTED under it rather than left as a
+  // silent claim that ATP is sugar-sized, which is the only thing a reader
+  // could otherwise conclude. Both numbers are measured here, never typed:
+  // a re-baked spec moves them.
+  // (macromolecule-lab.html shows monomers at true relative size — send
+  // anyone asking "how big is ATP really?" there.)
+  const m=Stage.measure(ATP);
   const pxPerWorld=c.width/(camera.right-camera.left);
-  cMol.scale.setScalar(Math.min(
-    box.width *0.94/(2*m.rxz*pxPerWorld),
-    box.height*0.94/(2*m.hy *pxPerWorld), 1));
+  const k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
+                   box.height*0.94/(2*m.hy *pxPerWorld), 1);
+  cMol.scale.setScalar(k);
+  setCarrierScaleNote(k, m);
+}
+
+/* ---------- the bond that breaks, marked ----------
+ * Step 2 says "this bond comes apart" by putting a pulsing disc behind the
+ * bond itself (.sglow, drawSpots). A kinase step says the same thing about
+ * ATP, so it gets the same mark in the same place: behind the Pβ–O bond the
+ * enzyme actually breaks. Neither end is typed — both are derived from
+ * `gly.gamma` (see gammaBreak, which also has the trap), so the mark and the
+ * four atoms that fly are read off one field and cannot disagree about which
+ * bond this step is.
+ * Only while the step is live and ATP is showing (`carrierLive`): on steps 7
+ * and 10 the phosphate is arriving, and there is no bond there to break.
+ */
+const cglowEl=document.getElementById('cglow');
+let breakBond=null;
+function gammaBreak(){
+  if(breakBond) return breakBond;
+  const g=ATP.gly, set=new Set(g.gamma);
+  // Pγ's one neighbour that `gamma` does not claim: the β–γ bridging oxygen.
+  const b=ATP.bonds.find(b=>(b[0]===g.pg&&!set.has(b[1]))||(b[1]===g.pg&&!set.has(b[0])));
+  const o=b ? (b[0]===g.pg?b[1]:b[0]) : -1;
+  // AND THE BOND THAT BREAKS IS THE ONE ABOVE IT — Pβ–O, not O–Pγ. A kinase
+  // moves PO₃⁻: Pγ and its three terminal oxygens leave, and the bridging
+  // oxygen STAYS, becoming a terminal oxygen of ADP (which is exactly why
+  // `gamma` is four atoms and not five). So O–Pγ is a bond that survives the
+  // step, and marking it would say the opposite of what happens.
+  return (breakBond = o<0 ? [-1,-1] : [g.pb, o]);
+}
+const cglowV=new THREE.Vector3();
+const cspotEl=document.getElementById('cspot');
+cspotEl.onclick=()=>press(runStep);
+function placeCarrierGlow(){
+  const on = carrierLive && cMol && cMol.visible && gammaBreak()[0]>=0;
+  cglowEl.style.display = on ? 'block' : 'none';   // '' would fall back to the CSS `none`
+  cspotEl.hidden = !on;                            // lit and clickable together
+  if(!on) return;
+  const u=cMol.userData, [i,j]=gammaBreak();
+  cglowV.copy(u.atomWorld(i)).add(u.atomWorld(j))
+    .multiplyScalar(.5).project(camera);
+  const x=(cglowV.x*0.5+0.5)*canvas.clientWidth, y=(-cglowV.y*0.5+0.5)*canvas.clientHeight;
+  const d=cglowEl.querySelector('.sglow');
+  d.style.left=x+'px'; d.style.top=y+'px';
+  cspotEl.style.left=x+'px'; cspotEl.style.top=y+'px';
+  // The hint rides the disc, clear of both it and the γ oxygens beside it —
+  // 29px only cleared the disc's own edge and left the text sitting on an atom.
+  const h=cglowEl.querySelector('.chint');
+  h.style.left=(x+52)+'px'; h.style.top=y+'px';
+}
+// The line under the drawing. `k` is the shrink actually applied this frame;
+// the ratio beside it is what the student would see at scale 1, measured off
+// the same two specs the stage is drawing. Written only when the text changes
+// — this runs every frame.
+let scaleNote='';
+function setCarrierScaleNote(k, m){
+  const gl=Stage.measure(M.glucose);
+  const txt = k>=0.995 ? `true size beside the sugar`
+    // rounded to 5%: the fit moves a few points as the camera insets change,
+    // and a caption that ticks 41 → 46 while nothing about the molecule moved
+    // reads as a measurement of something. The claim is the order of the number
+    : `shown at ${Math.round(k*20)*5}% — really ${(m.rxz/gl.rxz).toFixed(1)}× glucose across`;
+  if(txt===scaleNote) return;
+  scaleNote=txt;
+  carrierEl.querySelector('.cscale').textContent=txt;
 }
 // Where the phosphate flight starts or ends, in client pixels: the γ phosphate
 // itself in either drawing, so the thing that flies is the thing that left.
@@ -2660,7 +2737,7 @@ function carrierGammaPoint(){
   if(!cMol) return null;
   const c=canvas.getBoundingClientRect();
   if(!c.width||!c.height) return null;
-  const p=cMol.userData.atomMeshes[M.atp.gly.pg]
+  const p=cMol.userData.atomMeshes[ATP.gly.pg]
     .getWorldPosition(new THREE.Vector3()).project(camera);
   return {x:c.left+(p.x*.5+.5)*c.width, y:c.top+(-p.y*.5+.5)*c.height};
 }
@@ -2668,19 +2745,26 @@ function carrierGammaPoint(){
 // across refreshes (it is moved, never rebuilt) so the molecule standing in it
 // is not torn down and rebuilt on every step.
 function drawCarrier(st, live, showKey){
-  const spec=M.atp, spent=spec.gly.spent;
+  const spec=ATP, spent=spec.gly.spent;
   const isATP = showKey==='ATP';
   const n = isATP ? spec.gly.phosphates : spent.phosphates;
-  carrierEl.className = live?'live':'';
-  carrierEl.querySelector('.need').textContent = live&&st ? `← ${st.need}` : '';
+  // `live` on the BOX means the box is the button — steps 7 and 10 only. On a
+  // spend the target is the disc (#cspot), so the box takes no pointer and gets
+  // no cursor: a 400×470px column that runs the step is not "click the bond".
+  const boxLive = live && !(st && st.couple && st.couple.up);
+  carrierEl.className = boxLive?'live':'';
+  // THE PROMPT SITS WHEREVER THE TARGET IS. On a spend the target is the bond
+  // on the stage, so the instruction goes there (#cglow .chint) and this one
+  // stays empty rather than saying the same thing twice from the wrong place.
+  // Steps 7 and 10 have no bond to break — the phosphate is arriving — so the
+  // carrier's own prompt is the only one, and it still reads `st.need`.
+  carrierEl.querySelector('.need').textContent = boxLive ? `← ${st.need}` : '';
   carrierEl.querySelector('.cname').innerHTML = isATP ? 'ATP' : 'ADP';
   carrierEl.querySelector('.csub').textContent =
     `${n} phosphates · ${isATP?'charged':'discharged'}`;
-  carrierEl.onclick = live ? ()=>press(runStep) : null;
-  // the γ group on the stage is the button in full mode; drop any hover state
-  // the moment the step stops being live, or it stays swollen
+  carrierEl.onclick = boxLive ? ()=>press(runStep) : null;
+  // the disc and its button go up together; placeCarrierGlow reads this
   carrierLive = live && isATP;
-  if(!carrierLive) setGammaHot(false);
   carrierMol();
   setCarrierPhosphates(n);
   placeCarrierMol();
@@ -3660,6 +3744,7 @@ function loop(){
   // The carrier molecule is anchored to its DOM box, so it is repositioned on
   // the same schedule the labels are — after the render, with a current camera.
   placeCarrierMol();
+  placeCarrierGlow();          // after it, so the bond is where the mark goes
   requestAnimationFrame(loop);
 }
 
