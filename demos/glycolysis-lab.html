@@ -2106,23 +2106,30 @@ const shedPhosphoryl=(l,p)=>shedAtoms(l,[p, ...terminalO(M[l.key],p)]);
 // and a fixed size, and simply arrives. `spec`/`p` name the phosphate it is a
 // copy of — the destination's wherever the destination is a molecule on stage
 // (steps 1, 3, 8), otherwise ATP's own γ.
-function flyPhosphate(from,to,spec,p){
+function flyPhosphate(from,to,spec,p,dur){
+  const T=dur||FLY;
   const g=phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]);
   g.position.copy(from);
   root.add(g);
   const t0=performance.now();
   (function fly(){
-    const k=Math.min((performance.now()-t0)/FLY,1), e=k*(2-k);   // ease-out
+    const k=Math.min((performance.now()-t0)/T,1), e=k*(2-k);     // ease-out
     g.position.lerpVectors(from,to,e);
     g.position.y+=2.6*Math.sin(k*Math.PI);                       // arc over the top
     if(k<1) requestAnimationFrame(fly);
   })();
   // REMOVED ON THE BEAT THE PRODUCT APPEARS, not a few frames after it. Both
-  // timers are queued at FLY and fire in the order they were registered — this
-  // one first — so the copy leaves and the real thing arrives on one frame,
-  // with no interval where two phosphates sit in the same place.
-  later(()=>{ root.remove(g); }, FLY);
+  // timers are queued at the same delay and fire in the order they were
+  // registered — this one first — so the copy leaves and the real thing arrives
+  // on one frame, with no interval where two phosphates sit in the same place.
+  later(()=>{ root.remove(g); }, T);
 }
+// THE CYTOSOL IS SLOWER THAN A HANDOFF. A phosphate coming off ATP is being
+// PASSED — one enzyme holds both molecules — and it moves like it. Step 6's
+// comes out of solution instead: nothing hands it over, it simply arrives. So
+// it takes longer and travels further, which is the difference between a
+// transfer and a molecule drifting in.
+const DRIFT=Math.round(FLY*1.6);
 
 // THE PHOSPHATE COMES OFF ATP, and you should be able to see that it does.
 // It used to drop in from the top of the frame — "the cytosol" — which is true
@@ -2362,8 +2369,15 @@ function runLane(j){
     const hPos=hIdx!=null ? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3');
     FXi.protonHop(hPos, tileWorld(carrierKey(st.couple.cin),hPos,j)
                         || V(l.g.position.x, OFFSCREEN, 0));
-    flyPhosphate(V(l.g.position.x,-OFFSCREEN,0), hPos);
-    later(()=>FXi.spawnRing(hPos,PAL.atoms.P), FLY);
+    // IN FROM ABOVE, AND SLOWLY. This phosphate is not being handed over by
+    // anything — it is dissolved in the cytosol and the enzyme catches one — so
+    // it drifts down into the frame rather than being fired up from under it.
+    // The two directions still read apart: the hydride goes LEFT, to the NAD⁺
+    // standing in the tray, which is a target that only exists now that the
+    // carrier is drawn. Before that it flew off the top, and the phosphate had
+    // to come from the bottom to stay clear of it.
+    flyPhosphate(V(l.g.position.x, OFFSCREEN, 0), hPos, null, null, DRIFT);
+    later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT);
     if(hIdx!=null) shedAtoms(l,[hIdx]);       // it left; it should look left
   } else {
     const src=anchorWorld(l,st.anchor);
@@ -2389,7 +2403,9 @@ function runLane(j){
     // …and THIS ADP is the one that just became an ATP, so it is the one that
     // pops. The other is untouched and should look it.
     popCarrier(j);
-  }, FLY);
+    // the lane becomes the product when the last thing in the air lands, which
+    // on the oxidation is the phosphate drifting in — not FLY
+  }, st.fx==='ox' ? DRIFT : FLY);
 }
 
 function runStep(){
@@ -2471,16 +2487,22 @@ function runStep(){
     });
 
   } else if(st.fx==='ox'){
-    // two things at once, which is the whole lesson of this step: the H leaves
-    // UPWARD onto NAD⁺, and a free phosphate arrives from BELOW to fill the gap.
-    // Opposite directions, so it can't read as one swap.
+    // two things at once, which is the whole lesson of this step: the hydride
+    // leaves LEFT onto the NAD⁺ in the tray, and a free phosphate drifts DOWN
+    // out of the cytosol to fill the gap. Different directions and different
+    // speeds, so it cannot read as one swap. (The H used to fly off the top
+    // and the phosphate up from the bottom; now that NAD⁺ is a drawn molecule
+    // there is somewhere real for the hydride to go, which frees the vertical
+    // axis for the thing that has no sender.)
     lanes.forEach(l=>{
       const hIdx=M[l.key].gly.aldehydeH;
       const hPos=hIdx!=null? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3');
-      FXi.protonHop(hPos, V(l.g.position.x, OFFSCREEN, 0));
-      flyPhosphate(V(l.g.position.x,-OFFSCREEN,0), hPos);
-      later(()=>FXi.spawnRing(hPos,PAL.atoms.P), FLY);
+      FXi.protonHop(hPos, tileWorld(carrierKey(st.couple.cin),hPos,lanes.indexOf(l))
+                          || V(l.g.position.x, OFFSCREEN, 0));
+      flyPhosphate(V(l.g.position.x, OFFSCREEN, 0), hPos, null, null, DRIFT);
+      later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT);
     });
+    dur=DRIFT;                        // wait for the slower arrival
 
   } else if(st.fx==='split'){
     // THE MONEY SHOT: flash at the C3–C4 bond, then the two halves part into lanes.
