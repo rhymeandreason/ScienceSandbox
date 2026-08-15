@@ -2130,6 +2130,21 @@ function flyPhosphate(from,to,spec,p,dur){
 // it takes longer and travels further, which is the difference between a
 // transfer and a molecule drifting in.
 const DRIFT=Math.round(FLY*1.6);
+/* WHERE THE CYTOSOL STARTS, and it is a SCREEN edge, not a world height.
+ * `OFFSCREEN` is a world Y of 8.5, which was chosen when it only had to clear a
+ * molecule — under this camera it lands inside the frame, so a phosphate
+ * "arriving from the cytosol" popped into existence a little above the sugar.
+ * The cytosol is everything outside the shot, so the start is solved from the
+ * camera instead: straight above the destination on screen, just past the top
+ * edge. Projected and unprojected at the destination's own depth, so it holds
+ * whatever the camera is doing — the frame is one size at the intro and another
+ * from step 1 on, and it eases between them.
+ */
+const TOP_EDGE=1.08;                 // NDC, a little past 1 so it enters rather than appears
+function aboveFrame(to){
+  const v=to.clone().project(camera);
+  return new THREE.Vector3(v.x, TOP_EDGE, v.z).unproject(camera);
+}
 
 // THE PHOSPHATE COMES OFF ATP, and you should be able to see that it does.
 // It used to drop in from the top of the frame — "the cytosol" — which is true
@@ -2376,7 +2391,7 @@ function runLane(j){
     // standing in the tray, which is a target that only exists now that the
     // carrier is drawn. Before that it flew off the top, and the phosphate had
     // to come from the bottom to stay clear of it.
-    flyPhosphate(V(l.g.position.x, OFFSCREEN, 0), hPos, null, null, DRIFT);
+    flyPhosphate(aboveFrame(hPos), hPos, null, null, DRIFT);
     later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT);
     if(hIdx!=null) shedAtoms(l,[hIdx]);       // it left; it should look left
   } else {
@@ -2499,7 +2514,7 @@ function runStep(){
       const hPos=hIdx!=null? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3');
       FXi.protonHop(hPos, tileWorld(carrierKey(st.couple.cin),hPos,lanes.indexOf(l))
                           || V(l.g.position.x, OFFSCREEN, 0));
-      flyPhosphate(V(l.g.position.x, OFFSCREEN, 0), hPos, null, null, DRIFT);
+      flyPhosphate(aboveFrame(hPos), hPos, null, null, DRIFT);
       later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT);
     });
     dur=DRIFT;                        // wait for the slower arrival
