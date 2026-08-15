@@ -1,44 +1,34 @@
 # Working in demos/
 
-Self-contained browser 3D molecular simulations for Biology 101. One HTML page
-per lesson over a few shared modules. No build, no framework — Three.js r128
-(global) + vanilla JS.
+Self-contained browser 3D molecular simulations for Biology 101. One HTML page per lesson over a few shared modules. No build, no framework — Three.js r128 (global) + vanilla JS.
 
-- Model the science accurately, especially atom and molecule geometry.
-- Let the human test visual changes in the browser; tell her what to click.
-- Be extremely concise everywhere, including commit messages. Sacrifice grammar
-  for concision.
+* Model the science accurately, especially atom and molecule geometry.
+* Let the human test visual changes in the browser; tell her what to click.
+* Be extremely concise everywhere, including commit messages. Sacrifice grammar for concision.
 
 ## Pages (lessons)
 
 <!-- ENUM: add a row when a \*-lab.html is added or repurposed. -->
 
-**Status**: *featured lesson* = real, student-facing, browser-tested; breaking one
-is a regression, and it's listed under "Featured" on the top-level `index.html`.
-*prototype* = in progress, not held to that bar. *reference* = superseded, kept
-as fallback or worked example — don't read it unless asked. *test* = an
-evaluation record, not a lesson.
+**Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as fallback or worked example — don't read it unless asked. *test* = an evaluation record, not a lesson.
 
-| Page | Lesson | Paradigm | Status |
-| --- | --- | --- | --- |
-| `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | solvation physics | featured lesson |
-| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | bonding assembly | featured lesson |
-| `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | folding animation | featured lesson |
-| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) where one feature is the whole lesson | comparison gallery | prototype |
-| `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | solvation physics + reactions | prototype |
-| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
-| `glycolysis-lab.html` | Ten steps in five stages: carbon bookkeeping, PFK-1 as the committed step, the one oxidation, the three irreversible steps. **Every reagent is a molecule, not a card** — the ATP/ADP and NADH/NAD⁺ pairs drawn as one object with one group toggled, the free phosphate arriving from the top of the frame because nothing hands it over. Steps run by clicking the bond that breaks — ATP's β–γ on a spend, the sugar's own P–O when it banks one, the C–H the dehydrogenase takes — and after the split each lane is clicked separately, so the two ATP are two clicks; the reversibility note opens a mass-action modal — a second simulation with its own physics (below) | pathway | prototype |
-| `molecule-viewer.html` | Reference shelf: pick a molecule and look at it (ATP · NADH). **Three views of one object** — 3D, then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). Highlights the part that does the chemistry in all three, off one atom list. Also switches ATP **and NADH** between their two **derivations** (measured conformer vs `skel.js` build, `mol-compare.js`) — MolecularGeometry.md §1.6's derive-or-schematize question as a thing you can look at | single-molecule viewer | prototype |
-| `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | comparison gallery | prototype |
-| `folding-lab-ribbon.html` | Levels 1→3 on villin, level 4 only pointed at. Superseded by `hemoglobin-lab` — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |
-| `folding-lab.html` | Villin headpiece collapses from an extended chain, then zooms out. Superseded by `folding-lab-ribbon.html` | folding animation | reference |
-| `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | evaluation scratch | test |
-| `molstar/` | Six-stage Mol\* evaluation — settled: not adopted | evaluation scratch | test |
+| Page | Lesson | Status |
+| --- | --- | --- |
+| `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | featured lesson |
+| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | featured lesson |
+| `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | featured lesson |
+| `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
+| `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | prototype |
+| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | prototype |
+| `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Includes a mass-action modal — a second simulation with its own physics (below) | featured lesson |
+| `molecule-viewer.html` | Reference shelf: (ATP · NADH). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | prototype |
+| `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | prototype |
+| `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
+| `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
 
 ## Shared modules
 
-Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in
-this order — each script assumes the ones above it:
+Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in this order — each script assumes the ones above it:
 
 ```html
 <link rel="stylesheet" href="sandbox.css">   <!-- loads the fonts too; after icons, before page <style> -->
@@ -48,7 +38,7 @@ this order — each script assumes the ones above it:
 <script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
 <script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
-<script src="mol-monomers.js"></script>    <!-- ...see the per-page table below -->
+<script src="mol-monomers.js"></script>    <!-- the domains this page shows -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
 <script src="molview.js"></script>     <!-- if the page shows one molecule three ways -->
 <script src="fx.js"></script>          <!-- if the page fires any effect -->
@@ -59,71 +49,13 @@ this order — each script assumes the ones above it:
 <script> /* page-specific code */ </script>
 ```
 
-- **A page loads only the molecules it shows.** `molecules.js` is the registry
-  (`PALETTE`, `SCALE`, `VIEW`, `DOMAINS`) and holds no specs; the `mol-*.js`
-  files assign into it. Wrong script tags = `MOLECULES.x is undefined`, not a
-  silent wrong render.
-- Order is `molecules.js` → `skel.js` → `mol-*.js`. `skel.js` has no
-  dependencies (real ångströms, never sees `SCALE`); the domain files need both,
-  and `mol-contrast.js` mirrors alanine out of `mol-monomers.js`.
-- **Spec coordinates on disk are real ångströms** (`units:'angstrom'`);
-  `register()` applies `SCALE` once on the way in. The family-A solvation set is
-  `units:'scene'` — already display units. Why: MolecularGeometry.md §1.5;
-  `check-molecules.js` requires the field.
+* **A page loads only the molecules it shows.** `molecules.js` is the registry (`PALETTE`, `SCALE`, `VIEW`, `DOMAINS`) and holds no specs; the `mol-*.js` files assign into it. Wrong script tags = `MOLECULES.x is undefined`, not a silent wrong render.
+* Order is `molecules.js` → `skel.js` → `mol-*.js`. `skel.js` has no dependencies (real ångströms, never sees `SCALE`); the domain files need both, and `mol-contrast.js` mirrors alanine out of `mol-monomers.js`.
+* **Spec coordinates on disk are real ångströms** (`units:'angstrom'`); `register()` applies `SCALE` once on the way in. The family-A solvation set is `units:'scene'` — already display units. Why: MolecularGeometry.md §1.5; `check-molecules.js` requires the field.
 
-<!-- ENUM: update when any page's <script> tags change.  -->
+**Two kinds of page.** Most load `scene.js` + MolLib. The folding pages (`folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab`) draw *deposited* coordinates through `scene.js` too, but load `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström and display radii are `PALETTE.radii / SCALE`, computed in the page.
 
-| Page | Loads |
-| --- | --- |
-| `water-lab` | palette, molecules, mol-solvation, scene, fx, atomkit |
-| `molecule-lab` | palette, molecules, mol-solvation, scene, fx |
-| `molecule-builder` | palette, molecules, mol-solvation, scene, fx, atomkit, covalent-drag, ionic-drag |
-| `aminoacid-lab` | palette, molecules, mol-monomers, mol-small, scene, fx |
-| `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, mol-compare, scene, fx, atomkit |
-| `molecule-viewer` | palette, molecules, skel, mol-glycolysis, mol-compare, scene, molview |
-| `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
-| `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
-| `folding-lab` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin |
-| `folding-lab-ribbon` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin, folding/ribbon |
-| `hemoglobin-lab` | palette, molecules, scene, fx, annotate, folding/ribbon, residues, hemoglobin/hbfold |
-
-Rows are explicit — no row inherits from the one above it.
-
-**Two kinds of page, not three any more.** Most load `scene.js` + MolLib. The
-folding pages (`folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab`) draw
-*deposited* coordinates through `scene.js` too, but load
-`palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate
-is a real ångström and display radii are `PALETTE.radii / SCALE`, computed in
-the page.
-
-The third kind is gone. `protein-lab.html` rendered deposited structures through
-vendored ChemDoodle Web — **GPLv3, which made any page loading it GPLv3**. It,
-`viewer-compare.html` and `vendor/` were deleted together, so **nothing here is
-GPL now**; keep it that way, and read `RenderingLibraries.md` before adding any
-third-party renderer. All three are on the local `chemdoodle-archive` branch.
-**It is not coming back** — `hemoglobin-lab` supersedes it, four levels on one
-molecule where the old page needed two structures and a swap. No rewrite pending.
-
-`pdb.js` (with `pdb/*.pdb` and `tools/check-pdb.js`) stays, and **not** as dead
-code: `molstar/protein-inhouse.html` and `molstar/protein-molstar.html` both call
-`PDBLib.orient()`, the second `PDBLib.helices()` too. No *lesson* loads it — hence
-its absence from the table above, which is exactly what makes it easy to delete by
-accident. `check-pdb.js` is the only test of its det = +1 mirror guard
-(MolecularGeometry.md §1.3); `check-folding.js` guards `folding.js`'s separate
-copy, not this one.
-
-**Design reasoning for the folding pages lives in the source headers**:
-`folding/folding.js` (H-bonds, hydrophobic core, solver constraints),
-`folding/villin.js` (why act 3 is an AlphaFold prediction), `folding/ribbon.js`
-(HELIX vs DSSP; why a cartoon exposes solver bugs), `folding/actin.js` (the
-measured screw extending 5 subunits to 13). Trajectories are precomputed and
-committed (`folding/data/*.bin`) — re-run the matching `folding/tools/bake-*.js`
-or `check-folding.js` fails.
-
-`aminoacid-lab` loads `mol-small` (not `mol-solvation`) because it needs a real
-water beside the residues — **family-B pages use `mol-small.js`, solvation pages
-use `mol-solvation.js`.** They define the same keys and `register()` throws if
-both load.
+`aminoacid-lab` loads `mol-small` (not `mol-solvation`) because it needs a real water beside the residues — **family-B pages use `mol-small.js`, solvation pages use `mol-solvation.js`.** They define the same keys and `register()` throws if both load.
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 
@@ -151,7 +83,7 @@ both load.
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
-| `tools/catalog/` | the molecule catalog (265 rows) with the `CID` / `Has 3D` / `Stereo` columns the resolver added. Committed for `tools/sdf/`'s reason: a build-time input no page loads, costing ~400 network requests to re-derive | `tools/catalog/README.md` |
+| `tools/catalog/` | the molecule catalog (265 rows) with the `CID` / `Has 3D` / `Stereo` columns the resolver added. Committed for `tools/sdf/`'s reason: a build-time input no page loads, costing \~400 network requests to re-derive | `tools/catalog/README.md` |
 | `tools/resolve-catalog.js` | resolves `tools/catalog/`'s NAMES to CIDs and asks whether each has a 3D conformer — **needs the network**, like `check-handedness.js`. Never picks between candidates; marks a row `Ambiguous` and reports every CID. Self-tests against the `src.cid` values already committed here | own header |
 | `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit. `--write` puts it in the spec instead of printing it to paste | `tools/README.md` |
 | `tools/specfile.js` | writes a generated field back into the spec that owns it, for the two bakers above. Replaces a field that is already there and refuses to invent a position for one that is not; verifies every write by re-loading the library | own header |
@@ -159,10 +91,10 @@ both load.
 | `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one protomer, the screw that stacks it, the complex's Cα traces. The page rebuilds the other twelve | own header |
 | `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE, samples the eight arrangements, runs `RibbonLib.dssp` over the full backbone → `folding/data/AF-P02640-villin.poses.bin`. Neither the PAE nor the backbone reaches the browser, so the DSSP happens here | own header |
 | `hemoglobin/tools/chain.js` | pulls one chain out of 2HHB and builds the amide hydrogens it doesn't deposit — `FoldLib.parse` reads no chain ID, and `hbonds` needs an H an X-ray structure lacks | own header |
-| `hemoglobin/tools/bake-unfold.js` | **the baker.** Unfolds 2HHB chain B and reverses the film, holding helices rigid at first → `hemoglobin/data/2HHB-B.fold.bin` (403 KB, ~60 s), keyframes resampled by arc length so playback is even. **Re-run after any change to it or `folding/folding.js`** | own header |
+| `hemoglobin/tools/bake-unfold.js` | **the baker.** Unfolds 2HHB chain B and reverses the film, holding helices rigid at first → `hemoglobin/data/2HHB-B.fold.bin` (403 KB, \~60 s), keyframes resampled by arc length so playback is even. **Re-run after any change to it or `folding/folding.js`** | own header |
 | `hemoglobin/tools/bake-hb.js` | **superseded**, refuses to run. Kept because it owns the file format (including v2's `FOCUS`, residues 4-18) and records four traps: bond lengths without 1-3 angle pairs crush Cα–Cα to 1.83 Å; per-frame projection jolts a smooth stretch; omega is a 1-4 torsion nothing else pins; de-clashing without holding H-bonds dissolves the helices | own header |
 | `hemoglobin/tools/bake-quaternary.js` | level 4's other three chains: 2HHB A/C/D Cα traces + four heme irons, rotated into the trajectory frame via `FoldLib.orient()` → `hemoglobin/data/2HHB-quaternary.json` (12 KB). JSON because 428 points need no second decoder | own header |
-| `hemoglobin/tools/check-hb.js` | the ~85 assertions behind the haemoglobin page: staleness, quantisation, both decoders agreeing, DSSP vs deposited HELIX records, the opening close-up, **level 1's flat chain** (generated in the page, so the checker lifts the generator out of the HTML — including `placeAtom`'s torsion SIGN), and **helix handedness**, the one global mirror an internal check can catch | own header |
+| `hemoglobin/tools/check-hb.js` | the \~85 assertions behind the haemoglobin page: staleness, quantisation, both decoders agreeing, DSSP vs deposited HELIX records, the opening close-up, **level 1's flat chain** (generated in the page, so the checker lifts the generator out of the HTML — including `placeAtom`'s torsion SIGN), and **helix handedness**, the one global mirror an internal check can catch | own header |
 | `folding/tools/bake-fold.js` | solves the villin fold once → `folding/data/1VII.fold.bin` (442 KB, 185 keyframes). Both folding pages play that file. **Re-run after any change to the solver, schedule or H-bond cutoffs** | own header |
 | `tools/bake-residues.js` | writes `residues.js` by MEASURING the twenty side chains off committed structures — 2HHB for nineteen, 9ZZI for isoleucine. Keeps one real instance each (the medoid), never an average of rotamers | own header |
 | `tools/check-residues.js` | re-bakes and compares, then asserts chemistry: heavy-atom counts, ring closure, proline's ring onto the backbone N, and **L-configuration** — one of two checks that catch a mirror | own header |
@@ -170,98 +102,33 @@ both load.
 
 Easy to get wrong, invisible from the API:
 
-* **Spec coordinates are canonical.** Never bake a viewing angle in with
-  `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied by
-  `Stage.buildMolecule`), and add new angles to `VIEW` so specs share a view by
-  name, not by copied constants. An angle only ONE spec uses stays inline
-  (`atpSkel`): a `VIEW` entry with a single user is a name nobody can reuse.
-* **A declared `view:` is what the student sees. A page's own rotation is an
-  OFFSET from it, and must be zero at rest.** `Stage.buildMolecule` bakes `view:`
-  into the meshes and leaves the group free for the page; compose anything on
-  top of it at rest and the spec's angle is one nobody ever sees, while the file,
-  the checkers and the docs all still say otherwise. `contrast-lab.html` holds to
-  it by construction (`rotation.y=spin` — *0 at rest*); `molecule-viewer.html`
-  broke it twice, once with a PCA opening pose and once by carrying a pose
-  across its derivation switch, and nothing caught either — the composition
-  happens in THREE at runtime, so no offline checker can see it — and neither
-  can a runtime one, since anything downstream of the spec derives the "expected"
-  angle from the same field it is checking. So it is **one code path, not an
-  assertion**: `molview.js`'s `defaultView()` is the only place an opening angle
-  comes from, and it returns identity for a spec that declares a view precisely
-  because `buildMolecule` has already baked it in. Tune an angle by dragging in
-  `molecule-viewer.html` and pasting its copy button's output.
-* **Specs come in two bond-length families**; a page shows one.
-  MolecularGeometry.md §1.5.
-* **`mol-*.js` coordinates are real ångströms** unless `units:'scene'`. Pasting
-  display-scale numbers into an `angstrom` spec is a silent 1.9× that reads as a
-  styling choice. `tools/sdf2spec*.js` emit ångströms, so their output pastes in.
-* **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve distance
-  from the real frustum; a hand-picked `r:` is right only at the size it was
-  tuned for. Pass `orbit:false` on side-by-side pages — orbiting brings one
-  molecule nearer and perspective magnifies it.
-* **`Stage.bond` takes a bond order** (`[i,j,2]` → double bond).
-  `setOptionalH` toggles *visibility* of the `optH` C–H's, so it can never
-  resurrect a reaction-removed atom.
-* **`mol-compare.js` holds controls, not lessons.** `atpSkel` and `nadhSkel` are
-  the same molecules as `atp` and `nadh`, built the other way, and they earn
-  their place by matching the SAME `check-handedness.js` reference — that is what
-  makes a visible difference between them method rather than a mistake. That
-  reference is **derived from `compare:{against:…}`**, not typed: a control added
-  without one would leave the tool reporting every spec passing while never
-  having looked at the new one. A control whose partner has no reference fails
-  the run. The pair
-  is deliberate: NADH is twice the molecule, so it shows the schematic's cost
-  GROWING with size (1.01 Å out of plane and 21.4 Å across, against the
-  conformer's 1.91 and 12.0). Its own domain file because
-  `glycolysis-lab` and `macromolecule-lab` load `mol-glycolysis.js` and must not
-  pay for a spec they never draw.
-* **A `flat2d` layout is positions, not decoration.** molecule-viewer.html moves
-  the real atoms onto it, so a stale one flies them to the wrong places in front
-  of the student. Heavy atoms, in spec order, real ångströms; `register()` does
-  not scale it, so the page applies `SCALE` itself. Re-run `tools/bake-flat2d.js`
-  after touching the spec — `check-molecules.js` fails on the length, the scale
-  and any overlap.
+* **Spec coordinates are canonical.** Never bake a viewing angle in with `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied by `Stage.buildMolecule`), and add new angles to `VIEW` so specs share a view by name, not by copied constants. An angle only ONE spec uses stays inline (`atpSkel`): a `VIEW` entry with a single user is a name nobody can reuse.
+* **A declared `view:` is what the student sees. A page's own rotation is an OFFSET from it, and must be zero at rest.** `Stage.buildMolecule` bakes `view:` into the meshes and leaves the group free for the page; compose anything on top of it at rest and the spec's angle is one nobody ever sees, while the file, the checkers and the docs all still say otherwise. `contrast-lab.html` holds to it by construction (`rotation.y=spin` — *0 at rest*); `molecule-viewer.html` broke it twice, once with a PCA opening pose and once by carrying a pose across its derivation switch, and nothing caught either — the composition happens in THREE at runtime, so no offline checker can see it — and neither can a runtime one, since anything downstream of the spec derives the "expected" angle from the same field it is checking. So it is **one code path, not an assertion**: `molview.js`'s `defaultView()` is the only place an opening angle comes from, and it returns identity for a spec that declares a view precisely because `buildMolecule` has already baked it in. Tune an angle by dragging in `molecule-viewer.html` and pasting its copy button's output.
+* **Specs come in two bond-length families**; a page shows one. MolecularGeometry.md §1.5.
+* **`mol-*.js` coordinates are real ångströms** unless `units:'scene'`. Pasting display-scale numbers into an `angstrom` spec is a silent 1.9× that reads as a styling choice. `tools/sdf2spec*.js` emit ångströms, so their output pastes in.
+* **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve distance from the real frustum; a hand-picked `r:` is right only at the size it was tuned for. Pass `orbit:false` on side-by-side pages — orbiting brings one molecule nearer and perspective magnifies it.
+* **`Stage.bond` takes a bond order** (`[i,j,2]` → double bond). `setOptionalH` toggles *visibility* of the `optH` C–H's, so it can never resurrect a reaction-removed atom.
+* **`mol-compare.js` holds controls, not lessons.** `atpSkel` and `nadhSkel` are the same molecules as `atp` and `nadh`, built the other way, and they earn their place by matching the SAME `check-handedness.js` reference — that is what makes a visible difference between them method rather than a mistake. That reference is **derived from `compare:{against:…}`**, not typed: a control added without one would leave the tool reporting every spec passing while never having looked at the new one. A control whose partner has no reference fails the run. The pair is deliberate: NADH is twice the molecule, so it shows the schematic's cost GROWING with size (1.01 Å out of plane and 21.4 Å across, against the conformer's 1.91 and 12.0). Its own domain file because `glycolysis-lab` and `macromolecule-lab` load `mol-glycolysis.js` and must not pay for a spec they never draw.
+* **A `flat2d` layout is positions, not decoration.** molecule-viewer.html moves the real atoms onto it, so a stale one flies them to the wrong places in front of the student. Heavy atoms, in spec order, real ångströms; `register()` does not scale it, so the page applies `SCALE` itself. Re-run `tools/bake-flat2d.js` after touching the spec — `check-molecules.js` fails on the length, the scale and any overlap.
 * **`atomkit.js` owns what a student learns to *read***, never how a bond forms.
-* **`glycolysis-lab.html` carries a second simulation.** The mass-action modal is
-  a plain 2D canvas — no Three.js, no MolLib, no spec — because its dots stand
-  for *populations*; looking like molecules would make a geometry claim nothing
-  backs. Its physics: molecules draw an energy from the thermal distribution and
-  react when they clear a barrier, `EA` forward and `EA + ΔE` back. **`EA` is a
-  legibility knob** (it makes about half of arrivals react), so the claims
-  resting on it are asserted by `tools/check-massaction.js`, which lifts the
-  constants out of the HTML rather than copying them.
-* Drag modules are *mechanics*, not plumbing. Same mechanic, different constants
-  → a recipe in the same file; different mechanic → new file.
+* **`glycolysis-lab.html` carries a second simulation.** The mass-action modal is a plain 2D canvas — no Three.js, no MolLib, no spec — because its dots stand for *populations*; looking like molecules would make a geometry claim nothing backs. Its physics: molecules draw an energy from the thermal distribution and react when they clear a barrier, `EA` forward and `EA + ΔE` back. **`EA` is a legibility knob** (it makes about half of arrivals react), so the claims resting on it are asserted by `tools/check-massaction.js`, which lifts the constants out of the HTML rather than copying them.
+* Drag modules are *mechanics*, not plumbing. Same mechanic, different constants → a recipe in the same file; different mechanic → new file.
 
 ## Architecture principle: **share the plumbing, not the physics**
 
-Deliberately **no monolithic `engine.js`**. What each shared module does and does
-not own, the test for whether something belongs in one, and the same split a
-level down inside the bonding builder: **`SCIENCE.md` §6.**
+Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`SCIENCE.md` §6.**
 
 ## Adding a new page
 
-0. **Start from a built page, not a blank one.** Match by information
-   complexity, not paradigm: single concept → `water-lab.html` or
-   `molecule-builder.html`; multi-step or multi-stage → `hemoglobin-lab.html`;
-   side-by-side → `contrast-lab.html`. Copy its layout, panel structure and copy
-   tone wholesale — first-draft quality comes from reusing those choices.
-1. Copy the head (fonts/icons + `sandbox.css` + the scripts you need) and the
-   `#app` skeleton from `aminoacid-lab.html`, or `contrast-lab.html` for the
-   no-FX, no-loop shape. **Load only the `mol-*.js` domains your page shows**,
-   after `molecules.js` (and after `skel.js` if any needs the builder).
-2. Add new molecules to the right `mol-*.js` — never to `molecules.js`. A
-   molecule in the wrong domain is one some page pays for and never draws. Prefer
-   `tools/sdf2spec.js` over typing coordinates, give it a `src:`, then run the
-   checkers. A new domain file also goes in `MolLib.DOMAINS`. **A molecule that
-   makes a chemical claim ships with the assertion that checks it, in the same
-   commit** (MolecularGeometry.md §1.4 rule 2) — an undeclared claim is how every
-   sugar here spent months being the wrong enantiomer.
-3. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});`
-   then `const FXi=FX.create(THREE,root,camera);` — skip FX only if the page fires
-   nothing (`contrast-lab.html`; `macromolecule-lab.html` still rings on selection).
-4. Build with `Stage.buildMolecule(spec,{center:true})`, or a page-specific
-   builder if you need outlines/physics `userData`. Then frame the camera:
+1. **Start from a built page, not a blank one.** Match by information complexity, not paradigm: single concept → `water-lab.html` or `molecule-builder.html`; multi-step or multi-stage → `hemoglobin-lab.html`; side-by-side → `contrast-lab.html`. Copy its layout, panel structure and copy tone wholesale — first-draft quality comes from reusing those choices.
+
+2. Copy the head (fonts/icons + `sandbox.css` + the scripts you need) and the `#app` skeleton from `aminoacid-lab.html`, or `contrast-lab.html` for the no-FX, no-loop shape. **Load only the `mol-*.js` domains your page shows**, after `molecules.js` (and after `skel.js` if any needs the builder).
+
+3. Add new molecules to the right `mol-*.js` — never to `molecules.js`. A molecule in the wrong domain is one some page pays for and never draws. Prefer `tools/sdf2spec.js` over typing coordinates, give it a `src:`, then run the checkers. A new domain file also goes in `MolLib.DOMAINS`. **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** (MolecularGeometry.md §1.4 rule 2) — an undeclared claim is how every sugar here spent months being the wrong enantiomer.
+
+4. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});` then `const FXi=FX.create(THREE,root,camera);` — skip FX only if the page fires nothing (`contrast-lab.html`; `macromolecule-lab.html` still rings on selection).
+
+5. Build with `Stage.buildMolecule(spec,{center:true})`, or a page-specific builder if you need outlines/physics `userData`. Then frame the camera:
 
    ```js
    const g = Stage.buildMolecule(MolLib.MOLECULES.glucose, {center:true});
@@ -270,33 +137,21 @@ level down inside the bonding builder: **`SCIENCE.md` §6.**
    Stage.frame(camera, cam, [{x:0, y:0, rxz:m.rxz, hy:m.hy}]);  applyCam();
    ```
 
-   Re-call `Stage.frame` from a `ResizeObserver` — it solves against
-   `camera.aspect`, so it's right only once the canvas is measured. Leave the
-   spec's orientation alone: `view:` already carries the chosen angle. Raising
-   the camera (`phi≈1.3`) is fine; *swinging* it (`theta`) is not on a
-   side-by-side page.
-5. Fire `FXi.spawnRing/popGlow/…` at event sites; call `FXi.step()` in the render
-   loop before `renderer.render`.
-6. Build the lesson's *mechanic* custom — see the architecture principle above.
+   Re-call `Stage.frame` from a `ResizeObserver` — it solves against `camera.aspect`, so it's right only once the canvas is measured. Leave the spec's orientation alone: `view:` already carries the chosen angle. Raising the camera (`phi≈1.3`) is fine; *swinging* it (`theta`) is not on a side-by-side page.
+
+6. Fire `FXi.spawnRing/popGlow/…` at event sites; call `FXi.step()` in the render loop before `renderer.render`.
+
+7. Build the lesson's *mechanic* custom — see the architecture principle above.
 
 ## Scientific accuracy
 
-**Read `SCIENCE.md` before adding or changing any visualization** — it's the
-rulebook. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
+**Read `SCIENCE.md` before adding or changing any visualization** — it's the rulebook. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
 
-`MolecularGeometry.md` §1 covers adding a molecule — geometry, sources,
-stereochemistry, fidelity tiers, scale families. `SCIENCE.md` carries the rest:
-§§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour
-conventions, §6 module architecture.
+`MolecularGeometry.md` §1 covers adding a molecule — geometry, sources, stereochemistry, fidelity tiers, scale families. `SCIENCE.md` carries the rest: §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture.
 
-Before adding a **new molecule**, read `MolecularGeometry.md` §1.4 — it sets how
-much fidelity a molecule owes for the claim it makes (prop / contrast / subject)
-and requires a `check-molecules.js` assertion in the same commit. Pedagogical
-exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in
-comments**.
+Before adding a **new molecule**, read `MolecularGeometry.md` §1.4 — it sets how much fidelity a molecule owes for the claim it makes (prop / contrast / subject) and requires a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 
-Water/solvation physics is in `WaterSim.md` (solvation apps only). Each page
-documents itself in its own comments.
+Water/solvation physics is in `WaterSim.md` (solvation apps only). Each page documents itself in its own comments.
 
 ## Run / test locally
 
@@ -304,46 +159,25 @@ documents itself in its own comments.
 node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
 ```
 
-Live reload, and `no-store` so you never debug a fix that's already correct on
-disk. **It serves the repo root, not `demos/`**, because that's what GitHub Pages
-publishes — the local URL is the URL that ships. `/` is the lesson index; a
-lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
+Live reload, and `no-store` so you never debug a fix that's already correct on disk. **It serves the repo root, not `demos/`**, because that's what GitHub Pages publishes — the local URL is the URL that ships. `/` is the lesson index; a lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
 
-Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in
-place, so the scene keeps its camera, selection and toggles.
+Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in place, so the scene keeps its camera, selection and toggles.
 
-The reload client is injected into responses, never written to disk — this repo
-publishes to Pages straight from the working tree, so anything committed ships.
-To see exactly what deploys:
+The reload client is injected into responses, never written to disk — this repo publishes to Pages straight from the working tree, so anything committed ships. To see exactly what deploys:
 
 ```bash
 python3 -m http.server 8818     # from the repo root; no injection, no reload
 ```
 
-`check-molecules.js` prints every spec's bond angles, audits each declared
-`stereo` / `topology` / `chirality` claim, and **fails if any bonded pair's
-spheres merge** — a merged pair buries the stick, which is how a double bond can
-be correctly tagged and render as nothing. Run it after any geometry change.
+`check-molecules.js` prints every spec's bond angles, audits each declared `stereo` / `topology` / `chirality` claim, and **fails if any bonded pair's spheres merge** — a merged pair buries the stick, which is how a double bond can be correctly tagged and render as nothing. Run it after any geometry change.
 
-Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an
-automated screenshot may freeze on the last frame — drive the page's functions
-directly instead of trusting one shot. And **set the viewport before judging
-layout**: `resize_window` to ~1440x900. Every page here is a landscape stage
-beside a 372px panel with a `@media (max-width:920px)` stack, and judging it in a
-phone-width pane produces confident wrong conclusions. It cuts both ways —
-widening the pane is what exposed a canvas rendering at twice its box on retina.
+Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an automated screenshot may freeze on the last frame — drive the page's functions directly instead of trusting one shot. And **set the viewport before judging layout**: `resize_window` to \~1440x900. Every page here is a landscape stage beside a 372px panel with a `@media (max-width:920px)` stack, and judging it in a phone-width pane produces confident wrong conclusions. It cuts both ways — widening the pane is what exposed a canvas rendering at twice its box on retina.
 
-Framing, spacing, rotation, captions: the human tests in the browser.
-`tools/check-docs.js` audits what the docs *claim*.
+Framing, spacing, rotation, captions: the human tests in the browser. `tools/check-docs.js` audits what the docs *claim*.
 
-**check-molecules, check-pages and check-pdb run automatically on commit.**
-`npm i` in `demos/` points `core.hooksPath` at `.githooks/`. Reinstall with
-`npm run hooks`; disable with `git config --unset core.hooksPath`; skip once with
-`git commit --no-verify`.
+**check-molecules, check-pages and check-pdb run automatically on commit.** `npm i` in `demos/` points `core.hooksPath` at `.githooks/`. Reinstall with `npm run hooks`; disable with `git config --unset core.hooksPath`; skip once with `git commit --no-verify`.
 
-Each checker is gated on the files it can judge, so most commits run one or none.
-**Each derived artefact is gated on the code that can make it stale, not on its
-own folder** — that's why the patterns look wider than the checkers do:
+Each checker is gated on the files it can judge, so most commits run one or none. **Each derived artefact is gated on the code that can make it stale, not on its own folder** — that's why the patterns look wider than the checkers do:
 
 | checker | fires on | cost |
 | --- | --- | --- |
@@ -355,15 +189,9 @@ own folder** — that's why the patterns look wider than the checkers do:
 | `check-massaction.js` | `glycolysis-lab.html`, `tools/check-massaction.js` — the modal's physics lives *in* the page | 1.5 s |
 | `check-hb.js` | anything under `hemoglobin/`, **plus `hemoglobin-lab.html`**, plus `folding/folding.js` and `folding/ribbon.js` — **two modes** | 0.3 s or 57 s |
 
-`check-hb.js` full run re-bakes the unfold (56 of its 57 s); `--quick` skips that
-and two assertions needing the un-quantised trajectory, leaving 56 of 59 running
-off the committed file in 0.3 s. The hook picks **full** when `bake-unfold.js`,
-`bake-hb.js`, `folding/folding.js` or `folding/ribbon.js` is staged, **quick**
-otherwise.
+`check-hb.js` full run re-bakes the unfold (56 of its 57 s); `--quick` skips that and two assertions needing the un-quantised trajectory, leaving 56 of 59 running off the committed file in 0.3 s. The hook picks **full** when `bake-unfold.js`, `bake-hb.js`, `folding/folding.js` or `folding/ribbon.js` is staged, **quick** otherwise.
 
-**The hook prints only on skip or failure** — a silent checker ran and passed.
-Don't read silence as "it didn't fire". Widen a pattern alongside any new derived
-artefact; nothing about a stale one is visible from the page that plays it.
+**The hook prints only on skip or failure** — a silent checker ran and passed. Don't read silence as "it didn't fire". Widen a pattern alongside any new derived artefact; nothing about a stale one is visible from the page that plays it.
 
 No CI. By hand:
 
@@ -371,10 +199,7 @@ No CI. By hand:
 node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node tools/check-massaction.js
 ```
 
-Those are offline and dependency-free. **`tools/check-handedness.js` is separate
-on purpose** — it needs the network and RDKit, and it is the only global-mirror
-check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or
-adding a stereocentre:
+Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
 
 ```bash
 npm i && node tools/check-handedness.js
@@ -384,12 +209,6 @@ npm i && node tools/check-handedness.js
 
 ## Copywriting
 
-Write as a tutor for a college Bio 101 student. Concise, no repetition. The text
-supports the visuals and interaction — prioritize core concepts, and steer the
-reader toward asking more rather than dumping facts.
+Write as a tutor for a college Bio 101 student. Concise, no repetition. The text supports the visuals and interaction — prioritize core concepts, and steer the reader toward asking more rather than dumping facts.
 
-**A number in user-facing text must be read from the data at render time.** A
-typed number is a claim nothing checks and a re-bake silently falsifies. **Read
-it from where the fact lives, not the nearest lookalike** — counting helices in a
-trajectory's `ss` gives five because adjacent ones merge, so the eight the page
-says is carried across from the HELIX records by the baker.
+**A number in user-facing text must be read from the data at render time.** A typed number is a claim nothing checks and a re-bake silently falsifies. **Read it from where the fact lives, not the nearest lookalike** — counting helices in a trajectory's `ss` gives five because adjacent ones merge, so the eight the page says is carried across from the HELIX records by the baker.
