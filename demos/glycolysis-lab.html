@@ -168,16 +168,8 @@
   #stephead.on{visibility:visible}
 
   /* ---------- the caption, on demand ----------
-     The step's explanation used to stand permanently under the button, four
-     lines of it, and it was the widest and tallest thing on the stage — space
-     the molecule wanted and a paragraph most students read once. It is now
-     behind the ⓘ beside the heading: the heading says which step and what it
-     demonstrates, and the sentence that explains why is a hover away.
      THE TOOLTIP CHANGES NO LAYOUT. It is absolutely positioned out of flow
-     inside a zero-width wrapper, so the band it hangs off keeps its height and
-     the camera's bottom reserve — which usable() measures — never moves. It
-     opens UPWARD, over the stage, because that is the empty half of the screen;
-     downward would put it under the edge of the canvas. */
+     inside a zero-width wrapper. It opens UPWARD, over the stage. */
   .infowrap{position:relative;display:inline-block;width:0;height:0;
     vertical-align:middle}
   .infobtn{position:absolute;left:7px;top:50%;transform:translateY(-50%);
@@ -186,13 +178,6 @@
     font-family:var(--font-sans);font-weight:700;font-size:10.5px;line-height:1;
     display:grid;place-items:center;transition:color .15s,border-color .15s}
   .infobtn:hover,.infobtn:focus{color:var(--ink);border-color:var(--ink);outline:none}
-  /* CENTRED ON THE BAND, NOT ON THE ICON. The icon sits at the right-hand end
-     of the heading, which is itself off-centre on the stage, so a tooltip
-     centred on it ran past the stage's right edge and was clipped there. The
-     band already spans the usable width and is already where the camera puts
-     the lesson, so hanging the tooltip off that centres it on the same space
-     the molecule is framed in. It is a child of #bottombar for that reason —
-     which also means it survives the heading's innerHTML being rewritten. */
   #steptip{position:absolute;bottom:calc(100% + 14px);left:50%;
     transform:translateX(-50%) translateY(4px);
     width:min(520px,86%);padding:13px 17px;border-radius:12px;
@@ -259,29 +244,11 @@
     to{opacity:1;transform:translateX(-50%)}}
   @media (max-width:920px){ #rxmsg{width:88%;font-size:14px} }
 
-  /* ---------- the ledger: the whole point of the page ---------- */
-  /* Always visible, never resets. Students watch ATP dip below its start value
-     and climb back past it — that dip is the "investment phase" made physical.
-     Lives at the TOP OF THE SIDEBAR and sticks there, so it stays on screen
-     while the rest of the column scrolls under it. The stage keeps the carriers
-     (the tray); the sidebar keeps what they add up to.
-
-     A POST-IT. A sticky note reads as something a person put there, which is
-     what a running tally is. Square corners, no border — the edge is the paper — and the
-     shadow does the lifting: tight and dark where the note touches the page at
-     the top, long and soft at the bottom where it curls away. The tilt is small
-     on purpose (1.2°): enough to sit apart from the grid, not enough to make
-     tabular numbers look crooked. */
   #ledger{position:sticky;top:0;z-index:6;flex:none;margin:0 0 16px;
     background:linear-gradient(168deg,#fdf0a8 0%,#fbe88c 62%,#f6de79 100%);
     padding:13px 15px 15px;transform:rotate(-1.2deg);transform-origin:top right;
     box-shadow:0 1px 1px rgba(0,0,0,.16), 0 10px 18px -10px rgba(0,0,0,.42)}
-  /* NOT ON THE OPENING SCREEN. Nothing has been spent or made yet, so the
-     ledger opens as six zeroes — a tally of a lesson that has not started. It
-     is pinned up on Begin instead, which is also what makes it read as the
-     thing the lesson is about to write in. Safe to remove outright now that it
-     lies OVER the stage: it owns no column, so the molecule does not move when
-     it arrives. */
+  /* ledger is not on the opening screen*/
   #ledger.hid{display:none}
   #ledger.pin{animation:pinup .5s cubic-bezier(.2,.9,.3,1) backwards}
   @keyframes pinup{
@@ -341,13 +308,7 @@
   @media (prefers-reduced-motion:reduce){ #flylayer{display:none} }
 
   /* ---------- the coupling box, under the ledger ----------
-     The step's energy picture — A SHEET OF PAPER, like everything else on this
-     desk, not an inked card: the ledger beside it is a post-it and the sidebar
-     is torn grid paper, so a hard 2px border would be the only object here
-     pretending to be a control. Same idiom as the ledger and mirrored: it
-     tilts the other way and lifts its opposite corner, so the two read as two
-     sheets dropped on a desk rather than as a repeated component.
-     Its contents are the shared `.note` styles (.nhead, .nbody, .cpl, .ftabs). */
+     The step's energy picture — A SHEET OF PAPER */
   #couplebox{display:none;position:relative;margin:0 0 18px;padding:13px 15px 14px;
     background:#fdfaf2;
     /* the faint ruling of the sheet — the sidebar's own grid, one shade softer */
@@ -406,10 +367,6 @@
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
 
-  /* NO COUNTS. The tray's job is naming the five carriers and showing which one
-     this step needs — a running per-carrier tally would duplicate the ledger's
-     ATP spent/made/net, which is the accounting that actually matters. A pool
-     at zero is still muted, because NAD+ at zero is why fermentation exists. */
   .reag{position:relative;width:152px;padding:5px 10px;cursor:default;
     display:grid;grid-template-columns:1fr;align-items:center;
     background:none;border:2.5px solid transparent;border-radius:9px;
