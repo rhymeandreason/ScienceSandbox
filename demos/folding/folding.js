@@ -766,8 +766,8 @@ const FoldLib = (function () {
      coordinates instead of computing them, which is the difference between
      opening instantly and stalling for a second and a half on every visit,
      for every student, to recompute a number that cannot change.
-     tools/check-pdb.js re-bakes and compares, so the committed file can
-     never quietly fall out of step with the solver that produced it.
+     folding/tools/check-folding.js re-bakes and compares, so the committed
+     file can never quietly fall out of step with the solver that produced it.
 
      900 frames was enough before folding.js gained orient(); expressing the
      same fold in a different basis shifts the arithmetic slightly, and the

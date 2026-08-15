@@ -113,7 +113,8 @@ const VillinLib = (function () {
      which is villin's textbook architecture (six gelsolin-like repeats and a
      C-terminal headpiece) recovered without anybody supplying it. That
      agreement is the evidence the decomposition is real, and
-     tools/check-pdb.js asserts it rather than trusting this comment.
+     folding/tools/check-folding.js asserts it (CLAIM 2) rather than trusting
+     this comment.
 
      PAE is not symmetric; averaging is the standard symmetrisation. */
   function segment(pae, opts) {

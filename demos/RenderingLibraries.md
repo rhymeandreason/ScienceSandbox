@@ -158,13 +158,13 @@ to stop shipping it. That is a licence action, not an editorial one.
 | | what it is now |
 |---|---|
 | `vendor/chemdoodle/` | **deleted.** GPLv3, and the sole reason any page here was |
-| `protein-lab.html` | **deleted** with it — it was the only page loading ChemDoodle |
+| `protein-lab.html` | **deleted** with it — it was the only page loading ChemDoodle. Not being rewritten: `hemoglobin-lab.html` supersedes it |
 | `viewer-compare.html` | **deleted** with it — the ChemDoodle vs 3Dmol comparison; it loaded the library too |
 | ↳ all three | intact on the local `chemdoodle-archive` branch, and in history. Nothing was lost, only unshipped |
 | `molstar/` | settled — six stages, the thorough one. `molstar/README.md` is the detail behind this file's summary. Kept |
 | `molstar/protein-molstar.html` | the Mol\* lesson prototype. Kept as the "what a viewer buys you" exhibit |
 | `molstar/protein-inhouse.html` | the control arm, and the template for the `protein-lab` rewrite. Kept |
-| `pdb.js`, `pdb/*.pdb`, `tools/check-pdb.js` | loaded by no page now. Kept as the rewrite's starting point, and still audited so they cannot rot |
+| `pdb.js`, `pdb/*.pdb`, `tools/check-pdb.js` | **still live.** No lesson loads `pdb.js`, but `molstar/protein-inhouse.html` and `molstar/protein-molstar.html` both call `PDBLib.orient()` at runtime, and `check-pdb.js` is the only test of its mirror guard. Do not delete it as orphaned code |
 | `folding-lab-ribbon.html`, `folding/ribbon-test.html` | unrelated to this decision, and also kept — see `CLAUDE.md` |
 
 **Read them as history, not as instructions.** Every one of those pages was
@@ -176,18 +176,18 @@ header still argues for a renderer, this file overrides it.
 1. **The ChemDoodle pages are deleted** — done, see the table above. This
    discharges the licence obligation rather than deferring it: **no page in this
    repo is GPLv3 any more.**
-2. **`protein-lab.html` is rewritten** on Three.js + `scene.js` +
-   `folding/ribbon.js`. This is now the one *open* item, and the page is absent
-   until it lands — the lesson is missing, not broken.
-   `molstar/protein-inhouse.html` is most of the proof it will work — it already
-   draws a whole tetramer with our DSSP, our palette and our haems. The rewrite
-   also lets the page finally colour that 3₁₀ helix, which is the open item the
-   old page's header flagged. `pdb.js` and `pdb/` are kept for it.
+2. **`protein-lab.html` is NOT rewritten.** This was going to be the one open
+   item; it is closed instead, because `hemoglobin-lab.html` already teaches
+   the four levels — and teaches them better, on a single molecule, where the
+   old page needed lysozyme for 1–3 and an antibody for 4 and a swap in
+   between. Nothing is missing from the curriculum, so nothing is owed here.
+   (`molstar/protein-inhouse.html` remains the proof that a tetramer renders
+   fine on our own stack, if a future lesson wants one.)
 3. **`CLAUDE.md`'s page table and module notes** stop describing `protein-lab`
    as a different kind of page that shares nothing but `pdb.js` and
-   `sandbox.css` — done. When the rewrite lands it is an ordinary Three.js
-   lesson that happens to read a deposited file — the same shape as
-   `folding-lab` — and `tools/check-pages.js` can audit it like any other.
+   `sandbox.css` — done. Should a future lesson ever need a deposited
+   structure, write it as an ordinary Three.js page in the shape of
+   `folding-lab` / `hemoglobin-lab`; do not reintroduce a viewer abstraction.
 
 Deleting `molstar/` belongs to the **production-repo move**, along with dropping
 the scratch data and the bake tooling — not to this decision.

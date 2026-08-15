@@ -79,11 +79,11 @@ now**. All three survive on the local `chemdoodle-archive` branch. This also
 resolves the disagreement flagged at the top of this file: neither ChemDoodle
 nor 3Dmol is the default, because there is no third-party 3D viewer at all.
 
-**What is still open** is the one thing that is not a decision:
-`protein-lab.html` needs rewriting on our own renderer, and until it lands that
-lesson is absent. `demos/molstar/protein-inhouse.html` is the template and most
-of the proof — it already draws a whole tetramer with our DSSP, our palette and
-our haems. `demos/pdb.js` and `demos/pdb/` are kept for it.
+**Nothing is left open.** `protein-lab.html` is not being rewritten:
+`demos/hemoglobin-lab.html` supersedes it, carrying all four levels on one
+molecule where the old page needed two structures and a swap between them.
+`demos/pdb.js` stays regardless — two `demos/molstar/` pages call it at
+runtime.
 
 **One thing worth carrying forward** from the Mol\* evaluation: it ships a
 one-click *Wiggle → Uncertainty* animation, which presents confidence as
