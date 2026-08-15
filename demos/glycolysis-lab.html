@@ -367,18 +367,6 @@
   .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
 
-  .reag{position:relative;width:152px;padding:5px 10px;cursor:default;
-    display:grid;grid-template-columns:1fr;align-items:center;
-    background:none;border:2.5px solid transparent;border-radius:9px;
-    text-align:left;user-select:none;transition:transform .15s,border-color .15s,background .15s}
-  .reag .rname{grid-column:1;grid-row:1;
-    font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);line-height:1.15}
-  .reag .rname sub,.reag .rname sup{font-size:.68em}
-  .reag .rsub{grid-column:1;grid-row:2;
-    font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
-    text-transform:uppercase;color:var(--muted);line-height:1.2}
-  .reag.empty .rname{color:var(--muted);opacity:.75}
-
   /* ---------- ATP/ADP drawn, not carded ----------
      The two ATP tiles were the one place a student could not see what the step
      did to the carrier: a card saying ATP became a card saying ADP, and the
@@ -397,6 +385,20 @@
      `.live` below). It sits in the tray at z-7, over the whole left column, so
      while it was interactive it swallowed every click aimed at the molecule
      behind it — including the one on the marked bond. */
+  #free{width:400px;position:relative;pointer-events:none;margin-top:2px}
+  /* SIDE BY SIDE, not stacked like the carriers. Two phosphates at true scale
+     would want a 500px column on top of the carrier's 470, which is taller than
+     the stage; in a row they share the width instead and come out about half
+     size. The row also says the right thing — these two are interchangeable
+     units of a pool, not one object in two states. */
+  #free .cvis{position:relative;height:132px;display:flex;gap:10px}
+  #free .cname{font-family:var(--font-slab);font-weight:700;font-size:15px;
+    color:var(--ink);line-height:1.15;margin-bottom:2px}
+  #free .cslot{position:relative;flex:1 1 0;min-height:0;transition:opacity .35s ease}
+  #free .clab{position:absolute;left:0;top:4px;
+    font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--muted)}
+  #free .cscale{font-family:var(--font-sans);font-size:9.5px;
+    color:var(--muted);line-height:1.25;margin-top:3px}
   #carrier{width:400px;position:relative;pointer-events:none;
     padding:7px 8px 6px;border:2.5px solid transparent;border-radius:9px;
     background:none;text-align:left;user-select:none}
@@ -441,16 +443,7 @@
   #carrier .cscale{font-family:var(--font-sans);font-size:9.5px;
     color:var(--muted);line-height:1.25;margin-top:3px}
 
-  /* the reagent this step needs: the only card, and the only button */
-  .reag.live{cursor:pointer;border-color:var(--ink);background:rgba(255,255,255,.95);
-    box-shadow:0 0 0 4px rgba(224,123,31,.18);animation:reagPulse 1.9s ease-in-out infinite}
-  .reag.live:hover{transform:translateX(3px) scale(1.03)}
-  @keyframes reagPulse{0%,100%{box-shadow:0 0 0 3px rgba(224,123,31,.14)}
-    50%{box-shadow:0 0 0 8px rgba(224,123,31,.05)}}
   /* the prompt points RIGHT at the column, not down at a strip */
-  .reag .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
-    font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
-  .reag.live .need{display:block}
 
   /* the action button (Begin, and every no-reagent step), inside #bottombar.
      `visibility` rather than `display` — see the bottombar comment.
@@ -811,8 +804,6 @@
     #ledger .row{font-size:12px;padding:1.5px 0}
     #ledger .lhead{margin-bottom:5px}
     #tray{left:12px;top:16px;transform:none}
-    .reag{width:116px;padding:3px 7px}
-    .reag .rsub{display:none}          /* the gloss is the first thing to go */
     /* Both corners tighten in; the caption band between them is narrower here. */
     #restart,#savepng,#allsteps{padding:5px 12px;font-size:12px}
     #restart,#savepng{bottom:16px}
@@ -1073,14 +1064,6 @@ const POOL0={ATP:4, ADP:4, NAD:2, NADH:0, Pi:2};
 // made" would duplicate, and could contradict, the ledger's own rows.
 // Charged/discharged also puts ATP:ADP in the same shape as NAD⁺:NADH, which is
 // the analogy worth having — both are carriers that cycle, not fuels consumed.
-const REAGENTS=[
-  {key:'ATP',  name:'ATP',   sub:'charged'},
-  {key:'ADP',  name:'ADP',   sub:'discharged'},
-  {key:'Pi',   name:'P<sub>i</sub>', sub:'free phosphate'},
-  {key:'NAD',  name:'NAD<sup>+</sup>',  sub:'empty carrier'},
-  {key:'NADH', name:'NADH',  sub:'loaded carrier'},
-];
-
 // The couple table names carriers as the figure prints them ("NAD+"); the tray
 // keys them as the pools are keyed ("NAD"). One place converts.
 const carrierKey=n=>n==='NAD+'?'NAD':n;
@@ -2158,7 +2141,7 @@ function aboveFrame(to){
 // drop it onto, and matching the destination's depth is what keeps the
 // phosphate the same size at both ends.
 function tileWorld(key,ref,j){
-  const p=carrierPoint(key,j) || tilePoint(key);
+  const p=carrierPoint(key,j);
   if(!p) return null;
   const c=canvas.getBoundingClientRect();
   if(!c.width || !c.height) return null;
@@ -2172,13 +2155,6 @@ function tileWorld(key,ref,j){
 function carrierPoint(key,j){
   return CARRIER.has(key) && carrierEl.isConnected ? carrierGammaPoint(j) : null;
 }
-function tilePoint(key){
-  const tile=trayEl.querySelector(`.reag[data-key="${key}"]`);
-  if(!tile || trayEl.style.visibility==='hidden') return null;
-  const r=tile.getBoundingClientRect();
-  return r.width ? {x:r.left+r.width/2, y:r.top+r.height/2} : null;
-}
-
 /* ---------- THE UNFURL: the ring straightening out, atom by atom ----------
  * Step 2 used to cut from the ring to the chain, and a cut is the one thing
  * that reads as "the picture changed" rather than "the molecule moved". What
@@ -2737,12 +2713,11 @@ function flyChip(src,dst,text,color,delay,onLand){
 // spent from or caught by; pyruvate leaves its own molecule's name plate,
 // because nothing in the tray made it.
 function flySource(key,j){
-  const tile=k=>trayEl.querySelector(`.reag[data-key="${k}"]`);
-  // the ATP/ADP pair is one drawing now, so both ATP counts leave from it
-  const atp=()=>carrierEl.isConnected ? carrierEl : null;
-  if(key==='spent') return atp()||tile('ATP')||tile('ADP');
-  if(key==='made')  return atp()||tile('ADP')||tile('ATP');
-  if(key==='nadh')  return tile('NAD')||tile('NADH');
+  // EVERY CARRIER IS A DRAWING NOW, so all three counts take off from the same
+  // column — the one object the step changed. Pyruvate has no carrier and
+  // leaves from its own molecule's name plate, as it always did.
+  const carrier=()=>carrierEl.isConnected ? carrierEl : null;
+  if(key==='spent'||key==='made'||key==='nadh') return carrier()||platesEl.children[0];
   return platesEl.children[j] || platesEl.children[0];
 }
 let prevLedger=null, ledgerGen=0;
@@ -2858,6 +2833,61 @@ const trayEl=document.getElementById('tray');
  *  phosphate. It is mostly adenosine, and three atoms in thirty-one are what
  *  the cell spends. With it went the toggle, since one drawing needs no switch.
  */
+/* ---------- THE FREE PHOSPHATES ----------
+ *  Not a carrier: Pi has no two states and nothing cycles it. It is a reagent
+ *  the cytosol supplies and the sugar keeps, so what the column shows is a
+ *  POOL being drawn down — two of them at step 6, one going as each lane runs.
+ *  That is the trajectory the standing tile list used to carry and this page
+ *  gave up when the tray narrowed to the step's own carriers; here it costs
+ *  nothing, because the thing being counted is on screen.
+ *
+ *  SHRUNK LIKE THE REST, and the caption says so. Measured, a free phosphate is
+ *  241px across where glucose is 477 — genuinely about half the sugar, which is
+ *  a comparison worth having — but two of them at that size need a taller
+ *  column than the stage has once the carriers have theirs. So they share a row
+ *  and land near half again.
+ */
+const freeEl=document.createElement('div');
+freeEl.id='free';
+freeEl.innerHTML='<div class="cname">Free phosphate</div>'
+  +'<div class="cvis"></div><div class="cscale"></div>';
+let pMols=[];
+function freeMols(n){
+  while(pMols.length>n){ root.remove(pMols.pop()); }
+  while(pMols.length<n){
+    const g=Stage.buildMolecule(M.pi,{center:true});
+    root.add(g); pMols.push(g);
+  }
+  const vis=freeEl.querySelector('.cvis');
+  if(vis.children.length!==n){
+    vis.innerHTML=Array.from({length:n},()=>
+      '<div class="cslot"><span class="clab">P<sub>i</sub></span></div>').join('');
+  }
+  return pMols;
+}
+// SPENT, NOT MOVED. Lane j takes phosphate j, so it goes when that lane runs —
+// the same index that says which ADP was charged and which lane has a target.
+function drawFree(st){
+  const n=carrierCount(st);
+  freeMols(n);
+  const slots=freeEl.querySelectorAll('.cslot');
+  pMols.forEach((g,j)=>{
+    const gone=carrierRan(j);
+    g.userData.spent=gone;
+    if(slots[j]) slots[j].style.opacity=gone?0.18:1;
+  });
+  placeFreeMol();
+}
+function placeFreeMol(){
+  if(!pMols.length) return;
+  const vis = freeEl.isConnected && trayEl.style.visibility!=='hidden';
+  const fit=placeInSlots(freeEl, pMols, M.pi, vis);
+  // a used one is gone, not dimmed: the sugar has it now
+  pMols.forEach(g=>{ if(g.userData.spent) g.visible=false; });
+  if(fit) freeEl.querySelector('.cscale').textContent =
+    fit.k>=0.995 ? 'true size beside the sugar' : `shown at ${Math.round(fit.k*20)*5}%`;
+}
+
 /* ---------- THE CARRIER PAIRS ----------
  * A carrier is ONE object with two states, and the two differ by exactly one
  * group: ATP/ADP by the transferring phosphoryl, NADH/NAD⁺ by the hydride on
@@ -3032,6 +3062,40 @@ function arriveScale(j){
   if(t>=1){ arriveAt[j]=0; return 1; }
   return ARRIVE_FROM+(1-ARRIVE_FROM)*easeOut(t);
 }
+/* MOLECULES STANDING IN DOM BOXES — the shared half of both columns. The
+ * carrier pair and the free phosphates are the same arrangement: N built
+ * molecules anchored to N slots in an element the layout owns, at stage scale
+ * under the stage camera. Only what they MEAN differs, so only that is
+ * per-column. Returns the fitted scale, which is what the caption reports.
+ */
+function placeInSlots(el, mols, spec, vis){
+  mols.forEach(g=>g.visible=vis);
+  if(!vis) return null;
+  const slots=el.querySelectorAll('.cslot');
+  const c=canvas.getBoundingClientRect();
+  if(!c.width || !c.height) return null;
+  camera.updateMatrixWorld();
+  const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
+  const m=Stage.measure(spec);
+  const pxPerWorld=c.width/(camera.right-camera.left);
+  let k=1;
+  mols.forEach((g,j)=>{
+    const box=slots[j] && slots[j].getBoundingClientRect();
+    if(!box || !box.width) return;
+    g.position.copy(new THREE.Vector3(
+      ((box.left+box.width/2)-c.left)/c.width*2-1,
+      -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
+    // FITTED TO ITS OWN SLOT, and never enlarged past true scale: the `1` in
+    // this min is what lets a small molecule be honest. The built ATP runs well
+    // over twice glucose across and would take the stage from the molecule the
+    // lesson is following, so it shrinks and the caption says by how much; a
+    // free phosphate is six atoms and simply stands there at its real size.
+    k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
+               box.height*0.94/(2*m.hy *pxPerWorld), 1);
+    g.scale.setScalar(k*(mols===cMols ? arriveScale(j) : 1));
+  });
+  return {k,m};
+}
 function placeCarrierMol(){
   if(!cMols.length) return;
   const vis = carrierEl.isConnected && trayEl.style.visibility!=='hidden';
@@ -3039,35 +3103,11 @@ function placeCarrierMol(){
   // if the carrier leaves the tray and comes back — never on a plain re-layout
   if(vis && !wasVis) cMols.forEach((_,j)=>popCarrier(j));
   wasVis=vis;
-  cMols.forEach(g=>g.visible=vis);
-  if(!vis) return;
-  const slots=carrierEl.querySelectorAll('.cslot');
-  const c=canvas.getBoundingClientRect();
-  if(!c.width || !c.height) return;
-  camera.updateMatrixWorld();
-  const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
-  const m=Stage.measure(cSpec||ATP);
-  const pxPerWorld=c.width/(camera.right-camera.left);
-  let k=1;
-  cMols.forEach((g,j)=>{
-    const box=slots[j] && slots[j].getBoundingClientRect();
-    if(!box || !box.width) return;
-    g.position.copy(new THREE.Vector3(
-      ((box.left+box.width/2)-c.left)/c.width*2-1,
-      -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
-    // STILL SHRUNK, BUT IT SAYS SO NOW. The built ATP is laid out straight, so
-    // at true scale it runs well over twice glucose across and takes the stage
-    // from the molecule the lesson is following. It is therefore fitted to its
-    // own slot — and with two of them the slot is half the height, so they come
-    // out smaller again, which is what the printed number is for.
-    k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
-               box.height*0.94/(2*m.hy *pxPerWorld), 1);
-    g.scale.setScalar(k*arriveScale(j));
-  });
+  const fit=placeInSlots(carrierEl, cMols, cSpec||ATP, vis);
   // the CAPTION states the fitted scale, not the frame the entrance is on —
   // a number ticking 35 → 40 → 45 while the molecule grows is a measurement of
   // the animation, and what it claims is about the molecule
-  setCarrierScaleNote(k, m);
+  if(fit) setCarrierScaleNote(fit.k, fit.m);
 }
 // The line under the drawing. `k` is the shrink actually applied this frame;
 // the ratio beside it is what the student would see at scale 1, measured off
@@ -3235,17 +3275,12 @@ function drawTray(){
     strip.appendChild(carrierEl);      // moved, never rebuilt — see drawCarrier
     drawCarrier(st, !!st && CARRIER.has(st.reagent) && !busy && !reviewing, showKey);
   }
-  REAGENTS.filter(r=>want.has(r.key) && !(pair && CARRIER.has(r.key))).forEach(r=>{
-    const live=!!st && st.reagent===r.key && !busy && !reviewing;
-    const d=document.createElement('div');
-    d.className='reag'+(live?' live':'')+(pool[r.key]===0?' empty':'');
-    d.dataset.key=r.key;   // the flight to the ledger takes off from this tile
-    d.innerHTML=(live?`<span class="need">← ${st.need}</span>`:'')
-      +`<div class="rname">${r.name}</div>`
-      +`<div class="rsub">${r.sub}</div>`;
-    if(live) d.onclick=()=>press(runStep);
-    strip.appendChild(d);
-  });
+  // …and the free phosphates beside them, when the step draws on the pool.
+  // Every reagent this page names is now a molecule: the cards are gone, and
+  // with them the last place a student read a NAME for something they could
+  // have been looking at.
+  if(want.has('Pi')){ strip.appendChild(freeEl); drawFree(st); }
+  else if(freeEl.isConnected) freeEl.remove();
 }
 
 const actEl=document.getElementById('actbtn');
@@ -4179,6 +4214,7 @@ function loop(){
   // The carrier molecule is anchored to its DOM box, so it is repositioned on
   // the same schedule the labels are — after the render, with a current camera.
   placeCarrierMol();
+  placeFreeMol();              // its sibling column, on the same schedule
   placeCarrierGlow();          // after it, so the bond is where the mark goes
   requestAnimationFrame(loop);
 }
