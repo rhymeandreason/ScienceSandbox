@@ -1129,6 +1129,12 @@ const STEPS=[
     species:['bpg13','bpg13'], enz:'Glyceraldehyde-3-phosphate dehydrogenase', hook:'Electron theft', rev:true,
     pool:{NAD:-2,NADH:+2,Pi:-2}, nadh:2, fx:'ox', anchor:'p1',
     couple:{ up:false, plus:'Pi', cin:'NAD+', cout:'NADH', tone:'n' },
+    // TWO G3P, TWO NAD⁺ — the same arithmetic steps 7 and 10 make you do, and
+    // the step that says "2 NADH" out loud. `aldehydeH` is the spec's own name
+    // for the hydrogen the dehydrogenase takes, and spotPair turns it into the
+    // C–H bond that breaks.
+    perLane:true,
+    spot:{ at:'aldehydeH', say:'click the H that NAD⁺ takes' },
     msg:`<b>G3P dehydrogenase.</b> Each G3P gives up two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span> (2 in all), and a <span class="p">free phosphate</span> from the cytosol takes the empty spot — <b>no ATP spent</b>. The pathway's only oxidation.` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
@@ -1494,22 +1500,27 @@ const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])-laneLift(k)))+PLATE
  * not restart 60 times a second.
  */
 /* WHICH BOND A `spot` MEANS, in the spec's own words. Two spellings, because
- * the specs already name these two things two different ways and neither is
- * worth renaming:
+ * the specs already name these things two different ways and neither is worth
+ * renaming:
  *   an ARRAY  — the bond itself (`gly.open`, `gly.cleave`: C1–O5, C3–C4)
- *   a NUMBER  — a phosphorus (`gly.hot`), and the bond meant is the one that
- *               breaks when that phosphate leaves: P to its bridging oxygen.
- * The second is the same derivation `gammaBreak` runs on ATP, for the same
- * reason — a kinase moves PO₃⁻ and the bridging O stays with the molecule it
- * came from. So steps 7 and 10 point at the sugar's version of the bond step 1
- * points at on ATP, and neither is a coordinate typed into the step table.
+ *   a NUMBER  — an ATOM that leaves, and the bond meant is the one that breaks
+ *               when it goes. Which bond that is depends on what the atom is:
+ *                 P  (`gly.hot`)        → its bridging oxygen. A kinase moves
+ *                    PO₃⁻ and the bridge stays behind, the same derivation
+ *                    gammaBreak runs on ATP.
+ *                 H  (`gly.aldehydeH`)  → the single heavy atom it hangs off.
+ *                    A hydride has one bond and that is the one broken.
+ * So steps 7 and 10 point at the sugar's version of the bond step 1 points at
+ * on ATP, step 6 points at the C–H the dehydrogenase takes, and none of them is
+ * a coordinate or an index typed into the step table.
  */
 function spotPair(spec, at){
   const v=spec.gly[at];
   if(Array.isArray(v)) return v;
   if(typeof v!=='number') return null;
-  const o=bridgeO(spec,v);
-  return o==null ? null : [v,o];
+  const el=spec.atoms[v] && spec.atoms[v].el;
+  const other = el==='H' ? (nbOf(spec,v)||[])[0] : bridgeO(spec,v);
+  return other==null ? null : [v,other];
 }
 const spotsEl=document.getElementById('spots');
 const glowEl=document.getElementById('spotglow');
@@ -2072,13 +2083,13 @@ function phosphorylGroup(spec,p){
  * rewind mid-flight is impossible (`busy`), but a deleted mesh could not come
  * back if either ever changed.
  */
-function shedPhosphoryl(l,p){
-  const spec=M[l.key], u=l.g.userData;
-  const set=new Set([p, ...terminalO(spec,p)]);
+function shedAtoms(l,idx){
+  const u=l.g.userData, set=new Set(idx);
   set.forEach(i=>{ const m=u.atomMeshes[i]; if(m) m.visible=false; });
   u.bondMeshes.forEach(bm=>{
     if(bm.userData.pair.some(q=>set.has(q))) bm.visible=false; });
 }
+const shedPhosphoryl=(l,p)=>shedAtoms(l,[p, ...terminalO(M[l.key],p)]);
 // A phosphoryl arcing in from the carrier or out toward it. This is the page's
 // signature beat: the student should be able to SEE that the thing ATP gives up
 // and the thing ADP receives are the same object. Purely decorative — it reports
@@ -2332,16 +2343,34 @@ function runLane(j){
   const to=done+1, keys=speciesAt(to), n=lanes.length;
   busy=true;
   platesOff=true; platesEl.classList.add('mute');
-  const l=lanes[j], src=anchorWorld(l,st.anchor);
-  // on the bond that breaks, not on the P that leaves along it
-  FXi.spawnRing(junctionWorld(M[l.key], M[l.key].gly[st.anchor],
-                              l.g.position.x, l.g.position.y), PAL.atoms.P);
-  // …to THIS lane's ADP. Instance j belongs to lane j, so the phosphate you
-  // just released is the one that charges the molecule beside it.
-  flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,j)
-                    || V(l.g.position.x,-OFFSCREEN,0),
-               M[l.key], M[l.key].gly[st.anchor]);
-  shedPhosphoryl(l, M[l.key].gly[st.anchor]);   // it left; it should look left
+  const l=lanes[j], spec=M[l.key];
+  // THE LANE'S OWN BEAT, the same one the whole-step branch runs for every lane
+  // at once. Instance j belongs to lane j throughout: what leaves this molecule
+  // arrives at the carrier standing opposite it.
+  if(st.fx==='ox'){
+    // The oxidation. Two things in opposite directions, which is the lesson:
+    // the hydride leaves UPWARD onto NAD⁺, a free phosphate arrives from BELOW
+    // to fill the gap it left. Now that NAD⁺ is drawn, the H goes to it rather
+    // than off the top of the frame — the thing that takes it is on screen.
+    const hIdx=spec.gly.aldehydeH;
+    const hPos=hIdx!=null ? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3');
+    FXi.protonHop(hPos, tileWorld(carrierKey(st.couple.cin),hPos,j)
+                        || V(l.g.position.x, OFFSCREEN, 0));
+    flyPhosphate(V(l.g.position.x,-OFFSCREEN,0), hPos);
+    later(()=>FXi.spawnRing(hPos,PAL.atoms.P), FLY);
+    if(hIdx!=null) shedAtoms(l,[hIdx]);       // it left; it should look left
+  } else {
+    const src=anchorWorld(l,st.anchor);
+    // on the bond that breaks, not on the P that leaves along it
+    FXi.spawnRing(junctionWorld(spec, spec.gly[st.anchor],
+                                l.g.position.x, l.g.position.y), PAL.atoms.P);
+    // …to THIS lane's ADP. Instance j belongs to lane j, so the phosphate you
+    // just released is the one that charges the molecule beside it.
+    flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,j)
+                      || V(l.g.position.x,-OFFSCREEN,0),
+                 spec, spec.gly[st.anchor]);
+    shedPhosphoryl(l, spec.gly[st.anchor]);   // it left; it should look left
+  }
   later(()=>{
     laneDone.add(j);
     swapLane(j, keys[j]);
@@ -2786,7 +2815,48 @@ const trayEl=document.getElementById('tray');
  *  phosphate. It is mostly adenosine, and three atoms in thirty-one are what
  *  the cell spends. With it went the toggle, since one drawing needs no switch.
  */
-const CARRIER=new Set(['ATP','ADP']);
+/* ---------- THE CARRIER PAIRS ----------
+ * A carrier is ONE object with two states, and the two differ by exactly one
+ * group: ATP/ADP by the transferring phosphoryl, NADH/NAD⁺ by the hydride on
+ * the nicotinamide C4. So a pair is named by that group and nothing else, and
+ * everything below — how many are drawn, which state each is in, where a
+ * flight starts or ends — is shared between them.
+ *
+ * `group` is what gets hidden to show the discharged state, `anchor` the atom a
+ * flight aims at, both read off the spec's own `gly` block so neither is a copy
+ * of anything.
+ *
+ * NAD⁺ IS DRAWN AS NADH MINUS ONE HYDROGEN, and that is a declared schematic
+ * (MolecularGeometry.md §1.6). `nic.h` is the PAIR of hydrogens on C4 — the
+ * reduced carbon — and taking one away is exactly the chemistry the step
+ * teaches: NAD⁺ takes a hydride, C4 goes from one H to two. What it does not
+ * show is the ring going aromatic and flat again, which the real NAD⁺ does;
+ * the spec is built as the dihydro boat (see `nadh` in mol-glycolysis.js) and
+ * one drawing cannot be both. The claim the page makes is about C4's
+ * hydrogens, and that is the part that is true here.
+ */
+const PAIRS={
+  ATP:{ spec:()=>ATP,    group:s=>s.gly.gamma,      anchor:s=>s.gly.pg,
+        on:'ATP',  off:'ADP',
+        sub:on=>`${on?ATP.gly.phosphates:ATP.gly.spent.phosphates} phosphates · ${on?'charged':'discharged'}`},
+  // `keep` IS LOAD-BEARING HERE. This page draws no C–H anywhere — it is noise
+  // the ledger never counts (see visibleAtoms) — and the carrier is built with
+  // setOptionalH(false) like every lane. But BOTH of C4's hydrogens are in
+  // nadh's `optH`, and they are the entire difference between the two states:
+  // hidden along with the rest, NAD⁺ and NADH would be the same 73 atoms and
+  // the step would show nothing happening. So this pair asks for its two back.
+  NAD:{ spec:()=>M.nadh, group:s=>[s.gly.nic.h[1]], anchor:s=>s.gly.nic.c4,
+        keep:s=>[s.gly.nic.h[0]],
+        on:'NADH', off:'NAD⁺',
+        sub:on=>on?'carrying the hydride':'empty carrier'},
+};
+// Which pair a step touches, off its couple — never typed at the call site.
+const CARRIER=new Set(['ATP','ADP','NAD','NADH']);
+function pairOf(st){
+  const c=st&&st.couple; if(!c) return null;
+  const k=carrierKey(c.cin);
+  return (k==='ATP'||k==='ADP') ? PAIRS.ATP : (k==='NAD'||k==='NADH') ? PAIRS.NAD : null;
+}
 const carrierEl=document.createElement('div');
 carrierEl.id='carrier';
 carrierEl.innerHTML=
@@ -2809,12 +2879,18 @@ carrierEl.innerHTML=
  * the label are all layout, and the molecules stay where they belong: in the
  * scene, at stage scale, under the same camera as the sugar.
  */
-let cMols=[];
-const carrierCount=st=>Math.max(1, (st&&(st.made||st.spent))||1);
-function carrierMols(n){
+let cMols=[], cSpec=null;
+// how many of them: the units the step moves, off the same fields the ledger
+// adds up (`spent`/`made`/`nadh`) rather than a number typed per step
+const carrierCount=st=>Math.max(1, (st&&(st.made||st.spent||st.nadh))||1);
+function carrierMols(n, spec){
+  // A DIFFERENT MOLECULE MEANS A DIFFERENT DRAWING. Step 6 shows NADH where
+  // step 7 shows ADP, so the built meshes are torn down when the spec changes
+  // — reusing them would leave an ATP wearing a NADH's label.
+  if(spec!==cSpec){ while(cMols.length) root.remove(cMols.pop()); cSpec=spec; }
   while(cMols.length>n){ root.remove(cMols.pop()); }
   while(cMols.length<n){
-    const g=Stage.buildMolecule(ATP,{center:true});
+    const g=Stage.buildMolecule(spec,{center:true});
     Stage.setOptionalH(g,false);        // same convention as the pathway lanes
     root.add(g); popCarrier(cMols.length); cMols.push(g);
   }
@@ -2827,13 +2903,23 @@ function carrierMols(n){
   }
   return cMols;
 }
-// ADP is ATP with the transferring phosphoryl hidden — `visible`, not removed,
-// because steps 7 and 10 put it back and a deleted mesh cannot come back.
-function setCarrierPhosphates(g,charged){
-  const u=g.userData, set=new Set(ATP.gly.gamma);
-  ATP.gly.gamma.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=charged; });
+// The discharged state is the charged one with the pair's group hidden —
+// `visible`, not removed, because the next step puts it back and a deleted mesh
+// cannot come back. ADP is ATP without its phosphoryl; NAD⁺ is NADH without one
+// of C4's two hydrogens.
+function setCarrierGroup(g,pair,spec,charged){
+  const u=g.userData, idx=pair.group(spec), set=new Set(idx);
+  idx.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=charged; });
   u.bondMeshes.forEach(bm=>{
     if(bm.userData.pair.some(p=>set.has(p))) bm.visible=charged; });
+  // …and the atoms this pair needs on screen whatever state it is in, which
+  // setOptionalH would otherwise have taken with the rest of the C–H (see
+  // `keep`). Re-asserted every draw, because setOptionalH runs on every build.
+  const keep=pair.keep && pair.keep(spec);
+  if(keep){ const ks=new Set(keep);
+    keep.forEach(i=>{ const m=u.atomMeshes[i]; if(m) m.visible=true; });
+    u.bondMeshes.forEach(bm=>{
+      if(bm.userData.pair.some(p=>ks.has(p))) bm.visible=true; }); }
 }
 /* WHICH INSTANCE HAS ALREADY MOVED. On a per-lane step, instance j belongs to
  * lane j: click lane 0 and the first ADP becomes an ATP while the second is
@@ -2917,7 +3003,7 @@ function placeCarrierMol(){
   if(!c.width || !c.height) return;
   camera.updateMatrixWorld();
   const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
-  const m=Stage.measure(ATP);
+  const m=Stage.measure(cSpec||ATP);
   const pxPerWorld=c.width/(camera.right-camera.left);
   let k=1;
   cMols.forEach((g,j)=>{
@@ -3013,7 +3099,8 @@ function carrierGammaPoint(j){
   if(!g) return null;
   const c=canvas.getBoundingClientRect();
   if(!c.width||!c.height) return null;
-  const p=g.userData.atomMeshes[ATP.gly.pg]
+  const pair=pairOf(stepAt(focusStep())) || PAIRS.ATP;
+  const p=g.userData.atomMeshes[pair.anchor(pair.spec())]
     .getWorldPosition(new THREE.Vector3()).project(camera);
   return {x:c.left+(p.x*.5+.5)*c.width, y:c.top+(-p.y*.5+.5)*c.height};
 }
@@ -3021,13 +3108,13 @@ function carrierGammaPoint(j){
 // across refreshes (it is moved, never rebuilt) so the molecule standing in it
 // is not torn down and rebuilt on every step.
 function drawCarrier(st, live, showKey){
-  const spec=ATP, spent=spec.gly.spent;
+  const pair=pairOf(st) || PAIRS.ATP, spec=pair.spec();
   const count=carrierCount(st);
   // `live` on the BOX means the box is the button, and it is the FALLBACK: the
   // box runs the step only when nothing on a molecule does. A spend puts the
-  // disc on ATP's own bond (#cspot); steps 7 and 10 put it on the sugar's
-  // (`spot:{at:'hot'}`). Either way a 400×470px column that runs the step is
-  // not "click the bond", so it takes no pointer and gets no cursor.
+  // disc on ATP's own bond (#cspot); every other carrier step puts it on the
+  // sugar. Either way a 400×470px column that runs the step is not "click the
+  // bond", so it takes no pointer and gets no cursor.
   const boxLive = live && !(st && (st.spot || (st.couple && st.couple.up)));
   carrierEl.className = (boxLive?'live':'') + (count>1?' multi':'');
   // THE PROMPT SITS WHEREVER THE TARGET IS. On a spend the target is the bond
@@ -3035,26 +3122,26 @@ function drawCarrier(st, live, showKey){
   // stays empty rather than saying the same thing twice from the wrong place.
   carrierEl.querySelector('.need').textContent = boxLive ? `← ${st.need}` : '';
   carrierEl.onclick = boxLive ? ()=>press(runStep) : null;
-  // the disc and its button go up together; placeCarrierGlow reads this
-  carrierLive = live && showKey==='ATP' && count===1;
-  carrierMols(count);
-  // EACH INSTANCE ANSWERS FOR ITSELF. With two on a per-lane step one can be an
-  // ATP while the other is still an ADP — that IS the half-run state, and the
+  // the disc and its button go up together; placeCarrierGlow reads this. Only
+  // the ATP pair has a bond to break HERE — the hydride leaves the sugar, not
+  // the carrier, so step 6's target is on G3P like 7's and 10's are on theirs.
+  carrierLive = live && pair===PAIRS.ATP && showKey==='ATP' && count===1;
+  carrierMols(count, spec);
+  // EACH INSTANCE ANSWERS FOR ITSELF. With two on a per-lane step one can be
+  // loaded while the other is still empty — that IS the half-run state, and the
   // headline name at the top of the column could only ever say one of them. So
   // the name goes on the slot, and the column keeps a heading only when there
   // is a single object for it to be the name of.
   const slots=carrierEl.querySelectorAll('.cslot');
   cMols.forEach((g,j)=>{
     const on=carrierCharged(st,j);
-    setCarrierPhosphates(g,on);
+    setCarrierGroup(g,pair,spec,on);
     const lab=slots[j] && slots[j].querySelector('.clab');
-    if(lab) lab.textContent = on ? 'ATP' : 'ADP';
+    if(lab) lab.textContent = on ? pair.on : pair.off;
   });
   const anyOn=carrierCharged(st,0);
-  carrierEl.querySelector('.cname').innerHTML = count>1 ? ''
-    : (anyOn ? 'ATP' : 'ADP');
-  carrierEl.querySelector('.csub').textContent = count>1 ? ''
-    : `${anyOn?spec.gly.phosphates:spent.phosphates} phosphates · ${anyOn?'charged':'discharged'}`;
+  carrierEl.querySelector('.cname').innerHTML = count>1 ? '' : (anyOn?pair.on:pair.off);
+  carrierEl.querySelector('.csub').textContent = count>1 ? '' : pair.sub(anyOn);
   placeCarrierMol();
 }
 
