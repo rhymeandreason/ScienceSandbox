@@ -459,7 +459,24 @@
      doing — it is what the camera's left inset is measured off — and it does
      NOT take the pointer: the molecule is on the stage behind it, and the only
      button on a spend step is the disc over the bond (#cspot). */
-  #carrier .cvis{position:relative;height:470px;pointer-events:none}
+  #carrier .cvis{position:relative;height:470px;pointer-events:none;
+    display:flex;flex-direction:column}
+  /* ONE SLOT PER MOLECULE, stacked. The slots split the column's height, so
+     two ATP come out at roughly half the size of one without a second constant
+     anywhere — placeCarrierMol fits each molecule to its own box, and the
+     printed scale under them is measured off whatever that box turned out to
+     be. */
+  #carrier .cslot{position:relative;flex:1 1 0;min-height:0}
+  /* The name goes on the SLOT once there is more than one, because on a
+     half-run step one of them is an ATP and the other is still an ADP — a
+     single heading could only ever be right about one. */
+  #carrier .clab{position:absolute;left:0;top:6px;
+    font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--ink)}
+  /* …and only then. With one molecule the heading above the column is already
+     its name, and a slot label would print it twice. */
+  #carrier .clab{display:none}
+  #carrier.multi .clab{display:block}
+  #carrier.multi .cname,#carrier.multi .csub{display:none}
   #carrier .cname{font-size:17px}
   /* THE SHRINK, STATED. The drawing is fitted to the column, so it is not at
      the sugars' scale — and a molecule quietly drawn small is a size claim
@@ -1161,6 +1178,17 @@ const STEPS=[
     species:['pga3','pga3'], enz:'Phosphoglycerate kinase', hook:'Break-even', rev:true,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p1',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
+    // THE MIRROR OF STEP 1, and it should be the same gesture. `hot` is the
+    // spec's own name for the high-energy phosphate, and spotPair turns it into
+    // the P–O bond that breaks — the same bond, on the same derivation, that
+    // step 1 breaks on ATP. There the phosphate leaves ATP; here it leaves the
+    // sugar and ATP is what it makes.
+    // ONE CLICK PER LANE — see PER-LANE STEPS. Two lanes each hand off one
+    // phosphate and each charge one ADP, which is the arithmetic the step is
+    // for: 2 ATP, exactly what phase 1 cost. Doing it once and being told it
+    // counted twice is the version that lets a student miss it.
+    perLane:true,
+    spot:{ at:'hot', say:'click to hand it to ADP' },
     msg:`<b>Phosphoglycerate kinase.</b> That phosphate has a higher transfer potential than ATP's, so it goes straight to ADP. Two lanes, <b>2 ATP</b> — exactly what phase 1 cost. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
@@ -1179,6 +1207,10 @@ const STEPS=[
     species:['pyruvate','pyruvate'], enz:'Pyruvate kinase', hook:'Net profit', rev:false,
     pool:{ADP:-2,ATP:+2}, made:2, fx:'out', anchor:'p2',
     couple:{ up:false, cin:'ADP', cout:'ATP', tone:'p' },
+    // same gesture as 7 — PEP names its phosphate `hot` too, and the same
+    // two clicks for the same reason
+    perLane:true,
+    spot:{ at:'hot', say:'click to hand it to ADP' },
     msg:`<b>Pyruvate kinase.</b> The last phosphate goes to ADP and the enol snaps to keto: <b>pyruvate</b>. Two more ATP, so <b>net 2 ATP and 2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
@@ -1243,12 +1275,39 @@ let intro=true;
 const nSteps=STEPS.length;
 const stepAt=i=>STEPS[i];                     // the step that runs NEXT at done=i
 const speciesAt=i=>i===0?['glucose']:STEPS[i-1].species;
+/* ---------- PER-LANE STEPS ----------
+ * After the split everything happens TWICE, and steps 7 and 10 are where that
+ * costs the student something: two lanes each hand a phosphate to an ADP, and
+ * the 2 ATP is exactly what phase 1 spent. Running both lanes off one click and
+ * reporting "+2" is the version where a student reads the two and never counts
+ * them. So a `perLane` step is two half-steps: click a lane, that lane's
+ * phosphate leaves and one ADP is charged; the step lands when both are done.
+ *
+ * `laneDone` holds the lane indices already converted IN THE CURRENT STEP, and
+ * it is the single source for everything mid-step — the ledger's partial, which
+ * ADP has become an ATP, and which lanes still have a target. Cleared the
+ * moment the step lands, and by rewind/restart, so it never outlives its step.
+ */
+let laneDone=new Set();
+const isPerLane=st=>!!st&&!!st.perLane&&st.species.length>1;
+// The fraction of the current step already run, as lanes. Zero unless a
+// per-lane step is half-way, which is the only state that has no step index.
+function halfRun(){
+  const st=stepAt(done);
+  return (isPerLane(st) && laneDone.size) ? laneDone.size/st.species.length : 0;
+}
+// …and the two tallies fold it in, so the ledger, the pools and the tray all
+// see a half-run step without any of them knowing it exists.
 function poolAt(i){ const p=Object.assign({},POOL0);
   for(let k=0;k<i;k++){ const d=STEPS[k].pool||{}; for(const q in d) p[q]+=d[q]; }
+  if(i===done){ const f=halfRun(), d=(STEPS[i]||{}).pool||{};
+    for(const q in d) p[q]+=d[q]*f; }
   return p; }
 function ledgerAt(i){ const L={spent:0,made:0,nadh:0};
   for(let k=0;k<i;k++){ const s=STEPS[k];
     L.spent+=s.spent||0; L.made+=s.made||0; L.nadh+=s.nadh||0; }
+  if(i===done){ const f=halfRun(), s=STEPS[i]||{};
+    L.spent+=(s.spent||0)*f; L.made+=(s.made||0)*f; L.nadh+=(s.nadh||0)*f; }
   return L; }
 // which stage the student is LOOKING at: the stage of the next step, or the
 // final tally stage once every step is done.
@@ -1477,6 +1536,24 @@ const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])-laneLift(k)))+PLATE
  * target you miss. Elements are reused rather than rebuilt, so the pulse does
  * not restart 60 times a second.
  */
+/* WHICH BOND A `spot` MEANS, in the spec's own words. Two spellings, because
+ * the specs already name these two things two different ways and neither is
+ * worth renaming:
+ *   an ARRAY  — the bond itself (`gly.open`, `gly.cleave`: C1–O5, C3–C4)
+ *   a NUMBER  — a phosphorus (`gly.hot`), and the bond meant is the one that
+ *               breaks when that phosphate leaves: P to its bridging oxygen.
+ * The second is the same derivation `gammaBreak` runs on ATP, for the same
+ * reason — a kinase moves PO₃⁻ and the bridging O stays with the molecule it
+ * came from. So steps 7 and 10 point at the sugar's version of the bond step 1
+ * points at on ATP, and neither is a coordinate typed into the step table.
+ */
+function spotPair(spec, at){
+  const v=spec.gly[at];
+  if(Array.isArray(v)) return v;
+  if(typeof v!=='number') return null;
+  const o=bridgeO(spec,v);
+  return o==null ? null : [v,o];
+}
 const spotsEl=document.getElementById('spots');
 const glowEl=document.getElementById('spotglow');
 const spotV=new THREE.Vector3();
@@ -1488,7 +1565,10 @@ function drawSpots(){
     const b=document.createElement('button');
     b.className='spot'; b.type='button';
     b.innerHTML='<span class="shint"></span>';
-    b.onclick=()=>press(runStep);
+    // WHICH LANE, because a per-lane step runs the one that was clicked. A
+    // whole-step target ignores it, so both kinds share one handler.
+    b.onclick=()=>{ const i=+b.dataset.lane;
+      press(()=>isPerLane(stepAt(done)) ? runLane(i) : runStep()); };
     spotsEl.appendChild(b);
     const g=document.createElement('div'); g.className='sglow';
     glowEl.appendChild(g);
@@ -1498,18 +1578,25 @@ function drawSpots(){
   [...glowEl.children].forEach((el,i)=>show(el, i<n));
   if(!n) return;
   const w=canvas.clientWidth, h=canvas.clientHeight;
+  let hinted=false;
   lanes.forEach((l,i)=>{
     const el=spotsEl.children[i], gl=glowEl.children[i];
-    const pair=M[l.key].gly[st.spot.at];
+    el.dataset.lane=i;
+    const pair=spotPair(M[l.key], st.spot.at);
     // A LANE THAT HAS NO SUCH BOND HAS NO TARGET, rather than one at the origin
-    if(!pair){ show(el,false); show(gl,false); return; }
+    // — which is also what retires a per-lane target once its lane has run: the
+    // product has no `hot` phosphate, so its disc goes out by itself.
+    if(!pair || laneDone.has(i)){ show(el,false); show(gl,false); return; }
     const u=l.g.userData;
     spotV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(.5).project(camera);
     const x=(spotV.x*0.5+0.5)*w, y=(-spotV.y*0.5+0.5)*h;
     el.style.left=x+'px'; el.style.top =y+'px';
     gl.style.left=x+'px'; gl.style.top =y+'px';
-    // the hint only beside the first one — twice is an instruction shouted
-    el.querySelector('.shint').textContent = i===0 ? (st.spot.say||'') : '';
+    // ONE HINT, BESIDE THE FIRST TARGET STILL STANDING — twice is an
+    // instruction shouted, but pinning it to lane 0 left the second lane of a
+    // per-lane step unlabelled the moment the first one retired.
+    el.querySelector('.shint').textContent = hinted ? '' : (st.spot.say||'');
+    hinted=true;
     el.setAttribute('aria-label', st.act || 'run this step');
   });
 }
@@ -1804,6 +1891,26 @@ function renderLanes(i){
   computeFit();
 }
 
+/* ONE LANE'S MOLECULE, replaced in place. renderLanes rebuilds every lane from
+ * a state index, which a per-lane step has no such thing as: half-way through
+ * step 7 one lane is a 3-PGA and the other is still a 1,3-BPG. So this swaps a
+ * single lane and leaves the other alone.
+ * The plate line is shared across lanes (spawnLane takes it as a parameter), so
+ * it is re-solved over the MIXED contents and handed to both — otherwise the
+ * two names sit at different heights for as long as the step is half done.
+ */
+function swapLane(j,key){
+  const old=lanes[j], n=lanes.length;
+  const keys=lanes.map((l,i)=>i===j?key:l.key);
+  const top=plateY(keys);
+  root.remove(old.g); old.plate.remove();
+  const l=spawnLane(key,j,n,top);
+  l.g.position.y=old.g.position.y;   // carry the height; the loop eases the rest
+  lanes[j]=l;
+  lanes.forEach(o=>{ o.topY=top; });
+  computeFit();
+}
+
 const anchorWorld=(l,which)=>{
   const idx=M[l.key].gly[which];
   return idx==null? l.g.getWorldPosition(new THREE.Vector3())
@@ -2035,8 +2142,8 @@ function flyPhosphate(from,to,spec,p){
 // OTHER END of the flight — the camera orbits, so there is no fixed plane to
 // drop it onto, and matching the destination's depth is what keeps the
 // phosphate the same size at both ends.
-function tileWorld(key,ref){
-  const p=carrierPoint(key) || tilePoint(key);
+function tileWorld(key,ref,j){
+  const p=carrierPoint(key,j) || tilePoint(key);
   if(!p) return null;
   const c=canvas.getBoundingClientRect();
   if(!c.width || !c.height) return null;
@@ -2047,8 +2154,8 @@ function tileWorld(key,ref){
 }
 // ATP and ADP are drawn rather than carded, and the flight then has a far
 // better anchor than a box: the γ phosphate itself, in whichever drawing is on.
-function carrierPoint(key){
-  return CARRIER.has(key) && carrierEl.isConnected ? carrierGammaPoint() : null;
+function carrierPoint(key,j){
+  return CARRIER.has(key) && carrierEl.isConnected ? carrierGammaPoint(j) : null;
 }
 function tilePoint(key){
   const tile=trayEl.querySelector(`.reag[data-key="${key}"]`);
@@ -2235,6 +2342,44 @@ function junctionWorld(spec,p,x,y=0){
 /* =============================================================
  *  RUNNING A STEP
  * ============================================================= */
+/* ONE LANE OF A PER-LANE STEP — see PER-LANE STEPS. The `out` beat for that
+ * lane only: its phosphate leaves along the bond that was clicked and lands on
+ * the ADP standing opposite it, then that lane alone becomes the product. The
+ * step itself lands when the last lane does, and only then does `done` move —
+ * so the pips, the rail and the caption still count whole steps while the
+ * ledger, the pools and the two drawn carriers show the half.
+ */
+function runLane(j){
+  if(busy || intro || done>=nSteps) return;
+  const st=stepAt(done);
+  if(!isPerLane(st) || laneDone.has(j) || !lanes[j]) return;
+  const to=done+1, keys=speciesAt(to), n=lanes.length;
+  busy=true;
+  platesOff=true; platesEl.classList.add('mute');
+  const l=lanes[j], src=anchorWorld(l,st.anchor);
+  // on the bond that breaks, not on the P that leaves along it
+  FXi.spawnRing(junctionWorld(M[l.key], M[l.key].gly[st.anchor],
+                              l.g.position.x, l.g.position.y), PAL.atoms.P);
+  // …to THIS lane's ADP. Instance j belongs to lane j, so the phosphate you
+  // just released is the one that charges the molecule beside it.
+  flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,j)
+                    || V(l.g.position.x,-OFFSCREEN,0),
+               M[l.key], M[l.key].gly[st.anchor]);
+  later(()=>{
+    laneDone.add(j);
+    swapLane(j, keys[j]);
+    platesOff=false; platesEl.classList.remove('mute');
+    // THE LAST LANE LANDS THE STEP. `laneDone` is cleared here and nowhere in
+    // between, so a step that is half run stays half run across a redraw.
+    if(laneDone.size>=n){ done=to; reviewing=true; laneDone.clear(); }
+    else landed=true;          // a lane banked one: let the ledger fly its chip
+    busy=false; refresh();
+    // …and THIS ADP is the one that just became an ATP, so it is the one that
+    // pops. The other is untouched and should look it.
+    popCarrier(j);
+  }, FLY);
+}
+
 function runStep(){
   if(busy || intro || done>=nSteps) return;
   const st=stepAt(done), to=done+1;
@@ -2303,7 +2448,7 @@ function runStep(){
       // step 1, run backwards, which is the point of a coupled pair
       // the registered end is the TAKEOFF here — it is a copy of the phosphate
       // the sugar is losing, so it leaves from exactly where that one stands
-      flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src)
+      flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,lanes.indexOf(l))
                         || V(l.g.position.x,-OFFSCREEN,0),
                    M[l.key], M[l.key].gly[st.anchor]);
     });
@@ -2420,10 +2565,15 @@ function rewind(){
   // the review screen steps back to its own step's explanation, not to the
   // step before it — one click, one screen, in both directions
   if(reviewing){ reviewing=false; refresh(); return; }
+  // A HALF-RUN STEP REWINDS TO ITS OWN START, not to the step before it. One
+  // lane has already handed over its phosphate; putting the student back at
+  // step 6 would leave that ATP banked in a ledger the pips say is untouched.
+  if(laneDone.size){ laneDone.clear(); renderLanes(done); refresh(); return; }
   if(done===0){ intro=true; refresh(); return; }   // step back off stage 1 onto the intro
   done--; renderLanes(done); refresh();
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false; done=0; intro=true;
+  laneDone.clear();
   renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -2541,6 +2691,8 @@ function flySource(key,j){
   return platesEl.children[j] || platesEl.children[0];
 }
 let prevLedger=null, ledgerGen=0;
+// set for one draw by a lane that just banked — see the note in drawLedger
+let landed=false;
 // AWAY AT THE INTRO, PINNED UP ON BEGIN. The animation fires on the transition
 // only — a restart puts the page back at the intro, so the note comes off and
 // goes up again the next time, and every other redraw leaves it alone.
@@ -2559,13 +2711,17 @@ function drawLedger(){
   // NADH comes from the ledger (a carrier made and kept, step 6), pyruvate from
   // what is actually standing in the lanes — so neither number can drift from
   // the stage: the tray's NADH tile and these two pyruvate ARE these figures.
-  L.pyr=speciesAt(done).filter(k=>k==='pyruvate').length;
+  L.pyr=(lanes.length?lanes.map(l=>l.key):speciesAt(done))
+          .filter(k=>k==='pyruvate').length;
   // A COUNT THAT WENT UP ON A STEP JUST RUN IS FLOWN IN; anything else — a
   // rewind, a jump on the rail, a restart — is a state change and not an event,
   // so it just appears. `reviewing && !busy` is the one moment a step has landed.
   const gen=++ledgerGen, prev=prevLedger;
   const flying={};
-  if(prev && reviewing && !busy) for(const k of ['spent','made','nadh','pyr'])
+  // `landed` is the per-lane twin of `reviewing`: one lane of a per-lane step
+  // has just banked its ATP, which is an EVENT and gets a chip, even though the
+  // step it belongs to has not finished and `done` has not moved.
+  if(prev && (reviewing||landed) && !busy) for(const k of ['spent','made','nadh','pyr'])
     if(L[k]>prev[k]) flying[k]=L[k]-prev[k];
   const inFlight=Object.keys(flying).length>0;
   // rows in flight show the number they had until their chip lands
@@ -2589,7 +2745,7 @@ function drawLedger(){
     +`<div class="row prod"><span>NADH</span><span class="v${bumped('nadh')}" data-row="nadh">${shown('nadh')}</span></div>`
     +`<div class="row"><span>Pyruvate</span><span class="v${bumped('pyr')}" data-row="pyr">${shown('pyr')}</span></div>`
     +`<div class="row carb"><span>Carbons</span><span class="v">${c.join(' + ')}${c.length>1?' = 6':''}</span></div>`;
-  prevLedger=L;
+  prevLedger=L; landed=false;
   // LAUNCH AFTER THE REST OF THE REFRESH. The tray is redrawn after this
   // function, and the tile a chip takes off from is the one that redraw leaves
   // behind — measuring the old one would launch from a tile about to move.
@@ -2661,23 +2817,52 @@ carrierEl.innerHTML=
 // not an icon for one. It stands in the space the tray reserves, and `#carrier`
 // keeps that space (and carries the name and the prompt) so the camera's left
 // inset is measured off DOM exactly as before.
-let cMol=null;
-function carrierMol(){
-  if(cMol) return cMol;
-  cMol=Stage.buildMolecule(ATP,{center:true});
-  Stage.setOptionalH(cMol,false);        // same convention as the pathway lanes
-  root.add(cMol);
-  return cMol;
+/* ONE MOLECULE PER UNIT THE STEP MOVES, stacked down the column. Steps 1 and 3
+ * spend a single ATP and show one; steps 7 and 10 charge TWO ADP and show two,
+ * because after the split everything happens twice and a single drawing would
+ * be the page saying "2 ATP" in words while showing one object. Count comes off
+ * the step's own `spent`/`made` — the same numbers the ledger adds up.
+ * Each stands in its own DOM slot (`.cslot`), so the stacking, the sizing and
+ * the label are all layout, and the molecules stay where they belong: in the
+ * scene, at stage scale, under the same camera as the sugar.
+ */
+let cMols=[];
+const carrierCount=st=>Math.max(1, (st&&(st.made||st.spent))||1);
+function carrierMols(n){
+  while(cMols.length>n){ root.remove(cMols.pop()); }
+  while(cMols.length<n){
+    const g=Stage.buildMolecule(ATP,{center:true});
+    Stage.setOptionalH(g,false);        // same convention as the pathway lanes
+    root.add(g); popCarrier(cMols.length); cMols.push(g);
+  }
+  // the slots the molecules stand in — rebuilt only when the count changes, so
+  // the boxes a running animation is measuring against do not move under it
+  const vis=carrierEl.querySelector('.cvis');
+  if(vis.children.length!==n){
+    vis.innerHTML=Array.from({length:n},()=>
+      '<div class="cslot"><span class="clab"></span></div>').join('');
+  }
+  return cMols;
 }
 // ADP is ATP with the transferring phosphoryl hidden — `visible`, not removed,
 // because steps 7 and 10 put it back and a deleted mesh cannot come back.
-function setCarrierPhosphates(n){
-  if(!cMol) return;
-  const gone=n<3, u=cMol.userData, set=new Set(ATP.gly.gamma);
-  ATP.gly.gamma.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=!gone; });
+function setCarrierPhosphates(g,charged){
+  const u=g.userData, set=new Set(ATP.gly.gamma);
+  ATP.gly.gamma.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=charged; });
   u.bondMeshes.forEach(bm=>{
-    if(bm.userData.pair.some(p=>set.has(p))) bm.visible=!gone; });
+    if(bm.userData.pair.some(p=>set.has(p))) bm.visible=charged; });
 }
+/* WHICH INSTANCE HAS ALREADY MOVED. On a per-lane step, instance j belongs to
+ * lane j: click lane 0 and the first ADP becomes an ATP while the second is
+ * still waiting, which is the whole reason there are two. Everywhere else the
+ * step is all-or-nothing and `reviewing` answers for every instance at once.
+ */
+const carrierRan=j=>reviewing||laneDone.has(j);
+// …and what that means for the drawing: a spend starts charged and ends flat,
+// a charge starts flat and ends charged.
+const carrierCharged=(st,j)=>
+  (st&&st.couple&&st.couple.up) ? !carrierRan(j) : carrierRan(j);
+
 /* ---------- CLICKING THE BOND THAT BREAKS ----------
  * The target is the marked bond and nothing else: the disc is the affordance,
  * so the disc is the hit area. It used to be a raycast against the four γ
@@ -2689,9 +2874,9 @@ function setCarrierPhosphates(n){
  * button in the #spots layer, pinned to the same projected point as the disc
  * (placeCarrierGlow places both). Same size as the disc, so what is clickable
  * is what is lit.
- * Steps 7 and 10 have no disc — the phosphate is arriving — and there the
- * #carrier box IS the button, with its own `need` prompt on it. `carrierLive`
- * is what separates the two cases, and drawCarrier sets it.
+ * Steps 7 and 10 have no disc HERE — their bond is on the sugar, and each lane
+ * carries its own (`spot:{at:'hot'}`). `carrierLive` is what separates the two
+ * cases, and drawCarrier sets it.
  */
 let carrierLive=false;              // a spend step, ATP showing: the disc is up
 
@@ -2711,49 +2896,75 @@ const cAnchor=new THREE.Vector3();
  * `scale` directly would fight it and win for as long as it ran.
  */
 const ARRIVE_MS=520, ARRIVE_FROM=0.82;
-let arriveT0=0, wasVis=false;
+// PER INSTANCE, because with two carriers on screen "something arrived" is a
+// claim about ONE of them. Popping both when a single lane hands over its
+// phosphate says the other one changed too, which is the exact reading the two
+// drawings exist to prevent.
+let arriveAt=[], wasVis=false;
 const easeOut=t=>1-Math.pow(1-t,3);
-function arriveScale(){
-  if(!arriveT0) return 1;
-  const t=(performance.now()-arriveT0)/ARRIVE_MS;
-  if(t>=1){ arriveT0=0; return 1; }
+// Start instance j's entrance. Called for every instance when the tray first
+// comes up (Begin), for a new instance when the count grows, and for the ONE
+// that just caught a phosphate — never as a side effect of a redraw.
+const popCarrier=j=>{ arriveAt[j]=performance.now(); };
+function arriveScale(j){
+  const t0=arriveAt[j];
+  if(!t0) return 1;
+  const t=(performance.now()-t0)/ARRIVE_MS;
+  if(t>=1){ arriveAt[j]=0; return 1; }
   return ARRIVE_FROM+(1-ARRIVE_FROM)*easeOut(t);
 }
 function placeCarrierMol(){
-  if(!cMol) return;
+  if(!cMols.length) return;
   const vis = carrierEl.isConnected && trayEl.style.visibility!=='hidden';
   // the arrival is the transition into visible, so it fires on Begin and again
   // if the carrier leaves the tray and comes back — never on a plain re-layout
-  if(vis && !wasVis) arriveT0=performance.now();
+  if(vis && !wasVis) cMols.forEach((_,j)=>popCarrier(j));
   wasVis=vis;
-  cMol.visible=vis;
+  cMols.forEach(g=>g.visible=vis);
   if(!vis) return;
-  const box=carrierEl.querySelector('.cvis').getBoundingClientRect();
+  const slots=carrierEl.querySelectorAll('.cslot');
   const c=canvas.getBoundingClientRect();
-  if(!box.width || !c.width || !c.height) return;
+  if(!c.width || !c.height) return;
   camera.updateMatrixWorld();
   const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
-  cMol.position.copy(new THREE.Vector3(
-    ((box.left+box.width/2)-c.left)/c.width*2-1,
-    -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
-  // STILL SHRUNK, BUT IT SAYS SO NOW. The built ATP is laid out straight, so
-  // at true scale it runs well over twice glucose across and takes the stage
-  // from the molecule the lesson is following. It is therefore fitted to its
-  // own column — and the shrink is PRINTED under it rather than left as a
-  // silent claim that ATP is sugar-sized, which is the only thing a reader
-  // could otherwise conclude. Both numbers are measured here, never typed:
-  // a re-baked spec moves them.
-  // (macromolecule-lab.html shows monomers at true relative size — send
-  // anyone asking "how big is ATP really?" there.)
   const m=Stage.measure(ATP);
   const pxPerWorld=c.width/(camera.right-camera.left);
-  const k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
-                   box.height*0.94/(2*m.hy *pxPerWorld), 1);
-  cMol.scale.setScalar(k*arriveScale());
+  let k=1;
+  cMols.forEach((g,j)=>{
+    const box=slots[j] && slots[j].getBoundingClientRect();
+    if(!box || !box.width) return;
+    g.position.copy(new THREE.Vector3(
+      ((box.left+box.width/2)-c.left)/c.width*2-1,
+      -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
+    // STILL SHRUNK, BUT IT SAYS SO NOW. The built ATP is laid out straight, so
+    // at true scale it runs well over twice glucose across and takes the stage
+    // from the molecule the lesson is following. It is therefore fitted to its
+    // own slot — and with two of them the slot is half the height, so they come
+    // out smaller again, which is what the printed number is for.
+    k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
+               box.height*0.94/(2*m.hy *pxPerWorld), 1);
+    g.scale.setScalar(k*arriveScale(j));
+  });
   // the CAPTION states the fitted scale, not the frame the entrance is on —
   // a number ticking 35 → 40 → 45 while the molecule grows is a measurement of
   // the animation, and what it claims is about the molecule
   setCarrierScaleNote(k, m);
+}
+// The line under the drawing. `k` is the shrink actually applied this frame;
+// the ratio beside it is what the student would see at scale 1, measured off
+// the same two specs the stage is drawing. Written only when the text changes
+// — this runs every frame.
+let scaleNote='';
+function setCarrierScaleNote(k, m){
+  const gl=Stage.measure(M.glucose);
+  const txt = k>=0.995 ? `true size beside the sugar`
+    // rounded to 5%: the fit moves a few points as the camera insets change,
+    // and a caption that ticks 41 → 46 while nothing about the molecule moved
+    // reads as a measurement of something. The claim is the order of the number
+    : `shown at ${Math.round(k*20)*5}% — really ${(m.rxz/gl.rxz).toFixed(1)}× glucose across`;
+  if(txt===scaleNote) return;
+  scaleNote=txt;
+  carrierEl.querySelector('.cscale').textContent=txt;
 }
 
 /* ---------- the bond that breaks, marked ----------
@@ -2765,7 +2976,7 @@ function placeCarrierMol(){
  * four atoms that fly are read off one field and cannot disagree about which
  * bond this step is.
  * Only while the step is live and ATP is showing (`carrierLive`): on steps 7
- * and 10 the phosphate is arriving, and there is no bond there to break.
+ * and 10 the phosphate is arriving, and there is no bond here to break.
  */
 const cglowEl=document.getElementById('cglow');
 let breakBond=null;
@@ -2786,11 +2997,12 @@ const cglowV=new THREE.Vector3();
 const cspotEl=document.getElementById('cspot');
 cspotEl.onclick=()=>press(runStep);
 function placeCarrierGlow(){
-  const on = carrierLive && cMol && cMol.visible && gammaBreak()[0]>=0;
+  const g0=cMols[0];
+  const on = carrierLive && g0 && g0.visible && gammaBreak()[0]>=0;
   cglowEl.style.display = on ? 'block' : 'none';   // '' would fall back to the CSS `none`
   cspotEl.hidden = !on;                            // lit and clickable together
   if(!on) return;
-  const u=cMol.userData, [i,j]=gammaBreak();
+  const u=g0.userData, [i,j]=gammaBreak();
   cglowV.copy(u.atomWorld(i)).add(u.atomWorld(j))
     .multiplyScalar(.5).project(camera);
   const x=(cglowV.x*0.5+0.5)*canvas.clientWidth, y=(-cglowV.y*0.5+0.5)*canvas.clientHeight;
@@ -2802,30 +3014,16 @@ function placeCarrierGlow(){
   const h=cglowEl.querySelector('.chint');
   h.style.left=(x+52)+'px'; h.style.top=y+'px';
 }
-// The line under the drawing. `k` is the shrink actually applied this frame;
-// the ratio beside it is what the student would see at scale 1, measured off
-// the same two specs the stage is drawing. Written only when the text changes
-// — this runs every frame.
-let scaleNote='';
-function setCarrierScaleNote(k, m){
-  const gl=Stage.measure(M.glucose);
-  const txt = k>=0.995 ? `true size beside the sugar`
-    // rounded to 5%: the fit moves a few points as the camera insets change,
-    // and a caption that ticks 41 → 46 while nothing about the molecule moved
-    // reads as a measurement of something. The claim is the order of the number
-    : `shown at ${Math.round(k*20)*5}% — really ${(m.rxz/gl.rxz).toFixed(1)}× glucose across`;
-  if(txt===scaleNote) return;
-  scaleNote=txt;
-  carrierEl.querySelector('.cscale').textContent=txt;
-}
 // Where the phosphate flight starts or ends, in client pixels: the γ phosphate
-// itself in either drawing, so the thing that flies is the thing that left.
-function carrierGammaPoint(){
+// of the instance this click moves, so the thing that flies is the thing that
+// left — and on a per-lane step it is lane j's own ADP, not "the carrier".
+function carrierGammaPoint(j){
   if(!carrierEl.isConnected || trayEl.style.visibility==='hidden') return null;
-  if(!cMol) return null;
+  const g=cMols[Math.min(j||0, cMols.length-1)];
+  if(!g) return null;
   const c=canvas.getBoundingClientRect();
   if(!c.width||!c.height) return null;
-  const p=cMol.userData.atomMeshes[ATP.gly.pg]
+  const p=g.userData.atomMeshes[ATP.gly.pg]
     .getWorldPosition(new THREE.Vector3()).project(camera);
   return {x:c.left+(p.x*.5+.5)*c.width, y:c.top+(-p.y*.5+.5)*c.height};
 }
@@ -2834,27 +3032,39 @@ function carrierGammaPoint(){
 // is not torn down and rebuilt on every step.
 function drawCarrier(st, live, showKey){
   const spec=ATP, spent=spec.gly.spent;
-  const isATP = showKey==='ATP';
-  const n = isATP ? spec.gly.phosphates : spent.phosphates;
-  // `live` on the BOX means the box is the button — steps 7 and 10 only. On a
-  // spend the target is the disc (#cspot), so the box takes no pointer and gets
-  // no cursor: a 400×470px column that runs the step is not "click the bond".
-  const boxLive = live && !(st && st.couple && st.couple.up);
-  carrierEl.className = boxLive?'live':'';
+  const count=carrierCount(st);
+  // `live` on the BOX means the box is the button, and it is the FALLBACK: the
+  // box runs the step only when nothing on a molecule does. A spend puts the
+  // disc on ATP's own bond (#cspot); steps 7 and 10 put it on the sugar's
+  // (`spot:{at:'hot'}`). Either way a 400×470px column that runs the step is
+  // not "click the bond", so it takes no pointer and gets no cursor.
+  const boxLive = live && !(st && (st.spot || (st.couple && st.couple.up)));
+  carrierEl.className = (boxLive?'live':'') + (count>1?' multi':'');
   // THE PROMPT SITS WHEREVER THE TARGET IS. On a spend the target is the bond
   // on the stage, so the instruction goes there (#cglow .chint) and this one
   // stays empty rather than saying the same thing twice from the wrong place.
-  // Steps 7 and 10 have no bond to break — the phosphate is arriving — so the
-  // carrier's own prompt is the only one, and it still reads `st.need`.
   carrierEl.querySelector('.need').textContent = boxLive ? `← ${st.need}` : '';
-  carrierEl.querySelector('.cname').innerHTML = isATP ? 'ATP' : 'ADP';
-  carrierEl.querySelector('.csub').textContent =
-    `${n} phosphates · ${isATP?'charged':'discharged'}`;
   carrierEl.onclick = boxLive ? ()=>press(runStep) : null;
   // the disc and its button go up together; placeCarrierGlow reads this
-  carrierLive = live && isATP;
-  carrierMol();
-  setCarrierPhosphates(n);
+  carrierLive = live && showKey==='ATP' && count===1;
+  carrierMols(count);
+  // EACH INSTANCE ANSWERS FOR ITSELF. With two on a per-lane step one can be an
+  // ATP while the other is still an ADP — that IS the half-run state, and the
+  // headline name at the top of the column could only ever say one of them. So
+  // the name goes on the slot, and the column keeps a heading only when there
+  // is a single object for it to be the name of.
+  const slots=carrierEl.querySelectorAll('.cslot');
+  cMols.forEach((g,j)=>{
+    const on=carrierCharged(st,j);
+    setCarrierPhosphates(g,on);
+    const lab=slots[j] && slots[j].querySelector('.clab');
+    if(lab) lab.textContent = on ? 'ATP' : 'ADP';
+  });
+  const anyOn=carrierCharged(st,0);
+  carrierEl.querySelector('.cname').innerHTML = count>1 ? ''
+    : (anyOn ? 'ATP' : 'ADP');
+  carrierEl.querySelector('.csub').textContent = count>1 ? ''
+    : `${anyOn?spec.gly.phosphates:spent.phosphates} phosphates · ${anyOn?'charged':'discharged'}`;
   placeCarrierMol();
 }
 
@@ -2897,8 +3107,13 @@ function drawTray(){
   const pair = c && CARRIER.has(carrierKey(c.cin)) && CARRIER.has(carrierKey(c.cout));
   if(pair){
     const showKey = carrierKey(reviewing ? c.cout : c.cin);
-    drawCarrier(st, !!st && CARRIER.has(st.reagent) && !busy && !reviewing, showKey);
+    // BACK IN THE TRAY FIRST. `trayEl.innerHTML` above detaches this element,
+    // and drawCarrier ends by placing the molecules — which read `isConnected`
+    // to decide whether the carrier is on screen. Placing it while detached
+    // made every refresh look like the carrier had just arrived, and replayed
+    // the entrance animation on all of them (see popCarrier).
     strip.appendChild(carrierEl);      // moved, never rebuilt — see drawCarrier
+    drawCarrier(st, !!st && CARRIER.has(st.reagent) && !busy && !reviewing, showKey);
   }
   REAGENTS.filter(r=>want.has(r.key) && !(pair && CARRIER.has(r.key))).forEach(r=>{
     const live=!!st && st.reagent===r.key && !busy && !reviewing;
@@ -3037,7 +3252,11 @@ function drawAct(){
 // Jump to the state just BEFORE step k, so the student re-runs the step rather
 // than landing on its aftermath. Shared, because two surfaces rewind now: the
 // rail's numbers and the all-steps list.
-const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k; renderLanes(done); refresh(); };
+// Jumping to a step is a state change, so any half-run one is abandoned with
+// it — renderLanes rebuilds both lanes from the index and `laneDone` would
+// otherwise still claim a lane had run.
+const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k;
+  laneDone.clear(); renderLanes(done); refresh(); };
 
 const railEl=document.getElementById('rail');
 function drawRail(){
