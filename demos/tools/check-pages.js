@@ -41,10 +41,16 @@ let fails = 0;
 const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
 
 // Pages that render deposited PDB structures through a third-party viewer
-// (RenderingLibraries.md). They touch none of the spec library — coordinates
-// come from pdb/*.pdb, not MolLib — so there is no molecule reference to check.
-// Their own assertions live in tools/check-pdb.js.
-const PDB_PAGES = new Set(['viewer-compare.html', 'protein-lab.html']);
+// (RenderingLibraries.md) are skipped here: they touch none of the spec library
+// — coordinates come from pdb/*.pdb, not MolLib — so there is no molecule
+// reference to check, and their own assertions live in tools/check-pdb.js.
+//
+// The set is EMPTY, and that is the current state, not an oversight. Both such
+// pages (protein-lab.html, viewer-compare.html) were deleted with the vendored
+// ChemDoodle; they survive on the chemdoodle-archive branch. Keep the exemption
+// here — the non-GPL protein-lab rewrite reads pdb/*.pdb the same way, and will
+// need naming again if it still bypasses MolLib.
+const PDB_PAGES = new Set();
 
 // index.html draws nothing at all — it is a redirect up to the lesson index at
 // the repo root, which is where GitHub Pages serves it from.

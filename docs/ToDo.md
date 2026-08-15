@@ -5,11 +5,12 @@ Open work and pending decisions. Started 2026-08-02.
 Each item says what it is, why it's worth doing, and what would settle it. An
 item leaves this file when it ships, or when a decision doc absorbs it.
 
-**Rendering decisions live in two places, and they do not currently agree.**
-`demos/RenderingLibraries.md` covers PDB-scale viewers and picks ChemDoodle as
-default; `docs/chemistry-rendering-libraries.md` covers all three formats (2D,
-3D, equations) and routes macromolecules to 3Dmol. Read both before concluding
-anything, and see item 2 — reconciling them is itself open work.
+**Rendering decisions are reconciled — `demos/RenderingLibraries.md` is the
+answer.** We draw proteins ourselves; no third-party 3D viewer is used, and
+ChemDoodle has been deleted from the repo along with the two pages that loaded
+it. `docs/chemistry-rendering-libraries.md` predates that and still routes
+macromolecules to 3Dmol; where the two disagree, `RenderingLibraries.md` wins.
+Item 2 records how it was settled.
 
 Related docs: `docs/molecule-pipeline.md`, `docs/plan.md`,
 `docs/bio-rendering-thorough.md` (the curriculum-wide 3D/2D survey this file's
@@ -64,56 +65,31 @@ the repo loads KaTeX yet. Cheapest real win on this list.
 
 ---
 
-## 2. Evaluate Mol\* — and revisit the ChemDoodle decision
+## 2. ~~Evaluate Mol\* — and revisit the ChemDoodle decision~~ — SETTLED
 
-**Status:** proposed. `RenderingLibraries.md` was decided 2026-08-01 and never
-considered Mol\*.
+**Status:** done, and absorbed by `demos/RenderingLibraries.md` — read that,
+not this. Mol\* was evaluated over six stages (`demos/molstar/README.md` holds
+the measurements) and **not adopted**: we draw proteins ourselves, with
+Three.js + `scene.js` + `folding/ribbon.js`.
 
-**There are two conflicting recommendations on record.**
-`demos/RenderingLibraries.md` makes ChemDoodle the default with 3Dmol as the
-exception; `docs/chemistry-rendering-libraries.md` routes 3D macromolecules to
-3Dmol on its own page and keeps Three.js for everything small. `protein-lab.html`
-loads both 3Dmol and ChemDoodle today. Whatever Mol\* evaluation happens should
-resolve all three into one answer rather than adding a fourth.
+**ChemDoodle is gone.** It was GPLv3, and that licence applied to any page
+loading it. `demos/vendor/chemdoodle/`, `protein-lab.html` and
+`viewer-compare.html` were deleted together, so **no page in this repo is GPL
+now**. All three survive on the local `chemdoodle-archive` branch. This also
+resolves the disagreement flagged at the top of this file: neither ChemDoodle
+nor 3Dmol is the default, because there is no third-party 3D viewer at all.
 
-Add Mol\* as a third column in `viewer-compare.html` **before deleting that
-page**. It plausibly beats ChemDoodle at what `protein-lab` actually does:
+**What is still open** is the one thing that is not a decision:
+`protein-lab.html` needs rewriting on our own renderer, and until it lands that
+lesson is absent. `demos/molstar/protein-inhouse.html` is the template and most
+of the proof — it already draws a whole tetramer with our DSSP, our palette and
+our haems. `demos/pdb.js` and `demos/pdb/` are kept for it.
 
-- Levels 1–3 are one molecule restyled — representations-over-one-structure is
-  Mol\*'s central abstraction, so switching is a state update, not a reload
-- Distinguishes 3-10 helices natively — `RenderingLibraries.md` line 31 records
-  that ChemDoodle *cannot*, and `pdb.js` hand-parses `HELIX` class columns to
-  work around it
-- Has molecular surfaces, which ChemDoodle has no renderer for at all (line 53)
-- Draws non-covalent interactions, so tertiary structure can be *shown* holding
-  the fold rather than asserted
-
-**It also closes a door the doc calls one-way.** Mol\* is MIT. Adopting it would
-let `protein-lab` stop being GPLv3 and drop the vendored-ChemDoodle burden (no
-npm, no CDN — lines 89–93). Exactly one page is affected today. That number only
-grows.
-
-**Test hardest:** 1AON (GroEL/GroES, ~58k atoms) on a Chromebook — line 97's
-admitted untested case. Mol\* is the only candidate designed for that scale, so
-it's where the answer could change the plan.
-
-**Not affected:** `folding-lab` stays ours — but for a narrower reason than
-"Mol\* can't move things." **It can**: it plays MD trajectories, and its
-villin-md demo does exactly that
-(`molstar.org/demos/states/villin-md.molx`). What it gives is a scrubber, not a
-narration — no cued H-bond dashes, no two named causes, no zoom-out ladder. The
-Three.js pages are likewise unaffected; they are hand-built specs at molecular
-scale.
-
-Measured on that demo, on a developer machine: **cartoon 59 ms, Gaussian surface
-2.615 s.** Surfaces stay expensive — Mol\* does not answer
-`RenderingLibraries.md`'s Chromebook question, it just re-poses it.
-
-**One footgun if adopted:** Mol\* ships a one-click *Wiggle → Uncertainty*
-animation, which presents confidence as motion — precisely what `villin.js`'s
-header argues must never be done, and why act 3 uses eight discrete
-arrangements. The reasoning still holds; adopting Mol\* puts the wrong choice
-one button away.
+**One thing worth carrying forward** from the Mol\* evaluation: it ships a
+one-click *Wiggle → Uncertainty* animation, which presents confidence as
+motion — precisely what `villin.js`'s header argues must never be done, and why
+act 3 uses eight discrete arrangements. Not our problem now, but the reasoning
+is general.
 
 ---
 

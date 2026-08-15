@@ -1,6 +1,17 @@
 /* =====================================================================
  *  pdb.js — plumbing for pages that render deposited PDB structures.
  *
+ *  NO PAGE LOADS THIS TODAY, and that is deliberate. Its only consumers were
+ *  protein-lab.html and viewer-compare.html, deleted along with the vendored
+ *  ChemDoodle because that library is GPLv3 (RenderingLibraries.md; both pages
+ *  are on the chemdoodle-archive branch). It is kept because the non-GPL
+ *  protein-lab rewrite starts here — the orientation below is the part that
+ *  was hard and is renderer-independent — and tools/check-pdb.js still asserts
+ *  it against pdb/*.pdb every commit, so it cannot rot while it waits.
+ *
+ *  The ChemDoodle and 3Dmol behaviour described below is therefore history:
+ *  read it as WHY this code exists, not as what it currently talks to.
+ *
  *  This is the PDB-page equivalent of what scene.js does for the Three.js
  *  lessons: the parts every structure page needs and none of the lesson.
  *  It renders nothing and knows about no viewer library — it takes PDB text

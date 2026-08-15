@@ -200,17 +200,22 @@
  *  read its header first. This file is only the page: it renders what the
  *  solver produces and says what is happening.
  *
- *  WHY THIS IS A Three.js PAGE AND NOT A pdb.js ONE. protein-lab.html draws
- *  deposited structures through vendored ChemDoodle, which cannot animate
- *  coordinates or draw our own hydrogen-bond dashes — and which is GPLv3.
+ *  WHY THIS IS A Three.js PAGE AND NOT A pdb.js ONE. protein-lab.html drew
+ *  deposited structures through vendored ChemDoodle, which could not animate
+ *  coordinates or draw our own hydrogen-bond dashes — and which was GPLv3.
  *  Here the chain moves every frame and the dashes ARE the lesson, so the
- *  page draws with scene.js like the rest of the sandbox and stays clear of
+ *  page draws with scene.js like the rest of the sandbox and stayed clear of
  *  the GPL. It loads no mol-*.js: every coordinate comes from pdb/1VII.pdb
  *  at real angstrom scale, so MolLib is here for PALETTE alone.
  *
- *  RELATIONSHIP TO protein-lab.html. That page shows the four LEVELS of
- *  protein structure standing still. This one shows the two MECHANISMS that
- *  produce the first three, and why level 2 and level 3 are not the same
+ *  That page and its library have since been DELETED for that licence (see
+ *  RenderingLibraries.md; both are on the chemdoodle-archive branch), which
+ *  settles the argument above rather than changing anything here.
+ *
+ *  RELATIONSHIP TO protein-lab.html. That page showed the four LEVELS of
+ *  protein structure standing still — hemoglobin-lab.html now does, and a
+ *  non-GPL protein-lab rewrite is pending. This one shows the two MECHANISMS
+ *  that produce the first three, and why level 2 and level 3 are not the same
  *  kind of thing. Whichever order they are taught in, this is the "why" and
  *  that is the "what".
  * ============================================================= */

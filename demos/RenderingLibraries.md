@@ -27,8 +27,8 @@ Three renderers, on real pages, against the same structures.
 
 | | what it is | status |
 |---|---|---|
-| **ChemDoodle Web** | vendored in `vendor/chemdoodle/`, drives `protein-lab.html` | **remove** |
-| **3Dmol.js** | evaluated in `viewer-compare.html`. A library NAME — there is no 3Dmol file in this repo and never was | **not adopted** |
+| **ChemDoodle Web** | was vendored in `vendor/chemdoodle/`, drove `protein-lab.html` | **removed** — both deleted, see below |
+| **3Dmol.js** | evaluated in `viewer-compare.html`, itself now deleted. A library NAME — there was never a 3Dmol file in this repo | **not adopted** |
 | **Mol\*** | evaluated over six stages in `molstar/` | **not adopted** |
 | **ours** | `folding/ribbon.js` + `scene.js`, already shipping in `folding-lab.html` | **adopted** |
 
@@ -59,14 +59,15 @@ A ribbon is not worth losing that, and a ribbon is ~1,000 lines
 
 The evaluations kept running into the same wall from opposite directions:
 
-- **ChemDoodle** colours a ribbon's two faces separately as a depth cue, with no
-  way to say "this colour means α-helix." `protein-lab.html` flattens every
+- **ChemDoodle** coloured a ribbon's two faces separately as a depth cue, with no
+  way to say "this colour means α-helix." `protein-lab.html` flattened every
   colour pair to one value to stop students inventing a meaning for the second.
-  It cannot colour a 3₁₀ helix at all — lysozyme has one at A 80–84, and the
-  page can only name it in prose and admit the picture does not show it. Chain
-  colours are not settable either: `chainLegend()` exists, with a 17-line
+  It could not colour a 3₁₀ helix at all — lysozyme has one at A 80–84, and the
+  page could only name it in prose and admit the picture did not show it. Chain
+  colours were not settable either: `chainLegend()` existed, with a 17-line
   comment, purely to read ChemDoodle's palette back OUT of the molecule so the
-  key cannot contradict the picture.
+  key could not contradict the picture. (Both pages are on `chemdoodle-archive`
+  if you want to see any of this rather than take its word for it.)
 - **Mol\*** is far more configurable, and still had to be talked out of its
   defaults at every step: four click and hover behaviours disarmed by emptying
   their bindings, a viewport button cluster removable only by a CSS rule that a
@@ -80,10 +81,11 @@ parameters we chose, and a lesson that needs a new one adds it.
 ### 3. Licence
 
 **ChemDoodle Web is GPLv3, and loading it makes the page GPLv3.**
-`protein-lab.html` is the only GPLv3 page in this repo and is GPLv3 *solely*
-because of that vendored copy. Removing it removes the obligation from the
-project entirely. `vendor/chemdoodle/README.md` records the original accepted
-trade-off; this file is where it stops being accepted.
+`protein-lab.html` was the only GPLv3 page in this repo, and was GPLv3 *solely*
+because of that vendored copy. **It and the vendored library have been deleted,
+so the obligation is off the project entirely — nothing here is GPL now.** The
+vendored `README.md` recorded the original accepted trade-off; this file is
+where it stopped being accepted, and the deletion is where it ended.
 
 Mol\* is MIT, so adoption would also have cleared the licence — that was the
 single strongest argument for it, and it is now moot, because the in-house path
@@ -141,20 +143,28 @@ and it should not be quietly forgotten because the decision went the other way.
 
 ---
 
-## Status of the evaluation pages — all kept
+## Status of the evaluation pages
 
-Nothing here is scheduled for deletion. This is a prototype repo; the
-evaluations are how the decision was reached and they are worth showing to
-people. Each is now labelled **settled** rather than **pending**, which is the
-distinction the old delete conditions actually cared about.
+The Mol\* evaluation is kept: this is a prototype repo, the evaluations are how
+the decision was reached, and they are worth showing to people. Each is labelled
+**settled** rather than **pending**, which is the distinction the old delete
+conditions actually cared about.
+
+**The ChemDoodle pages are the exception, and they are gone.** They were not
+deleted for being settled — every settled page below survives — but because the
+library they loaded is GPLv3 and the only way to stop that licence applying is
+to stop shipping it. That is a licence action, not an editorial one.
 
 | | what it is now |
 |---|---|
-| `viewer-compare.html` | settled — ChemDoodle vs 3Dmol, the first comparison. Kept |
+| `vendor/chemdoodle/` | **deleted.** GPLv3, and the sole reason any page here was |
+| `protein-lab.html` | **deleted** with it — it was the only page loading ChemDoodle |
+| `viewer-compare.html` | **deleted** with it — the ChemDoodle vs 3Dmol comparison; it loaded the library too |
+| ↳ all three | intact on the local `chemdoodle-archive` branch, and in history. Nothing was lost, only unshipped |
 | `molstar/` | settled — six stages, the thorough one. `molstar/README.md` is the detail behind this file's summary. Kept |
 | `molstar/protein-molstar.html` | the Mol\* lesson prototype. Kept as the "what a viewer buys you" exhibit |
 | `molstar/protein-inhouse.html` | the control arm, and the template for the `protein-lab` rewrite. Kept |
-| `vendor/chemdoodle/` | kept while `protein-lab.html` still loads it |
+| `pdb.js`, `pdb/*.pdb`, `tools/check-pdb.js` | loaded by no page now. Kept as the rewrite's starting point, and still audited so they cannot rot |
 | `folding-lab-ribbon.html`, `folding/ribbon-test.html` | unrelated to this decision, and also kept — see `CLAUDE.md` |
 
 **Read them as history, not as instructions.** Every one of those pages was
@@ -163,35 +173,36 @@ header still argues for a renderer, this file overrides it.
 
 ## Consequences — what this decision obliges
 
-1. **`protein-lab.html` is rewritten** on Three.js + `scene.js` +
-   `folding/ribbon.js`. It is currently the only page loading ChemDoodle.
+1. **The ChemDoodle pages are deleted** — done, see the table above. This
+   discharges the licence obligation rather than deferring it: **no page in this
+   repo is GPLv3 any more.**
+2. **`protein-lab.html` is rewritten** on Three.js + `scene.js` +
+   `folding/ribbon.js`. This is now the one *open* item, and the page is absent
+   until it lands — the lesson is missing, not broken.
    `molstar/protein-inhouse.html` is most of the proof it will work — it already
    draws a whole tetramer with our DSSP, our palette and our haems. The rewrite
-   also lets the page finally colour that 3₁₀ helix, which is the open item its
-   own header flags.
-2. **`CLAUDE.md`'s page table and module notes** stop describing `protein-lab`
+   also lets the page finally colour that 3₁₀ helix, which is the open item the
+   old page's header flagged. `pdb.js` and `pdb/` are kept for it.
+3. **`CLAUDE.md`'s page table and module notes** stop describing `protein-lab`
    as a different kind of page that shares nothing but `pdb.js` and
-   `sandbox.css`. After the rewrite it is an ordinary Three.js lesson that
-   happens to read a deposited file — the same shape as `folding-lab`.
-   `tools/check-pages.js` can then stop skipping it.
+   `sandbox.css` — done. When the rewrite lands it is an ordinary Three.js
+   lesson that happens to read a deposited file — the same shape as
+   `folding-lab` — and `tools/check-pages.js` can audit it like any other.
 
-That is the whole list. Deleting `vendor/chemdoodle/`, `viewer-compare.html`
-and `molstar/` belongs to the **production-repo move**, along with dropping the
-scratch data and the bake tooling — not to this decision.
+Deleting `molstar/` belongs to the **production-repo move**, along with dropping
+the scratch data and the bake tooling — not to this decision.
 
-### The one thing to carry to that move
+### Why this was not deferred to that move
 
-**`protein-lab.html` is GPLv3 for as long as it loads ChemDoodle**, and so is
-anything built from it. That is fine here: this repo is open source and
-publishes its own source from the working tree, which is what the GPL asks for.
-It stops being automatically fine the moment the work is repackaged under a
-different licence, or a page derived from it is shipped somewhere that does not
-publish source. `vendor/chemdoodle/README.md` calls it a one-way door for a
-reason — GPL'd pages cannot be relicensed permissively later without every
-contributor agreeing.
-
-So: no urgency, but do the rewrite **before** the production move rather than
-after, so the question never has to be answered under deadline.
+**Anything that loads ChemDoodle is GPLv3, and so is anything built from it.**
+That was fine here: this repo is open source and publishes its own source from
+the working tree, which is what the GPL asks for. It stops being automatically
+fine the moment the work is repackaged under a different licence, or a page
+derived from it is shipped somewhere that does not publish source.
+ChemDoodle's own vendored README called it a one-way door for a reason — GPL'd
+pages cannot be relicensed permissively later without every contributor
+agreeing. Removing the library before that door mattered is why the question
+never has to be answered under deadline.
 
 ---
 

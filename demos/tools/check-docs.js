@@ -48,6 +48,13 @@ const KNOWN_ABSENT = {
   'contrast-layout.js': 'TESTING.md proposal — not built',
   'three.min.js':       'loaded from a CDN, deliberately not vendored',
   '3Dmol.js':           'a library NAME, not a file here — RenderingLibraries.md',
+  // Deleted with the vendored ChemDoodle (GPLv3): the docs discuss them in the
+  // past tense, and asserting them ABSENT is what stops one quietly returning
+  // and putting the GPL back on the repo. Both are on the chemdoodle-archive
+  // branch. protein-lab.html is expected back as a Three.js rewrite — when it
+  // is, this check fails and the docs get updated with it, which is the point.
+  'protein-lab.html':    'deleted with vendor/chemdoodle — RenderingLibraries.md',
+  'viewer-compare.html': 'deleted with vendor/chemdoodle — RenderingLibraries.md',
   // Build outputs and runtime strings, not repo files.
   'generated-specs.json':         'sdf2spec.js writes it; not committed',
   'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',
@@ -90,11 +97,12 @@ if (!scriptRows) {
     for (const p of pages) declared.set(p, new Set(running.map(n => `${n}.js`)));
   }
 
-  // Two pages are not lessons and load no shared module by design, so the
-  // script table has nothing to say about either: viewer-compare.html is the
-  // rendering-library evaluation (kept unmixed with our own code on purpose),
-  // and index.html is a redirect up to the real lesson index at the repo root.
-  const NOT_LESSONS = new Set(['viewer-compare.html', 'index.html']);
+  // index.html is not a lesson and loads no shared module by design — it is a
+  // redirect up to the real lesson index at the repo root, so the script table
+  // has nothing to say about it. viewer-compare.html was exempt for the same
+  // reason (a rendering-library evaluation, kept unmixed with our own code) and
+  // was deleted with the vendored ChemDoodle; it lives on chemdoodle-archive.
+  const NOT_LESSONS = new Set(['index.html']);
   const pages = fs.readdirSync(ROOT)
     .filter(f => f.endsWith('.html') && !f.startsWith('_') && !NOT_LESSONS.has(f));
 

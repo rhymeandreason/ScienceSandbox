@@ -44,7 +44,7 @@
 | 1 | Four macromolecule classes | ✅ A | **S** | done in 3D; 2D missing |
 | 1 | Isomers / stereochemistry | ✅ A | **S ‼** | `contrast-lab`. Wedge/dash fidelity is non-negotiable |
 | 1 | Dehydration / hydrolysis | ✅ A | **H** | `aminoacid-lab`. 2D reaction arrows |
-| 1 | Protein structure levels | ✅ A | — | `protein-lab`, **rewrite pending** off ChemDoodle. `molstar/protein-inhouse.html` is the proof |
+| 1 | Protein structure levels | ✅ A | — | `hemoglobin-lab` carries all four. `protein-lab` **deleted** with ChemDoodle (GPLv3) — rewrite pending, `molstar/protein-inhouse.html` is the proof |
 | 1 | Folding | ✅ A | — | `folding-lab`, done |
 | **2** | **Phospholipid bilayer** | **B** | **H** | Highest payoff in the course. 2D = the textbook cross-section |
 | 2 | Membrane transport proteins | **A + R** | **H** | Aquaporin 1J4N, Na⁺-K⁺ 2ZXE. Surfaces are the gap — we have no SES/SAS code |

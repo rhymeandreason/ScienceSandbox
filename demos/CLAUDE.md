@@ -18,11 +18,9 @@ Try to model scientific accuracy, especially when building atoms and molecules.
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | molecular assembly | prototype |
 | `glycolysis-lab.html` | shows 5 steps to emphasize carbon bookkeeping, why does it cost 2 ATP to make ATP | pathway | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, with their functional groups callable out | comparison gallery | prototype |
-| `protein-lab.html` | Superseded PDB structure viewer — kept as the ChemDoodle (GPL) worked example, see its own header | PDB structure viewer | reference |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin, with level 4 only pointed at. Superseded by `hemoglobin-lab`, which carries all four on one molecule — villin is 36 residues and one chain, so it could never finish the sentence | folding animation | reference |
 | `folding-lab.html` | How a protein folds: villin headpiece collapses from an extended chain, then zooms out to the whole protein. Superseded by `folding-lab-ribbon.html`, itself now reference | folding animation | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` — synthetic secondary structure + one real villin domain | evaluation scratch | test |
-| `viewer-compare.html` | ChemDoodle Web vs 3Dmol.js evaluation — settled: neither was adopted | evaluation scratch | test |
 | `molstar/` | Six-stage Mol\* evaluation — settled: not adopted | evaluation scratch | test |
 
 ## Shared modules
@@ -64,14 +62,17 @@ Load order is **`molecules.js` → `skel.js` → `mol-*.js`**. `skel.js` itself 
 | `glycolysis-lab` | palette, molecules, skel, mol-glycolysis, scene, fx |
 | `macromolecule-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, scene, fx |
 | `contrast-lab` | palette, molecules, skel, mol-monomers, mol-glycolysis, mol-contrast, haworth, scene |
-| `protein-lab` | pdb, vendor/chemdoodle/ChemDoodleWeb |
 | `folding-lab` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin |
 | `folding-lab-ribbon` | palette, molecules, scene, fx, folding/folding, folding/villin, folding/actin, folding/ribbon |
 | `hemoglobin-lab` | palette, molecules, scene, fx, annotate, folding/ribbon, residues, hemoglobin/hbfold |
 
 Rows are explicit — no row inherits from the one above it any more, because the sets stopped being nested once pages began loading different domains.
 
-**Three kinds of page share this table, not two.** Most load `scene.js` + MolLib as above. A second kind — `folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab` — draws *deposited* coordinates (PDB files or baked trajectories) through `scene.js` like the Three.js lessons, because the chain animates and needs the same scene, but loads `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström, and display radii are the house `PALETTE.radii` **divided by `SCALE`**, computed in the page. `protein-lab` is the third kind and the only page of it: it renders deposited structures through vendored ChemDoodle Web instead — no Three.js, no MolLib — which is **GPLv3 and makes any page loading it GPLv3** (`RenderingLibraries.md`); `tools/check-pdb.js` audits it instead of `check-pages.js`. Don't add a second ChemDoodle page.
+**Two kinds of page share this table.** Most load `scene.js` + MolLib as above. A second kind — `folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab` — draws *deposited* coordinates (PDB files or baked trajectories) through `scene.js` like the Three.js lessons, because the chain animates and needs the same scene, but loads `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström, and display radii are the house `PALETTE.radii` **divided by `SCALE`**, computed in the page.
+
+There was a third kind, and there is not any more. `protein-lab.html` rendered deposited structures through vendored ChemDoodle Web — no Three.js, no MolLib — and that library is **GPLv3, which made any page loading it GPLv3**. It and `viewer-compare.html` were deleted along with `demos/vendor/`, so **nothing in this repo is GPL now**; keep it that way, and read `RenderingLibraries.md` before adding any third-party renderer. Both pages, and the vendored library, survive intact on the local `chemdoodle-archive` branch.
+
+That leaves `pdb.js` (with `pdb/*.pdb` and `tools/check-pdb.js`) **loaded by no page**. It is kept deliberately: it is the deposited-coordinate loader and orientation code the non-GPL `protein-lab` rewrite starts from — `molstar/protein-inhouse.html` is the template for that rewrite — and the folding modules' own headers reason against its orientation rules. `tools/check-pdb.js` still audits it, so it cannot rot unnoticed.
 
 **The design reasoning for `folding-lab`'s three acts, `folding-lab-ribbon`'s secondary-structure sourcing, and the actin rungs lives in the source files' own headers**, not here: `folding/folding.js` (the H-bond/hydrophobic-core argument and the solver's constraints), `folding/villin.js` (why act 3 is an AlphaFold prediction, not a structure, and the eight generated arrangements), `folding/ribbon.js` (HELIX records vs. DSSP vs. the unused Cα heuristic, and why a cartoon is what finds solver bugs a ball-and-stick hides), and `folding/actin.js` (the measured helical screw that extends 5 deposited subunits to 13, and the species jump in the 9JUS coda). Each trajectory is precomputed and committed (`folding/data/*.bin`); re-run the matching `folding/tools/bake-*.js` after touching the file that produced it, or `folding/tools/check-folding.js` fails.
 
