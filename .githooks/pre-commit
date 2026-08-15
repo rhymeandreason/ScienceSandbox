@@ -21,8 +21,11 @@
 #     Run it BY HAND (node tools/check-docs.js) after editing an enumeration.
 #   · does not run check-molecules.js unless the commit touches a file that can
 #     change a spec's geometry (molecules.js, skel.js, a mol-*.js domain file,
-#     or a committed tools/sdf/ input). A commit that only edits prose, an
-#     .html page, or fx.js cannot make a claim check-molecules.js audits.
+#     a committed tools/sdf/ input, or a BAKER whose output lives in a spec:
+#     tools/bake-flat2d.js and tools/spec2smiles.js both write fields that
+#     check-molecules.js re-derives and fails on when stale, and neither lives
+#     anywhere the patterns above would catch. A commit that only edits prose,
+#     an .html page, or fx.js cannot make a claim check-molecules.js audits.
 #   · does not run check-pages.js unless the commit touches a *.html page or a
 #     file that supplies the registry it reads (molecules.js, skel.js, a
 #     mol-*.js domain file, lib-node.js). A prose-only or fx.js/scene.js commit
@@ -48,7 +51,7 @@ cd "$ROOT/demos"
 
 echo "pre-commit: checking demos/ ..."
 
-if git diff --cached --name-only | grep -qE '^demos/(molecules\.js|skel\.js|mol-[^/]+\.js|tools/sdf/)'; then
+if git diff --cached --name-only | grep -qE '^demos/(molecules\.js|skel\.js|mol-[^/]+\.js|tools/sdf/|tools/(bake-flat2d|spec2smiles)\.js)'; then
   if ! node check-molecules.js > /tmp/cm.$$ 2>&1; then
     tail -25 /tmp/cm.$$; rm -f /tmp/cm.$$
     echo ""
@@ -71,6 +74,22 @@ if git diff --cached --name-only | grep -qE '^demos/(.*\.html|molecules\.js|skel
   rm -f /tmp/cp.$$
 else
   echo "pre-commit: skipping check-pages.js — no page or registry file staged"
+fi
+
+# The mass-action modal's physics lives inside glycolysis-lab.html, so this
+# fires on the page itself — there is no separate module whose folder could
+# gate it, and EA is a legibility knob somebody will reach for.
+if git diff --cached --name-only | grep -qE '^demos/(glycolysis-lab\.html|tools/check-massaction\.js)$'; then
+  if ! node tools/check-massaction.js > /tmp/cma.$$ 2>&1; then
+    tail -25 /tmp/cma.$$; rm -f /tmp/cma.$$
+    echo ""
+    echo "pre-commit FAILED: check-massaction.js — the mass-action modal no longer"
+    echo "  teaches what it claims. See the header for which claim broke."
+    exit 1
+  fi
+  rm -f /tmp/cma.$$
+else
+  echo "pre-commit: skipping check-massaction.js — glycolysis-lab.html not staged"
 fi
 
 # check-pdb.js is back to its original single subject — pdb.js's orientation —

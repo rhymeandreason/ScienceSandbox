@@ -172,26 +172,87 @@
     // a glowing proton flying from an acid to the water it protonates — the actual
     // H⁺ transfer of an ionization step. Bigger, additively-lit, with a comet
     // trail of fading echoes. Fires onArrive when it lands.
+    //
+    // `opt` is OPTIONAL and last, after the callback, because every existing
+    // caller passes three arguments or fewer:
+    //   color — default is the warm gold a proton moving BETWEEN two atoms has
+    //           always used. Pass one where a page needs a hop to read as a
+    //           different kind of event from another firing beside it.
+    //   dur   — seconds. Default 0.5, which is a TRANSFER: it leaves one atom
+    //           and lands on another, and the landing is the point.
+    //   carry — an Object3D to ride along with the proton, unscaled: a caller
+    //           can send a charge badge with it. Not disposed here; the caller
+    //           made it and the caller owns it.
+    //   away  — a DEPARTURE instead of a transfer, and a different motion, not
+    //           just a slower one. The proton snaps off the bond, then drifts,
+    //           fading as it goes. A transfer can end by simply stopping,
+    //           because something caught it; a departure has to end by becoming
+    //           nothing, or it reads as vanishing rather than leaving.
     const _protonGeo=new THREE.SphereGeometry(0.34,16,12);
-    function protonHop(from,to,onArrive){
-      const m=new THREE.Mesh(_protonGeo,new THREE.MeshBasicMaterial(
-        {color:0xffe08a,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
-      m.position.copy(from); m.renderOrder=13; root.add(m);
+    const PROTON_GOLD=0xffe08a, PROTON_TRAIL=0xffcf6b;
+    // A DEPARTURE IS THREE BEATS, NOT ONE. The proton SNAPS off the bond, then
+    // HOLDS where it landed — visibly detached, doing nothing — and only then
+    // drifts away. The hold is the whole point: a break that runs straight into
+    // travel is read as travel, and the moment the bond let go is never seen.
+    // So nothing else happens during the first two beats either — no comet
+    // trail until the drift starts, or the break arrives already trailing.
+    //
+    // SNAP_D is small on purpose: about a bond length once the caller's `to` is
+    // a frame away. The proton comes OFF the atom, it does not set out.
+    const SNAP_T=0.07, SNAP_D=0.05;    // break: 7% of the time, 5% of the way
+    const HOLD_T=0.28;                 // …then still, until here
+    function protonHop(from,to,onArrive,opt){
+      const o = typeof opt==='number' ? {color:opt} : (opt||{});
+      const head=o.color||PROTON_GOLD, trail=o.color||PROTON_TRAIL;
+      const away=!!o.away;
+      const mat=new THREE.MeshBasicMaterial(
+        {color:head,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
+      const glow=new THREE.Mesh(_protonGeo,mat);
+      glow.renderOrder=13;
+      // THE THING THAT MOVES IS A HOLDER, not the glow itself, so that `carry`
+      // rides along WITHOUT inheriting the glow's scale. A caller passing a
+      // charge badge wants it the size it was made, not 1.7× because that is
+      // how big a departing proton's halo is. fx.js does not know what the
+      // passed object is and must not — it moves it, nothing more.
+      const m=new THREE.Group();
+      m.add(glow);
+      if(o.carry) m.add(o.carry);
+      m.position.copy(from); root.add(m);
       let lastTrail=0;
       const pos=new THREE.Vector3();
-      fx.push({t:0,dur:0.5,update(k){
-        pos.lerpVectors(from,to,k); pos.y+=1.3*Math.sin(k*Math.PI);   // arc
+      fx.push({t:0,dur:o.dur||0.5,update(k){
+        // a transfer travels evenly; a departure snaps, holds, then coasts
+        const e = !away ? k
+          : k<SNAP_T ? SNAP_D*(1-Math.pow(1-k/SNAP_T,3))
+          : k<HOLD_T ? SNAP_D
+                     : SNAP_D+(1-SNAP_D)*((k-HOLD_T)/(1-HOLD_T));
+        pos.lerpVectors(from,to,e); pos.y+=1.3*Math.sin(e*Math.PI);   // arc
         m.position.copy(pos);
-        m.scale.setScalar(1.1+0.6*Math.sin(k*Math.PI));
-        // shed a fading trail dot every so often
-        if(k-lastTrail>0.06 && k<0.95){ lastTrail=k;
+        // A TRANSFER SWELLS AND SETTLES onto its target. A DEPARTURE IS ONE
+        // FIXED SIZE FOR ITS WHOLE TRIP — no flare, and nothing that decays.
+        //
+        // Two earlier profiles both read as shrinking, and neither was a bug:
+        // a flare that decays over the first third IS a shrink, just an early
+        // one, and it lands where the eye is most on it. And an ADDITIVE glow
+        // that loses opacity loses apparent SIZE with it, because the outer
+        // falloff drops under the threshold first — so fading it out over the
+        // drift is a second shrink wearing a different name. What is left is
+        // the only reading that cannot be mistaken for distance: it does not
+        // change at all, it just goes, and it ends by leaving the frame.
+        glow.scale.setScalar(away ? 1.7 : 1.1+0.6*Math.sin(k*Math.PI));
+        // …with a fade in the last breath only, as a backstop for a caller
+        // whose target is still on screen. `away` is aimed off it.
+        if(away) mat.opacity=Math.min(1, (1-k)/0.12);
+        // shed a fading trail dot every so often — but only once it is actually
+        // travelling, so the snap and the hold stay clean (see SNAP_T/HOLD_T)
+        if(k-lastTrail>0.06 && k<0.95 && !(away && k<HOLD_T)){ lastTrail=k;
           const t=new THREE.Mesh(_sparkGeo,new THREE.MeshBasicMaterial(
-            {color:0xffcf6b,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+            {color:trail,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
           t.position.copy(pos); t.scale.setScalar(1.6); root.add(t);
           fx.push({t:0,dur:0.3,update(kk){ t.scale.setScalar(1.6*(1-kk)); t.material.opacity=1-kk; },
             cleanup(){ root.remove(t); t.material.dispose(); }});
         }
-      },cleanup(){ root.remove(m); m.material.dispose(); if(onArrive) onArrive(); }});
+      },cleanup(){ root.remove(m); mat.dispose(); if(onArrive) onArrive(); }});
     }
 
     // pick a representative colour off a molecule group (its first coloured atom)

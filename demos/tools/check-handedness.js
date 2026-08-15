@@ -56,7 +56,92 @@ const REF = {
   deoxyribose: '2-deoxy-beta-D-erythro-pentofuranose',
   maltose: 'beta-maltose',
   cellobiose: 'beta-cellobiose',
+  // the glycolysis pathway. Nothing here is drawn from a `smiles` — these have
+  // none, so the string is DERIVED FROM THE GEOMETRY below, which is the point:
+  // what gets checked is the coordinates the page renders. Names pin the open
+  // (keto) form where the spec is drawn open, because PubChem's default record
+  // for a hexose phosphate is the furanose ring and that would report "differs"
+  // for a molecule whose handedness is fine.
+  // the two carriers molecule-viewer.html teaches ABOUT. Both are PubChem
+  // conversions, so like the amino acids above they indict the pipeline rather
+  // than a hand-built ring — but both carry a `smiles` now (the flat drawing
+  // needs one), and a committed depiction string with four stereocentres in it
+  // is exactly the thing that must not be allowed to be the mirror image.
+  atp: 'ATP',
+  nadh: 'NADH',
+  g6p: 'beta-D-glucose 6-phosphate',
+  f6p: 'keto-D-fructose 6-phosphate',
+  f16bp: 'keto-D-fructose 1,6-bisphosphate',
+  g3p: 'D-glyceraldehyde 3-phosphate',
+  bpg13: '1,3-bisphospho-D-glyceric acid',
+  pga3: '3-phospho-D-glyceric acid',
+  pga2: '2-phospho-D-glyceric acid',
 };
+
+/* THE HAND-BUILT CONTROLS REFERENCE THEMSELVES.
+ *
+ * A spec in mol-compare.js is one molecule derived twice: `atpSkel` is `atp`
+ * built from ideal geometry, and it says so — `compare:{against:'atp'}`. What
+ * makes that comparison mean anything is that BOTH canonicalise to the same
+ * external record, because a hand-built ribose has four stereocentres and no
+ * internal check can catch a global mirror (MolecularGeometry.md §1.3). Without
+ * it, "the two look different" confounds "different method" with "I got the
+ * sugar wrong", which is the one confusion the comparison exists to remove.
+ *
+ * So the entry is DERIVED from `compare.against` rather than typed. Typed, it
+ * was two lines saying what the spec already said, and the failure mode was
+ * silent in the worst way: add a skel twin, forget the line, and the tool
+ * reports every spec passing while never having looked at the new one. Nothing
+ * about a molecule that is quietly unchecked is visible from its render.
+ *
+ * A control whose partner has no reference is an ERROR, not a skip: it means
+ * the comparison has no anchor at either end.
+ */
+let anchorless = 0;
+for (const [key, m] of Object.entries(MOLECULES)) {
+  if (!m.compare || !m.compare.against) continue;
+  const target = m.compare.against;
+  if (!REF[target]) {
+    // Counted, not just printed. This ran as a bare `process.exitCode = 1` at
+    // first, which the summary below overwrote with its own process.exit — so
+    // it printed FAIL and exited PASS, the one outcome worse than no check.
+    console.log(`  FAIL  ${key}: compares against \`${target}\`, which has no REF entry `
+      + `— the comparison would rest on nothing`);
+    anchorless++;
+    continue;
+  }
+  REF[key] = REF[target];
+}
+
+// A spec with no committed `smiles` is described by its own coordinates: heavy
+// atoms into a V2000 molblock with the chiral flag set, and RDKit reads the
+// configuration off the 3D positions. Same path tools/spec2smiles.js uses.
+const pad = (v, w) => String(v).padStart(w);
+function molblock(key, m) {
+  const keep = m.atoms.map((a, i) => i).filter(i => m.atoms[i].el !== 'H');
+  const map = new Map(keep.map((i, n) => [i, n]));
+  const bonds = (m.bonds || []).filter(b => map.has(b[0]) && map.has(b[1]))
+    .map(b => [map.get(b[0]), map.get(b[1]), b[2] || 1]);
+  let s = `${key}\n  ScienceSandbox\n\n`
+    + `${pad(keep.length, 3)}${pad(bonds.length, 3)}  0  0  1  0  0  0  0  0999 V2000\n`;
+  keep.forEach(i => { const a = m.atoms[i];
+    s += `${pad(a.pos[0].toFixed(4), 10)}${pad(a.pos[1].toFixed(4), 10)}`
+       + `${pad(a.pos[2].toFixed(4), 10)} ${a.el.padEnd(3)} 0  0  0  0  0  0  0  0  0  0  0  0\n`; });
+  for (const b of bonds) s += `${pad(b[0] + 1, 3)}${pad(b[1] + 1, 3)}${pad(b[2], 3)}  0\n`;
+  return s + 'M  END\n';
+}
+
+// TWO DIFFERENCES THAT ARE NOT STEREOCHEMISTRY, normalised on both sides so a
+// real mirror is what stands out:
+//  · the house phosphate is four SINGLE P–O bonds (mol-glycolysis.js
+//    simplification 2 — the charge is delocalised and doubling one would be a
+//    lie), so RDKit completes P's valence with a hydride. Write it back as the
+//    ordinary acid.
+//  · PubChem answers some of these as the anion and some as the free acid.
+//    Charge is not handedness.
+const normalise = s => s
+  .replace(/\[PH\]/g, 'P(=O)').replace(/P\(=O\)\(O\)\(O\)O/g, 'P(=O)(O)O')
+  .replace(/\[O-\]/g, 'O');
 
 const fetchSmiles = name => {
   const url = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/'
@@ -83,20 +168,26 @@ require('@rdkit/rdkit')().then(RDKit => {
   let bad = 0, skipped = 0;
   for (const [key, name] of Object.entries(REF)) {
     const spec = MOLECULES[key];
-    if (!spec || !spec.smiles) { console.log(`  skip  ${key.padEnd(12)} no committed smiles`); skipped++; continue; }
+    if (!spec) { console.log(`  skip  ${key.padEnd(12)} no such spec`); skipped++; continue; }
     // The :1 atom map is highlight metadata for SmilesDrawer, not structure.
-    const ours = canon(spec.smiles.replace(/:1(?=])/g, ''));
+    let mine = spec.smiles && spec.smiles.replace(/:1(?=])/g, '');
+    if (!mine) {                          // no committed string: read the geometry
+      const m = RDKit.get_mol(molblock(key, spec));
+      if (!m) { console.log(`  FAIL  ${key.padEnd(12)} geometry does not parse`); bad++; continue; }
+      mine = m.get_smiles(); m.delete();
+    }
+    const ours = canon(normalise(mine));
     if (!ours) { console.log(`  FAIL  ${key.padEnd(12)} committed smiles does not parse`); bad++; continue; }
 
     const raw = fetchSmiles(name);
     if (!raw) { console.log(`  skip  ${key.padEnd(12)} no PubChem record for "${name}"`); skipped++; continue; }
-    const ref = canon(raw);
+    const ref = canon(normalise(raw));
     if (!ref) { console.log(`  skip  ${key.padEnd(12)} reference did not parse`); skipped++; continue; }
 
     if (ours === ref) { console.log(`  ok    ${key.padEnd(12)} matches ${name}`); continue; }
 
     bad++;
-    const mirrored = ours === canon(mirrorOf(raw));
+    const mirrored = ours === canon(mirrorOf(normalise(raw)));
     console.log(`  FAIL  ${key.padEnd(12)} ${mirrored ? 'is the EXACT MIRROR of' : 'differs from'} ${name}`);
     console.log(`          ours: ${ours}`);
     console.log(`          ref : ${ref}`);
@@ -109,6 +200,10 @@ require('@rdkit/rdkit')().then(RDKit => {
   }
 
   console.log('');
+  if (anchorless) {
+    console.log(`FAIL: ${anchorless} control(s) compare against a spec with no reference`);
+    process.exit(1);
+  }
   if (bad) { console.log(`FAIL: ${bad} spec(s) disagree with their reference`); process.exit(1); }
   console.log(`PASS: every checked spec matches its reference`
     + (skipped ? ` (${skipped} skipped)` : ''));

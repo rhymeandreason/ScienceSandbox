@@ -21,6 +21,14 @@
  *  CID. See the provenance note in molecules.js and docs/molecule-pipeline.md
  *  items 1–2. Unlike the claims below, it does not wait to be opted into.
  *
+ *  It also audits the FORMULA STRING, unconditionally where one exists: its
+ *  heavy-element counts against the spec's own atoms, and its trailing charge
+ *  against `charge:`. Hydrogen is excluded on purpose — these pages draw no
+ *  C–H, so a spec's H count is a drawing decision and the formula's is a
+ *  chemical one. This is the check that found every phosphorylated glycolysis
+ *  intermediate carrying the NEUTRAL ACID's hydrogen count with an anionic
+ *  charge on it (C₆H₁₃O₉P²⁻ for a 2− anion that is C₆H₁₁O₉P²⁻).
+ *
  *  It also audits the DISTINGUISHING-FEATURE CLAIMS a spec declares — the
  *  error class nothing above can see, because a wrong stereocentre has perfect
  *  bond lengths, textbook angles, and renders beautifully. It is only caught
@@ -39,8 +47,11 @@
  *                                 mean anything. RELATIVE pattern only — the
  *                                 normal's sign is arbitrary, so this cannot
  *                                 catch a global mirror   [ribose, deoxyribose]
- *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that a
- *               fused:true }      bicycle shares an edge  [purine/pyrimidine]
+ *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that some
+ *               fused:true }      pair shares an edge     [purine/pyrimidine]
+ *    gly:{ phosphates:n }         n phosphorus atoms, and — where the spec also
+ *                                 names pa/pb/pg — that they form ONE chain
+ *                                 bridged by oxygen with γ on the end [ATP]
  *    chirality:'L'                signed volume over CIP priorities
  *                                 N > C(carboxyl) > R > H. Requires `pep`, so
  *                                 amino acids only        [the amino acids]
@@ -67,6 +78,7 @@
 // foot of each module is what puts MolLib on module.exports under CommonJS.)
 const { PALETTE, MOLECULES } = require('./lib-node.js');
 
+let formulaFails = 0;
 const TIGHT = 0.03;   // a positive but very small gap: renders, but barely
 
 const EQ_MAX_TILT = 45;   // substituent within this angle of the ring PLANE = equatorial
@@ -275,6 +287,57 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     if (mol.names.length === mol.atoms.length && !dupes.length && !wrong.length)
       console.log(`   names OK: ${mol.atoms.length} unique labels, elements agree`);
   }
+  // ---- the formula string vs the spec, and vs `charge` ----------------
+  // A FORMULA IS A CLAIM, and it is the one claim on this page a student reads
+  // as a fact rather than as a picture: it sits under the molecule's name on
+  // every frame. Nothing checked it, and every phosphorylated glycolysis spec
+  // carried the NEUTRAL ACID's hydrogen count with an anionic charge attached —
+  // C₆H₁₃O₉P²⁻ for glucose-6-phosphate, whose 2− anion is C₆H₁₁O₉P²⁻.
+  //
+  // Two invariants, and between them they pin the string to something real:
+  //   · every HEAVY element count must match the spec's own atoms. Hydrogen is
+  //     excluded and has to be: these pages draw no C–H (see glycolysis-lab's
+  //     visibleAtoms), so a spec's H count is a DRAWING decision and the
+  //     formula's is a chemical one. They are not the same number and must not
+  //     be compared.
+  //   · the trailing charge must equal `charge:`. That is what makes the field
+  //     the single source of truth — a charge badge on screen reads `charge`,
+  //     the label reads `formula`, and this is what stops the two diverging.
+  if (mol.formula) {
+    const SUB = '₀₁₂₃₄₅₆₇₈₉', SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+    const digits = (str, set) => str ? [...str].map(c => set.indexOf(c)).join('') : '';
+    // split the trailing charge off first, so P₂⁴⁻ cannot read as part of P's count
+    const mCharge = mol.formula.match(/([⁰¹²³⁴⁵⁶⁷⁸⁹]*)([⁺⁻])$/);
+    const body = mCharge ? mol.formula.slice(0, -mCharge[0].length) : mol.formula;
+    const stated = mCharge
+      ? (mCharge[2] === '⁻' ? -1 : 1) * (+digits(mCharge[1], SUP) || 1)
+      : 0;
+    const want = {};
+    for (const m of body.matchAll(/([A-Z][a-z]?)([₀-₉]*)/g))
+      want[m[1]] = (want[m[1]] || 0) + (+digits(m[2], SUB) || 1);
+    const have = {};
+    for (const a of mol.atoms) have[a.el] = (have[a.el] || 0) + 1;
+    const bad = [...new Set([...Object.keys(want), ...Object.keys(have)])]
+      .filter(el => el !== 'H' && (want[el] || 0) !== (have[el] || 0))
+      .map(el => `${el}: formula ${want[el] || 0} vs atoms ${have[el] || 0}`);
+    if (bad.length) {
+      formulaFails++;
+      console.log(`   FORMULA FAIL: ${mol.formula} — ${bad.join(', ')}`);
+    }
+    if (mol.charge === undefined) {
+      if (stated) {
+        formulaFails++;
+        console.log(`   FORMULA FAIL: ${mol.formula} states a charge but the spec `
+          + `declares no \`charge:\` — the badge and the label would disagree silently`);
+      }
+    } else if (mol.charge !== stated) {
+      formulaFails++;
+      console.log(`   FORMULA FAIL: ${mol.formula} reads ${stated}, `
+        + `but \`charge:\` is ${mol.charge}`);
+    } else if (!bad.length) {
+      console.log(`   formula OK: ${mol.formula} matches the spec's atoms, charge ${stated}`);
+    }
+  }
   // ---- the generated SMILES ------------------------------------------
   // `smiles` is produced by tools/spec2smiles.js and committed, so it can drift
   // from the `atoms`/`bonds` it was generated from. RDKit would settle it
@@ -300,7 +363,10 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
     const adj = mol.atoms.map(() => []);
     (mol.bonds || []).forEach(([i, j]) => { adj[i].push(j); adj[j].push(i); });
-    const folded = new Set(((mol.contrast && mol.contrast.diff) || []).map(r => {
+    // `contrast.diff` on a comparison spec, `flatMark` on anything else that a
+    // page draws flat and highlights — same fold, same staleness check.
+    const refs = (mol.contrast && mol.contrast.diff) || mol.flatMark || [];
+    const folded = new Set(refs.map(r => {
       const i = typeof r === 'number' ? r : (mol.names || []).indexOf(r);
       return mol.atoms[i] && mol.atoms[i].el === 'H'
         ? adj[i].find(j => mol.atoms[j].el !== 'H') : i;
@@ -308,7 +374,7 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     const marks = (mol.smiles.match(/:1]/g) || []).length;
     if (marks !== folded.size) {
       smilesFails++;
-      console.log(`   SMILES FAIL: ${marks} highlight marks, but \`diff\` folds to `
+      console.log(`   SMILES FAIL: ${marks} highlight marks, but the mark list folds to `
         + `${folded.size} heavy atom(s) — re-run tools/spec2smiles.js`);
     }
     if (n === heavy && marks === folded.size)
@@ -432,8 +498,14 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     } else if (mol.topology.fused) {
       // "fused" is a real structural claim, not decoration: two rings sharing a
       // single atom (spiro) or none at all is a different molecule entirely.
-      const shared = rings.length === 2
-        ? rings[0].filter(i => rings[1].includes(i)).length : 0;
+      // The claim is that SOME pair of these rings shares an edge — a molecule
+      // may carry a fused bicycle and an unrelated ring elsewhere (ATP: adenine
+      // fused 5+6, plus the ribose), and requiring exactly two rings would make
+      // the claim untellable there rather than false.
+      let shared = 0;
+      for (let a = 0; a < rings.length; a++)
+        for (let b = a + 1; b < rings.length; b++)
+          shared = Math.max(shared, rings[a].filter(i => rings[b].includes(i)).length);
       if (shared < 2) {
         stereoFails++;
         console.log(`   TOPOLOGY FAIL: spec declares fused rings but they share `
@@ -444,6 +516,189 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     } else {
       console.log(`   topology OK: rings [${sizes.join(', ')}] as declared`);
     }
+  }
+
+  // ---- the pathway's one surviving stereocentre ------------------------
+  // GLYCOLYSIS TOUCHES C5 AT NO STEP. Glucose's C5 is fixed by its
+  // all-equatorial claim above; every later intermediate inherits that centre —
+  // it becomes fructose's C5 and then, after aldolase, G3P's C2, and it is
+  // still there in 3-PG and 2-PG. So all of them must have the SAME handedness,
+  // and this measures it: the signed volume of (→O, →lower C, →higher C) about
+  // the centre, which flips sign if the substituents swap sides.
+  //
+  // This is a RELATIVE check, like `stereo:{faces}` — it cannot catch a global
+  // mirror (MolecularGeometry.md §1.3), and it does not need to. What it
+  // catches is a spec drifting away from the rest of the pathway, which is
+  // exactly what happened: `hydroxyl(k, k%2)` alternates FACES, which looks
+  // like a Fischer drawing but is not a configuration, and it put F6P's and
+  // F1,6-BP's C5 on the wrong side. The centre inverted at step 2 and inverted
+  // back at step 4 — both molecules rendering perfectly the whole time.
+  if (mol.gly && mol.gly.dCentre) {
+    const ref = MOLECULES.glucose;
+    const sign = (m, [c, lo, hi]) => {
+      const bonded = i => (m.bonds || []).filter(b => b[0] === i || b[1] === i)
+                                         .map(b => (b[0] === i ? b[1] : b[0]));
+      const o = bonded(c).find(i => m.atoms[i].el === 'O');
+      if (o == null) return null;
+      const v = (i, j) => [0, 1, 2].map(k => m.atoms[i].pos[k] - m.atoms[j].pos[k]);
+      const [a, b2, d] = [v(o, c), v(lo, c), v(hi, c)];
+      const cr = [a[1] * b2[2] - a[2] * b2[1], a[2] * b2[0] - a[0] * b2[2],
+                  a[0] * b2[1] - a[1] * b2[0]];
+      return Math.sign(cr[0] * d[0] + cr[1] * d[1] + cr[2] * d[2]);
+    };
+    // glucose's C5: its oxygen is the RING oxygen, and its neighbours are C4
+    // and the exocyclic C6 — the same three substituents, in the same order,
+    // that every chain spec's dCentre names.
+    const rc = ref.gly.cN;
+    const want = sign(ref, [rc[4], rc[3], rc[5]]);
+    const got = sign(mol, mol.gly.dCentre);
+    if (got == null || want == null) {
+      stereoFails++;
+      console.log(`   D-CENTRE FAIL: could not measure the centre`);
+    } else if (got !== want) {
+      stereoFails++;
+      console.log(`   D-CENTRE FAIL: this centre is INVERTED relative to glucose's C5 `
+        + `— nothing in glycolysis touches it, so it must match`);
+    } else {
+      console.log(`   d-centre OK: same handedness as glucose's C5`);
+    }
+  }
+
+  // ---- phosphate count, and the chain when there is one ----------------
+  // `gly.phosphates` was metadata that nothing read back against the atoms, so
+  // a spec could say 2 and draw 1. It says P COUNT, and now it has to be true.
+  //
+  // ATP goes further: it names pa/pb/pg, and its claim is that those three are
+  // ONE CHAIN bridged by oxygen with γ on the end. That is the claim the whole
+  // lesson rests on — a triphosphate branched at Pβ, or a γ that is not the
+  // terminal one, would still render as a plausible ATP and would make
+  // "the end phosphate comes off" a lie. `gly.gamma` is checked with it: it must
+  // be exactly Pγ plus its three TERMINAL oxygens, because those four atoms are
+  // what the page deletes to make ADP, and the bridging O has to stay behind.
+  if (mol.gly && mol.gly.phosphates != null) {
+    const P = mol.atoms.map((a, i) => [a.el, i]).filter(([e]) => e === 'P').map(([, i]) => i);
+    if (P.length !== mol.gly.phosphates) {
+      stereoFails++;
+      console.log(`   PHOSPHATE FAIL: spec declares ${mol.gly.phosphates} phosphate(s) `
+        + `but geometry has ${P.length} P atom(s)`);
+    } else if (mol.gly.pg != null) {
+      const g = mol.gly, adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                                        .map(b => (b[0] === i ? b[1] : b[0]));
+      const bridges = (i, j) => adj(i).some(o => mol.atoms[o].el === 'O' && adj(j).includes(o));
+      const term = i => adj(i).filter(o => mol.atoms[o].el === 'O' && adj(o).length === 1);
+      const fail = m => { stereoFails++; console.log(`   PHOSPHATE FAIL: ${m}`); };
+      if (!bridges(g.pa, g.pb) || !bridges(g.pb, g.pg))
+        fail(`Pα–Pβ–Pγ is not one O-bridged chain`);
+      else if (bridges(g.pa, g.pg))
+        fail(`Pα is bridged straight to Pγ — that is a ring, not a chain`);
+      else if (term(g.pg).length !== 3)
+        fail(`Pγ carries ${term(g.pg).length} terminal O, not 3 — it is not on the end`);
+      else {
+        const want = [g.pg, ...term(g.pg)].sort((a, b) => a - b);
+        const got = (g.gamma || []).slice().sort((a, b) => a - b);
+        if (got.join() !== want.join())
+          fail(`gamma is [${got.join(', ')}] but Pγ + its terminal O are [${want.join(', ')}]`);
+        else console.log(`   phosphates OK: α–β–γ chain, γ terminal, gamma = Pγ + 3 O`);
+      }
+    } else {
+      console.log(`   phosphates OK: ${P.length} as declared`);
+    }
+  }
+
+  // ---- the 2D layout (`flat2d`) ----------------------------------------
+  // molecule-viewer.html slides the real atoms onto these positions, so a wrong
+  // one is not a wrong picture — it is an atom that flies to the wrong place in
+  // front of the student. Three ways it can be wrong, none visible from the API:
+  //
+  //   · WRONG LENGTH. The array is positional, heavy atoms in spec order. Add a
+  //     hydroxyl to the spec and re-run nothing, and every atom past it lands on
+  //     its neighbour's spot.
+  //   · WRONG SCALE. The layout is in ångströms like everything else on disk,
+  //     but nothing multiplies it on the way in, so a set of numbers pasted from
+  //     a display-scale source is a silent 1.9× that reads as a styling choice
+  //     (the trap MolecularGeometry.md §1.5 exists for). Caught by comparing its
+  //     mean bond length with the molecule's own.
+  //   · OVERLAPPING. A layout that puts two atoms on the same spot is not a
+  //     layout. Same rule as the 3D geometry above: the display spheres must
+  //     clear, because a merged pair buries the stick between them.
+  if (mol.flat2d) {
+    const S = require('./lib-node.js').SCALE || 1.9;
+    const keep = mol.atoms.map((a, i) => i).filter(i => mol.atoms[i].el !== 'H');
+    const fail = m => { stereoFails++; console.log(`   FLAT2D FAIL: ${m}`); };
+    if (mol.flat2d.length !== keep.length) {
+      fail(`${mol.flat2d.length} positions for ${keep.length} heavy atoms `
+        + `— re-run tools/bake-flat2d.js`);
+    } else {
+      const at = i => mol.flat2d[i];
+      const pairs = (mol.bonds || [])
+        .map(b => [keep.indexOf(b[0]), keep.indexOf(b[1])])
+        .filter(([i, j]) => i >= 0 && j >= 0);
+      const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
+      // spec coordinates arrive from lib-node.js already scaled; divide it back
+      // out so both figures are the ångströms an instrument would report
+      const real = mean(pairs.map(([i, j]) =>
+        Math.hypot(...mol.atoms[keep[i]].pos.map((v, c) => v - mol.atoms[keep[j]].pos[c])) / S));
+      const drawn = mean(pairs.map(([i, j]) =>
+        Math.hypot(at(i)[0] - at(j)[0], at(i)[1] - at(j)[1])));
+      if (Math.abs(drawn - real) / real > 0.05) {
+        fail(`mean bond is ${drawn.toFixed(3)} Å in the layout but `
+          + `${real.toFixed(3)} Å in the molecule — wrong scale`);
+      } else {
+        let merged = null;
+        for (let i = 0; i < keep.length && !merged; i++)
+          for (let j = i + 1; j < keep.length; j++) {
+            const d = Math.hypot(at(i)[0] - at(j)[0], at(i)[1] - at(j)[1]) * S;
+            const need = (PALETTE.radii[mol.atoms[keep[i]].el] || 0.7)
+                       + (PALETTE.radii[mol.atoms[keep[j]].el] || 0.7);
+            if (d - need < TIGHT) { merged = [i, j, d, need]; break; }
+          }
+        if (merged) {
+          fail(`atoms ${merged[0]} and ${merged[1]} are ${merged[2].toFixed(2)} apart `
+            + `but their spheres need ${merged[3].toFixed(2)} — the layout overlaps`);
+        } else {
+          console.log(`   flat2d OK: ${keep.length} positions, mean bond `
+            + `${drawn.toFixed(3)} Å, no overlaps`);
+        }
+      }
+    }
+  }
+
+  // ---- the reduced nicotinamide ring (NADH) ----------------------------
+  // NADH's whole claim is that it is CARRYING something. Oxidised and reduced
+  // differ by one hydride on ring carbon C4 — same 44 heavy atoms, same two
+  // riboses, same diphosphate bridge, and at a glance the same picture. So the
+  // thing that makes it NADH rather than NAD⁺ is exactly two hydrogens on one
+  // carbon, and nothing else here would notice if the spec had one.
+  //
+  // Checked: the named ring is a real 6-cycle; the ring nitrogen is in it and
+  // carries three bonds (quaternary — it is the positive centre NAD⁺ is named
+  // for, still positive after reduction); C4 is in the ring, is sp3, and holds
+  // BOTH declared hydrogens; C4 is in no double bond (that is what "the
+  // aromaticity is broken to make room" means, and it is the difference); and
+  // the carboxamide hangs off the ring carbon next to C4.
+  if (mol.gly && mol.gly.nic) {
+    const n = mol.gly.nic, ring = n.ring || [];
+    const adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                          .map(b => (b[0] === i ? b[1] : b[0]));
+    const dbl = i => bonds.some(b => b[2] === 2 && (b[0] === i || b[1] === i));
+    const fail = m => { stereoFails++; console.log(`   NICOTINAMIDE FAIL: ${m}`); };
+    const closed = ring.length === 6 && ring.every((a, k) =>
+      adj(a).includes(ring[(k + 1) % 6]));
+    if (!closed) fail(`nic.ring [${ring.join(', ')}] is not a closed 6-ring`);
+    else if (!ring.includes(n.n) || mol.atoms[n.n].el !== 'N' || adj(n.n).length !== 3)
+      fail(`nic.n (${n.n}) is not a three-bonded ring nitrogen`);
+    else if (!ring.includes(n.c4) || mol.atoms[n.c4].el !== 'C')
+      fail(`nic.c4 (${n.c4}) is not a ring carbon`);
+    else if (dbl(n.c4))
+      fail(`C4 (${n.c4}) is in a double bond — that is NAD⁺, not NADH`);
+    else if (n.h.length !== 2 || !n.h.every(h => mol.atoms[h].el === 'H'
+                                              && adj(n.c4).includes(h)))
+      fail(`C4 (${n.c4}) does not carry both declared hydrogens [${n.h.join(', ')}]`);
+    else if (!adj(n.amide.c).includes(n.amide.o) || !adj(n.amide.c).includes(n.amide.n)
+             || !adj(n.amide.c).some(i => ring.includes(i)))
+      fail(`the carboxamide at C${n.amide.c} is not a C(=O)N on the ring`);
+    else console.log(`   nicotinamide OK: 6-ring, N⁺ 3-bonded, C4 sp3 with 2 H `
+      + `(reduced), carboxamide on the ring`);
   }
 
   // ---- glycosidic linkage (α vs β) -------------------------------------
@@ -628,8 +883,9 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails) {
+if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails || formulaFails) {
   const parts = [];
+  if (formulaFails) parts.push(`${formulaFails} formula/charge mismatch(es)`);
   if (srcFails) parts.push(`${srcFails} spec(s) with missing or malformed \`src:\` provenance`);
   if (nameFails) parts.push(`${nameFails} broken atom-name reference(s)`);
   if (smilesFails) parts.push(`${smilesFails} stale generated SMILES`);
@@ -641,5 +897,6 @@ if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFai
   process.exit(1);
 }
 console.log(`PASS: every spec records its provenance; no sphere overlaps; every `
-  + `atom reference resolves; every declared stereo/topology/chirality claim holds`
+  + `atom reference resolves; every formula matches its atoms and its \`charge\`; `
+  + `every declared stereo/topology/chirality claim holds`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));

@@ -129,5 +129,5 @@
       units:'angstrom',
       src:{path:'hand', note:'r(C-C)=1.512, r(C-O)=1.431, r(O-H)=0.971, CCO=107.8, COH=105.4'},
     },
-  });
+  }, SELFNAME);
 })(this);

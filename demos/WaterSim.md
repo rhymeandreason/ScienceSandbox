@@ -1,65 +1,56 @@
 # Water Sim
 
+Applies to the solvation apps only (`water-lab.html`, `molecule-lab.html`).
+
 ## 1. Hydrogen bonds
 
-- An H-bond is an **intermolecular** attraction between a **δ+ H of one molecule**
-  and a **δ− O (lone pair) of another** — never within the same molecule, never
-  H-to-H or O-to-O.
-- **Strength:** ~1/20 of a covalent bond. State this ratio; don't draw H-bonds
-  with the same weight/style as covalent bonds. Convention here: covalent = solid
-  stick, H-bond = **dashed** teal connector.
-- **Directionality:** strongest when **O–H···O is close to linear**. Detection and
-  forces are weighted by the alignment (dot product of the O–H direction and the
-  H···O direction); bent geometries are weaker or rejected.
-- **One donor H → at most one H-bond.** Each H forms a single H-bond (to the best
-  aligned, nearest acceptor within range), so counts stay physical. A real water
-  molecule participates in up to 4 H-bonds total (2 as donor, 2 as acceptor).
-- **It is an attractive force.** When a bond forms it must actually *pull* the two
-  molecules together toward an **equilibrium O···O distance**, balanced by
-  short-range steric (Pauli) repulsion as a hard core. Molecules should latch into
-  a cohesive network, not drift through each other. (Distances in `water-lab.html` are
-  scene units, not Ångström — the *behavior* is what must be right: attract when
-  far, repel when too close, settle at equilibrium.)
+- An H-bond is **intermolecular**: a **δ+ H of one molecule** to a **δ− O lone
+  pair of another**. Never within a molecule, never H–H or O–O.
+- **~1/20 the strength of a covalent bond.** State the ratio; don't draw the two
+  alike. Convention here: covalent = solid stick, H-bond = **dashed** teal.
+- **Directional** — strongest when O–H···O is near linear. Detection and forces
+  weight by alignment (dot of the O–H and H···O directions); bent geometries are
+  weaker or rejected.
+- **One donor H → at most one H-bond** (best-aligned nearest acceptor in range),
+  so counts stay physical. A real water takes up to 4 total: 2 donated, 2
+  accepted.
+- **It's an attractive force.** A formed bond must actually *pull* toward an
+  equilibrium O···O distance, floored by short-range steric repulsion — molecules
+  latch into a network rather than drifting through each other. Distances in
+  `water-lab.html` are scene units, not ångströms; the *behavior* is what has to
+  be right: attract when far, repel when close, settle at equilibrium.
 
-## 2. Ice (solid water)
+## 2. Ice
 
-- Freezing produces the **real hexagonal ice (Iₕ) lattice**, built from actual
-  crystallography — not a decorative grid:
-  - Each oxygen is **tetrahedrally bonded to four others**.
-  - Structure is **puckered hexagonal bilayers, ABAB-stacked** (hexagonal, not
-    cubic ABCABC).
-  - **One hydrogen bridges every O···O** linkage (ice rules: each O donates 2 H,
-    accepts 2).
-  - Real **O···O ≈ 2.76 Å**; the lattice is **more open than liquid**.
-- **Ice is less dense than liquid water → it floats.** The frozen state must
-  visibly occupy more volume / be more open than the liquid state. This is the
-  whole point of the lesson; never let ice look denser than liquid.
-- No atom overlap during the freeze/melt animation — molecules must not pass
-  through each other (enforced by collision resolution, see §4).
+- Freezing produces the **real hexagonal ice (Iₕ) lattice**, from crystallography,
+  not a decorative grid: each O **tetrahedrally bonded to four others**; puckered
+  hexagonal bilayers, **ABAB**-stacked (not cubic ABCABC); **one H bridges every
+  O···O** (ice rules — each O donates 2, accepts 2); real O···O ≈ 2.76 Å.
+- **Ice is less dense than liquid → it floats.** The frozen state must visibly
+  occupy more volume than the liquid. That's the whole lesson — never let ice
+  look denser.
+- No atom overlap during freeze/melt (§4).
 
 ## 3. Emergent properties must trace back to H-bonding
 
-Every "special property of water" lesson should visibly connect to hydrogen bonding:
-
 - **Cohesion / surface tension** — H-bonds pull molecules together.
-- **Adhesion / capillary action** — narrower tube → higher rise (correct
-  direction of the effect).
-- **High specific heat / heat of vaporization** — added heat first goes into
-  **breaking H-bonds** before molecules speed up / escape. Evaporation happens at
-  high energy, not low.
-- **Solvent** — polar water surrounds ions in **hydration shells**: δ− O faces
-  cations (e.g. Na⁺), δ+ H faces anions (e.g. Cl⁻). Orientation must be correct.
+- **Adhesion / capillary action** — narrower tube → higher rise.
+- **High specific heat / heat of vaporization** — added heat first **breaks
+  H-bonds** before molecules speed up or escape. Evaporation happens at high
+  energy, not low.
+- **Solvent** — water surrounds ions in **hydration shells**, δ− O facing cations
+  (Na⁺), δ+ H facing anions (Cl⁻). Orientation must be correct.
 
-## 4. Physics / simulation integrity
+## 4. Simulation integrity
 
-- **No interpenetration.** Spheres representing atoms/molecules must not visibly
-  overlap during animation. Use position-based collision resolution or a repulsion
-  force with a floor below any attractive equilibrium.
-- **Stable integration.** Damp velocities; keep force constants low enough that the
-  sim doesn't explode. Sanity-check by measuring max velocity after settling.
-- **Equilibrium first.** When both attraction and repulsion act on the same pair,
-  set the steric floor *below* the attractive equilibrium so bonded pairs rest at
-  the intended distance instead of the two forces fighting.
-- **Counts must be believable.** If a readout reports a quantity (e.g. number of
-  H-bonds), verify it against the geometry — an 8-molecule cluster showing 100+
-  H-bonds is a bug (it was: molecules had collapsed with no repulsion).
+- **No interpenetration.** Atom spheres must not visibly overlap. Use
+  position-based collision resolution, or a repulsion force with a floor below
+  any attractive equilibrium.
+- **Stable integration.** Damp velocities, keep force constants low enough not to
+  explode, and sanity-check max velocity after settling.
+- **Equilibrium first.** With attraction and repulsion on the same pair, put the
+  steric floor *below* the attractive equilibrium so bonded pairs rest at the
+  intended distance instead of the forces fighting.
+- **Counts must be believable.** Verify any readout against the geometry — an
+  8-molecule cluster showing 100+ H-bonds is a bug. It was: the molecules had
+  collapsed with no repulsion.

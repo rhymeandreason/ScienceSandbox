@@ -215,8 +215,14 @@
    * Scaling is idempotent: a spec is stamped once and never re-scaled, so a
    * double registration cannot silently double a molecule's size.
    */
-  function register(specs){
+  // `from` is the registering file's own SELFNAME. Stamped onto every spec as
+  // `domain`, because "which mol-*.js do I load to get this molecule?" is a
+  // question every page and every checker has to answer and nothing recorded
+  // the answer — it lived only in CLAUDE.md's script table, i.e. in prose. A
+  // page reading `spec.domain` reads the file that actually registered it.
+  function register(specs, from){
     for(const [key, spec] of Object.entries(specs)){
+      if(from) spec.domain = from;
       if(!spec.units) throw new Error(
         `molecules.js: ${key} has no \`units\` — 'angstrom' (real, scaled here) `
         + `or 'scene' (already display-scale). See the units note in molecules.js.`);
@@ -253,6 +259,7 @@
     'mol-monomers.js',     // family B, PubChem + literals — needs no builder
     'mol-glycolysis.js',   // needs skel.js
     'mol-contrast.js',     // needs skel.js AND mol-monomers.js
+    'mol-compare.js',      // needs skel.js — the derivation comparison, viewer only
   ];
 
   // Files that REPLACE one of the above rather than adding to it. They define

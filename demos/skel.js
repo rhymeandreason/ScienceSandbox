@@ -50,6 +50,7 @@
     CdC:1.33,   // C=C — a fatty acid's one unsaturation
     OH: 0.97,   // O–H
     CH: 1.09,   // C–H
+    CN: 1.47,   // C–N single — an amine, and a nucleoside's glycosidic bond
     OP: 1.60,   // P–O ester (the bridging oxygen)
     PO: 1.50,   // P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
   };
@@ -143,6 +144,54 @@
     const j=this.put(el, vadd(this.at(i), vmul(dirs[slot||0], dist)));
     this.link(i,j,order); return j;
   };
+
+  // ---- joining two sub-skeletons ----------------------------------------
+  // A molecule with more than one ring system is built as separate Skels and
+  // then fitted together: a disaccharide is two pyranoses, a nucleotide is a
+  // base plus a furanose. These three do the fitting, and they lived in
+  // mol-contrast.js until ATP needed them too — which is this file's own test
+  // for what belongs here (a fact about ONE molecule goes in that molecule's
+  // spec; a capability every joined molecule needs goes in the builder).
+  //
+  // The pieces are deliberately small and separate. `alignTo` solves only the
+  // two-vector problem, which is underdetermined — carrying u onto w leaves a
+  // free spin about w — so `spinAbout` stays a knob the caller sets, rather
+  // than a hidden choice. That torsion is a CONFORMATION, and per
+  // MolecularGeometry.md §1.6 a floppy one is the caller's to declare
+  // schematic, not the builder's to invent.
+  const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  // Rotate v about unit axis k by angle t (Rodrigues).
+  const spinAbout=(v,k,t)=>{ const c=Math.cos(t), s=Math.sin(t);
+    return vadd(vadd(vmul(v,c), vmul(vcross(k,v),s)), vmul(k, vdot(k,v)*(1-c))); };
+  // Minimal rotation carrying unit u onto unit w.
+  function alignTo(u,w){
+    const d=Math.max(-1,Math.min(1,vdot(u,w)));
+    const ax=vcross(u,w);
+    if(vlen(ax)<1e-6) return d>0 ? (v=>v) : (v=>spinAbout(v,perpTo(u),Math.PI));
+    const k=vnorm(ax), t=Math.acos(d);
+    return v=>spinAbout(v,k,t);
+  }
+  // Copy `src`'s atoms and bonds into `dst`, offsetting every bond index.
+  // Returns the offset, so the caller can map a src index onto its new home
+  // rather than counting atoms by hand.
+  function absorb(dst,src){
+    const off=dst.atoms.length;
+    src.atoms.forEach(a=>dst.atoms.push({ el:a.el, pos:a.pos.slice() }));
+    src.bonds.forEach(b=>dst.bonds.push(b.length>2?[b[0]+off,b[1]+off,b[2]]:[b[0]+off,b[1]+off]));
+    return off;
+  }
+  // Move every atom of `src` so that its atom `anchor` lands on `target`, with
+  // its `from` direction carried onto `onto`, then spun by `spin` about `onto`.
+  // This is the whole join in one call: the caller says which atom bonds where
+  // and which way it points, and never touches a coordinate.
+  function fitOnto(src, anchor, from, onto, target, spin){
+    const rot=alignTo(from, onto), local=src.at(anchor);
+    src.atoms.forEach(at=>{
+      const p=spinAbout(rot(vsub(V(at.pos[0],at.pos[1],at.pos[2]), local)), onto, spin||0);
+      at.pos=[p.x+target.x, p.y+target.y, p.z+target.z];
+    });
+    return src;
+  }
 
   // ---- ring stereochemistry ---------------------------------------------
   // freeTet() on a ring carbon returns its AXIAL and EQUATORIAL slots, but in an
@@ -286,6 +335,18 @@
   // pyranose chair, nothing about ribose's identity rides on it (the –OH faces
   // carry that), and a strong pucker would tempt `equatorial()` into reporting
   // an ax/eq split that means nothing on a five-ring. Use `face()` on this ring.
+  // WHICH SIGN MEANS "UP" on a furanose. `face()` is defined against
+  // ringNormal(), whose sign falls out of this ring's fixed traversal order —
+  // arbitrary, but deterministic, so it is a fact to be ESTABLISHED, not
+  // assumed. It was assumed once and assumed wrong: +1 builds L-ribose, and the
+  // whole contrast pair shipped mirrored (docs/molecule-pipeline.md item 5).
+  //
+  // Reversing the traversal does not help — that reverses the normal too and
+  // every substituent follows it. For a furanose the ONLY thing that mirrors the
+  // molecule is swapping these two tags, which is why it lives here as one
+  // constant rather than as a literal in each spec that builds a furanose.
+  // Asserted by the committed `smiles` on `ribose`, `deoxyribose` and `atpSkel`.
+  const FURANOSE_UP = -1, FURANOSE_DOWN = +1;
   function ringFuranose(){
     const s=new Skel(), R=GL.CC/(2*Math.sin(Math.PI/5));   // side → circumradius
     const pucker=0.12*R;
@@ -360,6 +421,122 @@
     return h;
   }
 
+  // ---- nucleotide fragments ---------------------------------------------
+  // Three pieces every nucleotide in the catalog is made of — adenine, the
+  // β-D-ribofuranosyl it hangs on, and one link of a phosphate chain. They were
+  // written inline for `atpSkel`, copied for `nadhSkel`, and thirteen more rows
+  // of the molecule catalog (ADP, AMP, NAD⁺, NADP⁺, FAD, cAMP, dAMP, CoA…) are
+  // the same three pieces again. That is this file's own test for what belongs
+  // here: a fact about ONE molecule goes in that molecule's spec, a capability
+  // every joined molecule needs goes in the builder.
+  //
+  // ATOM ORDER IS PART OF THE CONTRACT. `flat2d` is positional, `optH` and the
+  // `gly`/`pep` index maps address atoms by number, and a spec's committed
+  // `smiles` was generated from a particular ordering. So these emit atoms in
+  // exactly the order the inline versions did, and the specs that moved onto
+  // them are byte-identical — which is the only acceptable outcome of a
+  // refactor like this.
+
+  // Adenine: a flat six-ring with an imidazole fused across C4–C5, plus the
+  // 6-amino that makes it adenine rather than purine. Same construction as
+  // `purine` in mol-contrast.js, and flat for the same reason — a base is
+  // planar, and a tetrahedral builder would pucker it.
+  // Indices: 0…5 = N1 C2 N3 C4 C5 C6, then N7 C8 N9. Returns the N9 that bonds
+  // to a sugar's anomeric carbon.
+  function adenine(){
+    const a = flatRing(6, ['N','C','N','C','C','C']);
+    const five = fuseRing(a, 5, 3, 4, V(0,0,0), ['N','C','N']);   // N7 C8 N9
+    const n7 = five[0], c8 = five[1], n9 = five[2];
+    // One Kekulé structure. The real ring is delocalised, but alternating
+    // orders keep every atom's valence right, which a uniform stick would not
+    // (see the note on AR above).  N1=C2 · N3=C4 · C5=C6 · N7=C8
+    a.order(0,1,2).order(2,3,2).order(4,5,2).order(n7,c8,2);
+    // the 6-amino, grown in the ring plane at the aromatic C–N length: it is
+    // conjugated into the ring and not free to rotate out of it. Placed like
+    // flatH — bisecting C6's two neighbours from outside — so it cannot tip the
+    // base out of planarity.
+    const n6 = (()=>{
+      const dir = vnorm(vmul(a.nbrs(5).reduce(vadd, V(0,0,0)), -1));
+      const j = a.put('N', vadd(a.at(5), vmul(dir, AR.CN)));
+      a.link(5, j); return j;
+    })();
+    flatH(a, 1, AR.CH);            // H2
+    flatH(a, c8, AR.CH);           // H8
+    // the amine's two H, in the plane, splayed off the C6–N bond
+    {
+      const back = vnorm(vsub(a.at(5), a.at(n6)));
+      const side = vnorm(V(-back.z, 0, back.x));      // in-plane perpendicular
+      const c = Math.cos(Math.PI/3), sn = Math.sin(Math.PI/3);
+      [1,-1].forEach(k=>{
+        const d = vnorm(vadd(vmul(back,-c), vmul(side, k*sn)));
+        const h = a.put('H', vadd(a.at(n6), vmul(d, AR.NH)));
+        a.link(n6, h);
+      });
+    }
+    return { s:a, n9, n6 };
+  }
+
+  // β-D-ribofuranosyl: the ring, its 2′/3′ hydroxyls and the 5′ carbon a
+  // phosphate hangs off — everything a nucleotide's sugar carries except the
+  // base itself.
+  //
+  // STEREOCHEMISTRY IS THE WHOLE RISK AND IT IS ALL HERE. The identity of
+  // β-D-ribofuranose is which FACE of the near-flat ring each substituent sits
+  // on; a five-ring is too flat for axial/equatorial to mean anything (`face`
+  // above). Base UP at C1′, –OH DOWN at C2′ and C3′, C5′ UP at C4′ — and
+  // FURANOSE_UP is NOT +1 by inspection, see its note. Getting it backwards
+  // builds L-ribose, which has every bond length, every angle and every pixel
+  // of the real thing; only tools/check-handedness.js can tell you.
+  //
+  // `baseDir`/`basePos` RESERVE C1′'s β slot rather than growing an atom there:
+  // what goes there is the far side of a ring system built elsewhere. Nothing
+  // occupies the slot until the caller links it, and freeTet() reports what is
+  // free rather than what is spoken for — so grow C1′'s hydrogen only AFTER
+  // that bond exists, or the two land on top of each other.
+  function ribosyl(){
+    const s = ringFuranose();
+    const ring = [0,1,2,3,4];              // O4′, C1′, C2′, C3′, C4′
+    const c1 = 1, c2 = 2, c3 = 3, c4 = 4;
+    const baseDir = s.freeTet(c1)[s.face(c1, ring, FURANOSE_UP)];
+    const basePos = vadd(s.at(c1), vmul(baseDir, GL.CN));
+    const o2 = s.hydroxyl(c2, s.face(c2, ring, FURANOSE_DOWN));
+    const o3 = s.hydroxyl(c3, s.face(c3, ring, FURANOSE_DOWN));
+    const c5 = s.grow(c4, 'C', GL.CC, 'sp3', s.face(c4, ring, FURANOSE_UP));
+    return { s, ring, c1, c2, c3, c4, c5, o2, o3, baseDir, basePos };
+  }
+
+  // One phosphorus of a chain, grown onto the bridging oxygen `o`.
+  //
+  // EVERY SLOT HERE IS 0, and that is not laziness: freeTet() returns the slots
+  // still FREE, so the numbering shifts down after each grow, and asking for
+  // slot 2 on a phosphorus that already has three bonds reads past the end of a
+  // one-element list.
+  //
+  // AND THE BRIDGE IS GROWN BEFORE THE TERMINAL OXYGENS. Slot 0 is seeded to
+  // point away from everything placed so far (`outwardAt`), so the bridge takes
+  // the outward direction and the chain EXTENDS. Grow the terminal oxygens
+  // first and the next phosphate folds back over the sugar it just came off —
+  // which is what the first version of this library actually did.
+  //
+  //   terminal:true  no bridge, three terminal oxygens (ATP's γ)
+  //   acid:true      each single-bonded O gets its H (the neutral molecule);
+  //                  otherwise it is left as O⁻ (the physiological anion)
+  Skel.prototype.phosphoUnit = function(o, opts){
+    opts = opts || {};
+    const p = this.grow(o, 'P', GL.OP, 'sp3', 0);
+    const bridge = opts.terminal ? null : this.grow(p, 'O', GL.OP, 'sp3', 0);
+    const oxy = [ this.grow(p, 'O', GL.PO, 'sp3', 0, 2) ];        // P=O
+    for(let k = 0; k < (opts.terminal ? 2 : 1); k++){
+      const x = this.grow(p, 'O', GL.PO, 'sp3', 0);
+      oxy.push(x);
+      if(opts.acid) this.grow(x, 'H', GL.OH, 'sp3', 0);
+    }
+    return { p, bridge, oxy };
+  };
+
   global.SkelLib = { GL, AR, TET, SP2, V, vadd, vsub, vmul, vlen, vnorm, vcross, rad,
-    perpTo, Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing, flatH };
+    perpTo, vdot, spinAbout, alignTo, absorb, fitOnto,
+    FURANOSE_UP, FURANOSE_DOWN,
+    Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing, flatH,
+    adenine, ribosyl };
 })(this);

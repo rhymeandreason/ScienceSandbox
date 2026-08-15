@@ -16,7 +16,8 @@
     || (typeof require === 'function' ? require('./skel.js').SkelLib : null);
   if (!SkelLib) throw new Error(SELFNAME + ': skel.js must be loaded first');
   const { GL, AR, TET, SP2, V, vadd, vsub, vmul, vlen, vnorm, vcross, rad,
-          perpTo, Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing,
+          perpTo, spinAbout, alignTo, absorb, FURANOSE_UP, FURANOSE_DOWN,
+          Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing,
           flatH } = SkelLib;
 
   /* ---------------------------------------------------------------------
@@ -90,8 +91,10 @@
     // asymmetry — equatorial() is normal-sign-INdependent, face() is
     // sign-dependent — is why the two sugar families needed different fixes.
     //
-    // Asserted by the committed `smiles` on both specs.
-    const UP=-1, DOWN=+1;
+    // Asserted by the committed `smiles` on both specs. The constant now lives
+    // in skel.js beside ringFuranose(), where the traversal that fixes its sign
+    // is — `atpSkel` builds a furanose too, and got it wrong the same way.
+    const UP=FURANOSE_UP, DOWN=FURANOSE_DOWN;
     function riboFuranose(deoxy){
       const s=ringFuranose();
       const RING=[0,1,2,3,4];             // O4′, C1′, C2′, C3′, C4′
@@ -579,28 +582,10 @@
     //   every non-bonded pair by 0.64 in the tighter of the two — tighter than
     //   the roomiest poses, still an order of magnitude above the checker's floor.
     const LINK = { slot:0, spin:166*Math.PI/180 };
-    const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
-    // Rotate v about unit axis k by angle t (Rodrigues).
-    const spinAbout=(v,k,t)=>{ const c=Math.cos(t), s=Math.sin(t);
-      return vadd(vadd(vmul(v,c), vmul(vcross(k,v),s)), vmul(k, vdot(k,v)*(1-c))); };
-    // Minimal rotation carrying unit u onto unit w — the two-vector problem has a
-    // free spin about w, which is why `spin` above exists as a separate knob.
-    function alignTo(u,w){
-      const d=Math.max(-1,Math.min(1,vdot(u,w)));
-      const ax=vcross(u,w);
-      if(vlen(ax)<1e-6) return d>0 ? (v=>v) : (v=>spinAbout(v,perpTo(u),Math.PI));
-      const k=vnorm(ax), t=Math.acos(d);
-      return v=>spinAbout(v,k,t);
-    }
-    // Copy `src`'s atoms and bonds into `dst`, offsetting every bond index.
-    // Returns the offset, so the caller can map a src index onto its new home
-    // rather than counting atoms by hand.
-    function absorb(dst,src){
-      const off=dst.atoms.length;
-      src.atoms.forEach(a=>dst.atoms.push({ el:a.el, pos:a.pos.slice() }));
-      src.bonds.forEach(b=>dst.bonds.push(b.length>2?[b[0]+off,b[1]+off,b[2]]:[b[0]+off,b[1]+off]));
-      return off;
-    }
+    // spinAbout / alignTo / absorb now come from skel.js — every molecule built
+    // from two joined sub-skeletons needs them, and ATP was the second caller.
+    // `spin` above stays a knob here because the torsion it sets is this pair's
+    // declared schematic, not something the builder should choose.
 
     // The residue that donates C1 — the non-reducing end. `alpha` picks the
     // anomeric slot: axial gives α-D-glucose (starch), equatorial gives β
@@ -704,5 +689,5 @@
            + 'ribbons stack into fibres no human enzyme can open. Wood is glucose '
            + 'we cannot reach.' } });
   }
-  register(CONTRAST);
+  register(CONTRAST, SELFNAME);
 })(this);

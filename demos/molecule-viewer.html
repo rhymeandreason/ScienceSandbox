@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Sandbox — Molecule Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  /* Layout, card strip, notes rail and dock are molecule-builder.html's, lifted
+     wholesale (CLAUDE.md "Adding a new page" step 0). What changed is only what
+     this page does differently: there is no lock/unlock, so the face-down card
+     styles are gone, and the notes rail is always up because it is reference
+     material about the molecule on screen rather than something to be earned. */
+
+  /* ---------- molecule cards, top-centre: a dealt hand, one per molecule ---- */
+  #shelf{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:0;align-items:stretch;padding:10px 6px 12px}
+  .goal{text-align:center;background:#f7f2e7;border:none;
+    border-radius:3px 4px 3px 4px;padding:10px 12px 12px;min-width:132px;max-width:176px;
+    font-family:inherit;cursor:pointer;
+    box-shadow:0 1px 1px rgba(43,39,35,.16), 0 3px 5px -2px rgba(43,39,35,.20),
+      0 12px 20px -14px rgba(43,39,35,.55);
+    transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+  /* -14px ≈ corner radius + shadow, so each card still shows its edge */
+  .goal + .goal{margin-left:-14px}
+  .goal{--tilt:0deg;--dy:0px;transform:translateY(var(--dy)) rotate(var(--tilt))}
+  .goal:nth-child(5n+1){--tilt:-0.7deg;--dy:2px}
+  .goal:nth-child(5n+2){--tilt:0.5deg; --dy:4px}
+  .goal:nth-child(5n+3){--tilt:-0.3deg;--dy:0px}
+  .goal:nth-child(5n+4){--tilt:0.8deg; --dy:3px}
+  .goal:nth-child(5n+5){--tilt:-0.5deg;--dy:1px}
+  .goal:hover{background:#fbf7ee;z-index:2}
+  .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
+  @keyframes cardLift{
+    0%  {transform:translateY(var(--dy))              rotate(var(--tilt))}
+    55% {transform:translateY(calc(var(--dy) - 7px))  rotate(var(--tilt))}
+    100%{transform:translateY(calc(var(--dy) - 4px))  rotate(var(--tilt))}}
+  .goal.on{background:#fffdf7;z-index:3;
+    transform:translateY(calc(var(--dy) - 5px)) rotate(0deg);
+    box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30),
+      0 22px 30px -18px rgba(43,39,35,.55)}
+  .goal .gname{font-family:var(--font-slab);font-size:18px;line-height:1.1;color:#a19686}
+  .goal .gform{font-family:var(--font-sans);font-weight:700;font-size:16px;
+    color:#b9ae9d;margin-top:8px}
+  .goal:hover .gname{color:#6f6557}
+  .goal.on .gname{color:var(--ink)}
+  .goal.on .gform{color:var(--muted)}
+
+  /* ---------- notes rail, left: what this molecule IS ----------
+     Every figure in here is read off the spec at render time, never typed
+     (CLAUDE.md, Copywriting). A hand-typed atom count is a claim nothing
+     checks, and a regenerated spec would falsify it silently. */
+  #notes{position:absolute;left:26px;top:190px;z-index:11;width:224px}
+  #notes .ntitle{font-family:var(--font-marker);font-size:24px;color:var(--ink);
+    line-height:1.1;margin-bottom:8px}
+  #notes .ntags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
+  #notes .ntag{font-weight:700;font-size:10px;letter-spacing:.7px;text-transform:uppercase;
+    padding:3px 7px;border-radius:5px;border:1.5px solid var(--ink);background:#fff;color:var(--ink)}
+  #notes .ntag.carrier{background:#cfe4f2}
+  #notes .ntag.count{background:#eceae4;color:var(--muted);border-color:var(--hair)}
+  #notes .nbody{font-family:var(--font-sans);font-size:15px;line-height:1.36;color:var(--ink)}
+  #notes .nbody b{font-weight:600}
+  #notes .nfacts{margin-top:13px;padding-top:12px;border-top:1.5px dashed var(--hair);
+    font-family:var(--font-sans);font-size:14px;line-height:1.5;color:var(--muted)}
+  #notes .nfacts b{font-weight:600;color:var(--ink)}
+
+  /* ---------- the focus card, right rail ----------
+     The one part of the molecule that does the chemistry. Paper, not UI: it is
+     an aside about what you are looking at, the same object molecule-builder's
+     sticky is. */
+  /* The sticky and the turn panel stack in one right rail, so the panel sits
+     under the sticky whatever length the sticky's copy runs to — a second
+     absolute `top:` would be right for one molecule's blurb only. */
+  #rail{position:absolute;right:26px;top:190px;z-index:11;width:224px}
+  #focus{width:100%;
+    background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
+    box-sizing:border-box;padding:18px 20px 20px;transform:rotate(1.6deg);
+    box-shadow:0 1px 1px rgba(0,0,0,.15),2px 3px 6px rgba(0,0,0,.18),
+      6px 10px 16px -6px rgba(0,0,0,.35)}
+  #focus .ftitle{font-family:var(--font-marker);font-size:21px;line-height:1.16;
+    color:var(--ink);margin:0 0 8px}
+  #focus .fbody{font-family:var(--font-sans);font-size:15px;line-height:1.34;color:var(--ink)}
+  #focus .fbody b{font-weight:600;font-style:italic}
+
+  /* ---------- the view line, under the sticky ----------
+     What you are looking at, as the number that would MAKE this the default.
+     Drag the model to an angle you like, then paste this into the spec's
+     `view:` (or into molecules.js's VIEW table, which is where an angle two
+     specs share belongs).
+
+     Monospace and click-to-copy, the same affordance and the same job as the
+     recipe line in the other corner: both answer "how do I ask for exactly
+     this?" in the codebase's own vocabulary rather than the dock's.
+
+     Why it is not simply the drag's own quaternion: `spec.view` is baked into
+     the MESHES by Stage.buildMolecule and the drag turns the GROUP, so what is
+     on screen is the two composed. molview.js's viewEuler() folds them back
+     into one [x,y,z] in `view:`'s own ZYX order. */
+  #vout{margin-top:15px;padding-top:13px;border-top:1.5px dashed var(--hair);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+    line-height:1.6;color:var(--muted);
+    transition:opacity .15s ease}
+  #vout b{font-weight:600;color:var(--ink)}
+  #vout .vhint{font-family:var(--font-sans);font-style:italic}
+  /* Is what you are looking at the angle the spec committed to? The whole point
+     of setting one, and until now only answerable by eye — so it is stated.
+     Green for yes, plain for "you have moved off it", and the departed-from
+     value printed beside it so Reset is not the only way to see it again. */
+  #vout .vis{font-family:var(--font-sans);font-weight:600;font-style:normal;
+    color:#3f7d52}
+  #vout .vis i{font-size:11px;vertical-align:-1px;margin-right:3px}
+  #vout .vno{font-family:var(--font-sans);font-style:italic;color:#9a7b3f}
+  /* The copy affordance is an ICON, not a hover title. The line is a thing you
+     TAKE, and a tooltip only says so to whoever already guessed and hovered —
+     this whole panel exists to be pasted somewhere, so the button that does it
+     is on screen from the start. Sized and coloured to sit beside the label
+     rather than compete with the number, which is the actual content. */
+  /* Both buttons on one footer row, under the number rather than beside the
+     label: the panel is 224px and "this angle as a spec field" already fills
+     that line. The number is the content and stays the widest thing here. */
+  #vout .vfoot{display:flex;gap:6px;margin-top:8px}
+  #vout .vbtn{display:inline-flex;align-items:center;justify-content:center;
+    gap:4px;flex:1;
+    font-family:var(--font-sans);font-weight:600;font-size:10px;
+    letter-spacing:.4px;text-transform:uppercase;
+    padding:4px 7px;border:1.5px solid var(--hair);border-radius:6px;
+    background:#fff;color:var(--muted);cursor:pointer;
+    transition:border-color .15s ease,color .15s ease,background .15s ease}
+  #vout .vbtn i{font-size:12px}
+  #vout .vbtn:hover{border-color:var(--ink);color:var(--ink)}
+  /* Taken. Green rather than the ink hover, because "it worked" and "you are
+     pointing at it" must not look the same. */
+  #vout .vbtn.done{border-color:#3f7d52;color:#3f7d52;background:#eef6ef}
+  /* Flat views have no angle to report — the layout is the layout. Quiet
+     rather than stale: a number left on screen in 2D would be describing a
+     model nobody is looking at, and there is nothing to take. */
+  #vout.off{opacity:.35;pointer-events:none}
+  #vout.off .vfoot{display:none}
+
+  /* ---------- the turntable switch ----------
+     A CHECKBOX, not another button: the two beside it are verbs that happen
+     once (copy, reset) and this is a state that stays on. Outside #vout on
+     purpose — that block is rewritten from innerHTML as the angle changes, and
+     a control living inside it would be destroyed and rebuilt under the
+     pointer, losing focus mid-click. */
+  #spinbox{display:flex;align-items:center;gap:7px;margin-top:9px;
+    font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    cursor:pointer;user-select:none}
+  #spinbox input{width:14px;height:14px;margin:0;accent-color:var(--ink);
+    cursor:pointer}
+  #spinbox:hover{color:var(--ink)}
+  #spinbox.off{opacity:.35;pointer-events:none}
+
+  /* single-column: the molecule is the page, not a side panel */
+  #app{grid-template-columns:1fr}
+  #side{display:none}
+  #stage{grid-column:1}
+
+  /* ---------- dock ---------- */
+  #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
+    display:flex;align-items:center;gap:22px}
+  #dock button.act{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
+    background:#fff;color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dock button.act:hover{background:var(--ink);color:var(--paper)}
+  #dock button.act.on{background:var(--ink);color:var(--paper)}
+  #dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #dims .mode + .mode{border-left:1.5px solid var(--ink)}
+  #dims .mode.on{background:var(--ink);color:var(--paper)}
+  /* the derivation switch wears the same chrome as the view switch — they are
+     the same KIND of control (which of several equally real pictures) — but is
+     outlined rather than filled when set, so the view you are in stays the
+     louder of the two. Faded out for a molecule with only one derivation. */
+  #src{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #src .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer}
+  #src .mode + .mode{border-left:1.5px solid var(--ink)}
+  #src .mode.on{background:#efe9db;color:var(--ink)}
+  #src.solo{opacity:.35;pointer-events:none}
+
+  /* the caption under the dock: says what the current view IS, because the flat
+     view is a projection and must never be mistaken for a structural formula */
+  #say{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);z-index:12;
+    pointer-events:none;text-align:center;width:min(760px,86%);
+    font-family:var(--font-sans);font-size:16px;line-height:1.35;color:var(--muted)}
+  #say b{font-weight:600;color:var(--ink)}
+
+  /* the flat drawing sits over the canvas, centred, and only exists in 2D */
+  /* Inset to the same band the 3D framing keeps clear (rails, card strip,
+     caption), so switching between 2D and Diagram does not change how much room
+     the molecule is given — they are the same layout and must be the same size. */
+  #flat{position:absolute;inset:150px 262px 118px 262px;z-index:10;display:none;
+    align-items:center;justify-content:center;pointer-events:none}
+  #flat.on{display:flex}
+  #flat svg{max-width:100%;max-height:100%}
+  #flat .fnone{font-family:var(--font-sans);font-size:16px;color:var(--muted)}
+
+  /* ---------- the recipe line, bottom right ----------
+     What to say to get THIS model in another lesson: the spec key, which
+     DERIVATION it is, and which spec FIELD the current view draws from. Read
+     from the library at render time, never typed — a lookup table here would be
+     a claim nothing checks and would go stale the first time a molecule moved
+     file. The <script> tags are deliberately NOT on screen: they are the long,
+     mechanical part and CLAUDE.md's per-page table already enumerates them.
+     Click copies the full form, tags and provenance included. */
+  #recipe{position:absolute;left:26px;bottom:22px;z-index:12;max-width:min(52ch,40%);
+    text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;line-height:1.5;color:var(--muted);cursor:pointer;
+    opacity:.55;transition:opacity .15s ease}
+  #recipe:hover{opacity:1}
+  #recipe b{font-weight:600;color:var(--ink)}
+  /* the derivation's own description, when it has one. It sits HERE rather than
+     in the notes rail because it says what this MODEL is, which is this block's
+     job — and because the rail, left to grow, runs down into this corner. */
+  #recipe .rnote{display:block;margin-bottom:5px;font-family:var(--font-sans);
+    font-style:italic;font-size:12px;line-height:1.4;max-width:44ch}
+  #recipe .rhint{font-family:var(--font-sans);font-style:italic;opacity:.8}
+  #recipe .rmiss{color:#b3402f}
+
+  #savepng{bottom:22px;right:26px;left:auto}
+
+  @media (max-width:920px){
+    #notes,#rail{position:static;width:auto;margin:12px 26px}
+    #focus{transform:none}
+    #flat{inset:150px 26px 118px 26px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="flat"></div>
+    <div id="shelf"></div>
+    <div id="notes"></div>
+    <div id="rail">
+      <div id="focus"></div>
+      <div id="vout"></div>
+      <label id="spinbox"><input type="checkbox" id="spin">slowly turn</label>
+    </div>
+    <div id="say"></div>
+    <div id="dock">
+      <div id="dims" role="group" aria-label="View">
+        <button class="mode on" data-dim="3d">3D</button>
+        <button class="mode" data-dim="2d">2D</button>
+        <button class="mode" data-dim="diagram">Diagram</button>
+      </div>
+      <div id="src" role="group" aria-label="Derivation">
+        <button class="mode on" data-src="pubchem">Measured</button>
+        <button class="mode" data-src="skel">Idealized</button>
+      </div>
+      <button class="act" id="focusbtn">Highlight</button>
+      <button class="act" id="hbtn">C–H hydrogens</button>
+    </div>
+    <div id="recipe" title="click to copy"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="skel.js"></script>
+<script src="mol-glycolysis.js"></script>
+<script src="mol-compare.js"></script>
+<!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
+     — the same library and the same strings contrast-lab.html uses. -->
+<script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
+<script src="scene.js"></script>
+<script src="molview.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  MOLECULE VIEWER — one molecule at a time, nothing happening to it
+ *
+ *  Every other page here is a lesson: something forms, dissolves, folds or is
+ *  spent. This one is the reference shelf. You pick a molecule and look at it.
+ *  That is deliberately a different job, and it is why this page loads no fx.js
+ *  — no bond breaks, nothing is transferred, so there is no event to ring.
+ *  SCIENCE.md §5 says never to dramatise a non-event, and selecting a card is
+ *  the definitive non-event.
+ *
+ *  THREE VIEWS — 3D, the same spheres slid onto the diagram's layout, and the
+ *  drawn diagram — and the difference between them is the point. The views
+ *  themselves, the morph that carries one into the next, the framing and the
+ *  highlight all live in **molview.js**, because they are plumbing: any lesson
+ *  wanting to show a molecule three ways wants exactly that machinery and none
+ *  of this page's opinions. Read its header for why the flat view MOVES the
+ *  atoms rather than projecting them, and what it gives up by doing so.
+ *
+ *  WHAT IS LEFT HERE is the lesson: which molecules are on the shelf, what the
+ *  rails say about them, which atoms are "the working end", that ATP has a
+ *  second derivation to cut to, and the recipe line that says how to ask for
+ *  this model somewhere else.
+ *
+ *  The model is orthographic, for the same reason contrast-lab.html is: a
+ *  perspective lens makes whichever half of the molecule swung nearer look
+ *  bigger, so "the two phosphates are the same size" would come and go as it
+ *  turned.
+ * ============================================================= */
+
+/* ---------- the shelf ----------
+ * `key` indexes MolLib.MOLECULES. Everything countable — formula, atom counts,
+ * rings, span, phosphates — is read off the spec by note(), never typed here.
+ * What IS typed is the sentence a tutor would say, and the name of the working
+ * end, which the spec identifies by index (`gly.gamma`, `gly.nic`) so the
+ * highlight can never point at the wrong atoms.
+ */
+const SHELF=[
+  { key:'atp', card:'ATP', alt:'atpSkel',
+    blurb:'The cell’s spendable energy. Adenine and a ribose — the same '
+        + 'handle RNA is built from — with <b>three phosphates</b> chained in a '
+        + 'row. The charge on those phosphates is why the chain is strained, and '
+        + 'the strain is what a reaction gets paid with.',
+    focus:{ title:'The γ phosphate',
+            body:'A kinase does not hand over the whole phosphate. It moves '
+               + '<b>PO₃⁻</b> — the end P and its three terminal oxygens. '
+               + 'The bridging oxygen stays behind, and what is left is ADP.',
+            atoms:s=>s.gly.gamma },
+  },
+  { key:'nadh', card:'NADH', alt:'nadhSkel',
+    blurb:'The cell’s spendable <b>electrons</b>. Two nucleotides joined tail to '
+        + 'tail: an adenine half the enzyme grips by, and a nicotinamide half that '
+        + 'does the chemistry. Glycolysis makes two of these, and they are worth '
+        + 'more downstream than the ATP is.',
+    focus:{ title:'The loaded end',
+            body:'Ring carbon <b>C4</b> is carrying two hydrogens. One of them '
+               + 'arrived as a hydride from G3P, and the ring gave up its '
+               + 'aromaticity to take it. Hand it on and this is NAD⁺ again.',
+            // ring + the carbon that took the hydride + both its H + the amide
+            atoms:s=>{ const n=s.gly.nic;
+              return [...n.ring, n.c4, ...n.h, n.amide.c, n.amide.o, n.amide.n]; } },
+  },
+];
+
+/* WHICH SPEC IS ON SCREEN. Two derivations of one molecule: the measured
+ * conformer (`key`) and the idealised build (`alt`). Everything downstream —
+ * layout, highlight, notes, framing — goes through this one function, so
+ * nothing else on the page has to know there is a choice.
+ *
+ * A molecule with no `alt` silently stays on its own spec, and the switch
+ * fades — a live button that did nothing would be a claim it does. Both
+ * molecules on the shelf now have a twin, so nothing on screen is currently
+ * faded; the branch stays because the next molecule added will not.
+ *
+ * NADH is the one worth switching. It is a DINUCLEOTIDE — twice the molecule
+ * ATP is, with a second sugar and eight stereocentres — so the schematic's cost
+ * shows up where a viewer can see it: the built one is 1.0 Å out of its own
+ * plane against the conformer's 1.9, and it is 21 Å across against 12. */
+const specOf=e=>MolLib.MOLECULES[(source==='skel' && e.alt) || e.key];
+
+/* ---------- stage ---------- */
+const canvas=document.getElementById('gl');
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  ortho:true,
+  // Straight down -Z. Every pose this page shows is the MODEL's, so the camera
+  // has exactly one job and never changes it.
+  cam:{theta:0,phi:Math.PI/2,r:40},
+  orbit:false });
+applyCam();
+
+/* ---------- state ----------
+ * The views are MolView's; what this page tracks is which CARD is up and which
+ * DERIVATION is showing. `mode` is mirrored here only so the dock and the
+ * caption can read it without asking the view. */
+let selected=0;
+let mode='3d';                     // '3d' | '2d' | 'diagram'
+let source='pubchem';              // 'pubchem' | 'skel' — which DERIVATION
+// Highlight starts OFF: the molecule arrives whole. Dimming five sixths of it
+// before the student has looked at any of it answers a question nobody asked —
+// the button is for when they want to know which part does the work.
+let showH=false, showFocus=false;
+
+/* ---------- the view ----------
+ * `usable` is measured, not assumed: the rails, the card strip and the caption
+ * lie over the stage, so the full frustum is not the full picture — and the flat
+ * layout is nearly three times as wide as the model, which is exactly when it
+ * starts sliding under them. The narrow media query takes the rails off the
+ * stage and usableAround notices by itself. */
+const elFlat=document.getElementById('flat');
+const el=id=>document.getElementById(id);
+const v=MolView.create({
+  canvas, camera, applyCam, root, flatHost:elFlat,
+  // the RAIL, not the sticky inside it: the sticky is `position:static` now, and
+  // usableAround skips static elements (that is how the narrow media query gives
+  // the stage its full width back).
+  usable:MolView.usableAround(canvas,{ left:[el('notes')], right:[el('rail')],
+                                       top:[el('shelf')],  bottom:[el('say')] }),
+  // WHICH ATOMS MATTER is the lesson's to say, not the viewer's — the model's
+  // grey-out and the diagram's spotlight both come from this one list.
+  focusAtoms:spec=>SHELF[selected].focus.atoms(spec),
+});
+
+/* ---------- the notes rail ----------
+ * Read from the spec, at render time. `topology.rings` is the declared ring list
+ * that check-molecules.js re-derives from the geometry and fails on, so quoting
+ * it here quotes something that is actually checked; counting rings in this file
+ * would be a second, unchecked implementation of the same claim. */
+// Smallest principal spread of the heavy atoms — the thickness of the slab they
+// occupy. Heavy atoms only, for the reason Stage.measure counts only heavy
+// atoms: a hydroxyl H is a free rotor, so including it measures how the spec
+// happens to be drawn. Divided back out of SCALE so it reads in real ångströms.
+function thickness(spec){
+  const P=spec.atoms.filter(a=>a.el!=='H').map(a=>a.pos), n=P.length;
+  const c=[0,1,2].map(k=>P.reduce((t,p)=>t+p[k],0)/n);
+  const C=[[0,0,0],[0,0,0],[0,0,0]];
+  P.forEach(p=>{ const d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]];
+    for(let i=0;i<3;i++) for(let j=0;j<3;j++) C[i][j]+=d[i]*d[j]/n; });
+  // smallest eigenvalue by inverse power iteration on (tr·I − C), which is
+  // positive-definite and has its LARGEST eigenvalue where C has its smallest
+  const tr=C[0][0]+C[1][1]+C[2][2];
+  const M=C.map((r,i)=>r.map((v,j)=>(i===j?tr:0)-v));
+  const mul=(A,v)=>[0,1,2].map(i=>A[i][0]*v[0]+A[i][1]*v[1]+A[i][2]*v[2]);
+  const unit=v=>{ const l=Math.hypot(...v)||1; return v.map(x=>x/l); };
+  let v=unit([0.31,0.71,0.63]);
+  for(let k=0;k<200;k++) v=unit(mul(M,v));
+  const lam=v.reduce((t,x,i)=>t+x*mul(C,v)[i],0);
+  return Math.sqrt(Math.max(0,lam))/(MolLib.SCALE||1.9);
+}
+function note(){
+  const e=SHELF[selected], s=specOf(e), m=Stage.measure(s);
+  const heavy=s.atoms.filter(a=>a.el!=='H').length;
+  const rings=(s.topology&&s.topology.rings)||[];
+  const tags=[`<span class="ntag carrier">${s.class}</span>`,
+              `<span class="ntag count">${heavy} heavy atoms</span>`];
+  document.getElementById('notes').innerHTML=
+     `<div class="ntitle">${s.name}</div>`
+   + `<div class="ntags">${tags.join('')}</div>`
+   + `<div class="nbody">${e.blurb}</div>`
+   + `<div class="nfacts">`
+   + `<div>Formula <b>${s.formula}</b></div>`
+   + `<div>Atoms <b>${s.atoms.length}</b> (${heavy} heavy, `
+   + `${s.atoms.length-heavy} hydrogen)</div>`
+   + (rings.length?`<div>Rings <b>${rings.length}</b> — sizes `
+        + `${rings.join(', ')}${s.topology.fused?', two of them fused':''}</div>`:'')
+   + (s.gly&&s.gly.phosphates!=null?`<div>Phosphates <b>${s.gly.phosphates}</b></div>`:'')
+   + `<div>Widest span <b>${m.span.toFixed(1)} Å</b></div>`
+   // The number the derivation switch is about, computed here rather than
+   // quoted: how far the molecule departs from its own best-fit plane. A
+   // schematic build is near-flat by construction; a real conformer is not.
+   + `<div>Out of plane <b>${thickness(s).toFixed(2)} Å</b></div>`
+   + `</div>`;
+  document.getElementById('focus').innerHTML=
+     `<div class="ftitle">${e.focus.title}</div>`
+   + `<div class="fbody">${e.focus.body}</div>`;
+}
+
+/* ---------- how to ask for this model ----------
+ * Three facts, and the point of all of them is that they are the words the
+ * CODEBASE uses, not labels invented for the dock. "Idealized" and "Diagram" are
+ * for a student; an agent being asked to build a lesson needs the field names.
+ *
+ *   WHICH MOLECULE   `MolLib.MOLECULES.<key>` — the key it is registered under.
+ *   WHICH DERIVATION  `spec.src.path`, one of check-molecules.js's five
+ *                     provenance paths. The dock's Measured/Idealized is
+ *                     'pubchem' vs 'skel', and those strings are what a spec
+ *                     actually carries and what the checker actually audits.
+ *   WHICH RENDERING   the spec FIELD each view draws from — `atoms` for the
+ *                     model, `flat2d` for the flat layout, `smiles` for the
+ *                     structural diagram. A view is not a mode flag on this
+ *                     page; it is which committed field is being read, so
+ *                     naming the field says exactly what a molecule needs to
+ *                     have baked before another page can show it that way.
+ *
+ * `spec.domain` says which mol-*.js registered it; MolLib.DOMAINS is that file's
+ * place in the load order, and everything before it in the list is what it may
+ * assume is already there. So the tag list is DERIVED from the same manifest
+ * the checkers walk, not from a copy of CLAUDE.md's script table.
+ *
+ * palette.js and molecules.js lead every page; skel.js is needed by any domain
+ * file that builds rather than stores, which the manifest's order encodes. It is
+ * cheaper and more honest to name skel.js whenever the domain sits after it than
+ * to keep a second list of which files build.
+ */
+// Which spec field the current view reads, and what draws it, comes from
+// MolView — the module that actually does the reading. A copy here would be a
+// second answer to the same question, and this line exists to be quotable.
+function recipe(spec){
+  const dom=spec.domain, all=MolLib.DOMAINS||[];
+  const i=all.indexOf(dom);
+  const needsSkel=i>=0 && all.indexOf('mol-glycolysis.js')>=0 && i>=all.indexOf('mol-glycolysis.js');
+  const tags=['palette.js','molecules.js'].concat(needsSkel?['skel.js']:[])
+             .concat(dom?[dom]:[]).concat(['scene.js']);
+  return { key:Object.keys(MolLib.MOLECULES).find(k=>MolLib.MOLECULES[k]===spec),
+           dom, tags };
+}
+const elRecipe=document.getElementById('recipe');
+function showRecipe(){
+  const spec=specOf(SHELF[selected]), r=recipe(spec), f=v.field();
+  const path=(spec.src&&spec.src.path)||'?';
+  const has=v.has();
+  elRecipe.innerHTML=(spec.compare?`<span class="rnote">${spec.compare.note}</span>`:'')
+    + `<span class="rhint">ask an agent for</span> `
+    + `<b>MolLib.MOLECULES.${r.key}</b><br>`
+    + `src.path <b>'${path}'</b> · draws spec.<b>${f.field}</b>`
+    + (has?'':' <span class="rmiss">(not baked)</span>');
+  elRecipe.dataset.copy=
+      `${spec.name} (${spec.formula})\n`
+    + `spec:      MolLib.MOLECULES.${r.key}\n`
+    + `derivation: src.path '${path}'`
+      + (path==='skel' ? ' — built by skel.js from VSEPR angles'
+                       : path==='pubchem' ? ` — PubChem CID ${spec.src.cid}, `
+                         + `${spec.src.record} record, conformer ${spec.src.conformer}` : '')
+      + `\n`
+    + `rendering: ${f.what} — reads spec.${f.field}, drawn by ${f.via}\n`
+    + `domain:    ${r.dom}\n`
+    + `scripts:   ${r.tags.join(', ')}\n`
+    + (spec.compare?`note:      ${spec.compare.note}\n`:'');
+}
+elRecipe.onclick=()=>{
+  navigator.clipboard.writeText(elRecipe.dataset.copy||'').then(()=>{
+    const was=elRecipe.innerHTML;
+    elRecipe.innerHTML='<span class="rhint">copied</span>';
+    setTimeout(()=>{ elRecipe.innerHTML=was; }, 900);
+  }).catch(()=>{});
+};
+
+/* ---------- the view line ----------
+ * The angle on screen, written the way a spec writes one. Drag the model to
+ * something you like and paste this into `view:` — or, if two specs should
+ * share it, into molecules.js's VIEW table, which is where a shared angle
+ * belongs (the spec then names it rather than copying three constants).
+ *
+ * LIVE, because the thing it describes moves: it is refreshed from the render
+ * loop, so it is never describing a pose that has already been dragged away.
+ * The number itself comes from molview.js — this page must not do the
+ * pose ∘ view composition a second time, or the two answers would be free to
+ * disagree and the wrong one would be the one you paste.
+ *
+ * Degrees are shown alongside because that is what a person judges an angle in,
+ * and RADIANS are what gets copied because that is what `view:` holds. Printing
+ * only one of the two is how a tidy 30° ends up pasted in as 30 radians. */
+const elView=document.getElementById('vout');
+// Called every frame, so it must not touch the DOM every frame: 60 innerHTML
+// writes a second is churn, and it would also stamp on the copied state the
+// instant it appeared. Rewrite only when the text actually changes, and hold
+// off entirely while that state is up.
+let vLast='', vHold=false;
+function showView(){
+  if(vHold) return;
+  const flat=mode!=='3d';
+  elView.classList.toggle('off', flat);
+  document.getElementById('spinbox').classList.toggle('off', flat);
+  let html, copy='';
+  if(flat){ html='<span class="vhint">no angle in a flat view</span>'; }
+  else {
+    const e=v.viewEuler(), r=e.map(x=>x.toFixed(4));
+    const deg=e.map(x=>Math.round(x*180/Math.PI));
+    copy=`view:[${r.join(', ')}],`;
+    // THREE STATES, because "did my view: actually get used?" is the question
+    // this panel exists to answer and it has been wrong twice:
+    //   on it    — the spec declares an angle and you are looking at it
+    //   moved    — it declares one and you have dragged off; say what from
+    //   none     — it declares none, so this is the page's own opening pose
+    const at=v.atDeclaredView(), dec=v.spec.view;
+    const head =
+      at===true  ? `<span class="vis"><i class="ph-bold ph-check-circle"></i>`
+                 + `the spec’s own view:</span>`
+    : at===false ? `<span class="vno">moved off spec.view `
+                 + `[${dec.map(x=>x.toFixed(4)).join(', ')}]</span>`
+    :              `<span class="vhint">no view: on this spec — paste to set one</span>`;
+    html=head+`<br>`
+       + `view:<b>[${r.join(', ')}]</b><br>`
+       + `<span class="vhint">${deg[0]}° x · ${deg[1]}° y · ${deg[2]}° z</span>`
+       + `<div class="vfoot">`
+       + `<button class="vbtn" data-copy><i class="ph-bold ph-copy"></i>copy</button>`
+       + `<button class="vbtn" data-reset><i class="ph-bold ph-arrow-counter-clockwise"></i>`
+       + `reset</button></div>`;
+  }
+  if(html===vLast) return;
+  vLast=html; elView.innerHTML=html; elView.dataset.copy=copy;
+}
+// Off at load. ATP's idealized spec declares a `view:`, and a page that drifts
+// off a chosen angle within a second of arriving shows it to nobody — so the
+// molecule holds still and turning is something you ask for, by dragging or by
+// this. Unchecked also means a screenshot or the PNG button gets the angle the
+// spec actually asks for.
+const elSpin=document.getElementById('spin');
+elSpin.checked=false;
+elSpin.onchange=()=>v.setSpin(elSpin.checked);
+
+// Reset is the undo for a drag: back to the pose the card dealt, which is
+// molview's own opening angle and NOT the spec's committed `view:` — see
+// resetPose() there for why those are different things on this page. The
+// readout follows on the next frame, so it always describes what is drawn.
+elView.onclick=e=>{
+  if(e.target.closest('[data-reset]')){ v.resetPose(); return; }
+  if(!e.target.closest('[data-copy]') || !elView.dataset.copy) return;
+  navigator.clipboard.writeText(elView.dataset.copy).then(()=>{
+    // The BUTTON changes, not the line. Blanking the number to say "copied"
+    // takes away the thing you just asked for at the moment you are most likely
+    // to want to read it back, and made the panel jump a line as it shrank.
+    const b=elView.querySelector('[data-copy]'); if(!b) return;
+    vHold=true;                       // freeze the redraw so the state survives
+    b.classList.add('done');
+    b.innerHTML='<i class="ph-bold ph-check"></i>copied';
+    setTimeout(()=>{ vHold=false; vLast=''; }, 1100);   // vLast='' forces a redraw
+  }).catch(()=>{});
+};
+
+function say(){
+  const t={
+    '3d':'Free view — drag to turn it. Nothing is nearer the camera than '
+       + 'anything else, so sizes stay comparable as it moves.',
+    '2d':'The same atoms, laid out flat — watch which ones move. Bond '
+       + '<b>lengths</b> are the molecule’s; the <b>angles are not</b>. '
+       + 'Hydrogens fold into the atoms they hang on.',
+    'diagram':'The structural diagram — the flat layout with its labels, ring '
+       + 'circles and stereo wedges. This is what you would draw on paper.',
+  };
+  document.getElementById('say').innerHTML=t[mode];
+}
+
+/* ---------- build ---------- */
+function select(i){
+  selected=i;
+  [...document.querySelectorAll('#shelf .goal')].forEach((c,k)=>
+    c.classList.toggle('on', k===i));
+  v.show(specOf(SHELF[i]));
+  elSrc.classList.toggle('solo', !SHELF[i].alt);
+  note(); say(); showRecipe();
+}
+
+/* ---------- view switch ---------- */
+function setDim(next){
+  if(next===mode) return;
+  mode=next;
+  [...document.querySelectorAll('#dims .mode')].forEach(o=>
+    o.classList.toggle('on', o.dataset.dim===mode));
+  v.setMode(mode);
+  // The 3D-only control goes quiet rather than lying: a flat layout shows the
+  // hydrogens folded away whatever this button says.
+  hbtn.disabled=mode!=='3d'; hbtn.style.opacity=mode==='3d'?1:0.4;
+  say(); showRecipe();
+}
+document.getElementById('dims').onclick=e=>{
+  const b=e.target.closest('.mode'); if(b) setDim(b.dataset.dim); };
+
+/* ---------- the derivation switch ----------
+ * A full rebuild, not a tween. The two derivations have the same ATOMS IN THE
+ * SAME ORDER — they are the same molecule, and check-handedness.js says so
+ * against PubChem's own record — so morphing between them would be possible.
+ * It would also be a lie: a morph is this page's way of saying "one object,
+ * two presentations", and these are two independent DERIVATIONS. Cutting
+ * between them is the honest edit, and the flicker is the point.
+ *
+ * The view survives the switch — you stay in 3D or 2D or Diagram — and so does
+ * the ANGLE, because the question being asked is "what changed?" and moving
+ * anything else would answer it wrong.
+ *
+ * UNLESS THE INCOMING SPEC HAS AN OPINION. A `view:` is a deliberate statement
+ * about how that derivation should be seen (atpSkel's frames the phosphate
+ * chain; atp declares none and opens on its widest plane), and a pose carried
+ * over from the other derivation would quietly overrule it — the angle would
+ * load from the card but not from this switch, which is the kind of
+ * inconsistency you notice and cannot explain. So: a declaration wins, and
+ * `keepPose` covers only the case where the arriving spec has said nothing. */
+const elSrc=document.getElementById('src');
+elSrc.onclick=e=>{
+  const b=e.target.closest('.mode');
+  if(!b || b.dataset.src===source) return;
+  source=b.dataset.src;
+  [...elSrc.querySelectorAll('.mode')].forEach(o=>
+    o.classList.toggle('on', o.dataset.src===source));
+  const next=specOf(SHELF[selected]);
+  v.show(next, {keepPose:!next.view});
+  note(); showRecipe();
+};
+const hbtn=document.getElementById('hbtn');
+hbtn.onclick=e=>{
+  showH=!showH; e.currentTarget.classList.toggle('on',showH);
+  v.setOptionalH(showH); };
+// One toggle, every view: the model greys out around the part, the diagram puts
+// a spotlight disc under it, and both read the same atom list.
+document.getElementById('focusbtn').onclick=e=>{
+  showFocus=!showFocus; e.currentTarget.classList.toggle('on',showFocus);
+  v.setHighlight(showFocus); };
+
+/* ---------- cards ---------- */
+document.getElementById('shelf').innerHTML=SHELF.map((e,i)=>{
+  const s=specOf(e);
+  return `<button class="goal${i===0?' on':''}" data-i="${i}">`
+       + `<div class="gname">${e.card}</div>`
+       + `<div class="gform">${s.formula}</div></button>`;
+}).join('');
+document.getElementById('shelf').onclick=e=>{
+  const b=e.target.closest('.goal'); if(b) select(+b.dataset.i); };
+
+// PNG is whatever is in the framebuffer, which is the spheres. The Diagram is an
+// SVG over the canvas and would come out blank, so that one view steps back to
+// 2D — the same layout, still flat, just drawn in atoms.
+document.getElementById('savepng').onclick=()=>{
+  if(mode==='diagram') setDim('2d');
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download=SHELF[selected].key+'.png'; a.href=canvas.toDataURL('image/png'); a.click(); };
+
+/* ---------- loop ----------
+ * MolView.step() advances the morph, the pose that has to get out of its way,
+ * the framing and the 2D/Diagram handover. Rendering stays here: the page owns
+ * its own canvas. */
+function loop(){
+  v.step();
+  showView();
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+
+// The framing solves against camera.aspect, so it is only right once the canvas
+// has actually been measured — and again every time it changes.
+new ResizeObserver(()=>{ resize(); v.fit(); }).observe(canvas);
+
+select(0);
+loop();
+</script>
+</body>
+</html>

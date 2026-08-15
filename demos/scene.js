@@ -158,6 +158,18 @@
     // Baking it here instead keeps that free, and keeps atom/bond meshes as
     // direct children so removeAtoms() and friends still work.
     //
+    // WHICH LEAVES THE PAGE ONE OBLIGATION: that rotation is an OFFSET, and it
+    // must be ZERO AT REST. A spec's `view:` is a declaration about how the
+    // molecule should be seen; anything composed on top of it at rest means the
+    // declared angle is one nobody ever sees, while the file still says
+    // otherwise. contrast-lab.html holds to it by construction
+    // (`rotation.y=spin` — 0 at rest); molecule-viewer.html broke it twice, and
+    // is fixed by routing every opening angle through one function
+    // (molview.js's defaultView) rather than by checking afterwards — a check
+    // downstream of the spec derives its expectation from the same field it is
+    // checking, so it cannot see a view that never arrived. CLAUDE.md carries
+    // the rule.
+    //
     // Pass opts.view to override, or null for the spec's canonical coordinates.
     const view = opts.view!==undefined ? opts.view : spec.view;
     if(view){
@@ -174,6 +186,26 @@
       atomWorld:i=>atomMeshes[i].getWorldPosition(new THREE.Vector3()) };
     return g;
   }
+  // Move an existing bond mesh onto a new pair of endpoints. A stick's LENGTH is
+  // baked into its geometry, so a molecule whose atoms move (a conformational
+  // change animated frame by frame, rather than a swap between two specs) needs
+  // its bonds re-placed and re-stretched rather than rebuilt — rebuilding per
+  // frame would churn geometries and materials at 60Hz.
+  // Single sticks only: a double bond is a Group whose two children carry a
+  // perpendicular offset chosen from a neighbour, and that plane is not
+  // recoverable from the two endpoints alone. Callers animating a molecule with
+  // double bonds must rebuild those.
+  function placeBond(mesh,a,b){
+    if(mesh.isGroup) return false;
+    const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+    if(!len) return false;
+    const base=mesh.geometry.parameters && mesh.geometry.parameters.height;
+    mesh.position.copy(a).addScaledVector(dir,0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+    if(base) mesh.scale.y=len/base;
+    return true;
+  }
+
   // remove atoms (and any bond touching them) from a built molecule — the leaving
   // group of a reaction. Nulls the atomMeshes slot so indices stay stable.
   function removeAtoms(g,idxs){
@@ -378,6 +410,6 @@
   }
 
   global.Stage={ create, setToon, atomMat, bondMat, glowMat, atom, bond,
-    buildMolecule, removeAtoms, setOptionalH, measure, frame, centerOf,
+    buildMolecule, removeAtoms, setOptionalH, placeBond, measure, frame, centerOf,
     Rsphere, get toon(){return toon;} };
 })(this);

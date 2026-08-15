@@ -163,5 +163,5 @@
       units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
-  });
+  }, SELFNAME);
 })(this);

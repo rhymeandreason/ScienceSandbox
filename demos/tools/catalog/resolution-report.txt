@@ -1,0 +1,26 @@
+UNDEFINED STEREO  CID 5793 "D-Glucose" — 1 unspecified stereocentre(s), 4 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 2723872 "D-Fructose" — 1 unspecified stereocentre(s), 3 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 6036 "D-Galactose" — 1 unspecified stereocentre(s), 4 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 10975657 "D-Ribose" — 1 unspecified stereocentre(s), 3 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 439186 "Maltose" — 1 unspecified stereocentre(s), 9 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 439178 "Cellobiose" — 1 unspecified stereocentre(s), 9 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+NOT FOUND  Amylose segment  — name "amylose" resolves to nothing; find the CID by hand and fill the CID column
+AMBIGUOUS  Phospholipid (POPC)  — "1-palmitoyl-2-oleoyl-sn-glycero-3-phosphocholine" -> 7 CIDs: 5497103, 65167, 6506401, 6436017, 168614, 10908846, 6070971
+           pick one BY STEREOCHEMISTRY and write it into the CID column
+AMBIGUOUS  FAD  — "FAD" -> 4 CIDs: 643975, 46906035, 2734019, 16219365
+           pick one BY STEREOCHEMISTRY and write it into the CID column
+UNDEFINED STEREO  CID 5958 "Glucose 6-phosphate" — 1 unspecified stereocentre(s), 4 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+AMBIGUOUS  Glyceraldehyde 3-phosphate  — "glyceraldehyde 3-phosphate" -> 2 CIDs: 729, 643984
+           pick one BY STEREOCHEMISTRY and write it into the CID column
+AMBIGUOUS  1,3-Bisphosphoglycerate  — "1,3-bisphosphoglycerate" -> 2 CIDs: 439191, 683
+           pick one BY STEREOCHEMISTRY and write it into the CID column
+UNDEFINED STEREO  CID 724 "3-Phosphoglycerate" — 1 unspecified stereocentre(s), 0 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 612 "Lactic Acid" — 1 unspecified stereocentre(s), 0 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 1198 "Isocitric Acid" — 2 unspecified stereocentre(s), 0 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 525 "Malic Acid" — 1 unspecified stereocentre(s), 0 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+NOT FOUND  Ubiquinone (CoQ, oxidized)  — name "ubiquinone" resolves to nothing; find the CID by hand and fill the CID column
+AMBIGUOUS  Heme b  — "heme b" -> 6 CIDs: 4973, 26945, 444097, 644347, 53356674, 76021516
+           pick one BY STEREOCHEMISTRY and write it into the CID column
+UNDEFINED STEREO  CID 6026790 "Diglycerides" — 1 unspecified stereocentre(s), 0 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 6454902 "6-O-beta-D-galactopyranosyl-D-glucopyranose" — 1 unspecified stereocentre(s), 9 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
+UNDEFINED STEREO  CID 5793 "D-Glucose" — 1 unspecified stereocentre(s), 4 defined. The name landed on a record that stands for several isomers; name the one you mean (e.g. "beta-D-glucose" 64689, not "glucose" 5793)
