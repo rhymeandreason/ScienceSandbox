@@ -2384,6 +2384,10 @@ function runStep(){
   if(busy || intro || done>=nSteps) return;
   const st=stepAt(done), to=done+1;
   const keys=speciesAt(to), n=keys.length;
+  // THE PHOSPHATE LEAVES ON THE CLICK. Before the refresh below, so the tray is
+  // redrawn as ADP on the same frame the flight starts rather than a beat and a
+  // half later — see carrierGone.
+  if(st.couple && st.couple.up) carrierGone.add(0);
   busy=true; refresh();                       // dim the tray for the duration
   // A NAME BELONGS TO A SETTLED MOLECULE. The plate is hidden for the whole of
   // any animation and comes back with the product, because for the length of a
@@ -2556,7 +2560,7 @@ function runStep(){
 
   } else dur=280;                              // 'iso': a plain rearrangement
 
-  later(()=>{ done=to; reviewing=true; renderLanes(to);
+  later(()=>{ done=to; reviewing=true; carrierGone.clear(); renderLanes(to);
     busy=false; refresh(); }, dur);
 }
 
@@ -2568,12 +2572,13 @@ function rewind(){
   // A HALF-RUN STEP REWINDS TO ITS OWN START, not to the step before it. One
   // lane has already handed over its phosphate; putting the student back at
   // step 6 would leave that ATP banked in a ledger the pips say is untouched.
-  if(laneDone.size){ laneDone.clear(); renderLanes(done); refresh(); return; }
+  if(laneDone.size){ laneDone.clear(); carrierGone.clear();
+    renderLanes(done); refresh(); return; }
   if(done===0){ intro=true; refresh(); return; }   // step back off stage 1 onto the intro
   done--; renderLanes(done); refresh();
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false; done=0; intro=true;
-  laneDone.clear();
+  laneDone.clear(); carrierGone.clear();
   renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -2857,7 +2862,14 @@ function setCarrierPhosphates(g,charged){
  * still waiting, which is the whole reason there are two. Everywhere else the
  * step is all-or-nothing and `reviewing` answers for every instance at once.
  */
-const carrierRan=j=>reviewing||laneDone.has(j);
+/* …and `carrierGone` is the same answer for the beat in between. A spend step
+ * takes FLY milliseconds to fly its phosphate across, and for all of it the
+ * step has not landed — so `reviewing` is still false and the ATP went on
+ * showing three phosphates while a fourth sailed away from it. The bond was
+ * clicked; it broke then. Set when the flight starts, cleared when the step
+ * lands (after which `reviewing` answers), and by every jump out of a step. */
+const carrierGone=new Set();
+const carrierRan=j=>reviewing||laneDone.has(j)||carrierGone.has(j);
 // …and what that means for the drawing: a spend starts charged and ends flat,
 // a charge starts flat and ends charged.
 const carrierCharged=(st,j)=>
@@ -3256,7 +3268,7 @@ function drawAct(){
 // it — renderLanes rebuilds both lanes from the index and `laneDone` would
 // otherwise still claim a lane had run.
 const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k;
-  laneDone.clear(); renderLanes(done); refresh(); };
+  laneDone.clear(); carrierGone.clear(); renderLanes(done); refresh(); };
 
 const railEl=document.getElementById('rail');
 function drawRail(){
