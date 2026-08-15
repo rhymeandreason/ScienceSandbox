@@ -112,6 +112,13 @@ barrier, watch the rate move while ΔE does not. Cheapest strong page on the lis
 reuses physics that is already written and already asserted
 (`tools/check-massaction.js`).
 
+**Step one is extracting that model** out of `glycolysis-lab.html` into a
+`massaction.js` both pages load — glycolysis pinning `EA`, enzymes making it a
+slider — since a second copy of a legibility-tuned constant is precisely what
+the checker cannot see. A module, not an iframe-embedded page: the modal chrome
+already works, and a frame would re-pay `sandbox.css` and cut the sim off from
+the step's own ΔE.
+
 Matrix rows: energy transformation, probability, equilibrium.
 
 ### 2. The membrane (osmosis inside it)
