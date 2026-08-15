@@ -1051,6 +1051,12 @@ const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
  * comes off this spec, so the two never drift. molecule-viewer.html is where
  * the two derivations stand side by side. */
 const ATP=M.atpSkel;
+// …and NADH for the same reason. Both carriers are built from ideal geometry
+// rather than a measured conformer, so the pair on screen is drawn one way and
+// the sugars beside them another — which is the honest split: a conformer folds
+// its own tail over the part the step is about. Here that part is the
+// nicotinamide C4 and its two hydrogens.
+const NADH=M.nadhSkel;
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 
 /* =============================================================
@@ -2845,7 +2851,7 @@ const PAIRS={
   // nadh's `optH`, and they are the entire difference between the two states:
   // hidden along with the rest, NAD⁺ and NADH would be the same 73 atoms and
   // the step would show nothing happening. So this pair asks for its two back.
-  NAD:{ spec:()=>M.nadh, group:s=>[s.gly.nic.h[1]], anchor:s=>s.gly.nic.c4,
+  NAD:{ spec:()=>NADH, group:s=>[s.gly.nic.h[1]], anchor:s=>s.gly.nic.c4,
         keep:s=>[s.gly.nic.h[0]],
         on:'NADH', off:'NAD⁺',
         sub:on=>on?'carrying the hydride':'empty carrier'},
