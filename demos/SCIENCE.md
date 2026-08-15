@@ -6,8 +6,10 @@ apps only).
 
 **Read `MolecularGeometry.md` §1.1–§1.6 before adding or converting any molecule
 spec** — angles, bond lengths, geometry sources, stereochemistry. It moved out
-for length, not because it's optional. Check any new or tweaked visualization
-against these rules before shipping.
+for length, not because it's optional. Check these rules before shipping a new
+molecule, a geometry change, or a motion that implies a bond formed/broke or a
+charge moved; polish on an already-reviewed animation (timing, easing, camera)
+doesn't need it.
 
 > **Accuracy comes from the coordinates and the forces, not from the rendering
 > library.** A pretty render of wrong geometry is still wrong. Compute real

@@ -40,7 +40,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 Before adding a **new molecule**, read `MolecularGeometry.md` §1 — geometry, sources, stereochemistry, scale families, and §1.4's fidelity tiers (prop / contrast / subject), which set how much accuracy the molecule owes for the claim it makes and require a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 
-Water/solvation physics is in `WaterSim.md` (solvation apps only). Each page documents itself in its own comments.
+Water/solvation physics is in `WaterSim.md` (solvation apps only). 
 
 ## Run / test locally
 
@@ -66,7 +66,7 @@ Framing, spacing, rotation, captions: the human tests in the browser. `tools/che
 
 **Checkers run automatically on commit**, each gated to the files it can judge, so most commits run one or none — see `.githooks/pre-commit` for the exact patterns and reasoning. `npm i` in `demos/` points `core.hooksPath` there. Reinstall with `npm run hooks`; disable with `git config --unset core.hooksPath`; skip once with `git commit --no-verify`.
 
-**The hook prints only on skip or failure** — a silent checker ran and passed. Don't read silence as "it didn't fire". 
+**The hook prints only on skip or failure** — a silent checker ran and passed. Don't read silence as "it didn't fire".
 
 Widen a checker's gate pattern alongside any new derived artefact — nothing about a stale one is visible from the page that plays it.
 

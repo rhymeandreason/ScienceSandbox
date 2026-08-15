@@ -8,20 +8,24 @@
  *  rule is that a claim ships with its assertion rather than relying on
  *  someone noticing (MolecularGeometry.md §1.4, rule 2) — and the docs make claims
  *  too. Every doc error found in the audit of 2026-07-29 was an ENUMERATION
- *  that grew a member and wasn't updated: a page was added and the script
- *  table didn't say so, `stereo:` grew {axial}/{faces} while two files still
- *  said it understood only all-equatorial, §13 was written and the index
- *  stopped at §12. Prose can't be checked, but an enumeration can.
+ *  that grew a member and wasn't updated: `stereo:` grew {axial}/{faces}
+ *  while two files still said it understood only all-equatorial, §13 was
+ *  written and the index stopped at §12. Prose can't be checked, but an
+ *  enumeration can.
  *
- *  Three of those are mechanically verifiable, so they are checked here:
+ *  Two of those are mechanically verifiable, so they are checked here:
  *
- *    1. SCRIPTS   CLAUDE.md's per-page script table vs the actual <script>
- *                 tags in each *.html.
- *    2. PATHS     every file named in a doc exists — or is listed in
+ *    1. PATHS     every file named in a doc exists — or is listed in
  *                 KNOWN_ABSENT below with a reason.
- *    3. SECTIONS  every §n / §n.m reference resolves to a real heading, and
+ *    2. SECTIONS  every §n / §n.m reference resolves to a real heading, and
  *                 every top-level SCIENCE.md section appears in CLAUDE.md's
  *                 index.
+ *
+ *  A per-page script-table check used to live here too, diffing CLAUDE.md's
+ *  claimed <script> tags against each page's actual ones. Retired along with
+ *  the table itself: nothing else depended on that table being accurate, an
+ *  agent can read a page's own <script> tags directly, and a check that
+ *  exists only to keep a doc in sync with itself is circular.
  *
  *  What it deliberately does NOT check: whether the prose is TRUE. Nothing
  *  here would have caught the stale `stereo:` vocabulary — that one needs a
@@ -82,85 +86,8 @@ let fails = 0;
 const fail = (what, msg) => { fails++; console.log(`  FAIL  ${what}: ${msg}`); };
 const ok = msg => console.log(`  ok    ${msg}`);
 
-/* ---- 1. SCRIPTS ---------------------------------------------------- */
-// The table is cumulative: a row whose Loads cell starts with "+" inherits
-// the previous row's set. That reads well and parses fine, but it means the
-// row ORDER is load-bearing — don't reorder without rereading this.
-console.log('\n== 1. per-page script table (CLAUDE.md)');
-
-// A blank line between the ENUM comment and the table is normal markdown, so
-// skip anything before the first "|" row rather than stopping at it. Reading
-// the marker line and then breaking on that blank is how this check spent a
-// while parsing zero rows and reporting every page as missing from a table it
-// had never actually read.
-function tableAfter(src, marker) {
-  const at = src.indexOf(marker);
-  if (at < 0) return null;
-  const lines = src.slice(at).split('\n').slice(1);
-  const rows = [];
-  for (const ln of lines) {
-    // Before the table: skip blanks only. Any other line means the marker's
-    // table is gone, and scanning on would silently adopt the next table down.
-    if (!ln.startsWith('|')) { if (rows.length || ln.trim()) break; continue; }
-    const cells = ln.split('|').slice(1, -1).map(c => c.trim());
-    if (cells.every(c => /^-+$/.test(c))) continue;      // separator
-    rows.push(cells);
-  }
-  return rows.slice(1);                                  // drop the header row
-}
-
-const scriptRows = tableAfter(CLAUDE, "ENUM: update when any page's <script>");
-if (!scriptRows) {
-  fail('scripts', 'could not find the script table (its ENUM marker is gone)');
-} else if (!scriptRows.length) {
-  // An empty table parses as "no page declares anything", which would otherwise
-  // spray one failure per page and hide the real cause.
-  fail('scripts', 'found the script table marker but parsed no rows out of it');
-} else {
-  const declared = new Map();
-  let running = [];
-  for (const [pageCell, loadCell] of scriptRows) {
-    const pages = pageCell.split(',').map(s => s.trim().replace(/`/g, ''));
-    const adds = loadCell.replace(/^\+/, '').split(',').map(s => s.trim());
-    running = loadCell.trim().startsWith('+') ? running.concat(adds) : adds;
-    for (const p of pages) declared.set(p, new Set(running.map(n => `${n}.js`)));
-  }
-
-  // index.html is not a lesson and loads no shared module by design — it is a
-  // redirect up to the real lesson index at the repo root, so the script table
-  // has nothing to say about it. viewer-compare.html was exempt for the same
-  // reason (a rendering-library evaluation, kept unmixed with our own code) and
-  // was deleted with the vendored ChemDoodle; it lives on chemdoodle-archive.
-  const NOT_LESSONS = new Set(['index.html']);
-  const pages = fs.readdirSync(ROOT)
-    .filter(f => f.endsWith('.html') && !f.startsWith('_') && !NOT_LESSONS.has(f));
-
-  for (const page of pages) {
-    const key = page.replace(/\.html$/, '');
-    /* Local scripts only — three.min.js comes from a CDN and is not the
-       table's subject. Exempting anything containing a slash used to do that
-       job, but it also exempted every script in a subfolder, so when a page's
-       own modules moved into one they silently stopped being checked. Only
-       REMOTE scripts are exempt now. */
-    const actual = new Set([...rd(page).matchAll(/<script\s+src="([^"]+)"/g)]
-      .map(m => m[1]).filter(s => !/^(https?:)?\/\//.test(s)));
-    const want = declared.get(key);
-    if (!want) { fail('scripts', `${page} is not in the table at all`); continue; }
-    const missing = [...actual].filter(s => !want.has(s));
-    const extra = [...want].filter(s => !actual.has(s));
-    if (missing.length || extra.length) {
-      fail('scripts', `${page} loads [${[...actual].join(', ')}] but the table says `
-        + `[${[...want].join(', ')}]`);
-    }
-  }
-  for (const key of declared.keys()) {
-    if (!pages.includes(`${key}.html`)) fail('scripts', `table lists ${key}.html, which does not exist`);
-  }
-  if (!fails) ok(`${pages.length} pages match the table`);
-}
-
-/* ---- 2. PATHS ------------------------------------------------------ */
-console.log('\n== 2. files named in docs exist');
+/* ---- 1. PATHS ------------------------------------------------------ */
+console.log('\n== 1. files named in docs exist');
 
 // Every doc AND every source file, because a page's own header comment is now
 // where page-internal rules are supposed to live (CLAUDE.md, "Keeping the docs
@@ -227,14 +154,14 @@ for (const [n, docs] of [...named].sort()) {
 }
 ok(`${named.size} distinct file references scanned`);
 
-/* ---- 3. SECTIONS --------------------------------------------------- */
+/* ---- 2. SECTIONS --------------------------------------------------- */
 // Section rules used to live only in SCIENCE.md. Now MolecularGeometry.md
 // (§1.x) and WaterSim.md (§1–4) carry their own numbered headings too, so a
 // bare §N could mean any of three files. Heuristic: whichever *.md is named
 // most recently on the SAME LINE governs every §-ref on that line; a line
 // with no filename mention defaults to SCIENCE.md, since that's still the
 // rulebook everything else was split out of.
-console.log('\n== 3. section references resolve');
+console.log('\n== 2. section references resolve');
 
 function headings(src) {
   const tops = new Set(), subs = new Set();
@@ -287,4 +214,4 @@ if (fails) {
   console.log(`FAIL: ${fails} doc claim(s) no longer true`);
   process.exit(1);
 }
-console.log('PASS: script table, file references and section index all match reality');
+console.log('PASS: file references and section index all match reality');
