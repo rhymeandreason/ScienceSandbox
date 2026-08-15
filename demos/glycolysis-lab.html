@@ -2103,6 +2103,25 @@ function phosphorylGroup(spec,p){
   });
   return g;
 }
+/* THE SUGAR LOSES IT AS IT LEAVES, the same way ATP does on a spend (see
+ * carrierGone). The flight takes FLY ms, and the lane does not become the
+ * product until the end of it, so the phosphate used to sit on the molecule for
+ * the whole trip while a copy of itself sailed off to an ADP.
+ * The set hidden is the set that flies — P plus `terminalO`, which is what
+ * phosphorylGroup builds the copy from — so the two cannot describe different
+ * groups. The bridging O stays, because it stays: on 1,3-BPG it is the carbonyl
+ * oxygen that becomes 3-PGA's carboxylate.
+ * Hiding, not removing: the lane is replaced by the product a beat later, and a
+ * rewind mid-flight is impossible (`busy`), but a deleted mesh could not come
+ * back if either ever changed.
+ */
+function shedPhosphoryl(l,p){
+  const spec=M[l.key], u=l.g.userData;
+  const set=new Set([p, ...terminalO(spec,p)]);
+  set.forEach(i=>{ const m=u.atomMeshes[i]; if(m) m.visible=false; });
+  u.bondMeshes.forEach(bm=>{
+    if(bm.userData.pair.some(q=>set.has(q))) bm.visible=false; });
+}
 // A phosphoryl arcing in from the carrier or out toward it. This is the page's
 // signature beat: the student should be able to SEE that the thing ATP gives up
 // and the thing ADP receives are the same object. Purely decorative — it reports
@@ -2365,6 +2384,7 @@ function runLane(j){
   flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,j)
                     || V(l.g.position.x,-OFFSCREEN,0),
                M[l.key], M[l.key].gly[st.anchor]);
+  shedPhosphoryl(l, M[l.key].gly[st.anchor]);   // it left; it should look left
   later(()=>{
     laneDone.add(j);
     swapLane(j, keys[j]);
@@ -2455,6 +2475,7 @@ function runStep(){
       flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,lanes.indexOf(l))
                         || V(l.g.position.x,-OFFSCREEN,0),
                    M[l.key], M[l.key].gly[st.anchor]);
+      shedPhosphoryl(l, M[l.key].gly[st.anchor]);
     });
 
   } else if(st.fx==='ox'){
