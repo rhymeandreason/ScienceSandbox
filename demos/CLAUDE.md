@@ -26,7 +26,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
 
-## Making a new lesson:
+## Making a new lesson
 
 **Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Full script-load order, the module reference table, and the seven-step checklist for building a new page: **`AddingAPage.md`**.
 
@@ -36,11 +36,9 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 ## Scientific accuracy
 
-**Read `SCIENCE.md` before adding a molecule, changing geometry, or changing what a motion implies happened** (a bond forming/breaking, a charge moving) — it's the rulebook. Polish on an already-reviewed animation (timing, easing, camera) doesn't need it. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
+**Read `SCIENCE.md` before adding a molecule, changing geometry, or changing what a motion implies happened** (a bond forming/breaking, a charge moving) — it's the rulebook: §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture. Polish on an already-reviewed animation (timing, easing, camera) doesn't need it. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
 
-`MolecularGeometry.md` §1 covers adding a molecule — geometry, sources, stereochemistry, fidelity tiers, scale families. `SCIENCE.md` carries the rest: §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture.
-
-Before adding a **new molecule**, read `MolecularGeometry.md` §1.4 — it sets how much fidelity a molecule owes for the claim it makes (prop / contrast / subject) and requires a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
+Before adding a **new molecule**, read `MolecularGeometry.md` §1 — geometry, sources, stereochemistry, scale families, and §1.4's fidelity tiers (prop / contrast / subject), which set how much accuracy the molecule owes for the claim it makes and require a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 
 Water/solvation physics is in `WaterSim.md` (solvation apps only). Each page documents itself in its own comments.
 
