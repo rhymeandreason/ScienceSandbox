@@ -363,18 +363,6 @@
   @media (prefers-reduced-motion:reduce){ #actbtn.burst{animation:none} }
 
 
-  /* The ?step badge. Loud on purpose and pinned out of the stage's way — it
-     exists so a page reached by the shortcut can never be mistaken for the one
-     a student sees. Nothing reserves space for it: it is not part of the
-     lesson's layout and must not move the camera. */
-  /* Under the wordmark, not centred at the bottom: the bottom bar holds the
-     action button, and a badge over "Remove a water" hides the control the
-     shortcut exists to reach. */
-  #devbadge{position:fixed;left:12px;top:34px;z-index:90;
-    font-family:var(--font-slab);font-size:10.5px;font-weight:700;letter-spacing:1px;
-    text-transform:uppercase;color:#fff;background:#c0392b;
-    padding:3px 10px;border-radius:999px;pointer-events:none;opacity:.85}
-
   /* ---------- modal chrome ----------
      Shared by four modals: the ten-steps list, PFK-1's regulation, the
      mass-action demo and the closing fork. The mass-action demo's OWN styling
@@ -2608,35 +2596,16 @@ function drawAct(){
 const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; done=k;
   laneDone.clear(); carrierGone.clear(); renderLanes(done); refresh(); };
 
-/* ---- ?step=N — jumping forward, for TESTING ONLY --------------------------
- * The rail deliberately refuses to skip ahead: arriving at step 7 with a
- * molecule you never made is the one thing it is built to prevent, and that
- * stays true for every student. But building step 9's animation means running
- * eight steps to see it once, and again after every edit.
- *
- * So: `?step=N` opens the page READY TO RUN step N — substrate on stage, target
- * armed — and unlocks the whole rail, where a click means the same thing (ready
- * to run that number, not "just finished it" as a normal rail click does). The
- * ledger and pools follow from `done` like everything else, so the state is a
- * real one, not a mock; only the route to it is a shortcut.
- *
- * IT ANNOUNCES ITSELF. This repo publishes from the working tree, so a silent
- * dev flag is one URL away from being a student's confusing afternoon — the
- * badge is how you can tell at a glance that the page you are looking at was
- * not reached the way a student reaches it.
+/* ---- ?step=N, the same jump as a URL -------------------------------------
+ * Every rail number is reachable by clicking (see drawRail), so this adds no
+ * state a click could not; it just survives a reload, which is what editing an
+ * animation and refreshing wants. Clamped, so ?step=99 opens the last step
+ * rather than an empty stage.
  */
-const DEV_STEP=(()=>{
+const OPEN_STEP=(()=>{
   const m=/[?&]step=(\d+)/.exec(location.search);
-  if(!m) return null;
-  // clamped, so ?step=99 opens the last step rather than an empty stage
-  return Math.max(1, Math.min(nSteps, +m[1]));
+  return m ? Math.max(1, Math.min(nSteps, +m[1])) : null;
 })();
-if(DEV_STEP!=null){
-  const b=document.createElement('div');
-  b.id='devbadge';
-  b.textContent='dev: ?step — rail unlocked';
-  document.body.appendChild(b);
-}
 const railEl=document.getElementById('rail');
 function drawRail(){
   // The rail's only job is "where am I in the ten" (see the CSS header above).
@@ -2655,14 +2624,18 @@ function drawRail(){
     b.textContent=st.n;
     b.setAttribute('aria-label',`Step ${st.n}`);
     if(state==='cur') b.setAttribute('aria-current','step');
-    // Only a step that has run can be returned to — skipping to step 7 would
-    // hand over a molecule the student never made. Unless ?step is on, where
-    // every number goes anywhere and means "ready to run this one".
-    if(DEV_STEP!=null) b.onclick=()=>goToStep(idx);
-    else if(state==='past') b.onclick=()=>goToStep(idx+1);
-    else if(state!=='cur') b.disabled=true;
-    // a disabled button cannot be styled awake in every browser's default sheet,
-    // and the running number is not a control anyway — it is a state
+    // EVERY NUMBER GOES ANYWHERE, and means one thing: ready to RUN that step,
+    // its substrate on stage and its target armed. Forward too — the rail used
+    // to refuse it, on the grounds that arriving at step 7 hands over a
+    // molecule you never made. True, but it also made testing step 9 an
+    // eight-click errand, and there are no students yet.
+    //
+    // ONE MEANING, WHICH IS THE OTHER HALF OF THE FIX. Backward clicks used to
+    // land you AFTER the number ("3" → the F1,6-BP step 3 made), while the same
+    // numeral in the ten-steps list landed you BEFORE it. Two destinations for
+    // one label. `goToStep(idx)` here is what the list already does, so the two
+    // now agree, and the number you click is the number that lights up.
+    b.onclick=()=>goToStep(idx);
     railEl.appendChild(b);
   });
 }
@@ -2976,7 +2949,10 @@ const AllSteps=(()=>{
             ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '')
           +(st.commit
             ? `<button class="rstar" data-pfk aria-label="Why this step is the one the cell controls">★</button>` : '');
-        if(idx<done) r.onclick=()=>{ hide(); goToStep(idx); };
+        // Every row goes, like every rail number — same meaning, ready to run
+        // that step. Gated on `idx<done` while the rail refused to skip ahead;
+        // with that gone, a half-locked list is the odd one out.
+        r.onclick=()=>{ hide(); goToStep(idx); };
         const star=r.querySelector('[data-pfk]');
         if(star) star.onclick=e=>{ e.stopPropagation(); hide(); Pfk.show(); };
         g.appendChild(r);
@@ -3178,7 +3154,7 @@ L.afterFrame=()=>{
 // ?step=N lands here, before the first draw, so the page opens on that state
 // rather than opening on glucose and jumping. `intro=false` because the intro
 // is a state, not step zero (see `intro`).
-if(DEV_STEP!=null){ intro=false; done=DEV_STEP-1; }
+if(OPEN_STEP!=null){ intro=false; done=OPEN_STEP-1; }
 renderLanes(done); refresh(); applyCam(); resize();
 // Re-solve AFTER refresh(). The first computeFit runs inside renderLanes(),
 // before the tray has children — it measures a zero-height tray, insets
