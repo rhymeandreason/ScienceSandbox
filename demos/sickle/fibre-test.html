@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HbS fibre — structure test</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #app{grid-template-columns:1fr}
+  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:380px;
+    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
+    background:rgba(255,255,255,.88);border:1px solid var(--hair);border-radius:8px;
+    padding:10px 12px}
+  #note b{color:var(--ink)}
+  #note .measured{color:#1f6b3a}
+  #note .modelled{color:#a8571b}
+  #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
+    font-size:12px;color:var(--muted);background:rgba(255,255,255,.88);
+    border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
+  #ctl{position:absolute;right:16px;bottom:16px;z-index:6;display:grid;gap:8px;
+    font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    background:rgba(255,255,255,.92);border:1px solid var(--hair);
+    border-radius:8px;padding:10px 12px;width:230px}
+  #ctl label{display:grid;gap:2px}
+  #ctl label.row{grid-template-columns:auto 1fr;align-items:center;gap:6px}
+  #ctl label.row input{width:auto}
+  #ctl output{font-family:var(--font-mono,monospace);color:var(--ink)}
+  #ctl input{width:100%}
+  #ctl hr{border:0;border-top:1px solid var(--hair);margin:2px 0;width:100%}
+  #ctl .head{font-weight:600;color:var(--ink)}
+  #ctl .modelled{color:#a8571b;font-size:11px;line-height:1.3}
+  #stages{position:absolute;left:16px;bottom:16px;z-index:6;display:flex;gap:6px}
+  #stages button{font-family:var(--font-sans);font-size:13px;cursor:pointer;
+    background:var(--paper,#fff);color:var(--ink);border:1px solid var(--hair);
+    border-radius:8px;padding:8px 14px}
+  #stages button[aria-pressed="true"]{background:var(--ink);color:var(--paper,#fff)}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="gl"></canvas>
+  </main>
+</div>
+
+<div id="note">
+  <b>Test — the HbS fibre, at three scales.</b><br>
+  <span class="measured"><b>Green = measured</b></span> from PDB <b>2HBS</b>,
+  the deoxy-HbS crystal itself.
+  <span class="modelled"><b>Amber = modelled</b></span> from EM
+  reconstructions, which this repo has no copy of and cannot check.<br><br>
+
+  <span class="measured"><b>The contact and the double strand are
+  measured.</b></span> 2HBS is P2₁ with two tetramers per asymmetric unit,
+  and those two <i>are</i> the lateral pair — β6 of chain H sits in the
+  Phe85/Leu88 pocket of chain B. The pair then repeats along the
+  crystallographic <b>a</b> axis, and under −a, β6 of chain D reaches the
+  pocket of chain F. So one rigid motion and one translation, both read off
+  the file, generate a double strand of any length.<br><br>
+
+  <span class="modelled"><b>The 14-strand fibre is not.</b></span> Seven
+  double strands, their radii, and the helical twist come from
+  electron-microscope work, not from this crystal. They are sliders here
+  rather than constants, because that is what an unverified number should
+  look like.<br><br>
+  Watch <b>strain</b> in the readout as you move the pitch. Twisting rigid
+  copies of a crystal strand stretches every β6-to-pocket contact by the
+  same amount — a real fibre absorbs that by deforming, these copies can't,
+  so past about 2&nbsp;Å the picture has stopped modelling anything.
+</div>
+
+<div id="hud"></div>
+
+<div id="stages">
+  <button id="s1" aria-pressed="false">contact</button>
+  <button id="s2" aria-pressed="false">double strand</button>
+  <button id="s3" aria-pressed="true">fibre</button>
+</div>
+
+<div id="ctl">
+  <span class="head">Measured</span>
+  <label>repeats along the strand <output id="repOut"></output>
+    <input id="rep" type="range" min="1" max="30" step="1" value="12"></label>
+  <hr>
+  <span class="head">Modelled <span class="modelled">— not from 2HBS</span></span>
+  <label>double strands <output id="dsOut"></output>
+    <input id="ds" type="range" min="1" max="7" step="1" value="7"></label>
+  <label>core radius (Å) <output id="r0Out"></output>
+    <input id="r0" type="range" min="0" max="80" step="2" value="34"></label>
+  <label>sheath radius (Å) <output id="r1Out"></output>
+    <input id="r1" type="range" min="40" max="160" step="2" value="82"></label>
+  <label>helical pitch (Å) <output id="pitchOut"></output>
+    <input id="pitch" type="range" min="600" max="6000" step="100" value="3000"></label>
+  <label class="row"><input id="marks" type="checkbox" checked> mark β6 and the pocket</label>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="../hemoglobin/tube.js"></script>
+<script>
+'use strict';
+
+/* =====================================================================
+ *  fibre-test.html — how 14 strands are put together, and which half of
+ *  that sentence this repo can actually support.
+ *
+ *  THE SPLIT IS THE POINT OF THE PAGE. Everything here comes from one of
+ *  two places, and they are drawn, labelled and controlled differently:
+ *
+ *    MEASURED, from hemoglobin/data/2HBS.pdb via sickle/tools/bake-fibre.js
+ *      - the tetramer itself
+ *      - the LATERAL operation: the rigid motion putting the second
+ *        tetramer of the asymmetric unit beside the first (rmsd 0.32 A over
+ *        574 Ca, so the two really are the same molecule twice)
+ *      - the AXIAL repeat: the crystallographic a translation, 63.344 A
+ *      - both beta6 -> Phe85/Leu88 contacts that justify calling those the
+ *        strand-forming operations at all
+ *
+ *    MODELLED, from the electron-microscopy literature and NOT checkable here
+ *      - that seven double strands make a fibre
+ *      - the core/sheath radii they sit at
+ *      - the helical pitch of the whole assembly
+ *
+ *  The modelled numbers are sliders, deliberately. A slider says "someone
+ *  chose this" in a way a named constant does not, and none of these three
+ *  can be verified against anything in this repository. If a fibre EM
+ *  reconstruction is ever committed here, they should become measurements
+ *  and this comment should shrink.
+ *
+ *  WHAT IS DELIBERATELY MISSING: the fibre's strands are not all equivalent
+ *  in the real structure — the inner core and the outer sheath differ in
+ *  their contacts, and the outer strands are thought to be less regular.
+ *  Drawing all seven double strands as copies of one measured double strand
+ *  is a simplification, and a visible one at high repeat counts, where the
+ *  sheath looks more crystalline than the real fibre is.
+ * ===================================================================== */
+
+const canvas = document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam: { theta: 0.7, phi: 1.25, r: 900 }, rMin: 40, rMax: 12000 });
+camera.far = 40000; camera.updateProjectionMatrix();
+
+/* One shade per double strand, so the seven can be told apart where they
+   wind past each other. Same reasoning as crowd-test's per-molecule reds:
+   at fibre scale a single colour is one undifferentiated rope, and the
+   twist — the thing the page exists to show — becomes invisible. */
+const STRAND_HUE = [0.00, 0.045, 0.09, 0.955, 0.02, 0.07, 0.975];
+const tint = new THREE.Color();
+const strandColour = (i, partner) =>
+  tint.setHSL(STRAND_HUE[i % STRAND_HUE.length], 0.62, partner ? 0.58 : 0.40);
+
+/* Coarse on purpose. A fibre at 12 repeats is 168 tetramers; the crowd
+   bench established that the tessellation is not what costs, but there is
+   no reason to spend 61 triangles a residue on a molecule 30 px across. */
+const TUBE = { sides: 6, segPerRes: 1, caps: true };
+
+const MARK_R = 4.0;                      // angstroms; a residue-sized dot
+
+const hud = document.getElementById('hud');
+const dummy = new THREE.Object3D();
+const M = new THREE.Matrix4(), Mpair = new THREE.Matrix4(), tmp = new THREE.Matrix4();
+
+let D = null;                            // the bake
+let bodies = [];                         // InstancedMesh per tube part
+let markMesh = null, pocketMesh = null;
+let axialLen = 0;                        // A, the measured repeat
+
+/* Stages differ ONLY in how many copies are drawn and where the camera is —
+   the geometry and the transforms are identical in all three, so the fibre
+   is visibly the same object as the contact, seen further away. */
+const STAGE = {
+  s1: { label: 'one contact',   repeats: 1, strands: 1 },
+  s2: { label: 'double strand', repeats: null, strands: 1 },
+  s3: { label: 'fibre',         repeats: null, strands: null },
+};
+let stage = 's3';
+
+const el = id => document.getElementById(id);
+const num = id => +el(id).value;
+
+/* ---------------------------------------------------------------- build */
+
+function buildBodies(chains) {
+  /* One InstancedMesh per tube part, allocated for the largest crowd the
+     sliders can ask for: repeats x double strands x 2 tetramers. */
+  const maxInst = 30 * 7 * 2;
+  const parts = [];
+  for (const c of chains)
+    for (const p of TubeLib.chain(THREE, c.CA, c.ss, TUBE)) parts.push(p);
+
+  bodies = parts.map(p => {
+    p.geo.computeBoundingSphere();
+    const mat = Stage.bondMat(0xffffff);
+    const m = new THREE.InstancedMesh(p.geo, mat, maxInst);
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    m.frustumCulled = false;             // instances range far from the origin
+    root.add(m);
+    return m;
+  });
+
+  /* The two ends of the contact, as dots. Instanced the same way and placed
+     by the SAME transforms as the bodies, so a mark cannot drift off the
+     molecule it belongs to. */
+  const dot = new THREE.SphereGeometry(MARK_R, 10, 8);
+  markMesh = new THREE.InstancedMesh(dot,
+    new THREE.MeshStandardMaterial({ color: 0xc2571b, roughness: .5 }), maxInst * 2);
+  pocketMesh = new THREE.InstancedMesh(dot.clone(),
+    new THREE.MeshStandardMaterial({ color: 0x3f7abd, roughness: .5 }), maxInst * 2);
+  for (const m of [markMesh, pocketMesh]) {
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    m.frustumCulled = false;
+    root.add(m);
+  }
+}
+
+/* ------------------------------------------------------------- assembly */
+
+/* The measured pair operation, as a Matrix4. Row-major in the bake, and
+   THREE.set() takes row-major too, so this is a direct transcription. */
+function pairMatrix(pair) {
+  const R = pair.R, t = pair.t;
+  return new THREE.Matrix4().set(
+    R[0][0], R[0][1], R[0][2], t[0],
+    R[1][0], R[1][1], R[1][2], t[1],
+    R[2][0], R[2][1], R[2][2], t[2],
+    0, 0, 0, 1);
+}
+
+/* The crystal's a axis becomes the scene's +Y, so the fibre stands up.
+   A pure change of viewing frame — it rotates the whole assembly and
+   changes no relative geometry. */
+function uprightMatrix(axial) {
+  const from = new THREE.Vector3(axial[0], axial[1], axial[2]).normalize();
+  const to = new THREE.Vector3(0, 1, 0);
+  return new THREE.Matrix4().makeRotationFromQuaternion(
+    new THREE.Quaternion().setFromUnitVectors(from, to));
+}
+
+function rebuild() {
+  const S = STAGE[stage];
+  const repeats = S.repeats !== null ? S.repeats : num('rep');
+  const strands = S.strands !== null ? S.strands : num('ds');
+  const r0 = num('r0'), r1 = num('r1'), pitch = num('pitch');
+  const showMarks = el('marks').checked;
+
+  const upright = uprightMatrix(D.axial);
+  const pair = pairMatrix(D.pair);
+
+  /* Strand seats: the first two double strands in the core, the rest around
+     the sheath. MODELLED — see the header. */
+  const seats = [];
+  for (let s = 0; s < strands; s++) {
+    const inCore = strands > 2 && s < 2;
+    const ring = inCore ? 2 : Math.max(1, strands - 2);
+    const idx = inCore ? s : s - 2;
+    const rad = inCore ? r0 : r1;
+    const ang = 2 * Math.PI * idx / ring + (inCore ? Math.PI / 2 : 0);
+    seats.push({ rad, ang, s });
+  }
+
+  let n = 0;
+  const place = (m4, colourIdx, partner) => {
+    strandColour(colourIdx, partner);
+    for (const mesh of bodies) { mesh.setMatrixAt(n, m4); mesh.setColorAt(n, tint); }
+    n++;
+  };
+
+  for (const seat of seats) {
+    for (let i = 0; i < repeats; i++) {
+      /* Along the strand first, in the crystal's own frame. */
+      const along = new THREE.Matrix4().makeTranslation(
+        D.axial[0] * i, D.axial[1] * i, D.axial[2] * i);
+
+      /* Then stand it up, then seat it in the fibre, then twist by how far
+         up the fibre it has got. Order matters: the twist is applied about
+         the fibre axis AFTER the strand is placed off-axis, which is what
+         makes the strand wind rather than spin in place. */
+      const y = i * axialLen;
+      const twist = 2 * Math.PI * y / pitch;
+      const seatM = new THREE.Matrix4().makeTranslation(
+        seat.rad * Math.cos(seat.ang), 0, seat.rad * Math.sin(seat.ang));
+      const twistM = new THREE.Matrix4().makeRotationY(twist);
+
+      M.copy(twistM).multiply(seatM).multiply(upright).multiply(along);
+      place(M, seat.s, false);
+
+      /* The partner tetramer of the double strand: the measured lateral
+         operation, applied in the crystal frame before everything else. */
+      tmp.copy(M).multiply(Mpair.copy(pair));
+      place(tmp, seat.s, true);
+    }
+  }
+
+  for (const mesh of bodies) {
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }
+
+  /* Marks ride the same transforms. Two per tetramer per beta chain: the
+     patch at beta6 and the pocket at 85/88. */
+  if (showMarks) {
+    /* Read each body's transform back and hang the two dots off it, rather
+       than recomputing the composition — the marks then cannot drift away
+       from the molecule they label, whatever the seating maths does. */
+    const off = new THREE.Matrix4();
+    let mi = 0, pi = 0;
+    for (let inst = 0; inst < n; inst++) {
+      bodies[0].getMatrixAt(inst, tmp);
+      for (const mk of D.marks) {
+        off.makeTranslation(mk.beta6[0], mk.beta6[1], mk.beta6[2]);
+        markMesh.setMatrixAt(mi++, M.copy(tmp).multiply(off));
+        off.makeTranslation(mk.pocket[0], mk.pocket[1], mk.pocket[2]);
+        pocketMesh.setMatrixAt(pi++, M.copy(tmp).multiply(off));
+      }
+    }
+    markMesh.count = mi; pocketMesh.count = pi;
+    markMesh.instanceMatrix.needsUpdate = true;
+    pocketMesh.instanceMatrix.needsUpdate = true;
+  }
+  markMesh.visible = pocketMesh.visible = showMarks;
+
+  frameCamera(repeats, strands, r1);
+  report(n, repeats, strands, pitch, strands > 2 ? r1 : r0);
+}
+
+/* HOW MUCH THE MODELLED TWIST DEFORMS THE MEASURED CONTACT.
+
+   Placing tetramer i at rotY(i*dtheta) . translate(i*a) is a SCREW, and the
+   useful property of a screw is that the relation between any two
+   consecutive bodies is the same rigid motion — verified numerically: the
+   axial contact is identical across ten links to 3.6e-14 A. So the twist
+   does not progressively tear the strand apart; it applies one uniform
+   strain to every contact along it.
+
+   But that strain is real, and it grows with radius and with twist rate. At
+   the commonly-cited 3000 A pitch it stretches the sheath's beta6-to-pocket
+   link from 6.7 A to 10.3 A — a 3.6 A pull on a contact whose deposited
+   side-chain distance is 4.1 A. A real fibre absorbs that by deforming its
+   molecules; rigid copies of a crystal strand cannot, so the number is
+   reported rather than hidden. Above about 2 A it is fair to say the
+   picture has stopped being a model of anything.
+
+   Measured, not asserted: the page recomputes it from the transforms it is
+   actually drawing, so it cannot drift away from what is on screen. */
+function twistStrain(rad, pitch) {
+  const upright = uprightMatrix(D.axial);
+  const pair = pairMatrix(D.pair);
+  const at = (i, p) => {
+    const along = new THREE.Matrix4().makeTranslation(
+      D.axial[0] * i, D.axial[1] * i, D.axial[2] * i);
+    return new THREE.Matrix4()
+      .makeRotationY(2 * Math.PI * (i * axialLen) / p)
+      .multiply(new THREE.Matrix4().makeTranslation(rad, 0, 0))
+      .multiply(upright).multiply(along);
+  };
+  const mD = D.marks.find(m => m.chain === 'D') || D.marks[0];
+  const mB = D.marks.find(m => m.chain === 'B') || D.marks[0];
+  const v = new THREE.Vector3(), w = new THREE.Vector3();
+  const link = p => {
+    v.fromArray(mD.beta6).applyMatrix4(at(1, p));
+    w.fromArray(mB.pocket).applyMatrix4(at(0, p).multiply(pair));
+    return v.distanceTo(w);
+  };
+  return { now: link(pitch), straight: link(1e12) };
+}
+
+function frameCamera(repeats, strands, r1) {
+  /* Framed from the assembly's own extent rather than by hand, so the three
+     stages and every slider position all arrive at a sensible distance. */
+  const halfH = Math.max(axialLen * repeats, 120) / 2;
+  const halfW = (strands > 2 ? r1 : 0) + 60;
+  cam.target.set(0, halfH, 0);
+  cam.r = Math.max(halfH * 1.9, halfW * 4.2, 220);
+  applyCam();
+}
+
+function report(n, repeats, strands, pitch, rad) {
+  const st = twistStrain(rad, pitch);
+  const strain = st.now - st.straight;
+  const tris = D.chains.reduce((s, c) => s + TubeLib.triangles(c.CA.length, TUBE), 0);
+  const length = axialLen * repeats;
+  hud.textContent =
+    STAGE[stage].label + '\n' +
+    n + ' tetramers   ' + (bodies.length + 2) + ' draw calls\n' +
+    (tris * n / 1000).toFixed(0) + 'k triangles\n' +
+    '\n' +
+    'MEASURED (2HBS)\n' +
+    '  axial repeat   ' + axialLen.toFixed(1) + ' A\n' +
+    '  lateral fit    ' + D.pair.rmsd.toFixed(2) + ' A rmsd\n' +
+    '  b6 -> pocket   ' + D.contacts.lateral.d.toFixed(2) + ' A lateral\n' +
+    '                 ' + D.contacts.axial.d.toFixed(2) + ' A axial\n' +
+    '\n' +
+    'MODELLED\n' +
+    '  ' + strands + ' double strands = ' + (strands * 2) + ' strands\n' +
+    '  pitch ' + pitch + ' A  -> ' +
+      (360 * axialLen / pitch).toFixed(1) + ' deg per repeat\n' +
+    '  strain on every contact  +' + strain.toFixed(2) + ' A' +
+      (strain > 2 ? '  <-- too much\n' : '\n') +
+    '\n' +
+    'fibre length ' + length.toFixed(0) + ' A (' + (length / 10).toFixed(0) + ' nm)';
+}
+
+/* ---------------------------------------------------------------- start */
+
+for (const id of ['s1', 's2', 's3'])
+  el(id).onclick = () => {
+    stage = id;
+    for (const j of ['s1', 's2', 's3'])
+      el(j).setAttribute('aria-pressed', String(j === id));
+    rebuild();
+  };
+
+for (const id of ['rep', 'ds', 'r0', 'r1', 'pitch']) {
+  const out = el(id + 'Out');
+  const show = () => { out.value = el(id).value; };
+  el(id).oninput = show;
+  el(id).onchange = () => { show(); rebuild(); };
+  show();
+}
+el('marks').onchange = rebuild;
+
+fetch('data/fibre.json').then(res => {
+  if (!res.ok) throw new Error('sickle/data/fibre.json — HTTP ' + res.status +
+    ' (run: node sickle/tools/bake-fibre.js)');
+  return res.json();
+}).then(json => {
+  D = json;
+  axialLen = Math.hypot(D.axial[0], D.axial[1], D.axial[2]);
+  buildBodies(D.chains);
+  rebuild();
+  document.title = 'HbS fibre — structure test (2HBS)';
+
+  function loop() { renderer.render(scene, camera); requestAnimationFrame(loop); }
+  loop();
+}).catch(e => {
+  const d = document.createElement('div');
+  d.style = 'position:absolute;left:16px;bottom:70px;color:#a33;font-family:monospace;z-index:9';
+  d.textContent = 'could not start — ' + e.message;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>
