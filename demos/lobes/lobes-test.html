@@ -267,9 +267,11 @@ document.getElementById('key').innerHTML =
    deliberate — red and blue on an orbital is the phase convention, and a lone
    pair is the δ− end of the molecule, so element tinting invites exactly the
    wrong reading.
-   <span class="sw" style="--c:${hex(MolLib.PALETTE.bonds.hbond)}"></span>
-   <b>Blue</b> is the hydrogen-bond colour, straight from
-   <code>PALETTE.bonds.hbond</code>: this pair is somewhere an H-bond can land.
+   <span class="sw" style="--c:${hex(MolLib.PALETTE.bonds.lonepair)}"></span>
+   <b>Blue</b> says an H-bond can land here — <code>PALETTE.bonds.lonepair</code>,
+   the H-bond stick's blue
+   (<span class="sw" style="--c:${hex(MolLib.PALETTE.bonds.hbond)}"></span>)
+   lifted so it still reads as that colour through the transparency.
    <span class="sw" style="--c:#8c857a"></span>
    <b>Grey</b> is conjugated — the electrons are there, in the π system, and
    nothing can point at them.`;

@@ -287,10 +287,30 @@ console.log('\n8. a lobe is the H-bond colour, not its atom\'s');
   const fs = require('fs');
   const src = fs.readFileSync(path.join(HERE, 'lobes.js'), 'utf8');
   const body = src.replace(/\/\*[\s\S]*?\*\//g, '');      // comments argue; code decides
-  ok(/P\.bonds\.hbond/.test(body),
-     'the colour is read from PALETTE.bonds.hbond');
+  ok(/P\.bonds\.lonepair/.test(body),
+     'the colour is read from PALETTE.bonds.lonepair');
+  ok(!/0x[0-9a-f]{6}/i.test(body.replace(/0x8c857a|0x888888/gi,'')),
+     'and no blue is typed into the module');
   ok(!/P\.atoms\s*\[/.test(body),
      'and no lobe is tinted per element');
+  /* The two blues must stay in the same family. Asserted as HUE rather than
+   * as equality, because they are deliberately different numbers: a lobe is
+   * translucent and needs the brighter one to read as the same colour. Drift
+   * far enough apart and the lobe stops saying "an H-bond lands here", which
+   * is the only reason it is blue at all. */
+  const P = require(path.join(HERE, '..', 'palette.js')).PALETTE;
+  const hueOf = n => {
+    const r=(n>>16&255)/255, g=(n>>8&255)/255, b=(n&255)/255;
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+    if(!d) return 0;
+    const h = mx===r ? ((g-b)/d+6)%6 : mx===g ? (b-r)/d+2 : (r-g)/d+4;
+    return h*60;
+  };
+  const dh = Math.abs(hueOf(P.bonds.lonepair) - hueOf(P.bonds.hbond));
+  ok(dh < 25, 'a lobe and an H-bond stick are the same blue family',
+     `${hueOf(P.bonds.lonepair).toFixed(0)}° vs ${hueOf(P.bonds.hbond).toFixed(0)}°`);
+  ok(P.bonds.lonepair !== P.bonds.hbond,
+     '…and separate keys, so retuning one cannot restyle the other');
   ok(/lobes\/lobes\.js/.test(
        fs.readFileSync(path.join(HERE, '..', 'SCIENCE.md'), 'utf8')),
      'SCIENCE.md §5 records the exception to "an electron wears its atom\'s colour"');

@@ -359,10 +359,12 @@
      *     asking whether a donor can point here. So it takes the colour of
      *     the thing that lands on it, which is already in the palette.
      *
-     * Read from PALETTE.bonds.hbond, never re-typed: the H-bond stick and the
-     * lobe it terminates on drifting to two different blues is the one way
-     * this can quietly stop meaning anything. */
-    const HBOND=P.bonds.hbond;
+     * Read from PALETTE.bonds.lonepair, never re-typed. That is its own key
+     * rather than `hbond` itself for a reason recorded next to it in
+     * palette.js: a lobe is a translucent volume, and the navy at this alpha
+     * over cream is periwinkle, so sharing the hex would have meant NOT
+     * sharing the colour. Same family, lifted to survive the transparency. */
+    const HBOND=P.bonds.lonepair;
     const MUTE=0x8c857a;                 // ink, greyed — "present, not available"
 
     function mat(color,opacity,side){

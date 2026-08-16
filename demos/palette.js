@@ -54,6 +54,18 @@
       peptide:   0x6a5acd,   // peptide (amide C–N) bond — slate violet, so the
                              // newly-formed backbone link reads distinct from the
                              // ordinary covalent sticks within each residue
+      lonepair:  0x2fb0ff,   // a LONE PAIR (lobes/lobes.js) — the place an
+                             // H-bond can land, so it is deliberately in
+                             // `hbond`'s family and deliberately not the same
+                             // number. A lobe is a translucent VOLUME, and
+                             // `hbond`'s navy at 46% over cream comes out
+                             // periwinkle — the same hex would have stopped
+                             // reading as the same colour. Lifted and pushed
+                             // toward cyan instead: bright enough to survive
+                             // the alpha, and clear of nitrogen's indigo
+                             // (0x3f6ae0), which it has to sit on top of all
+                             // over the nucleobases. Separate keys so
+                             // retuning one cannot silently restyle the other.
     },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
