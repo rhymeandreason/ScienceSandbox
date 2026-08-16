@@ -84,6 +84,7 @@
 <script src="../molecules.js"></script>
 <script src="../scene.js"></script>
 <script src="../folding/ribbon.js"></script>
+<script src="surface.js"></script>
 <script src="hbfold.js"></script>
 <script src="../sickle/sickle.js"></script>
 <script>
@@ -140,44 +141,12 @@ const canvas = document.getElementById('gl');
 const { scene, camera, renderer, root, cam, applyCam, resize } =
   Stage.create(canvas, { cam:{ theta:0.6, phi:1.15, r:110 }, rMin:20, rMax:260 });
 
-/* ------------------------------------------------------------------ *
- *  the decoder — the other half of bake-surface.js's format
- * ------------------------------------------------------------------ */
-function decodeSurface(buf) {
-  const dv = new DataView(buf);
-  const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
-  if (magic !== 'SES1') throw new Error('not an SES1 file');
-  const hlen = dv.getUint32(4, true);
-  const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hlen)));
-  const n = head.nVert, t = head.nTri;
-
-  let off = 8 + hlen + ((4 - (hlen % 4)) % 4);
-  const qpos = new Uint16Array(buf, off, n * 3);       off += n * 6;
-  const qnrm = new Int8Array(buf, off, n * 4);         off += n * 4;
-  const res  = new Uint16Array(buf, off, n);           off += n * 2;
-  const index = head.indexBits === 16
-    ? new Uint16Array(buf, off, t * 3)
-    : new Uint32Array(buf, off, t * 3);
-
-  /* De-quantise positions into real angstroms. Normals stay int8 and are
-     handed to the GPU normalized — Three.js renormalises them, so the
-     ~0.5 degree of quantisation never becomes a visible facet. */
-  const position = new Float32Array(n * 3);
-  for (let v = 0; v < n; v++) for (let c = 0; c < 3; c++)
-    position[v*3+c] = head.qmin[c] + qpos[v*3+c] * head.qscale[c];
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  /* The normal block is stride-4 (see the format note on alignment), so
-     the attribute steps 4 bytes and reads 3 of them — an interleaved
-     view, not a copy. `true` is the normalized flag: the GPU turns
-     int8 -127..127 back into -1..1 and the shader renormalises. */
-  geo.setAttribute('normal', new THREE.InterleavedBufferAttribute(
-    new THREE.InterleavedBuffer(qnrm, 4), 3, 0, true));
-  geo.setIndex(new THREE.BufferAttribute(index, 1));
-  geo.computeBoundingSphere();
-  return { geo, head, res, n };
-}
+/* THE DECODER NOW LIVES IN surface.js, as SurfLib.decode. It moved the
+   moment a second page wanted a baked surface: a format reader is the worst
+   thing in this repo to have two of, because a copy that drifts from the
+   writer does not crash — it draws something subtly wrong. The format
+   itself is still specified in bake-surface.js's header, which is where it
+   belongs, next to the code that writes it. */
 
 /* ------------------------------------------------------------------ *
  *  ribbon, exactly as the lessons draw it
@@ -259,11 +228,11 @@ function colourFor(m, resName, chain) {
 
 function paint() {
   const m = MODES[mode].key;
-  const col = new Float32Array(S.n * 3);
+  const col = new Float32Array(S.nVert * 3);
   /* One colour per RESIDUE, looked up once, then splatted per vertex —
      578 lookups rather than 63 924. */
   const table = S.head.residues.map(([chain, num, name]) => colourFor(m, name, chain));
-  for (let v = 0; v < S.n; v++) {
+  for (let v = 0; v < S.nVert; v++) {
     const c = table[S.res[v]];
     col[v*3] = c.r; col[v*3+1] = c.g; col[v*3+2] = c.b;
   }
@@ -302,7 +271,7 @@ Promise.all([
   });
   Object.values(quat.heme).forEach(addHeme);
 
-  S = decodeSurface(surfBuf);
+  S = SurfLib.decode(THREE, surfBuf);
   surfMat = new THREE.MeshStandardMaterial({
     roughness: .35, metalness: .0,
     transparent: true, opacity: 0.28,

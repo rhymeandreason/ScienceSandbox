@@ -38,7 +38,12 @@
        cannot do this one — it skips coil unconditionally and by design ("a
        loop's wiggle IS its shape"), which is right for a cartoon and wrong
        for this deliberately more abstract picture. */
-    relaxPasses: 3,
+    /* 2, not 3. tube-test.html — the page these were tuned in — was
+       retuned from 3 to 2 after the constants had already been copied into
+       crowd-test.html, and neither copy knew. That is the second time this
+       code drifted while duplicated (the first was the winding fix below),
+       and it is why the prototype's value is the one that survives here. */
+    relaxPasses: 2,
     relaxW: 0.4,
     /* The radius is a per-residue array blurred the same way, and THAT is
        what makes the helix-to-loop join gradual: blurring a step function
