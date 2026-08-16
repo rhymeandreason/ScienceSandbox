@@ -159,7 +159,13 @@ fi
 # runs molgraph over REAL specs (glucose's five hydroxyls, the phosphoryl group
 # that leaves its bridging oxygen behind), so a spec edit can break it from
 # outside the folder. Cheap — it is pure arithmetic over the registry.
-if git diff --cached --name-only | grep -qE '^demos/(kit/.*|molecules\.js|skel\.js|mol-[^/]+\.js)$'; then
+#
+# lobes/ is in the pattern for the same reason and one more: hbond.js takes its
+# acceptor capacity FROM lobes.js, and check-kit.js asserts the consequence —
+# that adenine's amino nitrogen donates and never accepts. Edit the conjugation
+# rule in lobes/ and the assertion that catches A–T coming out backwards lives
+# over here, so the two have to fire together.
+if git diff --cached --name-only | grep -qE '^demos/(kit/.*|lobes/.*|molecules\.js|skel\.js|mol-[^/]+\.js)$'; then
   if ! node kit/check-kit.js > /tmp/ck.$$ 2>&1; then
     tail -25 /tmp/ck.$$; rm -f /tmp/ck.$$
     echo ""
