@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kit test bench</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #stage,#side{min-height:0} #side{overflow-y:auto}
+  #side h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--muted);margin:18px 0 8px}
+  #side button{font-weight:600;font-size:13px;padding:7px 13px;border-radius:8px;cursor:pointer;
+    border:2px solid var(--ink);background:transparent;color:var(--ink);margin:0 6px 6px 0}
+  #side button:hover{background:rgba(0,0,0,.05)}
+  #readout{font-family:var(--font-slab);font-size:12.5px;line-height:1.6;color:var(--muted);
+    border-top:1.5px dashed var(--hair);padding-top:10px;margin-top:14px;white-space:pre-wrap}
+  /* the chrome the fit has to spend PIXELS on — deliberately tall */
+  #band{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;display:none;
+    background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:9px;
+    padding:14px 18px;max-width:70%;text-align:center;font-family:var(--font-sans);font-size:14px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-wrench"></i></span><h1>kit test bench</h1></div>
+    <div id="band">Chrome the camera must not let the molecule sit behind.<br>
+      Reserved in PIXELS, spent in world units by <b>Lesson.fit</b>.</div>
+    <div id="stats"></div>
+  </div>
+  <div id="side">
+    <h1 id="labtitle">kit/</h1>
+    <p id="labintro">Bench for <b>motion.js</b>, <b>focus.js</b> and <b>stagekit.js</b> with no
+      lesson around them. The logic in motion.js and molgraph.js is asserted offline by
+      <code>node kit/check-kit.js</code>; what is left is visual, and this is where it gets looked at.</p>
+
+    <h2>motion — timeline</h2>
+    <button id="run">Run a 3-beat sequence</button>
+    <button id="cancel">Cancel mid-flight</button>
+    <button id="seek">Seek to 50%</button>
+    <p style="font-size:13px;color:var(--muted)">Cancel must FREEZE the molecule where it is —
+      not snap it to the end pose. That was the bug in every page's hand-rolled cancelTimers().</p>
+
+    <h2>focus — look here</h2>
+    <div id="groups"></div>
+    <button id="clear">Clear</button>
+
+    <h2>stagekit — pixel chrome</h2>
+    <button id="bandbtn">Toggle the bottom band</button>
+    <p style="font-size:13px;color:var(--muted)">With the band on, the camera must pull back by
+      exactly its height. Resize the window with it on: the reserve is re-measured, so the
+      molecule never slides under it.</p>
+    <div id="readout"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<script src="../mol-monomers.js"></script>
+<script src="../mol-glycolysis.js"></script>
+<script src="../scene.js"></script>
+<script src="../fx.js"></script>
+<script src="motion.js"></script>
+<script src="molgraph.js"></script>
+<script src="focus.js"></script>
+<script src="stagekit.js"></script>
+<script>
+"use strict";
+const SPEC=MolLib.MOLECULES.g6p;                 // a phosphorylated sugar: rings AND a phosphate
+const bandEl=document.getElementById('band');
+const ext=Stage.measure(SPEC);
+
+const L=Lesson.create(document.getElementById('gl'),{
+  cam:{theta:.4,phi:1.15,r:20}, rMax:120,
+  boxes:()=>[{x:0,y:0,rxz:ext.rxz,hy:ext.hy}],
+  reservePx:()=>({bottom: bandEl.style.display==='block' ? bandEl.offsetHeight+26 : 0}),
+  frame:()=>readout(),
+});
+const g=Stage.buildMolecule(SPEC,{center:true});
+L.root.add(g); Focus.claim(g);
+
+/* ---- motion ---- */
+const home=g.position.clone();
+document.getElementById('run').onclick=()=>{
+  L.motion.cancel('demo'); g.position.copy(home);
+  L.motion.seq([
+    {dur:.8, ease:'inOutCubic', onUpdate:t=>g.position.x=home.x+t*6},
+    {call:()=>L.fx.spawnRing(g.position.clone(),0x2f8f6f)},
+    {dur:.6, ease:'outBack',   onUpdate:t=>g.position.y=home.y+t*3},
+    {dur:1.0, ease:'inOutCubic', onUpdate:t=>{
+       g.position.x=home.x+6-t*6; g.position.y=home.y+3-t*3; }},
+  ],{tag:'demo'});
+};
+document.getElementById('cancel').onclick=()=>L.motion.cancel('demo');
+let last=null;
+document.getElementById('seek').onclick=()=>{
+  L.motion.cancel('demo');
+  // A timeline built but never played: seek() puts it at a time without firing
+  // side effects, which is what a scrub or a screenshot wants.
+  last=L.motion.seq([{dur:1, ease:'linear', onUpdate:t=>{
+    g.position.x=home.x+t*6; g.position.y=home.y+t*3; }}],{tag:'demo'});
+  L.motion.cancel('demo'); last.seek(0.5);
+};
+
+/* ---- focus ---- */
+// Groups FOUND by molgraph, not listed here — the point being that a lesson can
+// point at "every hydroxyl" without anyone counting them.
+const found=MolGraph.findGroups(SPEC);
+const byKey={};
+found.forEach(f=>{ (byKey[f.key]=byKey[f.key]||[]).push(...f.atoms); });
+const groupsEl=document.getElementById('groups');
+Object.entries(byKey).forEach(([k,atoms])=>{
+  const b=document.createElement('button');
+  b.textContent=`${k} (${found.filter(f=>f.key===k).length})`;
+  b.onclick=()=>L.focus.atoms(g,atoms);
+  groupsEl.appendChild(b);
+});
+document.getElementById('clear').onclick=()=>L.focus.clear();
+
+/* ---- pixel chrome ---- */
+document.getElementById('bandbtn').onclick=()=>{
+  bandEl.style.display = bandEl.style.display==='block' ? 'none' : 'block';
+  L.fit();
+};
+
+function readout(){
+  document.getElementById('readout').textContent=
+     `cam.r          ${L.cam.r.toFixed(2)}\n`
+    +`world per px   ${L.worldPerPx().toFixed(4)}\n`
+    +`reserved       ${L.pxToWorld(bandEl.style.display==='block'?bandEl.offsetHeight+26:0).toFixed(2)} world\n`
+    +`timeline       ${L.motion.busy?'running':'idle'}\n`
+    +`groups found   ${found.length}`;
+}
+document.getElementById('stats').innerHTML=
+  `<b>${SPEC.name}</b> · ${SPEC.atoms.length} atoms · `
+  +`${MolGraph.rings(SPEC).length} ring · ${found.length} functional groups found`;
+
+L.resize(); L.fit(); L.start();
+</script>
+</body>
+</html>

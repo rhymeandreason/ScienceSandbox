@@ -26,10 +26,13 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
 | `massaction/massaction-test.html` | Test bench for `massaction/massaction.js` — three mounts, including the barrier slider the enzymes lesson needs and glycolysis never renders | test |
+| `kit/kit-test.html` | Test bench for `kit/` — the timeline, the highlight vocabulary, and a camera fit against pixel chrome, with no lesson around them | test |
 
 ## Making a new lesson
 
 **Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Full script-load order, the module reference table, and the seven-step checklist for building a new page: **`AddingAPage.md`**.
+
+**Above `scene.js` there is `kit/`** — the loop, the resize, the timeline, the highlight vocabulary, and a camera fit that spends *pixels* of caption/tray chrome. It owns no lesson state and no physics; it exists so a new lesson is its mechanic and nothing else. **`kit/README.md`.**
 
 ## Architecture principle: **share the plumbing, not the physics**
 
@@ -74,7 +77,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:

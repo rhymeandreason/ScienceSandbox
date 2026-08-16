@@ -16,6 +16,10 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
 <script src="mol-monomers.js"></script>    <!-- the domains this page shows -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
+<script src="kit/motion.js"></script>     <!-- the timeline, if anything animates -->
+<script src="kit/molgraph.js"></script>   <!-- if the page asks a spec a question -->
+<script src="kit/focus.js"></script>      <!-- if the page says "look here" -->
+<script src="kit/stagekit.js"></script>   <!-- the loop/resize/fit shell; last of the four -->
 <script src="molview.js"></script>     <!-- if the page shows one molecule three ways -->
 <script src="fx.js"></script>          <!-- if the page fires any effect -->
 <script src="annotate.js"></script>    <!-- if the page labels parts of a model -->
@@ -46,6 +50,11 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 | `haworth.js` | `Haworth` = `haworth` (sugar spec → Haworth-projection SVG) + `findRings` + `faces`. Derived from the spec's own geometry — ring finder, committed `names`, substituent face from the ring normal — so nothing is hand-placed and a regenerated spec redraws correctly. Never goes through SMILES, which sidesteps the rooted-SMILES anomer bug. `contrast-lab.html` only | own header |
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
 | `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
+| `kit/motion.js` | `Motion.create` → `tween`, `seq`, `after`, `step(dt)`, `cancel(tag)`, plus a handle with `seek`/`duration`. One clock, advanced by the render loop — no `setTimeout`, so a backgrounded tab freezes the animation instead of firing its timers past it. `dt` in SECONDS, clamped at 0.1. No THREE; Node-loadable | `kit/README.md` |
+| `kit/molgraph.js` | `MolGraph` — neighbours, `terminal`/`bridging`, `side` (what leaves when a bond breaks; **null** across a ring bond), `rings`, `findGroups`, `phosphoryl`, signed `torsion`, `centroid`/`spread`. Questions about a SPEC, with no scene involved, so `kit/check-kit.js` asserts the same code a page animates with | `kit/README.md` |
+| `kit/focus.js` | `Focus.create` → `atoms` (by spec index), `among` (whole objects), `clear`, `claim`. The one spelling of ghost-the-rest / light-the-chosen. A bond is lit only when BOTH ends are | `kit/README.md` |
+| `kit/stagekit.js` | `Lesson.create` → everything `Stage.create` returns, plus `fx`/`motion`/`focus`, `start`/`stop`/`draw`/`snapshot`, `worldPerPx`/`pxToWorld`, and `fit()` — which converts `reservePx` (caption, tray, bar chrome, measured off the DOM) into the world bands `Stage.frame` takes, iterating because a perspective fit against a pixel band is circular. `boxes`/`reservePx` are functions, re-asked on every resize | `kit/README.md` |
+| `kit/check-kit.js` | the assertions behind the two offline kit modules — the timeline's cancel/clamp/seek semantics, and the chemistry `molgraph` claims (a phosphoryl group leaves its BRIDGING oxygen behind; `side()` refuses a ring bond; a mirrored spec flips the torsion sign) | own header |
 | `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
 | `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has`, `viewEuler` (the pose on screen folded back into a spec's `view:`), `resetPose`, `setSpin`, `atDeclaredView`. `defaultView()` is the ONLY source of an opening angle — a spec's declared `view:` where it has one, a PCA pose where it does not; the turntable is off unless a page switches it on · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
