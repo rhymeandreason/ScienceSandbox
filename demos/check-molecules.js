@@ -605,6 +605,45 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- the hydrogen step 5 moves (`gly.movingH`) ------------------------
+  // glycolysis-lab hands this index to spotPair, which turns it into the C–H
+  // bond the student CLICKS, and then hops that atom to the carbonyl carbon.
+  // So the index is not metadata — it is where a target appears and what flies.
+  // Four ways it can be wrong, none of them visible on screen:
+  //
+  //   · NOT A HYDROGEN. Any index renders a target somewhere; only an H makes
+  //     "click the H that moves" true.
+  //   · ON THE WRONG CARBON. It must sit on the LAST carbon of the chain — the
+  //     free end, away from the phosphate. On the phosphate end it would be
+  //     the wrong half of a molecule whose two ends are the whole point.
+  //   · AN ONLY CHILD. That carbon must carry TWO H: one moves, one stays and
+  //     is redrawn as the product's aldehyde H (step 6 takes it). Draw one and
+  //     the end carbon silently loses a hydrogen across the swap.
+  //   · THE SUBSTRATE ALREADY BEING AN ALDOSE. The C=O must be on the MIDDLE
+  //     carbon — that is what makes it a ketose and the step worth doing. A
+  //     carbonyl already at the end is G3P wearing DHAP's name.
+  if (mol.gly && mol.gly.movingH != null) {
+    const g = mol.gly, h = g.movingH;
+    const adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                          .map(b => (b[0] === i ? b[1] : b[0]));
+    const end = g.cN[g.cN.length - 1], mid = g.cN[1];
+    const fail = m => { stereoFails++; console.log(`   MOVING-H FAIL: ${m}`); };
+    const onEnd = adj(h);
+    const endH = adj(end).filter(i => mol.atoms[i].el === 'H');
+    const dbl = i => bonds.some(b => b[2] === 2 && (b[0] === i || b[1] === i));
+    if (mol.atoms[h].el !== 'H')
+      fail(`movingH is a ${mol.atoms[h].el}, not an H`);
+    else if (onEnd.length !== 1 || onEnd[0] !== end)
+      fail(`movingH hangs off atom ${onEnd.join('/')}, not the end carbon C${g.cN.length}`);
+    else if (endH.length !== 2)
+      fail(`the end carbon carries ${endH.length} H, not 2 — one moves, one becomes the aldehyde H`);
+    else if (!dbl(mid))
+      fail(`no C=O on the middle carbon — this is not a ketose, so step 5 has nothing to do`);
+    else if (dbl(end))
+      fail(`the end carbon already carries a C=O — that is the product, not the substrate`);
+    else console.log(`   movingH OK: an H on C${g.cN.length} of 2, C=O on C2`);
+  }
+
   // ---- the 2D layout (`flat2d`) ----------------------------------------
   // molecule-viewer.html slides the real atoms onto these positions, so a wrong
   // one is not a wrong picture — it is an atom that flies to the wrong place in

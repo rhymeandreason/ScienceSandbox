@@ -33,9 +33,12 @@
    *  MODEL SIMPLIFICATIONS — all deliberate, all listed here:
    *   1. C–H hydrogens are OMITTED on the carbon backbone. The lesson is
    *      "where do the six carbons go", so the carbons must stay countable;
-   *      24 extra H's would bury them. The ONE exception is the aldehyde H on
-   *      G3P's C1 — that specific H is what gets oxidised onto NAD⁺, so it is
-   *      drawn. Hydroxyl O–H hydrogens are always drawn (they read as "–OH").
+   *      24 extra H's would bury them. The exceptions are the two molecules
+   *      whose STEP is about a specific hydrogen, and they are the same H
+   *      twice: DHAP's two C3 hydrogens (step 5 moves one of them to C2, and
+   *      the other survives as…) and the aldehyde H on G3P's C1 (…which step 6
+   *      oxidises onto NAD⁺). Everywhere else the backbone stays bare.
+   *      Hydroxyl O–H hydrogens are always drawn (they read as "–OH").
    *   2. C=O double bonds are tagged `[i,j,2]` and drawn as a PAIR of sticks
    *      (see `bond()` in scene.js / the labs). P=O is the exception: the three
    *      phosphate O's are all drawn as single sticks, because the charge is
@@ -223,8 +226,22 @@
     const p=g.phosphate(0,0);
     g.carbonyl(1,0);
     g.hydroxyl(2,1);
+    // THE TWO HYDROGENS ON C3, drawn — the second exception to "no backbone
+    // C–H" (see MODEL SIMPLIFICATIONS 1), and for the same reason as the first:
+    // step 5 is ABOUT one of them. The isomerase takes one off C3 and puts it
+    // on C2; the C=O slides out to C3 behind it. So of these two, one moves and
+    // the other STAYS — and the one that stays is drawn again on the product as
+    // G3P's `aldehydeH`, the very H that NAD⁺ takes at step 6. Drawing both
+    // makes that continuous: two H here, one H there, and the student watched
+    // which one left.
+    // WHICH of the two is a pedagogical pick. The enzyme abstracts the pro-R
+    // proton specifically, but C3 is prochiral (two H, one OH, one C) — the
+    // choice is invisible in a ball-and-stick and naming either is honest about
+    // the reaction while staying silent about a face the page never shows.
+    const hMove=g.grow(2,'H',GL.CH,'sp3',0);
+    g.grow(2,'H',GL.CH,'sp3',0);                           // the one that stays
     GLYCOLYSIS.dhap=g.spec({ name:'Dihydroxyacetone phosphate', short:'DHAP', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p1:p, phosphates:1 } });
+      gly:{ carbons:3, cN:[0,1,2], p1:p, phosphates:1, movingH:hMove } });
   }
   {
     // — G3P: the C4–C6 half, renumbered C1–C3. The aldehyde H on C1 is drawn

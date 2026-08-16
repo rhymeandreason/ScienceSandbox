@@ -872,6 +872,15 @@ const STEPS=[
     act:'Convert DHAP to G3P',
     species:['g3p','g3p'], enz:'Triose-phosphate isomerase', hook:'Streamlining', rev:true,
     fx:'iso',
+    // ONE TARGET, ON ONE LANE. `movingH` is named on DHAP and on nothing else,
+    // so spotPair returns null for the G3P lane and kit/hotspot.js places
+    // nothing there — no per-lane machinery, just a spec that has the atom or
+    // doesn't.
+    // The asymmetry IS the step: one half needs fixing, the other is already
+    // the product, and the student's single click is what makes the two lanes
+    // the same molecule. Everything after here happening twice is then
+    // something they did, not something the caption told them.
+    spot:{ at:'movingH', say:'click the H that moves' },
     msg:`<b>Triose-phosphate isomerase.</b> DHAP becomes a second <b>G3P</b>. The lanes are now identical, so everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
@@ -1932,7 +1941,33 @@ function runStep(){
       FXi.protonHop(u.atomWorld(cN[1]), u.atomWorld(cN[0]));
     }), dur+40);
 
-  } else dur=280;                              // 'iso': a plain rearrangement
+  } else if(st.fx==='iso'){
+    // TRIOSE-PHOSPHATE ISOMERASE — step 2's gesture run the other way. Step 2
+    // moved a proton C2→C1 and walked the C=O one carbon IN; this moves one
+    // C3→C2 and walks it back OUT to the end. Same reaction type, so the same
+    // vocabulary: a ring where the bond goes, a hop for the proton, default
+    // gold because nothing else is firing beside it.
+    //
+    // ONE LANE RUNS. G3P has no `movingH` — it is already the product — so this
+    // skips it, exactly as the hotspot skipped it. Nothing enters and nothing
+    // leaves: no carrier, no flight from the tray, and the ledger stays still.
+    lanes.forEach(l=>{
+      const gly=M[l.key].gly, u=l.g.userData;
+      if(gly.movingH==null) return;
+      const from=u.atomWorld(gly.movingH), to=u.atomWorld(gly.cN[1]);
+      // the C–H that breaks, in the page's hydrogen steel — fx.js's default
+      // gold here would read as the carbonyl that is about to form beside it
+      FXi.spawnRing(from, H_LEAVE);
+      FXi.protonHop(from, to);
+      // …and the C=O that forms where it left, on arrival. Fired BEFORE the
+      // swap, so it is still DHAP's geometry being asked — the product's atom
+      // indices are a different molecule's.
+      later(()=>FXi.spawnRing(u.atomWorld(gly.cN[2]), PAL.atoms.O), FLY);
+    });
+    // long enough to watch it land, then settle before the names come back
+    dur=FLY+260;
+
+  } else dur=280;                              // no fx named: a plain swap
 
   later(()=>{ done=to; reviewing=true; carrierGone.clear(); renderLanes(to);
     busy=false; refresh(); }, dur);
