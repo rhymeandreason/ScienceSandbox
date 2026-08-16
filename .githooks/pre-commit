@@ -133,6 +133,28 @@ else
   echo "pre-commit: skipping check-diffusion.js — nothing under demos/diffusion/ staged"
 fi
 
+# demos/lobes/ gates itself, plus every mol-*.js and kit/molgraph.js. Wider than
+# its own folder for the reason the others are: lobes.js derives EVERY direction
+# and count from a spec's bond vectors and bond ORDERS through molgraph, so a
+# geometry edit or a Kekulé re-tag somewhere else silently moves lone pairs on
+# this module's molecules. Nothing about a lone pair pointing the wrong way
+# looks wrong — that is the whole reason the checker exists — so the gate has to
+# fire on the files that can move one, not on the ones that draw it.
+if git diff --cached --name-only \
+   | grep -qE '^demos/(lobes/.*|mol-[a-z]*\.js|molecules\.js|skel\.js|kit/molgraph\.js)$'; then
+  if ! node lobes/check-lobes.js > /tmp/clb.$$ 2>&1; then
+    tail -30 /tmp/clb.$$; rm -f /tmp/clb.$$
+    echo ""
+    echo "pre-commit FAILED: check-lobes.js — the lone pairs no longer point"
+    echo "  where the chemistry says. A conjugation failure means a nitrogen that"
+    echo "  DONATES is being drawn as an acceptor; see the header."
+    exit 1
+  fi
+  rm -f /tmp/clb.$$
+else
+  echo "pre-commit: skipping check-lobes.js — no spec, molgraph or lobes/ file staged"
+fi
+
 # kit/ gates itself, plus the domain files it is asserted against: check-kit.js
 # runs molgraph over REAL specs (glucose's five hydroxyls, the phosphoryl group
 # that leaves its bridging oxygen behind), so a spec edit can break it from

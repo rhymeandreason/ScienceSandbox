@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lobes.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. lobes.js has no host page yet. water-lab already
+     ENFORCES two lone pairs on every oxygen — its H-bond engine caps
+     each acceptor at two — and draws none of them, so the rule that
+     decides the structure of ice is the one thing on that page a student
+     cannot see. This module is that missing picture, built standalone so
+     the water lesson can adopt something already trusted rather than
+     debug geometry inside a solvation sim.
+
+     THESE ARE NOT MOLECULAR ORBITALS, and the module header says so at
+     length. They are the localised (equivalent) picture — a valid
+     transform of the same wavefunction, and the only one in which a
+     donor points AT something.
+
+     FOUR THINGS TO CHECK, in order of how badly they are taught:
+
+       D. adenine. The two nitrogens with no ear are the whole reason
+          A pairs with T and not with G. Every textbook figure draws
+          five identical N's and lets the student guess.
+       A. water. Orbit it. The two ears STRADDLE the H−O−H plane — that
+          is where tetrahedral ice comes from, and a flat four-domain
+          water would look almost the same from the front.
+       B. the carbonyl. Two ears, in the plane, 120° apart — a donor
+          comes in from the side, never from above the C=O.
+       C. the phosphate. Nothing is drawn, on purpose. The count does
+          not come out whole, and the module refuses to guess.
+
+     Every direction on this page is derived from the spec's own bond
+     vectors; nothing here types an angle. check-lobes.js audits them.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  /* Deliberately thin — see massaction-test.html. lobes.js renders into a
+     THREE scene and owns no DOM, so there is no module stylesheet to load;
+     if this file has to style a lobe, the module is leaking. */
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:70ch}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(430px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+  .gl{width:100%;height:330px;display:block;border-radius:calc(var(--radius) - 6px);
+    background:rgba(58,52,44,.04)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer}
+  .row button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.55;margin-top:10px}
+  .read b{color:var(--ink)}
+  #model{margin:24px 0 0;font-family:var(--font-sans);font-size:12px;
+    color:var(--muted);line-height:1.65;max-width:80ch}
+  #model b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>lobes.js — test bench</h1>
+  <p class="lede">Four mounts of the same module. Nothing on this page types an
+    angle: every ear's direction is solved from the molecule's own bond vectors,
+    and every count from a formal-electron sum over bond orders.</p>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>A — water, and why ice is tetrahedral.</b> Drag to orbit.
+        The two ears do not lie in the H−O−H plane, they <b>straddle</b> it — two
+        bonds down, two pairs up and back, four domains at the tetrahedral angle.
+        Fill the slots and watch the oxygen run out at <b>two</b>: that cap is
+        already in water-lab's engine, and this is the picture of it.</p>
+      <div><canvas class="gl" id="glA"></canvas></div>
+      <div class="row" id="rowA"></div>
+      <div class="read" id="readA"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>B — a carbonyl oxygen is sideways.</b> Carbonic acid. The
+        C=O oxygen is <b>sp²</b>, not sp³: a double bond is one domain, so it has
+        three, and its two pairs sit <b>in the plane</b> at 120°. A donor comes in
+        from the side. The two −OH oxygens next to it are muted for the opposite
+        reason — they sit against a π system, and one of their pairs is in it.</p>
+      <div><canvas class="gl" id="glB"></canvas></div>
+      <div class="row" id="rowB"></div>
+      <div class="read" id="readB"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>C — AMP, where the module refuses.</b> The phosphate
+        oxygens get <b>nothing</b>. Their electron count comes out at 2.5 because
+        the −2 is delocalised across them and every P–O here is a single stick
+        (SCIENCE.md §3). Drawing ears would assert a localisation the rest of the
+        repo deliberately does not draw, so the answer is null and a reason.</p>
+      <div><canvas class="gl" id="glC"></canvas></div>
+      <div class="row" id="rowC"></div>
+      <div class="read" id="readC"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>D — adenine. The one to spend time on.</b> Five nitrogens,
+        and they are not interchangeable. Three carry a <b>red-blue ear in the
+        ring plane</b> — those accept. Two are grey discs lying <b>flat in the
+        ring</b>: their pairs are in the π system, so the amino group has nothing
+        to accept with and <b>donates</b> instead. That asymmetry is base pairing.</p>
+      <div><canvas class="gl" id="glD"></canvas></div>
+      <div class="row" id="rowD"></div>
+      <div class="read" id="readD"></div>
+    </div>
+  </div>
+
+  <div id="model"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<script src="../mol-solvation.js"></script>
+<script src="../mol-monomers.js"></script>
+<script src="../mol-glycolysis.js"></script>
+<script src="../scene.js"></script>
+<script src="../kit/molgraph.js"></script>
+<script src="lobes.js"></script>
+<script>
+"use strict";
+
+const L = Lobes.create(THREE);
+
+/* One mount: a molecule, its lobes, an orbit drag and a readout PRINTED FROM
+ * THE MODULE rather than typed. Deliberately not Lesson.create — this bench is
+ * testing lobes.js, and a stagekit failure showing up as a lobes bug is exactly
+ * the confusion a test bench exists to avoid. */
+function mount(canvasId, rowId, readId, key, opts){
+  const spec = MolLib.MOLECULES[key];
+  const canvas = document.getElementById(canvasId);
+  const { scene, camera, renderer, root, cam, applyCam, resize } =
+    Stage.create(canvas, { cam:{ theta:0.5, phi:1.15, r:14 }, rMax:200 });
+
+  const mol = Stage.buildMolecule(spec, { center:true });
+  root.add(mol);
+
+  /* `like: mol` is not optional. buildMolecule's `center:true` moves the atom
+   * MESHES, not the group, and bakes the spec's `view:` into them as well, so
+   * lobes built from raw spec coordinates land a plausible distance from their
+   * own atoms — which reads as the module placing them wrongly. */
+  const g = L.build(spec, Object.assign({ like: mol }, opts||{}));
+  root.add(g);
+
+  const ext = Stage.measure(spec);
+  const fit = () => { resize(); Stage.frame(camera, cam,
+    [{ x:0, y:0, rxz:ext.rxz*1.35, hy:ext.hy*1.35 }]); applyCam(); };
+  new ResizeObserver(fit).observe(canvas);
+  fit();
+
+  // Orbit and wheel-zoom are Stage.create's, not this page's — a second
+  // handler here would turn the camera twice per drag.
+  (function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
+
+  return { spec, group:g, mol,
+           row:document.getElementById(rowId),
+           read:document.getElementById(readId) };
+}
+
+/* Every readout below is printed from Lobes' own return value — CLAUDE.md's
+ * rule that a number in user-facing text is read from the data at render time.
+ * A typed "two lone pairs" would survive a module that stopped producing them. */
+function describe(spec, filter){
+  return spec.atoms.map((a,i)=>({ i, a, r:Lobes.at(spec,i) }))
+    .filter(x => x.r.pairs !== 0 && (!filter || filter(x)))
+    .map(({i,a,r}) => {
+      if(r.pairs == null) return `${a.el}${i}  —  no lobes: ${r.reason}`;
+      const what = r.pi ? `${r.pairs} pair in a p orbital (${r.dirs.length} lobes)`
+                        : `${r.pairs} pair${r.pairs>1?'s':''}`;
+      const tag = r.conjugated ? '  ·  conjugated — DONOR side, not an acceptor'
+                               : '  ·  accepts';
+      return `${a.el}${i}  ${what}, ${r.domains} domains${tag}`;
+    }).join('\n');
+}
+
+function toggle(host, label, on, fn){
+  const b=document.createElement('button');
+  b.textContent=label; b.setAttribute('aria-pressed', String(on));
+  b.onclick=()=>{ on=!on; b.setAttribute('aria-pressed',String(on)); fn(on); };
+  host.appendChild(b); return b;
+}
+
+/* ---- A. water ---------------------------------------------------------- */
+{
+  const m = mount('glA','rowA','readA','water');
+  toggle(m.row,'Lobes', true, on => L.setVisible(m.group,on));
+  let taken=0;
+  const cap=Lobes.capacity(m.spec);
+  const btn=document.createElement('button');
+  const paint=()=>{ L.fill(m.group,0,taken);
+    btn.textContent = `Accept an H-bond  (${taken}/${cap})`;
+    m.read.innerHTML = describe(m.spec) + `\n\n` + (taken>=cap
+      ? `Full. A third donor has nowhere to point — which is the rule\nwater-lab's engine already enforces, drawn.`
+      : `${cap-taken} lone pair${cap-taken>1?'s':''} still free.`);
+  };
+  btn.onclick=()=>{ taken=(taken+1)%(cap+1); paint(); };
+  m.row.appendChild(btn); paint();
+}
+
+/* ---- B. the carbonyl --------------------------------------------------- */
+{
+  const m = mount('glB','rowB','readB','carbonic');
+  toggle(m.row,'Lobes', true, on => L.setVisible(m.group,on));
+  m.read.textContent = describe(m.spec, x => x.a.el === 'O');
+}
+
+/* ---- C. AMP, and the refusal ------------------------------------------- */
+{
+  const m = mount('glC','rowC','readC','amp');
+  toggle(m.row,'Lobes', true, on => L.setVisible(m.group,on));
+  const phos = m.spec.groups.find(g=>g.key==='phosphate').atoms;
+  m.read.textContent = describe(m.spec, x => phos.includes(x.i))
+    + `\n\nmolecule charge ${m.spec.charge} — carried on the molecule, not on any`
+    + `\none atom, so no formal charge rescues the sum.`;
+}
+
+/* ---- D. adenine, the DNA case ------------------------------------------ */
+{
+  const m = mount('glD','rowD','readD','amp');
+  const base = m.spec.groups.find(g=>g.key==='base').atoms;
+  toggle(m.row,'Lobes', true, on => L.setVisible(m.group,on));
+  const acc = base.reduce((s,i)=>{ const r=Lobes.at(m.spec,i);
+    return s + (r.conjugated?0:r.dirs.length); },0);
+  m.read.innerHTML = describe(m.spec, x => base.includes(x.i) && x.a.el==='N')
+    + `\n\n<b>${acc} acceptor lone pairs on five nitrogens.</b> Counting the`
+    + `\nelectrons alone would say five, and a figure drawn from that`
+    + `\ncount pairs A with the wrong base.`;
+}
+
+/* ---- the modelling caveat, which the page owes the student -------------- */
+document.getElementById('model').innerHTML =
+  `<b>What these are, and what they are not.</b> These are lone pairs in the
+   <b>localised</b> picture — the sp<sup>n</sup> ears a textbook draws. They are not
+   water's molecular orbitals: those are delocalised and symmetry-adapted, and
+   its highest occupied one is a single p-like lobe perpendicular to the
+   molecule with no matching partner, which photoelectron spectra confirm by
+   showing two different energies rather than one degenerate pair. The two
+   pictures are unitary transforms of the same wavefunction, so neither is
+   wrong — but only this one has something for a donor to point at, and that is
+   the whole reason a Bio 101 page would draw it. Any lesson that ships these
+   owes the student the word <b>model</b>.`;
+</script>
+</body>
+</html>
