@@ -321,8 +321,14 @@
      * direction rather than a place) and not an ellipsoid (reads as a second
      * atom). The profile starts AT the nucleus, so the inner third is buried
      * inside its own sphere, which is where those electrons are. */
-    const A=0.62, B=0.38, PEAK=Math.pow(A,A)*Math.pow(B,B);
-    const WAIST=A;                       // u of the widest point — see tip()
+    /* B is the TIP exponent and it is the one that matters. At 0.38 the
+     * profile falls away so slowly that the ear closes in a blunt dome and
+     * reads as a balloon tethered to the atom; at 0.62 it tapers, and the
+     * shape reads as something growing OUT of the sphere. A stays below it so
+     * the widest point is still past halfway. */
+    const A=0.70, B=0.62;
+    const WAIST=A/(A+B);                 // u of the widest point — see tip()
+    const PEAK=Math.pow(WAIST,A)*Math.pow(1-WAIST,B);   // …and its radius
     let geo=null;
     function lobeGeo(){
       if(geo) return geo;
@@ -336,6 +342,27 @@
     }
 
     const UP=new THREE.Vector3(0,1,0);
+    /* ---- WHY A LOBE IS NOT ITS ATOM'S COLOUR ---------------------------
+     * Every other electron in this repo wears its own atom's colour
+     * (SCIENCE.md §3), and this one deliberately does not. Two reasons, and
+     * the first is a misreading that actually happened:
+     *
+     *   · RED AND BLUE IS THE PHASE CONVENTION. Colour a lone pair by element
+     *     and water's oxygen ears come out red while adenine's nitrogen ears
+     *     come out blue — which every orbital picture a student has ever seen
+     *     says is the SIGN of the wavefunction. Worse, the inference runs
+     *     backwards: a lone pair is the δ− end of the molecule, so "red is
+     *     positive" is the opposite of true.
+     *   · THE QUESTION IS DIFFERENT. An electron dot's colour answers "whose
+     *     electron is this" — the point of a shared pair being one dot of
+     *     each colour. A lone pair is not asking about ownership; it is
+     *     asking whether a donor can point here. So it takes the colour of
+     *     the thing that lands on it, which is already in the palette.
+     *
+     * Read from PALETTE.bonds.hbond, never re-typed: the H-bond stick and the
+     * lobe it terminates on drifting to two different blues is the one way
+     * this can quietly stop meaning anything. */
+    const HBOND=P.bonds.hbond;
     const MUTE=0x8c857a;                 // ink, greyed — "present, not available"
 
     function mat(color,opacity,side){
@@ -364,6 +391,9 @@
      *   length    multiples of the atom's display radius (default 2.3)
      *   width     multiples of the atom's display radius (default 0.66)
      *   opacity   default 0.30
+     *   color     override the H-bond blue. There is one good reason to:
+     *             a page whose H-bonds are drawn in something else. Not for
+     *             per-element tinting — see the note above the constant.
      *   arbitrary draw lobes whose orientation the module admits is arbitrary
      *             (a bare ion, an unstaggered tripod). Default false: a lobe
      *             pointing nowhere in particular is still a lobe pointing
@@ -379,8 +409,13 @@
      *             second copy of the same arithmetic to drift out of step.
      */
     function build(spec, opts){
-      const o=Object.assign({ atoms:'all', length:2.3, width:0.66,
-                              opacity:0.30, arbitrary:false, like:null }, opts||{});
+      /* Opacity is not a taste setting. PALETTE.bonds.hbond is a deep navy,
+       * and washed out over cream it lands on periwinkle — a colour that is
+       * no longer the H-bond colour, which is the entire argument for using
+       * it. High enough to still read as that blue, low enough that the atom
+       * inside stays visible. */
+      const o=Object.assign({ atoms:'all', length:2.0, width:0.52,
+                              opacity:0.46, arbitrary:false, like:null }, opts||{});
       const centre=(o.like && o.like.userData && o.like.userData.center) || null;
       const view=(o.view!==undefined ? o.view : spec.view);
       const q=view ? new THREE.Quaternion().setFromEuler(
@@ -393,7 +428,7 @@
       pick.forEach(r=>{
         if(r.arbitrary && !o.arbitrary) return;
         const rad=(P.radii[r.el]||0.7);
-        const color = r.conjugated ? MUTE : (P.atoms[r.el]||0x888888);
+        const color = r.conjugated ? MUTE : (o.color!=null ? o.color : HBOND);
         const opac  = r.conjugated ? o.opacity*0.45 : o.opacity;
         const mine=[];
         r.dirs.forEach((d,k)=>{

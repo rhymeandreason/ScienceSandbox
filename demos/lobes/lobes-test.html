@@ -69,7 +69,13 @@
   .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;
     color:var(--muted);white-space:pre-wrap;line-height:1.55;margin-top:10px}
   .read b{color:var(--ink)}
-  #model{margin:24px 0 0;font-family:var(--font-sans);font-size:12px;
+  #key{margin:24px 0 0;font-family:var(--font-sans);font-size:12px;
+    color:var(--muted);line-height:1.7;max-width:80ch}
+  #key b{color:var(--ink)}
+  .sw{display:inline-block;width:13px;height:13px;border-radius:4px;
+    background:var(--c);border:1.5px solid var(--ink);
+    vertical-align:-2px;margin:0 3px 0 8px}
+  #model{margin:14px 0 0;font-family:var(--font-sans);font-size:12px;
     color:var(--muted);line-height:1.65;max-width:80ch}
   #model b{color:var(--ink)}
 </style>
@@ -117,8 +123,8 @@
 
     <div class="case">
       <p class="why"><b>D — adenine. The one to spend time on.</b> Five nitrogens,
-        and they are not interchangeable. Three carry a <b>red-blue ear in the
-        ring plane</b> — those accept. Two are grey discs lying <b>flat in the
+        and they are not interchangeable. Three carry a <b>blue ear in the ring
+        plane</b> — those accept. Two are grey, and lying <b>flat against the
         ring</b>: their pairs are in the π system, so the amino group has nothing
         to accept with and <b>donates</b> instead. That asymmetry is base pairing.</p>
       <div><canvas class="gl" id="glD"></canvas></div>
@@ -127,6 +133,7 @@
     </div>
   </div>
 
+  <div id="key"></div>
   <div id="model"></div>
 </div>
 
@@ -249,6 +256,23 @@ function toggle(host, label, on, fn){
     + `\nelectrons alone would say five, and a figure drawn from that`
     + `\ncount pairs A with the wrong base.`;
 }
+
+/* ---- the key. Swatches READ FROM THE PALETTE, not typed ----------------
+ * The whole argument for this colour is that it is the same blue as an
+ * H-bond; a hand-typed hex here would be the first place that stops being
+ * true, and it would still look right. */
+const hex = n => '#' + n.toString(16).padStart(6,'0');
+document.getElementById('key').innerHTML =
+  `<b>What the colours mean.</b> A lobe is NOT its atom's colour, and that is
+   deliberate — red and blue on an orbital is the phase convention, and a lone
+   pair is the δ− end of the molecule, so element tinting invites exactly the
+   wrong reading.
+   <span class="sw" style="--c:${hex(MolLib.PALETTE.bonds.hbond)}"></span>
+   <b>Blue</b> is the hydrogen-bond colour, straight from
+   <code>PALETTE.bonds.hbond</code>: this pair is somewhere an H-bond can land.
+   <span class="sw" style="--c:#8c857a"></span>
+   <b>Grey</b> is conjugated — the electrons are there, in the π system, and
+   nothing can point at them.`;
 
 /* ---- the modelling caveat, which the page owes the student -------------- */
 document.getElementById('model').innerHTML =

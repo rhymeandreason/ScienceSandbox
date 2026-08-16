@@ -274,6 +274,28 @@ console.log('\n7. across every spec: no ear points at a bonded neighbour');
      `${worst.toFixed(1)}° at ${worstAt}`);
 }
 
+/* ---- 8. the colour is a function, not an element ----------------------- */
+/* A source assertion, because the render half needs THREE and a canvas and
+ * this is not worth a headless GL context. The failure it guards is a
+ * "consistency" refactor: every other electron here wears its own atom's
+ * colour, so tinting lobes per element looks like tidying up. It is not — it
+ * makes water's ears red and adenine's blue, which is the phase convention,
+ * and the sign a student would infer is the wrong way round. SCIENCE.md §5
+ * carries the reasoning. */
+console.log('\n8. a lobe is the H-bond colour, not its atom\'s');
+{
+  const fs = require('fs');
+  const src = fs.readFileSync(path.join(HERE, 'lobes.js'), 'utf8');
+  const body = src.replace(/\/\*[\s\S]*?\*\//g, '');      // comments argue; code decides
+  ok(/P\.bonds\.hbond/.test(body),
+     'the colour is read from PALETTE.bonds.hbond');
+  ok(!/P\.atoms\s*\[/.test(body),
+     'and no lobe is tinted per element');
+  ok(/lobes\/lobes\.js/.test(
+       fs.readFileSync(path.join(HERE, '..', 'SCIENCE.md'), 'utf8')),
+     'SCIENCE.md §5 records the exception to "an electron wears its atom\'s colour"');
+}
+
 console.log('');
 if (fails) {
   console.log(`FAIL: ${fails} of ${checks} checks failed.`);

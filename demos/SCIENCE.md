@@ -165,6 +165,14 @@ would say the opposite. Every effect fires at a position the module **asks for**
   colour, not the solute's, because the solute is unchanged.
 - **White core flash** (`#ffffff`) — shared by all `spawnRing` events, the
   white-hot instant before the coloured rings.
+- **H-bond blue** (`PALETTE.bonds.hbond`) — on a *lone pair* (`lobes/lobes.js`),
+  somewhere an H-bond can land. **The one electron in this repo that does not
+  wear its own atom's colour**, and deliberately: red-and-blue on an orbital is
+  the phase convention, so element tinting makes water's ears red and adenine's
+  blue and invites a student to read a sign — backwards, since a lone pair is
+  the δ− end. A dot's colour answers *whose electron*; a lobe's answers *can a
+  donor point here*, so it takes the colour of the thing that lands on it.
+  Greyed (`#8c857a`) means conjugated: present, in the π system, unavailable.
 
 ### Where each is wired
 
