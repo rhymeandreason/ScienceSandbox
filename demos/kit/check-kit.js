@@ -195,6 +195,28 @@ head('molgraph.js — phosphate transfer');
   }
 }
 {
+  /* leavingBond — what a hotspot points at. The lesson names the ATOM ("the H
+   * NAD⁺ takes", "the phosphate handed to ADP"); the bond is derived, so it
+   * cannot go stale against the atom the way a second typed index would. */
+  const g6p=M.g6p||M.G6P;
+  if(g6p){
+    const p=g6p.atoms.findIndex(a=>a.el==='P');
+    const bond=MolGraph.leavingBond(g6p,p);
+    const br=MolGraph.bridging(g6p,p,'O')[0];
+    ok(bond && bond[1]===br, 'a phosphorus leaves by its BRIDGING oxygen, not a terminal one');
+    // an H has exactly one bond, so the bond it leaves by is unambiguous
+    const h=g6p.atoms.findIndex(a=>a.el==='H');
+    const hb=MolGraph.leavingBond(g6p,h);
+    ok(hb && MolGraph.neighbors(g6p,h).length===1 && hb[1]===MolGraph.neighbors(g6p,h)[0],
+       'a hydrogen leaves by its single bond');
+    // and an atom with no unambiguous single bond gives NULL — never a target
+    // at the origin, which would be a clickable spot floating in the scene
+    const ringC=MolGraph.rings(g6p)[0].find(i=>g6p.atoms[i].el==='C');
+    ok(MolGraph.leavingBond(g6p,ringC)===null,
+       'an atom with more than one heavy bond has no leaving bond (null, not [0,0])');
+  }
+}
+{
   // side() must refuse a ring bond rather than answering "nothing leaves".
   const g=M.glucose, ring=MolGraph.rings(g)[0];
   const [i,j]=[ring[0],ring[1]];

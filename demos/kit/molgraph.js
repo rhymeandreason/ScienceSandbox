@@ -193,6 +193,25 @@
       p.find(spec).forEach(atoms=>out.push({key:p.key,label:p.label,atoms})); });
     return out;
   }
+  /* THE BOND THAT BREAKS when atom `i` leaves. Naming the ATOM is how a lesson
+   * usually thinks ("the H that NAD⁺ takes", "the phosphate handed to ADP");
+   * the bond is what a student is pointed at, and it is derivable, so it should
+   * never be a second index typed into a step table where it can go stale.
+   *   H  → the heavy atom it hangs off. A hydride has exactly one bond.
+   *   P  → its BRIDGING oxygen. A kinase moves PO₃⁻ and the bridge stays, so
+   *        the bond that breaks is P–O(bridge), not one of the terminal ones.
+   *   anything else → its single bond to the rest, if it has exactly one.
+   * Returns [i, other] or null — and null MUST mean "no target", never a
+   * target at the origin. */
+  function leavingBond(spec,i){
+    const e=el(spec,i);
+    let other=null;
+    if(e==='H') other=adj(spec)[i][0];
+    else if(e==='P') other=bridging(spec,i,'O')[0];
+    else { const nb=heavyNeighbors(spec,i); if(nb.length===1) other=nb[0]; }
+    return other==null?null:[i,other];
+  }
+
   // the phosphoryl group that TRANSFERS: P plus its terminal oxygens, leaving
   // the bridging O behind. glycolysis-lab's phosphorylGroup, generalised.
   function phosphoryl(spec,p){
@@ -238,7 +257,7 @@
 
   const API={ adj, neighbors, heavyNeighbors, degree, heavyDegree,
     bondBetween, bondOrder, terminal, bridging, hydrogens,
-    side, component, rings, inRing, findGroups, phosphoryl, PATTERNS,
+    side, component, rings, inRing, findGroups, phosphoryl, leavingBond, PATTERNS,
     dist, angle, torsion, centroid, spread, isH, el };
   global.MolGraph=API;
   if(typeof module==='object' && module.exports) module.exports={MolGraph:API};

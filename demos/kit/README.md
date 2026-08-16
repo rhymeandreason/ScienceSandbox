@@ -15,6 +15,7 @@ second page would want it *slightly* different, it does not.
 | --- | --- | --- |
 | `motion.js` | **two clocks, on purpose.** Interpolation rides the render loop (`dt` in seconds, clamped); a `call` beat is a COMMIT and rides the wall clock too, so a step finishes in a hidden tab instead of leaving the lesson stuck `busy`. Named easings, `cancel(tag)` that clears both halves, `seek()` for scrub/screenshot. No THREE | `check-kit.js` |
 | `molgraph.js` | questions you ask a **spec**: neighbours, terminal vs bridging, what leaves when a bond breaks, rings, functional groups found from connectivity, signed torsions. No THREE, no DOM, Node-loadable — so a checker and a page compute the same answer from the same code | `check-kit.js` |
+| `hotspot.js` | **click the bond this step is about.** A clickable, pulsing target pinned to a bond's projected midpoint on each object, driven every frame, elements reused. The page says which bond, what the hint reads and what a click does | the human, `glycolysis-lab` |
 | `lanes.js` | molecules side by side, named, that **split and swap** — the shape every pathway lesson has. Per-species centring (both axes), one shared label baseline, DOM names projected onto their molecules every frame, abbreviate-then-shrink decided for all lanes at once, positions as targets so a swap frame moves nothing | the human, `glycolysis-lab` |
 | `fit.js` | the stage is not an empty rectangle. Chrome measured in **pixels** by the page → leftover fractions, a solved distance and target, a top anchor, and (for an ortho page) a frustum built from `cam.r` so that number keeps meaning. Extracted from glycolysis-lab, which had it right and paid five functions for it | the human, bit-identical fit values before/after the extraction |
 | `focus.js` | one vocabulary for "look here": ghost at 13% without depth-write, lit atoms emitting their **own** colour, a bond lit only when both ends are. Works on a built molecule (by atom index) or on whole objects against each other | the human, `kit-test.html` |
@@ -33,6 +34,7 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="kit/molgraph.js"></script>   <!-- no dependencies -->
 <script src="kit/fit.js"></script>        <!-- if the page has chrome over the canvas -->
 <script src="kit/lanes.js"></script>      <!-- if molecules stand side by side and swap -->
+<script src="kit/hotspot.js"></script>    <!-- if the student clicks the chemistry itself -->
 <script src="kit/focus.js"></script>      <!-- after scene.js -->
 <script src="kit/stagekit.js"></script>   <!-- last: it wires the other three -->
 ```
@@ -63,6 +65,13 @@ the rest.
   which subtracts that species' own off-centredness. Every flight target and
   world anchor must use `origin`, or a group lands beside the atom it was
   aiming at.
+* **A hotspot the module could not derive is not drawn.** `pair: null` means no
+  target — never one at the origin, which is a clickable spot floating in the
+  middle of the scene, and being clickable, the student finds it. `leavingBond`
+  returns null for the same reason.
+* **Never rebuild a pulsing element.** Recreating the node each frame restarts
+  its CSS animation 60 times a second, which renders as a dead ring. Hotspot
+  reuses its buttons and hides the spares.
 * **The module owns the lane list.** A page that spawns lanes itself and assigns
   them to its own array gets molecules with no labels and no settle — `draw()`
   has nothing to label and `step()` nothing to ease. The split is a `render()`

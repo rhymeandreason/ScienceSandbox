@@ -727,6 +727,7 @@
 <script src="kit/molgraph.js"></script>
 <script src="kit/fit.js"></script>
 <script src="kit/lanes.js"></script>
+<script src="kit/hotspot.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
@@ -1132,53 +1133,31 @@ function spotPair(spec, at){
   const v=spec.gly[at];
   if(Array.isArray(v)) return v;
   if(typeof v!=='number') return null;
-  const el=spec.atoms[v] && spec.atoms[v].el;
-  const other = el==='H' ? (nbOf(spec,v)||[])[0] : bridgeO(spec,v);
-  return other==null ? null : [v,other];
+  // The bond an atom's DEPARTURE breaks — H off its heavy atom, P off its
+  // bridging O — derived by kit/molgraph.js rather than typed as a second index
+  // that can go stale against the first.
+  return MolGraph.leavingBond(spec, v);
 }
 const spotsEl=document.getElementById('spots');
 const glowEl=document.getElementById('spotglow');
-const spotV=new THREE.Vector3();
+/* kit/hotspot.js owns position, reuse and the one-hint rule; this page owns
+ * MEANING — which bond, what the hint says, and what a click does. */
+const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
+  // WHICH LANE: a per-lane step runs the one clicked; a whole-step target
+  // ignores it, so both come through here.
+  onPick:it=>press(()=>isPerLane(stepAt(done)) ? runLane(it.lane) : runStep()),
+});
 function drawSpots(){
   const st=(!intro && done<nSteps) ? stepAt(done) : null;
   const live = !!st && !!st.spot && !busy && !reviewing;
-  const n = live ? lanes.length : 0;
-  while(spotsEl.children.length<n){
-    const b=document.createElement('button');
-    b.className='spot'; b.type='button';
-    b.innerHTML='<span class="shint"></span>';
-    // WHICH LANE: a per-lane step runs the one clicked; a whole-step target
-    // ignores it, so both share one handler.
-    b.onclick=()=>{ const i=+b.dataset.lane;
-      press(()=>isPerLane(stepAt(done)) ? runLane(i) : runStep()); };
-    spotsEl.appendChild(b);
-    const g=document.createElement('div'); g.className='sglow';
-    glowEl.appendChild(g);
-  }
-  const show=(el,on)=>el.style.display = on ? '' : 'none';
-  [...spotsEl.children].forEach((el,i)=>show(el, i<n));
-  [...glowEl.children].forEach((el,i)=>show(el, i<n));
-  if(!n) return;
-  const w=canvas.clientWidth, h=canvas.clientHeight;
-  let hinted=false;
-  lanes.forEach((l,i)=>{
-    const el=spotsEl.children[i], gl=glowEl.children[i];
-    el.dataset.lane=i;
-    const pair=spotPair(M[l.key], st.spot.at);
-    // NO SUCH BOND, NO TARGET — not one at the origin. Also retires a per-lane
-    // target once its lane has run: the product has no `hot` phosphate.
-    if(!pair || laneDone.has(i)){ show(el,false); show(gl,false); return; }
-    const u=l.g.userData;
-    spotV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(.5).project(camera);
-    const x=(spotV.x*0.5+0.5)*w, y=(-spotV.y*0.5+0.5)*h;
-    el.style.left=x+'px'; el.style.top =y+'px';
-    gl.style.left=x+'px'; gl.style.top =y+'px';
-    // ONE HINT, BESIDE THE FIRST TARGET STILL STANDING — twice shouts, but
-    // pinning it to lane 0 left lane 1 unlabelled once lane 0 retired.
-    el.querySelector('.shint').textContent = hinted ? '' : (st.spot.say||'');
-    hinted=true;
-    el.setAttribute('aria-label', st.act || 'run this step');
-  });
+  SPOTS.update(!live ? [] : lanes.map((l,i)=>
+    // A lane that has already run has no target: the product has no `hot`
+    // phosphate. Null rather than a point — the module never places a target it
+    // could not derive.
+    laneDone.has(i) ? null : {
+      group:l.g, pair:spotPair(M[l.key], st.spot.at), lane:i,
+      hint:st.spot.say||'', label:st.act||'run this step',
+    }));
 }
 
 // Set for a step's whole animation (#plates.mute). Cleared by renderLanes, when
