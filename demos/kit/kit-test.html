@@ -78,8 +78,12 @@ const L=Lesson.create(document.getElementById('gl'),{
   cam:{theta:.4,phi:1.15,r:20}, rMax:120,
   boxes:()=>[{x:0,y:0,rxz:ext.rxz,hy:ext.hy}],
   reservePx:()=>({bottom: bandEl.style.display==='block' ? bandEl.offsetHeight+26 : 0}),
-  frame:()=>readout(),
+  // Counted, and shown in the readout: a frame hook that never fires is the one
+  // failure mode here that looks like a framing bug rather than a wiring one.
+  frame:dt=>{ frames++; fps=fps?fps*0.9+0.1/dt:1/dt; },
+  afterFrame:()=>readout(),
 });
+let frames=0, fps=0;
 const g=Stage.buildMolecule(SPEC,{center:true});
 L.root.add(g); Focus.claim(g);
 
@@ -132,6 +136,7 @@ function readout(){
      `cam.r          ${L.cam.r.toFixed(2)}\n`
     +`world per px   ${L.worldPerPx().toFixed(4)}\n`
     +`reserved       ${L.pxToWorld(bandEl.style.display==='block'?bandEl.offsetHeight+26:0).toFixed(2)} world\n`
+    +`frame hook     ${frames} calls · ${fps.toFixed(0)} fps\n`
     +`timeline       ${L.motion.busy?'running':'idle'}\n`
     +`groups found   ${found.length}`;
 }

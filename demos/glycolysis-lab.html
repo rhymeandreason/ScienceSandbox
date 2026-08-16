@@ -723,6 +723,9 @@
 <script src="mol-compare.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/molgraph.js"></script>
+<script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
 <script src="massaction/massaction.js"></script>
@@ -771,19 +774,32 @@
  *  BACKWARD is then free — re-render at a lower index, never invert a reaction.
  * ========================================================================== */
 
-/* ---------- shared stage (scene.js) + effects (fx.js) ---------- */
+/* ---------- shared stage (kit/stagekit.js over scene.js) + effects (fx.js) ----
+ * Lesson.create is Stage.create plus the loop, the resize hook, and the two
+ * clocks (kit/motion.js) this page's beats ride — see `later` below, which is
+ * now one line over Motion rather than an array of setTimeout handles.
+ *
+ * THE FIT IS THIS PAGE'S OWN, deliberately: `fitFor` measures LANE LAYOUTS, not
+ * a molecule's bounding box, and the reserves below are chrome only this lesson
+ * has. So no `boxes` is handed to Lesson; `onResize` runs computeFit instead,
+ * and cam.r stays the single measure of "how far back" that orthoFrustum
+ * converts. */
 const canvas=document.getElementById('gl');
 let userZoom=false;
 // A constant because restart returns the camera to it. Nothing else moves theta.
 const OPEN_THETA=0.10;
-const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+const L=Lesson.create(canvas,{
   // Orthographic: under perspective the nearer lane reads as the bigger
   // molecule (why side-by-side pages never swing theta). No foreshortening
   // keeps the two halves after step 4 visibly identical.
   ortho:true,
   cam:{theta:OPEN_THETA,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
-  onZoom:()=>{userZoom=true;} });
-const FXi=FX.create(THREE,root,camera);
+  onZoom:()=>{userZoom=true;},
+  focus:false,                       // nothing on this page ghosts a molecule
+  onResize:()=>computeFit(),
+});
+const {scene,camera,renderer,root,cam,applyCam,resize}=L;
+const FXi=L.fx, MO=L.motion;
 // atomkit, for ONE thing: the ± badge — the notation the bonding lesson already
 // taught (`molecule-builder.html`), so no second notation for the same idea.
 // Nothing else used: no valence dots, no element letters, no 2D view.
@@ -1549,28 +1565,38 @@ function badge(laneIdx, atomIdx, text){
   const b=KIT.charge(text, hexOf(spec.atoms[atomIdx].el), spec.atoms[atomIdx].el,
                      BADGE_SCALE);
   at.add(b); l.g.add(at);
-  later(()=>{ const t0=performance.now();
-    (function fade(){ const k=Math.min((performance.now()-t0)/BADGE_FADE,1);
-      b.material.opacity=1-k;
-      if(k<1) requestAnimationFrame(fade);
-    })();
-  }, BADGE_HOLD);
-  // On a timer, never the fade's last frame: a hidden tab runs no rAF, so a
-  // badge that leaves only while you watch is there when you return (`later`).
-  later(()=>{ l.g.remove(at); KIT.forget(b); }, BADGE_HOLD+BADGE_FADE+40);
+  // The FADE is pixels (render loop); the REMOVAL is a commit, never the fade's
+  // last frame — a hidden tab runs no rAF, so a badge that left only while you
+  // watched would still be there when you came back.
+  MO.seq([{at:BADGE_HOLD/1000, dur:BADGE_FADE/1000, ease:'linear',
+           onUpdate:t=>{ b.material.opacity=1-t; }},
+          {at:(BADGE_HOLD+BADGE_FADE+40)/1000,
+           call:()=>{ l.g.remove(at); KIT.forget(b); }}],{tag:RUN});
 }
 
 /* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
 // TIMERS, NOT FRAMES, ADVANCE THE LESSON. rAF stops in a backgrounded tab, so
-// setTimeout owns state changes and rAF only pixels — finishing a transition
-// inside a rAF callback would leave `busy` stuck true, the tray dark and the
-// lesson unrecoverable without a reload. Worst case: a hidden tab skips the
-// animation and you return to the finished step.
-let timers=[];
-const later=(fn,ms)=>{ timers.push(setTimeout(fn,ms)); };
-// Chips in the air ride those timers, so they go with them — a restart
+// the wall clock owns state changes and rAF only pixels — finishing a
+// transition inside a rAF callback would leave `busy` stuck true, the tray dark
+// and the lesson unrecoverable without a reload. Worst case: a hidden tab skips
+// the animation and you return to the finished step.
+//
+// That rule is now kit/motion.js's, and this is the one line over it: a `call`
+// beat is a COMMIT — scheduled on both clocks, fired once by whichever wins.
+// Milliseconds in, because every beat constant on this page is in ms.
+const RUN='run';                                  // the tag a whole step rides
+const later=(fn,ms)=>MO.after((ms||0)/1000, fn, RUN);
+// MESHES IN THE AIR are the other half of a cancel. A flying phosphoryl group
+// is removed by its own beat; cancelling that beat used to strand it in the
+// scene, because a cancel deliberately does not run what it cancels. So strays
+// are registered and swept together.
+const strays=new Set();
+const stray=g=>{ strays.add(g); root.add(g); return g; };
+const unstray=g=>{ if(strays.delete(g)) root.remove(g); };
+// Chips in the air ride those beats, so they go with them — a restart
 // mid-flight must not leave one parked over the page.
-const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[];
+const cancelTimers=()=>{ MO.cancel(RUN);
+  strays.forEach(g=>root.remove(g)); strays.clear();
   flyLayer.replaceChildren(); };
 
 const FLY=620, SPLIT=840;
@@ -1630,19 +1656,16 @@ const CLEAVE=0x9a3fe0;
 // nothing else. A BRIDGING O has a second heavy neighbour (C6 on a sugar, Pβ on
 // ATP) and stays behind. "Not bonded to a carbon" is not enough; that keeps
 // ATP's α–β–γ bridge and flies four oxygens.
-const nbOf=(spec,i)=>spec.bonds.filter(b=>b[0]===i||b[1]===i).map(b=>b[0]===i?b[1]:b[0]);
-function terminalO(spec,p){
-  return nbOf(spec,p).filter(i=>spec.atoms[i].el==='O' &&
-    !nbOf(spec,i).some(j=>j!==p && spec.atoms[j].el!=='H'));
-}
+// Both are kit/molgraph.js's, under this page's names — the distinction is
+// chemistry, not layout, and kit/check-kit.js asserts it on this very step (the
+// bridging O stays behind; cutting P–O(bridge) detaches exactly what flies).
+const nbOf=(spec,i)=>MolGraph.neighbors(spec,i);
+const terminalO=(spec,p)=>MolGraph.terminal(spec,p,'O');
 // …and its complement: the O carrying the group, where the bond forms or
 // breaks. MARK THE JUNCTION, not the phosphorus — a ring on P sits a bond-
 // length off what changed, and P is the biggest sphere here, so it reads as
 // decorating the atom rather than pointing at the event.
-function bridgeO(spec,p){
-  return nbOf(spec,p).find(i=>spec.atoms[i].el==='O' &&
-    nbOf(spec,i).some(j=>j!==p && spec.atoms[j].el!=='H'));
-}
+const bridgeO=(spec,p)=>MolGraph.bridging(spec,p,'O')[0];
 // THE PROTON THE PHOSPHATE DISPLACES. Glucose C₆O₆H₁₂ → G6P C₆O₉H₁₁P: C6's
 // oxygen keeps its place and becomes the bridge, its hydroxyl H leaves — that H
 // used to just be absent on the frame after the swap.
@@ -1698,17 +1721,16 @@ function flyPhosphate(from,to,spec,p,dur){
   const T=dur||FLY;
   const g=phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]);
   g.position.copy(from);
-  root.add(g);
-  const t0=performance.now();
-  (function fly(){
-    const k=Math.min((performance.now()-t0)/T,1), e=k*(2-k);     // ease-out
+  stray(g);
+  // PIXELS, so this rides the render loop only: a flight nobody watched owes
+  // nobody its frames, and the removal beat below lands the state either way.
+  MO.seq([{dur:T/1000, ease:'outQuad', onUpdate:(e,k)=>{
     g.position.lerpVectors(from,to,e);
     g.position.y+=2.6*Math.sin(k*Math.PI);                       // arc over the top
-    if(k<1) requestAnimationFrame(fly);
-  })();
-  // REMOVED ON THE BEAT THE PRODUCT APPEARS: both timers share a delay and fire
+  }}],{tag:RUN});
+  // REMOVED ON THE BEAT THE PRODUCT APPEARS: both beats share a delay and fire
   // in registration order, this one first — never two phosphates in one place.
-  later(()=>{ root.remove(g); }, T);
+  later(()=>unstray(g), T);
 }
 // THE CYTOSOL IS SLOWER THAN A HANDOFF. A phosphate off ATP is PASSED — one
 // enzyme holds both molecules. Step 6's comes out of solution: nothing hands it
@@ -1768,6 +1790,12 @@ function carrierPoint(key,j){
 // convention the chain folds ECLIPSED while every dihedral reads exactly 180° —
 // a bug that checks out numerically and is nonsense. f6p's backbone reads ±180
 // here, which asserts this is the convention the specs are drawn in.
+//
+// DELIBERATELY NOT MolGraph.torsion, which is the plane-normal form and returns
+// the OTHER sign. That one is right for stereochemistry (a mirrored spec must
+// flip it, which kit/check-kit.js asserts); this one is right for driving a chain to
+// anti. Swapping them silently folds the sugar eclipsed while every printed
+// dihedral still reads 180°.
 function dihedralOf(p0,p1,p2,p3){
   const b1=p2.clone().sub(p1).normalize();
   const b0=p0.clone().sub(p1), b2=p3.clone().sub(p2);
@@ -1782,20 +1810,11 @@ const Q=new THREE.Quaternion(), AX=new THREE.Vector3(), PV=new THREE.Vector3();
 function unfurlPlan(l){
   const spec=M[l.key], gly=spec.gly, cN=gly.cN, br=gly.open;
   const u=l.g.userData;
-  const adj=spec.atoms.map(()=>[]);
-  spec.bonds.forEach(b=>{
-    const [i,j]=b;
-    if((i===br[0]&&j===br[1])||(i===br[1]&&j===br[0])) return;   // already broken
-    adj[i].push(j); adj[j].push(i);
-  });
-  // everything past a bond, through the graph not index ranges — build order is
-  // not chain order
-  const beyond=(from,thru)=>{
-    const seen=new Set([from,thru]), st=[thru];
-    while(st.length){ const k=st.pop();
-      for(const n of adj[k]) if(!seen.has(n)){ seen.add(n); st.push(n); } }
-    seen.delete(from); return [...seen];
-  };
+  // Everything past a bond, through the GRAPH not index ranges — build order is
+  // not chain order. Two cuts: the bond being turned, and `gly.open`, the ring
+  // bond this step has already broken.
+  const beyond=(from,thru)=>
+    MolGraph.component(spec, thru, [[from,thru], br]).filter(i=>i!==from);
   const base=u.atomMeshes.map(m=>m?m.position.clone():null);
   const turns=[];
   // A dihedral needs four atoms; the FIRST bond has no backbone carbon to
@@ -2106,14 +2125,13 @@ function runStep(){
         if((i===o[0]&&j===o[1])||(i===o[1]&&j===o[0])) bm.visible=false; });
       if(gly.anomeric) FXi.protonHop(u.atomWorld(gly.anomeric.h), u.atomWorld(o[1]));
       // …then the unfurl, eased so it settles rather than arriving at speed
-      const plan=unfurlPlan(l), t0=performance.now();
-      (function turn(){
-        const k=Math.min((performance.now()-t0)/UNFURL,1);
-        unfurlApply(l,plan,k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2);
-        // NO REFIT HERE. Framing is fixed for the whole pathway; the camera
-        // used to ride topY and pan through the animation.
-        if(k<1) requestAnimationFrame(turn);
-      })();
+      // PIXELS: on the render loop, and cancelled with the step if the student
+      // restarts mid-turn. (inOutQuad is the ease this hand-rolled inline.)
+      // NO REFIT HERE. Framing is fixed for the whole pathway; the camera used
+      // to ride topY and pan through the animation.
+      const plan=unfurlPlan(l);
+      MO.seq([{dur:UNFURL/1000, ease:'inOutQuad',
+        onUpdate:e=>unfurlApply(l,plan,e)}],{tag:RUN});
     });
     dur=UNFURL+180;                              // land, then swap to F6P
     // WHAT IS LEFT AT THE SWAP IS THE REACTION, so it gets marked. Backbones
@@ -3321,7 +3339,12 @@ addEventListener('keydown',e=>{
 /* =============================================================
  *  MAIN LOOP
  * ============================================================= */
-function loop(){
+// The per-frame lerp factors below are deliberately still PER FRAME, not per
+// second: they are critically-damped follows whose feel was tuned by eye at
+// 60 Hz, and every one of them chases a target the same loop recomputes. Moving
+// them to dt is a change in how the page FEELS, not a refactor, so it is not
+// smuggled in with a port.
+L.frame=()=>{
   // lanes ease toward their slots (used by the split, and after any respawn)
   lanes.forEach(l=>{ if(l.g.userData.tx!=null)
     l.g.position.x+=(l.g.userData.tx-l.g.position.x)*0.10;
@@ -3334,20 +3357,20 @@ function loop(){
       l.g.position.y+=(l.g.userData.ty-l.g.position.y)*0.10; });
   if(!userZoom) cam.r+=(fitR-cam.r)*0.05;        // ease to the computed framing
   cam.target.y+=(fitY-cam.target.y)*0.06;        // …and re-centre vertically
-  applyCam(); orthoFrustum(); FXi.step();
+  applyCam(); orthoFrustum();
   KIT.faceCamera(camera);        // badges keep their lift as the camera orbits
-  renderer.render(scene,camera);
-  // AFTER the render, never before. Vector3.project() reads the camera's
-  // matrixWorldInverse, refreshed only on render — projecting first uses the
-  // PREVIOUS frame's camera. Barely visible on a slow drag, very visible during
-  // the zoom ease and the split.
+};
+// AFTER the render, never before — Vector3.project() reads a matrix refreshed
+// only on render, so everything here would otherwise pin its DOM to the
+// PREVIOUS frame's camera. That is `afterFrame`'s whole reason for existing;
+// the kit's loop is motion → frame → fx → render → afterFrame.
+L.afterFrame=()=>{
   drawPlates();
   drawSpots();
   // anchored to its DOM box, so same schedule as the labels: current camera
   placeCarrierMol();
   placeCarrierGlow();          // after it, so the bond is where the mark goes
-  requestAnimationFrame(loop);
-}
+};
 
 renderLanes(0); refresh(); applyCam(); resize();
 // Re-solve AFTER refresh(). The first computeFit runs inside renderLanes(),
@@ -3355,10 +3378,10 @@ renderLanes(0); refresh(); applyCam(); resize();
 // nothing, and the page opens one frame too close. refresh() has drawn it.
 computeFit();
 cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();  // open already framed
-requestAnimationFrame(loop);
-// the fit depends on camera.aspect, so it has to be redone whenever the stage
-// reshapes (window resize, or the sidebar stacking under it on a narrow screen)
-new ResizeObserver(computeFit).observe(canvas);
+L.start();
+// The fit depends on camera.aspect, so it is redone whenever the stage reshapes
+// (window resize, or the sidebar stacking under it on a narrow screen) — the
+// kit's own ResizeObserver, through the `onResize` hook passed to Lesson.create.
 // Label HEIGHT is chrome the fit reserves, and it changes when the real font
 // replaces the fallback. So re-solve once the font lands.
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(computeFit);

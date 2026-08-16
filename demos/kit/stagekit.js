@@ -94,7 +94,7 @@
      * per-frame increments that run at different speeds on a 120 Hz display.
      * Motion first (it may move what the page is about to read), then the
      * page's own frame hook, then FX, then draw. */
-    let running=false, last=0, frameHook=o.frame||null;
+    let running=false, last=0, frameHook=o.frame||null, afterHook=o.afterFrame||null;
     function tick(now){
       if(!running) return;
       const dt=last?Math.min((now-last)/1000, 0.1):1/60; last=now;
@@ -102,6 +102,12 @@
       if(frameHook) frameHook(dt);
       if(fx) fx.step();
       renderer.render(scene,camera);
+      // AFTER the render, never before. Vector3.project() reads the camera's
+      // matrixWorldInverse, which is refreshed only on render — anything that
+      // pins DOM to a 3D point (a species label, a callout, a badge) projects
+      // the PREVIOUS frame's camera if it runs in the frame hook instead.
+      // Barely visible on a slow drag, very visible during a zoom ease.
+      if(afterHook) afterHook(dt);
       requestAnimationFrame(tick);
     }
     function start(){ if(running) return; running=true; last=0; requestAnimationFrame(tick); }
@@ -119,13 +125,24 @@
       a.href=canvas.toDataURL('image/png'); a.click();
     }
 
-    return Object.assign({}, stage, {
+    const api=Object.assign({}, stage, {
       fx, motion, focus,
       fit, worldPerPx, pxToWorld, start, stop, draw, snapshot,
-      set frame(fn){ frameHook=fn; },
-      set resized(fn){ onResize=fn; },
-      get running(){ return running; },
     });
+    // ACCESSORS DEFINED, NOT SPREAD. Object.assign COPIES VALUES: a `set frame`
+    // written in an object literal handed to it is read through its (absent)
+    // getter and lands as a plain `frame: undefined`, so every later
+    // `L.frame = fn` assigns a dead property and the hook never runs. The page
+    // still animates — Motion and FX are stepped by the loop itself — so what
+    // you get is a camera that never eases and DOM anchors that only update on
+    // a refresh, which reads as a framing bug rather than a wiring one.
+    Object.defineProperties(api,{
+      frame:      {get:()=>frameHook, set(fn){ frameHook=fn; }},
+      afterFrame: {get:()=>afterHook, set(fn){ afterHook=fn; }},
+      resized:    {get:()=>onResize,  set(fn){ onResize=fn; }},
+      running:    {get:()=>running},
+    });
+    return api;
   }
 
   global.Lesson={create};
