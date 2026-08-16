@@ -47,7 +47,7 @@
 | 1 | Protein structure levels | ✅ A | — | `hemoglobin-lab` carries all four on one molecule. `protein-lab` **deleted** with ChemDoodle (GPLv3) and not being rewritten — superseded |
 | 1 | Folding | ✅ A | — | `folding-lab`, done |
 | **2** | **Phospholipid bilayer** | **B** | **H** | Highest payoff in the course. 2D = the textbook cross-section |
-| 2 | Membrane transport proteins | **A + R** | **H** | Aquaporin 1J4N, Na⁺-K⁺ 2ZXE. Surfaces are the gap — we have no SES/SAS code |
+| 2 | Membrane transport proteins | **A + R** | **H** | Aquaporin 1J4N, Na⁺-K⁺ 2ZXE. Surfaces via `tools/ses.js`, baked per structure — a pore reads far better as a surface than as sticks |
 | 2 | Passive / active transport | **B** | **G** | Motion + a concentration graph |
 | 2 | Surface-area : volume | **E→ geometry** | **G** | Pure math. Chart, not structure |
 | 2 | Organelles / whole cell | **C** | **I** | Where Goodsell earns his place — see below |
@@ -140,6 +140,6 @@ The verdict covers **everything up to and including a folded protein**, and the 
 
 **Known gaps in ours, so they aren't discovered late:**
 
-- **No molecular surface.** We have no SES/SAS implementation. The membrane-transport row wants one — a channel's pore reads far better as a surface than as sticks — and every viewer ships this for free. This is the largest single capability we gave up.
+- **~~No molecular surface.~~ Closed — but baked, not live.** `tools/ses.js` builds a real SES (grid EDT + marching cubes, 1.4 Å water probe, Bondi radii), and `hemoglobin/tools/bake-surface.js` writes 2HHB's as a mesh; `hemoglobin/surface-test.html` draws it translucently over the ribbon. What remains given up is a surface on a *moving* chain: the mesh is precomputed, so a folding trajectory can only ever gain its surface at the end. The membrane-transport row is unblocked, since a channel is a fixed structure.
 - **No live per-frame secondary structure.** `RibbonLib.build` takes `ss` as an argument, so animating a fold through the ribbon means re-running DSSP and rebuilding geometry each frame. `RenderingLibraries.md` names this as the one finding that could overturn the verdict, with precomputation as the current answer.
 - **Nothing above ~600 residues is measured.** The 2HHB timings are our ceiling evidence. Treat larger claims as untested.

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hemoglobin — plain-tube test</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #app{grid-template-columns:1fr}
+  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:340px;
+    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
+    background:rgba(255,255,255,.85);border:1px solid var(--hair);border-radius:8px;
+    padding:10px 12px}
+  #note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="gl"></canvas>
+  </main>
+</div>
+<div id="note">
+  <b>Prototype — collapsed-helix tube render.</b><br>
+  One continuous tube per chain, wide through each helix and thin through
+  each loop, with the radius ramped so the change is a taper rather than a
+  step. Helices are collapsed onto their axis — no turn-by-turn corkscrew.
+  Heme is a single sphere at the iron, no porphyrin ring. Four draw calls
+  for the tetramer, on purpose: the target is animating several at once.
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="tube.js"></script>
+<script src="hbfold.js"></script>
+<script>
+'use strict';
+const PAL = MolLib.PALETTE;
+
+/* Real angstroms throughout, same arrangement as hemoglobin-lab.html —
+   this page never sees MolLib.SCALE. */
+
+/* Same palette as the reference figure: two shades per chain kind, heme red. */
+const CHAIN_COLOR = { alpha: 0xb07a24, beta: 0x8a5a9e };
+const IRON_COLOR = 0xa8321a;
+/* The heme is one sphere at the iron, not a porphyrin ring — the reference
+   figure abstracts it the same way, and a page meant to animate several
+   tetramers at once can't afford 43 atoms x 4 hemes x N molecules. */
+const IRON_R = 1.1;
+
+/* THE TUBE ITSELF NOW LIVES IN tube.js. Every constant that used to sit
+   here — the collapse weights, the two relaxation passes, the radius blur,
+   the helix and coil radii, the tessellation — is that module's DEFAULTS,
+   and the reasoning for each moved with it. This page tuned them and is
+   still the place to retune them, but it does so by editing the module now,
+   because a value tuned here and copied elsewhere is exactly how the
+   winding fix and the relaxation pass count both went out of step. */
+
+const canvas = document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam:{ theta:0.6, phi:1.15, r:110 }, rMin:20, rMax:260 });
+
+/* ONE mesh per chain plus its two terminus caps — TubeLib returns them as
+   parts with the cap offsets already baked into the geometry, so this only
+   has to give them a material. Still 4 draw calls for the tetramer's tubes,
+   which was the number this prototype existed to reach. */
+function addChain(CA, ss, color) {
+  const mat = Stage.bondMat(color);
+  for (const part of TubeLib.chain(THREE, CA, ss))
+    root.add(new THREE.Mesh(part.geo, mat));
+}
+
+const ironMat = new THREE.MeshStandardMaterial({ color: IRON_COLOR, roughness: .35, metalness: .35 });
+function addHeme(h) {
+  const fe = h.atoms.find(a => a.el === 'FE').p;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(IRON_R, 12, 8), ironMat);
+  m.position.set(fe[0], fe[1], fe[2]);
+  root.add(m);
+  return m;
+}
+
+Promise.all([
+  fetch('data/2HHB-quaternary.json').then(res => {
+    if (!res.ok) throw new Error('data/2HHB-quaternary.json — HTTP ' + res.status +
+      ' (run: node hemoglobin/tools/bake-quaternary.js)');
+    return res.json();
+  }),
+  /* The folded chain (B) carries no ss in the quaternary file — only its
+     own fold bake has that, from 2HHB's HELIX records. */
+  fetch('data/2HHB-B.fold.bin').then(res => {
+    if (!res.ok) throw new Error('data/2HHB-B.fold.bin — HTTP ' + res.status +
+      ' (run: node hemoglobin/tools/bake-unfold.js)');
+    return res.arrayBuffer();
+  }),
+]).then(([quat, foldBuf]) => {
+  const fold = HbFold.decode(foldBuf);
+
+  addChain(quat.foldedTrace, fold.ss, CHAIN_COLOR.beta);
+  quat.order.forEach(id => {
+    const c = quat.chains[id];
+    addChain(c.CA, c.ss.split(''), c.kind === 'alpha' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
+  });
+  Object.values(quat.heme).forEach(addHeme);
+
+  /* Centre the camera target on the tetramer, same construction as
+     hemoglobin-lab.html's tetramerCentre(). */
+  let cx = 0, cy = 0, cz = 0, n = 0;
+  quat.foldedTrace.concat(...quat.order.map(id => quat.chains[id].CA))
+    .forEach(p => { cx += p[0]; cy += p[1]; cz += p[2]; n++; });
+  cam.target.set(cx / n, cy / n, cz / n);
+  applyCam();
+
+  document.title = 'Hemoglobin — plain-tube test (loaded)';
+}).catch(e => {
+  const d = document.createElement('div');
+  d.style = 'position:absolute;left:16px;bottom:16px;color:#a33;font-family:monospace;z-index:9';
+  d.textContent = 'could not start — ' + e.message;
+  document.body.appendChild(d);
+});
+
+new ResizeObserver(resize).observe(canvas);
+(function loop(){ requestAnimationFrame(loop); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>
