@@ -33,9 +33,12 @@
    *  MODEL SIMPLIFICATIONS — all deliberate, all listed here:
    *   1. C–H hydrogens are OMITTED on the carbon backbone. The lesson is
    *      "where do the six carbons go", so the carbons must stay countable;
-   *      24 extra H's would bury them. The ONE exception is the aldehyde H on
-   *      G3P's C1 — that specific H is what gets oxidised onto NAD⁺, so it is
-   *      drawn. Hydroxyl O–H hydrogens are always drawn (they read as "–OH").
+   *      24 extra H's would bury them. The exceptions are the two molecules
+   *      whose STEP is about a specific hydrogen, and they are the same H
+   *      twice: DHAP's two C3 hydrogens (step 5 moves one of them to C2, and
+   *      the other survives as…) and the aldehyde H on G3P's C1 (…which step 6
+   *      oxidises onto NAD⁺). Everywhere else the backbone stays bare.
+   *      Hydroxyl O–H hydrogens are always drawn (they read as "–OH").
    *   2. C=O double bonds are tagged `[i,j,2]` and drawn as a PAIR of sticks
    *      (see `bond()` in scene.js / the labs). P=O is the exception: the three
    *      phosphate O's are all drawn as single sticks, because the charge is
@@ -219,12 +222,51 @@
   {
     // — DHAP: the C1–C3 half of the cut. A ketose, so it is NOT yet a substrate
     //   for the payoff phase; triose-phosphate isomerase converts it to G3P.
+    // BUILT UPSIDE-DOWN, THEN TURNED OVER — and that is not a flourish, it is
+    // what makes step 5's turn exact. The page ends the isomerase by rotating
+    // this molecule 180° about X and swapping G3P in, so flipped-DHAP's atoms
+    // have to land on G3P's. Building the phosphate with `phosphate(0,…)` at
+    // the chain's TOP does not do that: `freeTet` derives its slot directions
+    // per atom, so slot 0 on the first carbon is not the mirror of slot 0 on
+    // the last, and the P came down 1.23 Å off — a visible jump on the one step
+    // whose point is that the phosphate does NOT move. Growing it with the SAME
+    // call G3P uses, on the same end of the same chain, makes the two frames
+    // mirror images by construction; the rotate() then puts DHAP the way up the
+    // split delivers it (F1,6-BP's top half keeps the top phosphate).
+    // Asserted by `turnX` below — the whole reason that check exists.
     const g=chainC(3);
-    const p=g.phosphate(0,0);
+    const p=g.phosphate(2,0);                              // as g3p grows its own
     g.carbonyl(1,0);
-    g.hydroxyl(2,1);
+    g.hydroxyl(0,1);
+    // THE TWO HYDROGENS ON C3, drawn — the second exception to "no backbone
+    // C–H" (see MODEL SIMPLIFICATIONS 1), and for the same reason as the first:
+    // step 5 is ABOUT one of them. The isomerase takes one off C3 and puts it
+    // on C2; the C=O slides out to C3 behind it. So of these two, one moves and
+    // the other STAYS — and the one that stays is drawn again on the product as
+    // G3P's `aldehydeH`, the very H that NAD⁺ takes at step 6. Drawing both
+    // makes that continuous: two H here, one H there, and the student watched
+    // which one left.
+    // WHICH of the two is a pedagogical pick. The enzyme abstracts the pro-R
+    // proton specifically, but C3 is prochiral (two H, one OH, one C) — the
+    // choice is invisible in a ball-and-stick and naming either is honest about
+    // the reaction while staying silent about a face the page never shows.
+    const hMove=g.grow(0,'H',GL.CH,'sp3',0);
+    g.grow(0,'H',GL.CH,'sp3',0);                           // the one that stays
+    g.rotate(Math.PI,0,0);                                 // phosphate to the top
     GLYCOLYSIS.dhap=g.spec({ name:'Dihydroxyacetone phosphate', short:'DHAP', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p1:p, phosphates:1 } });
+      // `turnX` is a claim about DRAWING, not chemistry, and it is the one the
+      // step 5 animation rests on: this molecule turned 180° about X lands on
+      // g3p's frame. It has to, because DHAP is drawn phosphate-UP (it is
+      // F1,6-BP's top half) and G3P phosphate-DOWN, so the page turns the one
+      // over before swapping in the other. If the two frames disagree the swap
+      // jogs, and a jog on this step reads as the phosphate moving — which is
+      // exactly what the reaction does NOT do.
+      // cN RUNS BACKWARDS THROUGH THE INDICES because the build does: the chain
+      // was grown phosphate-last and then turned over, so DHAP's C1 — the
+      // phosphate carbon, by the biologist's numbering — is atom 2, and C3 (the
+      // one that loses a hydrogen) is atom 0. cN is exactly the map that lets
+      // the rest of the page keep saying "C1" and mean the right sphere.
+      gly:{ carbons:3, cN:[2,1,0], p1:p, phosphates:1, movingH:hMove, turnX:'g3p' } });
   }
   {
     // — G3P: the C4–C6 half, renumbered C1–C3. The aldehyde H on C1 is drawn
@@ -232,9 +274,15 @@
     const g=chainC(3);
     g.carbonyl(0,0); const h=g.grow(0,'H',GL.CH,'sp2',0);
     g.hydroxyl(1,1);
+    // C2's HYDROGEN, drawn — the one step 5 just put there. DHAP's C2 is a
+    // carbonyl and carries none; G3P's is a CHOH and carries exactly one, so
+    // this atom is the product half of the isomerase's move. Without it the
+    // proton the student watched cross the molecule arrives nowhere and the
+    // step ends with a hydrogen unaccounted for.
+    const h2=g.grow(1,'H',GL.CH,'sp3',0);
     const p=g.phosphate(2,0);
     GLYCOLYSIS.g3p=g.spec({ name:'Glyceraldehyde-3-phosphate', short:'G3P', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h, c2H:h2, dCentre:[1,0,2] } });
   }
   {
     // — 1,3-BPG: G3P oxidised. The aldehyde H is gone (it left with 2e⁻ on NAD⁺)

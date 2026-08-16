@@ -872,6 +872,15 @@ const STEPS=[
     act:'Convert DHAP to G3P',
     species:['g3p','g3p'], enz:'Triose-phosphate isomerase', hook:'Streamlining', rev:true,
     fx:'iso',
+    // ONE TARGET, ON ONE LANE. `movingH` is named on DHAP and on nothing else,
+    // so spotPair returns null for the G3P lane and kit/hotspot.js places
+    // nothing there — no per-lane machinery, just a spec that has the atom or
+    // doesn't.
+    // The asymmetry IS the step: one half needs fixing, the other is already
+    // the product, and the student's single click is what makes the two lanes
+    // the same molecule. Everything after here happening twice is then
+    // something they did, not something the caption told them.
+    spot:{ at:'movingH', say:'click the H that moves' },
     msg:`<b>Triose-phosphate isomerase.</b> DHAP becomes a second <b>G3P</b>. The lanes are now identical, so everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
@@ -1390,6 +1399,14 @@ const cancelTimers=()=>{ MO.cancel(RUN);
   strays.forEach(g=>root.remove(g)); strays.clear(); };
 
 const FLY=620, SPLIT=840;
+// STEP 5's THREE BEATS. The hold is the beat that makes the step readable: the
+// proton has landed and the C=O has moved, and nothing else happens for a
+// moment, so the student sees the finished chemistry BEFORE the molecule starts
+// turning. Without it the turn begins under the landing and the two read as one
+// event — which is the version that raised "does it fly away, and does it flip?"
+// The turn is slow for the same reason the unfurl is: a whole molecule moving,
+// not a group arriving.
+const ISO_HOLD=300, ISO_TURN=780;
 // The ring straightening out. Slower than every other beat on purpose: a whole
 // molecule changing shape, not one group arriving — too fast reads as "the
 // picture changed".
@@ -1932,7 +1949,77 @@ function runStep(){
       FXi.protonHop(u.atomWorld(cN[1]), u.atomWorld(cN[0]));
     }), dur+40);
 
-  } else dur=280;                              // 'iso': a plain rearrangement
+  } else if(st.fx==='iso'){
+    // TRIOSE-PHOSPHATE ISOMERASE, IN THREE BEATS — because it is three things,
+    // and run as one they read as "a spark, and then a different molecule".
+    //
+    //   1. THE HYDROGEN LEAVES C3 AND LANDS ON C2. It is SHED from the mesh as
+    //      the hop starts, so the atom the student clicked visibly goes; the
+    //      glowing proton is then the only H in the air, and it arrives on a
+    //      carbon that draws one (g3p's `c2H`). Hop without shed — what this
+    //      did first — leaves the white H sitting on C3 while a second one
+    //      flies off it, and the honest question is where the extra came from.
+    //   2. THE C=O SLIDES OUT to the carbon the H left. Ringed where it forms.
+    //   3. THE MOLECULE TURNS OVER. This is not chemistry and must not look
+    //      like it — no ring, no glow, slow and eased. But it cannot be
+    //      skipped: DHAP is drawn phosphate-UP (it is F1,6-BP's top half) and
+    //      G3P phosphate-DOWN (the bottom half), so swapping one for the other
+    //      teleports the phosphate the whole length of the molecule and says
+    //      the phosphate moved. It does not move — the NUMBERING flips, C1 of a
+    //      ketose being C3 of the aldose. So the turn is the truthful frame for
+    //      that: same molecule, turned around, and now the two lanes match.
+    //      180° about X, which is why the backbone lands on the product's: the
+    //      chain's x zig-zag is a palindrome (−h, +h, −h), so reversing y maps
+    //      it onto itself. A proper rotation, so it cannot mint an enantiomer —
+    //      G3P's C2 stereocentre is made by beat 1, not by this.
+    //
+    // ONE LANE RUNS. G3P has no `movingH` — it is already the product — so this
+    // skips it, exactly as the hotspot skipped it. Nothing enters and nothing
+    // leaves: no carrier, no flight from the tray, and the ledger stays still.
+    lanes.forEach(l=>{
+      const gly=M[l.key].gly, u=l.g.userData;
+      if(gly.movingH==null) return;
+      const from=u.atomWorld(gly.movingH).clone(), to=u.atomWorld(gly.cN[1]).clone();
+      // the C–H that breaks, in the page's hydrogen steel — fx.js's default
+      // gold here would read as the carbonyl that is about to form beside it
+      FXi.spawnRing(from, H_LEAVE);
+      shedAtoms(l,[gly.movingH]);
+      FXi.protonHop(from, to, null, {color:H_LEAVE});
+      // …and the C=O that forms where it left, as the proton lands. Positions
+      // are read BEFORE the turn starts, so they are the geometry on screen.
+      const c3=u.atomWorld(gly.cN[2]).clone();
+      later(()=>FXi.spawnRing(c3, PAL.atoms.O), FLY);
+      // …then turn it over, and CHANGE MOLECULES HALFWAY THROUGH THE TURN.
+      //
+      // The swap has to happen somewhere, and every choice shows a seam: the
+      // carbons superimpose exactly under the flip (turnX asserts 0.000 Å) but
+      // the phosphate does not — it lands 1.2 Å out, because the two specs grow
+      // it into different rotamers about the C–O bond. That torsion is a free
+      // rotor and means nothing chemically, but swapping at either END of the
+      // turn shows it as the phosphate twitching, on the one step whose point
+      // is that the phosphate does not move.
+      //
+      // At the halfway point the molecule is EDGE-ON — the chain plane is
+      // square to the camera and the whole thing is foreshortened to a line, so
+      // a rotamer's worth of z is the least visible it will ever be, and the
+      // eye is tracking a turn besides. So DHAP sweeps 0 → π/2, G3P picks the
+      // sweep up at −π/2 and carries it home to 0. One continuous turn, two
+      // molecules, and the product arrives already facing the way its lane
+      // mate does.
+      const j=lanes.indexOf(l), HALF=ISO_TURN/2;
+      later(()=>MO.seq([{dur:HALF/1000, ease:'inQuad',
+        onUpdate:e=>{ l.g.rotation.x=e*Math.PI/2; }}],{tag:RUN}), FLY+ISO_HOLD);
+      later(()=>{
+        swapLane(j,'g3p');
+        const g2=lanes[j].g;
+        g2.rotation.x=-Math.PI/2;
+        MO.seq([{dur:HALF/1000, ease:'outQuad',
+          onUpdate:e=>{ g2.rotation.x=(e-1)*Math.PI/2; }}],{tag:RUN});
+      }, FLY+ISO_HOLD+HALF);
+    });
+    dur=FLY+ISO_HOLD+ISO_TURN;
+
+  } else dur=280;                              // no fx named: a plain swap
 
   later(()=>{ done=to; reviewing=true; carrierGone.clear(); renderLanes(to);
     busy=false; refresh(); }, dur);

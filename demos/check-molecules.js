@@ -605,6 +605,100 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- the hydrogen step 5 moves (`gly.movingH`) ------------------------
+  // glycolysis-lab hands this index to spotPair, which turns it into the C–H
+  // bond the student CLICKS, and then hops that atom to the carbonyl carbon.
+  // So the index is not metadata — it is where a target appears and what flies.
+  // Four ways it can be wrong, none of them visible on screen:
+  //
+  //   · NOT A HYDROGEN. Any index renders a target somewhere; only an H makes
+  //     "click the H that moves" true.
+  //   · ON THE WRONG CARBON. It must sit on the LAST carbon of the chain — the
+  //     free end, away from the phosphate. On the phosphate end it would be
+  //     the wrong half of a molecule whose two ends are the whole point.
+  //   · AN ONLY CHILD. That carbon must carry TWO H: one moves, one stays and
+  //     is redrawn as the product's aldehyde H (step 6 takes it). Draw one and
+  //     the end carbon silently loses a hydrogen across the swap.
+  //   · THE SUBSTRATE ALREADY BEING AN ALDOSE. The C=O must be on the MIDDLE
+  //     carbon — that is what makes it a ketose and the step worth doing. A
+  //     carbonyl already at the end is G3P wearing DHAP's name.
+  if (mol.gly && mol.gly.movingH != null) {
+    const g = mol.gly, h = g.movingH;
+    const adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                          .map(b => (b[0] === i ? b[1] : b[0]));
+    const end = g.cN[g.cN.length - 1], mid = g.cN[1];
+    const fail = m => { stereoFails++; console.log(`   MOVING-H FAIL: ${m}`); };
+    const onEnd = adj(h);
+    const endH = adj(end).filter(i => mol.atoms[i].el === 'H');
+    const dbl = i => bonds.some(b => b[2] === 2 && (b[0] === i || b[1] === i));
+    if (mol.atoms[h].el !== 'H')
+      fail(`movingH is a ${mol.atoms[h].el}, not an H`);
+    else if (onEnd.length !== 1 || onEnd[0] !== end)
+      fail(`movingH hangs off atom ${onEnd.join('/')}, not the end carbon C${g.cN.length}`);
+    else if (endH.length !== 2)
+      fail(`the end carbon carries ${endH.length} H, not 2 — one moves, one becomes the aldehyde H`);
+    else if (!dbl(mid))
+      fail(`no C=O on the middle carbon — this is not a ketose, so step 5 has nothing to do`);
+    else if (dbl(end))
+      fail(`the end carbon already carries a C=O — that is the product, not the substrate`);
+    else console.log(`   movingH OK: an H on C${g.cN.length} of 2, C=O on C2`);
+  }
+
+  // ---- the turn that ends step 5 (`gly.turnX`) --------------------------
+  // glycolysis-lab finishes the isomerase by rotating this molecule 180° about
+  // X and then swapping in the named product. The rotation is only honest if it
+  // ENDS on the product's own frame: land anywhere else and the swap jogs, and
+  // on this step a jog reads as the phosphate jumping — the one thing triose-
+  // phosphate isomerase does not do to it.
+  //
+  // Checked as a backbone superposition, in REVERSE order, because that is what
+  // turning it over means: the chain's top carbon becomes the product's bottom
+  // one. Nothing on screen could show this failing except a flicker at the swap.
+  if (mol.gly && mol.gly.turnX) {
+    const other = MOLECULES[mol.gly.turnX];
+    const a = mol.gly.cN, b = other && other.gly && other.gly.cN;
+    if (!b || a.length !== b.length) {
+      stereoFails++;
+      console.log(`   TURN FAIL: ${mol.gly.turnX} has no comparable carbon chain`);
+    } else {
+      // (x, y, z) → (x, −y, −z), then read the chain from the other end
+      let worst = 0;
+      for (let k = 0; k < a.length; k++) {
+        const p = mol.atoms[a[k]].pos, q = other.atoms[b[a.length - 1 - k]].pos;
+        worst = Math.max(worst, Math.hypot(p[0] - q[0], -p[1] - q[1], -p[2] - q[2]));
+      }
+      if (worst > 0.15) {
+        stereoFails++;
+        console.log(`   TURN FAIL: turned 180° about X, the backbone misses `
+          + `${mol.gly.turnX}'s by ${worst.toFixed(2)} Å — the swap would jog`);
+      } else {
+        console.log(`   turnX OK: 180° about X lands on ${mol.gly.turnX}'s backbone `
+          + `(worst carbon off by ${worst.toFixed(3)} Å)`);
+      }
+    }
+  }
+
+  // ---- where step 5's proton lands (`gly.c2H`) --------------------------
+  // The isomerase's product half. DHAP's C2 is a carbonyl and carries no
+  // hydrogen; G3P's is a CHOH and carries exactly one, and that one is the atom
+  // the student watched cross the molecule. Declaring it is what makes the hop
+  // land on something — so it must BE one H, on the middle carbon, and the only
+  // one there. Two would mean the drawing gained a hydrogen the reaction did
+  // not deliver.
+  if (mol.gly && mol.gly.c2H != null) {
+    const g = mol.gly, adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                                       .map(b => (b[0] === i ? b[1] : b[0]));
+    const mid = g.cN[1], on = adj(g.c2H);
+    const midH = adj(mid).filter(i => mol.atoms[i].el === 'H');
+    if (mol.atoms[g.c2H].el !== 'H')
+      { stereoFails++; console.log(`   C2-H FAIL: c2H is a ${mol.atoms[g.c2H].el}, not an H`); }
+    else if (on.length !== 1 || on[0] !== mid)
+      { stereoFails++; console.log(`   C2-H FAIL: c2H hangs off atom ${on.join('/')}, not the middle carbon`); }
+    else if (midH.length !== 1)
+      { stereoFails++; console.log(`   C2-H FAIL: the middle carbon carries ${midH.length} H, not 1`); }
+    else console.log(`   c2H OK: the one H on C2, where step 5's proton lands`);
+  }
+
   // ---- the 2D layout (`flat2d`) ----------------------------------------
   // molecule-viewer.html slides the real atoms onto these positions, so a wrong
   // one is not a wrong picture — it is an atom that flies to the wrong place in
