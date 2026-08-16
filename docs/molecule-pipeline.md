@@ -3,8 +3,8 @@
 `molecules.js` grew one app at a time, and so did the ways of getting geometry
 into it. **Five** paths exist and only some can be re-run. This doc is the audit
 and the plan. Companion to
-[chemistry-rendering-libraries.md](chemistry-rendering-libraries.md), which
-settles what *draws* a molecule; this one is about where the numbers come from.
+[rendering-modules.md](rendering-modules.md), which settles what *draws* a
+molecule; this one is about where the numbers come from.
 
 Until item 1 shipped, nothing in a spec recorded its path — which is how the
 survey below came to list four rather than five, and how two constructed

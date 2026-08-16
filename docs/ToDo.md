@@ -5,12 +5,11 @@ Open work and pending decisions. Started 2026-08-02.
 Each item says what it is, why it's worth doing, and what would settle it. An
 item leaves this file when it ships, or when a decision doc absorbs it.
 
-**Rendering decisions are reconciled — `docs/rendering-modules.md` is the
-answer.** We draw proteins ourselves; no third-party 3D viewer is used, and
-ChemDoodle has been deleted from the repo along with the page that loaded
-it. `docs/chemistry-rendering-libraries.md` predates that and still routes
-macromolecules to 3Dmol; where the two disagree, `rendering-modules.md` wins.
-Item 2 records how it was settled.
+**Rendering decisions are reconciled.** We draw proteins ourselves — Three.js +
+`scene.js` + `folding/ribbon.js`; no third-party 3D viewer is used. Mol\* was
+evaluated and not adopted (`demos/molstar/README.md` holds the measurements);
+ChemDoodle was deleted for its GPLv3, along with the pages that loaded it, so no
+page here is GPL now. Both survive on the `chemdoodle-archive` branch.
 
 Related docs: `docs/molecule-pipeline.md`, `docs/plan.md`,
 `docs/bio-rendering-thorough.md` (the curriculum-wide 3D/2D survey this file's
@@ -20,20 +19,11 @@ item 4 summarizes).
 
 ## 1. 2D skeletal diagrams — spread them past `contrast-lab`
 
-**Status: the library question is settled and shipped.** `contrast-lab.html`
-loads SmilesDrawer 2.4.1 (line 118) and draws a flat structure under every
-non-sugar model, from the `smiles` string `tools/spec2smiles.js` generates.
-Sugars go through `haworth.js` instead, because no general depiction library
-draws a Haworth projection and a flat wedge/hash ring is useless for exactly the
-pairs that page exists to teach.
-
-**Read `docs/chemistry-rendering-libraries.md` before touching any of this.** It
-has the decision, the evidence pages (`docs/rdkit-vs-smilesdrawer.html`,
-`docs/smilesdrawer-greys.html`), and two measured traps: RDKit's `rootedAtAtom`
-silently returns the wrong anomer, and SmilesDrawer emits a square `viewBox`
-regardless of the size requested.
-
-### What is actually open
+The library question is settled: SmilesDrawer for flat structures, `haworth.js`
+for sugars. **Two measured traps before touching any of this:** RDKit's
+`rootedAtAtom` silently returns the wrong anomer, and SmilesDrawer emits a
+square `viewBox` regardless of the size requested. Evidence pages:
+`docs/rdkit-vs-smilesdrawer.html`, `docs/smilesdrawer-greys.html`.
 
 **One page out of nine has 2D.** Students are *assessed* in 2D — skeletal
 diagrams are what the AP exam shows — and several pages want one:
@@ -56,50 +46,21 @@ SmilesDrawer has `drawAtomHighlight` and **no bond highlighting at all**;
 RDKit takes atoms *and* bonds. If a lesson needs a highlighted *bond*, that is
 the constraint that would force the renderer choice open again.
 
-### Also still open from that doc
+### Also open
 
-**KaTeX + mhchem for chemical equations.** Recommended there as the
-highest-value, lowest-risk addition, and needed by `molecule-lab`'s
-carbonic-acid text *today* — it currently fakes the notation in HTML. Nothing in
-the repo loads KaTeX yet. Cheapest real win on this list.
-
----
-
-## 2. ~~Evaluate Mol\* — and revisit the ChemDoodle decision~~ — SETTLED
-
-**Status:** done, and absorbed by `docs/rendering-modules.md` — read that,
-not this. Mol\* was evaluated over six stages (`demos/molstar/README.md` holds
-the measurements) and **not adopted**: we draw proteins ourselves, with
-Three.js + `scene.js` + `folding/ribbon.js`.
-
-**ChemDoodle is gone.** It was GPLv3, and that licence applied to any page
-loading it. `demos/vendor/chemdoodle/`, `protein-lab.html` and
-`viewer-compare.html` were deleted together, so **no page in this repo is GPL
-now**. All three survive on the local `chemdoodle-archive` branch. This also
-resolves the disagreement flagged at the top of this file: neither ChemDoodle
-nor 3Dmol is the default, because there is no third-party 3D viewer at all.
-
-**Nothing is left open.** `protein-lab.html` is not being rewritten:
-`demos/hemoglobin-lab.html` supersedes it, carrying all four levels on one
-molecule where the old page needed two structures and a swap between them.
-`demos/pdb.js` stays regardless — two `demos/molstar/` pages call it at
-runtime.
-
-**One thing worth carrying forward** from the Mol\* evaluation: it ships a
-one-click *Wiggle → Uncertainty* animation, which presents confidence as
-motion — precisely what `villin.js`'s header argues must never be done, and why
-act 3 uses eight discrete arrangements. Not our problem now, but the reasoning
-is general.
+**KaTeX + mhchem for chemical equations.** The highest-value, lowest-risk
+addition on this list, and needed by `molecule-lab`'s carbonic-acid text
+*today* — it currently fakes the notation in HTML. Nothing in the repo loads
+KaTeX yet.
 
 ---
 
-## 2b. A real MD trajectory beside the baked fold
+## 2. A real MD trajectory beside the baked fold
 
 **Status:** sourced, blocked on a licence question. See `docs/external-data.md`.
 
-Since Mol\* plays trajectories, the renderer is no longer the obstacle to
-showing villin folding *as simulated* next to `pdb/1VII.fold.bin`'s constrained
-relaxation.
+The want is villin folding *as simulated*, shown next to `pdb/1VII.fold.bin`'s
+constrained relaxation.
 
 - **The canonical dataset is unusable.** DESRES's 300 μs HP35 run forbids
   redistribution *and* modification. Not a maybe — licence quoted in
@@ -119,16 +80,22 @@ relaxation.
 - **A sketcher** — the student *draws* a molecule and it's checked. An assessment
   mode, not a display mode, and nothing in the repo does anything like it.
   Ketcher (Apache-2.0) is the strongest open one; OpenChemLib JS (BSD-3) is
-  lighter. **`docs/chemistry-rendering-libraries.md` already argues the editor is
-  the wrong genre for us and wants a custom `builder.js`** — read that section
-  before reopening this. Parked.
+  lighter. **A third-party editor is the wrong genre for us — the want is a
+  custom `builder.js`.** Parked.
 - **Coarse-grained rendering** — one bead per residue. The only way to keep
   *motion* above ~20k atoms. Not needed until a lesson demands it; ATP synthase
   is the one that would.
-- **VMD** — non-commercial licence, can't ship, no WASM build. Possibly useful
-  offline as a mesh baker (`tools/bake-*.js` pattern) or to independently
-  cross-check `tools/check-pdb.js`'s numbers. Not a dependency; revisit only if a
-  ribosome- or chromatin-scale lesson is actually built.
+- **A checker for `tools/ses.js`** — nothing validates the surface mesh. The
+  flood fill's failure mode (bubbles of surface inside buried pockets) reads as
+  noise, not as a bug, so eyeballing won't catch it. MSMS computes SES
+  analytically rather than on a grid — a genuinely independent method — so
+  comparing volume/area/genus on 2HHB would settle it. Offline and one-time,
+  like `check-handedness.js`. `freesasa` does area alone for much less setup.
+  VMD wraps MSMS but is non-commercial, can't ship, no WASM build.
+  *Its two old justifications are gone: `ses.js` is the mesh baker now, and
+  `check-pdb.js`'s claims are self-contained arithmetic.*
+- **A trajectory reader**, if item 2's licence clears — those are DCD files.
+  VMD, mdtraj or MDAnalysis, offline. mdtraj has the least licence friction.
 
 ---
 
