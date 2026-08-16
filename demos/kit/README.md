@@ -15,14 +15,16 @@ second page would want it *slightly* different, it does not.
 | --- | --- | --- |
 | `motion.js` | **two clocks, on purpose.** Interpolation rides the render loop (`dt` in seconds, clamped); a `call` beat is a COMMIT and rides the wall clock too, so a step finishes in a hidden tab instead of leaving the lesson stuck `busy`. Named easings, `cancel(tag)` that clears both halves, `seek()` for scrub/screenshot. No THREE | `check-kit.js` |
 | `molgraph.js` | questions you ask a **spec**: neighbours, terminal vs bridging, what leaves when a bond breaks, rings, functional groups found from connectivity, signed torsions. No THREE, no DOM, Node-loadable — so a checker and a page compute the same answer from the same code | `check-kit.js` |
+| `hbond.js` | **the bond that is not a bond**, found the same way everywhere one is drawn — water, base pairs, secondary structure. Matching half is pure JS and Node-loadable; render half is pooled dashed tubes. Three gates: distance, D–H···A linearity, and — when `lobes/lobes.js` is loaded — a cone about a real lone pair, so an acceptor is not a sphere of stickiness. Capacity is COUNTED from those pairs, and a conjugated pair counts zero, which is what keeps adenine's amino group a donor. Owns no forces; water-lab's springs stay water-lab's | `check-kit.js`, `hbond-test.html` |
 | `hotspot.js` | **click the bond this step is about.** A clickable, pulsing target pinned to a bond's projected midpoint on each object, driven every frame, elements reused. The page says which bond, what the hint reads and what a click does | the human, `glycolysis-lab` |
 | `lanes.js` | molecules side by side, named, that **split and swap** — the shape every pathway lesson has. Per-species centring (both axes), one shared label baseline, DOM names projected onto their molecules every frame, abbreviate-then-shrink decided for all lanes at once, positions as targets so a swap frame moves nothing | the human, `glycolysis-lab` |
 | `fit.js` | the stage is not an empty rectangle. Chrome measured in **pixels** by the page → leftover fractions, a solved distance and target, a top anchor, and (for an ortho page) a frustum built from `cam.r` so that number keeps meaning. Extracted from glycolysis-lab, which had it right and paid five functions for it | the human, bit-identical fit values before/after the extraction |
 | `focus.js` | one vocabulary for "look here": ghost at 13% without depth-write, lit atoms emitting their **own** colour, a bond lit only when both ends are. Works on a built molecule (by atom index) or on whole objects against each other | the human, `kit-test.html` |
 | `stagekit.js` | the shell: `Stage.create` + render loop (dt in **seconds**) + ResizeObserver + FX/Motion/Focus wiring + `fit()`, which converts **pixels of chrome** into the world-space bands `Stage.frame` wants. Two hooks: `frame` before the render, `afterFrame` after it — anything pinning DOM to a 3D point belongs in the second | the human, `kit-test.html` |
 | `modal.js` | **the card that covers the lesson** — the side doors every lesson grows. Opening, closing, the focus the four hand-written copies never gave back, the trap `aria-modal` already promised, and one Esc across a shared stack so the topmost closes. `anyOpen()` is what a page guards its stage keys on. Markup and content stay the page's | the human, `glycolysis-lab` |
-| `check-kit.js` | the assertions behind the two offline modules. `node kit/check-kit.js` | — |
-| `kit-test.html` | bench for the two visual ones, with no lesson around them | — |
+| `check-kit.js` | the assertions behind the offline modules. `node kit/check-kit.js` | — |
+| `kit-test.html` | bench for motion/focus/stagekit, with no lesson around them | — |
+| `hbond-test.html` | bench for `hbond.js`: two sliders that break the bond **without changing the distance**, and adenine's donor/acceptor asymmetry printed from the module's own site lists | — |
 
 ## Load order
 
@@ -36,6 +38,8 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="kit/fit.js"></script>        <!-- if the page has chrome over the canvas -->
 <script src="kit/lanes.js"></script>      <!-- if molecules stand side by side and swap -->
 <script src="kit/hotspot.js"></script>    <!-- if the student clicks the chemistry itself -->
+<script src="lobes/lobes.js"></script>    <!-- optional, and hbond is more honest with it -->
+<script src="kit/hbond.js"></script>      <!-- after lobes, if it is loaded at all -->
 <script src="kit/modal.js"></script>      <!-- if the lesson has side doors; no deps -->
 <script src="kit/focus.js"></script>      <!-- after scene.js -->
 <script src="kit/stagekit.js"></script>   <!-- last: it wires the other three -->

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hbond.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. kit/hbond.js decides which pairs are hydrogen
+     bonded; check-kit.js asserts that decision offline. What is left
+     over is the part a checker cannot judge — whether the bond LOOKS
+     like the directional thing it is — and this is where that gets
+     looked at.
+
+     TWO MOUNTS:
+
+       A. one donor, one acceptor, two sliders. The point is that both
+          sliders can break the bond WITHOUT changing the distance
+          between the two molecules at all. A textbook draws this
+          arrangement as a dotted line and a caption; here the dotted
+          line goes away, and the readout says which gate refused it.
+
+       B. adenine. Its amino nitrogen appears in the DONOR list and not
+          in the acceptor list — that asymmetry is base pairing, and it
+          is the one claim in this repo that a distance-only H-bond
+          criterion would get exactly backwards.
+
+     Nothing here types a number: the cutoffs are hbond.js's own
+     DEFAULTS and every readout is its own return value.
+     =================================================================== -->
+
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  /* Thin on purpose — hbond.js renders into a THREE scene and owns no DOM.
+     If this file has to style a bond, the module is leaking. */
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:70ch}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(430px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+  .gl{width:100%;height:330px;display:block;border-radius:calc(var(--radius) - 6px);
+    background:rgba(58,52,44,.04)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer}
+  .row button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .slider{display:flex;align-items:center;gap:9px;margin-top:9px;
+    font-family:var(--font-sans);font-size:11.5px;color:var(--muted)}
+  .slider label{min-width:104px;color:var(--ink);font-weight:600}
+  .slider input{flex:1;accent-color:var(--ink)}
+  .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.55;margin-top:10px}
+  .read b{color:var(--ink)}
+  .verdict{font-family:var(--font-slab);font-size:13px;margin-top:10px}
+  .verdict.on{color:#0042aa} .verdict.off{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>hbond.js — test bench</h1>
+  <p class="lede">Two mounts of the same module, with no lesson around it. The
+    matching logic is asserted offline by <code>node kit/check-kit.js</code>;
+    what is left is whether the bond reads as directional, and that is what
+    this page is for.</p>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>A — the two gates, at a fixed distance.</b> Neither
+        slider moves the molecules any closer or further apart. <b>Approach</b>
+        walks the donor around the acceptor, off the lone pair and toward the
+        back of the oxygen; <b>tilt</b> turns the donor in place so its O–H
+        stops pointing at anything. Either one alone kills the bond, at an
+        unchanged distance — which is the whole difference between a hydrogen
+        bond and "two molecules near each other".
+        <br><br>Tilt is worth walking all the way out. The bond dies around
+        <b>45°</b>, and then comes <b>back</b> near 80° — on the donor's
+        <b>other</b> hydrogen, which the same turn has swung into range. A
+        water has two of them, so tilting does not simply switch the bond off,
+        and the verdict below names which one is carrying it.</p>
+      <div><canvas class="gl" id="glA"></canvas></div>
+      <div class="row" id="rowA"></div>
+      <div class="slider"><label>Approach</label><input id="alpha" type="range" min="0" max="110" value="0"><span id="alphaV"></span></div>
+      <div class="slider"><label>Tilt</label><input id="phi" type="range" min="0" max="110" value="0"><span id="phiV"></span></div>
+      <div class="verdict" id="verdictA"></div>
+      <div class="read" id="readA"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>B — adenine donates where it cannot accept.</b> Every
+        nitrogen here is drawn the same way in every textbook figure. They are
+        not the same. The exocyclic amino nitrogen has a lone pair by the
+        electron count and <b>cannot use it</b> — it is in the ring's π system
+        — so it appears below as a donor and, with capacity 0, never as an
+        acceptor. Get this wrong and A pairs with the wrong thing.</p>
+      <div><canvas class="gl" id="glB"></canvas></div>
+      <div class="row" id="rowB"></div>
+      <div class="read" id="readB"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<script src="../mol-solvation.js"></script>
+<script src="../mol-monomers.js"></script>
+<script src="../mol-glycolysis.js"></script>
+<script src="../scene.js"></script>
+<script src="molgraph.js"></script>
+<script src="../lobes/lobes.js"></script>
+<script src="hbond.js"></script>
+<script>
+"use strict";
+
+const LB = Lobes.create(THREE);
+
+/* A bare mount — Stage.create, not Lesson.create. This bench is testing
+ * hbond.js, and a stagekit failure showing up as an hbond bug is exactly the
+ * confusion a test bench exists to avoid. */
+function mount(canvasId, r){
+  const canvas = document.getElementById(canvasId);
+  const S = Stage.create(canvas, { cam:{ theta:0.5, phi:1.15, r }, rMax:200 });
+  (function loop(){ requestAnimationFrame(loop); S.renderer.render(S.scene,S.camera); })();
+  return S;
+}
+
+/* THE UNITS CONTRACT, spent rather than explained. hbond.js answers in
+ * whatever units go in, and a registered spec has already had SCALE applied —
+ * so a cutoff quoted in ångströms is meaningless against one. Rather than
+ * typing the scaled number, read the spec's own O–H and convert the module's
+ * own default with it. */
+const W = MolLib.MOLECULES.water;
+const OH = Math.hypot(...W.atoms[1].pos.map((v,i)=>v-W.atoms[0].pos[i]));
+const K  = OH / 0.9572;                       // display units per ångström
+const MAXD = HBond.DEFAULTS.maxDist * K;
+
+const V = (a)=>new THREE.Vector3(a[0],a[1],a[2]);
+function transformed(spec, quat, offset){
+  return { atoms: spec.atoms.map(a=>{
+             const p = V(a.pos).applyQuaternion(quat).add(offset);
+             return { el:a.el, pos:[p.x,p.y,p.z] }; }),
+           bonds: spec.bonds, sites: spec.sites };
+}
+
+/* ---- A. one donor, one acceptor, two gates ----------------------------- */
+{
+  const S = mount('glA', 16);
+  const HB = HBond.create(THREE);
+  S.root.add(HB.group);
+
+  // The acceptor sits at the origin, unmoved, so nothing below can be
+  // explained away by the two molecules drifting.
+  const accMol = Stage.buildMolecule(W, { center:false });
+  S.root.add(accMol);
+  const accLobes = LB.build(W, {});
+  S.root.add(accLobes);
+  const accSites = HBond.sites(W, { owner:'acceptor' });
+
+  const EAR = Lobes.at(W, 0).dirs[0];                  // the ear we aim at
+  const BACK = [0,-1,0];                               // where its hydrogens point
+  const AXIS = V(EAR).clone().cross(V(BACK)).normalize();
+  const R = 2.8 * K;                                   // O···O, held constant
+
+  const donorMol = Stage.buildMolecule(W, { center:false });
+  S.root.add(donorMol);
+  const H1 = V(W.atoms[1].pos).sub(V(W.atoms[0].pos)).normalize();
+
+  const el = id => document.getElementById(id);
+  function update(){
+    const a = +el('alpha').value * Math.PI/180;
+    const t = +el('phi').value   * Math.PI/180;
+
+    // Approach: swing the donor's POSITION off the lone pair, around the
+    // acceptor, at constant distance.
+    const dir = V(EAR).applyAxisAngle(AXIS, a).normalize();
+    const O   = dir.clone().multiplyScalar(R);
+
+    // Tilt: turn the donor in place, so its O–H stops pointing home.
+    const aim = dir.clone().negate().applyAxisAngle(AXIS, t);
+    const q   = new THREE.Quaternion().setFromUnitVectors(H1, aim);
+
+    donorMol.position.copy(O); donorMol.quaternion.copy(q);
+    const dSpec = transformed(W, q, O);
+    const dSites = HBond.sites(dSpec, { owner:'donor' });
+
+    const pairs = HBond.find(dSites.donors, accSites.acceptors, { maxDist:MAXD });
+    HB.set(pairs);
+
+    // The verdict is the module's, not this page's: the best donor's own
+    // explain() — which is the same gates find() just ran, kept instead of
+    // thrown away.
+    const best = dSites.donors
+      .map(d => ({ d, r:HBond.explain(d, accSites.acceptors[0], { maxDist:MAXD }) }))
+      .sort((x,y) => (y.r.ok - x.r.ok) || x.r.d - y.r.d)[0];
+
+    el('alphaV').textContent = `${el('alpha').value}°`;
+    el('phiV').textContent   = `${el('phi').value}°`;
+    const v = el('verdictA');
+    v.className = 'verdict ' + (pairs.length ? 'on' : 'off');
+    // WHICH hydrogen, not just whether. Between about 45° and 75° of tilt
+    // neither O–H qualifies; past 80° the donor's OTHER hydrogen has swung
+    // into range and takes the bond over. Naming it is the difference between
+    // that reading as a flickering slider and as the thing it is.
+    v.textContent = pairs.length
+      ? `Bonded — donor's H${pairs[0].donor.id}, on lone pair ${pairs[0].lobe + 1} of 2.`
+      : `No bond — ${best.r.why}.`;
+
+    el('readA').innerHTML =
+       `O···O          <b>${(R/K).toFixed(2)} Å</b>  (held constant by both sliders)\n`
+      +`H···A          ${(best.r.d/K).toFixed(2)} Å   cutoff ${HBond.DEFAULTS.maxDist} Å\n`
+      +`D–H···A        ${(Math.acos(Math.max(-1,Math.min(1,best.r.linearity??0)))*180/Math.PI).toFixed(0)}° off straight`
+      +`   cutoff ${(Math.acos(HBond.DEFAULTS.minLinearity)*180/Math.PI).toFixed(0)}°\n`
+      +`lone pair      ${best.r.lobe==null ? '— none in range' : `#${best.r.lobe+1}`}`;
+  }
+  el('alpha').oninput = update; el('phi').oninput = update;
+
+  const b=document.createElement('button');
+  b.textContent='Lobes'; b.setAttribute('aria-pressed','true');
+  b.onclick=()=>{ const on = b.getAttribute('aria-pressed')!=='true';
+    b.setAttribute('aria-pressed',String(on)); LB.setVisible(accLobes,on); };
+  document.getElementById('rowA').appendChild(b);
+
+  Stage.frame(S.camera, S.cam, [{x:0,y:0,rxz:R*1.5,hy:R*1.2}]); S.applyCam();
+  new ResizeObserver(()=>{ S.resize();
+    Stage.frame(S.camera,S.cam,[{x:0,y:0,rxz:R*1.5,hy:R*1.2}]); S.applyCam(); })
+    .observe(document.getElementById('glA'));
+  update();
+}
+
+/* ---- B. adenine: donates where it cannot accept ------------------------ */
+{
+  const spec = MolLib.MOLECULES.amp;
+  const S = mount('glB', 26);
+  const mol = Stage.buildMolecule(spec, { center:false });
+  S.root.add(mol);
+  const lob = LB.build(spec, {});
+  S.root.add(lob);
+
+  const { donors, acceptors, notes } = HBond.sites(spec, { owner:'amp' });
+  const N = i => `${spec.atoms[i].el}${i}`;
+
+  // Printed from the module's own site lists — a typed "the amino nitrogen
+  // donates" would outlive a module that stopped saying so.
+  const nDonors = donors.filter(d => d.el === 'N');
+  const blocked = acceptors.filter(a => a.capacity === 0);
+  document.getElementById('readB').innerHTML =
+     `<b>N donors</b>      ${(()=>{ const c={};                 // an −NH₂ is ONE nitrogen with two
+        nDonors.forEach(d=>c[d.rootId]=(c[d.rootId]||0)+1);     // hydrogens, not two donor nitrogens
+        return Object.entries(c).map(([i,n])=>`${N(+i)}×${n} H`).join(', ') || '—'; })()}\n`
+    +`<b>N acceptors</b>   ${acceptors.filter(a=>a.el==='N'&&a.capacity>0)
+                              .map(a=>`${N(a.id)}×${a.capacity}`).join(', ') || '—'}\n`
+    +`<b>conjugated</b>    ${blocked.map(a=>N(a.id)).join(', ') || '—'}`
+    +`   — a pair each, none of it available\n`
+    +`<b>refused</b>       ${notes.map(n=>`${N(n.atom)}: ${n.why}`).join('\n               ') || '—'}\n\n`
+    +(nDonors.some(d => blocked.some(b => b.id === d.rootId))
+        ? `The same nitrogen is in the donor list and in the conjugated list.\nThat is the asymmetry base pairing runs on.`
+        : `WARNING: no nitrogen both donates and is blocked — the conjugation\nflag is not reaching this spec, and A–T would come out wrong.`);
+
+  const ext = Stage.measure(spec);
+  const fit = () => { S.resize();
+    Stage.frame(S.camera, S.cam, [{x:0,y:0,rxz:ext.rxz*1.2,hy:ext.hy*1.2}]); S.applyCam(); };
+  new ResizeObserver(fit).observe(document.getElementById('glB')); fit();
+
+  const b=document.createElement('button');
+  b.textContent='Lobes'; b.setAttribute('aria-pressed','true');
+  b.onclick=()=>{ const on = b.getAttribute('aria-pressed')!=='true';
+    b.setAttribute('aria-pressed',String(on)); LB.setVisible(lob,on); };
+  document.getElementById('rowB').appendChild(b);
+}
+</script>
+</body>
+</html>

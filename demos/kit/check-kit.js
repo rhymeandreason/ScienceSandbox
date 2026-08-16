@@ -26,6 +26,8 @@ const path=require('path');
 const MolLib=require(path.join(__dirname,'..','lib-node.js'));
 const {MolGraph}=require(path.join(__dirname,'molgraph.js'));
 const {Motion}=require(path.join(__dirname,'motion.js'));
+const {HBond}=require(path.join(__dirname,'hbond.js'));
+const {Lobes}=require(path.join(__dirname,'..','lobes','lobes.js'));
 const M=MolLib.MOLECULES;
 
 let fails=0, checks=0;
@@ -239,6 +241,151 @@ head('molgraph.js — stereochemistry sign');
     near(tm,-t,0.01,'mirroring a spec flips the torsion sign');
     ok(Math.abs(t)>1,'the torsion is not ~0 (a flat centre would prove nothing)');
   }
+}
+
+/* =====================================================================
+ *  HBOND — the matching half
+ * =====================================================================
+ *  GEOMETRY IS CHECKED AGAINST HAND-BUILT ÅNGSTRÖM SPECS, not registered
+ *  ones. register() has already applied SCALE (1.9), so a registered water's
+ *  O–H is not 0.96 and a distance cutoff quoted in ångströms would be
+ *  meaningless against it. hbond.js answers in whatever units went in — same
+ *  contract as molgraph — and the way to assert that honestly is to feed it
+ *  units we control. The one registered spec used below is `amp`, for a claim
+ *  that has no length in it at all.
+ * ===================================================================== */
+head('hbond.js — sites and the two geometric gates');
+{
+  // A water, in ångströms, at the origin: O at 0, two H at 104.5°.
+  const th=104.5*Math.PI/180, r=0.9572;
+  const waterAt=(x,y,z,flip)=>{
+    const o=[x,y,z], s=flip?-1:1;
+    return { atoms:[{el:'O',pos:o},
+                    {el:'H',pos:[x+s*r*Math.sin(th/2), y+s*r*Math.cos(th/2), z]},
+                    {el:'H',pos:[x-s*r*Math.sin(th/2), y+s*r*Math.cos(th/2), z]}],
+             bonds:[[0,1],[0,2]] };
+  };
+
+  const w=waterAt(0,0,0);
+  const s=HBond.sites(w,{owner:'w'});
+  ok(s.donors.length===2,'water has two donors (both its hydrogens)');
+  ok(s.acceptors.length===1,'water has one acceptor (the oxygen)');
+  ok(s.acceptors[0].capacity===2,
+     `the oxygen accepts exactly two — one per lone pair (got ${s.acceptors[0].capacity})`);
+
+  // A second water placed ALONG one of the first's lone pairs, turned so one
+  // O–H points back down it. Both facts are needed and neither is decorative:
+  // sitting the partner nearby is not enough (the lobe gate refuses a bond
+  // into the back of the oxygen), and sitting it in the right place without
+  // turning it is not enough either (D–H···A comes out at 0.32, and the
+  // linearity gate refuses that). Between them they are the geometry — which
+  // is the reason ice is tetrahedral and open, and the reason a flat diagram
+  // of this arrangement cannot be drawn correctly.
+  const a=waterAt(0,0,0);
+  const L=Lobes.at(a,0).dirs[0];
+  const b=(()=>{
+    const O=L.map(v=>v*2.8);                       // donor oxygen, out along the ear
+    const back=L.map(v=>-v);                       // and one O–H pointing back at it
+    const ax=(()=>{ const p=[L[1],-L[0],0], n=Math.hypot(p[0],p[1]); return [p[0]/n,p[1]/n,0]; })();
+    const c=Math.cos(th), s=Math.sin(th);          // second H at 104.5° (Rodrigues)
+    const kd=ax[0]*back[0]+ax[1]*back[1]+ax[2]*back[2];
+    const h2=back.map((v,i)=>v*c + (ax[(i+1)%3]*back[(i+2)%3]-ax[(i+2)%3]*back[(i+1)%3])*s + ax[i]*kd*(1-c));
+    return { atoms:[{el:'O',pos:O},
+                    {el:'H',pos:O.map((v,i)=>v+back[i]*r)},
+                    {el:'H',pos:O.map((v,i)=>v+h2[i]*r)}],
+             bonds:[[0,1],[0,2]] };
+  })();
+  const sa=HBond.sites(a,{owner:'a'}), sb=HBond.sites(b,{owner:'b'});
+  const pairs=HBond.find(sa.donors.concat(sb.donors),
+                         sa.acceptors.concat(sb.acceptors));
+  ok(pairs.length===1,`two facing waters share exactly one H-bond (got ${pairs.length})`);
+  ok(pairs[0].donor.owner==='b' && pairs[0].acceptor.owner==='a',
+     'the bond runs from the lower water\'s H to the upper water\'s lone pair');
+
+  // The distance gate. Pull them apart past maxDist and the bond goes.
+  const far=HBond.sites(waterAt(0,-9,0),{owner:'f'});
+  ok(HBond.find(sa.donors.concat(far.donors),
+                sa.acceptors.concat(far.acceptors)).length===0,
+     'no H-bond at 9 Å — the distance gate');
+
+  // The linearity gate, on raw sites so nothing else is in play: a hydrogen
+  // 2.0 Å from the acceptor, well inside maxDist, but bonded to a root that
+  // puts D–H pointing away from it. A distance-only criterion bonds this —
+  // and that is the textbook's dotted line pointing nowhere.
+  const acc=sa.acceptors[0];
+  const turned=[{ h:[0,-2.0,0], root:[0,-1.04,0], owner:'x' }];   // O above its H: D–H points away
+  ok(HBond.find(turned,[acc],{minLobe:-2}).length===0,
+     'a hydrogen turned away makes no bond at a bonding distance');
+  ok(HBond.find([{h:[0,-2.0,0],root:[0,-2.96,0],owner:'x'}],[acc],{minLobe:-2}).length===1,
+     'the same hydrogen turned toward it does — linearity is the only difference');
+}
+
+head('hbond.js — capacity is spent, not ignored');
+{
+  // Three donors converging on one oxygen. It has two lone pairs, so the
+  // third gets nothing — the count on screen in water-lab is this rule.
+  const acc={ p:[0,0,0], owner:'acc', capacity:2,
+              dirs:[[0,1,0.4],[0,1,-0.4]] };
+  const donor=(x,y,z)=>({ h:[x,y,z], root:[x*1.6,y*1.6,z*1.6], owner:'d'+x+y+z });
+  const ds=[donor(0,2,0.8), donor(0,2,-0.8), donor(0.3,2,0)];
+  const got=HBond.find(ds,[acc],{onePerPair:false});
+  ok(got.length===2,`an oxygen with two lone pairs takes two bonds, not three (got ${got.length})`);
+  ok(got[0].lobe!==got[1].lobe,'the two bonds land on different lone pairs');
+
+  // onePerPair: same owner on every donor, so all three are one pair of
+  // owners and only the first may bond.
+  const same=ds.map(d=>Object.assign({},d,{owner:'same'}));
+  ok(HBond.find(same,[acc]).length===1,
+     'onePerPair caps a single pair of molecules at one shared H-bond');
+  ok(HBond.find(same,[acc],{onePerPair:false}).length===2,
+     'onePerPair:false lets one pair share two — the base-pair case');
+}
+
+head('hbond.js — the conjugation trap (the DNA claim)');
+{
+  // THE ASSERTION THIS MODULE EXISTS FOR. Adenine's exocyclic amino nitrogen
+  // scores one lone pair by the electron sum, but that pair is delocalised
+  // into the ring: the group DONATES and does not accept. If this ever comes
+  // back as an acceptor with capacity, the A–T pairing a lesson draws is
+  // backwards, and nothing on screen would say so.  `amp` carries adenine.
+  const amp=M.amp;
+  const aminoN=amp.atoms.findIndex((x,i)=>
+    x.el==='N' && MolGraph.neighbors(amp,i).filter(j=>amp.atoms[j].el==='H').length===2);
+  ok(aminoN>=0,'found adenine\'s exocyclic amino nitrogen in amp');
+  if(aminoN>=0){
+    const {acceptors,donors}=HBond.sites(amp,{owner:'amp'});
+    const site=acceptors.find(a=>a.id===aminoN);
+    ok(!!site && site.conjugated===true,'the amino nitrogen is flagged conjugated');
+    ok(!site || site.capacity===0,
+       `the amino nitrogen accepts nothing (got capacity ${site&&site.capacity})`);
+    ok(donors.some(d=>d.rootId===aminoN),
+       'and it still DONATES — both of its hydrogens are donors');
+
+    // The ring nitrogen adenine actually accepts on (N1) must survive, or the
+    // guard above has been implemented as "nitrogen never accepts".
+    ok(acceptors.some(a=>a.el==='N' && a.capacity>0),
+       'a ring nitrogen still accepts — the flag is per-atom, not per-element');
+  }
+}
+
+head('hbond.js — matching order');
+{
+  // Two donors, two acceptors, arranged so donor-order takes the pairing that
+  // blocks the second donor and best-order does not. The default must be the
+  // donor-order answer: water-lab is featured, its H-bond count is on screen,
+  // and a silently better matcher there is a regression that reads as a
+  // physics bug.
+  const A={ p:[0,0,0], owner:'A', capacity:1 };
+  const B={ p:[0,6,0], owner:'B', capacity:1 };
+  const d1={ h:[0,2.0,0], root:[0,2.9,0], owner:'1' };   // near A, and only A
+  const d2={ h:[0,2.2,0], root:[0,3.1,0], owner:'2' };   // near A too, far from B
+  ok(HBond.find([d2,d1],[A,B],{onePerPair:false}).length===1,
+     'donor order: the first donor takes the only acceptor in range');
+  const best=HBond.find([d2,d1],[A,B],{onePerPair:false,order:'best'});
+  ok(best.length===1 && best[0].donor===d1,
+     'best order: the closer donor wins the contested acceptor');
+  ok(HBond.DEFAULTS.order==='donor',
+     'the default order is donor — behaviour-preserving for water-lab');
 }
 
 Promise.all(pending).then(()=>{
