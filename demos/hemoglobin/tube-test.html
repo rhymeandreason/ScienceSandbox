@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hemoglobin — plain-tube test</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #app{grid-template-columns:1fr}
+  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:340px;
+    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
+    background:rgba(255,255,255,.85);border:1px solid var(--hair);border-radius:8px;
+    padding:10px 12px}
+  #note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="gl"></canvas>
+  </main>
+</div>
+<div id="note">
+  <b>Prototype — collapsed-helix tube render.</b><br>
+  One continuous tube per chain, wide through each helix and thin through
+  each loop, with the radius ramped so the change is a taper rather than a
+  step. Helices are collapsed onto their axis — no turn-by-turn corkscrew.
+  Heme is a single sphere at the iron, no porphyrin ring. Four draw calls
+  for the tetramer, on purpose: the target is animating several at once.
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="hbfold.js"></script>
+<script>
+'use strict';
+const PAL = MolLib.PALETTE;
+
+/* Real angstroms throughout, same arrangement as hemoglobin-lab.html —
+   this page never sees MolLib.SCALE. */
+
+/* Same palette as the reference figure: two shades per chain kind, heme red. */
+const CHAIN_COLOR = { alpha: 0xb07a24, beta: 0x8a5a9e };
+const IRON_COLOR = 0xa8321a;
+/* The heme is one sphere at the iron, not a porphyrin ring — the reference
+   figure abstracts it the same way, and a page meant to animate several
+   tetramers at once can't afford 43 atoms x 4 hemes x N molecules. */
+const IRON_R = 1.1;
+
+/* Two radii, not one: helix draws WIDE, loop draws as a thin cord.
+   HELIX_R sits close to ribbon.js's flat-band half-width
+   (PROFILE.H[0] = 1.30) so this reads as the same molecule at a different
+   level of abstraction, not a redraw. */
+const HELIX_R = 1.5, COIL_R = 0.55;
+const TUBE_SIDES = 10, SEG_PER_RES = 3;
+
+/* Collapse each helix onto its own axis rather than showing the Ca spiral —
+   RibbonLib's own "rocket" style (see its SMOOTH_W header): a weight this
+   high erases the coil-within-the-coil, which a flat ribbon band normally
+   hides by tracking the axis rather than the atoms. */
+const COLLAPSE_W = { H: 0.55, E: 0.55, C: 0 };
+const COLLAPSE_PASSES = 3;
+
+/* Then a SECOND pass over every point, loops included. RibbonLib.smooth
+   cannot do this one — it skips coil unconditionally, by design ("a loop's
+   wiggle IS its shape"), which is right for the cartoon and wrong here:
+   this prototype is deliberately the more abstracted picture, and the
+   reference figure's loops are smooth arcs rather than per-residue zigzag.
+
+   2 x 0.4 measured on chain A: the mean turn angle at a coil residue falls
+   from 81 deg to 33, while the longest Ca-Ca step only shortens 3.9 -> 3.3.
+   A third pass buys 26 deg but takes the loops to 3.1, and shortening is
+   what a loop can least afford — it is already the part of the chain being
+   drawn thinnest. The spline smooths further on top of this. */
+const RELAX_PASSES = 2, RELAX_W = 0.4;
+
+/* The radius is a per-residue array that gets blurred the same way, and THAT
+   is what makes the helix-to-loop join gradual: blurring a step function
+   spreads it over a few residues, so the tube tapers into and out of every
+   helix instead of stepping. It also means there is no join to hide — one
+   continuous tube per chain, so the only open ends are the two termini. */
+const RADIUS_BLUR_PASSES = 6, RADIUS_BLUR_W = 0.5;
+
+const canvas = document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam:{ theta:0.6, phi:1.15, r:110 }, rMin:20, rMax:260 });
+
+/* Laplacian relaxation of a list of numbers, endpoints pinned. Used for both
+   the coordinates (once per axis) and the radius array — they want the same
+   operation, so they share one. */
+function relax(A, passes, w) {
+  let cur = A.slice();
+  for (let it = 0; it < passes; it++) {
+    const next = cur.slice();
+    for (let i = 1; i + 1 < cur.length; i++)
+      next[i] = cur[i] + ((cur[i - 1] + cur[i + 1]) / 2 - cur[i]) * w;
+    cur = next;
+  }
+  return cur;
+}
+
+/* A tube of VARYING radius. THREE.TubeGeometry takes one number, so this
+   builds the rings itself — which is the whole point: a radius that ramps
+   from HELIX_R down to COIL_R over a few residues is what turns the
+   helix/loop boundary into a taper rather than a step.
+
+   Frames come from computeFrenetFrames and its twist is not corrected,
+   because a circular cross-section has no orientation to get wrong — the
+   frame machinery folding/ribbon.js needs is only needed for a FLAT band. */
+function varTube(pts, radii, segments) {
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const F = curve.computeFrenetFrames(segments, false);
+  const pos = [], nor = [], idx = [];
+  const last = pts.length - 1;
+  const P = new THREE.Vector3(), v = new THREE.Vector3();
+
+  for (let s = 0; s <= segments; s++) {
+    const t = s / segments;
+    curve.getPoint(t, P);
+    /* getPoint is uniform in the PARAMETER, so t maps straight onto the
+       control-point index — which is what lets the radius array be read
+       with a plain lerp rather than an arc-length search. */
+    const u = t * last, i0 = Math.min(last, Math.floor(u));
+    const r = radii[i0] + (radii[Math.min(last, i0 + 1)] - radii[i0]) * (u - i0);
+    const N = F.normals[s], B = F.binormals[s];
+    for (let k = 0; k < TUBE_SIDES; k++) {
+      const a = 2 * Math.PI * k / TUBE_SIDES, ca = Math.cos(a), sa = Math.sin(a);
+      v.set(N.x * ca + B.x * sa, N.y * ca + B.y * sa, N.z * ca + B.z * sa);
+      pos.push(P.x + v.x * r, P.y + v.y * r, P.z + v.z * r);
+      nor.push(v.x, v.y, v.z);       // smooth around the tube, no duplication
+    }
+  }
+  /* WINDING, and it is not the obvious one. THREE.TubeGeometry lays its ring
+     out with `cos = -Math.cos(v)` — a reflection, which walks the circle the
+     opposite way round the frame from the plain (cos, sin) used above. Copy
+     its index order without copying that sign and every face comes out
+     inside-out: back-face culling then shows the INSIDE of the far wall, lit
+     by normals pointing away from the camera, so the whole chain renders
+     tube-shaped but dark. Verified by face test — with this order all faces
+     point away from the axis, with the two triples swapped, none do. */
+  for (let s = 0; s < segments; s++)
+    for (let k = 0; k < TUBE_SIDES; k++) {
+      const k2 = (k + 1) % TUBE_SIDES;
+      const a0 = s * TUBE_SIDES + k, a1 = s * TUBE_SIDES + k2;
+      idx.push(a0, a1 + TUBE_SIDES, a0 + TUBE_SIDES, a0, a1, a1 + TUBE_SIDES);
+    }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setIndex(idx);
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+/* ONE mesh per chain, not one per secondary-structure run. Runs stopped
+   being separate objects the moment the radius became continuous — there is
+   no boundary left to butt, so there is no gap to fix and no internal cap to
+   hide. It also drops the tetramer from ~240 draw calls to 4, which is the
+   number that matters for drawing several of these at once. */
+function addChain(CA, ss, color) {
+  const n = CA.length;
+  const collapsed = RibbonLib.smooth(CA.map(p => [p[0], p[1], p[2]]),
+                                     ss, COLLAPSE_PASSES, COLLAPSE_W);
+  /* Relax each axis independently — a Laplacian is per-component, so this is
+     the same operation as smoothing the path. */
+  const ax = [0, 1, 2].map(c => relax(collapsed.map(p => p[c]), RELAX_PASSES, RELAX_W));
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push(new THREE.Vector3(ax[0][i], ax[1][i], ax[2][i]));
+
+  const radii = relax(Array.from({ length: n },
+    (_, i) => (ss[i] === 'H' || ss[i] === 'E') ? HELIX_R : COIL_R),
+    RADIUS_BLUR_PASSES, RADIUS_BLUR_W);
+
+  const mat = Stage.bondMat(color);
+  root.add(new THREE.Mesh(varTube(pts, radii, (n - 1) * SEG_PER_RES), mat));
+
+  /* Only the two termini are open now. */
+  for (const i of [0, n - 1]) {
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(radii[i], TUBE_SIDES, TUBE_SIDES / 2), mat);
+    cap.position.copy(pts[i]);
+    root.add(cap);
+  }
+}
+
+const ironMat = new THREE.MeshStandardMaterial({ color: IRON_COLOR, roughness: .35, metalness: .35 });
+function addHeme(h) {
+  const fe = h.atoms.find(a => a.el === 'FE').p;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(IRON_R, 12, 8), ironMat);
+  m.position.set(fe[0], fe[1], fe[2]);
+  root.add(m);
+  return m;
+}
+
+Promise.all([
+  fetch('data/2HHB-quaternary.json').then(res => {
+    if (!res.ok) throw new Error('data/2HHB-quaternary.json — HTTP ' + res.status +
+      ' (run: node hemoglobin/tools/bake-quaternary.js)');
+    return res.json();
+  }),
+  /* The folded chain (B) carries no ss in the quaternary file — only its
+     own fold bake has that, from 2HHB's HELIX records. */
+  fetch('data/2HHB-B.fold.bin').then(res => {
+    if (!res.ok) throw new Error('data/2HHB-B.fold.bin — HTTP ' + res.status +
+      ' (run: node hemoglobin/tools/bake-unfold.js)');
+    return res.arrayBuffer();
+  }),
+]).then(([quat, foldBuf]) => {
+  const fold = HbFold.decode(foldBuf);
+
+  addChain(quat.foldedTrace, fold.ss, CHAIN_COLOR.beta);
+  quat.order.forEach(id => {
+    const c = quat.chains[id];
+    addChain(c.CA, c.ss.split(''), c.kind === 'alpha' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
+  });
+  Object.values(quat.heme).forEach(addHeme);
+
+  /* Centre the camera target on the tetramer, same construction as
+     hemoglobin-lab.html's tetramerCentre(). */
+  let cx = 0, cy = 0, cz = 0, n = 0;
+  quat.foldedTrace.concat(...quat.order.map(id => quat.chains[id].CA))
+    .forEach(p => { cx += p[0]; cy += p[1]; cz += p[2]; n++; });
+  cam.target.set(cx / n, cy / n, cz / n);
+  applyCam();
+
+  document.title = 'Hemoglobin — plain-tube test (loaded)';
+}).catch(e => {
+  const d = document.createElement('div');
+  d.style = 'position:absolute;left:16px;bottom:16px;color:#a33;font-family:monospace;z-index:9';
+  d.textContent = 'could not start — ' + e.message;
+  document.body.appendChild(d);
+});
+
+new ResizeObserver(resize).observe(canvas);
+(function loop(){ requestAnimationFrame(loop); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>
