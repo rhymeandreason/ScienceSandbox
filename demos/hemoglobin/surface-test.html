@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hemoglobin — molecular surface test</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #app{grid-template-columns:1fr}
+  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:360px;
+    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
+    background:rgba(255,255,255,.85);border:1px solid var(--hair);border-radius:8px;
+    padding:10px 12px}
+  #note b{color:var(--ink)}
+  #ctl{position:absolute;right:16px;bottom:16px;z-index:6;display:grid;gap:8px;
+    font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    background:rgba(255,255,255,.9);border:1px solid var(--hair);
+    border-radius:8px;padding:10px 12px;width:210px}
+  #ctl label{display:grid;gap:2px}
+  #ctl output{font-family:var(--font-mono,monospace);color:var(--ink)}
+  #ctl input[type=range]{width:100%}
+  #ctl button{font-family:var(--font-sans);font-size:13px;cursor:pointer;
+    background:var(--paper,#fff);color:var(--ink);border:1px solid var(--hair);
+    border-radius:8px;padding:8px 14px}
+  #ctl button:hover{background:var(--hair)}
+  /* Segmented control: one border around the group, hairlines between,
+     so the three read as one choice rather than three buttons. */
+  #seg{display:flex;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
+  #seg button{flex:1;border:0;border-left:1px solid var(--hair);border-radius:0;
+    padding:7px 0;font-size:12px;color:var(--muted)}
+  #seg button:first-child{border-left:0}
+  #seg button[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff)}
+  #seg button[aria-pressed=true]:hover{background:var(--ink)}
+  #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
+    font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);
+    border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="gl"></canvas>
+  </main>
+</div>
+<div id="note">
+  <b>Test — solvent-excluded surface over the ribbon.</b><br>
+  The tetramer as <code>folding/ribbon.js</code> draws it, with the
+  molecular surface laid over the top as a translucent skin. The surface
+  is <b>baked</b>, not solved here: <code>tools/ses.js</code> builds it
+  offline from 2HHB's 4&thinsp;556 heavy atoms with a 1.4&nbsp;&Aring;
+  water probe, and the page just loads a mesh. The same job took 3Dmol
+  5.7&nbsp;s and Mol* 9.4&nbsp;s in <i>viewer-compare.html</i>.<br><br>
+  <b>s</b> toggles the surface, <b>c</b> cycles what it is coloured by.
+  Chain colour says which subunit a patch belongs to; hydrophobicity is
+  the Kyte&ndash;Doolittle scale, and it is the one that carries a
+  lesson &mdash; the greasy patches are where another molecule could
+  stick.
+</div>
+<div id="hud"></div>
+<div id="ctl">
+  <button id="toggle">hide surface (s)</button>
+  <label>colour by (c)
+    <div id="seg"></div>
+  </label>
+  <label>opacity <output id="ov"></output>
+    <input id="op" type="range" min="5" max="100" value="28"></label>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="hbfold.js"></script>
+<script src="../sickle/sickle.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  surface-test.html — is a baked SES worth it, and does it read?
+ *
+ *  Two questions, and they are separate. Whether the mesh is CORRECT is
+ *  settled offline — tools/ses.js checks itself against an analytic
+ *  sphere and against a two-atom pair whose crevice only an SES bridges,
+ *  and bake-surface.js refuses to write a mesh that is not closed. What
+ *  is left for a page is whether a translucent skin over a ribbon
+ *  actually reads: whether the ribbon stays legible through it, what
+ *  opacity that needs, and whether colouring the surface says anything
+ *  the ribbon does not.
+ *
+ *  Not a lesson. The prose above describes the render, not a molecule.
+ *
+ * ---------------------------------------------------------------------
+ *  DRAWING TRANSLUCENT OVER OPAQUE
+ * ---------------------------------------------------------------------
+ *  A closed transparent mesh containing an opaque one is the awkward
+ *  case in a z-buffered renderer, and the naive version looks wrong in a
+ *  specific way: with depthWrite on, the near wall of the surface writes
+ *  depth and CULLS THE RIBBON BEHIND IT, so the ribbon vanishes exactly
+ *  where the skin covers it — which is everywhere. The molecule reads as
+ *  an empty shell.
+ *
+ *  So the surface draws with depthWrite off and renderOrder 1: opaque
+ *  geometry lays down depth first, the skin is composited over it after,
+ *  and the ribbon shows through. The cost is that the surface does not
+ *  self-sort — its own far wall is not reliably drawn under its near
+ *  wall. DoubleSide with that cost is worse than it sounds, so the skin
+ *  is FrontSide: you see the near wall only. That is also the honest
+ *  picture, because the near wall is the part of the molecule facing
+ *  you, and the reference figures do the same thing.
+ *
+ * ---------------------------------------------------------------------
+ *  COLOURS ARE A VERTEX ATTRIBUTE, NOT A SECOND MESH
+ * ---------------------------------------------------------------------
+ *  Every vertex carries the residue nearest it (baked in), so recolouring
+ *  is one Float32Array written into the existing geometry — no rebuild,
+ *  no second upload of 128 000 triangles. That is the mechanism the
+ *  sickle lesson would need: flipping beta6 Glu->Val must change the
+ *  colour of one patch and move NOTHING, because the claim is that the
+ *  fold does not move.
+ * ===================================================================== */
+
+const PAL = MolLib.PALETTE;
+const CHAIN_COLOR = { alpha: 0xb07a24, beta: 0x8a5a9e };
+const IRON_COLOR = 0xa8321a, IRON_R = 1.1;
+
+const canvas = document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam:{ theta:0.6, phi:1.15, r:110 }, rMin:20, rMax:260 });
+
+/* ------------------------------------------------------------------ *
+ *  the decoder — the other half of bake-surface.js's format
+ * ------------------------------------------------------------------ */
+function decodeSurface(buf) {
+  const dv = new DataView(buf);
+  const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  if (magic !== 'SES1') throw new Error('not an SES1 file');
+  const hlen = dv.getUint32(4, true);
+  const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hlen)));
+  const n = head.nVert, t = head.nTri;
+
+  let off = 8 + hlen + ((4 - (hlen % 4)) % 4);
+  const qpos = new Uint16Array(buf, off, n * 3);       off += n * 6;
+  const qnrm = new Int8Array(buf, off, n * 4);         off += n * 4;
+  const res  = new Uint16Array(buf, off, n);           off += n * 2;
+  const index = head.indexBits === 16
+    ? new Uint16Array(buf, off, t * 3)
+    : new Uint32Array(buf, off, t * 3);
+
+  /* De-quantise positions into real angstroms. Normals stay int8 and are
+     handed to the GPU normalized — Three.js renormalises them, so the
+     ~0.5 degree of quantisation never becomes a visible facet. */
+  const position = new Float32Array(n * 3);
+  for (let v = 0; v < n; v++) for (let c = 0; c < 3; c++)
+    position[v*3+c] = head.qmin[c] + qpos[v*3+c] * head.qscale[c];
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  /* The normal block is stride-4 (see the format note on alignment), so
+     the attribute steps 4 bytes and reads 3 of them — an interleaved
+     view, not a copy. `true` is the normalized flag: the GPU turns
+     int8 -127..127 back into -1..1 and the shader renormalises. */
+  geo.setAttribute('normal', new THREE.InterleavedBufferAttribute(
+    new THREE.InterleavedBuffer(qnrm, 4), 3, 0, true));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
+  geo.computeBoundingSphere();
+  return { geo, head, res, n };
+}
+
+/* ------------------------------------------------------------------ *
+ *  ribbon, exactly as the lessons draw it
+ * ------------------------------------------------------------------ */
+function addChain(CA, ss, color) {
+  /* RibbonLib.build reads .x/.y/.z off its points, not [0][1][2]. */
+  const geo = RibbonLib.build(THREE, CA.map(p => new THREE.Vector3(p[0], p[1], p[2])), ss, {});
+  root.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color, roughness: .55, metalness: .05, side: THREE.DoubleSide,
+  })));
+}
+const ironMat = new THREE.MeshStandardMaterial({ color: IRON_COLOR, roughness: .35, metalness: .35 });
+function addHeme(h) {
+  const fe = h.atoms.find(a => a.el === 'FE').p;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(IRON_R, 12, 8), ironMat);
+  m.position.set(fe[0], fe[1], fe[2]);
+  root.add(m);
+}
+
+/* ------------------------------------------------------------------ *
+ *  what the surface is coloured by
+ * ------------------------------------------------------------------ */
+/* `key` drives colourFor; `label` is what fits in a third of the panel.
+   Kept as one table so the two can never drift apart. */
+const MODES = [
+  { key: 'plain',          label: 'plain' },
+  { key: 'chain',          label: 'chain' },
+  { key: 'hydrophobicity', label: 'hydro' },
+];
+let mode = 0, surf = null, surfMat = null, S = null;
+
+/* Built from MODES rather than written out in the HTML, so adding a
+   fourth way to colour the skin is one line in the table above. */
+const seg = MODES.map((m, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = m.label;
+  b.setAttribute('aria-pressed', String(i === mode));
+  b.onclick = () => { if (surf) { mode = i; paint(); } };
+  document.getElementById('seg').appendChild(b);
+  return b;
+});
+
+/* Kyte-Doolittle, straight off SickleLib — the same scale sickle-lab
+   colours its residues with, so a greasy patch is greasy in both.
+   HEM is NOT on that scale and must not be given a value on it:
+   SickleLib.hydro answers 0 for anything it does not know, which would
+   paint the four hemes "averagely greasy" — a number the scale never
+   made. Membership of KD is the test, and off-scale draws neutral. */
+const NEUTRAL = new THREE.Color(0.62, 0.62, 0.66);
+function colourFor(m, resName, chain) {
+  if (m === 'chain')
+    return new THREE.Color(chain === 'A' || chain === 'C' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
+  if (m === 'hydrophobicity')
+    return (resName in SickleLib.KD) ? new THREE.Color(SickleLib.colour(resName)) : NEUTRAL;
+  /* Near-neutral, barely cool — the reference figure's skin. The blue in
+     an earlier version competed with the beta chains' violet: at 0.28
+     opacity a tinted skin does not read as a tint, it reads as a change
+     to the colour of whatever is underneath it. Grey is what lets the
+     ribbon keep its own colours. */
+  return new THREE.Color(0.80, 0.81, 0.83);
+}
+
+function paint() {
+  const m = MODES[mode].key;
+  const col = new Float32Array(S.n * 3);
+  /* One colour per RESIDUE, looked up once, then splatted per vertex —
+     578 lookups rather than 63 924. */
+  const table = S.head.residues.map(([chain, num, name]) => colourFor(m, name, chain));
+  for (let v = 0; v < S.n; v++) {
+    const c = table[S.res[v]];
+    col[v*3] = c.r; col[v*3+1] = c.g; col[v*3+2] = c.b;
+  }
+  S.geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  surfMat.vertexColors = true;
+  surfMat.color.set(0xffffff);
+  surfMat.needsUpdate = true;
+  seg.forEach((b, i) => b.setAttribute('aria-pressed', String(i === mode)));
+}
+
+/* ------------------------------------------------------------------ */
+
+Promise.all([
+  fetch('data/2HHB-quaternary.json').then(r => {
+    if (!r.ok) throw new Error('data/2HHB-quaternary.json — HTTP ' + r.status +
+      ' (run: node hemoglobin/tools/bake-quaternary.js)');
+    return r.json();
+  }),
+  fetch('data/2HHB-B.fold.bin').then(r => {
+    if (!r.ok) throw new Error('data/2HHB-B.fold.bin — HTTP ' + r.status +
+      ' (run: node hemoglobin/tools/bake-unfold.js)');
+    return r.arrayBuffer();
+  }),
+  fetch('data/2HHB.surf.bin').then(r => {
+    if (!r.ok) throw new Error('data/2HHB.surf.bin — HTTP ' + r.status +
+      ' (run: node hemoglobin/tools/bake-surface.js)');
+    return r.arrayBuffer();
+  }),
+]).then(([quat, foldBuf, surfBuf]) => {
+  const fold = HbFold.decode(foldBuf);
+  addChain(quat.foldedTrace, fold.ss, CHAIN_COLOR.beta);
+  quat.order.forEach(id => {
+    const c = quat.chains[id];
+    addChain(c.CA, c.ss.split(''), c.kind === 'alpha' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
+  });
+  Object.values(quat.heme).forEach(addHeme);
+
+  S = decodeSurface(surfBuf);
+  surfMat = new THREE.MeshStandardMaterial({
+    roughness: .35, metalness: .0,
+    transparent: true, opacity: 0.28,
+    /* See "drawing translucent over opaque" above — every one of these
+       three is load-bearing and the failure each prevents is different. */
+    depthWrite: false, side: THREE.FrontSide,
+  });
+  surf = new THREE.Mesh(S.geo, surfMat);
+  surf.renderOrder = 1;
+  root.add(surf);
+  paint();
+
+  /* Frame on the tetramer, same construction as tube-test.html. */
+  let cx = 0, cy = 0, cz = 0, n = 0;
+  quat.foldedTrace.concat(...quat.order.map(id => quat.chains[id].CA))
+    .forEach(p => { cx += p[0]; cy += p[1]; cz += p[2]; n++; });
+  cam.target.set(cx / n, cy / n, cz / n);
+  applyCam();
+
+  document.getElementById('hud').textContent =
+    [`${S.head.nVert.toLocaleString()} verts  ${S.head.nTri.toLocaleString()} tris`,
+     `grid ${S.head.spacing} A   probe ${S.head.probe} A`,
+     `${(surfBuf.byteLength/1024).toFixed(0)} KB  index${S.head.indexBits}`,
+     `area ${S.head.area.toLocaleString()} A^2`,
+    ].join('\n');
+}).catch(e => {
+  const d = document.createElement('div');
+  d.style = 'position:absolute;left:16px;bottom:16px;color:#a33;font-family:monospace;z-index:9';
+  d.textContent = 'could not start — ' + e.message;
+  document.body.appendChild(d);
+});
+
+/* ---- controls ---- */
+const btn = document.getElementById('toggle'), op = document.getElementById('op'),
+      ov = document.getElementById('ov');
+function toggle() {
+  if (!surf) return;
+  surf.visible = !surf.visible;
+  btn.textContent = (surf.visible ? 'hide' : 'show') + ' surface (s)';
+}
+function cycle() { if (surf) { mode = (mode + 1) % MODES.length; paint(); } }
+btn.onclick = toggle;
+op.oninput = () => {
+  ov.textContent = (op.value / 100).toFixed(2);
+  if (surfMat) surfMat.opacity = op.value / 100;
+};
+ov.textContent = (op.value / 100).toFixed(2);
+addEventListener('keydown', e => {
+  if (e.key === 's') toggle();
+  if (e.key === 'c') cycle();
+});
+
+new ResizeObserver(resize).observe(canvas);
+(function loop(){ requestAnimationFrame(loop); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>
