@@ -303,4 +303,8 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { readAtoms, rotation, tagResidues, SPACING };
+/* `encode` is exported so a second structure can be written in the SAME
+   format rather than growing a second decoder. Its `meta` argument already
+   overrides every header field including `source`, so nothing here is
+   2HHB-specific. sickle/tools/bake-fibre-surface.js is the other caller. */
+module.exports = { readAtoms, rotation, tagResidues, encode, SPACING };

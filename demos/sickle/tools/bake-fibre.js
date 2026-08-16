@@ -228,6 +228,11 @@ const out = {
         'come from EM reconstructions, not from this crystal, and the page ' +
         'carries them as stated parameters instead.',
   cell,
+  /* The centroid that was subtracted, so anything else baked for this page
+     can land in the identical frame. bake-fibre-surface.js reads it — a
+     surface half an angstrom out of register with its own tube would read
+     as a bug in the surface code rather than as two different centres. */
+  centre: centre.map(r3),
   axial: axial.map(r3),
   pair: { R: pair.R.map(r => r.map(r3)), t: tCentred, rmsd: r3(rmsd) },
   contacts: {

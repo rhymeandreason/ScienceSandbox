@@ -91,6 +91,7 @@
     <input id="r1" type="range" min="40" max="160" step="2" value="82"></label>
   <label>helical pitch (Å) <output id="pitchOut"></output>
     <input id="pitch" type="range" min="600" max="6000" step="100" value="3000"></label>
+  <label class="row"><input id="ses" type="checkbox"> solvent-excluded surface</label>
   <label class="row"><input id="chaincol" type="checkbox"> colour by chain (α/β)</label>
   <label class="row"><input id="marks" type="checkbox" checked> mark β6 and the pocket</label>
   <div style="font-size:11px;line-height:1.4">
@@ -106,7 +107,9 @@
       background:#2f6fb5;vertical-align:middle"></span> α chain &nbsp;
     <span style="display:inline-block;width:9px;height:9px;border-radius:50%;
       background:#d9a520;vertical-align:middle"></span> β chain
-    <span style="opacity:.7">(chain mode)</span>
+    <span style="opacity:.7">(chain mode)</span><br>
+    on the SES the sites are <b>painted onto the skin</b> instead of dotted —
+    a Cα dot sits underneath the surface
   </div>
 </div>
 
@@ -116,6 +119,7 @@
 <script src="../scene.js"></script>
 <script src="../folding/ribbon.js"></script>
 <script src="../hemoglobin/tube.js"></script>
+<script src="../hemoglobin/surface.js"></script>
 <script>
 'use strict';
 
@@ -188,6 +192,10 @@ const strandColour = (i, partner) =>
    modulation is kept underneath to hold them apart — it rides the instance
    colour, so it never touches the hue that carries the chain identity. */
 const ALPHA_COLOR = 0x2f6fb5, BETA_COLOR = 0xd9a520;
+/* Which chain ids are alpha, for the surface — its vertices carry a chain
+   letter, not a `kind`. Filled from the bake so it cannot disagree with the
+   tube's colouring. */
+const ALPHA_CHAINS = new Set();
 const STRAND_VALUE = 0.13;               // +-13% lightness, enough to separate
 const strandValue = (i, partner) => {
   const v = 1 + STRAND_VALUE * ((i % 4) / 1.5 - 1) + (partner ? STRAND_VALUE / 2 : 0);
@@ -243,7 +251,9 @@ const dummy = new THREE.Object3D();
 const M = new THREE.Matrix4(), Mpair = new THREE.Matrix4(), tmp = new THREE.Matrix4();
 
 let D = null;                            // the bake
-let bodies = [];                         // InstancedMesh per tube part
+let bodies = [];                         // InstancedMesh per drawn part
+let tubeBodies = [], surfBodies = [];    // ...one set per representation
+let S = null;                            // the decoded surface, once fetched
 let markMesh = null, pocketMesh = null, idlePatch = null, idlePocket = null;
 let axialLen = 0;                        // A, the measured repeat
 
@@ -262,6 +272,74 @@ const num = id => +el(id).value;
 
 /* ---------------------------------------------------------------- build */
 
+/* THE SURFACE, as one instanced mesh.
+
+   A tube is 12 parts because it is 12 separate pieces of geometry; the SES
+   is ONE closed mesh over the whole tetramer, so the whole representation
+   is a single InstancedMesh and a single draw call however many molecules
+   are on screen. It is not cheap in triangles, though — 49,976 per copy at
+   the baked 1.1 A grid, against 1,782 for the tube at these settings. That
+   is a 28x ratio, and it is the reason the surface is a toggle rather than
+   the default: at 7 double strands x 30 repeats it is 21M triangles.
+
+   VERTEX COLOURS do the work the tube's separate meshes did. The bake tags
+   every vertex with the residue under it, so chain identity and the two
+   contact sites can be painted straight onto the skin — which is better
+   than the tube's dots for the marks, because a dot sits at a Ca that is
+   BENEATH the surface and would be swallowed by it. On the surface the
+   patch and the pocket are drawn where they actually are: on the outside. */
+function buildSurface() {
+  const geo = S.geo;
+  /* One colour attribute, rewritten per mode. Allocated once — reallocating
+     a 25k-vertex attribute on every toggle would churn a GPU buffer for no
+     reason. */
+  geo.setAttribute('color', new THREE.BufferAttribute(
+    new Float32Array(S.nVert * 3), 3));
+
+  const maxInst = 30 * 7 * 2;
+  const mat = Stage.bondMat(0xffffff);
+  mat.vertexColors = true;
+  const m = new THREE.InstancedMesh(geo, mat, maxInst);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.frustumCulled = false;
+  m.userData.kind = 'surface';
+  root.add(m);
+  surfBodies = [m];
+}
+
+/* Paint the skin. Base colour by chain or plain, then the four contact
+   sites over the top — engaged bright, idle washed, matching the tube's
+   dots exactly so switching representation does not change what is being
+   claimed. */
+const SURF_PLAIN = new THREE.Color(0xc9c2b6);
+function paintSurface(byChain, showMarks) {
+  const attr = S.geo.getAttribute('color');
+  const col = attr.array;
+  const base = new THREE.Color(), mark = new THREE.Color();
+  const wash = c => c.lerp(new THREE.Color(0xf3ece2), IDLE_LIGHT);
+
+  /* Which residues are the sites, by chain and number, straight from the
+     bake's measured donates/receives flags. */
+  const site = new Map();                // "chain:num" -> THREE.Color
+  for (const mk of D.marks) {
+    site.set(mk.chain + ':6', mk.donates
+      ? new THREE.Color(PATCH_COLOR) : wash(new THREE.Color(PATCH_COLOR)));
+    for (const n of [85, 88])
+      site.set(mk.chain + ':' + n, mk.receives
+        ? new THREE.Color(POCKET_COLOR) : wash(new THREE.Color(POCKET_COLOR)));
+  }
+
+  for (let v = 0; v < S.nVert; v++) {
+    const r = S.head.residues[S.res[v]];
+    const key = r[0] + ':' + r[1];
+    if (showMarks && site.has(key)) mark.copy(site.get(key));
+    else if (byChain) mark.set(ALPHA_CHAINS.has(r[0]) ? ALPHA_COLOR : BETA_COLOR);
+    else mark.copy(SURF_PLAIN);
+    col[v * 3] = mark.r; col[v * 3 + 1] = mark.g; col[v * 3 + 2] = mark.b;
+  }
+  attr.needsUpdate = true;
+}
+
 function buildBodies(chains) {
   /* One InstancedMesh per tube part, allocated for the largest crowd the
      sliders can ask for: repeats x double strands x 2 tetramers. */
@@ -271,7 +349,7 @@ function buildBodies(chains) {
     for (const p of TubeLib.chain(THREE, c.CA, c.ss, TUBE))
       parts.push(Object.assign(p, { kind: c.kind }));
 
-  bodies = parts.map(p => {
+  tubeBodies = parts.map(p => {
     p.geo.computeBoundingSphere();
     const mat = Stage.bondMat(0xffffff);
     const m = new THREE.InstancedMesh(p.geo, mat, maxInst);
@@ -281,6 +359,7 @@ function buildBodies(chains) {
     root.add(m);
     return m;
   });
+  bodies = tubeBodies;
 
   /* The two ends of the contact, as dots. Instanced the same way and placed
      by the SAME transforms as the bodies, so a mark cannot drift off the
@@ -333,6 +412,7 @@ function rebuild() {
   const r0 = num('r0'), r1 = num('r1'), pitch = num('pitch');
   const showMarks = el('marks').checked;
 
+
   const upright = uprightMatrix(D.axial);
   const pair = pairMatrix(D.pair);
 
@@ -349,17 +429,31 @@ function rebuild() {
   }
 
   let n = 0;
+  /* Which representation is drawn. Both sets exist once loaded; switching
+     flips visibility rather than rebuilding, so the toggle costs nothing
+     and the crowd never re-seeds under it. */
+  const useSES = el('ses').checked && surfBodies.length;
+  bodies = useSES ? surfBodies : tubeBodies;
+  for (const m of tubeBodies) m.visible = !useSES;
+  for (const m of surfBodies) m.visible = useSES;
+
   const byChain = el('chaincol').checked;
   /* The material carries the chain colour; the instance colour carries the
      strand. In strand mode the material is white so the instance shade shows
      through; in chain mode the instance colour is a near-white value so it
      only modulates. They multiply, so exactly one of them is ever coloured. */
-  for (const mesh of bodies)
+  if (useSES) paintSurface(byChain, showMarks);
+  else for (const mesh of bodies)
     mesh.material.color.set(byChain
       ? (mesh.userData.kind === 'alpha' ? ALPHA_COLOR : BETA_COLOR)
       : 0xffffff);
 
   const place = (m4, colourIdx, partner) => {
+    /* The surface gets the SAME per-instance shade as the tube. Its vertex
+       colours carry chain and site; the instance colour multiplies over
+       them, so one molecule is one shade of the strand's colour whichever
+       representation is on. Fully opaque either way — a translucent skin
+       reads as glass at this scale and hides the molecule behind it. */
     (byChain ? strandValue : strandColour)(colourIdx, partner);
     for (const mesh of bodies) { mesh.setMatrixAt(n, m4); mesh.setColorAt(n, tint); }
     n++;
@@ -421,7 +515,13 @@ function rebuild() {
     for (const m of [markMesh, pocketMesh, idlePatch, idlePocket])
       m.instanceMatrix.needsUpdate = true;
   }
-  for (const m of [markMesh, pocketMesh, idlePatch, idlePocket]) m.visible = showMarks;
+  /* The dots are BENEATH the SES: they sit at Ca positions, and the skin is
+     a couple of angstroms outside those. In surface mode the sites are
+     painted onto the skin instead (paintSurface), so the dots would only be
+     invisible clutter — and on the two occasions they poked through, a
+     worse thing than invisible. */
+  for (const m of [markMesh, pocketMesh, idlePatch, idlePocket])
+    m.visible = showMarks && !useSES;
 
   frameCamera(repeats, strands, r1);
   report(n, repeats, strands, pitch, strands > 2 ? r1 : r0);
@@ -481,12 +581,16 @@ function frameCamera(repeats, strands, r1) {
 function report(n, repeats, strands, pitch, rad) {
   const st = twistStrain(rad, pitch);
   const strain = st.now - st.straight;
-  const tris = D.chains.reduce((s, c) => s + TubeLib.triangles(c.CA.length, TUBE), 0);
+  const tris = (el('ses').checked && S)
+    ? S.nTri
+    : D.chains.reduce((s, c) => s + TubeLib.triangles(c.CA.length, TUBE), 0);
   const length = axialLen * repeats;
   hud.textContent =
-    STAGE[stage].label + '   ' +
-      (el('chaincol').checked ? 'coloured by chain' : 'coloured by strand') + '\n' +
-    n + ' tetramers   ' + (bodies.length + (el('marks').checked ? 4 : 0)) + ' draw calls\n' +
+    STAGE[stage].label + '   ' + (el('ses').checked && S ? 'SES' : 'tube') + '   ' +
+      (el('chaincol').checked ? 'by chain' : 'by strand') + '\n' +
+    n + ' tetramers   ' +
+      (bodies.length + (el('marks').checked && !el('ses').checked ? 4 : 0)) +
+      ' draw calls\n' +
     (tris * n / 1000).toFixed(0) + 'k triangles\n' +
     '\n' +
     'MEASURED (2HBS)\n' +
@@ -524,15 +628,45 @@ for (const id of ['rep', 'ds', 'r0', 'r1', 'pitch']) {
 }
 el('marks').onchange = rebuild;
 el('chaincol').onchange = rebuild;
+el('ses').onchange = rebuild;
 
-fetch('data/fibre.json').then(res => {
-  if (!res.ok) throw new Error('sickle/data/fibre.json — HTTP ' + res.status +
-    ' (run: node sickle/tools/bake-fibre.js)');
-  return res.json();
-}).then(json => {
+/* The surface is OPTIONAL at load. It is 603 KB against fibre.json's 13,
+   and the page is fully usable without it — so a missing surface disables
+   its toggle rather than stopping the page. */
+Promise.all([
+  fetch('data/fibre.json').then(res => {
+    if (!res.ok) throw new Error('sickle/data/fibre.json — HTTP ' + res.status +
+      ' (run: node sickle/tools/bake-fibre.js)');
+    return res.json();
+  }),
+  fetch('data/2HBS-T1.surf.bin')
+    .then(r => r.ok ? r.arrayBuffer() : null)
+    .catch(() => null),
+]).then(([json, surfBuf]) => {
   D = json;
   axialLen = Math.hypot(D.axial[0], D.axial[1], D.axial[2]);
+  for (const c of D.chains) if (c.kind === 'alpha') ALPHA_CHAINS.add(c.id);
   buildBodies(D.chains);
+
+  if (surfBuf) {
+    S = SurfLib.decode(THREE, surfBuf);
+    /* Both representations are centred on fibre.json's `centre`, but that
+       is an assumption until something checks it — so compare the mesh's
+       own bounding sphere against what a centred tetramer should look like
+       and SAY so, rather than letting a misregistered skin pass as a
+       modelling choice. */
+    const bs = S.geo.boundingSphere;
+    if (bs.center.length() > 12 || bs.radius > 60)
+      console.warn('surface looks off-centre (|c| ' + bs.center.length().toFixed(1) +
+        ' A, r ' + bs.radius.toFixed(1) + ' A) — re-run bake-fibre-surface.js ' +
+        'after bake-fibre.js, they share a centre');
+    buildSurface();
+  } else {
+    el('ses').disabled = true;
+    el('ses').parentElement.style.opacity = .45;
+    el('ses').parentElement.title = 'run: node sickle/tools/bake-fibre-surface.js';
+  }
+
   rebuild();
   document.title = 'HbS fibre — structure test (2HBS)';
 
