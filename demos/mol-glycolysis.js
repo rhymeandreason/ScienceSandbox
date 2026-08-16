@@ -293,9 +293,13 @@
     g.carbonyl(0,0);
     const p1=g.phosphate(0,1);                             // C1 acyl phosphate
     g.hydroxyl(1,1);
+    // C2's H, carried through — see g3p. It is the same atom from step 5, where
+    // the student put it there, to step 9, where it leaves in the water; drawn
+    // at every station in between so it does not blink out and back.
+    const h2=g.grow(1,'H',GL.CH,'sp3',0);
     const p3=g.phosphate(2,0);
     GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', short:'1,3-BPG', formula:'C₃H₄O₁₀P₂⁴⁻', charge:-4, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, c2H:h2, dCentre:[1,0,2] } });
   }
   {
     // — 3-phosphoglycerate: C1 phosphate handed to ADP, leaving a carboxylate.
@@ -305,13 +309,14 @@
     const g=chainC(3);
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // carboxylate: two O's
     g.hydroxyl(1,1);
+    const h2=g.grow(1,'H',GL.CH,'sp3',0);                  // C2's H, carried through
     const p=g.phosphate(2,0);
     // `hot` is deliberately ABSENT here, unlike on 1,3-BPG and PEP. 3-PG's C3
     // phosphate is an ordinary low-energy ester — it cannot phosphorylate ADP,
     // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
     // phosphate to C2 and then dehydrate the molecule to make it transferable.
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, c2H:h2, dCentre:[1,0,2] } });
   }
   {
     // — 2-phosphoglycerate: the same atoms as 3-PG with the phosphate moved from

@@ -913,6 +913,20 @@ const STEPS=[
     act:'Move the phosphate to C2',
     species:['pga2','pga2'], enz:'Phosphoglycerate mutase', hook:'Position shift', rev:true,
     fx:'move', anchor:'p3', dest:'p2',
+    // Same gesture as 7 and 10 — click the phosphate — but here it is not going
+    // to a carrier, it is going one carbon over on the molecule it is already
+    // on. `p3` is the spec's own C3 phosphorus, and spotPair makes it the P–O
+    // bond that breaks, so the target sits where the transfer starts.
+    //
+    // TEXTBOOK MECHANISM, and worth knowing it is a simplification: drawn as
+    // one phosphoryl group sliding C3→C2, which is how every Bio 101 text puts
+    // it. The enzyme most animals use (dPGM) actually hands C2 a phosphate off
+    // its own phospho-histidine and then takes the C3 one away, so the atoms
+    // swap rather than travel. The molecule's before and after are identical
+    // either way, and "the phosphate moved" is the fact the next two steps
+    // need; the atom-level accounting is not.
+    perLane:true,
+    spot:{ at:'p3', say:'click the phosphate that moves' },
     msg:`<b>Phosphoglycerate mutase.</b> The remaining phosphate simply moves from carbon 3 to carbon 2. On C3 it <b>could not</b> charge ADP; this move sets up the step that changes that.` },
 
   { n:9, stage:4, reagent:null,
@@ -1533,6 +1547,32 @@ function waterAway(l){
   later(()=>unstray(g), WATER_FORM+WATER_DRIFT);
 }
 
+/* ---- THE PHOSPHATE THAT MOVES ONE CARBON OVER (step 8) ------------------
+ * One lane's half of the mutase, shared by the per-lane click and the
+ * whole-step path so the two cannot tell different stories.
+ *
+ * IT LEAVES C3 BEFORE IT ARRIVES AT C2. The flight used to run with the
+ * substrate untouched, so for its whole duration the molecule wore its C3
+ * phosphate AND a second one crossed the gap — two phosphates, on the step
+ * whose entire claim is that there is only one and it merely moved.
+ *
+ * WHAT STAYS BEHIND IS THE BRIDGING OXYGEN, which is not a detail: a
+ * phosphoryl transfer breaks the P–O bond, not the C–O one, so C3 keeps its
+ * oxygen and becomes the hydroxyl that enolase pulls off at step 9. Handled by
+ * shedPhosphoryl, which sheds P and its terminal O and leaves the bridge.
+ */
+function moveP(l, j, st, keys, n){
+  const spec=M[l.key], key=keys[j], pro=M[key];
+  const src=anchorWorld(l, st.anchor);
+  const dst=siteWorld(key, st.dest, laneOrigin(key,j,n));
+  flyPhosphate(src, dst, pro, pro.gly[st.dest]);
+  shedPhosphoryl(l, spec.gly[st.anchor]);
+  // the ring marks the bond that FORMS, at the site it forms on
+  later(()=>FXi.spawnRing(
+    junctionWorld(pro, pro.gly[st.dest], laneOrigin(key,j,n), laneBase(key)),
+    PAL.atoms.P), FLY);
+}
+
 const CLEAVE=0x9a3fe0;
 
 // WHAT FLIES IS A PHOSPHORYL GROUP, not a token — ATP's OWN γ atoms (Pγ + its
@@ -1853,6 +1893,10 @@ function runLane(j){
     // ENOLASE: nothing is handed over, so there is no carrier leg here — the
     // whole event is the water coming off this lane's own molecule.
     waterAway(l);
+  } else if(st.fx==='move'){
+    // THE MUTASE: no carrier either, and nothing leaves — the phosphoryl goes
+    // one carbon over on the molecule it is already on.
+    moveP(l, j, st, keys, n);
   } else {
     const src=anchorWorld(l,st.anchor);
     // on the bond that breaks, not on the P that leaves along it
@@ -1996,14 +2040,9 @@ function runStep(){
     // THE MUTASE: the phosphate neither leaves nor comes from the pool — it
     // slides C3→C2 on the same molecule. A short flight between the two sites,
     // so it reads as the SAME phosphate relocating: step 8's whole difference.
-    lanes.forEach((l,j)=>{
-      const src=anchorWorld(l,st.anchor);
-      const dst=siteWorld(keys[j],st.dest,laneOrigin(keys[j],j,n));
-      flyPhosphate(src, dst, M[keys[j]], M[keys[j]].gly[st.dest]);
-      later(()=>FXi.spawnRing(
-        junctionWorld(M[keys[j]], M[keys[j]].gly[st.dest], laneOrigin(keys[j],j,n), laneBase(keys[j])),
-        PAL.atoms.P), FLY);
-    });
+    // Step 8 is per-lane now, so a click goes through runLane; this is the
+    // whole-step path, calling the same function.
+    lanes.forEach((l,j)=>moveP(l,j,st,keys,n));
 
   } else if(st.fx==='lose'){
     // ENOLASE. Step 9 is per-lane now, so a click goes through runLane and
