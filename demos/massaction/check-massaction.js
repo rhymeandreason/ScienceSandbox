@@ -79,9 +79,9 @@ if (!mSteps) {
   console.error('FAIL: glycolysis-lab.html no longer has a MASS_STEPS list.');
   process.exit(1);
 }
-const STEPS = new Function(mSteps[0] + '\n return MASS_STEPS;')();
-const DROP = Object.fromEntries(STEPS.map(s => [s.key, s.drop]));
-const NAMES = Object.fromEntries(STEPS.map(s => [s.key, s.species]));
+const STEPS_DEFAULT = new Function(mSteps[0] + '\n return MASS_STEPS;')();
+const DROP = Object.fromEntries(STEPS_DEFAULT.map(s => [s.key, s.drop]));
+const NAMES = Object.fromEntries(STEPS_DEFAULT.map(s => [s.key, s.species]));
 
 console.log('mass-action model — massaction.js, driven by glycolysis-lab.html');
 console.log(`  ea = ${EA} kT · flat ΔE = ${DROP.flat} · drop ΔE = ${DROP.drop.toFixed(4)} kT\n`);
@@ -269,6 +269,65 @@ const lowHump = (() => {
 })();
 ok(Math.abs(lowHump - HALF * epx(HALF, maxDrop)) < 0.02,
    'and the drawn hump shrinks with it', `${lowHump.toFixed(2)}px`);
+
+/* ---- 9. the demo opens wearing the step it was opened from ------------- */
+/* THE CORRELATION IS THE FEATURE, and it is invisible from either side alone.
+ * The verdict on the stage reads off `rev`; the tab that opens reads off `rev`;
+ * nothing makes them the same reading except that both were written that way.
+ * Land on the flat tab under an "Irreversible in the cell" heading and the page
+ * contradicts itself in two places the student sees at once.
+ *
+ * So: run the page's own massScenarios() over the page's own STEPS, and check
+ * every step gets the tab its verdict promises, carrying its own molecules. */
+const mStepsData = html.match(/const STEPS=\[[\s\S]*?\n\];/);
+const mSpeciesAt = html.match(/const speciesAt=[^\n]+;/);
+const mGen = html.match(/function massScenarios\(st\)\{[\s\S]*?\n\}/);
+ok(!!(mStepsData && mSpeciesAt && mGen),
+   'the page still has STEPS, speciesAt and massScenarios to run');
+
+if (mStepsData && mSpeciesAt && mGen) {
+  const M = require('../lib-node.js').MOLECULES;
+  const { STEPS, speciesAt, massScenarios } = new Function('M', 'MASS_STEPS',
+    mStepsData[0] + mSpeciesAt[0] + mGen[0] +
+    '\n return { STEPS, speciesAt, massScenarios };'
+  )(M, STEPS_DEFAULT);
+
+  let wrongTab = 0, notMine = 0, unnamed = 0, fellBack = [];
+  for (const st of STEPS) {
+    const mine = st.rev === false ? 'drop' : 'flat';
+    const list = massScenarios(st);
+    const sc = list.find(s => s.key === mine);
+    // The default pair is returned verbatim when a step cannot be drawn as
+    // A ⇄ B; that is a legitimate outcome, not a failure — but it must be the
+    // WHOLE list, so nobody gets half-tailored copy.
+    if (list.every((s, k) => s === STEPS_DEFAULT[k])) { fellBack.push(st.n); continue; }
+    if (!sc) { wrongTab++; continue; }
+    // the tailored one is this step's, and the other is untouched
+    if (sc === STEPS_DEFAULT.find(s => s.key === mine)) notMine++;
+    const sub = (m => m.short || m.name)(M[speciesAt(STEPS.indexOf(st))[0]]);
+    const prd = (m => m.short || m.name)(M[st.species[0]]);
+    if (sc.species[0] !== sub || sc.species[1] !== prd) wrongTab++;
+    // the prose has to name the step, or "matching copy" is decoration
+    if (!sc.text.includes(`Step ${st.n}`) || !sc.title.includes(`step ${st.n}`)) unnamed++;
+  }
+  ok(wrongTab === 0, 'every step tailors the tab its own verdict names',
+     `${STEPS.length - fellBack.length} steps tailored, ${fellBack.length} fall back (${fellBack.join(', ')})`);
+  ok(notMine === 0, 'and none of them silently kept the canonical example');
+  ok(unnamed === 0, 'the copy names the step it was opened from');
+  // A step that splits or merges lanes CANNOT be drawn as A ⇄ B — the counters
+  // would assert a stoichiometry the model does not have. Aldolase is the one.
+  ok(fellBack.length > 0 && fellBack.every(n => {
+       const st = STEPS.find(s => s.n === n);
+       return st.species.length !== speciesAt(STEPS.indexOf(st)).length;
+     }),
+     'the fallbacks are exactly the steps that change the lane count');
+
+  // And the door has to hand the step over, or none of the above is reachable.
+  ok(/Mass\.show\(i===''\?null:STEPS\[\+i\]\)/.test(html),
+     'the link passes its step to Mass.show');
+  ok(/sim\.setScenario\(st\s*&&\s*st\.rev===false\s*\?\s*'drop'\s*:\s*'flat'\)/.test(html),
+     'and Mass.show opens the tab that step\'s rev flag names');
+}
 
 console.log('');
 if (fails) {

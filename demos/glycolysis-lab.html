@@ -2969,12 +2969,24 @@ const coupleLine=c=>c.up
   : `This step runs <b>downhill</b>, and the drop is not wasted: it drives
      <b>${c.cout}</b> the other way, <b>uphill</b>.`;
 
-// ONE STRING, THREE PLACES: both per-step verdicts (the demo shows the pair)
-// and the closing tally. Delegated, not bound — drawNote replaces this
-// element's innerHTML every refresh and a bound handler would die with it.
-const MASS_LINK=`<button class="minfo" data-mass>What decides the direction? →</button>`;
+// ONE DOOR, TWO PLACES: every step's verdict, and the closing tally. Delegated,
+// not bound — drawNote replaces this element's innerHTML every refresh and a
+// bound handler would die with it.
+// THE DOOR CARRIES THE STEP THROUGH IT. Opened from a step's verdict, the demo
+// must open on the case that verdict just announced — landing on the flat tab
+// under an "Irreversible in the cell" heading reads as a contradiction, and the
+// student has no reason to press the other tab to resolve it. The step index
+// rides in the attribute because drawCouple replaces this markup every refresh:
+// a closure captured here would describe whichever step was on screen when the
+// handler was written. An empty value is the pathway-wide summary, which
+// belongs to no step.
+const massLink=st=>`<button class="minfo" data-mass="${st?STEPS.indexOf(st):''}">`
+  + (st && st.rev===false ? `Why can't this one go backwards? →`
+                          : `What decides the direction? →`)
+  + `</button>`;
 const noteClick=e=>{
-  if(e.target.closest('[data-mass]')) { Mass.show(); return; }
+  const door=e.target.closest('[data-mass]');
+  if(door){ const i=door.dataset.mass; Mass.show(i===''?null:STEPS[+i]); return; }
   const t=e.target.closest('[data-figtab]');
   if(t){ figTab=t.dataset.figtab; drawCouple(); }
 };
@@ -3012,7 +3024,7 @@ function drawCouple(){
     + (st.rev===false
         ? `<div class="nhead irr">Irreversible in the cell</div>`
         : `<div class="nhead rev">Near equilibrium — reversible</div>`)
-    + MASS_LINK;
+    + massLink(st);
   const key=`${i}`;
   if(key!==shownCplStep){
     shownCplStep=key;
@@ -3036,7 +3048,7 @@ function drawNote(){
        irreversible. The other seven run both ways — which is why
        <b>gluconeogenesis</b> reuses seven of these ten enzymes and needs new ones
        only for those three.</p>`
-    + MASS_LINK;
+    + massLink(null);
 }
 
 
@@ -3157,14 +3169,24 @@ const AllSteps=(()=>{
  * demo about one. The enzymes page is where it becomes a slider.
  *
  * DROP.drop = ln(200) — the reverse of step 10 is about 1 encounter in 200. */
+// THE TABS ARE THE PAGE'S OWN VERDICT VOCABULARY — the same two words the
+// coupling box stamps on every step ("Near equilibrium — reversible" /
+// "Irreversible in the cell"). Naming them for the physics instead ("flat",
+// "drop") made them a second scheme the student has to map onto the first.
+// The KEYS stay flat/drop: they are what the model is about, and what
+// check-massaction.js audits.
+//
+// These two are the DEFAULTS — the canonical example of each case, used when
+// the demo is opened from the pathway-wide summary rather than from a step.
+// Step 2 and step 10 because they are the least arguable of each kind.
 const MASS_STEPS=[
-  { key:'flat', tab:'Flat step', drop:0,
+  { key:'flat', tab:'Reversible', drop:0,
     title:'Why a step can run backwards', species:['G6P','F6P'],
     text:`<b>Step 2.</b> The enzyme keeps converting in <b>both</b> directions —
       what changed as the split evened out is only <b>how often</b> each
       direction comes up, which depends on how many of each are around. Crowd
       one side and watch the net flip.` },
-  { key:'drop', tab:'Drop step', drop:Math.log(200),
+  { key:'drop', tab:'One-way', drop:Math.log(200),
     title:'Why three steps cannot', species:['PEP','Pyruvate'],
     text:`<b>Step 10.</b> Finding that much energy at once is <b>steeply</b>
       rarer, not just a bit rarer. Watch which colour glows: blue almost always
@@ -3173,18 +3195,75 @@ const MASS_STEPS=[
       cell</b> means, true of only <b>three</b> of these ten steps.` }
 ];
 
+/* THE SAME DEMO, WEARING THE STEP THE STUDENT IS ON. Opened from step 7 the
+ * box used to fill with G6P and F6P, and the two molecules on the stage were
+ * nowhere in it — the student has to take on faith that the general fact is
+ * about the specific reaction in front of them. So the tab matching this step's
+ * verdict gets this step's own substrate and product, read from the same STEPS
+ * data the verdict itself is read from. The OTHER tab keeps its default, and is
+ * the point of the pair: the contrast is what makes either case mean anything.
+ *
+ * ΔE STAYS SCHEMATIC. Only the names and the prose change — the drop is ln(200)
+ * for every irreversible step, not that step's real ΔG. This page prints no ΔG
+ * numbers anywhere on purpose (see the header): reversibility is the claim, and
+ * three per-step magnitudes invented for legibility would look like data.
+ *
+ * STEP 4 FALLS BACK to the defaults. Aldolase is A ⇄ B + C, and a two-species
+ * box would draw one F1,6BP becoming one DHAP — a stoichiometry claim the demo
+ * cannot make and the student can read straight off the counters. Detected from
+ * the lane count rather than step 4's number, so a re-ordered pathway keeps it.
+ */
+function massScenarios(st){
+  if(!st) return MASS_STEPS;
+  const i=STEPS.indexOf(st);
+  if(st.species.length!==speciesAt(i).length) return MASS_STEPS;
+  const nameOf=k=>M[k].short||M[k].name;
+  // MID-SENTENCE, a molecule keeps the case it actually has: G6P and 1,3-BPG
+  // are abbreviations and stay shouted, glucose and pyruvate are common nouns
+  // and "Adding more Pyruvate" reads as a proper noun. Only a plain capitalised
+  // word gets lowered — anything with a digit or a second capital is a name.
+  // Labels keep the registry's own capitalisation — a chip and a curve label are
+  // names, not sentences.
+  const prose=n=>/^[A-Z][a-z]+$/.test(n)?n.toLowerCase():n;
+  const sub=nameOf(speciesAt(i)[0]), prd=nameOf(st.species[0]);
+  const subP=prose(sub), prdP=prose(prd);
+  const enz=st.enz.replace(/ \(.*\)/,'');           // drop "(PFK-1)" and the like
+  const mine=st.rev===false?'drop':'flat';
+  return MASS_STEPS.map(s=> s.key!==mine ? s : Object.assign({}, s, {
+    species:[sub,prd],
+    title: mine==='flat' ? `Why step ${st.n} runs both ways`
+                         : `Why step ${st.n} cannot run backwards`,
+    text: mine==='flat'
+      ? `<b>Step ${st.n}, ${enz.toLowerCase()}.</b> It keeps converting in
+         <b>both</b> directions — what changed as the split evened out is only
+         <b>how often</b> each direction comes up, which depends on how many of
+         each are around. Add ${prdP} and watch the net flip.`
+      : `<b>Step ${st.n}, ${enz.toLowerCase()}.</b> Going back means ${prdP}
+         finding all the energy this step released, at once — <b>steeply</b>
+         rarer, not just a bit rarer. Watch which colour glows: ${subP} almost
+         always has enough to go forward, ${prdP} almost never has enough to go
+         back. Adding more ${prdP} barely helps. That's what <b>irreversible in
+         the cell</b> means, true of only <b>three</b> of these ten steps.`
+  }));
+}
+
 const Mass=(()=>{
   const el=document.getElementById('massmodal');
-  const sim=MassAction.create({ host:document.getElementById('massbox'),
-                                scenarios:MASS_STEPS });
-  let open=false;
-  function show(){
+  const box=document.getElementById('massbox');
+  let sim=null, open=false;
+  // REBUILT PER OPEN, not reconfigured: the scenarios change with the step, and
+  // the sim is a few dozen elements and one rAF loop — cheaper to state plainly
+  // than to keep a swap path nothing else needs. The old one is stopped first
+  // so its loop cannot outlive the DOM it draws into.
+  function show(st){
+    if(sim) sim.stop();
+    sim=MassAction.create({ host:box, scenarios:massScenarios(st) });
+    sim.setScenario(st && st.rev===false ? 'drop' : 'flat');
     el.hidden=false; open=true;
-    sim.setScenario('flat');       // always opens on the flat step
     sim.start();
     el.querySelector('.mclose').focus();
   }
-  function hide(){ open=false; sim.stop(); el.hidden=true; }
+  function hide(){ open=false; if(sim) sim.stop(); el.hidden=true; }
 
   el.querySelector('.mback').onclick=hide;
   el.querySelector('.mclose').onclick=hide;
