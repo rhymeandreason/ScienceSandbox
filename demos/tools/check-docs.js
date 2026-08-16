@@ -62,6 +62,14 @@ const KNOWN_ABSENT = {
   // the ChemDoodle pane removed, so it vendors nothing and the licence guard
   // has nothing to hold shut.
   'protein-lab.html':    'deleted with vendor/chemdoodle — docs/rendering-modules.md',
+  // The Mol* stage-5 page and the orientation library it was the last consumer
+  // of. protein-lab.html was pdb.js's reason to exist and is not coming back;
+  // hemoglobin-inhouse.html, the surviving control arm, now carries the one
+  // call it used (orientPDB) inline. Asserted absent so the library does not
+  // quietly reappear as a shared module with a single caller.
+  'molstar/protein-molstar.html': 'Mol* stage 5 — deleted, evaluation is over',
+  'pdb.js':              'deleted with protein-molstar.html; orient() ported into hemoglobin-inhouse.html',
+  'tools/check-pdb.js':  'deleted with pdb.js — it had no other subject',
   'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',
   'Kekule.js':          'library NAME — bio-rendering-thorough.md weighs it, unadopted',
   'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',

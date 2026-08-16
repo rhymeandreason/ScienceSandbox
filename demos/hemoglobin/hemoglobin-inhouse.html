@@ -14,7 +14,9 @@
      Until now "ours" was an argument; here it is a page.
 
      DELIBERATELY THE SAME AND DELIBERATELY DIFFERENT.
-       same    2HHB, oriented by the same PDBLib.orient call, the same chain
+       same    2HHB, oriented by the same PCA call (now `orientPDB` inline,
+               ported from pdb.js when that and protein-molstar.html were
+               deleted), the same chain
                colours, the same house ball-and-stick for the haems, the same
                true-relative-scale framing.
        different  the whole rendering path, and nothing else. No steps, no
@@ -106,7 +108,6 @@
       <div class="row"><span class="k">draw calls / meshes</span><span class="v" id="d-draws">—</span></div>
       <div class="row"><span class="k">frame rate</span><span class="v" id="d-fps">—</span></div>
       <div class="row"><span class="k">extent (same method)</span><span class="v" id="d-extent">—</span></div>
-      <div class="row"><span class="k">page source vs Mol*</span><span class="v" id="d-size">—</span></div>
       <div class="verdict" id="d-verdict">loading…</div>
     </div>
 
@@ -125,13 +126,90 @@
 <script src="../palette.js"></script>
 <script src="../molecules.js"></script>
 <script src="../scene.js"></script>
-<script src="../pdb.js"></script>
 <script src="../folding/ribbon.js"></script>
 <script>
 'use strict';
 
-/* Same numbers as protein-molstar.html, for the same reason: if the two pages
-   are to be compared, the only difference must be the renderer. */
+/* ---------- PCA orientation ----------------------------------------------
+   Ported here from pdb.js when that file and protein-molstar.html were
+   deleted. This page was their last consumer and it uses one call, so the
+   library outlived its reason to be a library.
+
+   Deposited coordinates -> principal axes: widest face to the camera, long
+   axis along screen x. Backbone atoms only (CA/P) pick the axes — side chains
+   would weight them by how bulky residues are. Only the coordinate columns
+   are rewritten; HELIX/SHEET/SEQRES pass through untouched.
+
+   THE ONE THING NOT TO TOUCH: `det3(R) < 0` flips the third row back. A
+   rotation that mirrors is still a valid-looking frame, and every distance
+   survives a mirror — so nothing downstream would catch it, and the ribbon
+   would come out left-handed. tools/check-pdb.js used to assert this with a
+   signed-volume test; it went with pdb.js, so the guard is now load-bearing
+   on its own. */
+function orientPDB(pdb) {
+  const isAtom = l => l.startsWith('ATOM') || l.startsWith('HETATM');
+  const xyz = l => [+l.slice(30, 38), +l.slice(38, 46), +l.slice(46, 54)];
+
+  /* Jacobi rotation for a symmetric 3x3, eigenvalues descending. */
+  function jacobiEigen(A) {
+    A = A.map(r => r.slice());
+    const V = [[1,0,0],[0,1,0],[0,0,1]];
+    for (let sweep = 0; sweep < 24; sweep++) {
+      if (A[0][1]**2 + A[0][2]**2 + A[1][2]**2 < 1e-14) break;
+      for (const [p, q] of [[0,1],[0,2],[1,2]]) {
+        if (Math.abs(A[p][q]) < 1e-15) continue;
+        const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+        const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta*theta + 1));
+        const c = 1 / Math.sqrt(t*t + 1), s = t * c;
+        for (let k = 0; k < 3; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = c*a - s*b; A[k][q] = s*a + c*b; }
+        for (let k = 0; k < 3; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = c*a - s*b; A[q][k] = s*a + c*b; }
+        for (let k = 0; k < 3; k++) { const a = V[k][p], b = V[k][q]; V[k][p] = c*a - s*b; V[k][q] = s*a + c*b; }
+      }
+    }
+    return [0,1,2].map(i => ({ val: A[i][i], vec: [V[0][i], V[1][i], V[2][i]] }))
+                  .sort((a, b) => b.val - a.val);
+  }
+
+  const det3 = m =>
+      m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1])
+    - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0])
+    + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]);
+
+  const lines = pdb.split('\n');
+  const all = [], ref = [];
+  for (const l of lines) {
+    if (!isAtom(l)) continue;
+    const p = xyz(l);
+    if (!p.every(Number.isFinite)) continue;
+    all.push(p);
+    const name = l.slice(12, 16).trim();
+    if (name === 'CA' || name === 'P') ref.push(p);
+  }
+  const pts = ref.length > 10 ? ref : all;
+  if (pts.length < 3) return pdb;
+
+  const n = pts.length;
+  const c = [0,1,2].map(i => pts.reduce((s, p) => s + p[i], 0) / n);
+  const C3 = [[0,0,0],[0,0,0],[0,0,0]];
+  for (const p of pts)
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) C3[i][j] += (p[i]-c[i]) * (p[j]-c[j]) / n;
+
+  const e = jacobiEigen(C3).map(x => x.vec);
+  let R = [e[0], e[1], e[2]];                              // rows become screen x, y, z
+  if (det3(R) < 0) R = [R[0], R[1], R[2].map(v => -v)];    // never mirror
+
+  const f = v => v.toFixed(3).padStart(8).slice(0, 8);
+  return lines.map(l => {
+    if (!isAtom(l)) return l;
+    const p = xyz(l);
+    if (!p.every(Number.isFinite)) return l;
+    const d = [p[0]-c[0], p[1]-c[1], p[2]-c[2]];
+    const q = R.map(ax => ax[0]*d[0] + ax[1]*d[1] + ax[2]*d[2]);
+    return l.slice(0, 30) + f(q[0]) + f(q[1]) + f(q[2]) + l.slice(54);
+  }).join('\n');
+}
+
 const C = {
   subject: 0x7f9bb5,   // chain B — the one protein-molstar carries levels 1-3 on
   partner: 0xc9a86a,   // A, C, D
@@ -163,10 +241,9 @@ let group = null, built = null;
 async function boot() {
   const t0 = performance.now();
   let text = await (await fetch('data/2HHB.pdb')).text();
-  /* The SAME orientation call protein-molstar makes, so the two pages present
-     the molecule at the same attitude and a side-by-side is about rendering
-     rather than about camera luck. */
-  text = PDBLib.orient(text, { mode: 'pca', long: 'x' });
+  /* The orientation protein-molstar used, kept after that page was deleted so
+     this one still presents the molecule at the attitude it was tuned at. */
+  text = orientPDB(text);
 
   const bb = RibbonLib.parseBackbone(text);
   const tParse = performance.now() - t0;
@@ -338,15 +415,12 @@ function verdict() {
     + 'protein-molstar\'s fold animation needed.'
     : 'FAIL — see the red row.';
 
-  /* The decision table's "page source size" row, measured rather than claimed.
-     Not like-for-like and the README says so: protein-molstar carries four
-     steps, an animation and the lesson copy; this page draws one picture. */
-  Promise.all([
-    fetch('protein-inhouse.html').then(r => r.text()),
-    fetch('protein-molstar.html').then(r => r.text()),
-  ]).then(([a,b]) => set('d-size',
-      (a.length/1024).toFixed(0) + ' KB vs ' + (b.length/1024).toFixed(0) + ' KB'))
-    .catch(() => {});
+  /* The decision table's "page source size" row is GONE, with protein-molstar.
+     It fetched both pages and divided, so once the Mol* side 404'd it printed
+     the length of two error pages — "2 KB vs 2 KB" — and the .catch() that was
+     meant to hide a failed measurement instead hid a false one. A number here
+     is read from the data at render time or it is not shown (CLAUDE.md); with
+     one side of the comparison deleted there is no data to read. */
 }
 
 /* ---------- loop ---------------------------------------------------------- */

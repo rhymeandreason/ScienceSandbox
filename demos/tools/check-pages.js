@@ -43,7 +43,7 @@ const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
 // Pages that render deposited PDB structures through a third-party viewer
 // (docs/rendering-modules.md) are skipped here: they touch none of the spec library
 // — coordinates come from pdb/*.pdb, not MolLib — so there is no molecule
-// reference to check, and their own assertions live in tools/check-pdb.js.
+// reference to check.
 //
 // viewer-compare.html is back from the sickle-cell branch: 3Dmol + Mol* over
 // pdb/*.pdb, no MolLib. protein-lab.html stays deleted (vendored ChemDoodle);

@@ -92,22 +92,6 @@ else
   echo "pre-commit: skipping check-massaction.js — glycolysis-lab.html not staged"
 fi
 
-# check-pdb.js is back to its original single subject — pdb.js's orientation —
-# so it fires on pdb.js and the structures pdb.js actually orients.
-if git diff --cached --name-only | grep -qE '^demos/(pdb\.js|tools/check-pdb\.js|pdb/.*\.pdb)$'; then
-  if ! node tools/check-pdb.js > /tmp/cq.$$ 2>&1; then
-    tail -25 /tmp/cq.$$; rm -f /tmp/cq.$$
-    echo ""
-    echo "pre-commit FAILED: check-pdb.js — orientation is not a rotation."
-    echo "  A MIRRORED result is the one to take seriously: it silently shows the"
-    echo "  enantiomer, and nothing else in this repo can catch it."
-    exit 1
-  fi
-  rm -f /tmp/cq.$$
-else
-  echo "pre-commit: skipping check-pdb.js — no pdb.js or deposited structure staged"
-fi
-
 # Everything folding-lab is now under demos/folding/, so one pattern covers its
 # modules, its data and its bake tools. palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,

@@ -29,7 +29,7 @@
  *  them. It is what any viewer does when it builds a helical assembly.
  *
  *  Still worth being straight about: only five subunits were OBSERVED. The
- *  rest are symmetry copies, and tools/check-pdb.js pins the rise and twist
+ *  rest are symmetry copies, and folding/tools/check-folding.js pins rise and twist
  *  so they cannot drift into fiction.
  *
  *  13 subunits by default, because ~13 is one crossover repeat (~36 nm) — the

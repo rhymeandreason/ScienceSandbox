@@ -93,7 +93,7 @@ constrained relaxation.
   like `check-handedness.js`. `freesasa` does area alone for much less setup.
   VMD wraps MSMS but is non-commercial, can't ship, no WASM build.
   *Its two old justifications are gone: `ses.js` is the mesh baker now, and
-  `check-pdb.js`'s claims are self-contained arithmetic.*
+  `check-pdb.js` has been deleted along with `pdb.js`.*
 - **A trajectory reader**, if item 2's licence clears — those are DCD files.
   VMD, mdtraj or MDAnalysis, offline. mdtraj has the least licence friction.
 

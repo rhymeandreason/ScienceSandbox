@@ -8,7 +8,7 @@
  *  numbers can be checked in Node without a canvas.
  *
  *  Coordinates here are real angstroms and stay that way. This file never
- *  sees MolLib.SCALE, the same rule pdb.js follows.
+ *  sees MolLib.SCALE.
  *
  * ---------------------------------------------------------------------
  *  WHAT THE ANIMATION CLAIMS, AND WHAT IT DOES NOT
@@ -302,14 +302,13 @@ const FoldLib = (function () {
      Only the frame the whole thing is expressed in changes. The folded end
      state is compact, so its orientation does not matter; the extended start
      is the only state whose framing is worth solving for. This is exactly
-     what pdb.js does for deposited coordinates, applied to the one structure
-     here that pdb.js never sees.
+     what a PCA orientation does for deposited coordinates, applied to the one
+     structure here that is generated rather than deposited.
 
      HANDEDNESS. An eigenvector's sign is arbitrary, so the basis comes out
      left-handed about half the time, and a left-handed basis MIRRORS the
      protein into its enantiomer — the failure MolecularGeometry.md 1.3 calls
-     out as invisible to internal checks. Guarded to det = +1 here, the same
-     way pdb.js guards it.
+     out as invisible to internal checks. Guarded to det = +1 here.
 
      Idempotent, and called by Folder, so a caller cannot bake an unoriented
      trajectory by forgetting a step. */
@@ -335,10 +334,9 @@ const FoldLib = (function () {
 
   const apply = (R, p) => R.map(ax => ax[0]*p[0] + ax[1]*p[1] + ax[2]*p[2]);
 
-  /* A symmetric 3x3 eigen-decomposition and a determinant. Same jobs as
-     pdb.js's, duplicated rather than imported because folding.js is loaded by
-     pages that do not load pdb.js at all, and a 3x3 solver is smaller than
-     the coupling would be. */
+  /* A symmetric 3x3 eigen-decomposition and a determinant. The same pair
+     hemoglobin-inhouse.html's orientPDB carries, kept separate rather than
+     shared because a 3x3 solver is smaller than the coupling would be. */
   function jacobiEigen(A) {
     A = A.map(r => r.slice());
     const V = [[1,0,0],[0,1,0],[0,0,1]];

@@ -602,7 +602,8 @@ molstar/
   folding-molstar.html           stage 1 — headless mount + frame driving
   folding-molstar-narrated.html  stage 3 — always-on H-bonds + camera
   folding-molstar-ladder.html    stage 4 — the four-rung zoom-out
-  protein-molstar.html           stage 5 — protein-lab on hemoglobin
+  (protein-molstar.html)         stage 5 — DELETED; the evaluation is over and
+                                 its control arm is hemoglobin/hemoglobin-inhouse.html
   protein-inhouse.html           stage 6 — the same molecule, OUR renderer
   tools/fold2pdb.js              1VII.fold.bin -> multi-MODEL PDB
   tools/ladder2pdb.js            actin.bin -> filament + coda PDB
