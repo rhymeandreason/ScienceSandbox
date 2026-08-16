@@ -725,6 +725,7 @@
 <script src="fx.js"></script>
 <script src="kit/motion.js"></script>
 <script src="kit/molgraph.js"></script>
+<script src="kit/fit.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
@@ -1330,26 +1331,16 @@ function drawPlates(){
 // framing — a lone glucose is compared to nothing.
 // From the SPECS plus intended lane offsets, not a live bbox: mid-split the
 // halves are still easing apart, so a bbox fits the stacked pair.
-const HALF_FOV=Math.tan(22.5*Math.PI/180);
-
-// Ortho camera: half-extents decide apparent size, not distance. Rather than
-// rewrite the fit solver, keep `cam.r` as the one measure of "how far back" and
-// convert here — a perspective camera at r sees world half-height r*HALF_FOV,
-// so an ortho frustum of that half-height shows the same field and everything
-// downstream (fitFor's R, loop()'s ease, wheel clamp, u.shift) keeps its
-// meaning verbatim. Every frame: cam.r eases.
-function orthoFrustum(){
-  if(!camera.isOrthographicCamera) return;
-  const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
-  const halfH=cam.r*HALF_FOV, halfW=halfH*asp;
-  // THE FRUSTUM IS CENTRED and stays centred: the lesson lives on the page's
-  // middle, chrome works around it. It used to slide left by half the tray's
-  // width, framing the leftover band — so anything added at an edge moved the
-  // subject. The tray is paid symmetrically instead, in usable().h.
-  camera.top=halfH; camera.bottom=-halfH;
-  camera.left=-halfW; camera.right=halfW;
-  camera.updateProjectionMatrix();
-}
+// kit/fit.js owns the arithmetic; `RESERVES` below is the half only this page
+// can know — which of ITS elements sit over the canvas. `cam.r` stays the one
+// measure of "how far back" even though the camera is orthographic: the module
+// converts it into a frustum of the half-height a perspective camera would show
+// at r, so fitFor's R, the loop's ease, the wheel clamp and u.shift all keep
+// their meaning verbatim.
+const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
+const HALF_FOV=FIT.HALF_FOV;
+// Every frame: cam.r eases, so the frustum is rebuilt from it.
+const orthoFrustum=()=>FIT.frustum();
 function fitFor(states){
   let lo=0, hi=0, wide=0;             // atoms only — see halfNeeded below
   states.forEach(keys=>{
@@ -1371,16 +1362,13 @@ function fitFor(states){
   // usable() (u.tf). It cost 10% of the opening molecule, 6% of every state
   // after. The plate now says where the scene sits, not how far back we are.
   const halfNeeded=Math.max(hi-Y, Y-lo);
-  // aspect is NaN until the first ResizeObserver tick, so don't trust it blindly
-  const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
-  const u=usable();
-  const R=Math.max(15, Math.min(90,
-    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp*u.h))*1.10));
-  // Centre in the band between label strip and bottom bar by DROPPING THE
-  // TARGET, not insetting both edges — insetting double-charges for one
-  // obstructed edge and shrinks the layout to a speck. Safe in world space
-  // because Y is the orbit axis. No horizontal twin — see orthoFrustum.
-  return { Y: Y - u.shift*R*HALF_FOV, R };
+  // The distance and the target come from kit/fit.js: solved per axis against
+  // what the chrome leaves, and centred in the leftover band by DROPPING THE
+  // TARGET rather than insetting both edges. Safe in world space because Y is
+  // the orbit axis; there is no horizontal twin, because a side reserve is paid
+  // symmetrically so the subject stays on the centre line.
+  const {R,Y:Yfit}=FIT.solve({halfNeeded, wide, centerY:Y, pad:1.10, min:15, max:90});
+  return { Y:Yfit, R };
 }
 
 // THE STAGE IS NOT AN EMPTY RECTANGLE — chrome on all four edges, so a molecule
@@ -1393,8 +1381,8 @@ function fitFor(states){
 //           halving), so the bottom edge must not move as headings/captions come
 //           and go. Nothing else is reserved: the ending fork is a modal.
 //   left    the reagent tray (absent during the intro, nothing to spend)
-// `v`/`h` are the leftover fractions; `shift` drops the camera target so the
-// molecule centres in the remaining band — vertical only, see fitFor.
+// The arithmetic over these numbers is kit/fit.js's; WHICH ELEMENTS they come
+// from is the part only this page can know, so that half stays here.
 // Bottom reserve px: declared bar height + stand-off, from the STYLESHEET not
 // the live box, so bar contents can't re-frame every state.
 function barReservePx(){
@@ -1423,32 +1411,20 @@ function trayReservePx(){
   const cs=getComputedStyle(e);
   return (parseFloat(cs.left)||0)+(parseFloat(cs.minWidth)||0)+TRAY_CLEAR_PX;
 }
-function usable(){
-  const c=canvas.getBoundingClientRect();
-  // EVERY FIELD, even on the no-size path: runs once before the first
-  // ResizeObserver tick, and a missing field reaches the fit as NaN — which
-  // the camera's ease carries forever, leaving a blank stage.
-  if(!c.height||!c.width) return {v:1,h:1,shift:0,tf:0,bf:0};
-  const top=plateHeightPx(), bottom=barReservePx()+capReservePx();
-  // The tray is the only horizontal intrusion (ledger and coupling box are in
-  // the sidebar). PAID FOR ON BOTH SIDES though it sits on one: the lesson
-  // belongs on the centre line, so an edge element must not slide it.
-  const left=Math.min(trayReservePx(), c.width*0.30);
-
-  const vcap=c.height*0.6;
-  const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
-  const t=top*k, b=bottom*k;
-  return { v:Math.max(0.4, (c.height-t-b)/c.height),
-           // BOTH sides — see the note on `left`
-           h:Math.max(0.28, (c.width-2*left)/c.width),
-           // HALF the difference: the leftover band's centre sits (b−t)/2 from
-           // the canvas centre. The whole difference moved the molecule twice
-           // as far as the band, reading as "floating high".
-           shift:(b-t)/(2*c.height),
-           // the reserves as fractions of canvas height — the top-anchor below
-           // needs the edge, not the leftover's centre
-           tf:t/c.height, bf:b/c.height };
-}
+/* WHAT SITS OVER THE CANVAS, in pixels. The whole of this page's contribution
+ * to the fit — kit/fit.js does the rest (clamping the reserves against the
+ * viewport, the leftover fractions, the half-difference target shift).
+ *   top     species labels: HTML, a fixed PIXEL band, not a world-space box the
+ *           projection scales — hence reserved here, not in fitFor.
+ *   bottom  #bottombar + the caption when it is up.
+ *   left    the reagent tray. It sits on one side and is paid on BOTH by the
+ *           module, because the lesson belongs on the centre line. */
+const RESERVES=()=>({
+  top: plateHeightPx(),
+  bottom: barReservePx()+capReservePx(),
+  left: trayReservePx(),
+});
+const usable=()=>FIT.usable();
 // No horizontal counterpart: heading and button sit on the stage's centre line,
 // where the molecule is (see orthoFrustum).
 let fitR=24, fitY=0;
@@ -1480,14 +1456,7 @@ const TOP_PULL=0.5;
 // the pathway, not of the step you are on.
 let _pathTop=null;
 const pathwayTopY=()=>_pathTop??(_pathTop=Math.max(...STEPS.map(s=>plateY(s.species))));
-function topAnchoredY(R, centredY, topNow){
-  const u=usable();
-  const H=R*HALF_FOV;                             // visible world half-height
-  const anchored=topNow-H*(1-2*u.tf);             // plate hung off the top edge
-  // A SMALLER TARGET Y IS A HIGHER MOLECULE, so never take the larger: on a
-  // state that fills the frame the pull is zero and centring stands.
-  return centredY + Math.min(0, anchored-centredY)*TOP_PULL;
-}
+const topAnchoredY=(R,centredY,topNow)=>FIT.anchorTop(R,centredY,topNow,TOP_PULL);
 
 // Snap to the state at index i, no animation. Restart, rewind, and the settling
 // half of every animated transition.

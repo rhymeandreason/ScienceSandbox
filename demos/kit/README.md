@@ -15,6 +15,7 @@ second page would want it *slightly* different, it does not.
 | --- | --- | --- |
 | `motion.js` | **two clocks, on purpose.** Interpolation rides the render loop (`dt` in seconds, clamped); a `call` beat is a COMMIT and rides the wall clock too, so a step finishes in a hidden tab instead of leaving the lesson stuck `busy`. Named easings, `cancel(tag)` that clears both halves, `seek()` for scrub/screenshot. No THREE | `check-kit.js` |
 | `molgraph.js` | questions you ask a **spec**: neighbours, terminal vs bridging, what leaves when a bond breaks, rings, functional groups found from connectivity, signed torsions. No THREE, no DOM, Node-loadable — so a checker and a page compute the same answer from the same code | `check-kit.js` |
+| `fit.js` | the stage is not an empty rectangle. Chrome measured in **pixels** by the page → leftover fractions, a solved distance and target, a top anchor, and (for an ortho page) a frustum built from `cam.r` so that number keeps meaning. Extracted from glycolysis-lab, which had it right and paid five functions for it | the human, bit-identical fit values before/after the extraction |
 | `focus.js` | one vocabulary for "look here": ghost at 13% without depth-write, lit atoms emitting their **own** colour, a bond lit only when both ends are. Works on a built molecule (by atom index) or on whole objects against each other | the human, `kit-test.html` |
 | `stagekit.js` | the shell: `Stage.create` + render loop (dt in **seconds**) + ResizeObserver + FX/Motion/Focus wiring + `fit()`, which converts **pixels of chrome** into the world-space bands `Stage.frame` wants. Two hooks: `frame` before the render, `afterFrame` after it — anything pinning DOM to a 3D point belongs in the second | the human, `kit-test.html` |
 | `check-kit.js` | the assertions behind the two offline modules. `node kit/check-kit.js` | — |
@@ -29,6 +30,7 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="fx.js"></script>
 <script src="kit/motion.js"></script>     <!-- no dependencies -->
 <script src="kit/molgraph.js"></script>   <!-- no dependencies -->
+<script src="kit/fit.js"></script>        <!-- if the page has chrome over the canvas -->
 <script src="kit/focus.js"></script>      <!-- after scene.js -->
 <script src="kit/stagekit.js"></script>   <!-- last: it wires the other three -->
 ```
@@ -59,9 +61,13 @@ the rest.
   reads a matrix refreshed only on render, so a species label positioned in the
   `frame` hook is pinned to the previous frame's camera. Invisible at rest,
   obvious during a zoom.
-* **A page does not have to hand its fit to the kit.** glycolysis-lab keeps its
-  own — it measures lane LAYOUTS, not bounding boxes — and passes `onResize`
-  instead. The shell is worth having even when only three of its four jobs fit.
+* **There are two fits, and they answer different questions.** `Lesson.fit`
+  is *"here are my boxes, frame them"* — the common case, `Stage.frame` with
+  pixel reserves converted for you. `Fit` is *"I measure my own extents; give me
+  the chrome arithmetic"* — glycolysis measures LANE LAYOUTS, not bounding
+  boxes, because mid-split the halves are still easing apart and a live bbox
+  fits the stacked pair. A page uses one or the other, and the shell is worth
+  having either way.
 * **`boxes` and `reservePx` are functions.** They are re-asked on every resize,
   so the fit is solved against what is on stage now, not what was there at load.
 * **`molgraph` answers in the spec's own units.** A registered spec is already in
