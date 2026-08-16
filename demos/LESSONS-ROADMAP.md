@@ -227,7 +227,7 @@ plain script, so the no-build contract holds; a runtime JSON fetch would not.
 | Lesson | New molecules | New file |
 | --- | --- | --- |
 | **1. Enzymes** | **~1** — ADP. Substrate and product specs already exist in `mol-glycolysis.js` | none |
-| **2. Membrane** | ~6 — glycerol, a phospholipid, cholesterol, O₂, triglyceride (optional), sucrose/fructose (optional) | `mol-lipids.js` |
+| **2. Membrane** | ~4 left — **O₂ ✓** and **glycerol ✓** are in; the phospholipid is started and held (see `mol-lipids.js`'s tail note), then cholesterol, triglyceride (optional) | `mol-lipids.js` ✓ |
 | **3. DNA** | ~9 — five nucleobases, one full nucleotide, an A–T and a G–C pair | `mol-nucleic.js` |
 | *tier after* — photosynthesis / ETC | chlorophyll a, acetyl-CoA, FAD/FADH₂ — the expensive builds | `mol-photosynthesis.js` |
 
@@ -255,7 +255,7 @@ ten. `now` is a snapshot; the one-liner above is the live count.
 | `mol-glycolysis.js` | glucose → pyruvate, ATP, NADH, Pi | 14 | 15 | `glycolysis-lab`, **enzymes**, and 3 more pages |
 | `mol-contrast.js` | the six near-identical pairs | 12 | 12 | `contrast-lab` |
 | `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |
-| **`mol-lipids.js`** | glycerol, phospholipid, cholesterol, triglyceride | — | ~5 | **membrane** |
+| **`mol-lipids.js`** | glycerol ✓ · phospholipid, cholesterol, triglyceride | 1 | ~5 | **membrane** |
 | **`mol-nucleic.js`** | five bases, a nucleotide, A–T and G–C pairs | — | ~9 | **DNA** |
 | *deferred* `mol-photosynthesis.js` | chlorophyll a, acetyl-CoA, FAD/FADH₂ | — | ~6 | photosynthesis / ETC |
 | *not now* `mol-carbs.js` | — carbs live in `mol-glycolysis` + `mol-contrast` | — | — | no lesson asks |

@@ -94,6 +94,26 @@
       units:'angstrom',
       src:{path:'hand', note:'r(C-H)=1.087, tetrahedral by symmetry'},
     },
+    o2: {
+      name:'Oxygen', formula:'O₂', class:'nonpolar',
+      // O=O 1.208 Å — the spectroscopic bond length, and a double bond by the
+      // usual Lewis count (the real ground state is a triplet with two unpaired
+      // electrons, which no drawing in this repo is trying to say).
+      //
+      // THE NONPOLAR REFERENCE. Two identical atoms means no electronegativity
+      // difference, no dipole, and nothing for water to H-bond to — see
+      // mol-solvation.js's copy for why it carries NO acceptors despite being
+      // oxygen. In family B it also carries the size argument the membrane
+      // lesson runs on: radiusOf puts it at about half of glucose, and that
+      // gap plus the missing charge is the whole of "why O₂ crosses and
+      // glucose doesn't".
+      atoms:[ {el:'O',pos:[0.604,0,0]}, {el:'O',pos:[-0.604,0,0]} ],
+      bonds:[ [0,1,2] ],
+      sites:{ donors:[], acceptors:[] },
+      hydrophobic:[0,1],
+      units:'angstrom',
+      src:{path:'hand', note:'r(O=O)=1.208, homonuclear so linear and nonpolar'},
+    },
     co2: {
       name:'Carbon dioxide', formula:'CO₂', class:'nonpolar',
       // C=O 1.160 Å, linear. Symmetric, so the two dipoles cancel and the

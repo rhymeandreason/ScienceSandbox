@@ -76,7 +76,6 @@ const KNOWN_ABSENT = {
   // LESSONS-ROADMAP.md's domain-file plan. Absent BY DESIGN — the roadmap is
   // the file that proposes them, so building one must fail here until that
   // row moves from "after" to "now".
-  'mol-lipids.js':         'LESSONS-ROADMAP.md §2 — the membrane page, not built',
   'mol-nucleic.js':        'LESSONS-ROADMAP.md §3 — the DNA page, not built',
   'mol-photosynthesis.js': 'LESSONS-ROADMAP.md tier-after — deferred',
   'mol-carbs.js':          'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',

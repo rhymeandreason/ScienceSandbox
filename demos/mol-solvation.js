@@ -88,6 +88,27 @@
       units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
       src:{path:"hand"},
     },
+    o2: {
+      name:'Oxygen', formula:'O₂', class:'nonpolar',
+      // THE NONPOLAR REFERENCE, and the cleanest one there is: two identical
+      // atoms, so there is no electronegativity difference to make a dipole and
+      // nothing for water to H-bond to at all. Methane is the usual stand-in and
+      // it is a weaker example — CH₄ at least has polarisable C–H. O₂ has
+      // nothing, which is why it crosses a lipid bilayer freely while glucose,
+      // barely three times its radius, needs a transporter.
+      //   → NO acceptors, despite being oxygen. This is the trap: an O in a
+      //     C=O or O–H is a fine H-bond acceptor, and it is easy to give the
+      //     same lone pairs to O₂ by pattern. Its lone pairs sit on a homonuclear
+      //     bond with no partial charge, and O₂ is ~30× LESS soluble than CO₂
+      //     for exactly that reason. Listing acceptors here would draw water
+      //     shells around it and teach the opposite.
+      atoms:[ {el:'O',pos:[1.05,0,0]}, {el:'O',pos:[-1.05,0,0]} ],
+      bonds:[ [0,1,2] ],
+      sites:{ donors:[], acceptors:[] },
+      hydrophobic:[0,1],
+      units:'scene',   // family A: hand-picked display lengths, not real Angstroms x anything
+      src:{path:'hand'},
+    },
     co2: {
       name:'Carbon dioxide', formula:'CO₂', class:'reactive',
       // Linear O=C=O; symmetric, so the two C=O dipoles cancel and the MOLECULE
