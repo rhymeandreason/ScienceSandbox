@@ -76,20 +76,22 @@ else
   echo "pre-commit: skipping check-pages.js — no page or registry file staged"
 fi
 
-# The mass-action modal's physics lives inside glycolysis-lab.html, so this
-# fires on the page itself — there is no separate module whose folder could
-# gate it, and EA is a legibility knob somebody will reach for.
-if git diff --cached --name-only | grep -qE '^demos/(glycolysis-lab\.html|tools/check-massaction\.js)$'; then
-  if ! node tools/check-massaction.js > /tmp/cma.$$ 2>&1; then
+# The mass-action model is demos/massaction/, so its own folder gates it — but
+# glycolysis-lab.html is in the pattern too, because the SCENARIOS (each step's
+# ΔE, and the names on the curve) live on the host page and the checker lifts
+# them from there. `ea` is a legibility knob somebody will reach for, and it is
+# now shared by two pages, which is the reason it became a module at all.
+if git diff --cached --name-only | grep -qE '^demos/(massaction/.*|glycolysis-lab\.html)$'; then
+  if ! node massaction/check-massaction.js > /tmp/cma.$$ 2>&1; then
     tail -25 /tmp/cma.$$; rm -f /tmp/cma.$$
     echo ""
-    echo "pre-commit FAILED: check-massaction.js — the mass-action modal no longer"
+    echo "pre-commit FAILED: check-massaction.js — the mass-action demo no longer"
     echo "  teaches what it claims. See the header for which claim broke."
     exit 1
   fi
   rm -f /tmp/cma.$$
 else
-  echo "pre-commit: skipping check-massaction.js — glycolysis-lab.html not staged"
+  echo "pre-commit: skipping check-massaction.js — nothing under demos/massaction/ staged"
 fi
 
 # Everything folding-lab is now under demos/folding/, so one pattern covers its

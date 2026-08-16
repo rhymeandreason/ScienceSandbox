@@ -20,11 +20,12 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | prototype |
-| `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Includes a mass-action modal — a second simulation with its own physics (below) | featured lesson |
+| `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Hosts the `massaction/` sim in a modal — a second simulation with its own physics (below) | featured lesson |
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | prototype |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
+| `massaction/massaction-test.html` | Test bench for `massaction/massaction.js` — three mounts, including the barrier slider the enzymes lesson needs and glycolysis never renders | test |
 
 ## Making a new lesson
 
@@ -73,7 +74,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node tools/check-massaction.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:

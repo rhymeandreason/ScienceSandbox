@@ -84,10 +84,6 @@ const KNOWN_ABSENT = {
   'mol-krebs.js':          'LESSONS-ROADMAP.md — out of scope',
   'mol-signaling.js':      'LESSONS-ROADMAP.md — out of scope',
   'mol-ecology.js':        'LESSONS-ROADMAP.md — out of scope',
-  // Step one of the enzymes page: extract glycolysis-lab's mass-action model
-  // into a module both pages load. Until that happens the model lives inside
-  // glycolysis-lab.html, audited by tools/check-massaction.js, which DOES exist.
-  'massaction.js':         'LESSONS-ROADMAP.md — the enzymes page, not built',
   // Build outputs and runtime strings, not repo files.
   'generated-specs.json':         'sdf2spec.js writes it; not committed',
   'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',
@@ -145,7 +141,7 @@ const norm = n => n.replace(/^demos\//, '');
 // prose might name belongs in this list — the failure mode is a checker that
 // cries wolf at correct documentation, which trains people to ignore it.
 const SEARCH = ['.', 'tools', 'folding', 'folding/tools',
-                'hemoglobin', 'hemoglobin/tools'];
+                'hemoglobin', 'hemoglobin/tools', 'massaction'];
 const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
 for (const [n, docs] of [...named].sort()) {

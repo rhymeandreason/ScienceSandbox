@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="sandbox.css">
+<link rel="stylesheet" href="massaction/massaction.css">
 <style>
   :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a; }
 
@@ -379,15 +380,10 @@
   @media (prefers-reduced-motion:reduce){ #actbtn.burst{animation:none} }
 
 
-  /* ---------- the mass-action modal ----------
-     WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page says it
-     twice in sentences about "concentration" that land only if you already know
-     what concentration DOES. So: a box of molecules, an enzyme with no
-     preference, a counter proving both directions run at once. A MODAL, not a
-     panel — a general fact about enzymes, not about glycolysis, and this page
-     is already the densest in the sandbox.
-     `.modal` is chrome shared with PFK-1's regulation modal; anything scoped
-     to #massmodal is this demo's own. */
+  /* ---------- modal chrome ----------
+     Shared by three modals: the ten-steps list, PFK-1's regulation, and the
+     mass-action demo. The mass-action demo's OWN styling is massaction.css —
+     this page supplies the card it sits in and nothing inside it. */
   .modal{position:fixed;inset:0;z-index:60;display:flex;
     align-items:center;justify-content:center;padding:24px}
   .modal[hidden]{display:none}
@@ -400,19 +396,6 @@
   @keyframes mfade{from{opacity:0}to{opacity:1}}
   @keyframes mrise{from{opacity:0;transform:translateY(14px) scale(.98)}
                    to  {opacity:1;transform:none}}
-  /* THE TERM, over the title: a student should leave with the name — they meet
-     it again in enzyme kinetics and every equilibrium problem after.
-     THE TWO CASES ARE TABS: they are the modal's subject, not a setting on it.
-     A toggle buried under the canvas made the drop step look like an option
-     most students would never press. The title changes with the tab too. */
-  #massmodal .mtabs{display:flex;gap:4px;margin:0 0 14px;
-    border-bottom:1.5px solid rgba(58,52,44,.18)}
-  #massmodal .mtabs button{font-family:var(--font-slab);font-weight:700;font-size:13px;
-    letter-spacing:.2px;padding:8px 16px 9px;border:none;background:none;
-    color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;
-    margin-bottom:-1.5px}
-  #massmodal .mtabs button:hover{color:var(--ink)}
-  #massmodal .mtabs button.on{color:#4f5bd5;border-bottom-color:#4f5bd5}
   .modal .mkick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
     letter-spacing:1.5px;text-transform:uppercase;color:#4f5bd5;margin:0 0 5px}
   .modal h2{font-family:var(--font-slab);font-weight:700;font-size:19px;
@@ -423,64 +406,8 @@
   .modal .mclose{position:absolute;top:10px;right:12px;font-size:22px;
     line-height:1;background:none;border:none;color:var(--muted);cursor:pointer;padding:4px}
   .modal .mclose:hover{color:var(--ink)}
-  #masscanvas{display:block;width:100%;height:250px;border-radius:10px;
-    background:rgba(255,255,255,.6);border:1.5px solid rgba(58,52,44,.16)}
-  /* THE BACK COUNTER IS THE POINT — a student watching a flat step settle
-     assumes it stopped; the ticking number says it did not. */
-  #massmodal .mrow{display:flex;gap:14px;align-items:stretch;margin:12px 0 0}
-  #massmodal .mspec{flex:1;display:flex;align-items:center;gap:8px;
-    padding:7px 10px;border:1.5px solid rgba(58,52,44,.18);border-radius:8px}
-  #massmodal .mdot{width:13px;height:13px;border-radius:50%;flex:none}
-  #massmodal .mnm{font-family:var(--font-slab);font-weight:700;font-size:13px}
-  #massmodal .mct{margin-left:auto;font-family:var(--font-slab);font-weight:700;font-size:20px}
-  #massmodal .mrate{display:flex;flex-direction:column;justify-content:center;
-    gap:2px;min-width:118px;font-family:var(--font-sans);font-size:11.5px;color:var(--muted)}
-  #massmodal .mrate b{font-family:var(--font-slab);font-size:13px;color:var(--ink)}
-  /* THE NET, full-width: two nonzero counters are not a direction until someone
-     subtracts them, and the subtraction is the whole idea. Reads "balanced",
-     never "stopped" — the traffic evens out, it does not stop. */
-  #massmodal .mnet{display:flex;align-items:center;justify-content:center;gap:10px;
-    margin-top:10px;padding:9px 14px;border-radius:9px;
-    background:rgba(58,52,44,.05);border:1.5px solid rgba(58,52,44,.14);
-    transition:background .3s ease,border-color .3s ease}
-  #massmodal .mnet i{font-size:30px;line-height:1;
-    transition:color .25s ease,transform .3s cubic-bezier(.34,.9,.3,1)}
-  #massmodal .mnet span{font-family:var(--font-slab);font-weight:700;font-size:13px;
-    letter-spacing:1px;text-transform:uppercase;text-align:center;
-    transition:color .25s ease}
-  /* ΔE, AS A PICTURE AND A NUMBER. Free energy as height, matching the side
-     panel's figure. Gap label and levels come from DROP at render time. */
-  #massmodal .meq{display:flex;align-items:center;justify-content:center;gap:13px;
-    margin-top:8px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
-  #massmodal .meq svg{flex:none;width:212px;height:124px;overflow:visible}
-  #massmodal .meq b{font-family:var(--font-slab);font-size:15px;color:var(--ink);
-    letter-spacing:.2px}
-  #massmodal .meq .rc{fill:none;stroke:var(--ink);stroke-width:2.5;
-    stroke-linecap:round;stroke-linejoin:round;opacity:.72}
-  #massmodal .meq .axl{stroke:var(--muted);stroke-width:1.2;opacity:.35}
-  #massmodal .meq .ea{font-family:var(--font-slab);font-weight:700;font-size:11px;
-    fill:var(--ink)}
-  #massmodal .meq .gap{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:3 3}
-  #massmodal .meq .gaparr{stroke:var(--ink);stroke-width:1.4}
-  #massmodal .meq .lb{font-family:var(--font-slab);font-weight:700;font-size:10.5px}
-  #massmodal .meq .ax{font-family:var(--font-sans);font-weight:600;font-size:8px;
-    fill:var(--muted);letter-spacing:.5px;text-transform:uppercase}
-  @media (max-width:920px){
-    #massmodal .meq{flex-direction:column;gap:6px;text-align:center}
-  }
-  #massmodal .mctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-  #massmodal .mctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
-    padding:7px 13px;border-radius:8px;border:1.5px solid var(--ink);
-    background:none;color:var(--ink);cursor:pointer}
-  #massmodal .mctl button:hover{background:var(--ink);color:var(--paper)}
-  #massmodal .mctl button.on{background:var(--ink);color:var(--paper)}
-  #massmodal .mctl .msp{flex:1}
   .modal .mtext{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
   .modal .mtext b{color:var(--ink)}
-  @media (max-width:920px){
-    #masscanvas{height:200px}
-    #massmodal .mrow{flex-wrap:wrap}
-  }
 
   /* ---------- PATHWAY RAIL, across the top ----------
      TEN NUMBERS, and nothing else: canonical textbook 1-10, the lit one is the
@@ -797,39 +724,18 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="atomkit.js"></script>
+<!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
+<script src="massaction/massaction.js"></script>
+<!-- WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page says it
+     twice in sentences about "concentration" that land only if you already know
+     what concentration DOES. A MODAL, not a panel — a general fact about
+     enzymes, not about glycolysis, and this page is already the densest in the
+     sandbox. Everything inside #massbox is built by massaction.js. -->
 <div id="massmodal" class="modal" hidden>
   <div class="mback"></div>
-  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mmtitle">
+  <div class="mcard" role="dialog" aria-modal="true" aria-label="Mass action">
     <button class="mclose" aria-label="Close">&times;</button>
-    <div class="mtabs" role="tablist">
-      <button id="mflat" class="on" role="tab">Flat step</button>
-      <button id="mdrop" role="tab">Drop step</button>
-    </div>
-    <div class="mkick">Mass action</div>
-    <h2 id="mmtitle"></h2>
-    <p class="msub">Each dot is one molecule. A dot's <b>speed is its energy</b>,
-      determined randomly. A dot <b>glows where it has enough energy to react</b>.
-      When a glowing dot drifts through an enzyme, it <b>converts (flips
-      colour)</b>.</p>
-    <canvas id="masscanvas"></canvas>
-    <div class="mrow">
-      <div class="mspec"><span class="mdot" style="background:#4f5bd5"></span>
-        <span class="mnm" id="mnmA">G6P</span><span class="mct" id="mctA">0</span></div>
-      <div class="mrate">
-        <span>forward <b id="mrf">0</b>/s</span>
-        <span>backward <b id="mrb">0</b>/s</span>
-      </div>
-      <div class="mspec"><span class="mdot" style="background:#a855f7"></span>
-        <span class="mnm" id="mnmB">F6P</span><span class="mct" id="mctB">0</span></div>
-    </div>
-    <div class="mnet"><i id="mnetar" class="ph-bold ph-pause"></i><span id="mnetlb">nothing left to convert</span></div>
-    <div class="meq" id="meq"></div>
-    <div class="mctl">
-      <button id="maddA">Add 15 <span id="mlbA">G6P</span></button>
-      <button id="maddB">Add 15 <span id="mlbB">F6P</span></button>
-      <button id="mreset">Reset</button>
-    </div>
-    <p class="mtext" id="mtext"></p>
+    <div id="massbox"></div>
   </div>
 </div>
 <script>
@@ -3237,312 +3143,51 @@ const AllSteps=(()=>{
   return {show, hide, isOpen:()=>open};
 })();
 
-const Mass=(()=>{
-  const el=document.getElementById('massmodal');
-  const cv=document.getElementById('masscanvas');
-  const ctx=cv.getContext('2d');
-  const ui={ A:document.getElementById('mctA'), B:document.getElementById('mctB'),
-             nA:document.getElementById('mnmA'), nB:document.getElementById('mnmB'),
-             rf:document.getElementById('mrf'), rb:document.getElementById('mrb'),
-             bA:document.getElementById('mlbA'), bB:document.getElementById('mlbB'),
-             title:document.getElementById('mmtitle'),
-             ar:document.getElementById('mnetar'), lb:document.getElementById('mnetlb'),
-             net:document.querySelector('#massmodal .mnet'),
-             eq:document.getElementById('meq'),
-             text:document.getElementById('mtext') };
-  const COL=['#4f5bd5','#a855f7'];
-  // EACH MODE IS A REAL STEP, not a toy A⇄B: flat is step 2 (genuinely near
-  // equilibrium), drop is step 10. Naming them hands the demo back to the rail
-  // instead of being a separate world with its own letters — and stops one
-  // fixed pair of names from libelling the isomerase as one-way.
-  const SPECIES={ flat:['G6P','F6P'], drop:['PEP','Pyruvate'] };
-  const TITLE={ flat:'Why a step can run backwards',
-                drop:'Why three steps cannot' };
-  const N0=54, R=5.5;
-  // Five enzyme copies, not one: a single central site reads as a GATE, which
-  // is the one thing this is not. The enzyme is dissolved in the same solution.
-  const SITES=[[.22,.30],[.50,.62],[.78,.28],[.36,.76],[.68,.84]], SITE_R=30;
-  // ---- ENERGY, IN UNITS OF kT --------------------------------------------
-  // Each molecule carries an energy, re-drawn from random jostling; a reaction
-  // happens when the arrival holds enough to clear the barrier. Two
-  // consequences fall out rather than being declared:
-  //   · Energies are exponentially distributed, so a barrier twice as tall is
-  //     exponentially rarer, not half as often cleared. That steepness is why
-  //     "a bit further downhill" becomes "essentially never".
-  //   · A CATALYST CANNOT CHANGE THE EQUILIBRIUM. EA is the same both
-  //     directions; the only asymmetry is DROP, which belongs to the reaction,
-  //     not the enzyme. Lowering EA speeds both ways at once.
-  //
-  // P(E >= x) = exp(-x) for an exponential with mean kT: exp(-EA) = 0.55 per
-  // forward encounter, the drop step's reverse exp(-DROP) = 1/200 of that.
-  const EA=0.6;                                  // barrier, both directions
-  const DROP={ flat:0, drop:Math.log(200) };     // how much further downhill
-  // Re-jostle interval. Real collisions are far more frequent; at 60fps a truly
-  // fast redraw is a flicker, and the point is to SEE a dot hot for a moment.
-  const KICK=[0.30,0.85];
-  const VSPD=34;                                 // px/s at one kT — speed is sqrt(E)
-  // How long a bound molecule sits before it turns. Catalysis is not instant,
-  // and a dot recolouring on contact gives nothing to see — the pause IS the
-  // event.
-  const BOUND=0.34;
-
-  let parts=[], mode='flat', open=false, raf=0, last=0;
-  let hits=[0,0];                       // conversions this second, [forward, back]
-  let rate=[0,0], acc=0;
-  // Printed numbers resample once a second to stay readable; the ARROW cannot
-  // wait a second, and a per-frame count is 0 or 1. So it runs off its own
-  // exponential average — same events, smoothed over TAU, not bucketed.
-  let ema=[0,0], age=0;
-  const TAU=0.9;
-  // Below this many net conversions/s, call it balanced: at equilibrium the
-  // difference is jitter around zero, and an arrow flickering left and right
-  // says the opposite of what is happening.
-  const NET_EPS=1.6;
-  // "NOTHING LEFT TO CONVERT" IS ABOUT THE POPULATION, NOT THE RATE. A flat
-  // step at equilibrium and a drop step run to completion both net zero, and
-  // calling both "balanced" collapses the distinction this demo exists to draw.
-  // Low throughput is the tempting test but only guesses how busy this box is
-  // and flickers on any dip. The real condition: one side has RUN OUT —
-  // something a flat step parked at 27/27 can never satisfy. So one species
-  // below this share of the total, AND near-zero traffic to confirm it.
-  const SPENT_FRAC=0.06, BUSY_EPS=1.2;
-  // The average starts at zero on every open, reset and tab switch, so without
-  // this the bar announces "nothing left to convert" during the one second the
-  // reaction is most obviously going.
-  const WARMUP=1.4;
-
-  const rnd=(a,b)=>a+Math.random()*(b-a);
-  // One draw from the thermal distribution: exponential, mean 1 kT. Most near
-  // the bottom, a few far up the tail — the fact the drop step turns on, so it
-  // is sampled rather than approximated.
-  const sampleE=()=>-Math.log(1-Math.random());
-  function spawn(type,n){
-    for(let i=0;i<n;i++){
-      const th=rnd(0,Math.PI*2), e=sampleE();
-      parts.push({ t:type, x:rnd(.06,.94), y:rnd(.08,.92),
-                   dir:th, e, kick:rnd(KICK[0],KICK[1]),
-                   site:-1, bound:0, will:false });
-    }
-  }
-  function reset(){
-    // START LOPSIDED: an even start settles instantly and shows nothing.
-    parts=[]; spawn(0,N0); hits=[0,0]; rate=[0,0]; acc=0; ema=[0,0]; age=0;
-  }
-
-  function step(dt,w,h){
-    const drop=DROP[mode];
-    parts.forEach(p=>{
-      // BOUND: held by the enzyme, not moving. Turns when the clock runs out.
-      if(p.bound>0){
-        p.bound-=dt;
-        if(p.bound<=0){ if(p.will){ hits[p.t]++; ema[p.t]+=1/TAU; p.t=1-p.t; p.will=false; } }
-        return;
-      }
-      // RE-JOSTLED: new energy from the bath, DIRECTION left alone — re-aiming
-      // every kick is a true random walk and reads as jitter; speed is the
-      // quantity this demo needs legible.
-      p.kick-=dt;
-      if(p.kick<=0){ p.e=sampleE(); p.kick=rnd(KICK[0],KICK[1]); }
-      const sp=VSPD*Math.sqrt(p.e);
-      p.x+=Math.cos(p.dir)*sp*dt/w; p.y+=Math.sin(p.dir)*sp*dt/h;
-      if(p.x<.03){p.x=.03;p.dir=Math.PI-p.dir;} if(p.x>.97){p.x=.97;p.dir=Math.PI-p.dir;}
-      if(p.y<.05){p.y=.05;p.dir=-p.dir;}       if(p.y>.95){p.y=.95;p.dir=-p.dir;}
-      // A COLLISION IS THE ONLY THING THAT CONVERTS ANYTHING — nothing here
-      // reads the counts. The counts win because a crowded species collides
-      // more often; consulting the totals would make that a lie.
-      let now=-1;
-      for(let i=0;i<SITES.length;i++){
-        const dx=(p.x-SITES[i][0])*w, dy=(p.y-SITES[i][1])*h;
-        if(dx*dx+dy*dy < SITE_R*SITE_R){ now=i; break; }
-      }
-      // Decided ONCE, on arrival, by the energy held — not by a dice roll.
-      // Forward must clear EA; back, EA plus everything the reaction released.
-      // Most arrivals do neither and drift through, which is worth seeing.
-      if(now>=0 && now!==p.site && p.e >= EA + (p.t===0?0:drop)){
-        p.bound=BOUND; p.will=true;
-      }
-      p.site=now;
-    });
-  }
-
-  function draw(w,h){
-    ctx.clearRect(0,0,w,h);
-    ctx.fillStyle='rgba(58,52,44,.055)'; ctx.strokeStyle='rgba(58,52,44,.16)';
-    ctx.lineWidth=1.5;
-    SITES.forEach(s=>{ ctx.beginPath();
-      ctx.arc(s[0]*w,s[1]*h,SITE_R,0,Math.PI*2); ctx.fill(); ctx.stroke(); });
-    ctx.font='600 9px system-ui,sans-serif'; ctx.fillStyle='rgba(58,52,44,.42)';
-    ctx.textAlign='center';
-    SITES.forEach(s=>ctx.fillText('enzyme', s[0]*w, s[1]*h+SITE_R+11));
-    const drop=DROP[mode];
-    parts.forEach(p=>{
-      // TWO CHANNELS
-      //   speed — how much energy this molecule has, plainly
-      //   glow  — whether that is ENOUGH, measured against the barrier IT faces,
-      //           which is EA forward and EA+DROP back
-      // Glow means exactly one thing — this one reacts if it reaches an enzyme
-      // — so on the drop tab blue glows constantly and violet almost never.
-      // That contrast IS the lesson, visible without reading anything.
-      const thr=EA+(p.t===0?0:drop);
-      const over=p.e/thr;
-      if(over>=1){
-        const hot=Math.min(1,(over-1)/1.2);
-        ctx.beginPath(); ctx.arc(p.x*w,p.y*h,R+2.5+hot*4.5,0,Math.PI*2);
-        ctx.fillStyle=COL[p.t]; ctx.globalAlpha=0.18+0.24*hot; ctx.fill(); ctx.globalAlpha=1;
-      }
-      ctx.beginPath(); ctx.arc(p.x*w,p.y*h,R,0,Math.PI*2);
-      ctx.fillStyle=COL[p.t]; ctx.fill();
-      // a closing ring while held, so the pause reads as an event, not a stall
-      if(p.bound>0){
-        const k=1-p.bound/BOUND;
-        ctx.beginPath(); ctx.arc(p.x*w,p.y*h,R+4.5,-Math.PI/2,-Math.PI/2+k*Math.PI*2);
-        ctx.strokeStyle=COL[1-p.t]; ctx.lineWidth=2.2; ctx.stroke();
-      }
-    });
-  }
-
-  const TEXT={
-    flat:`<b>Step 2.</b> The enzyme keeps converting in <b>both</b> directions —
+/* THE MASS-ACTION DEMO. The physics, the box and every control inside the card
+ * are massaction/massaction.js; this page supplies only WHICH reactions it runs
+ * and the modal it runs in.
+ *
+ * EACH SCENARIO IS A REAL STEP, not a toy A⇄B: flat is step 2 (genuinely near
+ * equilibrium), drop is step 10. Naming them hands the demo back to the rail
+ * instead of being a separate world with its own letters — and stops one fixed
+ * pair of names from libelling the isomerase as one-way.
+ *
+ * `ea` is left at the module default: this page's claim is that ΔE decides the
+ * direction, so a barrier the student can move would be a second variable in a
+ * demo about one. The enzymes page is where it becomes a slider.
+ *
+ * DROP.drop = ln(200) — the reverse of step 10 is about 1 encounter in 200. */
+const MASS_STEPS=[
+  { key:'flat', tab:'Flat step', drop:0,
+    title:'Why a step can run backwards', species:['G6P','F6P'],
+    text:`<b>Step 2.</b> The enzyme keeps converting in <b>both</b> directions —
       what changed as the split evened out is only <b>how often</b> each
       direction comes up, which depends on how many of each are around. Crowd
-      one side and watch the net flip.`,
-    drop:`<b>Step 10.</b> Finding that much energy at once is <b>steeply</b>
+      one side and watch the net flip.` },
+  { key:'drop', tab:'Drop step', drop:Math.log(200),
+    title:'Why three steps cannot', species:['PEP','Pyruvate'],
+    text:`<b>Step 10.</b> Finding that much energy at once is <b>steeply</b>
       rarer, not just a bit rarer. Watch which colour glows: blue almost always
       has enough to go forward, violet almost never has enough to go back.
       Adding more pyruvate barely helps. That's what <b>irreversible in the
-      cell</b> means, true of only <b>three</b> of these ten steps.`
-  };
-  function drawUI(){
-    const a=parts.filter(p=>p.t===0).length;
-    ui.A.textContent=a; ui.B.textContent=parts.length-a;
-    ui.rf.textContent=rate[0].toFixed(1); ui.rb.textContent=rate[1].toFixed(1);
-    // FOUR TESTS, AND THE ORDER MATTERS.
-    //   any   — is anything happening at all
-    //   both  — is EACH direction running, what "both ways at once" claims.
-    //           Testing only |net| said it of the drop step's tail, where
-    //           forward fades to zero and backward never ran: the gap closes
-    //           and a one-way reaction gets called balanced.
-    //   spent — one species has run out (population, not rate — SPENT_FRAC)
-    const net=ema[0]-ema[1], busy=ema[0]+ema[1];
-    const any  = busy>=BUSY_EPS;
-    const both = Math.min(ema[0],ema[1])>=BUSY_EPS;
-    const big  = Math.abs(net)>=NET_EPS;
-    const spent= parts.length ? Math.min(a,parts.length-a)/parts.length < SPENT_FRAC : false;
-    const state = (!any && spent && age>WARMUP) ? 'spent'
-                : !any                          ? 'quiet'      // warm-up, or a lull
-                : (both && !big)                ? 'balanced'
-                : 'net';
-    const icon = state==='spent' ? 'ph-pause'
-               : state==='net'   ? (net>0 ? 'ph-arrow-right' : 'ph-arrow-left')
-               : 'ph-arrows-left-right';
-    // Only touch className when it changes — rewriting every frame makes the
-    // icon font re-resolve 60×/s.
-    if(ui.ar.dataset.icon!==icon){
-      ui.ar.className='ph-bold '+icon; ui.ar.dataset.icon=icon;
-    }
-    ui.lb.textContent = state==='spent'    ? 'nothing left to convert'
-                      : state==='balanced' ? 'balanced — both ways at once'
-                      : state==='quiet'    ? 'balanced'
-                      : (net>0 ? 'net forward' : 'net backward');
-    const hot = state==='net';
-    const k = hot?Math.min(1,Math.abs(net)/9):0;
-    const col = hot ? COL[net>0?1:0] : 'var(--muted)';
-    ui.ar.style.color=col; ui.lb.style.color=col;
-    ui.ar.style.transform=`scale(${(0.92+0.3*k).toFixed(2)})`;
-    ui.net.style.background = !hot ? 'rgba(58,52,44,.05)'
-      : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.06+0.12*k).toFixed(2)+')';
-    ui.net.style.borderColor = !hot ? 'rgba(58,52,44,.14)'
-      : (net>0?'rgba(168,85,247,':'rgba(79,91,213,')+(0.25+0.35*k).toFixed(2)+')';
-  }
-  // THE REACTION COORDINATE, drawn not described. Two levels alone left the
-  // barrier invisible — nothing to climb. With the hump, "the reverse barrier
-  // is EA + ΔE" is the SAME peak from a lower start: visible, not algebra.
-  //
-  // ONE SCALE FOR BOTH TABS, fixed at the drop step's full span. EA is the same
-  // number on both, so its hump must be the same height on both; auto-fitting
-  // each tab would draw the flat step's barrier as tall as the drop's and say,
-  // wrongly, that they differ. Cost: the flat step is a small bump in a big
-  // box, which is exactly what it is.
-  const EPX = 88/(EA+DROP.drop);          // px per kT — see above
-  function drawEq(m){
-    const d=DROP[m], nm=SPECIES[m];
-    // Product taken as zero: only differences mean anything.
-    const ePk=EA+d, span=ePk*EPX, top=12+(88-span)/2;
-    const y=e=>top+(ePk-e)*EPX;
-    const ySub=y(d), yPk=y(ePk), yPrd=y(0);
-    const gap = d===0 ? '' :
-       `<path class="gap" d="M68,${ySub} H186"/>`
-      +`<path class="gaparr" d="M180,${ySub+3} V${yPrd-3}"/>`
-      +`<path class="gaparr" d="M180,${ySub} l3.2,6.6 h-6.4 z" fill="var(--ink)" stroke="none"/>`
-      +`<path class="gaparr" d="M180,${yPrd} l3.2,-6.6 h-6.4 z" fill="var(--ink)" stroke="none"/>`;
-    ui.eq.innerHTML =
-      `<svg viewBox="0 0 210 122" role="img" aria-label="Reaction coordinate: ${nm[0]}`
-      +` climbs a barrier and falls to ${nm[1]}`
-      +`${d===0?', which sits at the same energy':', which sits far lower'}">`
-      +`<text class="ax" transform="translate(9,74) rotate(-90)">energy</text>`
-      +`<path class="axl" d="M17,10 V112"/>`
-      + gap
-      // the hump: level in, up and over the peak, down and level out
-      +`<path class="rc" d="M26,${ySub} H68`
-        +` C84,${ySub} 90,${yPk} 106,${yPk}`
-        +` C122,${yPk} 128,${yPrd} 144,${yPrd} H196"/>`
-      +`<text class="lb" x="40" y="${ySub-7}" fill="${COL[0]}">${nm[0]}</text>`
-      +`<text class="lb" x="182" y="${yPrd-7}" text-anchor="end" fill="${COL[1]}">${nm[1]}</text>`
-      +`<text class="ea" x="106" y="${yPk-8}" text-anchor="middle">E<tspan dy="2.5" font-size="7">A</tspan></text>`
-      +`</svg>`
-      + (d===0
-          ? `<span>Same peak from both sides — <b>nothing extra</b> to go back.</span>`
-          : `<span>Going back means climbing to the same peak from lower down:
-             an extra <b>+${d.toFixed(1)} kT</b>.</span>`);
-  }
-  function setMode(m){
-    mode=m;
-    [['mflat','flat'],['mdrop','drop']].forEach(([id,k])=>{
-      const b=document.getElementById(id);
-      b.classList.toggle('on',m===k); b.setAttribute('aria-selected',m===k);
-    });
-    ui.title.textContent=TITLE[m];
-    drawEq(m);
-    ui.nA.textContent=ui.bA.textContent=SPECIES[m][0];
-    ui.nB.textContent=ui.bB.textContent=SPECIES[m][1];
-    ui.text.innerHTML=TEXT[m];
-    reset();          // each mode starts lopsided, or there is nothing to watch
-  }
+      cell</b> means, true of only <b>three</b> of these ten steps.` }
+];
 
-  function frame(now){
-    if(!open) return;
-    const dt=Math.min(0.05,(now-last)/1000||0); last=now;
-    const w=cv.clientWidth, h=cv.clientHeight;
-    const dpr=Math.min(2,window.devicePixelRatio||1);
-    if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){
-      cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
-    }
-    ctx.setTransform(cv.width/w,0,0,cv.width/w,0,0);
-    step(dt,w,h); draw(w,h);
-    const d=Math.exp(-dt/TAU); ema[0]*=d; ema[1]*=d; age+=dt;
-    // conversions/second, resampled once a second so the number is readable
-    acc+=dt;
-    if(acc>=1){ rate=[hits[0]/acc, hits[1]/acc]; hits=[0,0]; acc=0; }
-    drawUI();
-    raf=requestAnimationFrame(frame);
-  }
-
+const Mass=(()=>{
+  const el=document.getElementById('massmodal');
+  const sim=MassAction.create({ host:document.getElementById('massbox'),
+                                scenarios:MASS_STEPS });
+  let open=false;
   function show(){
-    el.hidden=false; open=true; last=performance.now();
-    setMode('flat');            // setMode resets
-    drawUI();                   // paint a real state, not the markup placeholder
-    raf=requestAnimationFrame(frame);
+    el.hidden=false; open=true;
+    sim.setScenario('flat');       // always opens on the flat step
+    sim.start();
     el.querySelector('.mclose').focus();
   }
-  function hide(){ open=false; cancelAnimationFrame(raf); el.hidden=true; }
+  function hide(){ open=false; sim.stop(); el.hidden=true; }
 
   el.querySelector('.mback').onclick=hide;
   el.querySelector('.mclose').onclick=hide;
-  document.getElementById('mflat').onclick=()=>setMode('flat');
-  document.getElementById('mdrop').onclick=()=>setMode('drop');
-  document.getElementById('maddA').onclick=()=>spawn(0,15);
-  document.getElementById('maddB').onclick=()=>spawn(1,15);
-  document.getElementById('mreset').onclick=reset;
   // Esc closes; the modal swallows the key so it misses the page's shortcuts.
   addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
 

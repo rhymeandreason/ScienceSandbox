@@ -106,18 +106,22 @@ lock-and-key / induced-fit cartoon, and the energy-barrier curve. No figure show
 them as one event — that the shape change *is* what lowers the barrier.
 
 **Why first.** Adjacent to glycolysis, not a detour: PFK-1 is already named the
-committed step, and the mass-action modal already simulates barrier crossing with
-`EA` forward and `EA + ΔE` back. The page makes that claim cashable — lower the
+committed step, and the mass-action demo already simulates barrier crossing with
+`ea` forward and `ea + ΔE` back. The page makes that claim cashable — lower the
 barrier, watch the rate move while ΔE does not. Cheapest strong page on the list;
 reuses physics that is already written and already asserted
-(`tools/check-massaction.js`).
+(`massaction/check-massaction.js`).
 
-**Step one is extracting that model** out of `glycolysis-lab.html` into a
-`massaction.js` both pages load — glycolysis pinning `EA`, enzymes making it a
-slider — since a second copy of a legibility-tuned constant is precisely what
-the checker cannot see. A module, not an iframe-embedded page: the modal chrome
-already works, and a frame would re-pay `sandbox.css` and cut the sim off from
-the step's own ΔE.
+**Step one is done.** The model is out of `glycolysis-lab.html` and in
+`massaction/` — module, CSS, checker and a test bench that already mounts the
+slider path this page needs. A module, not an iframe-embedded page: the modal
+chrome already works, and a frame would re-pay `sandbox.css` and cut the sim off
+from the step's own ΔE. What remains for this lesson is the page itself:
+`MassAction.create({ea:{min,max,value}})` beside the lock-and-key / induced-fit
+picture, so the shape change and the barrier are one event. Panel B of
+`massaction/massaction-test.html` is that interaction standing alone, and
+check-massaction.js §8 already asserts the claim it rests on — lowering `ea`
+speeds both directions and moves the equilibrium not at all.
 
 Matrix rows: energy transformation, probability, equilibrium.
 

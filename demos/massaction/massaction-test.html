@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>massaction.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. massaction.js's only host is glycolysis-lab.html,
+     which reaches it four clicks deep behind a modal, pinned to one
+     barrier and two named steps. Three things are therefore invisible
+     from the only place it runs:
+
+       1. THE SLIDER PATH. `ea` as a range is the enzymes lesson's whole
+          interaction and glycolysis never renders it. Untested code on a
+          page that does not exist yet is how the second host discovers
+          the module was never actually reusable.
+       2. THE HOST CONTRACT. The module claims to own everything inside
+          its root and nothing outside it. The only way to believe that is
+          to mount it somewhere with no modal, no lesson chrome, and no
+          page CSS of its own — this file — and see it come out whole.
+       3. A SINGLE SCENARIO. One scenario draws no tab strip; that branch
+          has no other caller.
+
+     Panel B is also the enzymes page's central claim, standing on its
+     own: drag the barrier down and both rates climb while the settled
+     split does not move. A catalyst speeds a reaction; it cannot shift an
+     equilibrium. check-massaction.js §8 asserts that numerically — this
+     is where you watch it.
+
+     Panel C's ΔE is a ROUND NUMBER, not a step of glycolysis: it exists
+     to check the curve at a span the lesson never asks for.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="massaction.css">
+
+<style>
+  /* Deliberately thin. Everything that styles the sim itself is
+     massaction.css; if this file has to add a rule to make the demo look
+     right, the module is leaking and the rule belongs there instead. */
+  /* sandbox.css's body is the dark surround a lesson's canvas sits on; this
+     page has no canvas stage, so it takes the paper directly. */
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:64ch}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>massaction.js — test bench</h1>
+  <p class="lede">Three mounts of the same module, side by side, with no lesson
+    around them. Each panel builds its own DOM from a scenario list; nothing on
+    this page styles the sim.</p>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>A — glycolysis, as shipped.</b> Two scenarios, fixed
+        barrier. Should be indistinguishable from the modal in
+        <code>glycolysis-lab.html</code>; if it is not, the extraction dropped
+        something.</p>
+      <div id="caseA"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>B — the enzymes page's interaction.</b> A barrier you can
+        drag. Watch both rates climb together and the <b>settled split stay
+        where it was</b> — a catalyst speeds a reaction, it cannot shift an
+        equilibrium. The hump in the curve must shrink with the slider.</p>
+      <div id="caseB"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>C — one scenario, no tabs.</b> The branch glycolysis
+        never takes. ΔE is a round 3 kT: about 1 reverse in 20, so the reverse
+        counter should tick slowly but never sit at zero.</p>
+      <div id="caseC"></div>
+    </div>
+  </div>
+</div>
+
+<script src="massaction.js"></script>
+<script>
+"use strict";
+
+/* A — the same two steps glycolysis-lab.html passes. Kept as a literal here
+ * rather than imported: this bench is a second HOST, and a host supplying its
+ * own scenarios is exactly the contract under test. */
+MassAction.create({
+  host: document.getElementById('caseA'),
+  scenarios: [
+    { key:'flat', tab:'Flat step', drop:0,
+      title:'Why a step can run backwards', species:['G6P','F6P'],
+      text:`<b>Step 2.</b> Both directions keep running; only <b>how often</b>
+        each comes up changed.` },
+    { key:'drop', tab:'Drop step', drop:Math.log(200),
+      title:'Why three steps cannot', species:['PEP','Pyruvate'],
+      text:`<b>Step 10.</b> Blue almost always has enough to go forward, violet
+        almost never has enough to go back.` }
+  ]
+}).start();
+
+/* B — the slider. Range chosen so both ends are watchable: 0.2 kT is ~82% of
+ * arrivals reacting (fast), 2.0 kT is ~14% (visibly sluggish). A flat step, so
+ * nothing but the barrier can be moving the numbers. */
+MassAction.create({
+  host: document.getElementById('caseB'),
+  kicker: 'Catalysis',
+  scenarios: [
+    { key:'flat', tab:'Flat', drop:0,
+      title:'A better enzyme, the same equilibrium', species:['S','P'],
+      text:`Lower the barrier: <b>both</b> rates rise. The split they settle at
+        does not move — that number belongs to the reaction, not the enzyme.` }
+  ],
+  ea: { min:0.2, max:2.0, value:MassAction.EA_DEFAULT, label:'Barrier E<sub>A</sub>' }
+}).start();
+
+/* C — single scenario, and a span the lesson never draws. */
+MassAction.create({
+  host: document.getElementById('caseC'),
+  scenarios: [
+    { key:'mid', tab:'Downhill', drop:3,
+      title:'Downhill, but not by much', species:['A','B'],
+      text:`A 3 kT drop is about <b>1 reverse in 20</b>. Mostly forward, and
+        still plainly two-way — the middle ground the two glycolysis steps skip
+        over.` }
+  ]
+}).start();
+</script>
+</body>
+</html>
