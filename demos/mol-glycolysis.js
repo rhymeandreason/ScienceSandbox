@@ -327,8 +327,14 @@
     // F6P's C5, caught by the same assertion.
     const p=g.phosphate(1,1);                              // C2 –O–PO₃
     const oh=g.hydroxyl(2,0);                              // C3 –OH — the OH enolase removes
+    // THE OTHER HALF OF THE WATER. A dehydration needs two atoms and a hydroxyl
+    // is only one of them: the H comes off C2, next door. Drawn for the same
+    // reason as DHAP's and G3P's (MODEL SIMPLIFICATIONS 1) — step 9 is about
+    // these atoms, and a water that assembles from one drawn atom and one
+    // invisible one is a water half conjured.
+    const lh=g.grow(1,'H',GL.CH,'sp3',0);
     GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', short:'2-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, loseH:lh, dCentre:[1,0,2] } });
   }
   {
     // — phosphoenolpyruvate: 2-PG minus a water. Enolase pulls the C3 –OH and a
