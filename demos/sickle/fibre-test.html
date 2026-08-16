@@ -91,7 +91,23 @@
     <input id="r1" type="range" min="40" max="160" step="2" value="82"></label>
   <label>helical pitch (Å) <output id="pitchOut"></output>
     <input id="pitch" type="range" min="600" max="6000" step="100" value="3000"></label>
+  <label class="row"><input id="chaincol" type="checkbox"> colour by chain (α/β)</label>
   <label class="row"><input id="marks" type="checkbox" checked> mark β6 and the pocket</label>
+  <div style="font-size:11px;line-height:1.4">
+    <span style="display:inline-block;width:9px;height:9px;border-radius:50%;
+      background:#d4671f;vertical-align:middle"></span> β6 patch &nbsp;
+    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;
+      background:#6e3208;vertical-align:middle"></span> 85/88 pocket<br>
+    both greasy — that is why they stick<br>
+    faded, half-size = the <b>idle</b> copy: each tetramer has two β chains
+    but uses one patch and one pocket, which is why this is a strand and
+    not a clump<br>
+    <span style="display:inline-block;width:9px;height:9px;border-radius:50%;
+      background:#2f6fb5;vertical-align:middle"></span> α chain &nbsp;
+    <span style="display:inline-block;width:9px;height:9px;border-radius:50%;
+      background:#d9a520;vertical-align:middle"></span> β chain
+    <span style="opacity:.7">(chain mode)</span>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -152,12 +168,75 @@ const tint = new THREE.Color();
 const strandColour = (i, partner) =>
   tint.setHSL(STRAND_HUE[i % STRAND_HUE.length], 0.62, partner ? 0.58 : 0.40);
 
+/* TWO COLOUR MODES, and they use different machinery because they colour
+   different things.
+
+   BY STRAND is per-INSTANCE: every part of one tetramer takes one shade, and
+   the shade says which double strand it belongs to. That is what makes the
+   twist legible — seven ropes winding past each other.
+
+   BY CHAIN is per-PART: the four subunits take two colours between them, and
+   every tetramer in the fibre is painted identically. This is the textbook
+   picture, and what it shows is that a haemoglobin is FOUR subunits of TWO
+   kinds — alpha and beta are different polypeptides with different folds,
+   which is the tertiary level, and the four of them packed together is the
+   quaternary one.
+
+   The trade is real and worth knowing before switching: by chain, every
+   molecule looks the same, so at fibre scale the strands merge into one
+   mass and the twist becomes hard to follow. A small per-strand LIGHTNESS
+   modulation is kept underneath to hold them apart — it rides the instance
+   colour, so it never touches the hue that carries the chain identity. */
+const ALPHA_COLOR = 0x2f6fb5, BETA_COLOR = 0xd9a520;
+const STRAND_VALUE = 0.13;               // +-13% lightness, enough to separate
+const strandValue = (i, partner) => {
+  const v = 1 + STRAND_VALUE * ((i % 4) / 1.5 - 1) + (partner ? STRAND_VALUE / 2 : 0);
+  return tint.setRGB(v, v, v);
+};
+
 /* Coarse on purpose. A fibre at 12 repeats is 168 tetramers; the crowd
    bench established that the tessellation is not what costs, but there is
    no reason to spend 61 triangles a residue on a molecule 30 px across. */
 const TUBE = { sides: 6, segPerRes: 1, caps: true };
 
-const MARK_R = 4.0;                      // angstroms; a residue-sized dot
+/* BOTH ENDS OF THIS CONTACT ARE GREASY, and the marks have to say so.
+
+   The first version drew the pocket in this repo's polar blue (#3f7abd),
+   which is the colour meaning "happy in water" everywhere else here — on a
+   site made of PHENYLALANINE 85 and LEUCINE 88, two of the most hydrophobic
+   residues there are. It contradicted the mechanism in the one channel
+   carrying chemistry: the patch and the pocket stick together BECAUSE both
+   are greasy and water will not have either of them.
+
+   So hue is not available to tell them apart, and they are separated by
+   value and size instead — the patch a bright dot, the pocket a bigger,
+   darker one, both unmistakably in the nonpolar family. */
+const PATCH_COLOR = 0xd4671f;            // beta6 — the greasy patch
+const POCKET_COLOR = 0x6e3208;           // Phe85/Leu88 — greasy too, and deeper
+const PATCH_R = 3.6, POCKET_R = 5.2;     // angstroms; the pocket is a two-residue site
+
+/* HALF OF THESE SITES DO NOTHING, and the marks used to hide that.
+
+   Every tetramer has two beta chains, so drawing a patch and a pocket on
+   each gives four dots. The crystal only ever uses two of them: a full
+   lattice scan (both P2(1) operations across +-1 cell in all directions,
+   in bake-fibre.js) finds exactly two beta6 -> Phe85/Leu88 contacts, and
+   chain D donates while chain B receives. Chain B's beta6 and chain D's
+   pocket are never in contact with anything.
+
+   Four equal dots implied all four were working, which quietly contradicts
+   the reason this assembly is a STRAND: one way in and one way out per
+   molecule gives a line, two of each would branch. So the idle pair is
+   drawn small and washed out — present, because a spare site is a real
+   feature and the lesson eventually needs it, but visibly not in play.
+
+   Which is which comes from the bake's per-chain `donates` / `receives`
+   flags, so it is measured rather than a pair of chain letters typed here.
+
+   CAVEAT the page cannot resolve: "idle" is true of the CRYSTAL. Whether
+   the fibre uses that spare beta6 in contacts BETWEEN double strands is
+   exactly the part 2HBS does not contain. */
+const IDLE_SCALE = 0.55, IDLE_LIGHT = 0.55;
 
 const hud = document.getElementById('hud');
 const dummy = new THREE.Object3D();
@@ -165,7 +244,7 @@ const M = new THREE.Matrix4(), Mpair = new THREE.Matrix4(), tmp = new THREE.Matr
 
 let D = null;                            // the bake
 let bodies = [];                         // InstancedMesh per tube part
-let markMesh = null, pocketMesh = null;
+let markMesh = null, pocketMesh = null, idlePatch = null, idlePocket = null;
 let axialLen = 0;                        // A, the measured repeat
 
 /* Stages differ ONLY in how many copies are drawn and where the camera is —
@@ -189,12 +268,14 @@ function buildBodies(chains) {
   const maxInst = 30 * 7 * 2;
   const parts = [];
   for (const c of chains)
-    for (const p of TubeLib.chain(THREE, c.CA, c.ss, TUBE)) parts.push(p);
+    for (const p of TubeLib.chain(THREE, c.CA, c.ss, TUBE))
+      parts.push(Object.assign(p, { kind: c.kind }));
 
   bodies = parts.map(p => {
     p.geo.computeBoundingSphere();
     const mat = Stage.bondMat(0xffffff);
     const m = new THREE.InstancedMesh(p.geo, mat, maxInst);
+    m.userData.kind = p.kind;            // which subunit this part belongs to
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.frustumCulled = false;             // instances range far from the origin
     root.add(m);
@@ -204,16 +285,22 @@ function buildBodies(chains) {
   /* The two ends of the contact, as dots. Instanced the same way and placed
      by the SAME transforms as the bodies, so a mark cannot drift off the
      molecule it belongs to. */
-  const dot = new THREE.SphereGeometry(MARK_R, 10, 8);
-  markMesh = new THREE.InstancedMesh(dot,
-    new THREE.MeshStandardMaterial({ color: 0xc2571b, roughness: .5 }), maxInst * 2);
-  pocketMesh = new THREE.InstancedMesh(dot.clone(),
-    new THREE.MeshStandardMaterial({ color: 0x3f7abd, roughness: .5 }), maxInst * 2);
-  for (const m of [markMesh, pocketMesh]) {
+  /* Four meshes, not two: working and idle differ in geometry as well as
+     colour, and an InstancedMesh carries one geometry. Four extra draw
+     calls, which at this scale is nothing. */
+  const wash = hex => new THREE.Color(hex).lerp(new THREE.Color(0xf3ece2), IDLE_LIGHT);
+  const dotMesh = (r, colour, rough) => {
+    const m = new THREE.InstancedMesh(new THREE.SphereGeometry(r, 10, 8),
+      new THREE.MeshStandardMaterial({ color: colour, roughness: rough }), maxInst * 2);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.frustumCulled = false;
     root.add(m);
-  }
+    return m;
+  };
+  markMesh   = dotMesh(PATCH_R, PATCH_COLOR, .5);
+  pocketMesh = dotMesh(POCKET_R, POCKET_COLOR, .75);
+  idlePatch  = dotMesh(PATCH_R * IDLE_SCALE, wash(PATCH_COLOR), .8);
+  idlePocket = dotMesh(POCKET_R * IDLE_SCALE, wash(POCKET_COLOR), .8);
 }
 
 /* ------------------------------------------------------------- assembly */
@@ -262,8 +349,18 @@ function rebuild() {
   }
 
   let n = 0;
+  const byChain = el('chaincol').checked;
+  /* The material carries the chain colour; the instance colour carries the
+     strand. In strand mode the material is white so the instance shade shows
+     through; in chain mode the instance colour is a near-white value so it
+     only modulates. They multiply, so exactly one of them is ever coloured. */
+  for (const mesh of bodies)
+    mesh.material.color.set(byChain
+      ? (mesh.userData.kind === 'alpha' ? ALPHA_COLOR : BETA_COLOR)
+      : 0xffffff);
+
   const place = (m4, colourIdx, partner) => {
-    strandColour(colourIdx, partner);
+    (byChain ? strandValue : strandColour)(colourIdx, partner);
     for (const mesh of bodies) { mesh.setMatrixAt(n, m4); mesh.setColorAt(n, tint); }
     n++;
   };
@@ -307,21 +404,24 @@ function rebuild() {
        than recomputing the composition — the marks then cannot drift away
        from the molecule they label, whatever the seating maths does. */
     const off = new THREE.Matrix4();
-    let mi = 0, pi = 0;
+    const cnt = { mark: 0, pocket: 0, idleP: 0, idleK: 0 };
     for (let inst = 0; inst < n; inst++) {
       bodies[0].getMatrixAt(inst, tmp);
       for (const mk of D.marks) {
         off.makeTranslation(mk.beta6[0], mk.beta6[1], mk.beta6[2]);
-        markMesh.setMatrixAt(mi++, M.copy(tmp).multiply(off));
+        (mk.donates ? markMesh : idlePatch)
+          .setMatrixAt(mk.donates ? cnt.mark++ : cnt.idleP++, M.copy(tmp).multiply(off));
         off.makeTranslation(mk.pocket[0], mk.pocket[1], mk.pocket[2]);
-        pocketMesh.setMatrixAt(pi++, M.copy(tmp).multiply(off));
+        (mk.receives ? pocketMesh : idlePocket)
+          .setMatrixAt(mk.receives ? cnt.pocket++ : cnt.idleK++, M.copy(tmp).multiply(off));
       }
     }
-    markMesh.count = mi; pocketMesh.count = pi;
-    markMesh.instanceMatrix.needsUpdate = true;
-    pocketMesh.instanceMatrix.needsUpdate = true;
+    markMesh.count = cnt.mark; pocketMesh.count = cnt.pocket;
+    idlePatch.count = cnt.idleP; idlePocket.count = cnt.idleK;
+    for (const m of [markMesh, pocketMesh, idlePatch, idlePocket])
+      m.instanceMatrix.needsUpdate = true;
   }
-  markMesh.visible = pocketMesh.visible = showMarks;
+  for (const m of [markMesh, pocketMesh, idlePatch, idlePocket]) m.visible = showMarks;
 
   frameCamera(repeats, strands, r1);
   report(n, repeats, strands, pitch, strands > 2 ? r1 : r0);
@@ -384,8 +484,9 @@ function report(n, repeats, strands, pitch, rad) {
   const tris = D.chains.reduce((s, c) => s + TubeLib.triangles(c.CA.length, TUBE), 0);
   const length = axialLen * repeats;
   hud.textContent =
-    STAGE[stage].label + '\n' +
-    n + ' tetramers   ' + (bodies.length + 2) + ' draw calls\n' +
+    STAGE[stage].label + '   ' +
+      (el('chaincol').checked ? 'coloured by chain' : 'coloured by strand') + '\n' +
+    n + ' tetramers   ' + (bodies.length + (el('marks').checked ? 4 : 0)) + ' draw calls\n' +
     (tris * n / 1000).toFixed(0) + 'k triangles\n' +
     '\n' +
     'MEASURED (2HBS)\n' +
@@ -422,6 +523,7 @@ for (const id of ['rep', 'ds', 'r0', 'r1', 'pitch']) {
   show();
 }
 el('marks').onchange = rebuild;
+el('chaincol').onchange = rebuild;
 
 fetch('data/fibre.json').then(res => {
   if (!res.ok) throw new Error('sickle/data/fibre.json — HTTP ' + res.status +

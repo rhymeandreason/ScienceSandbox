@@ -152,6 +152,51 @@ const minDist = (A, B) => {
 
 const shift = (p, v, k) => [p[0] + v[0] * k, p[1] + v[1] * k, p[2] + v[2] * k];
 
+/* WHICH beta6 AND WHICH POCKET ARE ACTUALLY USED — the full scan, because
+   the answer turns out to be "half of them" and that is not guessable.
+
+   A tetramer has two beta chains, so a naive reading gives it two patches
+   and two pockets. The crystal says otherwise: sweeping every P2(1)
+   operation across +-1 unit cell in all three directions turns up exactly
+   two beta6 -> Phe85/Leu88 contacts in the whole lattice, and they do not
+   involve all four beta chains. Chains D and H donate; chains B and F
+   receive; nothing donates AND receives.
+
+   That asymmetry is why the assembly is a strand rather than a clump: one
+   way in and one way out per molecule gives a line, where two of each would
+   branch. Recorded per chain so the page can draw the idle sites
+   differently instead of implying all four are working. */
+const symOps = [
+  p => p,                                                  // x, y, z
+  p => [-p[0], p[1] + 92.8405, -p[2]],                     // REMARK 290 op 2
+];
+const cellVecs = (() => {
+  const rad = cell.beta * Math.PI / 180;
+  return [[cell.a, 0, 0], [0, cell.b, 0],
+          [cell.c * Math.cos(rad), 0, cell.c * Math.sin(rad)]];
+})();
+
+const CONTACT_CUT = 6.0;                 // A between side-chain heavy atoms
+const betaIds = [...T1, ...T2].filter(id => all[id].kind === 'beta');
+const donors = new Set(), acceptors = new Set();
+const links = [];
+for (let op = 0; op < symOps.length; op++)
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) {
+    const move = p => {
+      const q = symOps[op](p);
+      return [0, 1, 2].map(x =>
+        q[x] + cellVecs[0][x] * i + cellVecs[1][x] * j + cellVecs[2][x] * k);
+    };
+    const identity = op === 0 && !i && !j && !k;
+    for (const d of betaIds) for (const acc of betaIds) {
+      if (identity && d === acc) continue;
+      const m = minDist(sideAtoms(d, [6]), sideAtoms(acc, POCKET).map(move));
+      if (m.d >= CONTACT_CUT) continue;
+      donors.add(d); acceptors.add(acc);
+      links.push({ donor: d, acceptor: acc, op, cell: [i, j, k], d: r2(m.d) });
+    }
+  }
+
 /* The lateral contact, inside the asymmetric unit. */
 const lateral = minDist(sideAtoms('H', [6]), sideAtoms('B', POCKET));
 /* The axial one, to the neighbouring cell along -a. */
@@ -198,12 +243,23 @@ const out = {
   })),
   /* beta6 and the pocket, per beta chain of the body, so the page can mark
      both ends of the contact without re-deriving where they are. */
-  marks: T1.filter(id => all[id].kind === 'beta').map(id => ({
-    chain: id,
-    beta6: sub(chains[id].res.get(6).atoms.CA),
-    pocket: sub(POCKET.map(n => chains[id].res.get(n).atoms.CA)
-      .reduce((a, p) => [a[0] + p[0] / 2, a[1] + p[1] / 2, a[2] + p[2] / 2], [0, 0, 0])),
-  })),
+  /* Every contact found, so the two the page quotes can be checked against
+     the whole lattice rather than taken on trust. */
+  links,
+  marks: T1.filter(id => all[id].kind === 'beta').map(id => {
+    /* A T1 chain's partner in T2, under the same A<->E, B<->F, C<->G, D<->H
+       pairing the lateral fit used. A chain counts as working if either copy
+       of it does, since the two are the same chain of the same molecule. */
+    const partner = T2[T1.indexOf(id)];
+    return {
+      chain: id,
+      beta6: sub(chains[id].res.get(6).atoms.CA),
+      pocket: sub(POCKET.map(n => chains[id].res.get(n).atoms.CA)
+        .reduce((a, p) => [a[0] + p[0] / 2, a[1] + p[1] / 2, a[2] + p[2] / 2], [0, 0, 0])),
+      donates: donors.has(id) || donors.has(partner),
+      receives: acceptors.has(id) || acceptors.has(partner),
+    };
+  }),
 };
 
 fs.writeFileSync(OUT, JSON.stringify(out));
@@ -215,5 +271,12 @@ console.log('lateral contact  beta6 ' + out.contacts.lateral.donor +
 console.log('axial contact    beta6 ' + out.contacts.axial.donor +
             ' -> pocket ' + out.contacts.axial.acceptor + ' (-a) ' + out.contacts.axial.d + ' A');
 console.log('pair transform   rmsd ' + out.pair.rmsd + ' A over ' + P.length + ' CA');
+console.log('full lattice scan (' + symOps.length + ' ops x 27 cells): ' +
+            links.length + ' beta6->pocket contacts under ' + CONTACT_CUT + ' A');
+console.log('  donate: ' + [...donors].join(',') + '   receive: ' + [...acceptors].join(',') +
+            '   idle beta6: ' + betaIds.filter(c => !donors.has(c)).join(','));
+for (const m of out.marks)
+  console.log('  chain ' + m.chain + '  beta6 ' + (m.donates ? 'DONATES' : 'idle   ') +
+              '   pocket ' + (m.receives ? 'RECEIVES' : 'idle'));
 console.log('axial repeat     ' + cell.a + ' A');
 console.log('wrote ' + path.relative(process.cwd(), OUT) + '  (' + kb + ' KB)');
