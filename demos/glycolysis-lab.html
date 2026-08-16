@@ -381,9 +381,13 @@
 
 
   /* ---------- modal chrome ----------
-     Shared by three modals: the ten-steps list, PFK-1's regulation, and the
-     mass-action demo. The mass-action demo's OWN styling is massaction.css —
-     this page supplies the card it sits in and nothing inside it. */
+     Shared by four modals: the ten-steps list, PFK-1's regulation, the
+     mass-action demo and the closing fork. The mass-action demo's OWN styling
+     is massaction.css — this page supplies the card it sits in and nothing
+     inside it.
+     LOOK IS OURS, BEHAVIOUR IS kit/modal.js's — it reads `.mback`, `.mcard` and
+     `.mclose` and toggles the `hidden` attribute, so the one rule it depends on
+     is `.modal[hidden]{display:none}`. Restyle freely above that. */
   .modal{position:fixed;inset:0;z-index:60;display:flex;
     align-items:center;justify-content:center;padding:24px}
   .modal[hidden]{display:none}
@@ -728,6 +732,7 @@
 <script src="kit/fit.js"></script>
 <script src="kit/lanes.js"></script>
 <script src="kit/hotspot.js"></script>
+<script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
@@ -2912,7 +2917,6 @@ function drawNote(){
  * rendered once — the modal is markup with two holes, so the facts live in one
  * place and the star is only a door onto them. */
 const Pfk=(()=>{
-  const el=document.getElementById('pfkmodal');
   const body=document.getElementById('pfkbody');
   document.getElementById('pfktitle').textContent=PFK.title;
   body.innerHTML=`<p class="mtext">${PFK.body}</p>`
@@ -2921,13 +2925,7 @@ const Pfk=(()=>{
     +`<div class="eff off"><div class="eh">Slows it down</div>`
       +PFK.off.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div></div>`
     +`<p class="mtext">${PFK.note}</p>`;
-  let open=false;
-  const show=()=>{ el.hidden=false; open=true; el.querySelector('.mclose').focus(); };
-  const hide=()=>{ open=false; el.hidden=true; };
-  el.querySelector('.mback').onclick=hide;
-  el.querySelector('.mclose').onclick=hide;
-  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
-  return {show, hide, isOpen:()=>open};
+  return Modal.create({el:'pfkmodal'});
 })();
 
 /* ---- all ten steps, in one column -----------------------------------------
@@ -2936,10 +2934,9 @@ const Pfk=(()=>{
  * this names every product, chip and marker outright. Nothing typed: rows are
  * built from STEPS by productOf/chipOf. A run step rewinds, like the rail. */
 const AllSteps=(()=>{
-  const el=document.getElementById('stepsmodal');
   const body=document.getElementById('stepsbody');
-  let open=false;
-  const hide=()=>{ open=false; el.hidden=true; };
+  let self=null;                       // set below; rows close the card they sit in
+  const hide=()=>self.hide();
   function draw(){
     body.innerHTML='';
     STAGES.forEach(s=>{
@@ -2969,12 +2966,11 @@ const AllSteps=(()=>{
       body.appendChild(g);
     });
   }
-  const show=()=>{ draw(); el.hidden=false; open=true; el.querySelector('.mclose').focus(); };
-  el.querySelector('.mback').onclick=hide;
-  el.querySelector('.mclose').onclick=hide;
-  document.getElementById('allsteps').onclick=show;
-  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
-  return {show, hide, isOpen:()=>open};
+  // REDRAWN PER OPEN: the list marks where you are, so it is a view of `done`,
+  // not a thing built once. onShow runs before focus moves in — see kit/modal.js.
+  self=Modal.create({el:'stepsmodal', onShow:draw});
+  document.getElementById('allsteps').onclick=()=>self.show();
+  return self;
 })();
 
 /* THE MASS-ACTION DEMO. The physics, the box and every control inside the card
@@ -3070,29 +3066,21 @@ function massScenarios(st){
 }
 
 const Mass=(()=>{
-  const el=document.getElementById('massmodal');
   const box=document.getElementById('massbox');
-  let sim=null, open=false;
+  let sim=null;
   // REBUILT PER OPEN, not reconfigured: the scenarios change with the step, and
   // the sim is a few dozen elements and one rAF loop — cheaper to state plainly
   // than to keep a swap path nothing else needs. The old one is stopped first
-  // so its loop cannot outlive the DOM it draws into.
-  function show(st){
-    if(sim) sim.stop();
-    sim=MassAction.create({ host:box, scenarios:massScenarios(st) });
-    sim.setScenario(st && st.rev===false ? 'drop' : 'flat');
-    el.hidden=false; open=true;
-    sim.start();
-    el.querySelector('.mclose').focus();
-  }
-  function hide(){ open=false; if(sim) sim.stop(); el.hidden=true; }
-
-  el.querySelector('.mback').onclick=hide;
-  el.querySelector('.mclose').onclick=hide;
-  // Esc closes; the modal swallows the key so it misses the page's shortcuts.
-  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
-
-  return {show, hide, isOpen:()=>open};
+  // so its loop cannot outlive the DOM it draws into. `st` is the step the demo
+  // wears, handed straight through by show(st).
+  return Modal.create({el:'massmodal',
+    onShow(st){
+      if(sim) sim.stop();
+      sim=MassAction.create({ host:box, scenarios:massScenarios(st) });
+      sim.setScenario(st && st.rev===false ? 'drop' : 'flat');
+      sim.start();
+    },
+    onHide(){ if(sim) sim.stop(); }});
 })();
 
 /* WHERE PYRUVATE GOES, behind the last button. Three fates, not two: the two
@@ -3101,7 +3089,6 @@ const Mass=(()=>{
  * lactate and yeast ethanol. All three framed by the SAME question — where does
  * NAD⁺ come from — the constraint that picks one. Rendered once, stateless. */
 const Fork=(()=>{
-  const el=document.getElementById('forkmodal');
   document.getElementById('forkbody').innerHTML=
      `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
         <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
@@ -3116,13 +3103,7 @@ const Fork=(()=>{
         <div class="db">Yeast strips a <b>CO₂</b> from pyruvate, then reduces the
         acetaldehyde to <b>ethanol</b>. Same purpose: regenerate <b>NAD⁺</b> so
         glycolysis keeps turning.</div></div>`;
-  let open=false;
-  const show=()=>{ el.hidden=false; open=true; el.querySelector('.mclose').focus(); };
-  const hide=()=>{ open=false; el.hidden=true; };
-  el.querySelector('.mback').onclick=hide;
-  el.querySelector('.mclose').onclick=hide;
-  addEventListener('keydown',e=>{ if(open&&e.key==='Escape'){ e.stopPropagation(); hide(); } },true);
-  return {show, hide, isOpen:()=>open};
+  return Modal.create({el:'forkmodal'});
 })();
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
@@ -3131,8 +3112,13 @@ function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail();
   drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
-// keyboard: → advances whatever the current step is, ← rewinds
+// keyboard: → advances whatever the current step is, ← rewinds.
+// NOT WHILE A CARD IS UP: these run the pathway on the stage BEHIND it, so a
+// student reading the ten-steps list came back to a step they never watched.
+// Esc and Tab are the modal's own (kit/modal.js); the stage keys are ours to
+// withhold, because only this page knows which of its keys move the lesson.
 addEventListener('keydown',e=>{
+  if(Modal.anyOpen()) return;
   if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
     if(intro){ beginPathway(); }
     else if(reviewing){ reviewing=false; refresh(); }
