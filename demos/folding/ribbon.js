@@ -1,28 +1,34 @@
 /* =====================================================================
  *  ribbon.js — secondary structure as geometry, from a Ca trace alone.
  *
- *  Page-specific, like folding.js, villin.js and actin.js: only
- *  folding-lab has a protein backbone to draw. Real angstroms, never sees
- *  SCALE, and it builds a BufferGeometry rather than a mesh so the page
- *  keeps ownership of materials, opacity and the fade machinery.
+ *  SHARED, and documented alongside tube.js and surface.js in
+ *  docs/rendering-modules.md — hemoglobin-lab draws through it, as do
+ *  folding-lab-ribbon and the test benches under hemoglobin/ and sickle/.
+ *  Its abstract counterpart is hemoglobin/tube.js: one tube per chain,
+ *  cheap enough for a tetramer or a crowd, where this one is the dense
+ *  literal cartoon. Real angstroms, never sees SCALE, and it builds a
+ *  BufferGeometry rather than a mesh so the page keeps ownership of
+ *  materials, opacity and the fade machinery.
  *
  * ---------------------------------------------------------------------
  *  WHY THIS EXISTS RATHER THAN A LIBRARY
  * ---------------------------------------------------------------------
  *  Every viewer that draws cartoons — Mol*, 3Dmol, NGL, ChemDoodle —
  *  brings its own WebGL context and camera and cannot draw into
- *  scene.js's scene (RenderingLibraries.md, "Two viewers means two
+ *  scene.js's scene (docs/rendering-modules.md, "two viewers means two
  *  canvases"). Using one here would mean a second canvas stacked on the
- *  first, and folding-lab's atoms/tube crossfade, its hover raycast and
+ *  first, and a lesson's atoms/ribbon crossfade, its hover raycast and
  *  its shared camera through the zoom ladder all live in the first one.
- *  A ribbon is not worth losing those, and it is ~200 lines.
+ *  A ribbon is not worth losing those.
  *
  * ---------------------------------------------------------------------
  *  ORIENTING A RIBBON WITHOUT C=O
  * ---------------------------------------------------------------------
  *  A cartoon's twist normally comes from the peptide plane — the C=O
- *  vector says which way the ribbon faces. We do not have it here: act 3
- *  draws HP35 from villin.js's Ca trace, and actin.bin is Ca-only too.
+ *  vector says which way the ribbon faces. Much of what we draw does not
+ *  carry it: villin.js's HP35 trace, actin.bin and the baked folding
+ *  trajectories are all Ca-only. So the frame must work from Ca alone
+ *  even where a full backbone happens to be available.
  *
  *  The Ca-only substitute is standard and works because it measures the
  *  same thing indirectly. For residue i take the BISECTOR

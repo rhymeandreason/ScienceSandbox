@@ -1,7 +1,7 @@
 > **Superseded in part, 2026-08-02 — we draw proteins ourselves.**
 > The 3D-viewer question is closed: Three.js + `scene.js` + `folding/ribbon.js`,
 > no third-party molecular viewer, ChemDoodle dropped, Mol\* evaluated and not
-> adopted. `demos/RenderingLibraries.md` is the decision record and overrides
+> adopted. `docs/rendering-modules.md` is the decision record and overrides
 > every viewer recommendation below; this file has been updated to match.
 >
 > **The boundary is scale, not subject: everything up to and including a folded
@@ -141,5 +141,5 @@ The verdict covers **everything up to and including a folded protein**, and the 
 **Known gaps in ours, so they aren't discovered late:**
 
 - **~~No molecular surface.~~ Closed — but baked, not live.** `tools/ses.js` builds a real SES (grid EDT + marching cubes, 1.4 Å water probe, Bondi radii), and `hemoglobin/tools/bake-surface.js` writes 2HHB's as a mesh; `hemoglobin/surface-test.html` draws it translucently over the ribbon. What remains given up is a surface on a *moving* chain: the mesh is precomputed, so a folding trajectory can only ever gain its surface at the end. The membrane-transport row is unblocked, since a channel is a fixed structure.
-- **No live per-frame secondary structure.** `RibbonLib.build` takes `ss` as an argument, so animating a fold through the ribbon means re-running DSSP and rebuilding geometry each frame. `RenderingLibraries.md` names this as the one finding that could overturn the verdict, with precomputation as the current answer.
+- **No live per-frame secondary structure.** `RibbonLib.build` takes `ss` as an argument, so animating a fold through the ribbon means re-running DSSP and rebuilding geometry each frame. `docs/rendering-modules.md` names this as the one finding that could overturn the verdict, with precomputation as the current answer.
 - **Nothing above ~600 residues is measured.** The 2HHB timings are our ceiling evidence. Treat larger claims as untested.

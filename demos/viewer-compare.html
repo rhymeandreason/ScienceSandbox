@@ -2,18 +2,18 @@
 <!--
   viewer-compare.html — 3Dmol.js vs Mol*, same protein, same moment.
 
-  SETTLED — neither was adopted. The verdict is in RenderingLibraries.md: we
+  SETTLED — neither was adopted. The verdict is in docs/rendering-modules.md: we
   draw proteins ourselves, with Three.js + scene.js + folding/ribbon.js. This
   page is kept as the record of the comparison, not as an open question, and is
   deliberately NOT deleted: it is worth showing.
 
   ChemDoodle Web was the third pane and has been REMOVED. Two reasons, and the
   licence one alone was enough: it is GPLv3, so any page loading it inherits
-  GPL terms (`protein-lab.html` is now the only page that does). The second is
-  capability — it draws a ribbon and ball-and-stick and nothing else, so on a
-  page whose whole subject is the style menu it was a column of "no equivalent"
-  notes. What it taught is recorded in RenderingLibraries.md and in
-  protein-lab.html's own header; nothing here needs to re-derive it.
+  GPL terms — and with `protein-lab.html` deleted too, no page in this repo is
+  GPLv3 any more. The second is capability — it draws a ribbon and
+  ball-and-stick and nothing else, so on a page whose whole subject is the style
+  menu it was a column of "no equivalent" notes. What it taught is recorded in
+  docs/rendering-modules.md; nothing here needs to re-derive it.
 
   What the page is FOR now is that style menu: two renderers' answers to
   "cartoon", "putty", "gaussian surface", "by hydrophobicity" side by side is
@@ -86,7 +86,7 @@
   <div class="controls">
     <label>Structure
       <select id="pdb">
-        <!-- default: the molecule RenderingLibraries.md's decision was argued on,
+        <!-- default: the molecule the in-house decision was argued on,
              and the best one here for judging COLOUR — 4 chains so "by chain" has
              something to say, 4 haems so ligand handling shows, and all-α so a
              secondary-structure scheme is a two-colour test rather than a mess. -->
@@ -181,7 +181,7 @@
     <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook — and the one where "gaussian surface" versus "molecular surface" stops being an aesthetic choice.</li>
     <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully? 2HHB has four haems, one per subunit, so it asks the same question four times over. Both viewers here need the ligand added as a separate component; neither does it for you.</li>
     <li><b>Weight.</b> Beside each library's name is what this page actually downloaded for it — unpacked first, since that is the JavaScript the browser has to parse and keep, then the gzipped figure in brackets. Read it next to the <code>&lt;script&gt;</code> tag our own lessons carry: Three.js r128 minified is 603 KB and <code>scene.js</code> plus <code>folding/ribbon.js</code> are 70 KB together, so a viewer here is the largest single thing a lesson would ship.</li>
-    <li><b>Licence.</b> 3Dmol.js is BSD-3 and Mol* is MIT, so either could have shipped. ChemDoodle Web, which used to be the third pane, is GPLv3 — the page loading it inherits GPL terms — and that is why it is gone from here. <code>protein-lab.html</code> is now the only page that loads it; see <code>RenderingLibraries.md</code>.</li>
+    <li><b>Licence.</b> 3Dmol.js is BSD-3 and Mol* is MIT, so either could have shipped. ChemDoodle Web, which used to be the third pane, is GPLv3 — the page loading it inherits GPL terms — and that is why it is gone from here. No page in this repo loads it any more; see <code>docs/rendering-modules.md</code>.</li>
     <li><b>Why keep this page, given we adopted neither.</b> The decision was structural, not aesthetic: both viewers bring their own WebGL context and camera, so neither can draw into <code>scene.js</code>'s scene alongside our FX, raycasting and shared zoom ladder. What survives is this page as a <em>style reference</em> — when we build a representation ourselves, these two are the convention to measure it against. Read the Style menu as a spec, not as a shortlist.</li>
   </ul>
 </footer>

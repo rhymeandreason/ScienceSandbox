@@ -51,14 +51,17 @@ const KNOWN_ABSENT = {
   'check-layout.js':    'TESTING.md proposal — not built',
   'contrast-layout.js': 'TESTING.md proposal — not built',
   'three.min.js':       'loaded from a CDN, deliberately not vendored',
-  '3Dmol.js':           'a library NAME, not a file here — RenderingLibraries.md',
+  '3Dmol.js':           'a library NAME, not a file here — viewer-compare.html loads it from a CDN',
   // Deleted with the vendored ChemDoodle (GPLv3): the docs discuss them in the
   // past tense, and asserting them ABSENT is what stops one quietly returning
   // and putting the GPL back on the repo. Both are on the chemdoodle-archive
-  // branch, and neither is coming back — hemoglobin-lab.html supersedes
+  // branch, and it is not coming back — hemoglobin-lab.html supersedes
   // protein-lab.html, so there is no rewrite pending.
-  'protein-lab.html':    'deleted with vendor/chemdoodle — RenderingLibraries.md',
-  'viewer-compare.html': 'deleted with vendor/chemdoodle — RenderingLibraries.md',
+  //
+  // viewer-compare.html is NOT here: it returned on the sickle-cell branch with
+  // the ChemDoodle pane removed, so it vendors nothing and the licence guard
+  // has nothing to hold shut.
+  'protein-lab.html':    'deleted with vendor/chemdoodle — docs/rendering-modules.md',
   'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',
   'Kekule.js':          'library NAME — bio-rendering-thorough.md weighs it, unadopted',
   'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',

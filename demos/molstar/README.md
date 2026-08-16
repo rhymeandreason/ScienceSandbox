@@ -2,7 +2,7 @@
 
 > ## SETTLED — Mol\* was not adopted
 >
-> **The verdict is in `demos/RenderingLibraries.md`: we draw proteins ourselves**
+> **The verdict is in `docs/rendering-modules.md`: we draw proteins ourselves**
 > (Three.js + `scene.js` + `folding/ribbon.js`). Read that first; this folder is
 > the working that led to it.
 >

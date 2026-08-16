@@ -8,7 +8,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 ## Pages (lessons)
 
-<!-- ENUM: add a row when a \*-lab.html is added or repurposed. -->
+<!-- ENUM: Only add to this chart if a page is a featured lesson -->
 
 **Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as fallback or worked example — don't read it unless asked. *test* = an evaluation record, not a lesson.
 
@@ -40,7 +40,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 Before adding a **new molecule**, read `MolecularGeometry.md` §1 — geometry, sources, stereochemistry, scale families, and §1.4's fidelity tiers (prop / contrast / subject), which set how much accuracy the molecule owes for the claim it makes and require a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 
-Water/solvation physics is in `WaterSim.md` (solvation apps only). 
+Water/solvation physics is in `WaterSim.md` (solvation apps only).
 
 ## Run / test locally
 

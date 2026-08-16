@@ -1,10 +1,11 @@
 /* =====================================================================
  *  pdb.js — plumbing for pages that render deposited PDB structures.
  *
- *  NO PAGE LOADS THIS TODAY, and that is deliberate. Its only consumers were
- *  protein-lab.html and viewer-compare.html, deleted along with the vendored
- *  ChemDoodle because that library is GPLv3 (RenderingLibraries.md; both pages
- *  are on the chemdoodle-archive branch). It is kept because the non-GPL
+ *  NO PAGE LOADS THIS TODAY, and that is deliberate. Its consumers were
+ *  protein-lab.html — deleted along with the vendored ChemDoodle because that
+ *  library is GPLv3, and on the chemdoodle-archive branch — and
+ *  viewer-compare.html, which is back but now carries its own orientPDB()
+ *  rather than loading this. It is kept because the non-GPL
  *  protein-lab rewrite starts here — the orientation below is the part that
  *  was hard and is renderer-independent — and tools/check-pdb.js still asserts
  *  it against pdb/*.pdb every commit, so it cannot rot while it waits.

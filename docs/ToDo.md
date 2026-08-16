@@ -5,11 +5,11 @@ Open work and pending decisions. Started 2026-08-02.
 Each item says what it is, why it's worth doing, and what would settle it. An
 item leaves this file when it ships, or when a decision doc absorbs it.
 
-**Rendering decisions are reconciled — `demos/RenderingLibraries.md` is the
+**Rendering decisions are reconciled — `docs/rendering-modules.md` is the
 answer.** We draw proteins ourselves; no third-party 3D viewer is used, and
-ChemDoodle has been deleted from the repo along with the two pages that loaded
+ChemDoodle has been deleted from the repo along with the page that loaded
 it. `docs/chemistry-rendering-libraries.md` predates that and still routes
-macromolecules to 3Dmol; where the two disagree, `RenderingLibraries.md` wins.
+macromolecules to 3Dmol; where the two disagree, `rendering-modules.md` wins.
 Item 2 records how it was settled.
 
 Related docs: `docs/molecule-pipeline.md`, `docs/plan.md`,
@@ -67,7 +67,7 @@ the repo loads KaTeX yet. Cheapest real win on this list.
 
 ## 2. ~~Evaluate Mol\* — and revisit the ChemDoodle decision~~ — SETTLED
 
-**Status:** done, and absorbed by `demos/RenderingLibraries.md` — read that,
+**Status:** done, and absorbed by `docs/rendering-modules.md` — read that,
 not this. Mol\* was evaluated over six stages (`demos/molstar/README.md` holds
 the measurements) and **not adopted**: we draw proteins ourselves, with
 Three.js + `scene.js` + `folding/ribbon.js`.
