@@ -15,9 +15,8 @@
  *  duplicate: a drifted copy does not crash, it draws something subtly
  *  wrong.
  *
- *  (hemoglobin/surface-test.html still has the original inline decoder. It
- *  is the page the format was developed in; switching it over is a
- *  mechanical change nobody has needed yet.)
+ *  (hemoglobin/surface-test.html is the page the format was developed in,
+ *  and it switched over the moment it had to load two surfaces.)
  *
  *  Real angstroms out. No materials, no scene — the page owns those.
  * ===================================================================== */

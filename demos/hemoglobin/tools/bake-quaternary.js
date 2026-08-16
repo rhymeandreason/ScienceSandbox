@@ -350,19 +350,37 @@ function bondsOf(arriving, present) {
   return out;
 }
 
-function bakeQuaternary() {
-  const raw = fs.readFileSync(SRC, 'utf8');
-  const R = rotation();
+/* bakeQuaternary(opts) — opts exists so a SECOND structure can be baked to
+   this exact shape rather than growing a second copy of the walk. Every
+   default is what 2HHB has always used, so the no-argument call that
+   hemoglobin-lab's data comes from is unchanged, byte for byte.
+
+     src      path to a PDB
+     folded   the chain the page treats as "already there"
+     others   [{id, kind}] in arrival order
+     R        rows of a rotation; pass the identity to bake in the crystal's
+              own frame and carry the alignment as an additive field instead
+     meta     merged over source/method/note
+
+   hemoglobin/tools/bake-hbs.js is the other caller. */
+const IDENTITY = [[1,0,0],[0,1,0],[0,0,1]];
+
+function bakeQuaternary(opts) {
+  const o = Object.assign({
+    src: SRC, folded: CHAIN, others: OTHERS, R: null, meta: null,
+  }, opts);
+  const raw = fs.readFileSync(o.src, 'utf8');
+  const R = o.R || rotation();
   const chains = {};
-  for (const c of OTHERS) chains[c.id] = Object.assign({ kind: c.kind }, traceOf(raw, c.id, R));
+  for (const c of o.others) chains[c.id] = Object.assign({ kind: c.kind }, traceOf(raw, c.id, R));
 
   /* Interfaces, in arrival order: each chain against everything on screen
      when it lands. The folded chain is always there. */
-  const foldedTr = traceOf(raw, CHAIN, R);
+  const foldedTr = traceOf(raw, o.folded, R);
   const folded = foldedTr.CA;
   const present = [folded];
-  const presentPolar = [polarAtoms(raw, CHAIN, R)];
-  for (const c of OTHERS) {
+  const presentPolar = [polarAtoms(raw, o.folded, R)];
+  for (const c of o.others) {
     chains[c.id].contact = contactCount(chains[c.id].CA, present);
     const mine = polarAtoms(raw, c.id, R);
     chains[c.id].bonds = bondsOf(mine, [].concat(...presentPolar));
@@ -370,16 +388,25 @@ function bakeQuaternary() {
     presentPolar.push(mine);
   }
 
-  return {
+  /* 2HHB is one tetramer, so every heme in the file belongs to it. 2HBS is
+     two, so the hemes of the tetramer we are NOT baking have to go — left
+     in, they would draw four extra irons floating beside the molecule. The
+     chain set is the filter, and for 2HHB it excludes nothing. */
+  const mine = new Set([o.folded, ...o.others.map(c => c.id)]);
+  const only = obj => Object.fromEntries(
+    Object.entries(obj).filter(([ch]) => mine.has(ch)));
+
+  return Object.assign({
     source: '2HHB', method: 'X-ray 1.74 A',
-    folded: CHAIN,                       // the chain the page folds; not repeated here
+    folded: o.folded,                    // the chain the page folds; not repeated here
     note: 'deposited Ca traces of the other three chains, rotated into the ' +
           'folding chain\'s frame by FoldLib.orient(). Static: placed, not solved.',
-    order: OTHERS.map(c => c.id),
+  }, o.meta, {
+    order: o.others.map(c => c.id),
     chains,
     contactRadius: CONTACT, polarRadius: POLAR,
-    iron: irons(raw, R),
-    heme: withSites(hemes(raw, R), proximalNE2(raw, R)),
+    iron: only(irons(raw, R)),
+    heme: only(withSites(only(hemes(raw, R)), proximalNE2(raw, R))),
     /* The folded chain's HELIX-record count. The page says "eight helices"
        out loud and must pull that number rather than hold a copy of it, and
        it cannot derive it from the trajectory's own `ss`: adjacent helices
@@ -388,10 +415,19 @@ function bakeQuaternary() {
        the same place they do. */
     foldedHelices: foldedTr.helices,
     foldedTrace: folded,                      // for check-hb.js only
-  };
+    /* The folded chain's OWN secondary structure, from its HELIX records.
+       hemoglobin-lab does not need it — it gets chain B's `ss` out of the
+       trajectory, which is the thing actually being animated. A page that
+       only wants the finished tetramer does need it, and must not be made
+       to load an 800 KB trajectory for one string. It matters that this is
+       the same HELIX-record source the other three chains use: two chains
+       drawn from two different ss assignments differ visibly at the ends
+       of helices, which on a comparison page reads as a real difference. */
+    foldedSS: foldedTr.ss,
+  });
 }
 
-module.exports = { bakeQuaternary, OTHERS };
+module.exports = { bakeQuaternary, OTHERS, IDENTITY, rotation, traceOf, apply };
 
 if (require.main === module) {
   const data = bakeQuaternary();

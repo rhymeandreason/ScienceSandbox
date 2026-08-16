@@ -15,7 +15,7 @@
   #ctl{position:absolute;right:16px;bottom:16px;z-index:6;display:grid;gap:8px;
     font-family:var(--font-sans);font-size:12px;color:var(--muted);
     background:rgba(255,255,255,.9);border:1px solid var(--hair);
-    border-radius:8px;padding:10px 12px;width:210px}
+    border-radius:8px;padding:10px 12px;width:252px}
   #ctl label{display:grid;gap:2px}
   #ctl output{font-family:var(--font-mono,monospace);color:var(--ink)}
   #ctl input[type=range]{width:100%}
@@ -43,6 +43,36 @@
   #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
     font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);
     border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
+  /* The variant switch is the loudest control on the page because it is the
+     one the page is now FOR. Same segmented shape as `colour by`, so the two
+     read as the same kind of thing, but full width and above the rest. */
+  #var{display:flex;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
+  #var button{flex:1;border:0;border-left:1px solid var(--hair);border-radius:0;
+    padding:8px 0;font-size:12px;color:var(--muted)}
+  #var button:first-child{border-left:0}
+  #var button[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff)}
+  #var button[aria-pressed=true]:hover{background:var(--ink)}
+  #diff{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted);
+    line-height:1.5;white-space:pre}
+  #diff b{color:var(--ink);font-weight:600}
+  /* The beta6 block is ruled off rather than merely spaced: its controls
+     act on a DIFFERENT object from the four above them, and a gap alone
+     does not say that. */
+  #b6{display:grid;gap:8px;border-top:1px solid var(--hair);padding-top:10px}
+  #b6 > .hd{color:var(--ink);font-size:12px}
+  #b6row{display:flex;align-items:center;gap:8px}
+  #b6row input[type=color]{width:34px;height:24px;padding:0;cursor:pointer;
+    background:none;border:1px solid var(--hair);border-radius:6px;flex:none}
+  #b6row input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  #b6row input[type=color]::-webkit-color-swatch{border:0;border-radius:4px}
+  /* `chem` is a latch, not an action, so it gets the same pressed styling
+     as the segmented controls rather than looking like a button you poke. */
+  #b6chem{flex:1;padding:6px 0;font-size:12px;font-family:var(--font-sans);
+    cursor:pointer;color:var(--muted);background:var(--paper,#fff);
+    border:1px solid var(--hair);border-radius:6px}
+  #b6chem[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff);
+    border-color:var(--ink)}
+  #b6.chem #b6col{opacity:.45}
 </style>
 </head>
 <body>
@@ -59,14 +89,34 @@
   offline from 2HHB's 4&thinsp;556 heavy atoms with a 1.4&nbsp;&Aring;
   water probe, and the page just loads a mesh. The same job took 3Dmol
   5.7&nbsp;s and Mol* 9.4&nbsp;s in <i>viewer-compare.html</i>.<br><br>
-  <b>s</b> toggles the surface, <b>c</b> cycles what it is coloured by.
+  <b>s</b> toggles the surface, <b>c</b> cycles what it is coloured by,
+  <b>v</b> swaps normal haemoglobin (2HHB) for sickle (2HBS).
   Chain colour says which subunit a patch belongs to; hydrophobicity is
   the Kyte&ndash;Doolittle scale, and it is the one that carries a
   lesson &mdash; the greasy patches are where another molecule could
-  stick.
+  stick.<br><br>
+  <b>The swap is the experiment.</b> Both molecules are drawn at the same
+  0.7&nbsp;&Aring; grid, and 2HBS is rotated onto 2HHB by a superposition
+  stored as data, not baked into either &mdash; so nothing you see when
+  you press <b>v</b> is the frame moving. Watch the silhouette, then
+  switch to <b>&beta;6</b> and watch again.<br><br>
+  The two fit to <span id="nFit">&hellip;</span>, so the
+  silhouette is the wrong place to look &mdash; and the area difference in
+  the panel is two different crystals' surface side chains, not the
+  mutation, which is four atoms. Sickle-cell is not a misshapen protein.
+  It is one charged residue swapped for a greasy one, on the outside.<br><br>
+  The <b>&beta;6 patch</b> is its own mesh, so it carries its own colour and
+  opacity &mdash; it can stay solid over a skin at 0.28, or over no skin at
+  all. Left on <i>follow chemistry</i> its colour <i>is</i> the finding:
+  charged blue becomes greasy orange. Pin it to one colour instead and you
+  are asking the other question &mdash; whether the patch moves.
 </div>
 <div id="hud"></div>
 <div id="ctl">
+  <label>molecule (v)
+    <div id="var"></div>
+  </label>
+  <div id="diff"></div>
   <button id="toggle">hide surface (s)</button>
   <label>colour by (c)
     <div id="seg"></div>
@@ -77,6 +127,15 @@
   </div>
   <label>opacity <output id="ov"></output>
     <input id="op" type="range" min="5" max="100" value="28"></label>
+  <div id="b6" class="chem">
+    <div class="hd">β6 patch <span id="b6res"></span></div>
+    <div id="b6row">
+      <input type="color" id="b6col" value="#d94f1e">
+      <button type="button" id="b6chem" aria-pressed="true">follow chemistry</button>
+    </div>
+    <label>patch opacity <output id="b6ov"></output>
+      <input id="b6op" type="range" min="0" max="100" value="100"></label>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -85,8 +144,11 @@
 <script src="../scene.js"></script>
 <script src="../folding/ribbon.js"></script>
 <script src="surface.js"></script>
-<script src="hbfold.js"></script>
 <script src="../sickle/sickle.js"></script>
+<!-- hbfold.js is gone: this page loaded an 800 KB folding trajectory for one
+     secondary-structure string, which bake-quaternary.js now writes as
+     `foldedSS`. It also had to, once there were two molecules — there is no
+     folding trajectory for 2HBS and there should not be one. -->
 <script>
 'use strict';
 /* =====================================================================
@@ -151,19 +213,19 @@ const { scene, camera, renderer, root, cam, applyCam, resize } =
 /* ------------------------------------------------------------------ *
  *  ribbon, exactly as the lessons draw it
  * ------------------------------------------------------------------ */
-function addChain(CA, ss, color) {
+function addChain(parent, CA, ss, color) {
   /* RibbonLib.build reads .x/.y/.z off its points, not [0][1][2]. */
   const geo = RibbonLib.build(THREE, CA.map(p => new THREE.Vector3(p[0], p[1], p[2])), ss, {});
-  root.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+  parent.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
     color, roughness: .55, metalness: .05, side: THREE.DoubleSide,
   })));
 }
 const ironMat = new THREE.MeshStandardMaterial({ color: IRON_COLOR, roughness: .35, metalness: .35 });
-function addHeme(h) {
+function addHeme(parent, h) {
   const fe = h.atoms.find(a => a.el === 'FE').p;
   const m = new THREE.Mesh(new THREE.SphereGeometry(IRON_R, 12, 8), ironMat);
   m.position.set(fe[0], fe[1], fe[2]);
-  root.add(m);
+  parent.add(m);
 }
 
 /* ------------------------------------------------------------------ *
@@ -175,7 +237,32 @@ const MODES = [
   { key: 'plain',          label: 'plain' },
   { key: 'chain',          label: 'chain' },
   { key: 'hydrophobicity', label: 'hydro' },
+  { key: 'beta6',          label: 'β6'  },
 ];
+
+/* ------------------------------------------------------------------ *
+ *  the two molecules
+ * ------------------------------------------------------------------ *
+ *  Both are built up front and both stay in the scene; swapping is one
+ *  `visible` flag per group. That is not laziness about memory — it is
+ *  what makes the comparison trustworthy. Rebuilding on each press would
+ *  put a rebuild between the two pictures, and the eye cannot compare
+ *  across a gap it has to wait through. Two groups toggled on the same
+ *  frame is a blink comparator, which is the instrument for exactly this
+ *  job: anything that moves, moved.
+ *
+ *  `align` is applied here and ONLY here — a matrix on the group, read
+ *  out of the bake. See bake-hbs.js for why it is not in the coordinates.
+ */
+const VARIANTS = [
+  { key: 'hba', label: 'normal',
+    quat: 'data/2HHB-quaternary.json', surf: 'data/2HHB.surf.bin',
+    baker: 'bake-quaternary.js' },
+  { key: 'hbs', label: 'sickle',
+    quat: 'data/2HBS-T1-quaternary.json', surf: 'data/2HBS-T1.surf.bin',
+    baker: 'bake-hbs.js' },
+];
+let variant = 0;
 let mode = 0, surf = null, surfMat = null, S = null;
 
 /* The swatch is the single source of truth for the plain colour — there
@@ -209,11 +296,78 @@ const seg = MODES.map((m, i) => {
    paint the four hemes "averagely greasy" — a number the scale never
    made. Membership of KD is the test, and off-scale draws neutral. */
 const NEUTRAL = new THREE.Color(0.62, 0.62, 0.66);
-function colourFor(m, resName, chain) {
+
+/* ------------------------------------------------------------------ *
+ *  the beta6 patch
+ * ------------------------------------------------------------------ *
+ *  The mutation is TWO SIDE CHAINS out of 4 550 atoms — at tetramer scale
+ *  a patch a few pixels across — so whatever marks it cannot be a subtle
+ *  tint, and it must not be stuck at the skin's opacity. The skin wants to
+ *  be at 0.28 so you can see the ribbon through it. A marker at 0.28 is
+ *  invisible. Those are opposite requirements on one number.
+ *
+ *  WHICH IS WHY THE PATCH IS ITS OWN MESH. A single mesh has a single
+ *  material and a single `opacity`; per-vertex alpha would only ever
+ *  MULTIPLY that, so the patch could be made fainter than the skin and
+ *  never bolder — exactly backwards. Splitting the beta6 triangles into a
+ *  second geometry buys two genuinely independent materials, and lets the
+ *  marker draw solid over a translucent skin, which is what every figure
+ *  that points at a residue actually does.
+ *
+ *  It costs nothing to draw: the two meshes SHARE their position and
+ *  normal attributes and differ only in the index, so nothing is uploaded
+ *  twice. The patch is a few hundred triangles out of 128 000.
+ *
+ *  BOTH beta chains are marked. The substitution is in the gene, so every
+ *  beta chain in the tetramer carries it; marking one would imply a
+ *  heterozygote, which is a different molecule and a different lesson.
+ */
+const BETA = new Set(['B', 'D']);
+
+/* Triangles ALL THREE of whose vertices sit on beta6. "Any vertex" would
+   drag in every triangle straddling the boundary and puff the patch out
+   over its neighbours by a whole triangle in each direction — on a mark
+   this small that is most of its apparent size, and it would make the
+   patch look bigger than the residue is. All-three under-draws by a hair
+   instead, which is the honest direction to err. */
+function patchOf(S) {
+  const isB6 = new Uint8Array(S.head.residues.length);
+  S.head.residues.forEach(([chain, num], i) => {
+    if (num === 6 && BETA.has(chain)) isB6[i] = 1;
+  });
+  const src = S.geo.getIndex().array;
+  const keep = [];
+  for (let t = 0; t < src.length; t += 3)
+    if (isB6[S.res[src[t]]] && isB6[S.res[src[t+1]]] && isB6[S.res[src[t+2]]])
+      keep.push(src[t], src[t+1], src[t+2]);
+  if (!keep.length) throw new Error('no beta6 triangles — is residue 6 buried, or mis-tagged?');
+
+  const geo = new THREE.BufferGeometry();
+  /* The SAME attribute objects, not copies — three uploads each buffer
+     once and both meshes draw out of it. */
+  geo.setAttribute('position', S.geo.getAttribute('position'));
+  geo.setAttribute('normal', S.geo.getAttribute('normal'));
+  geo.setIndex(keep);
+  geo.computeBoundingSphere();
+
+  /* The residue name, read off the mesh rather than assumed, so the panel
+     and the `follow chemistry` colour both come from the data. */
+  const names = [...new Set(S.head.residues
+    .filter(([c, n]) => n === 6 && BETA.has(c)).map(r => r[2]))];
+  return { geo, tris: keep.length / 3, name: names.join('/') };
+}
+const B6_MUTED = new THREE.Color(0.88, 0.88, 0.90);
+function colourFor(m, resName, chain, num) {
   if (m === 'chain')
     return new THREE.Color(chain === 'A' || chain === 'C' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
   if (m === 'hydrophobicity')
     return (resName in SickleLib.KD) ? new THREE.Color(SickleLib.colour(resName)) : NEUTRAL;
+  /* beta6 mode mutes EVERYTHING, the patch included. It does not colour the
+     patch, because the patch is not painted here any more — it is its own
+     mesh with its own material, so that it can carry an opacity independent
+     of the skin. This mode's only job is to take the rest of the molecule
+     out of the way. */
+  if (m === 'beta6') return B6_MUTED;
   /* Whatever the swatch says. It starts near-neutral, barely cool — the
      reference figure's skin. An earlier version was bluer and it competed
      with the beta chains' violet: at 0.28 opacity a tinted skin does not
@@ -231,7 +385,7 @@ function paint() {
   const col = new Float32Array(S.nVert * 3);
   /* One colour per RESIDUE, looked up once, then splatted per vertex —
      578 lookups rather than 63 924. */
-  const table = S.head.residues.map(([chain, num, name]) => colourFor(m, name, chain));
+  const table = S.head.residues.map(([chain, num, name]) => colourFor(m, name, chain, num));
   for (let v = 0; v < S.nVert; v++) {
     const c = table[S.res[v]];
     col[v*3] = c.r; col[v*3+1] = c.g; col[v*3+2] = c.b;
@@ -244,59 +398,265 @@ function paint() {
   document.getElementById('swatch').classList.toggle('off', m !== 'plain');
 }
 
+/* ------------------------------------------------------------------ *
+ *  switching
+ * ------------------------------------------------------------------ *
+ *  EVERY SETTING IS OWNED BY THE PAGE, NOT BY THE VARIANT. Opacity, the
+ *  colour mode, the plain swatch, whether the skin is shown at all, and
+ *  the camera — all of them live out here and are re-applied to whichever
+ *  molecule is on screen. If any one of them belonged to the mesh, then
+ *  pressing `v` would change two things at once and the page would stop
+ *  being able to answer its own question.
+ */
+let surfaceOn = true, b6chem = true;
+
+function show(i) {
+  variant = i;
+  built.forEach((b, k) => b.group.visible = (k === i));
+  const b = built[i];
+  S = b.S; surf = b.surf; surfMat = b.surfMat;
+
+  surf.visible = surfaceOn;
+  surfMat.opacity = op.value / 100;
+  paint();
+  paintB6();
+
+  vseg.forEach((btn, k) => btn.setAttribute('aria-pressed', String(k === i)));
+  btn.textContent = (surfaceOn ? 'hide' : 'show') + ' surface (s)';
+  hud();
+}
+
+/* ------------------------------------------------------------------ *
+ *  the patch's own colour and opacity
+ * ------------------------------------------------------------------ *
+ *  `follow chemistry` is the default and is the scientifically loaded
+ *  setting: the patch takes its colour from Kyte-Doolittle, so pressing
+ *  `v` flips it from Glu's charged blue to Val's greasy orange and the
+ *  COLOUR CHANGE IS THE FINDING. That is the one thing on this page that
+ *  actually differs between the two molecules.
+ *
+ *  Turning it off pins one colour across both. That sounds like throwing
+ *  the lesson away, and it is the other half of it: with the colour held
+ *  fixed you are asking a different question — does the patch MOVE, or
+ *  change shape? (It does not.) Two questions, one switch, and neither is
+ *  answerable while the other is confounding it.
+ *
+ *  The patch is deliberately NOT tied to `s`. Hiding the skin to look at
+ *  the ribbon and keeping the marker is a view worth having — it puts the
+ *  mutation on the fold rather than on the surface. It hides at 0.
+ */
+/* Applied to BOTH molecules, not just the visible one. Under `follow
+   chemistry` the two land on different colours by design, and settling
+   that at the moment of the switch would mean the first frame after `v`
+   still carried the old molecule's colour — a flash of the wrong answer,
+   on the one transition the page exists to show. */
+const chemHex = b => '#' + new THREE.Color(SickleLib.colour(b.b6name.split('/')[0])).getHexString();
+
+function paintB6() {
+  if (!built.length) return;
+  const usable = b => b6chem && (b.b6name.split('/')[0] in SickleLib.KD);
+  built.forEach(b => {
+    b.b6mat.color.set(usable(b) ? chemHex(b) : b6col.value);
+    b.b6mat.opacity = b6op.value / 100;
+    b.b6.visible = +b6op.value > 0;
+  });
+
+  const b = built[variant];
+  const chem = usable(b);
+  const hex = chem ? chemHex(b) : b6col.value;
+
+  /* The swatch shows the colour actually in use even when it is not the
+     one driving it, so `follow chemistry` is legible as a colour and not
+     just as a latch — and turning the latch off starts from what you were
+     already looking at rather than jumping to some stored value. */
+  if (chem) b6col.value = hex;
+  document.getElementById('b6').classList.toggle('chem', b6chem);
+  document.getElementById('b6chem').setAttribute('aria-pressed', String(b6chem));
+  document.getElementById('b6res').textContent = `· β6 = ${b.b6name} · ${b.b6tris} tris`;
+  b6ov.textContent = (b6op.value / 100).toFixed(2);
+}
+
+/* The readout is the point of the exercise, so every number in it is read
+   off the two bakes at render time — none of it is typed. The deltas are
+   what the toggle is asking about, and putting them in figures next to a
+   comparison you are making by eye is what stops "I think it looks a bit
+   bigger" from being the finding. */
+function diff() {
+  const [a, s] = built;
+  const pct = (x, y) => ((y - x) / x * 100).toFixed(1).replace(/^(?!-)/, '+');
+  /* Read off the SURFACE's own residue table, which both bakes carry, so
+     the two sides of the arrow come from the same place by the same rule.
+     2HBS's bake also writes a `beta6` field, but using it for one side and
+     something else for the other is how a readout ends up comparing two
+     different facts and looking like it agrees with itself. */
+  const b6 = b => [...new Set(b.S.head.residues
+    .filter(([ch, num]) => num === 6 && BETA.has(ch))
+    .map(([, , name]) => name))].join('/');
+  document.getElementById('diff').innerHTML =
+    [`β6      <b>${b6(a)}</b> → <b>${b6(s)}</b>`,
+     `atoms   ${a.S.head.atoms} → ${s.S.head.atoms}  (${s.S.head.atoms - a.S.head.atoms})`,
+     `area    ${a.S.head.area.toFixed(0)} → ${s.S.head.area.toFixed(0)} Å²  (${pct(a.S.head.area, s.S.head.area)}%)`,
+     `volume  ${a.S.head.volume.toFixed(0)} → ${s.S.head.volume.toFixed(0)} Å³  (${pct(a.S.head.volume, s.S.head.volume)}%)`,
+     `fit     ${s.quat.align.rmsd} Å rmsd over ${s.quat.align.n} Cα`,
+    ].join('\n');
+
+  /* The prose makes a quantitative claim, so the prose reads the number
+     out of the bake too — a typed 0.58 here is a claim nothing checks and
+     a re-bake would silently falsify. */
+  document.getElementById('nFit').textContent =
+    `${s.quat.align.rmsd} Å over ${s.quat.align.n} Cα`;
+}
+
+/* WHAT THE AREA DELTA IS NOT. It is a few percent, and the mutation is four
+   atoms — 0.09% of the molecule — so the two numbers do not explain each
+   other and it would be wrong to let the panel imply they do. The delta is
+   measured, and it is not a grid artifact: re-baking 2HBS in 2HHB's own
+   orientation moves its area by 0.04%, so the anisotropy of an axis-aligned
+   marching-cubes grid is two orders of magnitude too small to account for
+   it. What is left is that these are two different crystals of the same
+   protein — 2.05 A against 1.74 A, different packing, different surface
+   rotamers — and side-chain rotamers are what surface area is most
+   sensitive to. So: a real difference between two deposited models, and
+   NOT the fingerprint of Glu6Val. Volume, which rotamers barely move,
+   agrees to 0.2%, and that is the number that says the molecule is the
+   same size. */
+
+function hud() {
+  const b = built[variant];
+  /* Which chains the MESH is built from, counted off the mesh's own
+     residue table rather than read from a header field only one of the two
+     bakes happens to write. */
+  const chains = [...new Set(Array.from(b.S.res, v => b.S.head.residues[v][0]))].sort().join('');
+  document.getElementById('hud').textContent =
+    [`${b.quat.source}  ${chains}`,
+     `${b.S.head.nVert.toLocaleString()} verts  ${b.S.head.nTri.toLocaleString()} tris`,
+     `grid ${b.S.head.spacing} A   probe ${b.S.head.probe} A`,
+     `${(b.bytes/1024).toFixed(0)} KB  index${b.S.head.indexBits}`,
+     `area ${b.S.head.area.toLocaleString()} A^2`,
+    ].join('\n');
+}
+
+const vseg = VARIANTS.map((v, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = v.label;
+  b.setAttribute('aria-pressed', String(i === variant));
+  b.onclick = () => { if (built.length) show(i); };
+  document.getElementById('var').appendChild(b);
+  return b;
+});
+
 /* ------------------------------------------------------------------ */
 
-Promise.all([
-  fetch('data/2HHB-quaternary.json').then(r => {
-    if (!r.ok) throw new Error('data/2HHB-quaternary.json — HTTP ' + r.status +
-      ' (run: node hemoglobin/tools/bake-quaternary.js)');
-    return r.json();
-  }),
-  fetch('data/2HHB-B.fold.bin').then(r => {
-    if (!r.ok) throw new Error('data/2HHB-B.fold.bin — HTTP ' + r.status +
-      ' (run: node hemoglobin/tools/bake-unfold.js)');
-    return r.arrayBuffer();
-  }),
-  fetch('data/2HHB.surf.bin').then(r => {
-    if (!r.ok) throw new Error('data/2HHB.surf.bin — HTTP ' + r.status +
-      ' (run: node hemoglobin/tools/bake-surface.js)');
-    return r.arrayBuffer();
-  }),
-]).then(([quat, foldBuf, surfBuf]) => {
-  const fold = HbFold.decode(foldBuf);
-  addChain(quat.foldedTrace, fold.ss, CHAIN_COLOR.beta);
-  quat.order.forEach(id => {
-    const c = quat.chains[id];
-    addChain(c.CA, c.ss.split(''), c.kind === 'alpha' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
-  });
-  Object.values(quat.heme).forEach(addHeme);
+const grab = (url, how, fix) => fetch(url).then(r => {
+  if (!r.ok) throw new Error(`${url} — HTTP ${r.status} (run: node hemoglobin/tools/${fix})`);
+  return how === 'json' ? r.json() : r.arrayBuffer();
+});
 
-  S = SurfLib.decode(THREE, surfBuf);
-  surfMat = new THREE.MeshStandardMaterial({
-    roughness: .35, metalness: .0,
-    transparent: true, opacity: 0.28,
-    /* See "drawing translucent over opaque" above — every one of these
-       three is load-bearing and the failure each prevents is different. */
-    depthWrite: false, side: THREE.FrontSide,
-  });
-  surf = new THREE.Mesh(S.geo, surfMat);
-  surf.renderOrder = 1;
-  root.add(surf);
-  paint();
+/* One molecule: ribbon group, surface, and everything the panel says about
+   it. The surface material is PER VARIANT but its settings are not — see
+   `sync` below, which is the whole reason this returns a record instead of
+   just adding things to the scene. */
+function build(V) {
+  return Promise.all([
+    grab(V.quat, 'json', V.baker),
+    grab(V.surf, 'bin',  V.baker === 'bake-hbs.js' ? V.baker : 'bake-surface.js'),
+  ]).then(([quat, surfBuf]) => {
+    const group = new THREE.Group();
 
-  /* Frame on the tetramer, same construction as tube-test.html. */
-  let cx = 0, cy = 0, cz = 0, n = 0;
-  quat.foldedTrace.concat(...quat.order.map(id => quat.chains[id].CA))
-    .forEach(p => { cx += p[0]; cy += p[1]; cz += p[2]; n++; });
-  cam.target.set(cx / n, cy / n, cz / n);
+    /* THE ALIGNMENT, applied as a transform and nowhere else. 2HHB's bake
+       carries no `align` and needs none — it IS the frame everything else
+       is brought to — so an absent field means identity, not an error. */
+    const A = quat.align;
+    if (A) group.matrixAutoUpdate = false, group.matrix.set(
+      A.R[0][0], A.R[0][1], A.R[0][2], A.t[0],
+      A.R[1][0], A.R[1][1], A.R[1][2], A.t[1],
+      A.R[2][0], A.R[2][1], A.R[2][2], A.t[2],
+      0, 0, 0, 1);
+
+    /* The folded chain's ss comes from the SAME HELIX records as the other
+       three (bake-quaternary.js writes `foldedSS`), not from the folding
+       trajectory this page used to load an 800 KB file for. Two chains
+       assigned two different ways differ at every helix end, and on a
+       page whose job is spotting differences that is poison. */
+    addChain(group, quat.foldedTrace, quat.foldedSS.split(''), CHAIN_COLOR.beta);
+    quat.order.forEach(id => {
+      const c = quat.chains[id];
+      addChain(group, c.CA, c.ss.split(''), c.kind === 'alpha' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
+    });
+    Object.values(quat.heme).forEach(h => addHeme(group, h));
+
+    const S = SurfLib.decode(THREE, surfBuf);
+    const surfMat = new THREE.MeshStandardMaterial({
+      roughness: .35, metalness: .0,
+      transparent: true, opacity: 0.28,
+      /* See "drawing translucent over opaque" above — every one of these
+         three is load-bearing and the failure each prevents is different. */
+      depthWrite: false, side: THREE.FrontSide,
+    });
+    const surf = new THREE.Mesh(S.geo, surfMat);
+    surf.renderOrder = 1;
+    group.add(surf);
+
+    /* renderOrder 2: after the skin, so the marker composites ON TOP of it
+       rather than fighting it. depthWrite stays off for the same reason the
+       skin's does — see "drawing translucent over opaque". */
+    const P = patchOf(S);
+    const b6mat = new THREE.MeshStandardMaterial({
+      roughness: .3, metalness: .0, transparent: true, opacity: 1,
+      depthWrite: false, side: THREE.FrontSide,
+    });
+    const b6 = new THREE.Mesh(P.geo, b6mat);
+    b6.renderOrder = 2;
+    group.add(b6);
+
+    root.add(group);
+
+    /* Centroid in the PAGE's frame, so the two agree on where to look —
+       the group transform has to be applied to it, or the sickle variant
+       would compute its camera target in the crystal's frame and the
+       molecule would sit off-centre the moment you switched to it. */
+    let c = new THREE.Vector3(), n = 0;
+    quat.foldedTrace.concat(...quat.order.map(id => quat.chains[id].CA))
+      .forEach(p => { c.x += p[0]; c.y += p[1]; c.z += p[2]; n++; });
+    c.divideScalar(n).applyMatrix4(group.matrix);
+
+    return { V, quat, S, group, surf, surfMat, b6, b6mat, b6name: P.name,
+             b6tris: P.tris, centre: c, bytes: surfBuf.byteLength };
+  });
+}
+
+let built = [];
+Promise.all(VARIANTS.map(build)).then(bs => {
+  built = bs;
+
+  /* One camera target for BOTH. Averaging rather than taking the active
+     variant's own centroid: they are 0.58 A apart, so the difference is
+     invisible, but recentring on switch would nudge every pixel and that
+     is the one thing a blink comparator must never do. */
+  const t = new THREE.Vector3();
+  bs.forEach(b => t.add(b.centre));
+  cam.target.copy(t.divideScalar(bs.length));
   applyCam();
 
-  document.getElementById('hud').textContent =
-    [`${S.head.nVert.toLocaleString()} verts  ${S.head.nTri.toLocaleString()} tris`,
-     `grid ${S.head.spacing} A   probe ${S.head.probe} A`,
-     `${(surfBuf.byteLength/1024).toFixed(0)} KB  index${S.head.indexBits}`,
-     `area ${S.head.area.toLocaleString()} A^2`,
-    ].join('\n');
+  /* THE COMPARISON'S ONE PRECONDITION, CHECKED OUT LOUD. Two SES meshes are
+     only comparable if they were built on the same grid at the same probe:
+     a 1.1 A skin next to a 0.7 A one is visibly smoother and reads several
+     percent low on area, and every bit of that would be mistaken for the
+     mutation. sickle/data/2HBS-T1.surf.bin is exactly such a mesh — same
+     atoms, coarser grid, one directory away — so pointing this page at the
+     wrong file is a real mistake somebody will make. Nothing offline can
+     catch it, because the pairing only exists here. Failing loudly beats
+     drawing a confident wrong answer. */
+  const [a, s] = bs;
+  for (const k of ['spacing', 'probe'])
+    if (a.S.head[k] !== s.S.head[k])
+      throw new Error(`${a.quat.source} and ${s.quat.source} were baked at ` +
+        `different ${k} (${a.S.head[k]} vs ${s.S.head[k]}) — they are not ` +
+        `comparable. Re-run: node hemoglobin/tools/bake-hbs.js --spacing ${a.S.head[k]}`);
+
+  diff();
+  show(variant);
 }).catch(e => {
   const d = document.createElement('div');
   d.style = 'position:absolute;left:16px;bottom:16px;color:#a33;font-family:monospace;z-index:9';
@@ -306,22 +666,38 @@ Promise.all([
 
 /* ---- controls ---- */
 const btn = document.getElementById('toggle'), op = document.getElementById('op'),
-      ov = document.getElementById('ov');
+      ov = document.getElementById('ov'),
+      b6col = document.getElementById('b6col'), b6op = document.getElementById('b6op'),
+      b6ov = document.getElementById('b6ov');
+/* surfaceOn rather than reading surf.visible back: the flag has to outlive
+   the mesh it was last applied to, or switching molecules with the skin
+   hidden would bring it back. */
 function toggle() {
   if (!surf) return;
-  surf.visible = !surf.visible;
-  btn.textContent = (surf.visible ? 'hide' : 'show') + ' surface (s)';
+  surfaceOn = !surfaceOn;
+  surf.visible = surfaceOn;
+  btn.textContent = (surfaceOn ? 'hide' : 'show') + ' surface (s)';
 }
 function cycle() { if (surf) { mode = (mode + 1) % MODES.length; paint(); } }
+function swap() { if (built.length) show((variant + 1) % built.length); }
 btn.onclick = toggle;
 op.oninput = () => {
   ov.textContent = (op.value / 100).toFixed(2);
   if (surfMat) surfMat.opacity = op.value / 100;
 };
 ov.textContent = (op.value / 100).toFixed(2);
+
+/* Picking a colour turns `follow chemistry` off, because otherwise the
+   picker would visibly do nothing — the same rule the plain swatch above
+   follows, for the same reason. */
+b6col.oninput = () => { b6chem = false; paintB6(); };
+document.getElementById('b6chem').onclick = () => { b6chem = !b6chem; paintB6(); };
+b6op.oninput = paintB6;
+
 addEventListener('keydown', e => {
   if (e.key === 's') toggle();
   if (e.key === 'c') cycle();
+  if (e.key === 'v') swap();
 });
 
 new ResizeObserver(resize).observe(canvas);
