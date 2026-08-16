@@ -130,9 +130,10 @@ const LB = Lobes.create(THREE);
 /* A bare mount — Stage.create, not Lesson.create. This bench is testing
  * hbond.js, and a stagekit failure showing up as an hbond bug is exactly the
  * confusion a test bench exists to avoid. */
-function mount(canvasId, r){
+function mount(canvasId, r, cam){
   const canvas = document.getElementById(canvasId);
-  const S = Stage.create(canvas, { cam:{ theta:0.5, phi:1.15, r }, rMax:200 });
+  const S = Stage.create(canvas,
+    { cam:Object.assign({ theta:0.5, phi:1.15, r }, cam||{}), rMax:200 });
   (function loop(){ requestAnimationFrame(loop); S.renderer.render(S.scene,S.camera); })();
   return S;
 }
@@ -157,7 +158,15 @@ function transformed(spec, quat, offset){
 
 /* ---- A. one donor, one acceptor, two gates ----------------------------- */
 {
-  const S = mount('glA', 16);
+  /* CAMERA DOWN THE ROTATION AXIS. Water's lone pairs straddle the H–O–H
+   * plane, so from a three-quarter view the ear a bond is using foreshortens
+   * to a stub and a perfectly on-axis bond looks like it sailed past it —
+   * and the approach slider swings the donor toward the viewer, where 51° of
+   * it reads as the two molecules sitting on top of each other. Everything in
+   * this mount lies in one plane; looking straight down its normal shows both
+   * ears spread and every angle at its true size. Orbit off it and the
+   * illusion comes straight back, which is worth seeing once. */
+  const S = mount('glA', 16, { theta:Math.PI/2, phi:Math.PI/2 });
   const HB = HBond.create(THREE);
   S.root.add(HB.group);
 
@@ -197,7 +206,14 @@ function transformed(spec, quat, offset){
     const dSites = HBond.sites(dSpec, { owner:'donor' });
 
     const pairs = HBond.find(dSites.donors, accSites.acceptors, { maxDist:MAXD });
-    HB.set(pairs);
+
+    /* TERMINATE ON THE EAR, NOT ON THE ATOM CENTRE. This is what `endAt` and
+     * the reported lobe index are FOR, and drawing to the centre instead is
+     * how a perfectly on-axis bond comes out looking like it missed: the ear
+     * it is using foreshortens toward the camera, the dashes run to the middle
+     * of the sphere, and the picture says the lobes are decorative. */
+    const tip = new THREE.Vector3();
+    HB.set(pairs, q => q.lobe==null ? q.p : LB.tip(accLobes, q.acceptor.id, q.lobe, tip));
 
     // The verdict is the module's, not this page's: the best donor's own
     // explain() — which is the same gates find() just ran, kept instead of
