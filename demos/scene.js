@@ -299,7 +299,13 @@
       onZoom:null, onDrag:null }, opts);
     const camInit=Object.assign({theta:0.5,phi:1.15,r:9}, opts.cam||{});
 
-    const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+    // antialias defaults ON and every lesson leaves it there. It is an option
+    // only because it is a context-CREATION attribute — WebGL will not change
+    // it on a live context — so a page that wants to measure what MSAA costs
+    // on a weak GPU has no way to ask for it after the fact.
+    // `opts.antialias:false` is that ask; see hemoglobin/crowd-test.html.
+    const renderer=new THREE.WebGLRenderer(
+      {canvas,antialias:o.antialias!==false,alpha:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
     const scene=new THREE.Scene();
     const camera=o.ortho

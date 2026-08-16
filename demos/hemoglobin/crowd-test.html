@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hemoglobin — crowd test</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #app{grid-template-columns:1fr}
+  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:360px;
+    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
+    background:rgba(255,255,255,.85);border:1px solid var(--hair);border-radius:8px;
+    padding:10px 12px}
+  #note b{color:var(--ink)}
+  #ctl{position:absolute;right:16px;bottom:16px;z-index:6;display:grid;gap:8px;
+    font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    background:rgba(255,255,255,.9);border:1px solid var(--hair);
+    border-radius:8px;padding:10px 12px;width:210px}
+  #ctl label{display:grid;gap:2px}
+  #ctl output{font-family:var(--font-mono,monospace);color:var(--ink)}
+  #ctl input{width:100%}
+  #ctl hr{border:0;border-top:1px solid var(--hair);margin:2px 0;width:100%}
+  #ctl label.row{grid-template-columns:auto 1fr;align-items:center;gap:6px}
+  #ctl label.row input{width:auto}
+  #copy{font-family:var(--font-sans);font-size:11px;cursor:pointer;
+    background:transparent;color:var(--muted);border:1px solid var(--hair);
+    border-radius:6px;padding:4px 8px}
+  #style{font-family:var(--font-sans);font-size:13px;cursor:pointer;
+    background:var(--paper,#fff);color:var(--ink);border:1px solid var(--hair);
+    border-radius:8px;padding:8px 14px}
+  #style:hover{background:var(--hair)}
+  #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
+    font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);
+    border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="gl"></canvas>
+  </main>
+</div>
+<div id="note">
+  <b>Test — 20 tetramers, instanced.</b><br>
+  The tube render from <i>tube-test.html</i>, one geometry per part, drawn
+  many times through <code>InstancedMesh</code>. Every molecule is the same
+  2HHB tetramer under a different rigid transform and its own shade of red,
+  so the whole crowd is still 12 draw calls no matter how many there are —
+  the colour is an instance attribute, not a second material. They drift and tumble inside a
+  box and jostle each other as hard spheres of the structure's own measured
+  radius.
+  Not a lesson — a frame-rate bench. The button (or <b>s</b>) switches
+  between this tube and the classic <code>folding/ribbon.js</code> band the
+  lessons draw; both are built at load, so the switch measures drawing and
+  not building.<br><br>
+  <b>Read the breakdown, not fps.</b> The tube is only 27% cheaper in
+  triangles than the ribbon, and cutting it a further 5.7&times; (3 sides,
+  1 seg) moves nothing on a fast Mac — so <i>work</i> is split into
+  <i>physics</i> (O(n&sup2;) pairs), <i>transform</i> (matrix upload) and
+  <i>draw</i> (the GPU). Whichever dominates is what actually limits a crowd
+  this size, and it is not the same one on every machine.<br><br>
+  <b>Concentration is the point.</b> The slider runs from a dilute lab
+  solution to <b>330&nbsp;g/L</b> — inside a red cell, where haemoglobin sits
+  ~69&nbsp;&Aring; apart with about 15&nbsp;&Aring; of gap: crowded, but a
+  fluid, not a crystal. Sickling is concentration-dependent, so an
+  HbA-vs-HbS comparison only has a subject near the top of that range.
+  Motion is diffusive, not ballistic — these molecules jiggle against their
+  neighbours, they do not fly.<br><br>
+  <b>The collider is smaller than the molecule</b>, on purpose: a sphere
+  through the furthest atom would enclose 2.2&times; haemoglobin's real
+  volume, and at red-cell concentration that fake excluded volume freezes
+  the crowd into a lattice. The sphere shown is volume-equivalent, so the
+  packing is right and the ribbons sometimes graze.<br><br>
+  <b>Show colliders</b> draws the sphere the physics actually uses: it hugs
+  the long axis and floats ~6&nbsp;&Aring; off the short ones, which is the
+  cheat made visible. It costs transparent overdraw, so turn it off before
+  reading the timings.<br><br>
+  <b>The lower knobs are for weak GPUs.</b> Pixel ratio squares the fragment
+  count; toon swaps the per-fragment PBR shader for a ramp lookup; MSAA is a
+  context attribute, so that one reloads. Every setting is in the URL —
+  <i>copy this setup's URL</i> and open it on the slow machine to run the
+  identical experiment there.
+</div>
+<div id="ctl" hidden>
+  <button id="style">ribbon (classic)</button>
+  <label>molecules <output id="countOut"></output>
+    <input id="count" type="range" min="1" max="200" step="1" value="20"></label>
+  <label>concentration <output id="phiOut"></output>
+    <input id="phi" type="range" min="5" max="400" step="5" value="28"></label>
+  <label>tube sides <output id="sidesOut"></output>
+    <input id="sides" type="range" min="3" max="16" step="1" value="10"></label>
+  <label>tube seg/residue <output id="segOut"></output>
+    <input id="seg" type="range" min="1" max="6" step="1" value="3"></label>
+  <hr>
+  <label>pixel ratio <output id="dprOut"></output>
+    <input id="dpr" type="range" min="0.5" max="3" step="0.25" value="2"></label>
+  <label class="row"><input id="collide" type="checkbox"> show colliders</label>
+  <label class="row"><input id="toon" type="checkbox"> toon shading (cheap)</label>
+  <label class="row"><input id="aa" type="checkbox" checked> antialias <i>(reloads)</i></label>
+  <button id="copy">copy this setup's URL</button>
+</div>
+<div id="hud"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script>
+'use strict';
+
+/* Real angstroms throughout — this page never sees MolLib.SCALE.
+
+   WHY INSTANCING WORKS HERE AND THE SHAPE IT FORCES. Every molecule in the
+   crowd is the SAME structure; only its placement differs. So the geometry
+   is built once and the per-molecule difference lives entirely in a 4x4.
+   InstancedMesh wants one geometry per mesh, though, and a tetramer is 12
+   pieces (4 chain tubes + 8 terminus caps) — so this page makes 12
+   InstancedMesh of COUNT instances rather than one mesh of 12 parts.
+
+   The consequence to get right: every piece's own offset has to be BAKED
+   INTO ITS GEOMETRY (geometry.translate), because the instance matrix is
+   shared across the whole molecule. A cap that kept its position on the
+   mesh would sit at that position for all 20 copies. No extra centring is
+   needed on top of that: the sickle bake already subtracted the tetramer's
+   own centroid, so an instance matrix rotates it about its middle rather
+   than swinging it around the world origin. See fitRadius() — assuming
+   otherwise cost 43 A once. */
+
+/* THE TUBE BUILDER BELOW IS A COPY of tube-test.html's, not a shared module,
+   and nothing keeps the two in step. Copying was the right call for a second
+   bench — but it means a fix over there does NOT arrive here, and the winding
+   fix already had to be carried across by hand once. If a third page wants
+   this tube, lift it into a module first. */
+
+/* MAX_COUNT is an ALLOCATION, not the crowd size. InstancedMesh fixes its
+   instance count at construction, so growing the crowd would mean rebuilding
+   every mesh — and a rebuild in the middle of a measurement is exactly the
+   thing this page must not do. Instead every mesh is allocated at MAX_COUNT
+   once and `mesh.count` is moved, which three.js honours per draw and which
+   costs nothing. The slider therefore changes what is DRAWN, never what
+   exists. */
+const MAX_COUNT = 200;
+let COUNT = 20;                          // overwritten from the URL at startup
+
+/* The box GROWS WITH THE CROWD, to hold the volume fraction fixed. A box of
+   one size would make the count slider two experiments at once — more
+   molecules AND more crowding — and past about 60 the rejection spawn would
+   start failing to place them at all. At this concentration they are loose enough
+   to drift and still meet often enough to be worth watching.
+   Derived, not tabulated: box is 2B x 1.2B x 2B = 4.8 B^3. */
+/* CONCENTRATION IS THE CONTROL, in g/L, because that is the quantity with a
+   clinical meaning and the one the biology depends on. Volume fraction is
+   derived from it and reported alongside — phi is the number that predicts
+   the PACKING behaviour, and it is the one that caught the bug below. */
+let CONC = 28;                           // g/L
+let BOX = 260;                           // written by seed()
+
+const HB_MW = 64458;                     // Da, tetramer
+const NA = 6.02214e23;
+
+/* THE COLLISION RADIUS IS NOT THE DRAWN RADIUS, and conflating them put a
+   crystal on the screen.
+
+   The obvious sphere is the one through the furthest Ca — 34.5 A, nothing
+   pokes out of it. But a tetramer is four subunits with grooves between
+   them, and that sphere counts all the solvent in those grooves as solid
+   protein: 171,857 A^3 against haemoglobin's real 78,671 (from the standard
+   0.735 cm^3/g partial specific volume). It overstates excluded volume by
+   2.18x.
+
+   The consequence was not subtle. At red-cell 330 g/L the enclosing sphere
+   gives phi 0.53; the real packing is 0.243. Hard spheres freeze at phi
+   0.494 and are crystalline above 0.545 — so the page put its crowd right
+   at the crystallisation point and then, correctly for the model it was
+   given, crystallised. Neat rows and columns, at exactly the concentration
+   the lesson is about.
+
+   With the volume-equivalent radius, 330 g/L lands at phi 0.243: a dense,
+   mobile, DISORDERED fluid, which is what haemoglobin in a red cell is.
+
+   The cost of the swap is honest and visible: at 26.6 A the sphere no longer
+   contains the molecule, so ribbons will sometimes graze and overlap at the
+   fringes. That is the better error. Protein surfaces interdigitate, they
+   are not hard shells, and a crowd that packs correctly and occasionally
+   clips beats a crowd that packs wrongly and never does. */
+let concActual = 28, phiActual = 0.043;
+const HB_VOLUME = HB_MW * 0.735 / NA * 1e24;         // A^3, ~78,700
+const R_PHYS = Math.cbrt(3 * HB_VOLUME / (4 * Math.PI));   // ~26.6 A
+
+/* Hoover & Ree: the hard-sphere fluid freezes here. Reported, not enforced —
+   if a setting drives the crowd into the crystal, the HUD should say so
+   rather than the page quietly pretending it is still a liquid. */
+const PHI_FREEZE = 0.494;
+
+const numberDensity = c => c / HB_MW * NA / 1e27;    // molecules per A^3
+const phiOf = c => numberDensity(c) * HB_VOLUME;
+const spacingOf = c => Math.cbrt(1 / numberDensity(c));
+
+/* The range the slider covers, and why it is the subject rather than a
+   setting:
+
+     ~10 g/L   a dilute lab solution; HbS does nothing at all here
+      28 g/L   what this page showed before
+     330 g/L   inside a red cell: 69 A apart, ~15 A of gap, jostling
+
+   Sickling is concentration-dependent — steeply, the polymerisation delay
+   goes roughly as the 30th power of concentration, which is why dehydration
+   provokes a crisis — so a crowd built at 28 g/L has no subject. */
+
+/* Collisions treat each tetramer as a SPHERE, not as its real shape. That is
+   a deliberate cheat and it is worth being honest about what it costs: real
+   haemoglobin is a squat ellipsoid roughly 64 x 55 x 50 A, so a sphere makes
+   the molecules keep each other slightly further apart than they would, and
+   a contact carries no torque. What it buys is a pair test instead of a
+   contact search over 2296 residues. The radius is MEASURED off the
+   structure, not typed — see fitRadius().
+
+   NOTE FOR THE LESSON THIS BENCH IS SCOUTING: a sticky beta6 patch cannot be
+   built on a sphere. Sphere-sphere contact has no orientation, and the whole
+   HbS story is that ONE residue on one face finds ONE pocket on another
+   molecule. That needs at least a two-point (patch + pocket) test per pair,
+   which is a different and more expensive kernel than the one timed here. */
+
+/* MOTION IS DIFFUSIVE, NOT BALLISTIC, because haemoglobin in cytoplasm is
+   overdamped: at this size in water, inertia is irrelevant — a molecule
+   given a push stops within its own diameter's tiny fraction. It does not
+   coast. The earlier version drifted in straight lines and bounced
+   elastically, which is a billiard-ball GAS, and it read as "molecules fly
+   around" when the truth is "molecules jiggle against their neighbours".
+
+   The numbers below preserve the old visual pace (14 A of displacement per
+   second) while making its CHARACTER right, and they hold the one thing the
+   old constants got accidentally correct:
+
+     real haemoglobin translates ~50 A per radian of tumble
+     these constants                50 A per radian
+
+   That ratio is what makes the motion read as a protein rather than as dust
+   or as a bullet. Change one of these two and change the other, or the
+   crowd stops looking like haemoglobin for reasons nobody will be able to
+   name. Absolute speed is a different matter and is hopeless by definition:
+   real Hb crosses this box in 5 microseconds, so playback is ~10^9 slow. */
+const D_TRANS = 32.7;                    // A^2/s, scaled for watchability
+const D_ROT = 0.0196;                    // rad^2/s, tied to D_TRANS by the 50 A/rad ratio
+
+/* Overlap is resolved by pushing apart, repeatedly. With no velocities there
+   is no impulse to apply — an overdamped crowd has nothing to exchange — so
+   contact IS the positional correction. One pass suffices when the crowd is
+   loose; near red-cell density a molecule is touching several neighbours at
+   once and fixing one overlap makes another, so it needs a few. */
+const RELAX_ITERS = 4;
+
+/* Equilibration, in iterations and in angstroms of step. 200 x 3.5 A costs
+   ~300 ms at 122 molecules and ~800 ms at 200 — paid once per reseed, on a
+   slider release, which is the right place for a hitch. */
+const BURN_IN = 200, BURN_STEP = 3.5;
+
+/* ONE COLOUR PER MOLECULE, not per chain, and a spread of reds across the
+   crowd. At 330 g/L a uniformly-coloured crowd is a single red mass — every
+   silhouette runs into its neighbour's and nothing reads as an individual
+   object. Giving each tetramer its own shade is what restores the boundary,
+   and it costs nothing: the shade is an instance attribute, so all 122 still
+   draw in one call per part.
+
+   It replaces the alpha/beta two-tone. That distinction was worth drawing on
+   a single molecule and is illegible at this scale anyway, and a tetramer
+   painted two colours reads as two objects — exactly the boundary confusion
+   the spread is trying to fix.
+
+   HSL, and LIGHTNESS is doing most of the work. Hue alone separates poorly
+   for adjacent reds, especially against a cream page; light-against-dark is
+   what the eye segments on. The hue span stays narrow enough that the crowd
+   still reads as one substance rather than a bag of sweets. */
+const HUE_BASE = 0.985, HUE_SPAN = 0.070;      // crimson through to orange-red
+const SAT_MIN = 0.45, SAT_SPAN = 0.30;
+const LIGHT_MIN = 0.30, LIGHT_SPAN = 0.34;
+
+/* Low-discrepancy rather than random: three golden-ratio sequences with
+   different irrational steps cover their ranges evenly and never clump,
+   where Math.random() would hand two neighbours the same shade often enough
+   to notice. Deterministic in the index, so a molecule keeps its colour
+   across a reseed and the crowd does not reshuffle when you move a slider. */
+const PHI1 = 0.6180339887, PHI2 = 0.7548776662, PHI3 = 0.5698402910;
+const frac = x => x - Math.floor(x);
+
+function moleculeColour(i, out) {
+  return out.setHSL(
+    frac(HUE_BASE + HUE_SPAN * frac((i + 0.5) * PHI1)),
+    SAT_MIN + SAT_SPAN * frac((i + 0.5) * PHI2),
+    LIGHT_MIN + LIGHT_SPAN * frac((i + 0.5) * PHI3));
+}
+
+/* The fallback tint, used only if instance colours are unavailable. */
+const CHAIN_COLOR = { alpha: 0xc0442e, beta: 0xc0442e };
+
+/* All of these are tube-test.html's, unchanged — see its header for why each
+   one is the number it is. Kept verbatim so the crowd is the same picture at
+   the same level of abstraction, not a second, cheaper one. */
+const COLLAPSE_W = { H: 0.55, E: 0.55, C: 0 };
+const COLLAPSE_PASSES = 3;
+const RELAX_PASSES = 3, RELAX_W = 0.4;
+const RADIUS_BLUR_PASSES = 6, RADIUS_BLUR_W = 0.5;
+const HELIX_R = 1.5, COIL_R = 0.55;
+/* LIVE, unlike the rest — these two are the whole point of the tessellation
+   sliders. Cost is 2 * sides * segPerRes triangles per residue, so the pair
+   spans 6 to 192 triangles/residue across the slider range: enough to push
+   the tube from a third of the ribbon's cost to five times it, which is what
+   makes the comparison mean anything. */
+let TUBE_SIDES = 10, SEG_PER_RES = 3;
+
+/* ---------------------------------------------------------- the settings
+
+   EVERY KNOB LIVES IN THE URL, and that is not a convenience feature. Two of
+   them force it:
+
+   (1) `antialias` is a context-CREATION attribute. WebGL will not change it
+       on a live context, so the only honest toggle is to write it down and
+       reload — which means the rest of the setup has to survive a reload too,
+       or every AA comparison silently resets the count and the style.
+   (2) The interesting run of this page happens on SOMEONE ELSE'S MACHINE.
+       "Open this URL on the Chromebook" is a reproducible experiment;
+       "set it to 122, sides 3, seg 1, toon on" is a game of telephone.
+
+   Defaults are the previous behaviour, so a bare URL is the old page. */
+const Q = new URLSearchParams(location.search);
+const qNum = (k, d) => (Q.has(k) && !isNaN(+Q.get(k))) ? +Q.get(k) : d;
+const qBool = (k, d) => Q.has(k) ? Q.get(k) !== '0' : d;
+
+const AA = qBool('aa', true);
+let DPR = qNum('dpr', Math.min(devicePixelRatio, 2));
+let TOON = qBool('toon', false);
+let SHOWCOL = qBool('col', false);
+
+function writeURL() {
+  const q = new URLSearchParams({
+    n: COUNT, sides: TUBE_SIDES, seg: SEG_PER_RES, style,
+    c: CONC, dpr: DPR, toon: TOON ? 1 : 0, aa: AA ? 1 : 0, col: SHOWCOL ? 1 : 0,
+  });
+  history.replaceState(null, '', location.pathname + '?' + q);
+}
+
+const canvas = document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam: { theta: 0.6, phi: 1.15, r: 620 }, rMin: 40, rMax: 4000,
+                         antialias: AA });
+renderer.setPixelRatio(DPR);
+/* Stage's default far plane is 1000, which is a molecule's scale and not a
+   crowd's — the back of the box sits past it and molecules get sliced away.
+   setCount() re-derives it from BOX on every change; this is just the value
+   in force before the first one. */
+camera.far = 4000; camera.updateProjectionMatrix();
+
+/* ------------------------------------------------------------- tube maths */
+/* Laplacian relaxation, endpoints pinned — used for the coordinates (once
+   per axis) and for the radius array. */
+function relax(A, passes, w) {
+  let cur = A.slice();
+  for (let it = 0; it < passes; it++) {
+    const next = cur.slice();
+    for (let i = 1; i + 1 < cur.length; i++)
+      next[i] = cur[i] + ((cur[i - 1] + cur[i + 1]) / 2 - cur[i]) * w;
+    cur = next;
+  }
+  return cur;
+}
+
+/* A tube of VARYING radius: the ramp from HELIX_R to COIL_R is what turns
+   each helix/loop boundary into a taper rather than a step. Frenet frames go
+   uncorrected on purpose — a circular cross-section has no twist to get
+   wrong. */
+function varTube(pts, radii, segments) {
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const F = curve.computeFrenetFrames(segments, false);
+  const pos = [], nor = [], idx = [];
+  const last = pts.length - 1;
+  const P = new THREE.Vector3(), v = new THREE.Vector3();
+
+  for (let s = 0; s <= segments; s++) {
+    const t = s / segments;
+    curve.getPoint(t, P);
+    const u = t * last, i0 = Math.min(last, Math.floor(u));
+    const r = radii[i0] + (radii[Math.min(last, i0 + 1)] - radii[i0]) * (u - i0);
+    const N = F.normals[s], B = F.binormals[s];
+    for (let k = 0; k < TUBE_SIDES; k++) {
+      const a = 2 * Math.PI * k / TUBE_SIDES, ca = Math.cos(a), sa = Math.sin(a);
+      v.set(N.x * ca + B.x * sa, N.y * ca + B.y * sa, N.z * ca + B.z * sa);
+      pos.push(P.x + v.x * r, P.y + v.y * r, P.z + v.z * r);
+      nor.push(v.x, v.y, v.z);
+    }
+  }
+  /* WINDING, and it is not the obvious one. THREE.TubeGeometry lays its ring
+     out with `cos = -Math.cos(v)` — a reflection, which walks the circle the
+     opposite way round the frame from the plain (cos, sin) used above. Copy
+     its index order without copying that sign and every face comes out
+     inside-out: back-face culling then shows the INSIDE of the far wall, lit
+     by normals pointing away from the camera, so the whole chain renders
+     tube-shaped but dark. Verified by face test — with this order all faces
+     point away from the axis, with the two triples swapped, none do.
+     (Kept in step with tube-test.html BY HAND — see this page's header.) */
+  for (let s = 0; s < segments; s++)
+    for (let k = 0; k < TUBE_SIDES; k++) {
+      const k2 = (k + 1) % TUBE_SIDES;
+      const a0 = s * TUBE_SIDES + k, a1 = s * TUBE_SIDES + k2;
+      idx.push(a0, a1 + TUBE_SIDES, a0 + TUBE_SIDES, a0, a1, a1 + TUBE_SIDES);
+    }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setIndex(idx);
+  return geo;
+}
+
+/* Geometry + colour for one chain: the tube and its two terminus caps.
+   Returns PARTS rather than meshes, because the instancing layer wants the
+   geometry — see the header. The ribbon style below returns the same shape,
+   which is what lets one spawn() serve both. */
+function tubeParts(CA, ss, color) {
+  const n = CA.length;
+  const collapsed = RibbonLib.smooth(CA.map(p => [p[0], p[1], p[2]]),
+                                     ss, COLLAPSE_PASSES, COLLAPSE_W);
+  const ax = [0, 1, 2].map(c => relax(collapsed.map(p => p[c]), RELAX_PASSES, RELAX_W));
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push(new THREE.Vector3(ax[0][i], ax[1][i], ax[2][i]));
+
+  const radii = relax(Array.from({ length: n },
+    (_, i) => (ss[i] === 'H' || ss[i] === 'E') ? HELIX_R : COIL_R),
+    RADIUS_BLUR_PASSES, RADIUS_BLUR_W);
+
+  const parts = [{ geo: varTube(pts, radii, (n - 1) * SEG_PER_RES), color }];
+  for (const i of [0, n - 1]) {
+    const cap = new THREE.SphereGeometry(radii[i], TUBE_SIDES, TUBE_SIDES / 2);
+    cap.translate(pts[i].x, pts[i].y, pts[i].z);   // baked in — see header
+    parts.push({ geo: cap, color });
+  }
+  return parts;
+}
+
+/* The CLASSIC ribbon, straight out of folding/ribbon.js — the same call
+   hemoglobin-lab and sickle-lab make, at the same subdivision, so what this
+   page compares is the real lesson render against the abstraction and not a
+   cheapened copy of it.
+
+   One part per chain and no caps: the ribbon closes its own ends. The band is
+   flat, so it needs DoubleSide — a helix seen from inside its own turn shows
+   the back of the band, and single-sided it strobes as the molecule tumbles.
+   That is not free, and it is part of what is being measured here. */
+const RIBBON_SUB = 6;
+
+function ribbonParts(CA, ss, color) {
+  const pts = CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+  return [{ geo: RibbonLib.build(THREE, pts, ss, { sub: RIBBON_SUB }),
+            color, twoSided: true }];
+}
+
+const STYLES = {
+  tube:   { label: 'tube (simplified)', parts: tubeParts },
+  ribbon: { label: 'ribbon (classic)',  parts: ribbonParts },
+};
+
+/* THE COLLIDER, drawn. One translucent sphere per molecule at exactly the
+   radius the physics uses — so what you see is the cheat itself rather than
+   an illustration of it. Measured against this structure: the shell touches
+   along the long axis (1.7 A clear) and stands 5.8-6.6 A off the two short
+   ones, enclosing 1.8x the molecule's own volume. That margin is why the
+   crowd keeps further apart than real haemoglobin would, and it is what a
+   contact-based collider would recover.
+
+   MeshBasicMaterial, not Standard: an unlit shell reads as a boundary rather
+   than as a second object, and it keeps the diagnostic's own shading cost
+   out of the measurement it is there to inform.
+
+   depthWrite off is the flag that matters. 200 overlapping transparent
+   spheres cannot be depth-sorted per instance — instancing draws them in
+   buffer order, which is not back-to-front — so writing depth would let
+   shells punch holes in each other and in the molecules behind them. With
+   it off they simply blend in arrival order: not physically ordered, but a
+   boundary marker does not need to be.
+
+   NOT FREE: 200 spheres of transparent fill is real overdraw, on the exact
+   axis this page measures. The HUD says so when it is on, so a slow frame
+   does not get read as a cost of the style being compared. */
+const COLLIDER_COLOR = 0x3f7abd, COLLIDER_OPACITY = 0.12;
+
+function buildColliders(radius) {
+  const m = new THREE.InstancedMesh(
+    /* 16x12 = 352 triangles. It was 24x16 (720) until the arithmetic got
+       done: at a shell ~125 px across, neither is remotely silhouette-
+       limited, but 720 x 122 is a fifth of the geometry in the crowd once
+       the tube is turned down to 3 sides — a diagnostic large enough to
+       distort the comparison it informs. Its REAL cost is fill, not
+       triangles, and no tessellation change touches that. */
+    new THREE.SphereGeometry(radius, 16, 12),
+    new THREE.MeshBasicMaterial({ color: COLLIDER_COLOR, transparent: true,
+                                  opacity: COLLIDER_OPACITY, depthWrite: false }),
+    MAX_COUNT);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.frustumCulled = false;
+  m.renderOrder = 1;                     // after the opaque crowd
+  m.visible = SHOWCOL;
+  root.add(m);
+  return m;
+}
+
+/* Does this three build support per-instance colour? r125 added it; the page
+   pins r128, so this should always be true — but a silent fallback to a flat
+   crowd beats a crash if the pin ever moves. */
+const INSTANCE_COLOR = typeof THREE.InstancedMesh.prototype.setColorAt === 'function';
+
+/* ------------------------------------------------------------ the molecules */
+const dummy = new THREE.Object3D();
+const tint = new THREE.Color();
+const AXIS_X = new THREE.Vector3(1, 0, 0),
+      AXIS_Y = new THREE.Vector3(0, 1, 0),
+      AXIS_Z = new THREE.Vector3(0, 0, 1);
+
+/* A unit normal, Box-Muller, one of the pair kept. Math.random() alone would
+   NOT do: a sum of uniforms is not a Wiener process, and the difference
+   shows up exactly where it matters — the tails, which are the large jumps
+   that let a molecule escape a cage of neighbours. A crowd stepped with
+   uniforms stays jammed longer than it should. */
+function gauss() {
+  let u = 0;
+  while (u === 0) u = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random());
+}
+const mols = [];                        // one drifting rigid body per molecule
+
+/* The collision radius, measured: the furthest Ca from the origin, plus the
+   tube's own half-width so the bounce happens where the DRAWN surfaces touch
+   rather than where the backbone does. Comes out near 33 A — check it against
+   the HUD, because a wrong one is invisible (the crowd just keeps its
+   distance) and it silently sets how many molecules fit in the box.
+
+   FROM THE ORIGIN, and not from `D.centre`: the bake already subtracted that
+   centroid from every coordinate, so the chains arrive centred and
+   `D.centre` is the record of where they USED to be, in the crystal frame.
+   Subtracting it a second time moved the whole tetramer 43 A off centre and
+   inflated this radius to 73 A — which reads as a plausible number, which is
+   exactly why it is worth a comment. Typing 33 here would have hidden it. */
+function fitRadius(D) {
+  let r2 = 0;
+  for (const c of Object.values(D.chains))
+    for (const res of c.res)
+      r2 = Math.max(r2, res.CA[0] ** 2 + res.CA[1] ** 2 + res.CA[2] ** 2);
+  return Math.sqrt(r2) + HELIX_R;
+}
+
+/* One material, from a part's colour and the current shading mode.
+   Stage.setToon flips the whole module between MeshStandardMaterial (PBR:
+   a real BRDF per fragment) and MeshToonMaterial (a ramp lookup). On this
+   Mac the difference is invisible in the frame time; on an integrated GPU
+   the fragment shader is often the whole cost, which is the case this
+   toggle exists to measure. */
+function makeMat(part) {
+  Stage.setToon(TOON);
+  /* WHITE, when instance colours are in play: three multiplies the material
+     colour by the per-instance one, so any tint here would tint the whole
+     crowd on top of its own shade. */
+  const mat = Stage.bondMat(INSTANCE_COLOR ? 0xffffff : part.color);
+  /* A flat band has no back face to cull — a helix seen from inside its own
+     turn shows one. Real cost, and it belongs to the ribbon rather than to
+     the shading mode, so it is reapplied on every rebuild. */
+  if (part.twoSided) mat.side = THREE.DoubleSide;
+  return mat;
+}
+
+/* One style's instanced meshes, plus what they cost. BOTH STYLES ARE BUILT
+   AND KEPT — the toggle flips `visible`, it does not rebuild. That matters
+   for what this page is for: rebuilding on every switch would fold geometry
+   construction into the frame you are trying to measure, and the ribbon takes
+   long enough to build that the first seconds after a switch would read as a
+   frame-rate difference that is really a one-off. Both sets sit in GPU memory
+   the whole time; only one is drawn. */
+function buildStyle(parts) {
+  const group = new THREE.Group();
+  let tris = 0;
+
+  for (const p of parts) {
+    p.geo.computeBoundingSphere();
+    const m = new THREE.InstancedMesh(p.geo, makeMat(p), MAX_COUNT);
+    m.userData.part = p;                   // colour + sidedness, to remake it
+    m.count = COUNT;                       // drawn now; MAX_COUNT allocated
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    /* The bounding sphere is one molecule's, at the origin; the instances
+       range over the whole box, so leave frustum culling off or the crowd
+       vanishes as soon as the origin leaves the view. */
+    m.frustumCulled = false;
+    group.add(m);
+    tris += (p.geo.index ? p.geo.index.count : p.geo.attributes.position.count) / 3;
+  }
+
+  root.add(group);
+  return { group, meshes: group.children, calls: parts.length, tris };
+}
+
+/* Re-shade everything in place. Geometry and instance matrices are untouched
+   — only the material is swapped — so this is safe mid-measurement and does
+   not disturb the crowd's positions. */
+function reshade(built) {
+  for (const b of Object.values(built))
+    for (const m of b.meshes) {
+      m.material.dispose();
+      m.material = makeMat(m.userData.part);
+    }
+}
+
+/* Releasing a style's GPU buffers. Rebuilding the tube on every slider tick
+   without this leaks a full set of geometries per tick — invisible until the
+   driver starts thrashing, at which point the frame time you are trying to
+   measure is measuring the leak. */
+function disposeStyle(b) {
+  for (const m of b.meshes) { m.geometry.dispose(); m.material.dispose(); }
+  root.remove(b.group);
+}
+
+let style = 'tube';                     // which one is drawn
+let live = [];                          // ...and its meshes, the only ones written
+
+function setStyle(next, built) {
+  style = next;
+  for (const [key, b] of Object.entries(built)) b.group.visible = (key === style);
+  /* The newly shown style has not been given a matrix since the last time it
+     was visible, so its instances still hold that old pose. Pointing `live`
+     at it is the catch-up: the next frame writes every matrix before the
+     first draw, so the stale frame is never displayed. */
+  live = built[style].meshes;
+  styleBtn.textContent = 'show ' + STYLES[style === 'tube' ? 'ribbon' : 'tube'].label;
+}
+
+function spawn(built, radius, extentR) {
+  /* Both styles' meshes, for the operations that must reach the hidden one
+     too — `mesh.count`, which has to be right before it is ever shown. The
+     per-frame matrix write uses `live` instead; see setStyle(). */
+  let meshes = Object.values(built).flatMap(b => b.meshes);
+  const colliders = buildColliders(radius);
+
+  const rnd = (a) => (Math.random() * 2 - 1) * a;
+  /* Per-axis half-extent for CENTRES — the wall inset by one radius. Written
+     by seed(), which is what decides the box now. */
+  const wall = [0, 0, 0];
+
+  /* The two physics kernels, factored out because seed()'s equilibration
+     and the per-frame step must be THE SAME operation. An equilibration that
+     used a simplified version would settle the crowd into a state the real
+     dynamics then immediately walks away from, and the first second would
+     show it. */
+  function brownian(n, sT, sR) {
+    const wx = wall[0], wy = wall[1], wz = wall[2];
+    for (let i = 0; i < n; i++) {
+      const m = mols[i];
+      /* Displacement is sqrt(2 D dt) times a unit normal — the exact
+         solution of the overdamped equation over dt, not an approximation,
+         which is why it stays right as dt wobbles with the frame rate. A
+         uniform offset would not: its variance would scale with dt rather
+         than sqrt(dt), and the crowd would diffuse faster on a fast
+         machine. */
+      m.p.x += sT * gauss(); m.p.y += sT * gauss(); m.p.z += sT * gauss();
+
+      /* Reflect, do not wrap — a wrap pops a molecule across the whole view.
+         The wall is inset by the radius so the BODY stops at it. Reflection
+         rather than a clamp, so the wall does not accumulate a film of
+         molecules pressed flat against it. */
+      if (m.p.x >  wx) m.p.x =  2 * wx - m.p.x;
+      if (m.p.x < -wx) m.p.x = -2 * wx - m.p.x;
+      if (m.p.y >  wy) m.p.y =  2 * wy - m.p.y;
+      if (m.p.y < -wy) m.p.y = -2 * wy - m.p.y;
+      if (m.p.z >  wz) m.p.z =  2 * wz - m.p.z;
+      if (m.p.z < -wz) m.p.z = -2 * wz - m.p.z;
+
+      if (!sR) continue;
+      /* Rotational diffusion as three small independent rotations — exact to
+         first order, which is all a tumble this slow needs. Unlike a fixed
+         axis and rate it actually RANDOMISES orientation, which a molecule
+         in solution does completely in about 40 ns. */
+      spinQ.setFromAxisAngle(AXIS_X, sR * gauss()); m.q.multiply(spinQ);
+      spinQ.setFromAxisAngle(AXIS_Y, sR * gauss()); m.q.multiply(spinQ);
+      spinQ.setFromAxisAngle(AXIS_Z, sR * gauss()); m.q.multiply(spinQ);
+      m.q.normalize();                   // drift accumulates over a long run
+    }
+  }
+
+  function relaxContacts(n, track) {
+    const min = 2 * radius;
+    let deepest = 0;
+    for (let pass = 0; pass < RELAX_ITERS; pass++) {
+      const lastPass = pass === RELAX_ITERS - 1;
+      for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++) {
+          const a = mols[i], b = mols[j];
+          d.subVectors(b.p, a.p);
+          const dist = d.length();
+          if (dist >= min || dist === 0) continue;
+          if (lastPass) { deepest = Math.max(deepest, min - dist); if (track) hits++; }
+          d.multiplyScalar((min - dist) / 2 / dist);
+          a.p.sub(d);
+          b.p.add(d);
+        }
+    }
+    return deepest;
+  }
+
+  /* SEED ON A LATTICE, AND DERIVE THE BOX FROM IT — that order, and the
+     order is the whole correctness argument.
+
+     Rejection sampling worked at phi 0.045 and cannot work at 0.5: past
+     about 0.3 the chance of a random point being clear collapses, and the
+     sampler exhausts its tries and drops the molecule on top of another
+     anyway. So: a grid.
+
+     The first attempt built the grid to fit a box computed from phi, and it
+     overlapped by 25 A at the top of the range. The reason is that CENTRES
+     cannot use the whole box — they are confined to it inset by one radius —
+     so the volume actually available to the lattice is much smaller than the
+     volume phi was computed against, and at high phi that gap is most of it.
+     Sizing the box from the lattice instead makes the overlap impossible by
+     construction: spacing is never less than a diameter, so seeded spheres
+     never interpenetrate, at any phi the slider can reach.
+
+     What gives, then, is phi itself: ask for more than a cubic lattice can
+     hold and you get the densest lattice instead, which is spheres in
+     contact at phi = pi/6 = 0.524 — and that, to two figures, IS red-cell
+     density. The HUD reports the phi ACHIEVED rather than the one requested,
+     so the ceiling is visible rather than silently applied.
+
+     The lattice itself is visible for about a second; Brownian motion erases
+     it faster than the eye settles. Jitter fills whatever room is left over,
+     which at contact is none — correctly, because at contact there is
+     nowhere else for a molecule to be. */
+  function seed(n) {
+    /* Grid counts first, in the box's 2 : 1.2 : 2 proportions. */
+    const base = Math.cbrt(n / (2 * 1.2 * 2));
+    let nx = Math.max(1, Math.round(2 * base)),
+        ny = Math.max(1, Math.round(1.2 * base)),
+        nz = Math.max(1, Math.round(2 * base));
+    while (nx * ny * nz < n) { nx++; if (nx * ny * nz < n) nz++; if (nx * ny * nz < n) ny++; }
+
+    /* Spacing IS the concentration — one molecule per spacing^3 — floored at
+       a diameter, since centres closer than that are overlapping spheres.
+       At 330 g/L the spacing is 69 A against a 53 A diameter, so the floor
+       is nowhere near binding and there is ~8 A of jitter per site: the
+       lattice is disordered before the first frame and gone within a second.
+       It was NOT, with the old radius — at contact the slack was zero, the
+       crowd was jammed, and the seeding grid stayed on screen as a crystal.
+       If this page ever shows rows and columns again, look here first. */
+    const want = spacingOf(CONC);
+    const sp = Math.max(2 * radius, want);
+    const slack = Math.max(0, sp - 2 * radius) / 2;
+
+    /* The box is now whatever holds that lattice: the centres span
+       (n-1) * spacing, plus one radius of margin at each end so a molecule
+       at the edge is inside the wall rather than half through it. */
+    wall[0] = (nx - 1) * sp / 2;
+    wall[1] = (ny - 1) * sp / 2;
+    wall[2] = (nz - 1) * sp / 2;
+    BOX = Math.max(wall[0], wall[1], wall[2]) + radius;
+
+    /* Density is read off the SPACING, not off the container. Counting
+       n / boxVolume folds in a surface artefact — the box carries a radius
+       of margin on all six sides, so 122 spheres in literal contact measure
+       0.44 by that definition and only approach 0.524 as the grid grows.
+       That understates a crowd whose molecules are touching, and a red cell
+       has no walls for the artefact to come from. Spacing gives the LOCAL
+       density, which is what a concentration in g/L means, and it is exact
+       at any count. */
+    concActual = 1 / sp ** 3 * 1e27 / NA * HB_MW;
+    phiActual = HB_VOLUME / sp ** 3;
+
+    /* Sites shuffled, so a crowd smaller than the grid spreads through the
+       box instead of filling one corner of it. */
+    const sites = [];
+    for (let ix = 0; ix < nx; ix++)
+      for (let iy = 0; iy < ny; iy++)
+        for (let iz = 0; iz < nz; iz++) sites.push([ix, iy, iz]);
+    for (let i = sites.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [sites[i], sites[j]] = [sites[j], sites[i]];
+    }
+
+    for (let i = 0; i < n; i++) {
+      const [ix, iy, iz] = sites[i];
+      const m = mols[i];
+      m.p.set(-wall[0] + ix * sp + rnd(slack),
+              -wall[1] + iy * sp + rnd(slack),
+              -wall[2] + iz * sp + rnd(slack));
+      m.q.setFromEuler(new THREE.Euler(rnd(Math.PI), rnd(Math.PI), rnd(Math.PI)));
+    }
+
+    /* MELT THE LATTICE BEFORE THE FIRST FRAME. Seeding on a grid is a means,
+       not a state anybody should see: a crowd that opens in rows and columns
+       says "crystal", and haemoglobin in a red cell is a disordered fluid.
+       Left to the real dynamics it does melt — but over about ten seconds,
+       which is ten seconds of the wrong picture.
+
+       So the same two kernels are run here with a large step and no rotation
+       (orientations are already random from seeding). The step size is an
+       EQUILIBRATION choice, not a physical claim — nothing is being measured
+       yet — and it reaches the disorder floor in about 200 iterations: a
+       lattice order parameter of 0.11 against the 0.06 floor for a genuinely
+       random arrangement at this count. */
+    for (let i = 0; i < BURN_IN; i++) {
+      brownian(n, BURN_STEP, 0);
+      relaxContacts(n, false);
+    }
+    for (let i = 0; i < n; i++) mols[i].p0.copy(mols[i].p);   // displacement origin
+  }
+
+  for (let i = 0; i < MAX_COUNT; i++)
+    mols.push({ p: new THREE.Vector3(), p0: new THREE.Vector3(),
+                q: new THREE.Quaternion() });
+
+  /* Changing the count RESEEDS the whole crowd rather than adding molecules
+     to the existing one, because the box resizes with it (see seed) — old
+     positions would be outside the new walls, or clumped in a corner of it.
+     A reseed is a visible jump, which is the honest thing here: it is a new
+     experiment, not a continuation of the old one. */
+  /* Instance colours are written once per reseed, not per frame — they never
+     change while the crowd runs. Every mesh of every style gets the same
+     per-molecule colour, so a tetramer is one colour whichever way it is
+     drawn and the toggle does not recolour the crowd. */
+  function paint() {
+    if (!INSTANCE_COLOR) return;
+    for (let i = 0; i < COUNT; i++) {
+      moleculeColour(i, tint);
+      for (const mesh of meshes) mesh.setColorAt(i, tint);
+    }
+    for (const mesh of meshes)
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }
+
+  function setCount(n) {
+    COUNT = n;
+    seed(COUNT);                         // sets `wall`, BOX and phiActual
+    for (const mesh of meshes) mesh.count = COUNT;
+    colliders.count = COUNT;
+    paint();
+    /* Pull the camera back far enough to hold the new box, and keep the far
+       plane behind it — both are functions of BOX, so neither is a number
+       anyone has to remember to update. */
+    cam.r = BOX * 2.6;
+    camera.far = BOX * 8; camera.updateProjectionMatrix();
+    applyCam();
+    hits = 0;
+  }
+
+  /* Rebuilding ONE style in place, for the tessellation sliders. Only the
+     tube is rebuildable — ribbon.js has no knobs this page exposes, and
+     that asymmetry is the point: the ribbon is the fixed reference the tube
+     is being measured against. */
+  function rebuildTube() {
+    disposeStyle(built.tube);
+    built.tube = buildStyle(tubeChains());
+    built.tube.group.visible = (style === 'tube');
+    meshes = Object.values(built).flatMap(b => b.meshes);
+    for (const mesh of meshes) mesh.count = COUNT;
+    if (style === 'tube') live = built.tube.meshes;   // the old array is dead
+    paint();                             // fresh geometry, so fresh colours
+  }
+
+  /* Declared before the controls block, not after it: setCount() zeroes the
+     collision tally, and the controls call setCount() during setup. Left
+     below, these are in the temporal dead zone and the page dies on load. */
+  const spinQ = new THREE.Quaternion();
+  const d = new THREE.Vector3();                              // contact scratch
+  let last = performance.now(), hits = 0;
+  let frameMs = 16.7, workMs = 1, simMs = 0, xfMs = 0, drawMs = 0;
+  let pairs = 0, worst = 0;
+
+  /* ------------------------------------------------------------ controls
+
+     ADOPT THE URL FIRST, wire second, then apply once at the end. Doing it
+     in that order means the expensive setup (a reseed, a tube rebuild) runs
+     exactly once no matter how many settings the URL carries, instead of
+     once per handler that fires while the page is still assembling itself. */
+  COUNT       = Math.max(1, Math.min(MAX_COUNT, qNum('n', COUNT)));
+  TUBE_SIDES  = Math.max(3, Math.min(16, qNum('sides', TUBE_SIDES)));
+  SEG_PER_RES = Math.max(1, Math.min(6, qNum('seg', SEG_PER_RES)));
+  CONC        = Math.max(5, Math.min(400, qNum('c', CONC)));
+
+  countIn.value = countOut.value = COUNT;
+  sidesIn.value = sidesOut.value = TUBE_SIDES;
+  segIn.value = segOut.value = SEG_PER_RES;
+  phiIn.value = CONC;
+  dprIn.value = dprOut.value = DPR;
+  toonIn.checked = TOON;
+  aaIn.checked = AA;
+  colIn.checked = SHOWCOL;
+
+  setStyle(Q.get('style') === 'ribbon' ? 'ribbon' : 'tube', built);
+  ctl.hidden = false;
+  styleBtn.onclick = () => {
+    setStyle(style === 'tube' ? 'ribbon' : 'tube', built);
+    writeURL();
+  };
+  addEventListener('keydown', e => { if (e.key === 's') styleBtn.onclick(); });
+
+  /* input UPDATES THE LABEL, change DOES THE WORK. Both sliders trigger
+     something expensive — a reseed, or 12 geometries rebuilt and re-uploaded
+     — and wiring those to `input` runs them once per pixel of drag, which
+     both stutters and (for the tessellation pair) churns GPU buffers dozens
+     of times to reach one value you wanted. `change` fires on release. */
+  /* Both of these reseed, so both are `change`. They read out together
+     because neither number means anything alone: 20 molecules at phi 0.5 is
+     a red cell seen through a small window, 200 at phi 0.05 is a dilute
+     solution seen through a large one, and only the pair says which. */
+  const showPhi = () => {
+    const c = +phiIn.value;
+    phiOut.value = c + ' g/L  (phi ' + phiOf(c).toFixed(2) + ')' +
+      (c >= 300 ? '  red cell' : '');
+  };
+  countIn.oninput = () => { countOut.value = countIn.value; };
+  countIn.onchange = () => { setCount(+countIn.value); writeURL(); };
+  phiIn.oninput = showPhi;
+  phiIn.onchange = () => { CONC = +phiIn.value; setCount(COUNT); writeURL(); };
+  showPhi();
+
+  const label = () => { sidesOut.value = sidesIn.value; segOut.value = segIn.value; };
+  const retess = () => {
+    TUBE_SIDES = +sidesIn.value; SEG_PER_RES = +segIn.value;
+    label();
+    rebuildTube();
+  };
+  sidesIn.oninput = segIn.oninput = label;
+  sidesIn.onchange = segIn.onchange = () => { retess(); writeURL(); };
+
+  /* ---- the GPU-pressure knobs.
+
+     PIXEL RATIO is the fragment-count multiplier and the bluntest of the
+     three: every fragment cost — the PBR shader, the overdraw from 122
+     overlapping molecules, MSAA resolve — scales with its SQUARE. 2 -> 1 is
+     a 4x cut in fragments, which is why it is worth trying before any
+     geometry change on a machine that struggles. */
+  dprIn.oninput = () => { dprOut.value = dprIn.value; };
+  dprIn.onchange = () => {
+    DPR = +dprIn.value;
+    renderer.setPixelRatio(DPR);
+    resize();                            // re-solves the drawing buffer size
+    writeURL();
+  };
+
+  toonIn.onchange = () => { TOON = toonIn.checked; reshade(built); paint(); writeURL(); };
+
+  colIn.onchange = () => {
+    SHOWCOL = colliders.visible = colIn.checked;
+    /* Newly shown, the shell's matrices are from whenever it was last
+       visible — the same staleness setStyle() has, with the same fix: the
+       next frame writes them all before it is drawn. */
+    writeURL();
+  };
+
+  /* AA cannot change on a live context — write it down and reload. Every
+     other setting is already in the URL, so the reload lands on the same
+     experiment with only this one variable moved. */
+  aaIn.onchange = () => {
+    const q = new URLSearchParams(location.search);
+    q.set('aa', aaIn.checked ? 1 : 0);
+    location.search = q;
+  };
+
+  copyBtn.onclick = () => {
+    writeURL();
+    navigator.clipboard.writeText(location.href)
+      .then(() => { copyBtn.textContent = 'copied — open it on the other machine'; })
+      .catch(() => { copyBtn.textContent = location.href; });
+  };
+
+  /* The single apply. A non-default tessellation needs the tube rebuilt off
+     the URL's numbers rather than the defaults it was first built with. */
+  if (TUBE_SIDES !== 10 || SEG_PER_RES !== 3) rebuildTube();
+  if (TOON) reshade(built);
+  setCount(COUNT);
+  writeURL();
+
+  /* ---------------------------------------------------------- the clock */
+  last = performance.now();
+
+  function step(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+    /* THREE PHASE TIMERS, because one `work` number could not answer the
+       question this page kept running into: cutting the triangles 5.7x
+       changed nothing, so the cost was never the triangles. Splitting the
+       frame into integrate / transform / draw says which of the three it
+       actually is, and each is a different fix — the physics is O(n^2), the
+       transform is a buffer upload, the draw is the GPU. */
+    const t0 = performance.now();
+
+    const wx = wall[0], wy = wall[1], wz = wall[2];
+
+    brownian(COUNT, Math.sqrt(2 * D_TRANS * dt), Math.sqrt(2 * D_ROT * dt));
+
+    /* HARD-CORE CONTACT, resolved by position alone. There are no velocities
+       left to exchange — an overdamped molecule carries no momentum — so a
+       contact IS its overlap being undone, half from each, which keeps the
+       pair's centroid where it was.
+
+       ITERATED, because near red-cell density a molecule touches several
+       neighbours at once and separating it from one pushes it into the next.
+       One pass leaves a jammed crowd permanently interpenetrating; RELAX_
+       ITERS passes converge it to something the eye reads as contact. The
+       last pass's residual is reported as `overlap` in the HUD rather than
+       hidden — at high phi it is the honest statement that this is a
+       relaxation and not a solver.
+
+       O(n^2) per pass — 19,900 pairs at MAX_COUNT, times RELAX_ITERS — and
+       it is ALL on the CPU side of the work timer. At high count this, not
+       the geometry, is what a slow frame is made of. A spatial hash is the
+       fix if the lesson needs one; that is one of the things this bench
+       exists to find out. */
+    pairs = COUNT * (COUNT - 1) / 2 * RELAX_ITERS;
+    worst = relaxContacts(COUNT, true);
+
+    const t1 = performance.now();
+
+    /* One matrix per molecule, written into the DRAWN style's meshes only.
+
+       This used to write to both styles every frame, so the toggle could
+       never show a stale pose. At 20 molecules that was free; at 122 it was
+       paying for a whole second set of uploads that nothing displayed. The
+       staleness it was avoiding is instead fixed where it happens — setStyle
+       marks the newly shown style dirty and the next frame catches it up. */
+    for (let i = 0; i < COUNT; i++) {
+      dummy.position.copy(mols[i].p);
+      dummy.quaternion.copy(mols[i].q);
+      dummy.updateMatrix();
+      for (const mesh of live) mesh.setMatrixAt(i, dummy.matrix);
+      /* The shell is a sphere, so this matrix's rotation does nothing to it —
+         but reusing the whole thing beats composing a translation-only one,
+         and it keeps the shell exactly in step with the molecule inside. */
+      if (colliders.visible) colliders.setMatrixAt(i, dummy.matrix);
+    }
+    /* Upload only the instances in USE. The buffer is allocated at MAX_COUNT,
+       and a plain needsUpdate re-uploads all 200 of them however few are
+       drawn — at COUNT=122 that is 78 dead matrices per mesh per frame, and
+       it is the sort of cost that stays flat as you cut triangles, which is
+       exactly the symptom this page ran into. updateRange trims it to the
+       live prefix; the matrices are contiguous from 0, so a prefix is all it
+       ever needs to be. (16 floats per matrix.) */
+    for (const mesh of live) {
+      mesh.instanceMatrix.updateRange.offset = 0;
+      mesh.instanceMatrix.updateRange.count = COUNT * 16;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    if (colliders.visible) {
+      colliders.instanceMatrix.updateRange.offset = 0;
+      colliders.instanceMatrix.updateRange.count = COUNT * 16;
+      colliders.instanceMatrix.needsUpdate = true;
+    }
+    const t2 = performance.now();
+
+    renderer.render(scene, camera);
+    const t3 = performance.now();
+
+    /* TWO CLOCKS, and the gap between them is the whole instrument.
+
+       `frame` is the wall-clock gap between animation frames — what fps is a
+       reciprocal of, and what vsync pins to 16.7 ms however little work is
+       being done. On its own it cannot tell "easily fast" from "just barely
+       keeping up", which is why the first version of this page could not see
+       any difference between the two styles.
+
+       `work` is the time spent inside this function: simulation, matrix
+       upload and the draw submission. If work is far below frame, the page
+       is idling against vsync and the styles are indistinguishable BECAUSE
+       BOTH ARE FREE — raise the count until work approaches frame, and only
+       then compare. Caveat worth stating: the GPU runs behind us, so `work`
+       includes submitting the draws but not necessarily finishing them.
+       A real GPU timer needs EXT_disjoint_timer_query, which this bench does
+       not bother with — pushing the count until frame time rises above
+       vsync is the cruder but honest version of the same measurement. */
+    frameMs += (dt * 1000 - frameMs) * 0.1;
+    workMs  += ((t3 - t0) - workMs) * 0.1;
+    simMs   += ((t1 - t0) - simMs) * 0.1;
+    xfMs    += ((t2 - t1) - xfMs) * 0.1;
+    drawMs  += ((t3 - t2) - drawMs) * 0.1;
+
+    const b = built[style];
+    const capped = frameMs < 17.5 && workMs < frameMs * 0.7;
+    hud.textContent =
+      COUNT + ' tetramers   collider r ' + radius.toFixed(1) +
+      '   drawn r ' + extentR.toFixed(1) + '\n' +
+      concActual.toFixed(0) + ' g/L   phi ' + phiActual.toFixed(3) + '   ' +
+      spacingOf(concActual).toFixed(0) + ' A apart' +
+      (concActual >= 300 ? '   RED CELL' : '') + '\n' +
+      (phiActual > PHI_FREEZE ? '  ABOVE HARD-SPHERE FREEZING — expect a crystal\n' : '') +
+      STYLES[style].label + '\n' +
+      (b.calls + (SHOWCOL ? 1 : 0)) + ' draw calls   ' +
+      (b.tris * COUNT / 1000).toFixed(0) + 'k tris\n' +
+      (b.tris / 574).toFixed(0) + ' tris/residue\n' +
+      '\n' +
+      'frame ' + frameMs.toFixed(1) + ' ms  (' + Math.round(1000 / frameMs) + ' fps)\n' +
+      'work  ' + workMs.toFixed(1) + ' ms\n' +
+      '  physics   ' + simMs.toFixed(2) + ' ms  (' + pairs + ' pair tests)\n' +
+      '  transform ' + xfMs.toFixed(2) + ' ms  (' + (COUNT * live.length) + ' matrices)\n' +
+      '  draw      ' + drawMs.toFixed(2) + ' ms\n' +
+      '  ' + (TOON ? 'toon' : 'standard') + '  dpr ' + DPR +
+      '  aa ' + (AA ? 'on' : 'off') + '\n' +
+      (SHOWCOL ? '  + colliders (transparent fill, adds cost)\n' : '') +
+      (capped ? 'VSYNC-CAPPED — raise the count\n' : '') +
+      '\n' + hits + ' contacts   overlap ' + worst.toFixed(2) + ' A';
+
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* The four chains, as the styles want them. Filled once the bake lands. */
+let chains = [];
+const partsFor = key =>
+  chains.flatMap(c => STYLES[key].parts(c.CA, c.ss, c.color));
+const tubeChains = () => partsFor('tube');
+
+const hud = document.getElementById('hud');
+const ctl = document.getElementById('ctl');
+const styleBtn = document.getElementById('style');
+const countIn = document.getElementById('count'), countOut = document.getElementById('countOut');
+const sidesIn = document.getElementById('sides'), sidesOut = document.getElementById('sidesOut');
+const segIn = document.getElementById('seg'), segOut = document.getElementById('segOut');
+const phiIn = document.getElementById('phi'), phiOut = document.getElementById('phiOut');
+const dprIn = document.getElementById('dpr'), dprOut = document.getElementById('dprOut');
+const toonIn = document.getElementById('toon');
+const colIn = document.getElementById('collide');
+const aaIn = document.getElementById('aa');
+const copyBtn = document.getElementById('copy');
+
+/* The four deposited chains come from the sickle bake, which is the one file
+   here that carries all four with their secondary structure already split
+   out. Nothing sickle-specific is used — just CA + ss. */
+fetch('../sickle/data/sickle.json').then(res => {
+  if (!res.ok) throw new Error('../sickle/data/sickle.json — HTTP ' + res.status +
+    ' (run: node sickle/tools/bake-sickle.js)');
+  return res.json();
+}).then(D => {
+  /* One parts-list per style, off the same four chains. Held as a FUNCTION
+     rather than a value because the tube gets rebuilt whenever its
+     tessellation changes — see rebuildTube(). */
+  chains = Object.values(D.chains).map(c => ({
+    CA: c.res.map(r => r.CA),
+    ss: c.ss.split(''),
+    color: CHAIN_COLOR[c.kind] || CHAIN_COLOR.beta,
+  }));
+
+  /* Build BOTH styles up front — see buildStyle(). */
+  const built = {};
+  for (const key of Object.keys(STYLES)) built[key] = buildStyle(partsFor(key));
+
+  /* NO HEMES, and the reason is a FRAME rather than an omission. The four
+     irons are in data/2HHB-quaternary.json, but that bake is expressed in
+     FoldLib.orient()'s frame — its first Ca sits at (35, 41, 15), where this
+     bake's tetramer is centred on the origin. Dropping the irons straight in
+     put four red dots ~40 A off each molecule, which at crowd distance reads
+     as debris rather than as a bug. Putting them back means Kabsch-fitting
+     one bake's Ca onto the other's and carrying the irons through that
+     transform: worth it for a lesson, not for a frame-rate bench. */
+  cam.target.set(0, 0, 0); applyCam();
+  /* Two radii, deliberately: R_PHYS collides, fitRadius(D) only describes
+     how big the drawn molecule is. Passing the drawn one as the collider is
+     what crystallised the crowd. */
+  spawn(built, R_PHYS, fitRadius(D));
+  document.title = 'Hemoglobin — crowd test (' + COUNT + ')';
+}).catch(e => {
+  const d = document.createElement('div');
+  d.style = 'position:absolute;left:16px;bottom:16px;color:#a33;font-family:monospace;z-index:9';
+  d.textContent = 'could not start — ' + e.message;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>
