@@ -31,6 +31,15 @@
   #seg button:first-child{border-left:0}
   #seg button[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff)}
   #seg button[aria-pressed=true]:hover{background:var(--ink)}
+  /* The swatch only means anything in plain mode, so it dims out of it —
+     but stays live, because picking a colour switches back to plain. */
+  #swatch{display:flex;align-items:center;gap:8px;transition:opacity .15s}
+  #swatch.off{opacity:.45}
+  #swatch input[type=color]{width:34px;height:24px;padding:0;cursor:pointer;
+    background:none;border:1px solid var(--hair);border-radius:6px}
+  #swatch input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  #swatch input[type=color]::-webkit-color-swatch{border:0;border-radius:4px}
+  #swatch code{font-family:var(--font-mono,monospace);color:var(--ink);font-size:12px}
   #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
     font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);
     border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
@@ -62,6 +71,10 @@
   <label>colour by (c)
     <div id="seg"></div>
   </label>
+  <div id="swatch">
+    <input type="color" id="plainCol" value="#cccfd4">
+    <code id="plainHex">#cccfd4</code>
+  </div>
   <label>opacity <output id="ov"></output>
     <input id="op" type="range" min="5" max="100" value="28"></label>
 </div>
@@ -196,6 +209,18 @@ const MODES = [
 ];
 let mode = 0, surf = null, surfMat = null, S = null;
 
+/* The swatch is the single source of truth for the plain colour — there
+   is no JS constant shadowing it, so the picker and the render cannot
+   disagree. Picking switches back to plain mode, because a swatch that
+   silently does nothing while you are in `hydro` is worse than one that
+   moves you to where its effect is visible. */
+const plainCol = document.getElementById('plainCol');
+plainCol.oninput = () => {
+  document.getElementById('plainHex').textContent = plainCol.value;
+  mode = MODES.findIndex(m => m.key === 'plain');
+  if (surf) paint();
+};
+
 /* Built from MODES rather than written out in the HTML, so adding a
    fourth way to colour the skin is one line in the table above. */
 const seg = MODES.map((m, i) => {
@@ -220,12 +245,16 @@ function colourFor(m, resName, chain) {
     return new THREE.Color(chain === 'A' || chain === 'C' ? CHAIN_COLOR.alpha : CHAIN_COLOR.beta);
   if (m === 'hydrophobicity')
     return (resName in SickleLib.KD) ? new THREE.Color(SickleLib.colour(resName)) : NEUTRAL;
-  /* Near-neutral, barely cool — the reference figure's skin. The blue in
-     an earlier version competed with the beta chains' violet: at 0.28
-     opacity a tinted skin does not read as a tint, it reads as a change
-     to the colour of whatever is underneath it. Grey is what lets the
-     ribbon keep its own colours. */
-  return new THREE.Color(0.80, 0.81, 0.83);
+  /* Whatever the swatch says. It starts near-neutral, barely cool — the
+     reference figure's skin. An earlier version was bluer and it competed
+     with the beta chains' violet: at 0.28 opacity a tinted skin does not
+     read as a tint, it reads as a change to the colour of whatever is
+     underneath it. That is the thing to keep an eye on while picking, and
+     the reason this is a knob rather than a constant.
+
+     r128 has no colour management, so setStyle just divides by 255 —
+     the hex in the swatch is the number in the shader. */
+  return new THREE.Color().setStyle(plainCol.value);
 }
 
 function paint() {
@@ -243,6 +272,7 @@ function paint() {
   surfMat.color.set(0xffffff);
   surfMat.needsUpdate = true;
   seg.forEach((b, i) => b.setAttribute('aria-pressed', String(i === mode)));
+  document.getElementById('swatch').classList.toggle('off', m !== 'plain');
 }
 
 /* ------------------------------------------------------------------ */
