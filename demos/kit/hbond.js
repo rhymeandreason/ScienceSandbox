@@ -50,14 +50,34 @@
  *    · D–H···A near linear — dot(unit(H−D), unit(A−H)) > `minLinearity`,
  *      i.e. the default 0.5 is an angle of at least 120°
  *
- *  and one gate water-lab could not have, because it predates lobes.js:
+ *  and a third, weaker one that water-lab could not have had — it predates
+ *  lobes.js:
  *
- *    · if the acceptor declares `dirs`, the incoming H must lie inside a cone
- *      about one of them (`minLobe`), and the pair reports WHICH lobe it took.
+ *    · if the acceptor declares `dirs`, the pair reports WHICH lone pair it
+ *      came in on and HOW WELL aligned it is (`lobe`, `align`), and is refused
+ *      only if it arrives behind the ears entirely (`minLobe`, default 0 — a
+ *      hemisphere, not a cone).
  *
- *  That third gate is why an acceptor is not a sphere of stickiness. It is
- *  also what lets a page call Lobes.fill() on the ear that got used, so the
- *  student watches capacity being spent rather than being told a number.
+ *  THE ASYMMETRY BETWEEN THOSE TWO IS DELIBERATE, and an earlier version of
+ *  this file got it wrong. Donor-side linearity is a strong, well-attested
+ *  preference. Acceptor-side lone-pair directionality is NOT: the structural
+ *  surveys (Taylor & Kennard's CSD work onward) find hydrogen bonds spread
+ *  broadly around an acceptor rather than clustered along the idealised sp²
+ *  or sp³ lone-pair axes. A hard 60° cone that REFUSED anything else would be
+ *  asserting far more than the chemistry does — and it would be asserting it
+ *  about lobes that are themselves a modelling choice, which is exactly the
+ *  overclaim lobes.js spends its own header warning against.
+ *
+ *  So alignment scores rather than vetoes. What survives as a hard refusal is
+ *  the one part that is not subtle: an approach into the BACK of the acceptor,
+ *  on the side its own bonds are on, where there is nothing to bond to and a
+ *  hydrogen in the way. A page that wants the strict cone anyway — a docking
+ *  puzzle that has to say no — passes `minLobe:0.5` and gets it.
+ *
+ *  Reporting the lobe is what lets a page call Lobes.fill() on the ear that
+ *  got used, so the student watches capacity being spent rather than being
+ *  told a number; reporting `align` is what lets it draw a poor bond as a poor
+ *  bond instead of silently accepting or silently dropping it.
  *
  *  ---------------------------------------------------------------------------
  *  CAPACITY IS COUNTED, NOT TYPED
@@ -145,8 +165,11 @@
     // DISPLAY units (register() applied SCALE) must pass its own — this module
     // answers in whatever units went in, same contract as molgraph.
     maxDist:      2.5,
-    minLinearity: 0.5,    // D–H···A ≥ 120°
-    minLobe:      0.5,    // H within 60° of a lone-pair direction
+    minLinearity: 0.5,    // D–H···A ≥ 120° — a strong, real preference
+    // Alignment to a lone pair SCORES; this is only the floor below which the
+    // approach is coming in behind the ears. 0 = a hemisphere. Set 0.5 for a
+    // strict 60° cone when a page needs to refuse (see the header).
+    minLobe:      0,
     onePerPair:   true,
     order:        'donor' // 'donor' (water-lab-identical) | 'best'
   };
@@ -231,7 +254,7 @@
       }
       if(o.onePerPair) pairKeys.add(key(d.owner, a.owner));
       out.push({ donor:d, acceptor:a, h:d.h, p:a.p,
-                 d:c.d, linearity:c.linearity, lobe:c.lobe });
+                 d:c.d, linearity:c.linearity, lobe:c.lobe, align:c.align });
     };
 
     if(o.order === 'best'){
@@ -240,10 +263,12 @@
         const c = score(d, a, o, null);
         if(c.ok) cand.push({d, a, c});
       }
-      // Nearest first; linearity breaks a tie. Deterministic — no Math.random,
-      // and no dependence on array order beyond the sort, so a checker and a
-      // page agree.
-      cand.sort((x,y) => x.c.d - y.c.d || y.c.linearity - x.c.linearity);
+      // Nearest first; then linearity, then how well it sits on a lone pair.
+      // Deterministic — no Math.random, and no dependence on array order
+      // beyond the sort, so a checker and a page agree.
+      cand.sort((x,y) => x.c.d - y.c.d
+                      || y.c.linearity - x.c.linearity
+                      || (y.c.align ?? 0) - (x.c.align ?? 0));
       for(const {d,a,c} of cand){
         if(!legal(d,a,o,used,pairKeys)) continue;
         const re = score(d, a, o, lobeUsed.get(a));   // its lobe may be spent now
@@ -306,25 +331,34 @@
       return { ok:false, why:'D–H points away — not linear enough',
                d:dist, linearity, need:o.minLinearity };
 
-    let lobe = null;
+    let lobe = null, align = null;
     if(a.dirs && a.dirs.length){
-      // The H approaches the acceptor, so it should sit along a lone pair
-      // pointing back OUT at it: compare the acceptor→H direction to each ear.
+      // The H approaches the acceptor, so a lone pair pointing back OUT at it
+      // is the one it is using: compare the acceptor→H direction to each ear,
+      // and take the best still-unspent one. `align` is that cosine — kept and
+      // returned rather than compared away, because how well a bond is aimed
+      // is a fact about the bond and not just a yes/no about its existence.
       const toH = [-u[0], -u[1], -u[2]];
-      let bestDot = o.minLobe;
+      let bestDot = -Infinity, free = false;
       for(let k=0;k<a.dirs.length;k++){
         if(spentLobes && spentLobes.has(k)) continue;
+        free = true;
         const dk = unit(a.dirs[k]); if(!dk) continue;
         const s = dot(dk, toH);
         if(s > bestDot){ bestDot = s; lobe = k; }
       }
-      if(lobe == null)
+      if(!free)
         return { ok:false, d:dist, linearity,
-                 why: spentLobes && spentLobes.size
-                    ? 'the lone pair it points at is already taken'
-                    : 'close, but not pointing at a lone pair' };
+                 why:'every lone pair on this acceptor is already taken' };
+      align = bestDot;
+      if(align < o.minLobe)
+        return { ok:false, d:dist, linearity, align, lobe,
+                 why: o.minLobe > 0
+                    ? 'not pointing closely enough at a lone pair'
+                    : 'coming in behind the lone pairs, where the acceptor\'s '
+                      +'own bonds are' };
     }
-    return { ok:true, d:dist, linearity, lobe };
+    return { ok:true, d:dist, linearity, lobe, align };
   }
 
   /* explain(donor, acceptor, opts) — the same decision, kept. For a page that

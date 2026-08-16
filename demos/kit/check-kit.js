@@ -368,6 +368,37 @@ head('hbond.js — the conjugation trap (the DNA claim)');
   }
 }
 
+head('hbond.js — the lone pair scores, it does not veto');
+{
+  /* THE CORRECTION THIS SECTION EXISTS TO HOLD. An earlier version refused
+   * any approach more than 60° off a lone pair. Donor-side linearity is a
+   * strong preference; acceptor-side lone-pair directionality is not — the
+   * structural surveys find H-bonds spread broadly around an acceptor, and
+   * the ears are a modelling choice besides. So a badly-aimed bond is still a
+   * bond, and `align` is how a page can DRAW it as the poor bond it is. */
+  const acc={ p:[0,0,0], owner:'acc', capacity:2,
+              dirs:[[0,1,0.4],[0,1,-0.4]] };
+  const at=(deg)=>{ const a=deg*Math.PI/180;                 // swing off the ear
+    const h=[Math.sin(a)*2, Math.cos(a)*2, 0];
+    return { h, root:h.map(v=>v*1.48), owner:'d' };          // D–H aimed at the acceptor
+  };
+  const one=(deg,opts)=>HBond.find([at(deg)],[acc],opts);
+
+  ok(one(0).length===1,'straight down the ear: bonded');
+  ok(one(70).length===1,'70° off the ear is STILL A BOND — the cone is not a gate');
+  const r70=HBond.explain(at(70),acc);
+  ok(r70.align!=null && r70.align<HBond.explain(at(0),acc).align,
+     'and it reports a worse alignment than the on-axis one');
+
+  // What still fails is arriving behind the ears, where the acceptor's own
+  // bonds are — the part of the directionality that is not subtle.
+  ok(one(170).length===0,'coming in behind the lone pairs: refused');
+
+  // The strict cone remains available for a page that has to say no.
+  ok(one(70,{minLobe:0.5}).length===0,'minLobe:0.5 restores the 60° cone opt-in');
+  ok(HBond.DEFAULTS.minLobe===0,'…and it is NOT the default');
+}
+
 head('hbond.js — matching order');
 {
   // Two donors, two acceptors, arranged so donor-order takes the pairing that

@@ -77,21 +77,24 @@
 
   <div class="grid">
     <div class="case">
-      <p class="why"><b>A — the two gates, at a fixed distance.</b> Neither
-        slider moves the molecules any closer or further apart. <b>Approach</b>
-        walks the donor around the acceptor, off the lone pair and toward the
-        back of the oxygen; <b>tilt</b> turns the donor in place so its O–H
-        stops pointing at anything. Either one alone kills the bond, at an
-        unchanged distance — which is the whole difference between a hydrogen
+      <p class="why"><b>A — direction, at a fixed distance.</b> Neither slider
+        moves the molecules any closer or further apart, and both can still
+        change the answer — which is the whole difference between a hydrogen
         bond and "two molecules near each other".
-        <br><br>Tilt is worth walking all the way out. The bond dies around
-        <b>45°</b>, and then comes <b>back</b> near 80° — on the donor's
-        <b>other</b> hydrogen, which the same turn has swung into range. A
-        water has two of them, so tilting does not simply switch the bond off,
-        and the verdict below names which one is carrying it.</p>
+        <br><br><b>Tilt</b> turns the donor in place, and it is a hard gate: a
+        bond needs its O–H pointing roughly at the acceptor. The bond dies
+        around <b>45°</b> and comes <b>back</b> near 80° — on the donor's
+        <b>other</b> hydrogen, which the same turn has swung into range.
+        <br><br><b>Approach</b> walks the donor around the acceptor and is
+        deliberately <b>not</b> a hard gate. Off-axis costs alignment, not
+        existence: real hydrogen bonds sit broadly around an acceptor rather
+        than in tight cones about idealised lone pairs, so the readout reports
+        how well aimed the bond is instead of pretending 60° is a wall. Keep
+        going past <b>90°</b> and it does die — that is the approach arriving
+        behind the ears, where the oxygen's own hydrogens are.</p>
       <div><canvas class="gl" id="glA"></canvas></div>
       <div class="row" id="rowA"></div>
-      <div class="slider"><label>Approach</label><input id="alpha" type="range" min="0" max="110" value="0"><span id="alphaV"></span></div>
+      <div class="slider"><label>Approach</label><input id="alpha" type="range" min="0" max="170" value="0"><span id="alphaV"></span></div>
       <div class="slider"><label>Tilt</label><input id="phi" type="range" min="0" max="110" value="0"><span id="phiV"></span></div>
       <div class="verdict" id="verdictA"></div>
       <div class="read" id="readA"></div>
@@ -230,8 +233,11 @@ function transformed(spec, quat, offset){
     // neither O–H qualifies; past 80° the donor's OTHER hydrogen has swung
     // into range and takes the bond over. Naming it is the difference between
     // that reading as a flickering slider and as the thing it is.
+    const deg = c => c==null ? null
+      : Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI;
     v.textContent = pairs.length
-      ? `Bonded — donor's H${pairs[0].donor.id}, on lone pair ${pairs[0].lobe + 1} of 2.`
+      ? `Bonded — donor's H${pairs[0].donor.id}, on lone pair ${pairs[0].lobe + 1}`
+        + ` of 2, ${deg(pairs[0].align).toFixed(0)}° off it.`
       : `No bond — ${best.r.why}.`;
 
     el('readA').innerHTML =
@@ -239,7 +245,10 @@ function transformed(spec, quat, offset){
       +`H···A          ${(best.r.d/K).toFixed(2)} Å   cutoff ${HBond.DEFAULTS.maxDist} Å\n`
       +`D–H···A        ${(Math.acos(Math.max(-1,Math.min(1,best.r.linearity??0)))*180/Math.PI).toFixed(0)}° off straight`
       +`   cutoff ${(Math.acos(HBond.DEFAULTS.minLinearity)*180/Math.PI).toFixed(0)}°\n`
-      +`lone pair      ${best.r.lobe==null ? '— none in range' : `#${best.r.lobe+1}`}`;
+      +`lone pair      ${best.r.lobe==null ? '— none free'
+          : `#${best.r.lobe+1}, ${deg(best.r.align).toFixed(0)}° off it`}`
+      +`   floor ${(Math.acos(HBond.DEFAULTS.minLobe)*180/Math.PI).toFixed(0)}°`
+      +` — a hemisphere, not a cone`;
   }
   el('alpha').oninput = update; el('phi').oninput = update;
 
