@@ -1,36 +1,50 @@
 <!DOCTYPE html>
 <!--
-  viewer-compare.html — 3Dmol.js vs ChemDoodle Web vs Mol*, same protein, same
-  moment.
+  viewer-compare.html — 3Dmol.js vs Mol*, same protein, same moment.
 
-  SETTLED — none of the three was adopted. The verdict is in
-  RenderingLibraries.md: we draw proteins ourselves, with Three.js + scene.js +
-  folding/ribbon.js. This page is kept as the record of the comparison, not as
-  an open question, and is deliberately NOT deleted: it is worth showing.
+  SETTLED — neither was adopted. The verdict is in RenderingLibraries.md: we
+  draw proteins ourselves, with Three.js + scene.js + folding/ribbon.js. This
+  page is kept as the record of the comparison, not as an open question, and is
+  deliberately NOT deleted: it is worth showing.
 
-  Mol* was added to this page AFTER that verdict, and does not reopen it. The
-  decision turned on a structural argument (a viewer brings its own WebGL
-  context and canvas, so it cannot draw into scene.js's scene) — not on which
-  library styles a ribbon best, which is what this page is for. What it is
-  good for now is the STYLE MENU: three renderers' answers to "cartoon",
-  "surface", "by chain" side by side is the fastest way to see what a
-  representation is conventionally supposed to look like before we build our
-  own version of it. Treat it as a reference for OUR renderer's targets.
+  ChemDoodle Web was the third pane and has been REMOVED. Two reasons, and the
+  licence one alone was enough: it is GPLv3, so any page loading it inherits
+  GPL terms (`protein-lab.html` is now the only page that does). The second is
+  capability — it draws a ribbon and ball-and-stick and nothing else, so on a
+  page whose whole subject is the style menu it was a column of "no equivalent"
+  notes. What it taught is recorded in RenderingLibraries.md and in
+  protein-lab.html's own header; nothing here needs to re-derive it.
+
+  What the page is FOR now is that style menu: two renderers' answers to
+  "cartoon", "putty", "gaussian surface", "by hydrophobicity" side by side is
+  the fastest way to see what a representation is conventionally supposed to
+  look like before we build our own version of it. Treat it as a reference for
+  OUR renderer's targets — and where one of the two has no equivalent, the pane
+  says so rather than quietly substituting, because a silent fallback is how a
+  comparison page starts lying.
+
+  The library decision itself turned on a structural argument (a viewer brings
+  its own WebGL context and canvas, so it cannot draw into scene.js's scene) —
+  not on which library styles a ribbon best. Adding styles here does not
+  reopen it.
 
   Evaluation scratch page, NOT a lesson. It deliberately loads neither
   sandbox.css nor any of the mol-*.js modules: the point was to judge the
   libraries unmixed with our own rendering.
 
-  All three viewers get the identical PDB text (one fetch from RCSB, shared,
-  reoriented once before any of them sees it), so a visual difference is the
+  Both viewers get the identical PDB text (one fetch from RCSB, shared,
+  reoriented once before either of them sees it), so a visual difference is the
   library, not the data.
 -->
 <meta charset="utf-8">
-<title>3Dmol.js vs ChemDoodle Web vs Mol*</title>
-<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
-<!-- vendored: no npm, no CDN — see vendor/chemdoodle/README.md -->
-<link rel="stylesheet" href="vendor/chemdoodle/ChemDoodleWeb.css">
-<script src="vendor/chemdoodle/ChemDoodleWeb.js"></script>
+<title>3Dmol.js vs Mol*</title>
+<!-- jsDelivr rather than 3Dmol.org's own build/, and PINNED — two reasons, and
+     the second is why it changed: a pinned version means the timings and byte
+     counts below describe a known build, and jsDelivr sends Timing-Allow-Origin,
+     which 3Dmol.org does not. Without that header the browser reports every size
+     for this script as zero, so the download size in the pane header would have
+     been a silent 0 B rather than a measurement. -->
+<script src="https://cdn.jsdelivr.net/npm/3dmol@2.5.5/build/3Dmol-min.js"></script>
 <!-- same version the molstar/ evaluation pinned, so the two agree -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.css">
 <script src="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.js"></script>
@@ -43,19 +57,19 @@
   .controls { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:14px; }
   .controls label { display:flex; gap:6px; align-items:center; }
   select { font:inherit; padding:3px 6px; }
-  #grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1px; background:var(--line); }
-  /* three panes need the width; below this they stack two-up, then one */
-  @media (max-width:1200px) { #grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
-  @media (max-width:760px)  { #grid { grid-template-columns:minmax(0,1fr); } }
+  #grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1px; background:var(--line); }
+  /* two panes fit comfortably; below this they stack */
+  @media (max-width:820px) { #grid { grid-template-columns:minmax(0,1fr); } }
   .pane { background:#fff; display:flex; flex-direction:column; min-width:0; }
   .pane h2 { margin:0; padding:8px 12px; font-size:13px; font-weight:600; letter-spacing:.04em;
              text-transform:uppercase; border-bottom:1px solid var(--line); display:flex;
              justify-content:space-between; }
-  .pane h2 .t { font-weight:400; color:#8a8madd; color:#8a857a; text-transform:none; letter-spacing:0; }
-  .stage { position:relative; height:62vh; min-height:380px; }
+  .pane h2 .t { font-weight:400; color:#8a857a; text-transform:none; letter-spacing:0; }
+  .pane h2 .sz { font-weight:400; color:#8a857a; text-transform:none; letter-spacing:0;
+                 margin-left:8px; }
+  .stage { position:relative; height:66vh; min-height:400px; }
   /* 3Dmol needs an explicitly positioned host element */
   #viewer3dmol { position:absolute; inset:0; }
-  #cdholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   /* Mol* ships a full plugin UI; this page wants only its viewport. Same
      suppression the molstar/ evaluation uses — and the same caveat: these are
      class names, so a version bump can rename them out from under us. */
@@ -68,7 +82,7 @@
 </style>
 
 <header>
-  <h1>3Dmol.js vs ChemDoodle Web vs Mol* — same file, same style, side by side</h1>
+  <h1>3Dmol.js vs Mol* — same file, same style, side by side</h1>
   <div class="controls">
     <label>Structure
       <select id="pdb">
@@ -91,19 +105,37 @@
     </label>
     <label>Style
       <select id="style">
-        <option value="cartoon">Cartoon / ribbon</option>
-        <option value="stick">Sticks</option>
-        <option value="sphere">Spheres (space-fill)</option>
-        <option value="surface">Molecular surface</option>
+        <optgroup label="Backbone">
+          <option value="cartoon">Cartoon (arrows on strands)</option>
+          <option value="ribbon">Flat ribbon (no arrows)</option>
+          <option value="tube">Cα tube / trace</option>
+          <option value="putty">Putty (tube fattened by B-factor)</option>
+        </optgroup>
+        <optgroup label="Atoms">
+          <option value="line">Lines (wireframe)</option>
+          <option value="stick">Sticks</option>
+          <option value="ballstick">Ball-and-stick</option>
+          <option value="sphere">Spheres (space-fill)</option>
+        </optgroup>
+        <optgroup label="Surfaces">
+          <option value="surface">Molecular surface (SES)</option>
+          <option value="sas">Solvent-accessible surface (SAS)</option>
+          <option value="vdw">Van der Waals surface</option>
+          <option value="gaussian">Gaussian surface (smoothed)</option>
+        </optgroup>
       </select>
     </label>
     <label>Colour
       <select id="color">
-        <option value="ss">Secondary structure — custom (ChemDoodle-like)</option>
+        <option value="ss">Secondary structure — custom palette</option>
         <option value="ssJmol">Secondary structure — Jmol default</option>
         <option value="chain">By chain</option>
         <option value="spectrum">N→C spectrum</option>
         <option value="element">By element</option>
+        <option value="resn">By residue name</option>
+        <option value="hydro">By hydrophobicity (Kyte–Doolittle)</option>
+        <option value="bfactor">By B-factor</option>
+        <option value="uniform">Uniform grey</option>
       </select>
     </label>
     <label>Orientation
@@ -127,17 +159,12 @@
 
 <div id="grid">
   <section class="pane">
-    <h2>3Dmol.js <span class="t" id="t3d"></span></h2>
+    <h2><span>3Dmol.js <span class="sz" id="sz3d"></span></span> <span class="t" id="t3d"></span></h2>
     <div class="stage"><div id="viewer3dmol"></div></div>
     <div class="note" id="n3d"></div>
   </section>
   <section class="pane">
-    <h2>ChemDoodle Web <span class="t" id="tcd"></span></h2>
-    <div class="stage"><div id="cdholder"></div></div>
-    <div class="note" id="ncd"></div>
-  </section>
-  <section class="pane">
-    <h2>Mol* <span class="t" id="tms"></span></h2>
+    <h2><span>Mol* <span class="sz" id="szms"></span></span> <span class="t" id="tms"></span></h2>
     <div class="stage"><div id="viewermolstar"></div></div>
     <div class="note" id="nms"></div>
   </section>
@@ -146,14 +173,16 @@
 <footer>
   <strong>What to look at:</strong>
   <ul>
-    <li><b>Load time</b> in each header — same bytes, parsed three times. Mol*'s first number includes ~300 ms of one-time plugin boot; every later change is cheaper.</li>
-    <li><b>Cartoon quality.</b> 3Dmol draws proper secondary-structure cartoons (arrows on strands, tubes on loops); ChemDoodle draws a ribbon; Mol* draws the most refined of the three. Compare on 1IGT, which is nearly all β-sheet — the arrowheads and the strand twist are what to watch.</li>
-    <li><b>Molecular surface.</b> 3Dmol and Mol* both compute one (SES/SAS); ChemDoodle Web has no surface at all — pick "Molecular surface" and read the middle note. On 2HHB, 3Dmol took 5.7 s and Mol* 9.4 s, but Mol* builds on a worker and stays responsive while it does. <b>This is the one capability our own renderer also lacks</b> — see the gaps list in <code>docs/bio-rendering-thorough.md</code>.</li>
-    <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook.</li>
-    <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully? 2HHB has four haems, one per subunit, so it asks the same question four times over.</li>
-    <li><b>Colour schemes, on 2HHB.</b> The default structure, and the one to cycle the Colour menu on. Four chains make "by chain" meaningful; being all-α makes a secondary-structure scheme a clean two-colour test (helix vs loop) instead of three colours fighting; and the four haems show whether a scheme reaches HETATM at all or quietly leaves them to a fallback. Note that ChemDoodle's chain colours are <em>its own and cannot be overridden</em> — that finding is why <code>protein-lab.html</code> reads them back out of the molecule instead of setting them.</li>
-    <li><b>Licence.</b> 3Dmol.js is BSD-3, Mol* is MIT, ChemDoodle Web is GPLv3 (or paid commercial) — GPL means the page loading it inherits GPL terms. <b>Settled:</b> ChemDoodle is dropped for exactly this reason, and neither permissive alternative was adopted either — see <code>RenderingLibraries.md</code>.</li>
-    <li><b>Why three panes, given we adopted none of them.</b> The decision was structural, not aesthetic: every viewer here brings its own WebGL context and camera, so none can draw into <code>scene.js</code>'s scene alongside our FX, raycasting and shared zoom ladder. What survives is this page as a <em>style reference</em> — when we build a representation ourselves, these three are the convention to measure it against. Read the Style menu as a spec, not as a shortlist.</li>
+    <li><b>Load time</b> in each header — same bytes, parsed twice. Mol*'s first number includes ~300 ms of one-time plugin boot; every later change is cheaper.</li>
+    <li><b>Cartoon quality.</b> 3Dmol draws proper secondary-structure cartoons (arrows on strands, tubes on loops); Mol* draws the more refined of the two. Compare on 1IGT, which is nearly all β-sheet — the arrowheads and the strand twist are what to watch. Then step down the Backbone group: cartoon → flat ribbon → tube is a ladder of how much structure the drawing asserts, and the tube is the honest one when the secondary structure is a guess.</li>
+    <li><b>Putty</b> is the one backbone style only Mol* has: tube radius driven by B-factor, so the floppy parts of the model look floppy. On 1AON the difference between the rigid equatorial domain and the mobile apical one is the whole picture. 3Dmol's note says so rather than drawing a plain tube and hoping.</li>
+    <li><b>Surfaces — four of them, and the differences are chemistry.</b> SES (molecular surface) is where a solvent probe can touch; SAS is the probe's own centre, so it is fatter by a water radius; van der Waals ignores the probe entirely, so the pits between atoms stay open. Gaussian is a smoothed approximation, fast enough for big files, and Mol*-only here. Try all four on 2POR — the barrel's pore either survives or fills in. On 2HHB, SES took 5.7 s in 3Dmol and 9.4 s in Mol*, but Mol* builds on a worker and stays responsive while it does. <b>Surfaces are the one capability our own renderer also lacks</b> — see the gaps list in <code>docs/bio-rendering-thorough.md</code>.</li>
+    <li><b>Colour by hydrophobicity</b> on 2HHB is the closest thing here to the sickle lesson's picture: greasy residues cluster inside, polar ones face the water. Compare it against by-element, which says nothing about the fold at all.</li>
+    <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook — and the one where "gaussian surface" versus "molecular surface" stops being an aesthetic choice.</li>
+    <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully? 2HHB has four haems, one per subunit, so it asks the same question four times over. Both viewers here need the ligand added as a separate component; neither does it for you.</li>
+    <li><b>Weight.</b> Beside each library's name is what this page actually downloaded for it — unpacked first, since that is the JavaScript the browser has to parse and keep, then the gzipped figure in brackets. Read it next to the <code>&lt;script&gt;</code> tag our own lessons carry: Three.js r128 minified is 603 KB and <code>scene.js</code> plus <code>folding/ribbon.js</code> are 70 KB together, so a viewer here is the largest single thing a lesson would ship.</li>
+    <li><b>Licence.</b> 3Dmol.js is BSD-3 and Mol* is MIT, so either could have shipped. ChemDoodle Web, which used to be the third pane, is GPLv3 — the page loading it inherits GPL terms — and that is why it is gone from here. <code>protein-lab.html</code> is now the only page that loads it; see <code>RenderingLibraries.md</code>.</li>
+    <li><b>Why keep this page, given we adopted neither.</b> The decision was structural, not aesthetic: both viewers bring their own WebGL context and camera, so neither can draw into <code>scene.js</code>'s scene alongside our FX, raycasting and shared zoom ladder. What survives is this page as a <em>style reference</em> — when we build a representation ourselves, these two are the convention to measure it against. Read the Style menu as a spec, not as a shortlist.</li>
   </ul>
 </footer>
 
@@ -169,9 +198,53 @@ function fetchPDB(id) {
     .then(t => { cache.set(id, t); return t; });
 }
 
+/* ---- what each library COSTS -------------------------------------------- *
+   MEASURED, never typed. Both bundles are read out of the browser's own
+   resource timings, so the numbers in the pane headers are what this page
+   actually downloaded rather than a figure copied off a README that a version
+   bump would quietly falsify.
+
+   Two numbers, because they answer different questions. `decodedBodySize` is
+   the JavaScript the browser must parse and hold — that is what costs a school
+   Chromebook its memory and its startup. `transferSize` is what came down the
+   wire, gzipped, which is what costs it the wait on a slow connection. Both
+   panes are counted the same way, CSS included, so the comparison is fair.
+
+   Two traps this has already hit:
+   - Cross-origin timings are zeroed unless the server sends
+     Timing-Allow-Origin. That is why the 3Dmol tag was moved to jsDelivr; see
+     the comment on it.
+   - `transferSize` is ~0 on a warm cache, which is honest but not comparable.
+     So the wire figure is only shown when it is non-zero, and the unpacked
+     size — which the cache does not change — is the one always printed. */
+const fmtBytes = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB'
+                    : Math.round(b / 1024) + ' KB';
+
+function libBytes(re) {
+  let wire = 0, raw = 0;
+  for (const e of performance.getEntriesByType('resource')) {
+    if (!re.test(e.name)) continue;
+    wire += e.transferSize || 0;
+    raw  += e.decodedBodySize || 0;
+  }
+  return { wire, raw };
+}
+
+/* Recomputed after every draw, not once at load: Mol* code-splits, so a
+   representation used for the first time can pull another chunk down and the
+   figure would otherwise under-report it. */
+function showSizes() {
+  for (const [el, re] of [['sz3d', /3dmol/i], ['szms', /molstar/i]]) {
+    const { wire, raw } = libBytes(re);
+    $(el).textContent = raw
+      ? `· ${fmtBytes(raw)}${wire ? ` (${fmtBytes(wire)} gzipped)` : ' cached'}`
+      : '';
+  }
+}
+
 /* ---- orientation -------------------------------------------------------- *
-   Neither library reorients anything: ChemDoodle's loadMolecule only centres,
-   and 3Dmol's zoomTo only fits the bounding box. Both show the coordinates as
+   Neither library reorients anything: 3Dmol's zoomTo only fits the bounding
+   box, and Mol*'s camera reset does the same. Both show the coordinates as
    deposited, which is an accident of crystallography rather than a chosen view.
 
    So we rotate the coordinates ourselves, before either library sees them —
@@ -252,6 +325,27 @@ function orientPDB(pdb, mode) {
   }).join('\n');
 }
 
+/* ---- the hydrophobicity colour scale ------------------------------------ *
+   Kyte & Doolittle (1982), the same numbers sickle/sickle.js carries — but
+   they are re-typed here rather than imported, because this page deliberately
+   loads none of our modules. Mol* has this theme built in; 3Dmol does not, so
+   the values below are what makes the two panes comparable at all.
+   Blue = hydrophilic, through cream, to orange = greasy. */
+const KD = { ILE:4.5, VAL:4.2, LEU:3.8, PHE:2.8, CYS:2.5, MET:1.9, ALA:1.8, GLY:-0.4,
+             THR:-0.7, SER:-0.8, TRP:-0.9, TYR:-1.3, PRO:-1.6, HIS:-3.2, GLU:-3.5,
+             GLN:-3.5, ASP:-3.5, ASN:-3.5, LYS:-3.9, ARG:-4.5 };
+// linear blend through a mid cream, so zero (neither) is visibly neutral
+function kdColor(resn) {
+  const v = KD[resn];
+  if (v === undefined) return 0xbdb6a8;                 // ligands, water, nucleotides
+  const t = (v + 4.5) / 9;                              // 0 = most polar, 1 = most greasy
+  const A = [0x2f, 0x7d, 0xd0], B = [0xf2, 0xea, 0xd6], C = [0xe0, 0x76, 0x22];
+  const mix = (x, y, u) => Math.round(x + (y - x) * u);
+  const [p, q, u] = t < 0.5 ? [A, B, t * 2] : [B, C, (t - 0.5) * 2];
+  return (mix(p[0],q[0],u) << 16) | (mix(p[1],q[1],u) << 8) | mix(p[2],q[2],u);
+}
+const kdScheme = { colorfunc: atom => kdColor(atom.resn) };
+
 /* ---- 3Dmol -------------------------------------------------------------- */
 
 /* 3Dmol's atom.ss is only 'h' | 's' | 'c' — it folds 3-10 and pi helices into
@@ -291,10 +385,19 @@ function paintHelixClasses(pdb, ribbon) {
     }
   };
   paint(pi, 0x2f9ee0);        // pi helix — rare; blue so it can't be mistaken for 3-10
-  paint(three10, 0x34d882);   // 3-10 helix — ChemDoodle's green
+  paint(three10, 0x34d882);   // 3-10 helix — green
   const n = Object.values(three10).reduce((s, r) => s + r.length, 0);
-  $('n3d').textContent = n ? `${n} 3-10 helix segment${n === 1 ? '' : 's'} in green (3Dmol calls these plain helix; read from the HELIX records)` : '';
+  return n ? `${n} 3-10 helix segment${n === 1 ? '' : 's'} in green (3Dmol calls these plain helix; read from the HELIX records)` : '';
 }
+
+// Which of the four surface menu entries 3Dmol can actually compute.
+const SURF3D = { surface:'MS', sas:'SAS', vdw:'VDW' };
+// Backbone styles: 3Dmol expresses all of them through `cartoon`.
+const CARTOON3D = {
+  cartoon: { arrows: true },
+  ribbon:  { ribbon: true, arrows: false },
+  tube:    { style: 'trace', thickness: 0.4 },
+};
 
 function render3d(pdb, style, color, shading) {
   const t0 = performance.now();
@@ -310,99 +413,81 @@ function render3d(pdb, style, color, shading) {
                           : { style: '' });          // '' turns both back off
 
   v3d.clear();
-  $('n3d').textContent = '';
+  let note = '';
   v3d.addModel(pdb, 'pdb');
 
-  // ChemDoodle's ribbon palette, sampled: purple helix, tan sheet, yellow coil.
-  // Same shape as the built-in $3Dmol.ssColors.Jmol, just our own values.
+  // A thin flat ribbon palette: purple helix, tan sheet, yellow coil. Same shape
+  // as the built-in $3Dmol.ssColors.Jmol, just our own values.
   const ssMap = { colorscheme: { prop: 'ss', map: { h: 0xa03fd8, s: 0xd9c3ae, c: 0xf2e05a } } };
 
   const scheme = color === 'ss' ? ssMap
                : color === 'ssJmol' ? { colorscheme: 'ssJmol' }
                : color === 'chain' ? { colorscheme: 'chain' }
                : color === 'spectrum' ? { color: 'spectrum' }
+               : color === 'resn' ? { colorscheme: 'amino' }
+               : color === 'hydro' ? kdScheme
+               // 3Dmol's gradient colouring wants an explicit range; B-factors in
+               // an X-ray file are typically 5-60 Å², so a fixed window keeps two
+               // structures comparable instead of each rescaling to itself.
+               : color === 'bfactor' ? { colorscheme: { prop: 'b', gradient: 'rwb', min: 5, max: 60 } }
+               : color === 'uniform' ? { color: 0x9aa6b2 }
                : { colorscheme: 'Jmol' };
 
-  // 3Dmol's defaults, deliberately. Thickening the ribbon or rounding its edge
-  // ('oval') reads as bloated: ChemDoodle looks better because it is thin and
-  // flat, so the only thing worth borrowing from it is the palette.
-  const ribbon = { arrows: true };
+  const isSurface = style in SURF3D || style === 'gaussian';
+  const cartoonOpts = CARTOON3D[style];
 
-  if (style === 'cartoon') {
-    v3d.setStyle({}, { cartoon: Object.assign({}, ribbon, scheme) });
-    if (color === 'ss') paintHelixClasses(pdb, ribbon);
+  if (cartoonOpts) {
+    // 3Dmol's defaults, deliberately. Thickening the ribbon or rounding its edge
+    // ('oval') reads as bloated — thin and flat is what a cartoon should be.
+    v3d.setStyle({}, { cartoon: Object.assign({}, cartoonOpts, scheme) });
+    if (color === 'ss' && style !== 'tube') note = paintHelixClasses(pdb, cartoonOpts);
     // hetero atoms have no secondary structure — cartoon would drop them entirely
     v3d.setStyle({ hetflag: true }, { stick: { radius: 0.18, colorscheme: 'Jmol' } });
+  } else if (style === 'putty') {
+    // 3Dmol has no B-factor-driven tube. Draw the plain trace and SAY so — the
+    // pane is worthless as a reference if a missing feature looks like a present one.
+    v3d.setStyle({}, { cartoon: Object.assign({ style: 'trace', thickness: 0.4 }, scheme) });
+    note = 'No putty in 3Dmol — cartoon thickness is a constant, not a per-residue property. This is a plain Cα tube; the Mol* pane is the real thing.';
+  } else if (style === 'line') {
+    v3d.setStyle({}, { line: Object.assign({ linewidth: 1.5 }, scheme) });
   } else if (style === 'stick') {
     v3d.setStyle({}, { stick: Object.assign({ radius: 0.15 }, scheme) });
+  } else if (style === 'ballstick') {
+    v3d.setStyle({}, { stick: Object.assign({ radius: 0.12 }, scheme),
+                       sphere: Object.assign({ scale: 0.25 }, scheme) });
   } else if (style === 'sphere') {
     v3d.setStyle({}, { sphere: scheme });
   } else {
-    v3d.setStyle({}, { cartoon: Object.assign({}, ribbon, scheme) });
+    // every surface entry draws the cartoon underneath, so the fold stays readable
+    v3d.setStyle({}, { cartoon: Object.assign({ arrows: true }, scheme) });
     v3d.setStyle({ hetflag: true }, { stick: { radius: 0.18, colorscheme: 'Jmol' } });
-    // addSurface is async — the timing below is only honest if we wait for it
-    // not white — a white surface on a white background is invisible
-    // the atom selection is NOT optional — omit it and you get a silent empty surface
-    v3d.addSurface($3Dmol.SurfaceType.MS, { opacity: 0.7, color: '#9fb4c7' }, {})
-       .then(() => { v3d.render(); $('t3d').textContent = `${Math.round(performance.now() - t0)} ms (incl. surface)`; });
+    if (style === 'gaussian') {
+      note = 'No gaussian surface in 3Dmol — it offers SES, SAS and van der Waals only. Showing the cartoon; the Mol* pane has the real answer.';
+    } else {
+      // addSurface is async — the timing below is only honest if we wait for it.
+      // Not white: a white surface on a white background is invisible. And the
+      // atom selection is NOT optional — omit it and you get a silent empty surface.
+      v3d.addSurface($3Dmol.SurfaceType[SURF3D[style]], { opacity: 0.7, color: '#9fb4c7' }, {})
+         .then(() => { v3d.render(); $('t3d').textContent = `${Math.round(performance.now() - t0)} ms (incl. surface)`; });
+    }
   }
   v3d.zoomTo();
   v3d.render();
-  if (style !== 'surface') $('t3d').textContent = `${Math.round(performance.now() - t0)} ms`;
-  else $('t3d').textContent = 'computing surface…';
-  // note: paintHelixClasses may already have written here, so only the surface
-  // branch overwrites — the general clear happens at the top of this function
-  if (style === 'surface')
-    $('n3d').textContent = 'Surface is computed in the browser — note how long it takes on the bigger files.';
-}
 
-/* ---- ChemDoodle --------------------------------------------------------- */
-function renderCD(pdb, style, color) {
-  const holder = $('cdholder');
-  holder.innerHTML = '<canvas id="cdcanvas"></canvas>';
-  const w = holder.clientWidth, h = holder.clientHeight;
-  const t0 = performance.now();
-
-  const c = new ChemDoodle.TransformCanvas3D('cdcanvas', w, h);
-  c.styles.backgroundColor = 'white';
-  c.styles.atoms_displayLabels_3D = false;
-  c.styles.macro_showWater = false;
-  c.styles.proteins_ribbonCartoonize = true;
-
-  // 'none' leaves ChemDoodle's own per-secondary-structure ribbon colours in place
-  c.styles.proteins_residueColor = color === 'spectrum' ? 'rainbow'
-                                 : color === 'element'  ? 'shapely' : 'none';
-  c.styles.macro_colorByChain = (color === 'chain');
-
-  if (style === 'cartoon') {
-    c.styles.proteins_displayRibbon = true;
-    c.styles.nucleics_display = true;
-    c.styles.macro_displayBonds = false;   // ribbon only; ligands still drawn
-  } else {
-    c.styles.proteins_displayRibbon = false;
-    c.styles.macro_displayBonds = true;
-    c.styles.macro_atomToLigandDistance = -1;   // draw the whole macromolecule
-    c.styles.set3DRepresentation(style === 'sphere' ? 'van der Waals Spheres' : 'Stick');
-  }
-
-  c.loadMolecule(ChemDoodle.readPDB(pdb));
-  $('tcd').textContent = `${Math.round(performance.now() - t0)} ms`;
-  $('ncd').textContent = style === 'surface'
-    ? 'ChemDoodle Web has no molecular-surface renderer — showing its ribbon instead. This is a hard capability gap, not a setting.'
-    : (color === 'element' && style === 'cartoon'
-        ? 'Ribbons are coloured per chain/residue; element colouring only applies to drawn atoms.'
-        : '');
+  const computing = isSurface && style !== 'gaussian';
+  $('t3d').textContent = computing ? 'computing surface…' : `${Math.round(performance.now() - t0)} ms`;
+  if (computing) note = 'Surface is computed on the main thread — the page is frozen until it finishes. Watch the clock on the bigger files.';
+  $('n3d').textContent = note;
 }
 
 /* ---- Mol* --------------------------------------------------------------- *
-   Added after the verdict, as a style reference rather than as a candidate —
-   see the file header. Mol* is the only one of the three that draws every
-   representation on this page's menu, so it is the closest thing here to a
-   "what is this supposed to look like" control.
+   Kept as a style reference rather than as a candidate — see the file header.
+   Mol* draws every representation on this page's menu, so it is the closest
+   thing here to a "what is this supposed to look like" control.
 
    Structural note that decided the real question and is visible right here:
    this pane is a SEPARATE WebGL context with its own camera. The Orientation
-   menu works only because we rotate the coordinates before any viewer sees
+   menu works only because we rotate the coordinates before either viewer sees
    them — nothing below sets a camera. */
 
 let msViewer = null, msBooting = null, msGen = 0, msKey = null;
@@ -424,18 +509,46 @@ function molstarReady() {
 /* The menus are written in 3Dmol's vocabulary, so each one is translated.
    Where Mol* has no equivalent the pane says so rather than silently
    substituting — a quiet fallback is how a comparison page starts lying. */
-const MS_TYPE = { cartoon:'cartoon', stick:'ball-and-stick', sphere:'spacefill', surface:'molecular-surface' };
+const MS_TYPE = {
+  cartoon:'cartoon', ribbon:'cartoon', tube:'backbone', putty:'putty',
+  line:'line', stick:'ball-and-stick', ballstick:'ball-and-stick', sphere:'spacefill',
+  surface:'molecular-surface', sas:'molecular-surface', vdw:'gaussian-surface',
+  gaussian:'gaussian-surface',
+};
 const MS_COLOR = {
   ss:'secondary-structure', ssJmol:'secondary-structure',
   chain:'chain-id', spectrum:'sequence-id', element:'element-symbol',
+  resn:'residue-name', hydro:'hydrophobicity', bfactor:'uncertainty', uniform:'uniform',
+};
+/* Per-style overrides. SAS is the same surface builder as SES with the probe
+   radius folded into the geometry, so it is a parameter and not a type — which
+   is exactly the kind of thing a menu written in another library's words hides. */
+const MS_PARAMS = {
+  ribbon:    { aspectRatio: 1, arrowFactor: 0 },      // flatten the cartoon, drop the arrowheads
+  sas:       { probeRadius: 1.4, includeParent: false },
+  surface:   { probeRadius: 0 },                      // Mol*'s SES probe; 0 gives the tight surface
+  stick:     { sizeFactor: 0.3, aspectRatio: 1 },     // sticks = ball-and-stick with equal-size balls
+  vdw:       { radiusOffset: 0, smoothness: 3 },
+  gaussian:  { radiusOffset: 0.6, smoothness: 1 },    // the smoothed one the menu is asking for
+};
+/* What the Mol* pane says about a style the 3Dmol pane cannot match, or vice
+   versa. Written per style so a new menu entry has to declare its own answer. */
+const MS_NOTE = {
+  putty:    'Putty is Mol*-only here: tube radius follows the B-factor, so the mobile parts of the model are visibly fatter.',
+  gaussian: 'Gaussian surface is Mol*-only here — a smoothed density isosurface rather than a rolled probe. Much faster than SES on big files, and the one to use on 1AON.',
+  vdw:      'Van der Waals: no solvent probe at all, so the pits between neighbouring atoms stay open. Compare against SES, where a 1.4 Å probe bridges them.',
+  sas:      'SAS traces the probe’s CENTRE rather than its contact point, so it sits about 1.4 Å outside the SES — the same molecule, one water radius fatter.',
+  surface:  'Mol* is the slower of the two on SES — measured 9.4 s on 2HHB against 3Dmol’s 5.7 s. It builds on a worker, so the page keeps responding while it waits; 3Dmol blocks.',
+  stick:    'Mol* has no pure stick representation — this is ball-and-stick with the balls shrunk to the stick radius.',
+  ribbon:   'Mol* has no separate flat-ribbon type; this is its cartoon with the cross-section flattened and the arrowheads switched off.',
 };
 
 /* THE ONE ASYNC PANE, AND THE ONE THAT CAN RACE ITSELF.
    `draw` also runs on window resize, so a second render can start while the
    first is between its `clear()` and its `addRepresentation()`. The two
    interleave and the pane ends up empty with no error anywhere — it looks
-   exactly like a viewer that failed to load. 3Dmol and ChemDoodle are
-   synchronous and cannot do this.
+   exactly like a viewer that failed to load. 3Dmol is synchronous and cannot
+   do this.
 
    Fix: every call takes a generation number, and any call that is no longer
    the newest returns without touching the plugin. Bail out AFTER each await,
@@ -459,8 +572,8 @@ async function renderMS(pdb, style, color, shading) {
       : shading === 'ao'    ? on('occlusion')
       : shading === 'both'  ? on('outline', 'occlusion') : {}),
     /* the little RGB axes gizmo, on by default. It is chrome, not molecule,
-       and the other two panes have no equivalent — leaving it in would make
-       the comparison read as "Mol* draws more" */
+       and the other pane has no equivalent — leaving it in would make the
+       comparison read as "Mol* draws more" */
     camera: { helper: { axes: { name:'off', params:{} } } },
   });
 
@@ -473,11 +586,13 @@ async function renderMS(pdb, style, color, shading) {
   if (stale()) return;
 
   const type = MS_TYPE[style], colorTheme = MS_COLOR[color];
+  const typeParams = MS_PARAMS[style];
   const R = plugin.builders.structure.representation;
 
   const polymer = await plugin.builders.structure.tryCreateComponentStatic(struct, 'polymer');
   if (stale()) return;
-  if (polymer) await R.addRepresentation(polymer, { type, color: colorTheme });
+  if (polymer) await R.addRepresentation(polymer,
+    Object.assign({ type, color: colorTheme }, typeParams ? { typeParams } : null));
   if (stale()) return;
 
   /* Ligands never carry secondary structure, so a cartoon drops them — the
@@ -489,50 +604,45 @@ async function renderMS(pdb, style, color, shading) {
   if (stale()) return;
 
   $('tms').textContent = `${Math.round(performance.now() - t0)} ms`;
-  /* style note first: 'ss' is the DEFAULT colour, so testing it first would
-     mask every other note on this pane permanently. */
-  $('nms').textContent =
-      style === 'surface'
-        ? 'Mol* is the slower of the two that can do this at all — measured 9.4 s on 2HHB against 3Dmol’s 5.7 s. It builds on a worker, so the page keeps responding while it waits; 3Dmol blocks.'
-    : color === 'ss'
-        ? 'Mol* has its own secondary-structure palette; the custom ChemDoodle-like values are not replicated here, so read this pane for the SHAPE of the cartoon, not its colours.'
-    : '';
+  /* Style note first: 'ss' is the DEFAULT colour, so testing colour first would
+     mask every style note on this pane permanently. */
+  $('nms').textContent = MS_NOTE[style]
+    || (color === 'ss'
+        ? 'Mol* has its own secondary-structure palette; the custom values in the other pane are not replicated here, so read this pane for the SHAPE of the cartoon, not its colours.'
+        : '');
 }
 
 /* ---- driver ------------------------------------------------------------- */
 function draw() {
   const id = $('pdb').value, style = $('style').value, color = $('color').value;
-  const shading = $('shading').value;   // 3Dmol and Mol* only — ChemDoodle exposes no equivalent
+  const shading = $('shading').value;
   $('status').textContent = `loading ${id}…`;
   fetchPDB(id).then(raw => {
     const atoms = raw.split('\n').filter(l => l.startsWith('ATOM') || l.startsWith('HETATM')).length;
-    // orient once, then hand the SAME coordinates to all three viewers
+    // orient once, then hand the SAME coordinates to both viewers
     const pdb = orientPDB(raw, $('orient').value);
     $('status').textContent = `${id} — ${atoms} atom records`;
     current = raw;
     try { render3d(pdb, style, color, shading); } catch (e) { $('n3d').textContent = '3Dmol error: ' + e.message; }
-    try { renderCD(pdb, style === 'surface' ? 'cartoon' : style, color); }
-    catch (e) { $('ncd').textContent = 'ChemDoodle error: ' + e.message; }
-    if (style === 'surface') $('ncd').textContent =
-      'ChemDoodle Web has no molecular-surface renderer — showing its ribbon instead. This is a hard capability gap, not a setting.';
-    /* ChemDoodle sizes its canvas at construction, so a resize forces a full
-       rebuild and `draw` is wired to the resize event for its sake. Mol*
-       resizes its own canvas and needs nothing — rebuilding it on every
-       resize just blanks the pane for ~350 ms for no reason. So skip when
-       nothing that affects the Mol* scene actually changed. */
+    /* Mol* resizes its own canvas and needs nothing on a window resize —
+       rebuilding it would just blank the pane for ~350 ms for no reason. So
+       skip when nothing that affects the Mol* scene actually changed. */
     const key = [id, style, color, shading, $('orient').value].join('|');
     if (key !== msKey) {
       msKey = key;
-      // async, and the only one that is — so its timing lands after the others
+      // async, and the only one that is — so its timing lands after 3Dmol's
       $('tms').textContent = '…';
       renderMS(pdb, style, color, shading)
-        .catch(e => { $('tms').textContent = ''; $('nms').textContent = 'Mol* error: ' + e.message; });
+        .catch(e => { $('tms').textContent = ''; $('nms').textContent = 'Mol* error: ' + e.message; })
+        .then(showSizes);
     }
+    showSizes();
   }).catch(e => { $('status').textContent = 'fetch failed: ' + e.message; });
 }
 
 ['pdb', 'style', 'color', 'shading', 'orient'].forEach(id => $(id).addEventListener('change', draw));
-// the ChemDoodle canvas is sized in pixels at construction, so a resize means a rebuild
+// 3Dmol's viewer tracks its container, but the redraw is cheap and keeps both
+// panes in step after a layout change.
 window.addEventListener('resize', () => { if (current) draw(); });
 draw();
 </script>
