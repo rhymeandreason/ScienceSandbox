@@ -109,6 +109,10 @@
 <script src="mol-glycolysis.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/molgraph.js"></script>
+<script src="kit/focus.js"></script>
+<script src="kit/stagekit.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -127,13 +131,23 @@
  *  group is a molecules.js edit, not an edit here.
  * ============================================================= */
 
-/* ---------- shared stage (scene.js) ---------- */
+/* ---------- shared stage (kit/stagekit.js over scene.js) ----------
+ * Lesson.create is Stage.create plus the four things this page used to build
+ * itself: the render loop, the ResizeObserver, the FX step, and a camera fit
+ * that knows how many PIXELS of chrome are sitting over the canvas. `boxes` and
+ * `reservePx` are asked again on every resize, so the fit is always solved
+ * against what is actually on stage rather than against whatever was there when
+ * the page loaded. */
 const canvas=document.getElementById('gl');
 let userSpun=false;                       // set once the user grabs the model
-const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+const L=Lesson.create(canvas,{
   cam:{theta:0.35,phi:1.2,r:26}, phiMin:0.3, phiMax:2.7, rMin:6, rMax:220,
-  onDrag:()=>{userSpun=true;} });
-const FXi=FX.create(THREE,root,camera);
+  onDrag:()=>{userSpun=true;},
+  boxes:()=>fitBoxes(),
+  reservePx:()=>fitReserve(),
+});
+const {scene,camera,renderer,root,cam,applyCam,resize}=L;
+const FXi=L.fx, Foc=L.focus;
 
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
@@ -211,8 +225,8 @@ const built=CLASSES.map((c,i)=>{
   // centre, so the caption and the camera fit agree with it.
   const g=Stage.buildMolecule(specOf(c),{center:true});
   // remember each mesh's own colour so a highlight can be undone exactly
-  g.userData.atomMeshes.forEach(m=>{ if(m) m.userData.baseColor=m.material.color.getHex(); });
-  g.userData.bondMeshes.forEach(m=>m.traverse(o=>{ if(o.isMesh) o.userData.baseColor=o.material.color.getHex(); }));
+  // (Focus.claim; it is idempotent, so a page that adds meshes later re-claims)
+  Focus.claim(g);
   const label=textSprite(c.kind, hx(c.accent));
   label.position.set(0, -EXT[i].hy-LABEL_DROP+1.7, 0);
   g.add(label); g.userData.label=label;
@@ -227,63 +241,39 @@ let showH=false;
 let group=null;          // selected functional group key, or null
 
 // Dim everything, then light the chosen group's atoms and the bonds INSIDE it.
-// A bond only counts as part of a group when BOTH ends are — a bond with one
-// end outside is the group's attachment to the rest of the molecule, and
-// lighting it would draw the boundary in the wrong place.
+// The vocabulary (ghost 13%, lit atoms emitting their OWN colour, a bond lit
+// only when BOTH ends are) is kit/focus.js's, so it means the same thing here
+// as on every other page — which matters more for the student than for the
+// code: ghosting has to mean "not this part" everywhere or it means nothing.
 function applyHighlight(){
   built.forEach((g,gi)=>{
-    const g4=CLASSES[gi], spec=specOf(g4);
+    const spec=specOf(CLASSES[gi]);
     const active=(group && (compare || gi===selected));
-    const set=new Set();
-    if(active){
-      const grp=(spec.groups||[]).find(x=>x.key===group);
-      if(grp) grp.atoms.forEach(i=>set.add(i));
-    }
-    const dim=active && set.size>0;
-    const paint=(m,on)=>{
-      if(!m) return;
-      m.traverse(o=>{
-        if(!o.isMesh||!o.material) return;
-        const ghost=dim&&!on;
-        o.material.transparent=ghost;
-        o.material.opacity=ghost?0.13:1;
-        // ghosts don't write depth: two dozen overlapping translucent spheres
-        // sort against each other and the molecule turns into a muddy stack
-        o.material.depthWrite=!ghost;
-        if(o.material.emissive){
-          o.material.emissive.setHex(on?o.userData.baseColor:0x000000);
-          o.material.emissiveIntensity=on?0.5:0;
-        }
-      });
-    };
-    g.userData.atomMeshes.forEach((m,i)=>paint(m,set.has(i)));
-    g.userData.bondMeshes.forEach(m=>paint(m,m.userData.pair.every(p=>set.has(p))));
+    const grp=active?(spec.groups||[]).find(x=>x.key===group):null;
+    Foc.atoms(g, grp?grp.atoms:[]);
   });
 }
 
-// Pull the camera back until what's on stage fits, solved from the ACTUAL
-// frustum rather than a hand-tuned multiple of the radius: the panel makes this
-// canvas nearly square on a laptop and wide on a monitor, so a constant that
-// frames palmitate on one crops it on the other.
-function fitCamera(){
-  // Compare mode fits the four cells where they sit; single mode fits one
-  // monomer at the origin. A radius fit would frame the compare grid's
-  // bounding circle and leave empty bands above/below, since it's twice as
-  // wide as tall — Stage.frame solves both axes against the real frustum
-  // instead. LABEL_DROP is passed as the bottom band the captions need.
-  const boxes = compare
-    ? EXT.map((e,i)=>({x:gridPos(i).x, y:gridPos(i).y, rxz:e.rxz, hy:e.hy}))
-    : [{x:0, y:0, rxz:EXT[selected].rxz, hy:EXT[selected].hy}];
-  // The caption band is only reserved in compare mode — the label sprites are
-  // hidden on a single monomer, so reserving room for them there would just
-  // shrink it. Reserved on the BOTTOM only: a label hangs under its molecule,
-  // which extends the frame for the bottom row and is interior for the top.
-  Stage.frame(camera, cam, boxes,
-    {pad:1.1, bottom:compare?LABEL_DROP:0, min:6, max:220});
-  applyCam();
-}
-// the canvas reflows when the window does, and a re-fit is cheap
-new ResizeObserver(()=>{ resize(); fitCamera(); }).observe(canvas);
+/* ---------- what the camera has to fit ----------
+ * Compare mode fits the four cells where they sit; single mode fits one monomer
+ * at the origin. A radius fit would frame the compare grid's bounding circle
+ * and leave empty bands above and below, since it is twice as wide as tall —
+ * the fit solves both axes against the real frustum instead.
+ *
+ * The caption band is only reserved in compare mode: the label sprites are
+ * hidden on a single monomer, so reserving room for them there would just
+ * shrink it. Bottom only — a label hangs under its molecule, which extends the
+ * frame for the bottom row and is interior for the top. */
+const fitBoxes=()=> compare
+  ? EXT.map((e,i)=>({x:gridPos(i).x, y:gridPos(i).y, rxz:e.rxz, hy:e.hy}))
+  : [{x:0, y:0, rxz:EXT[selected].rxz, hy:EXT[selected].hy}];
+// The group note is a DOM card lying over the bottom of the canvas, and it used
+// to be free to land on the molecule — the page had no way to spend PIXELS of
+// chrome against a WORLD-space fit. Measured here, converted by the fit.
+const fitReserve=()=>({
+  bottom: (noteEl && noteEl.style.display==='block' ? noteEl.offsetHeight+26 : 0),
+});
+const fitCamera=()=>L.fit(null,{bottom:compare?LABEL_DROP:0});
 
 function applyLayout(){
   built.forEach((g,i)=>{
@@ -387,53 +377,49 @@ function refresh(){
   const s=specOf(CLASSES[selected]);
   const grp=(s.groups||[]).find(g=>g.key===group);
   if(grp&&grp.atoms.length&&!compare){
-    // FX lives under `root`, and a monomer group carries its own rotation, so
-    // go through world space rather than adding local positions
-    const g=built[selected], p=V(0,0,0);
-    let n=0;
-    grp.atoms.forEach(i=>{ const m=g.userData.atomMeshes[i];
-      if(m){ p.add(m.getWorldPosition(V())); n++; } });
-    if(n){
-      p.multiplyScalar(1/n);
-      // Only ring a COMPACT group. Glucose's five hydroxyls are spread around
-      // the whole ring, and a flash at their centroid points at the middle of
-      // the molecule — the one place none of them is. The dimming already says
-      // "these five"; the ring is for "look here".
-      let spread=0;
+    // Only ring a COMPACT group. Glucose's five hydroxyls are spread around the
+    // whole ring, and a flash at their centroid points at the middle of the
+    // molecule — the one place none of them is. The dimming already says "these
+    // five"; the ring is for "look here". `spread` is measured off the SPEC
+    // (MolGraph), which is where that fact lives; the ring's POSITION is taken
+    // in world space, because FX lives under `root` and a monomer group carries
+    // its own rotation.
+    // (a registered spec's coordinates are already display units — register()
+    // applied SCALE on the way in — so this compares against the same 5 the
+    // world-space version did)
+    if(MolGraph.spread(s,grp.atoms)<5){
+      const g=built[selected], p=V(0,0,0);
+      let n=0;
       grp.atoms.forEach(i=>{ const m=g.userData.atomMeshes[i];
-        if(m) spread=Math.max(spread, m.getWorldPosition(V()).distanceTo(p)); });
-      if(spread<5) FXi.spawnRing(root.worldToLocal(p), CLASSES[selected].accent);
+        if(m){ p.add(m.getWorldPosition(V())); n++; } });
+      if(n) FXi.spawnRing(root.worldToLocal(p.multiplyScalar(1/n)), CLASSES[selected].accent);
     }
   }
 }
 
-/* ---------- render loop ---------- */
-// No physics on this page — the only motion is an idle turntable, so the
-// student sees a molecule is 3D without having to discover the drag.
-function loop(){
+/* ---------- per-frame ----------
+ * No physics on this page — the only motion is an idle turntable, so the
+ * student sees a molecule is 3D without having to discover the drag. The rate
+ * is per SECOND, not per frame: the old 0.0022/frame ran a third faster on a
+ * 120 Hz display than on a 60 Hz one. */
+const SPIN=0.13;                                   // radians per second
+L.frame=dt=>{
   // Compare mode spins each monomer on its OWN axis, not the scene: rotating
   // the root would swing the off-centre cells through the camera and the 2x2
   // grid would stop reading as a grid. Labels are sprites, so they stay facing
   // front either way.
   if(!userSpun){
-    if(compare){ built.forEach(g=>g.rotation.y+=0.0022); }
-    else root.rotation.y+=0.0022;
+    if(compare) built.forEach(g=>g.rotation.y+=SPIN*dt);
+    else root.rotation.y+=SPIN*dt;
   }
-  FXi.step();
-  renderer.render(scene,camera);
-  requestAnimationFrame(loop);
-}
-
-// resize() first: fitCamera() solves against camera.aspect, which is only right
-// once the canvas has been measured.
-resize(); refresh(); requestAnimationFrame(loop);
-
-document.getElementById('savepng').onclick=()=>{
-  renderer.render(scene,camera);
-  const a=document.createElement('a');
-  a.download=compare?'macromolecules.png':CLASSES[selected].key+'.png';
-  a.href=canvas.toDataURL('image/png'); a.click();
 };
+
+// resize() first: the fit solves against camera.aspect, which is only right
+// once the canvas has been measured.
+resize(); refresh(); L.start();
+
+document.getElementById('savepng').onclick=()=>
+  L.snapshot(compare?'macromolecules':CLASSES[selected].key);
 </script>
 </body>
 </html>

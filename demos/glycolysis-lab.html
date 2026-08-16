@@ -723,6 +723,12 @@
 <script src="mol-compare.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/molgraph.js"></script>
+<script src="kit/fit.js"></script>
+<script src="kit/lanes.js"></script>
+<script src="kit/hotspot.js"></script>
+<script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
 <script src="massaction/massaction.js"></script>
@@ -771,19 +777,32 @@
  *  BACKWARD is then free — re-render at a lower index, never invert a reaction.
  * ========================================================================== */
 
-/* ---------- shared stage (scene.js) + effects (fx.js) ---------- */
+/* ---------- shared stage (kit/stagekit.js over scene.js) + effects (fx.js) ----
+ * Lesson.create is Stage.create plus the loop, the resize hook, and the two
+ * clocks (kit/motion.js) this page's beats ride — see `later` below, which is
+ * now one line over Motion rather than an array of setTimeout handles.
+ *
+ * THE FIT IS THIS PAGE'S OWN, deliberately: `fitFor` measures LANE LAYOUTS, not
+ * a molecule's bounding box, and the reserves below are chrome only this lesson
+ * has. So no `boxes` is handed to Lesson; `onResize` runs computeFit instead,
+ * and cam.r stays the single measure of "how far back" that orthoFrustum
+ * converts. */
 const canvas=document.getElementById('gl');
 let userZoom=false;
 // A constant because restart returns the camera to it. Nothing else moves theta.
 const OPEN_THETA=0.10;
-const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+const L=Lesson.create(canvas,{
   // Orthographic: under perspective the nearer lane reads as the bigger
   // molecule (why side-by-side pages never swing theta). No foreshortening
   // keeps the two halves after step 4 visibly identical.
   ortho:true,
   cam:{theta:OPEN_THETA,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
-  onZoom:()=>{userZoom=true;} });
-const FXi=FX.create(THREE,root,camera);
+  onZoom:()=>{userZoom=true;},
+  focus:false,                       // nothing on this page ghosts a molecule
+  onResize:()=>computeFit(),
+});
+const {scene,camera,renderer,root,cam,applyCam,resize}=L;
+const FXi=L.fx, MO=L.motion;
 // atomkit, for ONE thing: the ± badge — the notation the bonding lesson already
 // taught (`molecule-builder.html`), so no second notation for the same idea.
 // Nothing else used: no valence dots, no element letters, no 2D view.
@@ -1060,135 +1079,39 @@ const platesEl=document.getElementById('plates');
 // the side panel's abbreviation ("F1,6-BP"). Both from the spec's `name`/`short`
 // so they can't disagree. Plate falls back to the abbreviation when the
 // systematic name won't fit between the lanes; see drawPlates.
-function makePlate(spec){
-  const d=document.createElement('div');
-  d.className='plate';
-  d.innerHTML=`<div class="pn">${spec.name}</div><div class="pf">${spec.formula}</div>`;
-  platesEl.appendChild(d);
-  return d;
-}
-// Label strip height in PIXELS, reserved at the top as the tray is at the
-// bottom. Measured off a live label, so restyling the type moves the camera
-// with it. Falls back to a guess before the first label exists.
-function plateHeightPx(){
-  const d=platesEl.firstElementChild;
-  return d ? d.getBoundingClientRect().height+PLATE_GAP_PX+PLATE_CLEAR_PX : 58;
-}
-const PLATE_GAP_PX=10;
-// Clearance ABOVE the top label: the rail runs along the stage's top edge, so a
-// label fitted exactly to the reserve sits against it. Reserve only — the
-// anchor's gap is world-space (PLATE_GAP), so raising this pushes the molecule
-// down without moving the label up.
-const PLATE_CLEAR_PX=14;
-
-function laneX(i,n){ return n===1?0:(i===0?-LANE:LANE); }
-
-// A LANE IS CENTRED ON THE MOLECULE, not on its origin. A spec uses whatever
-// origin its source used, so a lopsided one (glucose worst) sat off the lane's
-// axis — read as the whole stage being off-centre once the wide sidebar went.
-// Measured on VISIBLE atoms after the spec's `view` (fitFor and Stage.measure's
-// two rules), cached: a property of the spec, asked per frame.
-const XC=new Map();
-function laneShift(key){
-  if(XC.has(key)) return XC.get(key);
-  let lo=Infinity, hi=-Infinity;
-  // visibleAtoms hides the C–H and applies `view`: the coordinates seen
-  visibleAtoms(M[key]).forEach(a=>{
-    const R=PAL.radii[a.el]||0.7;
-    lo=Math.min(lo,a.pos[0]-R); hi=Math.max(hi,a.pos[0]+R);
-  });
-  const c=isFinite(lo)?(lo+hi)/2:0;
-  XC.set(key,c); return c;
-}
-// THE VERTICAL TWIN: a spec is centred on its centroid, not the middle of what
-// you SEE. G6P's visible box runs -12.1 to +6.4 (phosphate tail hangs down,
-// nothing above to balance), so at y=0 it sits ~3 units low in a shared frame —
-// a molecule loitering under its own name. Same fix as laneShift: MOVE THE
-// MOLECULE, not the camera. A camera re-centring per state would slide the
-// scene between steps and turn step 4's split into a camera move.
-const YC=new Map();
-function laneLift(key){
-  if(YC.has(key)) return YC.get(key);
-  let lo=Infinity, hi=-Infinity;
-  visibleAtoms(M[key]).forEach(a=>{
-    const R=PAL.radii[a.el]||0.7;
-    lo=Math.min(lo,a.pos[1]-R); hi=Math.max(hi,a.pos[1]+R);
-  });
-  const c=isFinite(lo)?(lo+hi)/2:0;
-  YC.set(key,c); return c;
-}
-// where a lane's molecule actually sits — every flight target has to use this,
-// not laneX, or a phosphate lands beside the atom it is aiming at
-const laneOrigin=(key,i,n)=>laneX(i,n)-laneShift(key);
-const laneBase=key=>-laneLift(key);
-// Distance from settled height, mid-ease. Anything pinned in world Y (the name
-// plate) must add this or it un-sticks for the length of the settle.
-const laneOffset=l=>l.g.userData.ty==null?0:l.g.position.y-l.g.userData.ty;
-
-// No C–H anywhere: the lesson is carbon/phosphate bookkeeping. Glucose alone
-// carries C–H, hidden on build and excluded from every measurement below — else
-// an invisible H widens the shared camera fit.
-// EVERY MEASUREMENT BELOW IS IN THE ORIENTATION THE MOLECULE IS BUILT IN.
-// buildMolecule applies `spec.view` AFTER layout (so Stage.measure re-applies
-// it): raw `a.pos[1]` is fine for the pathway's viewless chains, wrong for
-// glucose — measured in an orientation it's never drawn in, so the ring hangs
-// off two edges and the plate lands on it.
-const viewQuat=spec=>spec.view
-  ? new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX'))
-  : null;
-const visibleAtoms=spec=>{
-  const opt=new Set(spec.optH||[]), q=viewQuat(spec);
-  const keep=spec.atoms.filter((_,i)=>!opt.has(i));
-  if(!q) return keep;
-  return keep.map(a=>{
-    const v=new THREE.Vector3(a.pos[0],a.pos[1],a.pos[2]).applyQuaternion(q);
-    return {el:a.el, pos:[v.x,v.y,v.z]};
-  });
-};
-
-// top/bottom incl. sphere radii — 5-unit ring to 10-unit chain, phosphate can
-// hang off either end
-function moleculeTop(spec){
-  return visibleAtoms(spec).reduce((m,a)=>Math.max(m,a.pos[1]+(PAL.radii[a.el]||0.7)),0); }
-function moleculeBottom(spec){
-  return visibleAtoms(spec).reduce((m,a)=>Math.min(m,a.pos[1]-(PAL.radii[a.el]||0.7)),0); }
-
-// Lane i of n: molecule + name plate. `topY` passed in, not derived per
-// molecule: DHAP's phosphate is on C1, G3P's on C3, so plate heights differed
-// by 3.3 units — two labels at different heights read as "different sizes".
-function spawnLane(key,i,n,topY){
-  const spec=M[key];
-  const g=Stage.buildMolecule(spec);
-  Stage.setOptionalH(g,false);          // no C–H on this page — see visibleAtoms
-  // y is a TARGET: the loop eases into it from where the replaced molecule
-  // stood, so the swap frame moves nothing.
-  g.position.set(laneOrigin(key,i,n),laneBase(key),0);
-  g.userData.ty=laneBase(key);
-  root.add(g);
-  const plate=makePlate(spec);
-  // Natural width, measured ONCE unconstrained — drawPlates can't re-measure a
-  // scaled element. Both spellings here: by draw time it carries whichever is
-  // showing, so its live width answers the wrong question.
-  const nameEl=plate.querySelector('.pn');
-  const natW=plate.offsetWidth;
-  nameEl.textContent=spec.short||spec.name;
-  const shortW=plate.offsetWidth;
-  nameEl.textContent=spec.name;
-  return {g,key,plate,nameEl,topY,natW,shortW,
-          full:spec.name, abbr:spec.short||spec.name, showing:'full'};
-}
-function clearLanes(){
-  lanes.forEach(l=>{ root.remove(l.g); l.plate.remove(); });
-  lanes=[];
-}
-
-// Where a lane's label is pinned; `topY` shared across lanes — see spawnLane.
-const PLATE_GAP=0.8;
-// MEASURED WHERE THE MOLECULE IS DRAWN, not where its coordinates say:
-// spawnLane recentres each species vertically (laneLift), so the plate must
-// come down by the same amount or it floats above nothing.
-const plateY=keys=>Math.max(...keys.map(k=>moleculeTop(M[k])-laneLift(k)))+PLATE_GAP;
+/* THE LANE SYSTEM IS kit/lanes.js — molecules side by side, named, that split
+ * and swap. Every rule it enforces (a lane centred on the MOLECULE not its
+ * origin, the vertical twin, one shared label baseline, abbreviate-then-shrink
+ * decided for all lanes at once, positions as targets so the swap frame moves
+ * nothing) was learned on this page and is written up in that file.
+ *
+ * What stays here is what only this lesson knows: NO C–H ANYWHERE, because the
+ * lesson is carbon and phosphate bookkeeping. Glucose alone carries C–H, hidden
+ * on build and excluded from every measurement — else an invisible hydrogen
+ * widens the shared camera fit.
+ */
+const LANES=Lanes.create({
+  root, camera, canvas, host:platesEl, specOf:k=>M[k], radii:PAL.radii,
+  spread:LANE,
+  build:spec=>{ const g=Stage.buildMolecule(spec);
+                Stage.setOptionalH(g,false); return g; },
+  plateHTML:spec=>`<div class="pn">${spec.name}</div><div class="pf">${spec.formula}</div>`,
+});
+// The page's own names for the module's geometry — every flight target, every
+// world-space anchor and the fit all go through these.
+const laneX=(i,n)=>LANES.xOf(i,n);
+const laneShift=key=>LANES.shift(key);
+const laneLift=key=>LANES.lift(key);
+const laneOrigin=(key,i,n)=>LANES.origin(key,i,n);
+const laneBase=key=>LANES.base(key);
+const laneOffset=l=>LANES.offset(l);
+const visibleAtoms=spec=>LANES.visibleAtoms(spec);
+const moleculeTop=spec=>visibleAtoms(spec).reduce((m,a)=>Math.max(m,a.pos[1]+(PAL.radii[a.el]||0.7)),0);
+const moleculeBottom=spec=>visibleAtoms(spec).reduce((m,a)=>Math.min(m,a.pos[1]-(PAL.radii[a.el]||0.7)),0);
+const spawnLane=(key,i,n,topY)=>LANES.spawn(key,i,n,topY);
+const plateY=keys=>LANES.plateY(keys);
+// Label strip height in PIXELS — what RESERVES() hands kit/fit.js for the top.
+const plateHeightPx=()=>LANES.heightPx();
 
 /* ---------- the hotspot on the bond ----------
  * One per lane, on the projected midpoint of the step's bond. Driven every
@@ -1210,101 +1133,44 @@ function spotPair(spec, at){
   const v=spec.gly[at];
   if(Array.isArray(v)) return v;
   if(typeof v!=='number') return null;
-  const el=spec.atoms[v] && spec.atoms[v].el;
-  const other = el==='H' ? (nbOf(spec,v)||[])[0] : bridgeO(spec,v);
-  return other==null ? null : [v,other];
+  // The bond an atom's DEPARTURE breaks — H off its heavy atom, P off its
+  // bridging O — derived by kit/molgraph.js rather than typed as a second index
+  // that can go stale against the first.
+  return MolGraph.leavingBond(spec, v);
 }
 const spotsEl=document.getElementById('spots');
 const glowEl=document.getElementById('spotglow');
-const spotV=new THREE.Vector3();
+/* kit/hotspot.js owns position, reuse and the one-hint rule; this page owns
+ * MEANING — which bond, what the hint says, and what a click does. */
+const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
+  // WHICH LANE: a per-lane step runs the one clicked; a whole-step target
+  // ignores it, so both come through here.
+  onPick:it=>press(()=>isPerLane(stepAt(done)) ? runLane(it.lane) : runStep()),
+});
 function drawSpots(){
   const st=(!intro && done<nSteps) ? stepAt(done) : null;
   const live = !!st && !!st.spot && !busy && !reviewing;
-  const n = live ? lanes.length : 0;
-  while(spotsEl.children.length<n){
-    const b=document.createElement('button');
-    b.className='spot'; b.type='button';
-    b.innerHTML='<span class="shint"></span>';
-    // WHICH LANE: a per-lane step runs the one clicked; a whole-step target
-    // ignores it, so both share one handler.
-    b.onclick=()=>{ const i=+b.dataset.lane;
-      press(()=>isPerLane(stepAt(done)) ? runLane(i) : runStep()); };
-    spotsEl.appendChild(b);
-    const g=document.createElement('div'); g.className='sglow';
-    glowEl.appendChild(g);
-  }
-  const show=(el,on)=>el.style.display = on ? '' : 'none';
-  [...spotsEl.children].forEach((el,i)=>show(el, i<n));
-  [...glowEl.children].forEach((el,i)=>show(el, i<n));
-  if(!n) return;
-  const w=canvas.clientWidth, h=canvas.clientHeight;
-  let hinted=false;
-  lanes.forEach((l,i)=>{
-    const el=spotsEl.children[i], gl=glowEl.children[i];
-    el.dataset.lane=i;
-    const pair=spotPair(M[l.key], st.spot.at);
-    // NO SUCH BOND, NO TARGET — not one at the origin. Also retires a per-lane
-    // target once its lane has run: the product has no `hot` phosphate.
-    if(!pair || laneDone.has(i)){ show(el,false); show(gl,false); return; }
-    const u=l.g.userData;
-    spotV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(.5).project(camera);
-    const x=(spotV.x*0.5+0.5)*w, y=(-spotV.y*0.5+0.5)*h;
-    el.style.left=x+'px'; el.style.top =y+'px';
-    gl.style.left=x+'px'; gl.style.top =y+'px';
-    // ONE HINT, BESIDE THE FIRST TARGET STILL STANDING — twice shouts, but
-    // pinning it to lane 0 left lane 1 unlabelled once lane 0 retired.
-    el.querySelector('.shint').textContent = hinted ? '' : (st.spot.say||'');
-    hinted=true;
-    el.setAttribute('aria-label', st.act || 'run this step');
-  });
+  SPOTS.update(!live ? [] : lanes.map((l,i)=>
+    // A lane that has already run has no target: the product has no `hot`
+    // phosphate. Null rather than a point — the module never places a target it
+    // could not derive.
+    laneDone.has(i) ? null : {
+      group:l.g, pair:spotPair(M[l.key], st.spot.at), lane:i,
+      hint:st.spot.say||'', label:st.act||'run this step',
+    }));
 }
 
-// Project each lane's anchor, park its label over it. `l.g.position.x` read
-// live, not from laneX(), so labels ride the halves apart during the split
-// instead of snapping to final positions.
-const projV=new THREE.Vector3();
-const PLATE_GAP_PX_X=14;
 // Set for a step's whole animation (#plates.mute). Cleared by renderLanes, when
 // there's a settled molecule to name again — and by the split, the one branch
-// that finishes without calling it.
+// that finishes without calling it. The MUTE is this page's (it means "no
+// settled molecule to name right now"); the projection and the
+// abbreviate-then-shrink are kit/lanes.js's.
 let platesOff=false;
 function drawPlates(){
   platesEl.classList.toggle('mute', platesOff);
-  const w=canvas.clientWidth, h=canvas.clientHeight;
-  camera.updateMatrixWorld();          // safe to call off-loop (restart, resize)
-  const xs=lanes.map(l=>{
-    // BOTH read live: `topY` is the settled anchor, but the lane eases into its
-    // centring after a swap (spawnLane's `ty`), so the label must carry that
-    // offset or it waits at the destination.
-    projV.set(l.g.position.x, l.topY+laneOffset(l), 0).project(camera);
-    return {x:(projV.x*0.5+0.5)*w, y:(-projV.y*0.5+0.5)*h};
-  });
-  // A LABEL'S WIDTH IS IN PIXELS AND THE LANES' SEPARATION IS NOT — a DOM label
-  // keeps its width as the camera pulls back, so on a narrow stage the two
-  // names run through each other. Give each the space between the lanes.
-  const budget = xs.length>1
-    ? Math.max(90, Math.abs(xs[1].x-xs[0].x)-PLATE_GAP_PX_X)
-    : Math.max(120, w-40);
-  // ONE DECISION FOR BOTH LANES: per lane, DHAP abbreviated while the wider
-  // "Glyceraldehyde-3-phosphate" stayed systematic, so the pair read as two
-  // KINDS of thing (cf. plateY's shared baseline). Widest name wins.
-  const wide = lanes.every(l=>budget>=l.natW);
-  lanes.forEach((l,i)=>{
-    // ABBREVIATE FIRST, THEN SHRINK. "1,3-bisphosphoglycerate" at 0.62 is a
-    // smear; "1,3-BPG" full size is what the student writes and the coupling
-    // figure uses. No oscillation: `budget` is the lanes' property, not the
-    // label's.
-    const want = wide?'full':'abbr';
-    if(l.showing!==want){ l.nameEl.textContent = wide?l.full:l.abbr; l.showing=want; }
-    // SHRINK, don't wrap: no space to break at, so wrapping chopped
-    // "bisphosphogl / ycerate" mid-word. Scaling about bottom-centre keeps it
-    // anchored to the molecule; the floor stops it becoming unreadable.
-    const s=Math.max(0.62, Math.min(1, budget/Math.max(1, wide?l.natW:l.shortW)));
-    l.plate.style.left=xs[i].x+'px';
-    l.plate.style.top =xs[i].y+'px';
-    l.plate.style.transform=`translate(-50%,-100%) scale(${s.toFixed(3)})`;
-  });
+  LANES.draw();
 }
+function clearLanes(){ LANES.clear(); lanes=LANES.lanes; }
 
 // ---- framing ---------------------------------------------------------------
 // ONE SCALE FOR THE WHOLE PATHWAY. Auto-fitting each state would zoom the two
@@ -1314,26 +1180,16 @@ function drawPlates(){
 // framing — a lone glucose is compared to nothing.
 // From the SPECS plus intended lane offsets, not a live bbox: mid-split the
 // halves are still easing apart, so a bbox fits the stacked pair.
-const HALF_FOV=Math.tan(22.5*Math.PI/180);
-
-// Ortho camera: half-extents decide apparent size, not distance. Rather than
-// rewrite the fit solver, keep `cam.r` as the one measure of "how far back" and
-// convert here — a perspective camera at r sees world half-height r*HALF_FOV,
-// so an ortho frustum of that half-height shows the same field and everything
-// downstream (fitFor's R, loop()'s ease, wheel clamp, u.shift) keeps its
-// meaning verbatim. Every frame: cam.r eases.
-function orthoFrustum(){
-  if(!camera.isOrthographicCamera) return;
-  const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
-  const halfH=cam.r*HALF_FOV, halfW=halfH*asp;
-  // THE FRUSTUM IS CENTRED and stays centred: the lesson lives on the page's
-  // middle, chrome works around it. It used to slide left by half the tray's
-  // width, framing the leftover band — so anything added at an edge moved the
-  // subject. The tray is paid symmetrically instead, in usable().h.
-  camera.top=halfH; camera.bottom=-halfH;
-  camera.left=-halfW; camera.right=halfW;
-  camera.updateProjectionMatrix();
-}
+// kit/fit.js owns the arithmetic; `RESERVES` below is the half only this page
+// can know — which of ITS elements sit over the canvas. `cam.r` stays the one
+// measure of "how far back" even though the camera is orthographic: the module
+// converts it into a frustum of the half-height a perspective camera would show
+// at r, so fitFor's R, the loop's ease, the wheel clamp and u.shift all keep
+// their meaning verbatim.
+const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
+const HALF_FOV=FIT.HALF_FOV;
+// Every frame: cam.r eases, so the frustum is rebuilt from it.
+const orthoFrustum=()=>FIT.frustum();
 function fitFor(states){
   let lo=0, hi=0, wide=0;             // atoms only — see halfNeeded below
   states.forEach(keys=>{
@@ -1355,16 +1211,13 @@ function fitFor(states){
   // usable() (u.tf). It cost 10% of the opening molecule, 6% of every state
   // after. The plate now says where the scene sits, not how far back we are.
   const halfNeeded=Math.max(hi-Y, Y-lo);
-  // aspect is NaN until the first ResizeObserver tick, so don't trust it blindly
-  const asp=isFinite(camera.aspect)&&camera.aspect>0?camera.aspect:1.26;
-  const u=usable();
-  const R=Math.max(15, Math.min(90,
-    Math.max(halfNeeded/(HALF_FOV*u.v), wide/(HALF_FOV*asp*u.h))*1.10));
-  // Centre in the band between label strip and bottom bar by DROPPING THE
-  // TARGET, not insetting both edges — insetting double-charges for one
-  // obstructed edge and shrinks the layout to a speck. Safe in world space
-  // because Y is the orbit axis. No horizontal twin — see orthoFrustum.
-  return { Y: Y - u.shift*R*HALF_FOV, R };
+  // The distance and the target come from kit/fit.js: solved per axis against
+  // what the chrome leaves, and centred in the leftover band by DROPPING THE
+  // TARGET rather than insetting both edges. Safe in world space because Y is
+  // the orbit axis; there is no horizontal twin, because a side reserve is paid
+  // symmetrically so the subject stays on the centre line.
+  const {R,Y:Yfit}=FIT.solve({halfNeeded, wide, centerY:Y, pad:1.10, min:15, max:90});
+  return { Y:Yfit, R };
 }
 
 // THE STAGE IS NOT AN EMPTY RECTANGLE — chrome on all four edges, so a molecule
@@ -1377,8 +1230,8 @@ function fitFor(states){
 //           halving), so the bottom edge must not move as headings/captions come
 //           and go. Nothing else is reserved: the ending fork is a modal.
 //   left    the reagent tray (absent during the intro, nothing to spend)
-// `v`/`h` are the leftover fractions; `shift` drops the camera target so the
-// molecule centres in the remaining band — vertical only, see fitFor.
+// The arithmetic over these numbers is kit/fit.js's; WHICH ELEMENTS they come
+// from is the part only this page can know, so that half stays here.
 // Bottom reserve px: declared bar height + stand-off, from the STYLESHEET not
 // the live box, so bar contents can't re-frame every state.
 function barReservePx(){
@@ -1407,32 +1260,20 @@ function trayReservePx(){
   const cs=getComputedStyle(e);
   return (parseFloat(cs.left)||0)+(parseFloat(cs.minWidth)||0)+TRAY_CLEAR_PX;
 }
-function usable(){
-  const c=canvas.getBoundingClientRect();
-  // EVERY FIELD, even on the no-size path: runs once before the first
-  // ResizeObserver tick, and a missing field reaches the fit as NaN — which
-  // the camera's ease carries forever, leaving a blank stage.
-  if(!c.height||!c.width) return {v:1,h:1,shift:0,tf:0,bf:0};
-  const top=plateHeightPx(), bottom=barReservePx()+capReservePx();
-  // The tray is the only horizontal intrusion (ledger and coupling box are in
-  // the sidebar). PAID FOR ON BOTH SIDES though it sits on one: the lesson
-  // belongs on the centre line, so an edge element must not slide it.
-  const left=Math.min(trayReservePx(), c.width*0.30);
-
-  const vcap=c.height*0.6;
-  const k=(top+bottom)>vcap ? vcap/(top+bottom) : 1;
-  const t=top*k, b=bottom*k;
-  return { v:Math.max(0.4, (c.height-t-b)/c.height),
-           // BOTH sides — see the note on `left`
-           h:Math.max(0.28, (c.width-2*left)/c.width),
-           // HALF the difference: the leftover band's centre sits (b−t)/2 from
-           // the canvas centre. The whole difference moved the molecule twice
-           // as far as the band, reading as "floating high".
-           shift:(b-t)/(2*c.height),
-           // the reserves as fractions of canvas height — the top-anchor below
-           // needs the edge, not the leftover's centre
-           tf:t/c.height, bf:b/c.height };
-}
+/* WHAT SITS OVER THE CANVAS, in pixels. The whole of this page's contribution
+ * to the fit — kit/fit.js does the rest (clamping the reserves against the
+ * viewport, the leftover fractions, the half-difference target shift).
+ *   top     species labels: HTML, a fixed PIXEL band, not a world-space box the
+ *           projection scales — hence reserved here, not in fitFor.
+ *   bottom  #bottombar + the caption when it is up.
+ *   left    the reagent tray. It sits on one side and is paid on BOTH by the
+ *           module, because the lesson belongs on the centre line. */
+const RESERVES=()=>({
+  top: plateHeightPx(),
+  bottom: barReservePx()+capReservePx(),
+  left: trayReservePx(),
+});
+const usable=()=>FIT.usable();
 // No horizontal counterpart: heading and button sit on the stage's centre line,
 // where the molecule is (see orthoFrustum).
 let fitR=24, fitY=0;
@@ -1464,14 +1305,7 @@ const TOP_PULL=0.5;
 // the pathway, not of the step you are on.
 let _pathTop=null;
 const pathwayTopY=()=>_pathTop??(_pathTop=Math.max(...STEPS.map(s=>plateY(s.species))));
-function topAnchoredY(R, centredY, topNow){
-  const u=usable();
-  const H=R*HALF_FOV;                             // visible world half-height
-  const anchored=topNow-H*(1-2*u.tf);             // plate hung off the top edge
-  // A SMALLER TARGET Y IS A HIGHER MOLECULE, so never take the larger: on a
-  // state that fills the frame the pull is zero and centring stands.
-  return centredY + Math.min(0, anchored-centredY)*TOP_PULL;
-}
+const topAnchoredY=(R,centredY,topNow)=>FIT.anchorTop(R,centredY,topNow,TOP_PULL);
 
 // Snap to the state at index i, no animation. Restart, rewind, and the settling
 // half of every animated transition.
@@ -1480,34 +1314,21 @@ function renderLanes(i){
   // the next drawPlates — rAF doesn't run in a hidden tab, so the name would be
   // missing for as long as you weren't looking.
   platesOff=false; platesEl.classList.remove('mute');
-  // WHERE THE OUTGOING MOLECULE STOOD, read before teardown. The product starts
-  // there and eases to its own height (spawnLane's `ty`); without it every step
-  // jumps by the difference between two species' centrings, on the frame the
-  // name reappears. Null on first render.
-  const fromY = lanes.length ? lanes.map(l=>l.g.position.y) : null;
-  clearLanes();
-  const keys=speciesAt(i), top=plateY(keys);
-  lanes=keys.map((k,j)=>spawnLane(k,j,keys.length,top));
-  // one outgoing lane can feed two incoming ones (the split), so clamp the index
-  if(fromY) lanes.forEach((l,j)=>{ l.g.position.y=fromY[Math.min(j,fromY.length-1)]; });
+  // The module carries the OUTGOING lanes' heights onto the incoming ones (one
+  // outgoing lane can feed two, at the split), so the swap frame moves nothing.
+  lanes=LANES.render(speciesAt(i));
   computeFit();
 }
 
 /* ONE LANE'S MOLECULE, replaced in place. renderLanes rebuilds from a state
  * index, which a per-lane step has none of: half-way through step 7 one lane is
  * 3-PGA and the other still 1,3-BPG. The shared plate line is re-solved over
- * the MIXED contents and handed to both, else the two names sit at different
- * heights while the step is half done.
+ * the MIXED contents and handed to both (kit/lanes.js), else the two names sit
+ * at different heights while the step is half done.
  */
 function swapLane(j,key){
-  const old=lanes[j], n=lanes.length;
-  const keys=lanes.map((l,i)=>i===j?key:l.key);
-  const top=plateY(keys);
-  root.remove(old.g); old.plate.remove();
-  const l=spawnLane(key,j,n,top);
-  l.g.position.y=old.g.position.y;   // carry the height; the loop eases the rest
-  lanes[j]=l;
-  lanes.forEach(o=>{ o.topY=top; });
+  LANES.swapOne(j,key);
+  lanes=LANES.lanes;
   computeFit();
 }
 
@@ -1549,28 +1370,38 @@ function badge(laneIdx, atomIdx, text){
   const b=KIT.charge(text, hexOf(spec.atoms[atomIdx].el), spec.atoms[atomIdx].el,
                      BADGE_SCALE);
   at.add(b); l.g.add(at);
-  later(()=>{ const t0=performance.now();
-    (function fade(){ const k=Math.min((performance.now()-t0)/BADGE_FADE,1);
-      b.material.opacity=1-k;
-      if(k<1) requestAnimationFrame(fade);
-    })();
-  }, BADGE_HOLD);
-  // On a timer, never the fade's last frame: a hidden tab runs no rAF, so a
-  // badge that leaves only while you watch is there when you return (`later`).
-  later(()=>{ l.g.remove(at); KIT.forget(b); }, BADGE_HOLD+BADGE_FADE+40);
+  // The FADE is pixels (render loop); the REMOVAL is a commit, never the fade's
+  // last frame — a hidden tab runs no rAF, so a badge that left only while you
+  // watched would still be there when you came back.
+  MO.seq([{at:BADGE_HOLD/1000, dur:BADGE_FADE/1000, ease:'linear',
+           onUpdate:t=>{ b.material.opacity=1-t; }},
+          {at:(BADGE_HOLD+BADGE_FADE+40)/1000,
+           call:()=>{ l.g.remove(at); KIT.forget(b); }}],{tag:RUN});
 }
 
 /* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
 // TIMERS, NOT FRAMES, ADVANCE THE LESSON. rAF stops in a backgrounded tab, so
-// setTimeout owns state changes and rAF only pixels — finishing a transition
-// inside a rAF callback would leave `busy` stuck true, the tray dark and the
-// lesson unrecoverable without a reload. Worst case: a hidden tab skips the
-// animation and you return to the finished step.
-let timers=[];
-const later=(fn,ms)=>{ timers.push(setTimeout(fn,ms)); };
-// Chips in the air ride those timers, so they go with them — a restart
+// the wall clock owns state changes and rAF only pixels — finishing a
+// transition inside a rAF callback would leave `busy` stuck true, the tray dark
+// and the lesson unrecoverable without a reload. Worst case: a hidden tab skips
+// the animation and you return to the finished step.
+//
+// That rule is now kit/motion.js's, and this is the one line over it: a `call`
+// beat is a COMMIT — scheduled on both clocks, fired once by whichever wins.
+// Milliseconds in, because every beat constant on this page is in ms.
+const RUN='run';                                  // the tag a whole step rides
+const later=(fn,ms)=>MO.after((ms||0)/1000, fn, RUN);
+// MESHES IN THE AIR are the other half of a cancel. A flying phosphoryl group
+// is removed by its own beat; cancelling that beat used to strand it in the
+// scene, because a cancel deliberately does not run what it cancels. So strays
+// are registered and swept together.
+const strays=new Set();
+const stray=g=>{ strays.add(g); root.add(g); return g; };
+const unstray=g=>{ if(strays.delete(g)) root.remove(g); };
+// Chips in the air ride those beats, so they go with them — a restart
 // mid-flight must not leave one parked over the page.
-const cancelTimers=()=>{ timers.forEach(clearTimeout); timers=[];
+const cancelTimers=()=>{ MO.cancel(RUN);
+  strays.forEach(g=>root.remove(g)); strays.clear();
   flyLayer.replaceChildren(); };
 
 const FLY=620, SPLIT=840;
@@ -1630,19 +1461,16 @@ const CLEAVE=0x9a3fe0;
 // nothing else. A BRIDGING O has a second heavy neighbour (C6 on a sugar, Pβ on
 // ATP) and stays behind. "Not bonded to a carbon" is not enough; that keeps
 // ATP's α–β–γ bridge and flies four oxygens.
-const nbOf=(spec,i)=>spec.bonds.filter(b=>b[0]===i||b[1]===i).map(b=>b[0]===i?b[1]:b[0]);
-function terminalO(spec,p){
-  return nbOf(spec,p).filter(i=>spec.atoms[i].el==='O' &&
-    !nbOf(spec,i).some(j=>j!==p && spec.atoms[j].el!=='H'));
-}
+// Both are kit/molgraph.js's, under this page's names — the distinction is
+// chemistry, not layout, and kit/check-kit.js asserts it on this very step (the
+// bridging O stays behind; cutting P–O(bridge) detaches exactly what flies).
+const nbOf=(spec,i)=>MolGraph.neighbors(spec,i);
+const terminalO=(spec,p)=>MolGraph.terminal(spec,p,'O');
 // …and its complement: the O carrying the group, where the bond forms or
 // breaks. MARK THE JUNCTION, not the phosphorus — a ring on P sits a bond-
 // length off what changed, and P is the biggest sphere here, so it reads as
 // decorating the atom rather than pointing at the event.
-function bridgeO(spec,p){
-  return nbOf(spec,p).find(i=>spec.atoms[i].el==='O' &&
-    nbOf(spec,i).some(j=>j!==p && spec.atoms[j].el!=='H'));
-}
+const bridgeO=(spec,p)=>MolGraph.bridging(spec,p,'O')[0];
 // THE PROTON THE PHOSPHATE DISPLACES. Glucose C₆O₆H₁₂ → G6P C₆O₉H₁₁P: C6's
 // oxygen keeps its place and becomes the bridge, its hydroxyl H leaves — that H
 // used to just be absent on the frame after the swap.
@@ -1698,17 +1526,16 @@ function flyPhosphate(from,to,spec,p,dur){
   const T=dur||FLY;
   const g=phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]);
   g.position.copy(from);
-  root.add(g);
-  const t0=performance.now();
-  (function fly(){
-    const k=Math.min((performance.now()-t0)/T,1), e=k*(2-k);     // ease-out
+  stray(g);
+  // PIXELS, so this rides the render loop only: a flight nobody watched owes
+  // nobody its frames, and the removal beat below lands the state either way.
+  MO.seq([{dur:T/1000, ease:'outQuad', onUpdate:(e,k)=>{
     g.position.lerpVectors(from,to,e);
     g.position.y+=2.6*Math.sin(k*Math.PI);                       // arc over the top
-    if(k<1) requestAnimationFrame(fly);
-  })();
-  // REMOVED ON THE BEAT THE PRODUCT APPEARS: both timers share a delay and fire
+  }}],{tag:RUN});
+  // REMOVED ON THE BEAT THE PRODUCT APPEARS: both beats share a delay and fire
   // in registration order, this one first — never two phosphates in one place.
-  later(()=>{ root.remove(g); }, T);
+  later(()=>unstray(g), T);
 }
 // THE CYTOSOL IS SLOWER THAN A HANDOFF. A phosphate off ATP is PASSED — one
 // enzyme holds both molecules. Step 6's comes out of solution: nothing hands it
@@ -1768,6 +1595,12 @@ function carrierPoint(key,j){
 // convention the chain folds ECLIPSED while every dihedral reads exactly 180° —
 // a bug that checks out numerically and is nonsense. f6p's backbone reads ±180
 // here, which asserts this is the convention the specs are drawn in.
+//
+// DELIBERATELY NOT MolGraph.torsion, which is the plane-normal form and returns
+// the OTHER sign. That one is right for stereochemistry (a mirrored spec must
+// flip it, which kit/check-kit.js asserts); this one is right for driving a chain to
+// anti. Swapping them silently folds the sugar eclipsed while every printed
+// dihedral still reads 180°.
 function dihedralOf(p0,p1,p2,p3){
   const b1=p2.clone().sub(p1).normalize();
   const b0=p0.clone().sub(p1), b2=p3.clone().sub(p2);
@@ -1782,20 +1615,11 @@ const Q=new THREE.Quaternion(), AX=new THREE.Vector3(), PV=new THREE.Vector3();
 function unfurlPlan(l){
   const spec=M[l.key], gly=spec.gly, cN=gly.cN, br=gly.open;
   const u=l.g.userData;
-  const adj=spec.atoms.map(()=>[]);
-  spec.bonds.forEach(b=>{
-    const [i,j]=b;
-    if((i===br[0]&&j===br[1])||(i===br[1]&&j===br[0])) return;   // already broken
-    adj[i].push(j); adj[j].push(i);
-  });
-  // everything past a bond, through the graph not index ranges — build order is
-  // not chain order
-  const beyond=(from,thru)=>{
-    const seen=new Set([from,thru]), st=[thru];
-    while(st.length){ const k=st.pop();
-      for(const n of adj[k]) if(!seen.has(n)){ seen.add(n); st.push(n); } }
-    seen.delete(from); return [...seen];
-  };
+  // Everything past a bond, through the GRAPH not index ranges — build order is
+  // not chain order. Two cuts: the bond being turned, and `gly.open`, the ring
+  // bond this step has already broken.
+  const beyond=(from,thru)=>
+    MolGraph.component(spec, thru, [[from,thru], br]).filter(i=>i!==from);
   const base=u.atomMeshes.map(m=>m?m.position.clone():null);
   const turns=[];
   // A dihedral needs four atoms; the FIRST bond has no backbone carbon to
@@ -2052,17 +1876,16 @@ function runStep(){
     const mid=l.g.userData.atomWorld(cl[0]).add(l.g.userData.atomWorld(cl[1])).multiplyScalar(.5);
     FXi.spawnRing(mid,CLEAVE);
     const fromY=l.g.position.y;      // both halves start where the whole sugar was
-    clearLanes();
-    const top=plateY(keys);
-    lanes=keys.map((k,j)=>{ const o=spawnLane(k,j,n,top);
-      // x=0 so the halves part from the centre, y where the sugar stood
+    // x=0 so the halves part from the centre, y where the sugar stood; the
+    // module eases them out to `tx` from the render loop.
+    lanes=LANES.render(keys, plateY(keys), (o,j)=>{
       o.g.position.set(0,fromY,0);
-      o.g.userData.tx=laneOrigin(k,j,n); return o; });
+      o.g.userData.tx=laneOrigin(o.key,j,n);
+    });
     later(()=>{ done=to; reviewing=true;   // lanes already correct — don't respawn
-      // The parting is a rAF ease, so in a hidden tab it never ran; land them on
-      // their marks here so the two halves can't come back stacked on each other.
-      lanes.forEach(o=>{ o.g.position.x=o.g.userData.tx;
-                         o.g.position.y=o.g.userData.ty; });
+      // The parting is a render-loop ease, so in a hidden tab it never ran; land
+      // them on their marks here so the halves can't come back stacked.
+      LANES.settle();
       // renderLanes normally gives the names back; this branch doesn't call it
       platesOff=false; platesEl.classList.remove('mute');
       busy=false; refresh(); }, SPLIT);
@@ -2106,14 +1929,13 @@ function runStep(){
         if((i===o[0]&&j===o[1])||(i===o[1]&&j===o[0])) bm.visible=false; });
       if(gly.anomeric) FXi.protonHop(u.atomWorld(gly.anomeric.h), u.atomWorld(o[1]));
       // …then the unfurl, eased so it settles rather than arriving at speed
-      const plan=unfurlPlan(l), t0=performance.now();
-      (function turn(){
-        const k=Math.min((performance.now()-t0)/UNFURL,1);
-        unfurlApply(l,plan,k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2);
-        // NO REFIT HERE. Framing is fixed for the whole pathway; the camera
-        // used to ride topY and pan through the animation.
-        if(k<1) requestAnimationFrame(turn);
-      })();
+      // PIXELS: on the render loop, and cancelled with the step if the student
+      // restarts mid-turn. (inOutQuad is the ease this hand-rolled inline.)
+      // NO REFIT HERE. Framing is fixed for the whole pathway; the camera used
+      // to ride topY and pan through the animation.
+      const plan=unfurlPlan(l);
+      MO.seq([{dur:UNFURL/1000, ease:'inOutQuad',
+        onUpdate:e=>unfurlApply(l,plan,e)}],{tag:RUN});
     });
     dur=UNFURL+180;                              // land, then swap to F6P
     // WHAT IS LEFT AT THE SWAP IS THE REACTION, so it gets marked. Backbones
@@ -3321,33 +3143,33 @@ addEventListener('keydown',e=>{
 /* =============================================================
  *  MAIN LOOP
  * ============================================================= */
-function loop(){
-  // lanes ease toward their slots (used by the split, and after any respawn)
-  lanes.forEach(l=>{ if(l.g.userData.tx!=null)
-    l.g.position.x+=(l.g.userData.tx-l.g.position.x)*0.10;
-    // …and toward vertical centring (laneLift). EASED, NOT SET: each species
-    // centres at a different height, so a product placed straight onto its lift
-    // JUMPS on the swap frame — the frame the name returns, so it reads as the
-    // label shoving the molecule down. Starting where the substrate stood, the
-    // swap moves nothing and the settle runs under the step's own effects.
-    if(l.g.userData.ty!=null)
-      l.g.position.y+=(l.g.userData.ty-l.g.position.y)*0.10; });
+// The per-frame lerp factors below are deliberately still PER FRAME, not per
+// second: they are critically-damped follows whose feel was tuned by eye at
+// 60 Hz, and every one of them chases a target the same loop recomputes. Moving
+// them to dt is a change in how the page FEELS, not a refactor, so it is not
+// smuggled in with a port.
+L.frame=()=>{
+  // Lanes ease toward their slots — x for the split, y for each species' own
+  // vertical centring. EASED, NOT SET: a product placed straight onto its lift
+  // jumps on the swap frame, the frame the name returns, so it reads as the
+  // label shoving the molecule down. (kit/lanes.js, same 0.10 per frame.)
+  LANES.step();
   if(!userZoom) cam.r+=(fitR-cam.r)*0.05;        // ease to the computed framing
   cam.target.y+=(fitY-cam.target.y)*0.06;        // …and re-centre vertically
-  applyCam(); orthoFrustum(); FXi.step();
+  applyCam(); orthoFrustum();
   KIT.faceCamera(camera);        // badges keep their lift as the camera orbits
-  renderer.render(scene,camera);
-  // AFTER the render, never before. Vector3.project() reads the camera's
-  // matrixWorldInverse, refreshed only on render — projecting first uses the
-  // PREVIOUS frame's camera. Barely visible on a slow drag, very visible during
-  // the zoom ease and the split.
+};
+// AFTER the render, never before — Vector3.project() reads a matrix refreshed
+// only on render, so everything here would otherwise pin its DOM to the
+// PREVIOUS frame's camera. That is `afterFrame`'s whole reason for existing;
+// the kit's loop is motion → frame → fx → render → afterFrame.
+L.afterFrame=()=>{
   drawPlates();
   drawSpots();
   // anchored to its DOM box, so same schedule as the labels: current camera
   placeCarrierMol();
   placeCarrierGlow();          // after it, so the bond is where the mark goes
-  requestAnimationFrame(loop);
-}
+};
 
 renderLanes(0); refresh(); applyCam(); resize();
 // Re-solve AFTER refresh(). The first computeFit runs inside renderLanes(),
@@ -3355,10 +3177,10 @@ renderLanes(0); refresh(); applyCam(); resize();
 // nothing, and the page opens one frame too close. refresh() has drawn it.
 computeFit();
 cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();  // open already framed
-requestAnimationFrame(loop);
-// the fit depends on camera.aspect, so it has to be redone whenever the stage
-// reshapes (window resize, or the sidebar stacking under it on a narrow screen)
-new ResizeObserver(computeFit).observe(canvas);
+L.start();
+// The fit depends on camera.aspect, so it is redone whenever the stage reshapes
+// (window resize, or the sidebar stacking under it on a narrow screen) — the
+// kit's own ResizeObserver, through the `onResize` hook passed to Lesson.create.
 // Label HEIGHT is chrome the fit reserves, and it changes when the real font
 // replaces the fallback. So re-solve once the font lands.
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(computeFit);
@@ -3373,6 +3195,7 @@ document.getElementById('savepng').onclick=()=>{
   const x=out.getContext('2d');
   x.drawImage(canvas,0,0);
   x.textAlign='center';
+  const projV=new THREE.Vector3();
   lanes.forEach(l=>{
     const spec=M[l.key];
     projV.set(l.g.position.x,l.topY+laneOffset(l),0).project(camera);

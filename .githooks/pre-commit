@@ -133,6 +133,23 @@ else
   echo "pre-commit: skipping check-diffusion.js — nothing under demos/diffusion/ staged"
 fi
 
+# kit/ gates itself, plus the domain files it is asserted against: check-kit.js
+# runs molgraph over REAL specs (glucose's five hydroxyls, the phosphoryl group
+# that leaves its bridging oxygen behind), so a spec edit can break it from
+# outside the folder. Cheap — it is pure arithmetic over the registry.
+if git diff --cached --name-only | grep -qE '^demos/(kit/.*|molecules\.js|skel\.js|mol-[^/]+\.js)$'; then
+  if ! node kit/check-kit.js > /tmp/ck.$$ 2>&1; then
+    tail -25 /tmp/ck.$$; rm -f /tmp/ck.$$
+    echo ""
+    echo "pre-commit FAILED: check-kit.js — the timeline or the spec queries under"
+    echo "  demos/kit/ no longer do what the pages built on them assume."
+    exit 1
+  fi
+  rm -f /tmp/ck.$$
+else
+  echo "pre-commit: skipping check-kit.js — nothing under demos/kit/ staged"
+fi
+
 # Everything folding-lab is now under demos/folding/, so one pattern covers its
 # modules, its data and its bake tools. palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,
