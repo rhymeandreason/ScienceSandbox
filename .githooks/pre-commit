@@ -94,6 +94,26 @@ else
   echo "pre-commit: skipping check-massaction.js — nothing under demos/massaction/ staged"
 fi
 
+# demos/diffusion/ gates itself, and palette.js is in the pattern from the other
+# direction: radiusOf() sizes a molecule from PALETTE.radii, so retuning those
+# for a 3D page — their actual job, with no idea this module exists — moves
+# every diffusion rate on the page. That is the one failure here nothing else
+# can see, and check-diffusion.js catches it by measuring the predictions
+# against four published diffusion coefficients.
+if git diff --cached --name-only | grep -qE '^demos/(diffusion/.*|palette\.js)$'; then
+  if ! node diffusion/check-diffusion.js > /tmp/cdf.$$ 2>&1; then
+    tail -30 /tmp/cdf.$$; rm -f /tmp/cdf.$$
+    echo ""
+    echo "pre-commit FAILED: check-diffusion.js — the diffusion model no longer"
+    echo "  teaches what it claims. A radiusOf failure means the molecule-size"
+    echo "  proxy stopped tracking real diffusion coefficients; see the header."
+    exit 1
+  fi
+  rm -f /tmp/cdf.$$
+else
+  echo "pre-commit: skipping check-diffusion.js — nothing under demos/diffusion/ staged"
+fi
+
 # Everything folding-lab is now under demos/folding/, so one pattern covers its
 # modules, its data and its bake tools. palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,

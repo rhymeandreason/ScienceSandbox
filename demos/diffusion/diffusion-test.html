@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>diffusion.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. diffusion.js has no host page yet — it was built
+     ahead of the membrane lesson (LESSONS-ROADMAP §2) rather than inside
+     it, so that page can put a wall down the middle of a box whose
+     behaviour is already trusted. Until then this file IS the only place
+     the module runs, and the only place its three claims can be watched:
+
+       A. nothing knows the gradient, and it never stops
+       B. size sets the rate, and only size
+       C. distance goes as the square root of time
+
+     Panel B is the one to check hardest. The two populations are the same
+     code with two radii read off two specs, so a difference in how fast
+     they even out is a prediction, not a setting — and it is the argument
+     the membrane page needs for "why O₂ crosses and glucose doesn't".
+
+     SCALE FAMILY, deliberately: mol-small.js, NOT mol-solvation.js. The
+     small molecules must be in ångström to be measured against glucose;
+     mol-solvation's are display units, a different family
+     (MolecularGeometry.md §1), and radiusOf throws rather than compare
+     them. That throw is the guard rail — this comment is only the reason.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="diffusion.css">
+
+<style>
+  /* Deliberately thin — see massaction-test.html. If this file has to add a
+     rule to make the sim look right, the module is leaking. */
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:66ch}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(430px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+  #sizes{margin:22px 0 0;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
+  #sizes table{border-collapse:collapse}
+  #sizes th,#sizes td{text-align:right;padding:3px 12px 3px 0}
+  #sizes th{font-weight:600;color:var(--ink)}
+  #sizes td:first-child,#sizes th:first-child{text-align:left}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>diffusion.js — test bench</h1>
+  <p class="lede">Three mounts of the same module. Nothing on this page styles
+    the sim, and nothing sets a rate: every speed below is read from a molecule's
+    own coordinates through <code>radiusOf</code> and Stokes–Einstein.</p>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>A — nothing knows the gradient.</b> All the water starts
+        on the left. No line of code reads the concentration; the crowd thins
+        because there are more dots on the left to wander off it. Watch the net
+        arrow go flat while <b>both crossing counters keep running</b> — evened
+        out, not stopped.</p>
+      <div id="caseA"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>B — size sets the rate.</b> Water and glucose, same
+        start, same code, two radii. Glucose is about <b>3× slower</b> — a
+        prediction from its own atom coordinates, not a number typed here.
+        This is the argument the membrane page needs.</p>
+      <div id="caseB"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>C — √t, with the trails on.</b> Six molecules from one
+        point. Each path is a stagger going nowhere in particular; the crowd
+        still spreads at a rate you can plot. The measured line leaves the
+        dashed one when the crowd reaches the walls — the box ended it, not
+        the physics.</p>
+      <div id="caseC"></div>
+    </div>
+  </div>
+
+  <div id="sizes"></div>
+</div>
+
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<!-- ÅNGSTRÖM FAMILY. mol-small.js replaces mol-solvation.js; loading both
+     throws in register(), and loading the wrong one throws in radiusOf. -->
+<script src="../mol-small.js"></script>
+<script src="../mol-glycolysis.js"></script>
+<script src="diffusion.js"></script>
+<script>
+"use strict";
+
+/* Colour is a LABEL, chosen here, not a property of the molecule — see
+ * diffusion.js's header. Blue and violet are massaction's two species colours,
+ * so a student who has met that demo reads these dots the same way. */
+const BLUE='#4f5bd5', VIOLET='#a855f7';
+
+/* EVERY MOUNT ON `window`, which a lesson page would never do. A box that takes
+ * fifteen seconds to even out cannot be judged from a screenshot, and a
+ * backgrounded tab throttles requestAnimationFrame to about one frame a second
+ * (CLAUDE.md's first browser gotcha) — so the only way to SEE the settled state
+ * is to drive the model forward by hand:
+ *
+ *   SIMS[0].run(20)     // 20 simulated seconds, then redraw
+ *
+ * That is a debugging handle on a debugging page, and the reason it is here
+ * rather than in the module. */
+window.SIMS = [];
+const mount = opts => {
+  const sim = Diffusion.create(opts);
+  // sim.tick(), not Diffusion.advance(): the counters and the spread plot are
+  // updated inside tick, so driving the walk directly would move the dots and
+  // freeze every number under them.
+  sim.run = secs => {
+    for (let i = 0; i < secs * 60; i++) sim.tick(1 / 60);
+    return Diffusion.spreadOf(sim.parts());
+  };
+  SIMS.push(sim); sim.start(); return sim;
+};
+
+mount({
+  host: document.getElementById('caseA'),
+  scenarios: [
+    { key:'gradient', tab:'Gradient', title:'A crowd with nowhere to be',
+      species:[{ mol:'water', label:'Water', color:BLUE, n:80, start:'left' }],
+      text:`Every dot steps at random. <b>Nothing is pushing them right</b> —
+        there are simply more of them on the left, so more of them wander that
+        way. When the two sides match, the crossings do not stop: they
+        <b>balance</b>.` }
+  ]
+});
+
+mount({
+  host: document.getElementById('caseB'),
+  kicker: 'Size and rate',
+  scenarios: [
+    { key:'size', tab:'Water vs glucose', title:'Why a big molecule is slow',
+      species:[
+        { mol:'water',   label:'Water',   color:BLUE,   n:55, start:'left' },
+        { mol:'glucose', label:'Glucose', color:VIOLET, n:55, start:'left' }],
+      text:`Same random walk, same code. Glucose is <b>bigger</b>, so each step
+        is smaller — <b>D ∝ 1/r</b>, the only size law diffusion has. Around ten
+        seconds in, twice as much water has crossed as glucose. Keep watching:
+        they <b>both end up even</b>. Size sets how <b>fast</b> you get there,
+        never <b>where</b> you end up.` }
+  ]
+});
+
+mount({
+  host: document.getElementById('caseC'),
+  kicker: 'Distance and time',
+  scenarios: [
+    { key:'walk', tab:'One path', title:'Twice as far, four times the wait',
+      trails:true,
+      species:[{ mol:'water', label:'Water', color:BLUE, n:6, start:'centre' }],
+      text:`Six molecules, all from the same point. Follow one: it is going
+        <b>nowhere in particular</b>. Follow all six and the spread is
+        predictable — and it grows as <b>√t</b>, so covering twice the distance
+        takes <b>four times</b> as long. That is why a cell is small enough for
+        diffusion to work and a body is not.` },
+    { key:'crowd', tab:'The crowd', title:'The same law, sixty at once',
+      species:[{ mol:'water', label:'Water', color:BLUE, n:60, start:'centre' }],
+      text:`No trails, more molecules: the measured curve is smoother, and the
+        departure from √t when the crowd hits the walls is unmistakable. The
+        <b>box</b> ended it, not the physics.` }
+  ]
+});
+
+/* THE SIZES THE WHOLE PAGE RESTS ON, printed from the same function the sim
+ * uses — CLAUDE.md's rule that a number in user-facing text is read at render
+ * time. A table of typed ångströms would survive any change to radiusOf. */
+(() => {
+  const M = MolLib.MOLECULES;
+  const rows = [['water','Water',2.3],['co2','Carbon dioxide',1.9],
+                ['ethanol','Ethanol',1.24],['glucose','Glucose',0.67]];
+  const rw = Diffusion.radiusOf(M.water);
+  document.getElementById('sizes').innerHTML =
+    `<table><tr><th>molecule</th><th>radius (Å)</th><th>relative D</th>`
+    + `<th>measured D</th><th>error</th></tr>`
+    + rows.map(([k, nm, lit]) => {
+        const r = Diffusion.radiusOf(M[k]);
+        const rel = Diffusion.diffusionOf(r) / Diffusion.diffusionOf(rw);
+        const err = (rel / (lit / 2.3) - 1) * 100;
+        return `<tr><td>${nm}</td><td>${r.toFixed(2)}</td>`
+             + `<td>${rel.toFixed(2)}</td><td>${(lit / 2.3).toFixed(2)}</td>`
+             + `<td>${err >= 0 ? '+' : ''}${err.toFixed(0)}%</td></tr>`;
+      }).join('')
+    + `</table><p>Relative to water. Measured values are aqueous diffusion
+       coefficients at 25 °C (×10⁻⁹ m² s⁻¹): water 2.3, CO₂ 1.9, ethanol 1.24,
+       glucose 0.67. check-diffusion.js fails if any of these drifts past 25%.</p>`;
+})();
+</script>
+</body>
+</html>

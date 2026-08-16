@@ -47,9 +47,10 @@ thesis wins (that's why SA:V dropped, below).
 | --- | --- |
 | subcellular ↔ macroscopic, scale | `macromolecule-lab`, `molecule-viewer` |
 | energy transformation | `glycolysis-lab` |
-| dynamic equilibrium, probability, randomness | the mass-action modal only |
+| dynamic equilibrium, probability, randomness | the mass-action modal, and `diffusion/` |
 | integrated systems (structure→function) | `hemoglobin-lab` |
-| SA:V, proportional reasoning, variation, uncertainty, hypothesis testing | nothing |
+| proportional reasoning | `diffusion/` (√t, and D against size) |
+| SA:V, variation, uncertainty, hypothesis testing | nothing |
 
 ## Textbook coverage
 
@@ -140,6 +141,11 @@ while the *net* is what changes settles osmosis visually, with no quiz needed.
 Standalone osmosis is **not** a separate page: without the membrane it's a
 counter, and with it it's this page's second half.
 
+**The walk is already built.** `diffusion/diffusion.js` is the box, the counters
+and the √t plot, with no membrane in it by design — this page adds the wall.
+Its `advance()` is where a permeability test goes, and `check-diffusion.js` §9
+asserts no barrier has grown there in the meantime.
+
 Matrix rows: dynamic equilibrium, randomness, subcellular↔macroscopic.
 
 ### 3. Nucleic acids / DNA
@@ -154,13 +160,39 @@ a molecule where the structure *is* the function.
 
 Matrix rows: integrated systems, scale.
 
+### Reversed: diffusion
+
+**Dropped, then built as a module** — `diffusion/`, no lesson page. The original
+judgement is left standing below because the half of it that was right is still
+right, and it is what kept this to a module rather than a page.
+
+What it got wrong: it weighed the *diagram* and not the *claim*. The cubes-with-
+numbers figure really is inert, and SA:V really is the weakest part — but the
+mechanism underneath is not a diagram problem at all. "It evened out, so it
+stopped" is the same misconception the mass-action modal exists to break, one
+subject over; and √t — four times the wait for twice the distance — is a
+quantitative fact every textbook asserts in a sentence and no figure ever shows.
+That one is measured live on the module's own plot, which is the strongest thing
+here and was invisible from the diagram the judgement was made against.
+
+What it got right: **populations of dots make no geometry claim**, so this is
+not a lesson page and does not go on the index. It is plumbing for one — the
+membrane page (§2) puts a wall down the middle of a box whose behaviour a
+student already trusts, and the module stops one step short of that on purpose.
+The same relationship `massaction/` has to the enzymes page.
+
+The size-to-rate half does play to the thesis after all: a dot's radius is read
+from the spec's own coordinates, so "why O₂ crosses and glucose doesn't" is a
+prediction from the molecules, not an assertion — and `check-diffusion.js` holds
+it to four published diffusion coefficients.
+
+Matrix rows: randomness, probability, scale, proportional reasoning.
+
 ### Dropped
 
-**SA:V / diffusion.** Three uncovered matrix rows, which is why it ranked high
-under the matrix and low under the thesis: the standard cubes-with-numbers
-diagram isn't *inconsistent*, just inert. And its mechanic is populations of
-dots — the one paradigm here that deliberately makes no geometry claim
-(`CLAUDE.md`, the mass-action note). It doesn't play to what this repo is for.
+**SA:V.** Ranked high under the matrix and low under the thesis: the standard
+cubes-with-numbers diagram isn't *inconsistent*, just inert. The diffusion half
+of this entry is above; the surface-area argument is still not a page.
 
 ## Molecule library
 

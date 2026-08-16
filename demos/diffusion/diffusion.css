@@ -1,0 +1,94 @@
+/* =============================================================================
+ *  diffusion.css — everything inside a Diffusion root, and nothing outside it.
+ *
+ *  Same contract as massaction.css: every rule is scoped under `.diffusion`,
+ *  and no rule here positions, sizes or frames that root — the host decides
+ *  where it sits. Colours and type come from sandbox.css's variables.
+ *
+ *  The two files are deliberately near-identical in look. They are siblings —
+ *  populations of dots in a box, counters underneath — and a student who has
+ *  read one should recognise the second as the same kind of picture making a
+ *  different claim. Not shared, though: one stylesheet serving two modules is a
+ *  dependency neither declares, and the first divergence turns into a fork.
+ * ========================================================================== */
+
+.diffusion .df-tabs{display:flex;gap:4px;margin:0 0 14px;
+  border-bottom:1.5px solid rgba(58,52,44,.18)}
+.diffusion .df-tabs button{font-family:var(--font-slab);font-weight:700;font-size:13px;
+  letter-spacing:.2px;padding:8px 16px 9px;border:none;background:none;
+  color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;
+  margin-bottom:-1.5px}
+.diffusion .df-tabs button:hover{color:var(--ink)}
+.diffusion .df-tabs button.on{color:#4f5bd5;border-bottom-color:#4f5bd5}
+
+.diffusion .df-kick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+  letter-spacing:1.5px;text-transform:uppercase;color:#4f5bd5;margin:0 0 5px}
+.diffusion .df-title{font-family:var(--font-slab);font-weight:700;font-size:19px;
+  margin:0 0 3px;color:var(--ink)}
+.diffusion .df-sub{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+  line-height:1.5;margin:0 0 14px}
+.diffusion .df-sub b{color:var(--ink);font-weight:600}
+
+.diffusion .df-canvas{display:block;width:100%;height:250px;border-radius:10px;
+  background:rgba(255,255,255,.6);border:1.5px solid rgba(58,52,44,.16)}
+
+/* THE TWO SIDES, and the traffic between them. The counts are per species per
+   side because the size scenario's whole point is that two populations even out
+   at different speeds — one merged count would hide it. */
+.diffusion .df-row{display:flex;gap:14px;align-items:stretch;margin:12px 0 0}
+.diffusion .df-side{flex:1;display:flex;flex-direction:column;gap:5px;
+  padding:7px 10px;border:1.5px solid rgba(58,52,44,.18);border-radius:8px}
+.diffusion .df-right{text-align:right}
+.diffusion .df-lb{font-family:var(--font-sans);font-size:10.5px;font-weight:600;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.diffusion .df-tally{display:flex;flex-direction:column;gap:3px}
+.diffusion .df-right .df-tally{align-items:flex-end}
+.diffusion .df-sn{display:flex;align-items:center;gap:6px;
+  font-family:var(--font-sans);font-size:12px;color:var(--muted)}
+.diffusion .df-sn i{width:10px;height:10px;border-radius:50%;flex:none}
+.diffusion .df-sn b{font-family:var(--font-slab);font-size:16px;color:var(--ink)}
+.diffusion .df-rate{display:flex;flex-direction:column;justify-content:center;
+  gap:2px;min-width:132px;font-family:var(--font-sans);font-size:11.5px;color:var(--muted)}
+.diffusion .df-rate b{font-family:var(--font-slab);font-size:13px;color:var(--ink)}
+
+/* READS "EVENED OUT", NEVER "STOPPED". The crossings are still running when the
+   arrow goes flat, and that is the whole second claim — the same distinction
+   massaction.css's .ma-net carries for a reaction at equilibrium. */
+.diffusion .df-net{display:flex;align-items:center;justify-content:center;gap:10px;
+  margin-top:10px;padding:9px 14px;border-radius:9px;
+  background:rgba(58,52,44,.05);border:1.5px solid rgba(58,52,44,.14);
+  transition:background .3s ease,border-color .3s ease}
+.diffusion .df-net i{font-size:30px;line-height:1;
+  transition:color .25s ease,transform .3s cubic-bezier(.34,.9,.3,1)}
+.diffusion .df-net span{font-family:var(--font-slab);font-weight:700;font-size:13px;
+  letter-spacing:1px;text-transform:uppercase;text-align:center;
+  transition:color .25s ease}
+
+/* √t, MEASURED. The dashed reference is the law; the solid line is this box. */
+.diffusion .df-fig{display:flex;align-items:center;justify-content:center;gap:13px;
+  margin-top:8px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
+.diffusion .df-fig svg{flex:none;width:230px;height:105px;overflow:visible}
+.diffusion .df-read b{font-family:var(--font-slab);font-size:14px;color:var(--ink);
+  letter-spacing:.2px}
+.diffusion .df-fig .axl{fill:none;stroke:var(--muted);stroke-width:1.2;opacity:.35}
+.diffusion .df-fig .ref{fill:none;stroke:var(--muted);stroke-width:1.5;
+  stroke-dasharray:4 3;opacity:.75}
+.diffusion .df-fig .meas{fill:none;stroke:#4f5bd5;stroke-width:2.2;
+  stroke-linecap:round;stroke-linejoin:round}
+.diffusion .df-fig .ax{font-family:var(--font-sans);font-weight:600;font-size:8px;
+  fill:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+
+.diffusion .df-ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.diffusion .df-ctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
+  padding:7px 13px;border-radius:8px;border:1.5px solid var(--ink);
+  background:none;color:var(--ink);cursor:pointer}
+.diffusion .df-ctl button:hover{background:var(--ink);color:var(--paper)}
+
+.diffusion .df-text{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
+.diffusion .df-text b{color:var(--ink)}
+
+@media (max-width:920px){
+  .diffusion .df-fig{flex-direction:column;gap:6px;text-align:center}
+  .diffusion .df-canvas{height:200px}
+  .diffusion .df-row{flex-wrap:wrap}
+}

@@ -26,6 +26,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
 | `massaction/massaction-test.html` | Test bench for `massaction/massaction.js` — three mounts, including the barrier slider the enzymes lesson needs and glycolysis never renders | test |
+| `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
 
 ## Making a new lesson
 
@@ -74,7 +75,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node diffusion/check-diffusion.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
