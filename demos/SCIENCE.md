@@ -51,6 +51,14 @@ doesn't need it.
   shared pair is **one dot of each colour** and ownership needs no legend. Cost:
   a red dot lands on a red sphere, so every dot carries an ink ring — without it
   the shared pair vanishes into the oxygen exactly when it matters.
+- **A LONE PAIR IS THE EXCEPTION** (`lobes/lobes.js`): one blue for every
+  element, greyed when conjugated. A dot's colour answers *whose electron this
+  is* — the point of a shared pair being one of each. A lobe is not asking that;
+  it is asking *can a donor point here*, so it wears the H-bond's colour
+  instead. Tinting by element would also put red ears on water and blue ones on
+  adenine, which is the **orbital phase convention**, and the sign a student
+  would infer is backwards — a lone pair is the δ− end. The hexes and the
+  reason they are two keys live in `palette.js`.
 - **A dative bond is two dots of the DONOR's colour.** In NH₃ + H⁺ → NH₄⁺ nitrogen
   supplies both electrons, so there's no second colour; the proton is drawn with
   **no dot at all** and a `+`, because that's what a proton is. Once formed the
@@ -165,17 +173,6 @@ would say the opposite. Every effect fires at a position the module **asks for**
   colour, not the solute's, because the solute is unchanged.
 - **White core flash** (`#ffffff`) — shared by all `spawnRing` events, the
   white-hot instant before the coloured rings.
-- **Lone-pair blue** (`PALETTE.bonds.lonepair`) — on a *lone pair*
-  (`lobes/lobes.js`),
-  somewhere an H-bond can land. **The one electron in this repo that does not
-  wear its own atom's colour**, and deliberately: red-and-blue on an orbital is
-  the phase convention, so element tinting makes water's ears red and adenine's
-  blue and invites a student to read a sign — backwards, since a lone pair is
-  the δ− end. A dot's colour answers *whose electron*; a lobe's answers *can a
-  donor point here*, so it takes the colour of the thing that lands on it —
-  `bonds.hbond`'s family, its own key, and brighter, because a lobe is a
-  translucent volume and the stick's navy at that alpha comes out periwinkle.
-  Greyed (`#8c857a`) means conjugated: present, in the π system, unavailable.
 
 ### Where each is wired
 

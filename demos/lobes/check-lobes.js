@@ -311,9 +311,17 @@ console.log('\n8. a lobe is the H-bond colour, not its atom\'s');
      `${hueOf(P.bonds.lonepair).toFixed(0)}° vs ${hueOf(P.bonds.hbond).toFixed(0)}°`);
   ok(P.bonds.lonepair !== P.bonds.hbond,
      '…and separate keys, so retuning one cannot restyle the other');
-  ok(/lobes\/lobes\.js/.test(
-       fs.readFileSync(path.join(HERE, '..', 'SCIENCE.md'), 'utf8')),
-     'SCIENCE.md §5 records the exception to "an electron wears its atom\'s colour"');
+  /* §3, not §5: §5 is fx.js's transient EVENT colours and a lone pair is not
+   * an event. It belongs beside the rule it breaks — a rule whose exception is
+   * written down somewhere else is one someone helpfully "fixes" back. */
+  {
+    const sci = fs.readFileSync(path.join(HERE, '..', 'SCIENCE.md'), 'utf8');
+    const s3 = sci.split(/^## /m).find(s => s.startsWith('3.')) || '';
+    ok(/lobes\/lobes\.js/.test(s3),
+       'SCIENCE.md §3 records the exception, next to the rule it breaks');
+    ok(!/lonepair/.test(sci.split(/^## /m).find(s => s.startsWith('5.')) || ''),
+       '…and §5 does not also carry it — that list is fx.js events');
+  }
 }
 
 console.log('');
