@@ -32,6 +32,9 @@ let fails=0, checks=0;
 const ok=(cond,msg)=>{ checks++; if(!cond){ fails++; console.log('  FAIL  '+msg); } };
 const near=(a,b,tol,msg)=>ok(Math.abs(a-b)<=tol, `${msg}  (got ${(+a).toFixed(3)}, want ${b}±${tol})`);
 const head=t=>console.log('\n'+t+'\n'+'-'.repeat(t.length));
+// The wall-clock assertions cannot be synchronous — the thing being checked is
+// that a beat fires with no render loop running.
+const pending=[];
 
 /* =====================================================================
  *  MOTION — the timeline
@@ -88,6 +91,41 @@ head('motion.js');
   tl5.seek(1); near(s,0.5,0.001,'seek applies the tween exactly');
   ok(side===0,'seek does not fire call beats');
   near(tl5.duration,2,0.001,'sequence duration is the sum of its beats');
+
+  /* THE TWO CLOCKS. A `call` beat is a commit: it rides the wall clock as well
+   * as the render loop, so a step finishes in a tab nobody is watching instead
+   * of leaving the lesson stuck `busy` with no way out but a reload. These run
+   * with NO step() at all — the render loop is exactly what a hidden tab does
+   * not have. */
+  const wall=ms=>new Promise(r=>setTimeout(r,ms));
+  {
+    const m=Motion.create(); let committed=false, painted=0;
+    m.seq([
+      {dur:.05, onUpdate:()=>painted++},
+      {call:()=>committed=true},
+    ],{tag:'hidden'});
+    pending.push(wall(120).then(()=>{
+      ok(committed,'a call beat fires with no render loop at all (hidden tab)');
+      ok(painted===0,'…and no interpolation ran: pixels are not owed to a hidden tab');
+      // The played clock caught up to the beat, so a tween scheduled around it
+      // agrees with the state rather than resuming its slide.
+      ok(m.time>=0.05,'the timeline fast-forwards to the beat the timer fired');
+    }));
+
+    // commit:false is the opt-out for a purely cosmetic call.
+    const m2=Motion.create(); let cosmetic=false;
+    m2.seq([{at:.05, call:()=>cosmetic=true, commit:false}]);
+    pending.push(wall(120).then(()=>
+      ok(!cosmetic,'commit:false stays on the render loop and does not fire unseen')));
+
+    // …and cancel kills the wall-clock half too, or an abandoned step commits
+    // on top of the fresh one a second later.
+    const m3=Motion.create(); let zombie=false;
+    m3.seq([{at:.05, call:()=>zombie=true}],{tag:'z'});
+    m3.cancel('z');
+    pending.push(wall(120).then(()=>
+      ok(!zombie,'cancel clears the wall-clock timer, not just the beat')));
+  }
 
   // Easings: every named one must start at 0 and land on 1 (pulse is the
   // declared exception — it exists to return to where it started).
@@ -181,5 +219,7 @@ head('molgraph.js — stereochemistry sign');
   }
 }
 
-console.log(`\n${checks-fails}/${checks} checks passed`);
-if(fails){ console.log(`${fails} FAILED`); process.exit(1); }
+Promise.all(pending).then(()=>{
+  console.log(`\n${checks-fails}/${checks} checks passed`);
+  if(fails){ console.log(`${fails} FAILED`); process.exit(1); }
+});

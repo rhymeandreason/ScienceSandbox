@@ -13,7 +13,7 @@ second page would want it *slightly* different, it does not.
 
 | File | Owns | Checked by |
 | --- | --- | --- |
-| `motion.js` | one clock. Tweens and sequences on a timeline the render loop advances, named easings, `cancel(tag)` that is total, `seek()` for scrub/screenshot. No `setTimeout`, no per-page `t+=0.02`. No THREE | `check-kit.js` |
+| `motion.js` | **two clocks, on purpose.** Interpolation rides the render loop (`dt` in seconds, clamped); a `call` beat is a COMMIT and rides the wall clock too, so a step finishes in a hidden tab instead of leaving the lesson stuck `busy`. Named easings, `cancel(tag)` that clears both halves, `seek()` for scrub/screenshot. No THREE | `check-kit.js` |
 | `molgraph.js` | questions you ask a **spec**: neighbours, terminal vs bridging, what leaves when a bond breaks, rings, functional groups found from connectivity, signed torsions. No THREE, no DOM, Node-loadable — so a checker and a page compute the same answer from the same code | `check-kit.js` |
 | `focus.js` | one vocabulary for "look here": ghost at 13% without depth-write, lit atoms emitting their **own** colour, a bond lit only when both ends are. Works on a built molecule (by atom index) or on whole objects against each other | the human, `kit-test.html` |
 | `stagekit.js` | the shell: `Stage.create` + render loop (dt in **seconds**) + ResizeObserver + FX/Motion/Focus wiring + `fit()`, which converts **pixels of chrome** into the world-space bands `Stage.frame` wants | the human, `kit-test.html` |
@@ -41,8 +41,12 @@ the rest.
 
 * **`dt` is seconds, and it is clamped at 0.1.** A per-frame increment (`+=0.0022`)
   runs a third faster on a 120 Hz display; that is why every rate here is per
-  second. The clamp is why an alt-tab does not complete a whole animation in one
-  frame — which is the bug the `setTimeout` version had by construction.
+  second.
+* **A `call` beat fires whether or not anyone is watching**, and fast-forwards
+  the timeline when it does. That is glycolysis-lab's rule, and it is the right
+  one: pixels are owed to a visible tab, but a step that leaves `busy` stuck
+  true in a hidden one is unrecoverable without a reload. `commit:false` opts a
+  cosmetic call out.
 * **Cancel does not complete.** `motion.cancel()` freezes values where they are.
   Snapping to the end pose is how a rewind lands on the state it was rewinding
   away from. If a page wants the end pose, it sets it.

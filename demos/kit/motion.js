@@ -6,19 +6,33 @@
  *  site (glycolysis: 32, hemoglobin: 27). Three problems come with that, and
  *  they are the same three every time.
  *
- *   1. setTimeout runs on WALL CLOCK; the animation it drives runs on
- *      requestAnimationFrame. A backgrounded tab pauses one and not the other,
- *      so the page comes back with its timers already fired and its tweens
- *      halfway — the model in a pose no step of the lesson describes.
- *   2. Cancelling is per-page and therefore partial. The timers get cleared;
+ *   1. Cancelling is per-page and therefore partial. The timers get cleared;
  *      the `t+=0.02` counters inside the loop do not, so a rewind lands on a
  *      molecule still sliding to where it was going.
- *   3. A step you cannot SEEK is a step you cannot scrub, rewind or screenshot.
+ *   2. A step you cannot SEEK is a step you cannot scrub, rewind or screenshot.
  *      Lessons want all three, so each one rebuilds the state by hand.
+ *   3. The two clocks are mixed by accident. rAF stops in a backgrounded tab
+ *      and setTimeout does not, and which of the two a given beat rides was
+ *      decided by whichever was nearest to hand.
  *
- *  So: no wall clock, no page-local counters. Beats live on a timeline with
- *  absolute times, the render loop advances it, and cancelling drops the whole
- *  thing at once.
+ *  THE TWO CLOCKS ARE THE DESIGN, not a wart — glycolysis-lab got this right
+ *  before this file existed and its reasoning is the rule here:
+ *
+ *    PIXELS ride rAF.   An interpolation is a picture; a tab nobody is looking
+ *                       at owes nobody a picture. `dt` is clamped, so a
+ *                       40-second alt-tab is not one 40-second frame.
+ *    STATE rides the wall clock.  A beat that advances the LESSON — clears
+ *                       `busy`, swaps a molecule, banks the ledger — must fire
+ *                       whether or not anyone is watching. Finishing a step
+ *                       inside a rAF callback leaves a hidden tab stuck busy
+ *                       with the tray dark and no way out but a reload.
+ *
+ *  So a `call` beat is a COMMIT by default: scheduled on both clocks, fired
+ *  once by whichever arrives first. When the timer wins (the tab was hidden)
+ *  the timeline FAST-FORWARDS to that beat, so the pixels the student comes
+ *  back to match the state the lesson is in — the finished step, not a
+ *  molecule stranded mid-slide. Pass `commit:false` for a purely cosmetic call
+ *  (a ring, a shimmer): nothing is owed to a tab that never showed it.
  *
  *  Loaded as a classic script; exposes window.Motion (and module.exports for
  *  the checker — this file is pure arithmetic and has no THREE dependency).
@@ -63,23 +77,51 @@
   const easeFn=e=>typeof e==='function'?e:(EASE[e]||EASE.smooth);
 
   function create(){
-    let beats=[];        // {t0,t1,ease,onUpdate,onDone,call,tag,done,tl}
-    let clock=0;         // seconds since create(); only ever advanced by step()
+    let beats=[];        // {t0,t1,ease,onUpdate,onDone,call,tag,done,timer}
+    let clock=0;         // seconds of PLAYED time; only ever advanced by step()
     let paused=false;
+    const now=()=>(typeof performance==='object'?performance.now():Date.now());
 
     /* One beat. `dur:0` (or a `call`) makes it an instant — fired the first
-     * time the clock reaches its time, exactly once, edge-triggered. */
+     * time the clock reaches its time, exactly once, edge-triggered.
+     *
+     * A `call` beat also gets a WALL-CLOCK timer unless `commit:false`; see the
+     * header. `fire()` is the one door both clocks come through, so the beat
+     * runs exactly once however it is reached. */
     function push(b, tag, base){
       const at=(b.at!=null?b.at:0)+base;
       const beat={ t0:clock+at, t1:clock+at+(b.dur||0),
         ease:easeFn(b.ease), onUpdate:b.onUpdate||null, onDone:b.onDone||null,
-        call:b.call||null, tag:tag||b.tag||null, started:false, done:false };
+        call:b.call||null, tag:tag||b.tag||null, started:false, done:false,
+        timer:null };
       beats.push(beat);
+      if(beat.call && b.commit!==false && typeof setTimeout==='function'){
+        beat.timer=setTimeout(()=>fire(beat,true), Math.max(0,at*1000));
+      }
       return beat;
     }
 
+    function fire(beat, fromTimer){
+      if(beat.started||beat.done) return;
+      beat.started=true;
+      if(beat.timer){ clearTimeout(beat.timer); beat.timer=null; }
+      // THE TIMER WON, so the tab was hidden and the played clock is behind the
+      // lesson. Fast-forward it: the student comes back to the state this beat
+      // just committed, and every tween scheduled around it must agree rather
+      // than resume its slide from where the picture froze.
+      if(fromTimer && beat.t0>clock) clock=beat.t0;
+      if(beat.call) beat.call();
+      if(!beat.onUpdate){ beat.done=true; if(beat.onDone) beat.onDone(); prune(); }
+    }
+
     function tween(b){ const beat=push(b, b.tag, 0); return handleFor([beat]); }
-    function after(sec, fn, tag){ return tween({at:sec, dur:0, call:fn, tag}); }
+    // The direct replacement for a page's `later(fn, ms)` — in SECONDS, and a
+    // commit by default, which is what `later` always was. `o` is a tag string
+    // or {tag, commit}.
+    function after(sec, fn, o){
+      const opt=typeof o==='string'?{tag:o}:(o||{});
+      return tween({at:sec, dur:0, call:fn, tag:opt.tag, commit:opt.commit});
+    }
 
     /* A sequence. A beat with no `at` starts when the previous one ENDS; a beat
      * with `at` is placed absolutely, which is how two things overlap. That
@@ -104,7 +146,8 @@
       return {
         duration: dur!=null?dur:Math.max(...made.map(b=>b.t1))-t0,
         get done(){ return made.every(b=>b.done); },
-        cancel(){ made.forEach(b=>{ b.done=true; }); prune(); },
+        cancel(){ made.forEach(b=>{ b.done=true;
+          if(b.timer){ clearTimeout(b.timer); b.timer=null; } }); prune(); },
         /* SEEK — put everything at time `t` without playing to it. `onUpdate`
          * beats are applied (they are pure functions of t, so this is exact);
          * `call` beats are NOT fired, because they are side effects — a scrub
@@ -142,8 +185,8 @@
         const span=b.t1-b.t0;
         const u=span>0?clamp01((clock-b.t0)/span):1;
         if(b.onUpdate) b.onUpdate(b.ease(u), u);
-        if(!b.started){ b.started=true; if(b.call) b.call(); fired=true; }
-        if(u>=1){ b.done=true; fired=true; if(b.onDone) b.onDone(); }
+        if(!b.started){ fire(b,false); fired=true; }
+        if(b.onUpdate && u>=1){ b.done=true; fired=true; if(b.onDone) b.onDone(); }
       }
       if(fired) prune();
     }
@@ -154,8 +197,12 @@
      * molecule to the end pose of an abandoned animation is how a rewind ends
      * up showing the state it was rewinding from. */
     function cancel(tag){
-      if(tag==null) beats=[];
-      else beats=beats.filter(b=>b.tag!==tag);
+      const kill=b=>{ if(b.timer){ clearTimeout(b.timer); b.timer=null; } };
+      // The wall-clock half has to go too, or a restart mid-flight lands the
+      // abandoned step's commit on top of the fresh one a second later.
+      if(tag==null){ beats.forEach(kill); beats=[]; }
+      else { beats.filter(b=>b.tag===tag).forEach(kill);
+             beats=beats.filter(b=>b.tag!==tag); }
     }
 
     return {
