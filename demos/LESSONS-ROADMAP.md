@@ -46,7 +46,7 @@ thesis wins (that's why SA:V dropped, below).
 | Matrix row | Covered by |
 | --- | --- |
 | subcellular ↔ macroscopic, scale | `macromolecule-lab`, `molecule-viewer` |
-| energy transformation | `glycolysis-lab` |
+| energy transformation | `glycolysis-lab`, and `coupling/` |
 | dynamic equilibrium, probability, randomness | the mass-action modal, and `diffusion/` |
 | integrated systems (structure→function) | `hemoglobin-lab` |
 | proportional reasoning | `diffusion/` (√t, and D against size) |

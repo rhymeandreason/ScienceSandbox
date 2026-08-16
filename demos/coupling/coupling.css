@@ -1,0 +1,98 @@
+/* =============================================================================
+ *  coupling.css — everything inside a Coupling root, and nothing outside it.
+ *
+ *  Same contract as massaction.css and diffusion.css: every rule scoped under
+ *  `.coupling`, and nothing here positions or sizes that root — the host
+ *  decides where it sits. Colours and type come from sandbox.css's variables.
+ *
+ *  THE THREE MODULES LOOK ALIKE ON PURPOSE and are still three files. A
+ *  student meeting the second should recognise the chrome and go straight to
+ *  the new claim. One shared stylesheet would be a dependency none of them
+ *  declares, and the first divergence turns into a fork.
+ * ========================================================================== */
+
+.coupling .cp-tabs{display:flex;gap:4px;margin:0 0 14px;
+  border-bottom:1.5px solid rgba(58,52,44,.18)}
+.coupling .cp-tabs button{font-family:var(--font-slab);font-weight:700;font-size:13px;
+  letter-spacing:.2px;padding:8px 16px 9px;border:none;background:none;
+  color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;
+  margin-bottom:-1.5px}
+.coupling .cp-tabs button:hover{color:var(--ink)}
+.coupling .cp-tabs button.on{color:#4f5bd5;border-bottom-color:#4f5bd5}
+
+.coupling .cp-kick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+  letter-spacing:1.5px;text-transform:uppercase;color:#4f5bd5;margin:0 0 5px}
+.coupling .cp-title{font-family:var(--font-slab);font-weight:700;font-size:19px;
+  margin:0 0 3px;color:var(--ink)}
+.coupling .cp-sub{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+  line-height:1.5;margin:0 0 12px}
+.coupling .cp-sub b{color:var(--ink);font-weight:600}
+
+/* THE LADDER. Three arrows at one scale — the picture IS the addition, so
+   nothing here may rescale a single arrow on its own. */
+.coupling .cp-fig{display:flex;justify-content:center;
+  background:rgba(255,255,255,.6);border:1.5px solid rgba(58,52,44,.16);
+  border-radius:10px;padding:6px 4px}
+.coupling .cp-fig svg{width:100%;max-width:340px;height:auto;overflow:visible}
+.coupling .cp-axl{stroke:var(--muted);stroke-width:1.2;opacity:.35;fill:none}
+.coupling .cp-zero{stroke:var(--muted);stroke-width:1.1;opacity:.3;
+  stroke-dasharray:4 4;fill:none}
+.coupling .cp-ax{font-family:var(--font-sans);font-weight:600;font-size:8px;
+  fill:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+.coupling .cp-shaft{stroke-width:3.5;stroke-linecap:butt;fill:none}
+.coupling .cp-head{stroke:none}
+/* Uphill is the cost, downhill is what pays — two colours, and the coupled
+   arrow takes the colour of whichever way it ended up pointing, which is the
+   verdict restated as ink. */
+.coupling .cp-arrow.up .cp-shaft{stroke:#c2410c}
+.coupling .cp-arrow.up .cp-head{fill:#c2410c}
+.coupling .cp-arrow.down .cp-shaft{stroke:#4f5bd5}
+.coupling .cp-arrow.down .cp-head{fill:#4f5bd5}
+.coupling .cp-arrow.net .cp-shaft{stroke:var(--ink)}
+.coupling .cp-arrow.net .cp-head{fill:var(--ink)}
+.coupling .cp-dg{font-family:var(--font-slab);font-weight:700;font-size:12px;
+  fill:var(--ink)}
+.coupling .cp-lb{font-family:var(--font-sans);font-weight:600;font-size:10px;
+  fill:var(--muted)}
+
+/* THE VERDICT, full width, and it says RUNS or DOES NOT RUN — never "is
+   favourable", which a student reads as "is fast". Speed is the barrier, and
+   the barrier is massaction.js's subject, not this one's. */
+.coupling .cp-verdict{display:flex;align-items:center;justify-content:center;gap:10px;
+  margin-top:10px;padding:9px 14px;border-radius:9px;
+  background:rgba(194,65,12,.07);border:1.5px solid rgba(194,65,12,.28);
+  transition:background .3s ease,border-color .3s ease}
+.coupling .cp-verdict.go{background:rgba(79,91,213,.08);border-color:rgba(79,91,213,.35)}
+.coupling .cp-verdict i{font-size:26px;line-height:1;color:#c2410c;transition:color .25s ease}
+.coupling .cp-verdict.go i{color:#4f5bd5}
+.coupling .cp-verdict span{font-family:var(--font-slab);font-weight:700;font-size:13px;
+  letter-spacing:1px;text-transform:uppercase;color:#c2410c;transition:color .25s ease}
+.coupling .cp-verdict.go span{color:#4f5bd5}
+
+.coupling .cp-sum{margin-top:9px;text-align:center;
+  font-family:var(--font-sans);font-size:13px;color:var(--muted);line-height:1.5}
+.coupling .cp-sum b{font-family:var(--font-slab);font-size:15px;color:var(--ink)}
+.coupling .cp-sum .cp-tot{font-size:17px}
+
+.coupling .cp-slider{display:flex;align-items:center;gap:11px;margin-top:11px;
+  padding:8px 12px;border-radius:9px;border:1.5px solid rgba(58,52,44,.14);
+  font-family:var(--font-sans);font-size:12.5px;color:var(--muted)}
+.coupling .cp-slider input{flex:1;accent-color:#c2410c;cursor:pointer}
+.coupling .cp-slider b{font-family:var(--font-slab);font-size:13px;color:var(--ink);
+  min-width:86px;text-align:right}
+
+/* THE SHARED INTERMEDIATE, as a checkbox, because it is the one thing a
+   student can be shown is necessary by taking it away. */
+.coupling .cp-share{display:flex;align-items:flex-start;gap:9px;margin-top:10px;
+  padding:9px 12px;border-radius:9px;border:1.5px solid rgba(58,52,44,.14);
+  font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+  line-height:1.5;cursor:pointer}
+.coupling .cp-share input{margin-top:2px;accent-color:#4f5bd5;cursor:pointer;flex:none}
+.coupling .cp-share b{color:var(--ink)}
+
+.coupling .cp-text{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
+.coupling .cp-text b{color:var(--ink)}
+
+@media (max-width:920px){
+  .coupling .cp-fig svg{max-width:100%}
+}

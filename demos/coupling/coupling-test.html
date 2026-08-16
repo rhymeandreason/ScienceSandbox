@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>coupling.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. coupling.js has no host page yet. It was built
+     standalone rather than inside glycolysis-lab, which already draws
+     this same coupling and draws it with NO NUMBERS on purpose — its
+     coupleCurve says so: "the figure claims a SIGN only — to scale it
+     would assert ΔG the page cannot source." That is right for a page
+     whose subject is the pathway. It is wrong for a page whose subject
+     is the arithmetic, and the arithmetic is what a student is missing.
+
+     THREE THINGS TO CHECK HERE, in order of how badly they are taught:
+
+       B. the shared intermediate. Untick it. The sum stops applying and
+          the uphill reaction goes back to not running, however much
+          energy is being released next to it. Two arrows side by side
+          is the standard textbook figure and it is the misconception.
+       A. the sum. Drag the slider until the total crosses zero and the
+          verdict flips mid-drag.
+       C. that the same arithmetic runs backwards — glycolysis step 10
+          spends a big drop to MAKE an ATP, and what is banked is the
+          difference.
+
+     Numbers are standard ΔG°′ (1 M, pH 7, 25 °C), each carried on its
+     scenario with a source. check-coupling.js audits them.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="coupling.css">
+
+<style>
+  /* Deliberately thin — see massaction-test.html. If this file has to add a
+     rule to make the module look right, the module is leaking. */
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:66ch}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+  #srcs{margin:22px 0 0;font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    line-height:1.6;max-width:80ch}
+  #srcs b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>coupling.js — test bench</h1>
+  <p class="lede">Three mounts of the same module. Nothing on this page styles
+    it, and every ΔG below is a published standard value carried on the
+    scenario — none is typed into the figure.</p>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>A — the sum is what decides.</b> Hexokinase, the worked
+        example every textbook runs. Drag the slider: somewhere past
+        <b>+30.5</b> the total crosses zero and the verdict flips, because ATP
+        can only pay for what it can cover.</p>
+      <div id="caseA"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>B — take the link away.</b> The one to spend time on.
+        Untick the shared phosphate and nothing else changes: same two
+        reactions, same two ΔG, same beaker. The uphill one stops running,
+        because <b>ATP was never giving energy to glucose</b> — it was handing
+        over a phosphate.</p>
+      <div id="caseB"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>C — the same arithmetic, spending a drop to bank an
+        ATP.</b> Glycolysis step 10. PEP falls a long way; making ATP costs
+        +30.5 of it, and the cell keeps the difference. Coupling is not a
+        thing that only rescues uphill reactions.</p>
+      <div id="caseC"></div>
+    </div>
+  </div>
+
+  <div id="srcs"></div>
+</div>
+
+<script src="coupling.js"></script>
+<script>
+"use strict";
+
+/* Standard free-energy changes, ΔG°′ (1 M, pH 7, 25 °C). Carried here with
+ * their sources rather than inlined in the module, because they are the host
+ * page's claim to make — the module only adds them up. */
+const ATP_HYD = { label:'ATP → ADP + Pi', dg:-30.5, formula:'ATP + H₂O → ADP + Pᵢ',
+                  src:'Lehninger, Principles of Biochemistry, table 13-6' };
+const ATP_MAKE = { label:'ADP + Pi → ATP', dg:+30.5, formula:'ADP + Pᵢ → ATP + H₂O',
+                   src:'the same reaction written backwards, so the same magnitude' };
+
+const HEX = {
+  key:'hex', tab:'Hexokinase', title:'Glucose will not phosphorylate itself',
+  up:   { label:'glucose + Pi', dg:+13.8, formula:'glucose + Pᵢ → glucose-6-P + H₂O',
+          src:'Lehninger table 13-6' },
+  down: ATP_HYD,
+  shared:'the phosphate',
+  text:`On its own, sticking a phosphate on glucose costs <b>+13.8 kJ/mol</b> —
+    it does not happen. ATP hydrolysis releases <b>30.5</b>. Hexokinase runs
+    them as <b>one reaction</b>, moving ATP's terminal phosphate straight onto
+    the glucose, so the two ΔG add to <b>−16.7</b> and the whole thing goes.`
+};
+
+Coupling.create({
+  host: document.getElementById('caseA'),
+  scenarios: [HEX],
+  range: [-10, 60]
+});
+
+Coupling.create({
+  host: document.getElementById('caseB'),
+  kicker: 'The shared intermediate',
+  scenarios: [Object.assign({}, HEX, {
+    key:'link', title:'Why two arrows side by side is a lie',
+    text:`Untick the box. Nothing about either reaction changed — ATP still
+      releases <b>30.5 kJ/mol</b> right next to the glucose. The glucose still
+      does not get phosphorylated, because energy is not a fluid that leaks
+      from one reaction to a nearby one. It adds only when the two share a
+      <b>molecule</b>: here, the phosphate that moves across.`
+  })]
+});
+
+Coupling.create({
+  host: document.getElementById('caseC'),
+  kicker: 'Banking a drop',
+  scenarios: [{
+    key:'pk', tab:'Pyruvate kinase', title:'Spending a big drop to make an ATP',
+    up:   ATP_MAKE,
+    down: { label:'PEP → pyruvate', dg:-61.9, formula:'PEP + H₂O → pyruvate + Pᵢ',
+            src:'Lehninger table 13-6' },
+    shared:'the phosphate',
+    text:`Backwards, and identical. PEP falling to pyruvate releases
+      <b>61.9 kJ/mol</b> — far more than the <b>30.5</b> it costs to build an
+      ATP, so the phosphate goes onto ADP instead of into the water and the
+      cell keeps the <b>−31.4</b> difference. That surplus is why this step is
+      one of glycolysis's three one-way steps.`
+  }]
+});
+
+/* THE SOURCES, printed from the scenarios rather than typed — CLAUDE.md's rule
+ * that a number in user-facing text is read at render time. */
+document.getElementById('srcs').innerHTML =
+  `<b>Every ΔG°′ on this page, and where it comes from.</b><br>`
+  + [HEX.up, ATP_HYD, { label:'PEP → pyruvate', dg:-61.9,
+      src:'Lehninger table 13-6' }]
+      .map(r => `${r.label}: <b>${r.dg > 0 ? '+' : ''}${r.dg} kJ/mol</b> — ${r.src}`)
+      .join('<br>')
+  + `<br><br>Standard conditions (1 M, pH 7, 25 °C). Real cytosolic ATP
+     hydrolysis is nearer <b>−50 kJ/mol</b>, because a cell holds ATP far from
+     equilibrium — the arithmetic is unchanged, which is the point.`;
+</script>
+</body>
+</html>

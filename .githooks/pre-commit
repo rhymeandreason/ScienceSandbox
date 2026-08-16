@@ -94,6 +94,25 @@ else
   echo "pre-commit: skipping check-massaction.js — nothing under demos/massaction/ staged"
 fi
 
+# demos/coupling/ gates itself. The published ΔG°′ live on the HOST page, so
+# the bench is in the pattern too — the checker lifts the numbers from it and
+# audits them against the textbook values, which is the one error here that
+# would otherwise be invisible: a module that adds correctly from a wrong
+# −7.3 teaches a wrong answer confidently.
+if git diff --cached --name-only | grep -qE '^demos/coupling/.*$'; then
+  if ! node coupling/check-coupling.js > /tmp/ccp.$$ 2>&1; then
+    tail -25 /tmp/ccp.$$; rm -f /tmp/ccp.$$
+    echo ""
+    echo "pre-commit FAILED: check-coupling.js — the coupling model no longer"
+    echo "  teaches what it claims. A ΔG failure means a published number moved;"
+    echo "  a drawing failure means the figure stopped being the sum."
+    exit 1
+  fi
+  rm -f /tmp/ccp.$$
+else
+  echo "pre-commit: skipping check-coupling.js — nothing under demos/coupling/ staged"
+fi
+
 # demos/diffusion/ gates itself, and palette.js is in the pattern from the other
 # direction: radiusOf() sizes a molecule from PALETTE.radii, so retuning those
 # for a 3D page — their actual job, with no idea this module exists — moves
