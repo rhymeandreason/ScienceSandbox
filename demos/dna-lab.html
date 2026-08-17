@@ -108,6 +108,13 @@ let current = 'thymine';
 const hintEl = document.getElementById('hint');
 const L = Lesson.create(document.getElementById('gl'), {
   cam:{ theta:0, phi:1.5708, r:26 }, rMax:120,
+  // NO ORBIT. The drag moves a MOLECULE, and scene.js's orbit handler would
+  // turn the camera under it at the same time. It would also break the drag
+  // itself: the pointer is projected onto the z=0 plane the bases live in, and
+  // that projection only means anything from the face-on view this page is
+  // built around. A base pair is a flat object — there is no angle worth
+  // turning to. (scene.js §orbit says the same thing about side-by-side pages.)
+  orbit:false,
   boxes:()=>[{ x:3, y:0, rxz:15.5, hy:7.5 }],
   reservePx:()=>({ bottom: hintEl.offsetHeight + 26 }),
 });
