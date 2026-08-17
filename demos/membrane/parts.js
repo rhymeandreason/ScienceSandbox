@@ -361,7 +361,7 @@
       /* `reach` is framing, not fact — a membrane has no edge. Wide enough
          to say "this continues past the frame" and no wider: at 78 the
          bilayer became the subject and the machine in it an ornament. */
-      half: 15.3, reach: 46, pitch: 7.2, headR: 2.7, clear: 4.5,
+      half: 15.3, reach: 46, pitch: 7.2, headR: 2.7, clear: 4.5, waviness: 0.95,
       shape: 'slab', depth: 13,
       head: 0xe0705c, tail: 0xf0c98a, exclude: null,
     }, opts);
@@ -406,7 +406,8 @@
     for (let i = 0; i < phases.length; i++) phases[i] = Math.random() * Math.PI * 2;
     const phaseAttr = new THREE.InstancedBufferAttribute(phases, 1);
 
-    const tailUniforms = { uTime: { value: 0 }, uAmp: { value: 0.42 } };
+    const tailUniforms = { uTime: { value: 0 },
+                           uAmp: { value: o.waviness != null ? o.waviness : 0.95 } };
     tailMat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = tailUniforms.uTime;
       sh.uniforms.uAmp  = tailUniforms.uAmp;
@@ -420,9 +421,9 @@
         .replace('#include <begin_vertex>',
           '#include <begin_vertex>\n' +
           'float tU = position.y / ' + tailLen.toFixed(3) + ' + 0.5;\n' +
-          'float bend = sin(tU * 4.2 + aPhase + uTime) * uAmp * tU;\n' +
+          'float bend = (sin(tU * 5.0 + aPhase + uTime) + 0.45 * sin(tU * 9.0 + aPhase * 2.1)) * uAmp * tU;\n' +
           'transformed.x += bend;\n' +
-          'transformed.z += cos(tU * 3.1 + aPhase * 1.7 + uTime * 0.8) * uAmp * 0.5 * tU;');
+          'transformed.z += cos(tU * 3.6 + aPhase * 1.7 + uTime * 0.8) * uAmp * 0.7 * tU;');
     };
 
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Sc = new THREE.Vector3(1,1,1);
