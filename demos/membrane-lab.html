@@ -111,6 +111,12 @@ const HALF = 15.3;                      // OPM's half-thickness, from the bake
    plausible window rather than tuned to one. */
 const MEM_REACH = 340;
 
+/* How far out molecules are scattered. Tied to the membrane's own reach
+   rather than typed twice: the bilayer now runs off both edges, and a
+   dozen molecules clustered in the middle of it read as a nearly empty
+   cell with a crowd at the origin. */
+const SPREAD = MEM_REACH * 0.55;
+
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
   rMin:50, rMax:400,
@@ -321,8 +327,8 @@ const STEPS = [
       showProtein(null); showMembrane(false); setCut(false);
       /* Water on both sides, so "heads face the water" is something on
          screen rather than a word in the caption. */
-      for (let i = 0; i < 14; i++)
-        traveller('water', { x:rnd(-55,55), z:rnd(-11,11),
+      for (let i = 0; i < 64; i++)
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 6, 42), vy:0, blocked:true });
     },
     readout: () => 'bilayer ' + (HALF * 2).toFixed(1) + ' Å thick — measured, not drawn to taste',
@@ -336,12 +342,14 @@ const STEPS = [
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
-      for (let i = 0; i < 5; i++)
-        traveller('o2', { x:rnd(-46,-14), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
-      for (let i = 0; i < 4; i++)
-        traveller('co2', { x:rnd(-8,16), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
-      for (let i = 0; i < 5; i++)
-        traveller('NA', { x:rnd(24,52), z:rnd(-10,10),
+      /* Kept in bands so the three species stay tellable apart — all three
+         shuffled across the width is a snowstorm, not a comparison. */
+      for (let i = 0; i < 20; i++)
+        traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.15), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
+      for (let i = 0; i < 16; i++)
+        traveller('co2', { x:rnd(-SPREAD*0.12, SPREAD*0.35), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
+      for (let i = 0; i < 22; i++)
+        traveller('NA', { x:rnd(SPREAD*0.4, SPREAD), z:rnd(-10,10),
                           y:rnd(HALF + 5, 40), vy:-rnd(7,11), blocked:true });
     },
     readout: () => 'O₂ and CO₂ pass · Na⁺ turned back at the heads',
@@ -372,15 +380,15 @@ const STEPS = [
          Closed box, not wrapping: a molecule leaving the bottom and
          reappearing at the top is not a crossing, and it made the counter
          mean nothing. */
-      const FREE_ABOVE = 14, FREE_BELOW = 6;
+      const FREE_ABOVE = 42, FREE_BELOW = 18;
       for (let i = 0; i < FREE_ABOVE; i++)
-        traveller('water', { x:rnd(-52,52), z:rnd(-11,11), y:rnd(HALF+3, 42),
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(HALF+3, 42),
                              walk:true, bounded:true, coreSpeed:1.0 });
       for (let i = 0; i < FREE_BELOW; i++)
-        traveller('water', { x:rnd(-52,52), z:rnd(-11,11), y:rnd(-42, -HALF-3),
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(-42, -HALF-3),
                              walk:true, bounded:true, coreSpeed:1.0 });
-      for (let i = 0; i < 9; i++)
-        traveller('NA', { x:rnd(-48,48), z:rnd(-11,11), y:rnd(-40,-HALF-5),
+      for (let i = 0; i < 28; i++)
+        traveller('NA', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(-40,-HALF-5),
                           vy:rnd(-2,2), blocked:true, bounded:true });
     },
     readout: () => `water crossings — down ${crossings.down}, up ${crossings.up}, ` +
