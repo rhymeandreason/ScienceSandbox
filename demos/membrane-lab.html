@@ -137,6 +137,22 @@ const MEM_REACH = 340;
    cell with a crowd at the origin. */
 const SPREAD = MEM_REACH * 0.55;
 
+/* OFF THE TOP OF THE FRAME, solved from the camera rather than guessed.
+
+   Molecules used to be spawned inside the view, so entering a step meant a
+   crowd blinking into existence — which reads as things being CREATED at
+   the membrane, the one thing none of these steps is about. They start
+   above the frame and drift in.
+
+   Re-solved on every fit(): the visible half-height depends on the camera
+   distance and the chrome reserve, so a resize that changes either would
+   otherwise start spawning things in shot again. */
+let OFFSCREEN = 90;
+function solveOffscreen() {
+  const halfH = Math.tan(THREE.MathUtils.degToRad(L.camera.fov / 2)) * L.cam.r;
+  OFFSCREEN = halfH + 22;               // clear of the edge, plus a molecule
+}
+
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
   rMin:50, rMax:400,
@@ -357,7 +373,7 @@ function advance(t, dt) {
   t.y += t.vy * dt * (inCore && !t.blocked ? t.coreSpeed || 1 : 1);
 
   if (t.bounded) {
-    const far = 44;
+    const far = OFFSCREEN;
     if (t.y >  far) { t.y =  far; t.vy = -Math.abs(t.vy); }
     if (t.y < -far) { t.y = -far; t.vy =  Math.abs(t.vy); }
     t.obj.position.y = t.y;
@@ -382,8 +398,8 @@ function advance(t, dt) {
   /* Anything that CAN cross wraps rather than being deleted: a traveller
      that vanishes at the edge reads as being consumed, and nothing here
      consumes anything. */
-  if (t.y > 46) t.y = -46;
-  if (t.y < -46) t.y = 46;
+  if (t.y >  OFFSCREEN) t.y = -OFFSCREEN;
+  if (t.y < -OFFSCREEN) t.y =  OFFSCREEN;
   t.obj.position.y = t.y;
   t.obj.rotation.y += dt * 0.6;
   t.obj.rotation.x += dt * 0.4;
@@ -488,8 +504,11 @@ const STEPS = [
          fast ones drove into the slow ones and the queue fused into a
          single yellow column — which says two K⁺ can occupy the same
          space, and they are both +1. See keepApart(). */
-      for (let i = 0; i < 6; i++)
-        traveller('K', { x:0, z:0, y:44 - i * ION_GAP, vy:-11, coreSpeed:1 });
+      /* The queue starts ABOVE the frame and walks in, so the first thing
+         the student sees is ions arriving at the channel rather than a
+         column that was already there. */
+      for (let i = 0; i < 8; i++)
+        traveller('K', { x:0, z:0, y:OFFSCREEN + i * ION_GAP, vy:-11, coreSpeed:1 });
 
       /* THE ONES THAT DO NOT GET IN. Without them "a hole with a
          preference" is a caption over a picture of a hole: everything on
@@ -504,16 +523,18 @@ const STEPS = [
          not doing the work, which is what stops the wrong rule forming. */
       for (let i = 0; i < 14; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, 42), vy:-rnd(6,10), blocked:true, bounded:true });
+                          y:rnd(OFFSCREEN, OFFSCREEN * 2.1), vy:-rnd(6,10),
+                          blocked:true, bounded:true });
       for (let i = 0; i < 10; i++)
         traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, 42), vy:-rnd(6,10), blocked:true, bounded:true });
+                          y:rnd(OFFSCREEN, OFFSCREEN * 2.1), vy:-rnd(6,10),
+                          blocked:true, bounded:true });
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
          only look like a second thing the channel is passing. */
       for (let i = 0; i < 16; i++)
         traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
-                             y:(i % 2 ? 1 : -1) * rnd(HALF + 5, 42),
+                             y:(i % 2 ? 1 : -1) * rnd(OFFSCREEN * .9, OFFSCREEN * 1.9),
                              walk:true, bounded:true, coreSpeed:0.5 });
     },
     readout: () => 'K⁺ through · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
@@ -613,6 +634,7 @@ function go(i) {
   cur = i;
   const s = STEPS[i];
   hidePumpIons();
+  solveOffscreen();
   s.enter();
   capEl.innerHTML = s.cap;
   [...stepsEl.children].forEach((b, j) =>
@@ -684,6 +706,7 @@ function tick(dt) {
   readoutEl.textContent = s.readout ? s.readout() : '';
 }
 
+solveOffscreen();
 go(0);
 L.start();
 </script>
