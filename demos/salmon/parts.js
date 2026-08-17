@@ -156,10 +156,43 @@
 
     /* ---- the two profile functions ---- */
 
-    /* Outside: a barrel with rounded shoulders. `cap` is how much of the
-       half-height is spent rounding, so the ends are domed rather than
-       cut flat — a flat end reads as a cylinder someone sawed. */
-    function Ro(y) {
+    /* THE LUMEN IS THE TRUTH; THE OUTSIDE GIVES WAY.
+
+       This is the second version and the first one was wrong in a way that
+       is worth keeping written down, because it looked plausible. It domed
+       the outer surface to a POINT at each pole and then preserved wall
+       thickness by shrinking the lumen to fit — Ri = min(Ri, Ro - wall).
+       Near the pole Ro is heading for zero, so the lumen was squeezed shut
+       right where it was supposed to open. Every state rendered with a lid
+       on it. "Outward-open" was never open, and the cutaway showed a neat
+       funnel running up to a sealed dome.
+
+       So the clamp goes the other way. The throat is whatever the gates
+       say, full stop, and the OUTER radius is pushed out to keep the wall:
+
+           Ro = max(barrel, throat + wall)
+
+       An open gate therefore FLARES the mouth into a rim, which is both
+       correct — the lumen reaches the outside — and what every textbook
+       carrier looks like. A shut gate leaves throat ~ 0, the max does
+       nothing, and the barrel domes closed exactly as before. */
+
+    /* The lumen, unclamped: pocket, plus whichever throats their gates
+       have opened. Maxed, not summed, so a closing gate reveals the
+       pocket underneath rather than subtracting from it. */
+    function throat(y) {
+      const pocket = o.site * Math.exp(-((y / (o.half * .42)) ** 2));
+      /* smooth() rather than linear so the lumen eases open — a linear
+         funnel leaves a visible crease where it quits the pocket. */
+      const up   = y <= 0 ? 0 : o.mouth * smooth(y / H);
+      const down = y >= 0 ? 0 : o.mouth * smooth(-y / H);
+      return Math.max(pocket, gTop * up, gBot * down);
+    }
+
+    /* The barrel, before the lumen has any say: rounded shoulders so the
+       ends are domed rather than cut flat, which would read as a cylinder
+       someone sawed. */
+    function barrel(y) {
       const u = Math.abs(y) / H, cap = 0.30;
       let s = 1;
       if (u > 1 - cap) {
@@ -173,23 +206,17 @@
       return o.radius * s * waist;
     }
 
-    /* Inside: pocket, plus whichever throats their gates have opened. */
-    function Ri(y) {
-      const pocket = o.site * Math.exp(-((y / (o.half * .42)) ** 2));
-
-      /* A throat starts at the site and widens to the mouth at the pole.
-         smooth() rather than linear so the lumen eases open — a linear
-         funnel has a visible crease where it leaves the pocket. */
-      const up   = y <= 0 ? 0 : o.mouth * smooth(y / H);
-      const down = y >= 0 ? 0 : o.mouth * smooth(-y / H);
-
-      let r = Math.max(pocket, gTop * up, gBot * down);
-
-      /* Never eat the wall. Without this the mouth wins at the poles,
-         where Ro is already shrinking into its dome, and the protein
-         opens a ring-shaped hole through its own shoulder. */
-      return Math.min(r, Math.max(0, Ro(y) - o.wall));
-    }
+    const Ri = y => throat(y);
+    /* The wall is only owed where there is a lumen to wall off. Added
+       unconditionally it survives at a SHUT pole, where the throat is
+       zero and the barrel is heading to a point: the end came out as a
+       flat disc of radius `wall` instead of a dome. Fading the wall in
+       with the throat keeps the closed end pointed, and does it smoothly
+       so a gate opening does not pop. */
+    const Ro = y => {
+      const t = throat(y);
+      return Math.max(barrel(y), t + o.wall * smooth(t / (o.site * .5)));
+    };
 
     /* ---- geometry ----
        Built by hand rather than with LatheGeometry so setGates can rewrite
