@@ -442,6 +442,7 @@ function go(i) {
 
 function tick(dt) {
   const s = STEPS[cur]; if (!s) return;
+  memSolid.tick(dt); memHoled.tick(dt);   // the bilayer is a liquid, so it moves
 
   if (s.id === 'pump') {
     pumpT += dt / 13;                   // seconds per cycle

@@ -388,15 +388,48 @@
        the amplitude here stays well under a kink — enough to stop the
        tails reading as a picket fence, not enough to claim unsaturation. */
     const tailLen = o.half - o.headR * .5;
-    const wave = new THREE.CatmullRomCurve3([0, .25, .5, .75, 1].map(u =>
-      new THREE.Vector3(Math.sin(u * Math.PI * 1.6) * 0.42, (u - .5) * tailLen, 0)));
-    const tailGeo = new THREE.TubeGeometry(wave, 12, 0.5, 6, false);
+
+    /* ONE straight geometry, bent in the VERTEX SHADER. Baking a curve into
+       the geometry gives every tail the identical wave, and a few hundred
+       identical waves in a row read as corrugated iron. Making N curved
+       variants would work and costs N draw calls; bending in the shader
+       costs none, because a per-instance phase is just another attribute on
+       the same instanced draw.
+
+       And it buys the thing a static membrane cannot say: the bilayer is
+       FLUID. `uTime` makes the tails drift, which is most of the difference
+       between "a wall built out of lipids" and "a liquid two molecules
+       thick". Set speed 0 for a still picture. */
+    const tailGeo = new THREE.CylinderGeometry(0.5, 0.42, tailLen, 6, 10);
     const tailMat = flat(o.tail);
+    const phases = new Float32Array(cols.length * 2);
+    for (let i = 0; i < phases.length; i++) phases[i] = Math.random() * Math.PI * 2;
+    const phaseAttr = new THREE.InstancedBufferAttribute(phases, 1);
+
+    const tailUniforms = { uTime: { value: 0 }, uAmp: { value: 0.42 } };
+    tailMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = tailUniforms.uTime;
+      sh.uniforms.uAmp  = tailUniforms.uAmp;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>',
+          '#include <common>\nattribute float aPhase;\nuniform float uTime;\nuniform float uAmp;')
+        /* Amplitude scales with distance from the head end, so the tail is
+           anchored where the glycerol backbone holds it and freest at the
+           tip — which is what a real chain does, and it stops the wave
+           looking like the whole lipid sliding sideways. */
+        .replace('#include <begin_vertex>',
+          '#include <begin_vertex>\n' +
+          'float tU = position.y / ' + tailLen.toFixed(3) + ' + 0.5;\n' +
+          'float bend = sin(tU * 4.2 + aPhase + uTime) * uAmp * tU;\n' +
+          'transformed.x += bend;\n' +
+          'transformed.z += cos(tU * 3.1 + aPhase * 1.7 + uTime * 0.8) * uAmp * 0.5 * tU;');
+    };
 
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Sc = new THREE.Vector3(1,1,1);
     for (const sign of [1, -1]) {
       const heads = new THREE.InstancedMesh(headGeo, headMat, cols.length);
       const tails = new THREE.InstancedMesh(tailGeo, tailMat, cols.length * 2);
+      tails.geometry.setAttribute('aPhase', phaseAttr);
       cols.forEach(([x, z], i) => {
         M.compose(new THREE.Vector3(x, sign * o.half, z), Q, Sc);
         heads.setMatrixAt(i, M);
@@ -437,6 +470,10 @@
       group: g, materials: g.userData.materials, columns: cols.length,
       half: o.half, shape: o.shape,
       cut: { plane, normal, enable, at, get on() { return cutOn; } },
+      /* Call from the render loop to let the bilayer move. Optional: a page
+         that never calls it gets a still membrane whose tails are still all
+         different, because the phase alone does that. */
+      tick(dt) { tailUniforms.uTime.value += dt * (o.fluidity != null ? o.fluidity : 0.9); },
     };
   }
 
