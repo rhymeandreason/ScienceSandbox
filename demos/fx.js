@@ -183,6 +183,12 @@
     //   carry — an Object3D to ride along with the proton, unscaled: a caller
     //           can send a charge badge with it. Not disposed here; the caller
     //           made it and the caller owns it.
+    //   arc   — Å of lift at the top of the trip. Default 1.3, which is sized
+    //           for a hop that CROSSES THE FRAME. On a hop between two bonded
+    //           atoms the trip is ~2.5 Å, so the default arc is half the
+    //           distance travelled: the proton bulges up and comes back, and
+    //           reads as a flare rather than as something going somewhere.
+    //           A short hop wants roughly a quarter of its own length.
     //   away  — a DEPARTURE instead of a transfer, and a different motion, not
     //           just a slower one. The proton snaps off the bond, then drifts,
     //           fading as it goes. A transfer can end by simply stopping,
@@ -204,7 +210,7 @@
     function protonHop(from,to,onArrive,opt){
       const o = typeof opt==='number' ? {color:opt} : (opt||{});
       const head=o.color||PROTON_GOLD, trail=o.color||PROTON_TRAIL;
-      const away=!!o.away;
+      const away=!!o.away, arc=o.arc==null?1.3:o.arc;
       const mat=new THREE.MeshBasicMaterial(
         {color:head,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
       const glow=new THREE.Mesh(_protonGeo,mat);
@@ -226,7 +232,7 @@
           : k<SNAP_T ? SNAP_D*(1-Math.pow(1-k/SNAP_T,3))
           : k<HOLD_T ? SNAP_D
                      : SNAP_D+(1-SNAP_D)*((k-HOLD_T)/(1-HOLD_T));
-        pos.lerpVectors(from,to,e); pos.y+=1.3*Math.sin(e*Math.PI);   // arc
+        pos.lerpVectors(from,to,e); pos.y+=arc*Math.sin(e*Math.PI);   // arc
         m.position.copy(pos);
         // A TRANSFER SWELLS AND SETTLES onto its target. A DEPARTURE IS ONE
         // FIXED SIZE FOR ITS WHOLE TRIP — no flare, and nothing that decays.

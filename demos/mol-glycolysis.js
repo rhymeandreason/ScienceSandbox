@@ -161,6 +161,17 @@
     const CH=[];
     C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
     CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
+    // THE PROTON THE RING OXYGEN ENDS UP WITH, and the one atom in this spec
+    // that the closed pyranose does NOT have: as drawn here O5 has three
+    // connections, which is an oxonium and wrong. It is the OPEN chain's atom —
+    // when C1–O5 breaks, O5 leaves as C5's hydroxyl and needs an H — and the
+    // page keeps it hidden until step 2's first proton lands on it.
+    // Built into the spec rather than conjured at run time because it has to be
+    // a real mesh in the real place: an H that appears where the geometry says
+    // an H goes, not a glow parked near an oxygen. Hidden at build (see
+    // glycolysis-lab's `build`), NOT via optH — that field is nonpolar C–H's,
+    // and scene.js's contract is that an H on N/O/S is never in it.
+    const openH=g.grow(0,'H',GL.OH,'sp3',0);
     GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', short:'G6P', formula:'C₆H₁₁O₉P²⁻', charge:-2, class:'sugar',
       // the same two claims glucose carries, because it is the same ring
       stereo:'all-equatorial',
@@ -178,6 +189,12 @@
               const b=g.bonds.find(b=>(b[0]===o||b[1]===o)
                 && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
               return b[0]===o?b[1]:b[0]; })() },
+            // …and the OTHER proton step 2 moves: C2's H, which ends up on C1
+            // as the carbonyl shifts the other way. CH is grown C1…C5 then C6
+            // twice, so CH[1] is C2's. The page sheds it as the hop starts —
+            // without that the proton has no visible origin.
+            c2H:CH[1],
+            openH,                    // hidden until the hemiacetal opens
             note:'still a pyranose — C6 is outside the ring, so phosphorylating '
                + 'it opens nothing' } });
   }
