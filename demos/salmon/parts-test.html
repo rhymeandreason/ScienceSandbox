@@ -201,9 +201,6 @@ function applyCut() {
   T.mesh.material.clippingPlanes = on ? [mem.cut.plane] : [];   // ...everything
   T.mesh.material.needsUpdate = true;       // else borrows its plane
   T.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
-  /* The outline shell is a back-face copy; through a cut it would draw the
-     silhouette of a solid that is no longer there. */
-  T.group.children.forEach(ch => { if (ch.material && ch.material.side === THREE.BackSide) ch.visible = !on; });
 }
 
 lv.textContent = '0';

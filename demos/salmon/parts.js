@@ -108,16 +108,16 @@
     return M;
   }
 
-  /* An outline as a back-face shell. Textbook art is line art, and without
-     a contour these shapes lose their edge against each other — two pale
-     blobs overlapping become one blob. Cheap, and it needs no post pass. */
-  function outline(mesh, color, grow) {
-    const m = new THREE.Mesh(mesh.geometry, new THREE.MeshBasicMaterial({
-      color: color != null ? color : 0x24323d, side: THREE.BackSide }));
-    m.scale.setScalar(1 + (grow != null ? grow : 0.035));
-    m.renderOrder = (mesh.renderOrder || 0) - 1;
-    return m;
-  }
+  /* There was an inverted-hull outline here and it is gone on purpose.
+     A back-face shell scaled UNIFORMLY does not give a constant-width
+     line on anything that is not a sphere: this transporter is 29.3 A
+     tall and 14.5 A across, so the same 3.5% put twice as much ink on
+     the caps as on the flanks and read as a shading artefact rather than
+     a drawn edge. Doing it properly means offsetting along the vertex
+     normal, and the shapes turned out to separate well enough on colour
+     alone — cool protein against warm lipid — that the line was not
+     earning a shader. If one is ever wanted back, offset along normals;
+     do not scale. */
 
   const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
   const smooth = t => { t = clamp01(t); return t * t * (3 - 2 * t); };
@@ -145,7 +145,7 @@
       /* Cool against the membrane's warm, which is the first illustration's
          scheme and the reason it reads at a glance: a protein the colour of
          its lipids is a protein you have to hunt for. */
-      color: 0x4f9db5, outlineColor: 0x28596b, outline: true,
+      color: 0x4f9db5,
     }, opts);
 
     const H = o.half + o.over;                 // half-height of the protein
@@ -240,7 +240,6 @@
     const mesh = new THREE.Mesh(geo, flat(o.color));
     const group = new THREE.Group();
     group.add(mesh);
-    if (o.outline) group.add(outline(mesh, o.outlineColor));
 
     /* contourAt(i) -> [r, y]. The first `rings` points run up the outside
        from the bottom pole to the top; the next `rings` come back down the
@@ -333,7 +332,7 @@
          bilayer became the subject and the machine in it an ornament. */
       half: 15.3, reach: 46, pitch: 7.2, headR: 2.7, clear: 4.5,
       shape: 'slab', depth: 13,
-      head: 0xe0705c, tail: 0xf0c98a, outline: true, exclude: null,
+      head: 0xe0705c, tail: 0xf0c98a, exclude: null,
     }, opts);
 
     const g = new THREE.Group();
@@ -422,19 +421,15 @@
   };
 
   function ion(name, opts) {
-    const o = Object.assign({ exaggeration: ION.exaggeration, outline: true }, opts);
+    const o = Object.assign({ exaggeration: ION.exaggeration }, opts);
     const spec = ION[name];
     if (!spec) throw new Error(`parts.ion: no such species ${name}`);
     const r = spec.r * o.exaggeration;
     const m = new THREE.Mesh(new THREE.SphereGeometry(r, 22, 16), flat(spec.color));
     m.userData = { species: name, trueRadius: spec.r, drawnRadius: r, label: spec.label };
-    if (!o.outline) return m;
-    const g = new THREE.Group();
-    g.add(m, outline(m, 0x24323d, .10));
-    g.userData = m.userData;
-    return g;
+    return m;
   }
 
-  global.Parts = { transporter, membrane, ion, ION, flat, outline };
+  global.Parts = { transporter, membrane, ion, ION, flat };
   if (typeof module !== 'undefined' && module.exports) module.exports = global.Parts;
 })(typeof window !== 'undefined' ? window : globalThis);
