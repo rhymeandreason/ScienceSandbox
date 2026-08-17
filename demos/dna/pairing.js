@@ -118,35 +118,36 @@
   /* ---- the correspondences ------------------------------------------------
    * Where each of the partner's atoms has to end up, expressed in the fixed
    * base's frame. `from` is fixed; `to` is the one being moved. */
-  function targets(from, to, bonds, choice){
-    const out = [];
-    let amb = 0;
-    for(const b of bonds){
+  /* Every target point a bond could reasonably ask for. Both halves are
+   * genuinely ambiguous from inside one molecule:
+   *
+   *   · an amino group has TWO hydrogens and only one of them pairs;
+   *   · a carbonyl oxygen has TWO lone pairs, both in the ring plane, and
+   *     only one faces the partner.
+   *
+   * Guessing either with "whichever points furthest from the centroid" is
+   * wrong often enough to matter — it is what made guanine's O6 and cytosine's
+   * O2 aim their ears at nothing, so solving C→G found two bonds and a 1.5 Å
+   * clash while G→C found three and none. The same pair, two answers,
+   * depending on which base the page happened to hold still.
+   *
+   * So nothing is guessed: every combination is enumerated and the fit decides.
+   * Which hydrogen and which lone pair face into the pair is an OUTPUT. */
+  function options(from, bonds){
+    return bonds.map(b => {
       if(b.role === 'donor'){
-        // `from` donates: its H points at the partner's acceptor, which
-        // therefore sits along that H at H···A.
-        //
-        // AN AMINO GROUP HAS TWO HYDROGENS AND ONLY ONE OF THEM PAIRS.
-        // Guanine's N2 is the case: pick the wrong H and all three of G–C's
-        // targets stop agreeing with each other, the fit compromises, and the
-        // pair lands with atoms overlapping. Which one is right depends on
-        // where the partner ends up, which is what we are solving for — so
-        // rather than guess with a heuristic, the caller enumerates and keeps
-        // the fit that actually works.
         const hs = MG.neighbors(from, b.self).filter(j=>from.atoms[j].el==='H');
-        const h = hs.length > 1
-          ? hs[(choice >> (amb++)) & 1]
-          : (hs[0] != null ? hs[0] : outwardH(from, b.self));
-        if(h==null) continue;
-        const dir = unit(sub(P(from,h), P(from,b.self)));
-        out.push({ atom:b.partnerAtom, target: add(P(from,h), mul(dir, D_H)) });
-      } else {
-        // `from` accepts: the partner's donor N sits out along the lone pair.
-        const dir = outwardLobe(from, b.self);
-        out.push({ atom:b.partnerAtom, target: add(P(from,b.self), mul(dir, D_HEAVY)) });
+        const list = hs.length ? hs : [outwardH(from, b.self)].filter(x=>x!=null);
+        return list.map(h => {
+          const dir = unit(sub(P(from,h), P(from,b.self)));
+          return { atom:b.partnerAtom, target: add(P(from,h), mul(dir, D_H)) };
+        });
       }
-    }
-    return out;
+      const dirs = (LOBES ? (LOBES.at(from, b.self).dirs || []) : []).map(unit).filter(Boolean);
+      const list = dirs.length ? dirs : [outwardLobe(from, b.self)];
+      return list.map(d => ({ atom:b.partnerAtom,
+                              target: add(P(from,b.self), mul(d, D_HEAVY)) }));
+    });
   }
 
   /* ---- rigid in-plane fit (closed form) -----------------------------------
@@ -227,12 +228,17 @@
       fixedSpec.wc.partner === moveSpec.name.toLowerCase();
     const bonds = declared ? fixedSpec.wc.bonds : derive(fixedSpec, moveSpec);
 
-    // Enumerate the amino-hydrogen choices (at most a handful) and keep the
-    // one that fits. The winning combination IS the answer to "which of the
-    // amino hydrogens points into the pair" — solved, not asserted.
+    // Enumerate every hydrogen/lone-pair combination and keep the one that
+    // fits. Two or three bonds with two options each is at most eight fits of
+    // three points — free, and it removes the only guess in the file.
+    const choices = options(fixedSpec, bonds);
+    const total = choices.reduce((n,o) => n * Math.max(1,o.length), 1);
     let f = null, corr = null;
-    for(let choice = 0; choice < 4; choice++){
-      const c = targets(fixedSpec, moveSpec, bonds, choice);
+    for(let i = 0; i < total; i++){
+      let n = i;
+      const c = choices.map(o => { const k = n % Math.max(1,o.length);
+                                n = Math.floor(n / Math.max(1,o.length)); return o[k]; })
+                    .filter(Boolean);
       const g = fit(moveSpec, c);
       if(g && (!f || g.rms < f.rms)){ f = g; corr = c; }
     }
@@ -282,7 +288,7 @@
     return out;
   }
 
-  const Pairing = { pairing, targets, fit, measure, derive, D_HEAVY, D_H };
+  const Pairing = { pairing, options, fit, measure, derive, D_HEAVY, D_H };
   global.Pairing = Pairing;
   if(typeof module==='object' && module.exports) module.exports = { Pairing };
 

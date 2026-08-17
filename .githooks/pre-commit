@@ -155,6 +155,23 @@ else
   echo "pre-commit: skipping check-lobes.js — no spec, molgraph or lobes/ file staged"
 fi
 
+# dna/ gates itself, plus the nucleobase specs and the two modules its answers
+# are built out of. pairing.js takes lone-pair directions from lobes/ and has
+# kit/hbond.js count the bonds in the pose it solves, so a change in either can
+# flip a verdict this checker is the only thing watching — and the page shows a
+# wrong pairing as confidently as a right one.
+if git diff --cached --name-only | grep -qE '^demos/(dna/.*|dna-lab\.html|mol-nucleic\.js|lobes/.*|kit/hbond\.js)$'; then
+  if ! node dna/check-dna.js > /tmp/cdna.$$ 2>&1; then
+    tail -25 /tmp/cdna.$$; rm -f /tmp/cdna.$$
+    echo ""
+    echo "pre-commit FAILED: check-dna.js — base pairing no longer holds."
+    exit 1
+  fi
+  rm -f /tmp/cdna.$$
+else
+  echo "pre-commit: skipping check-dna.js — nothing under demos/dna/ staged"
+fi
+
 # kit/ gates itself, plus the domain files it is asserted against: check-kit.js
 # runs molgraph over REAL specs (glucose's five hydroxyls, the phosphoryl group
 # that leaves its bridging oxygen behind), so a spec edit can break it from
