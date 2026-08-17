@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>clip-test — cutting a baked SES open</title>
+<title>clip-test — cutting the pump open</title>
 <link rel="stylesheet" href="../sandbox.css">
 <style>
   #wrap { display:grid; grid-template-columns:1fr 372px; height:100vh; }
   #stage { position:relative; min-width:0; }
   canvas { width:100%; height:100%; display:block; }
-  #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(255,255,255,.12); }
+  #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(0,0,0,.12); }
   .grp { margin-bottom:20px; }
   .hd { font-weight:600; margin-bottom:6px; }
   label { display:block; margin:8px 0; font-size:14px; }
   input[type=range] { width:100%; }
   button { margin-right:6px; }
-  button[aria-pressed=true] { outline:2px solid #6cf; }
-  p.note { font-size:13px; opacity:.75; line-height:1.45; }
+  button[aria-pressed=true] { outline:2px solid #2a7; font-weight:600; }
+  p.note { font-size:13px; opacity:.8; line-height:1.45; }
   @media (max-width:920px){ #wrap{ grid-template-columns:1fr; } }
 </style>
 </head>
@@ -24,14 +24,22 @@
 <div id="wrap">
   <div id="stage"><canvas id="c"></canvas></div>
   <div id="panel">
-    <h1 style="font-size:17px">clip-test</h1>
+    <h1 style="font-size:17px">clip-test — the pump</h1>
     <p class="note">
-      2HHB's baked SES, cut by a plane. The question this bench answers is not
-      whether the surface is right — <code>tools/ses.js</code> settles that
-      offline — but whether a CUT one still reads as a solid object.
-      Turn the cap off and the protein becomes a hollow bag; that is the failure
-      <code>clip.js</code> exists to prevent, and it is worth seeing once.
+      Na⁺/K⁺-ATPase, both ends of its cycle, in one frame.
+      The two surfaces are baked by <code>salmon/tools/bake-pump.js</code>;
+      the cut and its filled face are <code>salmon/clip.js</code>.
+      <b>The question this bench answers:</b> when you cut the pump open,
+      can you see the ion sites — and does the ion sit in a void rather
+      than inside claimed-solid material?
     </p>
+
+    <div class="grp">
+      <div class="hd">state</div>
+      <button type="button" data-st="7E1Z" aria-pressed="true">E1 · 3Na⁺ in</button>
+      <button type="button" data-st="7E20" aria-pressed="false">E2 · 2K⁺ out</button>
+      <p class="note" id="stdesc"></p>
+    </div>
 
     <div class="grp">
       <div class="hd">cut plane</div>
@@ -43,13 +51,14 @@
         </span>
       </label>
       <label>depth <output id="dv"></output>
-        <input id="depth" type="range" min="-40" max="40" step="0.5" value="0"></label>
+        <input id="depth" type="range" min="-60" max="60" step="0.5" value="0"></label>
       <label><input id="spin" type="checkbox"> sweep the plane through it</label>
     </div>
 
     <div class="grp">
       <div class="hd">what the cap is doing</div>
       <label><input id="capon" type="checkbox" checked> fill the cut face</label>
+      <label><input id="ionson" type="checkbox" checked> show the ions</label>
       <label>skin opacity <output id="ov"></output>
         <input id="op" type="range" min="0" max="100" value="100"></label>
       <p class="note" id="diag">loading…</p>
@@ -66,74 +75,117 @@
 <script>
 'use strict';
 /* =====================================================================
- *  clip-test.html — the bench for salmon/clip.js.
+ *  clip-test.html — the bench for salmon/clip.js, now on its real subject.
  *
- *  It cuts haemoglobin, which is not what the lesson cuts, and that is
- *  deliberate: 2HHB.surf.bin is already baked and already trusted, so a
- *  wrong image here is this module's fault and nothing else's. When the
- *  pump's own surface is baked it can be swapped in by changing one URL,
- *  and any new wrongness is then the bake's.
+ *  It started on 2HHB, which was the right way round: a trusted surface
+ *  first, so a wrong image was the module's fault and nothing else's.
+ *  Now that clip.js is known good, the surfaces under test are the ones
+ *  the lesson will use, and a wrong image here is the BAKE's fault.
+ *
+ *  The ions are the point of this page. bake-pump.js deliberately keeps
+ *  them OUT of the surface (they are cargo, not structure) and hands
+ *  them over as coordinates in the header. If that decision is right,
+ *  each ion sits in a void the cut reveals. If it is wrong, an ion is
+ *  buried in orange cap — solid material with a sphere inside it — and
+ *  that is visible at a glance, which is why it is worth drawing here.
  * ===================================================================== */
 
 const canvas = document.getElementById('c');
-const S = Stage.create(canvas, { cam:{theta:.6, phi:1.1, r:120}, rMin:20, rMax:400 });
+const S = Stage.create(canvas, { cam:{theta:.6, phi:1.35, r:200}, rMin:40, rMax:600 });
 const Clip = ClipLib.create({ renderer:S.renderer });
 
 const plane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
-let sec = null, centre = new THREE.Vector3();
+const STATES = {};
+let cur = null;
 
-fetch('../hemoglobin/data/2HHB.surf.bin')
-  .then(r => { if(!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.arrayBuffer(); })
-  .then(buf => {
-    const D = SurfLib.decode(THREE, buf);
+/* Ionic radii, not van der Waals — these are IONS. Na+ 1.02, K+ 1.38,
+   Mg2+ 0.72 A (Shannon, six-coordinate). The contrast is a fact the
+   lesson eventually needs: K+ is the bigger ion, and the pump's two
+   sites are built to tell them apart by size. */
+const ION = {
+  NA: { r:1.02, color:0x8f5cf0, label:'Na⁺' },
+  K:  { r:1.38, color:0xf0a03c, label:'K⁺'  },
+  MG: { r:0.72, color:0x3cc98f, label:'Mg²⁺' },
+};
 
-    /* The mesh is in the PDB's own frame, which is nowhere near the origin.
-       The plane is defined in that same frame, so the geometry is recentred
-       once here rather than every setPlane having to carry an offset.
+function load(id) {
+  return fetch(`data/${id}.surf.bin`)
+    .then(r => { if(!r.ok) throw new Error(`${id}: ${r.status}`); return r.arrayBuffer(); })
+    .then(buf => {
+      const D = SurfLib.decode(THREE, buf);
 
-       NOT geo.translate(). That calls applyMatrix4, which transforms the
-       NORMAL attribute as well as position — and SurfLib's normals are an
-       interleaved Int8Array. Three writes the transformed floats straight
-       back into int8, every component truncates to 0 or +-1, and the whole
-       surface renders unlit black. It looks like a lighting bug and it is a
-       destroyed attribute. Only position may be moved. */
-    D.geo.computeBoundingSphere();
-    centre.copy(D.geo.boundingSphere.center);
-    const pos = D.geo.attributes.position.array;
-    for (let i = 0; i < pos.length; i += 3) {
-      pos[i]     -= centre.x;
-      pos[i + 1] -= centre.y;
-      pos[i + 2] -= centre.z;
-    }
-    D.geo.attributes.position.needsUpdate = true;
-    D.geo.computeBoundingSphere();
+      /* NOT geo.translate() — SurfLib normals are int8 and applyMatrix4
+         truncates them, which renders the whole surface unlit black.
+         clip.js's header documents this; only position may move. */
+      D.geo.computeBoundingSphere();
+      const c = D.geo.boundingSphere.center.clone();
+      const pos = D.geo.attributes.position.array;
+      for (let i = 0; i < pos.length; i += 3) {
+        pos[i] -= c.x; pos[i+1] -= c.y; pos[i+2] -= c.z;
+      }
+      D.geo.attributes.position.needsUpdate = true;
+      D.geo.computeBoundingSphere();
 
-    sec = Clip.section({
-      geo: D.geo,
-      plane: plane,
-      material: new THREE.MeshStandardMaterial({
-        color:0x9fb6c8, roughness:.4, metalness:0, side:THREE.FrontSide }),
-      capMaterial: new THREE.MeshStandardMaterial({
-        /* Warm against the skin's cool, because the cap is the one surface
-           in the image that is NOT the protein's outside. If it matches the
-           skin the cut stops reading as a cut. */
-        color:0xd98a5a, roughness:.6, metalness:0 }),
+      const sec = Clip.section({
+        geo: D.geo, plane,
+        material: new THREE.MeshStandardMaterial({
+          color:0x9fb6c8, roughness:.4, metalness:0, side:THREE.FrontSide }),
+        capMaterial: new THREE.MeshStandardMaterial({
+          color:0xd98a5a, roughness:.6, metalness:0 }),
+      });
+
+      /* The cargo, in the same frame, recentred by the same offset the
+         surface was. Parented to the section group so a state swap moves
+         skin, cap and ions together or not at all. */
+      const ions = new THREE.Group();
+      (D.head.cargo || []).forEach(([name, p]) => {
+        const spec = ION[name] || { r:1.0, color:0x888888, label:name };
+        const m = new THREE.Mesh(
+          new THREE.SphereGeometry(spec.r, 20, 14),
+          new THREE.MeshStandardMaterial({ color:spec.color, roughness:.25, metalness:.1 }));
+        m.position.set(p[0]-c.x, p[1]-c.y, p[2]-c.z);
+        m.renderOrder = 4;              // after the skin, so a faded skin shows it
+        ions.add(m);
+      });
+      sec.group.add(ions);
+      sec.group.visible = false;
+      S.root.add(sec.group);
+
+      STATES[id] = { sec, ions, D, radius:D.geo.boundingSphere.radius };
+      return STATES[id];
     });
-    S.root.add(sec.group);
+}
 
-    const R = D.geo.boundingSphere.radius;
-    S.cam.r = R * 3.0; S.applyCam();
-    document.getElementById('depth').max = R.toFixed(0);
-    document.getElementById('depth').min = (-R).toFixed(0);
-
-    document.getElementById('diag').textContent =
-      `${D.nVert.toLocaleString()} vertices, ${D.nTri.toLocaleString()} triangles, ` +
-      `bounding radius ${R.toFixed(1)} Å.`;
-    sync();
-  })
+Promise.all([load('7E1Z'), load('7E20')])
+  .then(() => { show('7E1Z'); })
   .catch(e => { document.getElementById('diag').textContent = 'failed: ' + e.message; });
 
-/* ---- controls ---- */
+function show(id) {
+  Object.values(STATES).forEach(s => s.sec.group.visible = false);
+  const st = STATES[id];
+  st.sec.group.visible = true;
+  cur = st;
+
+  const h = st.D.head;
+  document.getElementById('stdesc').textContent = h.state + ' · ' + h.frame;
+  document.getElementById('diag').textContent =
+    `${st.D.nVert.toLocaleString()} verts, ${st.D.nTri.toLocaleString()} tris, ` +
+    `radius ${st.radius.toFixed(0)} Å, grid ${h.spacing} Å, probe ${h.probe} Å. ` +
+    `Ions: ${(h.cargo||[]).map(c => (ION[c[0]]||{label:c[0]}).label).join(' ')}`;
+
+  const d = document.getElementById('depth');
+  d.max = st.radius.toFixed(0); d.min = (-st.radius).toFixed(0);
+  if (S.cam.r > st.radius * 6) { S.cam.r = st.radius * 2.6; S.applyCam(); }
+  sync();
+}
+
+document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-st]').forEach(o =>
+    o.setAttribute('aria-pressed', String(o === b)));
+  show(b.dataset.st);
+}));
+
+/* ---- cut controls ---- */
 const AX = { x:new THREE.Vector3(1,0,0), y:new THREE.Vector3(0,1,0), z:new THREE.Vector3(0,0,1) };
 let axis = 'x';
 document.querySelectorAll('[data-ax]').forEach(b => b.addEventListener('click', () => {
@@ -143,43 +195,37 @@ document.querySelectorAll('[data-ax]').forEach(b => b.addEventListener('click', 
   sync();
 }));
 
-const depth = document.getElementById('depth');
-const dv = document.getElementById('dv');
-depth.addEventListener('input', sync);
-
+const depth = document.getElementById('depth'), dv = document.getElementById('dv');
 const op = document.getElementById('op'), ov = document.getElementById('ov');
-op.addEventListener('input', sync);
-const capon = document.getElementById('capon');
-capon.addEventListener('change', sync);
+const capon = document.getElementById('capon'), ionson = document.getElementById('ionson');
+[depth, op].forEach(el => el.addEventListener('input', sync));
+[capon, ionson].forEach(el => el.addEventListener('change', sync));
 
 function sync() {
-  if (!sec) return;
+  if (!cur) return;
   plane.normal.copy(AX[axis]);
   plane.constant = -Number(depth.value);
-  sec.setPlane();
-
+  Object.values(STATES).forEach(s => s.sec.setPlane());
   dv.textContent = Number(depth.value).toFixed(1) + ' Å';
 
   const a = Number(op.value) / 100;
   ov.textContent = op.value + '%';
-  sec.skinMaterial.opacity = a;
-  sec.skinMaterial.transparent = a < 1;
-  /* Same debt surface-test.html documents: a translucent skin must not
-     write depth, or it hides the cap and the ions behind itself. */
-  sec.skinMaterial.depthWrite = a >= 1;
-  sec.skinMaterial.needsUpdate = true;
-
-  sec.cap.visible = capon.checked;
+  Object.values(STATES).forEach(s => {
+    s.sec.skinMaterial.opacity = a;
+    s.sec.skinMaterial.transparent = a < 1;
+    s.sec.skinMaterial.depthWrite = a >= 1;
+    s.sec.skinMaterial.needsUpdate = true;
+    s.sec.cap.visible = capon.checked;
+    s.ions.visible = ionson.checked;
+  });
 }
 
-/* ---- the sweep ---- */
 const spin = document.getElementById('spin');
-let t0 = performance.now();
+const t0 = performance.now();
 (function frame(now) {
   requestAnimationFrame(frame);
-  if (spin.checked && sec) {
-    const R = Number(depth.max);
-    depth.value = (R * Math.sin((now - t0) / 2600)).toFixed(1);
+  if (spin.checked && cur) {
+    depth.value = (Number(depth.max) * Math.sin((now - t0) / 3400)).toFixed(1);
     sync();
   }
   S.renderer.render(S.scene, S.camera);
