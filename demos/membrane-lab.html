@@ -28,6 +28,22 @@
   .ledger.spent { background:#fbe6d2; border-color:#e0a06a; }
   .ledger[hidden] { display:none; }
 
+  #spend { font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
+           border:1px solid #a493cf; background:#e8e2f6; cursor:pointer; margin-bottom:8px; }
+  #spend:disabled { opacity:.45; cursor:default; }
+  #spend[hidden] { display:none; }
+
+  /* The flying ATP. A DOM chip rather than a mesh, for the same reason the
+     ledger is chrome: it is the SPENDING being shown, and the spending
+     starts at a button the student pressed. It flies from that button to
+     the pump so the two are visibly one event. */
+  .fly { position:fixed; z-index:5; font-size:13px; font-weight:600;
+         padding:4px 12px; border-radius:999px; background:#e8e2f6;
+         border:1px solid #a493cf; pointer-events:none;
+         transform:translate(-50%,-50%);
+         transition:left .9s cubic-bezier(.4,0,.5,1), top .9s cubic-bezier(.4,0,.5,1),
+                    opacity .9s ease-in; }
+
   #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   #steps button {
     font:inherit; font-size:13px; padding:7px 13px; border-radius:999px;
@@ -50,6 +66,7 @@
   <div id="chrome">
     <p id="cap"></p>
     <p id="readout"></p>
+    <p><button type="button" id="spend" hidden>Spend 1 ATP</button></p>
     <p><span id="ledger" class="ledger" hidden></span></p>
     <nav id="steps" aria-label="lesson steps"></nav>
   </div>
@@ -106,6 +123,7 @@ const capEl = document.getElementById('cap');
 const readoutEl = document.getElementById('readout');
 const stepsEl = document.getElementById('steps');
 const ledgerEl = document.getElementById('ledger');
+const spendEl = document.getElementById('spend');
 const chromeEl = document.getElementById('chrome');
 
 const HALF = 15.3;                      // OPM's half-thickness, from the bake
@@ -515,11 +533,16 @@ const STEPS = [
     id:'pump',
     tab:'the pump',
     cap:'',                             // pump.js writes this, per phase
-    loops:true,
     enter() {
       clearTravellers();
       showProtein(PUMP); showMembrane(true); setCut(true);
-      pumpT = 0; cyclesDone = 0;
+      /* Parked at the start of the cycle, not looping. A pump that runs
+         for free contradicts the one thing this step teaches, and a loop
+         with an ATP counter ticking up on its own is worse — it says the
+         cell pays whether or not anything asked. The student spends the
+         ATP, and one ATP buys exactly one turn. */
+      pumpT = 0; cyclesDone = 0; running = false;
+      spendEl.hidden = false; spendEl.disabled = false;
     },
     readout: () => 'ATP is the battery: it carries three phosphates, and spends one per trip. ' +
                     'Per cycle — 3 Na⁺ out, 2 K⁺ in, 1 ATP.',
@@ -537,7 +560,7 @@ const STEPS = [
    in, one phosphate goes onto the pump, an ADP comes out. That is a
    LEDGER, and a ledger belongs in the chrome with the other numbers. */
 /* ---- the pump's own actors ---- */
-let pumpT = 0, cyclesDone = 0;
+let pumpT = 0, cyclesDone = 0, running = false;
 const pumpPool = { NA: [], K: [] };
 function pumpIon(species, i) {
   const p = pumpPool[species];
@@ -547,6 +570,46 @@ function pumpIon(species, i) {
 function hidePumpIons() {
   Object.values(pumpPool).forEach(list => list.forEach(m => m.visible = false));
 }
+
+/* ---- spending an ATP ----
+   The chip flies from the BUTTON to the pump, so the press and the
+   phosphate arriving are visibly one event rather than two things that
+   happened near each other. It is a DOM chip: it starts on a DOM button,
+   and a mesh would have to be born in mid-air with no explanation. */
+function flyATP(done) {
+  const b = spendEl.getBoundingClientRect();
+  const chip = document.createElement('div');
+  chip.className = 'fly';
+  chip.textContent = 'ATP';
+  chip.style.left = (b.left + b.width / 2) + 'px';
+  chip.style.top  = (b.top + b.height / 2) + 'px';
+  document.body.appendChild(chip);
+
+  /* Where the pump is, in page pixels — projected, so the chip lands on
+     the protein wherever the camera has put it. */
+  const p = new THREE.Vector3(0, -HALF * 0.6, 0).project(L.camera);
+  const r = canvas.getBoundingClientRect();
+  const x = r.left + (p.x * .5 + .5) * r.width;
+  const y = r.top + (-p.y * .5 + .5) * r.height;
+
+  requestAnimationFrame(() => {
+    chip.style.left = x + 'px';
+    chip.style.top = y + 'px';
+    chip.style.opacity = '0';
+  });
+  /* Fires on the transition, with a timer as the backstop: a backgrounded
+     tab never runs the transition, and the pump must still start. */
+  let fired = false;
+  const go1 = () => { if (fired) return; fired = true; chip.remove(); done(); };
+  chip.addEventListener('transitionend', go1);
+  setTimeout(go1, 1000);
+}
+
+spendEl.addEventListener('click', () => {
+  if (running) return;
+  spendEl.disabled = true;
+  flyATP(() => { pumpT = 0; running = true; });
+});
 
 /* ---- step machinery ---- */
 let cur = -1;
@@ -575,12 +638,14 @@ function tick(dt) {
   memSolid.tick(dt); memHoled.tick(dt);   // the bilayer is a liquid, so it moves
 
   if (s.id === 'pump') {
-    const before = pumpT;
-    pumpT += dt / 13;                   // seconds per cycle
-    /* Counted off the CLOCK crossing a whole cycle, not off a phase edge:
-       a phase edge fires on every scrub and would count trips the pump
-       never made. */
-    if (Math.floor(pumpT) > Math.floor(before)) cyclesDone++;
+    if (running) {
+      pumpT += dt / 11;                 // seconds for one full turn
+      if (pumpT >= 1) {                 // one ATP bought exactly one turn
+        pumpT = 0; running = false;
+        cyclesDone++;
+        spendEl.disabled = false;
+      }
+    }
     const st = Pump.at(pumpT);
     T.setGates(st.gates.top, st.gates.bottom);
     hidePumpIons();
@@ -611,18 +676,24 @@ function tick(dt) {
     }
     /* The badge is read from the SAME `phosphate` the geometry uses, so
        what it says and what the pump is doing cannot drift apart. */
+    spendEl.hidden = false;
     ledgerEl.hidden = false;
     ledgerEl.className = 'ledger ' + (st.phosphate.on ? 'spent' : 'ready');
     ledgerEl.innerHTML = st.phosphate.on
       ? '<b>ADP</b> + P<sub>i</sub> &nbsp;·&nbsp; phosphate is on the pump'
-      : '<b>ATP</b> &nbsp;·&nbsp; ready to spend';
-    if (cyclesDone) ledgerEl.innerHTML += ` &nbsp;·&nbsp; ${cyclesDone} spent`;
+      : (running ? '<b>ATP</b> &nbsp;·&nbsp; spending…' : '<b>ATP</b> &nbsp;·&nbsp; press to spend');
+    if (cyclesDone)
+      ledgerEl.innerHTML += ` &nbsp;·&nbsp; ${cyclesDone} ATP → ` +
+        `${cyclesDone * 3} Na⁺ out, ${cyclesDone * 2} K⁺ in`;
 
     /* The caption is READ from the cycle. Nothing on this page can say
        the pump is doing something the geometry is not. */
-    capEl.innerHTML = '<b>' + st.label + '</b> — ' + st.caption;
+    capEl.innerHTML = running || st.phosphate.on
+      ? '<b>' + st.label + '</b> — ' + st.caption
+      : '<b>One ATP runs the pump once.</b> Press the button and follow it: ' +
+        'three sodiums out, two potassiums in, then it stops.';
   } else {
-    ledgerEl.hidden = true;
+    ledgerEl.hidden = true; spendEl.hidden = true;
     for (const t of travellers) {
       const was = t.y;
       advance(t, dt);
