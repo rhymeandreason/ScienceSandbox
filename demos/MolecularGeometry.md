@@ -209,6 +209,8 @@ and `check-molecules.js` fails if the geometry disagrees:
 | `topology:{rings:[…],fused:true}` | ring count, ring sizes, and that a bicycle shares an edge | purine, pyrimidine |
 | `chirality:'L'` | signed volume over CIP priorities | the amino acids |
 | `cis:{atoms:[i,j,k,l],value}` | i-j-k-l dihedral about the j-k (C=C) bond is ~0° if `value` is true, ~180° if false | palmitoleate |
+| `tautomer:{nh:[…]}` | exactly these ring nitrogens carry a hydrogen — the fetched free-base tautomer is not always DNA's | the four nucleobases |
+| `wc:{partner,bonds:[{self,role,partnerAtom}]}` | the Watson–Crick edge: each donor/acceptor and the partner atom it meets, checked to be reciprocal and role-swapped on the partner spec | the four nucleobases |
 | `glycosidic:{anomeric,bridge,partner,config,link}` | the bridging O joins one ring's anomeric carbon to carbon 4 of *another* ring, and the bond leaving the anomeric carbon is axial (`'alpha'`) or equatorial (`'beta'`) | maltose, cellobiose |
 
 `{faces}` deliberately cannot catch a *global* mirror — flip every substituent and

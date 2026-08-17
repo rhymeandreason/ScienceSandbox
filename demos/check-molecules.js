@@ -47,6 +47,12 @@
  *                                 mean anything. RELATIVE pattern only — the
  *                                 normal's sign is arbitrary, so this cannot
  *                                 catch a global mirror   [ribose, deoxyribose]
+ *    tautomer:{ nh:[…] }         which RING nitrogens carry a hydrogen. The
+ *                                fetched free-base tautomer is not always the
+ *                                one DNA uses, and the difference is invisible.
+ *    wc:{ partner, bonds:[…] }   the Watson-Crick edge, checked to be mutual:
+ *                                the partner must name the same atoms back with
+ *                                the donor/acceptor roles swapped.
  *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that some
  *               fused:true }      pair shares an edge     [purine/pyrimidine]
  *    gly:{ phosphates:n }         n phosphorus atoms, and — where the spec also
@@ -515,6 +521,97 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
       }
     } else {
       console.log(`   topology OK: rings [${sizes.join(', ')}] as declared`);
+    }
+  }
+
+  // ---- tautomer: which ring nitrogens carry a hydrogen ------------------
+  // WHY THIS IS A CLAIM AND NOT A DETAIL. PubChem's 3D conformers of the free
+  // bases put the hydrogen where DNA does not — 7H on both purines, N3 on
+  // cytosine — and mol-nucleic.js moves it in code. Nothing about that edit is
+  // visible in a render: a cytosine with its H still on N3 draws identically
+  // and pairs backwards, because N3 is the acceptor guanine's N1–H needs. So
+  // the corrected result is declared, and this fails if it drifts.
+  if (mol.tautomer) {
+    const want = new Set(mol.tautomer.nh || []);
+    const got = new Set();
+    mol.atoms.forEach((a, i) => {
+      if (a.el !== 'N') return;
+      const hasH = mol.bonds.some(b =>
+        (b[0] === i && mol.atoms[b[1]].el === 'H') ||
+        (b[1] === i && mol.atoms[b[0]].el === 'H'));
+      // Only RING nitrogens are claimed — an exocyclic amino always has its
+      // hydrogens and saying so would make the field noise.
+      const ring = mol.bonds.filter(b =>
+        (b[0] === i || b[1] === i) &&
+        mol.atoms[b[0] === i ? b[1] : b[0]].el !== 'H').length >= 2;
+      if (hasH && ring) got.add((mol.names && mol.names[i]) || (a.el + i));
+    });
+    const missing = [...want].filter(n => !got.has(n));
+    const extra = [...got].filter(n => !want.has(n));
+    if (missing.length || extra.length) {
+      stereoFails++;
+      console.log(`   TAUTOMER FAIL: declares N–H on [${[...want].join(', ')}] but the `
+        + `geometry has [${[...got].join(', ')}]`
+        + (missing.length ? `; missing ${missing.join(', ')}` : '')
+        + (extra.length ? `; unexpected ${extra.join(', ')}` : ''));
+    } else {
+      console.log(`   tautomer OK: ring N–H on ${[...want].join(', ') || '(none)'}`);
+    }
+  }
+
+  // ---- wc: the Watson–Crick edge, and that it is mutual -----------------
+  // The pairing rule as chemistry rather than as a table of letters. Each base
+  // names its donors and acceptors and which partner atom each one meets; this
+  // checks that the partner says the SAME THING BACK with the roles swapped.
+  // A donor facing a donor is the error that makes a page draw A against C and
+  // report a bond, and it is invisible in a render — two spheres and a dashed
+  // line look the same whichever way the hydrogen is pointing.
+  if (mol.wc) {
+    const partner = MOLECULES[mol.wc.partner];
+    const bonds = mol.wc.bonds || [];
+    if (!partner) {
+      stereoFails++;
+      console.log(`   WC FAIL: partner '${mol.wc.partner}' is not a registered spec`);
+    } else {
+      const hCount = i => mol.bonds.filter(b =>
+        (b[0] === i && mol.atoms[b[1]].el === 'H') ||
+        (b[1] === i && mol.atoms[b[0]].el === 'H')).length;
+      let bad = 0;
+      for (const b of bonds) {
+        const el = mol.atoms[b.self].el;
+        if (!['N', 'O'].includes(el)) {
+          bad++; console.log(`   WC FAIL: ${mol.names[b.self]} is ${el} — not an N or O`);
+        }
+        // A donor must actually own a hydrogen; an acceptor must not.
+        if (b.role === 'donor' && hCount(b.self) === 0) {
+          bad++; console.log(`   WC FAIL: ${mol.names[b.self]} is declared a donor `
+            + `but carries no hydrogen`);
+        }
+        if (b.role === 'acceptor' && hCount(b.self) > 0) {
+          bad++; console.log(`   WC FAIL: ${mol.names[b.self]} is declared an acceptor `
+            + `but carries a hydrogen — this is the cytosine-N3 error`);
+        }
+        // The partner names the same atom, with the opposite role.
+        const back = (partner.wc && partner.wc.bonds || [])
+          .find(x => x.self === b.partnerAtom);
+        if (!back) {
+          bad++; console.log(`   WC FAIL: ${mol.wc.partner} does not name `
+            + `${b.partner} as part of its own edge`);
+        } else {
+          if (back.partnerAtom !== b.self) {
+            bad++; console.log(`   WC FAIL: ${mol.names[b.self]}↔${b.partner} is not `
+              + `reciprocal — the partner points back at ${back.partner}`);
+          }
+          if (back.role === b.role) {
+            bad++; console.log(`   WC FAIL: ${mol.names[b.self]} and ${b.partner} are `
+              + `both ${b.role}s — a pair needs one of each`);
+          }
+        }
+      }
+      if (!bad)
+        console.log(`   wc OK: ${bonds.length} H-bond${bonds.length === 1 ? '' : 's'} `
+          + `to ${mol.wc.partner}, every one reciprocal and role-matched`);
+      else stereoFails += bad;
     }
   }
 

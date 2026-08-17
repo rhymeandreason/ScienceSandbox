@@ -261,6 +261,7 @@
     'mol-contrast.js',     // needs skel.js AND mol-monomers.js
     'mol-compare.js',      // needs skel.js — the derivation comparison, viewer only
     'mol-lipids.js',       // family B, literals — needs no builder
+    'mol-nucleic.js',      // family B, PubChem — needs no builder
   ];
 
   // Files that REPLACE one of the above rather than adding to it. They define
