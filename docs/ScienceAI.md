@@ -83,3 +83,85 @@ Serve pre-resized variants (a \~400px inline version, full resolution behind a c
 Store resolved image IDs in the semantic cache entry alongside the answer text. A cache hit then returns the complete response — prose and figures — in one shot with no retrieval at all.
 
 Store the license type as a filterable field, so you can exclude NC images by query context or by deployment if that ever becomes relevant.
+
+---
+
+# Revised recommendation based on prototype work in repo
+
+## Keep
+
+Pre-built corpus over live web search; semantic cache for repeated phrasings; small model with a static cached prefix; streaming; capped output; image metadata sent as the **first** SSE event so the CDN fetch overlaps generation; intrinsic dimensions to reserve layout. Indexing figures as first-class records embedded from caption + alt + surrounding paragraph is the doc's best call — our corpus confirms the premise: alt text carries more descriptive weight than captions (416k chars vs 296k) and almost never duplicates them.
+
+## Change
+
+**1. No vector DB at this scale.** Measured on the real corpus: 1148 figures, text payload 0.86 MB parsing in 2.3 ms; brute-force cosine over all of them 6.2 ms in plain JS. Embeddings as binary are 6.7 MB float32, 1.7 MB int8, 0.56 MB at int8/512-dim. A pgvector round trip can't beat a memory scan of 1148 items, and it adds a service and connection setup to every cold start. **Store vectors as binary, never JSON** — the same data as JSON is 32 MB and re-parsed on every cold boot.
+
+On Vercel: bundle size is a non-issue for Node functions (250 MB limit); if you want Edge for its fast boot, quantize to int8/512-dim and it fits the 1 MB Hobby limit. At class-sized traffic, **cold starts dominate everything** — which argues for Edge and against a database, not for one.
+
+**2. Take the model-picks-from-a-menu option, not deterministic placement.** The doc prefers deterministic; I'd invert that. The valuable output in our testing wasn't *which* figures came back, it was the one-line reason per figure — "fat enters downstream of glycolysis, so it feeds the marathoner and is useless to the sprinter." Nothing in a retrieval score produces that. The hallucination risk is fully handled by ID validation: the model emits ids only, the server resolves URL/caption/credit from the corpus, unknown ids fail loudly. Five agent-written decks, zero invented figures.
+
+**3. Licence is per-image, not per-corpus.** 613 of 1148 figures carry their own credit line (NASA, USDA, Flickr and others), and the credit is embedded *inside the caption text* — extract it at ingest into its own field. OpenStax additionally carves its name and logo out of the CC grant. A single `license` column on the source is not a safe claim about every image under it.
+
+**4. Filter at ingest, and keep checking links.** 81 figures have under 60 characters of alt text — icons and equation images that embed as noise. Two figures are broken *in the source book*. URLs need periodic HEAD checks, not just ingest validation.
+
+**5. Mirror the images.** You're hot-linking the publisher's server. CC BY permits copying: pull all 1148 to Blob/CDN at ingest with pre-resized WebP variants, as the doc recommends for sizing anyway.
+
+## Add — the layer the document is missing
+
+**A curation table between retrieval and generation.** Relevance is not fitness to teach. Two things no embedding gives you:
+
+* **Pedagogical adjacency.** "How do salmon go from saltwater to freshwater?" needs the osmosis-across-a-membrane diagram, which shares only the word "water" with the question. It surfaced because a human recorded that both figures belong to the same lesson. The same link now carries a sickle-cell question back to the protein-structure figures — which is where the student actually needs to go next.
+
+* **Foils.** Several of the best picks *contradict* the simulation beside them and are valuable for exactly that reason. Similarity search cannot distinguish a good figure from a misleading one, and shipping a foil as neutral support undercuts the lesson.
+
+Ours is 48 figures in 15 groups, \~10 k tokens, with a written reason each and an `extends` field linking outward-reaching topics back to their lesson. It overrides retrieval; retrieval provides recall behind it.
+
+**An eval fixture set.** We found four real ranking defects — a coincidental rare word placing a figure, question filler scoring as content, companions drifting to the wrong chapter, compound words matching nothing — and every one surfaced only from running real student questions and reading the output. In production: fixed questions → expected figure ids, run on every index rebuild, or a re-embedding will silently degrade retrieval.
+
+**Lesson context as a retrieval signal.** These figures support simulations, and the questions extend outward from a lesson. Carry the current lesson into the query as a bias rather than embedding the bare question.
+
+## Sequence
+
+1. Bake embeddings to a binary file at build time; keep the corpus and picks in the repo. No services.
+
+2. Model selects by validated id; server resolves and renders; per-image credit shipped with every image.
+
+3. Fixture evals on rebuild.
+
+4. Measure. **Then** add Vercel KV for the semantic cache if the hit rate justifies it, and move the picks table to a store only when someone non-technical needs to edit it without a deploy.
+
+Everything before step 4 is a static deployment with no database — which at 1148 figures is both faster and less to run.
+
+---
+
+At what scale of images do we need to reconsider?
+
+**Thresholds:**
+
+**Under \~5k figures — static, no argument.** You're at 1148, so \~3.5 ms. Even 4 more textbooks wouldn't move this.
+
+**5k–25k — still static, but tune.** Scan runs 15–75 ms, comparable to a DB round trip but without the connection. Quantize to int8 for memory and truncate dimensions for speed. Note the counterintuitive result above: **int8 is not faster in JS** (no SIMD, and the loads widen) — it buys memory only. Halving dimensions is what buys speed.
+
+**25k–100k — the real gray zone.** Scan hits 75–300 ms, which starts to eat the latency budget you're protecting. Two ways out, and I'd try the first: **partition before you scan.** You already have 13 concept buckets and lesson groups — searching one bucket instead of the whole book cuts N by roughly 10×, which pushes the static approach up an order of magnitude. That's an IVF index in spirit, built from structure you already curate. If partitioning doesn't fit the query pattern, this is where a service earns its place.
+
+**Over \~100k — use a vector DB.** Brute force is 300 ms+, the index no longer sits comfortably in a function's memory, and you want a real ANN index.
+
+**Vercel-specific ceilings that bite before the CPU does:**
+
+* **Edge runtime is tight**: at 512-d int8 a vector is 512 bytes, so 1 MB ≈ 2k vectors, 2 MB (Pro) ≈ 4k. Edge is only viable for a small curated index — which, notably, your 48 picks *are*.
+
+* **Node functions**: the 250 MB bundle caps you around 40k vectors at float32, \~170k at int8. Cold-start file reads grow with size too, and cold starts are already your dominant cost.
+
+**And the triggers that have nothing to do with count** — any one of these flips the decision regardless of scale: content edited without a deploy, per-user data or feedback, or hybrid filtering (licence, source, grade level) combined with vector search.
+
+For your trajectory — one textbook, maybe a few more later — you'd need roughly a **20× corpus increase** before this is worth revisiting. Worth re-measuring, not re-architecting, at around 10k figures.
+
+---
+
+Notes for Image sources:
+
+https://bioart.niaid.nih.gov \~2,000 assets, professional medical illustrators
+
+https://www.cellimagelibrary.org/ must hand pick
+
+---
