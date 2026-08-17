@@ -102,8 +102,14 @@ const HALF = 15.3;                      // OPM's half-thickness, from the bake
    visible ends is a raft, and a student asks what is holding it together;
    a real one has no edge anywhere near the scale of one protein. The
    camera frames `boxes` below, not the lipids, so widening this overflows
-   the view instead of zooming out to fit. */
-const MEM_REACH = 150;
+   the view instead of zooming out to fit.
+
+   Sized for a WIDE viewport. The fit is driven by height, so on a 21:9
+   window the camera sees far more world horizontally than vertically, and
+   150 left the bilayer ending mid-screen. Instances are free here — one
+   draw call per leaflet either way — so this is set past the widest
+   plausible window rather than tuned to one. */
+const MEM_REACH = 340;
 
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
