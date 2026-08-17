@@ -447,7 +447,8 @@ const STEPS = [
     id:'channel',
     tab:'a channel',
     cap:'<b>A channel is a hole with a preference.</b> ' +
-        'It picks which ion, never which way — they only ever run downhill.',
+        'K⁺ goes through. Na⁺ and Cl⁻ do not — and Na⁺ is the smaller ion. ' +
+        'It picks which, never which way.',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane(true); setCut(true);
@@ -458,8 +459,30 @@ const STEPS = [
          space, and they are both +1. See keepApart(). */
       for (let i = 0; i < 6; i++)
         traveller('K', { x:0, z:0, y:44 - i * ION_GAP, vy:-11, coreSpeed:1 });
+
+      /* THE ONES THAT DO NOT GET IN. Without them "a hole with a
+         preference" is a caption over a picture of a hole: everything on
+         screen was going through, so nothing was being preferred.
+
+         Na⁺ is deliberately among them, and it is drawn SMALLER than the
+         K⁺ sailing past it. That is the real fact — a potassium channel
+         excludes sodium — and it is why this page never draws a
+         size-sieve pinch: the filter matches the ion's hydration shell,
+         and the smaller ion is the one that cannot be matched. The
+         student is not told this here; they are just shown that size is
+         not doing the work, which is what stops the wrong rule forming. */
+      for (let i = 0; i < 14; i++)
+        traveller('NA', { x:rnd(-SPREAD*0.75, SPREAD*0.75), z:rnd(-10,10),
+                          y:rnd(HALF + 4, 42), vy:-rnd(6,10), blocked:true, bounded:true });
+      for (let i = 0; i < 10; i++)
+        traveller('CL', { x:rnd(-SPREAD*0.75, SPREAD*0.75), z:rnd(-10,10),
+                          y:rnd(HALF + 4, 42), vy:-rnd(6,10), blocked:true, bounded:true });
+      for (let i = 0; i < 16; i++)
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
+                             y:(i % 2 ? 1 : -1) * rnd(HALF + 5, 42),
+                             walk:true, bounded:true, coreSpeed:0.5 });
     },
-    readout: () => 'both ends open at once — the one thing a pump never does',
+    readout: () => 'K⁺ through · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
   },
 
   {
