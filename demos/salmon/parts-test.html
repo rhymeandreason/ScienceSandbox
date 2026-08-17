@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>parts-test — two gates, four machines</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #wrap { display:grid; grid-template-columns:1fr 372px; height:100vh; }
+  #stage { position:relative; min-width:0; }
+  canvas { width:100%; height:100%; display:block; }
+  #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(0,0,0,.12); }
+  .grp { margin-bottom:18px; }
+  .hd { font-weight:600; margin-bottom:6px; }
+  label { display:block; margin:7px 0; font-size:14px; }
+  input[type=range] { width:100%; }
+  button { margin:0 6px 6px 0; }
+  button[aria-pressed=true] { outline:2px solid #2a7; font-weight:600; }
+  p.note { font-size:13px; opacity:.8; line-height:1.45; }
+  #verdict { font-weight:600; font-size:15px; margin-top:4px; }
+  @media (max-width:920px){ #wrap{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="panel">
+    <h1 style="font-size:17px">parts-test</h1>
+    <p class="note">
+      Everything here is procedural — <code>salmon/parts.js</code>. The whole
+      transporter is a profile spun about the membrane normal, and its state is
+      <b>two numbers</b>: how open each gate is.
+    </p>
+
+    <div class="grp">
+      <div class="hd">the two gates</div>
+      <label>outer gate (to the outside) <output id="tv"></output>
+        <input id="gtop" type="range" min="0" max="100" value="100"></label>
+      <label>inner gate (to the cytoplasm) <output id="bv"></output>
+        <input id="gbot" type="range" min="0" max="100" value="0"></label>
+      <p id="verdict"></p>
+      <p class="note" id="why"></p>
+    </div>
+
+    <div class="grp">
+      <div class="hd">drive it</div>
+      <button type="button" data-set="1,0">outward-open</button>
+      <button type="button" data-set="0,0">occluded</button>
+      <button type="button" data-set="0,1">inward-open</button>
+      <button type="button" data-set="1,1">both (a leak)</button>
+      <br>
+      <label><input id="cycle" type="checkbox"> run the cycle</label>
+    </div>
+
+    <div class="grp">
+      <div class="hd">show</div>
+      <label><input id="memon" type="checkbox" checked> membrane</label>
+      <label><input id="cuton" type="checkbox"> cut it open</label>
+      <label><input id="ionon" type="checkbox" checked> ion in the site</label>
+      <label>lobes <output id="lv"></output>
+        <input id="lobes" type="range" min="0" max="7" step="1" value="0"></label>
+      <p class="note">
+        Cutting uses the same <code>clip.js</code> the real surface used —
+        it caps by parity, so it works on any closed mesh, measured or invented.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="clip.js"></script>
+<script src="parts.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  parts-test.html — can two numbers carry the mechanism?
+ *
+ *  The bench exists to answer one question: driving ONLY the two gate
+ *  values, do you get outward-open, occluded, inward-open and a leaking
+ *  channel, all recognisable, with every intermediate a real shape? If
+ *  any of those four needs a special case, the parameterisation is wrong
+ *  and the lesson would need four models instead of one that moves.
+ * ===================================================================== */
+
+const canvas = document.getElementById('c');
+const S = Stage.create(canvas, { cam:{theta:.55, phi:1.5, r:120}, rMin:30, rMax:400 });
+const Clip = ClipLib.create({ renderer:S.renderer });
+const plane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
+
+const HALF = 15.3;                    // the bilayer bake-pump.js measured
+let T = null, mem = null, ionMesh = null, cutSec = null;
+
+function buildTransporter(lobes) {
+  if (T) { S.root.remove(T.group); T.dispose(); }
+  T = Parts.transporter({ half:HALF, lobes:+lobes });
+  S.root.add(T.group);
+  applyGates();
+}
+
+function buildMembrane() {
+  if (mem) S.root.remove(mem.group);
+  /* The lipids are kept out of the protein's footprint by its own outer
+     radius, not by a typed hole — change the transporter's radius and the
+     membrane still fits it. */
+  mem = Parts.membrane({ half:HALF, exclude:(x,z) => Math.hypot(x,z) - 15.0 });
+  S.root.add(mem.group);
+}
+
+/* ---- gates ----
+   Declared before anything builds: buildTransporter() ends in applyGates(),
+   which reads these sliders. */
+const gtop = document.getElementById('gtop'), gbot = document.getElementById('gbot');
+const tv = document.getElementById('tv'), bv = document.getElementById('bv');
+const verdict = document.getElementById('verdict'), why = document.getElementById('why');
+
+function applyGates() {
+  const a = +gtop.value / 100, b = +gbot.value / 100;
+  T.setGates(a, b);
+  tv.textContent = a.toFixed(2);
+  bv.textContent = b.toFixed(2);
+
+  /* The verdict is READ FROM THE GATES, never set alongside them — a
+     caption that can disagree with the geometry is a caption that will. */
+  const open = (v) => v > .55, shut = (v) => v < .2;
+  let name, note;
+  if (open(a) && open(b)) {
+    name = 'a leak, not a pump';
+    note = 'Open at both ends: ions run down their gradient and the cell ' +
+           'cannot hold a difference. This is the one state a real pump never enters.';
+  } else if (shut(a) && shut(b)) {
+    name = 'occluded';
+    note = 'Sealed both sides, ion trapped in the pocket. This is the state ' +
+           'that makes a pump possible — the ion is committed, and nothing ' +
+           'can run backwards through it.';
+  } else if (open(a)) {
+    name = 'outward-open';
+    note = 'The site faces outside. In E2 the pump holds K⁺ here.';
+  } else if (open(b)) {
+    name = 'inward-open';
+    note = 'The site faces the cytoplasm. In E1 three Na⁺ load from here.';
+  } else {
+    name = 'mid-transition';
+    note = 'Neither gate committed — a real position on the path, not a ' +
+           'blend between two models.';
+  }
+  verdict.textContent = name;
+  why.textContent = note;
+
+  if (ionMesh) ionMesh.position.copy(T.site);
+}
+[gtop, gbot].forEach(el => el.addEventListener('input', () => { cycleOn.checked = false; applyGates(); }));
+
+document.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => {
+  const [t, bo] = b.dataset.set.split(',');
+  cycleOn.checked = false;
+  gtop.value = +t * 100; gbot.value = +bo * 100;
+  applyGates();
+}));
+
+/* ---- the cycle ----
+   Deliberately passes THROUGH occluded rather than cross-fading: the two
+   gates are never both open, at any moment of the loop. That constraint is
+   the pump, so the demo has to obey it rather than illustrate it. */
+const cycleOn = document.getElementById('cycle');
+
+buildTransporter(0);
+buildMembrane();
+ionMesh = Parts.ion('NA');
+S.root.add(ionMesh);
+
+function cyclePhase(t) {
+  const p = (t % 1 + 1) % 1;
+  const seg = v => Math.max(0, Math.min(1, v));
+  if (p < .25) return [1, 0];                        // outward-open, waiting
+  if (p < .40) return [1 - seg((p - .25) / .15), 0]; // outer gate shuts
+  if (p < .55) return [0, seg((p - .40) / .15)];     // inner gate opens
+  if (p < .75) return [0, 1];                        // inward-open, waiting
+  if (p < .90) return [0, 1 - seg((p - .75) / .15)]; // inner gate shuts
+  return [seg((p - .90) / .10), 0];                  // outer gate opens
+}
+
+/* ---- other toggles ---- */
+const memon = document.getElementById('memon'), cuton = document.getElementById('cuton');
+const ionon = document.getElementById('ionon'), lobes = document.getElementById('lobes');
+const lv = document.getElementById('lv');
+memon.addEventListener('change', () => mem.group.visible = memon.checked);
+ionon.addEventListener('change', () => ionMesh.visible = ionon.checked);
+lobes.addEventListener('input', () => { lv.textContent = lobes.value; buildTransporter(lobes.value); });
+cuton.addEventListener('change', applyCut);
+
+function applyCut() {
+  const on = cuton.checked;
+  T.mesh.material.clippingPlanes = on ? [plane] : [];
+  T.mesh.material.needsUpdate = true;
+  T.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
+  mem.materials.forEach(m => { m.clippingPlanes = on ? [plane] : []; m.needsUpdate = true; });
+  T.group.children.forEach(ch => { if (ch.material && ch.material.side === THREE.BackSide) ch.visible = !on; });
+}
+
+lv.textContent = '0';
+applyGates();
+
+let t0 = performance.now();
+(function frame(now) {
+  requestAnimationFrame(frame);
+  if (cycleOn.checked) {
+    const [a, b] = cyclePhase((now - t0) / 7000);
+    gtop.value = a * 100; gbot.value = b * 100;
+    applyGates();
+  }
+  S.renderer.render(S.scene, S.camera);
+})(t0);
+S.resize();
+</script>
+</body>
+</html>
