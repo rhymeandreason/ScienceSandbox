@@ -160,7 +160,7 @@ fi
 # kit/hbond.js count the bonds in the pose it solves, so a change in either can
 # flip a verdict this checker is the only thing watching — and the page shows a
 # wrong pairing as confidently as a right one.
-if git diff --cached --name-only | grep -qE '^demos/(dna/.*|dna-lab\.html|mol-nucleic\.js|lobes/.*|kit/hbond\.js)$'; then
+if git diff --cached --name-only | grep -qE '^demos/(dna/.*|dna-lab\.html|mol-nucleic\.js|lobes/.*|kit/hbond\.js)'; then
   if ! node dna/check-dna.js > /tmp/cdna.$$ 2>&1; then
     tail -25 /tmp/cdna.$$; rm -f /tmp/cdna.$$
     echo ""

@@ -97,5 +97,55 @@ head('a rung is a rung');
      `A–T and G–C span within 1 Å of each other (${at.toFixed(2)} vs ${gc.toFixed(2)})`);
 }
 
+/* =====================================================================
+ *  THE BAKED B-DNA PARAMETERS
+ * =====================================================================
+ *  dna/data/helix.json is measured off 1BNA by dna/bake-helix.js and will feed
+ *  the ladder in step 4. Two things can go wrong with a baked artefact and
+ *  neither is visible in the page that plays it: it goes STALE against the
+ *  structure it claims to come from, and it drifts out of the range that makes
+ *  it B-DNA at all. Both are checked here.
+ * ===================================================================== */
+head('baked B-DNA parameters (1BNA)');
+{
+  const fs = require('fs');
+  const { measure, OUT } = require(path.join(__dirname, 'bake-helix.js'));
+  const fresh = measure();
+  const baked = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+  ok(JSON.stringify(fresh) === JSON.stringify(baked),
+     'dna/data/helix.json is what bake-helix.js produces now (re-run it)');
+
+  // Ranges, against the published description of B-DNA. Wide on purpose: this
+  // is one crystal dodecamer, and the point is to catch a broken measurement,
+  // not to re-assert the textbook to three figures.
+  const band = (v, lo, hi, what) =>
+    ok(v >= lo && v <= hi, `${what} is ${v} — outside the B-DNA range ${lo}–${hi}`);
+  band(baked.rise.mean, 3.2, 3.7, 'rise');
+  band(baked.twist.mean, 30, 38, 'twist');
+  band(baked.bpPerTurn, 9.5, 11.5, 'base pairs per turn');
+  band(Math.abs(baked.propeller.mean), 5, 25, 'propeller twist magnitude');
+  band(baked.c1c1.mean, 10.0, 10.9, "C1'–C1'");
+  // Propeller has a SIGN, and it is negative for right-handed B-DNA. A build
+  // that lost it would draw a plausible helix twisted the wrong way.
+  ok(baked.propeller.mean < 0, 'propeller twist is negative (right-handed B-DNA)');
+
+  /* THE CROSS-CHECK: our idealised pair against the real one. dna/pairing.js
+   * solves a pair from declared donors and acceptors with every hydrogen bond
+   * at the same target length and both bases exactly coplanar. The real thing
+   * is neither. This measures the cost of that idealisation instead of letting
+   * it go unnoticed — and it is the number step 4 will have to reconcile, since
+   * a ladder built from our pairs will be slightly wider than B-DNA's. */
+  for(const [pur, pyr] of [['adenine','thymine'], ['guanine','cytosine']]){
+    const r = solve(pur, pyr);
+    const A = un(M[pur]).atoms[M[pur].names.indexOf('N9')].pos;
+    const B = r.moved.atoms[M[pyr].names.indexOf('N1')].pos;
+    const d = Math.hypot(A[0]-B[0], A[1]-B[1], A[2]-B[2]);
+    const off = d - baked.glycoN.mean;
+    ok(Math.abs(off) < 0.6,
+       `${pur}–${pyr} N9–N1 is ${d.toFixed(2)} Å vs 1BNA's ${baked.glycoN.mean} `
+       + `(${off > 0 ? '+' : ''}${off.toFixed(2)} Å) — the idealisation has drifted`);
+  }
+}
+
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if(fails){ console.log(`${fails} FAILED`); process.exit(1); }
