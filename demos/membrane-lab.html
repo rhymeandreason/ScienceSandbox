@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The membrane — what gets through, and what it costs</title>
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  html,body { height:100%; margin:0; }
+  #page { display:flex; flex-direction:column; height:100vh; }
+  #stage { position:relative; flex:1 1 auto; min-height:0; }
+  canvas { width:100%; height:100%; display:block; }
+
+  /* The chrome is ONE block at the bottom. kit/fit.js is told its height in
+     pixels, so the camera frames the scene above it rather than behind it. */
+  #chrome { flex:0 0 auto; padding:10px 18px 16px; text-align:center; }
+  #cap { font-size:17px; line-height:1.35; min-height:2.6em;
+         max-width:46em; margin:0 auto 10px; }
+  #cap b { font-weight:600; }
+  #readout { font-size:13px; opacity:.7; min-height:1.2em; margin:-6px 0 8px; }
+
+  #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  #steps button {
+    font:inherit; font-size:13px; padding:7px 13px; border-radius:999px;
+    border:1px solid rgba(0,0,0,.18); background:transparent; cursor:pointer;
+    opacity:.55;
+  }
+  #steps button[aria-current=step] { opacity:1; font-weight:600;
+    border-color:#2a7a6a; box-shadow:inset 0 0 0 1px #2a7a6a; }
+  #steps button:hover { opacity:.85; }
+
+  @media (max-width:920px){
+    #cap { font-size:15px; }
+    #steps button { padding:6px 10px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+<div id="page">
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="chrome">
+    <p id="cap"></p>
+    <p id="readout"></p>
+    <nav id="steps" aria-label="lesson steps"></nav>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="mol-small.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/focus.js"></script>
+<script src="kit/fit.js"></script>
+<script src="kit/stagekit.js"></script>
+<script src="membrane/parts.js"></script>
+<script src="membrane/pump.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  membrane-lab.html — the bilayer, what crosses it, and what a crossing
+ *  costs.
+ *
+ *  LESSONS-ROADMAP.md §2's conflict, in its own words: the bilayer drawn
+ *  "as two rows of lollipops, at a geometry and scale that are simply
+ *  false, proteins drawn as beans wedged in", and water movement drawn
+ *  three contradictory ways. This page keeps the lollipops — they are how
+ *  a student recognises a membrane — and fixes the two things that were
+ *  actually wrong with them: the thickness is the one OPM measured off a
+ *  real structure (membrane/tools/bake-pump.js), and nothing crosses
+ *  without a reason the student has been shown.
+ *
+ *  THE ARC. Five steps, and each one exists to break a specific wrong
+ *  idea:
+ *    1 the bilayer      it is not a wall, it is oil with wet ends
+ *    2 what gets through  "the membrane lets small things through" — no:
+ *                       it lets OILY things through, and size is second
+ *    3 osmosis          water crosses BOTH ways always; the net is the
+ *                       only thing that ever changes
+ *    4 a channel        a hole does not choose a direction. Down only.
+ *    5 the pump         to go the other way, something has to pay
+ *
+ *  Steps 1-4 are click-driven, one beat each. Step 5 loops, because it is
+ *  a cycle and a cycle shown once is a sequence.
+ *
+ *  NO SIDEBAR. All chrome is one block at the bottom, and its height in
+ *  pixels goes to kit/fit.js, so the camera frames the scene above the
+ *  words instead of behind them.
+ * ===================================================================== */
+
+const canvas = document.getElementById('c');
+const capEl = document.getElementById('cap');
+const readoutEl = document.getElementById('readout');
+const stepsEl = document.getElementById('steps');
+const chromeEl = document.getElementById('chrome');
+
+const HALF = 15.3;                      // OPM's half-thickness, from the bake
+
+const L = Lesson.create(canvas, {
+  cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
+  rMin:50, rMax:400,
+  reservePx: () => ({ bottom: chromeEl.offsetHeight + 14 }),
+  boxes: () => ([{ x:0, y:0, rxz:60, hy:34 }]),
+  frame: dt => tick(dt),
+});
+L.renderer.localClippingEnabled = true;
+
+/* ---- the membrane ----
+   TWO of them, and it is not duplication: steps 1-3 have no protein, and
+   a membrane with a protein-shaped hole in it and no protein reads as a
+   torn membrane. That is a worse lie than the cost of a second instance,
+   because a student's first question becomes "what made the gap". Solid
+   for the passive steps, holed once there is something standing in it. */
+const memSolid = Parts.membrane({ half:HALF, reach:58 });
+const memHoled = Parts.membrane({ half:HALF, reach:58, exclude:(x,z) => Math.hypot(x,z) - 15.0 });
+memHoled.group.visible = false;
+L.root.add(memSolid.group, memHoled.group);
+function showMembrane(withHole) {
+  memSolid.group.visible = !withHole;
+  memHoled.group.visible = withHole;
+}
+
+/* The cut belongs to the steps with a protein in them, and only those.
+   Steps 1-3 are ABOUT the intact bilayer; slicing it there would answer a
+   question nobody has asked yet. From step 4 the protein is the subject
+   and its lumen is the whole point — uncut, the ions are sealed inside an
+   opaque shape and the student is asked to take the pore on faith.
+
+   The plane is the membrane's own (it laid the slab out, so it knows which
+   axis is thin); the protein borrows it so one cut governs the scene. */
+function setCut(on) {
+  memHoled.cut.enable(on);
+  T.mesh.material.clippingPlanes = on ? [memHoled.cut.plane] : [];
+  T.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
+  T.mesh.material.needsUpdate = true;
+}
+
+/* The protein is present from step 4 on. One transporter serves both the
+   channel and the pump: they differ by what the gates are allowed to do,
+   which is the entire point and would be undone by using two objects. */
+const T = Parts.transporter({ half:HALF });
+T.group.visible = false;
+L.root.add(T.group);
+
+/* ---------------------------------------------------------------------
+   Small molecules. Real specs, not spheres — water, O2 and CO2 are in
+   mol-small.js with measured geometry, and this page's whole claim in
+   step 2 is about what those molecules ARE. Spheres would have made
+   "oily slips through, charged does not" an assertion.
+
+   TWO SCALINGS, both declared. molecules.js builds at MolLib.SCALE, so a
+   molecule comes out ~1.9x its angstroms while parts.js works in raw
+   angstroms; dividing puts them in one frame. Then everything crossing
+   is enlarged by the SAME factor the ions already use, because a true
+   3 A water against a 30 A membrane is a speck.
+   --------------------------------------------------------------------- */
+const SCALE = MolLib.SCALE || 1.9;
+const EXAG = Parts.ION.exaggeration;
+
+function smallMolecule(name) {
+  const spec = MolLib.MOLECULES[name];
+  if (!spec) throw new Error('membrane-lab: no spec named ' + name);
+  const g = Stage.buildMolecule(spec, { center:true });
+  g.scale.setScalar(EXAG / SCALE);
+  return g;
+}
+
+/* ---------------------------------------------------------------------
+   Travellers — one pool, reused by steps 2 and 3. Each carries where it
+   is going and how fast, and NOTHING else: a traveller does not know
+   which step it is in, so a step cannot leave one behind.
+   --------------------------------------------------------------------- */
+const travellers = [];
+function traveller(kind, opts) {
+  const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
+  const obj = (kind === 'NA' || kind === 'K' || kind === 'CL')
+    ? Parts.ion(kind) : smallMolecule(kind);
+  obj.position.set(o.x, o.y, o.z);
+  L.root.add(obj);
+  const t = Object.assign({ kind, obj }, o);
+  travellers.push(t);
+  return t;
+}
+function clearTravellers() {
+  for (const t of travellers) L.root.remove(t.obj);
+  travellers.length = 0;
+}
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* Where a traveller is allowed to be. The bilayer's interior is oily: a
+   charged or strongly polar thing does not enter it, and this is the one
+   rule that makes step 2 a demonstration instead of a caption. */
+function advance(t, dt) {
+  const inCore = Math.abs(t.y) < HALF;
+  if (t.blocked) {
+    /* Bounces off the head-group layer. Turned back AT the surface, not
+       inside it — an ion that penetrates and returns has already told the
+       student the interior is negotiable. */
+    const edge = HALF + 2.4;
+    if ((t.vy < 0 && t.y <= edge && t.y > 0) || (t.vy > 0 && t.y >= -edge && t.y < 0)) t.vy = -t.vy;
+  }
+  /* A walker re-picks its direction every so often. Nothing in here reads
+     the concentration or knows where the solute is — which is the point,
+     and is diffusion.js's point too: a crowd spreads out because there are
+     more molecules on the crowded side to wander off it, not because
+     anything is pulled. */
+  if (t.walk && !inCore) {
+    /* Re-picks direction only OUTSIDE the bilayer. Inside, it commits.
+
+       Not a fudge — it is what makes the model work at all, and it is
+       physically the right shape: the tails are 30 Å of oil, and a molecule
+       part-way in has nothing to collide with that would turn it around.
+       Letting it flip mid-membrane made a crossing need ~9 s of sustained
+       travel against a 0.35 s flip, so in 30 s of running the counters read
+       0-3 and the two sides never changed. The step showed nothing. */
+    t.since = (t.since || 0) + dt;
+    if (t.since > 0.8) { t.since = 0; t.vy = (Math.random() < .5 ? -1 : 1) * rnd(7, 12); }
+  }
+
+  t.y += t.vy * dt * (inCore && !t.blocked ? t.coreSpeed || 1 : 1);
+
+  if (t.bounded) {
+    const far = 44;
+    if (t.y >  far) { t.y =  far; t.vy = -Math.abs(t.vy); }
+    if (t.y < -far) { t.y = -far; t.vy =  Math.abs(t.vy); }
+    t.obj.position.y = t.y;
+    t.obj.rotation.y += dt * 0.6;
+    return;
+  }
+
+  if (t.blocked) {
+    /* A blocked traveller STAYS IN ITS COMPARTMENT, so it reflects at the
+       far edge instead of wrapping. Wrapping sent solute off the bottom
+       and back in at the top — the membrane held every ion at the heads,
+       and then one strolled across the sky anyway. In osmosis that is not
+       a cosmetic escape: "solute cannot cross" is the entire reason the
+       net flow exists, and one ion crossing unmakes the step. */
+    const far = 44;
+    if (t.y >  far) { t.y =  far; t.vy = -Math.abs(t.vy); }
+    if (t.y < -far) { t.y = -far; t.vy =  Math.abs(t.vy); }
+    t.obj.position.y = t.y;
+    return;
+  }
+
+  /* Anything that CAN cross wraps rather than being deleted: a traveller
+     that vanishes at the edge reads as being consumed, and nothing here
+     consumes anything. */
+  if (t.y > 46) t.y = -46;
+  if (t.y < -46) t.y = 46;
+  t.obj.position.y = t.y;
+  t.obj.rotation.y += dt * 0.6;
+  t.obj.rotation.x += dt * 0.4;
+}
+
+/* ---------------------------------------------------------------------
+   The steps.
+   --------------------------------------------------------------------- */
+let crossings = { up:0, down:0 };
+
+const STEPS = [
+  {
+    id:'bilayer',
+    tab:'the bilayer',
+    cap:'Two layers of lipid. <b>Heads like water; tails hide from it.</b> ' +
+        'The inside of a membrane is oil.',
+    enter() {
+      clearTravellers();
+      T.group.visible = false; showMembrane(false); setCut(false);
+      /* Water on both sides, so "heads face the water" is something on
+         screen rather than a word in the caption. */
+      for (let i = 0; i < 14; i++)
+        traveller('water', { x:rnd(-55,55), z:rnd(-11,11),
+                             y:(i % 2 ? 1 : -1) * rnd(HALF + 6, 42), vy:0, blocked:true });
+    },
+    readout: () => 'bilayer ' + (HALF * 2).toFixed(1) + ' Å thick — measured, not drawn to taste',
+  },
+
+  {
+    id:'through',
+    tab:'what gets through',
+    cap:'<b>Oily things cross. Charged things do not.</b> ' +
+        'O₂ and CO₂ dissolve straight through the tails. Na⁺ cannot.',
+    enter() {
+      clearTravellers();
+      T.group.visible = false; showMembrane(false); setCut(false);
+      for (let i = 0; i < 5; i++)
+        traveller('o2', { x:rnd(-46,-14), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
+      for (let i = 0; i < 4; i++)
+        traveller('co2', { x:rnd(-8,16), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
+      for (let i = 0; i < 5; i++)
+        traveller('NA', { x:rnd(24,52), z:rnd(-10,10),
+                          y:rnd(HALF + 5, 40), vy:-rnd(7,11), blocked:true });
+    },
+    readout: () => 'O₂ and CO₂ pass · Na⁺ turned back at the heads',
+  },
+
+  {
+    id:'osmosis',
+    tab:'osmosis',
+    cap:'<b>Water crosses both ways, always.</b> ' +
+        'Solute below holds water, so fewer free molecules are down there — ' +
+        'and more wander down than up. Nothing pulls.',
+    enter() {
+      clearTravellers();
+      T.group.visible = false; showMembrane(false); setCut(false);
+      crossings = { up:0, down:0 };
+      /* THE NET IS NOT SCRIPTED, and an earlier version of this step got
+         that wrong in the exact way LESSONS-ROADMAP.md §2 warns about: it
+         gave each water a fixed direction with a 58/42 bias, so "more goes
+         down" was typed in rather than shown, and over a long run it
+         drifted net UPWARD and contradicted its own caption.
+
+         Now every water walks at random and reads nothing. The only
+         asymmetry is the COUNT: solute below binds water, so there is less
+         free water below than above. More free molecules above means more
+         of them wander down. That is osmosis, and it is why water is never
+         "pulled toward solute".
+
+         Closed box, not wrapping: a molecule leaving the bottom and
+         reappearing at the top is not a crossing, and it made the counter
+         mean nothing. */
+      const FREE_ABOVE = 14, FREE_BELOW = 6;
+      for (let i = 0; i < FREE_ABOVE; i++)
+        traveller('water', { x:rnd(-52,52), z:rnd(-11,11), y:rnd(HALF+3, 42),
+                             walk:true, bounded:true, coreSpeed:1.0 });
+      for (let i = 0; i < FREE_BELOW; i++)
+        traveller('water', { x:rnd(-52,52), z:rnd(-11,11), y:rnd(-42, -HALF-3),
+                             walk:true, bounded:true, coreSpeed:1.0 });
+      for (let i = 0; i < 9; i++)
+        traveller('NA', { x:rnd(-48,48), z:rnd(-11,11), y:rnd(-40,-HALF-5),
+                          vy:rnd(-2,2), blocked:true, bounded:true });
+    },
+    readout: () => `water crossings — down ${crossings.down}, up ${crossings.up}, ` +
+                   `net ${crossings.down - crossings.up} downward`,
+  },
+
+  {
+    id:'channel',
+    tab:'a channel',
+    cap:'<b>A channel is a hole with a preference.</b> ' +
+        'It picks which ion, never which way — they only ever run downhill.',
+    enter() {
+      clearTravellers();
+      T.group.visible = true; showMembrane(true); setCut(true);
+      T.setGates(1, 1);                 // open through: that IS a channel
+      for (let i = 0; i < 7; i++)
+        traveller('K', { x:0, z:0, y:rnd(HALF, 44), vy:-rnd(9,14), coreSpeed:1 });
+    },
+    readout: () => 'both ends open at once — the one thing a pump never does',
+  },
+
+  {
+    id:'pump',
+    tab:'the pump',
+    cap:'',                             // pump.js writes this, per phase
+    loops:true,
+    enter() {
+      clearTravellers();
+      T.group.visible = true; showMembrane(true); setCut(true);
+      pumpT = 0;
+    },
+    readout: () => '3 Na⁺ out, 2 K⁺ in, 1 ATP — uphill, and paid for',
+  },
+];
+
+/* ---- the pump's own actors ---- */
+let pumpT = 0;
+const pumpPool = { NA: [], K: [] };
+function pumpIon(species, i) {
+  const p = pumpPool[species];
+  while (p.length <= i) { const m = Parts.ion(species); m.visible = false; L.root.add(m); p.push(m); }
+  return p[i];
+}
+function hidePumpIons() {
+  Object.values(pumpPool).forEach(list => list.forEach(m => m.visible = false));
+}
+
+/* ---- step machinery ---- */
+let cur = -1;
+STEPS.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = s.tab;
+  b.addEventListener('click', () => go(i));
+  stepsEl.appendChild(b);
+});
+
+function go(i) {
+  cur = i;
+  const s = STEPS[i];
+  hidePumpIons();
+  s.enter();
+  capEl.innerHTML = s.cap;
+  [...stepsEl.children].forEach((b, j) =>
+    j === i ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
+  L.fit();
+}
+
+function tick(dt) {
+  const s = STEPS[cur]; if (!s) return;
+
+  if (s.id === 'pump') {
+    pumpT += dt / 13;                   // seconds per cycle
+    const st = Pump.at(pumpT);
+    T.setGates(st.gates.top, st.gates.bottom);
+    hidePumpIons();
+    const used = { NA:0, K:0 };
+    for (const c of st.cargo) {
+      const m = pumpIon(c.species, used[c.species]++);
+      m.position.set(0, c.u * T.height, 0);
+      m.visible = c.alpha > .02;
+      m.material.transparent = c.alpha < 1;
+      m.material.opacity = c.alpha;
+    }
+    /* The caption is READ from the cycle. Nothing on this page can say
+       the pump is doing something the geometry is not. */
+    capEl.innerHTML = '<b>' + st.label + '</b> — ' + st.caption;
+  } else {
+    for (const t of travellers) {
+      const was = t.y;
+      advance(t, dt);
+      if (s.id === 'osmosis' && !t.blocked) {
+        if (was > 0 && t.y <= 0) crossings.down++;
+        if (was < 0 && t.y >= 0) crossings.up++;
+      }
+    }
+  }
+  readoutEl.textContent = s.readout ? s.readout() : '';
+}
+
+go(0);
+L.start();
+</script>
+</body>
+</html>
