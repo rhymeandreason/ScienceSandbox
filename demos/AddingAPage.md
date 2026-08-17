@@ -124,7 +124,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 1. **Ask the human what existing page is similar.** Copy its layout and main UI structure wholesale.
 
-2. Copy the head (fonts/icons + `sandbox.css` + the scripts you need) and the `#app` skeleton from `aminoacid-lab.html`, or `contrast-lab.html` for the no-FX, no-loop shape. **Load only the `mol-*.js` domains your page shows**, after `molecules.js` (and after `skel.js` if any needs the builder).
+2. Copy the head (fonts/icons + `sandbox.css` + the scripts you need). **Load only the `mol-*.js` domains your page shows**, after `molecules.js` (and after `skel.js` if any needs the builder).
 
 3. Add new molecules to the right `mol-*.js` — never to `molecules.js`. A molecule in the wrong domain is one some page pays for and never draws. Prefer `tools/sdf2spec.js` over typing coordinates, give it a `src:`, then run the checkers. A new domain file also goes in `MolLib.DOMAINS`. **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** (MolecularGeometry.md §1.4 rule 2) — an undeclared claim is how every sugar here spent months being the wrong enantiomer.
 
