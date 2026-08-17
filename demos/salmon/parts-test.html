@@ -86,9 +86,18 @@
  * ===================================================================== */
 
 const canvas = document.getElementById('c');
-const S = Stage.create(canvas, { cam:{theta:.55, phi:1.5, r:120}, rMin:30, rMax:400 });
+/* theta 0 puts the camera on +z, square to the slab — the cut face is then
+   facing the viewer rather than raking away from it. */
+const S = Stage.create(canvas, { cam:{theta:0, phi:1.5, r:145}, rMin:30, rMax:400 });
 const Clip = ClipLib.create({ renderer:S.renderer });
-const plane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
+/* Cut along the slab's THIN axis, not its length.
+   membrane() lays the bilayer out along x and keeps it shallow in z, so a
+   plane with an x normal slices it lengthwise — half the membrane vanishes
+   and what is left is a stub beside the protein. The cross-section every
+   textbook draws is the other one: cut through z, keep the far half, and
+   the bilayer stays full width with the machine opened in the middle of it.
+   Normal is -z so the half nearer the camera (at +z) is the half removed. */
+const plane = new THREE.Plane(new THREE.Vector3(0,0,-1), 0);
 
 const HALF = 15.3;                    // the bilayer bake-pump.js measured
 let T = null, mem = null, ionMesh = null, cutSec = null;
