@@ -54,7 +54,18 @@
     padding:9px 17px;font-family:var(--font-sans);font-size:12.5px;color:var(--muted)}
   #twistbar.on{display:flex}
   #twistbar input{width:min(340px,34vw);accent-color:var(--ink)}
-  #twistbar #twistread{font-family:var(--font-slab);color:var(--ink);min-width:104px}
+  #twistbar label{flex:none}
+
+  /* THE READOUT IS NOT IN THE BAR. Its text changes length on every frame of a
+     drag — '34° per rung' against '19° per rung, winding up the strand ·
+     backbone stretched 11.2×' — and inside a flex row that re-lays the row out
+     under the cursor, so the slider shifts while it is being dragged. Out here
+     it is centred over the bar and can say anything it likes. */
+  #twistread{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);
+    z-index:7;display:none;white-space:nowrap;
+    font-family:var(--font-slab);font-size:12.5px;color:var(--ink);
+    background:var(--paper);padding:3px 12px;border-radius:7px}
+  #twistread.on{display:block}
 
   /* A base's name, pinned to the molecule it belongs to every frame. */
   .tag{position:absolute;z-index:5;pointer-events:none;transform:translate(-50%,0);
@@ -80,8 +91,8 @@
       <label>Ladder</label>
       <input id="twist" type="range" min="0" max="1000" value="1000">
       <label>Helix</label>
-      <span id="twistread"></span>
     </div>
+    <div id="twistread"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
   </div>
 </div>
@@ -744,6 +755,7 @@ function showStep(n){
   for(const b of bases) b.tag.style.display = (n === 1) ? '' : 'none';
   for(const r of rulers) r.label.style.display = 'none';
   twistBar.classList.toggle('on', n === 4);
+  document.getElementById('twistread').classList.toggle('on', n === 4);
 
   if(n === 4) setTwist(+twistEl.value / 1000);
   L.fit();
