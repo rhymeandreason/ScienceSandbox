@@ -289,6 +289,10 @@
 
     return {
       group, mesh, setGates, geometry: geo,
+      /* Half-height, so a caller working in pump.js's normalised u (-1 at
+         the inner mouth, +1 at the outer) can place an ion without knowing
+         how this shape was built or hard-coding an angstrom. */
+      height: H,
       get gates() { return { top: gTop, bottom: gBot }; },
       /* The page needs to know where the ion belongs. This is the pocket
          centre, in the transporter's own frame — mid-membrane, on axis. */

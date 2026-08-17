@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pump-test — one ATP, three out, two in</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #wrap { display:grid; grid-template-columns:1fr 372px; height:100vh; }
+  #stage { position:relative; min-width:0; }
+  canvas { width:100%; height:100%; display:block; }
+  #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(0,0,0,.12); }
+  .grp { margin-bottom:16px; }
+  .hd { font-weight:600; margin-bottom:6px; }
+  label { display:block; margin:7px 0; font-size:14px; }
+  input[type=range] { width:100%; }
+  button { margin:0 6px 6px 0; }
+  p.note { font-size:13px; opacity:.8; line-height:1.45; }
+  #phase { font-weight:600; font-size:15px; }
+  #caption { min-height:3.2em; }
+  #ledger { font-size:13px; opacity:.75; }
+  ol.steps { padding-left:20px; margin:6px 0; font-size:13px; }
+  ol.steps li { opacity:.42; cursor:pointer; }
+  ol.steps li.on { opacity:1; font-weight:600; }
+  @media (max-width:920px){ #wrap{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="panel">
+    <h1 style="font-size:17px">the sodium pump, running</h1>
+    <p class="note">
+      Outside the cell is up. The cycle is
+      <code>salmon/pump.js</code>; the shape is <code>parts.js</code>.
+      The gates come from the cycle — the picture cannot disagree with it.
+    </p>
+
+    <div class="grp">
+      <p id="phase"></p>
+      <p class="note" id="caption"></p>
+      <ol class="steps" id="steps"></ol>
+    </div>
+
+    <div class="grp">
+      <div class="hd">drive it</div>
+      <button type="button" id="play">pause</button>
+      <label>cycle <output id="tv"></output>
+        <input id="t" type="range" min="0" max="1000" value="0"></label>
+      <label>seconds per cycle <output id="sv"></output>
+        <input id="speed" type="range" min="4" max="30" value="14"></label>
+    </div>
+
+    <div class="grp">
+      <div class="hd">show</div>
+      <label><input id="cuton" type="checkbox" checked> cut it open</label>
+      <label><input id="memon" type="checkbox" checked> membrane</label>
+      <p id="ledger"></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="parts.js"></script>
+<script src="pump.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  pump-test.html — does the mechanism read when it runs?
+ *
+ *  Three separate things meet here and each owns exactly one job:
+ *    pump.js    what is happening, as a function of time
+ *    parts.js   what that looks like
+ *    this page  the clock, the camera, and the words
+ *
+ *  Nothing on this page decides when a gate opens. If the caption and
+ *  the geometry ever disagree it is because they were read from
+ *  different times, not because someone typed a state twice — which is
+ *  the failure this arrangement exists to make impossible.
+ *
+ *  The ATP is a placeholder sphere, deliberately. kit/carriers.js already
+ *  owns ATP/ADP as one molecule with two states and a phosphate that
+ *  flies; wiring it in is the next step, and drawing a second, worse ATP
+ *  here first would be the exact duplication that module exists to stop.
+ * ===================================================================== */
+
+const canvas = document.getElementById('c');
+const S = Stage.create(canvas, { cam:{theta:0, phi:1.5, r:135}, rMin:40, rMax:400 });
+/* No clip.js here: these shapes are simple enough that a plain clipping
+   plane with DoubleSide reads correctly. clip.js's stencil cap earns its
+   keep on the 160k-triangle real surface, not on a lathe.
+
+   But localClippingEnabled comes WITH clip.js normally, and without it
+   every clippingPlanes assignment on this page is silently ignored — the
+   protein renders whole, the ions vanish inside it, and nothing warns.
+   That is the first trap in clip.js's header, met here by not loading it. */
+S.renderer.localClippingEnabled = true;
+
+const HALF = 15.3;
+
+const mem = Parts.membrane({ half:HALF, exclude:(x,z) => Math.hypot(x,z) - 15.0 });
+S.root.add(mem.group);
+
+const T = Parts.transporter({ half:HALF });
+S.root.add(T.group);
+
+/* Ion meshes are POOLED, not rebuilt: the cycle hands back a different
+   number of ions at different moments, and allocating a sphere per frame
+   would churn geometry sixty times a second for a scene with five of them. */
+const pool = { NA: [], K: [] };
+function ionFor(species, i) {
+  const p = pool[species];
+  while (p.length <= i) {
+    const m = Parts.ion(species);
+    m.visible = false;
+    S.root.add(m);
+    p.push(m);
+  }
+  return p[i];
+}
+
+/* The phosphate: one sphere that lives on the ATP until it is handed over,
+   then rides on the pump. Its whole job is to make "the pump is carrying
+   it" visible, because that is the causal link — phosphorylation is what
+   turns the pump around. */
+const PHOS_COLOR = 0xef8a3c;
+const phos = new THREE.Mesh(new THREE.SphereGeometry(2.2, 18, 12), Parts.flat(PHOS_COLOR));
+S.root.add(phos);
+/* The phosphate starts on the ATP's SHOULDER, not at its centre — sitting
+   at the centre it is drawn inside the ATP sphere and simply never seen,
+   which makes the handover look like a sphere appearing from nowhere. */
+const ATP_AT  = new THREE.Vector3(28, -30, 0);      // the ATP body, cytoplasmic side
+const PHOS_AT = new THREE.Vector3(24, -26, 0);      // its terminal phosphate
+const PUMP_AT = new THREE.Vector3(8, -19, 0);       // the headpiece, where it lands
+const atpBody = new THREE.Mesh(new THREE.SphereGeometry(5.0, 20, 14), Parts.flat(0xb9a7d8));
+atpBody.position.copy(ATP_AT);
+S.root.add(atpBody);
+
+/* ---- the steps list, built from the cycle so it cannot drift ---- */
+const stepsEl = document.getElementById('steps');
+Pump.PHASES.forEach((p, i) => {
+  const li = document.createElement('li');
+  li.textContent = p.label;
+  li.dataset.i = i;
+  li.addEventListener('click', () => { jumpToPhase(i); });
+  stepsEl.appendChild(li);
+});
+function jumpToPhase(i) {
+  let acc = 0;
+  for (let j = 0; j < i; j++) acc += Pump.PHASES[j].w;
+  playing = false; syncPlay();
+  tSlider.value = Math.round((acc / Pump.TOTAL) * 1000) + 6;
+}
+
+/* ---- controls ---- */
+const tSlider = document.getElementById('t'), tv = document.getElementById('tv');
+const speed = document.getElementById('speed'), sv = document.getElementById('sv');
+const playBtn = document.getElementById('play');
+const cuton = document.getElementById('cuton'), memon = document.getElementById('memon');
+let playing = true;
+
+playBtn.addEventListener('click', () => { playing = !playing; syncPlay(); });
+function syncPlay() { playBtn.textContent = playing ? 'pause' : 'play'; }
+tSlider.addEventListener('input', () => { playing = false; syncPlay(); });
+cuton.addEventListener('change', applyCut);
+memon.addEventListener('change', () => mem.group.visible = memon.checked);
+
+function applyCut() {
+  const on = cuton.checked;
+  mem.cut.enable(on);
+  T.mesh.material.clippingPlanes = on ? [mem.cut.plane] : [];
+  T.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
+  T.mesh.material.needsUpdate = true;
+}
+applyCut();
+syncPlay();
+
+/* ---- render one instant of the cycle ---- */
+function render(t) {
+  const s = Pump.at(t);
+
+  T.setGates(s.gates.top, s.gates.bottom);
+
+  /* Ions. Hide the whole pool first, then show what this instant has —
+     simpler than diffing, and with five ions the cost is nothing. */
+  Object.values(pool).forEach(list => list.forEach(m => m.visible = false));
+  const used = { NA:0, K:0 };
+  for (const c of s.cargo) {
+    const m = ionFor(c.species, used[c.species]++);
+    m.position.set(0, c.u * T.height, 0);
+    m.visible = c.alpha > .02;
+    m.material.transparent = c.alpha < 1;
+    m.material.opacity = c.alpha;
+  }
+
+  /* The phosphate rides from ATP to pump on `transfer`. */
+  const f = s.phosphate.transfer;
+  phos.position.lerpVectors(PHOS_AT, PUMP_AT, f);
+  phos.visible = true;
+  /* ATP pale once it has handed the phosphate over — same idea as
+     carriers.js's charged/discharged, standing in until it is wired up. */
+  atpBody.material.color.setHex(s.phosphate.atp === 'charged' ? 0xb9a7d8 : 0xd9d4e4);
+
+  document.getElementById('phase').textContent = s.label;
+  document.getElementById('caption').textContent = s.caption;
+  document.getElementById('ledger').textContent =
+    `per cycle: ${s.naPerCycle} Na⁺ out, ${s.kPerCycle} K⁺ in, ${s.atpPerCycle} ATP. ` +
+    `Three charges out against two in — the inside ends up negative.`;
+  tv.textContent = (s.t * 100).toFixed(0) + '%';
+
+  [...stepsEl.children].forEach(li =>
+    li.classList.toggle('on', Pump.PHASES[+li.dataset.i].id === s.phase));
+}
+
+let last = performance.now();
+(function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = (now - last) / 1000; last = now;
+  const period = +speed.value;
+  sv.textContent = period + 's';
+  if (playing) {
+    let v = +tSlider.value + (dt / period) * 1000;
+    tSlider.value = ((v % 1000) + 1000) % 1000;
+  }
+  render(+tSlider.value / 1000);
+  S.renderer.render(S.scene, S.camera);
+})(last);
+S.resize();
+</script>
+</body>
+</html>
