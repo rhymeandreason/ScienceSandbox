@@ -153,20 +153,28 @@ function placeCentre(b, at, quat){
  * actual rule.
  *
  * The angles are still solved, not typed. For each pair, dna/pairing.js gives
- * the partner's pose relative to the purine; from that comes the axis the two
- * centres lie on, and everything is turned so that axis is horizontal with the
- * pyrimidine on the left and the purine on the right — the orientation every
- * textbook draws these in. Re-bake a spec and the layout follows it. */
+ * the partner's pose relative to the purine; from that comes the axis, and
+ * everything is turned so that axis is horizontal with the pyrimidine on the
+ * left and the purine on the right — the orientation every textbook draws.
+ *
+ * THE AXIS IS N9→N1, NOT CENTROID TO CENTROID. Both put the pair on its side,
+ * but only the glycosidic one is a fact about the chemistry: those are the two
+ * atoms the sugars attach to, so levelling them is what makes the backbone
+ * run straight and what lets the ruler be horizontal while still measuring
+ * the real distance. The centroid axis sits 5.3° off it — enough to leave the
+ * rung measurement visibly askew, and off in a direction that means nothing. */
 function setStartPose(purineKey, pyrimidineKey){
   const a = bases.find(b => b.key === purineKey);
   const p = bases.find(b => b.key === pyrimidineKey);
   const t = latchWorldFrom(a, p, new THREE.Quaternion(), new THREE.Vector3());
   if(!t) return;
 
-  // Where the two centres sit in that solved pose, and the axis between them.
-  const ca = a.centre.clone();
-  const cp = p.centre.clone().applyQuaternion(t.quat).add(t.pos);
-  const axis = cp.clone().sub(ca);
+  // The glycosidic nitrogens in that solved pose, and the axis between them.
+  const gi = k => k.spec.names.indexOf(RULER_N[k.key]);
+  const ga = new THREE.Vector3(...a.spec.atoms[gi(a)].pos);
+  const gp = new THREE.Vector3(...p.spec.atoms[gi(p)].pos)
+    .applyQuaternion(t.quat).add(t.pos);
+  const axis = gp.clone().sub(ga);
   // Turn the whole pair so the pyrimidine ends up due LEFT of the purine.
   const R = new THREE.Quaternion().setFromAxisAngle(
     new THREE.Vector3(0,0,1), Math.PI - Math.atan2(axis.y, axis.x));
@@ -410,38 +418,30 @@ function placeRulers(){
     const pyr = pur === p ? p.partner : p;
     const A = glycosidic(pur), B = glycosidic(pyr);
 
-    /* WHERE THE DIMENSION LINE GOES, decided by the atoms rather than guessed.
-     * The first version offset it along "midpoint of the two nitrogens minus
-     * midpoint of the two bases", which is nearly a zero-length vector — the
-     * two midpoints almost coincide — so the direction was noise and the line
-     * landed 0.7 Å from a heavy atom, i.e. straight through the rings.
+    /* A DIMENSION LINE IS HORIZONTAL, FULL STOP. It is a drawing convention,
+     * and a measurement that tilts to follow its subject reads as part of the
+     * subject. Held level, it reads as an annotation about the subject.
      *
-     * Instead: run perpendicular to the span, on whichever side the pair
-     * extends LESS far, and push out past the furthest atom on that side. A
-     * drawn measurement that crosses the thing it measures is not a
-     * measurement, and this cannot cross it whatever pose the pair is in. */
-    const axis = B.clone().sub(A).normalize();
-    const perp = axis.clone().cross(new THREE.Vector3(0,0,1)).normalize();
-    const mid  = A.clone().add(B).multiplyScalar(0.5);
+     * This costs nothing here because setStartPose levels the N9→N1 axis
+     * itself, so the horizontal span and the true separation are the same
+     * number — the ruler is not projecting anything away. It is drawn under
+     * the pair, below the lowest atom, so it cannot cross what it measures.
+     */
     const heavy = [p, p.partner].flatMap(x => x.spec.atoms
-      .map((at, k) => ({ at, k }))
-      .filter(o => o.at.el !== 'H')
-      .map(o => new THREE.Vector3(...o.at.pos)
+      .filter(at => at.el !== 'H')
+      .map(at => new THREE.Vector3(...at.pos)
         .applyQuaternion(x.mol.quaternion).add(x.mol.position)));
-    let best = null;
-    for(const sgn of [1, -1]){
-      const dir = perp.clone().multiplyScalar(sgn);
-      const reach = Math.max(...heavy.map(v => v.clone().sub(mid).dot(dir)));
-      if(!best || reach < best.reach) best = { dir, reach };
-    }
-    const out = best.dir.clone().multiplyScalar(Math.max(best.reach, 0) + 2.2);
-    const a2 = A.clone().add(out), b2 = B.clone().add(out);
+    // Below the lowest atom AND below the name tags, which hang under each
+    // molecule in PIXELS — so the clearance is converted, not guessed, and it
+    // survives a zoom or a resize instead of colliding at some other size.
+    const tagPx = 30;
+    const y0 = Math.min(...heavy.map(v => v.y)) - tagPx * L.worldPerPx() - 1.4;
+    const a2 = new THREE.Vector3(A.x, y0, 0), b2 = new THREE.Vector3(B.x, y0, 0);
 
     span(r.parts.line, a2, b2);
     span(r.parts.e1, A, a2);
     span(r.parts.e2, B, b2);
-    const tick = b2.clone().sub(a2).normalize()
-                   .cross(new THREE.Vector3(0,0,1)).multiplyScalar(0.42);
+    const tick = new THREE.Vector3(0, 0.42, 0);
     span(r.parts.t1, a2.clone().sub(tick), a2.clone().add(tick));
     span(r.parts.t2, b2.clone().sub(tick), b2.clone().add(tick));
 
@@ -457,14 +457,28 @@ function placeRulers(){
 /* ---- name tags, pinned to their molecules -------------------------------- */
 // In afterFrame, never frame: Vector3.project reads a matrix refreshed only on
 // render, so a tag positioned before it is pinned to the previous frame.
-const _v = new THREE.Vector3();
+const _v = new THREE.Vector3(), _lo = new THREE.Vector3();
+/* Hang the tag under the molecule's LOWEST ATOM, not under a radius drawn
+ * about its centre. `reach` is the distance to the furthest atom in any
+ * direction, so on a wide flat base it is much larger than the drop to the
+ * bottom edge — the tag ended up level with the ruler and sat on the line. */
+function lowestOf(b){
+  let best = null;
+  for(const a of b.spec.atoms){
+    _lo.set(...a.pos).applyQuaternion(b.mol.quaternion).add(b.mol.position);
+    if(!best || _lo.y < best.y) best = _lo.clone();
+  }
+  return best;
+}
 function placeTags(){
   const r = canvas.getBoundingClientRect();
   for(const b of bases){
+    const lo = lowestOf(b);
     _v.copy(centreOf(b)).project(L.camera);
-    b.tag.style.left = ((_v.x*0.5+0.5) * r.width) + 'px';
-    b.tag.style.top  = ((-_v.y*0.5+0.5) * r.height
-                        + b.reach / L.worldPerPx() + 6) + 'px';
+    const x = (_v.x*0.5+0.5) * r.width;
+    _v.copy(lo).project(L.camera);
+    b.tag.style.left = x + 'px';
+    b.tag.style.top  = ((-_v.y*0.5+0.5) * r.height + 8) + 'px';
   }
 }
 
