@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!-- Internal browsing page for all lesson/prototype/test pages. Not linked from the
+     public index; status labels sourced from CLAUDE.md's page table — update both
+     when a page's status changes. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — all pages</title>
+<style>
+  :root {
+    --paper: #faf8f4;
+    --ink: #14161a;
+    --muted: #6d6f76;
+    --line: #e4e0d7;
+    --card: #ffffff;
+    --accent: #1f5f4f;
+    --spark: #e2643a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    padding: 2.5rem clamp(1rem, 4vw, 3rem) 5rem;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 0.25rem;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+  }
+  h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.5rem;
+    margin: 2.5rem 0 1rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+  }
+  a.card {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color 0.15s;
+  }
+  a.card:hover { border-color: var(--accent); }
+  a.card.hidden { display: none; }
+  .path {
+    font-family: ui-monospace, monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  .featured .badge { background: #e6efe9; color: var(--accent); }
+  .prototype .badge { background: #fdece3; color: var(--spark); }
+  .reference .badge, .test .badge { background: #ececec; color: var(--muted); }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 2.5rem;
+  }
+  .chip {
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: var(--card);
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--ink); }
+  .chip.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .chips + .chips { margin-top: -1.5rem; }
+  section.topic.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>All pages</h1>
+  <p class="sub">Internal index — not linked from the public site. Grouped by topic; badge is status per <code>CLAUDE.md</code>.</p>
+
+  <div class="chips" id="statusChips">
+    <button class="chip active" data-status="all">All</button>
+    <button class="chip" data-status="featured">Featured</button>
+    <button class="chip" data-status="prototype">Prototype</button>
+    <button class="chip" data-status="reference">Reference</button>
+    <button class="chip" data-status="test">Test</button>
+    <button class="chip" data-status="other">Other</button>
+  </div>
+
+  <div class="chips" id="topicChips">
+    <button class="chip active" data-topic="all">All topics</button>
+    <button class="chip" data-topic="water">Water</button>
+    <button class="chip" data-topic="bonding">Bonding</button>
+    <button class="chip" data-topic="hemoglobin">Hemoglobin</button>
+    <button class="chip" data-topic="glycolysis">Glycolysis</button>
+    <button class="chip" data-topic="membrane">Membrane &amp; coupling</button>
+    <button class="chip" data-topic="rendering">Rendering</button>
+    <button class="chip" data-topic="kit">Kit</button>
+  </div>
+
+  <section class="topic" data-topic="water">
+    <h2>Water &amp; solvation</h2>
+    <div class="grid">
+      <a class="card featured" href="water-lab.html">
+        <div class="path">water-lab.html <span class="badge">featured</span></div>
+        <div class="desc">Structure of water → universal solvent</div>
+      </a>
+      <a class="card prototype" href="molecule-lab.html">
+        <div class="path">molecule-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Dissolving sandbox: polar/nonpolar/ionic, CO₂ → bicarbonate</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="bonding">
+    <h2>Bonding &amp; molecule building</h2>
+    <div class="grid">
+      <a class="card featured" href="molecule-builder.html">
+        <div class="path">molecule-builder.html <span class="badge">featured</span></div>
+        <div class="desc">Build a bond by hand: valence, geometry, charge</div>
+      </a>
+      <a class="card prototype" href="aminoacid-lab.html">
+        <div class="path">aminoacid-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Build a peptide by dehydration synthesis</div>
+      </a>
+      <a class="card prototype" href="contrast-lab.html">
+        <div class="path">contrast-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Spot the difference: six near-identical molecule pairs</div>
+      </a>
+      <a class="card prototype" href="macromolecule-lab.html">
+        <div class="path">macromolecule-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Four macromolecule classes side by side, true relative size</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="hemoglobin">
+    <h2>Protein folding, hemoglobin &amp; sickle cell</h2>
+    <div class="grid">
+      <a class="card featured" href="hemoglobin-lab.html">
+        <div class="path">hemoglobin-lab.html <span class="badge">featured</span></div>
+        <div class="desc">Protein structure, all four levels, on one molecule</div>
+      </a>
+      <a class="card reference" href="folding-lab-ribbon.html">
+        <div class="path">folding-lab-ribbon.html <span class="badge">reference</span></div>
+        <div class="desc">Levels 1→3 on villin — superseded by hemoglobin-lab</div>
+      </a>
+      <a class="card reference" href="folding-lab.html">
+        <div class="path">folding-lab.html <span class="badge">reference</span></div>
+        <div class="desc">Earlier folding lesson</div>
+      </a>
+      <a class="card test" href="folding/ribbon-test.html">
+        <div class="path">folding/ribbon-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for folding/ribbon.js</div>
+      </a>
+      <a class="card test" href="hemoglobin/tube-test.html">
+        <div class="path">hemoglobin/tube-test.html <span class="badge">test</span></div>
+        <div class="desc">Plain-tube abstraction below the ribbon cartoon</div>
+      </a>
+      <a class="card test" href="hemoglobin/crowd-test.html">
+        <div class="path">hemoglobin/crowd-test.html <span class="badge">test</span></div>
+        <div class="desc">Rendering behavior of multiple hemoglobin molecules together</div>
+      </a>
+      <a class="card test" href="hemoglobin/surface-test.html">
+        <div class="path">hemoglobin/surface-test.html <span class="badge">test</span></div>
+        <div class="desc">SES molecular surface, offline-baked, HbA vs HbS toggle</div>
+      </a>
+      <a class="card test" href="hemoglobin/hemoglobin-inhouse.html">
+        <div class="path">hemoglobin/hemoglobin-inhouse.html <span class="badge">test</span></div>
+        <div class="desc">Mol* evaluation — same hemoglobin, our renderer</div>
+      </a>
+      <a class="card test" href="sickle/fibre-test.html">
+        <div class="path">sickle/fibre-test.html <span class="badge">test</span></div>
+        <div class="desc">HbS fibre structure test, with SES surface render</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="glycolysis">
+    <h2>Glycolysis &amp; mass action</h2>
+    <div class="grid">
+      <a class="card featured" href="glycolysis-lab.html">
+        <div class="path">glycolysis-lab.html <span class="badge">featured</span></div>
+        <div class="desc">Ten steps in five stages, everything as molecules</div>
+      </a>
+      <a class="card test" href="massaction/massaction-test.html">
+        <div class="path">massaction/massaction-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for massaction/massaction.js</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="membrane">
+    <h2>Membrane transport &amp; energy coupling</h2>
+    <div class="grid">
+      <a class="card test" href="diffusion/diffusion-test.html">
+        <div class="path">diffusion/diffusion-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for diffusion/diffusion.js</div>
+      </a>
+      <a class="card test" href="coupling/coupling-test.html">
+        <div class="path">coupling/coupling-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for coupling/coupling.js</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="rendering">
+    <h2>Molecule rendering reference</h2>
+    <div class="grid">
+      <a class="card prototype" href="molecule-viewer.html">
+        <div class="path">molecule-viewer.html <span class="badge">prototype</span></div>
+        <div class="desc">Reference shelf: ATP, NADH — 3D / skel / flat2d / diagram</div>
+      </a>
+      <a class="card other" href="viewer-compare.html">
+        <div class="path">viewer-compare.html</div>
+        <div class="desc">Viewer comparison</div>
+      </a>
+      <a class="card other" href="_compare.html">
+        <div class="path">_compare.html</div>
+        <div class="desc">Compare page</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="kit">
+    <h2>Shared kit (infra test bench)</h2>
+    <div class="grid">
+      <a class="card test" href="kit/kit-test.html">
+        <div class="path">kit/kit-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for kit/ — timeline, highlight vocab, camera fit</div>
+      </a>
+    </div>
+  </section>
+</div>
+
+<script>
+  var statusChips = document.querySelectorAll('#statusChips .chip');
+  var topicChips = document.querySelectorAll('#topicChips .chip');
+  var topics = document.querySelectorAll('.topic');
+
+  var activeStatus = 'all';
+  var activeTopic = 'all';
+
+  function applyFilters() {
+    topics.forEach(function (topic) {
+      var topicMatches = activeTopic === 'all' || topic.dataset.topic === activeTopic;
+      var cards = topic.querySelectorAll('.card');
+      var anyVisible = false;
+      cards.forEach(function (card) {
+        var statusMatches = activeStatus === 'all' || card.classList.contains(activeStatus);
+        var show = topicMatches && statusMatches;
+        card.classList.toggle('hidden', !show);
+        if (show) anyVisible = true;
+      });
+      topic.classList.toggle('hidden', !anyVisible);
+    });
+  }
+
+  statusChips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      statusChips.forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      activeStatus = chip.dataset.status;
+      applyFilters();
+    });
+  });
+
+  topicChips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      topicChips.forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      activeTopic = chip.dataset.topic;
+      applyFilters();
+    });
+  });
+</script>
+</body>
+</html>
