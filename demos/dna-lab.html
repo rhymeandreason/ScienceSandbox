@@ -32,6 +32,30 @@
   #app{grid-template-columns:1fr}
   #stage{grid-column:1}
 
+  /* Step nav — a rail down the left, out of the way of the molecules. */
+  #steps{position:absolute;left:20px;top:50%;transform:translateY(-50%);z-index:7;
+    display:flex;flex-direction:column;gap:9px}
+  #steps button{display:flex;align-items:center;gap:10px;cursor:pointer;
+    font-family:var(--font-sans);font-size:12.5px;font-weight:600;text-align:left;
+    padding:8px 13px 8px 9px;border-radius:10px;width:172px;
+    border:2px solid transparent;background:transparent;color:var(--muted)}
+  #steps button .n{display:grid;place-items:center;width:21px;height:21px;flex:none;
+    border-radius:50%;border:1.5px solid currentColor;
+    font-family:var(--font-slab);font-size:11px}
+  #steps button:hover:not(:disabled){color:var(--ink);background:rgba(0,0,0,.04)}
+  #steps button[aria-current="true"]{color:var(--ink);border-color:var(--ink);
+    background:rgba(255,255,255,.62)}
+  #steps button:disabled{opacity:.38;cursor:default}
+
+  /* The twist control, shown only on the step that has one. */
+  #twistbar{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:7;
+    display:none;align-items:center;gap:12px;
+    background:rgba(255,255,255,.82);border:2px solid var(--ink);border-radius:10px;
+    padding:9px 17px;font-family:var(--font-sans);font-size:12.5px;color:var(--muted)}
+  #twistbar.on{display:flex}
+  #twistbar input{width:min(340px,34vw);accent-color:var(--ink)}
+  #twistbar #twistread{font-family:var(--font-slab);color:var(--ink);min-width:104px}
+
   /* A base's name, pinned to the molecule it belongs to every frame. */
   .tag{position:absolute;z-index:5;pointer-events:none;transform:translate(-50%,0);
     font-family:var(--font-slab);font-size:13px;letter-spacing:.4px;color:var(--ink);
@@ -51,6 +75,13 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
+    <nav id="steps"></nav>
+    <div id="twistbar">
+      <label>Ladder</label>
+      <input id="twist" type="range" min="0" max="1000" value="1000">
+      <label>Helix</label>
+      <span id="twistread"></span>
+    </div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
   </div>
 </div>
@@ -68,6 +99,7 @@
 <script src="kit/hbond.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="dna/pairing.js"></script>
+<script src="dna/data/bdna.js"></script>
 <script>
 "use strict";
 
@@ -87,23 +119,32 @@ const un = s => ({ ...s, atoms:s.atoms.map(a=>({el:a.el,pos:a.pos.map(v=>v/S)}))
  * flat view, so the molecular plane stays the plane. */
 const flat = s => ({ ...s, view:null });
 
+// Which step is on stage. Declared up here because the camera's `boxes` and
+// `afterFrame` callbacks read it, and those are handed to Lesson.create long
+// before the nav below is built.
+let step = 1;
+
 const L = Lesson.create(document.getElementById('gl'), {
-  cam:{ theta:0, phi:1.5708, r:34 }, rMax:160,
+  cam:{ theta:0, phi:1.5708, r:34 }, rMax:400,
   // NO ORBIT — the drag moves a molecule, and the pointer is projected onto
   // the z=0 plane the bases live in, which only means anything face-on.
   orbit:false,
-  boxes:()=>[{ x:0, y:0, rxz:26, hy:17 }],
-  afterFrame:()=>{ placeTags(); placeRulers(); },      // projection reads a matrix refreshed on render
+  boxes:()=>step === 4 ? [{ x:0, y:0, rxz:16, hy:44 }]
+                       : [{ x:0, y:0, rxz:26, hy:17 }],
+  afterFrame:()=>{ if(step === 1){ placeTags(); placeRulers(); } },      // projection reads a matrix refreshed on render
 });
 
 // Two bond layers, because opacity is a property of the MATERIAL and the page
 // needs to draw two kinds at once: a satisfied pair solid, an incidental
 // contact faint. One instance each is cheaper and clearer than per-bond
 // materials.
+const G1 = new THREE.Group();          // everything belonging to step 1
+L.root.add(G1);
+
 const HBpair = HBond.create(THREE, { color:MolLib.PALETTE.bonds.hbond });
 const HBnear = HBond.create(THREE, { color:MolLib.PALETTE.bonds.hbond });
 HBnear.material.opacity = 0.28;
-L.root.add(HBpair.group); L.root.add(HBnear.group);
+G1.add(HBpair.group); G1.add(HBnear.group);
 
 /* ---- the four bases ------------------------------------------------------ */
 // Row centres. Each pair is laid out along its own row, already turned the
@@ -125,7 +166,7 @@ const bases = KEYS.map(key => {
   // rather than sitting on top of the atoms.
   const reach = spec.atoms.reduce((r,a)=>
     Math.max(r, new THREE.Vector3(...a.pos).distanceTo(centre)), 0) + 1.1;
-  L.root.add(mol);
+  G1.add(mol);
 
   const tag = document.createElement('div');
   tag.className = 'tag';
@@ -245,6 +286,7 @@ function unpair(b){
 }
 
 canvas.addEventListener('pointerdown', e => {
+  if(step !== 1) return;
   const w = toWorld(e);
   const near = bases.map(b => ({ b, d:w.distanceTo(centreOf(b)) }))
                     .filter(x => x.d < 7).sort((x,y) => x.d - y.d)[0];
@@ -392,7 +434,7 @@ function makeRuler(){
   return { g, parts, label };
 }
 const rulers = [makeRuler(), makeRuler()];   // at most two pairs on stage
-rulers.forEach(r => L.root.add(r.g));
+rulers.forEach(r => G1.add(r.g));
 
 const _rd = new THREE.Vector3();
 const UPY = new THREE.Vector3(0,1,0);
@@ -482,9 +524,223 @@ function placeTags(){
   }
 }
 
+
+/* =============================================================================
+ *  STEP 4 — the ladder and the helix, one molecule
+ * =============================================================================
+ *  Everything here is 1BNA (dna/data/bdna.js, baked by dna/bake-ladder.js).
+ *  Each base pair is built ONCE from its atoms in its own frame, then placed
+ *  twice: the deposited helix, and the same pairs with the twist set to zero.
+ *  The slider interpolates the PLACEMENTS — slerp the rotation, lerp the
+ *  origin — so every pair stays rigid at every value. Nothing deforms; the
+ *  arrangement is the only thing that changes, which is the claim.
+ *
+ *  The grooves are therefore not drawn. They appear because a twisted ladder
+ *  has gaps of two different sizes between its rails, and disappear when the
+ *  twist comes out. That is the entire argument of the step.
+ * ========================================================================== */
+const G4 = new THREE.Group();
+G4.visible = false;
+L.root.add(G4);
+
+const bdna = window.BDNA;
+const rungs = bdna.pairs.map(p => {
+  // A pseudo-spec, so the pair renders through the same atom/bond code as
+  // every other molecule in this repo rather than a private renderer.
+  const spec = { name:p.seq, units:'scene', view:null,
+    atoms: p.atoms.map(a => ({ el:a.el, pos:a.p.map(v => v * S) })),
+    bonds: p.bonds };
+  const mol = Stage.buildMolecule(spec, { center:false });
+  G4.add(mol);
+
+  // The helix placement, read off the baked basis. Columns of the rotation are
+  // the pair's own axes, which is exactly what makeBasis wants.
+  const m = new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(...p.basis[0]),
+    new THREE.Vector3(...p.basis[1]),
+    new THREE.Vector3(...p.basis[2]));
+  return { p, mol,
+    helixQ: new THREE.Quaternion().setFromRotationMatrix(m),
+    helixP: new THREE.Vector3(...p.origin).multiplyScalar(S),
+    ladderQ: new THREE.Quaternion(),                       // squared up
+    ladderP: new THREE.Vector3(...p.ladder).multiplyScalar(S),
+    bearing: Math.atan2(p.basis[0][2], p.basis[0][0]),     // long axis in XZ
+    // the same helix origin in cylindrical terms, for the unwind above
+    helixR:   Math.hypot(p.origin[0], p.origin[2]) * S,
+    helixPhi: Math.atan2(p.origin[2], p.origin[0]) };
+});
+
+/* The phosphodiester bonds run BETWEEN base pairs, so they belong to no pair
+ * and have to be redrawn as the pairs move. Without them the ladder is twelve
+ * floating rungs and the grooves have no rails to be gaps between. */
+/* THE BACKBONE TEARS, AND THE PAGE SAYS SO.
+ *
+ * Every base pair here is rigid, so untwisting can only be done by moving the
+ * pairs — and when it is, the O3′→P bonds between them stretch from 1.6 Å to
+ * nearly 9. That is not an artefact to hide behind a fade-out. It is the
+ * answer to a question the textbook picture never raises: DNA is drawn as a
+ * "twisted ladder", and a real ladder is IMPOSSIBLE. The backbone has a fixed
+ * length per residue and cannot span a straight stack of pairs 3.5 Å apart.
+ * Winding is how it reconciles the two — the helix is not decoration on a
+ * ladder, it is the only way the thing can be built.
+ *
+ * (Checked, not assumed: there is no rise that keeps these bonds intact in a
+ * straight stack. The best fit leaves a 2.7 Å rms error, because relieving the
+ * strain needs the backbone TORSIONS to change and a rigid pair cannot do it.)
+ *
+ * So a stretched bond is drawn stretched — thinning and fading as it goes,
+ * which reads as strain without inventing a colour that means something else
+ * in SCIENCE.md §5. */
+const linkGeo = new THREE.CylinderGeometry(0.16, 0.16, 1, 7);
+const linkMesh = bdna.links.map(() => {
+  const m = new THREE.Mesh(linkGeo, new THREE.MeshStandardMaterial(
+    { color:0xbfae8e, roughness:.55, transparent:true, opacity:1 }));
+  G4.add(m); return m; });
+
+const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(), _dv = new THREE.Vector3();
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const ZERO_Q = new THREE.Quaternion();
+const UP4 = new THREE.Vector3(0,1,0);
+
+/* Each pair's accumulated turn about the axis, unwrapped: bearings come back
+ * from atan2 inside ±180°, so every wrap has to be added back or the twelfth
+ * rung claims to be where the second one is. */
+{
+  let prev = 0, acc = 0;
+  for(const r of rungs){
+    let b = r.bearing;
+    while(b - prev >  Math.PI) b -= 2*Math.PI;
+    while(b - prev < -Math.PI) b += 2*Math.PI;
+    acc = b; prev = b;
+    r.turn = acc;
+    // what the helix orientation is beyond that pure turn — propeller, roll,
+    // and the tilt of the pair against the axis
+    const undo = new THREE.Quaternion().setFromAxisAngle(UP4, -acc);
+    r.residualQ = undo.multiply(r.helixQ);
+  }
+}
+const atomWorld = (r, ai, out) =>
+  out.set(...r.p.atoms[ai].p).multiplyScalar(S).applyQuaternion(r.mol.quaternion)
+     .add(r.mol.position);
+
+function place(t){
+  for(const r of rungs){
+    /* UNWIND, DO NOT CUT ACROSS. A base pair's centre sits up to 6.4 Å off the
+     * axis in the helix and on the axis in the ladder. Lerping between those
+     * two points in a straight line drags the pair through the middle of the
+     * duplex — the motion reads as a collapse rather than an unwinding, and it
+     * strains the backbone HARDER halfway than at either end (12.4× against
+     * 5.7×). Interpolating the radius instead, at the pair's own bearing, is
+     * the same two endpoints joined by the path the molecule would take. */
+    const rad = r.helixR * t;
+    r.mol.position.set(rad * Math.cos(r.helixPhi),
+                       r.ladderP.y + (r.helixP.y - r.ladderP.y) * t,
+                       rad * Math.sin(r.helixPhi));
+    /* NEVER SLERP A WIND. Quaternion slerp takes the SHORTEST arc, and by the
+     * twelfth base pair the helix has turned through 374° — which the short
+     * way round is 14° in the opposite direction. Slerping it unwinds pair 12
+     * backwards past its neighbours, and the intermediate frames are not a
+     * partly-untwisted duplex at all; the backbone strain peaks HARDER halfway
+     * (12.4×) than at the fully untwisted end (5.7×), which is the tell.
+     *
+     * So the wind is interpolated as an ANGLE — the pair's own accumulated
+     * turn, unwrapped so it keeps counting past 360° — and only what is left
+     * over after removing it is slerped. */
+    _q1.setFromAxisAngle(UP4, r.turn * t);
+    THREE.Quaternion.slerp(ZERO_Q, r.residualQ, _q2, t);
+    r.mol.quaternion.copy(_q1).multiply(_q2);
+  }
+  let worst = 0;
+  bdna.links.forEach((lk, i) => {
+    atomWorld(rungs[lk.from.pair], lk.from.ai, _p1);
+    atomWorld(rungs[lk.to.pair],   lk.to.ai,   _p2);
+    const d = _dv.subVectors(_p2, _p1), len = d.length();
+    const m = linkMesh[i];
+    m.position.copy(_p1).addScaledVector(d, 0.5);
+    m.quaternion.setFromUnitVectors(UP4, d.clone().normalize());
+    // How far past its real length this bond has been pulled. `lk.d` is what
+    // it measures in the deposited structure, so the ratio is against the
+    // real thing rather than against a nominal value.
+    const strain = (len / S) / lk.d;
+    worst = Math.max(worst, strain);
+    const thin = Math.min(1, 1 / strain);
+    m.scale.set(thin, len, thin);
+    m.material.opacity = 0.25 + 0.75 * thin;
+  });
+  return worst;
+  // Read the state out of the geometry, not out of the slider: degrees of turn
+  // per base pair, and the pitch that follows from it.
+}
+
+/* The readout is measured, not derived from the slider: the turn per rung, and
+ * — once the backbone is being pulled — what that costs it. */
+function setTwist(t){
+  const worst = place(t);
+  const deg = t * bdna.twistDeg;
+  document.getElementById('twistread').innerHTML =
+    (deg < 0.05 ? 'no twist' : deg.toFixed(0) + '° per rung')
+    + (worst > 1.25
+        ? ` &middot; <b>backbone stretched ${worst.toFixed(1)}×</b>`
+        : '');
+}
+
 setStartPose('adenine','thymine');
 setStartPose('guanine','cytosine');
+/* =============================================================================
+ *  THE STEPS
+ * =============================================================================
+ *  One stage, one camera, two scenes so far. Each step owns a THREE.Group and
+ *  whatever DOM belongs to it; switching hides one set and shows the other,
+ *  then refits the camera — the two are very different sizes (four loose bases
+ *  against a 40 Å duplex), so a shared frame would waste the stage on one and
+ *  crop the other.
+ *
+ *  Steps 2 and 3 are listed and disabled rather than hidden. A nav that grows
+ *  as the lesson is built tells the student what this page is FOR — the base
+ *  pair is not the destination — and tells the next person working on it what
+ *  the shape of the thing is.
+ */
+const STEPS = [
+  { n:1, title:'A pair holds', sub:'hydrogen bonds', ready:true },
+  { n:2, title:'The nucleotide', sub:'sugar + phosphate', ready:false },
+  { n:3, title:'The backbone', sub:'joined by dehydration', ready:false },
+  { n:4, title:'Ladder to helix', sub:'where grooves come from', ready:true },
+];
+
+const twistBar = document.getElementById('twistbar');
+const twistEl  = document.getElementById('twist');
+
+function showStep(n){
+  step = n;
+  G1.visible = (n === 1);
+  G4.visible = (n === 4);
+  // DOM that belongs to step 1 has to be hidden by hand — it is not in the
+  // scene graph, so nothing else is going to hide it.
+  for(const b of bases) b.tag.style.display = (n === 1) ? '' : 'none';
+  for(const r of rulers) r.label.style.display = 'none';
+  twistBar.classList.toggle('on', n === 4);
+
+  if(n === 4) setTwist(+twistEl.value / 1000);
+  L.fit();
+  for(const b of [...document.querySelectorAll('#steps button')])
+    b.setAttribute('aria-current', String(+b.dataset.n === n));
+}
+
+const navEl = document.getElementById('steps');
+for(const st of STEPS){
+  const b = document.createElement('button');
+  b.dataset.n = st.n;
+  b.disabled = !st.ready;
+  b.innerHTML = `<span class="n">${st.n}</span><span>${st.title}`
+    + `<br><span style="font-weight:400;font-size:11px;opacity:.75">`
+    + `${st.ready ? st.sub : 'not built yet'}</span></span>`;
+  b.onclick = () => showStep(st.n);
+  navEl.appendChild(b);
+}
+
 refresh();
+twistEl.oninput = () => setTwist(+twistEl.value / 1000);
+showStep(1);
 L.resize(); L.fit(); L.start();
 </script>
 </body>
