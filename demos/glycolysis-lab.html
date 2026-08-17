@@ -1936,8 +1936,24 @@ function runLane(j){
     // A HYDRIDE, so it carries '−' where every other moving H on this page
     // carries '+' — see hop().
     if(hIdx!=null) shedAtoms(l,[hIdx]);       // it left; it should look left
-    hop(hPos, tileWorld(carrierKey(st.couple.cin),hPos,j)
-              || V(l.g.position.x, OFFSCREEN, 0), '−');
+    // THE CARRIER GAINS IT ON ARRIVAL, NOT WHEN THE STEP LANDS. Same beat
+    // `carrierGone` gives a spend, in the other direction: NAD⁺ used to hold
+    // its empty state through the whole flight and turn over 352 ms later,
+    // with the glow already faded — so the one thing the step is about, C4
+    // going from one H to two, happened while nothing was pointing at it.
+    // The pop moves here with it (see the completion below).
+    const nadC4=tileWorld(carrierKey(st.couple.cin),hPos,j)
+                || V(l.g.position.x, OFFSCREEN, 0);
+    hop(hPos, nadC4, '−', ()=>{ carrierGone.add(j); refresh(); popCarrier(j);
+      // …AND RING THE CARBON THAT CHANGED. The flight target IS C4 (the pair's
+      // `anchor`), so this lands exactly on the atom that just gained an H.
+      // Without it the student is asked to spot one added sphere among ten
+      // white hydrogens on a 73-atom molecule — and the added one is the
+      // pro-R H, which points away from the camera and sits under the ring.
+      // It has to be that one: GAPDH is an A-side dehydrogenase, so the
+      // hydride goes to the pro-R face. The page cannot move the H somewhere
+      // easier to see, so it points at it instead.
+      FXi.spawnRing(nadC4, H_LEAVE); });
     // IN FROM ABOVE, AND SLOWLY. Nothing hands this phosphate over — it is
     // dissolved in the cytosol — so it drifts down rather than being fired up.
     // The hydride goes LEFT to the drawn NAD⁺; this starts after it (OX_GAP),
@@ -1972,8 +1988,10 @@ function runLane(j){
     // between, so a step that is half run stays half run across a redraw.
     if(laneDone.size>=n){ done=to; reviewing=true; laneDone.clear(); }
     busy=false; refresh();
-    // only THIS ADP became an ATP, so only it pops
-    popCarrier(j);
+    // only THIS ADP became an ATP, so only it pops — except on the oxidation,
+    // which already popped when the hydride landed. Popping again here is the
+    // same tile announcing the same gain twice, the second time for nothing.
+    if(st.fx!=='ox') popCarrier(j);
     // the lane becomes the product when the last thing in the air lands — on
     // the oxidation that is the drifting phosphate, not FLY
     // the lane becomes the product when the last thing in the air lands — on
@@ -2075,8 +2093,11 @@ function runStep(){
       // "where did the extra one come from" the isomerase steps avoid. The two
       // routes are meant to tell one story; this is where they had drifted.
       if(hIdx!=null) shedAtoms(l,[hIdx]);
-      hop(hPos, tileWorld(carrierKey(st.couple.cin),hPos,lanes.indexOf(l))
-                || V(l.g.position.x, OFFSCREEN, 0), '−');
+      const j=lanes.indexOf(l);
+      const nadC4=tileWorld(carrierKey(st.couple.cin),hPos,j)
+                  || V(l.g.position.x, OFFSCREEN, 0);
+      hop(hPos, nadC4, '−', ()=>{ carrierGone.add(j); refresh(); popCarrier(j);
+        FXi.spawnRing(nadC4, H_LEAVE); });      // ring C4 — see the per-lane route
       later(()=>{ flyPhosphate(aboveFrame(hPos), hPos, null, null, DRIFT);
                   later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT); }, OX_GAP);
     });
@@ -2482,8 +2503,13 @@ const setCarrierGroup=(g,pair,spec,charged)=>
  * `carrierGone` is the same answer for the beat in between: for the FLY ms a
  * phosphate is crossing, the step has not landed, so `reviewing` is false and
  * the ATP went on showing three phosphates while a fourth sailed away. The bond
- * was clicked; it broke then. Set when the flight starts, cleared when the step
- * lands and by every jump out of a step. */
+ * was clicked; it broke then. Cleared when the step lands and by every jump out
+ * of a step.
+ * SET AT WHICHEVER END THE TRANSFER IS VISIBLE FROM — it means "this instance
+ * has already moved", not "something left it". A spend sets it when the flight
+ * STARTS: the sugar takes the phosphate off ATP the moment it goes. A gain
+ * (step 6) sets it when the hydride ARRIVES, because that is when NAD⁺ has it.
+ * Same instant either way — the one the student is looking at. */
 const carrierGone=new Set();
 const carrierRan=j=>reviewing||laneDone.has(j)||carrierGone.has(j);
 // a spend starts charged and ends flat; a charge, the reverse

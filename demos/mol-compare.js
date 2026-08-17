@@ -344,7 +344,15 @@
       // CONNECTIVITY and connectivity is what the two derivations agree about.
       flat2d:[[4.135,2.075],[3.982,3.528],[2.553,3.831],[1.823,2.566],[2.8,1.481],[1.959,5.166],[0.37,2.414],[2.497,0.052],[3.582,-0.926],[3.278,-2.355],[2.975,-3.784],[1.849,-2.051],[4.707,-2.658],[1.585,-4.235],[0.196,-4.687],[2.037,-5.625],[1.134,-2.846],[9.418,4.201],[8.688,2.936],[7.227,2.936],[6.497,4.201],[7.227,5.467],[8.688,5.467],[6.25,6.552],[4.915,5.958],[5.068,4.505],[9.418,6.732],[-3.461,-3.302],[-4.643,-4.161],[-4.191,-5.55],[-2.73,-5.55],[-2.279,-4.161],[-5.05,-6.732],[-1.872,-6.732],[-0.89,-3.709],[-6.032,-3.709],[-6.336,-2.28],[-7.725,-1.829],[-8.811,-2.806],[-8.507,-4.235],[-7.118,-4.687],[-8.029,-0.4],[-9.418,0.052],[-6.943,0.578]],
       topology:{ rings:[5,5,5,6,6], fused:true },
-      view:[-0.7486, -1.1629, 0.5198],
+      // TURNED SO C4's pro-R HYDROGEN FACES THE CAMERA. That H is the entire
+      // difference between NAD⁺ and NADH on glycolysis-lab's carrier tile, and
+      // at the old angle it pointed away from the viewer and sat under the
+      // ring — the step's whole point changed where nobody could see it, while
+      // the pro-S H, which never changes, faced front. It has to be the pro-R
+      // one: GAPDH is an A-side dehydrogenase, so that is the face the hydride
+      // is delivered to. So the molecule turns rather than the chemistry.
+      // Tuned in molecule-viewer.html (drag, then its copy button).
+      view:[2.1879, 0.7309, -3.0804],
       optH,
       gly:{ carbons:21, phosphates:2, carrier:true, nic:nicIdx,
             spent:{ name:'Nicotinamide adenine dinucleotide (oxidised)',
