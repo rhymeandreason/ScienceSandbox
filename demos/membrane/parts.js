@@ -378,12 +378,19 @@
 
     const headGeo = new THREE.SphereGeometry(o.headR, 12, 9);
     const headMat = flat(o.head);
-    /* Two tails per head, as the diagrams draw them — one tail reads as a
-       lollipop and the doubled tail is most of what makes a phospholipid
-       recognisable. They are straight: a kinked unsaturated tail is a real
-       and different fact (contrast-lab owns that pair) and drawing kinks
-       here would be making a claim this lesson is not making. */
-    const tailGeo = new THREE.CylinderGeometry(0.55, 0.45, o.half - o.headR * .5, 6);
+    /* Two tails per head — one tail reads as a lollipop, and the doubled
+       tail is most of what makes a phospholipid recognisable.
+
+       GENTLY WAVY, as every textbook draws them, and the distinction
+       matters: a WAVE is the conformational freedom a saturated chain
+       already has, while a KINK is a cis double bond and a different
+       molecule. contrast-lab owns that pair (palmitic vs palmitoleic), so
+       the amplitude here stays well under a kink — enough to stop the
+       tails reading as a picket fence, not enough to claim unsaturation. */
+    const tailLen = o.half - o.headR * .5;
+    const wave = new THREE.CatmullRomCurve3([0, .25, .5, .75, 1].map(u =>
+      new THREE.Vector3(Math.sin(u * Math.PI * 1.6) * 0.42, (u - .5) * tailLen, 0)));
+    const tailGeo = new THREE.TubeGeometry(wave, 12, 0.5, 6, false);
     const tailMat = flat(o.tail);
 
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Sc = new THREE.Vector3(1,1,1);
