@@ -210,10 +210,35 @@ function smallMolecule(name) {
    which step it is in, so a step cannot leave one behind.
    --------------------------------------------------------------------- */
 const travellers = [];
+/* A HYDRATED ion: the bare ion plus the waters it holds onto.
+
+   Step 2's claim is that Na⁺ is stopped by CHARGE, not by size — and the
+   bare purple sphere was quietly teaching the opposite, because it drew
+   bigger than O₂ and read as "too fat to fit". Drawing the shell fixes
+   both halves at once: the ion is now visibly large BECAUSE it is
+   charged, and the thing that cannot enter the oil is the package, not
+   the dot at its centre. Water is what a charge does to its
+   surroundings, and it is the reason crossing costs so much energy.
+
+   Six waters, octahedral — Na⁺'s first shell really is about six. */
+function hydratedIon(kind) {
+  const g = new THREE.Group();
+  g.add(Parts.ion(kind));
+  const r = Parts.ION[kind].r * Parts.ION.exaggeration + 3.2;
+  [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].forEach(d => {
+    const w = smallMolecule('water');
+    w.position.set(d[0]*r, d[1]*r, d[2]*r);
+    w.lookAt(0, 0, 0);
+    g.add(w);
+  });
+  return g;
+}
+
 function traveller(kind, opts) {
-  const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
+  const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false, hydrated:false }, opts);
   const obj = (kind === 'NA' || kind === 'K' || kind === 'CL')
-    ? Parts.ion(kind) : smallMolecule(kind);
+    ? (o.hydrated ? hydratedIon(kind) : Parts.ion(kind))
+    : smallMolecule(kind);
   obj.position.set(o.x, o.y, o.z);
   L.root.add(obj);
   const t = Object.assign({ kind, obj }, o);
@@ -338,7 +363,8 @@ const STEPS = [
     id:'through',
     tab:'what gets through',
     cap:'<b>Oily things cross. Charged things do not.</b> ' +
-        'O₂ and CO₂ dissolve straight through the tails. Na⁺ cannot.',
+        'O₂ and CO₂ dissolve through the tails. Na⁺ holds a shell of water — ' +
+        'and that is what will not go into oil.',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
@@ -348,11 +374,11 @@ const STEPS = [
         traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.15), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
       for (let i = 0; i < 16; i++)
         traveller('co2', { x:rnd(-SPREAD*0.12, SPREAD*0.35), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
-      for (let i = 0; i < 22; i++)
+      for (let i = 0; i < 10; i++)
         traveller('NA', { x:rnd(SPREAD*0.4, SPREAD), z:rnd(-10,10),
-                          y:rnd(HALF + 5, 40), vy:-rnd(7,11), blocked:true });
+                          y:rnd(HALF + 5, 40), vy:-rnd(7,11), blocked:true, hydrated:true });
     },
-    readout: () => 'O₂ and CO₂ pass · Na⁺ turned back at the heads',
+    readout: () => 'not a size limit — Na⁺ is smaller than CO₂ bare, and still cannot cross',
   },
 
   {
