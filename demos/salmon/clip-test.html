@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>clip-test — cutting a baked SES open</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #wrap { display:grid; grid-template-columns:1fr 372px; height:100vh; }
+  #stage { position:relative; min-width:0; }
+  canvas { width:100%; height:100%; display:block; }
+  #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(255,255,255,.12); }
+  .grp { margin-bottom:20px; }
+  .hd { font-weight:600; margin-bottom:6px; }
+  label { display:block; margin:8px 0; font-size:14px; }
+  input[type=range] { width:100%; }
+  button { margin-right:6px; }
+  button[aria-pressed=true] { outline:2px solid #6cf; }
+  p.note { font-size:13px; opacity:.75; line-height:1.45; }
+  @media (max-width:920px){ #wrap{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="panel">
+    <h1 style="font-size:17px">clip-test</h1>
+    <p class="note">
+      2HHB's baked SES, cut by a plane. The question this bench answers is not
+      whether the surface is right — <code>tools/ses.js</code> settles that
+      offline — but whether a CUT one still reads as a solid object.
+      Turn the cap off and the protein becomes a hollow bag; that is the failure
+      <code>clip.js</code> exists to prevent, and it is worth seeing once.
+    </p>
+
+    <div class="grp">
+      <div class="hd">cut plane</div>
+      <label>normal
+        <span>
+          <button type="button" data-ax="x" aria-pressed="true">X</button>
+          <button type="button" data-ax="y" aria-pressed="false">Y</button>
+          <button type="button" data-ax="z" aria-pressed="false">Z</button>
+        </span>
+      </label>
+      <label>depth <output id="dv"></output>
+        <input id="depth" type="range" min="-40" max="40" step="0.5" value="0"></label>
+      <label><input id="spin" type="checkbox"> sweep the plane through it</label>
+    </div>
+
+    <div class="grp">
+      <div class="hd">what the cap is doing</div>
+      <label><input id="capon" type="checkbox" checked> fill the cut face</label>
+      <label>skin opacity <output id="ov"></output>
+        <input id="op" type="range" min="0" max="100" value="100"></label>
+      <p class="note" id="diag">loading…</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../hemoglobin/surface.js"></script>
+<script src="clip.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  clip-test.html — the bench for salmon/clip.js.
+ *
+ *  It cuts haemoglobin, which is not what the lesson cuts, and that is
+ *  deliberate: 2HHB.surf.bin is already baked and already trusted, so a
+ *  wrong image here is this module's fault and nothing else's. When the
+ *  pump's own surface is baked it can be swapped in by changing one URL,
+ *  and any new wrongness is then the bake's.
+ * ===================================================================== */
+
+const canvas = document.getElementById('c');
+const S = Stage.create(canvas, { cam:{theta:.6, phi:1.1, r:120}, rMin:20, rMax:400 });
+const Clip = ClipLib.create({ renderer:S.renderer });
+
+const plane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
+let sec = null, centre = new THREE.Vector3();
+
+fetch('../hemoglobin/data/2HHB.surf.bin')
+  .then(r => { if(!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.arrayBuffer(); })
+  .then(buf => {
+    const D = SurfLib.decode(THREE, buf);
+
+    /* The mesh is in the PDB's own frame, which is nowhere near the origin.
+       The plane is defined in that same frame, so the geometry is recentred
+       once here rather than every setPlane having to carry an offset.
+
+       NOT geo.translate(). That calls applyMatrix4, which transforms the
+       NORMAL attribute as well as position — and SurfLib's normals are an
+       interleaved Int8Array. Three writes the transformed floats straight
+       back into int8, every component truncates to 0 or +-1, and the whole
+       surface renders unlit black. It looks like a lighting bug and it is a
+       destroyed attribute. Only position may be moved. */
+    D.geo.computeBoundingSphere();
+    centre.copy(D.geo.boundingSphere.center);
+    const pos = D.geo.attributes.position.array;
+    for (let i = 0; i < pos.length; i += 3) {
+      pos[i]     -= centre.x;
+      pos[i + 1] -= centre.y;
+      pos[i + 2] -= centre.z;
+    }
+    D.geo.attributes.position.needsUpdate = true;
+    D.geo.computeBoundingSphere();
+
+    sec = Clip.section({
+      geo: D.geo,
+      plane: plane,
+      material: new THREE.MeshStandardMaterial({
+        color:0x9fb6c8, roughness:.4, metalness:0, side:THREE.FrontSide }),
+      capMaterial: new THREE.MeshStandardMaterial({
+        /* Warm against the skin's cool, because the cap is the one surface
+           in the image that is NOT the protein's outside. If it matches the
+           skin the cut stops reading as a cut. */
+        color:0xd98a5a, roughness:.6, metalness:0 }),
+    });
+    S.root.add(sec.group);
+
+    const R = D.geo.boundingSphere.radius;
+    S.cam.r = R * 3.0; S.applyCam();
+    document.getElementById('depth').max = R.toFixed(0);
+    document.getElementById('depth').min = (-R).toFixed(0);
+
+    document.getElementById('diag').textContent =
+      `${D.nVert.toLocaleString()} vertices, ${D.nTri.toLocaleString()} triangles, ` +
+      `bounding radius ${R.toFixed(1)} Å.`;
+    sync();
+  })
+  .catch(e => { document.getElementById('diag').textContent = 'failed: ' + e.message; });
+
+/* ---- controls ---- */
+const AX = { x:new THREE.Vector3(1,0,0), y:new THREE.Vector3(0,1,0), z:new THREE.Vector3(0,0,1) };
+let axis = 'x';
+document.querySelectorAll('[data-ax]').forEach(b => b.addEventListener('click', () => {
+  axis = b.dataset.ax;
+  document.querySelectorAll('[data-ax]').forEach(o =>
+    o.setAttribute('aria-pressed', String(o === b)));
+  sync();
+}));
+
+const depth = document.getElementById('depth');
+const dv = document.getElementById('dv');
+depth.addEventListener('input', sync);
+
+const op = document.getElementById('op'), ov = document.getElementById('ov');
+op.addEventListener('input', sync);
+const capon = document.getElementById('capon');
+capon.addEventListener('change', sync);
+
+function sync() {
+  if (!sec) return;
+  plane.normal.copy(AX[axis]);
+  plane.constant = -Number(depth.value);
+  sec.setPlane();
+
+  dv.textContent = Number(depth.value).toFixed(1) + ' Å';
+
+  const a = Number(op.value) / 100;
+  ov.textContent = op.value + '%';
+  sec.skinMaterial.opacity = a;
+  sec.skinMaterial.transparent = a < 1;
+  /* Same debt surface-test.html documents: a translucent skin must not
+     write depth, or it hides the cap and the ions behind itself. */
+  sec.skinMaterial.depthWrite = a >= 1;
+  sec.skinMaterial.needsUpdate = true;
+
+  sec.cap.visible = capon.checked;
+}
+
+/* ---- the sweep ---- */
+const spin = document.getElementById('spin');
+let t0 = performance.now();
+(function frame(now) {
+  requestAnimationFrame(frame);
+  if (spin.checked && sec) {
+    const R = Number(depth.max);
+    depth.value = (R * Math.sin((now - t0) / 2600)).toFixed(1);
+    sync();
+  }
+  S.renderer.render(S.scene, S.camera);
+})(t0);
+S.resize();
+</script>
+</body>
+</html>
