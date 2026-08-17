@@ -35,27 +35,50 @@
  *  height, which is where this lesson draws its own bilayer.
  *
  * ---------------------------------------------------------------------
- *  DECISION 2: ONE FRAME, AND IT IS THE MEMBRANE'S
+ *  DECISION 2: ONE FRAME, AND IT IS THE MEMBRANE'S — LITERALLY
  * ---------------------------------------------------------------------
  *  Two surfaces baked in their own deposited frames are two objects in
  *  arbitrary orientations. Cross-fade them and the protein appears to
  *  tumble; the student reads "it spun", which is the one thing that did
- *  NOT happen.
+ *  NOT happen. And a deposited frame has no idea where the bilayer is,
+ *  so the pump lands on its side — which is how the first bake rendered,
+ *  and it was unreadable against every textbook picture of a membrane
+ *  protein ever drawn.
  *
- *  The fix is not simply to superpose the whole molecule either. Fit all
- *  976 shared CA and the fit splits the difference across a 99 degree N
- *  domain tilt and a 71 degree A domain rotation, so EVERYTHING ends up
- *  moving a little and nothing is still. In life the membrane domain is
- *  held in the bilayer and the headpiece swings against it. That is the
- *  frame the lesson needs, because it is the frame the fish's gill cell
- *  is in.
+ *  TWO SEPARATE PROBLEMS, TWO SEPARATE SOURCES.
  *
- *  So the common frame is found by ITERATED CORE FITTING: fit on all
- *  shared CA, drop the residues that deviate most, refit, repeat until
- *  the set stops changing. What survives is the part that genuinely does
- *  not move between the two states. This is not assumed to be the
- *  membrane domain — it is PRINTED, so the claim can be checked against
- *  where M1-M10 actually are rather than taken on faith.
+ *  Where is the membrane?  OPM (Orientations of Proteins in Membranes,
+ *  Lomize et al.), which solves bilayer position by minimising transfer
+ *  energy in an anisotropic solvent model and republishes the structure
+ *  already rotated: normal on z, leaflets marked by DUM atoms, half
+ *  thickness in a REMARK. 7E1Z gives 15.3 A and 7E20 gives 15.4 A —
+ *  independently computed, agreeing to 0.1 A, which is the cross-check
+ *  that makes it trustworthy rather than merely convenient.
+ *
+ *  The nanodisc lipids in the deposited files were tried first and are
+ *  NOT good enough: 264 atoms of cholesterol hemisuccinate at scattered
+ *  ordered sites give a widest/thinnest ratio of only 2.2 and no
+ *  two-leaflet profile along the normal. They are a sparse belt, not a
+ *  modelled bilayer. Do not be tempted back to them.
+ *
+ *  Which way is up?  The beta subunit's big domain is extracellular by
+ *  definition, and it sits at mean z +36 with 2026 atoms beyond the
+ *  outer leaflet, while the alpha headpiece sits at mean z -36. Both
+ *  structures agree. So +z is outside, -z is cytoplasm, and this is read
+ *  off the structure rather than assumed from OPM's convention.
+ *
+ *  Then z is rotated onto +Y, because the page is a scene and up is y:
+ *  outside is up, cytoplasm is down, exactly as every membrane diagram
+ *  a student has ever seen draws it.
+ *
+ *  Relating the two STATES is still a fit, and still not a whole-molecule
+ *  one: fitting all 976 shared CA splits the difference across a 99 deg
+ *  domain tilt, so everything moves a little and nothing is still. The
+ *  headpiece swings against a membrane domain that is held in the
+ *  bilayer, so ITERATED CORE FITTING finds what genuinely does not move.
+ *  What it converges on is PRINTED rather than assumed — and it lands on
+ *  M7-M10 plus both accessory subunits, which is the membrane anchor,
+ *  agreeing with OPM without having been told about it.
  *
  * ---------------------------------------------------------------------
  *  DECISION 3: SPACING, AND WHY IT IS NOT 0.7
@@ -82,8 +105,17 @@ const ActinLib = require('../../folding/actin.js');   // fit() — Kabsch, share
 const HERE = path.join(__dirname, '..');
 const DATA = path.join(HERE, 'data');
 
+/* The OPM re-releases, not the deposited files: same atoms, rigidly
+   rotated so the bilayer normal is z. The deposited PDBs stay in data/
+   as provenance and are what a re-download would check against. */
 const REF = '7E1Z';                 // E1.3Na — the frame everything lands in
 const MOV = '7E20';                 // E2.2K
+const srcOf = id => id + '-opm.pdb';
+
+/* z (OPM's normal) onto +Y (the scene's up). A -90 deg turn about x:
+   (x,y,z) -> (x, z, -y). det = +1, so no molecule is mirrored — which
+   MolecularGeometry.md 1.3 would otherwise have something to say about. */
+const UP = p => [p[0], p[2], -p[1]];
 
 const SPACING = 0.7;
 
@@ -95,18 +127,31 @@ const CARGO = new Set(['NA', 'K', 'MG']);
 /* ---- parsing ------------------------------------------------------- */
 
 function parse(id) {
-  const raw = fs.readFileSync(path.join(DATA, id + '.pdb'), 'utf8');
+  const raw = fs.readFileSync(path.join(DATA, srcOf(id)), 'utf8');
   const atoms = [], residues = [], cargo = [], ca = new Map();
   const seen = new Map(), dropped = new Map();
+  let half = null;
 
   for (const line of raw.split('\n')) {
+    /* OPM states the bilayer it solved in a REMARK. Read it rather than
+       measuring the DUM atoms: the remark is the number OPM reports, and
+       a number the page prints must come from where the fact lives. */
+    if (line.startsWith('REMARK') && line.includes('1/2 of bilayer'))
+      half = parseFloat(line.slice(40));
+
     const het = line.startsWith('HETATM');
     if (!het && !line.startsWith('ATOM')) continue;
 
     const resName = line.slice(17, 20).trim();
-    const p = [+line.slice(30, 38), +line.slice(38, 46), +line.slice(46, 54)];
+    /* Straight into scene orientation: everything downstream — the fit,
+       the SES, the cargo, the plane the page cuts with — is then in one
+       frame with up as up, and nothing has to remember to convert. */
+    const p = UP([+line.slice(30, 38), +line.slice(38, 46), +line.slice(46, 54)]);
 
     if (het) {
+      /* DUM is OPM's bilayer marker, not an atom. It must never reach
+         the SES — a plane of dummy atoms would bake a slab. */
+      if (resName === 'DUM') continue;
       if (CARGO.has(resName)) cargo.push({ name: resName, p, chain: line[21] });
       else dropped.set(resName, (dropped.get(resName) || 0) + 1);
       continue;                                       // see DECISION 1
@@ -130,7 +175,27 @@ function parse(id) {
 
     if (line.slice(12, 16).trim() === 'CA') ca.set(key, p);
   }
-  return { id, atoms, residues, cargo, ca, dropped };
+  if (half == null) throw new Error(`${id}: no bilayer REMARK in ${srcOf(id)} — ` +
+                                    `is this an OPM re-release or the deposited file?`);
+  return { id, atoms, residues, cargo, ca, dropped, half };
+}
+
+/* Sidedness, checked rather than assumed. The beta ectodomain is
+   extracellular by definition, so it must end up ABOVE the bilayer once
+   z is on +y; the alpha headpiece must end up below. If these ever come
+   out the other way round the whole lesson is upside down, and every
+   caption about "out" and "in" silently inverts. */
+function checkSides(S) {
+  const meanY = ch => {
+    const v = S.atoms.filter(a => S.residues[a.res].chain === ch).map(a => a.p[1]);
+    return v.reduce((s, y) => s + y, 0) / v.length;
+  };
+  const beta = meanY('B'), alpha = meanY('A');
+  if (!(beta > S.half && alpha < -S.half))
+    throw new Error(`${S.id}: sidedness wrong — beta ectodomain at y ${beta.toFixed(0)}, ` +
+                    `alpha headpiece at y ${alpha.toFixed(0)}, bilayer +-${S.half}. ` +
+                    `Outside must be +y.`);
+  return { beta, alpha };
 }
 
 /* ---- the common frame ---------------------------------------------- */
@@ -319,10 +384,14 @@ function main() {
   const spacing = i > 0 ? +process.argv[i + 1] : SPACING;
 
   const ref = parse(REF), mov = parse(MOV);
-  for (const S of [ref, mov])
+  for (const S of [ref, mov]) {
+    const sides = checkSides(S);
     console.log(`${S.id}: ${S.atoms.length} atoms over ${S.residues.length} residues, ` +
                 `${S.cargo.length} ions (${S.cargo.map(c => c.name).join(' ')})\n` +
-                `      not surface: ${[...S.dropped].map(([k,v]) => `${k} x${v}`).join(', ') || 'none'}`);
+                `      not surface: ${[...S.dropped].map(([k,v]) => `${k} x${v}`).join(', ') || 'none'}\n` +
+                `      bilayer +-${S.half} A (OPM); beta ectodomain y ${sides.beta.toFixed(0)} (out), ` +
+                `alpha headpiece y ${sides.alpha.toFixed(0)} (in)`);
+  }
 
   /* ---- the common frame ---- */
   const CUT = 1.5;                  // A. A residue further than this has moved.
@@ -361,7 +430,10 @@ function main() {
     const buf = encode(mesh, resIdx, S.residues, {
       source: S.id,
       state: S.id === REF ? 'E1.3Na (inward-open)' : 'E2.2K (outward-open)',
-      frame: S.id === REF ? 'deposited' : `fitted onto ${REF} over ${F.core.length} core CA`,
+      frame: `OPM-oriented, bilayer normal on +y, outside up` +
+             (S.id === REF ? '' : `; fitted onto ${REF} over ${F.core.length} core CA`),
+      /* The page draws its membrane from THIS, never from a typed 30. */
+      membraneHalf: S.half,
       spacing, probe: SES.PROBE,
       cargo: S.cargo.map(c => [c.name, c.p.map(v => +v.toFixed(3))]),
     });

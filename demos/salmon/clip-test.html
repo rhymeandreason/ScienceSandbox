@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>clip-test — cutting the pump open</title>
+<title>clip-test — the pump in its membrane</title>
 <link rel="stylesheet" href="../sandbox.css">
 <style>
   #wrap { display:grid; grid-template-columns:1fr 372px; height:100vh; }
   #stage { position:relative; min-width:0; }
   canvas { width:100%; height:100%; display:block; }
   #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(0,0,0,.12); }
-  .grp { margin-bottom:20px; }
+  .grp { margin-bottom:18px; }
   .hd { font-weight:600; margin-bottom:6px; }
-  label { display:block; margin:8px 0; font-size:14px; }
+  label { display:block; margin:7px 0; font-size:14px; }
   input[type=range] { width:100%; }
   button { margin-right:6px; }
   button[aria-pressed=true] { outline:2px solid #2a7; font-weight:600; }
   p.note { font-size:13px; opacity:.8; line-height:1.45; }
+  .side { font-size:12px; opacity:.6; }
   @media (max-width:920px){ #wrap{ grid-template-columns:1fr; } }
 </style>
 </head>
@@ -24,43 +25,40 @@
 <div id="wrap">
   <div id="stage"><canvas id="c"></canvas></div>
   <div id="panel">
-    <h1 style="font-size:17px">clip-test — the pump</h1>
+    <h1 style="font-size:17px">the sodium pump</h1>
     <p class="note">
-      Na⁺/K⁺-ATPase, both ends of its cycle, in one frame.
-      The two surfaces are baked by <code>salmon/tools/bake-pump.js</code>;
-      the cut and its filled face are <code>salmon/clip.js</code>.
-      <b>The question this bench answers:</b> when you cut the pump open,
-      can you see the ion sites — and does the ion sit in a void rather
-      than inside claimed-solid material?
+      Na⁺/K⁺-ATPase, sitting in the membrane the way it sits in a cell.
+      The bilayer is drawn where <a href="https://opm.phar.umich.edu/">OPM</a>
+      solved it, not where it looked right — <span id="mem"></span>.
+      Up is outside the cell; down is the cytoplasm.
     </p>
 
     <div class="grp">
       <div class="hd">state</div>
-      <button type="button" data-st="7E1Z" aria-pressed="true">E1 · 3Na⁺ in</button>
-      <button type="button" data-st="7E20" aria-pressed="false">E2 · 2K⁺ out</button>
+      <button type="button" data-st="7E1Z" aria-pressed="true">E1 · 3Na⁺</button>
+      <button type="button" data-st="7E20" aria-pressed="false">E2 · 2K⁺</button>
       <p class="note" id="stdesc"></p>
     </div>
 
     <div class="grp">
-      <div class="hd">cut plane</div>
-      <label>normal
-        <span>
-          <button type="button" data-ax="x" aria-pressed="true">X</button>
-          <button type="button" data-ax="y" aria-pressed="false">Y</button>
-          <button type="button" data-ax="z" aria-pressed="false">Z</button>
-        </span>
-      </label>
+      <div class="hd">cut it open</div>
+      <label><input id="cuton" type="checkbox"> slice the protein</label>
       <label>depth <output id="dv"></output>
-        <input id="depth" type="range" min="-60" max="60" step="0.5" value="0"></label>
-      <label><input id="spin" type="checkbox"> sweep the plane through it</label>
+        <input id="depth" type="range" min="-60" max="60" step="0.5" value="0" disabled></label>
+      <label><input id="spin" type="checkbox" disabled> sweep the cut through it</label>
+      <label><input id="capon" type="checkbox" checked disabled> fill the cut face</label>
+      <p class="note">
+        The cut is the only way to see the ion sites: a pump is never open
+        at both ends, so no camera angle reaches them.
+      </p>
     </div>
 
     <div class="grp">
-      <div class="hd">what the cap is doing</div>
-      <label><input id="capon" type="checkbox" checked> fill the cut face</label>
-      <label><input id="ionson" type="checkbox" checked> show the ions</label>
+      <div class="hd">show</div>
+      <label><input id="memon" type="checkbox" checked> membrane</label>
+      <label><input id="ionson" type="checkbox" checked> ions</label>
       <label>skin opacity <output id="ov"></output>
-        <input id="op" type="range" min="0" max="100" value="100"></label>
+        <input id="op" type="range" min="10" max="100" value="100"></label>
       <p class="note" id="diag">loading…</p>
     </div>
   </div>
@@ -75,107 +73,162 @@
 <script>
 'use strict';
 /* =====================================================================
- *  clip-test.html — the bench for salmon/clip.js, now on its real subject.
+ *  clip-test.html — the bench for salmon/clip.js and bake-pump.js.
  *
- *  It started on 2HHB, which was the right way round: a trusted surface
- *  first, so a wrong image was the module's fault and nothing else's.
- *  Now that clip.js is known good, the surfaces under test are the ones
- *  the lesson will use, and a wrong image here is the BAKE's fault.
+ *  It opens UNCUT and that is the point. The first version went straight
+ *  to the slice, which is the thing being tested, and the result was
+ *  unreadable — a cut means nothing until you know what got cut. So the
+ *  page now shows what every textbook shows first: a protein sitting in
+ *  a bilayer, right way up. The slice is a thing you then do to it.
  *
- *  The ions are the point of this page. bake-pump.js deliberately keeps
- *  them OUT of the surface (they are cargo, not structure) and hands
- *  them over as coordinates in the header. If that decision is right,
- *  each ion sits in a void the cut reveals. If it is wrong, an ion is
- *  buried in orange cap — solid material with a sphere inside it — and
- *  that is visible at a glance, which is why it is worth drawing here.
+ *  NOTHING HERE IS RECENTRED. The bake put the membrane at y=0 with
+ *  outside up, so the coordinates already mean something and moving them
+ *  would throw that away — the membrane would stop being at zero and
+ *  every plane in the page would need an offset. The camera moves
+ *  instead, which is what cameras are for.
  * ===================================================================== */
 
 const canvas = document.getElementById('c');
-const S = Stage.create(canvas, { cam:{theta:.6, phi:1.35, r:200}, rMin:40, rMax:600 });
+const S = Stage.create(canvas, { cam:{theta:.5, phi:1.5, r:260}, rMin:40, rMax:700 });
 const Clip = ClipLib.create({ renderer:S.renderer });
 
 const plane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
 const STATES = {};
-let cur = null;
+let cur = null, membrane = null;
 
-/* Ionic radii, not van der Waals — these are IONS. Na+ 1.02, K+ 1.38,
-   Mg2+ 0.72 A (Shannon, six-coordinate). The contrast is a fact the
-   lesson eventually needs: K+ is the bigger ion, and the pump's two
-   sites are built to tell them apart by size. */
+/* Ionic radii, not van der Waals — these are ions. Na⁺ 1.02, K⁺ 1.38,
+   Mg²⁺ 0.72 Å (Shannon, six-coordinate). K⁺ being the BIGGER ion is a
+   fact the lesson will need, so the two must not be drawn alike. */
 const ION = {
   NA: { r:1.02, color:0x8f5cf0, label:'Na⁺' },
   K:  { r:1.38, color:0xf0a03c, label:'K⁺'  },
   MG: { r:0.72, color:0x3cc98f, label:'Mg²⁺' },
 };
 
+/* ---- the membrane -------------------------------------------------- */
+/* Head groups as two sheets of spheres at ±half, which is what makes a
+   bilayer legible at a glance — a plain translucent slab reads as fog.
+   The hole is punched by the protein's own footprint rather than a typed
+   radius: any lattice point closer than `clear` to a surface vertex in
+   the membrane band is dropped, so the lipids meet the protein instead
+   of overlapping it. */
+function buildMembrane(half, footprint) {
+  const g = new THREE.Group();
+  /* REACH is a framing decision, not a fact: a real membrane has no edge.
+     120 Å made the bilayer the subject and the pump an ornament on it —
+     wide enough to say "this continues" and no wider is the job. */
+  const HEAD_R = 2.6, PITCH = 7.0, REACH = 78, CLEAR = 4.0;
+
+  const geo = new THREE.SphereGeometry(HEAD_R, 10, 7);
+  const mat = new THREE.MeshStandardMaterial({ color:0xe0705c, roughness:.5, metalness:0 });
+  const tail = new THREE.MeshStandardMaterial({ color:0xf2d9a0, roughness:.7, metalness:0 });
+  /* The cut is a cut through the SCENE, not through one object. Leave the
+     lipids unclipped and the near leaflet stands in front of the opened
+     protein hiding the very cavity the cut was made to show. */
+  g.userData.materials = [mat, tail];
+
+  const pts = [];
+  for (let x = -REACH; x <= REACH; x += PITCH)
+    for (let z = -REACH; z <= REACH; z += PITCH) {
+      if (Math.hypot(x, z) > REACH) continue;
+      if (footprint(x, z) < CLEAR) continue;
+      pts.push([x, z]);
+    }
+
+  for (const sign of [1, -1]) {
+    const inst = new THREE.InstancedMesh(geo, mat, pts.length);
+    const m = new THREE.Matrix4();
+    pts.forEach(([x, z], i) => {
+      m.makeTranslation(x, sign * half, z);
+      inst.setMatrixAt(i, m);
+    });
+    inst.instanceMatrix.needsUpdate = true;
+    g.add(inst);
+  }
+
+  /* The tails, as one translucent slab between the sheets. Drawing 2 x
+     N lipid tails would be honest and would also bury the protein in
+     spaghetti; the slab says "oily interior" and stays out of the way. */
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(REACH, REACH, half * 2 - HEAD_R, 64, 1, true),
+    Object.assign(tail, { transparent:true, opacity:.35, side:THREE.DoubleSide, depthWrite:false }));
+  core.renderOrder = -1;
+  g.add(core);
+  return g;
+}
+
+/* ---- loading ------------------------------------------------------- */
 function load(id) {
   return fetch(`data/${id}.surf.bin`)
     .then(r => { if(!r.ok) throw new Error(`${id}: ${r.status}`); return r.arrayBuffer(); })
     .then(buf => {
       const D = SurfLib.decode(THREE, buf);
-
-      /* NOT geo.translate() — SurfLib normals are int8 and applyMatrix4
-         truncates them, which renders the whole surface unlit black.
-         clip.js's header documents this; only position may move. */
-      D.geo.computeBoundingSphere();
-      const c = D.geo.boundingSphere.center.clone();
-      const pos = D.geo.attributes.position.array;
-      for (let i = 0; i < pos.length; i += 3) {
-        pos[i] -= c.x; pos[i+1] -= c.y; pos[i+2] -= c.z;
-      }
-      D.geo.attributes.position.needsUpdate = true;
+      /* No translate(): SurfLib normals are int8 and applyMatrix4 would
+         truncate them to black. And no recentring at all — see header. */
       D.geo.computeBoundingSphere();
 
       const sec = Clip.section({
         geo: D.geo, plane,
         material: new THREE.MeshStandardMaterial({
-          color:0x9fb6c8, roughness:.4, metalness:0, side:THREE.FrontSide }),
+          color:0x8fb3cc, roughness:.42, metalness:0, side:THREE.FrontSide }),
         capMaterial: new THREE.MeshStandardMaterial({
           color:0xd98a5a, roughness:.6, metalness:0 }),
       });
 
-      /* The cargo, in the same frame, recentred by the same offset the
-         surface was. Parented to the section group so a state swap moves
-         skin, cap and ions together or not at all. */
       const ions = new THREE.Group();
       (D.head.cargo || []).forEach(([name, p]) => {
         const spec = ION[name] || { r:1.0, color:0x888888, label:name };
-        const m = new THREE.Mesh(
-          new THREE.SphereGeometry(spec.r, 20, 14),
+        const m = new THREE.Mesh(new THREE.SphereGeometry(spec.r, 20, 14),
           new THREE.MeshStandardMaterial({ color:spec.color, roughness:.25, metalness:.1 }));
-        m.position.set(p[0]-c.x, p[1]-c.y, p[2]-c.z);
-        m.renderOrder = 4;              // after the skin, so a faded skin shows it
+        m.position.set(p[0], p[1], p[2]);
+        m.renderOrder = 4;
         ions.add(m);
       });
       sec.group.add(ions);
       sec.group.visible = false;
       S.root.add(sec.group);
 
-      STATES[id] = { sec, ions, D, radius:D.geo.boundingSphere.radius };
+      STATES[id] = { sec, ions, D, half: D.head.membraneHalf };
       return STATES[id];
     });
 }
 
-Promise.all([load('7E1Z'), load('7E20')])
-  .then(() => { show('7E1Z'); })
-  .catch(e => { document.getElementById('diag').textContent = 'failed: ' + e.message; });
+Promise.all([load('7E1Z'), load('7E20')]).then(() => {
+  /* The membrane is built once, from the E1 surface's own footprint —
+     the two states differ by almost nothing inside the bilayer, which is
+     the whole point of the core fit, so a second one would be a second
+     thing to keep in step for no visible gain. */
+  const st = STATES['7E1Z'];
+  const P = st.D.geo.attributes.position.array;
+  const band = [];
+  for (let v = 0; v < P.length; v += 3)
+    if (Math.abs(P[v+1]) < st.half) band.push([P[v], P[v+2]]);
+  const footprint = (x, z) => {
+    let best = Infinity;
+    for (const [bx, bz] of band) {
+      const d = (bx-x)*(bx-x) + (bz-z)*(bz-z);
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best);
+  };
+  membrane = buildMembrane(st.half, footprint);
+  S.root.add(membrane);
+
+  document.getElementById('mem').textContent =
+    `${(st.half*2).toFixed(1)} Å thick, ±${st.half} Å`;
+  show('7E1Z');
+}).catch(e => { document.getElementById('diag').textContent = 'failed: ' + e.message; });
 
 function show(id) {
   Object.values(STATES).forEach(s => s.sec.group.visible = false);
   const st = STATES[id];
   st.sec.group.visible = true;
   cur = st;
-
   const h = st.D.head;
-  document.getElementById('stdesc').textContent = h.state + ' · ' + h.frame;
+  document.getElementById('stdesc').textContent = h.state;
   document.getElementById('diag').textContent =
-    `${st.D.nVert.toLocaleString()} verts, ${st.D.nTri.toLocaleString()} tris, ` +
-    `radius ${st.radius.toFixed(0)} Å, grid ${h.spacing} Å, probe ${h.probe} Å. ` +
+    `${st.D.nVert.toLocaleString()} verts, grid ${h.spacing} Å, probe ${h.probe} Å. ` +
     `Ions: ${(h.cargo||[]).map(c => (ION[c[0]]||{label:c[0]}).label).join(' ')}`;
-
-  const d = document.getElementById('depth');
-  d.max = st.radius.toFixed(0); d.min = (-st.radius).toFixed(0);
-  if (S.cam.r > st.radius * 6) { S.cam.r = st.radius * 2.6; S.applyCam(); }
   sync();
 }
 
@@ -185,47 +238,55 @@ document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', 
   show(b.dataset.st);
 }));
 
-/* ---- cut controls ---- */
-const AX = { x:new THREE.Vector3(1,0,0), y:new THREE.Vector3(0,1,0), z:new THREE.Vector3(0,0,1) };
-let axis = 'x';
-document.querySelectorAll('[data-ax]').forEach(b => b.addEventListener('click', () => {
-  axis = b.dataset.ax;
-  document.querySelectorAll('[data-ax]').forEach(o =>
-    o.setAttribute('aria-pressed', String(o === b)));
-  sync();
-}));
-
+/* ---- controls ------------------------------------------------------ */
 const depth = document.getElementById('depth'), dv = document.getElementById('dv');
 const op = document.getElementById('op'), ov = document.getElementById('ov');
 const capon = document.getElementById('capon'), ionson = document.getElementById('ionson');
+const cuton = document.getElementById('cuton'), memon = document.getElementById('memon');
+const spin = document.getElementById('spin');
 [depth, op].forEach(el => el.addEventListener('input', sync));
-[capon, ionson].forEach(el => el.addEventListener('change', sync));
+[capon, ionson, cuton, memon].forEach(el => el.addEventListener('change', sync));
 
 function sync() {
   if (!cur) return;
-  plane.normal.copy(AX[axis]);
-  plane.constant = -Number(depth.value);
-  Object.values(STATES).forEach(s => s.sec.setPlane());
-  dv.textContent = Number(depth.value).toFixed(1) + ' Å';
+  const cut = cuton.checked;
+  [depth, spin, capon].forEach(el => el.disabled = !cut);
 
-  const a = Number(op.value) / 100;
-  ov.textContent = op.value + '%';
+  /* Uncut is not "plane pushed off the edge" — it is NO clipping plane.
+     A plane parked outside still costs a shader branch, and worse, it is
+     one number away from silently slicing the protein again. */
   Object.values(STATES).forEach(s => {
+    s.sec.skinMaterial.clippingPlanes = cut ? [plane] : [];
+    s.sec.skinMaterial.needsUpdate = true;
+    s.sec.cap.visible = cut && capon.checked;
+    s.sec.group.children.forEach(ch => {
+      if (ch.isMesh && ch.material && ch.material.colorWrite === false) ch.visible = cut;
+    });
+    const a = Number(op.value) / 100;
     s.sec.skinMaterial.opacity = a;
     s.sec.skinMaterial.transparent = a < 1;
     s.sec.skinMaterial.depthWrite = a >= 1;
-    s.sec.skinMaterial.needsUpdate = true;
-    s.sec.cap.visible = capon.checked;
     s.ions.visible = ionson.checked;
   });
+
+  plane.constant = -Number(depth.value);
+  Object.values(STATES).forEach(s => s.sec.setPlane());
+  dv.textContent = Number(depth.value).toFixed(1) + ' Å';
+  ov.textContent = op.value + '%';
+  if (membrane) {
+    membrane.visible = memon.checked;
+    membrane.userData.materials.forEach(m => {
+      m.clippingPlanes = cut ? [plane] : [];
+      m.needsUpdate = true;
+    });
+  }
 }
 
-const spin = document.getElementById('spin');
 const t0 = performance.now();
 (function frame(now) {
   requestAnimationFrame(frame);
-  if (spin.checked && cur) {
-    depth.value = (Number(depth.max) * Math.sin((now - t0) / 3400)).toFixed(1);
+  if (spin.checked && cuton.checked && cur) {
+    depth.value = (55 * Math.sin((now - t0) / 3400)).toFixed(1);
     sync();
   }
   S.renderer.render(S.scene, S.camera);
