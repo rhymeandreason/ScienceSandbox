@@ -128,6 +128,7 @@ function bake(){
       long:   unit(sub(c1b,c1a)),
       // pair normal: the two bases are propellered, so average them
       norm:   unit(add(na, dot(na,nb)<0 ? mul(nb,-1) : nb)) });
+    // NOTE: this normal's SIGN is still arbitrary — see the fix-up below.
   }
 
   // Helix axis from the interior pairs only (the ends fray), then re-frame the
@@ -139,6 +140,22 @@ function bake(){
   const Z0 = cross(X0, Y);
   const toWorld = p => { const d = sub(p, ax.centre);
     return [dot(d,X0), dot(d,Y), dot(d,Z0)]; };
+
+  /* GIVE EVERY PAIR THE SAME SENSE OF UP.
+   *
+   * planeNormal() returns whichever way the ring's winding order happens to
+   * point, and that order differs between a purine and a pyrimidine — so the
+   * twelve pair normals came out with their signs scattered (+,−,+,−,−,−,+,…).
+   * Each frame is still a valid right-handed rotation, which is why the HELIX
+   * pose renders correctly: a flipped frame flips the local coordinates in
+   * exactly the way that cancels when they are placed back.
+   *
+   * The ladder is where it shows. Squaring every pair to a common orientation
+   * puts the flipped half face-down between their neighbours, and the stack
+   * reads as though sections of it spin through two turns. Anchoring the sign
+   * to the helix axis costs one line and is the difference between a ladder
+   * and a jumble. */
+  for(const p of raw) if(dot(p.norm, Y) < 0) p.norm = mul(p.norm, -1);
 
   /* ---- each pair: local atoms + its placement in the helix -------------- */
   const rise = [], twist = [];

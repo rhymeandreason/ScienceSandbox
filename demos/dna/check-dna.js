@@ -227,6 +227,32 @@ head('the ladder is the helix, untwisted');
   ok(worst < 1e-4,
      `every bond is the same length in both poses (worst ${worst.toExponential(1)} Å)`);
 
+  /* EVERY PAIR MUST FACE THE SAME WAY. planeNormal() takes its sign from the
+   * ring's winding order, which differs between purines and pyrimidines, so
+   * the twelve normals came out scattered (+,−,+,−,−,−,+,…). The helix pose
+   * hides it completely — a flipped frame flips the local coordinates in the
+   * way that cancels — and the LADDER puts the flipped half face-down between
+   * their neighbours, which reads as sections spinning through two turns.
+   * Nothing about that is visible in the numbers the other checks look at. */
+  ok(D.pairs.every(p => p.basis[2][1] > 0.5),
+     "every base pair normal points along the helix axis, not against it: "
+     + D.pairs.map(p => p.basis[2][1].toFixed(2)).join(' '));
+  // …and the long axes wind steadily rather than jumping about.
+  {
+    let prev = null, worst = 0;
+    for(const p of D.pairs){
+      let b = Math.atan2(p.basis[0][2], p.basis[0][0]) * 180/Math.PI;
+      if(prev !== null){
+        let step = b - prev;
+        while(step >  180) step -= 360;
+        while(step < -180) step += 360;
+        worst = Math.max(worst, Math.abs(Math.abs(step) - 34));
+      }
+      prev = b;
+    }
+    ok(worst < 15, `every step turns by roughly the mean twist (worst deviation ${worst.toFixed(1)}°)`);
+  }
+
   // The backbone has to survive as a connected strand, or the "grooves are
   // gaps between the rails" claim has no rails.
   // 11 steps x 2 strands. Anything less means a chain was walked in the wrong
