@@ -50,14 +50,16 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
-    <div id="hint">Drag the right-hand base toward adenine.</div>
+    <div id="hint">Drag either base — bring them together.</div>
   </div>
 
   <div id="side">
     <h1 id="labtitle">Why A goes with T</h1>
-    <p id="labintro">Adenine is fixed on the left. Drag the other base at it and
-      see what happens. The dashed blue bonds are <b>hydrogen bonds</b> — the same
-      bond, drawn the same way, as the ones between water molecules.</p>
+    <p id="labintro">Adenine is on the left. Drag <b>either</b> base and bring
+      them together. The dashed blue bonds are <b>hydrogen bonds</b> — the same
+      bond, drawn the same way, as the ones between water molecules. Pull on a
+      joined pair and it comes apart: these bonds are weak, which is exactly why
+      DNA can be opened and read.</p>
 
     <h2>Bring up a partner</h2>
     <div class="picker" id="picker"></div>
@@ -101,7 +103,9 @@ const un = s => ({ ...s, atoms:s.atoms.map(a=>({el:a.el,pos:a.pos.map(v=>v/S)}))
  * flat view, so it keeps the molecular plane as the plane. */
 const flat = s => ({ ...s, view:null });
 
-const FIXED = 'adenine';
+// The base pairing.js solves AGAINST. Not immovable — just the frame the
+// solved pose is expressed in, which latchWorld() then puts wherever it is.
+const ANCHOR = 'adenine';
 const PARTNERS = ['thymine','cytosine','guanine'];
 let current = 'thymine';
 
@@ -123,8 +127,8 @@ const HB = HBond.create(THREE);
 L.root.add(HB.group);
 const LB = Lobes.create(THREE);
 
-/* ---- the fixed base ----------------------------------------------------- */
-const aSpec = M[FIXED];
+/* ---- the anchor base ----------------------------------------------------- */
+const aSpec = M[ANCHOR];
 const aMol = Stage.buildMolecule(flat(aSpec), { center:false });
 L.root.add(aMol);
 
@@ -132,14 +136,14 @@ L.root.add(aMol);
 let pMol = null, pSpec = null, solved = null, latched = false;
 // Far enough that nothing is bonded at rest — the first hydrogen bond on
 // screen should be one the student made.
-const home = new THREE.Vector3(14, -1.5, 0);
+const HOME_OFF = new THREE.Vector3(14, -1.5, 0);   // relative to adenine
 
 function setPartner(key){
   current = key;
   if(pMol){ L.root.remove(pMol); }
   pSpec = M[key];
   pMol = Stage.buildMolecule(flat(pSpec), { center:false });
-  pMol.position.copy(home);
+  pMol.position.copy(aMol.position).add(HOME_OFF);
   L.root.add(pMol);
   latched = false;
 
@@ -152,8 +156,13 @@ function setPartner(key){
 /* The pose dna/pairing.js solved, expressed as a position+quaternion for the built
  * mesh. The molecule is rigid and planar, so the transform the fit returns is
  * a z-rotation and an offset — read them off two atoms rather than trusting a
- * decomposition. */
-function latchTransform(){
+ * decomposition.
+ *
+ * This is the pose RELATIVE TO ADENINE SITTING AT THE ORIGIN, which is where
+ * pairing.js solved it. Adenine is draggable too, so nothing may assume it is
+ * still there — `latchWorld()` below composes this with wherever it actually
+ * is. Pairing is a relationship between two molecules, not a place on stage. */
+function latchLocal(){
   const s = un(pSpec);
   const p0 = solved.apply(s.atoms[0].pos), p1 = solved.apply(s.atoms[1].pos);
   const q0 = s.atoms[0].pos, q1 = s.atoms[1].pos;
@@ -167,14 +176,25 @@ function latchTransform(){
            quat:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), th) };
 }
 
+/* Where the partner has to be given where adenine ACTUALLY is. */
+function latchWorld(){
+  const l = latchLocal();
+  return { pos: l.pos.clone().applyQuaternion(aMol.quaternion).add(aMol.position),
+           quat: aMol.quaternion.clone().multiply(l.quat) };
+}
+
 /* ---- drag --------------------------------------------------------------- */
 // Drag in the camera's plane. The page is deliberately a flat, face-on view:
 // both bases are planar and coplanar, and a base pair IS a flat object.
+//
+// EITHER base can be picked up. Which one is "fixed" is a fact about how this
+// file was written, not about chemistry, and a student who can only ever move
+// the right-hand one is being told the left one is special. It isn't.
 const canvas = document.getElementById('gl');
-let dragging = false;
 const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
-let grabOff = new THREE.Vector3();
+let held = null;                       // the mesh under the pointer, or null
+const grabOff = new THREE.Vector3();
 
 const toWorld = e => {
   const r = canvas.getBoundingClientRect();
@@ -187,21 +207,30 @@ const toWorld = e => {
 canvas.addEventListener('pointerdown', e => {
   if(!pMol) return;
   const w = toWorld(e);
-  if(w.distanceTo(pMol.position) > 9) return;      // grab the partner, not the void
-  dragging = true; latched = false;
-  grabOff.subVectors(pMol.position, w);
+  // Nearest base within reach — so a grab between the two picks the one meant.
+  const near = [aMol, pMol]
+    .map(m => ({ m, d:w.distanceTo(m.position) }))
+    .filter(x => x.d < 9)
+    .sort((x,y) => x.d - y.d)[0];
+  if(!near) return;
+  held = near.m;
+  // PULLING ON A BONDED PAIR BREAKS IT. Hydrogen bonds are weak — that is
+  // most of why DNA can be read at all — so a drag separates them rather than
+  // towing the pair around as one rigid object.
+  latched = false;
+  grabOff.subVectors(held.position, w);
   canvas.setPointerCapture(e.pointerId);
   hintEl.style.display = 'none';
 });
 canvas.addEventListener('pointermove', e => {
-  if(!dragging) return;
-  pMol.position.copy(toWorld(e)).add(grabOff);
-  pMol.position.z = 0;
+  if(!held) return;
+  held.position.copy(toWorld(e)).add(grabOff);
+  held.position.z = 0;
   tryLatch();
   paint();
 });
 canvas.addEventListener('pointerup', e => {
-  dragging = false;
+  held = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
 });
 
@@ -211,10 +240,13 @@ canvas.addEventListener('pointerup', e => {
 const LATCH_R = 3.4;
 function tryLatch(){
   if(!solved || latched) return;
-  const t = latchTransform();
+  const t = latchWorld();
   if(pMol.position.distanceTo(t.pos) > LATCH_R) return;
   if(!holds()) return;
   latched = true;
+  // The PARTNER always does the snapping, whichever base was being dragged.
+  // Adenine moving out from under the pointer to meet the thing you are
+  // holding reads as the stage grabbing the mouse back.
   L.motion.cancel('latch');
   const from = pMol.position.clone(), fq = pMol.quaternion.clone();
   L.motion.seq([{ dur:0.32, ease:'outBack', onUpdate:u=>{
@@ -255,7 +287,7 @@ function paint(){
 
   if(latched){
     v.className = 'yes';
-    v.textContent = `${name(FIXED)} + ${name(current)} — ${live.length} hydrogen bond`
+    v.textContent = `${name(ANCHOR)} + ${name(current)} — ${live.length} hydrogen bond`
       + `${live.length===1?'':'s'}.`;
     why.textContent = solved.declared
       ? `Every donor on one base meets an acceptor on the other. That is the `
@@ -263,7 +295,7 @@ function paint(){
       : '';
   } else if(!holds()){
     v.className = 'no';
-    v.textContent = `${name(FIXED)} + ${name(current)} — will not hold.`;
+    v.textContent = `${name(ANCHOR)} + ${name(current)} — will not hold.`;
     why.textContent = solved && solved.clash != null
       ? `There is no way to sit these two together. Line their edges up as well `
       + `as the geometry allows and the rings pass through each other — the best `
