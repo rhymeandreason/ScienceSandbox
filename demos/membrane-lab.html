@@ -98,6 +98,13 @@ const chromeEl = document.getElementById('chrome');
 
 const HALF = 15.3;                      // OPM's half-thickness, from the bake
 
+/* The bilayer runs off both edges of the frame on purpose. A membrane with
+   visible ends is a raft, and a student asks what is holding it together;
+   a real one has no edge anywhere near the scale of one protein. The
+   camera frames `boxes` below, not the lipids, so widening this overflows
+   the view instead of zooming out to fit. */
+const MEM_REACH = 150;
+
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
   rMin:50, rMax:400,
@@ -113,8 +120,8 @@ L.renderer.localClippingEnabled = true;
    torn membrane. That is a worse lie than the cost of a second instance,
    because a student's first question becomes "what made the gap". Solid
    for the passive steps, holed once there is something standing in it. */
-const memSolid = Parts.membrane({ half:HALF, reach:58 });
-const memHoled = Parts.membrane({ half:HALF, reach:58, exclude:(x,z) => Math.hypot(x,z) - 15.0 });
+const memSolid = Parts.membrane({ half:HALF, reach:MEM_REACH });
+const memHoled = Parts.membrane({ half:HALF, reach:MEM_REACH, exclude:(x,z) => Math.hypot(x,z) - 15.0 });
 memHoled.group.visible = false;
 L.root.add(memSolid.group, memHoled.group);
 function showMembrane(withHole) {
