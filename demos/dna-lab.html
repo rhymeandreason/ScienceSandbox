@@ -623,8 +623,27 @@ const atomWorld = (r, ai, out) =>
   out.set(...r.p.atoms[ai].p).multiplyScalar(S).applyQuaternion(r.mol.quaternion)
      .add(r.mol.position);
 
+/* WIND IT FROM ONE END, like a rope, not all at once like a wrung towel.
+ *
+ * Twisting every rung simultaneously is the easy interpolation and the wrong
+ * picture: it says the helix is a thing the whole molecule does at a stroke,
+ * and it gives the eye nothing to follow. Winding from one end shows the turn
+ * ACCUMULATING — each rung sits a little further round than the one below it,
+ * which is what a helix IS.
+ *
+ * Each pair therefore runs its own copy of the slider, offset by its position
+ * along the duplex. `SPAN` is how much of the slider one pair takes; the rest
+ * is the stagger. At 0.55 the bottom pair is fully wound around the time the
+ * top one starts to move, so there is always a visible front. */
+const SPAN = 0.55;
+const progress = (t, i) => {
+  const start = (i / (rungs.length - 1)) * (1 - SPAN);
+  return Math.max(0, Math.min(1, (t - start) / SPAN));
+};
+
 function place(t){
   for(const r of rungs){
+    const u = progress(t, r.p.i);
     /* UNWIND, DO NOT CUT ACROSS. A base pair's centre sits up to 6.4 Å off the
      * axis in the helix and on the axis in the ladder. Lerping between those
      * two points in a straight line drags the pair through the middle of the
@@ -632,9 +651,9 @@ function place(t){
      * strains the backbone HARDER halfway than at either end (12.4× against
      * 5.7×). Interpolating the radius instead, at the pair's own bearing, is
      * the same two endpoints joined by the path the molecule would take. */
-    const rad = r.helixR * t;
+    const rad = r.helixR * u;
     r.mol.position.set(rad * Math.cos(r.helixPhi),
-                       r.ladderP.y + (r.helixP.y - r.ladderP.y) * t,
+                       r.ladderP.y + (r.helixP.y - r.ladderP.y) * u,
                        rad * Math.sin(r.helixPhi));
     /* NEVER SLERP A WIND. Quaternion slerp takes the SHORTEST arc, and by the
      * twelfth base pair the helix has turned through 374° — which the short
@@ -646,8 +665,8 @@ function place(t){
      * So the wind is interpolated as an ANGLE — the pair's own accumulated
      * turn, unwrapped so it keeps counting past 360° — and only what is left
      * over after removing it is slerped. */
-    _q1.setFromAxisAngle(UP4, r.turn * t);
-    THREE.Quaternion.slerp(ZERO_Q, r.residualQ, _q2, t);
+    _q1.setFromAxisAngle(UP4, r.turn * u);
+    THREE.Quaternion.slerp(ZERO_Q, r.residualQ, _q2, u);
     r.mol.quaternion.copy(_q1).multiply(_q2);
   }
   let worst = 0;
@@ -676,12 +695,18 @@ function place(t){
  * — once the backbone is being pulled — what that costs it. */
 function setTwist(t){
   const worst = place(t);
-  const deg = t * bdna.twistDeg;
-  document.getElementById('twistread').innerHTML =
-    (deg < 0.05 ? 'no twist' : deg.toFixed(0) + '° per rung')
-    + (worst > 1.25
-        ? ` &middot; <b>backbone stretched ${worst.toFixed(1)}×</b>`
-        : '');
+  // Read the state out of the rungs, not out of the slider: how many are
+  // actually wound, and what the winding is costing the backbone.
+  // The leading end's turn, not a count of finished rungs: nothing is FULLY
+  // wound until the slider is past the stagger, so a count sits at zero for
+  // half the travel while the screen is visibly winding.
+  const lead = progress(t, 0) * bdna.twistDeg;
+  const el = document.getElementById('twistread');
+  const state = t >= 1 ? `${bdna.twistDeg.toFixed(0)}° per rung`
+              : t <= 0 ? 'no twist'
+              : `${lead.toFixed(0)}° per rung, winding up the strand`;
+  el.innerHTML = state + (worst > 1.25
+    ? ` &middot; <b>backbone stretched ${worst.toFixed(1)}×</b>` : '');
 }
 
 setStartPose('adenine','thymine');
