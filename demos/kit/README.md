@@ -64,6 +64,17 @@ the rest.
   away from. If a page wants the end pose, it sets it.
 * **`seek()` does not fire `call` beats.** They are side effects; a scrub that
   re-spawns four rings is worse than one that spawns none. Re-run the step.
+* **A jump re-derives state; it never mutates it.** Every reading a lesson shows
+  — ledger, pools, tray, rail, caption — should be a function of "how many steps
+  have run", so moving that number and redrawing lands on a state that is real
+  rather than staged. It is why glycolysis's `?step=9` opens on a true tally
+  instead of a mock, and why rewinding does not have to remember what it undid.
+  The corollary is the part that bites: anything you *cannot* re-derive — a
+  half-run step's per-lane set, a mid-flight flag — has to be cleared explicitly
+  on every jump, or it leaks into the state you jumped to.
+  **This is also why there is no sequence module.** That number is the lesson's
+  own state, kit owns none, and the second pathway will want it a different
+  shape anyway — a cycle that turns twice is not an index that counts to ten.
 * **The fit is iterative on purpose.** A perspective fit against a pixel band is
   circular — the band's world size depends on the distance, which depends on the
   band. One pass under-reserves and the caption lands on the molecule.
