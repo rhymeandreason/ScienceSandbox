@@ -281,6 +281,19 @@ function paint(){
   hintEl.style.display = latched ? 'none' : '';
   HB.set(live);
 
+  /* A CONTACT IS NOT A PAIR, AND THE PAGE HAS TO SAY WHICH IT IS DRAWING.
+   * Any donor will bond any acceptor it can reach, so adenine and cytosine
+   * really do stick together — that is not a bug in the chemistry and it is
+   * not a bug here. It is the fact textbooks hide by drawing pairing as
+   * interlocking shapes: mismatches form in real cells, and proofreading
+   * exists because they do.
+   *
+   * What separates them is completeness, not existence. So an incidental
+   * contact is drawn FAINT and a satisfied pair SOLID, and the panel names
+   * the difference rather than leaving the student to infer it from a count
+   * that looks the same either way. */
+  HB.material.opacity = latched ? 0.92 : 0.3;
+
   const name = k => M[k].name;
   const v = document.getElementById('verdict');
   const why = document.getElementById('why');
@@ -290,24 +303,38 @@ function paint(){
     v.textContent = `${name(ANCHOR)} + ${name(current)} — ${live.length} hydrogen bond`
       + `${live.length===1?'':'s'}.`;
     why.textContent = solved.declared
-      ? `Every donor on one base meets an acceptor on the other. That is the `
-      + `whole rule — not a shape that fits a notch.`
+      ? `All ${solved.asked} sites on both edges are used at once — every donor `
+      + `facing an acceptor, none left over. That completeness is what makes this `
+      + `a base pair, and it is the only thing that does. Not a shape fitting a `
+      + `notch, and not just "they stick".`
       : '';
   } else if(!holds()){
     v.className = 'no';
-    v.textContent = `${name(ANCHOR)} + ${name(current)} — will not hold.`;
-    why.textContent = solved && solved.clash != null
-      ? `There is no way to sit these two together. Line their edges up as well `
+    v.textContent = live.length
+      ? `${name(ANCHOR)} + ${name(current)} — touching, but not a pair.`
+      : `${name(ANCHOR)} + ${name(current)} — will not hold.`;
+    const stuck = live.length
+      ? `They do stick — ${live.length} hydrogen bond${live.length===1?'':'s'} right `
+      + `now. Any donor will find any acceptor, so this is real, and cells make `
+      + `exactly this mistake; proofreading enzymes exist because they do. But a `
+      + `base pair is not "some bonds". It is EVERY site on both edges satisfied `
+      + `at once. `
+      : '';
+    why.textContent = stuck + (solved && solved.clash != null
+      ? `There is no arrangement that does that here. Line their edges up as well `
       + `as the geometry allows and the rings pass through each other — the best `
       + `fit leaves two atoms ${(solved.clash).toFixed(2)} Å apart, sharing space `
-      + `that only one of them can have. Nothing is wrong with the letters. There `
-      + `is nowhere for this pair to go.`
+      + `only one of them can have.`
       : `Their edges do not complement: a donor ends up facing a donor, and two `
-      + `hydrogens have nothing to share.`;
+      + `hydrogens have nothing to share.`);
   } else {
     v.className = 'no';
-    v.textContent = `Drag it in.`;
-    why.textContent = `${name(current)} has an edge that complements adenine's. `
+    v.textContent = live.length ? `Close — ${live.length} of ${solved.asked}.` : `Drag it in.`;
+    why.textContent = live.length
+      ? `Some sites have found each other and the rest have not. Turn the pair `
+      + `into register and the last one${solved.asked-live.length===1?'':'s'} will `
+      + `close.`
+      : `${name(current)} has an edge that complements ${name(ANCHOR)}'s. `
       + `Bring it close and it will latch.`;
   }
 
