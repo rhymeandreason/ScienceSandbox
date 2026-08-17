@@ -12,7 +12,7 @@
  *    1. Each `wc:` bond says which atom donates and which accepts.
  *    2. For every one, compute where the partner's atom HAS to be — straight
  *       out along the donor's D–H at 1.9 Å (H···A), or out along the
- *       acceptor's lone pair at 2.9 Å (N···N / N···O), lobes.js supplying the
+ *       acceptor's lone pair at 2.9 Å (N···N / N···O), lobes/lobes.js supplying the
  *       lone-pair direction.
  *    3. Fit the partner onto those target points. Two or three correspondences
  *       and a rigid in-plane move is a Procrustes problem, so this is CLOSED
@@ -29,7 +29,7 @@
  *  WHY A MISMATCHED PAIR STILL GETS A POSE
  *  ---------------------------------------------------------------------------
  *  `pairing(a,b)` does not consult a table of allowed letters. It matches each
- *  base's donors against the other's acceptors — the lists lobes.js and the
+ *  base's donors against the other's acceptors — the lists lobes/lobes.js and the
  *  `sites:` field already provide — and solves for whatever correspondence
  *  comes out. A–C finds one; two purines find one too. What separates them is
  *  measured afterwards, on the solved pose:
@@ -38,10 +38,21 @@
  *    · `clash` the closest heavy-atom approach that is NOT a hydrogen bond
  *    · `span`  the width of the pair across the two bases
  *
- *  A–T and G–C come out at the same span within a fraction of an ångström —
- *  that constancy is the whole reason the ladder has parallel rails. Two
- *  purines come out far wider, and that is the refusal the lesson wants: not
- *  "G is the wrong letter", but "this pair is too fat for the rung".
+ *  A–T and G–C both come out clean: every declared bond found, nothing closer
+ *  than 3.4 Å that is not a hydrogen bond. A–C, A–G and G–T all come out with
+ *  a `clash` of 0.2–0.3 Å — the fit, having no arrangement that satisfies the
+ *  edges, folds the two rings through each other. That is the refusal the page
+ *  reports: not "G is the wrong letter" but "there is nowhere for this pair to
+ *  sit".
+ *
+ *  WHAT THIS DOES *NOT* YET SHOW is the width argument — that two purines make
+ *  a rung too fat and two pyrimidines too thin. `span` is here and it is
+ *  honest, but with no sugars in step 1 there is no C1′ to measure between,
+ *  and the widest-heavy-atom stand-in is not that claim. A mismatched pair
+ *  collapses rather than splaying, so its span comes out SMALLER, not larger.
+ *  The constant-width story needs the backbone, and belongs to the step that
+ *  has one. Saying it here on this evidence would be a nice sentence about a
+ *  number that does not mean what it sounds like.
  *
  *  Loaded after kit/molgraph.js, lobes/lobes.js and kit/hbond.js. No THREE:
  *  positions in, positions out, Node-loadable so check-dna.js runs it.
@@ -88,7 +99,7 @@
 
   /* The lone-pair direction on `n` that points away from the base — the one a
    * partner can actually reach. Falls back to the ring-neighbour bisector if
-   * lobes.js is not loaded or refuses to answer for this atom. */
+   * lobes/lobes.js is not loaded or refuses to answer for this atom. */
   function outwardLobe(spec, n){
     const c = centroid(spec), away = unit(sub(P(spec,n), c));
     if(LOBES){

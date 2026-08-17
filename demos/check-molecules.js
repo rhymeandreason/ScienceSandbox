@@ -563,7 +563,7 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     // were moved to the right nitrogens while the Kekulé structure stayed in
     // the old tautomer's form, leaving cytosine's N3 with two single bonds.
     // Its formal electron count then comes out at 1.5 lone pairs — impossible,
-    // so lobes.js refuses the atom, hbond.js gives it capacity 0, and G–C
+    // so lobes/lobes.js refuses the atom, kit/hbond.js gives it capacity 0, and G–C
     // quietly pairs with TWO hydrogen bonds instead of three while every
     // distance on screen is correct. A non-integer count is the tell.
     for (let i = 0; i < mol.atoms.length; i++) {

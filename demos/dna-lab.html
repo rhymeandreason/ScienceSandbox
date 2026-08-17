@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNA — how a base pair holds</title>
+
+<!-- ===================================================================
+     STEP 1 of the DNA lesson: the base pair, and why the rule is a rule.
+
+     THE CONFLICT THIS FIXES. Textbooks draw base pairing as jigsaw
+     tabs — A-shaped notch, T-shaped tab — which explains nothing and
+     is not what holds them. What holds them is hydrogen bonds, the
+     same bond the water lesson already spent a page on, drawn here in
+     the same deep blue on purpose.
+
+     NOTHING ON THIS PAGE HARD-CODES A PAIRING. The latch pose is
+     solved by dna/pairing.js from each base's declared donors and
+     acceptors, and the bonds in the solved pose are then FOUND by
+     kit/hbond.js — the generic finder, not a special case. So "A pairs
+     with T" is something the page discovers, and a mismatch fails by
+     geometry rather than by not being in a table.
+     =================================================================== -->
+
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  #stage,#side{min-height:0} #side{overflow-y:auto}
+  #side h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
+  .picker{display:flex;gap:7px;flex-wrap:wrap}
+  .picker button{font-family:var(--font-sans);font-weight:700;font-size:13px;
+    padding:8px 15px;border-radius:9px;cursor:pointer;
+    border:2px solid var(--ink);background:transparent;color:var(--ink)}
+  .picker button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  #verdict{font-family:var(--font-slab);font-size:15px;line-height:1.5;margin:16px 0 6px}
+  #verdict.yes{color:#0042aa} #verdict.no{color:var(--muted)}
+  #why{font-family:var(--font-sans);font-size:13px;color:var(--muted);line-height:1.6}
+  #tally{font-family:var(--font-mono,ui-monospace,monospace);font-size:11.5px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.6;
+    border-top:1.5px dashed var(--hair);padding-top:10px;margin-top:14px}
+  #tally b{color:var(--ink)}
+  #hint{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:6;
+    background:rgba(255,255,255,.8);border:2px solid var(--ink);border-radius:9px;
+    padding:9px 15px;font-family:var(--font-sans);font-size:13px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
+    <div id="hint">Drag the right-hand base toward adenine.</div>
+  </div>
+
+  <div id="side">
+    <h1 id="labtitle">Why A goes with T</h1>
+    <p id="labintro">Adenine is fixed on the left. Drag the other base at it and
+      see what happens. The dashed blue bonds are <b>hydrogen bonds</b> — the same
+      bond, drawn the same way, as the ones between water molecules.</p>
+
+    <h2>Bring up a partner</h2>
+    <div class="picker" id="picker"></div>
+
+    <div id="verdict"></div>
+    <div id="why"></div>
+    <div id="tally"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="skel.js"></script>
+<script src="mol-nucleic.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/molgraph.js"></script>
+<script src="lobes/lobes.js"></script>
+<script src="kit/hbond.js"></script>
+<script src="kit/focus.js"></script>
+<script src="kit/stagekit.js"></script>
+<script src="dna/pairing.js"></script>
+<script>
+"use strict";
+
+const S = MolLib.SCALE;
+const M = MolLib.MOLECULES;
+// dna/pairing.js works in the record's own ångströms; the registered specs are in
+// display units. Unscale going in, rescale coming out — the module answers in
+// whatever units it was given (the molgraph/hbond contract).
+const un = s => ({ ...s, atoms:s.atoms.map(a=>({el:a.el,pos:a.pos.map(v=>v/S)})) });
+
+/* DROP `view:` WHEN BUILDING. buildMolecule bakes a spec's view rotation into
+ * the atom meshes — even with center:false — and VIEW.flatRing tilts a flat
+ * ring about 96° out of its own plane, which is right for a page whose camera
+ * is three-quarter and wrong here twice over: the pair renders edge-on as a
+ * line, and the mesh no longer agrees with the coordinates dna/pairing.js solved
+ * against, so the latch pose lands somewhere else entirely. This page IS the
+ * flat view, so it keeps the molecular plane as the plane. */
+const flat = s => ({ ...s, view:null });
+
+const FIXED = 'adenine';
+const PARTNERS = ['thymine','cytosine','guanine'];
+let current = 'thymine';
+
+const hintEl = document.getElementById('hint');
+const L = Lesson.create(document.getElementById('gl'), {
+  cam:{ theta:0, phi:1.5708, r:26 }, rMax:120,
+  boxes:()=>[{ x:3, y:0, rxz:15.5, hy:7.5 }],
+  reservePx:()=>({ bottom: hintEl.offsetHeight + 26 }),
+});
+
+const HB = HBond.create(THREE);
+L.root.add(HB.group);
+const LB = Lobes.create(THREE);
+
+/* ---- the fixed base ----------------------------------------------------- */
+const aSpec = M[FIXED];
+const aMol = Stage.buildMolecule(flat(aSpec), { center:false });
+L.root.add(aMol);
+
+/* ---- the partner, rebuilt when the picker changes ------------------------ */
+let pMol = null, pSpec = null, solved = null, latched = false;
+// Far enough that nothing is bonded at rest — the first hydrogen bond on
+// screen should be one the student made.
+const home = new THREE.Vector3(14, -1.5, 0);
+
+function setPartner(key){
+  current = key;
+  if(pMol){ L.root.remove(pMol); }
+  pSpec = M[key];
+  pMol = Stage.buildMolecule(flat(pSpec), { center:false });
+  pMol.position.copy(home);
+  L.root.add(pMol);
+  latched = false;
+
+  // Solve the latch ONCE per partner, in ångströms, then scale into the scene.
+  const r = Pairing.pairing(un(aSpec), un(pSpec));
+  solved = r.ok ? r : null;
+  paint();
+}
+
+/* The pose dna/pairing.js solved, expressed as a position+quaternion for the built
+ * mesh. The molecule is rigid and planar, so the transform the fit returns is
+ * a z-rotation and an offset — read them off two atoms rather than trusting a
+ * decomposition. */
+function latchTransform(){
+  const s = un(pSpec);
+  const p0 = solved.apply(s.atoms[0].pos), p1 = solved.apply(s.atoms[1].pos);
+  const q0 = s.atoms[0].pos, q1 = s.atoms[1].pos;
+  const a0 = Math.atan2(p1[1]-p0[1], p1[0]-p0[0]);
+  const a1 = Math.atan2(q1[1]-q0[1], q1[0]-q0[0]);
+  const th = a0 - a1;
+  const co = Math.cos(th), si = Math.sin(th);
+  // where the mesh origin lands: rotate q0 about the origin, then offset
+  const rx = q0[0]*co - q0[1]*si, ry = q0[0]*si + q0[1]*co;
+  return { pos:new THREE.Vector3((p0[0]-rx)*S, (p0[1]-ry)*S, 0),
+           quat:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), th) };
+}
+
+/* ---- drag --------------------------------------------------------------- */
+// Drag in the camera's plane. The page is deliberately a flat, face-on view:
+// both bases are planar and coplanar, and a base pair IS a flat object.
+const canvas = document.getElementById('gl');
+let dragging = false;
+const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
+let grabOff = new THREE.Vector3();
+
+const toWorld = e => {
+  const r = canvas.getBoundingClientRect();
+  ndc.set((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1));
+  ray.setFromCamera(ndc, L.camera);
+  ray.ray.intersectPlane(plane, hit);
+  return hit;
+};
+
+canvas.addEventListener('pointerdown', e => {
+  if(!pMol) return;
+  const w = toWorld(e);
+  if(w.distanceTo(pMol.position) > 9) return;      // grab the partner, not the void
+  dragging = true; latched = false;
+  grabOff.subVectors(pMol.position, w);
+  canvas.setPointerCapture(e.pointerId);
+  hintEl.style.display = 'none';
+});
+canvas.addEventListener('pointermove', e => {
+  if(!dragging) return;
+  pMol.position.copy(toWorld(e)).add(grabOff);
+  pMol.position.z = 0;
+  tryLatch();
+  paint();
+});
+canvas.addEventListener('pointerup', e => {
+  dragging = false;
+  try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
+});
+
+/* THE LATCH. Close enough to the solved pose and it snaps in — but only if the
+ * solved pose is one that actually holds. A pair that fails on geometry can be
+ * pushed together all day and will not stick, which is the point. */
+const LATCH_R = 3.4;
+function tryLatch(){
+  if(!solved || latched) return;
+  const t = latchTransform();
+  if(pMol.position.distanceTo(t.pos) > LATCH_R) return;
+  if(!holds()) return;
+  latched = true;
+  L.motion.cancel('latch');
+  const from = pMol.position.clone(), fq = pMol.quaternion.clone();
+  L.motion.seq([{ dur:0.32, ease:'outBack', onUpdate:u=>{
+      pMol.position.lerpVectors(from, t.pos, u);
+      THREE.Quaternion.slerp(fq, t.quat, pMol.quaternion, u);
+    }}], { tag:'latch' });
+  L.fx && L.fx.spawnRing(t.pos.clone(), MolLib.PALETTE.bonds.hbond);
+}
+
+// Does the solved pose hold? Every declared bond found, and nothing driven
+// into anything. Both numbers come from the solver, not from this page.
+const holds = () => solved && solved.count >= 2 && (solved.clash == null);
+
+/* ---- live hydrogen bonds ------------------------------------------------- */
+// Recomputed from where the molecules ACTUALLY are, every frame, by the same
+// finder water-lab's dimer uses. Nothing is drawn because a pose was reached —
+// the bonds appear when the geometry earns them, and thin out when it doesn't.
+const MAXD = HBond.DEFAULTS.maxDist * S;
+function liveBonds(){
+  const at = (mol, spec) => ({ ...spec, atoms: spec.atoms.map((a,i)=>{
+      const v = new THREE.Vector3(...a.pos).applyQuaternion(mol.quaternion).add(mol.position);
+      return { el:a.el, pos:[v.x,v.y,v.z] }; }) });
+  const A = HBond.sites(at(aMol, aSpec), { owner:'a' });
+  const B = HBond.sites(at(pMol, pSpec), { owner:'b' });
+  return HBond.find(A.donors.concat(B.donors), A.acceptors.concat(B.acceptors),
+                    { maxDist:MAXD, onePerPair:false, order:'best' });
+}
+
+/* ---- panel --------------------------------------------------------------- */
+function paint(){
+  const live = pMol ? liveBonds() : [];
+  hintEl.style.display = latched ? 'none' : '';
+  HB.set(live);
+
+  const name = k => M[k].name;
+  const v = document.getElementById('verdict');
+  const why = document.getElementById('why');
+
+  if(latched){
+    v.className = 'yes';
+    v.textContent = `${name(FIXED)} + ${name(current)} — ${live.length} hydrogen bond`
+      + `${live.length===1?'':'s'}.`;
+    why.textContent = solved.declared
+      ? `Every donor on one base meets an acceptor on the other. That is the `
+      + `whole rule — not a shape that fits a notch.`
+      : '';
+  } else if(!holds()){
+    v.className = 'no';
+    v.textContent = `${name(FIXED)} + ${name(current)} — will not hold.`;
+    why.textContent = solved && solved.clash != null
+      ? `There is no way to sit these two together. Line their edges up as well `
+      + `as the geometry allows and the rings pass through each other — the best `
+      + `fit leaves two atoms ${(solved.clash).toFixed(2)} Å apart, sharing space `
+      + `that only one of them can have. Nothing is wrong with the letters. There `
+      + `is nowhere for this pair to go.`
+      : `Their edges do not complement: a donor ends up facing a donor, and two `
+      + `hydrogens have nothing to share.`;
+  } else {
+    v.className = 'no';
+    v.textContent = `Drag it in.`;
+    why.textContent = `${name(current)} has an edge that complements adenine's. `
+      + `Bring it close and it will latch.`;
+  }
+
+  // Every number below is read at render time from the solver and the finder.
+  const t = document.getElementById('tally');
+  if(!solved){ t.textContent = ''; return; }
+  const rows = (aSpec.wc && solved.declared ? aSpec.wc.bonds : []).map(b =>
+    `  ${aSpec.names[b.self]} ${b.role==='donor'?'–H ···':'··· H–'} ${b.partner}`);
+  t.innerHTML =
+     `<b>solved pose</b>   fit ${solved.rms.toFixed(2)} Å rms over `
+    +`${solved.asked} declared bond${solved.asked===1?'':'s'}\n`
+    +`<b>bonds found</b>   ${solved.count}   (by kit/hbond.js, in the solved pose)\n`
+    +`<b>closest non-bond</b> ${solved.clash==null ? 'nothing under 3.4 Å' : solved.clash.toFixed(2)+' Å'}\n`
+    +(rows.length ? `\n${rows.join('\n')}` : '');
+}
+
+/* ---- picker -------------------------------------------------------------- */
+const picker = document.getElementById('picker');
+PARTNERS.forEach(k => {
+  const b = document.createElement('button');
+  b.textContent = M[k].name;
+  b.onclick = () => {
+    setPartner(k);
+    [...picker.children].forEach(c =>
+      c.setAttribute('aria-pressed', String(c === b)));
+    hintEl.style.display = '';
+  };
+  picker.appendChild(b);
+});
+picker.children[0].setAttribute('aria-pressed','true');
+
+setPartner('thymine');
+L.resize(); L.fit(); L.start();
+</script>
+</body>
+</html>

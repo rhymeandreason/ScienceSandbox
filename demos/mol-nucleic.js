@@ -69,7 +69,7 @@
    * because bond ORDER is what the lone-pair count is computed from. Leave
    * cytosine's Kekulé structure in the N3–H form after moving the hydrogen to
    * N1 and N3 ends up with two single bonds: (5 − 2)/2 = 1.5 lone pairs, an
-   * impossible number, so lobes.js refuses it, hbond.js gives it capacity 0,
+   * impossible number, so lobes/lobes.js refuses it, kit/hbond.js gives it capacity 0,
    * and G–C silently comes out with two hydrogen bonds instead of three. The
    * geometry was perfect the whole time. `swap` is therefore not optional
    * bookkeeping — it is the other half of the same edit. */
