@@ -715,6 +715,7 @@
 <script src="kit/fit.js"></script>
 <script src="kit/lanes.js"></script>
 <script src="kit/hotspot.js"></script>
+<script src="kit/leaving.js"></script>
 <script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
@@ -1409,15 +1410,16 @@ function badge(laneIdx, atomIdx, text){
 // Milliseconds in, because every beat constant on this page is in ms.
 const RUN='run';                                  // the tag a whole step rides
 const later=(fn,ms)=>MO.after((ms||0)/1000, fn, RUN);
-// MESHES IN THE AIR are the other half of a cancel. A flying phosphoryl group
-// is removed by its own beat; cancelling that beat used to strand it in the
-// scene, because a cancel deliberately does not run what it cancels. So strays
-// are registered and swept together.
-const strays=new Set();
-const stray=g=>{ strays.add(g); root.add(g); return g; };
-const unstray=g=>{ if(strays.delete(g)) root.remove(g); };
-const cancelTimers=()=>{ MO.cancel(RUN);
-  strays.forEach(g=>root.remove(g)); strays.clear(); };
+/* WHAT LEAVES A MOLECULE is kit/leaving.js's — the meshes, the flight, the
+ * sweep on cancel, and the camera arithmetic for getting off stage. This page
+ * keeps the chemistry: which atoms go, what colour the event is, where to.
+ *
+ * MESHES IN THE AIR ARE THE OTHER HALF OF A CANCEL, and the reason the module
+ * owns a registry at all: a flying group is removed by its own beat, and
+ * cancelling that beat deliberately does not run what it cancels — so without
+ * one sweep to call, a restart mid-flight strands the mesh on stage. */
+const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
+const cancelTimers=()=>{ MO.cancel(RUN); GO.clear(); };
 
 const FLY=620, SPLIT=840;
 // STEP 5's THREE BEATS. The hold is the beat that makes the step readable: the
@@ -1460,11 +1462,7 @@ const H_LEAVE_MS=3000;
 // Distance is the frustum's full width, so the drift clears the frame from
 // anywhere. Read off the camera, never typed: the zoom eases through the first
 // second, so a fixed length clears at one moment and parks at another.
-function screenRight(dist){
-  camera.updateMatrixWorld();
-  return new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0)
-    .normalize().multiplyScalar(dist);
-}
+const screenRight=dist=>GO.acrossScreen(dist);
 // THE CLEAVAGE at step 4. Aldolase cuts a C–C bond; no phosphate moves, so the
 // ring must not be phosphate-orange. Violet is the repo's colour for a bond
 // coming apart (water-lab's NaCl dissociation — SCIENCE.md §5).
@@ -1508,7 +1506,7 @@ function waterAway(l){
   const mO =Stage.atom(PAL.atoms.O, PAL.radii.O, pO, 'O');
   const mH1=Stage.atom(PAL.atoms.H, PAL.radii.H, pH1,'H');
   const mH2=Stage.atom(PAL.atoms.H, PAL.radii.H, pH2,'H');
-  g.add(mO,mH1,mH2); stray(g);
+  g.add(mO,mH1,mH2); GO.hold(g);
   // Where the two H's belong once this IS a water. The first keeps the
   // direction it already had off the O — it was an O–H and stays one, so only
   // its length is corrected; the second swings round to the true angle, in the
@@ -1522,12 +1520,11 @@ function waterAway(l){
   // perpendicular rather than divide by zero and send the atom to NaN.
   if(nrm.lengthSq()<1e-6) nrm.set(0,0,1); else nrm.normalize();
   const t2=pO.clone().add(d1.clone().applyAxisAngle(nrm,HOH).multiplyScalar(OHW));
-  MO.seq([{dur:WATER_FORM/1000, ease:'outQuad', onUpdate:e=>{
-    mH1.position.lerpVectors(pH1,t1,e);
-    mH2.position.lerpVectors(pH2,t2,e);
-  }}],{tag:RUN});
+  // NO BONDS YET — see kit/leaving.js. They are drawn by link(), below, once
+  // the atoms have arrived.
+  GO.gather([{mesh:mH1,to:t1},{mesh:mH2,to:t2}], {dur:WATER_FORM});
   later(()=>{
-    g.add(Stage.bond(pO,t1,PAL.bonds.covalent), Stage.bond(pO,t2,PAL.bonds.covalent));
+    GO.link(g, [[pO,t1],[pO,t2]]);
     // OUT OF THE FRAME, AND THE FRAME IS A SCREEN EDGE. `OFFSCREEN`'s world Y
     // of 8.5 is not it: that number was picked when it only had to clear a
     // molecule, and under this camera it stops INSIDE the shot, so the water
@@ -1544,7 +1541,7 @@ function waterAway(l){
     MO.seq([{dur:WATER_DRIFT/1000, ease:'inQuad',
              onUpdate:e=>{ g.position.copy(climb).multiplyScalar(e); }}],{tag:RUN});
   }, WATER_FORM);
-  later(()=>unstray(g), WATER_FORM+WATER_DRIFT);
+  later(()=>GO.drop(g), WATER_FORM+WATER_DRIFT);
 }
 
 /* ---- THE PHOSPHATE THAT MOVES ONE CARBON OVER (step 8) ------------------
@@ -1616,18 +1613,10 @@ function leavingH(sub,pro,p){
   const hs=nbOf(sub,hit[0][0]).filter(i=>sub.atoms[i].el==='H');
   return hs.length===1 ? hs[0] : null;
 }
-function phosphorylGroup(spec,p){
-  const c=spec.atoms[p].pos;
-  const at=i=>V(spec.atoms[i].pos[0]-c[0], spec.atoms[i].pos[1]-c[1],
-                spec.atoms[i].pos[2]-c[2]);
-  const g=new THREE.Group();
-  g.add(Stage.atom(PAL.atoms.P, PAL.radii.P, V(0,0,0), 'P'));
-  terminalO(spec,p).forEach(i=>{ const o=at(i);
-    g.add(Stage.bond(V(0,0,0), o, PAL.bonds.covalent));
-    g.add(Stage.atom(PAL.atoms.O, PAL.radii.O, o, 'O'));
-  });
-  return g;
-}
+// WHICH atoms are the phosphoryl is chemistry, so it stays here; building the
+// meshes for them is not, so that is the module's. Centred on the P, because
+// the P is the point every caller aims.
+const phosphorylGroup=(spec,p)=>GO.fragment(spec, [p, ...terminalO(spec,p)], {center:p});
 /* THE SUGAR LOSES IT AS IT LEAVES, as ATP does on a spend (see carrierGone).
  * The lane doesn't become the product until the flight ends, so the phosphate
  * used to sit there the whole trip while a copy of itself sailed off. The set
@@ -1637,12 +1626,7 @@ function phosphorylGroup(spec,p){
  * Hiding, not removing: rewind mid-flight is impossible (`busy`), but a deleted
  * mesh couldn't come back if that changed.
  */
-function shedAtoms(l,idx){
-  const u=l.g.userData, set=new Set(idx);
-  set.forEach(i=>{ const m=u.atomMeshes[i]; if(m) m.visible=false; });
-  u.bondMeshes.forEach(bm=>{
-    if(bm.userData.pair.some(q=>set.has(q))) bm.visible=false; });
-}
+const shedAtoms=(l,idx)=>GO.shed(l.g, idx);
 const shedPhosphoryl=(l,p)=>shedAtoms(l,[p, ...terminalO(M[l.key],p)]);
 // A phosphoryl arcing in from the carrier or out toward it — the page's
 // signature beat: what ATP gives up and ADP receives are visibly one object.
@@ -1652,18 +1636,11 @@ const shedPhosphoryl=(l,p)=>shedAtoms(l,[p, ...terminalO(M[l.key],p)]);
 // stage (steps 1, 3, 8), otherwise ATP's own γ.
 function flyPhosphate(from,to,spec,p,dur){
   const T=dur||FLY;
-  const g=phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]);
-  g.position.copy(from);
-  stray(g);
-  // PIXELS, so this rides the render loop only: a flight nobody watched owes
-  // nobody its frames, and the removal beat below lands the state either way.
-  MO.seq([{dur:T/1000, ease:'outQuad', onUpdate:(e,k)=>{
-    g.position.lerpVectors(from,to,e);
-    g.position.y+=2.6*Math.sin(k*Math.PI);                       // arc over the top
-  }}],{tag:RUN});
-  // REMOVED ON THE BEAT THE PRODUCT APPEARS: both beats share a delay and fire
-  // in registration order, this one first — never two phosphates in one place.
-  later(()=>unstray(g), T);
+  // REMOVED ON THE BEAT THE PRODUCT APPEARS: launch's removal and the swap
+  // share a delay and fire in registration order, this one first — so there is
+  // never a frame with two phosphates in one place.
+  GO.launch(phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]),
+            {from, to, dur:T, arc:2.6});
 }
 // THE CYTOSOL IS SLOWER THAN A HANDOFF. A phosphate off ATP is PASSED — one
 // enzyme holds both molecules. Step 6's comes out of solution: nothing hands it
@@ -1682,10 +1659,7 @@ const TOP_EDGE=1.08;                 // NDC, a little past 1 so it enters rather
 // it matters. Leaving, that same point still shows half a sphere hanging on the
 // rim, so the water reads as parked rather than gone.
 const EXIT_EDGE=1.3;
-function aboveFrame(to, edge){
-  const v=to.clone().project(camera);
-  return new THREE.Vector3(v.x, edge==null?TOP_EDGE:edge, v.z).unproject(camera);
-}
+const aboveFrame=(to, edge)=>GO.offstage(to, edge==null?TOP_EDGE:edge);
 
 // THE PHOSPHATE COMES OFF ATP, and you should see that it does. It used to drop
 // from the top of the frame — true of free Pi, not of a kinase step. So the

@@ -20,6 +20,7 @@ second page would want it *slightly* different, it does not.
 | `fit.js` | the stage is not an empty rectangle. Chrome measured in **pixels** by the page → leftover fractions, a solved distance and target, a top anchor, and (for an ortho page) a frustum built from `cam.r` so that number keeps meaning. Extracted from glycolysis-lab, which had it right and paid five functions for it | the human, bit-identical fit values before/after the extraction |
 | `focus.js` | one vocabulary for "look here": ghost at 13% without depth-write, lit atoms emitting their **own** colour, a bond lit only when both ends are. Works on a built molecule (by atom index) or on whole objects against each other | the human, `kit-test.html` |
 | `stagekit.js` | the shell: `Stage.create` + render loop (dt in **seconds**) + ResizeObserver + FX/Motion/Focus wiring + `fit()`, which converts **pixels of chrome** into the world-space bands `Stage.frame` wants. Two hooks: `frame` before the render, `afterFrame` after it — anything pinning DOM to a 3D point belongs in the second | the human, `kit-test.html` |
+| `leaving.js` | **a piece of a molecule leaves, travels, and is gone** — the event every reaction lesson animates. Sheds atoms *with their bonds*, builds the travelling fragment from the spec's own geometry, keeps one registry of what is in the air so a cancel can sweep it, removes on a wall-clock beat (not the tween's last frame), assembles a product out of the pieces that left (atoms converge, bonds only after), and solves *offstage* off the camera — a screen edge, never a world height, with more clearance for a departure than an arrival. The page keeps the chemistry: which atoms, what colour, where to | the human, `glycolysis-lab` |
 | `modal.js` | **the card that covers the lesson** — the side doors every lesson grows. Opening, closing, the focus the four hand-written copies never gave back, the trap `aria-modal` already promised, and one Esc across a shared stack so the topmost closes. `anyOpen()` is what a page guards its stage keys on. Markup and content stay the page's | the human, `glycolysis-lab` |
 | `check-kit.js` | the assertions behind the two offline modules. `node kit/check-kit.js` | — |
 | `kit-test.html` | bench for the two visual ones, with no lesson around them | — |
@@ -36,6 +37,7 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="kit/fit.js"></script>        <!-- if the page has chrome over the canvas -->
 <script src="kit/lanes.js"></script>      <!-- if molecules stand side by side and swap -->
 <script src="kit/hotspot.js"></script>    <!-- if the student clicks the chemistry itself -->
+<script src="kit/leaving.js"></script>    <!-- if something detaches and travels -->
 <script src="kit/modal.js"></script>      <!-- if the lesson has side doors; no deps -->
 <script src="kit/focus.js"></script>      <!-- after scene.js -->
 <script src="kit/stagekit.js"></script>   <!-- last: it wires the other three -->
