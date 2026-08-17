@@ -557,10 +557,27 @@ function tick(dt) {
     const st = Pump.at(pumpT);
     T.setGates(st.gates.top, st.gates.bottom);
     hidePumpIons();
+    /* FAN THE CARGO ROUND THE AXIS, don't stack it up one.
+
+       pump.js spreads ions by 0.06-0.09 in normalised units — about 2 A —
+       because it works in units and has no idea how big an ion is drawn.
+       At this page's exaggeration a K⁺ is 4.5 A across, so the site's two
+       ions fused into one blob. The page knows the drawn radius, so the
+       page is what solves it.
+
+       Sideways rather than further apart along the path: the site is a
+       round pocket and the ions sit BESIDE each other in it. Stacking
+       them axially would push one out of the pocket and through the wall
+       the moment the gates shut. */
     const used = { NA:0, K:0 };
+    const seats = st.cargo.reduce((a, c) => (a[c.species] = (a[c.species] || 0) + 1, a), {});
     for (const c of st.cargo) {
-      const m = pumpIon(c.species, used[c.species]++);
-      m.position.set(0, c.u * T.height, 0);
+      const i = used[c.species]++;
+      const n = seats[c.species];
+      const m = pumpIon(c.species, i);
+      const rr = n > 1 ? ionRadius(c.species) * 1.15 : 0;
+      const th = (i / n) * Math.PI * 2;
+      m.position.set(Math.cos(th) * rr, c.u * T.height, Math.sin(th) * rr);
       m.visible = c.alpha > .02;
       m.material.transparent = c.alpha < 1;
       m.material.opacity = c.alpha;
