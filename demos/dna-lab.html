@@ -50,7 +50,7 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
-    <div id="hint">Drag to move · <b>shift-drag</b> (or right-drag) to turn</div>
+    <div id="hint">Drag either base — bring them together.</div>
   </div>
 
   <div id="side">
@@ -60,10 +60,6 @@
       bond, drawn the same way, as the ones between water molecules. Pull on a
       joined pair and it comes apart: these bonds are weak, which is exactly why
       DNA can be opened and read.</p>
-    <p id="labintro2" style="font-family:var(--font-sans);font-size:13px;
-      color:var(--muted);line-height:1.6">A base only pairs one way round, so
-      you have to <b>turn</b> it as well as move it: shift-drag, or drag with the
-      right button. Getting it close is not enough.</p>
 
     <h2>Bring up a partner</h2>
     <div class="picker" id="picker"></div>
@@ -154,16 +150,6 @@ function setPartner(key){
   // Solve the latch ONCE per partner, in ångströms, then scale into the scene.
   const r = Pairing.pairing(un(aSpec), un(pSpec));
   solved = r.ok ? r : null;
-
-  // Spawn it OUT of register, but only just — about 40°, comfortably past the
-  // latch's ~26° of slack. Enough that the student has to turn it and can see
-  // that turning matters; not the 150° chore that starting from an arbitrary
-  // orientation would be. The offset is measured from the solved pose, so it
-  // stays honest for whichever partner is up.
-  if(solved){
-    pMol.quaternion.copy(latchLocal().quat)
-      .multiply(new THREE.Quaternion().setFromAxisAngle(Z, 0.7));
-  }
   paint();
 }
 
@@ -208,40 +194,7 @@ const canvas = document.getElementById('gl');
 const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 let held = null;                       // the mesh under the pointer, or null
-let turning = false;                   // …and whether this drag turns it
 const grabOff = new THREE.Vector3();
-let grabAngle = 0, grabQuat = new THREE.Quaternion();
-const Z = new THREE.Vector3(0,0,1);
-
-/* THE STUDENT TURNS IT, NOT THE LATCH. A base only pairs in one orientation,
- * and if the snap supplies that orientation then the one thing worth doing on
- * this page is the one thing the page does for you — the base swings itself
- * into register and the student learns that bringing things near each other is
- * enough. It isn't. So: drag moves, SHIFT-drag (or right-drag) turns, and the
- * latch will only close once the angle is already close, leaving it a small
- * correction rather than a spin. */
-const LATCH_A = 0.45;                  // ~26° of slack on the angle
-
-/* TURN IT ABOUT ITS MIDDLE, NOT ABOUT ITS ORIGIN. A spec's origin is wherever
- * the source record happened to put atom 0 — for these bases it is off in the
- * ring somewhere, not the centre of anything. Spinning the mesh about it
- * throws the molecule bodily sideways, so a student who lines the pair up and
- * then corrects the angle watches it fly out of register. The grab holds the
- * heavy-atom centroid still instead. */
-const localCentre = spec => {
-  const h = spec.atoms.filter(a => a.el !== 'H');
-  const c = h.reduce((v,a)=>v.add(new THREE.Vector3(...a.pos)), new THREE.Vector3());
-  return c.multiplyScalar(1/h.length);
-};
-const specOf = m => m === aMol ? aSpec : pSpec;
-const worldCentre = m =>
-  localCentre(specOf(m)).applyQuaternion(m.quaternion).add(m.position);
-
-let grabCentre = new THREE.Vector3();
-const angleTo = e => {
-  const w = toWorld(e);
-  return Math.atan2(w.y - grabCentre.y, w.x - grabCentre.x);
-};
 
 const toWorld = e => {
   const r = canvas.getBoundingClientRect();
@@ -256,46 +209,30 @@ canvas.addEventListener('pointerdown', e => {
   const w = toWorld(e);
   // Nearest base within reach — so a grab between the two picks the one meant.
   const near = [aMol, pMol]
-    .map(m => ({ m, d:w.distanceTo(worldCentre(m)) }))
+    .map(m => ({ m, d:w.distanceTo(m.position) }))
     .filter(x => x.d < 9)
     .sort((x,y) => x.d - y.d)[0];
   if(!near) return;
   held = near.m;
-  turning = e.shiftKey || e.button === 2;
   // PULLING ON A BONDED PAIR BREAKS IT. Hydrogen bonds are weak — that is
   // most of why DNA can be read at all — so a drag separates them rather than
   // towing the pair around as one rigid object.
   latched = false;
   grabOff.subVectors(held.position, w);
-  grabCentre.copy(worldCentre(held));
-  grabAngle = angleTo(e);
-  grabQuat.copy(held.quaternion);
-  try{ canvas.setPointerCapture(e.pointerId); }catch(_){}   // as pointerup does
+  canvas.setPointerCapture(e.pointerId);
   hintEl.style.display = 'none';
 });
 canvas.addEventListener('pointermove', e => {
   if(!held) return;
-  if(turning){
-    // Turn about the molecule's own centre, following the pointer round it —
-    // the grab point keeps its bearing, so the base tracks the hand.
-    const d = angleTo(e) - grabAngle;
-    held.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(Z, d)).multiply(grabQuat);
-    // hold the centroid still: pos = centre − R·(local centre)
-    held.position.copy(grabCentre).sub(
-      localCentre(specOf(held)).applyQuaternion(held.quaternion));
-  } else {
-    held.position.copy(toWorld(e)).add(grabOff);
-    held.position.z = 0;
-  }
+  held.position.copy(toWorld(e)).add(grabOff);
+  held.position.z = 0;
   tryLatch();
   paint();
 });
 canvas.addEventListener('pointerup', e => {
-  held = null; turning = false;
+  held = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
 });
-// Right-drag is the other way to turn it, so the context menu has to go.
-canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 /* THE LATCH. Close enough to the solved pose and it snaps in — but only if the
  * solved pose is one that actually holds. A pair that fails on geometry can be
@@ -305,9 +242,6 @@ function tryLatch(){
   if(!solved || latched) return;
   const t = latchWorld();
   if(pMol.position.distanceTo(t.pos) > LATCH_R) return;
-  // …AND already turned to roughly the right register. Without this the snap
-  // supplies the orientation, which is the half of pairing worth doing.
-  if(pMol.quaternion.angleTo(t.quat) > LATCH_A) return;
   if(!holds()) return;
   latched = true;
   // The PARTNER always does the snapping, whichever base was being dragged.
