@@ -90,14 +90,9 @@ const canvas = document.getElementById('c');
    facing the viewer rather than raking away from it. */
 const S = Stage.create(canvas, { cam:{theta:0, phi:1.5, r:145}, rMin:30, rMax:400 });
 const Clip = ClipLib.create({ renderer:S.renderer });
-/* Cut along the slab's THIN axis, not its length.
-   membrane() lays the bilayer out along x and keeps it shallow in z, so a
-   plane with an x normal slices it lengthwise — half the membrane vanishes
-   and what is left is a stub beside the protein. The cross-section every
-   textbook draws is the other one: cut through z, keep the far half, and
-   the bilayer stays full width with the machine opened in the middle of it.
-   Normal is -z so the half nearer the camera (at +z) is the half removed. */
-const plane = new THREE.Plane(new THREE.Vector3(0,0,-1), 0);
+/* The cut plane comes from membrane() — it laid the slab out, so it is the
+   only thing that knows which axis is the thin one. Picking a normal here
+   is how this page previously ended up slicing the bilayer lengthwise. */
 
 const HALF = 15.3;                    // the bilayer bake-pump.js measured
 let T = null, mem = null, ionMesh = null, cutSec = null;
@@ -202,10 +197,12 @@ cuton.addEventListener('change', applyCut);
 
 function applyCut() {
   const on = cuton.checked;
-  T.mesh.material.clippingPlanes = on ? [plane] : [];
-  T.mesh.material.needsUpdate = true;
+  mem.cut.enable(on);                       // the membrane cuts itself...
+  T.mesh.material.clippingPlanes = on ? [mem.cut.plane] : [];   // ...everything
+  T.mesh.material.needsUpdate = true;       // else borrows its plane
   T.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
-  mem.materials.forEach(m => { m.clippingPlanes = on ? [plane] : []; m.needsUpdate = true; });
+  /* The outline shell is a back-face copy; through a cut it would draw the
+     silhouette of a solid that is no longer there. */
   T.group.children.forEach(ch => { if (ch.material && ch.material.side === THREE.BackSide) ch.visible = !on; });
 }
 

@@ -290,6 +290,14 @@
        'disc'  the honest full patch. Correct, and it will hide your
                protein. Kept because a page that wants to look down the
                membrane normal needs it.
+
+     AND IT OWNS THE CUT PLANE, because it is the only thing that knows
+     which way the slab runs. A page that picks its own normal picks the
+     wrong one: cutting a slab along its LENGTH slices the bilayer in half
+     lengthwise and leaves a stub beside the protein, which is what this
+     page did until the geometry was looked at rather than assumed. The
+     thin axis is the one to cut across, membrane() laid it out, so
+     membrane() hands back the plane and everything else borrows it.
      ===================================================================== */
   function membrane(opts) {
     const o = Object.assign({
@@ -338,7 +346,34 @@
       g.add(heads, tails);
     }
     g.userData.materials = [headMat, tailMat];
-    return { group: g, materials: g.userData.materials, columns: cols.length };
+
+    /* ---- the cut ----
+       Normal points at the camera side, so the half REMOVED is the near
+       one and the viewer is left looking at the cut face. For a slab the
+       thin axis is z. For a disc there is no thin axis and no right
+       answer; z is returned so the API is uniform, and a disc being cut
+       at all is already a page doing something unusual. */
+    const normal = new THREE.Vector3(0, 0, -1);
+    const plane = new THREE.Plane(normal.clone(), 0);
+    let cutOn = false;
+
+    function enable(on) {
+      cutOn = !!on;
+      g.userData.materials.forEach(m => {
+        m.clippingPlanes = cutOn ? [plane] : [];
+        m.needsUpdate = true;
+      });
+    }
+    /* at(d): slide the cut along its own normal. d = 0 is the mid-plane,
+       which is where a cross-section wants to be; positive moves the cut
+       away from the camera. */
+    function at(d) { plane.constant = d; }
+
+    return {
+      group: g, materials: g.userData.materials, columns: cols.length,
+      half: o.half, shape: o.shape,
+      cut: { plane, normal, enable, at, get on() { return cutOn; } },
+    };
   }
 
   /* =====================================================================
