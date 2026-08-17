@@ -378,6 +378,59 @@
 
     const headGeo = new THREE.SphereGeometry(o.headR, 12, 9);
     const headMat = flat(o.head);
+
+    /* UNDULATION — the whole sheet, not each lipid.
+
+       Waving the tails while the heads sit on a perfectly straight line
+       makes the bilayer read as a rigid rail with a fringe. But per-lipid
+       jitter would be worse and it would be wrong: a membrane ripples in
+       COLLECTIVE modes, so neighbours move together and the surface stays
+       continuous. Random per-head motion would tear it visually.
+
+       So displacement is a function of the instance's own x,z — a long
+       standing wave in each direction — and it is applied identically to
+       heads and to tails, which is what keeps a tail attached to its head
+       instead of the two drifting apart. instanceMatrix[3].xyz is the
+       instance translation, and these instances are translation-only, so
+       adding the offset in object space lands correctly in world space.
+
+       Amplitude is deliberately under a head radius: enough that the
+       surface is alive, not so much that the thickness looks variable —
+       the thickness is a measured number this page prints. */
+    const WAVE = `
+      vec3 iPos = instanceMatrix[3].xyz;
+      float w = sin(iPos.x * 0.055 + uTime * 0.7) * 0.62
+              + sin(iPos.z * 0.090 - uTime * 0.5) * 0.34
+              + sin(iPos.x * 0.021 + iPos.z * 0.031 + uTime * 0.31) * 0.55;
+      transformed.y += w;
+      transformed.x += sin(iPos.z * 0.06 + uTime * 0.4) * 0.30;
+    `;
+    /* customProgramCacheKey IS NOT OPTIONAL HERE, and leaving it out cost an
+       hour. onBeforeCompile does not participate in three's program cache
+       key: the head, tail, ion and protein materials are all
+       MeshStandardMaterial with identical PARAMETERS (colour is a uniform,
+       not a parameter), so three compiles one program for whichever is
+       drawn first and hands the same one to the rest. If that first
+       material had no onBeforeCompile, the lipid shaders never run — and
+       nothing errors. The source was provably correct while the screen
+       showed perfectly straight tails.
+
+       A distinct key per modified material forces its own program. */
+    let keyN = 0;
+    const undulate = (mat, uniforms) => {
+      const prev = mat.onBeforeCompile;
+      const key = 'membrane-wave-' + (keyN++);
+      mat.customProgramCacheKey = () => key;
+      mat.onBeforeCompile = (sh) => {
+        if (prev) prev(sh);
+        sh.uniforms.uTime = uniforms.uTime;
+        if (!/uniform float uTime/.test(sh.vertexShader))
+          sh.vertexShader = sh.vertexShader.replace('#include <common>',
+            '#include <common>\nuniform float uTime;');
+        sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>',
+          '#include <begin_vertex>\n' + WAVE);
+      };
+    };
     /* Two tails per head — one tail reads as a lollipop, and the doubled
        tail is most of what makes a phospholipid recognisable.
 
@@ -425,6 +478,9 @@
           'transformed.x += bend;\n' +
           'transformed.z += cos(tU * 3.6 + aPhase * 1.7 + uTime * 0.8) * uAmp * 0.7 * tU;');
     };
+
+    undulate(headMat, tailUniforms);
+    undulate(tailMat, tailUniforms);
 
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Sc = new THREE.Vector3(1,1,1);
     for (const sign of [1, -1]) {
