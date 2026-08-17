@@ -652,9 +652,36 @@ const progress = (t, i) => {
   return Math.max(0, Math.min(1, (t - start) / SPAN));
 };
 
+/* WIND THE STEPS, NOT THE PAIRS.
+ *
+ * The obvious staggered wind — scale each pair's own final turn by its own
+ * progress — is broken, and visibly so. A pair's turn grows down the stack
+ * (0°, −27°, −62° … −315°) while its progress SHRINKS, and past the middle the
+ * progress falls off faster than the turn grows, so the product bends back:
+ *
+ *     80  38  0  −23  −49  −72  −86  −96  −103  −100  −97  −86
+ *                                              ^ reverses
+ *
+ * The top of the molecule winds the OPPOSITE WAY from the bottom, and the
+ * seam between them is a visible break in the duplex.
+ *
+ * A twist is a property of the STEP between two rungs, not of a rung, so that
+ * is what gets wound. Each step has its own δ (about −35°, and each one is
+ * measured, not assumed) and its own progress; a pair's angle is the sum of
+ * the steps below it. Every δ shares a sign and every progress is ≥ 0, so the
+ * sequence cannot turn back on itself, and no two neighbours are ever further
+ * apart than they are in the finished helix. */
+const STEP = rungs.map((r, i) => i === 0 ? 0 : r.turn - rungs[i-1].turn);
+const angleAt = (t, i) => {
+  let a = rungs[0].turn * progress(t, 0);     // the anchored end's own offset
+  for(let j = 1; j <= i; j++) a += STEP[j] * progress(t, j);
+  return a;
+};
+
 function place(t){
   for(const r of rungs){
     const u = progress(t, r.p.i);
+    const ang = angleAt(t, r.p.i);
     /* UNWIND, DO NOT CUT ACROSS. A base pair's centre sits up to 6.4 Å off the
      * axis in the helix and on the axis in the ladder. Lerping between those
      * two points in a straight line drags the pair through the middle of the
@@ -662,10 +689,14 @@ function place(t){
      * strains the backbone HARDER halfway than at either end (12.4× against
      * 5.7×). Interpolating the radius instead, at the pair's own bearing, is
      * the same two endpoints joined by the path the molecule would take. */
+    // The centre travels with the pair: its bearing lags by however far short
+    // of its final turn the pair still is, so centre and orientation stay one
+    // rigid body instead of drifting apart mid-wind.
+    const phi = r.helixPhi - (r.turn - ang);
     const rad = r.helixR * u;
-    r.mol.position.set(rad * Math.cos(r.helixPhi),
+    r.mol.position.set(rad * Math.cos(phi),
                        r.ladderP.y + (r.helixP.y - r.ladderP.y) * u,
-                       rad * Math.sin(r.helixPhi));
+                       rad * Math.sin(phi));
     /* NEVER SLERP A WIND. Quaternion slerp takes the SHORTEST arc, and by the
      * twelfth base pair the helix has turned through 374° — which the short
      * way round is 14° in the opposite direction. Slerping it unwinds pair 12
@@ -676,7 +707,7 @@ function place(t){
      * So the wind is interpolated as an ANGLE — the pair's own accumulated
      * turn, unwrapped so it keeps counting past 360° — and only what is left
      * over after removing it is slerped. */
-    _q1.setFromAxisAngle(UP4, r.turn * u);
+    _q1.setFromAxisAngle(UP4, ang);
     THREE.Quaternion.slerp(ZERO_Q, r.residualQ, _q2, u);
     r.mol.quaternion.copy(_q1).multiply(_q2);
   }
@@ -711,7 +742,7 @@ function setTwist(t){
   // The leading end's turn, not a count of finished rungs: nothing is FULLY
   // wound until the slider is past the stagger, so a count sits at zero for
   // half the travel while the screen is visibly winding.
-  const lead = progress(t, 0) * bdna.twistDeg;
+  const lead = progress(t, 1) * bdna.twistDeg;
   const el = document.getElementById('twistread');
   const state = t >= 1 ? `${bdna.twistDeg.toFixed(0)}° per rung`
               : t <= 0 ? 'no twist'
