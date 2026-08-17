@@ -40,6 +40,12 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`SCIENCE.md` §6.**
 
+## The primary UX is always a bespoke 3D molecular simulation
+
+A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
+
+**`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
+
 ## Scientific accuracy
 
 **Read `SCIENCE.md` before adding a molecule, changing geometry, or changing what a motion implies happened** (a bond forming/breaking, a charge moving) — it's the rulebook: §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture. Polish on an already-reviewed animation (timing, easing, camera) doesn't need it. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
