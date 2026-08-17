@@ -275,11 +275,28 @@ function tryLatch(){
       held.partner = other; other.partner = held;
       L.motion.cancel('latch:'+move.key);
       const from = move.mol.position.clone(), fq = move.mol.quaternion.clone();
-      L.motion.seq([{ dur:0.28, ease:'outBack', onUpdate:u=>{
-          move.mol.position.lerpVectors(from, target.pos, u);
-          THREE.Quaternion.slerp(fq, target.quat, move.mol.quaternion, u);
-        }}], { tag:'latch:'+move.key });
-      L.fx && L.fx.spawnRing(target.pos.clone(), MolLib.PALETTE.bonds.hbond);
+      L.motion.seq([
+        { dur:0.28, ease:'outBack', onUpdate:u=>{
+            move.mol.position.lerpVectors(from, target.pos, u);
+            THREE.Quaternion.slerp(fq, target.quat, move.mol.quaternion, u);
+          }},
+        // ONE FLARE PER HYDROGEN BOND, ON THE BOND. Firing a single ring at the
+        // molecule's transform origin put it in the middle of a ring system,
+        // pointing at nothing — the effect marked "a thing happened here"
+        // when what happened was two or three specific bonds forming several
+        // ångströms away. Fired after the snap lands, and read from the bonds
+        // kit/hbond.js actually finds in the final pose, so two flares mean
+        // two bonds and three mean three.
+        { call:()=>{
+            if(!L.fx) return;
+            for(const q of liveBonds()){
+              if(q.donor.owner.partner !== q.acceptor.owner) continue;
+              L.fx.spawnRing(new THREE.Vector3(
+                (q.h[0]+q.p[0])/2, (q.h[1]+q.p[1])/2, (q.h[2]+q.p[2])/2),
+                MolLib.PALETTE.bonds.hbond, null, 0.5);
+            }
+          }},
+      ], { tag:'latch:'+move.key });
       return;
     }
   }
