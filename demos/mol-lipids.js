@@ -5,7 +5,7 @@
  *  yet, and the reason is written down at the bottom rather than left
  *  for whoever tries next.
  *
- *  FAMILY B. Loads beside mol-small.js and mol-glycolysis.js, never
+ *  FAMILY B. Loads beside mol-small.js and mol-pathways.js, never
  *  beside mol-solvation.js — the membrane page compares a water against
  *  a lipid tail, and that comparison only means anything inside one
  *  scale family (molecules.js's header, MolecularGeometry.md §1).

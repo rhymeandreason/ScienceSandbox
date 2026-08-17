@@ -243,7 +243,7 @@ spec satisfies it is the trap. Two families:
 | Family | Specs | Rule | Implied scale |
 |---|---|---|---|
 | **A. hand-written** | everything in `mol-solvation.js` — water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium, the two salts | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
-| **B. derived** | everything in `mol-monomers.js`, `mol-glycolysis.js`, `mol-contrast.js`, `mol-compare.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
+| **B. derived** | everything in `mol-monomers.js`, `mol-pathways.js`, `mol-contrast.js`, `mol-compare.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
 
 Families line up with the domain files, so **a page's script tags show which
 families it mixes**. That's the only mechanical signal — nothing fails a build.

@@ -1,9 +1,27 @@
 /* =====================================================================
- *  mol-glycolysis.js — the glycolysis pathway, built from VSEPR angles
+ *  mol-pathways.js — catabolic pathway intermediates, built from VSEPR angles
+ * =====================================================================
+ *  Glycolysis, so far: glucose → pyruvate, plus the carriers those steps move
+ *  (ATP/ADP, NAD⁺/NADH, Pi).
+ *
+ *  NAMED FOR HOW IT IS BUILT, NOT FOR ONE LESSON. This file used to be named
+ *  for glycolysis alone, which read as "the glycolysis file" when the library
+ *  is not divided by topic at all — it is divided by DERIVATION and SCALE
+ *  FAMILY. See the `DOMAINS` note in molecules.js. Everything here is
+ *  Skel-built from ideal VSEPR angles and measured bond lengths, which is what
+ *  puts it in one file and after `skel.js` in the load order.
+ *
+ *  So the Krebs and electron-transport intermediates belong HERE when they come
+ *  — citrate, the succinate/fumarate pair, the quinones — not in a new domain
+ *  file named for respiration. They are the same derivation, the same scale
+ *  family and the same builder dependency, and a topic-shaped file could take
+ *  part in neither the load order nor `DOMAIN_ALTERNATES`. Split this only when it
+ *  is slow to parse or when a page pays for a large set it never draws, which
+ *  is the rule the whole partition is built on.
  * ===================================================================== */
 (function(global){
   'use strict';
-  const SELFNAME = 'mol-glycolysis.js';
+  const SELFNAME = 'mol-pathways.js';
   // Registry from molecules.js. Domain files only ever ADD to it.
   const Lib = global.MolLib
     || (typeof require === 'function' ? require('./molecules.js').MolLib : null);

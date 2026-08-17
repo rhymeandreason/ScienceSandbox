@@ -705,7 +705,7 @@
 <script src="palette.js"></script>
 <script src="molecules.js"></script>
 <script src="skel.js"></script>
-<script src="mol-glycolysis.js"></script>
+<script src="mol-pathways.js"></script>
 <!-- the carrier is drawn from `atpSkel`, not the conformer — see ATP below -->
 <script src="mol-compare.js"></script>
 <script src="scene.js"></script>
@@ -1625,7 +1625,7 @@ const CLEAVE=0x9a3fe0;
 // three terminal O, recentred on P), so the thing crossing the stage is the
 // four atoms the drawing lost and the sugar gains, same scale and colours. (A
 // glowing sphere said "energy moved" when the claim is "this group moved". A
-// kinase transfers PO₃⁻; the bridging O stays — `gamma` in mol-glycolysis.js.)
+// kinase transfers PO₃⁻; the bridging O stays — `gamma` in mol-pathways.js.)
 //
 // BUILT IN THE GEOMETRY OF THE END IT LANDS ON: the flight ends on the frame
 // `renderLanes` swaps substrate for product, so any difference from the
@@ -2439,7 +2439,7 @@ const trayEl=document.getElementById('tray');
  * (MolecularGeometry.md §1.6). `nic.h` is the PAIR of hydrogens on C4, and
  * taking one away is the chemistry the step teaches: NAD⁺ takes a hydride, C4
  * goes from one H to two. Not shown: the ring going aromatic and flat again,
- * since the spec is built as the dihydro boat (`nadh` in mol-glycolysis.js) and
+ * since the spec is built as the dihydro boat (`nadh` in mol-pathways.js) and
  * one drawing cannot be both. The page's claim is about C4's hydrogens.
  */
 const PAIRS={

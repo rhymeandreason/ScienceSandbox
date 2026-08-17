@@ -266,7 +266,7 @@
 <script src="palette.js"></script>
 <script src="molecules.js"></script>
 <script src="skel.js"></script>
-<script src="mol-glycolysis.js"></script>
+<script src="mol-pathways.js"></script>
 <script src="mol-compare.js"></script>
 <!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
      — the same library and the same strings contrast-lab.html uses. -->
@@ -483,7 +483,7 @@ function note(){
 function recipe(spec){
   const dom=spec.domain, all=MolLib.DOMAINS||[];
   const i=all.indexOf(dom);
-  const needsSkel=i>=0 && all.indexOf('mol-glycolysis.js')>=0 && i>=all.indexOf('mol-glycolysis.js');
+  const needsSkel=i>=0 && all.indexOf('mol-pathways.js')>=0 && i>=all.indexOf('mol-pathways.js');
   const tags=['palette.js','molecules.js'].concat(needsSkel?['skel.js']:[])
              .concat(dom?[dom]:[]).concat(['scene.js']);
   return { key:Object.keys(MolLib.MOLECULES).find(k=>MolLib.MOLECULES[k]===spec),

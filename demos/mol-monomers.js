@@ -12,7 +12,7 @@
 
   // FAMILY B, but NO builder: these are PubChem conversions (the amino acids,
   // amp) and hand-derived literals (palmitate). The carbohydrate monomer is
-  // glucose, which lives in mol-glycolysis.js — one glucose in the library.
+  // glucose, which lives in mol-pathways.js — one glucose in the library.
   register({
     // ---- amino acids ----------------------------------------------------
     // Shared backbone, laid out left→right so a chain grows along +X:

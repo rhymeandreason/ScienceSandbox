@@ -58,5 +58,5 @@ other rows are the same shape.
 `src.cid` values already committed in `mol-*.js` and disagreed on two: this
 catalog's ATP and AMP are the neutral free acids (5957, 6083), while the specs
 here ship the physiological anions (5461108, charge −4; 15938965, charge −2).
-`mol-glycolysis.js` says ATP's charge *is* the lesson, so that difference is not
+`mol-pathways.js` says ATP's charge *is* the lesson, so that difference is not
 cosmetic. **Unresolved** — someone has to decide which the lessons want.
