@@ -49,6 +49,7 @@
 <script src="palette.js"></script>
 <script src="molecules.js"></script>
 <script src="mol-small.js"></script>
+<script src="atomkit.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="kit/motion.js"></script>
@@ -194,7 +195,53 @@ function showProtein(which) {
    3 A water against a 30 A membrane is a speck.
    --------------------------------------------------------------------- */
 const SCALE = MolLib.SCALE || 1.9;
-const EXAG = Parts.ION.exaggeration;
+/* One exaggeration for everything that crosses, declared here rather than
+   taken from parts.js: this page's stage is ~300 A wide so that the bilayer
+   can run off both edges, and at parts.js's 2.6 an oxygen is about three
+   pixels. Raising the single factor scales molecules, ions and their charge
+   badges together, so every relative size on stage stays honest — only the
+   comparison against the MEMBRANE is exaggerated, and the membrane is the
+   one thing here whose size is measured and printed. */
+const EXAG = 5.0;
+
+/* ONE SIZE CONVENTION FOR EVERYTHING ON STAGE.
+
+   molecules.js sizes atoms from PALETTE.radii; parts.js sizes ions from
+   Shannon radii. Mixed, Na⁺ drew LARGER than O₂ — so step 2, whose whole
+   claim is "charge stops it, not size", was showing a big sodium bouncing
+   off and a small oxygen slipping through. It taught a size rule.
+
+   Ions now take their radius from the same palette, through the same
+   multiplier the molecule groups get, so every object in the scene is
+   comparable and CO₂ is visibly the biggest thing that crosses. */
+const ELEMENT_OF = { NA:'Na', K:'K', CL:'Cl', MG:'Mg' };
+function ionRadius(kind) {
+  const el = ELEMENT_OF[kind] || kind;
+  const r = MolLib.PALETTE.radii[el];
+  if (r == null) throw new Error('membrane-lab: no palette radius for ' + el);
+  return r * (EXAG / SCALE);
+}
+
+/* Charge is a BADGE, not a size. atomkit draws the same +/− disc the
+   bonding lessons use, so an ion means the same thing on every page. */
+const kit = AtomKit.create(THREE);
+function chargedIon(kind) {
+  const g = new THREE.Group();
+  g.add(Parts.ion(kind, { radius: ionRadius(kind) }));
+  const el = ELEMENT_OF[kind] || kind;
+  /* atomkit sizes badges for the bonding pages, where a handful of atoms
+     fill the screen. Here they ride an ion drawn EXAG/SCALE bigger, so the
+     badge and its shoulder offset are scaled by the same factor — matched
+     to the ion rather than enlarged on its own. */
+  const k = EXAG / SCALE;
+  const b = kit.charge(kind === 'CL' ? '−' : '+',
+                       '#' + Parts.ION[kind].color.toString(16).padStart(6, '0'), el, k);
+  b.userData.base.multiplyScalar(k);
+  b.userData.lift *= k;
+  b.position.copy(b.userData.base);
+  g.add(b);
+  return g;
+}
 
 function smallMolecule(name) {
   const spec = MolLib.MOLECULES[name];
@@ -213,7 +260,7 @@ const travellers = [];
 function traveller(kind, opts) {
   const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
   const obj = (kind === 'NA' || kind === 'K' || kind === 'CL')
-    ? Parts.ion(kind) : smallMolecule(kind);
+    ? chargedIon(kind) : smallMolecule(kind);
   obj.position.set(o.x, o.y, o.z);
   L.root.add(obj);
   const t = Object.assign({ kind, obj }, o);
@@ -338,7 +385,8 @@ const STEPS = [
     id:'through',
     tab:'what gets through',
     cap:'<b>Oily things cross. Charged things do not.</b> ' +
-        'O₂ and CO₂ dissolve straight through the tails. Na⁺ cannot.',
+        'CO₂ is the biggest thing here and goes straight through. ' +
+        'Na⁺ is the smallest and cannot.',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
@@ -352,7 +400,7 @@ const STEPS = [
         traveller('NA', { x:rnd(SPREAD*0.4, SPREAD), z:rnd(-10,10),
                           y:rnd(HALF + 5, 40), vy:-rnd(7,11), blocked:true });
     },
-    readout: () => 'O₂ and CO₂ pass · Na⁺ turned back at the heads',
+    readout: () => 'size is not the rule — the largest crosses, the smallest is turned back',
   },
 
   {
@@ -463,6 +511,7 @@ function go(i) {
 
 function tick(dt) {
   const s = STEPS[cur]; if (!s) return;
+  kit.faceCamera(L.camera);               // badges are sprites; they must turn
   memSolid.tick(dt); memHoled.tick(dt);   // the bilayer is a liquid, so it moves
 
   if (s.id === 'pump') {

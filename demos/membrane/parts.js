@@ -556,7 +556,12 @@
     const o = Object.assign({ exaggeration: ION.exaggeration }, opts);
     const spec = ION[name];
     if (!spec) throw new Error(`parts.ion: no such species ${name}`);
-    const r = spec.r * o.exaggeration;
+    /* `radius` overrides the Shannon-times-exaggeration default. A page that
+       also draws MOLECULES needs it: molecules.js sizes atoms from
+       PALETTE.radii, which is a different convention, and an ion sized one
+       way beside an O sized the other is a size comparison the page never
+       meant to make. See membrane-lab's ionRadius(). */
+    const r = o.radius != null ? o.radius : spec.r * o.exaggeration;
     const m = new THREE.Mesh(new THREE.SphereGeometry(r, 22, 16), flat(spec.color));
     m.userData = { species: name, trueRadius: spec.r, drawnRadius: r, label: spec.label };
     return m;
