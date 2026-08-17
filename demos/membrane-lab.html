@@ -149,8 +149,17 @@ const SPREAD = MEM_REACH * 0.55;
    otherwise start spawning things in shot again. */
 let OFFSCREEN = 90;
 function solveOffscreen() {
-  const halfH = Math.tan(THREE.MathUtils.degToRad(L.camera.fov / 2)) * L.cam.r;
-  OFFSCREEN = halfH + 22;               // clear of the edge, plus a molecule
+  /* Measured off the CANVAS, not the camera's nominal distance. The first
+     version used tan(fov/2) * cam.r and things still popped in just above
+     the protein — because fit() moves cam.r afterwards, and because the
+     canvas is not the frustum: the chrome reserve shifts the target off
+     centre, so the top edge is further from y=0 than half the frustum is.
+
+     kit/stagekit.js's worldPerPx converts the canvas's own pixel height
+     into world units at the target plane, which is the number that
+     actually decides what is on screen. */
+  const halfH = L.pxToWorld(canvas.clientHeight) / 2;
+  OFFSCREEN = halfH + 26;               // clear of the edge, plus a molecule
 }
 
 const L = Lesson.create(canvas, {
@@ -634,12 +643,16 @@ function go(i) {
   cur = i;
   const s = STEPS[i];
   hidePumpIons();
-  solveOffscreen();
   s.enter();
   capEl.innerHTML = s.cap;
   [...stepsEl.children].forEach((b, j) =>
     j === i ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
   L.fit();
+  /* fit() moves the camera, so the offscreen line is only knowable after
+     it. Re-enter the step so its molecules are placed against the frame
+     that will actually be drawn. */
+  solveOffscreen();
+  s.enter();
 }
 
 function tick(dt) {
@@ -706,7 +719,6 @@ function tick(dt) {
   readoutEl.textContent = s.readout ? s.readout() : '';
 }
 
-solveOffscreen();
 go(0);
 L.start();
 </script>
