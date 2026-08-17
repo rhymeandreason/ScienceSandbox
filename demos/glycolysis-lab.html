@@ -716,6 +716,7 @@
 <script src="kit/lanes.js"></script>
 <script src="kit/hotspot.js"></script>
 <script src="kit/leaving.js"></script>
+<script src="kit/carriers.js"></script>
 <script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
@@ -2319,44 +2320,20 @@ carrierEl.innerHTML=
  * numbers the ledger adds up. Each gets its own DOM slot (`.cslot`), so
  * stacking, sizing and label are layout while the molecules stay in the scene.
  */
-let cMols=[], cSpec=null;
+/* THE COLUMN IS kit/carriers.js's: n instances of one spec, laid into the DOM
+ * slots, fitted, arriving, with one group shown or hidden. This page keeps the
+ * chemistry — which molecule, which atoms are the group, when a step has run. */
+const CAR=Carriers.create({ root, camera, canvas, host:carrierEl,
+  build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                Stage.setOptionalH(g,false);   // same convention as the pathway lanes
+                return g; } });
 // how many: the units the step moves, off the fields the ledger adds up
 const carrierCount=st=>Math.max(1, (st&&(st.made||st.spent||st.nadh))||1);
-function carrierMols(n, spec){
-  // A DIFFERENT MOLECULE MEANS A DIFFERENT DRAWING: meshes are torn down when
-  // the spec changes — reusing them leaves an ATP wearing a NADH's label.
-  if(spec!==cSpec){ while(cMols.length) root.remove(cMols.pop()); cSpec=spec; }
-  while(cMols.length>n){ root.remove(cMols.pop()); }
-  while(cMols.length<n){
-    const g=Stage.buildMolecule(spec,{center:true});
-    Stage.setOptionalH(g,false);        // same convention as the pathway lanes
-    root.add(g); popCarrier(cMols.length); cMols.push(g);
-  }
-  // slots rebuilt only when the count changes, so the boxes a running animation
-  // measures against do not move under it
-  const vis=carrierEl.querySelector('.cvis');
-  if(vis.children.length!==n){
-    vis.innerHTML=Array.from({length:n},()=>
-      '<div class="cslot"><span class="clab"></span></div>').join('');
-  }
-  return cMols;
-}
-// The discharged state is the charged one with the pair's group hidden —
-// `visible`, not removed: the next step puts it back and a deleted mesh cannot.
-function setCarrierGroup(g,pair,spec,charged){
-  const u=g.userData, idx=pair.group(spec), set=new Set(idx);
-  idx.forEach(i=>{ const mesh=u.atomMeshes[i]; if(mesh) mesh.visible=charged; });
-  u.bondMeshes.forEach(bm=>{
-    if(bm.userData.pair.some(p=>set.has(p))) bm.visible=charged; });
-  // …and the atoms this pair needs on screen in either state, which setOptionalH
-  // would take with the rest of the C–H (see `keep`). Re-asserted every draw,
-  // because setOptionalH runs on every build.
-  const keep=pair.keep && pair.keep(spec);
-  if(keep){ const ks=new Set(keep);
-    keep.forEach(i=>{ const m=u.atomMeshes[i]; if(m) m.visible=true; });
-    u.bondMeshes.forEach(bm=>{
-      if(bm.userData.pair.some(p=>ks.has(p))) bm.visible=true; }); }
-}
+// The discharged state is the charged one with the pair's group hidden. `keep`
+// is why this goes through the module rather than a bare visible=false: the
+// atoms that DISTINGUISH the two states are the ones setOptionalH just hid.
+const setCarrierGroup=(g,pair,spec,charged)=>
+  CAR.setGroup(g, pair.group(spec), charged, pair.keep && pair.keep(spec));
 /* WHICH INSTANCE HAS ALREADY MOVED. On a per-lane step instance j belongs to
  * lane j: click lane 0 and the first ADP becomes an ATP while the second waits,
  * the whole reason there are two. Elsewhere the step is all-or-nothing and
@@ -2400,55 +2377,15 @@ const cAnchor=new THREE.Vector3();
  * solves the real one from the column every frame, and an entrance setting
  * `scale` directly would fight it and win for as long as it ran.
  */
-const ARRIVE_MS=520, ARRIVE_FROM=0.82;
-// PER INSTANCE: with two carriers on screen "something arrived" is a claim
-// about ONE of them. Popping both when a single lane hands over its phosphate
-// says the other changed too — the reading the two drawings exist to prevent.
-let arriveAt=[], wasVis=false;
-const easeOut=t=>1-Math.pow(1-t,3);
-// Start instance j's entrance: on Begin, when the count grows, and for the ONE
-// that just caught a phosphate — never as a side effect of a redraw.
-const popCarrier=j=>{ arriveAt[j]=performance.now(); };
-function arriveScale(j){
-  const t0=arriveAt[j];
-  if(!t0) return 1;
-  const t=(performance.now()-t0)/ARRIVE_MS;
-  if(t>=1){ arriveAt[j]=0; return 1; }
-  return ARRIVE_FROM+(1-ARRIVE_FROM)*easeOut(t);
-}
+const popCarrier=j=>CAR.pop(j);
+// EVERY FRAME, after the render — the projection reads a matrix the render
+// refreshes. The page's part is only WHETHER it should be on screen; the
+// module solves where and how big, and hands back the fitted scale for the
+// caption below.
 function placeCarrierMol(){
-  if(!cMols.length) return;
   const vis = carrierEl.isConnected && trayEl.style.visibility!=='hidden';
-  // the arrival is the transition INTO visible, never a plain re-layout
-  if(vis && !wasVis) cMols.forEach((_,j)=>popCarrier(j));
-  wasVis=vis;
-  cMols.forEach(g=>g.visible=vis);
-  if(!vis) return;
-  const slots=carrierEl.querySelectorAll('.cslot');
-  const c=canvas.getBoundingClientRect();
-  if(!c.width || !c.height) return;
-  camera.updateMatrixWorld();
-  const z=cAnchor.set(0,0,0).project(camera).z;      // the lanes' own depth
-  const m=Stage.measure(cSpec||ATP);
-  const pxPerWorld=c.width/(camera.right-camera.left);
-  let k=1;
-  cMols.forEach((g,j)=>{
-    const box=slots[j] && slots[j].getBoundingClientRect();
-    if(!box || !box.width) return;
-    g.position.copy(new THREE.Vector3(
-      ((box.left+box.width/2)-c.left)/c.width*2-1,
-      -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
-    // FITTED TO ITS OWN SLOT, never enlarged past true scale — the `1` in this
-    // min. The carriers run well over twice glucose across and would take the
-    // stage from the molecule the lesson follows, so they shrink and the
-    // caption says by how much.
-    k=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
-               box.height*0.94/(2*m.hy *pxPerWorld), 1);
-    g.scale.setScalar(k*arriveScale(j));
-  });
-  // the CAPTION states the fitted scale, not the entrance's frame — a number
-  // ticking 35 → 40 → 45 measures the animation, not the molecule it claims
-  setCarrierScaleNote(k, m);
+  const k=CAR.place(vis);
+  if(vis && CAR.mols.length) setCarrierScaleNote(k, Stage.measure(CAR.spec||ATP));
 }
 // The line under the drawing. `k` is the shrink applied this frame; the ratio
 // beside it is what scale 1 would look like, measured off the same two specs
@@ -2493,14 +2430,15 @@ const cglowV=new THREE.Vector3();
 const cspotEl=document.getElementById('cspot');
 cspotEl.onclick=()=>press(runStep);
 function placeCarrierGlow(){
-  const g0=cMols[0];
-  const on = carrierLive && g0 && g0.visible && gammaBreak()[0]>=0;
+  // WHICH bond is this page's (gammaBreak); WHERE it is on instance 0 is the
+  // module's, and it answers null rather than guessing when there is nothing
+  // on screen — so the mark can never end up lit at the origin.
+  const mid = carrierLive ? CAR.bondMid(0, ...gammaBreak(), cglowV) : null;
+  const on = !!mid;
   cglowEl.style.display = on ? 'block' : 'none';   // '' would fall back to the CSS `none`
   cspotEl.hidden = !on;                            // lit and clickable together
   if(!on) return;
-  const u=g0.userData, [i,j]=gammaBreak();
-  cglowV.copy(u.atomWorld(i)).add(u.atomWorld(j))
-    .multiplyScalar(.5).project(camera);
+  cglowV.project(camera);
   const x=(cglowV.x*0.5+0.5)*canvas.clientWidth, y=(-cglowV.y*0.5+0.5)*canvas.clientHeight;
   const d=cglowEl.querySelector('.sglow');
   d.style.left=x+'px'; d.style.top=y+'px';
@@ -2514,15 +2452,9 @@ function placeCarrierGlow(){
 // of the instance this click moves — on a per-lane step lane j's own ADP, not
 // "the carrier".
 function carrierGammaPoint(j){
-  if(!carrierEl.isConnected || trayEl.style.visibility==='hidden') return null;
-  const g=cMols[Math.min(j||0, cMols.length-1)];
-  if(!g) return null;
-  const c=canvas.getBoundingClientRect();
-  if(!c.width||!c.height) return null;
+  if(trayEl.style.visibility==='hidden') return null;
   const pair=pairOf(stepAt(focusStep())) || PAIRS.ATP;
-  const p=g.userData.atomMeshes[pair.anchor(pair.spec())]
-    .getWorldPosition(new THREE.Vector3()).project(camera);
-  return {x:c.left+(p.x*.5+.5)*c.width, y:c.top+(-p.y*.5+.5)*c.height};
+  return CAR.pointAt(j, pair.anchor(pair.spec()));
 }
 // Carrier for a step. The ELEMENT persists across refreshes (moved, never
 // rebuilt) so the molecule in it isn't torn down every step.
@@ -2543,12 +2475,12 @@ function drawCarrier(st, live, showKey){
   // pair has a bond to break HERE — the hydride leaves the sugar, so step 6's
   // target is on G3P.
   carrierLive = live && pair===PAIRS.ATP && showKey==='ATP' && count===1;
-  carrierMols(count, spec);
+  CAR.show(count, spec);
   // EACH INSTANCE ANSWERS FOR ITSELF: on a per-lane step one can be loaded and
   // the other empty — the half-run state, which one headline name cannot say.
   // Name on the slot; a column heading only when there is one object to name.
   const slots=carrierEl.querySelectorAll('.cslot');
-  cMols.forEach((g,j)=>{
+  CAR.mols.forEach((g,j)=>{
     const on=carrierCharged(st,j);
     setCarrierGroup(g,pair,spec,on);
     const lab=slots[j] && slots[j].querySelector('.clab');
