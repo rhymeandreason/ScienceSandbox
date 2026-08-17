@@ -273,6 +273,18 @@ function clearTravellers() {
 }
 const rnd = (a, b) => a + Math.random() * (b - a);
 
+/* An x well clear of the protein's column. Anything that is NOT going
+   through the channel has to be somewhere the student cannot read as
+   going through it: an ion bouncing at the head layer directly above the
+   pore is standing inside the protein's upper barrel, and water crossing
+   the lipid at x=0 looks like water using the pore. Both made step 4 read
+   as "everything gets through", which is the opposite of its claim. */
+const CHANNEL_KEEPOUT = 26;
+function rndClear(span) {
+  const x = rnd(CHANNEL_KEEPOUT, span);
+  return Math.random() < .5 ? -x : x;
+}
+
 /* Ions in single file do not touch. They are all +1, so they repel — and
    in a real K⁺ channel they queue with a water molecule between each pair,
    which is roughly this gap. Spawning them spaced is not enough on its own:
@@ -472,13 +484,16 @@ const STEPS = [
          student is not told this here; they are just shown that size is
          not doing the work, which is what stops the wrong rule forming. */
       for (let i = 0; i < 14; i++)
-        traveller('NA', { x:rnd(-SPREAD*0.75, SPREAD*0.75), z:rnd(-10,10),
+        traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
                           y:rnd(HALF + 4, 42), vy:-rnd(6,10), blocked:true, bounded:true });
       for (let i = 0; i < 10; i++)
-        traveller('CL', { x:rnd(-SPREAD*0.75, SPREAD*0.75), z:rnd(-10,10),
+        traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
                           y:rnd(HALF + 4, 42), vy:-rnd(6,10), blocked:true, bounded:true });
+      /* Water stays out of the pore too. It genuinely does cross the
+         bilayer, and that is step 3's point, not this one — here it would
+         only look like a second thing the channel is passing. */
       for (let i = 0; i < 16; i++)
-        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
+        traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 5, 42),
                              walk:true, bounded:true, coreSpeed:0.5 });
     },
