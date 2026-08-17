@@ -157,104 +157,40 @@ head('baked B-DNA parameters (1BNA)');
  *  must differ from it in twist ALONE, and every base pair must be rigid
  *  between them.
  * ===================================================================== */
-head('the ladder is the helix, untwisted');
+head('the helix is the ladder, twisted');
 {
   const fs = require('fs');
-  const { bake, OUT:LOUT } = require(path.join(__dirname, 'bake-ladder.js'));
+  const { bake } = require(path.join(__dirname, 'bake-ladder.js'));
   const fresh = bake();
-  // The baked file is a browser script that assigns window.BDNA — that is the
-  // whole point of baking to .js rather than JSON (no runtime fetch, no build
-  // step). Give it the global it expects and load it as the page would.
   global.window = global.window || {};
   require(path.join(__dirname, 'data', 'bdna.js'));
   const D = global.window.BDNA;
   ok(JSON.stringify(fresh) === JSON.stringify(D),
      'dna/data/bdna.js is what bake-ladder.js produces now (re-run it)');
 
-  const sub2=(a,b)=>a.map((v,i)=>v-b[i]);
-  const len2=a=>Math.hypot(...a);
-  const dot2=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
-  const cross2=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
-  const unit2=a=>{const l=len2(a); return a.map(v=>v/l);};
-  const helixAt = (p,q) => p.origin.map((o,i) =>
-    o + q[0]*p.basis[0][i] + q[1]*p.basis[1][i] + q[2]*p.basis[2][i]);
-  const ladderAt = (p,q) => [p.ladder[0]+q[0], p.ladder[1]+q[1], p.ladder[2]+q[2]];
+  /* THE STEP IS THE WHOLE MODEL. The page stacks pairs by applying this one
+   * transform repeatedly, so if it is wrong every rung is wrong the same way
+   * — which is exactly the failure that looks like a design choice. */
+  const st = D.step;
+  ok(Math.abs(st.t[2] - D.rise) < 0.2,
+     `the step's rise ${st.t[2]} Å agrees with the measured ${D.rise}`);
+  ok(Math.abs(st.turnDeg - D.twistDeg) < 3,
+     `the step's turn ${st.turnDeg}° agrees with the measured twist ${D.twistDeg}°`);
+  ok(st.turnDeg > 0, 'the step turns right-handed');
+  // Shift and slide are small but NOT zero — dropping them is what broke the
+  // backbone when the stack was built from rise and twist alone.
+  ok(Math.abs(st.t[0]) > 0.3,
+     `the step carries a real shift (${st.t[0]} Å) — not a rise-and-twist stack`);
 
-  const measure = pose => {
-    const O = D.pairs.map(p => pose(p,[0,0,0]));
-    const X = D.pairs.map(p => unit2(sub2(pose(p,[1,0,0]), pose(p,[0,0,0]))));
-    const Y = [0,1,0], rise = [], tw = [];
-    for(let k = 2; k + 1 < D.pairs.length - 2; k++){
-      rise.push(dot2(sub2(O[k+1],O[k]), Y));
-      const flat = v => unit2(sub2(v, Y.map(y => y*dot2(v,Y))));
-      const u1 = flat(X[k]), u2 = flat(X[k+1]);
-      tw.push(Math.atan2(dot2(cross2(u1,u2),Y), dot2(u1,u2)) * 180/Math.PI);
-    }
-    const m = x => x.reduce((s,v)=>s+v,0)/x.length;
-    return { rise:m(rise), twist:m(tw),
-             offAxis:Math.max(...O.map(o => Math.hypot(o[0], o[2]))) };
-  };
+  /* AND THE TEST THAT MATTERS: does the idealisation survive contact with the
+   * backbone? A 1.6 Å bond has no tolerance for a stack that is merely the
+   * right shape, so this is the number that decides whether the model is
+   * usable at all. It was 6× when the step was two parameters. */
+  ok(D.backbone.mean < 1.35,
+     `backbone survives the ideal stack: mean ${D.backbone.mean}× natural length`);
+  ok(D.backbone.max < 2.0,
+     `no bond badly torn in the finished helix (worst ${D.backbone.max}×)`);
 
-  const h = measure(helixAt), l = measure(ladderAt);
-  // The helix pose is a re-framing of the deposited coordinates, so it must
-  // still measure like the deposited coordinates did.
-  const helixJson = JSON.parse(fs.readFileSync(
-    path.join(__dirname, 'data', 'helix.json'), 'utf8'));
-  ok(Math.abs(h.twist - helixJson.twist.mean) < 0.5,
-     `helix pose twist ${h.twist.toFixed(2)}° matches bake-helix's `
-     + `${helixJson.twist.mean}° (independent measurement)`);
-  ok(Math.abs(h.rise - helixJson.rise.mean) < 0.05,
-     `helix pose rise ${h.rise.toFixed(3)} Å matches ${helixJson.rise.mean}`);
-
-  // …and the ladder differs in TWIST ONLY.
-  ok(Math.abs(l.twist) < 0.01, `ladder has no twist left (${l.twist.toFixed(3)}°)`);
-  ok(Math.abs(l.rise - h.rise) < 1e-6,
-     `ladder keeps the helix's rise exactly (${l.rise.toFixed(3)} vs ${h.rise.toFixed(3)})`);
-  ok(l.offAxis < 1e-6, `ladder is straight — no pair off the axis (${l.offAxis.toFixed(4)} Å)`);
-  ok(h.offAxis > 3, `the helix is NOT straight (${h.offAxis.toFixed(2)} Å) — poses differ`);
-
-  // RIGIDITY. If any bond changes length between the poses, the page is
-  // deforming molecules to make its point rather than rearranging them.
-  let worst = 0;
-  for(const p of D.pairs) for(const [m,n] of p.bonds){
-    const dh = len2(sub2(helixAt(p,p.atoms[m].p),  helixAt(p,p.atoms[n].p)));
-    const dl = len2(sub2(ladderAt(p,p.atoms[m].p), ladderAt(p,p.atoms[n].p)));
-    worst = Math.max(worst, Math.abs(dh - dl));
-  }
-  // Tolerance is set by the bake, not by the maths: coordinates are stored to
-  // 0.001 Å and basis vectors to 1e-6, so the two placements agree to about a
-  // microångström. Anything larger means a pair is being deformed, not moved.
-  ok(worst < 1e-4,
-     `every bond is the same length in both poses (worst ${worst.toExponential(1)} Å)`);
-
-  /* EVERY PAIR MUST FACE THE SAME WAY. planeNormal() takes its sign from the
-   * ring's winding order, which differs between purines and pyrimidines, so
-   * the twelve normals came out scattered (+,−,+,−,−,−,+,…). The helix pose
-   * hides it completely — a flipped frame flips the local coordinates in the
-   * way that cancels — and the LADDER puts the flipped half face-down between
-   * their neighbours, which reads as sections spinning through two turns.
-   * Nothing about that is visible in the numbers the other checks look at. */
-  ok(D.pairs.every(p => p.basis[2][1] > 0.5),
-     "every base pair normal points along the helix axis, not against it: "
-     + D.pairs.map(p => p.basis[2][1].toFixed(2)).join(' '));
-  // …and the long axes wind steadily rather than jumping about.
-  {
-    let prev = null, worst = 0;
-    for(const p of D.pairs){
-      let b = Math.atan2(p.basis[0][2], p.basis[0][0]) * 180/Math.PI;
-      if(prev !== null){
-        let step = b - prev;
-        while(step >  180) step -= 360;
-        while(step < -180) step += 360;
-        worst = Math.max(worst, Math.abs(Math.abs(step) - 34));
-      }
-      prev = b;
-    }
-    ok(worst < 15, `every step turns by roughly the mean twist (worst deviation ${worst.toFixed(1)}°)`);
-  }
-
-  // The backbone has to survive as a connected strand, or the "grooves are
-  // gaps between the rails" claim has no rails.
   // 11 steps x 2 strands. Anything less means a chain was walked in the wrong
   // direction and half the backbone quietly went missing.
   ok(D.links.length === 22,
@@ -262,6 +198,14 @@ head('the ladder is the helix, untwisted');
   ok(D.links.filter(l => l.strand === 0).length === 11 &&
      D.links.filter(l => l.strand === 1).length === 11,
      'each strand contributes 11 of them');
+
+  /* EVERY PAIR MUST FACE THE SAME WAY. planeNormal() takes its sign from the
+   * ring's winding order, which differs between purines and pyrimidines, so
+   * the twelve normals came out scattered (+,-,+,-,-,-,+,...). Half the pairs
+   * were upside down, and nothing about it is visible in the helix. */
+  ok(D.pairs.every(p => p.basis[2][1] > 0.5),
+     'every base pair normal points along the helix axis, not against it: '
+     + D.pairs.map(p => p.basis[2][1].toFixed(2)).join(' '));
 }
 
 console.log(`\n${checks - fails}/${checks} checks passed`);

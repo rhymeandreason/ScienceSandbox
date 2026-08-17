@@ -555,30 +555,37 @@ G4.visible = false;
 L.root.add(G4);
 
 const bdna = window.BDNA;
+
+/* THE HELIX IS BUILT BY TWISTING THE LADDER, not by interpolating toward a
+ * deposited structure. Every pair keeps its own REAL atoms from 1BNA; what is
+ * idealised is the STEP between them — one mean rigid transform, measured off
+ * all eleven real steps, applied over and over.
+ *
+ * Two things follow, and both were fought for:
+ *
+ *  · Every step is identical, so the wind cannot seam, reverse, or run ahead
+ *    of itself partway up the strand. Those failures are not fixed here; they
+ *    are unrepresentable.
+ *  · The step carries all six parameters — shift, slide, rise, tilt, roll,
+ *    twist — because rise and twist alone leave the finished helix 3.4 Å from
+ *    the real one, which is nothing to a 40 Å molecule and fatal to a 1.6 Å
+ *    bond. With all six the backbone survives the idealisation at 1.09× its
+ *    natural length.
+ *
+ * The LADDER is the same stack with the turn taken out and the sideways drift
+ * dropped: straight up, every rung square. */
+const HELIX_Q = new THREE.Quaternion(...bdna.step.q);
+const HELIX_T = new THREE.Vector3(...bdna.step.t).multiplyScalar(S);
+const LADDER_Q = new THREE.Quaternion();
+const LADDER_T = new THREE.Vector3(0, 0, bdna.step.t[2] * S);
+
 const rungs = bdna.pairs.map(p => {
-  // A pseudo-spec, so the pair renders through the same atom/bond code as
-  // every other molecule in this repo rather than a private renderer.
   const spec = { name:p.seq, units:'scene', view:null,
     atoms: p.atoms.map(a => ({ el:a.el, pos:a.p.map(v => v * S) })),
     bonds: p.bonds };
   const mol = Stage.buildMolecule(spec, { center:false });
   G4.add(mol);
-
-  // The helix placement, read off the baked basis. Columns of the rotation are
-  // the pair's own axes, which is exactly what makeBasis wants.
-  const m = new THREE.Matrix4().makeBasis(
-    new THREE.Vector3(...p.basis[0]),
-    new THREE.Vector3(...p.basis[1]),
-    new THREE.Vector3(...p.basis[2]));
-  return { p, mol,
-    helixQ: new THREE.Quaternion().setFromRotationMatrix(m),
-    helixP: new THREE.Vector3(...p.origin).multiplyScalar(S),
-    ladderQ: new THREE.Quaternion(),                       // squared up
-    ladderP: new THREE.Vector3(...p.ladder).multiplyScalar(S),
-    bearing: Math.atan2(p.basis[0][2], p.basis[0][0]),     // long axis in XZ
-    // the same helix origin in cylindrical terms, for the unwind above
-    helixR:   Math.hypot(p.origin[0], p.origin[2]) * S,
-    helixPhi: Math.atan2(p.origin[2], p.origin[0]) };
+  return { p, mol };
 });
 
 /* The phosphodiester bonds run BETWEEN base pairs, so they belong to no pair
@@ -595,9 +602,11 @@ const rungs = bdna.pairs.map(p => {
  * Winding is how it reconciles the two — the helix is not decoration on a
  * ladder, it is the only way the thing can be built.
  *
- * (Checked, not assumed: there is no rise that keeps these bonds intact in a
- * straight stack. The best fit leaves a 2.7 Å rms error, because relieving the
- * strain needs the backbone TORSIONS to change and a rigid pair cannot do it.)
+ * The numbers say it plainly. Winding from the flat ladder to the finished
+ * helix, the worst backbone bond goes 3.9× → 3.9× → 3.5× → 2.2× → 1.6×, and
+ * the mean 3.3× → 1.1×: the further it winds, the closer the backbone gets to
+ * its natural length. The helix is not a shape imposed on the ladder, it is
+ * the ladder relieving itself.
  *
  * So a stretched bond is drawn stretched — thinning and fading as it goes,
  * which reads as strain without inventing a colour that means something else
@@ -609,27 +618,8 @@ const linkMesh = bdna.links.map(() => {
   G4.add(m); return m; });
 
 const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(), _dv = new THREE.Vector3();
-const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
-const ZERO_Q = new THREE.Quaternion();
 const UP4 = new THREE.Vector3(0,1,0);
 
-/* Each pair's accumulated turn about the axis, unwrapped: bearings come back
- * from atan2 inside ±180°, so every wrap has to be added back or the twelfth
- * rung claims to be where the second one is. */
-{
-  let prev = 0, acc = 0;
-  for(const r of rungs){
-    let b = r.bearing;
-    while(b - prev >  Math.PI) b -= 2*Math.PI;
-    while(b - prev < -Math.PI) b += 2*Math.PI;
-    acc = b; prev = b;
-    r.turn = acc;
-    // what the helix orientation is beyond that pure turn — propeller, roll,
-    // and the tilt of the pair against the axis
-    const undo = new THREE.Quaternion().setFromAxisAngle(UP4, -acc);
-    r.residualQ = undo.multiply(r.helixQ);
-  }
-}
 const atomWorld = (r, ai, out) =>
   out.set(...r.p.atoms[ai].p).multiplyScalar(S).applyQuaternion(r.mol.quaternion)
      .add(r.mol.position);
@@ -652,65 +642,31 @@ const progress = (t, i) => {
   return Math.max(0, Math.min(1, (t - start) / SPAN));
 };
 
-/* WIND THE STEPS, NOT THE PAIRS.
- *
- * The obvious staggered wind — scale each pair's own final turn by its own
- * progress — is broken, and visibly so. A pair's turn grows down the stack
- * (0°, −27°, −62° … −315°) while its progress SHRINKS, and past the middle the
- * progress falls off faster than the turn grows, so the product bends back:
- *
- *     80  38  0  −23  −49  −72  −86  −96  −103  −100  −97  −86
- *                                              ^ reverses
- *
- * The top of the molecule winds the OPPOSITE WAY from the bottom, and the
- * seam between them is a visible break in the duplex.
- *
- * A twist is a property of the STEP between two rungs, not of a rung, so that
- * is what gets wound. Each step has its own δ (about −35°, and each one is
- * measured, not assumed) and its own progress; a pair's angle is the sum of
- * the steps below it. Every δ shares a sign and every progress is ≥ 0, so the
- * sequence cannot turn back on itself, and no two neighbours are ever further
- * apart than they are in the finished helix. */
-const STEP = rungs.map((r, i) => i === 0 ? 0 : r.turn - rungs[i-1].turn);
-const angleAt = (t, i) => {
-  let a = rungs[0].turn * progress(t, 0);     // the anchored end's own offset
-  for(let j = 1; j <= i; j++) a += STEP[j] * progress(t, j);
-  return a;
-};
+const _sq = new THREE.Quaternion(), _st = new THREE.Vector3();
+const _fq = new THREE.Quaternion(), _fp = new THREE.Vector3();
 
+/* Compose the steps up the stack. Step j runs its own copy of the slider, so
+ * the turn accumulates from the bottom and there is always a winding front —
+ * and because each step is applied to the frame below it, the strand cannot
+ * come apart at a seam however the individual steps are eased. */
 function place(t){
-  for(const r of rungs){
-    const u = progress(t, r.p.i);
-    const ang = angleAt(t, r.p.i);
-    /* UNWIND, DO NOT CUT ACROSS. A base pair's centre sits up to 6.4 Å off the
-     * axis in the helix and on the axis in the ladder. Lerping between those
-     * two points in a straight line drags the pair through the middle of the
-     * duplex — the motion reads as a collapse rather than an unwinding, and it
-     * strains the backbone HARDER halfway than at either end (12.4× against
-     * 5.7×). Interpolating the radius instead, at the pair's own bearing, is
-     * the same two endpoints joined by the path the molecule would take. */
-    // The centre travels with the pair: its bearing lags by however far short
-    // of its final turn the pair still is, so centre and orientation stay one
-    // rigid body instead of drifting apart mid-wind.
-    const phi = r.helixPhi - (r.turn - ang);
-    const rad = r.helixR * u;
-    r.mol.position.set(rad * Math.cos(phi),
-                       r.ladderP.y + (r.helixP.y - r.ladderP.y) * u,
-                       rad * Math.sin(phi));
-    /* NEVER SLERP A WIND. Quaternion slerp takes the SHORTEST arc, and by the
-     * twelfth base pair the helix has turned through 374° — which the short
-     * way round is 14° in the opposite direction. Slerping it unwinds pair 12
-     * backwards past its neighbours, and the intermediate frames are not a
-     * partly-untwisted duplex at all; the backbone strain peaks HARDER halfway
-     * (12.4×) than at the fully untwisted end (5.7×), which is the tell.
-     *
-     * So the wind is interpolated as an ANGLE — the pair's own accumulated
-     * turn, unwrapped so it keeps counting past 360° — and only what is left
-     * over after removing it is slerped. */
-    _q1.setFromAxisAngle(UP4, ang);
-    THREE.Quaternion.slerp(ZERO_Q, r.residualQ, _q2, u);
-    r.mol.quaternion.copy(_q1).multiply(_q2);
+  _fq.identity(); _fp.set(0, 0, 0);
+  const half = (rungs.length - 1) / 2;
+  for(let i = 0; i < rungs.length; i++){
+    if(i > 0){
+      const u = progress(t, i);
+      THREE.Quaternion.slerp(LADDER_Q, HELIX_Q, _sq, u);
+      _st.lerpVectors(LADDER_T, HELIX_T, u);
+      _fp.add(_st.applyQuaternion(_fq));
+      _fq.multiply(_sq);
+    }
+    rungs[i].mol.quaternion.copy(_fq);
+    rungs[i].mol.position.copy(_fp);
   }
+  // Centre the stack so it does not climb off the top of the stage as it winds.
+  const mid = rungs[Math.floor(half)].mol.position.y;
+  for(const r of rungs) r.mol.position.y -= mid;
+
   let worst = 0;
   bdna.links.forEach((lk, i) => {
     atomWorld(rungs[lk.from.pair], lk.from.ai, _p1);
@@ -719,9 +675,6 @@ function place(t){
     const m = linkMesh[i];
     m.position.copy(_p1).addScaledVector(d, 0.5);
     m.quaternion.setFromUnitVectors(UP4, d.clone().normalize());
-    // How far past its real length this bond has been pulled. `lk.d` is what
-    // it measures in the deposited structure, so the ratio is against the
-    // real thing rather than against a nominal value.
     const strain = (len / S) / lk.d;
     worst = Math.max(worst, strain);
     const thin = Math.min(1, 1 / strain);
@@ -729,8 +682,6 @@ function place(t){
     m.material.opacity = 0.25 + 0.75 * thin;
   });
   return worst;
-  // Read the state out of the geometry, not out of the slider: degrees of turn
-  // per base pair, and the pitch that follows from it.
 }
 
 /* The readout is measured, not derived from the slider: the turn per rung, and
@@ -742,7 +693,7 @@ function setTwist(t){
   // The leading end's turn, not a count of finished rungs: nothing is FULLY
   // wound until the slider is past the stagger, so a count sits at zero for
   // half the travel while the screen is visibly winding.
-  const lead = progress(t, 1) * bdna.twistDeg;
+  const lead = progress(t, 1) * bdna.step.turnDeg;
   const el = document.getElementById('twistread');
   const state = t >= 1 ? `${bdna.twistDeg.toFixed(0)}° per rung`
               : t <= 0 ? 'no twist'
