@@ -7,7 +7,7 @@
  *  checking it was me looking at screenshots. pump.js is deliberately
  *  free of THREE so this can run offline with no dependencies.
  *
- *  Run:  node salmon/check-pump.js
+ *  Run:  node membrane/check-pump.js
  * ===================================================================== */
 'use strict';
 

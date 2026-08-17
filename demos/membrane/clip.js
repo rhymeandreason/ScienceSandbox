@@ -1,5 +1,5 @@
 /* =============================================================================
- *  salmon/clip.js — cut a baked SES open, and make the cut look like material.
+ *  membrane/clip.js — cut a baked SES open, and make the cut look like material.
  * =============================================================================
  *  THE PROBLEM THIS EXISTS FOR. tools/ses.js gives a page a solvent-excluded
  *  surface, and surface-test.html shows what that buys: a protein stops being a

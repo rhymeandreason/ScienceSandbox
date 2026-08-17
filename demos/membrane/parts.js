@@ -1,7 +1,7 @@
 /* =============================================================================
- *  salmon/parts.js — the membrane and its machines, built from numbers.
+ *  membrane/parts.js — the membrane and its machines, built from numbers.
  * =============================================================================
- *  WHY THIS EXISTS, GIVEN THAT WE HAVE THE REAL SURFACE. salmon/clip.js and
+ *  WHY THIS EXISTS, GIVEN THAT WE HAVE THE REAL SURFACE. membrane/clip.js and
  *  tools/bake-pump.js produce an honest solvent-excluded surface of the actual
  *  pump, cut open, in a measured bilayer. That work settled what is TRUE, and
  *  it stays in the lesson as the aside that says "this is what the cartoon

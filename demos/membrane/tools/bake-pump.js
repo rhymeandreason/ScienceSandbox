@@ -2,8 +2,8 @@
 /* =====================================================================
  *  bake-pump.js — the sodium pump's two ends, as two surfaces in ONE frame.
  *
- *  7E1Z -> salmon/data/7E1Z.surf.bin      E1.3Na, inward-open
- *  7E20 -> salmon/data/7E20.surf.bin      E2.2K,  outward-open
+ *  7E1Z -> membrane/data/7E1Z.surf.bin      E1.3Na, inward-open
+ *  7E20 -> membrane/data/7E20.surf.bin      E2.2K,  outward-open
  *
  *  The algorithm is tools/ses.js and its reasoning lives there; the
  *  format is hemoglobin/tools/bake-surface.js and is specified in that
@@ -93,7 +93,7 @@
  *  A finer grid here would be resolving detail the STRUCTURE does not
  *  have, and paying for it by the square.
  *
- *  Run:  node salmon/tools/bake-pump.js [--spacing 0.7]
+ *  Run:  node membrane/tools/bake-pump.js [--spacing 0.7]
  * ===================================================================== */
 'use strict';
 

@@ -1,5 +1,5 @@
 /* =============================================================================
- *  salmon/pump.js — the Post-Albers cycle as a function of time.
+ *  membrane/pump.js — the Post-Albers cycle as a function of time.
  * =============================================================================
  *  NO THREE, NO DOM, NO GEOMETRY. This is the pump's BEHAVIOUR: given a time,
  *  what are the gates doing, where is each ion, and has the phosphate moved.
