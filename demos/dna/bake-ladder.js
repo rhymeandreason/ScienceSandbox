@@ -131,11 +131,31 @@ function bake(){
     // NOTE: this normal's SIGN is still arbitrary — see the fix-up below.
   }
 
-  // Helix axis from the interior pairs only (the ends fray), then re-frame the
-  // whole molecule so that axis is +Y and the centre is the origin.
-  const inner = raw.slice(2,-2);
-  const ax = axisOf(inner.map(p=>p.origin));
-  const Y = ax.dir[1] < 0 ? mul(ax.dir,-1) : ax.dir;   // point it up, always
+  /* THE AXIS IS FITTED TO ALL TWELVE PAIRS — deliberately different from
+   * bake-helix.js, which fits the interior eight.
+   *
+   * They want different things. bake-helix is MEASURING rise and twist, and
+   * the frayed ends would bias those, so it drops them. This is PLACING every
+   * pair that will be drawn, and an axis fitted only to the middle leaves the
+   * ends of a bent dodecamer swinging 6.4 Å out from it — the molecule renders
+   * banana-shaped and the wind drags the ends somewhere the eye reads as a
+   * break in the duplex. Fitting all twelve puts the worst pair 3.3 Å out and
+   * the spread is even end to end.
+   *
+   * The bend is real either way; this is a choice about which straight line to
+   * measure it against, and the honest one for drawing is the line through
+   * everything being drawn. */
+  const inner = raw.slice(2,-2);          // still the interior for rise/twist
+  const ax = axisOf(raw.map(p=>p.origin));
+  /* Point the axis along the CHAIN, not along world +Y. The power iteration
+   * returns ±the principal direction depending on its seed, and keying the
+   * flip off the y component is a coincidence that held for one fit and broke
+   * on the next: the all-twelve axis came back reversed relative to the
+   * residue order, so rise and twist both went negative and the ladder built
+   * itself upside down against its own helix. The invariant that actually
+   * means something is that pair 0 sits at the bottom. */
+  const Y = dot(sub(raw[raw.length-1].origin, raw[0].origin), ax.dir) < 0
+    ? mul(ax.dir,-1) : ax.dir;
   const X0 = unit(sub(inner[0].long, mul(Y, dot(inner[0].long, Y))));
   const Z0 = cross(X0, Y);
   const toWorld = p => { const d = sub(p, ax.centre);
