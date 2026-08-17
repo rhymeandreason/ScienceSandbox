@@ -110,10 +110,11 @@ HBnear.material.opacity = 0.28;
 L.root.add(HBpair.group); L.root.add(HBnear.group);
 
 /* ---- the four bases ------------------------------------------------------ */
-// Spread out, nothing touching, so the first hydrogen bond on screen is one
-// the student made.
-const HOME = { adenine:[-17,9,0], thymine:[15,9,0],
-               guanine:[-17,-9,0], cytosine:[15,-9,0] };
+// Row centres. Each pair is laid out along its own row, already turned the
+// right way round — see setStartPose() below for why the angles are solved
+// rather than typed.
+const ROW = { adenine:[8,9,0], guanine:[8,-9,0] };   // the purines, on the right
+const GAP = 21;                                       // centre-to-centre at rest
 
 const bases = KEYS.map(key => {
   const spec = M[key];
@@ -128,7 +129,6 @@ const bases = KEYS.map(key => {
   // rather than sitting on top of the atoms.
   const reach = spec.atoms.reduce((r,a)=>
     Math.max(r, new THREE.Vector3(...a.pos).distanceTo(centre)), 0) + 1.1;
-  mol.position.set(...HOME[key]).sub(centre);   // so the CENTRE lands on HOME
   L.root.add(mol);
 
   const tag = document.createElement('div');
@@ -140,6 +140,46 @@ const bases = KEYS.map(key => {
 });
 const byMol = m => bases.find(b => b.mol === m);
 const centreOf = b => b.centre.clone().applyQuaternion(b.mol.quaternion).add(b.mol.position);
+
+/* Put a base's CENTRE at a world point with a given orientation. Everything
+ * below places centres, never mesh origins — a spec's origin is wherever the
+ * source record left atom 0. */
+function placeCentre(b, at, quat){
+  b.mol.quaternion.copy(quat);
+  b.mol.position.copy(at).sub(b.centre.clone().applyQuaternion(quat));
+}
+
+/* ---- starting poses: already turned the right way round -------------------
+ * THIS IS NOT A SHAPE PUZZLE. Making the student hunt for the angle turns a
+ * chemistry lesson into a jigsaw — the very thing the textbook figure gets
+ * wrong — so both pairs start correctly oriented and the interaction is a
+ * straight slide. What remains to discover is WHICH bases stick, which is the
+ * actual rule.
+ *
+ * The angles are still solved, not typed. For each pair, dna/pairing.js gives
+ * the partner's pose relative to the purine; from that comes the axis the two
+ * centres lie on, and everything is turned so that axis is horizontal with the
+ * pyrimidine on the left and the purine on the right — the orientation every
+ * textbook draws these in. Re-bake a spec and the layout follows it. */
+function setStartPose(purineKey, pyrimidineKey){
+  const a = bases.find(b => b.key === purineKey);
+  const p = bases.find(b => b.key === pyrimidineKey);
+  const t = latchWorldFrom(a, p, new THREE.Quaternion(), new THREE.Vector3());
+  if(!t) return;
+
+  // Where the two centres sit in that solved pose, and the axis between them.
+  const ca = a.centre.clone();
+  const cp = p.centre.clone().applyQuaternion(t.quat).add(t.pos);
+  const axis = cp.clone().sub(ca);
+  // Turn the whole pair so the pyrimidine ends up due LEFT of the purine.
+  const R = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(0,0,1), Math.PI - Math.atan2(axis.y, axis.x));
+
+  const home = new THREE.Vector3(...ROW[purineKey]);
+  placeCentre(a, home, R);
+  placeCentre(p, home.clone().add(new THREE.Vector3(-GAP,0,0)),
+              R.clone().multiply(t.quat));
+}
 
 /* ---- poses, solved once per ordered pair --------------------------------- */
 // Lazily, and cached: six pairs, and only the ones actually tried get solved.
@@ -156,7 +196,9 @@ function pose(a, b){
 /* Where `b` must sit to pair with `a`, given where `a` actually is. The solve
  * is relative to `a` at the origin, so it composes with a's live transform —
  * pairing is a relationship between two molecules, not a place on stage. */
-function latchWorld(a, b){
+const latchWorld = (a, b) => latchWorldFrom(a, b, a.mol.quaternion, a.mol.position);
+
+function latchWorldFrom(a, b, aQuat, aPos){
   const p = pose(a, b);
   if(!p) return null;
   const s = un(b.spec);
@@ -167,8 +209,8 @@ function latchWorld(a, b){
   const rx = q0[0]*co - q0[1]*si, ry = q0[0]*si + q0[1]*co;
   const local = new THREE.Vector3((p0[0]-rx)*S, (p0[1]-ry)*S, 0);
   const lq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), th);
-  return { pos: local.applyQuaternion(a.mol.quaternion).add(a.mol.position),
-           quat: a.mol.quaternion.clone().multiply(lq),
+  return { pos: local.applyQuaternion(aQuat).add(aPos),
+           quat: aQuat.clone().multiply(lq),
            solved: p };
 }
 
@@ -316,6 +358,8 @@ function placeTags(){
   }
 }
 
+setStartPose('adenine','thymine');
+setStartPose('guanine','cytosine');
 say();
 L.resize(); L.fit(); L.start();
 </script>
