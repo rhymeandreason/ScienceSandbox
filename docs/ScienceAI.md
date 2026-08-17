@@ -49,3 +49,37 @@ For the redwood question, retrieval should surface chunks about foliar uptake �
 Something like: a vector DB (pgvector if you want one less service, Turbopuppy/Qdrant if you want speed at scale), a fast embedding model, Redis for the semantic cache, Claude Haiku for generation, and server-sent events for streaming. Host inference in the same region as your database.
 
 If you want, tell me your expected query volume and whether the corpus is fixed or growing — those two answers change whether the caching layer or the retrieval layer is where you should spend your effort.
+
+---
+
+I would like the response to include relevant images. I have CC images from a textbook.
+
+Good news for latency: images are the cheap part. You're retrieving, not generating, and if you index them alongside your text chunks the added cost is close to zero — the image lookup rides along with the retrieval you're already doing, and the actual files come from a CDN in parallel with token streaming.
+
+### Index images as first-class chunks
+
+Don't treat images as attachments to text passages. Give each one its own record with its own embedding, built from the caption plus the surrounding paragraph plus any alt text or figure description. That composite text is what you embed. A figure captioned "Foliar uptake of fog water in *Sequoia sempervirens*" plus its paragraph context will match a fog-drinking question strongly, even though the image itself contains no searchable words.
+
+Each record wants: the embedding, a CDN URL, the caption, the license string, the attribution line, and a link back to the source. The license fields matter more than they look — see below.
+
+### Retrieve them, don't let the model invent them
+
+The failure mode here is the model hallucinating a figure reference or picking an image that doesn't exist. Two approaches, and I'd pick the first:
+
+**Deterministic placement.** Your retrieval returns the top text chunks and the top 1–3 image chunks independently. You render the images in the response yourself, positioned near the text they came from. The model never sees or chooses images at all. Fastest, zero hallucination risk, slightly less contextually smart.
+
+**Model-selected from a menu.** Pass the retrieved images to the model as a numbered list of IDs with captions, and instruct it to emit a marker like `[FIG:redwood_foliar_uptake]` at the point where a figure helps. You post-process markers into real image tags, dropping any ID that isn't in the list you supplied. Slightly better placement, minimal added tokens, but you need the validation step.
+
+Either way the model should never emit a URL. It emits an ID you resolve, or nothing.
+
+### Streaming with images
+
+The sequencing matters for perceived speed. Send the image metadata down the stream **before** the text tokens — as a first SSE event carrying URLs, dimensions, and captions. The browser starts fetching from the CDN while the text is still generating, so the image is decoded and ready by the time the surrounding prose arrives. Include intrinsic width and height so the layout reserves space and nothing jumps.
+
+Serve pre-resized variants (a \~400px inline version, full resolution behind a click) in WebP or AVIF, and preprocess these at ingest rather than on request.
+
+### Caching
+
+Store resolved image IDs in the semantic cache entry alongside the answer text. A cache hit then returns the complete response — prose and figures — in one shot with no retrieval at all.
+
+Store the license type as a filterable field, so you can exclude NC images by query context or by deployment if that ever becomes relevant.
