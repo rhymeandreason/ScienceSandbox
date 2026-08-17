@@ -103,7 +103,7 @@ const un = s => ({ ...s, atoms:s.atoms.map(a=>({el:a.el,pos:a.pos.map(v=>v/S)}))
  * flat view, so it keeps the molecular plane as the plane. */
 const flat = s => ({ ...s, view:null });
 
-// The base pairing.js solves AGAINST. Not immovable — just the frame the
+// The base dna/pairing.js solves AGAINST. Not immovable — just the frame the
 // solved pose is expressed in, which latchWorld() then puts wherever it is.
 const ANCHOR = 'adenine';
 const PARTNERS = ['thymine','cytosine','guanine'];
@@ -159,7 +159,7 @@ function setPartner(key){
  * decomposition.
  *
  * This is the pose RELATIVE TO ADENINE SITTING AT THE ORIGIN, which is where
- * pairing.js solved it. Adenine is draggable too, so nothing may assume it is
+ * dna/pairing.js solved it. Adenine is draggable too, so nothing may assume it is
  * still there — `latchWorld()` below composes this with wherever it actually
  * is. Pairing is a relationship between two molecules, not a place on stage. */
 function latchLocal(){
