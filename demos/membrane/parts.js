@@ -198,10 +198,21 @@
        pocket underneath rather than subtracting from it. */
     function throat(y) {
       const pocket = o.site * Math.exp(-((y / (o.half * .42)) ** 2));
-      /* smooth() rather than linear so the lumen eases open — a linear
-         funnel leaves a visible crease where it quits the pocket. */
-      const up   = y <= 0 ? 0 : o.mouth * smooth(y / H);
-      const down = y >= 0 ? 0 : o.mouth * smooth(-y / H);
+
+      /* A THROAT RAMPS FROM THE SITE, IT DOES NOT GROW FROM ZERO.
+
+         It used to be `mouth * smooth(|y|/H)`, which starts at 0 on the
+         mid-plane. Between the pocket (a Gaussian, already decaying) and
+         the throat (still near zero) the lumen collapsed: measured necks
+         of 2.2 and 2.45 A at y = +-10, against a K+ drawn at 3.59. Ions
+         passed straight through the wall there, and it looked like a
+         deliberate hourglass rather than two accidental pinch points.
+
+         Ramping site -> mouth instead makes the lumen MONOTONIC from the
+         site outward, so a path that is open is open all the way. */
+      const ramp = u => o.site + (o.mouth - o.site) * smooth(u);
+      const up   = y <= 0 ? 0 : ramp(y / H);
+      const down = y >= 0 ? 0 : ramp(-y / H);
       return Math.max(pocket, gTop * up, gBot * down);
     }
 
