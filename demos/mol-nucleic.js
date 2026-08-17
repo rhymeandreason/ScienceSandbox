@@ -62,9 +62,26 @@
   /* Move a ring N–H to another ring nitrogen: re-bond it, then put it on the
    * outward bisector of the target's two ring neighbours at 1.01 Å, in the
    * ring plane. Positions are ångströms here — register() applies SCALE after
-   * this runs, so everything below is in the record's own units. */
+   * this runs, so everything below is in the record's own units.
+   *
+   * A TAUTOMER IS NOT JUST A PROTON. The double bond moves with it, and an
+   * earlier version of this file forgot that — which is not a cosmetic slip,
+   * because bond ORDER is what the lone-pair count is computed from. Leave
+   * cytosine's Kekulé structure in the N3–H form after moving the hydrogen to
+   * N1 and N3 ends up with two single bonds: (5 − 2)/2 = 1.5 lone pairs, an
+   * impossible number, so lobes.js refuses it, hbond.js gives it capacity 0,
+   * and G–C silently comes out with two hydrogen bonds instead of three. The
+   * geometry was perfect the whole time. `swap` is therefore not optional
+   * bookkeeping — it is the other half of the same edit. */
   const N_H = 1.01;
-  function moveH(spec, h, from, to){
+  function order(spec, i, j, n){
+    const b = spec.bonds.find(x =>
+      (x[0]===i && x[1]===j) || (x[0]===j && x[1]===i));
+    if(!b) throw new Error(SELFNAME+`: no bond ${i}-${j} to re-order`);
+    if(n===1) b.length = 2; else b[2] = n;
+    return spec;
+  }
+  function moveH(spec, h, from, to, swap){
     const b = spec.bonds.find(x =>
       (x[0]===from && x[1]===h) || (x[0]===h && x[1]===from));
     if(!b) throw new Error(SELFNAME+': no bond to move from atom '+from);
@@ -84,6 +101,9 @@
     }
     const L=Math.hypot(...out);
     spec.atoms[h].pos = [n[0]+out[0]/L*N_H, n[1]+out[1]/L*N_H, n[2]+out[2]/L*N_H];
+
+    // …and the double bonds that move with the proton.
+    for(const s of (swap || [])) order(spec, s[0], s[1], s[2]);
     return spec;
   }
 
@@ -115,7 +135,9 @@
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'adenine', cid:190, conformer:'000000BE00000001' })
   };
-  moveH(adenine, 10, 0, 1);                        // N7 → N9
+  // 7H → 9H: the proton goes N7→N9 and the C8 double bond swings the other
+  // way, N9=C8 becoming N7=C8.
+  moveH(adenine, 10, 0, 1, [[1,8,1],[0,8,2]]);
 
   /* ---- thymine -------------------------------------------------------- */
   // 0 O4  1 O2  2 N3  3 N1  4 C5  5 C4  6 C6  7 C7(methyl)  8 C2
@@ -160,7 +182,8 @@
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'guanine', cid:135398634, conformer:'081204EA00000001' })
   };
-  moveH(guanine, 11, 1, 4);                        // N7 → N9
+  // Same swing as adenine: N9=C8 → N7=C8.
+  moveH(guanine, 11, 1, 4, [[4,10,1],[1,10,2]]);
 
   /* ---- cytosine ------------------------------------------------------- */
   // 0 O2  1 N3  2 N4  3 N1  4 C4  5 C5  6 C2  7 C6
@@ -181,7 +204,10 @@
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'cytosine', cid:597, conformer:'0000025500000001' })
   };
-  moveH(cytosine, 8, 1, 3);                        // N3 → N1
+  // N3–H → N1–H. Two doubles move: N1=C6 and C4=C5 become N3=C4 and C5=C6,
+  // which is what restores N3's single in-plane lone pair — the acceptor
+  // guanine's N1–H needs, and the reason G–C has three bonds and not two.
+  moveH(cytosine, 8, 1, 3, [[3,7,1],[4,5,1],[1,4,2],[5,7,2]]);
 
   register({ adenine, thymine, guanine, cytosine }, SELFNAME);
 

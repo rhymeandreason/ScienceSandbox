@@ -557,6 +557,28 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     } else {
       console.log(`   tautomer OK: ring N–H on ${[...want].join(', ') || '(none)'}`);
     }
+
+    // AND THE BOND ORDERS THAT MOVE WITH THE PROTON. Checking only where the
+    // hydrogens sit is not enough, and this repo has the scar: the hydrogens
+    // were moved to the right nitrogens while the Kekulé structure stayed in
+    // the old tautomer's form, leaving cytosine's N3 with two single bonds.
+    // Its formal electron count then comes out at 1.5 lone pairs — impossible,
+    // so lobes.js refuses the atom, hbond.js gives it capacity 0, and G–C
+    // quietly pairs with TWO hydrogen bonds instead of three while every
+    // distance on screen is correct. A non-integer count is the tell.
+    for (let i = 0; i < mol.atoms.length; i++) {
+      if (mol.atoms[i].el !== 'N') continue;
+      let sum = 0;
+      for (const b of mol.bonds)
+        if (b[0] === i || b[1] === i) sum += b[2] || 1;
+      const pairs = (5 - (mol.charge || 0) - sum) / 2;
+      if (pairs !== Math.round(pairs) || pairs < 0) {
+        stereoFails++;
+        console.log(`   TAUTOMER FAIL: ${(mol.names && mol.names[i]) || 'N' + i} has `
+          + `bond orders summing to ${sum}, giving ${pairs} lone pairs — not a whole `
+          + `number. A tautomer moves a DOUBLE BOND as well as a proton.`);
+      }
+    }
   }
 
   // ---- wc: the Watson–Crick edge, and that it is mutual -----------------
