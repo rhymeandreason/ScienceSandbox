@@ -38,14 +38,6 @@
     background:rgba(255,255,255,.66);border-radius:7px;padding:2px 9px;white-space:nowrap}
   .tag.paired{background:#0042aa;color:#fff}
 
-  /* One line of status, on the stage, where a panel used to be. */
-  #say{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;
-    max-width:min(760px,86%);text-align:center;
-    background:rgba(255,255,255,.82);border:2px solid var(--ink);border-radius:10px;
-    padding:10px 18px;font-family:var(--font-sans);font-size:13.5px;line-height:1.55;
-    color:var(--ink);pointer-events:none}
-  #say b{font-family:var(--font-slab)}
-  #say .sub{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
 </style>
 </head>
 <body>
@@ -53,7 +45,6 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
-    <div id="say"></div>
   </div>
 </div>
 
@@ -89,14 +80,12 @@ const un = s => ({ ...s, atoms:s.atoms.map(a=>({el:a.el,pos:a.pos.map(v=>v/S)}))
  * flat view, so the molecular plane stays the plane. */
 const flat = s => ({ ...s, view:null });
 
-const sayEl = document.getElementById('say');
 const L = Lesson.create(document.getElementById('gl'), {
   cam:{ theta:0, phi:1.5708, r:34 }, rMax:160,
   // NO ORBIT — the drag moves a molecule, and the pointer is projected onto
   // the z=0 plane the bases live in, which only means anything face-on.
   orbit:false,
   boxes:()=>[{ x:0, y:0, rxz:26, hy:17 }],
-  reservePx:()=>({ bottom: sayEl.offsetHeight + 30 }),
   afterFrame:()=>placeTags(),      // projection reads a matrix refreshed on render
 });
 
@@ -255,12 +244,12 @@ canvas.addEventListener('pointermove', e => {
   held.mol.position.copy(toWorld(e)).add(grabOff);
   held.mol.position.z = 0;
   tryLatch();
-  say();
+  refresh();
 });
 canvas.addEventListener('pointerup', e => {
   held = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
-  say();
+  refresh();
 });
 
 /* THE LATCH. Near the solved pose against ANY other base and it snaps in — but
@@ -312,36 +301,16 @@ function liveBonds(){
   return HBond.find(donors, acceptors, { maxDist:MAXD, onePerPair:false, order:'best' });
 }
 
-/* ---- what the stage says ------------------------------------------------- */
-function say(){
+/* ---- bonds and tags, from where the molecules actually are --------------- */
+function refresh(){
   const live = liveBonds();
   // A bond belongs to the solid layer only if its two owners are a latched
-  // pair. Everything else is a real contact that is not a pair.
+  // pair. Everything else is a real contact that is not a pair — faint, so the
+  // two read differently without a word of explanation.
   const isPair = q => q.donor.owner.partner === q.acceptor.owner;
   HBpair.set(live.filter(isPair));
   HBnear.set(live.filter(q => !isPair(q)));
-
   for(const b of bases) b.tag.classList.toggle('paired', !!b.partner);
-
-  const pairs = bases.filter(b => b.partner && b.key < b.partner.key);
-  const loose = live.filter(q => !isPair(q)).length;
-
-  if(pairs.length){
-    const names = pairs.map(p => `${p.spec.name} + ${p.partner.spec.name}`).join(' · ');
-    const n = live.filter(isPair).length;
-    sayEl.innerHTML = `<b>${names}</b> — ${n} hydrogen bond${n===1?'':'s'}.`
-      + `<span class="sub">Every donor on one edge meets an acceptor on the other, `
-      + `with none left over. That completeness is what makes a base pair — not a `
-      + `shape fitting a notch.</span>`;
-  } else if(loose){
-    sayEl.innerHTML = `<b>Touching, but not a pair.</b>`
-      + `<span class="sub">${loose} hydrogen bond${loose===1?'':'s'} — real ones. Any `
-      + `donor will find any acceptor, and cells make this mistake too; proofreading `
-      + `exists because they do. A pair needs EVERY site on both edges satisfied at once.</span>`;
-  } else {
-    sayEl.innerHTML = `<b>Drag the bases together.</b>`
-      + `<span class="sub">There are six ways to put two of them together. Two stick.</span>`;
-  }
 }
 
 /* ---- name tags, pinned to their molecules -------------------------------- */
@@ -360,7 +329,7 @@ function placeTags(){
 
 setStartPose('adenine','thymine');
 setStartPose('guanine','cytosine');
-say();
+refresh();
 L.resize(); L.fit(); L.start();
 </script>
 </body>
