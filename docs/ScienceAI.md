@@ -86,7 +86,7 @@ Store the license type as a filterable field, so you can exclude NC images by qu
 
 ---
 
-# Revised recommendation based on prototype work in repo
+# Revised recommendation based on prototype in worktree textbook-image-index
 
 ## Keep
 
