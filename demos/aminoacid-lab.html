@@ -45,11 +45,11 @@
   #card{border-top:1.5px dashed var(--hair);padding-top:16px}
   #card .rxn{font-family:var(--font-slab);font-weight:700;color:var(--pep);font-size:15px}
 
-  @media (max-width:880px){#app{grid-template-columns:1fr}#stage{grid-column:1}#side{grid-column:1}#side::before{display:none}}
+  @media (max-width:880px){#app-sidebar{grid-template-columns:1fr}#stage{grid-column:1}#side{grid-column:1}#side::before{display:none}}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="app-sidebar">
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="rxmsg" aria-live="polite"></div>

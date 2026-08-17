@@ -14,7 +14,7 @@
 
   /* TWO ROWS, TWO COLUMNS: rail across the top, stage takes the rest. */
   @media (min-width:921px){
-    #app{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
+    #app-sidebar{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
     #railbar{grid-column:1 / -1}
     /* STAGE TAKES THE WHOLE WIDTH, NOTES ON TOP: sticky notes, not a panel to
        make room for, so the molecule centres on the PAGE. (They used to own the
@@ -586,7 +586,7 @@
   @media (max-width:920px){
     /* Stacked: rail, stage, readouts. Ten numbers fit across a phone, which is
        what makes the rail survive one. */
-    #app{grid-template-rows:auto 52vh 1fr}
+    #app-sidebar{grid-template-rows:auto 52vh 1fr}
     #railbar{grid-column:1;padding:10px 14px 8px;flex-wrap:wrap;gap:6px}
     /* narrow: the rail needs the full row, so the title sits above it in flow */
     #pagetitle{position:static;transform:none;flex:0 0 100%;font-size:17px}
@@ -605,7 +605,7 @@
 </style>
 </head>
 <body>
-<div id="app">
+<div id="app-sidebar">
   <!-- THE PATHWAY RAIL, top, spanning both columns: read left-to-right it costs
        the stage no width, which is what the molecules needed. Title absolutely
        positioned so it costs the rail no width and leaves it centred. -->

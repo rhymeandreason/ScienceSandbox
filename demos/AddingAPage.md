@@ -104,11 +104,7 @@ Easy to get wrong, invisible from the API:
 
 * **Spec coordinates are canonical.** Never bake a viewing angle in with `Skel.rotate()` — declare `view:VIEW.pyranose` (radians `[x,y,z]`, applied by `Stage.buildMolecule`), and add new angles to `VIEW` so specs share a view by name, not by copied constants. An angle only ONE spec uses stays inline (`atpSkel`): a `VIEW` entry with a single user is a name nobody can reuse.
 * **A declared `view:` is what the student sees. A page's own rotation is an OFFSET from it, and must be zero at rest.** `Stage.buildMolecule` bakes `view:` into the meshes and leaves the group free for the page; compose anything on top of it at rest and the spec's angle is one nobody ever sees, while the file, the checkers and the docs all still say otherwise. `contrast-lab.html` holds to it by construction (`rotation.y=spin` — *0 at rest*); `molecule-viewer.html` broke it twice, once with a PCA opening pose and once by carrying a pose across its derivation switch, and nothing caught either — the composition happens in THREE at runtime, so no offline checker can see it — and neither can a runtime one, since anything downstream of the spec derives the "expected" angle from the same field it is checking. So it is **one code path, not an assertion**: `molview.js`'s `defaultView()` is the only place an opening angle comes from, and it returns identity for a spec that declares a view precisely because `buildMolecule` has already baked it in. Tune an angle by dragging in `molecule-viewer.html` and pasting its copy button's output.
-* **Specs come in two bond-length families; a page shows one.** Nothing fails a
-  build — `register()` throws only for the `mol-small`/`mol-solvation` pair, so
-  mixing `mol-solvation` with a family-B domain renders as a plausible size
-  difference rather than an error. Your script tags are the only signal.
-  MolecularGeometry.md §1.5.
+* **Specs come in two bond-length families; a page shows one.** Nothing fails a build — `register()` throws only for the `mol-small`/`mol-solvation` pair, so mixing `mol-solvation` with a family-B domain renders as a plausible size difference rather than an error. Your script tags are the only signal. MolecularGeometry.md §1.5.
 * **`mol-*.js` coordinates are real ångströms** unless `units:'scene'`. Pasting display-scale numbers into an `angstrom` spec is a silent 1.9× that reads as a styling choice. `tools/sdf2spec*.js` emit ångströms, so their output pastes in.
 * **Never hand-tune a camera.** `Stage.measure` + `Stage.frame` solve distance from the real frustum; a hand-picked `r:` is right only at the size it was tuned for. Pass `orbit:false` on side-by-side pages — orbiting brings one molecule nearer and perspective magnifies it.
 * **`Stage.bond` takes a bond order** (`[i,j,2]` → double bond). `setOptionalH` toggles *visibility* of the `optH` C–H's, so it can never resurrect a reaction-removed atom.
@@ -126,7 +122,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 ## Adding a new page
 
-1. **Start from a built page, not a blank one.** Match by information complexity, not paradigm: single concept → `water-lab.html` or `molecule-builder.html`; multi-step or multi-stage → `hemoglobin-lab.html`; side-by-side → `contrast-lab.html`. Copy its layout, panel structure and copy tone wholesale — first-draft quality comes from reusing those choices.
+1. **Ask the human what existing page is similar.** Copy its layout and main UI structure wholesale.
 
 2. Copy the head (fonts/icons + `sandbox.css` + the scripts you need) and the `#app` skeleton from `aminoacid-lab.html`, or `contrast-lab.html` for the no-FX, no-loop shape. **Load only the `mol-*.js` domains your page shows**, after `molecules.js` (and after `skel.js` if any needs the builder).
 
