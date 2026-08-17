@@ -83,6 +83,28 @@
       return group;
     }
 
+    /* …and the inverse, because a reaction is not only subtraction. `shed`
+     * shipped alone and every page that needed the other half wrote its own:
+     * an atom that is drawn only from the beat it arrives on — a proton landing
+     * on the oxygen it was handed to, a carbon gaining an H as it is reduced —
+     * is the same event running forwards, and it belongs to the same module.
+     *
+     * THE BOND RULE IS NOT SYMMETRIC, deliberately. `shed` hides a bond if
+     * EITHER end goes: half a bond is never right. `unshed` shows one only when
+     * BOTH ends are visible — reveal an atom whose partner is still shed and
+     * the mirrored rule would draw a stick to something that is not there.
+     * So this is the stricter of the two, and re-showing atoms in any order
+     * converges on the same picture.
+     */
+    function unshed(group,indices){
+      const u=group.userData, set=new Set(indices);
+      set.forEach(i=>{ const m=u.atomMeshes[i]; if(m) m.visible=true; });
+      const drawn=i=>{ const m=u.atomMeshes[i]; return !m || m.visible; };
+      u.bondMeshes.forEach(bm=>{ const [i,j]=bm.userData.pair;
+        if((set.has(i)||set.has(j)) && drawn(i) && drawn(j)) bm.visible=true; });
+      return group;
+    }
+
     /* ---- the travelling half: a group built from a spec's own atoms ------ */
     // Positions come from the SPEC, recentred on `center` (default: the first
     // index), so the caller places the group by one point and the internal
@@ -174,7 +196,7 @@
         .normalize().multiplyScalar(dist);
     }
 
-    return { shed, fragment, launch, hold, drop, clear, gather, link,
+    return { shed, unshed, fragment, launch, hold, drop, clear, gather, link,
              offstage, acrossScreen, get inAir(){ return air.size; } };
   }
 

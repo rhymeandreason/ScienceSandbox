@@ -68,7 +68,8 @@ if git diff --cached --name-only | grep -qE '^demos/(.*\.html|molecules\.js|skel
   if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
     tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
     echo ""
-    echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load."
+    echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load,"
+    echo "  or a proton hop leaves its source atom on the molecule."
     exit 1
   fi
   rm -f /tmp/cp.$$

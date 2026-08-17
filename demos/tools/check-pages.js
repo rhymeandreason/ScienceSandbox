@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /* =====================================================================
- *  check-pages.js — does each page load the molecules it actually uses?
+ *  check-pages.js — two audits of a page's own source.
  *
  *  Run:  node tools/check-pages.js       (exits non-zero on failure)
+ *
+ *    1. does each page load the molecules it actually uses?
+ *    2. does every proton hop REMOVE THE ATOM IT MOVES?
  *
  *  This guards the failure mode that docs/molecule-pipeline.md item 3
  *  introduced. Before the split every page loaded every spec, so a page could
@@ -55,8 +58,11 @@ const PDB_PAGES = new Set(['viewer-compare.html']);
 // internal nav page linking to other pages' scenes, not a scene itself.
 const NO_SCENE = new Set(['index.html', 'admin.html']);
 
-for (const page of fs.readdirSync(ROOT)
-       .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort()) {
+const PAGES = fs.readdirSync(ROOT)
+  .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();
+
+console.log('== 1. every page loads the molecules it names');
+for (const page of PAGES) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
   // Local scripts only, in page order; CDN Three is not our concern.
   const libs = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])
@@ -93,6 +99,64 @@ for (const page of fs.readdirSync(ROOT)
   }
 }
 
+/* =====================================================================
+ *  2. A PROTON HOP HAS TO TAKE THE ATOM WITH IT.
+ *
+ *  fx.js's protonHop draws a COURIER, not the hydrogen: a glow that flies to a
+ *  target and fades. It does not touch the molecule. So a hop whose source atom
+ *  is still drawn shows two hydrogens where the chemistry has one — a white H
+ *  sitting on the bond it supposedly just left, while a second one sails away,
+ *  and the honest question is where the extra one came from.
+ *
+ *  This is not hypothetical and not rare. The audit of 2026-08-17 found it at
+ *  FOUR call sites across three steps of glycolysis-lab: steps 1 and 3 flew the
+ *  hydroxyl proton for the whole phosphate flight with the H still on screen,
+ *  step 6's whole-step route sent a hydride to NAD⁺ while the hydrogen it was
+ *  supposedly made of stayed on the aldehyde, and step 2 had no shed at all.
+ *  Every one of them was written beside a call site that DID shed correctly.
+ *  The pattern: shedding is remembered when the hydrogen is the subject of the
+ *  beat, and forgotten when it is a side effect of something else moving.
+ *
+ *  WHAT THIS CAN AND CANNOT SEE. It is a source-proximity check, not a proof:
+ *  it asks whether a call that removes the source is written near the hop. It
+ *  cannot tell that the removal names the SAME atom the hop starts from, or
+ *  that it runs on the same branch. What it does catch is the whole observed
+ *  failure mode — a hop with no removal anywhere near it.
+ *
+ *  ENUM: REMOVERS is the point of this check, not an implementation detail. A
+ *  page may make the source stop being drawn any way it likes, but the way has
+ *  to be listed here — and adding one is exactly the moment to ask whether it
+ *  really removes the atom. Two idioms are in use today:
+ *    · shed it       glycolysis-lab hides the mesh (GO.shed via shedAtoms)
+ *    · morph it      molecule-lab swaps the whole acid for its ion, so the
+ *                    hydrogen is gone by construction — no shed to find
+ * ===================================================================== */
+const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane)\s*\(/;
+const BEFORE = 14, AFTER = 3;      // lines of context; widen only with a reason
+
+console.log('\n== 2. every proton hop removes the atom it moves');
+let hops = 0;
+for (const page of PAGES) {
+  const lines = fs.readFileSync(path.join(ROOT, page), 'utf8').split('\n');
+  lines.forEach((raw, i) => {
+    const line = raw.replace(/\/\/.*$/, '');       // a hop named in a comment is prose
+    if (!/(?:\bprotonHop|\bhop)\s*\(/.test(line)) return;
+    // The page's own hop() wrapper is a DEFINITION, not a call — it is where
+    // the courier is configured, and the shed belongs at the call sites.
+    if (/\b(const|let|var|function)\s/.test(line.slice(0, line.search(/(?:\bprotonHop|\bhop)\s*\(/)))) return;
+    hops++;
+    const win = lines.slice(Math.max(0, i - BEFORE), i + 1 + AFTER)
+                     .map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    if (!REMOVERS.test(win))
+      fail(`${page}:${i + 1} — proton hop with no source removal within `
+        + `${BEFORE} lines: the H flies off while the molecule keeps it. `
+        + `Shed the source atom as the hop starts (or morph the molecule), `
+        + `and reveal a real atom at the destination via protonHop's onArrive.`);
+  });
+}
+if (!fails) console.log(`  ok    ${hops} proton hop(s), every one removes its source`);
+
 console.log('');
-if (fails) { console.log(`FAIL: ${fails} page(s) reference a molecule they do not load`); process.exit(1); }
-console.log('PASS: every page loads every molecule it names');
+if (fails) { console.log(`FAIL: ${fails} page claim(s) no longer true`); process.exit(1); }
+console.log('PASS: every page loads every molecule it names, '
+  + 'and every proton hop removes its source');
