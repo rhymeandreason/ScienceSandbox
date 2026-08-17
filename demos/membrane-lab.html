@@ -510,9 +510,44 @@ const STEPS = [
       showProtein(PUMP); showMembrane(true); setCut(true);
       pumpT = 0;
     },
-    readout: () => '3 Na⁺ out, 2 K⁺ in, 1 ATP — uphill, and paid for',
+    readout: () => 'ATP is the battery: it carries three phosphates, and spends one per trip. ' +
+                    'Per cycle — 3 Na⁺ out, 2 K⁺ in, 1 ATP.',
   },
 ];
+
+/* ---- ATP, drawn schematically ----
+
+   The caption said "ATP hands over a phosphate" with no ATP on screen,
+   which is a page asking to be believed. It is drawn now.
+
+   SCHEMATIC, and declared: a body for adenosine-plus-sugar and three
+   beads for the phosphates. The real molecule is in the repo (glycolysis
+   builds it atom by atom) and it is far too detailed to read at the size
+   this scene can give it — here the only thing that must be legible is
+   THREE phosphates becoming two, because that is the whole transaction.
+   kit/carriers.js is the proper long-term home; it owns ATP/ADP as one
+   molecule with two states and would replace this wholesale. */
+const ATP_AT = new THREE.Vector3(46, -34, 0);
+const atp = new THREE.Group();
+{
+  const body = new THREE.Mesh(new THREE.SphereGeometry(5.2, 20, 14), Parts.flat(0xb9a7d8));
+  body.scale.set(1.25, 1, 1);
+  atp.add(body);
+  /* alpha and beta stay put; gamma is the one that moves, so it is not
+     parented here — it lives on its own and is placed each frame. */
+  [10.5, 16.5].forEach(x => {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(3.0, 16, 12), Parts.flat(0xef8a3c));
+    p.position.x = x;
+    atp.add(p);
+  });
+  atp.position.copy(ATP_AT);
+}
+L.root.add(atp);
+
+const gamma = new THREE.Mesh(new THREE.SphereGeometry(3.0, 16, 12), Parts.flat(0xef8a3c));
+L.root.add(gamma);
+const GAMMA_ON_ATP = ATP_AT.clone().add(new THREE.Vector3(22.5, 0, 0));
+const GAMMA_ON_PUMP = new THREE.Vector3(12, -20, 0);
 
 /* ---- the pump's own actors ---- */
 let pumpT = 0;
@@ -582,10 +617,20 @@ function tick(dt) {
       m.material.transparent = c.alpha < 1;
       m.material.opacity = c.alpha;
     }
+    /* The phosphate rides from ATP to pump on `transfer`, so the molecule
+       and the protein cannot disagree about who is holding it. */
+    gamma.position.lerpVectors(GAMMA_ON_ATP, GAMMA_ON_PUMP, st.phosphate.transfer);
+    atp.visible = true;
+    /* Pale once it has handed the phosphate over: same object, two states,
+       which is the idea kit/carriers.js exists to enforce. */
+    atp.children[0].material.color.setHex(
+      st.phosphate.atp === 'charged' ? 0xb9a7d8 : 0xd6d0e2);
+
     /* The caption is READ from the cycle. Nothing on this page can say
        the pump is doing something the geometry is not. */
     capEl.innerHTML = '<b>' + st.label + '</b> — ' + st.caption;
   } else {
+    atp.visible = false; gamma.visible = false;
     for (const t of travellers) {
       const was = t.y;
       advance(t, dt);

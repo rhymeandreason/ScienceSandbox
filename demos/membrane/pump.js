@@ -72,23 +72,28 @@
      sum, so retiming one beat cannot silently shorten another. */
   const PHASES = [
     { id:'load-na',    w:1.4, label:'3 Na⁺ bind',
-      caption:'Inward-open. Three sodium ions load from inside the cell.' },
+      caption:'The pump is open to the inside. Three sodium ions step in.' },
     { id:'occlude-na', w:1.0, label:'ATP → phosphate on the pump',
-      caption:'ATP hands its end phosphate to the pump. Both gates shut: the ' +
-              'sodium is committed, and nothing can slip back.' },
+      caption:'ATP snaps off its end phosphate and sticks it on the pump. ' +
+              'Both doors shut, so the sodium is locked in — it cannot slip back.' },
     { id:'open-out',   w:0.9, label:'turns outward',
-      caption:'Carrying the phosphate, the pump opens the other way.' },
+      caption:'Holding that phosphate makes the pump change shape: it turns ' +
+              'over and opens to the outside instead.' },
     { id:'release-na', w:1.1, label:'3 Na⁺ leave',
-      caption:'The site no longer holds sodium tightly. Three Na⁺ go out.' },
+      caption:'In the new shape the grip is loose. The three sodiums drift out ' +
+              'of the cell.' },
     { id:'load-k',     w:1.1, label:'2 K⁺ bind',
-      caption:'The same site, reshaped, now prefers the bigger ion. Two K⁺ load.' },
+      caption:'That same pocket now fits potassium better. Two K⁺ step in from ' +
+              'outside.' },
     { id:'occlude-k',  w:1.0, label:'phosphate leaves',
-      caption:'The phosphate comes off. Both gates shut again.' },
+      caption:'The phosphate falls off. Both doors shut again, with the ' +
+              'potassium locked in this time.' },
     { id:'open-in',    w:0.9, label:'turns inward',
-      caption:'The pump returns to facing the cytoplasm.' },
+      caption:'Without the phosphate the pump relaxes back to its first shape, ' +
+              'facing inside again.' },
     { id:'release-k',  w:1.1, label:'2 K⁺ enter the cell',
-      caption:'Two potassium ions are released inside. One ATP spent: ' +
-              'three charges out, two in.' },
+      caption:'The two potassiums are let go inside the cell. That whole trip ' +
+              'cost exactly one ATP.' },
   ];
 
   const TOTAL = PHASES.reduce((s, p) => s + p.w, 0);
