@@ -38,6 +38,13 @@
     background:rgba(255,255,255,.66);border-radius:7px;padding:2px 9px;white-space:nowrap}
   .tag.paired{background:#0042aa;color:#fff}
 
+  /* The rung measurement. Reads as a drawing annotation, not a label on a
+     molecule — hence the slab face and the paper-coloured backing. */
+  .ruler{position:absolute;z-index:5;pointer-events:none;
+    transform:translate(-50%,-50%);
+    font-family:var(--font-slab);font-size:13px;letter-spacing:.3px;
+    color:var(--ink);background:var(--paper);padding:1px 7px;border-radius:5px}
+
 </style>
 </head>
 <body>
@@ -86,7 +93,7 @@ const L = Lesson.create(document.getElementById('gl'), {
   // the z=0 plane the bases live in, which only means anything face-on.
   orbit:false,
   boxes:()=>[{ x:0, y:0, rxz:26, hy:17 }],
-  afterFrame:()=>placeTags(),      // projection reads a matrix refreshed on render
+  afterFrame:()=>{ placeTags(); placeRulers(); },      // projection reads a matrix refreshed on render
 });
 
 // Two bond layers, because opacity is a property of the MATERIAL and the page
@@ -212,7 +219,10 @@ const canvas = document.getElementById('gl');
 const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 let held = null;
-const grabOff = new THREE.Vector3();
+// A latched pair moves as ONE OBJECT. Every base being dragged carries its own
+// offset from the pointer, so the pair keeps its internal geometry exactly —
+// re-solving or re-snapping it mid-drag would let the bonds jitter.
+let dragging = [];
 
 const toWorld = e => {
   const r = canvas.getBoundingClientRect();
@@ -232,22 +242,31 @@ canvas.addEventListener('pointerdown', e => {
                     .filter(x => x.d < 7).sort((x,y) => x.d - y.d)[0];
   if(!near) return;
   held = near.b;
-  // PULLING ON A PAIR BREAKS IT. Hydrogen bonds are weak — that is most of why
-  // DNA can be opened and read — so a drag separates rather than towing the
-  // pair around as one rigid object.
-  unpair(held);
-  grabOff.subVectors(held.mol.position, w);
+  // Grab the whole pair if there is one. Two bases held together by hydrogen
+  // bonds ARE one object until something breaks them — double-click to do that.
+  const group = held.partner ? [held, held.partner] : [held];
+  dragging = group.map(b => ({ b, off:b.mol.position.clone().sub(w) }));
   try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
 });
 canvas.addEventListener('pointermove', e => {
   if(!held) return;
-  held.mol.position.copy(toWorld(e)).add(grabOff);
-  held.mol.position.z = 0;
+  const w = toWorld(e);
+  for(const d of dragging){ d.b.mol.position.copy(w).add(d.off); d.b.mol.position.z = 0; }
   tryLatch();
   refresh();
 });
+// Double-click a pair to pull it apart. Hydrogen bonds are weak — that is most
+// of why DNA can be opened and read — but a drag is how the pair gets MOVED,
+// so breaking needs its own gesture rather than happening by accident.
+canvas.addEventListener('dblclick', e => {
+  const w = toWorld(e);
+  const near = bases.map(b => ({ b, d:w.distanceTo(centreOf(b)) }))
+                    .filter(x => x.d < 7).sort((x,y) => x.d - y.d)[0];
+  if(near) unpair(near.b);
+  refresh();
+});
 canvas.addEventListener('pointerup', e => {
-  held = null;
+  held = null; dragging = [];
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
   refresh();
 });
@@ -328,6 +347,111 @@ function refresh(){
   HBpair.set(live.filter(isPair));
   HBnear.set(live.filter(q => !isPair(q)));
   for(const b of bases) b.tag.classList.toggle('paired', !!b.partner);
+}
+
+/* ---- the ruler: how wide a rung is ----------------------------------------
+ * THE PAYOFF OF THE WHOLE PAGE. A–T is held by two hydrogen bonds and G–C by
+ * three, and the two pairs are still the SAME WIDTH — because each is one wide
+ * base plus one narrow one. That constancy is why the ladder has parallel
+ * rails, and it is invisible until the two are measured against each other.
+ *
+ * WHAT IS MEASURED, AND WHY THAT: the distance between the two glycosidic
+ * nitrogens — N9 on the purine, N1 on the pyrimidine. Those are the atoms the
+ * sugars attach to, so that span IS the rung, and the backbone will hang off
+ * exactly those two points in the step that adds one. (The textbook number is
+ * usually C1′–C1′, ~10.5 Å; with no sugars yet, the nitrogens they bond to are
+ * the honest stand-in, and ~9 Å is the real Watson–Crick value.) The number is
+ * measured off the atoms every frame, never typed — CLAUDE.md's rule.
+ */
+const RULER_N = { adenine:'N9', guanine:'N9', thymine:'N1', cytosine:'N1' };
+const glycosidic = b => {
+  const i = b.spec.names.indexOf(RULER_N[b.key]);
+  return new THREE.Vector3(...b.spec.atoms[i].pos)
+    .applyQuaternion(b.mol.quaternion).add(b.mol.position);
+};
+
+function makeRuler(){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color:0x3a342c, transparent:true, opacity:0.8 });
+  const bar = new THREE.CylinderGeometry(0.05, 0.05, 1, 6);
+  const part = () => { const m = new THREE.Mesh(bar, mat); g.add(m); return m; };
+  // dimension line, two end ticks, two extension lines back to the atoms
+  const parts = { line:part(), t1:part(), t2:part(), e1:part(), e2:part() };
+  const label = document.createElement('div');
+  label.className = 'ruler';
+  document.getElementById('stage').appendChild(label);
+  g.visible = false; label.style.display = 'none';
+  return { g, parts, label };
+}
+const rulers = [makeRuler(), makeRuler()];   // at most two pairs on stage
+rulers.forEach(r => L.root.add(r.g));
+
+const _rd = new THREE.Vector3();
+const UPY = new THREE.Vector3(0,1,0);
+function span(mesh, from, to){
+  const d = _rd.subVectors(to, from), len = d.length();
+  if(len < 1e-6){ mesh.visible = false; return; }
+  mesh.visible = true;
+  mesh.position.copy(from).addScaledVector(d, 0.5);
+  mesh.quaternion.setFromUnitVectors(UPY, d.clone().normalize());
+  mesh.scale.set(1, len, 1);
+}
+
+const OFFSET = 3.4;      // how far the dimension line sits off the pair
+function placeRulers(){
+  const pairs = bases.filter(b => b.partner && b.key < b.partner.key);
+  rulers.forEach((r, i) => {
+    const p = pairs[i];
+    if(!p){ r.g.visible = false; r.label.style.display = 'none'; return; }
+    r.g.visible = true; r.label.style.display = '';
+
+    // Purine end first, so the ruler always reads the same way round.
+    const pur = RULER_N[p.key] === 'N9' ? p : p.partner;
+    const pyr = pur === p ? p.partner : p;
+    const A = glycosidic(pur), B = glycosidic(pyr);
+
+    /* WHERE THE DIMENSION LINE GOES, decided by the atoms rather than guessed.
+     * The first version offset it along "midpoint of the two nitrogens minus
+     * midpoint of the two bases", which is nearly a zero-length vector — the
+     * two midpoints almost coincide — so the direction was noise and the line
+     * landed 0.7 Å from a heavy atom, i.e. straight through the rings.
+     *
+     * Instead: run perpendicular to the span, on whichever side the pair
+     * extends LESS far, and push out past the furthest atom on that side. A
+     * drawn measurement that crosses the thing it measures is not a
+     * measurement, and this cannot cross it whatever pose the pair is in. */
+    const axis = B.clone().sub(A).normalize();
+    const perp = axis.clone().cross(new THREE.Vector3(0,0,1)).normalize();
+    const mid  = A.clone().add(B).multiplyScalar(0.5);
+    const heavy = [p, p.partner].flatMap(x => x.spec.atoms
+      .map((at, k) => ({ at, k }))
+      .filter(o => o.at.el !== 'H')
+      .map(o => new THREE.Vector3(...o.at.pos)
+        .applyQuaternion(x.mol.quaternion).add(x.mol.position)));
+    let best = null;
+    for(const sgn of [1, -1]){
+      const dir = perp.clone().multiplyScalar(sgn);
+      const reach = Math.max(...heavy.map(v => v.clone().sub(mid).dot(dir)));
+      if(!best || reach < best.reach) best = { dir, reach };
+    }
+    const out = best.dir.clone().multiplyScalar(Math.max(best.reach, 0) + 2.2);
+    const a2 = A.clone().add(out), b2 = B.clone().add(out);
+
+    span(r.parts.line, a2, b2);
+    span(r.parts.e1, A, a2);
+    span(r.parts.e2, B, b2);
+    const tick = b2.clone().sub(a2).normalize()
+                   .cross(new THREE.Vector3(0,0,1)).multiplyScalar(0.42);
+    span(r.parts.t1, a2.clone().sub(tick), a2.clone().add(tick));
+    span(r.parts.t2, b2.clone().sub(tick), b2.clone().add(tick));
+
+    // Read the number off the atoms, not off the drawing.
+    const rect = canvas.getBoundingClientRect();
+    const lm = a2.clone().add(b2).multiplyScalar(0.5).project(L.camera);
+    r.label.style.left = ((lm.x*0.5+0.5) * rect.width) + 'px';
+    r.label.style.top  = ((-lm.y*0.5+0.5) * rect.height) + 'px';
+    r.label.textContent = (A.distanceTo(B) / S).toFixed(1) + ' Å';
+  });
 }
 
 /* ---- name tags, pinned to their molecules -------------------------------- */
