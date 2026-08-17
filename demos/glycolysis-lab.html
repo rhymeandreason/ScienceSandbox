@@ -1115,10 +1115,12 @@ const LANES=Lanes.create({
   spread:LANE,
   build:spec=>{ const g=Stage.buildMolecule(spec);
                 Stage.setOptionalH(g,false);
-                // …and G6P's `openH`, which belongs to the OPEN chain: the
-                // pyranose's ring O has no proton, and step 2's first hop is
-                // what puts one there. Not optH — that field is C–H's only.
-                hideAtom(g, spec.gly && spec.gly.openH);
+                // …and every `latentH`: a hydrogen the spec grew that the
+                // RESTING molecule does not have, drawn only from the beat it
+                // arrives on (G6P's ring O once the hemiacetal opens, 3-PG's
+                // C3 oxygen once the phosphate leaves it). Not optH — that
+                // field is nonpolar C–H's, and these are all on oxygen.
+                (spec.gly && spec.gly.latentH || []).forEach(i=>hideAtom(g,i));
                 return g; },
   plateHTML:spec=>`<div class="pn">${spec.name}</div><div class="pf">${spec.formula}</div>`,
 });
@@ -1611,10 +1613,56 @@ function waterAway(l){
  */
 function moveP(l, j, st, keys, n){
   const spec=M[l.key], key=keys[j], pro=M[key];
+  const gly=spec.gly, u=l.g.userData;
   const src=anchorWorld(l, st.anchor);
   const dst=siteWorld(key, st.dest, laneOrigin(key,j,n));
   flyPhosphate(src, dst, pro, pro.gly[st.dest]);
   shedPhosphoryl(l, spec.gly[st.anchor]);
+  /* THE TWO PROTONS THAT TRADE PLACES WITH IT.
+   *
+   * The mutase moves a phosphate, so one hydroxyl becomes an ester and one
+   * ester becomes a hydroxyl — C2's proton goes to solution because an oxygen
+   * holding one cannot attack the phosphorus, and C3's oxygen takes a
+   * different one back as the phosphate leaves. NET ZERO: both specs are
+   * C₃H₄O₇P³⁻ at charge −3.
+   *
+   * None of this was drawn. The product simply arrived with its C3 hydroxyl,
+   * and the phosphate spent the whole flight landing on a C2 oxygen that
+   * visibly still held its H — two things in one slot, the defect the hops
+   * were audited for, missed here because what arrives is a phosphate.
+   *
+   * ONLY THE DEPARTURE IS ANIMATED, and the arrival just appears. The two are
+   * not equally worth a flight: one thing visibly stops being on the molecule,
+   * the other lands on a site that came free in the same instant.
+   *
+   * WATCH THE BADGE, THOUGH. A departing '+' is steps 1 and 3's claim, where it
+   * pairs with a 2− on the phosphate and says the sugar went more negative.
+   * Nothing of the sort happens here — both specs are charge −3 — so the '+'
+   * is carried by the arriving hydroxyl appearing on the same beat, and by
+   * nothing else. If that ever stops reading as a trade, drop the badge rather
+   * than adding a second flight: the ledger and the formula both say no charge
+   * moved, and a lone '+' is the only thing on screen that could disagree.
+   */
+  if(gly.oh2H!=null){
+    // IT GOES AS THE PHOSPHATE COMES, not before: the deprotonation is what
+    // makes the oxygen able to take it, so they are one beat.
+    const from=u.atomWorld(gly.oh2H).clone();
+    shedAtoms(l,[gly.oh2H]);
+    FXi.protonHop(from, from.clone().add(screenRight(camera.right-camera.left)),
+                  null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
+                         carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
+                                          BADGE_SCALE)});
+  }
+  // …and the one arriving on C3 SIMPLY APPEARS, on the beat the phosphate lets
+  // go of that oxygen. It was flown in from above the frame first, and that was
+  // wrong twice over: it made a proton out of solution — which has no origin to
+  // point at and nothing to watch leave — compete with the phosphate crossing
+  // the same frame, and it put a second travelling particle on a step whose
+  // whole event is one group moving. The departure is the beat worth animating,
+  // because something visibly stops being on the molecule. An arrival onto a
+  // site that just came free needs no flight to be read; the oxygen is bare for
+  // one frame and then it is a hydroxyl.
+  if(gly.oh3H!=null) showAtom(l, gly.oh3H);
   // the ring marks the bond that FORMS, at the site it forms on
   later(()=>FXi.spawnRing(
     junctionWorld(pro, pro.gly[st.dest], laneOrigin(key,j,n), laneBase(key)),

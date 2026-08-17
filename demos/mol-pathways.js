@@ -213,6 +213,11 @@
             // without that the proton has no visible origin.
             c2H:CH[1],
             openH,                    // hidden until the hemiacetal opens
+            // …which is what `latentH` says generally: hydrogens the spec grows
+            // but the RESTING molecule does not have, hidden at build and drawn
+            // from the beat they arrive on. The page hides this list and nothing
+            // else; the named field beside it is what a step aims at.
+            latentH:[openH],
             note:'still a pyranose — C6 is outside the ring, so phosphorylating '
                + 'it opens nothing' } });
   }
@@ -343,15 +348,37 @@
     //   leaving –OH has to be visible; here nothing leaves, so accuracy wins.)
     const g=chainC(3);
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // carboxylate: two O's
-    g.hydroxyl(1,1);
+    const oh2=g.hydroxyl(1,1);
     const h2=g.grow(1,'H',GL.CH,'sp3',0);                  // C2's H, carried through
     const p=g.phosphate(2,0);
+    // THE TWO PROTONS THE MUTASE SWAPS. Step 8 moves the phosphate C3 → C2, so
+    // C2's hydroxyl has to give ITS proton up (an oxygen cannot attack the
+    // phosphorus while still holding one) and C3's oxygen takes one back as the
+    // phosphate leaves. Net zero — both specs are C₃H₄O₇P³⁻ at charge −3 — but
+    // neither event is nothing, and drawing only the arrival (which the product
+    // spec gave away for free) left the phosphate landing on an oxygen that
+    // still visibly held its H.
+    //   · oh2H  is on the molecule and leaves.
+    const oh2H=(()=>{ const b=g.bonds.find(b=>(b[0]===oh2||b[1]===oh2)
+      && g.atoms[b[0]===oh2?b[1]:b[0]].el==='H');
+      return b[0]===oh2?b[1]:b[0]; })();
+    //   · oh3H is the one that ARRIVES, so it is latent: as drawn here the C3
+    //     oxygen already carries the phosphate, and a third connection would be
+    //     an oxonium. It belongs to the molecule the instant that phosphate
+    //     goes. Grown last so no index above it moves.
+    //     The bridge is DERIVED, not typed: of the P's oxygens it is the one
+    //     with a second heavy neighbour (C3). Same distinction terminalO makes.
+    const nb=i=>g.bonds.filter(b=>b.includes(i)).map(b=>b[0]===i?b[1]:b[0]);
+    const bridge=nb(p).filter(i=>g.atoms[i].el==='O'
+                  && nb(i).some(x=>x!==p && g.atoms[x].el!=='H'))[0];
+    const oh3H=g.grow(bridge,'H',GL.OH,'sp3',0);
     // `hot` is deliberately ABSENT here, unlike on 1,3-BPG and PEP. 3-PG's C3
     // phosphate is an ordinary low-energy ester — it cannot phosphorylate ADP,
     // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
     // phosphate to C2 and then dehydrate the molecule to make it transferable.
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, c2H:h2, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, c2H:h2, dCentre:[1,0,2],
+            oh2H, oh3H, latentH:[oh3H] } });
   }
   {
     // — 2-phosphoglycerate: the same atoms as 3-PG with the phosphate moved from
