@@ -132,17 +132,35 @@ function showMembrane(withHole) {
    axis is thin); the protein borrows it so one cut governs the scene. */
 function setCut(on) {
   memHoled.cut.enable(on);
-  T.mesh.material.clippingPlanes = on ? [memHoled.cut.plane] : [];
-  T.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
-  T.mesh.material.needsUpdate = true;
+  for (const P of [CHANNEL, PUMP]) {
+    P.mesh.material.clippingPlanes = on ? [memHoled.cut.plane] : [];
+    P.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
+    P.mesh.material.needsUpdate = true;
+  }
 }
 
-/* The protein is present from step 4 on. One transporter serves both the
-   channel and the pump: they differ by what the gates are allowed to do,
-   which is the entire point and would be undone by using two objects. */
-const T = Parts.transporter({ half:HALF });
-T.group.visible = false;
-L.root.add(T.group);
+/* TWO proteins, and an earlier version had one — "same object, different
+   gate rule" is a tidy line and it is wrong. A channel and a pump differ
+   in the gates AND in how tightly the path holds an ion, and the second
+   difference is why the first one matters: a channel conducts millions of
+   ions a second BECAUSE its pore does not grip, and a pump manages a
+   hundred BECAUSE its site does. Drawn at one width, the channel looked
+   like a pump that had forgotten to close, and the ions queued through a
+   pore they visibly did not fit.
+
+   So the channel gets a wide pore and the pump a snug site. The gates
+   still carry the argument; the width is what makes each of them the kind
+   of protein it is. */
+const CHANNEL = Parts.transporter({ half:HALF, site:7.2, mouth:8.8 });
+const PUMP    = Parts.transporter({ half:HALF });
+CHANNEL.group.visible = PUMP.group.visible = false;
+L.root.add(CHANNEL.group, PUMP.group);
+let T = PUMP;                                   // whichever is on stage
+function showProtein(which) {
+  CHANNEL.group.visible = which === CHANNEL;
+  PUMP.group.visible    = which === PUMP;
+  if (which) T = which;
+}
 
 /* ---------------------------------------------------------------------
    Small molecules. Real specs, not spheres — water, O2 and CO2 are in
@@ -267,7 +285,7 @@ const STEPS = [
         'The inside of a membrane is oil.',
     enter() {
       clearTravellers();
-      T.group.visible = false; showMembrane(false); setCut(false);
+      showProtein(null); showMembrane(false); setCut(false);
       /* Water on both sides, so "heads face the water" is something on
          screen rather than a word in the caption. */
       for (let i = 0; i < 14; i++)
@@ -284,7 +302,7 @@ const STEPS = [
         'O₂ and CO₂ dissolve straight through the tails. Na⁺ cannot.',
     enter() {
       clearTravellers();
-      T.group.visible = false; showMembrane(false); setCut(false);
+      showProtein(null); showMembrane(false); setCut(false);
       for (let i = 0; i < 5; i++)
         traveller('o2', { x:rnd(-46,-14), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
       for (let i = 0; i < 4; i++)
@@ -304,7 +322,7 @@ const STEPS = [
         'and more wander down than up. Nothing pulls.',
     enter() {
       clearTravellers();
-      T.group.visible = false; showMembrane(false); setCut(false);
+      showProtein(null); showMembrane(false); setCut(false);
       crossings = { up:0, down:0 };
       /* THE NET IS NOT SCRIPTED, and an earlier version of this step got
          that wrong in the exact way LESSONS-ROADMAP.md §2 warns about: it
@@ -343,7 +361,7 @@ const STEPS = [
         'It picks which ion, never which way — they only ever run downhill.',
     enter() {
       clearTravellers();
-      T.group.visible = true; showMembrane(true); setCut(true);
+      showProtein(CHANNEL); showMembrane(true); setCut(true);
       T.setGates(1, 1);                 // open through: that IS a channel
       for (let i = 0; i < 7; i++)
         traveller('K', { x:0, z:0, y:rnd(HALF, 44), vy:-rnd(9,14), coreSpeed:1 });
@@ -358,7 +376,7 @@ const STEPS = [
     loops:true,
     enter() {
       clearTravellers();
-      T.group.visible = true; showMembrane(true); setCut(true);
+      showProtein(PUMP); showMembrane(true); setCut(true);
       pumpT = 0;
     },
     readout: () => '3 Na⁺ out, 2 K⁺ in, 1 ATP — uphill, and paid for',

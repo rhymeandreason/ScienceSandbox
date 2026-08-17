@@ -140,7 +140,14 @@
      ===================================================================== */
   function transporter(opts) {
     const o = Object.assign({
-      half: 15.3, over: 14, radius: 14.5, site: 3.2, mouth: 7.4, wall: 3.0,
+      /* `site` is the radius of the lumen at its narrowest. It MUST clear
+         the biggest ion actually drawn, and that is not the biggest ion:
+         ions are exaggerated, so the constraint is a rendering one and it
+         bit — K⁺ draws at 1.38 x 2.6 = 3.59 A and the site was 3.2, so the
+         ion sat with its shoulders through the wall of the pocket holding
+         it. 5.0 clears the widest drawn species, Cl⁻ at 4.71 — which the
+         first fix forgot, and the constructor's warning caught. */
+      half: 15.3, over: 14, radius: 14.5, site: 5.0, mouth: 7.6, wall: 3.0,
       rings: 96, segs: 56, lobes: 0, lobeDepth: .06,
       /* Cool against the membrane's warm, which is the first illustration's
          scheme and the reason it reads at a glance: a protein the colour of
@@ -149,6 +156,15 @@
     }, opts);
 
     const H = o.half + o.over;                 // half-height of the protein
+
+    /* The lumen has to fit what the page will put in it. Silent otherwise:
+       an oversized ion does not error, it renders half-buried in the wall
+       and reads as a rendering glitch rather than a geometry mistake. */
+    const widest = Math.max(...Object.keys(ION)
+      .filter(k => ION[k] && ION[k].r).map(k => ION[k].r)) * ION.exaggeration;
+    if (o.site < widest)
+      console.warn(`parts.transporter: site ${o.site} A is narrower than the widest ` +
+                   `drawn species (${widest.toFixed(2)} A). Ions will clip through the lumen wall.`);
     const rings = o.rings, segs = o.segs;
     const nContour = rings * 2;                // outer up, inner back down
 
