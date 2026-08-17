@@ -691,10 +691,28 @@ function tick(dt) {
       const m = pumpIon(c.species, i);
       const rr = n > 1 ? ionRadius(c.species) * 1.15 : 0;
       const th = (i / n) * Math.PI * 2;
-      m.position.set(Math.cos(th) * rr, c.u * T.height, Math.sin(th) * rr);
-      m.visible = c.alpha > .02;
-      m.material.transparent = c.alpha < 1;
-      m.material.opacity = c.alpha;
+
+      /* u = +-1 is OFF THE FRAME, not the protein's rim.
+
+         Mapping u to T.height put the ends of the journey at the mouths,
+         so an ion faded up out of nothing at the lip of the pump and faded
+         away again a moment later — which says the pump MAKES sodium and
+         then destroys potassium. It carries them; they have to come from
+         the solution and go back to it.
+
+         Inside the protein the mapping is unchanged, so the site and the
+         funnel still line up with the geometry; beyond the rim it stretches
+         out to the edge of the frame. Piecewise, because a single linear
+         map to OFFSCREEN would drag the site itself off the mid-plane. */
+      const uH = T.height / OFFSCREEN;
+      const au = Math.abs(c.u), sgn = Math.sign(c.u) || 1;
+      const y = au <= uH
+        ? c.u * OFFSCREEN                       // within the protein
+        : sgn * (T.height + (au - uH) / (1 - uH) * (OFFSCREEN - T.height));
+      m.position.set(Math.cos(th) * rr, y, Math.sin(th) * rr);
+      m.visible = true;
+      m.material.transparent = false;
+      m.material.opacity = 1;
     }
     spendEl.hidden = false;
 
