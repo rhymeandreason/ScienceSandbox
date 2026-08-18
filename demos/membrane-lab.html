@@ -20,8 +20,16 @@
   #readout { font-size:13px; opacity:.7; min-height:1.2em; margin:-6px 0 8px; }
 
 
-  #spend { font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
-           border:1px solid #a493cf; background:#e8e2f6; cursor:pointer; margin-bottom:8px; }
+  /* The button sits ON the scene, in the gap between the bottom of the
+     protein and the top of the chrome. It is the pump's control, so it
+     belongs next to the pump — and it is deliberately OUTSIDE #chrome, so
+     fit.js's reserve (chromeEl.offsetHeight) does not grow on the one step
+     that shows it and re-frame the membrane mid-lesson. */
+  #spend { position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+           z-index:4;
+           font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
+           border:1px solid #a493cf; background:#e8e2f6; cursor:pointer;
+           box-shadow:0 2px 10px rgba(0,0,0,.12); }
   #spend:disabled { opacity:.45; cursor:default; }
   #spend[hidden] { display:none; }
 
@@ -54,11 +62,13 @@
 </head>
 <body>
 <div id="page">
-  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <button type="button" id="spend" hidden>Spend 1 ATP</button>
+  </div>
   <div id="chrome">
     <p id="cap"></p>
     <p id="readout"></p>
-    <p><button type="button" id="spend" hidden>Spend 1 ATP</button></p>
     <nav id="steps" aria-label="lesson steps"></nav>
   </div>
 </div>
@@ -633,7 +643,17 @@ let pumpT = 0, running = false;
 const pumpPool = { NA: [], K: [] };
 function pumpIon(species, i) {
   const p = pumpPool[species];
-  while (p.length <= i) { const m = Parts.ion(species); m.visible = false; L.root.add(m); p.push(m); }
+  while (p.length <= i) {
+    const m = Parts.ion(species);
+    /* transparent ONCE, at build. pump.js fades cargo in and out at the
+       mouths, and flipping material.transparent per frame recompiles the
+       shader — which is a dropped frame exactly at a phase boundary, i.e.
+       the flicker. depthWrite stays on: these are solid spheres that are
+       briefly faint, not glass. */
+    m.material.transparent = true;
+    m.material.depthWrite = true;
+    m.visible = false; L.root.add(m); p.push(m);
+  }
   return p[i];
 }
 function hidePumpIons() {
@@ -761,9 +781,12 @@ function tick(dt) {
         ? c.u * OFFSCREEN                       // within the protein
         : sgn * (T.height + (au - uH) / (1 - uH) * (OFFSCREEN - T.height));
       m.position.set(Math.cos(th) * rr, y, Math.sin(th) * rr);
-      m.visible = true;
-      m.material.transparent = false;
-      m.material.opacity = 1;
+      /* HONOUR THE FADE. This used to force opacity 1, which threw away
+         the one thing alpha is for: an ion appeared and vanished at full
+         strength on the frame a phase changed. That pop is what read as a
+         flicker, and it also said the pump makes and destroys ions. */
+      m.material.opacity = c.alpha;
+      m.visible = c.alpha > 0.01;
     }
     spendEl.hidden = false;
 
