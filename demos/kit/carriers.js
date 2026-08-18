@@ -68,6 +68,10 @@
     const visSel='.'+(opts.visClass||'cvis');   // holds the slots
     const slotSel='.'+(opts.slotClass||'cslot');
     const slotHTML=opts.slotHTML||(()=>'<div class="cslot"><span class="clab"></span></div>');
+    // Where a molecule sits INSIDE its slot: 'center' (default, unchanged for
+    // every existing caller) or 'left'. A layout decision, so the page makes
+    // it — the module only knows how to honour it.
+    const align=opts.align||'center';
     // Injected so a page builds its molecules its own way (optional-H policy,
     // centring); defaults to the ordinary centred build.
     const build=opts.build||(spec=>{ const g=global.Stage.buildMolecule(spec,{center:true});
@@ -138,11 +142,22 @@
       mols.forEach((g,j)=>{
         const box=slots[j] && slots[j].getBoundingClientRect();
         if(!box||!box.width) return;
-        g.position.copy(new THREE.Vector3(
-          ((box.left+box.width/2)-c.left)/c.width*2-1,
-          -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
+        // SCALE FIRST, THEN PLACE — `align:'left'` needs the molecule's own
+        // half-width in pixels to sit its EDGE on the slot's edge, and that is
+        // not known until the fit is solved. Centring never needed it, which is
+        // why this used to run the other way round.
         fitK=Math.min(box.width *0.94/(2*m.rxz*pxPerWorld),
                       box.height*0.94/(2*m.hy *pxPerWorld), 1);
+        // A molecule limited by its slot's HEIGHT — a tall thin column, which
+        // is what a carrier tray is — never fills the width, so centring leaves
+        // a gutter down both sides. Left-aligning gives that whole gutter to
+        // whatever stands beside the tray instead of splitting it in two.
+        const cx = align==='left'
+          ? box.left + m.rxz*pxPerWorld*fitK
+          : box.left + box.width/2;
+        g.position.copy(new THREE.Vector3(
+          (cx-c.left)/c.width*2-1,
+          -(((box.top+box.height/2)-c.top)/c.height*2-1), z).unproject(camera));
         g.scale.setScalar(fitK*arriveScale(j));
       });
       return fitK;
