@@ -61,7 +61,26 @@
     border-color:#2a7a6a; box-shadow:inset 0 0 0 1px #2a7a6a; }
   #steps button:hover { opacity:.85; }
 
+  /* ---- osmosis overlay ----
+     The tally belongs ON the compartments it counts. In the readout line it
+     was two numbers under a picture, and the student had to hold "42" in
+     their head while looking for which side had more. Over the scene the
+     number IS the side. */
+  #osmo { position:absolute; inset:0; pointer-events:none; z-index:3; }
+  #osmo[hidden] { display:none; }
+  .otally { position:absolute; transform:translate(-50%,-50%); text-align:center;
+            text-shadow:0 1px 12px rgba(255,255,255,.85),
+                        0 0 26px rgba(255,255,255,.7); }
+  .otally b { display:block; font-size:46px; font-weight:700; line-height:1;
+              font-variant-numeric:tabular-nums; }
+  .otally span { display:block; font-size:12px; letter-spacing:.09em;
+                 text-transform:uppercase; opacity:.6; margin-top:4px; }
+  #osmoArrow { position:absolute; transform:translate(-50%,-50%); opacity:0;
+               transition:opacity .5s ease; }
+  #osmoArrow .onet { font-size:15px; font-weight:600; letter-spacing:.04em; }
+
   @media (max-width:920px){
+    .otally b { font-size:34px; }
     #cap { font-size:15px; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
@@ -72,6 +91,27 @@
   <div id="stage">
     <canvas id="c"></canvas>
     <button type="button" id="spend" hidden>Spend 1 ATP</button>
+    <!-- Osmosis's tally and net arrow, drawn over the scene. Positions are
+         solved each frame from the projected membrane plane, never from a
+         guess at where the middle of the canvas is: fit.js reserves chrome
+         at the bottom, so world y=0 is NOT the centre of the stage. -->
+    <div id="osmo" hidden>
+      <div class="otally" id="osmoOut"><b></b><span>water · outside</span></div>
+      <div class="otally" id="osmoIn"><b></b><span>water · inside</span></div>
+      <div id="osmoArrow">
+        <!-- Twice the size it was. The arrow is the step's conclusion, and
+             at 46x150 it read as a tick mark beside two 46px numbers. The
+             viewBox is unchanged, so only the drawn size moves. -->
+        <svg width="92" height="300" viewBox="0 0 46 150" aria-hidden="true">
+          <g id="osmoArrowG" fill="none" stroke="#2a7a6a" stroke-width="6"
+             stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 132 L23 26"/>
+            <path d="M9 42 L23 26 L37 42"/>
+          </g>
+        </svg>
+        <div class="onet" id="osmoNet"></div>
+      </div>
+    </div>
   </div>
   <div id="chrome">
     <p id="cap"></p>
@@ -132,6 +172,12 @@ const capEl = document.getElementById('cap');
 const readoutEl = document.getElementById('readout');
 const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
+const osmoEl = document.getElementById('osmo');
+const osmoOutEl = document.getElementById('osmoOut');
+const osmoInEl = document.getElementById('osmoIn');
+const osmoArrowEl = document.getElementById('osmoArrow');
+const osmoArrowG = document.getElementById('osmoArrowG');
+const osmoNetEl = document.getElementById('osmoNet');
 const chromeEl = document.getElementById('chrome');
 
 const HALF = 15.3;                      // OPM's half-thickness, from the bake
@@ -320,7 +366,81 @@ function chargedIon(kind) {
   b.userData.lift *= k;
   b.position.copy(b.userData.base);
   g.add(b);
+  g.userData.badge = b;      // hydrate() has to push it clear of the shell
   return g;
+}
+
+/* ---- hydration shells ----
+   The facts are water-lab's, and they have to match it: a first shell of
+   SIX waters in an octahedron — the textbook coordination number for both
+   Na⁺ and Cl⁻ in dilute solution — with the two ions oriented oppositely.
+
+     · Na⁺ (cation): every water points its O (δ−) straight at the ion.
+     · Cl⁻ (anion):  every water points ONE O–H (δ+) at the ion. That is a
+       near-linear Cl⁻···H–O hydrogen bond, NOT the H–H bisector, and it is
+       why the anion's shell sits further out: a hydrogen is in between.
+
+   RIGID, parented to the ion. water-lab runs a real solvation engine with
+   springs and re-recruitment; that page is ABOUT the shell. Here the shell
+   is evidence for a count, so it rides the ion as one object — and the
+   whole hydrated ion tumbles together, which is what a solvated ion does.
+
+   THESE ARE NOT TRAVELLERS, deliberately. The osmosis tally counts the
+   travellers array, so a shell water is automatically excluded from it.
+   That is the entire point: the number on screen says FREE water, and the
+   water that is missing from it is visibly stuck to the salt. */
+const OCTA = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const _wq = new THREE.Quaternion();
+const _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
+function hydrate(group, kind) {
+  const spec = MolLib.MOLECULES.water;
+  /* Local directions off the spec, not measured off the built mesh: the
+     spec is where the geometry lives, and O sits at its origin so a
+     rotation about the group's centre is a rotation about the oxygen. */
+  const h1 = new THREE.Vector3(...spec.atoms[1].pos).normalize();
+  const h2 = new THREE.Vector3(...spec.atoms[2].pos).normalize();
+  const bis = h1.clone().add(h2).normalize();      // O → between the H's
+
+  const rIon = ionRadius(kind);
+  const rO = MolLib.PALETTE.radii.O * (EXAG / SCALE);
+  /* Contact for the cation, a hydrogen's width further for the anion —
+     water-lab measures 2.7 Å and 3.6 Å for the same two shells, and the
+     ratio is what a student can read off the picture. */
+  const d = (rIon + rO) * (kind === 'CL' ? 1.32 : 1.02);
+
+  /* THE CHARGE BADGE STAYS ON THE ION, and is drawn OVER the shell. A
+     hydrated ion with no sign says the water NEUTRALISED it, which is the
+     opposite of true — the shell screens the charge, it does not cancel
+     it, and that is why the ion still cannot enter the oil and the pump
+     still has to pay to move it.
+
+     Pushing the badge out past the shell was the wrong fix: it read as a
+     charge belonging to the cluster's edge rather than to the ion at its
+     centre. Instead it goes overlay — atomkit's own 2D rule, depthTest
+     off — so six waters cannot swallow it, and it is drawn bigger to hold
+     its own against a complex seven times the size of a bare ion.
+     faceCamera() deliberately skips depthTest-off sprites, so it simply
+     stays on its shoulder. */
+  const badge = group.userData.badge;
+  if (badge) {
+    badge.material.depthTest = false;
+    badge.position.copy(badge.userData.base);
+    badge.scale.multiplyScalar(1.6);
+  }
+
+  for (const v of OCTA) {
+    const w = Stage.buildMolecule(spec, { center:false });
+    w.scale.setScalar(EXAG / SCALE);
+    const dir = _wa.set(v[0], v[1], v[2]).normalize();
+    /* Cation: the bisector points AWAY, so the O faces the ion.
+       Anion: one O–H points BACK at the ion. */
+    _wq.setFromUnitVectors(kind === 'CL' ? h1 : bis,
+                           _wb.copy(dir).multiplyScalar(kind === 'CL' ? -1 : 1));
+    w.quaternion.copy(_wq);
+    w.position.copy(dir).multiplyScalar(d);
+    group.add(w);
+  }
+  return group;
 }
 
 function smallMolecule(name) {
@@ -341,6 +461,7 @@ function traveller(kind, opts) {
   const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
   const obj = (kind === 'NA' || kind === 'K' || kind === 'CL')
     ? chargedIon(kind) : smallMolecule(kind);
+  if (o.shell) hydrate(obj, kind);
   obj.position.set(o.x, o.y, o.z);
   L.root.add(obj);
   const t = Object.assign({ kind, obj }, o);
@@ -369,6 +490,19 @@ function clearTravellers() {
   NOTES.clear();
 }
 const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* THE EDGE OF THE FRAME, not a number typed when the camera was different.
+   Steps 1-3 spawned into a fixed ±40 band while OFFSCREEN is solved from
+   the actual canvas height, so on a laptop the whole cast loaded packed
+   against the membrane with empty space above and below it — which reads
+   as the membrane attracting things, the one thing these steps deny.
+
+   go() calls enter() twice on purpose, the second time after solveOffscreen(),
+   so this is the fitted frame and not the previous step's. */
+const farY = () => OFFSCREEN * 0.94;
+/* One compartment, edge to edge: just clear of the head groups out to the
+   edge of the frame. `side` is +1 outside, -1 inside. */
+const inCompartment = side => side * rnd(HALF + 4, farY());
 
 /* An x well clear of the protein's column. Anything that is NOT going
    through the channel has to be somewhere the student cannot read as
@@ -516,6 +650,20 @@ function advance(t, dt) {
    The steps.
    --------------------------------------------------------------------- */
 let crossings = { up:0, down:0 };
+/* RECENT net, not lifetime. crossings.up/down are running totals and they
+   never come back down, so once the walk built a lead the arrow froze at
+   "net 41 out" and went on saying water was leaving long after the two
+   sides had evened up — contradicting the tally right beside it, which was
+   the one telling the truth.
+
+   This is the same crossings, leaked away over a time constant: every
+   crossing adds ±1 and the whole thing decays, so it grows while the
+   imbalance is real and fades to nothing once each direction is landing as
+   often as the other. That is what equilibrium IS — not a flow that
+   switched off, but two equal flows — and it is why the arrow has to be
+   able to disappear on its own. */
+let netRecent = 0;
+const NET_HALFLIFE = 30;                // seconds for a crossing to count half
 
 const STEPS = [
   {
@@ -538,7 +686,7 @@ const STEPS = [
          tabs later, and that is worse than a slightly busier picture. */
       for (let i = 0; i < 64; i++)
         traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
-                             y:(i % 2 ? 1 : -1) * rnd(HALF + 6, 42),
+                             y:inCompartment(i % 2 ? 1 : -1),
                              vy:(i % 2 ? -1 : 1) * rnd(7, 12),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
@@ -550,7 +698,8 @@ const STEPS = [
     tab:'what gets through',
     cap:'<b>Oily things cross. Charged things do not.</b> ' +
         'CO₂ is the biggest thing here and goes straight through. ' +
-        'Na⁺ is the smallest and cannot.',
+        'Na⁺ is the smallest and cannot — a charged ion holds a shell of ' +
+        'water, and it would have to strip that off to enter the oil.',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
@@ -565,17 +714,33 @@ const STEPS = [
          claim, and it reads at a glance. */
       let firstO2 = null, firstCO2 = null, firstNa = null;
       for (let i = 0; i < 20; i++) {
-        const t = traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.04), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
+        const t = traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.04), z:rnd(-10,10),
+                                    y:rnd(-farY(), farY()), vy:rnd(6,10) });
         if (!i) firstO2 = t;
       }
       for (let i = 0; i < 16; i++) {
-        const t = traveller('co2', { x:rnd(SPREAD*0.04, SPREAD), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
+        const t = traveller('co2', { x:rnd(SPREAD*0.04, SPREAD), z:rnd(-10,10),
+                                     y:rnd(-farY(), farY()), vy:-rnd(6,10) });
         if (!i) firstCO2 = t;
       }
+      /* EXACTLY ONE Na⁺ WEARS ITS HYDRATION SHELL — the annotated one.
+
+         This step's claim is that SIZE is not the rule: CO₂ is the biggest
+         thing here and crosses, Na⁺ is the smallest and cannot. Draw every
+         sodium inside a six-water cage and it becomes the largest object on
+         screen, and the size rule the step exists to kill walks right back
+         in. The comparison ions therefore stay bare, at their true radius.
+
+         The one that is labelled carries the shell because it answers the
+         question the step provokes — why can't the small one get through? —
+         with the real reason rather than "the middle is oily": crossing
+         means stripping that shell off, and hydration enthalpy is large.
+         That is the dehydration penalty, and it is the same fact step 4
+         leans on when a K⁺ filter excludes the smaller sodium. */
       for (let i = 0; i < 22; i++) {
         const t = traveller('NA', { x:rnd(-SPREAD, SPREAD), z:rnd(-10,10),
-                                    y:rnd(HALF + 5, 40), vy:-rnd(4,8),
-                                    walk:true, speed:ION_SPEED,
+                                    y:inCompartment(1), vy:-rnd(4,8),
+                                    walk:true, speed:ION_SPEED, shell: i === 0,
                                     blocked:true, bounded:true });
         if (!i) firstNa = t;
       }
@@ -585,7 +750,7 @@ const STEPS = [
          actually cannot do without this is tell which band is which. */
       noteOn(firstO2,  'O₂',  [-30, -22]);
       noteOn(firstCO2, 'CO₂', [ 28, -24]);
-      noteOn(firstNa,  'Na⁺', [ 30, -22]);
+      noteOn(firstNa,  'Na⁺ + its water shell', [ 30, -22]);
     },
     readout: () => 'size is not the rule — the largest crosses, the smallest is turned back',
   },
@@ -593,13 +758,22 @@ const STEPS = [
   {
     id:'osmosis',
     tab:'osmosis',
+    /* "TAKES UP ROOM", never "holds water". The binding story is the usual
+       textbook line and it predicts something false: osmotic pressure is
+       colligative — it goes with the NUMBER of solute particles, not with
+       how tightly they hydrate — so a strongly-hydrating ion would have to
+       out-pull a weak one at equal concentration, and it does not. What the
+       shells on screen honestly show is the kinetic version: the salt and
+       its water occupy space, so a smaller share of what is out there is
+       water free to make the trip. Same picture, no wrong prediction. */
     cap:'<b>Water crosses both ways, always.</b> ' +
-        'Salt is outside the cell, and it holds water, so fewer free ' +
-        'molecules are up there — and more wander out than in. Nothing pulls.',
+        'Salt outside takes up room, so fewer of the molecules up there are ' +
+        'water free to cross — and more wander out than in. Nothing pulls.',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
       crossings = { up:0, down:0 };
+      netRecent = 0;
       /* THE NET IS NOT SCRIPTED, and an earlier version of this step got
          that wrong in the exact way LESSONS-ROADMAP.md §2 warns about: it
          gave each water a fixed direction with a 58/42 bias, so "more goes
@@ -607,10 +781,10 @@ const STEPS = [
          drifted net UPWARD and contradicted its own caption.
 
          Now every water walks at random and reads nothing. The only
-         asymmetry is the COUNT: solute outside binds water, so there is
-         less free water outside than in. More free molecules inside means
-         more of them wander out. That is osmosis, and it is why water is
-         never "pulled toward solute".
+         asymmetry is the COUNT: the salt outside takes up room, so fewer
+         of the things out there are water. More water molecules inside
+         means more of them wander out. That is osmosis, and it is why
+         water is never "pulled toward solute".
 
          THE SOLUTE IS OUTSIDE, which is where sodium lives — ~145 mM in
          the extracellular fluid against ~12 mM in the cytosol. It used to
@@ -621,21 +795,63 @@ const STEPS = [
          Closed box, not wrapping: a molecule leaving the bottom and
          reappearing at the top is not a crossing, and it made the counter
          mean nothing. */
-      const FREE_INSIDE = 42, FREE_OUTSIDE = 18;   // bottom is the cytosol
+      /* EQUAL PARTICLES, FEWER WATERS WHERE THE SALT IS. The compartments
+         are the same volume, and every solute particle takes up room a
+         water would otherwise occupy — so the salty side holds the same
+         number of THINGS and fewer of them are water. That is the textbook
+         sentence exactly: from more water toward less water.
+
+         Two earlier versions got this wrong in opposite directions. First
+         the salty side was drawn holding twice as much water as the other
+         and water flowed away from it. The fix balanced TOTAL water, which
+         removed the water difference altogether — and with the same water
+         either way there is no osmosis to show.
+
+         NO HYDRATION SHELLS HERE, either. They were added to make "salt
+         holds water" visible, but osmotic pressure is colligative: it
+         counts particles and does not care how tightly each one hydrates,
+         so a shell is a plausible-looking mechanism for something it does
+         not cause. The shells moved to step 2, where they ARE the
+         mechanism — an ion cannot cross the oil because crossing means
+         stripping the shell off, and that costs its hydration enthalpy. */
+      /* A STEEP gradient, not a gentle one. At 72 against 44 the two sides
+         met in the middle within a few seconds, so the interesting part —
+         a strong flow visibly weakening as the difference closes — was over
+         before the student had read the caption. Three to one takes long
+         enough to watch, and the equilibrium it settles at (52 either side)
+         is a number neither compartment started with, which is the tell
+         that nothing was scripted. */
+      const IONS = 52;                          // 26 Na⁺ + 26 Cl⁻, neutral
+      const PARTICLES = 78;                     // per side, same volume
+      const FREE_INSIDE = PARTICLES;
+      const FREE_OUTSIDE = PARTICLES - IONS;
       for (let i = 0; i < FREE_INSIDE; i++)
-        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(-42, -HALF-3),
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:inCompartment(-1),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
       for (let i = 0; i < FREE_OUTSIDE; i++)
-        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(HALF+3, 42),
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:inCompartment(1),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
-      for (let i = 0; i < 28; i++)
-        traveller('NA', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(HALF+5, 40),
+      /* BOTH IONS, in equal number. Sodium alone left the compartment with
+         a coulomb of unbalanced positive charge, which is not a solution —
+         and water-lab dissolves NaCl into a pair, so the anion going
+         missing here is a contradiction a student can spot. It also
+         matters to the claim: osmosis counts PARTICLES, and NaCl gives two
+         of them per formula unit, which is why saline is worked out the
+         way it is. */
+      for (let i = 0; i < IONS / 2; i++) {
+        traveller('NA', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:inCompartment(1),
                           vy:(Math.random() < .5 ? -1 : 1) * rnd(4,8),
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
+        traveller('CL', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:inCompartment(1),
+                          vy:(Math.random() < .5 ? -1 : 1) * rnd(4,8),
+                          walk:true, speed:ION_SPEED,
+                          blocked:true, bounded:true });
+      }
     },
-    readout: () => `water crossings — out ${crossings.up}, in ${crossings.down}, ` +
-                   `net ${crossings.up - crossings.down} outward`,
+    /* The counts moved onto the scene, so the readout stops repeating them
+       and says the thing the numbers cannot: nothing here is aiming. */
+    readout: () => 'every water walks at random — none of them reads where the salt is',
   },
 
   {
@@ -796,6 +1012,66 @@ spendEl.addEventListener('click', () => {
   flyATP(() => { pumpT = 0; running = true; });
 });
 
+/* ---- the osmosis overlay ----
+   EVERY NUMBER HERE IS COUNTED, not typed. The free-water totals are the
+   travellers actually on each side this frame, so they drift as water
+   crosses and the two sides converge on their own — which is the point of
+   the step, and a pair of typed constants would flatly contradict it the
+   moment one molecule moved. */
+const _op = new THREE.Vector3();
+function paintOsmo() {
+  /* "water", not "free water": with the shells gone there is no bound
+     water to distinguish it from, and the count is simply how many water
+     molecules are on that side. */
+  let inside = 0, outside = 0;
+  for (const t of travellers) {
+    if (t.kind !== 'water') continue;
+    if (t.y < 0) inside++; else outside++;
+  }
+  osmoOutEl.firstElementChild.textContent = outside;
+  osmoInEl.firstElementChild.textContent = inside;
+
+  /* Where the membrane is IN PIXELS. Projected rather than assumed: the
+     chrome reserve pushes world y=0 above the centre of the canvas, and a
+     tally hard-coded to 25%/75% of the box sits in the wrong compartment
+     at some window sizes. */
+  const r = canvas.getBoundingClientRect();
+  const mid = _op.set(0, 0, 0).project(L.camera);
+  const midY = (1 - (mid.y * .5 + .5)) * r.height;
+  const x = r.width * 0.20;
+  osmoOutEl.style.left = osmoInEl.style.left = x + 'px';
+  osmoOutEl.style.top = (midY * 0.5) + 'px';
+  osmoInEl.style.top = (midY + (r.height - midY) * 0.5) + 'px';
+
+  /* The arrow states the NET, and only once the net has actually said
+     something: at 0-1 crossings it would spin on every molecule and read
+     as the sim guessing. It points the way the counter went — it is not
+     told which way osmosis "should" go. */
+  const net = netRecent;
+  const on = Math.abs(net) >= 3;
+  /* The arrow FADES WITH THE NET rather than switching on at a threshold.
+     A net that halves and an arrow that does not is the same contradiction
+     in a smaller form; here the conclusion visibly weakens as the two sides
+     even up, and goes out when they have. */
+  /* Weakening, not vanishing. The arrow still fades as the sides even up,
+     but from a floor high enough to stay legible the whole way — a
+     conclusion at 20% opacity looks like a rendering fault rather than a
+     small net. The ramp stays tied to the window: a longer half-life means
+     netRecent settles proportionally larger, and a divisor left behind
+     would pin it at full strength, which is the frozen-arrow problem the
+     decay exists to fix. */
+  osmoArrowEl.style.opacity =
+    on ? Math.min(0.95, 0.62 + Math.abs(net) / (NET_HALFLIFE * 6)) : 0;
+  if (on) {
+    /* up = out of the cell. The SVG is drawn pointing up, so a downward
+       net flips it rather than being drawn twice. */
+    osmoArrowG.setAttribute('transform', net > 0 ? '' : 'rotate(180 23 75)');
+    osmoNetEl.textContent = 'net ' + Math.abs(net).toFixed(0) + (net > 0 ? ' out' : ' in');
+  }
+  osmoArrowEl.style.left = (r.width * 0.78) + 'px';
+  osmoArrowEl.style.top = midY + 'px';
+}
+
 /* ---- step machinery ---- */
 let cur = -1;
 STEPS.forEach((s, i) => {
@@ -898,13 +1174,17 @@ function tick(dt) {
       const was = t.y;
       advance(t, dt);
       if (s.id === 'osmosis' && !t.blocked) {
-        if (was > 0 && t.y <= 0) crossings.down++;
-        if (was < 0 && t.y >= 0) crossings.up++;
+        if (was > 0 && t.y <= 0) { crossings.down++; netRecent -= 1; }
+        if (was < 0 && t.y >= 0) { crossings.up++;   netRecent += 1; }
       }
     }
+    if (s.id === 'osmosis')
+      netRecent *= Math.pow(0.5, dt / NET_HALFLIFE);
     if (s.id === 'channel') keepApart(travellers.filter(t => t.kind === 'K'));
   }
   NOTES.step();                           // trap 1: in the RENDER loop
+  osmoEl.hidden = s.id !== 'osmosis';
+  if (!osmoEl.hidden) paintOsmo();
   readoutEl.textContent = s.readout ? s.readout() : '';
 }
 
