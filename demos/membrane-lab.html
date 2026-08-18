@@ -44,6 +44,13 @@
          transition:left .9s cubic-bezier(.4,0,.5,1), top .9s cubic-bezier(.4,0,.5,1),
                     opacity .9s ease-in; }
 
+  /* NO DOT. annotate.js's dot marks the anchor, but here the anchor is a
+     molecule that is already drawn — a ring on top of a sphere reads as a
+     second object at the same place, and at this zoom it is about the size
+     of the ion it is sitting on. The leader still lands on the anchor, so
+     the line points at the molecule. */
+  .annot-dot { display:none; }
+
   #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   #steps button {
     font:inherit; font-size:13px; padding:7px 13px; border-radius:999px;
@@ -79,6 +86,7 @@
 <script src="mol-small.js"></script>
 <script src="atomkit.js"></script>
 <script src="scene.js"></script>
+<script src="annotate.js"></script>
 <script src="fx.js"></script>
 <script src="kit/motion.js"></script>
 <script src="kit/focus.js"></script>
@@ -180,6 +188,20 @@ const L = Lesson.create(canvas, {
   frame: dt => tick(dt),
 });
 L.renderer.localClippingEnabled = true;
+
+/* ---- callouts (annotate.js) ----
+   Anchors are FUNCTIONS returning a live world point, per annotate.js's
+   header: these name travellers that are moving the whole time, so a baked
+   coordinate would come adrift on the first frame. */
+const NOTES = Annot.create(THREE, document.getElementById('stage'), L.camera,
+                           { mode:'on' });
+const _np = new THREE.Vector3();
+/* Names ONE traveller, not a species. Three labels on three of the forty
+   things on screen is a key; a label per molecule is a wall of type. */
+function noteOn(t, text, offset) {
+  if (!t) return;
+  NOTES.add({ text, offset, at: () => t.obj.getWorldPosition(_np) });
+}
 
 /* ---- the membrane ----
    TWO of them, and it is not duplication: steps 1-3 have no protein, and
@@ -322,6 +344,12 @@ function traveller(kind, opts) {
   obj.position.set(o.x, o.y, o.z);
   L.root.add(obj);
   const t = Object.assign({ kind, obj }, o);
+  /* BLOCKED IMPLIES BOUNDED, always. A traveller that cannot cross the
+     bilayer must also not leave the frame and come back — that is the same
+     escape by a different door, and step 3's whole claim is that solute
+     stays put. Enforced here rather than at each spawn, because it was
+     spelled out four times and one of them forgot. */
+  if (t.blocked) t.bounded = true;
   /* Every traveller tumbles on its OWN axis at its OWN rate. One shared
      spin made a screenful of water rotate in lockstep, which reads as a
      rendered pattern rather than a jostling crowd. */
@@ -335,6 +363,10 @@ function traveller(kind, opts) {
 function clearTravellers() {
   for (const t of travellers) L.root.remove(t.obj);
   travellers.length = 0;
+  /* The callouts point AT travellers, so they die with them. go() calls
+     enter() twice — once to place, once against the fitted frame — and
+     without this the second pass would leave two labels per molecule. */
+  NOTES.clear();
 }
 const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -356,6 +388,20 @@ function rndClear(span) {
    any drift in speed closes the line up over a few seconds, so a cheap
    relaxation pass keeps it open. Positions only, no forces — this is a
    spacing rule, not a physics claim. */
+/* ONE number for how fast water gets through the tails, used by every step
+   that lets it through. It was 1.0 in osmosis and 0.5 at the channel — the
+   same molecule crossing the same bilayer at two speeds, which is a claim
+   about the membrane that changes when the tab does. */
+const WATER_CORE = 1.0;
+
+/* How fast a walker moves between re-picks, per species class. An ion is
+   heavier than water and drags a hydration shell with it, so it is slower —
+   and it needs to be visibly slower, because "the ion is stuck at the
+   surface" is easier to read when the thing bouncing off is not the fastest
+   object on screen. */
+const WALK_SPEED = [7, 12];        // water
+const ION_SPEED  = [4, 8];
+
 const ION_GAP = 2 * Parts.ION.K.r * Parts.ION.exaggeration + 2.6;
 function keepApart(list) {
   const line = list.slice().sort((a, b) => a.y - b.y);
@@ -375,9 +421,13 @@ function keepApart(list) {
    was not allowed to start — including into the channel's column, which
    rndClear() keeps it out of (see CHANNEL_KEEPOUT). */
 function lateral(t, dt) {
+  /* `band` is [xmin, xmax]. Step 2 sorts the three species into columns so
+     they stay tellable apart, and an unbounded drift would shuffle them
+     back into the snowstorm that layout exists to avoid. */
+  const x0 = t.band ? t.band[0] : -SPREAD, x1 = t.band ? t.band[1] : SPREAD;
   t.x += t.vx * dt; t.z += t.vz * dt;
-  if (t.x >  SPREAD) { t.x =  SPREAD; t.vx = -t.vx; }
-  if (t.x < -SPREAD) { t.x = -SPREAD; t.vx = -t.vx; }
+  if (t.x > x1) { t.x = x1; t.vx = -t.vx; }
+  if (t.x < x0) { t.x = x0; t.vx = -t.vx; }
   if (t.keepout && Math.abs(t.x) < t.keepout) {
     t.x = Math.sign(t.x || 1) * t.keepout; t.vx = -t.vx;
   }
@@ -422,13 +472,15 @@ function advance(t, dt) {
     if (t.since > t.flipEvery) {
       t.since = 0;
       t.flipEvery = rnd(0.55, 1.15);
-      t.vy = (Math.random() < .5 ? -1 : 1) * rnd(7, 12);
+      const sp = t.speed || WALK_SPEED;
+      t.vy = (Math.random() < .5 ? -1 : 1) * rnd(sp[0], sp[1]);
       /* Sideways too. The y-walk alone is what the osmosis counter reads,
          but a molecule that only ever moves up and down looks like a bead
          on a wire. The lateral kick is cosmetic by design: it never enters
          the crossing count, and it is re-picked on the same clock so a
          water still commits to one path while it is inside the tails. */
-      t.vx = rnd(-5, 5); t.vz = rnd(-3, 3);
+      const lat = (t.speed || WALK_SPEED)[1] * 0.42;
+      t.vx = rnd(-lat, lat); t.vz = rnd(-lat * .6, lat * .6);
     }
   }
 
@@ -445,19 +497,11 @@ function advance(t, dt) {
     return;
   }
 
-  if (t.blocked) {
-    /* A blocked traveller STAYS IN ITS COMPARTMENT, so it reflects at the
-       far edge instead of wrapping. Wrapping sent solute off the bottom
-       and back in at the top — the membrane held every ion at the heads,
-       and then one strolled across the sky anyway. In osmosis that is not
-       a cosmetic escape: "solute cannot cross" is the entire reason the
-       net flow exists, and one ion crossing unmakes the step. */
-    const far = 44;
-    if (t.y >  far) { t.y =  far; t.vy = -Math.abs(t.vy); }
-    if (t.y < -far) { t.y = -far; t.vy =  Math.abs(t.vy); }
-    t.obj.position.y = t.y;
-    return;
-  }
+  /* No separate box for `blocked` any more: it implies `bounded`, so the
+     branch above already reflected it at the frame, and its own ±44 box was
+     unreachable for every traveller except one spawn that forgot the flag.
+     What kept solute in its compartment was never that box — it is the
+     head-group bounce at the top of this function. */
 
   /* Anything that CAN cross wraps rather than being deleted: a traveller
      that vanishes at the edge reads as being consumed, and nothing here
@@ -483,10 +527,20 @@ const STEPS = [
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
       /* Water on both sides, so "heads face the water" is something on
-         screen rather than a word in the caption. */
+         screen rather than a word in the caption.
+
+         It walks and it CROSSES, exactly as water does in every other step.
+         Two earlier versions were both wrong: vy:0 left the one step where
+         water is the subject as the one step it did not move, and blocking
+         it said water cannot get through a bilayer — which is false, and
+         which step 3 then spends its whole run contradicting. A student
+         who learns "the membrane stops water" here has to unlearn it two
+         tabs later, and that is worse than a slightly busier picture. */
       for (let i = 0; i < 64; i++)
         traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
-                             y:(i % 2 ? 1 : -1) * rnd(HALF + 6, 42), vy:0, blocked:true });
+                             y:(i % 2 ? 1 : -1) * rnd(HALF + 6, 42),
+                             vy:(i % 2 ? -1 : 1) * rnd(7, 12),
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
     readout: () => 'bilayer ' + (HALF * 2).toFixed(1) + ' Å thick — measured, not drawn to taste',
   },
@@ -500,15 +554,38 @@ const STEPS = [
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
-      /* Kept in bands so the three species stay tellable apart — all three
-         shuffled across the width is a snowstorm, not a comparison. */
-      for (let i = 0; i < 20; i++)
-        traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.15), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
-      for (let i = 0; i < 16; i++)
-        traveller('co2', { x:rnd(-SPREAD*0.12, SPREAD*0.35), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
-      for (let i = 0; i < 22; i++)
-        traveller('NA', { x:rnd(SPREAD*0.4, SPREAD), z:rnd(-10,10),
-                          y:rnd(HALF + 5, 40), vy:-rnd(7,11), blocked:true });
+      /* The two GASES split the width down the middle — O₂ left, CO₂
+         right — so the crossings stay tellable apart without leaving dead
+         space. Two streams shuffled together is a snowstorm, not a
+         comparison; two streams crowded into the left two-thirds is a
+         layout the student reads as meaning something. Na⁺ is not banded: it is the one species that does
+         NOT cross, and penning it in a column made that look like a
+         property of that column rather than of the membrane. Spread the
+         full width, the flat sheet of ions stopped at the heads IS the
+         claim, and it reads at a glance. */
+      let firstO2 = null, firstCO2 = null, firstNa = null;
+      for (let i = 0; i < 20; i++) {
+        const t = traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.04), z:rnd(-10,10), y:rnd(-40,40), vy:rnd(6,10) });
+        if (!i) firstO2 = t;
+      }
+      for (let i = 0; i < 16; i++) {
+        const t = traveller('co2', { x:rnd(SPREAD*0.04, SPREAD), z:rnd(-10,10), y:rnd(-40,40), vy:-rnd(6,10) });
+        if (!i) firstCO2 = t;
+      }
+      for (let i = 0; i < 22; i++) {
+        const t = traveller('NA', { x:rnd(-SPREAD, SPREAD), z:rnd(-10,10),
+                                    y:rnd(HALF + 5, 40), vy:-rnd(4,8),
+                                    walk:true, speed:ION_SPEED,
+                                    blocked:true, bounded:true });
+        if (!i) firstNa = t;
+      }
+      /* Just the name. The caption already says which crosses and why, and
+         a label repeating it turns three callouts into a second caption
+         the student has to read while the thing it names moves. What they
+         actually cannot do without this is tell which band is which. */
+      noteOn(firstO2,  'O₂',  [-30, -22]);
+      noteOn(firstCO2, 'CO₂', [ 28, -24]);
+      noteOn(firstNa,  'Na⁺', [ 30, -22]);
     },
     readout: () => 'size is not the rule — the largest crosses, the smallest is turned back',
   },
@@ -517,8 +594,8 @@ const STEPS = [
     id:'osmosis',
     tab:'osmosis',
     cap:'<b>Water crosses both ways, always.</b> ' +
-        'Solute below holds water, so fewer free molecules are down there — ' +
-        'and more wander down than up. Nothing pulls.',
+        'Salt is outside the cell, and it holds water, so fewer free ' +
+        'molecules are up there — and more wander out than in. Nothing pulls.',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
@@ -530,35 +607,44 @@ const STEPS = [
          drifted net UPWARD and contradicted its own caption.
 
          Now every water walks at random and reads nothing. The only
-         asymmetry is the COUNT: solute below binds water, so there is less
-         free water below than above. More free molecules above means more
-         of them wander down. That is osmosis, and it is why water is never
-         "pulled toward solute".
+         asymmetry is the COUNT: solute outside binds water, so there is
+         less free water outside than in. More free molecules inside means
+         more of them wander out. That is osmosis, and it is why water is
+         never "pulled toward solute".
+
+         THE SOLUTE IS OUTSIDE, which is where sodium lives — ~145 mM in
+         the extracellular fluid against ~12 mM in the cytosol. It used to
+         be drawn below, in the cytoplasm, which is the compartment the
+         pump step spends an ATP per turn to keep sodium OUT of. Two tabs
+         cannot disagree about which side of a cell the salt is on.
 
          Closed box, not wrapping: a molecule leaving the bottom and
          reappearing at the top is not a crossing, and it made the counter
          mean nothing. */
-      const FREE_ABOVE = 42, FREE_BELOW = 18;
-      for (let i = 0; i < FREE_ABOVE; i++)
-        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(HALF+3, 42),
-                             walk:true, bounded:true, coreSpeed:1.0 });
-      for (let i = 0; i < FREE_BELOW; i++)
+      const FREE_INSIDE = 42, FREE_OUTSIDE = 18;   // bottom is the cytosol
+      for (let i = 0; i < FREE_INSIDE; i++)
         traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(-42, -HALF-3),
-                             walk:true, bounded:true, coreSpeed:1.0 });
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
+      for (let i = 0; i < FREE_OUTSIDE; i++)
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(HALF+3, 42),
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
       for (let i = 0; i < 28; i++)
-        traveller('NA', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(-40,-HALF-5),
-                          vy:rnd(-2,2), blocked:true, bounded:true });
+        traveller('NA', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:rnd(HALF+5, 40),
+                          vy:(Math.random() < .5 ? -1 : 1) * rnd(4,8),
+                          walk:true, speed:ION_SPEED,
+                          blocked:true, bounded:true });
     },
-    readout: () => `water crossings — down ${crossings.down}, up ${crossings.up}, ` +
-                   `net ${crossings.down - crossings.up} downward`,
+    readout: () => `water crossings — out ${crossings.up}, in ${crossings.down}, ` +
+                   `net ${crossings.up - crossings.down} outward`,
   },
 
   {
     id:'channel',
     tab:'a channel',
     cap:'<b>A channel is a hole with a preference.</b> ' +
-        'K⁺ goes through. Na⁺ and Cl⁻ do not — and Na⁺ is the smaller ion. ' +
-        'It picks which, never which way.',
+        'K⁺ leaks out of the cell, down its gradient. Na⁺ and Cl⁻ do not go ' +
+        'through at all — and Na⁺ is the smaller ion. The channel picks ' +
+        'which, never which way.',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane(true); setCut(true);
@@ -567,11 +653,19 @@ const STEPS = [
          fast ones drove into the slow ones and the queue fused into a
          single yellow column — which says two K⁺ can occupy the same
          space, and they are both +1. See keepApart(). */
-      /* The queue starts ABOVE the frame and walks in, so the first thing
-         the student sees is ions arriving at the channel rather than a
-         column that was already there. */
+      /* THE QUEUE RUNS OUTWARD, bottom to top. K⁺ is the INSIDE ion —
+         ~140 mM in the cytosol against ~4 mM outside — so a K⁺ channel
+         leaks it OUT, down the gradient the pump just paid to build. That
+         outward leak is what sets the resting membrane potential, which is
+         where this lesson goes next. Running the queue inward drew ions
+         flowing up a gradient with nothing pushing them, and contradicted
+         the pump two tabs over.
+
+         It starts BELOW the frame and walks in, so the first thing the
+         student sees is ions arriving at the channel rather than a column
+         that was already there. */
       for (let i = 0; i < 8; i++)
-        traveller('K', { x:0, z:0, y:OFFSCREEN + i * ION_GAP, vy:-11, coreSpeed:1 });
+        traveller('K', { x:0, z:0, y:-(OFFSCREEN + i * ION_GAP), vy:11, coreSpeed:1 });
 
       /* THE ONES THAT DO NOT GET IN. Without them "a hole with a
          preference" is a caption over a picture of a hole: everything on
@@ -591,11 +685,13 @@ const STEPS = [
          is already sitting against the membrane. */
       for (let i = 0; i < 14; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(6,10),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(4,8),
+                          walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
       for (let i = 0; i < 10; i++)
         traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(6,10),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(4,8),
+                          walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
@@ -605,9 +701,9 @@ const STEPS = [
                              keepout:CHANNEL_KEEPOUT,
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              vy:(Math.random() < .5 ? -1 : 1) * rnd(7, 12),
-                             walk:true, bounded:true, coreSpeed:0.5 });
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
-    readout: () => 'K⁺ through · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
+    readout: () => 'K⁺ out · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
   },
 
   {
@@ -808,6 +904,7 @@ function tick(dt) {
     }
     if (s.id === 'channel') keepApart(travellers.filter(t => t.kind === 'K'));
   }
+  NOTES.step();                           // trap 1: in the RENDER loop
   readoutEl.textContent = s.readout ? s.readout() : '';
 }
 
