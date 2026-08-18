@@ -118,7 +118,24 @@
   @media (prefers-reduced-motion:reduce){
     .enzblob,.enzblob svg{animation:none} }
   /* the name, on the right of the stage */
-  #enzname{position:absolute;right:26px;top:38%;z-index:5;max-width:210px;
+  /* the two stack down the right of the stage; the enzyme sits under the
+     step's verdicts. */
+  #enzmeta{position:absolute;right:26px;top:calc(38% + 96px);z-index:5;
+    max-width:230px;text-align:right;display:flex;flex-direction:column;
+    align-items:flex-end;gap:6px}
+  #enzmeta[hidden]{display:none}
+  /* A WORD YOU CAN PRESS, not a badge: the energy card is the explanation, and
+     this is the only thing that says it is there. Underlined for that reason. */
+  .estat{font-family:var(--font-slab);font-weight:700;font-size:14px;
+    letter-spacing:.3px;background:none;border:none;padding:0;cursor:pointer;
+    text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;
+    text-decoration-color:rgba(0,0,0,.18)}
+  .estat.cpl{color:var(--phos)}
+  .estat.irr{color:var(--atp)}
+  .estat.rev{color:var(--nad)}
+  .estat:hover{text-decoration-color:currentColor}
+  .estat[aria-pressed="true"]{text-decoration-color:currentColor}
+  #enzname{position:absolute;right:26px;top:calc(38% + 200px);z-index:5;max-width:210px;
     text-align:right;pointer-events:none}
   #enzname[hidden]{display:none}
   #enzname .ek{font-family:var(--font-slab);font-weight:700;font-size:10.5px;
@@ -126,7 +143,7 @@
   #enzname .en{font-family:var(--font-slab);font-weight:700;font-size:17px;
     line-height:1.2;color:#2f7fa8}
   @media (max-width:920px){ #enzname{right:12px;max-width:150px}
-    #enzname .en{font-size:14px} }
+    #enzmeta{right:12px;max-width:150px} #enzname .en{font-size:14px} }
 
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
   .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
@@ -336,6 +353,15 @@
     background:linear-gradient(-48deg,rgba(0,0,0,.12) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
     pointer-events:none}
   #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
+  /* CLOSE. The card is opened from the stage (#enzmeta) and has to be
+     dismissible from itself — hunting back for the word you pressed is not a
+     close button. Quiet: it is chrome on a sheet of notes. */
+  #couplebox .cx{position:absolute;top:6px;right:8px;z-index:1;
+    background:none;border:none;padding:2px 4px;line-height:1;font-size:17px;
+    color:var(--muted);cursor:pointer}
+  #couplebox .cx:hover{color:var(--ink)}
+  /* room for it, so a heading never runs under the ✕ */
+  #couplebox .nhead:first-of-type{padding-right:20px}
   /* arrives with the molecule it explains (drawCouple). Both keyframes carry
      the sheet's .7° tilt: `transform:none` would animate it flat and leave it
      there, the end state winning over the rule above. The delay lets the
@@ -738,6 +764,9 @@
     <div id="plates" aria-live="polite"></div>
     <!-- ABSOLUTELY POSITIONED FOR NOW: the name of the enzyme running this step,
          parked on the right of the stage until the readout column is re-laid. -->
+    <!-- WHAT KIND OF STEP THIS IS, above the enzyme: coupled or not, one-way or
+         not. Both are doors into the energy card (#couplebox). -->
+    <div id="enzmeta" hidden></div>
     <div id="enzname" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
@@ -3136,6 +3165,7 @@ const BLOB_SVG=`<svg viewBox="0 0 531 528" xmlns="http://www.w3.org/2000/svg"><p
 const BLOB_K=1.3;
 const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
+const enzMetaEl=document.getElementById('enzmeta');
 const enzBtn=document.getElementById('showenz');
 let showEnz=false;
 // The enzyme of the step being described — the same index the heading, tray and
@@ -3180,10 +3210,40 @@ const enzKey=()=>{ const g=enzGroupsFor(focusStep());
 function drawEnz(){
   const st=enzLive()?enzOf():null;
   enzEl.hidden=!st; enzNameEl.hidden=!st;
-  if(!st){ enzEl.innerHTML=''; return; }
-  enzNameEl.innerHTML=`<div class="ek">Enzyme</div><div class="en">${st.enz}</div>`;
+  if(st) enzNameEl.innerHTML=`<div class="ek">Enzyme</div><div class="en">${st.enz}</div>`;
+  else enzEl.innerHTML='';
+  drawEnzMeta();
   placeEnz();
 }
+
+/* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — as two words on
+ * the stage rather than two headings buried in a card. Both read off the step
+ * (`couple`, `rev`), never typed, and both are the door to the card that argues
+ * them: the energy curve WAS the only place either fact appeared, and it only
+ * appears on the review beat, so half the time the student had no way to ask.
+ * Pressing a word opens that card for this step; pressing again closes it.
+ * Shown whether or not the enzymes are on: these are facts about the step, not
+ * about the catalyst. */
+let cplOpen=false, metaStep=null;
+function drawEnzMeta(){
+  const i=focusStep();
+  const st=(!intro && i<nSteps && !tallyOn()) ? stepAt(i) : null;
+  // A NEW STEP CLOSES IT. The card describes one step; carrying it open across
+  // a click would leave the previous step's verdict standing over a new stage.
+  if(metaStep!==i){ metaStep=i; cplOpen=false; }
+  enzMetaEl.hidden=!st;
+  if(!st){ enzMetaEl.innerHTML=''; return; }
+  const on=cplOpen?'true':'false';
+  enzMetaEl.innerHTML=
+      (st.couple ? `<button class="estat cpl" data-cpl aria-pressed="${on}">Coupled reaction</button>` : '')
+    + `<button class="estat ${st.rev===false?'irr':'rev'}" data-cpl aria-pressed="${on}">${
+        st.rev===false?'Irreversible':'Reversible'}</button>`;
+}
+enzMetaEl.addEventListener('click',e=>{
+  if(!e.target.closest('[data-cpl]')) return;
+  cplOpen=!cplOpen;
+  drawEnzMeta(); drawCouple();
+});
 // Every frame, after the render — same rule as the plates: a projection reads a
 // matrix only the render refreshes.
 const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
@@ -3581,6 +3641,9 @@ const massLink=st=>`<button class="minfo" data-mass="${st?STEPS.indexOf(st):''}"
                           : `What decides the direction? →`)
   + `</button>`;
 const noteClick=e=>{
+  // the card's own ✕ — the same state the words on the stage toggle, so the
+  // two can never disagree about whether it is up
+  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); return; }
   const door=e.target.closest('[data-mass]');
   if(door){ const i=door.dataset.mass; Mass.show(i===''?null:STEPS[+i]); return; }
   const t=e.target.closest('[data-figtab]');
@@ -3598,16 +3661,18 @@ cplEl.addEventListener('click',noteClick);
 let shownCplStep=null;
 function drawCouple(){
   const i=focusStep();
-  // ONLY ON THE REVIEW BEAT — the box arrives WITH Next, describing what just
-  // happened. Before the step ran it was a spoiler in the corner, with nothing
-  // on the stage to point at yet.
-  const st=(reviewing&&!intro&&i<nSteps)?stepAt(i):null;
+  // ONLY WHEN ASKED FOR. The card used to arrive by itself on the review beat,
+  // which put a paragraph of thermodynamics over the molecule the student had
+  // just been told to look at. Now the two words on the stage (#enzmeta) say
+  // what kind of step it was, and this is what they open.
+  const st=(cplOpen&&!intro&&i<nSteps)?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
   // Coupled: both views + tab strip. Uncoupled: curve only, no strip — a
   // single tab is a control that does nothing.
   const c = st.couple ? resolveCouple(st) : null;
   cplEl.style.display='block';
-  cplEl.innerHTML=(c
+  cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
+    +(c
       ? `<div class="nhead cpl-h">Coupled reaction</div>`
         + figTabStrip()
         + (figTab==='curve' ? coupleCurve(c) : coupleFig(c))
