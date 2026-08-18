@@ -1757,6 +1757,56 @@ function flyPhosphate(from,to,spec,p,dur){
   GO.launch(phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]),
             {from, to, dur:T, arc:2.6});
 }
+/* STEP 6'S PHOSPHATE IS A WHOLE MOLECULE, not a phosphoryl group, and it is the
+ * only one on this page that is. Everywhere else a PO₃⁻ is TRANSFERRED between
+ * two molecules the page is already drawing, so what flies is a fragment
+ * (`phosphorylGroup`) — the atoms one drawing lost and another gained. Step 6's
+ * comes out of the cytosol, where it is free inorganic phosphate: MOLECULES.pi,
+ * HPO₄²⁻, four oxygens and A PROTON.
+ *
+ * THAT PROTON IS THE POINT. G3P has five hydrogens and 1,3-BPG has four, and
+ * the one it loses is the hydride now sitting on NAD⁺ — so the sugar has none
+ * left to give, and the H⁺ in
+ *
+ *     G3P²⁻ + NAD⁺ + HPO₄²⁻ → 1,3-BPG⁴⁻ + NADH + H⁺
+ *
+ * arrives on THIS molecule and leaves when it esterifies. Flying a bare PO₃
+ * borrowed from ATP made that proton unaccountable: it had to come from
+ * somewhere, and nothing on screen had one.
+ *
+ * `onLand` fires as `launch` drops the group — so the arriving phosphate and
+ * its H stop being drawn on exactly the frame the proton departs and the
+ * product's own (fully ionised, charge −4) phosphate takes their place.
+ */
+/* THE H⁺ OF THE OVERALL EQUATION, and it goes HERE — as the ester forms, not
+ * when the hydride lands. The hydride step is proton-neutral over the cycle:
+ * the carbonyl oxygen picks a proton up when the enzyme's cysteine adds to the
+ * aldehyde and gives the same one back as C=O reforms, so the enzyme ends
+ * unchanged and nothing is released. Phosphate arrives carrying one (HPO₄²⁻)
+ * and the product carries none (`bpg13`, charge −4). That is the proton.
+ *
+ * ITS SOURCE IS ON SCREEN, which is the only reason this may be drawn at all:
+ * `flyPi` puts a real H over the frame and `launch` drops it on the beat this
+ * fires. Aimed the way steps 1, 3 and 8 aim a departure — across the screen,
+ * not up it — and away from the hydride, which left in the other direction a
+ * second earlier so the two never read as one event.
+ *
+ * WRITTEN OUT AT BOTH CALL SITES, not wrapped in a helper. A named wrapper read
+ * better and took this hop OUT OF THE AUDIT: check-pages.js counts `protonHop`
+ * and `hop` call sites, so a `piProtonGoes(...)` reads as neither, and the one
+ * hop on this page whose source is a travelling fragment — the case most likely
+ * to lose its source atom in a refactor — became the one hop nothing checked.
+ * Six duplicated lines is the cheaper half of that trade, and it is how steps
+ * 1, 3 and 8 write their departures anyway.
+ */
+function flyPi(from,to,dur,onLand){
+  const pi=M.pi, all=pi.atoms.map((_,i)=>i);
+  // centred on the P, like every other flight target on this page — found, not
+  // index 0 by luck, so a regenerated spec cannot centre it on an oxygen
+  const P=pi.atoms.findIndex(a=>a.el==='P');
+  GO.launch(GO.fragment(pi, all, {center:P}),
+            {from, to, dur, arc:2.6, onDone:onLand});
+}
 // THE CYTOSOL IS SLOWER THAN A HANDOFF. A phosphate off ATP is PASSED — one
 // enzyme holds both molecules. Step 6's comes out of solution: nothing hands it
 // over. So it takes longer and travels further.
@@ -2005,8 +2055,14 @@ function runLane(j){
     // dissolved in the cytosol — so it drifts down rather than being fired up.
     // The hydride goes LEFT to the drawn NAD⁺; this starts after it (OX_GAP),
     // so the two read apart by order as well as by direction.
-    later(()=>{ flyPhosphate(aboveFrame(hPos), hPos, null, null, DRIFT);
-                later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT); }, OX_GAP);
+    later(()=>flyPi(aboveFrame(hPos), hPos, DRIFT, ()=>{
+      FXi.spawnRing(hPos, PAL.atoms.P);
+      // …and the phosphate's own proton leaves as the ester forms — see flyPi.
+      FXi.protonHop(hPos, hPos.clone().add(screenRight(camera.right-camera.left)),
+                    null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
+                           carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
+                                            BADGE_SCALE)});
+    }), OX_GAP);
   } else if(st.fx==='lose'){
     // ENOLASE: nothing is handed over, so there is no carrier leg here — the
     // whole event is the water coming off this lane's own molecule.
@@ -2154,8 +2210,14 @@ function runStep(){
                   || V(l.g.position.x, OFFSCREEN, 0);
       hop(hPos, nadC4, '−', ()=>{ carrierGone.add(j); refresh(); popCarrier(j);
         FXi.spawnRing(nadC4, H_LEAVE); });      // ring C4 — see the per-lane route
-      later(()=>{ flyPhosphate(aboveFrame(hPos), hPos, null, null, DRIFT);
-                  later(()=>FXi.spawnRing(hPos,PAL.atoms.P), DRIFT); }, OX_GAP);
+      later(()=>flyPi(aboveFrame(hPos), hPos, DRIFT, ()=>{
+        FXi.spawnRing(hPos, PAL.atoms.P);
+        // …and the phosphate's own proton leaves as the ester forms — see flyPi.
+        FXi.protonHop(hPos, hPos.clone().add(screenRight(camera.right-camera.left)),
+                          null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
+                                   carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
+                                                          BADGE_SCALE)});
+      }), OX_GAP);
     });
     dur=OX;                           // wait for the slower, later arrival
 

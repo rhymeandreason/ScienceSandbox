@@ -126,12 +126,22 @@ for (const page of PAGES) {
  *  ENUM: REMOVERS is the point of this check, not an implementation detail. A
  *  page may make the source stop being drawn any way it likes, but the way has
  *  to be listed here — and adding one is exactly the moment to ask whether it
- *  really removes the atom. Two idioms are in use today:
+ *  really removes the atom. Three idioms are in use today:
  *    · shed it       glycolysis-lab hides the mesh (GO.shed via shedAtoms)
  *    · morph it      molecule-lab swaps the whole acid for its ion, so the
  *                    hydrogen is gone by construction — no shed to find
+ *    · fly it in     the source is not on a lane molecule at all: it arrives
+ *                    as a travelling fragment and kit/leaving.js's `launch`
+ *                    DROPS that fragment before running its onDone, so the
+ *                    atom stops being drawn on the frame the hop starts.
+ *                    glycolysis-lab's `flyPi` is the one wrapper of this shape
+ *                    (step 6's HPO₄²⁻ arrives holding the proton it releases).
+ *                    Listed by WRAPPER, not by `launch`: a bare `launch` near
+ *                    a hop is common and proves nothing about that hop's
+ *                    source, so matching it would wave through the very cases
+ *                    this exists to catch.
  * ===================================================================== */
-const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane)\s*\(/;
+const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane|flyPi)\s*\(/;
 const BEFORE = 14, AFTER = 3;      // lines of context; widen only with a reason
 
 console.log('\n== 2. every proton hop removes the atom it moves');
@@ -141,9 +151,21 @@ for (const page of PAGES) {
   lines.forEach((raw, i) => {
     const line = raw.replace(/\/\/.*$/, '');       // a hop named in a comment is prose
     if (!/(?:\bprotonHop|\bhop)\s*\(/.test(line)) return;
-    // The page's own hop() wrapper is a DEFINITION, not a call — it is where
+    // The page's own hop wrappers are DEFINITIONS, not calls — they are where
     // the courier is configured, and the shed belongs at the call sites.
-    if (/\b(const|let|var|function)\s/.test(line.slice(0, line.search(/(?:\bprotonHop|\bhop)\s*\(/)))) return;
+    //
+    // ACROSS LINES, because they are written that way: `const piProtonGoes=at=>`
+    // sits on the line above its protonHop, and a same-line test called that a
+    // call site and demanded a shed inside a definition. Walk back to the last
+    // line that ENDED a statement, and if a declaration is still open when the
+    // call appears, this is that declaration.
+    let head = line.slice(0, line.search(/(?:\bprotonHop|\bhop)\s*\(/));
+    for (let k = i - 1; k >= 0 && k >= i - 3; k--) {
+      const prev = lines[k].replace(/\/\/.*$/, '').trimEnd();
+      head = prev + ' ' + head;
+      if (/[;{}]$/.test(prev)) break;
+    }
+    if (/\b(const|let|var|function)\s+[\w$]+\s*=[^;]*$/.test(head)) return;
     hops++;
     const win = lines.slice(Math.max(0, i - BEFORE), i + 1 + AFTER)
                      .map(l => l.replace(/\/\/.*$/, '')).join('\n');
