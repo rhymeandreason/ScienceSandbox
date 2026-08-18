@@ -254,10 +254,21 @@
   //   ENUM: a new mol-*.js goes here AND in CLAUDE.md's script table.
   //   tools/check-docs.js asserts every name below is a real file.
   // Order matters: mol-contrast.js mirrors alanine out of mol-monomers.js.
+  /* THE PARTITION IS BY DERIVATION AND SCALE FAMILY, NOT BY TOPIC. Every
+   * comment below names a BUILDER dependency or a family, and the array is
+   * dependency-ORDERED because of it — `skel.js` first, then the files that
+   * need it, then the one that also needs mol-monomers.js. `DOMAIN_ALTERNATES`
+   * leans on the same axis: two files can only replace each other if they hold
+   * the same substances at a different scale.
+   * A topic-shaped file ("respiration", "photosynthesis") fits neither
+   * mechanism — it names no builder and is nobody's alternate — so file a new
+   * molecule by HOW IT IS BUILT and let the lesson load what it draws. The
+   * cost being managed is a page paying to parse specs it never renders; that
+   * is what splits a file, not subject matter. */
   const DOMAINS = [
     'mol-solvation.js',    // family A — needs no builder
     'mol-monomers.js',     // family B, PubChem + literals — needs no builder
-    'mol-glycolysis.js',   // needs skel.js
+    'mol-pathways.js',   // needs skel.js
     'mol-contrast.js',     // needs skel.js AND mol-monomers.js
     'mol-compare.js',      // needs skel.js — the derivation comparison, viewer only
     'mol-lipids.js',       // family B, literals — needs no builder

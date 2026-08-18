@@ -1,12 +1,25 @@
 /* =====================================================================
  *  mol-compare.js — the SAME molecule, derived two ways.
  *
- *  Loaded only by molecule-viewer.html. Every other domain file holds molecules
- *  a lesson draws; this one holds controls. `atpSkel` and `nadhSkel` are ATP and
- *  NADH built from ideal VSEPR angles and measured bond lengths, to sit beside
- *  `atp` and `nadh` in mol-glycolysis.js, which are real PubChem conformers.
- *  Same molecules, same scale family, two derivations each — and the page lets
- *  you switch between them under one camera.
+ *  `atpSkel` and `nadhSkel` are ATP and NADH built from ideal VSEPR angles and
+ *  measured bond lengths, to sit beside `atp` and `nadh` in mol-pathways.js,
+ *  which are real PubChem conformers. Same molecules, same scale family, two
+ *  derivations each — and molecule-viewer.html lets you switch between them
+ *  under one camera.
+ *
+ *  TWO CALLERS, AND THE SECOND ONE IS A LESSON. This file used to say it was
+ *  loaded only by the viewer and held controls rather than molecules a lesson
+ *  draws. That stopped being true: **glycolysis-lab.html loads it and draws
+ *  BOTH carriers from it** — `ATP = M.atpSkel`, `NADH = M.nadhSkel` — because a
+ *  PubChem conformer folds its tail over the exact part each step is about (the
+ *  γ phosphate at steps 1/3/7/10, the nicotinamide C4 and its two hydrogens at
+ *  step 6). The idealized build is extended, so those stay legible; the sugars
+ *  beside them stay measured. See the ATP/NADH notes at the head of that page's
+ *  lesson script for the argument in full.
+ *  So a control here is load-bearing for a featured lesson. Changing one — its
+ *  geometry, its `gly` block, its `view` — is a lesson change, not a viewer
+ *  tweak, and `check-pages.js` will not tell you: it checks that a page loads
+ *  what it references, not that an edit here was meant for both readers.
  *
  *  WHY THIS EXISTS. MolecularGeometry.md §1.6 says derive when shape carries the
  *  lesson and schematize when topology does, and that the failure is doing one
@@ -25,10 +38,14 @@
  *  that difference costs a student anything is answerable by eye in a way no
  *  paragraph settles.
  *
- *  IT IS A SEPARATE FILE BECAUSE OF WHO PAYS. glycolysis-lab and
- *  macromolecule-lab both load mol-glycolysis.js; putting a second 43-atom ATP
- *  in there would bill two lessons for a spec they never draw, which is the
- *  failure the domain split exists to prevent (CLAUDE.md, "Adding a new page").
+ *  IT IS A SEPARATE FILE BECAUSE OF WHO PAYS — and the argument has NARROWED to
+ *  one page. macromolecule-lab loads mol-pathways.js and draws none of these,
+ *  so a second 43-atom ATP in there would bill it for a spec it never uses,
+ *  which is the failure the domain split exists to prevent (CLAUDE.md, "Adding
+ *  a new page"). glycolysis-lab used to be the other half of that sentence and
+ *  no longer is: it draws both, and pays for them on purpose by loading this
+ *  file explicitly. One more consumer of `atpSkel`/`nadhSkel` and the split is
+ *  costing more than it saves — merge them into the pathway file then.
  *
  *  WHAT MAKES THE COMPARISON HONEST. A hand-built ribose has four stereocentres
  *  and no internal check can catch a global mirror (MolecularGeometry.md §1.3) —
@@ -185,7 +202,7 @@
      *  tetrahedral builder would pucker them; both riboses come out of
      *  `ringFuranose` and take their identity from `face()`.
      *
-     *  CHARGE STATE follows `nadh` in mol-glycolysis.js: the NEUTRAL molecule,
+     *  CHARGE STATE follows `nadh` in mol-pathways.js: the NEUTRAL molecule,
      *  so each phosphate carries its –OH rather than the bare O⁻ atpSkel shows.
      *  A derivation control that differed in protonation as well as in method
      *  would confound the two, which is the one thing it exists not to do.
@@ -344,7 +361,15 @@
       // CONNECTIVITY and connectivity is what the two derivations agree about.
       flat2d:[[4.135,2.075],[3.982,3.528],[2.553,3.831],[1.823,2.566],[2.8,1.481],[1.959,5.166],[0.37,2.414],[2.497,0.052],[3.582,-0.926],[3.278,-2.355],[2.975,-3.784],[1.849,-2.051],[4.707,-2.658],[1.585,-4.235],[0.196,-4.687],[2.037,-5.625],[1.134,-2.846],[9.418,4.201],[8.688,2.936],[7.227,2.936],[6.497,4.201],[7.227,5.467],[8.688,5.467],[6.25,6.552],[4.915,5.958],[5.068,4.505],[9.418,6.732],[-3.461,-3.302],[-4.643,-4.161],[-4.191,-5.55],[-2.73,-5.55],[-2.279,-4.161],[-5.05,-6.732],[-1.872,-6.732],[-0.89,-3.709],[-6.032,-3.709],[-6.336,-2.28],[-7.725,-1.829],[-8.811,-2.806],[-8.507,-4.235],[-7.118,-4.687],[-8.029,-0.4],[-9.418,0.052],[-6.943,0.578]],
       topology:{ rings:[5,5,5,6,6], fused:true },
-      view:[-0.7486, -1.1629, 0.5198],
+      // TURNED SO C4's pro-R HYDROGEN FACES THE CAMERA. That H is the entire
+      // difference between NAD⁺ and NADH on glycolysis-lab's carrier tile, and
+      // at the old angle it pointed away from the viewer and sat under the
+      // ring — the step's whole point changed where nobody could see it, while
+      // the pro-S H, which never changes, faced front. It has to be the pro-R
+      // one: GAPDH is an A-side dehydrogenase, so that is the face the hydride
+      // is delivered to. So the molecule turns rather than the chemistry.
+      // Tuned in molecule-viewer.html (drag, then its copy button).
+      view:[2.1879, 0.7309, -3.0804],
       optH,
       gly:{ carbons:21, phosphates:2, carrier:true, nic:nicIdx,
             spent:{ name:'Nicotinamide adenine dinucleotide (oxidised)',

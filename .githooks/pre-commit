@@ -68,7 +68,8 @@ if git diff --cached --name-only | grep -qE '^demos/(.*\.html|molecules\.js|skel
   if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
     tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
     echo ""
-    echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load."
+    echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load,"
+    echo "  or a proton hop leaves its source atom on the molecule."
     exit 1
   fi
   rm -f /tmp/cp.$$
@@ -111,6 +112,31 @@ if git diff --cached --name-only | grep -qE '^demos/coupling/.*$'; then
   rm -f /tmp/ccp.$$
 else
   echo "pre-commit: skipping check-coupling.js — nothing under demos/coupling/ staged"
+fi
+
+# demos/membrane/ gates itself. check-pump.js audits pump.js, which is the CYCLE
+# and deliberately holds no THREE — so the one claim the whole lesson rests on,
+# that the pump is never open at both ends, is machine-checkable rather than
+# checked by looking at a screenshot. It also counts the stoichiometry out of
+# the animation rather than trusting the caption: 3 Na⁺ out and 2 K⁺ in is why
+# the pump is electrogenic, and a page whose ledger disagrees with what moves
+# on screen teaches the wrong number confidently.
+#
+# parts.js is NOT covered — it reaches for THREE at module scope and cannot be
+# required here. That is a real gap, not an oversight: its profile maths would
+# have to be split out to be checkable offline.
+if git diff --cached --name-only | grep -qE '^demos/membrane/.*$'; then
+  if ! node membrane/check-pump.js > /tmp/cpu.$$ 2>&1; then
+    tail -25 /tmp/cpu.$$; rm -f /tmp/cpu.$$
+    echo ""
+    echo "pre-commit FAILED: check-pump.js — the pump stopped being a pump."
+    echo "  A both-gates-open failure means the cycle now describes a leak;"
+    echo "  a stoichiometry failure means the ledger and the animation disagree."
+    exit 1
+  fi
+  rm -f /tmp/cpu.$$
+else
+  echo "pre-commit: skipping check-pump.js — nothing under demos/membrane/ staged"
 fi
 
 # demos/diffusion/ gates itself, and palette.js is in the pattern from the other

@@ -763,6 +763,32 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     else console.log(`   movingH OK: an H on C${g.cN.length} of 2, C=O on C2`);
   }
 
+  // ---- the water enolase makes (`gly.loseH` with `gly.oh3`) -------------
+  // glycolysis-lab assembles step 9's water out of three named atoms: the C3
+  // hydroxyl oxygen, that oxygen's own H, and this one off C2. If the three are
+  // not an O and two H — or not on the two carbons the double bond forms
+  // between — the page builds a "water" that is some other three atoms, and it
+  // looks perfectly convincing doing it.
+  if (mol.gly && mol.gly.loseH != null) {
+    const g = mol.gly, adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                                       .map(b => (b[0] === i ? b[1] : b[0]));
+    const fail = m => { stereoFails++; console.log(`   WATER FAIL: ${m}`); };
+    const onC = adj(g.loseH);
+    const ohH = g.oh3 != null ? adj(g.oh3).filter(i => mol.atoms[i].el === 'H') : [];
+    if (mol.atoms[g.loseH].el !== 'H')
+      fail(`loseH is a ${mol.atoms[g.loseH].el}, not an H`);
+    else if (onC.length !== 1 || onC[0] !== g.cN[1])
+      fail(`loseH hangs off atom ${onC.join('/')}, not C2 — the water's H comes `
+        + `off the carbon NEXT to the hydroxyl, or there is no C=C to form`);
+    else if (g.oh3 == null || mol.atoms[g.oh3].el !== 'O')
+      fail(`oh3 is not an O, so the water has no oxygen`);
+    else if (!adj(g.oh3).includes(g.cN[2]))
+      fail(`oh3 is not on C3 — the hydroxyl and the H must be on adjacent carbons`);
+    else if (ohH.length !== 1)
+      fail(`the hydroxyl carries ${ohH.length} H, not 1 — H₂O needs exactly two`);
+    else console.log(`   water OK: O on C3 + its H + an H on C2 = H₂O, C2=C3 behind it`);
+  }
+
   // ---- the turn that ends step 5 (`gly.turnX`) --------------------------
   // glycolysis-lab finishes the isomerase by rotating this molecule 180° about
   // X and then swapping in the named product. The rotation is only honest if it

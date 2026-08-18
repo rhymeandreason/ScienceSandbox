@@ -133,7 +133,7 @@ function molblock(key, m) {
 
 // TWO DIFFERENCES THAT ARE NOT STEREOCHEMISTRY, normalised on both sides so a
 // real mirror is what stands out:
-//  · the house phosphate is four SINGLE P–O bonds (mol-glycolysis.js
+//  · the house phosphate is four SINGLE P–O bonds (mol-pathways.js
 //    simplification 2 — the charge is delocalised and doubling one would be a
 //    lie), so RDKit completes P's valence with a hydride. Write it back as the
 //    ordinary acid.

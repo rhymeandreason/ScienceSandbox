@@ -46,12 +46,22 @@
    font-family: var(--font-sans)
  }
 
- #app {
+ /* Two shells. #app is a full-bleed stage and nothing else — that is the default
+    because most pages here are one. #app-sidebar adds the 372px right rail, and
+    a page opts into it by name, so the sidebar is a choice a page makes rather
+    than a shape it inherits. Everything below (#side, its torn edge, the 920px
+    stack) is the rail's, and applies to whichever shell asked for it. */
+ #app,
+ #app-sidebar {
    display: grid;
-   grid-template-columns: 1fr 372px;
+   grid-template-columns: 1fr;
    grid-template-rows: 1fr;
    height: 100vh;
    overflow: hidden
+ }
+
+ #app-sidebar {
+   grid-template-columns: 1fr 372px
  }
 
  /* ---------- stage (left, dotted stationery) ---------- */
@@ -1005,7 +1015,7 @@
  }
 
  @media (max-width:920px) {
-   #app {
+   #app-sidebar {
      grid-template-columns: 1fr;
      grid-template-rows: 56vh 1fr
    }

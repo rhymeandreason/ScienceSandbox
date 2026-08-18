@@ -226,7 +226,7 @@ plain script, so the no-build contract holds; a runtime JSON fetch would not.
 
 | Lesson | New molecules | New file |
 | --- | --- | --- |
-| **1. Enzymes** | **~1** — ADP. Substrate and product specs already exist in `mol-glycolysis.js` | none |
+| **1. Enzymes** | **~1** — ADP. Substrate and product specs already exist in `mol-pathways.js` | none |
 | **2. Membrane** | ~4 left — **O₂ ✓** and **glycerol ✓** are in; the phospholipid is started and held (see `mol-lipids.js`'s tail note), then cholesterol, triglyceride (optional) | `mol-lipids.js` ✓ |
 | **3. DNA** | ~9 — five nucleobases, one full nucleotide, an A–T and a G–C pair | `mol-nucleic.js` |
 | *tier after* — photosynthesis / ETC | chlorophyll a, acetyl-CoA, FAD/FADH₂ — the expensive builds | `mol-photosynthesis.js` |
@@ -252,32 +252,32 @@ ten. `now` is a snapshot; the one-liner above is the live count.
 | `mol-solvation.js` | water, salts, small polars/nonpolars — display units | 10 | 12 | `water-lab`, `molecule-lab`, `molecule-builder` |
 | `mol-small.js` | the same substances to scale (family B) — either/or | 5 | 7 | `aminoacid-lab` |
 | `mol-monomers.js` | amino acids, palmitate, AMP | 6 | 6 | `aminoacid-lab`, `macromolecule-lab` |
-| `mol-glycolysis.js` | glucose → pyruvate, ATP, NADH, Pi | 14 | 15 | `glycolysis-lab`, **enzymes**, and 3 more pages |
+| `mol-pathways.js` | glucose → pyruvate, ATP, NADH, Pi | 14 | 15 | `glycolysis-lab`, **enzymes**, and 3 more pages |
 | `mol-contrast.js` | the six near-identical pairs | 12 | 12 | `contrast-lab` |
 | `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |
 | **`mol-lipids.js`** | glycerol ✓ · phospholipid, cholesterol, triglyceride | 1 | ~5 | **membrane** |
 | **`mol-nucleic.js`** | five bases, a nucleotide, A–T and G–C pairs | — | ~9 | **DNA** |
 | *deferred* `mol-photosynthesis.js` | chlorophyll a, acetyl-CoA, FAD/FADH₂ | — | ~6 | photosynthesis / ETC |
-| *not now* `mol-carbs.js` | — carbs live in `mol-glycolysis` + `mol-contrast` | — | — | no lesson asks |
+| *not now* `mol-carbs.js` | — carbs live in `mol-pathways` + `mol-contrast` | — | — | no lesson asks |
 | *not now* `mol-aminoacids.js` | — 7 specs in `mol-monomers`/`mol-contrast`, 20 side chains in `residues.js` | — | — | no lesson asks |
 | *not now* `mol-signaling.js`, `mol-ecology.js`, `mol-krebs.js` | — | — | — | out of scope (ch. 44+) |
 
 Three notes on the deltas:
 
-- **ADP lands in `mol-glycolysis.js`**, not a new file — it's the same reaction
+- **ADP lands in `mol-pathways.js`**, not a new file — it's the same reaction
   the page already draws, from the other side.
 - **hydroxide and O₂ go in `mol-solvation.js` + `mol-small.js` both**, since
   those two files define the same keys by contract and `register()` throws if
   one drifts.
 - **`mol-carbs` and `mol-aminoacids` are the two the source plan wants most and
   this roadmap wants least.** Splitting them out is a refactor of specs that
-  already work, serving no page — and it would break the `mol-glycolysis.js`
+  already work, serving no page — and it would break the `mol-pathways.js`
   load line in five HTML files to move glucose somewhere new. Revisit when a
   lesson needs a sugar that isn't in glycolysis or the contrast set.
 
 ### Corrections to the source docs
 
-- **ATP and NADH already exist** (`mol-glycolysis.js`, plus `atpSkel`/`nadhSkel`
+- **ATP and NADH already exist** (`mol-pathways.js`, plus `atpSkel`/`nadhSkel`
   controls in `mol-compare.js`). The wishlist's wave 1 is largely already
   shipped; **ADP** is the real gap, and glycolysis needs it anyway to show the
   γ phosphate coming off onto something.

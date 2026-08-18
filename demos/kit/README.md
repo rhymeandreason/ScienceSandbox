@@ -21,6 +21,8 @@ second page would want it *slightly* different, it does not.
 | `fit.js` | the stage is not an empty rectangle. Chrome measured in **pixels** by the page → leftover fractions, a solved distance and target, a top anchor, and (for an ortho page) a frustum built from `cam.r` so that number keeps meaning. Extracted from glycolysis-lab, which had it right and paid five functions for it | the human, bit-identical fit values before/after the extraction |
 | `focus.js` | one vocabulary for "look here": ghost at 13% without depth-write, lit atoms emitting their **own** colour, a bond lit only when both ends are. Works on a built molecule (by atom index) or on whole objects against each other | the human, `kit-test.html` |
 | `stagekit.js` | the shell: `Stage.create` + render loop (dt in **seconds**) + ResizeObserver + FX/Motion/Focus wiring + `fit()`, which converts **pixels of chrome** into the world-space bands `Stage.frame` wants. Two hooks: `frame` before the render, `afterFrame` after it — anything pinning DOM to a 3D point belongs in the second | the human, `kit-test.html` |
+| `carriers.js` | **one object with two states, standing in a column.** ATP/ADP by the transferring phosphoryl, NADH/NAD⁺ by the hydride on C4 — and the same shape for FAD, GDP/GTP, CoA, or a conjugate acid and its base. Owns n instances of one spec laid into DOM slots, the group's visibility, the `keep` set a page's optional-H policy would otherwise hide (it is exactly what distinguishes the states), the fit-down-never-up into each slot, whether each sits centred or left-aligned in it (`align`), and a per-instance entrance. The page keeps which molecule, which atoms, and when a step has run | the human, `glycolysis-lab` |
+| `leaving.js` | **a piece of a molecule leaves, travels, and is gone** — the event every reaction lesson animates. Sheds atoms *with their bonds* and puts them back (`unshed`, for an atom drawn only once it arrives), builds the travelling fragment from the spec's own geometry, keeps one registry of what is in the air so a cancel can sweep it, removes on a wall-clock beat (not the tween's last frame), assembles a product out of the pieces that left (atoms converge, bonds only after), and solves *offstage* off the camera — a screen edge, never a world height, with more clearance for a departure than an arrival. The page keeps the chemistry: which atoms, what colour, where to | the human, `glycolysis-lab` |
 | `modal.js` | **the card that covers the lesson** — the side doors every lesson grows. Opening, closing, the focus the four hand-written copies never gave back, the trap `aria-modal` already promised, and one Esc across a shared stack so the topmost closes. `anyOpen()` is what a page guards its stage keys on. Markup and content stay the page's | the human, `glycolysis-lab` |
 | `check-kit.js` | the assertions behind the offline modules. `node kit/check-kit.js` | — |
 | `kit-test.html` | bench for motion/focus/stagekit, with no lesson around them | — |
@@ -38,6 +40,8 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="kit/fit.js"></script>        <!-- if the page has chrome over the canvas -->
 <script src="kit/lanes.js"></script>      <!-- if molecules stand side by side and swap -->
 <script src="kit/hotspot.js"></script>    <!-- if the student clicks the chemistry itself -->
+<script src="kit/leaving.js"></script>    <!-- if something detaches and travels -->
+<script src="kit/carriers.js"></script>   <!-- if a molecule has a charged and a discharged state -->
 <script src="lobes/lobes.js"></script>    <!-- optional, and hbond is more honest with it -->
 <script src="kit/hbond.js"></script>      <!-- after lobes, if it is loaded at all -->
 <script src="kit/modal.js"></script>      <!-- if the lesson has side doors; no deps -->
@@ -64,6 +68,17 @@ the rest.
   away from. If a page wants the end pose, it sets it.
 * **`seek()` does not fire `call` beats.** They are side effects; a scrub that
   re-spawns four rings is worse than one that spawns none. Re-run the step.
+* **A jump re-derives state; it never mutates it.** Every reading a lesson shows
+  — ledger, pools, tray, rail, caption — should be a function of "how many steps
+  have run", so moving that number and redrawing lands on a state that is real
+  rather than staged. It is why glycolysis's `?step=9` opens on a true tally
+  instead of a mock, and why rewinding does not have to remember what it undid.
+  The corollary is the part that bites: anything you *cannot* re-derive — a
+  half-run step's per-lane set, a mid-flight flag — has to be cleared explicitly
+  on every jump, or it leaks into the state you jumped to.
+  **This is also why there is no sequence module.** That number is the lesson's
+  own state, kit owns none, and the second pathway will want it a different
+  shape anyway — a cycle that turns twice is not an index that counts to ten.
 * **The fit is iterative on purpose.** A perspective fit against a pixel band is
   circular — the band's world size depends on the distance, which depends on the
   band. One pass under-reserves and the caption lands on the molecule.

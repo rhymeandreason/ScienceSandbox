@@ -183,6 +183,19 @@
     //   carry — an Object3D to ride along with the proton, unscaled: a caller
     //           can send a charge badge with it. Not disposed here; the caller
     //           made it and the caller owns it.
+    //   arc   — Å of lift at the top of the trip. Defaults to a QUARTER OF THE
+    //           TRIP, capped at 1.3.
+    //
+    //           It was a flat 1.3, which is sized for a hop that crosses the
+    //           frame and wrong for every hop shorter than about 5 Å. Between
+    //           two bonded atoms the trip is ~2.5 Å, so the lift was half the
+    //           distance travelled: the proton bulged up and came back, and
+    //           read as a FLARE rather than as something going somewhere. That
+    //           cost an afternoon to find by eye, and the next short hop would
+    //           have cost it again — so proportional is the default and the
+    //           number is the override, not the other way round.
+    //           The cap keeps every long hop exactly as it was: at 5 Å and
+    //           beyond, a quarter of the trip is already past 1.3.
     //   away  — a DEPARTURE instead of a transfer, and a different motion, not
     //           just a slower one. The proton snaps off the bond, then drifts,
     //           fading as it goes. A transfer can end by simply stopping,
@@ -205,6 +218,7 @@
       const o = typeof opt==='number' ? {color:opt} : (opt||{});
       const head=o.color||PROTON_GOLD, trail=o.color||PROTON_TRAIL;
       const away=!!o.away;
+      const arc=o.arc==null ? Math.min(from.distanceTo(to)*0.28, 1.3) : o.arc;
       const mat=new THREE.MeshBasicMaterial(
         {color:head,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
       const glow=new THREE.Mesh(_protonGeo,mat);
@@ -226,7 +240,7 @@
           : k<SNAP_T ? SNAP_D*(1-Math.pow(1-k/SNAP_T,3))
           : k<HOLD_T ? SNAP_D
                      : SNAP_D+(1-SNAP_D)*((k-HOLD_T)/(1-HOLD_T));
-        pos.lerpVectors(from,to,e); pos.y+=1.3*Math.sin(e*Math.PI);   // arc
+        pos.lerpVectors(from,to,e); pos.y+=arc*Math.sin(e*Math.PI);   // arc
         m.position.copy(pos);
         // A TRANSFER SWELLS AND SETTLES onto its target. A DEPARTURE IS ONE
         // FIXED SIZE FOR ITS WHOLE TRIP — no flare, and nothing that decays.

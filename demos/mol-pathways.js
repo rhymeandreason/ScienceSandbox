@@ -1,9 +1,27 @@
 /* =====================================================================
- *  mol-glycolysis.js — the glycolysis pathway, built from VSEPR angles
+ *  mol-pathways.js — catabolic pathway intermediates, built from VSEPR angles
+ * =====================================================================
+ *  Glycolysis, so far: glucose → pyruvate, plus the carriers those steps move
+ *  (ATP/ADP, NAD⁺/NADH, Pi).
+ *
+ *  NAMED FOR HOW IT IS BUILT, NOT FOR ONE LESSON. This file used to be named
+ *  for glycolysis alone, which read as "the glycolysis file" when the library
+ *  is not divided by topic at all — it is divided by DERIVATION and SCALE
+ *  FAMILY. See the `DOMAINS` note in molecules.js. Everything here is
+ *  Skel-built from ideal VSEPR angles and measured bond lengths, which is what
+ *  puts it in one file and after `skel.js` in the load order.
+ *
+ *  So the Krebs and electron-transport intermediates belong HERE when they come
+ *  — citrate, the succinate/fumarate pair, the quinones — not in a new domain
+ *  file named for respiration. They are the same derivation, the same scale
+ *  family and the same builder dependency, and a topic-shaped file could take
+ *  part in neither the load order nor `DOMAIN_ALTERNATES`. Split this only when it
+ *  is slow to parse or when a page pays for a large set it never draws, which
+ *  is the rule the whole partition is built on.
  * ===================================================================== */
 (function(global){
   'use strict';
-  const SELFNAME = 'mol-glycolysis.js';
+  const SELFNAME = 'mol-pathways.js';
   // Registry from molecules.js. Domain files only ever ADD to it.
   const Lib = global.MolLib
     || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
@@ -161,6 +179,17 @@
     const CH=[];
     C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
     CH.push(g.grow(c6,'H',GL.CH,'sp3',0), g.grow(c6,'H',GL.CH,'sp3',0));
+    // THE PROTON THE RING OXYGEN ENDS UP WITH, and the one atom in this spec
+    // that the closed pyranose does NOT have: as drawn here O5 has three
+    // connections, which is an oxonium and wrong. It is the OPEN chain's atom —
+    // when C1–O5 breaks, O5 leaves as C5's hydroxyl and needs an H — and the
+    // page keeps it hidden until step 2's first proton lands on it.
+    // Built into the spec rather than conjured at run time because it has to be
+    // a real mesh in the real place: an H that appears where the geometry says
+    // an H goes, not a glow parked near an oxygen. Hidden at build (see
+    // glycolysis-lab's `build`), NOT via optH — that field is nonpolar C–H's,
+    // and scene.js's contract is that an H on N/O/S is never in it.
+    const openH=g.grow(0,'H',GL.OH,'sp3',0);
     GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', short:'G6P', formula:'C₆H₁₁O₉P²⁻', charge:-2, class:'sugar',
       // the same two claims glucose carries, because it is the same ring
       stereo:'all-equatorial',
@@ -178,6 +207,17 @@
               const b=g.bonds.find(b=>(b[0]===o||b[1]===o)
                 && g.atoms[b[0]===o?b[1]:b[0]].el==='H');
               return b[0]===o?b[1]:b[0]; })() },
+            // …and the OTHER proton step 2 moves: C2's H, which ends up on C1
+            // as the carbonyl shifts the other way. CH is grown C1…C5 then C6
+            // twice, so CH[1] is C2's. The page sheds it as the hop starts —
+            // without that the proton has no visible origin.
+            c2H:CH[1],
+            openH,                    // hidden until the hemiacetal opens
+            // …which is what `latentH` says generally: hydrogens the spec grows
+            // but the RESTING molecule does not have, hidden at build and drawn
+            // from the beat they arrive on. The page hides this list and nothing
+            // else; the named field beside it is what a step aims at.
+            latentH:[openH],
             note:'still a pyranose — C6 is outside the ring, so phosphorylating '
                + 'it opens nothing' } });
   }
@@ -293,9 +333,13 @@
     g.carbonyl(0,0);
     const p1=g.phosphate(0,1);                             // C1 acyl phosphate
     g.hydroxyl(1,1);
+    // C2's H, carried through — see g3p. It is the same atom from step 5, where
+    // the student put it there, to step 9, where it leaves in the water; drawn
+    // at every station in between so it does not blink out and back.
+    const h2=g.grow(1,'H',GL.CH,'sp3',0);
     const p3=g.phosphate(2,0);
     GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', short:'1,3-BPG', formula:'C₃H₄O₁₀P₂⁴⁻', charge:-4, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, c2H:h2, dCentre:[1,0,2] } });
   }
   {
     // — 3-phosphoglycerate: C1 phosphate handed to ADP, leaving a carboxylate.
@@ -304,14 +348,37 @@
     //   leaving –OH has to be visible; here nothing leaves, so accuracy wins.)
     const g=chainC(3);
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // carboxylate: two O's
-    g.hydroxyl(1,1);
+    const oh2=g.hydroxyl(1,1);
+    const h2=g.grow(1,'H',GL.CH,'sp3',0);                  // C2's H, carried through
     const p=g.phosphate(2,0);
+    // THE TWO PROTONS THE MUTASE SWAPS. Step 8 moves the phosphate C3 → C2, so
+    // C2's hydroxyl has to give ITS proton up (an oxygen cannot attack the
+    // phosphorus while still holding one) and C3's oxygen takes one back as the
+    // phosphate leaves. Net zero — both specs are C₃H₄O₇P³⁻ at charge −3 — but
+    // neither event is nothing, and drawing only the arrival (which the product
+    // spec gave away for free) left the phosphate landing on an oxygen that
+    // still visibly held its H.
+    //   · oh2H  is on the molecule and leaves.
+    const oh2H=(()=>{ const b=g.bonds.find(b=>(b[0]===oh2||b[1]===oh2)
+      && g.atoms[b[0]===oh2?b[1]:b[0]].el==='H');
+      return b[0]===oh2?b[1]:b[0]; })();
+    //   · oh3H is the one that ARRIVES, so it is latent: as drawn here the C3
+    //     oxygen already carries the phosphate, and a third connection would be
+    //     an oxonium. It belongs to the molecule the instant that phosphate
+    //     goes. Grown last so no index above it moves.
+    //     The bridge is DERIVED, not typed: of the P's oxygens it is the one
+    //     with a second heavy neighbour (C3). Same distinction terminalO makes.
+    const nb=i=>g.bonds.filter(b=>b.includes(i)).map(b=>b[0]===i?b[1]:b[0]);
+    const bridge=nb(p).filter(i=>g.atoms[i].el==='O'
+                  && nb(i).some(x=>x!==p && g.atoms[x].el!=='H'))[0];
+    const oh3H=g.grow(bridge,'H',GL.OH,'sp3',0);
     // `hot` is deliberately ABSENT here, unlike on 1,3-BPG and PEP. 3-PG's C3
     // phosphate is an ordinary low-energy ester — it cannot phosphorylate ADP,
     // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
     // phosphate to C2 and then dehydrate the molecule to make it transferable.
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, c2H:h2, dCentre:[1,0,2],
+            oh2H, oh3H, latentH:[oh3H] } });
   }
   {
     // — 2-phosphoglycerate: the same atoms as 3-PG with the phosphate moved from
@@ -327,8 +394,14 @@
     // F6P's C5, caught by the same assertion.
     const p=g.phosphate(1,1);                              // C2 –O–PO₃
     const oh=g.hydroxyl(2,0);                              // C3 –OH — the OH enolase removes
+    // THE OTHER HALF OF THE WATER. A dehydration needs two atoms and a hydroxyl
+    // is only one of them: the H comes off C2, next door. Drawn for the same
+    // reason as DHAP's and G3P's (MODEL SIMPLIFICATIONS 1) — step 9 is about
+    // these atoms, and a water that assembles from one drawn atom and one
+    // invisible one is a water half conjured.
+    const lh=g.grow(1,'H',GL.CH,'sp3',0);
     GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', short:'2-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, dCentre:[1,0,2] } });
+      gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, loseH:lh, dCentre:[1,0,2] } });
   }
   {
     // — phosphoenolpyruvate: 2-PG minus a water. Enolase pulls the C3 –OH and a
