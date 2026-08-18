@@ -170,6 +170,14 @@ font-size: 20px;
     text-decoration-color:currentColor}
   .estat{transition:background .12s ease, box-shadow .12s ease}
   .estat[aria-pressed="true"]{text-decoration-color:currentColor}
+  /* between the two verdicts and the enzyme's name. Handwritten, because it is
+     the aside a tutor would add in the margin — not another readout. */
+  #enznote{position:absolute;right:30px;top:calc(38% + 130px);z-index:5;
+    max-width:170px;text-align:right;pointer-events:none;
+    font-family:var(--font-hand);font-size:24px;line-height:1.2;color:var(--ink);
+    opacity:.85}
+  #enznote[hidden]{display:none}
+  @media (max-width:920px){ #enznote{right:12px;max-width:160px;font-size:15px} }
   #enzname{position:absolute;right:26px;top:calc(38% + 200px);z-index:5;max-width:210px;
     text-align:right;pointer-events:none}
   #enzname[hidden]{display:none}
@@ -799,6 +807,9 @@ font-size: 20px;
     <!-- WHAT KIND OF STEP THIS IS, above the enzyme: coupled or not, one-way or
          not. Both are doors into the energy card (#couplebox). -->
     <div id="enzmeta" hidden></div>
+    <!-- THE ONE THING TO CARRY AWAY from this step, between the verdicts and
+         the enzyme. Read off the step's `takeaway`, never typed here. -->
+    <div id="enznote" hidden></div>
     <div id="enzname" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
@@ -1056,6 +1067,7 @@ const STEPS=[
     species:['g6p'], enz:'Hexokinase', hook:'Trapping', rev:false,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p3',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
+    takeaway:``,
     msg:`<b>Hexokinase</b> phosphorylates glucose → glucose-6-phosphate (uses 1 ATP). Traps glucose in the cell; inhibited by its own product (G6P).` },
 
   { n:2, stage:1, reagent:null,
@@ -1066,6 +1078,7 @@ const STEPS=[
     // anomeric C1–O5), so the target follows the bond on screen — not a typed
     // coordinate a rebuilt spec would leave behind. Same contract as `anchor`.
     spot:{ at:'open', say:'Open the ring' },
+    takeaway:`Isomerization: no atoms gained or lost`,
     msg:`<b>Phosphoglucose isomerase</b> converts glucose-6-phosphate → fructose-6-phosphate (isomerization).` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
@@ -1073,6 +1086,7 @@ const STEPS=[
     rev:false, commit:true,
     pool:{ATP:-1,ADP:+1}, spent:1, fx:'in', anchor:'p1',
     couple:{ up:true, cin:'ATP', cout:'ADP', tone:'p' },
+    takeaway:`The committed step — past here, no going back`,
     msg:`<b>Phosphofructokinase-1 (PFK-1)</b> phosphorylates fructose-6-phosphate → fructose-1,6-bisphosphate (uses 1 ATP). Rate-limiting, committed step — allosterically inhibited by ATP and citrate, activated by AMP.` },
 
   { n:4, stage:2, reagent:null,
@@ -1082,6 +1096,7 @@ const STEPS=[
     // The spec already names the bond aldolase breaks (`gly.cleave`, the one the
     // fx flashes) — no second copy of where it is. Same contract as step 2.
     spot:{ at:'cleave', say:'Break the bond to split' },
+    takeaway:`The split: 6 carbons become 3 + 3`,
     msg:`<b>Aldolase</b> splits fructose-1,6-bisphosphate into two 3-carbon molecules: DHAP and G3P.` },
 
   { n:5, stage:2, reagent:null,
@@ -1097,6 +1112,7 @@ const STEPS=[
     // the same molecule. Everything after here happening twice is then
     // something they did, not something the caption told them.
     spot:{ at:'movingH', say:'Move the H' },
+    takeaway:`Both halves are now the same molecule`,
     msg:`<b>Triose phosphate isomerase</b> converts DHAP → G3P, so both molecules continue as G3P (×2 from here on).` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
@@ -1108,6 +1124,7 @@ const STEPS=[
     // spotPair turns it into the C–H bond that breaks.
     perLane:true,
     spot:{ at:'aldehydeH', say:'NAD⁺ takes an H' },
+    takeaway:`Redox — the pathway’s only oxidation`,
     msg:`<b>G3P dehydrogenase</b> oxidizes G3P and adds a phosphate → 1,3-bisphosphoglycerate. Produces NADH (2 total).` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
@@ -1123,6 +1140,7 @@ const STEPS=[
     // "counted twice" is the version a student misses.
     perLane:true,
     spot:{ at:'hot', say:'Break off a phosphate' },
+    takeaway:`Break-even: the 2 ATP come back`,
     msg:`<b>Phosphoglycerate kinase</b> transfers a phosphate to ADP → 3-phosphoglycerate + ATP (substrate-level phosphorylation; 2 total).` },
 
   { n:8, stage:4, reagent:null,
@@ -1143,6 +1161,7 @@ const STEPS=[
     // need; the atom-level accounting is not.
     perLane:true,
     spot:{ at:'p3', say:'Move the phosphate' },
+    takeaway:``,
     msg:`<b>Phosphoglycerate mutase</b> relocates the phosphate → 2-phosphoglycerate.` },
 
   { n:9, stage:4, reagent:null,
@@ -1156,6 +1175,7 @@ const STEPS=[
     // half the water. The other half comes off C2 next door (`loseH`).
     perLane:true,
     spot:{ at:'oh3', say:'Break off the OH' },
+    takeaway:`Makes water — a dehydration`,
     msg:`<b>Enolase</b> removes water → phosphoenolpyruvate (PEP), creating a high-energy phosphate bond.` },
 
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
@@ -1166,6 +1186,7 @@ const STEPS=[
     // two clicks for the same reason
     perLane:true,
     spot:{ at:'hot', say:'Break off a phosphate' },
+    takeaway:`Net profit: 2 ATP and 2 NADH per glucose`,
     msg:`<b>Pyruvate kinase</b> transfers PEP's phosphate to ADP → pyruvate + ATP (2 total). Second key regulated enzyme; activated by fructose-1,6-bisphosphate (feed-forward activation), inhibited by ATP.` },
 ];
 
@@ -3222,6 +3243,7 @@ const BLOB_K=1.3;
 const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
+const enzNoteEl=document.getElementById('enznote');
 const enzBtn=document.getElementById('showenz');
 let showEnz=false;
 // The enzyme of the step being described — the same index the heading, tray and
@@ -3288,6 +3310,9 @@ function drawEnzMeta(){
   // a click would leave the previous step's verdict standing over a new stage.
   if(metaStep!==i){ metaStep=i; cplOpen=false; }
   enzMetaEl.hidden=!st;
+  // the step's one memorable line, on the same schedule as the verdicts
+  enzNoteEl.hidden=!(st&&st.takeaway);
+  enzNoteEl.textContent=(st&&st.takeaway)||'';
   if(!st){ enzMetaEl.innerHTML=''; return; }
   const on=cplOpen?'true':'false';
   // the mark takes the FIRST word's colour, read off the same two facts that
