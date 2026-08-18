@@ -136,6 +136,37 @@
     .plate .pn{font-size:16px}.plate .pf{font-size:12.5px}
   }
 
+  /* ---------- THE CLOSING TALLY, 2x2 ----------
+     Sits over the stage on the end screen (the lanes are hidden under it, so
+     the two pyruvate are not on screen twice). Bottom inset clears the bar. */
+  #tally{position:absolute;left:0;right:0;top:0;bottom:118px;z-index:6;
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    gap:10px 26px;padding:14px 9% 0;pointer-events:none}
+  #tally[hidden]{display:none}
+  .tcell{position:relative;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;min-height:0}
+  /* the molecule's box: the slot kit/carriers.js projects into. Takes the
+     slack, so the count and name sit tight under the drawing. */
+  .tcell .tvis{flex:1;width:100%;min-height:0;display:flex}
+  .tcell .tslot{flex:1;min-width:0}
+  /* NAME THEN COUNT, both in the heading face — the cell reads as a caption,
+     not as a label with a footnote. ONE colour across all three counts: the
+     three ×2s are one fact — everything after the split happens twice — and
+     colouring them per product said the opposite, that each number came from
+     somewhere different. */
+  .tname{font-family:var(--font-slab);font-weight:700;font-size:19px;
+    line-height:1.1;color:var(--ink);letter-spacing:.2px}
+  .tcount{font-family:var(--font-slab);font-weight:700;font-size:23px;
+    line-height:1.1;color:var(--nad);font-variant-numeric:tabular-nums}
+  /* the ledger, moved in from the sidebar: a cell, not a sticky rail */
+  #tledger{pointer-events:auto}
+  #tally #ledger{position:static;margin:0;width:100%;max-width:290px}
+  @media (max-width:920px){
+    #tally{bottom:104px;padding:8px 4% 0;gap:6px 12px}
+    .tcount{font-size:19px} .tname{font-size:16px}
+  }
+
   /* ---------- the bottom bar: heading, action button, step caption ----------
      ONE CONTAINER, ONE FIXED HEIGHT — typed, not measured. The camera reserves
      exactly --barh along the bottom edge, so nothing here can re-frame the shot
@@ -451,6 +482,12 @@
   /* not run yet: keeps its number so the ten are always ten, but not a place
      you can go — skipping ahead hands over a molecule you never made. */
   .rnum.future{opacity:.4;cursor:default}
+  /* END: the eleventh stop, and the only one that isn't a number — the screen
+     after step 10, where the pathway is done and the closing question waits.
+     A word, so it never reads as "step 11". */
+  .rnum.rend{width:auto;padding:0 11px;border-radius:15px;font-size:12px;
+    letter-spacing:.6px;text-transform:uppercase;font-family:var(--font-sans);
+    margin-left:2px}
 
   /* The sidebar scrolls, not the card. */
   #card{overflow:visible;flex:none}
@@ -649,6 +686,21 @@
     <!-- the carrier's own target, on the bond the disc marks — see #cspot -->
     <button id="cspot" class="spot" type="button" hidden></button>
     <div id="tray"></div>
+    <!-- THE CLOSING TALLY, on the end screen only. Everything glycolysis made,
+         at once: the molecule itself with its count under it, and the ledger
+         sticker taken out of the sidebar into the grid — the arithmetic sits
+         among the things it counted. Cells are hosts for kit/carriers.js, one
+         molecule each, so these are molecules in the scene under the same
+         camera, not pictures of them. -->
+    <div id="tally" hidden>
+      <div class="tcell" data-cell="atp"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" id="tledger"></div>
+      <div class="tcell" data-cell="nadh"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" data-cell="pyr"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+    </div>
     <!-- ONE element so the camera has one thing to measure. Always full height
          (button hidden with `visibility`, not `display`) so framing is identical
          whether or not a button or caption shows. -->
@@ -2553,12 +2605,12 @@ let shownCaption=null;
 function drawCaption(){
   // NO CAPTION ON THE REVIEW SCREEN — that beat is for looking at what you
   // made; the words were read before it ran.
-  // THE BAND IS THE TWO SCREENS THAT HAVE NO STEP: the intro and the finished
-  // pathway (the closing tally). Each step's caption moved to the ⓘ on its
-  // heading — printed permanently it cost four lines of stage height for a
-  // paragraph read once. So the band holds ONE height (zero) across the ten
-  // steps, which is what usable() wants: the camera never re-frames mid-step.
-  const bare = intro || focusStep()>=nSteps;
+  // THE BAND IS THE INTRO, and nothing else. Each step's caption moved to the ⓘ
+  // on its heading — printed permanently it cost four lines of stage height for
+  // a paragraph read once — and the end screen's went with the closing tally,
+  // which says the same thing in molecules. So the band holds ONE height (zero)
+  // from step 1 on, which is what usable() wants: no re-frame mid-step.
+  const bare = intro;
   const html = bare ? captionAt(focusStep()) : '';
   const show = bare && !reviewing;
   if(html!==shownCaption){                     // don't restart the fade
@@ -2584,15 +2636,21 @@ function placeLedger(){
   ledgerEl.classList.remove('pin'); void ledgerEl.offsetWidth;   // restart it
   ledgerEl.classList.add('pin');
 }
+/* WHAT THE PATHWAY HAS MADE SO FAR, one object. The two PRODUCTS come off the
+ * same state everything else reads: NADH from the ledger, pyruvate from what is
+ * standing in the lanes — so neither number can drift from the stage. Shared by
+ * the ledger rows and the closing tally, so the sticker and the molecules
+ * beside it cannot disagree. */
+function productsAt(i){
+  const L=ledgerAt(i);
+  L.net=L.made-L.spent;   // a row like the others, so it flashes by the same rule
+  L.pyr=(lanes.length?lanes.map(l=>l.key):speciesAt(i))
+          .filter(k=>k==='pyruvate').length;
+  return L;
+}
 function drawLedger(){
   placeLedger();
-  const L=ledgerAt(done), net=L.made-L.spent, c=speciesAt(done).map(k=>M[k].gly.carbons);
-  // The two PRODUCTS, off the same state everything else reads: NADH from the
-  // ledger, pyruvate from what is standing in the lanes — so neither number can
-  // drift from the stage.
-  L.pyr=(lanes.length?lanes.map(l=>l.key):speciesAt(done))
-          .filter(k=>k==='pyruvate').length;
-  L.net=net;   // a row like the others, so it flashes by the same rule
+  const L=productsAt(done), net=L.net, c=speciesAt(done).map(k=>M[k].gly.carbons);
   // A NUMBER THAT CHANGED FLASHES WHERE IT STANDS. The count used to fly across
   // the page as a chip; it read as decoration, and the flight was the one thing
   // on screen not made of molecules. The cause is already legible — the tray
@@ -2917,6 +2975,74 @@ function drawTray(){
   // sugar (see aboveFrame). A tray copy = the same molecule on screen twice.
 }
 
+/* =============================================================
+ *  THE CLOSING TALLY — everything glycolysis made, in one 2x2
+ * =============================================================
+ *  The end screen used to be two pyruvate and a paragraph; the other two
+ *  products were a pair of rows in the sidebar. So the sentence the student is
+ *  meant to leave with — 2 ATP, 2 NADH, 2 pyruvate — was the one thing on the
+ *  page not made of molecules. Here each product is its own molecule with its
+ *  count under it, and the ledger sticker comes out of the sidebar to sit among
+ *  the things it counts.
+ *
+ *  MOLECULES IN THE SCENE, not pictures: kit/carriers.js, one instance per
+ *  cell, projected into the cell's slot under the same camera as the pathway —
+ *  so pyruvate here is the size pyruvate was in the lanes.
+ *
+ *  ONE MOLECULE, A PRINTED COUNT — not n copies. The lanes make the "twice"
+ *  visible for the whole lesson; this is the receipt.
+ *
+ *  THE LANES GO DARK UNDER IT, else the two pyruvate are on screen twice at
+ *  different sizes, which reads as four.
+ */
+const tallyEl=document.getElementById('tally');
+const sideEl=document.getElementById('side');
+const TALLY=[
+  // count is read from the same tally the ledger prints (productsAt), never
+  // typed: a re-baked step count must not be able to falsify this line.
+  {k:'atp',  spec:()=>ATP,         name:'ATP',      n:L=>L.net},
+  {k:'nadh', spec:()=>NADH,        name:'NADH',     n:L=>L.nadh,
+   // setOptionalH hides C4's two hydrogens, which are the whole difference
+   // between NAD⁺ and NADH — the charged form has to ask for them back.
+   keep:PAIRS.NAD},
+  {k:'pyr',  spec:()=>M.pyruvate,  name:'Pyruvate', n:L=>L.pyr},
+];
+TALLY.forEach(t=>{
+  t.host=tallyEl.querySelector(`[data-cell="${t.k}"]`);
+  t.car=Carriers.create({ root, camera, canvas, host:t.host,
+    visClass:'tvis', slotClass:'tslot', slotHTML:()=>'<div class="tslot"></div>',
+    build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                  Stage.setOptionalH(g,false); return g; } });
+});
+const tallyOn=()=>!intro && !reviewing && done>=nSteps;
+function drawTally(){
+  const on=tallyOn();
+  tallyEl.hidden=!on;
+  // THE STICKER MOVES, never a second copy — drawLedger keeps writing into the
+  // same element wherever it is standing. Only on a change of parent, so an
+  // ordinary redraw does not re-run its pin-up animation.
+  const home = on ? document.getElementById('tledger') : sideEl;
+  if(ledgerEl.parentNode!==home){
+    if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, sideEl.firstChild);
+  }
+  // the pathway, out of the way (see the header)
+  lanes.forEach(l=>{ l.g.visible=!on; });
+  platesEl.style.visibility = on ? 'hidden' : '';
+  const L=productsAt(done);
+  TALLY.forEach(t=>{
+    if(!on){ t.car.show(0,t.spec()); return; }
+    const spec=t.spec();
+    t.car.show(1,spec);
+    if(t.keep) t.car.mols.forEach(g=>
+      t.car.setGroup(g, t.keep.group(spec), true, t.keep.keep(spec)));
+    t.host.querySelector('.tcount').textContent='×'+t.n(L);
+    t.host.querySelector('.tname').textContent=t.name;
+  });
+  placeTallyMols();
+}
+// every frame, after the render — same rule as the carrier column
+function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on)); }
+
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
@@ -3042,9 +3168,10 @@ function drawRail(){
     // THREE READINGS, separated by `done` (steps RUN). idx===done is the step
     // you are ON — waiting or in flight, the same to a student, so AWAKE but
     // hollow: filled means MADE, and nothing is made until the transition
-    // lands. idx===done-1 is what you just made: filled.
+    // lands. idx===done-1 is what you just made: filled. Except past ten,
+    // where END is the lit stop and 10 is just another number behind you.
     const state = (!intro && !reviewing && idx===done) ? 'run'
-                : (!intro && idx===done-1) ? 'cur'
+                : (!intro && idx===done-1 && !(done>=nSteps && !reviewing)) ? 'cur'
                 : (idx < done)             ? 'past'
                 :                            'future';
     const b=document.createElement('button');
@@ -3066,14 +3193,26 @@ function drawRail(){
     b.onclick=()=>goToStep(idx);
     railEl.appendChild(b);
   });
+  // AND THE SCREEN AFTER TEN. `done===nSteps` with nothing reviewing is the
+  // ending — pyruvate on stage, "What's next?" in the button slot. It was only
+  // reachable by running or reviewing step 10; the rail owns "where am I", so
+  // it owns that place too.
+  const e=document.createElement('button');
+  const at = !intro && !reviewing && done>=nSteps;
+  e.className='rnum rend '+(at?'cur':'future');
+  e.textContent='End';
+  e.setAttribute('aria-label','End of pathway');
+  if(at) e.setAttribute('aria-current','step');
+  e.style.cursor='pointer';
+  e.onclick=()=>goToStep(nSteps);
+  railEl.appendChild(e);
 }
 
-/* The panel under the card. ONE of three, in priority order: PFK-1's regulation
- * when that step is next (the page's one piece of real regulatory biology — it
- * should not compete for attention), else this step's reversibility, else the
- * gluconeogenesis consequence once finished. */
+/* The panel under the card. EMPTY on every beat now — PFK-1 went behind the
+ * ten-steps star and reversibility went to the coupling box. Kept as a slot
+ * (drawNote collapses it) rather than deleted, so the card's layout is still
+ * the one the rest of the page measures. */
 const noteEl=document.getElementById('stepnote');
-const irrevSteps=()=>STEPS.filter(s=>s.rev===false);
 
 /* ---- the coupled-reaction figure ------------------------------------------
  * VERTICAL POSITION IS FREE ENERGY — why there is no axis to read. The coupled
@@ -3197,7 +3336,7 @@ function soloCurve(st){
 const soloLine=`Both sides sit
    at nearly the <b>same energy</b>, so the step runs either way.`;
 
-// Two views of one step. `figTab` is module-level because drawNote replaces
+// Two views of one step. `figTab` is module-level because drawCouple replaces
 // #stepnote's innerHTML every refresh — a DOM-stored selection would reset on
 // every step.
 const FIGTABS=[['pair','Coupling'],['curve','Energy curve']];
@@ -3215,9 +3354,8 @@ const coupleLine=c=>c.up
   : `This step runs <b>downhill</b>, and the drop is not wasted: it drives
      <b>${c.cout}</b> the other way, <b>uphill</b>.`;
 
-// ONE DOOR, TWO PLACES: every step's verdict, and the closing tally. Delegated,
-// not bound — drawNote replaces this element's innerHTML every refresh and a
-// bound handler would die with it.
+// Delegated, not bound — drawCouple replaces this element's innerHTML every
+// refresh and a bound handler would die with it.
 // THE DOOR CARRIES THE STEP THROUGH IT. Opened from a step's verdict, the demo
 // must open on the case that verdict just announced — landing on the flat tab
 // under an "Irreversible in the cell" heading reads as a contradiction, and the
@@ -3236,8 +3374,6 @@ const noteClick=e=>{
   const t=e.target.closest('[data-figtab]');
   if(t){ figTab=t.dataset.figtab; drawCouple(); }
 };
-noteEl.addEventListener('click',noteClick);
-
 /* THE COUPLING BOX, on the stage: the figure, the reversibility verdict and
  * the way into the mass-action demo. Beside the molecule, not in the sidebar,
  * because it is about what is happening in the lanes. */
@@ -3280,21 +3416,12 @@ function drawCouple(){
 }
 
 function drawNote(){
-  const i=focusStep();
-  const st=(!intro&&i<nSteps)?stepAt(i):null;
-  if(intro){ noteEl.innerHTML=''; noteEl.style.display='none'; return; }
-  noteEl.style.display='block';
-
-  // PFK-1 is behind the ten-steps star now (Pfk.show) and reversibility rides
-  // the coupling box — so a step leaves this panel empty.
-  if(st){ noteEl.innerHTML=''; return; }
-  noteEl.innerHTML=`<div class="nhead irr">The three one-way steps</div>`
-    +`<p class="nbody">Only <b>${irrevSteps().map(s=>s.n).join(', ')}</b> —
-       ${irrevSteps().map(s=>s.enz.replace(/ \(.*\)/,'')).join(', ')} — are
-       irreversible. The other seven run both ways — which is why
-       <b>gluconeogenesis</b> reuses seven of these ten enzymes and needs new ones
-       only for those three.</p>`
-    + massLink(null);
+  // NOTHING LEFT TO SAY HERE. PFK-1 is behind the ten-steps star (Pfk.show) and
+  // reversibility rides the coupling box, so a step leaves the panel empty; the
+  // end screen used to fill it with the gluconeogenesis note, which competed
+  // with the closing question for the same beat. Both ends now collapse it, so
+  // it costs the card no height.
+  noteEl.innerHTML=''; noteEl.style.display='none';
 }
 
 
@@ -3530,7 +3657,7 @@ const Fork=(()=>{
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
-function refresh(){ drawLedger(); drawTray(); drawAct(); drawRail();
+function refresh(){ drawLedger(); drawTray(); drawTally(); drawAct(); drawRail();
   drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
@@ -3577,6 +3704,7 @@ L.afterFrame=()=>{
   drawSpots();
   // anchored to its DOM box, so same schedule as the labels: current camera
   placeCarrierMol();
+  placeTallyMols();
   placeCarrierGlow();          // after it, so the bond is where the mark goes
 };
 
