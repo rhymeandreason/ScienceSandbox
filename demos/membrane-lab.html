@@ -233,15 +233,15 @@ function showProtein(which) {
    "oily slips through, charged does not" an assertion.
 
    TWO SCALINGS, both declared. molecules.js builds at MolLib.SCALE, so a
-   molecule comes out ~1.9x its angstroms while parts.js works in raw
+   molecule comes out ~1.9x its angstroms while membrane/parts.js works in raw
    angstroms; dividing puts them in one frame. Then everything crossing
    is enlarged by the SAME factor the ions already use, because a true
    3 A water against a 30 A membrane is a speck.
    --------------------------------------------------------------------- */
 const SCALE = MolLib.SCALE || 1.9;
 /* One exaggeration for everything that crosses, declared here rather than
-   taken from parts.js: this page's stage is ~300 A wide so that the bilayer
-   can run off both edges, and at parts.js's 2.6 an oxygen is about three
+   taken from membrane/parts.js: this page's stage is ~300 A wide so that the bilayer
+   can run off both edges, and at membrane/parts.js's 2.6 an oxygen is about three
    pixels. Raising the single factor scales molecules, ions and their charge
    badges together, so every relative size on stage stays honest — only the
    comparison against the MEMBRANE is exaggerated, and the membrane is the
@@ -250,7 +250,7 @@ const EXAG = 5.0;
 
 /* ONE SIZE CONVENTION FOR EVERYTHING ON STAGE.
 
-   molecules.js sizes atoms from PALETTE.radii; parts.js sizes ions from
+   molecules.js sizes atoms from PALETTE.radii; membrane/parts.js sizes ions from
    Shannon radii. Mixed, Na⁺ drew LARGER than O₂ — so step 2, whose whole
    claim is "charge stops it, not size", was showing a big sodium bouncing
    off and a small oxygen slipping through. It taught a size rule.
@@ -552,7 +552,7 @@ const STEPS = [
   {
     id:'pump',
     tab:'the pump',
-    cap:'',                             // pump.js writes this, per phase
+    cap:'',                             // membrane/pump.js writes this, per phase
     enter() {
       clearTravellers();
       showProtein(PUMP); showMembrane(true); setCut(true);
@@ -673,7 +673,7 @@ function tick(dt) {
     hidePumpIons();
     /* FAN THE CARGO ROUND THE AXIS, don't stack it up one.
 
-       pump.js spreads ions by 0.06-0.09 in normalised units — about 2 A —
+       membrane/pump.js spreads ions by 0.06-0.09 in normalised units — about 2 A —
        because it works in units and has no idea how big an ion is drawn.
        At this page's exaggeration a K⁺ is 4.5 A across, so the site's two
        ions fused into one blob. The page knows the drawn radius, so the
