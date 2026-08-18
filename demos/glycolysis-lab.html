@@ -120,7 +120,11 @@
   /* the name, on the right of the stage */
   /* the two stack down the right of the stage; the enzyme sits under the
      step's verdicts. */
-  #enzmeta{position:absolute;right:26px;top:calc(38% + 96px);z-index:5;
+  /* UP INTO THE CARD'S BAND. The energy card (#couplebox) lands here when it
+     opens, and it is meant to cover these two words: they are the door, and a
+     door standing beside the thing it opened is noise. The sidebar carries a
+     stacking context above the stage (see #side) so it paints over them. */
+  #enzmeta{position:absolute;right:26px;top:96px;z-index:5;
     max-width:230px;text-align:right;display:flex;flex-direction:column;
     align-items:flex-end;gap:-10px;}
 #enzmeta .estat{
@@ -128,15 +132,35 @@
 font-size: 20px;
 }
   #enzmeta[hidden]{display:none}
+  /* THE ASTERISK over the pair — the mark that says "there is a footnote here",
+     which is exactly what the two words are. Drawn by MASKING the file, not by
+     <img>: a mask ignores the file's own fill and paints the element's colour
+     through the shape, so one class tints it to whatever the first word is.
+     (An <img> would be stuck at the file's blue.) */
+  /* LONGHANDS, not the `mask:` shorthand: Safari parses the shorthand's
+     size-after-slash inconsistently and drops the whole declaration, which
+     leaves an element painted currentColor with no mask — or, as here, nothing
+     at all. */
+  .east{display:block;width:36px;height:38px;margin-bottom:2px;
+    background-color:currentColor;
+    -webkit-mask-image:url(images/asterisk.svg); mask-image:url(images/asterisk.svg);
+    -webkit-mask-repeat:no-repeat;   mask-repeat:no-repeat;
+    -webkit-mask-position:center;    mask-position:center;
+    -webkit-mask-size:contain;       mask-size:contain}
+  /* k- prefix ON PURPOSE: `.cpl` is already the coupling FIGURE's class
+     (`display:block;width:100%`), and a bare `.cpl` here matched these too —
+     which is why the asterisk came out 150px wide and 0 tall, i.e. invisible.
+     Same for the words below. */
+  .east.k-cpl{color:var(--phos)} .east.k-irr{color:var(--atp)} .east.k-rev{color:var(--nad)}
   /* A WORD YOU CAN PRESS, not a badge: the energy card is the explanation, and
      this is the only thing that says it is there. Underlined for that reason. */
   .estat{font-family:var(--font-slab);font-weight:700;font-size:14px;
     letter-spacing:.3px;background:none;border:none;padding:0;cursor:pointer;
     text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;
     text-decoration-color:rgba(0,0,0,.18)}
-  .estat.cpl{color:var(--phos)}
-  .estat.irr{color:var(--atp)}
-  .estat.rev{color:var(--nad)}
+  .estat.k-cpl{color:var(--phos)}
+  .estat.k-irr{color:var(--atp)}
+  .estat.k-rev{color:var(--nad)}
   /* ONE HOVER FOR THE PAIR. The two words are two readings of the same step
      and one door into the same card, so hovering either lights BOTH — hence
      the state on the container, never on .estat itself. Highlighter, not a
@@ -646,8 +670,10 @@ font-size: 20px;
      inside it are static, so neither has to know the other's width. */
   #utils{position:fixed;left:26px;bottom:22px;z-index:20;display:flex;gap:10px}
   #restart,#savepng{position:static}
-  /* room under the last readout so the buttons never land on it */
-  #side{padding-bottom:110px}
+  /* room under the last readout so the buttons never land on it. Its own
+     stacking context, above the stage: the energy card has to cover #enzmeta,
+     which is absolutely positioned inside #stage. */
+  #side{padding-bottom:110px;position:relative;z-index:9}
   #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
   /* a checkbox is not a door: it gets the border, not the ink fill */
   #showenz:hover,#showledger:hover{border-color:var(--ink);color:var(--ink)}
@@ -3264,9 +3290,13 @@ function drawEnzMeta(){
   enzMetaEl.hidden=!st;
   if(!st){ enzMetaEl.innerHTML=''; return; }
   const on=cplOpen?'true':'false';
+  // the mark takes the FIRST word's colour, read off the same two facts that
+  // decide which words there are
+  const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
   enzMetaEl.innerHTML=
-      (st.couple ? `<button class="estat cpl" data-cpl aria-pressed="${on}">Coupled reaction</button>` : '')
-    + `<button class="estat ${st.rev===false?'irr':'rev'}" data-cpl aria-pressed="${on}">${
+      `<span class="east ${first}" aria-hidden="true"></span>`
+    + (st.couple ? `<button class="estat k-cpl" data-cpl aria-pressed="${on}">Coupled reaction</button>` : '')
+    + `<button class="estat ${st.rev===false?'k-irr':'k-rev'}" data-cpl aria-pressed="${on}">${
         st.rev===false?'Irreversible':'Reversible'}</button>`;
 }
 enzMetaEl.addEventListener('click',e=>{
