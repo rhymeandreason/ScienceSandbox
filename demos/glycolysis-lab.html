@@ -399,15 +399,6 @@ font-size: 20px;
     min-width:152px;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
-  /* A NAME, NOT AN INSTRUCTION — the live tile's "← Spend 1 ATP" arrow already
-     instructs, pointing at the thing to click. Being constant, it also keeps
-     the tray's height fixed, which usable() measures off. */
-  .tcue{font-family:var(--font-sans);font-weight:600;font-size:11.5px;
-    letter-spacing:.2px;color:var(--ink);opacity:.8;margin-bottom:5px;padding-left:2px}
-  /* Named so the group cannot be misread as a toolbar. */
-  .tcap{font-family:var(--font-slab);font-weight:700;font-size:9.5px;letter-spacing:1.4px;
-    text-transform:uppercase;color:var(--muted);opacity:.8;margin-top:5px;padding-left:2px}
-
   /* ---------- ATP/ADP drawn, not carded ----------
      The two ATP tiles were the one place a student could not see what the step
      did to the carrier: a card saying ATP became a card saying ADP, the moved
@@ -642,8 +633,9 @@ font-size: 20px;
   #allsteps,#showenz,#showledger{position:static}
   /* pressed = the blobs are on stage, so the chip is filled, like the rail's
      run numbers: a state, not a hover */
-  #showenz[aria-pressed="true"],#showledger[aria-pressed="true"]{
-    background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  /* the native tick, at the chip's type size; ink so it belongs to the page */
+  .chk input{margin:0;width:15px;height:15px;accent-color:var(--ink);cursor:pointer}
+  .chk:has(input:checked){color:var(--ink);border-color:var(--ink)}
   #restart,#savepng,#allsteps,#showenz,#showledger{z-index:20;
     font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
     color:var(--muted);background:transparent;border:2px solid var(--hair);
@@ -656,7 +648,9 @@ font-size: 20px;
   #restart,#savepng{position:static}
   /* room under the last readout so the buttons never land on it */
   #side{padding-bottom:110px}
-  #restart:hover,#savepng:hover,#allsteps:hover,#showenz:hover,#showledger:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  /* a checkbox is not a door: it gets the border, not the ink fill */
+  #showenz:hover,#showledger:hover{border-color:var(--ink);color:var(--ink)}
 
   /* ---------- all ten steps, in one column ----------
      THE DETAIL LIVES HERE now the rail is ten numbers: each step's product,
@@ -826,8 +820,13 @@ font-size: 20px;
        anchored to the BOTTOM edge and grows upward, so a new control is one
        more child and nothing else moves. -->
   <div id="tools">
-    <button id="showledger" aria-pressed="false"><i class="ph-bold ph-note"></i> Show ledger</button>
-    <button id="showenz" aria-pressed="false"><i class="ph-bold ph-drop"></i> Show enzymes</button>
+    <!-- REAL CHECKBOXES, not buttons: these two turn a layer on and leave it
+         on, unlike the map below them, which opens something. The native
+         control is the legible one — it draws the tick every other checkbox on
+         the machine draws, and brings its own keyboard and screen-reader
+         behaviour with it. -->
+    <label id="showledger" class="chk"><input type="checkbox"> Show ledger</label>
+    <label id="showenz" class="chk"><input type="checkbox"> Show enzymes</label>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   </div>
   <!-- ONE ROW, bottom-left: Restart then PNG. They were in opposite corners,
@@ -3079,9 +3078,11 @@ function drawTray(){
   if(c){ want.add(carrierKey(c.cin)); want.add(carrierKey(c.cout)); if(c.plus) want.add(c.plus); }
   // A rearrangement touches no carrier: keep the space, show nothing.
   if(!want.size){ trayEl.style.visibility='hidden'; }
-  trayEl.innerHTML=`<div class="tcue">Carriers</div>`
-    +'<div class="tstrip"></div>';
-  const strip=trayEl.children[1];
+  // NO HEADING. "Carriers" named a column whose one occupant already carries
+  // its own name (ATP, NADH) two lines below it, and the tray's height is
+  // measured live by usable(), so nothing was holding it up but the word.
+  trayEl.innerHTML='<div class="tstrip"></div>';
+  const strip=trayEl.children[0];
   // ATP AND ADP ARE ONE ROW, NOT TWO. Which of the pair shows comes off the
   // couple — cin until the step has run, cout after — so the object changes at
   // exactly the moment the phosphate lands.
@@ -3344,16 +3345,10 @@ function placeEnz(){
   });
 }
 const ledgerBtn=document.getElementById('showledger');
-ledgerBtn.onclick=()=>{
-  showLedger=!showLedger;
-  ledgerBtn.setAttribute('aria-pressed', showLedger?'true':'false');
-  refresh();
-};
-enzBtn.onclick=()=>{
-  showEnz=!showEnz;
-  enzBtn.setAttribute('aria-pressed', showEnz?'true':'false');
-  drawEnz();
-};
+const ledgerBox=ledgerBtn.querySelector('input');
+ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
+const enzBox=enzBtn.querySelector('input');
+enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
 
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
