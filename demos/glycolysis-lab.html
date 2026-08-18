@@ -632,14 +632,30 @@
   #stepsbody .rstar:hover{opacity:1;transform:scale(1.18)}
 
   /* ---------- the ending fork ----------
-     THE THREE FATES ARE A MODAL, behind the last button.  */
-  #forkbody{display:flex;gap:14px;align-items:stretch}
-  #forkbody .door{flex:1;padding:12px 14px;background:rgba(255,255,255,.6);
-    border:2px solid var(--ink);border-radius:9px 12px 10px 11px}
-  #forkbody .door .dh{font-family:var(--font-slab);font-weight:700;font-size:14px;color:var(--ink);margin-bottom:4px}
-  #forkbody .door .dh i{color:var(--muted);font-weight:500}
-  #forkbody .door .db{font-family:var(--font-sans);font-size:12.5px;line-height:1.45;color:#5a5346}
-  @media (max-width:920px){ #forkbody{flex-direction:column} }
+     THE THREE FATES ARE A MODAL, behind the last button.
+     A SHEET OF PAPER, not a boxed card: the inked border the other modals wear
+     framed this one as another readout, when it is the last thing the lesson
+     says. One centred title, three doors, nothing else. */
+  #forkmodal .mcard{width:min(880px,100%);border:none;background:var(--panel);
+    padding:30px 34px 32px;box-shadow:0 30px 70px -24px rgba(0,0,0,.55)}
+  #forkmodal h2{font-size:34px;text-align:center;margin:0 0 8px;letter-spacing:.2px}
+  #forkmodal .msub{text-align:center;font-size:13.5px;max-width:56ch;
+    margin:0 auto 22px}
+  #forkbody{display:flex;gap:16px;align-items:stretch}
+  /* EACH DOOR CARRIES A COLOUR, its own, so the three fates are three things at
+     a glance rather than one wall of text. `--c` is set per door in the markup
+     (page palette: green O₂, red lactate, orange ethanol). */
+  #forkbody .door{flex:1;padding:18px 18px 20px;border-radius:14px;
+    background:color-mix(in srgb, var(--c) 9%, #fff);
+    border:1.5px solid color-mix(in srgb, var(--c) 30%, transparent)}
+  /* the condition is the kicker, the fate is the title — what picks one is O₂ */
+  #forkbody .door .dk{font-family:var(--font-slab);font-weight:700;font-size:11px;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  #forkbody .door .dh{font-family:var(--font-slab);font-weight:700;font-size:22px;
+    line-height:1.1;color:var(--c);margin-bottom:9px}
+  #forkbody .door .db{font-family:var(--font-sans);font-size:13px;line-height:1.5;color:#5a5346}
+  @media (max-width:920px){ #forkmodal .mcard{padding:22px 18px 24px}
+    #forkmodal h2{font-size:26px} #forkbody{flex-direction:column} }
 
   @media (max-width:920px){
     /* Stacked: rail, stage, readouts. Ten numbers fit across a phone, which is
@@ -742,10 +758,11 @@
   <div class="mback"></div>
   <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="forktitle">
     <button class="mclose" aria-label="Close">&times;</button>
-    <div class="mkick">What's next</div>
-    <h2 id="forktitle">Where the two pyruvate go</h2>
-    <p class="msub">All three answers are the same question — <b>where does NAD⁺
-      come from?</b> — because that is the constraint that picks one.</p>
+    <h2 id="forktitle">What's next?</h2>
+    <!-- ONE TITLE. The standfirst stays because it is the question all three
+         doors answer, not a second heading. -->
+    <p class="msub">Where the two pyruvate go — and all three answers are the
+      same question, <b>where does NAD⁺ come from?</b></p>
     <div id="forkbody"></div>
   </div>
 </div>
@@ -3639,16 +3656,19 @@ const Mass=(()=>{
  * NAD⁺ come from — the constraint that picks one. Rendered once, stateless. */
 const Fork=(()=>{
   document.getElementById('forkbody').innerHTML=
-     `<div class="door"><div class="dh">With O₂ <i>— aerobic</i></div>
+     `<div class="door" style="--c:var(--nad)">
+        <div class="dk">With O₂</div><div class="dh">Aerobic</div>
         <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
         acetyl-CoA, then the citric acid cycle and electron transport chain. Each
         <b>NADH</b> is worth roughly <b>2.5 ATP</b> there, so glycolysis's 2 NADH
         outweigh its 2 net ATP — <b>~30 ATP</b> per glucose, and NAD⁺ back.</div></div>`
-    +`<div class="door"><div class="dh">No O₂ <i>— lactic acid</i></div>
+    +`<div class="door" style="--c:var(--atp)">
+        <div class="dk">No O₂</div><div class="dh">Lactic acid</div>
         <div class="db">Pyruvate itself takes the <b>NADH</b>'s electrons and becomes
         <b>lactate</b>. Muscle under load, and most bacteria. <b>No extra ATP</b> —
         the product that matters is <b>NAD⁺</b>.</div></div>`
-    +`<div class="door"><div class="dh">No O₂ <i>— ethanol</i></div>
+    +`<div class="door" style="--c:var(--phos)">
+        <div class="dk">No O₂</div><div class="dh">Ethanol</div>
         <div class="db">Yeast strips a <b>CO₂</b> from pyruvate, then reduces the
         acetaldehyde to <b>ethanol</b>. Same purpose: regenerate <b>NAD⁺</b> so
         glycolysis keeps turning.</div></div>`;
