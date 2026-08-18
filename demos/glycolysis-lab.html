@@ -137,7 +137,14 @@ font-size: 20px;
   .estat.cpl{color:var(--phos)}
   .estat.irr{color:var(--atp)}
   .estat.rev{color:var(--nad)}
-  .estat:hover{text-decoration-color:currentColor}
+  /* ONE HOVER FOR THE PAIR. The two words are two readings of the same step
+     and one door into the same card, so hovering either lights BOTH — hence
+     the state on the container, never on .estat itself. Highlighter, not a
+     button fill: they stay text. */
+  #enzmeta:hover .estat{background:rgba(255,205,60,.34);
+    box-shadow:0 0 0 3px rgba(255,205,60,.34);border-radius:2px;
+    text-decoration-color:currentColor}
+  .estat{transition:background .12s ease, box-shadow .12s ease}
   .estat[aria-pressed="true"]{text-decoration-color:currentColor}
   #enzname{position:absolute;right:26px;top:calc(38% + 200px);z-index:5;max-width:210px;
     text-align:right;pointer-events:none}
@@ -3649,9 +3656,9 @@ const figTabStrip=()=>`<div class="ftabs">`
 
 // One line — the picture does the work.
 const coupleLine=c=>c.up
-  ? `On its own this step runs <b>uphill</b>. It happens because <b>ATP</b> is
-     running further downhill alongside it — that is <b>coupling</b>.`
-  : `This step runs <b>downhill</b>, and the drop is not wasted: it drives
+  ? `On its own this step runs <b>uphill</b>. <b>ATP</b> provides
+     the extra energy needed to complete the reaction.`
+  : `This step runs <b>downhill</b>. The drop drives
      <b>${c.cout}</b> the other way, <b>uphill</b>.`;
 
 // Delegated, not bound — drawCouple replaces this element's innerHTML every
