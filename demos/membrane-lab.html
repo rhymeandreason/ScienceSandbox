@@ -278,8 +278,12 @@ function chargedIon(kind) {
      badge and its shoulder offset are scaled by the same factor — matched
      to the ion rather than enlarged on its own. */
   const k = EXAG / SCALE;
+  /* The badge itself is drawn at TWICE the matched size. The shoulder
+     offset below stays at k: this page reads at a whole-membrane zoom
+     where a badge sized to the sphere is a few pixels of sign, and the
+     sign is the only thing distinguishing K⁺ from Na⁺ from Cl⁻. */
   const b = kit.charge(kind === 'CL' ? '−' : '+',
-                       '#' + Parts.ION[kind].color.toString(16).padStart(6, '0'), el, k);
+                       '#' + Parts.ION[kind].color.toString(16).padStart(6, '0'), el, k * 2);
   b.userData.base.multiplyScalar(k);
   b.userData.lift *= k;
   b.position.copy(b.userData.base);
@@ -308,6 +312,13 @@ function traveller(kind, opts) {
   obj.position.set(o.x, o.y, o.z);
   L.root.add(obj);
   const t = Object.assign({ kind, obj }, o);
+  /* Every traveller tumbles on its OWN axis at its OWN rate. One shared
+     spin made a screenful of water rotate in lockstep, which reads as a
+     rendered pattern rather than a jostling crowd. */
+  t.spin = { x:rnd(-.9,.9), y:rnd(-.9,.9), z:rnd(-.9,.9) };
+  t.flipEvery = rnd(0.55, 1.15);        // and its own clock, so the crowd
+  t.since = Math.random() * t.flipEvery; // never re-picks in unison
+  if (t.walk) { t.vx = rnd(-4,4); t.vz = rnd(-4,4); }
   travellers.push(t);
   return t;
 }
@@ -349,6 +360,28 @@ function keepApart(list) {
   for (const t of line) t.obj.position.y = t.y;
 }
 
+/* Sideways drift for the walkers, reflected inside its box. The box is
+   the same one the spawn used, so a water can never wander somewhere it
+   was not allowed to start — including into the channel's column, which
+   rndClear() keeps it out of (see CHANNEL_KEEPOUT). */
+function lateral(t, dt) {
+  t.x += t.vx * dt; t.z += t.vz * dt;
+  if (t.x >  SPREAD) { t.x =  SPREAD; t.vx = -t.vx; }
+  if (t.x < -SPREAD) { t.x = -SPREAD; t.vx = -t.vx; }
+  if (t.keepout && Math.abs(t.x) < t.keepout) {
+    t.x = Math.sign(t.x || 1) * t.keepout; t.vx = -t.vx;
+  }
+  if (t.z >  11) { t.z =  11; t.vz = -t.vz; }
+  if (t.z < -11) { t.z = -11; t.vz = -t.vz; }
+  t.obj.position.x = t.x; t.obj.position.z = t.z;
+}
+
+function tumble(t, dt) {
+  t.obj.rotation.x += dt * t.spin.x;
+  t.obj.rotation.y += dt * t.spin.y;
+  t.obj.rotation.z += dt * t.spin.z;
+}
+
 /* Where a traveller is allowed to be. The bilayer's interior is oily: a
    charged or strongly polar thing does not enter it, and this is the one
    rule that makes step 2 a demonstration instead of a caption. */
@@ -376,8 +409,20 @@ function advance(t, dt) {
        travel against a 0.35 s flip, so in 30 s of running the counters read
        0-3 and the two sides never changed. The step showed nothing. */
     t.since = (t.since || 0) + dt;
-    if (t.since > 0.8) { t.since = 0; t.vy = (Math.random() < .5 ? -1 : 1) * rnd(7, 12); }
+    if (t.since > t.flipEvery) {
+      t.since = 0;
+      t.flipEvery = rnd(0.55, 1.15);
+      t.vy = (Math.random() < .5 ? -1 : 1) * rnd(7, 12);
+      /* Sideways too. The y-walk alone is what the osmosis counter reads,
+         but a molecule that only ever moves up and down looks like a bead
+         on a wire. The lateral kick is cosmetic by design: it never enters
+         the crossing count, and it is re-picked on the same clock so a
+         water still commits to one path while it is inside the tails. */
+      t.vx = rnd(-5, 5); t.vz = rnd(-3, 3);
+    }
   }
+
+  if (t.walk) lateral(t, dt);
 
   t.y += t.vy * dt * (inCore && !t.blocked ? t.coreSpeed || 1 : 1);
 
@@ -386,7 +431,7 @@ function advance(t, dt) {
     if (t.y >  far) { t.y =  far; t.vy = -Math.abs(t.vy); }
     if (t.y < -far) { t.y = -far; t.vy =  Math.abs(t.vy); }
     t.obj.position.y = t.y;
-    t.obj.rotation.y += dt * 0.6;
+    tumble(t, dt);
     return;
   }
 
@@ -410,8 +455,7 @@ function advance(t, dt) {
   if (t.y >  OFFSCREEN) t.y = -OFFSCREEN;
   if (t.y < -OFFSCREEN) t.y =  OFFSCREEN;
   t.obj.position.y = t.y;
-  t.obj.rotation.y += dt * 0.6;
-  t.obj.rotation.x += dt * 0.4;
+  tumble(t, dt);
 }
 
 /* ---------------------------------------------------------------------
@@ -529,21 +573,28 @@ const STEPS = [
          size-sieve pinch: the filter matches the ion's hydration shell,
          and the smaller ion is the one that cannot be matched. The
          student is not told this here; they are just shown that size is
-         not doing the work, which is what stops the wrong rule forming. */
+         not doing the work, which is what stops the wrong rule forming.
+
+         These start ALREADY IN THE SCENE — only the K⁺ queue arrives from
+         above. A whole compartment's solute raining in from off-frame
+         reads as something being added, and the claim here is about what
+         is already sitting against the membrane. */
       for (let i = 0; i < 14; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(OFFSCREEN, OFFSCREEN * 2.1), vy:-rnd(6,10),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(6,10),
                           blocked:true, bounded:true });
       for (let i = 0; i < 10; i++)
         traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(OFFSCREEN, OFFSCREEN * 2.1), vy:-rnd(6,10),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(6,10),
                           blocked:true, bounded:true });
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
          only look like a second thing the channel is passing. */
       for (let i = 0; i < 16; i++)
         traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
-                             y:(i % 2 ? 1 : -1) * rnd(OFFSCREEN * .9, OFFSCREEN * 1.9),
+                             keepout:CHANNEL_KEEPOUT,
+                             y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
+                             vy:(Math.random() < .5 ? -1 : 1) * rnd(7, 12),
                              walk:true, bounded:true, coreSpeed:0.5 });
     },
     readout: () => 'K⁺ through · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
