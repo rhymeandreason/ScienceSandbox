@@ -41,16 +41,10 @@
   /* ---------- species labels: DOM over the canvas, one per lane ----------
      Placed every frame from the projected anchor (drawPlates) so they track
      the molecule as the camera orbits; the anchor is the label's bottom-middle.
-     THE STAGE ANSWERS THE CLICK: a wash of the button's colour from
-     bottom-centre. Faint and short — feedback, not an event; cream must still
-     be the page's colour a second later. Under the labels, so it tints the
-     molecule not its name. */
-  #stagepulse{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;
-    background:radial-gradient(ellipse 70% 60% at 50% 92%,
-      rgba(107,79,216,.26) 0%, rgba(47,125,224,.12) 42%, rgba(47,125,224,0) 74%)}
-  #stagepulse.pulse{animation:stagepulse .95s ease-out}
-  @keyframes stagepulse{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
-  @media (prefers-reduced-motion:reduce){ #stagepulse.pulse{animation:none} }
+     REMOVED: the stage used to answer every click with a purple wash rising
+     from the bottom edge. It was the one thing on the page not made of
+     molecules, and it read as the page flashing rather than as the reaction
+     running — the button's own burst already says the click landed. */
 
   /* ---------- the hotspot: click the bond that breaks ----------
      A step whose content is "this bond comes apart" should be run BY coming
@@ -428,10 +422,13 @@
   .modal[hidden]{display:none}
   .modal .mback{position:absolute;inset:0;background:rgba(38,33,26,.52);
     backdrop-filter:blur(2px);animation:mfade .22s ease-out}
+  /* A SHEET OF PAPER, all four of them: the panel white, no inked border, and
+     depth from the shadow instead. The border framed every modal as one more
+     readout on a page already made of bordered stickers. */
   .modal .mcard{position:relative;width:min(660px,100%);max-height:100%;
-    overflow:auto;background:var(--paper);border:2.5px solid var(--ink);
-    border-radius:var(--radius);padding:20px 22px 18px;
-    box-shadow:0 24px 60px -20px rgba(0,0,0,.6);animation:mrise .26s cubic-bezier(.2,.9,.3,1)}
+    overflow:auto;background:var(--panel);border:none;
+    border-radius:14px;padding:24px 26px 22px;
+    box-shadow:0 30px 70px -24px rgba(0,0,0,.55);animation:mrise .26s cubic-bezier(.2,.9,.3,1)}
   @keyframes mfade{from{opacity:0}to{opacity:1}}
   @keyframes mrise{from{opacity:0;transform:translateY(14px) scale(.98)}
                    to  {opacity:1;transform:none}}
@@ -636,8 +633,7 @@
      A SHEET OF PAPER, not a boxed card: the inked border the other modals wear
      framed this one as another readout, when it is the last thing the lesson
      says. One centred title, three doors, nothing else. */
-  #forkmodal .mcard{width:min(880px,100%);border:none;background:var(--panel);
-    padding:30px 34px 32px;box-shadow:0 30px 70px -24px rgba(0,0,0,.55)}
+  #forkmodal .mcard{width:min(880px,100%);padding:30px 34px 32px}
   #forkmodal h2{font-size:34px;text-align:center;margin:0 0 8px;letter-spacing:.2px}
   #forkmodal .msub{text-align:center;font-size:13.5px;max-width:56ch;
     margin:0 auto 22px}
@@ -694,7 +690,6 @@
     <!-- the same disc on the carrier's own bond — see #cglow -->
     <div id="cglow"><div class="sglow"></div><span class="chint">Break off a phosphate group</span></div>
     <canvas id="gl"></canvas>
-    <div id="stagepulse"></div>
     <div id="plates" aria-live="polite"></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
@@ -869,7 +864,6 @@
  * and cam.r stays the single measure of "how far back" that orthoFrustum
  * converts. */
 const canvas=document.getElementById('gl');
-let userZoom=false;
 // A constant because restart returns the camera to it. Nothing else moves theta.
 const OPEN_THETA=0.10;
 const L=Lesson.create(canvas,{
@@ -878,7 +872,10 @@ const L=Lesson.create(canvas,{
   // keeps the two halves after step 4 visibly identical.
   ortho:true,
   cam:{theta:OPEN_THETA,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
-  onZoom:()=>{userZoom=true;},
+  // NO WHEEL ZOOM. One scale for the whole pathway is the lesson's own claim —
+  // pyruvate looks small because it IS — and the loop eases back to the solved
+  // distance every frame, so a scroll only fought the camera.
+  zoom:false,
   focus:false,                       // nothing on this page ghosts a molecule
   onResize:()=>computeFit(),
 });
@@ -2596,7 +2593,7 @@ function rewind(){
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false; done=0; intro=true;
   laneDone.clear(); carrierGone.clear();
-  renderLanes(0); refresh(); userZoom=false; cam.theta=OPEN_THETA; }
+  renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
 
 /* =============================================================
  *  UI
@@ -3064,7 +3061,6 @@ const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;   // just under the .3s press flash
-const pulseEl=document.getElementById('stagepulse');
 let pressing=false;
 // EVERY PRESS: flash first, work under its tail — acting immediately re-renders
 // the button out from under its own animation. setTimeout, not transitionend: a
@@ -3073,10 +3069,6 @@ function press(fn){
   if(pressing || busy) return;
   pressing=true;
   actEl.classList.add('burst');
-  // Re-adding a class the element already carries does not restart a CSS
-  // animation. Drop it, force a reflow, re-add.
-  pulseEl.classList.remove('pulse'); void pulseEl.offsetWidth;
-  pulseEl.classList.add('pulse');
   later(()=>{ pressing=false; fn(); }, BURST_MS);
 }
 function beginPathway(){
@@ -3709,7 +3701,7 @@ L.frame=()=>{
   // jumps on the swap frame, the frame the name returns, so it reads as the
   // label shoving the molecule down. (kit/lanes.js, same 0.10 per frame.)
   LANES.step();
-  if(!userZoom) cam.r+=(fitR-cam.r)*0.05;        // ease to the computed framing
+  cam.r+=(fitR-cam.r)*0.05;                      // ease to the computed framing
   cam.target.y+=(fitY-cam.target.y)*0.06;        // …and re-centre vertically
   applyCam(); orthoFrustum();
   KIT.faceCamera(camera);        // badges keep their lift as the camera orbits

@@ -320,7 +320,8 @@
 
   /* ---- the stage: renderer + scene + camera + orbit + resize ---- */
   // opts: cam {theta,phi,r} initial · phiMin/phiMax pitch clamp · rMin/rMax zoom
-  // clamp · wheel step · onZoom(r) / onDrag() side-effect hooks (per-page state)
+  // clamp · wheel step · zoom:false drops wheel zoom entirely · onZoom(r) /
+  // onDrag() side-effect hooks (per-page state)
   // · ortho:true swaps in an OrthographicCamera — no perspective foreshortening,
   //   so a shape read off one side of the frame is the same size as the same
   //   shape read off the other. `frame()` fits its frustum directly; `cam.r`
@@ -382,9 +383,15 @@
         drag={x:e.clientX,y:e.clientY}; applyCam();});
       canvas.addEventListener('pointerup',()=>drag=null);
     }
-    canvas.addEventListener('wheel',e=>{e.preventDefault();
-      cam.r=Math.max(o.rMin,Math.min(o.rMax,cam.r*(1+Math.sign(e.deltaY)*o.wheel)));
-      if(o.onZoom) o.onZoom(cam.r); applyCam();},{passive:false});
+    // `zoom:false` leaves the wheel to the browser. A lesson whose framing is
+    // SOLVED — one scale for a whole pathway, so a shape's size is a claim about
+    // the molecule — has nothing to offer a zoom but a way to falsify that, and
+    // the page eases back to the solved distance anyway, so a scroll read as the
+    // camera fighting the student.
+    if(o.zoom!==false)
+      canvas.addEventListener('wheel',e=>{e.preventDefault();
+        cam.r=Math.max(o.rMin,Math.min(o.rMax,cam.r*(1+Math.sign(e.deltaY)*o.wheel)));
+        if(o.onZoom) o.onZoom(cam.r); applyCam();},{passive:false});
 
     // Bail on a zero-sized canvas instead of computing w/0. A ResizeObserver
     // fires during layout, and a grid item is briefly 0px tall before its row is
