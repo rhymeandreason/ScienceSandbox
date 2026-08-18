@@ -3133,7 +3133,7 @@ const BLOB_SVG=`<svg viewBox="0 0 531 528" xmlns="http://www.w3.org/2000/svg"><p
 // molecule's widest extent; tune here. An enzyme really is far bigger than its
 // substrate, but a blob that says so fills the stage and buries the sugar the
 // lesson is following, so this is a hold, not a scale claim.
-const BLOB_K=1.15;
+const BLOB_K=1.3;
 const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzBtn=document.getElementById('showenz');
@@ -3187,12 +3187,16 @@ function drawEnz(){
 // Every frame, after the render — same rule as the plates: a projection reads a
 // matrix only the render refreshes.
 const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
-// Hoisted so onResize can name it above; guarded because a ResizeObserver can
-// fire before this half of the script has run.
-// Hoisted so onResize can name it above. try/catch, not a typeof guard: a
-// ResizeObserver can fire before this half of the script has run, and `enzEl`
-// is a const — reading it in its dead zone throws rather than reporting
-// undefined.
+// Named by onResize above; try/catch because a ResizeObserver can fire before
+// this half of the script has run and `enzEl` is a const in its dead zone then.
+// Is every lane in this group on its mark? kit/lanes.js eases position toward
+// userData.tx/ty; within a hundredth of a world unit is under a pixel here.
+function laneSettled(grp){
+  return grp.every(j=>{ const l=lanes[j]; if(!l) return false;
+    const u=l.g.userData;
+    return (u.tx==null||Math.abs(l.g.position.x-u.tx)<0.01)
+        && (u.ty==null||Math.abs(l.g.position.y-u.ty)<0.01); });
+}
 function enzUnfreeze(){
   try{ [...enzEl.children].forEach(el=>delete el.dataset.set); }catch(e){}
 }
@@ -3243,7 +3247,11 @@ function placeEnz(){
     el.style.width=el.style.height=d.toFixed(1)+'px';
     el.style.left=((enzV.x*0.5+0.5)*w).toFixed(1)+'px';
     el.style.top =((-enzV.y*0.5+0.5)*h).toFixed(1)+'px';
-    el.dataset.set='1';
+    // FREEZE ONLY ONCE THE LANE HAS STOPPED MOVING. A swap drops the product in
+    // and eases it to its centring over the next few frames, so freezing on the
+    // first frame of the step pinned the blob to a molecule that was still on
+    // its way — small and off to one side.
+    if(laneSettled(grp)) el.dataset.set='1';
   });
 }
 enzBtn.onclick=()=>{
