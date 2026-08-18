@@ -926,7 +926,9 @@ const L=Lesson.create(canvas,{
   // distance every frame, so a scroll only fought the camera.
   zoom:false,
   focus:false,                       // nothing on this page ghosts a molecule
-  onResize:()=>computeFit(),
+  // …and the blobs are pinned in PIXELS, frozen for the step, so a resize is
+  // the one thing that has to un-freeze them (see placeEnz).
+  onResize:()=>{ computeFit(); enzUnfreeze(); },
 });
 const {scene,camera,renderer,root,cam,applyCam,resize}=L;
 const FXi=L.fx, MO=L.motion;
@@ -3165,10 +3167,16 @@ const enzGroups=()=>{
   if(g===SPLIT_KEY) return [lanes.map((_,j)=>j)];
   return g.filter(grp=>grp.every(j=>j<lanes.length));
 };
-// The KEY the blobs are rebuilt on. A split keeps ONE key across the whole step
-// even though the lane count changes under it — see the freeze in placeEnz.
+/* THE KEY IS THE STEP. A blob is placed ONCE per step and then held still for
+ * the whole of it — an enzyme does not move while its substrate reacts, and
+ * every version that tracked the molecule was visibly wrong somewhere: it slid
+ * across the stage as the halves parted at step 4, and it grew and re-centred
+ * at step 1 as the phosphate landed. Holding still is also the true reading —
+ * the sugar moves inside the enzyme, not the other way round.
+ * The lane SET is in the key too, so step 5's single blob and step 6's two are
+ * a rebuild; a split keeps one key even though the lane count changes under it. */
 const enzKey=()=>{ const g=enzGroupsFor(focusStep());
-  return g===SPLIT_KEY ? SPLIT_KEY : g.map(x=>x.join('+')).join(','); };
+  return focusStep()+':'+(g===SPLIT_KEY ? SPLIT_KEY : g.map(x=>x.join('+')).join(',')); };
 function drawEnz(){
   const st=enzLive()?enzOf():null;
   enzEl.hidden=!st; enzNameEl.hidden=!st;
@@ -3179,6 +3187,15 @@ function drawEnz(){
 // Every frame, after the render — same rule as the plates: a projection reads a
 // matrix only the render refreshes.
 const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
+// Hoisted so onResize can name it above; guarded because a ResizeObserver can
+// fire before this half of the script has run.
+// Hoisted so onResize can name it above. try/catch, not a typeof guard: a
+// ResizeObserver can fire before this half of the script has run, and `enzEl`
+// is a const — reading it in its dead zone throws rather than reporting
+// undefined.
+function enzUnfreeze(){
+  try{ [...enzEl.children].forEach(el=>delete el.dataset.set); }catch(e){}
+}
 function placeEnz(){
   if(enzEl.hidden || !lanes.length) return;
   // One blob per OCCUPIED lane, rebuilt only when that set changes — a running
@@ -3187,7 +3204,11 @@ function placeEnz(){
   const on=enzGroups(), key=enzKey();
   if(enzEl.dataset.on!==key){
     enzEl.dataset.on=key;
-    enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
+    // REBUILD ONLY WHEN THE COUNT CHANGES — a running wiggle must not restart
+    // every step. Clearing `set` is what re-places them.
+    if(enzEl.children.length!==on.length)
+      enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
+    [...enzEl.children].forEach(el=>delete el.dataset.set);
   }
   const w=canvas.clientWidth, h=canvas.clientHeight;
   if(!w||!h) return;
@@ -3196,12 +3217,7 @@ function placeEnz(){
   const pxPerWorld=w/(camera.right-camera.left);
   on.forEach((grp,slot)=>{
     const el=enzEl.children[slot]; if(!el) return;
-    // FROZEN THROUGH THE SPLIT. Aldolase is ONE enzyme holding one molecule
-    // that becomes two, so its blob is placed once, on the sugar, and then left
-    // alone: tracking the halves apart made it slide across the stage and come
-    // to rest on the G3P, which says the enzyme followed one product. It is the
-    // one thing on stage that should not move while the molecule does.
-    if(key===SPLIT_KEY && el.dataset.set) return;
+    if(el.dataset.set) return;                  // placed for this step already
     // MEASURED OFF THE MESHES, not off the lane's bookkeeping. Two earlier
     // versions read the group's position and a spec measure, and both put the
     // blob off the molecule: the group's origin is not the drawing's centre
