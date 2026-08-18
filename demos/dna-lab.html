@@ -552,6 +552,13 @@ function placeTags(){
  * ========================================================================== */
 const G4 = new THREE.Group();
 G4.visible = false;
+/* STAND THE HELIX UP. The stack grows along the base-pair NORMAL — the mean
+ * step's translation is (shift, slide, rise) in the pair's own frame, and the
+ * rise component is along that normal, which is local +Z. Left alone the
+ * duplex grows straight at the camera and the page shows a view down the axis
+ * from one end: a rosette, not a helix. One rotation puts the growth
+ * direction along world +Y, where the camera is side-on to it. */
+G4.rotation.x = -Math.PI / 2;
 L.root.add(G4);
 
 const bdna = window.BDNA;
@@ -663,9 +670,10 @@ function place(t){
     rungs[i].mol.quaternion.copy(_fq);
     rungs[i].mol.position.copy(_fp);
   }
-  // Centre the stack so it does not climb off the top of the stage as it winds.
-  const mid = rungs[Math.floor(half)].mol.position.y;
-  for(const r of rungs) r.mol.position.y -= mid;
+  // Centre the stack so it does not climb off the stage as it winds. In G4's
+  // own space the stack runs along +Z; the group's rotation stands that up.
+  const mid = rungs[Math.floor(half)].mol.position.z;
+  for(const r of rungs) r.mol.position.z -= mid;
 
   let worst = 0;
   bdna.links.forEach((lk, i) => {
