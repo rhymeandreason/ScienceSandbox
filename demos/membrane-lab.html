@@ -477,7 +477,10 @@ function traveller(kind, opts) {
   t.spin = { x:rnd(-.9,.9), y:rnd(-.9,.9), z:rnd(-.9,.9) };
   t.flipEvery = rnd(0.55, 1.15);        // and its own clock, so the crowd
   t.since = Math.random() * t.flipEvery; // never re-picks in unison
-  if (t.walk) { t.vx = rnd(-4,4); t.vz = rnd(-4,4); }
+  /* A walker's spawn velocity is drawn the same way its later ones are —
+     any vy passed in is ignored for them. Two draws would mean the crowd
+     starts moving one way and switches to another a second in. */
+  if (t.walk) repick(t);
   travellers.push(t);
   return t;
 }
@@ -533,8 +536,12 @@ const WATER_CORE = 1.0;
    and it needs to be visibly slower, because "the ion is stuck at the
    surface" is easier to read when the thing bouncing off is not the fastest
    object on screen. */
-const WALK_SPEED = [7, 12];        // water
-const ION_SPEED  = [4, 8];
+/* Raised for the isotropic walk. A direction drawn on the sphere puts only
+   part of its speed along y — the mean |cos| is 1/2 — so the same numbers
+   that gave a brisk vertical walk when vy WAS the speed halve the crossing
+   rate. Doubled, the osmosis counter behaves about as it did. */
+const WALK_SPEED = [14, 24];       // water
+const ION_SPEED  = [8, 16];
 
 const ION_GAP = 2 * Parts.ION.K.r * Parts.ION.exaggeration + 2.6;
 function keepApart(list) {
@@ -548,6 +555,17 @@ function keepApart(list) {
       }
     }
   for (const t of line) t.obj.position.y = t.y;
+}
+
+/* One draw of a walker's velocity, used at spawn AND at every re-pick, so
+   the first second of a step cannot be a different motion from the rest. */
+function repick(t) {
+  const sp = t.speed || WALK_SPEED;
+  const v = rnd(sp[0], sp[1]);
+  const cz = rnd(-1, 1), sr = Math.sqrt(1 - cz * cz), ph = rnd(0, Math.PI * 2);
+  t.vy = v * cz;
+  t.vx = v * sr * Math.cos(ph);
+  t.vz = v * sr * Math.sin(ph);
 }
 
 /* Sideways drift for the walkers, reflected inside its box. The box is
@@ -606,15 +624,20 @@ function advance(t, dt) {
     if (t.since > t.flipEvery) {
       t.since = 0;
       t.flipEvery = rnd(0.55, 1.15);
-      const sp = t.speed || WALK_SPEED;
-      t.vy = (Math.random() < .5 ? -1 : 1) * rnd(sp[0], sp[1]);
-      /* Sideways too. The y-walk alone is what the osmosis counter reads,
-         but a molecule that only ever moves up and down looks like a bead
-         on a wire. The lateral kick is cosmetic by design: it never enters
-         the crossing count, and it is re-picked on the same clock so a
-         water still commits to one path while it is inside the tails. */
-      const lat = (t.speed || WALK_SPEED)[1] * 0.42;
-      t.vx = rnd(-lat, lat); t.vz = rnd(-lat * .6, lat * .6);
+      /* AN ISOTROPIC DIRECTION, not a coin flip on the sign of vy.
+
+         It used to set vy = ±speed and give x and z a small cosmetic kick,
+         which meant the only real motion was along one axis and the sign
+         reversed on about every other re-pick — so a molecule read as
+         bobbing up and down in place rather than wandering. That is the
+         model showing through: a real walker picks a direction on a
+         SPHERE, and a reversal is one outcome among many.
+
+         Uniform on the sphere via the z-slice method — cos(theta) uniform
+         in [-1,1]. Picking two angles uniformly instead crowds the poles,
+         which here would mean biasing every molecule toward straight up
+         and straight down: the exact artefact this replaces. */
+      repick(t);
     }
   }
 
@@ -687,7 +710,6 @@ const STEPS = [
       for (let i = 0; i < 64; i++)
         traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
                              y:inCompartment(i % 2 ? 1 : -1),
-                             vy:(i % 2 ? -1 : 1) * rnd(7, 12),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
     readout: () => 'bilayer ' + (HALF * 2).toFixed(1) + ' Å thick — measured, not drawn to taste',
@@ -739,7 +761,7 @@ const STEPS = [
          leans on when a K⁺ filter excludes the smaller sodium. */
       for (let i = 0; i < 22; i++) {
         const t = traveller('NA', { x:rnd(-SPREAD, SPREAD), z:rnd(-10,10),
-                                    y:inCompartment(1), vy:-rnd(4,8),
+                                    y:inCompartment(1),
                                     walk:true, speed:ION_SPEED, shell: i === 0,
                                     blocked:true, bounded:true });
         if (!i) firstNa = t;
@@ -840,11 +862,9 @@ const STEPS = [
          way it is. */
       for (let i = 0; i < IONS / 2; i++) {
         traveller('NA', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:inCompartment(1),
-                          vy:(Math.random() < .5 ? -1 : 1) * rnd(4,8),
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
         traveller('CL', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11), y:inCompartment(1),
-                          vy:(Math.random() < .5 ? -1 : 1) * rnd(4,8),
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
       }
@@ -901,12 +921,12 @@ const STEPS = [
          is already sitting against the membrane. */
       for (let i = 0; i < 14; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(4,8),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8),
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
       for (let i = 0; i < 10; i++)
         traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), vy:-rnd(4,8),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8),
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
       /* Water stays out of the pore too. It genuinely does cross the
@@ -916,7 +936,6 @@ const STEPS = [
         traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
                              keepout:CHANNEL_KEEPOUT,
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
-                             vy:(Math.random() < .5 ? -1 : 1) * rnd(7, 12),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
     readout: () => 'K⁺ out · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
