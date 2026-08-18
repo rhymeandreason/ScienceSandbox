@@ -122,7 +122,11 @@
      step's verdicts. */
   #enzmeta{position:absolute;right:26px;top:calc(38% + 96px);z-index:5;
     max-width:230px;text-align:right;display:flex;flex-direction:column;
-    align-items:flex-end;gap:6px}
+    align-items:flex-end;gap:-10px;}
+#enzmeta .estat{
+ font-family:var(--font-marker);
+font-size: 20px;
+}
   #enzmeta[hidden]{display:none}
   /* A WORD YOU CAN PRESS, not a badge: the energy card is the explanation, and
      this is the only thing that says it is there. Underlined for that reason. */
@@ -138,9 +142,9 @@
   #enzname{position:absolute;right:26px;top:calc(38% + 200px);z-index:5;max-width:210px;
     text-align:right;pointer-events:none}
   #enzname[hidden]{display:none}
-  #enzname .ek{font-family:var(--font-slab);font-weight:700;font-size:10.5px;
+  #enzname .ek{font-family:var(--font-slab);font-size:16px;
     letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
-  #enzname .en{font-family:var(--font-slab);font-weight:700;font-size:17px;
+  #enzname .en{font-family:var(--font-slab);font-size:22px;
     line-height:1.2;color:#2f7fa8}
   @media (max-width:920px){ #enzname{right:12px;max-width:150px}
     #enzmeta{right:12px;max-width:150px} #enzname .en{font-size:14px} }
@@ -227,8 +231,8 @@
   #bottombar>*{pointer-events:auto}
   /* the step's heading: which of the ten, plus the hook or that it is done. */
   #stephead{visibility:hidden;min-height:15px;
-    font-family:var(--font-marker);font-weight:700;font-size:16px;
-    letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+    font-family:var(--font-marker);font-weight:700;font-size:20px;
+    letter-spacing:1.6px;text-transform:uppercase;color:var(--ink); margin-bottom: 16px;}
   #stephead.on{visibility:visible}
 
   /* ---------- the caption, on demand ----------
@@ -268,7 +272,7 @@
     from{opacity:0;transform:translateY(8px)}
     to  {opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){ .revin{animation:none} }
-  #stephead em{font-style:normal;color:var(--phos)}
+  #stephead em{font-family: var(--font-marker); font-style:normal;color:var(--muted)}
 
   /* THE STEP CAPTION. Never times out — replaced by the next step's. Only the
      intro and closing screen carry text.
