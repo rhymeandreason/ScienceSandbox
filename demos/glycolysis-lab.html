@@ -65,7 +65,7 @@
   #cspot{position:absolute;z-index:8;width:50px;height:50px}   /* over the tray */
   #cspot[hidden]{display:none}
   #cglow .chint{position:absolute;transform:translateY(-50%);
-    font-family:var(--font-hand);font-size:15px;color:#6b4fd8;white-space:nowrap}
+    font-family:var(--font-hand);font-size:22px;color:#6b4fd8;white-space:nowrap}
   @media (max-width:920px){ #cglow .chint{display:none} }
   /* A FLAT DISC WITH AN EDGE, not a feathered glow: the edge reads as a target
      you can hit rather than as lighting. */
@@ -86,7 +86,7 @@
   .spot:hover ~ *,.spot:focus-visible{outline:none}
   .spot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
   .spot .shint{position:absolute;left:calc(100% + 4px);top:50%;
-    transform:translateY(-50%);font-family:var(--font-hand);font-size:15px;
+    transform:translateY(-50%);font-family:var(--font-hand);font-size:22px;
     color:#6b4fd8;white-space:nowrap;pointer-events:none}
   @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
   @media (max-width:920px){ .sglow{width:72px;height:72px}
@@ -1065,7 +1065,7 @@ const STEPS=[
     // RUN BY BREAKING THE BOND. `at` names the spec's own bond (gly.open, the
     // anomeric C1–O5), so the target follows the bond on screen — not a typed
     // coordinate a rebuilt spec would leave behind. Same contract as `anchor`.
-    spot:{ at:'open', say:'click to open the ring' },
+    spot:{ at:'open', say:'Open the ring' },
     msg:`<b>Phosphoglucose isomerase.</b> The ring <b>opens</b> — it has to, because moving the C=O from carbon 1 to carbon 2 happens on the straight chain. Same formula, C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>: a glucose has become a fructose. Worth doing because an <b>aldose</b> cannot be cut into two phosphorylatable halves and a <b>ketose</b> can. <i>Everything from here is drawn open, so the six carbons stay countable.</i>` },
 
   { n:3, stage:1, reagent:'ATP', need:'Spend 1 more ATP',
@@ -1081,7 +1081,7 @@ const STEPS=[
     fx:'split',
     // The spec already names the bond aldolase breaks (`gly.cleave`, the one the
     // fx flashes) — no second copy of where it is. Same contract as step 2.
-    spot:{ at:'cleave', say:'click to split it' },
+    spot:{ at:'cleave', say:'Break the bond to split' },
     msg:`<b>Aldolase.</b> The unstable six-carbon sugar is cleaved down the middle into <b>two different three-carbon molecules</b>, DHAP and G3P, each keeping one <span class="p">phosphate</span> — which is what the two ATP bought.` },
 
   { n:5, stage:2, reagent:null,
@@ -1096,7 +1096,7 @@ const STEPS=[
     // the product, and the student's single click is what makes the two lanes
     // the same molecule. Everything after here happening twice is then
     // something they did, not something the caption told them.
-    spot:{ at:'movingH', say:'click the H that moves' },
+    spot:{ at:'movingH', say:'Move the H' },
     msg:`<b>Triose-phosphate isomerase.</b> DHAP becomes a second <b>G3P</b>. The lanes are now identical, so everything from here happens <b>twice</b>.` },
 
   { n:6, stage:3, reagent:'NAD', need:'Load both NAD⁺',
@@ -1107,7 +1107,7 @@ const STEPS=[
     // `aldehydeH` is the spec's name for the hydrogen the dehydrogenase takes;
     // spotPair turns it into the C–H bond that breaks.
     perLane:true,
-    spot:{ at:'aldehydeH', say:'click the H that NAD⁺ takes' },
+    spot:{ at:'aldehydeH', say:'NAD⁺ takes an H' },
     msg:`<b>G3P dehydrogenase.</b> Each G3P gives up two electrons and a proton to <span class="n">NAD⁺</span>, making <span class="n">NADH</span> (2 in all), and a <span class="p">free phosphate</span> from the cytosol takes the empty spot — <b>no ATP spent</b>. The pathway's only oxidation.` },
 
   { n:7, stage:4, reagent:'ADP', need:'Charge 2 ADP',
@@ -1122,7 +1122,7 @@ const STEPS=[
     // and charges an ADP: 2 ATP, exactly what phase 1 cost. One click plus
     // "counted twice" is the version a student misses.
     perLane:true,
-    spot:{ at:'hot', say:'click to hand it to ADP' },
+    spot:{ at:'hot', say:'Break off a phosphate' },
     msg:`<b>Phosphoglycerate kinase.</b> That phosphate has a higher transfer potential than ATP's, so it goes straight to ADP. Two lanes, <b>2 ATP</b> — exactly what phase 1 cost. This is <b>substrate-level phosphorylation</b>.` },
 
   { n:8, stage:4, reagent:null,
@@ -1142,7 +1142,7 @@ const STEPS=[
     // either way, and "the phosphate moved" is the fact the next two steps
     // need; the atom-level accounting is not.
     perLane:true,
-    spot:{ at:'p3', say:'click the phosphate that moves' },
+    spot:{ at:'p3', say:'Move the phosphate' },
     msg:`<b>Phosphoglycerate mutase.</b> The remaining phosphate simply moves from carbon 3 to carbon 2. On C3 it <b>could not</b> charge ADP; this move sets up the step that changes that.` },
 
   { n:9, stage:4, reagent:null,
@@ -1155,7 +1155,7 @@ const STEPS=[
     // enolase pulls; spotPair turns it into the C–O bond that breaks, which is
     // half the water. The other half comes off C2 next door (`loseH`).
     perLane:true,
-    spot:{ at:'oh3', say:'click the OH that leaves' },
+    spot:{ at:'oh3', say:'Break off the OH' },
     msg:`<b>Enolase.</b> A <b>water</b> leaves, forming a C=C and trapping the molecule as an <b>enol</b>. Nothing was added — the rearrangement itself loads strain into the phosphate bond.` },
 
   { n:10, stage:4, reagent:'ADP', need:'Charge 2 more ADP',
@@ -1165,7 +1165,7 @@ const STEPS=[
     // same gesture as 7 — PEP names its phosphate `hot` too, and the same
     // two clicks for the same reason
     perLane:true,
-    spot:{ at:'hot', say:'click to hand it to ADP' },
+    spot:{ at:'hot', say:'Break off a phosphate' },
     msg:`<b>Pyruvate kinase.</b> The last phosphate goes to ADP and the enol snaps to keto: <b>pyruvate</b>. Two more ATP, so <b>net 2 ATP and 2 NADH</b> per glucose — about <b>5%</b> of its energy. The rest is still in those two pyruvate.` },
 ];
 
