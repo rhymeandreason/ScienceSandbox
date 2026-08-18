@@ -64,9 +64,6 @@
      the disc it covers, not the lanes' 74px: what is lit here is small. */
   #cspot{position:absolute;z-index:8;width:50px;height:50px}   /* over the tray */
   #cspot[hidden]{display:none}
-  #cglow .chint{position:absolute;transform:translateY(-50%);
-    font-family:var(--font-hand);font-size:22px;color:#6b4fd8;white-space:nowrap}
-  @media (max-width:920px){ #cglow .chint{display:none} }
   /* A FLAT DISC WITH AN EDGE, not a feathered glow: the edge reads as a target
      you can hit rather than as lighting. */
   .sglow{position:absolute;width:50px;height:50px;border-radius:50%;
@@ -77,6 +74,29 @@
     0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.75}
     50%    {transform:translate(-50%,-50%) scale(1.12);opacity:1}}
 
+  /* ---------- the hint as an ANNOTATION ----------
+     A hand-drawn arrow from the words to the disc, not a caption floating
+     beside it. Both hints sit to the RIGHT of what they point at, so the arrow
+     leads left, and it is the same hand as the type.
+     MASKED, not an <img> or a coloured background-image: the arrow then paints
+     in `currentColor` and can never drift from the text it belongs to. */
+  /* the span is empty now that the callout carries the words — without this
+     its ::before arrow would hang in the frame pointing at nothing */
+  .shint:empty{display:none}
+  .shint::before{content:'';display:inline-block;
+    width:34px;height:24px;margin-right:7px;vertical-align:-6px;
+    background-color:currentColor;
+    -webkit-mask-image:var(--annot); mask-image:var(--annot);
+    -webkit-mask-repeat:no-repeat;   mask-repeat:no-repeat;
+    -webkit-mask-position:center;    mask-position:center;
+    -webkit-mask-size:contain;       mask-size:contain}
+  :root{--annot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 26'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M34 4C25 1.5 9.5 3.5 5 15.5'/%3E%3Cpath d='M4.6 16.6l8-2.6M4.6 16.6l3.2 7'/%3E%3C/g%3E%3C/svg%3E")}
+
+  /* NO DOT ON THE CALLOUT HERE. annotate.js's dot marks the anchor, but this
+     page already marks it — the purple disc under the bond is the affordance,
+     and a second mark on the same point says there are two things there. The
+     leader still lands on the anchor, so the line points at the disc. */
+  .annot-dot{display:none}
   #spots{position:absolute;inset:0;z-index:6;pointer-events:none}
   /* target invisible: the glow underneath is the affordance; a ring on top
      would be a second one */
@@ -799,7 +819,8 @@ font-size: 20px;
          under a wash. One blob per lane; the name is #enzname, on the right. -->
     <div id="enzymes" hidden></div>
     <!-- the same disc on the carrier's own bond — see #cglow -->
-    <div id="cglow"><div class="sglow"></div><span class="chint">Break off a phosphate group</span></div>
+    <!-- the words moved to the callout (see drawHint); this is the disc only -->
+    <div id="cglow"><div class="sglow"></div></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
     <!-- ABSOLUTELY POSITIONED FOR NOW: the name of the enzyme running this step,
@@ -941,6 +962,7 @@ font-size: 20px;
 <script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
+<script src="annotate.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
 <script src="massaction/massaction.js"></script>
 <!-- WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page says it
@@ -1123,7 +1145,7 @@ const STEPS=[
     // `aldehydeH` is the spec's name for the hydrogen the dehydrogenase takes;
     // spotPair turns it into the C–H bond that breaks.
     perLane:true,
-    spot:{ at:'aldehydeH', say:'NAD⁺ takes an H' },
+    spot:{ at:'aldehydeH', say:'NAD⁺ takes a Hydride' },
     takeaway:`Redox — the pathway’s only oxidation`,
     msg:`<b>G3P dehydrogenase</b> oxidizes G3P and adds a phosphate → 1,3-bisphosphoglycerate. Produces NADH (2 total).` },
 
@@ -1409,6 +1431,55 @@ const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
   // ignores it, so both come through here.
   onPick:it=>press(()=>isPerLane(stepAt(done)) ? runLane(it.lane) : runStep()),
 });
+/* ---------- THE PROMPT AS A CALLOUT (annotate.js) ----------
+ * "Break off a phosphate group" used to be a span parked beside the disc, in
+ * screen space: it sat wherever the target happened to be, and on a molecule
+ * that is mostly empty it read as a caption floating in the frame. A callout
+ * is the textbook's own answer — a dot ON the bond and the words thrown clear
+ * of it, joined by a leader — and it is already the page's vocabulary, so a
+ * student meets one annotation style across the site, not two.
+ *
+ * ONE NOTE, NOT ONE PER TARGET. kit/hotspot.js's rule is one hint at a time
+ * (two shout), so there is exactly one here and its ANCHOR moves: `at` is a
+ * function, which is what annotate.js is built around — the dot follows the
+ * bond as the camera orbits and as the lane eases, with nothing baked.
+ *
+ * Null anchor = no prompt: annotate.js hides a note whose anchor resolves to
+ * nothing, so "there is nothing to click right now" needs no second switch. */
+const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
+let hintAt=null;
+const hintNote=NOTES.add({ text:'', at:()=>hintAt&&hintAt(), offset:[30,-26] });
+/* ONE PLACE DECIDES WHAT THE PROMPT SAYS AND WHERE IT POINTS, every frame, off
+ * the same state the disc is lit from — so the words and the mark cannot end up
+ * on different bonds. A kinase step's target is ATP's own β–γ bond (the carrier
+ * column); every other target is on the sugar. */
+function drawHint(){
+  const st=(!intro && done<nSteps) ? stepAt(done) : null;
+  let text='';
+  hintAt=null;
+  if(carrierLive){
+    text='Break off a phosphate group';
+    hintAt=()=>CAR.bondMid(0, ...gammaBreak(), _hintV);
+  }else if(st && st.spot && st.spot.say && !busy && !reviewing){
+    // the FIRST target still standing carries it — kit/hotspot.js's own
+    // one-hint rule (two shout), applied to the callout instead of its span
+    const j=lanes.findIndex((l,i)=>!laneDone.has(i) && spotPair(M[l.key], st.spot.at));
+    if(j>=0){ const pair=spotPair(M[lanes[j].key], st.spot.at);
+      text=st.spot.say; hintAt=()=>laneBondMid(lanes[j], pair); }
+  }
+  if(text!==hintNote.el.dataset.t){ hintNote.el.dataset.t=text; hintNote.set(text); }
+  NOTES.show(!!text);
+  NOTES.step();
+}
+// The world midpoint of a lane's target bond — the same pair kit/hotspot.js
+// puts its disc on, so the dot cannot land on a different bond than the glow.
+const _hintV=new THREE.Vector3();
+const laneBondMid=(l,pair)=>{
+  if(!l||!pair) return null;
+  const u=l.g.userData;
+  return _hintV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(0.5);
+};
+
 function drawSpots(){
   const st=(!intro && done<nSteps) ? stepAt(done) : null;
   const live = !!st && !!st.spot && !busy && !reviewing;
@@ -1418,7 +1489,8 @@ function drawSpots(){
     // could not derive.
     laneDone.has(i) ? null : {
       group:l.g, pair:spotPair(M[l.key], st.spot.at), lane:i,
-      hint:st.spot.say||'', label:st.act||'run this step',
+      // the words are the callout's now (see drawHint); the span stays empty
+      hint:'', label:st.act||'run this step',
     }));
 }
 
@@ -3056,10 +3128,6 @@ function placeCarrierGlow(){
   const d=cglowEl.querySelector('.sglow');
   d.style.left=x+'px'; d.style.top=y+'px';
   cspotEl.style.left=x+'px'; cspotEl.style.top=y+'px';
-  // clear of both the disc and the γ oxygens — 29px cleared only the disc's
-  // edge and left the text sitting on an atom
-  const h=cglowEl.querySelector('.chint');
-  h.style.left=(x+52)+'px'; h.style.top=y+'px';
 }
 // Where the phosphate flight starts or ends, in client pixels: the γ phosphate
 // of the instance this click moves — on a per-lane step lane j's own ADP, not
@@ -4067,6 +4135,7 @@ L.afterFrame=()=>{
   drawPlates();
   drawFlyers();                  // names riding something in the air
   drawSpots();
+  drawHint();                    // the callout, on the bond the disc marks
   // anchored to its DOM box, so same schedule as the labels: current camera
   placeCarrierMol();
   placeTallyMols();
