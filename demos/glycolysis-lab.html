@@ -92,6 +92,42 @@
   @media (max-width:920px){ .sglow{width:72px;height:72px}
     .spot{width:60px;height:60px} .spot .shint{display:none} }
 
+  /* ---------- THE ENZYME, behind the sugar ----------
+     A BLOB, NOT A STRUCTURE. No glycolytic enzyme is drawn on this page and a
+     shape that pretended to be one would be a lie at every scale; this says
+     only "a protein is holding this molecule while it reacts", which is the
+     claim the lesson makes. Translucent, and UNDER the canvas (#gl is z-index 2
+     over it) so the molecule sits inside the enzyme rather than behind a wash.
+     WIGGLE: two nested animations at coprime durations — a slow turn on the
+     wrapper, a slow squash on the path — so the loop never visibly repeats.
+     Ambient, not an event: nothing here marks a click. */
+  #enzymes{position:absolute;inset:0;z-index:1;pointer-events:none}
+  #enzymes[hidden]{display:none}
+  .enzblob{position:absolute;transform:translate(-50%,-50%);
+    animation:enzTurn 24s ease-in-out infinite}
+  .enzblob svg{display:block;width:100%;height:100%;
+    animation:enzWob 9s ease-in-out infinite; opacity:.5;}
+  .enzblob:nth-child(2) svg{animation-duration:11s;animation-delay:-3s}
+  /* A SWAY, NOT A SPIN. A full turn reads as an object rotating on the stage —
+     an event, and a wrong one: an enzyme is not a wheel. This is drift. */
+  @keyframes enzTurn{0%,100%{transform:translate(-50%,-50%) rotate(-7deg)}
+                     50%    {transform:translate(-50%,-50%) rotate(7deg)}}
+  @keyframes enzWob{0%,100%{transform:scale(1,1) rotate(0deg)}
+                    33%    {transform:scale(1.06,.94) rotate(4deg)}
+                    66%    {transform:scale(.95,1.05) rotate(-3deg)}}
+  @media (prefers-reduced-motion:reduce){
+    .enzblob,.enzblob svg{animation:none} }
+  /* the name, on the right of the stage */
+  #enzname{position:absolute;right:26px;top:38%;z-index:5;max-width:210px;
+    text-align:right;pointer-events:none}
+  #enzname[hidden]{display:none}
+  #enzname .ek{font-family:var(--font-slab);font-weight:700;font-size:10.5px;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  #enzname .en{font-family:var(--font-slab);font-weight:700;font-size:17px;
+    line-height:1.2;color:#2f7fa8}
+  @media (max-width:920px){ #enzname{right:12px;max-width:150px}
+    #enzname .en{font-size:14px} }
+
   #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
   .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
     text-align:center;white-space:nowrap;line-height:1.15;
@@ -565,7 +601,12 @@
      molecule's name. PNG takes #restart's muted treatment, overriding
      sandbox.css's ink chip; the pathway map's door stacks above Restart. */
   #allsteps{position:fixed;right:26px;bottom:64px;top:auto}
-  #restart,#savepng,#allsteps{z-index:20;
+  #showenz{position:fixed;right:26px;bottom:106px;top:auto}
+  /* pressed = the blobs are on stage, so the chip is filled, like the rail's
+     run numbers: a state, not a hover */
+  #showenz[aria-pressed="true"]{background:var(--ink);color:var(--paper);
+    border-color:var(--ink)}
+  #restart,#savepng,#allsteps,#showenz{z-index:20;
     font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
     color:var(--muted);background:transparent;border:2px solid var(--hair);
     border-radius:var(--radius);padding:6px 15px;cursor:pointer;
@@ -576,7 +617,7 @@
   #savepng{position:absolute;left:26px;bottom:22px;top:auto}
   /* room under the last readout so the buttons never land on it */
   #side{padding-bottom:110px}
-  #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  #restart:hover,#savepng:hover,#allsteps:hover,#showenz:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
   /* ---------- all ten steps, in one column ----------
      THE DETAIL LIVES HERE now the rail is ten numbers: each step's product,
@@ -666,10 +707,10 @@
     #ledger .lhead{margin-bottom:5px}
     #tray{left:12px;top:16px;transform:none}
     /* Both corners tighten in; the caption band between them is narrower here. */
-    #restart,#savepng,#allsteps{padding:5px 12px;font-size:12px}
+    #restart,#savepng,#allsteps,#showenz{padding:5px 12px;font-size:12px}
     #restart,#savepng{bottom:16px}
     #savepng{left:14px} #restart{right:14px}
-    #allsteps{right:14px;bottom:54px}
+    #allsteps{right:14px;bottom:54px} #showenz{right:14px;bottom:92px}
     #bottombar{bottom:18px}
   }
 </style>
@@ -687,10 +728,17 @@
     <!-- UNDER the canvas: glow shows through the alpha, so it sits behind the
          molecule rather than over it — see .sglow -->
     <div id="spotglow"></div>
+    <!-- THE ENZYME, behind the molecule. Under the canvas like #spotglow, so
+         the WebGL alpha lets it through and the sugar sits IN it rather than
+         under a wash. One blob per lane; the name is #enzname, on the right. -->
+    <div id="enzymes" hidden></div>
     <!-- the same disc on the carrier's own bond — see #cglow -->
     <div id="cglow"><div class="sglow"></div><span class="chint">Break off a phosphate group</span></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
+    <!-- ABSOLUTELY POSITIONED FOR NOW: the name of the enzyme running this step,
+         parked on the right of the stage until the readout column is re-laid. -->
+    <div id="enzname" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
     <div id="spots"></div>
@@ -736,6 +784,7 @@
        readouts too), so it sits at the screen's bottom-right.
        Above it, the whole pathway at once — the rail is ten numbers, this is
        the map: all ten steps, named and grouped, in one readable column. -->
+  <button id="showenz" aria-pressed="false"><i class="ph-bold ph-drop"></i> Show enzymes</button>
   <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
   <!-- Not a panel with its own voice — a stack of readouts beside the stage:
@@ -3057,6 +3106,136 @@ function drawTally(){
 // every frame, after the render — same rule as the carrier column
 function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on)); }
 
+/* =============================================================
+ *  THE ENZYME — a blob behind the sugar, and its name
+ * =============================================================
+ *  Every step of this pathway is an enzyme's doing, and until now none of them
+ *  was on screen: the molecules changed by themselves. This is the smallest
+ *  honest fix — a translucent shape the substrate sits inside, plus the
+ *  enzyme's name — behind a toggle, default OFF, because the pathway is the
+ *  lesson and the catalysts are the second reading.
+ *
+ *  DELIBERATELY NOT A PROTEIN. No structure is drawn: the shape is one path,
+ *  the same one for all ten, and it makes no claim about fold, size or active
+ *  site. A drawn enzyme at this scale would be wrong in every one of those.
+ *  (Hemoglobin is where a real protein gets drawn — see hemoglobin-lab.)
+ *
+ *  ONE PER LANE, sized off the molecule's own measured radius, so the two
+ *  halves after step 4 get two enzymes — which is the fact the lanes exist to
+ *  teach: after the split, everything happens twice.
+ *
+ *  THE NAME IS READ OFF THE STEP (`enz`), never typed here.
+ */
+const BLOB_SVG=`<svg viewBox="0 0 531 528" xmlns="http://www.w3.org/2000/svg"><path d="M14.0403 187.57C-36.6082 307.163 59.7274 415.385 144.526 478.781C237.618 537.923 347.243 542.481 400.031 499.359C466.016 445.457 540.795 289.771 529.943 198.244C512.779 53.4757 415.879 9.91198 323.366 0.81307C225.413 -8.82082 64.6887 67.9781 14.0403 187.57Z" fill="#46B2E5" fill-opacity="0.45"/></svg>`;
+// HOW MUCH BIGGER THAN THE MOLECULE. 1 = the blob's box exactly spans the
+// molecule's widest extent; tune here. An enzyme really is far bigger than its
+// substrate, but a blob that says so fills the stage and buries the sugar the
+// lesson is following, so this is a hold, not a scale claim.
+const BLOB_K=1.15;
+const enzEl=document.getElementById('enzymes');
+const enzNameEl=document.getElementById('enzname');
+const enzBtn=document.getElementById('showenz');
+let showEnz=false;
+// The enzyme of the step being described — the same index the heading, tray and
+// coupling box use, so on the review beat it is still the one that just ran.
+const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps) ? STEPS[i] : null; };
+const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
+/* WHICH LANES THE ENZYME IS ON — one GROUP of lanes per blob, not one per lane.
+ * An enzyme molecule holds one substrate molecule, so the count of blobs is a
+ * claim, and "one per lane" makes the wrong one twice in ten:
+ *   · step 4, aldolase: ONE F1,6-BP, one enzyme, and it releases TWO products.
+ *     So it is ONE blob, placed on the sugar and then held still while the
+ *     halves part (placeEnz freezes it). Dropping it onto DHAP alone said
+ *     aldolase kept one half; tracking both said the enzyme slid across the
+ *     stage. Standing still is what an enzyme releasing two products does.
+ *   · step 5, triose-phosphate isomerase: acts on DHAP only. The other lane's
+ *     G3P is standing in the cytosol, in nothing.
+ * Steps 6-10 genuinely run twice, so those get two blobs — the fact the two
+ * lanes exist to teach.
+ * DERIVED, NEVER TYPED: the lanes whose species this step CHANGES. A step that
+ * changes the lane COUNT is one substrate by definition, so it is one group. */
+const enzGroupsFor=i=>{
+  const before=speciesAt(i), after=STEPS[i].species;
+  if(after.length!==before.length) return 'all';
+  return before.map((k,j)=>k===after[j]?-1:j).filter(j=>j>=0).map(j=>[j]);
+};
+const SPLIT_KEY='all';
+const enzGroups=()=>{
+  const g=enzGroupsFor(focusStep());
+  if(g===SPLIT_KEY) return [lanes.map((_,j)=>j)];
+  return g.filter(grp=>grp.every(j=>j<lanes.length));
+};
+// The KEY the blobs are rebuilt on. A split keeps ONE key across the whole step
+// even though the lane count changes under it — see the freeze in placeEnz.
+const enzKey=()=>{ const g=enzGroupsFor(focusStep());
+  return g===SPLIT_KEY ? SPLIT_KEY : g.map(x=>x.join('+')).join(','); };
+function drawEnz(){
+  const st=enzLive()?enzOf():null;
+  enzEl.hidden=!st; enzNameEl.hidden=!st;
+  if(!st){ enzEl.innerHTML=''; return; }
+  enzNameEl.innerHTML=`<div class="ek">Enzyme</div><div class="en">${st.enz}</div>`;
+  placeEnz();
+}
+// Every frame, after the render — same rule as the plates: a projection reads a
+// matrix only the render refreshes.
+const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
+function placeEnz(){
+  if(enzEl.hidden || !lanes.length) return;
+  // One blob per OCCUPIED lane, rebuilt only when that set changes — a running
+  // wiggle must not restart because some other readout redrew, and the split
+  // changes the lanes mid-animation with no refresh between.
+  const on=enzGroups(), key=enzKey();
+  if(enzEl.dataset.on!==key){
+    enzEl.dataset.on=key;
+    enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
+  }
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h) return;
+  camera.updateMatrixWorld();
+  // ortho, so one world unit is the same pixels anywhere in the frame
+  const pxPerWorld=w/(camera.right-camera.left);
+  on.forEach((grp,slot)=>{
+    const el=enzEl.children[slot]; if(!el) return;
+    // FROZEN THROUGH THE SPLIT. Aldolase is ONE enzyme holding one molecule
+    // that becomes two, so its blob is placed once, on the sugar, and then left
+    // alone: tracking the halves apart made it slide across the stage and come
+    // to rest on the G3P, which says the enzyme followed one product. It is the
+    // one thing on stage that should not move while the molecule does.
+    if(key===SPLIT_KEY && el.dataset.set) return;
+    // MEASURED OFF THE MESHES, not off the lane's bookkeeping. Two earlier
+    // versions read the group's position and a spec measure, and both put the
+    // blob off the molecule: the group's origin is not the drawing's centre
+    // (kit/lanes.js parks each species by its own recentring offsets), and a
+    // spec measure is the RESTING molecule — step 1's sugar grows a phosphate
+    // and its centre moves. The atoms on screen answer both at once.
+    let lo=null, hi=null;
+    grp.forEach(j=>{ const l=lanes[j]; if(!l) return;
+      l.g.userData.atomMeshes.forEach(m=>{
+        if(!m||!m.visible) return;
+        const p=m.getWorldPosition(tmpV3);
+        if(!lo){ lo=p.clone(); hi=p.clone(); return; }
+        lo.min(p); hi.max(p);
+      });
+    });
+    if(!lo) return;
+    // SQUARE OVER ONE MOLECULE, off the LARGER extent. Sizing width and height
+    // separately was tried for the single case and is worse: these molecules
+    // are tall and thin, so the blob became a narrow stripe, and stretching the
+    // path into a tall ellipse turned the ambient drift into a visible spin.
+    const d=Math.max(hi.x-lo.x, hi.y-lo.y, 1.2)*pxPerWorld*BLOB_K;
+    enzV.copy(lo).add(hi).multiplyScalar(0.5).project(camera);
+    el.style.width=el.style.height=d.toFixed(1)+'px';
+    el.style.left=((enzV.x*0.5+0.5)*w).toFixed(1)+'px';
+    el.style.top =((-enzV.y*0.5+0.5)*h).toFixed(1)+'px';
+    el.dataset.set='1';
+  });
+}
+enzBtn.onclick=()=>{
+  showEnz=!showEnz;
+  enzBtn.setAttribute('aria-pressed', showEnz?'true':'false');
+  drawEnz();
+};
+
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
@@ -3669,7 +3848,7 @@ const Fork=(()=>{
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
-function refresh(){ drawLedger(); drawTray(); drawTally(); drawAct(); drawRail();
+function refresh(){ drawLedger(); drawTray(); drawTally(); drawEnz(); drawAct(); drawRail();
   drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
@@ -3717,6 +3896,7 @@ L.afterFrame=()=>{
   // anchored to its DOM box, so same schedule as the labels: current camera
   placeCarrierMol();
   placeTallyMols();
+  placeEnz();                  // the blob rides its lane
   placeCarrierGlow();          // after it, so the bond is where the mark goes
 };
 
