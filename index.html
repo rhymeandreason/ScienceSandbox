@@ -111,6 +111,16 @@
     padding: 0; margin: 0;
   }
 
+  .grid.lessons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  @media (max-width: 900px) {
+    .grid.lessons { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .grid.lessons { grid-template-columns: 1fr; }
+  }
+
   .card {
     display: flex;
     flex-direction: column;
@@ -276,8 +286,8 @@
 </header>
 
 <section>
-  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">04</span></div>
-  <ul class="grid">
+  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">05</span></div>
+  <ul class="grid lessons">
     <li><a class="card" href="demos/water-lab.html">
       <span class="idx">01</span>
       <span class="name">Structure of Water</span>
@@ -298,21 +308,21 @@
       <span class="name">Glycolysis</span>
       <span class="note">All ten steps with real molecules</span>
     </a></li>
+    <li><a class="card" href="demos/membrane-lab.html">
+      <span class="idx">05</span>
+      <span class="name">The Membrane</span>
+      <span class="note">What gets through, and what it costs — channels, pumps, ATP</span>
+    </a></li>
   </ul>
 </section>
 
 <section>
-  <div class="head"><h2>Coming soon</h2><span class="rule"></span><span class="count">03</span></div>
+  <div class="head"><h2>Coming soon</h2><span class="rule"></span><span class="count">02</span></div>
   <ul class="grid">
     <li><span class="card soon">
-      <span class="idx">05</span>
+      <span class="idx">06</span>
       <span class="name">Enzymes</span>
       <span class="note">The shape change <em>is</em> what lowers the barrier</span>
-    </span></li>
-    <li><span class="card soon">
-      <span class="idx">06</span>
-      <span class="name">The Membrane</span>
-      <span class="note">A real bilayer — and what osmosis actually moves</span>
     </span></li>
     <li><span class="card soon">
       <span class="idx">07</span>

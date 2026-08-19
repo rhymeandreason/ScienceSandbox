@@ -71,19 +71,20 @@ indexes. Numbers are that edition's flat 1–255 chapter numbering, not OpenStax
 | `molecule-lab` | prototype | [6 Water](https://bccampusbiology.pressbooks.tru.ca/chapter/water/) · [5](https://bccampusbiology.pressbooks.tru.ca/chapter/atoms-isotopes-ions-and-molecules-the-building-blocks/) (CO₂ → carbonic acid, pH) |
 | `glycolysis-lab` | featured | **[34 Glycolysis](https://bccampusbiology.pressbooks.tru.ca/chapter/glycolysis/)** · [33 Energy in Living Systems](https://bccampusbiology.pressbooks.tru.ca/chapter/energy-in-living-systems/) · [39 Regulation of Cellular Respiration](https://bccampusbiology.pressbooks.tru.ca/chapter/regulation-of-cellular-respiration/) (PFK-1) |
 | ↳ mass-action modal | — | [27 Energy and Metabolism](https://bccampusbiology.pressbooks.tru.ca/chapter/energy-and-metabolism/) · [29 The Laws of Thermodynamics](https://bccampusbiology.pressbooks.tru.ca/chapter/the-laws-of-thermodynamics/) |
+| `membrane-lab` | featured | [22 Components and Structure](https://bccampusbiology.pressbooks.tru.ca/chapter/components-and-structure/) · [23 Passive Transport](https://bccampusbiology.pressbooks.tru.ca/chapter/passive-transport/) · [11 Lipids](https://bccampusbiology.pressbooks.tru.ca/chapter/lipids/) · [215 Osmoregulation and Osmotic Balance](https://bccampusbiology.pressbooks.tru.ca/chapter/osmoregulation-and-osmotic-balance/) |
 | **1. Enzymes** | planned | **[31 Enzymes](https://bccampusbiology.pressbooks.tru.ca/chapter/enzymes/)** · [28 Potential, Kinetic, Free, and Activation Energy](https://bccampusbiology.pressbooks.tru.ca/chapter/potential-kinetic-free-and-activation-energy/) |
-| **2. Membrane + osmosis** | planned | **[22 Components and Structure](https://bccampusbiology.pressbooks.tru.ca/chapter/components-and-structure/)** · [23 Passive Transport](https://bccampusbiology.pressbooks.tru.ca/chapter/passive-transport/) · [11 Lipids](https://bccampusbiology.pressbooks.tru.ca/chapter/lipids/) · [215 Osmoregulation and Osmotic Balance](https://bccampusbiology.pressbooks.tru.ca/chapter/osmoregulation-and-osmotic-balance/) |
-| **3. Nucleic acids / DNA** | planned | **[67 DNA Structure and Sequencing](https://bccampusbiology.pressbooks.tru.ca/chapter/dna-structure-and-sequencing/)** · [13 Nucleic Acids](https://bccampusbiology.pressbooks.tru.ca/chapter/nucleic-acids/) |
+| **2. Nucleic acids / DNA** | planned | **[67 DNA Structure and Sequencing](https://bccampusbiology.pressbooks.tru.ca/chapter/dna-structure-and-sequencing/)** · [13 Nucleic Acids](https://bccampusbiology.pressbooks.tru.ca/chapter/nucleic-acids/) |
 | *tier after* — photosynthesis | — | [41 Overview](https://bccampusbiology.pressbooks.tru.ca/chapter/overview-of-photosynthesis/) · [42 Light-Dependent Reactions](https://bccampusbiology.pressbooks.tru.ca/chapter/the-light-dependent-reactions-of-photosynthesis/) · [43 Using Light Energy](https://bccampusbiology.pressbooks.tru.ca/chapter/using-light-energy-to-make-organic-molecules/) |
 | *tier after* — ETC / chemiosmosis | — | [36 Oxidative Phosphorylation](https://bccampusbiology.pressbooks.tru.ca/chapter/oxidative-phosphorylation/) |
 | *dropped* — SA:V | — | [15 Studying Cells](https://bccampusbiology.pressbooks.tru.ca/chapter/studying-cells/) · [17 Eukaryotic Cells](https://bccampusbiology.pressbooks.tru.ca/chapter/eukaryotic-cells/) |
 
 **What the shape shows.** The repo owns Parts II–III (chemistry and
-macromolecules) nearly end to end, and touches Part VII at exactly one chapter.
-Part V (**plasma membranes**, ch. 21–25) and Part XIV (**DNA**, ch. 65–71) have
-no page at all — the two structural holes §2 and §3 exist to fill. Part VI
-(metabolism, ch. 26–31) is half-covered: ATP and the thermodynamics are drawn,
-enzymes are not, which is §1.
+macromolecules) nearly end to end, touches Part VII at exactly one chapter, and
+now covers Part V (**plasma membranes**, ch. 21–25) — `membrane-lab` shipped.
+Part XIV (**DNA**, ch. 65–71) has a page started (`dna-lab`, prototype) but no
+featured lesson yet — the one structural hole §2 exists to fill. Part VI
+(metabolism, ch. 26–31) is half-covered: ATP, the thermodynamics, and transport
+are drawn, enzymes are not, which is §1.
 
 Nothing here proposes covering the book. Chapters 44+ are cells, genetics,
 evolution and organismal biology — different subject matter at a different scale,
@@ -91,14 +92,25 @@ and out of scope for a molecular-visualization repo.
 
 ## Build order
 
-### 0. Finish `glycolysis-lab`
+### Shipped
 
-Half-built and the beefiest thing here. Nothing below starts first.
+**`glycolysis-lab`.** Was "half-built and the beefiest thing here, nothing else
+starts first" — now featured. Its central claim is the thesis stated plainly:
+glycolysis is the worst-drawn pathway in Bio 101 — linear in one book and
+circular in the next, structures then boxes, ATP as a blob, a coin, a lightning
+bolt. Drawing ATP as a molecule whose γ phosphate the student clicks off was the
+fix, not a flourish.
 
-Its central claim is worth stating plainly, because it *is* the thesis: glycolysis
-is the worst-drawn pathway in Bio 101 — linear in one book and circular in the
-next, structures then boxes, ATP as a blob, a coin, a lightning bolt. Drawing ATP
-as a molecule whose γ phosphate the student clicks off is the fix, not a flourish.
+**`membrane-lab`.** Was §2 below; now featured. The bilayer as two rows of
+lollipops, at a geometry and scale that are simply false, proteins drawn as
+beans wedged in — and water movement drawn three contradictory ways, arrows
+both directions, arrows one direction, "water moves toward solute" as if
+pulled. Five steps settle it on one page: bilayer structure, a molecule
+crossing by simple diffusion, a channel's selectivity, a pump spending real
+ATP, and active vs. passive side by side. `diffusion/diffusion.js` — box,
+counters, √t plot, no membrane in it by design — turned out to be the walk;
+this page added the wall. Matrix rows covered: dynamic equilibrium, randomness,
+subcellular↔macroscopic.
 
 ### 1. Enzymes
 
@@ -126,29 +138,7 @@ speeds both directions and moves the equilibrium not at all.
 
 Matrix rows: energy transformation, probability, equilibrium.
 
-### 2. The membrane (osmosis inside it)
-
-**The conflict.** The bilayer as two rows of lollipops, at a geometry and scale
-that are simply false, proteins drawn as beans wedged in. Separately, water
-movement is drawn three contradictory ways — arrows both directions, arrows one
-direction, "water moves toward solute" as if pulled.
-
-**Why.** Nothing in the repo has a membrane, and a student who has seen
-`water-lab` already knows why phosphate heads face water and tails don't — no
-textbook figure connects those two pictures. Watching molecules cross both ways
-while the *net* is what changes settles osmosis visually, with no quiz needed.
-
-Standalone osmosis is **not** a separate page: without the membrane it's a
-counter, and with it it's this page's second half.
-
-**The walk is already built.** `diffusion/diffusion.js` is the box, the counters
-and the √t plot, with no membrane in it by design — this page adds the wall.
-Its `advance()` is where a permeability test goes, and `check-diffusion.js` §9
-asserts no barrier has grown there in the meantime.
-
-Matrix rows: dynamic equilibrium, randomness, subcellular↔macroscopic.
-
-### 3. Nucleic acids / DNA
+### 2. Nucleic acids / DNA
 
 **The conflict.** As bad as it gets — ladder vs helix, bases as jigsaw tabs
 instead of hydrogen bonds, grooves invisible, antiparallel strands drawn
@@ -176,10 +166,10 @@ That one is measured live on the module's own plot, which is the strongest thing
 here and was invisible from the diagram the judgement was made against.
 
 What it got right: **populations of dots make no geometry claim**, so this is
-not a lesson page and does not go on the index. It is plumbing for one — the
-membrane page (§2) puts a wall down the middle of a box whose behaviour a
-student already trusts, and the module stops one step short of that on purpose.
-The same relationship `massaction/` has to the enzymes page.
+not a lesson page and does not go on the index. It was plumbing for one —
+`membrane-lab` (shipped) put a wall down the middle of a box whose behaviour a
+student already trusts, and the module stopped one step short of that on
+purpose. The same relationship `massaction/` has to the enzymes page.
 
 The size-to-rate half does play to the thesis after all: a dot's radius is read
 from the spec's own coordinates, so "why O₂ crosses and glucose doesn't" is a
@@ -300,9 +290,9 @@ Three notes on the deltas:
 ## Tier after
 
 **Photosynthesis and the electron transport chain.** Both badly drawn, both real
-gaps, both hemoglobin-sized builds. Chemiosmosis needs the membrane page to exist
-first, so they are downstream of §2 by construction — not a reason to widen scope
-now.
+gaps, both hemoglobin-sized builds. Chemiosmosis needed the membrane page to
+exist first — `membrane-lab` shipped, so that dependency is clear — not a
+reason to widen scope now.
 
 **Pedagogy retrofits.** Predict-before-you-see: gate a step on the student
 committing to an answer, then play it. Glycolysis is the natural first host — ask

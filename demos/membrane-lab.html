@@ -105,6 +105,27 @@
      the line points at the molecule. */
   .annot-dot { display:none; }
 
+  /* THE LESSON'S NAME, on the step row's own line. Left-aligned against
+     the tabs rather than centred over the caption: centred, it reads as a
+     heading for the sentence under it, and the sentence changes every step
+     while the title does not.
+
+     CENTRED ON THE ROW, NOT ON A GUESSED OFFSET. The first version pinned
+     it to the chrome's bottom padding and matched a tab's height by hand,
+     which put it 22px low — the tab row is not flush with the bottom of
+     the chrome, and a hand-copied height goes stale the moment a tab's
+     padding or font changes. #bar is the row, the title centres against
+     it, and the two now track each other whatever either becomes.
+
+     Out of flow, so it cannot push the tabs around or grow kit/fit.js's
+     reserve; pointer-events stay off, since only the tabs are clickable.
+     Marker face, as glycolysis-lab titles its own stage. */
+  #bar { position:relative; }
+  #pagetitle { position:absolute; left:18px; top:50%;
+               transform:translateY(-50%); margin:0; line-height:1;
+               font-family:var(--font-marker); font-weight:400; font-size:22px;
+               letter-spacing:.2px; color:var(--ink); opacity:.75;
+               white-space:nowrap; }
   #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   #steps button {
     font:inherit; font-size:13px; padding:7px 13px; border-radius:999px;
@@ -192,6 +213,8 @@
     .otally b { font-size:34px; }
     /* Narrower means more wrapping, so the reserve grows with it. */
     #cap { font-size:15px; min-height:5.6em; }
+    /* Beside a wrapped two-row tab strip it lands on top of the tabs. */
+    #pagetitle { display:none; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
 </style>
@@ -290,7 +313,10 @@
   </div>
   <div id="chrome">
     <p id="cap"></p>
-    <nav id="steps" aria-label="lesson steps"></nav>
+    <div id="bar">
+      <h1 id="pagetitle">Cell Membrane</h1>
+      <nav id="steps" aria-label="lesson steps"></nav>
+    </div>
   </div>
 </div>
 
