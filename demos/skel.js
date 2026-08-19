@@ -53,6 +53,14 @@
     CN: 1.47,   // C–N single — an amine, and a nucleoside's glycosidic bond
     OP: 1.60,   // P–O ester (the bridging oxygen)
     PO: 1.50,   // P–O terminal (P=O 1.48 / P–O⁻ 1.51, delocalised)
+    // Sulfur, for the one bond coenzyme A exists to make. A THIOESTER is why
+    // acetyl-CoA is a carrier at all: C–S is long and weak next to C–O, and
+    // sulfur's lone pairs are too diffuse to conjugate into the carbonyl the
+    // way an ester's oxygen does — so the acyl group is barely stabilised and
+    // gives itself up readily. Drawing it at an ester's 1.43 would throw away
+    // the visible half of that.
+    CS: 1.82,   // C–S single (thioester, cysteine)
+    SH: 1.34,   // S–H thiol
   };
   const TET = 109.5, SP2 = 120;
 

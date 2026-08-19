@@ -257,10 +257,11 @@ ten. `now` is a snapshot; the one-liner above is the live count.
 | `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |
 | **`mol-lipids.js`** | glycerol ✓ · phospholipid, cholesterol, triglyceride | 1 | ~5 | **membrane** |
 | **`mol-nucleic.js`** | five bases, a nucleotide, A–T and G–C pairs | — | ~9 | **DNA** |
-| *deferred* `mol-photosynthesis.js` | chlorophyll a, acetyl-CoA, FAD/FADH₂ | — | ~6 | photosynthesis / ETC |
+| *deferred* `mol-photosynthesis.js` | chlorophyll a | — | ~4 | photosynthesis / ETC |
 | *not now* `mol-carbs.js` | — carbs live in `mol-pathways` + `mol-contrast` | — | — | no lesson asks |
 | *not now* `mol-aminoacids.js` | — 7 specs in `mol-monomers`/`mol-contrast`, 20 side chains in `residues.js` | — | — | no lesson asks |
-| *not now* `mol-signaling.js`, `mol-ecology.js`, `mol-krebs.js` | — | — | — | out of scope (ch. 44+) |
+| **`mol-krebs.js`** | the six acids ✓ · acetyl-CoA, succinyl-CoA, FAD/FADH₂ | 7 | ~11 | **Krebs** |
+| *not now* `mol-signaling.js`, `mol-ecology.js` | — | — | — | out of scope (ch. 44+) |
 
 Three notes on the deltas:
 

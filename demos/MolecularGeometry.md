@@ -157,9 +157,13 @@ feature is the whole point. That feature must be exactly right **and asserted by
 | glucose vs galactose | one –OH orientation | why galactosemia is a disease | ✓ `stereo:{axial}` |
 | L- vs D-amino acids | handedness | why life is homochiral | ✓ `chirality` |
 | purine vs pyrimidine | two rings vs one | why A–T and G–C are equal width | ✓ `topology` |
+| succinate vs fumarate | one C=C, *trans* | why the cycle's one oxidation makes FADH₂, not NADH | ✓ `cis` |
 
-All six are `contrast-lab.html`. Three of them are worth reading before adding a
-seventh:
+The first six are `contrast-lab.html`; succinate/fumarate is the first contrast
+that is *not*, which is worth noticing — a contrast pair does not need a page
+that draws them side by side, only a lesson whose point rests on the one
+feature. Here that is a whole step of the citric-acid cycle. Three of the
+originals are worth reading before adding another:
 
 - **L-/D-alanine needed no new assertion.** `chirality` was already generic over
   both hands (`actual = vol>0?'L':'D'`) — it exists to catch a reflection
@@ -206,11 +210,12 @@ and `check-molecules.js` fails if the geometry disagrees:
 | `stereo:'all-equatorial'` | every ring substituent equatorial | glucose |
 | `stereo:{axial:[i,…]}` | exactly these ring atoms are axial, all others equatorial | galactose (C4) |
 | `stereo:{faces:{i:'a',…}}` | which ring atoms' substituents share a face — checked as a *relative* pattern, since the ring normal's sign is arbitrary | ribose, deoxyribose |
-| `topology:{rings:[…],fused:true}` | ring count, ring sizes, and that a bicycle shares an edge | purine, pyrimidine |
+| `topology:{rings:[…],fused:true,linear}` | ring count, ring sizes, that a bicycle shares an edge, and — with `linear` — that three or more fused rings run in a ROW rather than bending, checked as collinear ring centroids (pass an atom list to scope it to one ring system). `fused` alone cannot tell anthracene from phenanthrene | purine, pyrimidine; `linear` on FAD/FADH₂ |
 | `chirality:'L'` | signed volume over CIP priorities | the amino acids |
 | `cis:{atoms:[i,j,k,l],value}` | i-j-k-l dihedral about the j-k (C=C) bond is ~0° if `value` is true, ~180° if false | palmitoleate |
 | `tautomer:{nh:[…]}` | exactly these ring nitrogens carry a hydrogen — the fetched free-base tautomer is not always DNA's | the four nucleobases |
 | `wc:{partner,bonds:[{self,role,partnerAtom}]}` | the Watson–Crick edge: each donor/acceptor and the partner atom it meets, checked to be reciprocal and role-swapped on the partner spec | the four nucleobases |
+| `chiral:[{at,priority,hand}]` | the four substituents at a stereocentre, named in CIP order 1→4, and the hand that order implies — a signed volume, checked with a guard that priority 4 really is opposite the other three. The *ranking* is the spec's to state (CIP needs a substituent-tree walk the checker does not do); the *geometry* is the checker's | malate, isocitrate |
 | `glycosidic:{anomeric,bridge,partner,config,link}` | the bridging O joins one ring's anomeric carbon to carbon 4 of *another* ring, and the bond leaving the anomeric carbon is axial (`'alpha'`) or equatorial (`'beta'`) | maltose, cellobiose |
 
 `{faces}` deliberately cannot catch a *global* mirror — flip every substituent and

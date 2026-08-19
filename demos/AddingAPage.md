@@ -15,6 +15,7 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 <script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
 <script src="mol-monomers.js"></script>    <!-- the domains this page shows -->
+<script src="mol-krebs.js"></script>       <!-- the citric-acid cycle + CoA/FAD; needs skel.js -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
 <script src="kit/motion.js"></script>     <!-- the timeline, if anything animates -->
 <script src="kit/molgraph.js"></script>   <!-- if the page asks a spec a question -->

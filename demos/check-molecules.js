@@ -54,13 +54,28 @@
  *                                the partner must name the same atoms back with
  *                                the donor/acceptor roles swapped.
  *    topology:{ rings:[…],        ring count, ring sizes, and (fused) that some
- *               fused:true }      pair shares an edge     [purine/pyrimidine]
+ *               fused:true,       pair shares an edge     [purine/pyrimidine]
+ *               linear:true|[…] } and (linear) that three or more rings fuse in
+ *                                 a ROW rather than bending — checked as
+ *                                 collinear ring centroids. Pass an ATOM LIST to
+ *                                 scope it to one ring system in a molecule that
+ *                                 has others. `fused` cannot tell anthracene
+ *                                 from phenanthrene; for a flavin that is the
+ *                                 whole molecule            [FAD/FADH₂]
  *    gly:{ phosphates:n }         n phosphorus atoms, and — where the spec also
  *                                 names pa/pb/pg — that they form ONE chain
  *                                 bridged by oxygen with γ on the end [ATP]
  *    chirality:'L'                signed volume over CIP priorities
  *                                 N > C(carboxyl) > R > H. Requires `pep`, so
  *                                 amino acids only        [the amino acids]
+ *    chiral:[{ at:i,              the same test, for any stereocentre: the four
+ *      priority:[a,b,c,d],        substituents in CIP order 1→4, and which hand
+ *      hand:'R'|'S' }]            that makes. The PRIORITIES ARE THE SPEC'S to
+ *                                 state — ranking them is CIP, which needs a
+ *                                 full substituent-tree walk this checker does
+ *                                 not have — and the GEOMETRY is the checker's.
+ *                                 A mirrored build keeps every bond length and
+ *                                 angle and flips only this  [malate, isocitrate]
  *    cis:{ atoms:[i,j,k,l],       the i-j-k-l dihedral about the j-k bond is
  *           value:true }         ~0° (cis/Z) if true, ~180° (trans/E) if
  *                                 false — a double bond's C=C length and its
@@ -101,6 +116,7 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1],
                          a[2] * b[0] - a[0] * b[2],
                          a[0] * b[1] - a[1] * b[0]];
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const unit = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
 // Signed torsion (degrees) of p0-p1-p2-p3 about the p1-p2 bond: 0° means p0
 // and p3 eclipse on the SAME side (cis/Z), ±180° means opposite sides
@@ -464,6 +480,66 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+
+  // ---- any stereocentre (R/S) ------------------------------------------
+  /* The check above is the amino acids': it hard-codes an α-carbon's backbone
+   * indices and is gated on `pep`, so nothing else in the library could state
+   * its handedness at all. The Krebs acids need it — fumarase makes (S)-malate
+   * and only that, aconitase makes one of isocitrate's four stereoisomers —
+   * and those are the same class of error as a mirrored amino acid: identical
+   * bond lengths, identical angles, identical render, wrong molecule.
+   *
+   * THE SPEC STATES THE PRIORITIES, THE CHECKER MEASURES THE GEOMETRY. Ranking
+   * four substituents is CIP, which needs a recursive walk out from each one
+   * comparing atomic numbers sphere by sphere; that is a real implementation
+   * and not one to fake with a heuristic that would quietly be wrong on the
+   * cases it matters for. So the split is: the author writes down the order
+   * (chemistry a spec author knows and can cite), and this measures the sign
+   * that order implies. It catches exactly what it should — a reflected build,
+   * or an axial/equatorial slot picked the other way — and it cannot catch a
+   * mis-ranked priority list. That limit is why `priority` is written out per
+   * centre in the spec rather than derived.
+   *
+   * THE SIGN CONVENTION, calibrated against the check above rather than
+   * asserted: that one takes N > C(carboxyl) > R > H and calls a POSITIVE
+   * signed volume L — and L-alanine is (S). So positive is S here too, which
+   * is the standard reading: with priority 4 pointing away, 1→2→3
+   * counterclockwise is S, and a right-handed (v1,v2,v3) triple is exactly
+   * what that looks like from the far side of v4.
+   */
+  if (mol.chiral) {
+    mol.chiral.forEach(c => {
+      const [p1, p2, p3, p4] = c.priority;
+      const C = P(c.at);
+      const v1 = sub(P(p1), C), v2 = sub(P(p2), C), v3 = sub(P(p3), C),
+            v4 = sub(P(p4), C);
+      // Sanity first: the four named substituents must actually BE the four,
+      // i.e. the lowest-priority one has to sit opposite the other three. A
+      // priority list naming an atom two bonds out still produces a tidy
+      // signed volume and a confident, meaningless verdict.
+      const opp = dot3(add3(add3(v1, v2), v3), v4);
+      if (opp > 0) {
+        chiralFails++;
+        console.log(`   CHIRAL FAIL: at ${label(c.at)}, ${label(p4)} is not on the `
+          + `opposite side of the other three — the priority list is not this `
+          + `centre's four substituents.`);
+        return;
+      }
+      const vol = dot3(cross(v1, v2), v3);
+      const actual = vol > 0 ? 'S' : 'R';
+      if (actual !== c.hand) {
+        chiralFails++;
+        console.log(`   CHIRAL FAIL: ${label(c.at)} declares (${c.hand}) but the `
+          + `geometry is (${actual}) — signed volume ${vol.toFixed(2)} over `
+          + `${c.priority.map(label).join(' > ')}`);
+        console.log(`     A mirrored frame inverts this and changes NOTHING else.`);
+      } else {
+        console.log(`   chiral OK: ${label(c.at)} is (${actual}) as declared `
+          + `(signed volume ${vol.toFixed(2)} over ${c.priority.map(label).join(' > ')})`);
+      }
+    });
+  }
+
   // ---- alkene cis/trans --------------------------------------------------
   // A cis double bond has the same C=C bond length and the same ~120° angles
   // at each alkene carbon as trans does — the render, the bond-length table
@@ -516,6 +592,56 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
         stereoFails++;
         console.log(`   TOPOLOGY FAIL: spec declares fused rings but they share `
           + `${shared} atom(s) — a fused bicycle shares an EDGE (2 atoms).`);
+      } else if (mol.topology.linear) {
+        /* LINEAR vs ANGULAR FUSION, for a ring system of three or more.
+         * `fused` says some pair shares an edge; it cannot tell anthracene from
+         * phenanthrene, and for a flavin that distinction is the molecule: a
+         * linear isoalloxazine is the chromophore that does redox chemistry and
+         * an angular one is a different compound with a different spectrum.
+         * Fuse the third ring onto the wrong edge and every bond length, every
+         * angle and every rendered pixel stays plausible.
+         *
+         * Checked as COLLINEAR CENTROIDS: for a linear acene the middle ring's
+         * centre sits on the line between the outer two, so the largest pairwise
+         * centroid distance equals the sum of the other two. Angular fusion
+         * bends that path and the sum overshoots. Tolerance is 0.15 Å — a real
+         * bend is over an ångström, and this is not trying to police a mild
+         * pucker. */
+        /* SCOPED BY ATOMS, not by ring index. `linear` may be `true` (every
+         * ring in the molecule) or a LIST OF ATOMS naming the system it is
+         * about — FAD passes its flavin, because that molecule's other two
+         * rings are a ribose and an adenine sitting off at the far end of a
+         * pyrophosphate and have no business in the test. Indices into
+         * findRings' output would have been the shorter spelling and a trap:
+         * that order is an artefact of the search, so a spec pinned to it
+         * silently retargets when an atom is added. */
+        const scope = Array.isArray(mol.topology.linear)
+          ? new Set(mol.topology.linear) : null;
+        const use = scope ? rings.filter(r => r.every(i => scope.has(i))) : rings;
+        const cen = use.map(r => [0, 1, 2].map(k =>
+          r.reduce((t, i) => t + P(i)[k], 0) / r.length));
+        let d = [];
+        for (let a = 0; a < cen.length; a++)
+          for (let b = a + 1; b < cen.length; b++)
+            d.push(Math.hypot(...[0,1,2].map(k => cen[a][k] - cen[b][k])));
+        d.sort((x, y) => x - y);
+        const span = d[d.length - 1], chain = d.slice(0, d.length - 1)
+          .reduce((t, x) => t + x, 0);
+        if (cen.length < 3) {
+          stereoFails++;
+          console.log(`   TOPOLOGY FAIL: 'linear' needs three or more rings to `
+            + `mean anything; found ${cen.length}.`);
+        } else if (Math.abs(chain - span) > 0.15) {
+          stereoFails++;
+          console.log(`   TOPOLOGY FAIL: spec declares LINEAR fusion but the ring `
+            + `centroids bend — the outer pair is ${span.toFixed(2)} Å apart `
+            + `while the path through the middle is ${chain.toFixed(2)} Å. `
+            + `Angular fusion renders as plausibly as linear does.`);
+        } else {
+          console.log(`   topology OK: rings [${sizes.join(', ')}], fused across `
+            + `${shared} shared atoms, LINEAR (centroid span ${span.toFixed(2)} Å `
+            + `= path ${chain.toFixed(2)} Å)`);
+        }
       } else {
         console.log(`   topology OK: rings [${sizes.join(', ')}], fused across ${shared} shared atoms`);
       }

@@ -79,7 +79,6 @@ const KNOWN_ABSENT = {
   'mol-photosynthesis.js': 'LESSONS-ROADMAP.md tier-after — deferred',
   'mol-carbs.js':          'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',
   'mol-aminoacids.js':     'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',
-  'mol-krebs.js':          'LESSONS-ROADMAP.md — out of scope',
   'mol-signaling.js':      'LESSONS-ROADMAP.md — out of scope',
   'mol-ecology.js':        'LESSONS-ROADMAP.md — out of scope',
   // Build outputs and runtime strings, not repo files.

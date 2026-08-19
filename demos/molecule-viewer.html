@@ -268,6 +268,7 @@
 <script src="skel.js"></script>
 <script src="mol-pathways.js"></script>
 <script src="mol-compare.js"></script>
+<script src="mol-krebs.js"></script>
 <!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
      — the same library and the same strings contrast-lab.html uses. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
@@ -335,6 +336,36 @@ const SHELF=[
             // ring + the carbon that took the hydride + both its H + the amide
             atoms:s=>{ const n=s.gly.nic;
               return [...n.ring, n.c4, ...n.h, n.amide.c, n.amide.o, n.amide.n]; } },
+  },
+  { key:'acetylcoa', card:'Acetyl-CoA',
+    blurb:'The cell’s spendable <b>carbon</b>, and the third carrier built on '
+        + 'the same adenine-and-ribose handle. Almost all of it is grip: a '
+        + 'nucleotide, a pyrophosphate, and a long vitamin-B5 arm, ending in one '
+        + 'sulfur. Fat, sugar and most amino acids all arrive here.',
+    focus:{ title:'The thioester',
+            body:'Two carbons, held by <b>sulfur</b> rather than oxygen. Sulfur '
+               + 'stabilises a carbonyl far less well than oxygen does, so the '
+               + 'acyl group is barely held on — which is exactly why this bond '
+               + 'is worth breaking and an ordinary ester’s is not.',
+            atoms:s=>[s.krebs.thiol, ...s.krebs.acyl] },
+  },
+  /* NO `alt:` HERE, deliberately. `alt` is the DERIVATION toggle — the same
+   * molecule built the other way, `atpSkel` against `atp` — and FAD is not
+   * that. It is a different oxidation state, two hydrogens fewer, and hanging
+   * it off the measured/idealised control would have the UI assert something
+   * false about both. It is registered as its own spec; the focus below names
+   * the two atoms that are the whole difference. */
+  { key:'fadh2', card:'FADH₂',
+    blurb:'The carrier the citric-acid cycle uses where NAD⁺ will not do. Taking '
+        + 'two hydrogens off a plain C–C releases less than oxidising an alcohol, '
+        + 'and the flavin sits at the lower potential that can accept it — which '
+        + 'is why the cycle’s ledger reads 3 NADH and 1 FADH₂.',
+    focus:{ title:'The two hydrogens',
+            body:'The whole difference between this and <b>FAD</b>: one H on N1 '
+               + 'and one on N5 of the flat tricycle. The oxidised form is this '
+               + 'molecule with exactly these two atoms gone — which is why both '
+               + 'are built from one skeleton and neither is drawn twice.',
+            atoms:s=>s.krebs.redox||[] },
   },
 ];
 
