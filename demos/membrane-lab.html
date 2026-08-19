@@ -494,6 +494,14 @@ function chargedIon(kind) {
    That is the entire point: the number on screen says FREE water, and the
    water that is missing from it is visibly stuck to the salt. */
 const OCTA = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+/* Ion-to-shell-water distance, and the outer radius of the whole hydrated
+   complex. Both are derived from the same numbers hydrate() builds with,
+   so a change to the shell cannot leave the collision radius behind. */
+const rO_ = () => MolLib.PALETTE.radii.O * (EXAG / SCALE);
+const shellDist = kind => (ionRadius(kind) + rO_()) * (kind === 'CL' ? 1.32 : 1.02);
+const bulkRadius = t => t.obj.userData.shell && t.obj.userData.shell.length
+  ? shellDist(t.kind) + rO_()
+  : (ELEMENT_OF[t.kind] ? ionRadius(t.kind) : 3);
 const _wq = new THREE.Quaternion();
 const _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
 function hydrate(group, kind) {
@@ -510,7 +518,7 @@ function hydrate(group, kind) {
   /* Contact for the cation, a hydrogen's width further for the anion —
      water-lab measures 2.7 Å and 3.6 Å for the same two shells, and the
      ratio is what a student can read off the picture. */
-  const d = (rIon + rO) * (kind === 'CL' ? 1.32 : 1.02);
+  const d = shellDist(kind);
 
   /* THE CHARGE BADGE STAYS ON THE ION, and is drawn OVER the shell. A
      hydrated ion with no sign says the water NEUTRALISED it, which is the
@@ -747,6 +755,55 @@ function rndClear(span) {
    walker cannot drift into a lane it was spawned clear of. */
 const laneGap = x => Math.min(Math.abs(x - LANE), Math.abs(x + LANE));
 
+/* ---- conduction is a HOP, not a conveyor ----
+   The queue used to travel at one constant speed in a straight line, which
+   draws an escalator: something carrying ions along. A channel carries
+   nothing. An ion sits in a filter site, held there, until another arrives
+   behind it and two +1 charges in one narrow file cannot both stay — the
+   leading one is pushed out. That is knock-on conduction, and it is why a
+   channel can hold each ion briefly and still pass millions a second.
+
+   Modelled as dwell-then-hop: inside the protein an ion holds position for
+   a short random wait, then crosses one site quickly. Outside it swims.
+   The wait is drawn per hop, so the file breathes instead of ticking, and
+   no two ions end up synchronised.
+
+   WHAT THIS IS NOT: a force model. The push is not computed from charge —
+   the wait simply shortens when something is close behind, which is the
+   same thing to watch and does not pretend to a number nobody measured. */
+const HOP = { wait:[0.10, 0.30], move:0.10, crowd:0.35 };
+function tickQueue(t, dt) {
+  if (Math.abs(t.y) > T.height) { t.hop = null; return false; }   // out in the bulk
+  if (!t.hop) t.hop = { wait: rnd(HOP.wait[0], HOP.wait[1]), t:0, moving:false };
+  const h = t.hop;
+  h.t += dt;
+  if (!h.moving) {
+    if (h.t < h.wait) { t.obj.position.y = t.y; return true; }    // held at its site
+    h.moving = true; h.t = 0;
+  }
+  /* One site's worth of travel, taken fast — `step` is the file's spacing,
+     so a hop lands where the ion ahead was standing. */
+  const step = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
+  t.y += Math.sign(t.vy) * (step / HOP.move) * dt;
+  if (h.t >= HOP.move) {
+    h.moving = false; h.t = 0;
+    const behind = queueBehind(t);
+    h.wait = behind < step * 1.8 ? HOP.crowd * rnd(0.3, 0.8)     // knocked on
+                                 : rnd(HOP.wait[0], HOP.wait[1]);
+  }
+  t.obj.position.y = t.y;
+  return true;
+}
+function queueBehind(t) {
+  let best = Infinity;
+  for (const o of travellers) {
+    if (o === t || o.lane !== t.lane) continue;
+    const d = (t.y - o.y) * Math.sign(t.vy);      // >0 means o is behind t
+    if (d > 0 && d < best) best = d;
+  }
+  return best;
+}
+
 /* Ions in single file do not touch. They are all +1, so they repel — and
    in a real K⁺ channel they queue with a water molecule between each pair,
    which is roughly this gap. Spawning them spaced is not enough on its own:
@@ -776,9 +833,16 @@ function keepApart(list) {
   const line = list.slice().sort((a, b) => a.y - b.y);
   for (let pass = 0; pass < 3; pass++)
     for (let i = 1; i < line.length; i++) {
+      /* The gap a PAIR needs, not one number for all pairs. ION_GAP was
+         measured off a bare K⁺, so a queue of hydrated ions filed through
+         at that spacing with their shells lapped over each other — and an
+         ion that has just shed at the mouth needs less room than the one
+         still dressed behind it. Both fall out of bulkRadius(). */
+      const need = Math.max(ION_GAP,
+                            bulkRadius(line[i]) + bulkRadius(line[i - 1]) + 1.2);
       const d = line[i].y - line[i - 1].y;
-      if (d < ION_GAP) {
-        const push = (ION_GAP - d) / 2;
+      if (d < need) {
+        const push = (need - d) / 2;
         line[i].y += push; line[i - 1].y -= push;
       }
     }
@@ -808,7 +872,13 @@ function lateral(t, dt) {
   t.x += t.vx * dt; t.z += t.vz * dt;
   if (t.x > x1) { t.x = x1; t.vx = -t.vx; }
   if (t.x < x0) { t.x = x0; t.vx = -t.vx; }
-  if (t.keepout && laneGap(t.x) < t.keepout) {
+  /* A PROBER IS ALLOWED INTO THE LANE. Na⁺ is the ion this step says is
+     turned away, and `keepout` was keeping it so far from both pores that
+     it was never seen near one — the central claim went undrawn while a
+     sodium milled about in the middle distance. A prober suspends its
+     keepout while it is making an approach; advance() turns it back at the
+     mouth, which is where the refusal actually happens. */
+  if (t.keepout && !t.probing && laneGap(t.x) < t.keepout) {
     /* Pushed back out of whichever lane it wandered into, on the side it
        came from — reflecting through the pore would teleport it across. */
     const near = Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE;
@@ -826,10 +896,105 @@ function tumble(t, dt) {
   t.obj.rotation.z += dt * t.spin.z;
 }
 
+/* HYDRATED IONS DO NOT INTERPENETRATE. A shell is 6 A of water and two of
+   them overlapping is not a crowd, it is one blob with a sign in it — and
+   at this step the shells ARE the argument, so a pair that has merged
+   quietly deletes the thing the student is being asked to look at.
+
+   Positions only, like keepApart(): a spacing rule, not a force. Radii come
+   from bulkRadius(), so an ion that has just shed at the mouth immediately
+   needs less room, which is exactly right — a stripped ion IS smaller, and
+   that is why it fits. */
+function keepClear(list) {
+  for (let pass = 0; pass < 2; pass++)
+    for (let i = 0; i < list.length; i++)
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        const ra = bulkRadius(a), rb = bulkRadius(b);
+        const min = ra + rb;
+        let dx = b.obj.position.x - a.obj.position.x;
+        let dy = b.y - a.y;
+        let dz = b.obj.position.z - a.obj.position.z;
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 >= min * min || d2 < 1e-6) continue;
+        /* A QUEUED ION IS NOT SHOVED OFF ITS LANE — it is in single file
+           down a pore, and sideways is the wall. So the free partner takes
+           the whole correction; two free ions split it; two queued ions are
+           left to keepApart(), which knows about lanes. */
+        const aFree = a.lane == null, bFree = b.lane == null;
+        if (!aFree && !bFree) continue;
+        const share = (aFree && bFree) ? 0.5 : 1;
+        const d = Math.sqrt(d2), push = (min - d) * share / d;
+        dx *= push; dy *= push; dz *= push;
+        if (aFree) { a.x -= dx; a.y -= dy; a.z -= dz;
+                     a.obj.position.set(a.x, a.y, a.z); }
+        if (bFree) { b.x += dx; b.y += dy; b.z += dz;
+                     b.obj.position.set(b.x, b.y, b.z); }
+      }
+}
+
+/* ---- probing a pore, and being refused at it ----
+   The visit is the claim. An ion drifting in the bulk says nothing; an ion
+   that comes to the mouth, sits in it, and leaves still dressed is the
+   whole of "Na⁺ does not get through this channel" — and it is what really
+   happens, constantly. A sodium samples a K⁺ channel's vestibule millions
+   of times a second and fails the filter every time; exclusion is not a
+   wall further out, it is a rejection AT the site.
+
+   Cheap and explicit: pick a pore, steer to its mouth, dwell, then leave.
+   No forces, because there is no force here to model honestly — what turns
+   the ion back is a free-energy barrier, and a spring pretending to be one
+   would be a worse lie than a scripted visit that is labelled as one. */
+const mix = (a, b, k) => a + (b - a) * k;
+const PROBE = { in:1.5, sit:0.9, out:1.4 };     // seconds per leg
+function startProbe(t) {
+  const side = t.y >= 0 ? 1 : -1;
+  t.probing = {
+    phase:'in', k:0,
+    lane: Math.random() < .5 ? -LANE : LANE,
+    x0:t.x, y0:t.y, z0:t.z,
+    /* Where it goes afterwards: back out into its own compartment, clear
+       of the lane it just failed at. Chosen at the start so the retreat is
+       a path and not a teleport. */
+    xEnd: (Math.random() < .5 ? -1 : 1) * rnd(LANE + CHANNEL_KEEPOUT, SPREAD * 0.75),
+    yEnd: side * rnd(T.height * 1.3, OFFSCREEN * 0.8),
+    zEnd: rnd(-10, 10),
+  };
+}
+function tickProbe(t, dt) {
+  const p = t.probing;
+  const side = p.y0 >= 0 ? 1 : -1;
+  /* The mouth, not the mid-plane. It gets as far as the vestibule and no
+     further — the filter is where it is refused. */
+  const mouthY = side * (T.height + bulkRadius(t) * 0.9);
+  p.k += dt / PROBE[p.phase];
+  const e = Math.min(1, p.k), sm = e * e * (3 - 2 * e);
+  if (p.phase === 'in') {
+    t.x = mix(p.x0, p.lane, sm);
+    t.y = mix(p.y0, mouthY, sm);
+    t.z = mix(p.z0, 0, sm);
+    if (e >= 1) { p.phase = 'sit'; p.k = 0; }
+  } else if (p.phase === 'sit') {
+    /* Jostling in the mouth, not docked: it is being sampled and refused,
+       which is a fast repeated failure rather than a stay. */
+    t.x = p.lane; t.z = 0;
+    t.y = mouthY + Math.sin(p.k * 22) * 0.6;
+    if (e >= 1) { p.phase = 'out'; p.k = 0; p.x0 = t.x; p.y0 = t.y; p.z0 = t.z; }
+  } else {
+    t.x = mix(p.x0, p.xEnd, sm);
+    t.y = mix(p.y0, p.yEnd, sm);
+    t.z = mix(p.z0, p.zEnd, sm);
+    if (e >= 1) { t.probing = null; repick(t); }
+  }
+  t.obj.position.set(t.x, t.y, t.z);
+}
+
 /* Where a traveller is allowed to be. The bilayer's interior is oily: a
    charged or strongly polar thing does not enter it, and this is the one
    rule that makes step 2 a demonstration instead of a caption. */
 function advance(t, dt) {
+  if (t.probing) { tickProbe(t, dt); return; }      // on its scripted visit
+  if (t.lane != null && tickQueue(t, dt)) return;   // hopping through the filter
   const inCore = Math.abs(t.y) < HALF;
   if (t.blocked) {
     /* Bounces off the head-group layer. Turned back AT the surface, not
@@ -905,6 +1070,7 @@ function advance(t, dt) {
    The steps.
    --------------------------------------------------------------------- */
 let crossings = { up:0, down:0 };
+let probeWait = 1.0;                    // seconds until the next Na⁺ tries a pore
 /* RECENT net, not lifetime. crossings.up/down are running totals and they
    never come back down, so once the walk built a lead the arrow froze at
    "net 41 out" and went on saying water was leaving long after the two
@@ -1514,6 +1680,19 @@ function tick(dt) {
     if (s.id === 'channel') {
       keepApart(travellers.filter(t => t.lane === -LANE));
       keepApart(travellers.filter(t => t.lane ===  LANE));
+      keepClear(travellers.filter(t => ELEMENT_OF[t.kind]));
+      /* SEND A SODIUM TO THE DOOR, on and off, so the refusal is something
+         the student watches happen rather than infers from an ion that
+         never goes near one. One at a time: two simultaneous visits read as
+         a queue, and this ion is not queueing, it is failing. */
+      if (!travellers.some(t => t.probing)) {
+        probeWait -= dt;
+        if (probeWait <= 0) {
+          const free = travellers.filter(t => t.kind === 'NA' && t.lane == null);
+          if (free.length) startProbe(free[(Math.random() * free.length) | 0]);
+          probeWait = rnd(1.6, 3.4);
+        }
+      }
       /* WHERE THE COAT COMES OFF: at the mouth, not in the middle. An ion
          that sheds halfway down has already entered the filter wearing a
          shell that does not fit in it.
