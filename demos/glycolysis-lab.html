@@ -963,6 +963,7 @@ font-size: 20px;
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <script src="annotate.js"></script>
+<script src="reaction/reaction.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
 <script src="massaction/massaction.js"></script>
 <!-- WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page says it
@@ -1665,54 +1666,6 @@ function swapLane(j,key){
   lanes=LANES.lanes;
   computeFit();
 }
-
-const anchorWorld=(l,which)=>{
-  const idx=M[l.key].gly[which];
-  return idx==null? l.g.getWorldPosition(new THREE.Vector3())
-                  : l.g.userData.atomWorld(idx);
-};
-
-/* ---- the charge badge ------------------------------------------------
- * AN EVENT, NOT A LABEL. Every molecule from step 1 on is an anion, so badges
- * that stayed would be up the whole lesson — two lanes of them after the split.
- * (Cf. popGlow: an always-on mark only says "something is true here", which the
- * plate and ledger say better.) So it appears on the beat the charge is
- * ACQUIRED and goes — molecule-builder's mark of an ion FORMING.
- *
- * Text is passed, not derived: it is the GROUP's charge, not the molecule's — a
- * phosphate monoester is 2− on a 2− sugar and a 4− one alike. The molecule's own
- * number is `spec.charge`, checked against the formula (check-molecules.js).
- */
-const BADGE_HOLD=1400, BADGE_FADE=500;
-// BIGGER THAN THE BUILDER DRAWS IT — a deviation worth naming. atomkit's
-// default 0.62 world units reads fine where the frame holds three atoms; this
-// frame holds a whole sugar, so it lands 11 px against a 34 px phosphorus: the
-// circle visible, the sign inside not. 1.9 ≈ two-thirds of its atom.
-const BADGE_SCALE=1.9;
-const hexOf=el=>'#'+new THREE.Color(PAL.atoms[el]).getHexString();
-function badge(laneIdx, atomIdx, text){
-  const l=lanes[laneIdx]; if(!l) return;
-  const spec=M[l.key]; if(!spec.atoms[atomIdx]) return;
-  // FROM THE MESH, not the spec: the molecule is already built, so `view` and
-  // the rest of scene.js are already in its position (see specLocal).
-  const m=l.g.userData.atomMeshes[atomIdx]; if(!m) return;
-  // A WRAPPER AT THE ATOM: atomkit parks the badge off its atom's shoulder and
-  // rewrites that offset every frame (faceCamera), so its position isn't ours
-  // to set. Parent it where the atom stands.
-  const at=new THREE.Group();
-  at.position.copy(m.position);
-  const b=KIT.charge(text, hexOf(spec.atoms[atomIdx].el), spec.atoms[atomIdx].el,
-                     BADGE_SCALE);
-  at.add(b); l.g.add(at);
-  // The FADE is pixels (render loop); the REMOVAL is a commit, never the fade's
-  // last frame — a hidden tab runs no rAF, so a badge that left only while you
-  // watched would still be there when you came back.
-  MO.seq([{at:BADGE_HOLD/1000, dur:BADGE_FADE/1000, ease:'linear',
-           onUpdate:t=>{ b.material.opacity=1-t; }},
-          {at:(BADGE_HOLD+BADGE_FADE+40)/1000,
-           call:()=>{ l.g.remove(at); KIT.forget(b); }}],{tag:RUN});
-}
-
 /* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
 // TIMERS, NOT FRAMES, ADVANCE THE LESSON. rAF stops in a backgrounded tab, so
 // the wall clock owns state changes and rAF only pixels — finishing a
@@ -1724,7 +1677,6 @@ function badge(laneIdx, atomIdx, text){
 // beat is a COMMIT — scheduled on both clocks, fired once by whichever wins.
 // Milliseconds in, because every beat constant on this page is in ms.
 const RUN='run';                                  // the tag a whole step rides
-const later=(fn,ms)=>MO.after((ms||0)/1000, fn, RUN);
 /* WHAT LEAVES A MOLECULE is kit/leaving.js's — the meshes, the flight, the
  * sweep on cancel, and the camera arithmetic for getting off stage. This page
  * keeps the chemistry: which atoms go, what colour the event is, where to.
@@ -1737,484 +1689,7 @@ const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
 // …and the DOM riding those meshes, for the same reason: a label's fade is a
 // cancelled beat, so nothing would ever take it off the screen.
 const cancelTimers=()=>{ MO.cancel(RUN); GO.clear(); clearFlyers(); };
-
-const FLY=620, SPLIT=840;
-// STEP 5's THREE BEATS. The hold is the beat that makes the step readable: the
-// proton has landed and the C=O has moved, and nothing else happens for a
-// moment, so the student sees the finished chemistry BEFORE the molecule starts
-// turning. Without it the turn begins under the landing and the two read as one
-// event — which is the version that raised "does it fly away, and does it flip?"
-// The turn is slow for the same reason the unfurl is: a whole molecule moving,
-// not a group arriving.
-const ISO_HOLD=300, ISO_TURN=780;
-// The ring straightening out. Slower than every other beat on purpose: a whole
-// molecule changing shape, not one group arriving — too fast reads as "the
-// picture changed".
-const UNFURL=1150;
-// NO popGlow ON THIS PAGE. The product used to flash as it landed; even at
-// quarter strength it lit every atom on the frames the review beat exists for.
-// The rings already mark WHERE the chemistry happened — bond, site, departing
-// water; a whole molecule glowing only says "something happened", which the
-// caption, ledger and rail say. Same choice molecule-builder makes.
-const OFFSCREEN=8.5;    // where reagents come from / products go to, in world Y
-
-/* ---- the two colours this page adds to fx.js's defaults ----
- * Orange is phosphate traffic, green the NAD⁺/NADH carrier (#rxmsg .p/.n and
- * the coupling figure). These two name events that are NEITHER: a colour
- * reading as "phosphate" on a beat where none moved is a false claim.
- */
-// THE DEPARTING PROTON, steps 1 and 3. Fires on the phosphate flight's beat,
-// and fx.js's default gold sits next to phosphate orange — two warm glows on
-// one beat read as one event twice. Cool steel is the palette's hydrogen,
-// brightened to carry as an additive glow on cream.
-const H_LEAVE=0x8fb6d8;
-// …and long enough to follow. The default hop is half a second: a TRANSFER
-// between atoms a bond-length apart. This crosses the frame, so it outlasts the
-// phosphate's flight and is still drifting when the product lands.
-const H_LEAVE_MS=3000;
-// IT LEAVES ACROSS THE SCREEN, NOT UP IT. World Y is partly INTO the shot at
-// this phi, so a proton taking it recedes and shrinks — the reading the size
-// profile exists to avoid (fx.js `away`). Screen-right is the camera's X axis:
-// same on screen at every orbit angle, perpendicular to depth.
-// Distance is the frustum's full width, so the drift clears the frame from
-// anywhere. Read off the camera, never typed: the zoom eases through the first
-// second, so a fixed length clears at one moment and parks at another.
-const screenRight=dist=>GO.acrossScreen(dist);
-/* ---- A PROTON THAT STAYS ON THE MOLECULE (step 2) ----------------------
- * Steps 1 and 3 lose a proton to solution and it reads as motion because the
- * trip crosses the frame. Step 2's two hops are INTRAmolecular — the formula
- * is conserved, C₆H₁₂O₆ either side — so they travel one bond length, and at
- * fx.js's defaults that read as a gold flare rather than as an H going
- * somewhere: 0.5 s is too quick to track over 2.5 Å, and the fixed 1.3 Å arc
- * is half the trip, so the proton bulges up and comes back.
- *
- * Three things make it a journey instead, and none of them is "brighter":
- *   · SLOW ENOUGH TO FOLLOW. Not H_LEAVE_MS — that is sized for a departure
- *     that has to outlast a phosphate's flight and clear the frame.
- *   · AN ARC PROPORTIONAL TO THE TRIP, so the lift reads as a path over the
- *     molecule and never as a pop in place.
- *   · THE PAGE'S HYDROGEN STEEL, the same colour steps 1, 3 and 5 give a
- *     moving H. One particle, one colour, whether it leaves or lands.
- * AND IT CARRIES THE '+', same as steps 1 and 3, because that is what it is:
- * both hops are H⁺, not a hydrogen atom and not a hydride. The ring opens by
- * the anomeric O–H giving up its proton and keeping the electrons, and the
- * C2→C1 shift runs through the cis-enediol — a base takes the proton, the
- * electrons stay in the molecule. The badge names the species; the MOTION is
- * what still separates a transfer from a departure (swell and settle onto a
- * target, vs snap-hold-drift out of frame).
- *
- * `sign` IS THE ONLY THING THAT VARIES, and step 6 is why. GAPDH moves a
- * HYDRIDE: the aldehyde H goes to NAD⁺ carrying both bonding electrons, which
- * is what reduces it. Same particle to look at, opposite charge, and that
- * contrast is the reason NAD⁺ is reduced there and by none of the proton
- * steps. So it gets the same treatment and a '−'.
- *
- * THE ARC IS NOT SET HERE ANY MORE. It was, and it should never have needed
- * to be: a proportional-and-capped lift is what every hop wants, so it is
- * fx.js's default now and this passes nothing. A bond-length hop gets a
- * quarter of its own trip; step 6's, which crosses the frame to the NAD⁺
- * tile, hits the cap and looks exactly as it did.
- *
- * `onArrive` IS HOW THE H GETS THERE. The glow is a courier, not the atom: it
- * fades at the target and the molecule is left as it was, so a hop with no
- * arrival reads as the hydrogen having been destroyed. Every intramolecular
- * hop passes one, and it reveals a REAL mesh at the real place — an H the spec
- * grew, not a glow parked near an oxygen.
- */
-const HOP=900;
-const hop=(from,to,sign='+',onArrive=null)=>FXi.protonHop(from,to,onArrive,
-  {color:H_LEAVE, dur:HOP/1000,        // arc: fx.js's default is the proportional one now
-   carry:KIT.charge(sign, '#'+H_LEAVE.toString(16), 'H', BADGE_SCALE)});
-// THE CLEAVAGE at step 4. Aldolase cuts a C–C bond; no phosphate moves, so the
-// ring must not be phosphate-orange. Violet is the repo's colour for a bond
-// coming apart (water-lab's NaCl dissociation — SCIENCE.md §5).
-/* ---- THE WATER ENOLASE MAKES ------------------------------------------
- * Built out of the atoms that ACTUALLY LEFT — the C3 hydroxyl, its own H, and
- * the H off C2 — rather than spawned as a stock water beside the molecule. A
- * dehydration is the one reaction on this page where the product you are
- * watching is made of pieces of the thing in front of you, and a water that
- * appears from nowhere throws that away.
- *
- * TWO PHASES, because the atoms are not a water until they are:
- *   FORM   three loose spheres, no bonds, converging into real water geometry.
- *          Bonds are drawn only at the end — a bond stretching from an O to an
- *          H still parked on a carbon is a bond that does not exist yet.
- *   DRIFT  the assembled molecule leaves upward, out of the frame.
- *
- * NOT MolLib's `water`. That spec is the solvation engine's, hand-written with
- * an EXAGGERATED O–H (1.55 vs the real 0.96) that water-lab's physics is tuned
- * around — dropping it in beside measured sugars is exactly the scale-family
- * mistake MolecularGeometry.md §1 warns about. The geometry here is built from
- * the same ångström constants as everything else on the page, times the same
- * SCALE, so this water is the size a water is next to a three-carbon acid.
- */
-const WATER_FORM=420, WATER_DRIFT=1100;
-const HOH=104.5*Math.PI/180;                 // real H–O–H; the O–H is SkelLib's
-function waterAway(l){
-  const spec=M[l.key], gly=spec.gly, u=l.g.userData;
-  const oI=gly.oh3, h2I=gly.loseH;
-  if(oI==null || h2I==null) return;
-  const h1I=nbOf(spec,oI).find(i=>spec.atoms[i].el==='H');
-  if(h1I==null) return;
-  const pO=u.atomWorld(oI).clone(), pH1=u.atomWorld(h1I).clone(),
-        pH2=u.atomWorld(h2I).clone();
-  // BOTH BONDS THAT BREAK, each in its own colour: the C–O in oxygen red, the
-  // C–H in the page's hydrogen steel. Two rings because two bonds go — one
-  // ring would say a dehydration is a single event at a single place.
-  FXi.spawnRing(pO.clone().lerp(u.atomWorld(gly.cN[2]),0.5), PAL.atoms.O);
-  FXi.spawnRing(pH2.clone().lerp(u.atomWorld(gly.cN[1]),0.5), H_LEAVE);
-  shedAtoms(l,[oI,h1I,h2I]);            // they left; they should look left
-  const g=new THREE.Group();
-  const mO =Stage.atom(PAL.atoms.O, PAL.radii.O, pO, 'O');
-  const mH1=Stage.atom(PAL.atoms.H, PAL.radii.H, pH1,'H');
-  const mH2=Stage.atom(PAL.atoms.H, PAL.radii.H, pH2,'H');
-  g.add(mO,mH1,mH2); GO.hold(g);
-  // Where the two H's belong once this IS a water. The first keeps the
-  // direction it already had off the O — it was an O–H and stays one, so only
-  // its length is corrected; the second swings round to the true angle, in the
-  // plane the three atoms already share, so the fold happens in the plane the
-  // eye is watching rather than through the screen.
-  const OHW=SkelLib.GL.OH*MolLib.SCALE;
-  const d1=pH1.clone().sub(pO).normalize();
-  const t1=pO.clone().add(d1.clone().multiplyScalar(OHW));
-  let nrm=new THREE.Vector3().crossVectors(d1, pH2.clone().sub(pO));
-  // Degenerate only if the departing H is dead in line with the O–H; pick any
-  // perpendicular rather than divide by zero and send the atom to NaN.
-  if(nrm.lengthSq()<1e-6) nrm.set(0,0,1); else nrm.normalize();
-  const t2=pO.clone().add(d1.clone().applyAxisAngle(nrm,HOH).multiplyScalar(OHW));
-  // NO BONDS YET — see kit/leaving.js. They are drawn by link(), below, once
-  // the atoms have arrived.
-  GO.gather([{mesh:mH1,to:t1},{mesh:mH2,to:t2}], {dur:WATER_FORM});
-  later(()=>{
-    GO.link(g, [[pO,t1],[pO,t2]]);
-    // OUT OF THE FRAME, AND THE FRAME IS A SCREEN EDGE. `OFFSCREEN`'s world Y
-    // of 8.5 is not it: that number was picked when it only had to clear a
-    // molecule, and under this camera it stops INSIDE the shot, so the water
-    // floated to the top of its own sugar and sat there. Exactly the trap the
-    // drifting phosphate hit from the other direction — solve it off the
-    // camera, at the departing atom's own depth, so it holds at any zoom.
-    //
-    // AND TRAVEL THE WHOLE VECTOR, not its world-Y part. The camera orbits at
-    // an elevation, so world +Y is partly INTO the shot: drifting up world Y by
-    // the exit point's height climbs less than that on screen and stops short
-    // of the edge again, just less obviously. Moving along the vector itself
-    // lands exactly on the solved point. Same reason screenRight exists.
-    const climb=aboveFrame(pO, EXIT_EDGE).sub(pO);
-    MO.seq([{dur:WATER_DRIFT/1000, ease:'inQuad',
-             onUpdate:e=>{ g.position.copy(climb).multiplyScalar(e); }}],{tag:RUN});
-  }, WATER_FORM);
-  later(()=>GO.drop(g), WATER_FORM+WATER_DRIFT);
-}
-
-/* ---- THE PHOSPHATE THAT MOVES ONE CARBON OVER (step 8) ------------------
- * One lane's half of the mutase, shared by the per-lane click and the
- * whole-step path so the two cannot tell different stories.
- *
- * IT LEAVES C3 BEFORE IT ARRIVES AT C2. The flight used to run with the
- * substrate untouched, so for its whole duration the molecule wore its C3
- * phosphate AND a second one crossed the gap — two phosphates, on the step
- * whose entire claim is that there is only one and it merely moved.
- *
- * WHAT STAYS BEHIND IS THE BRIDGING OXYGEN, which is not a detail: a
- * phosphoryl transfer breaks the P–O bond, not the C–O one, so C3 keeps its
- * oxygen and becomes the hydroxyl that enolase pulls off at step 9. Handled by
- * shedPhosphoryl, which sheds P and its terminal O and leaves the bridge.
- */
-function moveP(l, j, st, keys, n){
-  const spec=M[l.key], key=keys[j], pro=M[key];
-  const gly=spec.gly, u=l.g.userData;
-  const src=anchorWorld(l, st.anchor);
-  const dst=siteWorld(key, st.dest, laneOrigin(key,j,n));
-  flyPhosphate(src, dst, pro, pro.gly[st.dest]);
-  shedPhosphoryl(l, spec.gly[st.anchor]);
-  /* THE TWO PROTONS THAT TRADE PLACES WITH IT.
-   *
-   * The mutase moves a phosphate, so one hydroxyl becomes an ester and one
-   * ester becomes a hydroxyl — C2's proton goes to solution because an oxygen
-   * holding one cannot attack the phosphorus, and C3's oxygen takes a
-   * different one back as the phosphate leaves. NET ZERO: both specs are
-   * C₃H₄O₇P³⁻ at charge −3.
-   *
-   * None of this was drawn. The product simply arrived with its C3 hydroxyl,
-   * and the phosphate spent the whole flight landing on a C2 oxygen that
-   * visibly still held its H — two things in one slot, the defect the hops
-   * were audited for, missed here because what arrives is a phosphate.
-   *
-   * ONLY THE DEPARTURE IS ANIMATED, and the arrival just appears. The two are
-   * not equally worth a flight: one thing visibly stops being on the molecule,
-   * the other lands on a site that came free in the same instant.
-   *
-   * WATCH THE BADGE, THOUGH. A departing '+' is steps 1 and 3's claim, where it
-   * pairs with a 2− on the phosphate and says the sugar went more negative.
-   * Nothing of the sort happens here — both specs are charge −3 — so the '+'
-   * is carried by the arriving hydroxyl appearing on the same beat, and by
-   * nothing else. If that ever stops reading as a trade, drop the badge rather
-   * than adding a second flight: the ledger and the formula both say no charge
-   * moved, and a lone '+' is the only thing on screen that could disagree.
-   */
-  if(gly.oh2H!=null){
-    // IT GOES AS THE PHOSPHATE COMES, not before: the deprotonation is what
-    // makes the oxygen able to take it, so they are one beat.
-    const from=u.atomWorld(gly.oh2H).clone();
-    shedAtoms(l,[gly.oh2H]);
-    FXi.protonHop(from, from.clone().add(screenRight(camera.right-camera.left)),
-                  null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
-                         carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
-                                          BADGE_SCALE)});
-  }
-  // …and the one arriving on C3 SIMPLY APPEARS, on the beat the phosphate lets
-  // go of that oxygen. It was flown in from above the frame first, and that was
-  // wrong twice over: it made a proton out of solution — which has no origin to
-  // point at and nothing to watch leave — compete with the phosphate crossing
-  // the same frame, and it put a second travelling particle on a step whose
-  // whole event is one group moving. The departure is the beat worth animating,
-  // because something visibly stops being on the molecule. An arrival onto a
-  // site that just came free needs no flight to be read; the oxygen is bare for
-  // one frame and then it is a hydroxyl.
-  if(gly.oh3H!=null) showAtom(l, gly.oh3H);
-  // the ring marks the bond that FORMS, at the site it forms on
-  later(()=>FXi.spawnRing(
-    junctionWorld(pro, pro.gly[st.dest], laneOrigin(key,j,n), laneBase(key)),
-    PAL.atoms.P), FLY);
-}
-
-const CLEAVE=0x9a3fe0;
-
-// WHAT FLIES IS A PHOSPHORYL GROUP, not a token — ATP's OWN γ atoms (Pγ + its
-// three terminal O, recentred on P), so the thing crossing the stage is the
-// four atoms the drawing lost and the sugar gains, same scale and colours. (A
-// glowing sphere said "energy moved" when the claim is "this group moved". A
-// kinase transfers PO₃⁻; the bridging O stays — `gamma` in mol-pathways.js.)
-//
-// BUILT IN THE GEOMETRY OF THE END IT LANDS ON: the flight ends on the frame
-// `renderLanes` swaps substrate for product, so any difference from the
-// product's own phosphate — P–O splay, tumble, scale pulse — is a visible jolt.
-//
-// `terminalO` is derived, never listed: the O's on a P that hang off it and
-// nothing else. A BRIDGING O has a second heavy neighbour (C6 on a sugar, Pβ on
-// ATP) and stays behind. "Not bonded to a carbon" is not enough; that keeps
-// ATP's α–β–γ bridge and flies four oxygens.
-// Both are kit/molgraph.js's, under this page's names — the distinction is
-// chemistry, not layout, and kit/check-kit.js asserts it on this very step (the
-// bridging O stays behind; cutting P–O(bridge) detaches exactly what flies).
-const nbOf=(spec,i)=>MolGraph.neighbors(spec,i);
-const terminalO=(spec,p)=>MolGraph.terminal(spec,p,'O');
-// …and its complement: the O carrying the group, where the bond forms or
-// breaks. MARK THE JUNCTION, not the phosphorus — a ring on P sits a bond-
-// length off what changed, and P is the biggest sphere here, so it reads as
-// decorating the atom rather than pointing at the event.
-const bridgeO=(spec,p)=>MolGraph.bridging(spec,p,'O')[0];
-// THE PROTON THE PHOSPHATE DISPLACES. Glucose C₆O₆H₁₂ → G6P C₆O₉H₁₁P: C6's
-// oxygen keeps its place and becomes the bridge, its hydroxyl H leaves — that H
-// used to just be absent on the frame after the swap.
-// Derived by SITE, never by index: product's bridging O → the substrate's
-// oxygen at the same coordinates → its hydrogen. Both specs come off the same
-// Skel scaffold, so shared atoms share coordinates exactly; if that stops
-// holding this returns null and the step loses a beat rather than hopping the
-// wrong atom.
-function leavingH(sub,pro,p){
-  const bo=bridgeO(pro,p); if(bo==null) return null;
-  const q=pro.atoms[bo].pos;
-  const hit=sub.atoms.map((a,i)=>[i,a]).filter(([,a])=>a.el==='O' &&
-    Math.hypot(a.pos[0]-q[0], a.pos[1]-q[1], a.pos[2]-q[2])<0.35);
-  if(hit.length!==1) return null;
-  const hs=nbOf(sub,hit[0][0]).filter(i=>sub.atoms[i].el==='H');
-  return hs.length===1 ? hs[0] : null;
-}
-// WHICH atoms are the phosphoryl is chemistry, so it stays here; building the
-// meshes for them is not, so that is the module's. Centred on the P, because
-// the P is the point every caller aims.
-const phosphorylGroup=(spec,p)=>GO.fragment(spec, [p, ...terminalO(spec,p)], {center:p});
-/* THE SUGAR LOSES IT AS IT LEAVES, as ATP does on a spend (see carrierGone).
- * The lane doesn't become the product until the flight ends, so the phosphate
- * used to sit there the whole trip while a copy of itself sailed off. The set
- * hidden is the set that flies — P + `terminalO`, what phosphorylGroup builds
- * from — so the two can't describe different groups. The bridging O stays: on
- * 1,3-BPG it is the carbonyl O that becomes 3-PGA's carboxylate.
- * Hiding, not removing: rewind mid-flight is impossible (`busy`), but a deleted
- * mesh couldn't come back if that changed.
- */
-const shedAtoms=(l,idx)=>GO.shed(l.g, idx);
-/* shedAtoms backwards, for ONE atom — kit/leaving.js's `unshed`, which is the
- * same event running forwards and owns the bond rule (it shows a stick only
- * when BOTH ends are drawn, so revealing atoms in any order is safe).
- *
- * Step 2 moves C2's H onto C1, and this page keeps `optH` off, so that H is not
- * drawn: the hop would start from a bare carbon and the proton would have no
- * origin. Revealing exactly the one that moves — at the top of the step,
- * alongside the ring flash on the bond that breaks — is the page saying "these
- * two things are about to go", and it is off the molecule again a beat later.
- * Showing ALL the C–H's instead (Stage.setOptionalH) buries the point in a
- * dozen white spheres.
- *
- * FUNCTION DECLARATIONS, not consts: `build` above is written before these and
- * runs whenever a lane spawns, so hideAtom has to be hoisted. */
-function showAtom(l,i){ if(i!=null) GO.unshed(l.g,[i]); }
 function hideAtom(g,i){ if(i!=null) GO.shed(g,[i]); }
-const shedPhosphoryl=(l,p)=>shedAtoms(l,[p, ...terminalO(M[l.key],p)]);
-// A phosphoryl arcing in from the carrier or out toward it — the page's
-// signature beat: what ATP gives up and ADP receives are visibly one object.
-// Decorative; cleanup on a timer so a hidden tab can't strand a mesh.
-// NO TUMBLE, NO SNAP: fixed orientation and size, it simply arrives. `spec`/`p`
-// name the phosphate it copies — the destination's where that is a molecule on
-// stage (steps 1, 3, 8), otherwise ATP's own γ.
-function flyPhosphate(from,to,spec,p,dur){
-  const T=dur||FLY;
-  // REMOVED ON THE BEAT THE PRODUCT APPEARS: launch's removal and the swap
-  // share a delay and fire in registration order, this one first — so there is
-  // never a frame with two phosphates in one place.
-  GO.launch(phosphorylGroup(spec||ATP, spec?p:ATP.gly.gamma[0]),
-            {from, to, dur:T, arc:2.6});
-}
-/* STEP 6'S PHOSPHATE IS A WHOLE MOLECULE, not a phosphoryl group, and it is the
- * only one on this page that is. Everywhere else a PO₃⁻ is TRANSFERRED between
- * two molecules the page is already drawing, so what flies is a fragment
- * (`phosphorylGroup`) — the atoms one drawing lost and another gained. Step 6's
- * comes out of the cytosol, where it is free inorganic phosphate: MOLECULES.pi,
- * HPO₄²⁻, four oxygens and A PROTON.
- *
- * THAT PROTON IS THE POINT. G3P has five hydrogens and 1,3-BPG has four, and
- * the one it loses is the hydride now sitting on NAD⁺ — so the sugar has none
- * left to give, and the H⁺ in
- *
- *     G3P²⁻ + NAD⁺ + HPO₄²⁻ → 1,3-BPG⁴⁻ + NADH + H⁺
- *
- * arrives on THIS molecule and leaves when it esterifies. Flying a bare PO₃
- * borrowed from ATP made that proton unaccountable: it had to come from
- * somewhere, and nothing on screen had one.
- *
- * `onLand` fires as `launch` drops the group — so the arriving phosphate and
- * its H stop being drawn on exactly the frame the proton departs and the
- * product's own (fully ionised, charge −4) phosphate takes their place.
- */
-/* THE H⁺ OF THE OVERALL EQUATION, and it goes HERE — as the ester forms, not
- * when the hydride lands. The hydride step is proton-neutral over the cycle:
- * the carbonyl oxygen picks a proton up when the enzyme's cysteine adds to the
- * aldehyde and gives the same one back as C=O reforms, so the enzyme ends
- * unchanged and nothing is released. Phosphate arrives carrying one (HPO₄²⁻)
- * and the product carries none (`bpg13`, charge −4). That is the proton.
- *
- * ITS SOURCE IS ON SCREEN, which is the only reason this may be drawn at all:
- * `flyPi` puts a real H over the frame and `launch` drops it on the beat this
- * fires. Aimed the way steps 1, 3 and 8 aim a departure — across the screen,
- * not up it — and away from the hydride, which left in the other direction a
- * second earlier so the two never read as one event.
- *
- * WRITTEN OUT AT BOTH CALL SITES, not wrapped in a helper. A named wrapper read
- * better and took this hop OUT OF THE AUDIT: check-pages.js counts `protonHop`
- * and `hop` call sites, so a `piProtonGoes(...)` reads as neither, and the one
- * hop on this page whose source is a travelling fragment — the case most likely
- * to lose its source atom in a refactor — became the one hop nothing checked.
- * Six duplicated lines is the cheaper half of that trade, and it is how steps
- * 1, 3 and 8 write their departures anyway.
- */
-/* ---- naming a molecule that is only ever in the air ----------------------
- * The lanes name their molecules with a plate each (kit/lanes.js); this names
- * one that never lands on a lane. It reads its NAME AND FORMULA OFF THE SPEC —
- * `Pᵢ` and `HPO₄²⁻` are in MOLECULES.pi and nowhere else — so the label cannot
- * disagree with the thing it is pointing at, and the formula it shows is the
- * one whose proton the step then releases.
- *
- * IT GOES BEFORE THE DOCK. The label's job is "this is what is arriving", and
- * that question is over once the phosphate is bonded — by then the lesson is
- * the bond, and a name still riding the atoms competes with the ring marking
- * it. So it fades on a beat of its own, well short of the landing.
- *
- * Projected in `afterFrame` like every other DOM anchored to the scene, and on
- * the RUN tag: a restart mid-flight cancels the fade beats, so `cancelTimers`
- * sweeps the elements the same way GO.clear sweeps the meshes. */
-const flyersEl=document.getElementById('flyers');
-const flyLabels=[];
-/* HOW FAR ABOVE THE MOLECULE THE NAME SITS, in client pixels. The element is
- * translate(-50%,-100%), so its BOTTOM edge lands on the projected point and
- * this is pure clearance: raise it and the label rises.
- *
- * Measured against the thing it must clear — a phosphate is P plus four oxygens
- * at this page's scale, so its projected radius is the floor, not the gap you
- * want on top of it. 30 was set by eye against nothing and sat on the atoms. */
-const LABEL_LIFT=72;
-/* HOW LONG THE NAME STAYS UP, as a fraction of the flight. THIS IS THE KNOB.
- * 0 is "never shown", 1 is "still up when it docks" — except it cannot be,
- * because `holdFor` clamps it. Raise it to keep the name readable for longer.
- *
- * LABEL_FADE MIRRORS THE CSS. `.flyplate` transitions opacity over .25s, and
- * the fade has to FINISH before the phosphate bonds — the label answers "what
- * is arriving", and once it has arrived the ring marking the new bond is the
- * thing to look at. Change one of these two and change the other.
- *
- * The clamp is the point: the rule is "gone before it docks", and a rule that
- * a tuning knob can silently break is not a rule. Wind LABEL_HOLD up to 1 and
- * the name simply stays as long as it can, which is what you meant anyway. */
-const LABEL_HOLD=1.0, LABEL_FADE=150, LABEL_GAP=70;
-const holdFor=dur=>Math.max(0, Math.round(
-  Math.min(dur*LABEL_HOLD, dur-LABEL_FADE-LABEL_GAP)));
-function labelFlyer(g, spec, hold){
-  const el=document.createElement('div');
-  el.className='flyplate';
-  el.innerHTML=`<div class="fn">${spec.short}</div>`
-             + `<div class="ff">${spec.formula}</div>`;
-  flyersEl.appendChild(el);
-  const rec={el,g};
-  flyLabels.push(rec);
-  // next frame, so the transition has an initial 0 to move off
-  later(()=>{ el.style.opacity='1'; }, 16);
-  later(()=>{ el.style.opacity='0'; }, hold);
-  later(()=>dropFlyer(rec), hold+LABEL_FADE+10);
-  return rec;
-}
-function dropFlyer(rec){
-  const i=flyLabels.indexOf(rec);
-  if(i>=0) flyLabels.splice(i,1);
-  rec.el.remove();
-}
-const clearFlyers=()=>{ while(flyLabels.length) dropFlyer(flyLabels[0]); };
-function drawFlyers(){
-  if(!flyLabels.length) return;
-  const v=new THREE.Vector3();
-  flyLabels.forEach(({el,g})=>{
-    g.getWorldPosition(v).project(camera);
-    el.style.left=((v.x*0.5+0.5)*canvas.clientWidth)+'px';
-    el.style.top =((-v.y*0.5+0.5)*canvas.clientHeight-LABEL_LIFT)+'px';
-  });
-}
-
-function flyPi(from,to,dur,onLand){
-  const pi=M.pi, all=pi.atoms.map((_,i)=>i);
-  // centred on the P, like every other flight target on this page — found, not
-  // index 0 by luck, so a regenerated spec cannot centre it on an oxygen
-  const P=pi.atoms.findIndex(a=>a.el==='P');
-  const g=GO.launch(GO.fragment(pi, all, {center:P}),
-                    {from, to, dur, arc:2.6, onDone:onLand});
-  // …and it says what it is on the way in, gone before it docks.
-  labelFlyer(g, pi, holdFor(dur));
-}
-// THE CYTOSOL IS SLOWER THAN A HANDOFF. A phosphate off ATP is PASSED — one
-// enzyme holds both molecules. Step 6's comes out of solution: nothing hands it
-// over. So it takes longer and travels further.
-const DRIFT=Math.round(FLY*1.6);
-/* …AND IT STARTS AFTER THE HYDRIDE HAS GONE. Step 6 is two things in opposite
- * directions, and they used to be told apart by SPEED alone — a 0.5 s hydride
- * against a 1 s drift. Now that the hydride is slow enough to follow (HOP),
- * the two would land within 90 ms of each other, which is the single-swap
- * reading that block exists to avoid. Staggering the START says it better than
- * speed ever did, and in the right causal order: the hydride leaves, and THEN
- * the gap it left gets filled. */
-const OX_GAP=260, OX=OX_GAP+DRIFT;
-/* WHERE THE CYTOSOL STARTS: a SCREEN edge, not a world height. `OFFSCREEN`'s
- * world Y of 8.5 was chosen when it only had to clear a molecule; under this
- * camera it lands inside the frame, so the phosphate popped into existence just
- * above the sugar. Solve from the camera instead: straight above the
- * destination, just past the top edge, projected/unprojected at the
- * destination's depth so it holds through the intro→step-1 zoom ease.
- */
-const TOP_EDGE=1.08;                 // NDC, a little past 1 so it enters rather than appears
-// A DEPARTURE NEEDS MORE ROOM THAN AN ARRIVAL. 1.08 puts an atom's CENTRE just
-// past the edge, which is plenty for something entering — you see it the moment
-// it matters. Leaving, that same point still shows half a sphere hanging on the
-// rim, so the water reads as parked rather than gone.
-const EXIT_EDGE=1.3;
-const aboveFrame=(to, edge)=>GO.offstage(to, edge==null?TOP_EDGE:edge);
-
 // THE PHOSPHATE COMES OFF ATP, and you should see that it does. It used to drop
 // from the top of the frame — true of free Pi, not of a kinase step. So the
 // flight starts (or, at steps 7 and 10, ends) on that tile.
@@ -2236,155 +1711,51 @@ function tileWorld(key,ref,j){
 function carrierPoint(key,j){
   return CARRIER.has(key) && carrierEl.isConnected ? carrierGammaPoint(j) : null;
 }
-/* ---------- THE UNFURL: the ring straightening out, atom by atom ----------
- * Step 2 used to CUT from ring to chain, which reads as "the picture changed"
- * rather than "the molecule moved". It is a CONFORMATIONAL CHANGE: with C1–O5
- * gone nothing holds the hexagon, and the carbons rotate about C–C single bonds
- * into the extended chain. Every frame is a real conformation, reached by
- * turning backbone dihedrals to anti (180°), one bond at a time from C1 out.
+/* =============================================================
+ *  THE VERBS — reaction/reaction.js
+ * =============================================================
+ * A step's `fx` names a verb, and a verb is what happens to ONE MOLECULE. The
+ * page had eight of them as an if/else chain, written twice — once for the
+ * whole-step route and once for the per-lane one — and the two had drifted:
+ * step 6's hydride was shed on one and not the other. The module's claim is
+ * that every verb except `split` is a per-lane body, so `runStep` is "run it
+ * on each lane" and the duplication has nowhere to live.
  *
- * Rotating about bond i moves everything downstream RIGIDLY, leaving every
- * other dihedral untouched — so each target angle is measured once at the start
- * and scaled by t, and each frame replays from the starting coordinates instead
- * of accumulating error over hundreds of small rotations.
- *
- * Conformation changes, not connectivity: the broken bond is broken before
- * frame one, the proton hop is FX, and f6p's new atoms arrive with the swap.
+ * WHAT THE PAGE STILL OWNS is everything below the chemistry: the lanes, the
+ * carriers and their tiles, the ledger, `done`/`busy`, and which carrier a
+ * step couples to. Every host entry here is a question about the STAGE.
  */
-// The IUPAC torsion: ±π is ANTI (extended zigzag), 0 eclipsed. The plane-normal
-// form returns these the other way round, and with targets at ±π against that
-// convention the chain folds ECLIPSED while every dihedral reads exactly 180° —
-// a bug that checks out numerically and is nonsense. f6p's backbone reads ±180
-// here, which asserts this is the convention the specs are drawn in.
-//
-// DELIBERATELY NOT MolGraph.torsion, which is the plane-normal form and returns
-// the OTHER sign. That one is right for stereochemistry (a mirrored spec must
-// flip it, which kit/check-kit.js asserts); this one is right for driving a chain to
-// anti. Swapping them silently folds the sugar eclipsed while every printed
-// dihedral still reads 180°.
-function dihedralOf(p0,p1,p2,p3){
-  const b1=p2.clone().sub(p1).normalize();
-  const b0=p0.clone().sub(p1), b2=p3.clone().sub(p2);
-  const v=b0.clone().addScaledVector(b1,-b0.dot(b1));   // components across b1
-  const w=b2.clone().addScaledVector(b1,-b2.dot(b1));
-  return Math.atan2(b1.clone().cross(v).dot(w), v.dot(w));
-}
-// scratch, reused every frame — this runs per atom per turn per frame
-const Q=new THREE.Quaternion(), AX=new THREE.Vector3(), PV=new THREE.Vector3();
-// What to turn and by how much. Measured off the built molecule, so the thing
-// on screen unfurls, not a second copy.
-function unfurlPlan(l){
-  const spec=M[l.key], gly=spec.gly, cN=gly.cN, br=gly.open;
-  const u=l.g.userData;
-  // Everything past a bond, through the GRAPH not index ranges — build order is
-  // not chain order. Two cuts: the bond being turned, and `gly.open`, the ring
-  // bond this step has already broken.
-  const beyond=(from,thru)=>
-    MolGraph.component(spec, thru, [[from,thru], br]).filter(i=>i!==from);
-  const base=u.atomMeshes.map(m=>m?m.position.clone():null);
-  const turns=[];
-  // A dihedral needs four atoms; the FIRST bond has no backbone carbon to
-  // measure from, so its reference is the anomeric oxygen. Without it C1 keeps
-  // its ring pucker and the chain arrives bent at the end the reaction is about.
-  for(let i=0;i<cN.length-2;i++){
-    const prev = i>0 ? cN[i-1] : (gly.anomeric&&gly.anomeric.o);
-    const a=cN[i], b=cN[i+1], next=cN[i+2];
-    if(prev==null || !base[prev]) continue;
-    const d0=dihedralOf(base[prev],base[a],base[b],base[next]);
-    // to anti, the short way round — ±π are the same conformation
-    turns.push({a,b,delta:(d0>=0?Math.PI:-Math.PI)-d0, set:beyond(a,b)});
-  }
-  const plan={base,turns};
-  // WHERE IT COMES TO REST. Unfurled chain and the f6p it becomes are the same
-  // shape at different angles, so the molecule turns as it opens onto the next
-  // spec's axis — the swap then changes only what the reaction changed.
-  // A WHOLE FRAME, not just the axis: matching C1→C6 alone leaves the chain free
-  // to ROLL, landing the middle carbons on the wrong side (ends agree, C2/C5 2.5
-  // units out). Second axis is C3's offset, so the zigzag plane gets matched.
-  const pos1=unfurlPos(plan,1);
-  const f=M.f6p, fc=f.gly.cN;
-  const fp=i=>new THREE.Vector3().fromArray(f.atoms[fc[i]].pos);
-  const frame=(p0,pN,pMid)=>{
-    const ax=pN.clone().sub(p0).normalize();
-    const v=pMid.clone().sub(p0);
-    v.addScaledVector(ax,-v.dot(ax));
-    if(v.lengthSq()<1e-6) return null;              // a straight line has no plane
-    v.normalize();
-    return new THREE.Matrix4().makeBasis(ax, v, ax.clone().cross(v));
-  };
-  const A=frame(pos1[cN[0]], pos1[cN[cN.length-1]], pos1[cN[2]]);
-  const B=frame(fp(0), fp(fc.length-1), fp(2));
-  plan.qEnd = A&&B
-    ? new THREE.Quaternion().setFromRotationMatrix(B.multiply(A.invert()))
-    : new THREE.Quaternion();
-  // THE LABEL CLIMBS WITH IT. A chain is taller than its ring, so a name pinned
-  // at the ring's height ends up written across the molecule. It rides to the
-  // same anchor the swap lands on.
-  plan.topY0=l.topY;
-  plan.topY1=plateY(['f6p']);
-  return plan;
-}
-// Conformation at t, from the starting coordinates every time — each turn
-// leaves the others' dihedrals alone, so this cannot drift.
-function unfurlPos(plan,t){
-  const pos=plan.base.map(p=>p?p.clone():null);
-  plan.turns.forEach(tn=>{
-    AX.subVectors(pos[tn.b],pos[tn.a]).normalize();
-    Q.setFromAxisAngle(AX, tn.delta*t);
-    PV.copy(pos[tn.a]);
-    tn.set.forEach(i=>{ const p=pos[i]; if(p) p.sub(PV).applyQuaternion(Q).add(PV); });
-  });
-  return pos;
-}
-function unfurlApply(l,plan,t){
-  const u=l.g.userData;
-  const pos=unfurlPos(plan,t);
-  // KEEP IT CENTRED ON ITS OWN BOX, as Stage.buildMolecule does. Unfurling about
-  // fixed coordinates walks the molecule out of frame and snaps back on the
-  // swap. Same rule as centerOf: middle of the extent, not mean of the atoms, so
-  // one long arm cannot drag it off centre.
-  const lo=[Infinity,Infinity,Infinity], hi=[-Infinity,-Infinity,-Infinity];
-  pos.forEach(p=>{ if(!p) return;
-    for(let k=0;k<3;k++){ const v=p.getComponent(k);
-      lo[k]=Math.min(lo[k],v); hi[k]=Math.max(hi[k],v); } });
-  const mid=new THREE.Vector3(...lo.map((v,k)=>(v+hi[k])/2));
-  pos.forEach(p=>{ if(p) p.sub(mid); });
-  // the turn onto the next spec's axis, and the label's climb, ride the same t
-  if(plan.qEnd) l.g.quaternion.identity().slerp(plan.qEnd,t);
-  if(plan.topY1!=null) l.topY=plan.topY0+(plan.topY1-plan.topY0)*t;
-  pos.forEach((p,i)=>{ const m=u.atomMeshes[i]; if(m&&p) m.position.copy(p); });
-  u.bondMeshes.forEach(bm=>{
-    const [i,j]=bm.userData.pair;
-    if(pos[i]&&pos[j]) Stage.placeBond(bm,pos[i],pos[j]);
-  });
-}
-
-// Where an atom of a not-yet-built species WILL be, so a reagent can fly there
-// before the molecule carrying it exists.
-function siteWorld(key,which,x){
-  return specWorld(M[key], M[key].gly[which], x, laneBase(key));
-}
-// …AND `view` HAS TO BE APPLIED, which is the whole reason this is a function.
-// scene.js bakes `spec.view` into the atom MESHES, not the group rotation, so a
-// spec's raw `pos` is NOT where its atom ends up — eight world units apart for
-// glucose-6-phosphate. Rotate the same way, same Euler order. The lane offset
-// goes on AFTER (it is the group's position, rotation is inside the group) and
-// on BOTH axes: laneShift on x, laneLift on y — dropping the y half aims at the
-// spec's height instead of the drawn height, the same miss again.
-const specLocal=(spec,idx)=>{ const a=spec.atoms[idx];
-  const v=V(a.pos[0], a.pos[1], a.pos[2]);
-  return spec.view ? v.applyEuler(new THREE.Euler(
-    spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX')) : v; };
-const specWorld=(spec,idx,x,y=0)=>{ const v=specLocal(spec,idx); v.x+=x; v.y+=y;
-  return root.localToWorld(v); };
-// WHERE THE EFFECT GOES: middle of the P–O bond that forms or breaks, not the
-// phosphorus (see `bridgeO`). Falls back to the P if a spec has no bridge — a
-// free phosphate in the pool, not a junction yet.
-function junctionWorld(spec,p,x,y=0){
-  const bo=bridgeO(spec,p);
-  const pp=specWorld(spec,p,x,y);
-  return bo==null ? pp : pp.add(specWorld(spec,bo,x,y)).multiplyScalar(0.5);
-}
+const RX=Reaction.create({
+  three:THREE, root, camera, canvas,
+  motion:MO, fx:FXi, leaving:GO, kit:KIT, stage:Stage, palette:PAL,
+  molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
+  flyersEl:document.getElementById('flyers'),
+  specOf:key=>M[key],
+  lanes:()=>lanes,
+  laneOrigin, laneBase, plateY,
+  swapLane, settleLanes:()=>LANES.settle(),
+  spawnLanes:(keys,each)=>{ lanes=LANES.render(keys, plateY(keys), each); },
+  // WHICH carrier, and where its tile stands, are the page's: `couple.cin` is
+  // the lesson's bookkeeping and `tileWorld` unprojects a DOM tile at the
+  // scene's depth. The module only ever asks "where does this lane's carrier
+  // sit", which is the same question for ATP, NAD⁺, FAD or CoA.
+  carrierPoint:(st,ref,j)=>tileWorld(carrierKey(st.couple.cin), ref, j),
+  // THE CARRIER TURNS OVER ON ARRIVAL, not when the step lands — see the `ox`
+  // verb. `carrierGone` is the page's, because the tray reads it.
+  onCarrierTaken:j=>{ carrierGone.add(j); refresh(); },
+  popCarrier:j=>popCarrier(j),
+  // …and the two specs the module needs by role rather than by name: what a
+  // phosphoryl is copied from when nothing on stage supplies it, and what
+  // arrives out of solution.
+  donorSpec:()=>ATP,
+  freeSpec:()=>M.pi,
+});
+// The page's own uses of the module's vocabulary, under the names the rest of
+// this file already reads by.
+const later=RX.later, aboveFrame=RX.offstage, drawFlyers=RX.drawFlyers,
+      clearFlyers=RX.clearFlyers, anchorWorld=RX.anchorWorld,
+      specWorld=RX.specWorld, junctionWorld=RX.junctionWorld;
+const FLY=RX.timing.FLY;
 
 /* =============================================================
  *  RUNNING A STEP
@@ -2401,69 +1772,10 @@ function runLane(j){
   const to=done+1, keys=speciesAt(to), n=lanes.length;
   busy=true;
   platesOff=true; platesEl.classList.add('mute');
-  const l=lanes[j], spec=M[l.key];
   // Instance j belongs to lane j throughout: what leaves this molecule arrives
-  // at the carrier standing opposite it.
-  if(st.fx==='ox'){
-    // The lesson is two things in opposite directions: the hydride leaves onto
-    // NAD⁺, a free phosphate arrives to fill the gap it left.
-    const hIdx=spec.gly.aldehydeH;
-    // CLONED, AND READ BEFORE THE SHED: the ring and the phosphate's landing
-    // both use it after the atom is gone.
-    const hPos=(hIdx!=null ? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3')).clone();
-    // A HYDRIDE, so it carries '−' where every other moving H on this page
-    // carries '+' — see hop().
-    if(hIdx!=null) shedAtoms(l,[hIdx]);       // it left; it should look left
-    // THE CARRIER GAINS IT ON ARRIVAL, NOT WHEN THE STEP LANDS. Same beat
-    // `carrierGone` gives a spend, in the other direction: NAD⁺ used to hold
-    // its empty state through the whole flight and turn over 352 ms later,
-    // with the glow already faded — so the one thing the step is about, C4
-    // going from one H to two, happened while nothing was pointing at it.
-    // The pop moves here with it (see the completion below).
-    const nadC4=tileWorld(carrierKey(st.couple.cin),hPos,j)
-                || V(l.g.position.x, OFFSCREEN, 0);
-    hop(hPos, nadC4, '−', ()=>{ carrierGone.add(j); refresh(); popCarrier(j);
-      // …AND RING THE CARBON THAT CHANGED. The flight target IS C4 (the pair's
-      // `anchor`), so this lands exactly on the atom that just gained an H.
-      // Without it the student is asked to spot one added sphere among ten
-      // white hydrogens on a 73-atom molecule — and the added one is the
-      // pro-R H, which points away from the camera and sits under the ring.
-      // It has to be that one: GAPDH is an A-side dehydrogenase, so the
-      // hydride goes to the pro-R face. The page cannot move the H somewhere
-      // easier to see, so it points at it instead.
-      FXi.spawnRing(nadC4, H_LEAVE); });
-    // IN FROM ABOVE, AND SLOWLY. Nothing hands this phosphate over — it is
-    // dissolved in the cytosol — so it drifts down rather than being fired up.
-    // The hydride goes LEFT to the drawn NAD⁺; this starts after it (OX_GAP),
-    // so the two read apart by order as well as by direction.
-    later(()=>flyPi(aboveFrame(hPos), hPos, DRIFT, ()=>{
-      FXi.spawnRing(hPos, PAL.atoms.P);
-      // …and the phosphate's own proton leaves as the ester forms — see flyPi.
-      FXi.protonHop(hPos, hPos.clone().add(screenRight(camera.right-camera.left)),
-                    null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
-                           carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
-                                            BADGE_SCALE)});
-    }), OX_GAP);
-  } else if(st.fx==='lose'){
-    // ENOLASE: nothing is handed over, so there is no carrier leg here — the
-    // whole event is the water coming off this lane's own molecule.
-    waterAway(l);
-  } else if(st.fx==='move'){
-    // THE MUTASE: no carrier either, and nothing leaves — the phosphoryl goes
-    // one carbon over on the molecule it is already on.
-    moveP(l, j, st, keys, n);
-  } else {
-    const src=anchorWorld(l,st.anchor);
-    // on the bond that breaks, not on the P that leaves along it
-    FXi.spawnRing(junctionWorld(spec, spec.gly[st.anchor],
-                                l.g.position.x, l.g.position.y), PAL.atoms.P);
-    // …to THIS lane's ADP: the phosphate just released charges the molecule
-    // beside it.
-    flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,j)
-                      || V(l.g.position.x,-OFFSCREEN,0),
-                 spec, spec.gly[st.anchor]);
-    shedPhosphoryl(l, spec.gly[st.anchor]);   // it left; it should look left
-  }
+  // at the carrier standing opposite it. THE SAME BODY the whole-step route
+  // runs — that is the extraction's whole point.
+  RX.lane(st, j, keys);
   later(()=>{
     laneDone.add(j);
     swapLane(j, keys[j]);
@@ -2473,330 +1785,51 @@ function runLane(j){
     //
     // BOTH SETS, because both answer `carrierRan` and both are per-STEP. This
     // route used to clear only `laneDone`, which was safe for exactly as long
-    // as `runStep` was the only thing adding to `carrierGone`. Step 6's hydride
-    // now sets it from HERE, and a leftover entry is read by the NEXT step: 7
-    // and 10 charge the carrier (`up:false`), so `carrierRan` true means
-    // "already run" and the tray opened on ATP instead of ADP. Only in the
-    // linear flow — jumping to a step clears both on the way in, which is why
-    // the step numbers looked fine and the arrows did not.
+    // as `runStep` was the only thing adding to `carrierGone`. The `ox` verb
+    // now sets it from the hydride's arrival, and a leftover entry is read by
+    // the NEXT step: 7 and 10 charge the carrier (`up:false`), so `carrierRan`
+    // true means "already run" and the tray opened on ATP instead of ADP. Only
+    // in the linear flow — jumping to a step clears both on the way in, which
+    // is why the step numbers looked fine and the arrows did not.
     if(laneDone.size>=n){ done=to; reviewing=true; laneDone.clear(); carrierGone.clear(); }
     busy=false; refresh();
-    // only THIS ADP became an ATP, so only it pops — except on the oxidation,
+    // only THIS carrier turned over, so only it pops — except on an oxidation,
     // which already popped when the hydride landed. Popping again here is the
     // same tile announcing the same gain twice, the second time for nothing.
     if(st.fx!=='ox') popCarrier(j);
-    // the lane becomes the product when the last thing in the air lands — on
-    // the oxidation that is the drifting phosphate, not FLY
-    // the lane becomes the product when the last thing in the air lands — on
-    // the oxidation that is the drifting phosphate, not FLY
-    // …and on the dehydration, when the water has SEPARATED rather than when it
-    // has finished leaving: the C=C should close behind it while it is still on
-    // screen, so you see what its departure left.
-  }, st.fx==='ox' ? OX : st.fx==='lose' ? WATER_FORM+260 : FLY);
+  }, RX.durOf(st));
 }
 
+/* THE WHOLE STEP — every lane at once, and the same verb bodies.
+ *
+ * `RX.all` returns true when the verb owns its own completion. Exactly one
+ * does: `split`, because it changes how many lanes there are, so the page must
+ * not respawn them behind it.
+ */
 function runStep(){
   if(busy || intro || done>=nSteps) return;
   const st=stepAt(done), to=done+1;
-  const keys=speciesAt(to), n=keys.length;
-  // THE PHOSPHATE LEAVES ON THE CLICK — before the refresh below, so the tray
-  // redraws as ADP on the frame the flight starts. See carrierGone.
+  const keys=speciesAt(to);
+  // THE GROUP LEAVES ON THE CLICK — before the refresh below, so the tray
+  // redraws as the discharged carrier on the frame the flight starts.
   if(st.couple && st.couple.up) carrierGone.add(0);
   busy=true; refresh();                       // dim the tray for the duration
-  // A NAME BELONGS TO A SETTLED MOLECULE. Hidden for the whole of any animation:
-  // mid-beat the thing on stage is neither substrate nor product, so the label
-  // would name one of the two it is between. Cleared by `renderLanes` (and by
-  // the split's own completion, which does not call it).
+  // A NAME BELONGS TO A SETTLED MOLECULE. Hidden for the whole of any
+  // animation: mid-beat the thing on stage is neither substrate nor product,
+  // so the label would name one of the two it is between.
   platesOff=true; platesEl.classList.add('mute');
-  let dur=FLY;
 
-  if(st.fx==='in'){
-    // a phosphate flies in from the cytosol onto the site it is ABOUT to occupy
-    keys.forEach((key,j)=>{
-      const x=laneOrigin(key,j,n), tp=siteWorld(key,st.anchor,x);
-      // off the ATP giving it up; top of frame if the tray is not on screen
-      const from=tileWorld(carrierKey(st.couple.cin),tp) || V(x,OFFSCREEN,0);
-      const pIdx=M[key].gly[st.anchor];
-      // built as the product's OWN phosphate, so the frame it lands on is the
-      // frame the product replaces it and nothing moves
-      flyPhosphate(from, tp, M[key], pIdx);
-      // the ring marks the BOND that forms, not the atom that arrived
-      later(()=>FXi.spawnRing(junctionWorld(M[key],pIdx,x,laneBase(key)), PAL.atoms.P), FLY);
-      // AND THE HYDROXYL PROTON LEAVES FIRST. The oxygen the phosphate lands on
-      // is the sugar's own and is holding an H. Fired at the START of the
-      // flight in `away` mode: snaps off the bond immediately, then drifts out
-      // fading. Slower than the phosphate on purpose — a departure that keeps
-      // pace with the arrival reads as a swap, and here something is just lost.
-      // The H is on the SUBSTRATE, so its height comes from the substrate's
-      // own lift, not the product's.
-      const subKey=speciesAt(done)[j], sub=M[subKey], hIdx=leavingH(sub,M[key],pIdx);
-      if(hIdx!=null){ const h0=specWorld(sub,hIdx,x,laneBase(subKey));
-        // IT LEFT; IT SHOULD LOOK LEFT. Without this the H sat on the hydroxyl
-        // for the whole flight while a copy of itself drifted off the frame —
-        // two hydrogens where the chemistry has one, and the departure reading
-        // as something the molecule emitted rather than something it lost.
-        // `hIdx` indexes the SUBSTRATE, which is what lane j is still showing
-        // (renderLanes does not swap until FLY), so it addresses the right
-        // mesh; the guard says so rather than trusting it. h0 comes from the
-        // spec, not the mesh, so shedding first costs it nothing.
-        if(lanes[j] && lanes[j].key===subKey) shedAtoms(lanes[j],[hIdx]);
-        // …carrying its charge: the sugar went negative because THIS left
-        // positive.
-        FXi.protonHop(h0, h0.clone().add(screenRight(camera.right-camera.left)),
-                      null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
-                             carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
-                                              BADGE_SCALE)}); }
-      // THE CHARGE THE SUGAR JUST ACQUIRED — step 1's caption rests on it ("the
-      // negative charge locks the sugar in the cell"), and nothing on screen
-      // showed it. On the phosphate, because that carries it: a phosphate
-      // monoester is 2− at cytosolic pH whichever sugar it is on.
-      // AFTER the swap, not on it: `lanes` still holds the substrate until
-      // renderLanes runs at FLY, and the substrate has no phosphate to sit on.
-      later(()=>badge(j, pIdx, '2−'), FLY+40);
-    });
-
-  } else if(st.fx==='out'){
-    // each lane's phosphate flies OUT toward the tray, where an ADP catches it
-    lanes.forEach(l=>{
-      const src=anchorWorld(l,st.anchor);
-      // on the bond that breaks, not on the P that leaves along it
-      FXi.spawnRing(junctionWorld(M[l.key], M[l.key].gly[st.anchor], l.g.position.x, l.g.position.y),
-                    PAL.atoms.P);
-      // ...onto the ADP that catches it — step 1's trip run backwards, which is
-      // the point of a coupled pair. The registered end is the TAKEOFF here: it
-      // is a copy of the phosphate the sugar is losing, so it leaves from
-      // exactly where that one stands.
-      flyPhosphate(src, tileWorld(carrierKey(st.couple.cin),src,lanes.indexOf(l))
-                        || V(l.g.position.x,-OFFSCREEN,0),
-                   M[l.key], M[l.key].gly[st.anchor]);
-      shedPhosphoryl(l, M[l.key].gly[st.anchor]);
-    });
-
-  } else if(st.fx==='ox'){
-    // the whole lesson of this step: the hydride leaves LEFT onto the NAD⁺ in
-    // the tray, a free phosphate drifts DOWN out of the cytosol to fill the
-    // gap. Different directions and speeds, so it cannot read as one swap —
-    // the drawn NAD⁺ gives the hydride somewhere real to go, which frees the
-    // vertical axis for the thing that has no sender.
-    lanes.forEach(l=>{
-      const hIdx=M[l.key].gly.aldehydeH;
-      const hPos=(hIdx!=null? l.g.userData.atomWorld(hIdx) : anchorWorld(l,'p3')).clone();
-      // SHED HERE TOO. This route never did, so the hydride flew to NAD⁺ while
-      // the H it supposedly was stayed sitting on the aldehyde — the same
-      // "where did the extra one come from" the isomerase steps avoid. The two
-      // routes are meant to tell one story; this is where they had drifted.
-      if(hIdx!=null) shedAtoms(l,[hIdx]);
-      const j=lanes.indexOf(l);
-      const nadC4=tileWorld(carrierKey(st.couple.cin),hPos,j)
-                  || V(l.g.position.x, OFFSCREEN, 0);
-      hop(hPos, nadC4, '−', ()=>{ carrierGone.add(j); refresh(); popCarrier(j);
-        FXi.spawnRing(nadC4, H_LEAVE); });      // ring C4 — see the per-lane route
-      later(()=>flyPi(aboveFrame(hPos), hPos, DRIFT, ()=>{
-        FXi.spawnRing(hPos, PAL.atoms.P);
-        // …and the phosphate's own proton leaves as the ester forms — see flyPi.
-        FXi.protonHop(hPos, hPos.clone().add(screenRight(camera.right-camera.left)),
-                          null, {color:H_LEAVE, dur:H_LEAVE_MS/1000, away:true,
-                                   carry:KIT.charge('+', '#'+H_LEAVE.toString(16), 'H',
-                                                          BADGE_SCALE)});
-      }), OX_GAP);
-    });
-    dur=OX;                           // wait for the slower, later arrival
-
-  } else if(st.fx==='split'){
-    // THE MONEY SHOT: flash at C3–C4, then the halves part into lanes. Both
-    // spawn at the centre and are eased outward by the main loop, so the six
-    // carbons visibly become 3 + 3 rather than cutting to a new layout.
-    const l=lanes[0], cl=M[l.key].gly.cleave;
-    const mid=l.g.userData.atomWorld(cl[0]).add(l.g.userData.atomWorld(cl[1])).multiplyScalar(.5);
-    FXi.spawnRing(mid,CLEAVE);
-    const fromY=l.g.position.y;      // both halves start where the whole sugar was
-    // x=0 so the halves part from the centre, y where the sugar stood; the
-    // module eases them out to `tx` from the render loop.
-    lanes=LANES.render(keys, plateY(keys), (o,j)=>{
-      o.g.position.set(0,fromY,0);
-      o.g.userData.tx=laneOrigin(o.key,j,n);
-    });
-    later(()=>{ done=to; reviewing=true;   // lanes already correct — don't respawn
-      // The parting is a render-loop ease, so in a hidden tab it never ran; land
-      // them on their marks here so the halves can't come back stacked.
-      LANES.settle();
-      // renderLanes normally gives the names back; this branch doesn't call it
-      platesOff=false; platesEl.classList.remove('mute');
-      busy=false; refresh(); }, SPLIT);
-    return;
-
-  } else if(st.fx==='move'){
-    // THE MUTASE: the phosphate neither leaves nor comes from the pool — it
-    // slides C3→C2 on the same molecule. A short flight between the two sites,
-    // so it reads as the SAME phosphate relocating: step 8's whole difference.
-    // Step 8 is per-lane now, so a click goes through runLane; this is the
-    // whole-step path, calling the same function.
-    lanes.forEach((l,j)=>moveP(l,j,st,keys,n));
-
-  } else if(st.fx==='lose'){
-    // ENOLASE. Step 9 is per-lane now, so a click goes through runLane and
-    // this is the whole-step path — kept, and calling the SAME function, so
-    // the two routes cannot drift into telling different stories.
-    lanes.forEach(l=>waterAway(l));
-    dur=WATER_FORM+260;
-
-  } else if(st.fx==='open'){
-    // THE RING OPENS. The isomerase runs through the open-chain aldehyde, so
-    // the hemiacetal at C1 comes apart: C1–O5 breaks, the anomeric –OH gives
-    // its proton to the ring oxygen (which leaves as C5's hydroxyl), and the
-    // chain rotates out flat — then, on the open chain, C2's H moves to C1,
-    // and THAT is the isomerisation itself. FOUR BEATS, ACTUALLY IN ORDER: the
-    // two protons are the chemistry, and each needs the frame to itself.
-    lanes.forEach(l=>{
-      const gly=M[l.key].gly, o=gly.open, u=l.g.userData;
-      if(!o) return;
-      const mid=u.atomWorld(o[0]).clone().add(u.atomWorld(o[1])).multiplyScalar(.5);
-      FXi.spawnRing(mid, PAL.atoms.O);
-      // …and the H that moves at the END of the step comes on screen NOW, so
-      // when it goes the student has already seen where it was sitting.
-      if(gly.c2H!=null) showAtom(l,gly.c2H);
-      // the bond goes FIRST — the atoms are about to move as though it had
-      u.bondMeshes.forEach(bm=>{ const [i,j]=bm.userData.pair;
-        if((i===o[0]&&j===o[1])||(i===o[1]&&j===o[0])) bm.visible=false; });
-      if(gly.anomeric){
-        // POSITIONS FIRST, THEN SHED — same order step 5 uses. Reading
-        // atomWorld off an atom already shed gives you where it isn't.
-        const from=u.atomWorld(gly.anomeric.h).clone(), to=u.atomWorld(o[1]).clone();
-        shedAtoms(l,[gly.anomeric.h]);        // it left; it should look left
-        // …AND IT ARRIVES. O5 keeps this proton — it leaves the ring as C5's
-        // hydroxyl — so `openH` comes on where the geometry says an O–H goes.
-        hop(from, to, '+', ()=>showAtom(l, gly.openH));
-      }
-      // …then the unfurl, eased so it settles rather than arriving at speed
-      // PIXELS: on the render loop, and cancelled with the step if the student
-      // restarts mid-turn. (inOutQuad is the ease this hand-rolled inline.)
-      // NO REFIT HERE. Framing is fixed for the whole pathway; the camera used
-      // to ride topY and pan through the animation.
-      // AFTER THE HOP, NOT UNDER IT. The comment above says three beats in
-      // order and the code used to run all three at t=0: the proton crossed a
-      // ring that was unfurling out from under it, so its target had moved by
-      // the time it arrived, and the only beat the eye caught was the unfurl.
-      const plan=unfurlPlan(l);
-      later(()=>MO.seq([{dur:UNFURL/1000, ease:'inOutQuad',
-        onUpdate:e=>unfurlApply(l,plan,e)}],{tag:RUN}), HOP);
-    });
-    // WHAT IS LEFT AT THE SWAP IS THE REACTION, so it gets marked. Backbones
-    // superimpose by now (0.19 RMSD, vs 1.67 before the roll was matched), so
-    // the only change is what the isomerase did: the carbonyl moves one carbon
-    // in, and this hop is the half of that mechanism the eye can follow.
-    //
-    // C2'S CARBON → C1'S OXYGEN, not C1's carbon. This is the ENOLISATION, the
-    // first half of the cis-enediol the isomerase runs through: the base takes
-    // the α-proton off C2, the charge delocalises onto the C1 carbonyl oxygen,
-    // and that oxygen is what gets protonated — leaving C1(OH)=C2(OH). Aimed
-    // at C1's carbon it was drawing the SECOND half's destination with the
-    // FIRST half's proton, and landing on a carbon F6P draws no H on, so the
-    // hydrogen simply ceased to exist. The swap to F6P delivers the rest.
-    //
-    // THE OXYGEN IT LANDS ON IS THE ONE THAT JUST GAVE A PROTON UP: the ex-
-    // anomeric O, C1's carbonyl since the ring opened. So `anomeric.h` comes
-    // back on — same site, same geometry, a proton returned to where the first
-    // hop took one from, which is what an enediol is.
-    //
-    // ON THE SUBSTRATE, BEFORE THE SWAP — it used to fire on F6P afterwards,
-    // where C2 is a bare ketone carbon and the proton had nowhere to come
-    // from. Here the H has been on screen at C2 since the top of the step
-    // (showAtom above) and is shed as the hop starts: the thing that moves is
-    // the thing that was there.
-    later(()=>lanes.forEach(l=>{
-      const gly=M[l.key].gly, u=l.g.userData;
-      if(gly.c2H==null || !gly.anomeric) return;
-      const from=u.atomWorld(gly.c2H).clone(), to=u.atomWorld(gly.anomeric.o).clone();
-      FXi.spawnRing(from, H_LEAVE);
-      shedAtoms(l,[gly.c2H]);
-      hop(from, to, '+', ()=>showAtom(l, gly.anomeric.h));
-    }), HOP+UNFURL+120);
-    dur=HOP+UNFURL+120+HOP+180;                  // land, then swap to F6P
-
-  } else if(st.fx==='iso'){
-    // TRIOSE-PHOSPHATE ISOMERASE, IN THREE BEATS — because it is three things,
-    // and run as one they read as "a spark, and then a different molecule".
-    //
-    //   1. THE HYDROGEN LEAVES C3 AND LANDS ON C2. It is SHED from the mesh as
-    //      the hop starts, so the atom the student clicked visibly goes; the
-    //      glowing proton is then the only H in the air, and it arrives on a
-    //      carbon that draws one (g3p's `c2H`). Hop without shed — what this
-    //      did first — leaves the white H sitting on C3 while a second one
-    //      flies off it, and the honest question is where the extra came from.
-    //   2. THE C=O SLIDES OUT to the carbon the H left. Ringed where it forms.
-    //   3. THE MOLECULE TURNS OVER. This is not chemistry and must not look
-    //      like it — no ring, no glow, slow and eased. But it cannot be
-    //      skipped: DHAP is drawn phosphate-UP (it is F1,6-BP's top half) and
-    //      G3P phosphate-DOWN (the bottom half), so swapping one for the other
-    //      teleports the phosphate the whole length of the molecule and says
-    //      the phosphate moved. It does not move — the NUMBERING flips, C1 of a
-    //      ketose being C3 of the aldose. So the turn is the truthful frame for
-    //      that: same molecule, turned around, and now the two lanes match.
-    //      180° about X, which is why the backbone lands on the product's: the
-    //      chain's x zig-zag is a palindrome (−h, +h, −h), so reversing y maps
-    //      it onto itself. A proper rotation, so it cannot mint an enantiomer —
-    //      G3P's C2 stereocentre is made by beat 1, not by this.
-    //
-    // ONE LANE RUNS. G3P has no `movingH` — it is already the product — so this
-    // skips it, exactly as the hotspot skipped it. Nothing enters and nothing
-    // leaves: no carrier, no flight from the tray, and the ledger stays still.
-    lanes.forEach(l=>{
-      const gly=M[l.key].gly, u=l.g.userData;
-      if(gly.movingH==null) return;
-      const from=u.atomWorld(gly.movingH).clone(), to=u.atomWorld(gly.cN[1]).clone();
-      // the C–H that breaks, in the page's hydrogen steel — fx.js's default
-      // gold here would read as the carbonyl that is about to form beside it
-      FXi.spawnRing(from, H_LEAVE);
-      shedAtoms(l,[gly.movingH]);
-      // A PROTON, so '+' like steps 1, 2 and 3 — TPI runs the same cis-enediol
-      // step 2 does, a glutamate taking the H off one carbon and putting it
-      // back on the next, electrons left behind in the molecule. Step 6's
-      // hydride is the only '−' on the page.
-      hop(from, to);
-      // …and the C=O that forms where it left, as the proton lands. Positions
-      // are read BEFORE the turn starts, so they are the geometry on screen.
-      const c3=u.atomWorld(gly.cN[2]).clone();
-      later(()=>FXi.spawnRing(c3, PAL.atoms.O), HOP);
-      // …then turn it over, and CHANGE MOLECULES HALFWAY THROUGH THE TURN.
-      //
-      // The swap has to happen somewhere, and every choice shows a seam: the
-      // carbons superimpose exactly under the flip (turnX asserts 0.000 Å) but
-      // the phosphate does not — it lands 1.2 Å out, because the two specs grow
-      // it into different rotamers about the C–O bond. That torsion is a free
-      // rotor and means nothing chemically, but swapping at either END of the
-      // turn shows it as the phosphate twitching, on the one step whose point
-      // is that the phosphate does not move.
-      //
-      // At the halfway point the molecule is EDGE-ON — the chain plane is
-      // square to the camera and the whole thing is foreshortened to a line, so
-      // a rotamer's worth of z is the least visible it will ever be, and the
-      // eye is tracking a turn besides. So DHAP sweeps 0 → π/2, G3P picks the
-      // sweep up at −π/2 and carries it home to 0. One continuous turn, two
-      // molecules, and the product arrives already facing the way its lane
-      // mate does.
-      // EVERY BEAT BELOW HANGS OFF WHEN THE PROTON LANDS, which is HOP now,
-      // not FLY. FLY is a phosphate's flight time and only ever stood in for
-      // this because the hop used to run at fx.js's 0.5 s default; leaving it
-      // would start the turn while the proton was still in the air.
-      const j=lanes.indexOf(l), HALF=ISO_TURN/2;
-      later(()=>MO.seq([{dur:HALF/1000, ease:'inQuad',
-        onUpdate:e=>{ l.g.rotation.x=e*Math.PI/2; }}],{tag:RUN}), HOP+ISO_HOLD);
-      later(()=>{
-        swapLane(j,'g3p');
-        const g2=lanes[j].g;
-        g2.rotation.x=-Math.PI/2;
-        MO.seq([{dur:HALF/1000, ease:'outQuad',
-          onUpdate:e=>{ g2.rotation.x=(e-1)*Math.PI/2; }}],{tag:RUN});
-      }, HOP+ISO_HOLD+HALF);
-    });
-    dur=HOP+ISO_HOLD+ISO_TURN;
-
-  } else dur=280;                              // no fx named: a plain swap
-
-  later(()=>{ done=to; reviewing=true; carrierGone.clear(); renderLanes(to);
-    busy=false; refresh(); }, dur);
+  const land=respawn=>()=>{
+    done=to; reviewing=true; carrierGone.clear();
+    if(respawn) renderLanes(to);
+    // renderLanes gives the names back; the branch that skips it must not.
+    else { platesOff=false; platesEl.classList.remove('mute'); }
+    busy=false; refresh();
+  };
+  // `split` already has the lanes correct — don't respawn over them.
+  if(RX.all(st, keys, land(false))) return;
+  later(land(true), RX.durOf(st));
 }
-
 function rewind(){
   if(busy) return;
   // the review screen steps back to its own step's explanation — one click,

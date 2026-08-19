@@ -141,16 +141,31 @@ for (const page of PAGES) {
  *                    source, so matching it would wave through the very cases
  *                    this exists to catch.
  * ===================================================================== */
-const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane|flyPi)\s*\(/;
+const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane|flyFree)\s*\(/;
 const BEFORE = 14, AFTER = 3;      // lines of context; widen only with a reason
+
+/* WHERE THE HOPS LIVE, which is no longer only the pages. `reaction/` holds the
+ * verb bodies glycolysis-lab used to write inline, so scanning .html alone made
+ * this check report ONE hop on a page that has a dozen — a green tick over the
+ * exact code the audit above was written about. Widen this list alongside any
+ * module that gains a hop.
+ */
+const HOP_SOURCES = [...PAGES, 'reaction/reaction.js'];
+
+/* THE CALL SITES, and `protonAway` is one. A departure to solution is written
+ * as a wrapper now (same colour, same `away` profile, same '+'), and a wrapper
+ * whose name the pattern does not know is a hop this check cannot see — which
+ * is how the four call sites in the audit above would look today. Add a name
+ * here whenever a page or module wraps protonHop. */
+const HOP_CALL = /(?:\bprotonHop|\bprotonAway|\bhop)\s*\(/;
 
 console.log('\n== 2. every proton hop removes the atom it moves');
 let hops = 0;
-for (const page of PAGES) {
+for (const page of HOP_SOURCES) {
   const lines = fs.readFileSync(path.join(ROOT, page), 'utf8').split('\n');
   lines.forEach((raw, i) => {
     const line = raw.replace(/\/\/.*$/, '');       // a hop named in a comment is prose
-    if (!/(?:\bprotonHop|\bhop)\s*\(/.test(line)) return;
+    if (!HOP_CALL.test(line)) return;
     // The page's own hop wrappers are DEFINITIONS, not calls — they are where
     // the courier is configured, and the shed belongs at the call sites.
     //
@@ -159,7 +174,7 @@ for (const page of PAGES) {
     // call site and demanded a shed inside a definition. Walk back to the last
     // line that ENDED a statement, and if a declaration is still open when the
     // call appears, this is that declaration.
-    let head = line.slice(0, line.search(/(?:\bprotonHop|\bhop)\s*\(/));
+    let head = line.slice(0, line.search(HOP_CALL));
     for (let k = i - 1; k >= 0 && k >= i - 3; k--) {
       const prev = lines[k].replace(/\/\/.*$/, '').trimEnd();
       head = prev + ' ' + head;

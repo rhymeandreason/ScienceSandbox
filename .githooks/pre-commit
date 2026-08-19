@@ -114,6 +114,28 @@ else
   echo "pre-commit: skipping check-coupling.js — nothing under demos/coupling/ staged"
 fi
 
+# demos/reaction/ gates itself, PLUS every page that drives it. The checker's
+# first claim is that no lesson names an `fx:` the verb table does not register,
+# and that failure lives in the PAGE, not the module: a typo'd verb used to fall
+# through the old chain's bare `else` and run as a silent 280 ms swap — the step
+# completed, the ledger moved, and the animation the whole step was about simply
+# did not happen. Nothing on screen says "that string was wrong", so a gate that
+# only fired on demos/reaction/ would miss the case it exists for.
+if git diff --cached --name-only \
+   | grep -qE '^demos/(reaction/.*|glycolysis-lab\.html)$'; then
+  if ! node reaction/check-reaction.js > /tmp/crx.$$ 2>&1; then
+    tail -25 /tmp/crx.$$; rm -f /tmp/crx.$$
+    echo ""
+    echo "pre-commit FAILED: check-reaction.js — a step names an animation that"
+    echo "  does not exist, or a verb stopped being a per-lane body. The second"
+    echo "  one is how the whole-step and per-lane routes drifted apart before."
+    exit 1
+  fi
+  rm -f /tmp/crx.$$
+else
+  echo "pre-commit: skipping check-reaction.js — nothing under demos/reaction/ staged"
+fi
+
 # demos/membrane/ gates itself. check-pump.js audits pump.js, which is the CYCLE
 # and deliberately holds no THREE — so the one claim the whole lesson rests on,
 # that the pump is never open at both ends, is machine-checkable rather than

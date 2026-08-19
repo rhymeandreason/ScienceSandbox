@@ -45,6 +45,8 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
 
+**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb (`decarb`, `join`, `thioester` for the rest of respiration) must not touch a page. `AddingAPage.md`.
+
 **`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
 
 ## Scientific accuracy
@@ -86,7 +88,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
