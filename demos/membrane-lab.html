@@ -25,21 +25,22 @@
      belongs next to the pump — and it is deliberately OUTSIDE #chrome, so
      kit/fit.js's reserve (chromeEl.offsetHeight) does not grow on the one step
      that shows it and re-frame the membrane mid-lesson. */
-  #spend, #shells {
-           position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
-           z-index:4;
+  #spend, .tog {
            font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
            border:1px solid #a493cf; background:#e8e2f6; cursor:pointer;
            box-shadow:0 2px 10px rgba(0,0,0,.12); }
-  /* The channel's toggle sits where the pump's button sits — the two steps
+  /* The step's controls sit where the pump's button sits — the two steps
      never show at once, so one place on the stage means "the control for
-     this step" rather than two things to find. */
-  #shells { border-color:#2a7a6a; background:#dfeee9;
-            display:flex; align-items:center; gap:8px; padding:7px 16px 7px 12px;
-            user-select:none; }
-  #shells[hidden] { display:none; }
-  #shells input { width:16px; height:16px; margin:0; accent-color:#2a7a6a;
-                  cursor:pointer; }
+     this step" rather than several things to find. */
+  #spend, #ctl { position:absolute; left:50%; bottom:10px;
+                 transform:translateX(-50%); z-index:4; }
+  #ctl { display:flex; gap:10px; }
+  #ctl[hidden] { display:none; }
+  .tog { border-color:#2a7a6a; background:#dfeee9;
+         display:flex; align-items:center; gap:8px; padding:7px 16px 7px 12px;
+         user-select:none; }
+  .tog input { width:16px; height:16px; margin:0; accent-color:#2a7a6a;
+               cursor:pointer; }
   #spend:disabled { opacity:.45; cursor:default; }
   #spend[hidden] { display:none; }
 
@@ -76,6 +77,17 @@
      was two numbers under a picture, and the student had to hold "42" in
      their head while looking for which side had more. Over the scene the
      number IS the side. */
+  #volt { position:absolute; inset:0; pointer-events:none; z-index:3; }
+  #volt[hidden] { display:none; }
+
+  #voltCount { position:absolute; right:16px; bottom:14px; text-align:right;
+               font-size:12px; line-height:1.5; opacity:.72;
+               font-variant-numeric:tabular-nums; white-space:nowrap;
+               text-shadow:0 1px 10px rgba(255,255,255,.85); }
+  #voltCount b { font-size:15px; font-weight:700; }
+  #voltCount span { display:block; letter-spacing:.07em; text-transform:uppercase;
+                    opacity:.65; }
+
   #osmo { position:absolute; inset:0; pointer-events:none; z-index:3; }
   #osmo[hidden] { display:none; }
   .otally { position:absolute; transform:translate(-50%,-50%); text-align:center;
@@ -86,6 +98,9 @@
   .otally span { display:block; font-size:12px; letter-spacing:.09em;
                  text-transform:uppercase; opacity:.6; margin-top:4px; }
   .otally em { font-style:normal; font-weight:700; opacity:.95; }
+  /* The unit sits with its number but does not compete with it. */
+  .otally b small { font-size:0.42em; font-weight:600; letter-spacing:.02em;
+                    opacity:.65; }
   #osmoArrow { position:absolute; transform:translate(-50%,-50%); opacity:0;
                transition:opacity .5s ease; }
   #osmoArrow .onet { font-size:15px; font-weight:600; letter-spacing:.04em; }
@@ -107,14 +122,41 @@
          out which state they are IN; a ticked box shows the state and names
          the thing in one go. Real input, so it keeps keyboard and screen
          reader behaviour for free. -->
-    <label id="shells" hidden>
-      <input type="checkbox" id="shellsBox" checked>
-      <span>Water shells</span>
-    </label>
+    <!-- The channel step's two switches, in one row so they read as the
+         controls for this step rather than two things to find. -->
+    <div id="ctl" hidden>
+      <label class="tog">
+        <input type="checkbox" id="shellsBox" checked>
+        <span>Water shells</span>
+      </label>
+      <label class="tog">
+        <input type="checkbox" id="voltBox" checked>
+        <span>Membrane potential</span>
+      </label>
+    </div>
     <!-- Osmosis's tally and net arrow, drawn over the scene. Positions are
          solved each frame from the projected membrane plane, never from a
          guess at where the middle of the canvas is: kit/fit.js reserves chrome
          at the bottom, so world y=0 is NOT the centre of the stage. -->
+    <!-- The membrane potential: charge skins pinned to the two faces, and
+         the voltage they add up to. -->
+    <div id="volt" hidden>
+      <!-- Same instrument as the osmosis tally, deliberately: two steps
+           that both count something the student cannot count by eye should
+           not look like two different readouts. -->
+      <div class="otally" id="voltRead"><b></b><span></span></div>
+      <!-- Outside is DEFINED as zero, and that convention is what the minus
+           sign on the other number means. Set at the same weight as the
+           reading it anchors: a comparison drawn with one big number and
+           one small one says the small one matters less, and here it is
+           the half that makes the other half mean anything. -->
+      <div class="otally" id="voltRef"><b></b><span></span></div>
+      <!-- The running tally, parked in the corner. It is not part of the
+           measurement across the membrane — it is the working behind it —
+           so it gets a log's treatment rather than an instrument's. -->
+      <div id="voltCount"></div>
+    </div>
+
     <div id="osmo" hidden>
       <div class="otally" id="osmoOut"><b></b><span></span></div>
       <div class="otally" id="osmoIn"><b></b><span></span></div>
@@ -192,14 +234,19 @@ const capEl = document.getElementById('cap');
 const readoutEl = document.getElementById('readout');
 const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
-const shellsEl = document.getElementById('shells');
+const ctlEl = document.getElementById('ctl');
 const shellsBox = document.getElementById('shellsBox');
+const voltBox = document.getElementById('voltBox');
 const osmoEl = document.getElementById('osmo');
 const osmoOutEl = document.getElementById('osmoOut');
 const osmoInEl = document.getElementById('osmoIn');
 const osmoArrowEl = document.getElementById('osmoArrow');
 const osmoArrowG = document.getElementById('osmoArrowG');
 const osmoNetEl = document.getElementById('osmoNet');
+const voltEl = document.getElementById('volt');
+const voltReadEl = document.getElementById('voltRead');
+const voltCountEl = document.getElementById('voltCount');
+const voltRefEl = document.getElementById('voltRef');
 const chromeEl = document.getElementById('chrome');
 
 const HALF = 15.3;                      // OPM's half-thickness, from the bake
@@ -644,6 +691,13 @@ function setShells(on) {
   shellsBox.checked = on;
 }
 shellsBox.addEventListener('change', () => setShells(shellsBox.checked));
+voltBox.addEventListener('change', () => {
+  voltOn = voltBox.checked;
+  /* Switched back on, it starts over from zero. Resuming a voltage built
+     during a spell when the physics was off would be a number with no
+     transits behind it, and the corner tally is that number's working. */
+  if (voltOn) { mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0; }
+});
 
 function tickShells(dt) {
   /* In flight: drift out, shrink away, gone. Shrinking rather than fading
@@ -771,9 +825,75 @@ const laneGap = x => Math.min(Math.abs(x - LANE), Math.abs(x + LANE));
    WHAT THIS IS NOT: a force model. The push is not computed from charge —
    the wait simply shortens when something is close behind, which is the
    same thing to watch and does not pretend to a number nobody measured. */
+/* ---- the membrane potential ----
+   THE LEAK BUILDS THE THING THAT STOPS IT. Without this the step said a
+   channel is a hole that conducts until you change tabs. Every K⁺ that
+   leaves carries a positive charge out and leaves an unbalanced negative
+   one behind; the interior goes negative; that negative interior pulls K⁺
+   back. The efflux slows and halts at potassium's equilibrium potential.
+   Nothing closed — the current used up its own reason to flow.
+
+   Cl⁻ coming IN does the same to the voltage: a negative charge arriving
+   inside is the same sign of change as a positive one leaving. Both of
+   these currents hyperpolarise, which is why a resting cell sits near both
+   their equilibrium potentials.
+
+   NUMBERS THAT ARE REAL: E_K ≈ −90 mV and E_Cl ≈ −75 mV, the Nernst
+   potentials of the gradients this page has already drawn. NUMBER THAT IS
+   NOT: mV per ion. A real membrane needs ~1e−12 mol/cm² of net charge for
+   100 mV — millions of ions, against a handful on stage — so MV_PER_ION is
+   chosen to land the effect in the seconds a student is watching, and it
+   is the one stage direction here. It is also the honest shape of the
+   fact: the potential is made by an imbalance far too small to see by
+   counting, which is why the skins are drawn and the ions are not. */
+/* THE POTENTIAL IS A TOGGLE, and turning it off is not just hiding a
+   readout — it removes the feedback. Off, the pores conduct forever at full
+   drive, which is the naive picture of a channel the step starts from and
+   the one most students arrive with. On, the leak builds the voltage that
+   stops it. Flipping between the two IS the lesson: the same open pore,
+   the same gradient, and a completely different outcome once the charge it
+   moves is allowed to matter. */
+let voltOn = true;
+
+const E_K = -90, E_CL = -75;             // mV, equilibrium potentials
+const MV_PER_ION = -7.5;                 // stage timing, not a measurement
+let mV = 0, chargeOut = 0;
+/* COUNTED SEPARATELY, because they run opposite ways. One total with one
+   arrow on it would be false whichever way the arrow pointed: this number
+   is two currents, K⁺ leaving and Cl⁻ arriving, that happen to push the
+   voltage the same way. */
+const crossed = { K:0, CL:0 };
+const equilibriumOf = kind => kind === 'CL' ? E_CL : E_K;
+/* How hard this ion is still being pushed — 0 at its own equilibrium. The
+   pore is as open as it ever was; what has run out is the gradient. */
+const drive = kind => !voltOn ? 1
+  : Math.max(0, (mV - equilibriumOf(kind)) / -equilibriumOf(kind));
+
 const HOP = { wait:[0.10, 0.30], move:0.10, crowd:0.35 };
 function tickQueue(t, dt) {
-  if (Math.abs(t.y) > T.height) { t.hop = null; return false; }   // out in the bulk
+  if (Math.abs(t.y) > T.height) {
+    /* Counted ONCE, leaving the far mouth: a completed transit is one
+       charge moved across, and that is what the voltage is made of.
+       Floored at the most negative equilibrium on stage rather than the
+       crossing ion's own — clamping to the crosser's E would let a late
+       Cl⁻ drag the voltage back up to −75 after potassium had taken it
+       past, which is a current running backwards up its own gradient.
+       Each ion stopping at its own equilibrium is drive()'s job. */
+    if (t.inPore && voltOn && Math.sign(t.y) === Math.sign(t.vy)) {
+      chargeOut++;
+      crossed[t.kind] = (crossed[t.kind] || 0) + 1;
+      mV = Math.max(Math.min(E_K, E_CL), MV_PER_ION * chargeOut);
+    }
+    t.inPore = false; t.hop = null;
+    return false;                                                 // out in the bulk
+  }
+  t.inPore = true;
+  /* AT EQUILIBRIUM IT STOPS, held in an open pore rather than removed from
+     it. An ion deleted at the end would say the channel closed; an ion
+     sitting in a pore that is still open, going nowhere, is what a cell at
+     rest actually is. */
+  const push = drive(t.kind);
+  if (push <= 0.001) { t.obj.position.y = t.y; return true; }
   if (!t.hop) t.hop = { wait: rnd(HOP.wait[0], HOP.wait[1]), t:0, moving:false };
   const h = t.hop;
   h.t += dt;
@@ -784,12 +904,15 @@ function tickQueue(t, dt) {
   /* One site's worth of travel, taken fast — `step` is the file's spacing,
      so a hop lands where the ion ahead was standing. */
   const step = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
-  t.y += Math.sign(t.vy) * (step / HOP.move) * dt;
+  t.y += Math.sign(t.vy) * (step / HOP.move) * dt * (0.25 + 0.75 * push);
   if (h.t >= HOP.move) {
     h.moving = false; h.t = 0;
     const behind = queueBehind(t);
-    h.wait = behind < step * 1.8 ? HOP.crowd * rnd(0.3, 0.8)     // knocked on
-                                 : rnd(HOP.wait[0], HOP.wait[1]);
+    /* And the wait stretches as the drive fades, so the file visibly slows
+       to a halt rather than running at full speed and then stopping dead. */
+    const base = behind < step * 1.8 ? HOP.crowd * rnd(0.3, 0.8)  // knocked on
+                                     : rnd(HOP.wait[0], HOP.wait[1]);
+    h.wait = base / Math.max(0.08, push);
   }
   t.obj.position.y = t.y;
   return true;
@@ -1277,12 +1400,12 @@ const STEPS = [
   {
     id:'channel',
     tab:'a channel',
-    cap:'<b>To fit through a pore, an ion has to give up its water — ' +
-        'and the pore has to replace it.</b> ' +
-        'K⁺ leaks out, Cl⁻ leaks in, each down its own gradient: the pore ' +
-        'picks the ion, never the direction. Na⁺ is <em>smaller</em> than ' +
-        'K⁺ but holds its water tighter, and neither lining can pay for ' +
-        'it — so it goes nowhere.',
+    cap:'<b>The leak builds the voltage that stops the leak.</b> ' +
+        'K⁺ goes out and Cl⁻ comes in, each down its own gradient — and to ' +
+        'fit, an ion has to give up its water and let the pore replace it. ' +
+        'Every ion that crosses leaves the inside a little more negative, ' +
+        'until that pull cancels the gradient and the file halts. Nothing ' +
+        'closed: the current used up its own reason to flow.',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane('chan'); setCut(true);
@@ -1385,6 +1508,8 @@ const STEPS = [
       NOTES.add({ text:'Cl⁻ channel · in',
                   offset:[ 40, -30], at:() => _np.set( LANE, mouthY(), 0) });
 
+      mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
+      voltBox.checked = voltOn;         // a re-entered step keeps the choice
       setShells(shellsOn);              // a re-entered step keeps the choice
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
@@ -1395,8 +1520,8 @@ const STEPS = [
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
-    readout: () => 'two pores, two directions, neither chosen by a protein · ' +
-                   'K⁺ is stripped bare to cross, Cl⁻ only partly · Na⁺ is refused by both',
+    readout: () => `resting potential ${Math.round(mV)} mV · K⁺ stops at ${E_K}, ` +
+                   `Cl⁻ at ${E_CL} · Na⁺ is refused by both pores and never crosses`,
   },
 
   {
@@ -1566,6 +1691,71 @@ function paintOsmo() {
   osmoArrowEl.style.top = midY + 'px';
 }
 
+/* ---- the voltage overlay ----
+   NO CHARGE SKINS. Rows of + and − were stamped along the two faces, sized
+   as |mV| / |E_K| — a bar gauge drawn with characters. It looked like a
+   COUNT and was not one: a student could count eighteen pluses beside a
+   tally reading a different number, which is exactly the typed-number
+   failure this repo's copywriting rule exists to prevent. The two tallies
+   carry the fact, and the caption carries the surface part in words. */
+function paintVolt() {
+  const r = canvas.getBoundingClientRect();
+  const mid = _op.set(0, 0, 0).project(L.camera);
+  const midY = (1 - (mid.y * .5 + .5)) * r.height;
+  const face = _op.set(0, HALF, 0).project(L.camera);
+  const faceY = (1 - (face.y * .5 + .5)) * r.height;
+  const half = Math.max(6, Math.abs(midY - faceY));
+
+  /* BOTH NUMBERS ARE COUNTED. The voltage is MV_PER_ION times the transits
+     that actually happened, and the transit count is those transits — so
+     the second number is the first one's working, and a student who
+     doubts the voltage can watch what it is made of. */
+  /* THE UNIT RIDES THE NUMBER. Two 46px figures stacked in one overlay
+     read as one instrument in one unit, and "mV" was buried in the 12px
+     label under only one of them — so the transit count above looked like
+     a second voltage. A quantity and its unit are one thing; the label is
+     for what it is a measurement OF. */
+  voltReadEl.firstElementChild.innerHTML =
+    Math.round(mV) + '<small> mV</small>';
+  /* "balanced", not "stopped". At equilibrium the pore is still open and
+     ions are still moving through it in both directions — what has gone is
+     the NET. A label saying the flow stopped would teach that the channel
+     shut, which is the one thing this step keeps insisting does not
+     happen. And "leaking" named no ion and read as a fault. */
+  voltReadEl.lastElementChild.innerHTML =
+    'inside<br><em>' +
+    (drive('K') <= 0.001 ? 'balanced · no net flow' : 'K⁺ still leaving') + '</em>';
+  voltRefEl.firstElementChild.innerHTML = '0<small> mV</small>';
+  voltRefEl.lastElementChild.innerHTML = 'outside<br><em>reference</em>';
+
+  /* An arrow PER CURRENT, pointing the way that ion actually went — up is
+     out of the cell, down is in, the page's convention throughout. The two
+     are read from the transits and always add to the total beside them. */
+  voltCountEl.innerHTML =
+    '<span>ions crossed</span><b>' + chargeOut + '</b> · ' +
+    'K⁺ ↑ ' + crossed.K + ' · Cl⁻ ↓ ' + crossed.CL;
+
+  /* THE VOLTAGE SITS INSIDE, which is the BOTTOM half — the pump's u = −1
+     is the cytoplasmic mouth and every other step follows it. This label
+     says "mV inside" and was being drawn above the membrane, i.e. in the
+     extracellular space, which is the one place it is not true.
+     The transit count is not a property of either side, so it takes the
+     other half rather than crowding the reading it explains. */
+  /* THE VOLTAGE PAIR ON THE LEFT, THE TALLY ON THE RIGHT. They are not the
+     same kind of thing: the mV reading and its 0 mV reference are one
+     measurement across the membrane, so they belong on one axis facing
+     each other. The transit count is a running total of events and belongs
+     nowhere in particular — so it sits well clear, where it cannot be read
+     as a third value in that comparison. */
+  const x = r.width * 0.17;
+  voltReadEl.style.left = voltRefEl.style.left = x + 'px';
+  voltReadEl.style.top = (midY + half + 74) + 'px';    // inside, below
+  voltRefEl.style.top  = (midY - half - 74) + 'px';    // outside, above
+  /* No positioning: it is pinned to the stage's bottom-right corner in CSS
+     rather than solved against the membrane, because it is not measuring
+     anything about a side. */
+}
+
 /* ---- step machinery ---- */
 let cur = -1;
 STEPS.forEach((s, i) => {
@@ -1719,7 +1909,9 @@ function tick(dt) {
   }
   /* Outside the branches: the pump step returns early past them, so a
      toggle hidden only in the non-pump path stayed on screen over the pump. */
-  shellsEl.hidden = s.id !== 'channel';
+  ctlEl.hidden = s.id !== 'channel';
+  voltEl.hidden = s.id !== 'channel' || !voltOn;
+  if (!voltEl.hidden) paintVolt();
   NOTES.step();                           // trap 1: in the RENDER loop
   osmoEl.hidden = s.id !== 'osmosis';
   if (!osmoEl.hidden) paintOsmo();
