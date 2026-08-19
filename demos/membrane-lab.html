@@ -1288,6 +1288,81 @@ function tumble(t, dt) {
   t.obj.rotation.z += dt * t.spin.z;
 }
 
+/* ---- the proteins are solid ----
+   Nothing stopped a traveller entering a transporter's WALL. Bystanders are
+   held off by `keepout`, but a conducting ion cannot have one — it has to
+   reach the mouth — so the funnel walked K⁺ and Cl⁻ straight through the
+   barrel, and an ion sat half-buried in the side of a channel.
+
+   The exclusion is an annulus, not a disc: solid from the lumen out to the
+   drawn wall, and OPEN down the middle, because the middle is the pore.
+   Radii come from the same constants the transporters are built from, so a
+   lobe retune cannot leave this behind — and the lobes are ignored on
+   purpose, since pushing an ion out to the widest point of a rippled wall
+   is the safe direction to be wrong in.
+
+   The vestibule is exempt near the mouths, and only for the species that
+   pore admits: that is the one place an ion is meant to be inside the
+   protein's outline without being in the file yet. */
+const PORES = [
+  { x:-LANE, R:K_R,  lumen:8.8, kind:'K'  },
+  { x: LANE, R:CL_R, lumen:8.0, kind:'CL' },
+];
+/* THE BARREL IS DOMED, NOT A CYLINDER — the same profile membrane/parts.js
+   draws, copied because the page cannot ask the mesh. Treating it as a
+   full-height cylinder was what stranded ions on the shoulders: an ion
+   coming down to a mouth has to cross the protein's top, and a cylinder put
+   a solid wall there, so the funnel pulled it in and this pushed it out and
+   it orbited the corner. The real shape gets out of the way — radius falls
+   to zero at the pole over the top 30% — which is exactly where the mouth
+   is, and why an approach works at all.
+
+   Cl⁻ suffered most: a wider ion against a narrower lumen (8.0 against
+   8.8), so its way in was the smallest target on stage. */
+function poreRadiusAt(P, y) {
+  const H = T.height, u = Math.abs(y) / H, cap = 0.30;
+  let sc = 1;
+  if (u > 1 - cap) {
+    const k = (u - (1 - cap)) / cap;           // 0 at the shoulder, 1 at the pole
+    sc = Math.sqrt(Math.max(0, 1 - k * k));
+  }
+  const waist = 1 - 0.07 * Math.exp(-((y / (HALF * 0.8)) ** 2));
+  return P.R * sc * waist;
+}
+
+function keepOutOfPores(t) {
+  if (t.lane != null) return;                  // in the file: it belongs there
+  /* THE ION HAS A RADIUS. Testing its centre against the wall let a sphere
+     sit half-buried with its middle legally outside — and a hydrated one is
+     seven units across, so most of what the student saw was inside the
+     barrel. Every bound below is the wall PLUS the ion, which is also why
+     the vertical test uses it: a big ion just above the protein's end can
+     still dip into the top of it. */
+  const rad = bulkRadius(t);
+  if (Math.abs(t.y) >= T.height + rad) return; // clear of the protein entirely
+  for (const P of PORES) {
+    const dx = t.x - P.x, dz = t.z;
+    const r = Math.hypot(dx, dz);
+    const wall = poreRadiusAt(P, t.y) + rad;
+    if (r >= wall) continue;                   // outside the wall
+    /* Down the throat of its OWN pore, at a mouth — leave it alone, it is
+       on its way in. */
+    /* On its way down its own throat. The test is against the LUMEN plus
+       the ion rather than minus it: an ion centred in the mouth is in the
+       mouth, and demanding it clear the rim by a whole radius meant the
+       only legal approach was a bullseye the funnel could rarely hit. */
+    if (r <= P.lumen + rad && t.conducts === P.x &&
+        Math.abs(t.y) > T.height * 0.6) continue;
+    const push = r > 0.001 ? wall / r : 1;
+    t.x = P.x + dx * push;
+    t.z = dz * push;
+    if (r <= 0.001) t.x = P.x + wall;         // dead on the axis: pick a side
+    t.obj.position.x = t.x; t.obj.position.z = t.z;
+    /* Turned away from the wall, so it does not grind along it. */
+    t.vx = Math.abs(t.vx) * Math.sign(t.x - P.x || 1);
+  }
+}
+
 /* HYDRATED IONS DO NOT INTERPENETRATE. A shell is 6 A of water and two of
    them overlapping is not a crowd, it is one blob with a sign in it — and
    at this step the shells ARE the argument, so a pair that has merged
@@ -2151,7 +2226,13 @@ function tick(dt) {
       /* No keepApart() on the lanes any more — the file spaces itself by
          waiting (see queueAhead), and pushing positions on top of that was
          what made the pores dither. */
+      /* WALL EXCLUSION RUNS LAST. keepClear() pushes ions apart by moving
+         them, and it knows nothing about the proteins — run before it, the
+         wall correction was promptly undone by a neighbour shoving an ion
+         back into the barrel. Whatever moves a traveller last decides where
+         it is, so the hardest constraint has to be the final word. */
       keepClear(travellers.filter(t => ELEMENT_OF[t.kind]));
+      for (const t of travellers) keepOutOfPores(t);
       /* WHERE THE COAT COMES OFF: at the mouth, not in the middle. An ion
          that sheds halfway down has already entered the filter wearing a
          shell that does not fit in it.
