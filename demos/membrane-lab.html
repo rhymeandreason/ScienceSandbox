@@ -81,6 +81,17 @@
   #volt[hidden] { display:none; }
 
   #ions[hidden] { display:none; }
+  #eqBadge { position:absolute; left:50%; top:14px; transform:translateX(-50%);
+             z-index:4; text-align:center; pointer-events:none;
+             padding:8px 18px; border-radius:999px;
+             border:1px solid #2a7a6a; background:#dfeee9;
+             box-shadow:0 2px 10px rgba(0,0,0,.12);
+             opacity:0; transition:opacity .6s ease; }
+  #eqBadge.is-on { opacity:1; }
+  #eqBadge b { display:block; font-size:15px; font-weight:700;
+               letter-spacing:.04em; }
+  #eqBadge span { display:block; font-size:11px; letter-spacing:.08em;
+                  text-transform:uppercase; opacity:.7; margin-top:2px; }
   .census { position:absolute; left:16px; text-align:left;
             font-size:12px; line-height:1.5; opacity:.72;
             font-variant-numeric:tabular-nums; white-space:nowrap;
@@ -172,6 +183,11 @@
          it survives the potential being switched off: with no voltage the
          counts ARE the demonstration — they equalise, and that is the whole
          difference between the two modes. -->
+    <!-- Announced only when the scene has actually arrived: the test reads
+         the same state the traffic does, so the badge cannot appear over a
+         pore that is still passing ions. -->
+    <div id="eqBadge"><b>Equilibrium</b><span></span></div>
+
     <div id="ions" hidden>
       <div id="ionsOut" class="census"></div>
       <div id="ionsIn" class="census"></div>
@@ -270,6 +286,7 @@ const voltRefEl = document.getElementById('voltRef');
 const ionsEl = document.getElementById('ions');
 const ionsOutEl = document.getElementById('ionsOut');
 const ionsInEl = document.getElementById('ionsIn');
+const eqBadgeEl = document.getElementById('eqBadge');
 const chromeEl = document.getElementById('chrome');
 
 const HALF = 15.3;                      // OPM's half-thickness, from the bake
@@ -2156,6 +2173,29 @@ function paintIons() {
   ionsInEl.innerHTML = line(n.in) + '<span>inside</span>';
 }
 
+/* ---- has it arrived? ----
+   TWO MODES, TWO EQUILIBRIA, and saying which is the point of the badge.
+   With no voltage the flow stops when the concentrations level: chemical
+   equilibrium, gradient spent. With the voltage it stops far earlier, at
+   the point where the electrical pull cancels the concentration push —
+   electrochemical equilibrium, and the gradient is still standing, which
+   is the whole reason the cell has something to spend later.
+
+   Read off the same state the traffic reads, so the badge cannot claim an
+   equilibrium over a pore that is still passing ions. */
+function equilibrium() {
+  if (voltOn) return drive('K') <= 0.001 && drive('CL') <= 0.001;
+  return crowdedSide('K') === 0 && crowdedSide('CL') === 0;
+}
+function paintEqBadge() {
+  const on = equilibrium();
+  eqBadgeEl.classList.toggle('is-on', on);
+  if (on)
+    eqBadgeEl.lastElementChild.textContent = voltOn
+      ? 'electrochemical · the gradient is still there'
+      : 'concentrations level · the gradient is spent';
+}
+
 /* ---- step machinery ---- */
 let cur = -1;
 STEPS.forEach((s, i) => {
@@ -2313,6 +2353,8 @@ function tick(dt) {
   ctlEl.hidden = s.id !== 'channel';
   ionsEl.hidden = s.id !== 'channel';
   if (!ionsEl.hidden) paintIons();
+  if (s.id === 'channel') paintEqBadge();
+  else eqBadgeEl.classList.remove('is-on');
   voltEl.hidden = s.id !== 'channel' || !voltOn;
   if (!voltEl.hidden) paintVolt();
   NOTES.step();                           // trap 1: in the RENDER loop
