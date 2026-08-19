@@ -23,13 +23,23 @@
   /* The button sits ON the scene, in the gap between the bottom of the
      protein and the top of the chrome. It is the pump's control, so it
      belongs next to the pump — and it is deliberately OUTSIDE #chrome, so
-     fit.js's reserve (chromeEl.offsetHeight) does not grow on the one step
+     kit/fit.js's reserve (chromeEl.offsetHeight) does not grow on the one step
      that shows it and re-frame the membrane mid-lesson. */
-  #spend { position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+  #spend, #shells {
+           position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
            z-index:4;
            font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
            border:1px solid #a493cf; background:#e8e2f6; cursor:pointer;
            box-shadow:0 2px 10px rgba(0,0,0,.12); }
+  /* The channel's toggle sits where the pump's button sits — the two steps
+     never show at once, so one place on the stage means "the control for
+     this step" rather than two things to find. */
+  #shells { border-color:#2a7a6a; background:#dfeee9;
+            display:flex; align-items:center; gap:8px; padding:7px 16px 7px 12px;
+            user-select:none; }
+  #shells[hidden] { display:none; }
+  #shells input { width:16px; height:16px; margin:0; accent-color:#2a7a6a;
+                  cursor:pointer; }
   #spend:disabled { opacity:.45; cursor:default; }
   #spend[hidden] { display:none; }
 
@@ -75,6 +85,7 @@
               font-variant-numeric:tabular-nums; }
   .otally span { display:block; font-size:12px; letter-spacing:.09em;
                  text-transform:uppercase; opacity:.6; margin-top:4px; }
+  .otally em { font-style:normal; font-weight:700; opacity:.95; }
   #osmoArrow { position:absolute; transform:translate(-50%,-50%); opacity:0;
                transition:opacity .5s ease; }
   #osmoArrow .onet { font-size:15px; font-weight:600; letter-spacing:.04em; }
@@ -91,13 +102,22 @@
   <div id="stage">
     <canvas id="c"></canvas>
     <button type="button" id="spend" hidden>Spend 1 ATP</button>
+    <!-- A CHECKBOX, not a button whose label flips. A button that says
+         "Hide the water shells" leaves the student reading the label to work
+         out which state they are IN; a ticked box shows the state and names
+         the thing in one go. Real input, so it keeps keyboard and screen
+         reader behaviour for free. -->
+    <label id="shells" hidden>
+      <input type="checkbox" id="shellsBox" checked>
+      <span>Water shells</span>
+    </label>
     <!-- Osmosis's tally and net arrow, drawn over the scene. Positions are
          solved each frame from the projected membrane plane, never from a
-         guess at where the middle of the canvas is: fit.js reserves chrome
+         guess at where the middle of the canvas is: kit/fit.js reserves chrome
          at the bottom, so world y=0 is NOT the centre of the stage. -->
     <div id="osmo" hidden>
-      <div class="otally" id="osmoOut"><b></b><span>water · outside</span></div>
-      <div class="otally" id="osmoIn"><b></b><span>water · inside</span></div>
+      <div class="otally" id="osmoOut"><b></b><span></span></div>
+      <div class="otally" id="osmoIn"><b></b><span></span></div>
       <div id="osmoArrow">
         <!-- Twice the size it was. The arrow is the step's conclusion, and
              at 46x150 it read as a tick mark beside two 46px numbers. The
@@ -172,6 +192,8 @@ const capEl = document.getElementById('cap');
 const readoutEl = document.getElementById('readout');
 const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
+const shellsEl = document.getElementById('shells');
+const shellsBox = document.getElementById('shellsBox');
 const osmoEl = document.getElementById('osmo');
 const osmoOutEl = document.getElementById('osmoOut');
 const osmoInEl = document.getElementById('osmoIn');
@@ -421,8 +443,13 @@ function hydrate(group, kind) {
      its own against a complex seven times the size of a bare ion.
      faceCamera() deliberately skips depthTest-off sprites, so it simply
      stays on its shoulder. */
+  const shell = [];
   const badge = group.userData.badge;
-  if (badge) {
+  if (badge && !badge.userData.enlarged) {
+    /* ONCE. growShell() calls hydrate() again every time a K⁺ comes out
+       the far side, and an unguarded multiplyScalar compounds — the badge
+       would be 1.6x bigger on every lap and swallow the scene. */
+    badge.userData.enlarged = true;
     badge.material.depthTest = false;
     badge.position.copy(badge.userData.base);
     badge.scale.multiplyScalar(1.6);
@@ -438,9 +465,99 @@ function hydrate(group, kind) {
                            _wb.copy(dir).multiplyScalar(kind === 'CL' ? -1 : 1));
     w.quaternion.copy(_wq);
     w.position.copy(dir).multiplyScalar(d);
+    w.userData.seat = w.position.clone();   // where it goes back on
     group.add(w);
+    shell.push(w);
   }
+  group.userData.shell = shell;
   return group;
+}
+
+/* ---- shedding the shell, and getting it back ----
+   THIS IS THE CHANNEL'S ACTUAL MECHANISM, and until now the page only
+   asserted it in a comment. A K⁺ filter is lined with backbone carbonyl
+   oxygens spaced at almost exactly the distance a water's O sits at in
+   K⁺'s hydration shell, so K⁺ can drop its water and let the filter stand
+   in for it — the carbonyls pay back what dehydration costs. Na⁺ is
+   smaller, its shell sits tighter, and those oxygens cannot close in far
+   enough to cover its larger hydration energy. So Na⁺ keeps its coat on,
+   and a hydrated Na⁺ does not fit a pore a bare K⁺ walks through.
+
+   That is why the smaller ion is the excluded one, and it is the whole
+   reason this page refuses to draw a size-sieve pinch.
+
+   SCHEMATIC, AND SAYING SO. membrane/parts.js's transporter is a generic
+   shape, not KcsA — so the shedding and the re-hydration are drawn
+   truthfully, and the filter's carbonyl geometry is NOT drawn at all. A
+   ring of oxygens here would look measured and would not be. Prop tier,
+   in MolecularGeometry.md 1.4's sense. */
+/* THE SHELLS COME OFF FOR THE STUDENT TOO. Stripped, the scene shows the
+   bare ions at their true radii — and Na⁺ is visibly the SMALLER one, which
+   is the fact the whole step turns on and which a screenful of six-water
+   cages hides. Dressed, it shows why that smaller ion still cannot get in.
+   Neither view teaches it alone; the toggle is the comparison. */
+let shellsOn = true;
+
+const shedding = [];                     // waters in flight, with a life left
+function shedShell(t) {
+  const shell = t.obj.userData.shell;
+  if (!shell || !shell.length) return;
+  for (const w of shell) {
+    /* Reparented to the root at its CURRENT world position, so it is left
+       behind in the solution rather than riding the ion it just left. */
+    w.getWorldPosition(_wa);
+    L.root.add(w);
+    w.position.copy(_wa);
+    const dir = _wb.copy(_wa).sub(t.obj.position).normalize();
+    shedding.push({ obj:w, vx:dir.x * 9, vy:dir.y * 9 - 4, vz:dir.z * 9, life:1 });
+  }
+  t.obj.userData.shell = [];
+  t.shellOff = true;
+}
+function growShell(t) {
+  hydrate(t.obj, t.kind);
+  for (const w of t.obj.userData.shell) w.scale.setScalar(0.001);
+  t.shellGrow = 0;
+  t.shellOff = false;
+}
+function setShells(on) {
+  shellsOn = on;
+  for (const t of travellers) {
+    const shell = t.obj.userData.shell;
+    if (shell) for (const w of shell) w.visible = on;
+  }
+  /* Waters mid-flight are dropped rather than hidden: hiding them would
+     leave them drifting invisibly and pop back into view somewhere
+     surprising if the student toggled twice. */
+  if (!on) { for (const f of shedding) L.root.remove(f.obj); shedding.length = 0; }
+  /* The box is the state, so setShells() writes it — including when the
+     step re-enters and nothing was clicked. */
+  shellsBox.checked = on;
+}
+shellsBox.addEventListener('change', () => setShells(shellsBox.checked));
+
+function tickShells(dt) {
+  /* In flight: drift out, shrink away, gone. Shrinking rather than fading
+     because scale is per-object and material transparency is not — two
+     waters sharing a material would fade each other. And nothing is
+     deleted from a count here: the channel step has no water counter, and
+     the shed molecules are the SAME six that come back on. */
+  for (let i = shedding.length - 1; i >= 0; i--) {
+    const f = shedding[i];
+    f.obj.position.x += f.vx * dt;
+    f.obj.position.y += f.vy * dt;
+    f.obj.position.z += f.vz * dt;
+    f.life -= dt / 0.9;
+    const k = Math.max(0, f.life);
+    f.obj.scale.setScalar((EXAG / SCALE) * k * k);
+    if (f.life <= 0) { L.root.remove(f.obj); shedding.splice(i, 1); }
+  }
+  for (const t of travellers) {
+    if (t.shellGrow == null || t.shellGrow >= 1) continue;
+    t.shellGrow = Math.min(1, t.shellGrow + dt / 0.7);
+    const k = t.shellGrow * t.shellGrow * (3 - 2 * t.shellGrow);
+    for (const w of t.obj.userData.shell) w.scale.setScalar((EXAG / SCALE) * k);
+  }
 }
 
 function smallMolecule(name) {
@@ -487,6 +604,8 @@ function traveller(kind, opts) {
 function clearTravellers() {
   for (const t of travellers) L.root.remove(t.obj);
   travellers.length = 0;
+  for (const f of shedding) L.root.remove(f.obj);
+  shedding.length = 0;
   /* The callouts point AT travellers, so they die with them. go() calls
      enter() twice — once to place, once against the fitted frame — and
      without this the second pass would leave two labels per molecule. */
@@ -790,7 +909,9 @@ const STEPS = [
        water free to make the trip. Same picture, no wrong prediction. */
     cap:'<b>Water crosses both ways, always.</b> ' +
         'Salt outside takes up room, so fewer of the molecules up there are ' +
-        'water free to cross — and more wander out than in. Nothing pulls.',
+        'water free to cross — and more wander out than in. Nothing pulls. ' +
+        'The salty side is <em>hypertonic</em>: watch both labels reach ' +
+        '<em>isotonic</em>, which neither side can be on its own.',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane(false); setCut(false);
@@ -877,10 +998,11 @@ const STEPS = [
   {
     id:'channel',
     tab:'a channel',
-    cap:'<b>A channel is a hole with a preference.</b> ' +
-        'K⁺ leaks out of the cell, down its gradient. Na⁺ and Cl⁻ do not go ' +
-        'through at all — and Na⁺ is the smaller ion. The channel picks ' +
-        'which, never which way.',
+    cap:'<b>To get through, an ion has to take its water off.</b> ' +
+        'K⁺ can: the filter stands in for the water it drops, so it leaks ' +
+        'out down its gradient and dresses again on the far side. Na⁺ is ' +
+        '<em>smaller</em>, holds its water tighter, and keeps its coat on — ' +
+        'so it never fits. The channel picks which, never which way.',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane(true); setCut(true);
@@ -901,44 +1023,71 @@ const STEPS = [
          student sees is ions arriving at the channel rather than a column
          that was already there. */
       for (let i = 0; i < 8; i++)
-        traveller('K', { x:0, z:0, y:-(OFFSCREEN + i * ION_GAP), vy:11, coreSpeed:1 });
+        traveller('K', { x:0, z:0, y:-(OFFSCREEN + i * ION_GAP), vy:11, coreSpeed:1,
+                         shell:true });
 
       /* THE ONES THAT DO NOT GET IN. Without them "a hole with a
          preference" is a caption over a picture of a hole: everything on
          screen was going through, so nothing was being preferred.
 
-         Na⁺ is deliberately among them, and it is drawn SMALLER than the
-         K⁺ sailing past it. That is the real fact — a potassium channel
-         excludes sodium — and it is why this page never draws a
-         size-sieve pinch: the filter matches the ion's hydration shell,
-         and the smaller ion is the one that cannot be matched. The
-         student is not told this here; they are just shown that size is
-         not doing the work, which is what stops the wrong rule forming.
+         Na⁺'s BARE radius is smaller than K⁺'s, and it is drawn that way.
+         The student IS told the mechanism now, because the shells make it
+         showable: the filter matches K⁺'s shell distance, so K⁺ can trade
+         its water for the filter and the tighter-held sodium cannot. That
+         is why this page never draws a size-sieve pinch — the exclusion is
+         about what an ion arrives WEARING, not what it measures.
 
          These start ALREADY IN THE SCENE — only the K⁺ queue arrives from
          above. A whole compartment's solute raining in from off-frame
          reads as something being added, and the claim here is about what
          is already sitting against the membrane. */
-      for (let i = 0; i < 14; i++)
+      /* Na⁺ ARRIVES DRESSED AND STAYS DRESSED. That is the contrast the
+         step is built on: both ions come to the mouth wearing a shell, and
+         only one of them can take it off. Fewer of them than before,
+         because a shell is seven objects. */
+      for (let i = 0; i < 6; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
-      for (let i = 0; i < 10; i++)
+      /* Cl⁻ IS HERE FOR NEUTRALITY, and it is a BYSTANDER — matched one for
+         one against the sodium, because six bare Na⁺ and nothing else is a
+         compartment carrying a net charge, the same objection this page
+         makes to drawing salt as a lone cation anywhere else.
+
+         HYDRATED, like everything else charged in this scene. It was drawn
+         bare to keep it from reading as a third ion failing the same fit
+         test, and that was the wrong trade: an anion beside a dressed
+         cation says anions do not hold water, which is false, and using
+         nakedness as a signal teaches that to fix a labelling problem the
+         caption can fix instead. So it wears its shell and stays out of
+         the caption.
+
+         Its shell also carries a fact the toggle now shows for free: the
+         anion's sits visibly LOOSER, because a hydrogen is between the ion
+         and the water's oxygen rather than the oxygen facing it directly.
+
+         Its rejection is real and is a DIFFERENT rejection — the filter's
+         carbonyls present their δ− ends, so an anion is refused on charge
+         before fit is ever in question. Naming it here would put a second,
+         unshowable mechanism beside the one this step exists to show. */
+      for (let i = 0; i < 6; i++)
         traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8),
+                          y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
+      setShells(shellsOn);              // a re-entered step keeps the choice
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
          only look like a second thing the channel is passing. */
-      for (let i = 0; i < 16; i++)
+      for (let i = 0; i < 10; i++)
         traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
                              keepout:CHANNEL_KEEPOUT,
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
-    readout: () => 'K⁺ out · Na⁺ and Cl⁻ turned away · both ends open at once, which a pump never does',
+    readout: () => 'K⁺ sheds its shell and passes · Na⁺ keeps its shell and cannot · ' +
+                   'both ends open at once, which a pump never does',
   },
 
   {
@@ -976,7 +1125,7 @@ function pumpIon(species, i) {
   const p = pumpPool[species];
   while (p.length <= i) {
     const m = Parts.ion(species);
-    /* transparent ONCE, at build. pump.js fades cargo in and out at the
+    /* transparent ONCE, at build. membrane/pump.js fades cargo in and out at the
        mouths, and flipping material.transparent per frame recompiles the
        shader — which is a dropped frame exactly at a phase boundary, i.e.
        the flicker. depthWrite stays on: these are solid spheres that are
@@ -1049,6 +1198,23 @@ function paintOsmo() {
   }
   osmoOutEl.firstElementChild.textContent = outside;
   osmoInEl.firstElementChild.textContent = inside;
+
+  /* THE WORD IS READ FROM THE COUNT, like every other number on this page.
+     Typing "hypertonic" under the outside would be a claim nothing checks,
+     and it would be WRONG by the end of the run — the whole point is that
+     the two sides finish isotonic.
+
+     Naming it this way also fixes the misconception the vocabulary usually
+     creates. Tonicity is a RELATION between two solutions, not a property
+     one of them owns: the same salt water is hypertonic to a cell and
+     hypotonic to seawater. Here the labels flip to "isotonic" together,
+     because neither side can be it alone. */
+  const gap = outside - inside;
+  const tone = Math.abs(gap) <= 3 ? ['isotonic', 'isotonic']
+             : gap < 0 ? ['hypertonic', 'hypotonic']   // less water outside
+                       : ['hypotonic', 'hypertonic'];
+  osmoOutEl.lastElementChild.innerHTML = 'water · outside<br><em>' + tone[0] + '</em>';
+  osmoInEl.lastElementChild.innerHTML = 'water · inside<br><em>' + tone[1] + '</em>';
 
   /* Where the membrane is IN PIXELS. Projected rather than assumed: the
      chrome reserve pushes world y=0 above the centre of the canvas, and a
@@ -1199,8 +1365,32 @@ function tick(dt) {
     }
     if (s.id === 'osmosis')
       netRecent *= Math.pow(0.5, dt / NET_HALFLIFE);
-    if (s.id === 'channel') keepApart(travellers.filter(t => t.kind === 'K'));
+    if (s.id === 'channel') {
+      keepApart(travellers.filter(t => t.kind === 'K'));
+      /* WHERE THE COAT COMES OFF: at the mouth, not in the middle. An ion
+         that sheds halfway down has already entered the filter wearing a
+         shell that does not fit in it.
+
+         Read off the protein's own height rather than a typed depth, so
+         resizing the transporter cannot leave the moment stranded in the
+         solution above it. */
+      const mouth = T.height * 0.9;
+      for (const t of travellers) {
+        if (t.kind !== 'K' || !shellsOn) continue;
+        if (!t.shellOff && Math.abs(t.y) < mouth) shedShell(t);
+        /* And it gets the water back on the far side — the ion pays the
+           shell to get through and is repaid by the solution it arrives
+           in. Without this the queue would emerge permanently naked, which
+           says the channel STRIPPED it, and that a K⁺ in the cytosol is a
+           bare ion. It is not; nothing in a cell is. */
+        else if (t.shellOff && t.y > mouth) growShell(t);
+      }
+    }
+    tickShells(dt);
   }
+  /* Outside the branches: the pump step returns early past them, so a
+     toggle hidden only in the non-pump path stayed on screen over the pump. */
+  shellsEl.hidden = s.id !== 'channel';
   NOTES.step();                           // trap 1: in the RENDER loop
   osmoEl.hidden = s.id !== 'osmosis';
   if (!osmoEl.hidden) paintOsmo();
