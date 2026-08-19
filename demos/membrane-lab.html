@@ -223,6 +223,27 @@ const MEM_REACH = 340;
    cell with a crowd at the origin. */
 const SPREAD = MEM_REACH * 0.55;
 
+/* Where the two pores stand. Declared up here because the holed membrane's
+   `exclude` closes over it and is evaluated at construction, well before
+   the transporters below — as a const further down it was a temporal dead
+   zone and the page died on load. */
+const LANE = 34;                        // pore centres, ±x
+
+/* EACH PORE'S OWN HOLE, sized from that pore's own widest point.
+
+   The membrane used to cut one 15.0 hole for a 14.5 protein. Lobing the
+   walls made the widest point of each protein LARGER than that, so both
+   stood with their shoulders through the lipid — and a lobe is exactly the
+   feature a student would be looking at when it happened.
+
+   Derived from the same numbers the transporters are built from, so
+   retuning a lobe cannot leave the hole behind. The 0.5 clearance is what
+   the single-hole version had. */
+const K_R = 14.5, K_LOBE = 0.11;        // K⁺ pore: barrel radius, lobe depth
+const CL_R = 15.6, CL_LOBE = 0.17;      // Cl⁻ pore: stouter, two-fold
+const K_HOLE  = K_R  * (1 + K_LOBE)  + 0.5;
+const CL_HOLE = CL_R * (1 + CL_LOBE) + 0.5;
+
 /* OFF THE TOP OF THE FRAME, solved from the camera rather than guessed.
 
    Molecules used to be spawned inside the view, so entering a step meant a
@@ -278,12 +299,29 @@ function noteOn(t, text, offset) {
    because a student's first question becomes "what made the gap". Solid
    for the passive steps, holed once there is something standing in it. */
 const memSolid = Parts.membrane({ half:HALF, reach:MEM_REACH });
-const memHoled = Parts.membrane({ half:HALF, reach:MEM_REACH, exclude:(x,z) => Math.hypot(x,z) - 15.0 });
-memHoled.group.visible = false;
-L.root.add(memSolid.group, memHoled.group);
-function showMembrane(withHole) {
-  memSolid.group.visible = !withHole;
-  memHoled.group.visible = withHole;
+/* THREE MEMBRANES, because a hole belongs to the protein standing in it.
+
+   The channel step stands two pores side by side at ±LANE; the pump stands
+   one at the origin. Cutting all three holes into one sheet would leave an
+   empty hole on every step — and an unoccupied hole in a bilayer is not a
+   neutral thing to draw, it is a tear, which is the exact objection this
+   page already records against showing the holed sheet with no protein.
+
+   `exclude` is a signed distance, so the union of two holes is the MINIMUM
+   of the two: a lipid is removed if it is inside either. */
+const memChan = Parts.membrane({ half:HALF, reach:MEM_REACH,
+  exclude:(x, z) => Math.min(Math.hypot(x + LANE, z) - K_HOLE,      // K⁺ pore, -x
+                             Math.hypot(x - LANE, z) - CL_HOLE) });  // Cl⁻ pore, +x
+const memPump = Parts.membrane({ half:HALF, reach:MEM_REACH,
+  exclude:(x, z) => Math.hypot(x, z) - 15.0 });
+memChan.group.visible = memPump.group.visible = false;
+L.root.add(memSolid.group, memChan.group, memPump.group);
+/* 'solid' | 'chan' | 'pump' — named rather than a boolean, because there
+   are three sheets now and `true` cannot say which holed one. */
+let MEM = memSolid;
+function showMembrane(which) {
+  MEM = which === 'chan' ? memChan : which === 'pump' ? memPump : memSolid;
+  for (const m of [memSolid, memChan, memPump]) m.group.visible = m === MEM;
 }
 
 /* The cut belongs to the steps with a protein in them, and only those.
@@ -295,9 +333,12 @@ function showMembrane(withHole) {
    The plane is the membrane's own (it laid the slab out, so it knows which
    axis is thin); the protein borrows it so one cut governs the scene. */
 function setCut(on) {
-  memHoled.cut.enable(on);
-  for (const P of [CHANNEL, PUMP]) {
-    P.mesh.material.clippingPlanes = on ? [memHoled.cut.plane] : [];
+  /* The sheet on stage owns the plane, and the proteins borrow ITS plane —
+     each membrane made its own, and clipping a protein against a hidden
+     sheet's plane is a cut that does not match the one on screen. */
+  for (const m of [memSolid, memChan, memPump]) m.cut.enable(on && m === MEM);
+  for (const P of [CHANNEL, CLCHAN, PUMP]) {
+    P.mesh.material.clippingPlanes = on ? [MEM.cut.plane] : [];
     P.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
     P.mesh.material.needsUpdate = true;
   }
@@ -315,13 +356,54 @@ function setCut(on) {
    So the channel gets a wide pore and the pump a snug site. The gates
    still carry the argument; the width is what makes each of them the kind
    of protein it is. */
-const CHANNEL = Parts.transporter({ half:HALF, site:7.2, mouth:8.8 });
+/* TWO CHANNELS, SIDE BY SIDE, and the pair is the argument. The step's
+   caption says a channel "picks which, never which way" — with one pore
+   that is a sentence, and with two it is on screen: K⁺ is high inside so
+   it leaks OUT of the left pore, Cl⁻ is high outside so it leaks IN
+   through the right one. Opposite directions, each set by its own ion's
+   gradient, neither by the protein.
+
+   The Cl⁻ pore is a DIFFERENT COLOUR because it is a different protein,
+   not the same one relabelled. Its lining is the mirror image: a K⁺
+   filter presents backbone carbonyl oxygens, δ− inward, which is why a
+   cation is welcome and an anion is repelled; a chloride pore presents
+   backbone amide N–H and arginines, δ+ inward. Same principle, opposite
+   sign — and it is why Na⁺ is turned away by BOTH, on fit at one and on
+   charge at the other. */
+/* THE LOBE COUNT IS THE SUBUNIT COUNT, which is why these two read as
+   different machines rather than one machine in two colours.
+
+   A K⁺ channel is a TETRAMER: four identical subunits around the axis,
+   each contributing one strand to the filter — which is exactly why the
+   carbonyl oxygens land in a fourfold ring at the right radius. A CLC
+   chloride channel is a DIMER, two subunits, and famously each half has
+   its OWN pore rather than sharing one down the middle.
+
+   So four lobes against two is a true statement about symmetry, not
+   styling. What it is NOT is measured structure: membrane/parts.js's
+   `lobes` ripples the OUTER wall and leaves the lumen perfectly round, on
+   purpose — the cavity is a claim about where an ion can be and we have no
+   basis for shaping it. The silhouette says "four-fold" and "two-fold";
+   nothing here says an atom is anywhere.
+
+   The chloride pore is also drawn a little stouter and with a tighter
+   mouth. Same reason it is a different colour: two proteins. */
+const CHANNEL = Parts.transporter({ half:HALF, site:7.2, mouth:8.8,
+                                    radius:K_R, lobes:4, lobeDepth:K_LOBE });
+const CLCHAN  = Parts.transporter({ half:HALF, site:7.2, mouth:8.0,
+                                    radius:CL_R, lobes:2, lobeDepth:CL_LOBE,
+                                    color:0xb58a4f });
+CHANNEL.group.position.x = -LANE;
+CLCHAN.group.position.x  =  LANE;
 const PUMP    = Parts.transporter({ half:HALF });
-CHANNEL.group.visible = PUMP.group.visible = false;
-L.root.add(CHANNEL.group, PUMP.group);
+CHANNEL.group.visible = CLCHAN.group.visible = PUMP.group.visible = false;
+L.root.add(CHANNEL.group, CLCHAN.group, PUMP.group);
 let T = PUMP;                                   // whichever is on stage
 function showProtein(which) {
-  CHANNEL.group.visible = which === CHANNEL;
+  /* The channel step shows BOTH pores; the pump step shows one. `which`
+     names the subject, and the chloride pore rides with the potassium one
+     because they are one exhibit. */
+  CHANNEL.group.visible = CLCHAN.group.visible = which === CHANNEL;
   PUMP.group.visible    = which === PUMP;
   if (which) T = which;
 }
@@ -499,10 +581,25 @@ function hydrate(group, kind) {
 let shellsOn = true;
 
 const shedding = [];                     // waters in flight, with a life left
+
+/* HOW MUCH OF THE SHELL COMES OFF, per ion. Not all-or-nothing, because
+   dehydration is not: a K⁺ filter takes over the WHOLE coordination — its
+   eight carbonyl oxygens replace every water — while CLC strips a chloride
+   only PARTLY, its backbone amide N–H groups and a couple of side chains
+   standing in while the ion keeps some of its waters.
+
+   Drawing Cl⁻ crossing fully dressed, as this did at first, teaches a
+   distinction that does not exist: both ions have to undress to fit, and
+   what differs is how much and who pays for it. The 4-of-6 is schematic —
+   "most, not all" — and the page claims nothing more precise, because our
+   pore is a generic shape with no filter drawn in it. */
+const SHED_N = { K: 6, CL: 4 };
 function shedShell(t) {
   const shell = t.obj.userData.shell;
   if (!shell || !shell.length) return;
-  for (const w of shell) {
+  const n = SHED_N[t.kind] != null ? SHED_N[t.kind] : shell.length;
+  const going = shell.slice(0, n), staying = shell.slice(n);
+  for (const w of going) {
     /* Reparented to the root at its CURRENT world position, so it is left
        behind in the solution rather than riding the ion it just left. */
     w.getWorldPosition(_wa);
@@ -511,10 +608,14 @@ function shedShell(t) {
     const dir = _wb.copy(_wa).sub(t.obj.position).normalize();
     shedding.push({ obj:w, vx:dir.x * 9, vy:dir.y * 9 - 4, vz:dir.z * 9, life:1 });
   }
-  t.obj.userData.shell = [];
+  t.obj.userData.shell = staying;
   t.shellOff = true;
 }
 function growShell(t) {
+  /* Whatever survived the crossing goes too, so hydrate() can lay a clean
+     shell of six. Without this the partial-shedders would accumulate a
+     second set on top of the waters they kept. */
+  for (const w of t.obj.userData.shell || []) t.obj.remove(w);
   hydrate(t.obj, t.kind);
   for (const w of t.obj.userData.shell) w.scale.setScalar(0.001);
   t.shellGrow = 0;
@@ -633,10 +734,18 @@ const inCompartment = side => side * rnd(HALF + 4, farY());
    the lipid at x=0 looks like water using the pore. Both made step 4 read
    as "everything gets through", which is the opposite of its claim. */
 const CHANNEL_KEEPOUT = 26;
+/* Clear of BOTH pores now. With one channel at x=0 "outside the column"
+   was |x| > keepout; with a pore at each ±LANE the safe ground is beyond
+   the outer edge of the pair, so a bystander cannot be read as queueing at
+   either one. The narrow strip BETWEEN the two is excluded as well: an ion
+   sitting there looks like it is choosing. */
 function rndClear(span) {
-  const x = rnd(CHANNEL_KEEPOUT, span);
+  const x = rnd(LANE + CHANNEL_KEEPOUT, span);
   return Math.random() < .5 ? -x : x;
 }
+/* Distance from the nearer pore's axis — the test lateral() applies so a
+   walker cannot drift into a lane it was spawned clear of. */
+const laneGap = x => Math.min(Math.abs(x - LANE), Math.abs(x + LANE));
 
 /* Ions in single file do not touch. They are all +1, so they repel — and
    in a real K⁺ channel they queue with a water molecule between each pair,
@@ -699,8 +808,12 @@ function lateral(t, dt) {
   t.x += t.vx * dt; t.z += t.vz * dt;
   if (t.x > x1) { t.x = x1; t.vx = -t.vx; }
   if (t.x < x0) { t.x = x0; t.vx = -t.vx; }
-  if (t.keepout && Math.abs(t.x) < t.keepout) {
-    t.x = Math.sign(t.x || 1) * t.keepout; t.vx = -t.vx;
+  if (t.keepout && laneGap(t.x) < t.keepout) {
+    /* Pushed back out of whichever lane it wandered into, on the side it
+       came from — reflecting through the pore would teleport it across. */
+    const near = Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE;
+    t.x = near + Math.sign(t.x - near || 1) * t.keepout;
+    t.vx = -t.vx;
   }
   if (t.z >  11) { t.z =  11; t.vz = -t.vz; }
   if (t.z < -11) { t.z = -11; t.vz = -t.vz; }
@@ -815,7 +928,7 @@ const STEPS = [
         'The inside of a membrane is oil.',
     enter() {
       clearTravellers();
-      showProtein(null); showMembrane(false); setCut(false);
+      showProtein(null); showMembrane('solid'); setCut(false);
       /* Water on both sides, so "heads face the water" is something on
          screen rather than a word in the caption.
 
@@ -843,7 +956,7 @@ const STEPS = [
         'water, and it would have to strip that off to enter the oil.',
     enter() {
       clearTravellers();
-      showProtein(null); showMembrane(false); setCut(false);
+      showProtein(null); showMembrane('solid'); setCut(false);
       /* The two GASES split the width down the middle — O₂ left, CO₂
          right — so the crossings stay tellable apart without leaving dead
          space. Two streams shuffled together is a snowstorm, not a
@@ -914,7 +1027,7 @@ const STEPS = [
         '<em>isotonic</em>, which neither side can be on its own.',
     enter() {
       clearTravellers();
-      showProtein(null); showMembrane(false); setCut(false);
+      showProtein(null); showMembrane('solid'); setCut(false);
       crossings = { up:0, down:0 };
       netRecent = 0;
       /* THE NET IS NOT SCRIPTED, and an earlier version of this step got
@@ -998,15 +1111,17 @@ const STEPS = [
   {
     id:'channel',
     tab:'a channel',
-    cap:'<b>To get through, an ion has to take its water off.</b> ' +
-        'K⁺ can: the filter stands in for the water it drops, so it leaks ' +
-        'out down its gradient and dresses again on the far side. Na⁺ is ' +
-        '<em>smaller</em>, holds its water tighter, and keeps its coat on — ' +
-        'so it never fits. The channel picks which, never which way.',
+    cap:'<b>To fit through a pore, an ion has to give up its water — ' +
+        'and the pore has to replace it.</b> ' +
+        'K⁺ leaks out, Cl⁻ leaks in, each down its own gradient: the pore ' +
+        'picks the ion, never the direction. Na⁺ is <em>smaller</em> than ' +
+        'K⁺ but holds its water tighter, and neither lining can pay for ' +
+        'it — so it goes nowhere.',
     enter() {
       clearTravellers();
-      showProtein(CHANNEL); showMembrane(true); setCut(true);
+      showProtein(CHANNEL); showMembrane('chan'); setCut(true);
       T.setGates(1, 1);                 // open through: that IS a channel
+      CLCHAN.setGates(1, 1);            // and the second pore, or it draws shut
       /* Spawned already spaced, and at ONE speed. Random speeds meant the
          fast ones drove into the slow ones and the queue fused into a
          single yellow column — which says two K⁺ can occupy the same
@@ -1022,9 +1137,21 @@ const STEPS = [
          It starts BELOW the frame and walks in, so the first thing the
          student sees is ions arriving at the channel rather than a column
          that was already there. */
-      for (let i = 0; i < 8; i++)
-        traveller('K', { x:0, z:0, y:-(OFFSCREEN + i * ION_GAP), vy:11, coreSpeed:1,
-                         shell:true });
+      for (let i = 0; i < 6; i++)
+        traveller('K', { x:-LANE, z:0, y:-(OFFSCREEN + i * ION_GAP), vy:11,
+                         coreSpeed:1, shell:true, lane:-LANE });
+      /* AND THE CHLORIDE QUEUE, RUNNING THE OTHER WAY. Cl⁻ is ~110 mM
+         outside against ~10 mM in, so it leaks INWARD — top to bottom —
+         while the potassium beside it leaks out. Two pores, two directions,
+         and not one of them chosen by a protein: that is the caption's
+         "picks which, never which way", finally drawn instead of claimed.
+
+         It undresses to cross, like everything that crosses — but only
+         PARTLY. See SHED_N: a K⁺ filter replaces the whole shell, CLC
+         replaces some of it and the chloride carries the rest through. */
+      for (let i = 0; i < 5; i++)
+        traveller('CL', { x:LANE, z:0, y:OFFSCREEN + i * ION_GAP, vy:-11,
+                          coreSpeed:1, shell:true, lane:LANE });
 
       /* THE ONES THAT DO NOT GET IN. Without them "a hole with a
          preference" is a caption over a picture of a hole: everything on
@@ -1045,7 +1172,12 @@ const STEPS = [
          step is built on: both ions come to the mouth wearing a shell, and
          only one of them can take it off. Fewer of them than before,
          because a shell is seven objects. */
-      for (let i = 0; i < 6; i++)
+      /* Na⁺ IS TURNED AWAY BY BOTH PORES, for two different reasons — the
+         K⁺ filter on fit, because it will not shed its tighter-held shell;
+         the Cl⁻ pore on charge, because that lining is δ+ and a cation is
+         the wrong sign for it. It is the one ion on stage going nowhere,
+         which is what keeps the dehydration story legible. */
+      for (let i = 0; i < 5; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
                           y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
@@ -1076,6 +1208,17 @@ const STEPS = [
                           y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
+      /* NAME THE TWO PORES. Anchors are fixed points at each mouth rather
+         than a traveller: the protein does not move, and pinning the label
+         to an ion would make it look like a label for that ion. Offsets
+         push the two labels apart, away from the gap between the pores
+         where the queues are. */
+      const mouthY = () => T.height * 0.95;
+      NOTES.add({ text:'K⁺ channel · out',
+                  offset:[-40, -30], at:() => _np.set(-LANE, mouthY(), 0) });
+      NOTES.add({ text:'Cl⁻ channel · in',
+                  offset:[ 40, -30], at:() => _np.set( LANE, mouthY(), 0) });
+
       setShells(shellsOn);              // a re-entered step keeps the choice
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
@@ -1086,8 +1229,8 @@ const STEPS = [
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
-    readout: () => 'K⁺ sheds its shell and passes · Na⁺ keeps its shell and cannot · ' +
-                   'both ends open at once, which a pump never does',
+    readout: () => 'two pores, two directions, neither chosen by a protein · ' +
+                   'K⁺ is stripped bare to cross, Cl⁻ only partly · Na⁺ is refused by both',
   },
 
   {
@@ -1096,7 +1239,7 @@ const STEPS = [
     cap:'',                             // membrane/pump.js writes this, per phase
     enter() {
       clearTravellers();
-      showProtein(PUMP); showMembrane(true); setCut(true);
+      showProtein(PUMP); showMembrane('pump'); setCut(true);
       /* Parked at the start of the cycle, not looping. A pump that runs
          for free contradicts the one thing this step teaches, and a loop
          with an ATP counter ticking up on its own is worse — it says the
@@ -1286,7 +1429,10 @@ function go(i) {
 function tick(dt) {
   const s = STEPS[cur]; if (!s) return;
   kit.faceCamera(L.camera);               // badges are sprites; they must turn
-  memSolid.tick(dt); memHoled.tick(dt);   // the bilayer is a liquid, so it moves
+  /* Only the sheet on stage. The other two are hidden, and stirring a
+     hidden bilayer is work nobody sees — with three of them it is most of
+     the lipid in the scene. */
+  MEM.tick(dt);                           // the bilayer is a liquid, so it moves
 
   if (s.id === 'pump') {
     if (running) {
@@ -1366,7 +1512,8 @@ function tick(dt) {
     if (s.id === 'osmosis')
       netRecent *= Math.pow(0.5, dt / NET_HALFLIFE);
     if (s.id === 'channel') {
-      keepApart(travellers.filter(t => t.kind === 'K'));
+      keepApart(travellers.filter(t => t.lane === -LANE));
+      keepApart(travellers.filter(t => t.lane ===  LANE));
       /* WHERE THE COAT COMES OFF: at the mouth, not in the middle. An ion
          that sheds halfway down has already entered the filter wearing a
          shell that does not fit in it.
@@ -1376,14 +1523,17 @@ function tick(dt) {
          solution above it. */
       const mouth = T.height * 0.9;
       for (const t of travellers) {
-        if (t.kind !== 'K' || !shellsOn) continue;
+        if (t.lane == null || !shellsOn) continue;
         if (!t.shellOff && Math.abs(t.y) < mouth) shedShell(t);
         /* And it gets the water back on the far side — the ion pays the
            shell to get through and is repaid by the solution it arrives
            in. Without this the queue would emerge permanently naked, which
            says the channel STRIPPED it, and that a K⁺ in the cytosol is a
            bare ion. It is not; nothing in a cell is. */
-        else if (t.shellOff && t.y > mouth) growShell(t);
+        /* Re-dressed on the far side, whichever way it was travelling —
+           the K⁺ queue runs up and out, the Cl⁻ queue runs down and in, so
+           "past the mouth" is about DISTANCE from the membrane, not sign. */
+        else if (t.shellOff && Math.abs(t.y) > mouth) growShell(t);
       }
     }
     tickShells(dt);
