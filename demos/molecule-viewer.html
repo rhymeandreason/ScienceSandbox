@@ -16,9 +16,11 @@
      material about the molecule on screen rather than something to be earned. */
 
   /* ---------- molecule cards, top-centre: a dealt hand, one per molecule ---- */
-  /* WRAPS, because the shelf is fourteen molecules now and was two. One row of
-     132px minimums ran off the side of a 1440 laptop, which is the width these
-     lessons are judged at. */
+  /* THREE CARDS AND A DROPDOWN. It briefly held fourteen cards, wrapped to
+     three rows, and that was a wall of names rather than a shelf — so the
+     citric-acid cycle's twelve moved into one list control (see the shelf
+     build). `flex-wrap` stays as a floor: a narrow window still has somewhere
+     to put the fourth card. */
   #shelf{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
     display:flex;flex-wrap:wrap;justify-content:center;gap:0;align-items:stretch;
     max-width:min(94vw,1320px);padding:10px 6px 12px}
@@ -36,6 +38,17 @@
   .goal:nth-child(5n+3){--tilt:-0.3deg;--dy:0px}
   .goal:nth-child(5n+4){--tilt:0.8deg; --dy:3px}
   .goal:nth-child(5n+5){--tilt:-0.5deg;--dy:1px}
+  /* THE DROPDOWN CARD. Same paper, same tilt, so it sits in the row as one of
+     them rather than as chrome bolted on the end — but it is a <div>, not a
+     button, because the thing you click is the <select> inside it. `cursor`
+     goes back to default: the card body itself does nothing. */
+  .goal.cyc{cursor:default;min-width:164px;display:flex;flex-direction:column;
+    justify-content:space-between}
+  .goal.cyc select{margin-top:5px;width:100%;font-family:inherit;font-size:12px;
+    color:#4a423a;background:#fffdf8;border:1px solid rgba(43,39,35,.22);
+    border-radius:3px;padding:3px 4px;cursor:pointer}
+  .goal.cyc select:focus{outline:2px solid rgba(43,39,35,.35);outline-offset:1px}
+  .goal.cyc.on select{background:#fff;border-color:rgba(43,39,35,.42)}
   .goal:hover{background:#fbf7ee;z-index:2}
   .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
   @keyframes cardLift{
@@ -347,7 +360,7 @@ const SHELF=[
             atoms:s=>{ const n=s.gly.nic;
               return [...n.ring, n.c4, ...n.h, n.amide.c, n.amide.o, n.amide.n]; } },
   },
-  { key:'acetylcoa', card:'Acetyl-CoA',
+  { group:'krebs', key:'acetylcoa', card:'Acetyl-CoA',
     blurb:'The cell’s spendable <b>carbon</b>, and the third carrier built on '
         + 'the same adenine-and-ribose handle. Almost all of it is grip: a '
         + 'nucleotide, a pyrophosphate, and a long vitamin-B5 arm, ending in one '
@@ -365,7 +378,7 @@ const SHELF=[
    * it off the measured/idealised control would have the UI assert something
    * false about both. It is registered as its own spec; the focus below names
    * the two atoms that are the whole difference. */
-  { key:'fadh2', card:'FADH₂',
+  { group:'krebs', key:'fadh2', card:'FADH₂',
     blurb:'The carrier the citric-acid cycle uses where NAD⁺ will not do. Taking '
         + 'two hydrogens off a plain C–C releases less than oxidising an alcohol, '
         + 'and the flavin sits at the lower potential that can accept it — which '
@@ -388,7 +401,7 @@ const SHELF=[
    * atoms. `oxOf` is the one thing the block does not name directly: which
    * oxygens hang off a given carbon, which is a question about the bonds.
    */
-  { key:'oaa', card:'Oxaloacetate',
+  { group:'krebs', key:'oaa', card:'Oxaloacetate',
     blurb:'What the cycle hands back to itself, and the reason it is a cycle at '
         + 'all. Four carbons; the last step regenerates it so the next acetyl '
         + 'group has something to land on. The matrix holds barely any at a '
@@ -399,7 +412,7 @@ const SHELF=[
                + 'citrate leaves.',
             atoms:s=>[s.krebs.cN[1], ...oxOf(s, s.krebs.cN[1])] },
   },
-  { key:'citrate', card:'Citrate',
+  { group:'krebs', key:'citrate', card:'Citrate',
     blurb:'Six carbons, three carboxylates, and <b>no mirror image</b> — the two '
         + '–CH₂COO⁻ arms are identical, so the molecule is achiral. Aconitase '
         + 'tells them apart anyway, by gripping it at three points. That is '
@@ -411,7 +424,7 @@ const SHELF=[
                + 'The whole next step exists to move it somewhere that can.',
             atoms:s=>[s.krebs.cN[2], s.krebs.oh] },
   },
-  { key:'isocitrate', card:'Isocitrate',
+  { group:'krebs', key:'isocitrate', card:'Isocitrate',
     blurb:'Citrate’s hydroxyl moved one carbon over. Same formula, same mass, '
         + 'nothing you can count has changed — and now the –OH sits on a carbon '
         + 'that still has a hydrogen, so it can become a ketone. One step that '
@@ -423,7 +436,7 @@ const SHELF=[
                + 'identically.',
             atoms:s=>[s.krebs.cN[0], s.krebs.cN[1], s.krebs.oh] },
   },
-  { key:'akg', card:'α-Ketoglutarate',
+  { group:'krebs', key:'akg', card:'α-Ketoglutarate',
     blurb:'Five carbons — the first CO₂ has left. This is also where the cycle '
         + 'meets nitrogen metabolism: add an amino group and it is glutamate, '
         + 'take one off and it is back. Carbon skeletons enter and leave the '
@@ -435,7 +448,7 @@ const SHELF=[
                + 'enzyme complex.',
             atoms:s=>[s.krebs.cN[1], ...oxOf(s, s.krebs.cN[1])] },
   },
-  { key:'succinylcoa', card:'Succinyl-CoA',
+  { group:'krebs', key:'succinylcoa', card:'Succinyl-CoA',
     blurb:'The second CO₂ has gone, and what is left is stuck to coenzyme A '
         + 'again — four carbons this time. The cycle’s one <b>high-energy</b> '
         + 'intermediate: breaking this thioester is what pays for the only '
@@ -446,7 +459,7 @@ const SHELF=[
                + '<b>substrate-level</b>, the same move glycolysis makes twice.',
             atoms:s=>[s.krebs.thiol, ...s.krebs.acyl] },
   },
-  { key:'succinate', card:'Succinate',
+  { group:'krebs', key:'succinate', card:'Succinate',
     blurb:'Four carbons, two carboxylates, and a <b>symmetry axis</b> — the only '
         + 'symmetric intermediate in the cycle. From here on an isotope label is '
         + 'scrambled between the two ends, which is the other half of why the '
@@ -458,7 +471,7 @@ const SHELF=[
                + 'instead of NAD⁺.',
             atoms:s=>[s.krebs.cN[1], s.krebs.cN[2]] },
   },
-  { key:'fumarate', card:'Fumarate',
+  { group:'krebs', key:'fumarate', card:'Fumarate',
     blurb:'Succinate with one double bond — and it is <b>trans</b>. Succinate '
         + 'dehydrogenase takes the two hydrogens from opposite faces, so it '
         + 'makes this and nothing else. The cis isomer, maleate, is not a '
@@ -469,7 +482,7 @@ const SHELF=[
                + 'carboxylates: they sit on opposite sides.',
             atoms:s=>s.krebs.cN },
   },
-  { key:'malate', card:'Malate',
+  { group:'krebs', key:'malate', card:'Malate',
     blurb:'Fumarate plus a water, added across the double bond. Fumarase adds '
         + '–OH and –H to one face only, so what comes out is a <b>single</b> '
         + 'enantiomer: (S)-malate, which older books call L-malate.',
@@ -479,7 +492,7 @@ const SHELF=[
                + 'the chemistry, decides which face.',
             atoms:s=>[s.krebs.cN[1], s.krebs.oh] },
   },
-  { key:'coa', card:'CoA-SH',
+  { group:'krebs', key:'coa', card:'CoA-SH',
     blurb:'Coenzyme A on its own, carrying nothing. The cycle hands it back '
         + 'twice — once at the start and once after the second CO₂ — so it is a '
         + 'molecule on the stage, not just a suffix on someone else’s name.',
@@ -489,7 +502,7 @@ const SHELF=[
                + 'odd are how an enzyme recognises it.',
             atoms:s=>[s.krebs.thiol] },
   },
-  { key:'fad', card:'FAD',
+  { group:'krebs', key:'fad', card:'FAD',
     blurb:'The oxidised flavin, waiting. Built from exactly the same skeleton as '
         + 'FADH₂ — this is that molecule with two hydrogens removed, which is '
         + 'why the two can never drift apart.',
@@ -782,8 +795,19 @@ function say(){
 /* ---------- build ---------- */
 function select(i){
   selected=i;
-  [...document.querySelectorAll('#shelf .goal')].forEach((c,k)=>
-    c.classList.toggle('on', k===i));
+  // BY `data-i`, NOT BY POSITION. The cards were once one-per-SHELF-entry in
+  // order, so k===i held; with the cycle behind a dropdown it does not, and
+  // position-matching would light the wrong card.
+  [...document.querySelectorAll('#shelf .goal[data-i]')].forEach(c=>
+    c.classList.toggle('on', +c.dataset.i===i));
+  // …and the dropdown is a card too: it lights when its own molecule is up,
+  // and follows along when something else selected one (the keyboard arrows).
+  const cyc=document.getElementById('cyccard'), sel=document.getElementById('cycsel');
+  if(cyc&&sel){
+    const mine=SHELF[i].group==='krebs';
+    cyc.classList.toggle('on', mine);
+    if(mine) sel.value=String(i);
+  }
   v.show(specOf(SHELF[i]));
   elSrc.classList.toggle('solo', !SHELF[i].alt);
   note(); say(); showRecipe();
@@ -845,14 +869,39 @@ document.getElementById('focusbtn').onclick=e=>{
   v.setHighlight(showFocus); };
 
 /* ---------- cards ---------- */
-document.getElementById('shelf').innerHTML=SHELF.map((e,i)=>{
-  const s=specOf(e);
-  return `<button class="goal${i===0?' on':''}" data-i="${i}">`
+/* ONE CARD PER CARRIER, ONE DROPDOWN FOR THE CYCLE.
+ *
+ * The shelf was two molecules and is now fourteen, and fourteen cards is a
+ * wall of names rather than a shelf — at 132px each they wrapped to three rows
+ * and pushed the molecule itself down the page. The carriers stay carded
+ * because this page is ABOUT them (they are what molecule-viewer teaches); the
+ * citric-acid cycle's twelve are a LIST, and a list belongs in a list control.
+ *
+ * `group:'krebs'` on a SHELF entry is what routes it. The array itself is
+ * unchanged and still indexed the same way, so `select`, `specOf`, `note` and
+ * the focus lambdas neither know nor care which control fired.
+ */
+{
+  const shelf=document.getElementById('shelf');
+  const card=(e,i)=>`<button class="goal" data-i="${i}">`
        + `<div class="gname">${e.card}</div>`
-       + `<div class="gform">${s.formula}</div></button>`;
-}).join('');
-document.getElementById('shelf').onclick=e=>{
-  const b=e.target.closest('.goal'); if(b) select(+b.dataset.i); };
+       + `<div class="gform">${specOf(e).formula}</div></button>`;
+  const grouped=SHELF.map((e,i)=>({e,i})).filter(x=>x.e.group==='krebs');
+  shelf.innerHTML =
+      SHELF.map((e,i)=>e.group?'':card(e,i)).join('')
+    + (grouped.length ? `<div class="goal cyc" id="cyccard">`
+        + `<div class="gname">Citric-acid cycle</div>`
+        + `<select id="cycsel" aria-label="Citric-acid cycle molecule">`
+        + grouped.map(({e,i})=>`<option value="${i}">${e.card}</option>`).join('')
+        + `</select></div>` : '');
+  // A card is a button and carries its index; the dropdown's wrapper is not,
+  // so the handler asks rather than assuming — clicking the card's border used
+  // to call select(NaN).
+  shelf.onclick=e=>{
+    const b=e.target.closest('.goal[data-i]'); if(b) select(+b.dataset.i); };
+  const sel=document.getElementById('cycsel');
+  if(sel) sel.onchange=()=>select(+sel.value);
+}
 
 // PNG is whatever is in the framebuffer, which is the spheres. The Diagram is an
 // SVG over the canvas and would come out blank, so that one view steps back to
