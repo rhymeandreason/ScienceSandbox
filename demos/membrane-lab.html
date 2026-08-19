@@ -727,10 +727,11 @@ function setShells(on) {
 shellsBox.addEventListener('change', () => setShells(shellsBox.checked));
 voltBox.addEventListener('change', () => {
   voltOn = voltBox.checked;
-  /* Switched back on, it starts over from zero. Resuming a voltage built
-     during a spell when the physics was off would be a number with no
-     transits behind it, and the corner tally is that number's working. */
-  if (voltOn) { mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0; }
+  /* NO RESET. The count is the scene's own history and it survives the
+     switch — turning the potential on simply starts honouring the charge
+     that has already moved, so the voltage shown is the one the transits
+     imply. Resetting made a scene where four K⁺ had visibly left read
+     0 mV. */
 });
 
 function tickShells(dt) {
@@ -915,6 +916,7 @@ function funnel(t, dt) {
   /* No side rule any more: both faces admit, so both faces attract. An
      attraction leading somewhere the ion cannot go would be a trap, and
      that is what this was when the door was one-way. */
+  if (!mayEnter(t)) return;             // the door is shut: do not gather at it
   if (t.lane == null && t.conducts != null) {
     const side = Math.sign(t.y) || 1;
     /* Aim at the mouth on the ion's OWN side. Aiming at the pore's centre
@@ -933,6 +935,44 @@ function funnel(t, dt) {
     }
   }
 }
+
+/* ONLY THE CROWDED SIDE MAY SEND, in the simplified mode.
+
+   Left alone, the flow overshot: every ion of a species ended up on one
+   side. Real diffusion stops at equal concentrations because the return
+   rate climbs as the far side fills, and this model suppresses the return
+   — a just-exited ion is deaf to the funnel until ESCAPE_R away, and a
+   pore takes one direction at a time — so nothing rose to balance it.
+
+   Stating it directly: an ion is admitted only from the side that has more
+   of its kind. Net flow therefore runs down the gradient and halts at
+   equality on its own, with no counter to keep in step with the scene and
+   no way to overshoot even if one wanders back. Equal is within one,
+   because the populations are odd.
+
+   The potential mode does not use this — there the voltage stops the flow
+   first, and stopping it twice would hide which one did it. */
+function crowdedSide(kind) {
+  let inside = 0, outside = 0;
+  for (const t of travellers) {
+    if (t.kind !== kind) continue;
+    if (t.y >= 0) outside++; else inside++;
+  }
+  if (Math.abs(outside - inside) <= 1) return 0;      // level: nobody sends
+  return outside > inside ? 1 : -1;
+}
+
+/* ONE PREDICATE FOR THE DOOR AND THE PULL. Whenever these two disagree the
+   result is the same picture: ions dragged to a mouth that will not open,
+   hovering there in a knot. It happened first when the door was one-way and
+   the funnel was not, and again the moment the crowded-side rule landed —
+   at 14/14 nothing could enter, and the funnel went on gathering chloride
+   at the doorstep anyway.
+
+   So admission is asked once, and anything that attracts an ion asks the
+   same question. An attraction leading somewhere the ion cannot go is not a
+   funnel, it is a trap. */
+const mayEnter = t => voltOn || Math.sign(t.y) === crowdedSide(t.kind);
 
 const CAPTURE_R = 13;                   // how near the axis counts as "at the mouth"
 function tryCapture(t) {
@@ -965,6 +1005,7 @@ function tryCapture(t) {
      It is also just true. A single-file pore cannot have two ions passing
      each other, so an ion is admitted only if the lumen is empty or its
      current traffic is going the way this one would. */
+  if (!mayEnter(t)) return false;       // down the gradient, while there is one
   const want = -Math.sign(t.y);
   const inLane = travellers.filter(o => o.lane === lane);
   if (inLane.some(o => Math.sign(o.vy) !== want)) return false;
@@ -1078,7 +1119,14 @@ function tickQueue(t, dt) {
        leaving again undoes it. Reading the sign off the ion's own velocity
        made an ion captured on the outer face count as a hyperpolarising
        transit while it was doing the exact opposite. */
-    if (t.inPore && voltOn) {
+    /* COUNTED ALWAYS, APPLIED ONLY WHEN ASKED. Transits used to be counted
+       only with the potential on, and enabling it reset the tally — so a
+       scene where four K⁺ had visibly left read 0 mV, which is a flat
+       contradiction: if charge crossed, there is a potential. The charge
+       that moved is a fact about the scene, not about which switch is on.
+       What the switch decides is whether that charge pushes back, which is
+       drive()'s job and nothing to do with counting. */
+    if (t.inPore) {
       const q = (t.kind === 'CL' ? -1 : 1) * Math.sign(t.y);
       chargeOut += q;
       crossed[t.kind] = (crossed[t.kind] || 0) + q;
@@ -1743,7 +1791,7 @@ const STEPS = [
          mouth. It swims, and it goes through when it happens to find the
          pore. That is also what makes the population honest: potassium is
          the inside ion, so this is where it lives. */
-      for (let i = 0; i < 9; i++)
+      for (let i = 0; i < 16; i++)
         traveller('K', { x:rnd(-SPREAD*0.45, SPREAD*0.45), z:rnd(-10,10),
                          y:inCompartment(-1), shell:true,
                          walk:true, speed:ION_SPEED, conducts:-LANE,
@@ -1760,8 +1808,15 @@ const STEPS = [
       /* And the chloride in the extracellular fluid, likewise scattered.
          It conducts through its OWN pore only — a Cl⁻ is not admitted by a
          potassium filter, and a K⁺ is not admitted by this one. */
-      for (let i = 0; i < 8; i++)
-        traveller('CL', { x:rnd(-SPREAD*0.45, SPREAD*0.45), z:rnd(-10,10),
+      /* SPREAD ACROSS THE WHOLE COMPARTMENT. Twenty-eight of them drawn
+         from the middle 45% was a bank of chloride in the centre of the
+         frame with empty fluid at both edges — which reads as the ions
+         being gathered somewhere, and this step's whole argument is that
+         nothing gathers them until a pore does. The funnel reaches 170, so
+         the far edges are still in play; they just take longer to arrive,
+         which is what having to find a pore by diffusion means. */
+      for (let i = 0; i < 28; i++)
+        traveller('CL', { x:rnd(-SPREAD*0.92, SPREAD*0.92), z:rnd(-10,10),
                           y:inCompartment(1), shell:true,
                           walk:true, speed:ION_SPEED, conducts:LANE,
                           blocked:true, bounded:true });
@@ -1790,37 +1845,27 @@ const STEPS = [
          the Cl⁻ pore on charge, because that lining is δ+ and a cation is
          the wrong sign for it. It is the one ion on stage going nowhere,
          which is what keeps the dehydration story legible. */
-      for (let i = 0; i < 5; i++)
+      /* Na⁺ raised with the potassium: the compartment has to stay neutral,
+         and 16 K⁺ + 12 Na⁺ against 28 Cl⁻ is the balance. */
+      for (let i = 0; i < 12; i++)
         traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
                           y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
                           walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
                           blocked:true, bounded:true });
-      /* Cl⁻ IS HERE FOR NEUTRALITY, and it is a BYSTANDER — matched one for
-         one against the sodium, because six bare Na⁺ and nothing else is a
-         compartment carrying a net charge, the same objection this page
-         makes to drawing salt as a lone cation anywhere else.
+      /* THE BYSTANDER Cl⁻ IS GONE — merged into the conducting pool above.
+         Six extra chloride sat here refused by the chloride channel, which
+         is two identical ions on two different rules: nothing distinguishes
+         them, and a pore that admits a species admits the species. They
+         predate the Cl⁻ channel existing at all, when the only Cl⁻ on stage
+         was there to keep the compartment neutral.
 
-         HYDRATED, like everything else charged in this scene. It was drawn
-         bare to keep it from reading as a third ion failing the same fit
-         test, and that was the wrong trade: an anion beside a dressed
-         cation says anions do not hold water, which is false, and using
-         nakedness as a signal teaches that to fix a labelling problem the
-         caption can fix instead. So it wears its shell and stays out of
-         the caption.
+         They also broke the corner census. Those six counted as "Cl⁻
+         outside" while never being able to move, so the tally could not be
+         reconciled with the transits beside it.
 
-         Its shell also carries a fact the toggle now shows for free: the
-         anion's sits visibly LOOSER, because a hydrogen is between the ion
-         and the water's oxygen rather than the oxygen facing it directly.
+         Neutrality still holds, and now without a special case: 9 K⁺ and
+         5 Na⁺ against 14 Cl⁻. */
 
-         Its rejection is real and is a DIFFERENT rejection — the filter's
-         carbonyls present their δ− ends, so an anion is refused on charge
-         before fit is ever in question. Naming it here would put a second,
-         unshowable mechanism beside the one this step exists to show. */
-      for (let i = 0; i < 6; i++)
-        traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
-                          walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
-                          blocked:true, bounded:true });
       /* NAME THE TWO PORES. Anchors are fixed points at each mouth rather
          than a traveller: the protein does not move, and pinning the label
          to an ion would make it look like a label for that ion. Offsets
