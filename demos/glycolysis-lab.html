@@ -1740,6 +1740,10 @@ const RX=Reaction.create({
   // scene's depth. The module only ever asks "where does this lane's carrier
   // sit", which is the same question for ATP, NAD⁺, FAD or CoA.
   carrierPoint:(st,ref,j)=>tileWorld(carrierKey(st.couple.cin), ref, j),
+  // …and the bond the transfer makes on it, for the ring the arriving end gets.
+  // WHICH bond is chemistry and stays here: ATP's is gammaBreak's, derived from
+  // the spec. bondMid answers null when the tray is not on screen.
+  carrierBond:(st,j)=>CAR.bondMid(j, ...gammaBreak()),
   // THE CARRIER TURNS OVER ON ARRIVAL, not when the step lands — see the `ox`
   // verb. `carrierGone` is the page's, because the tray reads it.
   onCarrierTaken:j=>{ carrierGone.add(j); refresh(); },
@@ -2121,28 +2125,40 @@ function setCarrierScaleNote(k, m){
   carrierEl.querySelector('.cscale').textContent=txt;
 }
 
-/* ---------- the bond that breaks, marked ----------
+/* ---------- the bond a phosphoryl transfer makes or breaks, marked ----------
  * Step 2 says "this bond comes apart" with a pulsing disc behind the bond
- * (.sglow, drawSpots); a kinase step gets the same mark behind the Pβ–O bond
- * the enzyme breaks. Neither end is typed — both derive from `gly.gamma` (see
- * gammaBreak, which has the trap), so the mark and the four atoms that fly
- * cannot disagree about which bond this step is.
- * Only while the step is live and ATP is showing (`carrierLive`): on steps 7
- * and 10 the phosphate is arriving, and there is no bond here to break.
+ * (.sglow, drawSpots); a kinase step gets the same mark behind the bond the
+ * enzyme breaks on ATP. Steps 7 and 10 run the same transfer the other way, so
+ * the SAME bond is the one that forms as the phosphate lands — see the `out`
+ * verb, which rings it there.
+ *
+ * Neither end is typed. `MolGraph.leavingBond` derives it: the bond a P's
+ * departure breaks is P to its BRIDGING oxygen, so the mark and the four atoms
+ * that fly cannot disagree about which bond this step is.
+ *
+ * IT IS Pγ–O, NOT Pβ–O, and this got it backwards for a long time. A kinase
+ * moves PO₃⁻: Pγ and its three terminal oxygens leave — `gly.gamma`, four atoms
+ * — and the β–γ BRIDGING oxygen stays behind as a terminal oxygen of ADP. That
+ * is the whole reason `gamma` is four atoms and not five, and it is what the
+ * carrier draws: `setGroup` hides exactly those four to make ADP. So the bond
+ * that comes apart is the one between the bridging O and Pγ. Marking Pβ–O
+ * instead pointed at a bond that survives the step and implied ADP loses the
+ * oxygen it keeps — one bond off, on the two beats the ATP ledger rests on.
+ *
+ * Provable rather than argued, which is why it is derived now: cutting Pγ–O
+ * detaches exactly `gamma`; cutting Pβ–O detaches five atoms, and `gamma` says
+ * four. kit/check-kit.js already asserts that a phosphoryl group leaves its
+ * bridging oxygen behind — the page just wasn't asking it.
+ *
+ * (Pβ–O cleavage is a real reaction, just not this one: it is adenylyl
+ * transfer, which releases pyrophosphate and leaves AMP.)
  */
 const cglowEl=document.getElementById('cglow');
 let breakBond=null;
 function gammaBreak(){
   if(breakBond) return breakBond;
-  const g=ATP.gly, set=new Set(g.gamma);
-  // Pγ's one neighbour that `gamma` does not claim: the β–γ bridging oxygen.
-  const b=ATP.bonds.find(b=>(b[0]===g.pg&&!set.has(b[1]))||(b[1]===g.pg&&!set.has(b[0])));
-  const o=b ? (b[0]===g.pg?b[1]:b[0]) : -1;
-  // AND THE BOND THAT BREAKS IS THE ONE ABOVE IT — Pβ–O, not O–Pγ. A kinase
-  // moves PO₃⁻: Pγ and its three terminal oxygens leave, the bridging oxygen
-  // STAYS as a terminal oxygen of ADP (why `gamma` is four atoms, not five).
-  // O–Pγ survives the step; marking it would say the opposite of what happens.
-  return (breakBond = o<0 ? [-1,-1] : [g.pb, o]);
+  const b=MolGraph.leavingBond(ATP, ATP.gly.pg);
+  return (breakBond = b || [-1,-1]);
 }
 const cglowV=new THREE.Vector3();
 const cspotEl=document.getElementById('cspot');

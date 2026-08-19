@@ -520,6 +520,23 @@ function create(host) {
                  PAL.atoms.P);
     flyPhosphate(src, c.carrier(src) || V(c.lane.g.position.x, -OFFSCREEN, 0), c.spec, p);
     shedPhosphoryl(c.lane, p);        // it left; it should look left
+    /* …AND THE BOND IT MAKES AT THE OTHER END, on the beat it lands.
+     *
+     * BOTH ENDS OF A TRANSFER ARE EVENTS. Every other verb marks the bond it
+     * makes as well as the one it breaks — `in` rings the ester forming on the
+     * sugar, `move` rings the new site, `ox` rings the carrier atom that gained
+     * the hydride. This one rang only the departure, so the half of the step
+     * the LEDGER is about — an ADP becoming an ATP — happened with nothing
+     * pointing at it: a group left a sugar, crossed the frame, and the tile it
+     * arrived at just quietly said a different name. That is the one beat
+     * steps 7 and 10 exist for (substrate-level phosphorylation, 2 ATP each).
+     *
+     * WHICH bond is the page's, through `carrierBond` — ATP's is not FAD's or
+     * CoA's, and the module has no business knowing. It answers null when
+     * nothing is on screen (kit/carriers.js's rule), so a tray scrolled away
+     * costs the ring rather than putting one at the origin. */
+    later(() => { const at = c.carrierBond(); if (at) FX.spawnRing(at, PAL.atoms.P); },
+          T.FLY);
   }});
 
   /* AN OXIDATION — two things in opposite directions, which is the whole
@@ -908,6 +925,8 @@ function create(host) {
       product: specOf(key),
       x,
       carrier: ref => host.carrierPoint(st, ref, j),
+      // …and where its reacting bond is, for the mark on the arriving end.
+      carrierBond: () => host.carrierBond ? host.carrierBond(st, j) : null,
     };
   }
 
