@@ -75,6 +75,25 @@
  *  'reveal' finishes in the 'on' state: the wipe is how the labels ARRIVE,
  *  not a state they stay in.
  *
+ *  ---- CARDS -----------------------------------------------------------
+ *
+ *  A note may carry `card`: HTML for a short popover that opens when the
+ *  student clicks the label (or its dot). The label says WHAT, the card
+ *  says WHY, and the split is the point — a stage crowded with sentences
+ *  is a stage nobody reads, and a stage of bare dots teaches nothing to
+ *  the student who never clicks. Short label, always visible; one click
+ *  for the reason.
+ *
+ *    notes.add({ text:'Na+ keeps its shell', card:'Two sentences. No more.',
+ *                at:() => ..., offset:[30,-22] });
+ *
+ *  Keep a card to TWO SENTENCES. It is a margin note, not a paragraph, and
+ *  the box is sized so a third one has to be scrolled to.
+ *
+ *  One card is open at a time, per layer. It closes on a second click, on
+ *  Escape, on a click anywhere else, and on setMode/clear — because all of
+ *  those mean the subject just changed.
+ *
  *  How they LEAVE is show(false) or fade(x), and those are different
  *  things on purpose. show() is the switch a student flicks: these do not
  *  apply here. fade() is the dimmer a page drives: these are on their way
@@ -120,6 +139,72 @@ window.Annot = (function () {
 
     const notes = [];
     const _v = new THREE.Vector3();
+
+    /* ---- the card ----
+       A label names the thing; a card answers "why". ONE card per layer,
+       never one per note: two open cards are two answers to a question the
+       student asked once, and the second is always the one they did not
+       ask. Opening a card closes whichever was open.
+
+       It is the ONE child of the layer that takes the mouse — it has a
+       close button and text worth selecting. Trap 2 still holds: the layer
+       itself never does, so orbit survives.
+
+       Built lazily. A page that never passes `card` never pays for it, and
+       the two lessons already using this module get an unchanged DOM. */
+    let card = null, cardNote = null;
+
+    function ensureCard() {
+      if (card) return card;
+      card = document.createElement('div');
+      card.className = 'annot-card';
+      card.setAttribute('role', 'dialog');
+      card.style.pointerEvents = 'auto';
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'annot-card-x';
+      x.setAttribute('aria-label', 'Close');
+      x.textContent = '\u00d7';
+      x.addEventListener('click', e => { e.stopPropagation(); closeCard(); });
+      const h = document.createElement('h4'); h.className = 'annot-card-t';
+      const b = document.createElement('p');  b.className = 'annot-card-b';
+      card.appendChild(x); card.appendChild(h); card.appendChild(b);
+      card._t = h; card._b = b;
+      layer.appendChild(card);
+      return card;
+    }
+
+    function openCard(note) {
+      if (cardNote === note) { closeCard(); return; }   // the label is a toggle
+      const c = ensureCard();
+      c._t.textContent = note.cardTitle || '';
+      c._t.style.display = note.cardTitle ? '' : 'none';
+      c._b.innerHTML = note.card;
+      cardNote = note;
+      c.classList.add('is-open');
+      for (const n of notes) n.el.classList.toggle('is-carded', n === note);
+      step();                       // place it now, not on the next frame
+      return api;
+    }
+
+    function closeCard() {
+      cardNote = null;
+      if (card) card.classList.remove('is-open');
+      for (const n of notes) n.el.classList.remove('is-carded');
+      return api;
+    }
+
+    /* Click-away and Escape. The pointerdown fires BEFORE the label's own
+       click, so a click on the open note's own label falls through to the
+       toggle rather than being closed here and reopened there. */
+    document.addEventListener('pointerdown', e => {
+      if (!cardNote) return;
+      if (card && card.contains(e.target)) return;
+      if (cardNote.el.contains(e.target)) return;
+      closeCard();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && cardNote) closeCard();
+    });
     let mode = 'on';
     let visible = opts.visible !== false;
     let alpha = opts.alpha === undefined ? 1 : opts.alpha;
@@ -172,22 +257,46 @@ window.Annot = (function () {
       const note = {
         el, dot, label,
         at: spec.at,
+        offset: off,
+        card: null, cardTitle: '',
+        _sx: 0, _sy: 0,
+        openCard() { return openCard(note); },
         open: spec.open !== false,     // 'click' mode starts them closed below
         delay: 0,
         set(text) { label.textContent = text; dot.setAttribute('aria-label', text); return note; },
         remove() {
           const i = notes.indexOf(note);
           if (i >= 0) notes.splice(i, 1);
+          if (cardNote === note) closeCard();
           el.remove();
         },
       };
 
       dot.addEventListener('click', e => {
-        if (mode !== 'click') return;
         e.stopPropagation();
+        /* In 'click' mode the dot's job is the label. Everywhere else, a
+           note that HAS a card uses the dot for the card — otherwise the
+           dot is inert in the very mode the card ships in. */
+        if (mode !== 'click') { if (note.card) openCard(note); return; }
         note.open = !note.open;
         el.classList.toggle('is-open', note.open);
       });
+
+      /* THE LABEL IS THE TARGET, not the dot. The dot is ten pixels and it
+         sits on the molecule the student is trying to see; the label is the
+         thing that reads as "there is more here". The dot still works. */
+      if (spec.card) {
+        el.classList.add('annot-has-card');
+        note.card = spec.card;
+        note.cardTitle = spec.cardTitle === undefined ? spec.text : spec.cardTitle;
+        label.setAttribute('role', 'button');
+        label.tabIndex = 0;
+        label.style.pointerEvents = 'auto';
+        label.addEventListener('click', e => { e.stopPropagation(); openCard(note); });
+        label.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(note); }
+        });
+      }
 
       notes.push(note);
       applyMode();
@@ -209,8 +318,9 @@ window.Annot = (function () {
          clicking them means something. */
       layer.style.pointerEvents = 'none';
       for (const n of notes) {
-        n.dot.style.pointerEvents = (mode === 'click') ? 'auto' : 'none';
-        n.dot.tabIndex = (mode === 'click') ? 0 : -1;
+        const hot = (mode === 'click') || !!n.card;
+        n.dot.style.pointerEvents = hot ? 'auto' : 'none';
+        n.dot.tabIndex = (mode === 'click') ? 0 : -1;   // the label carries the tab stop
         if (mode === 'click') { n.open = false; }
         else if (mode === 'on') { n.open = true; }
         n.el.classList.toggle('is-open', n.open);
@@ -221,6 +331,7 @@ window.Annot = (function () {
       if (MODES.indexOf(m) < 0) throw new Error('annotate: unknown mode ' + m);
       mode = m;
       revealT0 = -1;
+      closeCard();                 // the subject is changing; the answer is stale
       applyMode();
       if (m === 'reveal') play();
       return api;
@@ -308,7 +419,26 @@ window.Annot = (function () {
         const y = (1 - p.y) / 2 * h + lift;
         n.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
         n.el.style.opacity = o;
+        n._sx = x; n._sy = y;
         live.push({ n, depth });
+      }
+
+      /* The card rides its note, on the side the label already hangs off,
+         and is CLAMPED to the stage — a card that follows a traveller off
+         the edge is a card the student cannot read or close. */
+      if (cardNote && card) {
+        const n = cardNote;
+        if (n.el.style.display === 'none') { card.style.display = 'none'; }
+        else {
+          card.style.display = '';
+          const cw = card.offsetWidth || 240, ch = card.offsetHeight || 96;
+          const ox = n.offset[0] || 0, oy = n.offset[1] || 0;
+          let cx = n._sx + (ox < 0 ? -22 - cw : 22);
+          let cy = n._sy + oy + 14;
+          cx = Math.max(8, Math.min(cx, w - cw - 8));
+          cy = Math.max(8, Math.min(cy, h - ch - 8));
+          card.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy.toFixed(1)}px, 0)`;
+        }
       }
 
       /* Nearer labels on top — BY RANK, not by the projected z. Mapping
@@ -321,8 +451,9 @@ window.Annot = (function () {
     }
 
     const api = {
-      add, step, play, show, fade, setMode,
-      clear() { while (notes.length) notes[0].remove(); return api; },
+      add, step, play, show, fade, setMode, openCard, closeCard,
+      clear() { closeCard(); while (notes.length) notes[0].remove(); return api; },
+      get cardOpen() { return !!cardNote; },
       get mode() { return mode; },
       get alpha() { return alpha; },
       get notes() { return notes.slice(); },

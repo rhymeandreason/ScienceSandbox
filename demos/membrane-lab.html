@@ -44,7 +44,6 @@
   #cap { font-size:17px; line-height:1.35; min-height:2.6em;
          max-width:46em; margin:0 auto 10px; }
   #cap b { font-weight:600; }
-  #readout { font-size:13px; opacity:.7; min-height:1.2em; margin:-6px 0 8px; }
 
 
   /* The button sits ON the scene, in the gap between the bottom of the
@@ -170,7 +169,6 @@
     .otally b { font-size:34px; }
     /* Narrower means more wrapping, so the reserve grows with it. */
     #cap { font-size:15px; min-height:5.6em; }
-    #readout { min-height:3.9em; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
 </style>
@@ -262,7 +260,6 @@
   </div>
   <div id="chrome">
     <p id="cap"></p>
-    <p id="readout"></p>
     <nav id="steps" aria-label="lesson steps"></nav>
   </div>
 </div>
@@ -316,7 +313,6 @@
 
 const canvas = document.getElementById('c');
 const capEl = document.getElementById('cap');
-const readoutEl = document.getElementById('readout');
 const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
 const ctlEl = document.getElementById('ctl');
@@ -473,10 +469,30 @@ const NOTES = Annot.create(THREE, document.getElementById('stage'), L.camera,
 const _np = new THREE.Vector3();
 /* Names ONE traveller, not a species. Three labels on three of the forty
    things on screen is a key; a label per molecule is a wall of type. */
-function noteOn(t, text, offset) {
+function noteOn(t, text, offset, card) {
   if (!t) return;
-  NOTES.add({ text, offset, at: () => t.obj.getWorldPosition(_np) });
+  NOTES.add({ text, offset, card, at: () => t.obj.getWorldPosition(_np) });
 }
+/* THE SAME CALLOUT, PINNED TO THE SCENE rather than to something moving.
+   A protein does not walk, and neither does "the top compartment" — an
+   anchor on a passing ion would read as a label for that ion. */
+function noteAt(x, y, text, offset, card) {
+  NOTES.add({ text, offset, card,
+              at: () => _np.set(x, typeof y === 'function' ? y() : y, 0) });
+}
+
+/* ---- what a caption says and what a card says ----
+   ONE IDEA IN THE CAPTION. The captions on this page used to carry the
+   whole lesson — four sentences under a stage with forty things moving on
+   it, which is a paragraph competing with an animation and losing. The
+   caption now states the claim the step exists to make, and everything
+   that used to qualify it hangs on the thing it is about, two sentences at
+   a time, behind a click.
+
+   The rule for a card is the rule for the whole page: it may only say what
+   the simulation is showing. Nothing here names a mechanism the student
+   cannot watch — that is why there is no carrier and no tonicity table in
+   these cards, even though both belong in the lesson eventually. */
 
 /* ---- the membrane ----
    TWO of them, and it is not duplication: steps 1-3 have no protein, and
@@ -1510,8 +1526,8 @@ function tickQueue(t, dt) {
 
      This used to freeze every ion where it stood, which left them parked
      inside the pore: a stopped ion in an open channel says the channel
-     shut, and the readout beside it says "no NET flow". Both cannot be
-     right, and the readout is the one that is.
+     shut, and the tally beside it says "no NET flow". Both cannot be
+     right, and the tally is the one that is.
 
      So the drive sets the ODDS, not the speed. Each hop picks a direction
      with p(forward) = ½ + ½·push: at full drive every hop goes forward, at
@@ -1934,8 +1950,7 @@ const STEPS = [
   {
     id:'bilayer',
     tab:'the bilayer',
-    cap:'Two layers of lipid. <b>Heads like water; tails hide from it.</b> ' +
-        'The inside of a membrane is oil.',
+    cap:'<b>The inside of a membrane is oil.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -1949,21 +1964,33 @@ const STEPS = [
          which step 3 then spends its whole run contradicting. A student
          who learns "the membrane stops water" here has to unlearn it two
          tabs later, and that is worse than a slightly busier picture. */
-      for (let i = 0; i < 64; i++)
-        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
+      let firstW = null;
+      for (let i = 0; i < 64; i++) {
+        const t = traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
                              y:inCompartment(i % 2 ? 1 : -1),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
+        if (!i) firstW = t;
+      }
+      /* Three callouts on a sheet with no protein in it: the two halves of
+         a lipid, and the water they are answering to. */
+      noteAt(-96, HALF, 'heads', [-34, -30],
+             'The head carries charge and sits happily in water, so it turns ' +
+             'outward on both faces. That is why a bilayer assembles itself ' +
+             'and then holds together.');
+      noteAt(-96, 0, 'tails', [-34, 26],
+             'The tails are hydrocarbon and will not mix with water, so they ' +
+             'hide in the middle. Everything crossing this membrane has to ' +
+             'get through that oil.');
+      noteOn(firstW, 'water, both sides', [34, -30],
+             'Water is out here and in there, and it does cross. ' +
+             'A membrane is a barrier, not a wall.');
     },
-    readout: () => 'bilayer ' + (HALF * 2).toFixed(1) + ' Å thick — measured, not drawn to taste',
   },
 
   {
     id:'through',
     tab:'what gets through',
-    cap:'<b>Oily things cross. Charged things do not.</b> ' +
-        'CO₂ is the biggest thing here and goes straight through. ' +
-        'Na⁺ is the smallest and cannot — a charged ion holds a shell of ' +
-        'water, and it would have to strip that off to enter the oil.',
+    cap:'<b>Oily things cross. Charged things do not. Size is not the rule.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -2012,11 +2039,17 @@ const STEPS = [
          a label repeating it turns three callouts into a second caption
          the student has to read while the thing it names moves. What they
          actually cannot do without this is tell which band is which. */
-      noteOn(firstO2,  'O₂',  [-30, -22]);
-      noteOn(firstCO2, 'CO₂', [ 28, -24]);
-      noteOn(firstNa,  'Na⁺ + its water shell', [ 30, -22]);
+      noteOn(firstO2,  'O₂ — straight through',  [-30, -22],
+             'Small and nonpolar, so it dissolves into the oil and out the ' +
+             'other side. No protein, no cost, no gate.');
+      noteOn(firstCO2, 'CO₂ — also straight through', [ 28, -24],
+             'The biggest thing on screen, and it crosses as easily as O₂. ' +
+             'Being oily beats being small.');
+      noteOn(firstNa,  'Na⁺ — turned back', [ 30, -22],
+             'The smallest thing here, and it never gets in: a charged ion ' +
+             'holds a shell of water around it. Entering the oil means ' +
+             'stripping that shell off, and that costs more than it has.');
     },
-    readout: () => 'size is not the rule — the largest crosses, the smallest is turned back',
   },
 
   {
@@ -2030,11 +2063,7 @@ const STEPS = [
        shells on screen honestly show is the kinetic version: the salt and
        its water occupy space, so a smaller share of what is out there is
        water free to make the trip. Same picture, no wrong prediction. */
-    cap:'<b>Water crosses both ways, always.</b> ' +
-        'Salt outside takes up room, so fewer of the molecules up there are ' +
-        'water free to cross — and more wander out than in. Nothing pulls. ' +
-        'The salty side is <em>hypertonic</em>: watch both labels reach ' +
-        '<em>isotonic</em>, which neither side can be on its own.',
+    cap:'<b>Water crosses both ways. The net flow is a headcount, not a pull.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -2112,10 +2141,21 @@ const STEPS = [
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
       }
+      /* One callout per compartment, plus the one that kills "water is
+         pulled toward salt" — the misconception this step is built to
+         break, and the one the caption no longer has room to argue with. */
+      noteAt(-SPREAD * 0.62, farY() * 0.62, 'salt takes up room', [-34, -28],
+             'Every solute particle sits where a water would have been, so ' +
+             'fewer of the molecules up here are water. This side is ' +
+             '<b>hypertonic</b> — more solute, less water.');
+      noteAt(SPREAD * 0.62, -farY() * 0.62, 'more water down here', [34, 28],
+             'Same total number of particles, and more of them are water. ' +
+             'More waters inside means more of them wander out than in.');
+      noteAt(0, -HALF - 16, 'nothing is pulling', [40, 26],
+             'Every water walks at random and reads nothing about where the ' +
+             'salt is. Watch both labels land on <b>isotonic</b>, which ' +
+             'neither side could reach on its own.');
     },
-    /* The counts moved onto the scene, so the readout stops repeating them
-       and says the thing the numbers cannot: nothing here is aiming. */
-    readout: () => 'every water walks at random — none of them reads where the salt is',
   },
 
   {
@@ -2125,12 +2165,7 @@ const STEPS = [
        so it describes the plain diffusion picture and points at what each
        switch adds — rather than announcing a voltage that is not running
        until the student asks for it. */
-    cap:'<b>Each pore picks an ion. Neither picks a direction.</b> ' +
-        'K⁺ is high inside, so it leaks out; Cl⁻ is high outside, so it ' +
-        'leaks in. Each just spreads out until both sides hold the same ' +
-        'number — nothing aims, and nothing is pumped. Switch on the water ' +
-        'shells to see what an ion has to shed to fit, and the membrane ' +
-        'potential to see what stops the leak long before it evens out.',
+    cap:'<b>Each pore picks an ion. Neither picks a direction.</b>',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane('chan'); setCut(true);
@@ -2247,10 +2282,21 @@ const STEPS = [
          close to false at rest, since E_Cl sits near the resting potential
          and the net flux stalls. Direction is shown where it is honest: the
          corner tally, counted off transits that actually happened. */
-      NOTES.add({ text:'K⁺ channel',
-                  offset:[-40, -30], at:() => _np.set(-LANE, mouthY(), 0) });
-      NOTES.add({ text:'Cl⁻ channel',
-                  offset:[ 40, -30], at:() => _np.set( LANE, mouthY(), 0) });
+      NOTES.add({ text:'K⁺ channel', offset:[-40, -30],
+                  at:() => _np.set(-LANE, mouthY(), 0),
+                  card:'An open pore lined for K⁺, and it costs nothing to ' +
+                       'use. K⁺ happens to be high inside, so it leaks out — ' +
+                       'the gradient chose that, not the channel.' });
+      NOTES.add({ text:'Cl⁻ channel', offset:[ 40, -30],
+                  at:() => _np.set( LANE, mouthY(), 0),
+                  card:'The same deal for chloride, which is high outside — ' +
+                       'so it leaks the other way. Two pores, two ' +
+                       'directions, and neither pore aims.' });
+      NOTES.add({ text:'Na⁺ passes neither', offset:[0, 44],
+                  at:() => _np.set(0, -mouthY() * 0.6, 0),
+                  card:'It is smaller than K⁺ and still will not fit the K⁺ ' +
+                       'filter, because it cannot pay to shed its water ' +
+                       'shell. The Cl⁻ pore refuses it on charge.' });
 
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
       voltBox.checked = voltOn;         // a re-entered step keeps the choice
@@ -2269,18 +2315,6 @@ const STEPS = [
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
-    /* Na⁺'s two refusals are different — fit at the K⁺ filter, charge at
-       the Cl⁻ one — and they look identical, so the distinction lives in
-       words rather than in the motion. */
-    readout: () => voltOn
-      /* The mV itself is on the stage, in the overlay beside the membrane.
-         Printing it here too gave two live numbers for one quantity, which
-         invites the reader to check them against each other instead of
-         reading either. This line says what the number cannot. */
-      ? `it settles BETWEEN K⁺'s ${E_K} and Cl⁻'s ${E_CL} mV, where the two currents ` +
-        `cancel · Na⁺ tries both pores and passes neither`
-      : 'no charge is counted, so nothing opposes the spread · ' +
-        'both sides end level, and the gradient is gone',
   },
 
   {
@@ -2335,10 +2369,19 @@ const STEPS = [
       atpSpent = 0;
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
       spendEl.hidden = false; spendEl.disabled = false;
+
+      /* STATIC, while the caption runs live off the cycle. The caption is
+         already rewriting itself every phase; labels rewriting underneath
+         a cursor mid-click is one moving text too many. These name the
+         parts, which do not change. */
+      noteAt(0, T.height * 0.98, 'a carrier, not a pore', [-46, -30],
+             'It binds its cargo and changes shape, so it is never open to ' +
+             'both sides at once. A pore cannot do that, which is why a ' +
+             'pore can never push anything uphill.');
+      noteAt(0, -T.height * 0.98, '1 ATP = 1 turn', [46, 30],
+             'Each turn carries 3 Na⁺ out and 2 K⁺ in, both against their ' +
+             'gradients. Uphill is exactly what the ATP is buying.');
     },
-    readout: () => `${atpSpent} ATP spent · each one carries 3 Na⁺ out and 2 K⁺ in, ` +
-                   `both AGAINST their gradients — the one thing no channel can do · ` +
-                   `a pore next door passes a million ions in the time this makes five`,
   },
 
   {
@@ -2404,10 +2447,21 @@ const STEPS = [
       atpSpent = 0; chargeOut = 0; mV = 0;
       setShells(shellsOn);
       spendEl.hidden = true;
+
+      /* The two proteins, and the loop between them. This is the step where
+         both halves of the lesson are on stage at once, so the callouts are
+         the ones that say which half is which. */
+      noteAt(-REST_LANE, T.height * 0.98, 'leaks out, free', [-40, -30],
+             'K⁺ is high inside, so it drifts out through the channel and ' +
+             'nothing stops it. Downhill costs nothing.');
+      noteAt(REST_PUMP_X, T.height * 0.98, 'drags it back, paid', [42, -30],
+             'The pump carries K⁺ back in and Na⁺ out, burning one ATP a ' +
+             'turn. It is undoing the leak next door, over and over.');
+      noteAt(0, -farY() * 0.62, 'the counts hold still', [40, 30],
+             'Nothing here has settled — a leak and a pump are running flat ' +
+             'out and cancelling. Switch the pump off and watch what ' +
+             'equilibrium actually looks like.');
     },
-    readout: () => `${atpSpent} ATP · K⁺ leaks out and is pumped back, over and over — ` +
-                   `the counts hold still because the cell keeps paying, not because ` +
-                   `anything has settled`,
   },
 ];
 
@@ -2898,13 +2952,8 @@ function tick(dt) {
     for (const t of travellers) keepOutOfPores(t);
 
     setHTML(capEl, pumpOn
-      ? '<b>Standing still costs ATP.</b> K⁺ leaks out through the channel and the ' +
-        'pump drags it back, three Na⁺ out and two K⁺ in per ATP. The numbers hold ' +
-        'steady — not because anything has settled, but because the cell is paying ' +
-        'to keep them there.'
-      : '<b>The pump is off.</b> Nothing is holding the gradient up now. Watch the ' +
-        'counts level and the voltage fade — this is what a cell does when it stops ' +
-        'being able to pay.');
+      ? '<b>Standing still costs ATP.</b>'
+      : '<b>The pump is off — watch the counts level and the voltage fade.</b>');
   } else if (s.id === 'pump') {
     runPumpCycle(dt);
     /* Everything NOT aboard is ordinary solution and keeps walking — the pump
@@ -2919,9 +2968,7 @@ function tick(dt) {
     const stc = Pump.at(pumpT);
     setHTML(capEl, running || stc.phosphate.on
       ? '<b>' + stc.label + '</b> — ' + stc.caption
-      : '<b>The channel step spent this gradient. Here is what it cost to make.</b> ' +
-        'Both sides are level now, so there is no voltage and nothing to leak. ' +
-        'Press the button: one ATP drags 3 Na⁺ out and 2 K⁺ in, uphill both ways.');
+      : '<b>The channel step spent this gradient. Press the button to buy it back.</b>');
   } else {
     spendEl.hidden = true;
     for (const t of travellers) {
@@ -3016,7 +3063,6 @@ function tick(dt) {
   NOTES.step();                           // trap 1: in the RENDER loop
   osmoEl.hidden = s.id !== 'osmosis';
   if (!osmoEl.hidden) paintOsmo();
-  readoutEl.textContent = s.readout ? s.readout() : '';
 }
 
 go(0);

@@ -1008,8 +1008,111 @@
    color: #8d2a16
  }
 
+ /* Cards. The label says what, the card says why. The tell is the cursor
+    and the hover, nothing drawn — a dashed underline was tried and it
+    reads as an error squiggle under a two-word label, and a
+    button-shaped label would compete with the real controls in the
+    chrome. There are up to four of these on the stage at once, so the
+    resting state has to stay as quiet as a plain callout. */
+ .annot-has-card .annot-label {
+   cursor: pointer;
+   transition: opacity .18s ease, background .15s ease, border-color .15s ease
+ }
+
+ .annot-has-card .annot-label:hover,
+ .annot-has-card .annot-label:focus-visible,
+ .annot-has-card.is-carded .annot-label {
+   background: #fff;
+   border-color: var(--ink);
+   outline: none
+ }
+
+ .annot-has-card .annot-dot {
+   cursor: pointer
+ }
+
+ .annot-has-card.is-carded .annot-dot {
+   background: var(--ink)
+ }
+
+ /* Positioned by transform like a callout, but it is the one child of the
+    layer that takes the mouse: it has a close button and text worth
+    selecting. Sized so a third sentence has to be scrolled to — which is
+    the point, not a limitation. */
+ .annot-card {
+   position: absolute;
+   top: 0;
+   left: 0;
+   width: 248px;
+   padding: 11px 13px 12px;
+   background: var(--panel, #fff);
+   border: 1.5px solid var(--hair);
+   border-radius: var(--radius);
+   box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+   opacity: 0;
+   visibility: hidden;
+   transform-origin: 0 0;
+   transition: opacity .16s ease;
+   z-index: 400;
+   will-change: transform
+ }
+
+ .annot-card.is-open {
+   opacity: 1;
+   visibility: visible
+ }
+
+ .annot-card-t {
+   margin: 0 18px 4px 0;
+   font-family: var(--font-sans);
+   font-size: 12px;
+   font-weight: 700;
+   letter-spacing: .04em;
+   text-transform: uppercase;
+   color: var(--muted)
+ }
+
+ .annot-card-b {
+   margin: 0;
+   font-family: var(--font-sans);
+   font-size: 13.5px;
+   line-height: 1.45;
+   color: var(--ink)
+ }
+
+ .annot-card-b b {
+   font-weight: 600
+ }
+
+ .annot-card-x {
+   position: absolute;
+   top: 6px;
+   right: 6px;
+   width: 22px;
+   height: 22px;
+   padding: 0;
+   border: 0;
+   border-radius: 50%;
+   background: none;
+   font-size: 17px;
+   line-height: 1;
+   color: var(--muted);
+   cursor: pointer
+ }
+
+ .annot-card-x:hover,
+ .annot-card-x:focus-visible {
+   background: var(--hair);
+   color: var(--ink);
+   outline: none
+ }
+
  @media (prefers-reduced-motion:reduce) {
    .annot-label {
+     transition: none
+   }
+
+   .annot-card {
      transition: none
    }
  }
