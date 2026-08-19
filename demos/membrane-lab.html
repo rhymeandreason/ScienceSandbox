@@ -949,7 +949,6 @@ voltBox.addEventListener('change', () => {
   STEPS[cur].enter();
   solveOffscreen();
   STEPS[cur].enter();
-  applyGlobals();          // the cast is new; the student's settings are not
 });
 
 function tickShells(dt) {
@@ -2010,11 +2009,11 @@ const STEPS = [
          so the step names the two halves of a lipid and stops. "Fluid
          mosaic" moved to the channel step, where the mosaic is on screen —
          naming it here meant pointing at a protein three tabs away. */
-      noteAt(-96, HALF, 'heads', [-34, -30],
+      noteAt(-96, HALF, 'phospholipid heads', [-34, -30],
              'The head carries charge and sits happily in water, so it turns ' +
              'outward on both faces. That is why a bilayer assembles itself ' +
              'and then holds together.');
-      noteAt(-96, 0, 'tails', [-34, 26],
+      noteAt(-96, 0, 'phospholipid tails', [-34, 26],
              'The tails are hydrocarbon and will not mix with water, so they ' +
              'hide in the middle. Everything crossing this membrane has to ' +
              'get through that oil.');
@@ -2355,10 +2354,10 @@ const STEPS = [
       /* FLUID MOSAIC BELONGS HERE, not on the bare sheet. Both halves of
          the name are on screen for the first time: the lipids slide (the
          drift in membrane/parts.js) and there are proteins set into them.
-         Anchored well clear of the pores, on the right, so it reads as a
-         fact about the SHEET rather than a third label on the channels. */
-      NOTES.add({ text:'fluid mosaic', offset:[44, 44],
-                  at:() => _np.set(170, -HALF, 0),
+         Anchored well left of the pores so it reads as a fact about the
+         SHEET rather than a third label on the channels. */
+      NOTES.add({ text:'fluid mosaic', offset:[-44, 44],
+                  at:() => _np.set(-150, -HALF, 0),
                   card:'The lipids slide against each other — the sheet is a ' +
                        'liquid, not a wall. <b>Mosaic</b> is these proteins ' +
                        'set into it, drifting in the same liquid.' });
@@ -3020,30 +3019,6 @@ STEPS.forEach((s, i) => {
   stepsEl.appendChild(b);
 });
 
-/* ---- the global settings, re-applied after ANY rebuild ----
-   enter() builds a fresh cast of travellers that know nothing about what
-   the student has switched on, and a new ion's shell is visible by
-   default. So every path that rebuilds the cast has to come back through
-   here — go() does, and so does the potential switch, which re-runs its
-   step from the top. It did not, and the result was a bug with no honest
-   cause on screen: ticking MEMBRANE POTENTIAL turned the water shells on.
-
-   Anything global gained later belongs in this function for the same
-   reason. Applying it in enter() instead means every step has to remember,
-   and a step that forgets is a switch that silently stops working. */
-function applyGlobals() {
-  setShells(shellsOn);
-  /* SHOWN ONLY WHERE IT DOES SOMETHING, and asked of the CAST rather than
-     of a list of step ids. The bilayer draws no ions at all and osmosis
-     draws them deliberately bare — shells there would imply that solute
-     holds water, which is the mechanism that step exists to deny — so on
-     both the switch would be a control that visibly does nothing. Reading
-     the travellers means a step that gains or loses its shelled ions can
-     never fall out of step with the list. */
-  shellsTogEl.hidden = !travellers.some(
-    t => t.obj.userData.shell && t.obj.userData.shell.length);
-}
-
 function go(i) {
   cur = i;
   const s = STEPS[i];
@@ -3058,7 +3033,20 @@ function go(i) {
      that will actually be drawn. */
   solveOffscreen();
   s.enter();
-  applyGlobals();
+  /* GLOBAL MEANS EVERY STEP, and enter() has just built a fresh cast of
+     travellers that know nothing about the setting. Applied here, once,
+     rather than in the three steps that used to remember to ask — a step
+     that forgets is a step where the corner switch silently stops working. */
+  setShells(shellsOn);
+  /* SHOWN ONLY WHERE IT DOES SOMETHING, and asked of the CAST rather than
+     of a list of step ids. The bilayer draws no ions at all and osmosis
+     draws them deliberately bare — shells there would imply that solute
+     holds water, which is the mechanism that step exists to deny — so on
+     both the switch would be a control that visibly does nothing. Reading
+     the travellers means a step that gains or loses its shelled ions can
+     never fall out of step with the list. */
+  shellsTogEl.hidden = !travellers.some(
+    t => t.obj.userData.shell && t.obj.userData.shell.length);
 }
 
 function tick(dt) {
