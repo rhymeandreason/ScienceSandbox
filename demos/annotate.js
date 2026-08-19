@@ -460,8 +460,18 @@ window.Annot = (function () {
         live.push({ n, depth });
       }
 
-      /* The card rides its note, on the side the label already hangs off,
-         and is CLAMPED to the stage — a card that follows a traveller off
+      /* THE CARD SITS ON ITS LABEL, not under it. Opened below, the label
+         stayed on screen above a box explaining it — the same words twice,
+         and on a crowded stage the pair reads as two callouts. Growing out
+         of the label instead makes the card feel like the label opening,
+         which is what the click meant.
+
+         Placed from the LABEL'S OWN BOX rather than from the offset: the
+         label is a different width for every note and hangs on either side
+         depending on the sign of dx, so reconstructing where it landed is
+         arithmetic that goes wrong the moment either changes.
+
+         Still CLAMPED to the stage — a card that follows a traveller off
          the edge is a card the student cannot read or close. */
       if (cardNote && card) {
         const n = cardNote;
@@ -469,9 +479,12 @@ window.Annot = (function () {
         else {
           card.style.display = '';
           const cw = card.offsetWidth || 240, ch = card.offsetHeight || 96;
-          const ox = n.offset[0] || 0, oy = n.offset[1] || 0;
-          let cx = n._sx + (ox < 0 ? -22 - cw : 22);
-          let cy = n._sy + oy + 14;
+          const lb = n.label.getBoundingClientRect();
+          const lr = layer.getBoundingClientRect();
+          /* Slightly out and up from the label's own corner, so the label's
+             text is covered rather than framed. */
+          let cx = lb.left - lr.left - 9;
+          let cy = lb.top - lr.top - 8;
           cx = Math.max(8, Math.min(cx, w - cw - 8));
           cy = Math.max(8, Math.min(cy, h - ch - 8));
           card.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy.toFixed(1)}px, 0)`;
