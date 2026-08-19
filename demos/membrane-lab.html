@@ -2036,8 +2036,12 @@ const STEPS = [
        the Cl⁻ one — and they look identical, so the distinction lives in
        words rather than in the motion. */
     readout: () => voltOn
-      ? `resting potential ${Math.round(mV)} mV · it settles BETWEEN K⁺'s ${E_K} and ` +
-        `Cl⁻'s ${E_CL}, where the two currents cancel · Na⁺ tries both pores and passes neither`
+      /* The mV itself is on the stage, in the overlay beside the membrane.
+         Printing it here too gave two live numbers for one quantity, which
+         invites the reader to check them against each other instead of
+         reading either. This line says what the number cannot. */
+      ? `it settles BETWEEN K⁺'s ${E_K} and Cl⁻'s ${E_CL} mV, where the two currents ` +
+        `cancel · Na⁺ tries both pores and passes neither`
       : 'no charge is counted, so nothing opposes the spread · ' +
         'both sides end level, and the gradient is gone',
   },
