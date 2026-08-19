@@ -908,6 +908,7 @@ const laneGap = x => Math.min(Math.abs(x - LANE), Math.abs(x + LANE));
    walked out there indefinitely — the "stuck in a corner" that made the
    pores look shut. The bias fades linearly to zero at the rim, so a distant
    ion is nudged rather than dragged, and the walk still dominates nearby. */
+const SEEK_PULL = 0.7;                  // a refused ion is drawn in a little less
 const FUNNEL_R = 170;                   // how far the vestibule reaches
 /* THE KNOB, if the mouths still crowd: lower it. It is what decides how
    hard an ion in the bulk is steered, and everything else about the
@@ -943,15 +944,27 @@ function funnel(t, dt) {
      attraction leading somewhere the ion cannot go would be a trap, and
      that is what this was when the door was one-way. */
   if (!mayEnter(t)) return;             // the door is shut: do not gather at it
-  if (t.lane == null && t.conducts != null) {
+  /* A SEEKER IS DRAWN IN AND REFUSED, which is the honest way to draw an
+     ion that does not get through. Na⁺ is a cation, so a K⁺ channel's
+     acidic vestibule attracts it exactly as it attracts potassium, and it
+     samples the filter constantly — millions of times a second — and fails
+     every time. Held at a keepout radius instead, the ion this step calls
+     turned-away was never seen near a channel at all.
+
+     `seeks` is "attracted to the nearest pore"; `conducts` is "admitted by
+     that one". Everything else about the motion is the ordinary walk. */
+  const target = t.conducts != null ? t.conducts
+               : t.seeks ? (Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE)
+               : null;
+  if (t.lane == null && target != null) {
     const side = Math.sign(t.y) || 1;
     /* Aim at the mouth on the ion's OWN side. Aiming at the pore's centre
        would steer it into the wall from anywhere off-axis. */
-    _fv.set(t.conducts - t.x, side * T.height * 0.85 - t.y, -t.z);
+    _fv.set(target - t.x, side * T.height * 0.85 - t.y, -t.z);
     const d = _fv.length();
     if (d > 0.001 && d < FUNNEL_R) {
       _fv.multiplyScalar(1 / d);
-      const k = FUNNEL_PULL * (1 - d / FUNNEL_R) * dt;
+      const k = FUNNEL_PULL * (t.seeks ? SEEK_PULL : 1) * (1 - d / FUNNEL_R) * dt;
       t.vx += _fv.x * k; t.vy += _fv.y * k; t.vz += _fv.z * k;
       /* Held to its own walking speed: the funnel changes where it goes,
          never how fast a thermal walker moves. */
@@ -998,11 +1011,44 @@ function crowdedSide(kind) {
    So admission is asked once, and anything that attracts an ion asks the
    same question. An attraction leading somewhere the ion cannot go is not a
    funnel, it is a trap. */
-const mayEnter = t => voltOn || Math.sign(t.y) === crowdedSide(t.kind);
+const mayEnter = t => t.seeks ? true       // it may approach; the filter says no
+                    : voltOn || Math.sign(t.y) === crowdedSide(t.kind);
+
+/* TURNED BACK AT THE FILTER. Pushed out along the axis it arrived on and
+   made deaf to the funnel until it is ESCAPE_R away — the same rule a
+   crossed ion gets, and for the same reason: without it the refused ion is
+   re-gathered on the next frame and hovers in the mouth forever.
+
+   No dwell and no scripted path. An earlier version steered a sodium to
+   the door, held it there and sent it away, and it read as an animation
+   interrupting the traffic rather than as an ion failing a test. This one
+   arrives by walking and leaves by walking; the only thing added is the
+   turn. */
+function refuseAt(t, lane) {
+  const away = Math.sign(t.y) || 1;
+  const sp = (t.speed || WALK_SPEED)[1];
+  t.exitPt = { x:t.x, y:t.y, z:t.z };
+  t.vy = Math.abs(t.vy) * away + away * sp;
+  /* Nudged off the axis as well, so it does not reverse straight back down
+     the line it came up and meet the next arrival head-on. */
+  t.vx = (t.x >= lane ? 1 : -1) * sp * 0.5;
+}
 
 const CAPTURE_R = 13;                   // how near the axis counts as "at the mouth"
 function tryCapture(t) {
-  if (t.lane != null || t.conducts == null) return false;
+  if (t.lane != null) return false;
+  /* A SEEKER GETS AS FAR AS THE VESTIBULE AND NO FURTHER. Same band the
+     admitted ions are captured in — so the refusal happens exactly where
+     the acceptance would have, which is the filter. */
+  if (t.conducts == null) {
+    if (!t.seeks || t.exitPt) return false;
+    const lane = Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE;
+    const ay = Math.abs(t.y);
+    if (Math.abs(t.x - lane) > CAPTURE_R || Math.abs(t.z) > CAPTURE_R) return false;
+    if (ay > T.height * 0.99 || ay < T.height * 0.7) return false;
+    refuseAt(t, lane);
+    return false;
+  }
   if (t.exitPt) return false;           // just came out; let it clear the mouth
   /* BOTH FACES ADMIT, ALWAYS. Restricting the simplified mode to the
      upstream face made the flow one-way by fiat — the gradient could never
@@ -1396,13 +1442,11 @@ function lateral(t, dt) {
   t.x += t.vx * dt; t.z += t.vz * dt;
   if (t.x > x1) { t.x = x1; t.vx = -t.vx; }
   if (t.x < x0) { t.x = x0; t.vx = -t.vx; }
-  /* KEEPOUT IS ABSOLUTE. Note what it costs: Na⁺ is the ion this step says
-     is turned away, and it is held far enough from both pores that it is
-     never seen near one — the claim is in the caption and not in the
-     picture. The scripted visit that used to cover that gap is gone; the
-     real fix is a sodium that finds a mouth by the funnel like everything
-     else and is refused AT the filter, which is a rule about what the pore
-     accepts rather than an animation. See the note above tryCapture(). */
+  /* KEEPOUT IS ABSOLUTE, and only the WATER carries it now. Every ion
+     approaches the pores — the conducting ones to go through, Na⁺ to be
+     turned back at the filter — but water in the lumen would read as a
+     third thing the channel passes, and that is step 3's lesson, not this
+     one. */
   if (t.keepout && laneGap(t.x) < t.keepout) {
     /* Pushed back out of whichever lane it wandered into, on the side it
        came from — reflecting through the pore would teleport it across. */
@@ -1547,22 +1591,17 @@ function keepClear(list) {
       }
 }
 
-/* The scripted Na⁺ visit lived here and is gone for now. It steered a
-   sodium to a mouth, held it there and sent it away, to draw the refusal
-   the caption claims — but it drove the ion along a path while everything
-   else in the scene walks, and once the pores were actually conducting it
-   read as traffic being interrupted rather than as an ion failing a test.
-
-   Worth doing properly later: the honest version is a sodium that finds
-   the mouth the same way a potassium does, by the funnel, and is turned
-   back at the filter instead of at a keepout radius. That is a rule about
-   what the pore accepts, not an animation. */
+/* The scripted Na⁺ visit that lived here is gone, and its job is done
+   properly now: refuseAt() turns a sodium back at the filter after it finds
+   the mouth by the same funnel every other ion uses. The old version drove
+   the ion along a path while everything around it walked, which read as
+   traffic being interrupted rather than as an ion failing a test. */
 
 /* Where a traveller is allowed to be. The bilayer's interior is oily: a
    charged or strongly polar thing does not enter it, and this is the one
    rule that makes step 2 a demonstration instead of a caption. */
 function advance(t, dt) {
-  if (t.conducts != null) { funnel(t, dt); tryCapture(t); }   // drawn to a mouth?
+  if (t.conducts != null || t.seeks) { funnel(t, dt); tryCapture(t); }
   if (t.lane != null && tickQueue(t, dt)) return;   // hopping through the filter
   const inCore = Math.abs(t.y) < HALF;
   if (t.blocked) {
@@ -1935,10 +1974,15 @@ const STEPS = [
          which is what keeps the dehydration story legible. */
       /* Na⁺ raised with the potassium: the compartment has to stay neutral,
          and 16 K⁺ + 12 Na⁺ against 28 Cl⁻ is the balance. */
+      /* NO KEEPOUT ANY MORE. It is drawn to a mouth like everything else
+         and turned back AT the filter — see refuseAt(). The keepout was
+         staging: it held the ion this step calls turned-away far enough
+         from both pores that the claim was in the caption and not in the
+         picture. Spread the full width now that it is allowed near. */
       for (let i = 0; i < 12; i++)
-        traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
-                          walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
+        traveller('NA', { x:rnd(-SPREAD*0.9, SPREAD*0.9), z:rnd(-10,10),
+                          y:inCompartment(1), shell:true, seeks:true,
+                          walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
       /* THE BYSTANDER Cl⁻ IS GONE — merged into the conducting pool above.
          Six extra chloride sat here refused by the chloride channel, which
@@ -1988,9 +2032,12 @@ const STEPS = [
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
+    /* Na⁺'s two refusals are different — fit at the K⁺ filter, charge at
+       the Cl⁻ one — and they look identical, so the distinction lives in
+       words rather than in the motion. */
     readout: () => voltOn
       ? `resting potential ${Math.round(mV)} mV · it settles BETWEEN K⁺'s ${E_K} and ` +
-        `Cl⁻'s ${E_CL}, where the two currents cancel · the gradient is still there`
+        `Cl⁻'s ${E_CL}, where the two currents cancel · Na⁺ tries both pores and passes neither`
       : 'no charge is counted, so nothing opposes the spread · ' +
         'both sides end level, and the gradient is gone',
   },
