@@ -145,6 +145,23 @@
   .census span { display:block; letter-spacing:.07em; text-transform:uppercase;
                  opacity:.65; }
 
+  /* The one global setting, and styled to say so: no pill, no colour, no
+     shadow — the step's switches are pills in the middle of the stage, and
+     this must not read as a fourth one that happens to live elsewhere. It
+     is the weight of the corner tallies, which are the other things on
+     screen that persist across steps. */
+  .gset { position:absolute; top:12px; right:16px; z-index:5;
+          display:flex; align-items:center; gap:7px; cursor:pointer;
+          font:inherit; font-size:12px; letter-spacing:.06em;
+          text-transform:uppercase; opacity:.55; user-select:none;
+          text-shadow:0 1px 10px rgba(255,255,255,.85);
+          transition:opacity .15s ease; }
+  .gset:hover, .gset:focus-within { opacity:.95; }
+  /* display:flex above beats the UA's [hidden] — same trap .tog fell into. */
+  .gset[hidden] { display:none; }
+  .gset input { width:13px; height:13px; margin:0; accent-color:#2a7a6a;
+                cursor:pointer; }
+
   #voltCount { position:absolute; right:16px; bottom:14px; text-align:right;
                /* placeControls() lifts this above the chrome */
                font-size:12px; line-height:1.5; opacity:.72;
@@ -189,13 +206,20 @@
          out which state they are IN; a ticked box shows the state and names
          the thing in one go. Real input, so it keeps keyboard and screen
          reader behaviour for free. -->
-    <!-- The channel step's two switches, in one row so they read as the
-         controls for this step rather than two things to find. -->
+    <!-- NOT A STEP CONTROL. The shells are a way of DRAWING an ion, not a
+         thing this step is doing, and mixing the two in one row said they
+         were the same kind of switch: turn off the pump and the lesson
+         changes, turn off the shells and only the picture does. So it sits
+         in the corner, quiet, and it survives every step — the student sets
+         it once rather than rediscovering it on each tab that happens to
+         offer it. -->
+    <label class="gset" id="shellsTog">
+      <input type="checkbox" id="shellsBox">
+      <span>Water shells</span>
+    </label>
+    <!-- The step's own switches, in one row so they read as the controls
+         for this step rather than two things to find. -->
     <div id="ctl" hidden>
-      <label class="tog">
-        <input type="checkbox" id="shellsBox">
-        <span>Water shells</span>
-      </label>
       <label class="tog">
         <input type="checkbox" id="voltBox">
         <span>Membrane potential</span>
@@ -323,6 +347,7 @@ const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
 const ctlEl = document.getElementById('ctl');
 const shellsBox = document.getElementById('shellsBox');
+const shellsTogEl = document.getElementById('shellsTog');
 const voltBox = document.getElementById('voltBox');
 const pumpBox = document.getElementById('pumpBox');
 const osmoEl = document.getElementById('osmo');
@@ -374,11 +399,17 @@ const LANE = 34;                        // pore centres, ±x
    const down there it was a temporal dead zone and the page died on load.
    Second time this trap has been sprung; the membranes are built early and
    anything their exclude touches has to be older than they are. */
-/* Spread across the sheet rather than huddled at the middle. At ±64 the two
-   proteins sat close together with long empty runs of lipid at both ends;
-   the membrane is 340 wide and a cell's proteins are scattered over it. */
-const REST_LANE = 76;                   // the K⁺ channel, left of centre
-const REST_PUMP_X = 76;                 // and the pump, an equal step right
+/* THE CHANNEL STEP'S SPACING, DELIBERATELY. These were pushed out to ±76 to
+   scatter the proteins the way a real membrane does, and the honesty cost
+   more than it bought: this step's whole claim is that the leak and the
+   pump are ONE loop — K⁺ out here, back in there — and two machines at
+   opposite ends of the frame read as two unrelated events with a field of
+   lipid between them. At the channel step's own ±34-ish they sit in one
+   glance, and the step before this one has already taught the eye to read
+   a pair of proteins at that spacing as a pair. Scatter is a fact about
+   membranes; this is a diagram of a cycle. */
+const REST_LANE = 36;                   // the K⁺ channel, left of centre
+const REST_PUMP_X = 36;                 // and the pump, an equal step right
 const REST_SCALE = 1;                   // the transporters are drawn at size
 
 /* The pump sits at the origin on its own step and off-centre on the resting
@@ -2005,6 +2036,24 @@ const STEPS = [
          property of that column rather than of the membrane. Spread the
          full width, the flat sheet of ions stopped at the heads IS the
          claim, and it reads at a glance. */
+      /* WATER FIRST, and it is not decoration. Every other step draws the
+         cell as crowded; this one held three gases and a sheet of sodium in
+         what read as a vacuum, and "CO₂ dissolves through the oil" is a
+         claim about something dissolved IN a liquid that was not on screen.
+
+         It crosses, as it does on the steps either side — the same
+         parameters as the bilayer step, deliberately, so a student cannot
+         come away thinking water behaves differently once other things are
+         in the fluid.
+
+         Thirty-six, against step 1's sixty-four: there the water IS the
+         subject, here it is the solvent the comparison happens in, and a
+         full crowd buries the three species being compared. */
+      for (let i = 0; i < 36; i++)
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
+                             y:inCompartment(i % 2 ? 1 : -1),
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
+
       let firstO2 = null, firstCO2 = null, firstNa = null;
       for (let i = 0; i < 20; i++) {
         const t = traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.04), z:rnd(-10,10),
@@ -2041,13 +2090,13 @@ const STEPS = [
          a label repeating it turns three callouts into a second caption
          the student has to read while the thing it names moves. What they
          actually cannot do without this is tell which band is which. */
-      noteOn(firstO2,  'O₂ — straight through',  [-30, -22],
+      noteOn(firstO2,  'O₂ — passes through',  [-30, -22],
              'Small and nonpolar, so it dissolves into the oil and out the ' +
              'other side. No protein, no cost, no gate.');
-      noteOn(firstCO2, 'CO₂ — also straight through', [ 28, -24],
+      noteOn(firstCO2, 'CO₂ — passes through', [ 28, -24],
              'The biggest thing on screen, and it crosses as easily as O₂. ' +
              'Being oily beats being small.');
-      noteOn(firstNa,  'Na⁺ — turned back', [ 30, -22],
+      noteOn(firstNa,  'Na⁺ — can not cross', [ 30, -22],
              'The smallest thing here, and it never gets in: a charged ion ' +
              'holds a shell of water around it. Entering the oil means ' +
              'stripping that shell off, and that costs more than it has.');
@@ -2324,7 +2373,6 @@ const STEPS = [
 
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
       voltBox.checked = voltOn;         // a re-entered step keeps the choice
-      setShells(shellsOn);              // a re-entered step keeps the choice
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
          only look like a second thing the channel is passing. */
@@ -2386,7 +2434,6 @@ const STEPS = [
          ATP counter ticking up on its own is worse — it says the cell pays
          whether or not anything asked. The student spends the ATP, and one
          ATP buys exactly one turn. */
-      setShells(shellsOn);              // a re-entered step keeps the choice
       pumpT = 0; running = false;
       for (const t of travellers) t.aboard = false;
       cargo.NA.length = 0; cargo.K.length = 0; lastPhase = '';
@@ -2484,7 +2531,6 @@ const STEPS = [
       for (const t of travellers) t.aboard = false;
       cargo.NA.length = 0; cargo.K.length = 0; lastPhase = '';
       atpSpent = 0; chargeOut = 0; mV = 0;
-      setShells(shellsOn);
       spendEl.hidden = true;
 
       /* The two proteins, and the loop between them. This is the step where
@@ -2987,6 +3033,20 @@ function go(i) {
      that will actually be drawn. */
   solveOffscreen();
   s.enter();
+  /* GLOBAL MEANS EVERY STEP, and enter() has just built a fresh cast of
+     travellers that know nothing about the setting. Applied here, once,
+     rather than in the three steps that used to remember to ask — a step
+     that forgets is a step where the corner switch silently stops working. */
+  setShells(shellsOn);
+  /* SHOWN ONLY WHERE IT DOES SOMETHING, and asked of the CAST rather than
+     of a list of step ids. The bilayer draws no ions at all and osmosis
+     draws them deliberately bare — shells there would imply that solute
+     holds water, which is the mechanism that step exists to deny — so on
+     both the switch would be a control that visibly does nothing. Reading
+     the travellers means a step that gains or loses its shelled ions can
+     never fall out of step with the list. */
+  shellsTogEl.hidden = !travellers.some(
+    t => t.obj.userData.shell && t.obj.userData.shell.length);
 }
 
 function tick(dt) {
@@ -3090,22 +3150,31 @@ function tick(dt) {
      there it is a choice about the physics, whereas the pump builds a
      voltage whether or not anyone is watching it. */
   placeControls();
-  ctlEl.hidden = s.id !== 'channel' && s.id !== 'pump' && s.id !== 'rest';
-  /* ON THE RESTING STEP IT IS A STATUS, NOT A SWITCH. The potential is always
-     in play there — a resting cell has one by definition — so the pill is
-     shown ticked and locked rather than hidden. Hiding it would leave the
-     student wondering whether the voltage on screen is the same thing they
-     were toggling one tab ago; an unclickable tick answers that, and says the
-     step is not withholding a control. */
-  /* True of the pump step too: it moves charge every turn and shows the mV
-     that results, so the potential is in play there whether or not anyone
-     asked for it. Only the channel step gets to switch it off, because only
-     there is "what if charge did not push back" a question worth asking. */
-  const fixedVolt = s.id === 'rest' || s.id === 'pump';
-  voltBox.parentElement.hidden = s.id !== 'channel' && !fixedVolt;
-  voltBox.parentElement.classList.toggle('is-fixed', fixedVolt);
-  voltBox.disabled = fixedVolt;
-  if (fixedVolt) voltBox.checked = true;
+  /* The shells moved to the corner, so the pump step's row has nothing
+     left in it — an empty pill row still reserves height and reads as a
+     control that failed to load. */
+  ctlEl.hidden = s.id !== 'channel' && s.id !== 'rest';
+  /* THE CHANNEL STEP'S SWITCH, AND ONLY ITS. The potential is in play on
+     both protein steps whether or not anyone asks — the pump moves charge
+     every turn, and a resting cell has a voltage by definition — so there
+     is nothing there for a student to decide.
+
+     It used to be SHOWN ticked and locked on those two, to answer "is the
+     voltage on screen the same thing I was toggling a tab ago". That
+     answer was not worth the cost: a dead control in a row of live ones
+     invites a click that does nothing, and both steps already print the mV
+     on the stage, which says the potential is in play far better than a
+     greyed-out tick does. Only the channel step keeps the switch, because
+     only there is "what if charge did not push back" a question with two
+     honest answers.
+
+     voltOn is NOT forced here. Nothing downstream reads the box — the
+     resting step's physics asks for the potential by name (see nernst's
+     caller) — and re-entering the channel step restores the student's own
+     choice from voltOn. */
+  voltBox.parentElement.hidden = s.id !== 'channel';
+  voltBox.parentElement.classList.remove('is-fixed');
+  voltBox.disabled = false;
   /* The pump switch is the resting step's whole argument — stop paying and
      watch it come apart — so it belongs nowhere else. On the pump step the
      button already is the switch. */
