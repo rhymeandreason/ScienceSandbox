@@ -75,6 +75,25 @@
  *  'reveal' finishes in the 'on' state: the wipe is how the labels ARRIVE,
  *  not a state they stay in.
  *
+ *  ---- POINTING AT CHROME, NOT AT THE MODEL ----------------------------
+ *
+ *  `atPx` is the escape hatch: a function returning [x, y] in CSS pixels
+ *  within the stage, used INSTEAD of `at`. It exists for the one honest
+ *  case — naming a CONTROL, a button or a toggle that is part of what the
+ *  student is being taught rather than part of the model. membrane-lab's
+ *  pump step points at its own Spend 1 ATP button, because "one ATP buys
+ *  one turn" is a fact about the transaction the button performs.
+ *
+ *  Use it for nothing else. A callout on a fixed screen position is a
+ *  caption with a leader line drawn on it, and it comes adrift from the
+ *  chemistry the moment the camera moves — which is the exact failure the
+ *  semantic-anchor rule above exists to prevent. If the thing you are
+ *  naming is IN the scene, it has an atom, and the atom is the anchor.
+ *
+ *  A pixel-anchored note is never depth-sorted (there is no depth) and is
+ *  never culled for being behind the camera; it sorts as nearest, since a
+ *  control is in front of the scene by definition.
+ *
  *  ---- CARDS -----------------------------------------------------------
  *
  *  A note may carry `card`: HTML for a short popover that opens when the
@@ -257,6 +276,7 @@ window.Annot = (function () {
       const note = {
         el, dot, label,
         at: spec.at,
+        atPx: spec.atPx,
         offset: off,
         card: null, cardTitle: '',
         _sx: 0, _sy: 0,
@@ -353,8 +373,14 @@ window.Annot = (function () {
       revealT0 = performance.now() / 1000;
       const order = [];
       for (const n of notes) {
-        const p = anchor(n.at);
         n.open = true;
+        if (n.atPx) {
+          const q = n.atPx();
+          if (q) order.push({ n, x: q[0] / (stageEl.clientWidth || 1) * 2 - 1 });
+          else n.delay = 0;
+          continue;
+        }
+        const p = anchor(n.at);
         if (!p) { n.delay = 0; continue; }
         p.project(camera);
         order.push({ n, x: p.x });
@@ -392,11 +418,20 @@ window.Annot = (function () {
       const live = [];
 
       for (const n of notes) {
+        let x, y, depth;
+        if (n.atPx) {
+          /* Already in the layer's own coordinates: no projection, no
+             culling, and nearest in the sort — see the header. */
+          const q = n.atPx();
+          if (!q) { n.el.style.display = 'none'; continue; }
+          x = q[0]; y = q[1]; depth = -1;
+          n.el.style.display = '';
+        } else {
         const p = anchor(n.at);
         if (!p) { n.el.style.display = 'none'; continue; }
         /* Camera distance BEFORE projecting, because project() overwrites
            the vector — and it is the honest depth. See the sort below. */
-        const depth = p.distanceTo(camera.position);
+        depth = p.distanceTo(camera.position);
         p.project(camera);
 
         /* z outside [-1,1] is behind the camera or past the far plane:
@@ -404,6 +439,9 @@ window.Annot = (function () {
            plausible and completely wrong. */
         if (p.z < -1 || p.z > 1) { n.el.style.display = 'none'; continue; }
         n.el.style.display = '';
+        x = (p.x + 1) / 2 * w;
+        y = (1 - p.y) / 2 * h;
+        }
 
         let o = 1, lift = 0;
         if (mode === 'reveal') {
@@ -415,9 +453,8 @@ window.Annot = (function () {
           }
         }
 
-        const x = (p.x + 1) / 2 * w;
-        const y = (1 - p.y) / 2 * h + lift;
-        n.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+        n.el.style.transform =
+          `translate3d(${x.toFixed(1)}px, ${(y + lift).toFixed(1)}px, 0)`;
         n.el.style.opacity = o;
         n._sx = x; n._sy = y;
         live.push({ n, depth });

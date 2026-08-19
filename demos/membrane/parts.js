@@ -362,6 +362,9 @@
          to say "this continues past the frame" and no wider: at 78 the
          bilayer became the subject and the machine in it an ornament. */
       half: 15.3, reach: 46, pitch: 7.2, headR: 2.7, clear: 4.5, waviness: 0.95,
+      /* LATERAL DRIFT, in A — how far a lipid wanders from its lattice
+         seat. See the shader below. 0 pins the sheet. */
+      drift: 2.4,
       shape: 'slab', depth: 13,
       head: 0xe0705c, tail: 0xf0c98a, exclude: null,
     }, opts);
@@ -397,6 +400,55 @@
        Amplitude is deliberately under a head radius: enough that the
        surface is alive, not so much that the thickness looks variable —
        the thickness is a measured number this page prints. */
+    /* ---- LATERAL DRIFT: each lipid on its own slow circuit ----
+
+       The undulation above is the sheet FLEXING, and it is not fluidity:
+       every lipid keeps its seat, so a student watching closely sees a
+       rippling solid. Lateral diffusion is the thing "fluid mosaic"
+       actually names, and it has to be per-lipid and uncorrelated with the
+       neighbours or it is just more sheet motion.
+
+       PEDAGOGICAL, TWICE OVER, and both simplifications are forced.
+
+       FIRST, THE SPEED. A real lipid diffuses ~1 um^2/s, which is a swap
+       with a neighbour something like 10^7 times a second — drawn honestly
+       the sheet is a blur and the student learns only that it moves. This
+       is that motion slowed by orders of magnitude.
+
+       SECOND, THE FIELD. The drift is a smooth flow — a long, slow swirl
+       sampled at each lipid's seat — rather than an independent wander per
+       lipid, and the difference is the whole reason this shipped at all.
+       Independent wander is closer to the real physics and it is
+       unusable: neighbours pull apart by up to twice the amplitude, and a
+       7.2 A lattice of 5.4 A heads has only 1.8 A of slack, so the sheet
+       opens VISIBLE HOLES — a bilayer with gaps in it, on the one step
+       whose whole claim is that this barrier is continuous. That is a far
+       worse lie than the one below.
+
+       So neighbours move nearly together and the sheet stays packed, while
+       lipids well apart move differently and visibly slide against each
+       other. WHAT THIS DOES NOT SHOW: two adjacent lipids never actually
+       trade places, because the field is periodic in time — relative
+       motion oscillates instead of accumulating. The copy must therefore
+       say lipids SLIDE, never that a lipid ends up somewhere else. A
+       shader carries no state between frames, so anything that accumulates
+       has to wrap, and a lipid teleporting across the patch is the third
+       kind of wrong.
+
+       Amplitude 2.4 A against the 7.2 A pitch, and the per-column phase
+       step is 0.5 rad, so neighbours stay within ~1.2 A of each other —
+       inside the slack, so nothing opens. It also keeps every lipid inside
+       the clearance ring around a protein, so none drifts into a barrel.
+
+       HASHED ON THE COLUMN, NEVER ON THE INSTANCE. A head and its two
+       tails are three instances at three different x, so hashing the raw
+       instance position gives each of them a different drift and the
+       lipid comes apart in the first second. Recovering the column index
+       from the lattice is what keeps a lipid one object. */
+    const COL = `
+      float cx = floor((iPos.x + ${o.reach.toFixed(4)} + ${(o.pitch * 0.5).toFixed(4)}) / ${o.pitch.toFixed(4)});
+      float cz = floor((iPos.z + ${zLimit.toFixed(4)} + ${(o.pitch * 0.5).toFixed(4)}) / ${o.pitch.toFixed(4)});
+    `;
     const WAVE = `
       vec3 iPos = instanceMatrix[3].xyz;
       float w = sin(iPos.x * 0.055 + uTime * 0.7) * 0.62
@@ -404,6 +456,11 @@
               + sin(iPos.x * 0.021 + iPos.z * 0.031 + uTime * 0.31) * 0.55;
       transformed.y += w;
       transformed.x += sin(iPos.z * 0.06 + uTime * 0.4) * 0.30;
+      ${COL}
+      transformed.x += (sin(cz * 0.50 + uTime * 0.34) * 0.62
+                      + sin(cx * 0.31 - uTime * 0.23) * 0.38) * uDrift;
+      transformed.z += (cos(cx * 0.44 - uTime * 0.28) * 0.62
+                      + cos(cz * 0.27 + uTime * 0.19) * 0.38) * uDrift;
     `;
     /* customProgramCacheKey IS NOT OPTIONAL HERE, and leaving it out cost an
        hour. onBeforeCompile does not participate in three's program cache
@@ -423,10 +480,14 @@
       mat.customProgramCacheKey = () => key;
       mat.onBeforeCompile = (sh) => {
         if (prev) prev(sh);
-        sh.uniforms.uTime = uniforms.uTime;
+        sh.uniforms.uTime  = uniforms.uTime;
+        sh.uniforms.uDrift = uniforms.uDrift;
         if (!/uniform float uTime/.test(sh.vertexShader))
           sh.vertexShader = sh.vertexShader.replace('#include <common>',
             '#include <common>\nuniform float uTime;');
+        if (!/uniform float uDrift/.test(sh.vertexShader))
+          sh.vertexShader = sh.vertexShader.replace('#include <common>',
+            '#include <common>\nuniform float uDrift;');
         sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\n' + WAVE);
       };
@@ -460,6 +521,7 @@
     const phaseAttr = new THREE.InstancedBufferAttribute(phases, 1);
 
     const tailUniforms = { uTime: { value: 0 },
+                           uDrift: { value: o.drift != null ? o.drift : 2.4 },
                            uAmp: { value: o.waviness != null ? o.waviness : 0.95 } };
     tailMat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = tailUniforms.uTime;
@@ -527,6 +589,10 @@
       group: g, materials: g.userData.materials, columns: cols.length,
       half: o.half, shape: o.shape,
       cut: { plane, normal, enable, at, get on() { return cutOn; } },
+      /* The drift is a knob a lesson can turn off — a step teaching the
+         GEOMETRY of a bilayer wants a still one. */
+      set drift(a) { tailUniforms.uDrift.value = a; },
+      get drift() { return tailUniforms.uDrift.value; },
       /* Call from the render loop to let the bilayer move. Optional: a page
          that never calls it gets a still membrane whose tails are still all
          different, because the phase alone does that. */

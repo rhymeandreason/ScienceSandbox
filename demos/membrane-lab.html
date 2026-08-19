@@ -75,6 +75,12 @@
          user-select:none; }
   .tog input { width:16px; height:16px; margin:0; accent-color:#2a7a6a;
                cursor:pointer; }
+  /* NOT OPTIONAL, and its absence is invisible in the JS. `display:flex`
+     above is an author rule and the UA's [hidden]{display:none} is not, so
+     a .tog stays on screen however honestly the page sets .hidden — which
+     is how the pump switch turned up on the channel step. #ctl and #spend
+     each already carry their own; this is the third. */
+  .tog[hidden] { display:none; }
   /* Locked on: still legible, obviously not a control. */
   .tog.is-fixed { cursor:default; opacity:.72; }
   .tog.is-fixed input { cursor:default; }
@@ -1964,15 +1970,14 @@ const STEPS = [
          which step 3 then spends its whole run contradicting. A student
          who learns "the membrane stops water" here has to unlearn it two
          tabs later, and that is worse than a slightly busier picture. */
-      let firstW = null;
-      for (let i = 0; i < 64; i++) {
-        const t = traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
+      for (let i = 0; i < 64; i++)
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
                              y:inCompartment(i % 2 ? 1 : -1),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
-        if (!i) firstW = t;
-      }
-      /* Three callouts on a sheet with no protein in it: the two halves of
-         a lipid, and the water they are answering to. */
+      /* Two callouts, and only two: this is a sheet with no protein in it,
+         so the step names the two halves of a lipid and stops. "Fluid
+         mosaic" moved to the channel step, where the mosaic is on screen —
+         naming it here meant pointing at a protein three tabs away. */
       noteAt(-96, HALF, 'heads', [-34, -30],
              'The head carries charge and sits happily in water, so it turns ' +
              'outward on both faces. That is why a bilayer assembles itself ' +
@@ -1981,9 +1986,6 @@ const STEPS = [
              'The tails are hydrocarbon and will not mix with water, so they ' +
              'hide in the middle. Everything crossing this membrane has to ' +
              'get through that oil.');
-      noteOn(firstW, 'water, both sides', [34, -30],
-             'Water is out here and in there, and it does cross. ' +
-             'A membrane is a barrier, not a wall.');
     },
   },
 
@@ -2141,20 +2143,18 @@ const STEPS = [
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
       }
-      /* One callout per compartment, plus the one that kills "water is
-         pulled toward salt" — the misconception this step is built to
-         break, and the one the caption no longer has room to argue with. */
-      noteAt(-SPREAD * 0.62, farY() * 0.62, 'salt takes up room', [-34, -28],
+      /* ONE callout, in the salty compartment it is about. Three of them
+         put a label on each half plus one in the middle, which on a step
+         that already carries two compartment tallies and the net-flow
+         overlay is a stage of chrome with an animation behind it.
+
+         Near the middle of the top half and held clear of its ceiling: the
+         label hangs ABOVE the dot, so an anchor any higher runs it into the
+         top of the stage. */
+      noteAt(-SPREAD * 0.06, farY() * 0.34, 'salt takes up room', [-38, -26],
              'Every solute particle sits where a water would have been, so ' +
              'fewer of the molecules up here are water. This side is ' +
              '<b>hypertonic</b> — more solute, less water.');
-      noteAt(SPREAD * 0.62, -farY() * 0.62, 'more water down here', [34, 28],
-             'Same total number of particles, and more of them are water. ' +
-             'More waters inside means more of them wander out than in.');
-      noteAt(0, -HALF - 16, 'nothing is pulling', [40, 26],
-             'Every water walks at random and reads nothing about where the ' +
-             'salt is. Watch both labels land on <b>isotonic</b>, which ' +
-             'neither side could reach on its own.');
     },
   },
 
@@ -2165,7 +2165,7 @@ const STEPS = [
        so it describes the plain diffusion picture and points at what each
        switch adds — rather than announcing a voltage that is not running
        until the student asks for it. */
-    cap:'<b>Each pore picks an ion. Neither picks a direction.</b>',
+    cap:'<b>Each channel picks an ion. Neither picks a direction. No energy needed, this is also passive transport</b>',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane('chan'); setCut(true);
@@ -2251,9 +2251,19 @@ const STEPS = [
          staging: it held the ion this step calls turned-away far enough
          from both pores that the claim was in the caption and not in the
          picture. Spread the full width now that it is allowed near. */
-      for (let i = 0; i < 12; i++)
+      for (let i = 0; i < 11; i++)
         traveller('NA', { x:rnd(-SPREAD*0.9, SPREAD*0.9), z:rnd(-10,10),
                           y:inCompartment(1), shell:true, seeks:true,
+                          walk:true, speed:ION_SPEED,
+                          blocked:true, bounded:true });
+      /* THE LABELLED ONE IS PLACED, not drawn from the scatter. The
+         compartment runs well past the top of the frame, so a random pick
+         starts off-screen better than half the time — and a callout the
+         student cannot see when they arrive is a callout that does not
+         exist. Near the membrane and left of the pores: in frame, and
+         already on its way to a mouth. */
+      const firstNa = traveller('NA', { x:-SPREAD*0.42, z:rnd(-6,6),
+                          y:HALF + 20, shell:true, seeks:true,
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
       /* THE BYSTANDER Cl⁻ IS GONE — merged into the conducting pool above.
@@ -2284,19 +2294,33 @@ const STEPS = [
          corner tally, counted off transits that actually happened. */
       NOTES.add({ text:'K⁺ channel', offset:[-40, -30],
                   at:() => _np.set(-LANE, mouthY(), 0),
-                  card:'An open pore lined for K⁺, and it costs nothing to ' +
-                       'use. K⁺ happens to be high inside, so it leaks out — ' +
-                       'the gradient chose that, not the channel.' });
+                  card:'A water-lined pore straight through, so a K⁺ crosses ' +
+                       'without ever touching the oil. It is open, it is ' +
+                       'free, and nothing about it is switched on.' });
       NOTES.add({ text:'Cl⁻ channel', offset:[ 40, -30],
                   at:() => _np.set( LANE, mouthY(), 0),
-                  card:'The same deal for chloride, which is high outside — ' +
-                       'so it leaks the other way. Two pores, two ' +
-                       'directions, and neither pore aims.' });
-      NOTES.add({ text:'Na⁺ passes neither', offset:[0, 44],
-                  at:() => _np.set(0, -mouthY() * 0.6, 0),
-                  card:'It is smaller than K⁺ and still will not fit the K⁺ ' +
-                       'filter, because it cannot pay to shed its water ' +
-                       'shell. The Cl⁻ pore refuses it on charge.' });
+                  card:'Chloride is high outside, so it runs inward — the ' +
+                       'opposite way to the K⁺ beside it. Direction is set ' +
+                       'by the gradient, never by the protein.' });
+      /* FLUID MOSAIC BELONGS HERE, not on the bare sheet. Both halves of
+         the name are on screen for the first time: the lipids slide (the
+         drift in membrane/parts.js) and there are proteins set into them.
+         Anchored well left of the pores so it reads as a fact about the
+         SHEET rather than a third label on the channels. */
+      NOTES.add({ text:'fluid mosaic', offset:[-44, 44],
+                  at:() => _np.set(-150, -HALF, 0),
+                  card:'The lipids slide against each other — the sheet is a ' +
+                       'liquid, not a wall. <b>Mosaic</b> is these proteins ' +
+                       'set into it, drifting in the same liquid.' });
+      /* ON AN ION, NOT ON A SPOT. This is the one label naming something
+         that is HAPPENING rather than something that is built: a fixed
+         point in the fluid said "sodium is refused" about a patch of
+         nothing. Riding a seeking Na⁺ means the student watches the
+         labelled ion go to a mouth and come away. */
+      noteOn(firstNa, 'Na⁺ passes neither', [34, -26],
+             'Smaller than K⁺, and it still cannot use the K⁺ filter: it ' +
+             'holds its water too tightly to trade the shell for the pore. ' +
+             'The Cl⁻ pore turns it away on charge.');
 
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
       voltBox.checked = voltOn;         // a re-entered step keeps the choice
@@ -2378,9 +2402,24 @@ const STEPS = [
              'It binds its cargo and changes shape, so it is never open to ' +
              'both sides at once. A pore cannot do that, which is why a ' +
              'pore can never push anything uphill.');
-      noteAt(0, -T.height * 0.98, '1 ATP = 1 turn', [46, 30],
-             'Each turn carries 3 Na⁺ out and 2 K⁺ in, both against their ' +
-             'gradients. Uphill is exactly what the ATP is buying.');
+      /* ON THE BUTTON, in pixels — the one anchor on this page that is not
+         a point in the scene, and annotate.js's header says why that is
+         allowed exactly here: the claim is about the TRANSACTION the
+         button performs, not about a part of the protein. Solved each
+         frame from the button's own box, because placeControls() moves it
+         whenever the caption changes height. */
+      NOTES.add({ text:'1 ATP = 1 turn', offset:[-40, -26],
+                  atPx: () => {
+                    if (spendEl.hidden) return null;
+                    const b = spendEl.getBoundingClientRect();
+                    /* The LAYER's box, not the stage's — the layer is the
+                       coordinate frame annotate.js places into. */
+                    const st = NOTES.el.getBoundingClientRect();
+                    return [b.left - st.left + b.width / 2, b.top - st.top];
+                  },
+                  card:'One press buys one turn: 3 Na⁺ out and 2 K⁺ in, both ' +
+                       'against their gradients. Uphill is the thing the ATP ' +
+                       'is paying for.' });
     },
   },
 
@@ -2451,16 +2490,37 @@ const STEPS = [
       /* The two proteins, and the loop between them. This is the step where
          both halves of the lesson are on stage at once, so the callouts are
          the ones that say which half is which. */
-      noteAt(-REST_LANE, T.height * 0.98, 'leaks out, free', [-40, -30],
+      noteAt(-REST_LANE, T.height * 0.98, 'K⁺ leaks out, free', [-40, -30],
              'K⁺ is high inside, so it drifts out through the channel and ' +
              'nothing stops it. Downhill costs nothing.');
-      noteAt(REST_PUMP_X, T.height * 0.98, 'drags it back, paid', [42, -30],
+      noteAt(REST_PUMP_X, T.height * 0.98, 'pumps K⁺ back, paid', [42, -30],
              'The pump carries K⁺ back in and Na⁺ out, burning one ATP a ' +
              'turn. It is undoing the leak next door, over and over.');
-      noteAt(0, -farY() * 0.62, 'the counts hold still', [40, 30],
-             'Nothing here has settled — a leak and a pump are running flat ' +
+      /* ON THE TALLY IT IS ABOUT, in pixels. Anchored in the cytosol it
+         landed on a patch of anions and water, so a student reading "the
+         counts hold still" looked where the dot was and saw no counts.
+         The corner tallies are chrome, not scene — see annotate.js's atPx.
+
+         AND IT NAMES K⁺, not "the counts". paintIons() tallies K⁺ and Cl⁻
+         only: there is no Cl⁻ in this step's cast, and the sodium — the
+         most visible ion on screen — is not counted at all. A student who
+         read "counts" and watched the purple saw nothing being held.
+
+         NO NUMBERS IN THE LABEL. It is pinned to the tally, so printing
+         20 and 4 beside the 20 and 4 is the same fact twice — and a second
+         copy of a live number is a thing that can go stale. The label says
+         which ion and what it is doing; the tally says how many. */
+      NOTES.add({
+        text:'K⁺ holds', offset:[44, -26],
+        atPx: () => {
+          if (ionsInEl.hidden || ionsInEl.parentElement.hidden) return null;
+          const b = ionsInEl.getBoundingClientRect();
+          const st = NOTES.el.getBoundingClientRect();
+          return [b.right - st.left, b.top - st.top + b.height / 2];
+        },
+        card:'Nothing here has settled — a leak and a pump are running flat ' +
              'out and cancelling. Switch the pump off and watch what ' +
-             'equilibrium actually looks like.');
+             'equilibrium actually looks like.' });
     },
   },
 ];
@@ -2952,7 +3012,7 @@ function tick(dt) {
     for (const t of travellers) keepOutOfPores(t);
 
     setHTML(capEl, pumpOn
-      ? '<b>Standing still costs ATP.</b>'
+      ? '<b>Even at rest, a cell constantly uses energy to maintain the proper flow of ions that is key to their function.</b>'
       : '<b>The pump is off — watch the counts level and the voltage fade.</b>');
   } else if (s.id === 'pump') {
     runPumpCycle(dt);
@@ -2968,7 +3028,7 @@ function tick(dt) {
     const stc = Pump.at(pumpT);
     setHTML(capEl, running || stc.phosphate.on
       ? '<b>' + stc.label + '</b> — ' + stc.caption
-      : '<b>The channel step spent this gradient. Press the button to buy it back.</b>');
+      : '<b>Active transport uses ATP to move substances against their concentration gradient through membrane pumps. </b>');
   } else {
     spendEl.hidden = true;
     for (const t of travellers) {
