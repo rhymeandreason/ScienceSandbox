@@ -76,6 +76,50 @@ const REF = {
   bpg13: '1,3-bisphospho-D-glyceric acid',
   pga3: '3-phospho-D-glyceric acid',
   pga2: '2-phospho-D-glyceric acid',
+  /* THE CITRIC-ACID CYCLE (mol-krebs.js). Same standing as the glycolysis rows
+   * above: none of these carries a `smiles`, so the string checked is DERIVED
+   * FROM THE COORDINATES the page would render.
+   *
+   * THE STEREO ROWS ARE WHY THIS BLOCK EXISTS. `chiral:` asserts a signed
+   * volume over a priority order the SPEC states, so it catches a reflected
+   * build — but only relative to a ranking that is itself hand-written, and it
+   * cannot catch a whole-molecule mirror any more than `{faces}` can (§1.3).
+   * malate and isocitrate are the two rows that need an outside answer.
+   *
+   * NAMES PIN THE STEREOISOMER, as the sugars' do. Bare "malic acid" is the
+   * racemate and would prove nothing; bare "isocitric acid" leaves both centres
+   * undefined. Fumarate is named for the geometry too — its cis isomer has a
+   * different name entirely (maleic acid), which is the cleanest possible
+   * anchor for the `cis:{value:false}` claim. */
+  oaa: 'oxaloacetic acid',
+  citrate: 'citric acid',
+  isocitrate: 'D-threo-isocitric acid',
+  akg: '2-oxoglutaric acid',
+  succinate: 'succinic acid',
+  fumarate: 'fumaric acid',
+  malate: 'L-malic acid',
+  coa: 'coenzyme A',
+  acetylcoa: 'acetyl-CoA',
+  succinylcoa: 'succinyl-CoA',
+  /* THE REDUCED FORM IS THE ONE ANCHORED, and `fad` is deliberately absent.
+   * mol-krebs.js builds FADH₂ and derives FAD from it by dropping two
+   * hydrogens WITHOUT redrawing the ring's bond orders — a stated
+   * simplification in that file, since both forms render as the same flat
+   * tricycle and what the lesson needs is that two hydrogens moved. So this
+   * spec's `fad` genuinely is not PubChem's FAD (theirs is the oxidised,
+   * aromatic isoalloxazine) and pointing a row at it would report a mismatch
+   * for something already decided and written down.
+   *
+   * Anchoring `fadh2` loses nothing that matters here. Every stereocentre in
+   * the molecule — ribitol's three, the ribose's four — is in the shared
+   * skeleton, so checking either form checks both, and the drop that makes FAD
+   * touches two hydrogens and no configuration.
+   *
+   * THIS ROW EARNED ITS PLACE: the first build of the ribitol was the
+   * L-enantiomer. `hydroxyl(c, 0)` took whichever tetrahedral slot came first,
+   * check-molecules.js passed it, and nothing inside the repo could see it —
+   * exactly the sugars' failure of molecule-pipeline.md item 5, repeated. */
+  fadh2: 'FADH2',
 };
 
 /* THE HAND-BUILT CONTROLS REFERENCE THEMSELVES.
@@ -139,9 +183,21 @@ function molblock(key, m) {
 //    ordinary acid.
 //  · PubChem answers some of these as the anion and some as the free acid.
 //    Charge is not handedness.
+//  · and the phosphorus STEREOCENTRES that normalisation then invents. A
+//    bridging phosphate in the house style has four single P–O bonds and two
+//    equivalent non-bridging oxygens; rewriting one of them as `=O` above makes
+//    the four substituents formally distinct, so RDKit reads a configuration
+//    off the 3D coordinates and tags `[P@@]`. PubChem's records carry no such
+//    tag, and neither does the chemistry: the two oxygens are equivalent by
+//    delocalisation (and both are O⁻ in the anion these specs actually draw).
+//    Left in, it reports every geometry-derived diphosphate as a mismatch —
+//    coenzyme A and its two thioesters — and buries a real difference under
+//    three fake ones. Phosphate stereochemistry is not a claim this library
+//    makes anywhere.
 const normalise = s => s
   .replace(/\[PH\]/g, 'P(=O)').replace(/P\(=O\)\(O\)\(O\)O/g, 'P(=O)(O)O')
-  .replace(/\[O-\]/g, 'O');
+  .replace(/\[O-\]/g, 'O')
+  .replace(/\[P@@?H?\]/g, 'P');
 
 const fetchSmiles = name => {
   const url = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/'

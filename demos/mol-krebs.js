@@ -645,13 +645,27 @@
      * note where FAD is registered.
      */
     s.order(0, 1, 2).order(2, 3, 2).order(4, 5, 2);        // ring A aromatic
+    /* …AND THE C4a=C10a DOUBLE BOND, which the reduced ring really has: the
+     * 1,5-dihydro flavin is N1(H)–C10a=C4a–N5(H), and that one double bond is
+     * what makes ring C conjugated rather than a saturated urea. Left out, the
+     * molecule is 1,5-dihydro-FADH₂ — two hydrogens further reduced than
+     * anything in biology — and tools/check-handedness.js said so by writing
+     * our ring `C1NC(=O)NC(=O)C1` against PubChem's aromatic `c1[nH]…c1`. */
+    s.order(c4a, c10a, 2);
     const o2 = s.grow(c2, 'O', GL.CdO, 'sp2', 0, 2);
     const o4 = s.grow(c4, 'O', GL.CdO, 'sp2', 0, 2);
-    // the two methyls that make it 7,8-dimethyl — united atoms, in the plane
-    const me7 = flatH(s, 1, GL.CC); s.atoms[me7].el = 'C';
-    const me8 = flatH(s, 2, GL.CC); s.atoms[me8].el = 'C';
-    // ring hydrogens: C6 and C9 on the benzene, N3's amide H
-    flatH(s, 0, AR.CH);
+    /* THE TWO METHYLS GO ON THE MIDDLE PAIR — it is 7,8-dimethylisoalloxazine,
+     * and 7 and 8 are the benzene carbons FURTHEST from the ring fusion. Ring
+     * A is 0–5 and the fuse took edge 3–4, so 2 and 5 are the carbons ortho to
+     * the fusion (C6 and C9) and 0 and 1 are the middle pair. Put on 1 and 2 —
+     * one middle, one outer — this builds 6,7-dimethylisoalloxazine, a real
+     * compound and the wrong one; every bond length and angle is identical and
+     * check-molecules.js cannot see it, because ring topology and ring count
+     * are unchanged. check-handedness caught it against PubChem. */
+    const me7 = flatH(s, 0, GL.CC); s.atoms[me7].el = 'C';
+    const me8 = flatH(s, 1, GL.CC); s.atoms[me8].el = 'C';
+    // ring hydrogens on the two carbons that keep one: C6 and C9
+    flatH(s, 2, AR.CH);
     flatH(s, 5, AR.CH);
     const h3 = flatH(s, n3, AR.NH);
     // …and the two the redox state turns on. N10's slot is taken by the
@@ -685,9 +699,28 @@
       vadd(s.at(f.n10), vmul(slot, GL.CN)), 0));
     const rc = rib.idx.map(i => i + R);
     s.link(f.n10, rc[0]);
-    // hydroxyls on ribitol's 2′, 3′ and 4′ — the 1′ carbon carries the ring
-    // and the 5′ carries the phosphate
-    [1, 2, 3].forEach(k => s.hydroxyl(rc[k], 0));
+    /* — the three hydroxyls, on ribitol's 2′, 3′ and 4′. The 1′ carbon carries
+     *   the flavin and the 5′ carries the phosphate.
+     *
+     *   SLOT 1, NOT SLOT 0, AND THAT IS THE WHOLE STEREOCHEMISTRY OF THIS
+     *   MOLECULE. `freeTet` hands back the two open slots on a chain carbon in
+     *   an order that falls out of a cross-product sign, not out of chemistry
+     *   — the same trap `equatorial()` exists to avoid on a ring. Taking slot 0
+     *   because it is first makes no choice at all, and the one it happens to
+     *   give is the WRONG ONE: it builds L-ribitol, the enantiomer, with every
+     *   bond length, every angle and every rendered pixel identical to the real
+     *   thing. Real FAD is D-ribitol, (2S,3S,4R).
+     *
+     *   Nothing inside this repo can see that. `chiral:` measures a signed
+     *   volume against a priority order this file would also have written, and
+     *   check-molecules.js passed the mirrored build without complaint. It was
+     *   caught by `tools/check-handedness.js`, which is the only check that
+     *   reaches outside for an absolute answer — the same tool that once found
+     *   every Skel-built sugar in this library was the L-enantiomer
+     *   (MolecularGeometry.md §1.3). The `fadh2` row there is what holds this
+     *   line honest; change this slot and that row fails.
+     */
+    [1, 2, 3].forEach(k => s.hydroxyl(rc[k], 1));
 
     // — the pyrophosphate bridge and the adenosine half, exactly as CoA and
     //   ATP build it: Pα, the α–β bridge, Pβ, then a ribose 5′ oxygen.
