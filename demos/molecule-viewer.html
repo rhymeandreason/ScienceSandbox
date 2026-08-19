@@ -16,8 +16,12 @@
      material about the molecule on screen rather than something to be earned. */
 
   /* ---------- molecule cards, top-centre: a dealt hand, one per molecule ---- */
+  /* WRAPS, because the shelf is fourteen molecules now and was two. One row of
+     132px minimums ran off the side of a 1440 laptop, which is the width these
+     lessons are judged at. */
   #shelf{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
-    display:flex;gap:0;align-items:stretch;padding:10px 6px 12px}
+    display:flex;flex-wrap:wrap;justify-content:center;gap:0;align-items:stretch;
+    max-width:min(94vw,1320px);padding:10px 6px 12px}
   .goal{text-align:center;background:#f7f2e7;border:none;
     border-radius:3px 4px 3px 4px;padding:10px 12px 12px;min-width:132px;max-width:176px;
     font-family:inherit;cursor:pointer;
@@ -312,6 +316,12 @@
  * end, which the spec identifies by index (`gly.gamma`, `gly.nic`) so the
  * highlight can never point at the wrong atoms.
  */
+/* Which oxygens hang off a carbon — a question about BONDS, which is the one
+ * thing a spec's `krebs` block does not name directly. Used by the ketone
+ * focuses below so they highlight the C=O rather than a typed index pair. */
+const oxOf=(s,c)=>(s.bonds||[]).filter(b=>b[0]===c||b[1]===c)
+  .map(b=>b[0]===c?b[1]:b[0]).filter(i=>s.atoms[i].el==='O');
+
 const SHELF=[
   { key:'atp', card:'ATP', alt:'atpSkel',
     blurb:'The cell’s spendable energy. Adenine and a ribose — the same '
@@ -366,6 +376,128 @@ const SHELF=[
                + 'molecule with exactly these two atoms gone — which is why both '
                + 'are built from one skeleton and neither is drawn twice.',
             atoms:s=>s.krebs.redox||[] },
+  },
+
+  /* ---- the citric-acid cycle, in pathway order ------------------------
+   * Every one of these is registered by mol-krebs.js and none of them has a
+   * `view:` yet, which is the main reason they are on the shelf: this page is
+   * where an opening angle gets chosen and pasted back into the spec.
+   *
+   * The focus atoms are read from each spec's own `krebs` block — never typed
+   * — so a rebuilt spec cannot leave the highlight pointing at the wrong
+   * atoms. `oxOf` is the one thing the block does not name directly: which
+   * oxygens hang off a given carbon, which is a question about the bonds.
+   */
+  { key:'oaa', card:'Oxaloacetate',
+    blurb:'What the cycle hands back to itself, and the reason it is a cycle at '
+        + 'all. Four carbons; the last step regenerates it so the next acetyl '
+        + 'group has something to land on. The matrix holds barely any at a '
+        + 'time, which is what makes the first step pull so hard.',
+    focus:{ title:'The ketone',
+            body:'This carbon is the <b>electrophile</b> — the spot acetyl-CoA’s '
+               + 'methyl attacks. Two carbons arrive here and a six-carbon '
+               + 'citrate leaves.',
+            atoms:s=>[s.krebs.cN[1], ...oxOf(s, s.krebs.cN[1])] },
+  },
+  { key:'citrate', card:'Citrate',
+    blurb:'Six carbons, three carboxylates, and <b>no mirror image</b> — the two '
+        + '–CH₂COO⁻ arms are identical, so the molecule is achiral. Aconitase '
+        + 'tells them apart anyway, by gripping it at three points. That is '
+        + 'Ogston’s argument, and it is why the early labelling experiments '
+        + 'looked wrong.',
+    focus:{ title:'The tertiary –OH',
+            body:'The hydroxyl is on a carbon with <b>three</b> other carbons, so '
+               + 'it has no hydrogen to lose and cannot be oxidised to a ketone. '
+               + 'The whole next step exists to move it somewhere that can.',
+            atoms:s=>[s.krebs.cN[2], s.krebs.oh] },
+  },
+  { key:'isocitrate', card:'Isocitrate',
+    blurb:'Citrate’s hydroxyl moved one carbon over. Same formula, same mass, '
+        + 'nothing you can count has changed — and now the –OH sits on a carbon '
+        + 'that still has a hydrogen, so it can become a ketone. One step that '
+        + 'does nothing, so that the next one is possible.',
+    focus:{ title:'Two stereocentres',
+            body:'Only one of the four possible isomers is a metabolite: '
+               + '<b>(2R,3S)</b>. Aconitase makes that one and isocitrate '
+               + 'dehydrogenase accepts that one. The mirror image would render '
+               + 'identically.',
+            atoms:s=>[s.krebs.cN[0], s.krebs.cN[1], s.krebs.oh] },
+  },
+  { key:'akg', card:'α-Ketoglutarate',
+    blurb:'Five carbons — the first CO₂ has left. This is also where the cycle '
+        + 'meets nitrogen metabolism: add an amino group and it is glutamate, '
+        + 'take one off and it is back. Carbon skeletons enter and leave the '
+        + 'cycle here as much as they go round it.',
+    focus:{ title:'The α-keto group',
+            body:'A ketone <b>next to</b> a carboxylate. That arrangement is what '
+               + 'lets the next enzyme knock the carboxylate off as CO₂ — the '
+               + 'same trick pyruvate dehydrogenase uses, by the same kind of '
+               + 'enzyme complex.',
+            atoms:s=>[s.krebs.cN[1], ...oxOf(s, s.krebs.cN[1])] },
+  },
+  { key:'succinylcoa', card:'Succinyl-CoA',
+    blurb:'The second CO₂ has gone, and what is left is stuck to coenzyme A '
+        + 'again — four carbons this time. The cycle’s one <b>high-energy</b> '
+        + 'intermediate: breaking this thioester is what pays for the only '
+        + 'nucleotide the cycle makes directly.',
+    focus:{ title:'The thioester, again',
+            body:'Same bond as acetyl-CoA’s, four carbons instead of two. '
+               + 'Breaking it phosphorylates GDP on the spot — '
+               + '<b>substrate-level</b>, the same move glycolysis makes twice.',
+            atoms:s=>[s.krebs.thiol, ...s.krebs.acyl] },
+  },
+  { key:'succinate', card:'Succinate',
+    blurb:'Four carbons, two carboxylates, and a <b>symmetry axis</b> — the only '
+        + 'symmetric intermediate in the cycle. From here on an isotope label is '
+        + 'scrambled between the two ends, which is the other half of why the '
+        + 'labelling experiments were hard to read.',
+    focus:{ title:'The two middle carbons',
+            body:'A plain C–C. Taking a hydrogen off each makes the double bond '
+               + 'below — and that is a smaller step than the cycle’s other '
+               + 'oxidations, which is why it is the one that reduces FAD '
+               + 'instead of NAD⁺.',
+            atoms:s=>[s.krebs.cN[1], s.krebs.cN[2]] },
+  },
+  { key:'fumarate', card:'Fumarate',
+    blurb:'Succinate with one double bond — and it is <b>trans</b>. Succinate '
+        + 'dehydrogenase takes the two hydrogens from opposite faces, so it '
+        + 'makes this and nothing else. The cis isomer, maleate, is not a '
+        + 'metabolite at all; it is toxic, and fumarase will not touch it.',
+    focus:{ title:'Trans, not cis',
+            body:'Same C=C length, same 120° angles, an identical render either '
+               + 'way — only the <b>torsion</b> differs. Follow the two '
+               + 'carboxylates: they sit on opposite sides.',
+            atoms:s=>s.krebs.cN },
+  },
+  { key:'malate', card:'Malate',
+    blurb:'Fumarate plus a water, added across the double bond. Fumarase adds '
+        + '–OH and –H to one face only, so what comes out is a <b>single</b> '
+        + 'enantiomer: (S)-malate, which older books call L-malate.',
+    focus:{ title:'The new –OH',
+            body:'One water, added one way round. (R)-malate is not a metabolite, '
+               + 'and fumarase will neither make it nor take it — the enzyme, not '
+               + 'the chemistry, decides which face.',
+            atoms:s=>[s.krebs.cN[1], s.krebs.oh] },
+  },
+  { key:'coa', card:'CoA-SH',
+    blurb:'Coenzyme A on its own, carrying nothing. The cycle hands it back '
+        + 'twice — once at the start and once after the second CO₂ — so it is a '
+        + 'molecule on the stage, not just a suffix on someone else’s name.',
+    focus:{ title:'The free thiol',
+            body:'One sulfur, one hydrogen, at the end of everything else. This '
+               + 'is the only atom in the molecule that reacts; the other fifty-'
+               + 'odd are how an enzyme recognises it.',
+            atoms:s=>[s.krebs.thiol] },
+  },
+  { key:'fad', card:'FAD',
+    blurb:'The oxidised flavin, waiting. Built from exactly the same skeleton as '
+        + 'FADH₂ — this is that molecule with two hydrogens removed, which is '
+        + 'why the two can never drift apart.',
+    focus:{ title:'The flat tricycle',
+            body:'Three fused rings <b>in a row</b>, and planar. Bend that row '
+               + 'and you have a different compound with a different colour; the '
+               + 'flatness is what lets it stack inside its enzyme.',
+            atoms:s=>s.krebs.flavin||[] },
   },
 ];
 
