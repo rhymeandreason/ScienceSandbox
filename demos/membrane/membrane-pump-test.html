@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>membrane-pump-test — the scripted pump, kept</title>
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  html,body { height:100%; margin:0; }
+  #page { display:flex; flex-direction:column; height:100vh; }
+  #stage { position:relative; flex:1 1 auto; min-height:0; }
+  canvas { width:100%; height:100%; display:block; }
+
+  #chrome { flex:0 0 auto; padding:10px 18px 16px; text-align:center; }
+  #cap { font-size:17px; line-height:1.35; min-height:2.6em;
+         max-width:46em; margin:0 auto 10px; }
+  #cap b { font-weight:600; }
+  #readout { font-size:13px; opacity:.7; min-height:1.2em; margin:-6px 0 8px; }
+
+  #spend { position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+           z-index:4;
+           font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
+           border:1px solid #a493cf; background:#e8e2f6; cursor:pointer;
+           box-shadow:0 2px 10px rgba(0,0,0,.12); }
+  #spend:disabled { opacity:.45; cursor:default; }
+
+  /* The flying ATP. A DOM chip rather than a mesh: what is being shown is
+     the SPENDING, and the spending starts at a button the student pressed.
+     A mesh would have to be born in mid-air with nothing to say where it
+     came from. */
+  .fly { position:fixed; z-index:5; font-size:13px; font-weight:600;
+         padding:4px 12px; border-radius:999px; background:#e8e2f6;
+         border:1px solid #a493cf; pointer-events:none;
+         transform:translate(-50%,-50%);
+         transition:left .9s cubic-bezier(.4,0,.5,1), top .9s cubic-bezier(.4,0,.5,1),
+                    opacity .9s ease-in; }
+
+  @media (max-width:920px){ #cap { font-size:15px; } }
+</style>
+</head>
+<body>
+<div id="page">
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <button type="button" id="spend">Spend 1 ATP</button>
+  </div>
+  <div id="chrome">
+    <p id="cap"></p>
+    <p id="readout"></p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../mol-small.js"></script>
+<script src="../atomkit.js"></script>
+<script src="../scene.js"></script>
+<script src="../kit/motion.js"></script>
+<script src="../kit/focus.js"></script>
+<script src="../kit/fit.js"></script>
+<script src="../kit/stagekit.js"></script>
+<script src="parts.js"></script>
+<script src="pump.js"></script>
+<script>
+'use strict';
+/* =============================================================================
+ *  membrane/membrane-pump-test.html — the Na⁺/K⁺ pump as membrane-lab first drew it.
+ * =============================================================================
+ *  WHY THIS FILE EXISTS. membrane-lab's pump step is a scripted animation: the
+ *  cycle is a function of time, the cargo comes from a pool of its own, and
+ *  nothing is taken out of one compartment and put into the other. That is a
+ *  clean way to SHOW a mechanism and a poor way to show a consequence, and the
+ *  lesson is being rebuilt to draw its ions from the solution so the pump
+ *  visibly builds the gradient the channel step spends.
+ *
+ *  This page keeps the scripted version intact while that happens. It is the
+ *  animation on its own, with nothing else on the stage: press the button,
+ *  watch one turn, read the phase captions. If the rebuilt step loses
+ *  something the animation had, this is where to look for it.
+ *
+ *  NOT pump-test.html, its neighbour, which is a different thing — that one is a dev
+ *  bench for membrane/pump.js with a scrubber and sliders, aimed at the cycle's numbers.
+ *  This is the LESSON's rendering of it, aimed at what a student saw.
+ *
+ *  Everything below is lifted from membrane-lab.html unchanged apart from the
+ *  step machinery around it. Comments are kept because they record decisions
+ *  that were made against a screen, not against the code.
+ * ========================================================================== */
+
+const canvas = document.getElementById('c');
+const capEl = document.getElementById('cap');
+const readoutEl = document.getElementById('readout');
+const chromeEl = document.getElementById('chrome');
+const spendEl = document.getElementById('spend');
+
+const HALF = 15.3;                      // OPM's half-thickness, from the bake
+const MEM_REACH = 340;
+
+/* Solved from the canvas, not typed: the frame's own half-height in world
+   units, plus a molecule's clearance. */
+let OFFSCREEN = 90;
+function solveOffscreen() {
+  const halfH = L.pxToWorld(canvas.clientHeight) / 2;
+  OFFSCREEN = halfH + 26;
+}
+
+const L = Lesson.create(canvas, {
+  cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
+  rMin:50, rMax:400,
+  reservePx: () => ({ bottom: chromeEl.offsetHeight + 14 }),
+  boxes: () => ([{ x:0, y:0, rxz:60, hy:34 }]),
+  frame: dt => tick(dt),
+});
+L.renderer.localClippingEnabled = true;
+
+const memSolid = Parts.membrane({ half:HALF, reach:MEM_REACH });
+const memHoled = Parts.membrane({ half:HALF, reach:MEM_REACH,
+  exclude:(x, z) => Math.hypot(x, z) - 15.0 });
+memSolid.group.visible = false;
+L.root.add(memSolid.group, memHoled.group);
+
+const PUMP = Parts.transporter({ half:HALF });
+L.root.add(PUMP.group);
+const T = PUMP;
+
+/* The cut belongs to a step with a protein in it: uncut, the ions are
+   sealed inside an opaque shape and the student is asked to take the site
+   on faith. The plane is the membrane's own — it laid the slab out, so it
+   knows which axis is thin. */
+memHoled.cut.enable(true);
+PUMP.mesh.material.clippingPlanes = [memHoled.cut.plane];
+PUMP.mesh.material.side = THREE.DoubleSide;
+PUMP.mesh.material.needsUpdate = true;
+
+/* ONE SIZE CONVENTION FOR EVERYTHING ON STAGE — ions take their radius from
+   the same palette the molecules do, through the same multiplier. */
+const SCALE = MolLib.SCALE || 1.9;
+const EXAG = 5.0;
+const ELEMENT_OF = { NA:'Na', K:'K', CL:'Cl', MG:'Mg' };
+function ionRadius(kind) {
+  const el = ELEMENT_OF[kind] || kind;
+  const r = MolLib.PALETTE.radii[el];
+  if (r == null) throw new Error('membrane-pump-test: no palette radius for ' + el);
+  return r * (EXAG / SCALE);
+}
+
+/* ATP IS NOT AN OBJECT ON STAGE. It was drawn as a body with three beads
+   and it did not make sense: at this scale the shape says nothing a
+   student can read, and a lilac blob beside a blue protein invites "what
+   is that molecule" — a question this step then has to answer instead of
+   teaching the pump.
+
+   What matters is the transaction, not the shape, and the student now
+   performs it: a chip flies from the Spend button to the pump. */
+let pumpT = 0, running = false;
+const pumpPool = { NA: [], K: [] };
+function pumpIon(species, i) {
+  const p = pumpPool[species];
+  while (p.length <= i) {
+    const m = Parts.ion(species);
+    /* transparent ONCE, at build. membrane/pump.js fades cargo in and out at
+       the mouths, and flipping material.transparent per frame recompiles the
+       shader — a dropped frame exactly at a phase boundary, i.e. a flicker.
+       depthWrite stays on: these are solid spheres that are briefly faint,
+       not glass. */
+    m.material.transparent = true;
+    m.material.depthWrite = true;
+    m.visible = false; L.root.add(m); p.push(m);
+  }
+  return p[i];
+}
+function hidePumpIons() {
+  Object.values(pumpPool).forEach(list => list.forEach(m => m.visible = false));
+}
+
+/* ---- spending an ATP ----
+   The chip flies from the BUTTON to the pump, so the press and the
+   phosphate arriving are visibly one event rather than two things that
+   happened near each other. It is a DOM chip: it starts on a DOM button,
+   and a mesh would have to be born in mid-air with no explanation. */
+function flyATP(done) {
+  const b = spendEl.getBoundingClientRect();
+  const chip = document.createElement('div');
+  chip.className = 'fly';
+  chip.textContent = 'ATP';
+  chip.style.left = (b.left + b.width / 2) + 'px';
+  chip.style.top  = (b.top + b.height / 2) + 'px';
+  document.body.appendChild(chip);
+
+  /* Where the pump is, in page pixels — projected, so the chip lands on
+     the protein wherever the camera has put it. */
+  const p = new THREE.Vector3(0, -HALF * 0.6, 0).project(L.camera);
+  const r = canvas.getBoundingClientRect();
+  const x = r.left + (p.x * .5 + .5) * r.width;
+  const y = r.top + (-p.y * .5 + .5) * r.height;
+
+  requestAnimationFrame(() => {
+    chip.style.left = x + 'px';
+    chip.style.top = y + 'px';
+    chip.style.opacity = '0';
+  });
+  /* Fires on the transition, with a timer as the backstop: a backgrounded
+     tab never runs the transition, and the pump must still start. */
+  let fired = false;
+  const go1 = () => { if (fired) return; fired = true; chip.remove(); done(); };
+  chip.addEventListener('transitionend', go1);
+  setTimeout(go1, 1000);
+}
+
+spendEl.addEventListener('click', () => {
+  if (running) return;
+  spendEl.disabled = true;
+  flyATP(() => { pumpT = 0; running = true; });
+});
+
+function tick(dt) {
+  memHoled.tick(dt);                    // the bilayer is a liquid, so it moves
+
+  if (running) {
+    pumpT += dt / 11;                   // seconds for one full turn
+    if (pumpT >= 1) {                   // one ATP bought exactly one turn
+      pumpT = 0; running = false;
+      spendEl.disabled = false;
+    }
+  }
+  const st = Pump.at(pumpT);
+  T.setGates(st.gates.top, st.gates.bottom);
+  hidePumpIons();
+
+  /* FAN THE CARGO ROUND THE AXIS, don't stack it up one.
+
+     membrane/pump.js spreads ions by 0.06-0.09 in normalised units — about 2 A —
+     because it works in units and has no idea how big an ion is drawn. At
+     this page's exaggeration a K⁺ is 4.5 A across, so the site's two ions
+     fused into one blob. The page knows the drawn radius, so the page is
+     what solves it.
+
+     Sideways rather than further apart along the path: the site is a round
+     pocket and the ions sit BESIDE each other in it. Stacking them axially
+     would push one out of the pocket and through the wall the moment the
+     gates shut. */
+  const used = { NA:0, K:0 };
+  const seats = st.cargo.reduce((a, c) => (a[c.species] = (a[c.species] || 0) + 1, a), {});
+  for (const c of st.cargo) {
+    const i = used[c.species]++;
+    const n = seats[c.species];
+    const m = pumpIon(c.species, i);
+    const rr = n > 1 ? ionRadius(c.species) * 1.15 : 0;
+    const th = (i / n) * Math.PI * 2;
+
+    /* u = +-1 is OFF THE FRAME, not the protein's rim.
+
+       Mapping u to T.height put the ends of the journey at the mouths, so
+       an ion faded up out of nothing at the lip of the pump and faded away
+       again a moment later — which says the pump MAKES sodium and then
+       destroys potassium. It carries them; they have to come from the
+       solution and go back to it.
+
+       Inside the protein the mapping is unchanged, so the site and the
+       funnel still line up with the geometry; beyond the rim it stretches
+       out to the edge of the frame. Piecewise, because a single linear map
+       to OFFSCREEN would drag the site itself off the mid-plane. */
+    const uH = T.height / OFFSCREEN;
+    const au = Math.abs(c.u), sgn = Math.sign(c.u) || 1;
+    const y = au <= uH
+      ? c.u * OFFSCREEN                 // within the protein
+      : sgn * (T.height + (au - uH) / (1 - uH) * (OFFSCREEN - T.height));
+    m.position.set(Math.cos(th) * rr, y, Math.sin(th) * rr);
+    /* HONOUR THE FADE. Forcing opacity 1 threw away the one thing alpha is
+       for: an ion appeared and vanished at full strength on the frame a
+       phase changed. That pop read as a flicker, and it also said the pump
+       makes and destroys ions. */
+    m.material.opacity = c.alpha;
+    m.visible = c.alpha > 0.01;
+  }
+
+  /* The caption is READ from the cycle. Nothing on this page can say the
+     pump is doing something the geometry is not. */
+  capEl.innerHTML = running || st.phosphate.on
+    ? '<b>' + st.label + '</b> — ' + st.caption
+    : '<b>One ATP runs the pump once.</b> Press the button and follow it: ' +
+      'three sodiums out, two potassiums in, then it stops.';
+
+  readoutEl.textContent =
+    'ATP is the battery: it carries three phosphates, and spends one per trip. ' +
+    'Per cycle — ' + st.naPerCycle + ' Na⁺ out, ' + st.kPerCycle + ' K⁺ in, ' +
+    st.atpPerCycle + ' ATP.';
+}
+
+L.fit();
+solveOffscreen();
+L.start();
+</script>
+</body>
+</html>

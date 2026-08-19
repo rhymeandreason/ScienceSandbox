@@ -6,18 +6,44 @@
 <title>The membrane — what gets through, and what it costs</title>
 <link rel="stylesheet" href="sandbox.css">
 <style>
-  html,body { height:100%; margin:0; }
-  #page { display:flex; flex-direction:column; height:100vh; }
-  #stage { position:relative; flex:1 1 auto; min-height:0; }
+  html,body { height:100%; margin:0; overflow:hidden; }
+  /* THE STAGE IS THE WHOLE WINDOW AND THE CHROME FLOATS OVER IT.
+
+     It used to be a column: stage on top, chrome below, both in flow. That
+     coupled the camera to the text — kit/stagekit.js refits on any canvas
+     resize, and the canvas was a flex child, so a caption wrapping onto one
+     more line shrank the stage and re-framed the scene. Pressing a button
+     could visibly re-zoom the membrane.
+
+     Out of flow, the canvas is always exactly the window and nothing written
+     into a caption can reach the camera. The cost is that the reserve is now
+     a promise rather than a measurement: fit() still keeps that many pixels
+     clear at the bottom, but if a caption ever grew past it, it would sit
+     over the scene instead of pushing it up. Hence the fixed reserves below —
+     they are what makes the promise true. */
+  #page { position:relative; height:100vh; }
+  #stage { position:absolute; inset:0; }
   canvas { width:100%; height:100%; display:block; }
 
-  /* The chrome is ONE block at the bottom. kit/fit.js is told its height in
-     pixels, so the camera frames the scene above it rather than behind it. */
-  #chrome { flex:0 0 auto; padding:10px 18px 16px; text-align:center; }
+  /* The chrome is ONE block at the bottom, floating over the stage.
+     kit/fit.js is told its height in pixels, so the camera still frames the
+     scene above it rather than behind it — the difference is that the
+     measurement no longer feeds back into the canvas's size. */
+  #chrome { position:absolute; left:0; right:0; bottom:0; z-index:2;
+            padding:10px 18px 16px; text-align:center; pointer-events:none;
+            /* A scrim, because the text now sits ON the scene rather than
+               under it, and a caption over a pale membrane is unreadable
+               without one. Fades up so there is no hard edge across the
+               lipid. */
+            background:linear-gradient(to bottom,
+              rgba(238,232,220,0) 0%, rgba(238,232,220,.82) 22%,
+              rgba(238,232,220,.96) 55%); }
+  /* Only the tabs take clicks; the text must not eat a drag meant for the
+     scene, which now extends behind it. */
+  #steps { pointer-events:auto; }
   #cap { font-size:17px; line-height:1.35; min-height:2.6em;
          max-width:46em; margin:0 auto 10px; }
   #cap b { font-weight:600; }
-  #readout { font-size:13px; opacity:.7; min-height:1.2em; margin:-6px 0 8px; }
 
 
   /* The button sits ON the scene, in the gap between the bottom of the
@@ -25,21 +51,39 @@
      belongs next to the pump — and it is deliberately OUTSIDE #chrome, so
      kit/fit.js's reserve (chromeEl.offsetHeight) does not grow on the one step
      that shows it and re-frame the membrane mid-lesson. */
-  #spend, #shells {
-           position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
-           z-index:4;
+  #spend, .tog {
            font:inherit; font-size:14px; padding:8px 16px; border-radius:999px;
            border:1px solid #a493cf; background:#e8e2f6; cursor:pointer;
            box-shadow:0 2px 10px rgba(0,0,0,.12); }
-  /* The channel's toggle sits where the pump's button sits — the two steps
-     never show at once, so one place on the stage means "the control for
-     this step" rather than two things to find. */
-  #shells { border-color:#2a7a6a; background:#dfeee9;
-            display:flex; align-items:center; gap:8px; padding:7px 16px 7px 12px;
-            user-select:none; }
-  #shells[hidden] { display:none; }
-  #shells input { width:16px; height:16px; margin:0; accent-color:#2a7a6a;
-                  cursor:pointer; }
+  /* Stacked, not overlaid. Both steps' controls used to sit at the same
+     spot because only one was ever on screen; the pump step now shows the
+     shells toggle AND the spend button, so they need their own rows. The
+     button goes ON TOP because it is the thing the step asks you to press —
+     the toggle underneath is a setting, and a setting should not sit
+     between the reader and the action. */
+  /* Above the chrome's own height, since the chrome is now over the stage
+     and would otherwise sit on top of these. Solved at run time from the
+     block's measured height — a typed offset goes stale the moment a caption
+     changes length. */
+  #spend { position:absolute; left:50%; z-index:4;
+           transform:translateX(-50%); }
+  #ctl { position:absolute; left:50%; z-index:4;
+         transform:translateX(-50%); display:flex; gap:10px; }
+  #ctl[hidden] { display:none; }
+  .tog { border-color:#2a7a6a; background:#dfeee9;
+         display:flex; align-items:center; gap:8px; padding:7px 16px 7px 12px;
+         user-select:none; }
+  .tog input { width:16px; height:16px; margin:0; accent-color:#2a7a6a;
+               cursor:pointer; }
+  /* NOT OPTIONAL, and its absence is invisible in the JS. `display:flex`
+     above is an author rule and the UA's [hidden]{display:none} is not, so
+     a .tog stays on screen however honestly the page sets .hidden — which
+     is how the pump switch turned up on the channel step. #ctl and #spend
+     each already carry their own; this is the third. */
+  .tog[hidden] { display:none; }
+  /* Locked on: still legible, obviously not a control. */
+  .tog.is-fixed { cursor:default; opacity:.72; }
+  .tog.is-fixed input { cursor:default; }
   #spend:disabled { opacity:.45; cursor:default; }
   #spend[hidden] { display:none; }
 
@@ -76,6 +120,57 @@
      was two numbers under a picture, and the student had to hold "42" in
      their head while looking for which side had more. Over the scene the
      number IS the side. */
+  #volt { position:absolute; inset:0; pointer-events:none; z-index:3; }
+  #volt[hidden] { display:none; }
+
+  #ions[hidden] { display:none; }
+  #eqBadge { position:absolute; left:50%; top:14px; transform:translateX(-50%);
+             z-index:4; text-align:center; pointer-events:none;
+             padding:8px 18px; border-radius:999px;
+             border:1px solid #2a7a6a; background:#dfeee9;
+             box-shadow:0 2px 10px rgba(0,0,0,.12);
+             opacity:0; transition:opacity .6s ease; }
+  #eqBadge.is-on { opacity:1; }
+  #eqBadge b { display:block; font-size:15px; font-weight:700;
+               letter-spacing:.04em; }
+  #eqBadge span { display:block; font-size:11px; letter-spacing:.08em;
+                  text-transform:uppercase; opacity:.7; margin-top:2px; }
+  .census { position:absolute; left:16px; text-align:left;
+            font-size:12px; line-height:1.5; opacity:.72;
+            font-variant-numeric:tabular-nums; white-space:nowrap;
+            text-shadow:0 1px 10px rgba(255,255,255,.85); }
+  #ionsOut { top:14px; }
+  #ionsIn { bottom:14px; }        /* placeControls() moves this clear of the chrome */
+  .census b { font-size:15px; font-weight:700; }
+  .census span { display:block; letter-spacing:.07em; text-transform:uppercase;
+                 opacity:.65; }
+
+  /* The one global setting, and styled to say so: no pill, no colour, no
+     shadow — the step's switches are pills in the middle of the stage, and
+     this must not read as a fourth one that happens to live elsewhere. It
+     is the weight of the corner tallies, which are the other things on
+     screen that persist across steps. */
+  .gset { position:absolute; top:12px; right:16px; z-index:5;
+          display:flex; align-items:center; gap:7px; cursor:pointer;
+          font:inherit; font-size:12px; letter-spacing:.06em;
+          text-transform:uppercase; opacity:.55; user-select:none;
+          text-shadow:0 1px 10px rgba(255,255,255,.85);
+          transition:opacity .15s ease; }
+  .gset:hover, .gset:focus-within { opacity:.95; }
+  /* display:flex above beats the UA's [hidden] — same trap .tog fell into. */
+  .gset[hidden] { display:none; }
+  .gset input { width:13px; height:13px; margin:0; accent-color:#2a7a6a;
+                cursor:pointer; }
+
+  #voltCount { position:absolute; right:16px; bottom:14px; text-align:right;
+               /* placeControls() lifts this above the chrome */
+               font-size:12px; line-height:1.5; opacity:.72;
+               font-variant-numeric:tabular-nums; white-space:nowrap;
+               text-shadow:0 1px 10px rgba(255,255,255,.85); }
+  #voltCount b { font-size:15px; font-weight:700; }
+  #voltCount span { display:block; letter-spacing:.07em; text-transform:uppercase;
+                    opacity:.65; }
+
   #osmo { position:absolute; inset:0; pointer-events:none; z-index:3; }
   #osmo[hidden] { display:none; }
   .otally { position:absolute; transform:translate(-50%,-50%); text-align:center;
@@ -86,13 +181,17 @@
   .otally span { display:block; font-size:12px; letter-spacing:.09em;
                  text-transform:uppercase; opacity:.6; margin-top:4px; }
   .otally em { font-style:normal; font-weight:700; opacity:.95; }
+  /* The unit sits with its number but does not compete with it. */
+  .otally b small { font-size:0.42em; font-weight:600; letter-spacing:.02em;
+                    opacity:.65; }
   #osmoArrow { position:absolute; transform:translate(-50%,-50%); opacity:0;
                transition:opacity .5s ease; }
   #osmoArrow .onet { font-size:15px; font-weight:600; letter-spacing:.04em; }
 
   @media (max-width:920px){
     .otally b { font-size:34px; }
-    #cap { font-size:15px; }
+    /* Narrower means more wrapping, so the reserve grows with it. */
+    #cap { font-size:15px; min-height:5.6em; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
 </style>
@@ -107,14 +206,70 @@
          out which state they are IN; a ticked box shows the state and names
          the thing in one go. Real input, so it keeps keyboard and screen
          reader behaviour for free. -->
-    <label id="shells" hidden>
-      <input type="checkbox" id="shellsBox" checked>
+    <!-- NOT A STEP CONTROL. The shells are a way of DRAWING an ion, not a
+         thing this step is doing, and mixing the two in one row said they
+         were the same kind of switch: turn off the pump and the lesson
+         changes, turn off the shells and only the picture does. So it sits
+         in the corner, quiet, and it survives every step — the student sets
+         it once rather than rediscovering it on each tab that happens to
+         offer it. -->
+    <label class="gset" id="shellsTog">
+      <input type="checkbox" id="shellsBox">
       <span>Water shells</span>
     </label>
+    <!-- The step's own switches, in one row so they read as the controls
+         for this step rather than two things to find. -->
+    <div id="ctl" hidden>
+      <label class="tog">
+        <input type="checkbox" id="voltBox">
+        <span>Membrane potential</span>
+      </label>
+      <label class="tog">
+        <input type="checkbox" id="pumpBox" checked>
+        <span>Pump running</span>
+      </label>
+    </div>
     <!-- Osmosis's tally and net arrow, drawn over the scene. Positions are
          solved each frame from the projected membrane plane, never from a
          guess at where the middle of the canvas is: kit/fit.js reserves chrome
          at the bottom, so world y=0 is NOT the centre of the stage. -->
+    <!-- The membrane potential: charge skins pinned to the two faces, and
+         the voltage they add up to. -->
+    <div id="volt" hidden>
+      <!-- Same instrument as the osmosis tally, deliberately: two steps
+           that both count something the student cannot count by eye should
+           not look like two different readouts. -->
+      <div class="otally" id="voltRead"><b></b><span></span></div>
+      <!-- Outside is DEFINED as zero, and that convention is what the minus
+           sign on the other number means. Set at the same weight as the
+           reading it anchors: a comparison drawn with one big number and
+           one small one says the small one matters less, and here it is
+           the half that makes the other half mean anything. -->
+      <div class="otally" id="voltRef"><b></b><span></span></div>
+      <!-- The running tally, parked in the corner. It is not part of the
+           measurement across the membrane — it is the working behind it —
+           so it gets a log's treatment rather than an instrument's. -->
+      <div id="voltCount"></div>
+    </div>
+
+    <!-- Ion census, one corner per compartment. Separate from #volt because
+         it survives the potential being switched off: with no voltage the
+         counts ARE the demonstration — they equalise, and that is the whole
+         difference between the two modes. -->
+    <!-- Announced only when the scene has actually arrived: the test reads
+         the same state the traffic does, so the badge cannot appear over a
+         pore that is still passing ions. -->
+    <!-- The badge NAMES ITS SUBJECT. A bare "Equilibrium" reads as the cell
+         having settled, and a cell has not: what has settled is one pair of
+         ions against one voltage. Which ions is written at run time, because
+         the two modes reach different equilibria. -->
+    <div id="eqBadge"><b></b><span></span></div>
+
+    <div id="ions" hidden>
+      <div id="ionsOut" class="census"></div>
+      <div id="ionsIn" class="census"></div>
+    </div>
+
     <div id="osmo" hidden>
       <div class="otally" id="osmoOut"><b></b><span></span></div>
       <div class="otally" id="osmoIn"><b></b><span></span></div>
@@ -135,7 +290,6 @@
   </div>
   <div id="chrome">
     <p id="cap"></p>
-    <p id="readout"></p>
     <nav id="steps" aria-label="lesson steps"></nav>
   </div>
 </div>
@@ -189,17 +343,27 @@
 
 const canvas = document.getElementById('c');
 const capEl = document.getElementById('cap');
-const readoutEl = document.getElementById('readout');
 const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
-const shellsEl = document.getElementById('shells');
+const ctlEl = document.getElementById('ctl');
 const shellsBox = document.getElementById('shellsBox');
+const shellsTogEl = document.getElementById('shellsTog');
+const voltBox = document.getElementById('voltBox');
+const pumpBox = document.getElementById('pumpBox');
 const osmoEl = document.getElementById('osmo');
 const osmoOutEl = document.getElementById('osmoOut');
 const osmoInEl = document.getElementById('osmoIn');
 const osmoArrowEl = document.getElementById('osmoArrow');
 const osmoArrowG = document.getElementById('osmoArrowG');
 const osmoNetEl = document.getElementById('osmoNet');
+const voltEl = document.getElementById('volt');
+const voltReadEl = document.getElementById('voltRead');
+const voltCountEl = document.getElementById('voltCount');
+const voltRefEl = document.getElementById('voltRef');
+const ionsEl = document.getElementById('ions');
+const ionsOutEl = document.getElementById('ionsOut');
+const ionsInEl = document.getElementById('ionsIn');
+const eqBadgeEl = document.getElementById('eqBadge');
 const chromeEl = document.getElementById('chrome');
 
 const HALF = 15.3;                      // OPM's half-thickness, from the bake
@@ -228,6 +392,29 @@ const SPREAD = MEM_REACH * 0.55;
    the transporters below — as a const further down it was a temporal dead
    zone and the page died on load. */
 const LANE = 34;                        // pore centres, ±x
+/* The resting step stands a K⁺ channel and a pump in one sheet, far enough
+   apart that neither hole eats into the other's lipid. Declared up here for
+   the same reason LANE is: memRest's `exclude` closes over it and is
+   evaluated at construction, long before the pore tables further down — as a
+   const down there it was a temporal dead zone and the page died on load.
+   Second time this trap has been sprung; the membranes are built early and
+   anything their exclude touches has to be older than they are. */
+/* THE CHANNEL STEP'S SPACING, DELIBERATELY. These were pushed out to ±76 to
+   scatter the proteins the way a real membrane does, and the honesty cost
+   more than it bought: this step's whole claim is that the leak and the
+   pump are ONE loop — K⁺ out here, back in there — and two machines at
+   opposite ends of the frame read as two unrelated events with a field of
+   lipid between them. At the channel step's own ±34-ish they sit in one
+   glance, and the step before this one has already taught the eye to read
+   a pair of proteins at that spacing as a pair. Scatter is a fact about
+   membranes; this is a diagram of a cycle. */
+const REST_LANE = 36;                   // the K⁺ channel, left of centre
+const REST_PUMP_X = 36;                 // and the pump, an equal step right
+const REST_SCALE = 1;                   // the transporters are drawn at size
+
+/* The pump sits at the origin on its own step and off-centre on the resting
+   one, so everything that positions cargo has to ask rather than assume. */
+let pumpX = 0;
 
 /* EACH PORE'S OWN HOLE, sized from that pore's own widest point.
 
@@ -269,14 +456,46 @@ function solveOffscreen() {
   OFFSCREEN = halfH + 26;               // clear of the edge, plus a molecule
 }
 
+/* HOW FAR UP THE FRAME THE MEMBRANE SITS, in world units.
+
+   NOT a reserve. Stage.frame() only ever solves cam.r — it never moves the
+   look-at point — so adding to reservePx makes the camera pull BACK to keep
+   the extra space in view, leaving the scene just as centred and slightly
+   smaller. Near the distance clamp it did nothing at all, which is why 300
+   looked identical to 120.
+
+   Moving the TARGET down is what raises the picture. Every word on this page
+   lives along the bottom edge and the top half is empty; this is the number
+   that fixes that. */
+const LIFT_WORLD = 26;
+
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
   rMin:50, rMax:400,
+  /* THE CEILING THAT ACTUALLY BINDS. kit/stagekit.js defaults Stage.frame's
+     `max` to 220, and that clamp runs on the solved distance — so past a
+     certain box size the camera simply stops moving and enlarging `boxes`
+     does nothing at all. rMax is the WHEEL's limit and never entered into
+     it. This is the number to raise to see more of the scene. */
+  max: 420,
   reservePx: () => ({ bottom: chromeEl.offsetHeight + 14 }),
-  boxes: () => ([{ x:0, y:0, rxz:60, hy:34 }]),
+  /* The box the camera must fit. Widened and heightened to pull back — the
+     membrane filled the frame edge to edge, which left the compartments
+     looking like strips rather than volumes, and put the tallies on top of
+     the crowd they were counting. */
+  boxes: () => ([{ x:0, y:0, rxz:220, hy:70 }]),
   frame: dt => tick(dt),
 });
 L.renderer.localClippingEnabled = true;
+
+/* Re-applied after every fit, because fit() calls applyCam() with whatever
+   target it finds — so the target has to be set again afterwards, not once at
+   startup. The resize hook covers the case nobody calls go() for. */
+function liftScene() {
+  L.cam.target.y = -LIFT_WORLD;
+  L.applyCam();
+}
+L.resized = liftScene;
 
 /* ---- callouts (annotate.js) ----
    Anchors are FUNCTIONS returning a live world point, per annotate.js's
@@ -287,10 +506,30 @@ const NOTES = Annot.create(THREE, document.getElementById('stage'), L.camera,
 const _np = new THREE.Vector3();
 /* Names ONE traveller, not a species. Three labels on three of the forty
    things on screen is a key; a label per molecule is a wall of type. */
-function noteOn(t, text, offset) {
+function noteOn(t, text, offset, card) {
   if (!t) return;
-  NOTES.add({ text, offset, at: () => t.obj.getWorldPosition(_np) });
+  NOTES.add({ text, offset, card, at: () => t.obj.getWorldPosition(_np) });
 }
+/* THE SAME CALLOUT, PINNED TO THE SCENE rather than to something moving.
+   A protein does not walk, and neither does "the top compartment" — an
+   anchor on a passing ion would read as a label for that ion. */
+function noteAt(x, y, text, offset, card) {
+  NOTES.add({ text, offset, card,
+              at: () => _np.set(x, typeof y === 'function' ? y() : y, 0) });
+}
+
+/* ---- what a caption says and what a card says ----
+   ONE IDEA IN THE CAPTION. The captions on this page used to carry the
+   whole lesson — four sentences under a stage with forty things moving on
+   it, which is a paragraph competing with an animation and losing. The
+   caption now states the claim the step exists to make, and everything
+   that used to qualify it hangs on the thing it is about, two sentences at
+   a time, behind a click.
+
+   The rule for a card is the rule for the whole page: it may only say what
+   the simulation is showing. Nothing here names a mechanism the student
+   cannot watch — that is why there is no carrier and no tonicity table in
+   these cards, even though both belong in the lesson eventually. */
 
 /* ---- the membrane ----
    TWO of them, and it is not duplication: steps 1-3 have no protein, and
@@ -314,14 +553,18 @@ const memChan = Parts.membrane({ half:HALF, reach:MEM_REACH,
                              Math.hypot(x - LANE, z) - CL_HOLE) });  // Cl⁻ pore, +x
 const memPump = Parts.membrane({ half:HALF, reach:MEM_REACH,
   exclude:(x, z) => Math.hypot(x, z) - 15.0 });
-memChan.group.visible = memPump.group.visible = false;
-L.root.add(memSolid.group, memChan.group, memPump.group);
+const memRest = Parts.membrane({ half:HALF, reach:MEM_REACH,
+  exclude:(x, z) => Math.min(Math.hypot(x + REST_LANE, z) - K_HOLE * REST_SCALE,
+                             Math.hypot(x - REST_PUMP_X, z) - 15.0 * REST_SCALE) });
+memChan.group.visible = memPump.group.visible = memRest.group.visible = false;
+L.root.add(memSolid.group, memChan.group, memPump.group, memRest.group);
 /* 'solid' | 'chan' | 'pump' — named rather than a boolean, because there
    are three sheets now and `true` cannot say which holed one. */
 let MEM = memSolid;
 function showMembrane(which) {
-  MEM = which === 'chan' ? memChan : which === 'pump' ? memPump : memSolid;
-  for (const m of [memSolid, memChan, memPump]) m.group.visible = m === MEM;
+  MEM = which === 'chan' ? memChan : which === 'pump' ? memPump
+      : which === 'rest' ? memRest : memSolid;
+  for (const m of [memSolid, memChan, memPump, memRest]) m.group.visible = m === MEM;
 }
 
 /* The cut belongs to the steps with a protein in them, and only those.
@@ -336,7 +579,7 @@ function setCut(on) {
   /* The sheet on stage owns the plane, and the proteins borrow ITS plane —
      each membrane made its own, and clipping a protein against a hidden
      sheet's plane is a cut that does not match the one on screen. */
-  for (const m of [memSolid, memChan, memPump]) m.cut.enable(on && m === MEM);
+  for (const m of [memSolid, memChan, memPump, memRest]) m.cut.enable(on && m === MEM);
   for (const P of [CHANNEL, CLCHAN, PUMP]) {
     P.mesh.material.clippingPlanes = on ? [MEM.cut.plane] : [];
     P.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
@@ -395,17 +638,44 @@ const CLCHAN  = Parts.transporter({ half:HALF, site:7.2, mouth:8.0,
                                     color:0xb58a4f });
 CHANNEL.group.position.x = -LANE;
 CLCHAN.group.position.x  =  LANE;
-const PUMP    = Parts.transporter({ half:HALF });
+/* THE PUMP IS GREEN, EVERYWHERE. It used to be the channel's blue, which is
+   the one colour on this page that already means "a hole ions go through" —
+   and on the resting step the two stand in the same sheet, where a student
+   has to tell them apart at a glance before anything else makes sense.
+
+   Green because the alternatives are taken: blue is a channel, tan is the
+   chloride channel, gold is potassium, salmon is the lipid head, lilac is
+   ATP and the impermeant anions. Colour is doing identification work on this
+   page, so a new object has to earn a free one. */
+const PUMP    = Parts.transporter({ half:HALF, color:0x4f9e78 });
 CHANNEL.group.visible = CLCHAN.group.visible = PUMP.group.visible = false;
 L.root.add(CHANNEL.group, CLCHAN.group, PUMP.group);
 let T = PUMP;                                   // whichever is on stage
+/* 'rest' is the only mode with TWO KINDS of protein on stage at once — a
+   channel and a pump, which is what a cell actually has. The channel slides
+   to its own lane there, because the pump owns the origin. */
 function showProtein(which) {
+  if (which === 'rest') {
+    CHANNEL.group.position.x = -REST_LANE;
+    PUMP.group.position.x = pumpX = REST_PUMP_X;
+    CHANNEL.group.visible = PUMP.group.visible = true;
+    CLCHAN.group.visible = false;
+    CHANNEL.setGates(1, 1);             // a channel is a hole: always open
+    T = PUMP;                           // the cycle drives this one
+    PORES = PORES_REST;
+    return;
+  }
+  CHANNEL.group.position.x = -LANE;
+  PUMP.group.position.x = pumpX = 0;
   /* The channel step shows BOTH pores; the pump step shows one. `which`
      names the subject, and the chloride pore rides with the potassium one
      because they are one exhibit. */
   CHANNEL.group.visible = CLCHAN.group.visible = which === CHANNEL;
   PUMP.group.visible    = which === PUMP;
   if (which) T = which;
+  /* The solid-body list follows the subject, so a step cannot leave the
+     previous step's walls standing where its own protein is not. */
+  PORES = which === PUMP ? PORES_PUMP : PORES_CHAN;
 }
 
 /* ---------------------------------------------------------------------
@@ -494,6 +764,20 @@ function chargedIon(kind) {
    That is the entire point: the number on screen says FREE water, and the
    water that is missing from it is visibly stuck to the salt. */
 const OCTA = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+/* Ion-to-shell-water distance, and the outer radius of the whole hydrated
+   complex. Both are derived from the same numbers hydrate() builds with,
+   so a change to the shell cannot leave the collision radius behind. */
+const rO_ = () => MolLib.PALETTE.radii.O * (EXAG / SCALE);
+const shellDist = kind => (ionRadius(kind) + rO_()) * (kind === 'CL' ? 1.32 : 1.02);
+/* WHAT IT TAKES UP ON SCREEN, which is what spacing has to match. The
+   shell array survives the toggle — the waters are only made invisible —
+   so this used to return the hydrated radius for an ion drawn bare, and
+   the file stood at shell spacing around ions the student could see were
+   three times smaller. `shellsOn` is part of the answer for that reason. */
+const bulkRadius = t => t.kind === 'A' ? ionRadius('CL') * 1.15
+  : shellsOn && t.obj.userData.shell && t.obj.userData.shell.length
+  ? shellDist(t.kind) + rO_()
+  : (ELEMENT_OF[t.kind] ? ionRadius(t.kind) : 3);
 const _wq = new THREE.Quaternion();
 const _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
 function hydrate(group, kind) {
@@ -510,7 +794,7 @@ function hydrate(group, kind) {
   /* Contact for the cation, a hydrogen's width further for the anion —
      water-lab measures 2.7 Å and 3.6 Å for the same two shells, and the
      ratio is what a student can read off the picture. */
-  const d = (rIon + rO) * (kind === 'CL' ? 1.32 : 1.02);
+  const d = shellDist(kind);
 
   /* THE CHARGE BADGE STAYS ON THE ION, and is drawn OVER the shell. A
      hydrated ion with no sign says the water NEUTRALISED it, which is the
@@ -578,7 +862,13 @@ function hydrate(group, kind) {
    is the fact the whole step turns on and which a screenful of six-water
    cages hides. Dressed, it shows why that smaller ion still cannot get in.
    Neither view teaches it alone; the toggle is the comparison. */
-let shellsOn = true;
+/* BOTH OFF BY DEFAULT. The step opens on the plain claim — two pores, each
+   passing its own ion down its own gradient until the gradient is spent —
+   and the student turns on the complications one at a time. Shells first
+   explain why an ion fits; the potential then explains why the flow stops
+   early and leaves the gradient standing. Starting with both on meant
+   arriving at the finished argument with no memory of the simple one. */
+let shellsOn = false;
 
 const shedding = [];                     // waters in flight, with a life left
 
@@ -636,6 +926,30 @@ function setShells(on) {
   shellsBox.checked = on;
 }
 shellsBox.addEventListener('change', () => setShells(shellsBox.checked));
+pumpBox.addEventListener('change', () => {
+  pumpOn = pumpBox.checked;
+  /* A turn already under way is allowed to finish. Freezing a pump
+     mid-conformation would leave it open at both ends, which is the one
+     thing membrane/pump.js exists to make impossible. */
+});
+
+voltBox.addEventListener('change', () => {
+  voltOn = voltBox.checked;
+  /* THE WHOLE STEP RESTARTS. The two modes are two different runs of the
+     same experiment, and the interesting thing about them is where each
+     one STOPS — so flipping the switch mid-run left the student comparing
+     a fresh answer against a spent scene. From the top, both times, and
+     the comparison is between two endings rather than an ending and
+     whatever was left lying around.
+
+     It also settles what the voltage should read on arrival: the ions are
+     back where they started, so there is no history for it to contradict.
+     (An earlier version reset only the counter, which produced the worse
+     of both — a scene where K⁺ had visibly left, reading 0 mV.) */
+  STEPS[cur].enter();
+  solveOffscreen();
+  STEPS[cur].enter();
+});
 
 function tickShells(dt) {
   /* In flight: drift out, shrink away, gone. Shrinking rather than fading
@@ -661,6 +975,33 @@ function tickShells(dt) {
   }
 }
 
+/* ---- the impermeant anions ----
+   THE REASON THE INSIDE IS NEGATIVE IN THE FIRST PLACE. A cell's potassium
+   is balanced by anions that cannot leave — protein side chains, phosphates,
+   nucleic acids — and they are why the cytosol can hold a great deal of K⁺
+   without being wildly positive, and why a cell swells when its pump stops.
+
+   Drawn as one plain object rather than a modelled molecule: at this scale a
+   protein is a shape nothing can read, and the only property that matters
+   here is that it carries a minus sign and never goes anywhere. Big, dull
+   and slow, so it reads as furniture rather than as a fourth ion in play. */
+function makeAnion() {
+  const g = new THREE.Group();
+  /* Smaller than they were. At 1.9x a chloride they were the biggest objects
+     on stage and read as the subject; these are scenery — the reason the
+     cytosol can hold its K⁺ without being wildly positive — and scenery
+     should not out-weigh the ions doing the work. */
+  const r = ionRadius('CL') * 1.15;
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14),
+                       Parts.flat(0x8f7fae)));
+  const b = kit.charge('−', '#8f7fae', 'Cl', (EXAG / SCALE) * 2);
+  b.userData.base.multiplyScalar((EXAG / SCALE) * 1.6);
+  b.userData.lift *= (EXAG / SCALE) * 1.6;
+  b.position.copy(b.userData.base);
+  g.add(b);
+  return g;
+}
+
 function smallMolecule(name) {
   const spec = MolLib.MOLECULES[name];
   if (!spec) throw new Error('membrane-lab: no spec named ' + name);
@@ -677,17 +1018,23 @@ function smallMolecule(name) {
 const travellers = [];
 function traveller(kind, opts) {
   const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
-  const obj = (kind === 'NA' || kind === 'K' || kind === 'CL')
+  const obj = kind === 'A' ? makeAnion()
+    : (kind === 'NA' || kind === 'K' || kind === 'CL')
     ? chargedIon(kind) : smallMolecule(kind);
   if (o.shell) hydrate(obj, kind);
   obj.position.set(o.x, o.y, o.z);
   L.root.add(obj);
   const t = Object.assign({ kind, obj }, o);
-  /* BLOCKED IMPLIES BOUNDED, always. A traveller that cannot cross the
+  /* BLOCKED IMPLIES BOUNDED at birth. A traveller that cannot cross the
      bilayer must also not leave the frame and come back — that is the same
      escape by a different door, and step 3's whole claim is that solute
-     stays put. Enforced here rather than at each spawn, because it was
-     spelled out four times and one of them forgot. */
+     stays put.
+
+     ONE EXCEPTION, set later and deliberately: a CONDUCTING ion in the
+     simplified mode is un-bounded so it wraps back upstream after a
+     transit. It still cannot cross the lipid — the head-group bounce is
+     what enforces that — it just recycles instead of piling up on the far
+     side, because with no voltage there is nothing for a pile to mean. */
   if (t.blocked) t.bounded = true;
   /* Every traveller tumbles on its OWN axis at its OWN rate. One shared
      spin made a screenful of water rotate in lockstep, which reads as a
@@ -740,19 +1087,575 @@ const CHANNEL_KEEPOUT = 26;
    either one. The narrow strip BETWEEN the two is excluded as well: an ion
    sitting there looks like it is choosing. */
 function rndClear(span) {
-  const x = rnd(LANE + CHANNEL_KEEPOUT, span);
+  /* CLEAR OF EACH PORE, not of everything inside the outermost one.
+
+     It used to reserve the whole band from the origin out to the furthest
+     protein plus a margin, which works only while the pores sit close to the
+     middle: move them apart and the reserved band swallows the entire stage,
+     leaving rnd() an inverted range and the step with nowhere to put an ion.
+     It also emptied the lipid BETWEEN two proteins, which is ordinary
+     membrane and should have a crowd on it like anywhere else.
+
+     Rejection sampling, with the old rule as the fallback so a pathological
+     layout still returns something rather than looping. */
+  for (let i = 0; i < 24; i++) {
+    const x = rnd(-span, span);
+    if (PORES.every(P => Math.abs(x - P.x) >= CHANNEL_KEEPOUT)) return x;
+  }
+  const edge = PORES.reduce((m, P) => Math.max(m, Math.abs(P.x)), 0) + CHANNEL_KEEPOUT;
+  const x = rnd(Math.min(edge, span * 0.9), span);
   return Math.random() < .5 ? -x : x;
 }
 /* Distance from the nearer pore's axis — the test lateral() applies so a
    walker cannot drift into a lane it was spawned clear of. */
-const laneGap = x => Math.min(Math.abs(x - LANE), Math.abs(x + LANE));
+/* Distance from the nearest pore's axis, whichever pores are on stage —
+   the test lateral() applies so a walker cannot drift into one it was
+   spawned clear of. */
+const laneGap = x => PORES.reduce((m, P) => Math.min(m, Math.abs(x - P.x)), Infinity);
 
-/* Ions in single file do not touch. They are all +1, so they repel — and
-   in a real K⁺ channel they queue with a water molecule between each pair,
-   which is roughly this gap. Spawning them spaced is not enough on its own:
-   any drift in speed closes the line up over a few seconds, so a cheap
-   relaxation pass keeps it open. Positions only, no forces — this is a
-   spacing rule, not a physics claim. */
+/* ---- getting INTO a pore ----
+   NOTHING QUEUES IN SOLUTION. The file used to be spawned pre-formed and
+   stretching off the top of the frame, so a permanent conga line stood
+   waiting in the bulk — which is not a thing that happens. Ions in solution
+   are randomly placed and arrive at a pore by diffusion; single file exists
+   only INSIDE the filter, which is about four sites long.
+
+   So a conducting ion is an ordinary walker until it wanders within reach
+   of its own pore's mouth, at which point it is captured into the file. It
+   is released back into the solution at whichever end it leaves by, and it
+   can be captured again afterwards, from either face — which is what makes
+   the two-way traffic at equilibrium real rather than staged.
+
+   `conducts` names the pore an ion is allowed into: a K⁺ is not captured by
+   the chloride channel, and that refusal is the step's whole subject. */
+/* THE MOUTH PULLS. Left to blind diffusion an ion almost never finds a
+   pore in the seconds a student is watching — the target is a few Ångström
+   across in a compartment hundreds wide, and the step showed two channels
+   passing nothing.
+
+   The pull is not a cheat. A channel's vestibule is lined with acidic
+   residues and presents an attractive electrostatic well to a cation: real
+   capture is funnelled, and measured conduction rates are near the
+   diffusion limit BECAUSE of it. What is staged is the strength, which is
+   set so a transit happens every few seconds rather than every few hours.
+
+   It steers, it does not teleport: the ion keeps walking and the funnel
+   biases where it walks, so an ion can still wander off and come back. */
+/* REACH MOST OF THE COMPARTMENT. At 70 against a stage ±187 wide, an ion
+   that wandered past the funnel's edge felt nothing at all and random-
+   walked out there indefinitely — the "stuck in a corner" that made the
+   pores look shut. The bias fades linearly to zero at the rim, so a distant
+   ion is nudged rather than dragged, and the walk still dominates nearby. */
+const SEEK_PULL = 0.7;                  // a refused ion is drawn in a little less
+const FUNNEL_R = 170;                   // how far the vestibule reaches
+/* THE KNOB, if the mouths still crowd: lower it. It is what decides how
+   hard an ion in the bulk is steered, and everything else about the
+   approach follows from it. ESCAPE_R is the second knob: how far a just-
+   exited ion must get before the funnel can see it again. Raise that one if
+   the mouths crowd; lower FUNNEL_PULL if the approach looks too purposeful.
+   The two are not interchangeable — one governs leaving, one arriving. */
+const FUNNEL_PULL = 16;                 // steering strength, stage-timed
+
+/* WHICH SIDE EACH ION STARTS ON. K⁺ is the inside ion, Cl⁻ the outside
+   one — that is the whole of the gradient, and with the potential off it
+   is the only thing driving anything. No rule reads this any more; the
+   spawns do, and the flow falls out of where the ions actually are. */
+const SOURCE_SIDE = { K:-1, CL:1 };
+const _fv = new THREE.Vector3();
+/* How far from the mouth counts as "out in the bulk". */
+const ESCAPE_R = 78;
+function funnel(t, dt) {
+  /* IMMUNE UNTIL IT HAS ACTUALLY GOT AWAY, measured as distance and not as
+     a timer. A 1.1 s cooldown expired while the ion was still beside the
+     mouth it had just left — where the funnel is at nearly full strength —
+     so it was dragged straight back and hovered there, unable to enter
+     because the pore was busy. That hovering is the cluster at the
+     openings. Distance says the thing the timer was trying to say: an ion
+     that has cleared the vestibule is out in the solution, where the
+     pore's pull is one weak influence among many. */
+  if (t.exitPt) {
+    const dx = t.x - t.exitPt.x, dy = t.y - t.exitPt.y, dz = t.z - t.exitPt.z;
+    if (Math.hypot(dx, dy, dz) < ESCAPE_R) return;
+    t.exitPt = null;
+  }
+  /* No side rule any more: both faces admit, so both faces attract. An
+     attraction leading somewhere the ion cannot go would be a trap, and
+     that is what this was when the door was one-way. */
+  if (!mayEnter(t)) return;             // the door is shut: do not gather at it
+  /* A SEEKER IS DRAWN IN AND REFUSED, which is the honest way to draw an
+     ion that does not get through. Na⁺ is a cation, so a K⁺ channel's
+     acidic vestibule attracts it exactly as it attracts potassium, and it
+     samples the filter constantly — millions of times a second — and fails
+     every time. Held at a keepout radius instead, the ion this step calls
+     turned-away was never seen near a channel at all.
+
+     `seeks` is "attracted to the nearest pore"; `conducts` is "admitted by
+     that one". Everything else about the motion is the ordinary walk. */
+  const target = t.conducts != null ? t.conducts
+               : t.seeks ? (Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE)
+               : null;
+  if (t.lane == null && target != null) {
+    const side = Math.sign(t.y) || 1;
+    /* Aim at the mouth on the ion's OWN side. Aiming at the pore's centre
+       would steer it into the wall from anywhere off-axis. */
+    _fv.set(target - t.x, side * T.height * 0.85 - t.y, -t.z);
+    const d = _fv.length();
+    if (d > 0.001 && d < FUNNEL_R) {
+      _fv.multiplyScalar(1 / d);
+      const k = FUNNEL_PULL * (t.seeks ? SEEK_PULL : 1) * (1 - d / FUNNEL_R) * dt;
+      t.vx += _fv.x * k; t.vy += _fv.y * k; t.vz += _fv.z * k;
+      /* Held to its own walking speed: the funnel changes where it goes,
+         never how fast a thermal walker moves. */
+      const sp = (t.speed || WALK_SPEED)[1];
+      const v = Math.hypot(t.vx, t.vy, t.vz);
+      if (v > sp) { const s = sp / v; t.vx *= s; t.vy *= s; t.vz *= s; }
+    }
+  }
+}
+
+/* ONLY THE CROWDED SIDE MAY SEND, in the simplified mode.
+
+   Left alone, the flow overshot: every ion of a species ended up on one
+   side. Real diffusion stops at equal concentrations because the return
+   rate climbs as the far side fills, and this model suppresses the return
+   — a just-exited ion is deaf to the funnel until ESCAPE_R away, and a
+   pore takes one direction at a time — so nothing rose to balance it.
+
+   Stating it directly: an ion is admitted only from the side that has more
+   of its kind. Net flow therefore runs down the gradient and halts at
+   equality on its own, with no counter to keep in step with the scene and
+   no way to overshoot even if one wanders back. Equal is within one,
+   because the populations are odd.
+
+   The potential mode does not use this — there the voltage stops the flow
+   first, and stopping it twice would hide which one did it. */
+function crowdedSide(kind) {
+  let inside = 0, outside = 0;
+  for (const t of travellers) {
+    if (t.kind !== kind) continue;
+    if (t.y >= 0) outside++; else inside++;
+  }
+  if (Math.abs(outside - inside) <= 1) return 0;      // level: nobody sends
+  return outside > inside ? 1 : -1;
+}
+
+/* ONE PREDICATE FOR THE DOOR AND THE PULL. Whenever these two disagree the
+   result is the same picture: ions dragged to a mouth that will not open,
+   hovering there in a knot. It happened first when the door was one-way and
+   the funnel was not, and again the moment the crowded-side rule landed —
+   at 14/14 nothing could enter, and the funnel went on gathering chloride
+   at the doorstep anyway.
+
+   So admission is asked once, and anything that attracts an ion asks the
+   same question. An attraction leading somewhere the ion cannot go is not a
+   funnel, it is a trap. */
+const mayEnter = t => t.seeks ? true       // it may approach; the filter says no
+                    : potentialOn() || Math.sign(t.y) === crowdedSide(t.kind);
+
+/* TURNED BACK AT THE FILTER. Pushed out along the axis it arrived on and
+   made deaf to the funnel until it is ESCAPE_R away — the same rule a
+   crossed ion gets, and for the same reason: without it the refused ion is
+   re-gathered on the next frame and hovers in the mouth forever.
+
+   No dwell and no scripted path. An earlier version steered a sodium to
+   the door, held it there and sent it away, and it read as an animation
+   interrupting the traffic rather than as an ion failing a test. This one
+   arrives by walking and leaves by walking; the only thing added is the
+   turn. */
+function refuseAt(t, lane) {
+  const away = Math.sign(t.y) || 1;
+  const sp = (t.speed || WALK_SPEED)[1];
+  t.exitPt = { x:t.x, y:t.y, z:t.z };
+  t.vy = Math.abs(t.vy) * away + away * sp;
+  /* Nudged off the axis as well, so it does not reverse straight back down
+     the line it came up and meet the next arrival head-on. */
+  t.vx = (t.x >= lane ? 1 : -1) * sp * 0.5;
+}
+
+const CAPTURE_R = 13;                   // how near the axis counts as "at the mouth"
+function tryCapture(t) {
+  if (t.lane != null) return false;
+  /* A SEEKER GETS AS FAR AS THE VESTIBULE AND NO FURTHER. Same band the
+     admitted ions are captured in — so the refusal happens exactly where
+     the acceptance would have, which is the filter. */
+  if (t.conducts == null) {
+    if (!t.seeks || t.exitPt) return false;
+    const lane = Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE;
+    const ay = Math.abs(t.y);
+    if (Math.abs(t.x - lane) > CAPTURE_R || Math.abs(t.z) > CAPTURE_R) return false;
+    if (ay > T.height * 0.99 || ay < T.height * 0.7) return false;
+    refuseAt(t, lane);
+    return false;
+  }
+  if (t.exitPt) return false;           // just came out; let it clear the mouth
+  /* BOTH FACES ADMIT, ALWAYS. Restricting the simplified mode to the
+     upstream face made the flow one-way by fiat — the gradient could never
+     run out, because nothing was allowed to come back. Now both sides can
+     enter and the asymmetry is a matter of how many ions each side has to
+     offer, which is what a concentration gradient IS. */
+  const lane = t.conducts;
+  if (Math.abs(t.x - lane) > CAPTURE_R) return false;
+  if (Math.abs(t.z) > CAPTURE_R) return false;
+  /* Only at a mouth, not anywhere along the flank: the vestibule is the
+     way in and the wall is not.
+
+     The upper bound is T.height exactly, and it has to be. tickQueue()
+     releases anything beyond that as "out in the bulk", so a capture band
+     reaching past the protein's own end captured an ion and dropped it on
+     the same frame — the pores looked open and passed nothing. */
+  const ay = Math.abs(t.y);
+  if (ay > T.height * 0.99 || ay < T.height * 0.7) return false;
+
+  /* A PORE TAKES ONE FILE, GOING ONE WAY. Both faces admit, so two ions
+     could enter the same lumen from opposite ends — and then each was
+     "ahead" of the other and each waited for the other to move. That is a
+     deadlock, and it is what froze the queues solid: a stalled clump
+     inside a channel that never cleared.
+
+     It is also just true. A single-file pore cannot have two ions passing
+     each other, so an ion is admitted only if the lumen is empty or its
+     current traffic is going the way this one would. */
+  if (!mayEnter(t)) return false;       // down the gradient, while there is one
+  const want = -Math.sign(t.y);
+  const inLane = travellers.filter(o => o.lane === lane);
+  if (inLane.some(o => Math.sign(o.vy) !== want)) return false;
+
+  /* And only if there is ROOM at the door. Nothing checked occupancy, so
+     the funnel delivered three at once and they stacked in the mouth. */
+  const gap = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
+  if (inLane.some(o => Math.abs(o.y - t.y) < gap)) return false;
+
+  t.lane = lane;
+  t.x = lane; t.z = 0;
+  t.vy = -Math.sign(t.y) * 11;          // inward from the face it arrived at
+  t.obj.position.set(t.x, t.y, t.z);
+  return true;
+}
+
+/* ---- conduction is a HOP, not a conveyor ----
+   The queue used to travel at one constant speed in a straight line, which
+   draws an escalator: something carrying ions along. A channel carries
+   nothing. An ion sits in a filter site, held there, until another arrives
+   behind it and two +1 charges in one narrow file cannot both stay — the
+   leading one is pushed out. That is knock-on conduction, and it is why a
+   channel can hold each ion briefly and still pass millions a second.
+
+   Modelled as dwell-then-hop: inside the protein an ion holds position for
+   a short random wait, then crosses one site quickly. Outside it swims.
+   The wait is drawn per hop, so the file breathes instead of ticking, and
+   no two ions end up synchronised.
+
+   WHAT THIS IS NOT: a force model. The push is not computed from charge —
+   the wait simply shortens when something is close behind, which is the
+   same thing to watch and does not pretend to a number nobody measured. */
+/* ---- the membrane potential ----
+   THE LEAK BUILDS THE THING THAT STOPS IT. Without this the step said a
+   channel is a hole that conducts until you change tabs. Every K⁺ that
+   leaves carries a positive charge out and leaves an unbalanced negative
+   one behind; the interior goes negative; that negative interior pulls K⁺
+   back. The efflux slows and halts at potassium's equilibrium potential.
+   Nothing closed — the current used up its own reason to flow.
+
+   Cl⁻ coming IN does the same to the voltage: a negative charge arriving
+   inside is the same sign of change as a positive one leaving. Both of
+   these currents hyperpolarise, which is why a resting cell sits near both
+   their equilibrium potentials.
+
+   NUMBERS THAT ARE REAL: E_K ≈ −90 mV and E_Cl ≈ −75 mV, the Nernst
+   potentials of the gradients this page has already drawn. NUMBER THAT IS
+   NOT: mV per ion. A real membrane needs ~1e−12 mol/cm² of net charge for
+   100 mV — millions of ions, against a handful on stage — so MV_PER_ION is
+   chosen to land the effect in the seconds a student is watching, and it
+   is the one stage direction here. It is also the honest shape of the
+   fact: the potential is made by an imbalance far too small to see by
+   counting, which is why the skins are drawn and the ions are not. */
+/* THE POTENTIAL IS A TOGGLE, and turning it off is not just hiding a
+   readout — it removes the feedback. Off, the pores conduct forever at full
+   drive, which is the naive picture of a channel the step starts from and
+   the one most students arrive with. On, the leak builds the voltage that
+   stops it. Flipping between the two IS the lesson: the same open pore,
+   the same gradient, and a completely different outcome once the charge it
+   moves is allowed to matter. */
+let voltOn = false;
+/* IS THE VOLTAGE IN PLAY THIS STEP? The resting step forces it on — a cell at
+   rest has one by definition, and the leak self-limiting against it is what
+   lets the pump and the channel balance at all. It used to do that by writing
+   `voltOn = true` in enter(), which quietly overwrote the choice the student
+   made on the channel step: switch it off there, look at the resting cell,
+   come back and it was on again. A step may decide what applies to ITSELF; it
+   may not edit a control belonging to another one. */
+const potentialOn = () =>
+  voltOn || (STEPS[cur] && STEPS[cur].id === 'rest');
+
+const E_K = -90, E_CL = -75;             // mV, equilibrium potentials
+/* SMALL ENOUGH THAT THE APPROACH IS THE SHOW. At −7.5 it took twelve net
+   transits to reach −90 mV — a couple of seconds — so the student arrived
+   after equilibrium and saw nothing but coin-flip traffic, which looks
+   like a channel that cannot make up its mind. At −1.5 it takes about
+   sixty, and the run has a visible arc: hard one-way, then hesitant, then
+   balanced. The arc IS the lesson; the resting value is just where it
+   stops. */
+/* SIZED SO THE RESTING POTENTIAL IS REACHABLE. The balance lands near
+   −80 mV, and at −1.5 the whole cast crossing once bought only −66 — so
+   the run could not get there however long it ran, and stalled when the
+   ions ran out. At −2.5 it takes 32 net transits of the 44 available, so
+   the membrane arrives at rest with a quarter of the cast still to spare,
+   which is the headroom the reverse current needs to hold it there.
+
+   Retune this together with the ion counts: they set the ceiling
+   (transits × mV per ion), and the balance point comes from the Nernst
+   values and does not move when either changes. */
+const MV_PER_ION = -2.5;                 // stage timing, not a measurement
+let mV = 0, chargeOut = 0;
+/* HOW HARD THE WHOLE MEMBRANE IS STILL BEING PUSHED, and which way.
+
+   Read off the drives rather than off the traffic. Two earlier tests tried
+   to infer equilibrium from transits — the voltage holding still, then the
+   signed and unsigned transit rates — and both failed for the same reason:
+   at half a transit a second the statistics are far too thin. Simulated,
+   every threshold that caught a real balance also fired on a one-way flow
+   a quarter of the time, purely from Poisson luck in the gaps.
+
+   The drives have no noise in them. Each ion's push is a number, and the
+   membrane is at rest when the pushes cancel — weighted by how many ions
+   of each kind there are, which is this page's stand-in for conductance
+   and is why the balance point moves if the populations do. */
+function netPush() {
+  let nK = 0, nCl = 0;
+  for (const t of travellers) {
+    if (t.conducts == null) continue;
+    if (t.kind === 'K') nK++; else if (t.kind === 'CL') nCl++;
+  }
+  const n = nK + nCl;
+  return n ? (drive('K') * nK + drive('CL') * nCl) / n : 0;
+}
+/* COUNTED SEPARATELY, because they run opposite ways. One total with one
+   arrow on it would be false whichever way the arrow pointed: this number
+   is two currents, K⁺ leaving and Cl⁻ arriving, that happen to push the
+   voltage the same way. */
+const crossed = { K:0, CL:0 };
+/* NERNST FROM THE LIVE COUNTS, on the resting step only.
+
+   E_K is a constant on the channel step and that is fine there: it runs for
+   a minute and the gradient it spends is the one it started with. Here the
+   pump is actively rebuilding the gradient, so a fixed equilibrium would
+   make the leak chase a target that never moves — the two would never
+   balance, and the steady state the step exists to show could not happen.
+   Reading it off the counts is both the honest version and the one that
+   settles: as the pump restores K⁺ inside, E_K goes more negative and the
+   leak strengthens; as the leak wins, E_K rises and the leak weakens. */
+function nernst(kind) {
+  let inside = 0, outside = 0;
+  for (const t of travellers) {
+    if (t.kind !== kind) continue;
+    if (t.y >= 0) outside++; else inside++;
+  }
+  const z = kind === 'CL' ? -1 : 1;
+  return (61 / z) * Math.log10((outside + 0.5) / (inside + 0.5));
+}
+const equilibriumOf = kind =>
+  (STEPS[cur] && STEPS[cur].id === 'rest') ? nernst(kind)
+  : kind === 'CL' ? E_CL : E_K;
+/* How hard this ion is still being pushed — 0 at its own equilibrium. The
+   pore is as open as it ever was; what has run out is the gradient. */
+/* With the potential OFF the pore does not push at all: every hop is a
+   coin flip, and the net flow comes from the CAPTURE RATE instead — the
+   crowded side simply delivers more ions to the mouth. That is diffusion,
+   emergent rather than scripted, and it is the same argument the osmosis
+   step makes about water. It also ends correctly on its own: once the two
+   sides hold equal numbers they deliver equally, and the net stops without
+   anything being switched off. */
+/* SIGNED. Positive means the gradient still wins and the ion runs the way
+   it started; negative means the VOLTAGE has overshot this ion's own
+   equilibrium and now drives it back the other way.
+
+   It used to be clamped at zero, so every current was one-directional and
+   the voltage could only ever fall — the run ended parked at E_K with both
+   pores idle, which is not a resting cell. At −90 the membrane is already
+   past chloride's −75, so the electrical force on Cl⁻ beats its
+   concentration force and it flows back OUT, depolarising. Potassium pulls
+   down, chloride pushes up, and the cell settles where the two currents
+   cancel: between the two equilibria, nearer whichever ion moves more
+   freely. That is the Goldman result, and it now EMERGES from the same
+   coin-flip machinery instead of being imposed by a clamp. */
+const drive = kind => !potentialOn() ? 0
+  : (mV - equilibriumOf(kind)) / -equilibriumOf(kind);
+
+/* `crowd` is the KNOCK-ON, and it has to be a big enough cut to see. It was
+   0.35 against a 0.10–0.30 wait — a knocked-on ion waited 0.19 s on average
+   against 0.20 s unpushed, so the mechanism the whole model is named after
+   did nothing at all. At 0.06 the pushed ion leaves in roughly a fifth of
+   the time, which is what the arrival of a second ion is FOR: two +1
+   charges in one narrow file cannot both stay, and the leading one goes. */
+const HOP = { wait:[0.10, 0.30], move:0.10, crowd:0.06 };
+function tickQueue(t, dt) {
+  if (Math.abs(t.y) > T.height) {
+    /* Counted ONCE, leaving the far mouth: a completed transit is one
+       charge moved across, and that is what the voltage is made of.
+       Floored at the most negative equilibrium on stage rather than the
+       crossing ion's own — clamping to the crosser's E would let a late
+       Cl⁻ drag the voltage back up to −75 after potassium had taken it
+       past, which is a current running backwards up its own gradient.
+       Each ion stopping at its own equilibrium is drive()'s job. */
+    /* SIGNED, AND BY WHICH SIDE IT CAME OUT — not by which way it happened
+       to be pointing. A K⁺ leaving at the top took positive charge out of
+       the cell (+1); the same ion coming back in at the bottom brought it
+       back (−1). Cl⁻ is the mirror: arriving inside hyperpolarises (+1),
+       leaving again undoes it. Reading the sign off the ion's own velocity
+       made an ion captured on the outer face count as a hyperpolarising
+       transit while it was doing the exact opposite. */
+    /* COUNTED ALWAYS, APPLIED ONLY WHEN ASKED. Transits used to be counted
+       only with the potential on, and enabling it reset the tally — so a
+       scene where four K⁺ had visibly left read 0 mV, which is a flat
+       contradiction: if charge crossed, there is a potential. The charge
+       that moved is a fact about the scene, not about which switch is on.
+       What the switch decides is whether that charge pushes back, which is
+       drive()'s job and nothing to do with counting. */
+    if (t.inPore) {
+      const q = (t.kind === 'CL' ? -1 : 1) * Math.sign(t.y);
+      chargeOut += q;
+      crossed[t.kind] = (crossed[t.kind] || 0) + q;
+      mV = Math.min(0, Math.max(Math.min(E_K, E_CL), MV_PER_ION * chargeOut));
+    }
+    /* RELEASED INTO THE SOLUTION. It is not a queue member any more — it
+       swims off, and it can be captured again later, from either face. */
+    t.inPore = false; t.hop = null; t.lane = null;
+    /* In the simplified mode it goes back round: released on the far side
+       it would sit there, its own source compartment would empty, and the
+       one-way flow would run itself dry within a few seconds. Wrapping at
+       the frame edge returns it upstream — the same recycling the very
+       first version of this step used, and the reason it could run all
+       day. With the potential on it stays put, because where the ions
+       ACCUMULATE is the whole mechanism. */
+    /* IT STAYS WHERE IT LANDS, in both modes. The simplified mode used to
+       wrap a crossed ion back upstream so the flow could run all day —
+       which taught that a gradient never runs out. It does: with the
+       potential off this now settles at equal counts either side, and with
+       it on it stops far earlier and LEAVES the gradient standing, which
+       is the difference between the two modes and the reason a cell can
+       spend one later. */
+    t.bounded = true;
+    /* LEAVES WITH SOMEWHERE TO GO. repick() draws an isotropic direction,
+       so half of every arriving ion turned straight back at the pore it had
+       just come out of — and the funnel dragged the other half back too.
+       They piled up in the mouth.
+
+       So it exits along the axis it was travelling, and is deaf to the
+       funnel for a moment afterwards. Both are the same physical fact: an
+       ion that has cleared the vestibule is out in the bulk, where the
+       pore's attraction is one weak influence among many rather than the
+       only thing acting on it. Re-entry still happens — that is how the
+       two-way traffic at equilibrium works — it just does not happen on
+       the frame it left. */
+    if (t.walk) {
+      repick(t);
+      const sp = (t.speed || WALK_SPEED)[1];
+      const away = Math.sign(t.y) || 1;
+      t.vy = Math.abs(t.vy) * away + away * sp;         // pushed clear, outward
+      /* Where it came out. It ignores the funnel until it is ESCAPE_R from
+         here — see funnel(). */
+      t.exitPt = { x:t.x, y:t.y, z:t.z };
+    }
+    return false;                                                 // out in the bulk
+  }
+  t.inPore = true;
+  /* AT EQUILIBRIUM THE FILE KEEPS MOVING — it just stops getting anywhere.
+
+     This used to freeze every ion where it stood, which left them parked
+     inside the pore: a stopped ion in an open channel says the channel
+     shut, and the tally beside it says "no NET flow". Both cannot be
+     right, and the tally is the one that is.
+
+     So the drive sets the ODDS, not the speed. Each hop picks a direction
+     with p(forward) = ½ + ½·push: at full drive every hop goes forward, at
+     equilibrium it is a coin flip, and net flux comes out proportional to
+     driving force — which is the actual relationship, not a stand-in for
+     it. A K⁺ at rest still enters and leaves the filter constantly; it
+     simply leaves as often as it arrives. */
+  const push = drive(t.kind);
+  if (!t.hop) t.hop = { wait: rnd(HOP.wait[0], HOP.wait[1]), t:0, moving:false };
+  const h = t.hop;
+  h.t += dt;
+  if (!h.moving) {
+    if (h.t < h.wait) { t.obj.position.y = t.y; return true; }    // held at its site
+    /* Its turn has come round, but the site ahead is occupied — so it
+       waits, which is what a queue is. Nothing is displaced. */
+    const gap = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
+    if (queueAhead(t) < gap) { t.obj.position.y = t.y; return true; }
+    h.moving = true; h.t = 0;
+    /* STRAIGHT THROUGH when there is no voltage. With the potential off the
+       net flow is carried entirely by the capture rate — the crowded side
+       delivers more ions to the mouth — so a coin flip inside the filter
+       contributes nothing to the mechanism and only makes the pore look
+       like it cannot decide. In-pore direction bias earns its place only
+       when a voltage is there to oppose the flow, which is exactly when it
+       IS the mechanism. */
+    if (!potentialOn()) {
+      /* Simplified: it finishes the trip it started. */
+      h.dir = Math.sign(t.vy);
+    } else {
+      /* THE BIAS IS THE SPECIES', NOT THE TRIP'S. This used to weight the
+         coin toward the direction the ion happened to ENTER by — and since
+         both faces admit, a K⁺ captured on the outside was then pushed
+         further IN, depolarising, against the very gradient the voltage is
+         supposed to express. The two directions balanced by capture rate
+         and the run stalled around −42 mV with both ions still pushing.
+
+         Electrochemistry does not care which door an ion used. K⁺ is
+         driven OUT (+y) while the membrane sits above its equilibrium,
+         Cl⁻ IN (−y) while it sits above its own, and either reverses once
+         the voltage overshoots — which is the sign of `push`. */
+      const pref = (t.kind === 'CL' ? -1 : 1) * (push >= 0 ? 1 : -1);
+      const p = 0.5 + 0.5 * Math.min(1, Math.abs(push));
+      h.dir = Math.random() < p ? pref : -pref;
+    }
+  }
+  /* One site's worth of travel, taken fast — `step` is the file's spacing,
+     so a hop lands where the ion ahead was standing. */
+  const step = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
+  /* One speed, whichever way it goes: a hop is a hop. What the drive
+     changes is how often it goes forward, not how fast. */
+  t.y += (h.dir || Math.sign(t.vy)) * (step / HOP.move) * dt;
+  if (h.t >= HOP.move) {
+    h.moving = false; h.t = 0;
+    const behind = queueBehind(t);
+    /* The wait does NOT stretch with the drive any more. It used to divide
+       by push, which sent the wait to infinity at equilibrium — the freeze
+       by another route, and the thing that left ions parked in the pore.
+       Thermal hopping does not slow down as a gradient runs out; only the
+       share of hops that go forward does. */
+    h.wait = behind < step * 1.8 ? rnd(HOP.crowd * 0.6, HOP.crowd * 1.4)  // knocked on
+                                 : rnd(HOP.wait[0], HOP.wait[1]);
+  }
+  t.obj.position.y = t.y;
+  return true;
+}
+/* The gap to whatever is IN FRONT, along the direction of travel. A file
+   keeps its spacing by waiting its turn, not by being shoved: keepApart()
+   enforced spacing by moving ions bodily along y, which pushed the ones in
+   front BACKWARDS — visible dithering in a pore whose ions were all
+   supposed to be going one way, and occasionally an ion squeezed back out
+   of the mouth it came in by. Only ~3.7 hydrated ions fit the lumen, so
+   with the funnel delivering several at once that shoving was constant. */
+function queueAhead(t) {
+  let best = Infinity;
+  for (const o of travellers) {
+    if (o === t || o.lane !== t.lane) continue;
+    const d = (o.y - t.y) * Math.sign(t.vy);      // >0 means o is ahead of t
+    if (d > 0 && d < best) best = d;
+  }
+  return best;
+}
+function queueBehind(t) {
+  let best = Infinity;
+  for (const o of travellers) {
+    if (o === t || o.lane !== t.lane) continue;
+    const d = (t.y - o.y) * Math.sign(t.vy);      // >0 means o is behind t
+    if (d > 0 && d < best) best = d;
+  }
+  return best;
+}
+
 /* ONE number for how fast water gets through the tails, used by every step
    that lets it through. It was 1.0 in osmosis and 0.5 at the channel — the
    same molecule crossing the same bilayer at two speeds, which is a claim
@@ -763,30 +1666,29 @@ const WATER_CORE = 1.0;
    heavier than water and drags a hydration shell with it, so it is slower —
    and it needs to be visibly slower, because "the ion is stuck at the
    surface" is easier to read when the thing bouncing off is not the fastest
-   object on screen. */
-/* Raised for the isotropic walk. A direction drawn on the sphere puts only
-   part of its speed along y — the mean |cos| is 1/2 — so the same numbers
-   that gave a brisk vertical walk when vy WAS the speed halve the crossing
-   rate. Doubled, the osmosis counter behaves about as it did. */
+   object on screen.
+
+   Raised for the isotropic walk: a direction drawn on the sphere puts only
+   part of its speed along y — mean |cos| is ½ — so the numbers that gave a
+   brisk vertical walk when vy WAS the speed would halve the crossing rate. */
 const WALK_SPEED = [14, 24];       // water
 const ION_SPEED  = [8, 16];
 
+/* Ions in single file do not touch: all +1, so they repel, and in a real K⁺
+   channel they queue with a water molecule between each pair — roughly this
+   gap. It used to be enforced by keepApart(), a relaxation pass that moved
+   positions; that is gone, because pushing a file apart shoves the ions in
+   front BACKWARDS. Spacing in a pore is now an ion not hopping until the
+   site ahead is free — the same rule stated as timing rather than as
+   displacement, and it cannot send anyone the wrong way. See queueAhead().
+   The gap a PAIR needs is computed from bulkRadius(), since a hydrated ion
+   needs more room than the bare K⁺ this constant was measured off. */
 const ION_GAP = 2 * Parts.ION.K.r * Parts.ION.exaggeration + 2.6;
-function keepApart(list) {
-  const line = list.slice().sort((a, b) => a.y - b.y);
-  for (let pass = 0; pass < 3; pass++)
-    for (let i = 1; i < line.length; i++) {
-      const d = line[i].y - line[i - 1].y;
-      if (d < ION_GAP) {
-        const push = (ION_GAP - d) / 2;
-        line[i].y += push; line[i - 1].y -= push;
-      }
-    }
-  for (const t of line) t.obj.position.y = t.y;
-}
 
 /* One draw of a walker's velocity, used at spawn AND at every re-pick, so
-   the first second of a step cannot be a different motion from the rest. */
+   the first second of a step cannot be a different motion from the rest.
+   Isotropic — a direction on the sphere, not a coin flip on the sign of vy,
+   which made every molecule read as bobbing up and down in place. */
 function repick(t) {
   const sp = t.speed || WALK_SPEED;
   const v = rnd(sp[0], sp[1]);
@@ -796,10 +1698,10 @@ function repick(t) {
   t.vz = v * sr * Math.sin(ph);
 }
 
-/* Sideways drift for the walkers, reflected inside its box. The box is
-   the same one the spawn used, so a water can never wander somewhere it
-   was not allowed to start — including into the channel's column, which
-   rndClear() keeps it out of (see CHANNEL_KEEPOUT). */
+/* Sideways drift for the walkers, reflected inside its box. The box is the
+   same one the spawn used, so a water can never wander somewhere it was not
+   allowed to start — including a channel's column, which rndClear() keeps
+   it out of (see CHANNEL_KEEPOUT). */
 function lateral(t, dt) {
   /* `band` is [xmin, xmax]. Step 2 sorts the three species into columns so
      they stay tellable apart, and an unbounded drift would shuffle them
@@ -808,10 +1710,17 @@ function lateral(t, dt) {
   t.x += t.vx * dt; t.z += t.vz * dt;
   if (t.x > x1) { t.x = x1; t.vx = -t.vx; }
   if (t.x < x0) { t.x = x0; t.vx = -t.vx; }
+  /* KEEPOUT IS ABSOLUTE, and only the WATER carries it now. Every ion
+     approaches the pores — the conducting ones to go through, Na⁺ to be
+     turned back at the filter — but water in the lumen would read as a
+     third thing the channel passes, and that is step 3's lesson, not this
+     one. */
   if (t.keepout && laneGap(t.x) < t.keepout) {
     /* Pushed back out of whichever lane it wandered into, on the side it
        came from — reflecting through the pore would teleport it across. */
-    const near = Math.abs(t.x - LANE) < Math.abs(t.x + LANE) ? LANE : -LANE;
+    let near = PORES[0].x;
+    for (const P of PORES)
+      if (Math.abs(t.x - P.x) < Math.abs(t.x - near)) near = P.x;
     t.x = near + Math.sign(t.x - near || 1) * t.keepout;
     t.vx = -t.vx;
   }
@@ -820,16 +1729,166 @@ function lateral(t, dt) {
   t.obj.position.x = t.x; t.obj.position.z = t.z;
 }
 
+/* Every traveller tumbles on its own axis at its own rate — see traveller().
+   One shared spin made a screenful of water rotate in lockstep, which reads
+   as a rendered pattern rather than a jostling crowd. */
 function tumble(t, dt) {
   t.obj.rotation.x += dt * t.spin.x;
   t.obj.rotation.y += dt * t.spin.y;
   t.obj.rotation.z += dt * t.spin.z;
 }
 
+/* ---- the proteins are solid ----
+   Nothing stopped a traveller entering a transporter's WALL. Bystanders are
+   held off by `keepout`, but a conducting ion cannot have one — it has to
+   reach the mouth — so the funnel walked K⁺ and Cl⁻ straight through the
+   barrel, and an ion sat half-buried in the side of a channel.
+
+   The exclusion is an annulus, not a disc: solid from the lumen out to the
+   drawn wall, and OPEN down the middle, because the middle is the pore.
+   Radii come from the same constants the transporters are built from, so a
+   lobe retune cannot leave this behind — and the lobes are ignored on
+   purpose, since pushing an ion out to the widest point of a rippled wall
+   is the safe direction to be wrong in.
+
+   The vestibule is exempt near the mouths, and only for the species that
+   pore admits: that is the one place an ion is meant to be inside the
+   protein's outline without being in the file yet. */
+/* WHICH PROTEINS ARE ON STAGE. This was a fixed pair at ±LANE, which is
+   only true of the channel step — so on the pump step nothing was solid and
+   nothing was kept out: ions walked through the barrel's sides and water
+   sailed down the middle of a pump that does not pass water at all. The
+   list now follows whatever is standing there. */
+const PORES_CHAN = [
+  { x:-LANE, R:K_R,  lumen:8.8, kind:'K'  },
+  { x: LANE, R:CL_R, lumen:8.0, kind:'CL' },
+];
+const PORES_REST = [
+  { x:-REST_LANE,   R:K_R  * REST_SCALE, lumen:8.8 * REST_SCALE, kind:'K' },
+  { x: REST_PUMP_X, R:14.5 * REST_SCALE, lumen:7.6 * REST_SCALE, kind:null },
+];
+const PORES_PUMP = [
+  /* The pump's own barrel: membrane/parts.js's defaults, and a mouth rather than a
+     site for the lumen — the site is the narrowest point and would let an
+     ion sit in the funnel wall. */
+  { x:0, R:14.5, lumen:7.6, kind:null },
+];
+let PORES = PORES_CHAN;
+/* THE BARREL IS DOMED, NOT A CYLINDER — the same profile membrane/parts.js
+   draws, copied because the page cannot ask the mesh. Treating it as a
+   full-height cylinder was what stranded ions on the shoulders: an ion
+   coming down to a mouth has to cross the protein's top, and a cylinder put
+   a solid wall there, so the funnel pulled it in and this pushed it out and
+   it orbited the corner. The real shape gets out of the way — radius falls
+   to zero at the pole over the top 30% — which is exactly where the mouth
+   is, and why an approach works at all.
+
+   Cl⁻ suffered most: a wider ion against a narrower lumen (8.0 against
+   8.8), so its way in was the smallest target on stage. */
+function poreRadiusAt(P, y) {
+  const H = T.height, u = Math.abs(y) / H, cap = 0.30;
+  let sc = 1;
+  if (u > 1 - cap) {
+    const k = (u - (1 - cap)) / cap;           // 0 at the shoulder, 1 at the pole
+    sc = Math.sqrt(Math.max(0, 1 - k * k));
+  }
+  const waist = 1 - 0.07 * Math.exp(-((y / (HALF * 0.8)) ** 2));
+  return P.R * sc * waist;
+}
+
+function keepOutOfPores(t) {
+  if (t.lane != null || t.aboard) return;      // in the file, or riding: it belongs there
+  /* THE ION HAS A RADIUS. Testing its centre against the wall let a sphere
+     sit half-buried with its middle legally outside — and a hydrated one is
+     seven units across, so most of what the student saw was inside the
+     barrel. Every bound below is the wall PLUS the ion, which is also why
+     the vertical test uses it: a big ion just above the protein's end can
+     still dip into the top of it. */
+  const rad = bulkRadius(t);
+  if (Math.abs(t.y) >= T.height + rad) return; // clear of the protein entirely
+  for (const P of PORES) {
+    const dx = t.x - P.x, dz = t.z;
+    const r = Math.hypot(dx, dz);
+    const wall = poreRadiusAt(P, t.y) + rad;
+    if (r >= wall) continue;                   // outside the wall
+    /* Down the throat of its OWN pore, at a mouth — leave it alone, it is
+       on its way in. */
+    /* On its way down its own throat. The test is against the LUMEN plus
+       the ion rather than minus it: an ion centred in the mouth is in the
+       mouth, and demanding it clear the rim by a whole radius meant the
+       only legal approach was a bullseye the funnel could rarely hit. */
+    if (r <= P.lumen + rad && t.conducts === P.x &&
+        Math.abs(t.y) > T.height * 0.6) continue;
+    const push = r > 0.001 ? wall / r : 1;
+    t.x = P.x + dx * push;
+    t.z = dz * push;
+    if (r <= 0.001) t.x = P.x + wall;         // dead on the axis: pick a side
+    t.obj.position.x = t.x; t.obj.position.z = t.z;
+    /* Turned away from the wall, so it does not grind along it. */
+    t.vx = Math.abs(t.vx) * Math.sign(t.x - P.x || 1);
+  }
+}
+
+/* HYDRATED IONS DO NOT INTERPENETRATE. A shell is 6 A of water and two of
+   them overlapping is not a crowd, it is one blob with a sign in it — and
+   at this step the shells ARE the argument, so a pair that has merged
+   quietly deletes the thing the student is being asked to look at.
+
+   Positions only: a spacing rule, not a force. Radii come
+   from bulkRadius(), so an ion that has just shed at the mouth immediately
+   needs less room, which is exactly right — a stripped ion IS smaller, and
+   that is why it fits. */
+/* An ion on final approach is EXEMPT. The funnel aims every candidate at
+   one point and this pass shoves them apart again; at the mouth the two
+   forces cancelled and the ions balled up into a knot that never entered
+   and never left. Inside the vestibule, single file is the correct answer
+   anyway — that is what a filter is — and queueAhead() owns spacing there. */
+function atMouth(t) {
+  return t.conducts != null &&
+         Math.hypot(t.x - t.conducts, t.z) < CAPTURE_R * 2 &&
+         Math.abs(t.y) < T.height * 1.4;
+}
+function keepClear(list) {
+  for (let pass = 0; pass < 2; pass++)
+    for (let i = 0; i < list.length; i++)
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        if (atMouth(a) || atMouth(b)) continue;
+        const ra = bulkRadius(a), rb = bulkRadius(b);
+        const min = ra + rb;
+        let dx = b.obj.position.x - a.obj.position.x;
+        let dy = b.y - a.y;
+        let dz = b.obj.position.z - a.obj.position.z;
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 >= min * min || d2 < 1e-6) continue;
+        /* A QUEUED ION IS NOT SHOVED OFF ITS LANE — it is in single file
+           down a pore, and sideways is the wall. So the free partner takes
+           the whole correction; two free ions split it; two queued ions are
+           left to the file's own waiting rule, which knows about lanes. */
+        const aFree = a.lane == null, bFree = b.lane == null;
+        if (!aFree && !bFree) continue;
+        const share = (aFree && bFree) ? 0.5 : 1;
+        const d = Math.sqrt(d2), push = (min - d) * share / d;
+        dx *= push; dy *= push; dz *= push;
+        if (aFree) { a.x -= dx; a.y -= dy; a.z -= dz;
+                     a.obj.position.set(a.x, a.y, a.z); }
+        if (bFree) { b.x += dx; b.y += dy; b.z += dz;
+                     b.obj.position.set(b.x, b.y, b.z); }
+      }
+}
+
+/* The scripted Na⁺ visit that lived here is gone, and its job is done
+   properly now: refuseAt() turns a sodium back at the filter after it finds
+   the mouth by the same funnel every other ion uses. The old version drove
+   the ion along a path while everything around it walked, which read as
+   traffic being interrupted rather than as an ion failing a test. */
+
 /* Where a traveller is allowed to be. The bilayer's interior is oily: a
    charged or strongly polar thing does not enter it, and this is the one
    rule that makes step 2 a demonstration instead of a caption. */
 function advance(t, dt) {
+  if (t.conducts != null || t.seeks) { funnel(t, dt); tryCapture(t); }
+  if (t.lane != null && tickQueue(t, dt)) return;   // hopping through the filter
   const inCore = Math.abs(t.y) < HALF;
   if (t.blocked) {
     /* Bounces off the head-group layer. Turned back AT the surface, not
@@ -878,9 +1937,13 @@ function advance(t, dt) {
   t.y += t.vy * dt * (inCore && !t.blocked ? t.coreSpeed || 1 : 1);
 
   if (t.bounded) {
+    /* `yband` is [lo, hi] — a traveller that belongs to part of a
+       compartment rather than all of it. The anions use it to stay deep in
+       the cytosol instead of drifting up against the membrane. */
     const far = OFFSCREEN;
-    if (t.y >  far) { t.y =  far; t.vy = -Math.abs(t.vy); }
-    if (t.y < -far) { t.y = -far; t.vy =  Math.abs(t.vy); }
+    const lo = t.yband ? t.yband[0] : -far, hi = t.yband ? t.yband[1] : far;
+    if (t.y > hi) { t.y = hi; t.vy = -Math.abs(t.vy); }
+    if (t.y < lo) { t.y = lo; t.vy =  Math.abs(t.vy); }
     t.obj.position.y = t.y;
     tumble(t, dt);
     return;
@@ -924,8 +1987,7 @@ const STEPS = [
   {
     id:'bilayer',
     tab:'the bilayer',
-    cap:'Two layers of lipid. <b>Heads like water; tails hide from it.</b> ' +
-        'The inside of a membrane is oil.',
+    cap:'<b>The inside of a membrane is oil.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -943,17 +2005,25 @@ const STEPS = [
         traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
                              y:inCompartment(i % 2 ? 1 : -1),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
+      /* Two callouts, and only two: this is a sheet with no protein in it,
+         so the step names the two halves of a lipid and stops. "Fluid
+         mosaic" moved to the channel step, where the mosaic is on screen —
+         naming it here meant pointing at a protein three tabs away. */
+      noteAt(-96, HALF, 'phospholipid heads', [-34, -30],
+             'The head carries charge and sits happily in water, so it turns ' +
+             'outward on both faces. That is why a bilayer assembles itself ' +
+             'and then holds together.');
+      noteAt(-96, 0, 'phospholipid tails', [-34, 26],
+             'The tails are hydrocarbon and will not mix with water, so they ' +
+             'hide in the middle. Everything crossing this membrane has to ' +
+             'get through that oil.');
     },
-    readout: () => 'bilayer ' + (HALF * 2).toFixed(1) + ' Å thick — measured, not drawn to taste',
   },
 
   {
     id:'through',
     tab:'what gets through',
-    cap:'<b>Oily things cross. Charged things do not.</b> ' +
-        'CO₂ is the biggest thing here and goes straight through. ' +
-        'Na⁺ is the smallest and cannot — a charged ion holds a shell of ' +
-        'water, and it would have to strip that off to enter the oil.',
+    cap:'<b>Oily things cross. Charged things do not. Size is not the rule.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -966,6 +2036,24 @@ const STEPS = [
          property of that column rather than of the membrane. Spread the
          full width, the flat sheet of ions stopped at the heads IS the
          claim, and it reads at a glance. */
+      /* WATER FIRST, and it is not decoration. Every other step draws the
+         cell as crowded; this one held three gases and a sheet of sodium in
+         what read as a vacuum, and "CO₂ dissolves through the oil" is a
+         claim about something dissolved IN a liquid that was not on screen.
+
+         It crosses, as it does on the steps either side — the same
+         parameters as the bilayer step, deliberately, so a student cannot
+         come away thinking water behaves differently once other things are
+         in the fluid.
+
+         Thirty-six, against step 1's sixty-four: there the water IS the
+         subject, here it is the solvent the comparison happens in, and a
+         full crowd buries the three species being compared. */
+      for (let i = 0; i < 36; i++)
+        traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
+                             y:inCompartment(i % 2 ? 1 : -1),
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
+
       let firstO2 = null, firstCO2 = null, firstNa = null;
       for (let i = 0; i < 20; i++) {
         const t = traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.04), z:rnd(-10,10),
@@ -1002,11 +2090,17 @@ const STEPS = [
          a label repeating it turns three callouts into a second caption
          the student has to read while the thing it names moves. What they
          actually cannot do without this is tell which band is which. */
-      noteOn(firstO2,  'O₂',  [-30, -22]);
-      noteOn(firstCO2, 'CO₂', [ 28, -24]);
-      noteOn(firstNa,  'Na⁺ + its water shell', [ 30, -22]);
+      noteOn(firstO2,  'O₂ — passes through',  [-30, -22],
+             'Small and nonpolar, so it dissolves into the oil and out the ' +
+             'other side. No protein, no cost, no gate.');
+      noteOn(firstCO2, 'CO₂ — passes through', [ 28, -24],
+             'The biggest thing on screen, and it crosses as easily as O₂. ' +
+             'Being oily beats being small.');
+      noteOn(firstNa,  'Na⁺ — can not cross', [ 30, -22],
+             'The smallest thing here, and it never gets in: a charged ion ' +
+             'holds a shell of water around it. Entering the oil means ' +
+             'stripping that shell off, and that costs more than it has.');
     },
-    readout: () => 'size is not the rule — the largest crosses, the smallest is turned back',
   },
 
   {
@@ -1020,11 +2114,7 @@ const STEPS = [
        shells on screen honestly show is the kinetic version: the salt and
        its water occupy space, so a smaller share of what is out there is
        water free to make the trip. Same picture, no wrong prediction. */
-    cap:'<b>Water crosses both ways, always.</b> ' +
-        'Salt outside takes up room, so fewer of the molecules up there are ' +
-        'water free to cross — and more wander out than in. Nothing pulls. ' +
-        'The salty side is <em>hypertonic</em>: watch both labels reach ' +
-        '<em>isotonic</em>, which neither side can be on its own.',
+    cap:'<b>Water crosses both ways. The net flow is a headcount, not a pull.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -1102,21 +2192,29 @@ const STEPS = [
                           walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
       }
+      /* ONE callout, in the salty compartment it is about. Three of them
+         put a label on each half plus one in the middle, which on a step
+         that already carries two compartment tallies and the net-flow
+         overlay is a stage of chrome with an animation behind it.
+
+         Near the middle of the top half and held clear of its ceiling: the
+         label hangs ABOVE the dot, so an anchor any higher runs it into the
+         top of the stage. */
+      noteAt(-SPREAD * 0.06, farY() * 0.34, 'salt takes up room', [-38, -26],
+             'Every solute particle sits where a water would have been, so ' +
+             'fewer of the molecules up here are water. This side is ' +
+             '<b>hypertonic</b> — more solute, less water.');
     },
-    /* The counts moved onto the scene, so the readout stops repeating them
-       and says the thing the numbers cannot: nothing here is aiming. */
-    readout: () => 'every water walks at random — none of them reads where the salt is',
   },
 
   {
     id:'channel',
     tab:'a channel',
-    cap:'<b>To fit through a pore, an ion has to give up its water — ' +
-        'and the pore has to replace it.</b> ' +
-        'K⁺ leaks out, Cl⁻ leaks in, each down its own gradient: the pore ' +
-        'picks the ion, never the direction. Na⁺ is <em>smaller</em> than ' +
-        'K⁺ but holds its water tighter, and neither lining can pay for ' +
-        'it — so it goes nowhere.',
+    /* THE CAPTION IS THE DEFAULT STATE'S CAPTION. Both switches start off,
+       so it describes the plain diffusion picture and points at what each
+       switch adds — rather than announcing a voltage that is not running
+       until the student asks for it. */
+    cap:'<b>Each channel picks an ion. Neither picks a direction. No energy needed, this is also passive transport</b>',
     enter() {
       clearTravellers();
       showProtein(CHANNEL); showMembrane('chan'); setCut(true);
@@ -1125,7 +2223,7 @@ const STEPS = [
       /* Spawned already spaced, and at ONE speed. Random speeds meant the
          fast ones drove into the slow ones and the queue fused into a
          single yellow column — which says two K⁺ can occupy the same
-         space, and they are both +1. See keepApart(). */
+         space, and they are both +1. See queueAhead(). */
       /* THE QUEUE RUNS OUTWARD, bottom to top. K⁺ is the INSIDE ion —
          ~140 mM in the cytosol against ~4 mM outside — so a K⁺ channel
          leaks it OUT, down the gradient the pump just paid to build. That
@@ -1137,9 +2235,15 @@ const STEPS = [
          It starts BELOW the frame and walks in, so the first thing the
          student sees is ions arriving at the channel rather than a column
          that was already there. */
-      for (let i = 0; i < 6; i++)
-        traveller('K', { x:-LANE, z:0, y:-(OFFSCREEN + i * ION_GAP), vy:11,
-                         coreSpeed:1, shell:true, lane:-LANE });
+      /* K⁺ STARTS IN THE CYTOSOL, SCATTERED — not filed up outside the
+         mouth. It swims, and it goes through when it happens to find the
+         pore. That is also what makes the population honest: potassium is
+         the inside ion, so this is where it lives. */
+      for (let i = 0; i < 16; i++)
+        traveller('K', { x:rnd(-SPREAD*0.45, SPREAD*0.45), z:rnd(-10,10),
+                         y:inCompartment(-1), shell:true,
+                         walk:true, speed:ION_SPEED, conducts:-LANE,
+                         blocked:true, bounded:true });
       /* AND THE CHLORIDE QUEUE, RUNNING THE OTHER WAY. Cl⁻ is ~110 mM
          outside against ~10 mM in, so it leaks INWARD — top to bottom —
          while the potassium beside it leaks out. Two pores, two directions,
@@ -1149,9 +2253,21 @@ const STEPS = [
          It undresses to cross, like everything that crosses — but only
          PARTLY. See SHED_N: a K⁺ filter replaces the whole shell, CLC
          replaces some of it and the chloride carries the rest through. */
-      for (let i = 0; i < 5; i++)
-        traveller('CL', { x:LANE, z:0, y:OFFSCREEN + i * ION_GAP, vy:-11,
-                          coreSpeed:1, shell:true, lane:LANE });
+      /* And the chloride in the extracellular fluid, likewise scattered.
+         It conducts through its OWN pore only — a Cl⁻ is not admitted by a
+         potassium filter, and a K⁺ is not admitted by this one. */
+      /* SPREAD ACROSS THE WHOLE COMPARTMENT. Twenty-eight of them drawn
+         from the middle 45% was a bank of chloride in the centre of the
+         frame with empty fluid at both edges — which reads as the ions
+         being gathered somewhere, and this step's whole argument is that
+         nothing gathers them until a pore does. The funnel reaches 170, so
+         the far edges are still in play; they just take longer to arrive,
+         which is what having to find a pore by diffusion means. */
+      for (let i = 0; i < 28; i++)
+        traveller('CL', { x:rnd(-SPREAD*0.92, SPREAD*0.92), z:rnd(-10,10),
+                          y:inCompartment(1), shell:true,
+                          walk:true, speed:ION_SPEED, conducts:LANE,
+                          blocked:true, bounded:true });
 
       /* THE ONES THAT DO NOT GET IN. Without them "a hole with a
          preference" is a caption over a picture of a hole: everything on
@@ -1177,79 +2293,281 @@ const STEPS = [
          the Cl⁻ pore on charge, because that lining is δ+ and a cation is
          the wrong sign for it. It is the one ion on stage going nowhere,
          which is what keeps the dehydration story legible. */
-      for (let i = 0; i < 5; i++)
-        traveller('NA', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
-                          walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
+      /* Na⁺ raised with the potassium: the compartment has to stay neutral,
+         and 16 K⁺ + 12 Na⁺ against 28 Cl⁻ is the balance. */
+      /* NO KEEPOUT ANY MORE. It is drawn to a mouth like everything else
+         and turned back AT the filter — see refuseAt(). The keepout was
+         staging: it held the ion this step calls turned-away far enough
+         from both pores that the claim was in the caption and not in the
+         picture. Spread the full width now that it is allowed near. */
+      for (let i = 0; i < 11; i++)
+        traveller('NA', { x:rnd(-SPREAD*0.9, SPREAD*0.9), z:rnd(-10,10),
+                          y:inCompartment(1), shell:true, seeks:true,
+                          walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
-      /* Cl⁻ IS HERE FOR NEUTRALITY, and it is a BYSTANDER — matched one for
-         one against the sodium, because six bare Na⁺ and nothing else is a
-         compartment carrying a net charge, the same objection this page
-         makes to drawing salt as a lone cation anywhere else.
-
-         HYDRATED, like everything else charged in this scene. It was drawn
-         bare to keep it from reading as a third ion failing the same fit
-         test, and that was the wrong trade: an anion beside a dressed
-         cation says anions do not hold water, which is false, and using
-         nakedness as a signal teaches that to fix a labelling problem the
-         caption can fix instead. So it wears its shell and stays out of
-         the caption.
-
-         Its shell also carries a fact the toggle now shows for free: the
-         anion's sits visibly LOOSER, because a hydrogen is between the ion
-         and the water's oxygen rather than the oxygen facing it directly.
-
-         Its rejection is real and is a DIFFERENT rejection — the filter's
-         carbonyls present their δ− ends, so an anion is refused on charge
-         before fit is ever in question. Naming it here would put a second,
-         unshowable mechanism beside the one this step exists to show. */
-      for (let i = 0; i < 6; i++)
-        traveller('CL', { x:rndClear(SPREAD*0.75), z:rnd(-10,10),
-                          y:rnd(HALF + 4, OFFSCREEN * 0.8), shell:true,
-                          walk:true, speed:ION_SPEED, keepout:CHANNEL_KEEPOUT,
+      /* THE LABELLED ONE IS PLACED, not drawn from the scatter. The
+         compartment runs well past the top of the frame, so a random pick
+         starts off-screen better than half the time — and a callout the
+         student cannot see when they arrive is a callout that does not
+         exist. Near the membrane and left of the pores: in frame, and
+         already on its way to a mouth. */
+      const firstNa = traveller('NA', { x:-SPREAD*0.42, z:rnd(-6,6),
+                          y:HALF + 20, shell:true, seeks:true,
+                          walk:true, speed:ION_SPEED,
                           blocked:true, bounded:true });
+      /* THE BYSTANDER Cl⁻ IS GONE — merged into the conducting pool above.
+         Six extra chloride sat here refused by the chloride channel, which
+         is two identical ions on two different rules: nothing distinguishes
+         them, and a pore that admits a species admits the species. They
+         predate the Cl⁻ channel existing at all, when the only Cl⁻ on stage
+         was there to keep the compartment neutral.
+
+         They also broke the corner census. Those six counted as "Cl⁻
+         outside" while never being able to move, so the tally could not be
+         reconciled with the transits beside it.
+
+         Neutrality still holds, and now without a special case: 9 K⁺ and
+         5 Na⁺ against 14 Cl⁻. */
+
       /* NAME THE TWO PORES. Anchors are fixed points at each mouth rather
          than a traveller: the protein does not move, and pinning the label
          to an ion would make it look like a label for that ion. Offsets
          push the two labels apart, away from the gap between the pores
          where the queues are. */
       const mouthY = () => T.height * 0.95;
-      NOTES.add({ text:'K⁺ channel · out',
-                  offset:[-40, -30], at:() => _np.set(-LANE, mouthY(), 0) });
-      NOTES.add({ text:'Cl⁻ channel · in',
-                  offset:[ 40, -30], at:() => _np.set( LANE, mouthY(), 0) });
+      /* NO DIRECTION IN THE NAME. A label on the protein saying "out" is a
+         direction stated as a property of the channel, which is the exact
+         misconception the caption exists to kill — and for chloride it is
+         close to false at rest, since E_Cl sits near the resting potential
+         and the net flux stalls. Direction is shown where it is honest: the
+         corner tally, counted off transits that actually happened. */
+      NOTES.add({ text:'K⁺ channel', offset:[-40, -30],
+                  at:() => _np.set(-LANE, mouthY(), 0),
+                  card:'A water-lined pore straight through, so a K⁺ crosses ' +
+                       'without ever touching the oil. It is open, it is ' +
+                       'free, and nothing about it is switched on.' });
+      NOTES.add({ text:'Cl⁻ channel', offset:[ 40, -30],
+                  at:() => _np.set( LANE, mouthY(), 0),
+                  card:'Chloride is high outside, so it runs inward — the ' +
+                       'opposite way to the K⁺ beside it. Direction is set ' +
+                       'by the gradient, never by the protein.' });
+      /* FLUID MOSAIC BELONGS HERE, not on the bare sheet. Both halves of
+         the name are on screen for the first time: the lipids slide (the
+         drift in membrane/parts.js) and there are proteins set into them.
+         Anchored well left of the pores so it reads as a fact about the
+         SHEET rather than a third label on the channels. */
+      NOTES.add({ text:'fluid mosaic', offset:[-44, 44],
+                  at:() => _np.set(-150, -HALF, 0),
+                  card:'The lipids slide against each other — the sheet is a ' +
+                       'liquid, not a wall. <b>Mosaic</b> is these proteins ' +
+                       'set into it, drifting in the same liquid.' });
+      /* ON AN ION, NOT ON A SPOT. This is the one label naming something
+         that is HAPPENING rather than something that is built: a fixed
+         point in the fluid said "sodium is refused" about a patch of
+         nothing. Riding a seeking Na⁺ means the student watches the
+         labelled ion go to a mouth and come away. */
+      noteOn(firstNa, 'Na⁺ passes neither', [34, -26],
+             'Smaller than K⁺, and it still cannot use the K⁺ filter: it ' +
+             'holds its water too tightly to trade the shell for the pore. ' +
+             'The Cl⁻ pore turns it away on charge.');
 
-      setShells(shellsOn);              // a re-entered step keeps the choice
+      mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
+      voltBox.checked = voltOn;         // a re-entered step keeps the choice
       /* Water stays out of the pore too. It genuinely does cross the
          bilayer, and that is step 3's point, not this one — here it would
          only look like a second thing the channel is passing. */
-      for (let i = 0; i < 10; i++)
+      /* MORE WATER. It was cut to ten to pay for the hydration shells, and
+         ten molecules across a stage this wide is not a solution — it is a
+         near-vacuum with some ions in it, and every other step draws the
+         cell as crowded. The ions are what the student is following, so
+         the water only has to say "this is liquid". */
+      for (let i = 0; i < 34; i++)
         traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
                              keepout:CHANNEL_KEEPOUT,
                              y:(i % 2 ? 1 : -1) * rnd(HALF + 3, OFFSCREEN * 0.85),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
-    readout: () => 'two pores, two directions, neither chosen by a protein · ' +
-                   'K⁺ is stripped bare to cross, Cl⁻ only partly · Na⁺ is refused by both',
   },
 
   {
     id:'pump',
     tab:'the pump',
-    cap:'',                             // membrane/pump.js writes this, per phase
+    cap:'',                             // written per phase, below
     enter() {
       clearTravellers();
       showProtein(PUMP); showMembrane('pump'); setCut(true);
-      /* Parked at the start of the cycle, not looping. A pump that runs
-         for free contradicts the one thing this step teaches, and a loop
-         with an ATP counter ticking up on its own is worse — it says the
-         cell pays whether or not anything asked. The student spends the
-         ATP, and one ATP buys exactly one turn. */
+
+      /* THE CELL THE CHANNEL STEP LEFT BEHIND. Same cast, same counts —
+         16 K⁺, 12 Na⁺, 28 Cl⁻ — but levelled, which is exactly where the
+         previous tab ends when nothing opposes the leak. That is the point
+         of opening here rather than on a fresh diagram: the student has
+         just watched channels spend a gradient, and the question the step
+         answers is who bought it in the first place.
+
+         Levelled also means 0 mV, and that is not a staging choice: with
+         equal concentrations there is no diffusion potential to have. The
+         voltage the channel step measured was made of the gradient, so a
+         cell without one has none. */
+      const half = (kind, n, opts) => {
+        for (let i = 0; i < n; i++)
+          traveller(kind, Object.assign({
+            x:rndClear(SPREAD*0.75), z:rnd(-10,10),
+            y:inCompartment(i % 2 ? 1 : -1),
+            shell:true, walk:true, speed:ION_SPEED,
+            blocked:true, bounded:true,
+          }, opts));
+      };
+      half('K', 16); half('NA', 12); half('CL', 28);
+      /* WATER STAYS OUT OF THE PUMP. It was spawned anywhere and walked
+         straight down the lumen — a pump that passes water is not a pump,
+         and this step's whole claim is that what crosses is chosen and paid
+         for. rndClear() places it clear of the barrel and `keepout` holds
+         it there; both read the pore list, which now names the pump. */
+      for (let i = 0; i < 34; i++)
+        traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
+                             y:inCompartment(i % 2 ? 1 : -1),
+                             keepout:CHANNEL_KEEPOUT,
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
+
+      /* Parked at the start of the cycle, not looping. A pump that runs for
+         free contradicts the one thing this step teaches, and a loop with an
+         ATP counter ticking up on its own is worse — it says the cell pays
+         whether or not anything asked. The student spends the ATP, and one
+         ATP buys exactly one turn. */
       pumpT = 0; running = false;
+      for (const t of travellers) t.aboard = false;
+      cargo.NA.length = 0; cargo.K.length = 0; lastPhase = '';
+      atpSpent = 0;
+      mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
       spendEl.hidden = false; spendEl.disabled = false;
+
+      /* STATIC, while the caption runs live off the cycle. The caption is
+         already rewriting itself every phase; labels rewriting underneath
+         a cursor mid-click is one moving text too many. These name the
+         parts, which do not change. */
+      noteAt(0, T.height * 0.98, 'a carrier, not a pore', [-46, -30],
+             'It binds its cargo and changes shape, so it is never open to ' +
+             'both sides at once. A pore cannot do that, which is why a ' +
+             'pore can never push anything uphill.');
+      /* ON THE BUTTON, in pixels — the one anchor on this page that is not
+         a point in the scene, and annotate.js's header says why that is
+         allowed exactly here: the claim is about the TRANSACTION the
+         button performs, not about a part of the protein. Solved each
+         frame from the button's own box, because placeControls() moves it
+         whenever the caption changes height. */
+      NOTES.add({ text:'1 ATP = 1 turn', offset:[-40, -26],
+                  atPx: () => {
+                    if (spendEl.hidden) return null;
+                    const b = spendEl.getBoundingClientRect();
+                    /* The LAYER's box, not the stage's — the layer is the
+                       coordinate frame annotate.js places into. */
+                    const st = NOTES.el.getBoundingClientRect();
+                    return [b.left - st.left + b.width / 2, b.top - st.top];
+                  },
+                  card:'One press buys one turn: 3 Na⁺ out and 2 K⁺ in, both ' +
+                       'against their gradients. Uphill is the thing the ATP ' +
+                       'is paying for.' });
     },
-    readout: () => 'ATP is the battery: it carries three phosphates, and spends one per trip. ' +
-                    'Per cycle — 3 Na⁺ out, 2 K⁺ in, 1 ATP.',
+  },
+
+  {
+    id:'rest',
+    tab:'a cell at rest',
+    cap:'',                             // written live, below
+    enter() {
+      clearTravellers();
+      showProtein('rest'); showMembrane('rest'); setCut(true);
+
+      /* THE CELL AS IT ACTUALLY IS. A channel and a pump in the same sheet,
+         both running, and the counts holding still while ATP burns. That
+         standing-still is the whole point and it is NOT equilibrium: stop
+         paying and it comes apart, which is what the switch is for.
+
+         K⁺ mostly inside, where it lives. It leaks out through the channel
+         because that is what a gradient does, and the pump brings it back —
+         a loop, and the reason the cell never finishes paying.
+
+         Na⁺ inside is the mess: it is on the wrong side and the pump throws
+         it out three at a time. Nothing brings it back here, so this half is
+         a clean-up rather than a cycle, and the copy does not call it one.
+
+         The ANIONS are why the cytosol can hold all that K⁺ without being
+         wildly positive. They never move across; that is their whole
+         contribution, and it is a real one. */
+      for (let i = 0; i < 20; i++)
+        traveller('K', { x:rndClear(SPREAD*0.7), z:rnd(-10,10),
+                         y:inCompartment(-1), shell:true,
+                         walk:true, speed:ION_SPEED, conducts:-REST_LANE,
+                         blocked:true, bounded:true });
+      for (let i = 0; i < 4; i++)
+        traveller('K', { x:rndClear(SPREAD*0.7), z:rnd(-10,10),
+                         y:inCompartment(1), shell:true,
+                         walk:true, speed:ION_SPEED, conducts:-REST_LANE,
+                         blocked:true, bounded:true });
+      for (let i = 0; i < 18; i++)
+        traveller('NA', { x:rndClear(SPREAD*0.7), z:rnd(-10,10),
+                          y:inCompartment(-1), shell:true,
+                          walk:true, speed:ION_SPEED,
+                          blocked:true, bounded:true });
+      /* DOWN IN THE CYTOSOL, not up against the membrane. Protein and
+         phosphate anions are the bulk of the cell's interior, not a layer
+         lining its surface — and crowding them at the inner face put them
+         exactly where the pump and the channel are working, hiding the
+         thing the step is about. `yband` keeps them there. */
+      for (let i = 0; i < 24; i++)
+        traveller('A', { x:rndClear(SPREAD*0.85), z:rnd(-11,11),
+                         y:rnd(-farY(), -farY() * 0.42),
+                         yband:[-farY(), -farY() * 0.38],
+                         walk:true, speed:[2, 5],       // heavy and slow
+                         blocked:true, bounded:true });
+      for (let i = 0; i < 28; i++)
+        traveller('water', { x:rndClear(SPREAD), z:rnd(-11,11),
+                             y:inCompartment(i % 2 ? 1 : -1),
+                             keepout:CHANNEL_KEEPOUT,
+                             walk:true, bounded:true, coreSpeed:WATER_CORE });
+
+      pumpOn = true; pumpBox.checked = true;
+      pumpT = 0; running = false;
+      for (const t of travellers) t.aboard = false;
+      cargo.NA.length = 0; cargo.K.length = 0; lastPhase = '';
+      atpSpent = 0; chargeOut = 0; mV = 0;
+      spendEl.hidden = true;
+
+      /* The two proteins, and the loop between them. This is the step where
+         both halves of the lesson are on stage at once, so the callouts are
+         the ones that say which half is which. */
+      noteAt(-REST_LANE, T.height * 0.98, 'K⁺ leaks out, free', [-40, -30],
+             'K⁺ is high inside, so it drifts out through the channel and ' +
+             'nothing stops it. Downhill costs nothing.');
+      noteAt(REST_PUMP_X, T.height * 0.98, 'pumps K⁺ back, paid', [42, -30],
+             'The pump carries K⁺ back in and Na⁺ out, burning one ATP a ' +
+             'turn. It is undoing the leak next door, over and over.');
+      /* ON THE TALLY IT IS ABOUT, in pixels. Anchored in the cytosol it
+         landed on a patch of anions and water, so a student reading "the
+         counts hold still" looked where the dot was and saw no counts.
+         The corner tallies are chrome, not scene — see annotate.js's atPx.
+
+         AND IT NAMES K⁺, not "the counts". paintIons() tallies K⁺ and Cl⁻
+         only: there is no Cl⁻ in this step's cast, and the sodium — the
+         most visible ion on screen — is not counted at all. A student who
+         read "counts" and watched the purple saw nothing being held.
+
+         NO NUMBERS IN THE LABEL. It is pinned to the tally, so printing
+         20 and 4 beside the 20 and 4 is the same fact twice — and a second
+         copy of a live number is a thing that can go stale. The label says
+         which ion and what it is doing; the tally says how many. */
+      NOTES.add({
+        text:'K⁺ holds', offset:[44, -26],
+        atPx: () => {
+          if (ionsInEl.hidden || ionsInEl.parentElement.hidden) return null;
+          const b = ionsInEl.getBoundingClientRect();
+          const st = NOTES.el.getBoundingClientRect();
+          return [b.right - st.left, b.top - st.top + b.height / 2];
+        },
+        card:'Nothing here has settled — a leak and a pump are running flat ' +
+             'out and cancelling. Switch the pump off and watch what ' +
+             'equilibrium actually looks like.' });
+    },
   },
 ];
 
@@ -1261,26 +2579,146 @@ const STEPS = [
 
    What matters is the transaction, not the shape, and the student now
    performs it: a chip flies from the Spend button to the pump. */
-/* ---- the pump's own actors ---- */
-let pumpT = 0, running = false;
-const pumpPool = { NA: [], K: [] };
-function pumpIon(species, i) {
-  const p = pumpPool[species];
-  while (p.length <= i) {
-    const m = Parts.ion(species);
-    /* transparent ONCE, at build. membrane/pump.js fades cargo in and out at the
-       mouths, and flipping material.transparent per frame recompiles the
-       shader — which is a dropped frame exactly at a phase boundary, i.e.
-       the flicker. depthWrite stays on: these are solid spheres that are
-       briefly faint, not glass. */
-    m.material.transparent = true;
-    m.material.depthWrite = true;
-    m.visible = false; L.root.add(m); p.push(m);
-  }
-  return p[i];
+/* ---- the pump's cargo is REAL IONS ----
+   It used to come from a pool of its own: three sodiums faded up at a mouth,
+   rode the cycle, faded out. Nothing left one compartment and nothing
+   arrived in the other, so "3 Na⁺ out, 2 K⁺ in" was an animation rather
+   than a result — and the census in the corner never moved, which meant the
+   step could not show the thing it exists to show.
+
+   Now a spend RECRUITS travellers out of the solution: the three nearest
+   sodiums on the inside and the two nearest potassiums on the outside. They
+   are the same objects the rest of the page walks around, so when they are
+   set down on the far side the counts change, the gradient grows, and the
+   voltage follows. The pump visibly builds what the channel step spent.
+
+   membrane/pump.js still owns the choreography — this only decides WHICH
+   ions ride it. Nothing here can make the pump open at both ends. */
+let pumpT = 0, running = false, atpSpent = 0;
+/* THE PUMP RUNS ITSELF at rest, because a resting cell's does. The pump step
+   keeps its one-turn-per-press rule — there the transaction is the lesson —
+   but here the lesson is the standing cost, and a cost you have to click for
+   is not a standing cost. The switch is what makes it visible: turn it off
+   and watch the gradient come apart. */
+let pumpOn = true;
+const cargo = { NA: [], K: [] };
+const PUMP_LOAD = { NA:-1, K:1 };       // the side each is picked up from
+
+/* Nearest to the pump's axis, on the required side, not already aboard. */
+function recruit(kind, n) {
+  const side = PUMP_LOAD[kind];
+  const pool = travellers
+    .filter(t => t.kind === kind && !t.aboard && Math.sign(t.y) === side)
+    .sort((a, b) => ((a.x - pumpX) ** 2 + a.y * a.y) -
+                    ((b.x - pumpX) ** 2 + b.y * b.y));
+  /* ALL OR NOTHING. It used to mark every ion it found as aboard and hand
+     back a short list, and the resting step calls this every frame until it
+     gets three — so a cell with two sodiums left inside had those two flagged
+     as cargo, discarded by the caller, and then stranded: aboard ions are not
+     advanced, so they froze in place while the next frame grabbed more. */
+  if (pool.length < n) return [];
+  const took = pool.slice(0, n);
+  for (const t of took) t.aboard = true;
+  return took;
 }
-function hidePumpIons() {
-  Object.values(pumpPool).forEach(list => list.forEach(m => m.visible = false));
+
+/* Where a rider sits this frame. `u` is membrane/pump.js's own coordinate, and it is
+   mapped to the PROTEIN here rather than to the frame: these ions arrived
+   under their own steam and leave the same way, so the ends of the path are
+   the two mouths, not the edges of the screen. The old pool needed the
+   stretched mapping because its ions had nowhere to come from. */
+function seatRider(t, c, i, n) {
+  const rr = n > 1 ? ionRadius(t.kind) * 1.15 : 0;
+  const th = (i / n) * Math.PI * 2;
+  const tx = pumpX + Math.cos(th) * rr, tz = Math.sin(th) * rr;
+  const ty = c.u * T.height;
+  /* Eased, not snapped: a recruit is somewhere in the cytosol when it is
+     called, and it has to be seen arriving at the mouth. */
+  const k = 0.16;
+  t.x += (tx - t.x) * k; t.z += (tz - t.z) * k; t.y += (ty - t.y) * k;
+  t.obj.position.set(t.x, t.y, t.z);
+}
+
+/* Set down on the FAR side and let go — ONE SPECIES AT A TIME, as it is
+   delivered. Unloading both at the end of the turn was wrong twice over: the
+   sodium was already outside by the halfway point and had nothing to do
+   until the cycle wrapped, so it was parked back at the mouth it came in
+   by — visibly pushed back down into the cell it had just left — and the
+   potassium had to be recruited before there was anywhere to put it.
+
+   The cycle already says when each one lands: sodium leaves during
+   release-na, potassium during release-k. Deliver on those boundaries and
+   the pump does what its own phase table says it does. */
+function deliver(kind) {
+  const to = -PUMP_LOAD[kind];
+  for (const t of cargo[kind]) {
+    t.aboard = false;
+    t.y = to * T.height * 1.15;
+    t.x = pumpX + rnd(-18, 18); t.z = rnd(-8, 8);
+    t.obj.position.set(t.x, t.y, t.z);
+    repick(t);
+    t.vy = Math.abs(t.vy) * to;         // moving away from the pump, not into it
+  }
+  cargo[kind].length = 0;
+}
+function finishCycle() {
+  /* ELECTROGENIC, and this is the number membrane/pump.js calls un-roundable: three
+     positive charges out against two in leaves the inside one charge more
+     negative every turn. The pump does not only build the concentration
+     gradient the channel step spent — it builds part of the voltage too. */
+  chargeOut += 1;
+  mV = Math.max(-95, MV_PER_ION * chargeOut);
+  atpSpent++;
+}
+
+/* Which phase we were in last frame, so a boundary can be acted on once. */
+let lastPhase = '';
+
+/* ---- one frame of the cycle ----
+   Shared by the pump step and the resting step. They differ in what STARTS a
+   turn — a button there, the pump's own appetite here — and in nothing else,
+   which is the point: the machine is the same machine. */
+function runPumpCycle(dt) {
+  if (running) {
+    pumpT += dt / 11;                   // seconds for one full turn
+    if (pumpT >= 1) {                   // one ATP bought exactly one turn
+      pumpT = 0; running = false;
+      deliver('K');                     // the last drop-off of the turn
+      finishCycle();
+      lastPhase = '';
+      spendEl.disabled = false;
+    }
+  }
+  const st = Pump.at(pumpT);
+  T.setGates(st.gates.top, st.gates.bottom);
+
+  /* THE HANDOVER, ON THE CYCLE'S OWN BOUNDARY. Sodium is outside by the time
+     load-k begins, so that is where it is set down and where the potassium is
+     called for — the pump attracts one cargo, carries it, lets it go, and
+     only then asks for the next. Reading the boundary off the phase name
+     means the page cannot get the order wrong: membrane/pump.js decides when, and this
+     only decides who. */
+  if (running && st.phase !== lastPhase) {
+    if (st.phase === 'load-k') {
+      deliver('NA');                    // three sodiums land outside
+      cargo.K = recruit('K', 2);        // and only now are two K⁺ called
+    }
+    lastPhase = st.phase;
+  }
+
+  /* FAN THE CARGO ROUND THE AXIS, don't stack it up one: membrane/pump.js spreads ions
+     in normalised units and has no idea how big one is drawn, so at this
+     page's exaggeration the site's two ions fused into a blob. Sideways
+     rather than further apart along the path — the site is a round pocket and
+     the ions sit BESIDE each other in it. */
+  const used = { NA:0, K:0 };
+  const seats = st.cargo.reduce((a, c) => (a[c.species] = (a[c.species] || 0) + 1, a), {});
+  for (const c of st.cargo) {
+    const i = used[c.species]++;
+    const t = cargo[c.species][i];
+    if (!t) continue;                   // nothing recruited: nothing rides
+    seatRider(t, c, i, seats[c.species]);
+  }
 }
 
 /* ---- spending an ATP ----
@@ -1320,7 +2758,19 @@ function flyATP(done) {
 spendEl.addEventListener('click', () => {
   if (running) return;
   spendEl.disabled = true;
-  flyATP(() => { pumpT = 0; running = true; });
+  flyATP(() => {
+    /* RECRUITED WHEN THE ATP LANDS, not before: the ions are called to the
+       pump by the spend, so the press and the loading are one event. Three
+       sodiums from the cytosol, two potassiums from outside — each taken
+       from the side its own gradient would carry it AWAY from, which is
+       what "uphill" means and the whole of what a channel cannot do. */
+    /* SODIUM ONLY. The potassium is called later, when the pump has turned
+       and has somewhere to put it — see the load-k boundary in tick(). A
+       pump that gathers both cargoes up front is holding five ions at once,
+       which is not what its site does and not what the cycle says. */
+    cargo.NA = recruit('NA', 3);
+    pumpT = 0; running = true; lastPhase = '';
+  });
 });
 
 /* ---- the osmosis overlay ----
@@ -1356,8 +2806,8 @@ function paintOsmo() {
   const tone = Math.abs(gap) <= 3 ? ['isotonic', 'isotonic']
              : gap < 0 ? ['hypertonic', 'hypotonic']   // less water outside
                        : ['hypotonic', 'hypertonic'];
-  osmoOutEl.lastElementChild.innerHTML = 'water · outside<br><em>' + tone[0] + '</em>';
-  osmoInEl.lastElementChild.innerHTML = 'water · inside<br><em>' + tone[1] + '</em>';
+  setHTML(osmoOutEl.lastElementChild, 'water · outside<br><em>' + tone[0] + '</em>');
+  setHTML(osmoInEl.lastElementChild, 'water · inside<br><em>' + tone[1] + '</em>');
 
   /* Where the membrane is IN PIXELS. Projected rather than assumed: the
      chrome reserve pushes world y=0 above the centre of the canvas, and a
@@ -1368,8 +2818,8 @@ function paintOsmo() {
   const midY = (1 - (mid.y * .5 + .5)) * r.height;
   const x = r.width * 0.20;
   osmoOutEl.style.left = osmoInEl.style.left = x + 'px';
-  osmoOutEl.style.top = (midY * 0.5) + 'px';
-  osmoInEl.style.top = (midY + (r.height - midY) * 0.5) + 'px';
+  osmoOutEl.style.top = clampY(midY * 0.5, 70) + 'px';
+  osmoInEl.style.top = clampY(midY + (r.height - midY) * 0.5, 70) + 'px';
 
   /* The arrow states the NET, and only once the net has actually said
      something: at 0-1 crossings it would spin on every molecule and read
@@ -1400,6 +2850,165 @@ function paintOsmo() {
   osmoArrowEl.style.top = midY + 'px';
 }
 
+/* THE BAND THE OVERLAYS MAY USE. Their vertical placement is solved from the
+   projected membrane, which knows nothing about the caption floating over the
+   bottom of the stage — so a tally landing low ended up behind the text. */
+function clampY(y, pad) {
+  const top = pad, bot = canvas.clientHeight - chromeEl.offsetHeight - pad;
+  return Math.max(top, Math.min(bot, y));
+}
+
+/* ---- the voltage overlay ----
+   NO CHARGE SKINS. Rows of + and − were stamped along the two faces, sized
+   as |mV| / |E_K| — a bar gauge drawn with characters. It looked like a
+   COUNT and was not one: a student could count eighteen pluses beside a
+   tally reading a different number, which is exactly the typed-number
+   failure this repo's copywriting rule exists to prevent. The two tallies
+   carry the fact, and the caption carries the surface part in words. */
+function paintVolt() {
+  const r = canvas.getBoundingClientRect();
+  const mid = _op.set(0, 0, 0).project(L.camera);
+  const midY = (1 - (mid.y * .5 + .5)) * r.height;
+  const face = _op.set(0, HALF, 0).project(L.camera);
+  const faceY = (1 - (face.y * .5 + .5)) * r.height;
+  const half = Math.max(6, Math.abs(midY - faceY));
+
+  /* BOTH NUMBERS ARE COUNTED. The voltage is MV_PER_ION times the transits
+     that actually happened, and the transit count is those transits — so
+     the second number is the first one's working, and a student who
+     doubts the voltage can watch what it is made of. */
+  /* THE UNIT RIDES THE NUMBER. Two 46px figures stacked in one overlay
+     read as one instrument in one unit, and "mV" was buried in the 12px
+     label under only one of them — so the transit count above looked like
+     a second voltage. A quantity and its unit are one thing; the label is
+     for what it is a measurement OF. */
+  setHTML(voltReadEl.firstElementChild, Math.round(mV) + '<small> mV</small>');
+  /* "balanced", not "stopped". At equilibrium the pore is still open and
+     ions are still moving through it in both directions — what has gone is
+     the NET. A label saying the flow stopped would teach that the channel
+     shut, which is the one thing this step keeps insisting does not
+     happen. And "leaking" named no ion and read as a fault. */
+  const stepId = STEPS[cur] && STEPS[cur].id;
+  setHTML(voltReadEl.lastElementChild, 'inside<br><em>' +
+    (stepId === 'rest'
+      ? (pumpOn ? 'held by the pump' : 'running down')
+      : stepId === 'pump'
+      ? (atpSpent ? atpSpent + ' ATP spent building this' : 'nothing spent yet')
+      : drive('K') <= 0.001 ? 'balanced · no net flow' : 'K⁺ still leaving') + '</em>');
+  setHTML(voltRefEl.firstElementChild, '0<small> mV</small>');
+  setHTML(voltRefEl.lastElementChild, 'outside<br><em>reference</em>');
+
+  /* An arrow PER CURRENT, pointing the way that ion actually went — up is
+     out of the cell, down is in, the page's convention throughout. The two
+     are read from the transits and always add to the total beside them. */
+  setHTML(voltCountEl, stepId === 'rest'
+    ? '<span>ATP spent</span><b>' + atpSpent + '</b> · ' +
+      'Na⁺ ↑ ' + (atpSpent * 3) + ' · K⁺ ↓ ' + (atpSpent * 2)
+    : stepId === 'pump'
+    ? '<span>carried uphill</span><b>' + (atpSpent * 5) + '</b> · ' +
+      'Na⁺ ↑ ' + (atpSpent * 3) + ' · K⁺ ↓ ' + (atpSpent * 2)
+    : '<span>ions crossed</span><b>' + chargeOut + '</b> · ' +
+      'K⁺ ↑ ' + crossed.K + ' · Cl⁻ ↓ ' + crossed.CL);
+
+  /* THE VOLTAGE SITS INSIDE, which is the BOTTOM half — the pump's u = −1
+     is the cytoplasmic mouth and every other step follows it. This label
+     says "mV inside" and was being drawn above the membrane, i.e. in the
+     extracellular space, which is the one place it is not true.
+     The transit count is not a property of either side, so it takes the
+     other half rather than crowding the reading it explains. */
+  /* THE VOLTAGE PAIR ON THE LEFT, THE TALLY ON THE RIGHT. They are not the
+     same kind of thing: the mV reading and its 0 mV reference are one
+     measurement across the membrane, so they belong on one axis facing
+     each other. The transit count is a running total of events and belongs
+     nowhere in particular — so it sits well clear, where it cannot be read
+     as a third value in that comparison. */
+  const x = r.width * 0.17;
+  voltReadEl.style.left = voltRefEl.style.left = x + 'px';
+  voltReadEl.style.top = clampY(midY + half + 74, 64) + 'px';   // inside, below
+  voltRefEl.style.top  = clampY(midY - half - 74, 64) + 'px';   // outside, above
+  /* No positioning: it is pinned to the stage's bottom-right corner in CSS
+     rather than solved against the membrane, because it is not measuring
+     anything about a side. */
+}
+
+/* ---- the ion census ----
+   COUNTED OFF THE TRAVELLERS, every frame, by which side of the membrane
+   each one is actually on — including the ones currently in a pore, which
+   belong to whichever side they have reached. Nothing here knows what the
+   starting numbers were, so the two corners cannot disagree with the scene
+   they are describing. */
+function paintIons() {
+  const n = { out:{ K:0, CL:0 }, in:{ K:0, CL:0 } };
+  for (const t of travellers) {
+    if (t.kind !== 'K' && t.kind !== 'CL') continue;
+    n[t.y >= 0 ? 'out' : 'in'][t.kind]++;
+  }
+  const line = c => '<b>K⁺ ' + c.K + '</b> · <b>Cl⁻ ' + c.CL + '</b>';
+  setHTML(ionsOutEl, '<span>outside</span>' + line(n.out));
+  setHTML(ionsInEl, line(n.in) + '<span>inside</span>');
+}
+
+/* ---- has it arrived? ----
+   TWO MODES, TWO EQUILIBRIA, and saying which is the point of the badge.
+   With no voltage the flow stops when the concentrations level: chemical
+   equilibrium, gradient spent. With the voltage it stops far earlier, at
+   the point where the electrical pull cancels the concentration push —
+   electrochemical equilibrium, and the gradient is still standing, which
+   is the whole reason the cell has something to spend later.
+
+   Read off the same state the traffic reads, so the badge cannot claim an
+   equilibrium over a pore that is still passing ions. */
+function equilibrium() {
+  /* Not "no current" — two currents that cancel. The badge waits for real
+     traffic first (chargeOut) so it cannot fire on the opening frames,
+     when the voltage is at 0 and has not moved yet because nothing has
+     happened. */
+  if (voltOn) return Math.abs(netPush()) < 0.04;
+  return crowdedSide('K') === 0 && crowdedSide('CL') === 0;
+}
+function paintEqBadge() {
+  const on = equilibrium();
+  eqBadgeEl.classList.toggle('is-on', on);
+  if (on) {
+    /* TWO DIFFERENT EQUILIBRIA, and the word alone cannot tell them apart.
+       With no voltage it is a DIFFUSION equilibrium: concentrations level,
+       stored energy gone. With the voltage it is an ELECTROCHEMICAL one,
+       and only for the two ions that have pores — the gradient survives,
+       which is why the cell still has something to spend. Neither means the
+       cell is finished; both mean it has finished LEAKING. */
+    eqBadgeEl.firstElementChild.textContent = voltOn
+      ? 'K⁺ and Cl⁻ at equilibrium'
+      : 'Concentrations at equilibrium';
+    eqBadgeEl.lastElementChild.textContent = voltOn
+      ? 'two currents cancelling · the gradient survives'
+      : 'levelled out · the stored gradient is gone';
+  }
+}
+
+/* THE CONTROLS SIT ON TOP OF THE CHROME, whose height is whatever the
+   tallest caption made it. Measured rather than typed: a fixed bottom offset
+   is correct for exactly one caption length and wrong for the rest, and it is
+   the kind of wrong that only shows up on one tab. */
+function placeControls() {
+  const h = chromeEl.offsetHeight;
+  ctlEl.style.bottom = (h + 10) + 'px';
+  spendEl.style.bottom = (h + 56) + 'px';
+  /* The bottom-corner readouts clear the chrome too. They used to sit at a
+     fixed 14px from the stage's edge, which was under the caption once the
+     chrome started floating over the scene. */
+  ionsInEl.style.bottom = (h + 12) + 'px';
+  voltCountEl.style.bottom = (h + 12) + 'px';
+}
+
+/* WRITE ONLY ON CHANGE. Assigning innerHTML rebuilds the node's children,
+   and the captions were being reassigned sixty times a second with the same
+   string — which the browser is entitled to reflow, and does: the text
+   flickers, most visibly right after something else on the page changes.
+   Every live caption on this page goes through here. */
+function setHTML(el, html) {
+  if (el._html !== html) { el._html = html; el.innerHTML = html; }
+}
+
 /* ---- step machinery ---- */
 let cur = -1;
 STEPS.forEach((s, i) => {
@@ -1413,17 +3022,31 @@ STEPS.forEach((s, i) => {
 function go(i) {
   cur = i;
   const s = STEPS[i];
-  hidePumpIons();
   s.enter();
-  capEl.innerHTML = s.cap;
+  setHTML(capEl, s.cap);
   [...stepsEl.children].forEach((b, j) =>
     j === i ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
   L.fit();
+  liftScene();
   /* fit() moves the camera, so the offscreen line is only knowable after
      it. Re-enter the step so its molecules are placed against the frame
      that will actually be drawn. */
   solveOffscreen();
   s.enter();
+  /* GLOBAL MEANS EVERY STEP, and enter() has just built a fresh cast of
+     travellers that know nothing about the setting. Applied here, once,
+     rather than in the three steps that used to remember to ask — a step
+     that forgets is a step where the corner switch silently stops working. */
+  setShells(shellsOn);
+  /* SHOWN ONLY WHERE IT DOES SOMETHING, and asked of the CAST rather than
+     of a list of step ids. The bilayer draws no ions at all and osmosis
+     draws them deliberately bare — shells there would imply that solute
+     holds water, which is the mechanism that step exists to deny — so on
+     both the switch would be a control that visibly does nothing. Reading
+     the travellers means a step that gains or loses its shelled ions can
+     never fall out of step with the list. */
+  shellsTogEl.hidden = !travellers.some(
+    t => t.obj.userData.shell && t.obj.userData.shell.length);
 }
 
 function tick(dt) {
@@ -1434,71 +3057,38 @@ function tick(dt) {
      the lipid in the scene. */
   MEM.tick(dt);                           // the bilayer is a liquid, so it moves
 
-  if (s.id === 'pump') {
-    if (running) {
-      pumpT += dt / 11;                 // seconds for one full turn
-      if (pumpT >= 1) {                 // one ATP bought exactly one turn
-        pumpT = 0; running = false;
-        spendEl.disabled = false;
-      }
+  if (s.id === 'rest') {
+    /* THE PUMP FEEDS ITSELF HERE. It re-arms the moment a turn ends, so long
+       as the switch is on and there is sodium inside to carry — no button,
+       because the point is that this never stops while the cell is alive. */
+    if (pumpOn && !running && cargo.NA.length === 0) {
+      const got = recruit('NA', 3);
+      if (got.length) { cargo.NA = got; pumpT = 0; running = true; lastPhase = ''; }
     }
-    const st = Pump.at(pumpT);
-    T.setGates(st.gates.top, st.gates.bottom);
-    hidePumpIons();
-    /* FAN THE CARGO ROUND THE AXIS, don't stack it up one.
+    runPumpCycle(dt);
 
-       membrane/pump.js spreads ions by 0.06-0.09 in normalised units — about 2 A —
-       because it works in units and has no idea how big an ion is drawn.
-       At this page's exaggeration a K⁺ is 4.5 A across, so the site's two
-       ions fused into one blob. The page knows the drawn radius, so the
-       page is what solves it.
+    for (const t of travellers) if (!t.aboard) advance(t, dt);
+    keepClear(travellers.filter(t => (ELEMENT_OF[t.kind] || t.kind === 'A') && !t.aboard));
+    for (const t of travellers) keepOutOfPores(t);
 
-       Sideways rather than further apart along the path: the site is a
-       round pocket and the ions sit BESIDE each other in it. Stacking
-       them axially would push one out of the pocket and through the wall
-       the moment the gates shut. */
-    const used = { NA:0, K:0 };
-    const seats = st.cargo.reduce((a, c) => (a[c.species] = (a[c.species] || 0) + 1, a), {});
-    for (const c of st.cargo) {
-      const i = used[c.species]++;
-      const n = seats[c.species];
-      const m = pumpIon(c.species, i);
-      const rr = n > 1 ? ionRadius(c.species) * 1.15 : 0;
-      const th = (i / n) * Math.PI * 2;
-
-      /* u = +-1 is OFF THE FRAME, not the protein's rim.
-
-         Mapping u to T.height put the ends of the journey at the mouths,
-         so an ion faded up out of nothing at the lip of the pump and faded
-         away again a moment later — which says the pump MAKES sodium and
-         then destroys potassium. It carries them; they have to come from
-         the solution and go back to it.
-
-         Inside the protein the mapping is unchanged, so the site and the
-         funnel still line up with the geometry; beyond the rim it stretches
-         out to the edge of the frame. Piecewise, because a single linear
-         map to OFFSCREEN would drag the site itself off the mid-plane. */
-      const uH = T.height / OFFSCREEN;
-      const au = Math.abs(c.u), sgn = Math.sign(c.u) || 1;
-      const y = au <= uH
-        ? c.u * OFFSCREEN                       // within the protein
-        : sgn * (T.height + (au - uH) / (1 - uH) * (OFFSCREEN - T.height));
-      m.position.set(Math.cos(th) * rr, y, Math.sin(th) * rr);
-      /* HONOUR THE FADE. This used to force opacity 1, which threw away
-         the one thing alpha is for: an ion appeared and vanished at full
-         strength on the frame a phase changed. That pop is what read as a
-         flicker, and it also said the pump makes and destroys ions. */
-      m.material.opacity = c.alpha;
-      m.visible = c.alpha > 0.01;
-    }
+    setHTML(capEl, pumpOn
+      ? '<b>Even at rest, a cell constantly uses energy to maintain the proper flow of ions that is key to their function.</b>'
+      : '<b>The pump is off — watch the counts level and the voltage fade.</b>');
+  } else if (s.id === 'pump') {
+    runPumpCycle(dt);
+    /* Everything NOT aboard is ordinary solution and keeps walking — the pump
+       is a machine standing in a crowd, not the only thing on stage. */
+    for (const t of travellers) if (!t.aboard) advance(t, dt);
+    keepClear(travellers.filter(t => ELEMENT_OF[t.kind] && !t.aboard));
+    for (const t of travellers) keepOutOfPores(t);
     spendEl.hidden = false;
 
-    /* The caption is READ from the cycle. Nothing on this page can say
-       the pump is doing something the geometry is not. */
-    capEl.innerHTML = running || st.phosphate.on
-      ? '<b>' + st.label + '</b> — ' + st.caption
-      : '<b>One ATP runs the pump once.</b> Press the button and follow it: ' +
-        'three sodiums out, two potassiums in, then it stops.';
+    /* The caption is READ from the cycle. Nothing on this page can say the
+       pump is doing something the geometry is not. */
+    const stc = Pump.at(pumpT);
+    setHTML(capEl, running || stc.phosphate.on
+      ? '<b>' + stc.label + '</b> — ' + stc.caption
+      : '<b>Active transport uses ATP to move substances against their concentration gradient through membrane pumps. </b>');
   } else {
     spendEl.hidden = true;
     for (const t of travellers) {
@@ -1512,8 +3102,16 @@ function tick(dt) {
     if (s.id === 'osmosis')
       netRecent *= Math.pow(0.5, dt / NET_HALFLIFE);
     if (s.id === 'channel') {
-      keepApart(travellers.filter(t => t.lane === -LANE));
-      keepApart(travellers.filter(t => t.lane ===  LANE));
+      /* No keepApart() on the lanes any more — the file spaces itself by
+         waiting (see queueAhead), and pushing positions on top of that was
+         what made the pores dither. */
+      /* WALL EXCLUSION RUNS LAST. keepClear() pushes ions apart by moving
+         them, and it knows nothing about the proteins — run before it, the
+         wall correction was promptly undone by a neighbour shoving an ion
+         back into the barrel. Whatever moves a traveller last decides where
+         it is, so the hardest constraint has to be the final word. */
+      keepClear(travellers.filter(t => ELEMENT_OF[t.kind]));
+      for (const t of travellers) keepOutOfPores(t);
       /* WHERE THE COAT COMES OFF: at the mouth, not in the middle. An ion
          that sheds halfway down has already entered the filter wearing a
          shell that does not fit in it.
@@ -1523,7 +3121,13 @@ function tick(dt) {
          solution above it. */
       const mouth = T.height * 0.9;
       for (const t of travellers) {
-        if (t.lane == null || !shellsOn) continue;
+        if (!shellsOn) continue;
+        /* An ion that has LEFT the pore still has a shell to get back, and
+           it is no longer in a lane — releasing it into the bulk cleared
+           that. Gating this loop on `lane` alone left every conducted ion
+           permanently stripped, wandering the cytosol as a bare charge,
+           which is the one thing nothing in a cell is. */
+        if (t.lane == null && !t.shellOff) continue;
         if (!t.shellOff && Math.abs(t.y) < mouth) shedShell(t);
         /* And it gets the water back on the far side — the ion pays the
            shell to get through and is repaid by the solution it arrives
@@ -1540,11 +3144,54 @@ function tick(dt) {
   }
   /* Outside the branches: the pump step returns early past them, so a
      toggle hidden only in the non-pump path stayed on screen over the pump. */
-  shellsEl.hidden = s.id !== 'channel';
+  /* The shells belong to both protein steps — an ion the pump drags uphill
+     is dressed exactly like one a channel refuses, and the same switch
+     should strip both. The POTENTIAL switch is the channel step's alone:
+     there it is a choice about the physics, whereas the pump builds a
+     voltage whether or not anyone is watching it. */
+  placeControls();
+  /* The shells moved to the corner, so the pump step's row has nothing
+     left in it — an empty pill row still reserves height and reads as a
+     control that failed to load. */
+  ctlEl.hidden = s.id !== 'channel' && s.id !== 'rest';
+  /* THE CHANNEL STEP'S SWITCH, AND ONLY ITS. The potential is in play on
+     both protein steps whether or not anyone asks — the pump moves charge
+     every turn, and a resting cell has a voltage by definition — so there
+     is nothing there for a student to decide.
+
+     It used to be SHOWN ticked and locked on those two, to answer "is the
+     voltage on screen the same thing I was toggling a tab ago". That
+     answer was not worth the cost: a dead control in a row of live ones
+     invites a click that does nothing, and both steps already print the mV
+     on the stage, which says the potential is in play far better than a
+     greyed-out tick does. Only the channel step keeps the switch, because
+     only there is "what if charge did not push back" a question with two
+     honest answers.
+
+     voltOn is NOT forced here. Nothing downstream reads the box — the
+     resting step's physics asks for the potential by name (see nernst's
+     caller) — and re-entering the channel step restores the student's own
+     choice from voltOn. */
+  voltBox.parentElement.hidden = s.id !== 'channel';
+  voltBox.parentElement.classList.remove('is-fixed');
+  voltBox.disabled = false;
+  /* The pump switch is the resting step's whole argument — stop paying and
+     watch it come apart — so it belongs nowhere else. On the pump step the
+     button already is the switch. */
+  pumpBox.parentElement.hidden = s.id !== 'rest';
+  /* THE SAME INSTRUMENTS AS THE CHANNEL STEP, deliberately. The student
+     watched these numbers fall; the pump step is them going back up, and a
+     second set of readouts would hide that it is the same quantity. */
+  ionsEl.hidden = s.id !== 'channel' && s.id !== 'pump' && s.id !== 'rest';
+  if (!ionsEl.hidden) paintIons();
+  if (s.id === 'channel') paintEqBadge();      // a pumped cell is never at one
+  else eqBadgeEl.classList.remove('is-on');
+  voltEl.hidden = (s.id === 'pump' || s.id === 'rest') ? false
+                : s.id !== 'channel' || !voltOn;
+  if (!voltEl.hidden) paintVolt();
   NOTES.step();                           // trap 1: in the RENDER loop
   osmoEl.hidden = s.id !== 'osmosis';
   if (!osmoEl.hidden) paintOsmo();
-  readoutEl.textContent = s.readout ? s.readout() : '';
 }
 
 go(0);
