@@ -744,11 +744,20 @@ function setShells(on) {
 shellsBox.addEventListener('change', () => setShells(shellsBox.checked));
 voltBox.addEventListener('change', () => {
   voltOn = voltBox.checked;
-  /* NO RESET. The count is the scene's own history and it survives the
-     switch — turning the potential on simply starts honouring the charge
-     that has already moved, so the voltage shown is the one the transits
-     imply. Resetting made a scene where four K⁺ had visibly left read
-     0 mV. */
+  /* THE WHOLE STEP RESTARTS. The two modes are two different runs of the
+     same experiment, and the interesting thing about them is where each
+     one STOPS — so flipping the switch mid-run left the student comparing
+     a fresh answer against a spent scene. From the top, both times, and
+     the comparison is between two endings rather than an ending and
+     whatever was left lying around.
+
+     It also settles what the voltage should read on arrival: the ions are
+     back where they started, so there is no history for it to contradict.
+     (An earlier version reset only the counter, which produced the worse
+     of both — a scene where K⁺ had visibly left, reading 0 mV.) */
+  STEPS[cur].enter();
+  solveOffscreen();
+  STEPS[cur].enter();
 });
 
 function tickShells(dt) {
@@ -1093,8 +1102,40 @@ const E_K = -90, E_CL = -75;             // mV, equilibrium potentials
    sixty, and the run has a visible arc: hard one-way, then hesitant, then
    balanced. The arc IS the lesson; the resting value is just where it
    stops. */
-const MV_PER_ION = -1.5;                 // stage timing, not a measurement
+/* SIZED SO THE RESTING POTENTIAL IS REACHABLE. The balance lands near
+   −80 mV, and at −1.5 the whole cast crossing once bought only −66 — so
+   the run could not get there however long it ran, and stalled when the
+   ions ran out. At −2.5 it takes 32 net transits of the 44 available, so
+   the membrane arrives at rest with a quarter of the cast still to spare,
+   which is the headroom the reverse current needs to hold it there.
+
+   Retune this together with the ion counts: they set the ceiling
+   (transits × mV per ion), and the balance point comes from the Nernst
+   values and does not move when either changes. */
+const MV_PER_ION = -2.5;                 // stage timing, not a measurement
 let mV = 0, chargeOut = 0;
+/* HOW HARD THE WHOLE MEMBRANE IS STILL BEING PUSHED, and which way.
+
+   Read off the drives rather than off the traffic. Two earlier tests tried
+   to infer equilibrium from transits — the voltage holding still, then the
+   signed and unsigned transit rates — and both failed for the same reason:
+   at half a transit a second the statistics are far too thin. Simulated,
+   every threshold that caught a real balance also fired on a one-way flow
+   a quarter of the time, purely from Poisson luck in the gaps.
+
+   The drives have no noise in them. Each ion's push is a number, and the
+   membrane is at rest when the pushes cancel — weighted by how many ions
+   of each kind there are, which is this page's stand-in for conductance
+   and is why the balance point moves if the populations do. */
+function netPush() {
+  let nK = 0, nCl = 0;
+  for (const t of travellers) {
+    if (t.conducts == null) continue;
+    if (t.kind === 'K') nK++; else if (t.kind === 'CL') nCl++;
+  }
+  const n = nK + nCl;
+  return n ? (drive('K') * nK + drive('CL') * nCl) / n : 0;
+}
 /* COUNTED SEPARATELY, because they run opposite ways. One total with one
    arrow on it would be false whichever way the arrow pointed: this number
    is two currents, K⁺ leaving and Cl⁻ arriving, that happen to push the
@@ -1110,8 +1151,21 @@ const equilibriumOf = kind => kind === 'CL' ? E_CL : E_K;
    step makes about water. It also ends correctly on its own: once the two
    sides hold equal numbers they deliver equally, and the net stops without
    anything being switched off. */
+/* SIGNED. Positive means the gradient still wins and the ion runs the way
+   it started; negative means the VOLTAGE has overshot this ion's own
+   equilibrium and now drives it back the other way.
+
+   It used to be clamped at zero, so every current was one-directional and
+   the voltage could only ever fall — the run ended parked at E_K with both
+   pores idle, which is not a resting cell. At −90 the membrane is already
+   past chloride's −75, so the electrical force on Cl⁻ beats its
+   concentration force and it flows back OUT, depolarising. Potassium pulls
+   down, chloride pushes up, and the cell settles where the two currents
+   cancel: between the two equilibria, nearer whichever ion moves more
+   freely. That is the Goldman result, and it now EMERGES from the same
+   coin-flip machinery instead of being imposed by a clamp. */
 const drive = kind => !voltOn ? 0
-  : Math.max(0, (mV - equilibriumOf(kind)) / -equilibriumOf(kind));
+  : (mV - equilibriumOf(kind)) / -equilibriumOf(kind);
 
 /* `crowd` is the KNOCK-ON, and it has to be a big enough cut to see. It was
    0.35 against a 0.10–0.30 wait — a knocked-on ion waited 0.19 s on average
@@ -1222,8 +1276,25 @@ function tickQueue(t, dt) {
        like it cannot decide. In-pore direction bias earns its place only
        when a voltage is there to oppose the flow, which is exactly when it
        IS the mechanism. */
-    const pFwd = voltOn ? 0.5 + 0.5 * push : 1;
-    h.dir = (Math.random() < pFwd ? 1 : -1) * Math.sign(t.vy);
+    if (!voltOn) {
+      /* Simplified: it finishes the trip it started. */
+      h.dir = Math.sign(t.vy);
+    } else {
+      /* THE BIAS IS THE SPECIES', NOT THE TRIP'S. This used to weight the
+         coin toward the direction the ion happened to ENTER by — and since
+         both faces admit, a K⁺ captured on the outside was then pushed
+         further IN, depolarising, against the very gradient the voltage is
+         supposed to express. The two directions balanced by capture rate
+         and the run stalled around −42 mV with both ions still pushing.
+
+         Electrochemistry does not care which door an ion used. K⁺ is
+         driven OUT (+y) while the membrane sits above its equilibrium,
+         Cl⁻ IN (−y) while it sits above its own, and either reverses once
+         the voltage overshoots — which is the sign of `push`. */
+      const pref = (t.kind === 'CL' ? -1 : 1) * (push >= 0 ? 1 : -1);
+      const p = 0.5 + 0.5 * Math.min(1, Math.abs(push));
+      h.dir = Math.random() < p ? pref : -pref;
+    }
   }
   /* One site's worth of travel, taken fast — `step` is the file's spacing,
      so a hop lands where the ion ahead was standing. */
@@ -1918,8 +1989,8 @@ const STEPS = [
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
     },
     readout: () => voltOn
-      ? `resting potential ${Math.round(mV)} mV · K⁺ stops at ${E_K}, Cl⁻ at ${E_CL} · ` +
-        `the gradient is still there — that is what the cell spends later`
+      ? `resting potential ${Math.round(mV)} mV · it settles BETWEEN K⁺'s ${E_K} and ` +
+        `Cl⁻'s ${E_CL}, where the two currents cancel · the gradient is still there`
       : 'no charge is counted, so nothing opposes the spread · ' +
         'both sides end level, and the gradient is gone',
   },
@@ -2184,7 +2255,11 @@ function paintIons() {
    Read off the same state the traffic reads, so the badge cannot claim an
    equilibrium over a pore that is still passing ions. */
 function equilibrium() {
-  if (voltOn) return drive('K') <= 0.001 && drive('CL') <= 0.001;
+  /* Not "no current" — two currents that cancel. The badge waits for real
+     traffic first (chargeOut) so it cannot fire on the opening frames,
+     when the voltage is at 0 and has not moved yet because nothing has
+     happened. */
+  if (voltOn) return Math.abs(netPush()) < 0.04;
   return crowdedSide('K') === 0 && crowdedSide('CL') === 0;
 }
 function paintEqBadge() {
@@ -2192,7 +2267,7 @@ function paintEqBadge() {
   eqBadgeEl.classList.toggle('is-on', on);
   if (on)
     eqBadgeEl.lastElementChild.textContent = voltOn
-      ? 'electrochemical · the gradient is still there'
+      ? 'two currents cancelling · the gradient is still there'
       : 'concentrations level · the gradient is spent';
 }
 
