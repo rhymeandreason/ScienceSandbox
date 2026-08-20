@@ -48,18 +48,18 @@ const LESSONS = {
       { id: 'step-solvent', kind: 'step', at: 4, title: 'The Universal Solvent',
         what: 'salt dissolving, each ion gathering a shell of about six water molecules, and how dissolved salt shifts freezing and boiling' },
 
-      { id: 'temp-slider',  kind: 'ui', el: 'trange',
+      { id: 'temp-slider',  kind: 'ui', el: 'trange', title: 'the temperature slider',
         what: 'the temperature slider, which heats the water toward boiling or cools it toward ice' },
-      { id: 'add-salt',     kind: 'ui', el: 'addsalt',
+      { id: 'add-salt',     kind: 'ui', el: 'addsalt', title: 'the salt button',
         what: 'the button that drops salt into the water so it dissolves into sodium and chloride ions' },
-      { id: 'add-water',    kind: 'ui', el: 'addwater',
+      { id: 'add-water',    kind: 'ui', el: 'addwater', title: 'add a water molecule',
         what: 'the button that adds another water molecule to the scene' },
 
-      { id: 'a-hydrogen-bond', kind: 'atoms',
+      { id: 'a-hydrogen-bond', kind: 'atoms', title: 'a hydrogen bond',
         what: 'a single hydrogen bond between two water molecules, the weak attraction between a positive hydrogen and a negative oxygen' },
-      { id: 'the-charges',     kind: 'atoms',
+      { id: 'the-charges',     kind: 'atoms', title: 'the partial charges',
         what: 'the partial charges on one molecule, the slightly negative oxygen and the two slightly positive hydrogens' },
-      { id: 'hydration-shell', kind: 'atoms',
+      { id: 'hydration-shell', kind: 'atoms', title: 'a hydration shell',
         what: 'the shell of water molecules surrounding a dissolved ion, turned so their opposite charge faces inward' },
     ],
   },
@@ -164,7 +164,7 @@ function visible(lesson) {
     const home = id === lesson;
     for (const t of L.targets) {
       if (!home && t.kind !== 'step') continue;
-      out.push({ ...t, qid: `${id}/${t.id}`, lesson: id, home,
+      out.push({ ...t, qid: `${id}/${t.id}`, lesson: id, home, chapter: L.chapter,
                  lessonTitle: L.title, page: L.page, param: L.param, deepLink: L.deepLink });
     }
   }

@@ -146,7 +146,7 @@ async function ask({ messages, provider, system, cited, lesson, step }) {
   const point = !t ? null : {
     id: t.qid, kind: t.kind, what: t.what, home: t.home,
     at: t.at, el: t.el, title: t.title,
-    lesson: t.lesson, lessonTitle: t.lessonTitle,
+    lesson: t.lesson, lessonTitle: t.lessonTitle, chapter: t.chapter,
     href: t.home ? null : '/' + t.page + (t.deepLink ? `?${t.param}=${encodeURIComponent(t.at)}` : ''),
     lands: t.home || t.deepLink,   // false: the link opens the lesson, not the step
   };

@@ -1,0 +1,212 @@
+/* ---------------------------------------------------------------------------
+   ask/chat.css — the tutor drawer. Everything is scoped under .askchat or
+   #askchat so a lesson can load this without it reaching the lesson's own DOM.
+
+   The drawer covers the RAIL, never the stage. The stage is what the tutor
+   points at, and water-lab's controls (temperature, add water, add salt) live
+   over there too, so covering the rail costs the student only the lesson text
+   they just stopped reading to ask a question.
+   --------------------------------------------------------------------------- */
+
+/* ---- launcher, sits in the rail ---- */
+#askopen {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  font: 600 15px var(--font-sans);
+  color: var(--ink);
+  background: var(--panel);
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0 rgba(43, 39, 35, .13);
+  cursor: pointer;
+}
+
+#askopen:hover  { background: #fbf7ee }
+#askopen:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(43, 39, 35, .13) }
+#askopen .sub   { font-weight: 400; font-size: 12.5px; color: var(--muted) }
+
+/* A quiet dot, not a badge: the tutor has something waiting, and it is not
+   trying to be a notification. */
+#askopen.waiting::after {
+  content: '';
+  width: 8px; height: 8px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #c0392b;
+}
+
+/* ---- the drawer ---- */
+/* Closed is `display:none`, set by the .on class and nothing else. An earlier
+   version slid in on a transform and used the `hidden` attribute: `display:flex`
+   here silently beat `[hidden] { display:none }`, so the panel was never hidden,
+   only pushed offscreen, and one interrupted transition then pinned it there
+   with no rule to blame. Opacity fades; geometry does not move. */
+#askchat {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 2.5px solid var(--ink);
+}
+
+#askchat.on {
+  display: flex;
+  animation: askin .22s cubic-bezier(.32, .72, .4, 1);
+}
+
+@keyframes askin {
+  from { opacity: 0; clip-path: inset(0 0 0 22%) }
+  to   { opacity: 1; clip-path: inset(0 0 0 0) }
+}
+
+#askchat header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 18px 12px;
+  border-bottom: 1.5px dashed var(--hair);
+}
+
+#askchat header h2 {
+  margin: 0;
+  font-family: var(--font-marker);
+  font-size: 21px;
+  font-weight: 400;
+}
+
+#askchat header .where { font-size: 12.5px; color: var(--muted) }
+
+#askclose {
+  margin-left: auto;
+  font: 600 20px/1 var(--font-sans);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+#askclose:hover { color: var(--ink) }
+
+/* ---- transcript ---- */
+.askthread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.askthread .hello {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.askturn { margin: 0 0 16px }
+.askturn:last-child { margin-bottom: 0 }
+
+.askturn .who {
+  margin: 0 0 4px;
+  font-family: var(--font-slab);
+  font-size: 10.5px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.askturn .say { margin: 0; font-size: 15.5px; line-height: 1.62 }
+.askturn.you .say { font-weight: 600 }
+.askturn .say.err { color: #b23a2c }
+.askturn .say.wait { color: var(--muted); font-style: italic }
+
+/* ---- what the tutor points at ---- */
+.askgo {
+  display: block;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font: 600 13.5px var(--font-sans);
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.askgo:hover { background: rgba(0, 0, 0, .05) }
+.askgo small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted) }
+
+/* Leaving the page never looks like looking at it. */
+.askgo.away { border-style: dashed; background: rgba(43, 39, 35, .04) }
+
+.asksee {
+  margin: 9px 0 0;
+  font-family: var(--font-slab);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.asksee a { color: var(--ink); text-underline-offset: 3px }
+
+.asksoon {
+  color: var(--ink);
+  border-bottom: 1.5px dotted var(--muted);
+  cursor: help;
+}
+
+/* ---- ask ---- */
+#askchat form {
+  display: flex;
+  gap: 8px;
+  padding: 13px 18px 16px;
+  border-top: 1.5px dashed var(--hair);
+}
+
+#askchat input {
+  flex: 1;
+  min-width: 0;
+  font: 15px var(--font-sans);
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+
+#askchat input::placeholder { color: var(--muted) }
+
+#askchat form button {
+  font: 600 14px var(--font-sans);
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 9px 15px;
+  cursor: pointer;
+}
+
+#askchat form button:disabled { opacity: .45; cursor: default }
+
+/* ---- the flash a molecular point leaves behind ---- */
+.askpulse {
+  position: fixed;
+  z-index: 30;
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: askpulse 1.1s ease-out 3;
+}
+
+@keyframes askpulse {
+  from { transform: scale(.6); opacity: 0 }
+  40%  { opacity: 1 }
+  to   { transform: scale(1.35); opacity: 0 }
+}
