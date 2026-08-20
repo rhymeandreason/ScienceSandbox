@@ -905,6 +905,7 @@ const stepMeta=[
 
 /* ---------- DOM refs + control builders ---------- */
 const stage=document.getElementById('stage');
+const side=document.getElementById('side');
 const stepsEl=document.getElementById('steps');
 const stepTitleEl=document.getElementById('steptitle');
 const factBtn=document.getElementById('factbtn'), factBox=document.getElementById('factbox');
@@ -1271,6 +1272,45 @@ stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
 function setFact(on){ factBox.classList.toggle('on',on); factBtn.classList.toggle('lit',on); }
 factBtn.onclick=()=>setFact(!factBox.classList.contains('on'));
 
+/* ---------- where the model sits ----------
+ *  Closed, the lesson is the whole window and the model should be centred in
+ *  the WINDOW, not in the canvas — the canvas stops short of the rail, so a
+ *  centred render sits visibly left of centre. Open, the sheet takes that space
+ *  back and the model belongs where the canvas puts it.
+ *
+ *  Done with the camera's view offset rather than by resizing the canvas: the
+ *  frustum is computed for a wider viewport and only the left slice is drawn,
+ *  so the model moves and none of the lesson's chrome does. `aspect` has to
+ *  follow the FULL width, since three.js derives the frustum from it before
+ *  cutting the slice out. Everything that projects through the camera —
+ *  annotate.js's callouts included — comes along, because the offset is in the
+ *  projection matrix rather than painted on afterwards.
+ */
+const ASK_EASE=0.16;
+let askShift=1;                 // 1 = centred on the window, 0 = centred on the canvas
+let lastShiftKey='';
+function applyAskShift(){
+  const open=!!(ASK && ASK.el.classList.contains('on'));
+  const target=open?0:1;
+  askShift+=(target-askShift)*ASK_EASE;
+  if(Math.abs(askShift-target)<0.002) askShift=target;
+  const w=stage.clientWidth, h=stage.clientHeight;
+  const extra=(side.clientWidth||0)*askShift;
+  const want=(extra<0.5) ? w/h : (w+extra)/h;
+  /* Re-check the camera's own aspect, not just our inputs: Stage's ResizeObserver
+     sets aspect back to the canvas's on every resize (including the one it fires
+     when the page opens), and an offset frustum left on a canvas-width aspect
+     renders the model stretched. Skipping the rebuild is only safe while what we
+     asked for is still what the camera holds. */
+  const key=w+'x'+h+':'+extra.toFixed(1);
+  if(key===lastShiftKey && camera.aspect===want) return;
+  lastShiftKey=key;
+  camera.aspect=want;
+  if(extra<0.5) camera.clearViewOffset();
+  else camera.setViewOffset(w+extra,h,0,0,w,h);
+  camera.updateProjectionMatrix();
+}
+
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band
 // near the top before being recycled to the bottom, so they don't pop out abruptly.
@@ -1361,6 +1401,7 @@ function loop(){
   // letters/badges ride just proud of their own atom's front surface — see
   // atomkit.js faceCamera(); needs the camera's final position for this frame
   if(detail.visible) kit.faceCamera(camera);
+  applyAskShift();
   syncHbNote(); syncIceNotes(); syncSaltNotes();
   NOTES.step();                 // trap 1: the RENDER loop, so orbiting keeps the labels on their atoms
   renderer.render(scene,camera); requestAnimationFrame(loop);
@@ -1449,7 +1490,7 @@ function aHydrogenBond() {
   return null;
 }
 
-Ask.chat({
+const ASK = Ask.chat({
   rail: document.getElementById('side'),
   slot: document.getElementById('askslot'),
   lesson: 'water-lab',

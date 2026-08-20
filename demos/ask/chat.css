@@ -45,14 +45,27 @@
    here silently beat `[hidden] { display:none }`, so the panel was never hidden,
    only pushed offscreen, and one interrupted transition then pinned it there
    with no rule to blame. Opacity fades; geometry does not move. */
+/* A SHEET OF PAPER LAID OVER THE PAGE, not a panel built into it. It insets
+   from the rail's edges and hangs past the rail's left edge onto the stage, so
+   the shadow falls on the lesson and the eye reads one page on top of another.
+   The tilt is a fraction of a degree: enough that the edges are not parallel to
+   the window, small enough that the type still sits straight. */
 #askchat {
   position: absolute;
-  inset: 0;
+  top: 16px;
+  right: 18px;
+  bottom: 18px;
+  left: -26px;
   z-index: 40;
   display: none;
   flex-direction: column;
-  background: var(--panel);
-  border-left: 2.5px solid var(--ink);
+  background: #fdfbf5;
+  border: 1.5px solid rgba(43, 39, 35, .14);
+  border-radius: 3px;
+  transform: rotate(-.35deg);
+  box-shadow:
+    0 1px 1px rgba(43, 39, 35, .07),
+    0 18px 42px -20px rgba(43, 39, 35, .5);
 }
 
 #askchat.on {
@@ -60,9 +73,12 @@
   animation: askin .22s cubic-bezier(.32, .72, .4, 1);
 }
 
+/* Rises into place, since it is now an object arriving rather than a drawer
+   sliding out of the edge. The rotation has to be restated: a transform in a
+   keyframe replaces the rule's, and leaving it out snaps the sheet square. */
 @keyframes askin {
-  from { opacity: 0; clip-path: inset(0 0 0 22%) }
-  to   { opacity: 1; clip-path: inset(0 0 0 0) }
+  from { opacity: 0; transform: rotate(-.35deg) translateY(10px) scale(.994) }
+  to   { opacity: 1; transform: rotate(-.35deg) translateY(0)    scale(1) }
 }
 
 #askchat header {

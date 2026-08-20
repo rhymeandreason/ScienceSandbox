@@ -7,6 +7,13 @@
    the shared vocabulary, and nothing below can reach a featured lesson.
    ========================================================================== */
 
+/* The model is framed on the WINDOW while the tutor is closed, so it sits to the
+   right of this canvas and its right-hand callouts would be clipped at the
+   canvas edge. Let them run onto the rail, which is bare paper; the chat sheet
+   sits above them (z-index 40 vs the layer's 7) and covers them when open. */
+#stage,
+#stage .annot-layer { overflow: visible }
+
 /* ---- the rail is plain ----
    sandbox.css dresses #side as torn grid paper, which earned its place when the
    rail was the lesson's notebook. It holds the tutor now: the chat panel brings
