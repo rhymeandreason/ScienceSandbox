@@ -71,23 +71,9 @@
     0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.75}
     50%    {transform:translate(-50%,-50%) scale(1.12);opacity:1}}
 
-  /* ---------- the hint as an ANNOTATION ----------
-     A hand-drawn arrow from the words to the disc, not a caption floating
-     beside it. Both hints sit to the RIGHT of what they point at, so the arrow
-     leads left, and it is the same hand as the type.
-     MASKED, not an <img> or a coloured background-image: the arrow then paints
-     in `currentColor` and can never drift from the text it belongs to. */
-  /* the callout carries the words, so the span is empty — without this its
-     ::before arrow would hang in the frame pointing at nothing */
+  /* THE PROMPT IS A CALLOUT (annotate.js, see drawHint), never text beside the
+     disc — so kit/hotspot.js's own hint span is always handed '' and hidden. */
   .shint:empty{display:none}
-  .shint::before{content:'';display:inline-block;
-    width:34px;height:24px;margin-right:7px;vertical-align:-6px;
-    background-color:currentColor;
-    -webkit-mask-image:var(--annot); mask-image:var(--annot);
-    -webkit-mask-repeat:no-repeat;   mask-repeat:no-repeat;
-    -webkit-mask-position:center;    mask-position:center;
-    -webkit-mask-size:contain;       mask-size:contain}
-  :root{--annot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 26'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M34 4C25 1.5 9.5 3.5 5 15.5'/%3E%3Cpath d='M4.6 16.6l8-2.6M4.6 16.6l3.2 7'/%3E%3C/g%3E%3C/svg%3E")}
 
   /* NO DOT ON THE CALLOUT HERE. annotate.js's dot marks the anchor, but the
      purple disc under the bond already marks it, and two marks on one point
@@ -101,12 +87,9 @@
     background:none;cursor:pointer;display:block}
   .spot:hover ~ *,.spot:focus-visible{outline:none}
   .spot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
-  .spot .shint{position:absolute;left:calc(100% + 4px);top:50%;
-    transform:translateY(-50%);font-family:var(--font-hand);font-size:22px;
-    color:#6b4fd8;white-space:nowrap;pointer-events:none}
   @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
   @media (max-width:920px){ .sglow{width:72px;height:72px}
-    .spot{width:60px;height:60px} .spot .shint{display:none} }
+    .spot{width:60px;height:60px} }
 
   /* ---------- THE ENZYME, behind the sugar ----------
      A BLOB, NOT A STRUCTURE. No glycolytic enzyme is drawn on this page and a
