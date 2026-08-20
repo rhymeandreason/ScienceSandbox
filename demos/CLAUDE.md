@@ -15,12 +15,13 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | Page | Lesson | Status |
 | --- | --- | --- |
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | featured lesson |
-| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | featured lesson |
+| `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl→Na⁺+Cl⁻(aq) · KCl · MgCl₂) | featured lesson |
 | `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | featured lesson |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | prototype |
 | `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | prototype |
 | `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Hosts the `massaction/` sim in a modal — a second simulation with its own physics (below) | featured lesson |
+| `krebs-lab.html` | The Krebs cycle. Pyruvate oxidation, then eight steps around the ring, with the loop drawn in the sidebar and a second turn played back for the ×2. Where the carbon goes, and why the ATP is beside the point | prototype |
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | prototype |
@@ -46,7 +47,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
 
-**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb (`decarb`, `join`, `thioester` for the rest of respiration) must not touch a page. `AddingAPage.md`.
+**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb must not touch a page. The cycle added six (`decarb`, `join`, `thioester`, `hydrate`, `dehydro`, `shift`) and changed no lesson but its own. A spec's atom names are read through `host.meta`, because a step can span two domain blocks — pyruvate carries `gly`, the acetyl-CoA it becomes carries `krebs`. `AddingAPage.md`.
 
 **`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
 

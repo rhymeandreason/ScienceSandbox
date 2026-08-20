@@ -195,7 +195,13 @@
               // the carboxylate that leaves as CO₂ at the next step is Cb's —
               // the middle one — not either end. Named so the lesson does not
               // have to guess.
-              decarb:cbC } });
+              decarb:cbC,
+              // …and the hydrogen NAD⁺ takes as it goes. It is Ca's, the one
+              // the –OH shares its carbon with: oxidising that carbinol to a
+              // ketone is what makes the β-carboxylate able to leave at all.
+              // Drawn here only because Ca is a stereocentre (header note 1),
+              // which is the one reason this atom exists to be named.
+              hydride:caH } });
   }
   {
     /* — α-ketoglutarate (2-oxoglutarate): five carbons, one CO₂ lighter than
@@ -211,7 +217,12 @@
       name:'α-Ketoglutarate', short:'α-KG', formula:'C₅H₄O₅²⁻', charge:-2, class:'acid',
       krebs:{ carbons:5, cN:[0,1,2,3,4], carboxyls:2, keto:1,
               // the carboxylate lost as the second CO₂
-              decarb:0 } });
+              decarb:0,
+              // WHERE THE OXIDATION HAPPENS, since there is no hydrogen to
+              // name: C2's electrons are the ones NAD⁺ takes, and what is left
+              // of C2 becomes the thioester carbon. So a lesson aims the
+              // hydride here rather than at an atom the spec does not draw.
+              oxC:1 } });
   }
   {
     /* — succinate: four carbons, two carboxylates, and a C2 axis of symmetry
@@ -225,7 +236,13 @@
     carboxylate(g, 3);
     KREBS.succinate = g.spec({
       name:'Succinate', short:'Succinate', formula:'C₄H₄O₄²⁻', charge:-2, class:'acid',
-      krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, symmetric:true } });
+      krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, symmetric:true,
+              // THE TWO CARBONS SUCCINATE DEHYDROGENASE STRIPS, not the four
+              // hydrogens on them: no C–H is drawn on this molecule (header
+              // note 1, and succinate has no stereocentre to except), so the
+              // two that leave have no mesh and a lesson animates them off the
+              // carbons instead. C2 and C3 — the pair the C=C forms between.
+              dehydroC:[1, 2] } });
   }
   {
     /* — fumarate: succinate with a C2=C3 double bond, TRANS.
@@ -303,7 +320,12 @@
     KREBS.malate = g.spec({
       name:'Malate', short:'Malate', formula:'C₄H₄O₅²⁻', charge:-2, class:'acid',
       chiral:[ { at:1, priority:[oh, 0, 2, c2H], hand:'S' } ],
-      krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, oh } });
+      krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, oh,
+              // the hydride malate dehydrogenase hands NAD⁺, off the same C2
+              // the hydroxyl is on — the carbinol becoming the ketone that
+              // closes the cycle. Drawn for the stereocentre; named here so
+              // the last step does not have to rediscover it.
+              hydride:c2H } });
   }
 
 
@@ -570,7 +592,7 @@
     KREBS.acetylcoa = s.spec({
       name:'Acetyl-CoA', short:'Acetyl-CoA', formula:FORMULA.acetylcoa, charge:-4,
       class:'carrier',
-      krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, carbons:2,
+      krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:2,
               phosphates:3, p3, pa, pb } });
   }
   {
@@ -583,7 +605,7 @@
     KREBS.succinylcoa = s.spec({
       name:'Succinyl-CoA', short:'Succinyl-CoA', formula:FORMULA.succinylcoa, charge:-5,
       class:'carrier',
-      krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, carbons:4,
+      krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:4,
               phosphates:3, p3, pa, pb } });
   }
 
@@ -777,6 +799,11 @@
     //   FAD is derived from it below.
     const f = buildFAD();
     KREBS.fadh2 = f.s.spec({
+      // FACE-ON. The isoalloxazine is built flat in the xz-plane like every
+      // other fused aromatic here, so without this it is drawn edge-on — a
+      // three-ring system rendered as a line, on the one carrier whose whole
+      // point is the two hydrogens sitting on its face.
+      view:VIEW.flatRing,
       name:'FADH₂', short:'FADH₂', formula:'C₂₇H₃₅N₉O₁₅P₂²⁻', charge:-2,
       class:'carrier',
       // Six rings: the flavin's three, adenine's fused pair, and the ribose.
@@ -817,6 +844,10 @@
       m = m.map(i => (i === h ? null : step[i]));
     });
     KREBS.fad = s.spec({
+      // Face-on, for FADH₂'s reason and so the pair are the same drawing seen
+      // the same way — a page showing one of them turned would be claiming the
+      // oxidation moved the molecule rather than two hydrogens.
+      view:VIEW.flatRing,
       name:'FAD', short:'FAD', formula:'C₂₇H₃₃N₉O₁₅P₂²⁻', charge:-2,
       class:'carrier',
       topology:{ rings:[5,5,6,6,6,6], fused:true, linear:f.ring.map(i => m[i]) },

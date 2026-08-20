@@ -435,7 +435,14 @@
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
     g.carbonyl(1,0);                                       // C2 ketone
     GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', short:'Pyruvate', formula:'C₃H₃O₃⁻', charge:-1, class:'sugar',
-      gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true } });
+      gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true,
+        // WHAT THE NEXT PATHWAY DOES TO IT. Glycolysis ends here and the
+        // bridge reaction starts here, so the two atoms pyruvate dehydrogenase
+        // acts on are named on the molecule rather than in whichever page
+        // happens to draw it next: C1 leaves as CO₂, C2 is where the oxidation
+        // happens and what is left of it becomes acetyl-CoA's thioester
+        // carbon. See krebs-lab.html; glycolysis never reads either.
+        decarb:0, oxC:1 } });
   }
   {
     // — inorganic phosphate (Pi), the free phosphate already dissolved in the

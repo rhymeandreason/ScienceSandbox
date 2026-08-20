@@ -15,9 +15,14 @@
  *      is that a reaction happens to a molecule and only the lane count is a
  *      stage fact; a verb answering both would be the duplication coming back
  *      through a different door.
- *   3. EXACTLY ONE VERB IS `whole`. If a second appears, the claim above has
- *      stopped being true and this file is the place to argue about it — not
- *      a page that quietly grew a second special case.
+ *   3. ONLY A VERB ABOUT THE LANE COUNT IS `whole`, and the list of them is
+ *      written here rather than counted. It was "exactly one" while glycolysis
+ *      was the only lesson: `split`, one molecule becoming two. The cycle adds
+ *      its mirror — `join`, two becoming one at citrate synthase — and that is
+ *      the same claim, not a weakening of it: a reaction happens to a molecule,
+ *      and the only thing a verb may own the whole stage for is how many
+ *      molecules there are. A third name appearing in this list is the
+ *      argument to have; a third whole-stage verb NOT in it is the failure.
  *   4. NO VERB READS A LESSON'S STATE. `done`, `busy`, `intro`, `lanes` and
  *      the tray belong to the page; a verb reaching for one is the module
  *      growing lesson physics (SCIENCE.md §6).
@@ -43,7 +48,7 @@ console.log('== 1. every fx a lesson names is a registered verb');
 if (!VERBS.length) fail('no verbs found — has verb() been renamed?');
 
 // Which pages drive the module. Widen alongside any new one.
-const PAGES = ['glycolysis-lab.html'];
+const PAGES = ['glycolysis-lab.html', 'krebs-lab.html'];
 let named = 0;
 for (const page of PAGES) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
@@ -87,13 +92,17 @@ VERBS.forEach(v => {
   if (!hasLane(v) && !hasWhole(v))
     fail(`verb '${v}' defines neither lane() nor whole() — nothing would run.`);
 });
+// The verbs that are ABOUT the lane count, and may therefore own the stage.
+// Both directions of the same event: a molecule splitting, and two joining.
+const COUNT_VERBS = ['split', 'join'];
 const wholes = VERBS.filter(hasWhole);
-if (wholes.length !== 1)
-  fail(`${wholes.length} verb(s) are whole-stage (${wholes.join(', ') || 'none'}), `
-     + `expected exactly one. The module's structural claim is that every verb `
-     + `except the one about lane COUNT is a per-lane body — if that has `
-     + `stopped being true, argue it here before adding the second.`);
-else ok(`${VERBS.length} verbs: ${VERBS.length - 1} per-lane, '${wholes[0]}' whole-stage`);
+const stray = wholes.filter(v => !COUNT_VERBS.includes(v));
+if (stray.length)
+  fail(`verb(s) ${stray.join(', ')} own the whole stage but are not about the `
+     + `lane COUNT. Every verb except those is a per-lane body — if that has `
+     + `stopped being true, argue it in COUNT_VERBS before adding the next.`);
+else ok(`${VERBS.length} verbs: ${VERBS.length - wholes.length} per-lane, `
+      + `${wholes.join(' + ')} whole-stage`);
 
 console.log('\n== 3. no verb reads a lesson\'s state');
 /* The module reaches the page through `host` and nothing else. These are
