@@ -1401,13 +1401,22 @@ Ask.chat({
         after(700, () => {
           const ion = salt[0];
           if (!ion) return;
-          // The six nearest waters, which is the shell the lesson's own text
-          // claims: "each ion pulls in a shell of about 6 waters".
-          const near = [...sim.mols]
-            .sort((a, b) => a.position.distanceToSquared(ion.position)
-                          - b.position.distanceToSquared(ion.position))
-            .slice(0, 6);
-          spotlight(near, 4000);
+          // The shell the sim SEATED, not the six waters that happen to be
+          // nearest. Those are usually the same set and sometimes are not, and
+          // when they differ the nearest-six is the wrong answer: a water can
+          // sit close without being in the shell, and a seated one can drift.
+          //
+          // Seating happens when the crystal reaches the water, which is a
+          // second or two after it is dropped, so wait for it rather than
+          // lighting nothing. If it never seats, light the ion alone: still
+          // true, and still shows the student where to look.
+          let tries = 0;
+          (function whenSeated() {
+            const shell = sim.mols.filter(w => w.userData.shellIon === ion);
+            if (shell.length) return spotlight([ion, ...shell], 4000);
+            if (++tries < 20) return setTimeout(whenSeated, 250);
+            spotlight([ion], 3000);
+          })();
         });
       });
       return true;
