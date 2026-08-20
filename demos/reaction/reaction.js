@@ -900,24 +900,56 @@ function create(host) {
    * would put it in the same column as NAD⁺ and imply it is consumed. It is
    * borrowed and given back, which is what entering and leaving frame says.
    */
-  function handleFly(l, seatIdx, dir) {
+  /* THE SEAT IS A WORLD POINT, NOT AN ATOM INDEX, and that is the whole of a
+   * bug this signature used to invite. A departing CoA leaves from a sulfur the
+   * molecule on stage HAS, so its index reads off that molecule's meshes. An
+   * arriving one lands on a sulfur the molecule on stage DOES NOT HAVE YET —
+   * the lane still holds pyruvate until the step lands — so the index belongs
+   * to the product and means nothing on the substrate. Index 48 against
+   * pyruvate's six atoms is undefined, which fell through to the lane's origin:
+   * seventy atoms of coenzyme A docking at a point in the middle of a
+   * three-carbon acid, and the sulfur-yellow ring marking the new C–S bond
+   * fired there too. It looked near enough to be invisible.
+   * So the caller resolves the point — off the meshes when the atom exists, off
+   * the PRODUCT'S SPEC when it does not (`siteWorld`, which is what `in` uses
+   * for exactly this reason) — and this only flies to it. */
+  function handleFly(seat, dir) {
     const spec = host.handleSpec && host.handleSpec();
-    if (!spec) return null;
-    const u = l.g.userData;
-    const seat = seatIdx != null && u.atomMeshes[seatIdx]
-      ? u.atomWorld(seatIdx).clone()
-      : l.g.getWorldPosition(new THREE.Vector3());
-    const edge = offstage(seat, dir === 'on' ? TOP_EDGE : EXIT_EDGE);
+    if (!spec || !seat) return null;
+    /* WHERE IT COMES FROM AND GOES BACK TO IS THE PAGE'S, exactly as a carrier
+     * tile is: whether this lesson gives coenzyme A somewhere to stand is a
+     * question about the stage, and the module has no business assuming. A page
+     * that answers puts the flight on a tile the student can see it leave; a
+     * page that does not gets the solvent edge, which is the honest fallback
+     * for a molecule that is simply somewhere in the matrix. */
+    const home = (host.handlePoint && host.handlePoint(seat))
+              || offstage(seat, dir === 'on' ? TOP_EDGE : EXIT_EDGE);
     // the C–S bond, on the beat it forms or breaks
     const ring = () => FX.spawnRing(seat, THIO());
-    if (dir === 'on') return flyFree(spec, edge, seat, T.HANDLE, ring);
+    /* THE TILE EMPTIES AND FILLS AT WHICHEVER END YOU CAN SEE IT HAPPEN — the
+     * rule `ox` argues for carriers. Arriving on the molecule, CoA has left the
+     * tray the moment the flight STARTS; leaving the molecule, it is back only
+     * when the flight LANDS. Either way the tile changes on the frame the
+     * student is looking at the change. */
+    const moved = () => { if (host.onHandleMoved) host.onHandleMoved(dir); };
+    if (dir === 'on') { moved(); return flyFree(spec, home, seat, T.HANDLE, ring); }
     ring();
     const all = spec.atoms.map((_, i) => i);
     const cIdx = spec.atoms.findIndex(a => a.el !== 'H');
     const g = GO.launch(GO.fragment(spec, all, {center: cIdx < 0 ? 0 : cIdx}),
-                        {from: seat, to: edge, dur: T.HANDLE, arc: ARC});
+                        {from: seat, to: home, dur: T.HANDLE, arc: ARC, onDone: moved});
     labelFlyer(g, spec, holdFor(T.HANDLE));
     return g;
+  }
+
+  /* WHERE A LANE'S OWN THIOESTER SULFUR IS. Only valid while the molecule on
+   * stage is the thioester — which is the case at both departures and at
+   * neither arrival. Falls back to the group's origin so a spec without one
+   * costs the flight its precision rather than sending it to NaN. */
+  function thiolWorld(l) {
+    const i = meta(specOf(l.key)).thiol, u = l.g.userData;
+    return (i != null && u.atomMeshes[i]) ? u.atomWorld(i).clone()
+                                          : l.g.getWorldPosition(new THREE.Vector3());
   }
 
   /* THE HYDRIDE A DEHYDROGENASE TAKES, toward the carrier standing opposite.
@@ -948,14 +980,15 @@ function create(host) {
    * alcohol is oxidised to a ketone, and only then can the β-carboxylate go.
    * Run together they read as one molecule falling apart.
    *
-   * AND SOMETIMES A THIOESTER FORMS ON THE WAY OUT. Step 4 and the bridge
-   * reaction are run by homologous complexes doing identical chemistry — an
-   * α-keto acid loses CO₂ and what is left is handed to coenzyme A — so they
-   * are one verb, and the CoA leg is `coa:'on'` on the step rather than a
-   * fourth verb that would only ever differ by which molecule it names.
+   * A THIOESTER FORMING ON THE WAY OUT IS `join`'S, NOT THIS ONE'S. The bridge
+   * reaction and step 4 do this same chemistry and then hand what is left to
+   * coenzyme A — but CoA is a whole molecule standing on the stage, so those
+   * steps are two molecules becoming one and belong to the verb that owns the
+   * lane count. This one is the decarboxylation alone, which is step 3: a
+   * carbon and a hydride leave and nothing arrives.
    */
   verb('decarb', {
-    dur: st => T.OX_GAP + T.WATER_FORM + T.WATER_DRIFT + (st && st.coa ? T.HANDLE : 0),
+    dur: () => T.OX_GAP + T.WATER_FORM + T.WATER_DRIFT,
     lane(c) {
       const mol = meta(c.spec);
       /* A LANE WITH NO CARBOXYLATE TO LOSE IS NOT IN THIS REACTION, and it has
@@ -973,8 +1006,10 @@ function create(host) {
         carbonAway(c.lane, mol.decarb);
         // …and the thioester, once the carbon has gone: CoA attacks what the
         // decarboxylation left, so it cannot arrive before there is a site.
+        // …off the PRODUCT's spec: the lane still holds the substrate, which has
+        // no sulfur at all, so this is where acetyl-CoA's WILL be.
         if (c.step.coa === 'on')
-          later(() => handleFly(c.lane, meta(c.product).thiol, 'on'), T.WATER_FORM);
+          later(() => handleFly(siteWorld(c.key, 'thiol', c.x), 'on'), T.WATER_FORM);
       }, T.OX_GAP);
     }});
 
@@ -995,21 +1030,50 @@ function create(host) {
    * asking which substrate's spec calls itself a carrier, never by index.
    */
   verb('join', {
-    dur: () => T.JOIN + T.PLAIN,
+    // A carbon leaving first costs the step the two beats that takes. `co2` is
+    // the lesson's own ledger field, so no step declares its timing twice.
+    dur: st => (st && st.co2 ? T.OX_GAP + T.WATER_FORM : 0) + T.JOIN + T.PLAIN,
     whole(c) {
       const ls = lanesNow();
       const mid = ls.reduce((v, l) => v.add(l.g.getWorldPosition(new THREE.Vector3())),
                             new THREE.Vector3()).multiplyScalar(1 / Math.max(1, ls.length));
-      ls.forEach(l => { l.g.userData.tx = 0; });
-      const held = ls.find(l => meta(specOf(l.key)) && meta(specOf(l.key)).carrier);
+      /* ---- THE CARBON GOES BEFORE THE JOIN, where there is one ----------
+       * An α-keto acid dehydrogenase complex sheds CO₂ and hands what is left
+       * to coenzyme A, and those are one enzyme's two half-reactions in that
+       * order: there is no acetyl group to give away until the carboxylate has
+       * gone. So the acid empties first and the molecules close afterwards,
+       * and the student watches a three-carbon molecule become a two-carbon
+       * one before anything joins it.
+       * WHICH LANE, off its own spec: the one that names a carboxylate to
+       * lose. Citrate synthase has none and skips all of this. */
+      const acid = ls.find(l => meta(specOf(l.key)).decarb != null);
+      const gap = acid ? T.OX_GAP + T.WATER_FORM : 0;
+      if (acid) {
+        const ac = Object.assign({}, c, {lane: acid});
+        if (c.step.couple) hydrideAway(ac, meta(specOf(acid.key)).hydride);
+        later(() => carbonAway(acid, meta(specOf(acid.key)).decarb), T.OX_GAP);
+      }
+      // …then they close. Eased by the render loop toward x=0, so the two
+      // visibly travel rather than cutting to a new layout.
+      later(() => ls.forEach(l => { l.g.userData.tx = 0; }), gap);
+      /* ---- AND THE HANDLE LEAVES ONLY IF THE PRODUCT IS NOT ONE -----------
+       * Both kinds of join have a molecule on stage whose metadata calls
+       * itself a carrier, and they mean opposite things. At citrate synthase
+       * it is acetyl-CoA, and the CoA is the leaving group: the product is a
+       * plain acid, so the handle goes back to the pool. At the bridge it is
+       * free coenzyme A arriving, and the product IS the thioester — so
+       * nothing leaves, and flying it away here would delete the molecule the
+       * step just made. The product answers which case this is. */
+      const releases = !meta(c.product).carrier;
+      const held = ls.find(l => meta(specOf(l.key)).carrier);
       later(() => {
-        FX.spawnRing(mid, PAL.atoms.C);
-        if (held) handleFly(held, meta(specOf(held.key)).thiol, 'off');
-      }, T.JOIN);
+        FX.spawnRing(mid, releases ? PAL.atoms.C : THIO());
+        if (releases && held) handleFly(thiolWorld(held), 'off');
+      }, gap + T.JOIN);
       later(() => {
         host.spawnLanes(c.keys, o => { o.g.position.set(0, o.g.position.y, 0); });
         host.settleLanes(); c.land();
-      }, T.JOIN + T.PLAIN);
+      }, gap + T.JOIN + T.PLAIN);
     }});
 
   /* ---- SPENDING A THIOESTER -------------------------------------------
@@ -1027,11 +1091,8 @@ function create(host) {
   verb('thioester', {
     dur: () => T.HANDLE + T.DRIFT,
     lane(c) {
-      const seatIdx = meta(c.spec).thiol;
-      const seat = seatIdx != null && c.lane.g.userData.atomMeshes[seatIdx]
-        ? c.lane.g.userData.atomWorld(seatIdx).clone()
-        : anchorWorld(c.lane, c.step.anchor).clone();
-      handleFly(c.lane, seatIdx, 'off');
+      const seat = thiolWorld(c.lane);
+      handleFly(seat, 'off');
       const free = host.freeSpec && host.freeSpec();
       if (!c.step.couple || !free) return;
       later(() => {

@@ -515,6 +515,38 @@ font-size: 20px;
   @media (prefers-reduced-motion:reduce){ #actbtn.burst{animation:none} }
 
 
+  /* ---------- coenzyme A's tile, under the carrier ----------
+     Same column, same width, deliberately the same treatment: it is another
+     molecule standing in the matrix, not a legend entry. What differs is that
+     it has no charged state to show — see the script — so when it is away the
+     slot simply stands empty and the subtitle says where it went. Keeping the
+     empty box is what stops the column jumping on the frame it leaves. */
+  #bench{width:var(--carw);position:relative;pointer-events:none;
+    padding:7px 8px 6px;text-align:left;user-select:none}
+  #bench .cname{font-family:var(--font-slab);font-weight:700;font-size:17px;
+    color:var(--ink);line-height:1.15}
+  #bench .csub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--muted);line-height:1.2;margin-bottom:5px}
+  #bench .cvis{position:relative;height:330px;pointer-events:none;
+    display:flex;flex-direction:column}
+  #bench .cslot{position:relative;flex:1 1 0;min-height:0}
+  /* BOTH AT ONCE ON THREE OF THE FOUR CoA STEPS — the bridge and step 4 spend an
+     NAD⁺ as well, step 5 an ADP. Two full-height columns overrun the canvas, so
+     the pair share it. Declared here rather than measured: the camera's left
+     inset is a WIDTH and none of this touches it, so heights are free to move. */
+  #tray.pair #carrier .cvis{height:290px}
+  #tray.pair #bench .cvis{height:270px}
+  #tray.pair #carrier .cname,#tray.pair #bench .cname{font-size:15px}
+  /* …and shorter again on a short laptop. The pair plus its labels is ~675px,
+     which fits a 900-tall window and overruns a 768 one — the column is
+     centred on the canvas, so an overrun pushes both tiles off both ends at
+     once. Keyed to viewport HEIGHT because that is the thing running out;
+     nothing here touches the camera, which insets on width alone. */
+  @media (max-height:820px){
+    #tray.pair #carrier .cvis{height:215px}
+    #tray.pair #bench .cvis{height:200px}
+  }
+
   /* ---------- the ring, in the sidebar ----------
      The one place the cycle is a cycle. Eight nodes on a circle, each filled
      once its step has run, and the arc back to oxaloacetate closes with the
@@ -1099,10 +1131,13 @@ const carrierKey=n=>n==='NAD+'?'NAD':n==='FADH₂'?'FADH2':n;
  * regulates — the point, not a coincidence. */
 const STEPS=[
   { n:'Bridge', stage:1, reagent:'NAD', need:'Load NAD⁺',
-    species:['acetylcoa','oaa'], enz:'Pyruvate dehydrogenase complex',
+    species:['acetylcoa'], enz:'Pyruvate dehydrogenase complex',
     hook:'Into the mitochondrion', rev:false,
     pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
-    fx:'decarb', coa:'on', anchor:'oxC',
+    fx:'join', anchor:'oxC',
+    // OXALOACETATE IS NOT IN THIS REACTION and so is not on this stage. It
+    // waits on the bench for its own step; `bench` is what puts it there.
+    bench:'oaa',
     couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     // `decarb` is the spec's own name for the carboxylate that goes, so the
     // target follows the atom rather than a typed index — the same contract
@@ -1118,7 +1153,7 @@ const STEPS=[
     act:'Join them',
     species:['citrate'], enz:'Citrate synthase', hook:'Two become one',
     rev:false, commit:true,
-    fx:'join',
+    fx:'join', enter:['oaa'], bench:{key:'coa', arriving:true},
     // ON THE THIOESTER, which is where the energy for this step is. `thio` is
     // the spec's own S–C pair (mol-krebs.js), so the disc sits on the bond
     // that breaks as the C–C forms.
@@ -1159,7 +1194,7 @@ const STEPS=[
     species:['succinylcoa'], enz:'α-Ketoglutarate dehydrogenase',
     hook:'The last carbon out', rev:false, commit:true,
     pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
-    fx:'decarb', coa:'on', anchor:'oxC',
+    fx:'join', enter:['coa'], anchor:'oxC',
     couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     spot:{ at:'decarb', say:'Take the last carbon off' },
     takeaway:`5C → 4C. Both carbons that came in have left`,
@@ -1172,7 +1207,7 @@ const STEPS=[
     species:['succinate'], enz:'Succinyl-CoA synthetase',
     hook:'The only direct payoff', rev:true,
     pool:{ADP:-1,ATP:+1}, made:1,
-    fx:'thioester',
+    fx:'thioester', bench:{key:'coa', arriving:true},
     couple:{ up:false, plus:'Pi', cin:'ADP', cout:'ATP', tone:'p' },
     spot:{ at:'thio', say:'Break the thioester' },
     takeaway:`The cycle's one direct ATP, out of eleven products`,
@@ -1285,8 +1320,22 @@ const stepAt=i=>STEPS[i];
 // What is on stage before step i. The opening state is TWO molecules: pyruvate
 // arriving from glycolysis, and the oxaloacetate already in the matrix waiting
 // for it. That pair is the lesson's first fact and it is in the data.
-const OPENING=['pyruvate','oaa'];
-const speciesAt=i=>i===0?OPENING:STEPS[i-1].species;
+/* WHAT IS ON STAGE, AND WHY IT IS THE TWO THINGS REACTING. The page opens on
+ * pyruvate and coenzyme A because those are the bridge reaction's two
+ * substrates; oxaloacetate is not in that reaction at all and stands on the
+ * bench until citrate synthase, which is its step.
+ *
+ * `enter` is how a step says a molecule takes the stage for it. Without it the
+ * stage is simply whatever the last step left, which is true of six of the
+ * nine; the two joins are where something new has to be standing there before
+ * the step can run, and this is that fact in the data rather than a special
+ * case in the lookup. */
+const OPENING=['pyruvate','coa'];
+const speciesAt=i=>{
+  if(i===0) return OPENING;
+  const prev=STEPS[i-1].species, st=STEPS[i];
+  return (st && st.enter) ? prev.concat(st.enter) : prev;
+};
 
 // One lap's totals, so a completed lap can be added without re-walking it.
 const LAP={
@@ -1455,18 +1504,50 @@ function clearLanes(){ LANES.clear(); lanes=LANES.lanes; }
 const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
 const HALF_FOV=FIT.HALF_FOV;
 const orthoFrustum=()=>FIT.frustum();
+/* HOW TALL A STATE IS ON SCREEN IS NOT HOW TALL IT IS IN WORLD Y, and this page
+ * is the first one where that difference has teeth. The camera sits at an
+ * elevation, so its up axis is world Y tilted back into Z: a molecule that
+ * sprawls in Z is taller on screen than its Y extent says. Glycolysis never
+ * noticed because a phosphorylated sugar is compact in every direction, and
+ * coenzyme A is a seventy-atom chain that is not — measured in world Y it fit
+ * the frame, and two of its atoms projected above the canvas.
+ *
+ * So the height is measured along the CAMERA'S UP AXIS and the width along its
+ * right axis, which is what "how much room does this need" actually means under
+ * an orthographic camera. Both are read off the live basis rather than typed,
+ * so the day this page lets the student orbit, the fit follows.
+ *
+ * THE CENTRE STAYS IN WORLD Y, because that is the axis `cam.target.y` moves
+ * along and the two are not the same number. kit/fit.js already damps its top
+ * anchor for exactly this reason. Getting the SIZE right is what stops the
+ * clipping; the centring was never the part that was wrong.
+ */
+const _fitV=new THREE.Vector3(), _fitUp=new THREE.Vector3(), _fitRt=new THREE.Vector3();
 function fitFor(states){
-  let lo=0, hi=0, wide=0;
+  camera.updateMatrixWorld();
+  _fitRt.setFromMatrixColumn(camera.matrixWorld,0);
+  _fitUp.setFromMatrixColumn(camera.matrixWorld,1);
+  let lo=0, hi=0, wide=0, yLo=0, yHi=0;
   states.forEach(keys=>{
     const n=keys.length;
-    keys.forEach((k,j)=>{ const x=Math.abs(laneX(j,n)), xc=laneShift(k), yc=laneLift(k);
+    keys.forEach((k,j)=>{ const x=laneX(j,n), xc=laneShift(k), yc=laneLift(k);
       visibleAtoms(M[k]).forEach(a=>{ const r=PAL.radii[a.el]||0.7;
-        lo=Math.min(lo,a.pos[1]-yc-r); hi=Math.max(hi,a.pos[1]-yc+r);
-        wide=Math.max(wide, x+Math.abs(a.pos[0]-xc)+r); }); });
+        // BOTH axes about the lane's own centre: spawnLane draws recentred, so
+        // a fit off raw spec coordinates fits a position nothing occupies.
+        _fitV.set(a.pos[0]-xc+x, a.pos[1]-yc, a.pos[2]);
+        const h=_fitV.dot(_fitUp);
+        lo=Math.min(lo,h-r); hi=Math.max(hi,h+r);
+        wide=Math.max(wide, Math.abs(_fitV.dot(_fitRt))+r);
+        yLo=Math.min(yLo,_fitV.y-r); yHi=Math.max(yHi,_fitV.y+r); }); });
     wide=Math.max(wide, (n>1?LANE:0)+2.0);
   });
-  const Y=(lo+hi)/2;
-  const halfNeeded=Math.max(hi-Y, Y-lo);
+  // Centre on the MOLECULES, not molecules-plus-label: a plate pulling the
+  // centre up shoves the molecule into the reagent tray.
+  const Y=(yLo+yHi)/2;
+  // THE LABEL IS NOT IN THE FIT. It is a fixed PIXEL band already reserved off
+  // the top by usable(), so reaching for the plate's world Y here would charge
+  // for it twice and pull the camera back to contain a piece of HTML.
+  const halfNeeded=Math.max(hi-(lo+hi)/2, (lo+hi)/2-lo);
   const {R,Y:Yfit}=FIT.solve({halfNeeded, wide, centerY:Y, pad:1.10, min:15, max:100});
   return { Y:Yfit, R };
 }
@@ -1552,11 +1633,15 @@ function computeFit(){
    * glycolysis, and for a reason that is on screen. There, Begin only reveals
    * the tray, so a zoom would move the sugar for an invisible cause. Here Begin
    * brings NAD⁺ into the frame, and the camera moves because something arrived. */
+  /* NO SEPARATE INTRO FRAMING any more. It existed because the page opened on
+   * two small acids that a cycle-wide distance drew as specks; it now opens on
+   * the bridge's own two substrates, one of which is coenzyme A, so the opening
+   * shot and the first step's are the same shot and the camera does not move
+   * on Begin. That is the better reading anyway: Begin reveals the tray, and
+   * nothing about the molecules changed. */
   const near=around();
-  const big = !intro && hasCarrier(near.flat());
-  const f = intro ? fitFor([OPENING])
-          : big   ? fitFor(near)
-          :         fitFor(ACID_STATES);
+  const big = hasCarrier(near.flat());
+  const f = big ? fitFor(near) : fitFor(ACID_STATES);
   /* THE TOP ANCHOR SPENDS SLACK, and spends none where there is none: it only
    * ever raises the subject (kit/fit.js clamps the shift at zero), so a carrier
    * frame — solved for the one molecule standing in it — simply stays centred.
@@ -1564,7 +1649,7 @@ function computeFit(){
    * per-state anchor slides the scene up and down between steps. */
   fitR=f.R;
   fitY=topAnchoredY(f.R, f.Y,
-    intro ? plateY(OPENING) : big ? Math.max(...near.map(plateY)) : acidTopY());
+    big ? Math.max(...near.map(plateY)) : acidTopY());
 }
 const TOP_PULL=0.5;
 let _acidTop=null;
@@ -1589,15 +1674,21 @@ function hideAtom(g,i){ if(i!=null) GO.shed(g,[i]); }
 /* WHERE A CARRIER TILE IS, in world space at the scene's depth — the tile is
  * DOM and the flight is in the scene, and matching depth keeps the hydride one
  * size at both ends. */
-function tileWorld(key,ref,j){
-  const p=carrierPoint(key,j);
-  if(!p) return null;
+/* A POINT ON A DOM TILE, IN WORLD SPACE AT THE SCENE'S DEPTH. The tiles are
+ * HTML and the flights are in the scene, and the camera orbits, so there is no
+ * fixed plane to unproject onto — matching the other end's depth is what keeps
+ * a group one size across the trip. Shared by both tray objects. */
+function unprojectAt(clientX, clientY, ref){
   const c=canvas.getBoundingClientRect();
   if(!c.width || !c.height) return null;
   camera.updateMatrixWorld();
   const z=ref.clone().project(camera).z;
   return new THREE.Vector3(
-    (p.x-c.left)/c.width*2-1, -((p.y-c.top)/c.height*2-1), z).unproject(camera);
+    (clientX-c.left)/c.width*2-1, -((clientY-c.top)/c.height*2-1), z).unproject(camera);
+}
+function tileWorld(key,ref,j){
+  const p=carrierPoint(key,j);
+  return p ? unprojectAt(p.x, p.y, ref) : null;
 }
 function carrierPoint(key,j){
   return CARRIER.has(key) && carrierEl.isConnected ? carrierAnchorPoint(j) : null;
@@ -1639,6 +1730,11 @@ const RX=Reaction.create({
   freeSpec:()=>M.pi,
   waterSpec:()=>M.water,
   handleSpec:()=>M.coa,
+  // …and WHERE coenzyme A stands when it is not on a molecule: its own tile in
+  // the tray, under the carrier. Answering this is what turns the handle's
+  // flight from "in from off screen" into a trip you can watch both ends of.
+  handlePoint:ref=>benchTilePoint(ref),
+  onHandleMoved:()=>{ benchGone.add(0); refresh(); },
 });
 const later=RX.later, aboveFrame=RX.offstage, drawFlyers=RX.drawFlyers,
       clearFlyers=RX.clearFlyers, anchorWorld=RX.anchorWorld,
@@ -1657,11 +1753,12 @@ function runStep(){
   const st=stepAt(done), to=done+1;
   const keys=speciesAt(to);
   if(st.couple && st.couple.up) carrierGone.add(0);
+  benchGone.clear();
   busy=true; refresh();
   platesOff=true; platesEl.classList.add('mute');
 
   const land=respawn=>()=>{
-    done=to; reviewing=!autoplay; carrierGone.clear();
+    done=to; reviewing=!autoplay; carrierGone.clear(); benchGone.clear();
     if(respawn) renderLanes(to);
     else { platesOff=false; platesEl.classList.remove('mute'); }
     busy=false; refresh();
@@ -1684,7 +1781,7 @@ function rewind(){
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
   autoplay=false; done=0; lap=1; intro=true;
-  carrierGone.clear();
+  carrierGone.clear(); benchGone.clear();
   renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
 
 /* ---- THE SECOND TURN, PLAYED ----------------------------------------------
@@ -1720,9 +1817,10 @@ const rxmsgEl=document.getElementById('rxmsg');
  * nothing else — every step's caption lives on the ⓘ by its heading, so the
  * band holds one height (zero) for the whole run and cannot re-frame the shot. */
 const INTRO_MSG=`Two <b>pyruvate</b> came out of glycolysis and crossed into the
-  <b>mitochondrial matrix</b>. Waiting for each one is an <b>oxaloacetate</b> — the
-  molecule this cycle ends by rebuilding. Follow one pyruvate; the other does all
-  of this again.`;
+  <b>mitochondrial matrix</b>. Here is one of them, beside the <b>coenzyme A</b>
+  that is about to carry what is left of it into the cycle — note how much
+  molecule two carbons arrive on. <b>Oxaloacetate</b> waits on the left for its
+  own step. Follow this pyruvate; the other does all of this again.`;
 const LAP2_MSG=`<b>Turn two.</b> The matrix's NAD⁺ and FAD are empty — everything
   was loaded on the first turn. The <b>electron transport chain</b> has just
   unloaded them, which is the only reason there is anything to load again. Same
@@ -1987,6 +2085,105 @@ function drawCarrier(st, live, showKey){
   placeCarrierMol();
 }
 
+/* =============================================================
+ *  THE BENCH — the tray's second slot, for a molecule that is not reacting yet
+ * =============================================================
+ *  A LESSON'S STAGE SHOULD HOLD WHAT IS REACTING, and only that. Oxaloacetate
+ *  spent the whole bridge reaction standing beside pyruvate taking no part in
+ *  it — it is citrate synthase's substrate, one step later — and a spectator on
+ *  the stage is a claim that it is involved. It was not a harmless one: the
+ *  `decarb` verb had to grow a guard because the spectator was being handed a
+ *  hydride along with the molecule the step was about.
+ *
+ *  So the tray has a second slot, under the carrier, for the molecule the next
+ *  step needs. Two things use it, and they are two different situations the
+ *  same box can say:
+ *    WAITING   oxaloacetate through the bridge, until `enter` puts it on stage
+ *    RETURNED  coenzyme A after citrate synthase and after step 5 — it came off
+ *              a molecule and went back to the pool
+ *
+ *  COENZYME A IS NOT A CARRIER TILE, which is why it is here and not above.
+ *  NAD⁺ and FAD have two STATES — one molecule differing by the hydrogens it
+ *  holds — and the ledger counts every turnover. CoA has one state and two
+ *  PLACES: free in the matrix, or bonded to the acyl group it is ferrying.
+ *  Nothing is spent when it binds. Watching it come home is what makes that
+ *  something you saw rather than were told.
+ */
+const HANDLE=M.coa;                     // also what reaction/reaction.js flies
+const benchEl=document.createElement('div');
+benchEl.id='bench';
+benchEl.innerHTML='<div class="cname"></div><div class="csub"></div><div class="cvis"></div>';
+const BENCH=Carriers.create({ root, camera, canvas, host:benchEl,
+  align:'left',
+  build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                Stage.setOptionalH(g,false); return g; } });
+// `bench:'oaa'` is a molecule that simply stands there; `{key,arriving:true}`
+// one that is still on the stage and lands here during the step.
+const benchOf=st=>{ const b=st&&st.bench;
+  return b ? (typeof b==='string' ? {key:b} : b) : null; };
+/* WHETHER IT HAS MOVED YET, in this step. Same shape and the same reason as
+ * `carrierGone`: for the beat the molecule is in the air the step has not
+ * landed and `reviewing` is false, so without it CoA is drawn in the tray AND
+ * crossing the frame. Cleared when the step lands and by every jump out. */
+const benchGone=new Set();
+const benchRan=()=>reviewing||benchGone.has(0);
+// A molecule that only waits is here the whole step. One that is coming back
+// is here from the moment it lands.
+const benchHome=st=>{ const b=benchOf(st);
+  return !!b && (b.arriving ? benchRan() : true); };
+/* WHICH THIOESTER A RETURNING CoA CAME OFF, found by asking the specs rather
+ * than typed: the one molecule either side of the step whose own metadata calls
+ * itself a carrier. It is acetyl-CoA once and succinyl-CoA once, and a fixed
+ * word would have called the four-carbon one an acetyl group. */
+function acylOf(st){
+  const k=speciesAt(STEPS.indexOf(st)).concat(st.species)
+           .find(x=>M[x]!==HANDLE && meta(M[x]).carrier);
+  return k ? M[k] : null;
+}
+/* THE LINE UNDER THE NAME SAYS WHERE IT IS, and for a waiting molecule it says
+ * what it is waiting FOR — read off the step that calls it onto the stage, so
+ * a re-ordered pathway renames it. */
+function benchSub(st, spec, home){
+  if(!home){ const a=acylOf(st); return a ? `bound as ${a.short}` : 'on the molecule'; }
+  if(spec===HANDLE) return 'free in the matrix';
+  const key=benchOf(st).key;
+  const next=STEPS.find(x=>(x.enter||[]).includes(key));
+  return next ? `waiting for ${next.enz.replace(/ \(.*\)/,'').toLowerCase()}`
+              : 'standing by';
+}
+function drawBench(st){
+  const b=benchOf(st); if(!b) return;
+  const spec=M[b.key], home=benchHome(st);
+  BENCH.show(1, spec);
+  benchEl.querySelector('.cname').textContent=spec.name;
+  benchEl.querySelector('.csub').textContent=benchSub(st, spec, home);
+  placeBenchMol();
+}
+// Drawn only while it is actually standing here; the empty slot holds the space
+// so the column does not jump when it leaves.
+function placeBenchMol(){
+  const st=stepAt(focusStep());
+  const vis = benchEl.isConnected && trayEl.style.visibility!=='hidden'
+           && benchHome(st);
+  BENCH.place(vis);
+}
+/* Where the tile is, for a flight that ends on it. OFF THE SLOT'S BOX, not off
+ * the molecule: on the beat CoA is arriving the slot is still empty, so there
+ * is no mesh to ask, and a flight has to know where it is going before it gets
+ * there. Answers null unless the bench is holding the handle — a CoA flight
+ * aimed at an oxaloacetate tile would be pointing at the wrong molecule. */
+function benchTilePoint(ref){
+  const st=stepAt(focusStep()), b=benchOf(st);
+  if(!b || M[b.key]!==HANDLE) return null;
+  if(!benchEl.isConnected || trayEl.style.visibility==='hidden') return null;
+  const slot=benchEl.querySelector('.cslot');
+  const rect=slot && slot.getBoundingClientRect();
+  if(!rect || !rect.width) return null;
+  // a third across, matching `align:'left'` — the molecule sits at the slot's
+  // left, not its centre, so the centre would aim at empty column
+  return unprojectAt(rect.left+rect.width*0.34, rect.top+rect.height*0.5, ref);
+}
+
 function drawTray(){
   trayEl.style.display='flex';
   trayEl.style.visibility = intro ? 'hidden' : 'visible';
@@ -1994,7 +2191,11 @@ function drawTray(){
   const i=focusStep();
   const st=(!intro&&i<nSteps)?stepAt(i):null;
   const c=st&&st.couple;
-  if(!c){ trayEl.style.visibility='hidden'; }
+  const bench=st&&st.bench;
+  // A step that moves neither keeps the SPACE and shows nothing — usable()
+  // measures this column to place the lesson, and a collapsed tray would
+  // shove the molecule sideways for one step.
+  if(!c && !bench){ trayEl.style.visibility='hidden'; }
   trayEl.innerHTML='<div class="tstrip"></div>';
   const strip=trayEl.children[0];
   const pair = c && CARRIER.has(carrierKey(c.cin)) && CARRIER.has(carrierKey(c.cout));
@@ -2002,7 +2203,13 @@ function drawTray(){
     const showKey = carrierKey(reviewing ? c.cout : c.cin);
     strip.appendChild(carrierEl);
     drawCarrier(st, false, showKey);
-  }
+  }else{ CAR.show(0, NADH); }
+  // …and the bench under it. ORDER IS THE READING: the carrier this step
+  // spends on top, the molecule that is only standing by below.
+  if(bench){ strip.appendChild(benchEl); drawBench(st); }
+  else{ BENCH.show(0, M.coa); }
+  // Both at once needs both shorter — see the CSS.
+  trayEl.classList.toggle('pair', !!(pair && bench));
 }
 
 /* =============================================================
@@ -2261,7 +2468,7 @@ function drawAct(){
 // Jump to the state just BEFORE step k, so the student re-runs it rather than
 // landing on its aftermath. Shared by the rail and the cycle list.
 const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; autoplay=false;
-  done=k; carrierGone.clear(); renderLanes(done); refresh(); };
+  done=k; carrierGone.clear(); benchGone.clear(); renderLanes(done); refresh(); };
 
 /* ---- ?step=N, the same jump as a URL. Clamped, so ?step=99 opens the last
  * step rather than an empty stage. 1 is the bridge. */
@@ -2575,6 +2782,7 @@ L.afterFrame=()=>{
   drawSpots();
   drawHint();
   placeCarrierMol();
+  placeBenchMol();
   placeTallyMols();
   placeEnz();
 };
