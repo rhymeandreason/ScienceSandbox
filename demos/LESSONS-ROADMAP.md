@@ -3,6 +3,12 @@
 What to build next, and why that order. Status vocabulary is `CLAUDE.md`'s
 (featured lesson / prototype / reference / test).
 
+`QUESTIONS-ROADMAP.md` ranks the same ground from the other end: it starts
+from student questions, and lands on additions to the ENGINES rather than on
+new pages, because the pathway compiler in `reaction/` + `kit/` reaches far
+past the two pages that produced it. Where the two disagree, the thesis below
+wins.
+
 ## The thesis
 
 **Fidelity, unified on one page.** An interactive 3D model beats a static
