@@ -1260,14 +1260,20 @@ stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
  *  included — comes along, since the offset is in the projection matrix.
  */
 const ASK_EASE=0.16;
+const ASK_GAP=18;               // the sheet's inset from the window edge, per ask/chat.css
+let sheetW=334;
 let askShift=0;                 // 0 = centred on the window, 1 = pushed clear of the sheet
 let lastShiftPx=-1;
 function applyAskShift(){
   const target=(ASK && ASK.el.classList.contains('on'))?1:0;
   askShift+=(target-askShift)*ASK_EASE;
   if(Math.abs(askShift-target)<0.002) askShift=target;
-  // half the rail: the model ends up centred in what is left of the window
-  const px=(side.clientWidth||0)*0.5*askShift;
+  /* Half the sheet's real footprint, measured rather than assumed: the sheet is
+     narrower than the rail it sits in, and half of the wrong number leaves the
+     model off-centre in the space that is actually left. offsetWidth is 0 while
+     it is display:none, so the last measurement stands. */
+  if(ASK && ASK.el.offsetWidth) sheetW=ASK.el.offsetWidth+ASK_GAP;
+  const px=sheetW*0.5*askShift;
   if(Math.abs(px-lastShiftPx)<0.25) return;
   lastShiftPx=px;
   // the add-a-thing pills ride the same number, so they and the model move as one

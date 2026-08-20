@@ -201,6 +201,8 @@ opacity: .75;
    the bottom rather than sitting under the title competing with it. */
 #askslot {
   margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
   pointer-events: auto
 }
 

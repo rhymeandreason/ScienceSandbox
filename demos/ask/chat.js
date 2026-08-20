@@ -44,22 +44,22 @@
     const panel = document.createElement('div');
     panel.id = 'askchat';
     panel.innerHTML = `
-      <header>
-        <h2>Ask</h2>
-        <span class="where"></span>
-        <button id="askclose" type="button" aria-label="Close">&times;</button>
-      </header>
+      <button id="askclose" type="button" aria-label="Close">&times;</button>
       <div class="askthread"><p class="hello">Ask about anything on this page. I can point you at
         the part of the model or the control that answers it.</p></div>
       <form>
         <input type="text" maxlength="500" autocomplete="off" placeholder="Ask about this page…"
                aria-label="Ask a question about this lesson">
-        <button type="submit">Ask</button>
+        <button type="submit" aria-label="Ask">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 19V5M12 5l-6 6M12 5l6 6" fill="none" stroke="currentColor"
+                  stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </form>`;
     rail.appendChild(panel);
 
     const thread = panel.querySelector('.askthread');
-    const where  = panel.querySelector('.where');
     const form   = panel.querySelector('form');
     const input  = panel.querySelector('input');
     const send   = form.querySelector('button');
@@ -75,7 +75,6 @@
     function show() {
       panel.classList.add('on');
       open.classList.remove('waiting');
-      where.textContent = opts.stepName ? opts.stepName() : '';
       input.focus();
     }
     function hide() { panel.classList.remove('on'); }
