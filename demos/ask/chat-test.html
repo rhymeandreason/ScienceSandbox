@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>chat test bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="ask.css">
+<style>
+  body{background-color:var(--paper);
+       background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+       background-size:22px 22px;overflow-y:auto}
+  main{max-width:1180px;margin:0 auto;padding:44px 24px 90px;
+       display:grid;grid-template-columns:1fr 400px;gap:30px;align-items:start}
+  header{grid-column:1/-1}
+  h1{font-family:var(--font-marker);font-size:32px;margin:0 0 6px;font-weight:400}
+  .lede{color:var(--muted);font-size:14.5px;line-height:1.6;margin:0;max-width:64ch}
+  .lede a{color:var(--ink)}
+  h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
+     color:var(--muted);margin:0 0 9px}
+  section+section{margin-top:26px}
+  .card{background:var(--panel);border:2.5px solid var(--ink);border-radius:var(--radius);
+        padding:20px;box-shadow:4px 4px 0 rgba(43,39,35,.12)}
+
+  /* transcript */
+  #thread{min-height:180px;max-height:56vh;overflow-y:auto;margin-bottom:16px}
+  #thread:empty::after{content:'No turns yet. Ask something, then keep pulling on it. The prompt holds on turn one and the interesting part is turn four.';
+       color:var(--muted);font-size:14px;font-style:italic;line-height:1.6;display:block}
+  .turn{margin:0 0 15px;padding-bottom:15px;border-bottom:1.5px dashed var(--hair)}
+  .turn:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+  .who{font-family:var(--font-slab);font-size:11px;letter-spacing:1.1px;text-transform:uppercase;
+       color:var(--muted);margin:0 0 5px}
+  .turn.you .say{font-weight:600}
+  .say{margin:0;font-size:16.5px;line-height:1.6}
+  .meta{margin:7px 0 0;font-family:var(--font-slab);font-size:12px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+  .over{color:#b23a2c}
+  .repeat{color:#b23a2c}
+
+  /* controls */
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  button.plain{font:600 13px var(--font-sans);color:var(--ink);background:transparent;
+     border:2px solid var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer;text-align:left}
+  button.plain:hover{background:rgba(0,0,0,.05)}
+  button.plain small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+  button.plain:disabled{opacity:.45;cursor:default}
+  label.check{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.5;
+     color:var(--ink);cursor:pointer;margin-bottom:10px}
+  label.check small{display:block;color:var(--muted);font-size:12px}
+  #prompt{width:100%;min-height:340px;font:13px/1.6 var(--font-slab);color:var(--ink);
+     background:#fff;border:2px solid var(--ink);border-radius:8px;padding:12px;resize:vertical}
+  .hint{font-size:12.5px;color:var(--muted);line-height:1.55;margin:8px 0 0}
+  #tally{font-family:var(--font-slab);font-size:12.5px;line-height:1.75;color:var(--muted);
+     white-space:pre-wrap}
+  @media (max-width:1080px){ main{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>chat test bench</h1>
+    <p class="lede">Step 0 of the tutor chat: multi-turn against the same prompt and the same
+      <code>/api/ask</code>, with no lesson and no drawer. The question this answers is whether the
+      prompt survives a conversation. Single-shot bench is <a href="ask-test.html">ask-test.html</a>.</p>
+  </header>
+
+  <div>
+    <section class="card">
+      <h2>thread</h2>
+      <div id="thread"></div>
+      <form class="ask-form" id="form">
+        <input class="ask-input" id="q" type="text" autocomplete="off"
+               placeholder="Ask, then follow up…" aria-label="Ask a biology question">
+        <button class="ask-go" type="submit">Send</button>
+      </form>
+      <div class="row" style="margin-top:12px">
+        <button class="plain" id="reset">New thread</button>
+        <button class="plain" id="undo">Undo last turn</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>threads worth walking</h2>
+      <div class="row" id="scripts"></div>
+      <p class="hint">Each runs its turns one after another so you can watch the drift rather than
+        drive it. The five-turn water thread is the one that usually breaks the sentence cap.</p>
+    </section>
+  </div>
+
+  <div>
+    <section class="card">
+      <h2>tutor prompt</h2>
+      <textarea id="prompt" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="plain" id="revert">Reset to server default</button>
+      </div>
+      <p class="hint">Edits apply to the next turn and are kept in this browser, not on the server.
+        The chapter list is part of the prompt: cut it and the model loses the vocabulary, though
+        the response schema still refuses any id outside the catalog.</p>
+    </section>
+
+    <section class="card">
+      <h2>controls</h2>
+      <div class="row" id="providers"></div>
+      <label class="check">
+        <input type="checkbox" id="suppress">
+        <span>Suppress repeat citations
+          <small>Tell the tutor which chapters this thread already showed. Off, you see how often
+          it repeats itself; on, you see whether the thread reads better without it.</small></span>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>tally</h2>
+      <div id="tally">nothing yet</div>
+    </section>
+  </div>
+</main>
+
+<script>
+/* The bench holds the transcript in memory, on purpose. A prototype that has no
+   database has nothing to rehydrate from, and a page reload wanting to be a
+   fresh thread is the behaviour you want while tuning a prompt. */
+const messages = [];      // {role:'user'|'assistant', content}
+const cited    = new Set();
+let cfg = null, chosen = null, busy = false;
+let turns = 0, spend = 0, repeats = 0, overCap = 0;
+
+const $ = id => document.getElementById(id);
+const thread = $('thread'), tally = $('tally');
+
+const SCRIPTS = [
+  { name: 'water, five turns', why: 'the sentence cap usually slips by turn 4',
+    turns: ['Why does ice float?',
+            'Why do the molecules spread out when it freezes?',
+            'Is that why water is good at dissolving things?',
+            'So what happens to the salt exactly?',
+            'Does that mean salt water freezes at a different temperature?'] },
+  { name: 'protein, four turns', why: 'watch it stop steering and start lecturing',
+    turns: ['What is a protein made of?',
+            'How does it get its shape?',
+            'What happens if the shape is wrong?',
+            'Is that what happens with a fever?'] },
+  { name: 'drifting off topic', why: 'does it hold the line on turn 3 as well as turn 1',
+    turns: ['What is glycolysis for?',
+            'Does exercise change how fast it runs?',
+            'What should I eat before a race?'] },
+];
+
+/* ---- config ------------------------------------------------------------- */
+fetch('/api/ask').then(r => r.json()).then(c => {
+  cfg = c;
+  $('q').maxLength = c.limits.maxChars;
+
+  const host = $('providers');
+  for (const p of c.providers) {
+    const b = document.createElement('button');
+    b.className = 'plain';
+    b.innerHTML = `<b>${p.label}</b><small>${p.model}${p.ready ? '' : ' · no key'}</small>`;
+    b.disabled = !p.ready || !c.bench;
+    b.addEventListener('click', () => {
+      chosen = p.id;
+      for (const o of host.children) o.style.background = '';
+      b.style.background = 'rgba(0,0,0,.10)';
+    });
+    if (p.id === c.default && p.ready) b.click();
+    host.appendChild(b);
+  }
+
+  // Prefer an edit already in progress over the server's copy, so a reload in
+  // the middle of tuning does not throw the tuning away.
+  $('prompt').value = localStorage.getItem('ask.prompt') || c.system || '';
+  if (!c.bench) {
+    $('prompt').value = 'ASK_BENCH is not set on this server, so the prompt is neither '
+      + 'readable nor editable here. Set ASK_BENCH=1 in .env.local.';
+    $('prompt').disabled = true;
+  }
+});
+
+$('prompt').addEventListener('input', () => localStorage.setItem('ask.prompt', $('prompt').value));
+$('revert').addEventListener('click', () => {
+  localStorage.removeItem('ask.prompt');
+  $('prompt').value = (cfg && cfg.system) || '';
+});
+
+/* ---- a turn ------------------------------------------------------------- */
+async function send(text) {
+  if (busy || !text.trim()) return;
+  busy = true;
+  messages.push({ role: 'user', content: text.trim() });
+  draw();
+
+  const pending = document.createElement('div');
+  pending.className = 'turn';
+  pending.innerHTML = '<p class="who">Tutor</p><p class="say ask-waiting">Thinking…</p>';
+  thread.appendChild(pending);
+  thread.scrollTop = thread.scrollHeight;
+
+  const body = { messages, provider: chosen };
+  if (cfg && cfg.bench && $('prompt').value.trim()) body.system = $('prompt').value;
+  if ($('suppress').checked) body.cited = [...cited];
+
+  try {
+    const res  = await fetch('/api/ask', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'something went wrong');
+
+    messages.push({ role: 'assistant', content: data.answer, meta: data });
+    score(data);
+  } catch (err) {
+    messages.push({ role: 'assistant', content: err.message, error: true });
+  } finally {
+    busy = false;
+    draw();
+  }
+}
+
+/* The three failure modes this bench exists to catch, counted rather than
+   eyeballed: an answer over the cap, a chapter cited twice, and the running
+   cost of finding out. */
+function score(data) {
+  turns++;
+  spend += data.usage.cost_usd;
+  data.repeats = data.chapters.filter(c => cited.has(c.id)).map(c => c.id);
+  repeats += data.repeats.length;
+  data.sentences = (data.answer.match(/[.!?](\s|$)/g) || []).length;
+  if (data.sentences > 3) overCap++;
+  for (const c of data.chapters) cited.add(c.id);
+
+  tally.textContent =
+    `${turns} tutor turn${turns === 1 ? '' : 's'} · ${data.provider} · ${data.model}\n`
+  + `over the 3-sentence cap: ${overCap}/${turns}\n`
+  + `chapters repeated: ${repeats}\n`
+  + `cited so far: ${[...cited].join(', ') || 'none'}\n`
+  + `last turn: ${data.ms} ms · ${data.usage.input} in / ${data.usage.output} out\n`
+  + (data.usage.priced ? `thread cost: $${spend.toFixed(5)}` : `cost: no rate on file for ${data.model}`);
+}
+
+/* ---- render ------------------------------------------------------------- */
+function draw() {
+  thread.textContent = '';
+  for (const m of messages) {
+    const d = document.createElement('div');
+    d.className = 'turn ' + (m.role === 'user' ? 'you' : 'them');
+
+    const who = document.createElement('p');
+    who.className = 'who';
+    who.textContent = m.role === 'user' ? 'You' : 'Tutor';
+    d.appendChild(who);
+
+    const say = document.createElement('p');
+    say.className = 'say' + (m.error ? ' ask-error' : '');
+    say.textContent = m.content;
+    d.appendChild(say);
+
+    if (m.meta) {
+      const x = m.meta;
+      const meta = document.createElement('p');
+      meta.className = 'meta';
+      const bits = [`<b>${x.sentences}</b> sentence${x.sentences === 1 ? '' : 's'}`];
+      if (x.sentences > 3) bits.push('<span class="over">over the cap</span>');
+      bits.push(x.chapters.length
+        ? 'cites ' + x.chapters.map(c =>
+            x.repeats.includes(c.id) ? `<span class="repeat">${c.chapter} (again)</span>` : c.chapter).join(', ')
+        : 'no citation');
+      bits.push(`${x.ms} ms`);
+      meta.innerHTML = bits.join(' · ');
+      d.appendChild(meta);
+    }
+    thread.appendChild(d);
+  }
+  thread.scrollTop = thread.scrollHeight;
+}
+
+/* ---- wiring ------------------------------------------------------------- */
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('q').value; $('q').value = '';
+  send(v);
+});
+
+$('reset').addEventListener('click', () => {
+  messages.length = 0; cited.clear();
+  turns = spend = repeats = overCap = 0;
+  tally.textContent = 'nothing yet';
+  draw();
+});
+
+// Drops the student's turn and the tutor's reply together, so a re-ask starts
+// from the same place rather than from a half-conversation.
+$('undo').addEventListener('click', () => {
+  if (messages[messages.length - 1] && messages[messages.length - 1].role === 'assistant') messages.pop();
+  messages.pop();
+  draw();
+});
+
+const host = $('scripts');
+SCRIPTS.forEach(s => {
+  const b = document.createElement('button');
+  b.className = 'plain';
+  b.innerHTML = `<b>${s.name}</b><small>${s.why}</small>`;
+  b.addEventListener('click', async () => {
+    for (const t of s.turns) {
+      await send(t);
+      while (busy) await new Promise(r => setTimeout(r, 60));
+    }
+  });
+  host.appendChild(b);
+});
+
+$('q').focus();
+</script>
+</body>
+</html>

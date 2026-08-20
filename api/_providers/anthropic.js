@@ -24,7 +24,7 @@ const PRICE = PRICES[MODEL] || { input: 0, output: 0, cached: 0, unknown: true }
 
 let client = null;
 
-async function ask({ system, question, schema }) {
+async function ask({ system, messages, schema }) {
   if (!client) {
     const Anthropic = require('@anthropic-ai/sdk');
     client = new Anthropic();               // reads ANTHROPIC_API_KEY
@@ -39,7 +39,7 @@ async function ask({ system, question, schema }) {
     // The catalog is byte-stable, so the breakpoint after it is paid once and
     // read back at a tenth of the price on every later question.
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: question }],
+    messages,
   });
 
   // output_config.format guarantees the first text block is valid JSON matching

@@ -19,7 +19,7 @@ const { CHAPTERS, IDS } = require(path.join(ROOT, 'api/_catalog.js'));
 let fail = 0;
 const bad = m => { console.log(`  FAIL  ${m}`); fail++; };
 
-console.log(`\nask catalog — ${CHAPTERS.length} chapters\n`);
+console.log(`\nask catalog: ${CHAPTERS.length} chapters\n`);
 
 if (new Set(IDS).size !== IDS.length) bad('duplicate chapter id');
 
@@ -47,7 +47,7 @@ for (const id of IDS) if (!SYSTEM.includes(`- ${id} (`)) bad(`${id} is missing f
  * "swap the provider" a one-line env change instead of a debugging session:
  * a module that drops `PRICE` prices every question at zero, silently. */
 const providers = require(path.join(ROOT, 'api/_providers'));
-console.log(`\nproviders — default ${providers.DEFAULT}\n`);
+console.log(`\nproviders: default ${providers.DEFAULT}\n`);
 
 for (const id of providers.names()) {
   const p = require(path.join(ROOT, `api/_providers/${id}.js`));

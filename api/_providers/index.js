@@ -6,9 +6,9 @@
  *  returns `{json, usage:{input, output, cached}}`, so adding a third is a file
  *  and a line in PROVIDERS, and `_tutor.js` never learns its name.
  *
- *  A request may name a provider too, but only when ASK_ALLOW_PROVIDER_PARAM is
- *  set. That is a bench switch for comparing two models on one question, and it
- *  stays off in production so a visitor cannot choose which key to spend.
+ *  ASK_BENCH=1 marks a deployment as a test bench: a request may then name its
+ *  provider and supply its own system prompt. Both stay off in production, where
+ *  they would let a visitor choose which key to spend and what the tutor is.
  * ========================================================================== */
 'use strict';
 
@@ -19,9 +19,8 @@ const PROVIDERS = {
 
 const DEFAULT = process.env.AI_PROVIDER || 'gemini';
 
-const names        = () => Object.keys(PROVIDERS);
-const switchable   = () => process.env.ASK_ALLOW_PROVIDER_PARAM === '1';
-const configured   = id => !!process.env[PROVIDERS[id]().envKey];
+const names = () => Object.keys(PROVIDERS);
+const bench = () => process.env.ASK_BENCH === '1';
 
 /* Returns a provider, or throws a message the box can show a student. The
  * require is lazy per provider: a missing SDK for the one you are not using is
@@ -30,7 +29,7 @@ function pick(requested) {
   let id = DEFAULT;
 
   if (requested) {
-    if (!switchable())      throw new Error('this deployment does not let the request pick a provider');
+    if (!bench())              throw new Error('this deployment does not let the request pick a provider');
     if (!PROVIDERS[requested]) throw new Error(`no provider named "${requested}"`);
     id = requested;
   }
@@ -42,4 +41,4 @@ function pick(requested) {
   return p;
 }
 
-module.exports = { pick, names, switchable, configured, DEFAULT };
+module.exports = { pick, names, bench, DEFAULT };

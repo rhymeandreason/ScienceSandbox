@@ -66,7 +66,7 @@ function forGemini(node) {
   return out;
 }
 
-async function ask({ system, question, schema }) {
+async function ask({ system, messages, schema }) {
   if (!client) {
     const { GoogleGenAI } = require('@google/genai');
     client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -74,7 +74,12 @@ async function ask({ system, question, schema }) {
 
   const res = await client.models.generateContent({
     model: MODEL,
-    contents: question,
+    // Gemini's word for the assistant's turn is "model". The tutor speaks the
+    // same transcript to both vendors; only the label changes here.
+    contents: messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
     config: {
       systemInstruction: system,
       maxOutputTokens: 2000,

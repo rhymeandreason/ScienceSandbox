@@ -17,6 +17,7 @@ const { CHAPTERS, IDS, byId } = require('./_catalog.js');
 const providers = require('./_providers');
 
 const MAX_CHARS = 500;   // a question, not a pasted essay
+const MAX_TURNS = 40;    // a conversation, not an unbounded transcript to re-send
 
 const SYSTEM = `Be a tutor for a high school student learning biology. Answer questions concisely, don't overcomplicate it. Prioritize core concepts. Keep your response to max 3 sentences. If there's more info, steer the student toward asking more questions. Your goal is to guide curiosity and inquiry, not to dump out a textbook of facts.
 
@@ -38,9 +39,21 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-async function ask(question, providerName) {
-  const p   = providers.pick(providerName);
-  const out = await p.ask({ system: SYSTEM, question, schema: SCHEMA });
+/* A turn, not a question. `messages` is the whole transcript so far, ending in
+ * the student's latest. `system` overrides the tutor prompt (bench only), and
+ * `cited` names chapters already shown in this thread, so the caller can test
+ * whether suppressing a repeat citation reads better than repeating it. */
+async function ask({ messages, provider, system, cited }) {
+  const p = providers.pick(provider);
+
+  let prompt = system || SYSTEM;
+  if (cited && cited.length) {
+    const names = cited.map(byId).filter(Boolean).map(c => c.chapter);
+    if (names.length) prompt += `\n\nAlready shown to this student in this conversation: `
+      + `${names.join(', ')}. Do not cite ${names.length > 1 ? 'those' : 'that'} again.`;
+  }
+
+  const out = await p.ask({ system: prompt, messages, schema: SCHEMA });
 
   // Two models, two ways to be sloppy about a schema. Neither gets to reach the
   // page: an unknown id is dropped, and a missing array becomes an empty one.
@@ -74,15 +87,34 @@ async function ask(question, providerName) {
  * so the Vercel function and the dev server behave identically instead of
  * drifting into two versions of "what does a bad question do". */
 async function handleAsk(payload) {
-  const question = String((payload && payload.question) || '').trim();
-  const wanted   = (payload && payload.provider) || null;
+  const body   = payload || {};
+  const wanted = body.provider || null;
 
-  if (!question)                   return { status: 400, body: { error: 'ask a question' } };
-  if (question.length > MAX_CHARS) return { status: 400, body: { error: `keep it under ${MAX_CHARS} characters` } };
+  // One question or a whole transcript. The single-question form is what a
+  // lesson's box sends and stays the simple case; `messages` is the chat.
+  const messages = Array.isArray(body.messages)
+    ? body.messages
+        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && String(m.content || '').trim())
+        .map(m => ({ role: m.role, content: String(m.content).trim() }))
+    : [{ role: 'user', content: String(body.question || '').trim() }];
+
+  const last = messages[messages.length - 1];
+  if (!messages.length || !last.content) return { status: 400, body: { error: 'ask a question' } };
+  if (last.role !== 'user')              return { status: 400, body: { error: 'the last turn must be the student\'s' } };
+  if (last.content.length > MAX_CHARS)   return { status: 400, body: { error: `keep it under ${MAX_CHARS} characters` } };
+  if (messages.length > MAX_TURNS)       return { status: 400, body: { error: `this thread is over ${MAX_TURNS} turns, start a new one` } };
+
+  // A client-supplied system prompt is a bench affordance and nothing else:
+  // anywhere it is allowed, the student writes the tutor's instructions.
+  let system = null;
+  if (body.system) {
+    if (!providers.bench()) return { status: 403, body: { error: 'this deployment does not let the request set the prompt' } };
+    system = String(body.system);
+  }
 
   const t0 = Date.now();
   try {
-    const out = await ask(question, wanted);
+    const out = await ask({ messages, provider: wanted, system, cited: body.cited });
     return { status: 200, body: { ...out, ms: Date.now() - t0 } };
   } catch (err) {
     const status = err && err.status;
@@ -127,9 +159,14 @@ function brief(err) {
 
 /* What the bench needs to draw its provider switch, without guessing. */
 function config() {
+  const bench = providers.bench();
   return {
     default: providers.DEFAULT,
-    switchable: providers.switchable(),
+    bench,
+    limits: { maxChars: MAX_CHARS, maxTurns: MAX_TURNS },
+    // The prompt is handed out only to a bench, which is the only place it can
+    // be edited anyway. Elsewhere the box has no business knowing it.
+    system: bench ? SYSTEM : null,
     providers: providers.names().map(id => {
       const p = require(`./_providers/${id}.js`);
       return { id, label: p.label, model: p.model, ready: !!process.env[p.envKey] };
