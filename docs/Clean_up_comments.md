@@ -21,3 +21,7 @@ EVERY NUMBER HERE IS PULLED FROM THE DATA — see fillPanelNumbers(). Don’t ty
 **Before:** The prose no longer states either number — it reads them (see fillPanelNumbers), so neither can disagree with the file and neither needs guarding. This throw is about the LESSON, not the text: the close-up window, the arrival windows and the camera were all tuned against this chain, and a different one would render plausibly and be staged wrong.
 
 **After:** This throw is about the LESSON, not the text: the close-up window, the arrival windows and the camera were all tuned against this chain, and a different one would render plausibly and be staged wrong.
+
+**Before:** REAL CHECKBOXES, not buttons: these two turn a layer on and leave it         on, unlike the map below them, which opens something. The native control is the legible one — it draws the tick every other checkbox on the machine draws, and brings its own keyboard and screen-reader behaviour with it.
+
+**After:** Checkboxes for global states:

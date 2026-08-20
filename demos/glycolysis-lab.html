@@ -839,17 +839,10 @@ font-size: 20px;
        to the BOTTOM edge and grows upward, so a new control is one more child
        and nothing else moves — never give these their own `bottom`. -->
   <div id="tools">
-    <!-- REAL CHECKBOXES, not buttons: these two turn a layer on and leave it
-         on, unlike the map below them, which opens something. The native
-         control is the legible one — it draws the tick every other checkbox on
-         the machine draws, and brings its own keyboard and screen-reader
-         behaviour with it. -->
     <label id="showledger" class="chk"><input type="checkbox"> Show ledger</label>
     <label id="showenz" class="chk"><input type="checkbox"> Show enzymes</label>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   </div>
-  <!-- ONE ROW, bottom-left: Restart then PNG — side by side so they read as
-       two utilities, not as a mirror of the lesson's own button. -->
   <div id="utils">
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
@@ -2822,40 +2815,6 @@ function drawNote(){
 }
 
 
-/* =============================================================
- *  MASS ACTION — the modal behind the reversibility note
- *
- *  THE CLAIM, and the only one: an enzyme has no preferred direction. It
- *  converts whatever collides with it, so the NET direction is decided by which
- *  species there is more of. Both directions run the whole time — hence the
- *  backward counter, which never reads zero on a flat step. That counter is the
- *  demo: a student watching the split settle assumes the reaction stopped.
- *  THE SECOND TAB: a molecule reacts when it holds enough energy to clear the
- *  barrier (see ENERGY below), so the rare pyruvate that makes it back is
- *  visibly one of the fast ones.
- *
- *  SIMPLIFIED, deliberately and visibly (MolecularGeometry.md §1.4's rule on
- *  explicit exaggerations):
- *    · The flat step's barrier is the SAME height both ways, so it settles 1:1.
- *      Real near-equilibrium settles NEAR even — step 2 sits around 1 F6P to
- *      2 G6P. An even split is the readable version of "neither favoured".
- *    · The drop step's reverse is ~1/200 of forward, not zero: seen failing to
- *      happen, not declared impossible — overwhelmed, not forbidden. A real
- *      step 10 is far more lopsided; you'd never catch one going back.
- *    · Barrier heights are schematic. EA = 0.6 kT is far too low to be a real
- *      activation energy; it is the number that makes about half of arrivals
- *      react. Only the RATIO between the directions carries anything.
- *    · Re-jostled into a new energy every 0.3–0.85 s, keeping its heading. Real
- *      collisions are far more frequent and do re-aim; at 60fps that is a
- *      flicker travelling nowhere, and speed and path must stay readable.
- *    · No volume, no units, no rate law. The counter is conversions per second
- *      in this box, and the box means nothing beyond itself.
- *
- *  Plain 2D canvas — no Three.js, no MolLib, nothing from the pathway's scene.
- *  No coordinates to get right: these dots stand for POPULATIONS, and the
- *  moment they looked like molecules they would make a geometry claim this file
- *  cannot back up.
- * ============================================================= */
 /* PFK-1's regulation, behind the ten-steps list's star. Content is PFK's,
  * rendered once — the modal is markup with two holes, so the facts live in one
  * place and the star is only a door onto them. */
@@ -2930,7 +2889,16 @@ const AllSteps=(()=>{
  * direction, so a barrier the student can move would be a second variable in a
  * demo about one. The enzymes page is where it becomes a slider.
  *
- * DROP.drop = ln(200) — the reverse of step 10 is about 1 encounter in 200. */
+ * DROP.drop = ln(200) — the reverse of step 10 is about 1 encounter in 200.
+ *
+ * TWO EXAGGERATIONS, BOTH IN THIS PAGE'S CHOICE OF SCENARIO (MolecularGeometry.md
+ * §1.4 wants them written down):
+ *   · flat settles 1:1, because its barrier is the same height both ways. Real
+ *     step 2 sits nearer 1 F6P to 2 G6P; an even split is the readable version
+ *     of "neither direction is favoured".
+ *   · ln(200) is far less lopsided than real step 10, so the reverse is seen
+ *     failing to happen rather than declared impossible. You would never catch
+ *     the real one going back. */
 // THE TABS ARE THE PAGE'S OWN VERDICT VOCABULARY — the same two words the
 // coupling box stamps on every step ("Near equilibrium — reversible" /
 // "Irreversible in the cell"). Naming them for the physics ("flat", "drop")
