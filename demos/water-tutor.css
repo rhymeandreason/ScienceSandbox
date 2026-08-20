@@ -1,0 +1,111 @@
+/* =============================================================================
+   water-tutor.css — the on-stage chrome for water-tutor-lab.html only.
+
+   This prototype gives its right rail to the tutor, so the lesson's spine (step
+   numbers, step name, the two arrows) and its Fact button sit over the model
+   instead. Everything here is scoped to ids this page owns; sandbox.css keeps
+   the shared vocabulary, and nothing below can reach a featured lesson.
+   ========================================================================== */
+
+/* ---- the step rail, top-left under the brand ---- */
+#stepbar {
+  position: absolute;
+  top: 74px;
+  left: 26px;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 6px
+}
+
+/* The title spans the row beneath, so a long name never pushes the arrows. */
+#steptitle {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  font-family: var(--font-slab);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink)
+}
+
+#stepbar #steps { margin-bottom: 0 }
+
+#stepbar .stepnum {
+  width: 34px;
+  height: 34px;
+  font-size: 22px
+}
+
+#stepbar #steps { gap: 8px }
+
+#prev, #next {
+  font-family: var(--font-slab);
+  font-size: 24px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  padding: 2px 6px;
+  cursor: pointer
+}
+
+#prev:hover, #next:hover { color: var(--ink) }
+#prev:disabled, #next:disabled { opacity: .25; cursor: default }
+
+/* ---- bottom-left buttons: PNG, and the step's fact beside it ---- */
+#stagebtns {
+  position: absolute;
+  left: 26px;
+  bottom: 22px;
+  z-index: 5;
+  display: flex;
+  gap: 10px;
+  align-items: center
+}
+
+/* #savepng is positioned by sandbox.css; inside the row it is just a button. */
+#stagebtns #savepng { position: static; left: auto; bottom: auto }
+
+#factbtn {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: .5px;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 6px 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px
+}
+
+#factbtn:hover { background: var(--ink); color: var(--paper) }
+#factbtn .bulb { width: 18px; height: 18px; filter: grayscale(1); opacity: .55 }
+#factbtn:hover .bulb, #factbtn.lit .bulb { filter: none; opacity: 1 }
+#factbtn.lit { background: var(--ink); color: var(--paper) }
+
+/* The fact itself: a card above the button that the student asks for. Open is
+   the .on class and nothing else — no [hidden], which display:block here would
+   silently beat (see ask/chat.css for the debugging detour that rule cost). */
+#factbox {
+  position: absolute;
+  left: 26px;
+  bottom: 74px;
+  z-index: 6;
+  display: none;
+  width: 330px;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--panel);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0 rgba(43, 39, 35, .13)
+}
+
+#factbox.on { display: block }
+#factbox b { font-weight: 700 }

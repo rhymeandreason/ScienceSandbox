@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="ask/chat.css">
+<link rel="stylesheet" href="water-tutor.css">   <!-- this prototype's on-stage chrome; nothing here reaches a featured lesson -->
 </head>
 <body>
 <div id="app-sidebar">
@@ -20,6 +21,15 @@
     <div id="brand">
       <i class="ph-bold ph-drop drop"></i>
       <h1>Structure of Water</h1>
+    </div>
+
+    <!-- The lesson's spine, on the stage. The sidebar is the tutor's now, so the
+         numbers, the step's name and its two arrows live over the model. -->
+    <div id="stepbar">
+      <button id="prev" type="button" aria-label="Previous step">&lsaquo;</button>
+      <div id="steps"></div>
+      <button id="next" type="button" aria-label="Next step">&rsaquo;</button>
+      <h2 id="steptitle"></h2>
     </div>
 
     <div id="formula">
@@ -47,7 +57,11 @@
 
     <div id="chips"></div>
     <div id="saltinfo"></div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <div id="stagebtns">
+      <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+      <button id="factbtn" type="button"><img class="bulb" src="sticker_idea.png" alt=""> Fact</button>
+    </div>
+    <div id="factbox" aria-live="polite"></div>
 
     <div id="saltcard">
       <div class="sketchbox">
@@ -59,14 +73,10 @@
     </div>
   </div>
 
+  <!-- The rail holds the tutor and nothing else: the lesson's own text is on
+       the model, as annotations, where the thing it describes is. -->
   <div id="side">
-    <div id="steps"></div>
-    <div id="card"></div>
     <div id="askslot"></div>
-    <footer>
-      <button id="prev">Previous</button>
-      <button id="next">Next</button>
-    </footer>
     <span id="dbgtoggle">DEBUG</span>
   </div>
 </div>
@@ -78,6 +88,7 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="atomkit.js"></script>
+<script src="annotate.js"></script>      <!-- callouts pinned to atoms: the lesson’s text, on the model -->
 <script src="kit/focus.js"></script>       <!-- one vocabulary for "look here": ghost the rest, light the chosen -->
    <!-- step-1 element letters + δ badges (same as the bonding builder) -->
 <script src="ask/chat.js"></script>          <!-- the tutor drawer; DOM only, never touches the scene -->
@@ -476,6 +487,62 @@ function buildCharges(){
   dH2=kit.charge('δ+',hx(dPosColor),'H',0.8); holdH2.add(kit.place(dH2,H2L.clone().normalize().multiplyScalar(0.62)));
   applyDetail();
 }
+/* ---- the bond angle, drawn ----
+   A textbook figure marks an angle with an arc at the vertex, and the number
+   is meaningless without one: "104.5°" beside a molecule could be naming
+   anything. The arc is swept from one O–H direction to the other through the
+   molecule's own plane, so it stays true when the student orbits, and its
+   radius clears the oxygen sphere (0.95) without reaching the hydrogens. */
+// Outside the hydrogens (centres at HL, radius 0.55), so the arc sweeps BELOW
+// the atoms instead of cutting across them — the way a figure draws an angle
+// mark clear of the thing it measures.
+const ARC_R=HL+0.55+0.14;
+const arcAxis=new THREE.Vector3(0,0,1);       // the molecule is built flat in z=0
+// Stops short of each O–H direction: the δ badges are parked out along those
+// directions at about this radius, and an angle mark running into them reads as
+// a line through the charge rather than an arc between the bonds.
+const ARC_TRIM=0.14;
+const arcPts=[];
+for(let i=0;i<=48;i++){
+  const t=ARC_TRIM+(1-2*ARC_TRIM)*i/48;
+  arcPts.push(H1L.clone().normalize().applyAxisAngle(arcAxis, -ANG*t).multiplyScalar(ARC_R));
+}
+const angleArc=new THREE.Mesh(
+  new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arcPts), 48, 0.022, 8, false),
+  new THREE.MeshBasicMaterial({color:0x9a938a}));
+detail.add(angleArc);
+const arcMid=arcPts[24].clone();
+
+/* THE NUMBER, UNDER THE ARC. A callout would need a dot and a leader to say
+   which angle it means, and the arc already says that — so this is a plain
+   label riding with the molecule instead. A Sprite because it must stay
+   readable at any orbit, and the text is derived from ANG, so changing the
+   geometry cannot leave the figure claiming the old angle. */
+const angleDeg=(ANG*180/Math.PI).toFixed(1)+'\u00b0';
+const angleLabel=(function(){
+  const c=document.createElement('canvas'); c.width=256; c.height=96;
+  const g=c.getContext('2d');
+  function draw(){
+    g.clearRect(0,0,c.width,c.height);
+    g.font='600 58px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+    g.fillStyle='#9a938a'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(angleDeg, c.width/2, c.height/2);
+  }
+  draw();
+  const tex=new THREE.CanvasTexture(c);
+  // same bake hazard atomkit.js documents: the canvas keeps whatever font was
+  // loaded when it was drawn, so redraw once the webfonts settle
+  if(document.fonts&&document.fonts.ready)
+    document.fonts.ready.then(()=>{ draw(); tex.needsUpdate=true; });
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,
+    depthTest:false, depthWrite:false}));
+  sp.renderOrder=30;
+  sp.scale.set(1.06,0.40,1);
+  sp.position.copy(arcMid).setLength(ARC_R+0.42);
+  return sp;
+})();
+detail.add(angleLabel);
+
 const eGroup=new THREE.Group(); detail.add(eGroup);
 [H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),eBondColor,'eBond')); });
 const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
@@ -882,32 +949,26 @@ function tempParams(){
 const stepMeta=[
  {title:'A Polar Molecule',
   hint:'One water molecule — H₂O',
-  body:`<p>Water is <b>V-shaped</b>: one oxygen atom joined to two hydrogens by <b>covalent bonds</b> (shared pairs of electrons) at a <b>104.5°</b> angle. <br><br>Because oxygen is more electronegative, it pulls these shared electrons closer. This creates <b>polar covalent bonds</b>, making oxygen slightly negative (<b>δ−</b>) and hydrogens slightly positive (<b>δ+</b>).</p>`,
   fact:`Because the charge is lopsided, water is <b>polar</b> — and that single fact is the seed of nearly every special property that follows.`},
  {title:'Hydrogen Bonds',
   hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O',
-  body:`<p>Hydrogen bonds attract the <b>+ H</b> of one water molecule to the <b>− O</b> of another.</p>`,
   fact:`A single hydrogen bond is weak. It's about <b>1/20</b> as strong as the covalent O–H bond inside a molecule. <br><br>But with trillions of water molecules togther, <b>H-bonds collectively drive nearly every special property of water!</b>`},
  {title:'Specific Heat',
   hint:'Raise the temperature — energy first breaks hydrogen bonds',
-  body:`<p class="lead">Water has a high specific heat.</p>
-  <p>It absorbs a lot of heat for only a small temperature change, because energy first goes into breaking hydrogen bonds rather than speeding up molecules.</p>`,
   fact:`This is why sweating cools you so well and why oceans stabilize climate — water soaks up enormous heat before it warms.`},
  {title:'Why Ice Floats',
   hint:'Cool toward 0°C — molecules lock into the open ice lattice',
-  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. <br><br>When water freezes, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice</b>, spacing them farther apart than in liquid water.</p>`,
   fact:`So ice floats, insulating the water below — lakes don't freeze solid, and aquatic life survives the winter.`},
  {title:'The Universal Solvent',
   hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
-  body:`<p>Because water is polar, it dissolves ionic and polar substances extraordinarily well — the "universal solvent" of life.</p>
-  <p>Add salt and each ion pulls in a shell of about <b>6 waters</b>: around <b>Na⁺</b> they aim their δ− oxygen inward; around <b>Cl⁻</b> they aim a δ+ O–H inward.</p>`,
   fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>). Salt water <b>freezes below 0°C</b> and <b>boils above 100°C</b>.<br><br> This is why salt is used to melt road ice.`},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
 const stage=document.getElementById('stage');
-const cardEl=document.getElementById('card');
 const stepsEl=document.getElementById('steps');
+const stepTitleEl=document.getElementById('steptitle');
+const factBtn=document.getElementById('factbtn'), factBox=document.getElementById('factbox');
 const saltinfoEl=document.getElementById('saltinfo');
 const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
 
@@ -1002,6 +1063,158 @@ document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
 document.getElementById('clearsalt').onclick=()=>clearSalt();
 const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
 
+/* ============================================================= *
+ *  The lesson's text, on the model (annotate.js)
+ *
+ *  The rail belongs to the tutor, so what used to be a paragraph in the
+ *  sidebar is a label on the atom it describes: the label says WHAT, the
+ *  card says WHY, two sentences at most. Every anchor is a FUNCTION
+ *  returning a live world point — every molecule here is being pushed
+ *  around by the sim, so a baked coordinate comes adrift on frame one.
+ * ============================================================= */
+const NOTES=Annot.create(THREE, stage, camera, {mode:'on'});
+const _wp=new THREE.Vector3();
+
+/* The first hydrogen bond a given donor currently holds. Bonds are recomputed
+   every frame, so this is re-read per frame rather than captured: a label that
+   names a bond has to sit on the bond that is there NOW. */
+function hbOf(donor){ return (donor && donor.userData.hbBonds || [])[0] || null; }
+
+/* THE BOND UNDER THE LABEL, HELD AS LONG AS IT LASTS. Hydrogen bonds are
+   re-solved every frame and a liquid breaks them constantly, so picking the
+   first one each frame makes the label hop across the cluster, and capturing
+   one donor for the whole step leaves the label stranded on a bare oxygen the
+   moment that molecule lets go. Keep the current pair while it is still bonded;
+   take the next one only when it is not. */
+let hbDonor=null;
+function hbAnchor(){
+  if(!hbOf(hbDonor)) hbDonor=sim.mols.find(w=>hbOf(w))||null;
+  const b=hbOf(hbDonor);
+  if(!b) return _wp.copy((sim.mols[0]||{position:_wp}).position);
+  return _wp.copy(hbDonor.userData.hWorld(b.h)).lerp(b.acc.userData.oWorld(),0.5);
+}
+
+/* THE BADGE'S EDGE, ON THE SIDE THE LABEL HANGS OFF. The charge callouts point
+   at the badge rather than the atom under it — the badge is what the sentence
+   is about, and the atom already carries its own letter — but a dot on the
+   badge's centre lands on the glyph and hides it. So walk out from the centre
+   by the sprite's radius, along the leader's own direction, in the camera's
+   plane: a Sprite's scale IS its world size, and the badge always faces the
+   camera, so the two basis vectors are the whole of the maths.
+
+   `get` is a getter, not a sprite: buildCharges() replaces the badges whenever
+   a colour changes in Debug ▸ Colors, and a captured sprite would be the old
+   one, left in place and no longer drawn. */
+const _cr=new THREE.Vector3(), _cu=new THREE.Vector3(), _cf=new THREE.Vector3();
+function badgeEdge(get, dir){
+  const n=Math.hypot(dir[0],dir[1])||1, ux=dir[0]/n, uy=dir[1]/n;   // screen y is DOWN
+  return ()=>{
+    const sp=get();
+    if(!sp) return _wp.copy(sim.mols[0].userData.oWorld());
+    sp.getWorldPosition(_wp);
+    camera.matrixWorld.extractBasis(_cr,_cu,_cf);
+    const r=sp.scale.x*0.5;
+    return _wp.addScaledVector(_cr, r*ux).addScaledVector(_cu, -r*uy);
+  };
+}
+
+/* The temperature slider's right edge, in the layer's own pixels. atPx, and
+   deliberately so: the slider is not a molecule, and both places that use it
+   are teaching something about the control the student is holding. */
+function tempBarPx(){
+  const st=NOTES.el.getBoundingClientRect(), b=tempBar.getBoundingClientRect();
+  return [b.right-st.left, b.top-st.top+b.height*0.5];
+}
+
+function buildNotes(n){
+  NOTES.clear(); saltNoted.clear();
+  const w=sim.mols[0];
+  if(n===0 && w){
+    const O=()=>w.userData.oWorld();
+    NOTES.add({text:'δ− oxygen', offset:[52,-34], at:badgeEdge(()=>dO, [52,-34]),
+      card:'Oxygen pulls the shared electrons closer than hydrogen can. That leaves this end of the molecule slightly negative.'});
+    NOTES.add({text:'δ+ hydrogen', offset:[56,30], at:badgeEdge(()=>dH1, [56,30]),
+      card:'Each hydrogen has its one electron held at arm’s length by the oxygen. The exposed proton leaves this end slightly positive.'});
+    NOTES.add({text:'covalent bond', offset:[62,22],
+      at:()=>_wp.copy(w.userData.oWorld()).lerp(w.userData.hWorld(0),0.5),
+      card:'A shared pair of electrons, not a transferred one. Shared unevenly, which is what makes it a <b>polar</b> covalent bond.'});
+  }
+  if(n===1){
+    hbDonor=null;
+    NOTES.add({text:'hydrogen bond', offset:[58,-30], at:hbAnchor,
+      card:'The δ+ H of one molecule is drawn to the δ− O of the next. No electrons are shared here — it is attraction between molecules, not a bond within one.'});
+    NOTES.add({text:'≈ 1/20 the strength', offset:[-62,34], at:hbAnchor,
+      card:'One hydrogen bond is weak next to the covalent O–H inside a molecule, and breaks constantly. Trillions of them at once are what give water its properties.'});
+  }
+  if(n===2){
+    hbDonor=null;
+    NOTES.add({text:'heat breaks these first', offset:[58,-30], at:hbAnchor,
+      card:'Energy you add goes into pulling hydrogen bonds apart before it speeds molecules up. So a lot of heat buys only a small temperature rise — water’s high specific heat.'});
+    /* atPx, deliberately: the slider is not a molecule, and "where the energy
+       goes in" is a fact about the control the student is holding. */
+    NOTES.add({text:'energy in', offset:[70,0], atPx:tempBarPx,
+      card:'Drag up and watch the network loosen before the molecules visibly speed up. That lag is the specific heat.'});
+  }
+  /* Step 4 says nothing about the lattice until there IS one: syncIceNotes()
+     swaps the hint for the labels when the student drives the water to 0°C. */
+  if(n===3) iceState=null;
+  /* Step 5 labels the ions, but only once the sim has actually seated a shell:
+     naming a hydration shell that is not there yet is a caption arguing with
+     the picture. syncSaltNotes() adds them when they become true. */
+}
+
+/* ---- the lattice, labelled when the water is actually frozen ----
+   Until then the only callout is on the slider, because the claim this step
+   makes ("ice is the open one") is not on screen yet and a label saying so
+   over moving liquid is a caption arguing with the picture. The hint asks for
+   the one action that makes it true. Warming back up puts the hint back. */
+let iceState=null;                    // null | 'hint' | 'ice' — what is on screen now
+function syncIceNotes(){
+  if(S.step!==3) return;
+  const frozen = (S.fz||0) >= 1;      // fz hits 1 at the freezing point itself
+  const want = frozen ? 'ice' : 'hint';
+  if(want===iceState) return;
+  iceState=want;
+  NOTES.clear();
+  if(!frozen){
+    NOTES.add({text:'drag down to 0°C', offset:[70,0], atPx:tempBarPx,
+      card:'Cool the water to its freezing point and watch what the molecules do with the space they have. The answer is why ice floats.'});
+  } else {
+    const w=sim.mols[0]; if(!w) return;
+    NOTES.add({text:'open hexagonal lattice', offset:[64,-36],
+      at:()=>w.userData.oWorld(),
+      card:'Frozen, each molecule is held by four neighbours at fixed arm\u2019s length. The cage props them farther apart than jostling liquid water does.'});
+    const far=()=>{ let best=sim.mols[0], r=-1;
+      sim.mols.forEach(m=>{ const d=m.position.length(); if(d>r){ r=d; best=m; } });
+      return best.userData.oWorld(); };
+    NOTES.add({text:'fewer molecules per litre', offset:[-64,40], at:far,
+      card:'Wider spacing is lower density, which is why ice floats on its own liquid. Almost nothing else does this.'});
+  }
+  NOTES.setMode('reveal'); NOTES.play();
+}
+
+/* ---- the ions, labelled when their shell exists ---- */
+const saltNoted=new Map();
+function syncSaltNotes(){
+  if(S.step!==4){ if(saltNoted.size){ saltNoted.forEach(nt=>nt.remove()); saltNoted.clear(); } return; }
+  // gone, or wedged back below a shell: the label goes with the fact
+  saltNoted.forEach((nt,ion)=>{
+    if(!salt.includes(ion) || ion.userData.shellCount<1){ nt.remove(); saltNoted.delete(ion); }
+  });
+  for(const ion of salt){
+    if(saltNoted.has(ion) || ion.userData.shellCount<1) continue;
+    const cation=ion.userData.charge>0;
+    const nt=NOTES.add({
+      text: cation ? 'Na⁺ — δ− O turned inward' : 'Cl⁻ — δ+ H turned inward',
+      offset: cation ? [-70,-34] : [70,34],
+      at: ()=>_wp.copy(ion.position),
+      card: cation
+        ? 'About six waters cage the cation, each aiming its partly-negative oxygen at the charge. That shell is what stops it finding its chloride again.'
+        : 'Around the anion the waters flip and point one O–H at it. Same attraction, opposite end of the molecule.'});
+    saltNoted.set(ion,nt);
+  }
+}
+
 let cur=-1;
 const stepR=[8,18,20,24,20];
 function applyStep(n){
@@ -1030,27 +1243,22 @@ function applyStep(n){
   cur=n;
   [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
   const m=stepMeta[n];
-  const facts=Array.isArray(m.facts)?m.facts:(m.fact?[m.fact]:[]);
-  const factsHtml=facts.map(f=>
-    `<div class="factwrap"><img class="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${f}</div></div>`
-  ).join('');
-  cardEl.innerHTML=`<div class="cardtext"><h2>${m.title}</h2>${m.body}</div>${factsHtml}`;
-  cardEl.querySelector('.cardtext').scrollTop=0;
+  stepTitleEl.textContent=m.title;
+  factBox.innerHTML=m.fact||''; setFact(false);
+  buildNotes(n);
+  NOTES.setMode('reveal'); NOTES.play();
   prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
-  nextB.textContent=n===stepMeta.length-1?'Finish':'Next';
 }
 // step numbers 1–5 with hand-drawn active circle
 stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
   b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
 prevB.onclick=()=>applyStep(Math.max(0,cur-1));
 nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
-// lightbulb reveals its neighbouring fact (progressive disclosure); delegated since
-// each step's card.innerHTML rebuild replaces the .bulb/.fact elements
-cardEl.addEventListener('click',e=>{
-  const bulb=e.target.closest('.bulb'); if(!bulb) return;
-  const f=bulb.nextElementSibling; if(!f) return;
-  const show=f.classList.toggle('show'); bulb.classList.toggle('lit',show);
-});
+// the fact is the step's takeaway, and it is asked for rather than shown: the
+// stage carries the mechanism, this carries the "so what". Open is the .on class
+// and nothing else.
+function setFact(on){ factBox.classList.toggle('on',on); factBtn.classList.toggle('lit',on); }
+factBtn.onclick=()=>setFact(!factBox.classList.contains('on'));
 
 /* ---------- debug panel: right-docked, tabbed (Sim / Colors / Render) ---------- */
 (function(){
@@ -1265,6 +1473,8 @@ function loop(){
   // letters/badges ride just proud of their own atom's front surface — see
   // atomkit.js faceCamera(); needs the camera's final position for this frame
   if(detail.visible) kit.faceCamera(camera);
+  syncIceNotes(); syncSaltNotes();
+  NOTES.step();                 // trap 1: the RENDER loop, so orbiting keeps the labels on their atoms
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
 
