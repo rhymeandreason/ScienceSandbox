@@ -7,12 +7,27 @@
    the shared vocabulary, and nothing below can reach a featured lesson.
    ========================================================================== */
 
-/* The model is framed on the WINDOW while the tutor is closed, so it sits to the
-   right of this canvas and its right-hand callouts would be clipped at the
-   canvas edge. Let them run onto the rail, which is bare paper; the chat sheet
-   sits above them (z-index 40 vs the layer's 7) and covers them when open. */
-#stage,
-#stage .annot-layer { overflow: visible }
+:root { --rail: 372px }
+
+/* ---- the stage is the whole window ----
+   The canvas cannot draw past its own edge, so a stage that stops at the rail
+   clips the model the moment the framing centres it on the window. It spans
+   both grid columns instead, and the rail rides on top: transparent, taking the
+   mouse only where the launcher and the sheet actually are, so a drag on the
+   bare right-hand side still orbits the molecule under it. */
+#stage { grid-column: 1 / -1; grid-row: 1 }
+
+/* The rail must be put back in row 1 explicitly: with the stage spanning every
+   column, auto-placement drops the next child into a row of its own. */
+#side {
+  grid-column: 2;
+  grid-row: 1;
+  z-index: 8;
+  pointer-events: none
+}
+
+#side > *,
+#askchat { pointer-events: auto }
 
 /* ---- the rail is plain ----
    sandbox.css dresses #side as torn grid paper, which earned its place when the
@@ -20,52 +35,73 @@
    its own surface, and grid paper behind a launcher button is decoration for a
    notebook that is no longer there. */
 #side {
-  /* the paper, without the grid ruling: transparent falls through to whatever
-     is behind the grid shell, which is not the stage's colour */
-  background: var(--paper);
+  /* the stage's own dotted paper shows through now that it runs the full width */
+  background: none;
   box-shadow: none;
   padding-top: 22px
 }
 
 #side::before { display: none }
 
-/* ---- the add-a-thing tray, bottom right ----
-   sandbox.css pins #formula top-right and #saltcard bottom-right; here they are
-   one row in the corner, salt first so water lands outermost. Both keep their
-   own display:flex, which the page toggles per step, so the row only ever holds
-   what this step offers. */
+/* ---- the add-a-thing tray ----
+   Centred on the WINDOW, like the model, and slid left by the same amount when
+   the sheet opens: --shift is written from the render loop, so the buttons and
+   the molecule move together rather than one chasing the other. */
 #tray {
   position: absolute;
-  right: 28px;
-  bottom: 26px;
+  left: 50%;
+  bottom: 30px;
   z-index: 6;
+  transform: translateX(calc(-50% - var(--shift, 0px)));
   display: flex;
-  align-items: flex-end;
-  gap: 28px
+  align-items: flex-start;
+  gap: 14px
 }
 
-#tray #formula,
-#tray #saltcard {
-  position: static;
-  right: auto;
-  top: auto;
-  bottom: auto
+.addcol {
+  display: none;             /* the page turns each column on at its own step */
+  flex-direction: column;
+  align-items: center;
+  gap: 4px
 }
 
-/* The salt card borrows the water card's button row: same big + and same small
-   ghosted second button, so "add one / take one away" reads the same on both.
-   sandbox.css only anchors the mini button for #formula, so repeat it here. */
-#saltcard .addrow {
-  position: relative;
-  display: flex;
-  justify-content: center
+.pill {
+  font: 600 14.5px var(--font-sans);
+  letter-spacing: .2px;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 24px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(43, 39, 35, .18), 0 6px 16px -8px rgba(43, 39, 35, .6)
 }
 
-#saltcard .addrow .mini {
-  position: absolute;
-  left: calc(50% + 26px);
-  top: 50%;
-  transform: translateY(-50%)
+/* Each pill wears its own substance's colour, so the button and the thing it
+   drops into the water are the same idea: water the H-bond blue, salt the
+   ion-dipole amber. */
+.pill.water { background: #3d6fb0 }
+.pill.salt  { background: #b8862f }
+.pill:hover { filter: brightness(1.07) }
+.pill:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(43, 39, 35, .18) }
+
+.undo {
+  font: 500 12.5px var(--font-sans);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 2px 6px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px
+}
+
+.undo:hover { color: var(--ink) }
+
+/* The salt readout sits above the tray rather than under it, and rides the same
+   shift so the whole bottom-centre group moves as one. */
+#saltinfo {
+  bottom: 116px;
+  transform: translateX(calc(-50% - var(--shift, 0px)))
 }
 
 /* ---- the step rail, top-left under the brand ---- */

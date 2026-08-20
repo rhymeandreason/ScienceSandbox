@@ -51,30 +51,17 @@
     <div id="saltinfo"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
-    <!-- The two "add a thing" cards, together in the bottom-right corner: they
-         are the same gesture, and the student should find the second where the
-         first was. -->
+    <!-- Add a thing: one pill each, and the undo under it as plain text. Salt
+         first, so water keeps the same place when salt appears at step 5. -->
     <div id="tray">
-    <div id="saltcard">
-      <div class="sketchbox">
-        <span class="flabel">NaCl</span>
-        <img src="molecule_salt.png" alt="salt">
+      <div class="addcol" id="saltctl">
+        <button class="pill salt" id="addsalt">Add Salt</button>
+        <button class="undo" id="clearsalt">Clear</button>
       </div>
-      <div class="addrow">
-        <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
-        <button class="addbtn mini" id="clearsalt" title="Clear salt"><i class="ph-bold ph-x"></i></button>
+      <div class="addcol" id="waterctl">
+        <button class="pill water" id="addwater">Add Water</button>
+        <button class="undo" id="remwater">Remove</button>
       </div>
-    </div>
-    <div id="formula">
-      <div class="sketchbox">
-        <span class="flabel">H<sub>2</sub>O</span>
-        <img src="molecule_water.png" alt="water molecule">
-      </div>
-      <div class="addrow">
-        <button class="addbtn" id="addwater" title="Add water molecule"><i class="ph-bold ph-plus"></i></button>
-        <button class="addbtn mini" id="remwater" title="Remove water molecule"><i class="ph-bold ph-minus"></i></button>
-      </div>
-    </div>
     </div>
   </div>
 
@@ -1000,7 +987,7 @@ document.getElementById('addwater').onclick=addWater;
 document.getElementById('remwater').onclick=remWater;
 document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
 document.getElementById('clearsalt').onclick=()=>clearSalt();
-const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
+const formulaEl=document.getElementById('waterctl'), saltcardEl=document.getElementById('saltctl');
 
 /* ============================================================= *
  *  The lesson's text, on the model (annotate.js)
@@ -1273,41 +1260,32 @@ function setFact(on){ factBox.classList.toggle('on',on); factBtn.classList.toggl
 factBtn.onclick=()=>setFact(!factBox.classList.contains('on'));
 
 /* ---------- where the model sits ----------
- *  Closed, the lesson is the whole window and the model should be centred in
- *  the WINDOW, not in the canvas — the canvas stops short of the rail, so a
- *  centred render sits visibly left of centre. Open, the sheet takes that space
- *  back and the model belongs where the canvas puts it.
+ *  The canvas is the whole window, so closed, the model is centred with no help
+ *  at all. Open, the sheet takes the right-hand strip and the model slides left
+ *  to clear it.
  *
- *  Done with the camera's view offset rather than by resizing the canvas: the
- *  frustum is computed for a wider viewport and only the left slice is drawn,
- *  so the model moves and none of the lesson's chrome does. `aspect` has to
- *  follow the FULL width, since three.js derives the frustum from it before
- *  cutting the slice out. Everything that projects through the camera —
- *  annotate.js's callouts included — comes along, because the offset is in the
- *  projection matrix rather than painted on afterwards.
+ *  The slide is the camera's view offset, not a resize: the same-sized window is
+ *  taken from further right in the frustum, which moves the content left without
+ *  touching the canvas, the aspect, or one pixel of the lesson's chrome.
+ *  Everything that projects through the camera — annotate.js's callouts
+ *  included — comes along, since the offset is in the projection matrix.
  */
 const ASK_EASE=0.16;
-let askShift=1;                 // 1 = centred on the window, 0 = centred on the canvas
-let lastShiftKey='';
+let askShift=0;                 // 0 = centred on the window, 1 = pushed clear of the sheet
+let lastShiftPx=-1;
 function applyAskShift(){
-  const open=!!(ASK && ASK.el.classList.contains('on'));
-  const target=open?0:1;
+  const target=(ASK && ASK.el.classList.contains('on'))?1:0;
   askShift+=(target-askShift)*ASK_EASE;
   if(Math.abs(askShift-target)<0.002) askShift=target;
+  // half the rail: the model ends up centred in what is left of the window
+  const px=(side.clientWidth||0)*0.5*askShift;
+  if(Math.abs(px-lastShiftPx)<0.25) return;
+  lastShiftPx=px;
+  // the add-a-thing pills ride the same number, so they and the model move as one
+  document.documentElement.style.setProperty('--shift', px.toFixed(1)+'px');
   const w=stage.clientWidth, h=stage.clientHeight;
-  const extra=(side.clientWidth||0)*askShift;
-  const want=(extra<0.5) ? w/h : (w+extra)/h;
-  /* Re-check the camera's own aspect, not just our inputs: Stage's ResizeObserver
-     sets aspect back to the canvas's on every resize (including the one it fires
-     when the page opens), and an offset frustum left on a canvas-width aspect
-     renders the model stretched. Skipping the rebuild is only safe while what we
-     asked for is still what the camera holds. */
-  const key=w+'x'+h+':'+extra.toFixed(1);
-  if(key===lastShiftKey && camera.aspect===want) return;
-  lastShiftKey=key;
-  camera.aspect=want;
-  if(extra<0.5) camera.clearViewOffset();
-  else camera.setViewOffset(w+extra,h,0,0,w,h);
+  if(px<0.5) camera.clearViewOffset();
+  else camera.setViewOffset(w,h,px,0,w,h);   // same size, taken further right
   camera.updateProjectionMatrix();
 }
 
