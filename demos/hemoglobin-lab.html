@@ -565,7 +565,7 @@ const RIBBON_SUB = 6;
  *  frame of the old page saw a 503 Å thread — correct, and silent about
  *  what it is made of.
  *
- *  So the page opens CLOSE IN on residues 4-18, drawn as real backbone
+ *  So the page opens CLOSE IN on residues 129-143, drawn as real backbone
  *  atoms with their names above them, and pulls out to the whole chain once
  *  that stretch has coiled. Two things are true at once at the moment of
  *  the pull-out, which is the whole reason to stage it this way: the ribbon
@@ -1298,11 +1298,8 @@ function poseAt(t) {
  *  "the order of the amino acids" means nothing if every amino acid on
  *  screen looks identical.
  *
- *  The geometry comes from residues.js, which measured each of the twenty
- *  off deposited structures; grafting is one rigid transform per residue
- *  off its own N, CA and C. Read that file's header before trusting a
- *  conformation: the CONNECTIVITY is exact, and the shape is one real
- *  rotamer of several the residue visits, not a canonical pose.
+ *  The geometry comes from residues.js — read that file's header before
+ *  trusting a conformation.
  *
  *  THEY GO WHEN THE FOLD STARTS, on the same schedule the flat chain
  *  settles on. Not for tidiness: past the settle the coordinates under

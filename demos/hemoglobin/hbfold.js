@@ -27,7 +27,7 @@
  *  every atom missing here is an atom nothing draws.
  *
  *  THE ONE EXCEPTION IS THE FOCUS SEGMENT (v2): the full backbone of
- *  residues 4-18, which the page opens on as ball-and-stick before pulling
+ *  residues 129-143, which the page opens on as ball-and-stick before pulling
  *  out to the ribbon. That is the level-1 beat, and a tube cannot carry it.
  *  bake-hb.js's FOCUS block explains the choice of segment and why the atoms
  *  stop at the backbone. hemoglobin/tools/bake-hb.js

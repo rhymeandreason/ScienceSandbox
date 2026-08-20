@@ -492,8 +492,7 @@ function setCut(on) {
    other.
 
    THE LOBE COUNT IS THE SUBUNIT COUNT: a K⁺ channel is a TETRAMER, a CLC
-   chloride channel a DIMER. True about symmetry, but NOT measured structure —
-   `lobes` ripples the OUTER wall and leaves the lumen round on purpose. */
+   chloride channel a DIMER. True about symmetry, not measured structure. */
 const CHANNEL = Parts.transporter({ half:HALF, site:7.2, mouth:8.8,
                                     radius:K_R, lobes:4, lobeDepth:K_LOBE });
 const CLCHAN  = Parts.transporter({ half:HALF, site:7.2, mouth:8.0,
@@ -517,7 +516,7 @@ function showProtein(which) {
     PUMP.group.position.x = pumpX = REST_PUMP_X;
     CHANNEL.group.visible = PUMP.group.visible = true;
     CLCHAN.group.visible = false;
-    CHANNEL.setGates(1, 1);             // a channel is a hole: always open
+    CHANNEL.setGates(1, 1);
     T = PUMP;                           // the cycle drives this one
     PORES = PORES_REST;
     return;
@@ -1986,9 +1985,8 @@ function startTurn() {
   atpSpent++;
 }
 function finishCycle() {
-  /* ELECTROGENIC, the number membrane/pump.js calls un-roundable: three out
-     against two in leaves the inside one charge more negative every turn, so
-     the pump builds part of the voltage too. */
+  /* ELECTROGENIC: one net charge out per turn, so the pump builds part of
+     the voltage too. */
   chargeOut += 1;
   mV = Math.max(-95, MV_PER_ION * chargeOut);
 }
