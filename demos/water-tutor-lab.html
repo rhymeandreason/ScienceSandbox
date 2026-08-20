@@ -78,6 +78,7 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="atomkit.js"></script>
+<script src="kit/focus.js"></script>       <!-- one vocabulary for "look here": ghost the rest, light the chosen -->
    <!-- step-1 element letters + δ badges (same as the bonding builder) -->
 <script src="ask/chat.js"></script>          <!-- the tutor drawer; DOM only, never touches the scene -->
 <script>
@@ -275,9 +276,16 @@ function water(){
   const g=new THREE.Group();
   const O=atom(state.O,0.95,new THREE.Vector3(0,0,0),'O');
   const Ha=atom(state.H,0.55,H1L,'H'), Hb=atom(state.H,0.55,H2L,'H');
-  g.add(bond(new THREE.Vector3(0,0,0),H1L),bond(new THREE.Vector3(0,0,0),H2L));
+  const ba=bond(new THREE.Vector3(0,0,0),H1L), bb=bond(new THREE.Vector3(0,0,0),H2L);
+  g.add(ba,bb);
   g.add(O,Ha,Hb);
-  g.userData={O,Ha,Hb, oWorld:()=>O.getWorldPosition(new THREE.Vector3()),
+  // atomMeshes/bondMeshes/pair are what kit/focus.js reads to light one atom
+  // rather than a whole molecule. Indices are 0=O, 1=Ha, 2=Hb, and a bond
+  // belongs to a set only when both its ends do, which is Focus's rule and the
+  // reason `pair` has to be here rather than inferred.
+  ba.userData.pair=[0,1]; bb.userData.pair=[0,2];
+  g.userData={O,Ha,Hb, atomMeshes:[O,Ha,Hb], bondMeshes:[ba,bb],
+    oWorld:()=>O.getWorldPosition(new THREE.Vector3()),
     hWorld:i=>(i?Hb:Ha).getWorldPosition(new THREE.Vector3())};
   return g;
 }
@@ -372,7 +380,11 @@ function createWaterSim(cfg={}){
     // A single pair of waters shares at most ONE H-bond (each of water's 4 bonds
     // goes to a different neighbour), so also forbid a second bond between a pair.
     const accepted=new Map(), bonded=new Set();
-    mols.forEach((m,idx)=>{ m.userData._i=idx; m.userData.hb=0; });   // per-molecule H-bond tally (read next frame)
+    // Per-molecule H-bond tally, read next frame. `hbBonds` records WHICH
+    // hydrogen went to WHICH molecule, because the matcher below already knows
+    // and anything reading it back off geometry would be re-deriving a decision
+    // that has already been made, and can disagree with it.
+    mols.forEach((m,idx)=>{ m.userData._i=idx; m.userData.hb=0; m.userData.hbBonds=[]; });
     const pairKey=(a,b)=>a<b?a+'|'+b:b+'|'+a;
     for(const donor of mols){ if(donor.userData.escaped) continue;   // gas-phase molecule: no H-bonds
       const oD=donor.userData.oWorld();
@@ -388,6 +400,7 @@ function createWaterSim(cfg={}){
         if(best){ n++; accepted.set(bestMol,(accepted.get(bestMol)||0)+1);
           bonded.add(pairKey(donor.userData._i,bestMol.userData._i));
           donor.userData.hb++; bestMol.userData.hb++;   // both partners gain a bond
+          donor.userData.hbBonds.push({acc:bestMol, h:hi});
           if(showHbonds){ const l=hbondTube(h,best); lines.push(l); root.add(l); }
           if(o.hbForce&&hbScale>0){ const ax=V().subVectors(bestMol.position,donor.position);
             const dist=ax.length()||1; ax.multiplyScalar((dist-o.EQ)*o.kHB*bestLin*hbScale/dist);
@@ -1282,12 +1295,36 @@ document.getElementById('savepng').onclick=()=>{
 let lastFrame = 0;
 (function stamp() { lastFrame = performance.now(); requestAnimationFrame(stamp); })();
 
+/* kit/focus.js is the vocabulary: ghost the rest to 13% without depth-write,
+   light the chosen so they emit their OWN colour, and light a bond only when
+   both its ends are lit. A lit oxygen stays red, which is the point: the
+   highlight must never recolour chemistry. */
+const focus = Focus.create({ glow: 0.55 });
 let spotTimer = null;
-function spotlight(keep, ms = 3200) {
+
+function unfocus() {
   clearTimeout(spotTimer);
-  const lit = new Set(keep);
-  sim.mols.forEach(w => setMolOpacity(w, lit.has(w) ? 1 : 0.12));
-  spotTimer = setTimeout(() => sim.mols.forEach(w => setMolOpacity(w, 1)), ms);
+  focus.clear();
+}
+
+/* Whole molecules against each other, for a group whose meaning is the group:
+   a hydration shell is six waters and their orientation, not six oxygens. */
+function spotMolecules(keep, ms = 3600) {
+  unfocus();
+  focus.among([...sim.mols, ...salt], keep);
+  spotTimer = setTimeout(unfocus, ms);
+}
+
+/* Named atoms inside named molecules. `picks` is [[molecule, [indices]], …]
+   with 0=O, 1=Ha, 2=Hb; every other molecule ghosts whole. This is the level
+   the three molecular targets actually wanted: "that oxygen", not "that
+   molecule with an oxygen in it". */
+function spotAtoms(picks, ms = 3600) {
+  unfocus();
+  const involved = picks.map(p => p[0]);
+  focus.among([...sim.mols, ...salt], involved);
+  picks.forEach(([mol, idx]) => focus.atoms(mol, idx));
+  spotTimer = setTimeout(unfocus, ms);
 }
 
 /* A ring over a control, in screen space. The controls live on the stage rather
@@ -1301,20 +1338,17 @@ const uiStep = { trange: 2, addsalt: 4, addwater: 1 };
 
 const ping = Ask.ping;   // the gesture is the module's; which control is this page's
 
-/* The pair actually holding a hydrogen bond this frame. `userData.hb` is the
-   count the sim already tallies, so this finds a real bond on screen rather
-   than asserting that one exists somewhere. */
-function bondedPair() {
-  const bonded = sim.mols.filter(w => (w.userData.hb || 0) > 0);
-  if (!bonded.length) return null;
-  const a = bonded[0];
-  let best = null, d2 = Infinity;
-  for (const b of sim.mols) {
-    if (b === a) continue;
-    const d = a.position.distanceToSquared(b.position);
-    if (d < d2) { d2 = d; best = b; }
+/* One hydrogen bond the sim made this frame: which molecule donated, which
+   hydrogen it donated, and which molecule accepted. Read straight off the
+   matcher's own record, so the atoms lit are the atoms the bond was drawn
+   between. Null when nothing is bonded, which is a real answer on a sparse
+   scene rather than something to paper over. */
+function aHydrogenBond() {
+  for (const w of sim.mols) {
+    const b = (w.userData.hbBonds || [])[0];
+    if (b) return { donor: w, hIndex: b.h + 1, acceptor: b.acc };   // 0=O, so H is h+1
   }
-  return best ? [a, best] : null;
+  return null;
 }
 
 Ask.chat({
@@ -1379,17 +1413,23 @@ Ask.chat({
     // waits for the scene to settle before lighting anything.
     const after = (ms, fn) => setTimeout(fn, ms);
 
+    // The oxygen alone, with its own two hydrogens ghosted. That contrast IS
+    // the claim: this end of the molecule is the negative one. Lighting the
+    // whole molecule would have said "this molecule", which nobody asked.
     if (id === 'the-charges') {
       if (cur > 1) applyStep(1);
-      after(cur > 1 ? 600 : 0, () => { if (sim.mols[0]) spotlight([sim.mols[0]]); });
+      after(cur > 1 ? 600 : 0, () => { if (sim.mols[0]) spotAtoms([[sim.mols[0], [0]]]); });
       return true;
     }
 
+    // The two atoms the bond runs between, one from each molecule: the donated
+    // hydrogen and the oxygen accepting it. Everything else on both molecules
+    // ghosts, so what is left lit is the bond's own geometry.
     if (id === 'a-hydrogen-bond') {
       if (cur < 1) applyStep(1);
       after(cur < 1 ? 900 : 0, () => {
-        const pair = bondedPair();
-        if (pair) spotlight(pair);
+        const b = aHydrogenBond();
+        if (b) spotAtoms([[b.donor, [b.hIndex]], [b.acceptor, [0]]]);
       });
       return true;
     }
@@ -1413,9 +1453,9 @@ Ask.chat({
           let tries = 0;
           (function whenSeated() {
             const shell = sim.mols.filter(w => w.userData.shellIon === ion);
-            if (shell.length) return spotlight([ion, ...shell], 4000);
+            if (shell.length) return spotMolecules([ion, ...shell], 4400);
             if (++tries < 20) return setTimeout(whenSeated, 250);
-            spotlight([ion], 3000);
+            spotMolecules([ion], 3000);
           })();
         });
       });
