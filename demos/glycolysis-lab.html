@@ -965,10 +965,6 @@ font-size: 20px;
  * ========================================================================== */
 
 /* ---------- shared stage (kit/stagekit.js over scene.js) + effects (fx.js) ----
- * Lesson.create is Stage.create plus the loop, the resize hook, and the two
- * clocks (kit/motion.js) this page's beats ride — see `later` below, which is
- * now one line over Motion rather than an array of setTimeout handles.
- *
  * THE FIT IS THIS PAGE'S OWN, deliberately: `fitFor` measures LANE LAYOUTS, not
  * a molecule's bounding box, and the reserves below are chrome only this lesson
  * has. So no `boxes` is handed to Lesson; `onResize` runs computeFit instead,
@@ -1295,26 +1291,15 @@ let shownReview=false;
 // one about to run. Everything that reads a step goes through it.
 const focusStep=()=>reviewing?done-1:done;
 
-// SPECIES NAMES ARE DOM, NOT SPRITES — sharp at any zoom, selectable, sized by
-// the page's type scale not the camera. The tracking a sprite gives free is
-// paid explicitly: every frame each lane's anchor is projected and the label
-// positioned over it (drawPlates, from the render loop). Never drop that — an
-// unprojected HTML label drifts off its molecule the moment the scene rotates.
 const platesEl=document.getElementById('plates');
 // EVERY MOLECULE HAS TWO NAMES, BOTH ON SCREEN: the plate's systematic name and
 // the side panel's abbreviation ("F1,6-BP"). Both from the spec's `name`/`short`
 // so they can't disagree. Plate falls back to the abbreviation when the
 // systematic name won't fit between the lanes; see drawPlates.
-/* THE LANE SYSTEM IS kit/lanes.js — molecules side by side, named, that split
- * and swap. It enforces the rules (a lane centred on the MOLECULE not its
- * origin, the vertical twin, one shared label baseline, abbreviate-then-shrink
- * decided for all lanes at once, positions as targets so the swap frame moves
- * nothing); they are written up in that file.
- *
- * What stays here is what only this lesson knows: NO C–H ANYWHERE, because the
- * lesson is carbon and phosphate bookkeeping. Glucose alone carries C–H, hidden
- * on build and excluded from every measurement — else an invisible hydrogen
- * widens the shared camera fit.
+/* THE LANE SYSTEM IS kit/lanes.js. What stays here is what only this lesson
+ * knows: NO C–H ANYWHERE, because the lesson is carbon and phosphate
+ * bookkeeping. Glucose alone carries C–H, hidden on build and excluded from
+ * every measurement — else an invisible hydrogen widens the shared camera fit.
  */
 const LANES=Lanes.create({
   root, camera, canvas, host:platesEl, specOf:k=>M[k], radii:PAL.radii,
@@ -1346,11 +1331,7 @@ const plateY=keys=>LANES.plateY(keys);
 // Label strip height in PIXELS — what RESERVES() hands kit/fit.js for the top.
 const plateHeightPx=()=>LANES.heightPx();
 
-/* ---------- the hotspot on the bond ----------
- * One per lane, on the projected midpoint of the step's bond. Driven every
- * frame — the camera eases and the molecule turns, so a target that doesn't
- * follow is one you miss. Elements reused, else the pulse restarts 60x/s.
- *
+/* ---------- the hotspot on the bond (kit/hotspot.js) ----------
  * WHICH BOND A `spot` MEANS, in the spec's own words. Two spellings, because
  * the specs already name these two ways:
  *   an ARRAY  — the bond itself (`gly.open`, `gly.cleave`: C1–O5, C3–C4)
@@ -1373,8 +1354,6 @@ function spotPair(spec, at){
 }
 const spotsEl=document.getElementById('spots');
 const glowEl=document.getElementById('spotglow');
-/* kit/hotspot.js owns position, reuse and the one-hint rule; this page owns
- * MEANING — which bond, what the hint says, and what a click does. */
 const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
   // WHICH LANE: a per-lane step runs the one clicked; a whole-step target
   // ignores it, so both come through here.
@@ -1386,13 +1365,9 @@ const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
  * parked beside the disc in screen space reads as a caption floating in the
  * frame instead.
  *
- * ONE NOTE, NOT ONE PER TARGET. kit/hotspot.js's rule is one hint at a time
- * (two shout), so there is exactly one here and its ANCHOR moves: `at` is a
- * function, which is what annotate.js is built around — the dot follows the
- * bond as the camera orbits and as the lane eases, with nothing baked.
- *
- * Null anchor = no prompt: annotate.js hides a note whose anchor resolves to
- * nothing, so "there is nothing to click right now" needs no second switch. */
+ * ONE NOTE, NOT ONE PER TARGET, whose ANCHOR moves: `at` is a function, so the
+ * dot follows the bond as the camera orbits and the lane eases. A null anchor
+ * is how "nothing to click right now" is said — no second switch. */
 const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
 let hintAt=null;
 const hintNote=NOTES.add({ text:'', at:()=>hintAt&&hintAt(), offset:[30,-26] });
@@ -1408,8 +1383,7 @@ function drawHint(){
     text='Break off a phosphate group';
     hintAt=()=>CAR.bondMid(0, ...gammaBreak(), _hintV);
   }else if(st && st.spot && st.spot.say && !busy && !reviewing){
-    // the FIRST target still standing carries it — kit/hotspot.js's one-hint
-    // rule (two shout), applied to the callout
+    // the FIRST target still standing carries the one note
     const j=lanes.findIndex((l,i)=>!laneDone.has(i) && spotPair(M[l.key], st.spot.at));
     if(j>=0){ const pair=spotPair(M[lanes[j].key], st.spot.at);
       text=st.spot.say; hintAt=()=>laneBondMid(lanes[j], pair); }
@@ -1418,8 +1392,8 @@ function drawHint(){
   NOTES.show(!!text);
   NOTES.step();
 }
-// The world midpoint of a lane's target bond — the same pair kit/hotspot.js
-// puts its disc on, so the dot cannot land on a different bond than the glow.
+// The world midpoint of a lane's target bond — the same pair the disc sits on,
+// so the dot and the glow cannot land on different bonds.
 const _hintV=new THREE.Vector3();
 const laneBondMid=(l,pair)=>{
   if(!l||!pair) return null;
@@ -1432,8 +1406,7 @@ function drawSpots(){
   const live = !!st && !!st.spot && !busy && !reviewing;
   SPOTS.update(!live ? [] : lanes.map((l,i)=>
     // A lane that has already run has no target: the product has no `hot`
-    // phosphate. Null rather than a point — the module never places a target it
-    // could not derive.
+    // phosphate.
     laneDone.has(i) ? null : {
       group:l.g, pair:spotPair(M[l.key], st.spot.at), lane:i,
       // the callout carries the words (see drawHint); the span stays empty
@@ -1461,12 +1434,10 @@ function clearLanes(){ LANES.clear(); lanes=LANES.lanes; }
 // framing — a lone glucose is compared to nothing.
 // From the SPECS plus intended lane offsets, not a live bbox: mid-split the
 // halves are still easing apart, so a bbox fits the stacked pair.
-// kit/fit.js owns the arithmetic; `RESERVES` below is the half only this page
-// can know — which of ITS elements sit over the canvas. `cam.r` stays the one
-// measure of "how far back" even though the camera is orthographic: the module
-// converts it into a frustum of the half-height a perspective camera would show
-// at r, so fitFor's R, the loop's ease, the wheel clamp and u.shift all keep
-// their meaning verbatim.
+// `cam.r` stays the one measure of "how far back" even though the camera is
+// orthographic: kit/fit.js converts it into a frustum of the half-height a
+// perspective camera would show at r, so fitFor's R, the loop's ease and
+// u.shift all keep their meaning verbatim.
 const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
 const HALF_FOV=FIT.HALF_FOV;
 // Every frame: cam.r eases, so the frustum is rebuilt from it.
@@ -1499,20 +1470,12 @@ function fitFor(states){
   return { Y:Yfit, R };
 }
 
-// THE STAGE IS NOT AN EMPTY RECTANGLE — chrome on all four edges, so a molecule
-// fitted to the raw canvas is fitted to spoken-for space. Intrusions are
-// MEASURED off the live element, so restyling moves the camera to match.
-//   top     species labels: HTML, a fixed PIXEL band, not a world-space box the
-//           projection scales — hence reserved here, not in fitFor.
-//   bottom  #bottombar, a RESERVATION: the typed --barh, not what the bar holds.
-//           ONE camera covers every state (else the split stops reading as a
-//           halving), so the bottom edge must not move as headings/captions come
-//           and go. Nothing else is reserved: the ending fork is a modal.
-//   left    the reagent tray (absent during the intro, nothing to spend)
-// The arithmetic over these numbers is kit/fit.js's; WHICH ELEMENTS they come
-// from is the part only this page can know, so that half stays here.
-// Bottom reserve px: declared bar height + stand-off, from the STYLESHEET not
-// the live box, so bar contents can't re-frame every state.
+// WHICH OF THIS PAGE'S ELEMENTS SIT OVER THE CANVAS — the half of the fit
+// kit/fit.js cannot know. Every one is read from the element's DECLARED style,
+// never its live box: ONE camera covers every state (else the split stops
+// reading as a halving), so a fuller tray or a longer caption must not re-frame
+// the shot. Restyle one of these and the camera follows.
+// Bottom: declared bar height + stand-off.
 function barReservePx(){
   const e=document.getElementById('bottombar');
   if(!e) return 106;
@@ -1539,14 +1502,11 @@ function trayReservePx(){
   const cs=getComputedStyle(e);
   return (parseFloat(cs.left)||0)+(parseFloat(cs.minWidth)||0)+TRAY_CLEAR_PX;
 }
-/* WHAT SITS OVER THE CANVAS, in pixels. The whole of this page's contribution
- * to the fit — kit/fit.js does the rest (clamping the reserves against the
- * viewport, the leftover fractions, the half-difference target shift).
- *   top     species labels: HTML, a fixed PIXEL band, not a world-space box the
+/*   top     species labels: HTML, a fixed PIXEL band, not a world-space box the
  *           projection scales — hence reserved here, not in fitFor.
- *   bottom  #bottombar + the caption when it is up.
- *   left    the reagent tray. It sits on one side and is paid on BOTH by the
- *           module, because the lesson belongs on the centre line. */
+ *   bottom  #bottombar + the caption when it is up. Nothing else: the ending
+ *           fork is a modal.
+ *   left    the reagent tray. */
 const RESERVES=()=>({
   top: plateHeightPx(),
   bottom: barReservePx()+capReservePx(),
@@ -1612,27 +1572,16 @@ function swapLane(j,key){
   computeFit();
 }
 /* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
-// TIMERS, NOT FRAMES, ADVANCE THE LESSON. rAF stops in a backgrounded tab, so
-// the wall clock owns state changes and rAF only pixels — finishing a
-// transition inside a rAF callback would leave `busy` stuck true, the tray dark
-// and the lesson unrecoverable without a reload. Worst case: a hidden tab skips
-// the animation and you return to the finished step.
-//
-// kit/motion.js owns that rule; the one line over it here is that a `call` beat
-// is a COMMIT — scheduled on both clocks, fired once by whichever wins.
-// Milliseconds in, because every beat constant on this page is in ms.
+// Every beat this page schedules is a COMMIT on kit/motion.js's two clocks, so
+// a step finishes whether or not the tab was watched. Milliseconds in, because
+// every beat constant here is in ms.
 const RUN='run';                                  // the tag a whole step rides
-/* WHAT LEAVES A MOLECULE is kit/leaving.js's — the meshes, the flight, the
- * sweep on cancel, and the camera arithmetic for getting off stage. This page
- * keeps the chemistry: which atoms go, what colour the event is, where to.
- *
- * MESHES IN THE AIR ARE THE OTHER HALF OF A CANCEL, and the reason the module
- * owns a registry at all: a flying group is removed by its own beat, and
- * cancelling that beat deliberately does not run what it cancels — so without
- * one sweep to call, a restart mid-flight strands the mesh on stage. */
+/* kit/leaving.js takes the meshes and the flight; the chemistry stays here —
+ * which atoms go, what colour the event is, where to. */
 const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
-// …and the DOM riding those meshes, for the same reason: a label's fade is a
-// cancelled beat, so nothing would ever take it off the screen.
+// A restart sweeps three things: the beats, the meshes still in the air, and
+// the DOM riding them — a flyer's fade is itself a beat, so cancelling alone
+// would leave the label on screen.
 const cancelTimers=()=>{ MO.cancel(RUN); GO.clear(); clearFlyers(); };
 function hideAtom(g,i){ if(i!=null) GO.shed(g,[i]); }
 // THE PHOSPHATE COMES OFF ATP, and you should see that it does: the flight
@@ -1659,13 +1608,9 @@ function carrierPoint(key,j){
 /* =============================================================
  *  THE VERBS — reaction/reaction.js
  * =============================================================
- * A step's `fx` names a verb, and a verb is what happens to ONE MOLECULE. Every
- * verb except `split` is a per-lane body, so `runStep` is "run it on each lane"
- * and the whole-step and per-lane routes cannot drift apart.
- *
- * WHAT THE PAGE STILL OWNS is everything below the chemistry: the lanes, the
- * carriers and their tiles, the ledger, `done`/`busy`, and which carrier a
- * step couples to. Every host entry here is a question about the STAGE.
+ * A step's `fx` names a verb. The page keeps the stage around it — the lanes,
+ * the carriers, the ledger, `done`/`busy`, which carrier a step couples to —
+ * and every host entry below is one of those questions.
  */
 const RX=Reaction.create({
   three:THREE, root, camera, canvas,
@@ -1912,13 +1857,10 @@ const trayEl=document.getElementById('tray');
  *  three atoms in thirty-one are what the cell spends.
  */
 /* ---------- THE CARRIER PAIRS ----------
- * A carrier is ONE object with two states differing by exactly one group:
- * ATP/ADP by the transferring phosphoryl, NADH/NAD⁺ by the hydride on the
- * nicotinamide C4. A pair is named by that group and nothing else, so
- * everything below is shared between them.
- *
- * `group` is hidden to show the discharged state, `anchor` is the atom a flight
- * aims at, both read off the spec's own `gly` block.
+ * The two this page uses: ATP/ADP by the transferring phosphoryl, NADH/NAD⁺ by
+ * the hydride on the nicotinamide C4. `group` is hidden to show the discharged
+ * state, `anchor` is the atom a flight aims at, both read off the spec's own
+ * `gly` block.
  *
  * NAD⁺ IS DRAWN AS NADH MINUS ONE HYDROGEN — a declared schematic
  * (MolecularGeometry.md §1.6). `nic.h` is the PAIR of hydrogens on C4, and
@@ -1931,11 +1873,9 @@ const PAIRS={
   ATP:{ spec:()=>ATP,    group:s=>s.gly.gamma,      anchor:s=>s.gly.pg,
         on:'ATP',  off:'ADP',
         sub:on=>`${on?ATP.gly.phosphates:ATP.gly.spent.phosphates} phosphates · ${on?'charged':'discharged'}`},
-  // `keep` IS LOAD-BEARING. This page draws no C–H (see visibleAtoms) and the
-  // carrier is built setOptionalH(false) like every lane — but BOTH of C4's
-  // hydrogens are in nadh's `optH` and are the entire difference between the
-  // states: hidden, NAD⁺ and NADH are the same 73 atoms and the step shows
-  // nothing. So this pair asks for its two back.
+  // BOTH of C4's hydrogens are in nadh's `optH`, and this page builds every
+  // molecule setOptionalH(false) — so without `keep` NAD⁺ and NADH are the same
+  // 73 atoms and the step shows nothing.
   NAD:{ spec:()=>NADH, group:s=>[s.gly.nic.h[1]], anchor:s=>s.gly.nic.c4,
         keep:s=>[s.gly.nic.h[0]],
         on:'NADH', off:'NAD⁺',
@@ -1955,21 +1895,13 @@ carrierEl.innerHTML=
   +'<div class="cname"></div><div class="csub"></div>'
   +'<div class="cvis"></div><div class="cscale"></div>';
 
-// THE DRAWING IS A MOLECULE ON THE STAGE, not a picture in a box: same scene,
-// scale and camera as the sugar — the claim being that this is another molecule
-// in the cytosol, not an icon for one. `#carrier` holds the space the tray
-// reserves (and the name and prompt), so the camera's left inset is still
-// measured off DOM.
-/* ONE MOLECULE PER UNIT THE STEP MOVES, stacked down the column. Steps 1 and 3
- * show one; 7 and 10 charge TWO ADP and show two, since after the split
- * everything happens twice and one drawing would say "2 ATP" in words while
- * showing one object. Count comes off the step's own `spent`/`made`, the
- * numbers the ledger adds up. Each gets its own DOM slot (`.cslot`), so
- * stacking, sizing and label are layout while the molecules stay in the scene.
- */
-/* THE COLUMN IS kit/carriers.js's: n instances of one spec, laid into the DOM
- * slots, fitted, arriving, with one group shown or hidden. This page keeps the
- * chemistry — which molecule, which atoms are the group, when a step has run. */
+/* ONE MOLECULE PER UNIT THE STEP MOVES, stacked down the column (kit/carriers.js
+ * lays them out). Steps 1 and 3 show one; 7 and 10 charge TWO ADP and show two,
+ * since after the split everything happens twice and one drawing would say
+ * "2 ATP" in words while showing one object. Count comes off the step's own
+ * `spent`/`made`, the numbers the ledger adds up.
+ * `#carrier` also holds the space the tray reserves, so the camera's left inset
+ * is measured off this DOM. */
 const CAR=Carriers.create({ root, camera, canvas, host:carrierEl,
   // LEFT, NOT CENTRED. The column is tall and narrow, so every carrier is
   // fitted on its HEIGHT and none fills the width — centred leaves a gutter
@@ -1981,9 +1913,7 @@ const CAR=Carriers.create({ root, camera, canvas, host:carrierEl,
                 return g; } });
 // how many: the units the step moves, off the fields the ledger adds up
 const carrierCount=st=>Math.max(1, (st&&(st.made||st.spent||st.nadh))||1);
-// The discharged state is the charged one with the pair's group hidden. `keep`
-// is why this goes through the module rather than a bare visible=false: the
-// atoms that DISTINGUISH the two states are the ones setOptionalH just hid.
+// The discharged state is the charged one with the pair's group hidden.
 const setCarrierGroup=(g,pair,spec,charged)=>
   CAR.setGroup(g, pair.group(spec), charged, pair.keep && pair.keep(spec));
 /* WHICH INSTANCE HAS ALREADY MOVED. On a per-lane step instance j belongs to
@@ -2023,20 +1953,9 @@ let carrierLive=false;              // a spend step, ATP showing: the disc is up
 // keeps the left column where the layout says. Position only — it still turns
 // with the scene, because it is in it.
 const cAnchor=new THREE.Vector3();
-/* ARRIVING, NOT ALREADY THERE. A 43-atom molecule simply existing beside the
- * sugar reads as page furniture, not as the other reactant turning up, so it
- * grows the last of the way over ARRIVE_MS, once, on the frame it first
- * becomes visible. Slight on purpose: a molecule entering the scene, not a
- * card animating.
- * A MULTIPLIER on the fitted scale, never a scale of its own — placeCarrierMol
- * solves the real one from the column every frame, and an entrance setting
- * `scale` directly would fight it and win for as long as it ran.
- */
 const popCarrier=j=>CAR.pop(j);
-// EVERY FRAME, after the render — the projection reads a matrix the render
-// refreshes. The page's part is only WHETHER it should be on screen; the
-// module solves where and how big, and hands back the fitted scale for the
-// caption below.
+// The page's part is only WHETHER it should be on screen; the module solves
+// where and how big, and hands back the fitted scale for the caption below.
 function placeCarrierMol(){
   const vis = carrierEl.isConnected && trayEl.style.visibility!=='hidden';
   const k=CAR.place(vis);
@@ -2254,7 +2173,6 @@ function drawTally(){
   });
   placeTallyMols();
 }
-// every frame, after the render — same rule as the carrier column
 function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on)); }
 
 /* =============================================================
@@ -2369,8 +2287,6 @@ enzMetaEl.addEventListener('click',e=>{
   cplOpen=!cplOpen;
   drawEnzMeta(); drawCouple();
 });
-// Every frame, after the render — same rule as the plates: a projection reads a
-// matrix only the render refreshes.
 const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
 // Is every lane in this group on its mark? kit/lanes.js eases position toward
 // userData.tx/ty; within a hundredth of a world unit is under a pixel here.
@@ -3058,13 +2974,14 @@ L.frame=()=>{
 };
 // AFTER the render, never before — Vector3.project() reads a matrix refreshed
 // only on render, so anything here run earlier pins its DOM to the PREVIOUS
-// frame's camera. The kit's loop is motion → frame → fx → render → afterFrame.
+// frame's camera. The kit's loop is motion → frame → fx → render → afterFrame,
+// and EVERYTHING that projects belongs in here — plates, spots, hint, carrier
+// column, tally, enzyme blob.
 L.afterFrame=()=>{
   drawPlates();
   drawFlyers();                  // names riding something in the air
   drawSpots();
   drawHint();                    // the callout, on the bond the disc marks
-  // anchored to its DOM box, so same schedule as the labels: current camera
   placeCarrierMol();
   placeTallyMols();
   placeEnz();                  // the blob rides its lane

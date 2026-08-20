@@ -1,6 +1,6 @@
 # Clean up comments
 
-Look through this file's comments and clean up information that's no longer relevant. Only keep a history-shaped comment if it records a live trap. Goal is to reduce redundancies to make it more concise. Comments should be written in active voice and document the current relevant information for moving forward, not a chain of past work getting here. Examples:
+Look through this file's comments and clean up information that's no longer relevant. Goal is to reduce redundancies to make it more concise. Comments should be written in active voice and document the current relevant information for moving forward, not a chain of past work getting here. Only keep a history-shaped comment if it records a live trap. Don’t keep a changelog.  Examples:
 
 **Before:** TWO CHANNELS, AND THEY SAY DIFFERENT THINGS.
 
@@ -24,4 +24,8 @@ EVERY NUMBER HERE IS PULLED FROM THE DATA — see fillPanelNumbers(). Don’t ty
 
 **Before:** REAL CHECKBOXES, not buttons: these two turn a layer on and leave it         on, unlike the map below them, which opens something. The native control is the legible one — it draws the tick every other checkbox on the machine draws, and brings its own keyboard and screen-reader behaviour with it.
 
-**After:** Checkboxes for global states:
+**After:** Checkboxes for global states
+
+**Also, do a pass on comment redundancy against loaded modules. Delete comments that are already stated in the module code. Comment on this page should only represent what is unique on the page and not obvious from reading the code itself.**
+
+Also, Stale prose may be a marker for dead code. Bring up for the human to decide.
