@@ -92,6 +92,25 @@ function situation(lesson, step) {
     + `\n\nThis page IS the ${L.chapter} chapter, so do not cite that chapter back to them.`;
 }
 
+/* A busy model is the normal weather, not an outage: Gemini answers 503 when a
+ * model is briefly oversubscribed and the next request usually succeeds. Retry
+ * those and the overloaded-server codes; never retry a 4xx, where the request
+ * itself is what is wrong and a retry only spends the quota again. */
+const RETRYABLE = new Set([500, 502, 503, 504]);
+const PAUSES    = [400, 1200];
+
+async function retrying(fn) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i >= PAUSES.length || !RETRYABLE.has(err && err.status)) throw err;
+      console.warn(`[ask] HTTP ${err.status}, retrying in ${PAUSES[i]}ms`);
+      await new Promise(r => setTimeout(r, PAUSES[i]));
+    }
+  }
+}
+
 /* A turn, not a question. `messages` is the whole transcript so far, ending in
  * the student's latest. `system` overrides the tutor prompt (bench only), and
  * `cited` names chapters already shown in this thread, so the caller can test
@@ -106,7 +125,7 @@ async function ask({ messages, provider, system, cited, lesson, step }) {
       + `${names.join(', ')}. Do not cite ${names.length > 1 ? 'those' : 'that'} again.`;
   }
 
-  const out = await p.ask({ system: prompt, messages, schema: schemaFor(lesson) });
+  const out = await retrying(() => p.ask({ system: prompt, messages, schema: schemaFor(lesson) }));
 
   // Two models, two ways to be sloppy about a schema. Neither gets to reach the
   // page: an unknown id is dropped, and a missing array becomes an empty one.
@@ -209,6 +228,12 @@ async function handleAsk(payload) {
 
     if (status === 400 || status === 404)
       return { status: 502, body: { error: brief(err), detail: 'request' } };
+
+    // Still failing after the retries above. Say it is busy rather than broken,
+    // because it is, and because "could not be reached" reads as permanent to a
+    // student who only has to press the button again.
+    if (RETRYABLE.has(status))
+      return { status: 503, body: { error: 'the tutor is busy right now, ask again in a moment', detail: 'busy' } };
 
     return { status: 502, body: { error: 'the tutor could not be reached' } };
   }
