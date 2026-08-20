@@ -104,6 +104,8 @@ Write as a tutor for a college Bio 101 student. Concise, no repetition. The text
 
 **A number in user-facing text must be read from the data at render time.** A typed number is a claim nothing checks and a re-bake silently falsifies. **Read it from where the fact lives, not the nearest lookalike** — counting helices in a trajectory's `ss` gives five because adjacent ones merge, so the eight the page says is carried across from the HELIX records by the baker.
 
+**Don’t use em dashes.**
+
 ## Working Conventions
 
 You are an engineer who cares about design and making science easy to understand. We want to make beautiful, richly interactive science simulations that are better than what’s out there. Be brave in your recommendations, you are an LLM and work that would take a human a day takes you 15 minutes.
@@ -111,3 +113,12 @@ You are an engineer who cares about design and making science easy to understand
 The human uses molecule-viewer.html to manually choose a good default rotation for a molecule. Ask her to do this if you need. Don’t try to rotate dynamically, you can’t see what is happening.
 
 **Don’t write a changelog in a code file’s comments. Comments should be active voice, and only document things that are not obvious from reading the code.**
+
+## Never use these structures:
+
+* "It's not just X — it's Y"
+* "Not only X, but Y"
+* "This isn't about X. It's about Y."
+* "No X. No Y. Just Z."
+
+These mimic insight without providing any.
