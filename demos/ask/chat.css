@@ -196,27 +196,19 @@
 #askchat form button:disabled { opacity: .45; cursor: default }
 
 /* ---- pointing at a control ------------------------------------------------
-   Two halves, because one was not enough: the control itself lights up so the
-   student's eye lands on the thing, and rings travel outward so it is findable
-   from anywhere on the page. Both in --hot, which is the one colour on this
-   paper that nothing else uses, and sized off the element rather than fixed. */
+   Rings only. An earlier version also lit the control itself with a box-shadow,
+   which changed the shape of a round button and read as the lesson's own UI
+   having changed state. These sit over the page and touch nothing.
 
-.askglow {
-  position: relative;
-  z-index: 998;
-  animation: askglow 1.1s ease-in-out 3;
-  border-radius: inherit;
-}
-
-@keyframes askglow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 83, 58, 0) }
-  45%      { box-shadow: 0 0 0 5px rgba(229, 83, 58, .95), 0 0 22px 7px rgba(229, 83, 58, .45) }
-}
+   Cyan because nothing else here is cyan: the paper is warm, the atoms are red
+   and grey, and the temperature scale already owns warm and cool. A pointer
+   must never be mistakable for the lesson itself saying something. */
+:root { --ask-point: #00c2e0 }
 
 .askpulse {
   position: fixed;
   z-index: 999;
-  border: 3px solid var(--hot);
+  border: 3px solid var(--ask-point);
   border-radius: 50%;
   pointer-events: none;
   opacity: 0;
@@ -225,6 +217,6 @@
 
 @keyframes askpulse {
   from { transform: scale(.55); opacity: 0 }
-  25%  { opacity: .9 }
+  25%  { opacity: .95 }
   to   { transform: scale(1.9); opacity: 0 }
 }

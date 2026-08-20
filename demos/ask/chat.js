@@ -206,11 +206,10 @@
   /* Point at a control. Not lesson-specific, so every lesson gets the same
    * gesture instead of three near-identical ones.
    *
-   * Two halves, because one was not enough: the control itself lights up, so the
-   * eye lands on the thing rather than near it, and rings travel outward from
-   * it, so it is findable from anywhere on the page. Both stop the moment the
-   * student touches the control, because at that point they have found it and
-   * the flashing has become noise.
+   * Rings travelling outward, and nothing on the control itself: lighting the
+   * element changed the shape of a round button and read as the lesson's own UI
+   * changing state. They stop the moment the student touches the control,
+   * because at that point they have found it and the flashing is noise.
    *
    * Returns false when the element is missing or has no box, which is what a
    * lesson checks before telling a student it has shown them something. */
@@ -222,13 +221,11 @@
 
     const rings = [];
     const stop = () => {
-      node.classList.remove('askglow');
       rings.forEach(x => x.remove());
       rings.length = 0;
       node.removeEventListener('pointerdown', stop);
     };
 
-    node.classList.add('askglow');
     node.addEventListener('pointerdown', stop);
 
     // Three rings, staggered, so it reads as travelling outward rather than as
