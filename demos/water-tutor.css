@@ -22,6 +22,45 @@
 
 #side::before { display: none }
 
+/* ---- the add-a-thing tray, bottom right ----
+   sandbox.css pins #formula top-right and #saltcard bottom-right; here they are
+   one row in the corner, salt first so water lands outermost. Both keep their
+   own display:flex, which the page toggles per step, so the row only ever holds
+   what this step offers. */
+#tray {
+  position: absolute;
+  right: 28px;
+  bottom: 26px;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  gap: 28px
+}
+
+#tray #formula,
+#tray #saltcard {
+  position: static;
+  right: auto;
+  top: auto;
+  bottom: auto
+}
+
+/* The salt card borrows the water card's button row: same big + and same small
+   ghosted second button, so "add one / take one away" reads the same on both.
+   sandbox.css only anchors the mini button for #formula, so repeat it here. */
+#saltcard .addrow {
+  position: relative;
+  display: flex;
+  justify-content: center
+}
+
+#saltcard .addrow .mini {
+  position: absolute;
+  left: calc(50% + 26px);
+  top: 50%;
+  transform: translateY(-50%)
+}
+
 /* ---- the step rail, top-left under the brand ---- */
 #stepbar {
   position: absolute;

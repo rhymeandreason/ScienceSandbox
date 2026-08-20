@@ -35,17 +35,6 @@
     </div>
     <div id="factbox" aria-live="polite"></div>
 
-    <div id="formula">
-      <div class="sketchbox">
-        <span class="flabel">H<sub>2</sub>O</span>
-        <img src="molecule_water.png" alt="water molecule">
-      </div>
-      <div class="addrow">
-        <button class="addbtn" id="addwater" title="Add water molecule"><i class="ph-bold ph-plus"></i></button>
-        <button class="addbtn mini" id="remwater" title="Remove water molecule"><i class="ph-bold ph-minus"></i></button>
-      </div>
-    </div>
-
     <div id="tempbar">
       <div class="tcol">
         <div class="tlabel hot" id="thot">100°C</div>
@@ -62,13 +51,30 @@
     <div id="saltinfo"></div>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
+    <!-- The two "add a thing" cards, together in the bottom-right corner: they
+         are the same gesture, and the student should find the second where the
+         first was. -->
+    <div id="tray">
     <div id="saltcard">
       <div class="sketchbox">
         <span class="flabel">NaCl</span>
         <img src="molecule_salt.png" alt="salt">
       </div>
-      <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
-      <span class="clear" id="clearsalt">Clear Salt</span>
+      <div class="addrow">
+        <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
+        <button class="addbtn mini" id="clearsalt" title="Clear salt"><i class="ph-bold ph-x"></i></button>
+      </div>
+    </div>
+    <div id="formula">
+      <div class="sketchbox">
+        <span class="flabel">H<sub>2</sub>O</span>
+        <img src="molecule_water.png" alt="water molecule">
+      </div>
+      <div class="addrow">
+        <button class="addbtn" id="addwater" title="Add water molecule"><i class="ph-bold ph-plus"></i></button>
+        <button class="addbtn mini" id="remwater" title="Remove water molecule"><i class="ph-bold ph-minus"></i></button>
+      </div>
+    </div>
     </div>
   </div>
 
