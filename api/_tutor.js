@@ -112,6 +112,14 @@ function situation(lesson, step, state) {
     + Object.entries(byLesson).map(([t, list]) => `${t}\n` + list.map(line).join('\n')).join('\n')
 
     + `\n\nThis page IS the ${L.chapter} chapter, so do not cite that chapter back to them.`
+
+    + (L.notes && L.notes.length
+        ? `\n\nHow this particular simulation behaves. A student stuck on the model often asks a `
+          + `science question when the real answer is about the model, so check these before `
+          + `explaining the science again:\n`
+          + L.notes.map(n => `- ${n}`).join('\n')
+        : '')
+
     + onScreen(state);
 }
 

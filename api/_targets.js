@@ -36,6 +36,32 @@ const LESSONS = {
     chapter: 'water',
     param: 'step',
     deepLink: false,          // water-lab does not read ?step= yet
+
+    /* How this simulation BEHAVES, as opposed to what the science is. A student
+     * stuck on the sim asks a science question, and the honest answer is often
+     * about the sim: with three molecules on screen there is almost nothing to
+     * bond to, and explaining hydrogen bonding again does not help.
+     *
+     * Written for the model, and paired with the live readings the page sends,
+     * so a note can be conditional on a number the tutor can actually see. */
+    notes: [
+      'The scene starts with a single molecule on step 1 and tops up to three from step 2 onward, '
+      + 'which is enough to see a hydrogen bond but not enough for the bonding to look like much. '
+      + 'The page judges this for you and sends it as `crowding`. When crowding says nearly empty '
+      + 'or sparse and the student is asking why little is happening, why there are so few bonds, '
+      + 'or why heating does nothing, the answer is to add more water: say so and point at the '
+      + 'add-water button rather than explaining hydrogen bonding again. When crowding says a '
+      + 'comfortable crowd, do NOT suggest adding more, and do not accept "hardly any bonds" as '
+      + 'true just because the student said it.',
+
+      'The temperature slider only exists from step 3 onward, and the salt card only on step 5. '
+      + 'If the student asks about heating or dissolving from an earlier step, they are not missing '
+      + 'a control, they have not reached it yet.',
+
+      'The solvent step fills the scene to sixteen molecules on its own, because a hydration shell '
+      + 'is about six waters per ion and needs a crowd. If salt is in and the shells look wrong, '
+      + 'more water is usually the fix.',
+    ],
     targets: [
       { id: 'step-polar',   kind: 'step', at: 0, title: 'A Polar Molecule',
         what: 'one water molecule, its V shape, the 104.5 degree angle, and why oxygen pulls the shared electrons toward itself' },

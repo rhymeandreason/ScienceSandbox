@@ -1345,6 +1345,14 @@ Ask.chat({
     const txt = id => (document.getElementById(id)?.textContent || '').trim();
     const st = { molecules: sim.mols.length };
 
+    // The lesson judges its own scene rather than shipping a threshold for the
+    // model to compare against. Asked to do the arithmetic, it told a student
+    // with thirteen molecules to add more; given the word, it stops.
+    const n = sim.mols.length;
+    st.crowding = n < 3 ? 'nearly empty, almost nothing to bond to'
+                : n < 8 ? 'sparse, too few neighbours for the bonding to look like much'
+                        : 'a comfortable crowd, enough for the network to show';
+
     // Anything the render loop computes is only true while the loop is running,
     // and a background tab pauses rAF. A paused frame would report zero bonds
     // and no phase, which reads as "the bonds broke" rather than "nobody
