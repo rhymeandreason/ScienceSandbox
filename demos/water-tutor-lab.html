@@ -29,8 +29,13 @@
       <button id="prev" type="button" aria-label="Previous step">&lsaquo;</button>
       <div id="steps"></div>
       <button id="next" type="button" aria-label="Next step">&rsaquo;</button>
-      <h2 id="steptitle"></h2>
+      <div id="titlerow">
+        <h2 id="steptitle"></h2>
+        <button id="factbtn" type="button" title="Reveal the interesting bit"
+                aria-label="Reveal the interesting bit"><img src="sticker_idea.png" alt=""></button>
+      </div>
     </div>
+    <div id="factbox" aria-live="polite"></div>
 
     <div id="formula">
       <div class="sketchbox">
@@ -57,11 +62,7 @@
 
     <div id="chips"></div>
     <div id="saltinfo"></div>
-    <div id="stagebtns">
-      <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
-      <button id="factbtn" type="button"><img class="bulb" src="sticker_idea.png" alt=""> Fact</button>
-    </div>
-    <div id="factbox" aria-live="polite"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="saltcard">
       <div class="sketchbox">
@@ -1135,20 +1136,23 @@ function buildNotes(n){
       card:'Oxygen pulls the shared electrons closer than hydrogen can. That leaves this end of the molecule slightly negative.'});
     NOTES.add({text:'δ+ hydrogen', offset:[56,30], at:badgeEdge(()=>dH1, [56,30]),
       card:'Each hydrogen has its one electron held at arm’s length by the oxygen. The exposed proton leaves this end slightly positive.'});
-    NOTES.add({text:'covalent bond', offset:[62,22],
-      at:()=>_wp.copy(w.userData.oWorld()).lerp(w.userData.hWorld(0),0.5),
+    /* The midpoint of the O–H line is INSIDE the oxygen: the sphere's radius
+       (0.95) is most of the bond length (1.55), so only the sliver between the
+       two surfaces is visible stick. Aim at the middle of that sliver. */
+    const WO_R=0.95, WH_R=0.55, stickMid=(WO_R+(HL-WH_R))/2;
+    NOTES.add({text:'covalent bond', offset:[150,-16],
+      at:()=>{ const o=w.userData.oWorld();
+               return _wp.copy(w.userData.hWorld(0)).sub(o).setLength(stickMid).add(o); },
       card:'A shared pair of electrons, not a transferred one. Shared unevenly, which is what makes it a <b>polar</b> covalent bond.'});
   }
   if(n===1){
     hbDonor=null;
     NOTES.add({text:'hydrogen bond', offset:[58,-30], at:hbAnchor,
-      card:'The δ+ H of one molecule is drawn to the δ− O of the next. No electrons are shared here — it is attraction between molecules, not a bond within one.'});
-    NOTES.add({text:'≈ 1/20 the strength', offset:[-62,34], at:hbAnchor,
-      card:'One hydrogen bond is weak next to the covalent O–H inside a molecule, and breaks constantly. Trillions of them at once are what give water its properties.'});
+      card:'The δ+ H of one molecule is drawn to the δ− O of the next — attraction between molecules, with no electrons shared. Each one is about 1/20 the strength of the covalent O–H and breaks constantly, so it is trillions of them at once that give water its properties.'});
   }
   if(n===2){
     hbDonor=null;
-    NOTES.add({text:'heat breaks these first', offset:[58,-30], at:hbAnchor,
+    NOTES.add({text:'heat breaks H-bonds first', offset:[58,-30], at:hbAnchor,
       card:'Energy you add goes into pulling hydrogen bonds apart before it speeds molecules up. So a lot of heat buys only a small temperature rise — water’s high specific heat.'});
     /* atPx, deliberately: the slider is not a molecule, and "where the energy
        goes in" is a fact about the control the student is holding. */
@@ -1215,6 +1219,24 @@ function syncSaltNotes(){
   }
 }
 
+/* ---- one pair, seated in a hydrogen bond ----
+   The acceptor sits at the origin and the donor an equilibrium O···O away,
+   turned so ONE of its O–H bonds points back down the line between them: that
+   is the geometry, and it puts the H about 2.0 from the acceptor's O, inside
+   the engine's own 3.25 threshold, so the bond registers on the next frame
+   rather than being drawn by decree. Everything after that is the sim's. */
+function seatHBondPair(){
+  const acc=sim.mols[0], don=sim.mols[1];
+  if(!acc||!don) return;
+  acc.position.set(0,0,0); acc.userData.vel.set(0,0,0);
+  const axis=new THREE.Vector3(1,0.35,0).normalize();
+  don.position.copy(axis).multiplyScalar(DBG.liquidEQ); don.userData.vel.set(0,0,0);
+  // the donor's H1 points back at the acceptor; the acceptor turns its lone-pair
+  // side (the O's back, away from its own H's) toward the incoming H
+  don.quaternion.setFromUnitVectors(H1L.clone().normalize(), axis.clone().negate());
+  acc.quaternion.setFromUnitVectors(H1L.clone().add(H2L).normalize(), axis.clone().negate());
+}
+
 let cur=-1;
 const stepR=[8,18,20,24,20];
 function applyStep(n){
@@ -1229,6 +1251,10 @@ function applyStep(n){
     const w=sim.mols[0]; if(w){ w.position.set(0,0,0); w.userData.vel.set(0,0,0); w.rotation.set(0,0,0); }
     cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
+  // Steps 2 and 3 are ABOUT a hydrogen bond, and the callout names one — so
+  // hand the sim a pair already in the geometry rather than hoping three
+  // randomly-thrown molecules land in it. From there the physics owns them.
+  if(n===1||n===2) seatHBondPair();
   if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
   if(n<4) clearSalt();
   S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
