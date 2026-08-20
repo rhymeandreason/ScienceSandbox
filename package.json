@@ -1,0 +1,14 @@
+{
+  "name": "sciencesandbox",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Root manifest for the serverless functions in api/. The lesson pages still have no build step and no dependencies; this exists so api/_providers/ can reach a model SDK, locally and on Vercel. Both SDKs are installed and only the configured one is ever required.",
+  "scripts": {
+    "serve": "node demos/tools/dev-server.js",
+    "check:ask": "node demos/ask/check-ask.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0",
+    "@google/genai": "^2.18.0"
+  }
+}

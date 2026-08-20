@@ -39,6 +39,11 @@
  *
  *  Zero dependencies, by design: no package.json, no node_modules, nothing to
  *  install. Node's standard library is enough.
+ *
+ *  ONE EXCEPTION, AND IT IS LAZY. `/api/*` is handled by requiring the same
+ *  handler Vercel runs, which does need the Anthropic SDK. That require happens
+ *  on the first API request, not at startup, so serving lessons still works with
+ *  no node_modules — you only need `npm i` to use the question box.
  * ========================================================================== */
 'use strict';
 
@@ -63,6 +68,25 @@ const TYPES = {
   '.ico':'image/x-icon', '.woff2':'font/woff2', '.woff':'font/woff',
   '.md':'text/markdown; charset=utf-8', '.sdf':'text/plain; charset=utf-8',
 };
+
+/* ---- .env.local ----------------------------------------------------------
+ * Vercel injects environment variables for you; locally the key has to come
+ * from somewhere, and it must not be a shell export you forget you set. Read
+ * the same `.env.local` Vercel's own CLI uses. It is gitignored. Existing
+ * environment values win, so `ANTHROPIC_API_KEY=… node …` still overrides. */
+function loadEnv() {
+  try {
+    for (const line of fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split('\n')) {
+      if (line.trim().startsWith('#')) continue;
+      const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+      if (m) process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
+    }
+    return true;
+  } catch { return false; }   // no .env.local: the API route says so when it is called
+}
+// Re-read per API request, not once at startup, so pasting a key into
+// .env.local takes effect on the next question with no restart.
+loadEnv();
 
 /* ---- the reload client, injected into HTML responses only ---------------- */
 // EventSource rather than a WebSocket: it is one line of client code, it
@@ -166,6 +190,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.startsWith('/api/')) return api(url, req, res);
+
   // Attribute this request to the page that made it. An HTML response is its own
   // page and starts a fresh set — a reload should forget what the *previous*
   // version of the page loaded, or a removed script tag keeps waking it forever.
@@ -237,6 +263,48 @@ server.on('listening', () => {
 });
 
 server.listen(PORT);
+
+/* ---- /api/* --------------------------------------------------------------
+ * Stands in for Vercel's function runtime, badly but honestly: it reads the body,
+ * calls the very handler that ships, and sends back the JSON. Requiring the
+ * handler is deliberately deferred and deliberately uncached, so editing
+ * `api/_tutor.js` takes effect on the next request with no restart. */
+function api(url, req, res) {
+  const json = (status, body) => {
+    res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8',
+                            'Cache-Control':'no-store' });
+    res.end(JSON.stringify(body));
+  };
+  if (url !== '/api/ask') return json(404, { error: 'no such endpoint' });
+
+  // Env and handler are both re-read per request, so pasting a key into
+  // .env.local or editing a provider takes effect on the next question with no
+  // restart. That matters most while you are switching providers.
+  loadEnv();
+  let tutor;
+  try {
+    for (const k of Object.keys(require.cache)) {
+      if (k.startsWith(path.join(ROOT, 'api'))) delete require.cache[k];
+    }
+    tutor = require(path.join(ROOT, 'api/_tutor.js'));
+  } catch (e) {
+    console.error(e);
+    return json(500, { error: 'the API handler would not load. Run `npm i` in the repo root.' });
+  }
+
+  if (req.method === 'GET')  return json(200, tutor.config());
+  if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
+
+  let raw = '';
+  req.on('data', d => { raw += d; if (raw.length > 1e5) req.destroy(); });
+  req.on('end', async () => {
+    let payload = {};
+    try { payload = JSON.parse(raw || '{}'); } catch { /* handled as a missing question */ }
+    const out = await tutor.handleAsk(payload);
+    console.log(`  api /api/ask → ${out.status}`);
+    json(out.status, out.body);
+  });
+}
 
 function send(file, res) {
   const ext = path.extname(file).toLowerCase();

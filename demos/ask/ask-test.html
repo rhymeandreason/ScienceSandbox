@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ask test bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="ask.css">
+<style>
+  body{background-color:var(--paper);
+       background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+       background-size:22px 22px;overflow-y:auto}
+  main{max-width:720px;margin:0 auto;padding:56px 24px 80px}
+  h1{font-family:var(--font-marker);font-size:34px;margin:0 0 6px;font-weight:400}
+  .lede{color:var(--muted);font-size:15px;line-height:1.6;margin:0 0 26px;max-width:56ch}
+  .card{background:var(--panel);border:2.5px solid var(--ink);border-radius:var(--radius);
+        padding:22px;box-shadow:4px 4px 0 rgba(43,39,35,.12)}
+  h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
+     color:var(--muted);margin:34px 0 10px}
+  .probes{display:flex;flex-wrap:wrap;gap:7px}
+  .probes button{font:600 13px var(--font-sans);color:var(--ink);background:transparent;
+     border:2px solid var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer;text-align:left}
+  .probes button:hover{background:rgba(0,0,0,.05)}
+  .probes button small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+  #log{font-family:var(--font-slab);font-size:12.5px;line-height:1.7;color:var(--muted);
+       white-space:pre-wrap;border-top:1.5px dashed var(--hair);padding-top:10px;margin-top:4px}
+</style>
+</head>
+<body>
+<main>
+  <h1>ask test bench</h1>
+  <p class="lede">Bench for <b>ask/ask.js</b> against the live <code>/api/ask</code>. Nothing
+    3D here on purpose: the box is DOM only, so it is testable without a scene and cannot take
+    a lesson down with it.</p>
+
+  <div class="card"><div id="ask"></div></div>
+
+  <h2>provider</h2>
+  <div class="probes" id="providers">reading /api/ask…</div>
+
+  <h2>probes</h2>
+  <div class="probes">
+    <button data-q="Why does ice float?"><b>one chapter</b><small>expects Structure of Water</small></button>
+    <button data-q="Why is salt water able to dissolve so easily?"><b>two chapters</b><small>water and bonds</small></button>
+    <button data-q="How does an enzyme speed up a reaction?"><b>unbuilt chapter</b><small>Enzymes: named, not linked</small></button>
+    <button data-q="What does a codon code for?"><b>unbuilt chapter</b><small>DNA: named, not linked</small></button>
+    <button data-q="Why do leaves change colour in autumn?"><b>no chapter</b><small>biology, fits nothing</small></button>
+    <button data-q="What is the capital of France?"><b>off topic</b><small>should decline in one sentence</small></button>
+  </div>
+
+  <h2>what to check</h2>
+  <div id="log">no questions asked yet</div>
+</main>
+
+<script src="ask.js"></script>
+<script>
+  const log = document.getElementById('log');
+  let n = 0, spend = 0, chosen = null;
+
+  const box = Ask.mount(document.getElementById('ask'), {
+    provider: () => chosen,
+    onAnswer(question, data) {
+      n++;
+      // Cost comes back priced by the provider that answered. Two providers is
+      // exactly when a rate typed on the page would start lying.
+      const c = data.usage;
+      spend += c.cost_usd;
+      const sentences = (data.answer.match(/[.!?](\s|$)/g) || []).length;
+      log.textContent =
+        `${n} question${n > 1 ? 's' : ''}\n`
+      + `answered by: ${data.provider} · ${data.model}`
+        + (data.model === data.configured ? '' : `  (asked for ${data.configured})`) + '\n'
+      + `last: ${data.ms} ms · ${sentences} sentence${sentences === 1 ? '' : 's'}`
+        + `${sentences > 3 ? '  ← over the 3-sentence cap' : ''}\n`
+      + `chapters: ${data.chapters.map(x => x.id).join(', ') || 'none'}\n`
+      + `tokens: ${c.input} in (${c.cached} cached) · ${c.output} out\n`
+      + (c.priced ? `last: $${c.cost_usd.toFixed(5)} · session so far: $${spend.toFixed(4)}`
+                  : `cost: no rate on file for ${data.model} — add one to api/_providers/`);
+    }
+  });
+
+  /* The switch is drawn from what the server reports, so it cannot offer a
+     provider that has no key, or claim a model the server is not running. */
+  fetch('/api/ask').then(r => r.json()).then(cfg => {
+    const host = document.getElementById('providers');
+    host.textContent = '';
+    if (!cfg.switchable) {
+      host.innerHTML = `<span style="font-size:13px;color:var(--muted)">`
+        + `Fixed to <b>${cfg.default}</b>. Set ASK_ALLOW_PROVIDER_PARAM=1 in .env.local to switch here.</span>`;
+      return;
+    }
+    for (const p of cfg.providers) {
+      const b = document.createElement('button');
+      b.innerHTML = `<b>${p.label}</b><small>${p.model}${p.ready ? '' : ' · no key'}</small>`;
+      b.disabled = !p.ready;
+      b.style.opacity = p.ready ? '' : '.45';
+      b.addEventListener('click', () => {
+        chosen = p.id;
+        for (const o of host.children) o.style.background = '';
+        b.style.background = 'rgba(0,0,0,.10)';
+      });
+      if (p.id === cfg.default && p.ready) b.click();
+      host.appendChild(b);
+    }
+  });
+
+  for (const b of document.querySelectorAll('.probes button')) {
+    b.addEventListener('click', () => {
+      document.querySelector('.ask-input').value = b.dataset.q;
+      document.querySelector('.ask-form').requestSubmit();
+    });
+  }
+
+  box.focus();
+</script>
+</body>
+</html>

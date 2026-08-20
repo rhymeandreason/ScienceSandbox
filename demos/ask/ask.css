@@ -1,0 +1,73 @@
+/* ---------------------------------------------------------------------------
+   ask/ask.css — the question box. Scoped to .ask so a lesson can drop it into
+   a sidebar without it reaching anything else on the page.
+   --------------------------------------------------------------------------- */
+
+.ask-form {
+  display: flex;
+  gap: 8px;
+}
+
+.ask-input {
+  flex: 1;
+  min-width: 0;
+  font: 16px/1.4 var(--font-sans);
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+}
+
+.ask-input::placeholder { color: var(--muted) }
+.ask-input:focus { outline: 3px solid rgba(43, 39, 35, .18); outline-offset: 1px }
+
+.ask-go {
+  font: 600 15px var(--font-sans);
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 11px 20px;
+  cursor: pointer;
+}
+
+.ask-go:disabled { opacity: .45; cursor: default }
+
+.ask-out:empty { display: none }
+
+.ask-out {
+  margin-top: 16px;
+  border-top: 1.5px dashed var(--hair);
+  padding-top: 14px;
+}
+
+.ask-answer {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.62;
+}
+
+.ask-see {
+  margin: 12px 0 0;
+  font-family: var(--font-slab);
+  font-size: 14.5px;
+  color: var(--muted);
+}
+
+.ask-see a {
+  color: var(--ink);
+  text-decoration-color: var(--hair);
+  text-underline-offset: 3px;
+}
+
+/* A chapter that exists in the curriculum and not yet on disk. Dotted, not
+   linked, so it reads as "coming" rather than as a broken link. */
+.ask-soon {
+  color: var(--ink);
+  border-bottom: 1.5px dotted var(--muted);
+  cursor: help;
+}
+
+.ask-waiting { color: var(--muted); font-style: italic }
+.ask-error   { color: #b23a2c }
