@@ -148,12 +148,6 @@
      (`place:'low'`), because it is a fact about that one molecule's path, not
      about stickies. */
   #sticky.low{top:490px}
-  /* Under the NOTES rail instead of out on the right, for a card whose molecule
-     fills the frame: the solvent stage puts a hydration shell where the right
-     rail is, and a note landing on top of it hides the thing it is about. `top`
-     is set in showSticky() from the rail's real height, which is however many
-     facts that lesson earned. */
-  #sticky.rail{left:26px;right:auto}
   /* sticker rides the top-left corner, half off the paper — reads as stuck on */
   #sticky .simg{position:absolute;left:-19px;top:-50px;width:80px;;
     transform:rotate(-13deg);pointer-events:none;
@@ -284,10 +278,6 @@
         <div class="gname">Hydrochloric acid</div>
         <div class="gform">HCl + H&#8322;O &rarr; H&#8323;O<sup>+</sup></div>
       </button>
-      <button class="goal bonus" data-lesson="saltwater" data-needs="nacl">
-        <div class="gname">Salt water</div>
-        <div class="gform">NaCl + H&#8322;O &rarr; Na<sup>+</sup> + Cl<sup>&minus;</sup></div>
-      </button>
     </div>
     <div id="notes" aria-live="polite"></div>
     <div id="sticky" aria-live="polite"></div>
@@ -312,7 +302,6 @@
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="atomkit.js"></script>
-<script src="kit/hbond.js"></script>
 <script src="covalent-drag.js"></script>
 <script src="ionic-drag.js"></script>
 <script>
@@ -714,46 +703,6 @@ const LESSONS={
         'electron</b> — chlorine kept the pair (<b>Cl⁻</b>), water took the proton (<b>H₃O⁺</b>).'
       : null,
   },
-  /* The ionic half of the same row, and the only card here where nothing
-     reacts. No electron moves, no bond is made or broken — water simply gets
-     between two ions and the attraction stops reaching. That is worth its own
-     card because "salt dissolves" is the one thing every student already
-     believes and almost none of them can say the mechanism for: the usual
-     answer is that water breaks the bond, and what water actually does is
-     stand in the way of it. The counts are the proof, and they never change. */
-  saltwater:{
-    bonus:true, needs:'nacl', base:'nacl', primed:true,
-    /* Opens on the contact pair, widens once water is in the gap: the picture
-       is twice the size at the end of this card than at the start of it. */
-    zoom:s=>s.screened?128:100,
-    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
-    open:'Your salt, now in water. <b>Watch</b> — nobody has to pull these apart.',
-    ring:null,
-    won:'<b>Na⁺</b> and <b>Cl⁻</b>, still ions. Watch the water find the gap.',
-    notes2:{ title:'Salt water &middot; Na⁺ + Cl⁻ (aq)', tags:['ionic','solvation','ion'], facts:[
-      'water is <b>polar</b> — δ⁻ oxygen at <b>Na⁺</b>, δ⁺ hydrogen at <b>Cl⁻</b>',
-      'each ion ends up in a <b>hydration shell</b> of <b>six</b> waters',
-      'water <b>gets between</b> the charges — it does not break the bond',
-      'the counts never changed: Na <b>0e⁻</b>, Cl <b>8e⁻</b>',
-      '<b>dissociation</b>, not a reaction' ] },
-    flatSay:'Flat view — count sodium and chlorine again. Dissolving changed neither.',
-    stats:s=>'Na: <b>'+s.metalCount+'e⁻</b> &nbsp;·&nbsp; Cl: <b>'+s.nonmetalCount+'e⁻</b>'+
-             (s.dissolved ? ' &nbsp;·&nbsp; <b>dissolved</b> — still Na⁺ and Cl⁻'
-              : s.screened ? ' &nbsp;·&nbsp; a water is <b>in the gap</b>'
-                           : ' &nbsp;·&nbsp; a water is <b>working its way in</b>'),
-    step:()=>null,
-    sticky:s=>s.dissolved ? {
-      place:'rail',                    // the shells reach the right rail
-      title:'Nothing here is a reaction',
-      body:'Sodium is <b>still</b> Na⁺ and chlorine is <b>still</b> Cl⁻. Water got '+
-           '<b>between</b> them — the attraction is still there, it just cannot reach.' } : null,
-    extra:s=>s.dissolved
-      ? '<b>Dissolved.</b> Each ion is wrapped in water: oxygen (δ⁻) turned toward <b>Na⁺</b>, '+
-        'hydrogen (δ⁺) toward <b>Cl⁻</b>. Count the electrons — <b>nothing was transferred back</b>.'
-      : null,
-    after:()=>'Nothing pulled them apart — <b>water did the work</b>. Try dragging them back '+
-             'together: the water is in the way, and that is what <b>dissolved</b> means.',
-  },
 };
 let key='water', L=LESSONS[key], sim=null;
 
@@ -850,14 +799,6 @@ function showSticky(note, delay){
        firing, which is exactly the state the note already carries. */
     elSticky.classList.toggle('acting', !!note.action);
     elSticky.classList.toggle('low', note.place==='low');
-    const rail=(note.place==='rail');
-    elSticky.classList.toggle('rail', rail);
-    /* Measured rather than a constant: the rail is as tall as the lesson's fact
-       list, and a hardcoded top would tuck under one lesson's notes and overlap
-       the next one's. The clearance is for the STICKER, which rides 50px above
-       the paper's own top edge and would otherwise land on the last fact. */
-    elSticky.style.top = (rail && elNotes.classList.contains('show'))
-      ? (elNotes.offsetTop+elNotes.offsetHeight+66)+'px' : '';
     if(note.action){
       elSticky.querySelector('.sact').addEventListener('click', ()=>note.action.run());
     }
@@ -882,10 +823,7 @@ let saidAfter=false, afterTimer=null;
    finished, not finishing now. win() reads it to skip one-time EVENTS. */
 let restoring=false;
 function report(s){
-  // ahead of every early return, with the sticky: how wide the frame has to be
-  // is a fact about the state, not about which branch below fires
-  if(!userZoomed && typeof L.zoom==='function') wantZoom(L.zoom(s));
-  // a sticky belongs to the state, not a branch, and win() returns before this function ends
+  // ahead of every early return: a sticky belongs to the state, not a branch, and win() returns before this function ends
   showSticky(L.sticky && L.sticky(s),
              s.complete ? STICKY_DELAY_WIN : STICKY_DELAY_STEP);
   const more=L.extra && L.extra(s);
@@ -954,14 +892,6 @@ function refreshLocks(){
   });
 }
 
-/* The frame this lesson wants right now. `sim` may not exist yet — load()
-   asks before it builds — so a state-dependent zoom gets its opening value
-   from a null state and is re-asked on the first report(). */
-function zoomFor(s){
-  if(typeof L.zoom==='function') return L.zoom(s||{});
-  return L.zoom || (L.primed?R_TWO:R_ONE);
-}
-
 function load(k){
   if(sim) sim.destroy();
   rung=false; saidAfter=false; clearTimeout(afterTimer);
@@ -975,12 +905,7 @@ function load(k){
   // uses viewState directly rather than arm(false): the old sim is gone and the new one doesn't exist yet, so setView has nothing to talk to
   document.getElementById('dims').classList.remove('armed');
   viewState(true);
-  /* A reaction card opens with two molecules; a card with a solvent shell
-     around each ion needs more than that, and says so. A FUNCTION of the state
-     when the card's own size changes as it plays — dissolving doubles the width
-     of the picture, and a frame sized for the end of it opens on a molecule
-     adrift in the middle of the paper. */
-  wantZoom(zoomFor(null)); userZoomed=false;
+  wantZoom(L.primed?R_TWO:R_ONE); userZoomed=false;   // a reaction card opens with two molecules
   sim=L.make();
   sim.setDim(flat?'2d':'3d');
   sim.setMode(modeFor());          // after setDim: the mode is derived from it

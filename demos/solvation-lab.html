@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solvation &mdash; Kodolab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  :root{ --ionic:#d9791e; --covalent:#7a6f58; }
+
+  /* ---------- goal cards, top-center: one per lesson, tabs styled as a dealt
+     hand of cards (no outline, overlapping) so the strip reads as objects you
+     could pick up rather than UI. Inactive cards stay visible, never hidden —
+     the comparison across cards is the content. */
+  #goals{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
+    display:flex;gap:0;align-items:stretch;padding:10px 6px 12px}
+  /* Not built yet. Named rather than hidden, because the row IS the argument —
+     three things water does, and a student should see that the salt card is one
+     of a set. Flat paper, no lift, no hover: it says "later", not "earn me". */
+  .goal.soon{background:#efeade;cursor:default;
+    box-shadow:0 1px 1px rgba(43,39,35,.10),0 2px 4px -2px rgba(43,39,35,.14)}
+  .goal.soon:hover{background:#efeade;animation:none}
+  .goal.soon .gname{color:#b9ae9d}
+  .goal.soon .gform{color:#c8bfae}
+  .goal.soon::after{content:'soon';position:absolute;left:0;right:0;bottom:3px;
+    font-family:var(--font-sans);font-weight:700;font-size:9px;letter-spacing:1.2px;
+    text-transform:uppercase;color:#c0b6a4}
+  .goal{position:relative}
+
+  /* Paper is opaque; dimming an inactive card is done via its ink colour, not
+     element opacity — a translucent card would show the molecule through it. */
+  .goal{text-align:center;background:#f7f2e7;border:none;
+    border-radius:3px 4px 3px 4px;padding:10px 12px 12px;min-width:132px;max-width:176px;
+    font-family:inherit;cursor:pointer;
+    box-shadow:0 1px 1px rgba(43,39,35,.16), 0 3px 5px -2px rgba(43,39,35,.20),
+      0 12px 20px -14px rgba(43,39,35,.55);
+    transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+  /* -14px ≈ corner radius + shadow, so each card still shows its edge */
+  .goal + .goal{margin-left:-14px}
+  /* Staggered tilt/height so no two cards sit alike (values <5px, cycling every
+     5). Custom properties rather than bare transforms so hover/lift can carry
+     them along instead of flattening the card back to level. */
+  .goal{--tilt:0deg;--dy:0px;transform:translateY(var(--dy)) rotate(var(--tilt))}
+  .goal:nth-child(5n+1){--tilt:-0.7deg;--dy:2px}
+  .goal:nth-child(5n+2){--tilt:0.5deg; --dy:4px}
+  .goal:nth-child(5n+3){--tilt:-0.3deg;--dy:0px}
+  .goal:nth-child(5n+4){--tilt:0.8deg; --dy:3px}
+  .goal:nth-child(5n+5){--tilt:-0.5deg;--dy:1px}
+  .goal:hover{background:#fbf7ee;z-index:2}   /* hover/live cards raise z so their corner shows over the neighbour to the right */
+  /* Overshoot-then-settle on hover, like a hand lifting a light object; skipped
+     on .on since the live card is already lifted. */
+  .goal:not(.on):hover{animation:cardLift .26s cubic-bezier(.32,.72,.4,1) forwards}
+  @keyframes cardLift{
+    0%  {transform:translateY(var(--dy))              rotate(var(--tilt))}
+    55% {transform:translateY(calc(var(--dy) - 7px))  rotate(var(--tilt))}
+    100%{transform:translateY(calc(var(--dy) - 4px))  rotate(var(--tilt))}}
+  .goal.on{background:#fffdf7;z-index:3;   /* straightened + lifted off its own staggered height, so selecting never shifts it sideways */
+    transform:translateY(calc(var(--dy) - 5px)) rotate(0deg);
+    box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30),
+      0 22px 30px -18px rgba(43,39,35,.55)}
+  .goal .gname{font-family:var(--font-slab);font-size:18px;line-height:1.1;
+    color:#a19686}
+  .goal .gform{font-family:var(--font-sans);font-weight:700;font-size:16px;
+    color:#b9ae9d;margin-top:8px}
+  .goal:hover .gname{color:#6f6557}
+  .goal.on .gname{color:var(--ink)}
+  .goal.on .gform{color:var(--muted)}
+  /* finished: the paper itself goes faintly green, since there is no longer an
+     outline to recolour. Last, so it wins over the active card's ink */
+  .goal.done{background:#f2f7f1}
+  .goal.done.on{background:#f8fcf7}
+  .goal.done .gname,.goal.done.on .gname{color:#2e8b57}
+
+  /* ---------- notes: the test-answer keywords, revealed on completion ----
+     Left rail rather than a card over the stage: it is reference material to
+     glance at, not a thing that happened, so it should not compete with the
+     molecule or move. Kept to keywords on purpose — the page teaches by what it
+     draws, and this is only what a student would be asked to name. */
+  #notes{position:absolute;left:26px;top:210px;z-index:11;width:206px;
+    display:none;opacity:0;transition:opacity .25s ease}
+  #notes.show{display:block;opacity:1}
+  #notes .ntitle{font-family:var(--font-marker);font-size:22px;color:var(--ink);
+    line-height:1.1;margin-bottom:7px}
+  /* a second stage stacks under the first, hairline-separated: same molecule,
+     next thing that happened to it */
+  #notes .nblock + .nblock{margin-top:13px;padding-top:12px;
+    border-top:1.5px dashed var(--hair)}
+  #notes .ntags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+  #notes .ntag{font-weight:700;font-size:10px;
+    letter-spacing:.7px;text-transform:uppercase;padding:3px 7px;border-radius:5px;
+    border:1.5px solid var(--ink);background:#fff;color:var(--ink)}
+  #notes .ntag.covalent{background:#e8e2d4}
+  #notes .ntag.ionic{background:#f6dcb4}
+  #notes .ntag.polar{background:#cfe4f2}
+  #notes .ntag.nonpolar{background:#eceae4;color:var(--muted);border-color:var(--hair)}
+  #notes .ntag.dative{background:#ded7f5}
+  #notes .ntag.ion{background:#f6dcb4}
+  /* Room-temperature state is a different kind of claim than the tags above it
+     (bond type vs. what the substance is like on a bench) — dashed border keeps
+     the two kinds of label visually distinct. Colours run cold → warm as the
+     particles get freer. */
+  #notes .ntag.solid,#notes .ntag.liquid,#notes .ntag.gas{border-style:dashed}
+  #notes .ntag.solid{background:#e0dbcd}
+  #notes .ntag.liquid{background:#cfe4f2}
+  #notes .ntag.gas{background:#f7eddd}
+  #notes ul{list-style:none;margin:0;padding:0}
+  #notes li{font-family:var(--font-sans);font-size:15px;line-height:1.32;
+    color:var(--ink);padding-left:13px;position:relative;margin-bottom:4px}
+  #notes li::before{content:'·';position:absolute;left:2px;top:-2px;color:var(--muted);
+    font-weight:700;font-size:22px;line-height:1}
+  #notes li b{font-weight:600}
+
+  /* ---------- sticky note, right rail ----------
+     Mirrors #notes but deliberately not the same object: notes are keywords
+     earned by finishing, a sticky is a passing aside about the current state
+     that leaves when that state does — hence paper + tilt + sticker instead of
+     bare rail text. Sits lower than #notes (which tucks under the tab strip
+     fine as bare text) since an opaque bordered card overlapping the strip
+     would read as broken layout. */
+  #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;height:224px;
+    background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
+    border:none;border-radius:0;box-sizing:border-box;overflow:visible;
+    padding:20px;transform:rotate(1.6deg) translateY(6px);
+    box-shadow:0 1px 1px rgba(0,0,0,.15),2px 3px 6px rgba(0,0,0,.18),
+      6px 10px 16px -6px rgba(0,0,0,.35);
+    display:none;opacity:0;transition:opacity .22s ease,transform .22s ease}
+  #sticky.show{display:block;opacity:1;transform:rotate(1.6deg) translateY(0)}
+  /* Under the NOTES rail instead of out on the right, for a card whose molecule
+     fills the frame: the solvent stage puts a hydration shell where the right
+     rail is, and a note landing on top of it hides the thing it is about. `top`
+     is set in showSticky() from the rail's real height, which is however many
+     facts that lesson earned. */
+  #sticky.rail{left:26px;right:auto}
+  /* sticker rides the top-left corner, half off the paper — reads as stuck on */
+  #sticky .simg{position:absolute;left:-19px;top:-50px;width:80px;;
+    transform:rotate(-13deg);pointer-events:none;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+  #sticky .stitle{font-family:var(--font-marker);font-size:22px;line-height:1.16;
+    color:var(--ink);margin:2px 0 8px 13px}
+  #sticky .sbody{font-family:var(--font-sans);font-size:16px;line-height:1.34;
+    color:var(--ink)}
+  #sticky .sbody b{font-weight:600; font-style:italic;}
+  /* A sticky is normally something to READ, so the one that can be acted on has
+     to look like paper someone wrote a button onto rather than UI dropped on the
+     note: marker face, hand-drawn ink border, and it sits at the bottom of the
+     note where a "do it" belongs. Only ammonia has one — see `action` in the
+     lesson table. */
+  #sticky .sact{position:absolute;left:20px;right:20px;bottom:18px;
+    font-family:var(--font-marker);font-size:19px;line-height:1;
+    padding:9px 10px 10px;cursor:pointer;color:var(--ink);
+    background:#fffdf2;border:2px solid var(--ink);border-radius:12px 9px 13px 8px;
+    transform:rotate(-0.8deg);
+    box-shadow:1px 2px 0 rgba(43,39,35,.30);
+    transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
+  #sticky .sact:hover{background:#fff;transform:rotate(-0.8deg) translateY(-1px);
+    box-shadow:1px 3px 0 rgba(43,39,35,.34)}
+  /* pressed: down onto the paper, shadow gone — the only motion that reads as a
+     button being pushed rather than a card being hovered */
+  #sticky .sact:active{transform:rotate(-0.8deg) translateY(2px);box-shadow:0 0 0 rgba(0,0,0,0)}
+  /* the body has to stop short of the button, or a long note runs under it */
+  #sticky.acting .sbody{padding-bottom:46px}
+
+  /* ---------- feedback toast ----------
+     Sits above the dock rather than up top (wedged between tab strip and atoms,
+     had to stay short) — down here it can run wide and rises up from near the
+     controls that caused it. */
+  #say{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);z-index:12;
+    pointer-events:none;text-align:center;width:min(760px,86%);opacity:0;
+    font-family:var(--font-sans);font-size:21px;line-height:1.35;color:var(--muted)}
+  #say b{font-weight:600;color:var(--ink)}
+  #say.no b{color:#c0392b}
+  #say.show{animation:sayFade 3.4s ease-out forwards}
+  @keyframes sayFade{
+    0%{opacity:0;transform:translateX(-50%) translateY(6px)}
+    9%{opacity:1;transform:translateX(-50%) translateY(0)}
+    78%{opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(4px)}}
+  /* a refused bond shakes rather than silently doing nothing */
+  #stage.shake{animation:shk .34s ease}
+  @keyframes shk{0%,100%{transform:translateX(0)}22%{transform:translateX(-7px)}
+    58%{transform:translateX(6px)}80%{transform:translateX(-3px)}}
+
+
+  #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
+    display:flex;align-items:center;gap:22px}
+  #dock .dsep{display:none}
+  #dock button.act{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;
+    background:#fff;color:var(--ink);cursor:pointer;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dock button.act:hover{background:var(--ink);color:var(--paper)}
+  /* view switch: electrons-vs-sticks now follows the view rather than its own toggle */
+  #dims{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
+  #dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  #dims .mode + .mode{border-left:1.5px solid var(--ink)}
+  #dims .mode.on{background:var(--ink);color:var(--paper)}
+  /* faded, not removed, until finished — removing it would slide Reset sideways every completion/reset */
+  #dims{opacity:0;pointer-events:none;transition:opacity .3s ease}
+  #dims.armed{opacity:1;pointer-events:auto}
+
+  /* the PNG button and the dock both want the bottom strip — move it up */
+  #savepng{bottom:22px;right:26px;left:auto}</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <!-- One row, and it is the argument: three things water does to a molecule
+         it meets. The salt card is built; the other two are named so a student
+         can see the set it belongs to. -->
+    <div id="goals">
+      <button class="goal on" data-lesson="saltwater">
+        <div class="gname">Salt water</div>
+        <div class="gform">NaCl + H&#8322;O &rarr; Na<sup>+</sup> + Cl<sup>&minus;</sup></div>
+      </button>
+      <button class="goal soon" data-lesson="hbond" aria-disabled="true">
+        <div class="gname">Water on water</div>
+        <div class="gform">H&#8322;O &middot;&middot;&middot; H&#8322;O</div>
+      </button>
+      <button class="goal soon" data-lesson="hydrophobic" aria-disabled="true">
+        <div class="gname">Oil and water</div>
+        <div class="gform">CH&#8324; + H&#8322;O</div>
+      </button>
+    </div>
+    <div id="notes" aria-live="polite"></div>
+    <div id="sticky" aria-live="polite"></div>
+    <div id="say" aria-live="polite"></div>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+
+    <div id="dock">
+      <div id="dims" role="group" aria-label="View angle">
+        <button class="mode" data-dim="3d">3D</button>
+        <button class="mode on" data-dim="2d">2D</button>
+      </div>
+      <div class="dsep"></div>
+      <button class="act" id="clearmol">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="mol-solvation.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="atomkit.js"></script>
+<script src="kit/hbond.js"></script>
+<script src="ionic-drag.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  SOLVATION — the forces BETWEEN molecules
+ *
+ *  `molecule-builder.html` is about the bonds inside a molecule: share a pair,
+ *  pay for both, hand one over. This page picks up where that stops. Nothing
+ *  here makes or breaks a bond — every card is about what two finished
+ *  molecules do to each other when they meet, which is the other half of the
+ *  chapter and the half the cell actually runs on.
+ *
+ *  It was cut out of the bonding lesson for exactly that reason. The salt card
+ *  lived there as a bonus row and dragged in a second topic's vocabulary:
+ *  hydration shells, ion–dipole attraction, hydrogen bonds. None of it is
+ *  wrong, and none of it is what that page is for.
+ *
+ *  THE ROW (one built, two named):
+ *    salt water ....  an ionic pair in water. Water gets BETWEEN the charges,
+ *                     and the electron counts never move — dissolving is not
+ *                     un-bonding, which is the misconception this exists for
+ *    water on water   the hydrogen bond on its own, with no ion in the way
+ *    oil and water    the card where nothing happens, and that IS the answer
+ *
+ *  Same shell as `molecule-builder.html` on purpose (cards, notes rail, sticky,
+ *  2D/3D dock): a student arriving from that page should recognise the room
+ *  they are in. Same mechanic module too — `ionic-drag.js` owns the ion pair
+ *  and its solvent stage, so this page holds a lesson table and nothing else.
+ *
+ *  2D vs 3D is the same contract the bonding page makes: 3D is the geometry
+ *  (an octahedral shell), 2D is the projection you can COUNT in (six waters on
+ *  a ring, electrons on every ion). Neither view is decoration.
+ * ============================================================= */
+
+/* 2D is a PROJECTION FOR COUNTING, not a claim about shape — a hydration shell
+   really is an octahedron. Only the flat layout moves, to put six waters where
+   six can be counted; the notes say six either way.
+
+   Orthographic (Stage's `ortho:true`), as on the bonding page and for the same
+   reason: this lesson compares sizes — a small hard cation against a big soft
+   anion — and perspective would make a nearer water read as a bigger one. With
+   no fov, apparent size comes from the frustum: cam.r is standing distance and
+   ZOOM.k maps it to the half-height actually shown. */
+const ZOOM={ min:30, max:200, k:0.08 };   // cam.r ⇒ world half-height on screen
+
+const canvas=document.getElementById('gl');
+let userSpun=false;
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  ortho:true, cam:{theta:0.6,phi:1.15,r:100}, rMin:ZOOM.min, rMax:ZOOM.max,
+  onZoom:()=>{ userZoomed=true; applyZoom(); },   // the wheel wins from then on
+  onDrag:()=>{userSpun=true;}
+});
+/* An ortho camera's apparent size is its frustum, so zoom and resize both have
+   to rewrite it — there is no fov and no distance for them to work through. */
+function applyZoom(){
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h) return;
+  const halfH=cam.r*ZOOM.k, a=w/h;
+  camera.top=halfH; camera.bottom=-halfH;
+  camera.left=-halfH*a; camera.right=halfH*a;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(applyZoom).observe(canvas);
+/* Every card here opens with two molecules already standing and grows from
+   there, so the defaults are wider than the bonding page's. A lesson overrides
+   both with its own `zoom`, and the one that changes size as it plays passes a
+   function of the state. */
+const R_ONE=100, R_TWO=100;
+let rWant=R_ONE, userZoomed=false;
+function wantZoom(r){ rWant=r; }
+const fx=FX.create(THREE, root, camera);
+
+const elSay=document.getElementById('say');
+const elNotes=document.getElementById('notes');
+const elSticky=document.getElementById('sticky');
+
+/* ---------- the lessons ---------------------------------------------------
+ * One entry per card. The chemistry and the feel live in `ionic-drag.js`
+ * (SCIENCE.md §6: share the plumbing, not the physics); everything here is
+ * what the page SAYS about what the student is watching.
+ * ------------------------------------------------------------------------ */
+const LESSONS={
+  /* The only card where nothing reacts, which is the whole reason it is worth a
+     card. "Salt dissolves" is the one thing every student already believes and
+     almost none of them can give the mechanism for: the usual answer is that
+     water breaks the ionic bond. What water actually does is get in the way of
+     it. The electron counts are the proof and they never change — 0 on sodium
+     and 8 on chlorine, before, during and after. */
+  saltwater:{
+    primed:true,
+    /* Opens on the contact pair, widens once water is in the gap: the picture
+       is more than twice the size at the end of this card than at the start. */
+    zoom:s=>s.screened?128:100,
+    make:()=>IonicDrag.create({THREE, root, camera, canvas, fx, recipe:'nacl', onChange:report}),
+    open:'Salt, in water. <b>Watch</b> — nobody has to pull these apart.',
+    /* No ring: ionic-drag.js fires its own flash where the water gets in, and
+       the enclosing ring is the bonding page's "you made a molecule". */
+    ring:null,
+    won:'<b>Na⁺</b> and <b>Cl⁻</b>, still ions. Watch the water find the gap.',
+    notes2:{ title:'Salt water &middot; Na⁺ + Cl⁻ (aq)', tags:['ionic','solvation','ion'], facts:[
+      'water is <b>polar</b> — δ⁻ oxygen at <b>Na⁺</b>, δ⁺ hydrogen at <b>Cl⁻</b>',
+      'each ion ends up in a <b>hydration shell</b> of <b>six</b> waters',
+      'water <b>gets between</b> the charges — it does not break the bond',
+      'the counts never changed: Na <b>0e⁻</b>, Cl <b>8e⁻</b>',
+      '<b>dissociation</b>, not a reaction' ] },
+    flatSay:'Flat view — count sodium and chlorine again. Dissolving changed neither.',
+    stats:s=>'Na: <b>'+s.metalCount+'e⁻</b> &nbsp;·&nbsp; Cl: <b>'+s.nonmetalCount+'e⁻</b>'+
+             (s.dissolved ? ' &nbsp;·&nbsp; <b>dissolved</b> — still Na⁺ and Cl⁻'
+              : s.screened ? ' &nbsp;·&nbsp; a water is <b>in the gap</b>'
+                           : ' &nbsp;·&nbsp; a water is <b>working its way in</b>'),
+    step:()=>null,
+    sticky:s=>s.dissolved ? {
+      place:'rail',                    // the shells reach the right rail
+      title:'Nothing here is a reaction',
+      body:'Sodium is <b>still</b> Na⁺ and chlorine is <b>still</b> Cl⁻. Water got '+
+           '<b>between</b> them — the attraction is still there, it just cannot reach.' } : null,
+    extra:s=>s.dissolved
+      ? '<b>Dissolved.</b> Each ion is wrapped in water: oxygen (δ⁻) turned toward <b>Na⁺</b>, '+
+        'hydrogen (δ⁺) toward <b>Cl⁻</b>. Count the electrons — <b>nothing was transferred back</b>.'
+      : null,
+    after:()=>'Nothing pulled them apart — <b>water did the work</b>. Try dragging them back '+
+             'together: the water is in the way, and that is what <b>dissolved</b> means.',
+  },
+};
+let key='saltwater', L=LESSONS[key], sim=null;
+
+/* ---------- feedback ---------- */
+let sayTimer=null;
+function say(html){
+  elSay.innerHTML=html;
+  elSay.classList.remove('show');
+  void elSay.offsetWidth;              // restart the animation
+  elSay.classList.add('show');
+  clearTimeout(sayTimer);
+  sayTimer=setTimeout(()=>elSay.classList.remove('show'),3400);
+}
+
+function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); }
+
+/* Takes a list, because a lesson can put more than one card on the rail. */
+/* Once a lesson has been completed ONCE, its notes stay up for the rest of that
+   lesson. They are the revision card — the keywords a student is meant to copy
+   down — and having them appear at the win only to vanish the moment anything
+   moves means the one thing worth writing down is the one thing that will not
+   hold still.
+
+   Recorded PER LESSON rather than as one flag, so the tab strip is a set of
+   places you can leave and come back to rather than a set of things you can
+   lose. Build water, go read the salt tab, come back — the water card is where
+   you left it. Completing a molecule is a thing the student did, and switching
+   tabs is not an undo. */
+const earnedNotes={};
+/* Finishing the thing the card is about, which on a card that opens ready-made
+   is NOT the same event as its notes going up. Written where the second-stage
+   line fires. */
+const earnedStage={};
+let pinnedNotes=null;
+function showNotes(list){
+  if(!list){
+    if(pinnedNotes) return;                 // earned already — leave it up
+    elNotes.classList.remove('show'); elNotes.dataset.key=''; return;
+  }
+  pinnedNotes=earnedNotes[key]=list;
+  /* `stamp`, not `key`: `key` is the current LESSON, read on the line above, and
+     a local of that name would shadow it across the whole function. */
+  const stamp=[].concat(list).map(n=>n.title).join('|');
+  // titles are the identity: re-rendering identical HTML on every frame of a
+  // completed state re-triggers the reveal transition
+  if(elNotes.dataset.key===stamp) return;
+  elNotes.dataset.key=stamp;
+  elNotes.innerHTML=[].concat(list).map(n=>
+    '<div class="nblock"><div class="ntitle">'+n.title+'</div><div class="ntags">'+
+    n.tags.map(t=>'<span class="ntag '+t+'">'+t+'</span>').join('')+'</div><ul>'+
+    n.facts.map(f=>'<li>'+f+'</li>').join('')+'</ul></div>').join('');
+  elNotes.classList.add('show');
+}
+
+/* A sticky is a function of CURRENT state, re-evaluated every report and
+   cleared when the state that earned it ends — unlike say()'s "this just
+   happened" toast, it's "this is what you're looking at". Arrives a beat
+   late (as if pinned after the fact); mid-build stickies land faster than
+   completion ones so they don't lag behind the student reaching for the next
+   atom. Leaving is never delayed. */
+const STICKY_DELAY_STEP=350;   // mid-build
+const STICKY_DELAY_WIN=900;    // completion
+let stickyTimer=null, stickyPending=null;
+function hideSticky(){
+  clearTimeout(stickyTimer); stickyTimer=null; stickyPending=null;
+  // the key is cleared on the way out, so peeling a bond off and rebuilding it
+  // earns the note again rather than leaving a hidden div that thinks it is up
+  elSticky.classList.remove('show'); elSticky.dataset.key='';
+  // and the inline display the entrance set, or the stylesheet's display:none
+  // stays overridden and an invisible card keeps sitting over the stage
+  elSticky.style.display='';
+}
+function showSticky(note, delay){
+  if(!note){ hideSticky(); return; }
+  // Already up, or already on its way up. report() fires many times a second, so
+  // without the pending check every one of them would restart the timer and the
+  // note would keep being pushed into the future and never arrive.
+  if(elSticky.dataset.key===note.title || stickyPending===note.title) return;
+  hideSticky();                       // a DIFFERENT note: the old one is stale now
+  stickyPending=note.title;
+  stickyTimer=setTimeout(()=>{
+    stickyTimer=null; stickyPending=null;
+    elSticky.dataset.key=note.title;
+    elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
+      '<div class="stitle">'+note.title+'</div>'+
+      '<div class="sbody">'+note.body+'</div>'+
+      (note.action?'<button class="sact" type="button">'+note.action.label+'</button>':'');
+    /* The handler is bound to the freshly written button rather than delegated,
+       because innerHTML above throws the old one away every time a note changes
+       — a delegated listener would have to re-find which lesson's action it is
+       firing, which is exactly the state the note already carries. */
+    elSticky.classList.toggle('acting', !!note.action);
+    elSticky.classList.toggle('low', note.place==='low');
+    const rail=(note.place==='rail');
+    elSticky.classList.toggle('rail', rail);
+    /* Measured rather than a constant: the rail is as tall as the lesson's fact
+       list, and a hardcoded top would tuck under one lesson's notes and overlap
+       the next one's. The clearance is for the STICKER, which rides 50px above
+       the paper's own top edge and would otherwise land on the last fact. */
+    elSticky.style.top = (rail && elNotes.classList.contains('show'))
+      ? (elNotes.offsetTop+elNotes.offsetHeight+66)+'px' : '';
+    if(note.action){
+      elSticky.querySelector('.sact').addEventListener('click', ()=>note.action.run());
+    }
+    /* forced reflow so display:none→block and .show don't collapse into one frame and skip the fade */
+    elSticky.style.display='block';
+    void elSticky.offsetWidth;
+    elSticky.classList.add('show');
+  }, delay==null ? STICKY_DELAY_WIN : delay);   // default to the longer delay if a caller forgets
+}
+
+/* One-per-molecule, not a status light: pulling a bond apart re-arms it, so
+   rebuilding earns the ring again (salt reports this twice — transfer, then landing). */
+let rung=false;
+/* `extra`: a lesson with a stage AFTER completion (ammonia's proton). Checked
+   first so it isn't shadowed by the win line already earned. */
+let saidExtra=false;
+/* `after` is a second line that FOLLOWS a win rather than replacing it (unlike
+   `extra`) — e.g. CO2's dipole-cancelling sentence about the same completion,
+   after the ring/win-line/done-card have already fired. */
+let saidAfter=false, afterTimer=null;
+/* Set only for the duration of a fill() — a lesson re-opening already
+   finished, not finishing now. win() reads it to skip one-time EVENTS. */
+let restoring=false;
+function report(s){
+  // ahead of every early return, with the sticky: how wide the frame has to be
+  // is a fact about the state, not about which branch below fires
+  if(!userZoomed && typeof L.zoom==='function') wantZoom(L.zoom(s));
+  // a sticky belongs to the state, not a branch, and win() returns before this function ends
+  showSticky(L.sticky && L.sticky(s),
+             s.complete ? STICKY_DELAY_WIN : STICKY_DELAY_STEP);
+  const more=L.extra && L.extra(s);
+  if(more){
+    earnedStage[key]=true;
+    if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2||L.notes); }
+    return;
+  }
+  saidExtra=false;
+  if(s.complete){ win(s); return; }
+  rung=false; saidAfter=false; spun=false;
+  clearTimeout(afterTimer); spinTimer=clearTimeout(spinTimer);
+  arm(false);      // pulled a bond apart — no finished molecule, no switch
+  card().classList.remove('done');
+  showNotes(null);
+  const line=L.step(s); if(line) say(line);
+}
+
+function win(s){
+  arm(true);
+  card().classList.add('done');
+  /* Nothing goes on the rail for arriving: a card that opens with its molecule
+     already made has not taught anything yet. The rail is written when the
+     card's own event fires, in report() above. */
+  showNotes(L.notes||null);
+  say(L.won);
+  /* lands as the win line fades, not on top of it — 3.2s vs. say()'s 3.4s hold, so the toast never goes empty between them */
+  if(L.after && !saidAfter && !restoring){
+    saidAfter=true;
+    clearTimeout(afterTimer);
+    afterTimer=setTimeout(()=>say(L.after(s)), 3200);
+  }
+  /* covalent rings out from the anchor; ionic flashes/sparks instead, fired by
+     ionic-drag.js at the arrival point. Centred on the lesson's anchor (not
+     world origin) so a covalent ligand towing the molecule mid-drag doesn't
+     leave the ring expanding over blank paper. */
+  if(fx && !rung && L.ring && !restoring){
+    rung=true;
+    fx.spawnRing(sim.center(), L.ring(), sim.anchor && sim.anchor());
+  }
+  // once per completion — a student who returns to 2D on purpose shouldn't be auto-spun back to 3D
+  if(flat && !spun && !restoring){ spun=true; spinTimer=setTimeout(()=>{ spinTimer=null; setView(false,true); }, 900); }
+}
+let spinTimer=null, spun=false;
+
+/* tabs tear down the old lesson rather than hide it — both modules bind
+   pointer handlers to the stage, and a hidden-but-live one keeps grabbing atoms */
+let last=0;
+/* The frame this lesson wants right now. `sim` may not exist yet — load()
+   asks before it builds — so a state-dependent zoom gets its opening value
+   from a null state and is re-asked on the first report(). */
+function zoomFor(s){
+  if(typeof L.zoom==='function') return L.zoom(s||{});
+  return L.zoom || (L.primed?R_TWO:R_ONE);
+}
+
+function load(k){
+  if(sim) sim.destroy();
+  rung=false; saidAfter=false; clearTimeout(afterTimer);
+  spun=false; spinTimer=clearTimeout(spinTimer);
+  key=k; L=LESSONS[k]; saidExtra=false;
+  pinnedNotes=null; showNotes(null);
+  showNotes(earnedNotes[k]||null);   // restores whatever this lesson had earned, or stays hidden
+  showSticky(null);
+  document.querySelectorAll('.goal').forEach(c=>
+    c.classList.toggle('on', c.dataset.lesson===k));
+  // uses viewState directly rather than arm(false): the old sim is gone and the new one doesn't exist yet, so setView has nothing to talk to
+  document.getElementById('dims').classList.remove('armed');
+  viewState(true);
+  /* A reaction card opens with two molecules; a card with a solvent shell
+     around each ion needs more than that, and says so. A FUNCTION of the state
+     when the card's own size changes as it plays — dissolving doubles the width
+     of the picture, and a frame sized for the end of it opens on a molecule
+     adrift in the middle of the paper. */
+  wantZoom(zoomFor(null)); userZoomed=false;
+  sim=L.make();
+  sim.setDim(flat?'2d':'3d');
+  sim.setMode(modeFor());          // after setDim: the mode is derived from it
+  /* Every card here opens with its molecules already standing. This lesson is
+     not about making them — it is about what happens BETWEEN them, and starting
+     from a bench of loose atoms would make the student build the salt again
+     before the page could ask its question. `molecule-builder.html` is where
+     that bond gets made, and a student who has been there is looking at their
+     own molecule. Set up silently: the ring and the win line belong to the
+     moment a thing is made, and nothing is being made here. */
+  if(L.primed){
+    /* `restoring` spans the pour as well as the fill. offerWater() reports its
+       own state change, which runs win() — and win() is where the automatic
+       turn to 3D lives, so leaving the flag off for that one call opened every
+       reaction card in the round view, which is the one view that does not draw
+       electrons. The whole card is about which pair goes where. */
+    restoring=true;
+    sim.fill();
+    sim.offerWater();
+    /* …and if they have already watched this one happen, it re-opens DONE.
+       Coming back to find it waiting to run again says the page forgot. Reset
+       is there to do it over. */
+    if(earnedStage[k]) sim.finishReaction();
+    restoring=false;
+    /* No opening line on a restored one: finishReaction() reports through to
+       the second-stage line, which is the true caption for what is on screen.
+       "Watch" written over something that has already happened is an
+       instruction for a job that is done. */
+    if(!earnedStage[k]) say(L.open);
+    return;
+  }
+  /* A finished lesson re-opens finished (via fill()) rather than as a bare atom
+     — `restoring` tells win() to skip the completion ring/auto-3D-turn (those
+     are rewards for the moment of bonding, not for revisiting), while the done
+     card, notes, and 3D toggle still arrive as plain state. No opening line
+     either, since fill() runs win() and answers "start here" before it's read. */
+  if(earnedNotes[k] && sim.fill){ restoring=true; sim.fill(); restoring=false; }
+  else say(L.open);
+}
+
+document.querySelectorAll('.goal').forEach(c=>{
+  c.addEventListener('click',()=>{
+    if(c.classList.contains('soon')) return;    // named, not built
+    if(c.dataset.lesson!==key) load(c.dataset.lesson);
+  });
+});
+
+/* ---------- controls ----------
+   electrons-vs-sticks follows the view rather than its own toggle: flat draws
+   every valence electron since it exists to be counted, 3D draws bonds since
+   a cloud of dots would hide the shape it exists to show. */
+function modeFor(){ return flat ? 'electrons' : 'sticks'; }
+
+let flat=true;   // 2D is the default (locked, countable); 3D is where you go to check the geometry
+// switch only exists once the molecule is completed; un-arming returns to 2D
+function arm(on){
+  document.getElementById('dims').classList.toggle('armed', on);
+  if(!on) setView(true,true);
+}
+
+/* Single place that changes the view so the button, auto-switch, and lesson
+   change can't drift apart. Split from setView because load() must pick the
+   view before the sim exists — this half sets the button lights and camera;
+   setView adds the sim and toast. */
+function viewState(toFlat){
+  flat=toFlat;
+  document.querySelectorAll('#dims .mode').forEach(o=>
+    o.classList.toggle('on', (o.dataset.dim==='2d')===flat));
+  if(flat){ userSpun=true; }        // no idle turntable behind a locked view
+  // three-quarter camera, close enough to the flat one to read as a continuation before it turns
+  else { cam.theta=0.3; cam.phi=1.4; applyCam(); userSpun=false; }
+}
+// `quiet` skips the toast on the automatic post-completion switch, since the win line is still the thing to read
+function setView(toFlat,quiet){
+  if(toFlat===flat) return;         // already there — a no-op, not a re-render
+  viewState(toFlat);
+  sim.setDim(flat?'2d':'3d');
+  sim.setMode(modeFor());        // dots in the flat view, sticks in the round one
+  if(!quiet) say(flat ? L.flatSay : 'Free view — drag the background to spin it.');
+}
+document.querySelectorAll('#dims .mode').forEach(b=>{
+  b.addEventListener('click',()=>{ spinTimer=clearTimeout(spinTimer); setView(b.dataset.dim==='2d'); });
+});
+
+document.getElementById('clearmol').addEventListener('click',()=>{
+  rung=false; saidExtra=false;
+  spun=false; spinTimer=clearTimeout(spinTimer);
+  arm(false);
+  wantZoom(zoomFor(null));    // Reset puts the frame back where the card opens
+  sim.reset();
+  sim.setMode(modeFor());
+  say(L.open);
+});
+
+document.getElementById('savepng').addEventListener('click',()=>{
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download='solvation-lab.png';
+  a.href=renderer.domElement.toDataURL('image/png');
+  a.click();
+});
+
+/* ---------- frame loop ---------- */
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=last?(now-last)/1000:0.016; last=now;
+  // 2D lock re-asserted per frame rather than unbinding Stage's shared orbit handler
+  if(flat){ cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
+  else if(!userSpun){ cam.theta+=0.0009; applyCam(); }   // slow idle turntable
+  /* Eased here rather than tweened on a timer: this is the only place that
+     knows the frame rate, and applyZoom() is cheap enough to call while it
+     moves. Stops calling it once it has arrived. */
+  if(!userZoomed && Math.abs(cam.r-rWant)>0.05){
+    cam.r+=(rWant-cam.r)*(1-Math.pow(0.02, dt));
+    applyZoom();
+  }
+  sim.step(dt);
+  fx.step();
+  renderer.render(scene,camera);
+}
+resize();
+applyZoom();          // the frustum is the framing; nothing is shown until it is set
+load('saltwater');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
