@@ -9,19 +9,20 @@
    --------------------------------------------------------------------------- */
 
 /* ---- launcher, sits in the rail ---- */
+/* Small, and off to the side: it is a way in, not a call to action competing
+   with the lesson. */
 #askopen {
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  margin: 14px 0 0;
-  padding: 11px 14px;
-  font: 600 15px var(--font-sans);
+  gap: 7px;
+  margin: 14px 0 0 auto;
+  padding: 7px 13px;
+  font: 600 13px var(--font-sans);
   color: var(--ink);
   background: var(--panel);
-  border: 2.5px solid var(--ink);
+  border: 2px solid var(--ink);
   border-radius: var(--radius);
-  box-shadow: 3px 3px 0 rgba(43, 39, 35, .13);
+  box-shadow: 2px 2px 0 rgba(43, 39, 35, .13);
   cursor: pointer;
 }
 
@@ -55,13 +56,13 @@
   top: 16px;
   right: 18px;
   bottom: 18px;
-  left: -26px;
+  width: 316px;
   z-index: 40;
   display: none;
   flex-direction: column;
   background: #fdfbf5;
   border: 1.5px solid rgba(43, 39, 35, .14);
-  border-radius: 3px;
+  border-radius: var(--radius);
   transform: rotate(-.35deg);
   box-shadow:
     0 1px 1px rgba(43, 39, 35, .07),

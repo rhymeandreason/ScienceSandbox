@@ -43,7 +43,6 @@
 
     <div id="chips"></div>
     <div id="saltinfo"></div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <!-- Add a thing: one pill each, and the undo under it as plain text. Salt
          first, so water keeps the same place when salt appears at step 5. -->
@@ -1376,12 +1375,6 @@ function loop(){
 }
 
 applyCam(); resize(); applyStep(0); requestAnimationFrame(loop);
-
-document.getElementById('savepng').onclick=()=>{
-  renderer.render(scene,camera);
-  const name=(stepMeta[cur]?.tab||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-  const a=document.createElement('a'); a.download=`${name}.png`; a.href=canvas.toDataURL('image/png'); a.click();
-};
 
 /* =============================================================================
  *  The tutor drawer  (prototype page only)

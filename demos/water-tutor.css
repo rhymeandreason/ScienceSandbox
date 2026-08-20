@@ -129,12 +129,20 @@
    the model is the worst kind of invisible bug. */
 #steps { pointer-events: auto }
 
+/* The block's CONTENT is centred on the window and rides --shift with the model
+   and the pills; the scrim band itself stays put, since a band that slides
+   leaves bare paper down one edge. */
+#titleblock > * {
+  transform: translateX(calc(-1 * var(--shift, 0px)))
+}
+
 /* sandbox.css pins #brand to the stage corner; here it is the block's first row,
    the lesson's name and the step numbers side by side. */
 #brand {
   position: static;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 22px
 }
 
@@ -148,8 +156,9 @@ opacity: .75;
 /* The step's one claim, over the scrim. It is what the student should take away
    if they read nothing else, so it gets the width and the type. */
 #stepclaim {
-  margin: 8px 0 0;
+  margin: 8px auto 0;
   max-width: 46em;
+  text-align: center;
   font-family: var(--font-slab);
   font-size: 19px;
   font-weight: 500;
