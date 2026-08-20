@@ -85,7 +85,6 @@
   .spot{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;
     width:74px;height:74px;padding:0;border:none;border-radius:50%;
     background:none;cursor:pointer;display:block}
-  .spot:hover ~ *,.spot:focus-visible{outline:none}
   .spot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
   @media (max-width:920px){ .sglow{width:72px;height:72px}
@@ -574,7 +573,6 @@ font-size: 20px;
   #stepnote{padding-top:2px}
   .note .nhead{font-family:var(--font-slab);font-weight:700;font-size:14px;
     letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
-  .note .nhead.reg{color:var(--phos)}
   .note .nhead.irr{color:var(--atp)}
   .note .nhead.rev{color:var(--nad)}
   .note .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
