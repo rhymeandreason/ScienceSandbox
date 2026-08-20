@@ -102,6 +102,14 @@
     </section>
 
     <section class="card">
+      <h2>where the student is</h2>
+      <div class="row" id="lessons"></div>
+      <div class="row" id="steps"></div>
+      <p class="hint" id="aimtally">No lesson: the tutor has nothing to aim at and
+        <code>point</code> is not in the schema.</p>
+    </section>
+
+    <section class="card">
       <h2>controls</h2>
       <div class="row" id="providers"></div>
       <label class="check">
@@ -127,6 +135,7 @@ const messages = [];      // {role:'user'|'assistant', content}
 const cited    = new Set();
 let cfg = null, chosen = null, busy = false;
 let turns = 0, spend = 0, repeats = 0, overCap = 0;
+let lesson = null, step = 0, aimed = 0, fired = 0, probes = 0, hits = 0;
 
 const $ = id => document.getElementById(id);
 const thread = $('thread'), tally = $('tally');
@@ -149,6 +158,21 @@ const SCRIPTS = [
             'What should I eat before a race?'] },
 ];
 
+/* Aim probes. Each names the target it ought to pick, so a wrong aim is visible
+   without reading the answer. The last two must pick nothing: the point of an
+   enum is that "none" stays available, and a tutor that always finds something
+   to point at is not aiming, it is guessing. */
+const AIM = [
+  { q: 'How do I make it colder?',                 want: 'temp-slider' },
+  { q: 'Where can I see what happens with salt?',  want: 'add-salt' },
+  { q: 'Why is ice less dense than water?',        want: 'step-ice' },
+  { q: 'What is the weak bond between molecules?', want: 'a-hydrogen-bond' },
+  { q: 'Why is the oxygen end negative?',          want: 'the-charges' },
+  { q: 'Why does sweating cool you down?',         want: 'step-heat' },
+  { q: 'Who discovered the structure of water?',   want: 'none' },
+  { q: 'What is a mitochondrion?',                 want: 'none' },
+];
+
 /* ---- config ------------------------------------------------------------- */
 fetch('/api/ask').then(r => r.json()).then(c => {
   cfg = c;
@@ -169,6 +193,8 @@ fetch('/api/ask').then(r => r.json()).then(c => {
     host.appendChild(b);
   }
 
+  drawLessons();
+
   // Prefer an edit already in progress over the server's copy, so a reload in
   // the middle of tuning does not throw the tuning away.
   $('prompt').value = localStorage.getItem('ask.prompt') || c.system || '';
@@ -179,6 +205,50 @@ fetch('/api/ask').then(r => r.json()).then(c => {
   }
 });
 
+/* ---- where the student is ----------------------------------------------- */
+function drawLessons() {
+  const host = $('lessons');
+  host.textContent = '';
+  const none = mk(host, '<b>No lesson</b><small>question box, nothing to aim at</small>',
+                  () => { lesson = null; drawSteps(); });
+  for (const L of cfg.lessons) {
+    mk(host, `<b>${L.title}</b><small>${L.targets.length} targets</small>`,
+       () => { lesson = L; step = 0; drawSteps(); }, L.id);
+  }
+  none.click();
+}
+
+function drawSteps() {
+  for (const b of $('lessons').children) b.style.background = '';
+  const tag = lesson ? lesson.id : 'none';
+  [...$('lessons').children].find(b => b.dataset.k === tag).style.background = 'rgba(0,0,0,.10)';
+
+  const host = $('steps');
+  host.textContent = '';
+  if (!lesson) {
+    $('aimtally').innerHTML = 'No lesson: the tutor has nothing to aim at and '
+      + '<code>point</code> is not in the schema.';
+    return;
+  }
+  for (const t of lesson.targets.filter(t => t.kind === 'step')) {
+    mk(host, `<b>${t.step + 1}. ${t.title}</b>`, () => { step = t.step; drawSteps(); }, t.step);
+  }
+  const cur = [...host.children].find(b => +b.dataset.k === step);
+  if (cur) cur.style.background = 'rgba(0,0,0,.10)';
+  $('aimtally').innerHTML = `Standing on step <b>${step + 1}</b>. Every turn tells the tutor that, `
+    + `and offers it ${lesson.targets.length} things to point at.`;
+}
+
+function mk(host, html, fn, key) {
+  const b = document.createElement('button');
+  b.className = 'plain';
+  b.innerHTML = html;
+  b.dataset.k = key === undefined ? 'none' : key;
+  b.addEventListener('click', fn);
+  host.appendChild(b);
+  return b;
+}
+
 $('prompt').addEventListener('input', () => localStorage.setItem('ask.prompt', $('prompt').value));
 $('revert').addEventListener('click', () => {
   localStorage.removeItem('ask.prompt');
@@ -186,7 +256,7 @@ $('revert').addEventListener('click', () => {
 });
 
 /* ---- a turn ------------------------------------------------------------- */
-async function send(text) {
+async function send(text, want) {
   if (busy || !text.trim()) return;
   busy = true;
   messages.push({ role: 'user', content: text.trim() });
@@ -201,6 +271,7 @@ async function send(text) {
   const body = { messages, provider: chosen };
   if (cfg && cfg.bench && $('prompt').value.trim()) body.system = $('prompt').value;
   if ($('suppress').checked) body.cited = [...cited];
+  if (lesson) { body.lesson = lesson.id; body.step = step; }
 
   try {
     const res  = await fetch('/api/ask', { method: 'POST',
@@ -208,6 +279,7 @@ async function send(text) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'something went wrong');
 
+    data.want = want || null;
     messages.push({ role: 'assistant', content: data.answer, meta: data });
     score(data);
   } catch (err) {
@@ -229,6 +301,18 @@ function score(data) {
   data.sentences = (data.answer.match(/[.!?](\s|$)/g) || []).length;
   if (data.sentences > 3) overCap++;
   for (const c of data.chapters) cited.add(c.id);
+
+  if (lesson) {
+    if (data.point) aimed++;
+    if (data.want) {
+      data.hit = (data.point ? data.point.id : 'none') === data.want;
+      probes++; if (data.hit) hits++;
+    }
+    $('aimtally').innerHTML =
+      `Aimed at something on <b>${aimed}</b> of ${turns} turns`
+      + (probes ? ` · probes hit <b>${hits}/${probes}</b>` : '')
+      + ` · Show me clicked <b>${fired}</b>`;
+  }
 
   tally.textContent =
     `${turns} tutor turn${turns === 1 ? '' : 's'} · ${data.provider} · ${data.model}\n`
@@ -267,8 +351,30 @@ function draw() {
             x.repeats.includes(c.id) ? `<span class="repeat">${c.chapter} (again)</span>` : c.chapter).join(', ')
         : 'no citation');
       bits.push(`${x.ms} ms`);
+      if (x.want) bits.push(x.hit ? '<b>aim ok</b>'
+        : `<span class="over">aimed ${x.point ? x.point.id : 'none'}, wanted ${x.want}</span>`);
       meta.innerHTML = bits.join(' · ');
       d.appendChild(meta);
+
+      /* The tutor does not drive the page, it offers. A wrong aim costs a click
+         instead of yanking the camera away from what the student was watching,
+         and the button pulls them back to the model rather than deeper into
+         typing. Here it only reports what the lesson would have been asked. */
+      if (x.point) {
+        const go = document.createElement('button');
+        go.className = 'plain';
+        go.style.marginTop = '9px';
+        go.innerHTML = `<b>Show me</b><small>${x.point.id} · ${x.point.kind}</small>`;
+        go.addEventListener('click', () => {
+          fired++;
+          const did = x.point.kind === 'step'  ? `Lesson.goto(${x.point.step})  "${x.point.title}"`
+                    : x.point.kind === 'ui'    ? `Hotspot.update(#${x.point.el})`
+                                               : `Focus.atoms(<${x.point.id}>)`;
+          go.innerHTML = `<b>would fire</b><small>${did}</small>`;
+          go.disabled = true;
+        });
+        d.appendChild(go);
+      }
     }
     thread.appendChild(d);
   }
@@ -310,6 +416,24 @@ SCRIPTS.forEach(s => {
   });
   host.appendChild(b);
 });
+
+/* Aim probes run as eight separate one-turn threads, not one conversation:
+   an aim is a fresh judgement each time, and a transcript would let turn two
+   coast on turn one's target. */
+const aimBtn = document.createElement('button');
+aimBtn.className = 'plain';
+aimBtn.innerHTML = '<b>run the 8 aim probes</b><small>needs a lesson selected; scores itself</small>';
+aimBtn.addEventListener('click', async () => {
+  if (!lesson) { alert('Pick a lesson first, or there is nothing to aim at.'); return; }
+  aimBtn.disabled = true;
+  for (const probe of AIM) {
+    messages.length = 0;
+    await send(probe.q, probe.want);
+    while (busy) await new Promise(r => setTimeout(r, 60));
+  }
+  aimBtn.disabled = false;
+});
+host.appendChild(aimBtn);
 
 $('q').focus();
 </script>

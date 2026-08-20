@@ -15,6 +15,7 @@
 
 const { CHAPTERS, IDS, byId } = require('./_catalog.js');
 const providers = require('./_providers');
+const targets   = require('./_targets.js');
 
 const MAX_CHARS = 500;   // a question, not a pasted essay
 const MAX_TURNS = 40;    // a conversation, not an unbounded transcript to re-send
@@ -39,21 +40,57 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
+/* On a lesson page the tutor may also aim at one thing on screen. `point` is an
+ * enum rather than a selector or a coordinate for the same reason `chapters` is:
+ * a wrong id is impossible, where a wrong selector is silent. 'none' rather than
+ * null because a nullable enum is the one shape the two vendors disagree on. */
+function schemaFor(lesson) {
+  const t = targets.ids(lesson);
+  if (!t.length) return SCHEMA;
+  return {
+    ...SCHEMA,
+    properties: { ...SCHEMA.properties, point: { type: 'string', enum: [...t, 'none'] } },
+    required: [...SCHEMA.required, 'point'],
+  };
+}
+
+/* What the tutor is told about where the student is standing. The step comes
+ * from the page each turn, so "why does this need heat?" resolves against the
+ * step they are on and not against water in general. */
+function situation(lesson, step) {
+  const L = targets.forLesson(lesson);
+  if (!L) return '';
+
+  const here = L.targets.find(t => t.kind === 'step' && t.step === step);
+  const steps = L.targets.filter(t => t.kind === 'step');
+
+  return `\n\nThe student is not reading, they are on the ${L.title} lesson page, `
+    + `looking at an interactive 3D model of water molecules.`
+    + (here ? ` Right now they are on step ${step + 1} of ${steps.length}, "${here.title}".`
+              + ` Assume their question is about what is in front of them.` : '')
+    + `\n\nYou can point at ONE thing on that page. Set \`point\` to its id when the answer `
+    + `is about something they can see or do there, and to "none" otherwise. Prefer sending them `
+    + `to a control or a step they can act on over describing it in words. Do not mention the `
+    + `pointing in \`answer\`, do not say "look at" or "click": the page draws a button from the id.\n`
+    + L.targets.map(t => `- ${t.id}: ${t.what}`).join('\n')
+    + `\n\nThis lesson IS the ${L.chapter} chapter, so do not cite that chapter back to them.`;
+}
+
 /* A turn, not a question. `messages` is the whole transcript so far, ending in
  * the student's latest. `system` overrides the tutor prompt (bench only), and
  * `cited` names chapters already shown in this thread, so the caller can test
  * whether suppressing a repeat citation reads better than repeating it. */
-async function ask({ messages, provider, system, cited }) {
+async function ask({ messages, provider, system, cited, lesson, step }) {
   const p = providers.pick(provider);
 
-  let prompt = system || SYSTEM;
+  let prompt = (system || SYSTEM) + situation(lesson, step);
   if (cited && cited.length) {
     const names = cited.map(byId).filter(Boolean).map(c => c.chapter);
     if (names.length) prompt += `\n\nAlready shown to this student in this conversation: `
       + `${names.join(', ')}. Do not cite ${names.length > 1 ? 'those' : 'that'} again.`;
   }
 
-  const out = await p.ask({ system: prompt, messages, schema: SCHEMA });
+  const out = await p.ask({ system: prompt, messages, schema: schemaFor(lesson) });
 
   // Two models, two ways to be sloppy about a schema. Neither gets to reach the
   // page: an unknown id is dropped, and a missing array becomes an empty one.
@@ -63,10 +100,17 @@ async function ask({ messages, provider, system, cited }) {
     // to state, and the client should never hold a second copy of either.
     .map(c => ({ id: c.id, chapter: c.chapter, page: c.page }));
 
+  // Resolved to the target itself, so the page looks up an id it was given
+  // rather than one it was told about. 'none' and anything unrecognised are the
+  // same answer: do not draw a button.
+  const point = targets.byId(lesson, out.json.point) || null;
+
   const u = out.usage;
   return {
     answer: String(out.json.answer || '').trim(),
     chapters,
+    point: point && { id: point.id, kind: point.kind, what: point.what,
+                      step: point.step, el: point.el, title: point.title },
     provider: p.id,
     // `model` is what served the request; `configured` is what was asked for.
     // They differ when an alias resolves, and when an override did not take.
@@ -114,7 +158,8 @@ async function handleAsk(payload) {
 
   const t0 = Date.now();
   try {
-    const out = await ask({ messages, provider: wanted, system, cited: body.cited });
+    const out = await ask({ messages, provider: wanted, system, cited: body.cited,
+                            lesson: body.lesson, step: Number(body.step) });
     return { status: 200, body: { ...out, ms: Date.now() - t0 } };
   } catch (err) {
     const status = err && err.status;
@@ -167,6 +212,12 @@ function config() {
     // The prompt is handed out only to a bench, which is the only place it can
     // be edited anyway. Elsewhere the box has no business knowing it.
     system: bench ? SYSTEM : null,
+    // The bench needs the target list to show what the tutor could have aimed
+    // at, and to fake standing on a step.
+    lessons: Object.entries(targets.LESSONS).map(([id, L]) => ({
+      id, title: L.title,
+      targets: L.targets.map(t => ({ id: t.id, kind: t.kind, what: t.what, step: t.step, el: t.el, title: t.title })),
+    })),
     providers: providers.names().map(id => {
       const p = require(`./_providers/${id}.js`);
       return { id, label: p.label, model: p.model, ready: !!process.env[p.envKey] };
@@ -174,4 +225,4 @@ function config() {
   };
 }
 
-module.exports = { ask, handleAsk, config, SYSTEM, SCHEMA, MAX_CHARS };
+module.exports = { ask, handleAsk, config, situation, schemaFor, SYSTEM, SCHEMA, MAX_CHARS };

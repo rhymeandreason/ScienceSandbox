@@ -64,5 +64,59 @@ for (const id of providers.names()) {
 
 if (!providers.names().includes(providers.DEFAULT)) bad(`AI_PROVIDER "${providers.DEFAULT}" is not a provider`);
 
+/* A target is a claim about a lesson page: this control exists, this step is
+ * called that. Both go stale invisibly, and a stale one means the tutor points
+ * confidently at something that is not there. */
+const { LESSONS } = require(path.join(ROOT, 'api/_targets.js'));
+
+for (const [lesson, L] of Object.entries(LESSONS)) {
+  console.log(`\ntargets: ${lesson} (${L.targets.length})\n`);
+
+  if (!fs.existsSync(path.join(ROOT, L.page))) { bad(`${lesson}: ${L.page} does not exist`); continue; }
+  if (!IDS.includes(L.chapter)) bad(`${lesson}: chapter "${L.chapter}" is not in the catalog`);
+  const html = fs.readFileSync(path.join(ROOT, L.page), 'utf8');
+
+  const seen = new Set();
+  const steps = L.targets.filter(t => t.kind === 'step').map(t => t.step);
+
+  for (const t of L.targets) {
+    if (seen.has(t.id)) bad(`${lesson}/${t.id}: duplicate target id`);
+    seen.add(t.id);
+    if (!/^[a-z][a-z0-9-]*$/.test(t.id)) bad(`${lesson}/${t.id}: id must be lowercase kebab`);
+    if (!t.what || t.what.length < 30)   bad(`${lesson}/${t.id}: "what" is too thin to match a question against`);
+
+    if (t.kind === 'ui') {
+      if (!t.el) bad(`${lesson}/${t.id}: a ui target needs the element's id`);
+      else if (!html.includes(`id="${t.el}"`)) bad(`${lesson}/${t.id}: no id="${t.el}" in ${L.page}`);
+      else console.log(`  ok    ${t.id.padEnd(17)} ui     #${t.el}`);
+    } else if (t.kind === 'step') {
+      if (typeof t.step !== 'number') bad(`${lesson}/${t.id}: a step target needs its index`);
+      if (!t.title)                   bad(`${lesson}/${t.id}: a step target needs its title`);
+      // The title is retyped here from the lesson's own step table, so assert
+      // the copy still matches rather than trusting that it does.
+      else if (!html.includes(`'${t.title}'`) && !html.includes(`"${t.title}"`))
+        bad(`${lesson}/${t.id}: no step titled "${t.title}" in ${L.page}`);
+      else console.log(`  ok    ${t.id.padEnd(17)} step   ${t.step}  ${t.title}`);
+    } else if (t.kind === 'atoms') {
+      console.log(`  ----  ${t.id.padEnd(17)} atoms  (resolved by the page)`);
+    } else {
+      bad(`${lesson}/${t.id}: unknown kind "${t.kind}"`);
+    }
+  }
+
+  // Contiguous from zero, or "step 3 of 5" in the prompt is a lie.
+  steps.sort((a, b) => a - b).forEach((s, i) => {
+    if (s !== i) bad(`${lesson}: step indices are ${steps.join(',')}, expected 0..${steps.length - 1}`);
+  });
+
+  // The enum the model picks from must be the list it was shown.
+  const { schemaFor, situation } = require(path.join(ROOT, 'api/_tutor.js'));
+  const enumIds = schemaFor(lesson).properties.point.enum;
+  if (enumIds.join() !== [...L.targets.map(t => t.id), 'none'].join())
+    bad(`${lesson}: the point enum and the target list have drifted apart`);
+  for (const t of L.targets) if (!situation(lesson, 0).includes(`- ${t.id}:`))
+    bad(`${lesson}/${t.id} is missing from the prompt`);
+}
+
 console.log(fail ? `\n  ${fail} problem(s)\n` : '\n  all good\n');
 process.exit(fail ? 1 : 0);
