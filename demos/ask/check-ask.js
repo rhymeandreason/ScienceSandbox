@@ -65,58 +65,74 @@ for (const id of providers.names()) {
 if (!providers.names().includes(providers.DEFAULT)) bad(`AI_PROVIDER "${providers.DEFAULT}" is not a provider`);
 
 /* A target is a claim about a lesson page: this control exists, this step is
- * called that. Both go stale invisibly, and a stale one means the tutor points
- * confidently at something that is not there. */
-const { LESSONS } = require(path.join(ROOT, 'api/_targets.js'));
+ * called that, this link lands where it says. All three go stale invisibly, and
+ * a stale one means the tutor points confidently at the wrong place. */
+const T = require(path.join(ROOT, 'api/_targets.js'));
+const { schemaFor, situation } = require(path.join(ROOT, 'api/_tutor.js'));
 
-for (const [lesson, L] of Object.entries(LESSONS)) {
+const allQids = new Set();
+
+for (const [lesson, L] of Object.entries(T.LESSONS)) {
   console.log(`\ntargets: ${lesson} (${L.targets.length})\n`);
 
   if (!fs.existsSync(path.join(ROOT, L.page))) { bad(`${lesson}: ${L.page} does not exist`); continue; }
   if (!IDS.includes(L.chapter)) bad(`${lesson}: chapter "${L.chapter}" is not in the catalog`);
   const html = fs.readFileSync(path.join(ROOT, L.page), 'utf8');
 
-  const seen = new Set();
-  const steps = L.targets.filter(t => t.kind === 'step').map(t => t.step);
+  // `deepLink` says a cross-lesson link may carry ?param=. Believe it only if
+  // the page really reads that parameter. Otherwise the link lands on the right
+  // lesson at whatever place it happens to open, and nothing about that is
+  // visible from either end.
+  const reads = new RegExp(`[?&]${L.param}=|get\\(['"\`]${L.param}['"\`]\\)`).test(html);
+  if (L.deepLink && !reads) bad(`${lesson}: deepLink is true but the page never reads ?${L.param}=`);
+  if (!L.deepLink && reads) bad(`${lesson}: the page reads ?${L.param}= but deepLink is false`);
+  console.log(`  ${L.deepLink ? 'ok  ' : '----'}  ?${L.param}=${' '.repeat(Math.max(0, 8 - L.param.length))}`
+    + `${L.deepLink ? 'read by the page' : 'not read yet, a link opens the lesson'}`);
 
+  const steps = [];
   for (const t of L.targets) {
-    if (seen.has(t.id)) bad(`${lesson}/${t.id}: duplicate target id`);
-    seen.add(t.id);
-    if (!/^[a-z][a-z0-9-]*$/.test(t.id)) bad(`${lesson}/${t.id}: id must be lowercase kebab`);
-    if (!t.what || t.what.length < 30)   bad(`${lesson}/${t.id}: "what" is too thin to match a question against`);
+    const qid = `${lesson}/${t.id}`;
+    if (allQids.has(qid)) bad(`${qid}: duplicate target id`);
+    allQids.add(qid);
+    if (!/^[a-z][a-z0-9-]*$/.test(t.id)) bad(`${qid}: id must be lowercase kebab`);
+    if (!t.what || t.what.length < 30)   bad(`${qid}: "what" is too thin to match a question against`);
 
     if (t.kind === 'ui') {
-      if (!t.el) bad(`${lesson}/${t.id}: a ui target needs the element's id`);
-      else if (!html.includes(`id="${t.el}"`)) bad(`${lesson}/${t.id}: no id="${t.el}" in ${L.page}`);
+      if (!t.el) bad(`${qid}: a ui target needs the element's id`);
+      else if (!html.includes(`id="${t.el}"`)) bad(`${qid}: no id="${t.el}" in ${L.page}`);
       else console.log(`  ok    ${t.id.padEnd(17)} ui     #${t.el}`);
     } else if (t.kind === 'step') {
-      if (typeof t.step !== 'number') bad(`${lesson}/${t.id}: a step target needs its index`);
-      if (!t.title)                   bad(`${lesson}/${t.id}: a step target needs its title`);
-      // The title is retyped here from the lesson's own step table, so assert
-      // the copy still matches rather than trusting that it does.
-      else if (!html.includes(`'${t.title}'`) && !html.includes(`"${t.title}"`))
-        bad(`${lesson}/${t.id}: no step titled "${t.title}" in ${L.page}`);
-      else console.log(`  ok    ${t.id.padEnd(17)} step   ${t.step}  ${t.title}`);
+      if (t.at === undefined) bad(`${qid}: a step target needs "at"`);
+      if (!t.title) bad(`${qid}: a step target needs its title`);
+      // Titles are retyped here from each lesson's own step table, so assert the
+      // copy still matches rather than trusting that it does.
+      else if (!html.includes(t.title)) bad(`${qid}: no "${t.title}" in ${L.page}`);
+      else console.log(`  ok    ${t.id.padEnd(17)} step   ${L.param}=${String(t.at).padEnd(10)} ${t.title}`);
+      if (typeof t.at === 'number') steps.push(t.at);
     } else if (t.kind === 'atoms') {
       console.log(`  ----  ${t.id.padEnd(17)} atoms  (resolved by the page)`);
     } else {
-      bad(`${lesson}/${t.id}: unknown kind "${t.kind}"`);
+      bad(`${qid}: unknown kind "${t.kind}"`);
     }
   }
 
-  // Contiguous from zero, or "step 3 of 5" in the prompt is a lie.
-  steps.sort((a, b) => a - b).forEach((s, i) => {
-    if (s !== i) bad(`${lesson}: step indices are ${steps.join(',')}, expected 0..${steps.length - 1}`);
-  });
+  // Ascending, or "4 of 5" in the prompt is a lie.
+  for (let i = 1; i < steps.length; i++)
+    if (steps[i] <= steps[i - 1]) { bad(`${lesson}: step values ${steps.join(',')} are not ascending`); break; }
 
-  // The enum the model picks from must be the list it was shown.
-  const { schemaFor, situation } = require(path.join(ROOT, 'api/_tutor.js'));
-  const enumIds = schemaFor(lesson).properties.point.enum;
-  if (enumIds.join() !== [...L.targets.map(t => t.id), 'none'].join())
-    bad(`${lesson}: the point enum and the target list have drifted apart`);
-  for (const t of L.targets) if (!situation(lesson, 0).includes(`- ${t.id}:`))
-    bad(`${lesson}/${t.id} is missing from the prompt`);
+  // The enum the model picks from must be the list it was shown, and a lesson
+  // offers only its steps to the others: a control you cannot reach is not a
+  // destination.
+  const seen = T.visible(lesson);
+  if (schemaFor(lesson).properties.point.enum.join() !== [...seen.map(t => t.qid), 'none'].join())
+    bad(`${lesson}: the point enum and the visible target list have drifted apart`);
+  if (seen.some(t => !t.home && t.kind !== 'step'))
+    bad(`${lesson}: a non-step target from another lesson is offered as a destination`);
+  const prompt = situation(lesson, 0);
+  for (const t of seen) if (!prompt.includes(`- ${t.qid}:`)) bad(`${t.qid} is missing from the prompt`);
 }
+
+console.log(`\n  ${allQids.size} targets across ${Object.keys(T.LESSONS).length} lessons`);
 
 console.log(fail ? `\n  ${fail} problem(s)\n` : '\n  all good\n');
 process.exit(fail ? 1 : 0);

@@ -38,6 +38,8 @@
   .meta b{color:var(--ink);font-weight:600}
   .over{color:#b23a2c}
   .repeat{color:#b23a2c}
+  /* Leaving the page never looks like looking at it. */
+  button.plain.away{border-style:dashed;background:rgba(43,39,35,.04)}
 
   /* controls */
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -163,14 +165,22 @@ const SCRIPTS = [
    enum is that "none" stays available, and a tutor that always finds something
    to point at is not aiming, it is guessing. */
 const AIM = [
-  { q: 'How do I make it colder?',                 want: 'temp-slider' },
-  { q: 'Where can I see what happens with salt?',  want: 'add-salt' },
-  { q: 'Why is ice less dense than water?',        want: 'step-ice' },
-  { q: 'What is the weak bond between molecules?', want: 'a-hydrogen-bond' },
-  { q: 'Why is the oxygen end negative?',          want: 'the-charges' },
-  { q: 'Why does sweating cool you down?',         want: 'step-heat' },
+  // Home. Five of these, because a tutor that keeps sending students off the
+  // page they are on is worse than one that never points at all.
+  { q: 'How do I make it colder?',                 want: 'water-lab/temp-slider' },
+  { q: 'Where can I see what happens with salt?',  want: 'water-lab/add-salt' },
+  { q: 'Why is ice less dense than water?',        want: 'water-lab/step-ice' },
+  { q: 'What is the weak bond between molecules?', want: 'water-lab/a-hydrogen-bond' },
+  { q: 'Why does sweating cool you down?',         want: 'water-lab/step-heat' },
+  // Away, where the answer genuinely lives in another lesson.
+  { q: 'Where does a cell actually get its ATP from?', want: 'glycolysis-lab/stage-payoff' },
+  { q: 'How does salt get into a cell?',           want: 'membrane-lab/step-pump' },
+  { q: 'What is osmosis?',                         want: 'membrane-lab/step-osmosis' },
+  { q: 'What decides the shape of a protein?',     want: 'hemoglobin-lab/level-tertiary' },
+  { q: 'How is a bond in methane different from the one in salt?', want: 'molecule-builder/build-methane' },
+  // Neither. The enum keeps "none" available and it has to stay reachable.
   { q: 'Who discovered the structure of water?',   want: 'none' },
-  { q: 'What is a mitochondrion?',                 want: 'none' },
+  { q: 'What should I have for lunch?',            want: 'none' },
 ];
 
 /* ---- config ------------------------------------------------------------- */
@@ -357,19 +367,25 @@ function draw() {
       d.appendChild(meta);
 
       /* The tutor does not drive the page, it offers. A wrong aim costs a click
-         instead of yanking the camera away from what the student was watching,
-         and the button pulls them back to the model rather than deeper into
-         typing. Here it only reports what the lesson would have been asked. */
+         instead of yanking the camera away from what the student was watching.
+         Home and away are deliberately different affordances: one looks here,
+         the other leaves. A student should be able to tell which before
+         clicking, so they never read the same. */
       if (x.point) {
+        const p = x.point;
         const go = document.createElement('button');
-        go.className = 'plain';
+        go.className = 'plain' + (p.home ? '' : ' away');
         go.style.marginTop = '9px';
-        go.innerHTML = `<b>Show me</b><small>${x.point.id} · ${x.point.kind}</small>`;
+        go.innerHTML = p.home
+          ? `<b>Show me</b><small>${p.id} · ${p.kind}</small>`
+          : `<b>See it in ${p.lessonTitle} →</b><small>${p.title}`
+            + `${p.lands ? '' : ' · lands on the lesson, not the step'}</small>`;
         go.addEventListener('click', () => {
           fired++;
-          const did = x.point.kind === 'step'  ? `Lesson.goto(${x.point.step})  "${x.point.title}"`
-                    : x.point.kind === 'ui'    ? `Hotspot.update(#${x.point.el})`
-                                               : `Focus.atoms(<${x.point.id}>)`;
+          const did = !p.home                ? `location = "${p.href}"`
+                    : p.kind === 'step'      ? `Lesson.goto(${JSON.stringify(p.at)})  "${p.title}"`
+                    : p.kind === 'ui'        ? `Hotspot.update(#${p.el})`
+                                             : `Focus.atoms(<${p.id.split('/')[1]}>)`;
           go.innerHTML = `<b>would fire</b><small>${did}</small>`;
           go.disabled = true;
         });
@@ -422,7 +438,7 @@ SCRIPTS.forEach(s => {
    coast on turn one's target. */
 const aimBtn = document.createElement('button');
 aimBtn.className = 'plain';
-aimBtn.innerHTML = '<b>run the 8 aim probes</b><small>needs a lesson selected; scores itself</small>';
+aimBtn.innerHTML = '<b>run the 12 aim probes</b><small>5 home, 5 away, 2 neither; scores itself</small>';
 aimBtn.addEventListener('click', async () => {
   if (!lesson) { alert('Pick a lesson first, or there is nothing to aim at.'); return; }
   aimBtn.disabled = true;

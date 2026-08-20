@@ -61,19 +61,35 @@ function situation(lesson, step) {
   const L = targets.forLesson(lesson);
   if (!L) return '';
 
-  const here = L.targets.find(t => t.kind === 'step' && t.step === step);
-  const steps = L.targets.filter(t => t.kind === 'step');
+  const all   = targets.visible(lesson);
+  const home  = all.filter(t => t.home);
+  const away  = all.filter(t => !t.home);
+  const steps = home.filter(t => t.kind === 'step');
+  const here  = steps.find(t => t.at === step);
+
+  const line = t => `- ${t.qid}: ${t.what}`;
+  const byLesson = {};
+  for (const t of away) (byLesson[t.lessonTitle] = byLesson[t.lessonTitle] || []).push(t);
 
   return `\n\nThe student is not reading, they are on the ${L.title} lesson page, `
-    + `looking at an interactive 3D model of water molecules.`
-    + (here ? ` Right now they are on step ${step + 1} of ${steps.length}, "${here.title}".`
+    + `working with an interactive 3D model.`
+    + (here ? ` Right now they are on "${here.title}", ${steps.indexOf(here) + 1} of ${steps.length}.`
               + ` Assume their question is about what is in front of them.` : '')
-    + `\n\nYou can point at ONE thing on that page. Set \`point\` to its id when the answer `
-    + `is about something they can see or do there, and to "none" otherwise. Prefer sending them `
-    + `to a control or a step they can act on over describing it in words. Do not mention the `
-    + `pointing in \`answer\`, do not say "look at" or "click": the page draws a button from the id.\n`
-    + L.targets.map(t => `- ${t.id}: ${t.what}`).join('\n')
-    + `\n\nThis lesson IS the ${L.chapter} chapter, so do not cite that chapter back to them.`;
+
+    + `\n\nYou can point at ONE thing. Set \`point\` to its id, or to "none" when the answer is not `
+    + `about anything listed. Do not mention the pointing in \`answer\` and do not say "look at" or `
+    + `"click": the page draws a button from the id.`
+
+    + `\n\nOn THIS page, which they can act on without going anywhere. Strongly prefer these, and `
+    + `prefer a control or a step they can act on over describing it in words:\n`
+    + home.map(line).join('\n')
+
+    + `\n\nOn OTHER lesson pages. Pointing at one of these navigates the student away from what they `
+    + `are doing, so pick one only when the answer genuinely lives in that other lesson and nothing `
+    + `above covers it:\n`
+    + Object.entries(byLesson).map(([t, list]) => `${t}\n` + list.map(line).join('\n')).join('\n')
+
+    + `\n\nThis page IS the ${L.chapter} chapter, so do not cite that chapter back to them.`;
 }
 
 /* A turn, not a question. `messages` is the whole transcript so far, ending in
@@ -103,14 +119,24 @@ async function ask({ messages, provider, system, cited, lesson, step }) {
   // Resolved to the target itself, so the page looks up an id it was given
   // rather than one it was told about. 'none' and anything unrecognised are the
   // same answer: do not draw a button.
-  const point = targets.byId(lesson, out.json.point) || null;
+  const t = targets.byId(lesson, out.json.point);
+  // `href` is built here or not at all. A link whose step the page does not read
+  // would land on the right lesson at the wrong place, so `deepLink` decides
+  // whether the parameter goes on, and check-ask.js decides whether that flag
+  // is telling the truth.
+  const point = !t ? null : {
+    id: t.qid, kind: t.kind, what: t.what, home: t.home,
+    at: t.at, el: t.el, title: t.title,
+    lesson: t.lesson, lessonTitle: t.lessonTitle,
+    href: t.home ? null : '/' + t.page + (t.deepLink ? `?${t.param}=${encodeURIComponent(t.at)}` : ''),
+    lands: t.home || t.deepLink,   // false: the link opens the lesson, not the step
+  };
 
   const u = out.usage;
   return {
     answer: String(out.json.answer || '').trim(),
     chapters,
-    point: point && { id: point.id, kind: point.kind, what: point.what,
-                      step: point.step, el: point.el, title: point.title },
+    point,
     provider: p.id,
     // `model` is what served the request; `configured` is what was asked for.
     // They differ when an alias resolves, and when an override did not take.
@@ -215,8 +241,9 @@ function config() {
     // The bench needs the target list to show what the tutor could have aimed
     // at, and to fake standing on a step.
     lessons: Object.entries(targets.LESSONS).map(([id, L]) => ({
-      id, title: L.title,
-      targets: L.targets.map(t => ({ id: t.id, kind: t.kind, what: t.what, step: t.step, el: t.el, title: t.title })),
+      id, title: L.title, deepLink: L.deepLink,
+      targets: targets.visible(id).map(t => ({ id: t.qid, kind: t.kind, home: t.home,
+                 at: t.at, el: t.el, title: t.title, lessonTitle: t.lessonTitle })),
     })),
     providers: providers.names().map(id => {
       const p = require(`./_providers/${id}.js`);

@@ -1,20 +1,31 @@
 /* =============================================================================
- *  _targets.js — what the tutor is allowed to point at, per lesson
+ *  _targets.js — what the tutor is allowed to point at, across the lessons
  * =============================================================================
  *  The same trick as the chapter catalog, one level in. A target id goes into
  *  the response schema as an enum, so the tutor can pick one or pick none and
  *  cannot invent a third thing. The page owns what an id then does; nothing
  *  here knows about Focus, Hotspot or the camera.
  *
+ *  IDS ARE QUALIFIED, `lesson/target`, because the tutor can aim off the page
+ *  the student is on. Two renderings, and they are different affordances:
+ *
+ *    · a target in the current lesson  → act in place, no navigation
+ *    · a target in another lesson      → a link that leaves this page
+ *
+ *  ONLY `step` TARGETS TRAVEL. A control you cannot reach is not a destination,
+ *  and a molecular focus depends on what that scene has currently built. So a
+ *  lesson offers its whole list at home and only its steps to everyone else,
+ *  which is also what keeps the prompt from growing by a lesson at a time.
+ *
  *  `what` is written for the model, not for a student. It is what a question's
  *  wording has to match against, so it says what the thing IS and what it does,
  *  in the words a beginner would use.
  *
- *  Two kinds of claim in here are checked by `demos/ask/check-ask.js`:
- *  a `ui` target names a DOM id that must exist in the lesson, and a `step`
- *  target names a title that must appear in it. Both are how a renamed control
- *  or a re-ordered step turns into a failing check instead of a tutor
- *  confidently pointing at nothing.
+ *  Every claim in here is checked by `demos/ask/check-ask.js`: a `ui` target
+ *  names a DOM id that must exist in the lesson, a `step` target names a title
+ *  that must appear in it, and `deepLink` must be true only where the page
+ *  really does read its parameter from the URL. That last one matters: without
+ *  it a link silently lands on the right page at the wrong place.
  * ========================================================================== */
 'use strict';
 
@@ -23,21 +34,20 @@ const LESSONS = {
     title: 'Structure of Water',
     page: 'demos/water-lab.html',
     chapter: 'water',
+    param: 'step',
+    deepLink: false,          // water-lab does not read ?step= yet
     targets: [
-      // Steps. The student can be sent to one, and the tutor should prefer this
-      // over explaining a thing the lesson already animates.
-      { id: 'step-polar',   kind: 'step', step: 0, title: 'A Polar Molecule',
-        what: 'the step showing one water molecule, its V shape, the 104.5 degree angle, and why oxygen pulls the shared electrons' },
-      { id: 'step-hbond',   kind: 'step', step: 1, title: 'Hydrogen Bonds',
-        what: 'the step where more water molecules are added and hydrogen bonds link the positive hydrogens to the negative oxygens' },
-      { id: 'step-heat',    kind: 'step', step: 2, title: 'Specific Heat',
-        what: 'the step about heating water, where energy goes into breaking hydrogen bonds before the temperature rises' },
-      { id: 'step-ice',     kind: 'step', step: 3, title: 'Why Ice Floats',
-        what: 'the step where cooling locks the molecules into the open hexagonal ice lattice, so ice is less dense than liquid water' },
-      { id: 'step-solvent', kind: 'step', step: 4, title: 'The Universal Solvent',
-        what: 'the step where salt dissolves, each ion gathering a shell of about six water molecules' },
+      { id: 'step-polar',   kind: 'step', at: 0, title: 'A Polar Molecule',
+        what: 'one water molecule, its V shape, the 104.5 degree angle, and why oxygen pulls the shared electrons toward itself' },
+      { id: 'step-hbond',   kind: 'step', at: 1, title: 'Hydrogen Bonds',
+        what: 'hydrogen bonds linking the positive hydrogens of one water molecule to the negative oxygen of another' },
+      { id: 'step-heat',    kind: 'step', at: 2, title: 'Specific Heat',
+        what: 'why water absorbs so much heat for a small temperature change, why sweating cools you, and why oceans steady the climate' },
+      { id: 'step-ice',     kind: 'step', at: 3, title: 'Why Ice Floats',
+        what: 'freezing locking molecules into an open hexagonal lattice, so ice is less dense than liquid water and floats' },
+      { id: 'step-solvent', kind: 'step', at: 4, title: 'The Universal Solvent',
+        what: 'salt dissolving, each ion gathering a shell of about six water molecules, and how dissolved salt shifts freezing and boiling' },
 
-      // Controls. `el` is the id the lesson already gives the element.
       { id: 'temp-slider',  kind: 'ui', el: 'trange',
         what: 'the temperature slider, which heats the water toward boiling or cools it toward ice' },
       { id: 'add-salt',     kind: 'ui', el: 'addsalt',
@@ -45,8 +55,6 @@ const LESSONS = {
       { id: 'add-water',    kind: 'ui', el: 'addwater',
         what: 'the button that adds another water molecule to the scene' },
 
-      // Molecules. Resolved by the page against what is actually on screen, so
-      // there is nothing to keep in step here.
       { id: 'a-hydrogen-bond', kind: 'atoms',
         what: 'a single hydrogen bond between two water molecules, the weak attraction between a positive hydrogen and a negative oxygen' },
       { id: 'the-charges',     kind: 'atoms',
@@ -55,10 +63,116 @@ const LESSONS = {
         what: 'the shell of water molecules surrounding a dissolved ion, turned so their opposite charge faces inward' },
     ],
   },
+
+  'molecule-builder': {
+    title: 'Ionic and Covalent Bonds',
+    page: 'demos/molecule-builder.html',
+    chapter: 'bonds',
+    param: 'build',
+    deepLink: false,
+    targets: [
+      { id: 'build-water',    kind: 'step', at: 'water',    title: 'Water',
+        what: 'building H2O by hand, watching oxygen take two hydrogens and the bent shape fall out of it' },
+      { id: 'build-methane',  kind: 'step', at: 'methane',  title: 'Methane',
+        what: 'building CH4, where carbon takes four hydrogens and the result is a tetrahedron rather than a flat cross' },
+      { id: 'build-ammonia',  kind: 'step', at: 'ammonia',  title: 'Ammonia',
+        what: 'building NH3, where nitrogen takes three hydrogens and keeps a lone pair that pushes the shape into a pyramid' },
+      { id: 'build-ammonium', kind: 'step', at: 'ammonium', title: 'Ammonium',
+        what: 'ammonia grabbing a fourth hydrogen from water to become the positively charged ammonium ion' },
+      { id: 'build-co2',      kind: 'step', at: 'co2',      title: 'Carbon dioxide',
+        what: 'building CO2, a straight line with two double bonds, and why polar bonds can still leave a nonpolar molecule' },
+      { id: 'build-n2',       kind: 'step', at: 'n2',       title: 'Nitrogen gas',
+        what: 'building N2, two nitrogens sharing three pairs of electrons in a triple bond, and why that makes it so unreactive' },
+      { id: 'build-hcl',      kind: 'step', at: 'hcl',      title: 'Hydrogen chloride',
+        what: 'building HCl, a single covalent bond so lopsided that it sits at the edge of being ionic' },
+      { id: 'build-nacl',     kind: 'step', at: 'nacl',     title: 'Salt',
+        what: 'sodium handing its electron to chlorine instead of sharing it, making two ions that attract, and what happens when water gets at them' },
+      { id: 'build-kcl',      kind: 'step', at: 'kcl',      title: 'Potassium chloride',
+        what: 'potassium and chlorine forming an ionic pair the same way sodium chloride does' },
+      { id: 'build-mgcl2',    kind: 'step', at: 'mgcl2',    title: 'Magnesium chloride',
+        what: 'magnesium giving away two electrons, so it takes two chlorides rather than one, and the formula follows the count' },
+    ],
+  },
+
+  'hemoglobin-lab': {
+    title: 'Structure of Protein',
+    page: 'demos/hemoglobin-lab.html',
+    chapter: 'protein',
+    param: 'level',
+    deepLink: false,
+    targets: [
+      { id: 'level-primary',    kind: 'step', at: 'primary',    title: 'primary',
+        what: 'the primary structure, the bare chain of amino acids in the order the gene spelled them' },
+      { id: 'level-secondary',  kind: 'step', at: 'secondary',  title: 'secondary',
+        what: 'the secondary structure, where hydrogen bonds along the backbone coil parts of the chain into alpha helices and sheets' },
+      { id: 'level-tertiary',   kind: 'step', at: 'tertiary',   title: 'tertiary',
+        what: 'the tertiary structure, the whole chain folding into one 3D shape with the water-hating side chains buried inside, and the heme settling into its pocket' },
+      { id: 'level-quaternary', kind: 'step', at: 'quaternary', title: 'quaternary',
+        what: 'the quaternary structure, four separate folded chains docking together to make one working hemoglobin' },
+    ],
+  },
+
+  'glycolysis-lab': {
+    title: 'Glycolysis',
+    page: 'demos/glycolysis-lab.html',
+    chapter: 'glycolysis',
+    param: 'step',
+    deepLink: true,           // reads ?step= at startup
+    // Stages, not the ten individual steps: as a destination "the Payoff stage"
+    // is what a student can act on, and ten entries would cost the prompt more
+    // than the precision is worth. `at` is the stage's first step number.
+    targets: [
+      { id: 'stage-priming',   kind: 'step', at: 1, title: 'Priming',
+        what: 'the priming stage, where the cell spends two ATP to trap glucose and make it unstable enough to split' },
+      { id: 'stage-cleavage',  kind: 'step', at: 4, title: 'Cleavage',
+        what: 'the cleavage stage, where the six carbon sugar is cut into two three carbon molecules' },
+      { id: 'stage-oxidation', kind: 'step', at: 6, title: 'Oxidation',
+        what: 'the oxidation stage, where electrons are stripped off and loaded onto NAD+ to make two NADH' },
+      { id: 'stage-payoff',    kind: 'step', at: 7, title: 'Payoff',
+        what: 'the payoff stage, where four ATP are made, giving a net gain of two, and pyruvate is the end product' },
+    ],
+  },
+
+  'membrane-lab': {
+    title: 'Membrane and Osmosis',
+    page: 'demos/membrane-lab.html',
+    chapter: 'membrane',
+    param: 'step',
+    deepLink: false,
+    targets: [
+      { id: 'step-bilayer', kind: 'step', at: 0, title: 'the bilayer',
+        what: 'the phospholipid bilayer itself, heads facing the water on both sides and oily tails hiding in the middle' },
+      { id: 'step-through', kind: 'step', at: 1, title: 'what gets through',
+        what: 'which molecules cross a membrane unaided, why oily things pass and charged things do not, and why size is not the rule' },
+      { id: 'step-osmosis', kind: 'step', at: 2, title: 'osmosis',
+        what: 'osmosis, water moving toward the saltier side, and what hypertonic, hypotonic and isotonic do to a cell' },
+      { id: 'step-channel', kind: 'step', at: 3, title: 'a channel',
+        what: 'a channel protein letting one specific thing through without spending energy, and how it stays selective' },
+      { id: 'step-pump',    kind: 'step', at: 4, title: 'the pump',
+        what: 'a pump spending ATP to move ions against their gradient, uphill, which diffusion cannot do' },
+      { id: 'step-rest',    kind: 'step', at: 5, title: 'a cell at rest',
+        what: 'active and passive transport side by side, and the voltage a resting cell holds across its membrane' },
+    ],
+  },
 };
 
-const forLesson = id => LESSONS[id] || null;
-const ids       = lesson => (forLesson(lesson)?.targets || []).map(t => t.id);
-const byId      = (lesson, id) => (forLesson(lesson)?.targets || []).find(t => t.id === id) || null;
+/* The address space seen from one lesson: everything at home, steps only from
+ * everywhere else. Ids are qualified so the two can share one enum. */
+function visible(lesson) {
+  const out = [];
+  for (const [id, L] of Object.entries(LESSONS)) {
+    const home = id === lesson;
+    for (const t of L.targets) {
+      if (!home && t.kind !== 'step') continue;
+      out.push({ ...t, qid: `${id}/${t.id}`, lesson: id, home,
+                 lessonTitle: L.title, page: L.page, param: L.param, deepLink: L.deepLink });
+    }
+  }
+  return out;
+}
 
-module.exports = { LESSONS, forLesson, ids, byId };
+const forLesson = id => LESSONS[id] || null;
+const ids       = lesson => visible(lesson).map(t => t.qid);
+const byId      = (lesson, qid) => visible(lesson).find(t => t.qid === qid) || null;
+
+module.exports = { LESSONS, visible, forLesson, ids, byId };
