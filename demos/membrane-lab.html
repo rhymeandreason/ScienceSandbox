@@ -382,6 +382,9 @@ const LIFT_WORLD = 26;
 
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
+  /* NO DRAG-TO-ORBIT. Every step here is read against the membrane as a
+     horizontal line with an inside and an outside. */
+  orbit:false,
   rMin:50, rMax:400,
   /* THE CEILING THAT ACTUALLY BINDS. Stage.frame clamps the solved distance,
      so past a certain box size enlarging `boxes` does nothing; rMax is the
@@ -735,6 +738,9 @@ voltBox.addEventListener('change', () => {
   STEPS[cur].enter();
   solveOffscreen();
   STEPS[cur].enter();
+  /* The fresh cast knows nothing about the corner switch — same reason go()
+     asks. Without it, toggling the potential also turns the shells on. */
+  setShells(shellsOn);
 });
 
 function tickShells(dt) {
@@ -1722,10 +1728,10 @@ const STEPS = [
                        'opposite way to the K⁺ beside it. Direction is set ' +
                        'by the gradient, never by the protein.' });
       /* FLUID MOSAIC BELONGS HERE: both halves of the name are on screen for
-         the first time. Anchored well left of the pores, so it reads as a
+         the first time. Anchored well right of the pores, so it reads as a
          fact about the SHEET and not a third label on the channels. */
-      NOTES.add({ text:'fluid mosaic', offset:[-44, 44],
-                  at:() => _np.set(-150, -HALF, 0),
+      NOTES.add({ text:'fluid mosaic', offset:[44, 44],
+                  at:() => _np.set(150, -HALF, 0),
                   card:'The lipids slide against each other — the sheet is a ' +
                        'liquid, not a wall. <b>Mosaic</b> is these proteins ' +
                        'set into it, drifting in the same liquid.' });
@@ -1754,7 +1760,8 @@ const STEPS = [
   {
     id:'pump',
     tab:'the pump',
-    cap:'',                             // written per phase, below
+    cap:'<b>Active transport uses ATP to move substances against their ' +
+        'concentration gradient through membrane pumps.</b>',
     enter() {
       clearTravellers();
       showProtein(PUMP); showMembrane('pump'); setCut(true);
@@ -1967,13 +1974,23 @@ function deliver(kind) {
   }
   cargo[kind].length = 0;
 }
+/* PAID UP FRONT, so the counter moves when the ATP does. A real pump
+   phosphorylates itself at the START of the cycle — the hydrolysis is what
+   drives the conformational change, not a receipt issued once the cargo has
+   landed — and on screen the chip flies in, the count ticks, and the turn
+   begins as one event. Counted at the end instead, the student presses Spend
+   and watches eleven seconds of pumping against a readout still saying 0.
+   Both places a turn can start go through here. */
+function startTurn() {
+  pumpT = 0; running = true; lastPhase = '';
+  atpSpent++;
+}
 function finishCycle() {
   /* ELECTROGENIC, the number membrane/pump.js calls un-roundable: three out
      against two in leaves the inside one charge more negative every turn, so
      the pump builds part of the voltage too. */
   chargeOut += 1;
   mV = Math.max(-95, MV_PER_ION * chargeOut);
-  atpSpent++;
 }
 
 /* Which phase we were in last frame, so a boundary can be acted on once. */
@@ -2063,7 +2080,7 @@ spendEl.addEventListener('click', () => {
        AWAY from — what "uphill" means. SODIUM ONLY: the potassium is called
        at the load-k boundary, or the site holds five ions at once. */
     cargo.NA = recruit('NA', 3);
-    pumpT = 0; running = true; lastPhase = '';
+    startTurn();
   });
 });
 
@@ -2164,15 +2181,13 @@ function paintVolt() {
   setHTML(voltRefEl.firstElementChild, '0<small> mV</small>');
   setHTML(voltRefEl.lastElementChild, 'outside<br><em>reference</em>');
 
-  /* An arrow PER CURRENT, pointing the way that ion actually went (up is out,
-     the page's convention). Read off transits, so the two always add to the
-     total beside them. */
-  setHTML(voltCountEl, stepId === 'rest'
-    ? '<span>ATP spent</span><b>' + atpSpent + '</b> · ' +
-      'Na⁺ ↑ ' + (atpSpent * 3) + ' · K⁺ ↓ ' + (atpSpent * 2)
-    : stepId === 'pump'
-    ? '<span>carried uphill</span><b>' + (atpSpent * 5) + '</b> · ' +
-      'Na⁺ ↑ ' + (atpSpent * 3) + ' · K⁺ ↓ ' + (atpSpent * 2)
+  /* THE BILL ON THE PUMP STEPS, THE TRAFFIC ON THE CHANNEL. Where a pump is
+     running, what it costs is the number the step is about, and the cargo
+     tallies beside it are the same fact multiplied by 3 and 2. The channel
+     has nothing to spend, so there it is an arrow PER CURRENT, pointing the
+     way that ion actually went (up is out, the page's convention). */
+  setHTML(voltCountEl, stepId === 'rest' || stepId === 'pump'
+    ? '<span>ATP spent</span><b>' + atpSpent + '</b>'
     : '<span>ions crossed</span><b>' + chargeOut + '</b> · ' +
       'K⁺ ↑ ' + crossed.K + ' · Cl⁻ ↓ ' + crossed.CL);
 
@@ -2300,7 +2315,7 @@ function tick(dt) {
        alive. */
     if (pumpOn && !running && cargo.NA.length === 0) {
       const got = recruit('NA', 3);
-      if (got.length) { cargo.NA = got; pumpT = 0; running = true; lastPhase = ''; }
+      if (got.length) { cargo.NA = got; startTurn(); }
     }
     runPumpCycle(dt);
 
@@ -2319,13 +2334,6 @@ function tick(dt) {
     keepClear(travellers.filter(t => ELEMENT_OF[t.kind] && !t.aboard));
     for (const t of travellers) keepOutOfPores(t);
     spendEl.hidden = false;
-
-    /* The caption is READ from the cycle. Nothing on this page can say the
-       pump is doing something the geometry is not. */
-    const stc = Pump.at(pumpT);
-    setHTML(capEl, running || stc.phosphate.on
-      ? '<b>' + stc.label + '</b> — ' + stc.caption
-      : '<b>Active transport uses ATP to move substances against their concentration gradient through membrane pumps. </b>');
   } else {
     spendEl.hidden = true;
     for (const t of travellers) {
