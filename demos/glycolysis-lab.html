@@ -17,8 +17,7 @@
     #app-sidebar{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
     #railbar{grid-column:1 / -1}
     /* STAGE TAKES THE WHOLE WIDTH, NOTES ON TOP: sticky notes, not a panel to
-       make room for, so the molecule centres on the PAGE. (They used to own the
-       316px column, pushing the lesson left of centre by half that.) */
+       make room for, so the molecule centres on the PAGE. */
     #stage{grid-column:1 / -1;grid-row:2}
     #side{grid-column:2;grid-row:2;z-index:9;pointer-events:none;
       /* no paper of its own — an opaque column would cut a rectangle out of
@@ -41,10 +40,9 @@
   /* ---------- species labels: DOM over the canvas, one per lane ----------
      Placed every frame from the projected anchor (drawPlates) so they track
      the molecule as the camera orbits; the anchor is the label's bottom-middle.
-     REMOVED: the stage used to answer every click with a purple wash rising
-     from the bottom edge. It was the one thing on the page not made of
-     molecules, and it read as the page flashing rather than as the reaction
-     running — the button's own burst already says the click landed. */
+     NO FULL-STAGE FLASH on a click: the button's own burst already says the
+     click landed, and a page-wide wash reads as the page blinking rather than
+     as the reaction running. */
 
   /* ---------- the hotspot: click the bond that breaks ----------
      A step whose content is "this bond comes apart" should be run BY coming
@@ -59,8 +57,7 @@
   /* THE SAME DISC, ON THE CARRIER: a kinase step's clickable bond is ATP's β–γ.
      Own container because #spotglow's children are lane spots hidden by index. */
   #cglow{position:absolute;inset:0;z-index:1;pointer-events:none;display:none}
-  /* THE PROMPT GOES WITH THE MARK. "Spend 1 ATP" used to sit beside the
-     carrier's NAME — the one part here that is not the thing to click. Sized to
+  /* THE PROMPT GOES WITH THE MARK, not beside the carrier's name. Sized to
      the disc it covers, not the lanes' 74px: what is lit here is small. */
   #cspot{position:absolute;z-index:8;width:50px;height:50px}   /* over the tray */
   #cspot[hidden]{display:none}
@@ -80,8 +77,8 @@
      leads left, and it is the same hand as the type.
      MASKED, not an <img> or a coloured background-image: the arrow then paints
      in `currentColor` and can never drift from the text it belongs to. */
-  /* the span is empty now that the callout carries the words — without this
-     its ::before arrow would hang in the frame pointing at nothing */
+  /* the callout carries the words, so the span is empty — without this its
+     ::before arrow would hang in the frame pointing at nothing */
   .shint:empty{display:none}
   .shint::before{content:'';display:inline-block;
     width:34px;height:24px;margin-right:7px;vertical-align:-6px;
@@ -92,10 +89,9 @@
     -webkit-mask-size:contain;       mask-size:contain}
   :root{--annot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 26'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M34 4C25 1.5 9.5 3.5 5 15.5'/%3E%3Cpath d='M4.6 16.6l8-2.6M4.6 16.6l3.2 7'/%3E%3C/g%3E%3C/svg%3E")}
 
-  /* NO DOT ON THE CALLOUT HERE. annotate.js's dot marks the anchor, but this
-     page already marks it — the purple disc under the bond is the affordance,
-     and a second mark on the same point says there are two things there. The
-     leader still lands on the anchor, so the line points at the disc. */
+  /* NO DOT ON THE CALLOUT HERE. annotate.js's dot marks the anchor, but the
+     purple disc under the bond already marks it, and two marks on one point
+     read as two things. The leader still lands on the anchor. */
   .annot-dot{display:none}
   #spots{position:absolute;inset:0;z-index:6;pointer-events:none}
   /* target invisible: the glow underneath is the affordance; a ring on top
@@ -137,13 +133,11 @@
                     66%    {transform:scale(.95,1.05) rotate(-3deg)}}
   @media (prefers-reduced-motion:reduce){
     .enzblob,.enzblob svg{animation:none} }
-  /* the name, on the right of the stage */
-  /* the two stack down the right of the stage; the enzyme sits under the
-     step's verdicts. */
-  /* UP INTO THE CARD'S BAND. The energy card (#couplebox) lands here when it
-     opens, and it is meant to cover these two words: they are the door, and a
-     door standing beside the thing it opened is noise. The sidebar carries a
-     stacking context above the stage (see #side) so it paints over them. */
+  /* The step's verdicts, with the enzyme's name under them, down the right of
+     the stage. IN THE CARD'S BAND ON PURPOSE: the energy card (#couplebox)
+     lands here and covers these words — they are its door, and a door beside
+     the thing it opened is noise. The sidebar's stacking context (see #side)
+     paints it over them. */
   #enzmeta{position:absolute;right:26px;top:96px;z-index:5;
     max-width:230px;text-align:right;display:flex;flex-direction:column;
     align-items:flex-end;gap:-10px;}
@@ -152,24 +146,20 @@
 font-size: 20px;
 }
   #enzmeta[hidden]{display:none}
-  /* THE ASTERISK over the pair — the mark that says "there is a footnote here",
-     which is exactly what the two words are. Drawn by MASKING the file, not by
-     <img>: a mask ignores the file's own fill and paints the element's colour
-     through the shape, so one class tints it to whatever the first word is.
-     (An <img> would be stuck at the file's blue.) */
-  /* LONGHANDS, not the `mask:` shorthand: Safari parses the shorthand's
-     size-after-slash inconsistently and drops the whole declaration, which
-     leaves an element painted currentColor with no mask — or, as here, nothing
-     at all. */
+  /* THE ASTERISK over the pair — "there is a footnote here", which is what the
+     two words are. MASKED, not an <img>: the mask paints currentColor through
+     the shape, so one class tints it to the first word's colour.
+     LONGHANDS, not the `mask:` shorthand — Safari parses the shorthand's
+     size-after-slash inconsistently and drops the whole declaration. */
   .east{display:block;width:36px;height:38px;margin-bottom:2px;
     background-color:currentColor;
     -webkit-mask-image:url(images/asterisk.svg); mask-image:url(images/asterisk.svg);
     -webkit-mask-repeat:no-repeat;   mask-repeat:no-repeat;
     -webkit-mask-position:center;    mask-position:center;
     -webkit-mask-size:contain;       mask-size:contain}
-  /* k- prefix ON PURPOSE: `.cpl` is already the coupling FIGURE's class
-     (`display:block;width:100%`), and a bare `.cpl` here matched these too —
-     which is why the asterisk came out 150px wide and 0 tall, i.e. invisible.
+  /* k- prefix ON PURPOSE: `.cpl` is the coupling FIGURE's class
+     (`display:block;width:100%`), and a bare `.cpl` here matches these too —
+     which renders the asterisk 150px wide and 0 tall, i.e. invisible.
      Same for the words below. */
   .east.k-cpl{color:var(--phos)} .east.k-irr{color:var(--atp)} .east.k-rev{color:var(--nad)}
   /* A WORD YOU CAN PRESS, not a badge: the energy card is the explanation, and
@@ -227,11 +217,9 @@ font-size: 20px;
   #flyers{position:absolute;inset:0;z-index:5;pointer-events:none}
   .flyplate{position:absolute;transform:translate(-50%,-100%);text-align:center;
     white-space:nowrap;line-height:1.15;opacity:0;transition:opacity .25s ease}
-  /* SIZED LIKE A LANE PLATE, not smaller. It was set at 15/12 on the reasoning
-     that a transient label should be quieter than the standing ones — but it is
-     the only label on a MOVING object, competing with a molecule crossing the
-     frame behind it, and quiet made it invisible. A name nobody reads is not
-     restraint, it is a name that is not there. */
+  /* SIZED LIKE A LANE PLATE, not smaller: it is the only label on a MOVING
+     object, competing with a molecule crossing the frame behind it, and
+     anything quieter is unreadable. */
   .flyplate .fn{font-family:var(--font-slab);font-weight:700;font-size:22px;
     color:var(--phos);letter-spacing:.2px}
   .flyplate .ff{font-family:var(--font-slab);font-weight:500;font-size:15px;
@@ -263,13 +251,12 @@ font-size: 20px;
   /* NAME THEN COUNT, both in the heading face — the cell reads as a caption,
      not as a label with a footnote. ONE colour across all three counts: the
      three ×2s are one fact — everything after the split happens twice — and
-     colouring them per product said the opposite, that each number came from
-     somewhere different. */
+     per-product colours would say each number came from somewhere different. */
   .tname{font-family:var(--font-slab);font-weight:700;font-size:19px;
     line-height:1.1;color:var(--ink);letter-spacing:.2px}
   .tcount{font-family:var(--font-slab);font-weight:700;font-size:23px;
     line-height:1.1;color:var(--nad);font-variant-numeric:tabular-nums}
-  /* the ledger, moved in from the sidebar: a cell, not a sticky rail */
+  /* the ledger here is a cell, not the sidebar's sticky rail */
   #tledger{pointer-events:auto}
   #tally #ledger{position:static;margin:0;width:100%;max-width:290px}
   @media (max-width:920px){
@@ -316,7 +303,7 @@ font-size: 20px;
        hold itself open once the pointer leaves the icon */
     pointer-events:none;opacity:0;visibility:hidden;
     transition:opacity .16s ease, transform .16s ease}
-  /* icon and tooltip are no longer siblings, so the band asks instead. */
+  /* icon and tooltip are not siblings, so the band does the asking. */
   #bottombar:has(.infobtn:hover) #steptip,
   #bottombar:has(.infobtn:focus) #steptip{
     opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
@@ -335,10 +322,10 @@ font-size: 20px;
 
   /* THE STEP CAPTION. Never times out — replaced by the next step's. Only the
      intro and closing screen carry text.
-     OUT OF FLOW, ABOVE THE BAR: its height is the only one here that varies,
-     and in the bar it changed the camera's bottom reserve — so intro and
-     closing were framed differently from the ten steps between. Length is now
-     a legibility budget only: it opens upward, so a long one hits the molecule.
+     OUT OF FLOW, ABOVE THE BAR: its height is the only varying one here, and
+     inside the bar it would change the camera's bottom reserve, framing intro
+     and closing differently from the ten steps between. Length is a legibility
+     budget only: it opens upward, so a long one hits the molecule.
      --caph is the reserve while showing (capReservePx) — typed, like --barh.
      Two lines at this size, plus the gap. */
   #rxmsg{--caph:70px;
@@ -452,23 +439,20 @@ font-size: 20px;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
   /* ---------- ATP/ADP drawn, not carded ----------
-     The two ATP tiles were the one place a student could not see what the step
-     did to the carrier: a card saying ATP became a card saying ADP, the moved
-     phosphate only ever on the molecule's side. So the pair collapses into ONE
-     object that changes — three phosphates to two, and back at steps 7 and 10.
-     Two ways to draw it, both needed: the SCHEMATIC (adenosine + three circles)
-     makes "the end one comes off" readable at a glance; FULL shows what ATP is
-     — 31 heavy atoms, most not phosphate at all. The toggle
+     ATP and ADP are ONE object that changes — three phosphates to two, and back
+     at steps 7 and 10 — so the student sees what the step did to the carrier
+     rather than one card swapping for another. Drawn in full, never
+     schematically — see THE ATP/ADP CARRIER in the script.
      NOT A CARD: drawn on the stage, at stage scale, beside the sugar — leaving
      the name, the prompt and the space the camera insets (usable()).
      THE BOX TAKES NO POINTER unless it is the button (steps 7/10, `.live`). At
-     z-7 over the whole left column, while interactive it swallowed every click
+     z-7 over the whole left column, an interactive box swallows every click
      aimed at the molecule behind it — including the marked bond. */
   #carrier{width:400px;position:relative;pointer-events:none;
     padding:7px 8px 6px;border:2.5px solid transparent;border-radius:9px;
     background:none;text-align:left;user-select:none}
-  /* No card treatment when live either: the thing to click is the γ phosphate,
-     so a pulsing box round the NAME points at the wrong object. The cue is the
+  /* No card treatment when live: the thing to click is the γ phosphate, so a
+     pulsing box round the NAME points at the wrong object. The cue is the
      `need` prompt plus the disc behind the bond (#cglow). */
   #carrier.live{cursor:pointer;pointer-events:auto}
   #carrier .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
@@ -538,9 +522,9 @@ font-size: 20px;
   .modal[hidden]{display:none}
   .modal .mback{position:absolute;inset:0;background:rgba(38,33,26,.52);
     backdrop-filter:blur(2px);animation:mfade .22s ease-out}
-  /* A SHEET OF PAPER, all four of them: the panel white, no inked border, and
-     depth from the shadow instead. The border framed every modal as one more
-     readout on a page already made of bordered stickers. */
+  /* A SHEET OF PAPER, all four of them: panel white, no inked border, depth
+     from the shadow — a border would frame each modal as one more readout on a
+     page already made of bordered stickers. */
   .modal .mcard{position:relative;width:min(660px,100%);max-height:100%;
     overflow:auto;background:var(--panel);border:none;
     border-radius:14px;padding:24px 26px 22px;
@@ -683,9 +667,9 @@ font-size: 20px;
   #tools{position:fixed;right:26px;bottom:22px;z-index:20;
     display:flex;flex-direction:column;align-items:flex-end;gap:10px}
   #allsteps,#showenz,#showledger{position:static}
-  /* pressed = the blobs are on stage, so the chip is filled, like the rail's
-     run numbers: a state, not a hover */
-  /* the native tick, at the chip's type size; ink so it belongs to the page */
+  /* checked = the blobs are on stage, so the chip fills, like the rail's run
+     numbers: a state, not a hover. The native tick, at the chip's type size;
+     ink so it belongs to the page. */
   .chk input{margin:0;width:15px;height:15px;accent-color:var(--ink);cursor:pointer}
   .chk:has(input:checked){color:var(--ink);border-color:var(--ink)}
   #restart,#savepng,#allsteps,#showenz,#showledger{z-index:20;
@@ -707,7 +691,7 @@ font-size: 20px;
   #showenz:hover,#showledger:hover{border-color:var(--ink);color:var(--ink)}
 
   /* ---------- all ten steps, in one column ----------
-     THE DETAIL LIVES HERE now the rail is ten numbers: each step's product,
+     THE DETAIL LIVES HERE, since the rail is ten numbers: each step's product,
      the carrier it moved, the one-way marker, the star into PFK-1's regulation,
      under the four stage headings. Owns these styles outright. */
   #stepsbody .sgroup{margin-top:14px}
@@ -758,9 +742,8 @@ font-size: 20px;
 
   /* ---------- the ending fork ----------
      THE THREE FATES ARE A MODAL, behind the last button.
-     A SHEET OF PAPER, not a boxed card: the inked border the other modals wear
-     framed this one as another readout, when it is the last thing the lesson
-     says. One centred title, three doors, nothing else. */
+     A SHEET OF PAPER, not a boxed card: this is the last thing the lesson
+     says, not another readout. One centred title, three doors, nothing else. */
   #forkmodal .mcard{width:min(880px,100%);padding:30px 34px 32px}
   #forkmodal h2{font-size:34px;text-align:center;margin:0 0 8px;letter-spacing:.2px}
   #forkmodal .msub{text-align:center;font-size:13.5px;max-width:56ch;
@@ -818,15 +801,14 @@ font-size: 20px;
          the WebGL alpha lets it through and the sugar sits IN it rather than
          under a wash. One blob per lane; the name is #enzname, on the right. -->
     <div id="enzymes" hidden></div>
-    <!-- the same disc on the carrier's own bond — see #cglow -->
-    <!-- the words moved to the callout (see drawHint); this is the disc only -->
+    <!-- the same disc on the carrier's own bond — see #cglow. Disc only; the
+         words live in the callout (see drawHint). -->
     <div id="cglow"><div class="sglow"></div></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
-    <!-- ABSOLUTELY POSITIONED FOR NOW: the name of the enzyme running this step,
-         parked on the right of the stage until the readout column is re-laid. -->
-    <!-- WHAT KIND OF STEP THIS IS, above the enzyme: coupled or not, one-way or
-         not. Both are doors into the energy card (#couplebox). -->
+    <!-- WHAT KIND OF STEP THIS IS, above the enzyme's name: coupled or not,
+         one-way or not. Both are doors into the energy card (#couplebox).
+         Absolutely positioned on the right of the stage. -->
     <div id="enzmeta" hidden></div>
     <!-- THE ONE THING TO CARRY AWAY from this step, between the verdicts and
          the enzyme. Read off the step's `takeaway`, never typed here. -->
@@ -872,11 +854,9 @@ font-size: 20px;
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
   </div>
-  <!-- ONE COLUMN, bottom-right: the two toggles and the pathway map. Each used
-       to carry its own `bottom`, so adding one meant re-typing the others'
-       offsets and any change of type size broke the spacing. The column is
-       anchored to the BOTTOM edge and grows upward, so a new control is one
-       more child and nothing else moves. -->
+  <!-- ONE COLUMN, bottom-right: the two toggles and the pathway map. Anchored
+       to the BOTTOM edge and grows upward, so a new control is one more child
+       and nothing else moves — never give these their own `bottom`. -->
   <div id="tools">
     <!-- REAL CHECKBOXES, not buttons: these two turn a layer on and leave it
          on, unlike the map below them, which opens something. The native
@@ -887,9 +867,8 @@ font-size: 20px;
     <label id="showenz" class="chk"><input type="checkbox"> Show enzymes</label>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   </div>
-  <!-- ONE ROW, bottom-left: Restart then PNG. They were in opposite corners,
-       which made Restart the mirror of the lesson's own button; side by side
-       they read as what they are, two utilities. -->
+  <!-- ONE ROW, bottom-left: Restart then PNG — side by side so they read as
+       two utilities, not as a mirror of the lesson's own button. -->
   <div id="utils">
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
@@ -910,8 +889,8 @@ font-size: 20px;
   <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="forktitle">
     <button class="mclose" aria-label="Close">&times;</button>
     <h2 id="forktitle">What's next?</h2>
-    <!-- ONE TITLE. The standfirst stays because it is the question all three
-         doors answer, not a second heading. -->
+    <!-- ONE TITLE. The standfirst is the question all three doors answer, not
+         a second heading. -->
     <p class="msub">Where the two pyruvate go — and all three answers are the
       same question, <b>where does NAD⁺ come from?</b></p>
     <div id="forkbody"></div>
@@ -932,7 +911,7 @@ font-size: 20px;
 
 <!-- PFK-1's regulation, behind the star on step 3's row in the ten-steps list.
      A MODAL for the mass-action demo's reason: a side road off the pathway,
-     which read inline competed with the step the student is running. -->
+     which inline would compete with the step the student is running. -->
 <div id="pfkmodal" class="modal" hidden>
   <div class="mback"></div>
   <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="pfktitle">
@@ -967,8 +946,8 @@ font-size: 20px;
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
 <script src="massaction/massaction.js"></script>
 <!-- WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page says it
-     twice in sentences about "concentration" that land only if you already know
-     what concentration DOES. A MODAL, not a panel — a general fact about
+     in sentences about "concentration" that land only if you already know what
+     concentration DOES. A MODAL, not a panel — a general fact about
      enzymes, not about glycolysis, and this page is already the densest in the
      sandbox. Everything inside #massbox is built by massaction.js. -->
 <div id="massmodal" class="modal" hidden>
@@ -992,7 +971,7 @@ font-size: 20px;
  *  PFK-1 as regulated committed step, and why a phosphate charges ADP at 7 and
  *  10 but not 8.
  *
- *  THE FIVE STAGES SURVIVE AS GROUPING, NOT CONTENT. Ten unstructured clicks is
+ *  THE FIVE STAGES ARE GROUPING, NOT CONTENT. Ten unstructured clicks is
  *  a list; the stages make the ARC legible — spend 2, halve, oxidise once,
  *  collect 4. The ten-steps list groups by stage and hangs each stage's
  *  bookkeeping delta off its heading, the level at which a delta means anything.
@@ -1032,7 +1011,7 @@ const L=Lesson.create(canvas,{
   cam:{theta:OPEN_THETA,phi:1.30,r:26}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:80,
   // NO WHEEL ZOOM. One scale for the whole pathway is the lesson's own claim —
   // pyruvate looks small because it IS — and the loop eases back to the solved
-  // distance every frame, so a scroll only fought the camera.
+  // distance every frame, so a scroll would only fight the camera.
   zoom:false,
   focus:false,                       // nothing on this page ghosts a molecule
   // …and the blobs are pinned in PIXELS, frozen for the step, so a resize is
@@ -1048,8 +1027,8 @@ const KIT=AtomKit.create(THREE);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
 
 /* THE CARRIER IS THE IDEALIZED ATP (`atpSkel`, mol-compare.js), not the PubChem
- * conformer (`atp`) — same molecule, same scale family, same `gly` block, so a
- * one-name switch. A conformer folds its phosphate tail over the ribose: true
+ * conformer (`atp`) — same molecule, same scale family, same `gly` block, so
+ * switching is one name. A conformer folds its phosphate tail over the ribose: true
  * in solution, unreadable here, where the lesson is a straight chain of three
  * phosphates losing the end one. Declared schematic (MolecularGeometry.md
  * §1.6); both derivations canonicalise to the same PubChem record under
@@ -1073,11 +1052,11 @@ const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const POOL0={ATP:4, ADP:4, NAD:2, NADH:0, Pi:2};
 
 // `sub` says what the MOLECULE is, never what the pathway has done — the number
-// above it is a pool, not a running total; "energy spent/made" would duplicate
-// and could contradict the ledger's rows. Charged/discharged also puts ATP:ADP
-// in the same shape as NAD⁺:NADH — both carriers that cycle, not fuels.
-// Couple table names carriers as printed ("NAD+"), the tray as the pools are
-// keyed ("NAD"). One place converts.
+// above it is a pool, not a running total, and "energy spent/made" would
+// duplicate and could contradict the ledger's rows. Charged/discharged puts
+// ATP:ADP in the same shape as NAD⁺:NADH — both carriers that cycle, not fuels.
+// The couple table names carriers as printed ("NAD+"), the tray as the pools
+// are keyed ("NAD"). One place converts.
 const carrierKey=n=>n==='NAD+'?'NAD':n;
 
 // One entry per user action — the ten canonical steps. `species` is the lanes'
@@ -1126,14 +1105,12 @@ const STEPS=[
     act:'Convert DHAP to G3P',
     species:['g3p','g3p'], enz:'Triose-phosphate isomerase', hook:'Streamlining', rev:true,
     fx:'iso',
-    // ONE TARGET, ON ONE LANE. `movingH` is named on DHAP and on nothing else,
-    // so spotPair returns null for the G3P lane and kit/hotspot.js places
-    // nothing there — no per-lane machinery, just a spec that has the atom or
-    // doesn't.
+    // ONE TARGET, ON ONE LANE. `movingH` is named on DHAP and nothing else, so
+    // spotPair returns null for the G3P lane and kit/hotspot.js places nothing
+    // there — no per-lane machinery, just a spec that has the atom or doesn't.
     // The asymmetry IS the step: one half needs fixing, the other is already
-    // the product, and the student's single click is what makes the two lanes
-    // the same molecule. Everything after here happening twice is then
-    // something they did, not something the caption told them.
+    // the product, so the student's single click is what makes the two lanes
+    // the same molecule.
     spot:{ at:'movingH', say:'Move the H' },
     takeaway:`Both halves are now the same molecule`,
     msg:`<b>Triose phosphate isomerase</b> converts DHAP → G3P, so both molecules continue as G3P (×2 from here on).` },
@@ -1159,8 +1136,7 @@ const STEPS=[
     // same bond step 1 breaks on ATP, only here the phosphate leaves the sugar
     // and makes ATP.
     // ONE CLICK PER LANE — see PER-LANE STEPS. Each lane hands off a phosphate
-    // and charges an ADP: 2 ATP, exactly what phase 1 cost. One click plus
-    // "counted twice" is the version a student misses.
+    // and charges an ADP: 2 ATP, exactly what phase 1 cost.
     perLane:true,
     spot:{ at:'hot', say:'Break off a phosphate' },
     takeaway:`Break-even: the 2 ATP come back`,
@@ -1175,13 +1151,12 @@ const STEPS=[
     // on. `p3` is the spec's own C3 phosphorus, and spotPair makes it the P–O
     // bond that breaks, so the target sits where the transfer starts.
     //
-    // TEXTBOOK MECHANISM, and worth knowing it is a simplification: drawn as
-    // one phosphoryl group sliding C3→C2, which is how every Bio 101 text puts
-    // it. The enzyme most animals use (dPGM) actually hands C2 a phosphate off
-    // its own phospho-histidine and then takes the C3 one away, so the atoms
-    // swap rather than travel. The molecule's before and after are identical
-    // either way, and "the phosphate moved" is the fact the next two steps
-    // need; the atom-level accounting is not.
+    // TEXTBOOK MECHANISM, deliberately simplified: drawn as one phosphoryl
+    // group sliding C3→C2, as every Bio 101 text puts it. The enzyme most
+    // animals use (dPGM) hands C2 a phosphate off its own phospho-histidine
+    // and then takes the C3 one away, so the atoms swap rather than travel.
+    // Before and after are identical either way, and "the phosphate moved" is
+    // the fact the next two steps need.
     perLane:true,
     spot:{ at:'p3', say:'Move the phosphate' },
     takeaway:``,
@@ -1215,7 +1190,6 @@ const STEPS=[
 
 // The five stages as GROUPING over the ten steps. `delta` is the bookkeeping
 // change students should recite; printed on the rail.
-//
 const STAGES=[
   // Stage 0 is a STATE, not a group of steps: where the page opens and Restart
   // returns to. No step to list.
@@ -1272,9 +1246,9 @@ const stepAt=i=>STEPS[i];                     // the step that runs NEXT at done
 const speciesAt=i=>i===0?['glucose']:STEPS[i-1].species;
 /* ---------- PER-LANE STEPS ----------
  * After the split everything happens TWICE; steps 7 and 10 are where that costs
- * the student something. One click reporting "+2" is the version where a student
- * reads the two and never counts them. So a `perLane` step is two half-steps:
- * click a lane, its phosphate leaves and one ADP charges; it lands when both do.
+ * the student something, so a `perLane` step is two half-steps: click a lane,
+ * its phosphate leaves and one ADP charges; the step lands when both do. One
+ * click reporting "+2" is the version a student reads and never counts.
  *
  * `laneDone` holds the lane indices converted IN THE CURRENT STEP — the single
  * source for the ledger's partial, which ADP is now ATP, which lanes still have
@@ -1331,7 +1305,7 @@ function chipOf(st){
 // HALF-SEPARATION OF THE TWO LANES. The camera is sized by the VERTICAL need
 // (tallest state ~2× as demanding as widest), so this spread costs nothing —
 // the frame doesn't grow until `wide` roughly doubles (fitFor's two terms). It
-// buys each name plate its own space, which at 5 they shared.
+// buys each name plate its own space; anything near 5 makes them share.
 const LANE=8.0;
 let lanes=[];                                 // [{g, key, label}] left→right
 let busy=false;                               // a transition is animating
@@ -1358,10 +1332,10 @@ const platesEl=document.getElementById('plates');
 // so they can't disagree. Plate falls back to the abbreviation when the
 // systematic name won't fit between the lanes; see drawPlates.
 /* THE LANE SYSTEM IS kit/lanes.js — molecules side by side, named, that split
- * and swap. Every rule it enforces (a lane centred on the MOLECULE not its
+ * and swap. It enforces the rules (a lane centred on the MOLECULE not its
  * origin, the vertical twin, one shared label baseline, abbreviate-then-shrink
  * decided for all lanes at once, positions as targets so the swap frame moves
- * nothing) was learned on this page and is written up in that file.
+ * nothing); they are written up in that file.
  *
  * What stays here is what only this lesson knows: NO C–H ANYWHERE, because the
  * lesson is carbon and phosphate bookkeeping. Glucose alone carries C–H, hidden
@@ -1433,12 +1407,10 @@ const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
   onPick:it=>press(()=>isPerLane(stepAt(done)) ? runLane(it.lane) : runStep()),
 });
 /* ---------- THE PROMPT AS A CALLOUT (annotate.js) ----------
- * "Break off a phosphate group" used to be a span parked beside the disc, in
- * screen space: it sat wherever the target happened to be, and on a molecule
- * that is mostly empty it read as a caption floating in the frame. A callout
- * is the textbook's own answer — a dot ON the bond and the words thrown clear
- * of it, joined by a leader — and it is already the page's vocabulary, so a
- * student meets one annotation style across the site, not two.
+ * A dot ON the bond and the words thrown clear of it, joined by a leader — the
+ * textbook's own device, and already the site's annotation vocabulary. A span
+ * parked beside the disc in screen space reads as a caption floating in the
+ * frame instead.
  *
  * ONE NOTE, NOT ONE PER TARGET. kit/hotspot.js's rule is one hint at a time
  * (two shout), so there is exactly one here and its ANCHOR moves: `at` is a
@@ -1462,8 +1434,8 @@ function drawHint(){
     text='Break off a phosphate group';
     hintAt=()=>CAR.bondMid(0, ...gammaBreak(), _hintV);
   }else if(st && st.spot && st.spot.say && !busy && !reviewing){
-    // the FIRST target still standing carries it — kit/hotspot.js's own
-    // one-hint rule (two shout), applied to the callout instead of its span
+    // the FIRST target still standing carries it — kit/hotspot.js's one-hint
+    // rule (two shout), applied to the callout
     const j=lanes.findIndex((l,i)=>!laneDone.has(i) && spotPair(M[l.key], st.spot.at));
     if(j>=0){ const pair=spotPair(M[lanes[j].key], st.spot.at);
       text=st.spot.say; hintAt=()=>laneBondMid(lanes[j], pair); }
@@ -1490,7 +1462,7 @@ function drawSpots(){
     // could not derive.
     laneDone.has(i) ? null : {
       group:l.g, pair:spotPair(M[l.key], st.spot.at), lane:i,
-      // the words are the callout's now (see drawHint); the span stays empty
+      // the callout carries the words (see drawHint); the span stays empty
       hint:'', label:st.act||'run this step',
     }));
 }
@@ -1537,14 +1509,12 @@ function fitFor(states){
         wide=Math.max(wide, x+Math.abs(a.pos[0]-xc)+r); }); });
     wide=Math.max(wide, (n>1?LANE:0)+2.0);
   });
-  // Centre on the MOLECULES, not molecules-plus-label: letting the plate pull
-  // the centre up shoved the molecule into the reagent tray.
+  // Centre on the MOLECULES, not molecules-plus-label: a plate pulling the
+  // centre up shoves the molecule into the reagent tray.
   const Y=(lo+hi)/2;
-  // THE LABEL IS NOT IN THE FIT. `halfNeeded` used to reach the plate's world
-  // Y, pulling the camera back to contain a piece of HTML — double charging,
-  // since the plate is a fixed PIXEL band already reserved off the top by
-  // usable() (u.tf). It cost 10% of the opening molecule, 6% of every state
-  // after. The plate now says where the scene sits, not how far back we are.
+  // THE LABEL IS NOT IN THE FIT. It is a fixed PIXEL band already reserved off
+  // the top by usable() (u.tf), so reaching for the plate's world Y here would
+  // charge for it twice and pull the camera back to contain a piece of HTML.
   const halfNeeded=Math.max(hi-Y, Y-lo);
   // The distance and the target come from kit/fit.js: solved per axis against
   // what the chrome leaves, and centred in the leftover band by DROPPING THE
@@ -1621,8 +1591,9 @@ function computeFit(){
   const close = done===0 && !busy;
   const f = close ? fitFor([['glucose']])
                   : fitFor(STEPS.map(s=>s.species));
-  // The PATHWAY'S tallest label line, not this state's: a per-state anchor slid
-  // the scene up and down between steps and rode the unfurl frame by frame.
+  // The PATHWAY'S tallest label line, not this state's: a per-state anchor
+  // slides the scene up and down between steps and rides the unfurl frame by
+  // frame.
   const top = close ? plateY(['glucose']) : pathwayTopY();
   fitR=f.R; fitY=topAnchoredY(f.R, f.Y, top);
 }
@@ -1632,9 +1603,9 @@ function computeFit(){
 // this pulls the state UP, most of the way toward hanging its plate off the top
 // of the usable band.
 // TOP_PULL is damped, not 1: the camera orbits at an elevation, so a world-Y
-// shift doesn't travel a matching number of pixels — solving the anchor exactly
-// walked the label off the top edge. Damping keeps the solved offset (restyle
-// the plate and it follows) without trusting that conversion.
+// shift doesn't travel a matching number of pixels, and solving the anchor
+// exactly walks the label off the top edge. Damping keeps the solved offset
+// (restyle the plate and it follows) without trusting that conversion.
 const TOP_PULL=0.5;
 // Highest label line in the pathway. Solved once from the specs: a property of
 // the pathway, not of the step you are on.
@@ -1673,8 +1644,8 @@ function swapLane(j,key){
 // and the lesson unrecoverable without a reload. Worst case: a hidden tab skips
 // the animation and you return to the finished step.
 //
-// That rule is now kit/motion.js's, and this is the one line over it: a `call`
-// beat is a COMMIT — scheduled on both clocks, fired once by whichever wins.
+// kit/motion.js owns that rule; the one line over it here is that a `call` beat
+// is a COMMIT — scheduled on both clocks, fired once by whichever wins.
 // Milliseconds in, because every beat constant on this page is in ms.
 const RUN='run';                                  // the tag a whole step rides
 /* WHAT LEAVES A MOLECULE is kit/leaving.js's — the meshes, the flight, the
@@ -1690,9 +1661,9 @@ const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
 // cancelled beat, so nothing would ever take it off the screen.
 const cancelTimers=()=>{ MO.cancel(RUN); GO.clear(); clearFlyers(); };
 function hideAtom(g,i){ if(i!=null) GO.shed(g,[i]); }
-// THE PHOSPHATE COMES OFF ATP, and you should see that it does. It used to drop
-// from the top of the frame — true of free Pi, not of a kinase step. So the
-// flight starts (or, at steps 7 and 10, ends) on that tile.
+// THE PHOSPHATE COMES OFF ATP, and you should see that it does: the flight
+// starts (or, at steps 7 and 10, ends) on that tile. Dropping it in from the
+// top of the frame would be true of free Pi, not of a kinase step.
 // The tile is DOM and the flight is in the scene, so its screen position is
 // unprojected AT THE DEPTH OF THE OTHER END: the camera orbits, so there is no
 // fixed plane, and matching depth keeps the phosphate one size at both ends.
@@ -1714,12 +1685,9 @@ function carrierPoint(key,j){
 /* =============================================================
  *  THE VERBS — reaction/reaction.js
  * =============================================================
- * A step's `fx` names a verb, and a verb is what happens to ONE MOLECULE. The
- * page had eight of them as an if/else chain, written twice — once for the
- * whole-step route and once for the per-lane one — and the two had drifted:
- * step 6's hydride was shed on one and not the other. The module's claim is
- * that every verb except `split` is a per-lane body, so `runStep` is "run it
- * on each lane" and the duplication has nowhere to live.
+ * A step's `fx` names a verb, and a verb is what happens to ONE MOLECULE. Every
+ * verb except `split` is a per-lane body, so `runStep` is "run it on each lane"
+ * and the whole-step and per-lane routes cannot drift apart.
  *
  * WHAT THE PAGE STILL OWNS is everything below the chemistry: the lanes, the
  * carriers and their tiles, the ledger, `done`/`busy`, and which carrier a
@@ -1778,7 +1746,7 @@ function runLane(j){
   platesOff=true; platesEl.classList.add('mute');
   // Instance j belongs to lane j throughout: what leaves this molecule arrives
   // at the carrier standing opposite it. THE SAME BODY the whole-step route
-  // runs — that is the extraction's whole point.
+  // runs.
   RX.lane(st, j, keys);
   later(()=>{
     laneDone.add(j);
@@ -1787,14 +1755,12 @@ function runLane(j){
     // THE LAST LANE LANDS THE STEP. `laneDone` is cleared here and nowhere in
     // between, so a step that is half run stays half run across a redraw.
     //
-    // BOTH SETS, because both answer `carrierRan` and both are per-STEP. This
-    // route used to clear only `laneDone`, which was safe for exactly as long
-    // as `runStep` was the only thing adding to `carrierGone`. The `ox` verb
-    // now sets it from the hydride's arrival, and a leftover entry is read by
-    // the NEXT step: 7 and 10 charge the carrier (`up:false`), so `carrierRan`
-    // true means "already run" and the tray opened on ATP instead of ADP. Only
-    // in the linear flow — jumping to a step clears both on the way in, which
-    // is why the step numbers looked fine and the arrows did not.
+    // BOTH SETS, because both answer `carrierRan` and both are per-STEP. The
+    // `ox` verb sets `carrierGone` from the hydride's arrival, so a leftover
+    // entry is read by the NEXT step: 7 and 10 charge the carrier (`up:false`),
+    // so `carrierRan` true means "already run" and the tray opens on ATP
+    // instead of ADP. Only in the linear flow — jumping to a step clears both
+    // on the way in, so the step numbers look fine and the arrows do not.
     if(laneDone.size>=n){ done=to; reviewing=true; laneDone.clear(); carrierGone.clear(); }
     busy=false; refresh();
     // only THIS carrier turned over, so only it pops — except on an oxidation,
@@ -1875,11 +1841,10 @@ let shownCaption=null;
 function drawCaption(){
   // NO CAPTION ON THE REVIEW SCREEN — that beat is for looking at what you
   // made; the words were read before it ran.
-  // THE BAND IS THE INTRO, and nothing else. Each step's caption moved to the ⓘ
-  // on its heading — printed permanently it cost four lines of stage height for
-  // a paragraph read once — and the end screen's went with the closing tally,
-  // which says the same thing in molecules. So the band holds ONE height (zero)
-  // from step 1 on, which is what usable() wants: no re-frame mid-step.
+  // THE BAND IS THE INTRO, and nothing else. Each step's caption lives on the ⓘ
+  // on its heading, and the end screen's is the closing tally, which says the
+  // same thing in molecules. So the band holds ONE height (zero) from step 1
+  // on, which is what usable() wants: no re-frame mid-step.
   const bare = intro;
   const html = bare ? captionAt(focusStep()) : '';
   const show = bare && !reviewing;
@@ -1899,9 +1864,8 @@ let prevLedger=null;
 // restart sends it back to the intro so it goes up again next time; every
 // other redraw leaves it alone.
 /* THE LEDGER IS BEHIND A TOGGLE, default OFF. The arithmetic is the lesson's
- * punchline, not its running commentary: standing open from step 1 it spent the
- * whole pathway saying 0, and a student reading it was reading a spreadsheet
- * while a molecule reacted. Off by default, on when asked —
+ * punchline, not its running commentary — open from step 1 it reads as a
+ * spreadsheet beside a reacting molecule, saying 0 most of the way.
  * EXCEPT ON THE END SCREEN, where the sticker is one of the four cells of the
  * closing tally and the toggle has nothing to say about it. */
 let showLedger=false;
@@ -1929,11 +1893,10 @@ function productsAt(i){
 function drawLedger(){
   placeLedger();
   const L=productsAt(done), net=L.net, c=speciesAt(done).map(k=>M[k].gly.carbons);
-  // A NUMBER THAT CHANGED FLASHES WHERE IT STANDS. The count used to fly across
-  // the page as a chip; it read as decoration, and the flight was the one thing
-  // on screen not made of molecules. The cause is already legible — the tray
-  // tile discharges, the phosphate crosses — so the ledger's job is to be
-  // correct when you look at it, not to compete for the look.
+  // A NUMBER THAT CHANGED FLASHES WHERE IT STANDS. The cause is already legible
+  // on the stage — the tray tile discharges, the phosphate crosses — so the
+  // ledger's job is to be correct when you look at it, not to compete for the
+  // look.
   const prev=prevLedger;
   const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
   const netStr=v=>`${v>0?'+':v<0?'−':''}${Math.abs(v)}`;
@@ -1959,10 +1922,9 @@ const trayEl=document.getElementById('tray');
 /* =============================================================
  *  THE ATP/ADP CARRIER — one object that changes, not two cards
  * =============================================================
- *  ATP and ADP were two tiles, and the one phosphate distinguishing them was
- *  never drawn. Here they are the same object: three phosphates on the chain
- *  or two, spent at steps 1 and 3, recharged at 7 and 10. Which is showing is
- *  read off the step's `couple` (cin before it runs, cout after).
+ *  ATP and ADP are the same object: three phosphates on the chain or two, spent
+ *  at steps 1 and 3, recharged at 7 and 10. Which is showing is read off the
+ *  step's `couple` (cin before it runs, cout after).
  *
  *  ONE DRAWING: `atpSkel`, the tetraanion built from ideal geometry (see ATP
  *  at the top of this script for why the built one, not the conformer), in the
@@ -1971,10 +1933,9 @@ const trayEl=document.getElementById('tray');
  *  PO₃⁻ a kinase moves. The bridging oxygen stays behind on ADP, because that
  *  is where it actually stays.
  *
- *  A SCHEMATIC BEHIND A TOGGLE was removed: it read well, was never used, and
- *  quietly claimed what the real molecule refutes — that ATP is mostly
- *  phosphate. It is mostly adenosine; three atoms in thirty-one are what the
- *  cell spends. The toggle went with it.
+ *  NO SCHEMATIC VIEW. Adenosine plus three circles quietly claims what the real
+ *  molecule refutes — that ATP is mostly phosphate. It is mostly adenosine;
+ *  three atoms in thirty-one are what the cell spends.
  */
 /* ---------- THE CARRIER PAIRS ----------
  * A carrier is ONE object with two states differing by exactly one group:
@@ -2036,10 +1997,10 @@ carrierEl.innerHTML=
  * slots, fitted, arriving, with one group shown or hidden. This page keeps the
  * chemistry — which molecule, which atoms are the group, when a step has run. */
 const CAR=Carriers.create({ root, camera, canvas, host:carrierEl,
-  // LEFT, NOT CENTRED. The column is tall and narrow, so every carrier here is
-  // fitted on its HEIGHT and none of them fills the width — centred, that left
-  // a gutter down both sides, and the one on the right sat between the tray and
-  // the sugars, which is where the stage wants its room.
+  // LEFT, NOT CENTRED. The column is tall and narrow, so every carrier is
+  // fitted on its HEIGHT and none fills the width — centred leaves a gutter
+  // down both sides, and the right one eats the room the stage wants between
+  // the tray and the sugars.
   align:'left',
   build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
                 Stage.setOptionalH(g,false);   // same convention as the pathway lanes
@@ -2056,8 +2017,8 @@ const setCarrierGroup=(g,pair,spec,charged)=>
  * the whole reason there are two. Elsewhere the step is all-or-nothing and
  * `reviewing` answers for every instance at once.
  * `carrierGone` is the same answer for the beat in between: for the FLY ms a
- * phosphate is crossing, the step has not landed, so `reviewing` is false and
- * the ATP went on showing three phosphates while a fourth sailed away. The bond
+ * phosphate is crossing, the step has not landed and `reviewing` is false, so
+ * without it the ATP shows three phosphates while a fourth sails away. The bond
  * was clicked; it broke then. Cleared when the step lands and by every jump out
  * of a step.
  * SET AT WHICHEVER END THE TRANSFER IS VISIBLE FROM — it means "this instance
@@ -2072,13 +2033,11 @@ const carrierCharged=(st,j)=>
   (st&&st.couple&&st.couple.up) ? !carrierRan(j) : carrierRan(j);
 
 /* ---------- CLICKING THE BOND THAT BREAKS ----------
- * The disc is the affordance, so the disc is the hit area. It used to be a
- * raycast against the four γ meshes with the whole #carrier box as fallback —
- * the name, the sub-line and 400×470px of empty column, so a student could run
- * a kinase step by clicking nothing in particular.
- * Now exactly what step 2 uses on the sugar: a transparent circular button in
- * #spots, pinned to the disc's projected point (placeCarrierGlow places both)
- * and the same size, so what is clickable is what is lit.
+ * The disc is the affordance, so the disc is the hit area — exactly what step 2
+ * uses on the sugar: a transparent circular button in #spots, pinned to the
+ * disc's projected point (placeCarrierGlow places both) and the same size, so
+ * what is clickable is what is lit. Never the whole #carrier box: 400×470px of
+ * mostly empty column runs the step from nothing in particular.
  * Steps 7 and 10 have no disc HERE — their bond is on the sugar, each lane
  * carrying its own (`spot:{at:'hot'}`). `carrierLive`, set by drawCarrier,
  * separates the two cases.
@@ -2090,11 +2049,11 @@ let carrierLive=false;              // a spend step, ATP showing: the disc is up
 // keeps the left column where the layout says. Position only — it still turns
 // with the scene, because it is in it.
 const cAnchor=new THREE.Vector3();
-/* ARRIVING, NOT ALREADY THERE. The carrier used to appear with the tray at full
- * size — a 43-atom molecule simply existing beside the sugar, which reads as
- * page furniture, not as the other reactant turning up. So it grows the last of
- * the way over ARRIVE_MS, once, on the frame it first becomes visible. Slight
- * on purpose: a molecule entering the scene, not a card animating.
+/* ARRIVING, NOT ALREADY THERE. A 43-atom molecule simply existing beside the
+ * sugar reads as page furniture, not as the other reactant turning up, so it
+ * grows the last of the way over ARRIVE_MS, once, on the frame it first
+ * becomes visible. Slight on purpose: a molecule entering the scene, not a
+ * card animating.
  * A MULTIPLIER on the fitted scale, never a scale of its own — placeCarrierMol
  * solves the real one from the column every frame, and an entrance setting
  * `scale` directly would fight it and win for as long as it ran.
@@ -2136,19 +2095,15 @@ function setCarrierScaleNote(k, m){
  * departure breaks is P to its BRIDGING oxygen, so the mark and the four atoms
  * that fly cannot disagree about which bond this step is.
  *
- * IT IS Pγ–O, NOT Pβ–O, and this got it backwards for a long time. A kinase
- * moves PO₃⁻: Pγ and its three terminal oxygens leave — `gly.gamma`, four atoms
- * — and the β–γ BRIDGING oxygen stays behind as a terminal oxygen of ADP. That
- * is the whole reason `gamma` is four atoms and not five, and it is what the
- * carrier draws: `setGroup` hides exactly those four to make ADP. So the bond
- * that comes apart is the one between the bridging O and Pγ. Marking Pβ–O
- * instead pointed at a bond that survives the step and implied ADP loses the
- * oxygen it keeps — one bond off, on the two beats the ATP ledger rests on.
- *
- * Provable rather than argued, which is why it is derived now: cutting Pγ–O
- * detaches exactly `gamma`; cutting Pβ–O detaches five atoms, and `gamma` says
- * four. kit/check-kit.js already asserts that a phosphoryl group leaves its
- * bridging oxygen behind — the page just wasn't asking it.
+ * IT IS Pγ–O, NOT Pβ–O — an easy bond to get wrong. A kinase moves PO₃⁻: Pγ and
+ * its three terminal oxygens leave (`gly.gamma`, four atoms) and the β–γ
+ * BRIDGING oxygen stays behind as a terminal oxygen of ADP, which is why
+ * `gamma` is four atoms and not five and what `setGroup` hides to draw ADP.
+ * Marking Pβ–O points at a bond that survives the step and implies ADP loses
+ * the oxygen it keeps — one bond off, on the two beats the ATP ledger rests on.
+ * Derived, so it is provable: cutting Pγ–O detaches exactly `gamma`; cutting
+ * Pβ–O detaches five atoms. kit/check-kit.js asserts that a phosphoryl group
+ * leaves its bridging oxygen behind.
  *
  * (Pβ–O cleavage is a real reaction, just not this one: it is adenylyl
  * transfer, which releases pyrophosphate and leaves AMP.)
@@ -2198,7 +2153,7 @@ function drawCarrier(st, live, showKey){
   const boxLive = live && !(st && (st.spot || (st.couple && st.couple.up)));
   carrierEl.className = (boxLive?'live':'') + (count>1?' multi':'');
   // THE PROMPT SITS WHEREVER THE TARGET IS: on a spend that's the bond on the
-  // stage (#cglow .chint), so this stays empty rather than repeat it.
+  // stage (#cglow), so this stays empty rather than repeat it.
   carrierEl.querySelector('.need').textContent = boxLive ? `← ${st.need}` : '';
   carrierEl.onclick = boxLive ? ()=>press(runStep) : null;
   // disc and button go up together; placeCarrierGlow reads this. Only the ATP
@@ -2225,14 +2180,14 @@ function drawCarrier(st, live, showKey){
 function drawTray(){
   // Invisible until Begin, but NOT absent: inert pools beside Begin invite the
   // wrong click. Keeps its SPACE — usable() measures it to place the lesson,
-  // and a zero-size tray jumped the opening screen sideways on the first click.
+  // and a zero-size tray jumps the opening screen sideways on the first click.
   trayEl.style.display='flex';
   trayEl.style.visibility = intro ? 'hidden' : 'visible';
   trayEl.style.pointerEvents = intro ? 'none' : '';
-  // ONLY THE CARRIERS THIS STEP TOUCHES: the ledger carries the arithmetic, so
-  // a standing five was four inert tiles competing with the one that mattered.
-  // Cost: NAD⁺ and Pi walking down to 0 are no longer visible. Read off the
-  // step, never typed.
+  // ONLY THE CARRIERS THIS STEP TOUCHES, read off the step, never typed: the
+  // ledger carries the arithmetic, so a standing five is four inert tiles
+  // competing with the one that matters. Cost: NAD⁺ and Pi walking down to 0
+  // are not visible.
   const i=focusStep();
   const st=(!intro&&i<nSteps)?stepAt(i):null;
   const pool=poolAt(done);
@@ -2242,9 +2197,8 @@ function drawTray(){
   if(c){ want.add(carrierKey(c.cin)); want.add(carrierKey(c.cout)); if(c.plus) want.add(c.plus); }
   // A rearrangement touches no carrier: keep the space, show nothing.
   if(!want.size){ trayEl.style.visibility='hidden'; }
-  // NO HEADING. "Carriers" named a column whose one occupant already carries
-  // its own name (ATP, NADH) two lines below it, and the tray's height is
-  // measured live by usable(), so nothing was holding it up but the word.
+  // NO HEADING. "Carriers" would name a column whose one occupant already
+  // carries its own name (ATP, NADH) two lines below it.
   trayEl.innerHTML='<div class="tstrip"></div>';
   const strip=trayEl.children[0];
   // ATP AND ADP ARE ONE ROW, NOT TWO. Which of the pair shows comes off the
@@ -2253,9 +2207,9 @@ function drawTray(){
   const pair = c && CARRIER.has(carrierKey(c.cin)) && CARRIER.has(carrierKey(c.cout));
   if(pair){
     const showKey = carrierKey(reviewing ? c.cout : c.cin);
-    // BACK IN THE TRAY FIRST: `trayEl.innerHTML` detached it, and drawCarrier
-    // places molecules by `isConnected` — placing while detached replayed the
-    // entrance animation on every refresh (see popCarrier).
+    // BACK IN THE TRAY FIRST: `trayEl.innerHTML` above detached it, and
+    // drawCarrier places molecules by `isConnected` — placing while detached
+    // replays the entrance animation on every refresh (see popCarrier).
     strip.appendChild(carrierEl);      // moved, never rebuilt — see drawCarrier
     drawCarrier(st, !!st && CARRIER.has(st.reagent) && !busy && !reviewing, showKey);
   }
@@ -2266,10 +2220,8 @@ function drawTray(){
 /* =============================================================
  *  THE CLOSING TALLY — everything glycolysis made, in one 2x2
  * =============================================================
- *  The end screen used to be two pyruvate and a paragraph; the other two
- *  products were a pair of rows in the sidebar. So the sentence the student is
- *  meant to leave with — 2 ATP, 2 NADH, 2 pyruvate — was the one thing on the
- *  page not made of molecules. Here each product is its own molecule with its
+ *  The sentence the student leaves with — 2 ATP, 2 NADH, 2 pyruvate — is made
+ *  of molecules like everything else: each product is its own molecule with its
  *  count under it, and the ledger sticker comes out of the sidebar to sit among
  *  the things it counts.
  *
@@ -2334,11 +2286,10 @@ function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on))
 /* =============================================================
  *  THE ENZYME — a blob behind the sugar, and its name
  * =============================================================
- *  Every step of this pathway is an enzyme's doing, and until now none of them
- *  was on screen: the molecules changed by themselves. This is the smallest
- *  honest fix — a translucent shape the substrate sits inside, plus the
- *  enzyme's name — behind a toggle, default OFF, because the pathway is the
- *  lesson and the catalysts are the second reading.
+ *  Every step of this pathway is an enzyme's doing, so one is on screen: a
+ *  translucent shape the substrate sits inside, plus the enzyme's name. Behind
+ *  a toggle, default OFF — the pathway is the lesson and the catalysts are the
+ *  second reading.
  *
  *  DELIBERATELY NOT A PROTEIN. No structure is drawn: the shape is one path,
  *  the same one for all ten, and it makes no claim about fold, size or active
@@ -2372,9 +2323,9 @@ const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
  * claim, and "one per lane" makes the wrong one twice in ten:
  *   · step 4, aldolase: ONE F1,6-BP, one enzyme, and it releases TWO products.
  *     So it is ONE blob, placed on the sugar and then held still while the
- *     halves part (placeEnz freezes it). Dropping it onto DHAP alone said
- *     aldolase kept one half; tracking both said the enzyme slid across the
- *     stage. Standing still is what an enzyme releasing two products does.
+ *     halves part (placeEnz freezes it) — which is what an enzyme releasing two
+ *     products does. On DHAP alone it would say aldolase kept one half;
+ *     tracking both, that the enzyme slid across the stage.
  *   · step 5, triose-phosphate isomerase: acts on DHAP only. The other lane's
  *     G3P is standing in the cytosol, in nothing.
  * Steps 6-10 genuinely run twice, so those get two blobs — the fact the two
@@ -2393,11 +2344,9 @@ const enzGroups=()=>{
   return g.filter(grp=>grp.every(j=>j<lanes.length));
 };
 /* THE KEY IS THE STEP. A blob is placed ONCE per step and then held still for
- * the whole of it — an enzyme does not move while its substrate reacts, and
- * every version that tracked the molecule was visibly wrong somewhere: it slid
- * across the stage as the halves parted at step 4, and it grew and re-centred
- * at step 1 as the phosphate landed. Holding still is also the true reading —
- * the sugar moves inside the enzyme, not the other way round.
+ * the whole of it: the sugar moves inside the enzyme, not the other way round.
+ * A blob that tracks the molecule slides across the stage as the halves part at
+ * step 4 and re-centres at step 1 as the phosphate lands.
  * The lane SET is in the key too, so step 5's single blob and step 6's two are
  * a rebuild; a split keeps one key even though the lane count changes under it. */
 const enzKey=()=>{ const g=enzGroupsFor(focusStep());
@@ -2414,8 +2363,8 @@ function drawEnz(){
 /* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — as two words on
  * the stage rather than two headings buried in a card. Both read off the step
  * (`couple`, `rev`), never typed, and both are the door to the card that argues
- * them: the energy curve WAS the only place either fact appeared, and it only
- * appears on the review beat, so half the time the student had no way to ask.
+ * them — otherwise the energy curve is the only place either fact appears, and
+ * it only appears on the review beat.
  * Pressing a word opens that card for this step; pressing again closes it.
  * Shown whether or not the enzymes are on: these are facts about the step, not
  * about the catalyst. */
@@ -2449,8 +2398,6 @@ enzMetaEl.addEventListener('click',e=>{
 // Every frame, after the render — same rule as the plates: a projection reads a
 // matrix only the render refreshes.
 const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
-// Named by onResize above; try/catch because a ResizeObserver can fire before
-// this half of the script has run and `enzEl` is a const in its dead zone then.
 // Is every lane in this group on its mark? kit/lanes.js eases position toward
 // userData.tx/ty; within a hundredth of a world unit is under a pixel here.
 function laneSettled(grp){
@@ -2459,19 +2406,19 @@ function laneSettled(grp){
     return (u.tx==null||Math.abs(l.g.position.x-u.tx)<0.01)
         && (u.ty==null||Math.abs(l.g.position.y-u.ty)<0.01); });
 }
+// Called by onResize; try/catch because a ResizeObserver can fire before this
+// half of the script has run and `enzEl` is a const in its dead zone then.
 function enzUnfreeze(){
   try{ [...enzEl.children].forEach(el=>delete el.dataset.set); }catch(e){}
 }
 function placeEnz(){
   if(enzEl.hidden || !lanes.length) return;
-  // One blob per OCCUPIED lane, rebuilt only when that set changes — a running
-  // wiggle must not restart because some other readout redrew, and the split
-  // changes the lanes mid-animation with no refresh between.
+  // One blob per OCCUPIED lane. The elements are rebuilt only when the COUNT
+  // changes — a running wiggle must not restart because some other readout
+  // redrew — and clearing `set` is what re-places them.
   const on=enzGroups(), key=enzKey();
   if(enzEl.dataset.on!==key){
     enzEl.dataset.on=key;
-    // REBUILD ONLY WHEN THE COUNT CHANGES — a running wiggle must not restart
-    // every step. Clearing `set` is what re-places them.
     if(enzEl.children.length!==on.length)
       enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
     [...enzEl.children].forEach(el=>delete el.dataset.set);
@@ -2484,12 +2431,11 @@ function placeEnz(){
   on.forEach((grp,slot)=>{
     const el=enzEl.children[slot]; if(!el) return;
     if(el.dataset.set) return;                  // placed for this step already
-    // MEASURED OFF THE MESHES, not off the lane's bookkeeping. Two earlier
-    // versions read the group's position and a spec measure, and both put the
-    // blob off the molecule: the group's origin is not the drawing's centre
-    // (kit/lanes.js parks each species by its own recentring offsets), and a
-    // spec measure is the RESTING molecule — step 1's sugar grows a phosphate
-    // and its centre moves. The atoms on screen answer both at once.
+    // MEASURED OFF THE MESHES, not off the lane's bookkeeping. The group's
+    // origin is not the drawing's centre (kit/lanes.js parks each species by
+    // its own recentring offsets), and a spec measure is the RESTING molecule —
+    // step 1's sugar grows a phosphate and its centre moves. The atoms on
+    // screen answer both at once.
     let lo=null, hi=null;
     grp.forEach(j=>{ const l=lanes[j]; if(!l) return;
       l.g.userData.atomMeshes.forEach(m=>{
@@ -2501,9 +2447,9 @@ function placeEnz(){
     });
     if(!lo) return;
     // SQUARE OVER ONE MOLECULE, off the LARGER extent. Sizing width and height
-    // separately was tried for the single case and is worse: these molecules
-    // are tall and thin, so the blob became a narrow stripe, and stretching the
-    // path into a tall ellipse turned the ambient drift into a visible spin.
+    // separately is worse: these molecules are tall and thin, so the blob
+    // becomes a narrow stripe, and stretching the path into a tall ellipse
+    // turns the ambient drift into a visible spin.
     const d=Math.max(hi.x-lo.x, hi.y-lo.y, 1.2)*pxPerWorld*BLOB_K;
     enzV.copy(lo).add(hi).multiplyScalar(0.5).project(camera);
     el.style.width=el.style.height=d.toFixed(1)+'px';
@@ -2511,8 +2457,8 @@ function placeEnz(){
     el.style.top =((-enzV.y*0.5+0.5)*h).toFixed(1)+'px';
     // FREEZE ONLY ONCE THE LANE HAS STOPPED MOVING. A swap drops the product in
     // and eases it to its centring over the next few frames, so freezing on the
-    // first frame of the step pinned the blob to a molecule that was still on
-    // its way — small and off to one side.
+    // first frame pins the blob to a molecule still on its way — small and off
+    // to one side.
     if(laneSettled(grp)) el.dataset.set='1';
   });
 }
@@ -2553,8 +2499,8 @@ function drawAct(){
              : reviewing ? `Step ${STEPS[done-1].n} complete`
              : hi<nSteps ? headAt(hi)
              : '';
-  // THE CAPTION HANGS OFF THE HEADING: the ⓘ carries that step's own text,
-  // read from the same place the band used to print, so one caption per step.
+  // THE CAPTION HANGS OFF THE HEADING: the ⓘ carries that step's own text, so
+  // there is one caption per step and one place it comes from.
   const tip = head ? captionAt(hi) : '';
   stepHeadEl.innerHTML = head + (tip
     ? `<span class="infowrap"><button class="infobtn" type="button"
@@ -2568,8 +2514,8 @@ function drawAct(){
   // play. On the state CHANGE only — a refresh mid-review must not replay it.
   const entering = reviewing && !shownReview;
   shownReview = reviewing;
-  // Restarted on the way in only: a mid-flight refresh would otherwise strip
-  // the class and snap both to full strength halfway through.
+  // Restarted on the way in only, else a mid-flight refresh strips the class
+  // and snaps both to full strength halfway through.
   if(entering){ stepHeadEl.classList.remove('revin'); void stepHeadEl.offsetWidth; }
   stepHeadEl.classList.toggle('revin', reviewing);
   // ONE BUTTON, ONE PLACE, ONE WORD. Begin and every step share this element,
@@ -2654,23 +2600,17 @@ function drawRail(){
     b.setAttribute('aria-label',`Step ${st.n}`);
     if(state==='cur') b.setAttribute('aria-current','step');
     // EVERY NUMBER GOES ANYWHERE, and means one thing: ready to RUN that step,
-    // its substrate on stage and its target armed. Forward too — the rail used
-    // to refuse it, on the grounds that arriving at step 7 hands over a
-    // molecule you never made. True, but it also made testing step 9 an
-    // eight-click errand, and there are no students yet.
-    //
-    // ONE MEANING, WHICH IS THE OTHER HALF OF THE FIX. Backward clicks used to
-    // land you AFTER the number ("3" → the F1,6-BP step 3 made), while the same
-    // numeral in the ten-steps list landed you BEFORE it. Two destinations for
-    // one label. `goToStep(idx)` here is what the list already does, so the two
-    // now agree, and the number you click is the number that lights up.
+    // its substrate on stage and its target armed. Forward too — jumping to
+    // step 7 hands over a molecule you never made, but it also makes testing
+    // step 9 a one-click errand.
+    // `goToStep(idx)` is what the ten-steps list does, so both land you BEFORE
+    // the number you clicked and the number you click is the one that lights.
     b.onclick=()=>goToStep(idx);
     railEl.appendChild(b);
   });
   // AND THE SCREEN AFTER TEN. `done===nSteps` with nothing reviewing is the
-  // ending — pyruvate on stage, "What's next?" in the button slot. It was only
-  // reachable by running or reviewing step 10; the rail owns "where am I", so
-  // it owns that place too.
+  // ending — pyruvate on stage, "What's next?" in the button slot. The rail
+  // owns "where am I", so it owns that place too.
   const e=document.createElement('button');
   const at = !intro && !reviewing && done>=nSteps;
   e.className='rnum rend '+(at?'cur':'future');
@@ -2682,10 +2622,10 @@ function drawRail(){
   railEl.appendChild(e);
 }
 
-/* The panel under the card. EMPTY on every beat now — PFK-1 went behind the
- * ten-steps star and reversibility went to the coupling box. Kept as a slot
- * (drawNote collapses it) rather than deleted, so the card's layout is still
- * the one the rest of the page measures. */
+/* The panel under the card. EMPTY on every beat — PFK-1 lives behind the
+ * ten-steps star and reversibility in the coupling box. Kept as a slot
+ * (drawNote collapses it) so the card's layout stays the one the rest of the
+ * page measures. */
 const noteEl=document.getElementById('stepnote');
 
 /* ---- the coupled-reaction figure ------------------------------------------
@@ -2724,8 +2664,8 @@ function coupleFig(c){
   const cplLine = c.up ? CURVE_DOWN : CURVE_UP;      // opposite the main arrow
   const cplHead = c.up ? 'M176,106' : 'M176,42';
   // Only a '+' against the preceding character is a CHARGE (NAD+). Spaced, it
-  // is arithmetic (G3P + Pi) and stays on the baseline — superscripting that
-  // one made "G3P plus Pi" read as a cation.
+  // is arithmetic (G3P + Pi) and stays on the baseline — superscript it and
+  // "G3P plus Pi" reads as a cation.
   const sup=t=>t.replace(/(\S)\+/g,'$1<tspan baseline-shift="super" font-size="9">+</tspan>')
                 .replace(/Pi\b/,'P<tspan baseline-shift="sub" font-size="9">i</tspan>');
   return `<svg class="cpl ${c.tone==='n'?'n':'p'}" viewBox="0 0 300 152" role="img"
@@ -2783,12 +2723,12 @@ function coupleCurve(c){
 }
 
 /* THE OTHER FIVE STEPS, same axes. Rearrangements — no carrier, so no second
- * trace — but leaving them blank made "energy curve" look like a property of
+ * trace — but a blank figure makes "energy curve" look like a property of
  * coupled steps rather than of every reaction.
  *
  * FLAT BECAUSE THE DATA SAYS FLAT: the claim is `rev:true` read off the step —
- * near equilibrium means both sides at nearly the same free energy, the same
- * fact as a picture. No magnitudes here either.
+ * near equilibrium means both sides at nearly the same free energy. No
+ * magnitudes here either.
  */
 function soloCurve(st){
   const Y=RC_Y, nameOf=k=>M[k].short||M[k].name;
@@ -2831,10 +2771,9 @@ const coupleLine=c=>c.up
 // Delegated, not bound — drawCouple replaces this element's innerHTML every
 // refresh and a bound handler would die with it.
 // THE DOOR CARRIES THE STEP THROUGH IT. Opened from a step's verdict, the demo
-// must open on the case that verdict just announced — landing on the flat tab
-// under an "Irreversible in the cell" heading reads as a contradiction, and the
-// student has no reason to press the other tab to resolve it. The step index
-// rides in the attribute because drawCouple replaces this markup every refresh:
+// opens on the case that verdict just announced — the flat tab under an
+// "Irreversible in the cell" heading reads as a contradiction. The step index
+// rides in the ATTRIBUTE because drawCouple replaces this markup every refresh:
 // a closure captured here would describe whichever step was on screen when the
 // handler was written. An empty value is the pathway-wide summary, which
 // belongs to no step.
@@ -2863,10 +2802,10 @@ cplEl.addEventListener('click',noteClick);
 let shownCplStep=null;
 function drawCouple(){
   const i=focusStep();
-  // ONLY WHEN ASKED FOR. The card used to arrive by itself on the review beat,
-  // which put a paragraph of thermodynamics over the molecule the student had
-  // just been told to look at. Now the two words on the stage (#enzmeta) say
-  // what kind of step it was, and this is what they open.
+  // ONLY WHEN ASKED FOR: the two words on the stage (#enzmeta) say what kind of
+  // step it was, and this is what they open. Arriving by itself on the review
+  // beat puts a paragraph of thermodynamics over the molecule the student was
+  // just told to look at.
   const st=(cplOpen&&!intro&&i<nSteps)?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
   // Coupled: both views + tab strip. Uncoupled: curve only, no strip — a
@@ -2896,10 +2835,8 @@ function drawCouple(){
 
 function drawNote(){
   // NOTHING LEFT TO SAY HERE. PFK-1 is behind the ten-steps star (Pfk.show) and
-  // reversibility rides the coupling box, so a step leaves the panel empty; the
-  // end screen used to fill it with the gluconeogenesis note, which competed
-  // with the closing question for the same beat. Both ends now collapse it, so
-  // it costs the card no height.
+  // reversibility rides the coupling box, and the end screen belongs to the
+  // closing question. Collapsed at both ends, so it costs the card no height.
   noteEl.innerHTML=''; noteEl.style.display='none';
 }
 
@@ -2984,8 +2921,7 @@ const AllSteps=(()=>{
           +(st.commit
             ? `<button class="rstar" data-pfk aria-label="Why this step is the one the cell controls">★</button>` : '');
         // Every row goes, like every rail number — same meaning, ready to run
-        // that step. Gated on `idx<done` while the rail refused to skip ahead;
-        // with that gone, a half-locked list is the odd one out.
+        // that step.
         r.onclick=()=>{ hide(); goToStep(idx); };
         const star=r.querySelector('[data-pfk]');
         if(star) star.onclick=e=>{ e.stopPropagation(); hide(); Pfk.show(); };
@@ -3006,9 +2942,8 @@ const AllSteps=(()=>{
  * and the modal it runs in.
  *
  * EACH SCENARIO IS A REAL STEP, not a toy A⇄B: flat is step 2 (genuinely near
- * equilibrium), drop is step 10. Naming them hands the demo back to the rail
- * instead of being a separate world with its own letters — and stops one fixed
- * pair of names from libelling the isomerase as one-way.
+ * equilibrium), drop is step 10. Naming them keeps the demo tied to the rail
+ * rather than a separate world with its own letters.
  *
  * `ea` is left at the module default: this page's claim is that ΔE decides the
  * direction, so a barrier the student can move would be a second variable in a
@@ -3017,8 +2952,8 @@ const AllSteps=(()=>{
  * DROP.drop = ln(200) — the reverse of step 10 is about 1 encounter in 200. */
 // THE TABS ARE THE PAGE'S OWN VERDICT VOCABULARY — the same two words the
 // coupling box stamps on every step ("Near equilibrium — reversible" /
-// "Irreversible in the cell"). Naming them for the physics instead ("flat",
-// "drop") made them a second scheme the student has to map onto the first.
+// "Irreversible in the cell"). Naming them for the physics ("flat", "drop")
+// would be a second scheme the student has to map onto the first.
 // The KEYS stay flat/drop: they are what the model is about, and what
 // check-massaction.js audits.
 //
@@ -3041,13 +2976,12 @@ const MASS_STEPS=[
       cell</b> means, true of only <b>three</b> of these ten steps.` }
 ];
 
-/* THE SAME DEMO, WEARING THE STEP THE STUDENT IS ON. Opened from step 7 the
- * box used to fill with G6P and F6P, and the two molecules on the stage were
- * nowhere in it — the student has to take on faith that the general fact is
- * about the specific reaction in front of them. So the tab matching this step's
- * verdict gets this step's own substrate and product, read from the same STEPS
- * data the verdict itself is read from. The OTHER tab keeps its default, and is
- * the point of the pair: the contrast is what makes either case mean anything.
+/* THE SAME DEMO, WEARING THE STEP THE STUDENT IS ON. The tab matching this
+ * step's verdict gets this step's own substrate and product, read from the same
+ * STEPS data the verdict is — otherwise the box fills with G6P and F6P while
+ * the molecules on the stage are nowhere in it. The OTHER tab keeps its
+ * default, and is the point of the pair: the contrast makes either case mean
+ * something.
  *
  * ΔE STAYS SCHEMATIC. Only the names and the prose change — the drop is ln(200)
  * for every irreversible step, not that step's real ΔG. This page prints no ΔG
@@ -3068,7 +3002,7 @@ function massScenarios(st){
   // are abbreviations and stay shouted, glucose and pyruvate are common nouns
   // and "Adding more Pyruvate" reads as a proper noun. Only a plain capitalised
   // word gets lowered — anything with a digit or a second capital is a name.
-  // Labels keep the registry's own capitalisation — a chip and a curve label are
+  // Labels keep the registry's capitalisation: a chip and a curve label are
   // names, not sentences.
   const prose=n=>/^[A-Z][a-z]+$/.test(n)?n.toLowerCase():n;
   const sub=nameOf(speciesAt(i)[0]), prd=nameOf(st.species[0]);
@@ -3097,9 +3031,8 @@ const Mass=(()=>{
   const box=document.getElementById('massbox');
   let sim=null;
   // REBUILT PER OPEN, not reconfigured: the scenarios change with the step, and
-  // the sim is a few dozen elements and one rAF loop — cheaper to state plainly
-  // than to keep a swap path nothing else needs. The old one is stopped first
-  // so its loop cannot outlive the DOM it draws into. `st` is the step the demo
+  // the sim is a few dozen elements and one rAF loop. Stop the old one first so
+  // its loop cannot outlive the DOM it draws into. `st` is the step the demo
   // wears, handed straight through by show(st).
   return Modal.create({el:'massmodal',
     onShow(st){
@@ -3145,7 +3078,7 @@ function refresh(){ drawLedger(); drawTray(); drawTally(); drawEnz(); drawAct();
 document.getElementById('restart').onclick=restart;
 // keyboard: → advances whatever the current step is, ← rewinds.
 // NOT WHILE A CARD IS UP: these run the pathway on the stage BEHIND it, so a
-// student reading the ten-steps list came back to a step they never watched.
+// student reading the ten-steps list would come back to a step they never saw.
 // Esc and Tab are the modal's own (kit/modal.js); the stage keys are ours to
 // withhold, because only this page knows which of its keys move the lesson.
 addEventListener('keydown',e=>{
@@ -3160,15 +3093,13 @@ addEventListener('keydown',e=>{
 /* =============================================================
  *  MAIN LOOP
  * ============================================================= */
-// The per-frame lerp factors below are deliberately still PER FRAME, not per
-// second: they are critically-damped follows whose feel was tuned by eye at
-// 60 Hz, and every one of them chases a target the same loop recomputes. Moving
-// them to dt is a change in how the page FEELS, not a refactor, so it is not
-// smuggled in with a port.
+// The lerp factors below are PER FRAME, not per second: critically-damped
+// follows tuned by eye at 60 Hz, each chasing a target the same loop
+// recomputes. Moving them to dt changes how the page FEELS — not a refactor.
 L.frame=()=>{
   // Lanes ease toward their slots — x for the split, y for each species' own
   // vertical centring. EASED, NOT SET: a product placed straight onto its lift
-  // jumps on the swap frame, the frame the name returns, so it reads as the
+  // jumps on the swap frame — the frame the name returns — so it reads as the
   // label shoving the molecule down. (kit/lanes.js, same 0.10 per frame.)
   LANES.step();
   cam.r+=(fitR-cam.r)*0.05;                      // ease to the computed framing
@@ -3177,9 +3108,8 @@ L.frame=()=>{
   KIT.faceCamera(camera);        // badges keep their lift as the camera orbits
 };
 // AFTER the render, never before — Vector3.project() reads a matrix refreshed
-// only on render, so everything here would otherwise pin its DOM to the
-// PREVIOUS frame's camera. That is `afterFrame`'s whole reason for existing;
-// the kit's loop is motion → frame → fx → render → afterFrame.
+// only on render, so anything here run earlier pins its DOM to the PREVIOUS
+// frame's camera. The kit's loop is motion → frame → fx → render → afterFrame.
 L.afterFrame=()=>{
   drawPlates();
   drawFlyers();                  // names riding something in the air
@@ -3199,7 +3129,7 @@ if(OPEN_STEP!=null){ intro=false; done=OPEN_STEP-1; }
 renderLanes(done); refresh(); applyCam(); resize();
 // Re-solve AFTER refresh(). The first computeFit runs inside renderLanes(),
 // before the tray has children — it measures a zero-height tray, insets
-// nothing, and the page opens one frame too close. refresh() has drawn it.
+// nothing, and the page opens one frame too close.
 computeFit();
 cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();  // open already framed
 L.start();
@@ -3214,7 +3144,7 @@ document.getElementById('savepng').onclick=()=>{
   renderer.render(scene,camera);
   // Species labels are DOM, not in the WebGL buffer, so a straight
   // canvas.toDataURL() exports unnamed molecules. Composite them back from the
-  // same projected anchors drawPlates() uses — worth the duplication.
+  // same projected anchors drawPlates() uses.
   const w=canvas.width, h=canvas.height, s=w/(canvas.clientWidth||w);   // DPR
   const out=document.createElement('canvas'); out.width=w; out.height=h;
   const x=out.getContext('2d');
