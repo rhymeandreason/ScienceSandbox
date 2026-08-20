@@ -8,6 +8,7 @@
  *        rail:    document.getElementById('side'),   // where it slides over
  *        lesson:  'water-lab',
  *        step:    () => cur,                         // read per turn
+ *        state:   () => ({ ... }),                   // flat readings, per turn
  *        act:     target => { ... },                 // only for targets at home
  *      });
  *
@@ -111,6 +112,7 @@
             messages,
             lesson: opts.lesson,
             step: opts.step ? opts.step() : undefined,
+            state: opts.state ? opts.state() : undefined,
             cited: [...cited],
           }),
         });

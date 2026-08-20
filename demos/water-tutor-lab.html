@@ -1277,6 +1277,11 @@ document.getElementById('savepng').onclick=()=>{
    to a ghost for a few seconds so the thing named is the only thing lit. That
    reuses the fade the evaporation code already applies per molecule, so nothing
    new has to know how a water molecule is built. */
+// Stamped by its own frame request, so it pauses exactly when the lesson's loop
+// does and the state provider can tell a still scene from a stopped one.
+let lastFrame = 0;
+(function stamp() { lastFrame = performance.now(); requestAnimationFrame(stamp); })();
+
 let spotTimer = null;
 function spotlight(keep, ms = 3200) {
   clearTimeout(spotTimer);
@@ -1330,6 +1335,36 @@ Ask.chat({
   lesson: 'water-lab',
   step: () => cur,
   stepName: () => stepMeta[cur] ? stepMeta[cur].title : '',
+
+  /* What the student can see, read from the readouts they are reading. The
+     temperature and the phase come off the DOM rather than off S and a second
+     copy of tempDescriptor's thresholds, so the tutor and the student are
+     quoting the same string, and a change to the descriptor reaches both.
+     Counts come from the sim, which is where a count actually lives. */
+  state() {
+    const txt = id => (document.getElementById(id)?.textContent || '').trim();
+    const st = { molecules: sim.mols.length };
+
+    // Anything the render loop computes is only true while the loop is running,
+    // and a background tab pauses rAF. A paused frame would report zero bonds
+    // and no phase, which reads as "the bonds broke" rather than "nobody
+    // looked". Report those only when a frame is actually recent.
+    if (performance.now() - lastFrame < 900) {
+      const bonds = sim.mols.reduce((n, w) => n + (w.userData.hb || 0), 0);
+      st.hydrogenBonds = Math.round(bonds / 2);   // each bond is counted at both ends
+    }
+    if (S.tempEnabled) {
+      st.temperature = txt('tval');
+      const phase = txt('tdesc').split('\n')[0];   // "Frozen", "Boiling", "Liquid"…
+      if (phase) st.phase = phase;
+    }
+    if (S.saltEnabled) {
+      st.saltAdded = salt.length ? `yes, ${salt.length} ions` : 'not yet';
+      const info = txt('saltinfo');
+      if (info) st.saltReadout = info;
+    }
+    return st;
+  },
 
   /* Return false and the drawer says so rather than pretending it acted. */
   act(t) {
