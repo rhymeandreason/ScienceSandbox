@@ -104,84 +104,96 @@
   transform: translateX(calc(-50% - var(--shift, 0px)))
 }
 
-/* ---- the step rail, top-left under the brand ---- */
-#stepbar {
+/* ---- the title block, on a scrim ----
+   Name, place in the lesson, and this step's title, in one block over the model.
+   The scrim is the block's own ground: without it the type competes with
+   whatever sphere happens to drift under it. */
+#titleblock {
   position: absolute;
-  top: 74px;
-  left: 26px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 6;
-  display: grid;
-  grid-template-columns: auto;
-  align-items: center;
-  gap: 6px
+  padding: 18px 26px 34px;
+  pointer-events: none;
+  /* The scrim membrane-lab's #chrome uses, turned the other way up: the paper's
+     own colour, solid where the type is and fading out below it, so there is no
+     hard edge lying across the molecules. A box with a border would read as a
+     panel sitting on the scene; this reads as the scene going quiet. */
+  background: linear-gradient(to bottom,
+    rgba(239, 230, 214, .97) 0%, rgba(239, 230, 214, .88) 52%,
+    rgba(239, 230, 214, 0) 100%)
 }
 
-/* The title spans the row beneath, so a long name never pushes the arrows. The
-   lightbulb sits beside it: the fact is this step's takeaway, and it belongs
-   next to the step's name rather than down among the file buttons. */
-#titlerow {
-  grid-column: 1 / -1;
+/* Only the things you click take the mouse; a scrim that eats a drag meant for
+   the model is the worst kind of invisible bug. */
+#steps { pointer-events: auto }
+
+/* sandbox.css pins #brand to the stage corner; here it is the block's first row,
+   the lesson's name and the step numbers side by side. */
+#brand {
+  position: static;
   display: flex;
   align-items: center;
-  gap: 8px
+  gap: 22px
 }
 
-#steptitle {
-  margin: 2px 0 0;
+#brand h1 { margin: 0; 
+font-size: 22px;
+letter-spacing: .2px;
+color: var(--ink);
+opacity: .75;
+}
+
+/* The step's one claim, over the scrim. It is what the student should take away
+   if they read nothing else, so it gets the width and the type. */
+#stepclaim {
+  margin: 8px 0 0;
+  max-width: 46em;
   font-family: var(--font-slab);
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.35;
   color: var(--ink)
 }
 
-#factbtn {
-  background: none;
-  border: 0;
-  padding: 2px;
-  cursor: pointer;
-  line-height: 0
-}
+/* ---- the tabs ----
+   Named steps, as pills, the way membrane-lab names its six. sandbox.css draws
+   .stepnum as a big hand-circled numeral; everything below replaces that. */
+#steps { margin-bottom: 0; gap: 8px; flex-wrap: wrap }
 
-#factbtn img {
-  width: 30px;
-  height: 30px;
- // filter: grayscale(1);
- // opacity: .5;
-  transition: filter .18s ease, opacity .18s ease, transform .18s ease
-}
-
-#factbtn:hover img { filter: none; opacity: 1 }
-#factbtn.lit img { filter: none; opacity: 1; transform: rotate(-8deg) scale(1.08) }
-
-#stepbar #steps { margin-bottom: 0 }
-
-#stepbar .stepnum {
-  width: 34px;
-  height: 34px;
-  font-size: 22px
-}
-
-#stepbar #steps { gap: 8px }
-
-/* The fact itself: a card under the title, where the bulb that opens it is. Open is
-   the .on class and nothing else — no [hidden], which display:block here would
-   silently beat (see ask/chat.css for the debugging detour that rule cost). */
-#factbox {
-  position: absolute;
-  left: 26px;
-  top: 154px;
-  z-index: 6;
-  display: none;
-  width: 330px;
-  padding: 14px 16px;
+.stepnum {
+  width: auto;
+  height: auto;
+  padding: 7px 15px;
+  font-family: var(--font-sans);
   font-size: 13.5px;
-  line-height: 1.65;
-  color: var(--ink);
-  background: var(--panel);
-  border: 2px solid var(--ink);
-  border-radius: var(--radius);
-  box-shadow: 4px 4px 0 rgba(43, 39, 35, .13)
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: 1.5px solid var(--hair);
+  border-radius: 999px;
+  white-space: nowrap
 }
 
-#factbox.on { display: block }
-#factbox b { font-weight: 700 }
+.stepnum:hover { color: var(--ink); border-color: var(--muted) }
+
+.stepnum.active {
+  color: var(--ink);
+  font-weight: 600;
+  border-color: var(--ink)
+}
+
+/* the hand-drawn circle belongs to the numerals this replaced */
+.stepnum.active::after { content: none }
+
+/* ---- the launcher, at the foot of the rail ----
+   The tutor is where you go when the lesson has said its piece, so it waits at
+   the bottom rather than sitting under the title competing with it. */
+#askslot {
+  margin-top: auto;
+  pointer-events: auto
+}
+
+#askopen .sub { display: none }
+

@@ -18,22 +18,16 @@
     <canvas id="gl"></canvas>
     <div id="dissocmsg" aria-live="polite"></div>
 
-    <div id="brand">
-      <i class="ph-bold ph-drop drop"></i>
-      <h1>Structure of Water</h1>
-    </div>
-
-    <!-- The lesson's spine, on the stage. The sidebar is the tutor's now, so the
-         numbers, the step's name and its two arrows live over the model. -->
-    <div id="stepbar">
-      <div id="steps"></div>
-      <div id="titlerow">
-        <h2 id="steptitle"></h2>
-        <button id="factbtn" type="button" title="Reveal the interesting bit"
-                aria-label="Reveal the interesting bit"><img src="sticker_idea.png" alt=""></button>
+    <!-- One block, on its own scrim: the lesson's name, where the student is in
+         it, and what this step is called. It sits over the model, so it carries
+         its own ground rather than relying on empty paper behind it. -->
+    <div id="titleblock">
+      <div id="brand">
+        <h1>Structure of Water</h1>
+        <div id="steps"></div>
       </div>
+      <p id="stepclaim"></p>
     </div>
-    <div id="factbox" aria-live="polite"></div>
 
     <div id="tempbar">
       <div class="tcol">
@@ -873,29 +867,28 @@ function tempParams(){
  *  Steps
  * ============================================================= */
 const stepMeta=[
- {title:'A Polar Molecule',
-  hint:'One water molecule — H₂O',
-  fact:`Because the charge is lopsided, water is <b>polar</b> — and that single fact is the seed of nearly every special property that follows.`},
- {title:'Hydrogen Bonds',
-  hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O',
-  fact:`A single hydrogen bond is weak. It's about <b>1/20</b> as strong as the covalent O–H bond inside a molecule. <br><br>But with trillions of water molecules togther, <b>H-bonds collectively drive nearly every special property of water!</b>`},
- {title:'Specific Heat',
-  hint:'Raise the temperature — energy first breaks hydrogen bonds',
-  fact:`This is why sweating cools you so well and why oceans stabilize climate — water soaks up enormous heat before it warms.`},
- {title:'Why Ice Floats',
-  hint:'Cool toward 0°C — molecules lock into the open ice lattice',
-  fact:`So ice floats, insulating the water below — lakes don't freeze solid, and aquatic life survives the winter.`},
- {title:'The Universal Solvent',
-  hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
-  fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>). Salt water <b>freezes below 0°C</b> and <b>boils above 100°C</b>.<br><br> This is why salt is used to melt road ice.`},
+ {tab:'a polar molecule',
+  claim:`One end of water is slightly negative, the other slightly positive.`,
+  hint:'One water molecule — H₂O'},
+ {tab:'hydrogen bonds',
+  claim:`Those opposite ends pull neighbouring molecules together.`,
+  hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O'},
+ {tab:'specific heat',
+  claim:`Heat breaks hydrogen bonds long before it speeds molecules up.`,
+  hint:'Raise the temperature — energy first breaks hydrogen bonds'},
+ {tab:'why ice floats',
+  claim:`Frozen, water locks into a cage that holds it further apart.`,
+  hint:'Cool toward 0°C — molecules lock into the open ice lattice'},
+ {tab:'the universal solvent',
+  claim:`A polar molecule pulls a salt crystal apart, ion by ion.`,
+  hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling'},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
 const stage=document.getElementById('stage');
 const side=document.getElementById('side');
 const stepsEl=document.getElementById('steps');
-const stepTitleEl=document.getElementById('steptitle');
-const factBtn=document.getElementById('factbtn'), factBox=document.getElementById('factbox');
+const stepClaimEl=document.getElementById('stepclaim');
 const saltinfoEl=document.getElementById('saltinfo');
 
 // temperature slider (markup lives in the HTML)
@@ -1244,20 +1237,17 @@ function applyStep(n){
   cur=n;
   [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
   const m=stepMeta[n];
-  stepTitleEl.textContent=m.title;
-  factBox.innerHTML=m.fact||''; setFact(false);
+  stepClaimEl.textContent=m.claim;
   stepT0=performance.now();
   buildNotes(n);
   NOTES.setMode('reveal'); NOTES.play();
 }
-// step numbers 1–5 with hand-drawn active circle
-stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
-  b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
-// the fact is the step's takeaway, and it is asked for rather than shown: the
-// stage carries the mechanism, this carries the "so what". Open is the .on class
-// and nothing else.
-function setFact(on){ factBox.classList.toggle('on',on); factBtn.classList.toggle('lit',on); }
-factBtn.onclick=()=>setFact(!factBox.classList.contains('on'));
+// Named, not numbered: "hydrogen bonds" tells a student what they are about to
+// see, and 3 does not.
+stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
+  b.type='button'; b.className='stepnum'; b.textContent=s.tab;
+  b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
+
 
 /* ---------- where the model sits ----------
  *  The canvas is the whole window, so closed, the model is centred with no help
@@ -1389,7 +1379,7 @@ applyCam(); resize(); applyStep(0); requestAnimationFrame(loop);
 
 document.getElementById('savepng').onclick=()=>{
   renderer.render(scene,camera);
-  const name=(stepMeta[cur]?.title||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const name=(stepMeta[cur]?.tab||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
   const a=document.createElement('a'); a.download=`${name}.png`; a.href=canvas.toDataURL('image/png'); a.click();
 };
 
@@ -1473,7 +1463,7 @@ const ASK = Ask.chat({
   slot: document.getElementById('askslot'),
   lesson: 'water-lab',
   step: () => cur,
-  stepName: () => stepMeta[cur] ? stepMeta[cur].title : '',
+  stepName: () => stepMeta[cur] ? stepMeta[cur].tab : '',
 
   /* What the student can see, read from the readouts they are reading. The
      temperature and the phase come off the DOM rather than off S and a second
