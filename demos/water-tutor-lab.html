@@ -26,9 +26,7 @@
     <!-- The lesson's spine, on the stage. The sidebar is the tutor's now, so the
          numbers, the step's name and its two arrows live over the model. -->
     <div id="stepbar">
-      <button id="prev" type="button" aria-label="Previous step">&lsaquo;</button>
       <div id="steps"></div>
-      <button id="next" type="button" aria-label="Next step">&rsaquo;</button>
       <div id="titlerow">
         <h2 id="steptitle"></h2>
         <button id="factbtn" type="button" title="Reveal the interesting bit"
@@ -971,7 +969,6 @@ const stepsEl=document.getElementById('steps');
 const stepTitleEl=document.getElementById('steptitle');
 const factBtn=document.getElementById('factbtn'), factBox=document.getElementById('factbox');
 const saltinfoEl=document.getElementById('saltinfo');
-const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
 
 // temperature slider (markup lives in the HTML)
 const tempBar=document.getElementById('tempbar');
@@ -1127,6 +1124,17 @@ function tempBarPx(){
   return [b.right-st.left, b.top-st.top+b.height*0.5];
 }
 
+/* A GIVEN TEMPERATURE on the bar, not the bar's middle: "drag down to 0°C"
+   should point at the 0°C the student is being sent to. The track is the range
+   input itself, cold at the bottom, and its min/max move when salt depresses
+   the freezing point — so read them off the element rather than assuming 0–100. */
+function tempPx(degC){
+  const st=NOTES.el.getBoundingClientRect(), r=tinput.getBoundingClientRect();
+  const lo=parseFloat(tinput.min), hi=parseFloat(tinput.max);
+  const f=clamp((degC-lo)/((hi-lo)||1),0,1);
+  return [r.right-st.left, r.bottom-st.top-f*r.height];
+}
+
 function buildNotes(n){
   NOTES.clear(); saltNoted.clear();
   const w=sim.mols[0];
@@ -1145,18 +1153,18 @@ function buildNotes(n){
                return _wp.copy(w.userData.hWorld(0)).sub(o).setLength(stickMid).add(o); },
       card:'A shared pair of electrons, not a transferred one. Shared unevenly, which is what makes it a <b>polar</b> covalent bond.'});
   }
-  if(n===1){
-    hbDonor=null;
-    NOTES.add({text:'hydrogen bond', offset:[58,-30], at:hbAnchor,
-      card:'The δ+ H of one molecule is drawn to the δ− O of the next — attraction between molecules, with no electrons shared. Each one is about 1/20 the strength of the covalent O–H and breaks constantly, so it is trillions of them at once that give water its properties.'});
-  }
+  /* Step 2's callout waits: seatHBondPair() hands the sim the geometry, but the
+     bond is the ENGINE's to register, and a label that arrives first points at
+     two molecules that have not done anything yet. syncHbNote() adds it once
+     there is a bond under it. */
+  if(n===1){ hbDonor=null; hbNoted=false; }
   if(n===2){
     hbDonor=null;
     NOTES.add({text:'heat breaks H-bonds first', offset:[58,-30], at:hbAnchor,
       card:'Energy you add goes into pulling hydrogen bonds apart before it speeds molecules up. So a lot of heat buys only a small temperature rise — water’s high specific heat.'});
     /* atPx, deliberately: the slider is not a molecule, and "where the energy
        goes in" is a fact about the control the student is holding. */
-    NOTES.add({text:'energy in', offset:[70,0], atPx:tempBarPx,
+    NOTES.add({text:'Increase the heat', offset:[70,0], atPx:tempBarPx,
       card:'Drag up and watch the network loosen before the molecules visibly speed up. That lag is the specific heat.'});
   }
   /* Step 4 says nothing about the lattice until there IS one: syncIceNotes()
@@ -1165,6 +1173,33 @@ function buildNotes(n){
   /* Step 5 labels the ions, but only once the sim has actually seated a shell:
      naming a hydration shell that is not there yet is a caption arguing with
      the picture. syncSaltNotes() adds them when they become true. */
+}
+
+/* ---- the hydrogen bond, labelled once one exists ----
+   Plus a beat after that, so the student watches the bond form rather than
+   reading its name over a pair that is still drifting together. */
+let hbNoted=false, hbNote=null, stepT0=0, hbSeenAt=0;
+const HB_NOTE_WAIT=900;                    // ms after the step opens
+const HB_NOTE_GRACE=700;                   // ms a label survives with no bond under it
+function syncHbNote(){
+  if(S.step!==1){ hbNoted=false; hbNote=null; return; }
+  const now=performance.now();
+  const live=sim.mols.some(hbOf);
+  if(live) hbSeenAt=now;
+  /* The label leaves with the bond. A liquid breaks and remakes these
+     constantly, so it waits out a short grace period rather than blinking on
+     every gap — but a callout left over a pair that has drifted apart is
+     naming something that is not there. */
+  if(hbNoted && !live && now-hbSeenAt > HB_NOTE_GRACE){
+    if(hbNote) hbNote.remove();
+    hbNoted=false; hbNote=null; stepT0=now;
+    return;
+  }
+  if(hbNoted || now-stepT0 < HB_NOTE_WAIT || !live) return;
+  hbNoted=true;
+  hbNote=NOTES.add({text:'hydrogen bond', offset:[58,-30], at:hbAnchor,
+    card:'The δ+ H of one molecule is drawn to the δ− O of the next — attraction between molecules, with no electrons shared. Each one is about 1/20 the strength of the covalent O–H and breaks constantly, so it is trillions of them at once that give water its properties.'});
+  NOTES.setMode('reveal'); NOTES.play();
 }
 
 /* ---- the lattice, labelled when the water is actually frozen ----
@@ -1181,7 +1216,12 @@ function syncIceNotes(){
   iceState=want;
   NOTES.clear();
   if(!frozen){
-    NOTES.add({text:'drag down to 0°C', offset:[70,0], atPx:tempBarPx,
+    /* On the bar's own 0°C caption rather than on the track: the caption is
+       where the student's eye already is, and sitting on its line lets the
+       leader run straight out to the right. */
+    NOTES.add({text:'drag down to 0°C', offset:[120,0],
+      atPx:()=>{ const st=NOTES.el.getBoundingClientRect(), c=tcoldEl.getBoundingClientRect();
+                 return [c.right-st.left+14, c.top-st.top+c.height*0.5]; },
       card:'Cool the water to its freezing point and watch what the molecules do with the space they have. The answer is why ice floats.'});
   } else {
     const w=sim.mols[0]; if(!w) return;
@@ -1205,8 +1245,15 @@ function syncSaltNotes(){
   saltNoted.forEach((nt,ion)=>{
     if(!salt.includes(ion) || ion.userData.shellCount<1){ nt.remove(); saltNoted.delete(ion); }
   });
+  /* ONE LABEL PER SPECIES, not one per ion. The sentence is about what water
+     does around a cation and around an anion, and it is the same sentence on
+     the second crystal — repeated over every ion it stops being a label and
+     becomes wallpaper. Whichever ion gets a shell first carries it, and if
+     that one loses its shell the next one takes over. */
+  const labelled=ion=>[...saltNoted.keys()].some(k=>
+    (k.userData.charge>0)===(ion.userData.charge>0));
   for(const ion of salt){
-    if(saltNoted.has(ion) || ion.userData.shellCount<1) continue;
+    if(saltNoted.has(ion) || ion.userData.shellCount<1 || labelled(ion)) continue;
     const cation=ion.userData.charge>0;
     const nt=NOTES.add({
       text: cation ? 'Na⁺ — δ− O turned inward' : 'Cl⁻ — δ+ H turned inward',
@@ -1271,15 +1318,13 @@ function applyStep(n){
   const m=stepMeta[n];
   stepTitleEl.textContent=m.title;
   factBox.innerHTML=m.fact||''; setFact(false);
+  stepT0=performance.now();
   buildNotes(n);
   NOTES.setMode('reveal'); NOTES.play();
-  prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
 }
 // step numbers 1–5 with hand-drawn active circle
 stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
   b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
-prevB.onclick=()=>applyStep(Math.max(0,cur-1));
-nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
 // the fact is the step's takeaway, and it is asked for rather than shown: the
 // stage carries the mechanism, this carries the "so what". Open is the .on class
 // and nothing else.
@@ -1499,7 +1544,7 @@ function loop(){
   // letters/badges ride just proud of their own atom's front surface — see
   // atomkit.js faceCamera(); needs the camera's final position for this frame
   if(detail.visible) kit.faceCamera(camera);
-  syncIceNotes(); syncSaltNotes();
+  syncHbNote(); syncIceNotes(); syncSaltNotes();
   NOTES.step();                 // trap 1: the RENDER loop, so orbiting keeps the labels on their atoms
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
