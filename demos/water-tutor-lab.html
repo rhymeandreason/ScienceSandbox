@@ -1299,19 +1299,7 @@ function spotlight(keep, ms = 3200) {
    that has it first. */
 const uiStep = { trange: 2, addsalt: 4, addwater: 1 };
 
-function ping(id) {
-  const el = document.getElementById(id);
-  if (!el) return false;
-  const r = el.getBoundingClientRect();
-  const d = Math.max(r.width, r.height) + 26;
-  const ring = document.createElement('div');
-  ring.className = 'askpulse';
-  ring.style.cssText = `left:${r.left + r.width / 2 - d / 2}px;top:${r.top + r.height / 2 - d / 2}px;`
-                     + `width:${d}px;height:${d}px`;
-  document.body.appendChild(ring);
-  setTimeout(() => ring.remove(), 3400);
-  return true;
-}
+const ping = Ask.ping;   // the gesture is the module's; which control is this page's
 
 /* The pair actually holding a hydrogen bond this frame. `userData.hb` is the
    count the sim already tallies, so this finds a real bond on screen rather

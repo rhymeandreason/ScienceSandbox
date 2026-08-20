@@ -203,5 +203,49 @@
     return { show, hide, el: panel };
   }
 
-  global.Ask = Object.assign(global.Ask || {}, { chat });
+  /* Point at a control. Not lesson-specific, so every lesson gets the same
+   * gesture instead of three near-identical ones.
+   *
+   * Two halves, because one was not enough: the control itself lights up, so the
+   * eye lands on the thing rather than near it, and rings travel outward from
+   * it, so it is findable from anywhere on the page. Both stop the moment the
+   * student touches the control, because at that point they have found it and
+   * the flashing has become noise.
+   *
+   * Returns false when the element is missing or has no box, which is what a
+   * lesson checks before telling a student it has shown them something. */
+  function ping(el) {
+    const node = typeof el === 'string' ? document.getElementById(el) : el;
+    if (!node) return false;
+    const r = node.getBoundingClientRect();
+    if (!r.width || !r.height) return false;   // present, but not on screen yet
+
+    const rings = [];
+    const stop = () => {
+      node.classList.remove('askglow');
+      rings.forEach(x => x.remove());
+      rings.length = 0;
+      node.removeEventListener('pointerdown', stop);
+    };
+
+    node.classList.add('askglow');
+    node.addEventListener('pointerdown', stop);
+
+    // Three rings, staggered, so it reads as travelling outward rather than as
+    // one circle breathing. Sized off the element: a slider and a 34px round
+    // button both end up ringed by the same margin.
+    const d = Math.max(r.width, r.height) + 34;
+    for (let i = 0; i < 3; i++) {
+      const ring = document.createElement('div');
+      ring.className = 'askpulse';
+      ring.style.cssText = `left:${r.left + r.width / 2 - d / 2}px;top:${r.top + r.height / 2 - d / 2}px;`
+                         + `width:${d}px;height:${d}px;animation-delay:${i * 0.28}s`;
+      document.body.appendChild(ring);
+      rings.push(ring);
+    }
+    setTimeout(stop, 3800);
+    return true;
+  }
+
+  global.Ask = Object.assign(global.Ask || {}, { chat, ping });
 })(window);
