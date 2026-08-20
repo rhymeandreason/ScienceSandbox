@@ -82,7 +82,6 @@
        the model, as annotations, where the thing it describes is. -->
   <div id="side">
     <div id="askslot"></div>
-    <span id="dbgtoggle">DEBUG</span>
   </div>
 </div>
 
@@ -132,28 +131,24 @@ let ionColor=MolLib.PALETTE.bonds.iondipole;        // ion–dipole bond, deep a
 // belonging to that atom rather than as a separate annotation layer
 let eBondColor=0xe0a92e, eLoneColor=0x444444,
     dNegColor=MolLib.PALETTE.atoms.O, dPosColor=MolLib.PALETTE.atoms.H;
-let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
-// material factories honour the current render mode
 // MATTE: a tight specular highlight reads as wet plastic at these sizes, and on
 // a big atom it competes with the element letter beside it. Same numbers as
 // Stage.atomMat in scene.js — this page predates that extraction and still owns
 // its own factories, so the value lives in two places by history.
-function atomMat(color){ return toonMode
-  ? new THREE.MeshToonMaterial({color})
-  : new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
-function bondMat(color){ return toonMode
-  ? new THREE.MeshToonMaterial({color})
-  : new THREE.MeshStandardMaterial({color,roughness:.5}); }
-function glowMat(color,ei){ return toonMode
-  ? Object.assign(new THREE.MeshToonMaterial({color,emissive:color}),{emissiveIntensity:ei})
-  : new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:ei,roughness:.4}); }
+// Alternative shading (toon, outlines) is tried in water-tutor-debug.html, which
+// renders through Stage's own factories rather than a switch threaded through
+// every material this page makes.
+function atomMat(color){ return new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
+function bondMat(color){ return new THREE.MeshStandardMaterial({color,roughness:.5}); }
+function glowMat(color,ei){
+  return new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:ei,roughness:.4}); }
 
 function atom(color, radius, pos, role){
   const m=new THREE.Mesh(Rsphere, atomMat(color));
   m.scale.setScalar(radius); if(pos)m.position.copy(pos);
-  if(role){ m.userData.role=role; if(outlinesOn && OUTLINE_ROLES.includes(role)) addOutline(m); }
+  if(role) m.userData.role=role;
   return m;
 }
 function bond(a,b,color=bondColor,rad=0.13,order=1,perpHint=null){
@@ -203,57 +198,6 @@ let _hbMat=glowMat(hbColor,.55);
 let _ionMat=glowMat(ionColor,.6);
 const _up=new THREE.Vector3(0,1,0);
 
-// ---- live material controls (Debug ▸ Colors / Render) ----
-// swap a mesh's material between Standard and Toon, preserving colour/emissive
-function convertMat(mesh){
-  const s=mesh.material; if(!s || s.isMeshBasicMaterial) return;
-  if(!!s.isMeshToonMaterial===toonMode) return;              // already correct type
-  const o={color:s.color.getHex(), transparent:s.transparent, opacity:s.opacity};
-  const em=s.emissive && s.emissive.getHex();
-  /* Rebuild through the factories above rather than naming roughness here: this
-     carried its own copy of the numbers, so a mesh toggled to Toon and back came
-     home glossier than one that never left. atomMat/bondMat honour toonMode
-     themselves, so they answer for both directions. */
-  const nm=em ? glowMat(o.color, s.emissiveIntensity)
-              : (mesh.userData.role==='covalent' ? bondMat(o.color) : atomMat(o.color));
-  nm.transparent=o.transparent; nm.opacity=o.opacity;
-  mesh.material=nm;
-}
-function applyRenderMode(){
-  _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);
-  scene.traverse(o=>{ if(o.isMesh) convertMat(o); });
-}
-// recolour every existing mesh of a given role (atoms/covalent); future meshes
-// read `state`/bondColor at creation
-function recolor(role,hex){
-  if(role==='covalent') bondColor=hex; else state[role]=hex;
-  scene.traverse(o=>{ if(o.isMesh && o.userData.role===role) o.material.color.setHex(hex); });
-}
-function recolorBondType(which,hex){
-  if(which==='hb') hbColor=hex; else ionColor=hex;
-  _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);   // new tubes next frame
-}
-
-// ---- cel outlines: an inflated back-face shell per atom (Debug ▸ Render) ----
-let outlinesOn=false;
-const _outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
-const OUTLINE_ROLES=['O','H','Na','Cl','K','C','N'];
-const OUTLINE_GAP=0.05;   // constant world-space thickness (not proportional to radius)
-// child scale is relative to the parent's radius, so divide the gap out to keep
-// the outline the same thickness on small H and large Cl alike
-function outlineScale(r){ return (r+OUTLINE_GAP)/r; }
-function addOutline(mesh){
-  if(mesh.userData.outline) return;
-  const o=new THREE.Mesh(mesh.geometry,_outlineMat);   // shares unit sphere; inherits parent scale
-  o.scale.setScalar(outlineScale(mesh.scale.x||1)); mesh.add(o); mesh.userData.outline=o;
-}
-function removeOutline(mesh){
-  if(mesh.userData.outline){ mesh.remove(mesh.userData.outline); mesh.userData.outline=null; }
-}
-function applyOutlines(){
-  scene.traverse(o=>{ if(o.isMesh && OUTLINE_ROLES.includes(o.userData.role)){
-    outlinesOn ? addOutline(o) : removeOutline(o); } });
-}
 function dashTube(a,b,mat=_hbMat){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
@@ -439,7 +383,7 @@ const first = sim.spawn(new THREE.Vector3(0,0,0));
 const S = { step:0, temperature:22, tempEnabled:false, freezeEnabled:false,
   saltEnabled:false, hbondsOn:true, targetR:9 };
 
-/* ---- live-tunable knobs (step-5 solvent scene); exposed via the 🐛 Debug panel ---- */
+/* ---- the solvent scene’s tuning constants (step 5) ---- */
 const DBG = {
   naRad:0.70,        // Na⁺ display radius (real Na⁺/O ≈ 0.73)
   clRad:1.24,        // Cl⁻ display radius (real Cl⁻/O ≈ 1.29, Cl⁻/Na⁺ ≈ 1.77)
@@ -552,16 +496,6 @@ const eGroup=new THREE.Group(); detail.add(eGroup);
 [H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),eBondColor,'eBond')); });
 const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
 [lp1,lp2].forEach(d=>eGroup.add(ePair(d.clone().multiplyScalar(1.35),d,eLoneColor,'eLone')));
-// live recolour for step-1 electrons + charge text (Debug ▸ Colors)
-function recolorElectrons(role,hexNum){
-  if(role==='eBond') eBondColor=hexNum; else eLoneColor=hexNum;
-  eGroup.traverse(o=>{ if(o.isMesh && o.userData.role===role){
-    o.material.color.setHex(hexNum); if(o.material.emissive) o.material.emissive.setHex(hexNum); } });
-}
-function recolorChargeText(which,hexNum){
-  if(which==='dNeg') dNegColor=hexNum; else dPosColor=hexNum;
-  buildCharges();          // a badge's colour is baked into its canvas texture
-}
 const dset={electrons:false,charge:true,dipole:false,cloud:false};
 function applyDetail(){
   detail.visible=(S.step===0);
@@ -1336,129 +1270,6 @@ stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
 // and nothing else.
 function setFact(on){ factBox.classList.toggle('on',on); factBtn.classList.toggle('lit',on); }
 factBtn.onclick=()=>setFact(!factBox.classList.contains('on'));
-
-/* ---------- debug panel: right-docked, tabbed (Sim / Colors / Render) ---------- */
-(function(){
-  const specs=[
-    ['naRad','Na⁺ radius',0.4,1.2,0.01],
-    ['clRad','Cl⁻ radius',0.6,1.8,0.01],
-    ['naShellDist','Na⁺ shell dist',1.6,4.5,0.05],
-    ['clShellDist','Cl⁻ shell dist',2.0,5.5,0.05],
-    ['centroidPull','Cluster pull',0,0.006,0.0001],
-    ['naShellK','Na⁺ spring',0,0.12,0.002],
-    ['clShellK','Cl⁻ spring',0,0.12,0.002],
-    ['orientSlerp','Orient speed',0,0.3,0.01],
-    ['screen','Ion–ion screen',0,1,0.01],
-    ['kHB','H-bond force',0,0.02,0.0005],
-    ['jitter','Thermal jitter',0,0.03,0.001],
-    ['stericMIN','Water spacing',2,4.5,0.05],
-    ['iceBond','Ice O–O bond',3.0,5.4,0.05],
-    ['liquidEQ','Liquid O–O eq',3.0,4.5,0.05],
-    ['hbThreshold','H-bond reach',1.5,4.0,0.05],
-    ['warmStretch','Warm stretch',0,0.5,0.01],
-    ['zoom','Camera zoom',10,44,1],
-  ];
-  // colour swatches: [key, label]. O/H/Na/Cl/covalent live in state/bondColor;
-  // hb/ion are the shared bond materials.
-  const cols=[['O','Oxygen'],['H','Hydrogen'],['Na','Sodium  Na⁺'],['Cl','Chloride  Cl⁻'],['K','Potassium  K⁺'],
-    ['covalent','Covalent bond'],['hb','Hydrogen bond'],['ion','Ion–dipole bond'],
-    ['eBond','Bonding electrons'],['eLone','Lone-pair electrons'],
-    ['dNeg','δ− text'],['dPos','δ+ text']];
-  const hex=n=>'#'+n.toString(16).padStart(6,'0');
-  const colVal=k=> k==='covalent'?bondColor : k==='hb'?hbColor : k==='ion'?ionColor
-    : k==='eBond'?eBondColor : k==='eLone'?eLoneColor : k==='dNeg'?dNegColor : k==='dPos'?dPosColor
-    : state[k];
-
-  const panel=document.createElement('div');
-  panel.style.cssText='position:fixed;top:0;right:0;bottom:0;width:300px;z-index:40;'
-    +'background:rgba(248,245,239,.98);border-left:1.5px solid #d8cfbf;'
-    +'padding:16px 18px;font:12px/1.4 sans-serif;color:#4a443c;display:none;'
-    +'box-shadow:-12px 0 30px -14px rgba(0,0,0,.3);overflow-y:auto';
-
-  const tabRow=['sim','colors','render'];
-  let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
-    +'<div style="font-weight:700;font-size:14px;color:#2b2723">Debug</div>'
-    +'<div id="dbg_close" style="cursor:pointer;font-size:16px;color:#8a8073;line-height:1">✕</div></div>'
-    +'<div style="display:flex;gap:6px;margin-bottom:14px">'
-    +tabRow.map(t=>`<div class="dtab" data-tab="${t}" style="flex:1;text-align:center;padding:6px 4px;`
-      +`border:1.5px solid #d8cfbf;border-radius:var(--radius);cursor:pointer;text-transform:capitalize">${t}</div>`).join('')
-    +'</div>';
-
-  // — Sim tab —
-  html+='<div class="dpane" data-pane="sim">';
-  specs.forEach(([k,lbl,mn,mx,st])=>{ html+=
-    `<label style="display:block;margin:9px 0 3px">${lbl} <span id="dv_${k}" style="float:right;color:#1fa968">${DBG[k]}</span></label>`
-    +`<input id="ds_${k}" type="range" min="${mn}" max="${mx}" step="${st}" value="${DBG[k]}" style="width:100%">`; });
-  html+='<div id="dbg_reset" style="margin-top:12px;text-align:center;padding:7px;border:1px solid #b9ad98;'
-    +'border-radius:var(--radius);color:#2b2723;cursor:pointer">Reset sim defaults</div></div>';
-
-  // — Colors tab —
-  html+='<div class="dpane" data-pane="colors" style="display:none">'
-    +'<div style="color:#8a8073;margin-bottom:10px">Live atom &amp; bond colours</div>';
-  cols.forEach(([k,lbl])=>{ html+=
-    `<div style="margin:11px 0">`
-    +`<div style="display:flex;align-items:center;justify-content:space-between">`
-    +`<span>${lbl}</span>`
-    +`<input id="dc_${k}" type="color" value="${hex(colVal(k))}" style="width:44px;height:26px;border:none;background:none;cursor:pointer;padding:0"></div>`
-    +`<div id="dh_${k}" style="text-align:right;color:#8a8073;font:11px ui-monospace,Menlo,monospace;margin-top:2px">${hex(colVal(k)).toUpperCase()}</div>`
-    +`</div>`; });
-  html+='</div>';
-
-  // — Render tab —
-  html+='<div class="dpane" data-pane="render" style="display:none">'
-    +'<label style="display:flex;align-items:center;gap:10px;margin:10px 0;cursor:pointer">'
-    +'<input id="dr_toon" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
-    +'<span><b>Cell-shaded</b> render<br><span style="color:#8a8073">flat, banded toon shading instead of smooth solid</span></span>'
-    +'</label>'
-    +'<label style="display:flex;align-items:center;gap:10px;margin:14px 0;cursor:pointer">'
-    +'<input id="dr_outline" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
-    +'<span><b>Outlines</b><br><span style="color:#8a8073">dark ink outline around each atom</span></span>'
-    +'</label></div>';
-
-  panel.innerHTML=html; document.body.appendChild(panel);
-
-  // tab switching
-  panel.querySelectorAll('.dtab').forEach(tab=>{ tab.onclick=()=>{
-    const t=tab.dataset.tab;
-    panel.querySelectorAll('.dtab').forEach(x=>x.style.background=x.dataset.tab===t?'#2b2723':'transparent');
-    panel.querySelectorAll('.dtab').forEach(x=>x.style.color=x.dataset.tab===t?'#f8f5ef':'#4a443c');
-    panel.querySelectorAll('.dpane').forEach(p=>p.style.display=p.dataset.pane===t?'block':'none');
-  }; });
-  panel.querySelector('.dtab').click();   // default to Sim
-
-  // sim sliders
-  const DEFAULTS=Object.assign({},DBG);
-  function applyRadii(){ salt.forEach(m=>{ const r=ionRadius(m.userData.role, m.userData.baseRad);
-    m.scale.setScalar(r); m.userData.rad=r;
-    if(m.userData.outline) m.userData.outline.scale.setScalar(outlineScale(r)); }); }
-  specs.forEach(([k])=>{ const s=panel.querySelector('#ds_'+k), v=panel.querySelector('#dv_'+k);
-    s.oninput=()=>{ DBG[k]=parseFloat(s.value); v.textContent=s.value;
-      if(k==='naRad'||k==='clRad') applyRadii();
-      if(k==='iceBond') iceFor=-1;   // force the ice lattice to rebuild at the new spacing
-    }; });
-  panel.querySelector('#dbg_reset').onclick=()=>{ Object.assign(DBG,DEFAULTS);
-    specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
-      panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); iceFor=-1; };
-
-  // colour pickers
-  cols.forEach(([k])=>{ panel.querySelector('#dc_'+k).oninput=e=>{
-    const v=parseInt(e.target.value.slice(1),16);
-    panel.querySelector('#dh_'+k).textContent=e.target.value.toUpperCase();
-    if(k==='hb'||k==='ion') recolorBondType(k,v);
-    else if(k==='eBond'||k==='eLone') recolorElectrons(k,v);
-    else if(k==='dNeg'||k==='dPos') recolorChargeText(k,v);
-    else recolor(k,v);
-  }; });
-
-  // render mode
-  panel.querySelector('#dr_toon').onchange=e=>{ toonMode=e.target.checked; applyRenderMode(); };
-  panel.querySelector('#dr_outline').onchange=e=>{ outlinesOn=e.target.checked; applyOutlines(); };
-
-  const close=()=>panel.style.display='none';
-  panel.querySelector('#dbg_close').onclick=close;
-  document.getElementById('dbgtoggle').onclick=()=>{
-    panel.style.display=panel.style.display==='none'?'block':'none'; };
-})();
 
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band

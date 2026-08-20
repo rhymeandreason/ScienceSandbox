@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Render styles bench (water) — Kodolab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 300px; z-index: 40;
+    background: rgba(248,245,239,.98); border-left: 1.5px solid #d8cfbf;
+    padding: 18px 20px; font: 12px/1.4 var(--font-sans); color: #4a443c;
+    overflow-y: auto
+  }
+  #panel h2 { font-size: 14px; color: var(--ink); margin: 0 0 14px }
+  #panel h3 { font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+              color: #8a8073; margin: 22px 0 8px; font-weight: 700 }
+  .swatch { margin: 11px 0 }
+  .swatch .row { display: flex; align-items: center; justify-content: space-between }
+  .swatch input { width: 44px; height: 26px; border: none; background: none; cursor: pointer; padding: 0 }
+  .swatch .hex { text-align: right; color: #8a8073; margin-top: 2px;
+                 font: 11px ui-monospace, Menlo, monospace }
+  .check { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; cursor: pointer }
+  .check input { width: 16px; height: 16px; margin-top: 2px; cursor: pointer }
+  .check .note { color: #8a8073 }
+  #reset { margin-top: 22px; text-align: center; padding: 7px; cursor: pointer;
+           border: 1px solid #b9ad98; border-radius: var(--radius); color: var(--ink) }
+  #stage { margin-right: 300px }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="brand">
+      <i class="ph-bold ph-drop drop"></i>
+      <h1>Render styles</h1>
+    </div>
+  </div>
+</div>
+
+<aside id="panel">
+  <h2>Colours &amp; render</h2>
+  <div id="cols"></div>
+  <h3>Render</h3>
+  <label class="check">
+    <input id="toon" type="checkbox">
+    <span><b>Cell-shaded</b><br><span class="note">flat, banded toon shading instead of smooth solid</span></span>
+  </label>
+  <label class="check">
+    <input id="outline" type="checkbox">
+    <span><b>Outlines</b><br><span class="note">dark ink outline around each atom</span></span>
+  </label>
+  <div id="reset">Reset colours</div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="atomkit.js"></script>
+<script>
+"use strict";
+/* =============================================================================
+ *  Render-styles bench for the water lesson.
+ *
+ *  water-tutor-lab.html used to carry a Debug drawer that could recolour and
+ *  re-shade the running lesson. It was opened to try RENDER STYLES and almost
+ *  nothing else, and the price was a live-recolour path threaded through every
+ *  material the lesson makes. That path is gone; this page is what it was for.
+ *
+ *  The cast is a still life, not a simulation: the four things whose materials
+ *  are worth judging — an atom, a covalent stick, a hydrogen bond, an ion with
+ *  a water turned toward it. Nothing moves, so what you see is the material.
+ *
+ *  It builds on Stage (scene.js), which owns the same atom/bond/glow factories
+ *  and the same toon switch the lesson uses — so a style judged here is the
+ *  style the lesson would render, not a lookalike.
+ *
+ *  Colours are written into MolLib.PALETTE, which is the lesson's source of
+ *  truth too. To keep one, read the hex off this panel and change the palette.
+ * ========================================================================== */
+
+const canvas=document.getElementById('gl');
+const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
+  cam:{theta:0.45, phi:1.2, r:27} });
+
+const P=MolLib.PALETTE;
+const ATOMS=P.atoms, BONDS=P.bonds;
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+
+/* water's own geometry, the lesson's numbers */
+const ANG=104.5*Math.PI/180, HL=1.55, half=ANG/2;
+const H1L=V(Math.sin(half)*HL,-Math.cos(half)*HL,0);
+const H2L=V(-Math.sin(half)*HL,-Math.cos(half)*HL,0);
+
+let outlinesOn=false;
+const OUTLINE_GAP=0.05;                 // constant world thickness, not proportional
+const outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
+function atom(color,radius,pos){
+  const m=new THREE.Mesh(Stage.Rsphere, Stage.atomMat(color));
+  m.scale.setScalar(radius); if(pos) m.position.copy(pos);
+  if(outlinesOn){
+    const o=new THREE.Mesh(Stage.Rsphere, outlineMat);
+    o.scale.setScalar((radius+OUTLINE_GAP)/radius); m.add(o);
+  }
+  return m;
+}
+function stick(a,b,color,rad=0.13){
+  const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,len,16), Stage.bondMat(color));
+  m.position.copy(a).add(dir.clone().multiplyScalar(.5));
+  m.quaternion.setFromUnitVectors(V(0,1,0), dir.clone().normalize());
+  return m;
+}
+/* the dashed hydrogen bond, drawn the way the lesson draws it: short segments of
+   an emissive tube, so the glow material is what is on trial here.
+   Trimmed to the two SURFACES, and the still life below stretches the gaps well
+   past their real distances (a true H···O leaves about half a unit of visible
+   dash between the spheres). This page is judging materials, not teaching
+   distances — nothing here is to scale. */
+function dashed(a,b,ra,rb,color,ei){
+  const g=new THREE.Group();
+  const u=new THREE.Vector3().subVectors(b,a).normalize();
+  a=a.clone().addScaledVector(u,ra); b=b.clone().addScaledVector(u,-rb);
+  const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+  const n=Math.max(5,Math.round(len/0.34))|1, step=len/n;
+  const q=new THREE.Quaternion().setFromUnitVectors(V(0,1,0), dir.clone().normalize());
+  for(let i=0;i<n;i+=2){
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,step*0.6,8), Stage.glowMat(color,ei));
+    m.position.copy(a).add(dir.clone().multiplyScalar((i+0.5)/n));
+    m.quaternion.copy(q);
+    g.add(m);
+  }
+  return g;
+}
+
+const kit=AtomKit.create(THREE);
+function water(pos,quat,badges){
+  const g=new THREE.Group();
+  g.position.copy(pos); if(quat) g.quaternion.copy(quat);
+  g.add(stick(V(0,0,0),H1L,BONDS.covalent), stick(V(0,0,0),H2L,BONDS.covalent));
+  g.add(atom(ATOMS.O,0.95,V(0,0,0)), atom(ATOMS.H,0.55,H1L), atom(ATOMS.H,0.55,H2L));
+  if(badges){
+    // the letters and δ badges are canvas sprites, and they are part of what a
+    // render style has to sit behind — judge them together or not at all
+    // a badge's colour is baked into its canvas, so it is read at build time —
+    // which is exactly when this page rebuilds
+    const hold=(p,el,sign,scale)=>{
+      const h=new THREE.Group(); h.position.copy(p); g.add(h);
+      h.add(kit.label(el,el));
+      const badge=kit.charge(sign, hx(ATOMS[el]), el, scale);
+      h.add(el==='O' ? badge : kit.place(badge, p.clone().normalize().multiplyScalar(0.62)));
+    };
+    hold(V(0,0,0),'O','δ−',1);
+    hold(H1L,'H','δ+',0.8);
+    hold(H2L,'H','δ+',0.8);
+  }
+  return g;
+}
+
+/* ---- the still life ----
+   Left: one molecule with its letters and badges. Middle: a hydrogen-bonded
+   pair. Right: Na⁺ and Cl⁻, each with one water turned the way that ion turns
+   it — O inward for the cation, an O–H inward for the anion. */
+let cast=null;
+function build(){
+  if(cast) root.remove(cast);
+  cast=new THREE.Group(); root.add(cast);
+  const q=(from,to)=>new THREE.Quaternion().setFromUnitVectors(from.clone().normalize(),to.clone().normalize());
+
+  cast.add(water(V(-10,3.2,0), null, true));
+
+  const acc=V(-1.4,4.6,0), don=V(3.4,1.6,0);
+  const axis=new THREE.Vector3().subVectors(don,acc).normalize();
+  const a=water(acc, q(H1L.clone().add(H2L), axis.clone().negate()));
+  const d=water(don, q(H1L, axis.clone().negate()));
+  cast.add(a,d);
+  cast.add(dashed(don.clone().add(H1L.clone().applyQuaternion(q(H1L,axis.clone().negate()))),
+                  acc, 0.55, 0.95, BONDS.hbond, .55));
+
+  const na=V(-5.0,-5.6,0), cl=V(5.0,-5.6,0);
+  cast.add(atom(ATOMS.Na,0.72,na), atom(ATOMS.Cl,1.05,cl));
+  const naW=V(na.x,na.y+4.4,0), clW=V(cl.x,cl.y+5.0,0);
+  cast.add(water(naW, q(H1L.clone().add(H2L), V(0,1,0))));      // O toward the cation
+  cast.add(water(clW, q(H1L, V(0,-1,0))));                      // one O–H toward the anion
+  cast.add(dashed(naW, na, 0.95, 0.72, BONDS.iondipole, .6));
+  cast.add(dashed(clW.clone().add(H1L.clone().applyQuaternion(q(H1L,V(0,-1,0)))),
+                  cl, 0.55, 1.05, BONDS.iondipole, .6));
+}
+
+/* ---- the panel ----
+   Rebuilding the whole cast on any change is the point of a bench: no live
+   recolour path to keep correct, so what renders is exactly what a fresh page
+   would render with these values. */
+const COLS=[['O','Oxygen','atoms'],['H','Hydrogen','atoms'],['Na','Sodium Na⁺','atoms'],
+  ['Cl','Chloride Cl⁻','atoms'],['K','Potassium K⁺','atoms'],
+  ['covalent','Covalent bond','bonds'],['hbond','Hydrogen bond','bonds'],
+  ['iondipole','Ion–dipole bond','bonds']];
+const hx=n=>'#'+n.toString(16).padStart(6,'0');
+const DEFAULTS=COLS.map(([k,,grp])=>P[grp][k]);
+
+const colsEl=document.getElementById('cols');
+colsEl.innerHTML=COLS.map(([k,lbl,grp])=>
+  `<div class="swatch"><div class="row"><span>${lbl}</span>`
+  +`<input type="color" data-k="${k}" data-g="${grp}" value="${hx(P[grp][k])}"></div>`
+  +`<div class="hex" id="hex_${k}">${hx(P[grp][k]).toUpperCase()}</div></div>`).join('');
+
+colsEl.querySelectorAll('input').forEach(inp=>{
+  inp.oninput=()=>{
+    P[inp.dataset.g][inp.dataset.k]=parseInt(inp.value.slice(1),16);
+    document.getElementById('hex_'+inp.dataset.k).textContent=inp.value.toUpperCase();
+    build();
+  };
+});
+
+document.getElementById('toon').onchange=e=>{ Stage.setToon(e.target.checked); build(); };
+document.getElementById('outline').onchange=e=>{ outlinesOn=e.target.checked; build(); };
+document.getElementById('reset').onclick=()=>{
+  COLS.forEach(([k,,grp],i)=>{ P[grp][k]=DEFAULTS[i];
+    const inp=colsEl.querySelector(`input[data-k="${k}"]`);
+    inp.value=hx(P[grp][k]); document.getElementById('hex_'+k).textContent=inp.value.toUpperCase(); });
+  build();
+};
+
+build();
+(function loop(){
+  kit.faceCamera(camera);
+  applyCam();
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+})();
+addEventListener('resize',resize);
+</script>
+</body>
+</html>
