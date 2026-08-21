@@ -178,6 +178,7 @@ function ringNormal(ring, P) {
   return unit(n);
 }
 
+let condenseFails = 0;
 let failures = 0, warnings = 0, stereoFails = 0, chiralFails = 0, nameFails = 0,
     smilesFails = 0, srcFails = 0;
 
@@ -1145,6 +1146,67 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     }
   }
 
+  // ---- condensation (dehydration synthesis) ----------------------------
+  // condense-lab.html's whole claim is that the sugar, the amino acid and the
+  // lipid enter ONE reaction: a bond is made and a water leaves. A `condense`
+  // block says which atoms that means on this molecule, and everything below
+  // exists because a wrong index here is invisible on screen — the animation
+  // would still make a bond and still release something water-shaped, just off
+  // the wrong group, and the student would learn the wrong chemistry fluently.
+  //
+  // Four claims: the named atoms are really that group (keep–O–H, or keep–H),
+  // the two halves between them give up exactly O + H + H, the atom that stays
+  // is a heavy atom (a bond to a departing H is not a linkage), and — where a
+  // product spec exists — the product's element counts are the two reactants'
+  // minus one water. `product:null` is allowed and must be written out: a
+  // dipeptide has no spec, and an absent key would read as nothing to check.
+  if (mol.condense) {
+    const fail = msg => { condenseFails++; console.log(`   CONDENSE FAIL: ${msg}`); };
+    const roles = new Map((mol.condense.roles || []).map(r => [r.key, r]));
+    const inRange = i => Number.isInteger(i) && i >= 0 && i < mol.atoms.length;
+    const linked = (a, b) => bonded.has(a < b ? `${a},${b}` : `${b},${a}`);
+    const counts = m => { const c = {}; for (const a of m.atoms) c[a.el] = (c[a.el] || 0) + 1; return c; };
+
+    for (const r of roles.values()) {
+      const all = [r.keep, ...(r.leaves || [])];
+      if (!all.every(inRange)) { fail(`role '${r.key}' names an atom outside the spec`); continue; }
+      if (mol.atoms[r.keep].el === 'H')
+        fail(`role '${r.key}' keeps ${label(r.keep)}, a hydrogen — nothing can bond there once the water leaves`);
+      // the leaving group hangs off `keep` as a chain: keep–L0(–L1)
+      if (!linked(r.keep, r.leaves[0]))
+        fail(`role '${r.key}': ${label(r.leaves[0])} is not bonded to ${label(r.keep)}`);
+      if (r.leaves.length === 2 && !linked(r.leaves[0], r.leaves[1]))
+        fail(`role '${r.key}': ${label(r.leaves[1])} is not bonded to ${label(r.leaves[0])}`);
+      if (r.leaves.length > 2) fail(`role '${r.key}' sheds ${r.leaves.length} atoms — a condensation sheds at most O+H`);
+    }
+
+    for (const rx of mol.condense.makes || []) {
+      const d = roles.get(rx.donor), a = roles.get(rx.acceptor);
+      if (!d || !a) { fail(`reaction names role '${!d ? rx.donor : rx.acceptor}', which is not declared`); continue; }
+      const shed = [...d.leaves, ...a.leaves].map(i => mol.atoms[i].el).sort().join('');
+      if (shed !== 'HHO')
+        fail(`${rx.donor}+${rx.acceptor} sheds ${shed || 'nothing'}, not one water (OHH)`);
+      if (!('product' in rx)) { fail(`reaction ${rx.donor}+${rx.acceptor} omits 'product' — write null if there is no spec`); continue; }
+      if (rx.product === null) {
+        console.log(`   condense OK: ${rx.donor}+${rx.acceptor} sheds one water; product assembled at runtime, no spec to check`);
+        continue;
+      }
+      const prod = MOLECULES[rx.product];
+      if (!prod) { fail(`product '${rx.product}' is not a registered molecule`); continue; }
+      const cA = counts(mol), cP = counts(prod);
+      const want = {};
+      for (const el of new Set([...Object.keys(cA), ...Object.keys(cP)]))
+        want[el] = 2 * (cA[el] || 0) - (el === 'H' ? 2 : el === 'O' ? 1 : 0);
+      const bad = Object.keys(want).filter(el => want[el] !== (cP[el] || 0))
+        .map(el => `${el}: two ${key} minus water gives ${want[el]}, ${rx.product} has ${cP[el] || 0}`);
+      if (bad.length) fail(`${rx.product} is not two ${key} joined by one condensation — ${bad.join('; ')}`);
+      else if (rx.config && prod.glycosidic && prod.glycosidic.config !== rx.config)
+        fail(`reaction declares ${rx.config} but ${rx.product} declares ${prod.glycosidic.config}`);
+      else console.log(`   condense OK: 2x${key} - H2O = ${rx.product}`
+        + (rx.config ? ` (${rx.config}${rx.invert ? ', inverting at the anomeric carbon' : ''})` : ''));
+    }
+  }
+
   // ---- ring stereochemistry -------------------------------------------
   // Wrong configuration is invisible to every check above: lengths, angles and
   // the render all stay perfect while the molecule is a different sugar. So
@@ -1248,7 +1310,7 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
 }
 
 console.log('');
-if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails || formulaFails) {
+if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFails || formulaFails || condenseFails) {
   const parts = [];
   if (formulaFails) parts.push(`${formulaFails} formula/charge mismatch(es)`);
   if (srcFails) parts.push(`${srcFails} spec(s) with missing or malformed \`src:\` provenance`);
@@ -1258,10 +1320,12 @@ if (failures || stereoFails || chiralFails || nameFails || smilesFails || srcFai
   if (stereoFails) parts.push(`${stereoFails} ring(s) failing a declared `
     + `stereo/topology claim`);
   if (chiralFails) parts.push(`${chiralFails} mirrored stereocentre(s) (L/D)`);
+  if (condenseFails) parts.push(`${condenseFails} broken \`condense:\` reaction(s)`);
   console.log(`FAIL: ${parts.join(' + ')}`);
   process.exit(1);
 }
 console.log(`PASS: every spec records its provenance; no sphere overlaps; every `
   + `atom reference resolves; every formula matches its atoms and its \`charge\`; `
-  + `every declared stereo/topology/chirality claim holds`
+  + `every declared stereo/topology/chirality claim holds; every \`condense:\` `
+  + `reaction sheds exactly one water and lands on its declared product`
   + (warnings ? ` (${warnings} tight bond(s) — check they still read clearly)` : ''));

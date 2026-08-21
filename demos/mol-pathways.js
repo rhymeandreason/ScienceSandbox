@@ -138,6 +138,25 @@
         { key:'anomeric', label:'Anomeric carbon', formula:'C1', atoms:[1,OH[0],ohH[0]],
           note:'The one carbon bonded to two oxygens. Its –OH points equatorial here (β); flipping it to axial gives α — and α vs β is the whole difference between starch and cellulose.' },
       ],
+      // condense-lab.html: the two half-reactions glucose can enter. A
+      // condensation is one bond made and one water released, so a role names
+      // the atom that STAYS bonded and the atoms that leave with the water —
+      // the donor gives its whole anomeric –OH, the acceptor gives only the H
+      // off C4's, and O + H + H is the water. Indices come from the build
+      // variables, never typed, so re-ordering the build cannot aim the
+      // reaction at the wrong hydroxyl.
+      //
+      // Both products already exist as checked specs, and they differ only in
+      // the configuration left at C1. This spec is BETA (O1 equatorial), so
+      // cellobiose keeps C1's arrangement and maltose inverts it — which is
+      // exactly the choice the student makes by which face they approach on.
+      condense:{
+        roles:[
+          { key:'c1', label:'anomeric –OH', keep:1, leaves:[OH[0], ohH[0]] },
+          { key:'c4', label:'C4 –OH',       keep:OH[3], leaves:[ohH[3]] } ],
+        makes:[
+          { product:'cellobiose', donor:'c1', acceptor:'c4', config:'beta',  invert:false },
+          { product:'maltose',    donor:'c1', acceptor:'c4', config:'alpha', invert:true } ] },
       // contrast-lab.html: glucose is the reference half of the glucose/galactose
       // pair. `diff` is C4 and its hydroxyl — the one position where galactose
       // differs — derived from the build variables above rather than typed, so
