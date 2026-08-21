@@ -19,8 +19,10 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | featured lesson |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | prototype |
-| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | prototype |
+| `solvation-lab.html` | The forces **between** molecules, where `molecule-builder` stops. One card built (salt in water: hydration shells, water wedges the pair apart, the electron counts never move), two named (the H-bond alone · methane, where nothing happens) | prototype |
+| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | test |
 | `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Hosts the `massaction/` sim in a modal — a second simulation with its own physics (below) | featured lesson |
+| `krebs-lab.html` | The Krebs cycle. Pyruvate oxidation, then eight steps around the ring, with the loop drawn in the sidebar and a second turn played back for the ×2. Where the carbon goes, and why the ATP is beside the point | prototype |
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
 | `water-tutor-lab.html` | Structure of water, with the right rail given to the tutor: the lesson's text lives on the model as annotate.js callouts, and an ask box takes the sidebar | prototype |
 | `water-render-debug.html` | Test bench for render styles — a still life of water, an H-bond and the two ions, with colour swatches and the toon/outline switches. Built on Stage's own factories, so a style judged here is the one a lesson renders | test |
@@ -33,6 +35,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
 | `coupling/coupling-test.html` | Test bench for `coupling/coupling.js` — ΔG adds, and it only adds when the two reactions share a molecule | test |
 | `lobes/lobes-test.html` | Test bench for `lobes/lobes.js` — lone pairs as teardrops, and which nitrogens on adenine are not acceptors | test |
+| `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
 ## Making a new lesson
 
@@ -48,7 +51,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
 
-**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb (`decarb`, `join`, `thioester` for the rest of respiration) must not touch a page. `AddingAPage.md`.
+**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb must not touch a page. The cycle added six (`decarb`, `join`, `thioester`, `hydrate`, `dehydro`, `shift`) and changed no lesson but its own. A spec's atom names are read through `host.meta`, because a step can span two domain blocks — pyruvate carries `gly`, the acetyl-CoA it becomes carries `krebs`. `AddingAPage.md`.
 
 **`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
 

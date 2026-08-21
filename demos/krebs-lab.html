@@ -1,0 +1,2822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Krebs cycle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="sandbox.css">
+<style>
+  /* --fad is the cycle's own addition: the flavin, in its real yellow, so the
+     weaker carrier is never mistaken for the NAD⁺ green. --co2 is the carbon
+     leaving, which on this page is a product with a count like any other. */
+  :root{ --phos:#e07b1f; --nad:#2f7d5c; --atp:#c8452e; --carbon:#3a3a3a;
+         --fad:#c9962b; --co2:#6c7a89;
+    /* THE CARRIER COLUMN'S WIDTH, DECLARED ONCE. It is read twice: by #carrier,
+       which is the box kit/carriers.js fits the molecule into, and by
+       trayReservePx(), which is how much of the stage's left edge the camera
+       gives up. Those two have to be the same number — a column wider than the
+       reserve draws NAD⁺ through whatever is standing beside it — and a
+       variable is the only way to say so once.
+       WIDER THAN A CARD, NARROWER THAN GLYCOLYSIS'S 400px: every carrier here
+       is a nucleotide, and at 400 the flavin reached the middle of the stage. */
+    --carw:300px; }
+
+  /* TWO ROWS, TWO COLUMNS: rail across the top, stage takes the rest. */
+  @media (min-width:921px){
+    #app-sidebar{grid-template-rows:auto minmax(0,1fr); grid-template-columns:1fr 316px}
+    #railbar{grid-column:1 / -1}
+    /* STAGE TAKES THE WHOLE WIDTH, NOTES ON TOP: sticky notes, not a panel to
+       make room for, so the molecule centres on the PAGE. */
+    #stage{grid-column:1 / -1;grid-row:2}
+    #side{grid-column:2;grid-row:2;z-index:9;pointer-events:none;
+      /* no paper of its own — an opaque column would cut a rectangle out of
+         the scene behind it */
+      background:none}
+    #side>*{pointer-events:auto}
+  }
+  #stage,#side{min-height:0}
+  /* Scrolls as one column, so no piece needs a fixed height. Paper only when
+     stacked — wide, it lies over the stage and takes the stage's. */
+  #side{overflow-y:auto; padding:0 20px 30px; box-shadow:none; border:none}
+  @media (max-width:920px){
+    #side{background-color:var(--paper);
+      background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+      background-size:26px 26px; background-position:13px 13px}
+  }
+  #side::before{display:none}
+  #card{min-height:0}
+
+  /* ---------- species labels: DOM over the canvas, one per lane ----------
+     Placed every frame from the projected anchor (drawPlates) so they track
+     the molecule as the camera orbits; the anchor is the label's bottom-middle.
+     NO FULL-STAGE FLASH on a click: the button's own burst already says the
+     click landed, and a page-wide wash reads as the page blinking rather than
+     as the reaction running. */
+
+  /* ---------- the hotspot: click the bond that breaks ----------
+     A step whose content is "this bond comes apart" should be run BY coming
+     apart; a button at the bottom of the screen is a slideshow. Pinned every
+     frame to the bond's projected midpoint (drawSpots), like the name plates.
+     TWO LAYERS, because the glow is BEHIND the molecule and the click cannot
+     be: the canvas is drawn with alpha, so a disc underneath shows through
+     wherever the molecule is not, but the canvas takes the pointer (orbit), so
+     the target is a transparent button above. Same projected point. */
+  #gl{position:relative;z-index:2}          /* over the glow, under everything */
+  #spotglow{position:absolute;inset:0;z-index:1;pointer-events:none}
+  /* THE SAME DISC, ON THE CARRIER: a kinase step's clickable bond is ATP's β–γ.
+     Own container because #spotglow's children are lane spots hidden by index. */
+  #cglow{position:absolute;inset:0;z-index:1;pointer-events:none;display:none}
+  /* THE PROMPT GOES WITH THE MARK, not beside the carrier's name. Sized to
+     the disc it covers, not the lanes' 74px: what is lit here is small. */
+  #cspot{position:absolute;z-index:8;width:50px;height:50px}   /* over the tray */
+  #cspot[hidden]{display:none}
+  /* A FLAT DISC WITH AN EDGE, not a feathered glow: the edge reads as a target
+     you can hit rather than as lighting. */
+  .sglow{position:absolute;width:50px;height:50px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(107,79,216,.30);
+    animation:sglowPulse 2.4s ease-in-out infinite}
+  @keyframes sglowPulse{
+    0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.75}
+    50%    {transform:translate(-50%,-50%) scale(1.12);opacity:1}}
+
+  /* THE PROMPT IS A CALLOUT (annotate.js, see drawHint), never text beside the
+     disc — so kit/hotspot.js's own hint span is always handed '' and hidden. */
+  .shint:empty{display:none}
+
+  /* NO DOT ON THE CALLOUT HERE. annotate.js's dot marks the anchor, but the
+     purple disc under the bond already marks it, and two marks on one point
+     read as two things. The leader still lands on the anchor. */
+  .annot-dot{display:none}
+  #spots{position:absolute;inset:0;z-index:6;pointer-events:none}
+  /* target invisible: the glow underneath is the affordance; a ring on top
+     would be a second one */
+  .spot{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;
+    width:74px;height:74px;padding:0;border:none;border-radius:50%;
+    background:none;cursor:pointer;display:block}
+  .spot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
+  @media (max-width:920px){ .sglow{width:72px;height:72px}
+    .spot{width:60px;height:60px} }
+
+  /* ---------- THE ENZYME, behind the sugar ----------
+     A BLOB, NOT A STRUCTURE. No glycolytic enzyme is drawn on this page and a
+     shape that pretended to be one would be a lie at every scale; this says
+     only "a protein is holding this molecule while it reacts", which is the
+     claim the lesson makes. Translucent, and UNDER the canvas (#gl is z-index 2
+     over it) so the molecule sits inside the enzyme rather than behind a wash.
+     WIGGLE: two nested animations at coprime durations — a slow turn on the
+     wrapper, a slow squash on the path — so the loop never visibly repeats.
+     Ambient, not an event: nothing here marks a click. */
+  #enzymes{position:absolute;inset:0;z-index:1;pointer-events:none}
+  #enzymes[hidden]{display:none}
+  .enzblob{position:absolute;transform:translate(-50%,-50%);
+    animation:enzTurn 24s ease-in-out infinite}
+  .enzblob svg{display:block;width:100%;height:100%;
+    animation:enzWob 9s ease-in-out infinite; opacity:.5;}
+  .enzblob:nth-child(2) svg{animation-duration:11s;animation-delay:-3s}
+  /* A SWAY, NOT A SPIN. A full turn reads as an object rotating on the stage —
+     an event, and a wrong one: an enzyme is not a wheel. This is drift. */
+  @keyframes enzTurn{0%,100%{transform:translate(-50%,-50%) rotate(-7deg)}
+                     50%    {transform:translate(-50%,-50%) rotate(7deg)}}
+  @keyframes enzWob{0%,100%{transform:scale(1,1) rotate(0deg)}
+                    33%    {transform:scale(1.06,.94) rotate(4deg)}
+                    66%    {transform:scale(.95,1.05) rotate(-3deg)}}
+  @media (prefers-reduced-motion:reduce){
+    .enzblob,.enzblob svg{animation:none} }
+  /* The step's verdicts, with the enzyme's name under them, down the right of
+     the stage. IN THE CARD'S BAND ON PURPOSE: the energy card (#couplebox)
+     lands here and covers these words — they are its door, and a door beside
+     the thing it opened is noise. The sidebar's stacking context (see #side)
+     paints it over them. */
+  #enzmeta{position:absolute;right:26px;top:96px;z-index:5;
+    max-width:230px;text-align:right;display:flex;flex-direction:column;
+    align-items:flex-end;gap:-10px;}
+#enzmeta .estat{
+ font-family:var(--font-marker);
+font-size: 20px;
+}
+  #enzmeta[hidden]{display:none}
+  /* THE ASTERISK over the pair — "there is a footnote here", which is what the
+     two words are. MASKED, not an <img>: the mask paints currentColor through
+     the shape, so one class tints it to the first word's colour.
+     LONGHANDS, not the `mask:` shorthand — Safari parses the shorthand's
+     size-after-slash inconsistently and drops the whole declaration. */
+  .east{display:block;width:36px;height:38px;margin-bottom:2px;
+    background-color:currentColor;
+    -webkit-mask-image:url(images/asterisk.svg); mask-image:url(images/asterisk.svg);
+    -webkit-mask-repeat:no-repeat;   mask-repeat:no-repeat;
+    -webkit-mask-position:center;    mask-position:center;
+    -webkit-mask-size:contain;       mask-size:contain}
+  /* k- prefix ON PURPOSE: `.cpl` is the coupling FIGURE's class
+     (`display:block;width:100%`), and a bare `.cpl` here matches these too —
+     which renders the asterisk 150px wide and 0 tall, i.e. invisible.
+     Same for the words below. */
+  .east.k-cpl{color:var(--phos)} .east.k-irr{color:var(--atp)} .east.k-rev{color:var(--nad)}
+  /* A WORD YOU CAN PRESS, not a badge: the energy card is the explanation, and
+     this is the only thing that says it is there. Underlined for that reason. */
+  .estat{font-family:var(--font-slab);font-weight:700;font-size:14px;
+    letter-spacing:.3px;background:none;border:none;padding:0;cursor:pointer;
+    text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;
+    text-decoration-color:rgba(0,0,0,.18)}
+  .estat.k-cpl{color:var(--phos)}
+  .estat.k-irr{color:var(--atp)}
+  .estat.k-rev{color:var(--nad)}
+  /* ONE HOVER FOR THE PAIR. The two words are two readings of the same step
+     and one door into the same card, so hovering either lights BOTH — hence
+     the state on the container, never on .estat itself. Highlighter, not a
+     button fill: they stay text. */
+  #enzmeta:hover .estat{background:rgba(255,205,60,.34);
+    box-shadow:0 0 0 3px rgba(255,205,60,.34);border-radius:2px;
+    text-decoration-color:currentColor}
+  .estat{transition:background .12s ease, box-shadow .12s ease}
+  .estat[aria-pressed="true"]{text-decoration-color:currentColor}
+  /* between the two verdicts and the enzyme's name. Handwritten, because it is
+     the aside a tutor would add in the margin — not another readout. */
+  #enznote{position:absolute;right:30px;top:calc(38% + 130px);z-index:5;
+    max-width:170px;text-align:right;pointer-events:none;
+    font-family:var(--font-hand);font-size:24px;line-height:1.2;color:var(--ink);
+    opacity:.85}
+  #enznote[hidden]{display:none}
+  @media (max-width:920px){ #enznote{right:12px;max-width:160px;font-size:15px} }
+  #enzname{position:absolute;right:26px;top:calc(38% + 200px);z-index:5;max-width:210px;
+    text-align:right;pointer-events:none}
+  #enzname[hidden]{display:none}
+  #enzname .ek{font-family:var(--font-slab);font-size:16px;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  #enzname .en{font-family:var(--font-slab);font-size:22px;
+    line-height:1.2;color:#2f7fa8}
+  @media (max-width:920px){ #enzname{right:12px;max-width:150px}
+    #enzmeta{right:12px;max-width:150px} #enzname .en{font-size:14px} }
+
+  #plates{position:absolute;inset:0;z-index:5;pointer-events:none}
+  .plate{position:absolute;transform:translate(-50%,-100%);transform-origin:50% 100%;
+    text-align:center;white-space:nowrap;line-height:1.15;
+    transition:opacity .22s ease}
+  /* THE NAME GOES WHILE THE MOLECULE IS BECOMING SOMETHING ELSE — mid-beat the
+     thing on stage is between two molecules and the label is still the OLD
+     name. Set in runStep, cleared when the product lands. Opacity, never
+     display: the label's HEIGHT is the camera's top reserve (plateHeightPx),
+     so dropping it from layout re-frames mid-animation. */
+  #plates.mute .plate{opacity:0}
+  /* A NAME ON SOMETHING IN FLIGHT — step 6's inorganic phosphate, which is the
+     only molecule that arrives from off-stage rather than being on a lane.
+     ITS OWN HOST, not a .plate in #plates, for two reasons: #plates is MUTED
+     for a step's whole animation (see above), which is exactly when this has
+     to be readable; and plateHeightPx() reserves the lane labels' height off
+     the top of the camera, which a label on a moving object must not do. */
+  #flyers{position:absolute;inset:0;z-index:5;pointer-events:none}
+  .flyplate{position:absolute;transform:translate(-50%,-100%);text-align:center;
+    white-space:nowrap;line-height:1.15;opacity:0;transition:opacity .25s ease}
+  /* SIZED LIKE A LANE PLATE, not smaller: it is the only label on a MOVING
+     object, competing with a molecule crossing the frame behind it, and
+     anything quieter is unreadable. */
+  .flyplate .fn{font-family:var(--font-slab);font-weight:700;font-size:22px;
+    color:var(--phos);letter-spacing:.2px}
+  .flyplate .ff{font-family:var(--font-slab);font-weight:500;font-size:15px;
+    color:var(--muted)}
+  @media (max-width:920px){
+    .flyplate .fn{font-size:18px}.flyplate .ff{font-size:13px} }
+  @media (prefers-reduced-motion:reduce){ .flyplate{transition:none} }
+  .plate .pn{font-family:var(--font-slab);font-weight:700;font-size:19px;
+    color:var(--ink);letter-spacing:.2px}
+  .plate .pf{font-family:var(--font-slab);font-weight:500;font-size:14px;color:var(--muted)}
+  @media (max-width:920px){
+    .plate .pn{font-size:16px}.plate .pf{font-size:12.5px}
+  }
+
+  /* ---------- THE CLOSING TALLY, 2x2 ----------
+     Sits over the stage on the end screen (the lanes are hidden under it, so
+     the two pyruvate are not on screen twice). Bottom inset clears the bar. */
+  /* FIVE CELLS, NOT FOUR. One turn makes four things and the ledger is the
+     fifth — three carriers across the top, then the carbon that left beside
+     the arithmetic that counts it. The ledger spans two columns because it is
+     rows of text, not a molecule, and squeezing it into a molecule's slot
+     makes the one cell you actually read the narrowest. */
+  #tally{position:absolute;left:0;right:0;top:0;bottom:118px;z-index:6;
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    gap:10px 22px;padding:14px 6% 0;pointer-events:none}
+  #tledger{grid-column:span 2}
+  /* THE STAGE RUNS UNDER THE SIDEBAR (it spans both columns so the molecule
+     centres on the PAGE), which is fine for one subject on the centre line and
+     wrong for a three-column grid: the right-hand cell was drawn beneath the
+     notes and ATP came out sliced down the middle. Clear the column here rather
+     than narrowing the stage — every other screen wants the full width. */
+  @media (min-width:921px){ #tally{padding-right:calc(316px + 2%)} }
+  #tally[hidden]{display:none}
+  .tcell{position:relative;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;min-height:0}
+  /* the molecule's box: the slot kit/carriers.js projects into. Takes the
+     slack, so the count and name sit tight under the drawing. */
+  .tcell .tvis{flex:1;width:100%;min-height:0;display:flex}
+  .tcell .tslot{flex:1;min-width:0}
+  /* NAME THEN COUNT, both in the heading face — the cell reads as a caption,
+     not as a label with a footnote. ONE colour across all three counts: the
+     three ×2s are one fact — everything after the split happens twice — and
+     per-product colours would say each number came from somewhere different. */
+  .tname{font-family:var(--font-slab);font-weight:700;font-size:19px;
+    line-height:1.1;color:var(--ink);letter-spacing:.2px}
+  .tcount{font-family:var(--font-slab);font-weight:700;font-size:23px;
+    line-height:1.1;color:var(--nad);font-variant-numeric:tabular-nums}
+  /* the ledger here is a cell, not the sidebar's sticky rail */
+  #tledger{pointer-events:auto}
+  #tally #ledger{position:static;margin:0;width:100%;max-width:290px}
+  @media (max-width:920px){
+    #tally{bottom:104px;padding:8px 4% 0;gap:6px 12px}
+    .tcount{font-size:19px} .tname{font-size:16px}
+  }
+
+  /* ---------- the bottom bar: heading, action button, step caption ----------
+     ONE CONTAINER, ONE FIXED HEIGHT — typed, not measured. The camera reserves
+     exactly --barh along the bottom edge, so nothing here can re-frame the shot
+     by growing: hence `visibility` on #actbtn/#stephead, and #rxmsg out of flow
+     above the bar since its height genuinely varies. Grow the button or heading
+     → change --barh. Centred like the frustum, so the two agree. */
+  #bottombar{--barh:88px;
+    position:absolute;left:0;right:0;bottom:18px;z-index:8;height:var(--barh);
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    gap:11px;pointer-events:none}
+  #bottombar>*{pointer-events:auto}
+  /* the step's heading: which of the ten, plus the hook or that it is done. */
+  #stephead{visibility:hidden;min-height:15px;
+    font-family:var(--font-marker);font-weight:700;font-size:20px;
+    letter-spacing:1.6px;text-transform:uppercase;color:var(--ink); margin-bottom: 16px;}
+  #stephead.on{visibility:visible}
+
+  /* ---------- the caption, on demand ----------
+     THE TOOLTIP CHANGES NO LAYOUT: out of flow in a zero-width wrapper,
+     opening upward over the stage. */
+  .infowrap{position:relative;display:inline-block;width:0;height:0;
+    vertical-align:middle}
+  .infobtn{position:absolute;left:7px;top:50%;transform:translateY(-50%);
+    width:17px;height:17px;padding:0;border-radius:50%;cursor:help;
+    border:1.5px solid var(--muted);background:none;color:var(--muted);
+    font-family:var(--font-sans);font-weight:700;font-size:10.5px;line-height:1;
+    display:grid;place-items:center;transition:color .15s,border-color .15s}
+  .infobtn:hover,.infobtn:focus{color:var(--ink);border-color:var(--ink);outline:none}
+  #steptip{position:absolute;bottom:calc(100% + 14px);left:50%;
+    transform:translateX(-50%) translateY(4px);
+    width:min(520px,86%);padding:13px 17px;border-radius:12px;
+    background:var(--panel);border:1.5px solid var(--hair);
+    box-shadow:0 14px 34px -14px rgba(60,50,28,.55);
+    font-family:var(--font-sans);font-size:14.5px;line-height:1.5;
+    letter-spacing:0;text-transform:none;color:#5a5346;text-align:center;
+    /* never a click target: cannot swallow a press meant for the stage, cannot
+       hold itself open once the pointer leaves the icon */
+    pointer-events:none;opacity:0;visibility:hidden;
+    transition:opacity .16s ease, transform .16s ease}
+  /* icon and tooltip are not siblings, so the band does the asking. */
+  #bottombar:has(.infobtn:hover) #steptip,
+  #bottombar:has(.infobtn:focus) #steptip{
+    opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  #steptip b{font-weight:700;color:var(--ink)}
+  #steptip .p{color:var(--phos)} #steptip .n{color:var(--nad)}
+  #steptip:empty{display:none}
+  @media (prefers-reduced-motion:reduce){ #steptip{transition:none} }
+  /* review beat's shared entry — #couplebox.in's timing, so verdict, button
+     and figure arrive together, after the molecule lands */
+  .revin{animation:revin .42s cubic-bezier(.2,.9,.3,1) 1.5s backwards}
+  @keyframes revin{
+    from{opacity:0;transform:translateY(8px)}
+    to  {opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){ .revin{animation:none} }
+  #stephead em{font-family: var(--font-marker); font-style:normal;color:var(--muted)}
+
+  /* THE STEP CAPTION. Never times out — replaced by the next step's. Only the
+     intro and closing screen carry text.
+     OUT OF FLOW, ABOVE THE BAR: its height is the only varying one here, and
+     inside the bar it would change the camera's bottom reserve, framing intro
+     and closing differently from the ten steps between. Length is a legibility
+     budget only: it opens upward, so a long one hits the molecule.
+     --caph is the reserve while showing (capReservePx) — typed, like --barh.
+     Two lines at this size, plus the gap. */
+  #rxmsg{--caph:70px;
+    position:absolute;bottom:calc(100% + 6px);left:50%;
+    transform:translateX(-50%);
+    width:min(680px,64%);text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
+    color:#5a5346;letter-spacing:0;opacity:0;pointer-events:none}
+  #rxmsg p{margin:0}
+
+  #rxmsg b{font-weight:700;color:var(--ink)}
+  #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
+  #rxmsg.show{opacity:1}
+  #rxmsg.in{animation:rxIn .5s ease-out}
+  /* both keyframes restate the centring transform — `transform:none` would
+     snap the caption half its width right on the last frame */
+  @keyframes rxIn{from{opacity:0;transform:translateX(-50%) translateY(5px)}
+    to{opacity:1;transform:translateX(-50%)}}
+  @media (max-width:920px){ #rxmsg{width:88%;font-size:14px} }
+
+  #ledger{position:sticky;top:0;z-index:6;flex:none;margin:0 0 16px;
+    background:linear-gradient(168deg,#fdf0a8 0%,#fbe88c 62%,#f6de79 100%);
+    padding:13px 15px 15px;transform:rotate(-1.2deg);transform-origin:top right;
+    box-shadow:0 1px 1px rgba(0,0,0,.16), 0 10px 18px -10px rgba(0,0,0,.42)}
+  /* ledger is not on the opening screen*/
+  #ledger.hid{display:none}
+  #ledger.pin{animation:pinup .5s cubic-bezier(.2,.9,.3,1) backwards}
+  @keyframes pinup{
+    from{opacity:0;transform:rotate(-7deg) translateY(-16px) scale(.96)}
+    to  {opacity:1;transform:rotate(-1.2deg)}}
+  @media (prefers-reduced-motion:reduce){ #ledger.pin{animation:none} }
+  /* the lifted bottom-left corner: a triangle of shade folding off the page */
+  #ledger::after{content:'';position:absolute;left:0;bottom:0;width:22px;height:18px;
+    background:linear-gradient(48deg,rgba(0,0,0,.13) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
+    pointer-events:none}
+  /* Type warms up to sit on yellow: --muted and --hair are mixed against cream
+     and go muddy here, so heading and rules are ink at low alpha. Meaningful
+     colours stay — red net, grey carbons. */
+  #ledger .lhead{font-family:var(--font-slab);font-weight:700;font-size:10px;letter-spacing:1.3px;
+    text-transform:uppercase;color:rgba(60,50,28,.62);margin-bottom:9px}
+  #ledger .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    font-family:var(--font-slab);font-size:14px;color:#4a4232;padding:2.5px 0}
+  #ledger .row .v{font-weight:700;font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+  #ledger .row.net{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
+  #ledger .row.net .v{font-size:20px;color:var(--atp)}
+  #ledger .row.prod{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
+  /* page colours: green for the NAD⁺/NADH carrier, ink for pyruvate */
+  #ledger .row.prod .v{color:var(--nad)}
+  #ledger .row.carb{border-top:1.5px dashed rgba(60,50,28,.3);margin-top:7px;padding-top:7px}
+  #ledger .row.carb .v{font-size:15px;color:var(--carbon);letter-spacing:.5px}
+  #ledger .bump{animation:bump .7s ease}
+  @keyframes bump{0%{color:var(--phos);transform:scale(1.32)}100%{transform:scale(1)}}
+  /* NET ATP SWELLS AND SETTLES: other rows are counts incrementing, this one
+     is the arithmetic changing its mind — the beat the whole page is for. */
+  #ledger .row.net .v.bump{animation:netpulse .78s cubic-bezier(.3,.8,.3,1)}
+  @keyframes netpulse{
+    0%  {transform:scale(1)}
+    32% {transform:scale(1.55);color:var(--phos)}
+    100%{transform:scale(1)}}
+
+  /* ---------- the coupling box, under the ledger ----------
+     The step's energy picture — A SHEET OF PAPER */
+  #couplebox{display:none;position:relative;margin:0 0 18px;padding:13px 15px 14px;
+    background:#fdfaf2;
+    /* the faint ruling of the sheet — the sidebar's own grid, one shade softer */
+    background-image:linear-gradient(rgba(120,105,75,.09) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,105,75,.09) 1px,transparent 1px);
+    background-size:22px 22px;
+    border:none;border-radius:2px;
+    transform:rotate(.7deg);transform-origin:top left;
+    box-shadow:0 1px 1px rgba(0,0,0,.14), 0 10px 18px -10px rgba(0,0,0,.4)}
+  /* the lifted corner, bottom-RIGHT — the ledger lifts its bottom-left */
+  #couplebox::after{content:'';position:absolute;right:0;bottom:0;width:22px;height:18px;
+    background:linear-gradient(-48deg,rgba(0,0,0,.12) 0%,rgba(0,0,0,.04) 55%,transparent 56%);
+    pointer-events:none}
+  #couplebox .nbody:last-child,#couplebox .minfo:last-child{margin-bottom:0}
+  /* CLOSE. The card is opened from the stage (#enzmeta) and has to be
+     dismissible from itself — hunting back for the word you pressed is not a
+     close button. Quiet: it is chrome on a sheet of notes. */
+  #couplebox .cx{position:absolute;top:6px;right:8px;z-index:1;
+    background:none;border:none;padding:2px 4px;line-height:1;font-size:17px;
+    color:var(--muted);cursor:pointer}
+  #couplebox .cx:hover{color:var(--ink)}
+  /* room for it, so a heading never runs under the ✕ */
+  #couplebox .nhead:first-of-type{padding-right:20px}
+  /* arrives with the molecule it explains (drawCouple). Both keyframes carry
+     the sheet's .7° tilt: `transform:none` would animate it flat and leave it
+     there, the end state winning over the rule above. The delay lets the
+     molecule finish arriving — glow and settle still play when `reviewing`
+     flips. `backwards` holds the opening keyframe through the wait, so the box
+     never pops in at full strength first. */
+  #couplebox.in{animation:cplin .42s cubic-bezier(.2,.9,.3,1) .8s backwards}
+  @keyframes cplin{
+    from{opacity:0;transform:translateY(10px) scale(.985) rotate(.7deg)}
+    to  {opacity:1;transform:rotate(.7deg)}}
+  @media (prefers-reduced-motion:reduce){ #couplebox.in{animation:none} }
+
+  /* ---------- reagent tray, LEFT EDGE: the cell's pools ----------
+     THE FIVE CARRIERS, NOT A MENU. All five stay on screen, so the one a step
+     reaches for is read against the four it does not — and only ONE is ever a
+     button: card, border, pulse and lift belong to the live one alone.
+     A COLUMN ON THE LEFT — the bottom edge belongs to the step caption, which
+     needs the width; five short rows do not.
+     THE WIDTH IS RESERVED, ALWAYS. usable() measures this element for how far
+     right the lesson sits, and the tray shows only the carriers this step
+     touches — without a floor its width would change with the step and slide
+     the stage sideways. 152px is the tile width; keep the two in step. */
+  #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
+    min-width:var(--carw);
+    display:flex;flex-direction:column;align-items:stretch;gap:3px}
+  .tstrip{display:flex;flex-direction:column;gap:2px}
+  /* ---------- ATP/ADP drawn, not carded ----------
+     ATP and ADP are ONE object that changes — three phosphates to two, and back
+     at steps 7 and 10 — so the student sees what the step did to the carrier
+     rather than one card swapping for another. Drawn in full, never
+     schematically — see THE ATP/ADP CARRIER in the script.
+     NOT A CARD: drawn on the stage, at stage scale, beside the sugar — leaving
+     the name, the prompt and the space the camera insets (usable()).
+     THE BOX TAKES NO POINTER unless it is the button (steps 7/10, `.live`). At
+     z-7 over the whole left column, an interactive box swallows every click
+     aimed at the molecule behind it — including the marked bond. */
+  #carrier{width:var(--carw);position:relative;pointer-events:none;
+    padding:7px 8px 6px;border:2.5px solid transparent;border-radius:9px;
+    background:none;text-align:left;user-select:none}
+  /* No card treatment when live: the thing to click is the γ phosphate, so a
+     pulsing box round the NAME points at the wrong object. The cue is the
+     `need` prompt plus the disc behind the bond (#cglow). */
+  #carrier.live{cursor:pointer;pointer-events:auto}
+  #carrier .need{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);
+    font-family:var(--font-hand);font-size:15px;color:var(--phos);white-space:nowrap;display:none}
+  #carrier.live .need{display:block}
+  #carrier .cname{font-family:var(--font-slab);font-weight:700;font-size:14px;
+    color:var(--ink);line-height:1.15}
+  #carrier .csub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--muted);line-height:1.2;margin-bottom:5px}
+  /* The slot the molecule stands in. Fixed height whatever the step is doing —
+     the camera's left inset measures off it — and takes no pointer: the only
+     button on a spend step is the disc over the bond (#cspot). */
+  #carrier .cvis{position:relative;height:470px;pointer-events:none;
+    display:flex;flex-direction:column}
+  /* ONE SLOT PER MOLECULE, stacked. Slots split the column's height, so two ATP
+     come out half the size of one with no second constant — placeCarrierMol
+     fits each to its own box and the printed scale is measured off it. */
+  #carrier .cslot{position:relative;flex:1 1 0;min-height:0}
+  /* The name goes on the SLOT once there is more than one: on a half-run step
+     one is ATP and the other still ADP, so one heading can only be half right. */
+  #carrier .clab{position:absolute;left:0;top:6px;
+    font-family:var(--font-slab);font-weight:700;font-size:15px;color:var(--ink)}
+  /* …and only then: with one molecule the column heading is already its name. */
+  #carrier .clab{display:none}
+  #carrier.multi .clab{display:block}
+  #carrier.multi .cname,#carrier.multi .csub{display:none}
+  #carrier .cname{font-size:17px}
+  /* THE SHRINK, STATED. Fitted to the column, so NOT at the sugars' scale — a
+     molecule quietly drawn small is a size claim nobody made. Written from the
+     measured specs every frame, not typed. */
+  #carrier .cscale{font-family:var(--font-sans);font-size:9.5px;
+    color:var(--muted);line-height:1.25;margin-top:3px}
+
+
+  /* the action button (Begin, and every no-reagent step), inside #bottombar.
+     ONE SET OF METRICS FOR EVERY STEP: #bottombar's height is usable()'s bottom
+     reserve, so a button changing size between steps re-frames the camera. The
+     label is one word every step, the simplest way to guarantee it. */
+  #actbtn{visibility:hidden;
+    font-family:var(--font-sans);font-weight:700;font-size:17px;letter-spacing:.3px;
+    padding:15px 34px;border-radius:var(--radius);cursor:pointer;
+    border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
+    box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
+  #actbtn:hover{background:#000;transform:translateY(-2px)}
+  #actbtn i{font-size:15px;vertical-align:-1px;margin-left:2px}
+
+  /* the press: a short flash in the DOM. Nothing chemical has happened yet, so
+     it stays UI feedback, not an fx.js in-scene effect (SCIENCE.md §5). */
+  #actbtn.burst{animation:actpress .3s ease-out}
+  @keyframes actpress{
+    0%  {transform:scale(1)}
+    40% {transform:scale(.96)}
+    100%{transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){ #actbtn.burst{animation:none} }
+
+
+  /* ---------- coenzyme A's tile, under the carrier ----------
+     Same column, same width, deliberately the same treatment: it is another
+     molecule standing in the matrix, not a legend entry. What differs is that
+     it has no charged state to show — see the script — so when it is away the
+     slot simply stands empty and the subtitle says where it went. Keeping the
+     empty box is what stops the column jumping on the frame it leaves. */
+  #bench{width:var(--carw);position:relative;pointer-events:none;
+    padding:7px 8px 6px;text-align:left;user-select:none}
+  #bench .cname{font-family:var(--font-slab);font-weight:700;font-size:17px;
+    color:var(--ink);line-height:1.15}
+  #bench .csub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
+    text-transform:uppercase;color:var(--muted);line-height:1.2;margin-bottom:5px}
+  #bench .cvis{position:relative;height:330px;pointer-events:none;
+    display:flex;flex-direction:column}
+  #bench .cslot{position:relative;flex:1 1 0;min-height:0}
+  /* BOTH AT ONCE ON THREE OF THE FOUR CoA STEPS — the bridge and step 4 spend an
+     NAD⁺ as well, step 5 an ADP. Two full-height columns overrun the canvas, so
+     the pair share it. Declared here rather than measured: the camera's left
+     inset is a WIDTH and none of this touches it, so heights are free to move. */
+  #tray.pair #carrier .cvis{height:290px}
+  #tray.pair #bench .cvis{height:270px}
+  #tray.pair #carrier .cname,#tray.pair #bench .cname{font-size:15px}
+  /* …and shorter again on a short laptop. The pair plus its labels is ~675px,
+     which fits a 900-tall window and overruns a 768 one — the column is
+     centred on the canvas, so an overrun pushes both tiles off both ends at
+     once. Keyed to viewport HEIGHT because that is the thing running out;
+     nothing here touches the camera, which insets on width alone. */
+  @media (max-height:820px){
+    #tray.pair #carrier .cvis{height:215px}
+    #tray.pair #bench .cvis{height:200px}
+  }
+
+  /* ---------- the ring, in the sidebar ----------
+     The one place the cycle is a cycle. Eight nodes on a circle, each filled
+     once its step has run, and the arc back to oxaloacetate closes with the
+     last of them — so "it regenerates what it started with" is something you
+     watch happen rather than a sentence at the end.
+     SVG, sized by its viewBox, so it scales with the column and needs no
+     measurement. Built by drawRing() from STEPS; nothing about it is typed. */
+  #ringbox{margin:0 0 14px;padding:12px 10px 8px;
+    background:var(--panel);border-radius:12px;
+    box-shadow:0 12px 26px -18px rgba(0,0,0,.5)}
+  #ringbox[hidden]{display:none}
+  #ringbox svg{display:block;width:100%;height:auto;overflow:visible}
+  #ringbox .rh{font-family:var(--font-slab);font-weight:700;font-size:12px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+    padding:0 4px 6px}
+  /* the loop itself: hairline until a step has run, inked after */
+  .rgarc{fill:none;stroke:var(--hair);stroke-width:2.5;stroke-linecap:round}
+  .rgarc.on{stroke:var(--nad);opacity:.85}
+  /* a node is its molecule's short name; the dot carries the state */
+  .rgdot{fill:var(--panel);stroke:var(--hair);stroke-width:2}
+  .rgdot.past{fill:var(--ink);stroke:var(--ink);opacity:.4}
+  .rgdot.cur{fill:var(--ink);stroke:var(--ink)}
+  .rgt{font-family:var(--font-slab);font-size:10.5px;fill:var(--muted);
+    text-anchor:middle;dominant-baseline:middle}
+  .rgt.cur{fill:var(--ink);font-weight:700}
+  /* the carbon count, inside the ring — 6C→5C→4C is the arithmetic the two
+     CO₂ are, and it belongs where you can see all three at once */
+  .rgc{font-family:var(--font-slab);font-size:9px;fill:var(--co2);
+    text-anchor:middle;dominant-baseline:middle;opacity:.75}
+  /* what enters and what leaves, on the rim */
+  .rgtag{font-family:var(--font-slab);font-size:9.5px;font-weight:700;
+    text-anchor:middle;dominant-baseline:middle}
+
+  /* ---------- modal chrome ----------
+     Shared by three modals: the cycle list, the control card and the closing
+     hand-off to the electron transport chain.
+     LOOK IS OURS, BEHAVIOUR IS kit/modal.js's — it reads `.mback`, `.mcard` and
+     `.mclose` and toggles the `hidden` attribute, so the one rule it depends on
+     is `.modal[hidden]{display:none}`. Restyle freely above that. */
+  .modal{position:fixed;inset:0;z-index:60;display:flex;
+    align-items:center;justify-content:center;padding:24px}
+  .modal[hidden]{display:none}
+  .modal .mback{position:absolute;inset:0;background:rgba(38,33,26,.52);
+    backdrop-filter:blur(2px);animation:mfade .22s ease-out}
+  /* A SHEET OF PAPER, all four of them: panel white, no inked border, depth
+     from the shadow — a border would frame each modal as one more readout on a
+     page already made of bordered stickers. */
+  .modal .mcard{position:relative;width:min(660px,100%);max-height:100%;
+    overflow:auto;background:var(--panel);border:none;
+    border-radius:14px;padding:24px 26px 22px;
+    box-shadow:0 30px 70px -24px rgba(0,0,0,.55);animation:mrise .26s cubic-bezier(.2,.9,.3,1)}
+  @keyframes mfade{from{opacity:0}to{opacity:1}}
+  @keyframes mrise{from{opacity:0;transform:translateY(14px) scale(.98)}
+                   to  {opacity:1;transform:none}}
+  .modal .mkick{font-family:var(--font-slab);font-weight:700;font-size:11.5px;
+    letter-spacing:1.5px;text-transform:uppercase;color:#4f5bd5;margin:0 0 5px}
+  .modal h2{font-family:var(--font-slab);font-weight:700;font-size:19px;
+    margin:0 0 3px;color:var(--ink)}
+  .modal .msub{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 14px}
+  .modal .msub b{color:var(--ink);font-weight:600}
+  .modal .mclose{position:absolute;top:10px;right:12px;font-size:22px;
+    line-height:1;background:none;border:none;color:var(--muted);cursor:pointer;padding:4px}
+  .modal .mclose:hover{color:var(--ink)}
+  .modal .mtext{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
+  .modal .mtext b{color:var(--ink)}
+
+  /* ---------- PATHWAY RAIL, across the top ----------
+     TEN NUMBERS, and nothing else: canonical textbook 1-10, the lit one is the
+     step on stage, an already-run one clicks back. Names, carriers, one-way
+     markers and stage blocking live in Show 10 steps, where they read as a
+     list rather than squeezed into a strip. */
+  #railbar{position:relative;display:flex;align-items:center;justify-content:center;
+    padding:12px 22px 10px;z-index:7;
+    /* same dotted paper as stage and sidebar — the numbers sit on the page, so
+       the bar itself is not a surface */
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--paper-line) 1.4px, transparent 1.4px);
+    background-size:26px 26px; background-position:13px 13px}
+  /* absolute so the rail stays centred however wide the word is. */
+  #pagetitle{position:absolute;left:22px;top:50%;transform:translateY(-50%);
+    margin:0;font-family:var(--font-marker);font-weight:700;font-size:24px;
+    letter-spacing:.2px;color:var(--ink)}
+  #rail{display:flex;align-items:center;gap:10px}
+  /* THE BRIDGE IS NOT A NUMBER. Pyruvate oxidation is not one of the eight and
+     labelling it "0" would put it in the count students have to recite. It
+     gets a word, so the chip is a pill and the eight stay circles. */
+  .rnum.rbridge{width:auto;padding:0 11px;border-radius:15px;font-size:12px;
+    letter-spacing:.02em}
+  /* …and the arrow into the cycle proper, so the rail reads bridge → ring. */
+  .rlead{color:var(--muted);font-size:14px;margin:0 -3px 0 -1px;user-select:none}
+  .rnum{width:30px;height:30px;padding:0;border-radius:50%;
+    border:2px solid var(--hair);background:var(--panel);color:var(--muted);
+    font-family:var(--font-slab);font-weight:700;font-size:14px;line-height:1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer}
+  /* a step already run is filled — the trail you can count and click back into */
+  .rnum.past{background:var(--ink);border-color:var(--ink);color:var(--panel);
+    opacity:.45}
+  .rnum.past:hover{opacity:1}
+  .rnum.cur{background:var(--ink);border-color:var(--ink);color:var(--panel);
+    box-shadow:0 3px 10px -3px rgba(0,0,0,.5);cursor:default}
+  /* THE STEP YOU ARE ON: awake but empty, from yours-to-run until it lands.
+     Neither dim nor filled — happening, not yet made. */
+  .rnum.run{opacity:1;border-color:var(--ink);color:var(--ink);border-width:2.5px;
+    box-shadow:0 0 0 3px rgba(43,39,35,.1);cursor:default}
+  /* not run yet: keeps its number so the ten are always ten, but not a place
+     you can go — skipping ahead hands over a molecule you never made. */
+  .rnum.future{opacity:.4;cursor:default}
+  /* END: the eleventh stop, and the only one that isn't a number — the screen
+     after step 10, where the pathway is done and the closing question waits.
+     A word, so it never reads as "step 11". */
+  .rnum.rend{width:auto;padding:0 11px;border-radius:15px;font-size:12px;
+    letter-spacing:.6px;text-transform:uppercase;font-family:var(--font-sans);
+    margin-left:2px}
+
+  /* The sidebar scrolls, not the card. */
+  #card{overflow:visible;flex:none}
+  #stepnote{padding-top:2px}
+  .note .nhead{font-family:var(--font-slab);font-weight:700;font-size:14px;
+    letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
+  .note .nhead.irr{color:var(--atp)}
+  .note .nhead.rev{color:var(--nad)}
+  .note .nbody{font-size:13px;line-height:1.5;color:#5a5346;margin:0 0 9px}
+  /* the door to the mass-action demo, under the reversibility verdict it backs
+     up. The verdict is a heading and nothing else, so this link is its only
+     explanation — the demo is the picture, a paragraph is not. */
+  .note .minfo{font-family:var(--font-sans);font-weight:600;font-size:12px;
+    letter-spacing:.2px;color:#4f5bd5;background:none;border:none;padding:0;
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+    text-decoration-thickness:1.5px;margin:-4px 0 9px}
+  /* after a heading there is no descender to close up, so drop the -4px. */
+  .note .nhead + .minfo{margin-top:0}
+  .note .minfo:hover{color:#7b3fe4}
+  .note .nbody:last-child{margin-bottom:0}
+  /* the coupled-reaction figure: two opposed arrows, height standing in for
+     free energy — no ticks, no numbers, since it makes no quantitative claim
+     (coupleFig). Coupled half tinted orange/green, as #rxmsg .p and .n. */
+  .note .nhead.cpl-h{color:var(--ink)}
+  .cpl{display:block;width:100%;height:auto;margin:2px 0 9px}
+  .cpl .ml{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
+  .cpl .mh{fill:var(--ink)}
+  .cpl .cl{fill:none;stroke-width:2.2;stroke-linecap:round}
+  .cpl.p .cl{stroke:var(--phos)} .cpl.p .ch{fill:var(--phos)} .cpl.p .cs{fill:var(--phos)}
+  .cpl.n .cl{stroke:var(--nad)}  .cpl.n .ch{fill:var(--nad)}  .cpl.n .cs{fill:var(--nad)}
+  .cpl .cm,.cpl .cs{font-family:var(--font-slab);font-weight:700;font-size:14px}
+  .cpl .cm{fill:var(--ink)}
+  /* THE CURVE VIEW, a second reading of the same step. No ticks, no numbers:
+     the page has no per-step ΔG and a proportioned curve would assert one. It
+     adds SHAPE — reaction alone as one trace, coupled as another, so "coupling
+     flips the direction" is seen, not inferred. The barrier is drawn because
+     the mass-action modal already said a molecule must climb something. */
+  .cpl .rc{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .cpl .rc.alone{stroke:var(--muted);stroke-dasharray:5 4;opacity:.85}
+  /* uncoupled step's single trace: ink — no carrier to tint it with */
+  .cpl .rc.solo{stroke:var(--ink)}
+  .cpl.p .rc.with{stroke:var(--phos)} .cpl.n .rc.with{stroke:var(--nad)}
+  .cpl .et{font-family:var(--font-sans);font-weight:600;font-size:10px}
+  .cpl .et.alone{fill:var(--muted)}
+  .cpl.p .et.with{fill:var(--phos)} .cpl.n .et.with{fill:var(--nad)}
+  /* tighter than the modal's tabs: a 372px panel, and the strip must not read
+     louder than the figure under it. */
+  .note .ftabs{display:flex;gap:3px;margin:1px 0 3px}
+  .note .ftabs button{font-family:var(--font-sans);font-weight:600;font-size:10.5px;
+    letter-spacing:.3px;padding:3px 9px 4px;border:none;background:none;
+    color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+  .note .ftabs button:hover{color:var(--ink)}
+  .note .ftabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+  /* the axis is a hint, not a scale — hairline, no ticks */
+  .cpl .axl{fill:none;stroke:var(--hair);stroke-width:1.5}
+  .cpl .axh{fill:var(--hair)}
+  .cpl .ax{font-family:var(--font-sans);font-size:9px;letter-spacing:1.1px;
+    text-transform:uppercase;fill:var(--muted)}
+
+  /* base sizing fits the sidebar; #pfkbody takes the modal's extra room. */
+  .effrow{display:flex;gap:9px;margin:0 0 10px}
+  #pfkbody .mtext{margin:0 0 14px}
+  #pfkbody .effrow{margin:0 0 14px;gap:14px}
+  #pfkbody .eff{padding:11px 13px}
+  #pfkbody .eff .e{font-size:12.5px}
+  .eff{flex:1;padding:8px 9px;border-radius:7px;background:rgba(0,0,0,.03)}
+  .eff .eh{font-family:var(--font-slab);font-weight:700;font-size:10.5px;letter-spacing:.8px;
+    text-transform:uppercase;margin-bottom:5px}
+  .eff.on .eh{color:#1f6146}.eff.off .eh{color:#a8371f}
+  .eff .e{font-size:12px;line-height:1.35;margin-bottom:5px;color:var(--muted)}
+  .eff .e:last-child{margin-bottom:0}
+  .eff .e b{display:block;color:var(--ink);font-weight:600}
+
+  /* THE UTILITY CONTROLS SIT IN THE BOTTOM CORNERS, quiet. Restart throws work
+     away and PNG is a side errand, so neither may be more inviting than the
+     lesson's button between them — and the top of the stage is for the
+     molecule's name. PNG takes #restart's muted treatment, overriding
+     sandbox.css's ink chip; the pathway map's door stacks above Restart. */
+  #tools{position:fixed;right:26px;bottom:22px;z-index:20;
+    display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  #allsteps,#showenz,#showledger{position:static}
+  /* checked = the blobs are on stage, so the chip fills, like the rail's run
+     numbers: a state, not a hover. The native tick, at the chip's type size;
+     ink so it belongs to the page. */
+  .chk input{margin:0;width:15px;height:15px;accent-color:var(--ink);cursor:pointer}
+  .chk:has(input:checked){color:var(--ink);border-color:var(--ink)}
+  #restart,#savepng,#allsteps,#showenz,#showledger{z-index:20;
+    font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
+    color:var(--muted);background:transparent;border:2px solid var(--hair);
+    border-radius:var(--radius);padding:6px 15px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px}
+  /* fixed: holds the SCREEN's corner past the readout column, and the scrolling
+     sidebar cannot carry it away. The row owns the position; the two buttons
+     inside it are static, so neither has to know the other's width. */
+  #utils{position:fixed;left:26px;bottom:22px;z-index:20;display:flex;gap:10px}
+  #restart,#savepng{position:static}
+  /* room under the last readout so the buttons never land on it. Its own
+     stacking context, above the stage: the energy card has to cover #enzmeta,
+     which is absolutely positioned inside #stage. */
+  #side{padding-bottom:110px;position:relative;z-index:9}
+  #restart:hover,#savepng:hover,#allsteps:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  /* a checkbox is not a door: it gets the border, not the ink fill */
+  #showenz:hover,#showledger:hover{border-color:var(--ink);color:var(--ink)}
+
+  /* ---------- all ten steps, in one column ----------
+     THE DETAIL LIVES HERE, since the rail is ten numbers: each step's product,
+     the carrier it moved, the one-way marker, the star into PFK-1's regulation,
+     under the four stage headings. Owns these styles outright. */
+  #stepsbody .sgroup{margin-top:14px}
+  #stepsbody .sgroup:first-child{margin-top:6px}
+  #stepsbody .sghead{display:flex;align-items:baseline;gap:9px;
+    padding:0 0 4px;border-bottom:1px solid var(--hair);margin-bottom:3px}
+  #stepsbody .sghead .bt{font-family:var(--font-slab);font-weight:700;font-size:12px;
+    letter-spacing:1.1px;text-transform:uppercase;color:var(--ink)}
+  #stepsbody .sghead .bd{font-family:var(--font-slab);font-weight:700;
+    font-size:12px;color:var(--muted)}
+
+  #stepsbody .rrow{display:flex;align-items:center;gap:9px;min-height:34px;
+    padding:2px 5px;border-radius:6px}
+  /* nothing dimmed — the one place showing the whole pathway, so an unrun step
+     is still fully legible */
+  #stepsbody .rrow.cur{background:rgba(245,196,54,.34)}
+  #stepsbody .rdotwrap{flex:none;display:flex;align-items:center}
+  #stepsbody .rdot{width:24px;height:24px;border-radius:50%;
+    border:2px solid var(--hair);background:var(--panel);
+    font-family:var(--font-slab);font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  /* filled means RUN — the same reading the rail's numbers use */
+  #stepsbody .rrow.done .rdot{background:var(--ink);border-color:var(--ink);
+    color:var(--panel)}
+  #stepsbody .rrow.cur .rdot{border-color:var(--ink);color:var(--ink);
+    border-width:2.5px;box-shadow:0 0 0 3px rgba(43,39,35,.1)}
+  #stepsbody .rlab{flex:1;min-width:0;font-family:var(--font-sans);font-size:14px;
+    line-height:1.3;color:var(--ink)}
+  /* only a COMPLETED row rewinds — the others are not places you can go */
+  #stepsbody .rrow.done{cursor:pointer}
+  #stepsbody .rrow.done:hover .rlab{color:var(--phos)}
+  /* the one-way marker: only three steps carry it, and that is the lesson */
+  #stepsbody .rirr{flex:none;padding-left:6px;font-size:14px;line-height:1;
+    color:var(--phos);opacity:.75}
+  /* THE CARRIER CHIP: which carrier this step spent or made, which way. Page
+     colours, and the ledger's sign, so the chips visibly sum to the post-it. */
+  #stepsbody .rchip{flex:none;margin-left:6px;padding:1px 5px;border-radius:4px;
+    font-family:var(--font-slab);font-weight:700;font-size:11px;letter-spacing:.4px;
+    white-space:nowrap}
+  #stepsbody .rchip.spend{color:var(--phos);background:rgba(224,123,31,.13)}
+  #stepsbody .rchip.atp  {color:var(--atp); background:rgba(200,69,46,.13)}
+  #stepsbody .rchip.nadh {color:var(--nad); background:rgba(47,125,92,.13)}
+  /* THE STAR IS A DOOR, not a status — one step carries it, the committed one */
+  #stepsbody .rstar{flex:none;margin-left:4px;padding:2px 3px;border:none;
+    background:none;cursor:pointer;font-size:14px;line-height:1;
+    color:var(--phos);opacity:.85}
+  #stepsbody .rstar:hover{opacity:1;transform:scale(1.18)}
+
+  /* ---------- the ending fork ----------
+     THE THREE FATES ARE A MODAL, behind the last button.
+     A SHEET OF PAPER, not a boxed card: this is the last thing the lesson
+     says, not another readout. One centred title, three doors, nothing else. */
+  #forkmodal .mcard{width:min(880px,100%);padding:30px 34px 32px}
+  #forkmodal h2{font-size:34px;text-align:center;margin:0 0 8px;letter-spacing:.2px}
+  #forkmodal .msub{text-align:center;font-size:13.5px;max-width:56ch;
+    margin:0 auto 22px}
+  #forkbody{display:flex;gap:16px;align-items:stretch}
+  /* EACH DOOR CARRIES A COLOUR, its own, so the three fates are three things at
+     a glance rather than one wall of text. `--c` is set per door in the markup
+     (page palette: green O₂, red lactate, orange ethanol). */
+  #forkbody .door{flex:1;padding:18px 18px 20px;border-radius:14px;
+    background:color-mix(in srgb, var(--c) 9%, #fff);
+    border:1.5px solid color-mix(in srgb, var(--c) 30%, transparent)}
+  /* the condition is the kicker, the fate is the title — what picks one is O₂ */
+  #forkbody .door .dk{font-family:var(--font-slab);font-weight:700;font-size:11px;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  #forkbody .door .dh{font-family:var(--font-slab);font-weight:700;font-size:22px;
+    line-height:1.1;color:var(--c);margin-bottom:9px}
+  #forkbody .door .db{font-family:var(--font-sans);font-size:13px;line-height:1.5;color:#5a5346}
+  @media (max-width:920px){ #forkmodal .mcard{padding:22px 18px 24px}
+    #forkmodal h2{font-size:26px} #forkbody{flex-direction:column} }
+
+  @media (max-width:920px){
+    /* Stacked: rail, stage, readouts. Ten numbers fit across a phone, which is
+       what makes the rail survive one. */
+    #app-sidebar{grid-template-rows:auto 52vh 1fr}
+    #railbar{grid-column:1;padding:10px 14px 8px;flex-wrap:wrap;gap:6px}
+    /* narrow: the rail needs the full row, so the title sits above it in flow */
+    #pagetitle{position:static;transform:none;flex:0 0 100%;font-size:17px}
+    #side{padding:0 16px 24px}
+    #ledger{padding:9px 12px}
+    #ledger .row{font-size:12px;padding:1.5px 0}
+    #ledger .lhead{margin-bottom:5px}
+    #tray{left:12px;top:16px;transform:none}
+    /* Both corners tighten in; the caption band between them is narrower here. */
+    #restart,#savepng,#allsteps,#showenz,#showledger{padding:5px 12px;font-size:12px}
+    #utils{left:14px;bottom:16px}
+    #tools{right:14px;bottom:16px;gap:8px}
+    #bottombar{bottom:18px}
+  }
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <!-- THE PATHWAY RAIL, top, spanning both columns: read left-to-right it costs
+       the stage no width, which is what the molecules needed. Title absolutely
+       positioned so it costs the rail no width and leaves it centred. -->
+  <div id="railbar">
+    <h1 id="pagetitle">The Krebs cycle</h1>
+    <div id="rail"></div>
+  </div>
+  <div id="stage">
+    <!-- UNDER the canvas: glow shows through the alpha, so it sits behind the
+         molecule rather than over it — see .sglow -->
+    <div id="spotglow"></div>
+    <!-- THE ENZYME, behind the molecule. Under the canvas like #spotglow, so
+         the WebGL alpha lets it through and the sugar sits IN it rather than
+         under a wash. One blob per lane; the name is #enzname, on the right. -->
+    <div id="enzymes" hidden></div>
+    <!-- the same disc on the carrier's own bond — see #cglow. Disc only; the
+         words live in the callout (see drawHint). -->
+    <div id="cglow"><div class="sglow"></div></div>
+    <canvas id="gl"></canvas>
+    <div id="plates" aria-live="polite"></div>
+    <!-- WHAT KIND OF STEP THIS IS, above the enzyme's name: coupled or not,
+         one-way or not. Both are doors into the energy card (#couplebox).
+         Absolutely positioned on the right of the stage. -->
+    <div id="enzmeta" hidden></div>
+    <!-- THE ONE THING TO CARRY AWAY from this step, between the verdicts and
+         the enzyme. Read off the step's `takeaway`, never typed here. -->
+    <div id="enznote" hidden></div>
+    <div id="enzname" hidden></div>
+    <div id="flyers" aria-hidden="true"></div>
+    <!-- the click targets that sit ON the molecule — see .spot -->
+    <div id="spots"></div>
+    <!-- the carrier's own target, on the bond the disc marks — see #cspot -->
+    <button id="cspot" class="spot" type="button" hidden></button>
+    <div id="tray"></div>
+    <!-- THE CLOSING TALLY, on the end screen only. Everything glycolysis made,
+         at once: the molecule itself with its count under it, and the ledger
+         sticker taken out of the sidebar into the grid — the arithmetic sits
+         among the things it counted. Cells are hosts for kit/carriers.js, one
+         molecule each, so these are molecules in the scene under the same
+         camera, not pictures of them. -->
+    <div id="tally" hidden>
+      <div class="tcell" data-cell="nadh"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" data-cell="fadh2"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" data-cell="atp"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" data-cell="co2"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" id="tledger"></div>
+    </div>
+    <!-- ONE element so the camera has one thing to measure. Always full height
+         (button hidden with `visibility`, not `display`) so framing is identical
+         whether or not a button or caption shows. -->
+    <div id="bottombar">
+      <!-- THE STEP'S HEADING: "Step 4 (The split)" before, "Step 4 complete"
+           after. One slot, so both beats of a step are titled in one place.
+           Holds its height when empty (visibility), so the reserved bar never
+           changes. -->
+      <div id="stephead"></div>
+      <!-- step caption, opened by the ⓘ. Child of the BAND, not the heading:
+           centred on the stage, and out of reach of the heading's innerHTML. -->
+      <div id="steptip" role="tooltip"></div>
+      <button id="actbtn"></button>
+      <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
+           the element that HOLDS the rich text makes every <b> and bare text
+           node its own flex item, which shreds the sentence into columns -->
+      <div id="rxmsg" aria-live="polite"><p></p></div>
+    </div>
+  </div>
+  <!-- ONE COLUMN, bottom-right: the two toggles and the pathway map. Anchored
+       to the BOTTOM edge and grows upward, so a new control is one more child
+       and nothing else moves — never give these their own `bottom`. -->
+  <div id="tools">
+    <label id="showledger" class="chk"><input type="checkbox"> Show ledger</label>
+    <label id="showenz" class="chk"><input type="checkbox"> Show enzymes</label>
+    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show the cycle</button>
+  </div>
+  <div id="utils">
+    <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+  <!-- Not a panel with its own voice — a stack of readouts beside the stage:
+       tally, the step's energy picture, the step's commentary. -->
+  <div id="side">
+    <!-- THE RING, in the sidebar rather than on the stage. The stage draws one
+         molecule at a time, which is what a reaction looks like; this is the
+         only place the LOOP is visible at once, and it is the whole reason the
+         pathway has a name. Filled as you go, and it visibly closes at step 8.
+         Built by drawRing() off STEPS, so nothing here is typed twice. -->
+    <div id="ringbox"></div>
+    <!-- starts away: it is pinned up on Begin — see placeLedger -->
+    <div id="ledger" class="hid"></div>
+    <div id="couplebox" class="note"></div>
+    <div id="card"><div id="stepnote" class="note"></div></div>
+  </div>
+</div>
+
+<!-- Where pyruvate goes, behind the last button. -->
+<div id="forkmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="forktitle">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <h2 id="forktitle">What's next?</h2>
+    <!-- ONE TITLE. The standfirst is the question all three doors answer, not
+         a second heading. -->
+    <p class="msub">Where the two pyruvate go — and all three answers are the
+      same question, <b>where does NAD⁺ come from?</b></p>
+    <div id="forkbody"></div>
+  </div>
+</div>
+
+<!-- All ten steps in one column, behind the button above Restart. -->
+<div id="stepsmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <!-- No title, no standfirst: the button and the four stage headings say what
+       this is. The list is the whole content. -->
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="stepskick">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <div class="mkick" id="stepskick">The pathway</div>
+    <div id="stepsbody"></div>
+  </div>
+</div>
+
+<!-- PFK-1's regulation, behind the star on step 3's row in the ten-steps list.
+     A MODAL for the mass-action demo's reason: a side road off the pathway,
+     which inline would compete with the step the student is running. -->
+<div id="regmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="regtitle">
+    <button class="mclose" aria-label="Close">&times;</button>
+    <div class="mkick">Control</div>
+    <h2 id="regtitle"></h2>
+    <div id="regbody"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="molecules.js"></script>
+<script src="skel.js"></script>
+<!-- pyruvate, Pᵢ and the ADP/ATP pair — the bridge reaction's substrate and
+     the two small molecules step 5 needs. Glycolysis's sugars come with them
+     and are never drawn here; see the header on why that is the cheaper half
+     of the trade. -->
+<script src="mol-pathways.js"></script>
+<!-- water (fumarase) and CO₂ (twice) -->
+<script src="mol-small.js"></script>
+<!-- the cycle proper: the six acids, the two thioesters, CoA and FAD -->
+<script src="mol-krebs.js"></script>
+<!-- the carrier is drawn from `atpSkel`, not the conformer — see ATP below -->
+<script src="mol-compare.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/molgraph.js"></script>
+<script src="kit/fit.js"></script>
+<script src="kit/lanes.js"></script>
+<script src="kit/hotspot.js"></script>
+<script src="kit/leaving.js"></script>
+<script src="kit/carriers.js"></script>
+<script src="kit/modal.js"></script>
+<script src="kit/stagekit.js"></script>
+<script src="atomkit.js"></script>
+<script src="annotate.js"></script>
+<script src="reaction/reaction.js"></script>
+<script>
+"use strict";
+/* =============================================================================
+ *  THE KREBS CYCLE — where the carbon goes, and what the cell keeps
+ * =============================================================================
+ *  PARADIGM: pathway, the same one glycolysis-lab.html runs. Scripted
+ *  TRANSFORMATIONS plus a running LEDGER, over kit/stagekit.js and the verbs in
+ *  reaction/reaction.js. SCIENCE.md §10.
+ *
+ *  AUDIENCE: intro college biology (Bio 101). All eight canonical steps run,
+ *  plus the bridge reaction — the course holds students to the enzymes, to the
+ *  three regulated steps, and to being able to say where each CO₂ came from.
+ *
+ *  THE ONE THING THIS PAGE IS FOR. The cycle makes almost no ATP directly, and
+ *  a student who leaves saying "the Krebs cycle makes 2 ATP" has learned the
+ *  smallest true thing about it. So the ledger's headline row is not ATP: it is
+ *  the eight pairs of ELECTRONS that leave on carriers, and the closing tally
+ *  puts NADH first and ATP third. The carbon leaves as CO₂ and stops being the
+ *  cell's business; the electrons are the entire product.
+ *
+ *  THE RING IS IN THE SIDEBAR, NOT ON THE STAGE. A cycle drawn as eight
+ *  molecules on a circle is a diagram, and this repo's rule is that the main
+ *  stage is a reaction happening to a molecule (CLAUDE.md). So the stage runs
+ *  one reaction at a time, exactly as glycolysis does, and #ringbox is the map
+ *  beside it — filled in as you go, closing at step 8. The loop is a fact about
+ *  the pathway, not about the reaction you are watching.
+ *
+ *  THE SECOND TURN IS WATCHED, NOT CLICKED. Glucose gives two pyruvate, so
+ *  everything here happens twice — glycolysis says that with two lanes and
+ *  never labels it. Two lanes will not work here: step 1 is a JOIN, and two
+ *  joins side by side is four molecules converging on a stage that is already
+ *  holding a seventy-atom carrier. So the ×2 is a second LAP, played back at
+ *  speed once the first is done. Same steps, same ledger, and the pools
+ *  visibly refilled in between — which is the honest reason a second turn is
+ *  possible at all: the electron transport chain handed the carriers back.
+ *
+ *  DERIVED STATE, NOT MUTATED STATE, as in glycolysis. `done` and `lap` are the
+ *  only mutable lesson state; species, pools and ledger are pure functions of
+ *  them. Stepping backward is then free.
+ * ========================================================================== */
+
+/* ---------- shared stage (kit/stagekit.js over scene.js) + effects (fx.js) ----
+ * The fit is this page's own for glycolysis's reason: it measures LANE LAYOUTS
+ * and the reserves are chrome only this lesson has. */
+const canvas=document.getElementById('gl');
+const OPEN_THETA=0.10;
+const L=Lesson.create(canvas,{
+  // Orthographic, so the two molecules waiting to join at step 1 are the size
+  // they are rather than the size their depth makes them. It also keeps the
+  // carbon count honest: citrate has to LOOK bigger than the oxaloacetate it
+  // came from, and under perspective that is a camera artefact.
+  ortho:true,
+  cam:{theta:OPEN_THETA,phi:1.30,r:30}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:90,
+  // NO WHEEL ZOOM: one scale for the whole cycle, so 6C → 5C → 4C is a size you
+  // can see and not a number you are told.
+  zoom:false,
+  focus:false,
+  onResize:()=>{ computeFit(); enzUnfreeze(); },
+});
+const {scene,camera,renderer,root,cam,applyCam,resize}=L;
+const FXi=L.fx, MO=L.motion;
+const KIT=AtomKit.create(THREE);
+const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
+
+/* THE IDEALIZED ATP AND NADH (`atpSkel`, `nadhSkel`, mol-compare.js), for the
+ * reason glycolysis states: a PubChem conformer folds its tail over the part
+ * the step is about. Declared schematic, MolecularGeometry.md §1.6.
+ *
+ * FAD IS THE MEASURED BUILD (`fadh2`, mol-krebs.js) and needs no such trade —
+ * its flavin is a fused planar tricycle, so the two hydrogens the step moves
+ * are on the face of it whichever way the tail lies. */
+const ATP=M.atpSkel;
+const NADH=M.nadhSkel;
+const FADH2=M.fadh2;
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+
+/* WHICH BLOCK ON A SPEC NAMES ITS ATOMS. Two, on this page: pyruvate is a
+ * glycolysis molecule and carries `gly`; everything downstream of it carries
+ * `krebs`. A step spans both — the bridge turns one into the other — so the
+ * lookup asks the spec, never the page. Handed to reaction/reaction.js, which
+ * would otherwise have to guess. */
+const meta=spec=>(spec && (spec.krebs || spec.gly)) || {};
+
+/* =============================================================
+ *  THE LESSON SCRIPT
+ * ============================================================= */
+
+/* Matrix pools for ONE turn, chosen so the pools themselves show the yield:
+ * NAD⁺ runs to exactly 0 and FAD to 0, which is what makes the hand-off to the
+ * electron transport chain a constraint rather than a footnote. Four NAD⁺
+ * because the bridge reaction spends one before the ring starts. */
+const POOL0={NAD:4, NADH:0, FAD:1, FADH2:0, ADP:1, ATP:0};
+
+// The couple table names carriers as printed ("NAD+", "FADH2"), the tray as the
+// pools are keyed. One place converts.
+const carrierKey=n=>n==='NAD+'?'NAD':n==='FADH₂'?'FADH2':n;
+
+/* ONE ENTRY PER USER ACTION — the bridge reaction plus the eight canonical
+ * steps. `species` is the lanes' resulting contents, so the lane count dropping
+ * from two to one at citrate synthase falls out of the data. `rev:false` marks
+ * the three effectively irreversible steps, which are also the three the cell
+ * regulates — the point, not a coincidence. */
+const STEPS=[
+  { n:'Bridge', stage:1, reagent:'NAD', need:'Load NAD⁺',
+    species:['acetylcoa'], enz:'Pyruvate dehydrogenase complex',
+    hook:'Into the mitochondrion', rev:false,
+    pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
+    fx:'join', anchor:'oxC',
+    // OXALOACETATE IS NOT IN THIS REACTION and so is not on this stage. It
+    // waits on the bench for its own step; `bench` is what puts it there.
+    bench:'oaa',
+    couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
+    // `decarb` is the spec's own name for the carboxylate that goes, so the
+    // target follows the atom rather than a typed index — the same contract
+    // glycolysis's `spot` uses. kit/molgraph.js turns it into the C–C bond.
+    spot:{ at:'decarb', say:'Take the first carbon off' },
+    takeaway:`One of glucose's six carbons leaves here — as CO₂`,
+    msg:`<b>Pyruvate dehydrogenase</b> strips a CO₂ from pyruvate and hands the
+      remaining two carbons to <b>coenzyme A</b>. Makes NADH. This is the bridge
+      between glycolysis (cytosol) and the cycle (mitochondrial matrix) — and
+      the step that commits carbon to being burned rather than stored.` },
+
+  { n:1, stage:2, reagent:null,
+    act:'Join them',
+    species:['citrate'], enz:'Citrate synthase', hook:'Two become one',
+    rev:false, commit:true,
+    fx:'join', enter:['oaa'], bench:{key:'coa', arriving:true},
+    // ON THE THIOESTER, which is where the energy for this step is. `thio` is
+    // the spec's own S–C pair (mol-krebs.js), so the disc sits on the bond
+    // that breaks as the C–C forms.
+    spot:{ at:'thio', say:'Break the thioester' },
+    takeaway:`2C + 4C = 6C — the cycle's only step that builds`,
+    msg:`<b>Citrate synthase</b> joins acetyl-CoA's two carbons to
+      <b>oxaloacetate</b>'s four, making the six-carbon <b>citrate</b>. Coenzyme A
+      comes off and goes back for more. Strongly downhill, which is what pulls a
+      vanishingly small pool of oxaloacetate forward.` },
+
+  { n:2, stage:2, reagent:null,
+    act:'Move the hydroxyl over',
+    species:['isocitrate'], enz:'Aconitase', hook:'Making it oxidizable',
+    rev:true,
+    fx:'shift',
+    // `oh` on both specs: where the hydroxyl is now, and where it lands.
+    spot:{ at:'oh', say:'Move the OH' },
+    takeaway:`Nothing to count changes — that is the point`,
+    msg:`<b>Aconitase</b> moves citrate's hydroxyl one carbon over, making
+      <b>isocitrate</b>. Same formula, same mass, same carbons. Citrate's –OH sits
+      on a carbon with no hydrogen to give, so it cannot be oxidized; isocitrate's
+      can. One step that changes nothing, so that the next one is possible.` },
+
+  { n:3, stage:3, reagent:'NAD', need:'Load NAD⁺',
+    species:['akg'], enz:'Isocitrate dehydrogenase', hook:'The pace-setter',
+    rev:false, commit:true,
+    pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
+    fx:'decarb', anchor:'oxC',
+    couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
+    spot:{ at:'decarb', say:'Take a carbon off' },
+    takeaway:`6C → 5C, and the cycle's rate-limiting step`,
+    msg:`<b>Isocitrate dehydrogenase</b> oxidizes isocitrate and releases CO₂ →
+      <b>α-ketoglutarate</b>. Makes NADH. Rate-limiting: switched down by ATP and
+      NADH, up by ADP and Ca²⁺ — so the cycle runs at the speed the cell is
+      actually spending energy.` },
+
+  { n:4, stage:3, reagent:'NAD', need:'Load NAD⁺',
+    species:['succinylcoa'], enz:'α-Ketoglutarate dehydrogenase',
+    hook:'The last carbon out', rev:false, commit:true,
+    pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
+    fx:'join', enter:['coa'], anchor:'oxC',
+    couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
+    spot:{ at:'decarb', say:'Take the last carbon off' },
+    takeaway:`5C → 4C. Both carbons that came in have left`,
+    msg:`<b>α-Ketoglutarate dehydrogenase</b> does the same chemistry as the
+      bridge reaction — same kind of complex, same CO₂, same NADH — and hands the
+      four carbons left to coenzyme A as <b>succinyl-CoA</b>. From here the cycle
+      only rebuilds oxaloacetate.` },
+
+  { n:5, stage:4, reagent:'ADP', need:'Charge ADP',
+    species:['succinate'], enz:'Succinyl-CoA synthetase',
+    hook:'The only direct payoff', rev:true,
+    pool:{ADP:-1,ATP:+1}, made:1,
+    fx:'thioester', bench:{key:'coa', arriving:true},
+    couple:{ up:false, plus:'Pi', cin:'ADP', cout:'ATP', tone:'p' },
+    spot:{ at:'thio', say:'Break the thioester' },
+    takeaway:`The cycle's one direct ATP, out of eleven products`,
+    msg:`<b>Succinyl-CoA synthetase</b> breaks the thioester and uses the energy
+      released to attach a free phosphate to ADP → <b>ATP</b> and <b>succinate</b>.
+      Substrate-level phosphorylation, the same trick as glycolysis steps 7 and 10.
+      In your mitochondria the enzyme charges GDP to GTP, which the cell trades
+      for ATP one-for-one.` },
+
+  { n:6, stage:4, reagent:'FAD', need:'Load FAD',
+    species:['fumarate'], enz:'Succinate dehydrogenase', hook:'A weaker carrier',
+    rev:true,
+    pool:{FAD:-1,FADH2:+1}, fadh2:1,
+    fx:'dehydro',
+    couple:{ up:false, cin:'FAD', cout:'FADH₂', tone:'f' },
+    // `dehydroC` is the PAIR of carbons that each lose a hydrogen — the bond
+    // the double bond forms across. An array, so the disc sits on the bond.
+    spot:{ at:'dehydroC', say:'Pull two hydrogens off' },
+    takeaway:`FADH₂, not NADH — and it is worth less`,
+    msg:`<b>Succinate dehydrogenase</b> removes one hydrogen from each of two
+      neighbouring carbons, making the double bond of <b>fumarate</b>. The electrons
+      go to <b>FAD</b>, not NAD⁺, because this oxidation releases less energy. This
+      enzyme is bolted into the inner membrane — it is Complex II of the electron
+      transport chain, the one step the cycle and the chain share.` },
+
+  { n:7, stage:4, reagent:null,
+    act:'Add water across the double bond',
+    species:['malate'], enz:'Fumarase', hook:'Adding water back',
+    rev:true,
+    fx:'hydrate',
+    // `ene` is fumarate's own alkene pair — the bond the water adds across.
+    spot:{ at:'ene', say:'Add water here' },
+    takeaway:`Water in — the mirror of a dehydration`,
+    msg:`<b>Fumarase</b> adds a water across fumarate's double bond →
+      <b>malate</b>. It adds –OH and –H to opposite faces, so only one of the two
+      possible products is made. Near equilibrium, and it runs backwards just as
+      readily.` },
+
+  { n:8, stage:5, reagent:'NAD', need:'Load NAD⁺',
+    species:['oaa'], enz:'Malate dehydrogenase', hook:'Back to the start',
+    rev:true,
+    pool:{NAD:-1,NADH:+1}, nadh:1,
+    fx:'ox', anchor:'hydride',
+    couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
+    // `hydride` is the H malate hands NAD⁺ — drawn on this molecule only
+    // because C2 is a stereocentre, which is what makes it nameable.
+    spot:{ at:'hydride', say:'NAD⁺ takes a hydride' },
+    takeaway:`Oxaloacetate is back — the cycle can turn again`,
+    msg:`<b>Malate dehydrogenase</b> oxidizes malate's hydroxyl back to a ketone →
+      <b>oxaloacetate</b>, and makes the turn's fourth NADH. The cycle is now
+      exactly where it started, which is what makes it a cycle: nothing was
+      consumed but the two carbons, and they left as CO₂.` },
+];
+
+/* THE FIVE STAGES AS GROUPING over the nine steps, for glycolysis's reason: an
+ * unstructured list is a list, and the stages make the ARC legible — get in,
+ * build a six-carbon acid, burn two carbons off it, bank what is left, close
+ * the loop. `delta` is the bookkeeping change to recite; printed on the rail. */
+const STAGES=[
+  // Stage 0 is a STATE, not a group: where the page opens and Restart returns.
+  { n:0 },
+  { n:1, block:'The bridge',  label:'Bridge: pyruvate → acetyl-CoA', delta:'−1 C' },
+  { n:2, block:'Build',       label:'Build: 2C + 4C → 6C',           delta:'4C → 6C' },
+  { n:3, block:'Burn',        label:'Burn: two CO₂ leave',           delta:'−2 C' },
+  { n:4, block:'Bank',        label:'Bank: ATP and FADH₂',           delta:'+1 ATP' },
+  { n:5, block:'Close',       label:'Close: oxaloacetate back',      delta:'+1 NADH' },
+  // Stage 6 is a STATE too, and step-less: reaching it puts the tally up.
+  { n:6 },
+];
+
+// Derived, never typed, so a step moved between stages re-groups the list.
+const stageSteps=n=>STEPS.filter(s=>s.stage===n);
+
+/* ---- the control panel: the three steps the cell actually throttles --------
+ * On the STEP, not the stage, so it appears exactly when one of them is next.
+ * Which three comes off `rev:false`, never a second list. */
+/* THE NUMBER OF CONTROL POINTS IS COUNTED, NEVER TYPED — `commit` on the steps
+ * is where that fact lives, and it is the same flag that puts the star on a row
+ * in the cycle list. Move a star and this sentence follows. */
+const CONTROLLED=STEPS.filter(s=>s.commit);
+const REG={
+  title:'Where the cell controls the cycle',
+  body:`The cycle has no committed step of its own to guard — its substrate can
+    always leave for something else — so it is regulated at <b>${CONTROLLED.length}</b>
+    points at once (${CONTROLLED.map(s=>s.enz.replace(/ \(.*\)/,'')).join(', ')}),
+    and all of them read the same two signals.`,
+  on:[ ['ADP','the cell is spending energy'],
+       ['Ca²⁺','the signal that muscle is contracting'] ],
+  off:[ ['ATP','there is already plenty'],
+        ['NADH','the carriers are full — the chain is backed up'] ],
+  note:`<b>NADH is the important one.</b> If the electron transport chain stops,
+    NADH has nowhere to unload, NAD⁺ runs out, and every dehydrogenase in the
+    cycle stalls within seconds. That is why the cycle needs oxygen even though
+    not one of its steps uses any.`
+};
+
+/* =============================================================
+ *  DERIVED STATE — everything is a function of `done` and `lap`
+ * ============================================================= */
+let done=0;                          // how many STEPS of this lap are complete
+let intro=true;                      // the opening screen; see glycolysis
+const nSteps=STEPS.length;
+/* WHICH TURN. Glucose makes two pyruvate, so the whole of this runs twice. Lap
+ * 2 is played rather than clicked (see the header), so it is the one piece of
+ * state the student does not drive step by step. */
+const LAPS=2;
+let lap=1;
+let autoplay=false;                  // lap 2, running itself
+const stepAt=i=>STEPS[i];
+// What is on stage before step i. The opening state is TWO molecules: pyruvate
+// arriving from glycolysis, and the oxaloacetate already in the matrix waiting
+// for it. That pair is the lesson's first fact and it is in the data.
+/* WHAT IS ON STAGE, AND WHY IT IS THE TWO THINGS REACTING. The page opens on
+ * pyruvate and coenzyme A because those are the bridge reaction's two
+ * substrates; oxaloacetate is not in that reaction at all and stands on the
+ * bench until citrate synthase, which is its step.
+ *
+ * `enter` is how a step says a molecule takes the stage for it. Without it the
+ * stage is simply whatever the last step left, which is true of six of the
+ * nine; the two joins are where something new has to be standing there before
+ * the step can run, and this is that fact in the data rather than a special
+ * case in the lookup. */
+const OPENING=['pyruvate','coa'];
+const speciesAt=i=>{
+  if(i===0) return OPENING;
+  const prev=STEPS[i-1].species, st=STEPS[i];
+  return (st && st.enter) ? prev.concat(st.enter) : prev;
+};
+
+// One lap's totals, so a completed lap can be added without re-walking it.
+const LAP={
+  nadh:STEPS.reduce((s,x)=>s+(x.nadh||0),0),
+  fadh2:STEPS.reduce((s,x)=>s+(x.fadh2||0),0),
+  made:STEPS.reduce((s,x)=>s+(x.made||0),0),
+  co2:STEPS.reduce((s,x)=>s+(x.co2||0),0),
+};
+/* POOLS ARE PER LAP, and that is the claim, not an accounting shortcut: at the
+ * end of lap 1 NAD⁺ and FAD are at zero, and lap 2 only runs because the
+ * electron transport chain gave them back. The refill is shown between the two
+ * laps rather than assumed. */
+function poolAt(i){ const p=Object.assign({},POOL0);
+  for(let k=0;k<i;k++){ const d=STEPS[k].pool||{}; for(const q in d) p[q]+=d[q]; }
+  return p; }
+// The ledger, on the other hand, is CUMULATIVE across laps — it is the answer
+// to "per glucose", which is the number the student has to leave with.
+function ledgerAt(i){
+  const L={nadh:0, fadh2:0, made:0, co2:0};
+  for(let k=0;k<i;k++){ const s=STEPS[k];
+    L.nadh+=s.nadh||0; L.fadh2+=s.fadh2||0; L.made+=s.made||0; L.co2+=s.co2||0; }
+  for(const q in L) L[q]+=LAP[q]*(lap-1);
+  return L;
+}
+// stage being LOOKED at: the next step's, or the tally stage once all are done.
+const stageAt=i=>intro?0:(i>=nSteps?6:STEPS[i].stage);
+// Carbons standing on the stage, off the specs. Both metadata blocks call it
+// `carbons`, so this reads the same on pyruvate as on citrate.
+const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+(meta(M[k]).carbons||0),0);
+// The whole run is done when the last lap's last step is.
+const finished=()=>!intro && lap>=LAPS && done>=nSteps;
+
+// A STAGE'S DELTA IS A RECORD, NOT A PROMISE — true only once its steps are run.
+const stageComplete=n=>{
+  const k=stageSteps(n);
+  if(!k.length) return done>=nSteps;
+  return !intro && STEPS.indexOf(k[k.length-1]) < done;
+};
+
+// WHAT A STEP LEAVES ON THE STAGE, named as the plate names it.
+function productOf(st){
+  return changing(st)[1].map(k=>M[k].name).join(' + ');
+}
+// THE CARRIER A STEP MOVED, read off its own `couple`. Nothing typed per step.
+function chipOf(st){
+  const c=st.couple; if(!c) return '';
+  const carrier = c.up ? c.cin : c.cout;
+  const cls = c.up ? 'spend' : c.tone==='n' ? 'nadh' : c.tone==='f' ? 'fadh' : 'atp';
+  return `<span class="rchip ${cls}">${c.up?'−':'+'}${carrier}</span>`
+       + (st.co2 ? `<span class="rchip co2">−CO₂</span>` : '');
+}
+
+/* =============================================================
+ *  3D: lanes, labels, transitions
+ * ============================================================= */
+// HALF-SEPARATION OF THE TWO LANES. Wider than glycolysis's 8.0 because the two
+// molecules that share a stage here are acetyl-CoA and oxaloacetate — the
+// largest and one of the smallest things on the page — and the plate under the
+// big one runs into its neighbour at anything tighter.
+const LANE=11.0;
+let lanes=[];
+let busy=false;
+// THE BEAT AFTER A STEP LANDS: read it, watch it, then LOOK AT WHAT YOU MADE.
+let reviewing=false;
+let shownReview=false;
+const focusStep=()=>reviewing?done-1:done;
+
+const platesEl=document.getElementById('plates');
+/* THE LANE SYSTEM IS kit/lanes.js. What stays here is what only this lesson
+ * knows: no C–H anywhere, because the lesson is carbon bookkeeping and the four
+ * acids would carry sixteen hydrogens between them. The exceptions are the
+ * stereocentre H's mol-krebs.js draws on purpose (malate, isocitrate), which
+ * are not `optH` and so are never hidden — and one of them is the hydride step
+ * 8 moves. */
+const LANES=Lanes.create({
+  root, camera, canvas, host:platesEl, specOf:k=>M[k], radii:PAL.radii,
+  spread:LANE,
+  build:spec=>{ const g=Stage.buildMolecule(spec);
+                Stage.setOptionalH(g,false);
+                return g; },
+  plateHTML:spec=>`<div class="pn">${spec.name}</div><div class="pf">${spec.formula}</div>`,
+});
+const laneX=(i,n)=>LANES.xOf(i,n);
+const laneShift=key=>LANES.shift(key);
+const laneLift=key=>LANES.lift(key);
+const laneOrigin=(key,i,n)=>LANES.origin(key,i,n);
+const laneBase=key=>LANES.base(key);
+const laneOffset=l=>LANES.offset(l);
+const visibleAtoms=spec=>LANES.visibleAtoms(spec);
+const spawnLane=(key,i,n,topY)=>LANES.spawn(key,i,n,topY);
+const plateY=keys=>LANES.plateY(keys);
+const plateHeightPx=()=>LANES.heightPx();
+
+/* ---------- the hotspot on the bond (kit/hotspot.js) ----------
+ * WHICH BOND A `spot` MEANS, in the spec's own words. Two spellings, the same
+ * two glycolysis uses, and they carry more weight here because this page points
+ * at four kinds of bond rather than one:
+ *   an ARRAY  — the bond itself (`thio` the C–S, `ene` the C=C, `dehydroC` the
+ *               pair of carbons the double bond will form between)
+ *   a NUMBER  — an ATOM that leaves; the bond meant is the one that breaks.
+ *               kit/molgraph.js derives it: H off its heavy atom, and a
+ *               carboxylate off its C–C, since its two oxygens go with it.
+ */
+function spotPair(spec, at){
+  const v=meta(spec)[at];
+  if(Array.isArray(v)) return v;
+  if(typeof v!=='number') return null;
+  return MolGraph.leavingBond(spec, v);
+}
+const spotsEl=document.getElementById('spots');
+const glowEl=document.getElementById('spotglow');
+const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
+  onPick:()=>press(runStep),
+});
+/* ---------- THE PROMPT AS A CALLOUT (annotate.js) ---------- */
+const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
+let hintAt=null;
+const hintNote=NOTES.add({ text:'', at:()=>hintAt&&hintAt(), offset:[30,-26] });
+/* ONE PLACE DECIDES WHAT THE PROMPT SAYS AND WHERE IT POINTS, every frame, off
+ * the same state the disc is lit from. Nothing on this page puts the target on
+ * a carrier — every clickable bond is on the molecule in the lanes — so unlike
+ * glycolysis there is no second branch here. */
+function drawHint(){
+  const st=(!intro && done<nSteps && !autoplay) ? stepAt(done) : null;
+  let text='';
+  hintAt=null;
+  if(st && st.spot && st.spot.say && !busy && !reviewing){
+    const j=lanes.findIndex(l=>spotPair(M[l.key], st.spot.at));
+    if(j>=0){ const pair=spotPair(M[lanes[j].key], st.spot.at);
+      text=st.spot.say; hintAt=()=>laneBondMid(lanes[j], pair); }
+  }
+  if(text!==hintNote.el.dataset.t){ hintNote.el.dataset.t=text; hintNote.set(text); }
+  NOTES.show(!!text);
+  NOTES.step();
+}
+const _hintV=new THREE.Vector3();
+const laneBondMid=(l,pair)=>{
+  if(!l||!pair) return null;
+  const u=l.g.userData;
+  return _hintV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(0.5);
+};
+
+function drawSpots(){
+  const st=(!intro && done<nSteps && !autoplay) ? stepAt(done) : null;
+  const live = !!st && !!st.spot && !busy && !reviewing;
+  SPOTS.update(!live ? [] : lanes.map((l,i)=>({
+      group:l.g, pair:spotPair(M[l.key], st.spot.at), lane:i,
+      hint:'', label:st.act||'run this step',
+    })));
+}
+
+let platesOff=false;
+function drawPlates(){
+  platesEl.classList.toggle('mute', platesOff);
+  LANES.draw();
+}
+function clearLanes(){ LANES.clear(); lanes=LANES.lanes; }
+
+// ---- framing ---------------------------------------------------------------
+/* ONE SCALE FOR THE WHOLE CYCLE, solved over every state at once. Auto-fitting
+ * each step would zoom the four-carbon acids up to citrate's size and the two
+ * decarboxylations would stop reading as the molecule getting smaller — which
+ * is the arithmetic this page is for. Acetyl-CoA sets the distance almost by
+ * itself, and that cost is the lesson too: two carbons arrive on a carrier
+ * twenty times their size. */
+const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
+const HALF_FOV=FIT.HALF_FOV;
+const orthoFrustum=()=>FIT.frustum();
+/* HOW TALL A STATE IS ON SCREEN IS NOT HOW TALL IT IS IN WORLD Y, and this page
+ * is the first one where that difference has teeth. The camera sits at an
+ * elevation, so its up axis is world Y tilted back into Z: a molecule that
+ * sprawls in Z is taller on screen than its Y extent says. Glycolysis never
+ * noticed because a phosphorylated sugar is compact in every direction, and
+ * coenzyme A is a seventy-atom chain that is not — measured in world Y it fit
+ * the frame, and two of its atoms projected above the canvas.
+ *
+ * So the height is measured along the CAMERA'S UP AXIS and the width along its
+ * right axis, which is what "how much room does this need" actually means under
+ * an orthographic camera. Both are read off the live basis rather than typed,
+ * so the day this page lets the student orbit, the fit follows.
+ *
+ * THE CENTRE STAYS IN WORLD Y, because that is the axis `cam.target.y` moves
+ * along and the two are not the same number. kit/fit.js already damps its top
+ * anchor for exactly this reason. Getting the SIZE right is what stops the
+ * clipping; the centring was never the part that was wrong.
+ */
+const _fitV=new THREE.Vector3(), _fitUp=new THREE.Vector3(), _fitRt=new THREE.Vector3();
+function fitFor(states){
+  camera.updateMatrixWorld();
+  _fitRt.setFromMatrixColumn(camera.matrixWorld,0);
+  _fitUp.setFromMatrixColumn(camera.matrixWorld,1);
+  let lo=0, hi=0, wide=0, yLo=0, yHi=0;
+  states.forEach(keys=>{
+    const n=keys.length;
+    keys.forEach((k,j)=>{ const x=laneX(j,n), xc=laneShift(k), yc=laneLift(k);
+      visibleAtoms(M[k]).forEach(a=>{ const r=PAL.radii[a.el]||0.7;
+        // BOTH axes about the lane's own centre: spawnLane draws recentred, so
+        // a fit off raw spec coordinates fits a position nothing occupies.
+        _fitV.set(a.pos[0]-xc+x, a.pos[1]-yc, a.pos[2]);
+        const h=_fitV.dot(_fitUp);
+        lo=Math.min(lo,h-r); hi=Math.max(hi,h+r);
+        wide=Math.max(wide, Math.abs(_fitV.dot(_fitRt))+r);
+        yLo=Math.min(yLo,_fitV.y-r); yHi=Math.max(yHi,_fitV.y+r); }); });
+    wide=Math.max(wide, (n>1?LANE:0)+2.0);
+  });
+  // Centre on the MOLECULES, not molecules-plus-label: a plate pulling the
+  // centre up shoves the molecule into the reagent tray.
+  const Y=(yLo+yHi)/2;
+  // THE LABEL IS NOT IN THE FIT. It is a fixed PIXEL band already reserved off
+  // the top by usable(), so reaching for the plate's world Y here would charge
+  // for it twice and pull the camera back to contain a piece of HTML.
+  const halfNeeded=Math.max(hi-(lo+hi)/2, (lo+hi)/2-lo);
+  const {R,Y:Yfit}=FIT.solve({halfNeeded, wide, centerY:Y, pad:1.10, min:15, max:100});
+  return { Y:Yfit, R };
+}
+
+// WHICH OF THIS PAGE'S ELEMENTS SIT OVER THE CANVAS — read from each element's
+// DECLARED style, never its live box, so a fuller tray cannot re-frame the shot.
+function barReservePx(){
+  const e=document.getElementById('bottombar');
+  if(!e) return 106;
+  const cs=getComputedStyle(e);
+  const h=parseFloat(cs.getPropertyValue('--barh'))||0;
+  return h+(parseFloat(cs.bottom)||0);
+}
+function capReservePx(){
+  const e=document.getElementById('rxmsg');
+  if(!e||!e.classList.contains('show')) return 0;
+  return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
+}
+const TRAY_CLEAR_PX=12;
+/* Tray reserve: left inset + the CARRIER COLUMN'S declared width + clearance.
+ * `--carw`, not the tray's own box: #carrier is the element that occupies the
+ * space and it is the one kit/carriers.js scales the molecule into, so reading
+ * anything else lets the two disagree — which is how a 400px column ended up
+ * inside a 190px reserve, with the flavin drawn over the acid beside it.
+ * From the STYLESHEET, never the live box: the tray is empty at the intro and
+ * holds a different carrier per step, and none of that may move the molecule. */
+function trayReservePx(){
+  const e=document.getElementById('tray');
+  if(!e) return 338;
+  const cs=getComputedStyle(e);
+  return (parseFloat(cs.left)||0)
+       + (parseFloat(cs.getPropertyValue('--carw'))||0)
+       + TRAY_CLEAR_PX;
+}
+const RESERVES=()=>({
+  top: plateHeightPx(),
+  bottom: barReservePx()+capReservePx(),
+  left: trayReservePx(),
+});
+const usable=()=>FIT.usable();
+/* ---- TWO FRAMINGS, AND WHY THIS PAGE HAS TO BREAK GLYCOLYSIS'S ONE-SCALE RULE
+ * Glycolysis holds one distance for the whole pathway so that six carbons
+ * becoming 3 + 3 is a SIZE and not a caption. The same argument applies here
+ * and harder: the two CO₂ are the whole plot, and 6C → 5C → 4C has to be
+ * visible. So the acids all share one scale, solved over every state that holds
+ * only acids.
+ *
+ * COENZYME A CANNOT BE IN THAT SOLVE. It is 6.5× citrate across (measured, not
+ * guessed — Stage.measure on both), so a distance that contains acetyl-CoA
+ * draws citrate at a seventh of the size, and the carbon count stops being
+ * legible on the eight steps the count is about. One scale for everything is
+ * one scale for nothing.
+ *
+ * SO THE CAMERA PULLS BACK ON THE FOUR STEPS A THIOESTER STANDS ON, AND THAT
+ * MOVE IS THE POINT rather than a concession. It happens exactly when CoA
+ * arrives and exactly when it leaves, so what the student sees is the frame
+ * having to grow to hold the apparatus that two carbons showed up on — which is
+ * the fact mol-krebs.js draws all seventy atoms to make.
+ *
+ * WHICH STATES ARE WHICH IS DERIVED, off `carrier` on the spec's own metadata
+ * block. No step declares its framing, so a re-ordered cycle re-solves.
+ */
+const hasCarrier=keys=>keys.some(k=>meta(M[k]).carrier);
+const ALL_STATES=[OPENING].concat(STEPS.map(s=>s.species));
+const ACID_STATES=ALL_STATES.filter(k=>!hasCarrier(k));
+/* The pair of states the CURRENT step spans — substrate and product both, so
+ * the frame does not change on the swap frame halfway through an animation.
+ * Read off `focusStep`, which is the same index every panel uses, so the review
+ * beat keeps the framing the step ran in. */
+function around(){
+  const i=focusStep();
+  const a=[speciesAt(Math.min(i,nSteps))];
+  if(STEPS[i]) a.push(STEPS[i].species);
+  return a;
+}
+let fitR=28, fitY=0;
+function computeFit(){
+  /* The intro gets its own closer framing: pyruvate and oxaloacetate alone in a
+   * frame sized for a six-carbon acid are two specks, and nothing is being
+   * compared yet.
+   *
+   * IT PULLS BACK ON BEGIN, not on the first reaction — the opposite of
+   * glycolysis, and for a reason that is on screen. There, Begin only reveals
+   * the tray, so a zoom would move the sugar for an invisible cause. Here Begin
+   * brings NAD⁺ into the frame, and the camera moves because something arrived. */
+  /* NO SEPARATE INTRO FRAMING any more. It existed because the page opened on
+   * two small acids that a cycle-wide distance drew as specks; it now opens on
+   * the bridge's own two substrates, one of which is coenzyme A, so the opening
+   * shot and the first step's are the same shot and the camera does not move
+   * on Begin. That is the better reading anyway: Begin reveals the tray, and
+   * nothing about the molecules changed. */
+  const near=around();
+  const big = hasCarrier(near.flat());
+  const f = big ? fitFor(near) : fitFor(ACID_STATES);
+  /* THE TOP ANCHOR SPENDS SLACK, and spends none where there is none: it only
+   * ever raises the subject (kit/fit.js clamps the shift at zero), so a carrier
+   * frame — solved for the one molecule standing in it — simply stays centred.
+   * The tallest label line is whichever SET was solved, never this one state: a
+   * per-state anchor slides the scene up and down between steps. */
+  fitR=f.R;
+  fitY=topAnchoredY(f.R, f.Y,
+    big ? Math.max(...near.map(plateY)) : acidTopY());
+}
+const TOP_PULL=0.5;
+let _acidTop=null;
+const acidTopY=()=>_acidTop??(_acidTop=Math.max(...ACID_STATES.map(plateY)));
+const topAnchoredY=(R,centredY,topNow)=>FIT.anchorTop(R,centredY,topNow,TOP_PULL);
+
+function renderLanes(i){
+  platesOff=false; platesEl.classList.remove('mute');
+  lanes=LANES.render(speciesAt(i));
+  computeFit();
+}
+function swapLane(j,key){
+  LANES.swapOne(j,key);
+  lanes=LANES.lanes;
+  computeFit();
+}
+/* ---- page-local effects ---- */
+const RUN='run';
+const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
+const cancelTimers=()=>{ MO.cancel(RUN); GO.clear(); clearFlyers(); };
+function hideAtom(g,i){ if(i!=null) GO.shed(g,[i]); }
+/* WHERE A CARRIER TILE IS, in world space at the scene's depth — the tile is
+ * DOM and the flight is in the scene, and matching depth keeps the hydride one
+ * size at both ends. */
+/* A POINT ON A DOM TILE, IN WORLD SPACE AT THE SCENE'S DEPTH. The tiles are
+ * HTML and the flights are in the scene, and the camera orbits, so there is no
+ * fixed plane to unproject onto — matching the other end's depth is what keeps
+ * a group one size across the trip. Shared by both tray objects. */
+function unprojectAt(clientX, clientY, ref){
+  const c=canvas.getBoundingClientRect();
+  if(!c.width || !c.height) return null;
+  camera.updateMatrixWorld();
+  const z=ref.clone().project(camera).z;
+  return new THREE.Vector3(
+    (clientX-c.left)/c.width*2-1, -((clientY-c.top)/c.height*2-1), z).unproject(camera);
+}
+function tileWorld(key,ref,j){
+  const p=carrierPoint(key,j);
+  return p ? unprojectAt(p.x, p.y, ref) : null;
+}
+function carrierPoint(key,j){
+  return CARRIER.has(key) && carrierEl.isConnected ? carrierAnchorPoint(j) : null;
+}
+/* =============================================================
+ *  THE VERBS — reaction/reaction.js
+ * =============================================================
+ * A step's `fx` names a verb. The page keeps the stage around it, and every
+ * host entry below is a question about the STAGE, never about the chemistry.
+ * Five of the verbs this page drives exist only for it — `decarb`, `join`,
+ * `thioester`, `hydrate`, `dehydro`, `shift` — and none of them is defined
+ * here, which is the point of the module.
+ */
+const RX=Reaction.create({
+  three:THREE, root, camera, canvas,
+  motion:MO, fx:FXi, leaving:GO, kit:KIT, stage:Stage, palette:PAL,
+  molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
+  flyersEl:document.getElementById('flyers'),
+  specOf:key=>M[key],
+  // WHICH BLOCK NAMES A SPEC'S ATOMS. Two of them on this page — see `meta`.
+  meta,
+  lanes:()=>lanes,
+  laneOrigin, laneBase, plateY,
+  swapLane, settleLanes:()=>LANES.settle(),
+  spawnLanes:(keys,each)=>{ lanes=LANES.render(keys, plateY(keys), each); },
+  carrierPoint:(st,ref,j)=>tileWorld(carrierKey(st.couple.cin), ref, j),
+  // The bond the arriving end makes. NAD⁺'s is its C4–H, FAD's the N5–H — both
+  // are hydrogens landing on an atom, so the ring goes on the atom itself and
+  // this answers null rather than inventing a bond.
+  carrierBond:()=>null,
+  onCarrierTaken:j=>{ carrierGone.add(j); refresh(); },
+  popCarrier:j=>popCarrier(j),
+  // The three specs the module asks for BY ROLE rather than by name.
+  //   donorSpec — what a phosphoryl is copied from when nothing supplies one
+  //   freeSpec  — what arrives out of solution: free phosphate, at step 5
+  //   waterSpec — what fumarase adds across the double bond
+  //   handleSpec— the carrier an acyl group rides. Coenzyme A, four times.
+  donorSpec:()=>ATP,
+  freeSpec:()=>M.pi,
+  waterSpec:()=>M.water,
+  handleSpec:()=>M.coa,
+  // …and WHERE coenzyme A stands when it is not on a molecule: its own tile in
+  // the tray, under the carrier. Answering this is what turns the handle's
+  // flight from "in from off screen" into a trip you can watch both ends of.
+  handlePoint:ref=>benchTilePoint(ref),
+  onHandleMoved:()=>{ benchGone.add(0); refresh(); },
+});
+const later=RX.later, aboveFrame=RX.offstage, drawFlyers=RX.drawFlyers,
+      clearFlyers=RX.clearFlyers, anchorWorld=RX.anchorWorld,
+      specWorld=RX.specWorld, junctionWorld=RX.junctionWorld;
+const FLY=RX.timing.FLY;
+
+/* =============================================================
+ *  RUNNING A STEP
+ * =============================================================
+ * NO PER-LANE STEPS. Glycolysis needs them because after the split everything
+ * happens twice on one stage; here the ×2 is a second lap, so every step is
+ * all-or-nothing and there is one click per step throughout.
+ */
+function runStep(){
+  if(busy || intro || done>=nSteps) return;
+  const st=stepAt(done), to=done+1;
+  const keys=speciesAt(to);
+  if(st.couple && st.couple.up) carrierGone.add(0);
+  benchGone.clear();
+  busy=true; refresh();
+  platesOff=true; platesEl.classList.add('mute');
+
+  const land=respawn=>()=>{
+    done=to; reviewing=!autoplay; carrierGone.clear(); benchGone.clear();
+    if(respawn) renderLanes(to);
+    else { platesOff=false; platesEl.classList.remove('mute'); }
+    busy=false; refresh();
+    if(autoplay) queueAuto();
+  };
+  // `join` and `split` already have the lanes correct — don't respawn over them.
+  if(RX.all(st, keys, land(false))) return;
+  later(land(true), RX.durOf(st));
+}
+function rewind(){
+  if(busy || autoplay) return;
+  if(reviewing){ reviewing=false; refresh(); return; }
+  if(done===0){
+    // Back off the first step of lap 2 is back into lap 1's ending, not the
+    // intro: the laps are one run, and the tally is the screen between them.
+    if(lap>1){ lap--; done=nSteps; renderLanes(done); refresh(); return; }
+    intro=true; refresh(); return;
+  }
+  done--; renderLanes(done); refresh();
+}
+function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
+  autoplay=false; done=0; lap=1; intro=true;
+  carrierGone.clear(); benchGone.clear();
+  renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
+
+/* ---- THE SECOND TURN, PLAYED ----------------------------------------------
+ * Same steps, same verbs, same ledger — the only difference is that nothing
+ * waits for a click. The beat between steps is the review beat's worth of time
+ * so the molecules are still readable; it is a slower read than a click, not a
+ * fast-forward, because the point is that this really is the same nine things
+ * happening again and not a summary of them.
+ *
+ * IT STARTS FROM AN EMPTY MATRIX AND A REFILLED ONE. `lap` moving resets the
+ * pools by construction (poolAt is per-lap), and the caption on the way in says
+ * who refilled them.
+ */
+const AUTO_GAP=620;
+function startLap2(){
+  if(lap>=LAPS) return;
+  lap++; done=0; reviewing=false; autoplay=true;
+  renderLanes(0); refresh();
+  queueAuto();
+}
+function queueAuto(){
+  if(!autoplay) return;
+  if(done>=nSteps){ autoplay=false; refresh(); return; }
+  later(()=>{ if(autoplay) runStep(); }, AUTO_GAP);
+}
+
+/* =============================================================
+ *  UI
+ * ============================================================= */
+const rxmsgEl=document.getElementById('rxmsg');
+/* THE CAPTION IS THE STEP YOU ARE ABOUT TO RUN, read on the beat BEFORE the
+ * molecule changes. The band itself is the INTRO and the lap-2 hand-off and
+ * nothing else — every step's caption lives on the ⓘ by its heading, so the
+ * band holds one height (zero) for the whole run and cannot re-frame the shot. */
+const INTRO_MSG=`Two <b>pyruvate</b> came out of glycolysis and crossed into the
+  <b>mitochondrial matrix</b>. Here is one of them, beside the <b>coenzyme A</b>
+  that is about to carry what is left of it into the cycle — note how much
+  molecule two carbons arrive on. <b>Oxaloacetate</b> waits on the left for its
+  own step. Follow this pyruvate; the other does all of this again.`;
+const LAP2_MSG=`<b>Turn two.</b> The matrix's NAD⁺ and FAD are empty — everything
+  was loaded on the first turn. The <b>electron transport chain</b> has just
+  unloaded them, which is the only reason there is anything to load again. Same
+  nine steps, same second pyruvate.`;
+const captionAt=i=>intro ? INTRO_MSG
+  : i<nSteps ? STEPS[i].msg
+  : STEPS[nSteps-1].msg;
+const headAt=i=>{ const st=STEPS[i];
+  if(!st) return '';
+  // The bridge is not one of the eight, so it is not given a number to recite.
+  const name = typeof st.n==='number' ? `Step ${st.n}` : st.n;
+  return `${name} <em>(${st.hook})</em>`; };
+let shownCaption=null;
+function drawCaption(){
+  // THE BAND IS THE INTRO AND THE HAND-OFF BETWEEN LAPS. Both are moments when
+  // nothing is on the stage to point at, so words are all there is.
+  const bare = intro || (lap>1 && done===0 && !reviewing);
+  const html = intro ? INTRO_MSG : LAP2_MSG;
+  const show = bare && !reviewing;
+  if(html!==shownCaption){
+    shownCaption=html;
+    rxmsgEl.querySelector('p').innerHTML=html;
+    rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
+    if(show) rxmsgEl.classList.add('in');
+  }
+  rxmsgEl.classList.toggle('show', show);
+}
+
+/* =============================================================
+ *  THE RING — the only place the cycle is a cycle
+ * =============================================================
+ *  Eight nodes on a circle, one per step of the ring proper, each named for
+ *  the molecule that step MAKES. The arc into a node inks once its step has
+ *  run, so the loop draws itself as you go and the last arc visibly closes it.
+ *
+ *  THE CARBON COUNT IS INSIDE THE RING, next to its node: 6C → 5C → 4C is the
+ *  whole arithmetic of the two CO₂, and it is only legible when all eight are
+ *  on screen at once — which is exactly what the stage cannot show.
+ *
+ *  BUILT FROM STEPS. Names, counts and which arc is inked are all read off the
+ *  data the stage runs; nothing here is a second copy that could disagree.
+ *  The bridge is deliberately NOT a node — it is the arrow coming in, because
+ *  it is not part of the loop and a ninth node would make it look like one.
+ */
+const ringEl=document.getElementById('ringbox');
+// The eight steps that ARE the ring: everything with a number.
+const RING_STEPS=STEPS.filter(s=>typeof s.n==='number');
+// The node BEFORE the ring's first step — the molecule the cycle starts and
+// ends on. Read off the last step's product, so the loop's closure is derived.
+const RING_HOME=RING_STEPS[RING_STEPS.length-1].species[0];
+function drawRing(){
+  /* DOWN ON THE TALLY SCREEN. The ring says "you are here in one turn", and the
+   * closing tally is the receipt for both of them — a half-lit loop beside it
+   * is answering a question nobody is asking any more, and it stands exactly
+   * where the tally's third column needs to be. */
+  const on = !intro && !tallyOn();
+  ringEl.hidden = !on;
+  if(!on) return;
+  const N=RING_STEPS.length, CX=130, CY=112, R=64, LR=90;
+  // Node k is the molecule step k lands on; node 0 is oaa, where a turn starts.
+  const nodes=[RING_HOME, ...RING_STEPS.slice(0,N-1).map(s=>s.species[0])];
+  // Twelve o'clock, then clockwise — the direction every textbook draws it.
+  const ang=k=>(k/N)*Math.PI*2 - Math.PI/2;
+  const px=(a,r)=>[CX+Math.cos(a)*r, CY+Math.sin(a)*r];
+  // How far the student has got, in ring steps. The bridge is not one, so a
+  // student mid-bridge has run none of the ring.
+  const ranRing=Math.max(0, done - (nSteps-N));
+  const curRing=(!intro && !reviewing && done>=nSteps-N && done<nSteps)
+    ? done-(nSteps-N) : -1;
+  let out='';
+  // ---- the arcs, one per step, drawn from node k to node k+1
+  for(let k=0;k<N;k++){
+    const a0=ang(k)+0.34, a1=ang((k+1)%N)-0.34;
+    const [x0,y0]=px(a0,R), [x1,y1]=px(a1,R);
+    out+=`<path class="rgarc${k<ranRing?' on':''}" d="M${x0.toFixed(1)},${y0.toFixed(1)} `
+       + `A${R},${R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}"/>`;
+  }
+  // ---- the nodes
+  nodes.forEach((key,k)=>{
+    const a=ang(k);
+    const [x,y]=px(a,R), [lx,ly]=px(a,LR), [cx2,cy2]=px(a,R-15);
+    const state=k===curRing?'cur':k<=ranRing&&(k>0||ranRing>0)?'past':'';
+    const spec=M[key];
+    out+=`<circle class="rgdot ${state}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5"/>`
+       + `<text class="rgt ${state}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${spec.short}</text>`
+       + `<text class="rgc" x="${cx2.toFixed(1)}" y="${cy2.toFixed(1)}">${meta(spec).carbons}C</text>`;
+  });
+  /* ---- what comes in and what goes out, ON THE ARC THAT DOES IT.
+   * A tag parked next to a NODE reads as a property of that molecule and, at
+   * this size, lands on its name; the CO₂ belongs to the step, which is the arc
+   * between two nodes. So each tag sits at its arc's midpoint, just outside the
+   * ring — where a textbook draws it, and where nothing else is. Derived: the
+   * entry is the arc the join is on, the two CO₂ are the steps carrying one. */
+  const midOf=k=>(ang(k)+ang((k+1)%N))/2;
+  const tag=(k,txt,col)=>{ const [tx,ty]=px(midOf(k),LR+3);
+    return `<text class="rgtag" style="fill:${col}" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}">${txt}</text>`; };
+  out+=tag(0,'+2C','var(--carbon)');
+  RING_STEPS.forEach((s,k)=>{ if(s.co2) out+=tag(k,'CO₂','var(--co2)'); });
+  ringEl.innerHTML=`<div class="rh">One turn</div>`
+    + `<svg viewBox="0 0 260 224" role="img" aria-label="The citric acid cycle: `
+    + `${nodes.map(k=>M[k].short).join(', ')}, and back to ${M[RING_HOME].short}">`
+    + out + `</svg>`;
+}
+
+const ledgerEl=document.getElementById('ledger');
+let prevLedger=null;
+/* THE LEDGER IS BEHIND A TOGGLE, default OFF — the arithmetic is the punchline,
+ * not the running commentary. Except on the end screen, where it is one cell of
+ * the closing tally and the toggle has nothing to say about it. */
+let showLedger=false;
+const ledgerOn=()=>showLedger||tallyOn();
+function placeLedger(){
+  const hid=ledgerEl.classList.contains('hid');
+  if(intro || !ledgerOn()){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
+  if(!hid) return;
+  ledgerEl.classList.remove('hid');
+  ledgerEl.classList.remove('pin'); void ledgerEl.offsetWidth;
+  ledgerEl.classList.add('pin');
+}
+/* WHAT THE CYCLE HAS MADE SO FAR. Every number comes off the same state the
+ * stage does, so none can drift from what is on screen.
+ *
+ * `pairs` IS THE HEADLINE ROW and it is the reason this page exists: NADH and
+ * FADH₂ are both one PAIR OF ELECTRONS delivered to the chain, and adding them
+ * is the only sum that says what a turn of the cycle was for. Everything else
+ * on this list is smaller than that number. */
+function productsAt(i){
+  const L=ledgerAt(i);
+  L.pairs=L.nadh+L.fadh2;
+  return L;
+}
+function drawLedger(){
+  placeLedger();
+  const L=productsAt(done), c=speciesAt(done).map(k=>meta(M[k]).carbons||0);
+  const prev=prevLedger;
+  const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
+  ledgerEl.innerHTML=
+     `<div class="lhead">Running ledger${lap>1?` <span class="lturn">turn ${lap}</span>`:''}</div>`
+    +`<div class="row"><span>NADH</span><span class="v${bumped('nadh')}" data-row="nadh">${L.nadh}</span></div>`
+    +`<div class="row"><span>FADH₂</span><span class="v${bumped('fadh2')}" data-row="fadh2">${L.fadh2}</span></div>`
+    // THE ROW THAT MATTERS, and it is a net of the two above it — same shape as
+    // glycolysis's "Net ATP", and put in the same place for the same reason.
+    +`<div class="row net"><span>Electron pairs</span><span class="v${bumped('pairs')}" data-row="pairs">${L.pairs}</span></div>`
+    +`<div class="row prod"><span>ATP</span><span class="v${bumped('made')}" data-row="made">${L.made}</span></div>`
+    +`<div class="row"><span>CO₂ released</span><span class="v${bumped('co2')}" data-row="co2">${L.co2}</span></div>`
+    +`<div class="row carb"><span>Carbons on stage</span><span class="v">${c.join(' + ')}</span></div>`;
+  prevLedger=L;
+}
+
+const trayEl=document.getElementById('tray');
+
+/* =============================================================
+ *  THE CARRIERS — three pairs, one object each
+ * =============================================================
+ *  NAD⁺/NADH four times a turn, FAD/FADH₂ once, ADP/ATP once. Each pair is ONE
+ *  molecule that changes rather than two cards, and which of the pair is
+ *  showing is read off the step's `couple` (cin before it runs, cout after).
+ *
+ *  COENZYME A IS NOT HERE, deliberately, even though it binds and leaves four
+ *  times. It is not spent: nothing is consumed when an acyl group rides it, and
+ *  a tile in this column would put it beside NAD⁺ and imply it is used up. So
+ *  it enters and leaves at the frame edge instead (reaction/reaction.js's
+ *  `handleFly`), which is what "borrowed and given back" looks like.
+ *
+ *  FAD IS DRAWN AS FADH₂ MINUS TWO HYDROGENS — the same declared schematic as
+ *  glycolysis's NAD⁺, and the same chemistry: `redox` is the pair on the
+ *  flavin's N1 and N5, and taking both away is exactly what the step undoes.
+ *  Not shown: the isoalloxazine going fully aromatic again, since one spec
+ *  cannot be both oxidation states of a ring.
+ */
+const PAIRS={
+  NAD:{ spec:()=>NADH, group:s=>[s.gly.nic.h[1]], anchor:s=>s.gly.nic.c4,
+        keep:s=>[s.gly.nic.h[0]],
+        on:'NADH', off:'NAD⁺',
+        sub:on=>on?'carrying the hydride':'empty carrier'},
+  FAD:{ spec:()=>FADH2, group:s=>s.krebs.redox, anchor:s=>s.krebs.redox[0],
+        on:'FADH₂', off:'FAD',
+        sub:on=>on?'carrying two hydrogens':'empty carrier'},
+  ATP:{ spec:()=>ATP,  group:s=>s.gly.gamma, anchor:s=>s.gly.pg,
+        on:'ATP',  off:'ADP',
+        sub:on=>`${on?ATP.gly.phosphates:ATP.gly.spent.phosphates} phosphates · ${on?'charged':'discharged'}`},
+};
+const CARRIER=new Set(['NAD','NADH','FAD','FADH2','ADP','ATP']);
+function pairOf(st){
+  const c=st&&st.couple; if(!c) return null;
+  const k=carrierKey(c.cin);
+  return (k==='NAD'||k==='NADH') ? PAIRS.NAD
+       : (k==='FAD'||k==='FADH2') ? PAIRS.FAD
+       : (k==='ADP'||k==='ATP') ? PAIRS.ATP : null;
+}
+const carrierEl=document.createElement('div');
+carrierEl.id='carrier';
+carrierEl.innerHTML=
+   '<span class="need"></span>'
+  +'<div class="cname"></div><div class="csub"></div>'
+  +'<div class="cvis"></div><div class="cscale"></div>';
+
+const CAR=Carriers.create({ root, camera, canvas, host:carrierEl,
+  align:'left',
+  build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                Stage.setOptionalH(g,false);
+                return g; } });
+// ONE PER TURN OF EACH: no step here moves two at once, so the column always
+// holds exactly one object and the count is not a variable this page needs.
+const carrierCount=()=>1;
+const setCarrierGroup=(g,pair,spec,charged)=>
+  CAR.setGroup(g, pair.group(spec), charged, pair.keep && pair.keep(spec));
+/* `carrierGone` is the beat in between: for the flight's duration the hydride
+ * is crossing, the step has not landed and `reviewing` is false, so without it
+ * NAD⁺ shows empty while a hydride sails into it. Set at whichever end the
+ * transfer is visible from — every step here is a GAIN, so it is set when the
+ * particle ARRIVES, which is when the carrier has it. */
+const carrierGone=new Set();
+const carrierRan=j=>reviewing||carrierGone.has(j);
+const carrierCharged=(st,j)=>
+  (st&&st.couple&&st.couple.up) ? !carrierRan(j) : carrierRan(j);
+
+const cAnchor=new THREE.Vector3();
+const popCarrier=j=>CAR.pop(j);
+function placeCarrierMol(){
+  const vis = carrierEl.isConnected && trayEl.style.visibility!=='hidden';
+  const k=CAR.place(vis);
+  if(vis && CAR.mols.length) setCarrierScaleNote(k, Stage.measure(CAR.spec||NADH));
+}
+/* The line under the drawing. `k` is the shrink applied this frame; the ratio
+ * beside it is what scale 1 would look like. MEASURED AGAINST CITRATE, the
+ * molecule the cycle is named for and the biggest thing that stands in the
+ * lanes for most of the run — so "3× citrate across" is a comparison to
+ * something on screen a moment ago. */
+let scaleNote='';
+function setCarrierScaleNote(k, m){
+  const ref=Stage.measure(M.citrate);
+  const txt = k>=0.995 ? `true size beside the acid`
+    : `shown at ${Math.round(k*20)*5}% — really ${(m.rxz/ref.rxz).toFixed(1)}× citrate across`;
+  if(txt===scaleNote) return;
+  scaleNote=txt;
+  carrierEl.querySelector('.cscale').textContent=txt;
+}
+// Where a flight starts or ends, in client pixels: the atom of THIS pair that
+// the transfer lands on — NAD⁺'s C4, FAD's N5, ATP's γ phosphorus.
+function carrierAnchorPoint(j){
+  if(trayEl.style.visibility==='hidden') return null;
+  const pair=pairOf(stepAt(focusStep())) || PAIRS.NAD;
+  return CAR.pointAt(j, pair.anchor(pair.spec()));
+}
+/* NO DISC ON THE CARRIER. Glycolysis lights ATP's own β–γ bond because a
+ * kinase step is run by breaking it; every step here is run by touching the
+ * molecule in the lanes, so the carrier is never the thing to click and the
+ * column carries no target at all. */
+function drawCarrier(st, live, showKey){
+  const pair=pairOf(st) || PAIRS.NAD, spec=pair.spec();
+  carrierEl.className='';
+  carrierEl.querySelector('.need').textContent='';
+  carrierEl.onclick=null;
+  CAR.show(1, spec);
+  CAR.mols.forEach((g,j)=>{
+    setCarrierGroup(g,pair,spec,carrierCharged(st,j));
+  });
+  const on=carrierCharged(st,0);
+  carrierEl.querySelector('.cname').innerHTML = on?pair.on:pair.off;
+  carrierEl.querySelector('.csub').textContent = pair.sub(on);
+  placeCarrierMol();
+}
+
+/* =============================================================
+ *  THE BENCH — the tray's second slot, for a molecule that is not reacting yet
+ * =============================================================
+ *  A LESSON'S STAGE SHOULD HOLD WHAT IS REACTING, and only that. Oxaloacetate
+ *  spent the whole bridge reaction standing beside pyruvate taking no part in
+ *  it — it is citrate synthase's substrate, one step later — and a spectator on
+ *  the stage is a claim that it is involved. It was not a harmless one: the
+ *  `decarb` verb had to grow a guard because the spectator was being handed a
+ *  hydride along with the molecule the step was about.
+ *
+ *  So the tray has a second slot, under the carrier, for the molecule the next
+ *  step needs. Two things use it, and they are two different situations the
+ *  same box can say:
+ *    WAITING   oxaloacetate through the bridge, until `enter` puts it on stage
+ *    RETURNED  coenzyme A after citrate synthase and after step 5 — it came off
+ *              a molecule and went back to the pool
+ *
+ *  COENZYME A IS NOT A CARRIER TILE, which is why it is here and not above.
+ *  NAD⁺ and FAD have two STATES — one molecule differing by the hydrogens it
+ *  holds — and the ledger counts every turnover. CoA has one state and two
+ *  PLACES: free in the matrix, or bonded to the acyl group it is ferrying.
+ *  Nothing is spent when it binds. Watching it come home is what makes that
+ *  something you saw rather than were told.
+ */
+const HANDLE=M.coa;                     // also what reaction/reaction.js flies
+const benchEl=document.createElement('div');
+benchEl.id='bench';
+benchEl.innerHTML='<div class="cname"></div><div class="csub"></div><div class="cvis"></div>';
+const BENCH=Carriers.create({ root, camera, canvas, host:benchEl,
+  align:'left',
+  build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                Stage.setOptionalH(g,false); return g; } });
+// `bench:'oaa'` is a molecule that simply stands there; `{key,arriving:true}`
+// one that is still on the stage and lands here during the step.
+const benchOf=st=>{ const b=st&&st.bench;
+  return b ? (typeof b==='string' ? {key:b} : b) : null; };
+/* WHETHER IT HAS MOVED YET, in this step. Same shape and the same reason as
+ * `carrierGone`: for the beat the molecule is in the air the step has not
+ * landed and `reviewing` is false, so without it CoA is drawn in the tray AND
+ * crossing the frame. Cleared when the step lands and by every jump out. */
+const benchGone=new Set();
+const benchRan=()=>reviewing||benchGone.has(0);
+// A molecule that only waits is here the whole step. One that is coming back
+// is here from the moment it lands.
+const benchHome=st=>{ const b=benchOf(st);
+  return !!b && (b.arriving ? benchRan() : true); };
+/* WHICH THIOESTER A RETURNING CoA CAME OFF, found by asking the specs rather
+ * than typed: the one molecule either side of the step whose own metadata calls
+ * itself a carrier. It is acetyl-CoA once and succinyl-CoA once, and a fixed
+ * word would have called the four-carbon one an acetyl group. */
+function acylOf(st){
+  const k=speciesAt(STEPS.indexOf(st)).concat(st.species)
+           .find(x=>M[x]!==HANDLE && meta(M[x]).carrier);
+  return k ? M[k] : null;
+}
+/* THE LINE UNDER THE NAME SAYS WHERE IT IS, and for a waiting molecule it says
+ * what it is waiting FOR — read off the step that calls it onto the stage, so
+ * a re-ordered pathway renames it. */
+function benchSub(st, spec, home){
+  if(!home){ const a=acylOf(st); return a ? `bound as ${a.short}` : 'on the molecule'; }
+  if(spec===HANDLE) return 'free in the matrix';
+  const key=benchOf(st).key;
+  const next=STEPS.find(x=>(x.enter||[]).includes(key));
+  return next ? `waiting for ${next.enz.replace(/ \(.*\)/,'').toLowerCase()}`
+              : 'standing by';
+}
+function drawBench(st){
+  const b=benchOf(st); if(!b) return;
+  const spec=M[b.key], home=benchHome(st);
+  BENCH.show(1, spec);
+  benchEl.querySelector('.cname').textContent=spec.name;
+  benchEl.querySelector('.csub').textContent=benchSub(st, spec, home);
+  placeBenchMol();
+}
+// Drawn only while it is actually standing here; the empty slot holds the space
+// so the column does not jump when it leaves.
+function placeBenchMol(){
+  const st=stepAt(focusStep());
+  const vis = benchEl.isConnected && trayEl.style.visibility!=='hidden'
+           && benchHome(st);
+  BENCH.place(vis);
+}
+/* Where the tile is, for a flight that ends on it. OFF THE SLOT'S BOX, not off
+ * the molecule: on the beat CoA is arriving the slot is still empty, so there
+ * is no mesh to ask, and a flight has to know where it is going before it gets
+ * there. Answers null unless the bench is holding the handle — a CoA flight
+ * aimed at an oxaloacetate tile would be pointing at the wrong molecule. */
+function benchTilePoint(ref){
+  const st=stepAt(focusStep()), b=benchOf(st);
+  if(!b || M[b.key]!==HANDLE) return null;
+  if(!benchEl.isConnected || trayEl.style.visibility==='hidden') return null;
+  const slot=benchEl.querySelector('.cslot');
+  const rect=slot && slot.getBoundingClientRect();
+  if(!rect || !rect.width) return null;
+  // a third across, matching `align:'left'` — the molecule sits at the slot's
+  // left, not its centre, so the centre would aim at empty column
+  return unprojectAt(rect.left+rect.width*0.34, rect.top+rect.height*0.5, ref);
+}
+
+function drawTray(){
+  trayEl.style.display='flex';
+  trayEl.style.visibility = intro ? 'hidden' : 'visible';
+  trayEl.style.pointerEvents = intro ? 'none' : '';
+  const i=focusStep();
+  const st=(!intro&&i<nSteps)?stepAt(i):null;
+  const c=st&&st.couple;
+  const bench=st&&st.bench;
+  // A step that moves neither keeps the SPACE and shows nothing — usable()
+  // measures this column to place the lesson, and a collapsed tray would
+  // shove the molecule sideways for one step.
+  if(!c && !bench){ trayEl.style.visibility='hidden'; }
+  trayEl.innerHTML='<div class="tstrip"></div>';
+  const strip=trayEl.children[0];
+  const pair = c && CARRIER.has(carrierKey(c.cin)) && CARRIER.has(carrierKey(c.cout));
+  if(pair){
+    const showKey = carrierKey(reviewing ? c.cout : c.cin);
+    strip.appendChild(carrierEl);
+    drawCarrier(st, false, showKey);
+  }else{ CAR.show(0, NADH); }
+  // …and the bench under it. ORDER IS THE READING: the carrier this step
+  // spends on top, the molecule that is only standing by below.
+  if(bench){ strip.appendChild(benchEl); drawBench(st); }
+  else{ BENCH.show(0, M.coa); }
+  // Both at once needs both shorter — see the CSS.
+  trayEl.classList.toggle('pair', !!(pair && bench));
+}
+
+/* =============================================================
+ *  THE CLOSING TALLY — one turn's products, then two turns'
+ * =============================================================
+ *  Molecules, not pictures: kit/carriers.js, one instance per cell, projected
+ *  under the same camera as the cycle — so NADH here is the size NADH was in
+ *  the tray.
+ *
+ *  NADH FIRST AND ATP THIRD, which is the whole argument of the page in the
+ *  order of four cells. A student who reads this left to right says "eight
+ *  NADH, two FADH₂, two ATP" and has the emphasis right; the reverse order
+ *  produces the sentence this lesson exists to prevent.
+ */
+const tallyEl=document.getElementById('tally');
+const sideEl=document.getElementById('side');
+const TALLY=[
+  {k:'nadh',  spec:()=>NADH,      name:'NADH',  n:L=>L.nadh, keep:PAIRS.NAD},
+  {k:'fadh2', spec:()=>FADH2,     name:'FADH₂', n:L=>L.fadh2},
+  {k:'atp',   spec:()=>ATP,       name:'ATP',   n:L=>L.made},
+  {k:'co2',   spec:()=>M.co2,     name:'CO₂',   n:L=>L.co2},
+];
+TALLY.forEach(t=>{
+  t.host=tallyEl.querySelector(`[data-cell="${t.k}"]`);
+  t.car=Carriers.create({ root, camera, canvas, host:t.host,
+    visClass:'tvis', slotClass:'tslot', slotHTML:()=>'<div class="tslot"></div>',
+    build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                  Stage.setOptionalH(g,false); return g; } });
+});
+// UP AT THE END OF EVERY LAP, not only the last: finishing turn one is the beat
+// where the numbers are worth reading, and it is where the second turn is
+// offered from.
+const tallyOn=()=>!intro && !reviewing && done>=nSteps;
+function drawTally(){
+  const on=tallyOn();
+  tallyEl.hidden=!on;
+  const home = on ? document.getElementById('tledger') : sideEl;
+  if(ledgerEl.parentNode!==home){
+    if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, ringEl.nextSibling);
+  }
+  lanes.forEach(l=>{ l.g.visible=!on; });
+  platesEl.style.visibility = on ? 'hidden' : '';
+  const L=productsAt(done);
+  TALLY.forEach(t=>{
+    if(!on){ t.car.show(0,t.spec()); return; }
+    const spec=t.spec();
+    t.car.show(1,spec);
+    if(t.keep) t.car.mols.forEach(g=>
+      t.car.setGroup(g, t.keep.group(spec), true, t.keep.keep(spec)));
+    t.host.querySelector('.tcount').textContent='×'+t.n(L);
+    t.host.querySelector('.tname').textContent=t.name;
+  });
+  placeTallyMols();
+}
+function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on)); }
+
+/* =============================================================
+ *  THE ENZYME — a blob behind the molecule, and its name
+ * =============================================================
+ *  Deliberately not a protein: one path, the same for all nine, making no
+ *  claim about fold, size or active site. Hemoglobin is where a real protein
+ *  gets drawn. Behind a toggle, default OFF.
+ */
+const BLOB_SVG=`<svg viewBox="0 0 531 528" xmlns="http://www.w3.org/2000/svg"><path d="M14.0403 187.57C-36.6082 307.163 59.7274 415.385 144.526 478.781C237.618 537.923 347.243 542.481 400.031 499.359C466.016 445.457 540.795 289.771 529.943 198.244C512.779 53.4757 415.879 9.91198 323.366 0.81307C225.413 -8.82082 64.6887 67.9781 14.0403 187.57Z" fill="#46B2E5" fill-opacity="0.45"/></svg>`;
+const BLOB_K=1.3;
+const enzEl=document.getElementById('enzymes');
+const enzNameEl=document.getElementById('enzname');
+const enzMetaEl=document.getElementById('enzmeta');
+const enzNoteEl=document.getElementById('enznote');
+const enzBtn=document.getElementById('showenz');
+let showEnz=false;
+const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps) ? STEPS[i] : null; };
+const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
+/* WHICH LANES THE ENZYME IS ON — one GROUP of lanes per blob, because an enzyme
+ * molecule holds one substrate molecule and the count of blobs is a claim.
+ * DERIVED: the lanes this step CHANGES. A step that changes the lane COUNT has
+ * one substrate assembly by definition, so it is one group — which is right for
+ * citrate synthase, the one enzyme here that holds two molecules at once. */
+const enzGroupsFor=i=>{
+  const before=speciesAt(i), after=STEPS[i].species;
+  if(after.length!==before.length) return 'all';
+  return before.map((k,j)=>k===after[j]?-1:j).filter(j=>j>=0).map(j=>[j]);
+};
+const SPLIT_KEY='all';
+const enzGroups=()=>{
+  const g=enzGroupsFor(focusStep());
+  if(g===SPLIT_KEY) return [lanes.map((_,j)=>j)];
+  return g.filter(grp=>grp.every(j=>j<lanes.length));
+};
+const enzKey=()=>{ const g=enzGroupsFor(focusStep());
+  return focusStep()+':'+(g===SPLIT_KEY ? SPLIT_KEY : g.map(x=>x.join('+')).join(',')); };
+function drawEnz(){
+  const st=enzLive()?enzOf():null;
+  enzEl.hidden=!st; enzNameEl.hidden=!st;
+  if(st) enzNameEl.innerHTML=`<div class="ek">Enzyme</div><div class="en">${st.enz}</div>`;
+  else enzEl.innerHTML='';
+  drawEnzMeta();
+  placeEnz();
+}
+/* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — as two words on
+ * the stage, both read off the step and both the door to the card that argues
+ * them. */
+let cplOpen=false, metaStep=null;
+function drawEnzMeta(){
+  const i=focusStep();
+  const st=(!intro && i<nSteps && !tallyOn()) ? stepAt(i) : null;
+  if(metaStep!==i){ metaStep=i; cplOpen=false; }
+  enzMetaEl.hidden=!st;
+  enzNoteEl.hidden=!(st&&st.takeaway);
+  enzNoteEl.textContent=(st&&st.takeaway)||'';
+  if(!st){ enzMetaEl.innerHTML=''; return; }
+  const on=cplOpen?'true':'false';
+  const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
+  enzMetaEl.innerHTML=
+      `<span class="east ${first}" aria-hidden="true"></span>`
+    + (st.couple ? `<button class="estat k-cpl" data-cpl aria-pressed="${on}">Coupled reaction</button>` : '')
+    + `<button class="estat ${st.rev===false?'k-irr':'k-rev'}" data-cpl aria-pressed="${on}">${
+        st.rev===false?'Irreversible':'Reversible'}</button>`;
+}
+enzMetaEl.addEventListener('click',e=>{
+  if(!e.target.closest('[data-cpl]')) return;
+  cplOpen=!cplOpen;
+  drawEnzMeta(); drawCouple();
+});
+const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
+function laneSettled(grp){
+  return grp.every(j=>{ const l=lanes[j]; if(!l) return false;
+    const u=l.g.userData;
+    return (u.tx==null||Math.abs(l.g.position.x-u.tx)<0.01)
+        && (u.ty==null||Math.abs(l.g.position.y-u.ty)<0.01); });
+}
+function enzUnfreeze(){
+  try{ [...enzEl.children].forEach(el=>delete el.dataset.set); }catch(e){}
+}
+function placeEnz(){
+  if(enzEl.hidden || !lanes.length) return;
+  const on=enzGroups(), key=enzKey();
+  if(enzEl.dataset.on!==key){
+    enzEl.dataset.on=key;
+    if(enzEl.children.length!==on.length)
+      enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
+    [...enzEl.children].forEach(el=>delete el.dataset.set);
+  }
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h) return;
+  camera.updateMatrixWorld();
+  const pxPerWorld=w/(camera.right-camera.left);
+  on.forEach((grp,slot)=>{
+    const el=enzEl.children[slot]; if(!el) return;
+    if(el.dataset.set) return;
+    let lo=null, hi=null;
+    grp.forEach(j=>{ const l=lanes[j]; if(!l) return;
+      l.g.userData.atomMeshes.forEach(m=>{
+        if(!m||!m.visible) return;
+        const p=m.getWorldPosition(tmpV3);
+        if(!lo){ lo=p.clone(); hi=p.clone(); return; }
+        lo.min(p); hi.max(p);
+      });
+    });
+    if(!lo) return;
+    const d=Math.max(hi.x-lo.x, hi.y-lo.y, 1.2)*pxPerWorld*BLOB_K;
+    enzV.copy(lo).add(hi).multiplyScalar(0.5).project(camera);
+    el.style.width=el.style.height=d.toFixed(1)+'px';
+    el.style.left=((enzV.x*0.5+0.5)*w).toFixed(1)+'px';
+    el.style.top =((-enzV.y*0.5+0.5)*h).toFixed(1)+'px';
+    if(laneSettled(grp)) el.dataset.set='1';
+  });
+}
+const ledgerBtn=document.getElementById('showledger');
+const ledgerBox=ledgerBtn.querySelector('input');
+ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
+const enzBox=enzBtn.querySelector('input');
+enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
+
+const actEl=document.getElementById('actbtn');
+const stepHeadEl=document.getElementById('stephead');
+const stepTipEl=document.getElementById('steptip');
+const BURST_MS=190;
+let pressing=false;
+function press(fn){
+  if(pressing || busy) return;
+  pressing=true;
+  actEl.classList.add('burst');
+  later(()=>{ pressing=false; fn(); }, BURST_MS);
+}
+function beginPathway(){
+  if(!intro) return;
+  press(()=>{
+    intro=false; refresh();
+    computeFit();
+  });
+}
+function drawAct(){
+  const hi=focusStep();
+  const head = intro ? ''
+             : autoplay ? `Turn ${lap} — watching`
+             : reviewing ? (typeof STEPS[done-1].n==='number'
+                 ? `Step ${STEPS[done-1].n} complete` : `${STEPS[done-1].n} complete`)
+             : hi<nSteps ? headAt(hi)
+             : '';
+  const tip = (head && hi<nSteps) ? captionAt(hi) : '';
+  stepHeadEl.innerHTML = head + (tip
+    ? `<span class="infowrap"><button class="infobtn" type="button"
+         aria-describedby="steptip"
+         aria-label="What happens in this step">i</button></span>`
+    : '');
+  stepTipEl.innerHTML = tip;
+  stepHeadEl.classList.toggle('on', !!head);
+  const entering = reviewing && !shownReview;
+  shownReview = reviewing;
+  if(entering){ stepHeadEl.classList.remove('revin'); void stepHeadEl.offsetWidth; }
+  stepHeadEl.classList.toggle('revin', reviewing);
+  if(intro){
+    actEl.style.visibility='visible';
+    actEl.className='';
+    actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=beginPathway;
+    return;
+  }
+  // NO BUTTON WHILE TURN TWO PLAYS. There is nothing to decide — that is what
+  // "watch it again" means — and a live control would invite the student to
+  // race it.
+  if(autoplay){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+  actEl.className = reviewing ? 'revin' : '';
+  if(reviewing){
+    actEl.style.visibility='visible';
+    actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=()=>{ reviewing=false; refresh(); };
+    return;
+  }
+  const st=done<nSteps?stepAt(done):null;
+  // THE END OF A TURN. After turn one the button offers the second — the ×2 the
+  // student has to be able to state, and the only place this page says it.
+  // After turn two it opens the hand-off to the electron transport chain.
+  if(!st && !busy){
+    actEl.style.visibility='visible';
+    if(lap<LAPS){
+      actEl.innerHTML=`Run the second turn <i class="ph-bold ph-arrow-clockwise"></i>`;
+      actEl.onclick=()=>press(startLap2);
+    }else{
+      actEl.innerHTML=`Where do the electrons go? <i class="ph-bold ph-arrow-right"></i>`;
+      actEl.onclick=()=>Fork.show();
+    }
+    return;
+  }
+  if(!st || busy){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+  // A SPOT STEP HAS NO BUTTON: the click IS the bond changing, and the callout
+  // beside the disc says where. Every step here has one except the join, which
+  // is two molecules moving rather than one bond breaking.
+  if(st.spot){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+  actEl.style.visibility='visible';
+  actEl.innerHTML=`${st.act} <i class="ph-bold ph-arrow-right"></i>`;
+  actEl.onclick=()=>press(runStep);
+}
+
+// Jump to the state just BEFORE step k, so the student re-runs it rather than
+// landing on its aftermath. Shared by the rail and the cycle list.
+const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; autoplay=false;
+  done=k; carrierGone.clear(); benchGone.clear(); renderLanes(done); refresh(); };
+
+/* ---- ?step=N, the same jump as a URL. Clamped, so ?step=99 opens the last
+ * step rather than an empty stage. 1 is the bridge. */
+const OPEN_STEP=(()=>{
+  const m=/[?&]step=(\d+)/.exec(location.search);
+  return m ? Math.max(1, Math.min(nSteps, +m[1])) : null;
+})();
+const railEl=document.getElementById('rail');
+function drawRail(){
+  railEl.innerHTML='';
+  STEPS.forEach((st,idx)=>{
+    const state = (!intro && !reviewing && idx===done) ? 'run'
+                : (!intro && idx===done-1 && !(done>=nSteps && !reviewing)) ? 'cur'
+                : (idx < done)             ? 'past'
+                :                            'future';
+    const b=document.createElement('button');
+    // THE BRIDGE IS A WORD, NOT A NUMBER — it is not one of the eight the
+    // student has to be able to recite, and numbering it would put it in that
+    // count. Derived from the step's own `n`, so there is no second list.
+    const isNum = typeof st.n==='number';
+    b.className='rnum '+state+(isNum?'':' rbridge');
+    b.textContent=st.n;
+    b.setAttribute('aria-label', isNum?`Step ${st.n}`:String(st.n));
+    if(state==='cur') b.setAttribute('aria-current','step');
+    b.onclick=()=>goToStep(idx);
+    railEl.appendChild(b);
+    // …and an arrow after the bridge, so the rail reads "into the cycle" rather
+    // than as nine equal things in a row.
+    if(!isNum){ const a=document.createElement('span');
+      a.className='rlead'; a.textContent='→'; a.setAttribute('aria-hidden','true');
+      railEl.appendChild(a); }
+  });
+  // AND THE SCREEN AFTER THE LAST STEP. The rail owns "where am I", so it owns
+  // that place too. Named for the turn, because there are two of them.
+  const e=document.createElement('button');
+  const at = !intro && !reviewing && done>=nSteps;
+  e.className='rnum rend '+(at?'cur':'future');
+  e.textContent = lap<LAPS ? '½' : 'End';
+  e.setAttribute('aria-label', lap<LAPS?'End of turn one':'End of the cycle');
+  if(at) e.setAttribute('aria-current','step');
+  e.style.cursor='pointer';
+  e.onclick=()=>goToStep(nSteps);
+  railEl.appendChild(e);
+}
+
+const noteEl=document.getElementById('stepnote');
+
+/* ---- the coupled-reaction figure ------------------------------------------
+ * VERTICAL POSITION IS FREE ENERGY — why there is no axis to read. The coupled
+ * arrow ALWAYS runs opposite the main one. NO NUMBERS: direction, not
+ * magnitude, and no per-step ΔG, for glycolysis's reason — a table of typed
+ * kJ/mol is a claim nothing on this page can check.
+ *
+ * SEVEN OF THE NINE STEPS ARE COUPLED HERE, against five of ten in glycolysis,
+ * and that ratio is itself the lesson: this pathway is almost nothing but
+ * handing electrons to carriers.
+ */
+/* Species names READ OFF THE MOLECULES, never typed — and only the ones this
+ * step CHANGES. Oxaloacetate stands on the stage through the bridge reaction
+ * waiting to be joined, and naming a spectator on both ends of an energy
+ * diagram says it took part. `plus` is the one step with a second substrate
+ * out of solution (step 5's Pᵢ). */
+function changing(st){
+  const before=speciesAt(STEPS.indexOf(st)), after=st.species;
+  if(before.length!==after.length) return [before, after];
+  const keep=before.map((k,j)=>k!==after[j]);
+  return [before.filter((_,j)=>keep[j]), after.filter((_,j)=>keep[j])];
+}
+function resolveCouple(st){
+  const c=st.couple, nameOf=k=>M[k].short||M[k].name;
+  const [before,after]=changing(st);
+  return Object.assign({}, c, {
+    from: before.map(nameOf).join(' + ') + (c.plus?` + ${c.plus}`:''),
+    to:   after.map(nameOf).join(' + ') });
+}
+function coupleFig(c){
+  const topMain = c.up ? c.to : c.from, botMain = c.up ? c.from : c.to;
+  const topCpl  = c.up ? c.cin : c.cout, botCpl = c.up ? c.cout : c.cin;
+  const mainLine = c.up ? 'M66,116 L66,34' : 'M66,30 L66,112';
+  const mainHead = c.up ? 'M66,24 l6.5,13 h-13 z' : 'M66,122 l6.5,-13 h-13 z';
+  const CURVE_DOWN='M176,42 C126,48 90,58 90,74 C90,90 126,100 176,106';
+  const CURVE_UP  ='M176,106 C126,100 90,90 90,74 C90,58 126,48 176,42';
+  const cplLine = c.up ? CURVE_DOWN : CURVE_UP;
+  const cplHead = c.up ? 'M176,106' : 'M176,42';
+  const sup=t=>t.replace(/(\S)\+/g,'$1<tspan baseline-shift="super" font-size="9">+</tspan>')
+                .replace(/Pi\b/,'P<tspan baseline-shift="sub" font-size="9">i</tspan>');
+  return `<svg class="cpl ${c.tone==='n'?'n':c.tone==='f'?'f':'p'}" viewBox="0 0 300 152" role="img"
+      aria-label="${c.from} to ${c.to} runs ${c.up?'uphill':'downhill'}; coupled to ${c.cin} becoming ${c.cout}, which runs the opposite way">
+    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
+    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
+    <text class="cm" x="66" y="16" text-anchor="middle">${sup(topMain)}</text>
+    <path class="ml" d="${mainLine}"/><path class="mh" d="${mainHead}"/>
+    <text class="cm" x="66" y="147" text-anchor="middle">${sup(botMain)}</text>
+    <path class="cl" d="${cplLine}"/>
+    <path class="ch" d="${cplHead} l-11,-4.5 v9 z"/>
+    <text class="cs" x="186" y="46">${sup(topCpl)}</text>
+    <text class="cs" x="186" y="110">${sup(botCpl)}</text>
+  </svg>`;
+}
+const RC_Y={ hi:34, mid:76, lo:120, peak:22 };
+function coupleCurve(c){
+  const Y=RC_Y;
+  const start=c.up ? Y.lo : Y.hi;
+  const endAlone=c.up ? Y.mid : Y.lo;
+  const endWith =c.up ? Y.lo+16 : Y.mid;
+  const peak=Math.min(start,endAlone,endWith)-Y.peak;
+  const trace=(y0,y1)=>`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
+                      +` C174,${peak} 180,${y1} 212,${y1} H266`;
+  return `<svg class="cpl ${c.tone==='n'?'n':c.tone==='f'?'f':'p'}" viewBox="0 0 300 152" role="img"
+      aria-label="${c.from} to ${c.to}: on its own the step runs ${c.up?'uphill':'downhill'};
+        coupled to ${c.up?c.cin:c.cout} it runs ${c.up?'downhill':'less far down'}">
+    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
+    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
+    <path class="rc with"  d="${trace(start,endWith)}"/>
+    <path class="rc alone" d="${trace(start,endAlone)}"/>
+    <text class="et alone" x="266" y="${endAlone-7}" text-anchor="end">on its own</text>
+    <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">with ${c.up?c.cin:c.cout}</text>
+  </svg>`;
+}
+function soloCurve(st){
+  const Y=RC_Y, nameOf=k=>M[k].short||M[k].name;
+  const [b,a]=changing(st);
+  const from=b.map(nameOf).join(' + '), to=a.map(nameOf).join(' + ');
+  const y=Y.mid, peak=y-Y.peak;
+  const trace=`M34,${y} H88 C120,${y} 126,${peak} 150,${peak}`
+             +` C174,${peak} 180,${y} 212,${y} H266`;
+  return `<svg class="cpl" viewBox="0 0 300 152" role="img"
+      aria-label="${from} to ${to}: substrate and product sit at nearly the same
+        free energy, with a barrier between them">
+    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
+    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
+    <path class="rc solo" d="${trace}"/>
+    <text class="et alone" x="34" y="${y+18}">${from}</text>
+    <text class="et alone" x="266" y="${y+18}" text-anchor="end">${to}</text>
+  </svg>`;
+}
+// The two uncoupled steps are opposite kinds and the figure has to say which.
+// Read off `rev`, so neither line is a typed claim about a particular step.
+const soloLine=st=>st.rev===false
+  ? `This step runs <b>steeply downhill</b> on its own, and nothing is banked
+     from it. The drop is what pulls the whole cycle forward.`
+  : `Both sides sit at nearly the <b>same energy</b>, so the step runs either way.`;
+
+const FIGTABS=[['pair','Coupling'],['curve','Energy curve']];
+let figTab='curve';
+const figTabStrip=()=>`<div class="ftabs">`
+  + FIGTABS.map(([k,lb])=>`<button data-figtab="${k}"${figTab===k?' class="on"':''}>${lb}</button>`).join('')
+  + `</div>`;
+const coupleLine=c=>c.up
+  ? `On its own this step runs <b>uphill</b>. <b>${c.cin}</b> provides the extra
+     energy needed to complete the reaction.`
+  : `This step runs <b>downhill</b>. The drop drives
+     <b>${c.cout}</b> the other way, <b>uphill</b> — which is where the energy
+     actually goes.`;
+const noteClick=e=>{
+  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); return; }
+  const t=e.target.closest('[data-figtab]');
+  if(t){ figTab=t.dataset.figtab; drawCouple(); }
+};
+const cplEl=document.getElementById('couplebox');
+cplEl.addEventListener('click',noteClick);
+let shownCplStep=null;
+function drawCouple(){
+  const i=focusStep();
+  const st=(cplOpen&&!intro&&i<nSteps)?stepAt(i):null;
+  if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
+  const c = st.couple ? resolveCouple(st) : null;
+  cplEl.style.display='block';
+  cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
+    +(c
+      ? `<div class="nhead cpl-h">Coupled reaction</div>`
+        + figTabStrip()
+        + (figTab==='curve' ? coupleCurve(c) : coupleFig(c))
+        + `<p class="nbody">${coupleLine(c)}</p>`
+      : `<div class="nhead cpl-h">Energy curve</div>`
+        + soloCurve(st)
+        + `<p class="nbody">${soloLine(st)}</p>`)
+    + (st.rev===false
+        ? `<div class="nhead irr">Irreversible in the cell</div>`
+        : `<div class="nhead rev">Near equilibrium — reversible</div>`);
+  const key=`${i}`;
+  if(key!==shownCplStep){
+    shownCplStep=key;
+    cplEl.classList.remove('in'); void cplEl.offsetWidth;
+    cplEl.classList.add('in');
+  }
+}
+function drawNote(){
+  noteEl.innerHTML=''; noteEl.style.display='none';
+}
+
+/* The cycle's regulation, behind the star on each controlled step's row in the
+ * cycle list. Content is REG's, rendered once — the modal is markup with two
+ * holes, so the facts live in one place. */
+const Reg=(()=>{
+  const body=document.getElementById('regbody');
+  document.getElementById('regtitle').textContent=REG.title;
+  body.innerHTML=`<p class="mtext">${REG.body}</p>`
+    +`<div class="effrow"><div class="eff on"><div class="eh">Speeds it up</div>`
+      +REG.on.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div>`
+    +`<div class="eff off"><div class="eh">Slows it down</div>`
+      +REG.off.map(([a,b])=>`<div class="e"><b>${a}</b><span>${b}</span></div>`).join('')+`</div></div>`
+    +`<p class="mtext">${REG.note}</p>`;
+  return Modal.create({el:'regmodal'});
+})();
+
+/* ---- every step, in one column --------------------------------------------
+ * THE MAP, not the rail. The rail hides a step until it has run; a student who
+ * asks for the list has opted out of that, so this names every product, chip
+ * and marker outright. Nothing typed: rows are built from STEPS. */
+const AllSteps=(()=>{
+  const body=document.getElementById('stepsbody');
+  let self=null;
+  const hide=()=>self.hide();
+  function draw(){
+    body.innerHTML='';
+    STAGES.forEach(s=>{
+      const steps=stageSteps(s.n);
+      if(!steps.length) return;
+      const g=document.createElement('div');
+      g.className='sgroup';
+      g.innerHTML=`<div class="sghead"><span class="bt">${s.block}</span>`
+        +`<span class="bd">${s.delta}</span></div>`;
+      steps.forEach(st=>{
+        const idx=STEPS.indexOf(st);
+        const state=(idx===done&&!intro)?'cur':idx<done?'done':'future';
+        const r=document.createElement('div');
+        r.className='rrow '+state;
+        r.innerHTML=`<div class="rdotwrap"><div class="rdot">${st.n}</div></div>`
+          +`<div class="rlab">${productOf(st)}</div>`
+          +chipOf(st)
+          +(st.rev===false
+            ? `<div class="rirr" title="effectively irreversible in the cell">⇢</div>` : '')
+          +(st.commit
+            ? `<button class="rstar" data-reg aria-label="Why the cell controls this step">★</button>` : '');
+        r.onclick=()=>{ hide(); goToStep(idx); };
+        const star=r.querySelector('[data-reg]');
+        if(star) star.onclick=e=>{ e.stopPropagation(); hide(); Reg.show(); };
+        g.appendChild(r);
+      });
+      body.appendChild(g);
+    });
+  }
+  self=Modal.create({el:'stepsmodal', onShow:draw});
+  document.getElementById('allsteps').onclick=()=>self.show();
+  return self;
+})();
+
+/* WHERE THE ELECTRONS GO, behind the last button. The cycle's own products are
+ * almost worthless until this happens, so the closing screen is a hand-off
+ * rather than a summary: three doors, and the arithmetic that turns eight NADH
+ * into the number students actually quote. Rendered once, stateless. */
+const Fork=(()=>{
+  document.getElementById('forkbody').innerHTML=
+     `<div class="door" style="--c:var(--nad)">
+        <div class="dk">The carriers</div><div class="dh">To the chain</div>
+        <div class="db">Every <b>NADH</b> and <b>FADH₂</b> made here carries its
+        electrons to the <b>electron transport chain</b> in the inner membrane.
+        NADH enters at Complex I, FADH₂ at Complex II — lower down, which is
+        exactly why it is worth less. Roughly <b>2.5 ATP</b> per NADH and
+        <b>1.5</b> per FADH₂.</div></div>`
+    +`<div class="door" style="--c:var(--atp)">
+        <div class="dk">The count</div><div class="dh">Per glucose</div>
+        <div class="db">Two turns give <b>6 NADH</b>, <b>2 FADH₂</b> and
+        <b>2 ATP</b>, plus the <b>2 NADH</b> from the bridge reaction. Cash the
+        carriers in and the cycle is worth around <b>20 ATP</b> — against the
+        2 it made directly. That gap is the answer to "why bother".</div></div>`
+    +`<div class="door" style="--c:var(--co2)">
+        <div class="dk">The carbon</div><div class="dh">Out</div>
+        <div class="db">Six <b>CO₂</b> leave per glucose — every carbon it had.
+        That is the carbon you breathe out, and the cycle is where almost all of
+        it goes. Nothing here used oxygen; the cycle still stops without it,
+        because the chain has to empty the carriers first.</div></div>`;
+  return Modal.create({el:'forkmodal'});
+})();
+
+// drawTray runs BEFORE drawAct: the tray's visibility decides which element
+// usable() measures.
+function refresh(){ drawLedger(); drawRing(); drawTray(); drawTally(); drawEnz();
+  drawAct(); drawRail(); drawNote(); drawCouple(); drawCaption(); computeFit(); }
+
+document.getElementById('restart').onclick=restart;
+/* keyboard: → advances whatever the current step is, ← rewinds. NOT WHILE A
+ * CARD IS UP, and not while turn two plays — it is running itself, and a key
+ * that ran a step under it would double-fire the same reaction. */
+addEventListener('keydown',e=>{
+  if(Modal.anyOpen()) return;
+  if(autoplay) return;
+  if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
+    if(intro){ beginPathway(); }
+    else if(reviewing){ reviewing=false; refresh(); }
+    else press(runStep); }
+  if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
+});
+
+/* =============================================================
+ *  MAIN LOOP
+ * ============================================================= */
+L.frame=()=>{
+  LANES.step();
+  cam.r+=(fitR-cam.r)*0.05;
+  cam.target.y+=(fitY-cam.target.y)*0.06;
+  applyCam(); orthoFrustum();
+  KIT.faceCamera(camera);
+};
+// AFTER the render, never before — Vector3.project() reads a matrix refreshed
+// only on render. Everything that projects belongs in here.
+L.afterFrame=()=>{
+  drawPlates();
+  drawFlyers();
+  drawSpots();
+  drawHint();
+  placeCarrierMol();
+  placeBenchMol();
+  placeTallyMols();
+  placeEnz();
+};
+
+if(OPEN_STEP!=null){ intro=false; done=OPEN_STEP-1; }
+renderLanes(done); refresh(); applyCam(); resize();
+// Re-solve AFTER refresh(): the first computeFit runs inside renderLanes(),
+// before the tray has children, so it measures a zero-height tray.
+computeFit();
+cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();
+L.start();
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(computeFit);
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);
+  const w=canvas.width, h=canvas.height, s=w/(canvas.clientWidth||w);
+  const out=document.createElement('canvas'); out.width=w; out.height=h;
+  const x=out.getContext('2d');
+  x.drawImage(canvas,0,0);
+  x.textAlign='center';
+  const projV=new THREE.Vector3();
+  lanes.forEach(l=>{
+    const spec=M[l.key];
+    projV.set(l.g.position.x,l.topY+laneOffset(l),0).project(camera);
+    const px=(projV.x*0.5+0.5)*w, py=(-projV.y*0.5+0.5)*h;
+    x.font=`500 ${14*s}px "Zilla Slab", Georgia, serif`;
+    x.fillStyle='#8a8073'; x.fillText(spec.formula, px, py-3*s);
+    x.font=`700 ${19*s}px "Zilla Slab", Georgia, serif`;
+    x.fillStyle='#2b2723'; x.fillText(l.nameEl.textContent, px, py-20*s);
+  });
+  const a=document.createElement('a'); a.download='krebs-cycle.png';
+  a.href=out.toDataURL('image/png'); a.click();
+};
+</script>
+
+</body>
+</html>

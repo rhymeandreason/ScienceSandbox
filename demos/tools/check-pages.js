@@ -140,8 +140,17 @@ for (const page of PAGES) {
  *                    a hop is common and proves nothing about that hop's
  *                    source, so matching it would wave through the very cases
  *                    this exists to catch.
+ *    · @undrawn      there is no atom to remove, because the spec never drew
+ *                    one. mol-krebs.js omits C–H on every backbone carbon
+ *                    (its header note 1), so succinate — symmetric, with no
+ *                    stereocentre to except — has none of the four hydrogens
+ *                    succinate dehydrogenase strips. `dehydro` therefore hops
+ *                    off the CARBONS, and a shed would be reaching for meshes
+ *                    that do not exist. The tag is written at the call site
+ *                    and must name which spec draws nothing, so it cannot be
+ *                    used to wave through a molecule that does.
  * ===================================================================== */
-const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane|flyFree)\s*\(/;
+const REMOVERS = /\b(shedAtoms|shed|removeAtoms|morphSolute|swapLane|flyFree)\s*\(|@undrawn\b/;
 const BEFORE = 14, AFTER = 3;      // lines of context; widen only with a reason
 
 /* WHERE THE HOPS LIVE, which is no longer only the pages. `reaction/` holds the

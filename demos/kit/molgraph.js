@@ -208,7 +208,16 @@
     let other=null;
     if(e==='H') other=adj(spec)[i][0];
     else if(e==='P') other=bridging(spec,i,'O')[0];
-    else { const nb=heavyNeighbors(spec,i); if(nb.length===1) other=nb[0]; }
+    else {
+      const nb=heavyNeighbors(spec,i);
+      if(nb.length===1) other=nb[0];
+      /* A CARBOXYLATE LEAVING AS CO₂ breaks the C–C, and it has three heavy
+       * neighbours so the rule above cannot answer. Its two oxygens go WITH
+       * it — they are the O's of the CO₂ — so the one neighbour it parts from
+       * is the carbon, and that is the bond a decarboxylation marks. */
+      else if(e==='C'){ const c=nb.filter(j=>el(spec,j)==='C');
+        if(c.length===1) other=c[0]; }
+    }
     return other==null?null:[i,other];
   }
 

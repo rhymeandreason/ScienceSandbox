@@ -657,9 +657,6 @@ const LESSONS={
     // only seen if the student pulls the proton back off — NH4+ ⇌ NH3 + H+ is
     // a real equilibrium and this tab lets them run it backwards
     won:'Ammonia again, with its <b>lone pair</b> free. Bring the water back.',
-    notes:{ title:'Ammonia &middot; NH\u2083', tags:['covalent','polar','gas'], facts:[
-      'the <b>lone pair</b> is the reactive part',
-      'it <b>accepts</b> a proton \u2192 that is what a <b>base</b> is' ] },
     notes2:{ title:'Ammonium &middot; NH\u2084\u207a', tags:['covalent','dative','ion'], facts:[
       '<b>tetrahedral</b> &middot; <b>109.5\u00b0</b>',
       '<b>dative</b> (coordinate) bond \u2014 N gave both electrons',
@@ -687,9 +684,6 @@ const LESSONS={
     open:'Your HCl, and some water. Drag the water at the <b>hydrogen</b> — it wants the proton.',
     ring:()=>MolLib.PALETTE.bonds.covalent,
     won:'<b>HCl</b> again. In water it cannot hold on to that hydrogen.',
-    notes:{ title:'Hydrogen chloride &middot; HCl', tags:['covalent','polar','gas'], facts:[
-      '<b>δ+</b> on H — the bond is already leaning',
-      'water only has to <b>finish the job</b>' ] },
     notes2:{ title:'Hydrochloric acid &middot; H₃O⁺ + Cl⁻', tags:['ion','liquid'], facts:[
       'the <b>H⁺</b> left — its electron did <b>not</b>',
       'Cl⁻ has <b>four</b> lone pairs — the same eight, rearranged',
@@ -725,10 +719,8 @@ function say(html){
 
 function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); }
 
-/* Takes a list, because a lesson with a second stage ADDS to its notes rather
-   than replacing them: ammonium is not a correction to ammonia, it is what
-   ammonia became, and a student revising wants both — the base and what
-   happened when it accepted a proton — side by side. */
+/* Takes a list: a lesson can put more than one card on the rail. A bonus card
+   shows only its own — its reactant's notes were earned on the reactant's card. */
 /* Once a lesson has been completed ONCE, its notes stay up for the rest of that
    lesson. They are the revision card — the keywords a student is meant to copy
    down — and having them appear at the win only to vanish the moment anything
@@ -741,10 +733,8 @@ function card(){ return document.querySelector('.goal[data-lesson="'+key+'"]'); 
    you left it. Completing a molecule is a thing the student did, and switching
    tabs is not an undo. */
 const earnedNotes={};
-/* Finishing the REACTION on a bonus card, which is not the same event as its
-   notes going up: a reaction card puts its reactant's notes up the moment it
-   opens, so `earnedNotes` alone would call it done before the student has done
-   anything. This is written where the second-stage line fires. */
+/* Finishing the REACTION on a bonus card. Written where the second-stage line
+   fires, so it tracks the reaction rather than anything the rail shows. */
 const earnedStage={};
 let pinnedNotes=null;
 function showNotes(list){
@@ -839,7 +829,7 @@ function report(s){
   const more=L.extra && L.extra(s);
   if(more){
     earnedStage[key]=true;
-    if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?[L.notes,L.notes2]:L.notes); }
+    if(!saidExtra){ saidExtra=true; say(more); showNotes(L.notes2?(L.bonus?[L.notes2]:[L.notes,L.notes2]):L.notes); }
     return;
   }
   saidExtra=false;
@@ -855,7 +845,10 @@ function report(s){
 function win(s){
   arm(true);
   card().classList.add('done');
-  showNotes(L.notes);
+  /* A bonus card's `notes` describe the molecule it was HANDED, which the
+     student already earned on its own card — the rail carries only what this
+     card teaches. */
+  showNotes(L.bonus?null:L.notes);
   say(L.won);
   /* lands as the win line fades, not on top of it — 3.2s vs. say()'s 3.4s hold, so the toast never goes empty between them */
   if(L.after && !saidAfter && !restoring){
