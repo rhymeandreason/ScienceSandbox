@@ -109,12 +109,30 @@
   padding: 30px 18px 16px;
 }
 
+/* The empty state: three questions you can click, rather than a paragraph
+   about being able to ask questions. Quieter than .askgo on purpose, since
+   these are an offer and that is an answer. */
 .askthread .hello {
-  margin: 0;
-  font-size: 14.5px;
-  line-height: 1.6;
-  color: var(--muted);
-  font-style: italic;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.askeg {
+  font: 14px/1.45 var(--font-sans);
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px dashed var(--hair);
+  border-radius: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.askeg:hover {
+  border-color: var(--muted);
+  border-style: solid;
+  background: rgba(0, 0, 0, .03);
 }
 
 .askturn { margin: 0 0 16px }

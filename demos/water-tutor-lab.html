@@ -1457,6 +1457,16 @@ const ASK = Ask.chat({
   rail: document.getElementById('side'),
   slot: document.getElementById('askslot'),
   lesson: 'water-lab',
+
+  /* Two questions a student actually arrives with, and one that shows the box
+     is worth more than a search bar: methane is nearly the same size as water
+     and is a gas at room temperature, which is hydrogen bonding's whole point
+     and lives in another lesson, so it also demonstrates being sent there. */
+  examples: [
+    'Why does ice float?',
+    'Why does salt dissolve in water?',
+    'Why is water a liquid when methane is a gas?',
+  ],
   step: () => cur,
   stepName: () => stepMeta[cur] ? stepMeta[cur].tab : '',
 

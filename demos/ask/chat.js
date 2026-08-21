@@ -9,6 +9,7 @@
  *        lesson:  'water-lab',
  *        step:    () => cur,                         // read per turn
  *        state:   () => ({ ... }),                   // flat readings, per turn
+ *        examples: ['Why does ice float?', …],       // the empty state
  *        act:     target => { ... },                 // only for targets at home
  *      });
  *
@@ -45,8 +46,7 @@
     panel.id = 'askchat';
     panel.innerHTML = `
       <button id="askclose" type="button" aria-label="Close">&times;</button>
-      <div class="askthread"><p class="hello">Ask about anything on this page. I can point you at
-        the part of the model or the control that answers it.</p></div>
+      <div class="askthread"><div class="hello"></div></div>
       <form>
         <input type="text" maxlength="500" autocomplete="off" placeholder="Ask about this page…"
                aria-label="Ask a question about this lesson">
@@ -60,6 +60,21 @@
     rail.appendChild(panel);
 
     const thread = panel.querySelector('.askthread');
+
+    /* The empty state is three questions, not a paragraph explaining that you
+     * may ask questions. A student who does not know what this thing is for
+     * learns more from one good example than from a sentence about it, and the
+     * third one is there to show the box is worth more than a search bar.
+     * Clicking asks it, so the first turn costs no typing. */
+    const hello = panel.querySelector('.hello');
+    (opts.examples || []).forEach(q => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'askeg';
+      b.textContent = q;
+      b.addEventListener('click', () => { input.value = q; form.requestSubmit(); });
+      hello.appendChild(b);
+    });
     const form   = panel.querySelector('form');
     const input  = panel.querySelector('input');
     const send   = form.querySelector('button');
@@ -131,8 +146,8 @@
     });
 
     function say(who, text, cls) {
-      const hello = thread.querySelector('.hello');
-      if (hello) hello.remove();
+      const empty = thread.querySelector('.hello');
+      if (empty) empty.remove();
       const d = document.createElement('div');
       d.className = 'askturn ' + who;
       d.innerHTML = `<p class="who">${who === 'you' ? 'You' : 'Tutor'}</p>`;
