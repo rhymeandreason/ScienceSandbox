@@ -203,6 +203,29 @@ else
   echo "pre-commit: skipping check-lobes.js — no spec, molgraph or lobes/ file staged"
 fi
 
+# demos/condense/ gates itself, plus condense-drag.js (it owns the recipe table
+# the checker reads) and every mol-*.js: the pose the lesson puts on screen is
+# lifted from the PRODUCT spec, so editing maltose or glucose moves geometry the
+# drag module never touches. The failure this catches has no visual tell — swap
+# the donor and acceptor roles and check-molecules.js still passes clean, because
+# an OH leaving one side and an H the other is a water whichever way round it
+# goes. See condense/check-condense.js's header.
+if git diff --cached --name-only \
+   | grep -qE '^demos/(condense/.*|condense-drag\.js|mol-[a-z]*\.js|molecules\.js|skel\.js)$'; then
+  if ! node condense/check-condense.js > /tmp/ccd.$$ 2>&1; then
+    tail -30 /tmp/ccd.$$; rm -f /tmp/ccd.$$
+    echo ""
+    echo "pre-commit FAILED: check-condense.js — a condensation no longer lands on"
+    echo "  its product. A superposition failure means the page would pose a shape"
+    echo "  no spec vouches for; a linkage failure means the roles build the bond"
+    echo "  through the wrong atom, which every other checker passes."
+    exit 1
+  fi
+  rm -f /tmp/ccd.$$
+else
+  echo "pre-commit: skipping check-condense.js — no spec or condense/ file staged"
+fi
+
 # dna/ gates itself, plus the nucleobase specs and the two modules its answers
 # are built out of. pairing.js takes lone-pair directions from lobes/ and has
 # kit/hbond.js count the bonds in the pose it solves, so a change in either can

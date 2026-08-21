@@ -1,0 +1,431 @@
+/* =============================================================================
+ *  condense-drag.js — join two molecules by DEHYDRATION SYNTHESIS
+ * =============================================================================
+ *  Loaded as a classic script AFTER three.min.js, molecules.js, scene.js, fx.js,
+ *  kit/motion.js and kit/leaving.js. Exposes window.CondenseDrag.
+ *
+ *  The third drag mechanic, and the first whose unit is a MOLECULE rather than
+ *  an atom. covalent-drag.js fills a valence slot; ionic-drag.js hands an
+ *  electron over; this one makes a bond between two finished molecules and
+ *  releases the water that bond costs. Different mechanic, so a different file
+ *  (SCIENCE.md §6) — and ONE file rather than one per class, because the whole
+ *  claim of the lesson is that the sugar, the amino acid and the lipid enter
+ *  the same reaction.
+ *
+ *  What the interaction has to make feel true:
+ *
+ *    1. A bond between two molecules costs something. The water is not a
+ *       by-product mentioned in a caption — it is three atoms that were on the
+ *       reactants a moment ago, and they LEAVE. Nothing is created or deleted:
+ *       the O and the two H that fly off are the same meshes the student was
+ *       just dragging, reparented, never rebuilt.
+ *    2. Only two particular groups react. Every other part of either molecule
+ *       can be brought together all day and nothing happens.
+ *    3. The join has a configuration, and the student picks it. Which FACE the
+ *       incoming ring approaches on decides α or β, which is the difference
+ *       between starch and cellulose. A fork, not a toggle.
+ *
+ *  Chemistry lives in the SPEC, not here. A molecule declares `condense:` —
+ *  which atom stays bonded, which atoms leave with the water, what the product
+ *  is — and check-molecules.js asserts all of it. This file reads that block. A
+ *  recipe below says only which two molecules are on the bench and where they
+ *  start, so adding a card is a table entry rather than a code path.
+ *
+ *  TWO PLACEMENT STRATEGIES, and the difference is a matter of honesty.
+ *
+ *    place:'product'  The finished pose is lifted from the PRODUCT SPEC's own
+ *                     coordinates. Both residues of maltose are built by the
+ *                     same ringPyranose() as glucose, so they are rigid-identical
+ *                     to the molecules on the bench and a three-point frame match
+ *                     is exact rather than a fit. The student's hand chooses
+ *                     WHICH product; the geometry shown is the checked one. Only
+ *                     this strategy may carry a configuration claim, because α
+ *                     vs β differs by nothing a bond length or a render can see
+ *                     (MolecularGeometry.md §1.3).
+ *
+ *    place:'bond'     No product spec exists (a dipeptide has none), so the join
+ *                     is built here: the incoming molecule is rotated to point
+ *                     its departing bond at the acceptor and set at bond length.
+ *                     A SCHEMATIC — the torsions about the new bond are not a
+ *                     claimed conformer — so a card using it must not put a
+ *                     stereochemical claim on screen.
+ *
+ *  Usage:
+ *    const c = CondenseDrag.create({THREE, root, camera, canvas, fx, motion,
+ *                                   recipe:'sugar', onChange:report});
+ *    c.step(dt);  c.reset();  c.destroy();  c.state();
+ * ========================================================================== */
+(function(global){
+  'use strict';
+
+  const S = {
+    CAPTURE: 4.2,      // sites this close and the acceptor starts pulling
+    SNAP: 0.75,        // this close and the reaction fires
+    PULL: 18,          // attraction (scene units / s²)
+    DAMP: 0.86,
+  };
+
+  /* ---- the recipes ----------------------------------------------------
+   * `a` stays put and carries the acceptor role; `b` is the one the student
+   * drags, and carries the donor. `start` is where b is dealt, clear of a's
+   * own spread.
+   *
+   * `faces` is what makes the sugar card a fork: the approach side of a's ring
+   * plane at the moment of snap picks the product, and both products are real
+   * registered specs with their own `glycosidic:` claim. A recipe with a plain
+   * `product` has no fork.
+   */
+  const RECIPES = {
+    sugar: {
+      a:'glucose', b:'glucose', acceptor:'c4', donor:'c1',
+      place:'product',
+      // The ring triad for the frame match. A pyranose ring is rigid and shared
+      // by both residues of both products, so three atoms fix it exactly.
+      triad:['O5','C1','C4'],
+      // Which residue of the product each bench molecule becomes. Both products
+      // name residue A the donor (it gives C1) and B the acceptor (it gives C4),
+      // the same convention their `names` arrays use.
+      residue:{ a:'B', b:'A' },
+      // The exocyclic C6 arm turns freely, so its rotamer differs between a
+      // lone glucose and a residue of the product and is not a claim either
+      // one makes. Named here because check-condense.js holds every OTHER
+      // heavy atom to landing exactly.
+      rotors:['O6','HO6','H61','H62'],
+      faces:{ alpha:'maltose', beta:'cellobiose' },
+      start:[7.5,1.2,0],
+      title:'Two glucoses',
+    },
+    peptide: {
+      a:'alanine', b:'alanine', acceptor:'amino', donor:'carboxyl',
+      place:'bond',
+      product:null,
+      start:[6.4,1.0,0],
+      title:'Two alanines',
+    },
+  };
+
+  function create(opts){
+    const { THREE, root, camera, canvas, fx, motion } = opts;
+    const onChange = opts.onChange || function(){};
+    const R = RECIPES[opts.recipe || 'sugar'];
+    if(!R) throw new Error(`condense-drag: no recipe '${opts.recipe}'`);
+
+    const MOL = global.MolLib.MOLECULES;
+    const SCALE = global.MolLib.SCALE;
+    const leaving = global.Leaving.create({ root, camera, motion, tag:'condense' });
+
+    const group = new THREE.Group();
+    root.add(group);
+
+    const V = (x,y,z)=>new THREE.Vector3(x,y,z);
+    const specA = MOL[R.a], specB = MOL[R.b];
+    if(!specA || !specB)
+      throw new Error(`condense-drag: recipe '${opts.recipe}' names a molecule that is not loaded`);
+
+    // Roles come off the SPEC. A recipe naming a role the spec does not declare
+    // is a wiring mistake worth failing loudly on: a silent fallback would react
+    // at the wrong hydroxyl and look entirely correct doing it.
+    function roleOf(spec, key, which){
+      const block = spec.condense;
+      if(!block) throw new Error(`condense-drag: the ${which} molecule has no \`condense:\` block`);
+      const r = (block.roles||[]).find(r=>r.key===key);
+      if(!r) throw new Error(`condense-drag: the ${which} molecule declares no role '${key}'`);
+      return r;
+    }
+    const roleA = roleOf(specA, R.acceptor, 'acceptor');
+    const roleB = roleOf(specB, R.donor, 'donor');
+
+    let A=null, B=null;
+    let vel=V(0,0,0);
+    let joined=false, config=null, product=null;
+
+    /* ---- build ---------------------------------------------------------- */
+    function build(){
+      A = Stage.buildMolecule(specA, {center:true});
+      B = Stage.buildMolecule(specB, {center:true});
+      B.position.set(R.start[0], R.start[1], R.start[2]);
+      group.add(A); group.add(B);
+      group.updateMatrixWorld(true);
+      joined=false; config=null; product=null; vel.set(0,0,0);
+      report();
+    }
+
+    function at(g,i){
+      const m=g.userData.atomMeshes[i];
+      return m ? m.getWorldPosition(V()) : null;
+    }
+    const siteA = ()=>at(A, roleA.keep);
+    const siteB = ()=>at(B, roleB.keep);
+
+    /* ---- the fork: which face did it come in on? ------------------------
+     * The acceptor's own ring plane, signed. The side C4's leaving H points to
+     * is the axial approach and inverts the donor's anomeric arrangement (α,
+     * maltose); the other side keeps it (β, cellobiose). Derived from the
+     * acceptor's geometry rather than from a screen direction, so it survives
+     * an orbit.
+     */
+    function faceAt(p){
+      if(!R.faces || !p) return null;
+      const ring = ringOf(specA);
+      if(!ring) return null;
+      const n = ringNormal(A, ring), c = ringCentre(A, ring);
+      const h = at(A, roleA.leaves[0]);
+      const sign = Math.sign(h.clone().sub(c).dot(n)) || 1;
+      return Math.sign(p.clone().sub(c).dot(n))*sign >= 0 ? 'alpha' : 'beta';
+    }
+    // The shortest cycle through the acceptor's keep atom. These specs are small
+    // enough that a plain walk beats pulling in a ring finder.
+    function ringOf(spec){
+      const adj={};
+      (spec.bonds||[]).forEach(([i,j])=>{ (adj[i]=adj[i]||[]).push(j); (adj[j]=adj[j]||[]).push(i); });
+      const start=roleA.keep;
+      for(const first of adj[start]||[]){
+        const prev={}, q=[first], seen=new Set([start,first]);
+        prev[first]=start;
+        while(q.length){
+          const cur=q.shift();
+          for(const nx of adj[cur]||[]){
+            if(nx===start && cur!==first){
+              const path=[]; let c=cur;
+              while(c!==start){ path.push(c); c=prev[c]; }
+              path.push(start);
+              if(path.length>=5) return path;
+            }
+            if(seen.has(nx)) continue;
+            seen.add(nx); prev[nx]=cur; q.push(nx);
+          }
+        }
+      }
+      return null;
+    }
+    function ringCentre(g,ring){
+      const c=V(); ring.forEach(i=>c.add(at(g,i))); return c.divideScalar(ring.length);
+    }
+    function ringNormal(g,ring){
+      const c=ringCentre(g,ring), n=V();
+      for(let k=0;k<ring.length;k++)
+        n.add(at(g,ring[k]).sub(c).cross(at(g,ring[(k+1)%ring.length]).sub(c)));
+      return n.normalize();
+    }
+
+    /* ---- placing the finished join --------------------------------------- */
+    function nameIndex(spec){
+      const m={}; (spec.names||[]).forEach((n,i)=>{ m[n]=i; }); return m;
+    }
+    // An orthonormal frame from three points, as a rotation matrix.
+    function frame(p1,p2,p3){
+      const x=p2.clone().sub(p1).normalize();
+      const z=x.clone().cross(p3.clone().sub(p1)).normalize();
+      const y=z.clone().cross(x).normalize();
+      return new THREE.Matrix4().makeBasis(x,y,z);
+    }
+    // Where residue `which` of the product sits, and which bench atoms match it.
+    function triadOf(which){
+      const prod=MOL[product];
+      const pn=nameIndex(prod), ln=nameIndex(which==='a'?specA:specB);
+      const suffix=R.residue[which];
+      return R.triad.map(t=>{
+        const pi=pn[t+suffix], li=ln[t];
+        if(pi===undefined || li===undefined)
+          throw new Error(`condense-drag: triad atom '${t}' is missing from ${product} or its reactant`);
+        return { p:prod.atoms[pi].pos, l:li };
+      });
+    }
+    // Move `g` so its triad lands on the product's. Spec coordinates are real
+    // ångströms and the stage is in display units, so SCALE is applied here —
+    // `register()` already applied it to the atoms `g` was built from.
+    function placeOnProduct(g, which){
+      const pts=triadOf(which);
+      const P=pts.map(t=>V(t.p[0],t.p[1],t.p[2]).multiplyScalar(SCALE));
+      const L=pts.map(t=>at(g,t.l));
+      const rot=frame(P[0],P[1],P[2]).multiply(frame(L[0],L[1],L[2]).invert());
+      const o=L[0].clone();
+      g.applyMatrix4(new THREE.Matrix4().makeTranslation(-o.x,-o.y,-o.z));
+      g.applyMatrix4(rot);
+      g.applyMatrix4(new THREE.Matrix4().makeTranslation(P[0].x,P[0].y,P[0].z));
+      g.updateMatrixWorld(true);
+    }
+    // No product spec: point the donor's departing bond at the acceptor and set
+    // it at bond length. Schematic by construction — see the header.
+    function placeOnBond(){
+      const target=siteA();
+      const away=target.clone().sub(at(A, roleA.leaves[0])).normalize();
+      const keep=siteB(), leave=at(B, roleB.leaves[0]);
+      const q=new THREE.Quaternion().setFromUnitVectors(
+        leave.clone().sub(keep).normalize(), away.clone().negate());
+      const o=keep.clone();
+      const to=target.clone().add(away.multiplyScalar(1.43*SCALE));
+      B.applyMatrix4(new THREE.Matrix4().makeTranslation(-o.x,-o.y,-o.z));
+      B.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(q));
+      B.applyMatrix4(new THREE.Matrix4().makeTranslation(to.x,to.y,to.z));
+      B.updateMatrixWorld(true);
+    }
+
+    /* ---- the reaction ---------------------------------------------------- */
+    function react(){
+      if(joined) return;
+      joined=true;
+      config=faceAt(siteB());
+      product=R.faces ? R.faces[config] : R.product;
+
+      // Pose first, so the water leaves from where the atoms actually end up.
+      if(R.place==='product' && product && MOL[product]){ placeOnProduct(A,'a'); placeOnProduct(B,'b'); }
+      else placeOnBond();
+
+      const site=siteA();
+      releaseWater();
+      if(fx && site) fx.spawnRing(site, 0.9);
+      report();
+    }
+
+    /* The three atoms that leave are the three meshes that were already on the
+     * reactants: reparented into the air with their world positions preserved,
+     * gathered into a water, then thrown off frame. So the student can follow
+     * one oxygen from a hydroxyl into the water and out. Building a fresh water
+     * from the water spec would be less code and a worse claim — it would say a
+     * water APPEARED. */
+    function releaseWater(){
+      const take=(g,idx)=>idx.map(i=>{
+        const m=g.userData.atomMeshes[i];
+        if(!m) return null;
+        const w=m.getWorldPosition(V());
+        // drop the sticks to it before it goes — a stick to a departed atom is
+        // the classic dangling-stick bug
+        g.userData.bondMeshes.forEach(bm=>{ if(bm.userData.pair.includes(i)) bm.visible=false; });
+        m.parent.remove(m);
+        root.add(m); m.position.copy(root.worldToLocal(w));
+        return m;
+      }).filter(Boolean);
+
+      const gone=[...take(B, roleB.leaves), ...take(A, roleA.leaves)];
+      if(!gone.length) return;
+      const o=gone.find(m=>m.userData.el==='O')||gone[0];
+      const hs=gone.filter(m=>m!==o);
+
+      // water's own geometry, in display units: O–H 0.96 Å at 104.5°
+      const OH=0.96*SCALE, half=104.5/2*Math.PI/180;
+      const centre=o.position.clone();
+      const parts=[{ mesh:o, to:centre }].concat(hs.map((m,k)=>({ mesh:m,
+        to:centre.clone().add(V(Math.sin(half)*(k?-1:1), -Math.cos(half), 0).multiplyScalar(OH)) })));
+      const dur=leaving.gather(parts);
+
+      motion.after(dur/1000, ()=>{
+        const air=new THREE.Group();
+        root.add(air);
+        parts.forEach(p=>{
+          const w=p.mesh.getWorldPosition(V());
+          p.mesh.parent.remove(p.mesh); air.add(p.mesh);
+          p.mesh.position.copy(air.worldToLocal(w));
+        });
+        leaving.link(air, hs.map(m=>[o.position.clone(), m.position.clone()]));
+        leaving.launch(air, { to:leaving.offstage(centre), arc:0.8, dur:900, fade:true,
+                              onDone:()=>root.remove(air) });
+      }, {tag:'condense'});
+    }
+
+    /* ---- dragging --------------------------------------------------------
+     * Registered on the canvas's PARENT in the capture phase so a grab stops the
+     * event before Stage's own orbit handler ever sees it. */
+    const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+    const plane=new THREE.Plane(), hit=new THREE.Vector3();
+    let held=false, grabOffset=V();
+
+    function toNdc(e){
+      const r=canvas.getBoundingClientRect();
+      ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+    }
+    // Every sphere of B grabs the WHOLE molecule: it is a reagent, not a
+    // construction set. Letting a student pull one hydroxyl off by hand would be
+    // a second, undiscoverable route to the reaction that skips the water.
+    function pick(e){
+      if(joined || !B) return false;
+      toNdc(e); ray.setFromCamera(ndc, camera);
+      return ray.intersectObjects(B.userData.atomMeshes.filter(Boolean), false).length>0;
+    }
+    function pointerOnPlane(e){
+      toNdc(e); ray.setFromCamera(ndc, camera);
+      return ray.ray.intersectPlane(plane, hit) ? hit.clone() : null;
+    }
+    const surface=canvas.parentElement||canvas;
+    function onDown(e){
+      if(!pick(e)) return;                    // let the orbit handler have it
+      e.stopPropagation(); e.preventDefault();
+      held=true; vel.set(0,0,0);
+      const w=B.getWorldPosition(V());
+      plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(V()).negate(), w);
+      const p=pointerOnPlane(e);
+      grabOffset.copy(p ? w.clone().sub(p) : V());
+      canvas.style.cursor='grabbing';
+    }
+    function onMove(e){
+      if(!held){
+        if(!canvas.style.cursor || canvas.style.cursor==='grab' || canvas.style.cursor==='')
+          canvas.style.cursor = pick(e) ? 'grab' : '';
+        return;
+      }
+      const p=pointerOnPlane(e); if(!p) return;
+      B.position.copy(B.parent.worldToLocal(p.add(grabOffset)));
+      report();
+    }
+    function onUp(){ held=false; canvas.style.cursor=''; }
+    surface.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+
+    /* ---- the loop --------------------------------------------------------
+     * The last stretch is pulled by the acceptor, not by the mouse — the same
+     * claim covalent-drag.js makes one level down. Letting go inside CAPTURE
+     * still reacts; the molecule finishes the trip on its own. */
+    function step(dt){
+      if(joined || !A || !B) return;
+      const a=siteA(), b=siteB();
+      if(!a || !b) return;
+      const d=a.clone().sub(b), r=d.length();
+      if(r<=S.SNAP){ react(); return; }
+      if(held) return;
+      if(r<=S.CAPTURE) vel.add(d.normalize().multiplyScalar(S.PULL*dt));
+      vel.multiplyScalar(S.DAMP);
+      B.position.add(vel.clone().multiplyScalar(dt));
+      report();
+    }
+
+    /* ---- what the page narrates ------------------------------------------ */
+    let last='';
+    function report(){
+      const s=state(), k=JSON.stringify(s);
+      if(k!==last){ last=k; onChange(s); }
+    }
+    function state(){
+      const a=A&&siteA(), b=B&&siteB();
+      const r=(a&&b)?a.distanceTo(b):null;
+      const near=r!=null && r<=S.CAPTURE;
+      return {
+        joined, config, product, near,
+        // the face the student is currently on, so the page can name the product
+        // BEFORE they commit to it — the fork is only a choice if it is legible
+        face: joined ? config : (near ? faceAt(b) : null),
+        title:R.title,
+      };
+    }
+
+    function reset(){
+      motion.cancel('condense');
+      leaving.clear();
+      group.clear();
+      build();
+    }
+    function destroy(){
+      surface.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      motion.cancel('condense');
+      leaving.clear();
+      root.remove(group);
+    }
+
+    build();
+    return { group, step, reset, destroy, state };
+  }
+
+  global.CondenseDrag = { create, RECIPES };
+})(this);

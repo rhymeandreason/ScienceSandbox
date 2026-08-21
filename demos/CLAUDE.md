@@ -104,7 +104,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js && node condense/check-condense.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
