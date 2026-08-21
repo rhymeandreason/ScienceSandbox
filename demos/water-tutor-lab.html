@@ -116,9 +116,6 @@ const hx=n=>'#'+n.toString(16).padStart(6,'0');
 // a big atom it competes with the element letter beside it. Same numbers as
 // Stage.atomMat in scene.js — this page predates that extraction and still owns
 // its own factories, so the value lives in two places by history.
-// Alternative shading (toon, outlines) is tried in water-tutor-debug.html, which
-// renders through Stage's own factories rather than a switch threaded through
-// every material this page makes.
 function atomMat(color){ return new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
 function bondMat(color){ return new THREE.MeshStandardMaterial({color,roughness:.5}); }
 function glowMat(color,ei){
