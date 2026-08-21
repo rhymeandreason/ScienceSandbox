@@ -54,7 +54,7 @@
      rather than leaving a green box over a broken result */
   .warn.bad{border-color:#c0392b;background:rgba(192,57,43,.05)}
   .warn.bad b{color:#c0392b}
-  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(440px,1fr))}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
   .case{background:var(--paper);border:2.5px solid var(--ink);
     border-radius:var(--radius);padding:16px 18px 18px}
   .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
@@ -68,6 +68,7 @@
   .read b{color:var(--ink)}
   .read .ok{color:#2e8b57;font-weight:700}
   .read .no{color:#c0392b;font-weight:700}
+  .read .pred{color:#8a6d3b;font-weight:700}
   .row{display:flex;gap:8px;margin-top:10px;align-items:center}
   .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
     padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
@@ -92,6 +93,16 @@
         stacks into fibres nothing human can digest.</p>
       <div><canvas class="gl" id="glB"></canvas></div>
       <div class="read" id="readB"></div>
+    </div>
+    <div class="case">
+      <p class="why"><b>Galactan — β-1,4, one OH flipped.</b> Galactose is glucose
+        with C4's oxygen on the other side of the ring — and in a 1→4 chain that
+        oxygen <b>is the bridge</b>. So this varies the <b>acceptor</b> end while
+        starch varies the donor end. Same β linkage as cellulose, same torsions,
+        one substituent moved. <b>Prediction, not a measured polymer</b> — see the
+        note under the readout.</p>
+      <div><canvas class="gl" id="glG"></canvas></div>
+      <div class="read" id="readG"></div>
     </div>
     <div class="case">
       <p class="why"><b>Starch — α-1,4.</b> The bridge leaves C1 axial, out of
@@ -128,7 +139,7 @@ const N=12;                       // residues; enough for a turn to be obvious
    tools/solve-linkage.js solved the torsions against and chain/check-chain.js
    re-measures. A copy here would be a third place the number lives, free to
    disagree with the geometry it is supposed to describe. */
-const REAL=key=>MolLib.MOLECULES[key].helix;
+const REAL=key=>MolLib.MOLECULES[key].helix||null;
 
 function mount(canvasId, readId, key){
   const canvas=document.getElementById(canvasId);
@@ -177,6 +188,24 @@ function mount(canvasId, readId, key){
   /* Printed from the screw, never typed. The comparison to the real polymer is
      the result this page exists to record. */
   const R=REAL(key);
+  /* A spec with no `helix:` makes no claim about a real polymer, so the readout
+     must not print a comparison it cannot back. galactobiose is the case: its
+     torsions are held at cellobiose's precisely so the chain is attributable to
+     the one flipped substituent, and what comes out is this model's prediction. */
+  if(!R){
+    const first=chain.residues[0][chain.index('C1')], last=chain.residues[N-1][chain.index('C1')];
+    const span=Math.hypot(last[0]-first[0],last[1]-first[1],last[2]-first[2])/MolLib.SCALE;
+    document.getElementById(readId).innerHTML=[
+      `<b>${spec.name}</b> repeated ${N}×`,
+      `turn per residue  <b>${screw.angle.toFixed(1)}°</b>`,
+      `rise per residue  <b>${(screw.rise/MolLib.SCALE).toFixed(2)} Å</b>`,
+      `residues per turn <b>${screw.perTurn.toFixed(2)}</b>`,
+      `end to end        <b>${span.toFixed(1)} Å</b> over ${N} residues`,
+      `<span class="pred">prediction</span> — no published helix is claimed for this one. `
+        + `Torsions held at cellobiose's, so the difference is the axial C4 and nothing else.`,
+    ].join('\n');
+    return { screw, perTurn:screw.perTurn, real:null, close:true };
+  }
   const first=chain.residues[0][chain.index('C1')], last=chain.residues[N-1][chain.index('C1')];
   const span=Math.hypot(last[0]-first[0],last[1]-first[1],last[2]-first[2])/MolLib.SCALE;
   const close=Math.abs(screw.perTurn-R.perTurn)/R.perTurn < 0.2;
@@ -194,6 +223,7 @@ function mount(canvasId, readId, key){
 }
 
 const out={ cellobiose:mount('glB','readB','cellobiose'),
+            galactobiose:mount('glG','readG','galactobiose'),
             maltose:mount('glA','readA','maltose') };
 
 /* The page's own headline, decided by the measurements rather than written in
@@ -204,7 +234,8 @@ document.getElementById('warn').innerHTML = out.maltose.close
   ? `<b>Both chains match.</b> ${out.cellobiose.perTurn.toFixed(2)} residues/turn for `
     + `cellulose against a real 2, ${out.maltose.perTurn.toFixed(2)} for starch against a real ~6. `
     + `Nothing here draws a ribbon or a helix — both fall out of torsions solved against `
-    + `those published figures by <code>tools/solve-linkage.js</code>.`
+    + `those published figures by <code>tools/solve-linkage.js</code>. The third chain varies the `
+    + `OTHER end of the same bond: same β linkage, same torsions, C4 flipped axial.`
   : `<b>Negative result, recorded on purpose.</b> Cellulose comes out right `
     + `(${out.cellobiose.perTurn.toFixed(2)} residues/turn against a real 2). Starch does not: `
     + `${out.maltose.perTurn.toFixed(2)} against a real ~6, so it draws as a ribbon rather than a helix. `

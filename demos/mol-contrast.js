@@ -663,10 +663,14 @@
     // The residue that donates C1 — the non-reducing end. `alpha` picks the
     // anomeric slot: axial gives α-D-glucose (starch), equatorial gives β
     // (cellulose). Everything else is glucose's own all-equatorial pattern.
-    function donor(alpha){
+    // `gal` flips C4's hydroxyl to axial, which is the one thing that makes a
+    // galactose out of a glucose — the same single substitution mol-contrast's
+    // galactose spec above is built by.
+    function donor(alpha, gal){
       const s=ringPyranose(), RING=[0,1,2,3,4,5], c1=1;
       const bo=s.grow(c1,'O',GL.CO,'sp3', alpha ? s.axial(c1,RING) : s.equatorial(c1,RING));
-      const OH=[2,3,4].map(k=>s.hydroxyl(k, s.equatorial(k,RING)));
+      const OH=[2,3,4].map(k=>s.hydroxyl(k,
+        (gal && k===4) ? s.axial(k,RING) : s.equatorial(k,RING)));
       const c6=s.grow(5,'C',GL.CC,'sp3', s.equatorial(5,RING));
       OH.push(s.hydroxyl(c6,0));
       // C–H last, as everywhere else in this file: every index above stays put.
@@ -680,10 +684,13 @@
     // rings are merged) and its H goes axial. `dir4` is the direction that bond
     // leaves in, captured BEFORE anything is grown on C4, and is what the
     // placement solves against.
-    function acceptor(){
+    // `gal` puts the LINKAGE axial at C4 and sends H4 equatorial instead — the
+    // two swap, because a galactose differs from a glucose by exactly which
+    // side of the ring C4's oxygen is on, and here that oxygen is the bridge.
+    function acceptor(gal){
       const s=ringPyranose(), RING=[0,1,2,3,4,5], c4=4;
-      const dir4=s.freeTet(c4)[s.equatorial(c4,RING)];
-      const h4=s.grow(c4,'H',GL.CH,'sp3', s.axial(c4,RING));
+      const dir4=s.freeTet(c4)[gal ? s.axial(c4,RING) : s.equatorial(c4,RING)];
+      const h4=s.grow(c4,'H',GL.CH,'sp3', gal ? s.equatorial(c4,RING) : s.axial(c4,RING));
       const OH=[1,2,3].map(k=>s.hydroxyl(k, s.equatorial(k,RING)));
       const c6=s.grow(5,'C',GL.CC,'sp3', s.equatorial(5,RING));
       OH.push(s.hydroxyl(c6,0));
@@ -694,8 +701,8 @@
       CH.push(h4);
       return { s, RING, c4, dir4, h4, OH, c6, CH };
     }
-    function disaccharide(alpha, tune){
-      const d=donor(alpha), a=acceptor();
+    function disaccharide(alpha, tune, gal){
+      const d=donor(alpha, gal), a=acceptor(gal);
       const { phi, spin } = tune || (alpha ? LINK.alpha : LINK.beta);
       /* The two torsions about the linkage, both continuous now. `phi` turns the
        * C4 direction about the C1–O bond and `spin` turns the second ring about
@@ -723,7 +730,7 @@
       const ohH=(s,o)=>{ const b=s.bonds.find(b=>(b[0]===o||b[1]===o)&&s.atoms[b[0]===o?b[1]:b[0]].el==='H');
         return b[0]===o?b[1]:b[0]; };
       return { s:d.s, d, a, off,
-        c1:d.c1, bo:d.bo, c4:a.c4+off,
+        c1:d.c1, bo:d.bo, c4:a.c4+off, c4d:4,
         optH:[...d.CH, ...a.CH.map(i=>i+off)],
         // the anomeric H — part of the difference, since it swaps places with
         // the bridge O when the configuration flips
@@ -783,6 +790,41 @@
            + 'Chain these and the backbone stays flat and straight: cellulose '
            + 'ribbons stack into fibres no human enzyme can open. Wood is glucose '
            + 'we cannot reach.' } });
+
+    /* — GALACTOBIOSE, the repeat of β-1,4-galactan (the galactan side chains of
+     *   pectin, in plant cell walls). It is here as the CONTROL the starch /
+     *   cellulose pair cannot be.
+     *
+     *   Those two vary the DONOR's anomeric carbon: α or β at C1. This varies
+     *   the ACCEPTOR's C4 instead. A galactose is a glucose with C4's oxygen on
+     *   the other side of the ring, and in a 1→4 chain that oxygen IS the
+     *   bridge — so the linkage leaves the second ring axially while staying
+     *   β at C1. Two independent axial/equatorial choices, one at each end of
+     *   the same bond, and this is the other one.
+     *
+     *   IT SHARES CELLOBIOSE'S TORSIONS ON PURPOSE, and that is the opposite of
+     *   the decision made for maltose. Maltose needed its own φ/ψ because a
+     *   published helix says what amylose does. No comparable figure is quoted
+     *   here for pectic galactan, so rather than solve against a number this
+     *   file cannot cite, the torsions are held FIXED at cellobiose's and the
+     *   only thing allowed to differ is the substituent. Whatever the chain then
+     *   does is attributable to that one flip and nothing else.
+     *
+     *   SO IT CARRIES NO `helix:`. The chain chain/glucose-chains-test.html
+     *   draws from it is this model's PREDICTION, not a measured polymer, and
+     *   the page has to say so. check-chain.js only audits specs that declare a
+     *   helix, so this one is deliberately outside it.
+     */
+    const gb=disaccharide(false, LINK.beta, true);
+    CONTRAST.galactobiose=gb.s.spec({ name:'Galactobiose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
+      names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
+      // C4 axial on BOTH rings: the donor's free hydroxyl and the acceptor's
+      // bridge. Everything else equatorial, exactly as in cellobiose — which is
+      // the claim that this differs from that pair by one position.
+      stereo:{ axial:[gb.c4d, gb.c4] },
+      glycosidic:{ anomeric:gb.c1, bridge:gb.bo, partner:gb.c4, config:'beta', link:'1→4' },
+      view:VIEW.disaccharide,
+      optH:gb.optH });
   }
   register(CONTRAST, SELFNAME);
 })(this);
