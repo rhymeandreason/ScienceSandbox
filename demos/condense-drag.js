@@ -387,7 +387,9 @@
       const site=siteA();
       clearHalos();                           // there is nowhere left to aim
       releaseWater();
-      if(fx && site) fx.spawnRing(site, 0.9);
+      // spawnRing(pos, color, follow, size) — 0.9 here was landing in `color`,
+      // which drew a near-black ring at full size instead of a bond-coloured one
+      if(fx && site) fx.spawnRing(site, global.MolLib.PALETTE.bonds.covalent, null, 0.9);
       report();
     }
 

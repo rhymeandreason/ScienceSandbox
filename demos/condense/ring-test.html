@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ring-close.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. ring-close.js answers a question condense-lab
+     currently ducks: it hands the student an α- or β-glucose and does
+     not say where either came from. They come from HERE — the open
+     chain folding onto itself, and which face the hydroxyl attacks on.
+
+     WHAT TO CHECK, in order:
+
+       1. The refusals. Drag O2 or O3 onto C1. They must snap back, and
+          the readout must name the angle that ring would force against
+          carbon's 109.5°. Those numbers are computed from the ring size,
+          not typed — if one is wrong, strainOf is wrong.
+       2. The fork — CURRENTLY BROKEN, and this bench is where to fix
+          it. Dragging O5 onto C1 from either side gives the same anomer.
+          C1 is genuinely planar now and the face arithmetic checks out;
+          the fault is that the dragged oxygen does not follow the
+          pointer (see ring-close.js's KNOWN BROKEN block). Until it
+          works, this module must not be wired into a lesson.
+       3. O4, the honest awkward one. It refuses, but not for strain —
+          a five-ring genuinely forms (glucofuranose) and the readout
+          says so. The model builds only the pyranose and admits it.
+       4. The chain is DERIVED. No open-chain spec exists and none
+          should: four stereocentres laid down by hand is how mol-krebs
+          once built the enantiomer with every pixel identical. Breaking
+          C1–O5 on the checked ring inherits all four.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:940px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:70ch}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .gl{width:100%;height:440px;display:block;border-radius:calc(var(--radius) - 6px);
+    background:rgba(58,52,44,.04);cursor:grab}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer}
+  .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11.5px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.6;margin-top:12px}
+  .read b{color:var(--ink)}
+  .read .no{color:#c0392b}
+  .read .yes{color:#2e8b57}
+  table.s{border-collapse:collapse;margin-top:12px;font-family:var(--font-sans);font-size:12px}
+  table.s th,table.s td{padding:4px 10px;border-bottom:1px solid var(--hair);text-align:left}
+  table.s th{font-weight:700;color:var(--ink)}
+  table.s td{color:var(--muted)}
+  table.s tr.ok td{color:#2e8b57}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>ring-close.js — test bench</h1>
+  <p class="lede">Open-chain glucose, derived from the ring spec by breaking
+    C1–O5. Drag a ringed oxygen onto the ringed carbon. Every strain figure below
+    is computed from the ring size a closure would make, so a wrong one means the
+    arithmetic is wrong, not the caption.</p>
+
+  <div class="case">
+    <div><canvas class="gl" id="gl"></canvas></div>
+    <div class="row" id="row"></div>
+    <div class="read" id="read"></div>
+    <div id="table"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../tokens-from-palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<!-- mol-monomers BEFORE mol-contrast, and not optional: mol-contrast mirrors
+     alanine out of it to build D-alanine, so without it that whole domain file
+     throws at register() and every spec in it — ribose included, which this
+     bench measures the five-ring from — silently fails to register. -->
+<script src="../mol-monomers.js"></script>
+<script src="../mol-pathways.js"></script>
+<script src="../mol-contrast.js"></script>
+<script src="../scene.js"></script>
+<script src="../fx.js"></script>
+<script src="../kit/motion.js"></script>
+<script src="../kit/molgraph.js"></script>
+<script src="../condense/frame.js"></script>
+<script src="../ring-close.js"></script>
+<script>
+"use strict";
+
+const canvas=document.getElementById('gl');
+/* orbit:false and face-on, as condense-lab: a molecule is dragged in one plane
+   and the view fixes that plane. See ring-close.js's header. */
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam:{ theta:0, phi:Math.PI/2, r:24 }, rMax:200, orbit:false });
+const fx=FX.create(THREE, root, camera);
+const motion=Motion.create();
+const read=document.getElementById('read');
+const tableEl=document.getElementById('table');
+
+const rc=RingClose.create({ THREE, root, camera, canvas, fx, motion,
+                            onChange:s=>render(s) });
+
+const ext=Stage.measure(MolLib.MOLECULES.glucose);
+function fit(){ resize();
+  Stage.frame(camera, cam, [{x:0,y:0,rxz:ext.rxz*1.7,hy:ext.hy*1.7}]); applyCam(); }
+new ResizeObserver(fit).observe(canvas);
+fit();
+
+/* Every figure printed here comes out of the module's state(). A typed "60°"
+   would survive strainOf being wrong, which is the one thing this bench is for. */
+function render(s){
+  const L=[];
+  if(s.joined){
+    L.push(`<span class="yes">closed</span> — the hydroxyl added to the `
+         + `<b>${s.anomer}</b> face, giving <b>${MolLib.MOLECULES[s.product].name}</b>`);
+    L.push(`That face was a free choice: C1 is a planar carbonyl with an empty side each way.`);
+  } else if(s.refused){
+    const r=s.refused;
+    if(r.real){
+      L.push(`<span class="no">refused</span> — O${r.atom.slice(1)} would make a `
+           + `<b>${r.ring}-membered ring</b>, and ${r.note}: <b>${r.real}</b>.`);
+      L.push(`Under 1% of glucose in water, and this model builds only the pyranose.`);
+    } else {
+      L.push(`<span class="no">refused</span> — a <b>${r.ring}-membered ring</b> forces `
+           + `each corner to <b>${r.angle}°</b>${r.source==='planar'?' (it is flat; it has nowhere to pucker)':''}.`);
+      L.push(`Carbon wants <b>${s.tetrahedral}°</b>. That is <b>${r.off}°</b> of strain, `
+           + `and the sticks will not bend that far.`);
+    }
+  } else {
+    L.push(s.picked ? `holding <b>${s.picked}</b> — bring it to C1`
+                    : `drag a ringed oxygen onto the ringed carbon (C1)`);
+  }
+  read.innerHTML=L.join('\n');
+
+  tableEl.innerHTML='<table class="s"><tr><th>attacks from</th><th>ring size</th>'
+    + '<th>corner angle</th><th>off 109.5°</th><th>result</th></tr>'
+    + s.closers.map(c=>`<tr class="${c.closes?'ok':''}"><td>${c.atom}</td><td>${c.ring}</td>`
+      + `<td>${c.angle}°<span style="opacity:.6"> ${c.source==='measured'?('measured, '+c.from):'flat'}</span></td><td>${c.off}°</td>`
+      + `<td>${c.closes?'closes — pyranose':(c.real?('real but rare: '+c.real):'too strained')}</td></tr>`).join('')
+    + '</table>';
+}
+
+const row=document.getElementById('row');
+const b=document.createElement('button');
+b.textContent='Reset'; b.onclick=()=>{ rc.reset(); fit(); };
+row.appendChild(b);
+
+let prev=performance.now();
+(function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.1,(now-prev)/1000); prev=now;
+  motion.step(dt); rc.step(dt); fx.step(dt);
+  renderer.render(scene,camera);
+})(prev);
+
+render(rc.state());
+window.RC=rc;
+</script>
+</body>
+</html>
