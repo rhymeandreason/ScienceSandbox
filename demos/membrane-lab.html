@@ -187,7 +187,12 @@
      alone cuts the words off. The camera fits on HEIGHT either way, so the
      extra width costs nothing but paper. */
   width: 232px;
-  height: 290px;
+  /* SHORT ENOUGH TO CLEAR THE SHEET. The leader runs from this frame's
+     corners to a lipid in the membrane, and the membrane crosses the middle
+     of the stage — a box whose bottom edge sits at that height gives the
+     wedge a lower edge lying flat along the row of heads, which reads as a
+     rule drawn across the scene rather than as a pointer. */
+  height: 286px;
 }
 </style>
 </head>
@@ -203,7 +208,11 @@
            annotate.js divides by the element's clientHeight, so it must be
            the canvas's box and not the frame that also carries a caption. -->
       <div class="inset-view" id="lipidView"><canvas id="lipidGl"></canvas></div>
-      <div class="inset-cap">one phospholipid</div>
+      <!-- The sentence a callout card would have hidden behind a click. In a
+           box this size it has nowhere to open, so it is printed. -->
+      <div class="inset-cap"><b>one phospholipid</b>
+        <span>One <i>cis</i> double bond, in the longer tail only. Bent chains
+          cannot stack flush, so the membrane stays fluid.</span></div>
     </div>
     <button type="button" id="spend" class="pill" hidden>Spend 1 ATP</button>
     <!-- A CHECKBOX, not a flipping label: it shows the state and names the
@@ -1518,7 +1527,7 @@ const STEPS = [
   {
     id:'bilayer',
     tab:'the bilayer',
-    cap:'<b>The inside of a membrane is oil.</b>',
+    cap:'<b>Membranes are made of phospholipids. The inside is oil.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -1533,11 +1542,11 @@ const STEPS = [
       /* Two callouts, and only two: a sheet with no protein in it, so the
          step names the two halves of a lipid and stops. "Fluid mosaic"
          belongs on the channel step, where the mosaic is on screen. */
-      noteAt(-96, HALF, 'phospholipid heads', [-34, -30],
+      noteAt(-96, HALF, 'hydrophilic heads', [-34, -30],
              'The head carries charge and sits happily in water, so it turns ' +
              'outward on both faces. That is why a bilayer assembles itself ' +
              'and then holds together.');
-      noteAt(-96, 0, 'phospholipid tails', [-34, 26],
+      noteAt(-96, 0, 'hydrophobic tails', [-34, 26],
              'The tails are hydrocarbon and will not mix with water, so they ' +
              'hide in the middle. Everything crossing this membrane has to ' +
              'get through that oil.');
@@ -2369,6 +2378,29 @@ function kinkAnchor() {
 
 let LIPID_NOTES = null;      // assigned below; afterFrame can fire before it
 
+/* ---------- what the close-up is a close-up OF ----------
+ * A REAL SEAT, asked of the membrane rather than typed: the lattice starts at
+ * -reach and the protein steps carve seats out of it, so a coordinate picked
+ * by eye here would eventually name a lipid that is not there. Upper leaflet,
+ * out on the right where the box hangs, and on the mid-plane in z so the
+ * marked lipid is one of the near ones the student is actually looking at.
+ *
+ * Asked of MEM, which is whichever sheet the current step shows — the solid
+ * one here, and step 1 is the only step this box appears on anyway. */
+const _lipidPt = new THREE.Vector3();
+function lipidLeaderAt() {
+  /* WELL LEFT OF THE BOX, and that is a legibility choice rather than a
+     chemical one: every seat in the sheet is the same lipid, so the one
+     worth marking is the one that makes the wedge read as a wedge. A seat
+     directly under the frame gives two lines a few pixels apart. */
+  const seat = MEM.seatNear(24, 0, +1);
+  if (!seat) return null;
+  const p = _lipidPt.copy(seat).project(L.camera);
+  if (p.z < -1 || p.z > 1) return null;      // behind the camera: no line
+  const host = document.getElementById('stage');
+  return [(p.x + 1) / 2 * host.clientWidth, (1 - p.y) / 2 * host.clientHeight];
+}
+
 /* ONE inset for the page, not one per entry into step 1. A second WebGL
    context is a real resource and the browser drops the OLDEST when a page
    passes its cap, so a box rebuilt per step would eventually blank the main
@@ -2387,6 +2419,9 @@ const lipidInset = Inset.create({
      box non-blank before rAF starts — and at that moment the notes below do
      not exist yet. */
   afterFrame: () => LIPID_NOTES && LIPID_NOTES.step(),
+  /* The page projects, because the SCENE's camera is the page's — the inset's
+     own camera is looking at the close-up, never at where it came from. */
+  leader: { host: document.getElementById('stage'), at: lipidLeaderAt, markR: 9 },
 });
 
 /* Into `view`, which is the canvas's own box — the frame is 25 px taller
@@ -2398,10 +2433,10 @@ LIPID_NOTES.add({
   /* LEFT, because the kinked tail is the right-hand one — a label thrown the
      same way as the bond it names has to cross the molecule to get clear. */
   offset:[-27, -18],
+  /* NO `card:`. The words are in the caption under the title instead — a card
+     needs room to open and this box has none, and annotate.js only makes the
+     dot clickable when there is one, so the label stays a label. */
   at: kinkAnchor,
-  card:'One <b>cis</b> double bond, and only the longer tail has it. A bent '
-     + 'chain cannot pack flush against its neighbours, so it holds the '
-     + 'membrane apart and keeps it fluid.',
 });
 
 function tick(dt) {

@@ -61,6 +61,16 @@
  *    module owns its own loop, so without the hook a page has nowhere to
  *    step a callout at all.
  *
+ *  · THE LEADER IS THE OTHER HALF OF THE FRAME. A framed box says "this is
+ *    a window"; only the leader says WHICH thing it is a window onto. Two
+ *    lines from the frame's silhouette corners down to a marked point — the
+ *    exploded view every figure uses. The module owns the GEOMETRY (which
+ *    two corners face the target, and it is whichever pair spans the widest
+ *    angle from it, so the wedge is right for a box in any corner). The
+ *    page owns WHICH thing and how to project it, because only the page has
+ *    the other camera — this module's camera looks at the close-up, never
+ *    at the scene the close-up came from.
+ *
  *  · THE CAMERA IS SOLVED, NEVER TYPED. Stage.measure + Stage.frame against
  *    the real frustum, re-solved on every resize. A hand-picked `r` is
  *    correct only at the size it was picked at, and an inset is the most
@@ -78,6 +88,11 @@
        DOM onto a 3D point. Defaults to the canvas's parent, which is the
        `.inset-view` row in main.css's component. */
     const view = opts.view || canvas.parentElement;
+
+    /* The framed box itself, which is what a leader points FROM. `.inset` is
+       main.css's component and this module's header already names it. */
+    const frame = opts.frame || (canvas.closest && canvas.closest('.inset')) ||
+                  (view && view.parentElement);
 
     const stage = global.Stage.create(canvas, Object.assign({
       cam: { theta: 0, phi: 1.35, r: 30 },
@@ -104,6 +119,7 @@
     }
 
     function fit() {
+      _radii = null;                      // a resize may have swapped the rule
       if (!ext) return;
       stage.resize();
       global.Stage.frame(stage.camera, stage.cam,
@@ -112,15 +128,98 @@
       stage.applyCam();
     }
 
+    /* ---- the leader ----
+     * opts.leader = { host, at() -> [xPx, yPx] in host's box, or null }
+     * The page projects, because the scene's camera is the page's. */
+    const NS = 'http://www.w3.org/2000/svg';
+    let svg = null, wedge = null, mark = null;
+    if (opts.leader && opts.leader.host) {
+      svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'inset-leader');
+      wedge = document.createElementNS(NS, 'path');
+      wedge.setAttribute('class', 'inset-leader-wedge');
+      mark = document.createElementNS(NS, 'circle');
+      mark.setAttribute('class', 'inset-leader-mark');
+      mark.setAttribute('r', String(opts.leader.markR || 7));
+      svg.appendChild(wedge); svg.appendChild(mark);
+      opts.leader.host.appendChild(svg);
+    }
+
+    /* Cached: getComputedStyle every frame for four properties is real work,
+       and a radius only changes when the stylesheet does. fit() refreshes it,
+       which is also when a responsive rule would have swapped it. */
+    let _radii = null;
+    function radii() {
+      if (_radii) return _radii;
+      const cs = getComputedStyle(frame);
+      _radii = [cs.borderTopLeftRadius, cs.borderTopRightRadius,
+                cs.borderBottomRightRadius, cs.borderBottomLeftRadius]
+        .map(v => parseFloat(v) || 0);
+      return _radii;
+    }
+
+    function drawLeader() {
+      if (!svg) return;
+      const p = frame && !frame.hidden ? opts.leader.at() : null;
+      if (!p) { svg.style.display = 'none'; return; }
+      svg.style.display = '';
+      const h = opts.leader.host.getBoundingClientRect();
+      const f = frame.getBoundingClientRect();
+      const x0 = f.left - h.left, y0 = f.top - h.top;
+      /* ONTO THE ARC, not the mathematical corner. The frame is rounded, so
+         a line drawn to the sharp corner ends in the empty square outside
+         the curve and visibly overshoots — the leader is UNDER the frame, so
+         the box hides the overshoot everywhere except exactly there. Moving
+         the endpoint inward along the diagonal by r(1 - 1/root2) lands it on
+         the nearest point of the corner arc. The radius is READ from the
+         frame's computed style: it is a design-system value in main.css, and
+         a copy typed here would not follow it. */
+      const k = 1 - Math.SQRT1_2;
+      const R = radii(), W = f.width, H = f.height;
+      const corners = [
+        [x0 + R[0] * k,     y0 + R[0] * k],          // top-left
+        [x0 + W - R[1] * k, y0 + R[1] * k],          // top-right
+        [x0 + W - R[2] * k, y0 + H - R[2] * k],      // bottom-right
+        [x0 + R[3] * k,     y0 + H - R[3] * k],      // bottom-left
+      ];
+      /* THE TWO SILHOUETTE CORNERS, found by angle rather than by asking
+         which side the target is on: a box in any corner of any stage gets
+         the right pair, including when the target is diagonally away and the
+         answer is one corner from each edge. Angles are measured relative to
+         the frame's centre so the ±pi seam is never inside the span. */
+      const cx = x0 + f.width / 2, cy = y0 + f.height / 2;
+      const base = Math.atan2(cy - p[1], cx - p[0]);
+      let lo = corners[0], hi = corners[0], loA = Infinity, hiA = -Infinity;
+      for (const c of corners) {
+        let a = Math.atan2(c[1] - p[1], c[0] - p[0]) - base;
+        while (a > Math.PI) a -= 2 * Math.PI;
+        while (a < -Math.PI) a += 2 * Math.PI;
+        if (a < loA) { loA = a; lo = c; }
+        if (a > hiA) { hiA = a; hi = c; }
+      }
+      wedge.setAttribute('d',
+        'M' + lo[0].toFixed(1) + ',' + lo[1].toFixed(1) +
+        'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1) +
+        'L' + hi[0].toFixed(1) + ',' + hi[1].toFixed(1));
+      mark.setAttribute('cx', p[0].toFixed(1));
+      mark.setAttribute('cy', p[1].toFixed(1));
+    }
+
     function draw() {
       if (spin) { stage.cam.theta += spin; stage.applyCam(); }
       stage.renderer.render(stage.scene, stage.camera);
+      drawLeader();
       if (opts.afterFrame) opts.afterFrame();
     }
 
     function tick() { if (!running) return; raf = requestAnimationFrame(tick); draw(); }
     function start() { if (running) return; running = true; raf = requestAnimationFrame(tick); }
-    function stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = 0; }
+    function stop() {
+      running = false; if (raf) cancelAnimationFrame(raf); raf = 0;
+      // The leader is drawn from the loop, so stopping would otherwise freeze
+      // it wherever it last was — pointing at nothing, over a hidden box.
+      if (svg) svg.style.display = 'none';
+    }
 
     const ro = new ResizeObserver(fit); ro.observe(canvas);
     /* Visibility drives the loop, so a caller that never calls stop() still
@@ -157,8 +256,10 @@
       get group() { return group; },
       get stage() { return stage; },
       get view() { return view; },
+      get frame() { return frame; },
       destroy() {
         stop(); ro.disconnect(); io.disconnect();
+        if (svg && svg.parentNode) svg.parentNode.removeChild(svg);
         if (group) stage.root.remove(group);
         stage.renderer.dispose();          // the context, actually released
       },
