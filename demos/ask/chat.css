@@ -138,17 +138,22 @@
 .askturn { margin: 0 0 16px }
 .askturn:last-child { margin-bottom: 0 }
 
-.askturn .who {
-  margin: 0 0 4px;
-  font-family: var(--font-slab);
-  font-size: 10.5px;
-  letter-spacing: 1.1px;
-  text-transform: uppercase;
-  color: var(--muted);
+.askturn .say { margin: 0; font-size: 15.5px; line-height: 1.62 }
+
+/* The student's question is a bubble; the tutor's answer is the page talking
+   back, so it stays plain text. Two shapes, no labels to read. */
+.askturn.you {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.askturn .say { margin: 0; font-size: 15.5px; line-height: 1.62 }
-.askturn.you .say { font-weight: 600 }
+.askturn.you .say {
+  max-width: 85%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: rgba(43, 39, 35, .07);
+  font-size: 15px;
+}
 .askturn .say.err { color: #b23a2c }
 .askturn .say.wait { color: var(--muted); font-style: italic }
 
@@ -186,7 +191,6 @@
 
 .asksee {
   margin: 9px 0 0;
-  font-family: var(--font-slab);
   font-size: 13px;
   color: var(--muted);
 }

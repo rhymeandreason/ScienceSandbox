@@ -149,8 +149,9 @@
       const empty = thread.querySelector('.hello');
       if (empty) empty.remove();
       const d = document.createElement('div');
+      /* No "You"/"Tutor" label: the shape says it. A question sits in its own
+         grey bubble, an answer runs as plain text on the paper. */
       d.className = 'askturn ' + who;
-      d.innerHTML = `<p class="who">${who === 'you' ? 'You' : 'Tutor'}</p>`;
       const p = document.createElement('p');
       p.className = 'say' + (cls ? ' ' + cls : '');
       p.textContent = text;
