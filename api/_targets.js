@@ -37,6 +37,14 @@ const LESSONS = {
     param: 'step',
     deepLink: false,          // water-lab does not read ?step= yet
 
+    /* `page` is where a LINK from another lesson goes. `runsOn` is where the
+     * chat is actually mounted, and it is the one the checker has to read: the
+     * prototype has already renamed its steps (`title` became `tab`, and the
+     * strings went lowercase) while water-lab kept the old ones, so checking
+     * `page` passed while every claim here was stale for the page a student was
+     * really looking at. Drop `runsOn` once the two converge. */
+    runsOn: 'demos/water-tutor-lab.html',
+
     /* How this simulation BEHAVES, as opposed to what the science is. A student
      * stuck on the sim asks a science question, and the honest answer is often
      * about the sim: with three molecules on screen there is almost nothing to

@@ -77,7 +77,14 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
 
   if (!fs.existsSync(path.join(ROOT, L.page))) { bad(`${lesson}: ${L.page} does not exist`); continue; }
   if (!IDS.includes(L.chapter)) bad(`${lesson}: chapter "${L.chapter}" is not in the catalog`);
-  const html = fs.readFileSync(path.join(ROOT, L.page), 'utf8');
+
+  // Assert against the page the chat is MOUNTED on, not the one links point at.
+  // While a prototype is diverging from the lesson it was copied from, those are
+  // two different files, and only one of them can make these claims true.
+  const target = L.runsOn || L.page;
+  if (!fs.existsSync(path.join(ROOT, target))) { bad(`${lesson}: runsOn ${target} does not exist`); continue; }
+  if (L.runsOn) console.log(`  ....  claims checked against ${target}`);
+  const html = fs.readFileSync(path.join(ROOT, target), 'utf8');
 
   // `deepLink` says a cross-lesson link may carry ?param=. Believe it only if
   // the page really reads that parameter. Otherwise the link lands on the right
@@ -99,14 +106,15 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
 
     if (t.kind === 'ui') {
       if (!t.el) bad(`${qid}: a ui target needs the element's id`);
-      else if (!html.includes(`id="${t.el}"`)) bad(`${qid}: no id="${t.el}" in ${L.page}`);
+      else if (!html.includes(`id="${t.el}"`)) bad(`${qid}: no id="${t.el}" in ${target}`);
       else console.log(`  ok    ${t.id.padEnd(17)} ui     #${t.el}`);
     } else if (t.kind === 'step') {
       if (t.at === undefined) bad(`${qid}: a step target needs "at"`);
       if (!t.title) bad(`${qid}: a step target needs its title`);
       // Titles are retyped here from each lesson's own step table, so assert the
       // copy still matches rather than trusting that it does.
-      else if (!html.includes(t.title)) bad(`${qid}: no "${t.title}" in ${L.page}`);
+      else if (!html.toLowerCase().includes(t.title.toLowerCase()))
+        bad(`${qid}: no "${t.title}" in ${target}`);
       else console.log(`  ok    ${t.id.padEnd(17)} step   ${L.param}=${String(t.at).padEnd(10)} ${t.title}`);
       if (typeof t.at === 'number') steps.push(t.at);
     } else if (t.kind === 'atoms') {
