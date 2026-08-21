@@ -557,6 +557,29 @@ function create(opt){
     pose.copy(defaultView(spec));
   }
 
+  /* ---------- the canonical coordinates, on screen ----------
+   * The spec's own numbers with NOTHING composed on top: the picture
+   * `view:` is an offset FROM, and the honest starting point for choosing
+   * one. What is drawn is pose ∘ view, so this is pose = view⁻¹ — for a
+   * spec declaring no view that is simply identity.
+   *
+   * NOT A SECOND SOURCE OF AN OPENING ANGLE, and the distinction is the
+   * whole reason this is safe. `defaultView()` remains the only thing
+   * `show()` consults; this is a USER ACTION, exactly like a drag, and it
+   * is reachable only by asking. The bug AddingAPage.md §115 records —
+   * this page composing a PCA pose on top of a declared view — was a
+   * default doing it silently at load, which is a different thing from a
+   * button that says what it did.
+   *
+   * It reports itself: at canonical, viewEuler() returns [0,0,0] by
+   * construction, so the readout above the button is the check that the
+   * button worked. Nothing has to be trusted here.
+   */
+  function canonicalPose(){
+    if(!spec) return;
+    pose.copy(viewQ(spec).invert());
+  }
+
   /* ---------- the angle on screen, as a spec would write it ----------
    * `spec.view` is [x,y,z]
    * radians, and Stage.buildMolecule bakes it into the MESHES; this module then
@@ -599,7 +622,7 @@ function create(opt){
   }
 
   return {
-    show, setMode, step, fit, snap, viewEuler, resetPose, atDeclaredView,
+    show, setMode, step, fit, snap, viewEuler, resetPose, canonicalPose, atDeclaredView,
     setSpin(on){ spinning=!!on; },
     get spinning(){ return spinning; },
     setHighlight(on){ showFocus=!!on; applyFocus(); paintFlat(); },

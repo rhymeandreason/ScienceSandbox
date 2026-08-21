@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POPC — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index. One molecule,
+     no captions, no tray, no controls beyond the orbit Stage already
+     gives every page.
+
+     WHY THIS EXISTS. mol-lipids.js carried a comment for a long time
+     explaining why the phospholipid was NOT in it: built head-first, the
+     two acyl chains descended from glycerol carbons 1.54 A apart and sat
+     ~1.9 A apart, well inside each other's van der Waals radius. Four
+     fixes were tried and measured, and each one either splayed the
+     molecule into a V or moved the clash somewhere else.
+
+     `popc` is the molecule that comment was waiting for, and this page
+     is where its POSE gets judged, because a pose is the one thing no
+     offline checker can see. check-molecules.js already passes it: every
+     angle exact, no sphere overlap, formula and charge agreeing, the cis
+     torsion measured at 0.0 degrees. None of that says it LOOKS like a
+     phospholipid.
+
+     WHAT TO LOOK AT, in the order the old attempts failed:
+
+       1. THE TWO TAILS, from the front. They should read as two roughly
+          parallel rods, not a V and not a single thick rope. Solved
+          spacing is 3.67-4.60 A along their whole length.
+       2. ORBIT A QUARTER TURN. This is the check a front view cannot
+          make. The earlier attempts were FLAT - every atom in one plane
+          - which looks fine head-on and collapses to a line from the
+          side. The chains should stay separated from every angle.
+       3. THE KINK, on the LONGER tail only (oleoyl, 18 carbons, the cis
+          C=C at delta-9). The shorter tail (palmitoyl, 16, saturated) is
+          straight. If both bend, or neither does, something is wrong.
+       4. THE HEAD. Small, and it should read as small - one blue
+          nitrogen and one orange phosphorus over ~30 A of hydrocarbon.
+          That size ratio is the entire reason a bilayer exists, and it
+          is the first thing a hand-tuned camera would flatter away.
+
+     THE POSE IS THE SPEC'S OWN. `popc` declares `view:`, chosen by
+     dragging in molecule-viewer.html, and Stage.buildMolecule bakes it
+     into the meshes - so this page composes NOTHING on top of it and the
+     picture here is the picture a lesson gets. That is the only reason
+     this bench can judge a pose at all. If you want the raw coordinates
+     instead, molecule-viewer's CANONICAL button is where they live.
+
+     Which also means: do not add a rotation to this page. An offset that
+     is non-zero at rest would make the spec's committed angle one nobody
+     ever sees, and no checker can catch that (AddingAPage.md).
+     =================================================================== -->
+
+<link rel="stylesheet" href="main.css">
+<style>
+  /* No chrome to reserve, so the canvas takes the window whole and the
+     camera fit has nothing to spend pixels on. */
+  html,body{ margin:0; height:100%; }
+  body{ background:var(--paper, #f4efe6); }
+  canvas{ display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="tokens-from-palette.js"></script>
+<script src="molecules.js"></script>
+<script src="scene.js"></script>
+<script src="mol-lipids.js"></script>
+<script>
+"use strict";
+
+const spec = MolLib.MOLECULES.popc;
+const canvas = document.getElementById('gl');
+
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam:{ theta:0, phi:1.35, r:40 }, rMax:400 });
+
+root.add(Stage.buildMolecule(spec, { center:true }));
+
+/* Distance is solved from the real frustum, never typed — this molecule is
+ * ~31 A tall and ~6 A wide, so the axis that fits is the one a constant
+ * tuned on either dimension alone would get wrong. */
+const ext = Stage.measure(spec);
+const fit = () => { resize();
+  Stage.frame(camera, cam, [{ x:0, y:0, rxz:ext.rxz, hy:ext.hy }], { pad:1.15 });
+  applyCam(); };
+new ResizeObserver(fit).observe(canvas);
+fit();
+
+(function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
+</script>
+</body>
+</html>
