@@ -812,7 +812,7 @@
      *
      *   SO IT CARRIES NO `helix:`. The chain chain/glucose-chains-test.html
      *   draws from it is this model's PREDICTION, not a measured polymer, and
-     *   the page has to say so. check-chain.js only audits specs that declare a
+     *   the page has to say so. chain/check-chain.js only audits specs that declare a
      *   helix, so this one is deliberately outside it.
      */
     const gb=disaccharide(false, LINK.beta, true);
