@@ -36,6 +36,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
 | `coupling/coupling-test.html` | Test bench for `coupling/coupling.js` — ΔG adds, and it only adds when the two reactions share a molecule | test |
 | `lobes/lobes-test.html` | Test bench for `lobes/lobes.js` — lone pairs as teardrops, and which nitrogens on adenine are not acceptors | test |
+| `chain/glucose-chains-test.html` | Test bench for `chain-repeat.js` — one linkage, measured off the disaccharide, repeated twelve times. **Records a negative result**: cellulose's ribbon falls out correctly, starch's helix does not, because `mol-contrast.js` shares one schematic torsion pair between the two specs | test |
 | `chair/chair-test.html` | Test bench for `chair-flip.js` — the ring flip. Orbit to see the chair, flip it, and watch every substituent trade axial for equatorial. Glucose is the only one of the three that gets all five out of the way at once | test |
 | `condense/condense-test.html` | Test bench for `condense-drag.js` — dehydration synthesis as a drag: two glucoses (α or β reagent → maltose or cellobiose) and two alanines, each releasing the water the bond costs | test |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |

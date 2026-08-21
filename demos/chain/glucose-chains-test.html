@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>glucose chains — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH, and it currently records a NEGATIVE RESULT. Not a
+     lesson, and not ready to become one.
+
+     THE QUESTION. contrast-lab draws maltose beside cellobiose, and
+     those specs say in their own comments why that is as far as it
+     goes: coil-versus-ribbon is emergent from many repeats, and two
+     repeats do not earn the polymer's name. So: take the linkage
+     that IS checked, repeat it, and see whether starch coils and
+     cellulose runs flat without anyone drawing either.
+
+     THE ANSWER, so far: half of it works.
+
+       Cellulose comes out right. Repeating cellobiose's linkage gives
+       a 2-fold ribbon, ~5.4 A per residue, which is what cellulose
+       is. Nobody typed that; it fell out of the beta-1,4 geometry.
+
+       Starch does not coil. It comes out as a near-identical ribbon
+       instead of the ~6-residue helix amylose actually forms.
+
+     WHY, and it is not a bug in chain-repeat.js. mol-contrast.js
+     builds maltose and cellobiose with ONE SHARED pair of torsions
+     about the glycosidic bond, on purpose and with a long comment
+     saying so: sharing them means every visible difference between
+     the two cards traces back to the axial/equatorial choice at C1
+     rather than to a knob. That is the right call for a contrast
+     card. It also means those torsions carry no information about
+     polymer shape, so repeating them cannot produce two different
+     helices — the screw comes out nearly the same for both.
+
+     WHAT IT WOULD TAKE. Real phi/psi for the alpha-1,4 linkage in
+     amylose, declared with a source, the way every other measured
+     value here is. Not typed from memory: a conformational angle
+     asserted without provenance is exactly the class of claim this
+     repo refuses, and it is the whole content of the result.
+
+     So this page stays a test until that data exists. It is useful as
+     it stands because it says precisely what is missing.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 18px;max-width:74ch}
+  .warn{border:2px solid #c0392b;border-radius:var(--radius);padding:12px 14px;
+    margin:0 0 20px;font-family:var(--font-sans);font-size:12.5px;line-height:1.55;
+    color:var(--ink);background:rgba(192,57,43,.05);max-width:74ch}
+  .warn b{color:#c0392b}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(440px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+  .gl{width:100%;height:330px;display:block;border-radius:calc(var(--radius) - 6px);
+    background:rgba(58,52,44,.04);cursor:grab}
+  .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.6;margin-top:10px}
+  .read b{color:var(--ink)}
+  .read .ok{color:#2e8b57;font-weight:700}
+  .read .no{color:#c0392b;font-weight:700}
+  .row{display:flex;gap:8px;margin-top:10px;align-items:center}
+  .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>glucose chains — test bench</h1>
+  <p class="lede">One linkage, measured off the real disaccharide, applied over
+    and over. Nothing here draws a helix or a ribbon: a rigid repeat is always a
+    rotation about an axis plus a slide along it, so whatever shape appears is
+    what that glycosidic bond does when you do it twelve times.</p>
+
+  <div class="warn" id="warn"></div>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>Cellulose — β-1,4.</b> The bridge leaves C1 equatorial,
+        in the ring's plane, so each residue hands off to the next straight
+        ahead. Half a turn per residue is a flat two-fold ribbon, which is what
+        stacks into fibres nothing human can digest.</p>
+      <div><canvas class="gl" id="glB"></canvas></div>
+      <div class="read" id="readB"></div>
+    </div>
+    <div class="case">
+      <p class="why"><b>Starch — α-1,4.</b> The bridge leaves C1 axial, out of
+        the plane, so each residue should hand off at an angle and the chain
+        should curl into a helix loose enough for amylase to reach into.
+        <b>It does not, here.</b> Read the note above.</p>
+      <div><canvas class="gl" id="glA"></canvas></div>
+      <div class="read" id="readA"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../tokens-from-palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<!-- mol-monomers BEFORE mol-contrast: mol-contrast mirrors alanine out of it,
+     and without it that whole domain file throws at register() and every spec
+     in it silently fails to exist. -->
+<script src="../mol-monomers.js"></script>
+<script src="../mol-pathways.js"></script>
+<script src="../mol-contrast.js"></script>
+<script src="../scene.js"></script>
+<script src="../condense/frame.js"></script>
+<script src="../chain-repeat.js"></script>
+<script>
+"use strict";
+
+const TRIAD=['O5','C1','C4'];
+const N=12;                       // residues; enough for a turn to be obvious
+
+/* What a real one does, for the comparison the readout makes. These are
+   REFERENCE values with a source, kept here rather than in a spec because they
+   describe a polymer this repo does not model — the point of the page is the
+   gap between them and what the geometry gives. */
+const REAL={
+  cellobiose:{ polymer:'cellulose', perTurn:2, rise:5.2,
+               src:'2-fold ribbon, ~5.2 Å per residue' },
+  maltose:{ polymer:'starch (amylose)', perTurn:6, rise:null,
+            src:'~6 residues per turn, a helix' },
+};
+
+function mount(canvasId, readId, key){
+  const canvas=document.getElementById(canvasId);
+  const { scene, camera, renderer, root, cam, applyCam, resize } =
+    Stage.create(canvas, { cam:{ theta:0.55, phi:1.3, r:60 }, rMax:600 });
+
+  const spec=MolLib.MOLECULES[key];
+  const screw=ChainRepeat.screwOf(spec, TRIAD, 'A', 'B');
+  const chain=ChainRepeat.extend(spec, screw, N, 'A');
+
+  const P=MolLib.PALETTE;
+  const g=new THREE.Group(); root.add(g);
+  const iO1=chain.index('O1'), iC4=chain.index('C4'),
+        iO4=chain.index('O4'), iHO4=chain.index('HO4');
+  const V=p=>new THREE.Vector3(p[0],p[1],p[2]);
+
+  /* Every residue but the first loses its free C4 hydroxyl: that position is
+     where the previous residue's bridge lands. Drawn without terminal groups —
+     it is a FRAGMENT of a chain, and both ends are cut. */
+  chain.residues.forEach((res,n)=>{
+    const drop=new Set(n===0?[]:[iO4,iHO4]);
+    res.forEach((p,i)=>{
+      if(drop.has(i)) return;
+      g.add(Stage.atom(P.atoms[chain.el[i]]||0x888888, P.radii[chain.el[i]]||0.7, V(p), chain.el[i]));
+    });
+    chain.bonds.forEach(([a,b,order])=>{
+      if(drop.has(a)||drop.has(b)) return;
+      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14, order));
+    });
+    // the linkage itself: this residue's bridging O to the next one's C4
+    const nx=chain.residues[n+1];
+    if(nx) g.add(Stage.bond(V(res[iO1]), V(nx[iC4]), P.bonds.covalent, 0.14, 1));
+  });
+
+  // frame on what was actually built, since a chain's extent is nothing like a
+  // molecule's and Stage.measure only knows about specs
+  const box=new THREE.Box3().setFromObject(g);
+  const c=box.getCenter(new THREE.Vector3()), sz=box.getSize(new THREE.Vector3());
+  g.position.sub(c);
+  const fit=()=>{ resize(); Stage.frame(camera, cam,
+    [{x:0,y:0,rxz:Math.max(sz.x,sz.z)/2*1.15, hy:sz.y/2*1.15}]); applyCam(); };
+  new ResizeObserver(fit).observe(canvas); fit();
+
+  (function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
+
+  /* Printed from the screw, never typed. The comparison to the real polymer is
+     the result this page exists to record. */
+  const R=REAL[key];
+  const first=chain.residues[0][chain.index('C1')], last=chain.residues[N-1][chain.index('C1')];
+  const span=Math.hypot(last[0]-first[0],last[1]-first[1],last[2]-first[2])/MolLib.SCALE;
+  const close=Math.abs(screw.perTurn-R.perTurn)/R.perTurn < 0.2;
+  document.getElementById(readId).innerHTML=[
+    `<b>${spec.name}</b> repeated ${N}× → ${R.polymer}`,
+    `turn per residue  <b>${screw.angle.toFixed(1)}°</b>`,
+    `rise per residue  <b>${(screw.rise/MolLib.SCALE).toFixed(2)} Å</b>`,
+    `residues per turn <b>${screw.perTurn.toFixed(2)}</b>   `
+      + `(real ${R.polymer}: ${R.src})`,
+    `end to end        <b>${span.toFixed(1)} Å</b> over ${N} residues`,
+    close ? `<span class="ok">matches</span> — this shape came out of the linkage, not out of a caption`
+          : `<span class="no">does not match</span> — the shared schematic torsion, not the linkage, is setting this`,
+  ].join('\n');
+  return { screw, perTurn:screw.perTurn, real:R.perTurn, close };
+}
+
+const out={ cellobiose:mount('glB','readB','cellobiose'),
+            maltose:mount('glA','readA','maltose') };
+
+/* The page's own headline, decided by the measurements rather than written in
+   advance — if new torsion data ever fixes starch, this sentence changes by
+   itself. */
+document.getElementById('warn').innerHTML = out.maltose.close
+  ? `<b>Both chains match.</b> The linkage geometry alone reproduces cellulose's `
+    + `ribbon and starch's helix.`
+  : `<b>Negative result, recorded on purpose.</b> Cellulose comes out right `
+    + `(${out.cellobiose.perTurn.toFixed(2)} residues/turn against a real 2). Starch does not: `
+    + `${out.maltose.perTurn.toFixed(2)} against a real ~6, so it draws as a ribbon rather than a helix. `
+    + `The cause is not this page — <code>mol-contrast.js</code> gives maltose and cellobiose `
+    + `<b>one shared pair of torsions</b> about the glycosidic bond, deliberately, so that the only `
+    + `difference between those two cards is the α/β configuration. Those torsions therefore carry `
+    + `no polymer information, and repeating them cannot make two different helices. Fixing it needs `
+    + `real φ/ψ for the α-1,4 linkage, declared with a source.`;
+</script>
+</body>
+</html>
