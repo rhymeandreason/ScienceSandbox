@@ -197,9 +197,9 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'askgo' + (p.home ? '' : ' away');
-      b.innerHTML = p.home
-        ? `<b>Show me</b><small>${esc(p.title || p.what)}</small>`
-        : `<b>See it in ${esc(p.lessonTitle)} &rarr;</b><small>${esc(p.title)}</small>`;
+      // One line. The answer above already named the thing, so a subtitle
+      // repeating it made the button a paragraph instead of an action.
+      b.textContent = p.home ? 'Show me' : `See it in ${p.lessonTitle} \u2192`;
 
       b.addEventListener('click', () => {
         if (!p.home) { location.href = p.href; return; }

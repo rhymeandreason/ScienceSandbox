@@ -160,7 +160,13 @@ async function ask({ messages, provider, system, cited, lesson, step, state }) {
 
   // Two models, two ways to be sloppy about a schema. Neither gets to reach the
   // page: an unknown id is dropped, and a missing array becomes an empty one.
+  // The lesson's own chapter, dropped here rather than asked for. The prompt
+  // says not to cite it and the model does anyway, which is what a rule with no
+  // enforcement is worth: "See Structure of Water" under an answer given ON
+  // Structure of Water is a link back to where the student already is.
+  const home = targets.forLesson(lesson);
   const chapters = (Array.isArray(out.json.chapters) ? out.json.chapters : [])
+    .filter(id => !home || id !== home.chapter)
     .map(byId).filter(Boolean).slice(0, 3)
     // Resolved here, not on the page: the title and the href are the catalog's
     // to state, and the client should never hold a second copy of either.

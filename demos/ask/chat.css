@@ -152,25 +152,37 @@
 .askturn .say.err { color: #b23a2c }
 .askturn .say.wait { color: var(--muted); font-style: italic }
 
-/* ---- what the tutor points at ---- */
+/* ---- what the tutor points at ------------------------------------------------
+   A primary pill, in the same cyan the rings are drawn in, so the button and the
+   highlight it produces read as one gesture rather than two unrelated events.
+   The background is a step darker than --ask-point, which is tuned to be seen
+   against warm paper and is too light to carry white text. */
+:root { --ask-pill: #00819a }
+
 .askgo {
-  display: block;
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  font: 600 13.5px var(--font-sans);
-  text-align: left;
-  color: var(--ink);
-  background: transparent;
-  border: 2px solid var(--ink);
-  border-radius: 8px;
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 10px 20px;
+  font: 700 14.5px var(--font-sans);
+  color: #fff;
+  background: var(--ask-pill);
+  border: 0;
+  border-radius: 999px;
   cursor: pointer;
 }
 
-.askgo:hover { background: rgba(0, 0, 0, .05) }
-.askgo small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted) }
+.askgo:hover  { filter: brightness(1.08) }
+.askgo:active { transform: translateY(1px) }
 
-/* Leaving the page never looks like looking at it. */
-.askgo.away { border-style: dashed; background: rgba(43, 39, 35, .04) }
+/* Leaving the page never looks like looking at it: an outline, not a fill, so
+   the solid pill stays reserved for something that happens right here. */
+.askgo.away {
+  color: var(--ask-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ask-pill);
+}
+
+.askgo.away:hover { background: rgba(0, 129, 154, .08); filter: none }
 
 .asksee {
   margin: 9px 0 0;
