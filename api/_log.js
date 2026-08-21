@@ -99,22 +99,22 @@ async function logTurn({ threadId, visitorId, lesson, question, step, state, out
  * These DO throw. A viewer that silently shows nothing when the database is
  * unreachable is worse than one that says so, which is the opposite of the rule
  * on the write path. */
-async function recent({ limit = 50, offset = 0, lesson = null, aimed = null } = {}) {
+async function recent({ limit = 50, offset = 0, lesson = null, aimed = null, model = null } = {}) {
   const db = sql();
   if (!db) throw new Error('DATABASE_URL is not set');
   const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
   const o = Math.max(Number(offset) || 0, 0);
 
-  // Written out per case rather than assembled: a tagged template is only safe
-  // because the parameters cannot become SQL, and building the WHERE by string
-  // concatenation is exactly how that stops being true.
-  if (lesson && aimed === 'none')
-    return db`SELECT * FROM turns WHERE lesson = ${lesson} AND point_id IS NULL LIMIT ${n} OFFSET ${o}`;
-  if (lesson)
-    return db`SELECT * FROM turns WHERE lesson = ${lesson} LIMIT ${n} OFFSET ${o}`;
-  if (aimed === 'none')
-    return db`SELECT * FROM turns WHERE point_id IS NULL LIMIT ${n} OFFSET ${o}`;
-  return db`SELECT * FROM turns LIMIT ${n} OFFSET ${o}`;
+  // Every filter is optional and they combine, so the predicate is written as
+  // SQL that reads its own parameters rather than as branches per combination.
+  // A tagged template is safe because a parameter cannot become SQL; building
+  // the WHERE by string concatenation is exactly how that stops being true, and
+  // one `null`-tolerant predicate beats eight hand-written pairs.
+  return db`SELECT * FROM turns
+            WHERE (${lesson}::text IS NULL OR lesson = ${lesson})
+              AND (${model}::text  IS NULL OR model  = ${model})
+              AND (${aimed}::text  IS NULL OR (${aimed} = 'none' AND point_id IS NULL))
+            LIMIT ${n} OFFSET ${o}`;
 }
 
 /* The numbers above the list. One round trip, because four would be four. */
@@ -132,7 +132,14 @@ async function stats() {
     FROM turns`;
   const lessons = await db`SELECT coalesce(lesson, '(none)') AS lesson, count(*)::int AS n
                            FROM turns GROUP BY 1 ORDER BY 2 DESC`;
-  return { ...row, lessons };
+  // Per model, because comparing two models on the same questions is the whole
+  // reason to look: median latency and spend per turn are what differ, and a
+  // total hides both behind whichever model answered most.
+  const models = await db`SELECT model, count(*)::int AS n, round(avg(ms))::int AS avg_ms,
+                                 round(avg((usage->>'cost_usd')::numeric), 5) AS avg_usd
+                          FROM turns WHERE model IS NOT NULL
+                          GROUP BY 1 ORDER BY 2 DESC`;
+  return { ...row, lessons, models };
 }
 
 /* Apply the schema. Idempotent, and separate from the answer path on purpose:

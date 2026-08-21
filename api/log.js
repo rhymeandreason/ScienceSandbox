@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
     const [stats, turns] = await Promise.all([
       log.stats(),
       log.recent({ limit: q.limit, offset: q.offset, lesson: q.lesson || null,
-                   aimed: q.aimed || null }),
+                   aimed: q.aimed || null, model: q.model || null }),
     ]);
     return res.status(200).json({ stats, turns });
   } catch (err) {
