@@ -286,6 +286,12 @@
     function react(){
       if(joined) return;
       joined=true;
+      /* Let go of it. The student's finger is still down at the moment the bond
+       * forms, and a grab that outlives the reaction goes on dragging one half
+       * of a finished molecule around — pulling the product apart through the
+       * bond it just made. */
+      held=false;
+      canvas.style.cursor='';
       product=R.donors[donorIx].product;
       config=rxB && rxB.config || null;
 
@@ -372,24 +378,61 @@
       return ray.ray.intersectPlane(plane, hit) ? hit.clone() : null;
     }
     const surface=canvas.parentElement||canvas;
+
+    /* THE DRAG PLANE CONTAINS THE ACCEPTOR SITE, not the dragged molecule.
+     *
+     * This is the difference between a card that works and one that cannot. A
+     * plane through B lets B move only at ITS OWN depth, so the two reactive
+     * sites can be sitting exactly on top of each other on screen while lying
+     * several ångströms apart along the view axis. The molecules slide through
+     * each other and nothing ever reacts — and nothing on screen says why,
+     * because on screen they are touching.
+     *
+     * Putting the plane through the acceptor site makes what the student SEES
+     * the thing that is true: bring the sites together visually and they are
+     * together. The cost is a one-time step in depth when the molecule is
+     * grabbed, which reads as a slight change in size and is the honest price
+     * of dragging a 3D object with a 2D pointer.
+     */
+    function dragPlane(){
+      const n=camera.getWorldDirection(V()).normalize();
+      plane.setFromNormalAndCoplanarPoint(n.clone().negate(), siteA());
+      return n;
+    }
     function onDown(e){
       if(!pick(e)) return;                    // let the orbit handler have it
       e.stopPropagation(); e.preventDefault();
       held=true; vel.set(0,0,0);
-      const w=B.getWorldPosition(V());
-      plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(V()).negate(), w);
+      const n=dragPlane();
       const p=pointerOnPlane(e);
-      grabOffset.copy(p ? w.clone().sub(p) : V());
+      if(p){
+        // Where the grabbed molecule's own SITE sits relative to the pointer,
+        // with the out-of-plane part dropped: keeping it would haul the
+        // molecule straight back out of the plane on the first move.
+        grabOffset.copy(siteB().sub(p));
+        grabOffset.addScaledVector(n, -grabOffset.dot(n));
+      } else grabOffset.set(0,0,0);
       canvas.style.cursor='grabbing';
     }
     function onMove(e){
+      if(joined) return;                      // nothing left to drag
       if(!held){
         if(!canvas.style.cursor || canvas.style.cursor==='grab' || canvas.style.cursor==='')
           canvas.style.cursor = pick(e) ? 'grab' : '';
         return;
       }
+      dragPlane();                            // the camera may have orbited
       const p=pointerOnPlane(e); if(!p) return;
-      B.position.copy(B.parent.worldToLocal(p.add(grabOffset)));
+      /* Move the molecule by however far its SITE has to travel — dragging by
+       * the reactive site rather than by the group's origin, so the thing the
+       * student is aiming is the thing that lands.
+       *
+       * The delta is WORLD space and `position` is the parent's, and those two
+       * are the same thing only until someone orbits: Stage's orbit turns the
+       * root these molecules hang from. So the target is resolved as a world
+       * point and converted once, rather than added raw. */
+      const shift=p.add(grabOffset).sub(siteB());
+      B.position.copy(B.parent.worldToLocal(B.getWorldPosition(V()).add(shift)));
       report();
     }
     function onUp(){ held=false; canvas.style.cursor=''; }
