@@ -62,9 +62,10 @@ const LESSONS = {
       + 'comfortable crowd, do NOT suggest adding more, and do not accept "hardly any bonds" as '
       + 'true just because the student said it.',
 
-      'The temperature slider only exists from step 3 onward, and the salt card only on step 5. '
-      + 'If the student asks about heating or dissolving from an earlier step, they are not missing '
-      + 'a control, they have not reached it yet.',
+      'The temperature slider only exists from step 3 onward, and the salt controls only on step 5. '
+      + 'Point at them anyway from an earlier step: the page takes the student to the step that has '
+      + 'the control and then rings it. Do NOT tell them a control is locked or will appear later, '
+      + 'and do not decline to point because they have not reached it.',
 
       'The solvent step fills the scene to sixteen molecules on its own, because a hydration shell '
       + 'is about six waters per ion and needs a crowd. If salt is in and the shells look wrong, '

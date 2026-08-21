@@ -203,9 +203,10 @@
 
       b.addEventListener('click', () => {
         if (!p.home) { location.href = p.href; return; }
-        // Close first. The point of a Show me is to look at the model, and the
-        // drawer is standing in front of half of it.
-        hide();
+        // The panel stays open. It used to close, because it covered the rail
+        // and stood in front of the model; it now floats and the canvas moves
+        // over for it, so closing would only cost the student the answer they
+        // are still reading.
         if (act(p) === false) say('tutor', 'I cannot show that one yet.', 'err');
       });
       return b;
