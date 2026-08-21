@@ -1,6 +1,6 @@
 #!/bin/sh
 # =====================================================================
-#  pre-commit — run the offline checkers before a commit touching demos/
+#  pre-commit — run the offline checkers before a commit touching demos/ or api/
 #
 #  molecule-pipeline.md item 8. Every checker in this repo was hand-run, and
 #  SCIENCE.md §1.4's rule — a chemical claim ships with its assertion in the
@@ -39,8 +39,11 @@
 # =====================================================================
 set -e
 
-# Only care about commits that touch the molecule sandbox.
-if git diff --cached --name-only | grep -q '^demos/'; then
+# Only care about commits that touch the molecule sandbox, or the tutor. api/ is
+# in here because it is the ONE checked thing outside demos/: the ask endpoint
+# lives at the repo root so Vercel will serve it, and a gate that only looked at
+# demos/ skipped the whole tutor without saying so.
+if git diff --cached --name-only | grep -qE '^(demos/|api/)'; then
   :
 else
   exit 0
@@ -332,6 +335,31 @@ if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|hemoglobin-la
   rm -f /tmp/ch.$$
 else
   echo "pre-commit: skipping check-hb.js — nothing under demos/hemoglobin/ staged"
+fi
+
+# api/ and demos/ask/ gate themselves, PLUS every lesson page, because that is
+# where the claims break. A target asserts that #trange exists on water-lab and
+# that a step is still called "Why Ice Floats" — rename a heading or drop a
+# control id and the tutor points confidently at nothing. Any demos/*.html
+# rather than the five lessons by name: the list would go stale the first time a
+# lesson is added, and the checker is instant and offline.
+#
+# It also audits the cacheable half of the prompt against the active model's
+# cache floor. That failure has NO other symptom: the answers, the aiming and
+# the citations are all identical, and only the bill moves. See _tutor.js.
+if git diff --cached --name-only | grep -qE '^(api/.*|demos/ask/.*|demos/[^/]*\.html)$'; then
+  if ! node ask/check-ask.js > /tmp/cask.$$ 2>&1; then
+    tail -30 /tmp/cask.$$; rm -f /tmp/cask.$$
+    echo ""
+    echo "pre-commit FAILED: check-ask.js — the tutor's targets no longer match the"
+    echo "  pages, or the cacheable prompt fell under the model's cache floor."
+    echo "  A target failure means the tutor points at something that moved;"
+    echo "  a floor failure means every question now pays full rate, silently."
+    exit 1
+  fi
+  rm -f /tmp/cask.$$
+else
+  echo "pre-commit: skipping check-ask.js — nothing under api/, demos/ask/ or a page staged"
 fi
 
 echo "pre-commit: molecules and pages check out."
