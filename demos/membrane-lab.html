@@ -181,7 +181,12 @@
 #lipidBox {
   top: 18px;
   right: 18px;
-  width: 156px;
+  /* WIDE ENOUGH FOR THE CALLOUT, not just for the molecule. POPC is ~6 Å
+     across and would sit happily in half this, but the label is thrown clear
+     of the bond it names and `.inset` clips — a box sized to the molecule
+     alone cuts the words off. The camera fits on HEIGHT either way, so the
+     extra width costs nothing but paper. */
+  width: 232px;
   height: 290px;
 }
 </style>
@@ -194,7 +199,10 @@
          stops rendering the moment it leaves the viewport, so a hidden box
          costs nothing but its context. -->
     <div id="lipidBox" class="inset" hidden>
-      <canvas id="lipidGl"></canvas>
+      <!-- The canvas gets its own row: callouts are projected into it, and
+           annotate.js divides by the element's clientHeight, so it must be
+           the canvas's box and not the frame that also carries a caption. -->
+      <div class="inset-view" id="lipidView"><canvas id="lipidGl"></canvas></div>
       <div class="inset-cap">one phospholipid</div>
     </div>
     <button type="button" id="spend" class="pill" hidden>Spend 1 ATP</button>
@@ -2323,6 +2331,44 @@ function go(i) {
   lipidBox.hidden = s.id !== 'bilayer';
 }
 
+/* ---------- the close-up's callout (annotate.js) ----------
+ * GLYCOLYSIS' CONTRACT, not molecule-viewer's: the SPEC says where the kink
+ * is and this page says only that it wants it and what to call it. `cis` is
+ * POPC's own handle — the same four atoms check-molecules.js measures the
+ * torsion across — so a spec that were re-baked and renumbered moves this
+ * callout with it instead of leaving it pointing at a carbon in the middle
+ * of a straight chain.
+ *
+ * AND THE BOND IS DERIVED, not typed as a second index that can go stale
+ * against the first (glycolysis-lab's spotPair, same reasoning): the kink is
+ * the ONE order-2 bond among those four atoms, found from the spec's own
+ * bond list. Nothing here knows that it is C9=C10.
+ */
+function cisDoubleBond(spec) {
+  if (!spec || !spec.cis || !spec.cis.atoms) return null;
+  const set = new Set(spec.cis.atoms);
+  return (spec.bonds || []).find(
+    b => b[2] === 2 && set.has(b[0]) && set.has(b[1])) || null;
+}
+const _kinkA = new THREE.Vector3(), _kinkB = new THREE.Vector3(),
+      _kinkM = new THREE.Vector3();
+/* The MESHES, not the spec's coordinates: buildMolecule centres the atoms and
+   bakes the spec's `view:` into them, so raw spec positions would land the dot
+   a plausible distance from the bond it names — the trap lobes-test documents
+   as `like:`. Returning null hides the note rather than parking it at the
+   origin, which is what annotate.js does with a falsy anchor. */
+function kinkAnchor() {
+  const g = lipidInset && lipidInset.group;
+  const b = g && cisDoubleBond(lipidInset.spec);
+  if (!b) return null;
+  const A = g.userData.atomMeshes[b[0]], B = g.userData.atomMeshes[b[1]];
+  if (!A || !B) return null;
+  return _kinkM.copy(A.getWorldPosition(_kinkA))
+               .add(B.getWorldPosition(_kinkB)).multiplyScalar(0.5);
+}
+
+let LIPID_NOTES = null;      // assigned below; afterFrame can fire before it
+
 /* ONE inset for the page, not one per entry into step 1. A second WebGL
    context is a real resource and the browser drops the OLDEST when a page
    passes its cap, so a box rebuilt per step would eventually blank the main
@@ -2330,12 +2376,32 @@ function go(i) {
 const lipidInset = Inset.create({
   canvas: document.getElementById('lipidGl'),
   spec: MolLib.MOLECULES.popc,
-  /* Slow turn, and this is the one place it earns itself: the box exists to
-     say a lipid is a real 3D object rather than the flat lollipop the sheet
-     behind it draws, and a still picture of a molecule is exactly what that
-     lollipop already is. It turns the CAMERA, so the spec's declared `view:`
-     is still what the box opens on. */
-  spin: true,
+  /* NO TURNTABLE, now that a callout points into the box. A label tracks a
+     spinning molecule correctly and still reads badly: in 152 px the words
+     swing around the frame, and the kink they name spends half of every turn
+     behind the tails. The declared `view:` was chosen to show that bond, so
+     the box holds it — and Stage.create's orbit is still on, which leaves
+     turning it something the student can do rather than something that
+     happens at them. */
+  /* Guarded because Inset.create draws ONE frame synchronously, to leave the
+     box non-blank before rAF starts — and at that moment the notes below do
+     not exist yet. */
+  afterFrame: () => LIPID_NOTES && LIPID_NOTES.step(),
+});
+
+/* Into `view`, which is the canvas's own box — the frame is 25 px taller
+   because of the caption, and projecting into that skews every dot. */
+LIPID_NOTES = Annot.create(THREE, lipidInset.view, lipidInset.stage.camera,
+                           { mode:'on' });
+LIPID_NOTES.add({
+  text:'the kink',
+  /* LEFT, because the kinked tail is the right-hand one — a label thrown the
+     same way as the bond it names has to cross the molecule to get clear. */
+  offset:[-27, -18],
+  at: kinkAnchor,
+  card:'One <b>cis</b> double bond, and only the longer tail has it. A bent '
+     + 'chain cannot pack flush against its neighbours, so it holds the '
+     + 'membrane apart and keeps it fluid.',
 });
 
 function tick(dt) {

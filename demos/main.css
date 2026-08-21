@@ -742,12 +742,34 @@ body {
   box-shadow: var(--shadow-panel);
   overflow: hidden;
 }
-/* min-height:0 or the canvas refuses to shrink below its own content box and
+/* THE VIEW ROW IS THE CANVAS'S BOX, and that is its whole job. Callouts are
+   positioned into this element, and annotate.js divides by the element's own
+   clientHeight — so it has to be the canvas exactly, not the frame that also
+   holds a caption. `position:relative` because the callout layer inside is
+   absolute.
+
+   min-height:0 or a flex child refuses to shrink below its content box and
    pushes the caption out of the frame — the flex default nothing warns about. */
-.inset canvas { display: block; flex: 1 1 auto; min-height: 0; width: 100%; }
+.inset-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.inset-view canvas { display: block; width: 100%; height: 100%; }
 
 /* The label rides INSIDE the frame. Outside, it is a caption floating over
    the scene with nothing tying it to the box it names. */
+/* A CALLOUT IN AN INSET IS A MINIATURE TOO. The label is thrown clear of the
+   bond it names, and `.inset` clips — at the stage's own type size an 82 px
+   label needs a ~290 px box to have anywhere to go, which is no longer a
+   corner inset. Stepping the type down is what makes the throw affordable,
+   and it is right anyway: the whole box is a scaled-down figure. */
+.inset .annot-label {
+  font-size: var(--text-2xs);
+  padding: 2px 5px;
+}
+.inset .annot-dot { transform: scale(.8); }
+
 .inset .inset-cap {
   flex: 0 0 auto;
   padding: 5px 8px 6px;

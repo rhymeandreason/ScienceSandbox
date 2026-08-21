@@ -47,6 +47,20 @@
  *    caring about. An IntersectionObserver drives start/stop, so a caller
  *    that forgets gets the right behaviour anyway.
  *
+ *  · ANNOTATIONS GO IN `view`, NOT THE FRAME. annotate.js projects into
+ *    `stageEl.clientWidth/Height` (its own Trap 3), so handing it the
+ *    framed box would scale every dot by the caption row's height — a few
+ *    percent, worst at the ends of the molecule, and invisible until you
+ *    look closely at a label near the bottom. `view` is the element whose
+ *    box IS the canvas's; the constructor measures the two and says so out
+ *    loud when they disagree, because nothing offline can see this.
+ *
+ *  · `afterFrame` RUNS AFTER THE RENDER, the same name and the same rule as
+ *    kit/stagekit.js: anything pinning DOM to a 3D point belongs there,
+ *    because before the render it reads the previous frame's camera. This
+ *    module owns its own loop, so without the hook a page has nowhere to
+ *    step a callout at all.
+ *
  *  · THE CAMERA IS SOLVED, NEVER TYPED. Stage.measure + Stage.frame against
  *    the real frustum, re-solved on every resize. A hand-picked `r` is
  *    correct only at the size it was picked at, and an inset is the most
@@ -59,6 +73,11 @@
   function create(opts = {}) {
     const canvas = opts.canvas;
     if (!canvas) throw new Error('kit/inset.js: needs a canvas');
+
+    /* The element whose box is exactly the canvas's, for anything projecting
+       DOM onto a 3D point. Defaults to the canvas's parent, which is the
+       `.inset-view` row in main.css's component. */
+    const view = opts.view || canvas.parentElement;
 
     const stage = global.Stage.create(canvas, Object.assign({
       cam: { theta: 0, phi: 1.35, r: 30 },
@@ -96,6 +115,7 @@
     function draw() {
       if (spin) { stage.cam.theta += spin; stage.applyCam(); }
       stage.renderer.render(stage.scene, stage.camera);
+      if (opts.afterFrame) opts.afterFrame();
     }
 
     function tick() { if (!running) return; raf = requestAnimationFrame(tick); draw(); }
@@ -112,6 +132,19 @@
     }, { threshold: 0.01 });
     io.observe(canvas);
 
+    /* Said out loud, because the symptom is a callout a few pixels off rather
+       than anything that looks like an error. Measured after the first fit, so
+       the boxes are the ones the browser settled on. */
+    if (view && view !== canvas) {
+      const dw = Math.abs(view.clientWidth - canvas.clientWidth);
+      const dh = Math.abs(view.clientHeight - canvas.clientHeight);
+      if (dw > 1 || dh > 1) console.warn(
+        'kit/inset.js: `view` is ' + view.clientWidth + 'x' + view.clientHeight +
+        ' but the canvas is ' + canvas.clientWidth + 'x' + canvas.clientHeight +
+        ' — anything projected into it will be skewed. Wrap the canvas in an ' +
+        'element whose box is the canvas\'s (main.css `.inset-view`).');
+    }
+
     if (opts.spec) show(opts.spec);
     // One frame now, so the box is never blank in the gap before rAF runs —
     // and so a screenshot of a paused tab still shows the molecule.
@@ -123,6 +156,7 @@
       get spec() { return spec; },
       get group() { return group; },
       get stage() { return stage; },
+      get view() { return view; },
       destroy() {
         stop(); ro.disconnect(); io.disconnect();
         if (group) stage.root.remove(group);
