@@ -17,7 +17,8 @@ Working end to end on `demos/water-lab.html`:
 * highlights are atom-level via `kit/focus.js`: one oxygen, or the two atoms at either end of a real hydrogen bond
 * controls get cyan rings, sized to a slider's *thumb*, not its track
 * the tutor sees live scene state (molecule count, temperature, phase, salt)
-* provider switch: Gemini (default, `gemini-3.5-flash-lite`) or Claude, one env var
+* provider switch: Gemini (default, `gemini-3.7-flash`) or Claude, one env var
+* the stable half of the prompt is cached server-side, and on a lesson page it is the large majority of the input
 
 ## Next steps, in order
 
@@ -27,11 +28,41 @@ Working end to end on `demos/water-lab.html`:
 4. **Second lesson mount.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with).
 5. `?step=` on the four lessons that lack it, so away links land where they say.
 
+## What a session costs
+
+About **half a cent per turn**, measured, on `gemini-3.7-flash`. An eight-turn session is a cent or two. Thirty students is under a dollar.
+
+The prompt is split in two because the two halves are priced differently. `situation(lesson)` is the catalog, the target list and the sim notes: byte-identical for every question asked on that page, by every student, all day, so it is held server-side and read back at a tenth. `moment(lesson, step, state, cited)` is the step they are standing on, their screen readings and what they have already been cited, and it rides in front of the newest question instead. For `water-lab` the split is about 94% cacheable; `check-ask.js` prints the current size per lesson rather than this paragraph naming one that will rot.
+
+This is what the ordering is for, and it is easy to undo by accident: move the step sentence back up into `situation` and everything after it stops matching, the discount silently stops applying, and no answer looks any different. `check-ask.js` asserts `situation()` does not vary with step or state, because that is the only symptom there is.
+
+**Do not trim the cacheable half. There is a cliff under it.** Every model has a minimum prompt length it will cache, and under it the discount silently stops applying. Break-even against a cached prompt is about **200 tokens**: a cached 2,000-token prompt costs what an uncached 200-token one costs. So no trim of `situation` ever wins, and a trim that crosses the floor costs several times more for a *shorter* prompt. `SYSTEM` alone is under every floor, which is why the plain ask box, with no lesson, never caches at all.
+
+**The floor is a per-model fact, so it lives in the provider next to `PRICE`, as `CACHE_MIN`.** It is not guessable from the tier and it is not monotonic across generations: `gemini-3.7-flash` caches from 1,024 tokens (measured - send it less and the API names the number back), Claude Opus 5 from 512, Sonnet 5 from 1,024, and **Haiku 4.5 only from 4,096**. No lesson prompt is anywhere near 4,096, so switching to Haiku to save money would turn caching off for every lesson at once. `null` means the model has no context caching (flash-lite), `undefined` means nobody has measured it and nothing is asserted.
+
+The lessons sit a few hundred tokens above Gemini's floor, and dropping the away-lesson target lists is exactly what would push them under. `check-ask.js` prints each lesson's size and its clearance, warns when the margin gets thin, and fails below the floor. It reads the floor off whichever provider `AI_PROVIDER` selects rather than holding a copy, so changing the model changes the check: point it at Haiku and it fails every lesson, point it at flash-lite and it stops asserting and says why. The estimate is characters over five, deliberately low by about 10%, so it errs toward warning about a lesson that was fine rather than clearing one that was not. It stays offline: the true count needs `countTokens`, the network and a key, and this checker requires none of them.
+
+Going the other way, adding to `situation` is nearly free at a tenth rate. **The limit on prompt size is aiming accuracy, not money** - every target added is one more way for the model to point wrong. Trim `moment` instead, where every token is full price: at \~130 tokens it costs about two-thirds of what the entire cached half costs.
+
+**What the cost readout does not see:** writing a cache entry is billed at the input rate and holding it is billed by the hour, and Gemini reports neither in `usageMetadata`. The printed figure understates the first question against a cold instance. It is small against what the reads save; it is still an understatement.
+
+**Output is now the larger half of the bill**, which it was not before. If cost needs to come down again, the lever is `thinkingLevel` and answer length, not the prompt.
+
+**The rate doubles on 2026-12-31.** `gemini-3.7-flash` is priced promotionally at $0.75/$3.75 per 1M tokens in/out; after that date it is $1.50/$7.50. Nothing in the repo changes and nothing fails - the same questions cost twice as much. It is the only number here that moves on a schedule rather than when someone edits something, so it is the one worth a calendar entry. The rates live in `gemini.js`'s `PRICES` table and must be updated there, not here, or the cost readout starts quoting the old ones.
+
+**Per-session cost is not the risk; the tail is.** `MAX_TURNS = 40` with a growing transcript means one thread's worst case is many times the median, and a public endpoint with no rate limit is where that gets spent. Still next step 2.
+
 ## Key context
 
-**Files.** `api/_tutor.js` (prompt, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer).
+**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer).
 
 **Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`).
+
+The “Ask a Question” button and chat drawer are only added to the page if the server is running. See demos/ask/chat.js:48
+
+Thus on Github pages, this feature is hidden.
+
+**The provider contract is `ask({system, context, messages, schema})`.** Two strings, because they are priced differently: `system` is the cacheable half, `context` is this turn's. A provider that concatenates them still answers correctly and quietly pays full rate, which is the failure mode to watch for when adding a third vendor. Gemini holds `system` as a cached-content handle and cannot send `systemInstruction` alongside it; Claude sends both as system blocks with the cache breakpoint between them. Both fall back to inline on any cache failure.
 
 **The load-bearing idea.** The model returns *ids from a constrained enum*, never selectors, coordinates or prose. Chapters and targets are both resolved server-side into titles and hrefs. A wrong id is impossible; a wrong selector would be silent. Keep this when extending.
 

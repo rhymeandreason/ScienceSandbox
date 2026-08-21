@@ -68,7 +68,30 @@ if (!providers.names().includes(providers.DEFAULT)) bad(`AI_PROVIDER "${provider
  * called that, this link lands where it says. All three go stale invisibly, and
  * a stale one means the tutor points confidently at the wrong place. */
 const T = require(path.join(ROOT, 'api/_targets.js'));
-const { schemaFor, situation } = require(path.join(ROOT, 'api/_tutor.js'));
+const { schemaFor, situation, moment } = require(path.join(ROOT, 'api/_tutor.js'));
+/* A prompt under the model's minimum does not cache, and loses the discount
+ * silently: same answers, same aiming, several times the bill. So the size is
+ * worth printing next to the target list that decides it - trimming the
+ * away-lesson lists is exactly what would do it.
+ *
+ * The floor comes from the provider that will actually serve the question, not
+ * from a constant here. It is a per-model fact and it is NOT monotonic: Claude
+ * Opus 5 caches from 512 tokens, Sonnet 5 from 1024, Haiku 4.5 only from 4096.
+ * Switching to Haiku to save money would turn caching off for every lesson, and
+ * a floor hardcoded in this file would have said everything was fine.
+ *
+ * Tokens are estimated at 5 characters each, DELIBERATELY LOW. The real ratio
+ * measured ~4.5, so this under-counts by around 10%: the error lands on the side
+ * of warning about a lesson that was actually fine, never on the side of
+ * clearing one that was not. For the true count, which needs the network and a
+ * key that this checker refuses to require, count the same string with the
+ * vendor's own tokenizer endpoint:
+ *   SYSTEM + situation(lesson)
+ */
+const provider  = require(path.join(ROOT, `api/_providers/${providers.DEFAULT}.js`));
+const FLOOR     = provider.CACHE_MIN;
+const CHARS_PER = 5;
+const CLEARANCE = 1.2;   // margin the estimate's own error fits inside
 
 const allQids = new Set();
 
@@ -136,8 +159,32 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
     bad(`${lesson}: the point enum and the visible target list have drifted apart`);
   if (seen.some(t => !t.home && t.kind !== 'step'))
     bad(`${lesson}: a non-step target from another lesson is offered as a destination`);
-  const prompt = situation(lesson, 0);
+  const prompt = situation(lesson);
   for (const t of seen) if (!prompt.includes(`- ${t.qid}:`)) bad(`${t.qid} is missing from the prompt`);
+
+  // The cached half must not move with the student. Nothing about a prefix that
+  // quietly stopped matching is visible from the page, or from the answer: it
+  // just costs ten times as much. Two different moments, one prompt.
+  if (situation(lesson) !== prompt || situation(lesson, 3, { temperature: 'warm' }) !== prompt)
+    bad(`${lesson}: situation() varies by turn, so nothing in front of the question is cacheable`);
+  if (!moment(lesson, 0, { temperature: 'warm' }).includes('warm'))
+    bad(`${lesson}: the screen readings are not reaching moment()`);
+
+  // What it costs to ask a question here, in the only unit that changes it.
+  const tok = Math.floor((SYSTEM + prompt).length / CHARS_PER);
+  if (FLOOR === null)
+    console.log(`  ----  cacheable prompt  ${tok} tok est, ${provider.model} has no context caching`);
+  else if (FLOOR === undefined)
+    console.log(`  ----  cacheable prompt  ${tok} tok est, no floor known for ${provider.model}`);
+  else if (tok < FLOOR)
+    bad(`${lesson}: the cacheable prompt is ~${tok} tokens and ${provider.model} caches from `
+      + `${FLOOR}: it will not cache, and every question pays full rate for all of it.`);
+  else if (tok < FLOOR * CLEARANCE)
+    console.log(`  warn  cacheable prompt  ${tok} tok est, floor ${FLOOR}  THIN, `
+      + `trimming further drops off the cliff`);
+  else
+    console.log(`  ok    cacheable prompt  ${tok} tok est, floor ${FLOOR} (${provider.model})`
+      + `  +${tok - FLOOR}`);
 }
 
 console.log(`\n  ${allQids.size} targets across ${Object.keys(T.LESSONS).length} lessons`);

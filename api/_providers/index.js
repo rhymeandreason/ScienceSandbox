@@ -2,9 +2,20 @@
  *  _providers/index.js — which model answers the question
  * =============================================================================
  *  `AI_PROVIDER` in the environment picks one. A provider is any module with
- *  `{id, label, envKey, model, PRICE, ask({system, question, schema})}` that
- *  returns `{json, usage:{input, output, cached}}`, so adding a third is a file
- *  and a line in PROVIDERS, and `_tutor.js` never learns its name.
+ *  `{id, label, envKey, model, PRICE, CACHE_MIN,
+ *    ask({system, context, messages, schema})}`
+ *  that returns `{json, usage:{input, output, cached}}`, so adding a third is a
+ *  file and a line in PROVIDERS, and `_tutor.js` never learns its name.
+ *
+ *  `system` and `context` arrive separately because they are priced separately:
+ *  `system` is byte-stable for a whole lesson and every vendor sells it back
+ *  cheap, `context` is this turn's step and screen readings. A provider that
+ *  concatenates them still answers correctly and quietly pays full rate.
+ *
+ *  `CACHE_MIN` is the shortest prompt this model will cache: a number, `null`
+ *  where the model does not cache at all, or `undefined` where nobody has
+ *  measured it. It lives here for the same reason PRICE does - it is a fact
+ *  about a model, the model is a knob, and it is not guessable from the tier.
  *
  *  ASK_BENCH=1 marks a deployment as a test bench: a request may then name its
  *  provider and supply its own system prompt. Both stay off in production, where

@@ -79,15 +79,17 @@ function onScreen(state) {
     + rows.map(([k, v]) => `- ${k}: ${v}`).join('\n');
 }
 
-function situation(lesson, step, state) {
+/* The half of the prompt that does not change: the lesson, everything the tutor
+ * may point at, and how this simulation behaves. Identical for every question
+ * asked on this page, by every student, all day, which is what makes it worth
+ * caching. Nothing that varies by turn belongs here - see `moment`. */
+function situation(lesson) {
   const L = targets.forLesson(lesson);
-  if (!L) return onScreen(state);
+  if (!L) return '';
 
-  const all   = targets.visible(lesson);
-  const home  = all.filter(t => t.home);
-  const away  = all.filter(t => !t.home);
-  const steps = home.filter(t => t.kind === 'step');
-  const here  = steps.find(t => t.at === step);
+  const all  = targets.visible(lesson);
+  const home = all.filter(t => t.home);
+  const away = all.filter(t => !t.home);
 
   const line = t => `- ${t.qid}: ${t.what}`;
   const byLesson = {};
@@ -95,8 +97,6 @@ function situation(lesson, step, state) {
 
   return `\n\nThe student is not reading, they are on the ${L.title} lesson page, `
     + `working with an interactive 3D model.`
-    + (here ? ` Right now they are on "${here.title}", ${steps.indexOf(here) + 1} of ${steps.length}.`
-              + ` Assume their question is about what is in front of them.` : '')
 
     + `\n\nYou can point at ONE thing. Set \`point\` to its id, or to "none" when the answer is not `
     + `about anything listed. Do not mention the pointing in \`answer\` and do not say "look at" or `
@@ -118,9 +118,35 @@ function situation(lesson, step, state) {
           + `science question when the real answer is about the model, so check these before `
           + `explaining the science again:\n`
           + L.notes.map(n => `- ${n}`).join('\n')
-        : '')
+        : '');
+}
 
-    + onScreen(state);
+/* The half that changes every turn: which step they are standing on, what their
+ * screen reads, and which chapters they have already been shown. This travels
+ * with the newest question rather than in the system prompt, so the prefix in
+ * front of it stays byte-identical from the first turn to the fortieth and both
+ * vendors can charge a tenth for it. Putting the step sentence back up in
+ * `situation` would cost nothing visible and silently end the caching. */
+function moment(lesson, step, state, cited) {
+  const parts = [];
+
+  if (targets.forLesson(lesson)) {
+    const steps = targets.visible(lesson).filter(t => t.home && t.kind === 'step');
+    const here  = steps.find(t => t.at === step);
+    if (here) parts.push(`Right now they are on "${here.title}", ${steps.indexOf(here) + 1} of `
+      + `${steps.length}. Assume their question is about what is in front of them.`);
+  }
+
+  const screen = onScreen(state).trim();
+  if (screen) parts.push(screen);
+
+  if (cited && cited.length) {
+    const names = cited.map(byId).filter(Boolean).map(c => c.chapter);
+    if (names.length) parts.push(`Already shown to this student in this conversation: `
+      + `${names.join(', ')}. Do not cite ${names.length > 1 ? 'those' : 'that'} again.`);
+  }
+
+  return parts.join('\n\n');
 }
 
 /* A busy model is the normal weather, not an outage: Gemini answers 503 when a
@@ -149,14 +175,14 @@ async function retrying(fn) {
 async function ask({ messages, provider, system, cited, lesson, step, state }) {
   const p = providers.pick(provider);
 
-  let prompt = (system || SYSTEM) + situation(lesson, step, state);
-  if (cited && cited.length) {
-    const names = cited.map(byId).filter(Boolean).map(c => c.chapter);
-    if (names.length) prompt += `\n\nAlready shown to this student in this conversation: `
-      + `${names.join(', ')}. Do not cite ${names.length > 1 ? 'those' : 'that'} again.`;
-  }
+  // Two strings, not one: the provider caches the first and pays full rate for
+  // the second. Concatenating them here would save a parameter and lose the
+  // discount on every turn.
+  const stable  = (system || SYSTEM) + situation(lesson);
+  const context = moment(lesson, step, state, cited);
 
-  const out = await retrying(() => p.ask({ system: prompt, messages, schema: schemaFor(lesson) }));
+  const out = await retrying(() => p.ask({ system: stable, context, messages,
+                                           schema: schemaFor(lesson) }));
 
   // Two models, two ways to be sloppy about a schema. Neither gets to reach the
   // page: an unknown id is dropped, and a missing array becomes an empty one.
@@ -314,4 +340,4 @@ function config() {
   };
 }
 
-module.exports = { ask, handleAsk, config, situation, schemaFor, SYSTEM, SCHEMA, MAX_CHARS };
+module.exports = { ask, handleAsk, config, situation, moment, schemaFor, SYSTEM, SCHEMA, MAX_CHARS };
