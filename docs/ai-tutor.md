@@ -22,10 +22,14 @@ Working end to end on `demos/water-lab.html`:
 
 ## Next steps, in order
 
-1. **Rate limit + deploy.** No limit exists; a public LLM endpoint without one is a free-money faucet. Vercel WAF rule on `/api/ask`. `vercel.json` exists but is untested. **`ASK_BENCH` must be unset in production** or a visitor can rewrite the tutor's prompt.
-2. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions.
-3. **Second lesson mount.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with).
-4. `?step=` on the four lessons that lack it, so away links land where they say.
+Reordered once the demo-mode design landed: glycolysis moved to the front, because the bake is downstream of it and of real logged questions.
+
+1. **Second lesson mount, and its UX.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). It comes first now: freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one.
+2. **Deploy, and collect.** `ASK_BENCH` **must be unset in production** or a visitor rewrites the tutor's prompt and spends your key on it. That is the sharp hole, sharper than the missing rate limit. `vercel.json` exists but is untested. Nothing downstream can start until real students have asked real questions.
+3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
+4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
+5. **Baked demo mode.** Gated on 1 and 2.
+6. `?step=` on the four lessons that lack it, so away links land where they say.
 
 ## Logging
 
@@ -61,6 +65,48 @@ node demos/tools/db.js cost     # turns, tokens and dollars per day
 `cost` reads the `cost_usd` the provider priced, so it quotes the rate that served the request rather than doing its own arithmetic against a table it would have to keep in step. It still understates: cache writes and cache storage are not in `usageMetadata`, as above.
 
 
+## Demo mode (designed, not built)
+
+The free tier stops being a throttled live tutor and becomes its own thing: a fixed set of questions whose answers were generated ahead of time, through the real prompt, and frozen. A hit renders in tens of milliseconds with its real `point` and its real chapters. Nothing generates, so there is no per-turn cost and nothing worth rate limiting.
+
+**The corpus already exists.** The `turns` view is a table of `(question, answer, point, chapters, lesson, step)`, real questions with answers the real prompt produced. Baking is *selecting rows out of the log*, not authoring a new artefact, and a human picks which ones are fit to teach. That is the precondition: **there is nothing to curate until real students have asked real questions**, which is why the bake sits behind deploying.
+
+**The integration is one function.** `answer(data)` in `chat.js` takes a plain `{answer, chapters, point}` and draws the reply, the Show me pill and the citations. A baked entry is already that shape, so demo mode is a source swap in front of one function. No second renderer, and nothing to keep in sync when the drawer changes.
+
+**A baked entry stores the target's id, not the resolved target.** Resolution stays in `_targets.js` at serve time, exactly as the live path does it, which keeps the load-bearing property (an id from a constrained enum, resolved where the catalog lives) and makes a renamed target fail loudly rather than link somewhere wrong. Embeddings live beside the entries as an int8 binary sidecar, never JSON: the same vectors as JSON parse an order of magnitude slower on every cold start.
+
+**Matching: an embed-only endpoint, with curated buttons as the static fallback.** The free tier's only model call becomes an embedding. That removes the expensive operation from the public path rather than throttling access to it, which is a better answer to the rate limit than a WAF rule. Everything after the embedding is local: a prototype measured brute-force cosine at 6.2 ms over 1148 items, and a baked set is an order of magnitude smaller, so **no vector database and no second service**. On GitHub Pages there is no `/api`, so the drawer offers its questions as a list instead of a text field, same entries and same renderer. That gives Pages a working tutor demo for the first time, where today the launcher never appears at all.
+
+**Not a lexical match in the page.** The same prototype found four ranking defects from lexical effects: a coincidental rare word placing an item, question filler scoring as content, companions drifting to the wrong chapter, compound words matching nothing. That was with a curation layer catching them. On a public demo with nobody in the loop, a confident wrong match is worse than an honest miss.
+
+**Four things that must not happen.**
+
+* **A miss dressed as a hit.** Below the similarity threshold the demo says it does not have that question and offers the ones it does. Never the nearest neighbour served as an answer. The cost of a false hit is a student taught something the tutor never said about their screen.
+* **A state-dependent answer getting baked.** `crowding` is a phrase and not a number because a shipped threshold once told a student with 13 molecules to add more. A baked answer has no screen at all, so a candidate whose text leans on its own `state` is disqualified. Machine-checkable: flag candidates whose answer overlaps their state chips.
+* **A silent stale bake.** A baked `point` naming a target a lesson has since renamed is invisible from the page, the same class of failure as a stale residue table. Wants a checker gated on the lesson files and `_targets.js`, in the pattern the repo already uses three times.
+* **A demo that hides what it is.** The empty state says the answers are pre-written, before the first question, not after a student notices.
+
+**What it does not solve.** The live path still needs the rate limit, since demo mode removes the free tier's exposure and not the live tutor's. Multi-turn does not bake: a logged answer beginning "Yes! Oil molecules are nonpolar" is only correct as turn 2 of its own conversation, so the demo is one question and one answer. And a checker catches a renamed target, never a sentence that has quietly become wrong.
+
+### The access link
+
+A link that turns the live tutor on, no accounts. It needs no new concept: **no key means demo mode, a valid key means the live tutor**, so the public site degrades to the baked demo rather than to an error.
+
+**The key rides in the URL once.** `?k=` on the shared link, then into `localStorage`, then stripped from the address bar, and sent as a header on every request after that. A query string ends up in server access logs, browser history and screenshots; a header ends up in none of them. Same reason `LOG_TOKEN` was dropped rather than fixed.
+
+**Keys name a cohort, not a person**: `TUTOR_KEYS=bio101-fall:<secret>,openday:<secret>`. The *label* is written to the thread row, so the log shows usage per cohort, a link that escapes is revoked on its own without cutting anyone else off, and a rate limit attaches to the label.
+
+**It is a bearer token and nothing more.** Everyone it is forwarded to has it, and there is no way around that without accounts. So it protects *spend*, never anything private, and the prepaid cap stays the real backstop. Leakage is expected and rotation is routine. If it ever has to be more than that, it needs accounts, and that is a different design.
+
+### Where to start
+
+Not with the baker. With a selection pass that only *prints*: logged turns grouped by near-duplicate question, state-dependent ones flagged, candidates per lesson. If real questions turn out not to repeat, that is learned for the price of one script instead of a subsystem. Then the baked files, then the checker, then static demo mode (shippable on its own), then free text via the endpoint, then a fixture eval of question to expected entry id on every rebuild, because a re-embedding degrades matching silently.
+
+Planned filenames, so a reader can tell design from code: `bake-answers.js`, `check-baked.js`, `api/match.js`. None of them exist.
+
+**Nothing checks this file.** `check-docs.js` reads `demos/*.md` and `demos/tools/*`, not the repo-root `docs/`, so every filename named here is an unverified claim, including the ones above. Widening it needs `api/`, `api/_providers/` and `ask/` added to its `SEARCH` list first, or real files like `chat.js` and `gemini.js` report as missing; doing that also surfaces three genuinely stale references in `ToDo.md` and `molecule-pipeline.md`. Worth doing, and it is not this document's job to pretend it is already done.
+
+
 ## What a session costs
 
 About **half a cent per turn**, measured, on `gemini-3.7-flash`. An eight-turn session is a cent or two. Thirty students is under a dollar.
@@ -79,7 +125,20 @@ Going the other way, adding to `situation` is nearly free at a tenth rate. **The
 
 **What the cost readout does not see:** writing a cache entry is billed at the input rate and holding it is billed by the hour, and Gemini reports neither in `usageMetadata`. The printed figure understates the first question against a cold instance. It is small against what the reads save; it is still an understatement.
 
-**Output is now the larger half of the bill**, which it was not before. If cost needs to come down again, the lever is `thinkingLevel` and answer length, not the prompt.
+**Output is now the larger half of the bill**, which it was not before. If cost needs to come down again, the lever is answer length, not the prompt, and **not `thinkingLevel`**: measured, `NONE` is not a valid value for that field on `gemini-3.7-flash` and `MINIMAL` is rejected as unsupported, so `LOW` is already the floor.
+
+`LOW` is not a flat spend either. It is adaptive, and it buys the aiming. Four real questions:
+
+```
+1340ms  thoughts    0  answer  80  | Why does ice float?
+2425ms  thoughts  320  answer  80  | What makes water polar?
+1756ms  thoughts    0  answer  77  | How does a pump differ from a channel?
+2698ms  thoughts  485  answer  63  | Who invented the microscope?
+```
+
+Nothing on the easy ones, 300 to 500 tokens on the hard ones, and latency tracks it exactly: about 1.4s without thinking, 2.5s with. The ~2s average is a blend of two populations, not a flat cost. Note **which** two it thought about: the polarity question, and the one that must point at *nothing*, which is the hardest call the tutor makes. Thinking is being spent where the aiming is hard.
+
+Those thought tokens bill as output at the output rate, so a thinking turn runs about 3x a non-thinking one. It is a real cost driver and not one that can be dialled down without changing model. `thoughtsTokenCount` is folded into `output` in the stored usage, so the log cannot show this split; measuring it needs a direct call.
 
 **The rate doubles on 2026-12-31.** `gemini-3.7-flash` is priced promotionally at $0.75/$3.75 per 1M tokens in/out; after that date it is $1.50/$7.50. Nothing in the repo changes and nothing fails - the same questions cost twice as much. It is the only number here that moves on a schedule rather than when someone edits something, so it is the one worth a calendar entry. The rates live in `gemini.js`'s `PRICES` table and must be updated there, not here, or the cost readout starts quoting the old ones.
 
