@@ -137,7 +137,9 @@ const norm = n => n.replace(/^demos\//, '');
 // one of their files bare failed here. Every directory that holds a script
 // prose might name belongs in this list — the failure mode is a checker that
 // cries wolf at correct documentation, which trains people to ignore it.
-const SEARCH = ['.', 'tools', 'folding', 'folding/tools',
+// '..' is the repo root, which dev-server.js serves and GitHub Pages publishes;
+// a doc in demos/ naming api/_tutor.js is naming it from there, not from here.
+const SEARCH = ['.', '..', 'tools', 'folding', 'folding/tools',
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
                 'kit', 'reaction', 'coupling', 'lobes', 'dna'];

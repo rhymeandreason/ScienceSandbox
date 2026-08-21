@@ -25,6 +25,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `krebs-lab.html` | The Krebs cycle. Pyruvate oxidation, then eight steps around the ring, with the loop drawn in the sidebar and a second turn played back for the ×2. Where the carbon goes, and why the ATP is beside the point | prototype |
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
 | `water-tutor-lab.html` | **AI-tutor prototype.** Structure of water, with the right rail given to the tutor: the lesson's text lives on the model as annotate.js callouts, and an ask box takes the sidebar | prototype |
+| `design-system.html` | **The design system bench.** Every token, type step and button in `main.css`, drawn on the stage's own paper. Swatches read their own computed value, so the page cannot claim a colour the token does not hold | test |
 | `water-render-debug.html` | Test bench for render styles — a still life of water, an H-bond and the two ions, with colour swatches and the toon/outline switches. Built on Stage's own factories, so a style judged here is the one a lesson renders | test |
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | prototype |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | test |
@@ -38,6 +39,8 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
 ## Making a new lesson
+
+**Load `main.css` before `sandbox.css`.** `main.css` is the design system: tokens (primitive → semantic → domain), the type scale, and the six button shapes. `sandbox.css` is the old shared chrome, being retired into it; because it loads second it still wins wherever the two overlap, so moving a piece across is a deletion rather than an edit. Atom and bond colours are not written in CSS at all: `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. See `design-system.html`.
 
 **Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Full script-load order, the module reference table, and the seven-step checklist for building a new page: **`AddingAPage.md`**.
 

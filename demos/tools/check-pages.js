@@ -56,7 +56,9 @@ const PDB_PAGES = new Set(['viewer-compare.html']);
 // index.html draws nothing at all — it is a redirect up to the lesson index at
 // the repo root, which is where GitHub Pages serves it from. admin.html is an
 // internal nav page linking to other pages' scenes, not a scene itself.
-const NO_SCENE = new Set(['index.html', 'admin.html']);
+// design-system.html loads palette.js to read the atom colours as swatches,
+// which is the only reason it looks like a scene; it renders no molecule.
+const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html']);
 
 const PAGES = fs.readdirSync(ROOT)
   .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();

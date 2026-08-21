@@ -1,0 +1,544 @@
+/* =============================================================================
+   main.css — the design system: tokens, type scale, buttons.
+
+   LOAD ORDER MATTERS. Every page links this file BEFORE sandbox.css:
+
+       <link rel="stylesheet" href="main.css">
+       <link rel="stylesheet" href="sandbox.css">     <!-- retiring -->
+       <link rel="stylesheet" href="<page>.css">      <!-- page chrome -->
+
+   sandbox.css therefore wins wherever the two still overlap, and retiring a
+   piece of it is a deletion: cut the block, and this file's version takes over
+   with nothing else to edit. The one exception is sandbox.css's :root, which
+   moved here wholesale rather than being shadowed, because a token the old
+   file redefines is a token this file cannot change.
+
+   Three tiers, and a rule for choosing between them:
+     PRIMITIVE  a raw value with no opinion about use (--cream-300)
+     SEMANTIC   a role in the UI (--surface-page, --text-muted)
+     DOMAIN     a fact about the science (--atom-O, --energy-atp)
+   Pages and components reference the second two. Reach for a primitive only
+   when the thing genuinely has no role, which is rarer than it looks.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap');
+
+/* -----------------------------------------------------------------------------
+   0. BASE
+   Declared here rather than inherited from sandbox.css, which is on its way out.
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box }
+
+/* -----------------------------------------------------------------------------
+   1. PRIMITIVES
+   -------------------------------------------------------------------------- */
+:root {
+  /* Warm neutrals. One ramp, cream through to ink, lifted off the values the
+     lessons had already converged on by hand. Every surface and every piece of
+     text on the paper comes from here. */
+  --cream-50:  #fffdf7;
+  --cream-100: #fbf7ee;
+  --cream-200: #f8f5ef;
+  --cream-300: #efe6d6;
+  --cream-400: #e2d8c6;
+  --cream-500: #d8cfbf;
+  --cream-600: #b9ae9d;
+  --clay-500:  #8a8073;
+  --clay-600:  #5a5346;
+  --clay-700:  #4a4232;
+  --clay-800:  #3a352f;
+  --clay-900:  #2b2723;
+
+  --slate-700: #353f44;
+
+  /* Temperature, and the two ends of any hot/cold readout. */
+  --ember-500: #e5533a;
+  --azure-500: #4a90d9;
+}
+
+/* -----------------------------------------------------------------------------
+   2. SEMANTIC
+   -------------------------------------------------------------------------- */
+:root {
+  --surface-page:    var(--cream-300);   /* the stage's paper */
+  --surface-rule:    var(--cream-400);   /* the dots printed on it */
+  --surface-raised:  var(--cream-200);   /* a card or panel lying on the paper */
+  --surface-card:    var(--cream-50);    /* a sticky note, brighter than the page */
+  --border-hair:     var(--cream-500);
+  --border-strong:   var(--clay-900);    /* the drawn 2px line round a button */
+
+  --text-strong:     var(--clay-900);
+  --text-body:       var(--clay-800);
+  --text-dim:        var(--clay-600);
+  --text-muted:      var(--clay-500);
+  --text-inverse:    var(--cream-300);   /* on an ink fill */
+
+  --accent-hot:      var(--ember-500);
+  --accent-cold:     var(--azure-500);
+  --sketch:          var(--slate-700);
+
+  /* Focus is a system-level promise, not a per-page one. Half the featured
+     pages ship a focus ring today and half do not; components below all use
+     this so the answer stops depending on which lesson you are in. */
+  --focus-ring:      2px solid var(--clay-900);
+  --focus-offset:    3px;
+}
+
+/* -----------------------------------------------------------------------------
+   3. DOMAIN
+   Atoms and bonds are NOT written out here. They are generated from palette.js
+   at load (see tokens-from-palette.js) so a caption's coloured O and the sphere
+   it points at cannot drift, which is exactly what they had done: the old CSS
+   said #e6362f and the renderer drew #d6362e. Available as --atom-O, --atom-H,
+   --atom-Na ... and --bond-hbond, --bond-covalent, --bond-iondipole,
+   --bond-peptide, --bond-lonepair.
+
+   Below are the domain colours that belong to a lesson rather than to an
+   element, hoisted out of the three per-page :root blocks.
+   -------------------------------------------------------------------------- */
+:root {
+  /* bonding, in molecule-builder. --bond-ionic is the ion-dipole amber and is
+     the same number palette.js draws the bond with. --bond-covalent-ink is a
+     darkened stand-in for it: the stick's stone (#b3a892) is tuned to read on
+     cream at sphere size and goes illegible as 13px type. */
+  --bond-ionic:        #d9791e;
+  --bond-covalent-ink: #7a6f58;
+
+  /* protein structure, in hemoglobin-lab. --protein-hbond is palette.js's
+     hbond, so the ribbon and the word for it agree. */
+  --protein-hbond: #0042aa;
+  --protein-core:  #c2571b;
+  --protein-coil:  #8a8378;
+  --protein-quat:  #8a5a12;
+
+  /* energy and carriers, in glycolysis-lab and krebs-lab. --energy-phosphate
+     is palette.js's P and --energy-carbon is its C. */
+  --energy-phosphate: #e07b1f;
+  --energy-nad:       #2f7d5c;
+  --energy-atp:       #c8452e;
+  --energy-carbon:    #3a3a3a;
+
+  /* the membrane's channel green, which membrane-lab repeats as a literal in
+     six places and names nowhere */
+  --membrane-channel: #2a7a6a;
+}
+
+/* -----------------------------------------------------------------------------
+   4. TYPE
+   Four families, named by the job they do rather than by what they look like,
+   because the job is what decides which one a new page should reach for.
+   -------------------------------------------------------------------------- */
+:root {
+  /* UI: labels, buttons, controls, anything the student operates. */
+  --font-ui: 'Proxima Soft', 'Proxima Nova', 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Editorial: headings, readouts, the claim a step is making. The workhorse.
+     glycolysis reaches for it more than everything else combined. */
+  --font-editorial: 'Zilla Slab', Georgia, serif;
+  /* Shout: a title, a sticky note, the one word a page raises its voice for.
+     Used four times on a busy page, never for a run of text. */
+  --font-shout: 'Permanent Marker', cursive;
+  /* Aside: annotation in the margin, in the student's own hand. */
+  --font-aside: 'Caveat', cursive;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Scale. Twenty-six distinct sizes are in the featured pages today, nine of
+     them fractional. These ten steps cover every one of them, and every step is
+     an even number except --text-sm, which is the size the buttons wanted and
+     is worth an odd box for.
+
+     Nothing outside the buttons below is re-pointed at the scale by this file.
+     Migrating a page is its own pass, with the browser open, because rounding
+     12.5 up or down is a look and not a find-and-replace. */
+  --text-2xs:  10px;    /* letterspaced uppercase micro-labels, axis ticks */
+  --text-xs:   12px;    /* quiet chrome: dock buttons, tabs, undo */
+  --text-sm:   13px;    /* buttons, dense readouts */
+  --text-base: 16px;
+  --text-md:   18px;    /* the step's claim */
+  --text-lg:   20px;
+  --text-xl:   22px;    /* page title */
+  --text-2xl:  26px;
+  --text-3xl:  34px;
+  --text-4xl:  46px;
+
+  --leading-tight: 1.15;
+  --leading-snug:  1.35;
+  --leading-body:  1.5;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --tracking-tight: -.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   .2px;
+  --tracking-caps:   .06em;   /* uppercase micro-labels need the air */
+}
+
+/* -----------------------------------------------------------------------------
+   5. SPACE, SHAPE, MOTION
+   -------------------------------------------------------------------------- */
+:root {
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  22px;
+  --space-6:  30px;
+  --space-7:  44px;
+
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-pill: 999px;
+
+  --shadow-raise: 0 2px 0 rgba(43, 39, 35, .18), 0 6px 16px -8px rgba(43, 39, 35, .6);
+  --shadow-panel: 0 6px 24px -12px rgba(43, 39, 35, .45);
+  --shadow-press: 0 1px 0 rgba(43, 39, 35, .18);
+
+  --ease-out: cubic-bezier(.2, .9, .3, 1);
+  --dur-fast: .12s;
+  --dur-base: .2s;
+}
+
+/* -----------------------------------------------------------------------------
+   6. LEGACY ALIASES
+   The names sandbox.css and all four featured lessons already use, pointed at
+   the tiers above. They exist so sandbox.css's :root could be deleted without
+   touching a page, and they are the migration's checklist: when nothing greps
+   for --ink any more, that line goes.
+   -------------------------------------------------------------------------- */
+:root {
+  --paper:      var(--surface-page);
+  --paper-line: var(--surface-rule);
+  --panel:      var(--surface-raised);
+  --ink:        var(--text-strong);
+  --muted:      var(--text-muted);
+  --hair:       var(--border-hair);
+  --radius:     var(--radius-lg);
+  --hot:        var(--accent-hot);
+  --cold:       var(--accent-cold);
+
+  --font-sans:   var(--font-ui);
+  --font-slab:   var(--font-editorial);
+  --font-marker: var(--font-shout);
+  --font-hand:   var(--font-aside);
+
+  /* The torn edge masking #side. It belongs to the graph-paper sidebar, which
+     glycolysis and water-tutor both switch off by hand, so it is already on its
+     way out; it lives here only so sandbox.css keeps resolving until that block
+     goes. */
+  --torn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
+}
+
+/* =============================================================================
+   7. BUTTONS
+
+   Six shapes, lifted from what the featured lessons had already converged on
+   rather than invented. Each is a base class plus modifiers, so a page picks a
+   shape and then says only what is true of its own button (usually a colour).
+
+     .pill       capsule. The default for anything on the stage.
+     .btn        drawn rectangle, ink border, inverts on hover. Docks and trays.
+     .iconbtn    circular, one glyph. Play, info, close.
+     .stickybtn  a note torn off and stuck on. The notebook, as a control.
+     .segmented  segmented control, joined by shared borders.
+     .textbtn    underlined text. Undo, dismiss, anything reversible and minor.
+
+   Every one of them takes the same focus ring. Half the featured pages ship a
+   focus ring today and half do not, and which half you are in is not something
+   a student should be able to notice.
+   ========================================================================== */
+
+.pill,
+.btn,
+.iconbtn,
+.stickybtn,
+.segmented > *,
+.textbtn {
+  font-family: var(--font-ui);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pill:focus-visible,
+.btn:focus-visible,
+.iconbtn:focus-visible,
+.stickybtn:focus-visible,
+.segmented > *:focus-visible,
+.textbtn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.pill[disabled],
+.btn[disabled],
+.iconbtn[disabled],
+.stickybtn[disabled],
+.segmented > *[disabled],
+.textbtn[disabled] {
+  opacity: .45;
+  cursor: default;
+}
+
+/* ---------- .pill ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 12px 24px;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  line-height: 1;
+  /* Solid is the default because an unqualified .pill on the stage is nearly
+     always the thing the step is asking the student to press. A page sets
+     --pill-fill to its own substance's colour and changes nothing else. */
+  --pill-fill: var(--text-strong);
+  background: var(--pill-fill);
+  color: #fff;
+  box-shadow: var(--shadow-raise);
+  transition: filter var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.pill:hover:not([disabled]) { filter: brightness(1.07) }
+
+.pill:active:not([disabled]) {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-press);
+}
+
+/* Ghost: the same capsule with the fill taken away. This is what a row of step
+   tabs is, so a lesson's spine and its buttons stay one family. */
+.pill--ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 2px solid var(--border-hair);
+  box-shadow: none;
+  padding: 8px 16px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  /* 14 + 16 padding + 4 border = 34, the same height as .btn. The line-height
+     rather than the padding is the lever, so the tabs keep their own shape. */
+  line-height: 14px;
+}
+
+.pill--ghost:hover:not([disabled]) {
+  filter: none;
+  color: var(--text-strong);
+  border-color: var(--text-muted);
+}
+
+.pill--ghost[aria-current],
+.pill--ghost.is-on {
+  color: var(--text-strong);
+  font-weight: var(--weight-semibold);
+  border-color: var(--text-strong);
+}
+
+/* 14 + 16 padding = 30. .pill's line-height:1 would make it 29 off a 13px
+   label, so the small pill states its own. */
+.pill--sm { padding: 8px 16px; font-size: var(--text-sm); line-height: 14px }
+
+/* The nudge: a ring breathing out of a pill while the scene is still too empty
+   to show what the step is about. The button itself does not move, so it stays
+   an easy target while it is asking. */
+.pill.is-nudging { animation: pill-nudge 1.9s ease-out infinite }
+
+@keyframes pill-nudge {
+  0%   { box-shadow: var(--shadow-press), 0 0 0 0   var(--pill-fill) }
+  70%  { box-shadow: var(--shadow-press), 0 0 0 14px transparent }
+  100% { box-shadow: var(--shadow-press), 0 0 0 0   transparent }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill.is-nudging {
+    animation: none;
+    outline: 2px solid var(--pill-fill);
+    outline-offset: 3px;
+  }
+}
+
+/* ---------- .btn ----------
+   glycolysis-lab's dock buttons, promoted. Quiet by default: muted type on a
+   hair-thin border with nothing behind it, filling with ink only on hover. A
+   lesson's stage is busy, and a row of white-filled buttons in the corner
+   competes with the molecule for the one thing the student should be looking
+   at. The fill on hover is what makes it a door.
+
+   Icons are Phosphor bold (<i class="ph-bold ph-arrow-counter-clockwise">),
+   and most .btn instances carry one. The gap is set here so a page adds the
+   <i> and nothing else. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--border-hair);
+  border-radius: var(--radius-lg);
+  padding: 6px 16px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: .5px;
+  /* 18 + 12 padding + 4 border = 34. Declared in px rather than left at
+     `normal`, which is where the dock buttons were: Safari gives a 13px label
+     an 18px line box and Chrome gives it 13, so an undeclared button is 34 in
+     one browser and 29 in the other. */
+  line-height: 18px;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.btn:hover:not([disabled]) {
+  background: var(--text-strong);
+  border-color: var(--text-strong);
+  color: var(--text-inverse);
+}
+
+/* A checkbox is not a door: it takes the border on hover and never the fill,
+   because the ink fill is reserved for "this opens something".
+
+   And it does not change when checked. The tick inside it is the state, in ink;
+   the chip around the tick is only a label, and darkening it too says the same
+   thing twice. glycolysis-lab renders it this way, though by accident rather
+   than intent: it carries a `.chk:has(input:checked)` rule that would darken
+   the border, dead at (0,2,1) under the `#showenz` rule's (1,0,0). Worth
+   deleting there, because raising its specificity would silently undo this. */
+.btn--check:hover:not([disabled]) {
+  background: transparent;
+  border-color: var(--text-strong);
+  color: var(--text-strong);
+}
+
+.btn--check input {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--text-strong);
+  cursor: pointer;
+}
+
+/* ---------- .iconbtn ---------- */
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  transition: color var(--dur-fast), transform var(--dur-fast);
+}
+
+.iconbtn:hover:not([disabled]),
+.iconbtn.is-on { color: var(--text-strong) }
+
+.iconbtn--solid {
+  border: 2px solid var(--text-strong);
+  background: var(--text-strong);
+  color: #fff;
+  font-size: var(--text-base);
+}
+
+.iconbtn--solid:hover:not([disabled]) {
+  color: #fff;
+  transform: scale(1.1);
+}
+
+/* ---------- .stickybtn ---------- */
+.stickybtn {
+  /* inline-flex, not inline-block: the marker face's line box carries a
+     fractional descender, and an inline-block button inherits it as an odd
+     height that no amount of even padding can correct. */
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 6px 10px 8px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-family: var(--font-shout);
+  font-size: var(--text-md);
+  line-height: 1;
+  /* The one control that does not come out to an even height, and cannot be
+     made to. Permanent Marker's ascent+descent is 1.1617em, so its content box
+     is 20.91px at 18px, and Chrome adds that overflow to a button's box
+     whatever you set: line-height, height, min-height and overflow:hidden were
+     all measured and none of them move the .91. Every other button here is
+     even; this one renders at 39 and is left alone rather than wrapped in an
+     extra element to win a rounding argument. */
+  /* Sat crooked, and it stays crooked through hover and press: a note that
+     straightens itself when you touch it stops reading as a piece of paper. */
+  --tilt: -.8deg;
+  transform: rotate(var(--tilt));
+  transition: background var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.stickybtn:hover:not([disabled]) {
+  background: #fff;
+  transform: rotate(var(--tilt)) translateY(-1px);
+}
+
+.stickybtn:active:not([disabled]) {
+  transform: rotate(var(--tilt)) translateY(2px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* ---------- .segmented ----------
+   Not .seg: hemoglobin-lab already builds its progress bar out of elements it
+   names 'seg', and a bare class here would have drawn a border round every
+   segment of it. */
+.segmented {
+  display: inline-flex;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.segmented > * {
+  border: 0;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  /* 14 + 16 padding = 30, plus the container's own 4px border = 34. */
+  line-height: 14px;
+}
+
+.segmented > * + * { border-left: 2px solid var(--border-strong) }
+
+.segmented > *[aria-pressed="true"],
+.segmented > *.is-on {
+  background: var(--text-strong);
+  color: var(--text-inverse);
+}
+
+/* The ring goes inside, because an outline on one joined segment otherwise
+   draws over its neighbours. */
+.segmented > *:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--clay-900);
+}
+
+/* ---------- .textbtn ---------- */
+.textbtn {
+  border: 0;
+  padding: 2px 6px;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 18px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.textbtn:hover:not([disabled]) { color: var(--text-strong) }

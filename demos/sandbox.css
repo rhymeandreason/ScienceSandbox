@@ -1,38 +1,14 @@
 /* ---------------------------------------------------------------------------
-   Fonts load HERE, not in the pages. Every page already links sandbox.css, so
-   this @import is the one place the font set is declared — adding a family or a
-   weight is a single edit instead of seven. Pages keep only the two
-   <link rel=preconnect> hints (an @import is discovered late, after this file
-   is fetched and parsed, so the early handshake is worth the duplicated line;
-   those two lines never change when the font set does).
+   sandbox.css — the shared page chrome, being retired into main.css.
 
-   --font-sans is Nunito, the closest freely-licensed stand-in for Proxima Soft.
-   The Proxima names stay ahead of it in the stack, so a machine that has the
-   real thing installed uses it and everyone else gets Nunito.
+   Every page links main.css FIRST, so anything still here wins over the design
+   system, and moving a piece across is a deletion rather than an edit. Tokens
+   and the font @import have already gone; what is left is layout and the
+   lesson furniture (#stage, #side, #card, .chip and the rest).
+
+   Pages keep their two <link rel=preconnect> hints, because main.css's @import
+   is discovered late and the early handshake is worth the duplicated line.
    --------------------------------------------------------------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Zilla+Slab:wght@500;600;700&family=Caveat:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap');
-
- :root {
-   --paper: #efe6d6;
-   --paper-line: #e2d8c6;
-   --panel: #f8f5ef;
-   --ink: #2b2723;
-   --muted: #8a8073;
-   --hair: #d8cfbf;
-   --sketch: #353f44;
-   --radius: 10px;
-   --O: #e6362f;
-   --H: #9DADC2;
-   --Na: #a052e0;
-   --Cl: #2fbf7a;
-   --hot: #e5533a;
-   --cold: #4a90d9;
-   --font-marker: 'Permanent Marker', cursive;
-   --font-slab: 'Zilla Slab', Georgia, serif;
-   --font-hand: 'Caveat', cursive;
-   --font-sans: 'Proxima Soft', 'Proxima Nova', 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-   --torn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
- }
 
  * {
    box-sizing: border-box
@@ -444,7 +420,12 @@
    line-height: 1.7
  }
 
+ /* line-height declared, not left at `normal`: Safari resolves an undeclared
+    13px button label to an 18px line box and Chrome to 13, which made this
+    button 34 tall in one and 29 in the other on all thirteen pages that use it.
+    Pinned to the 34 the design system uses. */
  #savepng {
+   line-height: 18px;
    position: absolute;
    left: 26px;
    bottom: 22px;

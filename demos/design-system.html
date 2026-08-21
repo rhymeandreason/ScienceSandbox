@@ -1,0 +1,190 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Design system — ScienceSandbox</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="main.css">
+<style>
+  /* This bench's own furniture only. Nothing here is the system; everything
+     being judged below comes from main.css. */
+  body{margin:0;background:var(--surface-page);
+    background-image:radial-gradient(var(--surface-rule) 1.4px,transparent 1.4px);
+    background-size:26px 26px;background-position:13px 13px;
+    color:var(--text-body);font-family:var(--font-ui)}
+  main{max-width:1100px;margin:0 auto;padding:var(--space-6) var(--space-5) var(--space-7)}
+  h1{font-family:var(--font-shout);font-size:var(--text-4xl);color:var(--text-strong);
+    margin:0 0 var(--space-2);font-weight:400}
+  .lede{font-family:var(--font-editorial);font-size:var(--text-lg);
+    line-height:var(--leading-snug);color:var(--text-dim);max-width:52em;margin:0 0 var(--space-6)}
+  h2{font-family:var(--font-editorial);font-size:var(--text-2xl);color:var(--text-strong);
+    margin:var(--space-7) 0 var(--space-1);font-weight:var(--weight-bold)}
+  h2 + p{margin:0 0 var(--space-4);font-size:var(--text-sm);color:var(--text-muted);max-width:56em;line-height:var(--leading-body)}
+  h3{font-size:var(--text-2xs);text-transform:uppercase;letter-spacing:var(--tracking-caps);
+    color:var(--text-muted);margin:var(--space-5) 0 var(--space-3);font-weight:var(--weight-bold)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--space-2)}
+  .sw{border-radius:var(--radius-md);overflow:hidden;background:var(--surface-raised);
+    box-shadow:var(--shadow-panel)}
+  .sw i{display:block;height:56px}
+  .sw b{display:block;padding:7px 10px 2px;font-size:var(--text-sm);
+    font-weight:var(--weight-semibold);color:var(--text-strong)}
+  .sw code{display:block;padding:0 10px 9px;font-family:var(--font-mono);
+    font-size:var(--text-2xs);color:var(--text-muted)}
+  .row{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;
+    padding:var(--space-4);background:var(--surface-raised);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-panel);margin-bottom:var(--space-3)}
+  .row > .spec{flex:0 0 100%;order:99;margin-top:2px;font-family:var(--font-mono);
+    font-size:var(--text-2xs);color:var(--text-muted);line-height:1.7}
+  .row > .spec b{font-weight:var(--weight-bold);color:var(--text-dim)}
+  .row > .lbl{flex:0 0 100%;font-size:var(--text-2xs);text-transform:uppercase;
+    letter-spacing:var(--tracking-caps);color:var(--text-muted);font-weight:var(--weight-bold)}
+  .typerow{display:flex;align-items:baseline;gap:var(--space-4);padding:var(--space-2) 0;
+    border-bottom:1px solid var(--border-hair)}
+  .typerow code{flex:0 0 120px;font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--text-muted)}
+  .typerow span{color:var(--text-strong)}
+  .fam{padding:var(--space-3) 0;border-bottom:1px solid var(--border-hair)}
+  .fam code{display:block;font-family:var(--font-mono);font-size:var(--text-2xs);
+    color:var(--text-muted);margin-bottom:4px}
+  .fam p{margin:0;font-size:var(--text-2xl);color:var(--text-strong)}
+</style>
+
+<main>
+<h1>Design system</h1>
+<p class="lede">Everything below is drawn by <code>main.css</code> on the stage's own paper. If a swatch or a
+button looks wrong here, it looks wrong in the lesson. Judge at ~1440&times;900.</p>
+
+<h2>Surfaces and text</h2>
+<p>The semantic tier. Pages should name these, not the ramp underneath.</p>
+<div class="grid" id="sem"></div>
+
+<h2>Atoms</h2>
+<p>Generated from <code>palette.js</code> at load by <code>tokens-from-palette.js</code>, so a caption and the sphere
+it names cannot drift. Oxygen used to be <code>#e6362f</code> in CSS and <code>#d6362e</code> in the renderer.</p>
+<div class="grid" id="atoms"></div>
+
+<h2>Bonds</h2>
+<p>A bond's colour is a lesson, not an element.</p>
+<div class="grid" id="bonds"></div>
+
+<h2>Lesson domains</h2>
+<p>Hoisted out of the three per-page <code>:root</code> blocks in builder, hemoglobin and glycolysis.</p>
+<div class="grid" id="dom"></div>
+
+<h2>Type</h2>
+<p>Four families, named by the job. Ten steps covering the twenty-six sizes the featured pages use today.</p>
+<h3>Families</h3>
+<div id="fams"></div>
+<h3>Scale</h3>
+<div id="scale"></div>
+
+<h2>Buttons</h2>
+<p>Tab through them: every shape takes the same focus ring.</p>
+
+<div class="row"><span class="lbl">.pill — the default on the stage</span>
+  <button class="pill">Add water</button>
+  <button class="pill" style="--pill-fill:#3d6fb0">Add water</button>
+  <button class="pill" style="--pill-fill:var(--bond-ionic)">Add salt</button>
+  <button class="pill pill--sm">Small</button>
+  <button class="pill is-nudging" style="--pill-fill:#3d6fb0">Nudging</button>
+  <button class="pill" disabled>Disabled</button>
+</div>
+
+<div class="row"><span class="lbl">.pill--ghost — step tabs</span>
+  <button class="pill pill--ghost is-on">Structure</button>
+  <button class="pill pill--ghost">Hydrogen bonds</button>
+  <button class="pill pill--ghost">Ice</button>
+  <button class="pill pill--ghost">Salt</button>
+</div>
+
+<div class="row"><span class="lbl">.btn &mdash; docks and trays, usually with an icon</span>
+  <button class="btn"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
+  <button class="btn"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
+  <button class="btn"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  <button class="btn">No icon</button>
+  <button class="btn" disabled><i class="ph-bold ph-lock-simple"></i> Disabled</button>
+</div>
+
+<div class="row"><span class="lbl">.btn--check &mdash; a state, not a door</span>
+  <label class="btn btn--check"><input type="checkbox" checked> Enzymes</label>
+  <label class="btn btn--check"><input type="checkbox"> Ledger</label>
+</div>
+
+<div class="row"><span class="lbl">.iconbtn</span>
+  <button class="iconbtn" aria-label="Info">i</button>
+  <button class="iconbtn is-on" aria-label="Info">i</button>
+  <button class="iconbtn iconbtn--solid" aria-label="Play">&#9654;</button>
+</div>
+
+<div class="row"><span class="lbl">.stickybtn — the notebook, as a control</span>
+  <button class="stickybtn">What just happened?</button>
+  <button class="stickybtn" style="--tilt:1.2deg">Try it</button>
+</div>
+
+<div class="row"><span class="lbl">.segmented</span>
+  <div class="segmented">
+    <button aria-pressed="true">2D</button>
+    <button aria-pressed="false">3D</button>
+    <button aria-pressed="false">Flat</button>
+  </div>
+</div>
+
+<div class="row"><span class="lbl">.textbtn</span>
+  <button class="textbtn">Undo</button>
+  <button class="textbtn">Dismiss</button>
+</div>
+</main>
+
+<script src="palette.js"></script>
+<script src="tokens-from-palette.js"></script>
+<script>
+// Every swatch reads its own computed value, so this page cannot claim a colour
+// the token does not actually hold.
+const css = getComputedStyle(document.documentElement);
+const put = (id, names) => document.getElementById(id).innerHTML = names.map(n =>
+  `<div class="sw"><i style="background:var(${n})"></i><b>${n.replace(/^--/,'')}</b><code>${css.getPropertyValue(n).trim()}</code></div>`
+).join('');
+
+put('sem', ['--surface-page','--surface-rule','--surface-raised','--surface-card',
+            '--border-hair','--border-strong','--text-strong','--text-body','--text-dim',
+            '--text-muted','--accent-hot','--accent-cold','--sketch']);
+put('atoms', Object.keys(MolPalette.atoms).map(e => '--atom-' + e));
+put('bonds', Object.keys(MolPalette.bonds).map(b => '--bond-' + b));
+put('dom', ['--bond-ionic','--bond-covalent-ink','--protein-hbond','--protein-core',
+            '--protein-coil','--protein-quat','--energy-phosphate','--energy-nad',
+            '--energy-atp','--energy-carbon','--membrane-channel']);
+
+document.getElementById('fams').innerHTML = [
+  ['--font-ui','Labels, buttons, controls'],
+  ['--font-editorial','Headings, readouts, the claim'],
+  ['--font-shout','A title, a sticky note'],
+  ['--font-aside','Annotation, in the margin'],
+].map(([n,use]) => `<div class="fam"><code>${n} — ${use}</code><p style="font-family:var(${n})">Water is the universal solvent</p></div>`).join('');
+
+// Each button row prints its own computed padding, size and height. A bench that
+// states its specs from the stylesheet cannot show you a stale one: if these do
+// not match what you just edited, you are looking at a cached page.
+for (const row of document.querySelectorAll('.row')) {
+  const seen = new Map();
+  for (const el of row.querySelectorAll('button,label,.segmented > *')) {
+    const cs = getComputedStyle(el);
+    const key = [...el.classList].join('.') ||
+                (el.closest('.segmented') ? 'segmented > ' + el.tagName.toLowerCase()
+                                          : el.tagName.toLowerCase());
+    if (seen.has(key)) continue;
+    seen.set(key, `${cs.padding.replace(/px/g,'')} &middot; ${parseFloat(cs.fontSize)}px &middot; ` +
+                  `${parseFloat(cs.borderTopWidth)}px border &middot; ${Math.round(el.getBoundingClientRect().height)}px tall`);
+  }
+  const d = document.createElement('div');
+  d.className = 'spec';
+  d.innerHTML = [...seen].map(([k, v]) => `<b>.${k}</b> &nbsp;${v}`).join('<br>');
+  row.appendChild(d);
+}
+
+document.getElementById('scale').innerHTML =
+  ['2xs','xs','sm','base','md','lg','xl','2xl','3xl','4xl'].map(s => {
+    const n = '--text-' + s;
+    return `<div class="typerow"><code>${n}</code><code>${css.getPropertyValue(n).trim()}</code>` +
+           `<span style="font-size:var(${n})">Hydrogen bonds hold the lattice open</span></div>`;
+  }).join('');
+</script>
