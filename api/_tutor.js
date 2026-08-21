@@ -15,6 +15,7 @@
 
 const { CHAPTERS, IDS, byId } = require('./_catalog.js');
 const providers = require('./_providers');
+const log       = require('./_log.js');
 const targets   = require('./_targets.js');
 
 const MAX_CHARS = 500;   // a question, not a pasted essay
@@ -172,8 +173,8 @@ async function retrying(fn) {
  * the student's latest. `system` overrides the tutor prompt (bench only), and
  * `cited` names chapters already shown in this thread, so the caller can test
  * whether suppressing a repeat citation reads better than repeating it. */
-async function ask({ messages, provider, system, cited, lesson, step, state }) {
-  const p = providers.pick(provider);
+async function ask({ messages, provider, system, cited, lesson, step, state, bench }) {
+  const p = providers.pick(provider, bench);
 
   // Two strings, not one: the provider caches the first and pays full rate for
   // the second. Concatenating them here would save a parameter and lose the
@@ -238,7 +239,7 @@ async function ask({ messages, provider, system, cited, lesson, step, state }) {
 /* Transport-free request handling: validation, the call, and the error mapping,
  * so the Vercel function and the dev server behave identically instead of
  * drifting into two versions of "what does a bad question do". */
-async function handleAsk(payload) {
+async function handleAsk(payload, { bench = false } = {}) {
   const body   = payload || {};
   const wanted = body.provider || null;
 
@@ -257,49 +258,71 @@ async function handleAsk(payload) {
   if (messages.length > MAX_TURNS)       return { status: 400, body: { error: `this thread is over ${MAX_TURNS} turns, start a new one` } };
 
   // A client-supplied system prompt is a bench affordance and nothing else:
-  // anywhere it is allowed, the student writes the tutor's instructions.
+  // anywhere it is allowed, the student writes the tutor's instructions. The
+  // caller decides whether this is a bench, from the request's own address.
   let system = null;
   if (body.system) {
-    if (!providers.bench()) return { status: 403, body: { error: 'this deployment does not let the request set the prompt' } };
+    if (!bench) return { status: 403, body: { error: 'this deployment does not let the request set the prompt' } };
     system = String(body.system);
   }
 
   const t0 = Date.now();
+  const note = (out, error, ms) => log.logTurn({
+    threadId: body.threadId, visitorId: body.visitorId, lesson: body.lesson,
+    question: last.content, step: Number(body.step), state: body.state,
+    out, error, ms,
+  });
+
+  let out = null, res;
   try {
-    const out = await ask({ messages, provider: wanted, system, cited: body.cited,
-                            lesson: body.lesson, step: Number(body.step), state: body.state });
-    return { status: 200, body: { ...out, ms: Date.now() - t0 } };
+    out = await ask({ messages, provider: wanted, system, cited: body.cited,
+                      lesson: body.lesson, step: Number(body.step), state: body.state, bench });
+    res = { status: 200, body: { ...out, ms: Date.now() - t0 } };
   } catch (err) {
-    const status = err && err.status;
-
-    // Always, in full, on the server. A one-line student-facing message is the
-    // right thing to render and the wrong thing to debug from: "try again in a
-    // moment" is indistinguishable from "this key has no quota and never will".
-    console.error(`\n[ask] ${wanted || 'default provider'} failed`
-      + (status ? ` (HTTP ${status})` : '') + ':\n', err && err.message || err, '\n');
-
-    // A configuration problem is ours, not the vendor's, and safe to show whole.
-    if (!status) return { status: 500, body: { error: err.message } };
-
-    if (status === 401 || status === 403)
-      return { status: 500, body: { error: 'the API key was rejected' } };
-
-    // Quota messages name the limit that was hit and how to raise it, and hold
-    // no secret. Passing one through is the difference between a fix and a guess.
-    if (status === 429)
-      return { status: 429, body: { error: 'out of quota: ' + brief(err), detail: 'quota' } };
-
-    if (status === 400 || status === 404)
-      return { status: 502, body: { error: brief(err), detail: 'request' } };
-
-    // Still failing after the retries above. Say it is busy rather than broken,
-    // because it is, and because "could not be reached" reads as permanent to a
-    // student who only has to press the button again.
-    if (RETRYABLE.has(status))
-      return { status: 503, body: { error: 'the tutor is busy right now, ask again in a moment', detail: 'busy' } };
-
-    return { status: 502, body: { error: 'the tutor could not be reached' } };
+    res = mapError(err, wanted);
   }
+
+  // Awaited, not fired and forgotten: a serverless function may be frozen the
+  // instant it responds, and a promise left running is a row that never lands.
+  // `logTurn` carries its own timeout and never rejects, so this costs the
+  // student a round trip at worst and nothing at all when logging is off.
+  await note(out, out ? null : res.body.error, Date.now() - t0);
+  return res;
+}
+
+/* A vendor failure, rendered as something a student can read and something we
+ * can debug from. Separate from `handleAsk` so the log sees the same object the
+ * page does rather than a second guess at what went wrong. */
+function mapError(err, wanted) {
+  const status = err && err.status;
+
+  // Always, in full, on the server. A one-line student-facing message is the
+  // right thing to render and the wrong thing to debug from: "try again in a
+  // moment" is indistinguishable from "this key has no quota and never will".
+  console.error(`\n[ask] ${wanted || 'default provider'} failed`
+    + (status ? ` (HTTP ${status})` : '') + ':\n', err && err.message || err, '\n');
+
+  // A configuration problem is ours, not the vendor's, and safe to show whole.
+  if (!status) return { status: 500, body: { error: err.message } };
+
+  if (status === 401 || status === 403)
+    return { status: 500, body: { error: 'the API key was rejected' } };
+
+  // Quota messages name the limit that was hit and how to raise it, and hold
+  // no secret. Passing one through is the difference between a fix and a guess.
+  if (status === 429)
+    return { status: 429, body: { error: 'out of quota: ' + brief(err), detail: 'quota' } };
+
+  if (status === 400 || status === 404)
+    return { status: 502, body: { error: brief(err), detail: 'request' } };
+
+  // Still failing after the retries above. Say it is busy rather than broken,
+  // because it is, and because "could not be reached" reads as permanent to a
+  // student who only has to press the button again.
+  if (RETRYABLE.has(status))
+    return { status: 503, body: { error: 'the tutor is busy right now, ask again in a moment', detail: 'busy' } };
+
+  return { status: 502, body: { error: 'the tutor could not be reached' } };
 }
 
 /* Both vendors put a JSON body in the error's message. Pull the human sentence
@@ -316,9 +339,10 @@ function brief(err) {
   return m.length > 220 ? m.slice(0, 219) + '…' : m;
 }
 
-/* What the bench needs to draw its provider switch, without guessing. */
-function config() {
-  const bench = providers.bench();
+/* What the bench needs to draw its provider switch, without guessing. `bench`
+ * is passed in for the same reason it is passed to `handleAsk`: only the
+ * transport knows where the request came from. */
+function config(bench = false) {
   return {
     default: providers.DEFAULT,
     bench,

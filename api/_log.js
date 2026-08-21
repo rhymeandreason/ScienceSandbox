@@ -1,0 +1,165 @@
+/* =============================================================================
+ *  api/_log.js — the tutor's notebook
+ * =============================================================================
+ *  Writes one row per message to Neon. Everything here is best-effort: a log
+ *  that fails must cost the student nothing, so every path swallows its error
+ *  to the console and returns. `handleAsk` never sees a rejection from here.
+ *
+ *  Off by default. With no `DATABASE_URL` every call is a no-op, which is what
+ *  a contributor without a database gets, and what GitHub Pages gets.
+ *
+ *  HTTP, not TCP: `neon()` is one fetch per statement, which is the shape a
+ *  function that may be frozen the moment it responds can actually use. A pool
+ *  would be holding a socket nothing is going to close.
+ * ========================================================================== */
+'use strict';
+
+const BUDGET_MS = 2000;   // a slow database delays nobody's answer past this
+
+let _sql = null;          // the neon client, or false once we know there is none
+function sql() {
+  if (_sql !== null) return _sql;
+  const url = process.env.DATABASE_URL;
+  if (!url) return (_sql = false);
+  try {
+    const { neon } = require('@neondatabase/serverless');
+    return (_sql = neon(url));
+  } catch (err) {
+    // The driver is not installed. Say so once; do not say it per question.
+    console.error('[log] no database driver, logging off:', err.message);
+    return (_sql = false);
+  }
+}
+
+function enabled() { return !!sql(); }
+
+/* A write nothing waits on longer than it is worth waiting. The timeout does
+ * not cancel the request - it stops the answer being held hostage to it. */
+async function within(label, work) {
+  let timer;
+  try {
+    await Promise.race([
+      work(),
+      new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timed out')), BUDGET_MS); }),
+    ]);
+  } catch (err) {
+    console.error(`[log] ${label} failed:`, (err && err.message) || err);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* Record one exchange: the question as it was asked, and whatever came back -
+ * an answer or the error the student was shown.
+ *
+ * The thread row is upserted rather than created, because the client mints the
+ * id and the server never learns which turn is the first one.
+ *
+ * `turn` is counted from the rows already in the thread, not from the length of
+ * the transcript the client sent. The single-question form has no transcript to
+ * count, so a client using it would number every question 1. */
+async function logTurn({ threadId, visitorId, lesson, question, step, state, out, error, ms }) {
+  const db = sql();
+  if (!db) return;
+  if (!isUuid(threadId) || !isUuid(visitorId)) return;   // a malformed id is not worth a row
+
+  await within('write', async () => {
+    await db`INSERT INTO threads (id, visitor_id, lesson)
+             VALUES (${threadId}, ${visitorId}, ${lesson || null})
+             ON CONFLICT (id) DO NOTHING`;
+
+    const [q] = await db`
+      INSERT INTO messages (thread_id, turn, role, text, step, state)
+      VALUES (${threadId},
+              (SELECT count(*) + 1 FROM messages m
+               WHERE m.thread_id = ${threadId} AND m.role = 'user'),
+              'user', ${question},
+              ${Number.isFinite(step) ? step : null}, ${json(state)})
+      RETURNING id, turn`;
+
+    // Linked to the question by id. Pairing on (thread, turn) instead is what
+    // makes two same-numbered questions multiply against two answers.
+    await db`INSERT INTO messages (thread_id, turn, reply_to, role, text, point, chapters,
+                                   provider, model, usage, ms, error)
+             VALUES (${threadId}, ${q.turn}, ${q.id}, 'assistant',
+                     ${out ? out.answer : String(error || 'failed')},
+                     ${json(out && out.point)}, ${json(out && out.chapters)},
+                     ${out ? out.provider : null}, ${out ? out.model : null},
+                     ${json(out && out.usage)},
+                     ${Number.isFinite(ms) ? ms : null},
+                     ${error || null})`;
+  });
+}
+
+/* ---- reading it back --------------------------------------------------------
+ * The viewer's queries live here rather than in the endpoint, so the page and
+ * `tools/db.js` cannot drift into two ideas of what a turn is. Everything reads
+ * the `turns` view, which is the join the schema exists to make.
+ *
+ * These DO throw. A viewer that silently shows nothing when the database is
+ * unreachable is worse than one that says so, which is the opposite of the rule
+ * on the write path. */
+async function recent({ limit = 50, offset = 0, lesson = null, aimed = null, model = null } = {}) {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
+  const o = Math.max(Number(offset) || 0, 0);
+
+  // Every filter is optional and they combine, so the predicate is written as
+  // SQL that reads its own parameters rather than as branches per combination.
+  // A tagged template is safe because a parameter cannot become SQL; building
+  // the WHERE by string concatenation is exactly how that stops being true, and
+  // one `null`-tolerant predicate beats eight hand-written pairs.
+  return db`SELECT * FROM turns
+            WHERE (${lesson}::text IS NULL OR lesson = ${lesson})
+              AND (${model}::text  IS NULL OR model  = ${model})
+              AND (${aimed}::text  IS NULL OR (${aimed} = 'none' AND point_id IS NULL))
+            LIMIT ${n} OFFSET ${o}`;
+}
+
+/* The numbers above the list. One round trip, because four would be four. */
+async function stats() {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const [row] = await db`
+    SELECT count(*)::int                                         AS turns,
+           count(DISTINCT thread_id)::int                         AS threads,
+           count(DISTINCT visitor_id)::int                        AS visitors,
+           count(*) FILTER (WHERE error IS NOT NULL)::int         AS errors,
+           count(*) FILTER (WHERE point_id IS NULL)::int          AS unaimed,
+           round(sum((usage->>'cost_usd')::numeric), 4)           AS usd,
+           round(avg(ms))::int                                    AS avg_ms
+    FROM turns`;
+  const lessons = await db`SELECT coalesce(lesson, '(none)') AS lesson, count(*)::int AS n
+                           FROM turns GROUP BY 1 ORDER BY 2 DESC`;
+  // Per model, because comparing two models on the same questions is the whole
+  // reason to look: median latency and spend per turn are what differ, and a
+  // total hides both behind whichever model answered most.
+  const models = await db`SELECT model, count(*)::int AS n, round(avg(ms))::int AS avg_ms,
+                                 round(avg((usage->>'cost_usd')::numeric), 5) AS avg_usd
+                          FROM turns WHERE model IS NOT NULL
+                          GROUP BY 1 ORDER BY 2 DESC`;
+  return { ...row, lessons, models };
+}
+
+/* Apply the schema. Idempotent, and separate from the answer path on purpose:
+ * a request must never be the thing that decides to create a table. */
+async function init() {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const fs   = require('fs');
+  const path = require('path');
+  const ddl  = fs.readFileSync(path.join(__dirname, '_schema.sql'), 'utf8');
+  // The HTTP driver is one statement per request. Drop the comment lines first,
+  // then split on the boundary the file uses: a semicolon ending a line.
+  const bare = ddl.replace(/^\s*--.*$/gm, '');
+  for (const stmt of bare.split(/;\s*\n/).map(s => s.trim()).filter(Boolean)) {
+    await db.query(stmt);
+  }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(s) { return typeof s === 'string' && UUID.test(s); }
+function json(v)   { return v == null ? null : JSON.stringify(v); }
+
+module.exports = { logTurn, recent, stats, init, enabled, sql };

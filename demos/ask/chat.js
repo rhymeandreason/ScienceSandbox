@@ -28,6 +28,36 @@
   const ENDPOINT = '/api/ask';
   const MAX_TURNS = 40;
 
+/* ---- who is asking, and in which conversation --------------------------------
+ * Two random ids and nothing else. `visitor` persists so a student's second
+ * visit is recognisable as the same browser; `thread` is minted per page load,
+ * so a conversation is a conversation and not one endless transcript per
+ * device. Neither is derived from anything about the person, and clearing site
+ * data clears both. The server never records an address.
+ *
+ * A browser refusing storage (private mode, blocked cookies) is not an error
+ * here: the visitor id falls back to a fresh one and the turn still logs. */
+const VISITOR_KEY = 'ss.tutor.visitor';
+
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // Safari before 15.4 has getRandomValues but not randomUUID.
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+
+const VISITOR = (() => {
+  try {
+    let v = localStorage.getItem(VISITOR_KEY);
+    if (!v) localStorage.setItem(VISITOR_KEY, v = uuid());
+    return v;
+  } catch { return uuid(); }
+})();
+
+const THREAD = uuid();
+
   function chat(opts) {
     const rail = opts.rail;
     const slot = opts.slot || rail;      // where the launcher goes; the panel
@@ -140,6 +170,8 @@
             step: opts.step ? opts.step() : undefined,
             state: opts.state ? opts.state() : undefined,
             cited: [...cited],
+            threadId: THREAD,
+            visitorId: VISITOR,
           }),
         });
         // A host without the function answers with an HTML error page, which

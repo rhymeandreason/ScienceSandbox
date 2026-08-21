@@ -1,0 +1,8 @@
+# The log viewer is a local tool and is deliberately not deployed.
+#
+# The log lives in Neon, not on Vercel, so the same DATABASE_URL that production
+# writes to is the one `.env.local` reads. Running the dev server on a laptop
+# shows real student data with no public endpoint and no secret to manage. There
+# is nothing the deployed copy would add except a way to get it wrong.
+demos/ask/log.html
+api/log.js

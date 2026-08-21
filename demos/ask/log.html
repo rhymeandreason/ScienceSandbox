@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutor log</title>
+<!--
+  ask/log.html — what the tutor was asked, and what it did about it.
+
+  A local tool. `.vercelignore` keeps it and its endpoint out of production;
+  /api/log answers only to the machine it runs on. Point .env.local at the
+  production database and this shows real student data with nothing public.
+
+  Every exchange shows the screen it was asked against, because that is the
+  question you are actually here to answer: given THAT state, why THAT target.
+
+  Dependency-free and standalone: no lesson CSS, no lesson module, and no web
+  font either. A tool that reads a local database should not need the network
+  to render, and system-ui is already the right face for dense UI chrome.
+-->
+<style>
+  :root {
+    /* Whatever the OS considers its interface face. No download, no swap
+       flash, and it matches the rest of the machine's dense UI. */
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    --paper:  #f7f6f3;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --faint:  #8e9098;
+    --line:   #e3e1db;
+    --card:   #ffffff;
+    --accent: #1f5f4f;   /* pointed at this lesson */
+    --away:   #6d55a3;   /* pointed at another one */
+    --spark:  #d1542c;   /* failed */
+    --shadow: 0 1px 2px rgba(20, 22, 26, .04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141619; --ink: #e9e8e4; --muted: #9a9ca2; --faint: #7c7e85;
+      --line: #2a2d32; --card: #1b1e22;
+      --accent: #6cc0a5; --away: #b39ddb; --spark: #f0845c;
+      --shadow: none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.5rem 6rem;
+    background: var(--paper); color: var(--ink);
+    font: 400 15px/1.55 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 64rem; margin: 0 auto; }
+
+  h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 .2rem; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: .875rem; margin: 0 0 1.5rem; }
+
+  /* ---- the numbers ---- */
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+  .stat {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: .5rem .8rem; min-width: 5.5rem; box-shadow: var(--shadow);
+  }
+  .stat b {
+    display: block; font-size: 1.3rem; font-weight: 600;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .stat span {
+    color: var(--faint); font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .07em;
+  }
+  .stat.warn b { color: var(--spark); }
+
+  /* ---- which model answered -------------------------------------------------
+   * Its own row, not a stat tile: the question a model card answers is "how do
+   * these two compare on the same questions", so latency and spend belong on
+   * the card and the total belongs nowhere. Clicking one filters to it. */
+  .models { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.25rem; }
+  .model {
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--card); border: 1px solid var(--line);
+    border-left: 3px solid var(--dot, var(--muted));
+    border-radius: 10px; padding: .45rem .75rem;
+    font: inherit; color: inherit; cursor: pointer; text-align: left;
+    box-shadow: var(--shadow);
+  }
+  .model:hover { border-color: var(--dot, var(--muted)); }
+  .model[aria-pressed="true"] { outline: 2px solid var(--dot); outline-offset: -1px; }
+  .model .name { font-family: var(--mono); font-size: .78rem; font-weight: 500; }
+  .model .n    { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .model .fine { color: var(--faint); font-size: .72rem; font-variant-numeric: tabular-nums; }
+
+  /* ---- controls ---- */
+  .bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0 0 1.25rem; }
+  select, button.act {
+    font: inherit; font-size: .85rem; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: .4rem .7rem; cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  select:hover, button.act:hover { border-color: var(--muted); }
+  .bar .note { color: var(--faint); font-size: .8rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* ---- one exchange ---- */
+  .turn {
+    background: var(--card); border: 1px solid var(--line); border-left-width: 3px;
+    border-radius: 10px; padding: .85rem 1rem; margin: 0 0 .6rem;
+    box-shadow: var(--shadow);
+  }
+  /* The left edge is the THREAD, coloured from its id, so a conversation reads
+     as one block without a grouping UI. home/away/none is said in the meta line
+     instead: two facts, two places, neither overwriting the other. */
+  .turn.err { background: color-mix(in srgb, var(--spark) 6%, var(--card)); }
+
+  .meta {
+    display: flex; flex-wrap: wrap; gap: .35rem .65rem; align-items: center;
+    font-size: .72rem; color: var(--faint);
+    font-variant-numeric: tabular-nums; margin: 0 0 .5rem;
+  }
+  .meta .lesson { color: var(--ink); font-weight: 600; }
+  .meta .mono { font-family: var(--mono); }
+
+  /* The model, said loudly enough to scan a column of them. */
+  .pill {
+    font-family: var(--mono); font-size: .68rem; font-weight: 500;
+    padding: .1rem .45rem; border-radius: 5px;
+    color: var(--dot); background: color-mix(in srgb, var(--dot) 13%, transparent);
+  }
+
+  .aim { font-family: var(--mono); font-weight: 500; }
+  .aim.home { color: var(--accent); }
+  .aim.away { color: var(--away); }
+  .aim.none { color: var(--faint); }
+
+  .q { font-weight: 600; margin: 0 0 .3rem; }
+  .a { margin: 0; color: var(--ink); }
+  .a.err { color: var(--spark); font-family: var(--mono); font-size: .82rem; }
+
+  /* The screen the question was asked against. The reason this page exists, so
+     it is not hidden behind a disclosure. */
+  .screen { display: flex; flex-wrap: wrap; gap: .3rem; margin: .65rem 0 0; }
+  .chip {
+    font-family: var(--mono); font-size: .7rem;
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 999px; padding: .12rem .55rem;
+  }
+  .chip b { font-weight: 500; color: var(--faint); }
+
+  .empty { color: var(--muted); padding: 2rem 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tutor log</h1>
+  <p class="sub">Every question, the screen it was asked against, and where the tutor pointed.</p>
+
+  <div class="stats" id="stats"></div>
+  <div class="models" id="models"></div>
+
+  <div class="bar">
+    <select id="lesson"><option value="">every lesson</option></select>
+    <select id="aimed">
+      <option value="">every answer</option>
+      <option value="none">pointed at nothing</option>
+    </select>
+    <select id="limit">
+      <option value="50">50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+    </select>
+    <button class="act" id="reload">Reload</button>
+    <span class="note" id="note"></span>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+'use strict';
+
+const $    = id => document.getElementById(id);
+const list = $('list');
+let model = null;          // the model filter, set by clicking a card
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* A stable colour from a string. Used twice, for two different things: the
+ * thread's left edge, and the model's pill. Same function, because the only
+ * property either needs is that the same input always looks the same. */
+function hue(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return h;
+}
+
+/* HUE IS THE VENDOR AND NOTHING ELSE. Variants of one vendor separate by depth,
+ * not by hue, for two reasons: siblings stay obviously related, and the model
+ * colours stay out of the way of the aim colours, which mean something. Green
+ * is "pointed at this lesson" and purple is "pointed at another one"; a model
+ * that drifted into either would be a third thing wearing a colour that already
+ * has a meaning. Letting hue vary did exactly that - a Gemini came out the same
+ * green as a home target. Blue and amber are claimed by nothing else. */
+const VENDORS = [[/gemini/i, 215], [/claude|anthropic/i, 32], [/gpt|openai/i, 285]];
+
+function modelColour(m) {
+  const name = String(m || '');
+  const vendor = VENDORS.find(([re]) => re.test(name));
+  const h = hue(name);
+  if (!vendor) return `hsl(0 0% ${40 + h % 20}%)`;   // unknown vendor: grey, not a guess
+  return `hsl(${vendor[1]} ${48 + h % 30}% ${36 + (h >> 3) % 22}%)`;
+}
+
+async function load() {
+  const p = new URLSearchParams();
+  if ($('lesson').value) p.set('lesson', $('lesson').value);
+  if ($('aimed').value)  p.set('aimed',  $('aimed').value);
+  if (model)             p.set('model',  model);
+  p.set('limit', $('limit').value);
+
+  $('note').textContent = 'loading…';
+  let data;
+  try {
+    const res = await fetch('/api/log?' + p);
+    data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'request failed');
+  } catch (err) {
+    $('note').textContent = '';
+    list.innerHTML = `<p class="empty">${esc(err.message)}</p>`;
+    return;
+  }
+
+  draw(data);
+  $('note').textContent = data.turns.length + ' shown';
+}
+
+function draw(data) {
+  const s = data.stats;
+
+  $('stats').innerHTML = [
+    ['turns', s.turns], ['threads', s.threads], ['visitors', s.visitors],
+    ['pointed nowhere', s.unaimed, s.unaimed > 0],
+    ['errors', s.errors, s.errors > 0],
+    ['avg', s.avg_ms == null ? '—' : s.avg_ms + 'ms'],
+    ['spent', s.usd == null ? '$0' : '$' + s.usd],
+  ].map(([label, v, warn]) =>
+    `<div class="stat${warn ? ' warn' : ''}"><b>${esc(v)}</b><span>${esc(label)}</span></div>`).join('');
+
+  // Latency and spend PER MODEL, which is the comparison the totals hide.
+  $('models').innerHTML = (s.models || []).map(m => {
+    const on = model === m.model;
+    return `<button class="model" aria-pressed="${on}" data-model="${esc(m.model)}"
+                    style="--dot:${modelColour(m.model)}">
+      <span class="n">${esc(m.n)}</span>
+      <span class="name">${esc(m.model)}</span>
+      <span class="fine">${esc(m.avg_ms)}ms · $${esc(Number(m.avg_usd).toFixed(5))}/turn</span>
+    </button>`;
+  }).join('');
+  for (const b of $('models').querySelectorAll('.model')) {
+    b.addEventListener('click', () => {
+      model = model === b.dataset.model ? null : b.dataset.model;   // click again to clear
+      load();
+    });
+  }
+
+  // The lesson filter is built from what is actually in the log, so it can
+  // never offer a lesson with nothing behind it.
+  const sel = $('lesson'), had = sel.value;
+  sel.innerHTML = '<option value="">every lesson</option>'
+    + (s.lessons || []).map(l => `<option value="${esc(l.lesson)}">${esc(l.lesson)} (${l.n})</option>`).join('');
+  sel.value = had;
+
+  if (!data.turns.length) {
+    list.innerHTML = '<p class="empty">Nothing here. Open a lesson and ask the tutor something.</p>';
+    return;
+  }
+
+  list.innerHTML = data.turns.map(t => {
+    // home / away / none is the aiming question in one word.
+    const kind = t.error ? 'err'
+               : t.point_id == null ? 'none'
+               : t.point_home ? 'home' : 'away';
+    const when = new Date(t.created_at).toLocaleString([], {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const chips = t.state ? Object.entries(t.state)
+      .map(([k, v]) => `<span class="chip"><b>${esc(k)}</b> ${esc(
+        typeof v === 'object' ? JSON.stringify(v) : v)}</span>`).join('') : '';
+
+    const cited = (t.chapters || []).map(c => c.chapter).filter(Boolean);
+
+    return `<div class="turn ${kind}" style="border-left-color:hsl(${hue(t.thread_id)} 45% 55%)">
+      <div class="meta">
+        <span class="lesson">${esc(t.lesson || 'no lesson')}</span>
+        ${t.step == null ? '' : `<span>step ${esc(t.step)}</span>`}
+        <span>turn ${esc(t.turn)}</span>
+        <span class="aim ${kind}">&rarr; ${esc(t.point_id || 'nothing')}</span>
+        ${cited.length ? `<span>cites ${esc(cited.join(', '))}</span>` : ''}
+        ${t.model ? `<span class="pill" style="--dot:${modelColour(t.model)}">${esc(t.model)}</span>` : ''}
+        ${t.ms ? `<span class="mono">${esc(t.ms)}ms</span>` : ''}
+        <span>${esc(when)}</span>
+      </div>
+      <p class="q">${esc(t.question)}</p>
+      <p class="a${t.error ? ' err' : ''}">${esc(t.error || t.answer)}</p>
+      ${chips ? `<div class="screen">${chips}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+for (const id of ['lesson', 'aimed', 'limit']) $(id).addEventListener('change', load);
+$('reload').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

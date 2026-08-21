@@ -210,8 +210,9 @@ fetch('/api/ask').then(r => r.json()).then(c => {
   // the middle of tuning does not throw the tuning away.
   $('prompt').value = localStorage.getItem('ask.prompt') || c.system || '';
   if (!c.bench) {
-    $('prompt').value = 'ASK_BENCH is not set on this server, so the prompt is neither '
-      + 'readable nor editable here. Set ASK_BENCH=1 in .env.local.';
+    $('prompt').value = 'The prompt is readable and editable only from the machine '
+      + 'running the API, and this page is not being served from it. Nothing to '
+      + 'configure: open this bench on localhost.';
     $('prompt').disabled = true;
   }
 });
