@@ -28,7 +28,7 @@ Reordered once the demo-mode design landed: glycolysis moved to the front, becau
 2. **Deploy, and collect.** `vercel.json` exists but is untested. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
 3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
 4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
-5. **Baked demo mode.** Gated on 1 and 2.
+5. **Baked demo mode.** Gated on 1 and 2, *except* the examples bake, which is gated on nothing and is also a latency fix for the first turn a student ever takes.
 6. `?step=` on the four lessons that lack it, so away links land where they say.
 
 ## Logging
@@ -69,7 +69,7 @@ node demos/tools/db.js cost     # turns, tokens and dollars per day
 
 The free tier stops being a throttled live tutor and becomes its own thing: a fixed set of questions whose answers were generated ahead of time, through the real prompt, and frozen. A hit renders in tens of milliseconds with its real `point` and its real chapters. Nothing generates, so there is no per-turn cost and nothing worth rate limiting.
 
-**The corpus already exists.** The `turns` view is a table of `(question, answer, point, chapters, lesson, step)`, real questions with answers the real prompt produced. Baking is *selecting rows out of the log*, not authoring a new artefact, and a human picks which ones are fit to teach. That is the precondition: **there is nothing to curate until real students have asked real questions**, which is why the bake sits behind deploying.
+**The corpus already exists.** The `turns` view is a table of `(question, answer, point, chapters, lesson, step)`, real questions with answers the real prompt produced. Baking is *selecting rows out of the log*, not authoring a new artefact, and a human picks which ones are fit to teach. There is nothing to curate until real students have asked, which is why the *general* bake sits behind deploying. **The examples are the exception, and they are the place to start** - see below.
 
 **The integration is one function.** `answer(data)` in `chat.js` takes a plain `{answer, chapters, point}` and draws the reply, the Show me pill and the citations. A baked entry is already that shape, so demo mode is a source swap in front of one function. No second renderer, and nothing to keep in sync when the drawer changes.
 
@@ -108,6 +108,24 @@ The ordering is right, but these models do not produce cosines in the range that
 
 **What it does not solve.** The live path still needs the rate limit, since demo mode removes the free tier's exposure and not the live tutor's. Multi-turn does not bake: a logged answer beginning "Yes! Oil molecules are nonpolar" is only correct as turn 2 of its own conversation, so the demo is one question and one answer. And a checker catches a renamed target, never a sentence that has quietly become wrong.
 
+### Start with the examples
+
+Each lesson already hands `chat.js` an `examples` list for the empty state, and **clicking one asks it** - they are clicked, never typed. Three consequences, and the first is the one that matters:
+
+**No matching at all.** A click carries an exact key. No embedding, no cosine, no threshold, so none of the calibration risk above applies. This is static demo mode with the whole endpoint layer skipped.
+
+**Not gated on deploying.** The general bake needs the log because nobody knows yet what students ask. The examples are already known and already curated: choosing them *was* the fitness-to-teach judgement. That subset can be baked before anything ships.
+
+**It is a UX fix independent of the free tier.** The empty state exists to unstick a student who does not know what the box is for, and today clicking that invitation costs ~2s of "Thinking...". That is the system's only real latency, placed at the first interaction, for the least confident student. Worth doing even if no free tier ever ships.
+
+**Key on `(lesson, step, question)`, not `(lesson, question)`.** Read water-lab's own examples and the reason is immediate:
+
+> *Is that the same bond the whole time?*
+
+"That" is deictic: it points at whatever is on screen, and the honest answer differs at step 1 and step 4. So bake one answer per step per example. Water-lab is about six steps by three examples, roughly eighteen entries. This also disposes of the state-dependence objection for this subset, because for a clicked example the step *is* the state.
+
+**Loose end:** a student who clicks an example may then type a follow-up. That goes to the live tutor, or in a pure demo it misses honestly. Worth deciding, but it does not block the first turn being instant.
+
 ### The access link
 
 A link that turns the live tutor on, no accounts. It needs no new concept: **no key means demo mode, a valid key means the live tutor**, so the public site degrades to the baked demo rather than to an error.
@@ -120,7 +138,7 @@ A link that turns the live tutor on, no accounts. It needs no new concept: **no 
 
 ### Where to start
 
-Not with the baker. With a selection pass that only *prints*: logged turns grouped by near-duplicate question, state-dependent ones flagged, candidates per lesson. If real questions turn out not to repeat, that is learned for the price of one script instead of a subsystem. Then the baked files, then the checker, then static demo mode (shippable on its own), then free text via the endpoint, then a fixture eval of question to expected entry id on every rebuild, because a re-embedding degrades matching silently.
+With the examples, which need no log and no matching (above). Then, for everything else: not with the baker, but with a selection pass that only *prints*: logged turns grouped by near-duplicate question, state-dependent ones flagged, candidates per lesson. If real questions turn out not to repeat, that is learned for the price of one script instead of a subsystem. Then the baked files, then the checker, then static demo mode (shippable on its own), then free text via the endpoint, then a fixture eval of question to expected entry id on every rebuild, because a re-embedding degrades matching silently.
 
 Planned filenames, so a reader can tell design from code: `bake-answers.js`, `check-baked.js`, `api/match.js`. None of them exist.
 
