@@ -1127,10 +1127,11 @@ function syncIceNotes(){
     /* On the bar's own 0°C caption rather than on the track: the caption is
        where the student's eye already is, and sitting on its line lets the
        leader run straight out to the right. */
+    // No card: it is an instruction, and the whole answer is what happens when
+    // the student follows it.
     NOTES.add({text:'drag down to freeze', offset:[120,0],
       atPx:()=>{ const st=NOTES.el.getBoundingClientRect(), c=tcoldEl.getBoundingClientRect();
-                 return [c.right-st.left+14, c.top-st.top+c.height*0.5]; },
-      card:'Watch what the molecules do. '});
+                 return [c.right-st.left+14, c.top-st.top+c.height*0.5]; }});
   } else {
     const w=sim.mols[0]; if(!w) return;
     NOTES.add({text:'open hexagonal lattice', offset:[64,-36],
@@ -1463,9 +1464,9 @@ const ASK = Ask.chat({
      and is a gas at room temperature, which is hydrogen bonding's whole point
      and lives in another lesson, so it also demonstrates being sent there. */
   examples: [
-    'Why does ice float?',
-    'Why does salt dissolve in water?',
-    'Why is water a liquid when methane is a gas?',
+    'Is that the same bond the whole time?',
+    'If it dissolves everything, why not oil?',
+    'How do we make ice cream?',
   ],
   step: () => cur,
   stepName: () => stepMeta[cur] ? stepMeta[cur].tab : '',
