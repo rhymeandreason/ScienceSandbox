@@ -171,12 +171,32 @@
     #pagetitle { display:none; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
+
+/* THE CLOSE-UP. Top right, because step 1's two callouts are pinned to the
+   left of the sheet and a box over them would cover the words naming the very
+   parts it is showing. Sized in px rather than %: it is a figure inset, so it
+   should be the same size on every monitor, and kit/inset.js re-solves the
+   camera whenever this box changes. Taller than wide because the molecule is
+   (31 Å by 6). The frame itself is main.css's `.inset`. */
+#lipidBox {
+  top: 18px;
+  right: 18px;
+  width: 156px;
+  height: 290px;
+}
 </style>
 </head>
 <body>
 <div id="page">
   <div id="stage">
     <canvas id="c"></canvas>
+    <!-- The close-up. `hidden` by default: step 1 owns it, and kit/inset.js
+         stops rendering the moment it leaves the viewport, so a hidden box
+         costs nothing but its context. -->
+    <div id="lipidBox" class="inset" hidden>
+      <canvas id="lipidGl"></canvas>
+      <div class="inset-cap">one phospholipid</div>
+    </div>
     <button type="button" id="spend" class="pill" hidden>Spend 1 ATP</button>
     <!-- A CHECKBOX, not a flipping label: it shows the state and names the
          thing at once. NOT A STEP CONTROL — turn off the pump and the lesson
@@ -263,6 +283,7 @@
 <script src="tokens-from-palette.js"></script>
 <script src="molecules.js"></script>
 <script src="mol-small.js"></script>
+<script src="mol-lipids.js"></script>
 <script src="atomkit.js"></script>
 <script src="scene.js"></script>
 <script src="annotate.js"></script>
@@ -270,6 +291,7 @@
 <script src="kit/motion.js"></script>
 <script src="kit/focus.js"></script>
 <script src="kit/fit.js"></script>
+<script src="kit/inset.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="membrane/parts.js"></script>
 <script src="membrane/pump.js"></script>
@@ -301,6 +323,7 @@ const spendEl = document.getElementById('spend');
 const ctlEl = document.getElementById('ctl');
 const shellsBox = document.getElementById('shellsBox');
 const shellsTogEl = document.getElementById('shellsTog');
+const lipidBox   = document.getElementById('lipidBox');
 const voltBox = document.getElementById('voltBox');
 const pumpBox = document.getElementById('pumpBox');
 const osmoEl = document.getElementById('osmo');
@@ -2291,7 +2314,29 @@ function go(i) {
      sync. */
   shellsTogEl.hidden = !travellers.some(
     t => t.obj.userData.shell && t.obj.userData.shell.length);
+  /* THE CLOSE-UP BELONGS TO ONE STEP, and it is driven from here for the same
+     reason the toggle above is: a step that has to remember to hide someone
+     else's box is a step that eventually forgets. Step 1 is the only one that
+     names the parts of a lipid; after that the lesson is about what CROSSES
+     the sheet, and a ball-and-stick in the corner is competing with it.
+     kit/inset.js stops rendering on its own when this goes hidden. */
+  lipidBox.hidden = s.id !== 'bilayer';
 }
+
+/* ONE inset for the page, not one per entry into step 1. A second WebGL
+   context is a real resource and the browser drops the OLDEST when a page
+   passes its cap, so a box rebuilt per step would eventually blank the main
+   stage with no error at all. `show()` is how it would change molecule. */
+const lipidInset = Inset.create({
+  canvas: document.getElementById('lipidGl'),
+  spec: MolLib.MOLECULES.popc,
+  /* Slow turn, and this is the one place it earns itself: the box exists to
+     say a lipid is a real 3D object rather than the flat lollipop the sheet
+     behind it draws, and a still picture of a molecule is exactly what that
+     lollipop already is. It turns the CAMERA, so the spec's declared `view:`
+     is still what the box opens on. */
+  spin: true,
+});
 
 function tick(dt) {
   const s = STEPS[cur]; if (!s) return;

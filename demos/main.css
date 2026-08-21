@@ -706,3 +706,59 @@ body {
   gap: 6px;
   align-items: flex-start;
 }
+
+/* =============================================================================
+   9. INSET
+
+   A framed close-up of one molecule, over a stage drawn at another scale.
+   Paired with kit/inset.js, which owns the renderer and the fit and
+   deliberately owns no CSS.
+
+   THE BORDER IS LOAD-BEARING, which is why this is a component and not a
+   page's own rule. An inset is a magnification: the molecule inside it is
+   orders of magnitude larger than the same molecule in the scene behind.
+   Without an edge it reads as an object standing in that scene at that
+   size. The frame is what makes it a window instead of a false claim, so
+   the honest version is the default one and a page has to work to lose it.
+
+   Opaque paper, not a tint, for the same reason: a scene showing through a
+   close-up puts two scales in the same pixels.
+   ========================================================================== */
+/* A COLUMN, not a canvas with things floating on it. The caption is a real
+   row, so the canvas is given the space that is left and the molecule can
+   never be drawn underneath the words — which is what an absolutely
+   positioned label over a full-height canvas does, invisibly, until a taller
+   molecule reaches the bottom of the box. kit/inset.js re-solves its camera
+   from a ResizeObserver, so the canvas being shorter than the frame costs
+   nothing and is never something a caller has to subtract by hand. */
+.inset {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-page);
+  border: 2px solid var(--clay-900);
+  border-radius: 10px;
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+}
+/* min-height:0 or the canvas refuses to shrink below its own content box and
+   pushes the caption out of the frame — the flex default nothing warns about. */
+.inset canvas { display: block; flex: 1 1 auto; min-height: 0; width: 100%; }
+
+/* The label rides INSIDE the frame. Outside, it is a caption floating over
+   the scene with nothing tying it to the box it names. */
+.inset .inset-cap {
+  flex: 0 0 auto;
+  padding: 5px 8px 6px;
+  background: var(--surface-page);
+  border-top: 1px solid var(--surface-rule);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-muted);
+}
