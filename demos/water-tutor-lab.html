@@ -1515,9 +1515,12 @@ const ASK = Ask.chat({
     if (t.kind === 'step') { applyStep(t.at); return true; }
 
     if (t.kind === 'ui') {
+      // The temperature bar runs hot at the top, so its maximum is at the end a
+      // slider's value maps to LAST. Only this page can know that, so it says.
+      const o = { invert: true };
       const need = uiStep[t.el] || 0;
-      if (cur < need) { applyStep(need); setTimeout(() => ping(t.el), 550); return true; }
-      return ping(t.el);
+      if (cur < need) { applyStep(need); setTimeout(() => ping(t.el, o), 550); return true; }
+      return ping(t.el, o);
     }
 
     // The molecular three. Each needs its own step to be on screen at all, so

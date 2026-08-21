@@ -227,11 +227,38 @@
    *
    * Returns false when the element is missing or has no box, which is what a
    * lesson checks before telling a student it has shown them something. */
-  function ping(el) {
+  /* A slider's box is the whole track, and ringing that says "somewhere along
+   * here" while drawing a circle the size of the track. What a student needs is
+   * the thumb: the part they can actually take hold of. A range input has no
+   * element for it, so it is solved from value/min/max.
+   *
+   * `invert` is for a vertical slider whose maximum is at the TOP, which is how
+   * a temperature reads and the opposite of how the value maps. The caller says
+   * so, because only the caller can see which end is hot. */
+  function thumbRect(node, invert) {
+    const r = node.getBoundingClientRect();
+    const min = +node.min || 0, max = +node.max || 100;
+    const span = max - min || 1;
+    const f = Math.min(1, Math.max(0, (+node.value - min) / span));
+
+    const vertical = r.height > r.width;
+    const thumb = vertical ? r.width : r.height;      // custom thumbs run the track's width
+    const along = (vertical ? r.height : r.width) - thumb;   // the thumb is inset half at each end
+    const t = (vertical ? (invert !== false) : false) ? 1 - f : f;
+    const at = thumb / 2 + t * along;
+
+    const cx = vertical ? r.left + r.width / 2 : r.left + at;
+    const cy = vertical ? r.top + at : r.top + r.height / 2;
+    return { left: cx - thumb / 2, top: cy - thumb / 2, width: thumb, height: thumb };
+  }
+
+  function ping(el, o = {}) {
     const node = typeof el === 'string' ? document.getElementById(el) : el;
     if (!node) return false;
-    const r = node.getBoundingClientRect();
-    if (!r.width || !r.height) return false;   // present, but not on screen yet
+    const box = node.getBoundingClientRect();
+    if (!box.width || !box.height) return false;   // present, but not on screen yet
+    const r = node.matches && node.matches('input[type="range"]')
+      ? thumbRect(node, o.invert) : box;
 
     const rings = [];
     const stop = () => {
