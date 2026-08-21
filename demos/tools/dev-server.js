@@ -307,7 +307,12 @@ function api(url, req, res) {
       .catch(e => json(500, { error: e.message }));
   }
 
-  if (req.method === 'GET')  return json(200, tutor.config());
+  // The bench is a localhost affordance, and here every request is localhost by
+  // definition. Computed the same way the Vercel function computes it rather
+  // than hardcoded true, so the two transports cannot drift.
+  const bench = require(path.join(ROOT, 'api/_local.js')).local(req);
+
+  if (req.method === 'GET')  return json(200, tutor.config(bench));
   if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
 
   let raw = '';
@@ -315,7 +320,7 @@ function api(url, req, res) {
   req.on('end', async () => {
     let payload = {};
     try { payload = JSON.parse(raw || '{}'); } catch { /* handled as a missing question */ }
-    const out = await tutor.handleAsk(payload);
+    const out = await tutor.handleAsk(payload, { bench });
     console.log(`  api /api/ask → ${out.status}`);
     json(out.status, out.body);
   });

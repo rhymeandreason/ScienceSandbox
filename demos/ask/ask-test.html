@@ -89,7 +89,8 @@
     host.textContent = '';
     if (!cfg.bench) {
       host.innerHTML = `<span style="font-size:13px;color:var(--muted)">`
-        + `Fixed to <b>${cfg.default}</b>. Set ASK_BENCH=1 in .env.local to switch here.</span>`;
+        + `Fixed to <b>${cfg.default}</b>. The switch is a localhost affordance, `
+        + `and this page is not being served from the machine running the API.</span>`;
       return;
     }
     for (const p of cfg.providers) {

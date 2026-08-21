@@ -17,9 +17,11 @@
  *  measured it. It lives here for the same reason PRICE does - it is a fact
  *  about a model, the model is a knob, and it is not guessable from the tier.
  *
- *  ASK_BENCH=1 marks a deployment as a test bench: a request may then name its
- *  provider and supply its own system prompt. Both stay off in production, where
- *  they would let a visitor choose which key to spend and what the tutor is.
+ *  `pick` takes `bench` as an ARGUMENT rather than reading an environment flag.
+ *  A request may name its provider only on a bench, and whether this is a bench
+ *  is the transport's question to answer (`api/_local.js`), not a global for a
+ *  module three call-levels down to read. In production it is always false, so
+ *  a visitor cannot choose which key to spend.
  * ========================================================================== */
 'use strict';
 
@@ -31,16 +33,15 @@ const PROVIDERS = {
 const DEFAULT = process.env.AI_PROVIDER || 'gemini';
 
 const names = () => Object.keys(PROVIDERS);
-const bench = () => process.env.ASK_BENCH === '1';
 
 /* Returns a provider, or throws a message the box can show a student. The
  * require is lazy per provider: a missing SDK for the one you are not using is
  * not an error. */
-function pick(requested) {
+function pick(requested, bench) {
   let id = DEFAULT;
 
   if (requested) {
-    if (!bench())              throw new Error('this deployment does not let the request pick a provider');
+    if (!bench)                throw new Error('this deployment does not let the request pick a provider');
     if (!PROVIDERS[requested]) throw new Error(`no provider named "${requested}"`);
     id = requested;
   }
@@ -52,4 +53,4 @@ function pick(requested) {
   return p;
 }
 
-module.exports = { pick, names, bench, DEFAULT };
+module.exports = { pick, names, DEFAULT };

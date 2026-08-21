@@ -25,7 +25,7 @@ Working end to end on `demos/water-lab.html`:
 Reordered once the demo-mode design landed: glycolysis moved to the front, because the bake is downstream of it and of real logged questions.
 
 1. **Second lesson mount, and its UX.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). It comes first now: freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one.
-2. **Deploy, and collect.** `ASK_BENCH` **must be unset in production** or a visitor rewrites the tutor's prompt and spends your key on it. That is the sharp hole, sharper than the missing rate limit. `vercel.json` exists but is untested. Nothing downstream can start until real students have asked real questions.
+2. **Deploy, and collect.** `vercel.json` exists but is untested. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
 3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
 4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
 5. **Baked demo mode.** Gated on 1 and 2.
@@ -174,6 +174,12 @@ Thus on Github pages, this feature is hidden.
 * Gemini 503s under load. Retries are in `_tutor.js`; 4xx never retries.
 * `api/` publishes as readable source on Pages. The system prompt is public. No key is in it.
 
-**Benches.** `demos/ask/chat-test.html` (multi-turn, editable prompt, scored aim probes) and `ask-test.html` (single-shot). **The chat bench has drifted**: it sends no `state` and does not know about the sim notes, so tuning there no longer predicts the lesson. Reconcile or retire it.
+**The bench is localhost.** Editing the tutor's prompt and picking a provider per request are developer affordances, and the question they really ask is "am I on the machine serving this". That is `api/_local.js`, checked by the transport (`api/ask.js`, `dev-server.js`) and passed into `handleAsk(payload, {bench})` and `config(bench)` as an argument. `handleAsk` stays transport-free: it receives a boolean, never a request.
+
+This replaced an `ASK_BENCH=1` environment variable, and the reason is worth keeping. A flag is safe only while somebody remembers not to set it, it is silent when it is wrong, and it travels to production inside whatever gets pasted into a project's settings - `.env.local.example` shipped it *uncommented*, so the documented way to set up a local environment turned it on. An address cannot be forgotten: no real request to a deployment is ever loopback, so the capability is absent by construction. The variable no longer exists; setting it does nothing. `X-Forwarded-For` is deliberately not consulted, or the bench belongs to anyone who types a header.
+
+The stakes were not only money. With the prompt replaceable, the endpoint answers as whatever a stranger says it is, on your domain, and everything `SYSTEM` does for safety goes with it.
+
+**Benches.** `demos/ask/chat-test.html` (multi-turn, editable prompt, scored aim probes) and `ask-test.html` (single-shot). Both need the API served from the same machine; there is nothing to configure. **The chat bench has drifted**: it sends no `state` and does not know about the sim notes, so tuning there no longer predicts the lesson. Reconcile or retire it.
 
 **Audience.** The tutor prompt says *high school*, chosen deliberately, even though `demos/CLAUDE.md` frames the lessons for college Bio 101.

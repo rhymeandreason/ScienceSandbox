@@ -11,11 +11,16 @@
 'use strict';
 
 const { handleAsk, config } = require('./_tutor.js');
+const { local } = require('./_local.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
-  if (req.method === 'GET') return res.status(200).json(config());
+  // Only this machine gets the bench: the prompt is readable and rewritable
+  // there, and neither is for the public. Deployed, `local` is never true.
+  const bench = local(req);
+
+  if (req.method === 'GET') return res.status(200).json(config(bench));
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
@@ -25,7 +30,7 @@ module.exports = async function handler(req, res) {
   // Vercel parses a JSON body already; a string body means some other caller.
   const payload = typeof req.body === 'string' ? safeParse(req.body) : req.body;
 
-  const { status, body } = await handleAsk(payload);
+  const { status, body } = await handleAsk(payload, { bench });
   return res.status(status).json(body);
 };
 

@@ -15,6 +15,7 @@
 'use strict';
 
 const log = require('./_log.js');
+const { local } = require('./_local.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -44,10 +45,4 @@ module.exports = async function handler(req, res) {
   }
 };
 
-/* Only this machine. `req.socket` is the real peer; a forwarding header is
- * whatever the client wrote, so it is not consulted. */
-function local(req) {
-  const a = (req.socket && req.socket.remoteAddress) || '';
-  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
-}
 
