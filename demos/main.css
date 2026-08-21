@@ -29,6 +29,17 @@
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box }
 
+/* The components below set `display`, which is an author rule and therefore
+   beats the UA's `[hidden] { display: none }`. Without this a button a page
+   has honestly hidden stays on screen, and nothing in the JS looks wrong.
+   membrane-lab hit this three times and carried its own copy for each. */
+.pill[hidden],
+.btn[hidden],
+.iconbtn[hidden],
+.stickybtn[hidden],
+.segmented[hidden],
+.textbtn[hidden] { display: none }
+
 html,
 body {
   margin: 0;
@@ -406,6 +417,23 @@ body {
   color: var(--text-inverse);
 }
 
+/* Tinted: a pale fill that names what the control belongs to, with the edge
+   and the tick in the saturated version of the same hue. For a switch that is
+   part of a lesson's own apparatus rather than page chrome, so it reads as
+   belonging to the thing on stage. A page sets --btn-tint and --btn-edge. */
+.btn--tint {
+  background: var(--btn-tint);
+  border-color: var(--btn-edge);
+  color: var(--text-strong);
+}
+
+.btn--tint:hover:not([disabled]) {
+  background: var(--btn-tint);
+  border-color: var(--btn-edge);
+  color: var(--text-strong);
+  filter: brightness(.96);
+}
+
 /* A checkbox is not a door: it takes the border on hover and never the fill,
    because the ink fill is reserved for "this opens something".
 
@@ -425,7 +453,9 @@ body {
   margin: 0;
   width: 16px;
   height: 16px;
-  accent-color: var(--text-strong);
+  /* the tick takes the tint's edge colour when there is one, so the switch and
+     the thing it switches are the same hue */
+  accent-color: var(--btn-edge, var(--text-strong));
   cursor: pointer;
 }
 
