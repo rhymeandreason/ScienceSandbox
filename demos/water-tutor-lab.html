@@ -49,12 +49,12 @@
          first, so water keeps the same place when salt appears at step 5. -->
     <div id="tray">
       <div class="addcol" id="saltctl">
-        <button class="pill salt" id="addsalt">Add Salt</button>
-        <button class="undo" id="clearsalt">Clear</button>
+        <button class="pill" id="addsalt">Add Salt</button>
+        <button class="textbtn" id="clearsalt">Clear</button>
       </div>
       <div class="addcol" id="waterctl">
-        <button class="pill water" id="addwater">Add Water</button>
-        <button class="undo" id="remwater">Remove</button>
+        <button class="pill" id="addwater">Add Water</button>
+        <button class="textbtn" id="remwater">Remove</button>
       </div>
     </div>
   </div>
@@ -1218,7 +1218,7 @@ function applyStep(n){
   S.targetR=Math.max(n===4?DBG.zoom:stepR[n], fitDistance());
   buildControls();
   cur=n;
-  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
+  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('is-on',k===n));
   const m=stepMeta[n];
   stepClaimEl.textContent=m.claim;
   stepT0=performance.now();
@@ -1228,7 +1228,7 @@ function applyStep(n){
 // Named, not numbered: "hydrogen bonds" tells a student what they are about to
 // see, and 3 does not.
 stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
-  b.type='button'; b.className='stepnum'; b.textContent=s.tab;
+  b.type='button'; b.className='pill pill--ghost'; b.textContent=s.tab;
   b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
 
 
@@ -1277,7 +1277,7 @@ function applyAskShift(){
 const WATER_ENOUGH=25;
 const addWaterBtn=document.getElementById('addwater');
 function syncWaterNudge(){
-  addWaterBtn.classList.toggle('nudge',
+  addWaterBtn.classList.toggle('is-nudging',
     S.step>=1 && sim.mols.length<WATER_ENOUGH);
 }
 

@@ -3,8 +3,12 @@
 
    This prototype gives its right rail to the tutor, so the lesson's spine (step
    numbers, step name, the two arrows) and its Fact button sit over the model
-   instead. Everything here is scoped to ids this page owns; sandbox.css keeps
-   the shared vocabulary, and nothing below can reach a featured lesson.
+   instead.
+
+   What is left here is layout and this page's own decisions: where the stage
+   and the rail sit, the scrim under the title, the tray. The buttons are
+   main.css's (.pill, .pill--ghost, .textbtn) and this file only names their
+   colours. Nothing below can reach a featured lesson.
    ========================================================================== */
 
 :root { --rail: 372px }
@@ -65,52 +69,12 @@
   gap: 4px
 }
 
-.pill {
-  font: 600 14.5px var(--font-sans);
-  letter-spacing: .2px;
-  color: #fff;
-  border: 0;
-  border-radius: 999px;
-  padding: 11px 24px;
-  cursor: pointer;
-  box-shadow: 0 2px 0 rgba(43, 39, 35, .18), 0 6px 16px -8px rgba(43, 39, 35, .6)
-}
-
-/* Each pill wears its own substance's colour, so the button and the thing it
-   drops into the water are the same idea: water the H-bond blue, salt the
-   ion-dipole amber. */
-.pill.water { background: #3d6fb0 }
-.pill.salt  { background: #b8862f }
-.pill:hover { filter: brightness(1.07) }
-.pill:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(43, 39, 35, .18) }
-
-.undo {
-  font: 500 12.5px var(--font-sans);
-  color: var(--muted);
-  background: none;
-  border: 0;
-  padding: 2px 6px;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px
-}
-
-.undo:hover { color: var(--ink) }
-
-/* The nudge: a ring breathing out of the pill while the scene is still too
-   empty to show what the step is about. The button itself does not move, so it
-   stays an easy target while it is asking. */
-.pill.nudge { animation: pillnudge 1.9s ease-out infinite }
-
-@keyframes pillnudge {
-  0%   { box-shadow: 0 2px 0 rgba(43, 39, 35, .18), 0 0 0 0 rgba(61, 111, 176, .5) }
-  70%  { box-shadow: 0 2px 0 rgba(43, 39, 35, .18), 0 0 0 14px rgba(61, 111, 176, 0) }
-  100% { box-shadow: 0 2px 0 rgba(43, 39, 35, .18), 0 0 0 0 rgba(61, 111, 176, 0) }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pill.nudge { animation: none; outline: 2px solid rgba(61, 111, 176, .55); outline-offset: 3px }
-}
+/* The two tray buttons are main.css's .pill; each wears its own substance's
+   colour, so the button and the thing it drops into the water are the same
+   idea: water the H-bond blue, salt the ion-dipole amber. --pill-fill is the
+   only thing this page has to say about them, and the nudge ring picks it up. */
+#addwater { --pill-fill: #3d6fb0 }
+#addsalt  { --pill-fill: var(--bond-ionic) }
 
 /* The salt readout sits above the tray rather than under it, and rides the same
    shift so the whole bottom-centre group moves as one. */
@@ -180,34 +144,9 @@ opacity: .75;
 }
 
 /* ---- the tabs ----
-   Named steps, as pills, the way membrane-lab names its six. sandbox.css draws
-   .stepnum as a big hand-circled numeral; everything below replaces that. */
+   Named steps as ghost pills, the way membrane-lab names its six. The look is
+   main.css's .pill--ghost; the row's own spacing is all that is left here. */
 #steps { margin-bottom: 0; gap: 8px; flex-wrap: wrap }
-
-.stepnum {
-  width: auto;
-  height: auto;
-  padding: 7px 15px;
-  font-family: var(--font-sans);
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--muted);
-  background: transparent;
-  border: 1.5px solid var(--hair);
-  border-radius: 999px;
-  white-space: nowrap
-}
-
-.stepnum:hover { color: var(--ink); border-color: var(--muted) }
-
-.stepnum.active {
-  color: var(--ink);
-  font-weight: 600;
-  border-color: var(--ink)
-}
-
-/* the hand-drawn circle belongs to the numerals this replaced */
-.stepnum.active::after { content: none }
 
 /* ---- the launcher, at the foot of the rail ----
    The tutor is where you go when the lesson has said its piece, so it waits at
