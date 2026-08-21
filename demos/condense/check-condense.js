@@ -67,37 +67,48 @@ const roleOf = (spec,key) => (spec.condense.roles||[]).find(r=>r.key===key);
 function posOf(spec,i){ const p=spec.atoms[i].pos; return [p[0],p[1],p[2]]; }
 
 for (const [key,R] of Object.entries(RECIPES)) {
-  console.log(`\n== ${key}: ${R.a} + ${R.b}`);
-  const specA=MOLECULES[R.a], specB=MOLECULES[R.b];
+ for (const donor of R.donors) {
+  console.log(`\n== ${key}: ${R.a} + ${donor.mol}`);
+  const specA=MOLECULES[R.a], specB=MOLECULES[donor.mol];
   if(!specA||!specB){ fail(`recipe names a molecule that is not registered`); continue; }
   const roleA=roleOf(specA,R.acceptor), roleB=roleOf(specB,R.donor);
   if(!roleA||!roleB){ fail(`recipe names a role the spec does not declare`); continue; }
+
+  // The recipe and the spec must name the same product. They are two sources
+  // for one fact deliberately: the page reads the recipe, the chemistry lives
+  // in the spec, and a card that named one product while building another is
+  // exactly the failure that would look completely fine on screen.
+  const declared=(specB.condense.makes||[]).find(x=>x.donor===R.donor && x.acceptor===R.acceptor);
+  if(!declared) fail(`${donor.mol} declares no reaction ${R.donor}+${R.acceptor}`);
+  else if(declared.product!==donor.product)
+    fail(`the recipe says ${donor.mol} makes ${donor.product}, but the spec says ${declared.product}`);
 
   if(R.place!=='product'){
     // A schematic join. There is no product to measure against, and the spec
     // must SAY so rather than leave the key off — see the `product:null` note
     // in check-molecules.js.
-    const rx=(specB.condense.makes||[]).find(m=>m.donor===R.donor && m.acceptor===R.acceptor);
-    if(!rx) fail(`${R.b} declares no reaction ${R.donor}+${R.acceptor}`);
-    else if(rx.product!==null) fail(`recipe places by bond but ${R.b} names a product spec — pose it instead`);
-    else console.log(`   OK: schematic join, no product spec, and the spec says so`);
+    if(declared && declared.product!==null)
+      fail(`recipe places by bond but ${donor.mol} names a product spec — pose it instead`);
+    else if(R.bondLen==null)
+      fail(`recipe '${key}' places by bond but declares no bondLen — the length of the `
+         + `bond it draws would be a module default, which is how this card first drew `
+         + `a peptide bond at an amine's 1.47 A instead of 1.33`);
+    else console.log(`   OK: schematic join, no product spec, and the spec says so `
+         + `(new bond ${R.bondLen} A, declared)`);
     continue;
   }
 
-  for(const [config,prodKey] of Object.entries(R.faces||{})){
+  {
+    const prodKey=donor.product, config=declared&&declared.config;
     const prod=MOLECULES[prodKey];
     if(!prod){ fail(`product '${prodKey}' is not registered`); continue; }
     const pn=nameIndex(prod);
     let bad=0;
-
-    // Whether this face inverts is the SPEC's claim, not the recipe's. The
-    // recipe says which face reaches which product; the spec says what that
-    // costs at the anomeric carbon, and the two have to agree.
-    const rx=(specB.condense.makes||[]).find(x=>x.product===prodKey);
-    if(!rx){ fail(`${R.b} declares no reaction making ${prodKey}, but the recipe reaches it`); continue; }
-    if(rx.config && rx.config!==config)
-      fail(`the recipe reaches ${prodKey} on the ${config} face but ${R.b} declares it ${rx.config}`);
-    const inverts=!!rx.invert;
+    /* Whether this reagent inverts at the anomeric carbon is the SPEC's claim.
+     * An α-glucose reaching maltose must NOT invert — it already is that
+     * configuration — and a spec that claimed otherwise would be describing a
+     * bond breaking that the animation never shows. */
+    const inverts=!!(declared && declared.invert);
 
     // ---- 1. each reactant IS a residue of the product ---------------------
     const posed={};
@@ -194,6 +205,7 @@ for (const [key,R] of Object.entries(RECIPES)) {
            + `${stillThere.map(i=>spec.names[i]).join(', ')}, which the reaction says left with the water`);
     }
   }
+ }
 }
 
 console.log('');

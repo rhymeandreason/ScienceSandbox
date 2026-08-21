@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>condense-drag.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. condense-drag.js is the first drag mechanic whose
+     unit is a MOLECULE. molecule-builder fills a valence slot; this
+     joins two finished molecules and makes them pay a water for it.
+     Standing it up here first means condense-lab.html can adopt a
+     mechanic that already works, instead of debugging chemistry inside
+     a lesson's chrome.
+
+     TWO MOUNTS, and the second is the real test:
+
+       A. two glucoses. The card with a FORK, and the fork is which
+          REAGENT you pick: β-glucose reaches cellobiose, α-glucose
+          reaches maltose. It cannot be a matter of how you aim, because
+          the two anomers differ by which side of the ring C1's oxygen is
+          on and no rotation moves it there. Both products are checked
+          specs, and the finished pose is lifted from whichever one the
+          reagent commits to — the hand picks the reagent, never the
+          geometry.
+
+       B. two alanines. The SAME module, the same table, a different
+          pair of groups. If this needed a code branch, the abstraction
+          was wrong and the four macromolecule classes are not one
+          reaction after all. It did not.
+
+     WHAT TO LOOK FOR, in order:
+
+       1. The water. Three atoms leave, and they are the same spheres
+          that were on the reactants a second earlier — watch one
+          hydroxyl oxygen become the water's oxygen. Nothing is spawned.
+       2. The fork. Switch A's reagent between α and β and run it again.
+          The readout names the product from the moment you pick, not on
+          completion — a choice you cannot read is not one you are making.
+       3. Nothing else reacts. Bring the two rings together anywhere but
+          the reactive sites and they simply pass by.
+
+     Every number in the readouts is printed from the module's own
+     state(). check-condense.js audits the geometry offline.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  /* Thin on purpose, as in lobes-test.html: condense-drag.js renders into a
+     THREE scene and owns no DOM. If this file has to style a molecule, the
+     module is leaking. */
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:1180px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:70ch}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(430px,1fr))}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .case > .why{font-family:var(--font-sans);font-size:11.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 12px;padding-bottom:10px;
+    border-bottom:1.5px solid rgba(58,52,44,.14)}
+  .case > .why b{color:var(--ink)}
+  .gl{width:100%;height:360px;display:block;border-radius:calc(var(--radius) - 6px);
+    background:rgba(58,52,44,.04);cursor:grab}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+    padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer}
+  .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.55;margin-top:10px;
+    min-height:4.6em}
+  .read b{color:var(--ink)}
+  #key{margin:24px 0 0;font-family:var(--font-sans);font-size:12px;
+    color:var(--muted);line-height:1.7;max-width:80ch}
+  #key b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>condense-drag.js — test bench</h1>
+  <p class="lede">Two mounts of one module. Drag the right-hand molecule onto the
+    left-hand one. Nothing on this page decides any chemistry: which atoms react
+    and which leave are read off each molecule's own <code>condense:</code> block,
+    and the finished shape is the product spec's own coordinates.</p>
+
+  <div class="grid">
+    <div class="case">
+      <p class="why"><b>A — two glucoses, and a fork.</b> Drag the right ring so
+        its <b>anomeric oxygen</b> meets the left ring's <b>C4</b>. The fork is the
+        <b>reagent</b>, not the aim: β-glucose gives <b>cellobiose</b> (cellulose's
+        repeat), α-glucose gives <b>maltose</b> (starch's). You cannot turn one
+        into the other by rotating it — that oxygen is on the other side of the
+        ring, and moving it means breaking a bond. Same water, different food.</p>
+      <div><canvas class="gl" id="glA"></canvas></div>
+      <div class="row" id="rowA"></div>
+      <div class="read" id="readA"></div>
+    </div>
+
+    <div class="case">
+      <p class="why"><b>B — two alanines, same module.</b> The carboxyl keeps its
+        carbon and loses <b>–OH</b>; the amino keeps its nitrogen and loses an
+        <b>H</b>. One bond, one water, a <b>peptide</b>. No product spec exists for
+        a dipeptide, so this join is posed as a <b>schematic</b> and claims no
+        conformation — which is why this card says nothing about shape.</p>
+      <div><canvas class="gl" id="glB"></canvas></div>
+      <div class="row" id="rowB"></div>
+      <div class="read" id="readB"></div>
+    </div>
+  </div>
+
+  <div id="key"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../tokens-from-palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<script src="../mol-monomers.js"></script>
+<script src="../mol-pathways.js"></script>
+<script src="../mol-contrast.js"></script>
+<script src="../scene.js"></script>
+<script src="../fx.js"></script>
+<script src="../kit/motion.js"></script>
+<script src="../kit/leaving.js"></script>
+<script src="frame.js"></script>
+<script src="../condense-drag.js"></script>
+<script>
+"use strict";
+
+/* One mount: a stage, the module, a readout printed from state(). Deliberately
+ * not Lesson.create — this bench is testing condense-drag.js, and a stagekit
+ * failure showing up as a condensation bug is exactly what a bench exists to
+ * avoid. */
+function mount(canvasId, rowId, readId, recipe){
+  const canvas=document.getElementById(canvasId);
+  const { scene, camera, renderer, root, cam, applyCam, resize } =
+    Stage.create(canvas, { cam:{ theta:0.5, phi:1.15, r:22 }, rMax:200 });
+  const fx=FX.create(THREE, root, camera);
+  const motion=Motion.create();
+  const read=document.getElementById(readId);
+
+  /* The tray is declared before the module is created, because create() calls
+   * onChange once during its own build and render() paints the tray. */
+  const R=CondenseDrag.RECIPES[recipe];
+  const row=document.getElementById(rowId);
+  const tray=[];
+
+  const c=CondenseDrag.create({ THREE, root, camera, canvas, fx, motion, recipe,
+                                onChange:s=>render(s) });
+
+  /* Framed against BOTH molecules at their starting spread, not against one:
+   * the dragged molecule is dealt well off to the side, and a fit to the fixed
+   * one alone would put the thing the student has to grab off screen. */
+  const eA=Stage.measure(MolLib.MOLECULES[R.a]);
+  // The donor is a choice, so its extent is re-measured per fit rather than
+  // captured once — swapping reagents can change the molecule on the bench.
+  const eB=()=>Stage.measure(MolLib.MOLECULES[c.state().donor.mol]);
+  // The deal position is asked of the MODULE rather than recomputed here: a
+  // camera fitted to a position the module did not use is how a card opens with
+  // the thing the student has to grab sitting off screen.
+  const fit=()=>{ const d=c.deal(); resize(); Stage.frame(camera, cam, [
+    { x:0, y:0, rxz:eA.rxz, hy:eA.hy },
+    { x:d[0], y:d[1], rxz:eB().rxz, hy:eB().hy } ]); applyCam(); };
+  new ResizeObserver(fit).observe(canvas);
+  fit();
+
+  /* Every line below is printed from the module's own state(). A typed "one
+   * water" would survive a module that stopped releasing one. */
+  function render(s){
+    const L=[];
+    const prod=s.product ? MolLib.MOLECULES[s.product].name : null;
+    L.push(`<b>${s.title}</b> \u2014 donor: <b>${s.donor.label}</b>`);
+    L.push(prod ? `will make <b>${prod}</b> (${s.donor.makes})`
+                : `will make <b>a peptide bond</b> (no product spec: schematic pose)`);
+    if(s.joined) L.push(`joined \u2014 released <b>H\u2082O</b>: the same three atoms, not a new molecule`);
+    else if(s.near) L.push(`in range \u2014 the acceptor is pulling`);
+    else L.push(`drag the right-hand molecule onto the left`);
+    read.innerHTML=L.join('\n');
+    tray.forEach((b,i)=>b.setAttribute('aria-pressed', String(i===s.donor.index)));
+  }
+
+  /* The reagent tray is built from the recipe's own donor list, so a card
+   * cannot offer a reagent the module will not run. A single-donor recipe
+   * renders no tray at all rather than one dead button. */
+  if(R.donors.length>1) R.donors.forEach((d,i)=>{
+    const b=document.createElement('button');
+    b.textContent=d.label;
+    b.onclick=()=>{ c.setDonor(i); fit(); };
+    row.appendChild(b); tray.push(b);
+  });
+  const b=document.createElement('button');
+  b.textContent='Reset';
+  b.onclick=()=>{ c.reset(); fit(); };
+  row.appendChild(b);
+
+  let prev=performance.now();
+  (function loop(now){
+    requestAnimationFrame(loop);
+    const dt=Math.min(0.1,(now-prev)/1000); prev=now;
+    motion.step(dt); c.step(dt); fx.step(dt);
+    renderer.render(scene,camera);
+  })(prev);
+
+  render(c.state());
+  return c;
+}
+
+/* Exposed for driving the bench from the console: a backgrounded tab pauses
+ * requestAnimationFrame, so a screenshot can freeze on the last frame and an
+ * automated check has to call in rather than watch. */
+window.MOUNTS = {
+  sugar:   mount('glA','rowA','readA','sugar'),
+  peptide: mount('glB','rowB','readB','peptide'),
+};
+
+/* The key is printed from the recipe table and the specs, so it cannot claim a
+ * reaction the module does not run. */
+document.getElementById('key').innerHTML =
+  Object.entries(CondenseDrag.RECIPES).map(([k,R])=>{
+    const routes=R.donors.map(d=>{
+      const spec=MolLib.MOLECULES[d.mol];
+      const prod=d.product ? MolLib.MOLECULES[d.product].name : 'no product spec';
+      return `${spec.name} \u2192 ${prod}`;
+    });
+    return `<b>${k}</b> — acceptor ${MolLib.MOLECULES[R.a].name}, `
+         + `joined ${R.donor}\u2192${R.acceptor}, posed by <b>${R.place}</b>. `
+         + `${routes.join(' · ')}.`;
+  }).join('<br>');
+</script>
+</body>
+</html>

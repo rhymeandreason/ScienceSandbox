@@ -21,9 +21,13 @@
  *       just dragging, reparented, never rebuilt.
  *    2. Only two particular groups react. Every other part of either molecule
  *       can be brought together all day and nothing happens.
- *    3. The join has a configuration, and the student picks it. Which FACE the
- *       incoming ring approaches on decides α or β, which is the difference
- *       between starch and cellulose. A fork, not a toggle.
+ *    3. The join has a configuration, and the student picks it — by picking a
+ *       REAGENT, not by aiming. α- and β-glucose differ by which side of the
+ *       ring C1's oxygen sits on, and no amount of turning one converts it into
+ *       the other: that takes breaking a bond at C1. So starch's linkage and
+ *       cellulose's are not two ways of bringing the same molecule together,
+ *       they are two different molecules, and a card that let the hand choose
+ *       between them would be teaching a chemistry that does not exist.
  *
  *  Chemistry lives in the SPEC, not here. A molecule declares `condense:` —
  *  which atom stays bonded, which atoms leave with the water, what the product
@@ -67,13 +71,20 @@
 
   /* ---- the recipes ----------------------------------------------------
    * `a` stays put and carries the acceptor role; `b` is the one the student
-   * drags, and carries the donor. `start` is where b is dealt, clear of a's
-   * own spread.
+   * drags, and carries the donor.
    *
-   * `faces` is what makes the sugar card a fork: the approach side of a's ring
-   * plane at the moment of snap picks the product, and both products are real
-   * registered specs with their own `glycosidic:` claim. A recipe with a plain
-   * `product` has no fork.
+   * Where b is DEALT is measured, not typed: `gap` is a multiple of the two
+   * molecules' own half-widths, so a molecule that grows keeps its clearance
+   * and a card can never open with the two reactants overlapping. `lift` is
+   * the same multiple applied to a's height, which keeps the dragged molecule
+   * off the fixed one's shoulder without hiding it behind the readout.
+   *
+   * `donors` is what makes the sugar card a fork: a list of REAGENTS the
+   * student picks between, each reaching its own product. Both products are
+   * real registered specs with their own `glycosidic:` claim, and each donor
+   * already declares that product in its own `condense.makes` — the recipe
+   * repeats it only so a mismatch is a checkable disagreement rather than a
+   * silent single source. A recipe with one donor has no fork.
    */
   const RECIPES = {
     sugar: {
@@ -88,18 +99,34 @@
       residue:{ a:'B', b:'A' },
       // The exocyclic C6 arm turns freely, so its rotamer differs between a
       // lone glucose and a residue of the product and is not a claim either
-      // one makes. Named here because check-condense.js holds every OTHER
+      // one makes. Named here because condense/check-condense.js holds every OTHER
       // heavy atom to landing exactly.
       rotors:['O6','HO6','H61','H62'],
-      faces:{ alpha:'maltose', beta:'cellobiose' },
-      start:[7.5,1.2,0],
+      // The two reagents, and the whole lesson. Same acceptor, same water, same
+      // linkage position — the only difference is which side of the incoming
+      // ring its anomeric oxygen is on, and that difference is why bread is
+      // food and wood is not.
+      donors:[
+        { mol:'glucose',      product:'cellobiose', label:'\u03b2-D-glucose',
+          makes:'cellulose\u2019s linkage' },
+        { mol:'alphaGlucose', product:'maltose',    label:'\u03b1-D-glucose',
+          makes:'starch\u2019s linkage' } ],
+      gap:1.15, lift:0.14,
       title:'Two glucoses',
     },
     peptide: {
-      a:'alanine', b:'alanine', acceptor:'amino', donor:'carboxyl',
+      a:'alanine', acceptor:'amino', donor:'carboxyl',
       place:'bond',
-      product:null,
-      start:[6.4,1.0,0],
+      /* The new bond's length, in ångströms, and it is NOT skel.js's GL.CN.
+       * A peptide C–N is 1.33 Å, not an amine's 1.47: the carbonyl's π system
+       * delocalises over it, which is the same fact as the peptide bond being
+       * planar and unable to rotate — the constraint every protein structure
+       * downstream of this page is built on. Required rather than defaulted,
+       * because a silent generic single bond is what this card first drew.
+       */
+      bondLen:1.33,
+      donors:[ { mol:'alanine', product:null, label:'Alanine', makes:'a peptide bond' } ],
+      gap:1.15, lift:0.14,
       title:'Two alanines',
     },
   };
@@ -118,8 +145,12 @@
     root.add(group);
 
     const V = (x,y,z)=>new THREE.Vector3(x,y,z);
-    const specA = MOL[R.a], specB = MOL[R.b];
-    if(!specA || !specB)
+    // Which reagent is on the bench. The donor is a CHOICE (see `donors`), so
+    // specB and its role are re-read whenever that choice changes.
+    let donorIx = 0;
+    const specA = MOL[R.a];
+    let specB = null;
+    if(!specA)
       throw new Error(`condense-drag: recipe '${opts.recipe}' names a molecule that is not loaded`);
 
     // Roles come off the SPEC. A recipe naming a role the spec does not declare
@@ -133,7 +164,27 @@
       return r;
     }
     const roleA = roleOf(specA, R.acceptor, 'acceptor');
-    const roleB = roleOf(specB, R.donor, 'donor');
+    let roleB = null;
+
+    /* The product is known before the student moves anything: it is a property
+     * of which reagent they picked, and the recipe and the spec must agree on
+     * it. Disagreeing is a wiring error worth throwing on — the alternative is
+     * a card that names one product and builds another. */
+    function useDonor(i){
+      const d=R.donors[i];
+      if(!d) throw new Error(`condense-drag: recipe '${opts.recipe}' has no donor ${i}`);
+      specB = MOL[d.mol];
+      if(!specB) throw new Error(`condense-drag: donor '${d.mol}' is not loaded`);
+      roleB = roleOf(specB, R.donor, 'donor');
+      const rx=(specB.condense.makes||[]).find(x=>x.donor===R.donor && x.acceptor===R.acceptor);
+      if(!rx) throw new Error(`condense-drag: ${d.mol} declares no reaction ${R.donor}+${R.acceptor}`);
+      if(rx.product!==d.product)
+        throw new Error(`condense-drag: the recipe says ${d.mol} makes ${d.product}, `
+                      + `but the spec says ${rx.product}`);
+      donorIx=i;
+      return rx;
+    }
+    let rxB = null;
 
     let A=null, B=null;
     let vel=V(0,0,0);
@@ -141,13 +192,25 @@
 
     /* ---- build ---------------------------------------------------------- */
     function build(){
+      rxB = useDonor(donorIx);
       A = Stage.buildMolecule(specA, {center:true});
       B = Stage.buildMolecule(specB, {center:true});
-      B.position.set(R.start[0], R.start[1], R.start[2]);
+      const d=deal();
+      B.position.set(d[0], d[1], d[2]);
       group.add(A); group.add(B);
       group.updateMatrixWorld(true);
       joined=false; config=null; product=null; vel.set(0,0,0);
       report();
+    }
+
+    /* Where the dragged molecule is dealt, from the two molecules' measured
+     * extents. Exposed because the page frames its camera on the same two
+     * points, and a camera fitted to a deal position the module did not use is
+     * how a card opens with the thing to grab off screen. */
+    function deal(){
+      const eA=Stage.measure(specA), eB=Stage.measure(specB);
+      return [ (eA.rxz+eB.rxz)*(R.gap!=null?R.gap:1.15),
+               eA.hy*(R.lift!=null?R.lift:0.14), 0 ];
     }
 
     function at(g,i){
@@ -156,57 +219,6 @@
     }
     const siteA = ()=>at(A, roleA.keep);
     const siteB = ()=>at(B, roleB.keep);
-
-    /* ---- the fork: which face did it come in on? ------------------------
-     * The acceptor's own ring plane, signed. The side C4's leaving H points to
-     * is the axial approach and inverts the donor's anomeric arrangement (α,
-     * maltose); the other side keeps it (β, cellobiose). Derived from the
-     * acceptor's geometry rather than from a screen direction, so it survives
-     * an orbit.
-     */
-    function faceAt(p){
-      if(!R.faces || !p) return null;
-      const ring = ringOf(specA);
-      if(!ring) return null;
-      const n = ringNormal(A, ring), c = ringCentre(A, ring);
-      const h = at(A, roleA.leaves[0]);
-      const sign = Math.sign(h.clone().sub(c).dot(n)) || 1;
-      return Math.sign(p.clone().sub(c).dot(n))*sign >= 0 ? 'alpha' : 'beta';
-    }
-    // The shortest cycle through the acceptor's keep atom. These specs are small
-    // enough that a plain walk beats pulling in a ring finder.
-    function ringOf(spec){
-      const adj={};
-      (spec.bonds||[]).forEach(([i,j])=>{ (adj[i]=adj[i]||[]).push(j); (adj[j]=adj[j]||[]).push(i); });
-      const start=roleA.keep;
-      for(const first of adj[start]||[]){
-        const prev={}, q=[first], seen=new Set([start,first]);
-        prev[first]=start;
-        while(q.length){
-          const cur=q.shift();
-          for(const nx of adj[cur]||[]){
-            if(nx===start && cur!==first){
-              const path=[]; let c=cur;
-              while(c!==start){ path.push(c); c=prev[c]; }
-              path.push(start);
-              if(path.length>=5) return path;
-            }
-            if(seen.has(nx)) continue;
-            seen.add(nx); prev[nx]=cur; q.push(nx);
-          }
-        }
-      }
-      return null;
-    }
-    function ringCentre(g,ring){
-      const c=V(); ring.forEach(i=>c.add(at(g,i))); return c.divideScalar(ring.length);
-    }
-    function ringNormal(g,ring){
-      const c=ringCentre(g,ring), n=V();
-      for(let k=0;k<ring.length;k++)
-        n.add(at(g,ring[k]).sub(c).cross(at(g,ring[(k+1)%ring.length]).sub(c)));
-      return n.normalize();
-    }
 
     /* ---- placing the finished join --------------------------------------- */
     function nameIndex(spec){
@@ -231,12 +243,17 @@
         return { p:prod.atoms[pi].pos, l:li };
       });
     }
-    // Move `g` so its triad lands on the product's. Spec coordinates are real
-    // ångströms and the stage is in display units, so SCALE is applied here —
-    // `register()` already applied it to the atoms `g` was built from.
+    /* Move `g` so its triad lands on the product's. No SCALE here: `register()`
+     * applied it once on the way in, so MOLECULES coordinates and the meshes
+     * built from them are both already in display units.
+     *
+     * The triad is measured from the MESHES, not from the reactant spec, which
+     * is what makes this safe: `center:true` and the spec's `view:` are baked
+     * into the atom meshes, so reading them back picks both up and the
+     * transform lands the molecule where its own atoms actually are. */
     function placeOnProduct(g, which){
       const pts=triadOf(which);
-      const P=pts.map(t=>V(t.p[0],t.p[1],t.p[2]).multiplyScalar(SCALE));
+      const P=pts.map(t=>V(t.p[0],t.p[1],t.p[2]));
       const L=pts.map(t=>at(g,t.l));
       const rot=frame(P[0],P[1],P[2]).multiply(frame(L[0],L[1],L[2]).invert());
       const o=L[0].clone();
@@ -254,7 +271,11 @@
       const q=new THREE.Quaternion().setFromUnitVectors(
         leave.clone().sub(keep).normalize(), away.clone().negate());
       const o=keep.clone();
-      const to=target.clone().add(away.multiplyScalar(1.43*SCALE));
+      if(R.bondLen==null)
+        throw new Error(`condense-drag: recipe '${opts.recipe}' places by bond but `
+                      + `declares no bondLen — the length of the bond it makes is a `
+                      + `fact about the chemistry, not a default this module may pick`);
+      const to=target.clone().add(away.multiplyScalar(R.bondLen*SCALE));
       B.applyMatrix4(new THREE.Matrix4().makeTranslation(-o.x,-o.y,-o.z));
       B.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(q));
       B.applyMatrix4(new THREE.Matrix4().makeTranslation(to.x,to.y,to.z));
@@ -265,8 +286,8 @@
     function react(){
       if(joined) return;
       joined=true;
-      config=faceAt(siteB());
-      product=R.faces ? R.faces[config] : R.product;
+      product=R.donors[donorIx].product;
+      config=rxB && rxB.config || null;
 
       // Pose first, so the water leaves from where the atoms actually end up.
       if(R.place==='product' && product && MOL[product]){ placeOnProduct(A,'a'); placeOnProduct(B,'b'); }
@@ -285,7 +306,7 @@
      * from the water spec would be less code and a worse claim — it would say a
      * water APPEARED. */
     function releaseWater(){
-      const take=(g,idx)=>idx.map(i=>{
+      const take=(g,spec,idx)=>idx.map(i=>{
         const m=g.userData.atomMeshes[i];
         if(!m) return null;
         const w=m.getWorldPosition(V());
@@ -294,13 +315,17 @@
         g.userData.bondMeshes.forEach(bm=>{ if(bm.userData.pair.includes(i)) bm.visible=false; });
         m.parent.remove(m);
         root.add(m); m.position.copy(root.worldToLocal(w));
-        return m;
+        // the element comes off the SPEC. buildMolecule stores it on the mesh as
+        // `userData.role`, which also carries non-atom roles elsewhere, so the
+        // spec is the unambiguous source.
+        return { mesh:m, el:spec.atoms[i].el };
       }).filter(Boolean);
 
-      const gone=[...take(B, roleB.leaves), ...take(A, roleA.leaves)];
+      const gone=[...take(B, specB, roleB.leaves), ...take(A, specA, roleA.leaves)];
       if(!gone.length) return;
-      const o=gone.find(m=>m.userData.el==='O')||gone[0];
-      const hs=gone.filter(m=>m!==o);
+      const oh=gone.find(x=>x.el==='O')||gone[0];
+      const o=oh.mesh;
+      const hs=gone.filter(x=>x!==oh).map(x=>x.mesh);
 
       // water's own geometry, in display units: O–H 0.96 Å at 104.5°
       const OH=0.96*SCALE, half=104.5/2*Math.PI/180;
@@ -398,12 +423,16 @@
     function state(){
       const a=A&&siteA(), b=B&&siteB();
       const r=(a&&b)?a.distanceTo(b):null;
-      const near=r!=null && r<=S.CAPTURE;
+      const d=R.donors[donorIx];
       return {
-        joined, config, product, near,
-        // the face the student is currently on, so the page can name the product
-        // BEFORE they commit to it — the fork is only a choice if it is legible
-        face: joined ? config : (near ? faceAt(b) : null),
+        joined, near: r!=null && r<=S.CAPTURE,
+        config: joined ? config : (rxB && rxB.config || null),
+        // The product is named from the moment the reagent is picked, not on
+        // completion: the student is choosing between two outcomes, and a
+        // choice they cannot read is not one they are making.
+        product: d.product,
+        donor:{ index:donorIx, label:d.label, makes:d.makes, mol:d.mol,
+                count:R.donors.length },
         title:R.title,
       };
     }
@@ -424,7 +453,11 @@
     }
 
     build();
-    return { group, step, reset, destroy, state };
+    /* Picking a reagent restarts the card. It has to: the molecule on the bench
+     * IS the choice, so there is nothing to swap in place. */
+    function setDonor(i){ donorIx=i; reset(); }
+
+    return { group, step, reset, destroy, state, deal, setDonor };
   }
 
   global.CondenseDrag = { create, RECIPES };

@@ -35,6 +35,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
 | `coupling/coupling-test.html` | Test bench for `coupling/coupling.js` — ΔG adds, and it only adds when the two reactions share a molecule | test |
 | `lobes/lobes-test.html` | Test bench for `lobes/lobes.js` — lone pairs as teardrops, and which nitrogens on adenine are not acceptors | test |
+| `condense/condense-test.html` | Test bench for `condense-drag.js` — dehydration synthesis as a drag: two glucoses (α or β reagent → maltose or cellobiose) and two alanines, each releasing the water the bond costs | test |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
 ## Making a new lesson

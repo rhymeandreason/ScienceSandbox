@@ -153,17 +153,16 @@
       // Indices come from the build variables, never typed, so re-ordering the
       // build cannot aim the reaction at the wrong hydroxyl.
       //
-      // Both products already exist as checked specs, and they differ only in
-      // the configuration left at C1. This spec is BETA (O1 equatorial), so
-      // cellobiose keeps C1's arrangement and maltose inverts it — which is
-      // exactly the choice the student makes by which face they approach on.
+      // This spec is BETA — O1 equatorial — so it reaches cellobiose and only
+      // cellobiose. Maltose is NOT a second product of this molecule: getting
+      // there means moving C1's oxygen to the other side of the ring, which is
+      // breaking a bond, not turning the molecule round. Starch's linkage
+      // starts from a different reagent, `alphaGlucose` in mol-contrast.js.
       condense:{
         roles:[
           { key:'c1', label:'anomeric –OH', keep:OH[0], leaves:[ohH[0]] },
           { key:'c4', label:'C4 –OH',       keep:4,      leaves:[OH[3], ohH[3]] } ],
-        makes:[
-          { product:'cellobiose', donor:'c1', acceptor:'c4', config:'beta',  invert:false },
-          { product:'maltose',    donor:'c1', acceptor:'c4', config:'alpha', invert:true } ] },
+        makes:[ { product:'cellobiose', donor:'c1', acceptor:'c4', config:'beta', invert:false } ] },
       // contrast-lab.html: glucose is the reference half of the glucose/galactose
       // pair. `diff` is C4 and its hydroxyl — the one position where galactose
       // differs — derived from the build variables above rather than typed, so
