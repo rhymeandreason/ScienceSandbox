@@ -142,8 +142,12 @@
  * avoid. */
 function mount(canvasId, rowId, readId, recipe){
   const canvas=document.getElementById(canvasId);
+  /* orbit:false and face-on, matching the lesson — see condense-lab.html. A
+     bench that let the view turn would be testing a configuration no page
+     ships, and would hide the reachability failure the lesson cannot have. */
   const { scene, camera, renderer, root, cam, applyCam, resize } =
-    Stage.create(canvas, { cam:{ theta:0.5, phi:1.15, r:22 }, rMax:200 });
+    Stage.create(canvas, { cam:{ theta:0, phi:Math.PI/2, r:22 }, rMax:200,
+                           orbit:false });
   const fx=FX.create(THREE, root, camera);
   const motion=Motion.create();
   const read=document.getElementById(readId);

@@ -54,6 +54,15 @@
  *                     claimed conformer — so a card using it must not put a
  *                     stereochemical claim on screen.
  *
+ *  THE HOST PAGE MUST PASS `orbit:false` AND FACE THE CAMERA ON.
+ *  A molecule is dragged in ONE plane, and that plane is fixed by the view.
+ *  Let the view turn and the plane turns with it, leaving the two reactive
+ *  sites separated along the view axis by more than the capture radius: the
+ *  card looks right, the sites touch on screen, and nothing ever reacts.
+ *  Nothing here can detect that — the module never sees the camera's
+ *  controls — so it is the page's promise to keep. dna-lab.html's step 1 made
+ *  the same promise for the same reason, and its comment is the precedent.
+ *
  *  Usage:
  *    const c = CondenseDrag.create({THREE, root, camera, canvas, fx, motion,
  *                                   recipe:'sugar', onChange:report});

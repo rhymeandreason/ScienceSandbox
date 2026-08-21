@@ -174,8 +174,19 @@
  * ============================================================= */
 
 const canvas=document.getElementById('gl');
+/* NO ORBIT, and the camera is face-on. dna-lab.html's step 1 settled this for
+   the same reason: the pointer moves a MOLECULE, and a molecule is dragged in
+   one plane. Let the view turn and that plane turns with it, so pieces that
+   were reachable a moment ago are suddenly separated along the view axis by
+   more than the acceptor's capture radius — a card where dragging silently
+   stops working, with nothing on screen to say why.
+
+   Face-on also costs nothing here: each spec's `view:` is already baked into
+   its meshes by buildMolecule, so the chair a student sees is the angle the
+   molecule declares rather than one this page picked. */
 const { scene, camera, renderer, root, cam, applyCam, resize } =
-  Stage.create(canvas, { cam:{ theta:0.5, phi:1.15, r:24 }, rMax:220 });
+  Stage.create(canvas, { cam:{ theta:0, phi:Math.PI/2, r:24 }, rMax:220,
+                         orbit:false });
 const FXi=FX.create(THREE, root, camera);
 const motion=Motion.create();
 
