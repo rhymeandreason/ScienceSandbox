@@ -86,6 +86,7 @@
   .featured .badge { background: #e6efe9; color: var(--accent); }
   .prototype .badge { background: #fdece3; color: var(--spark); }
   .reference .badge, .test .badge { background: #ececec; color: var(--muted); }
+  .tool .badge { background: #e6ecf5; color: #34578f; }
 
   .chips {
     display: flex;
@@ -125,6 +126,7 @@
     <button class="chip" data-status="prototype">Prototype</button>
     <button class="chip" data-status="reference">Reference</button>
     <button class="chip" data-status="test">Test</button>
+    <button class="chip" data-status="tool">Internal tool</button>
     <button class="chip" data-status="other">Other</button>
   </div>
 
@@ -140,6 +142,7 @@
     <button class="chip" data-topic="dna">DNA</button>
     <button class="chip" data-topic="rendering">Rendering</button>
     <button class="chip" data-topic="kit">Kit</button>
+    <button class="chip" data-topic="tools">Internal tools</button>
   </div>
 
   <section class="topic" data-topic="water">
@@ -305,10 +308,6 @@
   <section class="topic" data-topic="rendering">
     <h2>Molecule rendering reference</h2>
     <div class="grid">
-      <a class="card prototype" href="molecule-viewer.html">
-        <div class="path">molecule-viewer.html <span class="badge">prototype</span></div>
-        <div class="desc">Reference shelf: ATP, NADH — 3D / skel / flat2d / diagram</div>
-      </a>
       <a class="card other" href="viewer-compare.html">
         <div class="path">viewer-compare.html</div>
         <div class="desc">Viewer comparison</div>
@@ -326,6 +325,20 @@
       <a class="card test" href="kit/kit-test.html">
         <div class="path">kit/kit-test.html <span class="badge">test</span></div>
         <div class="desc">Test bench for kit/ — timeline, highlight vocab, camera fit</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="tools">
+    <h2>Internal tools</h2>
+    <div class="grid">
+      <a class="card tool" href="design-system.html">
+        <div class="path">design-system.html <span class="badge">internal tool</span></div>
+        <div class="desc">Every token, type step and button in main.css, on the stage's own paper</div>
+      </a>
+      <a class="card tool" href="molecule-viewer.html">
+        <div class="path">molecule-viewer.html <span class="badge">internal tool</span></div>
+        <div class="desc">Reference shelf: ATP, NADH — 3D / skel / flat2d / diagram</div>
       </a>
     </div>
   </section>

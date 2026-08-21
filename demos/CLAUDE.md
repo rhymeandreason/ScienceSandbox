@@ -10,7 +10,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 <!-- ENUM: Only add to this chart if a page is a featured lesson -->
 
-**Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as fallback or worked example — don't read it unless asked. *test* = an evaluation record, not a lesson.
+**Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as fallback or worked example — don't read it unless asked. *test* = an evaluation record, not a lesson — disposable, may get deleted once it's served its purpose. *internal tool* = not a lesson either, but kept in active use (e.g. to pick a molecule's default rotation) — don't delete it like a test.
 
 | Page | Lesson | Status |
 | --- | --- | --- |
@@ -25,9 +25,9 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `krebs-lab.html` | The Krebs cycle. Pyruvate oxidation, then eight steps around the ring, with the loop drawn in the sidebar and a second turn played back for the ×2. Where the carbon goes, and why the ATP is beside the point | prototype |
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
 | `water-tutor-lab.html` | **AI-tutor prototype.** Structure of water, with the right rail given to the tutor: the lesson's text lives on the model as annotate.js callouts, and an ask box takes the sidebar | prototype |
-| `design-system.html` | **The design system bench.** Every token, type step and button in `main.css`, drawn on the stage's own paper. Swatches read their own computed value, so the page cannot claim a colour the token does not hold | test |
+| `design-system.html` | Every token, type step and button in `main.css`, drawn on the stage's own paper. Swatches read their own computed value, so the page cannot claim a colour the token does not hold | internal tool |
 | `water-render-debug.html` | Test bench for render styles — a still life of water, an H-bond and the two ions, with colour swatches and the toon/outline switches. Built on Stage's own factories, so a style judged here is the one a lesson renders | test |
-| `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | prototype |
+| `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
 | `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | test |
 | `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
