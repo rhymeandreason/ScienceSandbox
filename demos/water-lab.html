@@ -9,28 +9,24 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="main.css">          <!-- design system: tokens, type, buttons -->
-<link rel="stylesheet" href="sandbox.css">
+<link rel="stylesheet" href="ask/chat.css">
+<link rel="stylesheet" href="annotate.css">      <!-- callout look; overrides the frozen copy in sandbox.css -->
+<link rel="stylesheet" href="water-tutor.css">   <!-- this lesson's on-stage chrome -->
 </head>
 <body>
 <div id="app-sidebar">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="dissocmsg" aria-live="polite"></div>
 
-    <div id="brand">
-      <i class="ph-bold ph-drop drop"></i>
-      <h1>Structure of Water</h1>
-    </div>
-
-    <div id="formula">
-      <div class="sketchbox">
-        <span class="flabel">H<sub>2</sub>O</span>
-        <img src="molecule_water.png" alt="water molecule">
+    <!-- One block, on its own scrim: the lesson's name, where the student is in
+         it, and what this step is called. It sits over the model, so it carries
+         its own ground rather than relying on empty paper behind it. -->
+    <div id="titleblock">
+      <div id="brand">
+        <h1>Structure of Water</h1>
+        <div id="steps"></div>
       </div>
-      <div class="addrow">
-        <button class="addbtn" id="addwater" title="Add water molecule"><i class="ph-bold ph-plus"></i></button>
-        <button class="addbtn mini" id="remwater" title="Remove water molecule"><i class="ph-bold ph-minus"></i></button>
-      </div>
+      <p id="stepclaim"></p>
     </div>
 
     <div id="tempbar">
@@ -47,26 +43,25 @@
 
     <div id="chips"></div>
     <div id="saltinfo"></div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
-    <div id="saltcard">
-      <div class="sketchbox">
-        <span class="flabel">NaCl</span>
-        <img src="molecule_salt.png" alt="salt">
+    <!-- Add a thing: one pill each, and the undo under it as plain text. Salt
+         first, so water keeps the same place when salt appears at step 5. -->
+    <div id="tray">
+      <div class="addcol" id="saltctl">
+        <button class="pill" id="addsalt">Add Salt</button>
+        <button class="textbtn" id="clearsalt">Clear</button>
       </div>
-      <button class="addbtn" id="addsalt" title="Add salt"><i class="ph-bold ph-plus"></i></button>
-      <span class="clear" id="clearsalt">Clear Salt</span>
+      <div class="addcol" id="waterctl">
+        <button class="pill" id="addwater">Add Water</button>
+        <button class="textbtn" id="remwater">Remove</button>
+      </div>
     </div>
   </div>
 
+  <!-- The rail holds the tutor and nothing else: the lesson's own text is on
+       the model, as annotations, where the thing it describes is. -->
   <div id="side">
-    <div id="steps"></div>
-    <div id="card"></div>
-    <footer>
-      <button id="prev">Previous</button>
-      <button id="next">Next</button>
-    </footer>
-    <span id="dbgtoggle">DEBUG</span>
+    <div id="askslot"></div>
   </div>
 </div>
 
@@ -77,7 +72,11 @@
 <script src="mol-solvation.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
-<script src="atomkit.js"></script>   <!-- step-1 element letters + δ badges (same as the bonding builder) -->
+<script src="atomkit.js"></script>
+<script src="annotate.js"></script>      <!-- callouts pinned to atoms: the lesson’s text, on the model -->
+<script src="kit/focus.js"></script>       <!-- one vocabulary for "look here": ghost the rest, light the chosen -->
+   <!-- step-1 element letters + δ badges (same as the bonding builder) -->
+<script src="ask/chat.js"></script>          <!-- the tutor drawer; DOM only, never touches the scene -->
 <script>
 "use strict";
 /* =============================================================
@@ -113,28 +112,21 @@ let ionColor=MolLib.PALETTE.bonds.iondipole;        // ion–dipole bond, deep a
 // belonging to that atom rather than as a separate annotation layer
 let eBondColor=0xe0a92e, eLoneColor=0x444444,
     dNegColor=MolLib.PALETTE.atoms.O, dPosColor=MolLib.PALETTE.atoms.H;
-let toonMode=false;          // solid (Standard) vs cell-shaded (Toon)
 const hx=n=>'#'+n.toString(16).padStart(6,'0');
 
-// material factories honour the current render mode
 // MATTE: a tight specular highlight reads as wet plastic at these sizes, and on
 // a big atom it competes with the element letter beside it. Same numbers as
 // Stage.atomMat in scene.js — this page predates that extraction and still owns
 // its own factories, so the value lives in two places by history.
-function atomMat(color){ return toonMode
-  ? new THREE.MeshToonMaterial({color})
-  : new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
-function bondMat(color){ return toonMode
-  ? new THREE.MeshToonMaterial({color})
-  : new THREE.MeshStandardMaterial({color,roughness:.5}); }
-function glowMat(color,ei){ return toonMode
-  ? Object.assign(new THREE.MeshToonMaterial({color,emissive:color}),{emissiveIntensity:ei})
-  : new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:ei,roughness:.4}); }
+function atomMat(color){ return new THREE.MeshStandardMaterial({color,roughness:.92,metalness:0}); }
+function bondMat(color){ return new THREE.MeshStandardMaterial({color,roughness:.5}); }
+function glowMat(color,ei){
+  return new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:ei,roughness:.4}); }
 
 function atom(color, radius, pos, role){
   const m=new THREE.Mesh(Rsphere, atomMat(color));
   m.scale.setScalar(radius); if(pos)m.position.copy(pos);
-  if(role){ m.userData.role=role; if(outlinesOn && OUTLINE_ROLES.includes(role)) addOutline(m); }
+  if(role) m.userData.role=role;
   return m;
 }
 function bond(a,b,color=bondColor,rad=0.13,order=1,perpHint=null){
@@ -184,57 +176,6 @@ let _hbMat=glowMat(hbColor,.55);
 let _ionMat=glowMat(ionColor,.6);
 const _up=new THREE.Vector3(0,1,0);
 
-// ---- live material controls (Debug ▸ Colors / Render) ----
-// swap a mesh's material between Standard and Toon, preserving colour/emissive
-function convertMat(mesh){
-  const s=mesh.material; if(!s || s.isMeshBasicMaterial) return;
-  if(!!s.isMeshToonMaterial===toonMode) return;              // already correct type
-  const o={color:s.color.getHex(), transparent:s.transparent, opacity:s.opacity};
-  const em=s.emissive && s.emissive.getHex();
-  /* Rebuild through the factories above rather than naming roughness here: this
-     carried its own copy of the numbers, so a mesh toggled to Toon and back came
-     home glossier than one that never left. atomMat/bondMat honour toonMode
-     themselves, so they answer for both directions. */
-  const nm=em ? glowMat(o.color, s.emissiveIntensity)
-              : (mesh.userData.role==='covalent' ? bondMat(o.color) : atomMat(o.color));
-  nm.transparent=o.transparent; nm.opacity=o.opacity;
-  mesh.material=nm;
-}
-function applyRenderMode(){
-  _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);
-  scene.traverse(o=>{ if(o.isMesh) convertMat(o); });
-}
-// recolour every existing mesh of a given role (atoms/covalent); future meshes
-// read `state`/bondColor at creation
-function recolor(role,hex){
-  if(role==='covalent') bondColor=hex; else state[role]=hex;
-  scene.traverse(o=>{ if(o.isMesh && o.userData.role===role) o.material.color.setHex(hex); });
-}
-function recolorBondType(which,hex){
-  if(which==='hb') hbColor=hex; else ionColor=hex;
-  _hbMat=glowMat(hbColor,.55); _ionMat=glowMat(ionColor,.6);   // new tubes next frame
-}
-
-// ---- cel outlines: an inflated back-face shell per atom (Debug ▸ Render) ----
-let outlinesOn=false;
-const _outlineMat=new THREE.MeshBasicMaterial({color:0x2b2723, side:THREE.BackSide});
-const OUTLINE_ROLES=['O','H','Na','Cl','K','C','N'];
-const OUTLINE_GAP=0.05;   // constant world-space thickness (not proportional to radius)
-// child scale is relative to the parent's radius, so divide the gap out to keep
-// the outline the same thickness on small H and large Cl alike
-function outlineScale(r){ return (r+OUTLINE_GAP)/r; }
-function addOutline(mesh){
-  if(mesh.userData.outline) return;
-  const o=new THREE.Mesh(mesh.geometry,_outlineMat);   // shares unit sphere; inherits parent scale
-  o.scale.setScalar(outlineScale(mesh.scale.x||1)); mesh.add(o); mesh.userData.outline=o;
-}
-function removeOutline(mesh){
-  if(mesh.userData.outline){ mesh.remove(mesh.userData.outline); mesh.userData.outline=null; }
-}
-function applyOutlines(){
-  scene.traverse(o=>{ if(o.isMesh && OUTLINE_ROLES.includes(o.userData.role)){
-    outlinesOn ? addOutline(o) : removeOutline(o); } });
-}
 function dashTube(a,b,mat=_hbMat){
   const g=new THREE.Group();
   const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
@@ -273,9 +214,16 @@ function water(){
   const g=new THREE.Group();
   const O=atom(state.O,0.95,new THREE.Vector3(0,0,0),'O');
   const Ha=atom(state.H,0.55,H1L,'H'), Hb=atom(state.H,0.55,H2L,'H');
-  g.add(bond(new THREE.Vector3(0,0,0),H1L),bond(new THREE.Vector3(0,0,0),H2L));
+  const ba=bond(new THREE.Vector3(0,0,0),H1L), bb=bond(new THREE.Vector3(0,0,0),H2L);
+  g.add(ba,bb);
   g.add(O,Ha,Hb);
-  g.userData={O,Ha,Hb, oWorld:()=>O.getWorldPosition(new THREE.Vector3()),
+  // atomMeshes/bondMeshes/pair are what kit/focus.js reads to light one atom
+  // rather than a whole molecule. Indices are 0=O, 1=Ha, 2=Hb, and a bond
+  // belongs to a set only when both its ends do, which is Focus's rule and the
+  // reason `pair` has to be here rather than inferred.
+  ba.userData.pair=[0,1]; bb.userData.pair=[0,2];
+  g.userData={O,Ha,Hb, atomMeshes:[O,Ha,Hb], bondMeshes:[ba,bb],
+    oWorld:()=>O.getWorldPosition(new THREE.Vector3()),
     hWorld:i=>(i?Hb:Ha).getWorldPosition(new THREE.Vector3())};
   return g;
 }
@@ -370,7 +318,11 @@ function createWaterSim(cfg={}){
     // A single pair of waters shares at most ONE H-bond (each of water's 4 bonds
     // goes to a different neighbour), so also forbid a second bond between a pair.
     const accepted=new Map(), bonded=new Set();
-    mols.forEach((m,idx)=>{ m.userData._i=idx; m.userData.hb=0; });   // per-molecule H-bond tally (read next frame)
+    // Per-molecule H-bond tally, read next frame. `hbBonds` records WHICH
+    // hydrogen went to WHICH molecule, because the matcher below already knows
+    // and anything reading it back off geometry would be re-deriving a decision
+    // that has already been made, and can disagree with it.
+    mols.forEach((m,idx)=>{ m.userData._i=idx; m.userData.hb=0; m.userData.hbBonds=[]; });
     const pairKey=(a,b)=>a<b?a+'|'+b:b+'|'+a;
     for(const donor of mols){ if(donor.userData.escaped) continue;   // gas-phase molecule: no H-bonds
       const oD=donor.userData.oWorld();
@@ -386,6 +338,7 @@ function createWaterSim(cfg={}){
         if(best){ n++; accepted.set(bestMol,(accepted.get(bestMol)||0)+1);
           bonded.add(pairKey(donor.userData._i,bestMol.userData._i));
           donor.userData.hb++; bestMol.userData.hb++;   // both partners gain a bond
+          donor.userData.hbBonds.push({acc:bestMol, h:hi});
           if(showHbonds){ const l=hbondTube(h,best); lines.push(l); root.add(l); }
           if(o.hbForce&&hbScale>0){ const ax=V().subVectors(bestMol.position,donor.position);
             const dist=ax.length()||1; ax.multiplyScalar((dist-o.EQ)*o.kHB*bestLin*hbScale/dist);
@@ -408,7 +361,7 @@ const first = sim.spawn(new THREE.Vector3(0,0,0));
 const S = { step:0, temperature:22, tempEnabled:false, freezeEnabled:false,
   saltEnabled:false, hbondsOn:true, targetR:9 };
 
-/* ---- live-tunable knobs (step-5 solvent scene); exposed via the 🐛 Debug panel ---- */
+/* ---- the solvent scene’s tuning constants (step 5) ---- */
 const DBG = {
   naRad:0.70,        // Na⁺ display radius (real Na⁺/O ≈ 0.73)
   clRad:1.24,        // Cl⁻ display radius (real Cl⁻/O ≈ 1.29, Cl⁻/Na⁺ ≈ 1.77)
@@ -461,20 +414,66 @@ function buildCharges(){
   dH2=kit.charge('δ+',hx(dPosColor),'H',0.8); holdH2.add(kit.place(dH2,H2L.clone().normalize().multiplyScalar(0.62)));
   applyDetail();
 }
+/* ---- the bond angle, drawn ----
+   A textbook figure marks an angle with an arc at the vertex, and the number
+   is meaningless without one: "104.5°" beside a molecule could be naming
+   anything. The arc is swept from one O–H direction to the other through the
+   molecule's own plane, so it stays true when the student orbits, and its
+   radius clears the oxygen sphere (0.95) without reaching the hydrogens. */
+// Outside the hydrogens (centres at HL, radius 0.55), so the arc sweeps BELOW
+// the atoms instead of cutting across them — the way a figure draws an angle
+// mark clear of the thing it measures.
+const ARC_R=HL+0.55+0.14;
+const arcAxis=new THREE.Vector3(0,0,1);       // the molecule is built flat in z=0
+// Stops short of each O–H direction: the δ badges are parked out along those
+// directions at about this radius, and an angle mark running into them reads as
+// a line through the charge rather than an arc between the bonds.
+const ARC_TRIM=0.14;
+const arcPts=[];
+for(let i=0;i<=48;i++){
+  const t=ARC_TRIM+(1-2*ARC_TRIM)*i/48;
+  arcPts.push(H1L.clone().normalize().applyAxisAngle(arcAxis, -ANG*t).multiplyScalar(ARC_R));
+}
+const angleArc=new THREE.Mesh(
+  new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arcPts), 48, 0.022, 8, false),
+  new THREE.MeshBasicMaterial({color:0x9a938a}));
+detail.add(angleArc);
+const arcMid=arcPts[24].clone();
+
+/* THE NUMBER, UNDER THE ARC. A callout would need a dot and a leader to say
+   which angle it means, and the arc already says that — so this is a plain
+   label riding with the molecule instead. A Sprite because it must stay
+   readable at any orbit, and the text is derived from ANG, so changing the
+   geometry cannot leave the figure claiming the old angle. */
+const angleDeg=(ANG*180/Math.PI).toFixed(1)+'\u00b0';
+const angleLabel=(function(){
+  const c=document.createElement('canvas'); c.width=256; c.height=96;
+  const g=c.getContext('2d');
+  function draw(){
+    g.clearRect(0,0,c.width,c.height);
+    g.font='600 58px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+    g.fillStyle='#9a938a'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(angleDeg, c.width/2, c.height/2);
+  }
+  draw();
+  const tex=new THREE.CanvasTexture(c);
+  // same bake hazard atomkit.js documents: the canvas keeps whatever font was
+  // loaded when it was drawn, so redraw once the webfonts settle
+  if(document.fonts&&document.fonts.ready)
+    document.fonts.ready.then(()=>{ draw(); tex.needsUpdate=true; });
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,
+    depthTest:false, depthWrite:false}));
+  sp.renderOrder=30;
+  sp.scale.set(1.06,0.40,1);
+  sp.position.copy(arcMid).setLength(ARC_R+0.42);
+  return sp;
+})();
+detail.add(angleLabel);
+
 const eGroup=new THREE.Group(); detail.add(eGroup);
 [H1L,H2L].forEach(H=>{ const mid=new THREE.Vector3().lerp(H,0.42); eGroup.add(ePair(mid,H.clone().normalize(),eBondColor,'eBond')); });
 const lp1=new THREE.Vector3(0,0.55,0.83).normalize(), lp2=new THREE.Vector3(0,0.55,-0.83).normalize();
 [lp1,lp2].forEach(d=>eGroup.add(ePair(d.clone().multiplyScalar(1.35),d,eLoneColor,'eLone')));
-// live recolour for step-1 electrons + charge text (Debug ▸ Colors)
-function recolorElectrons(role,hexNum){
-  if(role==='eBond') eBondColor=hexNum; else eLoneColor=hexNum;
-  eGroup.traverse(o=>{ if(o.isMesh && o.userData.role===role){
-    o.material.color.setHex(hexNum); if(o.material.emissive) o.material.emissive.setHex(hexNum); } });
-}
-function recolorChargeText(which,hexNum){
-  if(which==='dNeg') dNegColor=hexNum; else dPosColor=hexNum;
-  buildCharges();          // a badge's colour is baked into its canvas texture
-}
 const dset={electrons:false,charge:true,dipole:false,cloud:false};
 function applyDetail(){
   detail.visible=(S.step===0);
@@ -652,7 +651,6 @@ function checkDissociation(){
     if(b.dissociated || b.na.userData.descending) return;   // already split, or still falling in
     if(!bridgingWater(b.na,b.cl)) return;                   // wait for a water to wedge this pair apart
     b.dissociated=true;
-    showDissocMsg();
     // one-time "pop apart" impulse outward from this pair's midpoint
     const c=new THREE.Vector3().addVectors(b.na.position,b.cl.position).multiplyScalar(0.5);
     [b.na,b.cl].forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
@@ -663,16 +661,6 @@ function checkDissociation(){
     FXi.spawnRing(c, FXi.colorOf(b.na));
     FXi.popGlow(b.na, FXi.colorOf(b.na)); FXi.popGlow(b.cl, FXi.colorOf(b.cl));
   });
-}
-// Animated toast announcing that water has pried the ionic bond apart.
-const dissocMsgEl=document.getElementById('dissocmsg');
-let dissocMsgShown=0;                 // only teach it the first couple of times
-function showDissocMsg(){
-  if(dissocMsgShown++>=2) return;
-  dissocMsgEl.innerHTML='Ionic bond broken! Water pulls <b class="Na">Na⁺</b> and <b class="Cl">Cl⁻</b> apart.';
-  dissocMsgEl.classList.remove('show');
-  void dissocMsgEl.offsetWidth;      // restart the animation if it fires again
-  dissocMsgEl.classList.add('show');
 }
 // ion–dipole bonds: each shell water → its ion, drawn to the atom that faces
 // the ion (O for Na⁺, the inward H for Cl⁻) so the polarity reads correctly
@@ -865,36 +853,29 @@ function tempParams(){
  *  Steps
  * ============================================================= */
 const stepMeta=[
- {title:'A Polar Molecule',
-  hint:'One water molecule — H₂O',
-  body:`<p>Water is <b>V-shaped</b>: one oxygen atom joined to two hydrogens by <b>covalent bonds</b> (shared pairs of electrons) at a <b>104.5°</b> angle. <br><br>Because oxygen is more electronegative, it pulls these shared electrons closer. This creates <b>polar covalent bonds</b>, making oxygen slightly negative (<b>δ−</b>) and hydrogens slightly positive (<b>δ+</b>).</p>`,
-  fact:`Because the charge is lopsided, water is <b>polar</b> — and that single fact is the seed of nearly every special property that follows.`},
- {title:'Hydrogen Bonds',
-  hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O',
-  body:`<p>Hydrogen bonds attract the <b>+ H</b> of one water molecule to the <b>− O</b> of another.</p>`,
-  fact:`A single hydrogen bond is weak. It's about <b>1/20</b> as strong as the covalent O–H bond inside a molecule. <br><br>But with trillions of water molecules togther, <b>H-bonds collectively drive nearly every special property of water!</b>`},
- {title:'Specific Heat',
-  hint:'Raise the temperature — energy first breaks hydrogen bonds',
-  body:`<p class="lead">Water has a high specific heat.</p>
-  <p>It absorbs a lot of heat for only a small temperature change, because energy first goes into breaking hydrogen bonds rather than speeding up molecules.</p>`,
-  fact:`This is why sweating cools you so well and why oceans stabilize climate — water soaks up enormous heat before it warms.`},
- {title:'Why Ice Floats',
-  hint:'Cool toward 0°C — molecules lock into the open ice lattice',
-  body:`<p>Unlike almost every substance, water is <b>less dense as a solid</b>. <br><br>When water freezes, hydrogen bonds lock each molecule into a rigid, <b>open hexagonal lattice</b>, spacing them farther apart than in liquid water.</p>`,
-  fact:`So ice floats, insulating the water below — lakes don't freeze solid, and aquatic life survives the winter.`},
- {title:'The Universal Solvent',
-  hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling',
-  body:`<p>Because water is polar, it dissolves ionic and polar substances extraordinarily well — the "universal solvent" of life.</p>
-  <p>Add salt and each ion pulls in a shell of about <b>6 waters</b>: around <b>Na⁺</b> they aim their δ− oxygen inward; around <b>Cl⁻</b> they aim a δ+ O–H inward.</p>`,
-  fact:`Dissolved salt shifts water's phase changes (<b>colligative properties</b>). Salt water <b>freezes below 0°C</b> and <b>boils above 100°C</b>.<br><br> This is why salt is used to melt road ice.`},
+ {tab:'a polar molecule',
+  claim:`Water is V shaped. One end is slightly negative, the other slightly positive.`,
+  hint:'One water molecule — H₂O'},
+ {tab:'hydrogen bonds',
+  claim:`The + H of one water molecule attracts to the − O of another.`,
+  hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O'},
+ {tab:'specific heat',
+  claim:`Water has high specific heat due to its H-bonds.`,
+  hint:'Raise the temperature — energy first breaks hydrogen bonds'},
+ {tab:'why ice floats',
+  claim:`Unlike almost every substance, water is less dense as a solid.`,
+  hint:'Cool toward 0°C — molecules lock into the open ice lattice'},
+ {tab:'the universal solvent',
+  claim:`Because water is polar, it dissolves ionic and polar substances extraordinarily well.`,
+  hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling'},
 ];
 
 /* ---------- DOM refs + control builders ---------- */
 const stage=document.getElementById('stage');
-const cardEl=document.getElementById('card');
+const side=document.getElementById('side');
 const stepsEl=document.getElementById('steps');
+const stepClaimEl=document.getElementById('stepclaim');
 const saltinfoEl=document.getElementById('saltinfo');
-const prevB=document.getElementById('prev'), nextB=document.getElementById('next');
 
 // temperature slider (markup lives in the HTML)
 const tempBar=document.getElementById('tempbar');
@@ -985,7 +966,226 @@ document.getElementById('addwater').onclick=addWater;
 document.getElementById('remwater').onclick=remWater;
 document.getElementById('addsalt').onclick=()=>{ if(salt.length<8) addSalt(); };
 document.getElementById('clearsalt').onclick=()=>clearSalt();
-const formulaEl=document.getElementById('formula'), saltcardEl=document.getElementById('saltcard');
+const formulaEl=document.getElementById('waterctl'), saltcardEl=document.getElementById('saltctl');
+
+/* ============================================================= *
+ *  The lesson's text, on the model (annotate.js)
+ *
+ *  The rail belongs to the tutor, so what used to be a paragraph in the
+ *  sidebar is a label on the atom it describes: the label says WHAT, the
+ *  card says WHY, two sentences at most. Every anchor is a FUNCTION
+ *  returning a live world point — every molecule here is being pushed
+ *  around by the sim, so a baked coordinate comes adrift on frame one.
+ * ============================================================= */
+const NOTES=Annot.create(THREE, stage, camera, {mode:'on'});
+const _wp=new THREE.Vector3();
+
+/* The first hydrogen bond a given donor currently holds. Bonds are recomputed
+   every frame, so this is re-read per frame rather than captured: a label that
+   names a bond has to sit on the bond that is there NOW. */
+function hbOf(donor){ return (donor && donor.userData.hbBonds || [])[0] || null; }
+
+/* THE BOND UNDER THE LABEL, HELD AS LONG AS IT LASTS. Hydrogen bonds are
+   re-solved every frame and a liquid breaks them constantly, so picking the
+   first one each frame makes the label hop across the cluster, and capturing
+   one donor for the whole step leaves the label stranded on a bare oxygen the
+   moment that molecule lets go. Keep the current pair while it is still bonded;
+   take the next one only when it is not. */
+let hbDonor=null;
+function hbAnchor(){
+  if(!hbOf(hbDonor)) hbDonor=sim.mols.find(w=>hbOf(w))||null;
+  const b=hbOf(hbDonor);
+  if(!b) return _wp.copy((sim.mols[0]||{position:_wp}).position);
+  return _wp.copy(hbDonor.userData.hWorld(b.h)).lerp(b.acc.userData.oWorld(),0.5);
+}
+
+/* THE BADGE'S EDGE, ON THE SIDE THE LABEL HANGS OFF. The charge callouts point
+   at the badge rather than the atom under it — the badge is what the sentence
+   is about, and the atom already carries its own letter — but a dot on the
+   badge's centre lands on the glyph and hides it. So walk out from the centre
+   by the sprite's radius, along the leader's own direction, in the camera's
+   plane: a Sprite's scale IS its world size, and the badge always faces the
+   camera, so the two basis vectors are the whole of the maths.
+
+   `get` is a getter, not a sprite: buildCharges() replaces the badges whenever
+   a colour changes in Debug ▸ Colors, and a captured sprite would be the old
+   one, left in place and no longer drawn. */
+const _cr=new THREE.Vector3(), _cu=new THREE.Vector3(), _cf=new THREE.Vector3();
+function badgeEdge(get, dir){
+  const n=Math.hypot(dir[0],dir[1])||1, ux=dir[0]/n, uy=dir[1]/n;   // screen y is DOWN
+  return ()=>{
+    const sp=get();
+    if(!sp) return _wp.copy(sim.mols[0].userData.oWorld());
+    sp.getWorldPosition(_wp);
+    camera.matrixWorld.extractBasis(_cr,_cu,_cf);
+    const r=sp.scale.x*0.5;
+    return _wp.addScaledVector(_cr, r*ux).addScaledVector(_cu, -r*uy);
+  };
+}
+
+/* The temperature slider's right edge, in the layer's own pixels. atPx, and
+   deliberately so: the slider is not a molecule, and both places that use it
+   are teaching something about the control the student is holding. */
+function tempBarPx(){
+  const st=NOTES.el.getBoundingClientRect(), b=tempBar.getBoundingClientRect();
+  return [b.right-st.left, b.top-st.top+b.height*0.5];
+}
+
+/* A GIVEN TEMPERATURE on the bar, not the bar's middle: "drag down to 0°C"
+   should point at the 0°C the student is being sent to. The track is the range
+   input itself, cold at the bottom, and its min/max move when salt depresses
+   the freezing point — so read them off the element rather than assuming 0–100. */
+function tempPx(degC){
+  const st=NOTES.el.getBoundingClientRect(), r=tinput.getBoundingClientRect();
+  const lo=parseFloat(tinput.min), hi=parseFloat(tinput.max);
+  const f=clamp((degC-lo)/((hi-lo)||1),0,1);
+  return [r.right-st.left, r.bottom-st.top-f*r.height];
+}
+
+function buildNotes(n){
+  NOTES.clear(); saltNoted.clear();
+  const w=sim.mols[0];
+  if(n===0 && w){
+    const O=()=>w.userData.oWorld();
+    NOTES.add({text:'slightly negative', offset:[52,-34], at:badgeEdge(()=>dO, [52,-34]),
+      card:'Oxygen pulls the shared electrons closer than hydrogen can. That leaves this end of the molecule slightly negative.'});
+    NOTES.add({text:'slightly positive', offset:[56,30], at:badgeEdge(()=>dH1, [56,30]),
+      card:'Each hydrogen has its one electron pulled away by the oxygen. The exposed proton leaves this end slightly positive.'});
+    /* The midpoint of the O–H line is INSIDE the oxygen: the sphere's radius
+       (0.95) is most of the bond length (1.55), so only the sliver between the
+       two surfaces is visible stick. Aim at the middle of that sliver. */
+    const WO_R=0.95, WH_R=0.55, stickMid=(WO_R+(HL-WH_R))/2;
+    NOTES.add({text:'covalent bond', offset:[150,-16],
+      at:()=>{ const o=w.userData.oWorld();
+               return _wp.copy(w.userData.hWorld(0)).sub(o).setLength(stickMid).add(o); },
+      card:'A shared pair of electrons creates a strong bond. Shared unevenly, so it is a <b>polar</b> covalent bond.'});
+  }
+  /* Step 2's callout waits: seatHBondPair() hands the sim the geometry, but the
+     bond is the ENGINE's to register, and a label that arrives first points at
+     two molecules that have not done anything yet. syncHbNote() adds it once
+     there is a bond under it. */
+  if(n===1){ hbDonor=null; hbNoted=false; }
+  if(n===2){
+    hbDonor=null;
+    NOTES.add({text:'heat breaks H-bonds first', offset:[58,-30], at:hbAnchor,
+      card:'Energy you add goes into pulling hydrogen bonds apart before it speeds molecules up. So a lot of heat buys only a small temperature rise — water’s high specific heat.'});
+    /* atPx, deliberately: the slider is not a molecule, and "where the energy
+       goes in" is a fact about the control the student is holding. */
+    NOTES.add({text:'Increase the heat', offset:[70,0], atPx:tempBarPx,
+      card:'Drag up and watch the network loosen before the molecules visibly speed up. That lag is the specific heat.'});
+  }
+  /* Step 4 says nothing about the lattice until there IS one: syncIceNotes()
+     swaps the hint for the labels when the student drives the water to 0°C. */
+  if(n===3) iceState=null;
+  /* Step 5 labels the ions, but only once the sim has actually seated a shell:
+     naming a hydration shell that is not there yet is a caption arguing with
+     the picture. syncSaltNotes() adds them when they become true. */
+}
+
+/* ---- the hydrogen bond, labelled once one exists ----
+   Plus a beat after that, so the student watches the bond form rather than
+   reading its name over a pair that is still drifting together. */
+let hbNoted=false, hbNote=null, stepT0=0, hbSeenAt=0;
+const HB_NOTE_WAIT=900;                    // ms after the step opens
+const HB_NOTE_GRACE=700;                   // ms a label survives with no bond under it
+function syncHbNote(){
+  if(S.step!==1){ hbNoted=false; hbNote=null; return; }
+  const now=performance.now();
+  const live=sim.mols.some(hbOf);
+  if(live) hbSeenAt=now;
+  /* The label leaves with the bond. A liquid breaks and remakes these
+     constantly, so it waits out a short grace period rather than blinking on
+     every gap — but a callout left over a pair that has drifted apart is
+     naming something that is not there. */
+  if(hbNoted && !live && now-hbSeenAt > HB_NOTE_GRACE){
+    if(hbNote) hbNote.remove();
+    hbNoted=false; hbNote=null; stepT0=now;
+    return;
+  }
+  if(hbNoted || now-stepT0 < HB_NOTE_WAIT || !live) return;
+  hbNoted=true;
+  hbNote=NOTES.add({text:'hydrogen bond', offset:[58,-30], at:hbAnchor,
+    card:'Attraction between molecules, with no electrons shared. Each one is about 1/20 the strength of the covalent O–H and breaks constantly, so it is trillions of them at once that give water its properties.'});
+  NOTES.setMode('reveal'); NOTES.play();
+}
+
+/* ---- the lattice, labelled when the water is actually frozen ----
+   Until then the only callout is on the slider, because the claim this step
+   makes ("ice is the open one") is not on screen yet and a label saying so
+   over moving liquid is a caption arguing with the picture. The hint asks for
+   the one action that makes it true. Warming back up puts the hint back. */
+let iceState=null;                    // null | 'hint' | 'ice' — what is on screen now
+function syncIceNotes(){
+  if(S.step!==3) return;
+  const frozen = (S.fz||0) >= 1;      // fz hits 1 at the freezing point itself
+  const want = frozen ? 'ice' : 'hint';
+  if(want===iceState) return;
+  iceState=want;
+  NOTES.clear();
+  if(!frozen){
+    /* On the bar's own 0°C caption rather than on the track: the caption is
+       where the student's eye already is, and sitting on its line lets the
+       leader run straight out to the right. */
+    // No card: it is an instruction, and the whole answer is what happens when
+    // the student follows it.
+    NOTES.add({text:'drag down to freeze', offset:[120,0],
+      atPx:()=>{ const st=NOTES.el.getBoundingClientRect(), c=tcoldEl.getBoundingClientRect();
+                 return [c.right-st.left+14, c.top-st.top+c.height*0.5]; }});
+  } else {
+    const w=sim.mols[0]; if(!w) return;
+    NOTES.add({text:'open hexagonal lattice', offset:[64,-36],
+      at:()=>w.userData.oWorld(),
+      card:'Frozen, each molecule is held by four neighbours at fixed arm\u2019s length. The cage props them farther apart than jostling liquid water does.'});
+    const far=()=>{ let best=sim.mols[0], r=-1;
+      sim.mols.forEach(m=>{ const d=m.position.length(); if(d>r){ r=d; best=m; } });
+      return best.userData.oWorld(); };
+    NOTES.add({text:'fewer molecules per litre', offset:[-64,40], at:far,
+      card:'Wider spacing equals lower density, which is why ice floats on its own liquid. Almost nothing else does this.'});
+  }
+  NOTES.setMode('reveal'); NOTES.play();
+}
+
+/* ---- the ions, labelled when their shell exists ---- */
+const saltNoted=new Map();
+function syncSaltNotes(){
+  if(S.step!==4){ if(saltNoted.size){ saltNoted.forEach(nt=>nt.remove()); saltNoted.clear(); } return; }
+  // gone, or wedged back below a shell: the label goes with the fact
+  saltNoted.forEach((nt,ion)=>{
+    if(!salt.includes(ion) || ion.userData.shellCount<1){ nt.remove(); saltNoted.delete(ion); }
+  });
+  /* ONE LABEL PER SPECIES, not one per ion. Whichever ion gets a shell first carries it, and if
+     that one loses its shell the next one takes over. */
+  const labelled=ion=>[...saltNoted.keys()].some(k=>
+    (k.userData.charge>0)===(ion.userData.charge>0));
+  for(const ion of salt){
+    if(saltNoted.has(ion) || ion.userData.shellCount<1 || labelled(ion)) continue;
+    const cation=ion.userData.charge>0;
+    /* No card */
+    const nt=NOTES.add({
+      text: cation ? 'Na⁺ attracts O' : 'Cl⁻ attracts H',
+      offset: cation ? [-70,-34] : [70,34],
+      at: ()=>_wp.copy(ion.position)});
+    saltNoted.set(ion,nt);
+  }
+}
+
+/* ---- one pair, seated in a hydrogen bond ----
+   The acceptor sits at the origin and the donor an equilibrium O···O away,
+   turned so ONE of its O–H bonds points back down the line between them: that
+   is the geometry, and it puts the H about 2.0 from the acceptor's O, inside
+   the engine's own 3.25 threshold, so the bond registers on the next frame
+   rather than being drawn by decree. Everything after that is the sim's. */
+function seatHBondPair(){
+  const acc=sim.mols[0], don=sim.mols[1];
+  if(!acc||!don) return;
+  acc.position.set(0,0,0); acc.userData.vel.set(0,0,0);
+  const axis=new THREE.Vector3(1,0.35,0).normalize();
+  don.position.copy(axis).multiplyScalar(DBG.liquidEQ); don.userData.vel.set(0,0,0);
+  // the donor's H1 points back at the acceptor; the acceptor turns its lone-pair
+  // side (the O's back, away from its own H's) toward the incoming H
+  don.quaternion.setFromUnitVectors(H1L.clone().normalize(), axis.clone().negate());
+  acc.quaternion.setFromUnitVectors(H1L.clone().add(H2L).normalize(), axis.clone().negate());
+}
 
 let cur=-1;
 const stepR=[8,18,20,24,20];
@@ -1001,6 +1201,10 @@ function applyStep(n){
     const w=sim.mols[0]; if(w){ w.position.set(0,0,0); w.userData.vel.set(0,0,0); w.rotation.set(0,0,0); }
     cam.theta=0; cam.phi=Math.PI/2; applyCam(); }
   else { while(sim.mols.length<3) sim.spawn(new THREE.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4)); }
+  // Steps 2 and 3 are ABOUT a hydrogen bond, and the callout names one — so
+  // hand the sim a pair already in the geometry rather than hoping three
+  // randomly-thrown molecules land in it. From there the physics owns them.
+  if(n===1||n===2) seatHBondPair();
   if(n===4){ while(sim.mols.length<16) sim.spawn(outerPoint(2.5)); }
   if(n<4) clearSalt();
   S.tempEnabled=n>=2; S.freezeEnabled=n>=3; S.saltEnabled=n>=4;
@@ -1013,152 +1217,68 @@ function applyStep(n){
   S.targetR=Math.max(n===4?DBG.zoom:stepR[n], fitDistance());
   buildControls();
   cur=n;
-  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('active',k===n));
+  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('is-on',k===n));
   const m=stepMeta[n];
-  const facts=Array.isArray(m.facts)?m.facts:(m.fact?[m.fact]:[]);
-  const factsHtml=facts.map(f=>
-    `<div class="factwrap"><img class="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${f}</div></div>`
-  ).join('');
-  cardEl.innerHTML=`<div class="cardtext"><h2>${m.title}</h2>${m.body}</div>${factsHtml}`;
-  cardEl.querySelector('.cardtext').scrollTop=0;
-  prevB.disabled=(n===0); nextB.disabled=(n===stepMeta.length-1);
-  nextB.textContent=n===stepMeta.length-1?'Finish':'Next';
+  stepClaimEl.textContent=m.claim;
+  stepT0=performance.now();
+  buildNotes(n);
+  NOTES.setMode('reveal'); NOTES.play();
 }
-// step numbers 1–5 with hand-drawn active circle
-stepMeta.forEach((s,i)=>{ const b=document.createElement('div');
-  b.className='stepnum'; b.textContent=i+1; b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
-prevB.onclick=()=>applyStep(Math.max(0,cur-1));
-nextB.onclick=()=>applyStep(Math.min(stepMeta.length-1,cur+1));
-// lightbulb reveals its neighbouring fact (progressive disclosure); delegated since
-// each step's card.innerHTML rebuild replaces the .bulb/.fact elements
-cardEl.addEventListener('click',e=>{
-  const bulb=e.target.closest('.bulb'); if(!bulb) return;
-  const f=bulb.nextElementSibling; if(!f) return;
-  const show=f.classList.toggle('show'); bulb.classList.toggle('lit',show);
-});
+// Named, not numbered: "hydrogen bonds" tells a student what they are about to
+// see, and 3 does not.
+stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
+  b.type='button'; b.className='pill pill--ghost'; b.textContent=s.tab;
+  b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
 
-/* ---------- debug panel: right-docked, tabbed (Sim / Colors / Render) ---------- */
-(function(){
-  const specs=[
-    ['naRad','Na⁺ radius',0.4,1.2,0.01],
-    ['clRad','Cl⁻ radius',0.6,1.8,0.01],
-    ['naShellDist','Na⁺ shell dist',1.6,4.5,0.05],
-    ['clShellDist','Cl⁻ shell dist',2.0,5.5,0.05],
-    ['centroidPull','Cluster pull',0,0.006,0.0001],
-    ['naShellK','Na⁺ spring',0,0.12,0.002],
-    ['clShellK','Cl⁻ spring',0,0.12,0.002],
-    ['orientSlerp','Orient speed',0,0.3,0.01],
-    ['screen','Ion–ion screen',0,1,0.01],
-    ['kHB','H-bond force',0,0.02,0.0005],
-    ['jitter','Thermal jitter',0,0.03,0.001],
-    ['stericMIN','Water spacing',2,4.5,0.05],
-    ['iceBond','Ice O–O bond',3.0,5.4,0.05],
-    ['liquidEQ','Liquid O–O eq',3.0,4.5,0.05],
-    ['hbThreshold','H-bond reach',1.5,4.0,0.05],
-    ['warmStretch','Warm stretch',0,0.5,0.01],
-    ['zoom','Camera zoom',10,44,1],
-  ];
-  // colour swatches: [key, label]. O/H/Na/Cl/covalent live in state/bondColor;
-  // hb/ion are the shared bond materials.
-  const cols=[['O','Oxygen'],['H','Hydrogen'],['Na','Sodium  Na⁺'],['Cl','Chloride  Cl⁻'],['K','Potassium  K⁺'],
-    ['covalent','Covalent bond'],['hb','Hydrogen bond'],['ion','Ion–dipole bond'],
-    ['eBond','Bonding electrons'],['eLone','Lone-pair electrons'],
-    ['dNeg','δ− text'],['dPos','δ+ text']];
-  const hex=n=>'#'+n.toString(16).padStart(6,'0');
-  const colVal=k=> k==='covalent'?bondColor : k==='hb'?hbColor : k==='ion'?ionColor
-    : k==='eBond'?eBondColor : k==='eLone'?eLoneColor : k==='dNeg'?dNegColor : k==='dPos'?dPosColor
-    : state[k];
 
-  const panel=document.createElement('div');
-  panel.style.cssText='position:fixed;top:0;right:0;bottom:0;width:300px;z-index:40;'
-    +'background:rgba(248,245,239,.98);border-left:1.5px solid #d8cfbf;'
-    +'padding:16px 18px;font:12px/1.4 sans-serif;color:#4a443c;display:none;'
-    +'box-shadow:-12px 0 30px -14px rgba(0,0,0,.3);overflow-y:auto';
+/* ---------- where the model sits ----------
+ *  The canvas is the whole window, so closed, the model is centred with no help
+ *  at all. Open, the sheet takes the right-hand strip and the model slides left
+ *  to clear it.
+ *
+ *  The slide is the camera's view offset, not a resize: the same-sized window is
+ *  taken from further right in the frustum, which moves the content left without
+ *  touching the canvas, the aspect, or one pixel of the lesson's chrome.
+ *  Everything that projects through the camera — annotate.js's callouts
+ *  included — comes along, since the offset is in the projection matrix.
+ */
+const ASK_EASE=0.16;
+const ASK_GAP=18;               // the sheet's inset from the window edge, per ask/chat.css
+let sheetW=334;
+let askShift=0;                 // 0 = centred on the window, 1 = pushed clear of the sheet
+let lastShiftPx=-1;
+function applyAskShift(){
+  const target=(ASK && ASK.el.classList.contains('on'))?1:0;
+  askShift+=(target-askShift)*ASK_EASE;
+  if(Math.abs(askShift-target)<0.002) askShift=target;
+  /* Half the sheet's real footprint, measured rather than assumed: the sheet is
+     narrower than the rail it sits in, and half of the wrong number leaves the
+     model off-centre in the space that is actually left. offsetWidth is 0 while
+     it is display:none, so the last measurement stands. */
+  if(ASK && ASK.el.offsetWidth) sheetW=ASK.el.offsetWidth+ASK_GAP;
+  const px=sheetW*0.5*askShift;
+  if(Math.abs(px-lastShiftPx)<0.25) return;
+  lastShiftPx=px;
+  // the add-a-thing pills ride the same number, so they and the model move as one
+  document.documentElement.style.setProperty('--shift', px.toFixed(1)+'px');
+  const w=stage.clientWidth, h=stage.clientHeight;
+  if(px<0.5) camera.clearViewOffset();
+  else camera.setViewOffset(w,h,px,0,w,h);   // same size, taken further right
+  camera.updateProjectionMatrix();
+}
 
-  const tabRow=['sim','colors','render'];
-  let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
-    +'<div style="font-weight:700;font-size:14px;color:#2b2723">Debug</div>'
-    +'<div id="dbg_close" style="cursor:pointer;font-size:16px;color:#8a8073;line-height:1">✕</div></div>'
-    +'<div style="display:flex;gap:6px;margin-bottom:14px">'
-    +tabRow.map(t=>`<div class="dtab" data-tab="${t}" style="flex:1;text-align:center;padding:6px 4px;`
-      +`border:1.5px solid #d8cfbf;border-radius:var(--radius);cursor:pointer;text-transform:capitalize">${t}</div>`).join('')
-    +'</div>';
-
-  // — Sim tab —
-  html+='<div class="dpane" data-pane="sim">';
-  specs.forEach(([k,lbl,mn,mx,st])=>{ html+=
-    `<label style="display:block;margin:9px 0 3px">${lbl} <span id="dv_${k}" style="float:right;color:#1fa968">${DBG[k]}</span></label>`
-    +`<input id="ds_${k}" type="range" min="${mn}" max="${mx}" step="${st}" value="${DBG[k]}" style="width:100%">`; });
-  html+='<div id="dbg_reset" style="margin-top:12px;text-align:center;padding:7px;border:1px solid #b9ad98;'
-    +'border-radius:var(--radius);color:#2b2723;cursor:pointer">Reset sim defaults</div></div>';
-
-  // — Colors tab —
-  html+='<div class="dpane" data-pane="colors" style="display:none">'
-    +'<div style="color:#8a8073;margin-bottom:10px">Live atom &amp; bond colours</div>';
-  cols.forEach(([k,lbl])=>{ html+=
-    `<div style="margin:11px 0">`
-    +`<div style="display:flex;align-items:center;justify-content:space-between">`
-    +`<span>${lbl}</span>`
-    +`<input id="dc_${k}" type="color" value="${hex(colVal(k))}" style="width:44px;height:26px;border:none;background:none;cursor:pointer;padding:0"></div>`
-    +`<div id="dh_${k}" style="text-align:right;color:#8a8073;font:11px ui-monospace,Menlo,monospace;margin-top:2px">${hex(colVal(k)).toUpperCase()}</div>`
-    +`</div>`; });
-  html+='</div>';
-
-  // — Render tab —
-  html+='<div class="dpane" data-pane="render" style="display:none">'
-    +'<label style="display:flex;align-items:center;gap:10px;margin:10px 0;cursor:pointer">'
-    +'<input id="dr_toon" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
-    +'<span><b>Cell-shaded</b> render<br><span style="color:#8a8073">flat, banded toon shading instead of smooth solid</span></span>'
-    +'</label>'
-    +'<label style="display:flex;align-items:center;gap:10px;margin:14px 0;cursor:pointer">'
-    +'<input id="dr_outline" type="checkbox" style="width:16px;height:16px;cursor:pointer">'
-    +'<span><b>Outlines</b><br><span style="color:#8a8073">dark ink outline around each atom</span></span>'
-    +'</label></div>';
-
-  panel.innerHTML=html; document.body.appendChild(panel);
-
-  // tab switching
-  panel.querySelectorAll('.dtab').forEach(tab=>{ tab.onclick=()=>{
-    const t=tab.dataset.tab;
-    panel.querySelectorAll('.dtab').forEach(x=>x.style.background=x.dataset.tab===t?'#2b2723':'transparent');
-    panel.querySelectorAll('.dtab').forEach(x=>x.style.color=x.dataset.tab===t?'#f8f5ef':'#4a443c');
-    panel.querySelectorAll('.dpane').forEach(p=>p.style.display=p.dataset.pane===t?'block':'none');
-  }; });
-  panel.querySelector('.dtab').click();   // default to Sim
-
-  // sim sliders
-  const DEFAULTS=Object.assign({},DBG);
-  function applyRadii(){ salt.forEach(m=>{ const r=ionRadius(m.userData.role, m.userData.baseRad);
-    m.scale.setScalar(r); m.userData.rad=r;
-    if(m.userData.outline) m.userData.outline.scale.setScalar(outlineScale(r)); }); }
-  specs.forEach(([k])=>{ const s=panel.querySelector('#ds_'+k), v=panel.querySelector('#dv_'+k);
-    s.oninput=()=>{ DBG[k]=parseFloat(s.value); v.textContent=s.value;
-      if(k==='naRad'||k==='clRad') applyRadii();
-      if(k==='iceBond') iceFor=-1;   // force the ice lattice to rebuild at the new spacing
-    }; });
-  panel.querySelector('#dbg_reset').onclick=()=>{ Object.assign(DBG,DEFAULTS);
-    specs.forEach(([k])=>{ panel.querySelector('#ds_'+k).value=DBG[k];
-      panel.querySelector('#dv_'+k).textContent=DBG[k]; }); applyRadii(); iceFor=-1; };
-
-  // colour pickers
-  cols.forEach(([k])=>{ panel.querySelector('#dc_'+k).oninput=e=>{
-    const v=parseInt(e.target.value.slice(1),16);
-    panel.querySelector('#dh_'+k).textContent=e.target.value.toUpperCase();
-    if(k==='hb'||k==='ion') recolorBondType(k,v);
-    else if(k==='eBond'||k==='eLone') recolorElectrons(k,v);
-    else if(k==='dNeg'||k==='dPos') recolorChargeText(k,v);
-    else recolor(k,v);
-  }; });
-
-  // render mode
-  panel.querySelector('#dr_toon').onchange=e=>{ toonMode=e.target.checked; applyRenderMode(); };
-  panel.querySelector('#dr_outline').onchange=e=>{ outlinesOn=e.target.checked; applyOutlines(); };
-
-  const close=()=>panel.style.display='none';
-  panel.querySelector('#dbg_close').onclick=close;
-  document.getElementById('dbgtoggle').onclick=()=>{
-    panel.style.display=panel.style.display==='none'?'block':'none'; };
-})();
+/* ---------- the nudge on Add Water ----------
+ *  The bonding, the network and the lattice only look like anything with a
+ *  crowd, and a student who adds two molecules and stops sees none of it. The
+ *  button asks for attention until the scene has enough to show, then stops
+ *  asking — a pulse that never ends is decoration.
+ */
+const WATER_ENOUGH=25;
+const addWaterBtn=document.getElementById('addwater');
+function syncWaterNudge(){
+  addWaterBtn.classList.toggle('is-nudging',
+    S.step>=1 && sim.mols.length<WATER_ENOUGH);
+}
 
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band
@@ -1250,16 +1370,216 @@ function loop(){
   // letters/badges ride just proud of their own atom's front surface — see
   // atomkit.js faceCamera(); needs the camera's final position for this frame
   if(detail.visible) kit.faceCamera(camera);
+  applyAskShift(); syncWaterNudge();
+  syncHbNote(); syncIceNotes(); syncSaltNotes();
+  NOTES.step();                 // trap 1: the RENDER loop, so orbiting keeps the labels on their atoms
   renderer.render(scene,camera); requestAnimationFrame(loop);
 }
 
 applyCam(); resize(); applyStep(0); requestAnimationFrame(loop);
 
-document.getElementById('savepng').onclick=()=>{
-  renderer.render(scene,camera);
-  const name=(stepMeta[cur]?.title||'water-scene').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-  const a=document.createElement('a'); a.download=`${name}.png`; a.href=canvas.toDataURL('image/png'); a.click();
-};
+/* =============================================================================
+ *  The tutor drawer
+ * =============================================================================
+ *  `ask/chat.js` owns the panel, the transcript and the network. This block is
+ *  the lesson's half: what each of its own target ids MEANS on this scene.
+ *  Everything below reads the lesson's existing state and calls its existing
+ *  functions, so the tutor has no privileged access and cannot reach anything
+ *  a student could not.
+ * ========================================================================== */
+
+/* A molecular point is made by dimming, not by drawing: everything else fades
+   to a ghost for a few seconds so the thing named is the only thing lit. That
+   reuses the fade the evaporation code already applies per molecule, so nothing
+   new has to know how a water molecule is built. */
+// Stamped by its own frame request, so it pauses exactly when the lesson's loop
+// does and the state provider can tell a still scene from a stopped one.
+let lastFrame = 0;
+(function stamp() { lastFrame = performance.now(); requestAnimationFrame(stamp); })();
+
+/* kit/focus.js is the vocabulary: ghost the rest to 13% without depth-write,
+   light the chosen so they emit their OWN colour, and light a bond only when
+   both its ends are lit. A lit oxygen stays red, which is the point: the
+   highlight must never recolour chemistry. */
+const focus = Focus.create({ glow: 0.55 });
+let spotTimer = null;
+
+function unfocus() {
+  clearTimeout(spotTimer);
+  focus.clear();
+}
+
+/* Whole molecules against each other, for a group whose meaning is the group:
+   a hydration shell is six waters and their orientation, not six oxygens. */
+function spotMolecules(keep, ms = 3600) {
+  unfocus();
+  focus.among([...sim.mols, ...salt], keep);
+  spotTimer = setTimeout(unfocus, ms);
+}
+
+/* Named atoms inside named molecules. `picks` is [[molecule, [indices]], …]
+   with 0=O, 1=Ha, 2=Hb; every other molecule ghosts whole. This is the level
+   the three molecular targets actually wanted: "that oxygen", not "that
+   molecule with an oxygen in it". */
+function spotAtoms(picks, ms = 3600) {
+  unfocus();
+  const involved = picks.map(p => p[0]);
+  focus.among([...sim.mols, ...salt], involved);
+  picks.forEach(([mol, idx]) => focus.atoms(mol, idx));
+  spotTimer = setTimeout(unfocus, ms);
+}
+
+/* A ring over a control, in screen space. The controls live on the stage rather
+   than in the rail, so the drawer never covered them and this only has to say
+   "here", not move anything out of the way. */
+/* A control only exists from the step that introduces it: the temperature bar
+   appears at Specific Heat, the salt card at The Universal Solvent. Pointing at
+   one from step 1 would ring an empty rectangle, so take the student to the step
+   that has it first. */
+const uiStep = { trange: 2, addsalt: 4, addwater: 1 };
+
+const ping = Ask.ping;   // the gesture is the module's; which control is this page's
+
+/* One hydrogen bond the sim made this frame: which molecule donated, which
+   hydrogen it donated, and which molecule accepted. Read straight off the
+   matcher's own record, so the atoms lit are the atoms the bond was drawn
+   between. Null when nothing is bonded, which is a real answer on a sparse
+   scene rather than something to paper over. */
+function aHydrogenBond() {
+  for (const w of sim.mols) {
+    const b = (w.userData.hbBonds || [])[0];
+    if (b) return { donor: w, hIndex: b.h + 1, acceptor: b.acc };   // 0=O, so H is h+1
+  }
+  return null;
+}
+
+const ASK = Ask.chat({
+  rail: document.getElementById('side'),
+  slot: document.getElementById('askslot'),
+  lesson: 'water-lab',
+
+  /* Two questions a student actually arrives with, and one that shows the box
+     is worth more than a search bar: methane is nearly the same size as water
+     and is a gas at room temperature, which is hydrogen bonding's whole point
+     and lives in another lesson, so it also demonstrates being sent there. */
+  examples: [
+    'Is that the same bond the whole time?',
+    'If it dissolves everything, why not oil?',
+    'How do we make ice cream?',
+  ],
+  step: () => cur,
+  stepName: () => stepMeta[cur] ? stepMeta[cur].tab : '',
+
+  /* What the student can see, read from the readouts they are reading. The
+     temperature and the phase come off the DOM rather than off S and a second
+     copy of tempDescriptor's thresholds, so the tutor and the student are
+     quoting the same string, and a change to the descriptor reaches both.
+     Counts come from the sim, which is where a count actually lives. */
+  state() {
+    const txt = id => (document.getElementById(id)?.textContent || '').trim();
+    const st = { molecules: sim.mols.length };
+
+    // The lesson judges its own scene rather than shipping a threshold for the
+    // model to compare against. Asked to do the arithmetic, it told a student
+    // with thirteen molecules to add more; given the word, it stops.
+    const n = sim.mols.length;
+    st.crowding = n < 3 ? 'nearly empty, almost nothing to bond to'
+                : n < 8 ? 'sparse, too few neighbours for the bonding to look like much'
+                        : 'a comfortable crowd, enough for the network to show';
+
+    // Anything the render loop computes is only true while the loop is running,
+    // and a background tab pauses rAF. A paused frame would report zero bonds
+    // and no phase, which reads as "the bonds broke" rather than "nobody
+    // looked". Report those only when a frame is actually recent.
+    if (performance.now() - lastFrame < 900) {
+      const bonds = sim.mols.reduce((n, w) => n + (w.userData.hb || 0), 0);
+      st.hydrogenBonds = Math.round(bonds / 2);   // each bond is counted at both ends
+    }
+    if (S.tempEnabled) {
+      st.temperature = txt('tval');
+      const phase = txt('tdesc').split('\n')[0];   // "Frozen", "Boiling", "Liquid"…
+      if (phase) st.phase = phase;
+    }
+    if (S.saltEnabled) {
+      st.saltAdded = salt.length ? `yes, ${salt.length} ions` : 'not yet';
+      const info = txt('saltinfo');
+      if (info) st.saltReadout = info;
+    }
+    return st;
+  },
+
+  /* Return false and the drawer says so rather than pretending it acted. */
+  act(t) {
+    const id = t.id.split('/')[1];
+
+    if (t.kind === 'step') { applyStep(t.at); return true; }
+
+    if (t.kind === 'ui') {
+      // The temperature bar runs hot at the top, so its maximum is at the end a
+      // slider's value maps to LAST. Only this page can know that, so it says.
+      const o = { invert: true };
+      const need = uiStep[t.el] || 0;
+      if (cur < need) { applyStep(need); setTimeout(() => ping(t.el, o), 550); return true; }
+      return ping(t.el, o);
+    }
+
+    // The molecular three. Each needs its own step to be on screen at all, so
+    // each takes the student there first when they are somewhere else, then
+    // waits for the scene to settle before lighting anything.
+    const after = (ms, fn) => setTimeout(fn, ms);
+
+    // The oxygen alone, with its own two hydrogens ghosted. That contrast IS
+    // the claim: this end of the molecule is the negative one. Lighting the
+    // whole molecule would have said "this molecule", which nobody asked.
+    if (id === 'the-charges') {
+      if (cur > 1) applyStep(1);
+      after(cur > 1 ? 600 : 0, () => { if (sim.mols[0]) spotAtoms([[sim.mols[0], [0]]]); });
+      return true;
+    }
+
+    // The two atoms the bond runs between, one from each molecule: the donated
+    // hydrogen and the oxygen accepting it. Everything else on both molecules
+    // ghosts, so what is left lit is the bond's own geometry.
+    if (id === 'a-hydrogen-bond') {
+      if (cur < 1) applyStep(1);
+      after(cur < 1 ? 900 : 0, () => {
+        const b = aHydrogenBond();
+        if (b) spotAtoms([[b.donor, [b.hIndex]], [b.acceptor, [0]]]);
+      });
+      return true;
+    }
+
+    if (id === 'hydration-shell') {
+      if (cur !== 4) applyStep(4);
+      after(cur !== 4 ? 900 : 0, () => {
+        if (!salt.length) addSalt();
+        after(700, () => {
+          const ion = salt[0];
+          if (!ion) return;
+          // The shell the sim SEATED, not the six waters that happen to be
+          // nearest. Those are usually the same set and sometimes are not, and
+          // when they differ the nearest-six is the wrong answer: a water can
+          // sit close without being in the shell, and a seated one can drift.
+          //
+          // Seating happens when the crystal reaches the water, which is a
+          // second or two after it is dropped, so wait for it rather than
+          // lighting nothing. If it never seats, light the ion alone: still
+          // true, and still shows the student where to look.
+          let tries = 0;
+          (function whenSeated() {
+            const shell = sim.mols.filter(w => w.userData.shellIon === ion);
+            if (shell.length) return spotMolecules([ion, ...shell], 4400);
+            if (++tries < 20) return setTimeout(whenSeated, 250);
+            spotMolecules([ion], 3000);
+          })();
+        });
+      });
+      return true;
+    }
+
+    return false;
+  },
+});
 </script>
 </body>
 </html>

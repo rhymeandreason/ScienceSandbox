@@ -14,7 +14,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 | Page | Lesson | Status |
 | --- | --- | --- |
-| `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving) | featured lesson |
+| `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving), with an AI tutor: the lesson's text lives on the model as `annotate.js` callouts, and an ask box takes the sidebar | featured lesson |
 | `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | featured lesson |
 | `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | featured lesson |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
@@ -24,7 +24,6 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Hosts the `massaction/` sim in a modal — a second simulation with its own physics (below) | featured lesson |
 | `krebs-lab.html` | The Krebs cycle. Pyruvate oxidation, then eight steps around the ring, with the loop drawn in the sidebar and a second turn played back for the ×2. Where the carbon goes, and why the ATP is beside the point | prototype |
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
-| `water-tutor-lab.html` | **AI-tutor prototype.** Structure of water, with the right rail given to the tutor: the lesson's text lives on the model as annotate.js callouts, and an ask box takes the sidebar | prototype |
 | `design-system.html` | Every token, type step and button in `main.css`, drawn on the stage's own paper. Swatches read their own computed value, so the page cannot claim a colour the token does not hold | internal tool |
 | `water-render-debug.html` | Test bench for render styles — a still life of water, an H-bond and the two ions, with colour swatches and the toon/outline switches. Built on Stage's own factories, so a style judged here is the one a lesson renders | test |
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
@@ -75,6 +74,14 @@ node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
 Live reload, and `no-store` so you never debug a fix that's already correct on disk. **It serves the repo root, not `demos/`**, because that's what GitHub Pages publishes — the local URL is the URL that ships. `/` is the lesson index; a lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
 
 Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in place, so the scene keeps its camera, selection and toggles.
+
+**The pages are dependency-free; the tutor is not.** `water-lab`'s ask box calls `api/`, which needs the model SDKs and a key, and neither is in the working tree:
+
+```bash
+npm i                           # at the REPO ROOT, not demos/. installs the SDKs api/_providers/ requires
+```
+
+Then put the key in `.env.local` **at the repo root** (gitignored, the same file Vercel's CLI reads): `GEMINI_API_KEY=` for the default provider, or `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY=`. `GEMINI_MODEL` / `ANTHROPIC_MODEL` override the model. The dev server re-reads it per request, so pasting a key needs no restart, but installing the SDKs does, since the server resolved them at startup. A missing key answers `<KEY> is not set on the server`; a missing `npm i` answers `Cannot find module '@google/genai'`.
 
 The reload client is injected into responses, never written to disk — this repo publishes to Pages straight from the working tree, so anything committed ships. To see exactly what deploys:
 
