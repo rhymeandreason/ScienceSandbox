@@ -214,9 +214,18 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
   // these too, and matching the whole file lets a renamed column pass.
   const table = /CREATE TABLE IF NOT EXISTS messages \(([\s\S]*?)\n\);/.exec(sql);
   if (!table) bad('_schema.sql has no messages table');
-  else for (const col of ['thread_id', 'turn', 'role', 'text', 'step', 'state', 'point',
-                          'chapters', 'provider', 'model', 'usage', 'ms', 'error'])
+  else for (const col of ['thread_id', 'turn', 'reply_to', 'role', 'text', 'step', 'state',
+                          'point', 'chapters', 'provider', 'model', 'usage', 'ms', 'error'])
     if (!new RegExp(`^\\s*${col}\\s`, 'm').test(table[1])) bad(`messages has no ${col} column`);
+
+  // The view must pair an answer with its question by id. Pairing on
+  // (thread_id, turn) looks right and silently multiplies rows the moment one
+  // thread holds two questions with the same number, which is every thread a
+  // client using the single-question form opens. Counts double; nothing errors.
+  const view = /CREATE VIEW turns AS([\s\S]*?);/.exec(sql);
+  if (!view) bad('_schema.sql has no turns view');
+  else if (!/a\.reply_to\s*=\s*q\.id/.test(view[1]))
+    bad('the turns view does not join on reply_to: an exchange can multiply');
 }
 
 console.log(`\n  ${allQids.size} targets across ${Object.keys(T.LESSONS).length} lessons`);

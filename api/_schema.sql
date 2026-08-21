@@ -8,8 +8,13 @@
 --
 --  One row per message. The question's row carries the moment it was asked in
 --  (`step`, `state`); the answer's row carries how it was produced (`point`,
---  `chapters`, `usage`). They share `turn`, and the `turns` view joins them,
---  because the aiming question is always "given THAT screen, why THAT target".
+--  `chapters`, `usage`), and points back at its question with `reply_to`. The
+--  `turns` view joins on that, because the aiming question is always "given
+--  THAT screen, why THAT target".
+--
+--  The join is on `reply_to` and NOT on (thread_id, turn): a client sending the
+--  single-question form has no transcript to count, so two questions in one
+--  thread can carry the same turn number and the join multiplies them.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS threads (
@@ -22,7 +27,8 @@ CREATE TABLE IF NOT EXISTS threads (
 CREATE TABLE IF NOT EXISTS messages (
   id          bigserial PRIMARY KEY,
   thread_id   uuid NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
-  turn        int  NOT NULL,               -- 1-based; the pair shares it
+  turn        int  NOT NULL,               -- 1-based, counted server-side; display only
+  reply_to    bigint REFERENCES messages(id) ON DELETE CASCADE,   -- set on the answer's row
   role        text NOT NULL CHECK (role IN ('user', 'assistant')),
   text        text NOT NULL,               -- the question, the answer, or the error shown
 
@@ -46,8 +52,26 @@ CREATE INDEX IF NOT EXISTS messages_thread_idx  ON messages (thread_id, turn, ro
 CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at DESC);
 CREATE INDEX IF NOT EXISTS threads_visitor_idx  ON threads (visitor_id, started_at DESC);
 
+-- Applied to a table that predates the column. Harmless on a fresh one.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to bigint REFERENCES messages(id) ON DELETE CASCADE;
+
+-- After the ALTER, not with the other indexes: on an existing table the column
+-- does not exist until the line above runs.
+CREATE INDEX IF NOT EXISTS messages_reply_idx ON messages (reply_to);
+
+-- Backfill: rows written before `reply_to` existed can only be paired the old
+-- way. Ambiguous cases are left null rather than guessed, so they drop out of
+-- the view instead of pairing a question with someone else's answer.
+UPDATE messages a SET reply_to = q.id
+FROM   messages q
+WHERE  a.reply_to IS NULL AND a.role = 'assistant' AND q.role = 'user'
+  AND  q.thread_id = a.thread_id AND q.turn = a.turn
+  AND  1 = (SELECT count(*) FROM messages x
+            WHERE x.thread_id = a.thread_id AND x.turn = a.turn AND x.role = 'user');
+
 -- The debugging view. One row per exchange, the screen beside the aim.
-CREATE OR REPLACE VIEW turns AS
+DROP VIEW IF EXISTS turns;
+CREATE VIEW turns AS
 SELECT t.id AS thread_id, t.lesson, t.visitor_id, q.turn,
        q.created_at,
        q.text  AS question,
@@ -59,5 +83,5 @@ SELECT t.id AS thread_id, t.lesson, t.visitor_id, q.turn,
        a.chapters, a.provider, a.model, a.usage, a.ms, a.error
 FROM   threads t
 JOIN   messages q ON q.thread_id = t.id AND q.role = 'user'
-LEFT   JOIN messages a ON a.thread_id = t.id AND a.turn = q.turn AND a.role = 'assistant'
+LEFT   JOIN messages a ON a.reply_to = q.id
 ORDER  BY q.created_at DESC;

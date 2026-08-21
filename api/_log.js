@@ -50,12 +50,15 @@ async function within(label, work) {
 }
 
 /* Record one exchange: the question as it was asked, and whatever came back -
- * an answer or the error the student was shown. `turn` is the position of the
- * question in the transcript, so a pair shares it.
+ * an answer or the error the student was shown.
  *
  * The thread row is upserted rather than created, because the client mints the
- * id and the server never learns which turn is the first one. */
-async function logTurn({ threadId, visitorId, lesson, turn, question, step, state, out, error, ms }) {
+ * id and the server never learns which turn is the first one.
+ *
+ * `turn` is counted from the rows already in the thread, not from the length of
+ * the transcript the client sent. The single-question form has no transcript to
+ * count, so a client using it would number every question 1. */
+async function logTurn({ threadId, visitorId, lesson, question, step, state, out, error, ms }) {
   const db = sql();
   if (!db) return;
   if (!isUuid(threadId) || !isUuid(visitorId)) return;   // a malformed id is not worth a row
@@ -65,13 +68,20 @@ async function logTurn({ threadId, visitorId, lesson, turn, question, step, stat
              VALUES (${threadId}, ${visitorId}, ${lesson || null})
              ON CONFLICT (id) DO NOTHING`;
 
-    await db`INSERT INTO messages (thread_id, turn, role, text, step, state)
-             VALUES (${threadId}, ${turn}, 'user', ${question},
-                     ${Number.isFinite(step) ? step : null}, ${json(state)})`;
+    const [q] = await db`
+      INSERT INTO messages (thread_id, turn, role, text, step, state)
+      VALUES (${threadId},
+              (SELECT count(*) + 1 FROM messages m
+               WHERE m.thread_id = ${threadId} AND m.role = 'user'),
+              'user', ${question},
+              ${Number.isFinite(step) ? step : null}, ${json(state)})
+      RETURNING id, turn`;
 
-    await db`INSERT INTO messages (thread_id, turn, role, text, point, chapters,
+    // Linked to the question by id. Pairing on (thread, turn) instead is what
+    // makes two same-numbered questions multiply against two answers.
+    await db`INSERT INTO messages (thread_id, turn, reply_to, role, text, point, chapters,
                                    provider, model, usage, ms, error)
-             VALUES (${threadId}, ${turn}, 'assistant',
+             VALUES (${threadId}, ${q.turn}, ${q.id}, 'assistant',
                      ${out ? out.answer : String(error || 'failed')},
                      ${json(out && out.point)}, ${json(out && out.chapters)},
                      ${out ? out.provider : null}, ${out ? out.model : null},
@@ -79,6 +89,50 @@ async function logTurn({ threadId, visitorId, lesson, turn, question, step, stat
                      ${Number.isFinite(ms) ? ms : null},
                      ${error || null})`;
   });
+}
+
+/* ---- reading it back --------------------------------------------------------
+ * The viewer's queries live here rather than in the endpoint, so the page and
+ * `tools/db.js` cannot drift into two ideas of what a turn is. Everything reads
+ * the `turns` view, which is the join the schema exists to make.
+ *
+ * These DO throw. A viewer that silently shows nothing when the database is
+ * unreachable is worse than one that says so, which is the opposite of the rule
+ * on the write path. */
+async function recent({ limit = 50, offset = 0, lesson = null, aimed = null } = {}) {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
+  const o = Math.max(Number(offset) || 0, 0);
+
+  // Written out per case rather than assembled: a tagged template is only safe
+  // because the parameters cannot become SQL, and building the WHERE by string
+  // concatenation is exactly how that stops being true.
+  if (lesson && aimed === 'none')
+    return db`SELECT * FROM turns WHERE lesson = ${lesson} AND point_id IS NULL LIMIT ${n} OFFSET ${o}`;
+  if (lesson)
+    return db`SELECT * FROM turns WHERE lesson = ${lesson} LIMIT ${n} OFFSET ${o}`;
+  if (aimed === 'none')
+    return db`SELECT * FROM turns WHERE point_id IS NULL LIMIT ${n} OFFSET ${o}`;
+  return db`SELECT * FROM turns LIMIT ${n} OFFSET ${o}`;
+}
+
+/* The numbers above the list. One round trip, because four would be four. */
+async function stats() {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const [row] = await db`
+    SELECT count(*)::int                                         AS turns,
+           count(DISTINCT thread_id)::int                         AS threads,
+           count(DISTINCT visitor_id)::int                        AS visitors,
+           count(*) FILTER (WHERE error IS NOT NULL)::int         AS errors,
+           count(*) FILTER (WHERE point_id IS NULL)::int          AS unaimed,
+           round(sum((usage->>'cost_usd')::numeric), 4)           AS usd,
+           round(avg(ms))::int                                    AS avg_ms
+    FROM turns`;
+  const lessons = await db`SELECT coalesce(lesson, '(none)') AS lesson, count(*)::int AS n
+                           FROM turns GROUP BY 1 ORDER BY 2 DESC`;
+  return { ...row, lessons };
 }
 
 /* Apply the schema. Idempotent, and separate from the answer path on purpose:
@@ -101,4 +155,4 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUuid(s) { return typeof s === 'string' && UUID.test(s); }
 function json(v)   { return v == null ? null : JSON.stringify(v); }
 
-module.exports = { logTurn, init, enabled, sql };
+module.exports = { logTurn, recent, stats, init, enabled, sql };

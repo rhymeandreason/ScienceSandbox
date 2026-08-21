@@ -275,7 +275,9 @@ function api(url, req, res) {
                             'Cache-Control':'no-store' });
     res.end(JSON.stringify(body));
   };
-  if (url !== '/api/ask') return json(404, { error: 'no such endpoint' });
+  // `url` arrives with the query already stripped, so anything reading a
+  // parameter has to go back to `req.url` for it.
+  if (url !== '/api/ask' && url !== '/api/log') return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
   // .env.local or editing a provider takes effect on the next question with no
@@ -290,6 +292,19 @@ function api(url, req, res) {
   } catch (e) {
     console.error(e);
     return json(500, { error: 'the API handler would not load. Run `npm i` in the repo root.' });
+  }
+
+  // Everything but /api/ask is a plain Vercel handler, so it gets the shim
+  // rather than a second copy of the routing. `remoteAddress` has to survive it:
+  // api/log.js decides who may read the log from exactly that.
+  if (url === '/api/log') {
+    const query = Object.fromEntries(new URL(req.url, 'http://x').searchParams);
+    let handler;
+    try { handler = require(path.join(ROOT, 'api/log.js')); }
+    catch (e) { console.error(e); return json(500, { error: 'the log endpoint would not load' }); }
+    const shim = { setHeader: () => {}, status: c => ({ json: b => json(c, b) }) };
+    return Promise.resolve(handler({ method: req.method, query, socket: req.socket }, shim))
+      .catch(e => json(500, { error: e.message }));
   }
 
   if (req.method === 'GET')  return json(200, tutor.config());

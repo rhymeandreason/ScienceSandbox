@@ -265,13 +265,10 @@ async function handleAsk(payload) {
     system = String(body.system);
   }
 
-  const t0   = Date.now();
-  // The question's position in the transcript, so the pair of rows written for
-  // this exchange share a number the client never has to send.
-  const turn = messages.filter(m => m.role === 'user').length;
+  const t0 = Date.now();
   const note = (out, error, ms) => log.logTurn({
     threadId: body.threadId, visitorId: body.visitorId, lesson: body.lesson,
-    turn, question: last.content, step: Number(body.step), state: body.state,
+    question: last.content, step: Number(body.step), state: body.state,
     out, error, ms,
   });
 

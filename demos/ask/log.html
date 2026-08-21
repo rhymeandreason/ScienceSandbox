@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutor log</title>
+<!--
+  ask/log.html — what the tutor was asked, and what it did about it.
+
+  Reads /api/log, which answers only to this machine unless LOG_TOKEN is set;
+  pass ?key= through this page's own URL and it forwards it.
+
+  Every exchange shows the screen it was asked against, because that is the
+  question you are actually here to answer: given THAT state, why THAT target.
+  Dependency-free and standalone: an internal tool should not be able to break
+  a lesson, so it borrows no lesson CSS and loads no lesson module.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+    --away:   #7a5ea8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #15171a; --ink: #eceae5; --muted: #9a9ca2;
+      --line: #2b2e33; --card: #1c1f23; --accent: #6cc0a5; --spark: #f08a63;
+      --away: #b39ddb;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.5rem 6rem;
+    background: var(--paper); color: var(--ink);
+    font: 400 15px/1.55 var(--sans);
+  }
+  .wrap { max-width: 60rem; margin: 0 auto; }
+
+  h1 { font-size: 1.4rem; font-weight: 500; margin: 0 0 .25rem; letter-spacing: .01em; }
+  .sub { color: var(--muted); font-size: .85rem; margin: 0 0 1.5rem; }
+
+  /* ---- the numbers ---- */
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.25rem; }
+  .stat {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: .5rem .75rem; min-width: 5.5rem;
+  }
+  .stat b { display: block; font-size: 1.25rem; font-weight: 500; font-family: var(--mono); }
+  .stat span { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
+  .stat.warn b { color: var(--spark); }
+
+  /* ---- controls ---- */
+  .bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0 0 1.5rem; }
+  select, button {
+    font: inherit; font-size: .85rem; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: .4rem .7rem; cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--accent); }
+  .bar .note { color: var(--muted); font-size: .8rem; margin-left: auto; }
+
+  /* ---- one exchange ---- */
+  .turn {
+    background: var(--card); border: 1px solid var(--line); border-left-width: 3px;
+    border-radius: 10px; padding: .9rem 1rem; margin: 0 0 .75rem;
+  }
+  /* The left edge is the THREAD, coloured from its id, so a conversation reads
+     as one block without a grouping UI. home/away/none is said in the meta line
+     instead: two facts, two places, neither overwriting the other. */
+  .turn.err { background: color-mix(in srgb, var(--spark) 7%, var(--card)); }
+
+  .meta {
+    display: flex; flex-wrap: wrap; gap: .4rem .7rem; align-items: center;
+    font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    margin: 0 0 .5rem;
+  }
+  .meta .who { color: var(--ink); }
+  .aim { font-weight: 500; }
+  .aim.home { color: var(--accent); }
+  .aim.away { color: var(--away); }
+  .aim.none { color: var(--muted); }
+
+  .q { font-weight: 500; margin: 0 0 .35rem; }
+  .a { color: var(--ink); margin: 0; }
+  .a.err { color: var(--spark); font-family: var(--mono); font-size: .82rem; }
+
+  /* The screen the question was asked against. The reason this page exists, so
+     it is not hidden behind a disclosure. */
+  .screen { display: flex; flex-wrap: wrap; gap: .3rem; margin: .6rem 0 0; }
+  .chip {
+    font-family: var(--mono); font-size: .7rem;
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 999px; padding: .15rem .55rem;
+  }
+  .chip b { font-weight: 500; color: var(--muted); }
+
+  .empty { color: var(--muted); padding: 2rem 0; }
+  .empty code { font-family: var(--mono); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tutor log</h1>
+  <p class="sub">Every question, the screen it was asked against, and where the tutor pointed.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <select id="lesson"><option value="">every lesson</option></select>
+    <select id="aimed">
+      <option value="">every answer</option>
+      <option value="none">pointed at nothing</option>
+    </select>
+    <select id="limit">
+      <option value="50">50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+    </select>
+    <button id="reload">Reload</button>
+    <span class="note" id="note"></span>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+'use strict';
+
+const KEY  = new URLSearchParams(location.search).get('key');
+const $    = id => document.getElementById(id);
+const list = $('list');
+
+/* A thread gets a colour so a conversation reads as one, without a grouping
+ * UI. Hashed from the id, so it is stable across reloads. */
+function hue(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+  return h;
+}
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+async function load() {
+  const p = new URLSearchParams();
+  if ($('lesson').value) p.set('lesson', $('lesson').value);
+  if ($('aimed').value)  p.set('aimed',  $('aimed').value);
+  p.set('limit', $('limit').value);
+  if (KEY) p.set('key', KEY);
+
+  $('note').textContent = 'loading…';
+  let data;
+  try {
+    const res = await fetch('/api/log?' + p);
+    data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'request failed');
+  } catch (err) {
+    $('note').textContent = '';
+    list.innerHTML = `<p class="empty">${esc(err.message)}</p>`;
+    return;
+  }
+
+  draw(data);
+  $('note').textContent = data.turns.length + ' shown';
+}
+
+function draw(data) {
+  const s = data.stats;
+  $('stats').innerHTML = [
+    ['turns', s.turns], ['threads', s.threads], ['visitors', s.visitors],
+    ['pointed nowhere', s.unaimed, s.unaimed > 0],
+    ['errors', s.errors, s.errors > 0],
+    ['avg', s.avg_ms == null ? '—' : s.avg_ms + 'ms'],
+    ['spent', s.usd == null ? '$0' : '$' + s.usd],
+  ].map(([label, v, warn]) =>
+    `<div class="stat${warn ? ' warn' : ''}"><b>${esc(v)}</b><span>${esc(label)}</span></div>`).join('');
+
+  // The lesson filter is built from what is actually in the log, so it can
+  // never offer a lesson with nothing behind it.
+  const sel = $('lesson'), had = sel.value;
+  sel.innerHTML = '<option value="">every lesson</option>'
+    + (s.lessons || []).map(l => `<option value="${esc(l.lesson)}">${esc(l.lesson)} (${l.n})</option>`).join('');
+  sel.value = had;
+
+  if (!data.turns.length) {
+    list.innerHTML = '<p class="empty">Nothing logged yet. Open a lesson and ask the tutor something.</p>';
+    return;
+  }
+
+  list.innerHTML = data.turns.map(t => {
+    // home / away / none is the aiming question in one word, so it is the
+    // colour of the card as well as the label.
+    const kind = t.error ? 'err'
+               : t.point_id == null ? 'none'
+               : t.point_home ? 'home' : 'away';
+    const when = new Date(t.created_at).toLocaleString([], {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const chips = t.state ? Object.entries(t.state)
+      .map(([k, v]) => `<span class="chip"><b>${esc(k)}</b> ${esc(
+        typeof v === 'object' ? JSON.stringify(v) : v)}</span>`).join('') : '';
+
+    const cited = (t.chapters || []).map(c => c.chapter).filter(Boolean);
+
+    return `<div class="turn ${kind}" style="border-left-color:hsl(${hue(t.thread_id)} 45% 55%)">
+      <div class="meta">
+        <span class="who">${esc(t.lesson || 'no lesson')}</span>
+        ${t.step == null ? '' : `<span>step ${esc(t.step)}</span>`}
+        <span>turn ${esc(t.turn)}</span>
+        <span class="aim ${kind}">→ ${esc(t.point_id || 'nothing')}</span>
+        ${cited.length ? `<span>cites ${esc(cited.join(', '))}</span>` : ''}
+        ${t.ms ? `<span>${esc(t.ms)}ms</span>` : ''}
+        ${t.model ? `<span>${esc(t.model)}</span>` : ''}
+        <span>${esc(when)}</span>
+      </div>
+      <p class="q">${esc(t.question)}</p>
+      <p class="a${t.error ? ' err' : ''}">${esc(t.error || t.answer)}</p>
+      ${chips ? `<div class="screen">${chips}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+for (const id of ['lesson', 'aimed', 'limit']) $(id).addEventListener('change', load);
+$('reload').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

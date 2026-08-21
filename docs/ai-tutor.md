@@ -41,6 +41,12 @@ Working end to end on `demos/water-lab.html`:
 
 **Off by default.** No `DATABASE_URL` means every call is a no-op, which is what a checkout without a database gets and what GitHub Pages gets.
 
+**The viewer is `demos/ask/log.html`**, over `api/log.js`. Every exchange as a card: the question, the answer, where it pointed, and the screen it was asked against as chips. The left edge is coloured from the thread id, so a conversation reads as one block without a grouping UI; home / away / nothing is said in the meta line instead. Filter by lesson, or to the answers that pointed nowhere, which is the pile worth reading first. Failed turns keep their state chips.
+
+**The guard fails closed.** With no `LOG_TOKEN` the endpoint answers only to the machine it runs on, so deployed it is off until you set the token deliberately and open the page with `?key=`. Open-when-unconfigured is how a log of other people's questions ends up published by omission.
+
+**An answer is paired with its question by `reply_to`, never by `(thread_id, turn)`.** A client using the single-question form has no transcript to count, so it numbers every question 1, and a join on the turn number multiplies two questions against two answers. Counts double and nothing errors. `turn` is now counted server-side from the rows already in the thread and is display only; `check-ask.js` asserts the view joins on `reply_to`.
+
 ```bash
 node demos/tools/db.js init     # apply the schema, idempotent
 node demos/tools/db.js recent   # last 20 exchanges, screen beside aim
@@ -77,7 +83,7 @@ Going the other way, adding to `situation` is nearly free at a tenth rate. **The
 
 ## Key context
 
-**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` (the log).
+**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` + `api/log.js` + `demos/ask/log.html` (the log and its viewer).
 
 **Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`), and `DATABASE_URL` beside it if you want the log.
 
