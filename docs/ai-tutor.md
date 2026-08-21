@@ -43,7 +43,7 @@ Working end to end on `demos/water-lab.html`:
 
 **The viewer is `demos/ask/log.html`**, over `api/log.js`. Every exchange as a card: the question, the answer, where it pointed, and the screen it was asked against as chips. The left edge is coloured from the thread id, so a conversation reads as one block without a grouping UI; home / away / nothing is said in the meta line instead. Filter by lesson, or to the answers that pointed nowhere, which is the pile worth reading first. Failed turns keep their state chips.
 
-**The guard fails closed.** With no `LOG_TOKEN` the endpoint answers only to the machine it runs on, so deployed it is off until you set the token deliberately and open the page with `?key=`. Open-when-unconfigured is how a log of other people's questions ends up published by omission.
+**The viewer is not deployed**, by `.vercelignore`, and `/api/log` answers only to the machine it runs on. There is no token because there is nothing to reach: the log lives in Neon, so `.env.local` points at the same database production writes to and the dev server shows real student data with nothing public in the path. A secret exists to be leaked; not needing one beats guarding one. The static page still publishes to Pages, where there is no `/api` at all, so it is inert there.
 
 **An answer is paired with its question by `reply_to`, never by `(thread_id, turn)`.** A client using the single-question form has no transcript to count, so it numbers every question 1, and a join on the turn number multiplies two questions against two answers. Counts double and nothing errors. `turn` is now counted server-side from the rows already in the thread and is display only; `check-ask.js` asserts the view joins on `reply_to`.
 

@@ -3,19 +3,17 @@
  * =============================================================================
  *  GET /api/log?limit=&offset=&lesson=&aimed=none  → {stats, turns}
  *
- *  This serves other people's questions back, so it is guarded, and the guard
- *  fails CLOSED: with no `LOG_TOKEN` set it answers only to a request from this
- *  machine. Deployed, that is nobody, so the endpoint is off until you set the
- *  token deliberately. The alternative default - open when unconfigured - is
- *  how a log ends up published, and it would be published by omission.
+ *  A LOCAL TOOL. `.vercelignore` keeps this out of production, and this answers
+ *  only to a request from the machine it runs on, so the two would both have to
+ *  fail before anyone reached a student's question.
  *
- *  The token is compared in constant time. It is a small thing against an
- *  endpoint nobody is going to attack with a timing oracle, and it costs one
- *  function.
+ *  There is no token, on purpose. The log lives in Neon, so `.env.local` points
+ *  at the same database production writes to and the dev server shows real data
+ *  with nothing public in the path. A secret exists to be leaked; not needing
+ *  one is better than guarding one.
  * ========================================================================== */
 'use strict';
 
-const crypto = require('crypto');
 const log = require('./_log.js');
 
 module.exports = async function handler(req, res) {
@@ -27,7 +25,7 @@ module.exports = async function handler(req, res) {
   }
 
   const q = req.query || {};
-  if (!allowed(req, q)) return res.status(403).json({ error: 'set LOG_TOKEN and pass ?key=' });
+  if (!local(req)) return res.status(403).json({ error: 'the log reads only from localhost' });
 
   if (!log.enabled()) return res.status(503).json({ error: 'DATABASE_URL is not set: nothing is logged' });
 
@@ -46,12 +44,6 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function allowed(req, q) {
-  const token = process.env.LOG_TOKEN;
-  if (token) return same(String(q.key || ''), token);
-  return local(req);
-}
-
 /* Only this machine. `req.socket` is the real peer; a forwarding header is
  * whatever the client wrote, so it is not consulted. */
 function local(req) {
@@ -59,8 +51,3 @@ function local(req) {
   return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 }
 
-function same(a, b) {
-  const x = Buffer.from(a), y = Buffer.from(b);
-  if (x.length !== y.length) return false;      // length leaks; the secret does not
-  return crypto.timingSafeEqual(x, y);
-}

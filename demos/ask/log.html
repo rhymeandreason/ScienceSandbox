@@ -7,8 +7,9 @@
 <!--
   ask/log.html — what the tutor was asked, and what it did about it.
 
-  Reads /api/log, which answers only to this machine unless LOG_TOKEN is set;
-  pass ?key= through this page's own URL and it forwards it.
+  A local tool. `.vercelignore` keeps it and its endpoint out of production;
+  /api/log answers only to the machine it runs on. Point .env.local at the
+  production database and this shows real student data with nothing public.
 
   Every exchange shows the screen it was asked against, because that is the
   question you are actually here to answer: given THAT state, why THAT target.
@@ -137,7 +138,6 @@
 <script>
 'use strict';
 
-const KEY  = new URLSearchParams(location.search).get('key');
 const $    = id => document.getElementById(id);
 const list = $('list');
 
@@ -157,7 +157,6 @@ async function load() {
   if ($('lesson').value) p.set('lesson', $('lesson').value);
   if ($('aimed').value)  p.set('aimed',  $('aimed').value);
   p.set('limit', $('limit').value);
-  if (KEY) p.set('key', KEY);
 
   $('note').textContent = 'loading…';
   let data;
