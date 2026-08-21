@@ -21,31 +21,9 @@
    bare right-hand side still orbits the molecule under it. */
 #stage { grid-column: 1 / -1; grid-row: 1 }
 
-/* The rail must be put back in row 1 explicitly: with the stage spanning every
-   column, auto-placement drops the next child into a row of its own. */
-#side {
-  grid-column: 2;
-  grid-row: 1;
-  z-index: 8;
-  pointer-events: none
-}
-
-#side > *,
+/* main.css puts #side in row 1 already; with the stage spanning every column,
+   auto-placement would otherwise drop the rail into a row of its own. */
 #askchat { pointer-events: auto }
-
-/* ---- the rail is plain ----
-   sandbox.css dresses #side as torn grid paper, which earned its place when the
-   rail was the lesson's notebook. It holds the tutor now: the chat panel brings
-   its own surface, and grid paper behind a launcher button is decoration for a
-   notebook that is no longer there. */
-#side {
-  /* the stage's own dotted paper shows through now that it runs the full width */
-  background: none;
-  box-shadow: none;
-  padding-top: 22px
-}
-
-#side::before { display: none }
 
 /* ---- the add-a-thing tray ----
    Centred on the WINDOW, like the model, and slid left by the same amount when
@@ -75,13 +53,6 @@
    only thing this page has to say about them, and the nudge ring picks it up. */
 #addwater { --pill-fill: #3d6fb0 }
 #addsalt  { --pill-fill: var(--bond-ionic) }
-
-/* The salt readout sits above the tray rather than under it, and rides the same
-   shift so the whole bottom-centre group moves as one. */
-#saltinfo {
-  bottom: 116px;
-  transform: translateX(calc(-50% - var(--shift, 0px)))
-}
 
 /* ---- the title block, on a scrim ----
    Name, place in the lesson, and this step's title, in one block over the model.
@@ -159,3 +130,117 @@ opacity: .75;
 }
 
 #askopen .sub { display: none }
+
+
+/* =============================================================================
+   The water furniture, out of sandbox.css.
+
+   The temperature column and the salt readout are this lesson's instruments,
+   not shared chrome: only the two water pages ever drew them. They came across
+   when this page dropped sandbox.css, and the copy over there is untouched for
+   the pages still loading it.
+   ========================================================================== */
+#tempbar {
+  position: absolute;
+  left: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+#tempbar .tcol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+
+#tempbar .tlabel {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-base);
+}
+
+#tempbar .tlabel.hot  { color: var(--accent-hot) }
+#tempbar .tlabel.cold { color: var(--accent-cold) }
+
+#trange {
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 20px;
+  height: 340px;
+  border-radius: 12px;
+  cursor: pointer;
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+}
+
+#trange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--text-strong);
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .25);
+}
+
+#trange::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--text-strong);
+  cursor: pointer;
+}
+
+#treadout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  position: absolute;
+  top: 32px;
+  left: 50px;
+}
+
+#treadout .tval {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-3xl);
+  line-height: 1;
+}
+
+#treadout .tdesc {
+  font-family: var(--font-aside);
+  font-size: 19px;          /* off-scale; snapping it to 20 is a look, not a move */
+  color: var(--text-muted);
+  line-height: 1.05;
+  margin-top: 6px;
+  white-space: pre-line;
+}
+
+/* The salt readout: sits above the tray rather than under it, and rides the
+   same shift so the whole bottom-centre group moves as one. */
+#saltinfo {
+  position: absolute;
+  left: 50%;
+  bottom: 116px;
+  transform: translateX(calc(-50% - var(--shift, 0px)));
+  z-index: 5;
+  display: none;
+  text-align: center;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-medium);
+  font-size: 14px;          /* off-scale; --text-sm is 13 and --text-base 16 */
+  color: var(--text-dim);
+  line-height: var(--leading-body);
+  white-space: nowrap;
+}

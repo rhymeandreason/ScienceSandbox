@@ -29,6 +29,14 @@
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box }
 
+html,
+body {
+  margin: 0;
+  height: 100%;
+  color: var(--text-strong);
+  font-family: var(--font-ui);
+}
+
 /* -----------------------------------------------------------------------------
    1. PRIMITIVES
    -------------------------------------------------------------------------- */
@@ -542,3 +550,129 @@
 }
 
 .textbtn:hover:not([disabled]) { color: var(--text-strong) }
+
+
+/* =============================================================================
+   8. SHELL
+
+   The two page shapes. #app is a full-bleed stage and nothing else, which is
+   what most lessons are; #app-sidebar adds a right rail, and a page opts in by
+   name so the rail is a choice rather than something it inherits.
+
+   THE RAIL IS PLAIN. sandbox.css dresses #side as torn grid paper, and both of
+   the pages this system was drawn from switch it off by hand: glycolysis
+   because an opaque column cuts a rectangle out of the scene behind it, and
+   water-tutor because grid paper behind a launcher is decoration for a notebook
+   that is not there any more. Two pages arriving at the same override
+   independently is the system's answer, not a coincidence. The paper the
+   student sees is the stage's, and the rail lies on top of it.
+
+   sandbox.css still carries the graph-paper version and loads after this file,
+   so a page that has not migrated is untouched by any of this.
+   ========================================================================== */
+#app,
+#app-sidebar {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app-sidebar { grid-template-columns: 1fr 372px }
+
+/* The drag surface. Text on it is chrome, and a drag that selects a caption
+   instead of orbiting the model is the worst kind of bug, so nothing here is
+   selectable. */
+#stage {
+  grid-column: 1;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--surface-page);
+  background-image: radial-gradient(var(--surface-rule) 1.4px, transparent 1.4px);
+  background-size: 26px 26px;
+  background-position: 13px 13px;
+}
+
+#gl {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#side {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 30px 44px 34px;
+  /* No ground of its own: the stage's paper reads through. */
+  background: none;
+  /* The rail takes the mouse only where its contents are, so a drag on the bare
+     right-hand side still orbits the molecule underneath. */
+  pointer-events: none;
+}
+
+#side > * { pointer-events: auto }
+
+@media (max-width: 920px) {
+  #app-sidebar {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56vh 1fr;
+  }
+
+  #stage { grid-column: 1 }
+
+  #side {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 20px;
+    /* Stacked, the rail is a column of its own again and needs its own ground. */
+    background-color: var(--surface-page);
+    background-image: radial-gradient(var(--surface-rule) 1.4px, transparent 1.4px);
+    background-size: 26px 26px;
+    background-position: 13px 13px;
+    overflow-y: auto;
+  }
+}
+
+/* ---------- lesson chrome ---------- */
+#brand {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  z-index: 6;
+}
+
+#brand h1 {
+  margin: 0;
+  font-family: var(--font-shout);
+  font-weight: var(--weight-regular);
+  font-size: 25px;          /* off-scale; --text-2xl is 26. Pending a type pass */
+  letter-spacing: .3px;
+}
+
+#steps {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+#chips {
+  position: absolute;
+  left: 26px;
+  bottom: 150px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
