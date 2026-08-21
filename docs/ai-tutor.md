@@ -6,7 +6,7 @@ A science question box and an in-lesson tutor chat. The tutor answers in ≤3 se
 
 ## Status
 
-Runs locally only. Nothing is deployed and **nothing is logged**.
+Runs locally only. Nothing is deployed. **Logging is built** and writes to Neon; it is off wherever `DATABASE_URL` is unset.
 
 Working end to end on `demos/water-lab.html`:
 
@@ -22,11 +22,34 @@ Working end to end on `demos/water-lab.html`:
 
 ## Next steps, in order
 
-1. **Logging.** Never built, and it blocks judging everything else. Neon Postgres, `threads` + `messages`, `thread_id` in `localStorage`, no IP. Log `point` and `state` alongside the question, not just the text — that turns the log into a debugging tool for the aiming.
-2. **Rate limit + deploy.** No limit exists; a public LLM endpoint without one is a free-money faucet. Vercel WAF rule on `/api/ask`. `vercel.json` exists but is untested. **`ASK_BENCH` must be unset in production** or a visitor can rewrite the tutor's prompt.
-3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions.
-4. **Second lesson mount.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with).
-5. `?step=` on the four lessons that lack it, so away links land where they say.
+1. **Rate limit + deploy.** No limit exists; a public LLM endpoint without one is a free-money faucet. Vercel WAF rule on `/api/ask`. `vercel.json` exists but is untested. **`ASK_BENCH` must be unset in production** or a visitor can rewrite the tutor's prompt.
+2. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions.
+3. **Second lesson mount.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with).
+4. `?step=` on the four lessons that lack it, so away links land where they say.
+
+## Logging
+
+`api/_log.js`, `api/_schema.sql`, `demos/tools/db.js`. Neon Postgres over HTTP, one fetch per statement, because a function that may be frozen the moment it responds cannot hold a pool.
+
+**One row per message, two per exchange.** The question's row carries the moment it was asked in (`step`, `state`); the answer's row carries how it was produced (`point`, `chapters`, `provider`, `model`, `usage`, `ms`). They share `turn`, and the `turns` view joins them. That pairing is the whole point: the aiming question is always "given *that* screen, why *that* target", and a transcript of text alone cannot answer it.
+
+**Failed turns get a row too**, with `error` set and `text` holding what the student was actually shown. A log of successes only would hide the failure you most want to see.
+
+**No IP, no user agent, no name.** A visitor is a random uuid the browser minted for itself. `visitor` lives in `localStorage`, so a second visit is recognisable as the same browser; `thread` is minted per page load, so a conversation is a conversation rather than one endless transcript per device. Clearing site data clears both.
+
+**A logging failure must never cost a student an answer.** `logTurn` swallows everything to the console and carries its own 2s budget; `handleAsk` awaits it and cannot be rejected by it. It is awaited rather than fired and forgotten because a serverless function may be frozen the instant it responds, and a promise left running is a row that never lands. `check-ask.js` asserts the swallowing offline, with no database, by handing `logTurn` the shapes a bad turn produces — and asserts every column `logTurn` writes exists in the `messages` block of the DDL, matched inside that block alone, because the `turns` view names most of them too and matching the whole file lets a renamed column pass.
+
+**Off by default.** No `DATABASE_URL` means every call is a no-op, which is what a checkout without a database gets and what GitHub Pages gets.
+
+```bash
+node demos/tools/db.js init     # apply the schema, idempotent
+node demos/tools/db.js recent   # last 20 exchanges, screen beside aim
+node demos/tools/db.js aim      # where the tutor pointed, by target
+node demos/tools/db.js cost     # turns, tokens and dollars per day
+```
+
+`cost` reads the `cost_usd` the provider priced, so it quotes the rate that served the request rather than doing its own arithmetic against a table it would have to keep in step. It still understates: cache writes and cache storage are not in `usageMetadata`, as above.
+
 
 ## What a session costs
 
@@ -54,9 +77,9 @@ Going the other way, adding to `situation` is nearly free at a tenth rate. **The
 
 ## Key context
 
-**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer).
+**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` (the log).
 
-**Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`).
+**Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`), and `DATABASE_URL` beside it if you want the log.
 
 The “Ask a Question” button and chat drawer are only added to the page if the server is running. See demos/ask/chat.js:48
 

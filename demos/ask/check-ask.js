@@ -18,6 +18,7 @@ const { CHAPTERS, IDS } = require(path.join(ROOT, 'api/_catalog.js'));
 
 let fail = 0;
 const bad = m => { console.log(`  FAIL  ${m}`); fail++; };
+const pending = [];   // assertions that only settle later; awaited before the exit code
 
 console.log(`\nask catalog: ${CHAPTERS.length} chapters\n`);
 
@@ -187,7 +188,40 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
       + `  +${tok - FLOOR}`);
 }
 
+/* ---- the log ----------------------------------------------------------------
+ * Only one property matters and it is invisible from the page: a logging
+ * failure must never reach the student. Assert it offline, with no database,
+ * by handing `logTurn` exactly the shapes a bad turn produces. If any of these
+ * rejects, a dropped connection takes an answer down with it. */
+{
+  const log = require(path.join(ROOT, 'api/_log.js'));
+  const sql = fs.readFileSync(path.join(ROOT, 'api/_schema.sql'), 'utf8');
+
+  const junk = [
+    {},                                                   // nothing at all
+    { threadId: 'not-a-uuid', visitorId: 'nope' },         // ids the client mangled
+    { threadId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', visitorId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      turn: 1, question: 'q', out: null, error: 'boom' },  // a failed turn, no database
+  ];
+  // Awaited at the bottom: a rejection that lands after process.exit proves
+  // nothing, which is exactly the bug this assertion is about.
+  pending.push(Promise.all(junk.map(a => log.logTurn(a)))
+    .catch(() => bad('logTurn rejected: a logging failure would cost a student their answer')));
+
+  // Every column `logTurn` writes has to exist, and the DDL is the only place
+  // that says so. A rename here is otherwise a runtime error per question.
+  // Matched inside the CREATE TABLE body alone: the `turns` view names most of
+  // these too, and matching the whole file lets a renamed column pass.
+  const table = /CREATE TABLE IF NOT EXISTS messages \(([\s\S]*?)\n\);/.exec(sql);
+  if (!table) bad('_schema.sql has no messages table');
+  else for (const col of ['thread_id', 'turn', 'role', 'text', 'step', 'state', 'point',
+                          'chapters', 'provider', 'model', 'usage', 'ms', 'error'])
+    if (!new RegExp(`^\\s*${col}\\s`, 'm').test(table[1])) bad(`messages has no ${col} column`);
+}
+
 console.log(`\n  ${allQids.size} targets across ${Object.keys(T.LESSONS).length} lessons`);
 
-console.log(fail ? `\n  ${fail} problem(s)\n` : '\n  all good\n');
-process.exit(fail ? 1 : 0);
+Promise.all(pending).then(() => {
+  console.log(fail ? `\n  ${fail} problem(s)\n` : '\n  all good\n');
+  process.exit(fail ? 1 : 0);
+});
