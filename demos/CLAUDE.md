@@ -36,7 +36,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
 | `coupling/coupling-test.html` | Test bench for `coupling/coupling.js` — ΔG adds, and it only adds when the two reactions share a molecule | test |
 | `lobes/lobes-test.html` | Test bench for `lobes/lobes.js` — lone pairs as teardrops, and which nitrogens on adenine are not acceptors | test |
-| `condense/ring-test.html` | Test bench for `ring-close.js` — why glucose is a ring. Open chain derived from the ring spec, strain measured off real rings, refusals for the sizes that cannot close. **The α/β fork does not work yet**; not wired into a lesson | test |
+| `chair/chair-test.html` | Test bench for `chair-flip.js` — the ring flip. Orbit to see the chair, flip it, and watch every substituent trade axial for equatorial. Glucose is the only one of the three that gets all five out of the way at once | test |
 | `condense/condense-test.html` | Test bench for `condense-drag.js` — dehydration synthesis as a drag: two glucoses (α or β reagent → maltose or cellobiose) and two alanines, each releasing the water the bond costs | test |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
@@ -107,7 +107,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js && node condense/check-condense.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js && node condense/check-condense.js && node chair/check-chair.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>chair-flip.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson, not linked from the index.
+
+     WHY THIS EXISTS. The hexagon a textbook draws is a lie, and this is
+     the thing everybody does with a physical model kit: build the
+     six-ring and flip it. Every equatorial substituent becomes axial and
+     every axial one becomes equatorial.
+
+     WHAT TO CHECK:
+
+       1. Orbit first, before flipping anything. It is a CHAIR — two
+          atoms up, two down, not a flat hexagon. Nothing else on this
+          page matters if that does not read.
+       2. Flip glucose. Five equatorial become five axial: the groups
+          swing from lying in the ring's plane to standing straight up
+          and down, crowding each other. That crowding is why the
+          all-equatorial chair is the one glucose actually sits in.
+       3. Flip galactose and alpha-glucose. Neither has an all-equatorial
+          chair to begin with — 4 and 1, either way round. Glucose is the
+          only common sugar that gets all five out of the way at once,
+          and that is why life runs on it.
+       4. It is the same molecule. Nothing breaks, nothing stretches, and
+          no stereocentre changes hand — chair/check-chair.js is what actually
+          asserts that, because a mirrored sugar renders identically.
+
+     SIMPLIFICATION, deliberate: the morph is a straight interpolation
+     between the two chairs, so it passes through a flat ring. The real
+     path goes half-chair → twist-boat and never lies flat. This is a
+     schematic of the endpoints, which are the lesson; the barrier is
+     not drawn and is not claimed.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
+
+<style>
+  body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
+  .bench{max-width:980px;margin:0 auto}
+  .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
+  .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
+    line-height:1.6;margin:0 0 22px;max-width:72ch}
+  .case{background:var(--paper);border:2.5px solid var(--ink);
+    border-radius:var(--radius);padding:16px 18px 18px}
+  .gl{width:100%;height:460px;display:block;border-radius:calc(var(--radius) - 6px);
+    background:rgba(58,52,44,.04);cursor:grab}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .row button{font-family:var(--font-sans);font-size:12px;font-weight:600;
+    padding:6px 13px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer}
+  .row button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .row button.go{background:#fffdf7}
+  .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:12px;
+    color:var(--muted);white-space:pre-wrap;line-height:1.65;margin-top:12px}
+  .read b{color:var(--ink)}
+  .eq{color:#2e8b57;font-weight:700}
+  .ax{color:#c0392b;font-weight:700}
+  .key{margin-top:10px;font-family:var(--font-sans);font-size:12px;color:var(--muted)}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;
+    border:1.5px solid var(--ink);vertical-align:-1px;margin:0 4px 0 10px}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1>chair-flip.js — test bench</h1>
+  <p class="lede">Orbit it first: the ring is a <b>chair</b>, not a hexagon. Then
+    flip it. Every substituent trades places between lying in the ring's plane
+    (<span class="eq">equatorial</span>) and standing perpendicular to it
+    (<span class="ax">axial</span>). Nothing below is typed — the counts and the
+    colours come from the module measuring the geometry it just built.</p>
+
+  <div class="case">
+    <div><canvas class="gl" id="gl"></canvas></div>
+    <div class="row" id="pick"></div>
+    <div class="row"><button class="go" id="flip">Flip the ring</button>
+      <button id="reset">Reset</button></div>
+    <div class="read" id="read"></div>
+    <div class="key"><span class="sw" style="background:#2e8b57"></span>equatorial —
+      out in the ring's plane, out of everything's way
+      <span class="sw" style="background:#c0392b"></span>axial — straight up or
+      down, crowding whatever else is axial on the same face</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../tokens-from-palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<!-- mol-monomers BEFORE mol-contrast: mol-contrast mirrors alanine out of it to
+     build D-alanine, and without it that whole domain file throws at register()
+     and every spec in it silently fails to exist. -->
+<script src="../mol-monomers.js"></script>
+<script src="../mol-pathways.js"></script>
+<script src="../mol-contrast.js"></script>
+<script src="../scene.js"></script>
+<script src="../kit/motion.js"></script>
+<script src="../kit/molgraph.js"></script>
+<script src="../chair-flip.js"></script>
+<script>
+"use strict";
+
+/* Orbit is ON here, unlike the condense pages: nothing is dragged, and seeing
+   that a chair IS a chair takes turning it. */
+const canvas=document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam:{ theta:0.6, phi:1.25, r:22 }, rMax:200 });
+const motion=Motion.create();
+const read=document.getElementById('read');
+
+/* Three sugars, and the third one is the argument: glucose is the only one with
+   an all-equatorial chair. Read from the specs, so a spec that changed would
+   change the claim rather than leave the caption lying. */
+const SUBJECTS=['glucose','alphaGlucose','galactose'];
+let key='glucose', mol=null, home=null, away=null, at=0, flipped=false;
+
+function build(){
+  if(mol) root.remove(mol);
+  const spec=MolLib.MOLECULES[key];
+  mol=Stage.buildMolecule(spec,{center:true});
+  root.add(mol);
+  /* The two chairs, in the MESHES' own frame. buildMolecule bakes `view:` and
+     `center:true` into the atom positions, so flipping the raw spec and then
+     drawing it would land the molecule somewhere else entirely; flipping what
+     is actually on screen keeps the two conformers registered on each other. */
+  home=mol.userData.atomMeshes.map(m=>m?m.position.clone():null);
+  const flat=home.map(p=>p?[p.x,p.y,p.z]:[0,0,0]);
+  away=ChairFlip.flip(spec, flat).pos.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+  at=0; flipped=false;
+  makeMarks(); paint(); fit(); report();
+}
+
+function lerpTo(t){
+  const u=mol.userData;
+  u.atomMeshes.forEach((m,i)=>{ if(m && home[i]) m.position.lerpVectors(home[i], away[i], t); });
+  u.bondMeshes.forEach(bm=>{
+    const [i,j]=bm.userData.pair;
+    if(u.atomMeshes[i]&&u.atomMeshes[j])
+      Stage.placeBond(bm, u.atomMeshes[i].position, u.atomMeshes[j].position);
+  });
+  at=t;
+  paint();
+}
+
+/* MARK the substituents, never recolour them. An atom's colour is its element
+   here — palette.js publishes those as CSS tokens precisely so a caption and the
+   sphere it names cannot drift — and tinting an oxygen green would break that
+   for every other page too. It also reads wrong on its own terms: oxygen is
+   already red, so the ring oxygen would look permanently axial.
+
+   The markers live in `root` rather than as children of the atoms, and turn to
+   face the camera every frame. This page orbits, so a ring welded to the
+   molecule would edge on and vanish exactly when the student turns it to see
+   what a chair is. */
+let marks=[];
+function makeMarks(){
+  marks.forEach(m=>root.remove(m.mesh));
+  marks=[];
+  const spec=MolLib.MOLECULES[key];
+  ChairFlip.tilts(spec, mol.userData.atomMeshes.map(m=>m?[m.position.x,m.position.y,m.position.z]:[0,0,0]))
+    .forEach(x=>{
+      const mesh=new THREE.Mesh(new THREE.TorusGeometry(1.45,0.16,12,40),
+        new THREE.MeshBasicMaterial({color:0x2e8b57, transparent:true,
+          opacity:0.9, depthWrite:false, depthTest:false}));
+      mesh.renderOrder=3;
+      root.add(mesh);
+      marks.push({sub:x.sub, mesh});
+    });
+}
+/* Measured from the geometry ON SCREEN, not from which end of the animation we
+   are at, so the colours change when the substituents actually cross over. */
+function paint(){
+  if(!marks.length) return;
+  const spec=MolLib.MOLECULES[key], u=mol.userData;
+  const pos=u.atomMeshes.map(m=>m?[m.position.x,m.position.y,m.position.z]:[0,0,0]);
+  const t=ChairFlip.tilts(spec, pos);
+  const by={}; t.forEach(x=>{ by[x.sub]=x; });
+  marks.forEach(k=>{
+    const m=u.atomMeshes[k.sub]; if(!m) return;
+    k.mesh.position.copy(m.getWorldPosition(new THREE.Vector3()));
+    k.mesh.quaternion.copy(camera.quaternion);
+    const x=by[k.sub];
+    if(x) k.mesh.material.color.setHex(x.equatorial?0x2e8b57:0xc0392b);
+  });
+}
+
+function report(){
+  const spec=MolLib.MOLECULES[key];
+  const u=mol.userData;
+  const pos=u.atomMeshes.map(m=>m?[m.position.x,m.position.y,m.position.z]:[0,0,0]);
+  const t=ChairFlip.tilts(spec, pos);
+  const eq=t.filter(x=>x.equatorial), ax=t.filter(x=>!x.equatorial);
+  const nm=i=>spec.names?spec.names[i]:i;
+  const L=[];
+  L.push(`<b>${spec.name}</b> — <span class="eq">${eq.length} equatorial</span>, `
+       + `<span class="ax">${ax.length} axial</span>`);
+  L.push(`equatorial: ${eq.map(x=>nm(x.sub)).join(', ')||'none'}`);
+  L.push(`axial: ${ax.map(x=>nm(x.sub)).join(', ')||'none'}`);
+  if(!ax.length)
+    L.push(`Every bulky group out of the way at once. No other common hexose `
+         + `manages this, and it is why glucose is the sugar life runs on.`);
+  if(!eq.length)
+    L.push(`All five standing straight up and down. This is the chair glucose `
+         + `does NOT sit in.`);
+  read.innerHTML=L.join('\n');
+}
+
+const ext=()=>Stage.measure(MolLib.MOLECULES[key]);
+function fit(){ const e=ext(); resize();
+  Stage.frame(camera, cam, [{x:0,y:0,rxz:e.rxz*1.3,hy:e.hy*1.3}]); applyCam(); }
+new ResizeObserver(fit).observe(canvas);
+
+const pick=document.getElementById('pick');
+pick.innerHTML=SUBJECTS.map(k=>
+  `<button data-mol="${k}" aria-pressed="${k===key}">${MolLib.MOLECULES[k].name}</button>`).join('');
+pick.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-mol]'); if(!b) return;
+  key=b.dataset.mol;
+  pick.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  motion.cancel('flip'); build();
+});
+
+document.getElementById('flip').addEventListener('click',()=>{
+  motion.cancel('flip');
+  const from=at, to=flipped?0:1;
+  flipped=!flipped;
+  motion.seq([{dur:0.9, ease:'inOutQuad',
+    onUpdate:e=>lerpTo(from+(to-from)*e)}],{tag:'flip'});
+  motion.after(0.92, report, {tag:'flip'});
+});
+document.getElementById('reset').addEventListener('click',()=>{
+  motion.cancel('flip'); build();
+});
+
+build();
+
+let prev=performance.now();
+(function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.1,(now-prev)/1000); prev=now;
+  motion.step(dt);
+  paint();                       // markers billboard, so they repaint per frame
+  renderer.render(scene,camera);
+})(prev);
+
+window.CHAIR={ get at(){return at;}, lerpTo, report, build,
+               get key(){return key;}, set key(k){key=k;build();} };
+</script>
+</body>
+</html>

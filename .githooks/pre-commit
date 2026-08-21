@@ -226,6 +226,26 @@ else
   echo "pre-commit: skipping check-condense.js — no spec or condense/ file staged"
 fi
 
+# demos/chair/ gates itself, plus chair-flip.js and every mol-*.js: the flip is
+# computed from a spec's own geometry, so a re-baked sugar changes what the page
+# draws without touching this module. The failure it catches has no visual tell
+# whatsoever — a mirrored sugar renders pixel-identical, which is how L-ribitol
+# once shipped here (see chair/check-chair.js).
+if git diff --cached --name-only \
+   | grep -qE '^demos/(chair/.*|chair-flip\.js|mol-[a-z]*\.js|molecules\.js|skel\.js|kit/molgraph\.js)$'; then
+  if ! node chair/check-chair.js > /tmp/cch.$$ 2>&1; then
+    tail -30 /tmp/cch.$$; rm -f /tmp/cch.$$
+    echo ""
+    echo "pre-commit FAILED: check-chair.js — a ring flip stopped being a flip."
+    echo "  A handedness failure means the ENANTIOMER is being drawn, and it"
+    echo "  looks exactly like the real thing."
+    exit 1
+  fi
+  rm -f /tmp/cch.$$
+else
+  echo "pre-commit: skipping check-chair.js — no spec or chair/ file staged"
+fi
+
 # dna/ gates itself, plus the nucleobase specs and the two modules its answers
 # are built out of. pairing.js takes lone-pair directions from lobes/ and has
 # kit/hbond.js count the bonds in the pose it solves, so a change in either can
