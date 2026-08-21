@@ -1139,10 +1139,10 @@ function syncIceNotes(){
     /* On the bar's own 0°C caption rather than on the track: the caption is
        where the student's eye already is, and sitting on its line lets the
        leader run straight out to the right. */
-    NOTES.add({text:'drag down to 0°C', offset:[120,0],
+    NOTES.add({text:'drag down to freeze', offset:[120,0],
       atPx:()=>{ const st=NOTES.el.getBoundingClientRect(), c=tcoldEl.getBoundingClientRect();
                  return [c.right-st.left+14, c.top-st.top+c.height*0.5]; },
-      card:'Cool the water to its freezing point and watch what the molecules do. '});
+      card:'Watch what the molecules do. '});
   } else {
     const w=sim.mols[0]; if(!w) return;
     NOTES.add({text:'open hexagonal lattice', offset:[64,-36],
@@ -1284,6 +1284,19 @@ function applyAskShift(){
   camera.updateProjectionMatrix();
 }
 
+/* ---------- the nudge on Add Water ----------
+ *  The bonding, the network and the lattice only look like anything with a
+ *  crowd, and a student who adds two molecules and stops sees none of it. The
+ *  button asks for attention until the scene has enough to show, then stops
+ *  asking — a pulse that never ends is decoration.
+ */
+const WATER_ENOUGH=25;
+const addWaterBtn=document.getElementById('addwater');
+function syncWaterNudge(){
+  addWaterBtn.classList.toggle('nudge',
+    S.step>=1 && sim.mols.length<WATER_ENOUGH);
+}
+
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band
 // near the top before being recycled to the bottom, so they don't pop out abruptly.
@@ -1374,7 +1387,7 @@ function loop(){
   // letters/badges ride just proud of their own atom's front surface — see
   // atomkit.js faceCamera(); needs the camera's final position for this frame
   if(detail.visible) kit.faceCamera(camera);
-  applyAskShift();
+  applyAskShift(); syncWaterNudge();
   syncHbNote(); syncIceNotes(); syncSaltNotes();
   NOTES.step();                 // trap 1: the RENDER loop, so orbiting keeps the labels on their atoms
   renderer.render(scene,camera); requestAnimationFrame(loop);

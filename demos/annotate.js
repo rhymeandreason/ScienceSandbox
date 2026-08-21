@@ -200,6 +200,10 @@ window.Annot = (function () {
       c._b.innerHTML = note.card;
       cardNote = note;
       c.classList.add('is-open');
+      /* `is-carded` is the note whose card is open NOW; `is-seen` is the note
+         that has ever been opened, and it never comes off. A page that draws
+         attention to an unread callout needs to know when to stop. */
+      note.el.classList.add('is-seen');
       for (const n of notes) n.el.classList.toggle('is-carded', n === note);
       step();                       // place it now, not on the next frame
       return api;
