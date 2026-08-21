@@ -295,6 +295,25 @@
       const y=z.clone().cross(x).normalize();
       return new THREE.Matrix4().makeBasis(x,y,z);
     }
+    /* The product's DISPLAYED coordinates — what Stage.buildMolecule(prod,
+     * {center:true}) would actually put on screen, which is the spec's raw
+     * numbers CENTRED and then turned by its `view:`.
+     *
+     * Posing onto the raw numbers instead leaves the finished molecule at the
+     * spec's build origin and, worse, wearing no view at all. For maltose and
+     * cellobiose that angle is not decoration: VIEW.disaccharide was swept for
+     * near-coplanar ring planes because at other angles no single camera shows
+     * both rings as chairs, and the second residue renders as a blob. The card's
+     * whole claim is "same molecule except here", which does not survive half of
+     * it being unreadable. Same order as buildMolecule: centre, then turn. */
+    function displayed(prod, i){
+      const c=Stage.centerOf(prod), a=prod.atoms[i].pos;
+      const v=V(a[0]-c[0], a[1]-c[1], a[2]-c[2]);
+      if(prod.view) v.applyQuaternion(new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(prod.view[0]||0, prod.view[1]||0, prod.view[2]||0, 'ZYX')));
+      return v;
+    }
+
     // Where residue `which` of the product sits, and which bench atoms match it.
     function triadOf(which){
       const prod=MOL[product];
@@ -304,7 +323,7 @@
         const pi=pn[t+suffix], li=ln[t];
         if(pi===undefined || li===undefined)
           throw new Error(`condense-drag: triad atom '${t}' is missing from ${product} or its reactant`);
-        return { p:prod.atoms[pi].pos, l:li };
+        return { p:displayed(prod, pi), l:li };
       });
     }
     /* Move `g` so its triad lands on the product's. No SCALE here: `register()`
@@ -317,7 +336,7 @@
      * transform lands the molecule where its own atoms actually are. */
     function placeOnProduct(g, which){
       const pts=triadOf(which);
-      const P=pts.map(t=>V(t.p[0],t.p[1],t.p[2]));
+      const P=pts.map(t=>t.p.clone());
       const L=pts.map(t=>at(g,t.l));
       const rot=frame(P[0],P[1],P[2]).multiply(frame(L[0],L[1],L[2]).invert());
       const o=L[0].clone();

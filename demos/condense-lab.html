@@ -284,6 +284,7 @@ function report(s){
   showTray(s);
   if(s.joined && !last.joined){
     const prod=s.product ? MolLib.MOLECULES[s.product] : null;
+    fit();                              // the subject is one molecule now
     say(prod ? `<b>${prod.name}</b> — and one water left to pay for it.`
              : `A <b>peptide bond</b> — and one water left to pay for it.`);
     showNotes(s);
@@ -315,13 +316,23 @@ function chromePad(){
 function fit(){
   const L=LESSONS[key], R=CondenseDrag.RECIPES[L.recipe];
   const s=drag.state();
-  const eA=Stage.measure(MolLib.MOLECULES[R.a]);
-  const eB=Stage.measure(MolLib.MOLECULES[s.donor.mol]);
-  const d=drag.deal(), pad=chromePad();
+  const pad=chromePad();
   resize();
-  Stage.frame(camera, cam, [
-    { x:0,    y:0,    rxz:eA.rxz*pad.x, hy:eA.hy*pad.y },
-    { x:d[0], y:d[1], rxz:eB.rxz*pad.x, hy:eB.hy*pad.y } ]);
+  /* Once joined, the product is ONE molecule sitting centred at the origin —
+     the module poses it exactly where Stage.buildMolecule would — so frame it
+     as one. Holding the two-reactant framing would leave the finished molecule
+     small and off to one side, at the moment it is the thing to look at. */
+  if(s.joined && s.product){
+    const e=Stage.measure(MolLib.MOLECULES[s.product]);
+    Stage.frame(camera, cam, [{ x:0, y:0, rxz:e.rxz*pad.x, hy:e.hy*pad.y }]);
+  } else {
+    const eA=Stage.measure(MolLib.MOLECULES[R.a]);
+    const eB=Stage.measure(MolLib.MOLECULES[s.donor.mol]);
+    const d=drag.deal();
+    Stage.frame(camera, cam, [
+      { x:0,    y:0,    rxz:eA.rxz*pad.x, hy:eA.hy*pad.y },
+      { x:d[0], y:d[1], rxz:eB.rxz*pad.x, hy:eB.hy*pad.y } ]);
+  }
   applyCam();
 }
 

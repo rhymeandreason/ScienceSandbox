@@ -104,6 +104,17 @@ for (const [key,R] of Object.entries(RECIPES)) {
     if(!prod){ fail(`product '${prodKey}' is not registered`); continue; }
     const pn=nameIndex(prod);
     let bad=0;
+
+    /* The finished molecule is posed onto the product's DISPLAYED coordinates,
+     * which means its `view:` is the angle the student ends up looking at. For
+     * a disaccharide that angle is load-bearing: VIEW.disaccharide was swept for
+     * near-coplanar ring planes because at other angles no single camera shows
+     * both rings as chairs. A product that lost its view would still pose with
+     * perfect geometry and read as a blob, which no other check here would see. */
+    if(!prod.view)
+      fail(`${prodKey} declares no \`view:\`, so the finished molecule would be `
+         + `posed at its build origin's angle — for a two-ring sugar that is the `
+         + `pose where one ring stops reading as a chair`);
     /* Whether this reagent inverts at the anomeric carbon is the SPEC's claim.
      * An α-glucose reaching maltose must NOT invert — it already is that
      * configuration — and a spec that claimed otherwise would be describing a
