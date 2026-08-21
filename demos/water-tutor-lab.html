@@ -1165,23 +1165,18 @@ function syncSaltNotes(){
   saltNoted.forEach((nt,ion)=>{
     if(!salt.includes(ion) || ion.userData.shellCount<1){ nt.remove(); saltNoted.delete(ion); }
   });
-  /* ONE LABEL PER SPECIES, not one per ion. The sentence is about what water
-     does around a cation and around an anion, and it is the same sentence on
-     the second crystal — repeated over every ion it stops being a label and
-     becomes wallpaper. Whichever ion gets a shell first carries it, and if
+  /* ONE LABEL PER SPECIES, not one per ion. Whichever ion gets a shell first carries it, and if
      that one loses its shell the next one takes over. */
   const labelled=ion=>[...saltNoted.keys()].some(k=>
     (k.userData.charge>0)===(ion.userData.charge>0));
   for(const ion of salt){
     if(saltNoted.has(ion) || ion.userData.shellCount<1 || labelled(ion)) continue;
     const cation=ion.userData.charge>0;
+    /* No card */
     const nt=NOTES.add({
-      text: cation ? 'Na⁺ — δ− O turned inward' : 'Cl⁻ — δ+ H turned inward',
+      text: cation ? 'Na⁺ attracts O' : 'Cl⁻ attracts H',
       offset: cation ? [-70,-34] : [70,34],
-      at: ()=>_wp.copy(ion.position),
-      card: cation
-        ? 'About six waters cage the cation, each aiming its partly-negative oxygen at the charge. That shell is what stops it finding its chloride again.'
-        : 'Around the anion the waters flip and point one O–H at it. Same attraction, opposite end of the molecule.'});
+      at: ()=>_wp.copy(ion.position)});
     saltNoted.set(ion,nt);
   }
 }
