@@ -33,13 +33,25 @@
     const slot = opts.slot || rail;      // where the launcher goes; the panel
     const act  = opts.act || (() => false);   // always covers the whole rail
 
-    /* ---- launcher, in the rail ---- */
+    /* ---- launcher, in the rail ---------------------------------------------
+     * Built now, ADDED only once /api/ask answers. These pages also publish to
+     * GitHub Pages, which serves files and nothing else, so the endpoint is
+     * simply absent there. An invitation you cannot honour is worse than no
+     * invitation: without this the button and the example questions are fully
+     * present and a student clicking one is shown a JSON parse error. */
     const open = document.createElement('button');
     open.id = 'askopen';
     open.type = 'button';
     open.innerHTML = '<i class="ph-bold ph-chat-teardrop-dots"></i>'
       + '<span>Ask a question<span class="sub"> about what you are seeing</span></span>';
-    slot.appendChild(open);
+
+    fetch(ENDPOINT, { method: 'GET' })
+      .then(r => r.ok && r.json())
+      .then(cfg => { if (cfg) slot.appendChild(open); })
+      .catch(() => {})
+      .then(() => { if (!open.isConnected) console.info(
+        '[ask] no /api/ask on this host, so the tutor is not offered. '
+        + 'That is expected on a static deploy.'); });
 
     /* ---- drawer ---- */
     const panel = document.createElement('div');
@@ -130,7 +142,11 @@
             cited: [...cited],
           }),
         });
-        const data = await res.json();
+        // A host without the function answers with an HTML error page, which
+        // is a parse failure, not a tutor failure. Say which.
+        let data;
+        try { data = await res.json(); }
+        catch { throw new Error('the tutor is not available on this site'); }
         if (!res.ok) throw new Error(data.error || 'something went wrong');
 
         messages.push({ role: 'assistant', content: data.answer });
