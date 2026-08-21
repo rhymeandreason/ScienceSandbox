@@ -7,10 +7,13 @@ Reference for building a new `*-lab.html` page: shared modules, script load orde
 Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in this order — each script assumes the ones above it:
 
 ```html
-<link rel="stylesheet" href="sandbox.css">   <!-- loads the fonts too; after icons, before page <style> -->
+<link rel="stylesheet" href="main.css">      <!-- always, first — tokens, type scale, buttons; loads the fonts -->
+<link rel="stylesheet" href="sandbox.css">   <!-- the old shared chrome, retiring into main.css -->
+<link rel="stylesheet" href="annotate.css">  <!-- only with annotate.js; overrides the frozen copy in sandbox.css -->
 ...
 <script src=".../three.min.js"></script>
 <script src="palette.js"></script>     <!-- always, first — atom/bond colours + radii -->
+<script src="tokens-from-palette.js"></script>  <!-- always, straight after — publishes the atom/bond colours as CSS -->
 <script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
 <script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
@@ -83,7 +86,9 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 | `folding/ribbon.js` | `RibbonLib` = `build` (Cα trace + secondary structure → ribbon `BufferGeometry`) + `dssp`/`parseBackbone` (Kabsch & Sander, needs N/CA/C/O) + `assign`/`detect` + `HP35_HELICES`. Real ångströms, no materials. **Called per frame on live fold coordinates** — a ribbon is only as trustworthy as the solver frame under it | own header |
 | `hemoglobin/hbfold.js` | `HbFold` = `decode` (baked fold → Cα trace, secondary structure, H-bonds, sequence, the **focus segment**'s backbone, `at(t)`). `hemoglobin-lab.html` only. Real ångströms, no THREE | own header |
 | `folding/folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` + `orient` + `SCHEDULE` (the act boundary, bisected by the page) + `Folder` (constrained relaxation + `bake`). Real ångströms, renders nothing. **Constraints hold the peptide bond trans and give each H-bond its deposited rise** | own header |
-| `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — and the `@import` that loads **all** webfonts, so no page carries a font `<link>` | own header |
+| `main.css` | the design system: tokens (primitive → semantic → domain), the type scale, the six button shapes — and the `@import` that loads **all** webfonts, so no page carries a font `<link>`. Loads before `sandbox.css`, so retiring a piece of that file is a deletion | own header |
+| `annotate.css` | the look of a callout, paired with `annotate.js`. A frozen copy stays in `sandbox.css` for the pages that have not migrated; edit this one | own header |
+| `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome. Being retired into `main.css`; still wins where the two overlap | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
@@ -130,7 +135,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 1. **Ask the human what existing page is similar.** Copy its layout and main UI structure wholesale.
 
-2. Copy the head (fonts/icons + `sandbox.css` + the scripts you need). **Load only the `mol-*.js` domains your page shows**, after `molecules.js` (and after `skel.js` if any needs the builder).
+2. Copy the head (icons + `main.css` + `sandbox.css` + the scripts you need). **Load only the `mol-*.js` domains your page shows**, after `molecules.js` (and after `skel.js` if any needs the builder).
 
 3. Add new molecules to the right `mol-*.js` — never to `molecules.js`. A molecule in the wrong domain is one some page pays for and never draws. Prefer `tools/sdf2spec.js` over typing coordinates, give it a `src:`, then run the checkers. A new domain file also goes in `MolLib.DOMAINS`. **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** (MolecularGeometry.md §1.4 rule 2) — an undeclared claim is how every sugar here spent months being the wrong enantiomer.
 

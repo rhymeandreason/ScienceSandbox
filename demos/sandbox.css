@@ -876,6 +876,10 @@
 
 
  /* ---------- callouts on the model (annotate.js) ----------
+    FROZEN. annotate.css is the live copy of everything below, and a page that
+    links it overrides this. These rules stay only for the test and prototype
+    pages that load sandbox.css alone. Do not edit them; edit annotate.css. A
+    fix applied here and not there will vanish the moment a page migrates.
     The look lives here rather than in the module so a callout is styled by
     the same stylesheet as every other piece of chrome — it is the house
     voice applied to a label, and a page must not be able to invent its own.
