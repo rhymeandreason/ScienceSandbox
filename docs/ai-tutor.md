@@ -75,7 +75,27 @@ The free tier stops being a throttled live tutor and becomes its own thing: a fi
 
 **A baked entry stores the target's id, not the resolved target.** Resolution stays in `_targets.js` at serve time, exactly as the live path does it, which keeps the load-bearing property (an id from a constrained enum, resolved where the catalog lives) and makes a renamed target fail loudly rather than link somewhere wrong. Embeddings live beside the entries as an int8 binary sidecar, never JSON: the same vectors as JSON parse an order of magnitude slower on every cold start.
 
-**Matching: an embed-only endpoint, with curated buttons as the static fallback.** The free tier's only model call becomes an embedding. That removes the expensive operation from the public path rather than throttling access to it, which is a better answer to the rate limit than a WAF rule. Everything after the embedding is local: a prototype measured brute-force cosine at 6.2 ms over 1148 items, and a baked set is an order of magnitude smaller, so **no vector database and no second service**. On GitHub Pages there is no `/api`, so the drawer offers its questions as a list instead of a text field, same entries and same renderer. That gives Pages a working tutor demo for the first time, where today the launcher never appears at all.
+**Matching: an embed-only endpoint, with curated buttons as the static fallback.** The free tier's only model call becomes an embedding. Everything after it is local: a prototype measured brute-force cosine at 6.2 ms over 1148 items, and a baked set is an order of magnitude smaller, so **no vector database and no second service**. On GitHub Pages there is no `/api`, so the drawer offers its questions as a list instead of a text field, same entries and same renderer. That gives Pages a working tutor demo for the first time, where today the launcher never appears at all. The query cannot be embedded in the browser: that needs the model, which means a key in the page or a model download measured in tens of megabytes.
+
+**Why "embed-only" is the security answer and not just the fast one.** Two properties, and the second is the one to rely on. *An embedding cannot be made expensive*: a generation's cost scales with what comes out, and the caller controls that (a thinking turn costs about 3x one that does not), while an embedding produces no output at all and its cost is a function of input length, already capped by `MAX_CHARS`. The worst case per request is fixed and knowable, which `/api/ask` never is. *Its output space is finite and pre-approved*: everything it can return was written before the request arrived and read by a human, so there is no prompt to inject into. A hostile question can at worst select a different pre-written answer. Same principle as the model returning ids from a constrained enum, extended to the whole free tier.
+
+### Embeddings, measured
+
+Not the same model. `gemini-3.7-flash` supports `generateContent, countTokens, createCachedContent, batchGenerateContent` and **not** `embedContent`; generative and embedding models are separate families everywhere, not a Gemini quirk. The key already carries `gemini-embedding-001` and `gemini-embedding-2` (both 3072 dims; 2048 and 8192 token inputs). So this is an `embed()` beside `ask()` in `_providers/gemini.js`, one more model name, no new dependency and no second key.
+
+**Latency is ~350-400 ms, not tens of milliseconds.** It is a network round trip and that dominates; the local cosine really is ~1 ms. A demo answer lands in about half a second. Still roughly 4x faster than the live tutor and with no thinking-variance tail, but do not design against the smaller number.
+
+**Truncation to 512 dimensions works** (`outputDimensionality`), which is what makes the storage plan viable: 3072 float32 is 12 kB *per question*, 512 int8 is 512 bytes. For a few hundred questions that is the difference between a 2 MB blob and a 100 kB one.
+
+**The 0.95 threshold from generic RAG advice is wrong here, and it fails closed in the worst way - by rejecting real hits.** Measured against one baked question:
+
+```
+paraphrase   vs baked :  0.772     <- must hit  ("how come frozen water sits on top")
+other baked  vs baked :  0.616     <- must miss (a different baked question)
+off topic    vs baked :  0.500     <- must miss ("who invented the microscope")
+```
+
+The ordering is right, but these models do not produce cosines in the range that advice assumes, and the usable gap is about 0.62 to 0.77: narrower than comfortable. **The threshold must be calibrated against the real baked set with real student phrasings**, which is what makes the fixture eval load-bearing rather than a nicety: it is the only thing that measures whether the gap between "same question" and "different question" is wide enough to be safe. If it is not, curated buttons stop being the fallback and become the design.
 
 **Not a lexical match in the page.** The same prototype found four ranking defects from lexical effects: a coincidental rare word placing an item, question filler scoring as content, companions drifting to the wrong chapter, compound words matching nothing. That was with a curation layer catching them. On a public demo with nobody in the loop, a confident wrong match is worse than an honest miss.
 
