@@ -81,7 +81,10 @@
      α- and β-glucose are two different molecules, and which one you pick is
      what decides starch or cellulose. Styled as two cards to pick UP, not as a
      segmented control — a toggle would say these are two modes of one thing. */
-  #tray{position:absolute;right:26px;top:200px;z-index:11;width:212px;
+  /* Bottom-right, clear of the molecules' own band. On the rail beside them it
+     sat over the incoming molecule's reactive site — the one atom on the card
+     the student has to be able to see and grab. */
+  #tray{position:absolute;right:26px;bottom:86px;z-index:11;width:212px;
     display:none;opacity:0;transition:opacity .25s ease}
   #tray.show{display:block;opacity:1}
   #tray .ttitle{font-family:var(--font-marker);font-size:20px;color:var(--ink);
@@ -301,8 +304,10 @@ function report(s){
    moving a rail in CSS re-frames the scene instead of quietly cropping it. */
 function chromePad(){
   const w=canvas.clientWidth||1, h=canvas.clientHeight||1;
-  const railW=[elTray,elNotes].reduce((mx,el)=>
-    el.classList.contains('show') ? Math.max(mx, el.getBoundingClientRect().width+34) : mx, 0);
+  // The tray no longer sits beside the molecules, so only the notes rail eats
+  // width; the tray costs height instead, alongside the toast.
+  const railW=elNotes.classList.contains('show')
+    ? elNotes.getBoundingClientRect().width+34 : 0;
   const stripH=elGoals.getBoundingClientRect().height+30;
   // both rails can be up at once, so the usable width loses the wider one twice
   return { x:1/Math.max(0.25, 1-(2*railW)/w), y:1/Math.max(0.35, 1-stripH/h) };

@@ -198,6 +198,7 @@
     let A=null, B=null;
     let vel=V(0,0,0);
     let joined=false, config=null, product=null;
+    let halos=[], clock=0;
 
     /* ---- build ---------------------------------------------------------- */
     function build(){
@@ -209,7 +210,61 @@
       group.add(A); group.add(B);
       group.updateMatrixWorld(true);
       joined=false; config=null; product=null; vel.set(0,0,0);
+      markSites();
       report();
+    }
+
+    /* ---- where to drag to ------------------------------------------------
+     * covalent-drag.js draws a ghost on every open slot, and a student who has
+     * used that page arrives here expecting the same promise: the place a thing
+     * can land is marked. Without it this card is a guessing game — two rings
+     * of twenty-odd atoms, and only one pair of them does anything.
+     *
+     * A marker is coloured as the atom that will LAND there, which is the same
+     * rule covalent-drag's ghosts follow (a hydrogen's ghost is hydrogen
+     * coloured). So the acceptor's target wears the donor's element and the
+     * donor's wears the acceptor's — "an oxygen goes here", "a carbon comes to
+     * this". Derived from the roles, so a recipe on different groups marks the
+     * right atoms without touching this code.
+     *
+     * These are an INTERACTION AFFORDANCE, not a chemical claim, which is why
+     * the colour is an element's rather than one of palette.js's bond colours:
+     * every entry in that table means something about bonding, and a halo that
+     * borrowed one would be asserting a bond type before any bond exists. */
+    function markSites(){
+      halos=[];
+      const P=global.MolLib.PALETTE;
+      /* A RING, not a translucent ball. A ball tinted with a dark element
+       * disappears against a dark atom and muddies a light one; a ring reads
+       * against both because its contrast is with the atom's EDGE and the paper
+       * behind it. It lies in the XY plane, which faces the camera for free —
+       * the page has promised not to orbit (see the header), and this is the
+       * second thing that promise buys. */
+      const add=(g, idx, el)=>{
+        const host=g.userData.atomMeshes[idx];
+        if(!host) return;
+        const m=new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.17, 12, 40),
+          new THREE.MeshBasicMaterial({ color:P.atoms[el]||0x888888,
+            transparent:true, opacity:0.5, depthWrite:false, depthTest:false }));
+        // child of the atom, so it rides every move the molecule makes and no
+        // per-frame repositioning can drift away from the atom it names
+        m.renderOrder=3;                      // never buried by the sphere it rings
+        host.add(m);
+        /* Undo the host's own orientation. buildMolecule premultiplies the
+         * spec's `view:` into every atom mesh's quaternion, so a child inherits
+         * that tilt and the ring renders as an ellipse — readable, but reading
+         * as a ring drawn AROUND something rather than one lying flat on the
+         * page. Once, at build: the molecules only translate after this. */
+        host.updateWorldMatrix(true,false);
+        m.quaternion.copy(host.getWorldQuaternion(new THREE.Quaternion()).invert());
+        halos.push(m);
+      };
+      add(A, roleA.keep, specB.atoms[roleB.keep].el);   // the donor's atom lands here
+      add(B, roleB.keep, specA.atoms[roleA.keep].el);   // and this is what lands
+    }
+    function clearHalos(){
+      halos.forEach(m=>{ if(m.parent) m.parent.remove(m); });
+      halos=[];
     }
 
     /* Where the dragged molecule is dealt, from the two molecules' measured
@@ -309,6 +364,7 @@
       else placeOnBond();
 
       const site=siteA();
+      clearHalos();                           // there is nowhere left to aim
       releaseWater();
       if(fx && site) fx.spawnRing(site, 0.9);
       report();
@@ -458,6 +514,13 @@
       const a=siteA(), b=siteB();
       if(!a || !b) return;
       const d=a.clone().sub(b), r=d.length();
+      /* The markers breathe, and brighten once the sites are close enough to be
+       * caught — the same two-state signal covalent-drag.js gives a ghost, so
+       * "it will take from here" is shown rather than left to be discovered by
+       * letting go and seeing. */
+      clock+=dt;
+      const base=(r<=S.CAPTURE)?0.95:0.5;
+      halos.forEach(m=>{ m.material.opacity=base-0.12+0.12*Math.sin(clock*3.2); });
       if(r<=S.SNAP){ react(); return; }
       if(held) return;
       if(r<=S.CAPTURE) vel.add(d.normalize().multiplyScalar(S.PULL*dt));
@@ -492,6 +555,7 @@
     function reset(){
       motion.cancel('condense');
       leaving.clear();
+      clearHalos();
       group.clear();
       build();
     }
