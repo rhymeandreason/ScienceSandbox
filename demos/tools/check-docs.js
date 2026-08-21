@@ -51,11 +51,6 @@ const KNOWN_ABSENT = {
   'check-layout.js':    'TESTING.md proposal — not built',
   'contrast-layout.js': 'TESTING.md proposal — not built',
   'three.min.js':       'loaded from a CDN, deliberately not vendored',
-  // The condensation lesson is in progress. The mechanic, the spec blocks and
-  // the checker landed first, on purpose (the bench proves them without a
-  // lesson's chrome in the way), so the specs that point at the page arrive
-  // before it does. condense/condense-test.html is what exercises them today.
-  'condense-lab.html':  'lesson in progress — condense/condense-test.html is the bench',
   '3Dmol.js':           'a library NAME, not a file here — viewer-compare.html loads it from a CDN',
   // Deleted with the vendored ChemDoodle (GPLv3): the docs discuss them in the
   // past tense, and asserting them ABSENT is what stops one quietly returning
