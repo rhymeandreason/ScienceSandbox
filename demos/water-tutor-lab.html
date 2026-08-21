@@ -16,7 +16,6 @@
 <div id="app-sidebar">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="dissocmsg" aria-live="polite"></div>
 
     <!-- One block, on its own scrim: the lesson's name, where the student is in
          it, and what this step is called. It sits over the model, so it carries
@@ -653,7 +652,6 @@ function checkDissociation(){
     if(b.dissociated || b.na.userData.descending) return;   // already split, or still falling in
     if(!bridgingWater(b.na,b.cl)) return;                   // wait for a water to wedge this pair apart
     b.dissociated=true;
-    showDissocMsg();
     // one-time "pop apart" impulse outward from this pair's midpoint
     const c=new THREE.Vector3().addVectors(b.na.position,b.cl.position).multiplyScalar(0.5);
     [b.na,b.cl].forEach(m=>{ const d=new THREE.Vector3().subVectors(m.position,c);
@@ -664,16 +662,6 @@ function checkDissociation(){
     FXi.spawnRing(c, FXi.colorOf(b.na));
     FXi.popGlow(b.na, FXi.colorOf(b.na)); FXi.popGlow(b.cl, FXi.colorOf(b.cl));
   });
-}
-// Animated toast announcing that water has pried the ionic bond apart.
-const dissocMsgEl=document.getElementById('dissocmsg');
-let dissocMsgShown=0;                 // only teach it the first couple of times
-function showDissocMsg(){
-  if(dissocMsgShown++>=2) return;
-  dissocMsgEl.innerHTML='Ionic bond broken! Water pulls <b class="Na">Na⁺</b> and <b class="Cl">Cl⁻</b> apart.';
-  dissocMsgEl.classList.remove('show');
-  void dissocMsgEl.offsetWidth;      // restart the animation if it fires again
-  dissocMsgEl.classList.add('show');
 }
 // ion–dipole bonds: each shell water → its ion, drawn to the atom that faces
 // the ion (O for Na⁺, the inward H for Cl⁻) so the polarity reads correctly
