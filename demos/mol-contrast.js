@@ -611,13 +611,20 @@
     //   by nothing a bond length, a bond angle or a render can see, exactly the
     //   class of error MolecularGeometry.md §1.3 is about.
     //
-    //   The two TORSIONS about the linkage (which slot on the bridge O the
-    //   second ring hangs from, and the spin about that bond) are not asserted
-    //   and are not claimed to be a real conformer: a disaccharide's φ/ψ are
-    //   floppy in solution, so per MolecularGeometry.md §1.6 this is a deliberate
-    //   schematic — the lesson is the linkage's configuration, not its
-    //   conformation. They were swept and baked in as literals (the same
-    //   process palmitoleate's coordinates went through).
+    //   The two TORSIONS about the linkage (φ about C1–O, ψ about O–C4) ARE now
+    //   asserted, and each molecule has its own. They are not quoted from a
+    //   paper — published φ/ψ come in several conventions and a number copied
+    //   without its convention is unfalsifiable. They are SOLVED, by
+    //   tools/solve-linkage.js, for the pair whose repeat reproduces the helix
+    //   the real polymer forms. The citation is therefore the polymer parameter,
+    //   which a textbook states unambiguously and `helix:` below re-measures.
+    //
+    //   This replaces a shared pair of schematic values. Sharing them made every
+    //   visible difference between the two cards trace to the α/β choice, which
+    //   was right for a two-residue contrast — but it also meant the torsions
+    //   carried no polymer information, so repeating the linkage gave both
+    //   sugars the same near-straight chain and starch would not coil.
+    //   chain/glucose-chains-test.html is the record of that.
     //
     //   Swept for NEAR-COPLANAR RING PLANES (0.87 of parallel), which is both the
     //   extended shape real maltose and cellobiose take and the only family of
@@ -628,14 +635,26 @@
     //   first version's mistake, and the page's whole claim is "same molecule
     //   except here", which cannot survive one half being unreadable.
     //
-    //   ONE pair of values, shared by both molecules — not one tuned per
-    //   molecule. Each alone would sit roomier, but then part of what the student
-    //   sees would come from a knob rather than from the chemistry. Sharing them
-    //   means every visible difference traces back to the axial/equatorial choice
-    //   at C1, which is the only thing this pair claims. The shared pose clears
-    //   every non-bonded pair by 0.64 in the tighter of the two — tighter than
-    //   the roomiest poses, still an order of magnitude above the checker's floor.
-    const LINK = { slot:0, spin:166*Math.PI/180 };
+    //   THE PAIR NO LONGER SHARES A POSE, and the difference between the two
+    //   cards is now larger than the α/β flip alone: each sits at the torsion its
+    //   own polymer takes. What keeps that honest is that neither was chosen by
+    //   eye — both come out of a search against a published helix, and
+    //   chain/check-chain.js fails if a rebuilt spec stops reproducing it.
+    //
+    //   MALTOSE IS TIGHT, on purpose. Every pose that reproduces V-amylose's
+    //   six-fold helix clears non-bonded pairs by about 0.03 in this library's
+    //   radii, against cellobiose's 0.16. That is not a near-miss to fix: the
+    //   amylose helix IS compact — compact enough to hold iodine, which is what
+    //   the starch test is — and palette.js's radii are stylised and enlarged for
+    //   legibility, so atoms this library draws as nearly touching are
+    //   comfortably apart in the real sugar. It clears check-molecules.js's floor,
+    //   which is the assertion that matters: spheres must not merge.
+    const LINK = {
+      // cellulose Iβ: 2.00 residues/turn, 5.32 Å rise (target 2 and 5.20)
+      beta:  { phi:42*Math.PI/180,  spin:-180*Math.PI/180 },
+      // V-amylose: 6.26 residues/turn, 1.43 Å rise (target 6 and 1.33)
+      alpha: { phi:-31*Math.PI/180, spin:35*Math.PI/180 },
+    };
     // spinAbout / alignTo / absorb now come from skel.js — every molecule built
     // from two joined sub-skeletons needs them, and ATP was the second caller.
     // `spin` above stays a knob here because the torsion it sets is this pair's
@@ -677,11 +696,18 @@
     }
     function disaccharide(alpha, tune){
       const d=donor(alpha), a=acceptor();
-      const { slot, spin } = tune || LINK;
-      // Where the second ring hangs off the bridge oxygen: one of the O's three
-      // remaining sp3 slots, so the C1–O–C4 angle is tetrahedral by construction
-      // (real glycosidic O is ~116°, a little wider) rather than picked.
-      const out=d.s.freeTet(d.bo)[slot];
+      const { phi, spin } = tune || (alpha ? LINK.alpha : LINK.beta);
+      /* The two torsions about the linkage, both continuous now. `phi` turns the
+       * C4 direction about the C1–O bond and `spin` turns the second ring about
+       * the O–C4 bond: between them they are the pair a carbohydrate chemist
+       * calls φ/ψ. `phi` used to be a choice between the bridge oxygen's three
+       * sp3 slots, which gave three angles 120° apart — coarse enough that no
+       * real linkage conformation was reachable. Turning about the C1–O axis
+       * keeps the C1–O–C4 angle tetrahedral by construction (real glycosidic O
+       * is ~116°, a little wider) while letting φ take any value.
+       */
+      const axis=vnorm(vsub(d.s.at(d.bo), d.s.at(d.c1)));
+      const out=spinAbout(d.s.freeTet(d.bo)[0], axis, phi);
       const c4Target=vadd(d.s.at(d.bo), vmul(out, GL.CO));
       // Carry the acceptor's own C4→O direction onto −out, so its C4 ends up
       // bonded to the bridge O and not merely near it, then spin about the new
@@ -705,6 +731,14 @@
         ohH:o=>ohH(d.s,o) };
     }
 
+    /* Exposed for tools/solve-linkage.js, which searches φ/ψ for the pair that
+     * reproduces a published helix. A tool that rebuilt this geometry itself
+     * would be a second copy of the linkage, free to drift from the one the
+     * specs are actually made of — which is the whole failure this repo keeps
+     * writing checkers about. */
+    Lib.BUILD = Lib.BUILD || {};
+    Lib.BUILD.disaccharide = disaccharide;
+
     const m=disaccharide(true);
     CONTRAST.maltose=m.s.spec({ name:'Maltose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
       names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
@@ -714,6 +748,11 @@
       // `{axial:[…]}` is checked in both directions, per ring.
       stereo:{ axial:[m.c1] },
       glycosidic:{ anomeric:m.c1, bridge:m.bo, partner:m.c4, config:'alpha', link:'1→4' },
+      // The polymer this linkage builds, and the reason its torsions are what
+      // they are. Asserted by chain/check-chain.js, which repeats the linkage
+      // and measures the screw that comes out.
+      helix:{ polymer:'V-amylose', perTurn:6, rise:1.33,
+              src:'six residues per turn, pitch ~8 Å' },
       view:VIEW.disaccharide,
       optH:m.optH,
       contrast:{ pair:'starch-cellulose', partner:'cellobiose',
@@ -732,6 +771,8 @@
       // the same declaration glucose itself carries, now over two rings.
       stereo:'all-equatorial',
       glycosidic:{ anomeric:c.c1, bridge:c.bo, partner:c.c4, config:'beta', link:'1→4' },
+      helix:{ polymer:'cellulose Iβ', perTurn:2, rise:5.20,
+              src:'two-fold ribbon, cellobiose repeat ~10.3–10.4 Å' },
       view:VIEW.disaccharide,
       optH:c.optH,
       contrast:{ pair:'starch-cellulose', partner:'maltose',

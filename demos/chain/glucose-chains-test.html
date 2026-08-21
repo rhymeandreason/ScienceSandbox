@@ -6,43 +6,32 @@
 <title>glucose chains — test bench</title>
 
 <!-- ===================================================================
-     TEST BENCH, and it currently records a NEGATIVE RESULT. Not a
-     lesson, and not ready to become one.
+     TEST BENCH. Not a lesson.
 
      THE QUESTION. contrast-lab draws maltose beside cellobiose, and
      those specs say in their own comments why that is as far as it
      goes: coil-versus-ribbon is emergent from many repeats, and two
-     repeats do not earn the polymer's name. So: take the linkage
-     that IS checked, repeat it, and see whether starch coils and
-     cellulose runs flat without anyone drawing either.
+     repeats do not earn the polymer's name. So: take the linkage that
+     IS checked, repeat it, and see whether starch coils and cellulose
+     runs flat without anyone drawing either.
 
-     THE ANSWER, so far: half of it works.
+     IT DOES, now. Repeating cellobiose gives a two-fold ribbon; maltose
+     gives a six-fold helix; nothing on this page draws either shape.
+     A rigid repeat is a rotation about an axis plus a slide along it,
+     so a ribbon is only the half-turn case of a helix.
 
-       Cellulose comes out right. Repeating cellobiose's linkage gives
-       a 2-fold ribbon, ~5.4 A per residue, which is what cellulose
-       is. Nobody typed that; it fell out of the beta-1,4 geometry.
+     THAT TOOK NEW DATA, and the first version of this page is why it
+     exists. The two disaccharides used to share ONE schematic torsion
+     pair, so they repeated into the same near-straight chain and starch
+     would not coil. They now carry their own φ/ψ, SOLVED by
+     tools/solve-linkage.js against the helix each polymer is published
+     to form. chain/check-chain.js re-measures that and fails if a
+     rebuilt spec stops reproducing it, including if the two ever
+     converge on one shape again.
 
-       Starch does not coil. It comes out as a near-identical ribbon
-       instead of the ~6-residue helix amylose actually forms.
-
-     WHY, and it is not a bug in chain-repeat.js. mol-contrast.js
-     builds maltose and cellobiose with ONE SHARED pair of torsions
-     about the glycosidic bond, on purpose and with a long comment
-     saying so: sharing them means every visible difference between
-     the two cards traces back to the axial/equatorial choice at C1
-     rather than to a knob. That is the right call for a contrast
-     card. It also means those torsions carry no information about
-     polymer shape, so repeating them cannot produce two different
-     helices — the screw comes out nearly the same for both.
-
-     WHAT IT WOULD TAKE. Real phi/psi for the alpha-1,4 linkage in
-     amylose, declared with a source, the way every other measured
-     value here is. Not typed from memory: a conformational angle
-     asserted without provenance is exactly the class of claim this
-     repo refuses, and it is the whole content of the result.
-
-     So this page stays a test until that data exists. It is useful as
-     it stands because it says precisely what is missing.
+     WHAT TO CHECK: the numbers under each canvas are measured off the
+     screw, not typed, and each is printed beside the published figure
+     it is meant to match.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,10 +46,14 @@
   .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}
   .bench > p.lede{font-family:var(--font-sans);font-size:13px;color:var(--muted);
     line-height:1.6;margin:0 0 18px;max-width:74ch}
-  .warn{border:2px solid #c0392b;border-radius:var(--radius);padding:12px 14px;
+  .warn{border:2px solid #2e8b57;border-radius:var(--radius);padding:12px 14px;
     margin:0 0 20px;font-family:var(--font-sans);font-size:12.5px;line-height:1.55;
-    color:var(--ink);background:rgba(192,57,43,.05);max-width:74ch}
-  .warn b{color:#c0392b}
+    color:var(--ink);background:rgba(46,139,87,.06);max-width:74ch}
+  .warn b{color:#2e8b57}
+  /* the checker's verdict decides the colour, so a regression turns it red
+     rather than leaving a green box over a broken result */
+  .warn.bad{border-color:#c0392b;background:rgba(192,57,43,.05)}
+  .warn.bad b{color:#c0392b}
   .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(440px,1fr))}
   .case{background:var(--paper);border:2.5px solid var(--ink);
     border-radius:var(--radius);padding:16px 18px 18px}
@@ -102,9 +95,9 @@
     </div>
     <div class="case">
       <p class="why"><b>Starch — α-1,4.</b> The bridge leaves C1 axial, out of
-        the plane, so each residue should hand off at an angle and the chain
-        should curl into a helix loose enough for amylase to reach into.
-        <b>It does not, here.</b> Read the note above.</p>
+        the plane, so each residue hands off at an angle and the chain curls
+        into a helix loose enough for amylase to reach into. Twelve residues
+        cover <b>17 Å</b> here, against cellulose's 59.</p>
       <div><canvas class="gl" id="glA"></canvas></div>
       <div class="read" id="readA"></div>
     </div>
@@ -131,16 +124,11 @@
 const TRIAD=['O5','C1','C4'];
 const N=12;                       // residues; enough for a turn to be obvious
 
-/* What a real one does, for the comparison the readout makes. These are
-   REFERENCE values with a source, kept here rather than in a spec because they
-   describe a polymer this repo does not model — the point of the page is the
-   gap between them and what the geometry gives. */
-const REAL={
-  cellobiose:{ polymer:'cellulose', perTurn:2, rise:5.2,
-               src:'2-fold ribbon, ~5.2 Å per residue' },
-  maltose:{ polymer:'starch (amylose)', perTurn:6, rise:null,
-            src:'~6 residues per turn, a helix' },
-};
+/* The published figures come off the SPEC's own `helix:` block — the same one
+   tools/solve-linkage.js solved the torsions against and chain/check-chain.js
+   re-measures. A copy here would be a third place the number lives, free to
+   disagree with the geometry it is supposed to describe. */
+const REAL=key=>MolLib.MOLECULES[key].helix;
 
 function mount(canvasId, readId, key){
   const canvas=document.getElementById(canvasId);
@@ -188,7 +176,7 @@ function mount(canvasId, readId, key){
 
   /* Printed from the screw, never typed. The comparison to the real polymer is
      the result this page exists to record. */
-  const R=REAL[key];
+  const R=REAL(key);
   const first=chain.residues[0][chain.index('C1')], last=chain.residues[N-1][chain.index('C1')];
   const span=Math.hypot(last[0]-first[0],last[1]-first[1],last[2]-first[2])/MolLib.SCALE;
   const close=Math.abs(screw.perTurn-R.perTurn)/R.perTurn < 0.2;
@@ -211,9 +199,12 @@ const out={ cellobiose:mount('glB','readB','cellobiose'),
 /* The page's own headline, decided by the measurements rather than written in
    advance — if new torsion data ever fixes starch, this sentence changes by
    itself. */
+document.getElementById('warn').classList.toggle('bad', !out.maltose.close || !out.cellobiose.close);
 document.getElementById('warn').innerHTML = out.maltose.close
-  ? `<b>Both chains match.</b> The linkage geometry alone reproduces cellulose's `
-    + `ribbon and starch's helix.`
+  ? `<b>Both chains match.</b> ${out.cellobiose.perTurn.toFixed(2)} residues/turn for `
+    + `cellulose against a real 2, ${out.maltose.perTurn.toFixed(2)} for starch against a real ~6. `
+    + `Nothing here draws a ribbon or a helix — both fall out of torsions solved against `
+    + `those published figures by <code>tools/solve-linkage.js</code>.`
   : `<b>Negative result, recorded on purpose.</b> Cellulose comes out right `
     + `(${out.cellobiose.perTurn.toFixed(2)} residues/turn against a real 2). Starch does not: `
     + `${out.maltose.perTurn.toFixed(2)} against a real ~6, so it draws as a ribbon rather than a helix. `

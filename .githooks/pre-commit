@@ -226,6 +226,24 @@ else
   echo "pre-commit: skipping check-condense.js — no spec or condense/ file staged"
 fi
 
+# demos/chain/ gates itself, plus chain-repeat.js and the domain files. maltose
+# and cellobiose carry torsions SOLVED against a published helix, so they are a
+# derived field like tools/bake-flat2d.js's output — and a stale one is invisible
+# at two residues. It only shows up two hundred residues later.
+if git diff --cached --name-only \
+   | grep -qE '^demos/(chain/.*|chain-repeat\.js|condense/frame\.js|mol-[a-z]*\.js|molecules\.js|skel\.js)$'; then
+  if ! node chain/check-chain.js > /tmp/cchn.$$ 2>&1; then
+    tail -30 /tmp/cchn.$$; rm -f /tmp/cchn.$$
+    echo ""
+    echo "pre-commit FAILED: check-chain.js — a linkage stopped building its polymer."
+    echo "  Re-solve with tools/solve-linkage.js, or fix what moved the geometry."
+    exit 1
+  fi
+  rm -f /tmp/cchn.$$
+else
+  echo "pre-commit: skipping check-chain.js — no spec or chain/ file staged"
+fi
+
 # demos/chair/ gates itself, plus chair-flip.js and every mol-*.js: the flip is
 # computed from a spec's own geometry, so a re-baked sugar changes what the page
 # draws without touching this module. The failure it catches has no visual tell

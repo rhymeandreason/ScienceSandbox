@@ -68,9 +68,27 @@
     const R=m.r, d=sub(m.t, [dot(R[0],m.o), dot(R[1],m.o), dot(R[2],m.o)]);
     const tr=R[0][0]+R[1][1]+R[2][2];
     const ang=Math.acos(Math.max(-1,Math.min(1,(tr-1)/2)));
-    // the rotation axis: the eigenvector with eigenvalue 1, read off the
-    // antisymmetric part (degenerate at exactly 0 or pi, which no real linkage hits)
-    let axis=unit([R[2][1]-R[1][2], R[0][2]-R[2][0], R[1][0]-R[0][1]]);
+    /* The rotation axis. The antisymmetric part gives it cheaply — EXCEPT at
+     * half a turn, where that part is identically zero and the formula returns
+     * nothing. That is not a corner case here: a two-fold ribbon is exactly
+     * 180° per residue, so cellulose, the one linkage whose answer is known in
+     * advance, is precisely where the cheap formula fails. It failed silently
+     * too, handing back an arbitrary axis and therefore a meaningless rise.
+     *
+     * Near π, use the symmetric part instead: R + I = 2·aaᵀ there, so any
+     * non-zero column of it is parallel to the axis. Take the largest, which is
+     * the best-conditioned one. */
+    let axis;
+    if(Math.PI - ang > 1e-4){
+      axis=unit([R[2][1]-R[1][2], R[0][2]-R[2][0], R[1][0]-R[0][1]]);
+    } else {
+      const M=[[R[0][0]+1,R[0][1],R[0][2]],
+               [R[1][0],R[1][1]+1,R[1][2]],
+               [R[2][0],R[2][1],R[2][2]+1]];
+      let k=0;
+      for(let i=1;i<3;i++) if(M[i][i]>M[k][k]) k=i;
+      axis=unit([M[0][k],M[1][k],M[2][k]]);
+    }
     if(!len(axis)) axis=[0,0,1];
     const rise=dot(d,axis);
     return { m, angle:ang*180/Math.PI, rise:Math.abs(rise), axis,
