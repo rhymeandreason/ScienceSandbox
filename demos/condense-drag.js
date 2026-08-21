@@ -65,7 +65,7 @@
  *
  *  Usage:
  *    const c = CondenseDrag.create({THREE, root, camera, canvas, fx, motion,
- *                                   recipe:'sugar', onChange:report});
+ *                                   recipe:'sugar', donor:0, onChange:report});
  *    c.step(dt);  c.reset();  c.destroy();  c.state();
  * ========================================================================== */
 (function(global){
@@ -88,12 +88,14 @@
    * the same multiple applied to a's height, which keeps the dragged molecule
    * off the fixed one's shoulder without hiding it behind the readout.
    *
-   * `donors` is what makes the sugar card a fork: a list of REAGENTS the
-   * student picks between, each reaching its own product. Both products are
-   * real registered specs with their own `glycosidic:` claim, and each donor
-   * already declares that product in its own `condense.makes` — the recipe
-   * repeats it only so a mismatch is a checkable disagreement rather than a
-   * silent single source. A recipe with one donor has no fork.
+   * `donors` lists the REAGENTS this reaction can run on, each reaching its own
+   * product. It is not a picker: which one a card uses is the CARD's choice,
+   * passed as `donor:` at construction, because "starch" and "cellulose" are
+   * already the names of that choice and offering it twice asks the student to
+   * make the same decision in two places. Both products are real registered
+   * specs with their own `glycosidic:` claim, and each donor already declares
+   * that product in its own `condense.makes` — the recipe repeats it only so a
+   * mismatch is a checkable disagreement rather than a silent single source.
    */
   const RECIPES = {
     sugar: {
@@ -156,7 +158,7 @@
     const V = (x,y,z)=>new THREE.Vector3(x,y,z);
     // Which reagent is on the bench. The donor is a CHOICE (see `donors`), so
     // specB and its role are re-read whenever that choice changes.
-    let donorIx = 0;
+    let donorIx = opts.donor || 0;
     const specA = MOL[R.a];
     let specB = null;
     if(!specA)

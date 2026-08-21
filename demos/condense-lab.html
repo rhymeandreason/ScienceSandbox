@@ -76,32 +76,6 @@
     font-weight:700;font-size:22px;line-height:1}
   #notes li b{font-weight:600}
 
-  /* ---------- the reagent tray, right rail ------------------------------
-     Only the sugar cards have one, and it is the lesson rather than a setting:
-     α- and β-glucose are two different molecules, and which one you pick is
-     what decides starch or cellulose. Styled as two cards to pick UP, not as a
-     segmented control — a toggle would say these are two modes of one thing. */
-  /* Bottom-right, clear of the molecules' own band. On the rail beside them it
-     sat over the incoming molecule's reactive site — the one atom on the card
-     the student has to be able to see and grab. */
-  #tray{position:absolute;right:26px;bottom:86px;z-index:11;width:212px;
-    display:none;opacity:0;transition:opacity .25s ease}
-  #tray.show{display:block;opacity:1}
-  #tray .ttitle{font-family:var(--font-marker);font-size:20px;color:var(--ink);
-    line-height:1.12;margin-bottom:9px}
-  #tray button{display:block;width:100%;text-align:left;margin-bottom:8px;
-    background:#f7f2e7;border:none;border-radius:3px 4px 3px 4px;padding:10px 12px 11px;
-    font-family:inherit;cursor:pointer;
-    box-shadow:0 1px 1px rgba(43,39,35,.16), 0 3px 5px -2px rgba(43,39,35,.20);
-    transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
-  #tray button:hover{background:#fbf7ee;transform:translateY(-2px)}
-  #tray button[aria-pressed="true"]{background:#fffdf7;
-    box-shadow:0 2px 2px rgba(43,39,35,.14), 0 8px 14px -6px rgba(43,39,35,.30)}
-  #tray .rname{font-family:var(--font-slab);font-size:17px;color:#a19686;line-height:1.1}
-  #tray button[aria-pressed="true"] .rname{color:var(--ink)}
-  #tray .rmakes{font-family:var(--font-sans);font-size:13px;color:#b9ae9d;margin-top:5px}
-  #tray button[aria-pressed="true"] .rmakes{color:var(--muted)}
-
   /* ---------- feedback toast ---------------------------------------------- */
   #say{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);z-index:12;
     pointer-events:none;text-align:center;width:min(760px,86%);opacity:0;
@@ -129,7 +103,6 @@
     <canvas id="gl"></canvas>
     <div id="goals"></div>
     <div id="notes" aria-live="polite"></div>
-    <div id="tray" aria-live="polite"></div>
     <div id="say" aria-live="polite"></div>
 
     <div id="dock">
@@ -194,7 +167,6 @@ const FXi=FX.create(THREE, root, camera);
 const motion=Motion.create();
 
 const elNotes=document.getElementById('notes');
-const elTray=document.getElementById('tray');
 const elSay=document.getElementById('say');
 const elGoals=document.getElementById('goals');
 
@@ -204,27 +176,28 @@ const elGoals=document.getElementById('goals');
    earns by finishing; facts that name a molecule pull it from the spec. */
 const LESSONS={
   cellulose:{ recipe:'sugar', donor:0,
-    name:'Cellulose', sub:'β-glucose + β-glucose',
+    name:'Cellulose',
     tags:['sugar','covalent','beta'],
-    lead:'Bring the right ring’s anomeric oxygen to the left ring’s C4.',
+    lead:'<b>β</b>-glucose donates. Bring the ringed oxygen to the ringed carbon.',
     facts:m=>[
       'A <b>glycosidic bond</b>: two sugars joined through one oxygen.',
       'The bridge leaves C1 <b>equatorial</b> — straight out, in the ring plane.',
       'Chain these and the backbone stays flat. Cellulose ribbons stack into '
       + 'fibres no human enzyme opens. <b>Wood is glucose we cannot reach.</b>' ] },
   starch:{ recipe:'sugar', donor:1,
-    name:'Starch', sub:'α-glucose + α-glucose',
+    name:'Starch',
     tags:['sugar','covalent','alpha'],
-    lead:'Same reaction, different reagent. Watch where the bridge leaves C1.',
+    lead:'<b>α</b>-glucose donates this time — the same reaction on a different '
+       + 'molecule. Watch which way C1’s oxygen points.',
     facts:m=>[
       'The same <b>glycosidic bond</b>, built from the other anomer.',
       'The bridge leaves C1 <b>axial</b> — down, out of the ring plane.',
       'Chain these and the backbone has to curl: starch coils into a helix '
       + 'loose enough for amylase to reach into. <b>Bread is food.</b>' ] },
   peptide:{ recipe:'peptide', donor:0,
-    name:'Peptide', sub:'alanine + alanine',
+    name:'Peptide',
     tags:['protein','covalent','schematic'],
-    lead:'Carboxyl to amino. The same reaction, on a different pair of groups.',
+    lead:'Carboxyl to amino — the same reaction again, on a different pair of groups.',
     facts:m=>[
       'A <b>peptide bond</b>: the carboxyl keeps its carbon, the amino its nitrogen.',
       'It is drawn at <b>1.33 Å</b>, not an amine’s 1.47: the carbonyl’s electrons '
@@ -236,9 +209,23 @@ let key='cellulose', drag=null, earned={};
 
 /* ---- the card strip, built from the table so it cannot list a card the
    page will not run ---------------------------------------------------- */
+/* The card's second line is the LINKAGE, read off the product spec rather than
+   typed. Two reasons it is not "α-glucose + α-glucose": only the DONOR's anomer
+   decides the bond — both sugar cards accept onto an ordinary β-glucose, which
+   is what maltose's own spec builds at its reducing end — and a typed label is
+   a claim nothing checks, which is how it came to say the wrong thing here in
+   the first place. */
+function subOf(L){
+  const R=CondenseDrag.RECIPES[L.recipe];
+  const prodKey=R.donors[L.donor||0].product;
+  const prod=prodKey && MolLib.MOLECULES[prodKey];
+  if(prod && prod.glycosidic)
+    return `${prod.glycosidic.config==='alpha'?'α':'β'}-${prod.glycosidic.link||'1→4'} linkage`;
+  return 'peptide bond';
+}
 elGoals.innerHTML=Object.entries(LESSONS).map(([k,L])=>
   `<button class="goal${k===key?' on':''}" data-lesson="${k}">`
-  + `<div class="gname">${L.name}</div><div class="gform">${L.sub}</div></button>`).join('');
+  + `<div class="gname">${L.name}</div><div class="gform">${subOf(L)}</div></button>`).join('');
 
 function say(html){ elSay.innerHTML=html; elSay.classList.remove('show');
   void elSay.offsetWidth; elSay.classList.add('show'); }
@@ -258,30 +245,8 @@ function showNotes(s){
 }
 function hideNotes(){ elNotes.classList.remove('show'); }
 
-/* The tray is the reagent choice, and it renders only where there IS one: a
-   single-reagent card gets no tray rather than one dead card. */
-function showTray(s){
-  const R=CondenseDrag.RECIPES[LESSONS[key].recipe];
-  const was=elTray.classList.contains('show');
-  if(R.donors.length<2){
-    elTray.classList.remove('show');
-    if(was && drag) fit();          // the rail went away; the molecules get it back
-    return;
-  }
-  elTray.innerHTML=`<div class="ttitle">Pick your sugar</div>`
-    + R.donors.map((d,i)=>{
-        const prod=MolLib.MOLECULES[d.product];
-        return `<button data-donor="${i}" aria-pressed="${i===s.donor.index}">`
-             + `<div class="rname">${d.label}</div>`
-             + `<div class="rmakes">makes ${prod.name} — ${d.makes}</div></button>`;
-      }).join('');
-  elTray.classList.add('show');
-  if(!was && drag) fit();           // a rail just took part of the canvas
-}
-
 let last={};
 function report(s){
-  showTray(s);
   if(s.joined && !last.joined){
     const prod=s.product ? MolLib.MOLECULES[s.product] : null;
     fit();                              // the subject is one molecule now
@@ -305,8 +270,6 @@ function report(s){
    moving a rail in CSS re-frames the scene instead of quietly cropping it. */
 function chromePad(){
   const w=canvas.clientWidth||1, h=canvas.clientHeight||1;
-  // The tray no longer sits beside the molecules, so only the notes rail eats
-  // width; the tray costs height instead, alongside the toast.
   const railW=elNotes.classList.contains('show')
     ? elNotes.getBoundingClientRect().width+34 : 0;
   const stripH=elGoals.getBoundingClientRect().height+30;
@@ -340,9 +303,11 @@ function mount(k){
   if(drag) drag.destroy();
   key=k; last={};
   const L=LESSONS[k];
+  /* The CARD is the reagent choice — "starch" and "cellulose" are already the
+     names of it. Passed at construction rather than set afterwards, so the card
+     deals the molecule it means instead of building one and replacing it. */
   drag=CondenseDrag.create({ THREE, root, camera, canvas, fx:FXi, motion,
-                             recipe:L.recipe, onChange:report });
-  if(L.donor) drag.setDonor(L.donor);
+                             recipe:L.recipe, donor:L.donor||0, onChange:report });
   document.querySelectorAll('.goal').forEach(c=>
     c.classList.toggle('on', c.dataset.lesson===k));
   hideNotes();
@@ -353,12 +318,6 @@ function mount(k){
 
 document.querySelectorAll('.goal').forEach(c=>{
   c.addEventListener('click', ()=>mount(c.dataset.lesson));
-});
-elTray.addEventListener('click', e=>{
-  const b=e.target.closest('button[data-donor]');
-  if(!b) return;
-  drag.setDonor(+b.dataset.donor);
-  fit();
 });
 document.getElementById('clearmol').addEventListener('click', ()=>{
   drag.reset(); fit(); hideNotes(); earned[key]=false;
