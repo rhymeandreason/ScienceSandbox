@@ -867,19 +867,19 @@ function tempParams(){
  * ============================================================= */
 const stepMeta=[
  {tab:'a polar molecule',
-  claim:`One end of water is slightly negative, the other slightly positive.`,
+  claim:`Water is V shaped. One end is slightly negative, the other slightly positive.`,
   hint:'One water molecule — H₂O'},
  {tab:'hydrogen bonds',
-  claim:`Those opposite ends pull neighbouring molecules together.`,
+  claim:`The + H of one water molecule attracts to the − O of another.`,
   hint:'Add water molecules — hydrogen bonds link δ+ H to δ− O'},
  {tab:'specific heat',
-  claim:`Heat breaks hydrogen bonds long before it speeds molecules up.`,
+  claim:`Water has high specific heat due to its H-bonds.`,
   hint:'Raise the temperature — energy first breaks hydrogen bonds'},
  {tab:'why ice floats',
-  claim:`Frozen, water locks into a cage that holds it further apart.`,
+  claim:`Unlike almost every substance, water is less dense as a solid.`,
   hint:'Cool toward 0°C — molecules lock into the open ice lattice'},
  {tab:'the universal solvent',
-  claim:`A polar molecule pulls a salt crystal apart, ion by ion.`,
+  claim:`Because water is polar, it dissolves ionic and polar substances extraordinarily well.`,
   hint:'Add salt — hydration shells form; then change temperature to shift freezing & boiling'},
 ];
 
@@ -1060,10 +1060,10 @@ function buildNotes(n){
   const w=sim.mols[0];
   if(n===0 && w){
     const O=()=>w.userData.oWorld();
-    NOTES.add({text:'δ− oxygen', offset:[52,-34], at:badgeEdge(()=>dO, [52,-34]),
+    NOTES.add({text:'slightly negative', offset:[52,-34], at:badgeEdge(()=>dO, [52,-34]),
       card:'Oxygen pulls the shared electrons closer than hydrogen can. That leaves this end of the molecule slightly negative.'});
-    NOTES.add({text:'δ+ hydrogen', offset:[56,30], at:badgeEdge(()=>dH1, [56,30]),
-      card:'Each hydrogen has its one electron held at arm’s length by the oxygen. The exposed proton leaves this end slightly positive.'});
+    NOTES.add({text:'slightly positive', offset:[56,30], at:badgeEdge(()=>dH1, [56,30]),
+      card:'Each hydrogen has its one electron pulled away by the oxygen. The exposed proton leaves this end slightly positive.'});
     /* The midpoint of the O–H line is INSIDE the oxygen: the sphere's radius
        (0.95) is most of the bond length (1.55), so only the sliver between the
        two surfaces is visible stick. Aim at the middle of that sliver. */
@@ -1071,7 +1071,7 @@ function buildNotes(n){
     NOTES.add({text:'covalent bond', offset:[150,-16],
       at:()=>{ const o=w.userData.oWorld();
                return _wp.copy(w.userData.hWorld(0)).sub(o).setLength(stickMid).add(o); },
-      card:'A shared pair of electrons, not a transferred one. Shared unevenly, which is what makes it a <b>polar</b> covalent bond.'});
+      card:'A shared pair of electrons creates a strong bond. Shared unevenly, so it is a <b>polar</b> covalent bond.'});
   }
   /* Step 2's callout waits: seatHBondPair() hands the sim the geometry, but the
      bond is the ENGINE's to register, and a label that arrives first points at
@@ -1118,7 +1118,7 @@ function syncHbNote(){
   if(hbNoted || now-stepT0 < HB_NOTE_WAIT || !live) return;
   hbNoted=true;
   hbNote=NOTES.add({text:'hydrogen bond', offset:[58,-30], at:hbAnchor,
-    card:'The δ+ H of one molecule is drawn to the δ− O of the next — attraction between molecules, with no electrons shared. Each one is about 1/20 the strength of the covalent O–H and breaks constantly, so it is trillions of them at once that give water its properties.'});
+    card:'Attraction between molecules, with no electrons shared. Each one is about 1/20 the strength of the covalent O–H and breaks constantly, so it is trillions of them at once that give water its properties.'});
   NOTES.setMode('reveal'); NOTES.play();
 }
 
@@ -1142,7 +1142,7 @@ function syncIceNotes(){
     NOTES.add({text:'drag down to 0°C', offset:[120,0],
       atPx:()=>{ const st=NOTES.el.getBoundingClientRect(), c=tcoldEl.getBoundingClientRect();
                  return [c.right-st.left+14, c.top-st.top+c.height*0.5]; },
-      card:'Cool the water to its freezing point and watch what the molecules do with the space they have. The answer is why ice floats.'});
+      card:'Cool the water to its freezing point and watch what the molecules do. '});
   } else {
     const w=sim.mols[0]; if(!w) return;
     NOTES.add({text:'open hexagonal lattice', offset:[64,-36],
@@ -1152,7 +1152,7 @@ function syncIceNotes(){
       sim.mols.forEach(m=>{ const d=m.position.length(); if(d>r){ r=d; best=m; } });
       return best.userData.oWorld(); };
     NOTES.add({text:'fewer molecules per litre', offset:[-64,40], at:far,
-      card:'Wider spacing is lower density, which is why ice floats on its own liquid. Almost nothing else does this.'});
+      card:'Wider spacing equals lower density, which is why ice floats on its own liquid. Almost nothing else does this.'});
   }
   NOTES.setMode('reveal'); NOTES.play();
 }
