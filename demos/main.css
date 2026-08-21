@@ -706,3 +706,143 @@ body {
   gap: 6px;
   align-items: flex-start;
 }
+
+/* =============================================================================
+   9. INSET
+
+   A framed close-up of one molecule, over a stage drawn at another scale.
+   Paired with kit/inset.js, which owns the renderer and the fit and
+   deliberately owns no CSS.
+
+   THE BORDER IS LOAD-BEARING, which is why this is a component and not a
+   page's own rule. An inset is a magnification: the molecule inside it is
+   orders of magnitude larger than the same molecule in the scene behind.
+   Without an edge it reads as an object standing in that scene at that
+   size. The frame is what makes it a window instead of a false claim, so
+   the honest version is the default one and a page has to work to lose it.
+
+   Opaque paper, not a tint, for the same reason: a scene showing through a
+   close-up puts two scales in the same pixels.
+   ========================================================================== */
+/* A COLUMN, not a canvas with things floating on it. The caption is a real
+   row, so the canvas is given the space that is left and the molecule can
+   never be drawn underneath the words — which is what an absolutely
+   positioned label over a full-height canvas does, invisibly, until a taller
+   molecule reaches the bottom of the box. kit/inset.js re-solves its camera
+   from a ResizeObserver, so the canvas being shorter than the frame costs
+   nothing and is never something a caller has to subtract by hand. */
+/* `display:flex` here is an AUTHOR rule, and author rules beat the UA
+   stylesheet's `[hidden] { display: none }` outright — so giving this
+   component a display value silently broke the `hidden` attribute on every
+   box using it. Restated, because the symptom is a box that will not go
+   away rather than anything that errors, and `el.hidden` still reads true
+   the whole time, so a test asserting the PROPERTY passes while the thing
+   sits on screen. */
+.inset[hidden] { display: none; }
+.inset {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-page);
+  border: 2px solid var(--clay-900);
+  border-radius: 10px;
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+}
+/* THE VIEW ROW IS THE CANVAS'S BOX, and that is its whole job. Callouts are
+   positioned into this element, and annotate.js divides by the element's own
+   clientHeight — so it has to be the canvas exactly, not the frame that also
+   holds a caption. `position:relative` because the callout layer inside is
+   absolute.
+
+   min-height:0 or a flex child refuses to shrink below its content box and
+   pushes the caption out of the frame — the flex default nothing warns about. */
+.inset-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.inset-view canvas { display: block; width: 100%; height: 100%; }
+
+/* The label rides INSIDE the frame. Outside, it is a caption floating over
+   the scene with nothing tying it to the box it names. */
+/* THE LEADER. Two lines from the frame's silhouette corners to a marked
+   point in the scene: the exploded view a textbook draws, and the half of
+   the device that says WHICH thing the window is onto. Sits UNDER the frame
+   (z-index 3 against the frame's 4) so the lines run to the box's edge and
+   stop there rather than crossing the molecule inside it.
+
+   Never takes the mouse: it covers the whole stage, so a leader that did
+   would swallow every click on the scene behind it. */
+.inset-leader {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+/* Filled, faintly. Two bare lines read as two unrelated rules across the
+   scene; the wedge between them is what says "this region became that box". */
+.inset-leader-wedge {
+  fill: var(--clay-900);
+  fill-opacity: .06;
+  stroke: var(--clay-900);
+  stroke-opacity: .55;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* The ring around the thing itself. Without it the two lines converge on a
+   bare point and the student has to guess how much of the scene was taken. */
+.inset-leader-mark {
+  fill: none;
+  stroke: var(--clay-900);
+  stroke-opacity: .75;
+  stroke-width: 1.8;
+}
+
+/* A CALLOUT IN AN INSET IS A MINIATURE TOO. The label is thrown clear of the
+   bond it names, and `.inset` clips — at the stage's own type size an 82 px
+   label needs a ~290 px box to have anywhere to go, which is no longer a
+   corner inset. Stepping the type down is what makes the throw affordable,
+   and it is right anyway: the whole box is a scaled-down figure. */
+.inset .annot-label {
+  font-size: var(--text-2xs);
+  padding: 2px 5px;
+}
+.inset .annot-dot { transform: scale(.8); }
+
+/* THE CAPTION CARRIES THE POINT, not just the name. A callout inside an inset
+   can hold a label but not a card: `.inset` clips, and a card wide enough to
+   read is wider than the box it would open in. So the sentence a card would
+   have hidden behind a click is printed here instead, under the title, where
+   it is always visible and costs no interaction.
+
+   LEFT-ALIGNED, because it is a sentence. Centring a title is fine; centring
+   two lines of prose gives every line a different left edge to find. */
+.inset .inset-cap {
+  flex: 0 0 auto;
+  padding: 6px 9px 8px;
+  background: var(--surface-page);
+  border-top: 1px solid var(--surface-rule);
+  font-family: var(--font-ui);
+  text-align: left;
+}
+.inset .inset-cap b {
+  display: block;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.inset .inset-cap span {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-snug);
+  color: var(--text-strong);
+}

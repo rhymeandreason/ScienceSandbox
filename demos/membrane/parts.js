@@ -588,6 +588,21 @@
     return {
       group: g, materials: g.userData.materials, columns: cols.length,
       half: o.half, shape: o.shape,
+      /* WHERE A LIPID ACTUALLY IS, for anything pointing AT one — a leader
+         line from an inset, a highlight, a label. Searched out of `cols`
+         rather than recomputed from pitch, because the lattice starts at
+         -reach (not 0) and `exclude` carves seats out of it for the protein:
+         a caller re-deriving it from the defaults would eventually point at
+         a lipid that was removed to make the hole. Returns the HEAD, which
+         is the end a student can see. `side` +1 top leaflet, -1 bottom. */
+      seatNear(x, z, side) {
+        let best = null, bd = Infinity;
+        for (const [cx, cz] of cols) {
+          const d = (cx - x) * (cx - x) + (cz - z) * (cz - z);
+          if (d < bd) { bd = d; best = [cx, cz]; }
+        }
+        return best && new THREE.Vector3(best[0], (side < 0 ? -1 : 1) * o.half, best[1]);
+      },
       cut: { plane, normal, enable, at, get on() { return cutOn; } },
       /* The drift is a knob a lesson can turn off — a step teaching the
          GEOMETRY of a bilayer wants a still one. */

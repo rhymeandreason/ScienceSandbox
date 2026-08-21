@@ -171,12 +171,49 @@
     #pagetitle { display:none; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
+
+/* THE CLOSE-UP. Top right, because step 1's two callouts are pinned to the
+   left of the sheet and a box over them would cover the words naming the very
+   parts it is showing. Sized in px rather than %: it is a figure inset, so it
+   should be the same size on every monitor, and kit/inset.js re-solves the
+   camera whenever this box changes. Taller than wide because the molecule is
+   (31 Å by 6). The frame itself is main.css's `.inset`. */
+#lipidBox {
+  top: 18px;
+  right: 18px;
+  /* WIDE ENOUGH FOR THE CALLOUT, not just for the molecule. POPC is ~6 Å
+     across and would sit happily in half this, but the label is thrown clear
+     of the bond it names and `.inset` clips — a box sized to the molecule
+     alone cuts the words off. The camera fits on HEIGHT either way, so the
+     extra width costs nothing but paper. */
+  width: 232px;
+  /* SHORT ENOUGH TO CLEAR THE SHEET. The leader runs from this frame's
+     corners to a lipid in the membrane, and the membrane crosses the middle
+     of the stage — a box whose bottom edge sits at that height gives the
+     wedge a lower edge lying flat along the row of heads, which reads as a
+     rule drawn across the scene rather than as a pointer. */
+  height: 286px;
+}
 </style>
 </head>
 <body>
 <div id="page">
   <div id="stage">
     <canvas id="c"></canvas>
+    <!-- The close-up. `hidden` by default: step 1 owns it, and kit/inset.js
+         stops rendering the moment it leaves the viewport, so a hidden box
+         costs nothing but its context. -->
+    <div id="lipidBox" class="inset" hidden>
+      <!-- The canvas gets its own row: callouts are projected into it, and
+           annotate.js divides by the element's clientHeight, so it must be
+           the canvas's box and not the frame that also carries a caption. -->
+      <div class="inset-view" id="lipidView"><canvas id="lipidGl"></canvas></div>
+      <!-- The sentence a callout card would have hidden behind a click. In a
+           box this size it has nowhere to open, so it is printed. -->
+      <div class="inset-cap"><b>one phospholipid</b>
+        <span>One <i>cis</i> double bond, in the longer tail only. Bent chains
+          cannot stack flush, so the membrane stays fluid.</span></div>
+    </div>
     <button type="button" id="spend" class="pill" hidden>Spend 1 ATP</button>
     <!-- A CHECKBOX, not a flipping label: it shows the state and names the
          thing at once. NOT A STEP CONTROL — turn off the pump and the lesson
@@ -263,6 +300,7 @@
 <script src="tokens-from-palette.js"></script>
 <script src="molecules.js"></script>
 <script src="mol-small.js"></script>
+<script src="mol-lipids.js"></script>
 <script src="atomkit.js"></script>
 <script src="scene.js"></script>
 <script src="annotate.js"></script>
@@ -270,6 +308,7 @@
 <script src="kit/motion.js"></script>
 <script src="kit/focus.js"></script>
 <script src="kit/fit.js"></script>
+<script src="kit/inset.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="membrane/parts.js"></script>
 <script src="membrane/pump.js"></script>
@@ -301,6 +340,7 @@ const spendEl = document.getElementById('spend');
 const ctlEl = document.getElementById('ctl');
 const shellsBox = document.getElementById('shellsBox');
 const shellsTogEl = document.getElementById('shellsTog');
+const lipidBox   = document.getElementById('lipidBox');
 const voltBox = document.getElementById('voltBox');
 const pumpBox = document.getElementById('pumpBox');
 const osmoEl = document.getElementById('osmo');
@@ -1487,7 +1527,7 @@ const STEPS = [
   {
     id:'bilayer',
     tab:'the bilayer',
-    cap:'<b>The inside of a membrane is oil.</b>',
+    cap:'<b>Membranes are made of phospholipids. The inside is oil.</b>',
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
@@ -1502,11 +1542,11 @@ const STEPS = [
       /* Two callouts, and only two: a sheet with no protein in it, so the
          step names the two halves of a lipid and stops. "Fluid mosaic"
          belongs on the channel step, where the mosaic is on screen. */
-      noteAt(-96, HALF, 'phospholipid heads', [-34, -30],
+      noteAt(-96, HALF, 'hydrophilic heads', [-34, -30],
              'The head carries charge and sits happily in water, so it turns ' +
              'outward on both faces. That is why a bilayer assembles itself ' +
              'and then holds together.');
-      noteAt(-96, 0, 'phospholipid tails', [-34, 26],
+      noteAt(-96, 0, 'hydrophobic tails', [-34, 26],
              'The tails are hydrocarbon and will not mix with water, so they ' +
              'hide in the middle. Everything crossing this membrane has to ' +
              'get through that oil.');
@@ -2291,7 +2331,113 @@ function go(i) {
      sync. */
   shellsTogEl.hidden = !travellers.some(
     t => t.obj.userData.shell && t.obj.userData.shell.length);
+  /* THE CLOSE-UP BELONGS TO ONE STEP, and it is driven from here for the same
+     reason the toggle above is: a step that has to remember to hide someone
+     else's box is a step that eventually forgets. Step 1 is the only one that
+     names the parts of a lipid; after that the lesson is about what CROSSES
+     the sheet, and a ball-and-stick in the corner is competing with it.
+     kit/inset.js stops rendering on its own when this goes hidden. */
+  lipidBox.hidden = s.id !== 'bilayer';
 }
+
+/* ---------- the close-up's callout (annotate.js) ----------
+ * GLYCOLYSIS' CONTRACT, not molecule-viewer's: the SPEC says where the kink
+ * is and this page says only that it wants it and what to call it. `cis` is
+ * POPC's own handle — the same four atoms check-molecules.js measures the
+ * torsion across — so a spec that were re-baked and renumbered moves this
+ * callout with it instead of leaving it pointing at a carbon in the middle
+ * of a straight chain.
+ *
+ * AND THE BOND IS DERIVED, not typed as a second index that can go stale
+ * against the first (glycolysis-lab's spotPair, same reasoning): the kink is
+ * the ONE order-2 bond among those four atoms, found from the spec's own
+ * bond list. Nothing here knows that it is C9=C10.
+ */
+function cisDoubleBond(spec) {
+  if (!spec || !spec.cis || !spec.cis.atoms) return null;
+  const set = new Set(spec.cis.atoms);
+  return (spec.bonds || []).find(
+    b => b[2] === 2 && set.has(b[0]) && set.has(b[1])) || null;
+}
+const _kinkA = new THREE.Vector3(), _kinkB = new THREE.Vector3(),
+      _kinkM = new THREE.Vector3();
+/* The MESHES, not the spec's coordinates: buildMolecule centres the atoms and
+   bakes the spec's `view:` into them, so raw spec positions would land the dot
+   a plausible distance from the bond it names — the trap lobes-test documents
+   as `like:`. Returning null hides the note rather than parking it at the
+   origin, which is what annotate.js does with a falsy anchor. */
+function kinkAnchor() {
+  const g = lipidInset && lipidInset.group;
+  const b = g && cisDoubleBond(lipidInset.spec);
+  if (!b) return null;
+  const A = g.userData.atomMeshes[b[0]], B = g.userData.atomMeshes[b[1]];
+  if (!A || !B) return null;
+  return _kinkM.copy(A.getWorldPosition(_kinkA))
+               .add(B.getWorldPosition(_kinkB)).multiplyScalar(0.5);
+}
+
+let LIPID_NOTES = null;      // assigned below; afterFrame can fire before it
+
+/* ---------- what the close-up is a close-up OF ----------
+ * A REAL SEAT, asked of the membrane rather than typed: the lattice starts at
+ * -reach and the protein steps carve seats out of it, so a coordinate picked
+ * by eye here would eventually name a lipid that is not there. Upper leaflet,
+ * out on the right where the box hangs, and on the mid-plane in z so the
+ * marked lipid is one of the near ones the student is actually looking at.
+ *
+ * Asked of MEM, which is whichever sheet the current step shows — the solid
+ * one here, and step 1 is the only step this box appears on anyway. */
+const _lipidPt = new THREE.Vector3();
+function lipidLeaderAt() {
+  /* WELL LEFT OF THE BOX, and that is a legibility choice rather than a
+     chemical one: every seat in the sheet is the same lipid, so the one
+     worth marking is the one that makes the wedge read as a wedge. A seat
+     directly under the frame gives two lines a few pixels apart. */
+  const seat = MEM.seatNear(24, 0, +1);
+  if (!seat) return null;
+  const p = _lipidPt.copy(seat).project(L.camera);
+  if (p.z < -1 || p.z > 1) return null;      // behind the camera: no line
+  const host = document.getElementById('stage');
+  return [(p.x + 1) / 2 * host.clientWidth, (1 - p.y) / 2 * host.clientHeight];
+}
+
+/* ONE inset for the page, not one per entry into step 1. A second WebGL
+   context is a real resource and the browser drops the OLDEST when a page
+   passes its cap, so a box rebuilt per step would eventually blank the main
+   stage with no error at all. `show()` is how it would change molecule. */
+const lipidInset = Inset.create({
+  canvas: document.getElementById('lipidGl'),
+  spec: MolLib.MOLECULES.popc,
+  /* NO TURNTABLE, now that a callout points into the box. A label tracks a
+     spinning molecule correctly and still reads badly: in 152 px the words
+     swing around the frame, and the kink they name spends half of every turn
+     behind the tails. The declared `view:` was chosen to show that bond, so
+     the box holds it — and Stage.create's orbit is still on, which leaves
+     turning it something the student can do rather than something that
+     happens at them. */
+  /* Guarded because Inset.create draws ONE frame synchronously, to leave the
+     box non-blank before rAF starts — and at that moment the notes below do
+     not exist yet. */
+  afterFrame: () => LIPID_NOTES && LIPID_NOTES.step(),
+  /* The page projects, because the SCENE's camera is the page's — the inset's
+     own camera is looking at the close-up, never at where it came from. */
+  leader: { host: document.getElementById('stage'), at: lipidLeaderAt, markR: 9 },
+});
+
+/* Into `view`, which is the canvas's own box — the frame is 25 px taller
+   because of the caption, and projecting into that skews every dot. */
+LIPID_NOTES = Annot.create(THREE, lipidInset.view, lipidInset.stage.camera,
+                           { mode:'on' });
+LIPID_NOTES.add({
+  text:'the kink',
+  /* LEFT, because the kinked tail is the right-hand one — a label thrown the
+     same way as the bond it names has to cross the molecule to get clear. */
+  offset:[-27, -18],
+  /* NO `card:`. The words are in the caption under the title instead — a card
+     needs room to open and this box has none, and annotate.js only makes the
+     dot clickable when there is one, so the label stays a label. */
+  at: kinkAnchor,
+});
 
 function tick(dt) {
   const s = STEPS[cur]; if (!s) return;

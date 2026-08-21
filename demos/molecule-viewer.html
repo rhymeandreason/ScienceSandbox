@@ -288,6 +288,7 @@
 <script src="mol-pathways.js"></script>
 <script src="mol-compare.js"></script>
 <script src="mol-krebs.js"></script>
+<script src="mol-lipids.js"></script>
 <!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
      — the same library and the same strings contrast-lab.html uses. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
@@ -391,6 +392,28 @@ const SHELF=[
                + 'molecule with exactly these two atoms gone — which is why both '
                + 'are built from one skeleton and neither is drawn twice.',
             atoms:s=>s.krebs.redox||[] },
+  },
+
+  /* NO `alt:`, no `smiles`, no `flat2d` — this one is here for the 3D view
+   * alone, and the other two tabs are meant to refuse it visibly rather than
+   * fake a layout (molview.js's `has()` rule). It is on the shelf for the
+   * reason the cycle molecules below are: it has no `view:` yet, and this is
+   * the page where an opening angle is chosen and pasted back into the spec.
+   *
+   * The focus reads `spec.cis.atoms` rather than naming indices, so it points
+   * at whatever check-molecules.js is asserting the kink to be. */
+  { key:'popc', card:'Phospholipid',
+    blurb:'What a membrane is built from. A <b>small charged head</b> — a '
+        + 'permanently positive choline over a negative phosphate — sitting on '
+        + 'two long tails of nothing but carbon and hydrogen. About 30 Å of it '
+        + 'wants nothing to do with water and a few Å of it insists on water, '
+        + 'and a bilayer is the only arrangement that satisfies both.',
+    focus:{ title:'The kink',
+            body:'One <b>cis</b> double bond, and only the longer tail has it. '
+               + 'The straight tail packs flush against its neighbours; a bent '
+               + 'one cannot, so it holds the membrane apart and keeps it '
+               + 'fluid. Same reason olive oil pours and butter does not.',
+            atoms:s=>s.cis.atoms },
   },
 
   /* ---- the citric-acid cycle, in pathway order ------------------------
@@ -748,7 +771,12 @@ function showView(){
        + `<div class="vfoot">`
        + `<button class="vbtn" data-copy><i class="ph-bold ph-copy"></i>copy</button>`
        + `<button class="vbtn" data-reset><i class="ph-bold ph-arrow-counter-clockwise"></i>`
-       + `reset</button></div>`;
+       + `reset</button>`
+       // The spec's own numbers, nothing composed on top — the angle a
+       // `view:` is measured FROM, and so the place to start choosing one.
+       // It proves itself: at canonical the line above reads [0, 0, 0].
+       + `<button class="vbtn" data-canon><i class="ph-bold ph-crosshair-simple"></i>`
+       + `canonical</button></div>`;
   }
   if(html===vLast) return;
   vLast=html; elView.innerHTML=html; elView.dataset.copy=copy;
@@ -762,12 +790,17 @@ const elSpin=document.getElementById('spin');
 elSpin.checked=false;
 elSpin.onchange=()=>v.setSpin(elSpin.checked);
 
-// Reset is the undo for a drag: back to the pose the card dealt, which is
-// molview's own opening angle and NOT the spec's committed `view:` — see
-// resetPose() there for why those are different things on this page. The
-// readout follows on the next frame, so it always describes what is drawn.
+// THREE ANGLES ARE REACHABLE HERE, and they are three different things:
+//   reset      — the pose the card dealt: molview's own opening angle, which
+//                for a spec with no `view:` is the PCA guess and NOT a
+//                committed angle. See resetPose() there.
+//   canonical  — the spec's coordinates with nothing on top. `view:` is an
+//                OFFSET from this, so it is where choosing one starts.
+//   a drag     — anything else, which is what the copy button is for.
+// The readout follows on the next frame, so it always describes what is drawn.
 elView.onclick=e=>{
   if(e.target.closest('[data-reset]')){ v.resetPose(); return; }
+  if(e.target.closest('[data-canon]')){ v.canonicalPose(); return; }
   if(!e.target.closest('[data-copy]') || !elView.dataset.copy) return;
   navigator.clipboard.writeText(elView.dataset.copy).then(()=>{
     // The BUTTON changes, not the line. Blanking the number to say "copied"
