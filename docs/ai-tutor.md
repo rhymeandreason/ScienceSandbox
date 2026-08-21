@@ -29,7 +29,7 @@ Working end to end on `demos/water-lab.html`:
 
 ## Key context
 
-**Files.** `api/_tutor.js` (prompt, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-tutor-lab.html` (the only page with a drawer).
+**Files.** `api/_tutor.js` (prompt, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer).
 
 **Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`).
 
@@ -42,8 +42,6 @@ Working end to end on `demos/water-lab.html`:
 **Read facts where they live.** Bitten twice: the hydration shell was lit by "six nearest waters" when the sim records `userData.shellIon`, and the hydrogen bond was re-derived from geometry when the matcher already knew the donor, which H, and the acceptor (it now records `userData.hbBonds`).
 
 **Notes can outlive the limitation they describe.** A note saying "the slider is locked until step 3" kept the tutor from pointing at it long after `act()` could hop there. The checker cannot catch a stale sentence. Re-read `api/_targets.js` notes whenever a page gains a capability.
-
-**`runsOn` is a bridge.** `_targets.js` claims are checked against `water-tutor-lab.html`, not `water-lab.html`, because the prototype has diverged (`title:` → `tab:`, lowercase). Delete `runsOn` when they converge. Before this, the checker was passing while every claim was stale for the page students see.
 
 **Gotchas.**
 
