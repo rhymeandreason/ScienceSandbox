@@ -65,6 +65,10 @@ Before adding a **new molecule**, read `MolecularGeometry.md` §1 — geometry, 
 
 Water/solvation physics is in `WaterSim.md` (solvation apps only).
 
+## AI Tutor
+
+See ai-tutor.md in the docs folder.
+
 ## Run / test locally
 
 ```bash
