@@ -565,6 +565,12 @@ const stepAt=i=>STEPS[i];
  * the step can run, and this is that fact in the data rather than a special
  * case in the lookup. */
 const OPENING=['pyruvate','coa'];
+/* THE OPENING SCREEN IS A DIFFERENT STAGE, and it is the page's ×2 stated once
+ * as an object rather than a number: glycolysis split one glucose into TWO
+ * pyruvate, and each one drives a turn. Begin trades the second for the
+ * coenzyme A this turn's pyruvate reacts with; the second is what turn two runs
+ * on, and the hand-off between laps says so. */
+const INTRO_KEYS=['pyruvate','pyruvate'];
 /* `linger` is a molecule that is on the stage after a step WITHOUT being one of
  * its products: free coenzyme A, which citrate synthase let go of and which
  * stands where it was until the student moves on. It is not in `species`,
@@ -647,7 +653,7 @@ const focusStep=()=>reviewing?done-1:done;
  * are the same question, asked of the lanes: are they what this step opens on?
  * A step that neither enters nor lingers answers yes and nothing is rebuilt. */
 function syncLanes(){
-  const want=speciesAt(focusStep());
+  const want=intro?INTRO_KEYS:speciesAt(focusStep());
   if(lanes.length!==want.length || lanes.some((l,j)=>l.key!==want[j]))
     renderKeys(want);
 }
@@ -876,20 +882,20 @@ function around(){
 }
 let fitR=28, fitY=0;
 function computeFit(){
-  /* The intro gets its own closer framing: pyruvate and oxaloacetate alone in a
-   * frame sized for a six-carbon acid are two specks, and nothing is being
-   * compared yet.
+  /* THE INTRO GETS ITS OWN CLOSER FRAMING. It opens on two pyruvate, and two
+   * three-carbon acids in a frame sized for the cycle's biggest molecule are
+   * specks — nothing is being compared to a carrier yet.
    *
    * IT PULLS BACK ON BEGIN, not on the first reaction — the opposite of
    * glycolysis, and for a reason that is on screen. There, Begin only reveals
    * the tray, so a zoom would move the sugar for an invisible cause. Here Begin
-   * brings NAD⁺ into the frame, and the camera moves because something arrived. */
-  /* NO SEPARATE INTRO FRAMING any more. It existed because the page opened on
-   * two small acids that a cycle-wide distance drew as specks; it now opens on
-   * the bridge's own two substrates, one of which is coenzyme A, so the opening
-   * shot and the first step's are the same shot and the camera does not move
-   * on Begin. That is the better reading anyway: Begin reveals the tray, and
-   * nothing about the molecules changed. */
+   * trades the second pyruvate for coenzyme A, and the camera moves because
+   * something twenty times the size of what left just arrived. */
+  if(intro){
+    const f=fitFor([INTRO_KEYS]);
+    fitR=f.R; fitY=topAnchoredY(f.R, f.Y, plateY(INTRO_KEYS));
+    return;
+  }
   const near=around();
   const big = hasCarrier(near.flat());
   const f = big ? fitFor(near) : fitFor(ACID_STATES);
@@ -1038,14 +1044,14 @@ function rewind(){
     // Back off the first step of lap 2 is back into lap 1's ending, not the
     // intro: the laps are one run, and the tally is the screen between them.
     if(lap>1){ lap--; done=nSteps; renderLanes(done); refresh(); return; }
-    intro=true; refresh(); return;
+    intro=true; syncLanes(); refresh(); return;
   }
   done--; renderLanes(done); refresh();
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
   autoplay=false; done=0; lap=1; intro=true;
   carrierGone.clear();
-  renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
+  syncLanes(); refresh(); cam.theta=OPEN_THETA; }
 
 /* ---- THE SECOND TURN, PLAYED ----------------------------------------------
  * Same steps, same verbs, same ledger — the only difference is that nothing
@@ -1079,11 +1085,10 @@ const rxmsgEl=document.getElementById('rxmsg');
  * molecule changes. The band itself is the INTRO and the lap-2 hand-off and
  * nothing else — every step's caption lives on the ⓘ by its heading, so the
  * band holds one height (zero) for the whole run and cannot re-frame the shot. */
-const INTRO_MSG=`Two <b>pyruvate</b> came out of glycolysis and crossed into the
-  <b>mitochondrial matrix</b>. Here is one of them, beside the <b>coenzyme A</b>
-  that is about to carry what is left of it into the cycle — note how much
-  molecule two carbons arrive on. Follow this pyruvate; the other does all of
-  this again.`;
+const INTRO_MSG=`Glycolysis split one glucose into <b>two pyruvate</b>, and both
+  crossed into the <b>mitochondrial matrix</b>. Each one becomes an acetyl group
+  and drives one turn of the cycle, so <b>everything on this page happens
+  twice</b>. Follow the one on the left; the other runs turn two.`;
 const LAP2_MSG=`<b>Turn two.</b> The matrix's NAD⁺ and FAD are empty — everything
   was loaded on the first turn. The <b>electron transport chain</b> has just
   unloaded them, which is the only reason there is anything to load again. Same
@@ -1555,7 +1560,7 @@ function press(fn){
 function beginPathway(){
   if(!intro) return;
   press(()=>{
-    intro=false; refresh();
+    intro=false; syncLanes(); refresh();
     computeFit();
   });
 }
@@ -1943,8 +1948,8 @@ L.afterFrame=()=>{
 };
 
 if(OPEN_STEP!=null){ intro=false; done=OPEN_STEP-1; }
-renderLanes(done); refresh(); applyCam(); resize();
-// Re-solve AFTER refresh(): the first computeFit runs inside renderLanes(),
+syncLanes(); refresh(); applyCam(); resize();
+// Re-solve AFTER refresh(): the first computeFit runs inside renderKeys(),
 // before the tray has children, so it measures a zero-height tray.
 computeFit();
 cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();
