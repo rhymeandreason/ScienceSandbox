@@ -260,9 +260,18 @@ const L=Lesson.create(canvas,{
   // pyruvate looks small because it IS — and the loop eases back to the solved
   // distance every frame, so a scroll would only fight the camera.
   zoom:false,
+  // NO DRAG ORBIT EITHER, for the reason the ortho camera is here. Every figure
+  // on this stage is placed in SCREEN pixels off a projection — the name plates,
+  // the hotspots, the carrier column, the enzyme blobs — and all of them are
+  // solved for the framing the fit hands them. An orbit is the one input that
+  // moves the molecule out from under its own furniture, and it buys nothing a
+  // pathway read left to right needs: there is no depth to see around here, and
+  // the two lanes are meant to be comparable, which is what a swung camera stops
+  // them being. The drag then does nothing at all rather than turning the models
+  // (scene.js's other reading of this flag) — the sugars carry no orientation
+  // this lesson asks a student to find.
+  orbit:false,
   focus:false,                       // nothing on this page ghosts a molecule
-  // …and the blobs are pinned in PIXELS, frozen for the step, so a resize is
-  // the one thing that has to un-freeze them (see placeEnz).
   onResize:()=>{ computeFit(); },
 });
 const {scene,camera,renderer,root,cam,applyCam,resize}=L;
