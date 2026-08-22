@@ -65,7 +65,7 @@ function specAt(alpha, phi, spin){
   const b = build(alpha, { phi, spin });
   return b.s.spec({
     name:'probe', formula:'C₁₂H₂₂O₁₁', class:'sugar',
-    names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
+    names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H61A','H62A','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H61B','H62B'],
   });
 }
 

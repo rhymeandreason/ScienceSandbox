@@ -75,6 +75,9 @@
   .row button{font-family:var(--font-sans);font-size:11.5px;font-weight:600;
     padding:5px 11px;border:1.5px solid var(--ink);border-radius:999px;
     background:var(--paper);color:var(--ink);cursor:pointer}
+  .row button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  #controls{margin:0 0 18px}
+  #controls .hint{font-family:var(--font-sans);font-size:11.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -86,6 +89,10 @@
     what that glycosidic bond does when you do it twelve times.</p>
 
   <div class="warn" id="warn"></div>
+
+  <div class="row" id="controls"><button id="htoggle" aria-pressed="false"></button>
+    <span class="hint">a chain this long is mostly hydrogen; hiding the nonpolar
+      C–H leaves the backbone and the hydroxyls, which is what the shape is about</span></div>
 
   <div class="grid">
     <div class="case">
@@ -171,15 +178,24 @@ function mount(canvasId, readId, key){
   /* Every residue but the first loses its free C4 hydroxyl: that position is
      where the previous residue's bridge lands. Drawn without terminal groups —
      it is a FRAGMENT of a chain, and both ends are cut. */
+  /* Everything hideable is collected as it is built. Stage.setOptionalH only
+     knows about groups buildMolecule made, and these chains are assembled atom
+     by atom — so the same contract is honoured here by hand, off the same
+     `optH` the spec declares. */
+  const opt=new Set(chain.optH), hideable=[];
   chain.residues.forEach((res,n)=>{
     const drop=new Set(n===0?[]:[iO4,iHO4]);
     res.forEach((p,i)=>{
       if(drop.has(i)) return;
-      g.add(Stage.atom(P.atoms[chain.el[i]]||0x888888, P.radii[chain.el[i]]||0.7, V(p), chain.el[i]));
+      const m=Stage.atom(P.atoms[chain.el[i]]||0x888888, P.radii[chain.el[i]]||0.7, V(p), chain.el[i]);
+      g.add(m);
+      if(opt.has(i)) hideable.push(m);
     });
     chain.bonds.forEach(([a,b,order])=>{
       if(drop.has(a)||drop.has(b)) return;
-      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14, order));
+      const m=Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14, order);
+      g.add(m);
+      if(opt.has(a)||opt.has(b)) hideable.push(m);   // a bond goes with its atom
     });
     // the linkage itself: this residue's bridging O to the next one's C4
     const nx=chain.residues[n+1];
@@ -216,7 +232,8 @@ function mount(canvasId, readId, key){
       `<span class="pred">prediction</span> — no published helix is claimed for this one. `
         + `Torsions held at cellobiose's, so the difference is the axial C4 and nothing else.`,
     ].join('\n');
-    return { screw, perTurn:screw.perTurn, real:null, close:true };
+    return { screw, perTurn:screw.perTurn, real:null, close:true,
+             setH:show=>hideable.forEach(m=>{ m.visible=show; }) };
   }
   const first=chain.residues[0][chain.index('C1')], last=chain.residues[N-1][chain.index('C1')];
   const span=Math.hypot(last[0]-first[0],last[1]-first[1],last[2]-first[2])/MolLib.SCALE;
@@ -231,12 +248,15 @@ function mount(canvasId, readId, key){
     close ? `<span class="ok">matches</span> — this shape came out of the linkage, not out of a caption`
           : `<span class="no">does not match</span> — the shared schematic torsion, not the linkage, is setting this`,
   ].join('\n');
-  return { screw, perTurn:screw.perTurn, real:R.perTurn, close };
+  return { screw, perTurn:screw.perTurn, real:R.perTurn, close,
+           setH:show=>hideable.forEach(m=>{ m.visible=show; }) };
 }
 
+const cards=[];
 const out={ cellobiose:mount('glB','readB','cellobiose'),
             galactobiose:mount('glG','readG','galactobiose'),
             maltose:mount('glA','readA','maltose') };
+Object.values(out).forEach(c=>cards.push(c));
 
 /* Lactose is drawn ONCE. chain-repeat.js is deliberately not pointed at it:
    there is no repeat to make, and rendering twelve of something that does not
@@ -248,6 +268,7 @@ const out={ cellobiose:mount('glB','readB','cellobiose'),
   const spec=MolLib.MOLECULES[key];
   const g=Stage.buildMolecule(spec,{center:true});
   root.add(g);
+  cards.push({ setH:show=>Stage.setOptionalH(g, show) });
   const e=Stage.measure(spec);
   const fit=()=>{ resize();
     Stage.frame(camera, cam, [{x:0,y:0,rxz:e.rxz*1.25,hy:e.hy*1.25}]); applyCam(); };
@@ -265,6 +286,18 @@ const out={ cellobiose:mount('glB','readB','cellobiose'),
     `reading chain SHAPE could not tell these two apart.`,
   ].join('\n');
 })('glL','readL','lactose');
+
+/* One switch for every card. Starts with the C–H hidden: at twelve residues the
+   hydrogens outnumber everything else and the chain reads as a hedge. */
+const hbtn=document.getElementById('htoggle');
+let showH=false;
+function applyH(){
+  cards.forEach(c=>c.setH && c.setH(showH));
+  hbtn.textContent = showH ? 'Hide C–H' : 'Show C–H';
+  hbtn.setAttribute('aria-pressed', String(showH));
+}
+hbtn.onclick=()=>{ showH=!showH; applyH(); };
+applyH();
 
 /* The page's own headline, decided by the measurements rather than written in
    advance — if new torsion data ever fixes starch, this sentence changes by

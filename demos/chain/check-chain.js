@@ -50,6 +50,21 @@ for (const [key, spec] of subjects) {
     console.log(`   OK: ${screw.perTurn.toFixed(2)} residues/turn, ${rise.toFixed(2)} Å rise `
       + `— declares ${h.perTurn} and ${h.rise}`);
 
+  /* EXERCISE THE PATH THE PAGE USES. Measuring the screw alone leaves extend()
+   * unrun, and that is where residues are selected by name — the step that once
+   * silently dropped C6's two hydrogens from every chain because they were named
+   * H6A1 rather than H61A. A checker that only measures would have passed it,
+   * and did. */
+  let a, b;
+  try { a = CR.extend(spec, screw, 3, 'A'); b = CR.extend(spec, screw, 1, 'B'); }
+  catch (e) { fail(e.message); continue; }
+  if (a.names.length + b.names.length !== spec.atoms.length)
+    fail(`residues A and B hold ${a.names.length}+${b.names.length} atoms, but the spec has `
+       + `${spec.atoms.length}. Some atom belongs to neither, so the chain is missing it.`);
+  else
+    console.log(`   OK: residues partition all ${spec.atoms.length} atoms `
+      + `(${a.names.length}+${b.names.length}), ${a.optH.length} optional-H per residue`);
+
   /* The two must not converge. If a future edit gave both sugars one pose again
    * they could each drift toward the other and still pass above; what the pair
    * exists to show is that these linkages build DIFFERENT chains. */

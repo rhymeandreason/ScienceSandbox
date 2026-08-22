@@ -104,6 +104,16 @@
     (spec.names||[]).forEach((nm,i)=>{
       if(nm.endsWith(suf)){ idx.push(i); names.push(nm.slice(0,-suf.length)); }
     });
+    /* A residue is selected by name SUFFIX, so an atom that carries its residue
+     * tag anywhere else is silently not in the chain. That is not hypothetical:
+     * C6's hydrogens were once named H6A1/H6A2, so every chain drawn from these
+     * specs was missing two atoms per residue — invisible, because they are
+     * optional-H and the page hid them by default. Fail loudly instead. */
+    const stray=(spec.names||[]).filter(nm=>!nm.endsWith(suf) && nm.includes(suf));
+    if(stray.length)
+      throw new Error(`chain-repeat: ${stray.join(', ')} carry residue tag '${suf}' `
+        + `but do not end with it, so they would be dropped from the chain. `
+        + `Name them <atom>${suf}.`);
     let cur=idx.map(i=>{ const p=spec.atoms[i].pos; return [p[0],p[1],p[2]]; });
     const out=[];
     for(let k=0;k<count;k++){
@@ -116,7 +126,14 @@
       .filter(b=>local[b[0]]!==undefined && local[b[1]]!==undefined)
       .map(b=>[local[b[0]], local[b[1]], b[2]||1]);
     const el=idx.map(i=>spec.atoms[i].el);
-    return { residues:out, names, el, bonds, index:nm=>names.indexOf(nm) };
+    /* The spec's own optional-H set, carried into the residue's local numbering.
+     * Derived from `optH` rather than from "an H bonded to a C", because that is
+     * where the decision lives: scene.js's contract is that an H on N/O/S is
+     * never in it, and a page that re-derived the set could quietly start hiding
+     * a hydroxyl's hydrogen. */
+    const opt=new Set(spec.optH||[]);
+    const optH=idx.map((g,l)=>opt.has(g)?l:-1).filter(l=>l>=0);
+    return { residues:out, names, el, bonds, optH, index:nm=>names.indexOf(nm) };
   }
 
   const API={ screwOf, extend };
