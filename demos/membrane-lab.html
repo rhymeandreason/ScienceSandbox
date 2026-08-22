@@ -1625,8 +1625,10 @@ const LAUNCH_GROW  = 0.22;              // seconds to scale up from nothing
 const LAUNCH_SPEED   = [55, 65];
 /* Ambient drift, which is what a gas decays to once it is through. The trip
    is a delivery and wants to be brief; the crowd it joins is a gas at room
-   temperature and wants to look like one. */
-const DRIFT_SPEED  = [6, 10];
+   temperature and wants to look like one. Pitched at the WATER's walking
+   speed, not below it: a gas travels in a straight line while the water
+   around it jitters, so the same number already reads slower on a gas. */
+const DRIFT_SPEED  = [12, 18];
 
 /* WHERE A BUTTON IS, IN THE SCENE. The launcher is DOM and the molecule is a
    mesh, so the one number that ties them together is the button's own box,
