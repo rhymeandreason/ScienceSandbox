@@ -1,3 +1,5 @@
+<!-- KIND: argument — human only. Ranks the same ground from student questions. Do not load while building; see LESSONS-ROADMAP.md for the reason. -->
+
 # Questions roadmap
 
 A companion to `LESSONS-ROADMAP.md`. That file ranks by *diagram conflict*, the

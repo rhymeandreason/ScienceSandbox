@@ -1,6 +1,49 @@
+<!-- KIND: recipe — load when building a new page, or when a page needs a module it does not already load. The module table is lookup material: read the row, not the file. -->
+
 # Adding a lesson page
 
 Reference for building a new `*-lab.html` page: shared modules, script load order, and the checklist. Everyday lesson edits don't need this file — see `CLAUDE.md`.
+
+## Reading list
+
+What to read before starting, by task. Prompts should point here rather than
+re-deriving the list each time; a list re-derived per prompt drifts.
+
+**The rule behind the table.** Load *rulebooks* whole, and cheaply: missing one
+costs a wrong molecule. Load *examples* by line range, never whole: a 2,300-line
+sibling page read entire buries the rule you needed under two thousand lines of
+chrome, and a rule read late is present but not applied. Load *arguments* never,
+during a build. Every doc says which it is on its first line; `CLAUDE.md` has the
+convention.
+
+| Task | Read |
+| --- | --- |
+| Anything at all | `CLAUDE.md` |
+| Adding or converting a molecule | `MolecularGeometry.md` §1, `SCIENCE.md` §§2-3, the target `mol-*.js` |
+| Changing geometry, or what a motion implies happened | `SCIENCE.md` §§2-5 |
+| Polish on a reviewed animation (timing, easing, camera) | nothing extra |
+| A new page | this file, then the sibling page the human names |
+| A new step-through pathway lesson | this file, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
+| A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
+| A solvation page | `WaterSim.md` |
+| Deciding what to build next | the two roadmaps. This is the only task they serve |
+
+**A staged build reads differently at each stage**, because the phases are
+different jobs. Establishing the chemistry is not a repo task and wants no repo
+docs; comparing shapes wants the siblings and no chemistry; building wants the
+chrome. Give each phase its own two-line list and drop the global one:
+
+| Phase | Read |
+| --- | --- |
+| Establish the facts (no code) | `CLAUDE.md`'s copywriting section. Nothing else |
+| Find where the new lesson does not fit the old shape | the sibling pages and the shared shell. No chemistry |
+| Molecules and step data | `MolecularGeometry.md` §1, `SCIENCE.md` §§5-6, the `STEPS` record |
+| The page | this file, `pathways.css`, the sibling's chrome |
+| Adversarial review | `SCIENCE.md` and the facts, and deliberately **not** the sibling page: a verifier holding the sibling checks whether the new page matches it, which is not the same question as whether it is true |
+
+**If you need a doc this list does not name, stop and say which.** A gap in the
+list is invisible from inside a build, and guessing past it is how a rule gets
+missed silently.
 
 ## Shared modules
 

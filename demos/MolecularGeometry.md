@@ -1,3 +1,5 @@
+<!-- KIND: rulebook — load §1 before adding or converting a molecule spec. §1.4 sets the fidelity tier a molecule owes, and requires an assertion in the same commit. -->
+
 ## 1. Molecular geometry
 
 ### 1.1 Angles and shape

@@ -1,3 +1,5 @@
+<!-- KIND: argument — human only, and superseded in part. A decision record for how lessons are rendered, not instructions for rendering one. -->
+
 > **Superseded in part, 2026-08-02 — we draw proteins ourselves.**
 > The 3D-viewer question is closed: Three.js + `scene.js` + `folding/ribbon.js`,
 > no third-party molecular viewer, ChemDoodle dropped, Mol\* evaluated and not

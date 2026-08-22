@@ -1,3 +1,5 @@
+<!-- KIND: rulebook — load whole, always. Project rules, the page index, and where every other doc applies. -->
+
 # Working in demos/
 
 Self-contained browser 3D molecular simulations for Biology 101. One HTML page per lesson over a few shared modules. No build, no framework — Three.js r128 (global) + vanilla JS.
@@ -6,9 +8,11 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 * Let the human test visual changes in the browser; tell her what to click.
 * Be extremely concise everywhere, including commit messages. Sacrifice grammar for concision.
 
+**Every `.md` here opens with a `KIND:` comment saying when to load it.** *rulebook* = invariants, load whole, cheap to over-include. *recipe* = how to build one kind of thing, load for that task. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. `grep -h 'KIND:' *.md */README.md` lists them.
+
 ## Pages (lessons)
 
-<!-- ENUM: Only add to this chart if a page is a featured lesson -->
+<!-- ENUM: Only add to this chart if a page is a featured lesson. Prototypes and Test pages go on demos/admin.html -->
 
 **Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as fallback or worked example — don't read it unless asked. *test* = an evaluation record, not a lesson — disposable, may get deleted once it's served its purpose. *internal tool* = not a lesson either, but kept in active use (e.g. to pick a molecule's default rotation) — don't delete it like a test.
 

@@ -1,3 +1,5 @@
+<!-- KIND: rulebook, scoped — load only when working on a solvation page. Nothing here applies to any other lesson. -->
+
 # Water Sim
 
 Applies to the solvation apps only (`water-lab.html`, `molecule-lab.html`).

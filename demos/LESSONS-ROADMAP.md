@@ -1,3 +1,5 @@
+<!-- KIND: argument — human only. Ranks what to build next and why. Do not load while building: its content is judgement about priority, and a build that absorbs it starts exercising that judgement in caption copy. -->
+
 # Lessons roadmap
 
 What to build next, and why that order. Status vocabulary is `CLAUDE.md`'s (featured lesson / prototype / reference / test).

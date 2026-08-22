@@ -1,3 +1,5 @@
+<!-- KIND: rulebook — load whole before adding a molecule, changing geometry, or changing what a motion implies happened. §6 is module architecture; polish on a reviewed animation does not need it. -->
+
 # Scientific Accuracy Rules
 
 The rulebook for every page. §§2–3 are chemistry (polarity, covalent bonding);
