@@ -430,6 +430,28 @@ function solveOffscreen() {
   OFFSCREEN = halfH + 26;               // clear of the edge, plus a molecule
 }
 
+/* HOW CLOSE EACH STEP STANDS. The first two steps are about the sheet itself
+   — how it is built, and what a single molecule does when it meets it — so
+   they come in close enough to read one molecule against the head groups.
+   From step 3 the subject is a compartment and what is dissolved in it, which
+   needs the volume on screen. Pulling back at that switch is the lesson
+   changing scale, and easing it (see camWant) is what makes that legible
+   rather than a cut. */
+/* WIDE_BOX SOLVES PAST `max` AND IS CLAMPED TO IT, which is the framing every
+   step used before there was a choice — so steps 3-6 are untouched. It also
+   means CLOSE_BOX only does anything if it solves UNDER 420: the first box
+   tried here was 170 and changed nothing at all, because the clamp swallowed
+   it. Width binds, and rxz counts twice — once as the half-width to cover and
+   again as the depth to clear. */
+const WIDE_BOX  = { rxz:220, hy:70 };   // steps 3-6: compartments
+const CLOSE_BOX = { rxz:130, hy:45 };   // steps 1-2: the sheet
+let stepBox = null;
+/* Where the camera is going, against where it is. Stage.frame() writes cam.r
+   outright, so go() takes the solved distance, puts the camera back where it
+   was, and tick() walks it over. */
+const CAM_EASE = 0.55;                  // seconds to cover most of the gap
+let camWant = null;
+
 /* HOW FAR UP THE FRAME THE MEMBRANE SITS, in world units. NOT a reserve:
    Stage.frame() only solves cam.r, so adding to reservePx pulls the camera
    back and leaves the scene as centred as before. */
@@ -448,8 +470,12 @@ const L = Lesson.create(canvas, {
   reservePx: () => ({ bottom: chromeEl.offsetHeight + 14 }),
   /* The box the camera must fit. Sized to pull back far enough that the
      compartments read as volumes, not strips, and the tallies clear the
-     crowd they are counting. */
-  boxes: () => ([{ x:0, y:0, rxz:220, hy:70 }]),
+     crowd they are counting.
+
+     A MUTABLE, NOT A READ OF STEPS[cur]: Lesson.create() fits before this
+     file has finished evaluating, and STEPS is a const below — touching it
+     from here would be a temporal-dead-zone throw on load. go() sets it. */
+  boxes: () => ([Object.assign({ x:0, y:0 }, stepBox || WIDE_BOX)]),
   frame: dt => tick(dt),
 });
 L.renderer.localClippingEnabled = true;
@@ -2498,11 +2524,18 @@ function go(i) {
   setHTML(capEl, s.cap);
   [...stepsEl.children].forEach((b, j) =>
     j === i ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
+  stepBox = (s.id === 'bilayer' || s.id === 'through') ? CLOSE_BOX : WIDE_BOX;
+  const from = L.cam.r;
   L.fit();
   liftScene();
   /* fit() moves the camera, so the offscreen line is only knowable after it.
-     Re-enter, and the molecules land against the frame that is drawn. */
+     Re-enter, and the molecules land against the frame that is drawn. SOLVED
+     AT THE DESTINATION, not part-way through the ease: a molecule spawned
+     during the move belongs to the frame the step is settling into. */
   solveOffscreen();
+  /* The first fit is a cut — there is nothing to ease from. */
+  if (camWant != null) { camWant = L.cam.r; L.cam.r = from; liftScene(); }
+  else camWant = L.cam.r;
   s.enter();
   /* GLOBAL MEANS EVERY STEP: enter() has just built a cast that knows nothing
      about the setting. Applied here once — a step that has to remember is a
@@ -2623,6 +2656,12 @@ function tick(dt) {
      and they are most of the lipid in the scene. */
   MEM.tick(dt);                           // the bilayer is a liquid, so it moves
   tickBirth(dt);                          // step 2's launches, scaling up
+  /* Exponential, so it arrives without a hard stop, and cut off at a distance
+     no one can see — an ease that never finishes calls applyCam() forever. */
+  if (camWant != null && Math.abs(L.cam.r - camWant) > 0.05) {
+    L.cam.r += (camWant - L.cam.r) * (1 - Math.pow(0.002, dt / CAM_EASE));
+    liftScene();
+  }
 
   if (s.id === 'rest') {
     /* THE PUMP FEEDS ITSELF HERE, re-arming the moment a turn ends — no
