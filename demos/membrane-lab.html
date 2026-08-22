@@ -50,6 +50,17 @@
   #ctl { position:absolute; left:50%; z-index:4;
          transform:translateX(-50%); display:flex; gap:10px; }
   #ctl[hidden] { display:none; }
+  /* THE LAUNCH ROW SITS WHERE #ctl DOES — the two never share a step, so one
+     position serves both and the controls do not move between tabs. */
+  #launch { position:absolute; left:50%; z-index:4;
+            transform:translateX(-50%); display:flex; gap:10px; }
+  #launch[hidden] { display:none; }
+  /* EACH BUTTON WEARS ITS OWN SUBSTANCE'S COLOUR, off the same tokens the
+     spheres are built from, so pressing violet launches the violet thing.
+     --pill-fill is the one hook .pill asks for. */
+  #launch .pill[data-kind="o2"]  { --pill-fill:var(--atom-O); }
+  #launch .pill[data-kind="co2"] { --pill-fill:var(--atom-C); }
+  #launch .pill[data-kind="NA"]  { --pill-fill:var(--atom-Na); }
   /* The step's switches are .btn--check in the membrane's own green, so a
      control and the channel it governs are the same hue. main.css owns the
      shape and the [hidden] trap that used to need a copy here. */
@@ -235,6 +246,14 @@
         <span>Pump running</span>
       </label>
     </div>
+    <!-- STEP 2 IS PRESSED, NOT WATCHED. One molecule per press, so the
+         student fires each species at the same membrane and reads the answer
+         off what it does. The row only exists on that step. -->
+    <div id="launch" hidden>
+      <button type="button" class="pill" data-kind="o2">Add O₂</button>
+      <button type="button" class="pill" data-kind="co2">Add CO₂</button>
+      <button type="button" class="pill" data-kind="NA">Add Na⁺</button>
+    </div>
     <!-- Osmosis's tally and net arrow, drawn over the scene. Positions are
          solved each frame from the projected membrane plane, never from the
          middle of the canvas: kit/fit.js reserves chrome at the bottom, so
@@ -338,6 +357,7 @@ const capEl = document.getElementById('cap');
 const stepsEl = document.getElementById('steps');
 const spendEl = document.getElementById('spend');
 const ctlEl = document.getElementById('ctl');
+const launchEl = document.getElementById('launch');
 const shellsBox = document.getElementById('shellsBox');
 const shellsTogEl = document.getElementById('shellsTog');
 const lipidBox   = document.getElementById('lipidBox');
@@ -740,6 +760,17 @@ function growShell(t) {
   t.shellGrow = 0;
   t.shellOff = false;
 }
+/* THE SWITCH AGAINST THE CAST ON STAGE. Called after anything that changes
+   who is on stage — enter(), and step 2's launcher, which adds a shelled ion
+   long after go() has run. */
+function syncShells() {
+  setShells(shellsOn);
+  /* SHOWN ONLY WHERE IT DOES SOMETHING, asked of the CAST and not a list of
+     step ids, so a step that gains or loses shelled ions cannot fall out of
+     sync. */
+  shellsTogEl.hidden = !travellers.some(
+    t => t.obj.userData.shell && t.obj.userData.shell.length);
+}
 function setShells(on) {
   shellsOn = on;
   for (const t of travellers) {
@@ -774,6 +805,21 @@ voltBox.addEventListener('change', () => {
   setShells(shellsOn);
 });
 
+/* A LAUNCHED MOLECULE IS BORN CLOSE TO THE MEMBRANE, because a button that
+   takes four seconds to answer reads as broken. Close enough to be prompt is
+   also close enough to pop into existence in open water, so it scales up
+   instead — the press puts it there, and the growth says so. */
+function tickBirth(dt) {
+  for (const t of travellers) {
+    if (t.born == null || t.born >= 1) continue;
+    t.born = Math.min(1, t.born + dt / LAUNCH_GROW);
+    const k = t.born * t.born * (3 - 2 * t.born);
+    /* AGAINST ITS OWN SIZE, never setScalar(k) flat: smallMolecule() already
+       scales the group by EXAG/SCALE, so growing to a bare 1 lands a gas at
+       a third of the size everything else is drawn at. */
+    t.obj.scale.setScalar(t.bornScale * k);
+  }
+}
 function tickShells(dt) {
   /* In flight: drift out, shrink away, gone. Shrinking rather than fading,
      because scale is per-object and material transparency is not — two
@@ -1465,7 +1511,25 @@ function advance(t, dt) {
        inside it — an ion that penetrates and returns has already told the
        student the interior is negotiable. */
     const edge = HALF + 2.4;
-    if ((t.vy < 0 && t.y <= edge && t.y > 0) || (t.vy > 0 && t.y >= -edge && t.y < 0)) t.vy = -t.vy;
+    if ((t.vy < 0 && t.y <= edge && t.y > 0) || (t.vy > 0 && t.y >= -edge && t.y < 0)) {
+      t.vy = -t.vy;
+      /* A LAUNCHED ION FLIES LIKE A LAUNCHED GAS UNTIL IT IS TURNED BACK.
+         Step 2 fires all three the same way on purpose — same start, same
+         speed, so the only variable is what the molecule is. Handing it to
+         the random walk at the bounce, rather than at birth, keeps the
+         refusal legible: it arrived under its own steam and left. */
+      if (t.walkOnBounce) {
+        t.walkOnBounce = false;
+        t.walk = true; t.since = 0;
+        /* A WALK, NOT A RETREAT. Carrying the launch speed through the bounce
+           fires the ion back at the far edge of the frame and the refusal
+           looks like a disappearance. Re-drawn at walking speed and turned
+           away from the face it hit, it stays where the claim is — milling
+           at the head groups, which is what a stopped ion looks like. */
+        repick(t);
+        t.vy = Math.abs(t.vy) * Math.sign(t.y);
+      }
+    }
   }
   /* Nothing in here reads the concentration or knows where the solute is,
      which is the point: a crowd spreads out because the crowded side has
@@ -1503,6 +1567,15 @@ function advance(t, dt) {
     return;
   }
 
+  /* THE LAUNCH SPEED IS FOR THE TRIP, NOT FOR EVER. A gas fired at the
+     membrane has answered the question the moment it is through, and a dozen
+     of them still travelling at launch speed is a blur nobody can read. Slow
+     to ambient on the far side — pacing, not physics, and nothing about the
+     crossing itself is being claimed here. */
+  if (t.slowFrom != null && Math.sign(t.y) !== t.slowFrom) {
+    t.slowFrom = null;
+    t.vy = Math.sign(t.vy) * rnd(DRIFT_SPEED[0], DRIFT_SPEED[1]);
+  }
   /* Anything that CAN cross wraps rather than being deleted: vanishing at
      the edge reads as being consumed, and nothing here consumes. */
   if (t.y >  OFFSCREEN) t.y = -OFFSCREEN;
@@ -1522,6 +1595,87 @@ let crossings = { up:0, down:0 };
    equilibrium IS, two equal flows rather than a flow switched off. */
 let netRecent = 0;
 const NET_HALFLIFE = 30;                // seconds for a crossing to count half
+
+/* ---- step 2's launcher ----
+   ONE PRESS, ONE MOLECULE, and the callout goes on the first of each kind so
+   the label names a molecule the student put there. Everything launches from
+   its own side at the same speed: O2 in, CO2 out, Na+ in and refused. */
+const LAUNCH_MAX = 14;                  // per species; past this it is a crowd
+/* A BUTTON HAS TO ANSWER. Launched from the frame edge at ambient speed a
+   molecule spends seconds in open water before it reaches the membrane, and
+   the press reads as broken. So it starts partway in and travels fast: the
+   trip is the setup, the membrane is the answer, and the answer has to land
+   inside about a second. Both numbers are here rather than inline because
+   they are one decision — distance over speed IS the wait. */
+const LAUNCH_FROM  = 0.25;              // fraction of farY() to start at
+const LAUNCH_SPEED = [24, 30];
+const LAUNCH_GROW  = 0.22;              // seconds to scale up from nothing
+/* Ambient drift, which is what the launch speed decays to. The trip is a
+   delivery and wants to be brief; the crowd it joins is a gas at room
+   temperature and wants to look like one. */
+const DRIFT_SPEED  = [6, 10];
+const launched = { o2:null, co2:null, NA:null };
+const LAUNCH_NOTE = {
+  o2:  ['O₂ — passes through', [-30, -22],
+        'Small and nonpolar, so it dissolves into the oil and out the ' +
+        'other side. No protein, no cost, no gate.'],
+  co2: ['CO₂ — passes through', [ 28, -24],
+        'The biggest thing on screen, and it crosses as easily as O₂. ' +
+        'Being oily beats being small.'],
+  NA:  ['Na⁺ — can not cross', [ 30, -22],
+        'The smallest thing here, and it never gets in: a charged ion ' +
+        'holds a shell of water around it. Entering the oil means ' +
+        'stripping that shell off, and that costs more than it has.'],
+};
+/* Oldest first, and never the annotated one — its callout reads the object's
+   world position every frame, so retiring it strands the label. */
+function retireOldest(kind) {
+  const i = travellers.findIndex(t => t.kind === kind && t !== launched[kind]);
+  if (i < 0) return;
+  L.root.remove(travellers[i].obj);
+  travellers.splice(i, 1);
+}
+function launch(kind) {
+  if (travellers.filter(t => t.kind === kind).length >= LAUNCH_MAX)
+    retireOldest(kind);
+  const first = !launched[kind];
+  /* THE GASES KEEP THEIR LANES — O₂ left, CO₂ right — because two streams
+     shuffled together is a snowstorm, not a comparison. Na⁺ is NOT banded:
+     penning the one species that does not cross into a column would make
+     that a property of the column. */
+  const x = kind === 'o2'  ? rnd(-SPREAD, -SPREAD * 0.04)
+          : kind === 'co2' ? rnd(SPREAD * 0.04, SPREAD)
+          : rnd(-SPREAD, SPREAD);
+  /* CO₂ leaves, the other two arrive — the direction a real cell breathes.
+     It is also what makes the launch a test: each one starts at the far edge
+     of its own compartment and has the whole width of the water to cross. */
+  const out = kind === 'co2';
+  const t = traveller(kind, Object.assign(
+    { x, z:rnd(-10, 10), y:(out ? -1 : 1) * farY() * LAUNCH_FROM,
+      vy:(out ? 1 : -1) * rnd(LAUNCH_SPEED[0], LAUNCH_SPEED[1]) },
+    /* EXACTLY ONE Na⁺ WEARS ITS HYDRATION SHELL — the annotated one. Cage
+       every sodium in six waters and it becomes the largest object on
+       screen, walking the size rule this step exists to kill right back in;
+       the ones after it stay bare, at true radius. The labelled one carries
+       a shell because it answers the question the press provokes — why can't
+       the small one get through? — with the dehydration penalty, the same
+       fact step 4 leans on. */
+    kind === 'NA' ? { speed:ION_SPEED, shell:first,
+                      blocked:true, bounded:true, walkOnBounce:true } : {}));
+  t.born = 0; t.bornScale = t.obj.scale.x; t.obj.scale.setScalar(t.bornScale * 0.001);
+  if (kind !== 'NA') t.slowFrom = Math.sign(t.y);   // ambient once it is through
+  if (first) {
+    launched[kind] = t;
+    noteOn(t, ...LAUNCH_NOTE[kind]);
+  }
+  /* THE CORNER SWITCH OWNS THE SHELL, and this cast was built after go()
+     applied it. Without this the launched Na⁺ arrives wearing a shell the
+     switch says is off — and the switch itself stays hidden, since it is
+     shown by asking the cast and the cast was empty when the step opened. */
+  syncShells();
+}
+for (const b of launchEl.querySelectorAll('button'))
+  b.addEventListener('click', () => launch(b.dataset.kind));
 
 const STEPS = [
   {
@@ -1560,58 +1714,20 @@ const STEPS = [
     enter() {
       clearTravellers();
       showProtein(null); showMembrane('solid'); setCut(false);
-      /* The two GASES split the width — O₂ left, CO₂ right — since two
-         streams shuffled together is a snowstorm, not a comparison. Na⁺ is
-         NOT banded: penning the one species that does not cross into a column
-         makes that a property of the column. Spread full width, the sheet of
-         ions stopped at the heads IS the claim.
+      /* NOTHING BUT WATER UNTIL THE STUDENT PRESSES. The three species arrive
+         one press at a time (see launch()), so the first crossing is an event
+         they caused rather than a crowd that was already running.
 
          WATER FIRST, not decoration: "CO₂ dissolves through the oil" needs
          the liquid on screen. Same parameters as step 1, but fewer — here it
-         is the solvent, and a full crowd buries the three species. */
+         is the solvent, and a full crowd buries what gets fired into it. */
       for (let i = 0; i < 36; i++)
         traveller('water', { x:rnd(-SPREAD,SPREAD), z:rnd(-11,11),
                              y:inCompartment(i % 2 ? 1 : -1),
                              walk:true, bounded:true, coreSpeed:WATER_CORE });
-
-      let firstO2 = null, firstCO2 = null, firstNa = null;
-      for (let i = 0; i < 20; i++) {
-        const t = traveller('o2', { x:rnd(-SPREAD, -SPREAD*0.04), z:rnd(-10,10),
-                                    y:rnd(-farY(), farY()), vy:rnd(6,10) });
-        if (!i) firstO2 = t;
-      }
-      for (let i = 0; i < 16; i++) {
-        const t = traveller('co2', { x:rnd(SPREAD*0.04, SPREAD), z:rnd(-10,10),
-                                     y:rnd(-farY(), farY()), vy:-rnd(6,10) });
-        if (!i) firstCO2 = t;
-      }
-      /* EXACTLY ONE Na⁺ WEARS ITS HYDRATION SHELL — the annotated one. Cage
-         every sodium in six waters and it becomes the largest object on
-         screen, walking the size rule this step exists to kill right back
-         in; the comparison ions stay bare, at true radius.
-
-         The labelled one carries a shell because it answers the question the
-         step provokes — why can't the small one get through? — with the
-         dehydration penalty, the same fact step 4 leans on. */
-      for (let i = 0; i < 22; i++) {
-        const t = traveller('NA', { x:rnd(-SPREAD, SPREAD), z:rnd(-10,10),
-                                    y:inCompartment(1),
-                                    walk:true, speed:ION_SPEED, shell: i === 0,
-                                    blocked:true, bounded:true });
-        if (!i) firstNa = t;
-      }
-      /* Just the name. The caption already says which crosses and why; what
-         the student cannot do without these is tell which band is which. */
-      noteOn(firstO2,  'O₂ — passes through',  [-30, -22],
-             'Small and nonpolar, so it dissolves into the oil and out the ' +
-             'other side. No protein, no cost, no gate.');
-      noteOn(firstCO2, 'CO₂ — passes through', [ 28, -24],
-             'The biggest thing on screen, and it crosses as easily as O₂. ' +
-             'Being oily beats being small.');
-      noteOn(firstNa,  'Na⁺ — can not cross', [ 30, -22],
-             'The smallest thing here, and it never gets in: a charged ion ' +
-             'holds a shell of water around it. Entering the oil means ' +
-             'stripping that shell off, and that costs more than it has.');
+      /* clearTravellers() dropped the callouts with the molecules they were
+         pinned to, so the next press has to be a first press again. */
+      launched.o2 = launched.co2 = launched.NA = null;
     },
   },
 
@@ -2296,6 +2412,7 @@ function paintEqBadge() {
 function placeControls() {
   const h = chromeEl.offsetHeight;
   ctlEl.style.bottom = (h + 10) + 'px';
+  launchEl.style.bottom = (h + 10) + 'px';
   spendEl.style.bottom = (h + 56) + 'px';
   /* The bottom-corner readouts clear the chrome too — at a fixed offset from
      the stage's edge they land under the caption. */
@@ -2337,12 +2454,7 @@ function go(i) {
   /* GLOBAL MEANS EVERY STEP: enter() has just built a cast that knows nothing
      about the setting. Applied here once — a step that has to remember is a
      step where the corner switch silently stops working. */
-  setShells(shellsOn);
-  /* SHOWN ONLY WHERE IT DOES SOMETHING, asked of the CAST and not a list of
-     step ids, so a step that gains or loses shelled ions cannot fall out of
-     sync. */
-  shellsTogEl.hidden = !travellers.some(
-    t => t.obj.userData.shell && t.obj.userData.shell.length);
+  syncShells();
   /* THE CLOSE-UP BELONGS TO ONE STEP, and it is driven from here for the same
      reason the toggle above is: a step that has to remember to hide someone
      else's box is a step that eventually forgets. Step 1 is the only one that
@@ -2457,6 +2569,7 @@ function tick(dt) {
   /* Only the sheet on stage: stirring the hidden ones is work nobody sees,
      and they are most of the lipid in the scene. */
   MEM.tick(dt);                           // the bilayer is a liquid, so it moves
+  tickBirth(dt);                          // step 2's launches, scaling up
 
   if (s.id === 'rest') {
     /* THE PUMP FEEDS ITSELF HERE, re-arming the moment a turn ends — no
@@ -2526,6 +2639,7 @@ function tick(dt) {
   /* Hidden where the row would be empty — an empty pill row still reserves
      height and reads as a control that failed to load. */
   ctlEl.hidden = s.id !== 'channel' && s.id !== 'rest';
+  launchEl.hidden = s.id !== 'through';
   /* THE CHANNEL STEP'S SWITCH, AND ONLY ITS. The potential is in play on
      both protein steps whether or not anyone asks, so there is nothing to
      decide and a dead control invites a click that does nothing — they print
