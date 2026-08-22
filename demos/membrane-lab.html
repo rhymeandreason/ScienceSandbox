@@ -1885,7 +1885,19 @@ const STEPS = [
                          y:inCompartment(1), shell:true,
                          walk:true, speed:ION_SPEED, conducts:-REST_LANE,
                          blocked:true, bounded:true });
-      for (let i = 0; i < 18; i++)
+      /* MOSTLY OUTSIDE, as it is in a real cell (~145 mM out against ~12 in)
+         and as steps 2 and 3 already draw it. The four inside are the leak
+         the pump is clearing, not the population — seed them inside and the
+         tally states that a resting cell is sodium-loaded.
+
+         Four inside is also what makes the cytosol add up: 20 K⁺ + 4 Na⁺
+         against 24 A⁻. */
+      for (let i = 0; i < 14; i++)
+        traveller('NA', { x:rndClear(SPREAD*0.7), z:rnd(-10,10),
+                          y:inCompartment(1), shell:true,
+                          walk:true, speed:ION_SPEED,
+                          blocked:true, bounded:true });
+      for (let i = 0; i < 4; i++)
         traveller('NA', { x:rndClear(SPREAD*0.7), z:rnd(-10,10),
                           y:inCompartment(-1), shell:true,
                           walk:true, speed:ION_SPEED,
