@@ -138,8 +138,9 @@ why an enzyme accepts one substrate and refuses another, which is the half a
 student actually asks about ("why can't we digest wood?"). That half is now
 built and checked, and it costs **no new molecules**:
 
-* `condense-lab.html` makes the α-1,4 and β-1,4 bonds by hand, and the fork is a
-  reagent rather than a gesture — α- and β-glucose are different molecules.
+* The specs carry both linkages and the reagents they come from: `maltose`,
+  `cellobiose`, `galactobiose`, `lactose`, and `alphaGlucose` beside ordinary
+  β-glucose. α and β are different molecules, not a toggle.
 * `chain/glucose-chains-test.html` repeats each linkage into what it becomes:
   starch's six-fold helix, cellulose's two-fold ribbon, and galactan's
   half-length ribbon, all falling out of torsions solved against published helix
@@ -153,17 +154,17 @@ page that already exists:
 
 > **starch → (amylase) → maltose → (maltase) → glucose → glycolysis**
 
-Amylase is an *endo*-α-1,4-glucanase and its real product is **maltose** — the
-molecule `condense-lab` already builds and `chain-repeat.js` already polymerises.
+Amylase is an *endo*-α-1,4-glucanase and its real product is **maltose** — a spec
+that already exists and that `chain-repeat.js` already polymerises.
 Glucose is where `glycolysis-lab` opens, so this answers a question that page
 currently steps over: where the glucose came from. Two enzymes, two halves —
 **amylase** for specificity upstream, **PFK-1** for catalysis and regulation
 inside, as planned above.
 
-It also gets hydrolysis for free, as the reverse of what is built:
-`condense-drag.js` makes the bond and releases a water; the enzyme adds one back
-and breaks it. Same bond, same atoms, opposite direction — and the module's
-`condense:` blocks already name which atoms those are.
+Hydrolysis is a condensation run backwards — a water goes in and the bond comes
+apart — and the specs already name which atoms move: the `condense:` blocks on
+`glucose`, `alphaGlucose` and `alanine`, audited by `check-molecules.js`. They
+outlived the drag page they were written for and are kept for this.
 
 **The trap, and it is this section's own thesis.** This roadmap exists partly to
 kill the lock-and-key cartoon. A generic pocket that a helix slots into and a

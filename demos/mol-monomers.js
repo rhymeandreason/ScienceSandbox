@@ -125,7 +125,7 @@
            + 'translation locked onto one hand, every enzyme that reads a '
            + 'protein chain came to expect it, and a D-residue jams the machinery.' },
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
-      // condense-lab.html: the same two half-reactions glucose declares, on a
+      // The same two half-reactions glucose declares, on a
       // different pair of groups — the carboxyl keeps its C and loses –OH, the
       // amino keeps its N and loses one H. Same O + H + H, same one bond made.
       // That the sugar and the amino acid need one table and not two is the

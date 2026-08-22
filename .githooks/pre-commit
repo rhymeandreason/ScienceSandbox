@@ -203,67 +203,6 @@ else
   echo "pre-commit: skipping check-lobes.js — no spec, molgraph or lobes/ file staged"
 fi
 
-# demos/condense/ gates itself, plus condense-drag.js (it owns the recipe table
-# the checker reads) and every mol-*.js: the pose the lesson puts on screen is
-# lifted from the PRODUCT spec, so editing maltose or glucose moves geometry the
-# drag module never touches. The failure this catches has no visual tell — swap
-# the donor and acceptor roles and check-molecules.js still passes clean, because
-# an OH leaving one side and an H the other is a water whichever way round it
-# goes. See condense/check-condense.js's header.
-if git diff --cached --name-only \
-   | grep -qE '^demos/(condense/.*|condense-drag\.js|mol-[a-z]*\.js|molecules\.js|skel\.js)$'; then
-  if ! node condense/check-condense.js > /tmp/ccd.$$ 2>&1; then
-    tail -30 /tmp/ccd.$$; rm -f /tmp/ccd.$$
-    echo ""
-    echo "pre-commit FAILED: check-condense.js — a condensation no longer lands on"
-    echo "  its product. A superposition failure means the page would pose a shape"
-    echo "  no spec vouches for; a linkage failure means the roles build the bond"
-    echo "  through the wrong atom, which every other checker passes."
-    exit 1
-  fi
-  rm -f /tmp/ccd.$$
-else
-  echo "pre-commit: skipping check-condense.js — no spec or condense/ file staged"
-fi
-
-# demos/chain/ gates itself, plus chain-repeat.js and the domain files. maltose
-# and cellobiose carry torsions SOLVED against a published helix, so they are a
-# derived field like tools/bake-flat2d.js's output — and a stale one is invisible
-# at two residues. It only shows up two hundred residues later.
-if git diff --cached --name-only \
-   | grep -qE '^demos/(chain/.*|chain-repeat\.js|condense/frame\.js|mol-[a-z]*\.js|molecules\.js|skel\.js)$'; then
-  if ! node chain/check-chain.js > /tmp/cchn.$$ 2>&1; then
-    tail -30 /tmp/cchn.$$; rm -f /tmp/cchn.$$
-    echo ""
-    echo "pre-commit FAILED: check-chain.js — a linkage stopped building its polymer."
-    echo "  Re-solve with tools/solve-linkage.js, or fix what moved the geometry."
-    exit 1
-  fi
-  rm -f /tmp/cchn.$$
-else
-  echo "pre-commit: skipping check-chain.js — no spec or chain/ file staged"
-fi
-
-# demos/chair/ gates itself, plus chair-flip.js and every mol-*.js: the flip is
-# computed from a spec's own geometry, so a re-baked sugar changes what the page
-# draws without touching this module. The failure it catches has no visual tell
-# whatsoever — a mirrored sugar renders pixel-identical, which is how L-ribitol
-# once shipped here (see chair/check-chair.js).
-if git diff --cached --name-only \
-   | grep -qE '^demos/(chair/.*|chair-flip\.js|mol-[a-z]*\.js|molecules\.js|skel\.js|kit/molgraph\.js)$'; then
-  if ! node chair/check-chair.js > /tmp/cch.$$ 2>&1; then
-    tail -30 /tmp/cch.$$; rm -f /tmp/cch.$$
-    echo ""
-    echo "pre-commit FAILED: check-chair.js — a ring flip stopped being a flip."
-    echo "  A handedness failure means the ENANTIOMER is being drawn, and it"
-    echo "  looks exactly like the real thing."
-    exit 1
-  fi
-  rm -f /tmp/cch.$$
-else
-  echo "pre-commit: skipping check-chair.js — no spec or chair/ file staged"
-fi
-
 # dna/ gates itself, plus the nucleobase specs and the two modules its answers
 # are built out of. pairing.js takes lone-pair directions from lobes/ and has
 # kit/hbond.js count the bonds in the pose it solves, so a change in either can

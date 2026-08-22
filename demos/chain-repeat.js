@@ -2,7 +2,7 @@
  *  chain-repeat.js — one linkage, repeated, becomes a polymer's shape
  * =============================================================================
  *  Plain arrays: no THREE, no Stage. Browser global `ChainRepeat` and a Node
- *  export. Needs condense/frame.js for the rigid match.
+ *  export. Needs chain/frame.js for the rigid match.
  *
  *  WHAT THIS IS FOR. contrast-lab draws maltose beside cellobiose and the specs
  *  themselves say why that is as far as it goes: a polymer's coil-versus-ribbon
@@ -43,7 +43,7 @@
   'use strict';
 
   const F = global.CondenseFrame
-    || (typeof require==='function' ? require('./condense/frame.js') : null);
+    || (typeof require==='function' ? require('./chain/frame.js') : null);
 
   const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
   const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
@@ -55,7 +55,7 @@
   /* The rigid move carrying residue `sufA` onto residue `sufB`, plus the screw
    * it describes: how far round, and how far along, one repeat goes. */
   function screwOf(spec, triad, sufA, sufB){
-    if(!F) throw new Error('chain-repeat: condense/frame.js must be loaded first');
+    if(!F) throw new Error('chain-repeat: chain/frame.js must be loaded first');
     const n=nameIndex(spec);
     const pos=i=>{ const p=spec.atoms[i].pos; return [p[0],p[1],p[2]]; };
     const from=triad.map(t=>{ const i=n[t+sufA];

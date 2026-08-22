@@ -1,22 +1,19 @@
 /* =============================================================================
- *  condense/frame.js — the rigid transform that poses a reactant on its product
+ *  chain/frame.js — the rigid transform between two copies of one thing
  * =============================================================================
  *  Plain arrays, no THREE, no MolLib: browser global `CondenseFrame` and a Node
- *  export, so `check-condense.js` asserts the SAME code condense-drag.js poses
- *  with rather than a second copy of the arithmetic.
+ *  export, so chain/check-chain.js exercises the same code the page runs.
  *
- *  Three points fix a rigid body. Both residues of maltose and cellobiose are
- *  built by the same ringPyranose() as glucose itself, in the same call order,
- *  so a bench glucose and a product residue are not merely similar — they are
- *  the same coordinates in a different frame. That makes this an exact
- *  transform, and the checker holds it to that: it measures every mapped atom,
- *  not just the three the frame was built from, and fails on a deviation a fit
- *  would happily absorb.
+ *  Three points fix a rigid body. Give it a triad on one residue and the same
+ *  triad on another and it returns the move that carries the first onto the
+ *  second — which is what chain-repeat.js applies over and over to turn one
+ *  glycosidic linkage into a polymer.
  *
- *  Why that matters: α- and β-1,4 differ by nothing a bond length, a bond angle
- *  or a render can see (MolecularGeometry.md §1.3). A pose that were merely
- *  close would let the page draw maltose and call it cellobiose with every
- *  visible number still correct.
+ *  It expects the two triads to be the SAME geometry in different places, not
+ *  merely similar. Nothing here fits or averages: a triad that has been
+ *  distorted returns a transform that is quietly wrong rather than an error, so
+ *  the caller owes the assertion. chain/check-chain.js is that assertion for the
+ *  one caller there is.
  * ========================================================================== */
 (function(global){
   'use strict';
@@ -47,7 +44,7 @@
 
   /* The transform putting triad `from` (three [x,y,z]) onto triad `to`.
    * Returns { r, o, t } — rotate about `o`, then translate to `t`, which is the
-   * order condense-drag.js applies its matrices in. */
+   * order chain-repeat.js applies them in. */
   function match(from,to){
     return { r:rotation(basis(from[0],from[1],from[2]), basis(to[0],to[1],to[2])),
              o:from[0], t:to[0] };

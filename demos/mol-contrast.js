@@ -78,7 +78,7 @@
     //   line, with one slot changed at C1 — because that one slot is the whole
     //   reason this molecule exists.
     //
-    //   condense-lab.html needs it as a REAGENT, and the reason is chemical
+    //   It is a REAGENT in its own right, and the reason is chemical
     //   rather than convenient. A student cannot turn β-glucose into α-glucose
     //   by rotating it: the two differ by which side of the ring C1's oxygen
     //   sits on, and getting from one to the other means breaking a bond at C1.
@@ -116,7 +116,7 @@
       stereo:{ axial:[C1] },
       view:VIEW.pyranose,       // the same object as glucose's — they cannot drift
       optH:CH,
-      // condense-lab.html. Same two roles β-glucose declares (mol-pathways.js),
+      // Same two roles β-glucose declares (mol-pathways.js),
       // reaching the other product: an axial anomeric oxygen builds the α-1,4
       // linkage, which is starch's. No `invert` — this molecule already IS the
       // configuration maltose needs, which is the entire point of it existing.

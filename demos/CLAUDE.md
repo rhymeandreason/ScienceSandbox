@@ -17,7 +17,6 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `water-lab.html` | Structure of water → the universal solvent (H-bonds, ice, temperature, salt dissolving), with an AI tutor: the lesson's text lives on the model as `annotate.js` callouts, and an ask box takes the sidebar | featured lesson |
 | `molecule-builder.html` | Build a bond by hand: drag atoms together and watch valence, geometry and charge decide what you get (H₂O · CH₄ · NH₃→NH₄⁺ · CO₂ · N₂ · HCl · NaCl · KCl · MgCl₂) | featured lesson |
 | `hemoglobin-lab.html` | **The protein-structure lesson.** All four levels on one molecule: a β chain folds 1→3, heme settles into the pocket, then the other three chains dock | featured lesson |
-| `condense-lab.html` | Dehydration synthesis: drag two molecules together and watch the bond cost a water. Three cards on one mechanic (cellulose · starch · peptide), where the α/β fork is which **reagent** you pick, not how you aim | prototype |
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | prototype |
 | `solvation-lab.html` | The forces **between** molecules, where `molecule-builder` stops. One card built (salt in water: hydration shells, water wedges the pair apart, the electron counts never move), two named (the H-bond alone · methane, where nothing happens) | prototype |
@@ -38,7 +37,6 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `lobes/lobes-test.html` | Test bench for `lobes/lobes.js` — lone pairs as teardrops, and which nitrogens on adenine are not acceptors | test |
 | `chain/glucose-chains-test.html` | Test bench for `chain-repeat.js` — one linkage, measured off the disaccharide, repeated twelve times. Cellulose's two-fold ribbon and starch's six-fold helix both fall out of the torsions, with nothing drawing either. A third chain (galactan) varies the acceptor's C4 instead of the donor's C1, and lactose sits beside it as the control that does not chain and *is* digestible | test |
 | `chair/chair-test.html` | Test bench for `chair-flip.js` — the ring flip. Orbit to see the chair, flip it, and watch every substituent trade axial for equatorial. Glucose is the only one of the three that gets all five out of the way at once | test |
-| `condense/condense-test.html` | Test bench for `condense-drag.js` — dehydration synthesis as a drag: two glucoses (α or β reagent → maltose or cellobiose) and two alanines, each releasing the water the bond costs | test |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
 ## Making a new lesson
@@ -108,7 +106,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js && node condense/check-condense.js && node chair/check-chair.js && node chain/check-chain.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js && node chair/check-chair.js && node chain/check-chain.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:

@@ -1147,10 +1147,13 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
   }
 
   // ---- condensation (dehydration synthesis) ----------------------------
-  // condense-lab.html's whole claim is that the sugar, the amino acid and the
-  // lipid enter ONE reaction: a bond is made and a water leaves. A `condense`
-  // block says which atoms that means on this molecule, and everything below
-  // exists because a wrong index here is invisible on screen — the animation
+  // A `condense` block says which atoms a condensation moves on this molecule:
+  // one bond made, one water released. The claim it encodes is that the sugar,
+  // the amino acid and the lipid enter ONE reaction. No page draws it today, but
+  // it is a fact about the molecule rather than about a page, and it is what
+  // LESSONS-ROADMAP §1's hydrolysis half reads — an enzyme runs this backwards.
+  //
+  // Everything below exists because a wrong index here is invisible: a drawing
   // would still make a bond and still release something water-shaped, just off
   // the wrong group, and the student would learn the wrong chemistry fluently.
   //
