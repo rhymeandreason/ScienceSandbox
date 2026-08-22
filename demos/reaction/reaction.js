@@ -946,6 +946,32 @@ function create(host) {
    * stage is the thioester — which is the case at both departures and at
    * neither arrival. Falls back to the group's origin so a spec without one
    * costs the flight its precision rather than sending it to NaN. */
+  /* AN ACID PARKED BESIDE A SULFUR, not on top of it, and not level with it.
+   * The lane moves as a whole, so aiming its CENTRE at the thiol buries the
+   * small molecule inside the handle, and moving it in x alone leaves it under
+   * the handle's body while the sulfur is up at the tail — which is the join
+   * happening somewhere other than where the ring says it did.
+   *
+   * SO IT PARKS ON THE SULFUR'S FAR SIDE, along the line out from the handle's
+   * own centre: past the thiol is the one direction with no coenzyme A in it,
+   * and it is also the side the acyl group really sits on. Its own half-size,
+   * off the mesh, is the clearance. */
+  const _dockBox = new THREE.Box3();
+  const _dockV = new THREE.Vector3();
+  function dockPoint(l, seat, held) {
+    _dockBox.setFromObject(l.g);
+    const r = Math.max(_dockBox.max.x - _dockBox.min.x,
+                       _dockBox.max.y - _dockBox.min.y,
+                       _dockBox.max.z - _dockBox.min.z) * 0.5;
+    const out = _dockV.copy(seat).sub(held.g.getWorldPosition(new THREE.Vector3()));
+    if (out.lengthSq() < 1e-6) out.set(1, 0, 0);
+    out.normalize().multiplyScalar(r * 0.9);
+    // IN THREE AXES. The thiol is tens of units deep on a molecule this long,
+    // so a dock solved in the lane plane parks the acid in FRONT of the sulfur:
+    // right from the opening camera, wrong the moment the student orbits.
+    return {x: seat.x + out.x, y: seat.y + out.y, z: seat.z + out.z};
+  }
+
   function thiolWorld(l) {
     const i = meta(specOf(l.key)).thiol, u = l.g.userData;
     return (i != null && u.atomMeshes[i]) ? u.atomWorld(i).clone()
@@ -1053,9 +1079,6 @@ function create(host) {
         if (c.step.couple) hydrideAway(ac, meta(specOf(acid.key)).hydride);
         later(() => carbonAway(acid, meta(specOf(acid.key)).decarb), T.OX_GAP);
       }
-      // …then they close. Eased by the render loop toward x=0, so the two
-      // visibly travel rather than cutting to a new layout.
-      later(() => ls.forEach(l => { l.g.userData.tx = 0; }), gap);
       /* ---- AND THE HANDLE LEAVES ONLY IF THE PRODUCT IS NOT ONE -----------
        * Both kinds of join have a molecule on stage whose metadata calls
        * itself a carrier, and they mean opposite things. At citrate synthase
@@ -1066,13 +1089,35 @@ function create(host) {
        * step just made. The product answers which case this is. */
       const releases = !meta(c.product).carrier;
       const held = ls.find(l => meta(specOf(l.key)).carrier);
+      /* ---- WHERE THEY CLOSE, AND IT IS NOT ALWAYS THE MIDDLE --------------
+       * A thioester forming has a place the acyl group has to REACH: coenzyme
+       * A's sulfur, at one end of a 23-atom handle. Closing on the midpoint
+       * leaves the two carbons in the centre of the frame and the new bond off
+       * at the tail, which is a join the student cannot find. So the acid
+       * travels to the thiol and the handle holds still. A join that RELEASES
+       * the handle (citrate synthase) keeps the midpoint: there the product is
+       * the acid, and nothing has to arrive anywhere in particular. */
+      const docking = (!releases && held) ? ls.find(l => l !== held) : null;
+      // …then they close. Eased by the render loop, so they visibly travel
+      // rather than cutting to a new layout.
       later(() => {
-        FX.spawnRing(mid, releases ? PAL.atoms.C : THIO());
+        if (docking) { const to = dockPoint(docking, thiolWorld(held), held);
+                       const u = docking.g.userData;
+                       u.tx = to.x; u.ty = to.y; u.tz = to.z; }
+        else ls.forEach(l => { l.g.userData.tx = 0; });
+      }, gap);
+      later(() => {
+        FX.spawnRing(docking ? thiolWorld(held) : mid, releases ? PAL.atoms.C : THIO());
         if (releases && held) handleFly(thiolWorld(held), 'off');
       }, gap + T.JOIN);
       later(() => {
-        host.spawnLanes(c.keys, o => { o.g.position.set(0, o.g.position.y, 0); });
-        host.settleLanes(); c.land();
+        // The product takes over WHERE THE HANDLE WAS STANDING and eases to the
+        // single lane, so the new bond stays under the ring that just marked it.
+        const from = docking ? held.g.position.x : 0;
+        host.spawnLanes(c.keys, o => { o.g.position.set(from, o.g.position.y, 0);
+                                       o.g.userData.tx = 0; });
+        if (!docking) host.settleLanes();
+        c.land();
       }, gap + T.JOIN + T.PLAIN);
     }});
 

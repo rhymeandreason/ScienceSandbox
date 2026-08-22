@@ -190,7 +190,8 @@
     function settle(){
       lanes.forEach(l=>{ const u=l.g.userData;
         if(u.tx!=null) l.g.position.x=u.tx;
-        if(u.ty!=null) l.g.position.y=u.ty; });
+        if(u.ty!=null) l.g.position.y=u.ty;
+        if(u.tz!=null) l.g.position.z=u.tz; });
     }
 
     /* ONE LANE replaced in place — a per-lane step has no whole-state index to
@@ -217,7 +218,11 @@
     function step(){
       lanes.forEach(l=>{ const u=l.g.userData;
         if(u.tx!=null) l.g.position.x+=(u.tx-l.g.position.x)*EASE;
-        if(u.ty!=null) l.g.position.y+=(u.ty-l.g.position.y)*EASE; });
+        if(u.ty!=null) l.g.position.y+=(u.ty-l.g.position.y)*EASE;
+        // A LANE IS NORMALLY FLAT AT z=0 and only `tz` moves it off that plane.
+        // A molecule docking onto an atom has to, because the atom has a depth
+        // and a lane parked in front of it only looks joined head-on.
+        if(u.tz!=null) l.g.position.z+=(u.tz-l.g.position.z)*EASE; });
     }
 
     /* Project each anchor, park its label over it. `position.x` is read LIVE,
