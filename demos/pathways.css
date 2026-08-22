@@ -185,13 +185,18 @@ font-size: 20px;
   .estat[aria-pressed="true"]{text-decoration-color:currentColor}
   /* between the two verdicts and the enzyme's name. Handwritten, because it is
      the aside a tutor would add in the margin — not another readout. */
-  #enznote{position:absolute;right:30px;top:calc(38% + 130px);z-index:5;
+  /* ANCHORED BY ITS BOTTOM, just above the enzyme's name — the note is
+     handwritten and runs to one, two or three lines, and a top anchor sets
+     where it STARTS, so a long one grows down through the name under it. From
+     the bottom it grows upward into empty stage instead. The 186px is the
+     name's own offset less the gap between them; move #enzname and move this. */
+  #enznote{position:absolute;right:30px;bottom:calc(70% - 180px);z-index:5;
     max-width:170px;text-align:right;pointer-events:none;
     font-family:var(--font-hand);font-size:24px;line-height:1.2;color:var(--ink);
     opacity:.85}
   #enznote[hidden]{display:none}
   @media (max-width:920px){ #enznote{right:12px;max-width:160px;font-size:15px} }
-  #enzname{position:absolute;right:26px;top:calc(38% + 200px);z-index:5;max-width:210px;
+  #enzname{position:absolute;right:26px;top:calc(35% + 200px);z-index:5;max-width:210px;
     text-align:right;pointer-events:none}
   #enzname[hidden]{display:none}
   #enzname .ek{font-family:var(--font-slab);font-size:16px;
