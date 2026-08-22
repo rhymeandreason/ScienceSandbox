@@ -25,6 +25,14 @@
   #tally{grid-template-columns:repeat(2,minmax(0,1fr));
     grid-template-rows:repeat(2,minmax(0,1fr));
     gap:10px 26px;padding:14px 9% 0}
+  /* THE NOTE IN THE GRID IS A SQUARE, and the size comes from the ROW: a
+     width-driven square is as tall as its cell is wide, which overruns the
+     tally the moment the window is. It also has to give up the sidebar's own
+     positioning — sticky with a bottom margin is how it rides the scrolling
+     column, and neither means anything in a cell. Content stays at the top,
+     level with the counts under the molecules beside it. */
+  #tally #ledger{position:static;margin:0 auto;height:100%;width:auto;
+    aspect-ratio:1;max-width:100%;overflow:hidden;padding:18px 20px}
 </style>
 </head>
 <body>
