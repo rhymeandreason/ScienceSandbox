@@ -34,43 +34,66 @@
 #insetcap b { color: var(--ink, #2e2a24); font-weight: 600; white-space: nowrap; }
 #insetcap .go { margin-left: auto; opacity: .7; }
 
-/* The experiment log. Deliberately parked under the ask sheet's exact
-   footprint (chat.css: top 96, right 18, width 316): it is what the rail says
-   while the student has not asked anything, and the sheet covers it the moment
-   they do. */
+/* The experiment log, drawn as a sheet of notepaper: brighter stock than the
+   stage (--surface-card), a ruled margin the boxes sit behind, and a second
+   sheet showing under it. The top sheet keeps the ask sheet's exact footprint
+   (chat.css: top 96, right 18, width 316) — it is what the rail says until the
+   student asks something, and the sheet covers it the moment they do. Only the
+   sheet BEHIND is turned, so nothing pokes out from under the tutor. */
 #trylist {
   position: absolute; top: 96px; right: 18px; width: 316px; z-index: 3;
-  box-sizing: border-box; padding: 13px 16px 6px;
-  font-size: 13px; line-height: 1.4; color: var(--ink-2, #6b6459);
-  /* its own ground: the model drifts under the rail, and a red sphere behind a
-     line of 13px type is the end of reading it */
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--paper, #f6f1e7) 90%, transparent);
-  backdrop-filter: blur(3px);
-  border: 1px solid var(--rule, #ded6c8);
+  box-sizing: border-box; padding: 15px 18px 12px 30px;
+  font-family: var(--font-sans);
+  font-size: 12.5px; line-height: 1.45; color: var(--muted, #6b6459);
+  background: var(--surface-card, #fffdf7);
+  border: 1px solid var(--hair, #ded6c8);
+  border-radius: 2px;                       /* paper has corners, not radii */
+  box-shadow: 0 12px 26px rgba(52,40,24,.10), 0 1px 3px rgba(52,40,24,.09);
+}
+/* the sheet underneath */
+#trylist::after {
+  content: ''; position: absolute; z-index: -1; inset: 4px -3px -5px 3px;
+  background: var(--surface-card, #fffdf7);
+  border: 1px solid var(--hair, #ded6c8);
+  transform: rotate(1deg); transform-origin: 50% 100%;
+}
+/* the ruled margin, in the ember the lesson already uses for warmth */
+#trylist::before {
+  content: ''; position: absolute; left: 20px; top: 0; bottom: 0; width: 1px;
+  background: color-mix(in srgb, var(--hot, #c1662a) 30%, transparent);
 }
 #tryhead {
   display: flex; align-items: baseline; gap: .5em;
-  padding-bottom: 8px; border-bottom: 1.5px dashed var(--hair, #ded6c8);
-  font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+  margin-bottom: 4px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--paper-line, #e6dccb);
+  font-family: var(--font-hand, cursive); font-size: 21px; line-height: 1;
+  color: var(--ink, #2e2a24);
 }
-#tryhead .count { margin-left: auto; letter-spacing: 0; text-transform: none; opacity: .75; }
-#trylist ol { list-style: none; margin: 0; padding: 10px 0 0; }
+#tryhead .count {
+  margin-left: auto; font-family: var(--font-sans); font-size: 11px;
+  color: var(--muted, #6b6459); opacity: .8;
+}
+#trylist ol { list-style: none; margin: 0; padding: 0; }
+/* every line sits on its own rule, the way a page is printed */
 #trylist li {
-  display: flex; gap: 9px; align-items: flex-start;
-  padding: 7px 0; transition: opacity .3s ease;
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 8px 0 7px;
+  border-bottom: 1px solid var(--paper-line, #e6dccb);
+  transition: opacity .3s ease;
 }
+#trylist li:last-child { border-bottom: 0; }
 /* the box is drawn, not an <input>: nothing here is submitted, and a real
    checkbox invites clicking the list instead of doing the thing */
 #trylist li::before {
   content: ''; flex: none; margin-top: 2px;
-  width: 13px; height: 13px; border-radius: 3px;
-  border: 1.5px solid var(--rule, #ded6c8);
+  width: 12px; height: 12px; border-radius: 2px;
+  border: 1.2px solid var(--hair, #ded6c8);
+  background: var(--surface-card, #fffdf7);
 }
-#trylist li.done { opacity: .45; }
+#trylist li.done { opacity: .5; }
 #trylist li.done::before {
-  content: '✓'; font-size: 10px; line-height: 11px; text-align: center;
-  border-color: var(--ink-2, #6b6459); color: var(--ink-2, #6b6459);
+  content: '✓'; font-size: 9.5px; line-height: 11px; text-align: center;
+  border-color: var(--muted, #6b6459); color: var(--muted, #6b6459);
 }
 #trylist li.done .txt { text-decoration: line-through; }
 
@@ -78,14 +101,12 @@
    to attempt — a to-do you cannot do yet is just a spoiler. */
 #trylist li.locked { display: none; }
 #trylist li.challenge {
-  margin-top: 4px; padding-top: 12px;
-  border-top: 1.5px dashed var(--hair, #ded6c8);
   color: var(--ink, #2e2a24);
   animation: tryin .45s ease both;
 }
 #trylist li.challenge .tag {
-  display: block; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--accent, #b8722c); margin-bottom: 3px;
+  display: block; font-family: var(--font-hand, cursive);
+  font-size: 15px; line-height: 1; color: var(--hot, #c1662a); margin-bottom: 2px;
 }
 @keyframes tryin { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1 } }
 </style>
