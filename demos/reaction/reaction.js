@@ -1172,12 +1172,19 @@ function create(host) {
       }, gap);
       later(() => FX.spawnRing(docking ? site() : mid, THIO()), gap + T.JOIN);
       later(() => {
-        // The product takes over WHERE THE HANDLE WAS STANDING and eases to the
-        // single lane, so the new bond stays under the ring that just marked it.
-        const from = docking ? held.g.position.x : 0;
-        host.spawnLanes(c.keys, o => { o.g.position.set(from, o.g.position.y, 0);
-                                       o.g.userData.tx = 0; });
-        if (!docking) host.settleLanes();
+        /* THE PRODUCT TAKES THE HANDLE'S PLACE, all three axes of it. The lanes
+         * carry their outgoing heights onto the incoming ones, and the acid that
+         * just docked is up at the sulfur — so taking that height drops the
+         * thioester in from the top of the frame, arriving from nowhere. It
+         * should simply be standing where the handle was: the swap IS the
+         * moment the docking finished. */
+        if (docking) {
+          const p = held.g.position;
+          host.spawnLanes(c.keys, o => { o.g.position.copy(p); o.g.userData.tx = 0; });
+        } else {
+          host.spawnLanes(c.keys, o => { o.g.position.set(0, o.g.position.y, 0); });
+          host.settleLanes();
+        }
         c.land();
       }, gap + T.JOIN + T.PLAIN);
     }});
