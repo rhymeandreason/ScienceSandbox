@@ -1485,8 +1485,8 @@ let didInset=false;
 // c: {p (temperature params), hb (bonds this frame), escaping}
 const TRIALS=[
  {text:'Open the single molecule. Read the two charges.',    test:()=>didInset},
- {text:'Heat it to 100°C. The bonds stretch before they go.',test:c=>S.temperature>=95},
- {text:'Boil it. Nothing escapes until its bonds are gone.', test:c=>c.escaping>0},
+ {text:'Boil it. The bonds stretch, then break, then a molecule leaves.',
+  test:c=>c.escaping>0},
  {text:'Cool it to 0°C. Watch the lattice push apart.',      test:c=>c.p.fz>0.6},
  {text:'Add salt. Count the waters in one shell.',           test:()=>salt.some(m=>m.userData.shellCount>=5)},
  {text:'Freeze the salt water. 0°C is no longer cold enough.',test:c=>salt.length>0 && c.p.fz>0.3},
