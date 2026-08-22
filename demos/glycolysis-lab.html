@@ -417,7 +417,11 @@ font-size: 20px;
      right the lesson sits, and the tray shows only the carriers this step
      touches — without a floor its width would change with the step and slide
      the stage sideways. 152px is the tile width; keep the two in step. */
-  #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:7;
+  /* z-4: OVER the canvas (#gl is 2) so the carrier's molecule and cards draw on
+     the stage, UNDER #spots (6) so a lane's marked bond stays clickable where
+     the 400px-wide carrier column reaches over it — which it does below about
+     1170px. The carrier's own target (#cspot, z-8) is above either way. */
+  #tray{position:absolute;left:26px;top:50%;transform:translateY(-50%);z-index:4;
     min-width:152px;
     display:flex;flex-direction:column;align-items:stretch;gap:3px}
   .tstrip{display:flex;flex-direction:column;gap:2px}
