@@ -33,6 +33,46 @@
 }
 #insetcap b { color: var(--ink, #2e2a24); font-weight: 600; white-space: nowrap; }
 #insetcap .go { margin-left: auto; opacity: .7; }
+
+/* The experiment log. Deliberately parked under the ask sheet's exact
+   footprint (chat.css: top 96, right 18, width 316): it is what the rail says
+   while the student has not asked anything, and the sheet covers it the moment
+   they do. */
+#trylist {
+  position: absolute; top: 96px; right: 18px; width: 316px; z-index: 3;
+  box-sizing: border-box; padding: 13px 16px 6px;
+  font-size: 13px; line-height: 1.4; color: var(--ink-2, #6b6459);
+  /* its own ground: the model drifts under the rail, and a red sphere behind a
+     line of 13px type is the end of reading it */
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper, #f6f1e7) 90%, transparent);
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--rule, #ded6c8);
+}
+#tryhead {
+  display: flex; align-items: baseline; gap: .5em;
+  padding-bottom: 8px; border-bottom: 1.5px dashed var(--hair, #ded6c8);
+  font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+}
+#tryhead .count { margin-left: auto; letter-spacing: 0; text-transform: none; opacity: .75; }
+#trylist ol { list-style: none; margin: 0; padding: 10px 0 0; }
+#trylist li {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 7px 0; transition: opacity .3s ease;
+}
+/* the box is drawn, not an <input>: nothing here is submitted, and a real
+   checkbox invites clicking the list instead of doing the thing */
+#trylist li::before {
+  content: ''; flex: none; margin-top: 2px;
+  width: 13px; height: 13px; border-radius: 3px;
+  border: 1.5px solid var(--rule, #ded6c8);
+}
+#trylist li.done { opacity: .45; }
+#trylist li.done::before {
+  content: '✓'; font-size: 10px; line-height: 11px; text-align: center;
+  border-color: var(--ink-2, #6b6459); color: var(--ink-2, #6b6459);
+}
+#trylist li.done span { text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -89,6 +129,11 @@
   <!-- The rail holds the tutor and nothing else: the lesson's own text is on
        the model, as annotations, where the thing it describes is. -->
   <div id="side">
+    <!-- what the rail says until the student asks something; the sheet covers it -->
+    <div id="trylist">
+      <div id="tryhead"><span>Try this</span><span class="count" id="trycount"></span></div>
+      <ol id="tryitems"></ol>
+    </div>
     <div id="askslot"></div>
   </div>
 </div>
@@ -1388,7 +1433,7 @@ function syncInset(){
   insetTtl.textContent = portrait ? 'One molecule' : 'Liquid water';
   insetSub.textContent = portrait ? 'the shape and the charges' : 'the network it makes';
 }
-insetBox.onclick=()=> applyStep(S.step===0 ? insetReturn : 0);
+insetBox.onclick=()=>{ didInset=true; applyStep(S.step===0 ? insetReturn : 0); };
 // the lesson's own scene from further out, on its own camera, so the stage's
 // framing, its ask-sheet view offset and the student's orbit are left alone
 function drawBulk(){
@@ -1403,6 +1448,44 @@ function renderInset(){
   insetDetail.kit.faceCamera(insetCam);
   insetR.render(insetScene,insetCam);
 }
+
+/* =============================================================
+ *  THE EXPERIMENT LOG
+ *
+ *  A to-do list, not a summary: each line names something to DO, and it ticks
+ *  itself off the scene's own state rather than on a click. So the tick is
+ *  evidence the student made the thing happen — a line cannot be checked off
+ *  by agreeing with it.
+ * ============================================================= */
+let didOrbit=false, didInset=false;
+canvas.addEventListener('pointerdown',()=>{ let moved=false;
+  const mv=()=>{ moved=true; }, up=()=>{ didOrbit=didOrbit||moved;
+    canvas.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); };
+  canvas.addEventListener('pointermove',mv); window.addEventListener('pointerup',up); });
+
+// c: {p (temperature params), hb (bonds this frame), escaping}
+const TRIALS=[
+ {text:'Drag the water around. Find the V.',                 test:()=>didOrbit},
+ {text:'Open the single molecule. Read the two charges.',    test:()=>didInset},
+ {text:'Heat it to 100°C. The bonds stretch before they go.',test:c=>S.temperature>=95},
+ {text:'Boil it. Nothing escapes until its bonds are gone.', test:c=>c.escaping>0},
+ {text:'Cool it to 0°C. Watch the lattice push apart.',      test:c=>c.p.fz>0.6},
+ {text:'Add salt. Count the waters in one shell.',           test:()=>salt.some(m=>m.userData.shellCount>=5)},
+ {text:'Freeze the salt water. 0°C is no longer cold enough.',test:c=>salt.length>0 && c.p.fz>0.3},
+];
+const tryItemsEl=document.getElementById('tryitems'), tryCountEl=document.getElementById('trycount');
+TRIALS.forEach(t=>{ const li=document.createElement('li');
+  li.innerHTML='<span></span>'; li.firstChild.textContent=t.text;
+  t.el=li; tryItemsEl.appendChild(li); });
+function syncTrials(c){
+  let n=0;
+  for(const t of TRIALS){
+    if(!t.done && t.test(c)){ t.done=true; t.el.classList.add('done'); }
+    if(t.done) n++;
+  }
+  tryCountEl.textContent=n+'/'+TRIALS.length;
+}
+syncTrials({p:{fz:0},escaping:0});
 
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band
@@ -1490,6 +1573,7 @@ function loop(){
     } });
   if(salt.length){ checkSaltArrival(); checkDissociation(); updateIons(); separateIonsFromWater(); updateSaltBonds(); updateIonBonds(); } else clearIonBonds();
   renderReadout(p,r,escaping);
+  syncTrials({p, hb:r.hbondCount, escaping});
   FXi.step();
   // letters/badges ride just proud of their own atom's front surface — see
   // atomkit.js faceCamera(); needs the camera's final position for this frame
