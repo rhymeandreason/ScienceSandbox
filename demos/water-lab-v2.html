@@ -72,7 +72,22 @@
   content: '✓'; font-size: 10px; line-height: 11px; text-align: center;
   border-color: var(--ink-2, #6b6459); color: var(--ink-2, #6b6459);
 }
-#trylist li.done span { text-decoration: line-through; }
+#trylist li.done .txt { text-decoration: line-through; }
+
+/* The challenge stays out of the DOM's flow until the scene makes it possible
+   to attempt — a to-do you cannot do yet is just a spoiler. */
+#trylist li.locked { display: none; }
+#trylist li.challenge {
+  margin-top: 4px; padding-top: 12px;
+  border-top: 1.5px dashed var(--hair, #ded6c8);
+  color: var(--ink, #2e2a24);
+  animation: tryin .45s ease both;
+}
+#trylist li.challenge .tag {
+  display: block; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--accent, #b8722c); margin-bottom: 3px;
+}
+@keyframes tryin { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1 } }
 </style>
 </head>
 <body>
@@ -1472,20 +1487,35 @@ const TRIALS=[
  {text:'Cool it to 0°C. Watch the lattice push apart.',      test:c=>c.p.fz>0.6},
  {text:'Add salt. Count the waters in one shell.',           test:()=>salt.some(m=>m.userData.shellCount>=5)},
  {text:'Freeze the salt water. 0°C is no longer cold enough.',test:c=>salt.length>0 && c.p.fz>0.3},
+ /* THE CHALLENGE. It appears only once there is ice on the stage, because
+    before that it is a riddle about nothing. `iceT` is the temperature the ice
+    formed at: melting it by nudging the slider up is not the trick, so the win
+    only counts while the water is still as cold as it was. */
+ {text:'Melt the ice. Do not warm it.', tag:'Challenge', hidden:true,
+  reveal:c=>c.p.fz>0.85,
+  test:c=>salt.length>0 && c.p.fz<0.15 && S.temperature<=iceT},
 ];
+let iceT=0;
 const tryItemsEl=document.getElementById('tryitems'), tryCountEl=document.getElementById('trycount');
 TRIALS.forEach(t=>{ const li=document.createElement('li');
-  li.innerHTML='<span></span>'; li.firstChild.textContent=t.text;
+  li.innerHTML='<div>'+(t.tag?'<span class="tag"></span>':'')+'<span class="txt"></span></div>';
+  const body=li.firstChild;
+  body.lastChild.textContent=t.text;
+  if(t.tag){ body.firstChild.textContent=t.tag; li.classList.add('challenge'); }
+  if(t.hidden) li.classList.add('locked');
   t.el=li; tryItemsEl.appendChild(li); });
 function syncTrials(c){
-  let n=0;
+  if(c.p.fz>0.85) iceT=S.temperature;   // the temperature the standing ice formed at
+  let n=0, shown=0;
   for(const t of TRIALS){
+    if(t.hidden && !t.shown){ if(!t.reveal(c)) continue; t.shown=true; t.el.classList.remove('locked'); }
+    shown++;
     if(!t.done && t.test(c)){ t.done=true; t.el.classList.add('done'); }
     if(t.done) n++;
   }
-  tryCountEl.textContent=n+'/'+TRIALS.length;
+  tryCountEl.textContent=n+'/'+shown;
 }
-syncTrials({p:{fz:0},escaping:0});
+syncTrials({p:{fz:0},escaping:0});   // draw the list before the first frame
 
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band
