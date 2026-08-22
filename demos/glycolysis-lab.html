@@ -1648,7 +1648,7 @@ function placeEnz(){
       `<div class="enzblob"><div class="enzwob">${BLOB_SVG}</div></div>`).join('');
   if(enzEl.dataset.on!==key){
     enzEl.dataset.on=key;
-    [...enzEl.children].forEach(el=>{ el._pin=null; el._at=null; el._big=0; });
+    [...enzEl.children].forEach(el=>{ el._pin=null; el._at=null; });
   }
   // THE SPLIT HOLDS STILL, and it is the only one that does: aldolase takes one
   // sugar and lets go of two, so the blob is placed on the whole molecule and
@@ -1713,15 +1713,16 @@ function placeEnz(){
       if(split && laneSettled(grp)) el._pin=pin;
     }
     enzV.copy(pin.c).project(camera);
-    // IT GROWS WITHIN A STEP AND NEVER SHRINKS. Step 1's sugar puts on a
-    // phosphate, so a live measure would tighten the blob around a molecule that
-    // just got bigger — the enzyme appearing to squeeze what it is holding. The
-    // high-water mark is per step: the next key measures the product afresh.
-    // IN WORLD UNITS, so the mark is a size of molecule and not a size on
-    // screen: kept in pixels it survives the camera pulling back and leaves the
-    // blob at the zoom it was measured in.
-    el._big=Math.max(el._big||0, pin.d);
-    const want=[ dx+(enzV.x*0.5+0.5)*w, dy+(-enzV.y*0.5+0.5)*h, el._big*pxPerWorld*BLOB_K ];
+    // THE SIZE IS LIVE TOO, and it is worth saying why it is not held. Holding a
+    // high-water mark for the step reads better on paper — step 1's sugar grows
+    // a phosphate and a live measure tightens around it — but it is a place a
+    // wrong value can hide: one frame measured while a swap lands or an atom is
+    // between two homes, and the blob keeps that size until the step changes,
+    // reachable only by leaving the step or by rebuilding the element (which is
+    // what unticking the enzymes box and ticking it back does, and why that
+    // looked like a cure). Nothing here now outlives a frame except the ease
+    // below, and an ease is self-correcting by construction.
+    const want=[ dx+(enzV.x*0.5+0.5)*w, dy+(-enzV.y*0.5+0.5)*h, pin.d*pxPerWorld*BLOB_K ];
     // EASED, AND SNAPPED ON A NEW STEP. Within a step the target moves for real
     // reasons — a phosphate lands, a product settles — and chasing it frame for
     // frame reads as the blob twitching; 0.18 lags it into a drift. Across steps
@@ -1731,8 +1732,10 @@ function placeEnz(){
     el._at=[ at[0]+(want[0]-at[0])*0.18,
              at[1]+(want[1]-at[1])*0.18,
              at[2]+(want[2]-at[2])*0.18 ];
-    el.style.left=el._at[0].toFixed(1)+'px';
-    el.style.top =el._at[1].toFixed(1)+'px';
+    // THE CORNER, because the centring is arithmetic and not a transform — see
+    // .enzblob in pathways.css for what sharing that property with the sway cost.
+    el.style.left=(el._at[0]-el._at[2]/2).toFixed(1)+'px';
+    el.style.top =(el._at[1]-el._at[2]/2).toFixed(1)+'px';
     el.style.width=el.style.height=el._at[2].toFixed(1)+'px';
   });
 }

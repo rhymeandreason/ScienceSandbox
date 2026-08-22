@@ -84,13 +84,18 @@
   #cspot[hidden]{display:none}
   /* A FLAT DISC WITH AN EDGE, not a feathered glow: the edge reads as a target
      you can hit rather than as lighting. */
+  /* CENTRED ON MARGINS, not on a transform, for the reason .enzblob is placed by
+     its corner: the pulse below owns `transform`, and a centring that shares the
+     property has to be restated in every keyframe — which an engine is then free
+     to apply on top of the base rather than instead of it. Margins are layout
+     and cannot be animated out from under the disc. */
   .sglow{position:absolute;width:50px;height:50px;border-radius:50%;
-    transform:translate(-50%,-50%);
+    margin:-25px 0 0 -25px;
     background:rgba(107,79,216,.30);
     animation:sglowPulse 2.4s ease-in-out infinite}
   @keyframes sglowPulse{
-    0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.75}
-    50%    {transform:translate(-50%,-50%) scale(1.12);opacity:1}}
+    0%,100%{transform:scale(.86);opacity:.75}
+    50%    {transform:scale(1.12);opacity:1}}
 
   /* THE PROMPT IS A CALLOUT (annotate.js, see drawHint), never text beside the
      disc — so kit/hotspot.js's own hint span is always handed '' and hidden. */
@@ -108,7 +113,7 @@
     background:none;cursor:pointer;display:block}
   .spot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){ .sglow{animation:none;opacity:.85} }
-  @media (max-width:920px){ .sglow{width:72px;height:72px}
+  @media (max-width:920px){ .sglow{width:72px;height:72px;margin:-36px 0 0 -36px}
     .spot{width:60px;height:60px} }
 
   /* ---------- THE ENZYME, behind the sugar ----------
@@ -122,7 +127,15 @@
      Ambient, not an event: nothing here marks a click. */
   #enzymes{position:absolute;inset:0;z-index:1;pointer-events:none}
   #enzymes[hidden]{display:none}
-  .enzblob{position:absolute;transform:translate(-50%,-50%);
+  /* LEFT/TOP ARE THE CORNER, not the centre: placeEnz subtracts the half-size
+     itself. The centring used to be a `translate(-50%,-50%)` here, which meant
+     every keyframe below had to restate it — and an engine that COMPOSES an
+     animation onto the base transform instead of replacing it then applies the
+     translate twice and paints the shape half a box up and to the left of the
+     footprint it was placed on. Safari did; Chrome did not, so the box an
+     inspector draws was right in both and only the ink moved. Layout does not
+     go in an animated property. */
+  .enzblob{position:absolute;
     animation:enzTurn 24s ease-in-out infinite}
   /* THE WOBBLE RIDES A DIV, NEVER THE <svg>. A transform on an SVG element is
      resolved against a box the engines do not agree on — `transform-origin:50%
@@ -140,8 +153,8 @@
   .enzblob:nth-child(2) .enzwob{animation-duration:11s;animation-delay:-3s}
   /* A SWAY, NOT A SPIN. A full turn reads as an object rotating on the stage —
      an event, and a wrong one: an enzyme is not a wheel. This is drift. */
-  @keyframes enzTurn{0%,100%{transform:translate(-50%,-50%) rotate(-7deg)}
-                     50%    {transform:translate(-50%,-50%) rotate(7deg)}}
+  @keyframes enzTurn{0%,100%{transform:rotate(-7deg)}
+                     50%    {transform:rotate(7deg)}}
   @keyframes enzWob{0%,100%{transform:scale(1,1) rotate(0deg)}
                     33%    {transform:scale(1.06,.94) rotate(4deg)}
                     66%    {transform:scale(.95,1.05) rotate(-3deg)}}
