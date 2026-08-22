@@ -22,21 +22,60 @@
      the stage. */
   :root{ --fad:#c9962b; --co2:#6c7a89; --carw:300px; }
 
-  /* FIVE CELLS, NOT FOUR. One turn makes four things and the ledger is the
-     fifth — three carriers across the top, then the carbon that left beside
-     the arithmetic that counts it. The ledger spans two columns because it is
-     rows of text, not a molecule, and squeezing it into a molecule's slot
-     makes the one cell you actually read the narrowest. */
-  #tally{grid-template-columns:repeat(3,minmax(0,1fr));
-    grid-template-rows:repeat(2,minmax(0,1fr));
+  /* FOUR ACROSS, THEN THREE. The top row is what one turn made, one molecule
+     per cell with the carbon that left beside the three carriers; the bottom
+     row is the arithmetic, on three notes — pyruvate oxidation, one turn, and
+     the total for a glucose. Twelve columns so 4×3 and 3×4 both land on the
+     same gutters, which is the only way the two rows read as one table. */
+  #tally{grid-template-columns:repeat(12,minmax(0,1fr));
+    grid-template-rows:minmax(0,1.15fr) minmax(0,1fr);
     gap:10px 22px;padding:14px 6% 0}
-  #tledger{grid-column:span 2}
-  /* THE STAGE RUNS UNDER THE SIDEBAR (it spans both columns so the molecule
-     centres on the PAGE), which is fine for one subject on the centre line and
-     wrong for a three-column grid: the right-hand cell was drawn beneath the
-     notes and ATP came out sliced down the middle. Clear the column here rather
-     than narrowing the stage — every other screen wants the full width. */
-  @media (min-width:921px){ #tally{padding-right:calc(316px + 2%)} }
+  .tcell{grid-column:span 3}
+  /* THE ROW IS A SUM, so the operators are in it: the two halves, then the ×2
+     that turns one pass into a glucose. Centred on the notes' own height, not
+     on the row's, so they sit against the paper however tall a note runs. */
+  #tnotes{grid-column:1 / -1;display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr) auto) minmax(0,1fr);
+    gap:14px;align-items:center}
+  /* SQUARE, AND SIZED BY THE ROW rather than by the column: a width-driven
+     square is as tall as its column is wide, which overflows the tally's own
+     height the moment the window is wide. Height first, aspect-ratio second,
+     centred in the column it sits in — three notes of one size, whatever the
+     window does. CONTENT TO THE TOP, though: the three notes are read across,
+     and rows centred in three squares of one size would still start at three
+     different heights the moment one note lists fewer products. */
+  #tnotes .sticky{aspect-ratio:1;height:100%;width:auto;margin:0 auto;
+    padding:20px 22px;overflow:hidden}
+  /* THE TITLE IS DOING MORE HERE than in the sidebar, where it names the one
+     card on screen: on the results screen the three titles ARE the argument —
+     one pass, one turn, one glucose — so they are read before the numbers. */
+  #tnotes .lhead{font-size:13px;letter-spacing:.06em;line-height:1.25;
+    color:var(--ink);margin-bottom:12px}
+  #tnotes .lhead .lsub{display:block;font-size:9px;margin:3px 0 0;
+    letter-spacing:.6px}
+  #tnotes .row{font-size:15px;padding:3.5px 0}
+  #tnotes .row .v{font-size:17px}
+  /* LOUD ENOUGH TO BE READ AS ARITHMETIC. At the muted weight the row was
+     three notes that happened to have marks between them; the sum only reads
+     as a sum if the operators carry the same ink as the numbers they join.
+     Aligned to the notes' TITLES rather than their middles, which is the line
+     the eye is already travelling along. */
+  #tnotes .tnop{align-self:start;margin-top:26px;
+    font-family:var(--font-slab);font-weight:700;
+    font-size:40px;line-height:1;color:var(--ink);white-space:nowrap}
+  /* THE TOTAL IS THE ONE TO READ, so it is the one that is not tilted away and
+     sits a shade prouder. The other two are its two halves. */
+  #tnotes .sticky{pointer-events:auto}
+  #tnotes .sticky.tot{transform:rotate(.9deg)}
+  #tnotes .sticky.tot .row .v{color:var(--nad)}
+  /* what the note is counting, beside its name and quieter than it */
+  .sticky .lhead .lsub{font-family:var(--font-sans);font-weight:600;font-size:8.5px;
+    letter-spacing:.5px;color:rgba(60,50,28,.5);margin-left:5px}
+  /* NO COLUMN RESERVED HERE. The stage runs under the sidebar, and this screen
+     used to inset itself to clear the notes standing in it — but the results
+     screen empties that column: the ring is down, the energy card is closed and
+     the running ledger is not forced up any more. Nothing to clear, so the
+     receipt centres on the page like everything else. */
 
   /* …and shorter on a short laptop. The tile plus its labels overruns a 768-tall
      window; the column is centred on the canvas, so an overrun pushes it off
@@ -85,6 +124,25 @@
   /* what enters and what leaves, on the rim */
   .rgtag{font-family:var(--font-slab);font-size:9.5px;font-weight:700;
     text-anchor:middle;dominant-baseline:middle}
+
+  #ledger .lfoot{font-family:var(--font-sans);font-size:9.5px;line-height:1.45;
+    color:rgba(60,50,28,.55);border-top:1.5px dashed rgba(60,50,28,.3);
+    margin-top:8px;padding-top:7px}
+  /* THE LEDGER'S SECOND COLUMN, this page's own: glycolysis's rows are a label
+     and a number, and pathways.css lays them out as such. Three columns here,
+     so the grid is declared where the third one is. */
+  #ledger .row{display:grid;grid-template-columns:1fr auto 46px;
+    align-items:baseline;gap:10px}
+  #ledger .row .v,#ledger .row .v2{text-align:right}
+  #ledger .row .v2{font-family:var(--font-slab);font-weight:700;font-size:15px;
+    color:rgba(60,50,28,.55);font-variant-numeric:tabular-nums}
+  #ledger .row.net .v2{font-size:17px}
+  /* the column heads: the smallest thing on the card, because they are read
+     once and the numbers under them are read every step */
+  #ledger .row.rhead{padding:0 0 4px;font-family:var(--font-sans);font-weight:600;
+    font-size:8.5px;letter-spacing:.7px;text-transform:uppercase;
+    color:rgba(60,50,28,.5)}
+  #ledger .row.rhead span{text-align:right}
 
   /* THE FLAVIN'S TONE ON THE ENERGY FIGURES. pathways.css colours the two tones
      glycolysis has (`n` NAD, `p` phosphate); `f` is this page's, because FAD is,
@@ -146,15 +204,27 @@
          camera, not pictures of them. -->
     <div id="tally" hidden>
       <div class="tcell" data-cell="nadh"><div class="tvis"></div>
-        <div class="tname"></div><div class="tcount"></div></div>
+        <div class="tname"></div><div class="tcount"></div>
+        <div class="tnote"></div></div>
       <div class="tcell" data-cell="fadh2"><div class="tvis"></div>
-        <div class="tname"></div><div class="tcount"></div></div>
+        <div class="tname"></div><div class="tcount"></div>
+        <div class="tnote"></div></div>
       <div class="tcell" data-cell="atp"><div class="tvis"></div>
-        <div class="tname"></div><div class="tcount"></div></div>
+        <div class="tname"></div><div class="tcount"></div>
+        <div class="tnote"></div></div>
       <div class="tcell" data-cell="co2"><div class="tvis"></div>
         <div class="tname"></div><div class="tcount"></div>
         <div class="tnote"></div></div>
-      <div class="tcell" id="tledger"></div>
+      <!-- …and the arithmetic under them, on three notes. Filled by drawTally
+           from the step table; nothing here is typed. -->
+      <div id="tnotes">
+        <div class="sticky" data-note="bridge"></div>
+        <div class="tnop">+</div>
+        <div class="sticky" data-note="turn"></div>
+        <!-- the multiplier is written by drawTally, off LAPS -->
+        <div class="tnop" id="tnx"></div>
+        <div class="sticky tot" data-note="total"></div>
+      </div>
     </div>
     <!-- ONE element so the camera has one thing to measure. Always full height
          (button hidden with `visibility`, not `display`) so framing is identical
@@ -168,7 +238,11 @@
       <!-- step caption, opened by the ⓘ. Child of the BAND, not the heading:
            centred on the stage, and out of reach of the heading's innerHTML. -->
       <div id="steptip" role="tooltip"></div>
-      <button id="actbtn"></button>
+      <!-- ONE ROW, so a second offer costs the bar no height: --barh is the
+           camera's bottom reserve, and a button stacking under another would
+           re-frame the shot. -->
+      <div id="actrow"><button id="actbtn"></button>
+        <button id="actalt" hidden></button></div>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
            node its own flex item, which shreds the sentence into columns -->
@@ -198,7 +272,7 @@
          Built by drawRing() off STEPS, so nothing here is typed twice. -->
     <div id="ringbox"></div>
     <!-- starts away: it is pinned up on Begin — see placeLedger -->
-    <div id="ledger" class="hid"></div>
+    <div id="ledger" class="sticky hid"></div>
     <div id="couplebox" class="note"></div>
     <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
@@ -378,7 +452,10 @@ const carrierKey=n=>n==='NAD+'?'NAD':n==='FADH₂'?'FADH2':n;
 const STEPS=[
   { n:'Bridge', stage:1, reagent:'NAD', need:'Load NAD⁺',
     species:['acetylcoa'], enz:'Pyruvate dehydrogenase complex',
-    hook:'Into the mitochondrion', rev:false,
+    // THE NAME EVERY TEXTBOOK USES. "The bridge" says what it does between two
+    // pathways; "pyruvate oxidation" is what it is called in the index a
+    // student will look it up in, and the heading carries both.
+    hook:'Pyruvate oxidation', rev:false,
     pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
     // OXALOACETATE IS NOT IN THIS REACTION — not on the stage, and not on the
     // A molecule standing by through a step it has no part in is one more thing
@@ -392,7 +469,8 @@ const STEPS=[
     spot:{ at:'decarb', say:'Take the first carbon off' },
     takeaway:`One of glucose's six carbons leaves here — as CO₂`,
     msg:`<b>Pyruvate dehydrogenase</b> strips a CO₂ from pyruvate and hands the
-      remaining two carbons to <b>coenzyme A</b>. Makes NADH. This is the bridge
+      remaining two carbons to <b>coenzyme A</b>. Makes NADH. Textbooks call this
+      step <b>pyruvate oxidation</b>; it is the bridge
       between glycolysis (cytosol) and the cycle (mitochondrial matrix) — and
       the step that commits carbon to being burned rather than stored.` },
 
@@ -1167,6 +1245,22 @@ const ringEl=document.getElementById('ringbox');
 let showRing=false;
 // The eight steps that ARE the ring: everything with a number.
 const RING_STEPS=STEPS.filter(s=>typeof s.n==='number');
+/* WHOSE COUNT IS WHOSE. This page runs pyruvate oxidation as part of a lap, so
+ * its per-turn numbers are one NADH and one CO₂ larger than a textbook's "per
+ * turn of the cycle" — the same arithmetic, a different bracket. Rather than
+ * change the lap, every count says which side of the bridge it came from.
+ * Derived: the bridge is the step with no number, so nothing here is typed. */
+const BRIDGE_STEPS=STEPS.filter(s=>typeof s.n!=='number');
+const sumOver=(list,k)=>list.reduce((n,s)=>n+(s[k]||0),0);
+const fromRing=k=>sumOver(RING_STEPS,k);
+const fromBridge=k=>sumOver(BRIDGE_STEPS,k);
+const BRIDGE_NAME='pyruvate oxidation';
+const sourceNote=k=>{
+  const r=fromRing(k), b=fromBridge(k);
+  if(!r && !b) return '';
+  return (b ? `${r} from the cycle + ${b} from ${BRIDGE_NAME}` : `${r} from the cycle`)
+       + `, each turn`;
+};
 // The node BEFORE the ring's first step — the molecule the cycle starts and
 // ends on. Read off the last step's product, so the loop's closure is derived.
 const RING_HOME=RING_STEPS[RING_STEPS.length-1].species[0];
@@ -1250,7 +1344,11 @@ let prevLedger=null;
  * not the running commentary. Except on the end screen, where it is one cell of
  * the closing tally and the toggle has nothing to say about it. */
 let showLedger=false;
-const ledgerOn=()=>showLedger||tallyOn();
+/* THE RUNNING LEDGER IS THE TOGGLE'S, AND ONLY THE TOGGLE'S. It used to be
+ * forced up on the results screen because that screen had no arithmetic of its
+ * own; it has three notes now, and a fourth yellow card saying nearly the same
+ * thing is one to read too many. */
+const ledgerOn=()=>showLedger && !tallyOn();
 function placeLedger(){
   const hid=ledgerEl.classList.contains('hid');
   if(intro || !ledgerOn()){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
@@ -1276,18 +1374,35 @@ function drawLedger(){
   const L=productsAt(done);
   const prev=prevLedger;
   const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
+  /* TWO COLUMNS: what has been run, and what a glucose comes to. The second is
+   * the ×2 stated as a number rather than as a turn you have to sit through —
+   * a student who skips turn two still leaves with the per-glucose figures, and
+   * one who watches it sees the left column arrive at the right one. Off `LAP`,
+   * summed from the step table, so neither column can drift from the other. */
+  const per=k=>LAP[k]*LAPS;
+  const row=(cls,label,k,val,gl)=>`<div class="row${cls?' '+cls:''}"><span>${label}</span>`
+    + `<span class="v${bumped(k)}" data-row="${k}">${val}</span>`
+    + `<span class="v2">${gl}</span></div>`;
   ledgerEl.innerHTML=
      `<div class="lhead">Running ledger${lap>1?` <span class="lturn">turn ${lap}</span>`:''}</div>`
-    +`<div class="row"><span>NADH</span><span class="v${bumped('nadh')}" data-row="nadh">${L.nadh}</span></div>`
-    +`<div class="row"><span>FADH₂</span><span class="v${bumped('fadh2')}" data-row="fadh2">${L.fadh2}</span></div>`
+    +`<div class="row rhead"><span></span><span>so far</span><span>per glucose</span></div>`
+    +row('','NADH','nadh',L.nadh,per('nadh'))
+    +row('','FADH₂','fadh2',L.fadh2,per('fadh2'))
     // THE ROW THAT MATTERS, and it is a net of the two above it — same shape as
     // glycolysis's "Net ATP", and put in the same place for the same reason.
-    +`<div class="row net"><span>Electron pairs</span><span class="v${bumped('pairs')}" data-row="pairs">${L.pairs}</span></div>`
-    +`<div class="row prod"><span>ATP</span><span class="v${bumped('made')}" data-row="made">${L.made}</span></div>`
+    +row('net','Electron pairs','pairs',L.pairs,per('nadh')+per('fadh2'))
+    +row('prod','ATP','made',L.made,per('made'))
     // NO CARBON COUNT. Glycolysis keeps one because 6 = 3 + 3 is that lesson's
     // whole event; here the molecules on stage are the count, and the ring's
     // 6C → 5C → 4C says the arithmetic where all of it is legible at once.
-    +`<div class="row"><span>CO₂ released</span><span class="v${bumped('co2')}" data-row="co2">${L.co2}</span></div>`;
+    +row('','CO₂ released','co2',L.co2,per('co2'))
+    /* THE BRACKET, stated once. A textbook's per-glucose totals include
+     * glycolysis's own ATP and NADH; these do not, and a student holding both
+     * needs to know which figure is which rather than deciding one of us
+     * cannot count. Glycolysis's numbers are that lesson's data and are not
+     * loaded here, so they are named, not quoted. */
+    +`<div class="lfoot">The cycle and ${BRIDGE_NAME}, ${LAPS} turns.
+        Glycolysis's own ATP and NADH are counted in that lesson, not here.</div>`;
   prevLedger=L;
 }
 
@@ -1440,15 +1555,15 @@ function drawTray(){
  *  produces the sentence this lesson exists to prevent.
  */
 const tallyEl=document.getElementById('tally');
-const sideEl=document.getElementById('side');
+/* THE CELLS COUNT WHAT HAS BEEN RUN — the molecules are on screen, and a number
+ * under one of them has to be the number of those. The ×2 is the LEDGER's job,
+ * in its own column, where a claim about a whole glucose belongs. */
 const TALLY=[
-  {k:'nadh',  spec:()=>NADH,      name:'NADH',  n:L=>L.nadh, keep:PAIRS.NAD},
-  {k:'fadh2', spec:()=>FADH2,     name:'FADH₂', n:L=>L.fadh2},
-  {k:'atp',   spec:()=>ATP,       name:'ATP',   n:L=>L.made},
-  // …and the one cell that is not a payoff: the carbon leaving. `note` says
-  // what the count MEANS, which for CO₂ is every carbon the glucose had.
-  {k:'co2',   spec:()=>M.co2,     name:'CO₂',   n:L=>L.co2,
-   note:L=>L.co2>=LAP.co2*LAPS ? 'every carbon glucose had' : ''},
+  {k:'nadh',  spec:()=>NADH,   name:'NADH',  n:L=>L.nadh,  lapKey:'nadh',  keep:PAIRS.NAD},
+  {k:'fadh2', spec:()=>FADH2,  name:'FADH₂', n:L=>L.fadh2, lapKey:'fadh2'},
+  {k:'atp',   spec:()=>ATP,    name:'ATP',   n:L=>L.made,  lapKey:'made'},
+  // …and the one cell that is not a payoff: the carbon leaving.
+  {k:'co2',   spec:()=>M.co2,  name:'CO₂',   n:L=>L.co2,   lapKey:'co2'},
 ];
 TALLY.forEach(t=>{
   t.host=tallyEl.querySelector(`[data-cell="${t.k}"]`);
@@ -1461,13 +1576,47 @@ TALLY.forEach(t=>{
 // where the numbers are worth reading, and it is where the second turn is
 // offered from.
 const tallyOn=()=>!intro && !reviewing && done>=nSteps;
+/* THE THREE NOTES UNDER THE MOLECULES — the same arithmetic bracketed three
+ * ways, which is the page's answer to "why does my textbook say 3 NADH?".
+ * Pyruvate oxidation and one turn are the two halves; the total is what they
+ * come to for a glucose, and it is the only one of the three that is a claim
+ * about the whole molecule rather than about one pass.
+ *
+ * READ OFF THE STEPS, split on whether a step has a number. Nothing is typed,
+ * so re-ordering the pathway or moving a step across the bridge restates all
+ * three notes and their sum. */
+const NOTE_ROWS=[
+  ['NADH','nadh'], ['FADH₂','fadh2'], ['ATP','made'], ['CO₂','co2'],
+];
+const TALLY_NOTES=[
+  {k:'bridge', head:'Pyruvate oxidation', sub:'per pyruvate', n:k=>fromBridge(k)},
+  {k:'turn',   head:'One turn',           sub:'of the cycle', n:k=>fromRing(k)},
+  {k:'total',  head:'Total per glucose',  sub:`${LAPS} pyruvate, ${LAPS} turns`,
+   n:k=>(fromBridge(k)+fromRing(k))*LAPS},
+];
+function drawTallyNotes(){
+  document.getElementById('tnx').textContent=`×${LAPS} =`;
+  TALLY_NOTES.forEach(t=>{
+    const el=tallyEl.querySelector(`[data-note="${t.k}"]`);
+    const rows=NOTE_ROWS.filter(([,k])=>t.n(k)>0);
+    const pairs=t.n('nadh')+t.n('fadh2');
+    el.innerHTML=`<div class="lhead">${t.head} <span class="lsub">${t.sub}</span></div>`
+      + rows.map(([label,k])=>
+          `<div class="row"><span>${label}</span><span class="v">${t.n(k)}</span></div>`).join('')
+      // the row that matters, in the same place on all three notes
+      + `<div class="row net"><span>Electron pairs</span><span class="v">${pairs}</span></div>`;
+  });
+}
+/* THE TOGGLES THAT HAVE NOTHING LEFT TO SWITCH go down with the stage. The
+ * molecules are gone, so the enzyme blobs have nothing to sit behind; the three
+ * notes are the arithmetic, so a fourth card of it is noise. A control that
+ * cannot change what you are looking at should not be asking to be read. */
+const TALLY_HIDES=['showledger','showenz'];
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
-  const home = on ? document.getElementById('tledger') : sideEl;
-  if(ledgerEl.parentNode!==home){
-    if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, ringEl.nextSibling);
-  }
+  TALLY_HIDES.forEach(id=>{ document.getElementById(id).hidden=on; });
+  if(on) drawTallyNotes();
   lanes.forEach(l=>{ l.g.visible=!on; });
   platesEl.style.visibility = on ? 'hidden' : '';
   const L=productsAt(done);
@@ -1479,8 +1628,7 @@ function drawTally(){
       t.car.setGroup(g, t.keep.group(spec), true, t.keep.keep(spec)));
     t.host.querySelector('.tcount').textContent='×'+t.n(L);
     t.host.querySelector('.tname').textContent=t.name;
-    const note=t.host.querySelector('.tnote');
-    if(note) note.textContent=t.note?t.note(L):'';
+    t.host.querySelector('.tnote').textContent=sourceNote(t.lapKey);
   });
   placeTallyMols();
 }
@@ -1608,6 +1756,11 @@ const enzBox=enzBtn.querySelector('input');
 enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
 
 const actEl=document.getElementById('actbtn');
+/* THE SECOND OFFER AT THE END OF TURN ONE. Watching the same nine steps again
+ * is a choice, not a toll gate on the results — so the way out is beside the
+ * way on, and the student who takes it still gets a receipt that says the cycle
+ * turned twice (the tally's `2 turns × N`). Shown at exactly one moment. */
+const altEl=document.getElementById('actalt');
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;
@@ -1626,6 +1779,7 @@ function beginPathway(){
   });
 }
 function drawAct(){
+  altEl.hidden=true;
   const hi=focusStep();
   const head = intro ? ''
              : autoplay ? `Turn ${lap} — watching`
@@ -1672,6 +1826,9 @@ function drawAct(){
     if(lap<LAPS){
       actEl.innerHTML=`Run the second turn <i class="ph-bold ph-arrow-clockwise"></i>`;
       actEl.onclick=()=>press(startLap2);
+      altEl.hidden=false;
+      altEl.innerHTML=`What the carriers are worth <i class="ph-bold ph-arrow-right"></i>`;
+      altEl.onclick=()=>Handoff.show();
     }else{
       actEl.innerHTML=`What the carriers are worth <i class="ph-bold ph-arrow-right"></i>`;
       actEl.onclick=()=>Handoff.show();
@@ -2007,14 +2164,22 @@ const Handoff=(()=>{
     `Two turns make <b>${atp} ATP</b> directly, which is almost nothing. What
      they make that matters is <b>${nadh+fadh2} loaded carriers</b>.`;
   document.getElementById('hobody').innerHTML=
+     /* EVERY TERM IS ALREADY IN ATP, which is the only way the row adds up on
+      * screen. Counting carriers in the big numerals made it read 8 + 2 + 2 =
+      * 25, with the conversion hidden in the caption: the sum was correct and
+      * the picture was nonsense. The carrier count moves into the small line,
+      * where it says where the ATP came from. */
      `<div class="hosum">`
-    +`<span class="hoq" style="--c:var(--nad)"><b>${nadh}</b> NADH<i>× ${PER_NADH}</i></span>`
+    +`<span class="hoq" style="--c:var(--nad)"><b>${num(nadh*PER_NADH)}</b>
+        <i>${nadh} NADH × ${PER_NADH}</i></span>`
     +`<span class="hoop">+</span>`
-    +`<span class="hoq" style="--c:var(--fad)"><b>${fadh2}</b> FADH₂<i>× ${PER_FADH2}</i></span>`
+    +`<span class="hoq" style="--c:var(--fad)"><b>${num(fadh2*PER_FADH2)}</b>
+        <i>${fadh2} FADH₂ × ${PER_FADH2}</i></span>`
     +`<span class="hoop">+</span>`
-    +`<span class="hoq" style="--c:var(--atp)"><b>${atp}</b> ATP<i>direct</i></span>`
+    +`<span class="hoq" style="--c:var(--atp)"><b>${atp}</b>
+        <i>${atp} ATP direct</i></span>`
     +`<span class="hoop">=</span>`
-    +`<span class="hott"><b>≈${worth}</b> ATP</span></div>`
+    +`<span class="hott"><b>≈${worth}</b><i>ATP per glucose</i></span></div>`
     +`<p class="hob">Every <b>NADH</b> and <b>FADH₂</b> carries its electrons to
       the <b>electron transport chain</b> in the inner membrane. NADH enters at
       Complex I, FADH₂ at Complex II — lower down, which is exactly why it is
