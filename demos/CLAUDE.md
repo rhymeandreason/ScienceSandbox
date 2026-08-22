@@ -8,7 +8,22 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 * Let the human test visual changes in the browser; tell her what to click.
 * Be extremely concise everywhere, including commit messages. Sacrifice grammar for concision.
 
-**Every `.md` here opens with a `KIND:` comment saying when to load it.** *rulebook* = invariants, load whole, cheap to over-include. *recipe* = how to build one kind of thing, load for that task. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. `grep -h 'KIND:' *.md */README.md` lists them.
+## What to read
+
+| Task | Read |
+| --- | --- |
+| Adding or converting a molecule | `MolecularGeometry.md` §1, and §1.4 for the fidelity tier it owes |
+| …and the chemistry it has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
+| Changing geometry, or what a motion implies happened | `SCIENCE.md` §§2-5 |
+| Polish on a reviewed animation (timing, easing, camera) | nothing extra |
+| A new page | `AddingAPage.md`, then the sibling page the human names |
+| A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
+| Adding or changing a shared module | `Modules.md` |
+| A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
+| A solvation page | `WaterSim.md` |
+| Deciding what to build next | the two roadmaps. This is the only task they serve |
+
+Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = invariants, load whole. *recipe* = how to build one kind of thing. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. **If you need a doc this table does not name, stop and say which** — a gap here is invisible from inside a build, and guessing past it is how a rule gets missed.
 
 ## Pages (lessons)
 
@@ -52,7 +67,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 **The free-energy card is `energy/`, and it is not pathway chrome.** `energy/energy.js` + `energy/energy.css` draw the reaction coordinate and the coupled pair as two tabs of one figure, off flags on the step. The axis carries no scale on purpose: a pathway sources no per-step ΔG°′, and published magnitudes belong to `coupling/`. The enzymes lesson is its next consumer, which is why the barrier is an input.
 
-**Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Full script-load order, the module reference table, and the seven-step checklist for building a new page: **`AddingAPage.md`**.
+**Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. The seven-step checklist for building a new page, and the traps a page falls into: **`AddingAPage.md`**. Full script-load order, the module reference table, and how to add a module: **`Modules.md`**.
 
 **Above `scene.js` there is `kit/`** — the loop, the resize, the timeline, the highlight vocabulary, and a camera fit that spends *pixels* of caption/tray chrome. It owns no lesson state and no physics; it exists so a new lesson is its mechanic and nothing else. **`kit/README.md`.**
 
@@ -64,17 +79,15 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
 
-**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb must not touch a page. The cycle added six (`decarb`, `join`, `thioester`, `hydrate`, `dehydro`, `shift`) and changed no lesson but its own. A spec's atom names are read through `host.meta`, because a step can span two domain blocks — pyruvate carries `gly`, the acetyl-CoA it becomes carries `krebs`. `AddingAPage.md`.
+**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb must not touch a page. The cycle added six (`decarb`, `join`, `thioester`, `hydrate`, `dehydro`, `shift`) and changed no lesson but its own. A spec's atom names are read through `host.meta`, because a step can span two domain blocks — pyruvate carries `gly`, the acetyl-CoA it becomes carries `krebs`. `Modules.md`.
 
 **`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
 
 ## Scientific accuracy
 
-**Read `SCIENCE.md` before adding a molecule, changing geometry, or changing what a motion implies happened** (a bond forming/breaking, a charge moving) — it's the rulebook: §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture. Polish on an already-reviewed animation (timing, easing, camera) doesn't need it. `bio-rendering-thorough.md` covers which diagrams a lesson needs.
+`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture. When to open it, and the rest: the table above.
 
-Before adding a **new molecule**, read `MolecularGeometry.md` §1 — geometry, sources, stereochemistry, scale families, and §1.4's fidelity tiers (prop / contrast / subject), which set how much accuracy the molecule owes for the claim it makes and require a `check-molecules.js` assertion in the same commit. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
-
-Water/solvation physics is in `WaterSim.md` (solvation apps only).
+**A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** — `MolecularGeometry.md` §1.4's fidelity tiers (prop / contrast / subject) set how much accuracy it owes for the claim it makes. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 
 ## AI Tutor
 

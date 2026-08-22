@@ -32,7 +32,7 @@
  *  · ORBIT TURNS THE CAMERA, NEVER THE MOLECULE. Stage.create's drag moves
  *    `cam`, so a spec's declared `view:` is still exactly what the box
  *    opens on and the group's rotation stays identity — the rule
- *    AddingAPage.md §115 exists for, satisfied by construction rather than
+ *    AddingAPage.md's "A declared `view:`" rule exists for, satisfied by construction rather than
  *    by remembering. The optional turntable below advances `cam.theta` for
  *    the same reason; nothing here ever touches `group.rotation`.
  *

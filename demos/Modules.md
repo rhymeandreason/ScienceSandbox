@@ -1,0 +1,186 @@
+<!-- KIND: recipe + reference — load when a page needs a module it does not already load, or when building a module. The table is lookup material: read the row, not the file. -->
+
+# Modules
+
+The shared layer: what exists, what each one owns, and how to add one. Building
+a *page* is `AddingAPage.md`; the architecture rule both follow is `SCIENCE.md` §6.
+
+## Script load order
+
+Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in this order — each script assumes the ones above it:
+
+```html
+<link rel="stylesheet" href="main.css">      <!-- always, first — tokens, type scale, buttons; loads the fonts -->
+<link rel="stylesheet" href="sandbox.css">   <!-- the old shared chrome, retiring into main.css -->
+<link rel="stylesheet" href="pathways.css"> <!-- only for a step-through pathway lesson; see below -->
+<link rel="stylesheet" href="energy/energy.css"> <!-- only with energy/energy.js; after pathways.css -->
+<link rel="stylesheet" href="annotate.css">  <!-- only with annotate.js; overrides the frozen copy in sandbox.css -->
+...
+<script src=".../three.min.js"></script>
+<script src="palette.js"></script>     <!-- always, first — atom/bond colours + radii -->
+<script src="tokens-from-palette.js"></script>  <!-- always, straight after — publishes the atom/bond colours as CSS -->
+<script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
+<script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
+<script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
+<script src="mol-monomers.js"></script>    <!-- the domains this page shows -->
+<script src="mol-krebs.js"></script>       <!-- the citric-acid cycle + CoA/FAD; needs skel.js -->
+<script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
+<script src="kit/motion.js"></script>     <!-- the timeline, if anything animates -->
+<script src="kit/molgraph.js"></script>   <!-- if the page asks a spec a question -->
+<script src="kit/fit.js"></script>        <!-- if chrome sits over the canvas -->
+<script src="kit/lanes.js"></script>      <!-- if molecules stand side by side -->
+<script src="kit/hotspot.js"></script>    <!-- if the student clicks the chemistry -->
+<script src="kit/leaving.js"></script>    <!-- if something detaches and travels -->
+<script src="kit/carriers.js"></script>   <!-- if a molecule has two states -->
+<script src="kit/modal.js"></script>      <!-- if the lesson has side doors -->
+<script src="kit/inset.js"></script>      <!-- if a molecule needs a close-up box -->
+<script src="kit/focus.js"></script>      <!-- if the page says "look here" -->
+<script src="kit/stagekit.js"></script>   <!-- the loop/resize/fit shell; last of the four -->
+<script src="molview.js"></script>     <!-- if the page shows one molecule three ways -->
+<script src="fx.js"></script>          <!-- if the page fires any effect -->
+<script src="annotate.js"></script>    <!-- if the page labels parts of a model -->
+<script src="reaction/reaction.js"></script>  <!-- if a step transforms a molecule (pathway lessons) -->
+<script src="atomkit.js"></script>     <!-- bonding builder only -->
+<script src="covalent-drag.js"></script>  <!-- bonding builder only -->
+<script src="ionic-drag.js"></script>     <!-- bonding builder only -->
+<script> /* page-specific code */ </script>
+```
+
+* **A page loads only the molecules it shows.** `molecules.js` is the registry (`PALETTE`, `SCALE`, `VIEW`, `DOMAINS`) and holds no specs; the `mol-*.js` files assign into it. Wrong script tags = `MOLECULES.x is undefined`, not a silent wrong render.
+* Order is `molecules.js` → `skel.js` → `mol-*.js`. `skel.js` has no dependencies (real ångströms, never sees `SCALE`); the domain files need both, and `mol-contrast.js` mirrors alanine out of `mol-monomers.js`.
+* **Spec coordinates on disk are real ångströms** (`units:'angstrom'`); `register()` applies `SCALE` once on the way in. The family-A solvation set is `units:'scene'` — already display units. Why: MolecularGeometry.md §1.5; `check-molecules.js` requires the field.
+
+**Two kinds of page.** Most load `scene.js` + MolLib. The folding pages (`folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab`) draw *deposited* coordinates through `scene.js` too, but load `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström and display radii are `PALETTE.radii / SCALE`, computed in the page.
+
+`aminoacid-lab` loads `mol-small` (not `mol-solvation`) because it needs a real water beside the residues — **family-B pages use `mol-small.js`, solvation pages use `mol-solvation.js`.** They define the same keys and `register()` throws if both load.
+
+<!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
+
+| Module | Exposes | Rules |
+| --- | --- | --- |
+| `palette.js` | `MolPalette` — atom/bond colours, display radii. Loads before `molecules.js`, which re-exports it as `MolLib.PALETTE` | own header |
+| `molecules.js` | `MolLib` = `PALETTE` · `MOLECULES` (registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` · `register` · `atomIndex`/`resolveAtoms` | `MolecularGeometry.md` §1 |
+| `skel.js` | `SkelLib` = `Skel` + `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds + the **nucleotide fragments** `adenine`, `ribosyl` and `Skel.phosphoUnit` (one link of a phosphate chain), which thirteen catalog rows share. Builder, not data; no dependencies | MolecularGeometry.md §1.2, §1.5 |
+| `residues.js` | `ResidueLib` = `SIDE` (twenty side chains in each residue's N–CA–C frame) + `graft` + `TYPES`. **Generated** by `tools/bake-residues.js` — real ångströms, no `SCALE`, no MolLib. Not a domain file: it holds pieces of molecules | own header |
+| `mol-solvation.js` · `mol-monomers.js` · `mol-pathways.js` · `mol-contrast.js` · `mol-compare.js` · `mol-lipids.js` · `mol-nucleic.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
+| `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or — `register()` throws if both load | own header, MolecularGeometry.md §1.5 |
+| `haworth.js` | `Haworth` = `haworth` (sugar spec → Haworth-projection SVG) + `findRings` + `faces`. Derived from the spec's own geometry — ring finder, committed `names`, substituent face from the ring normal — so nothing is hand-placed and a regenerated spec redraws correctly. Never goes through SMILES, which sidesteps the rooted-SMILES anomer bug. `contrast-lab.html` only | own header |
+| `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
+| `scene.js` | `Stage.create/measure/frame/buildMolecule/atom/bond/removeAtoms/setOptionalH` | §6 |
+| `kit/motion.js` | `Motion.create` → `tween`, `seq`, `after`, `step(dt)`, `cancel(tag)`, plus a handle with `seek`/`duration`. One clock, advanced by the render loop — no `setTimeout`, so a backgrounded tab freezes the animation instead of firing its timers past it. `dt` in SECONDS, clamped at 0.1. No THREE; Node-loadable | `kit/README.md` |
+| `kit/molgraph.js` | `MolGraph` — neighbours, `terminal`/`bridging`, `side` (what leaves when a bond breaks; **null** across a ring bond), `rings`, `findGroups`, `phosphoryl`, `leavingBond` (the bond an atom's departure breaks — H off its heavy atom, P off its BRIDGING O; null when ambiguous), signed `torsion`, `centroid`/`spread`. Questions about a SPEC, with no scene involved, so `kit/check-kit.js` asserts the same code a page animates with | `kit/README.md` |
+| `kit/hotspot.js` | `Hotspot.create({canvas,camera,host,glowHost,onPick})` → `update(items)` / `clear`. The click target that sits ON the chemistry: `{group, pair:[i,j], hint, label}` per item, positioned at the bond's projected midpoint from `afterFrame`. Elements are reused (rebuilding restarts the CSS pulse every frame); an item with a null `pair` is skipped, never placed at the origin; the hint shows on the first target still standing | `kit/README.md` |
+| `kit/carriers.js` | `Carriers.create({root,camera,canvas,host,align})` (`align:'left'` sits each molecule's edge on its slot's edge instead of centring — a tall narrow column fits on HEIGHT, so centred leaves a gutter both sides) → `show(n,spec)` (instances; rebuilt only when the SPEC changes, slots only when the COUNT does, so a running animation's boxes hold still) · `setGroup(g,group,charged,keep)` (the discharged state is the charged one with one group hidden — `visible`, never removed, and `keep` names the atoms an optional-H policy would take that ARE the difference) · `place(visible)` (project each DOM slot, fit into it capped at 1× so a carrier never outgrows the subject, run the per-instance entrance; returns the fitted scale for a caption) · `pointAt(j,atom)`/`bondMid(j,i,j)` (flight endpoints and bond marks, null rather than a guess) · `pop(j)` · `clear`. No chemistry: the page's pair table says which molecule and which atoms | `kit/README.md` |
+| `kit/leaving.js` | `Leaving.create({root,camera,motion,tag})` → `shed` (atoms stop being drawn, and their bonds go with them) · `unshed` (the inverse, for an atom drawn only from the beat it arrives on; shows a bond only when BOTH ends are drawn, so order never leaves a dangling stick) · `fragment` (a travelling group built from the spec's own coordinates) · `launch` (send it, arc it, and remove it on a BEAT so a hidden tab still ends with an empty stage) · `gather`/`link` (a product assembling out of the pieces that left — atoms converge first, bonds only once they have arrived) · `offstage`/`acrossScreen` (where 'gone' is, solved from the camera: a screen edge in NDC, never a world height, and a departure needs more clearance than an arrival) · `clear` (one sweep for everything in the air, which is the other half of a cancel). The page keeps every chemical decision | `kit/README.md` |
+| `kit/inset.js` | `Inset.create({canvas,spec,spin,pad,stage,view,frame,afterFrame,leader})` → `show(spec)` · `fit` · `start`/`stop`/`draw` · `setSpin` · `view`/`frame` · `destroy`. **One molecule in a box, over a scene at another scale** — the close-up a lesson needs when its stage draws the same object schematically. Its own renderer and a camera solved from `Stage.measure`, never typed. The turntable turns the CAMERA, so a spec's declared `view:` is what the box opens on and the group's rotation is identity by construction. An IntersectionObserver stops the loop when the box is off screen, and ONE context is reused via `show()` — browsers cap them near 8-16 and drop the oldest, so a box rebuilt per step blanks the main stage with no error. The frame is `main.css`'s `.inset`, and it is load-bearing: unframed, a magnification reads as an object standing in the scene at that size. Callouts go in `view` (the canvas's own box) and are stepped from `afterFrame`; annotate.js projects into `clientHeight`, so the framed box — taller by its caption — skews every dot. `leader:{host,at}` draws the exploded-view wedge from the frame's two SILHOUETTE corners (found by angle, so a box in any corner is right) to a marked point; the PAGE projects, because the scene's camera is the page's and this module's looks only at the close-up | `kit/README.md` |
+| `kit/modal.js` | `Modal.create({el,onShow,onHide})` → `show(arg)` / `hide` / `isOpen`, plus `Modal.anyOpen()`. The side doors a lesson grows — the thing behind the ★, the whole list, a second simulation. The page writes the markup (`.mback` / `.mcard` / `.mclose`, toggled by the `hidden` attribute) and the content; this owns opening, the focus returned to whatever opened it, the Tab trap `aria-modal` already promised, and ONE Esc over a shared stack so the topmost card closes. `anyOpen()` is what a page guards its own stage keys on — arrow keys must not run the lesson under an open card. No THREE, no scene, no deps | `kit/README.md` |
+| `kit/lanes.js` | `Lanes.create` → `render`/`swapOne`/`spawn`/`clear`/`settle` · `step` (the per-frame settle) · `draw` (project each anchor, park its DOM name over it — from `afterFrame`) · the geometry every flight target needs (`origin`, `base`, `shift`, `lift`, `top`, `offset`, `plateY`, `heightPx`). n molecules side by side that split and swap. The page injects `specOf`, `build`, `plateHTML` and its own `visibleAtoms` policy; the module owns the lane LIST, so a page must not spawn lanes into an array of its own | `kit/README.md` |
+| `kit/fit.js` | `Fit.create({canvas,camera,cam,reserve})` → `usable` (leftover fractions + the half-difference target shift) · `solve` (distance and target, per axis) · `anchorTop` · `frustum` (ortho: builds it from `cam.r`, so that number still means "how far back"). The page supplies `reserve()` in PIXELS — which of ITS elements sit over the canvas is the only part a module cannot know. Reserves are read from the stylesheet, not the live box, so a longer caption cannot re-frame the scene | `kit/README.md` |
+| `kit/focus.js` | `Focus.create` → `atoms` (by spec index), `among` (whole objects), `clear`, `claim`. The one spelling of ghost-the-rest / light-the-chosen. A bond is lit only when BOTH ends are | `kit/README.md` |
+| `kit/stagekit.js` | `Lesson.create` → everything `Stage.create` returns, plus `fx`/`motion`/`focus`, `start`/`stop`/`draw`/`snapshot`, `worldPerPx`/`pxToWorld`, the `frame`/`afterFrame` hooks (**anything that projects DOM onto a 3D point goes in `afterFrame`** — before the render it reads the previous frame's camera), and `fit()` — which converts `reservePx` (caption, tray, bar chrome, measured off the DOM) into the world bands `Stage.frame` takes, iterating because a perspective fit against a pixel band is circular. `boxes`/`reservePx` are functions, re-asked on every resize | `kit/README.md` |
+| `kit/check-kit.js` | the assertions behind the two offline kit modules — the timeline's cancel/clamp/seek semantics, and the chemistry `molgraph` claims (a phosphoryl group leaves its BRIDGING oxygen behind; `side()` refuses a ring bond; a mirrored spec flips the torsion sign) | own header |
+| `reaction/reaction.js` | `Reaction.create({host})` → `verbs`, `verb(name,{dur,lane})`, `durOf(step)`, `lane(step,j,keys)`, `all(step,keys,land)`, plus the primitives a new verb is written from: `hop`/`protonAway`, `flyPhosphate`/`flyFree`, `expel` (a fragment assembled out of what left, then off frame), `shedAtoms`/`showAtom`/`shedPhosphoryl`, `badge`, `specWorld`/`siteWorld`/`junctionWorld`/`anchorWorld`, `terminalO`/`bridgeO`/`leavingH`, `offstage`/`screenRight`, `unfurlPlan`/`unfurlApply`, `drawFlyers`/`clearFlyers`. What a step DOES to a molecule, driving the lesson's own 3D stage — NOT a second simulation like `massaction/`. `host` answers only stage questions (`specOf`, `lanes`, `laneOrigin`/`laneBase`/`plateY`, `carrierPoint`, `swapLane`/`spawnLanes`/`settleLanes`, `onCarrierTaken`/`popCarrier`, `donorSpec`/`freeSpec`); every timing is the module's, overridable per page with `host.timing`. **A verb is a per-lane body** — only `split` is whole-stage, because it is the one event about the lane COUNT | `reaction/check-reaction.js` |
+| `reaction/check-reaction.js` | the three claims the verbs used to make with nothing checking them: every `fx:` a lesson names is a registered verb (the old chain's bare `else` ran a typo as a silent 280 ms swap), no verb is both `lane` and `whole` and exactly one is `whole`, and no verb reads a lesson's state (`done`, `busy`, `lanes`, the tray) | own header |
+| `energy/energy.js` | `Energy.curve(spec)` · `Energy.solo(spec)` · `Energy.pair(spec)` · `Energy.tabs(active)` · `Energy.levels(spec)` (pure, the four heights) · `Y` / `BARRIER`. Free energy on a vertical axis, as two tabs of one card: the reaction coordinate, and the two-arrow coupled pair. **The axis carries no scale**, so a height is a sign and never a magnitude — a pathway page sources no per-step ΔG°′ and a proportioned trace would assert one (published numbers are `coupling/`'s subject, on its own audited axis). Every height comes from flags on the step — `up`, `shallow`, `pull`, and `rev` for the uncoupled ones — so no shape is typed against a named reaction. **The barrier is an input, not decoration**: a pathway passes the shared default and means nothing by it, while the enzymes lesson pins the ends (an enzyme changes neither ΔG) and moves only the hump. `at` overrides the four levels outright, and `barrierAlone` is the one way to get two humps on one axis — the enzyme case, where the ends are pinned so the heights are a claim about rate and a true one. **A pathway may not declare it**: two humps on a coupled step would say coupling changed the rate, and it changes neither barrier. The host keeps the tab selection and everything about NAMES: which molecules a step changes is a question only the lesson can answer | `energy/check-energy.js` |
+| `energy/check-energy.js` | that no drawn label is a quantity and the axis has no ticks; that each shape says what it means (`up` ends below its start once coupled, `pull` does **not** — nothing was spent, the product was removed); that every `tone:` a page declares is coloured in `energy/energy.css` for **both** figures (the flavin's `f` had no rule once, so the coupled trace stroked `none` and the step drew one dashed line, which reads as a steeper step rather than as a missing trace); and that neither page keeps a copy of the drawing | own header |
+| `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
+| `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `field`/`has`, `viewEuler` (the pose on screen folded back into a spec's `view:`), `resetPose`, `setSpin`, `atDeclaredView`. `defaultView()` is the ONLY source of an opening angle — a spec's declared `view:` where it has one, a PCA pose where it does not; the turntable is off unless a page switches it on · plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule (3D · the same spheres on the diagram's layout · the drawn diagram) and the morph between them. Loads after `scene.js`; `smiles-drawer` only if the page shows the Diagram view | own header |
+| `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
+| `annotate.js` | `Annot.create` → `add`, `step`, `play`, `setMode`, `show`, `clear`. Callouts pinned to a model: dot on the atom, fanned label, three reveal modes. DOM over the canvas, not sprites | own header |
+| `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
+| `folding/actin.js` | `ActinLib` = `parseCA` + `screwOf` + `extend` + `encode`/`decode`. `folding-lab.html` rungs 4–5 only. Real ångströms | own header |
+| `folding/villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` + `encode`/`decode`. `folding-lab.html` act 3 only. Real ångströms | own header |
+| `hemoglobin/tube.js` | `TubeLib` = `chain` (Cα trace + secondary structure → one continuous tube mesh per chain, helix collapsed onto its axis so there is no corkscrew) + `triangles` (cost of a setting without building it) + `relax` + `DEFAULTS`. The **abstract** multi-chain style — a tetramer is 4 draw calls, not \~240. Real ångströms in, plain `BufferGeometry` out, no materials, THREE passed in | `docs/rendering-modules.md` |
+| `hemoglobin/surface.js` | `SurfLib` = `decode` (SES1 buffer → `{geo, head, res, nVert, nTri}`) + `chainOf`/`numberOf`, the per-vertex residue lookups that let a page paint one residue onto the skin. Browser half of the format `tools/bake-surface.js` writes; the format itself is specified in that file's header, next to the writer. **A surface is baked, never solved in the page** — SES on 2HHB took 3Dmol 5.7 s | `docs/rendering-modules.md` |
+| `folding/ribbon.js` | `RibbonLib` = `build` (Cα trace + secondary structure → ribbon `BufferGeometry`) + `dssp`/`parseBackbone` (Kabsch & Sander, needs N/CA/C/O) + `assign`/`detect` + `HP35_HELICES`. Real ångströms, no materials. **Called per frame on live fold coordinates** — a ribbon is only as trustworthy as the solver frame under it | own header |
+| `hemoglobin/hbfold.js` | `HbFold` = `decode` (baked fold → Cα trace, secondary structure, H-bonds, sequence, the **focus segment**'s backbone, `at(t)`). `hemoglobin-lab.html` only. Real ångströms, no THREE | own header |
+| `folding/folding.js` | `FoldLib` = `parse`/`hbonds`/`extended` + `orient` + `SCHEDULE` (the act boundary, bisected by the page) + `Folder` (constrained relaxation + `bake`). Real ångströms, renders nothing. **Constraints hold the peptide bond trans and give each H-bond its deposited rise** | own header |
+| `main.css` | the design system: tokens (primitive → semantic → domain), the type scale, the six button shapes — and the `@import` that loads **all** webfonts, so no page carries a font `<link>`. Loads before `sandbox.css`, so retiring a piece of that file is a deletion | own header |
+| `annotate.css` | the look of a callout, paired with `annotate.js`. A frozen copy stays in `sandbox.css` for the pages that have not migrated; edit this one | own header |
+| `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome. Being retired into `main.css`; still wins where the two overlap | own header |
+| `pathways.css` | the chrome a **step-through pathway lesson** is made of, shared by `glycolysis-lab` and `krebs-lab`: the numbered rail, the lane plates and bond hotspots, the enzyme blob and its verdicts, the carrier tray, the bottom bar, the ledger, the closing tally and the modal card. Loads after `sandbox.css`, before the page's own `<style>`. A page keeps only what a count or a size makes its own — its domain colours, `--carw`/`--trayw`, and the `#tally` grid, because how many things a pathway makes is the fact that screen exists to state | own header |
+| `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
+| `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
+| `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
+| `tools/catalog/` | the molecule catalog (265 rows) with the `CID` / `Has 3D` / `Stereo` columns the resolver added. Committed for `tools/sdf/`'s reason: a build-time input no page loads, costing \~400 network requests to re-derive | `tools/catalog/README.md` |
+| `tools/resolve-catalog.js` | resolves `tools/catalog/`'s NAMES to CIDs and asks whether each has a 3D conformer — **needs the network**, like `check-handedness.js`. Never picks between candidates; marks a row `Ambiguous` and reports every CID. Self-tests against the `src.cid` values already committed here | own header |
+| `tools/spec2smiles.js` | regenerates every contrast spec's `smiles` through RDKit. `--write` puts it in the spec instead of printing it to paste | `tools/README.md` |
+| `tools/specfile.js` | writes a generated field back into the spec that owns it, for the two bakers above. Replaces a field that is already there and refuses to invent a position for one that is not; verifies every write by re-loading the library | own header |
+| `tools/bake-flat2d.js` | `--write` as above. The 2D LAYOUT (`flat2d`) each `flat:true` spec's atoms slide onto — RDKit's depiction coordinates, returned in the spec's own atom order so no graph matching is needed, scaled to the molecule's own mean bond | own header |
+| `folding/tools/bake-actin.js` | reduces 9ZZI + 9JUS (6.1 MB) to `pdb/actin.bin` (27 KB): one protomer, the screw that stacks it, the complex's Cα traces. The page rebuilds the other twelve | own header |
+| `folding/tools/bake-villin.js` | derives villin's domains from the 1.9 MB PAE, samples the eight arrangements, runs `RibbonLib.dssp` over the full backbone → `folding/data/AF-P02640-villin.poses.bin`. Neither the PAE nor the backbone reaches the browser, so the DSSP happens here | own header |
+| `hemoglobin/tools/chain.js` | pulls one chain out of 2HHB and builds the amide hydrogens it doesn't deposit — `FoldLib.parse` reads no chain ID, and `hbonds` needs an H an X-ray structure lacks | own header |
+| `hemoglobin/tools/bake-unfold.js` | **the baker.** Unfolds 2HHB chain B and reverses the film, holding helices rigid at first → `hemoglobin/data/2HHB-B.fold.bin` (403 KB, \~60 s), keyframes resampled by arc length so playback is even. **Re-run after any change to it or `folding/folding.js`** | own header |
+| `hemoglobin/tools/bake-hb.js` | **superseded**, refuses to run. Kept because it owns the file format (including v2's `FOCUS`, residues 4-18) and records four traps: bond lengths without 1-3 angle pairs crush Cα–Cα to 1.83 Å; per-frame projection jolts a smooth stretch; omega is a 1-4 torsion nothing else pins; de-clashing without holding H-bonds dissolves the helices | own header |
+| `hemoglobin/tools/bake-quaternary.js` | level 4's other three chains: 2HHB A/C/D Cα traces + four heme irons, rotated into the trajectory frame via `FoldLib.orient()` → `hemoglobin/data/2HHB-quaternary.json` (12 KB). JSON because 428 points need no second decoder | own header |
+| `hemoglobin/tools/check-hb.js` | the \~85 assertions behind the haemoglobin page: staleness, quantisation, both decoders agreeing, DSSP vs deposited HELIX records, the opening close-up, **level 1's flat chain** (generated in the page, so the checker lifts the generator out of the HTML — including `placeAtom`'s torsion SIGN), and **helix handedness**, the one global mirror an internal check can catch | own header |
+| `folding/tools/bake-fold.js` | solves the villin fold once → `folding/data/1VII.fold.bin` (442 KB, 185 keyframes). Both folding pages play that file. **Re-run after any change to the solver, schedule or H-bond cutoffs** | own header |
+| `tools/bake-residues.js` | writes `residues.js` by MEASURING the twenty side chains off committed structures — 2HHB for nineteen, 9ZZI for isoleucine. Keeps one real instance each (the medoid), never an average of rotamers | own header |
+| `tools/check-residues.js` | re-bakes and compares, then asserts chemistry: heavy-atom counts, ring closure, proline's ring onto the backbone N, and **L-configuration** — one of two checks that catch a mirror | own header |
+| `tools/check-handedness.js` | the ONLY check that catches a global mirror; needs `npm i` + network. Covers glycolysis too, deriving SMILES from spec geometry where none is committed | own header, MolecularGeometry.md §1.3 |
+
+## Module notes
+
+Easy to get wrong, invisible from the API:
+
+* **`atomkit.js` owns what a student learns to *read***, never how a bond forms.
+* **`massaction/` is a second simulation, and a shared one.** A plain 2D canvas — no Three.js, no MolLib, no spec — because its dots stand for *populations*; looking like molecules would make a geometry claim nothing backs. Its physics: molecules draw an energy from the thermal distribution and react when they clear a barrier, `ea` forward and `ea + ΔE` back. Load `massaction/massaction.css` + `massaction/massaction.js`, then `MassAction.create({host, scenarios, ea})` — the module builds every element inside `host`; the page supplies *which* reaction (species, ΔE, prose) and the chrome around it. Pass `ea` as `{min,max,value}` to get a barrier slider instead of a fixed one. **`ea` is a legibility knob** (it makes about half of arrivals react) *and* now shared by two lessons, so the claims resting on it are asserted by `massaction/check-massaction.js`, which requires the module and lifts the scenarios out of the host page rather than copying either. `massaction/massaction-test.html` mounts it three ways with no lesson around it.
+* **`diffusion/` is the second sim of that kind, and its sibling.** Same paradigm as `massaction/` — populations of dots, no Three.js, no geometry claim — asking a different question: a box nothing is pushing. Load `diffusion/diffusion.css` + `diffusion/diffusion.js` after `palette.js`/`molecules.js`, then `Diffusion.create({host, scenarios})`. A scenario names molecules by MolLib key and the module reads their **size** from the spec (`radiusOf`), so the rate difference between water and glucose is a prediction, not a setting. Two traps it will throw on rather than fudge: an **ångström-family** spec is required (load `mol-small.js`, not `mol-solvation.js` — `MolecularGeometry.md` §1), and there is deliberately **no membrane** — that is the next lesson. `diffusion/check-diffusion.js` measures its predictions against four published diffusion coefficients, so a `palette.js` retune shows up as a chemistry error rather than as nothing.
+* **`coupling/` is the third sim of that kind, and the only one with real numbers.** Load `coupling/coupling.css` + `coupling/coupling.js`, then `Coupling.create({host, scenarios, range})`. A scenario carries `up`/`down` as `{label, dg, formula, src}` plus `shared` — the group that moves between them. **`shared` is not a caption**: with it unticked the two ΔG do not add and the uphill reaction goes back to not running, which is the misconception the module exists for. Note it *disagrees* with `glycolysis-lab.html` on purpose — that page draws the same coupling with no magnitudes because it sources none, and this one is about the arithmetic, so every ΔG°′ is a published value carried on the scenario. `coupling/check-coupling.js` audits them against the textbook figures and measures that the drawn stack lands on the total.
+* **`energy/` is a FIGURE, not a simulation.** No canvas, no loop, no state — `Energy.curve/solo/pair/tabs` return SVG strings, so a host that rebuilds its card every refresh can just call them again. Load `energy/energy.css` + `energy/energy.js`. It sits between the two kinds above: it draws the same subject as `coupling/` and deliberately makes the weaker claim, because a pathway page has no ΔG°′ to source. **Its one rule is that the axis carries no scale.** Where it travels past a pathway is the barrier — a pathway means nothing by the hump and everything by the ends, and the enzymes lesson is the mirror image, which is why `barrier` and `at` are inputs. `energy/check-energy.js` audits the rule off the OUTPUT rather than the source, since the way it breaks is a host passing a number through.
+* **`reaction/` is what a step DOES to a molecule, and it is not a second simulation.** Unlike `massaction/`, `diffusion/` and `coupling/`, it has no canvas and no side door — it drives the 3D stage the lesson already has. Load `reaction/reaction.js` after `fx.js`, `atomkit.js` and the `kit/` files it builds on (`motion`, `molgraph`, `leaving`), then `Reaction.create({…})` with a **host** that answers questions about the STAGE — which spec a key names, where a lane sits, where this lane's carrier stands, how to swap a lane — and nothing about the chemistry. A step names an animation with `fx:'…'`; the module owns the verbs (`in out ox move lose open iso split`), the transfers they are made of, and the spec geometry that aims them. **`verb(name, {dur, lane})` is the extension point**: pyruvate oxidation and the Krebs cycle need `decarb`, `join` and `thioester`, and adding one must not touch a page. **Its structural claim is that a verb is a per-lane body** — a reaction happens to a molecule, and the lane count is a stage fact, so `split` is the only whole-stage verb and `reaction/check-reaction.js` fails a second one. That claim is not decoration: the eight verbs lived in `glycolysis-lab.html` as an if/else chain written TWICE, once per route, and they had drifted — step 6's hydride was shed on one route and not the other, so a hydrogen flew to NAD⁺ while a copy of itself stayed on the aldehyde. It also fails an `fx:` no verb registers, which the old chain swallowed in a bare `else` and ran as a silent 280 ms swap with the ledger moving and nothing on screen wrong enough to notice.
+* **`lobes/` draws the electrons a molecule is NOT sharing.** Load `kit/molgraph.js` then `lobes/lobes.js` after `scene.js`; ask `Lobes.at(spec, i)` for the geometry, or `Lobes.create(THREE).build(spec, {like: molGroup})` for teardrop meshes. Three things it is easy to get wrong from the outside. **These are not molecular orbitals** — they are the localised picture, a model, and a page that draws them owes the student that word (the module header has the argument). **Always pass `like:`** — `buildMolecule`'s `center:true` and a spec's `view:` are baked into the atom MESHES, so lobes built from raw spec coordinates land a plausible distance from their own atoms and read as a placement bug. And **`dirs.length` is not a pair count**: a flat three-coordinate nitrogen returns one pair as the two lobes of its p orbital, flagged `pi`. Everything is derived — directions from the spec's own bond vectors, counts from a formal-electron sum over bond orders — and a count that does not come out whole returns `null` with a reason rather than a rounded guess, which is why AMP's phosphate oxygens draw nothing. `lobes/check-lobes.js` covers the two invisible failures: water's ears straddling the H−O−H plane (in-plane ears draw a flat water and delete tetrahedral ice), and conjugation — adenine's amino nitrogen counts a lone pair and is a **donor**, so an ear on it is base pairing backwards. `lobes/lobes-test.html` is the bench.
+* Drag modules are *mechanics*, not plumbing. Same mechanic, different constants → a recipe in the same file; different mechanic → new file.
+
+
+## Adding a module
+
+Most of this is already taught by the folders — `kit/`, `reaction/`, `energy/`,
+`massaction/`, `diffusion/`, `coupling/`, `lobes/`, `chain/`, `chair/` all have
+the same shape, and a tenth built by copying a ninth will come out right. What
+follows is what the folders cannot show.
+
+**When.** `SCIENCE.md` §6 has the test. The short version: plumbing every lesson
+would otherwise rebuild is a module; a lesson's own mechanic is not, however
+much of it there is. Two lessons sharing a *vocabulary* is not the signal — two
+lessons sharing an *implementation* is. The energy card qualified because the
+figure is the same drawing from the same flags; the pathway step runner does not,
+because glycolysis folds in a half-run per-lane step and the cycle folds in laps,
+and each of those is the lesson's own claim about what a step means.
+
+**The contract.** A folder named for the module, holding five things, each named
+for the folder: the module script, a stylesheet if it draws chrome of its own, a
+test page, a checker, and either a README or a load-bearing header comment.
+`lobes/` is the smallest complete example. Nothing here has a build step, so the
+module is a plain script assigning one global.
+
+**The test page is not optional**, and its second job is the one worth stating:
+it is the next author's worked example, read more carefully than any paragraph
+here. Mount the module more than one way if the module supports more than one —
+`massaction-test.html` renders the barrier slider no lesson currently uses, which
+is what keeps that path from rotting.
+
+**The checker is not optional either**, for this repo's standing reason: a claim
+ships with its assertion. Assert the things that break silently, not the things a
+missing file would announce. `reaction/check-reaction.js` is the model — it fails
+an `fx:` no verb registers, because the old code swallowed that in a bare `else`
+and ran a 280 ms swap with nothing visibly wrong.
+
+**What stays out.** No lesson state. A module reaching for `done`, `busy`,
+`intro`, `lanes` or the tray is the lesson's physics migrating into shared code;
+`check-reaction.js` asserts this by name for `reaction/`, and the rule is general.
+A module answers questions about the *stage*; the page answers questions about
+the *chemistry*.
+
+**Where a module may appear.** A 2D module that abstracts a statistical or
+thermodynamic point — `massaction/`, `diffusion/`, `coupling/` — is never a
+lesson's primary UX. It goes behind a `kit/modal.js` side door, as a second
+simulation the student opens when they doubt what the 3D stage just did. This is
+the boundary the folders cannot show you: they look like templates for a main
+stage, and they are not one. `energy/` is a third kind again — a figure, no
+canvas and no loop. `reaction/` is the exception that drives the 3D stage rather
+than replacing it.
+
+**One instance is not a convention.** If you are building the first of something,
+say so in its header. The next author cannot tell an accident from a pattern, and
+will copy either.

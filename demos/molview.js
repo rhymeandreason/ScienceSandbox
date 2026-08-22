@@ -566,7 +566,7 @@ function create(opt){
    * NOT A SECOND SOURCE OF AN OPENING ANGLE, and the distinction is the
    * whole reason this is safe. `defaultView()` remains the only thing
    * `show()` consults; this is a USER ACTION, exactly like a drag, and it
-   * is reachable only by asking. The bug AddingAPage.md §115 records —
+   * is reachable only by asking. The bug AddingAPage.md's "A declared `view:`" rule records —
    * this page composing a PCA pose on top of a declared view — was a
    * default doing it silently at load, which is a different thing from a
    * button that says what it did.
