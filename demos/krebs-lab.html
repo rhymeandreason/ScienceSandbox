@@ -388,10 +388,11 @@ const STEPS=[
     species:['acetylcoa'], enz:'Pyruvate dehydrogenase complex',
     hook:'Into the mitochondrion', rev:false,
     pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
+    // OXALOACETATE IS NOT IN THIS REACTION — not on the stage, and not on the
+    // bench either. A molecule standing by through a step it has no part in is
+    // one more thing to read; it walks on at citrate synthase, which is its
+    // step, and `enter` there is what brings it.
     fx:'join', anchor:'oxC',
-    // OXALOACETATE IS NOT IN THIS REACTION and so is not on this stage. It
-    // waits on the bench for its own step; `bench` is what puts it there.
-    bench:'oaa',
     couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     // `decarb` is the spec's own name for the carboxylate that goes, so the
     // target follows the atom rather than a typed index — the same contract
@@ -571,9 +572,6 @@ const LAPS=2;
 let lap=1;
 let autoplay=false;                  // lap 2, running itself
 const stepAt=i=>STEPS[i];
-// What is on stage before step i. The opening state is TWO molecules: pyruvate
-// arriving from glycolysis, and the oxaloacetate already in the matrix waiting
-// for it. That pair is the lesson's first fact and it is in the data.
 /* WHAT IS ON STAGE, AND WHY IT IS THE TWO THINGS REACTING. The page opens on
  * pyruvate and coenzyme A because those are the bridge reaction's two
  * substrates; oxaloacetate is not in that reaction at all and stands on the
@@ -1088,8 +1086,8 @@ const rxmsgEl=document.getElementById('rxmsg');
 const INTRO_MSG=`Two <b>pyruvate</b> came out of glycolysis and crossed into the
   <b>mitochondrial matrix</b>. Here is one of them, beside the <b>coenzyme A</b>
   that is about to carry what is left of it into the cycle — note how much
-  molecule two carbons arrive on. <b>Oxaloacetate</b> waits on the left for its
-  own step. Follow this pyruvate; the other does all of this again.`;
+  molecule two carbons arrive on. Follow this pyruvate; the other does all of
+  this again.`;
 const LAP2_MSG=`<b>Turn two.</b> The matrix's NAD⁺ and FAD are empty — everything
   was loaded on the first turn. The <b>electron transport chain</b> has just
   unloaded them, which is the only reason there is anything to load again. Same
@@ -1364,12 +1362,9 @@ function drawCarrier(st, live, showKey){
  *  `decarb` verb had to grow a guard because the spectator was being handed a
  *  hydride along with the molecule the step was about.
  *
- *  So the tray has a second slot, under the carrier, for the molecule the next
- *  step needs. Two things use it, and they are two different situations the
- *  same box can say:
- *    WAITING   oxaloacetate through the bridge, until `enter` puts it on stage
- *    RETURNED  coenzyme A after citrate synthase and after step 5 — it came off
- *              a molecule and went back to the pool
+ *  So the tray has a second slot, under the carrier, for coenzyme A coming
+ *  home: after citrate synthase and after step 5 it comes off a molecule and
+ *  goes back to the pool, and the slot is where it lands.
  *
  *  COENZYME A IS NOT A CARRIER TILE, which is why it is here and not above.
  *  NAD⁺ and FAD have two STATES — one molecule differing by the hydrogens it
@@ -1386,10 +1381,10 @@ const BENCH=Carriers.create({ root, camera, canvas, host:benchEl,
   align:'left',
   build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
                 Stage.setOptionalH(g,false); return g; } });
-// `bench:'oaa'` is a molecule that simply stands there; `{key,arriving:true}`
-// one that is still on the stage and lands here during the step.
-const benchOf=st=>{ const b=st&&st.bench;
-  return b ? (typeof b==='string' ? {key:b} : b) : null; };
+// `{key,arriving:true}` is a molecule still on the stage that lands here during
+// the step; a bare key would be one that simply stands there, and no step wants
+// one — a spectator on the bench is a spectator.
+const benchOf=st=>(st&&st.bench)||null;
 /* WHETHER IT HAS MOVED YET, in this step. Same shape and the same reason as
  * `carrierGone`: for the beat the molecule is in the air the step has not
  * landed and `reviewing` is false, so without it CoA is drawn in the tray AND
@@ -1409,16 +1404,11 @@ function acylOf(st){
            .find(x=>M[x]!==HANDLE && meta(M[x]).carrier);
   return k ? M[k] : null;
 }
-/* THE LINE UNDER THE NAME SAYS WHERE IT IS, and for a waiting molecule it says
- * what it is waiting FOR — read off the step that calls it onto the stage, so
- * a re-ordered pathway renames it. */
+/* THE LINE UNDER THE NAME SAYS WHERE IT IS — the two PLACES coenzyme A has, and
+ * the acyl group it is on is read off the step rather than typed. */
 function benchSub(st, spec, home){
   if(!home){ const a=acylOf(st); return a ? `bound as ${a.short}` : 'on the molecule'; }
-  if(spec===HANDLE) return 'free in the matrix';
-  const key=benchOf(st).key;
-  const next=STEPS.find(x=>(x.enter||[]).includes(key));
-  return next ? `waiting for ${next.enz.replace(/ \(.*\)/,'').toLowerCase()}`
-              : 'standing by';
+  return spec===HANDLE ? 'free in the matrix' : 'standing by';
 }
 function drawBench(st){
   const b=benchOf(st); if(!b) return;
@@ -1796,9 +1786,8 @@ const noteEl=document.getElementById('stepnote');
  * handing electrons to carriers.
  */
 /* Species names READ OFF THE MOLECULES, never typed — and only the ones this
- * step CHANGES. Oxaloacetate stands on the stage through the bridge reaction
- * waiting to be joined, and naming a spectator on both ends of an energy
- * diagram says it took part. `plus` is the one step with a second substrate
+ * step CHANGES: naming a molecule that is on both ends of an energy diagram
+ * says it took part. `plus` is the one step with a second substrate
  * out of solution (step 5's Pᵢ). */
 function changing(st){
   const before=speciesAt(STEPS.indexOf(st)), after=st.species;
