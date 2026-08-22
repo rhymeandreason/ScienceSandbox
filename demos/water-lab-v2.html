@@ -1400,7 +1400,6 @@ function drawBulk(){
 function renderInset(){
   if(S.step===0) return;               // frozen: the tile holds the parting shot
   insetSize();
-  insetMol.rotation.y+=0.004;          // a slow turn: the V is a 3D claim
   insetDetail.kit.faceCamera(insetCam);
   insetR.render(insetScene,insetCam);
 }
