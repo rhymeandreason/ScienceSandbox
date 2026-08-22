@@ -61,16 +61,23 @@
   #ringbox .rh{font-family:var(--font-slab);font-weight:700;font-size:12px;
     letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
     padding:0 4px 6px}
-  /* the loop itself: hairline until a step has run, inked after */
-  .rgarc{fill:none;stroke:var(--hair);stroke-width:2.5;stroke-linecap:round}
-  .rgarc.on{stroke:var(--nad);opacity:.85}
-  /* a node is its molecule's short name; the dot carries the state */
+  /* THE LOOP IS A PROGRESS WHEEL: one unbroken track, and one ink arc that
+     grows along it. Eight separate arcs read as eight links in a chain — the
+     thing being counted is how far round you are, which is one length. */
+  .rgtrack{fill:none;stroke:var(--hair);stroke-width:3;opacity:.7}
+  .rgfill{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round;
+    opacity:.55;transition:stroke-dashoffset .45s ease}
+  /* THE SAME VOCABULARY AS THE RAIL'S NUMBERS (.rnum), because they are the
+     same fact twice: run = filled ink, current = filled ink with the halo,
+     ahead = a hollow ring at hairline weight. */
   .rgdot{fill:var(--panel);stroke:var(--hair);stroke-width:2}
-  .rgdot.past{fill:var(--ink);stroke:var(--ink);opacity:.4}
+  .rgdot.past{fill:var(--ink);stroke:var(--ink);opacity:.45}
   .rgdot.cur{fill:var(--ink);stroke:var(--ink)}
+  .rghalo{fill:none;stroke:var(--ink);stroke-width:3;opacity:.12}
   .rgt{font-family:var(--font-slab);font-size:10.5px;fill:var(--muted);
     text-anchor:middle;dominant-baseline:middle}
-  .rgt.cur{fill:var(--ink);font-weight:700}
+  .rgt.past{fill:var(--ink);opacity:.75}
+  .rgt.cur{fill:var(--ink);font-weight:700;opacity:1}
   /* the carbon count, inside the ring — 6C→5C→4C is the arithmetic the two
      CO₂ are, and it belongs where you can see all three at once */
   .rgc{font-family:var(--font-slab);font-size:9px;fill:var(--co2);
@@ -165,8 +172,9 @@
        to the BOTTOM edge and grows upward, so a new control is one more child
        and nothing else moves — never give these their own `bottom`. -->
   <div id="tools">
-    <label id="showledger" class="chk"><input type="checkbox"> Show ledger</label>
-    <label id="showenz" class="chk"><input type="checkbox"> Show enzymes</label>
+    <label id="showring" class="btn btn--check"><input type="checkbox"> Show diagram</label>
+    <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
+    <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show the cycle</button>
   </div>
   <div id="utils">
@@ -460,7 +468,10 @@ const STEPS=[
     rev:true,
     pool:{FAD:-1,FADH2:+1}, fadh2:1,
     fx:'dehydro',
-    couple:{ up:false, cin:'FAD', cout:'FADH₂', tone:'f' },
+    // SHALLOW, and that is the step's whole point: this oxidation releases so
+    // little that NAD⁺ cannot take the electrons, which is why the cycle's one
+    // FAD step is here. Drawn as a steep drop it would say the opposite.
+    couple:{ up:false, shallow:true, cin:'FAD', cout:'FADH₂', tone:'f' },
     // `dehydroC` is the PAIR of carbons that each lose a hydrogen — the bond
     // the double bond forms across. An array, so the disc sits on the bond.
     spot:{ at:'dehydroC', say:'Pull two hydrogens off' },
@@ -489,13 +500,20 @@ const STEPS=[
     rev:true,
     pool:{NAD:-1,NADH:+1}, nadh:1,
     fx:'ox', anchor:'hydride',
-    couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
+    /* THE ONE STEP THAT RUNS UPHILL — about +30 kJ/mol, further than any other
+     * here goes down. Nothing about NADH pays for it: `pull` says what does,
+     * which is citrate synthase consuming the oxaloacetate as fast as it
+     * appears. Named as a molecule, so the enzyme in the sentence is read off
+     * the step that takes it. */
+    couple:{ up:true, pull:'oaa', cin:'NAD+', cout:'NADH', tone:'n' },
     // `hydride` is the H malate hands NAD⁺ — drawn on this molecule only
     // because C2 is a stereocentre, which is what makes it nameable.
     spot:{ at:'hydride', say:'NAD⁺ takes a hydride' },
     takeaway:`Oxaloacetate is back — the cycle can turn again`,
     msg:`<b>Malate dehydrogenase</b> oxidizes malate's hydroxyl back to a ketone →
-      <b>oxaloacetate</b>, and makes the turn's fourth NADH. The cycle is now
+      <b>oxaloacetate</b>, and makes the turn's fourth NADH. This is the cycle's
+      one <b>uphill</b> step, and it runs because citrate synthase takes the
+      oxaloacetate away as fast as it is made. The cycle is now
       exactly where it started, which is what makes it a cycle: nothing was
       consumed but the two carbons, and they left as CO₂.` },
 ];
@@ -1135,17 +1153,23 @@ function drawCaption(){
  *  it is not part of the loop and a ninth node would make it look like one.
  */
 const ringEl=document.getElementById('ringbox');
+/* BEHIND A TOGGLE, default OFF — the ledger's reason. The loop is a fact about
+ * the pathway, not about the reaction on screen, and a map open the whole run
+ * invites reading the map instead of the molecule. */
+let showRing=false;
 // The eight steps that ARE the ring: everything with a number.
 const RING_STEPS=STEPS.filter(s=>typeof s.n==='number');
 // The node BEFORE the ring's first step — the molecule the cycle starts and
 // ends on. Read off the last step's product, so the loop's closure is derived.
 const RING_HOME=RING_STEPS[RING_STEPS.length-1].species[0];
+// How full the wheel was drawn last time, so the next draw can ease from it.
+let ringOff=null;
 function drawRing(){
   /* DOWN ON THE TALLY SCREEN. The ring says "you are here in one turn", and the
    * closing tally is the receipt for both of them — a half-lit loop beside it
    * is answering a question nobody is asking any more, and it stands exactly
    * where the tally's third column needs to be. */
-  const on = !intro && !tallyOn();
+  const on = showRing && !intro && !tallyOn();
   ringEl.hidden = !on;
   if(!on) return;
   const N=RING_STEPS.length, CX=130, CY=112, R=64, LR=90;
@@ -1159,21 +1183,32 @@ function drawRing(){
   const ranRing=Math.max(0, done - (nSteps-N));
   const curRing=(!intro && !reviewing && done>=nSteps-N && done<nSteps)
     ? done-(nSteps-N) : -1;
-  let out='';
-  // ---- the arcs, one per step, drawn from node k to node k+1
-  for(let k=0;k<N;k++){
-    const a0=ang(k)+0.34, a1=ang((k+1)%N)-0.34;
-    const [x0,y0]=px(a0,R), [x1,y1]=px(a1,R);
-    out+=`<path class="rgarc${k<ranRing?' on':''}" d="M${x0.toFixed(1)},${y0.toFixed(1)} `
-       + `A${R},${R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}"/>`;
-  }
+  /* ---- the wheel: one track, one arc that fills it.
+   * DASH LENGTH, NOT A REDRAWN PATH — the whole circumference is stroked and
+   * the dash offset is how much of it shows, so the arc grows by animating one
+   * number and a full turn closes the loop instead of ending 0.001rad short of
+   * where it began. Half a step is added while one is running: the wheel is
+   * moving because the reaction is. */
+  const C=2*Math.PI*R;
+  const turned=Math.min(N, ranRing + (busy && curRing>=0 ? 0.5 : 0));
+  const off=C*(1-turned/N);
+  let out=`<circle class="rgtrack" cx="${CX}" cy="${CY}" r="${R}"/>`
+    + `<circle class="rgfill" cx="${CX}" cy="${CY}" r="${R}"`
+    + ` transform="rotate(-90 ${CX} ${CY})"`
+    + ` stroke-dasharray="${C.toFixed(1)}"`
+    + ` stroke-dashoffset="${(ringOff==null?off:ringOff).toFixed(1)}"/>`;
   // ---- the nodes
   nodes.forEach((key,k)=>{
     const a=ang(k);
     const [x,y]=px(a,R), [lx,ly]=px(a,LR), [cx2,cy2]=px(a,R-15);
     const state=k===curRing?'cur':k<=ranRing&&(k>0||ranRing>0)?'past':'';
     const spec=M[key];
-    out+=`<circle class="rgdot ${state}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5"/>`
+    // the halo is the rail's box-shadow on .rnum.cur, drawn: a ring outside the
+    // dot rather than a bigger dot, so the node keeps its place on the track
+    if(state==='cur')
+      out+=`<circle class="rghalo" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9"/>`;
+    out+=`<circle class="rgdot ${state}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" `
+       + `r="${state==='cur'?6:5}"/>`
        + `<text class="rgt ${state}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${spec.short}</text>`
        + `<text class="rgc" x="${cx2.toFixed(1)}" y="${cy2.toFixed(1)}">${meta(spec).carbons}C</text>`;
   });
@@ -1188,10 +1223,17 @@ function drawRing(){
     return `<text class="rgtag" style="fill:${col}" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}">${txt}</text>`; };
   out+=tag(0,'+2C','var(--carbon)');
   RING_STEPS.forEach((s,k)=>{ if(s.co2) out+=tag(k,'CO₂','var(--co2)'); });
+  ringOff=off;
   ringEl.innerHTML=`<div class="rh">One turn</div>`
     + `<svg viewBox="0 0 260 224" role="img" aria-label="The citric acid cycle: `
     + `${nodes.map(k=>M[k].short).join(', ')}, and back to ${M[RING_HOME].short}">`
     + out + `</svg>`;
+  /* …and THEN the new length, one frame later. The panel is rebuilt from data
+   * every refresh, so a fresh node would be born at its final offset and the
+   * transition would have nothing to run from: it starts at the length the
+   * wheel was showing and eases to the length it should show. */
+  const fill=ringEl.querySelector('.rgfill');
+  requestAnimationFrame(()=>fill.setAttribute('stroke-dashoffset', off.toFixed(1)));
 }
 
 const ledgerEl=document.getElementById('ledger');
@@ -1493,7 +1535,8 @@ function drawEnzMeta(){
   const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
   enzMetaEl.innerHTML=
       `<span class="east ${first}" aria-hidden="true"></span>`
-    + (st.couple ? `<button class="estat k-cpl" data-cpl aria-pressed="${on}">Coupled reaction</button>` : '')
+    + (st.couple ? `<button class="estat k-cpl" data-cpl aria-pressed="${on}">${
+        st.couple.pull?'Pulled reaction':'Coupled reaction'}</button>` : '')
     + `<button class="estat ${st.rev===false?'k-irr':'k-rev'}" data-cpl aria-pressed="${on}">${
         st.rev===false?'Irreversible':'Reversible'}</button>`;
 }
@@ -1546,6 +1589,8 @@ function placeEnz(){
     if(laneSettled(grp)) el.dataset.set='1';
   });
 }
+const ringBox=document.getElementById('showring').querySelector('input');
+ringBox.onchange=()=>{ showRing=ringBox.checked; refresh(); };
 const ledgerBtn=document.getElementById('showledger');
 const ledgerBox=ledgerBtn.querySelector('input');
 ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
@@ -1707,9 +1752,14 @@ function changing(st){
 function resolveCouple(st){
   const c=st.couple, nameOf=k=>M[k].short||M[k].name;
   const [before,after]=changing(st);
+  // The molecule whose removal pulls an uphill step, and the enzyme that
+  // removes it — read off the step that calls it onto the stage, never typed.
+  const puller=c.pull && STEPS.find(x=>(x.enter||[]).includes(c.pull));
   return Object.assign({}, c, {
     from: before.map(nameOf).join(' + ') + (c.plus?` + ${c.plus}`:''),
-    to:   after.map(nameOf).join(' + ') });
+    to:   after.map(nameOf).join(' + '),
+    pullName: c.pull ? nameOf(c.pull) : null,
+    pullBy: puller ? puller.enz.replace(/ \(.*\)/,'') : null });
 }
 function coupleFig(c){
   const topMain = c.up ? c.to : c.from, botMain = c.up ? c.from : c.to;
@@ -1736,11 +1786,22 @@ function coupleFig(c){
   </svg>`;
 }
 const RC_Y={ hi:34, mid:76, lo:120, peak:22 };
+/* THE HEIGHTS ARE THE THERMODYNAMICS, so a step declares which shape it is and
+ * the drawing follows:
+ *   plain      a real drop, and the coupling banks part of it (steps 3, 4, 5)
+ *   `shallow`  barely downhill — the drop is too small to be worth much (6)
+ *   `up`       uphill on its own; the second trace is what makes it go, which
+ *              is the carrier for a coupled step and the PULL for step 8
+ * A step drawn steeply downhill is a claim, and three of these would be false.
+ */
 function coupleCurve(c){
   const Y=RC_Y;
   const start=c.up ? Y.lo : Y.hi;
-  const endAlone=c.up ? Y.mid : Y.lo;
-  const endWith =c.up ? Y.lo+16 : Y.mid;
+  const endAlone=c.up ? Y.mid : (c.shallow ? Y.hi+26 : Y.lo);
+  // pulled, not paid for: taking the product away does not put the product
+  // below the substrate, it only stops the climb being a wall
+  const endWith =c.up ? (c.pull ? Y.lo-8 : Y.lo+16)
+                      : (c.shallow ? Y.hi+12 : Y.mid);
   const peak=Math.min(start,endAlone,endWith)-Y.peak;
   const trace=(y0,y1)=>`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
                       +` C174,${peak} 180,${y1} 212,${y1} H266`;
@@ -1752,24 +1813,34 @@ function coupleCurve(c){
     <path class="rc with"  d="${trace(start,endWith)}"/>
     <path class="rc alone" d="${trace(start,endAlone)}"/>
     <text class="et alone" x="266" y="${endAlone-7}" text-anchor="end">on its own</text>
-    <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">with ${c.up?c.cin:c.cout}</text>
+    <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">${
+      c.pull ? `with ${c.pullName} taken away` : `with ${c.up?c.cin:c.cout}`}</text>
   </svg>`;
 }
+/* THE TWO UNCOUPLED STEPS ARE OPPOSITE KINDS, and the drawing has to say which
+ * — a level trace under a caption reading "steeply downhill" is the picture
+ * contradicting the words. `rev` decides, so neither height is typed against a
+ * particular step: citrate synthase drops (−32 kJ/mol, and that drop is what
+ * pulls the cycle round), aconitase does not move. */
 function soloCurve(st){
   const Y=RC_Y, nameOf=k=>M[k].short||M[k].name;
   const [b,a]=changing(st);
   const from=b.map(nameOf).join(' + '), to=a.map(nameOf).join(' + ');
-  const y=Y.mid, peak=y-Y.peak;
-  const trace=`M34,${y} H88 C120,${y} 126,${peak} 150,${peak}`
-             +` C174,${peak} 180,${y} 212,${y} H266`;
+  const drop=st.rev===false;
+  const y0=drop?Y.hi:Y.mid, y1=drop?Y.lo:Y.mid;
+  const peak=Math.min(y0,y1)-Y.peak;
+  const trace=`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
+             +` C174,${peak} 180,${y1} 212,${y1} H266`;
   return `<svg class="cpl" viewBox="0 0 300 152" role="img"
-      aria-label="${from} to ${to}: substrate and product sit at nearly the same
-        free energy, with a barrier between them">
+      aria-label="${from} to ${to}: ${drop
+        ? 'the product sits well below the substrate'
+        : 'substrate and product sit at nearly the same free energy'},
+        with a barrier between them">
     <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
     <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
     <path class="rc solo" d="${trace}"/>
-    <text class="et alone" x="34" y="${y+18}">${from}</text>
-    <text class="et alone" x="266" y="${y+18}" text-anchor="end">${to}</text>
+    <text class="et alone" x="34" y="${y0+18}">${from}</text>
+    <text class="et alone" x="266" y="${y1+18}" text-anchor="end">${to}</text>
   </svg>`;
 }
 // The two uncoupled steps are opposite kinds and the figure has to say which.
@@ -1784,9 +1855,18 @@ let figTab='curve';
 const figTabStrip=()=>`<div class="ftabs">`
   + FIGTABS.map(([k,lb])=>`<button data-figtab="${k}"${figTab===k?' class="on"':''}>${lb}</button>`).join('')
   + `</div>`;
-const coupleLine=c=>c.up
+const coupleLine=c=>c.pull
+  ? `On its own this step runs <b>uphill</b>, further than any other step here
+     runs down. It goes anyway because <b>${c.pullBy}</b> takes the
+     <b>${c.pullName}</b> away as fast as it is made: a product that never
+     accumulates keeps pulling the reaction forward.`
+  : c.up
   ? `On its own this step runs <b>uphill</b>. <b>${c.cin}</b> provides the extra
      energy needed to complete the reaction.`
+  : c.shallow
+  ? `This step runs <b>downhill, but barely</b> — too little to reduce NAD⁺,
+     which is why these electrons go to <b>${c.cout}</b> instead and are worth
+     less further down.`
   : `This step runs <b>downhill</b>. The drop drives
      <b>${c.cout}</b> the other way, <b>uphill</b> — which is where the energy
      actually goes.`;
@@ -1806,9 +1886,9 @@ function drawCouple(){
   cplEl.style.display='block';
   cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
     +(c
-      ? `<div class="nhead cpl-h">Coupled reaction</div>`
-        + figTabStrip()
-        + (figTab==='curve' ? coupleCurve(c) : coupleFig(c))
+      ? `<div class="nhead cpl-h">${c.pull?'Pulled reaction':'Coupled reaction'}</div>`
+        + (c.pull ? '' : figTabStrip())
+        + (c.pull || figTab==='curve' ? coupleCurve(c) : coupleFig(c))
         + `<p class="nbody">${coupleLine(c)}</p>`
       : `<div class="nhead cpl-h">Energy curve</div>`
         + soloCurve(st)
