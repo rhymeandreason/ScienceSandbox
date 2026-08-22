@@ -983,7 +983,7 @@ function create(host) {
    * lane happens to be drawing. WHERE IT LANDS is the acid's own `keto`, the
    * carbon it is attacked at.
    */
-  function acylFly(held, acid, dur, after) {
+  function acylPiece(held) {
     const spec = specOf(held.key), m = meta(spec);
     const carbons = m.acyl || [];
     const set = new Set(carbons);
@@ -992,7 +992,6 @@ function create(host) {
     }));
     const idx = [...set].filter(i => held.g.userData.atomMeshes[i]);
     const from = atomOn(held, m.hot);
-    const to = atomOn(acid, meta(specOf(acid.key)).keto);
     // Built from the meshes' OWN world positions, not the spec's, so the group
     // in the air is the shape that was standing there a frame ago.
     const g = new THREE.Group();
@@ -1002,6 +1001,11 @@ function create(host) {
     GO.link(g, (spec.bonds || []).filter(b => set.has(b[0]) && set.has(b[1]))
                                  .map(b => [rel(b[0]), rel(b[1])]));
     shedAtoms(held, idx);
+    return {g, from};
+  }
+  function acylFly(held, acid, dur, after) {
+    const {g, from} = acylPiece(held);
+    const to = atomOn(acid, meta(specOf(acid.key)).keto);
     GO.launch(g, {from, to, dur, arc: ARC, onDone: () => {
       FX.spawnRing(to, PAL.atoms.C); if (after) after();
     }});
@@ -1202,23 +1206,57 @@ function create(host) {
    * substrate, which would draw a phosphate the substrate never had.
    */
   verb('thioester', {
-    dur: () => T.HANDLE + T.DRIFT,
-    lane(c) {
-      /* THE HANDLE DOES NOT GO ANYWHERE. Breaking the thioester leaves free
-       * coenzyme A standing in the matrix, and the lane it was part of is what
-       * comes apart to show that — a flight out of frame would say the step
-       * ends with one molecule when it ends with two. The ring is the break. */
-      const seat = thiolWorld(c.lane);
+    dur: () => T.HANDLE + T.DRIFT + T.FLY + T.PLAIN,
+    /* WHOLE, BECAUSE IT CHANGES THE LANE COUNT — `split`'s reason. One molecule
+     * ends the step as two, and a per-lane body cannot spawn a lane that has no
+     * substrate standing in it.
+     *
+     * THE ORDER IS THE CLAIM. The acyl group comes off the sulfur and WAITS
+     * there while the phosphate reaches ADP: what pays for the ATP is the bond
+     * that just broke, and a piece already settled into its new lane before the
+     * phosphate moves says the two things merely happened near each other. Only
+     * then does it cross to its own lane and become the acid.
+     */
+    whole(c) {
+      const l = lanesNow()[0];
+      if (!l) return c.land();
+      const seat = thiolWorld(l);
       FX.spawnRing(seat, THIO());
+      const {g, from} = acylPiece(l);
+      GO.hold(g); g.position.copy(from);
+      // A short pull straight off the sulfur, along the line out from the
+      // handle: far enough to read as detached, near enough to still be its.
+      const wait = from.clone().sub(l.g.getWorldPosition(V(0, 0, 0)))
+                       .normalize().multiplyScalar(3.2).add(from);
+      const leg = (a, b, ms, ease) => MO.seq([{dur: ms / 1000, ease,
+        onUpdate: e => { g.position.lerpVectors(a, b, e); }}], {tag: TAG});
+      leg(from, wait, T.HANDLE, 'outQuad');
+
       const free = host.freeSpec && host.freeSpec();
-      if (!c.step.couple || !free) return;
-      later(() => {
-        const to = c.carrier(seat) || V(c.lane.g.position.x, -OFFSCREEN, 0);
+      if (c.step.couple && free) later(() => {
+        const to = c.carrier(seat) || V(l.g.position.x, -OFFSCREEN, 0);
         flyFree(free, offstage(seat), to, T.DRIFT, () => {
           const at = c.carrierBond(); FX.spawnRing(at || to, PAL.atoms.P);
           host.onCarrierTaken(c.j); host.popCarrier(c.j);
         });
       }, T.HANDLE);
+
+      // …and then it takes the lane the acid will stand in.
+      const home = V(host.laneOrigin(c.keys[0], 0, c.keys.length),
+                     host.laneBase(c.keys[0]), 0);
+      later(() => leg(wait, home, T.FLY, 'inOutQuad'), T.HANDLE + T.DRIFT);
+      later(() => {
+        GO.drop(g);
+        // The acid is already standing on that mark; the handle stays where the
+        // thioester stood and eases out to the lane it now has to itself.
+        const was = l.g.position.x;
+        host.spawnLanes(c.keys, (o, j, n) => {
+          if (j === 0) return;
+          o.g.position.x = was;
+          o.g.userData.tx = host.laneOrigin(o.key, j, n);
+        });
+        c.land();
+      }, T.HANDLE + T.DRIFT + T.FLY);
     }});
 
   /* ---- WATER ADDING ACROSS A DOUBLE BOND ------------------------------

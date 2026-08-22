@@ -93,8 +93,11 @@ VERBS.forEach(v => {
     fail(`verb '${v}' defines neither lane() nor whole() — nothing would run.`);
 });
 // The verbs that are ABOUT the lane count, and may therefore own the stage.
-// Both directions of the same event: a molecule splitting, and two joining.
-const COUNT_VERBS = ['split', 'join'];
+// Both directions of the same event: a molecule splitting, and two joining —
+// and `thioester`, which is the second of those wearing a different name: the
+// acyl group leaves the sulfur and the step ends with free coenzyme A standing
+// beside the acid, two molecules where one was.
+const COUNT_VERBS = ['split', 'join', 'thioester'];
 const wholes = VERBS.filter(hasWhole);
 const stray = wholes.filter(v => !COUNT_VERBS.includes(v));
 if (stray.length)
