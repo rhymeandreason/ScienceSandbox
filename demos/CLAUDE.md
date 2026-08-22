@@ -21,6 +21,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | Adding or changing a shared module | `Modules.md` |
 | A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
 | A solvation page | `WaterSim.md` |
+| The AI tutor, or `api/` | `docs/ai-tutor.md` — design, and the local setup the pages do not need |
 | Deciding what to build next | the two roadmaps. This is the only task they serve |
 
 Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = invariants, load whole. *recipe* = how to build one kind of thing. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. **If you need a doc this table does not name, stop and say which** — a gap here is invisible from inside a build, and guessing past it is how a rule gets missed.
@@ -29,7 +30,7 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 
 <!-- ENUM: Only add to this chart if a page is a featured lesson. Prototypes and Test pages go on demos/admin.html -->
 
-**Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as fallback or worked example — don't read it unless asked. *test* = an evaluation record, not a lesson — disposable, may get deleted once it's served its purpose. *internal tool* = not a lesson either, but kept in active use (e.g. to pick a molecule's default rotation) — don't delete it like a test.
+**Status**: *featured lesson* = real, student-facing, browser-tested; breaking one is a regression, and it's listed under "Featured" on the top-level `index.html`. *prototype* = in progress, not held to that bar. *reference* = superseded, kept as a fallback or worked example; not listed here either, and don't read one unless asked. *test* = a bench, not a lesson; **test pages are not listed here — `admin.html` is the live index of every page in the repo**, and it is the one that stays current. *internal tool* = not a lesson either, but kept in active use (e.g. to pick a molecule's default rotation) — don't delete it like a test.
 
 | Page | Lesson | Status |
 | --- | --- | --- |
@@ -39,37 +40,18 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `contrast-lab.html` | Spot the difference: six near-identical pairs (glucose/galactose · ribose/deoxyribose · purine/pyrimidine · L-/D-alanine · maltose/cellobiose · palmitic/palmitoleic acid) | prototype |
 | `molecule-lab.html` | Dissolving sandbox: polar/nonpolar/ionic solutes, CO₂ → carbonic acid → bicarbonate + pH | prototype |
 | `solvation-lab.html` | The forces **between** molecules, where `molecule-builder` stops. One card built (salt in water: hydration shells, water wedges the pair apart, the electron counts never move), two named (the H-bond alone · methane, where nothing happens) | prototype |
-| `aminoacid-lab.html` | Build a peptide: amino acids join by dehydration synthesis, releasing water | test |
 | `glycolysis-lab.html` | Ten steps in five stages. Everything is rendered as molecules. Animations for each step. the user interacts on the molecule. Hosts the `massaction/` sim in a modal — a second simulation with its own physics (below) | featured lesson |
 | `krebs-lab.html` | The Krebs cycle. Pyruvate oxidation, then eight steps around the ring, with the loop drawn in the sidebar and a second turn played back for the ×2. Where the carbon goes, and why the ATP is beside the point | prototype |
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
 | `design-system.html` | Every token, type step and button in `main.css`, drawn on the stage's own paper. Swatches read their own computed value, so the page cannot claim a colour the token does not hold | internal tool |
-| `water-render-debug.html` | Test bench for render styles — a still life of water, an H-bond and the two ions, with colour swatches and the toon/outline switches. Built on Stage's own factories, so a style judged here is the one a lesson renders | test |
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
-| `macromolecule-lab.html` | The four classes side by side: one monomer each (glucose · palmitic acid · alanine · AMP), at true relative size, functional groups callable out | test |
-| `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
-| `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
-| `massaction/massaction-test.html` | Test bench for `massaction/massaction.js` — three mounts, including the barrier slider the enzymes lesson needs and glycolysis never renders | test |
-| `energy/energy-test.html` | Test bench for `energy/energy.js` — every shape a reaction can be, at the width the sidebar gives the card, plus the barrier slider the enzymes lesson needs and no pathway ever moves | test |
-| `kit/kit-test.html` | Test bench for `kit/` — the timeline, the highlight vocabulary, and a camera fit against pixel chrome, with no lesson around them | test |
-| `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
-| `coupling/coupling-test.html` | Test bench for `coupling/coupling.js` — ΔG adds, and it only adds when the two reactions share a molecule | test |
-| `lobes/lobes-test.html` | Test bench for `lobes/lobes.js` — lone pairs as teardrops, and which nitrogens on adenine are not acceptors | test |
-| `chain/glucose-chains-test.html` | Test bench for `chain-repeat.js` — one linkage, measured off the disaccharide, repeated twelve times. Cellulose's two-fold ribbon and starch's six-fold helix both fall out of the torsions, with nothing drawing either. A third chain (galactan) varies the acceptor's C4 instead of the donor's C1, and lactose sits beside it as the control that does not chain and *is* digestible | test |
-| `chair/chair-test.html` | Test bench for `chair-flip.js` — the ring flip. Orbit to see the chair, flip it, and watch every substituent trade axial for equatorial. Glucose is the only one of the three that gets all five out of the way at once | test |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
 ## Making a new lesson
 
-**Load `main.css` before `sandbox.css`.** `main.css` is the design system: tokens (primitive → semantic → domain), the type scale, and the six button shapes. `sandbox.css` is the old shared chrome, being retired into it; because it loads second it still wins wherever the two overlap, so moving a piece across is a deletion rather than an edit. Atom and bond colours are not written in CSS at all: `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. See `design-system.html`.
+**Load `main.css` first, then `sandbox.css`, then `pathways.css` on a step-through pathway lesson.** `main.css` is the design system and `sandbox.css` the old chrome retiring into it; because it loads second it still wins where they overlap, so moving a piece across is a deletion rather than an edit. Atom and bond colours are not in CSS at all: `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*`, so a caption and the sphere it names cannot drift. See `design-system.html`.
 
-**A step-through pathway lesson loads `pathways.css` after `sandbox.css`.** It is the chrome `glycolysis-lab` and `krebs-lab` share — rail, tray, plates, hotspots, bar, ledger, tally, modal card. The page's own `<style>` keeps only what a count or a size makes its own. `AddingAPage.md`.
-
-**The free-energy card is `energy/`, and it is not pathway chrome.** `energy/energy.js` + `energy/energy.css` draw the reaction coordinate and the coupled pair as two tabs of one figure, off flags on the step. The axis carries no scale on purpose: a pathway sources no per-step ΔG°′, and published magnitudes belong to `coupling/`. The enzymes lesson is its next consumer, which is why the barrier is an input.
-
-**Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. The seven-step checklist for building a new page, and the traps a page falls into: **`AddingAPage.md`**. Full script-load order, the module reference table, and how to add a module: **`Modules.md`**.
-
-**Above `scene.js` there is `kit/`** — the loop, the resize, the timeline, the highlight vocabulary, and a camera fit that spends *pixels* of caption/tray chrome. It owns no lesson state and no physics; it exists so a new lesson is its mechanic and nothing else. **`kit/README.md`.**
+**Use shared modules, and load only the ones the page shows.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Above `scene.js` sits `kit/`, and beside it the standalone folders — what each owns, the full load order, and how to add one: **`Modules.md`**. The seven-step checklist for building a page, and the traps it falls into: **`AddingAPage.md`**.
 
 ## Architecture principle: **share the plumbing, not the physics**
 
@@ -79,7 +61,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
 
-**`reaction/` is the exception that proves this**: it is a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule — the verbs, the transfers, the spec geometry — while the lesson keeps its lanes, carriers and ledger. Adding a verb must not touch a page. The cycle added six (`decarb`, `join`, `thioester`, `hydrate`, `dehydro`, `shift`) and changed no lesson but its own. A spec's atom names are read through `host.meta`, because a step can span two domain blocks — pyruvate carries `gly`, the acetyl-CoA it becomes carries `krebs`. `Modules.md`.
+**`reaction/` is the exception that proves this**: a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule, while the lesson keeps its lanes, carriers and ledger. **Adding a verb must not touch a page** — the cycle added six and changed no lesson but its own. `Modules.md`.
 
 **`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
 
@@ -91,7 +73,7 @@ A lesson's main stage is a 3D scene built for that lesson, rendered as molecules
 
 ## AI Tutor
 
-See ai-tutor.md in the docs folder.
+See `docs/ai-tutor.md`.
 
 ## Run / test locally
 
@@ -103,13 +85,7 @@ Live reload, and `no-store` so you never debug a fix that's already correct on d
 
 Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in place, so the scene keeps its camera, selection and toggles.
 
-**The pages are dependency-free; the tutor is not.** `water-lab`'s ask box calls `api/`, which needs the model SDKs and a key, and neither is in the working tree:
-
-```bash
-npm i                           # at the REPO ROOT, not demos/. installs the SDKs api/_providers/ requires
-```
-
-Then put the key in `.env.local` **at the repo root** (gitignored, the same file Vercel's CLI reads): `GEMINI_API_KEY=` for the default provider, or `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY=`. `GEMINI_MODEL` / `ANTHROPIC_MODEL` override the model. The dev server re-reads it per request, so pasting a key needs no restart, but installing the SDKs does, since the server resolved them at startup. A missing key answers `<KEY> is not set on the server`; a missing `npm i` answers `Cannot find module '@google/genai'`.
+**The pages are dependency-free; the tutor is not.** `water-lab`'s ask box needs SDKs and a key that are not in the working tree; setup is in `docs/ai-tutor.md`.
 
 The reload client is injected into responses, never written to disk — this repo publishes to Pages straight from the working tree, so anything committed ships. To see exactly what deploys:
 
@@ -129,13 +105,9 @@ Framing, spacing, rotation, captions: the human tests in the browser. `tools/che
 
 Widen a checker's gate pattern alongside any new derived artefact — nothing about a stale one is visible from the page that plays it.
 
-No CI. By hand:
+No CI: the hook is the run. It covers every checker except `tools/check-handedness.js` below, and `chain/`'s and `chair/`'s, which stay ungated while those pages are test-status. A checker is `node <path>`, offline and dependency-free; `.githooks/pre-commit` is the list.
 
-```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node energy/check-energy.js && node lobes/check-lobes.js && node chair/check-chair.js && node chain/check-chain.js
-```
-
-Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
+**`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
 
 ```bash
 npm i && node tools/check-handedness.js

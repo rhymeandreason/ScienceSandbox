@@ -1,3 +1,5 @@
+<!-- KIND: recipe + reference — load when working on the tutor or `api/`. The lessons themselves need nothing here. -->
+
 # AI tutor chat
 
 ## Goal
@@ -229,3 +231,13 @@ The stakes were not only money. With the prompt replaceable, the endpoint answer
 **Benches.** `demos/ask/chat-test.html` (multi-turn, editable prompt, scored aim probes) and `ask-test.html` (single-shot). Both need the API served from the same machine; there is nothing to configure. **The chat bench has drifted**: it sends no `state` and does not know about the sim notes, so tuning there no longer predicts the lesson. Reconcile or retire it.
 
 **Audience.** The tutor prompt says *high school*, chosen deliberately, even though `demos/CLAUDE.md` frames the lessons for college Bio 101.
+
+## Running it locally
+
+**The pages are dependency-free; the tutor is not.** `water-lab`'s ask box calls `api/`, which needs the model SDKs and a key, and neither is in the working tree:
+
+```bash
+npm i                           # at the REPO ROOT, not demos/. installs the SDKs api/_providers/ requires
+```
+
+Then put the key in `.env.local` **at the repo root** (gitignored, the same file Vercel's CLI reads): `GEMINI_API_KEY=` for the default provider, or `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY=`. `GEMINI_MODEL` / `ANTHROPIC_MODEL` override the model. The dev server re-reads it per request, so pasting a key needs no restart, but installing the SDKs does, since the server resolved them at startup. A missing key answers `<KEY> is not set on the server`; a missing `npm i` answers `Cannot find module '@google/genai'`.
