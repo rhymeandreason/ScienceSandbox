@@ -701,8 +701,13 @@
       CH.push(h4);
       return { s, RING, c4, dir4, h4, OH, c6, CH };
     }
+    /* `gal` says which residues are galactose rather than glucose, and it has to
+     * be per-residue: galactobiose is both, LACTOSE is a galactose donor onto a
+     * glucose acceptor. Passing `true` means both, which is the common case. */
     function disaccharide(alpha, tune, gal){
-      const d=donor(alpha, gal), a=acceptor(gal);
+      const galD = gal===true || (gal && gal.donor);
+      const galA = gal===true || (gal && gal.acceptor);
+      const d=donor(alpha, galD), a=acceptor(galA);
       const { phi, spin } = tune || (alpha ? LINK.alpha : LINK.beta);
       /* The two torsions about the linkage, both continuous now. `phi` turns the
        * C4 direction about the C1–O bond and `spin` turns the second ring about
@@ -815,7 +820,7 @@
      *   the page has to say so. chain/check-chain.js only audits specs that declare a
      *   helix, so this one is deliberately outside it.
      */
-    const gb=disaccharide(false, LINK.beta, true);
+    const gb=disaccharide(false, LINK.beta, {donor:true, acceptor:true});
     CONTRAST.galactobiose=gb.s.spec({ name:'Galactobiose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
       names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
       // C4 axial on BOTH rings: the donor's free hydroxyl and the acceptor's
@@ -825,6 +830,37 @@
       glycosidic:{ anomeric:gb.c1, bridge:gb.bo, partner:gb.c4, config:'beta', link:'1→4' },
       view:VIEW.disaccharide,
       optH:gb.optH });
+
+    /* — LACTOSE, β-D-galactopyranosyl-(1→4)-D-glucose. The control this page's
+     *   whole enzyme argument rests on, and the one sugar here that is NOT a
+     *   polymer repeat.
+     *
+     *   It shares galactobiose's donor half exactly: the same β-1,4 bond, the
+     *   same galactose giving C1, the same axial C4 on that ring. The only
+     *   difference is what accepts — glucose instead of galactose. And you
+     *   digest one and not the other: lactase cleaves this bond happily, while
+     *   pectic galactan passes through as fibre. So a student who thinks an
+     *   enzyme is reading the chain's SHAPE has to explain this pair, and
+     *   cannot. Enzymes read the linkage and its neighbours, not the silhouette.
+     *
+     *   IT DOES NOT CHAIN, and that is a fact about the molecule rather than a
+     *   gap in the model: the glucose's C4 is spent on the bridge and its C1 is
+     *   the free reducing end, so there is no repeat to make. chain-repeat.js is
+     *   never pointed at it, and the bench draws it as the single molecule it is.
+     *
+     *   Torsions pinned to cellobiose's, as galactobiose's are, so nothing about
+     *   the comparison comes from a knob. No `helix:` — there is no helix.
+     */
+    const lac=disaccharide(false, LINK.beta, { donor:true, acceptor:false });
+    CONTRAST.lactose=lac.s.spec({ name:'Lactose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
+      names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H6A1','H6A2','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H6B1','H6B2'],
+      // Axial at the GALACTOSE's C4 only. The glucose half is ordinary
+      // all-equatorial glucose, which is the difference from galactobiose and
+      // the whole point of having both.
+      stereo:{ axial:[lac.c4d] },
+      glycosidic:{ anomeric:lac.c1, bridge:lac.bo, partner:lac.c4, config:'beta', link:'1→4' },
+      view:VIEW.disaccharide,
+      optH:lac.optH });
   }
   register(CONTRAST, SELFNAME);
 })(this);

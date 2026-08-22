@@ -61,6 +61,8 @@
     line-height:1.5;margin:0 0 12px;padding-bottom:10px;
     border-bottom:1.5px solid rgba(58,52,44,.14)}
   .case > .why b{color:var(--ink)}
+  /* the control reads as a different kind of card: it is not a chain */
+  .case.ctrl{border-style:dashed}
   .gl{width:100%;height:330px;display:block;border-radius:calc(var(--radius) - 6px);
     background:rgba(58,52,44,.04);cursor:grab}
   .read{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;
@@ -103,6 +105,16 @@
         note under the readout.</p>
       <div><canvas class="gl" id="glG"></canvas></div>
       <div class="read" id="readG"></div>
+    </div>
+    <div class="case ctrl">
+      <p class="why"><b>Lactose — the control, and not a chain.</b> Same β-1,4
+        bond as galactan, same galactose donating C1, same axial C4 on that ring.
+        The acceptor is <b>glucose</b> instead of galactose, and that is the only
+        difference. <b>You digest this one.</b> It cannot chain: the glucose's C4
+        is spent on the bridge and its C1 is the free reducing end, so this is the
+        whole molecule.</p>
+      <div><canvas class="gl" id="glL"></canvas></div>
+      <div class="read" id="readL"></div>
     </div>
     <div class="case">
       <p class="why"><b>Starch — α-1,4.</b> The bridge leaves C1 axial, out of
@@ -225,6 +237,34 @@ function mount(canvasId, readId, key){
 const out={ cellobiose:mount('glB','readB','cellobiose'),
             galactobiose:mount('glG','readG','galactobiose'),
             maltose:mount('glA','readA','maltose') };
+
+/* Lactose is drawn ONCE. chain-repeat.js is deliberately not pointed at it:
+   there is no repeat to make, and rendering twelve of something that does not
+   polymerise would teach a polymer that does not exist. */
+(function single(canvasId, readId, key){
+  const canvas=document.getElementById(canvasId);
+  const { scene, camera, renderer, root, cam, applyCam, resize } =
+    Stage.create(canvas, { cam:{ theta:0.55, phi:1.3, r:26 }, rMax:200 });
+  const spec=MolLib.MOLECULES[key];
+  const g=Stage.buildMolecule(spec,{center:true});
+  root.add(g);
+  const e=Stage.measure(spec);
+  const fit=()=>{ resize();
+    Stage.frame(camera, cam, [{x:0,y:0,rxz:e.rxz*1.25,hy:e.hy*1.25}]); applyCam(); };
+  new ResizeObserver(fit).observe(canvas); fit();
+  (function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
+
+  // The comparison, read off the two specs rather than restated.
+  const gal=MolLib.MOLECULES.galactobiose;
+  document.getElementById(readId).innerHTML=[
+    `<b>${spec.name}</b> — ${spec.glycosidic.config}-${spec.glycosidic.link}, one unit`,
+    `same linkage as <b>${gal.name}</b> (${gal.glycosidic.config}-${gal.glycosidic.link})`,
+    `differs only in what accepts: <b>glucose</b>, not galactose`,
+    `<span class="pred">no chain</span> — no polymer of this exists, so nothing is repeated.`,
+    `Lactase cleaves this bond; the galactan next door passes as fibre. An enzyme`,
+    `reading chain SHAPE could not tell these two apart.`,
+  ].join('\n');
+})('glL','readL','lactose');
 
 /* The page's own headline, decided by the measurements rather than written in
    advance — if new torsion data ever fixes starch, this sentence changes by
