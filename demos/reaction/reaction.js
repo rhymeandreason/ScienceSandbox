@@ -1314,19 +1314,23 @@ function create(host) {
   verb('dehydro', {
     dur: () => T.HOP + T.OX_GAP + T.HOP,
     lane(c) {
-      // THE CARBONS, NOT THE HYDROGENS, and that is forced rather than chosen:
-      // succinate is symmetric with no stereocentre, so mol-krebs.js draws none
-      // of its C–H (its header note 1) and there is no mesh to shed. The two
-      // protons are therefore glows leaving the carbons they were on — which is
-      // what the student sees either way, since the hydrogens were never on
-      // screen to go missing.
-      const cs = meta(c.spec).dehydroC;
+      /* THE HYDROGENS THEMSELVES where the spec draws them, and the carbons they
+       * sat on where it does not. `dehydroH` names the anti pair succinate
+       * dehydrogenase takes — one off each carbon, opposite faces — so what
+       * leaves the screen is what leaves the molecule. */
+      const m = meta(c.spec);
+      const cs = m.dehydroC;
       if (!cs || cs.length !== 2) return;
       const u = c.lane.g.userData;
+      const hs = (m.dehydroH || []).filter(i => u.atomMeshes[i]);
       const ene = meta(c.product).ene;
-      cs.forEach((ci, k) => later(() => {
-        /* @undrawn succinate — it has no C–H mesh to shed (tools/check-pages.js) */
+      const src = hs.length === 2 ? hs : cs;
+      src.forEach((ci, k) => later(() => {
         const at = u.atomWorld(ci).clone();
+        /* it left, so it should look left — and on a spec that drew no C–H
+         * (@undrawn) there is nothing to remove and the glow starts at the
+         * carbon (tools/check-pages.js). */
+        if (hs.length === 2) shedAtoms(c.lane, [ci]);
         const seat = c.carrier(at) || V(c.lane.g.position.x, OFFSCREEN, 0);
         // the FIRST arrival turns the flavin over; the second lands on a
         // carrier already holding one, so it must not pop the tile twice

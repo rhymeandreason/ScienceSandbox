@@ -33,6 +33,9 @@
  *      style choice: CIP priority 4 at every centre here IS that hydrogen, so
  *      a spec that leaves it out cannot state its own handedness and the
  *      checker has nothing to measure. Malate has one, isocitrate two.
+ *      THE SECOND EXCEPTION IS SUCCINATE AND FUMARATE, whose C–H are drawn in
+ *      full: succinate dehydrogenase's event is two of them leaving, and a
+ *      hydrogen never on screen cannot be watched go.
  *      Hydroxyl and amide H's are always drawn (they read as –OH and –NH).
  *   2. C=O double bonds are tagged `[i,j,2]`. The carboxylate's two oxygens
  *      are drawn as one double and one single — the charge is really
@@ -189,6 +192,7 @@
     const [ccC] = carboxylBranch(g, cc, 0);    // Cc's carboxylate
     KREBS.isocitrate = g.spec({
       name:'Isocitrate', short:'Isocitrate', formula:'C₆H₅O₇³⁻', charge:-3, class:'acid',
+      view:[3.0696, -0.4767, -3.1283],
       chiral:[ { at:ca, priority:[oh, caC, cb, caH], hand:'R' },
                { at:cb, priority:[cbC, ca, cc, cbH], hand:'S' } ],
       krebs:{ carbons:6, cN:[ca, cb, cc], carboxyls:3, oh,
@@ -234,15 +238,24 @@
     const g = chainC(4);
     carboxylate(g, 0);
     carboxylate(g, 3);
+    /* THE FOUR C–H, DRAWN — the one place this file breaks its own header note
+     * 1. Succinate dehydrogenase's whole event is two of these leaving, and a
+     * hydrogen that was never on screen cannot be watched going: the step reads
+     * as two glows off bare carbons and the student is told what happened. The
+     * backbone is in z=0, so each CH₂'s pair splays to ±z. */
+    const h2 = [g.grow(1, 'H', GL.CH, 'sp3', 0), g.grow(1, 'H', GL.CH, 'sp3', 0)];
+    const h3 = [g.grow(2, 'H', GL.CH, 'sp3', 0), g.grow(2, 'H', GL.CH, 'sp3', 0)];
+    /* …and WHICH TWO GO: one off each carbon, on OPPOSITE faces. The enzyme
+     * eliminates anti, and that is the whole reason the product is the E alkene
+     * (the assertion below). Picked by the sign of z rather than by index, so it
+     * survives the builder handing the slots out in a different order. */
+    const face = (hs, sign) => hs[0] && g.at(hs[0]).z * sign > 0 ? hs[0] : hs[1];
     KREBS.succinate = g.spec({
       name:'Succinate', short:'Succinate', formula:'C₄H₄O₄²⁻', charge:-2, class:'acid',
       krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, symmetric:true,
-              // THE TWO CARBONS SUCCINATE DEHYDROGENASE STRIPS, not the four
-              // hydrogens on them: no C–H is drawn on this molecule (header
-              // note 1, and succinate has no stereocentre to except), so the
-              // two that leave have no mesh and a lesson animates them off the
-              // carbons instead. C2 and C3 — the pair the C=C forms between.
-              dehydroC:[1, 2] } });
+              // C2 and C3 — the pair the C=C forms between — and the two
+              // hydrogens that leave them.
+              dehydroC:[1, 2], dehydroH:[face(h2, +1), face(h3, -1)] } });
   }
   {
     /* — fumarate: succinate with a C2=C3 double bond, TRANS.
@@ -286,6 +299,10 @@
     s.link(c2, c1); s.link(c3, c4);
     carboxylate(s, c1, 0);
     carboxylate(s, c4, 0);
+    // …and the one hydrogen left on each alkene carbon, drawn for succinate's
+    // reason: the pair that did not leave is what says two of four did.
+    s.grow(c2, 'H', GL.CH, 'sp2', 0);
+    s.grow(c3, 'H', GL.CH, 'sp2', 0);
     KREBS.fumarate = s.spec({
       name:'Fumarate', short:'Fumarate', formula:'C₄H₂O₄²⁻', charge:-2, class:'acid',
       // C1–C2=C3–C4: the dihedral about the double bond. ~180° = trans = E.

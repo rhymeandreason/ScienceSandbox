@@ -655,11 +655,12 @@ function leaveReview(){ reviewing=false; syncLanes(); refresh(); }
 
 const platesEl=document.getElementById('plates');
 /* THE LANE SYSTEM IS kit/lanes.js. What stays here is what only this lesson
- * knows: no C–H anywhere, because the lesson is carbon bookkeeping and the four
- * acids would carry sixteen hydrogens between them. The exceptions are the
- * stereocentre H's mol-krebs.js draws on purpose (malate, isocitrate), which
- * are not `optH` and so are never hidden — and one of them is the hydride step
- * 8 moves. */
+ * knows: no C–H unless a step is ABOUT one, because the lesson is carbon
+ * bookkeeping and the four acids would carry sixteen hydrogens between them.
+ * The exceptions are mol-krebs.js's own and drawn on purpose — the stereocentre
+ * H's (malate, isocitrate), one of which is the hydride step 8 moves, and
+ * succinate's four, two of which step 6 pulls off. None are `optH`, so none of
+ * them are hidden here. */
 const LANES=Lanes.create({
   root, camera, canvas, host:platesEl, specOf:k=>M[k], radii:PAL.radii,
   spread:LANE,
