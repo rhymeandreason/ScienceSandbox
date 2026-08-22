@@ -459,7 +459,7 @@ const STEPS=[
     // target follows the atom rather than a typed index — the same contract
     // glycolysis's `spot` uses. kit/molgraph.js turns it into the C–C bond.
     spot:{ at:'decarb', say:'Take the first carbon off' },
-    takeaway:`One of glucose's six carbons leaves here — as CO₂`,
+    takeaway:`One carbon leaves as CO₂`,
     msg:`<b>Pyruvate dehydrogenase</b> strips a CO₂ from pyruvate and hands the
       remaining two carbons to <b>coenzyme A</b>. Makes NADH. Textbooks call this
       step <b>pyruvate oxidation</b>; it is the bridge
@@ -492,7 +492,7 @@ const STEPS=[
     fx:'shift',
     // `oh` on both specs: where the hydroxyl is now, and where it lands.
     spot:{ at:'oh', say:'Move the OH' },
-    takeaway:`Nothing to count changes — that is the point`,
+    takeaway:`Nothing to count changes`,
     msg:`<b>Aconitase</b> moves citrate's hydroxyl one carbon over, making
       <b>isocitrate</b>. Same formula, same mass, same carbons. Citrate's –OH sits
       on a carbon with no hydrogen to give, so it cannot be oxidized; isocitrate's
@@ -505,7 +505,7 @@ const STEPS=[
     fx:'decarb', anchor:'oxC',
     couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     spot:{ at:'decarb', say:'Take a carbon off' },
-    takeaway:`6C → 5C, and the cycle's rate-limiting step`,
+    takeaway:`6C → 5C, the cycle's rate-limiting step`,
     msg:`<b>Isocitrate dehydrogenase</b> oxidizes isocitrate and releases CO₂ →
       <b>α-ketoglutarate</b>. Makes NADH. Rate-limiting: switched down by ATP and
       NADH, up by ADP and Ca²⁺ — so the cycle runs at the speed the cell is
@@ -518,7 +518,7 @@ const STEPS=[
     fx:'join', enter:['coa'], anchor:'oxC',
     couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     spot:{ at:'decarb', say:'Take the last carbon off' },
-    takeaway:`5C → 4C. Both carbons that came in have left`,
+    takeaway:`5C → 4C`,
     msg:`<b>α-Ketoglutarate dehydrogenase</b> does the same chemistry as the
       bridge reaction — same kind of complex, same CO₂, same NADH — and hands the
       four carbons left to coenzyme A as <b>succinyl-CoA</b>. From here the cycle
@@ -537,7 +537,7 @@ const STEPS=[
     // direct payoff came from the biggest fall, which is the opposite.
     couple:{ up:false, shallow:true, plus:'Pi', cin:'ADP', cout:'ATP', tone:'p' },
     spot:{ at:'thio', say:'Break the thioester' },
-    takeaway:`The cycle's one direct ATP, out of eleven products`,
+    takeaway:`The one direct ATP`,
     msg:`<b>Succinyl-CoA synthetase</b> breaks the thioester and uses the energy
       released to attach a free phosphate to ADP → <b>ATP</b> and <b>succinate</b>.
       Substrate-level phosphorylation, the same trick as glycolysis steps 7 and 10.
@@ -556,7 +556,7 @@ const STEPS=[
     // `dehydroC` is the PAIR of carbons that each lose a hydrogen — the bond
     // the double bond forms across. An array, so the disc sits on the bond.
     spot:{ at:'dehydroC', say:'Pull two hydrogens off' },
-    takeaway:`FADH₂, not NADH — and it is worth less`,
+    takeaway:`FADH₂ is less energy than NADH`,
     msg:`<b>Succinate dehydrogenase</b> removes one hydrogen from each of two
       neighbouring carbons, making the double bond of <b>fumarate</b>. The electrons
       go to <b>FAD</b>, not NAD⁺, because this oxidation releases less energy. This
@@ -570,7 +570,7 @@ const STEPS=[
     fx:'hydrate',
     // `ene` is fumarate's own alkene pair — the bond the water adds across.
     spot:{ at:'ene', say:'Add water here' },
-    takeaway:`Water in — the mirror of a dehydration`,
+    takeaway:`Add water`,
     msg:`<b>Fumarase</b> adds a water across fumarate's double bond →
       <b>malate</b>. It adds –OH and –H to opposite faces, so only one of the two
       possible products is made. Near equilibrium, and it runs backwards just as
