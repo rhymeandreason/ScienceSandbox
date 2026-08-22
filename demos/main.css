@@ -459,6 +459,43 @@ body {
   cursor: pointer;
 }
 
+/* ---------- .checkgroup ---------- */
+/* SWITCHES THAT BELONG TOGETHER ARE ONE CONTROL, so the box carries the border
+   and the switches carry only their ticks. A stack of separately outlined chips
+   is as many objects as it has outlines, and the eye counts them before it
+   reads any of them.
+
+   The rows are full width and left-aligned, so every tick sits on one vertical
+   and the labels start together — the reason for grouping them in the first
+   place. Hovering a row tints it instead of moving a border, because there is
+   no border of its own left to move. */
+.checkgroup {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 2px solid var(--border-hair);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.checkgroup[hidden] { display: none }
+
+.checkgroup > .btn {
+  border: 0;
+  border-radius: 0;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* a hairline between rows, never above the first: the box's own edge is there */
+.checkgroup > .btn + .btn { border-top: 1.5px solid var(--border-hair) }
+
+.checkgroup > .btn:hover:not([disabled]) {
+  background: color-mix(in srgb, var(--text-strong) 7%, transparent);
+  border-color: var(--border-hair);
+  color: var(--text-strong);
+}
+
 /* ---------- .iconbtn ---------- */
 .iconbtn {
   display: inline-flex;

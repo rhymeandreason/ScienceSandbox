@@ -695,7 +695,7 @@ font-size: 20px;
      the chip around it is only a label, which is the rule that file argues.
      Nothing about them is written here any more; what stays is the corner they
      sit in. */
-  #allsteps,#showenz,#showledger,#showring{position:static}
+  #allsteps,#toggles{position:static}
   #restart,#savepng,#allsteps{z-index:20;
     font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:.5px;
     color:var(--muted);background:transparent;border:2px solid var(--hair);

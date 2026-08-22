@@ -237,9 +237,13 @@
        to the BOTTOM edge and grows upward, so a new control is one more child
        and nothing else moves — never give these their own `bottom`. -->
   <div id="tools">
-    <label id="showring" class="btn btn--check"><input type="checkbox"> Show diagram</label>
-    <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
-    <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
+    <!-- ONE BOX for the three switches: they are the same kind of control and
+         the results screen turns all three off together. -->
+    <div id="toggles" class="checkgroup">
+      <label id="showring" class="btn btn--check"><input type="checkbox"> Show diagram</label>
+      <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
+      <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
+    </div>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show the cycle</button>
   </div>
   <div id="utils">
@@ -440,6 +444,10 @@ const STEPS=[
     // pathways; "pyruvate oxidation" is what it is called in the index a
     // student will look it up in, and the heading carries both.
     hook:'Pyruvate oxidation', rev:false,
+    // …and what the button off its review beat says. "Next" is right for a step
+    // inside the cycle; this one ENDS the bridge, and the click after it is the
+    // student entering the pathway the page is named for.
+    nextLabel:'Start Krebs',
     pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
     // OXALOACETATE IS NOT IN THIS REACTION — not on the stage, and not on the
     // A molecule standing by through a step it has no part in is one more thing
@@ -1583,11 +1591,12 @@ function drawTallyNotes(){
       + `<div class="row net"><span>Electron pairs</span><span class="v">${pairs}</span></div>`;
   });
 }
-/* THE TOGGLES THAT HAVE NOTHING LEFT TO SWITCH go down with the stage. The
- * molecules are gone, so the enzyme blobs have nothing to sit behind; the three
- * notes are the arithmetic, so a fourth card of it is noise. A control that
- * cannot change what you are looking at should not be asking to be read. */
-const TALLY_HIDES=['showledger','showenz'];
+/* THE TOGGLES HAVE NOTHING LEFT TO SWITCH on the results screen, so the whole
+ * box goes down with the stage: the molecules are gone, so the enzyme blobs
+ * have nothing to sit behind; the ring is down; and the three notes are the
+ * arithmetic, so a fourth card of it is noise. A control that cannot change
+ * what you are looking at should not be asking to be read. */
+const TALLY_HIDES=['toggles'];
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
@@ -1789,7 +1798,8 @@ function drawAct(){
   actEl.className = reviewing ? 'revin' : '';
   if(reviewing){
     actEl.style.visibility='visible';
-    actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.innerHTML=`${(STEPS[done-1]||{}).nextLabel||'Next'} `
+      +`<i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=leaveReview;
     return;
   }

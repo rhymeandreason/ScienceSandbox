@@ -109,8 +109,12 @@
        to the BOTTOM edge and grows upward, so a new control is one more child
        and nothing else moves — never give these their own `bottom`. -->
   <div id="tools">
-    <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
-    <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
+    <!-- ONE BOX for the switches: same kind of control, and the results screen
+         turns both off together. -->
+    <div id="toggles" class="checkgroup">
+      <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
+      <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
+    </div>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   </div>
   <div id="utils">
@@ -1422,6 +1426,10 @@ const tallyOn=()=>!intro && !reviewing && done>=nSteps;
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
+  /* THE SWITCHES GO DOWN WITH THE STAGE. Neither can change this screen: the
+   * molecules are gone, so the enzyme blobs have nothing to sit behind, and the
+   * ledger is standing in the grid whatever the checkbox says. */
+  document.getElementById('toggles').hidden=on;
   // THE STICKER MOVES, never a second copy — drawLedger keeps writing into the
   // same element wherever it is standing. Only on a change of parent, so an
   // ordinary redraw does not re-run its pin-up animation.
