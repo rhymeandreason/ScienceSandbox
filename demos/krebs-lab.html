@@ -86,6 +86,13 @@
   .rgtag{font-family:var(--font-slab);font-size:9.5px;font-weight:700;
     text-anchor:middle;dominant-baseline:middle}
 
+  /* THE FLAVIN'S TONE ON THE ENERGY FIGURES. pathways.css colours the two tones
+     glycolysis has (`n` NAD, `p` phosphate); `f` is this page's, because FAD is,
+     and without it the coupled trace is stroked `none` — step 6 drew its dashed
+     "on its own" line and nothing else, which reads as one steeper step. */
+  .cpl.f .cl{stroke:var(--fad)} .cpl.f .ch{fill:var(--fad)} .cpl.f .cs{fill:var(--fad)}
+  .cpl.f .rc.with{stroke:var(--fad)} .cpl.f .et.with{fill:var(--fad)}
+
   /* THE BRIDGE IS NOT A NUMBER. Pyruvate oxidation is not one of the eight and
      labelling it "0" would put it in the count students have to recite. It
      gets a word, so the chip is a pill and the eight stay circles. */
@@ -454,7 +461,11 @@ const STEPS=[
     // The thioester breaks and free coenzyme A is left standing beside the
     // succinate it came off — on the stage, where the break happened.
     fx:'thioester', linger:['coa'],
-    couple:{ up:false, plus:'Pi', cin:'ADP', cout:'ATP', tone:'p' },
+    // SHALLOW: about −3 kJ/mol, near enough to nothing that the step is freely
+    // reversible (`rev`). One thioester pays for one ATP and there is no drop
+    // left over — drawn as deep as the −33 steps it would say the cycle's one
+    // direct payoff came from the biggest fall, which is the opposite.
+    couple:{ up:false, shallow:true, plus:'Pi', cin:'ADP', cout:'ATP', tone:'p' },
     spot:{ at:'thio', say:'Break the thioester' },
     takeaway:`The cycle's one direct ATP, out of eleven products`,
     msg:`<b>Succinyl-CoA synthetase</b> breaks the thioester and uses the energy
@@ -1796,12 +1807,20 @@ const RC_Y={ hi:34, mid:76, lo:120, peak:22 };
  */
 function coupleCurve(c){
   const Y=RC_Y;
-  const start=c.up ? Y.lo : Y.hi;
-  const endAlone=c.up ? Y.mid : (c.shallow ? Y.hi+26 : Y.lo);
+  /* A SMALL DROP IS DRAWN AROUND THE MIDDLE, not hung off the top. The axis has
+   * no scale, so height on its own says nothing — what a trace says is how far
+   * it falls, and starting a −3 kJ/mol step where a −33 one starts leaves the
+   * bottom two thirds of the box empty and the eye reading position instead of
+   * slope. Centred, the shallow steps read as shallow. */
+  // ONE DEPTH FOR A SHALLOW STEP, centred on the middle rather than measured
+  // from an end — moving it down must not also make it fall further.
+  const SHAL=26;
+  const start=c.up ? Y.lo : (c.shallow ? Y.mid-SHAL/2 : Y.hi);
+  const endAlone=c.up ? Y.mid : (c.shallow ? Y.mid+SHAL/2 : Y.lo);
   // pulled, not paid for: taking the product away does not put the product
   // below the substrate, it only stops the climb being a wall
   const endWith =c.up ? (c.pull ? Y.lo-8 : Y.lo+16)
-                      : (c.shallow ? Y.hi+12 : Y.mid);
+                      : (c.shallow ? Y.mid-SHAL/2+16 : Y.mid);
   const peak=Math.min(start,endAlone,endWith)-Y.peak;
   const trace=(y0,y1)=>`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
                       +` C174,${peak} 180,${y1} 212,${y1} H266`;
@@ -1863,6 +1882,10 @@ const coupleLine=c=>c.pull
   : c.up
   ? `On its own this step runs <b>uphill</b>. <b>${c.cin}</b> provides the extra
      energy needed to complete the reaction.`
+  : c.shallow && c.plus
+  ? `This step runs <b>downhill, but barely</b>. The thioester's energy is
+     enough for one <b>${c.cout}</b> and almost nothing is left over, which is
+     why the step runs just as readily backwards.`
   : c.shallow
   ? `This step runs <b>downhill, but barely</b> — too little to reduce NAD⁺,
      which is why these electrons go to <b>${c.cout}</b> instead and are worth
