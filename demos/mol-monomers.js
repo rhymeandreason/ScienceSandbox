@@ -125,6 +125,20 @@
            + 'translation locked onto one hand, every enzyme that reads a '
            + 'protein chain came to expect it, and a D-residue jams the machinery.' },
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      // The same two half-reactions glucose declares, on a
+      // different pair of groups — the carboxyl keeps its C and loses –OH, the
+      // amino keeps its N and loses one H. Same O + H + H, same one bond made.
+      // That the sugar and the amino acid need one table and not two is the
+      // claim the page is built on: dehydration synthesis is one reaction.
+      //
+      // `product:null` is deliberate and required by the checker: a dipeptide
+      // has no spec here, so the formula arithmetic has nothing to check
+      // against. Saying so beats omitting the key and reading as unchecked.
+      condense:{
+        roles:[
+          { key:'carboxyl', label:'–COOH', keep:5, leaves:[7,8] },
+          { key:'amino',    label:'–NH₂',  keep:0, leaves:[1] } ],
+        makes:[ { product:null, donor:'carboxyl', acceptor:'amino', bond:'peptide' } ] },
       // alanine doubles as the PROTEIN monomer in macromolecule-lab.html's
       // gallery, so it carries the same `groups` index map the other three
       // monomers do. Indices are the fixed backbone order (see above) —

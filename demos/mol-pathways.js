@@ -138,6 +138,35 @@
         { key:'anomeric', label:'Anomeric carbon', formula:'C1', atoms:[1,OH[0],ohH[0]],
           note:'The one carbon bonded to two oxygens. Its –OH points equatorial here (β); flipping it to axial gives α — and α vs β is the whole difference between starch and cellulose.' },
       ],
+      // The two half-reactions glucose can enter. No page draws these today —
+      // the drag lesson they were written for is gone — but they are a fact
+      // about the molecule rather than about a page, they are what
+      // LESSONS-ROADMAP §1's hydrolysis half needs (an enzyme runs this
+      // backwards), and check-molecules.js audits them. A
+      // condensation is one bond made and one water released, so a role names
+      // the atom that STAYS bonded and the atoms that leave with the water.
+      //
+      // WHICH SIDE KEEPS THE OXYGEN is not a free choice — it is read off the
+      // product. In maltose and cellobiose the bridging oxygen is grown on the
+      // donor's C1 (it is named O1A, and residue B has no O4 at all), so the
+      // donor keeps its anomeric O and gives up only that O's H, while the
+      // acceptor gives up its whole C4 hydroxyl. The water is O + H + H either
+      // way, which is why the reaction shape alone cannot catch getting this
+      // backwards: the frame match onto the product geometry is what does.
+      //
+      // Indices come from the build variables, never typed, so re-ordering the
+      // build cannot aim the reaction at the wrong hydroxyl.
+      //
+      // This spec is BETA — O1 equatorial — so it reaches cellobiose and only
+      // cellobiose. Maltose is NOT a second product of this molecule: getting
+      // there means moving C1's oxygen to the other side of the ring, which is
+      // breaking a bond, not turning the molecule round. Starch's linkage
+      // starts from a different reagent, `alphaGlucose` in mol-contrast.js.
+      condense:{
+        roles:[
+          { key:'c1', label:'anomeric –OH', keep:OH[0], leaves:[ohH[0]] },
+          { key:'c4', label:'C4 –OH',       keep:4,      leaves:[OH[3], ohH[3]] } ],
+        makes:[ { product:'cellobiose', donor:'c1', acceptor:'c4', config:'beta', invert:false } ] },
       // contrast-lab.html: glucose is the reference half of the glucose/galactose
       // pair. `diff` is C4 and its hydroxyl — the one position where galactose
       // differs — derived from the build variables above rather than typed, so
