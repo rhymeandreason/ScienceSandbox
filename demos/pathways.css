@@ -117,49 +117,16 @@
     .spot{width:60px;height:60px} }
 
   /* ---------- THE ENZYME, behind the sugar ----------
-     A BLOB, NOT A STRUCTURE. No glycolytic enzyme is drawn on this page and a
-     shape that pretended to be one would be a lie at every scale; this says
-     only "a protein is holding this molecule while it reacts", which is the
-     claim the lesson makes. Translucent, and UNDER the canvas (#gl is z-index 2
-     over it) so the molecule sits inside the enzyme rather than behind a wash.
-     WIGGLE: two nested animations at coprime durations — a slow turn on the
-     wrapper, a slow squash on the path — so the loop never visibly repeats.
-     Ambient, not an event: nothing here marks a click. */
+     The blob's own rules moved to `kit/enzyme.css`, which the module that draws
+     it ships with: its JS places the element by its CORNER and animates a
+     wrapper, and both of those are agreements with that stylesheet rather than
+     with this one. What stays here is the LAYER — where a pathway page puts the
+     blobs relative to its own stage — because that is this file's subject.
+     UNDER THE CANVAS (#gl is z-index 2 over it) so the molecule sits inside the
+     enzyme rather than behind a wash. */
   #enzymes{position:absolute;inset:0;z-index:1;pointer-events:none}
   #enzymes[hidden]{display:none}
-  /* LEFT/TOP ARE THE CORNER, not the centre: placeEnz subtracts the half-size
-     itself. The centring used to be a `translate(-50%,-50%)` here, which meant
-     every keyframe below had to restate it — and an engine that COMPOSES an
-     animation onto the base transform instead of replacing it then applies the
-     translate twice and paints the shape half a box up and to the left of the
-     footprint it was placed on. Safari did; Chrome did not, so the box an
-     inspector draws was right in both and only the ink moved. Layout does not
-     go in an animated property. */
-  .enzblob{position:absolute;
-    animation:enzTurn 24s ease-in-out infinite}
-  /* THE WOBBLE RIDES A DIV, NEVER THE <svg>. A transform on an SVG element is
-     resolved against a box the engines do not agree on — `transform-origin:50%
-     50%` is a percentage, and for an SVG element that percentage can be taken
-     of the VIEW-BOX rather than the border box, which puts the pivot 265 user
-     units into a blob rendered 396px wide and swings the shape clean off its
-     own footprint. The element's left/top stay correct the whole time, so the
-     box an inspector draws is right and the ink is somewhere else, by an amount
-     that is a PHASE of a 9s animation rather than a fixed offset — which reads
-     as the blob being mispositioned, differently every time you look.
-     A div has one interpretation everywhere. Keep both animations on one. */
-  .enzblob .enzwob{width:100%;height:100%;
-    animation:enzWob 9s ease-in-out infinite}
-  .enzblob svg{display:block;width:100%;height:100%;opacity:.5}
-  .enzblob:nth-child(2) .enzwob{animation-duration:11s;animation-delay:-3s}
-  /* A SWAY, NOT A SPIN. A full turn reads as an object rotating on the stage —
-     an event, and a wrong one: an enzyme is not a wheel. This is drift. */
-  @keyframes enzTurn{0%,100%{transform:rotate(-7deg)}
-                     50%    {transform:rotate(7deg)}}
-  @keyframes enzWob{0%,100%{transform:scale(1,1) rotate(0deg)}
-                    33%    {transform:scale(1.06,.94) rotate(4deg)}
-                    66%    {transform:scale(.95,1.05) rotate(-3deg)}}
-  @media (prefers-reduced-motion:reduce){
-    .enzblob,.enzblob .enzwob{animation:none} }
+
   /* The step's verdicts, with the enzyme's name under them, down the right of
      the stage. IN THE CARD'S BAND ON PURPOSE: the energy card (#couplebox)
      lands here and covers these words — they are its door, and a door beside

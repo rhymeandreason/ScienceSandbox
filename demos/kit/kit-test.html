@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="../main.css">
 <link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="enzyme.css">
 <style>
   #stage,#side{min-height:0} #side{overflow-y:auto}
   #side h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
@@ -29,6 +30,9 @@
     <div id="brand"><span class="drop"><i class="ph-bold ph-wrench"></i></span><h1>kit test bench</h1></div>
     <div id="band">Chrome the camera must not let the molecule sit behind.<br>
       Reserved in PIXELS, spent in world units by <b>Lesson.fit</b>.</div>
+    <!-- The blob LAYER is the page's, never the module's: kit/enzyme.css says so
+         and a lesson spells the same thing as #enzymes in pathways.css. -->
+    <div id="enzymes" style="position:absolute;inset:0;z-index:1;pointer-events:none"></div>
     <div id="stats"></div>
   </div>
   <div id="side">
@@ -47,6 +51,21 @@
     <h2>focus — look here</h2>
     <div id="groups"></div>
     <button id="clear">Clear</button>
+
+    <h2>enzyme — the blob behind the substrate</h2>
+    <button id="enz1">One blob, one molecule</button>
+    <button id="enz2">One blob over BOTH</button>
+    <button id="enzN">A blob each</button>
+    <button id="enzoff">Off</button>
+    <label style="display:block;margin-top:6px"><input type="checkbox" id="enzpin"> pin it (hold still)</label>
+    <p style="font-size:13px;color:var(--muted)">Run the motion sequence with a blob on: it TRACKS,
+      because it re-measures every frame. That is the whole design — a blob frozen at the moment its
+      molecule landed keeps whatever else was still moving. <b>Pin</b> is the one exception, and it is
+      the caller's call: it is how one enzyme holds a molecule that is about to become two
+      (aldolase) or two that are about to become one (citrate synthase). Pin, then run the sequence:
+      the blob must NOT follow.</p>
+    <p style="font-size:13px;color:var(--muted)">Over BOTH is the case with no lesson coverage
+      otherwise — one blob spanning two subjects, sized by the circle round all of them.</p>
 
     <h2>stagekit — pixel chrome</h2>
     <button id="bandbtn">Toggle the bottom band</button>
@@ -70,6 +89,7 @@
 <script src="molgraph.js"></script>
 <script src="focus.js"></script>
 <script src="stagekit.js"></script>
+<script src="enzyme.js"></script>
 <script>
 "use strict";
 const SPEC=MolLib.MOLECULES.g6p;                 // a phosphorylated sugar: rings AND a phosphate
@@ -126,6 +146,26 @@ Object.entries(byKey).forEach(([k,atoms])=>{
   groupsEl.appendChild(b);
 });
 document.getElementById('clear').onclick=()=>L.focus.clear();
+
+/* ---- enzyme ----
+ * A second molecule, only so the two-subject and per-subject paths can both be
+ * mounted. The module is handed GROUPS, never an index into anything, which is
+ * what keeps it from learning what a lane is.
+ */
+const g2=Stage.buildMolecule(MolLib.MOLECULES.pyruvate,{center:true});
+g2.position.set(9,0,0); L.root.add(g2);
+const ENZ=Enzyme.create({camera:L.camera, canvas:document.getElementById('gl'),
+                         host:document.getElementById('enzymes')});
+let enzSets=[], enzKey='off';
+const enzShow=(sets,key)=>{ enzSets=sets; enzKey=key; };
+document.getElementById('enz1').onclick =()=>enzShow([[g]],'one');
+document.getElementById('enz2').onclick =()=>enzShow([[g,g2]],'both');
+document.getElementById('enzN').onclick =()=>enzShow([[g],[g2]],'each');
+document.getElementById('enzoff').onclick=()=>{ enzShow([],'off'); ENZ.clear(); };
+// Every frame, after the render — the module projects, and anything that
+// projects reads the previous frame's camera if it runs before.
+L.afterFrame=()=>{ readout();
+  ENZ.update(enzSets,{key:enzKey, pin:document.getElementById('enzpin').checked}); };
 
 /* ---- pixel chrome ---- */
 document.getElementById('bandbtn').onclick=()=>{

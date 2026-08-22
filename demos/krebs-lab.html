@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="main.css">
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="pathways.css">     <!-- the pathway lesson chrome, shared with glycolysis-lab -->
+<link rel="stylesheet" href="kit/enzyme.css">    <!-- ships with kit/enzyme.js; its JS depends on these rules -->
 <link rel="stylesheet" href="energy/energy.css">  <!-- the free-energy figures -->
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css, shared with
@@ -324,6 +325,7 @@
 <script src="kit/hotspot.js"></script>
 <script src="kit/leaving.js"></script>
 <script src="kit/carriers.js"></script>
+<script src="kit/enzyme.js"></script>
 <script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
@@ -387,7 +389,7 @@ const L=Lesson.create(canvas,{
   // can see and not a number you are told.
   zoom:false,
   focus:false,
-  onResize:()=>{ computeFit(); enzUnfreeze(); },
+  onResize:()=>{ computeFit(); },
 });
 const {scene,camera,renderer,root,cam,applyCam,resize}=L;
 const FXi=L.fx, MO=L.motion;
@@ -1621,8 +1623,6 @@ function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on))
  *  claim about fold, size or active site. Hemoglobin is where a real protein
  *  gets drawn. Behind a toggle, default OFF.
  */
-const BLOB_SVG=`<svg viewBox="0 0 531 528" xmlns="http://www.w3.org/2000/svg"><path d="M14.0403 187.57C-36.6082 307.163 59.7274 415.385 144.526 478.781C237.618 537.923 347.243 542.481 400.031 499.359C466.016 445.457 540.795 289.771 529.943 198.244C512.779 53.4757 415.879 9.91198 323.366 0.81307C225.413 -8.82082 64.6887 67.9781 14.0403 187.57Z" fill="#46B2E5" fill-opacity="0.45"/></svg>`;
-const BLOB_K=1.3;
 const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
@@ -1642,10 +1642,25 @@ const enzGroupsFor=i=>{
   return before.map((k,j)=>k===after[j]?-1:j).filter(j=>j>=0).map(j=>[j]);
 };
 const SPLIT_KEY='all';
+/* …AND WHICH LANE THAT IS, ASKED OF THE STAGE. `enzGroupsFor` works in the
+ * STEPS table's order, and that order is only a claim about where a species is
+ * standing. If it is wrong the blob sits on the untouched lane while the
+ * substrate, its hotspot and the enzyme's name are on the other one.
+ * UNIQUE ON BOTH SIDES, or it is not identity at all: with the same species in
+ * two lanes only position tells them apart, and half way through such a step
+ * the stage holds ONE of the substrate, which looks unique and would send every
+ * blob onto the lane that has not run yet. */
 const enzGroups=()=>{
-  const g=enzGroupsFor(focusStep());
+  const i=focusStep(), g=enzGroupsFor(i);
   if(g===SPLIT_KEY) return [lanes.map((_,j)=>j)];
-  return g.filter(grp=>grp.every(j=>j<lanes.length));
+  const before=speciesAt(i);
+  const count=(arr,k)=>arr.reduce((n,x)=>n+((x.key||x)===k?1:0),0);
+  const lane=j=>{
+    const k=before[j];
+    if(count(before,k)!==1 || count(lanes,k)!==1) return j;
+    return lanes.findIndex(l=>l.key===k);
+  };
+  return g.map(grp=>grp.map(lane)).filter(grp=>grp.every(j=>j<lanes.length));
 };
 const enzKey=()=>{ const g=enzGroupsFor(focusStep());
   return focusStep()+':'+(g===SPLIT_KEY ? SPLIT_KEY : g.map(x=>x.join('+')).join(',')); };
@@ -1655,7 +1670,6 @@ function drawEnz(){
   if(st) enzNameEl.innerHTML=`<div class="ek">Enzyme</div><div class="en">${st.enz}</div>`;
   else enzEl.innerHTML='';
   drawEnzMeta();
-  placeEnz();
 }
 /* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — as two words on
  * the stage, both read off the step and both the door to the card that argues
@@ -1683,49 +1697,29 @@ enzMetaEl.addEventListener('click',e=>{
   cplOpen=!cplOpen;
   drawEnzMeta(); drawCouple();
 });
-const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
+// Is every lane in this group on its mark? kit/lanes.js eases position toward
+// userData.tx/ty; within a hundredth of a world unit is under a pixel here.
 function laneSettled(grp){
   return grp.every(j=>{ const l=lanes[j]; if(!l) return false;
     const u=l.g.userData;
     return (u.tx==null||Math.abs(l.g.position.x-u.tx)<0.01)
         && (u.ty==null||Math.abs(l.g.position.y-u.ty)<0.01); });
 }
-function enzUnfreeze(){
-  try{ [...enzEl.children].forEach(el=>delete el.dataset.set); }catch(e){}
-}
+const ENZ=Enzyme.create({camera, canvas, host:enzEl});
+/* The blob itself is kit/enzyme.js. What stays here is the only part that is
+ * chemistry: WHICH molecule each enzyme is on, and the one step whose blob has
+ * to hold still. */
 function placeEnz(){
   if(enzEl.hidden || !lanes.length) return;
-  const on=enzGroups(), key=enzKey();
-  if(enzEl.dataset.on!==key){
-    enzEl.dataset.on=key;
-    if(enzEl.children.length!==on.length)
-      enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
-    [...enzEl.children].forEach(el=>delete el.dataset.set);
-  }
-  const w=canvas.clientWidth, h=canvas.clientHeight;
-  if(!w||!h) return;
-  camera.updateMatrixWorld();
-  const pxPerWorld=w/(camera.right-camera.left);
-  on.forEach((grp,slot)=>{
-    const el=enzEl.children[slot]; if(!el) return;
-    if(el.dataset.set) return;
-    let lo=null, hi=null;
-    grp.forEach(j=>{ const l=lanes[j]; if(!l) return;
-      l.g.userData.atomMeshes.forEach(m=>{
-        if(!m||!m.visible) return;
-        const p=m.getWorldPosition(tmpV3);
-        if(!lo){ lo=p.clone(); hi=p.clone(); return; }
-        lo.min(p); hi.max(p);
-      });
-    });
-    if(!lo) return;
-    const d=Math.max(hi.x-lo.x, hi.y-lo.y, 1.2)*pxPerWorld*BLOB_K;
-    enzV.copy(lo).add(hi).multiplyScalar(0.5).project(camera);
-    el.style.width=el.style.height=d.toFixed(1)+'px';
-    el.style.left=((enzV.x*0.5+0.5)*w).toFixed(1)+'px';
-    el.style.top =((-enzV.y*0.5+0.5)*h).toFixed(1)+'px';
-    if(laneSettled(grp)) el.dataset.set='1';
-  });
+  const on=enzGroups();
+  // CITRATE SYNTHASE HOLDS STILL, and it is the only one: it takes two
+  // molecules and lets go of one, so the blob is pinned across both while they
+  // come together — the substrate assembles inside the enzyme, which is what an
+  // enzyme holding two molecules at once looks like. Pinned on the beat they
+  // are both on their marks; a frame later there are not two left to measure.
+  const joins=enzGroupsFor(focusStep())===SPLIT_KEY;
+  ENZ.update(on.map(grp=>grp.map(j=>lanes[j].g)),
+             {key:enzKey(), pin:joins && on.every(laneSettled)});
 }
 const ringBox=document.getElementById('showring').querySelector('input');
 ringBox.onchange=()=>{ showRing=ringBox.checked; refresh(); };

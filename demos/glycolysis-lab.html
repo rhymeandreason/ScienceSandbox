@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="main.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="pathways.css">     <!-- the pathway lesson chrome, shared with krebs-lab -->
+<link rel="stylesheet" href="kit/enzyme.css">    <!-- ships with kit/enzyme.js; its JS depends on these rules -->
 <link rel="stylesheet" href="massaction/massaction.css">
 <link rel="stylesheet" href="energy/energy.css">  <!-- the free-energy figures -->
 <style>
@@ -188,6 +189,7 @@
 <script src="kit/hotspot.js"></script>
 <script src="kit/leaving.js"></script>
 <script src="kit/carriers.js"></script>
+<script src="kit/enzyme.js"></script>
 <script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
@@ -1491,19 +1493,6 @@ function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on))
  *
  *  THE NAME IS READ OFF THE STEP (`enz`), never typed here.
  */
-const BLOB_SVG=`<svg viewBox="0 0 531 528" xmlns="http://www.w3.org/2000/svg"><path d="M14.0403 187.57C-36.6082 307.163 59.7274 415.385 144.526 478.781C237.618 537.923 347.243 542.481 400.031 499.359C466.016 445.457 540.795 289.771 529.943 198.244C512.779 53.4757 415.879 9.91198 323.366 0.81307C225.413 -8.82082 64.6887 67.9781 14.0403 187.57Z" fill="#46B2E5" fill-opacity="0.45"/></svg>`;
-// HOW MUCH BIGGER THAN THE MOLECULE. 1 = the circle that exactly contains every
-// sphere the molecule draws, so the cushion is the same on every bearing. An
-// enzyme really is far bigger than its substrate, but a blob that says so fills
-// the stage and buries the sugar the lesson is following, so this is a hold, not
-// a scale claim.
-// MOST OF THIS IS SPENT BEFORE IT IS SEEN. The drawn outline is not the box: it
-// pulls in to .92 of the half-side at its narrowest bearing, and enzWob squeezes
-// that to .86. A vertical molecule — dihydroxyacetone phosphate is the extreme —
-// puts its farthest atom on exactly that bearing, so 1.25 left about 7% of real
-// gap and the sugar sat on the edge. Read this as .86 × 1.4 ≈ 1.2 of clear blob
-// round the worst case; retune it against step 5, not step 2.
-const BLOB_K=1.4;
 const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
@@ -1610,12 +1599,6 @@ enzMetaEl.addEventListener('click',e=>{
   cplOpen=!cplOpen;
   drawEnzMeta(); drawCouple();
 });
-const enzV=new THREE.Vector3(), tmpV3=new THREE.Vector3();
-// The camera's own axes. Every measurement below is taken in THEM, not in
-// world x/y: the camera orbits, so a ring drawn edge-on is 15% shorter on
-// screen than in y, and a molecule with real depth reads narrower than it
-// measures. Orthonormal, so the centre reconstructs exactly.
-const enzRt=new THREE.Vector3(), enzUp=new THREE.Vector3(), enzFw=new THREE.Vector3();
 // Is every lane in this group on its mark? kit/lanes.js eases position toward
 // userData.tx/ty; within a hundredth of a world unit is under a pixel here.
 function laneSettled(grp){
@@ -1624,120 +1607,22 @@ function laneSettled(grp){
     return (u.tx==null||Math.abs(l.g.position.x-u.tx)<0.01)
         && (u.ty==null||Math.abs(l.g.position.y-u.ty)<0.01); });
 }
+const ENZ=Enzyme.create({camera, canvas, host:enzEl});
+/* The blob itself is kit/enzyme.js — the elements, the measurement and the
+ * placement. What stays here is the only part that is chemistry: WHICH molecule
+ * each enzyme is on, and the one step whose blob must hold still.
+ * Called from afterFrame, and it measures live, so a lane swapped mid-step is
+ * followed without this page telling it anything. */
 function placeEnz(){
   if(enzEl.hidden || !lanes.length) return;
-  // One blob per OCCUPIED lane. The elements are rebuilt only when the COUNT
-  // changes — a running wiggle must not restart because some other readout
-  // redrew.
-  //
-  // MEASURED EVERY FRAME, NOT FROZEN. Freezing the blob at the moment its lane
-  // lands sounds right — the sugar moves inside the enzyme — and it is how this
-  // went wrong four times over: whatever is still travelling when the freeze
-  // lands (the camera easing to a new fit, a product settling onto its own
-  // centring, a beat that committed on the wall clock because the tab was
-  // hidden) is baked in and never corrected, so the SAME step sits differently
-  // depending on the route that reached it. A live measurement cannot drift
-  // from the molecule, because it is the molecule.
-  // The split is the one hold worth keeping, and it is below.
-  const on=enzGroups(), key=enzKey();
-  // The COUNT is checked outside the key, because hiding empties the element:
-  // switching the blobs off and on again returns to the same step, so the key
-  // still matches and only the missing children say the DOM is gone.
-  if(enzEl.children.length!==on.length)
-    enzEl.innerHTML=on.map(()=>
-      `<div class="enzblob"><div class="enzwob">${BLOB_SVG}</div></div>`).join('');
-  if(enzEl.dataset.on!==key){
-    enzEl.dataset.on=key;
-    [...enzEl.children].forEach(el=>{ el._pin=null; el._at=null; });
-  }
-  // THE SPLIT HOLDS STILL, and it is the only one that does: aldolase takes one
-  // sugar and lets go of two, so the blob is placed on the whole molecule and
-  // stays there while the halves leave. Tracking would slide it to the midpoint
-  // between two halves and read as the enzyme following them out.
+  const on=enzGroups();
+  // ALDOLASE HOLDS STILL, and it is the only one: it takes one sugar and lets
+  // go of two, so the blob is pinned while the halves leave. Pinned on the beat
+  // the WHOLE molecule is on its mark — a frame later there is no whole
+  // molecule left to measure.
   const split=enzGroupsFor(focusStep())===SPLIT_KEY;
-  const w=canvas.clientWidth, h=canvas.clientHeight;
-  if(!w||!h) return;
-  // A PROJECTION IS IN THE CANVAS'S PIXELS; a blob is positioned in #enzymes'.
-  // Those two boxes are the same only while #gl fills #stage, which nothing
-  // enforces — so take the difference rather than assume it is zero. Today it
-  // is, at every width; the day a stage grows a row, every blob would slide by
-  // exactly this much and nothing on screen would say why.
-  const cbox=canvas.getBoundingClientRect(), ebox=enzEl.getBoundingClientRect();
-  const dx=cbox.left-ebox.left, dy=cbox.top-ebox.top;
-  camera.updateMatrixWorld();
-  camera.matrixWorld.extractBasis(enzRt, enzUp, enzFw);
-  // ortho, so one world unit is the same pixels anywhere in the frame
-  const pxPerWorld=w/(camera.right-camera.left);
-  on.forEach((grp,slot)=>{
-    const el=enzEl.children[slot]; if(!el) return;
-    let pin=el._pin;
-    if(!pin || !split){
-      // MEASURED OFF THE MESHES, not off the lane's bookkeeping. The group's
-      // origin is not the drawing's centre (kit/lanes.js parks each species by
-      // its own recentring offsets), and a spec measure is the RESTING molecule
-      // — step 1's sugar grows a phosphate and its centre moves. The atoms on
-      // screen answer both at once.
-      // SPHERES, NOT POINTS: an atom is drawn a radius wide, and the ends of
-      // these molecules are a phosphate against a hydrogen, so centres alone put
-      // the middle in the wrong place and stop a radius short on the fat end.
-      const pts=[];
-      let u0=Infinity,u1=-Infinity,v0=Infinity,v1=-Infinity,f0=Infinity,f1=-Infinity;
-      grp.forEach(j=>{ const l=lanes[j]; if(!l) return;
-        l.g.userData.atomMeshes.forEach(m=>{
-          if(!m||!m.visible) return;
-          const q=m.getWorldPosition(tmpV3);
-          const r=m.getWorldScale(enzV).x;      // a unit sphere, scaled to its radius
-          const u=q.dot(enzRt), v=q.dot(enzUp), f=q.dot(enzFw);
-          pts.push([u,v,r]);
-          u0=Math.min(u0,u-r); u1=Math.max(u1,u+r);
-          v0=Math.min(v0,v-r); v1=Math.max(v1,v+r);
-          f0=Math.min(f0,f);   f1=Math.max(f1,f);
-        });
-      });
-      if(!pts.length) return;
-      const uc=(u0+u1)/2, vc=(v0+v1)/2;
-      // A CIRCLE ROUND THE WHOLE MOLECULE, not a box round its two longest axes.
-      // The blob is drawn round and these molecules run diagonally, so a square
-      // sized off the taller axis leaves the phosphate tail hanging out of the
-      // corner while the opposite side is empty blob. The circumscribing radius
-      // is the one number that cannot let an atom out on any bearing.
-      let R=0.6;
-      pts.forEach(a=>{ R=Math.max(R, Math.hypot(a[0]-uc, a[1]-vc)+a[2]); });
-      pin={ c:new THREE.Vector3().addScaledVector(enzRt,uc)
-                                 .addScaledVector(enzUp,vc)
-                                 .addScaledVector(enzFw,(f0+f1)/2),
-            d:2*R };
-      // The split's hold starts the frame the WHOLE molecule is on its mark, so
-      // it is the substrate that gets measured and not two halves on their way
-      // out. Every other step re-measures next frame and never keeps this.
-      if(split && laneSettled(grp)) el._pin=pin;
-    }
-    enzV.copy(pin.c).project(camera);
-    // THE SIZE IS LIVE TOO, and it is worth saying why it is not held. Holding a
-    // high-water mark for the step reads better on paper — step 1's sugar grows
-    // a phosphate and a live measure tightens around it — but it is a place a
-    // wrong value can hide: one frame measured while a swap lands or an atom is
-    // between two homes, and the blob keeps that size until the step changes,
-    // reachable only by leaving the step or by rebuilding the element (which is
-    // what unticking the enzymes box and ticking it back does, and why that
-    // looked like a cure). Nothing here now outlives a frame except the ease
-    // below, and an ease is self-correcting by construction.
-    const want=[ dx+(enzV.x*0.5+0.5)*w, dy+(-enzV.y*0.5+0.5)*h, pin.d*pxPerWorld*BLOB_K ];
-    // EASED, AND SNAPPED ON A NEW STEP. Within a step the target moves for real
-    // reasons — a phosphate lands, a product settles — and chasing it frame for
-    // frame reads as the blob twitching; 0.18 lags it into a drift. Across steps
-    // the target jumps to another molecule, and easing there would fly the blob
-    // over the stage, so a blob with no previous position takes its target whole.
-    const at=el._at || want;
-    el._at=[ at[0]+(want[0]-at[0])*0.18,
-             at[1]+(want[1]-at[1])*0.18,
-             at[2]+(want[2]-at[2])*0.18 ];
-    // THE CORNER, because the centring is arithmetic and not a transform — see
-    // .enzblob in pathways.css for what sharing that property with the sway cost.
-    el.style.left=(el._at[0]-el._at[2]/2).toFixed(1)+'px';
-    el.style.top =(el._at[1]-el._at[2]/2).toFixed(1)+'px';
-    el.style.width=el.style.height=el._at[2].toFixed(1)+'px';
-  });
+  ENZ.update(on.map(grp=>grp.map(j=>lanes[j].g)),
+             {key:enzKey(), pin:split && on.every(laneSettled)});
 }
 const ledgerBtn=document.getElementById('showledger');
 const ledgerBox=ledgerBtn.querySelector('input');

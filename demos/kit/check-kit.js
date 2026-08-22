@@ -28,6 +28,7 @@ const {MolGraph}=require(path.join(__dirname,'molgraph.js'));
 const {Motion}=require(path.join(__dirname,'motion.js'));
 const {HBond}=require(path.join(__dirname,'hbond.js'));
 const {Lobes}=require(path.join(__dirname,'..','lobes','lobes.js'));
+const {circle:enzCircle}=require(path.join(__dirname,'enzyme.js'));
 const M=MolLib.MOLECULES;
 
 let fails=0, checks=0;
@@ -417,6 +418,60 @@ head('hbond.js — matching order');
      'best order: the closer donor wins the contested acceptor');
   ok(HBond.DEFAULTS.order==='donor',
      'the default order is donor — behaviour-preserving for water-lab');
+}
+
+/* =====================================================================
+ *  kit/enzyme.js — the one piece of it that is arithmetic
+ * =====================================================================
+ *  The rest of that module is THREE and the DOM and belongs to the human in the
+ *  browser. `circle` is not: it decides where the blob's middle is and how big
+ *  it has to be, and both ways it fails are silent. A radius measured off the
+ *  taller axis lets a diagonal molecule's phosphate tail hang out of a corner —
+ *  it looks like a design choice. A centre taken off atom POINTS instead of
+ *  their surfaces sits toward whichever end carries the small atoms, which
+ *  looks like the placement drifting.
+ * ===================================================================== */
+{
+  head('enzyme.js — the blob\'s circle');
+
+  ok(enzCircle([])===null && enzCircle(null)===null,
+     'nothing to enclose returns null rather than a circle at the origin');
+
+  // one atom is its own circle
+  const one=enzCircle([{u:3,v:-2,r:0.8}]);
+  near(one.u,3,1e-9,'a single sphere centres on itself');
+  near(one.r,0.8,1e-9,'…and its radius is the sphere\'s');
+
+  // SURFACES, NOT POINTS. A big atom at one end and a small one at the other:
+  // the centre must move toward the big one, which is what the eye reads as the
+  // middle of the drawing.
+  const lop=enzCircle([{u:0,v:0,r:2},{u:10,v:0,r:0.5}]);
+  ok(lop.u<5, 'the centre is taken off the surfaces, so it leans to the fat end');
+  near(lop.u,(-2+10.5)/2,1e-9,'…exactly the middle of the surface extent');
+
+  // EVERY SPHERE IS INSIDE. The property that matters, asserted as a property
+  // rather than as a number: nothing may stick out on any bearing.
+  const encloses=pts=>{ const c=enzCircle(pts);
+    return pts.every(p=>Math.hypot(p.u-c.u,p.v-c.v)+p.r<=c.r+1e-9); };
+  ok(encloses([{u:0,v:0,r:1},{u:0,v:9,r:1},{u:2,v:4,r:1.4}]),
+     'a vertical molecule is enclosed');
+  ok(encloses([{u:0,v:0,r:1},{u:7,v:7,r:1.6},{u:-3,v:2,r:0.5}]),
+     'a diagonal one is enclosed — the case a box round the two axes loses');
+
+  // …AND A DIAGONAL NEEDS MORE THAN ITS TALLER AXIS. This is the bug: sizing
+  // off max(width,height) is smaller than the reach to a corner, so the corner
+  // atom is outside the blob while the opposite side is empty.
+  const diag=[{u:0,v:0,r:1},{u:8,v:8,r:1}];
+  const c=enzCircle(diag);
+  const byTallerAxis=Math.max(8+2,8+2)/2;      // what the old code used
+  ok(c.r>byTallerAxis,
+     'a diagonal molecule needs a bigger radius than half its taller axis');
+
+  // A LONE PAIR OF EQUAL SPHERES: the circle is the segment plus the radius,
+  // which pins the arithmetic against a value that can be worked out by hand.
+  const pair=enzCircle([{u:0,v:0,r:1},{u:0,v:4,r:1}]);
+  near(pair.v,2,1e-9,'two equal spheres centre between them');
+  near(pair.r,3,1e-9,'…and the radius reaches the far side of each');
 }
 
 Promise.all(pending).then(()=>{
