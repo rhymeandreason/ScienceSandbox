@@ -539,6 +539,11 @@
     return { s, S, p3, pa:a1.p, pb:a2.p, n9, c1 };
   }
 
+  /* ONE VIEW FOR THE HANDLE AND WHAT IT CARRIES, shared by reference so the
+   * free thiol and the thioester cannot drift apart: the bridge shows them side
+   * by side, and the acetyl group is the only difference the student should see.
+   * Picked in molecule-viewer.html. */
+  const COA_VIEW = [-0.4264, 1.4350, -1.1988];
   {
     // — coenzyme A itself, the free thiol. Registered as its own species
     //   because the cycle RELEASES it twice — citrate synthase and the α-KG
@@ -549,6 +554,7 @@
     KREBS.coa = s.spec({
       name:'Coenzyme A', short:'CoA-SH', formula:FORMULA.coa, charge:-4,
       class:'carrier',
+      view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, phosphates:3, p3, pa, pb } });
   }
 
@@ -592,6 +598,7 @@
     KREBS.acetylcoa = s.spec({
       name:'Acetyl-CoA', short:'Acetyl-CoA', formula:FORMULA.acetylcoa, charge:-4,
       class:'carrier',
+      view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:2,
               phosphates:3, p3, pa, pb } });
   }
@@ -605,6 +612,7 @@
     KREBS.succinylcoa = s.spec({
       name:'Succinyl-CoA', short:'Succinyl-CoA', formula:FORMULA.succinylcoa, charge:-5,
       class:'carrier',
+      view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:4,
               phosphates:3, p3, pa, pb } });
   }
