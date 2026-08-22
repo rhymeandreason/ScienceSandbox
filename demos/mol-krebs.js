@@ -158,6 +158,7 @@
     const [c6] = carboxylBranch(g, 2, 0);   // C3's own carboxylate — the third arm
     KREBS.citrate = g.spec({
       name:'Citrate', short:'Citrate', formula:'C₆H₅O₇³⁻', charge:-3, class:'acid',
+      view:[0.3512, 0.3032, 0.0648],
       krebs:{ carbons:6, cN:[0,1,2,3,4], carboxyls:3, oh, c6,
               // the two arms aconitase chooses between, named so a lesson can
               // point at them without re-deriving which is which
