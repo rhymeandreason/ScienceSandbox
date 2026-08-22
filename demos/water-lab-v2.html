@@ -35,32 +35,19 @@
 #insetcap .go { margin-left: auto; opacity: .7; }
 
 /* The experiment log, drawn as a sheet of notepaper: brighter stock than the
-   stage (--surface-card), a ruled margin the boxes sit behind, and a second
-   sheet showing under it. The top sheet keeps the ask sheet's exact footprint
+   stage (--surface-card), each line on its own printed rule. The sheet keeps
+   the ask sheet's exact footprint
    (chat.css: top 96, right 18, width 316) — it is what the rail says until the
-   student asks something, and the sheet covers it the moment they do. Only the
-   sheet BEHIND is turned, so nothing pokes out from under the tutor. */
+   student asks something, and the sheet covers it the moment they do. */
 #trylist {
   position: absolute; top: 96px; right: 18px; width: 316px; z-index: 3;
-  box-sizing: border-box; padding: 15px 18px 12px 30px;
+  box-sizing: border-box; padding: 15px 18px 12px 20px;
   font-family: var(--font-sans);
   font-size: 12.5px; line-height: 1.45; color: var(--muted, #6b6459);
   background: var(--surface-card, #fffdf7);
   border: 1px solid var(--hair, #ded6c8);
   border-radius: 2px;                       /* paper has corners, not radii */
   box-shadow: 0 12px 26px rgba(52,40,24,.10), 0 1px 3px rgba(52,40,24,.09);
-}
-/* the sheet underneath */
-#trylist::after {
-  content: ''; position: absolute; z-index: -1; inset: 4px -3px -5px 3px;
-  background: var(--surface-card, #fffdf7);
-  border: 1px solid var(--hair, #ded6c8);
-  transform: rotate(1deg); transform-origin: 50% 100%;
-}
-/* the ruled margin, in the ember the lesson already uses for warmth */
-#trylist::before {
-  content: ''; position: absolute; left: 20px; top: 0; bottom: 0; width: 1px;
-  background: color-mix(in srgb, var(--hot, #c1662a) 30%, transparent);
 }
 #tryhead {
   display: flex; align-items: baseline; gap: .5em;
