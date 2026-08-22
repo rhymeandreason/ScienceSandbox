@@ -365,9 +365,16 @@ font-size: 20px;
      budget only: it opens upward, so a long one hits the molecule.
      --caph is the reserve while showing (capReservePx) — typed, like --barh.
      Two lines at this size, plus the gap. */
+  /* CENTRED ON AUTO MARGINS, not on a transform: `left:0;right:0` gives the
+     percentage width the same containing block to resolve against, and the auto
+     margins do the centring — which leaves `transform` to the animation alone.
+     Sharing it with `translateX(-50%)` means every keyframe has to restate the
+     centring, and an engine that composes an animation onto the base transform
+     rather than replacing it then applies it twice (see .enzblob, where that
+     painted the shape half a box off its own footprint in Safari). */
   #rxmsg{--caph:70px;
-    position:absolute;bottom:calc(100% + 6px);left:50%;
-    transform:translateX(-50%);
+    position:absolute;bottom:calc(100% + 6px);left:0;right:0;
+    margin-inline:auto;
     width:min(680px,64%);text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:var(--font-sans);font-size:15.5px;line-height:1.55;
@@ -378,10 +385,8 @@ font-size: 20px;
   #rxmsg .p{color:var(--phos)}#rxmsg .n{color:var(--nad)}
   #rxmsg.show{opacity:1}
   #rxmsg.in{animation:rxIn .5s ease-out}
-  /* both keyframes restate the centring transform — `transform:none` would
-     snap the caption half its width right on the last frame */
-  @keyframes rxIn{from{opacity:0;transform:translateX(-50%) translateY(5px)}
-    to{opacity:1;transform:translateX(-50%)}}
+  @keyframes rxIn{from{opacity:0;transform:translateY(5px)}
+    to{opacity:1;transform:none}}
   @media (max-width:920px){ #rxmsg{width:88%;font-size:14px} }
 
   /* THE PAPER IS A CLASS, the position is the id. A page that wants a second
