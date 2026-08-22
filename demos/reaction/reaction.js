@@ -972,11 +972,50 @@ function create(host) {
     return {x: seat.x + out.x, y: seat.y + out.y, z: seat.z + out.z};
   }
 
-  function thiolWorld(l) {
-    const i = meta(specOf(l.key)).thiol, u = l.g.userData;
+  /* ---- AN ACYL GROUP CHANGING MOLECULES -------------------------------
+   * Spending a thioester is a TRANSFER, and it should look like one: the acyl
+   * group leaves the sulfur and lands on the other molecule, both of which stay
+   * where they are. Flying the coenzyme A off instead draws the leaving group
+   * as the event and leaves the student to work out where two carbons went.
+   *
+   * WHAT TRAVELS is read off the spec: the acyl carbons, plus everything hanging
+   * on them that is not the sulfur — the carbonyl oxygen, and any hydrogens the
+   * lane happens to be drawing. WHERE IT LANDS is the acid's own `keto`, the
+   * carbon it is attacked at.
+   */
+  function acylFly(held, acid, dur, after) {
+    const spec = specOf(held.key), m = meta(spec);
+    const carbons = m.acyl || [];
+    const set = new Set(carbons);
+    carbons.forEach(i => neighbors(spec, i).forEach(j => {
+      if (j !== m.thiol && !carbons.includes(j)) set.add(j);
+    }));
+    const idx = [...set].filter(i => held.g.userData.atomMeshes[i]);
+    const from = atomOn(held, m.hot);
+    const to = atomOn(acid, meta(specOf(acid.key)).keto);
+    // Built from the meshes' OWN world positions, not the spec's, so the group
+    // in the air is the shape that was standing there a frame ago.
+    const g = new THREE.Group();
+    const rel = i => atomOn(held, i).sub(from);
+    idx.forEach(i => { const el = spec.atoms[i].el;
+      g.add(Stage.atom(PAL.atoms[el], PAL.radii[el], rel(i), el)); });
+    GO.link(g, (spec.bonds || []).filter(b => set.has(b[0]) && set.has(b[1]))
+                                 .map(b => [rel(b[0]), rel(b[1])]));
+    shedAtoms(held, idx);
+    GO.launch(g, {from, to, dur, arc: ARC, onDone: () => {
+      FX.spawnRing(to, PAL.atoms.C); if (after) after();
+    }});
+  }
+
+  /* One atom of a molecule ON STAGE, in world space — `siteWorld` above answers
+   * the same question off a SPEC, for a molecule that is not standing there yet.
+   * Falls back to the lane's own origin, which is what an unknown index means. */
+  function atomOn(l, i) {
+    const u = l.g.userData;
     return (i != null && u.atomMeshes[i]) ? u.atomWorld(i).clone()
                                           : l.g.getWorldPosition(new THREE.Vector3());
   }
+  const thiolWorld = l => atomOn(l, meta(specOf(l.key)).thiol);
 
   /* THE HYDRIDE A DEHYDROGENASE TAKES, toward the carrier standing opposite.
    * Shared by `decarb` and `ox`: same particle, same steel, same '−', and the
@@ -1097,19 +1136,41 @@ function create(host) {
        * travels to the thiol and the handle holds still. A join that RELEASES
        * the handle (citrate synthase) keeps the midpoint: there the product is
        * the acid, and nothing has to arrive anywhere in particular. */
-      const docking = (!releases && held) ? ls.find(l => l !== held) : null;
+      const other = held ? ls.find(l => l !== held) : null;
+      if (releases && held && other) {
+        // The acyl group crosses; both molecules hold their ground, so the lanes
+        // are spawned on their own marks rather than closed onto one.
+        later(() => acylFly(held, other, T.JOIN), gap);
+        later(() => {
+          /* EACH PRODUCT KEEPS ITS PRECURSOR'S LANE. The lane a molecule stands
+           * in is the only thing telling the student which one it is: the acid
+           * that was attacked is now the bigger acid, and the handle that let go
+           * is standing where it was. Spawning on the default marks swaps them
+           * over, and two carbons appear to have gone the other way. */
+          const x = [other.g.position.x, held.g.position.x];
+          host.spawnLanes(c.keys, (o, j) => { o.g.position.x = x[Math.min(j, 1)]; });
+          host.settleLanes(); c.land();
+        }, gap + T.JOIN + T.PLAIN);
+        return;
+      }
+      /* ---- FORMING ONE: THEY CLOSE, AND NOT ON THE MIDDLE ------------------
+       * The acyl group has a place to REACH — coenzyme A's sulfur, at one end of
+       * a 23-atom handle. Closing on the midpoint leaves the two carbons in the
+       * centre of the frame and the new bond off at the tail, which is a join
+       * the student cannot find. So the acid travels to the thiol and the handle
+       * holds still. With no handle on stage at all there is nothing to aim at,
+       * and the midpoint is the honest answer. */
+      const docking = held ? other : null;
+      const site = () => thiolWorld(held);
       // …then they close. Eased by the render loop, so they visibly travel
       // rather than cutting to a new layout.
       later(() => {
-        if (docking) { const to = dockPoint(docking, thiolWorld(held), held);
+        if (docking) { const to = dockPoint(docking, site(), held);
                        const u = docking.g.userData;
                        u.tx = to.x; u.ty = to.y; u.tz = to.z; }
         else ls.forEach(l => { l.g.userData.tx = 0; });
       }, gap);
-      later(() => {
-        FX.spawnRing(docking ? thiolWorld(held) : mid, releases ? PAL.atoms.C : THIO());
-        if (releases && held) handleFly(thiolWorld(held), 'off');
-      }, gap + T.JOIN);
+      later(() => FX.spawnRing(docking ? site() : mid, THIO()), gap + T.JOIN);
       later(() => {
         // The product takes over WHERE THE HANDLE WAS STANDING and eases to the
         // single lane, so the new bond stays under the ring that just marked it.

@@ -408,7 +408,11 @@ const STEPS=[
     act:'Join them',
     species:['citrate'], enz:'Citrate synthase', hook:'Two become one',
     rev:false, commit:true,
-    fx:'join', enter:['oaa'], bench:{key:'coa', arriving:true},
+    // NO BENCH TILE HERE. This step is the transfer itself, and it belongs on
+    // the stage: the acetyl group crosses to oxaloacetate and the coenzyme A it
+    // came off stands where it was. A tile would move the moment the student is
+    // meant to be watching into the sidebar, which is for carriers.
+    fx:'join', enter:['oaa'], linger:['coa'],
     // ON THE THIOESTER, which is where the energy for this step is. `thio` is
     // the spec's own S–C pair (mol-krebs.js), so the disc sits on the bond
     // that breaks as the C–C forms.
@@ -583,6 +587,12 @@ const stepAt=i=>STEPS[i];
  * the step can run, and this is that fact in the data rather than a special
  * case in the lookup. */
 const OPENING=['pyruvate','coa'];
+/* `linger` is a molecule that is on the stage after a step WITHOUT being one of
+ * its products: free coenzyme A, which citrate synthase let go of and which
+ * stands where it was until the student moves on. It is not in `species`,
+ * because `species` is what the energy diagram and the carbon count read, and
+ * naming a released handle there would put it on both ends of the step. */
+const laneKeys=st=>st.species.concat(st.linger||[]);
 const speciesAt=i=>{
   if(i===0) return OPENING;
   const prev=STEPS[i-1].species, st=STEPS[i];
@@ -654,15 +664,16 @@ let busy=false;
 let reviewing=false;
 let shownReview=false;
 const focusStep=()=>reviewing?done-1:done;
-/* LEAVING THE REVIEW IS WHEN A MOLECULE WALKS ON — the entrant belongs to the
- * step about to run, not to the one just finished. Re-render only when there is
- * one, so the other seven steps keep their molecules untouched. */
-function leaveReview(){
-  reviewing=false;
-  const st=done<nSteps?stepAt(done):null;
-  if(st && st.enter) renderLanes(done);
-  refresh();
+/* LEAVING THE REVIEW IS WHEN THE STAGE CHANGES HANDS — the molecule the next
+ * step brings on walks on, and the one the last step left standing goes. Both
+ * are the same question, asked of the lanes: are they what this step opens on?
+ * A step that neither enters nor lingers answers yes and nothing is rebuilt. */
+function syncLanes(){
+  const want=speciesAt(focusStep());
+  if(lanes.length!==want.length || lanes.some((l,j)=>l.key!==want[j]))
+    renderKeys(want);
 }
+function leaveReview(){ reviewing=false; syncLanes(); refresh(); }
 
 const platesEl=document.getElementById('plates');
 /* THE LANE SYSTEM IS kit/lanes.js. What stays here is what only this lesson
@@ -1014,11 +1025,12 @@ function runStep(){
   if(busy || intro || done>=nSteps) return;
   const st=stepAt(done), to=done+1;
   // Turn two never shows a review beat, so this is where its entrants walk on.
-  if((st.enter||[]).some(k=>!lanes.some(l=>l.key===k))) renderLanes(done);
-  // THE STEP'S OWN PRODUCTS. speciesAt(to) also carries the next step's
-  // entrants, and handing those to the verb walks them on a step early — the
-  // join then stacks them on the product's lane, one plate over the other.
-  const keys=st.species;
+  syncLanes();
+  // THE STEP'S OWN PRODUCTS, plus anything it leaves standing. speciesAt(to)
+  // would instead carry the NEXT step's entrants, and handing those to the verb
+  // walks them on a step early — the join then stacks them on the product's
+  // lane, one plate over the other.
+  const keys=laneKeys(st);
   if(st.couple && st.couple.up) carrierGone.add(0);
   benchGone.clear();
   busy=true; refresh();
@@ -1026,7 +1038,7 @@ function runStep(){
 
   const land=respawn=>()=>{
     done=to; reviewing=!autoplay; carrierGone.clear(); benchGone.clear();
-    if(respawn) renderKeys(st.species);
+    if(respawn) renderKeys(laneKeys(st));
     else { platesOff=false; platesEl.classList.remove('mute'); }
     busy=false; refresh();
     if(autoplay) queueAuto();
