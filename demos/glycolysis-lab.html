@@ -1588,10 +1588,13 @@ function placeEnz(){
   // changes — a running wiggle must not restart because some other readout
   // redrew — and clearing `set` is what re-places them.
   const on=enzGroups(), key=enzKey();
+  // The COUNT is checked outside the key, because hiding empties the element:
+  // switching the blobs off and on again returns to the same step, so the key
+  // still matches and only the missing children say the DOM is gone.
+  if(enzEl.children.length!==on.length)
+    enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
   if(enzEl.dataset.on!==key){
     enzEl.dataset.on=key;
-    if(enzEl.children.length!==on.length)
-      enzEl.innerHTML=on.map(()=>`<div class="enzblob">${BLOB_SVG}</div>`).join('');
     [...enzEl.children].forEach(el=>delete el.dataset.set);
   }
   const w=canvas.clientWidth, h=canvas.clientHeight;
@@ -1638,6 +1641,11 @@ const ledgerBox=ledgerBtn.querySelector('input');
 ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
 const enzBox=enzBtn.querySelector('input');
 enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
+// A RELOAD RESTORES THE BOXES, NOT THE FLAGS: browsers carry checkbox state
+// across a soft reload, so a checked box would sit over a hidden ledger/enzyme.
+// Take the box as the truth rather than clearing it, so a dev-server reload
+// keeps what was on screen.
+showLedger=ledgerBox.checked; showEnz=enzBox.checked;
 
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
