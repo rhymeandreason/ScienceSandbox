@@ -38,36 +38,12 @@
      than narrowing the stage — every other screen wants the full width. */
   @media (min-width:921px){ #tally{padding-right:calc(316px + 2%)} }
 
-  /* ---------- coenzyme A's tile, under the carrier ----------
-     Same column, same width, deliberately the same treatment: it is another
-     molecule standing in the matrix, not a legend entry. What differs is that
-     it has no charged state to show — see the script — so when it is away the
-     slot simply stands empty and the subtitle says where it went. Keeping the
-     empty box is what stops the column jumping on the frame it leaves. */
-  #bench{width:var(--carw);position:relative;pointer-events:none;
-    padding:7px 8px 6px;text-align:left;user-select:none}
-  #bench .cname{font-family:var(--font-slab);font-weight:700;font-size:17px;
-    color:var(--ink);line-height:1.15}
-  #bench .csub{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.6px;
-    text-transform:uppercase;color:var(--muted);line-height:1.2;margin-bottom:5px}
-  #bench .cvis{position:relative;height:330px;pointer-events:none;
-    display:flex;flex-direction:column}
-  #bench .cslot{position:relative;flex:1 1 0;min-height:0}
-  /* BOTH AT ONCE ON THREE OF THE FOUR CoA STEPS — the bridge and step 4 spend an
-     NAD⁺ as well, step 5 an ADP. Two full-height columns overrun the canvas, so
-     the pair share it. Declared here rather than measured: the camera's left
-     inset is a WIDTH and none of this touches it, so heights are free to move. */
-  #tray.pair #carrier .cvis{height:290px}
-  #tray.pair #bench .cvis{height:270px}
-  #tray.pair #carrier .cname,#tray.pair #bench .cname{font-size:15px}
-  /* …and shorter again on a short laptop. The pair plus its labels is ~675px,
-     which fits a 900-tall window and overruns a 768 one — the column is
-     centred on the canvas, so an overrun pushes both tiles off both ends at
-     once. Keyed to viewport HEIGHT because that is the thing running out;
-     nothing here touches the camera, which insets on width alone. */
+  /* …and shorter on a short laptop. The tile plus its labels overruns a 768-tall
+     window; the column is centred on the canvas, so an overrun pushes it off
+     both ends at once. Keyed to viewport HEIGHT because that is the thing
+     running out; nothing here touches the camera, which insets on width. */
   @media (max-height:820px){
-    #tray.pair #carrier .cvis{height:215px}
-    #tray.pair #bench .cvis{height:200px}
+    #carrier .cvis{height:215px}
   }
 
   /* ---------- the ring, in the sidebar ----------
@@ -389,9 +365,9 @@ const STEPS=[
     hook:'Into the mitochondrion', rev:false,
     pool:{NAD:-1,NADH:+1}, nadh:1, co2:1,
     // OXALOACETATE IS NOT IN THIS REACTION — not on the stage, and not on the
-    // bench either. A molecule standing by through a step it has no part in is
-    // one more thing to read; it walks on at citrate synthase, which is its
-    // step, and `enter` there is what brings it.
+    // A molecule standing by through a step it has no part in is one more thing
+    // to read; it walks on at citrate synthase, which is its step, and `enter`
+    // there is what brings it.
     fx:'join', anchor:'oxC',
     couple:{ up:false, cin:'NAD+', cout:'NADH', tone:'n' },
     // `decarb` is the spec's own name for the carboxylate that goes, so the
@@ -408,10 +384,10 @@ const STEPS=[
     act:'Join them',
     species:['citrate'], enz:'Citrate synthase', hook:'Two become one',
     rev:false, commit:true,
-    // NO BENCH TILE HERE. This step is the transfer itself, and it belongs on
-    // the stage: the acetyl group crosses to oxaloacetate and the coenzyme A it
-    // came off stands where it was. A tile would move the moment the student is
-    // meant to be watching into the sidebar, which is for carriers.
+    // THE TRANSFER IS THE STEP, and it belongs on the stage: the acetyl group
+    // crosses to oxaloacetate and the coenzyme A it came off stands where it
+    // was. The tray is for carriers the ledger counts, and moving CoA there
+    // would move the moment the student is meant to be watching.
     fx:'join', enter:['oaa'], linger:['coa'],
     // ON THE THIOESTER, which is where the energy for this step is. `thio` is
     // the spec's own S–C pair (mol-krebs.js), so the disc sits on the bond
@@ -466,7 +442,9 @@ const STEPS=[
     species:['succinate'], enz:'Succinyl-CoA synthetase',
     hook:'The only direct payoff', rev:true,
     pool:{ADP:-1,ATP:+1}, made:1,
-    fx:'thioester', bench:{key:'coa', arriving:true},
+    // The thioester breaks and free coenzyme A is left standing beside the
+    // succinate it came off — on the stage, where the break happened.
+    fx:'thioester', linger:['coa'],
     couple:{ up:false, plus:'Pi', cin:'ADP', cout:'ATP', tone:'p' },
     spot:{ at:'thio', say:'Break the thioester' },
     takeaway:`The cycle's one direct ATP, out of eleven products`,
@@ -578,8 +556,8 @@ let autoplay=false;                  // lap 2, running itself
 const stepAt=i=>STEPS[i];
 /* WHAT IS ON STAGE, AND WHY IT IS THE TWO THINGS REACTING. The page opens on
  * pyruvate and coenzyme A because those are the bridge reaction's two
- * substrates; oxaloacetate is not in that reaction at all and stands on the
- * bench until citrate synthase, which is its step.
+ * substrates; oxaloacetate is not in that reaction at all and walks on at
+ * citrate synthase, which is its step.
  *
  * `enter` is how a step says a molecule takes the stage for it. Without it the
  * stage is simply whatever the last step left, which is true of six of the
@@ -928,11 +906,20 @@ let _acidTop=null;
 const acidTopY=()=>_acidTop??(_acidTop=Math.max(...ACID_STATES.map(plateY)));
 const topAnchoredY=(R,centredY,topNow)=>FIT.anchorTop(R,centredY,topNow,TOP_PULL);
 
-function renderKeys(keys){
+function renderKeys(keys, place){
   platesOff=false; platesEl.classList.remove('mute');
-  lanes=LANES.render(keys);
+  lanes=LANES.render(keys, null, place);
   computeFit();
 }
+/* A LANE COMING APART. A step that leaves a molecule standing ends with more
+ * lanes than it started, and the new ones have to come OUT of the old one: born
+ * on their predecessor's mark and eased to their own, so succinyl-CoA visibly
+ * becomes succinate beside coenzyme A rather than two molecules replacing one.
+ * The same placement `split` uses, and for the same reason. */
+const partingFrom=from=>(l,j,n)=>{
+  l.g.position.x=from[Math.min(j,from.length-1)];
+  l.g.userData.tx=laneOrigin(l.key,j,n);
+};
 function renderLanes(i){ renderKeys(speciesAt(i)); }
 function swapLane(j,key){
   LANES.swapOne(j,key);
@@ -1003,11 +990,6 @@ const RX=Reaction.create({
   freeSpec:()=>M.pi,
   waterSpec:()=>M.water,
   handleSpec:()=>M.coa,
-  // …and WHERE coenzyme A stands when it is not on a molecule: its own tile in
-  // the tray, under the carrier. Answering this is what turns the handle's
-  // flight from "in from off screen" into a trip you can watch both ends of.
-  handlePoint:ref=>benchTilePoint(ref),
-  onHandleMoved:()=>{ benchGone.add(0); refresh(); },
 });
 const later=RX.later, aboveFrame=RX.offstage, drawFlyers=RX.drawFlyers,
       clearFlyers=RX.clearFlyers, anchorWorld=RX.anchorWorld,
@@ -1032,13 +1014,14 @@ function runStep(){
   // lane, one plate over the other.
   const keys=laneKeys(st);
   if(st.couple && st.couple.up) carrierGone.add(0);
-  benchGone.clear();
   busy=true; refresh();
   platesOff=true; platesEl.classList.add('mute');
 
   const land=respawn=>()=>{
-    done=to; reviewing=!autoplay; carrierGone.clear(); benchGone.clear();
-    if(respawn) renderKeys(laneKeys(st));
+    done=to; reviewing=!autoplay; carrierGone.clear();
+    if(respawn){ const keys=laneKeys(st);
+      renderKeys(keys, keys.length>lanes.length
+        ? partingFrom(lanes.map(l=>l.g.position.x)) : null); }
     else { platesOff=false; platesEl.classList.remove('mute'); }
     busy=false; refresh();
     if(autoplay) queueAuto();
@@ -1060,7 +1043,7 @@ function rewind(){
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
   autoplay=false; done=0; lap=1; intro=true;
-  carrierGone.clear(); benchGone.clear();
+  carrierGone.clear();
   renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
 
 /* ---- THE SECOND TURN, PLAYED ----------------------------------------------
@@ -1364,97 +1347,6 @@ function drawCarrier(st, live, showKey){
   placeCarrierMol();
 }
 
-/* =============================================================
- *  THE BENCH — the tray's second slot, for a molecule that is not reacting yet
- * =============================================================
- *  A LESSON'S STAGE SHOULD HOLD WHAT IS REACTING, and only that. Oxaloacetate
- *  spent the whole bridge reaction standing beside pyruvate taking no part in
- *  it — it is citrate synthase's substrate, one step later — and a spectator on
- *  the stage is a claim that it is involved. It was not a harmless one: the
- *  `decarb` verb had to grow a guard because the spectator was being handed a
- *  hydride along with the molecule the step was about.
- *
- *  So the tray has a second slot, under the carrier, for coenzyme A coming
- *  home: after citrate synthase and after step 5 it comes off a molecule and
- *  goes back to the pool, and the slot is where it lands.
- *
- *  COENZYME A IS NOT A CARRIER TILE, which is why it is here and not above.
- *  NAD⁺ and FAD have two STATES — one molecule differing by the hydrogens it
- *  holds — and the ledger counts every turnover. CoA has one state and two
- *  PLACES: free in the matrix, or bonded to the acyl group it is ferrying.
- *  Nothing is spent when it binds. Watching it come home is what makes that
- *  something you saw rather than were told.
- */
-const HANDLE=M.coa;                     // also what reaction/reaction.js flies
-const benchEl=document.createElement('div');
-benchEl.id='bench';
-benchEl.innerHTML='<div class="cname"></div><div class="csub"></div><div class="cvis"></div>';
-const BENCH=Carriers.create({ root, camera, canvas, host:benchEl,
-  align:'left',
-  build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
-                Stage.setOptionalH(g,false); return g; } });
-// `{key,arriving:true}` is a molecule still on the stage that lands here during
-// the step; a bare key would be one that simply stands there, and no step wants
-// one — a spectator on the bench is a spectator.
-const benchOf=st=>(st&&st.bench)||null;
-/* WHETHER IT HAS MOVED YET, in this step. Same shape and the same reason as
- * `carrierGone`: for the beat the molecule is in the air the step has not
- * landed and `reviewing` is false, so without it CoA is drawn in the tray AND
- * crossing the frame. Cleared when the step lands and by every jump out. */
-const benchGone=new Set();
-const benchRan=()=>reviewing||benchGone.has(0);
-// A molecule that only waits is here the whole step. One that is coming back
-// is here from the moment it lands.
-const benchHome=st=>{ const b=benchOf(st);
-  return !!b && (b.arriving ? benchRan() : true); };
-/* WHICH THIOESTER A RETURNING CoA CAME OFF, found by asking the specs rather
- * than typed: the one molecule either side of the step whose own metadata calls
- * itself a carrier. It is acetyl-CoA once and succinyl-CoA once, and a fixed
- * word would have called the four-carbon one an acetyl group. */
-function acylOf(st){
-  const k=speciesAt(STEPS.indexOf(st)).concat(st.species)
-           .find(x=>M[x]!==HANDLE && meta(M[x]).carrier);
-  return k ? M[k] : null;
-}
-/* THE LINE UNDER THE NAME SAYS WHERE IT IS — the two PLACES coenzyme A has, and
- * the acyl group it is on is read off the step rather than typed. */
-function benchSub(st, spec, home){
-  if(!home){ const a=acylOf(st); return a ? `bound as ${a.short}` : 'on the molecule'; }
-  return spec===HANDLE ? 'free in the matrix' : 'standing by';
-}
-function drawBench(st){
-  const b=benchOf(st); if(!b) return;
-  const spec=M[b.key], home=benchHome(st);
-  BENCH.show(1, spec);
-  benchEl.querySelector('.cname').textContent=spec.name;
-  benchEl.querySelector('.csub').textContent=benchSub(st, spec, home);
-  placeBenchMol();
-}
-// Drawn only while it is actually standing here; the empty slot holds the space
-// so the column does not jump when it leaves.
-function placeBenchMol(){
-  const st=stepAt(focusStep());
-  const vis = benchEl.isConnected && trayEl.style.visibility!=='hidden'
-           && benchHome(st);
-  BENCH.place(vis);
-}
-/* Where the tile is, for a flight that ends on it. OFF THE SLOT'S BOX, not off
- * the molecule: on the beat CoA is arriving the slot is still empty, so there
- * is no mesh to ask, and a flight has to know where it is going before it gets
- * there. Answers null unless the bench is holding the handle — a CoA flight
- * aimed at an oxaloacetate tile would be pointing at the wrong molecule. */
-function benchTilePoint(ref){
-  const st=stepAt(focusStep()), b=benchOf(st);
-  if(!b || M[b.key]!==HANDLE) return null;
-  if(!benchEl.isConnected || trayEl.style.visibility==='hidden') return null;
-  const slot=benchEl.querySelector('.cslot');
-  const rect=slot && slot.getBoundingClientRect();
-  if(!rect || !rect.width) return null;
-  // a third across, matching `align:'left'` — the molecule sits at the slot's
-  // left, not its centre, so the centre would aim at empty column
-  return unprojectAt(rect.left+rect.width*0.34, rect.top+rect.height*0.5, ref);
-}
-
 function drawTray(){
   trayEl.style.display='flex';
   trayEl.style.visibility = intro ? 'hidden' : 'visible';
@@ -1462,11 +1354,10 @@ function drawTray(){
   const i=focusStep();
   const st=(!intro&&i<nSteps)?stepAt(i):null;
   const c=st&&st.couple;
-  const bench=st&&st.bench;
-  // A step that moves neither keeps the SPACE and shows nothing — usable()
+  // A step that moves nothing keeps the SPACE and shows nothing — usable()
   // measures this column to place the lesson, and a collapsed tray would
   // shove the molecule sideways for one step.
-  if(!c && !bench){ trayEl.style.visibility='hidden'; }
+  if(!c){ trayEl.style.visibility='hidden'; }
   trayEl.innerHTML='<div class="tstrip"></div>';
   const strip=trayEl.children[0];
   const pair = c && CARRIER.has(carrierKey(c.cin)) && CARRIER.has(carrierKey(c.cout));
@@ -1475,12 +1366,6 @@ function drawTray(){
     strip.appendChild(carrierEl);
     drawCarrier(st, false, showKey);
   }else{ CAR.show(0, NADH); }
-  // …and the bench under it. ORDER IS THE READING: the carrier this step
-  // spends on top, the molecule that is only standing by below.
-  if(bench){ strip.appendChild(benchEl); drawBench(st); }
-  else{ BENCH.show(0, M.coa); }
-  // Both at once needs both shorter — see the CSS.
-  trayEl.classList.toggle('pair', !!(pair && bench));
 }
 
 /* =============================================================
@@ -1739,7 +1624,7 @@ function drawAct(){
 // Jump to the state just BEFORE step k, so the student re-runs it rather than
 // landing on its aftermath. Shared by the rail and the cycle list.
 const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; autoplay=false;
-  done=k; carrierGone.clear(); benchGone.clear(); renderLanes(done); refresh(); };
+  done=k; carrierGone.clear(); renderLanes(done); refresh(); };
 
 /* ---- ?step=N, the same jump as a URL. Clamped, so ?step=99 opens the last
  * step rather than an empty stage. 1 is the bridge. */
@@ -2052,7 +1937,6 @@ L.afterFrame=()=>{
   drawSpots();
   drawHint();
   placeCarrierMol();
-  placeBenchMol();
   placeTallyMols();
   placeEnz();
 };

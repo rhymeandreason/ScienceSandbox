@@ -1204,8 +1204,12 @@ function create(host) {
   verb('thioester', {
     dur: () => T.HANDLE + T.DRIFT,
     lane(c) {
+      /* THE HANDLE DOES NOT GO ANYWHERE. Breaking the thioester leaves free
+       * coenzyme A standing in the matrix, and the lane it was part of is what
+       * comes apart to show that — a flight out of frame would say the step
+       * ends with one molecule when it ends with two. The ring is the break. */
       const seat = thiolWorld(c.lane);
-      handleFly(seat, 'off');
+      FX.spawnRing(seat, THIO());
       const free = host.freeSpec && host.freeSpec();
       if (!c.step.couple || !free) return;
       later(() => {
