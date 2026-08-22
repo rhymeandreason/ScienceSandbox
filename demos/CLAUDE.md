@@ -49,9 +49,9 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 
 ## Making a new lesson
 
-**Load `main.css` first, then `sandbox.css`, then `pathways.css` on a step-through pathway lesson.** `main.css` is the design system and `sandbox.css` the old chrome retiring into it; because it loads second it still wins where they overlap, so moving a piece across is a deletion rather than an edit. Atom and bond colours are not in CSS at all: `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*`, so a caption and the sphere it names cannot drift. See `design-system.html`.
+**Ask the human which existing page is closest, and copy it.** Every page loads `molecules.js` + `scene.js`; everything above that is chosen — the `mol-*.js` domains it draws, the `kit/` pieces its mechanic needs, and rarely a standalone module. A page loading a domain it never draws is paying for someone else's molecules.
 
-**Use shared modules, and load only the ones the page shows.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Above `scene.js` sits `kit/`, and beside it the standalone folders — what each owns, the full load order, and how to add one: **`Modules.md`**. The seven-step checklist for building a page, and the traps it falls into: **`AddingAPage.md`**.
+**Never type an atom or bond colour.** `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. `design-system.html` draws every token on the stage's own paper.
 
 ## Architecture principle: **share the plumbing, not the physics**
 
