@@ -52,8 +52,11 @@
   #ctl[hidden] { display:none; }
   /* THE LAUNCH ROW SITS WHERE #ctl DOES — the two never share a step, so one
      position serves both and the controls do not move between tabs. */
+  /* WIDER THAN #ctl's ROW ON PURPOSE: these three are not a set of settings,
+     they are three separate launchers, and the gap is also the spacing the
+     molecules inherit — press order left to right IS the lane order. */
   #launch { position:absolute; left:50%; z-index:4;
-            transform:translateX(-50%); display:flex; gap:10px; }
+            transform:translateX(-50%); display:flex; gap:40px; }
   #launch[hidden] { display:none; }
   /* EACH BUTTON WEARS ITS OWN SUBSTANCE'S COLOUR, off the same tokens the
      spheres are built from, so pressing violet launches the violet thing.
@@ -470,8 +473,8 @@ const _np = new THREE.Vector3();
 /* Names ONE traveller, not a species. Three labels on three of the forty
    things on screen is a key; a label per molecule is a wall of type. */
 function noteOn(t, text, offset, card) {
-  if (!t) return;
-  NOTES.add({ text, offset, card, at: () => t.obj.getWorldPosition(_np) });
+  if (!t) return null;
+  return NOTES.add({ text, offset, card, at: () => t.obj.getWorldPosition(_np) });
 }
 /* THE SAME CALLOUT, PINNED TO THE SCENE rather than to something moving.
    A protein does not walk, and neither does "the top compartment" — an
@@ -1576,8 +1579,14 @@ function advance(t, dt) {
     t.slowFrom = null;
     t.vy = Math.sign(t.vy) * rnd(DRIFT_SPEED[0], DRIFT_SPEED[1]);
   }
-  /* Anything that CAN cross wraps rather than being deleted: vanishing at
-     the edge reads as being consumed, and nothing here consumes. */
+  /* A LAUNCHED MOLECULE LEAVES FOR GOOD. Wrapping was right when this cast
+     was ambient — vanishing at the edge would have read as being consumed,
+     and nothing here consumes — but a molecule the student fired has answered
+     its question the moment it is through, and one that reappears at the
+     opposite edge reads as a second crossing that nobody paid for. Swept
+     after the loop, never spliced inside it. */
+  if (t.exits && Math.abs(t.y) > OFFSCREEN) { t.gone = true; return; }
+  /* Anything else that CAN cross still wraps, for the reason above. */
   if (t.y >  OFFSCREEN) t.y = -OFFSCREEN;
   if (t.y < -OFFSCREEN) t.y =  OFFSCREEN;
   t.obj.position.y = t.y;
@@ -1607,13 +1616,31 @@ const LAUNCH_MAX = 14;                  // per species; past this it is a crowd
    trip is the setup, the membrane is the answer, and the answer has to land
    inside about a second. Both numbers are here rather than inline because
    they are one decision — distance over speed IS the wait. */
-const LAUNCH_FROM  = 0.25;              // fraction of farY() to start at
-const LAUNCH_SPEED = [24, 30];
 const LAUNCH_GROW  = 0.22;              // seconds to scale up from nothing
-/* Ambient drift, which is what the launch speed decays to. The trip is a
-   delivery and wants to be brief; the crowd it joins is a gas at room
+/* ONE SPEED FROM THE BUTTON TO THE MEMBRANE. Nothing decelerates on the way
+   in: a molecule that slows as it nears the surface reads as being resisted,
+   which is a claim about the membrane and the wrong one for two of the three
+   species. Whatever happens at the head groups has to be the first thing
+   that happens to it. */
+const LAUNCH_SPEED   = [55, 65];
+/* Ambient drift, which is what a gas decays to once it is through. The trip
+   is a delivery and wants to be brief; the crowd it joins is a gas at room
    temperature and wants to look like one. */
 const DRIFT_SPEED  = [6, 10];
+
+/* WHERE A BUTTON IS, IN THE SCENE. The launcher is DOM and the molecule is a
+   mesh, so the one number that ties them together is the button's own box,
+   unprojected onto the z=0 plane the travellers live on. Read per press: the
+   row is positioned off the measured chrome height and moves when a caption
+   wraps. */
+const _bv = new THREE.Vector3();
+function worldAtButton(btn) {
+  const b = btn.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+  _bv.set(((b.left + b.width / 2 - c.left) / c.width) * 2 - 1,
+          -((b.top - c.top) / c.height) * 2 + 1, 0.5).unproject(L.camera);
+  _bv.sub(L.camera.position).normalize();
+  return _bv.multiplyScalar(-L.camera.position.z / _bv.z).add(L.camera.position);
+}
 const launched = { o2:null, co2:null, NA:null };
 const LAUNCH_NOTE = {
   o2:  ['O₂ — passes through', [-30, -22],
@@ -1627,6 +1654,23 @@ const LAUNCH_NOTE = {
         'holds a shell of water around it. Entering the oil means ' +
         'stripping that shell off, and that costs more than it has.'],
 };
+/* THE CALLOUT DIES WITH THE MOLECULE IT NAMES. A note reads its anchor's
+   world position every frame, so a retired anchor strands the label at the
+   edge of the frame. Clearing `launched` too means the next press adopts the
+   label — the step's three sentences belong to whatever is on stage. */
+const launchedNote = { o2:null, co2:null, NA:null };
+function sweepGone() {
+  for (let i = travellers.length - 1; i >= 0; i--) {
+    const t = travellers[i];
+    if (!t.gone) continue;
+    L.root.remove(t.obj);
+    travellers.splice(i, 1);
+    if (launched[t.kind] !== t) continue;
+    if (launchedNote[t.kind]) launchedNote[t.kind].remove();
+    launched[t.kind] = launchedNote[t.kind] = null;
+  }
+}
+
 /* Oldest first, and never the annotated one — its callout reads the object's
    world position every frame, so retiring it strands the label. */
 function retireOldest(kind) {
@@ -1635,38 +1679,44 @@ function retireOldest(kind) {
   L.root.remove(travellers[i].obj);
   travellers.splice(i, 1);
 }
-function launch(kind) {
+function launch(kind, btn) {
   if (travellers.filter(t => t.kind === kind).length >= LAUNCH_MAX)
     retireOldest(kind);
   const first = !launched[kind];
-  /* THE GASES KEEP THEIR LANES — O₂ left, CO₂ right — because two streams
-     shuffled together is a snowstorm, not a comparison. Na⁺ is NOT banded:
-     penning the one species that does not cross into a column would make
-     that a property of the column. */
-  const x = kind === 'o2'  ? rnd(-SPREAD, -SPREAD * 0.04)
-          : kind === 'co2' ? rnd(SPREAD * 0.04, SPREAD)
-          : rnd(-SPREAD, SPREAD);
-  /* CO₂ leaves, the other two arrive — the direction a real cell breathes.
-     It is also what makes the launch a test: each one starts at the far edge
-     of its own compartment and has the whole width of the water to cross. */
-  const out = kind === 'co2';
+  /* OUT OF THE BUTTON THAT WAS PRESSED, so the control and the molecule are
+     one object. Everything therefore starts in the cytosol and travels
+     outward, including the O₂ — the button row is on that side, and a
+     molecule crossing the membrane to reach its own start line would be the
+     step's own claim broken on the way to making it.
+
+     The lanes come free from the row's order — O₂ left, CO₂ middle, Na⁺
+     right — and cost nothing, since all three are banded the same way. A
+     column is only a claim when one species is in one. Jittered so repeated
+     presses spread instead of stacking a perfect file. */
+  const p = worldAtButton(btn);
   const t = traveller(kind, Object.assign(
-    { x, z:rnd(-10, 10), y:(out ? -1 : 1) * farY() * LAUNCH_FROM,
-      vy:(out ? 1 : -1) * rnd(LAUNCH_SPEED[0], LAUNCH_SPEED[1]) },
-    /* EXACTLY ONE Na⁺ WEARS ITS HYDRATION SHELL — the annotated one. Cage
-       every sodium in six waters and it becomes the largest object on
-       screen, walking the size rule this step exists to kill right back in;
-       the ones after it stay bare, at true radius. The labelled one carries
-       a shell because it answers the question the press provokes — why can't
-       the small one get through? — with the dehydration penalty, the same
-       fact step 4 leans on. */
+    { x:p.x + rnd(-7, 7), z:rnd(-10, 10), y:p.y,
+      vy:rnd(LAUNCH_SPEED[0], LAUNCH_SPEED[1]) },
+    /* EXACTLY ONE Na⁺ WEARS ITS HYDRATION SHELL — the annotated one, and only
+       while the corner switch is on. Cage every sodium in six waters and it
+       becomes the largest object on screen, walking the size rule this step
+       exists to kill right back in; the ones after it stay bare, at true
+       radius. The labelled one can carry a shell because it answers the
+       question the press provokes — why can't the small one get through? —
+       with the dehydration penalty, the same fact step 4 leans on. */
     kind === 'NA' ? { speed:ION_SPEED, shell:first,
                       blocked:true, bounded:true, walkOnBounce:true } : {}));
-  t.born = 0; t.bornScale = t.obj.scale.x; t.obj.scale.setScalar(t.bornScale * 0.001);
-  if (kind !== 'NA') t.slowFrom = Math.sign(t.y);   // ambient once it is through
+  /* Grown out of nothing at the button's own position, so the press is what
+     put it there rather than something appearing in the water nearby. */
+  t.born = 0; t.bornScale = t.obj.scale.x;
+  t.obj.scale.setScalar(t.bornScale * 0.001);
+  if (kind !== 'NA') {
+    t.slowFrom = Math.sign(t.y);      // ambient once it is through
+    t.exits = true;                   // and gone once it reaches the edge
+  }
   if (first) {
     launched[kind] = t;
-    noteOn(t, ...LAUNCH_NOTE[kind]);
+    launchedNote[kind] = noteOn(t, ...LAUNCH_NOTE[kind]);
   }
   /* THE CORNER SWITCH OWNS THE SHELL, and this cast was built after go()
      applied it. Without this the launched Na⁺ arrives wearing a shell the
@@ -1675,7 +1725,7 @@ function launch(kind) {
   syncShells();
 }
 for (const b of launchEl.querySelectorAll('button'))
-  b.addEventListener('click', () => launch(b.dataset.kind));
+  b.addEventListener('click', () => launch(b.dataset.kind, b));
 
 const STEPS = [
   {
@@ -1728,6 +1778,7 @@ const STEPS = [
       /* clearTravellers() dropped the callouts with the molecules they were
          pinned to, so the next press has to be a first press again. */
       launched.o2 = launched.co2 = launched.NA = null;
+      launchedNote.o2 = launchedNote.co2 = launchedNote.NA = null;
     },
   },
 
@@ -2635,6 +2686,7 @@ function tick(dt) {
   /* CHROME BELONGS OUT HERE, past the per-step branches above: a toggle
      hidden inside one branch stays on screen over the steps that return
      early. */
+  sweepGone();                            // step 2's launches, once they exit
   placeControls();
   /* Hidden where the row would be empty — an empty pill row still reserves
      height and reads as a control that failed to load. */
