@@ -132,6 +132,47 @@ On-thesis: the conflict under all the others is **between a textbook figure and 
 
 Matrix rows: energy transformation, probability, equilibrium.
 
+**The other half: SPECIFICITY, and the sugar work now supplies it.** Everything
+above is catalysis — the barrier comes down and the rate moves. None of it says
+why an enzyme accepts one substrate and refuses another, which is the half a
+student actually asks about ("why can't we digest wood?"). That half is now
+built and checked, and it costs **no new molecules**:
+
+* `condense-lab.html` makes the α-1,4 and β-1,4 bonds by hand, and the fork is a
+  reagent rather than a gesture — α- and β-glucose are different molecules.
+* `chain/glucose-chains-test.html` repeats each linkage into what it becomes:
+  starch's six-fold helix, cellulose's two-fold ribbon, and galactan's
+  half-length ribbon, all falling out of torsions solved against published helix
+  parameters rather than drawn.
+* So "same monomer, same reaction, one bond flipped, one enzyme works" is a
+  claim the repo can already show instead of assert.
+
+**Use amylase, not lysozyme.** Lysozyme is the classic β-1,4 cutter and would
+need a PDB and a render path. Amylase costs neither and lands the arc on the
+page that already exists:
+
+> **starch → (amylase) → maltose → (maltase) → glucose → glycolysis**
+
+Amylase is an *endo*-α-1,4-glucanase and its real product is **maltose** — the
+molecule `condense-lab` already builds and `chain-repeat.js` already polymerises.
+Glucose is where `glycolysis-lab` opens, so this answers a question that page
+currently steps over: where the glucose came from. Two enzymes, two halves —
+**amylase** for specificity upstream, **PFK-1** for catalysis and regulation
+inside, as planned above.
+
+It also gets hydrolysis for free, as the reverse of what is built:
+`condense-drag.js` makes the bond and releases a water; the enzyme adds one back
+and breaks it. Same bond, same atoms, opposite direction — and the module's
+`condense:` blocks already name which atoms those are.
+
+**The trap, and it is this section's own thesis.** This roadmap exists partly to
+kill the lock-and-key cartoon. A generic pocket that a helix slots into and a
+ribbon does not is that cartoon, redrawn at higher fidelity — and worse, it
+would imply enzymes select on gross chain shape, when they read the linkage at a
+single bond. Cheapest honest option: **do not draw the enzyme.** Show the chain,
+the cut, and the refusal on β, with the enzyme present only as what it accepts.
+If it is ever drawn, draw a deposited structure.
+
 ### 2. Nucleic acids / DNA
 
 **The conflict.** As bad as it gets — ladder vs helix, bases as jigsaw tabs instead of hydrogen bonds, grooves invisible, antiparallel strands drawn parallel.
@@ -174,7 +215,7 @@ node -e "const M=require('./lib-node.js').MolLib.MOLECULES;const b={};for(const 
 | --- | --- | --- |
 | **0. Krebs** | **0 left of \~11** — six acids in `mol-krebs.js` ✓; the rest are what finishing costs | `mol-krebs.js` ✓ |
 | **0.75. Sickle fibre** | **0** — rides `hemoglobin/data/2HBS.pdb`, already baked | none |
-| **1. Enzymes** | **\~1** — ADP. Substrate and product specs already exist in `mol-pathways.js` | none |
+| **1. Enzymes** | **\~1** — ADP for the catalysis half. The **specificity** half costs **0**: maltose, cellobiose, galactobiose and α-glucose are built and checked | none |
 | **2. Membrane** | \~4 left — **O₂ ✓** and **glycerol ✓** are in; the phospholipid is started and held (see `mol-lipids.js`'s tail note), then cholesterol, triglyceride (optional) | `mol-lipids.js` ✓ |
 | **3. DNA** | \~9 — five nucleobases, one full nucleotide, an A–T and a G–C pair | `mol-nucleic.js` |
 | *tier after* — photosynthesis / ETC | chlorophyll a, acetyl-CoA, FAD/FADH₂ — the expensive builds | `mol-photosynthesis.js` |
