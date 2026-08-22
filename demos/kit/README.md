@@ -1,3 +1,5 @@
+<!-- KIND: recipe — load when a lesson needs the timeline, the highlight vocabulary, lanes, or camera fit against pixel chrome. -->
+
 # `kit/` — the layer between `scene.js` and a lesson
 
 `scene.js` owns primitives (atom, bond, buildMolecule, measure, frame) and is
