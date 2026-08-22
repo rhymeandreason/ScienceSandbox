@@ -43,6 +43,8 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 **Load `main.css` before `sandbox.css`.** `main.css` is the design system: tokens (primitive → semantic → domain), the type scale, and the six button shapes. `sandbox.css` is the old shared chrome, being retired into it; because it loads second it still wins wherever the two overlap, so moving a piece across is a deletion rather than an edit. Atom and bond colours are not written in CSS at all: `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. See `design-system.html`.
 
+**A step-through pathway lesson loads `pathways.css` after `sandbox.css`.** It is the chrome `glycolysis-lab` and `krebs-lab` share — rail, tray, plates, hotspots, bar, ledger, tally, modal card. The page's own `<style>` keeps only what a count or a size makes its own. `AddingAPage.md`.
+
 **Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Full script-load order, the module reference table, and the seven-step checklist for building a new page: **`AddingAPage.md`**.
 
 **Above `scene.js` there is `kit/`** — the loop, the resize, the timeline, the highlight vocabulary, and a camera fit that spends *pixels* of caption/tray chrome. It owns no lesson state and no physics; it exists so a new lesson is its mechanic and nothing else. **`kit/README.md`.**

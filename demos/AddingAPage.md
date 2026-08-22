@@ -9,6 +9,7 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 ```html
 <link rel="stylesheet" href="main.css">      <!-- always, first — tokens, type scale, buttons; loads the fonts -->
 <link rel="stylesheet" href="sandbox.css">   <!-- the old shared chrome, retiring into main.css -->
+<link rel="stylesheet" href="pathways.css"> <!-- only for a step-through pathway lesson; see below -->
 <link rel="stylesheet" href="annotate.css">  <!-- only with annotate.js; overrides the frozen copy in sandbox.css -->
 ...
 <script src=".../three.min.js"></script>
@@ -91,6 +92,7 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 | `main.css` | the design system: tokens (primitive → semantic → domain), the type scale, the six button shapes — and the `@import` that loads **all** webfonts, so no page carries a font `<link>`. Loads before `sandbox.css`, so retiring a piece of that file is a deletion | own header |
 | `annotate.css` | the look of a callout, paired with `annotate.js`. A frozen copy stays in `sandbox.css` for the pages that have not migrated; edit this one | own header |
 | `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome. Being retired into `main.css`; still wins where the two overlap | own header |
+| `pathways.css` | the chrome a **step-through pathway lesson** is made of, shared by `glycolysis-lab` and `krebs-lab`: the numbered rail, the lane plates and bond hotspots, the enzyme blob and its verdicts, the carrier tray, the bottom bar, the ledger, the closing tally and the modal card. Loads after `sandbox.css`, before the page's own `<style>`. A page keeps only what a count or a size makes its own — its domain colours, `--carw`/`--trayw`, and the `#tally` grid, because how many things a pathway makes is the fact that screen exists to state | own header |
 | `tools/sdf2spec.js` | PubChem 3D → spec, amino-acid backbone order | `tools/README.md` |
 | `tools/sdf2spec-generic.js` | the same for non-amino-acids; orients on the ring plane | `tools/README.md` |
 | `tools/sdf/` | the committed PubChem inputs (9 `.sdf`) for every `path:'pubchem'` spec | `tools/sdf/README.md` |
