@@ -809,9 +809,9 @@ function computeFit(){
   // the pull-back lands on the way to step 2 — the beat where the pathway, not
   // the molecule, becomes the subject. Not at Begin either, which only shows the
   // tray, so a zoom there moves the molecule for an invisible reason. Zooming
-  // mid-step is what this buys off: the enzyme blob is held still in pixels for
-  // the length of a step (placeEnz), so a frame that moves under it leaves it
-  // sized for a framing the stage has already left.
+  // mid-step is what this buys off: the frame is the one thing on stage that
+  // moves EVERYTHING at once, and a student watching a phosphate land reads that
+  // motion as part of the reaction. One step, one framing.
   const close = done===0 || (done===1 && reviewing);
   // BOTH OF STEP 1'S STATES, so the one fit holds the sugar before and after the
   // phosphate — a close-up solved on glucose alone tightens on the product.
@@ -1519,8 +1519,8 @@ const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
  * claim, and "one per lane" makes the wrong one twice in ten:
  *   · step 4, aldolase: ONE F1,6-BP, one enzyme, and it releases TWO products.
  *     So it is ONE blob, placed on the sugar and then held still while the
- *     halves part (placeEnz freezes it) — which is what an enzyme releasing two
- *     products does. On DHAP alone it would say aldolase kept one half;
+ *     halves part (placeEnz pins it — the only blob that holds still) — which is
+ *     what an enzyme releasing two products does. On DHAP alone it would say aldolase kept one half;
  *     tracking both, that the enzyme slid across the stage.
  *   · step 5, triose-phosphate isomerase: acts on DHAP only. The other lane's
  *     G3P is standing in the cytosol, in nothing.
