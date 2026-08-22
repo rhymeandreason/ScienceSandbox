@@ -124,9 +124,20 @@
   #enzymes[hidden]{display:none}
   .enzblob{position:absolute;transform:translate(-50%,-50%);
     animation:enzTurn 24s ease-in-out infinite}
-  .enzblob svg{display:block;width:100%;height:100%;
-    animation:enzWob 9s ease-in-out infinite; opacity:.5;}
-  .enzblob:nth-child(2) svg{animation-duration:11s;animation-delay:-3s}
+  /* THE WOBBLE RIDES A DIV, NEVER THE <svg>. A transform on an SVG element is
+     resolved against a box the engines do not agree on — `transform-origin:50%
+     50%` is a percentage, and for an SVG element that percentage can be taken
+     of the VIEW-BOX rather than the border box, which puts the pivot 265 user
+     units into a blob rendered 396px wide and swings the shape clean off its
+     own footprint. The element's left/top stay correct the whole time, so the
+     box an inspector draws is right and the ink is somewhere else, by an amount
+     that is a PHASE of a 9s animation rather than a fixed offset — which reads
+     as the blob being mispositioned, differently every time you look.
+     A div has one interpretation everywhere. Keep both animations on one. */
+  .enzblob .enzwob{width:100%;height:100%;
+    animation:enzWob 9s ease-in-out infinite}
+  .enzblob svg{display:block;width:100%;height:100%;opacity:.5}
+  .enzblob:nth-child(2) .enzwob{animation-duration:11s;animation-delay:-3s}
   /* A SWAY, NOT A SPIN. A full turn reads as an object rotating on the stage —
      an event, and a wrong one: an enzyme is not a wheel. This is drift. */
   @keyframes enzTurn{0%,100%{transform:translate(-50%,-50%) rotate(-7deg)}
@@ -135,7 +146,7 @@
                     33%    {transform:scale(1.06,.94) rotate(4deg)}
                     66%    {transform:scale(.95,1.05) rotate(-3deg)}}
   @media (prefers-reduced-motion:reduce){
-    .enzblob,.enzblob svg{animation:none} }
+    .enzblob,.enzblob .enzwob{animation:none} }
   /* The step's verdicts, with the enzyme's name under them, down the right of
      the stage. IN THE CARD'S BAND ON PURPOSE: the energy card (#couplebox)
      lands here and covers these words — they are its door, and a door beside

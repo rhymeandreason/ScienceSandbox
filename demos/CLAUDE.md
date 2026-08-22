@@ -127,6 +127,8 @@ You are an engineer who cares about design and making science easy to understand
 
 The human uses molecule-viewer.html to manually choose a good default rotation for a molecule. Ask her to do this if you need. Don’t try to rotate dynamically, you can’t see what is happening.
 
+**The human uses Safari.** Keep that in mind when she reports rendering or style bugs.
+
 **Don’t write a changelog in a code file’s comments. Comments should be active voice, and only document things that are not obvious from reading the code.**
 
 ## Never use these structures:
