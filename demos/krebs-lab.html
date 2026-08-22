@@ -638,9 +638,6 @@ function ledgerAt(i){
 }
 // stage being LOOKED at: the next step's, or the tally stage once all are done.
 const stageAt=i=>intro?0:(i>=nSteps?6:STEPS[i].stage);
-// Carbons standing on the stage, off the specs. Both metadata blocks call it
-// `carbons`, so this reads the same on pyruvate as on citrate.
-const carbonsAt=i=>speciesAt(i).reduce((s,k)=>s+(meta(M[k]).carbons||0),0);
 // The whole run is done when the last lap's last step is.
 const finished=()=>!intro && lap>=LAPS && done>=nSteps;
 
@@ -1276,7 +1273,7 @@ function productsAt(i){
 }
 function drawLedger(){
   placeLedger();
-  const L=productsAt(done), c=speciesAt(done).map(k=>meta(M[k]).carbons||0);
+  const L=productsAt(done);
   const prev=prevLedger;
   const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
   ledgerEl.innerHTML=
@@ -1287,8 +1284,10 @@ function drawLedger(){
     // glycolysis's "Net ATP", and put in the same place for the same reason.
     +`<div class="row net"><span>Electron pairs</span><span class="v${bumped('pairs')}" data-row="pairs">${L.pairs}</span></div>`
     +`<div class="row prod"><span>ATP</span><span class="v${bumped('made')}" data-row="made">${L.made}</span></div>`
-    +`<div class="row"><span>CO₂ released</span><span class="v${bumped('co2')}" data-row="co2">${L.co2}</span></div>`
-    +`<div class="row carb"><span>Carbons on stage</span><span class="v">${c.join(' + ')}</span></div>`;
+    // NO CARBON COUNT. Glycolysis keeps one because 6 = 3 + 3 is that lesson's
+    // whole event; here the molecules on stage are the count, and the ring's
+    // 6C → 5C → 4C says the arithmetic where all of it is legible at once.
+    +`<div class="row"><span>CO₂ released</span><span class="v${bumped('co2')}" data-row="co2">${L.co2}</span></div>`;
   prevLedger=L;
 }
 
