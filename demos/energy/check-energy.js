@@ -117,6 +117,26 @@ console.log('\nthe shared climb');
   const peak = peaksOf(curve({ up:true, from:'A', to:'B' }))[0];
   ok(peak < Math.min(L.start, L.endAlone, L.endWith),
      'the peak is above the HIGHEST end, so even an uphill step climbs before it falls');
+
+  /* THE ONE FIGURE ALLOWED TWO HUMPS, and it inverts the argument rather than
+   * escaping it: the ends are pinned, so the heights are a claim about rate and
+   * a true one. It has to be ASKED for, and a pathway may not ask. */
+  const enz = { from:'S', to:'P', barrier:10, barrierAlone:24,
+                at:{ start:Y.hi, endAlone:Y.lo, endWith:Y.lo } };
+  const [pw, pa] = peaksOf(curve(enz));
+  ok(pw !== pa, '`barrierAlone`: the two traces peak separately — the barrier IS the claim',
+     `${pw} / ${pa}`);
+  ok(pa < pw, 'the uncatalysed trace has the HIGHER hump');
+  const Le = levels(enz);
+  ok(Le.endAlone === Le.endWith && Le.start === Y.hi,
+     'and the ends do not move — an enzyme changes neither ΔG, so a figure that'
+     + ' let the second barrier drag an end would teach the opposite');
+  ok(peaksOf(curve({ ...enz, barrierAlone:undefined }))[0]
+     === peaksOf(curve({ ...enz, barrierAlone:undefined }))[1],
+     'omit it and the two traces are back to one peak');
+  ok(curve({ ...enz, aloneLabel:'' }).match(/class="et /g).length === 1,
+     'a blank label draws no text — the enzyme figure names the reaction once,'
+     + ' not once per barrier');
 }
 
 /* ---- the two labels never collide ------------------------------------- */
@@ -215,6 +235,9 @@ console.log('\nthe hosts');
        `${p} loads the module and its stylesheet`);
     ok(!/function\s+(coupleCurve|coupleFig|soloCurve)\s*\(/.test(pageSrc[p]),
        `${p} keeps no copy of the drawing — one figure, one place`);
+    ok(!/barrierAlone/.test(pageSrc[p]),
+       `${p} declares no second barrier — two humps on a pathway step would say`
+       + ' coupling changed the rate, and it changes neither barrier');
   }
 }
 

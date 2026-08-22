@@ -64,13 +64,17 @@ const COUPLED_GAIN = 16, PULL_GAIN = 8;
 /* The four heights, pure and exported so check-energy.js runs THIS rather than
  * a copy of it. `at` is the escape hatch a non-pathway host uses. */
 function levels(c) {
-  if (c.at) return Object.assign({ barrier: c.barrier ?? BARRIER }, c.at);
+  // `barrierAlone` defaults to the same hump: one barrier is the pathway case,
+  // and a second one has to be asked for.
+  const bars = { barrier: c.barrier ?? BARRIER,
+                 barrierAlone: c.barrierAlone ?? c.barrier ?? BARRIER };
+  if (c.at) return Object.assign(bars, c.at);
   const shal = SHALLOW_DROP / 2;
   const start    = c.up ? Y.lo : (c.shallow ? Y.mid - shal : Y.hi);
   const endAlone = c.up ? Y.mid : (c.shallow ? Y.mid + shal : Y.lo);
   const endWith  = c.up ? (c.pull ? Y.lo - PULL_GAIN : Y.lo + COUPLED_GAIN)
                         : (c.shallow ? Y.mid - shal + COUPLED_GAIN : Y.mid);
-  return { start, endAlone, endWith, barrier: c.barrier ?? BARRIER };
+  return Object.assign({ start, endAlone, endWith }, bars);
 }
 
 /* Which of the two ends the second trace reaches IS the verdict, so it is
@@ -127,6 +131,13 @@ const trace = (y0, y1, peak) =>
  * (coupling/coupling.js's claim 3, and massaction/, whose subject the barrier
  * is). check-energy.js asserts the shared peak so a later tidy-up cannot
  * quietly introduce it.
+ *
+ * `barrierAlone` IS THE ONE CASE THAT MAY DIFFER, and it inverts the argument
+ * rather than escaping it. Ask for a second barrier and the two humps are the
+ * subject: same reaction, same ends, one of them catalysed. Nothing about where
+ * the reaction ends up moves, which is what makes the different heights a claim
+ * about rate and a true one. A pathway must never declare it — asserted, since
+ * that is where the false version would appear.
  */
 /* WHERE A LABEL SITS. There is no room to the RIGHT of a trace running to
  * x=266, so a label goes over or under the end it names. Above by default; the
@@ -146,23 +157,37 @@ const labelY = (y, lower) => (lower && y + BELOW <= FLOOR) ? y + BELOW : y - ABO
 
 function curve(c) {
   const L = levels(c);
-  // ONE peak for both traces, measured above whichever end sits highest — see
-  // the note above. Above the HIGHEST end so that every trace climbs before it
-  // falls, including the uphill one, whose product is the top of its own curve.
-  const peak = Math.min(L.start, L.endAlone, L.endWith) - L.barrier;
+  const twoBarriers = c.barrierAlone != null;
+  // ONE peak for both traces by default, measured above whichever end sits
+  // highest — see the note above. Above the HIGHEST end so that every trace
+  // climbs before it falls, including the uphill one, whose product is the top
+  // of its own curve. With a second barrier asked for, each trace is measured
+  // above its own highest point instead, and the two humps are the point.
+  const top = Math.min(L.start, L.endAlone, L.endWith);
+  const peakWith  = (twoBarriers ? Math.min(L.start, L.endWith)  : top) - L.barrier;
+  const peakAlone = (twoBarriers ? Math.min(L.start, L.endAlone) : top) - L.barrierAlone;
   const withLabel = c.withLabel
     || (c.pull ? `with ${c.pullName} taken away` : `with ${c.up ? c.cin : c.cout}`);
-  const aloneLabel = c.aloneLabel || 'on its own';
+  // ?? not ||, so a host can pass '' for a trace it does not want named — the
+  // enzyme figure labels the reaction once, not once per barrier.
+  const aloneLabel = c.aloneLabel ?? 'on its own';
   // y grows downward, so the larger end is the lower trace.
   const aloneLower = L.endAlone > L.endWith;
+  const text = (cls, y, lower, label) => label
+    ? `<text class="et ${cls}" x="266" y="${labelY(y, lower)}" text-anchor="end">${label}</text>`
+    : '';
   return `<svg class="cpl ${toneOf(c.tone)}" viewBox="0 0 300 152" role="img"
-      aria-label="${c.from} to ${c.to}: on its own the step runs ${c.up?'uphill':'downhill'};
-        ${withLabel} it runs ${BETTER(L,c.up) ? (c.up?'downhill':'less far down') : 'no further'}">
+      aria-label="${twoBarriers
+        ? `${c.from} to ${c.to}: one reaction drawn with two barriers. ${withLabel}
+           climbs the lower one; both traces start and end in the same place, so
+           nothing about the energy of the reaction has changed`
+        : `${c.from} to ${c.to}: on its own the step runs ${c.up?'uphill':'downhill'};
+           ${withLabel} it runs ${BETTER(L,c.up) ? (c.up?'downhill':'less far down') : 'no further'}`}">
     ${AXIS}
-    <path class="rc with"  d="${trace(L.start, L.endWith, peak)}"/>
-    <path class="rc alone" d="${trace(L.start, L.endAlone, peak)}"/>
-    <text class="et alone" x="266" y="${labelY(L.endAlone, aloneLower)}" text-anchor="end">${aloneLabel}</text>
-    <text class="et with"  x="266" y="${labelY(L.endWith, !aloneLower)}" text-anchor="end">${withLabel}</text>
+    <path class="rc with"  d="${trace(L.start, L.endWith, peakWith)}"/>
+    <path class="rc alone" d="${trace(L.start, L.endAlone, peakAlone)}"/>
+    ${text('alone', L.endAlone, aloneLower, aloneLabel)}
+    ${text('with', L.endWith, !aloneLower, withLabel)}
   </svg>`;
 }
 

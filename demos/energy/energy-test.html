@@ -37,16 +37,18 @@ carries no scale on purpose: a height here is a sign, never a magnitude. Publish
 <div class="row" id="pairs"></div>
 
 <h2>The barrier as the claim — what the enzymes lesson needs</h2>
-<p class="sub">A pathway passes the default barrier and means nothing by it: the ends are
-its claim. Here it is the other way round. The ends are pinned, because an enzyme
-changes neither ΔG, and only the hump moves.</p>
+<p class="sub">A pathway passes one barrier and means nothing by it: the ends are its claim.
+Here it is the other way round. Both traces start and end in the same place, because an
+enzyme changes neither ΔG, and the only thing the slider can touch is the hump. This is the
+one figure where two different peaks are honest — ask for the second barrier with
+<code>barrierAlone</code>, and a pathway may never declare one.</p>
 <div class="row">
   <div class="cell">
-    <label style="font-family:var(--font-sans);font-size:12.5px">
-      barrier <input id="ea" type="range" min="6" max="46" value="30" style="vertical-align:middle">
-      <span id="eaval" style="color:var(--muted)"></span>
-    </label>
+    <label class="cap" for="ea">barrier
+      <input id="ea" type="range" min="4" max="24" value="10" style="vertical-align:middle">
+      <b id="eaval"></b></label>
     <div id="enz"></div>
+    <p class="cap" id="enznote"></p>
   </div>
 </div>
 
@@ -77,15 +79,23 @@ document.getElementById('pairs').innerHTML = [
    { ...base, cin:'NAD+', cout:'NADH', tone:'n' }],
 ].map(([cap, c]) => cell(Energy.tabs('pair') + cap, Energy.pair(c))).join('');
 
-// `at` pins both ends and `barrier` is the only thing the slider touches — the
-// figure cannot accidentally claim the enzyme moved the thermodynamics.
+// THE UNCATALYSED BARRIER IS FIXED, and the ends are pinned by `at` — so the
+// only thing the slider can move is the catalysed hump. The figure is unable to
+// claim the enzyme shifted the thermodynamics, which is the claim to be unable
+// to make. The reaction is named once, on the trace that happens: `aloneLabel`
+// is blank, and the dashed trace is what the reaction costs without help.
+const UNCAT = 24;
 const ea = document.getElementById('ea');
 const drawEnz = () => {
   const b = +ea.value;
-  document.getElementById('eaval').textContent = b > 34 ? 'no enzyme' : 'with enzyme';
+  document.getElementById('eaval').textContent = b >= UNCAT ? 'no enzyme' : 'with enzyme';
   document.getElementById('enz').innerHTML = Energy.curve({
-    ...base, tone:'p', barrier:b, at:{ start:Energy.Y.hi, endAlone:Energy.Y.lo, endWith:Energy.Y.lo },
+    ...base, tone:'p', barrier:b, barrierAlone:UNCAT,
+    at:{ start:Energy.Y.hi, endAlone:Energy.Y.lo, endWith:Energy.Y.lo },
     aloneLabel:'', withLabel:'product' });
+  document.getElementById('enznote').innerHTML =
+    `barrier <b>${b}</b> against <b>${UNCAT}</b> uncatalysed — and the product sits at
+     <b>${Energy.Y.lo}</b> either way.`;
 };
 ea.oninput = drawEnz; drawEnz();
 </script>
