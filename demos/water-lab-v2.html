@@ -1480,15 +1480,10 @@ function renderInset(){
  *  evidence the student made the thing happen — a line cannot be checked off
  *  by agreeing with it.
  * ============================================================= */
-let didOrbit=false, didInset=false;
-canvas.addEventListener('pointerdown',()=>{ let moved=false;
-  const mv=()=>{ moved=true; }, up=()=>{ didOrbit=didOrbit||moved;
-    canvas.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); };
-  canvas.addEventListener('pointermove',mv); window.addEventListener('pointerup',up); });
+let didInset=false;
 
 // c: {p (temperature params), hb (bonds this frame), escaping}
 const TRIALS=[
- {text:'Drag the water around. Find the V.',                 test:()=>didOrbit},
  {text:'Open the single molecule. Read the two charges.',    test:()=>didInset},
  {text:'Heat it to 100°C. The bonds stretch before they go.',test:c=>S.temperature>=95},
  {text:'Boil it. Nothing escapes until its bonds are gone.', test:c=>c.escaping>0},
