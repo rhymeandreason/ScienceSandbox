@@ -16,8 +16,7 @@ Existing pages are that argument already:
 * `molecule-viewer` — a 3D model and a skeletal diagram shown to be the same atoms
 * `hemoglobin-lab` — four levels of protein structure that are always four figures
 * `glycolysis-lab` — ATP as a real molecule losing a real γ phosphate, not a coin
-
-Hemoglobin got the teacher response, and it's the page that refused hardest to split its subject up. That's the selection rule.
+* Membrane-lab: shows an inset of a phospholipid next to the abstracted membrane render
 
 **Pedagogy retrofits are a later tier.** Quizzes, predict-before-you-see, scored interaction — real, and deliberately not now. Visualization first.
 
@@ -55,7 +54,7 @@ Chapter numbers are OpenStax *Biology 2e*, TRU/BCcampus edition (<https://bccamp
 | `glycolysis-lab` | featured | **[34 Glycolysis](https://bccampusbiology.pressbooks.tru.ca/chapter/glycolysis/)** · [33 Energy in Living Systems](https://bccampusbiology.pressbooks.tru.ca/chapter/energy-in-living-systems/) · [39 Regulation of Cellular Respiration](https://bccampusbiology.pressbooks.tru.ca/chapter/regulation-of-cellular-respiration/) (PFK-1) |
 | ↳ mass-action modal | — | [27 Energy and Metabolism](https://bccampusbiology.pressbooks.tru.ca/chapter/energy-and-metabolism/) · [29 The Laws of Thermodynamics](https://bccampusbiology.pressbooks.tru.ca/chapter/the-laws-of-thermodynamics/) |
 | `membrane-lab` | featured | [22 Components and Structure](https://bccampusbiology.pressbooks.tru.ca/chapter/components-and-structure/) · [23 Passive Transport](https://bccampusbiology.pressbooks.tru.ca/chapter/passive-transport/) · [11 Lipids](https://bccampusbiology.pressbooks.tru.ca/chapter/lipids/) · [215 Osmoregulation and Osmotic Balance](https://bccampusbiology.pressbooks.tru.ca/chapter/osmoregulation-and-osmotic-balance/) |
-| `krebs-lab` | **in progress** | **[35 Oxidation of Pyruvate and the Citric Acid Cycle](https://bccampusbiology.pressbooks.tru.ca/chapter/oxidation-of-pyruvate-and-the-citric-acid-cycle/)** · [39 Regulation](https://bccampusbiology.pressbooks.tru.ca/chapter/regulation-of-cellular-respiration/) |
+| `krebs-lab` | **Done** | **[35 Oxidation of Pyruvate and the Citric Acid Cycle](https://bccampusbiology.pressbooks.tru.ca/chapter/oxidation-of-pyruvate-and-the-citric-acid-cycle/)** · [39 Regulation](https://bccampusbiology.pressbooks.tru.ca/chapter/regulation-of-cellular-respiration/) |
 | `sickle/fibre-test` | **in progress**, no lesson yet | [12 Proteins](https://bccampusbiology.pressbooks.tru.ca/chapter/proteins/) (quaternary structure, and what a point mutation does to it) |
 | **1. Enzymes** | planned | **[31 Enzymes](https://bccampusbiology.pressbooks.tru.ca/chapter/enzymes/)** · [28 Potential, Kinetic, Free, and Activation Energy](https://bccampusbiology.pressbooks.tru.ca/chapter/potential-kinetic-free-and-activation-energy/) |
 | **2. Nucleic acids / DNA** | in progress dna-lab.html | **[67 DNA Structure and Sequencing](https://bccampusbiology.pressbooks.tru.ca/chapter/dna-structure-and-sequencing/)** · [13 Nucleic Acids](https://bccampusbiology.pressbooks.tru.ca/chapter/nucleic-acids/) |
@@ -69,58 +68,17 @@ Nothing here proposes covering the book. Chapters 44+ are cells, genetics, evolu
 
 ## Build order
 
-### Shipped
-
-**`glycolysis-lab`.**  Its central claim is the thesis stated plainly: glycolysis is the worst-drawn pathway in Bio 101 — linear in one book and circular in the next, structures then boxes, ATP as a blob, a coin, a lightning bolt. Drawing ATP as a molecule whose γ phosphate the student clicks off was the fix, not a flourish.
-
-**`membrane-lab`.** Was §2 below; now featured. The bilayer as two rows of lollipops, at a geometry and scale that are simply false, proteins drawn as beans wedged in — and water movement drawn three contradictory ways, arrows both directions, arrows one direction, "water moves toward solute" as if pulled. Five steps settle it on one page: bilayer structure, a molecule crossing by simple diffusion, a channel's selectivity, a pump spending real ATP, and active vs. passive side by side. `diffusion/diffusion.js` — box, counters, √t plot, no membrane in it by design — turned out to be the walk; this page added the wall. Matrix rows covered: dynamic equilibrium, randomness, subcellular↔macroscopic.
-
 ### The sequencing rule
 
 **Never build the next engine before shipping the current engine's page.** This roadmap contains its own evidence. `diffusion/` sat as a module with no consumer until `membrane-lab` put a wall down the middle of its box. `massaction/`'s barrier slider is built, checked (`check-massaction.js` §8) and **still has no page**, a full lesson later — §1 below has been "the cheapest strong page on the list" for two shipped lessons running.
 
 So the order below alternates: engine, then the page that consumes it, then the next engine. An engine whose first consumer is not the very next item is an engine that will sit.
 
-### 0. Finish `krebs-lab` to featured
-
-**In progress, one commit, 2,614 lines.** Nothing new starts before it.
-
-**Why it outranks everything planned.** One instance of a compiler is a page with a table in it; two instances is a compiler. Everything downstream that treats a pathway as data — fermentation, beta-oxidation, the Calvin cycle, pentose phosphate — is a bet on `reaction/` + `kit/` being general, and the second instance is where you find out what is still not. It has already reported one defect; see §0.5.
-
-`QUESTIONS-ROADMAP.md` costs nine questions against pathway instances that only exist if this is true.
-
-### 0.5. Extract the pathway shell
-
-Two instances, so extract now, while Krebs is fresh and the diff is small. Measured 2026-08-20:
-
-| Page | Total lines | `STEPS` table | Own `<style>` |
-| --- | --- | --- | --- |
-| `glycolysis-lab` | 3037 | 123 (4%) | 754 (24%) |
-| `krebs-lab` | 2614 | 129 (4%) | 817 (31%) |
-| `membrane-lab` | 2410 | — | 175 (7%) |
-| `hemoglobin-lab` | 2694 | — | 137 (5%) |
-
-**The compiler compiles the chemistry; the lesson shell doesn't exist.** A second pathway costs ~2,500 lines to express 129 lines of pathway, and the pathway pages carry four to six times the per-page CSS of the non-pathway ones.
-
-Pull the carrier column, the ledger, the step rail, the caption band and the ~800 lines of CSS that lay them out into `sandbox.css` and a shell module. None of it is physics, so §"share the plumbing, not the physics" holds. This is the item that turns "author many lessons" from a goal into a property of the repo.
-
 ### 0.75. The sickle-cell page, built on the fibre
 
 **Build the lesson around `sickle/fibre-test.html`.** The bench works — one contact, double strand, fibre — and the expensive parts (SES surface bake, fibre transforms, checker) are committed. Only the lesson is missing. Rides `hemoglobin-lab`, costs zero new molecules.
 
-**The conflict.** Sickle-cell is drawn as a letter changing in a sequence, and separately as a crescent cell. The step between is the **fibre**: β6 of one tetramer in the Phe85/Leu88 pocket of the next. The mechanism is drawn nowhere.
-
-Keep the bench's split between measured constants and slider-shaped guesses, and its live `twistStrain()` readout; that is what §0.9 generalizes.
-
 **Do not build binding as a pose search.** Dragging one tetramer onto another while a contact score rises was tried and failed — a monotone score is maximised by driving atoms through each other. `QUESTIONS-ROADMAP.md` §3's `bind`/`release` argument from that drag is withdrawn with it. Copy `dna/pairing.js`: solve the pose in closed form from declared donors and acceptors, let `kit/hbond.js` find the bonds. A student controls concentration, affinity, or which partner is offered. `sickle/sickle.js` loads on no page; keep `mutate`, the Kyte-Doolittle colouring, and the score as an offline measurement.
-
-### 0.9. The provenance readout
-
-**A label convention, a slider convention, and a recomputed-from-what-is-drawn readout, shared across pages.** `fibre-test.html` is the worked example, so the first consumer already exists — the sequencing rule's condition for building it.
-
-`CLAUDE.md` keeps pedagogical exaggerations explicit **in comments**, which serves the author. Put the same distinction on screen, where it serves the student. Nearly every lesson mixes measured geometry with a chosen exaggeration — `mol-solvation.js` stretches O–H to 1.55 Å, the membrane's proteins are placed rather than docked, `water-lab`'s ice lattice is sized to the molecule count — and none of it is visible from the page.
-
-On-thesis: the conflict under all the others is **between a textbook figure and the evidence for it**. A student who has watched one picture announce where it stops being true reads every other picture differently.
 
 ### 1. Enzymes
 
@@ -134,47 +92,19 @@ On-thesis: the conflict under all the others is **between a textbook figure and 
 
 Matrix rows: energy transformation, probability, equilibrium.
 
-**The other half: SPECIFICITY, and the sugar work now supplies it.** Everything
-above is catalysis — the barrier comes down and the rate moves. None of it says
-why an enzyme accepts one substrate and refuses another, which is the half a
-student actually asks about ("why can't we digest wood?"). That half is now
-built and checked, and it costs **no new molecules**:
+**The other half: SPECIFICITY, and the sugar work now supplies it.** Everything above is catalysis — the barrier comes down and the rate moves. None of it says why an enzyme accepts one substrate and refuses another, which is the half a student actually asks about ("why can't we digest wood?"). That half is now built and checked, and it costs **no new molecules**:
 
-* The specs carry both linkages and the reagents they come from: `maltose`,
-  `cellobiose`, `galactobiose`, `lactose`, and `alphaGlucose` beside ordinary
-  β-glucose. α and β are different molecules, not a toggle.
-* `chain/glucose-chains-test.html` repeats each linkage into what it becomes:
-  starch's six-fold helix, cellulose's two-fold ribbon, and galactan's
-  half-length ribbon, all falling out of torsions solved against published helix
-  parameters rather than drawn.
-* So "same monomer, same reaction, one bond flipped, one enzyme works" is a
-  claim the repo can already show instead of assert.
+* The specs carry both linkages and the reagents they come from: `maltose`, `cellobiose`, `galactobiose`, `lactose`, and `alphaGlucose` beside ordinary β-glucose. α and β are different molecules, not a toggle.
+* `chain/glucose-chains-test.html` repeats each linkage into what it becomes: starch's six-fold helix, cellulose's two-fold ribbon, and galactan's half-length ribbon, all falling out of torsions solved against published helix parameters rather than drawn.
+* So "same monomer, same reaction, one bond flipped, one enzyme works" is a claim the repo can already show instead of assert.
 
-**Use amylase, not lysozyme.** Lysozyme is the classic β-1,4 cutter and would
-need a PDB and a render path. Amylase costs neither and lands the arc on the
-page that already exists:
+**Use amylase, not lysozyme.** Lysozyme is the classic β-1,4 cutter and would need a PDB and a render path. Amylase costs neither and lands the arc on the page that already exists:
 
 > **starch → (amylase) → maltose → (maltase) → glucose → glycolysis**
 
-Amylase is an *endo*-α-1,4-glucanase and its real product is **maltose** — a spec
-that already exists and that `chain-repeat.js` already polymerises.
-Glucose is where `glycolysis-lab` opens, so this answers a question that page
-currently steps over: where the glucose came from. Two enzymes, two halves —
-**amylase** for specificity upstream, **PFK-1** for catalysis and regulation
-inside, as planned above.
+Amylase is an *endo*-α-1,4-glucanase and its real product is **maltose** — a spec that already exists and that `chain-repeat.js` already polymerises. Glucose is where `glycolysis-lab` opens, so this answers a question that page currently steps over: where the glucose came from. Two enzymes, two halves — **amylase** for specificity upstream, **PFK-1** for catalysis and regulation inside, as planned above.
 
-Hydrolysis is a condensation run backwards — a water goes in and the bond comes
-apart — and the specs already name which atoms move: the `condense:` blocks on
-`glucose`, `alphaGlucose` and `alanine`, audited by `check-molecules.js`. They
-outlived the drag page they were written for and are kept for this.
-
-**The trap, and it is this section's own thesis.** This roadmap exists partly to
-kill the lock-and-key cartoon. A generic pocket that a helix slots into and a
-ribbon does not is that cartoon, redrawn at higher fidelity — and worse, it
-would imply enzymes select on gross chain shape, when they read the linkage at a
-single bond. Cheapest honest option: **do not draw the enzyme.** Show the chain,
-the cut, and the refusal on β, with the enzyme present only as what it accepts.
-If it is ever drawn, draw a deposited structure.
+Hydrolysis is a condensation run backwards — a water goes in and the bond comes apart — and the specs already name which atoms move: the `condense:` blocks on `glucose`, `alphaGlucose` and `alanine`, audited by `check-molecules.js`. They outlived the drag page they were written for and are kept for this.
 
 ### 2. Nucleic acids / DNA
 
@@ -223,8 +153,6 @@ node -e "const M=require('./lib-node.js').MolLib.MOLECULES;const b={};for(const 
 | **3. DNA** | \~9 — five nucleobases, one full nucleotide, an A–T and a G–C pair | `mol-nucleic.js` |
 | *tier after* — photosynthesis / ETC | chlorophyll a, acetyl-CoA, FAD/FADH₂ — the expensive builds | `mol-photosynthesis.js` |
 
-This independently confirms the build order, and now confirms the two items ahead of it more strongly than anything else here: **Krebs and sickle cost no new molecules at all.** Enzymes is next partly because it costs one molecule; DNA is third partly because it costs nine — though `skel.js` already carries `adenine`, `ribosyl` and `phosphoUnit`, so the nucleotide is a build, not a transcription.
-
 Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so autoionization and the pH scale are currently asymmetric) and **O₂** as the nonpolar reference — which is also half of the membrane page's "why does O₂ cross and glucose doesn't" argument.
 
 ### Domain files
@@ -271,8 +199,6 @@ Three notes on the deltas:
 **`crystal/` — nucleation and a growth front.** The one piece of genuinely new physics `QUESTIONS-ROADMAP.md` asks for. Freezing in `water-lab` is a scalar fraction snapping molecules onto a pre-built lattice: no nucleation, no crystal *size*, no face for anything to bind. Snowflakes, ice cream, and antifreeze proteins all ask what shape ice grows into, and none is reachable from a fraction-frozen model.
 
 ## Where `QUESTIONS-ROADMAP.md` and this file disagree
-
-Both were re-read against each other on 2026-08-20. They agree on more than expected: enzymes first, ETC and photosynthesis deferred, and the module-behind-a-modal pattern, which that file presents as a new idea and this one had already stated in the diffusion entry.
 
 Three real disagreements, resolved:
 
