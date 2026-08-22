@@ -656,6 +656,15 @@ let busy=false;
 let reviewing=false;
 let shownReview=false;
 const focusStep=()=>reviewing?done-1:done;
+/* LEAVING THE REVIEW IS WHEN A MOLECULE WALKS ON — the entrant belongs to the
+ * step about to run, not to the one just finished. Re-render only when there is
+ * one, so the other seven steps keep their molecules untouched. */
+function leaveReview(){
+  reviewing=false;
+  const st=done<nSteps?stepAt(done):null;
+  if(st && st.enter) renderLanes(done);
+  refresh();
+}
 
 const platesEl=document.getElementById('plates');
 /* THE LANE SYSTEM IS kit/lanes.js. What stays here is what only this lesson
@@ -910,11 +919,12 @@ let _acidTop=null;
 const acidTopY=()=>_acidTop??(_acidTop=Math.max(...ACID_STATES.map(plateY)));
 const topAnchoredY=(R,centredY,topNow)=>FIT.anchorTop(R,centredY,topNow,TOP_PULL);
 
-function renderLanes(i){
+function renderKeys(keys){
   platesOff=false; platesEl.classList.remove('mute');
-  lanes=LANES.render(speciesAt(i));
+  lanes=LANES.render(keys);
   computeFit();
 }
+function renderLanes(i){ renderKeys(speciesAt(i)); }
 function swapLane(j,key){
   LANES.swapOne(j,key);
   lanes=LANES.lanes;
@@ -1005,7 +1015,12 @@ const FLY=RX.timing.FLY;
 function runStep(){
   if(busy || intro || done>=nSteps) return;
   const st=stepAt(done), to=done+1;
-  const keys=speciesAt(to);
+  // Turn two never shows a review beat, so this is where its entrants walk on.
+  if((st.enter||[]).some(k=>!lanes.some(l=>l.key===k))) renderLanes(done);
+  // THE STEP'S OWN PRODUCTS. speciesAt(to) also carries the next step's
+  // entrants, and handing those to the verb walks them on a step early — the
+  // join then stacks them on the product's lane, one plate over the other.
+  const keys=st.species;
   if(st.couple && st.couple.up) carrierGone.add(0);
   benchGone.clear();
   busy=true; refresh();
@@ -1013,7 +1028,7 @@ function runStep(){
 
   const land=respawn=>()=>{
     done=to; reviewing=!autoplay; carrierGone.clear(); benchGone.clear();
-    if(respawn) renderLanes(to);
+    if(respawn) renderKeys(st.species);
     else { platesOff=false; platesEl.classList.remove('mute'); }
     busy=false; refresh();
     if(autoplay) queueAuto();
@@ -1024,7 +1039,7 @@ function runStep(){
 }
 function rewind(){
   if(busy || autoplay) return;
-  if(reviewing){ reviewing=false; refresh(); return; }
+  if(reviewing){ leaveReview(); return; }
   if(done===0){
     // Back off the first step of lap 2 is back into lap 1's ending, not the
     // intro: the laps are one run, and the tally is the screen between them.
@@ -1691,7 +1706,7 @@ function drawAct(){
   if(reviewing){
     actEl.style.visibility='visible';
     actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
-    actEl.onclick=()=>{ reviewing=false; refresh(); };
+    actEl.onclick=leaveReview;
     return;
   }
   const st=done<nSteps?stepAt(done):null;
@@ -2013,7 +2028,7 @@ addEventListener('keydown',e=>{
   if(autoplay) return;
   if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
     if(intro){ beginPathway(); }
-    else if(reviewing){ reviewing=false; refresh(); }
+    else if(reviewing){ leaveReview(); }
     else press(runStep); }
   if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
 });
