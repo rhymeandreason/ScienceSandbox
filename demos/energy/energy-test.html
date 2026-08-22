@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>energy/ test bench — the free-energy figures</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../energy/energy.css">
+<style>
+  /* THE CARRIER TOKENS ARE THE HOST'S, so the bench declares the ones a
+     pathway page declares — energy.css names them and colours nothing itself. */
+  :root{ --phos:#e07b1f; --nad:#2f7d5c; --fad:#8a6bbf; --carbon:#3a3a3a }
+  body{max-width:1180px;margin:0 auto;padding:28px 22px 60px;background:var(--paper)}
+  h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);max-width:60ch;margin:0 0 26px}
+  h2{font-family:var(--font-slab);font-size:14px;letter-spacing:.4px;
+     text-transform:uppercase;color:var(--muted);margin:30px 0 10px;
+     border-top:1px solid var(--hair);padding-top:12px}
+  .row{display:flex;flex-wrap:wrap;gap:18px}
+  /* 372px is the width the pathway sidebar gives the card — judge it there. */
+  .cell{width:372px}
+  .cell .cap{font-family:var(--font-sans);font-size:12.5px;color:var(--muted);margin:0 0 6px}
+  .cell .cap b{color:var(--ink)}
+  .ftabs{margin-bottom:2px}
+</style>
+
+<h1>energy/ — free energy on a vertical axis</h1>
+<p class="sub">Every shape the module draws, at the width a lesson gives it. The axis
+carries no scale on purpose: a height here is a sign, never a magnitude. Published
+ΔG°′ belong to <code>coupling/</code>, which draws them on its own audited axis.</p>
+
+<h2>The four shapes a step can be</h2>
+<div class="row" id="shapes"></div>
+
+<h2>Nothing beside it</h2>
+<div class="row" id="solos"></div>
+
+<h2>The coupling pair, the other tab</h2>
+<div class="row" id="pairs"></div>
+
+<h2>The barrier as the claim — what the enzymes lesson needs</h2>
+<p class="sub">A pathway passes the default barrier and means nothing by it: the ends are
+its claim. Here it is the other way round. The ends are pinned, because an enzyme
+changes neither ΔG, and only the hump moves.</p>
+<div class="row">
+  <div class="cell">
+    <label style="font-family:var(--font-sans);font-size:12.5px">
+      barrier <input id="ea" type="range" min="6" max="46" value="30" style="vertical-align:middle">
+      <span id="eaval" style="color:var(--muted)"></span>
+    </label>
+    <div id="enz"></div>
+  </div>
+</div>
+
+<script src="../energy/energy.js"></script>
+<script>
+const cell = (cap, svg) => `<div class="cell"><p class="cap">${cap}</p>${svg}</div>`;
+const base = { from:'substrate', to:'product' };
+
+document.getElementById('shapes').innerHTML = [
+  ['<b>up</b> — uphill alone; the carrier is what makes it go',
+   { ...base, up:true, cin:'ATP', cout:'ADP', tone:'p' }],
+  ['<b>plain</b> — a real drop, part of it banked into a carrier',
+   { ...base, cin:'NAD+', cout:'NADH', tone:'n' }],
+  ['<b>shallow</b> — barely downhill, so the electrons go to the cheaper carrier',
+   { ...base, shallow:true, cin:'FAD', cout:'FADH₂', tone:'f' }],
+  ['<b>pull</b> — uphill, and it goes anyway because the product is removed',
+   { ...base, up:true, pull:'oaa', pullName:'oxaloacetate', cin:'NAD+', cout:'NADH', tone:'n' }],
+].map(([cap, c]) => cell(cap, Energy.curve(c))).join('');
+
+document.getElementById('solos').innerHTML = [
+  ['<b>reversible</b> — both sides at nearly the same energy', { ...base }],
+  ['<b>irreversible</b> — the product sits well below', { ...base, drop:true }],
+].map(([cap, c]) => cell(cap, Energy.solo(c))).join('');
+
+document.getElementById('pairs').innerHTML = [
+  ['uphill, paid for by <b>ATP</b>', { ...base, up:true, cin:'ATP', cout:'ADP', tone:'p' }],
+  ['downhill, and the drop drives <b>NADH</b> the other way',
+   { ...base, cin:'NAD+', cout:'NADH', tone:'n' }],
+].map(([cap, c]) => cell(Energy.tabs('pair') + cap, Energy.pair(c))).join('');
+
+// `at` pins both ends and `barrier` is the only thing the slider touches — the
+// figure cannot accidentally claim the enzyme moved the thermodynamics.
+const ea = document.getElementById('ea');
+const drawEnz = () => {
+  const b = +ea.value;
+  document.getElementById('eaval').textContent = b > 34 ? 'no enzyme' : 'with enzyme';
+  document.getElementById('enz').innerHTML = Energy.curve({
+    ...base, tone:'p', barrier:b, at:{ start:Energy.Y.hi, endAlone:Energy.Y.lo, endWith:Energy.Y.lo },
+    aloneLabel:'', withLabel:'product' });
+};
+ea.oninput = drawEnz; drawEnz();
+</script>

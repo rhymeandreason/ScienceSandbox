@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="pathways.css">     <!-- the pathway lesson chrome, shared with krebs-lab -->
 <link rel="stylesheet" href="massaction/massaction.css">
+<link rel="stylesheet" href="energy/energy.css">  <!-- the free-energy figures -->
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css. */
 
@@ -194,6 +195,7 @@
 <script src="reaction/reaction.js"></script>
 <!-- the mass-action modal's physics and DOM; this page supplies the scenarios -->
 <script src="massaction/massaction.js"></script>
+<script src="energy/energy.js"></script>
 <!-- WHY A STEP CAN RUN BACKWARDS, shown rather than asserted. The page says it
      in sentences about "concentration" that land only if you already know what
      concentration DOES. A MODAL, not a panel — a general fact about
@@ -1797,16 +1799,11 @@ function drawRail(){
  * page measures. */
 const noteEl=document.getElementById('stepnote');
 
-/* ---- the coupled-reaction figure ------------------------------------------
- * VERTICAL POSITION IS FREE ENERGY — why there is no axis to read. The coupled
- * arrow ALWAYS runs opposite the main one: uphill happens because something
- * steeper runs downhill beside it, and downhill is worth having because it
- * pushes something uphill.
- *
- * NO NUMBERS — direction, not magnitude, same reason the page prints no
- * per-step ΔG. Appears at FIVE of the ten steps; the other five are
- * rearrangements, and that absence separates steps that move energy from steps
- * that move atoms.
+/* ---- the coupling box ------------------------------------------------------
+ * energy/energy.js draws both figures; this resolves the step into what they
+ * take. COUPLING APPEARS AT FIVE OF THE TEN STEPS — the other five are
+ * rearrangements, and that absence is itself the point: it separates steps that
+ * move energy from steps that move atoms.
  */
 // Species names READ OFF THE MOLECULES, not typed (a name typed twice can
 // disagree with the molecule): `from` is what stands in the lanes before the
@@ -1819,116 +1816,27 @@ function resolveCouple(st){
     from: nameOf(speciesAt(i)[0]) + (c.plus?` + ${c.plus}`:''),
     to:   nameOf(st.species[0]) });
 }
-function coupleFig(c){
-  // Higher-energy species on top: product if uphill, substrate if downhill.
-  const topMain = c.up ? c.to : c.from, botMain = c.up ? c.from : c.to;
-  // The carrier's charged form (ATP, NADH) is always the higher-energy one.
-  const topCpl  = c.up ? c.cin : c.cout, botCpl = c.up ? c.cout : c.cin;
-  const mainLine = c.up ? 'M66,116 L66,34' : 'M66,30 L66,112';
-  const mainHead = c.up ? 'M66,24 l6.5,13 h-13 z' : 'M66,122 l6.5,-13 h-13 z';
-  // Both directions written out: same shape, only the arrowhead end differs —
-  // explicit rather than derived by string surgery.
-  const CURVE_DOWN='M176,42 C126,48 90,58 90,74 C90,90 126,100 176,106';
-  const CURVE_UP  ='M176,106 C126,100 90,90 90,74 C90,58 126,48 176,42';
-  const cplLine = c.up ? CURVE_DOWN : CURVE_UP;      // opposite the main arrow
-  const cplHead = c.up ? 'M176,106' : 'M176,42';
-  // Only a '+' against the preceding character is a CHARGE (NAD+). Spaced, it
-  // is arithmetic (G3P + Pi) and stays on the baseline — superscript it and
-  // "G3P plus Pi" reads as a cation.
-  const sup=t=>t.replace(/(\S)\+/g,'$1<tspan baseline-shift="super" font-size="9">+</tspan>')
-                .replace(/Pi\b/,'P<tspan baseline-shift="sub" font-size="9">i</tspan>');
-  return `<svg class="cpl ${c.tone==='n'?'n':'p'}" viewBox="0 0 300 152" role="img"
-      aria-label="${c.from} to ${c.to} runs ${c.up?'uphill':'downhill'}; coupled to ${c.cin} becoming ${c.cout}, which runs the opposite way">
-    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
-    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
-    <text class="cm" x="66" y="16" text-anchor="middle">${sup(topMain)}</text>
-    <path class="ml" d="${mainLine}"/><path class="mh" d="${mainHead}"/>
-    <text class="cm" x="66" y="147" text-anchor="middle">${sup(botMain)}</text>
-    <path class="cl" d="${cplLine}"/>
-    <path class="ch" d="${cplHead} l-11,-4.5 v9 z"/>
-    <text class="cs" x="186" y="46">${sup(topCpl)}</text>
-    <text class="cs" x="186" y="110">${sup(botCpl)}</text>
-  </svg>`;
-}
-/* The same step as a REACTION COORDINATE, beside the arrows not instead: they
- * say what coupling does, the curve shows the barrier — what a student asks
- * about after the mass-action modal.
+/* THE FIGURES ARE energy/energy.js's. What stays here is the part only this
+ * page knows: which molecules the step changes, and the sentence under the
+ * picture. Every height comes from the step's own flags (`up`, `rev`), so no
+ * shape is typed against a named reaction.
  *
- * TWO TRACES, ONE CLAIM. Dashed = the sugar reaction alone; solid = coupled.
- * Uphill: dashed ends ABOVE its start, solid below — coupling turning a
- * reaction that will not go into one that will. Downhill: dashed falls further,
- * and the difference is what was banked into ATP or NADH.
- *
- * STILL NO MAGNITUDES: heights are fixed constants shared by every step, so the
- * figure claims a SIGN only — to scale it would assert ΔG the page cannot
- * source. Same rule as the arrows above.
- */
-const RC_Y={ hi:34, mid:76, lo:120, peak:22 };
-function coupleCurve(c){
-  const Y=RC_Y;
-  // Both traces leave the same place: same molecule before the step.
-  const start=c.up ? Y.lo : Y.hi;
-  const endAlone=c.up ? Y.mid : Y.lo;      // uphill alone / the full drop alone
-  const endWith =c.up ? Y.lo+16 : Y.mid;   // coupled: over the top, or part banked
-  const peak=Math.min(start,endAlone,endWith)-Y.peak;
-  const trace=(y0,y1)=>`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
-                      +` C174,${peak} 180,${y1} 212,${y1} H266`;
-  return `<svg class="cpl ${c.tone==='n'?'n':'p'}" viewBox="0 0 300 152" role="img"
-      aria-label="${c.from} to ${c.to}: on its own the step runs ${c.up?'uphill':'downhill'};
-        coupled to ${c.up?c.cin:c.cout} it runs ${c.up?'downhill':'less far down'}">
-    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
-    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
-    <!-- COUPLED FIRST, ALONE ON TOP. They share a start and peak, so they are
-         superimposed for the climb; whichever is drawn second is what you see.
-         Dashed on top because dashed-over-solid reads as BOTH — the other
-         order hides it and the figure looks like one curve that forks. -->
-    <path class="rc with"  d="${trace(start,endWith)}"/>
-    <path class="rc alone" d="${trace(start,endAlone)}"/>
-    <!-- ABOVE the trace it names: no room to the RIGHT of one running to
-         x=266, so the label goes over it. -->
-    <text class="et alone" x="266" y="${endAlone-7}" text-anchor="end">on its own</text>
-    <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">with ${c.up?c.cin:c.cout}</text>
-  </svg>`;
-}
-
-/* THE OTHER FIVE STEPS, same axes. Rearrangements — no carrier, so no second
- * trace — but a blank figure makes "energy curve" look like a property of
- * coupled steps rather than of every reaction.
- *
- * FLAT BECAUSE THE DATA SAYS FLAT: the claim is `rev:true` read off the step —
- * near equilibrium means both sides at nearly the same free energy. No
- * magnitudes here either.
- */
-function soloCurve(st){
-  const Y=RC_Y, nameOf=k=>M[k].short||M[k].name;
-  const i=STEPS.indexOf(st);
-  const from=nameOf(speciesAt(i)[0]), to=nameOf(st.species[0]);
-  const y=Y.mid, peak=y-Y.peak;
-  const trace=`M34,${y} H88 C120,${y} 126,${peak} 150,${peak}`
-             +` C174,${peak} 180,${y} 212,${y} H266`;
-  return `<svg class="cpl" viewBox="0 0 300 152" role="img"
-      aria-label="${from} to ${to}: substrate and product sit at nearly the same
-        free energy, with a barrier between them">
-    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
-    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
-    <path class="rc solo" d="${trace}"/>
-    <text class="et alone" x="34" y="${y+18}">${from}</text>
-    <text class="et alone" x="266" y="${y+18}" text-anchor="end">${to}</text>
-  </svg>`;
+ * The five uncoupled steps are rearrangements and all of them are reversible,
+ * so their curve is flat at both ends — the claim is `rev` read off the step,
+ * not a decision made here. */
+function soloSpec(st){
+  const nameOf=k=>M[k].short||M[k].name, i=STEPS.indexOf(st);
+  return { from:nameOf(speciesAt(i)[0]), to:nameOf(st.species[0]),
+           drop:st.rev===false };
 }
 const soloLine=`Both sides sit
    at nearly the <b>same energy</b>, so the step runs either way.`;
 
 // Two views of one step. `figTab` is module-level because drawCouple replaces
 // #stepnote's innerHTML every refresh — a DOM-stored selection would reset on
-// every step.
-const FIGTABS=[['pair','Coupling'],['curve','Energy curve']];
-// Opens on the CURVE: the view every step has, so the box shows the same kind
-// of picture whichever step you are on.
+// every step. Opens on the CURVE: the view every step has, so the box shows the
+// same kind of picture whichever step you are on.
 let figTab='curve';
-const figTabStrip=()=>`<div class="ftabs">`
-  + FIGTABS.map(([k,lb])=>`<button data-figtab="${k}"${figTab===k?' class="on"':''}>${lb}</button>`).join('')
-  + `</div>`;
 
 // One line — the picture does the work.
 const coupleLine=c=>c.up
@@ -1984,11 +1892,11 @@ function drawCouple(){
   cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
     +(c
       ? `<div class="nhead cpl-h">Coupled reaction</div>`
-        + figTabStrip()
-        + (figTab==='curve' ? coupleCurve(c) : coupleFig(c))
+        + Energy.tabs(figTab)
+        + (figTab==='curve' ? Energy.curve(c) : Energy.pair(c))
         + `<p class="nbody">${coupleLine(c)}</p>`
       : `<div class="nhead cpl-h">Energy curve</div>`
-        + soloCurve(st)
+        + Energy.solo(soloSpec(st))
         + `<p class="nbody">${soloLine}</p>`)
     + (st.rev===false
         ? `<div class="nhead irr">Irreversible in the cell</div>`

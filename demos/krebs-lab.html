@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="main.css">
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="pathways.css">     <!-- the pathway lesson chrome, shared with glycolysis-lab -->
+<link rel="stylesheet" href="energy/energy.css">  <!-- the free-energy figures -->
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css, shared with
      glycolysis-lab — the rail, the tray, the plates, the bar, the modal card. */
@@ -128,13 +129,6 @@
   #ledger .lfoot{font-family:var(--font-sans);font-size:9.5px;line-height:1.45;
     color:rgba(60,50,28,.55);border-top:1.5px dashed rgba(60,50,28,.3);
     margin-top:8px;padding-top:7px}
-  /* THE FLAVIN'S TONE ON THE ENERGY FIGURES. pathways.css colours the two tones
-     glycolysis has (`n` NAD, `p` phosphate); `f` is this page's, because FAD is,
-     and without it the coupled trace is stroked `none` — step 6 drew its dashed
-     "on its own" line and nothing else, which reads as one steeper step. */
-  .cpl.f .cl{stroke:var(--fad)} .cpl.f .ch{fill:var(--fad)} .cpl.f .cs{fill:var(--fad)}
-  .cpl.f .rc.with{stroke:var(--fad)} .cpl.f .et.with{fill:var(--fad)}
-
   /* THE BRIDGE IS NOT A NUMBER. Pyruvate oxidation is not one of the eight and
      labelling it "0" would put it in the count students have to recite. It
      gets a word, so the chip is a pill and the eight stay circles. */
@@ -335,6 +329,7 @@
 <script src="atomkit.js"></script>
 <script src="annotate.js"></script>
 <script src="reaction/reaction.js"></script>
+<script src="energy/energy.js"></script>
 <script>
 "use strict";
 /* =============================================================================
@@ -1924,108 +1919,26 @@ function resolveCouple(st){
     pullName: c.pull ? nameOf(c.pull) : null,
     pullBy: puller ? puller.enz.replace(/ \(.*\)/,'') : null });
 }
-function coupleFig(c){
-  const topMain = c.up ? c.to : c.from, botMain = c.up ? c.from : c.to;
-  const topCpl  = c.up ? c.cin : c.cout, botCpl = c.up ? c.cout : c.cin;
-  const mainLine = c.up ? 'M66,116 L66,34' : 'M66,30 L66,112';
-  const mainHead = c.up ? 'M66,24 l6.5,13 h-13 z' : 'M66,122 l6.5,-13 h-13 z';
-  const CURVE_DOWN='M176,42 C126,48 90,58 90,74 C90,90 126,100 176,106';
-  const CURVE_UP  ='M176,106 C126,100 90,90 90,74 C90,58 126,48 176,42';
-  const cplLine = c.up ? CURVE_DOWN : CURVE_UP;
-  const cplHead = c.up ? 'M176,106' : 'M176,42';
-  const sup=t=>t.replace(/(\S)\+/g,'$1<tspan baseline-shift="super" font-size="9">+</tspan>')
-                .replace(/Pi\b/,'P<tspan baseline-shift="sub" font-size="9">i</tspan>');
-  return `<svg class="cpl ${c.tone==='n'?'n':c.tone==='f'?'f':'p'}" viewBox="0 0 300 152" role="img"
-      aria-label="${c.from} to ${c.to} runs ${c.up?'uphill':'downhill'}; coupled to ${c.cin} becoming ${c.cout}, which runs the opposite way">
-    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
-    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
-    <text class="cm" x="66" y="16" text-anchor="middle">${sup(topMain)}</text>
-    <path class="ml" d="${mainLine}"/><path class="mh" d="${mainHead}"/>
-    <text class="cm" x="66" y="147" text-anchor="middle">${sup(botMain)}</text>
-    <path class="cl" d="${cplLine}"/>
-    <path class="ch" d="${cplHead} l-11,-4.5 v9 z"/>
-    <text class="cs" x="186" y="46">${sup(topCpl)}</text>
-    <text class="cs" x="186" y="110">${sup(botCpl)}</text>
-  </svg>`;
+/* THE FIGURES ARE energy/energy.js's. What stays here is what only this page
+ * knows: which molecules a step changes, and what the sentence under the
+ * picture says about them. Every height in the drawing comes from the flags on
+ * the step — `up`, `shallow`, `pull`, `rev` — so no shape is typed against a
+ * named reaction. */
+// The two uncoupled steps are opposite kinds, and `rev` is what says which:
+// citrate synthase drops (−32 kJ/mol, and that drop is what pulls the cycle
+// round), aconitase does not move.
+function soloSpec(st){
+  const nameOf=k=>M[k].short||M[k].name, [b,a]=changing(st);
+  return { from:b.map(nameOf).join(' + '), to:a.map(nameOf).join(' + '),
+           drop:st.rev===false };
 }
-const RC_Y={ hi:34, mid:76, lo:120, peak:22 };
-/* THE HEIGHTS ARE THE THERMODYNAMICS, so a step declares which shape it is and
- * the drawing follows:
- *   plain      a real drop, and the coupling banks part of it (steps 3, 4, 5)
- *   `shallow`  barely downhill — the drop is too small to be worth much (6)
- *   `up`       uphill on its own; the second trace is what makes it go, which
- *              is the carrier for a coupled step and the PULL for step 8
- * A step drawn steeply downhill is a claim, and three of these would be false.
- */
-function coupleCurve(c){
-  const Y=RC_Y;
-  /* A SMALL DROP IS DRAWN AROUND THE MIDDLE, not hung off the top. The axis has
-   * no scale, so height on its own says nothing — what a trace says is how far
-   * it falls, and starting a −3 kJ/mol step where a −33 one starts leaves the
-   * bottom two thirds of the box empty and the eye reading position instead of
-   * slope. Centred, the shallow steps read as shallow. */
-  // ONE DEPTH FOR A SHALLOW STEP, centred on the middle rather than measured
-  // from an end — moving it down must not also make it fall further.
-  const SHAL=26;
-  const start=c.up ? Y.lo : (c.shallow ? Y.mid-SHAL/2 : Y.hi);
-  const endAlone=c.up ? Y.mid : (c.shallow ? Y.mid+SHAL/2 : Y.lo);
-  // pulled, not paid for: taking the product away does not put the product
-  // below the substrate, it only stops the climb being a wall
-  const endWith =c.up ? (c.pull ? Y.lo-8 : Y.lo+16)
-                      : (c.shallow ? Y.mid-SHAL/2+16 : Y.mid);
-  const peak=Math.min(start,endAlone,endWith)-Y.peak;
-  const trace=(y0,y1)=>`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
-                      +` C174,${peak} 180,${y1} 212,${y1} H266`;
-  return `<svg class="cpl ${c.tone==='n'?'n':c.tone==='f'?'f':'p'}" viewBox="0 0 300 152" role="img"
-      aria-label="${c.from} to ${c.to}: on its own the step runs ${c.up?'uphill':'downhill'};
-        coupled to ${c.up?c.cin:c.cout} it runs ${c.up?'downhill':'less far down'}">
-    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
-    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
-    <path class="rc with"  d="${trace(start,endWith)}"/>
-    <path class="rc alone" d="${trace(start,endAlone)}"/>
-    <text class="et alone" x="266" y="${endAlone-7}" text-anchor="end">on its own</text>
-    <text class="et with"  x="266" y="${endWith-7}" text-anchor="end">${
-      c.pull ? `with ${c.pullName} taken away` : `with ${c.up?c.cin:c.cout}`}</text>
-  </svg>`;
-}
-/* THE TWO UNCOUPLED STEPS ARE OPPOSITE KINDS, and the drawing has to say which
- * — a level trace under a caption reading "steeply downhill" is the picture
- * contradicting the words. `rev` decides, so neither height is typed against a
- * particular step: citrate synthase drops (−32 kJ/mol, and that drop is what
- * pulls the cycle round), aconitase does not move. */
-function soloCurve(st){
-  const Y=RC_Y, nameOf=k=>M[k].short||M[k].name;
-  const [b,a]=changing(st);
-  const from=b.map(nameOf).join(' + '), to=a.map(nameOf).join(' + ');
-  const drop=st.rev===false;
-  const y0=drop?Y.hi:Y.mid, y1=drop?Y.lo:Y.mid;
-  const peak=Math.min(y0,y1)-Y.peak;
-  const trace=`M34,${y0} H88 C120,${y0} 126,${peak} 150,${peak}`
-             +` C174,${peak} 180,${y1} 212,${y1} H266`;
-  return `<svg class="cpl" viewBox="0 0 300 152" role="img"
-      aria-label="${from} to ${to}: ${drop
-        ? 'the product sits well below the substrate'
-        : 'substrate and product sit at nearly the same free energy'},
-        with a barrier between them">
-    <text class="ax" transform="translate(12,88) rotate(-90)">free energy</text>
-    <path class="axl" d="M22,134 L22,22"/><path class="axh" d="M22,15 l4.5,10 h-9 z"/>
-    <path class="rc solo" d="${trace}"/>
-    <text class="et alone" x="34" y="${y0+18}">${from}</text>
-    <text class="et alone" x="266" y="${y1+18}" text-anchor="end">${to}</text>
-  </svg>`;
-}
-// The two uncoupled steps are opposite kinds and the figure has to say which.
-// Read off `rev`, so neither line is a typed claim about a particular step.
+// Opens on the CURVE: the view every step has, so the box shows the same kind
+// of picture whichever step you are on.
+let figTab='curve';
 const soloLine=st=>st.rev===false
   ? `This step runs <b>steeply downhill</b> on its own, and nothing is banked
      from it. The drop is what pulls the whole cycle forward.`
   : `Both sides sit at nearly the <b>same energy</b>, so the step runs either way.`;
-
-const FIGTABS=[['pair','Coupling'],['curve','Energy curve']];
-let figTab='curve';
-const figTabStrip=()=>`<div class="ftabs">`
-  + FIGTABS.map(([k,lb])=>`<button data-figtab="${k}"${figTab===k?' class="on"':''}>${lb}</button>`).join('')
-  + `</div>`;
 const coupleLine=c=>c.pull
   ? `On its own this step runs <b>uphill</b>, further than any other step here
      runs down. It goes anyway because <b>${c.pullBy}</b> takes the
@@ -2062,11 +1975,11 @@ function drawCouple(){
   cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
     +(c
       ? `<div class="nhead cpl-h">${c.pull?'Pulled reaction':'Coupled reaction'}</div>`
-        + (c.pull ? '' : figTabStrip())
-        + (c.pull || figTab==='curve' ? coupleCurve(c) : coupleFig(c))
+        + (c.pull ? '' : Energy.tabs(figTab))
+        + (c.pull || figTab==='curve' ? Energy.curve(c) : Energy.pair(c))
         + `<p class="nbody">${coupleLine(c)}</p>`
       : `<div class="nhead cpl-h">Energy curve</div>`
-        + soloCurve(st)
+        + Energy.solo(soloSpec(st))
         + `<p class="nbody">${soloLine(st)}</p>`)
     + (st.rev===false
         ? `<div class="nhead irr">Irreversible in the cell</div>`

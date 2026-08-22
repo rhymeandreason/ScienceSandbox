@@ -35,6 +35,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | `folding-lab-ribbon.html` | Levels 1→3 on villin. Superseded by `hemoglobin-lab` | reference |
 | `folding/ribbon-test.html` | Test bench for `folding/ribbon.js` | test |
 | `massaction/massaction-test.html` | Test bench for `massaction/massaction.js` — three mounts, including the barrier slider the enzymes lesson needs and glycolysis never renders | test |
+| `energy/energy-test.html` | Test bench for `energy/energy.js` — every shape a reaction can be, at the width the sidebar gives the card, plus the barrier slider the enzymes lesson needs and no pathway ever moves | test |
 | `kit/kit-test.html` | Test bench for `kit/` — the timeline, the highlight vocabulary, and a camera fit against pixel chrome, with no lesson around them | test |
 | `diffusion/diffusion-test.html` | Test bench for `diffusion/diffusion.js` — the only place that module runs until the membrane lesson exists | test |
 | `coupling/coupling-test.html` | Test bench for `coupling/coupling.js` — ΔG adds, and it only adds when the two reactions share a molecule | test |
@@ -48,6 +49,8 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 **Load `main.css` before `sandbox.css`.** `main.css` is the design system: tokens (primitive → semantic → domain), the type scale, and the six button shapes. `sandbox.css` is the old shared chrome, being retired into it; because it loads second it still wins wherever the two overlap, so moving a piece across is a deletion rather than an edit. Atom and bond colours are not written in CSS at all: `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. See `design-system.html`.
 
 **A step-through pathway lesson loads `pathways.css` after `sandbox.css`.** It is the chrome `glycolysis-lab` and `krebs-lab` share — rail, tray, plates, hotspots, bar, ledger, tally, modal card. The page's own `<style>` keeps only what a count or a size makes its own. `AddingAPage.md`.
+
+**The free-energy card is `energy/`, and it is not pathway chrome.** `energy/energy.js` + `energy/energy.css` draw the reaction coordinate and the coupled pair as two tabs of one figure, off flags on the step. The axis carries no scale on purpose: a pathway sources no per-step ΔG°′, and published magnitudes belong to `coupling/`. The enzymes lesson is its next consumer, which is why the barrier is an input.
 
 **Use shared modules.** Every page loads `molecules.js` + `scene.js`; most also load one or more `mol-*.js` domain files. Full script-load order, the module reference table, and the seven-step checklist for building a new page: **`AddingAPage.md`**.
 
@@ -116,7 +119,7 @@ Widen a checker's gate pattern alongside any new derived artefact — nothing ab
 No CI. By hand:
 
 ```bash
-node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node lobes/check-lobes.js && node chair/check-chair.js && node chain/check-chain.js
+node check-molecules.js && node tools/check-docs.js && node tools/check-pages.js && node tools/check-residues.js && node massaction/check-massaction.js && node kit/check-kit.js && node reaction/check-reaction.js && node diffusion/check-diffusion.js && node coupling/check-coupling.js && node energy/check-energy.js && node lobes/check-lobes.js && node chair/check-chair.js && node chain/check-chain.js
 ```
 
 Those are offline and dependency-free. **`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:

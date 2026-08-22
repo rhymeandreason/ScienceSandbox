@@ -117,6 +117,26 @@ else
   echo "pre-commit: skipping check-coupling.js — nothing under demos/coupling/ staged"
 fi
 
+# demos/energy/ gates itself, PLUS both pathway pages — the SHAPE FLAGS live on
+# the host's STEPS table (`up`, `shallow`, `pull`, `rev`), so the claim a figure
+# makes is edited over there and drawn over here. A typo'd flag falls through to
+# the plain shape, which is a real drop: the step then renders a confident claim
+# nobody made, and nothing on screen looks wrong.
+if git diff --cached --name-only \
+   | grep -qE '^demos/(energy/.*|glycolysis-lab\.html|krebs-lab\.html)$'; then
+  if ! node energy/check-energy.js > /tmp/cen.$$ 2>&1; then
+    tail -25 /tmp/cen.$$; rm -f /tmp/cen.$$
+    echo ""
+    echo "pre-commit FAILED: check-energy.js — the free-energy figures stopped saying"
+    echo "  what they claim. A magnitude failure means the unscaled axis grew a number;"
+    echo "  a tone failure means a coupled trace is stroked none and has vanished."
+    exit 1
+  fi
+  rm -f /tmp/cen.$$
+else
+  echo "pre-commit: skipping check-energy.js — no energy/ or pathway page staged"
+fi
+
 # demos/reaction/ gates itself, PLUS every page that drives it. The checker's
 # first claim is that no lesson names an `fx:` the verb table does not register,
 # and that failure lives in the PAGE, not the module: a typo'd verb used to fall

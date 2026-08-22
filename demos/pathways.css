@@ -639,44 +639,10 @@ font-size: 20px;
   .note .nhead + .minfo{margin-top:0}
   .note .minfo:hover{color:#7b3fe4}
   .note .nbody:last-child{margin-bottom:0}
-  /* the coupled-reaction figure: two opposed arrows, height standing in for
-     free energy — no ticks, no numbers, since it makes no quantitative claim
-     (coupleFig). Coupled half tinted orange/green, as #rxmsg .p and .n. */
-  .note .nhead.cpl-h{color:var(--ink)}
-  .cpl{display:block;width:100%;height:auto;margin:2px 0 9px}
-  .cpl .ml{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
-  .cpl .mh{fill:var(--ink)}
-  .cpl .cl{fill:none;stroke-width:2.2;stroke-linecap:round}
-  .cpl.p .cl{stroke:var(--phos)} .cpl.p .ch{fill:var(--phos)} .cpl.p .cs{fill:var(--phos)}
-  .cpl.n .cl{stroke:var(--nad)}  .cpl.n .ch{fill:var(--nad)}  .cpl.n .cs{fill:var(--nad)}
-  .cpl .cm,.cpl .cs{font-family:var(--font-slab);font-weight:700;font-size:14px}
-  .cpl .cm{fill:var(--ink)}
-  /* THE CURVE VIEW, a second reading of the same step. No ticks, no numbers:
-     the page has no per-step ΔG and a proportioned curve would assert one. It
-     adds SHAPE — reaction alone as one trace, coupled as another, so "coupling
-     flips the direction" is seen, not inferred. The barrier is drawn because
-     the mass-action modal already said a molecule must climb something. */
-  .cpl .rc{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-  .cpl .rc.alone{stroke:var(--muted);stroke-dasharray:5 4;opacity:.85}
-  /* uncoupled step's single trace: ink — no carrier to tint it with */
-  .cpl .rc.solo{stroke:var(--ink)}
-  .cpl.p .rc.with{stroke:var(--phos)} .cpl.n .rc.with{stroke:var(--nad)}
-  .cpl .et{font-family:var(--font-sans);font-weight:600;font-size:10px}
-  .cpl .et.alone{fill:var(--muted)}
-  .cpl.p .et.with{fill:var(--phos)} .cpl.n .et.with{fill:var(--nad)}
-  /* tighter than the modal's tabs: a 372px panel, and the strip must not read
-     louder than the figure under it. */
-  .note .ftabs{display:flex;gap:3px;margin:1px 0 3px}
-  .note .ftabs button{font-family:var(--font-sans);font-weight:600;font-size:10.5px;
-    letter-spacing:.3px;padding:3px 9px 4px;border:none;background:none;
-    color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
-  .note .ftabs button:hover{color:var(--ink)}
-  .note .ftabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
-  /* the axis is a hint, not a scale — hairline, no ticks */
-  .cpl .axl{fill:none;stroke:var(--hair);stroke-width:1.5}
-  .cpl .axh{fill:var(--hair)}
-  .cpl .ax{font-family:var(--font-sans);font-size:9px;letter-spacing:1.1px;
-    text-transform:uppercase;fill:var(--muted)}
+  /* THE FREE-ENERGY FIGURES ARE energy/energy.js's, and their rules went with
+     them into energy/energy.css — the enzymes lesson wants the same card
+     without the rail, the tray and the ledger around it. A pathway page loads
+     energy.css after this one. */
 
   /* base sizing fits the sidebar; #pfkbody takes the modal's extra room. */
   .effrow{display:flex;gap:9px;margin:0 0 10px}

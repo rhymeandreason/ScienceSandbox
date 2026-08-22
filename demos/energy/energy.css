@@ -1,0 +1,60 @@
+/* ---------------------------------------------------------------------------
+   energy.css — the free-energy card's figures.
+
+   Paired with energy/energy.js, which emits every element styled here. Lifted
+   out of pathways.css when the enzymes lesson needed the same figures without
+   the rail, the tray and the ledger around them.
+
+   COLOURS ARE THE HOST'S. Nothing here declares one: --phos / --nad / --fad are
+   the carrier tokens a lesson already publishes for its chips and its tray, so
+   a caption and the trace beside it cannot name different colours. A host that
+   only draws `tone:'p'` never has to define the other two.
+
+   LOAD ORDER: main.css, then this (a pathway loads it after pathways.css).
+   --------------------------------------------------------------------------- */
+
+/* THE FIGURE, both views. No ticks and no numbers, because the axis carries no
+   scale — see energy.js's header for why that is the module's one rule. */
+.cpl{display:block;width:100%;height:auto;margin:2px 0 9px}
+.note .nhead.cpl-h{color:var(--ink)}
+
+/* the coupled PAIR: two opposed arrows, height standing in for free energy.
+   Main reaction in ink, the carrier's half tinted, as #rxmsg .p and .n. */
+.cpl .ml{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
+.cpl .mh{fill:var(--ink)}
+.cpl .cl{fill:none;stroke-width:2.2;stroke-linecap:round}
+.cpl.p .cl{stroke:var(--phos)} .cpl.p .ch{fill:var(--phos)} .cpl.p .cs{fill:var(--phos)}
+.cpl.n .cl{stroke:var(--nad)}  .cpl.n .ch{fill:var(--nad)}  .cpl.n .cs{fill:var(--nad)}
+.cpl.f .cl{stroke:var(--fad)}  .cpl.f .ch{fill:var(--fad)}  .cpl.f .cs{fill:var(--fad)}
+.cpl .cm,.cpl .cs{font-family:var(--font-slab);font-weight:700;font-size:14px}
+.cpl .cm{fill:var(--ink)}
+
+/* THE CURVE VIEW, a second reading of the same reaction. It adds SHAPE — the
+   reaction alone as one trace, what actually happens as another — so the two
+   can be compared without either claiming a magnitude. Dashed is always the
+   hypothetical one. */
+.cpl .rc{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.cpl .rc.alone{stroke:var(--muted);stroke-dasharray:5 4;opacity:.85}
+/* a lone trace is ink: no carrier to tint it with */
+.cpl .rc.solo{stroke:var(--ink)}
+.cpl.p .rc.with{stroke:var(--phos)} .cpl.n .rc.with{stroke:var(--nad)}
+.cpl.f .rc.with{stroke:var(--fad)}
+.cpl .et{font-family:var(--font-sans);font-weight:600;font-size:10px}
+.cpl .et.alone{fill:var(--muted)}
+.cpl.p .et.with{fill:var(--phos)} .cpl.n .et.with{fill:var(--nad)}
+.cpl.f .et.with{fill:var(--fad)}
+
+/* the axis is a hint, not a scale — hairline, no ticks */
+.cpl .axl{fill:none;stroke:var(--hair);stroke-width:1.5}
+.cpl .axh{fill:var(--hair)}
+.cpl .ax{font-family:var(--font-sans);font-size:9px;letter-spacing:1.1px;
+  text-transform:uppercase;fill:var(--muted)}
+
+/* tighter than a modal's tabs: this sits in a 372px panel, and the strip must
+   not read louder than the figure under it. */
+.ftabs{display:flex;gap:3px;margin:1px 0 3px}
+.ftabs button{font-family:var(--font-sans);font-weight:600;font-size:10.5px;
+  letter-spacing:.3px;padding:3px 9px 4px;border:none;background:none;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.ftabs button:hover{color:var(--ink)}
+.ftabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
