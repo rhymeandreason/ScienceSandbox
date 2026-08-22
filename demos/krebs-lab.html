@@ -138,7 +138,8 @@
       <div class="tcell" data-cell="atp"><div class="tvis"></div>
         <div class="tname"></div><div class="tcount"></div></div>
       <div class="tcell" data-cell="co2"><div class="tvis"></div>
-        <div class="tname"></div><div class="tcount"></div></div>
+        <div class="tname"></div><div class="tcount"></div>
+        <div class="tnote"></div></div>
       <div class="tcell" id="tledger"></div>
     </div>
     <!-- ONE element so the camera has one thing to measure. Always full height
@@ -188,17 +189,17 @@
   </div>
 </div>
 
-<!-- Where pyruvate goes, behind the last button. -->
-<div id="forkmodal" class="modal" hidden>
+<!-- What the carriers are worth, behind the last button. -->
+<div id="handoffmodal" class="modal" hidden>
   <div class="mback"></div>
-  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="forktitle">
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="hotitle">
     <button class="mclose" aria-label="Close">&times;</button>
-    <h2 id="forktitle">What's next?</h2>
-    <!-- ONE TITLE. The standfirst is the question all three doors answer, not
-         a second heading. -->
-    <p class="msub">Where the two pyruvate go — and all three answers are the
-      same question, <b>where does NAD⁺ come from?</b></p>
-    <div id="forkbody"></div>
+    <h2 id="hotitle">The carriers are the payoff</h2>
+    <!-- ONE CLAIM, then the arithmetic that backs it. Not a fork: nothing here
+         branches — glycolysis's three doors are three FATES, and the cycle has
+         one. Every number in this card is read from the step table. -->
+    <p class="msub" id="hosub"></p>
+    <div id="hobody"></div>
   </div>
 </div>
 
@@ -1392,7 +1393,10 @@ const TALLY=[
   {k:'nadh',  spec:()=>NADH,      name:'NADH',  n:L=>L.nadh, keep:PAIRS.NAD},
   {k:'fadh2', spec:()=>FADH2,     name:'FADH₂', n:L=>L.fadh2},
   {k:'atp',   spec:()=>ATP,       name:'ATP',   n:L=>L.made},
-  {k:'co2',   spec:()=>M.co2,     name:'CO₂',   n:L=>L.co2},
+  // …and the one cell that is not a payoff: the carbon leaving. `note` says
+  // what the count MEANS, which for CO₂ is every carbon the glucose had.
+  {k:'co2',   spec:()=>M.co2,     name:'CO₂',   n:L=>L.co2,
+   note:L=>L.co2>=LAP.co2*LAPS ? 'every carbon glucose had' : ''},
 ];
 TALLY.forEach(t=>{
   t.host=tallyEl.querySelector(`[data-cell="${t.k}"]`);
@@ -1423,6 +1427,8 @@ function drawTally(){
       t.car.setGroup(g, t.keep.group(spec), true, t.keep.keep(spec)));
     t.host.querySelector('.tcount').textContent='×'+t.n(L);
     t.host.querySelector('.tname').textContent=t.name;
+    const note=t.host.querySelector('.tnote');
+    if(note) note.textContent=t.note?t.note(L):'';
   });
   placeTallyMols();
 }
@@ -1613,7 +1619,7 @@ function drawAct(){
       actEl.onclick=()=>press(startLap2);
     }else{
       actEl.innerHTML=`Where do the electrons go? <i class="ph-bold ph-arrow-right"></i>`;
-      actEl.onclick=()=>Fork.show();
+      actEl.onclick=()=>Handoff.show();
     }
     return;
   }
@@ -1878,32 +1884,46 @@ const AllSteps=(()=>{
   return self;
 })();
 
-/* WHERE THE ELECTRONS GO, behind the last button. The cycle's own products are
- * almost worthless until this happens, so the closing screen is a hand-off
- * rather than a summary: three doors, and the arithmetic that turns eight NADH
- * into the number students actually quote. Rendered once, stateless. */
-const Fork=(()=>{
-  document.getElementById('forkbody').innerHTML=
-     `<div class="door" style="--c:var(--nad)">
-        <div class="dk">The carriers</div><div class="dh">To the chain</div>
-        <div class="db">Every <b>NADH</b> and <b>FADH₂</b> made here carries its
-        electrons to the <b>electron transport chain</b> in the inner membrane.
-        NADH enters at Complex I, FADH₂ at Complex II — lower down, which is
-        exactly why it is worth less. Roughly <b>2.5 ATP</b> per NADH and
-        <b>1.5</b> per FADH₂.</div></div>`
-    +`<div class="door" style="--c:var(--atp)">
-        <div class="dk">The count</div><div class="dh">Per glucose</div>
-        <div class="db">Two turns give <b>6 NADH</b>, <b>2 FADH₂</b> and
-        <b>2 ATP</b>, plus the <b>2 NADH</b> from the bridge reaction. Cash the
-        carriers in and the cycle is worth around <b>20 ATP</b> — against the
-        2 it made directly. That gap is the answer to "why bother".</div></div>`
-    +`<div class="door" style="--c:var(--co2)">
-        <div class="dk">The carbon</div><div class="dh">Out</div>
-        <div class="db">Six <b>CO₂</b> leave per glucose — every carbon it had.
-        That is the carbon you breathe out, and the cycle is where almost all of
-        it goes. Nothing here used oxygen; the cycle still stops without it,
-        because the chain has to empty the carriers first.</div></div>`;
-  return Modal.create({el:'forkmodal'});
+/* WHERE THE ELECTRONS GO, behind the last button. The cycle's own ATP is
+ * nearly worthless until this happens, so the closing screen is a hand-off
+ * rather than a summary — one claim and the arithmetic under it.
+ *
+ * EVERY NUMBER IS READ FROM `LAP`, which is summed off the step table: the
+ * count, the split between the bridge's NADH and the ring's, and the total the
+ * carriers are worth. A re-ordered pathway restates itself. The two yields are
+ * the only typed figures, and they are physiology (P/O ratios), not this
+ * page's bookkeeping. Rendered once, stateless.
+ */
+const PER_NADH=2.5, PER_FADH2=1.5;
+const Handoff=(()=>{
+  const per=k=>LAP[k]*LAPS;
+  const nadh=per('nadh'), fadh2=per('fadh2'), atp=per('made');
+  const bridge=(STEPS[0].nadh||0)*LAPS;              // the ×2 of the bridge's own
+  const num=v=>String(Math.round(v*10)/10);
+  const worth=num(nadh*PER_NADH + fadh2*PER_FADH2 + atp);
+  document.getElementById('hosub').innerHTML=
+    `Two turns make <b>${atp} ATP</b> directly, which is almost nothing. What
+     they make that matters is <b>${nadh+fadh2} loaded carriers</b>.`;
+  document.getElementById('hobody').innerHTML=
+     `<div class="hosum">`
+    +`<span class="hoq" style="--c:var(--nad)"><b>${nadh}</b> NADH<i>× ${PER_NADH}</i></span>`
+    +`<span class="hoop">+</span>`
+    +`<span class="hoq" style="--c:var(--fad)"><b>${fadh2}</b> FADH₂<i>× ${PER_FADH2}</i></span>`
+    +`<span class="hoop">+</span>`
+    +`<span class="hoq" style="--c:var(--atp)"><b>${atp}</b> ATP<i>direct</i></span>`
+    +`<span class="hoop">=</span>`
+    +`<span class="hott"><b>≈${worth}</b> ATP</span></div>`
+    +`<p class="hob">Every <b>NADH</b> and <b>FADH₂</b> carries its electrons to
+      the <b>electron transport chain</b> in the inner membrane. NADH enters at
+      Complex I, FADH₂ at Complex II — lower down, which is exactly why it is
+      worth less. Cash them all in and these two turns are worth about
+      <b>${worth} ATP</b> against the <b>${atp}</b> the cycle made itself. That
+      gap is the answer to “why bother”, and ${bridge} of the ${nadh} NADH were
+      made by the bridge reaction before the ring even started.</p>`
+    +`<p class="hob">Nothing here used oxygen. The cycle still stops without it,
+      because the chain has to empty these carriers before they can be filled
+      again — which is what turn two needed.</p>`;
+  return Modal.create({el:'handoffmodal'});
 })();
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
