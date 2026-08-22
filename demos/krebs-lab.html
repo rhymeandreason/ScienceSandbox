@@ -128,22 +128,6 @@
   #ledger .lfoot{font-family:var(--font-sans);font-size:9.5px;line-height:1.45;
     color:rgba(60,50,28,.55);border-top:1.5px dashed rgba(60,50,28,.3);
     margin-top:8px;padding-top:7px}
-  /* THE LEDGER'S SECOND COLUMN, this page's own: glycolysis's rows are a label
-     and a number, and pathways.css lays them out as such. Three columns here,
-     so the grid is declared where the third one is. */
-  #ledger .row{display:grid;grid-template-columns:1fr auto 46px;
-    align-items:baseline;gap:10px}
-  #ledger .row .v,#ledger .row .v2{text-align:right}
-  #ledger .row .v2{font-family:var(--font-slab);font-weight:700;font-size:15px;
-    color:rgba(60,50,28,.55);font-variant-numeric:tabular-nums}
-  #ledger .row.net .v2{font-size:17px}
-  /* the column heads: the smallest thing on the card, because they are read
-     once and the numbers under them are read every step */
-  #ledger .row.rhead{padding:0 0 4px;font-family:var(--font-sans);font-weight:600;
-    font-size:8.5px;letter-spacing:.7px;text-transform:uppercase;
-    color:rgba(60,50,28,.5)}
-  #ledger .row.rhead span{text-align:right}
-
   /* THE FLAVIN'S TONE ON THE ENERGY FIGURES. pathways.css colours the two tones
      glycolysis has (`n` NAD, `p` phosphate); `f` is this page's, because FAD is,
      and without it the coupled trace is stroked `none` — step 6 drew its dashed
@@ -673,11 +657,7 @@ const stepAt=i=>STEPS[i];
  * the step can run, and this is that fact in the data rather than a special
  * case in the lookup. */
 const OPENING=['pyruvate','coa'];
-/* THE OPENING SCREEN IS A DIFFERENT STAGE, and it is the page's ×2 stated once
- * as an object rather than a number: glycolysis split one glucose into TWO
- * pyruvate, and each one drives a turn. Begin trades the second for the
- * coenzyme A this turn's pyruvate reacts with; the second is what turn two runs
- * on, and the hand-off between laps says so. */
+/* THE OPENING SCREEN IS A DIFFERENT STAGE */
 const INTRO_KEYS=['pyruvate','pyruvate'];
 /* `linger` is a molecule that is on the stage after a step WITHOUT being one of
  * its products: free coenzyme A, which citrate synthase let go of and which
@@ -1191,9 +1171,8 @@ const rxmsgEl=document.getElementById('rxmsg');
  * nothing else — every step's caption lives on the ⓘ by its heading, so the
  * band holds one height (zero) for the whole run and cannot re-frame the shot. */
 const INTRO_MSG=`Glycolysis split one glucose into <b>two pyruvate</b>, and both
-  crossed into the <b>mitochondrial matrix</b>. Each one becomes an acetyl group
-  and drives one turn of the cycle, so <b>everything on this page happens
-  twice</b>. Follow the one on the left; the other runs turn two.`;
+  crossed into the <b>mitochondrial matrix</b>. <b>Everything from here happens
+  twice</b>.`;
 const LAP2_MSG=`<b>Turn two.</b> The matrix's NAD⁺ and FAD are empty — everything
   was loaded on the first turn. The <b>electron transport chain</b> has just
   unloaded them, which is the only reason there is anything to load again. Same
@@ -1374,35 +1353,32 @@ function drawLedger(){
   const L=productsAt(done);
   const prev=prevLedger;
   const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
-  /* TWO COLUMNS: what has been run, and what a glucose comes to. The second is
-   * the ×2 stated as a number rather than as a turn you have to sit through —
-   * a student who skips turn two still leaves with the per-glucose figures, and
-   * one who watches it sees the left column arrive at the right one. Off `LAP`,
-   * summed from the step table, so neither column can drift from the other. */
-  const per=k=>LAP[k]*LAPS;
-  const row=(cls,label,k,val,gl)=>`<div class="row${cls?' '+cls:''}"><span>${label}</span>`
-    + `<span class="v${bumped(k)}" data-row="${k}">${val}</span>`
-    + `<span class="v2">${gl}</span></div>`;
+  /* ONE COLUMN: what has been run. The per-glucose figures are the results
+   * screen's, on three notes that show where they come from — here they were a
+   * second number beside every count, read every step, answering a question
+   * nobody has yet. */
+  const row=(cls,label,k,val)=>`<div class="row${cls?' '+cls:''}"><span>${label}</span>`
+    + `<span class="v${bumped(k)}" data-row="${k}">${val}</span></div>`;
   ledgerEl.innerHTML=
      `<div class="lhead">Running ledger${lap>1?` <span class="lturn">turn ${lap}</span>`:''}</div>`
-    +`<div class="row rhead"><span></span><span>so far</span><span>per glucose</span></div>`
-    +row('','NADH','nadh',L.nadh,per('nadh'))
-    +row('','FADH₂','fadh2',L.fadh2,per('fadh2'))
-    // THE ROW THAT MATTERS, and it is a net of the two above it — same shape as
-    // glycolysis's "Net ATP", and put in the same place for the same reason.
-    +row('net','Electron pairs','pairs',L.pairs,per('nadh')+per('fadh2'))
-    +row('prod','ATP','made',L.made,per('made'))
+    +row('','NADH','nadh',L.nadh)
+    +row('','FADH₂','fadh2',L.fadh2)
+    +row('prod','ATP','made',L.made)
     // NO CARBON COUNT. Glycolysis keeps one because 6 = 3 + 3 is that lesson's
     // whole event; here the molecules on stage are the count, and the ring's
     // 6C → 5C → 4C says the arithmetic where all of it is legible at once.
-    +row('','CO₂ released','co2',L.co2,per('co2'))
+    +row('','CO₂ released','co2',L.co2)
+    // THE ROW THAT MATTERS, LAST — a net of two rows above it, and a total is
+    // read at the bottom of a column of figures. Same shape as glycolysis's
+    // "Net ATP", which sits under the two numbers it nets for the same reason.
+    +row('net','Electron pairs','pairs',L.pairs)
     /* THE BRACKET, stated once. A textbook's per-glucose totals include
      * glycolysis's own ATP and NADH; these do not, and a student holding both
      * needs to know which figure is which rather than deciding one of us
      * cannot count. Glycolysis's numbers are that lesson's data and are not
      * loaded here, so they are named, not quoted. */
-    +`<div class="lfoot">The cycle and ${BRIDGE_NAME}, ${LAPS} turns.
-        Glycolysis's own ATP and NADH are counted in that lesson, not here.</div>`;
+    +`<div class="lfoot">The Krebs cycle + ${BRIDGE_NAME}.
+        `;
   prevLedger=L;
 }
 
@@ -1802,7 +1778,7 @@ function drawAct(){
   if(intro){
     actEl.style.visibility='visible';
     actEl.className='';
-    actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.innerHTML=`Begin ${BRIDGE_NAME} <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=beginPathway;
     return;
   }
