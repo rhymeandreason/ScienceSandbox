@@ -1251,7 +1251,12 @@ function create(host) {
         // thioester stood and eases out to the lane it now has to itself.
         const was = l.g.position.x;
         host.spawnLanes(c.keys, (o, j, n) => {
-          if (j === 0) return;
+          /* ON ITS OWN BASELINE, both of them. The lanes carry the outgoing
+           * height onto the incoming ones, and a thioester sits lower than the
+           * acid it becomes — so the acid rises into place from below, arriving
+           * from somewhere the piece never was. */
+          o.g.position.y = host.laneBase(o.key);
+          if (j === 0) return;                       // the acid is already there
           o.g.position.x = was;
           o.g.userData.tx = host.laneOrigin(o.key, j, n);
         });
