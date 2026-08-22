@@ -95,6 +95,30 @@ console.log('\nthe barrier');
      '`at` overrides the levels outright, for a host none of the flags describe');
 }
 
+/* ---- the two traces share one transition state ------------------------ */
+/* DELIBERATE, and the assertion is here because it looks like a bug. The two
+ * traces ARE different reactions and their real barriers differ — but the axis
+ * carries no scale, so two humps of different heights make a claim about RATE,
+ * and coupling changes neither barrier. The approximation is named in
+ * energy.js's header; this stops a tidy-up replacing it with a false claim. */
+console.log('\nthe shared climb');
+{
+  const peaksOf = svg => [...svg.matchAll(/126,(-?[\d.]+)/g)].map(m => +m[1]);
+  const startsOf = svg => [...svg.matchAll(/M34,(-?[\d.]+)/g)].map(m => +m[1]);
+  for (const [name, c] of [['plain',{}], ['up',{up:true}], ['shallow',{shallow:true}],
+                           ['pull',{up:true,pull:'x'}]]) {
+    const svg = curve({ ...c, from:'A', to:'B', pullName:'OAA' });
+    const [p1, p2] = peaksOf(svg), [s1, s2] = startsOf(svg);
+    ok(p1 === p2, `${name}: both traces climb through ONE peak`, `${p1} / ${p2}`);
+    ok(s1 === s2, `${name}: both traces leave the same start — the only thing that`
+       + ' differs between the two readings is where the reaction ENDS');
+  }
+  const L = levels({ up:true });
+  const peak = peaksOf(curve({ up:true, from:'A', to:'B' }))[0];
+  ok(peak < Math.min(L.start, L.endAlone, L.endWith),
+     'the peak is above the HIGHEST end, so even an uphill step climbs before it falls');
+}
+
 /* ---- the two labels never collide ------------------------------------- */
 /* A `shallow` step's ends are 10px apart at a 10px font, so labels stacked
  * above them sit on top of each other and neither reads. The lower one drops

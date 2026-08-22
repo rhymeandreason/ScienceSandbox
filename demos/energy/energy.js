@@ -106,6 +106,27 @@ const trace = (y0, y1, peak) =>
  * is drawn second is what you see — DASHED ON TOP, because dashed over solid
  * reads as both. The other order hides one and the figure looks like a single
  * curve that forks.
+ *
+ * TWO PEDAGOGICAL EXAGGERATIONS, both in that shared climb, and neither is an
+ * oversight (SCIENCE.md: an exaggeration stays explicit in a comment):
+ *
+ *  1. THEY DO NOT REALLY START AT THE SAME HEIGHT. Glucose + ATP is not the
+ *     same free energy as glucose alone, so a coupled step's two traces begin
+ *     at different places. Drawn apart, there is nothing left to compare: the
+ *     figure's entire job is that ONE thing differs between the two readings,
+ *     which is where the reaction ends up.
+ *
+ *  2. THEY DO NOT REALLY SHARE A TRANSITION STATE. They are different
+ *     reactions, with different enzymes and different barriers.
+ *
+ * The second one is drawn shared for a reason worth keeping. On an axis with no
+ * scale, two humps of different heights are a claim about RATE — and coupling
+ * changes NEITHER barrier, exactly as an enzyme changes
+ * neither ΔG. Peaking them separately would trade a hidden approximation for a
+ * visible false claim, and one this repo argues against twice over
+ * (coupling/coupling.js's claim 3, and massaction/, whose subject the barrier
+ * is). check-energy.js asserts the shared peak so a later tidy-up cannot
+ * quietly introduce it.
  */
 /* WHERE A LABEL SITS. There is no room to the RIGHT of a trace running to
  * x=266, so a label goes over or under the end it names. Above by default; the
@@ -125,6 +146,9 @@ const labelY = (y, lower) => (lower && y + BELOW <= FLOOR) ? y + BELOW : y - ABO
 
 function curve(c) {
   const L = levels(c);
+  // ONE peak for both traces, measured above whichever end sits highest — see
+  // the note above. Above the HIGHEST end so that every trace climbs before it
+  // falls, including the uphill one, whose product is the top of its own curve.
   const peak = Math.min(L.start, L.endAlone, L.endWith) - L.barrier;
   const withLabel = c.withLabel
     || (c.pull ? `with ${c.pullName} taken away` : `with ${c.up ? c.cin : c.cout}`);
