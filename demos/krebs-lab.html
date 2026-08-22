@@ -1746,6 +1746,7 @@ const actEl=document.getElementById('actbtn');
  * way on, and the student who takes it still gets a receipt that says the cycle
  * turned twice (the tally's `2 turns × N`). Shown at exactly one moment. */
 const altEl=document.getElementById('actalt');
+const rowEl=document.getElementById('actrow');
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;
@@ -1765,6 +1766,7 @@ function beginPathway(){
 }
 function drawAct(){
   altEl.hidden=true;
+  rowEl.classList.remove('flip');
   const hi=focusStep();
   const head = intro ? ''
              : autoplay ? `Turn ${lap} — watching`
@@ -1810,13 +1812,19 @@ function drawAct(){
   if(!st && !busy){
     actEl.style.visibility='visible';
     if(lap<LAPS){
-      actEl.innerHTML=`Run the second turn <i class="ph-bold ph-arrow-clockwise"></i>`;
-      actEl.onclick=()=>press(startLap2);
+      /* THE RESULTS ARE THE INVITATION, the second turn is the option. Watching
+       * the same nine steps again is worth offering and not worth insisting on
+       * — a student who has just read the receipt wants to know what it is
+       * worth. So the hand-off takes the ink and the replay goes hollow, and
+       * the row swaps order with it so the primary stays on the right. */
+      rowEl.classList.add('flip');
+      actEl.innerHTML=`Payoff <i class="ph-bold ph-arrow-right"></i>`;
+      actEl.onclick=()=>Handoff.show();
       altEl.hidden=false;
-      altEl.innerHTML=`What the carriers are worth <i class="ph-bold ph-arrow-right"></i>`;
-      altEl.onclick=()=>Handoff.show();
+      altEl.innerHTML=`Run the second turn <i class="ph-bold ph-arrow-clockwise"></i>`;
+      altEl.onclick=()=>press(startLap2);
     }else{
-      actEl.innerHTML=`What the carriers are worth <i class="ph-bold ph-arrow-right"></i>`;
+      actEl.innerHTML=`Payoff <i class="ph-bold ph-arrow-right"></i>`;
       actEl.onclick=()=>Handoff.show();
     }
     return;
@@ -1872,7 +1880,9 @@ function drawRail(){
   const e=document.createElement('button');
   const at = !intro && !reviewing && done>=nSteps;
   e.className='rnum rend '+(at?'cur':'future');
-  e.textContent = lap<LAPS ? '½' : 'End';
+  // A WORD, NOT A FRACTION. "½" is a quantity, and the chip is a place: the
+  // screen you reach with one turn run and one still to go.
+  e.textContent = lap<LAPS ? 'One turn' : 'End';
   e.setAttribute('aria-label', lap<LAPS?'End of turn one':'End of the cycle');
   if(at) e.setAttribute('aria-current','step');
   e.style.cursor='pointer';

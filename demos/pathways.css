@@ -516,6 +516,9 @@ font-size: 20px;
   /* the row that holds the action button and, at the end of a turn, the way
      past it. Its own height is #actbtn's, so --barh is unchanged. */
   #actrow{display:flex;align-items:center;gap:12px}
+  /* the ink button is not always the first one written: `flip` puts the
+     secondary on the left without either button knowing which it is. */
+  #actrow.flip #actbtn{order:2}
   /* SECONDARY, AND IT HAS TO LOOK IT: the same metrics as #actbtn so the row
      sits straight, but hollow — the lesson's own button stays the invitation. */
   #actalt{font-family:var(--font-sans);font-weight:700;font-size:17px;
