@@ -821,7 +821,7 @@ let evapAcc=0, evapCount=0;
    not heat at all but the humidity outside, which is why transpiration runs on
    an ordinary day. So the control is molecules per second, and zero is
    saturated air rather than a cold one. */
-let EVAP_RATE=7;                       // molecules leaving per second
+let EVAP_RATE=0;                       // molecules leaving per second; starts off
 function evaporate(){
   // molecules already on their way out: no bonds, no gravity, just going
   for(const w of waters){
@@ -864,7 +864,8 @@ escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's m
    green slabs are the load-bearing part of a plant cell wall, and the pore is
    the gap between two of its cellulose fibrils — which is the sentence that
    turns this from an abstract slot into somewhere in a leaf. */
-const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
+const stageEl=document.getElementById('stage');
+const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
 (function markWall(){
   // the wall itself, named where it is thickest and unmistakably scenery
   const face=new THREE.Vector3(-GAP/2-4*A, FLOOR+nm(3.4), 0);
@@ -890,6 +891,25 @@ const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:
        + 'onto something else is adhesion. Water holding onto itself is cohesion. '
        + 'Which one wins decides whether water climbs a surface or beads up on it.' });
 })();
+
+/* THE ONE CONTROL THE PAGE WILL NOT SET FOR YOU, called out the same way the
+   wall is. Nothing travels up the pore until water starts leaving the top, so
+   the student has to start it.
+
+   Annotations anchor to a point in the SCENE, and this one has to land on a
+   slider in the DOM. So the slider's centre is taken in CSS pixels and
+   unprojected back through the camera: the world point that comes out projects
+   to exactly that pixel, whatever the camera is doing, and the callout tracks
+   the control without annotate.js knowing it is pointing at chrome. */
+const _anchor=new THREE.Vector3();
+function uiAnchor(el){
+  return ()=>{
+    const host=stageEl.getBoundingClientRect(), r=el.getBoundingClientRect();
+    return _anchor.set(
+      ((r.left+r.width*0.5-host.left)/host.width)*2-1,
+      -(((r.top+r.height*0.5-host.top)/host.height)*2-1), 0.5).unproject(camera);
+  };
+}
 
 /* The supply. Counts what is in the bottom band and tops it up toward the
    density a liquid has there, one molecule at a time so nothing is injected
@@ -975,6 +995,7 @@ const KNOBS=[
   {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
 ];
 const knobRows=document.getElementById('knobrows');
+let evapInput=null;
 /* The rest are apparatus, folded away: a panel of eight sliders says all eight
    matter equally, and two of these are the whole point. */
 const more=document.createElement('details');
@@ -988,8 +1009,18 @@ KNOBS.forEach(kn=>{
   out.textContent=kn.fmt(kn.get());
   input.oninput=()=>{ const v=parseFloat(input.value); kn.set(v); out.textContent=kn.fmt(v); };
   (kn.main?knobRows:more).appendChild(l);
+  if(kn.k==='Evaporation') evapInput=input;
 });
 knobRows.appendChild(more);
+
+if(evapInput){
+  const note=NOTES.add({ text:'start the water leaving', offset:[-215,-4],
+    at:uiAnchor(evapInput),
+    card:'Nothing climbs until water leaves the top. Evaporation at the surface '
+       + 'is what draws the column up behind it, and in a leaf it is the dry air '
+       + 'outside that does the pulling.' });
+  evapInput.addEventListener('input',()=>note.remove(),{once:true});
+}
 
 /* The number the knobs are being turned against: how much higher the water
    stands at the wall than in the middle. Measured off the molecules, so the
