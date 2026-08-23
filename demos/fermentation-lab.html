@@ -277,10 +277,14 @@ lactic:[
      * what near-equilibrium means and what the verdict beneath it already says.
      * The carrier turning over is the stage's claim and the ledger's, not this
      * figure's. */
-    // `redBond` is pyruvate's own name for the C2=O a reduction attacks, so the
-    // target follows the bond on screen rather than a typed index. `act` names
-    // the action for the hotspot's accessible label, as in both siblings.
-    act:'Reduce the ketone', spot:{ at:'redBond', say:'Hand the hydride over' },
+    /* THE CLICK IS ON NADH, not on the pyruvate. Every hotspot in this repo
+     * marks the bond that BREAKS, and here that is C4–H on the carrier: the
+     * hydride leaves NADH and lands on pyruvate's carbonyl. Pointing at the
+     * carbonyl asked the student to click the molecule that RECEIVES while the
+     * atom departed from the one beside it. It is also the better gesture:
+     * emptying the carrier is the thing this pathway exists to do. */
+    act:'Take the hydride off NADH',
+    spot:{ at:'hydride', say:'Take the hydride off NADH' },
     takeaway:`One hydride back, and glycolysis can run again`,
     msg:`<b>Lactate dehydrogenase</b> gives pyruvate the hydride NADH has been
       carrying since glycolysis step 6. Pyruvate becomes <b>lactate</b> and NADH
@@ -318,7 +322,9 @@ alcoholic:[
     nad:1, made:0,
     // uncoupled for the reason step 1 of the other branch gives
     fx:'red', perLane:true,
-    act:'Reduce the aldehyde', spot:{ at:'redBond', say:'Hand the hydride over' },
+    // on the carrier, for the reason the lactate branch's step gives
+    act:'Take the hydride off NADH',
+    spot:{ at:'hydride', say:'Take the hydride off NADH' },
     takeaway:`The same hydride, one step later`,
     msg:`<b>Alcohol dehydrogenase</b> gives acetaldehyde the hydride, exactly as
       lactate dehydrogenase gave it to pyruvate one branch over. Acetaldehyde
@@ -648,12 +654,16 @@ const later=RX.later, drawFlyers=RX.drawFlyers, clearFlyers=RX.clearFlyers;
  * and glycolysis's argument holds: one click reporting "+2" is the version a
  * student reads and never counts.
  *
- * A LANE'S CARRIER TURNS OVER WITH IT. The reacting lane becomes its product and
- * the carrier beside it becomes NAD⁺ on the same beat, found by the same
- * nearest-lane rule `red` uses — the page and the verb must not disagree about
- * which NADH just paid. */
+ * BOTH LANES OF A PAIR TURN OVER ON ONE CLICK. The clicked lane becomes its
+ * product and the molecule it reacted with becomes its own, on the same beat.
+ * WHICH ONE, by the same nearest-lane rule `red` uses, since the page and the
+ * verb must not disagree about which two molecules just reacted. Which KIND is
+ * asked of the specs rather than assumed: the click lands on the carrier at a
+ * reduction and on the substrate at the decarboxylation. */
 function partnerLane(j){
-  const cs=lanes.map((l,k)=>k).filter(k=>(SPECS(lanes[k].key).gly||{}).nic);
+  const mine=SPECS(lanes[j].key).gly||{};
+  const wants = mine.nic ? (g=>g.oxC!=null) : (g=>!!g.nic);
+  const cs=lanes.map((l,k)=>k).filter(k=>wants(SPECS(lanes[k].key).gly||{}));
   if(!cs.length) return -1;
   const x=lanes[j].g.position.x;
   return cs.reduce((a,b)=>
@@ -843,11 +853,12 @@ function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on))
  *  Deliberately not a protein, as in both siblings: one path, no claim about
  *  fold, size or active site.
  *
- *  ONE BLOB PER REACTING LANE, AND NONE ON THE CARRIERS. A dehydrogenase binds
- *  its substrate and NADH at once, so a blob around each would say there are
- *  four enzymes at work when there are two. The blobs go on the same lanes the
- *  hotspots do, which is the list the step's own `spot` produces.
- */
+ *  ONE BLOB PER REACTION, NOT PER LANE. A dehydrogenase binds its substrate and
+ *  its cofactor at the same time, so the two lanes of a reduction get ONE shape
+ *  spanning both; two would say there are two enzymes. The decarboxylation takes
+ *  one molecule and gets one blob. Derived from the lanes the step CHANGES, and
+ *  deliberately not from the hotspot's lane — that one sits on the carrier now,
+ *  and would drag the enzyme onto the cofactor alone. */
 const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
@@ -855,6 +866,8 @@ const enzNoteEl=document.getElementById('enznote');
 let showEnz=false;
 const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps()) ? stepAt(i) : null; };
 const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
+const enzLanes=i=>{ const b=speciesAt(i), a=speciesAt(i+1);
+  return b.map((k,j)=>k===a[j]?-1:j).filter(j=>j>=0); };
 const ENZ=Enzyme.create({camera, canvas, host:enzEl});
 function drawEnz(){
   const st=enzLive()?enzOf():null;
@@ -870,8 +883,8 @@ function placeEnz(){
   // blob would hold a measurement taken on the other branch's molecule.
   // on the REVIEW beat too, which is why the index is passed: the lanes hold
   // products by then and would answer that the step acts on none of them.
-  ENZ.update(actingLanes(st,focusStep()).filter(j=>lanes[j]).map(j=>[lanes[j].g]),
-             {key:branch+':'+focusStep()});
+  const grp=enzLanes(focusStep()).filter(j=>lanes[j]).map(j=>lanes[j].g);
+  ENZ.update(grp.length?[grp]:[], {key:branch+':'+focusStep()});
 }
 
 /* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — read off the

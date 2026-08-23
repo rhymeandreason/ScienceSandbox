@@ -372,6 +372,12 @@
       view:[2.1879, 0.7309, -3.0804],
       optH,
       gly:{ carbons:21, phosphates:2, carrier:true, nic:nicIdx,
+            /* THE HYDRIDE A DEHYDROGENASE TAKES BACK, under the name every
+             * other spec in this library uses for it (`ox` reads it, and
+             * fermentation-lab.html points its hotspot at it). The SECOND of
+             * C4's two hydrogens: the one GAPDH put there, so the atom a lesson
+             * takes off is the atom it watched arrive. */
+            hydride:nicIdx.h[1],
             spent:{ name:'Nicotinamide adenine dinucleotide (oxidised)',
                     short:'NAD⁺', formula:'C₂₁H₂₇N₇O₁₄P₂⁺' } },
       compare:{ against:'nadh', method:'skel',

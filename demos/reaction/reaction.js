@@ -637,29 +637,34 @@ function create(host) {
    */
   verb('red', {dur: () => T.OX, lane(c) {
     const mol = meta(c.spec);
-    /* A LANE WITH NO CARBON TO REDUCE IS NOT IN THIS REACTION — `decarb`'s
-     * rule, and here it is what excuses the donor: NADH is standing in a lane
-     * of its own, and without this the verb would run on it too and go looking
-     * for a carbonyl on the molecule doing the reducing. */
-    if (mol.oxC == null) return;
-    /* …found by asking specs which one is the nicotinamide, never by index —
-     * `join` finds coenzyme A the same way. WHICH one, where there are several,
-     * is then a stage question and gets a stage answer: the NEAREST. A page
-     * running the same reduction on two substrates stands a carrier beside each
-     * of them, and taking the first in the list would have one NADH hand its
-     * hydride over twice while the other never moved. */
-    const cs = lanesNow().filter(l => meta(specOf(l.key)).nic);
-    if (!cs.length) return;
+    /* THE LANE THAT RUNS THIS IS THE DONOR, the one with a hydride to give —
+     * and a lane with none is not in this reaction, which is `decarb`'s rule
+     * and what excuses the substrate standing beside it.
+     *
+     * THE DONOR, NOT THE ACCEPTOR, because the click has to land where the bond
+     * breaks. Every hotspot in this repo marks a bond coming apart: `ox` points
+     * at the C–H a dehydrogenase takes, `out` at the phosphate that leaves. Run
+     * from the acceptor, this verb would have a lesson tell the student to click
+     * a carbonyl while the atom departs from the molecule next to it. It also
+     * puts the gesture where the teaching is: taking the hydride OFF the carrier
+     * is what fermentation is for. */
+    if (mol.hydride == null) return;
+    /* …and the acceptor is the nearest lane with a carbon whose oxidation state
+     * this changes, found by asking specs rather than by index — `join` finds
+     * coenzyme A the same way. NEAREST, because a page may stand more than one
+     * pair on the stage and the hydride crosses to the molecule beside it. */
+    const ls = lanesNow().filter(l => meta(specOf(l.key)).oxC != null);
+    if (!ls.length) return;
     const x = c.lane.g.position.x;
-    const donor = cs.reduce((a, b) =>
+    const acc = ls.reduce((a, b) =>
       Math.abs(b.g.position.x - x) < Math.abs(a.g.position.x - x) ? b : a);
-    const nic = meta(specOf(donor.key)).nic;
-    const hIdx = nic.h[nic.h.length - 1];
-    const from = atomOn(donor, hIdx), to = atomOn(c.lane, mol.oxC);
-    shedAtoms(donor, [hIdx]);
-    /* RING BOTH ENDS, which `ox` argues for at length: the carrier turning
-     * over is half the step, and here it is the half the lesson is about. The
-     * departure ring fires on C4 so the student sees WHICH molecule paid. */
+    const from = atomOn(c.lane, mol.hydride);
+    const to = atomOn(acc, meta(specOf(acc.key)).oxC);
+    shedAtoms(c.lane, [mol.hydride]);
+    /* RING BOTH ENDS, which `ox` argues for at length: the carrier turning over
+     * is half the step, and on a page about regenerating one it is the half the
+     * lesson is about. The departure ring fires on C4, so the student sees
+     * which molecule paid. */
     FX.spawnRing(from, H_LEAVE);
     // A HYDRIDE, so '−', the same badge every other hydride in this file wears.
     hop(from, to, '−', () => FX.spawnRing(to, H_LEAVE));
