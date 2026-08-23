@@ -18,13 +18,11 @@
    is always the way back to where you were. */
 #insetbox {
   position: absolute; left: 22px; bottom: 22px; width: 246px; z-index: 4;
-  border-radius: 12px; overflow: hidden; cursor: pointer;
+  border-radius: 12px; overflow: hidden;
   background: color-mix(in srgb, var(--paper, #f6f1e7) 88%, transparent);
   border: 1px solid var(--rule, #ded6c8);
   box-shadow: 0 6px 20px rgba(40,32,20,.10);
-  transition: transform .18s ease, box-shadow .18s ease;
 }
-#insetbox:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(40,32,20,.16); }
 #insetbox canvas { display: block; width: 100%; height: 165px; }
 #insetcap {
   display: flex; align-items: baseline; gap: .5em;
@@ -32,7 +30,6 @@
   font-size: 12px; line-height: 1.25; color: var(--ink-2, #6b6459);
 }
 #insetcap b { color: var(--ink, #2e2a24); font-weight: 600; white-space: nowrap; }
-#insetcap .go { margin-left: auto; opacity: .7; }
 
 /* The experiment log, drawn as a sheet of notepaper: brighter stock than the
    stage (--surface-card), each line on its own printed rule. The sheet keeps
@@ -128,10 +125,10 @@
 
     <div id="chips"></div>
 
-    <!-- picture-in-picture: the scale the stage is NOT showing -->
-    <div id="insetbox" title="Switch scales">
+    <!-- the step-1 portrait, kept on screen while the stage shows the liquid -->
+    <div id="insetbox">
       <canvas id="glinset"></canvas>
-      <div id="insetcap"><b id="insetttl"></b><span id="insetsub"></span><span class="go">⤢</span></div>
+      <div id="insetcap"><b>One molecule</b><span>the shape and the charges</span></div>
     </div>
     <div id="saltinfo"></div>
 
@@ -1306,14 +1303,9 @@ function seatHBondPair(){
 let cur=-1;
 const stepR=[8,18,20,24,20];
 function applyStep(n){
-  /* Leaving for step 1: it culls the sim down to one molecule, so there is no
-     liquid left to draw once we are there. Take the inset tile's picture first
-     and remember where we came from — the tile is the way back, and it should
-     show the water the student was actually looking at. (Guarded because the
-     inset is built after this function.) */
-  if(n===0 && S.step!==0 && typeof drawBulk==='function'){ insetReturn=S.step; drawBulk(); }
   S.step=n;
-  if(n===0){ while(sim.mols.length>1) sim.remove();
+  if(n===0){ sawPortrait=true;
+    while(sim.mols.length>1) sim.remove();
     // the surviving molecule may have drifted while part of a larger cluster on
     // other steps — recentre it so it rotates in place instead of off-axis
     // …and ENTER the step front-on: O up, both H's square to the viewer, which
@@ -1404,23 +1396,17 @@ function syncWaterNudge(){
 }
 
 /* =============================================================
- *  THE INSET — the scale the stage is not showing
+ *  THE INSET — the one molecule, while the stage shows the liquid
  *
- *  Its own renderer on its own canvas, so it can hold its own camera. What it
- *  DRAWS depends on where the student is: on a bulk step it renders a private
- *  mini scene holding one still, fully labelled molecule (the step-1 portrait,
- *  which the stage no longer has room for); on step 1 it renders the LESSON's
- *  scene from further out, so the tile shows the liquid the student left.
- *  Either way, clicking it swaps the two.
+ *  A reference figure, not a control: its own renderer on its own canvas, so
+ *  it can hold its own camera on a private scene with one still, fully
+ *  labelled molecule. It is the step-1 portrait, kept on screen for the steps
+ *  where the stage no longer has room for it, and it steps aside on step 1
+ *  itself, where the stage IS that portrait.
  * ============================================================= */
 const insetCanvas=document.getElementById('glinset');
 const insetBox=document.getElementById('insetbox');
-const insetTtl=document.getElementById('insetttl'), insetSub=document.getElementById('insetsub');
-/* preserveDrawingBuffer because the inset FREEZES on step 1: the liquid tile is
-   the last frame of the scene the student just left, and a buffer the compositor
-   is free to discard would leave a blank tile behind. */
-const insetR=new THREE.WebGLRenderer({canvas:insetCanvas,antialias:true,alpha:true,
-  preserveDrawingBuffer:true});
+const insetR=new THREE.WebGLRenderer({canvas:insetCanvas,antialias:true,alpha:true});
 insetR.setPixelRatio(Math.min(devicePixelRatio,2));
 
 // the portrait scene: one molecule, no physics, lit like the stage
@@ -1437,36 +1423,18 @@ insetDetail.group.visible=true;        // in here the figure is the whole point
 // framed on the molecule's own centre of area, which sits below the O
 insetCam.position.set(0,-0.35,6.4); insetCam.lookAt(0,-0.35,0);
 
-// the bulk view: the lesson's own scene, seen from a second camera
-const bulkCam=new THREE.PerspectiveCamera(45,1,0.1,1000);
-
 function insetSize(){
   const w=insetCanvas.clientWidth||220, h=insetCanvas.clientHeight||165;
   insetR.setSize(w,h,false);
-  insetCam.aspect=bulkCam.aspect=w/h;
-  insetCam.updateProjectionMatrix(); bulkCam.updateProjectionMatrix();
+  insetCam.aspect=w/h; insetCam.updateProjectionMatrix();
 }
 window.addEventListener('resize',insetSize);
 
-/* Where the inset came FROM, so the second click puts the student back on the
-   step they were reading rather than on a guess. */
-let insetReturn=4;
-function syncInset(){
-  const portrait=(S.step!==0);
-  insetTtl.textContent = portrait ? 'One molecule' : 'Liquid water';
-  insetSub.textContent = portrait ? 'the shape and the charges' : 'the network it makes';
-}
-insetBox.onclick=()=>{ didInset=true; applyStep(S.step===0 ? insetReturn : 0); };
-// the lesson's own scene from further out, on its own camera, so the stage's
-// framing, its ask-sheet view offset and the student's orbit are left alone
-function drawBulk(){
-  insetSize();
-  bulkCam.position.copy(camera.position).setLength(Math.max(cam.r*1.5,20));
-  bulkCam.lookAt(0,0,0);
-  insetR.render(scene,bulkCam);
-}
+// step 1 is this same figure, full size: two of it would be one too many
+function syncInset(){ insetBox.style.display=(S.step===0)?'none':'block'; }
+
 function renderInset(){
-  if(S.step===0) return;               // frozen: the tile holds the parting shot
+  if(S.step===0) return;
   insetSize();
   insetDetail.kit.faceCamera(insetCam);
   insetR.render(insetScene,insetCam);
@@ -1480,11 +1448,9 @@ function renderInset(){
  *  evidence the student made the thing happen — a line cannot be checked off
  *  by agreeing with it.
  * ============================================================= */
-let didInset=false;
-
 // c: {p (temperature params), hb (bonds this frame), escaping}
 const TRIALS=[
- {text:'Open the single molecule. Read the two charges.',    test:()=>didInset},
+ {text:'Open one molecule alone. Which end is negative?',     test:()=>sawPortrait},
  {text:'Boil it. The bonds stretch, then break, then a molecule leaves.',
   test:c=>c.escaping>0},
  {text:'Cool it to 0°C. Watch the lattice push apart.',      test:c=>c.p.fz>0.6},
@@ -1499,6 +1465,7 @@ const TRIALS=[
   test:c=>salt.length>0 && c.p.fz<0.15 && S.temperature<=iceT},
 ];
 let iceT=0;
+let sawPortrait=false;   // the flag, not S.step: the list is drawn before the first step is applied
 const tryItemsEl=document.getElementById('tryitems'), tryCountEl=document.getElementById('trycount');
 TRIALS.forEach(t=>{ const li=document.createElement('li');
   li.innerHTML='<div>'+(t.tag?'<span class="tag"></span>':'')+'<span class="txt"></span></div>';
