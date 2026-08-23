@@ -1560,6 +1560,62 @@ function create(host) {
   };
 }
 
-global.Reaction = {create, TIMING: T0, H_LEAVE, CLEAVE, BADGE_SCALE};
+/* =============================================================================
+ *  stageHost — the half of `host` that is not a decision
+ * =============================================================================
+ *  `create` takes a host that answers two KINDS of question, and only one of
+ *  them is a lesson's to answer:
+ *
+ *    "where does lane 2 sit", "swap this lane", "settle them"   → the stage
+ *    "which carrier does this step couple to", "what does a
+ *     phosphoryl come from", "which bond does the ring go on"   → the chemistry
+ *
+ *  Both pathway pages had spelled out the first kind by hand, identically, as
+ *  seven one-line forwards into kit/lanes.js and kit/carriers.js — and a page
+ *  writing an adapter twice is the module asking its question at the wrong
+ *  altitude, not the page being repetitive. This answers the stage half from the
+ *  two kit instances a pathway lesson already has, and a page spreads it and
+ *  overrides only what is chemistry:
+ *
+ *      const RX = Reaction.create({ …wiring…,
+ *        ...Reaction.stageHost({lanes:LANES, carriers:CAR, onLanes}),
+ *        carrierPoint, carrierBond, donorSpec, freeSpec, … });
+ *
+ *  `onLanes` is the one hook, and it exists because changing the lane LIST is a
+ *  stage event with a lesson consequence: both pages re-solve their camera fit
+ *  on it, and each solves a different one. This fires it and says nothing about
+ *  what it should do.
+ *
+ *  WHAT THIS MUST NEVER GROW: an answer that depends on which step is running,
+ *  what has already run, or what a molecule IS. Those are the second kind, and
+ *  `reaction/check-reaction.js` fails this object for naming any of them.
+ * ========================================================================== */
+function stageHost(o){
+  // RESOLVED WHEN ASKED, not when built. Both pathway pages construct their
+  // carrier column AFTER Reaction.create — the tray is chrome and the reaction
+  // module is wiring — so capturing it here is a dead reference in one page and
+  // a temporal-dead-zone throw in the other. A thunk is accepted for the same
+  // reason a lesson may want to rebuild either instance later.
+  const at=x=>typeof x==='function'?x():x;
+  const L=()=>at(o.lanes), C=()=>at(o.carriers), changed=o.onLanes||function(){};
+  return {
+    // READ THROUGH, never cached. kit/lanes.js owns the list and rebuilds it on
+    // a render or a swap, so a caller holding its own array is holding removed
+    // groups for as long as it forgets to re-point.
+    lanes:()=>L().lanes,
+    laneOrigin:(key,i,n)=>L().origin(key,i,n),
+    laneBase:key=>L().base(key),
+    plateY:keys=>L().plateY(keys),
+    settleLanes:()=>L().settle(),
+    swapLane:(j,key)=>{ L().swapOne(j,key); changed(); },
+    // The shared baseline is re-solved over the INCOMING contents — the module
+    // is mid-step and one lane may already hold the product, so a plate line
+    // taken from the old set puts the two names at different heights.
+    spawnLanes:(keys,each)=>{ const l=L(); l.render(keys, l.plateY(keys), each); changed(); },
+    popCarrier:j=>C().pop(j),
+  };
+}
+
+global.Reaction = {create, stageHost, TIMING: T0, H_LEAVE, CLEAVE, BADGE_SCALE};
 
 })(typeof window !== 'undefined' ? window : globalThis);

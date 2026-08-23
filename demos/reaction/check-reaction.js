@@ -38,6 +38,9 @@ const SRC = fs.readFileSync(path.join(HERE, 'reaction.js'), 'utf8');
 let fails = 0;
 const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
 const ok = m => console.log(`  ok    ${m}`);
+// ok() only PRINTS — it takes a message, not a condition, and a check written as
+// ok(cond, msg) passes forever while asserting nothing. This is the asserting one.
+const is = (cond, m) => cond ? ok(m) : fail(m);
 
 /* ---- the verb table, read out of the source ------------------------- */
 // `verb('name', {…})` is the only way one is registered, which is what makes
@@ -120,6 +123,58 @@ VERBS.forEach(v => {
             + `Ask the host a question about the STAGE instead.`);
 });
 if (!fails) ok('every verb talks to the stage through host, and to nothing else');
+
+console.log('\n== 4. the default host answers only STAGE questions');
+/* `Reaction.stageHost` exists because both pathway pages had written the same
+ * seven forwards by hand. The risk it adds is that the next convenient thing to
+ * put in it is an answer only a lesson can give — and nothing on screen would
+ * say so, because the page it was lifted from still works. */
+{
+  // The sections above read this file as TEXT, because the verb bodies are what
+  // they are about. This one is about behaviour, so it loads the module — it
+  // assigns to globalThis outside a browser and touches no THREE until create().
+  require(path.join(__dirname, 'reaction.js'));
+  const {Reaction} = globalThis;
+
+  const H = Reaction.stageHost({lanes:{}, carriers:{}});
+  const KEYS = ['lanes','laneOrigin','laneBase','plateY','settleLanes',
+                'swapLane','spawnLanes','popCarrier'].sort();
+  const got = Object.keys(H).sort();
+  if (got.join() !== KEYS.join())
+    fail(`stageHost answers [${got}], expected [${KEYS}]. Adding one is a claim `
+       + `that the answer cannot depend on the lesson — check that it cannot.`);
+  else ok(`the default host answers ${got.length} stage questions and no others`);
+
+  // Same rule as the verbs, and the same reason (SCIENCE.md §6).
+  const src = Reaction.stageHost.toString()
+                .replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  const m = src.match(LESSON_STATE);
+  if (m) fail(`stageHost reads '${m[1]}', which is a lesson's state.`);
+  else ok('…and it names no lesson state');
+
+  /* RESOLVED LAZILY. Both pages build their carrier column AFTER Reaction.create,
+   * so a host that captured the instance would hold undefined in one page and
+   * throw on a temporal dead zone in the other — at the first carrier pop, long
+   * after load, which is the worst time to find out. */
+  let built = null;
+  const lazy = Reaction.stageHost({
+    lanes:{}, carriers:()=>(built = built || {pop:j=>('popped'+j)}) });
+  is(built === null, 'a carriers thunk is not called while the host is built');
+  is(lazy.popCarrier(2) === 'popped2', '…and is resolved at the first question');
+
+  /* THE HOOK FIRES ON BOTH LANE-LIST CHANGES. A page re-solves its camera fit
+   * here — a different fit per page, which is why this hook exists instead of a
+   * decision — and a swap that skipped it left the framing solved for molecules
+   * that are no longer on stage. */
+  let fired = 0;
+  const fake = { swapOne(){}, render(){}, plateY:()=>0, settle(){},
+                 origin:()=>1, base:()=>2, get lanes(){ return ['L']; } };
+  const hooked = Reaction.stageHost({lanes:fake, carriers:{}, onLanes:()=>fired++});
+  hooked.swapLane(0,'x');        is(fired === 1, 'swapLane fires onLanes');
+  hooked.spawnLanes(['a'],null); is(fired === 2, 'spawnLanes fires onLanes too');
+  hooked.settleLanes();          is(fired === 2, '…and settling, which changes no list, does not');
+  is(hooked.lanes()[0] === 'L', 'lanes() reads through to the module, never a cached array');
+}
 
 console.log('');
 if (fails) { console.log(`FAIL: ${fails} claim(s) no longer true`); process.exit(1); }

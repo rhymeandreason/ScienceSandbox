@@ -851,8 +851,8 @@ function renderLanes(i){
   platesOff=false; platesEl.classList.remove('mute');
   // The module carries the OUTGOING lanes' heights onto the incoming ones (one
   // outgoing lane can feed two, at the split), so the swap frame moves nothing.
-  lanes=LANES.render(speciesAt(i));
-  computeFit();
+  LANES.render(speciesAt(i));
+  onLanes();
 }
 
 /* ONE LANE'S MOLECULE, replaced in place. renderLanes rebuilds from a state
@@ -861,11 +861,12 @@ function renderLanes(i){
  * the MIXED contents and handed to both (kit/lanes.js), else the two names sit
  * at different heights while the step is half done.
  */
-function swapLane(j,key){
-  LANES.swapOne(j,key);
-  lanes=LANES.lanes;
-  computeFit();
-}
+/* THE LANE LIST CHANGED — a stage event with a lesson consequence, which is why
+ * Reaction.stageHost fires it rather than deciding it. Re-point the local alias
+ * (kit/lanes.js rebuilds the array) and re-solve the fit over the new contents.
+ */
+function onLanes(){ lanes=LANES.lanes; computeFit(); }
+function swapLane(j,key){ LANES.swapOne(j,key); onLanes(); }
 /* ---- page-local effects (cosmetic only, like everything in fx.js) ---- */
 // Every beat this page schedules is a COMMIT on kit/motion.js's two clocks, so
 // a step finishes whether or not the tab was watched. Milliseconds in, because
@@ -913,10 +914,9 @@ const RX=Reaction.create({
   molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
   flyersEl:document.getElementById('flyers'),
   specOf:key=>M[key],
-  lanes:()=>lanes,
-  laneOrigin, laneBase, plateY,
-  swapLane, settleLanes:()=>LANES.settle(),
-  spawnLanes:(keys,each)=>{ lanes=LANES.render(keys, plateY(keys), each); },
+  // THE STAGE HALF OF THE HOST, answered from the two kit instances this page
+  // already has. What is left below is the half only a lesson can answer.
+  ...Reaction.stageHost({lanes:LANES, carriers:()=>CAR, onLanes}),
   // WHICH carrier, and where its tile stands, are the page's: `couple.cin` is
   // the lesson's bookkeeping and `tileWorld` unprojects a DOM tile at the
   // scene's depth. The module only ever asks "where does this lane's carrier
@@ -929,7 +929,6 @@ const RX=Reaction.create({
   // THE CARRIER TURNS OVER ON ARRIVAL, not when the step lands — see the `ox`
   // verb. `carrierGone` is the page's, because the tray reads it.
   onCarrierTaken:j=>{ carrierGone.add(j); refresh(); },
-  popCarrier:j=>popCarrier(j),
   // …and the two specs the module needs by role rather than by name: what a
   // phosphoryl is copied from when nothing on stage supplies it, and what
   // arrives out of solution.

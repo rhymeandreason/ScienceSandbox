@@ -1005,8 +1005,8 @@ const topAnchoredY=(R,centredY,topNow)=>FIT.anchorTop(R,centredY,topNow,TOP_PULL
 
 function renderKeys(keys, place){
   platesOff=false; platesEl.classList.remove('mute');
-  lanes=LANES.render(keys, null, place);
-  computeFit();
+  LANES.render(keys, null, place);
+  onLanes();
 }
 /* A LANE COMING APART. A step that leaves a molecule standing ends with more
  * lanes than it started, and the new ones have to come OUT of the old one: born
@@ -1018,11 +1018,13 @@ const partingFrom=from=>(l,j,n)=>{
   l.g.userData.tx=laneOrigin(l.key,j,n);
 };
 function renderLanes(i){ renderKeys(speciesAt(i)); }
-function swapLane(j,key){
-  LANES.swapOne(j,key);
-  lanes=LANES.lanes;
-  computeFit();
-}
+/* THE LANE LIST CHANGED — a stage event with a lesson consequence, which is why
+ * Reaction.stageHost fires it rather than deciding it. Re-point the local alias
+ * (kit/lanes.js rebuilds the array) and re-solve the fit, which on this page
+ * frames the step's neighbourhood rather than the whole cycle.
+ */
+function onLanes(){ lanes=LANES.lanes; computeFit(); }
+function swapLane(j,key){ LANES.swapOne(j,key); onLanes(); }
 /* ---- page-local effects ---- */
 const RUN='run';
 const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
@@ -1067,17 +1069,15 @@ const RX=Reaction.create({
   specOf:key=>M[key],
   // WHICH BLOCK NAMES A SPEC'S ATOMS. Two of them on this page — see `meta`.
   meta,
-  lanes:()=>lanes,
-  laneOrigin, laneBase, plateY,
-  swapLane, settleLanes:()=>LANES.settle(),
-  spawnLanes:(keys,each)=>{ lanes=LANES.render(keys, plateY(keys), each); },
+  // THE STAGE HALF OF THE HOST, answered from the two kit instances this page
+  // already has. What is left below is the half only a lesson can answer.
+  ...Reaction.stageHost({lanes:LANES, carriers:()=>CAR, onLanes}),
   carrierPoint:(st,ref,j)=>tileWorld(carrierKey(st.couple.cin), ref, j),
   // The bond the arriving end makes. NAD⁺'s is its C4–H, FAD's the N5–H — both
   // are hydrogens landing on an atom, so the ring goes on the atom itself and
   // this answers null rather than inventing a bond.
   carrierBond:()=>null,
   onCarrierTaken:j=>{ carrierGone.add(j); refresh(); },
-  popCarrier:j=>popCarrier(j),
   // The three specs the module asks for BY ROLE rather than by name.
   //   donorSpec — what a phosphoryl is copied from when nothing supplies one
   //   freeSpec  — what arrives out of solution: free phosphate, at step 5
