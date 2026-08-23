@@ -611,6 +611,52 @@ function create(host) {
     }), T.OX_GAP);
   }});
 
+  /* ---- A REDUCTION: `ox` WITH THE ARROW TURNED ROUND -------------------
+   * A hydride crosses from NADH to a carbonyl carbon, and the carrier is
+   * discharged rather than charged. `hydrate` is drawn as `lose`'s mirror for
+   * exactly this reason, and the same argument applies harder here: a student
+   * who has watched GAPDH take a hydride onto NAD⁺ should recognise this as
+   * that event running backwards, because that recognition IS what fermentation
+   * is for.
+   *
+   * THE DONOR STANDS ON THE STAGE, NOT IN THE TRAY, and that is the difference
+   * that made this a verb instead of a flag on `ox`. Everywhere else a carrier
+   * is SPENT and the tray is where spent things go. Here the carrier is the
+   * point of the reaction — the whole pathway exists to get NAD⁺ back — so it
+   * walks on as a molecule, hands the hydride over in the frame, and stays
+   * there afterwards wearing one fewer hydrogen. A page brings it on with
+   * `enter` and keeps it with `linger`, the way the cycle stages coenzyme A.
+   *
+   * WHICH HYDROGEN, AND IT IS NOT EITHER OF THEM. `nic.h` is C4's pair, and
+   * the LAST is the one GAPDH put there (mol-pathways.js says so where it
+   * names them). Handing back the other would be chemically indistinguishable
+   * and pedagogically backwards: the atom that leaves should be the atom the
+   * student watched arrive.
+   */
+  verb('red', {dur: () => T.OX, lane(c) {
+    const mol = meta(c.spec);
+    /* A LANE WITH NO CARBON TO REDUCE IS NOT IN THIS REACTION — `decarb`'s
+     * rule, and here it is what excuses the donor: NADH is standing in a lane
+     * of its own, and without this the verb would run on it too and go looking
+     * for a carbonyl on the molecule doing the reducing. */
+    if (mol.oxC == null) return;
+    // …found by asking specs which one is the nicotinamide, never by index —
+    // `join` finds coenzyme A the same way, and for the same reason: a lane
+    // order is a stage fact and this is a chemical question.
+    const donor = lanesNow().find(l => meta(specOf(l.key)).nic);
+    if (!donor) return;
+    const nic = meta(specOf(donor.key)).nic;
+    const hIdx = nic.h[nic.h.length - 1];
+    const from = atomOn(donor, hIdx), to = atomOn(c.lane, mol.oxC);
+    shedAtoms(donor, [hIdx]);
+    /* RING BOTH ENDS, which `ox` argues for at length: the carrier turning
+     * over is half the step, and here it is the half the lesson is about. The
+     * departure ring fires on C4 so the student sees WHICH molecule paid. */
+    FX.spawnRing(from, H_LEAVE);
+    // A HYDRIDE, so '−', the same badge every other hydride in this file wears.
+    hop(from, to, '−', () => FX.spawnRing(to, H_LEAVE));
+  }});
+
   /* ---- A GROUP THAT MOVES ONE ATOM OVER ON THE SAME MOLECULE ----------
    * IT LEAVES BEFORE IT ARRIVES. Run with the substrate untouched, the
    * molecule wears its old phosphate AND a second one crosses the gap — two
