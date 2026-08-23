@@ -854,12 +854,28 @@ escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's m
    turns this from an abstract slot into somewhere in a leaf. */
 const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
 (function markWall(){
-  // a point on the left wall's pore-facing face, a little above the pool
-  const face=new THREE.Vector3(-GAP/2-1.5*A, FLOOR+nm(2.2), 0);
-  NOTES.add({ text:'plant cell wall', offset:[-150,-30], at:()=>face,
-    card:'Cellulose: beta-1,4 glucose chains packed into fibrils. The pore is '
-       + 'the gap between two of them, and every -OH on the surface is somewhere '
-       + 'a water can hold on.' });
+  // the wall itself, named where it is thickest and unmistakably scenery
+  const face=new THREE.Vector3(-GAP/2-4*A, FLOOR+nm(3.4), 0);
+  NOTES.add({ text:'plant cell wall', offset:[-150,-34], at:()=>face,
+    card:'Cellulose fibrils, the load-bearing part of a plant cell wall. This '
+       + 'pore is the gap between two of them. In a leaf, pores like it are '
+       + 'where the water column finally meets air.' });
+
+  /* And ONE hydroxyl, by name. The macro label says where we are; this one says
+     why the water does not simply fall away from the wall, and it has to point
+     at an actual -OH the engine is bonding to rather than at the wall in
+     general — so it is picked out of the same wallOH list the physics uses. */
+  let best=null;
+  for(const site of wallOH){
+    if(site.o.x>0) continue;                       // the left wall, facing us
+    const score=Math.abs(site.o.z)+Math.abs(site.o.y-(FLOOR+nm(1.6)));
+    if(!best || score<best.score) best={site, score};
+  }
+  if(best) NOTES.add({ text:'water holds on here', offset:[-158,26],
+    at:()=>best.site.o,
+    card:'This -OH offers a water the same hydrogen bond another water would, '
+       + 'so the water grips the wall. Sticking to something else is adhesion; '
+       + 'sticking to itself is cohesion. Capillary action is the two competing.' });
 })();
 
 /* The supply. Counts what is in the bottom band and tops it up toward the
