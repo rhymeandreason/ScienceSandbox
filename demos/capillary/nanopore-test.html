@@ -186,7 +186,8 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 <div id="knobs">
   <h4>tune</h4>
   <div id="knobrows"></div>
-  <div class="measure row"><span>climb at wall</span><b id="climb">—</b></div>
+  <div class="measure row"><span>front</span><b id="front">—</b></div>
+  <div class="row"><span>climb at wall</span><b id="climb">—</b></div>
 </div>
 
 <div id="bar">
@@ -1136,10 +1137,25 @@ function topAt(bin){
   const n=Math.max(1,Math.round(ys.length*0.1));
   return ys.slice(0,n).reduce((a,b)=>a+b,0)/n;
 }
+/* THE FRONT, DRAWN WHERE IT IS MEASURED. The number on its own is a claim the
+   student cannot check against the picture, and "where the water gets to" is
+   ambiguous by eye once films run ahead of the body. So the same value that is
+   printed also positions a line across the pore: middle-of-channel, which is
+   the body rather than the films. */
+const frontEl=document.getElementById('front');
+const frontMark=(function(){
+  const g=new THREE.Group();
+  const bar=new THREE.Mesh(new THREE.BoxGeometry(GAP+6*A, 0.5*A, 0.5*A),
+    new THREE.MeshBasicMaterial({color:P.bonds.iondipole, transparent:true, opacity:0.85}));
+  g.add(bar); g.visible=false; root.add(g); return g;
+})();
 const climbEl=document.getElementById('climb');
 function reportClimb(){
   const wall=topAt(16), mid=topAt(0);
   climbEl.textContent=(wall==null||mid==null)?'—':(wall-mid).toFixed(1)+' \u00c5';
+  frontEl.textContent=(mid==null)?'—':mid.toFixed(1)+' \u00c5';
+  if(mid!=null){ frontMark.position.y=mid*A; frontMark.visible=true; }
+  else frontMark.visible=false;
 }
 
 /* TINT: one colour for the wall, one for the water, instead of one per element.
