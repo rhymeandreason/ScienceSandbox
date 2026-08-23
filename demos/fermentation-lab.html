@@ -51,6 +51,14 @@
   #actbtn.done{background:transparent;border-color:transparent;color:var(--ink);
     font-family:var(--font-marker);font-size:19px;cursor:default;box-shadow:none}
 
+  /* THE VERDICT LINE, where glycolysis's ledger puts its net total. Not a row:
+     it has no number and no right-hand column, and it is the sentence the two
+     rows above it add up to. Same dashed rule they are separated by. */
+  .sticky .lsquare{border-top:1.5px dashed rgba(60,50,28,.3);
+    margin-top:7px;padding-top:8px;
+    font-family:var(--font-marker);font-size:15px;line-height:1.25;
+    color:var(--nad)}
+
   /* THE CLOSING TALLY: one row, three cells. Two steps do not make a 2×2. */
   #tally{grid-template-columns:repeat(3,minmax(0,1fr));
     grid-template-rows:1fr;gap:10px 22px;padding:14px 6% 0}
@@ -390,17 +398,25 @@ function ledgerAt(i){ const L={nad:0, made:0, carbonOut:0}, S=steps();
   if(i===done()){ const f=halfRun(), s=S[i]||{};
     L.nad+=(s.nad||0)*f; L.made+=(s.made||0)*f; L.carbonOut+=(s.carbonOut||0)*f; }
   for(const q of ['nad','made','carbonOut']) L[q]*=PER_GLUCOSE;
-  // THE NUMBER THE PAGE IS FOR, and it is not a row that stands alone: what
-  // makes the pathway able to continue is the debt and the repayment landing
-  // on zero together.
+  /* NO NET ROW. Subtracting the two into a zero is glycolysis's shape, where a
+   * running ATP total genuinely is the lesson because it dips below zero before
+   * it recovers. Here it backfires: "Net NAD⁺ 0" reads as nothing happened,
+   * which is the misreading this page exists to prevent. What the pair of rows
+   * has to land is that the repayment MATCHES the debt, and that is a sentence,
+   * not a number — see drawLedger. */
   L.owed=OWED;
-  L.net=L.nad-OWED;
+  L.square=L.nad>=OWED;
   return L; }
 const branchHas=f=>steps().some(s=>s[f]!=null);
 // …per glucose too, so the row cannot say 3 carbons beside a balance that is
 // counting two pyruvate.
 const carbonsAt=i=>speciesAt(i).filter(k=>!carrierKeys.has(k))
                     .reduce((s,k)=>s+SPECS(k).gly.carbons,0)*PER_GLUCOSE;
+/* A CARBON COUNT IS ONLY WORTH A ROW WHERE IT MOVES. The lactate branch starts
+ * and ends at six, so the row would sit there all lesson repeating itself; the
+ * ethanol branch goes 6 → 4 and the row is the receipt for the CO₂ above it.
+ * Asked of the branch rather than typed, so this follows the data. */
+const carbonsMove=()=>carbonsAt(0)!==carbonsAt(nSteps());
 
 /* =============================================================
  *  3D: lanes, labels, transitions
@@ -751,13 +767,15 @@ function drawLedger(){
   const L=ledgerAt(done()), c=carbonsAt(done());
   const prev=prevLedger;
   const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
-  const netStr=v=>`${v>0?'+':v<0?'−':''}${Math.abs(v)}`;
-  // typographic minus, not a hyphen — this is the number the page is built on
+  // typographic minus, not a hyphen
   ledgerEl.innerHTML=
      `<div class="lhead">NAD⁺ balance</div>`
     +`<div class="row"><span>Spent by glycolysis</span><span class="v" data-row="owed">−${L.owed}</span></div>`
     +`<div class="row"><span>Regenerated here</span><span class="v${bumped('nad')}" data-row="nad">+${L.nad}</span></div>`
-    +`<div class="row net"><span>Net NAD⁺</span><span class="v${bumped('net')}" data-row="net">${netStr(L.net)}</span></div>`
+    // THE VERDICT, ONLY ONCE IT IS EARNED. A line that stood there from the
+    // first frame would be a promise; appearing when the second NAD⁺ lands
+    // makes it the thing the click just did.
+    +(L.square ? `<div class="lsquare">Glycolysis can run again</div>` : '')
     // THE PRODUCTS, under the balance and not beside it: they are what the
     // reaction leaves behind, not what it was for.
     // ATP IS SHOWN EVEN THOUGH IT IS ALWAYS ZERO, and that is the exception to
@@ -767,7 +785,8 @@ function drawLedger(){
     +`<div class="row prod"><span>ATP made</span><span class="v" data-row="made">${L.made}</span></div>`
     +(branchHas('carbonOut')
       ? `<div class="row"><span>CO₂ out</span><span class="v${bumped('carbonOut')}" data-row="carbonOut">${L.carbonOut}</span></div>` : '')
-    +`<div class="row carb"><span>Carbons</span><span class="v">${c}</span></div>`;
+    +(carbonsMove()
+      ? `<div class="row carb"><span>Carbons</span><span class="v">${c}</span></div>` : '');
   prevLedger=L;
 }
 
