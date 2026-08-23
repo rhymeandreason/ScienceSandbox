@@ -106,6 +106,8 @@
 <script src="molecules.js"></script>
 <script src="skel.js"></script>
 <script src="mol-pathways.js"></script>
+<!-- the carrier is drawn from `nadhSkel`, not the conformer — see NADH below -->
+<script src="mol-compare.js"></script>
 <script src="scene.js"></script>
 <script src="fx.js"></script>
 <script src="kit/motion.js"></script>
@@ -172,7 +174,15 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=L;
 const FXi=L.fx, MO=L.motion;
 const KIT=AtomKit.create(THREE);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
-const NADH=M.nadh;
+/* THE CARRIER IS THE IDEALIZED NADH (`nadhSkel`, mol-compare.js), not the
+ * PubChem conformer (`nadh`) — glycolysis's choice, and the reason is sharper
+ * here. A conformer folds its tail over the nicotinamide C4, and C4 is the atom
+ * every step on this page is about: the hydride leaves from it. Same molecule,
+ * same scale family, same `gly` block, so switching is one name. Declared
+ * schematic (MolecularGeometry.md §1.6); both derivations canonicalise to the
+ * same PubChem record under tools/check-handedness.js, so no stereochemistry is
+ * traded for legibility. molecule-viewer.html shows the two side by side. */
+const NADH=M.nadhSkel;
 
 /* NAD⁺ IS NADH MINUS ONE C4 HYDROGEN — the same declared schematic
  * (MolecularGeometry.md §1.6) glycolysis's tray makes, moved onto the stage.
@@ -184,7 +194,7 @@ const NADP=Object.assign(Object.create(NADH), {
   name:NADH.gly.spent.name, short:NADH.gly.spent.short,
   formula:NADH.gly.spent.formula });
 const SPECS=k=>k==='nad'?NADP:M[k];
-const carrierKeys=new Set(['nadh','nad']);
+const carrierKeys=new Set(['nadhSkel','nad']);
 
 /* =============================================================
  *  THE LESSON SCRIPT
@@ -246,7 +256,7 @@ lactic:[
 ],
 alcoholic:[
   { n:1, enz:'Pyruvate decarboxylase', hook:'A carbon leaves first',
-    species:['acetaldehyde'], hold:['nadh'],
+    species:['acetaldehyde'], hold:['nadhSkel'],
     // a decarboxylation whose product leaves as a gas does not come back
     rev:false,
     // `carbonOut`, where the cycle's step record spells the same field `co2`:
@@ -313,7 +323,7 @@ const weave=(subs,cars)=>subs.flatMap((k,j)=>cars&&cars[j]!=null?[k,cars[j]]:[k]
  * there unspent through the decarboxylation is the tension the branch resolves,
  * so it is the one molecule that has earned standing through a step it has no
  * part in. */
-const OPENING=weave(BASE, ['nadh']);
+const OPENING=weave(BASE, ['nadhSkel']);
 function speciesAt(i){
   if(i===0) return OPENING;
   const prev=steps()[i-1];
@@ -370,10 +380,44 @@ const carbonsAt=i=>speciesAt(i).filter(k=>!carrierKeys.has(k))
 /* =============================================================
  *  3D: lanes, labels, transitions
  * ============================================================= */
-// Half-separation of the pair (kit/lanes.js spaces n lanes evenly about it).
-// Wider than glycolysis's 8: NADH is 21 Å across against pyruvate's 6, so the
-// gap has to clear the carrier rather than the substrate.
-const LANE=9.0;
+/* THE LANE SEPARATION IS MEASURED, NOT TYPED. Both siblings can pick a number
+ * by eye because their lanes hold molecules of one size; here a carrier drawn
+ * at full scale is five times its substrate's width, and a hand-picked gap is
+ * right only for the pair it was picked on — swapping the NADH conformer for
+ * the idealized build widened it by half again and the two molecules overlapped
+ * with nothing in the file saying why.
+ * Measured the way kit/lanes.js measures, which is the extent the student sees:
+ * the spec's `view:` applied and the optional hydrogens dropped. Duplicated
+ * here rather than asked of the module, because the module needs the answer to
+ * be constructed. */
+const CLEAR=3.0;                            // world units of daylight between them
+function drawnWidth(spec){
+  const opt=new Set(spec.optH||[]);
+  const q=spec.view ? new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(spec.view[0]||0, spec.view[1]||0, spec.view[2]||0, 'ZYX')) : null;
+  let lo=Infinity, hi=-Infinity;
+  spec.atoms.forEach((a,i)=>{
+    if(opt.has(i)) return;
+    const v=new THREE.Vector3(a.pos[0],a.pos[1],a.pos[2]);
+    if(q) v.applyQuaternion(q);
+    const r=PAL.radii[a.el]||0.7;
+    lo=Math.min(lo,v.x-r); hi=Math.max(hi,v.x+r);
+  });
+  return isFinite(lo)?hi-lo:0;
+}
+/* Over every molecule EITHER branch stands in a lane, so the two tabs share one
+ * separation — a gap that changed with the tab would read as the stage moving
+ * rather than the chemistry. Half-separation, because kit/lanes.js spaces n
+ * lanes evenly about the centre line: the two centres end up 2×LANE apart, and
+ * what has to fit between them is half of each molecule plus the daylight. */
+const LANE=(()=>{
+  const subs=new Set(['pyruvate']), cars=new Set(['nadhSkel']);
+  Object.values(STEPS).forEach(b=>b.forEach(st=>{
+    (st.species||[]).forEach(k=>subs.add(k));
+    (st.hold||[]).forEach(k=>cars.add(k==='nad'?'nadhSkel':k)); }));
+  const widest=set=>Math.max(...[...set].map(k=>drawnWidth(M[k])));
+  return (widest(cars)+widest(subs))/4 + CLEAR/2;
+})();
 let lanes=[];
 let busy=false;
 let reviewing=false;
