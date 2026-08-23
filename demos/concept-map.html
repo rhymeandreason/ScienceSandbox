@@ -128,6 +128,12 @@
     color: var(--spark);
     margin-top: 0.25rem;
   }
+  .node.concept .on {
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin-top: 0.2rem;
+  }
   .node.concept.built   { border-left: 3px solid var(--accent); }
   .node.concept.planned { border-left: 3px dashed var(--muted); }
   .node.concept.planned .name { color: var(--muted); }
@@ -151,6 +157,7 @@
   /* focus: one node lit, its neighbours kept, everything else dropped back */
   .focusing .node { opacity: 0.18; }
   .focusing .node.lit { opacity: 1; }
+  .focusing .node.hop2 { opacity: 0.55; }   /* the far ring, present but not the subject */
   .focusing .node.hub { border-color: var(--accent); }
 
   /* ---- legend --------------------------------------------------------- */
@@ -193,6 +200,8 @@
   <a class="logo" href="index.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">what connects to what, and the question that does the connecting</span>
   <span class="spacer"></span>
+  <button class="btn on" id="engineBtn" data-view="engine">Engines</button>
+  <button class="btn" id="principleBtn" data-view="principle">Principles</button>
   <button class="btn" id="relaxBtn">Relax</button>
   <button class="btn" id="fitBtn">Fit</button>
 </header>
@@ -301,96 +310,192 @@ const QUESTIONS = [
   ['One photon, one flash. One adrenaline, a million glucose. How?', ['scale','binding','glycolys']],
 ];
 
+/* ---- the second view -------------------------------------------------
+   Same questions, different nodes. The engine view's concepts are the things
+   on disk, so a question attaches to the page that would answer it. The
+   principle view's concepts are the ideas the question actually turns on, so
+   glycolysis, Krebs and beta-oxidation stop being three nodes and become
+   three instances of coupling plus redox. PRINCIPLE_REFS is index-aligned
+   with QUESTIONS. */
+
+const PRINCIPLES = [
+  { id: 'charge',      name: 'Charge &amp; polarity',  built: 1, on: 'water-lab · molecule-builder' },
+  { id: 'weak',        name: 'Weak bonds, in numbers', built: 1, on: 'solvation-lab · dna-lab' },
+  { id: 'entropy',     name: 'Entropy',                built: 0 },
+  { id: 'freeenergy',  name: 'Free energy',            built: 1, on: 'energy/ · massaction/' },
+  { id: 'coupling',    name: 'Coupling',               built: 1, on: 'coupling/ · glycolysis-lab' },
+  { id: 'redox',       name: 'Electrons carry it',     built: 0 },
+  { id: 'gradient',    name: 'Gradients',              built: 1, on: 'diffusion/ · membrane-lab' },
+  { id: 'compartment', name: 'Compartments',           built: 1, on: 'membrane-lab' },
+  { id: 'scale',       name: 'Diffusion &amp; scale',  built: 1, on: 'diffusion/ · massaction/' },
+  { id: 'recognition', name: 'Shape &amp; recognition', built: 0 },
+  { id: 'catalysis',   name: 'Catalysis',              built: 0 },
+  { id: 'information', name: 'Information',            built: 1, on: 'dna-lab' },
+  { id: 'assembly',    name: 'Self-assembly',          built: 1, on: 'folding-lab · membrane/parts' },
+];
+
+const PRINCIPLE_REFS = [
+  ['charge','entropy','weak'],            // oil and water
+  ['charge','assembly','weak'],           // soap
+  ['entropy','assembly'],                 // buried greasy parts
+  ['charge','freeenergy'],                // road salt
+  ['freeenergy','weak'],                  // altitude
+  ['gradient','freeenergy'],              // fizzy drinks
+  ['weak','assembly'],                    // snowflakes
+  ['assembly','freeenergy'],              // ice cream
+  ['recognition','assembly'],             // deep-sea fish
+  ['gradient','assembly','compartment'],  // wood frogs
+  ['assembly','information'],             // Levinthal
+  ['weak','entropy','assembly'],          // egg whites
+  ['weak','catalysis'],                   // fever
+  ['weak','assembly'],                    // vent bacteria
+  ['catalysis','recognition','scale'],    // using up an enzyme
+  ['recognition','redox','catalysis'],    // cyanide
+  ['recognition','catalysis'],            // lactose
+  ['recognition'],                        // lemon and orange
+  ['recognition'],                        // thalidomide
+  ['recognition','scale'],                // CO
+  ['recognition','gradient'],             // fetus
+  ['recognition','gradient'],             // exercise
+  ['scale','gradient'],                   // why cells are small
+  ['scale','gradient'],                   // insect lungs
+  ['scale','compartment'],                // long neuron
+  ['scale','charge'],                     // dizzy
+  ['scale','charge'],                     // blood pH
+  ['gradient','compartment'],             // salmon
+  ['gradient','compartment'],             // saline
+  ['gradient','compartment','recognition'], // cholera
+  ['gradient','weak'],                    // tree height
+  ['assembly','entropy'],                 // membrane heals
+  ['coupling','gradient','compartment'],  // what a pump spends
+  ['redox','coupling'],                   // sprinters
+  ['redox','catalysis'],                  // bread and beer
+  ['redox','coupling'],                   // crucian carp
+  ['redox','compartment'],                // red blood cells
+  ['redox','freeenergy'],                 // apples
+  ['catalysis','coupling'],               // fructose
+  ['redox','coupling'],                   // exhaled CO2
+  ['redox','gradient'],                   // oxygen into water
+  ['redox','freeenergy'],                 // fat vs sugar
+  ['redox','gradient'],                   // camels
+  ['redox','coupling'],                   // bears
+  ['gradient','compartment','redox'],     // brown fat
+  ['redox','freeenergy'],                 // sulfur and iron
+  ['coupling','freeenergy'],              // why spend ATP
+  ['information','coupling'],             // four polymers
+  ['information','catalysis','freeenergy'], // mutation rate
+  ['weak','charge','information'],        // two strands
+  ['charge','freeenergy'],                // why a bond forms
+  ['catalysis','recognition','scale'],    // amplification
+];
+
 /* ---- graph ---------------------------------------------------------- */
-
-const nodes = [];
-const links = [];
-const byId = {};
-
-for (const c of CONCEPTS) {
-  const n = { ...c, kind: 'concept', deg: 0 };
-  byId[c.id] = n;
-  nodes.push(n);
-}
-QUESTIONS.forEach((q, i) => {
-  const n = { id: 'q' + i, kind: 'question', text: q[0], refs: q[1], deg: 0 };
-  byId[n.id] = n;
-  nodes.push(n);
-  for (const r of q[1]) {
-    if (!byId[r]) continue;          // a typo'd concept id would silently vanish
-    links.push({ a: n, b: byId[r] });
-    n.deg++; byId[r].deg++;
-  }
-});
-
-/* ---- layers ----------------------------------------------------------
-   The map reads left to right from water, so the layout is not a free blob:
-   a breadth-first walk from `water` gives every node a depth, depth becomes
-   a column, and the relax below is free only in y. Concept and question
-   alternate, so a concept sits every other column. */
-
-const COL = 300;
-const ROOT = 'water';
-
-const order = [byId[ROOT]];
-byId[ROOT].depth = 0;
-const nbrs = new Map(nodes.map(n => [n, []]));
-for (const l of links) { nbrs.get(l.a).push(l.b); nbrs.get(l.b).push(l.a); }
-for (let head = 0; head < order.length; head++) {
-  for (const m of nbrs.get(order[head])) {
-    if (m.depth !== undefined) continue;
-    m.depth = order[head].depth + 1;
-    order.push(m);
-  }
-}
-// anything the walk never reached hangs off the far end rather than at x=0
-const maxDepth = Math.max(...order.map(n => n.depth));
-for (const n of nodes) if (n.depth === undefined) n.depth = maxDepth + 1;
-
-// seed each column as a stack, in the order the walk found them: siblings of
-// one parent start adjacent, which is most of the untangling done for free
-const column = {};
-const walked = order.concat(nodes.filter(n => !order.includes(n)));
-for (const n of walked) (column[n.depth] = column[n.depth] || []).push(n);
-for (const stack of Object.values(column)) {
-  stack.forEach((n, row) => {
-    n.tx = n.depth * COL;                        // the column the spring holds it to
-    n.x = n.tx;
-    n.y = (row - (stack.length - 1) / 2) * 120;
-    n.vx = n.vy = 0;
-  });
-}
-
-/* ---- DOM ------------------------------------------------------------- */
 
 const world = document.getElementById('world');
 const svg = document.getElementById('edges');
 const NS = 'http://www.w3.org/2000/svg';
 
-for (const l of links) {
-  l.el = document.createElementNS(NS, 'line');
-  l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
-  l.el.setAttribute('stroke-width', '1');
-  l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
-  if (!l.b.built) l.el.setAttribute('stroke-dasharray', '4 4');
-  svg.appendChild(l.el);
-}
+const VIEWS = {
+  engine:    { concepts: CONCEPTS,   refs: QUESTIONS.map(q => q[1]), root: 'water',  label: 'Engines' },
+  principle: { concepts: PRINCIPLES, refs: PRINCIPLE_REFS,           root: 'charge', label: 'Principles' },
+};
 
-for (const n of nodes) {
-  const el = document.createElement('div');
-  el.className = 'node ' + n.kind + (n.kind === 'concept' ? (n.built ? ' built' : ' planned') : '');
-  if (n.kind === 'concept') {
-    el.innerHTML = '<div class="name">' + n.name + '</div>' +
-      '<div class="meta">' + n.deg + (n.deg === 1 ? ' question' : ' questions') + '</div>';
-  } else {
-    el.innerHTML = '<span class="q">' + n.text + '</span>';
+let nodes = [], links = [], byId = {}, column = {};
+
+function build(key) {
+  const spec = VIEWS[key];
+  nodes = []; links = []; byId = {}; column = {};
+  world.querySelectorAll('.node').forEach(el => el.remove());
+  svg.replaceChildren();
+
+  for (const c of spec.concepts) {
+    const n = { ...c, kind: 'concept', deg: 0 };
+    byId[c.id] = n;
+    nodes.push(n);
   }
-  n.el = el;
-  world.appendChild(el);
+  QUESTIONS.forEach((q, i) => {
+    const n = { id: 'q' + i, kind: 'question', text: q[0], deg: 0 };
+    byId[n.id] = n;
+    nodes.push(n);
+    for (const r of spec.refs[i]) {
+      if (!byId[r]) continue;        // a typo'd concept id would silently vanish
+      links.push({ a: n, b: byId[r] });
+      n.deg++; byId[r].deg++;
+    }
+  });
+
+  layer(spec.root);
+  paint();
 }
 
-// measured once, after layout: the radius the repulsion treats each label as
-for (const n of nodes) n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+/* ---- layers ----------------------------------------------------------
+   The map reads left to right from its root, so the layout is not a free
+   blob: a breadth-first walk gives every node a depth, depth becomes a
+   column, and the relax below is free only in y. Concept and question
+   alternate, so a concept sits every other column. */
+
+const COL = 300;
+
+function layer(root) {
+  const order = [byId[root]];
+  byId[root].depth = 0;
+  const nbrs = new Map(nodes.map(n => [n, []]));
+  for (const l of links) { nbrs.get(l.a).push(l.b); nbrs.get(l.b).push(l.a); }
+  for (let head = 0; head < order.length; head++) {
+    for (const m of nbrs.get(order[head])) {
+      if (m.depth !== undefined) continue;
+      m.depth = order[head].depth + 1;
+      order.push(m);
+    }
+  }
+  // anything the walk never reached hangs off the far end rather than at x=0
+  const maxDepth = Math.max(...order.map(n => n.depth));
+  for (const n of nodes) if (n.depth === undefined) n.depth = maxDepth + 1;
+
+  // seed each column as a stack, in the order the walk found them: siblings of
+  // one parent start adjacent, which is most of the untangling done for free
+  const walked = order.concat(nodes.filter(n => !order.includes(n)));
+  for (const n of walked) (column[n.depth] = column[n.depth] || []).push(n);
+  for (const stack of Object.values(column)) {
+    stack.forEach((n, row) => {
+      n.tx = n.depth * COL;                      // the column the spring holds it to
+      n.x = n.tx;
+      n.y = (row - (stack.length - 1) / 2) * 120;
+      n.vx = n.vy = 0;
+    });
+  }
+}
+
+/* ---- DOM ------------------------------------------------------------- */
+
+function paint() {
+  for (const l of links) {
+    l.el = document.createElementNS(NS, 'line');
+    l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
+    l.el.setAttribute('stroke-width', '1');
+    l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
+    if (!l.b.built) l.el.setAttribute('stroke-dasharray', '4 4');
+    svg.appendChild(l.el);
+  }
+
+  for (const n of nodes) {
+    const el = document.createElement('div');
+    el.className = 'node ' + n.kind + (n.kind === 'concept' ? (n.built ? ' built' : ' planned') : '');
+    if (n.kind === 'concept') {
+      el.innerHTML = '<div class="name">' + n.name + '</div>' +
+        '<div class="meta">' + n.deg + (n.deg === 1 ? ' question' : ' questions') + '</div>' +
+        (n.on ? '<div class="on">' + n.on + '</div>' : '');
+    } else {
+      el.innerHTML = '<span class="q">' + n.text + '</span>';
+    }
+    n.el = el;
+    world.appendChild(el);
+  }
+
+  // measured once, after layout: the radius the repulsion treats each label as
+  for (const n of nodes) n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+}
+
 
 /* ---- force relax ----------------------------------------------------- */
 
@@ -465,14 +570,14 @@ function applyView() {
 }
 applyView();
 
-let dragNode = null, dragging = null, last = null;
+let dragNode = null, dragging = null, last = null, travel = 0;
 
 canvas.addEventListener('pointerdown', e => {
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
+  travel = 0;
   if (hit) {
     dragNode = nodes.find(n => n.el === hit);
-    dragNode.moved = false;
     hit.classList.add('dragging');
     dragging = 'node';
     alpha = Math.max(alpha, 0.35);              // a drag re-energises the layout
@@ -488,21 +593,29 @@ canvas.addEventListener('pointermove', e => {
   const dx = e.clientX - last.x, dy = e.clientY - last.y;
   last = { x: e.clientX, y: e.clientY };
   if (dragging === 'pan') {
+    travel += Math.hypot(dx, dy);
     view.x += dx; view.y += dy; applyView();
   } else {
     dragNode.x += dx / view.k;
     dragNode.y += dy / view.k;
     dragNode.vx = dragNode.vy = 0;
-    if (Math.abs(dx) + Math.abs(dy) > 1) dragNode.moved = true;
+    travel += Math.hypot(dx, dy);
   }
 });
 
 function endDrag(e) {
+  // A press that went nowhere is a click. It is settled here rather than on a
+  // `click` listener because the pointer capture above retargets that event to
+  // the canvas — the node is only knowable from the pointerdown that started
+  // this press. A real mouse click travels a pixel or two, hence the margin.
+  const click = travel <= 5;
   if (dragging === 'node') {
     dragNode.el.classList.remove('dragging');
-    if (dragNode.moved) dragNode.pinned = true;  // a node you placed stays placed
-    else focus(dragNode);                        // a click without motion is a focus
+    if (click) focus(dragNode);
+    else dragNode.pinned = true;                // a node you placed stays placed
     dragNode = null;
+  } else if (dragging === 'pan' && click && focused) {
+    clearFocus();
   }
   canvas.classList.remove('panning');
   dragging = null;
@@ -529,28 +642,43 @@ function focus(n) {
   if (focused === n) { clearFocus(); return; }
   focused = n;
   document.body.classList.add('focusing');
-  for (const m of nodes) { m.el.classList.remove('lit', 'hub'); }
-  n.el.classList.add('lit', 'hub');
+  for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
+
+  // two hops, because one is not the interesting number here: a concept's
+  // questions, and then the OTHER concept each question reaches. That second
+  // ring is what the question is doing on the map at all.
+  const hop1 = new Set(), hop2 = new Set();
   for (const l of links) {
-    if (l.a === n) l.b.el.classList.add('lit');
-    if (l.b === n) l.a.el.classList.add('lit');
-    const on = l.a === n || l.b === n;
-    l.el.setAttribute('stroke-opacity', on ? '.85' : '.06');
-    l.el.setAttribute('stroke', on ? '#e2643a' : (l.b.built ? '#1f5f4f' : '#6d6f76'));
+    if (l.a === n) hop1.add(l.b);
+    if (l.b === n) hop1.add(l.a);
+  }
+  for (const l of links) {
+    if (hop1.has(l.a) && l.b !== n && !hop1.has(l.b)) hop2.add(l.b);
+    if (hop1.has(l.b) && l.a !== n && !hop1.has(l.a)) hop2.add(l.a);
+  }
+
+  n.el.classList.add('lit', 'hub');
+  for (const m of hop1) m.el.classList.add('lit');
+  for (const m of hop2) m.el.classList.add('lit', 'hop2');
+
+  for (const l of links) {
+    const first  = l.a === n || l.b === n;
+    const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
+    l.el.setAttribute('stroke', first || second ? '#e2643a' : (l.b.built ? '#1f5f4f' : '#6d6f76'));
+    l.el.setAttribute('stroke-opacity', first ? '.85' : second ? '.4' : '.06');
   }
 }
 
 function clearFocus() {
   focused = null;
   document.body.classList.remove('focusing');
-  for (const m of nodes) m.el.classList.remove('lit', 'hub');
+  for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
   for (const l of links) {
     l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
     l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
   }
 }
 
-canvas.addEventListener('click', e => { if (!e.target.closest('.node') && focused) clearFocus(); });
 addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
 
 /* ---- controls --------------------------------------------------------- */
@@ -580,6 +708,25 @@ function fit() {
   applyView();
 }
 
+/* ---- the view toggle -------------------------------------------------- */
+
+let viewKey = 'engine';
+
+for (const btn of document.querySelectorAll('.btn[data-view]')) {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.view === viewKey) return;
+    viewKey = btn.dataset.view;
+    for (const b of document.querySelectorAll('.btn[data-view]'))
+      b.classList.toggle('on', b.dataset.view === viewKey);
+    clearFocus();
+    build(viewKey);
+    alpha = 1; running = true;
+    relaxBtn.classList.add('on');
+    setTimeout(fit, 3000);          // the new layout needs the same settling time
+  });
+}
+
+build(viewKey);
 setTimeout(fit, 4000);   // let the relax settle before framing it
 
 // the pane can settle on its size after load, and a fit against the wrong
