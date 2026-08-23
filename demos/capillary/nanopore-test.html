@@ -871,11 +871,12 @@ const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:
     const score=Math.abs(site.o.z)+Math.abs(site.o.y-(FLOOR+nm(1.6)));
     if(!best || score<best.score) best={site, score};
   }
-  if(best) NOTES.add({ text:'water holds on here', offset:[-158,26],
+  if(best) NOTES.add({ text:'adhesion', offset:[-150,26],
     at:()=>best.site.o,
-    card:'This -OH offers a water the same hydrogen bond another water would, '
-       + 'so the water grips the wall. Sticking to something else is adhesion; '
-       + 'sticking to itself is cohesion. Capillary action is the two competing.' });
+    card:'Every glucose in the wall carries \u2013OH groups, and each one can '
+       + 'hydrogen bond a water exactly as another water would. Water holding '
+       + 'onto something else is adhesion. Water holding onto itself is cohesion. '
+       + 'Which one wins decides whether water climbs a surface or beads up on it.' });
 })();
 
 /* The supply. Counts what is in the bottom band and tops it up toward the
