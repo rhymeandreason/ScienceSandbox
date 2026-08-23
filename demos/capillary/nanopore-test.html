@@ -342,12 +342,21 @@ function makeWater(p){
             hb:0 };
   waters.push(w); return w;
 }
+/* Seeded on a lattice at the liquid's own spacing, standing on the floor. A
+   random fill over the full height starts every run with the column collapsing
+   under gravity, and that fall is the first thing anyone sees — it reads as the
+   answer to "which way does water go", which is not the question here. */
 function seed(){
   waters.length=0;
-  for(let i=0;i<N_WATER;i++) makeWater(new THREE.Vector3(
-    (Math.random()-0.5)*(GAP-2.8*A),
-    FLOOR + Math.random()*FILL,
-    (Math.random()-0.5)*DEPTH));
+  const d=2.85*A;                                     // liquid spacing, near O...O
+  const nx=Math.max(1,Math.floor((GAP-2*R_WATER)/d)), nz=Math.max(1,Math.floor(DEPTH/d));
+  for(let i=0;i<N_WATER;i++){
+    const c=i%nx, r=Math.floor(i/nx)%nz, lay=Math.floor(i/(nx*nz));
+    makeWater(new THREE.Vector3(
+      (c-(nx-1)/2)*d + (Math.random()-0.5)*0.3*A,
+      FLOOR + 1.2*A + lay*d*0.92,
+      (r-(nz-1)/2)*d + (Math.random()-0.5)*0.3*A));
+  }
 }
 seed();
 
@@ -368,11 +377,21 @@ waters.forEach(place);
    liquid has to be drawn if its density is the claim. The wall stays
    ball-and-stick, so structure and bulk do not look like the same substance. */
 const R_O=1.40*A, R_H=0.95*A;
+/* TRACERS. A flowing liquid of 900 identical spheres shows no flow: the shape
+   stays put while every molecule in it moves, and the eye has nothing to follow.
+   So one in forty is tinted and otherwise identical — same mass, same forces,
+   same bonds — which is what a labelled-water experiment is. Watch these, not
+   the surface, to see whether the column moves. */
+const TRACER_EVERY=40;
+const isTracer=i=>i%TRACER_EVERY===0;
+const N_TRACE=Math.ceil(N_WATER/TRACER_EVERY);
 const oMesh=new THREE.InstancedMesh(SPHERE,
-  new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER);
+  new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER-N_TRACE);
+const tMesh=new THREE.InstancedMesh(SPHERE,
+  new THREE.MeshLambertMaterial({color:P.bonds.hbond}), N_TRACE);
 const hMesh=new THREE.InstancedMesh(SPHERE,
   new THREE.MeshLambertMaterial({color:P.atoms.H}), N_WATER*2);
-root.add(oMesh,hMesh);
+root.add(oMesh,tMesh,hMesh);
 
 /* H-bonds, dashed, the convention WaterSim.md 1 sets. The same line is drawn
    for a bond to a wall hydroxyl: adhesion IS this bond, to a different partner,
@@ -438,6 +457,7 @@ function step(){
   for(let i=0;i<n;i++){
     for(let j=i+1;j<n;j++){
       const a=waters[i], b=waters[j];
+      if(a.gone||b.gone) continue;     // it has left the liquid; it is vapour now
       _v.subVectors(a.p,b.p);
       const d=_v.length();
       if(d>COH_MAX || d<1e-4) continue;
@@ -497,6 +517,7 @@ function step(){
   const reach=5.0*A;
   for(let i=0;i<n;i++){
     const w=waters[i], f=forces[i];
+    if(w.gone) continue;
     // contact with the wall's own atoms, at their radii
     const side=Math.sign(w.p.x)||1;
     if(Math.abs(w.p.x) > GAP/2 - 5.0*A){
@@ -566,6 +587,7 @@ function step(){
   // --- integrate, and let each molecule turn toward the bond it is making
   for(let i=0;i<n;i++){
     const w=waters[i];
+    if(w.gone) continue;               // evaporate() is flying this one
     forces[i].x += (Math.random()-0.5)*JITTER;
     forces[i].y += (Math.random()-0.5)*JITTER;
     forces[i].z += (Math.random()-0.5)*JITTER;
@@ -589,21 +611,47 @@ function _tumble(w){
 }
 
 /* ---- evaporation, which is the whole point ----
- *  Molecules leave from the TOP, where the meniscus is, and only if they are
- *  barely bonded — the energy of vaporisation, again. What leaves is fed back
- *  in at the bottom, because that is what the root does: the column keeps its
- *  height and the water in it moves up.
+ *  A molecule leaves from the TOP, and only if it is barely bonded, which is
+ *  the energy of vaporisation: the bonds go before the molecule does. It then
+ *  FLIES OFF, and is only recycled to the bottom once it is out of the frame.
+ *
+ *  The flying matters. An earlier version teleported it straight from the top
+ *  to the bottom, which is the same bookkeeping and shows nothing at all: no
+ *  molecule is ever seen leaving, none is seen arriving, and the column looks
+ *  static while the whole thing is supposedly flowing.
+ *
+ *  Feeding it back in at the base is the root's half. Water leaves the leaf and
+ *  water enters from below, so the column keeps its length and the water inside
+ *  it travels up — which is the tracers' job to show.
  */
 let evaporating=false;
+/* It leaves FAST. Every molecule in flight is one the column has lost, so a
+   slow escape is a standing deficit: at 0.1 A a frame the vapour held a sixth
+   of the liquid at once, the column shrank, and the water went DOWN while
+   evaporating — the opposite of the thing being shown. At this speed the
+   round trip is about 45 frames and the deficit stays near 1%. */
+const ESCAPE_V=0.5*A;
+let escapeTop=0;                       // set from the wall's height, below
+let evapClock=0, evapCount=0;
 function evaporate(){
-  if(!evaporating || !waters.length) return;
+  // molecules already on their way out: no bonds, no gravity, just going
+  for(const w of waters){
+    if(!w.gone) continue;
+    w.p.y+=ESCAPE_V; place(w);
+    if(w.p.y>escapeTop){               // out of the frame; the root sends another
+      w.gone=false;
+      w.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR+0.4*A, (Math.random()-0.5)*DEPTH);
+      w.v.set(0,0.01*A,0); place(w);
+    }
+  }
+  if(!evaporating) return;
+  if(++evapClock%3) return;            // a few a second, so the flow is watchable
   let top=null;
-  for(const w of waters) if((!top||w.p.y>top.p.y) && w.hb<=1) top=w;
-  if(!top) return;
-  top.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR-1.0*A, (Math.random()-0.5)*DEPTH);
-  top.v.set(0,0.02*A,0);
-  place(top);
+  for(const w of waters) if(!w.gone && w.hb<=1 && (!top||w.p.y>top.p.y)) top=w;
+  if(top){ top.gone=true; top.v.set(0,0,0); evapCount++; }
 }
+
+escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
 
 /* ============================================================= *
  *  Render
@@ -611,13 +659,16 @@ function evaporate(){
 const _M=new THREE.Matrix4();
 
 function draw(){
+  let o=0, t=0;
   waters.forEach((w,i)=>{
-    _M.makeScale(R_O,R_O,R_O).setPosition(w.o); oMesh.setMatrixAt(i,_M);
+    _M.makeScale(R_O,R_O,R_O).setPosition(w.o);
+    if(isTracer(i)) tMesh.setMatrixAt(t++,_M); else oMesh.setMatrixAt(o++,_M);
     for(let k=0;k<2;k++){
       _M.makeScale(R_H,R_H,R_H).setPosition(w.h[k]); hMesh.setMatrixAt(i*2+k,_M);
     }
   });
   oMesh.instanceMatrix.needsUpdate=true;
+  tMesh.instanceMatrix.needsUpdate=true;
   hMesh.instanceMatrix.needsUpdate=true;
 }
 
@@ -629,7 +680,11 @@ let frames=0;
 function report(){
   readout.innerHTML =
     `pore  <b>${(GAP/A/10).toFixed(1)} nm</b>  =  <b>${Math.round(GAP/A/WATER_DIA)}</b> molecules across\n`
-  + `water <b>${waters.length}</b>   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>`;
+  + `water <b>${waters.length}</b>   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>\n`
+  /* Throughput, not level. In steady flow the column keeps its height while
+     every molecule in it travels, so the level says nothing and the count of
+     molecules that have gone through says everything. */
+  + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight`;
 }
 
 function loop(){
@@ -646,7 +701,8 @@ document.getElementById('evap').onclick=e=>{
   e.currentTarget.classList.toggle('pill--ghost', !evaporating);
   e.currentTarget.textContent = evaporating ? 'Evaporating' : 'Evaporate';
 };
-document.getElementById('reset').onclick=()=>{ seed(); waters.forEach(place); };
+document.getElementById('reset').onclick=()=>{
+  seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place); evapCount=0; };
 </script>
 </body>
 </html>
