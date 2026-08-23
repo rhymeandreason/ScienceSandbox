@@ -839,7 +839,12 @@ function evaporate(){
      a surface down, which is true, but even 7 a second here is orders above a
      leaf's, and the curve pays for it. */
   if(EVAP_RATE<=0) return;
-  evapAcc += EVAP_RATE/60;
+  /* Divided by SPEED so the number means molecules a SECOND, not a step. Left
+     per-step it multiplied by the speed control: 7/s at 1x was 56/s at 8x, and
+     the supply at the base cannot keep up with that, so winding the sim faster
+     quietly emptied the pore. Speed now only decides how quickly the physics
+     settles; how hard the leaf is transpiring is this slider alone. */
+  evapAcc += EVAP_RATE/(60*Math.max(1,SPEED));
   if(evapAcc<1) return;
   evapAcc -= 1;
   /* Anywhere on the free surface, not the single highest molecule. Taking the
@@ -969,9 +974,10 @@ function loop(){
 const KNOBS=[
   /* THE THREE THAT TEACH. Capillary action is a competition between water
      holding the wall and water holding itself, so adhesion and cohesion are the
-     lesson and everything else is apparatus. Speed is here because the outcome
-     takes a while to arrive and a student should not have to wait for it. */
-  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x', main:1},
+     lesson. Evaporation joins them because it is what the competition acts on:
+     nothing travels until water leaves the top. Speed is apparatus and sits
+     with the rest. */
+  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x'},
   {k:'Adhesion',   get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3), main:1},
   {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
   {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
