@@ -41,28 +41,38 @@
      settle near 2.55 A against a real 2.8, and about 2.5 H-bonds per
      molecule against a real 3.6, at the seeded bulk density.
 
-     THE MENISCUS IS NOT SETTLED, AND THE FIRST READING OF IT WAS WRONG.
-     Seeded at random through the pore, the surface came out 10-17 A
-     higher at the walls than in the middle, which is the right order for
-     a hemispherical meniscus and was reported as one. Seeded instead on
-     a lattice standing on the floor, the same run gives 0.0 A and stays
-     flat for thousands of steps. A result that depends on the seed is
-     hysteresis, not equilibrium: molecules that happened to land against
-     the wall stuck there and never came down. Treat the shape here as
-     unproven.
+     THE MENISCUS IS CONCAVE, AND IT ANSWERS TO ONE KNOB. With gravity
+     removed and every run started from the same settled seed, the
+     surface height at the wall relative to the centre rises smoothly
+     with the wall's attraction: flat at K_WET 0.010, 9.4 A at 0.048,
+     and past an arc into climbing films at 0.070. That monotonic
+     response is what makes it a contact angle rather than an accident,
+     and it is the same axis as a stem against a waxed windshield.
 
-     THE WHOLE VERTICAL FRAMING IS A FICTION, TOO, and it is worth saying
-     because everything above is built on it. At 3.5 nm the capillary
+     AN EARLIER READING OF THIS WAS WRONG and the reason is worth
+     keeping. Seeded at RANDOM through the pore, the old build reported
+     10-17 A, the right order for a hemispherical meniscus. Seeded on a
+     lattice instead, the identical run gave 0.0 A and stayed flat for
+     thousands of steps: molecules that happened to land against the
+     wall had stuck there and never come down. A number that depends on
+     the seed is hysteresis, not equilibrium. Approaching from a full
+     pore AND an empty one is still the check this has not had.
+
+THERE IS NO GRAVITY HERE, and that is a correction to an earlier
+     version rather than a simplification. At 3.5 nm the capillary
      pressure is ~8e7 Pa and the gravitational pressure across the pore
-     is ~5e-5 Pa, twelve orders of magnitude apart. There is no up in a
-     cell-wall pore: water moves toward the EVAPORATING SURFACE, and in a
-     leaf those pores face the air spaces in every orientation. The
-     floor, the reservoir below it and G exist here to make a column
-     stand still for a camera. They import the dipped-capillary-tube
-     picture, which is the wrong model for a leaf — the lifting happens
-     in the xylem, metres of it, pulled by the tension these menisci
-     generate. This bench shows where the grip is, not where the rope
-     moves.
+     ~5e-5 Pa, twelve orders of magnitude apart. There is no up in a
+     cell-wall pore: water moves toward the EVAPORATING SURFACE, and in
+     a leaf those pores face the air spaces in every orientation. An
+     earlier build had a g strong enough to hold a column down, which
+     drew the dipped-capillary-tube picture — the wrong model for a
+     leaf, where the lifting happens in metres of xylem, pulled by the
+     tension these menisci generate. This bench is where the grip is,
+     not where the rope moves. What holds the liquid now is the wall and
+     its own cohesion, which is the only claim it was ever making.
+
+     The page still draws the pore standing upright, and that is now
+     only a camera angle: nothing in the physics knows which way is up.
 
      IT WAS WRONG FIRST, AND THE FAILURE IS THE USEFUL PART. An earlier
      version put the wall's backstop an angstrom BEHIND the face while
@@ -77,6 +87,15 @@
      Molecule count mattered too. At 300 the free surface was 12 across
      with 2-3 A of thermal roughness, and no measurement of its shape
      meant anything. 900 is the smallest count where a surface is one.
+
+     WATCHING THE FLOW COSTS THE CURVE. Evaporation flattens the
+     meniscus: ~10 A static, and 0-2 A once it is running, at every rate
+     tried that still makes the flow watchable. The surface being drawn
+     down by flux is real. This flux is not — it is orders above a
+     leaf's, set so the tracers visibly move — so the flat surface under
+     Evaporate is an artefact of that choice, not a result. Watch the
+     curve with it OFF and the flow with it ON; this bench cannot
+     currently show both at once, and that is the honest state of it.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -142,7 +161,7 @@ const P  = MolLib.PALETTE;
 const GAP   = nm(3.5);               // wall face to wall face
 const DEPTH = nm(1.5);               // the slab's thickness, ~2 molecules
 const FILL  = nm(5.1);               // how tall the water starts — see the count below
-const FLOOR = -nm(2.4);              // the reservoir below, where the column stands
+const FLOOR = -nm(2.4);              // where water arrives from inside the wall
 
 /* ---- water, from real distances ----
  *  Every one of these is a measured number scaled once. WaterSim.md 4: the
@@ -422,7 +441,13 @@ hbLines.frustumCulled=false; root.add(hbLines);
 /* ============================================================= *
  *  The physics. Same rules as the solvation engine, at real scale.
  * ============================================================= */
-let G=0.0060*A;                 // weight; what a climb would be balanced against
+/* NO GRAVITY TERM. At 3.5 nm the capillary pressure is about 8e7 Pa and the
+   gravitational pressure across the pore about 5e-5 Pa: twelve orders of
+   magnitude, so weight is not a small effect here, it is no effect. A g that
+   competes with wetting would have to be ~1e12 times Earth's, and the column it
+   made would be a picture of a capillary tube in a dish rather than of a cell
+   wall. What holds this liquid in place is the wall and its own cohesion, which
+   is the whole claim, so nothing else may hold it. */
 const DAMP=0.86;
 const JITTER=0.004*A;
 const K_HB=0.030;                 // H-bond spring
@@ -443,8 +468,16 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    behind the surface, and that sum falls off far more slowly than any one pair.
    This is that sum, as a smooth pull toward the face; the drawn dashes still
    come only from real H-bond geometry, so nothing is claimed that is not there. */
-let K_WET=0.010*A;              // per surface atom, summed; not per molecule
-/* K_WET, K_COH, G, K_STERIC and OO_MIN are `let` so the console can sweep them
+/* Calibrated against the meniscus, with gravity gone and every run started
+   from the same settled seed, so the response is the model's and not the
+   seed's. Surface height at the wall minus at the centre, half-gap 17.5 A:
+       0.010 ->  -0.9 A   flat; adhesion and cohesion balanced, ~90 degrees
+       0.030 ->   3.5 A   partly wetting
+       0.048 ->   9.4 A   here; a clear concave meniscus
+       0.070 ->  28.5 A   films climb the walls; complete wetting, past an arc
+   Monotonic, which is what makes it a contact angle rather than an accident. */
+let K_WET=0.048*A;              // per surface atom, summed; not per molecule
+/* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
    without a reload. The contact angle lives in the ratio of the first two, and
    sweeping it is what this bench is for. */
 const WET_REACH=11.0*A;
@@ -457,7 +490,7 @@ const accepted=new Uint8Array(N_WATER), bondedWith=new Int16Array(N_WATER);
 
 function step(){
   const n=waters.length;
-  for(let i=0;i<n;i++) (forces[i]||(forces[i]=new THREE.Vector3())).set(0,-G,0);
+  for(let i=0;i<n;i++) (forces[i]||(forces[i]=new THREE.Vector3())).set(0,0,0);
 
   // --- pairwise: steric floor, then the H-bond that pulls them back together
   let lines=0; hbCount=0; adCount=0;
@@ -567,6 +600,9 @@ function step(){
     if(deep>0) f.x -= side*deep*K_WALL*8;
     const dz=Math.abs(w.p.z)-DEPTH/2;
     if(dz>0) f.z -= Math.sign(w.p.z)*dz*K_WALL;
+    // The supply boundary. Not a floor holding anything up — with no gravity
+    // nothing falls — but the edge of the modelled region, where water comes in
+    // from the rest of the wall and where a molecule fed back in appears.
     if(w.p.y<FLOOR) f.y += (FLOOR-w.p.y)*K_WALL;
     if(Math.abs(w.p.x) < GAP/2-reach) continue;      // too far in to feel a hydroxyl
     for(const site of wallOH){
@@ -626,8 +662,10 @@ function _tumble(w){
 }
 
 /* ---- evaporation, which is the whole point ----
- *  A molecule leaves from the TOP, and only if it is barely bonded, which is
- *  the energy of vaporisation: the bonds go before the molecule does. It then
+ *  A molecule leaves from the free surface, and only if it is weakly bonded,
+ *  which is the energy of vaporisation: the bonds go before the molecule does.
+ *  Two or fewer, against a bulk molecule's three or four — a stricter cut than
+ *  that leaves almost nobody eligible and the flow stops. It then
  *  FLIES OFF, and is only recycled to the bottom once it is out of the frame.
  *
  *  The flying matters. An earlier version teleported it straight from the top
@@ -660,10 +698,25 @@ function evaporate(){
     }
   }
   if(!evaporating) return;
-  if(++evapClock%3) return;            // a few a second, so the flow is watchable
-  let top=null;
-  for(const w of waters) if(!w.gone && w.hb<=1 && (!top||w.p.y>top.p.y)) top=w;
-  if(top){ top.gone=true; top.v.set(0,0,0); evapCount++; }
+  /* Rate is a real trade-off, not a free knob: evaporating flattens the
+     meniscus. Static the surface stands ~10 A higher at the walls; running,
+     it sits at 0-2 A at every rate that still shows visible flow. Flux draws
+     a surface down, which is true, but this flux is orders above a leaf's —
+     it is set to make the flow watchable, and the curve pays for it. */
+  if(++evapClock%9) return;
+  /* Anywhere on the free surface, not the single highest molecule. Taking the
+     top one always takes the water riding up the wall — the meniscus rim is by
+     definition the highest thing there — so evaporating slowly ate the curve
+     and flattened it, which real evaporation does not do. Sample the whole
+     surface instead: barely bonded, and within a molecule or two of the top. */
+  let hi=-Infinity;
+  for(const w of waters) if(!w.gone && w.p.y>hi) hi=w.p.y;
+  const surface=[];
+  for(const w of waters) if(!w.gone && w.hb<=2 && w.p.y>hi-8*A) surface.push(w);
+  if(surface.length){
+    const w=surface[(Math.random()*surface.length)|0];
+    w.gone=true; w.v.set(0,0,0); evapCount++;
+  }
 }
 
 escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
