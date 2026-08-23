@@ -163,6 +163,7 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 </div>
 
 <div id="bar">
+  <button class="pill pill--ghost" id="tint" type="button">Tint</button>
   <button class="pill" id="evap" type="button">Evaporate</button>
   <button class="pill pill--ghost" id="reset" type="button">Reset</button>
 </div>
@@ -404,9 +405,9 @@ function instancedSpheres(list, el){
   pts.forEach((a,i)=>{ M.makeScale(r,r,r).setPosition(a.pos); m.setMatrixAt(i,M); });
   m.instanceMatrix.needsUpdate=true; root.add(m); return m;
 }
-['C','O','H'].forEach(el=>instancedSpheres(wallAtoms,el));
+const wallMeshes=['C','O','H'].map(el=>instancedSpheres(wallAtoms,el)).filter(Boolean);
 
-(function drawWallBonds(){
+const wallBondMesh=(function drawWallBonds(){
   const m=new THREE.InstancedMesh(STICK,
     new THREE.MeshLambertMaterial({color:P.bonds.covalent}), wallBonds.length);
   const M=new THREE.Matrix4(), q=new THREE.Quaternion(), up=new THREE.Vector3(0,1,0);
@@ -418,7 +419,7 @@ function instancedSpheres(list, el){
     M.compose(pa, q, new THREE.Vector3(0.09*A, d.length(), 0.09*A));
     m.setMatrixAt(i,M);
   });
-  m.instanceMatrix.needsUpdate=true; root.add(m);
+  m.instanceMatrix.needsUpdate=true; root.add(m); return m;
 })();
 
 /* ============================================================= *
@@ -963,6 +964,28 @@ document.getElementById('evap').onclick=e=>{
   e.currentTarget.classList.toggle('pill--ghost', !evaporating);
   e.currentTarget.textContent = evaporating ? 'Evaporating' : 'Evaporate';
 };
+/* TINT: one colour for the wall, one for the water, instead of one per element.
+   Element colours answer "what is this atom"; at 500 molecules against 3000 wall
+   atoms the more useful question is "which of the two things am I looking at",
+   and the boundary between them is what the whole page is about. Both tints are
+   palette entries — chloride's green and the H-bond's blue — rather than typed
+   colours, so they cannot drift from the rest of the sandbox.
+
+   The tracers keep their own colour and stay legible, because a labelled water
+   that matches the water around it is not a label. */
+const TINT_WALL=P.atoms.Cl, TINT_WATER=P.bonds.hbond, TINT_TRACER=P.bonds.iondipole;
+const plain=new Map();
+[...wallMeshes, wallBondMesh, oMesh, hMesh, tMesh].forEach(m=>plain.set(m,m.material.color.getHex()));
+let tinted=false;
+document.getElementById('tint').onclick=e=>{
+  tinted=!tinted;
+  const set=(m,c)=>m.material.color.setHex(tinted?c:plain.get(m));
+  wallMeshes.forEach(m=>set(m,TINT_WALL));
+  set(wallBondMesh,TINT_WALL);
+  set(oMesh,TINT_WATER); set(hMesh,TINT_WATER); set(tMesh,TINT_TRACER);
+  e.currentTarget.classList.toggle('pill--ghost',!tinted);
+};
+
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place); evapCount=0; };
 </script>
