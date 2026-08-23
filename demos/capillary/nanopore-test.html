@@ -43,28 +43,36 @@
 
      WATER TRAVELS UP THE CHANNEL, AND THAT IS WHAT THE PAGE IS FOR. It
      starts as a pool at the foot of a DRY pore — bare cellulose above it
-     — and the front then crosses the whole 94 A of pore, films leading
-     up the faces and the body following. Nothing pushes it. The
-     hydroxyls pull, the H-bonds behind them hold, and water is drawn in
-     at the base to replace what left. Adhesion and cohesion doing the
-     only two things they can.
+     — and the front then climbs, as a BODY: over 3000 steps the middle
+     of the channel rises about 15 A and the water at the walls about 23,
+     with the count growing from 490 to 820 as more is drawn in at the
+     base. The wall leads the middle by roughly 17 A, which is the
+     meniscus, and nothing is ejected from the top.
 
-     TWO THINGS HAD TO BE FIXED BEFORE IT WOULD MOVE, and both were
-     missing pieces rather than bad numbers.
+     THREE THINGS HAD TO BE FIXED BEFORE IT WOULD MOVE, and all three
+     were missing pieces rather than bad numbers.
 
      One: it seeded the pore ALREADY FULL. A full glass cannot show
      pouring; the wall above the water has to be dry.
 
-     Two, and this is the one that mattered: THERE WAS NO SUPPLY. A
-     finite pool in a wetting pore has nowhere to go. Its equilibrium is
-     to spread into two thin films and stop, which is exactly what it
-     did, and no amount of turning the wall up changed it — a stronger
-     pull only drained the pool faster. A capillary rises because the
-     tube stands in a bath: as the front climbs, more water is drawn up
-     behind it. The bottom band is now held at liquid density, which
+     Two: THERE WAS NO SUPPLY. A capillary rises because the tube stands
+     in a bath, so the bottom band is now held at liquid density, which
      models the rest of the cell wall as the endless reservoir it
-     effectively is. With that in place the same strong wall pull that
-     used to be a failure is the mechanism.
+     effectively is.
+
+     Three, and this is the one that took longest to see: THERE WAS NO
+     PRESSURE. With those two fixed the wall still only stripped FILMS
+     off the pool — measured across the whole adhesion range, the water
+     at the wall climbed from -7 A to +38 while the middle of the channel
+     never moved at all. Raising adhesion only stripped more; a narrower
+     pore did not help; a shorter-ranged wall did nothing at any strength.
+     The reason is structural. A liquid held only by pair forces is happy
+     to thin out and leave a void, so a wetting wall peels a film off it
+     and the body stays where it is. Real filling is the other way round:
+     the liquid is effectively incompressible, so the curved surface sets
+     up a pressure difference and drags the column behind it. Nothing in
+     a neighbour-force model expresses that, which is why no amount of
+     tuning found it.
 
      AN EARLIER READING OF THIS WAS WRONG and the reason is worth
      keeping. Seeded at RANDOM through the pore, the old build reported
@@ -601,6 +609,32 @@ const cellKey=(x,y,z)=>((Math.floor(x/CELL)+512)*1024+(Math.floor(y/CELL)+512))*
 const NBR_MAX=48;                                  // a water never has this many inside 6.2 A
 const nbr=new Int16Array(N_WATER*NBR_MAX), nbrN=new Int16Array(N_WATER);
 const accepted=new Uint8Array(N_WATER), bondedWith=new Int16Array(N_WATER);
+/* ---- PRESSURE, which is what pair forces alone cannot give you ----
+   A liquid held only by neighbour attraction will happily thin out and leave a
+   void, so a wetting wall strips a film off it and the body never follows. Real
+   filling works the other way round: the liquid is effectively incompressible,
+   so a curved surface sets up a pressure difference and the whole column is
+   dragged along behind it.
+
+   So each molecule carries a local density and a pressure from it, the standard
+   weakly-compressible form: P = K(rho - rho0), NEGATIVE when the liquid is
+   stretched. That negative branch is the entire point — it is tension, the thing
+   that holds a column of water together under pull, and it is what the earlier
+   builds had no way to express. rho0 is measured off the seeded pool rather than
+   typed, so it is whatever this liquid's own bulk density turns out to be. */
+const dens=new Float32Array(N_WATER), press=new Float32Array(N_WATER);
+let RHO0=0;                            // calibrated at first settle, below
+/* Stiffness, and the window is narrow. Below ~0.1 nothing rises; at 0.34 the
+   term outweighs every other force in the model and the liquid tears and jets
+   out of the pore (H-bonds per molecule fall from 2.3 to 0.8, which is the
+   number that catches it). Between those, at 0.22, the front climbs steadily
+   and the liquid stays a liquid at about 1.9 bonds a molecule — lower than the
+   2.6 it sits at unpressurised, because a column being drawn up IS under
+   tension, and stretched water holds fewer bonds. */
+let K_PRESS=0.22;                      // stiffness
+const P_CLAMP=2.2;                     // no runaway tension when a region tears
+const HK=COH_MAX;                      // the kernel's reach, same as cohesion's
+const wDens=d=>{ const t=1-d/HK; return t>0 ? t*t*t : 0; };
 
 let stepNo=0;
 function step(){
@@ -616,7 +650,7 @@ function step(){
      was two thirds of the frame. Counts live in typed arrays rather than a Map
      and a Set of string keys — 180k `i+'|'+j` allocations a frame is most of
      the rest of it. */
-  for(let i=0;i<n;i++){ nbrN[i]=0; accepted[i]=0; }
+  for(let i=0;i<n;i++){ nbrN[i]=0; accepted[i]=0; dens[i]=0; }
 
   cells.clear();
   for(let i=0;i<n;i++){
@@ -641,6 +675,7 @@ function step(){
       if(d>COH_MAX || d<1e-4) continue;
       if(nbrN[i]<NBR_MAX) nbr[i*NBR_MAX+nbrN[i]++]=j;
       if(nbrN[j]<NBR_MAX) nbr[j*NBR_MAX+nbrN[j]++]=i;
+      const wd=wDens(d); dens[i]+=wd; dens[j]+=wd;
       if(d<OO_MIN){
         _u.copy(_v).multiplyScalar((OO_MIN-d)/d*K_STERIC);
         forces[i].add(_u); forces[j].sub(_u);
@@ -658,6 +693,36 @@ function step(){
     }
     }
   }
+  /* rho0 is calibrated off the first settled frames rather than from the
+     warm-up counter, which only advances inside the render loop: a backgrounded
+     tab pauses that, and the page would then run with no pressure at all and
+     no sign of it. */
+  if(RHO0<=0 && stepNo>140) calibrateRho0();
+
+  /* --- pressure, over the neighbours the pair pass just found ---
+     A molecule in bulk sits at rho0 and feels nothing. One in a thinning region
+     is at negative pressure and pulls its neighbours toward it, which is how the
+     body follows a surface that is being drawn away. */
+  if(RHO0>0 && K_PRESS>0){
+    for(let i=0;i<n;i++){
+      if(waters[i].gone){ press[i]=0; continue; }
+      press[i]=Math.max(-P_CLAMP, Math.min(P_CLAMP, K_PRESS*(dens[i]-RHO0)/RHO0));
+    }
+    for(let i=0;i<n;i++){
+      if(waters[i].gone) continue;
+      for(let q=0;q<nbrN[i];q++){
+        const j=nbr[i*NBR_MAX+q];
+        if(j<i || waters[j].gone) continue;
+        _v.subVectors(waters[j].p, waters[i].p);
+        const d=_v.length(); if(d<1e-4) continue;
+        const t=1-d/HK; if(t<=0) continue;
+        // negative pressure -> toward each other; positive -> apart
+        _u.copy(_v).multiplyScalar((press[i]+press[j])*t*t/d);
+        forces[i].add(_u); forces[j].sub(_u);
+      }
+    }
+  }
+
   // --- H-bonds: a donor H reaching a lone pair, one bond per H, two per oxygen
   for(let i=0;i<n;i++){ waters[i].hb=0; bondedWith[i]=-1; }
   for(let i=0;i<n;i++){
@@ -915,6 +980,25 @@ const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
    `atElement` is annotate.js's DOM anchor — see its comment for why a callout
    on chrome is the module's business rather than the page's. */
 
+/* rho0 is the density this liquid actually settles at, read off the pool's
+   INTERIOR: away from the walls, and only molecules with a full complement of
+   neighbours, so a free surface does not drag the figure down. Typing a number
+   here would make every pressure in the model a claim about a constant nobody
+   measured. */
+function calibrateRho0(){
+  const inner=[];
+  for(let i=0;i<waters.length;i++){
+    const w=waters[i];
+    if(w.gone) continue;
+    if(Math.abs(w.p.x)>GAP/2-5*A) continue;          // not against a wall
+    if(nbrN[i]<8) continue;                          // not at a free surface
+    inner.push(dens[i]);
+  }
+  if(inner.length<20) return;                        // too few to mean anything
+  inner.sort((a,b)=>a-b);
+  RHO0=inner[Math.floor(inner.length/2)];            // median, not mean
+}
+
 /* The supply. Counts what is in the bottom band and tops it up toward the
    density a liquid has there, one molecule at a time so nothing is injected
    into an occupied space. */
@@ -1010,6 +1094,7 @@ const KNOBS=[
   {k:'Damping',    get:()=>DAMP,      set:v=>DAMP=v,       min:0.70,max:0.99, step:0.01,  fmt:v=>v.toFixed(2)},
   {k:'Jitter',     get:()=>JITTER/A,  set:v=>JITTER=v*A,   min:0,   max:0.03, step:0.001, fmt:v=>v.toFixed(3)},
   {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
+  {k:'Pressure',   get:()=>K_PRESS,   set:v=>K_PRESS=v,    min:0,   max:1.2,  step:0.02,  fmt:v=>v.toFixed(2)},
 ];
 const knobRows=document.getElementById('knobrows');
 let evapInput=null, evapRow=null;
@@ -1104,7 +1189,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
-  evapCount=0; warmup=WARMUP_STEPS; };
+  evapCount=0; warmup=WARMUP_STEPS; RHO0=0; stepNo=0; };
 </script>
 </body>
 </html>
