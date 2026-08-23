@@ -126,6 +126,19 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
     font:12px/1.6 var(--font-mono);color:var(--muted);white-space:pre;
   }
   #readout b{color:var(--ink);font-weight:600}
+  #knobs{
+    position:absolute;right:20px;top:18px;z-index:5;width:236px;
+    font:11.5px/1.5 var(--font-mono);color:var(--muted);
+    background:color-mix(in srgb, var(--surface-card, #fffdf7) 92%, transparent);
+    border:1px solid var(--hair);border-radius:3px;padding:11px 13px 8px;
+  }
+  #knobs h4{margin:0 0 8px;font:11px/1 var(--font-mono);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink)}
+  #knobs label{display:block;margin:0 0 7px}
+  #knobs .row{display:flex;justify-content:space-between;align-items:baseline}
+  #knobs .row b{color:var(--ink);font-weight:600}
+  #knobs input[type=range]{width:100%;margin:2px 0 0;accent-color:var(--ink)}
+  #knobs .measure{margin-top:9px;padding-top:8px;border-top:1px solid var(--paper-line)}
 </style>
 </head>
 <body>
@@ -133,6 +146,14 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 
 <!-- The bench's numbers, measured off what was built. Nothing here is typed. -->
 <div id="readout"></div>
+
+<!-- The bench's knobs. Everything here is a physics constant except Speed,
+     which is how many steps are taken per drawn frame. -->
+<div id="knobs">
+  <h4>tune</h4>
+  <div id="knobrows"></div>
+  <div class="measure row"><span>climb at wall</span><b id="climb">—</b></div>
+</div>
 
 <div id="bar">
   <button class="pill" id="evap" type="button">Evaporate</button>
@@ -320,14 +341,31 @@ const FLOOR=Math.min(...wallAtoms.map(a=>a.pos.y))+FLOOR_MARGIN;
    nothing here — keeps its real vdW radius. */
 const CONTACT={O:1.25*A, C:1.70*A, H:0.50*A};
 const R_WATER=1.40*A;                       // the water O's radius in these sums
-const BUCKET=6.0*A;
+const BUCKET=3.0*A;   // finer than a water is wide, so a lookup returns few atoms
 const surface=new Map();                    // side|bucket -> [{pos, r}]
 wallAtoms.forEach(a=>{
   const side=Math.sign(a.pos.x);
-  if(side*a.pos.x - GAP/2 > 7.0*A) return;  // deeper than this, nothing can reach it
+  if(side*a.pos.x - GAP/2 > 4.5*A) return;  // deeper than this, nothing can reach it
   const key=side+'|'+Math.floor(a.pos.y/BUCKET);
   (surface.get(key)||surface.set(key,[]).get(key)).push({pos:a.pos, r:CONTACT[a.el]||1.5*A});
 });
+/* The hydroxyls, bucketed by height as well. Scanning all of them for every
+   molecule near a wall was the cost the cell list uncovered: with a tall pore
+   there are hundreds of sites and hundreds of near-wall molecules, and almost
+   every pair is rejected on the first comparison. */
+const ohBuckets=new Map();
+function indexOH(){
+  ohBuckets.clear();
+  for(const site of wallOH){
+    const key=Math.sign(site.o.x)+'|'+Math.floor(site.o.y/BUCKET);
+    const l=ohBuckets.get(key); if(l) l.push(site); else ohBuckets.set(key,[site]);
+  }
+}
+function ohNear(side,y){
+  const b=Math.floor(y/BUCKET), out=[];
+  for(let k=-1;k<=1;k++){ const l=ohBuckets.get(side+'|'+(b+k)); if(l) out.push(l); }
+  return out;
+}
 function surfaceNear(side,y,span){
   const b=Math.floor(y/BUCKET), out=[];
   const n=span||1;
@@ -470,9 +508,9 @@ hbLines.frustumCulled=false; root.add(hbLines);
    made would be a picture of a capillary tube in a dish rather than of a cell
    wall. What holds this liquid in place is the wall and its own cohesion, which
    is the whole claim, so nothing else may hold it. */
-const DAMP=0.86;
-const JITTER=0.004*A;
-const K_HB=0.030;                 // H-bond spring
+let DAMP=0.86;
+let JITTER=0.004*A;
+let K_HB=0.030;                   // H-bond spring
 let K_COH=0.048;                // dispersion, the undirected part of cohesion
 let K_STERIC=0.90;
 const K_WALL=0.20;                // the wall is solid
@@ -507,11 +545,23 @@ const WET_REACH=11.0*A;
 
 let hbCount=0, adCount=0;
 const forces=[];
+/* A CELL LIST, because every pair is not worth asking about. Testing all 405k
+   pairs of 900 molecules cost about 15 ms a step, which made the speed control
+   a lie: eight steps a frame ran at eight frames a second and simulated no more
+   per second than one step a frame did. Molecules further apart than COH_MAX
+   exert nothing, so bin them at that size and only ask about the 27 cells that
+   can reach. The pairs actually tested drop to roughly a tenth. */
+const CELL=COH_MAX;
+const cells=new Map();
+const cellKey=(x,y,z)=>((Math.floor(x/CELL)+512)*1024+(Math.floor(y/CELL)+512))*1024
+                       +(Math.floor(z/CELL)+512);
 const NBR_MAX=48;                                  // a water never has this many inside 6.2 A
 const nbr=new Int16Array(N_WATER*NBR_MAX), nbrN=new Int16Array(N_WATER);
 const accepted=new Uint8Array(N_WATER), bondedWith=new Int16Array(N_WATER);
 
+let stepNo=0;
 function step(){
+  stepNo++;
   const n=waters.length;
   for(let i=0;i<n;i++) (forces[i]||(forces[i]=new THREE.Vector3())).set(0,0,0);
 
@@ -525,10 +575,24 @@ function step(){
      the rest of it. */
   for(let i=0;i<n;i++){ nbrN[i]=0; accepted[i]=0; }
 
+  cells.clear();
   for(let i=0;i<n;i++){
-    for(let j=i+1;j<n;j++){
-      const a=waters[i], b=waters[j];
-      if(a.gone||b.gone) continue;     // it has left the liquid; it is vapour now
+    if(waters[i].gone) continue;
+    const k=cellKey(waters[i].p.x,waters[i].p.y,waters[i].p.z);
+    const c=cells.get(k); if(c) c.push(i); else cells.set(k,[i]);
+  }
+
+  for(let i=0;i<n;i++){
+    const a=waters[i];
+    if(a.gone) continue;
+    const bx=Math.floor(a.p.x/CELL), by=Math.floor(a.p.y/CELL), bz=Math.floor(a.p.z/CELL);
+    for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++) for(let dz=-1;dz<=1;dz++){
+    const c=cells.get(((bx+dx+512)*1024+(by+dy+512))*1024+(bz+dz+512));
+    if(!c) continue;
+    for(let q=0;q<c.length;q++){
+      const j=c[q];
+      if(j<=i) continue;               // each pair once, whichever cell finds it
+      const b=waters[j];
       _v.subVectors(a.p,b.p);
       const d=_v.length();
       if(d>COH_MAX || d<1e-4) continue;
@@ -549,6 +613,7 @@ function step(){
         forces[i].add(_u); forces[j].sub(_u);
       }
     }
+    }
   }
   // --- H-bonds: a donor H reaching a lone pair, one bond per H, two per oxygen
   for(let i=0;i<n;i++){ waters[i].hb=0; bondedWith[i]=-1; }
@@ -559,6 +624,7 @@ function step(){
       for(let q=0;q<nbrN[i];q++){
         const j=nbr[i*NBR_MAX+q];
         const acc=waters[j];
+        if(acc.gone) continue;
         if(accepted[j]>=2) continue;                 // an oxygen has two lone pairs
         if(bondedWith[i]===j) continue;              // and one pair shares one bond
         const dd=don.h[k].distanceTo(acc.o);
@@ -604,15 +670,26 @@ function step(){
        however strongly it was wetted. Pulled toward real atoms, a molecule at
        the top of the column feels the wall ABOVE it too, and climbs — which is
        the meniscus, and then capillary rise, and neither had to be drawn. */
-    if(GAP/2-Math.abs(w.p.x) < WET_REACH && Math.abs(w.p.x) < GAP/2){
-      for(const list of surfaceNear(side,w.p.y,2)) for(const at of list){
-        _v.subVectors(at.pos,w.p);
-        const d=_v.length();
-        if(d>WET_REACH || d<1e-4) continue;
-        const t=1-d/WET_REACH;
-        f.addScaledVector(_v, K_WET*t*t/d);
+    /* Summed over a few hundred wall atoms, and REUSED for a few steps. The
+       wall does not move and a molecule crosses a fraction of an angstrom per
+       step, so recomputing this every step for every molecule was the single
+       most expensive thing in the frame and it returned nearly the same vector
+       each time. Each molecule refreshes on its own step, so the cost is spread
+       and no frame carries all of it. */
+    if(!w.wallF) w.wallF=new THREE.Vector3();
+    if((stepNo+i)%4===0){
+      w.wallF.set(0,0,0);
+      if(GAP/2-Math.abs(w.p.x) < WET_REACH && Math.abs(w.p.x) < GAP/2){
+        for(const list of surfaceNear(side,w.p.y,4)) for(const at of list){
+          _v.subVectors(at.pos,w.p);
+          const d=_v.length();
+          if(d>WET_REACH || d<1e-4) continue;
+          const t=1-d/WET_REACH;
+          w.wallF.addScaledVector(_v, K_WET*t*t/d);
+        }
       }
     }
+    f.add(w.wallF);
     /* THE FACE IS THE LIMIT. This backstop used to sit an angstrom BEHIND the
        face, and with the steric list only holding atoms near the surface, a
        molecule that got past the outermost ones found nothing behind them and
@@ -628,7 +705,7 @@ function step(){
     // from the rest of the wall and where a molecule fed back in appears.
     if(w.p.y<FLOOR) f.y += (FLOOR-w.p.y)*K_WALL;
     if(Math.abs(w.p.x) < GAP/2-reach) continue;      // too far in to feel a hydroxyl
-    for(const site of wallOH){
+    for(const list of ohNear(side,w.p.y)) for(const site of list){
       if(Math.abs(site.o.z-w.p.z)>reach) continue;
       if(Math.abs(site.o.y-w.p.y)>reach) continue;
       _v.subVectors(site.o,w.p);
@@ -709,6 +786,7 @@ let evaporating=false;
 const ESCAPE_V=0.5*A;
 let escapeTop=0;                       // set from the wall's height, below
 let evapClock=0, evapCount=0;
+let EVAP_EVERY=9;                      // frames between one molecule leaving
 function evaporate(){
   // molecules already on their way out: no bonds, no gravity, just going
   for(const w of waters){
@@ -726,7 +804,7 @@ function evaporate(){
      it sits at 0-2 A at every rate that still shows visible flow. Flux draws
      a surface down, which is true, but this flux is orders above a leaf's —
      it is set to make the flow watchable, and the curve pays for it. */
-  if(++evapClock%9) return;
+  if(++evapClock%EVAP_EVERY) return;
   /* Anywhere on the free surface, not the single highest molecule. Taking the
      top one always takes the water riding up the wall — the meniscus rim is by
      definition the highest thing there — so evaporating slowly ate the curve
@@ -742,6 +820,7 @@ function evaporate(){
   }
 }
 
+indexOH();
 escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
 
 /* ============================================================= *
@@ -778,12 +857,60 @@ function report(){
   + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight`;
 }
 
+let SPEED=1;                           // physics steps per drawn frame
 function loop(){
   requestAnimationFrame(loop);
-  step(); evaporate(); draw();
-  if((frames++ & 7)===0) report();
+  /* Speed is steps per FRAME, not a bigger timestep. Scaling the timestep
+     instead would let molecules jump through each other and through the wall,
+     and the settling distances this page reports would stop being the model's.
+     More steps is just watching the same physics from further along. */
+  for(let k=0;k<SPEED;k++){ step(); evaporate(); }
+  draw();
+  if((frames++ & 7)===0){ report(); reportClimb(); }
   renderer.render(scene,camera);
 }
+/* Each knob names the variable it drives, so the panel cannot drift from the
+   physics: the getter and setter are the only place the value lives. */
+const KNOBS=[
+  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x'},
+  {k:'Wall pull',  get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3)},
+  {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3)},
+  {k:'H-bond',     get:()=>K_HB,      set:v=>K_HB=v,       min:0,   max:0.09, step:0.002, fmt:v=>v.toFixed(3)},
+  {k:'Damping',    get:()=>DAMP,      set:v=>DAMP=v,       min:0.70,max:0.99, step:0.01,  fmt:v=>v.toFixed(2)},
+  {k:'Jitter',     get:()=>JITTER/A,  set:v=>JITTER=v*A,   min:0,   max:0.03, step:0.001, fmt:v=>v.toFixed(3)},
+  {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
+  {k:'Evap every', get:()=>EVAP_EVERY,set:v=>EVAP_EVERY=v, min:1,   max:60,   step:1,     fmt:v=>v+' fr'},
+];
+const knobRows=document.getElementById('knobrows');
+KNOBS.forEach(kn=>{
+  const l=document.createElement('label');
+  l.innerHTML=`<span class="row"><span>${kn.k}</span><b></b></span>`
+            + `<input type="range" min="${kn.min}" max="${kn.max}" step="${kn.step}">`;
+  const out=l.querySelector('b'), input=l.querySelector('input');
+  input.value=kn.get();
+  out.textContent=kn.fmt(kn.get());
+  input.oninput=()=>{ const v=parseFloat(input.value); kn.set(v); out.textContent=kn.fmt(v); };
+  knobRows.appendChild(l);
+});
+
+/* The number the knobs are being turned against: how much higher the water
+   stands at the wall than in the middle. Measured off the molecules, so the
+   panel reports the model rather than the setting. */
+function topAt(bin){
+  const ys=[];
+  for(const w of waters){ if(w.gone) continue;
+    if(Math.round(Math.abs(w.p.x)/A/4)*4===bin) ys.push(w.p.y/A); }
+  if(!ys.length) return null;
+  ys.sort((a,b)=>b-a);
+  const n=Math.max(1,Math.round(ys.length*0.1));
+  return ys.slice(0,n).reduce((a,b)=>a+b,0)/n;
+}
+const climbEl=document.getElementById('climb');
+function reportClimb(){
+  const wall=topAt(16), mid=topAt(0);
+  climbEl.textContent=(wall==null||mid==null)?'—':(wall-mid).toFixed(1)+' \u00c5';
+}
+
 resize(); applyCam(); loop();
 new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
