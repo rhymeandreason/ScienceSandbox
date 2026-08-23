@@ -783,7 +783,13 @@ function drawLedger(){
     // makes, and a row that disappears cannot make it. Gating it on branchHas
     // would be a no-op dressed as a decision — both branches declare `made:0`.
     +`<div class="row prod"><span>ATP made</span><span class="v" data-row="made">${L.made}</span></div>`
-    +(branchHas('carbonOut')
+    /* THE BYPRODUCT ROWS ARRIVE WHEN THEY HAVE SOMETHING TO SAY. "CO₂ out 0"
+     * before the decarboxylation is the same defect as the net row was: a zero
+     * that reads as a fact when it is a not-yet. The two balance rows above are
+     * different and stay from the first frame — the debt has to be visible for
+     * the repayment to mean anything, and watching "+0" fill to "+2" IS the
+     * lesson. */
+    +(branchHas('carbonOut') && L.carbonOut
       ? `<div class="row"><span>CO₂ out</span><span class="v${bumped('carbonOut')}" data-row="carbonOut">${L.carbonOut}</span></div>` : '')
     +(carbonsMove()
       ? `<div class="row carb"><span>Carbons</span><span class="v">${c}</span></div>` : '');
