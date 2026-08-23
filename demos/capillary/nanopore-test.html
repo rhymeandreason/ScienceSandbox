@@ -492,6 +492,10 @@ function makeWater(p){
    the first frames and the only motion is the wetting. */
 function seed(){
   waters.length=0;
+  /* At contact, not inside it. The layers used to be stacked at 0.92 of this,
+     which is 2.62 A against a 2.70 floor, so the pool was born with 445 pairs
+     already overlapping and the first frames were the liquid shoving itself
+     apart — visible as a bounce before anything else had happened. */
   const d=2.85*A;                                     // liquid spacing, near O...O
   const nx=Math.max(1,Math.floor((GAP-2*R_WATER)/d)), nz=Math.max(1,Math.floor(DEPTH/d));
   /* SEEDED WITH THE CURVE ALREADY IN IT. A flat-topped lattice has to grow its
@@ -504,7 +508,7 @@ function seed(){
   const CURVE=11*A;                                   // how much lower the middle starts
   const sites=[];
   for(let lay=0;lay<80;lay++) for(let c=0;c<nx;c++) for(let r=0;r<nz;r++){
-    const x=(c-(nx-1)/2)*d, y=FLOOR+1.2*A+lay*d*0.92, z=(r-(nz-1)/2)*d;
+    const x=(c-(nx-1)/2)*d, y=FLOOR+1.2*A+lay*OO_EQ, z=(r-(nz-1)/2)*d;
     const t=Math.abs(x)/(GAP/2);
     sites.push({x, y, z, rank:y-CURVE*t*t});
   }
@@ -1078,8 +1082,29 @@ function step(){
    Left at the old pair until someone decides which of the two numbers this
    bench would rather be right about. */
 let STERIC_PASSES=4, STERIC_FIX=0.6;
+/* BOTH OFF, and the reason is a finding rather than a preference. A pair
+   constraint that also corrects velocity is the textbook way to do this, in
+   either form — feed the correction back (STERIC_VFB) or stop the closing
+   approach (STERIC_VDAMP). Both work exactly as advertised: the liquid goes
+   quiet, bulk speed falls to 0.1-0.3 A a step, and bonds per molecule rise from
+   2.0 to 3.0, the closest this bench has been to a real 3.6.
+
+   And the column stops dead. At any setting above about 0.2, either one, the
+   pool sits at its 420 molecules and neither the middle nor the wall moves in
+   1500 steps. What it buys the bond count it takes from the wetting: the liquid
+   settles at 9 neighbours inside 3.4 A, denser than it was, and a compacted
+   liquid does not climb.
+
+   So this bench cannot presently have both, and the climb is what it is for.
+   Left at zero, sweepable from the console, and the pair worth revisiting if
+   the pressure drive is ever rebuilt as a density constraint rather than a
+   force — which is the version of this where the two stop fighting. */
+let STERIC_VFB=0;                 // how much of the correction the velocity keeps
+let STERIC_VDAMP=0;               // and how much of a closing approach a contact stops
+const corr=[];
 function separate(){
   const n=waters.length;
+  for(let i=0;i<n;i++) (corr[i]||(corr[i]=new THREE.Vector3())).set(0,0,0);
   for(let pass=0;pass<STERIC_PASSES;pass++){
     for(let i=0;i<n;i++){
       const a=waters[i];
@@ -1094,6 +1119,19 @@ function separate(){
         if(d>=OO_MIN || d<1e-4) continue;
         _v.multiplyScalar((OO_MIN-d)*0.5*STERIC_FIX/d);
         a.p.add(_v); b.p.sub(_v);
+        corr[i].add(_v); corr[j].sub(_v);
+        /* Inelastic contact, on the first pass only: two molecules driven into
+           each other stop approaching, the way a collision works. Only the
+           closing component along the contact goes, so a pair being carried
+           along together keeps its motion. */
+        if(pass===0 && STERIC_VDAMP>0){
+          _t1.copy(_v).normalize();
+          const clos=_t1.dot(_t2.subVectors(a.v,b.v));
+          if(clos<0){
+            _t1.multiplyScalar(clos*0.5*STERIC_VDAMP);
+            a.v.sub(_t1); b.v.add(_t1);
+          }
+        }
       }
     }
   }
@@ -1102,8 +1140,23 @@ function separate(){
     if(!w||w.gone) continue;
     /* A pair pushed apart at the wall must not be pushed INTO it: the face is
        the limit here as it is everywhere else on this page. */
+    /* A HARD STOP HAS TO STOP THE VELOCITY TOO. Clamping x and leaving v alone
+       let a molecule held against the face keep accelerating into it every step
+       while never moving, and the bulk average ran to 0.95 A a step against a
+       liquid that moves at 0.3 — which is the bouncing, and it came from here
+       rather than from the pair constraint. */
     const lim=GAP/2-R_WATER;
-    if(w.p.x> lim) w.p.x= lim; else if(w.p.x<-lim) w.p.x=-lim;
+    if(w.p.x> lim){ w.p.x= lim; if(w.v.x>0) w.v.x=0; }
+    else if(w.p.x<-lim){ w.p.x=-lim; if(w.v.x<0) w.v.x=0; }
+    /* THE VELOCITY HAS TO KNOW IT WAS STOPPED. Leaving it alone looked like the
+       careful choice and was the opposite: a molecule pressed into its
+       neighbours kept accelerating inward every step while the constraint kept
+       putting it back, so it carried an inward velocity it never got to spend —
+       bulk speed ran to 0.95 A a step where the liquid actually moves at 0.3 —
+       and the moment its neighbours drifted it fired. That is the bouncing.
+       Velocity here is what the molecule ACTUALLY moved, correction included.
+       Off by default, and the note by STERIC_VFB says what it costs. */
+    w.v.addScaledVector(corr[i], STERIC_VFB);
     place(w);
   }
 }
