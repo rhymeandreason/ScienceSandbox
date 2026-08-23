@@ -88,7 +88,13 @@ const KNOWN_ABSENT = {
 
 let fails = 0;
 const fail = (what, msg) => { fails++; console.log(`  FAIL  ${what}: ${msg}`); };
-const ok = msg => console.log(`  ok    ${msg}`);
+// PRINTS, and only prints. Most checkers in this repo spell `ok` the other way
+// round — ok(cond, what) — so a check written that way here would hand a
+// CONDITION to a message parameter and pass forever while asserting nothing.
+// Refuse the second argument rather than swallow it; use `is` below.
+const ok = (msg, ...extra) => { if(extra.length) throw new Error(
+  'ok() takes a message, not a condition — use is(cond, msg)'); console.log(`  ok    ${msg}`); };
+const is = (cond, msg, what) => cond ? ok(msg) : fail(what||msg, msg);
 
 /* ---- 1. PATHS ------------------------------------------------------ */
 console.log('\n== 1. files named in docs exist');

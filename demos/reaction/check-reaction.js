@@ -37,9 +37,12 @@ const SRC = fs.readFileSync(path.join(HERE, 'reaction.js'), 'utf8');
 
 let fails = 0;
 const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
-const ok = m => console.log(`  ok    ${m}`);
-// ok() only PRINTS — it takes a message, not a condition, and a check written as
-// ok(cond, msg) passes forever while asserting nothing. This is the asserting one.
+// PRINTS, and only prints. Most checkers in this repo spell `ok` the other way
+// round — ok(cond, what) — so a check written that way here would hand a
+// CONDITION to a message parameter and pass forever while asserting nothing.
+// Refuse the second argument rather than swallow it; use `is` below.
+const ok = (m, ...extra) => { if(extra.length) throw new Error(
+  'ok() takes a message, not a condition — use is(cond, msg)'); console.log(`  ok    ${m}`); };
 const is = (cond, m) => cond ? ok(m) : fail(m);
 
 /* ---- the verb table, read out of the source ------------------------- */

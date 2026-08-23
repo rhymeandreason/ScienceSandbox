@@ -15,7 +15,13 @@ const Pump = require('./pump.js');
 
 let bad = 0;
 const fail = m => { console.error('  FAIL  ' + m); bad++; };
-const ok   = m => console.log('  ok    ' + m);
+// PRINTS, and only prints. Most checkers in this repo spell `ok` the other way
+// round — ok(cond, what) — so a check written that way here would hand a
+// CONDITION to a message parameter and pass forever while asserting nothing.
+// Refuse the second argument rather than swallow it; use `is` below.
+const ok   = (m, ...extra) => { if(extra.length) throw new Error(
+  'ok() takes a message, not a condition — use is(cond, msg)'); console.log('  ok    ' + m); };
+const is   = (cond, m) => cond ? ok(m) : fail(m);
 
 /* ---- 1. the invariant, over the whole cycle ---- */
 console.log('== 1. gates, cargo and continuity over the cycle');
