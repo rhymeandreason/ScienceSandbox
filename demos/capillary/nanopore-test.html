@@ -1151,6 +1151,16 @@ function loop(){
 }
 /* Each knob names the variable it drives, so the panel cannot drift from the
    physics: the getter and setter are the only place the value lives. */
+/* NOT DAMPING AND NOT JITTER, and the reason is that they are not two things.
+   Drag and the noise that balances it are locked together by
+   fluctuation-dissipation, and their ratio IS the temperature, so most
+   positions of the pair are no temperature at all. Neither did what its name
+   said either: a stranded molecule at the Jitter slider's maximum, with damping
+   off, covered 1.3 A in 35 steps against the liquid's 0.48 A a step, so no
+   setting of it reached thermal motion; and damping is the liquid's viscosity,
+   which is not what this page is about. They stay `let` for the console to
+   sweep, which is what a bench wants anyway. The knob they are both reaching
+   for is one temperature, and that needs a model that has one. */
 const KNOBS=[
   /* THE THREE THAT TEACH. Capillary action is a competition between water
      holding the wall and water holding itself, so adhesion and cohesion are the
@@ -1162,8 +1172,6 @@ const KNOBS=[
   {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
   {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
   {k:'H-bond',     get:()=>K_HB,      set:v=>K_HB=v,       min:0,   max:0.09, step:0.002, fmt:v=>v.toFixed(3)},
-  {k:'Damping',    get:()=>DAMP,      set:v=>DAMP=v,       min:0.70,max:0.99, step:0.01,  fmt:v=>v.toFixed(2)},
-  {k:'Jitter',     get:()=>JITTER/A,  set:v=>JITTER=v*A,   min:0,   max:0.03, step:0.001, fmt:v=>v.toFixed(3)},
   {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
   {k:'Pressure',   get:()=>K_PRESS,   set:v=>K_PRESS=v,    min:0,   max:1.2,  step:0.02,  fmt:v=>v.toFixed(2)},
   {k:'Bath',       get:()=>P_BATH,    set:v=>P_BATH=v,     min:0,   max:0.30, step:0.01,  fmt:v=>v.toFixed(2)},
