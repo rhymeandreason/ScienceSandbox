@@ -1133,24 +1133,13 @@ function report(){
 }
 
 let SPEED=1;                           // physics steps per drawn frame
-/* WARM-UP. The seed is a lattice with a flat top, so the meniscus has to form,
-   and for the first second or so the page shows a shape that is not its answer.
-   A student reads whatever is on screen when they arrive as the result, so the
-   settling runs at speed on load and then hands over. It is not a fast forward
-   past anything: the same steps happen, just before the first proper look. */
-const WARMUP_STEPS=200;
-let warmup=WARMUP_STEPS;
+/* NO WARM-UP. The seed is a lattice, so the first second is the meniscus
+   forming rather than the answer, and an earlier version ran those 200 steps
+   before the first paint so a student would not read the lattice as the result.
+   It is drawn from the first step instead: the settle is worth watching, and
+   hiding it hides the only frames that show the surface being made. */
 function loop(){
   requestAnimationFrame(loop);
-  if(warmup>0){
-    const burst=Math.min(warmup,14);   // a frame's worth, so the page stays live
-    /* evaporate() runs here too, and not because anything is evaporating: with
-       the rate at zero its only job is recycling a molecule that has left the
-       frame, and leaving it out made the warm-up a different loop from the one
-       it hands over to. */
-    for(let k=0;k<burst;k++){ step(); supply(); evaporate(); }
-    warmup-=burst;
-  }
   /* Speed is steps per FRAME, not a bigger timestep. Scaling the timestep
      instead would let molecules jump through each other and through the wall,
      and the settling distances this page reports would stop being the model's.
@@ -1290,7 +1279,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
-  evapCount=0; condensed=0; warmup=WARMUP_STEPS; RHO0=0; stepNo=0; };
+  evapCount=0; condensed=0; RHO0=0; stepNo=0; };
 </script>
 </body>
 </html>
