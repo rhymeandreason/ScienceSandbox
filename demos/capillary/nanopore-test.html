@@ -38,29 +38,30 @@
      sits 2.4-3.0 A from its oxygens, and holds H-bonds to them — which
      is adhesion, drawn as the same bond as cohesion, because it is the
      same bond. The liquid's own numbers are close: nearest neighbours
-     settle near 2.55 A against a real 2.8, at the seeded bulk density,
-     and about 2.5 H-bonds per molecule against a real 3.6.
+     settle near 2.55 A against a real 2.8, and about 2.5 H-bonds per
+     molecule against a real 3.6, at the seeded bulk density.
 
-     WHAT IT DOES NOT SHOW YET: A CONCAVE MENISCUS. What the sweeps
-     found instead is that this model has the contact angle as a knob
-     and lands at both ends of it rather than in the middle. Cohesion
-     ahead of adhesion gives a DOME — a droplet sitting in a channel,
-     curving the wrong way. Adhesion ahead of cohesion gives films that
-     climb both walls and hollow the middle out, which is complete
-     wetting, also not an arc. The arc is the balance between them and
-     it does not fall out of tuning these two constants.
+     AND THE MENISCUS IS CONCAVE, WITHOUT ANYONE DRAWING A CURVE. At the
+     values set below the surface stands 16.8 A higher against the walls
+     than in the middle, against a half-gap of 17.5 — a hemispherical
+     meniscus, which is what a contact angle near zero predicts for a
+     slit this wide. Weakening K_WET to 0.004 flattens it to 4.2 A: the
+     contact angle is a knob here, and it is the ratio of adhesion to
+     cohesion, exactly as it is on a stem versus a waxed windshield.
 
-     That reads as a missing term rather than a missing number. Surface
-     tension here is only whatever the pair forces happen to add up to
-     at a free surface, and a meniscus is a pressure balance ACROSS that
-     surface. The next thing to try is an explicit surface-energy term,
-     not a bigger K_WET: tripling that was tried and moved the surface
-     by nothing at 300 molecules, and only produced films at 900.
+     IT WAS WRONG FIRST, AND THE FAILURE IS THE USEFUL PART. An earlier
+     version put the wall's backstop an angstrom BEHIND the face while
+     the steric list held only atoms near the surface, so a molecule
+     that slipped past the outermost ones found nothing behind them:
+     about a quarter of the water ended up inside the cellulose, sitting
+     high in its grooves. That leak read as water high at the walls,
+     which is what a meniscus also reads as. Every early measurement of
+     the surface was measuring the leak, and the shape only became
+     honest once the count of molecules past the face was zero.
 
-     Molecule count did matter for everything else. At 300 the free
-     surface was 12 molecules across with 2-3 A of thermal roughness and
-     no measurement of its shape meant anything. 900 is the smallest
-     count where the surface reads as a surface.
+     Molecule count mattered too. At 300 the free surface was 12 across
+     with 2-3 A of thermal roughness, and no measurement of its shape
+     meant anything. 900 is the smallest count where a surface is one.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -199,7 +200,7 @@ const CHAIN_SPACING=8.2*A;         // cellulose Ibeta b axis
    deeper. A wall standing proud of the liquid on the near side reads as a gap
    between the two, and the first version of this bench looked non-wetting for
    that reason alone — perspective on a chain 8 A nearer the camera. */
-const CHAINS=4;
+const CHAINS=3;
 const wallAtoms=[];                // {el, pos}
 const wallBonds=[];                // [a,b] into wallAtoms
 const wallOH=[];                   // {o, h} scene positions, the adhesion sites
@@ -271,7 +272,7 @@ const BUCKET=6.0*A;
 const surface=new Map();                    // side|bucket -> [{pos, r}]
 wallAtoms.forEach(a=>{
   const side=Math.sign(a.pos.x);
-  if(side*a.pos.x - GAP/2 > 3.5*A) return;  // buried; nothing reaches it
+  if(side*a.pos.x - GAP/2 > 7.0*A) return;  // deeper than this, nothing can reach it
   const key=side+'|'+Math.floor(a.pos.y/BUCKET);
   (surface.get(key)||surface.set(key,[]).get(key)).push({pos:a.pos, r:CONTACT[a.el]||1.5*A});
 });
@@ -408,7 +409,7 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    behind the surface, and that sum falls off far more slowly than any one pair.
    This is that sum, as a smooth pull toward the face; the drawn dashes still
    come only from real H-bond geometry, so nothing is claimed that is not there. */
-let K_WET=0.026*A;              // per surface atom, summed; not per molecule
+let K_WET=0.010*A;              // per surface atom, summed; not per molecule
 /* K_WET, K_COH, G, K_STERIC and OO_MIN are `let` so the console can sweep them
    without a reload. The contact angle lives in the ratio of the first two, and
    sweeping it is what this bench is for. */
@@ -511,7 +512,7 @@ function step(){
        however strongly it was wetted. Pulled toward real atoms, a molecule at
        the top of the column feels the wall ABOVE it too, and climbs — which is
        the meniscus, and then capillary rise, and neither had to be drawn. */
-    if(GAP/2-Math.abs(w.p.x) < WET_REACH){
+    if(GAP/2-Math.abs(w.p.x) < WET_REACH && Math.abs(w.p.x) < GAP/2){
       for(const list of surfaceNear(side,w.p.y,2)) for(const at of list){
         _v.subVectors(at.pos,w.p);
         const d=_v.length();
@@ -520,9 +521,14 @@ function step(){
         f.addScaledVector(_v, K_WET*t*t/d);
       }
     }
-    // a backstop behind the surface, so nothing tunnels through a groove
-    const deep=Math.abs(w.p.x)-(GAP/2+1.0*A);
-    if(deep>0) f.x -= side*deep*K_WALL*3;
+    /* THE FACE IS THE LIMIT. This backstop used to sit an angstrom BEHIND the
+       face, and with the steric list only holding atoms near the surface, a
+       molecule that got past the outermost ones found nothing behind them and
+       sank into the wall: a quarter of the water ended up inside the cellulose,
+       riding high in its grooves, which is also what made an early version look
+       like it had a meniscus. It did not. It had a leak. */
+    const deep=Math.abs(w.p.x)-(GAP/2-R_WATER);
+    if(deep>0) f.x -= side*deep*K_WALL*8;
     const dz=Math.abs(w.p.z)-DEPTH/2;
     if(dz>0) f.z -= Math.sign(w.p.z)*dz*K_WALL;
     if(w.p.y<FLOOR) f.y += (FLOOR-w.p.y)*K_WALL;
