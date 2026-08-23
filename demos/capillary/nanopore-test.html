@@ -562,9 +562,11 @@ hbLines.frustumCulled=false; root.add(hbLines);
    wall. What holds this liquid in place is the wall and its own cohesion, which
    is the whole claim, so nothing else may hold it. */
 let DAMP=0.93;                    // light: a front that has to travel needs to keep moving
-/* The liquid's own mean speed, measured off a settled run rather than typed.
-   Vapour carries the same, because it is the same temperature. */
-let V_VAPOUR=0.30*A;
+/* How long a molecule may stand alone in the channel before it is put back in
+   the reservoir. 40 steps is long enough that a surface molecule flickering
+   free is left alone, short enough that nothing is seen hanging. */
+const VAP_DWELL=40;
+let condensed=0;
 let JITTER=0.004*A;
 let K_HB=0.030;                   // H-bond spring
 let K_COH=0.108;                // dispersion, the undirected part of cohesion
@@ -871,30 +873,35 @@ function step(){
     forces[i].x += (Math.random()-0.5)*JITTER;
     forces[i].y += (Math.random()-0.5)*JITTER;
     forces[i].z += (Math.random()-0.5)*JITTER;
-    /* A molecule in the void is VAPOUR, and vapour is the FASTEST thing on
-       screen, not the slowest: same kT as the liquid, no neighbours to give the
-       energy to. Damping alone left these hanging motionless in the middle of
-       the channel — measured at 0.02-0.13 A a step against the liquid's 0.30 —
-       because a lone pair of molecules feels almost no force and keeps none of
-       its speed. Undamped is not enough either: nothing puts energy back, so
-       one that arrives slow stays slow. So it flies, at the speed its
-       temperature says, until it hits the liquid or leaves the frame.
-       Free flight is only honest where there is genuinely nothing in range:
-       two neighbours is still a cluster, and rescaling that one's velocity
-       would be heating the liquid's own surface. */
+    /* THERE IS NO VAPOUR IN THIS PORE, and that is the honest statement of it.
+       Saturated water vapour is about 1e-5 of the liquid's density, so a 3.5 nm
+       channel holds a hundredth of a molecule: any free molecule standing in
+       the middle of it is a modelling artefact, not a thing a student should be
+       looking at. The ones that hung there motionless — 0.02-0.13 A a step
+       against the liquid's 0.30 — were a lone PAIR, feeling almost no force and
+       damped to a stop, which the old gate missed by exempting only the
+       completely isolated.
+
+       Kicking them to thermal speed instead was worse. It is a second
+       evaporation channel with no rate control: molecules left the top with
+       Evaporation off, and near the wall each one was flung, caught by the
+       wall's pull, stripped again and re-kicked, which is the hopping.
+
+       So a molecule that comes fully off the liquid is not damped — vapour has
+       no viscosity — and if it stays off, it goes back to the reservoir at the
+       base. That is condensation, and in saturated air it is exactly what
+       happens to every molecule that leaves. The ones evaporate() has marked
+       are untouched: those are the flux, and being seen to go is their job. */
     w.v.add(forces[i]);
-    const vapour = nbrN[i]<=2 && w.hb===0;
-    if(vapour){
-      /* ONE KICK AS IT LEAVES, not a speed held from outside. Clamping a
-         vapour molecule to thermal speed every step pumps energy in: measured,
-         it threw stragglers 44 A up the dry wall and left them stuck there,
-         which reads as a film climbing and is an artefact of the clamp. A
-         molecule that loses its last bond gets a single Maxwell draw, which is
-         what desorption is, and then flies free. */
-      if(!w.vap){ w.vap=1;
-        w.v.copy(_v.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5)
-                    .normalize().multiplyScalar(V_VAPOUR)); }
-    } else { w.vap=0; w.v.multiplyScalar(DAMP); }
+    if(nbrN[i]===0 && w.hb===0) w.vap=(w.vap||0)+1;   // undamped: nothing to damp against
+    else { w.vap=0; w.v.multiplyScalar(DAMP); }
+    if(w.vap>VAP_DWELL && !w.gone){
+      /* Dwell first, because a molecule at the top of a rising front is briefly
+         free every few steps and hauling that one to the base would be moving
+         the liquid's own surface around. */
+      w.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR+0.4*A, (Math.random()-0.5)*DEPTH);
+      w.v.set(0,0,0); w.vap=0; condensed++;
+    }
     w.p.add(w.v);
     w.q.multiply(_tumble(w));
     place(w);
@@ -1279,7 +1286,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
-  evapCount=0; warmup=WARMUP_STEPS; RHO0=0; stepNo=0; };
+  evapCount=0; condensed=0; warmup=WARMUP_STEPS; RHO0=0; stepNo=0; };
 </script>
 </body>
 </html>
