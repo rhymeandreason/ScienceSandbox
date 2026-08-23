@@ -41,13 +41,23 @@
      settle near 2.55 A against a real 2.8, and about 2.5 H-bonds per
      molecule against a real 3.6, at the seeded bulk density.
 
-     THE MENISCUS IS CONCAVE, AND IT ANSWERS TO ONE KNOB. With gravity
-     removed and every run started from the same settled seed, the
-     surface height at the wall relative to the centre rises smoothly
-     with the wall's attraction: flat at K_WET 0.010, 9.4 A at 0.048,
-     and past an arc into climbing films at 0.070. That monotonic
-     response is what makes it a contact angle rather than an accident,
-     and it is the same axis as a stem against a waxed windshield.
+     WATER CLIMBS THE WALLS, AND THAT IS WHAT THE PAGE IS FOR. The run
+     starts as a pool at the bottom of a DRY pore — bare cellulose above
+     it — so climbing is a result and not a setup. The water then rides
+     up both faces, standing about 9 A higher against the wall than in
+     the middle at the value set below, dragging the pool's surface into
+     a concave front. Nothing pushes it: the hydroxyls pull, the H-bonds
+     behind it hold, and the body follows its own edge. That is adhesion
+     and cohesion doing the only two things they can.
+
+     An earlier build could never have shown it, and the reason is worth
+     keeping: it seeded the pore ALREADY FULL. A full glass cannot show
+     pouring. The wall above the water has to be dry.
+
+     How far it climbs answers to one knob, the wall's attraction, and
+     it is the same axis as a stem against a waxed windshield. Turned up
+     it goes past a climb into complete wetting: the pool drains itself
+     into two wall films and leaves a bridge across the middle.
 
      AN EARLIER READING OF THIS WAS WRONG and the reason is worth
      keeping. Seeded at RANDOM through the pore, the old build reported
@@ -159,9 +169,14 @@ const P  = MolLib.PALETTE;
  *  rather than a column.
  */
 const GAP   = nm(3.5);               // wall face to wall face
-const DEPTH = nm(1.5);               // the slab's thickness, ~2 molecules
-const FILL  = nm(5.1);               // how tall the water starts — see the count below
-const FLOOR = -nm(2.4);              // where water arrives from inside the wall
+/* The slab is DEEP for a reason that is not chemistry. The water starts as a
+   pool at the bottom of a dry pore and has to climb, so it needs to be short
+   against a tall wall — and a pool's height is its molecule count divided by
+   its cross-section. Widening the pore is not available (3.5 nm is the claim),
+   so the depth carries it: at this thickness 900 molecules stand about 50 A
+   deep in a pore 125 A tall, and there is somewhere to climb to. */
+const DEPTH = nm(2.5);
+const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom edge
 
 /* ---- water, from real distances ----
  *  Every one of these is a measured number scaled once. WaterSim.md 4: the
@@ -185,7 +200,7 @@ const COH_MAX = 6.20*A;              // how far the weak, undirected pull reache
  * ============================================================= */
 const canvas=document.getElementById('gl');
 const {scene,camera,renderer,root,cam,applyCam,resize}=
-  Stage.create(canvas,{cam:{theta:0, phi:Math.PI/2, r:nm(11)}, rMax:nm(40)});
+  Stage.create(canvas,{cam:{theta:0, phi:Math.PI/2, r:nm(19)}, rMax:nm(60)});
 
 /* ============================================================= *
  *  THE WALLS — cellulose, repeated from the checked linkage
@@ -193,7 +208,7 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=
 const V3=(p)=>new THREE.Vector3(p[0],p[1],p[2]);
 const cello=MolLib.MOLECULES.cellobiose;
 const screw=ChainRepeat.screwOf(cello, ['O5','C1','C4'], 'A','B');
-const CHAIN_N=14;                                   // residues; ~5.2 A each
+const CHAIN_N=24;                                   // residues; ~5.2 A each, ~125 A of wall
 const chain=ChainRepeat.extend(cello, screw, CHAIN_N, 'A');
 
 /* The chain comes out along the screw's own axis, wherever that points. Turn
@@ -234,7 +249,7 @@ const CHAIN_SPACING=8.2*A;         // cellulose Ibeta b axis
    deeper. A wall standing proud of the liquid on the near side reads as a gap
    between the two, and the first version of this bench looked non-wetting for
    that reason alone — perspective on a chain 8 A nearer the camera. */
-const CHAINS=3;
+const CHAINS=4;
 const wallAtoms=[];                // {el, pos}
 const wallBonds=[];                // [a,b] into wallAtoms
 const wallOH=[];                   // {o, h} scene positions, the adhesion sites
@@ -282,6 +297,9 @@ function buildWall(side){
   }
 }
 buildWall(-1); buildWall(+1);
+
+// the modelled region's lower edge, read off the wall rather than guessed
+const FLOOR=Math.min(...wallAtoms.map(a=>a.pos.y))+FLOOR_MARGIN;
 
 /* THE SURFACE, NOT A PLANE. A cellulose face is corrugated: the outermost atom
    of the ribbon sits 1-3 A proud of the hydroxyl oxygens behind it. Stopping
@@ -376,10 +394,14 @@ function makeWater(p){
             hb:0 };
   waters.push(w); return w;
 }
-/* Seeded on a lattice at the liquid's own spacing, standing on the floor. A
-   random fill over the full height starts every run with the column collapsing
-   under gravity, and that fall is the first thing anyone sees — it reads as the
-   answer to "which way does water go", which is not the question here. */
+/* A POOL AT THE BOTTOM OF A DRY PORE. This is the initial condition the bench
+   exists for: everything above the pool is bare cellulose, so the water has
+   somewhere to go and whether it climbs is a result rather than a setup. An
+   earlier version seeded the pore already full, which cannot show a climb for
+   the same reason a full glass cannot show pouring.
+
+   On a lattice at the liquid's own spacing, so nothing collapses or expands on
+   the first frames and the only motion is the wetting. */
 function seed(){
   waters.length=0;
   const d=2.85*A;                                     // liquid spacing, near O...O
@@ -468,15 +490,16 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    behind the surface, and that sum falls off far more slowly than any one pair.
    This is that sum, as a smooth pull toward the face; the drawn dashes still
    come only from real H-bond geometry, so nothing is claimed that is not there. */
-/* Calibrated against the meniscus, with gravity gone and every run started
-   from the same settled seed, so the response is the model's and not the
-   seed's. Surface height at the wall minus at the centre, half-gap 17.5 A:
-       0.010 ->  -0.9 A   flat; adhesion and cohesion balanced, ~90 degrees
-       0.030 ->   3.5 A   partly wetting
-       0.048 ->   9.4 A   here; a clear concave meniscus
-       0.070 ->  28.5 A   films climb the walls; complete wetting, past an arc
-   Monotonic, which is what makes it a contact angle rather than an accident. */
-let K_WET=0.048*A;              // per surface atom, summed; not per molecule
+/* Calibrated against the CLIMB, from a pool at the bottom of a dry pore, with
+   no gravity and the same seed each run. Height the water reaches at the wall
+   minus at the centre, after 900 steps:
+       0.026 ->   4.8 A   creeps, barely
+       0.037 ->   9.3 A   here; rides up both walls, pool stays a body
+       0.048 ->  25.7 A   the pool DRAINS into wall films and leaves a bridge
+   The last one is complete wetting and it is a real regime, not a bug: a
+   strongly wetting surface with limited liquid and no gravity spreads itself
+   thin over the wall. It is just not the picture of a column being drawn up. */
+let K_WET=0.037*A;              // per surface atom, summed; not per molecule
 /* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
    without a reload. The contact angle lives in the ratio of the first two, and
    sweeping it is what this bench is for. */
