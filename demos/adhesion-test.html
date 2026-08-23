@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Adhesion test</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#f6f9fd;}
+  canvas{display:block;width:100%;height:100%;cursor:grab;}
+  canvas:active{cursor:grabbing;}
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script id="frag" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2  uRes;
+uniform float uTime;
+uniform vec4  uDrops[16];   // xy = where it sits on the pane, z = sphere radius,
+uniform float uCz[16];      // w unused; uCz = the sphere centre's depth
+uniform int   uCount;
+uniform sampler2D uText;
+uniform vec2  uTextC;
+uniform vec2  uTextS;
+uniform vec3  uStains[24];   // xy = centre on the sheet, z = how far it has wicked
+uniform int   uStainCount;
+
+const vec3  SUN   = vec3(-0.42, 0.78, 0.46);
+const float PANE  = -1.2;   // the sheet's surface: what the drops rest on
+// The sheet has thickness, and the fibres a drop actually magnifies sit a
+// little way inside it. With the pattern exactly ON the contact plane, a
+// refracted ray exits the flat back face and lands where it started, so the
+// drop throws no image at all and reads as a flat opaque disc. This gap is
+// what gives it something to magnify.
+const float PAPER = PANE - 0.09;
+
+// A drop on glass is a sphere cut by the glass. How much of the sphere is left
+// in front IS the contact angle: on a wetting surface the centre sits BEHIND
+// the pane and only a shallow lens sticks out, on a repellent one the centre
+// sits in front and almost the whole ball does.
+float dropSDF(vec3 p, int i){
+  vec4 d = uDrops[i];
+  float sph = length(p - vec3(d.x, d.y, uCz[i])) - d.z;
+  return max(sph, PANE - p.z);
+}
+
+float smin(float a, float b, float k){
+  float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
+  return mix(b, a, h) - k*h*(1.0-h);
+}
+
+float map(vec3 p){
+  float d = 1e5;
+  for(int i=0;i<16;i++){
+    if(i>=uCount) break;
+    d = smin(d, dropSDF(p, i), 0.05);
+  }
+  return d;
+}
+
+vec3 grad(vec3 p){
+  vec2 e = vec2(0.0016, 0.0);
+  return normalize(vec3(
+    map(p+e.xyy)-map(p-e.xyy),
+    map(p+e.yxy)-map(p-e.yxy),
+    map(p+e.yyx)-map(p-e.yyx)));
+}
+
+// The nearest drop's own sphere, without indexing a uniform array by a
+// variable — some drivers refuse that in GLSL ES 1.0.
+void nearestSphere(vec3 p, out vec3 C, out float R){
+  float best = 1e5; C = vec3(0.0); R = 0.0;
+  for(int i=0;i<16;i++){
+    if(i>=uCount) break;
+    float d = dropSDF(p, i);
+    if(d < best){ best = d; C = vec3(uDrops[i].x, uDrops[i].y, uCz[i]); R = uDrops[i].z; }
+  }
+}
+
+// Where a ray inside the water leaves it. A drop here is a sphere cut by the
+// sheet, so both exits are exact: solve the sphere, and solve the flat back
+// face. Marching this instead puts the sampler right into the corner where the
+// two meet, and a numerical normal there is garbage — that is where the
+// concentric rings inside the drops were coming from.
+bool exitDrop(vec3 p, vec3 rd, out vec3 pe, out vec3 ne){
+  vec3 C; float R;
+  nearestSphere(p, C, R);
+  if(R <= 0.0) return false;
+
+  vec3 oc = p - C;
+  float b = dot(oc, rd);
+  float c = dot(oc, oc) - R*R;
+  float disc = b*b - c;
+  float tS = disc > 0.0 ? -b + sqrt(disc) : -1.0;          // the far root: going out
+
+  float tP = rd.z < -1e-5 ? (PANE - p.z) / rd.z : -1.0;    // the flat face on the sheet
+
+  if(tS < 1e-4 && tP < 1e-4) return false;
+  bool flat_ = (tP > 1e-4) && (tS < 1e-4 || tP < tS);
+  float t = flat_ ? tP : tS;
+  pe = p + rd*t;
+  ne = flat_ ? vec3(0.0, 0.0, -1.0) : normalize(pe - C);   // outward from the water
+  return true;
+}
+
+float trace(vec3 ro, vec3 rd, float side){
+  float t = 0.02;
+  for(int i=0;i<96;i++){
+    float d = map(ro + rd*t) * side;
+    if(abs(d) < 0.0008*t) return t;
+    t += max(d, 0.0015);
+    if(t > 24.0) break;
+  }
+  return -1.0;
+}
+
+// the room the drops reflect: a cool studio, pale above, dimmer below
+vec3 sky(vec3 rd){
+  float y = rd.y*0.5 + 0.5;
+  vec3 c = mix(vec3(0.42,0.46,0.52), vec3(0.90,0.94,1.00), smoothstep(0.25,1.0,y));
+  c = mix(c, vec3(0.26,0.30,0.36), smoothstep(0.45,0.05,y));
+  c += vec3(1.0) * smoothstep(0.90, 0.998, dot(rd, SUN)) * 2.2;
+  return c;
+}
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  return mix(mix(hash(i), hash(i+vec2(1,0)), f.x),
+             mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+}
+
+float fbm(vec2 p){
+  float v = 0.0, a = 0.5;
+  for(int i=0;i<4;i++){ v += a*noise(p); p *= 2.07; a *= 0.5; }
+  return v;
+}
+
+// Left: paper towel. Loose cellulose fibres, embossed in a quilted grid, and
+// pale because all those fibre-air boundaries scatter light back out.
+// Right: wax paper. The same sheet with the pores filled by wax, so the water
+// has nothing to grip and nowhere to go.
+vec3 material(vec2 q){
+  bool towel = q.x < 0.0;
+
+  if(towel){
+    float fibre = fbm(q * vec2(9.0, 8.0)) * 0.62 + fbm(q * 21.0) * 0.38;
+    float emboss = smoothstep(0.35, 0.9,
+      abs(sin(q.x*3.4 + q.y*1.0)) * abs(sin(q.y*3.4 - q.x*1.0)));
+    vec3 c = mix(vec3(0.855,0.838,0.805), vec3(0.988,0.982,0.970), fibre);
+    c *= 1.0 - emboss*0.16;
+    return c;
+  }
+
+  // wax: smoother, warmer, with a broad sheen and the crinkles a sheet keeps
+  float crinkle = fbm(q * vec2(1.9, 1.6)) + fbm(q * 5.5) * 0.25;
+  vec3 c = mix(vec3(0.945,0.930,0.885), vec3(0.995,0.985,0.955), crinkle);
+  c += vec3(0.10,0.09,0.06) * pow(max(0.0, 1.0 - abs(q.x - 1.4)*0.55), 3.0);
+  return c;
+}
+
+// The stains: where water has soaked INTO the towel. This is the half of
+// adhesion a contact angle cannot show — the water is not sitting on the
+// surface any more, it has been drawn in between the fibres.
+vec3 wetPaper(vec2 q, vec3 dry){
+  float w = 0.0;
+  for(int i=0;i<24;i++){
+    if(i>=uStainCount) break;
+    vec3 st = uStains[i];
+    float d = length(q - st.xy) / max(st.z, 1e-4);
+    // a real stain has a sharp-ish wet front with a feathered edge
+    float body = smoothstep(1.0, 0.72, d) * (0.78 + 0.22*fbm(q*7.0));
+    body += smoothstep(0.55, 0.95, d) * smoothstep(1.02, 0.86, d) * 0.35;  // the front
+    w = max(w, body);
+  }
+  w = clamp(w, 0.0, 1.0);
+  // wet cellulose stops scattering: it goes darker, warmer and slightly glossy
+  // wet cellulose stops scattering, so it darkens hard; the front edge is
+  // darker still, where the water is piled against fibres it has not yet
+  // pushed past
+  vec3 wet = dry * vec3(0.50, 0.48, 0.45);
+  return mix(dry, wet, w);
+}
+
+vec3 backdrop(vec2 q){
+  vec3 c = material(q);
+  if(q.x < 0.0) c = wetPaper(q, c);
+  c *= 1.0 - smoothstep(0.014, 0.0, abs(q.x)) * 0.30;      // the seam
+  vec2 uv = (q - uTextC) / uTextS + 0.5;
+  if(uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0){
+    vec4 t = texture2D(uText, uv);
+    c = mix(c, t.rgb, t.a);
+  }
+  return c;
+}
+
+vec3 env(vec3 ro, vec3 rd){
+  if(rd.z < -0.001){
+    float t = (PAPER - ro.z) / rd.z;
+    if(t > 0.0) return backdrop((ro + rd*t).xy);
+  }
+  return sky(rd);
+}
+
+vec3 aces(vec3 x){
+  return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0);
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / uRes.y;
+  vec3 ro = vec3(0.0, 0.7, 6.2);
+  vec3 rd = normalize(vec3(uv, -1.7));
+
+  vec3 col;
+  float t = trace(ro, rd, 1.0);
+
+  if(t > 0.0){
+    vec3 p = ro + rd*t;
+    vec3 n = grad(p);
+    float fres = 0.02 + 0.98*pow(1.0 - max(0.0, dot(-rd, n)), 5.0);
+
+    vec3 refracted = vec3(0.0);
+    for(int c=0;c<3;c++){
+      float ior = 1.330 + float(c)*0.008;
+      vec3 rin = refract(rd, n, 1.0/ior);
+      vec3 p2, n2;
+      if(!exitDrop(p - n*0.004, rin, p2, n2)){ refracted[c] = env(p, rin)[c]; continue; }
+      float thick = distance(p, p2);
+      vec3 rout = refract(rin, n2, ior);
+      if(dot(rout,rout) < 0.0001) rout = reflect(rin, n2);
+      vec3 e = env(p2 + rout*0.002, rout) * exp(-thick * vec3(0.16,0.08,0.05));
+      refracted[c] = e[c];
+    }
+
+    col = mix(refracted, env(p, reflect(rd, n)), clamp(fres, 0.0, 0.62));
+
+    vec3 h = normalize(SUN - rd);
+    col += vec3(1.0,0.98,0.95) * pow(max(0.0, dot(n,h)), 800.0) * 8.0 * fres;
+    col += vec3(1.0,0.98,0.95) * pow(max(0.0, dot(n,h)), 55.0) * 0.16 * fres;
+  } else {
+    col = env(ro, rd);
+  }
+
+  gl_FragColor = vec4(aces(col), 1.0);
+}
+</script>
+
+<script>
+const renderer = new THREE.WebGLRenderer({antialias:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const cam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+
+const PANE = -1.2;
+const MAX = 16;
+
+// the two labels, drawn once onto a plate mapped to a fixed world rectangle
+function textPlate(){
+  const W = 2048, H = 1024, cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+
+  const put = (x, title, sub, ink) => {
+    g.fillStyle = ink;
+    g.font = '600 86px Georgia, "Times New Roman", serif';
+    g.fillText(title, x, H*0.13);
+    g.font = '400 52px Georgia, "Times New Roman", serif';
+    g.fillText(sub, x, H*0.13 + 82);
+  };
+  put(W*0.25, 'paper towel', 'water sticks to it, and is pulled in', '#5a4a33');
+  put(W*0.75, 'wax paper',   'water sticks only to itself',          '#6a5533');
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  return tex;
+}
+
+const uni = {
+  uRes:{value:new THREE.Vector2()},
+  uTime:{value:0},
+  uDrops:{value:Array.from({length:MAX}, ()=>new THREE.Vector4(0,0,0,0))},
+  uCz:{value:new Array(MAX).fill(0)},
+  uCount:{value:0},
+  uStains:{value:Array.from({length:24}, ()=>new THREE.Vector3(0,0,0))},
+  uStainCount:{value:0},
+  uText:{value:textPlate()},
+  uTextC:{value:new THREE.Vector2(0, 0.55)},
+  uTextS:{value:new THREE.Vector2(9.2, 4.6)}
+};
+scene.add(new THREE.Mesh(new THREE.PlaneBufferGeometry(2,2), new THREE.ShaderMaterial({
+  uniforms: uni,
+  vertexShader: 'void main(){ gl_Position = vec4(position,1.0); }',
+  fragmentShader: document.getElementById('frag').textContent
+})));
+
+/* ---------------------------------------------------------------------------
+   Paper towel against wax paper: the same cellulose sheet, one with its pores
+   open and one with them filled by wax. Adhesion shows up three ways here, and
+   all three are on screen.
+
+   SHAPE. The contact angle. Given a volume and an angle the sphere the drop is
+   a piece of follows from the spherical-cap volume,
+
+       V = pi R^3 (2 - 3cos t + cos^3 t) / 3    ->   R = cbrt(3V / pi f(t))
+
+   with the centre at z = PANE - R cos t: behind the sheet where it wets, in
+   front of it where it beads. The render never gets to pick the shape.
+
+   GRIP. The pinned contact line holds the drop against its own weight, so the
+   towel keeps its water and the wax lets it run.
+
+   WICKING. The one a contact angle cannot show, and the reason a towel works
+   at all: water is not left sitting on the surface, it is pulled IN between
+   the fibres by the same adhesion, each fibre gap acting as a capillary. A
+   wetting front spreads as Washburn's law, distance ~ sqrt(time), so it races
+   at first and crawls later. The drop above shrinks by exactly the volume the
+   stain below gains.
+--------------------------------------------------------------------------- */
+const SURF = [
+  { theta: 38,  pin: 1.00, soak: 1.0 },   // paper towel: wets, grips, drinks
+  { theta: 148, pin: 0.10, soak: 0.0 }    // wax paper: beads and runs
+];
+const SHEET_H = 0.05;   // how deep the towel holds water, so a soaked volume
+                        // becomes a stain area rather than a free parameter
+const sideOf = x => x < 0 ? 0 : 1;
+
+const capFactor = t => { const c = Math.cos(t); return (2 - 3*c + c*c*c)/3; };
+function shapeOf(v, thetaDeg){
+  const t = thetaDeg * Math.PI/180;
+  const R = Math.cbrt(v / (Math.PI * capFactor(t)));
+  return { R, cz: PANE - R*Math.cos(t), foot: R*Math.sin(t) };
+}
+
+const G = 1.5;
+const drops = [];
+const stains = [];      // {x, y, r} — the wetting fronts in the towel
+function addDrop(x, y, v){ if(drops.length < MAX) drops.push({x, y, v, vy:0, moving:false}); }
+
+[[-1.9,0.5,0.0075],[-1.2,-0.5,0.0050],[-2.4,-0.9,0.0034],[-0.7,0.9,0.0028],
+ [ 1.9,0.5,0.055],[ 1.2,-0.5,0.030],[ 2.4,-0.9,0.022],[ 0.7,0.9,0.018]]
+  .forEach(d => addDrop(d[0], d[1], d[2]));
+
+let held = -1, px = 0, py = 0, dragging = false;
+
+function step(dt){
+  // backwards, because a drop can be absorbed out of the list mid-loop
+  for(let i=drops.length-1;i>=0;i--){
+    const d = drops[i];
+    const s = SURF[sideOf(d.x)];
+    const g = shapeOf(d.v, s.theta);
+    // pinning holds a contact line of length ~foot; weight goes as volume
+    const rCrit = Math.sqrt(s.pin) * 0.30;
+
+    if(i === held && dragging){
+      // dragging fights the same pinning: the wetting side lags and resists,
+      // the waxed side comes away almost freely
+      const k = 14.0 / (1.0 + s.pin*9.0);
+      d.x += (px - d.x) * Math.min(1, k*dt);
+      d.y += (py - d.y) * Math.min(1, k*dt);
+      d.vy = 0;
+
+      // dragging across the towel paints a stain: the water is taken in where
+      // the drop has been, which is why a towel wipes and wax paper smears
+      if(s.soak > 0 && d.v > 0){
+        const drink = Math.min(d.v, 0.55 * g.foot * dt);
+        d.v -= drink;
+        soak(d.x, d.y, drink);
+        if(d.v < 0.0003){ drops.splice(i,1); held = -1; }
+      }
+      return;
+    }
+
+    // the towel drinks: volume leaves the drop and appears as stain area.
+    // Rate goes with the contact line it has to cross, so a spread drop is
+    // absorbed faster than a bead of the same volume.
+    if(s.soak > 0 && d.v > 0){
+      const drink = Math.min(d.v, 0.11 * g.foot * s.soak * dt);
+      d.v -= drink;
+      soak(d.x, d.y, drink);
+      if(d.v < 0.0003){ drops.splice(i,1); continue; }
+    }
+
+    if(g.foot > rCrit){
+      d.moving = true;
+      d.vy += (-G * (1 - (rCrit*rCrit)/(g.foot*g.foot)) - d.vy*2.4) * dt;
+    } else if(d.moving){
+      d.vy *= Math.pow(0.02, dt);
+      if(Math.abs(d.vy) < 0.02){ d.vy = 0; d.moving = false; }
+    }
+    d.y += d.vy*dt;
+
+    if(d.y < -2.6){ d.y = 2.4; d.x = (sideOf(d.x) ? 1 : -1) * (0.4 + Math.random()*2.2);
+                    d.v = 0.014 + Math.random()*0.03; d.vy = 0; d.moving = false; }
+  }
+
+  // the towel drinks its side dry, so fresh water keeps arriving there
+  const onTowel = drops.reduce((n,d)=>n + (d.x < 0 ? 1 : 0), 0);
+  if(onTowel < 7 && Math.random() < dt*5.0)
+    addDrop(-(0.5 + Math.random()*2.2), 1.4 + Math.random()*0.9,
+            0.0035 + Math.random()*0.0055);
+
+  // merging, with volume conserved
+  for(let i=0;i<drops.length;i++){
+    for(let j=i+1;j<drops.length;j++){
+      const a = drops[i], b = drops[j];
+      const fa = shapeOf(a.v, SURF[sideOf(a.x)].theta).foot;
+      const fb = shapeOf(b.v, SURF[sideOf(b.x)].theta).foot;
+      const dx = a.x-b.x, dy = a.y-b.y, s = (fa+fb)*0.85;
+      if(dx*dx + dy*dy < s*s){
+        const w = a.v + b.v;
+        a.x = (a.x*a.v + b.x*b.v)/w; a.y = (a.y*a.v + b.y*b.v)/w;
+        a.vy = (a.vy*a.v + b.vy*b.v)/w; a.v = w;
+        if(held === j) held = i; else if(held > j) held--;
+        drops.splice(j,1); j--;
+      }
+    }
+  }
+}
+
+// Absorbed water goes into the nearest wetting front, or starts a new one.
+// Area follows from volume and the sheet's thickness, and the front's radius
+// from that area, which is what makes the spread rate Washburn-like without
+// anyone typing a curve: r = sqrt(V / (pi h)).
+function soak(x, y, dv){
+  let best = null, bd = 1e9;
+  for(const st of stains){
+    const dd = (st.x-x)*(st.x-x) + (st.y-y)*(st.y-y);
+    if(dd < bd){ bd = dd; best = st; }
+  }
+  if(best && Math.sqrt(bd) < best.r + 0.05){
+    best.v += dv;
+    // the front creeps toward the new water rather than jumping to it
+    const k = Math.min(1, dv / Math.max(best.v, 1e-6)) * 0.9;
+    best.x += (x - best.x) * k;
+    best.y += (y - best.y) * k;
+  } else if(stains.length < 24){
+    stains.push({x, y, v: dv});
+  } else {
+    stains[0].v += dv;
+  }
+  stains.forEach(st => st.r = Math.sqrt(st.v / (Math.PI * SHEET_H)));
+}
+
+// unproject the cursor with the shader's own camera, onto the pane the drops
+// sit on, so the blob lands under the pointer
+function toWorld(e){
+  const h = innerHeight;
+  const k = (6.2 - PANE) / 1.7;
+  return [ k * (e.clientX - innerWidth/2)/h, 0.7 + k * (-(e.clientY - h/2)/h) ];
+}
+addEventListener('pointermove', e=>{ [px, py] = toWorld(e); });
+addEventListener('pointerdown', e=>{
+  [px, py] = toWorld(e);
+  dragging = true;
+  let best = -1, bd = 1e9;
+  drops.forEach((d,i)=>{
+    const dd = (d.x-px)*(d.x-px) + (d.y-py)*(d.y-py);
+    if(dd < bd){ bd = dd; best = i; }
+  });
+  held = best;
+});
+addEventListener('pointerup', ()=>{ dragging = false; held = -1; });
+
+function resize(){
+  renderer.setSize(innerWidth, innerHeight, false);
+  uni.uRes.value.set(innerWidth*renderer.getPixelRatio(), innerHeight*renderer.getPixelRatio());
+}
+addEventListener('resize', resize); resize();
+
+let last = performance.now();
+(function loop(now){
+  requestAnimationFrame(loop);
+  const dt = Math.min((now-last)/1000, 0.05); last = now;
+  uni.uTime.value = now/1000;
+
+  step(dt);
+  drops.forEach((d,i)=>{
+    const g = shapeOf(d.v, SURF[sideOf(d.x)].theta);
+    uni.uDrops.value[i].set(d.x, d.y, g.R, 0.0);
+    uni.uCz.value[i] = g.cz;
+  });
+  uni.uCount.value = drops.length;
+  stains.forEach((st,i)=>{ if(i<24) uni.uStains.value[i].set(st.x, st.y, st.r); });
+  uni.uStainCount.value = Math.min(stains.length, 24);
+
+  renderer.render(scene, cam);
+})(last);
+</script>
+</body>
+</html>

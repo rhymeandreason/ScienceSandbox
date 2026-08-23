@@ -58,7 +58,11 @@ const PDB_PAGES = new Set(['viewer-compare.html']);
 // internal nav page linking to other pages' scenes, not a scene itself.
 // design-system.html loads palette.js to read the atom colours as swatches,
 // which is the only reason it looks like a scene; it renders no molecule.
-const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html']);
+// droplet-test.html and adhesion-test.html render water as bulk — a refracting
+// continuum, not spheres — because cohesion, contact angle and wicking are all
+// properties of the bulk. There is no molecule on either page to load.
+const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
+                          'droplet-test.html', 'adhesion-test.html']);
 
 const PAGES = fs.readdirSync(ROOT)
   .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();
