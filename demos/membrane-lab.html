@@ -139,7 +139,7 @@
      shadow — the step's switches are pills mid-stage, and this must not read
      as one of them. It carries the weight of the corner tallies, the other
      things on screen that persist across steps. */
-  .gset { position:absolute; top:12px; right:16px; z-index:5;
+  .gset { position:absolute; right:16px; z-index:5;   /* placeControls() sets bottom */
           display:flex; align-items:center; gap:7px; cursor:pointer;
           font:inherit; font-size:12px; letter-spacing:.06em;
           text-transform:uppercase; opacity:.55; user-select:none;
@@ -151,8 +151,8 @@
   .gset input { width:13px; height:13px; margin:0; accent-color:#2a7a6a;
                 cursor:pointer; }
 
-  #voltCount { position:absolute; right:16px; bottom:14px; text-align:right;
-               /* placeControls() lifts this above the chrome */
+  #voltCount { position:absolute; right:16px; text-align:right;
+               /* placeControls() sets top, clear of the chrome */
                font-size:12px; line-height:1.5; opacity:.72;
                font-variant-numeric:tabular-nums; white-space:nowrap;
                text-shadow:0 1px 10px rgba(255,255,255,.85); }
@@ -447,7 +447,7 @@ function solveOffscreen() {
    it. Width binds, and rxz counts twice — once as the half-width to cover and
    again as the depth to clear. */
 const WIDE_BOX  = { rxz:220, hy:70 };   // steps 3-6: compartments
-const CLOSE_BOX = { rxz:130, hy:45 };   // steps 1-2: the sheet
+const CLOSE_BOX = { rxz:150, hy:45 };   // steps 1-2: the sheet
 let stepBox = null;
 /* Where the camera is going, against where it is. Stage.frame() writes cam.r
    outright, so go() takes the solved distance, puts the camera back where it
@@ -2498,14 +2498,18 @@ function placeControls() {
   const h = chromeEl.offsetHeight;
   ionsOutEl.style.top = (h + 12) + 'px';
   eqBadgeEl.style.top = (h + 12) + 'px';
-  shellsTogEl.style.top = (h + 10) + 'px';
   /* The stage's own bottom edge, with the switches above the buttons so a
      setting never sits between the reader and the action. */
   ctlEl.style.bottom = '16px';
   launchEl.style.bottom = '16px';
   spendEl.style.bottom = '62px';
   ionsInEl.style.bottom = '14px';
-  voltCountEl.style.bottom = '14px';
+  shellsTogEl.style.bottom = '14px';
+  /* THE LEDGER SITS OPPOSITE THE OUTSIDE TALLY, both under the chrome: the
+     two corner readouts are the same kind of thing — a running count of what
+     the step has done — so they belong on the same line. That leaves the
+     bottom-right to the shells switch alone, with nothing to stack around. */
+  voltCountEl.style.top = (h + 12) + 'px';
 }
 
 /* WRITE ONLY ON CHANGE. Assigning innerHTML rebuilds the node's children, so
