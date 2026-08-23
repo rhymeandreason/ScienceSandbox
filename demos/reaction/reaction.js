@@ -640,11 +640,17 @@ function create(host) {
      * of its own, and without this the verb would run on it too and go looking
      * for a carbonyl on the molecule doing the reducing. */
     if (mol.oxC == null) return;
-    // …found by asking specs which one is the nicotinamide, never by index —
-    // `join` finds coenzyme A the same way, and for the same reason: a lane
-    // order is a stage fact and this is a chemical question.
-    const donor = lanesNow().find(l => meta(specOf(l.key)).nic);
-    if (!donor) return;
+    /* …found by asking specs which one is the nicotinamide, never by index —
+     * `join` finds coenzyme A the same way. WHICH one, where there are several,
+     * is then a stage question and gets a stage answer: the NEAREST. A page
+     * running the same reduction on two substrates stands a carrier beside each
+     * of them, and taking the first in the list would have one NADH hand its
+     * hydride over twice while the other never moved. */
+    const cs = lanesNow().filter(l => meta(specOf(l.key)).nic);
+    if (!cs.length) return;
+    const x = c.lane.g.position.x;
+    const donor = cs.reduce((a, b) =>
+      Math.abs(b.g.position.x - x) < Math.abs(a.g.position.x - x) ? b : a);
     const nic = meta(specOf(donor.key)).nic;
     const hIdx = nic.h[nic.h.length - 1];
     const from = atomOn(donor, hIdx), to = atomOn(c.lane, mol.oxC);

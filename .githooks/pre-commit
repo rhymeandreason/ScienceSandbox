@@ -123,7 +123,7 @@ fi
 # the plain shape, which is a real drop: the step then renders a confident claim
 # nobody made, and nothing on screen looks wrong.
 if git diff --cached --name-only \
-   | grep -qE '^demos/(energy/.*|glycolysis-lab\.html|krebs-lab\.html)$'; then
+   | grep -qE '^demos/(energy/.*|glycolysis-lab\.html|krebs-lab\.html|fermentation-lab\.html)$'; then
   if ! node energy/check-energy.js > /tmp/cen.$$ 2>&1; then
     tail -25 /tmp/cen.$$; rm -f /tmp/cen.$$
     echo ""
@@ -145,7 +145,7 @@ fi
 # did not happen. Nothing on screen says "that string was wrong", so a gate that
 # only fired on demos/reaction/ would miss the case it exists for.
 if git diff --cached --name-only \
-   | grep -qE '^demos/(reaction/.*|glycolysis-lab\.html)$'; then
+   | grep -qE '^demos/(reaction/.*|glycolysis-lab\.html|krebs-lab\.html|fermentation-lab\.html)$'; then
   if ! node reaction/check-reaction.js > /tmp/crx.$$ 2>&1; then
     tail -25 /tmp/crx.$$; rm -f /tmp/crx.$$
     echo ""

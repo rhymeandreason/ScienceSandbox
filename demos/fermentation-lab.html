@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fermentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="main.css">
+<link rel="stylesheet" href="sandbox.css">
+<link rel="stylesheet" href="pathways.css">
+<link rel="stylesheet" href="kit/enzyme.css">
+<link rel="stylesheet" href="energy/energy.css">
+<style>
+  /* WHAT THIS PAGE OWNS. Everything else is pathways.css.
+
+     NO TRAY. Both siblings stand their carriers in a column beside the stage,
+     because there a carrier is what a step SPENDS and the column is where spent
+     things go. Here the carrier is what the pathway is FOR, so NADH stands in
+     the lanes as a molecule and hands its hydride over in frame. That leaves
+     the left inset free, which is why nothing below reserves it. */
+
+  /* THE BRANCH TABS, in the rail bar beside the numbers. A branch is not a
+     step, so it cannot be a rail stop; and it is not a mode either — both are
+     the same pathway answering the same question, which is what putting them on
+     one bar says. */
+  #branchtabs{display:flex;gap:6px;position:absolute;right:22px;top:50%;
+    transform:translateY(-50%)}
+  .btab{font-family:var(--font-sans);font-weight:600;font-size:13px;
+    letter-spacing:.3px;color:var(--muted);background:transparent;
+    border:2px solid var(--hair);border-radius:var(--radius);
+    padding:6px 15px;cursor:pointer}
+  .btab:hover{color:var(--ink);border-color:var(--ink)}
+  .btab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);
+    color:var(--paper);cursor:default}
+  /* THE CONDITION THE BRANCH RUNS UNDER, under its own tab, and the only place
+     the page says it. What sends pyruvate down either branch is the ABSENCE of
+     oxygen — a precondition, not a reaction, so it has no step to live on. */
+  #branchwhen{position:absolute;right:22px;top:calc(50% + 22px);
+    font-family:var(--font-sans);font-size:11.5px;letter-spacing:.2px;
+    color:var(--muted);text-align:right}
+
+  /* THE CLOSING TALLY: one row, three cells. Two steps do not make a 2×2. */
+  #tally{grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:1fr;gap:10px 22px;padding:14px 6% 0}
+  #tally #ledger{position:static;margin:0 auto;height:auto;width:auto;
+    max-width:100%;overflow:hidden;padding:16px 18px}
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <div id="railbar">
+    <h1 id="pagetitle">Fermentation</h1>
+    <div id="rail"></div>
+    <div id="branchtabs"></div>
+    <div id="branchwhen"></div>
+  </div>
+  <div id="stage">
+    <div id="spotglow"></div>
+    <div id="enzymes" hidden></div>
+    <canvas id="gl"></canvas>
+    <div id="plates" aria-live="polite"></div>
+    <div id="enzmeta" hidden></div>
+    <div id="enznote" hidden></div>
+    <div id="enzname" hidden></div>
+    <div id="flyers" aria-hidden="true"></div>
+    <div id="spots"></div>
+    <!-- WHAT CAME OUT, on the end screen. NAD⁺ first and the product second,
+         in that order on purpose: the page's whole claim is which of the two
+         the branch was for. -->
+    <div id="tally" hidden>
+      <div class="tcell" data-cell="nad"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+      <div class="tcell" id="tledger"></div>
+      <div class="tcell" data-cell="prod"><div class="tvis"></div>
+        <div class="tname"></div><div class="tcount"></div></div>
+    </div>
+    <div id="bottombar">
+      <div id="stephead"></div>
+      <div id="steptip" role="tooltip"></div>
+      <button id="actbtn"></button>
+      <div id="rxmsg" aria-live="polite"><p></p></div>
+    </div>
+  </div>
+  <div id="tools">
+    <div id="toggles" class="checkgroup">
+      <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
+      <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
+    </div>
+  </div>
+  <div id="utils">
+    <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
+    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+  </div>
+  <div id="side">
+    <div id="ledger" class="sticky hid"></div>
+    <div id="couplebox" class="note"></div>
+    <div id="card"><div id="stepnote" class="note"></div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="palette.js"></script>
+<script src="tokens-from-palette.js"></script>
+<script src="molecules.js"></script>
+<script src="skel.js"></script>
+<script src="mol-pathways.js"></script>
+<script src="scene.js"></script>
+<script src="fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/molgraph.js"></script>
+<script src="kit/fit.js"></script>
+<script src="kit/lanes.js"></script>
+<script src="kit/hotspot.js"></script>
+<script src="kit/leaving.js"></script>
+<script src="kit/carriers.js"></script>
+<script src="kit/enzyme.js"></script>
+<script src="kit/modal.js"></script>
+<script src="kit/stagekit.js"></script>
+<script src="atomkit.js"></script>
+<script src="annotate.js"></script>
+<script src="reaction/reaction.js"></script>
+<script src="energy/energy.js"></script>
+<script>
+"use strict";
+/* =============================================================================
+ *  FERMENTATION — what happens to pyruvate with no oxygen, and why
+ * =============================================================================
+ *  PARADIGM: pathway, the third one. Same record shape as glycolysis and the
+ *  cycle, same verbs, same rail.
+ *
+ *  THE CLAIM: THE PRODUCT IS THE BYPRODUCT. Fermentation exists to turn NADH
+ *  back into NAD⁺ so glycolysis can keep running. A student who leaves thinking
+ *  the point was making lactate has learned the thing every textbook
+ *  accidentally teaches by drawing this as a dead-end appendix. So the carrier
+ *  is the subject: it stands in the lanes rather than in a tray, the ledger's
+ *  first three rows are about nothing else, and the closing tally puts NAD⁺
+ *  first and the product second.
+ *
+ *  A BRANCH, NOT A SEQUENCE, which is what neither sibling is. Two destinations
+ *  hang off one pyruvate, so `STEPS` is keyed by branch and every fold walks the
+ *  selected array. The tabs are how the two get compared: run one, run the
+ *  other, and the arithmetic at the end is identical while the chemistry
+ *  between them is not.
+ *
+ *  THE CONDITION IS NOT A STEP. What sends pyruvate down either branch is the
+ *  absence of O₂, and this record shape's unit is a reaction — so it lives on
+ *  the branch, as one line under its tab, and nowhere else.
+ *
+ *  NO ΔG NUMBERS, glycolysis's rule and for a stronger reason here: published
+ *  figures for the two reductions disagree by 10 kJ/mol between sources
+ *  (fermentation-facts.md). Reversibility is the claim this page can back.
+ *
+ *  DERIVED STATE, NOT MUTATED STATE. `branch` and a `done` per branch are the
+ *  only mutable lesson state; species, pools and ledger are pure functions of
+ *  them, so stepping backward and switching tabs are both free.
+ * ========================================================================== */
+
+const canvas=document.getElementById('gl');
+const OPEN_THETA=0.10;
+const L=Lesson.create(canvas,{
+  // Orthographic and unswung, glycolysis's reasons exactly: four lanes side by
+  // side have to stay comparable, and every figure on this stage is placed in
+  // screen pixels off a projection.
+  ortho:true,
+  cam:{theta:OPEN_THETA,phi:1.30,r:34}, phiMin:0.4, phiMax:2.6, rMin:9, rMax:120,
+  zoom:false, orbit:false, focus:false,
+  onResize:()=>{ computeFit(); },
+});
+const {scene,camera,renderer,root,cam,applyCam,resize}=L;
+const FXi=L.fx, MO=L.motion;
+const KIT=AtomKit.create(THREE);
+const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
+const NADH=M.nadh;
+
+/* NAD⁺ IS NADH MINUS ONE C4 HYDROGEN — the same declared schematic
+ * (MolecularGeometry.md §1.6) glycolysis's tray makes, moved onto the stage.
+ * A second KEY over the same spec rather than a second spec: identical atoms,
+ * so the camera fit cannot tell the two apart and the molecule does not change
+ * size when it discharges. The names come off `gly.spent`, which
+ * mol-pathways.js put there for exactly this. */
+const NADP=Object.assign(Object.create(NADH), {
+  name:NADH.gly.spent.name, short:NADH.gly.spent.short,
+  formula:NADH.gly.spent.formula });
+const SPECS=k=>k==='nad'?NADP:M[k];
+const carrierKeys=new Set(['nadh','nad']);
+
+/* =============================================================
+ *  THE LESSON SCRIPT
+ * ============================================================= */
+
+/* THE OPENING BALANCE, CARRIED IN FROM GLYCOLYSIS. That page's POOL0 is chosen
+ * so NAD⁺ runs to exactly 0 and 2 NADH are held at the end (glycolysis-lab.html),
+ * and this page opens there. A COMMENTED LITERAL: nothing checks that the two
+ * pages agree, so if glycolysis-lab.html's POOL0 changes, change this with it.
+ * OWED is the debt the whole lesson is about — glycolysis spends one NAD⁺ per
+ * G3P at its step 6, and there are two G3P per glucose. */
+const POOL0={NAD:0, NADH:2};
+const OWED=2;
+
+/* THE TWO DESTINATIONS. `when` is the precondition. `who` is inside it, because
+ * what makes the pair worth showing is that the same problem gets the same
+ * solution in organisms that share nothing else. */
+const BRANCHES=[
+  { key:'lactic', tab:'Lactate', when:'No O₂ · muscle under load, most bacteria',
+    product:'lactate' },
+  { key:'alcoholic', tab:'Ethanol', when:'No O₂ · yeast, and flooded plant roots',
+    product:'ethanolSkel' },
+];
+
+/* ONE ENTRY PER USER ACTION, keyed by branch. `species` is what the REACTING
+ * lanes hold afterwards and `hold` is what the CARRIER lanes hold — two lists,
+ * because a carrier here is a lane and its state changes without anyone
+ * clicking it. */
+const STEPS={
+lactic:[
+  { n:1, enz:'Lactate dehydrogenase', hook:'One step, and that is the branch',
+    species:['lactate','lactate'], hold:['nad','nad'],
+    // near equilibrium: which way it runs is decided by how much NADH is about,
+    // which is the same fact the branch exists to change
+    rev:true,
+    pool:{NADH:-2, NAD:+2}, nad:2, made:0,
+    fx:'red', anchor:'oxC', perLane:true,
+    couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
+    // `redBond` is pyruvate's own name for the C2=O a reduction attacks, so the
+    // target follows the bond on screen rather than a typed index.
+    spot:{ at:'redBond', say:'Hand the hydride over' },
+    takeaway:`NAD⁺ is back — glycolysis can run again`,
+    msg:`<b>Lactate dehydrogenase</b> gives pyruvate the hydride NADH has been
+      carrying since glycolysis step 6. Pyruvate becomes <b>lactate</b> and NADH
+      becomes <b>NAD⁺</b>. No carbon leaves and no ATP is made: the only thing
+      this reaction makes that the cell was short of is the empty carrier. The
+      lactate leaves the muscle, and the liver builds glucose back out of it.` },
+],
+alcoholic:[
+  { n:1, enz:'Pyruvate decarboxylase', hook:'A carbon leaves first',
+    species:['acetaldehyde','acetaldehyde'], hold:['nadh','nadh'],
+    // a decarboxylation whose product leaves as a gas does not come back
+    rev:false,
+    // `carbonOut`, where the cycle's step record spells the same field `co2`:
+    // tools/check-pages.js reads a quoted spec name as a page drawing that
+    // molecule, and this page must NOT load a CO₂ spec — `decarb` assembles the
+    // gas out of the substrate's own carbon and its two oxygens.
+    carbonOut:2, made:0,
+    /* NO `couple`, and that is load-bearing rather than an omission:
+     * reaction/reaction.js's `decarb` reads exactly this to know it must not
+     * mint an NADH. The cycle's decarboxylations are oxidative and bank a
+     * carrier; this one banks nothing. */
+    fx:'decarb', anchor:'decarb', perLane:true,
+    spot:{ at:'decarb', say:'Take the carbon off' },
+    takeaway:`A carbon leaves as CO₂. No carrier moves`,
+    msg:`<b>Pyruvate decarboxylase</b> takes C1 off as <b>CO₂</b>, leaving
+      <b>acetaldehyde</b>. This is the step yeast has and muscle does not, and it
+      is why bread rises. Nothing is oxidised and nothing is banked — it only
+      makes the carbonyl that the next step can reduce.` },
+
+  { n:2, enz:'Alcohol dehydrogenase', hook:'The same event as lactate',
+    species:['ethanolSkel','ethanolSkel'], hold:['nad','nad'],
+    // liver alcohol dehydrogenase runs this one the other way, which is what
+    // makes "reversible" worth saying here
+    rev:true,
+    pool:{NADH:-2, NAD:+2}, nad:2, made:0,
+    fx:'red', anchor:'oxC', perLane:true,
+    couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
+    spot:{ at:'redBond', say:'Hand the hydride over' },
+    takeaway:`NAD⁺ is back — the same result, one step later`,
+    msg:`<b>Alcohol dehydrogenase</b> gives acetaldehyde the hydride, exactly as
+      lactate dehydrogenase gave it to pyruvate one branch over. Acetaldehyde
+      becomes <b>ethanol</b> and NADH becomes <b>NAD⁺</b>. Two steps instead of
+      one, two carbons lighter, and the same two NAD⁺ at the end.` },
+]};
+
+/* =============================================================
+ *  DERIVED STATE — a function of `branch` and that branch's `done`
+ * ============================================================= */
+let branch='lactic';
+/* A `done` PER BRANCH, not one shared. A tab is a view, and coming back to a
+ * branch you were half way through to find it reset would say the two are one
+ * pathway with a switch on it. */
+const progress={lactic:0, alcoholic:0};
+let intro=true;
+const steps=()=>STEPS[branch];
+const nSteps=()=>steps().length;
+const done=()=>progress[branch];
+const setDone=v=>{ progress[branch]=v; };
+const stepAt=i=>steps()[i];
+const branchOf=k=>BRANCHES.find(b=>b.key===k);
+
+/* THE STAGE IS TWO PAIRS, INTERLEAVED — substrate, carrier, substrate, carrier.
+ * One glucose gave two pyruvate and each needs its own NADH, so grouping them as
+ * [pyruvate, pyruvate, NADH, NADH] would leave both substrates with the same
+ * NEAREST carrier, and reaction/reaction.js's `red` picks its donor by nearness
+ * (a stage question, answered by the stage). One NADH would then hand the same
+ * hydride over twice. Woven, each pair is its own reaction standing on its own.
+ */
+const BASE=['pyruvate','pyruvate'];
+const weave=(subs,cars)=>subs.flatMap((k,j)=>cars&&cars[j]!=null?[k,cars[j]]:[k]);
+/* THE CARRIERS ARE ON STAGE FROM THE FIRST FRAME, on both branches, including
+ * the ethanol branch's step 1 which does not touch them. Two reasons, and the
+ * first is structural: a lane count that changes DURING a step breaks the
+ * per-lane mapping from lane j to product j. The second is the lesson — an NADH
+ * standing there unspent through the decarboxylation is the tension the branch
+ * resolves, so it is the one molecule that has earned standing through a step it
+ * has no part in. */
+const OPENING=weave(BASE, ['nadh','nadh']);
+function speciesAt(i){
+  if(i===0) return OPENING;
+  const prev=steps()[i-1];
+  return weave(prev.species, prev.hold);
+}
+/* WHICH LANES A STEP ACTS ON — the ones with a target on them, asked of the
+ * spec. glycolysis could say "every lane", because every lane held a substrate;
+ * here two of the four are carriers, and a step that waits for four clicks when
+ * only two lanes can be clicked never lands. */
+const actsOn=(st,key)=>!!st&&!!st.spot&&!!spotPair(SPECS(key), st.spot.at);
+/* …off the step's INCOMING species, never off the lanes as they now stand. A
+ * lane that has already run holds the product and stops answering, so asking
+ * the stage would shrink the count mid-step and land a per-lane step on its
+ * first click. */
+const actingLanes=(st,i)=>speciesAt(i==null?done():i)
+  .map((k,j)=>actsOn(st,k)?j:-1).filter(j=>j>=0);
+
+let laneDone=new Set();
+const isPerLane=st=>!!st&&!!st.perLane;
+// Fraction of the current step already run, as REACTING lanes — the carrier
+// lanes are not clicks and must not be in the denominator.
+function halfRun(){
+  const st=stepAt(done()), n=st?actingLanes(st).length:0;
+  return (isPerLane(st) && n && laneDone.size) ? laneDone.size/n : 0;
+}
+function poolAt(i){ const p=Object.assign({},POOL0), S=steps();
+  for(let k=0;k<i;k++){ const d=S[k].pool||{}; for(const q in d) p[q]+=d[q]; }
+  if(i===done()){ const f=halfRun(), d=(S[i]||{}).pool||{};
+    for(const q in d) p[q]+=d[q]*f; }
+  return p; }
+/* THE LEDGER. Every row is a sum over the steps run, never a typed number —
+ * `owed` is the one exception and it is the carried-in literal above.
+ * `co2` and `made` are summed on both branches; which of them gets a ROW is
+ * decided by whether any step in the SELECTED branch declares it (branchHas),
+ * so the lactate branch does not print "CO₂ 0" and invite a comparison the page
+ * is not making. */
+function ledgerAt(i){ const L={nad:0, made:0, carbonOut:0}, S=steps();
+  for(let k=0;k<i;k++){ const s=S[k];
+    L.nad+=s.nad||0; L.made+=s.made||0; L.carbonOut+=s.carbonOut||0; }
+  if(i===done()){ const f=halfRun(), s=S[i]||{};
+    L.nad+=(s.nad||0)*f; L.made+=(s.made||0)*f; L.carbonOut+=(s.carbonOut||0)*f; }
+  // THE NUMBER THE PAGE IS FOR, and it is not a row that stands alone: what
+  // makes the pathway able to continue is the debt and the repayment landing
+  // on zero together.
+  L.owed=OWED;
+  L.net=L.nad-OWED;
+  return L; }
+const branchHas=f=>steps().some(s=>s[f]!=null);
+const carbonsAt=i=>speciesAt(i).filter(k=>!carrierKeys.has(k))
+                    .reduce((s,k)=>s+SPECS(k).gly.carbons,0);
+
+/* =============================================================
+ *  3D: lanes, labels, transitions
+ * ============================================================= */
+// Half-separation of a PAIR (kit/lanes.js spaces n lanes evenly about it).
+// Tighter than glycolysis's 8 because there are four lanes, and one in every
+// two is a 44-heavy-atom dinucleotide beside a three-carbon acid.
+const LANE=9.0;
+let lanes=[];
+let busy=false;
+let reviewing=false;
+let shownReview=false;
+const focusStep=()=>reviewing?done()-1:done();
+
+const platesEl=document.getElementById('plates');
+const LANES=Lanes.create({
+  root, camera, canvas, host:platesEl, specOf:SPECS, radii:PAL.radii,
+  spread:LANE,
+  build:spec=>{ const g=Stage.buildMolecule(spec);
+                Stage.setOptionalH(g,false);
+                /* NAD⁺ IS BUILT DISCHARGED, and NADH built holding its hydride.
+                 * Both C4 hydrogens are in the spec's `optH`, so setOptionalH
+                 * has just hidden them — without putting them back the two keys
+                 * render identically and the step the page is about shows
+                 * nothing. `nic.h[0]` was always there; `nic.h[1]` is the one
+                 * GAPDH put on and the one this pathway takes off. */
+                if(spec.gly && spec.gly.nic){
+                  const h=spec.gly.nic.h, am=g.userData.atomMeshes;
+                  if(am[h[0]]) am[h[0]].visible=true;
+                  if(am[h[1]]) am[h[1]].visible = spec!==NADP;
+                }
+                return g; },
+  plateHTML:spec=>`<div class="pn">${spec.short||spec.name}</div><div class="pf">${spec.formula}</div>`,
+});
+const laneX=(i,n)=>LANES.xOf(i,n);
+const laneShift=key=>LANES.shift(key);
+const laneLift=key=>LANES.lift(key);
+const laneOffset=l=>LANES.offset(l);
+const visibleAtoms=spec=>LANES.visibleAtoms(spec);
+const plateY=keys=>LANES.plateY(keys);
+const plateHeightPx=()=>LANES.heightPx();
+
+/* ---------- the hotspot on the bond (kit/hotspot.js) ----------
+ * Same two spellings the siblings use: an ARRAY is the bond itself (`redBond`,
+ * the C=O a reduction attacks), a NUMBER is an atom whose DEPARTURE names the
+ * bond (`decarb`, the carboxylate carbon that leaves as CO₂). */
+function spotPair(spec, at){
+  const v=spec.gly && spec.gly[at];
+  if(Array.isArray(v)) return v;
+  if(typeof v!=='number') return null;
+  return MolGraph.leavingBond(spec, v);
+}
+const spotsEl=document.getElementById('spots');
+const glowEl=document.getElementById('spotglow');
+const SPOTS=Hotspot.create({ canvas, camera, host:spotsEl, glowHost:glowEl,
+  onPick:it=>press(()=>runLane(it.lane)),
+});
+const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
+let hintAt=null;
+const hintNote=NOTES.add({ text:'', at:()=>hintAt&&hintAt(), offset:[30,-26] });
+const _hintV=new THREE.Vector3();
+const laneBondMid=(l,pair)=>{
+  if(!l||!pair) return null;
+  const u=l.g.userData;
+  return _hintV.copy(u.atomWorld(pair[0])).add(u.atomWorld(pair[1])).multiplyScalar(0.5);
+};
+function drawHint(){
+  const st=(!intro && done()<nSteps()) ? stepAt(done()) : null;
+  let text=''; hintAt=null;
+  if(st && st.spot && st.spot.say && !busy && !reviewing){
+    // the first target still standing carries the one note
+    const j=actingLanes(st).find(i=>!laneDone.has(i));
+    if(j!=null){ const pair=spotPair(SPECS(lanes[j].key), st.spot.at);
+      text=st.spot.say; hintAt=()=>laneBondMid(lanes[j], pair); }
+  }
+  if(text!==hintNote.el.dataset.t){ hintNote.el.dataset.t=text; hintNote.set(text); }
+  NOTES.show(!!text); NOTES.step();
+}
+function drawSpots(){
+  const st=(!intro && done()<nSteps()) ? stepAt(done()) : null;
+  const live = !!st && !!st.spot && !busy && !reviewing;
+  const act=live?actingLanes(st):[];
+  SPOTS.update(!live ? [] : lanes.map((l,i)=>
+    (laneDone.has(i) || !act.includes(i)) ? null : {
+      group:l.g, pair:spotPair(SPECS(l.key), st.spot.at), lane:i,
+      hint:'', label:'run this step',
+    }));
+}
+let platesOff=false;
+function drawPlates(){ platesEl.classList.toggle('mute', platesOff); LANES.draw(); }
+
+// ---- framing ---------------------------------------------------------------
+function barReservePx(){
+  const e=document.getElementById('bottombar');
+  if(!e) return 106;
+  const cs=getComputedStyle(e);
+  return (parseFloat(cs.getPropertyValue('--barh'))||0)+(parseFloat(cs.bottom)||0);
+}
+function capReservePx(){
+  const e=document.getElementById('rxmsg');
+  if(!e||!e.classList.contains('show')) return 0;
+  return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
+}
+// NO LEFT RESERVE: there is no tray (see the stylesheet's header).
+const RESERVES=()=>({ top:plateHeightPx(), bottom:barReservePx()+capReservePx(), left:0 });
+const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
+const orthoFrustum=()=>FIT.frustum();
+let fitR=34, fitY=0;
+const TOP_PULL=0.5;
+let _pathTop=null;
+/* ONE FRAME FOR THE WHOLE BRANCH, solved over every state it passes through, so
+ * ethanol losing a carbon reads as the molecule getting smaller rather than as
+ * the camera moving in. Re-solved on a tab change (`_pathTop` cleared with it),
+ * because the two branches are different pathways and nothing is being compared
+ * across the switch. */
+function allStates(){
+  const out=[speciesAt(0)];
+  steps().forEach((s,i)=>out.push(speciesAt(i+1)));
+  return out;
+}
+function fitFor(states){
+  let lo=0, hi=0, wide=0;
+  states.forEach(keys=>{
+    const n=keys.length;
+    keys.forEach((k,j)=>{ const spec=SPECS(k);
+      const x=Math.abs(laneX(j,n)), xc=laneShift(k), yc=laneLift(k);
+      visibleAtoms(spec).forEach(a=>{ const r=PAL.radii[a.el]||0.7;
+        lo=Math.min(lo,a.pos[1]-yc-r); hi=Math.max(hi,a.pos[1]-yc+r);
+        wide=Math.max(wide, x+Math.abs(a.pos[0]-xc)+r); }); });
+  });
+  const Y=(lo+hi)/2;
+  const halfNeeded=Math.max(hi-Y, Y-lo);
+  const {R,Y:Yfit}=FIT.solve({halfNeeded, wide, centerY:Y, pad:1.10, min:15, max:140});
+  return { Y:Yfit, R };
+}
+function computeFit(){
+  const states=allStates();
+  const f=fitFor(states);
+  const top=_pathTop??(_pathTop=Math.max(...states.map(plateY)));
+  fitR=f.R; fitY=FIT.anchorTop(f.R, f.Y, top, TOP_PULL);
+}
+
+function renderLanes(i){
+  platesOff=false; platesEl.classList.remove('mute');
+  LANES.render(speciesAt(i));
+  onLanes();
+}
+function onLanes(){ lanes=LANES.lanes; computeFit(); }
+function swapLane(j,key){ LANES.swapOne(j,key); onLanes(); }
+
+/* ---- page-local effects ---- */
+const RUN='run';
+const GO=Leaving.create({root, camera, motion:MO, tag:RUN});
+const cancelTimers=()=>{ MO.cancel(RUN); GO.clear(); clearFlyers(); };
+
+/* =============================================================
+ *  THE VERBS — reaction/reaction.js
+ * =============================================================
+ * `red` is the verb this page needed and it went into the module, not here.
+ * The host below answers only stage questions; there is no carrier tray, so the
+ * three carrier entries answer null rather than inventing a point off screen.
+ */
+const RX=Reaction.create({
+  three:THREE, root, camera, canvas,
+  motion:MO, fx:FXi, leaving:GO, kit:KIT, stage:Stage, palette:PAL,
+  molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
+  flyersEl:document.getElementById('flyers'),
+  specOf:SPECS,
+  ...Reaction.stageHost({lanes:LANES, carriers:()=>null, onLanes}),
+  // `ox` and `join` aim a hydride at a carrier TILE; `red` aims it at a lane,
+  // so nothing here is ever asked. Overridden anyway: stageHost's popCarrier
+  // would dereference the column this page does not have.
+  carrierPoint:()=>null,
+  carrierBond:()=>null,
+  onCarrierTaken:()=>{},
+  popCarrier:()=>{},
+});
+const later=RX.later, drawFlyers=RX.drawFlyers, clearFlyers=RX.clearFlyers;
+
+/* =============================================================
+ *  RUNNING A STEP
+ * ============================================================= */
+/* EVERY STEP HERE IS PER-LANE. Both branches run one reaction on two pyruvate,
+ * and glycolysis's argument holds: one click reporting "+2" is the version a
+ * student reads and never counts.
+ *
+ * A LANE'S CARRIER TURNS OVER WITH IT. The reacting lane becomes its product and
+ * the carrier beside it becomes NAD⁺ on the same beat, found by the same
+ * nearest-lane rule `red` uses — the page and the verb must not disagree about
+ * which NADH just paid. */
+function partnerLane(j){
+  const cs=lanes.map((l,k)=>k).filter(k=>(SPECS(lanes[k].key).gly||{}).nic);
+  if(!cs.length) return -1;
+  const x=lanes[j].g.position.x;
+  return cs.reduce((a,b)=>
+    Math.abs(lanes[b].g.position.x-x)<Math.abs(lanes[a].g.position.x-x)?b:a);
+}
+function runLane(j){
+  if(busy || intro || done()>=nSteps()) return;
+  const st=stepAt(done());
+  if(!isPerLane(st) || laneDone.has(j) || !lanes[j] || !actsOn(st,lanes[j].key)) return;
+  const to=done()+1, keys=speciesAt(to), n=actingLanes(st).length;
+  const mate=partnerLane(j);
+  busy=true;
+  platesOff=true; platesEl.classList.add('mute');
+  RX.lane(st, j, keys);
+  later(()=>{
+    laneDone.add(j);
+    swapLane(j, keys[j]);
+    // …and the carrier that paid, IF this step spent one. Read off the keys, so
+    // a step that leaves NADH alone (the decarboxylation) swaps nothing.
+    if(mate>=0 && lanes[mate] && keys[mate]!==lanes[mate].key) swapLane(mate, keys[mate]);
+    platesOff=false; platesEl.classList.remove('mute');
+    // THE LAST REACTING LANE LANDS THE STEP.
+    if(laneDone.size>=n){ setDone(to); reviewing=true; laneDone.clear(); }
+    busy=false; refresh();
+  }, RX.durOf(st));
+}
+function rewind(){
+  if(busy) return;
+  if(reviewing){ reviewing=false; refresh(); return; }
+  if(laneDone.size){ laneDone.clear(); renderLanes(done()); refresh(); return; }
+  if(done()===0){ intro=true; refresh(); return; }
+  setDone(done()-1); renderLanes(done()); refresh();
+}
+function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
+  setDone(0); intro=true; laneDone.clear();
+  renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
+
+/* =============================================================
+ *  UI
+ * ============================================================= */
+const rxmsgEl=document.getElementById('rxmsg');
+/* THE OPENING IS THE PROBLEM, NOT THE MOLECULE. Every other page here opens by
+ * introducing what is on stage; this one opens by saying why the stage is
+ * stuck, because the branch that follows is only interesting as an answer. */
+const INTRO_MSG=`Glycolysis has just finished. It made 2 ATP — and it also spent
+  <b>2 NAD⁺</b>, which are standing here as <b>NADH</b>. There is no NAD⁺ left,
+  so glycolysis <b>cannot run again</b> until something takes those hydrides
+  back off. With no oxygen, that is what these steps are for.`;
+const captionAt=i=>intro ? INTRO_MSG
+  : i<nSteps() ? stepAt(i).msg : stepAt(nSteps()-1).msg;
+const headAt=i=>{ const st=stepAt(i); return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
+let shownCaption=null;
+function drawCaption(){
+  const bare=intro;
+  const html=bare?captionAt(focusStep()):'';
+  const show=bare && !reviewing;
+  if(html!==shownCaption){
+    shownCaption=html;
+    rxmsgEl.querySelector('p').innerHTML=html;
+    rxmsgEl.classList.remove('in'); void rxmsgEl.offsetWidth;
+    if(show) rxmsgEl.classList.add('in');
+  }
+  rxmsgEl.classList.toggle('show', show);
+}
+
+/* ---- the ledger: the balance first, the products under it ------------------
+ * THE ARITHMETIC IS THE PAGE. Owed comes in from glycolysis, regenerated is
+ * summed off the steps, and the net landing on zero is what makes the pathway
+ * able to continue — so those three rows are the ledger and everything else is
+ * beneath them. */
+const ledgerEl=document.getElementById('ledger');
+const sideEl=document.getElementById('side');
+let prevLedger=null;
+let showLedger=false;
+const ledgerOn=()=>showLedger||tallyOn();
+function placeLedger(){
+  const hid=ledgerEl.classList.contains('hid');
+  if(intro || !ledgerOn()){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
+  if(!hid) return;
+  ledgerEl.classList.remove('hid');
+  ledgerEl.classList.remove('pin'); void ledgerEl.offsetWidth;
+  ledgerEl.classList.add('pin');
+}
+function drawLedger(){
+  placeLedger();
+  const L=ledgerAt(done()), c=carbonsAt(done());
+  const prev=prevLedger;
+  const bumped=k=>prev && prev[k]!==L[k] ? ' bump':'';
+  const netStr=v=>`${v>0?'+':v<0?'−':''}${Math.abs(v)}`;
+  // typographic minus, not a hyphen — this is the number the page is built on
+  ledgerEl.innerHTML=
+     `<div class="lhead">NAD⁺ balance</div>`
+    +`<div class="row"><span>Spent by glycolysis</span><span class="v" data-row="owed">−${L.owed}</span></div>`
+    +`<div class="row"><span>Regenerated here</span><span class="v${bumped('nad')}" data-row="nad">+${L.nad}</span></div>`
+    +`<div class="row net"><span>Net NAD⁺</span><span class="v${bumped('net')}" data-row="net">${netStr(L.net)}</span></div>`
+    // THE PRODUCTS, under the balance and not beside it: they are what the
+    // reaction leaves behind, not what it was for.
+    +`<div class="row prod"><span>ATP made</span><span class="v" data-row="made">${L.made}</span></div>`
+    +(branchHas('carbonOut')
+      ? `<div class="row"><span>CO₂ out</span><span class="v${bumped('carbonOut')}" data-row="carbonOut">${L.carbonOut}</span></div>` : '')
+    +`<div class="row carb"><span>Carbons</span><span class="v">${c}</span></div>`;
+  prevLedger=L;
+}
+
+/* =============================================================
+ *  THE CLOSING TALLY — NAD⁺ first, the product second
+ * =============================================================
+ *  Molecules in the scene, not pictures (kit/carriers.js), under the same
+ *  camera as the lanes. The ORDER is the argument: the thing the branch was for
+ *  is on the left, the thing it is named after is on the right, and the ledger
+ *  between them says the net is zero.
+ */
+const tallyEl=document.getElementById('tally');
+const TALLY=[
+  // counts read from the same ledger the sidebar prints, never typed
+  { k:'nad',  spec:()=>NADP, name:()=>NADP.short, n:L=>L.nad },
+  { k:'prod', spec:()=>M[branchOf(branch).product],
+    name:()=>M[branchOf(branch).product].short, n:()=>BASE.length },
+];
+TALLY.forEach(t=>{
+  t.host=tallyEl.querySelector(`[data-cell="${t.k}"]`);
+  t.car=Carriers.create({ root, camera, canvas, host:t.host,
+    visClass:'tvis', slotClass:'tslot', slotHTML:()=>'<div class="tslot"></div>',
+    build:spec=>{ const g=Stage.buildMolecule(spec,{center:true});
+                  Stage.setOptionalH(g,false);
+                  // NAD⁺ keeps the one C4 hydrogen it still has — the lanes'
+                  // build makes the same repair, for the same reason.
+                  if(spec.gly && spec.gly.nic){
+                    const m=g.userData.atomMeshes[spec.gly.nic.h[0]];
+                    if(m) m.visible=true;
+                  }
+                  return g; } });
+});
+const tallyOn=()=>!intro && !reviewing && done()>=nSteps();
+function drawTally(){
+  const on=tallyOn();
+  tallyEl.hidden=!on;
+  document.getElementById('toggles').hidden=on;
+  const home=on?document.getElementById('tledger'):sideEl;
+  if(ledgerEl.parentNode!==home){
+    if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, sideEl.firstChild);
+  }
+  lanes.forEach(l=>{ l.g.visible=!on; });
+  platesEl.style.visibility = on ? 'hidden' : '';
+  const L=ledgerAt(done());
+  TALLY.forEach(t=>{
+    if(!on){ t.car.show(0,t.spec()); return; }
+    t.car.show(1,t.spec());
+    t.host.querySelector('.tcount').textContent='×'+t.n(L);
+    t.host.querySelector('.tname').textContent=t.name();
+  });
+  placeTallyMols();
+}
+function placeTallyMols(){ const on=tallyOn(); TALLY.forEach(t=>t.car.place(on)); }
+
+/* =============================================================
+ *  THE ENZYME — a blob behind the substrate, and its name
+ * =============================================================
+ *  Deliberately not a protein, as in both siblings: one path, no claim about
+ *  fold, size or active site.
+ *
+ *  ONE BLOB PER REACTING LANE, AND NONE ON THE CARRIERS. A dehydrogenase binds
+ *  its substrate and NADH at once, so a blob around each would say there are
+ *  four enzymes at work when there are two. The blobs go on the same lanes the
+ *  hotspots do, which is the list the step's own `spot` produces.
+ */
+const enzEl=document.getElementById('enzymes');
+const enzNameEl=document.getElementById('enzname');
+const enzMetaEl=document.getElementById('enzmeta');
+const enzNoteEl=document.getElementById('enznote');
+let showEnz=false;
+const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps()) ? stepAt(i) : null; };
+const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
+const ENZ=Enzyme.create({camera, canvas, host:enzEl});
+function drawEnz(){
+  const st=enzLive()?enzOf():null;
+  enzEl.hidden=!st; enzNameEl.hidden=!st;
+  if(st) enzNameEl.innerHTML=`<div class="ek">Enzyme</div><div class="en">${st.enz}</div>`;
+  else enzEl.innerHTML='';
+  drawEnzMeta();
+}
+function placeEnz(){
+  if(enzEl.hidden || !lanes.length) return;
+  const st=enzOf(); if(!st) return;
+  // THE KEY CARRIES THE BRANCH. Both branches have a step 1, and without it the
+  // blob would hold a measurement taken on the other branch's molecule.
+  // on the REVIEW beat too, which is why the index is passed: the lanes hold
+  // products by then and would answer that the step acts on none of them.
+  ENZ.update(actingLanes(st,focusStep()).filter(j=>lanes[j]).map(j=>[lanes[j].g]),
+             {key:branch+':'+focusStep()});
+}
+
+/* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — read off the
+ * step, never typed, and both a door into the energy card. The pair is worth
+ * more here than in either sibling: the ethanol branch's two steps are one of
+ * each, side by side. */
+let cplOpen=false, metaStep=null;
+function drawEnzMeta(){
+  const i=focusStep();
+  const st=(!intro && i<nSteps() && !tallyOn()) ? stepAt(i) : null;
+  if(metaStep!==branch+':'+i){ metaStep=branch+':'+i; cplOpen=false; }
+  enzMetaEl.hidden=!st;
+  enzNoteEl.hidden=!(st&&st.takeaway);
+  enzNoteEl.textContent=(st&&st.takeaway)||'';
+  if(!st){ enzMetaEl.innerHTML=''; return; }
+  const on=cplOpen?'true':'false';
+  const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
+  enzMetaEl.innerHTML=
+      `<span class="east ${first}" aria-hidden="true"></span>`
+    + (st.couple ? `<button class="estat k-cpl" data-cpl aria-pressed="${on}">Coupled reaction</button>` : '')
+    + `<button class="estat ${st.rev===false?'k-irr':'k-rev'}" data-cpl aria-pressed="${on}">${
+        st.rev===false?'Irreversible':'Reversible'}</button>`;
+}
+enzMetaEl.addEventListener('click',e=>{
+  if(!e.target.closest('[data-cpl]')) return;
+  cplOpen=!cplOpen; drawEnzMeta(); drawCouple();
+});
+
+/* ---- the coupling box: energy/energy.js's figures -------------------------
+ * Names READ OFF THE MOLECULES, never typed. `from` names the second substrate
+ * explicitly because on this page it is the whole story: the reaction is the
+ * substrate plus NADH, and a curve labelled with the substrate alone would hide
+ * the reagent the lesson is about. */
+function resolveCouple(st){
+  const i=steps().indexOf(st), c=st.couple, nameOf=k=>SPECS(k).short||SPECS(k).name;
+  return Object.assign({}, c, {
+    from: nameOf(speciesAt(i)[0]) + ' + NADH',
+    to:   nameOf(st.species[0]) });
+}
+function soloSpec(st){
+  const nameOf=k=>SPECS(k).short||SPECS(k).name, i=steps().indexOf(st);
+  return { from:nameOf(speciesAt(i)[0]), to:nameOf(st.species[0]), drop:st.rev===false };
+}
+const soloLine=`Both sides sit at nearly the <b>same energy</b>, so the step runs
+   either way.`;
+// Neither reduction is uphill, so there is one sentence and not two: the drop
+// pays for the carrier turning over, which is the only reason the cell bothers.
+const coupleLine=c=>`This step runs <b>downhill</b>. The drop drives
+   <b>${c.cout}</b> back the other way — the only thing the cell wanted.`;
+let figTab='curve';
+const cplEl=document.getElementById('couplebox');
+cplEl.addEventListener('click',e=>{
+  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); return; }
+  const t=e.target.closest('[data-figtab]');
+  if(t){ figTab=t.dataset.figtab; drawCouple(); }
+});
+let shownCplStep=null;
+function drawCouple(){
+  const i=focusStep();
+  const st=(cplOpen&&!intro&&i<nSteps())?stepAt(i):null;
+  if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
+  const c=st.couple?resolveCouple(st):null;
+  cplEl.style.display='block';
+  cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
+    +(c ? `<div class="nhead cpl-h">Coupled reaction</div>`
+          + Energy.tabs(figTab)
+          + (figTab==='curve' ? Energy.curve(c) : Energy.pair(c))
+          + `<p class="nbody">${coupleLine(c)}</p>`
+        : `<div class="nhead cpl-h">Energy curve</div>`
+          + Energy.solo(soloSpec(st))
+          + `<p class="nbody">${soloLine}</p>`)
+    + (st.rev===false
+        ? `<div class="nhead irr">Irreversible in the cell</div>`
+        : `<div class="nhead rev">Near equilibrium — reversible</div>`);
+  const key=branch+':'+i;
+  if(key!==shownCplStep){
+    shownCplStep=key;
+    cplEl.classList.remove('in'); void cplEl.offsetWidth;
+    cplEl.classList.add('in');
+  }
+}
+// Nothing left for the sidebar card to say: the verdicts ride the stage and the
+// balance rides the ledger. Collapsed, so it costs the column no height.
+const noteEl=document.getElementById('stepnote');
+function drawNote(){ noteEl.innerHTML=''; noteEl.style.display='none'; }
+
+/* ---- the branch tabs ------------------------------------------------------
+ * A TAB, NOT A RAIL STOP. The rail's numbers mean "where am I in this pathway",
+ * so putting a second destination on it would make the ethanol branch look like
+ * step 3 of the lactate one. Switching is free: `done` is per branch, so a
+ * half-run branch is still half-run when you come back. */
+const tabsEl=document.getElementById('branchtabs');
+const whenEl=document.getElementById('branchwhen');
+function setBranch(k){
+  if(k===branch || busy) return;
+  cancelTimers(); busy=false; reviewing=false; laneDone.clear();
+  branch=k; _pathTop=null;
+  renderLanes(done()); refresh();
+}
+function drawTabs(){
+  tabsEl.innerHTML='';
+  BRANCHES.forEach(b=>{
+    const el=document.createElement('button');
+    el.className='btab'; el.type='button';
+    el.textContent=b.tab;
+    el.setAttribute('aria-pressed', b.key===branch?'true':'false');
+    el.onclick=()=>setBranch(b.key);
+    tabsEl.appendChild(el);
+  });
+  whenEl.textContent=branchOf(branch).when;
+}
+
+/* ---- the rail, one per branch ---------------------------------------------
+ * ONE OR TWO NUMBERS, and the count changes with the tab. glycolysis's rail can
+ * reason that "the ten are always ten"; here the length is a fact about the
+ * branch, so this is redrawn on a switch rather than filled in. */
+const railEl=document.getElementById('rail');
+function drawRail(){
+  railEl.innerHTML='';
+  const d=done(), n=nSteps();
+  steps().forEach((st,idx)=>{
+    const state = (!intro && !reviewing && idx===d) ? 'run'
+                : (!intro && idx===d-1 && !(d>=n && !reviewing)) ? 'cur'
+                : (idx < d) ? 'past' : 'future';
+    const b=document.createElement('button');
+    b.className='rnum '+state;
+    b.textContent=st.n;
+    b.setAttribute('aria-label',`Step ${st.n}`);
+    if(state==='cur') b.setAttribute('aria-current','step');
+    b.onclick=()=>goToStep(idx);
+    railEl.appendChild(b);
+  });
+  const e=document.createElement('button');
+  const at=!intro && !reviewing && d>=n;
+  e.className='rnum rend '+(at?'cur':'future');
+  e.textContent='End';
+  e.setAttribute('aria-label','End of branch');
+  if(at) e.setAttribute('aria-current','step');
+  e.style.cursor='pointer';
+  e.onclick=()=>goToStep(n);
+  railEl.appendChild(e);
+}
+const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; setDone(k);
+  laneDone.clear(); renderLanes(done()); refresh(); };
+
+const actEl=document.getElementById('actbtn');
+const stepHeadEl=document.getElementById('stephead');
+const stepTipEl=document.getElementById('steptip');
+const BURST_MS=190;
+let pressing=false;
+function press(fn){
+  if(pressing || busy) return;
+  pressing=true;
+  actEl.classList.add('burst');
+  later(()=>{ pressing=false; fn(); }, BURST_MS);
+}
+function beginBranch(){
+  if(!intro) return;
+  press(()=>{ intro=false; refresh(); computeFit(); });
+}
+function drawAct(){
+  const hi=focusStep();
+  const head = intro ? ''
+             : reviewing ? `Step ${stepAt(done()-1).n} complete`
+             : hi<nSteps() ? headAt(hi) : '';
+  const tip = head ? captionAt(hi) : '';
+  stepHeadEl.innerHTML = head + (tip
+    ? `<span class="infowrap"><button class="infobtn" type="button"
+         aria-describedby="steptip"
+         aria-label="What happens in this step">i</button></span>` : '');
+  stepTipEl.innerHTML = tip;
+  stepHeadEl.classList.toggle('on', !!head);
+  const entering = reviewing && !shownReview;
+  shownReview = reviewing;
+  if(entering){ stepHeadEl.classList.remove('revin'); void stepHeadEl.offsetWidth; }
+  stepHeadEl.classList.toggle('revin', reviewing);
+  if(intro){
+    actEl.style.visibility='visible';
+    actEl.className='';
+    actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=beginBranch;
+    return;
+  }
+  actEl.className = reviewing ? 'revin' : '';
+  if(reviewing){
+    actEl.style.visibility='visible';
+    actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=()=>{ reviewing=false; refresh(); };
+    return;
+  }
+  /* THE END OF A BRANCH IS NOT THE END OF THE LESSON — the other tab is the
+   * second half, so the last button is the way there. Once both are run there
+   * is nothing left to press, and the tally is what stands. */
+  if(done()>=nSteps() && !busy){
+    const other=BRANCHES.find(b=>b.key!==branch);
+    const bothDone=progress[other.key]>=STEPS[other.key].length;
+    if(bothDone){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
+    actEl.style.visibility='visible';
+    actEl.innerHTML=`Now the ${other.tab.toLowerCase()} branch <i class="ph-bold ph-arrow-right"></i>`;
+    actEl.onclick=()=>setBranch(other.key);
+    return;
+  }
+  /* NO BUTTON DURING A STEP, ever. Both branches' steps are clicked on the
+   * molecule — the click IS the hydride crossing, or the carbon leaving — and a
+   * Next in the corner would be an easier way past the lesson. `visibility`,
+   * not `display`: the bar's height is reserved by the camera fit. */
+  actEl.style.visibility='hidden'; actEl.onclick=null;
+}
+
+const ledgerBtn=document.getElementById('showledger');
+const ledgerBox=ledgerBtn.querySelector('input');
+ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
+const enzBox=document.getElementById('showenz').querySelector('input');
+enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
+// A reload restores the boxes, not the flags: take the box as the truth.
+showLedger=ledgerBox.checked; showEnz=enzBox.checked;
+
+function refresh(){ drawTabs(); drawLedger(); drawTally(); drawEnz(); drawAct();
+  drawRail(); drawNote(); drawCouple(); drawCaption(); computeFit(); }
+
+document.getElementById('restart').onclick=restart;
+addEventListener('keydown',e=>{
+  if(Modal.anyOpen()) return;
+  if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
+    if(intro){ beginBranch(); }
+    else if(reviewing){ reviewing=false; refresh(); } }
+  if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
+});
+
+/* =============================================================
+ *  MAIN LOOP
+ * ============================================================= */
+L.frame=()=>{
+  LANES.step();
+  cam.r+=(fitR-cam.r)*0.05;
+  cam.target.y+=(fitY-cam.target.y)*0.06;
+  applyCam(); orthoFrustum();
+  KIT.faceCamera(camera);
+};
+L.afterFrame=()=>{
+  drawPlates();
+  drawFlyers();
+  drawSpots();
+  drawHint();
+  placeTallyMols();
+  placeEnz();
+};
+
+renderLanes(done()); refresh(); applyCam(); resize();
+// Re-solve after refresh(): the first computeFit runs before the caption is up,
+// so it reserves nothing along the bottom and opens one frame too close.
+computeFit();
+cam.target.y=fitY; cam.r=fitR; applyCam(); orthoFrustum();
+L.start();
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(computeFit);
+
+document.getElementById('savepng').onclick=()=>{
+  renderer.render(scene,camera);
+  const w=canvas.width, h=canvas.height, s=w/(canvas.clientWidth||w);
+  const out=document.createElement('canvas'); out.width=w; out.height=h;
+  const x=out.getContext('2d');
+  x.drawImage(canvas,0,0);
+  x.textAlign='center';
+  const projV=new THREE.Vector3();
+  lanes.forEach(l=>{
+    const spec=SPECS(l.key);
+    projV.set(l.g.position.x,l.topY+laneOffset(l),0).project(camera);
+    const px=(projV.x*0.5+0.5)*w, py=(-projV.y*0.5+0.5)*h;
+    x.font=`500 ${14*s}px "Zilla Slab", Georgia, serif`;
+    x.fillStyle='#8a8073'; x.fillText(spec.formula, px, py-3*s);
+    x.font=`700 ${19*s}px "Zilla Slab", Georgia, serif`;
+    x.fillStyle='#2b2723'; x.fillText(l.nameEl.textContent, px, py-20*s);
+  });
+  const a=document.createElement('a'); a.download='fermentation.png';
+  a.href=out.toDataURL('image/png'); a.click();
+};
+</script>
+
+</body>
+</html>

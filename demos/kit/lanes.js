@@ -110,7 +110,14 @@
     const top  =mem(key=>extent(key,1).hi);
     const bottom=mem(key=>extent(key,1).lo);
 
-    const xOf=(i,n)=>n===1?0:(i===0?-o.spread:o.spread);
+    /* EVENLY SPACED ABOUT THE CENTRE LINE, for any n. `spread` is the HALF
+     * separation of a pair, so two lanes land on ∓spread exactly as they did
+     * when this only ever handled one or two — glycolysis's split and the
+     * cycle's join are unchanged to the pixel. What is new is that a lane count
+     * is now a number rather than a case: fermentation stands a carrier beside
+     * each of two substrates, which is four, and a page cannot open the shape
+     * of this expression to add its own. */
+    const xOf=(i,n)=>n===1?0:(i-(n-1)/2)*(2*o.spread/(n-1));
     // where a lane's molecule actually SITS — every flight target must use this,
     // not xOf, or a group lands beside the atom it was aiming at
     const origin=(key,i,n)=>xOf(i,n)-shift(key);

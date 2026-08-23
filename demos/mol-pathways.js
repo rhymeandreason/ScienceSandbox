@@ -462,9 +462,14 @@
     //   methyl at C3 as a united atom (same convention as alanine's –CH₃).
     const g=chainC(3);
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
-    g.carbonyl(1,0);                                       // C2 ketone
+    const ket=g.carbonyl(1,0);                             // C2 ketone
     GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', short:'Pyruvate', formula:'C₃H₃O₃⁻', charge:-1, class:'sugar',
       gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true,
+        // THE BOND A REDUCTION ATTACKS, for the branch after this one: C2=O is
+        // what takes the hydride and becomes an alcohol. Captured from the
+        // build rather than typed, so re-ordering the spec cannot point the
+        // hotspot at a bond that is no longer there. fermentation-lab.html.
+        redBond:[1,ket],
         // WHAT THE NEXT PATHWAY DOES TO IT. Glycolysis ends here and the
         // bridge reaction starts here, so the two atoms pyruvate dehydrogenase
         // acts on are named on the molecule rather than in whichever page
@@ -518,17 +523,18 @@
     //   from the ketone pyruvate was, and the next step adds a second one
     //   beside it. Both have to be visible for that to read as a change.
     const g=chainC(2);
-    g.carbonyl(0,0);                                 // C1=O
+    const ket=g.carbonyl(0,0);                       // C1=O
     // NOT named `aldehydeH`: that name means "the H a dehydrogenase takes"
     // everywhere else in this library (G3P's), and this one stays put.
     const fh=g.grow(0,'H',GL.CH,'sp2',0);
     GLYCOLYSIS.acetaldehyde=g.spec({ name:'Acetaldehyde', short:'Acetaldehyde',
       formula:'C₂H₄O', charge:0, class:'sugar',
+      // same name pyruvate's carbonyl carries, and the same reason
       // `oxC` is pyruvate's name for the carbon whose oxidation state the next
       // step changes, and it is the right name in both directions: there a
       // dehydrogenase takes from it, here a dehydrogenase gives to it. One
       // atom, one name, so reaction/reaction.js does not learn a second.
-      gly:{ carbons:2, cN:[0,1], phosphates:0, formylH:fh, oxC:0 } });
+      gly:{ carbons:2, cN:[0,1], phosphates:0, formylH:fh, oxC:0, redBond:[0,ket] } });
   }
   {
     // — ethanol: acetaldehyde's carbonyl reduced, the mirror of lactate's step

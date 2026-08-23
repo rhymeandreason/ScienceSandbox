@@ -203,7 +203,7 @@ console.log('\nno magnitudes');
 /* The flavin bug: `tone:'f'` with no rule strokes the coupled trace `none`, and
  * a figure missing one of its two traces looks like a figure with one trace. */
 console.log('\ntones');
-const PAGES = ['glycolysis-lab.html', 'krebs-lab.html'];
+const PAGES = ['glycolysis-lab.html', 'krebs-lab.html', 'fermentation-lab.html'];
 const pageSrc = Object.fromEntries(
   PAGES.map(p => [p, fs.readFileSync(path.join(DEMOS, p), 'utf8')]));
 {

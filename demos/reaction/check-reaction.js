@@ -54,7 +54,7 @@ console.log('== 1. every fx a lesson names is a registered verb');
 if (!VERBS.length) fail('no verbs found — has verb() been renamed?');
 
 // Which pages drive the module. Widen alongside any new one.
-const PAGES = ['glycolysis-lab.html', 'krebs-lab.html'];
+const PAGES = ['glycolysis-lab.html', 'krebs-lab.html', 'fermentation-lab.html'];
 let named = 0;
 for (const page of PAGES) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
