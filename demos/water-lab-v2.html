@@ -117,6 +117,11 @@
   box-shadow: var(--shadow-press);
 }
 #askopen .sub { color: rgba(255,255,255,.72); }
+/* chat.js appends the launcher into #askslot, so the toggle is written ahead of
+   it in the markup and lands on its left. */
+#askslot { align-items: center; gap: 8px; }
+#askopen { margin: 0; }
+#listtoggle { flex: none; width: 40px; height: 40px; font-size: 19px; }
 #askopen.waiting::after { background: var(--accent-hot); }
 </style>
 </head>
@@ -179,7 +184,12 @@
       <div id="tryhead"><span>Try this</span><span class="count" id="trycount"></span></div>
       <ol id="tryitems"></ol>
     </div>
-    <div id="askslot"></div>
+    <div id="askslot">
+      <button id="listtoggle" class="iconbtn is-on" type="button"
+              aria-pressed="true" aria-label="Hide the checklist" title="Hide the checklist">
+        <i class="ph-bold ph-list-checks"></i>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1511,6 +1521,19 @@ function syncTrials(c){
   tryCountEl.textContent=n+'/'+shown;
 }
 syncTrials({p:{fz:0},escaping:0});   // draw the list before the first frame
+
+/* Show/hide, for a student who wants the stage back. The log keeps ticking
+   while it is hidden — the experiment is what is being recorded, not the
+   looking at it. */
+const trylistEl=document.getElementById('trylist'), listToggle=document.getElementById('listtoggle');
+listToggle.onclick=()=>{
+  const on=trylistEl.style.display==='none';
+  trylistEl.style.display=on?'':'none';
+  listToggle.classList.toggle('is-on',on);
+  listToggle.setAttribute('aria-pressed',String(on));
+  const label=(on?'Hide':'Show')+' the checklist';
+  listToggle.setAttribute('aria-label',label); listToggle.title=label;
+};
 
 /* ---------- main loop ---------- */
 // Evaporating molecules rise well above the cluster and fade out over a tall band
