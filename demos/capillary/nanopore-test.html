@@ -976,10 +976,21 @@ document.getElementById('evap').onclick=e=>{
 const TINT_WALL=P.atoms.Cl, TINT_WATER=P.bonds.hbond, TINT_TRACER=P.bonds.iondipole;
 const plain=new Map();
 [...wallMeshes, wallBondMesh, oMesh, hMesh, tMesh].forEach(m=>plain.set(m,m.material.color.getHex()));
+/* BLENDED, not replaced. Flooding every atom with one flat colour throws away
+   the tone inside a molecule: a hydrogen and the oxygen it hangs off become the
+   same sphere and the shape stops reading. Each element keeps its own colour and
+   is carried most of the way toward the tint instead, so hydrogens stay pale
+   against their oxygens and the wall's carbons stay dark against its hydroxyls.
+   One hue per side of the boundary, still two tones within each. */
+const TINT_MIX=0.74;
+const _c=new THREE.Color(), _t=new THREE.Color();
 let tinted=false;
 document.getElementById('tint').onclick=e=>{
   tinted=!tinted;
-  const set=(m,c)=>m.material.color.setHex(tinted?c:plain.get(m));
+  const set=(m,c)=>{
+    _c.setHex(plain.get(m));
+    m.material.color.copy(tinted ? _c.lerp(_t.setHex(c), TINT_MIX) : _c);
+  };
   wallMeshes.forEach(m=>set(m,TINT_WALL));
   set(wallBondMesh,TINT_WALL);
   set(oMesh,TINT_WATER); set(hMesh,TINT_WATER); set(tMesh,TINT_TRACER);
