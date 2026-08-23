@@ -1388,9 +1388,10 @@ function applyAskShift(){
  *  button asks for attention until the scene has enough to show, then stops
  *  asking — a pulse that never ends is decoration.
  *
- *  21 is water's own magic number: (H₂O)₂₁ is the cluster mass spectrometry
- *  keeps finding, a 20-molecule cage with one water inside it. So the pulse
- *  stops at the smallest crowd that is genuinely a structure.
+ *  21 is borrowed from the gas-phase magic-number cluster (H₂O)₂₁, and it is
+ *  only a size here, not a shape: that cluster is a pentagonal dodecahedral
+ *  cage, while this scene freezes into ice Iₕ, which is hexagonal and 4-
+ *  coordinated. Nothing on the stage should ever form the cage.
  */
 const WATER_ENOUGH=21;
 const addWaterBtn=document.getElementById('addwater');
