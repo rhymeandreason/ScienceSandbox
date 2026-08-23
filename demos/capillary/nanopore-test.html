@@ -183,7 +183,6 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 
 <div id="bar">
   <label class="check"><input type="checkbox" id="tint"><span>Tint</span></label>
-  <button class="pill" id="evap" type="button">Evaporate</button>
   <button class="pill pill--ghost" id="reset" type="button">Reset</button>
 </div>
 
@@ -808,7 +807,6 @@ function _tumble(w){
  *  water enters from below, so the column keeps its length and the water inside
  *  it travels up.
  */
-let evaporating=false;
 /* It leaves FAST. Every molecule in flight is one the column has lost, so a
    slow escape is a standing deficit: at 0.1 A a frame the vapour held a sixth
    of the liquid at once, the column shrank, and the water went DOWN while
@@ -816,8 +814,14 @@ let evaporating=false;
    round trip is about 45 frames and the deficit stays near 1%. */
 const ESCAPE_V=0.5*A;
 let escapeTop=0;                       // set from the wall's height, below
-let evapClock=0, evapCount=0;
-let EVAP_EVERY=9;                      // frames between one molecule leaving
+let evapAcc=0, evapCount=0;
+/* A RATE, NOT A SWITCH. Evaporation never stops: at any temperature some
+   surface molecules sit in the high end of the energy distribution with enough
+   to break their bonds and go, and heat only widens that end. In a leaf it is
+   not heat at all but the humidity outside, which is why transpiration runs on
+   an ordinary day. So the control is molecules per second, and zero is
+   saturated air rather than a cold one. */
+let EVAP_RATE=7;                       // molecules leaving per second
 function evaporate(){
   // molecules already on their way out: no bonds, no gravity, just going
   for(const w of waters){
@@ -829,13 +833,15 @@ function evaporate(){
       w.v.set(0,0.01*A,0); place(w);
     }
   }
-  if(!evaporating) return;
   /* Rate is a real trade-off, not a free knob: evaporating flattens the
      meniscus. Static the surface stands ~10 A higher at the walls; running,
      it sits at 0-2 A at every rate that still shows visible flow. Flux draws
-     a surface down, which is true, but this flux is orders above a leaf's —
-     it is set to make the flow watchable, and the curve pays for it. */
-  if(++evapClock%EVAP_EVERY) return;
+     a surface down, which is true, but even 7 a second here is orders above a
+     leaf's, and the curve pays for it. */
+  if(EVAP_RATE<=0) return;
+  evapAcc += EVAP_RATE/60;
+  if(evapAcc<1) return;
+  evapAcc -= 1;
   /* Anywhere on the free surface, not the single highest molecule. Taking the
      top one always takes the water riding up the wall — the meniscus rim is by
      definition the highest thing there — so evaporating slowly ate the curve
@@ -962,11 +968,11 @@ const KNOBS=[
   {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x', main:1},
   {k:'Adhesion',   get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3), main:1},
   {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
+  {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
   {k:'H-bond',     get:()=>K_HB,      set:v=>K_HB=v,       min:0,   max:0.09, step:0.002, fmt:v=>v.toFixed(3)},
   {k:'Damping',    get:()=>DAMP,      set:v=>DAMP=v,       min:0.70,max:0.99, step:0.01,  fmt:v=>v.toFixed(2)},
   {k:'Jitter',     get:()=>JITTER/A,  set:v=>JITTER=v*A,   min:0,   max:0.03, step:0.001, fmt:v=>v.toFixed(3)},
   {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
-  {k:'Evap every', get:()=>EVAP_EVERY,set:v=>EVAP_EVERY=v, min:1,   max:60,   step:1,     fmt:v=>v+' fr'},
 ];
 const knobRows=document.getElementById('knobrows');
 /* The rest are apparatus, folded away: a panel of eight sliders says all eight
@@ -1046,12 +1052,6 @@ document.getElementById('tint').onchange=e=>{ tintTarget=e.currentTarget.checked
 
 resize(); applyCam(); loop();
 new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
-
-document.getElementById('evap').onclick=e=>{
-  evaporating=!evaporating;
-  e.currentTarget.classList.toggle('pill--ghost', !evaporating);
-  e.currentTarget.textContent = evaporating ? 'Evaporating' : 'Evaporate';
-};
 
 
 document.getElementById('reset').onclick=()=>{
