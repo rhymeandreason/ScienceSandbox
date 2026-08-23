@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="../main.css">
 <link rel="stylesheet" href="../sandbox.css">
-<link rel="stylesheet" href="enzyme.css">
+<link rel="stylesheet" href="enzyme-blob.css">
 <style>
   #stage,#side{min-height:0} #side{overflow-y:auto}
   #side h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
@@ -30,7 +30,7 @@
     <div id="brand"><span class="drop"><i class="ph-bold ph-wrench"></i></span><h1>kit test bench</h1></div>
     <div id="band">Chrome the camera must not let the molecule sit behind.<br>
       Reserved in PIXELS, spent in world units by <b>Lesson.fit</b>.</div>
-    <!-- The blob LAYER is the page's, never the module's: kit/enzyme.css says so
+    <!-- The blob LAYER is the page's, never the module's: kit/enzyme-blob.css says so
          and a lesson spells the same thing as #enzymes in pathways.css. -->
     <div id="enzymes" style="position:absolute;inset:0;z-index:1;pointer-events:none"></div>
     <div id="stats"></div>
@@ -89,7 +89,7 @@
 <script src="molgraph.js"></script>
 <script src="focus.js"></script>
 <script src="stagekit.js"></script>
-<script src="enzyme.js"></script>
+<script src="enzyme-blob.js"></script>
 <script>
 "use strict";
 const SPEC=MolLib.MOLECULES.g6p;                 // a phosphorylated sugar: rings AND a phosphate
@@ -154,7 +154,7 @@ document.getElementById('clear').onclick=()=>L.focus.clear();
  */
 const g2=Stage.buildMolecule(MolLib.MOLECULES.pyruvate,{center:true});
 g2.position.set(9,0,0); L.root.add(g2);
-const ENZ=Enzyme.create({camera:L.camera, canvas:document.getElementById('gl'),
+const ENZ=EnzymeBlob.create({camera:L.camera, canvas:document.getElementById('gl'),
                          host:document.getElementById('enzymes')});
 let enzSets=[], enzKey='off';
 const enzShow=(sets,key)=>{ enzSets=sets; enzKey=key; };

@@ -117,7 +117,7 @@
     .spot{width:60px;height:60px} }
 
   /* ---------- THE ENZYME, behind the sugar ----------
-     The blob's own rules moved to `kit/enzyme.css`, which the module that draws
+     The blob's own rules moved to `kit/enzyme-blob.css`, which the module that draws
      it ships with: its JS places the element by its CORNER and animates a
      wrapper, and both of those are agreements with that stylesheet rather than
      with this one. What stays here is the LAYER — where a pathway page puts the

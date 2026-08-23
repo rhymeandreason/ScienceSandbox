@@ -1,5 +1,5 @@
 /* =============================================================================
- *  kit/enzyme.js — the enzyme behind the substrate
+ *  kit/enzyme-blob.js — the enzyme behind the substrate
  * =============================================================================
  *  A translucent blob sitting behind the molecule a step acts on, one per
  *  substrate. Glycolysis and the citric-acid cycle both draw it, fermentation
@@ -7,10 +7,10 @@
  *  first two — which is how the copy in `krebs-lab` still carried every bug the
  *  original had already had fixed.
  *
- *  DELIBERATELY NOT A PROTEIN. No structure is drawn: the shape is one path, the
- *  same one for every enzyme, and it makes no claim about fold, size or active
- *  site. A drawn protein at this scale would be wrong in all three.
- *  (`hemoglobin-lab` is where a real one gets drawn.)
+ *  DELIBERATELY NOT A PROTEIN, which is what the name says. No structure is
+ *  drawn: the shape is one path, the same one for every enzyme, and it makes no
+ *  claim about fold, size or active site. A drawn protein at this scale would be
+ *  wrong in all three. (`hemoglobin-lab` is where a real one gets drawn.)
  *
  *  WHAT THIS OWNS: the elements, the measurement, and where the blob sits.
  *  WHAT IT DOES NOT: which molecule an enzyme is on, how many blobs there are,
@@ -31,7 +31,7 @@
  *     and these molecules run diagonally, so a square sized off the taller axis
  *     leaves the phosphate tail hanging out of a corner while the opposite side
  *     is empty blob. The circumscribing radius is the one number that cannot let
- *     an atom out on any bearing. `Enzyme.circle` is that arithmetic alone, with
+ *     an atom out on any bearing. `EnzymeBlob.circle` is that arithmetic alone, with
  *     no scene in it, so `kit/check-kit.js` asserts the same code a page draws
  *     with.
  *   · MEASURED EVERY FRAME, NEVER FROZEN. Pinning the blob when its molecule
@@ -56,7 +56,7 @@
  *  does; Chrome does not, so the box an inspector draws is right in both and
  *  only the ink moves, differently at every moment of a 9s cycle.
  *
- *  Loaded after scene.js. Exposes window.Enzyme (and module.exports for the
+ *  Loaded after scene.js. Exposes window.EnzymeBlob (and module.exports for the
  *  checker — `circle` is pure arithmetic and needs no THREE).
  * ========================================================================== */
 (function(global){
@@ -223,6 +223,6 @@
   }
 
   const API={create, circle, SVG, DEFAULTS:DEF};
-  global.Enzyme=API;
+  global.EnzymeBlob=API;
   if(typeof module!=='undefined' && module.exports) module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);

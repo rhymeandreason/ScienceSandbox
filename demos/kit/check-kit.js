@@ -28,7 +28,7 @@ const {MolGraph}=require(path.join(__dirname,'molgraph.js'));
 const {Motion}=require(path.join(__dirname,'motion.js'));
 const {HBond}=require(path.join(__dirname,'hbond.js'));
 const {Lobes}=require(path.join(__dirname,'..','lobes','lobes.js'));
-const {circle:enzCircle}=require(path.join(__dirname,'enzyme.js'));
+const {circle:enzCircle}=require(path.join(__dirname,'enzyme-blob.js'));
 const M=MolLib.MOLECULES;
 
 let fails=0, checks=0;
@@ -421,7 +421,7 @@ head('hbond.js — matching order');
 }
 
 /* =====================================================================
- *  kit/enzyme.js — the one piece of it that is arithmetic
+ *  kit/enzyme-blob.js — the one piece of it that is arithmetic
  * =====================================================================
  *  The rest of that module is THREE and the DOM and belongs to the human in the
  *  browser. `circle` is not: it decides where the blob's middle is and how big
@@ -432,7 +432,7 @@ head('hbond.js — matching order');
  *  looks like the placement drifting.
  * ===================================================================== */
 {
-  head('enzyme.js — the blob\'s circle');
+  head('enzyme-blob.js — the blob\'s circle');
 
   ok(enzCircle([])===null && enzCircle(null)===null,
      'nothing to enclose returns null rather than a circle at the origin');

@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="main.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="pathways.css">     <!-- the pathway lesson chrome, shared with krebs-lab -->
-<link rel="stylesheet" href="kit/enzyme.css">    <!-- ships with kit/enzyme.js; its JS depends on these rules -->
+<link rel="stylesheet" href="kit/enzyme-blob.css">    <!-- ships with kit/enzyme-blob.js; its JS depends on these rules -->
 <link rel="stylesheet" href="massaction/massaction.css">
 <link rel="stylesheet" href="energy/energy.css">  <!-- the free-energy figures -->
 <style>
@@ -189,7 +189,7 @@
 <script src="kit/hotspot.js"></script>
 <script src="kit/leaving.js"></script>
 <script src="kit/carriers.js"></script>
-<script src="kit/enzyme.js"></script>
+<script src="kit/enzyme-blob.js"></script>
 <script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
@@ -1606,8 +1606,8 @@ function laneSettled(grp){
     return (u.tx==null||Math.abs(l.g.position.x-u.tx)<0.01)
         && (u.ty==null||Math.abs(l.g.position.y-u.ty)<0.01); });
 }
-const ENZ=Enzyme.create({camera, canvas, host:enzEl});
-/* The blob itself is kit/enzyme.js — the elements, the measurement and the
+const ENZ=EnzymeBlob.create({camera, canvas, host:enzEl});
+/* The blob itself is kit/enzyme-blob.js — the elements, the measurement and the
  * placement. What stays here is the only part that is chemistry: WHICH molecule
  * each enzyme is on, and the one step whose blob must hold still.
  * Called from afterFrame, and it measures live, so a lane swapped mid-step is
