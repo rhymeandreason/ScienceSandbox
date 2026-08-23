@@ -16,22 +16,22 @@
   #stage { position:absolute; inset:0; }
   canvas { width:100%; height:100%; display:block; }
 
-  /* The chrome is ONE block at the bottom, floating over the stage.
-     kit/fit.js is told its height in pixels, so the camera frames the scene
-     above it rather than behind it. */
-  #chrome { position:absolute; left:0; right:0; bottom:0; z-index:2;
-            padding:10px 18px 16px; text-align:center; pointer-events:none;
+  /* The chrome is ONE block at the TOP, floating over the stage, the way
+     water-lab's #titleblock sits. kit/fit.js is told its height in pixels, so
+     the camera frames the scene below it rather than behind it. */
+  #chrome { position:absolute; left:0; right:0; top:0; z-index:2;
+            padding:16px 18px 30px; text-align:center; pointer-events:none;
             /* A scrim: the text sits ON the scene, and a caption over a pale
-               membrane is unreadable without one. Fades up so there is no
-               hard edge across the lipid. */
+               membrane is unreadable without one. Solid where the type is and
+               fading DOWNWARD, so there is no hard edge across the lipid. */
             background:linear-gradient(to bottom,
-              rgba(238,232,220,0) 0%, rgba(238,232,220,.82) 22%,
-              rgba(238,232,220,.96) 55%); }
+              rgba(238,232,220,.96) 0%, rgba(238,232,220,.88) 52%,
+              rgba(238,232,220,0) 100%); }
   /* Only the tabs take clicks; the text must not eat a drag meant for the
      scene behind it. */
   #steps { pointer-events:auto; }
   #cap { font-size:17px; line-height:1.35; min-height:2.6em;
-         max-width:46em; margin:0 auto 10px; }
+         max-width:46em; margin:14px auto 0; }
   #cap b { font-weight:600; }
 
 
@@ -308,12 +308,15 @@
       </div>
     </div>
   </div>
+  <!-- NAME AND TABS FIRST, then the claim: read top to bottom that is where
+       you are, then what this step says. Reversed from the bottom-chrome
+       version, where the claim came first because it sat nearer the scene. -->
   <div id="chrome">
-    <p id="cap"></p>
     <div id="bar">
       <h1 id="pagetitle">Cell Membrane</h1>
       <nav id="steps" aria-label="lesson steps"></nav>
     </div>
+    <p id="cap"></p>
   </div>
 </div>
 
@@ -452,10 +455,11 @@ let stepBox = null;
 const CAM_EASE = 0.55;                  // seconds to cover most of the gap
 let camWant = null;
 
-/* HOW FAR UP THE FRAME THE MEMBRANE SITS, in world units. NOT a reserve:
+/* HOW FAR DOWN THE FRAME THE MEMBRANE SITS, in world units. NOT a reserve:
    Stage.frame() only solves cam.r, so adding to reservePx pulls the camera
-   back and leaves the scene as centred as before. */
-const LIFT_WORLD = 26;
+   back and leaves the scene as centred as before. Signed for chrome at the
+   TOP — the sheet drops clear of the caption. */
+const LIFT_WORLD = 15;
 
 const L = Lesson.create(canvas, {
   cam:{ theta:0, phi:Math.PI/2 - 0.10, r:150 }, fx:false,
@@ -467,7 +471,7 @@ const L = Lesson.create(canvas, {
      so past a certain box size enlarging `boxes` does nothing; rMax is the
      WHEEL's limit only. Raise this to see more of the scene. */
   max: 420,
-  reservePx: () => ({ bottom: chromeEl.offsetHeight + 14 }),
+  reservePx: () => ({ top: chromeEl.offsetHeight + 14 }),
   /* The box the camera must fit. Sized to pull back far enough that the
      compartments read as volumes, not strips, and the tallies clear the
      crowd they are counting.
@@ -484,7 +488,7 @@ L.renderer.localClippingEnabled = true;
    target it finds — so the target has to be set again afterwards, not once at
    startup. The resize hook covers the case nobody calls go() for. */
 function liftScene() {
-  L.cam.target.y = -LIFT_WORLD;
+  L.cam.target.y = LIFT_WORLD;
   L.applyCam();
 }
 L.resized = liftScene;
@@ -2382,9 +2386,9 @@ function paintOsmo() {
 
 /* THE BAND THE OVERLAYS MAY USE. Their vertical placement is solved from the
    projected membrane, which knows nothing about the caption floating over the
-   bottom of the stage, so a low tally lands behind the text. */
+   TOP of the stage, so a high tally lands behind the text. */
 function clampY(y, pad) {
-  const top = pad, bot = canvas.clientHeight - chromeEl.offsetHeight - pad;
+  const top = chromeEl.offsetHeight + pad, bot = canvas.clientHeight - pad;
   return Math.max(top, Math.min(bot, y));
 }
 
@@ -2485,18 +2489,23 @@ function paintEqBadge() {
   }
 }
 
-/* THE CONTROLS SIT ON TOP OF THE CHROME, whose height is whatever the
-   tallest caption made it. Measured, never typed: a fixed offset is right
-   for one caption length and wrong on some other tab. */
+/* WHAT THE CHROME DISPLACES, now that it is at the top: everything anchored
+   to the TOP edge has to clear it, and nothing anchored to the bottom does.
+   Measured, never typed — the block's height is whatever the tallest caption
+   made it, and a fixed offset is right for one caption and wrong on the next
+   tab. The bottom row is free of it entirely, so those are plain constants. */
 function placeControls() {
   const h = chromeEl.offsetHeight;
-  ctlEl.style.bottom = (h + 10) + 'px';
-  launchEl.style.bottom = (h + 10) + 'px';
-  spendEl.style.bottom = (h + 56) + 'px';
-  /* The bottom-corner readouts clear the chrome too — at a fixed offset from
-     the stage's edge they land under the caption. */
-  ionsInEl.style.bottom = (h + 12) + 'px';
-  voltCountEl.style.bottom = (h + 12) + 'px';
+  ionsOutEl.style.top = (h + 12) + 'px';
+  eqBadgeEl.style.top = (h + 12) + 'px';
+  shellsTogEl.style.top = (h + 10) + 'px';
+  /* The stage's own bottom edge, with the switches above the buttons so a
+     setting never sits between the reader and the action. */
+  ctlEl.style.bottom = '16px';
+  launchEl.style.bottom = '16px';
+  spendEl.style.bottom = '62px';
+  ionsInEl.style.bottom = '14px';
+  voltCountEl.style.bottom = '14px';
 }
 
 /* WRITE ONLY ON CHANGE. Assigning innerHTML rebuilds the node's children, so
