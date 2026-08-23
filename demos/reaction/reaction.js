@@ -624,8 +624,10 @@ function create(host) {
    * is SPENT and the tray is where spent things go. Here the carrier is the
    * point of the reaction — the whole pathway exists to get NAD⁺ back — so it
    * walks on as a molecule, hands the hydride over in the frame, and stays
-   * there afterwards wearing one fewer hydrogen. A page brings it on with
-   * `enter` and keeps it with `linger`, the way the cycle stages coenzyme A.
+   * there afterwards wearing one fewer hydrogen. How a page gets it there is
+   * the page's business: fermentation-lab.html stands it in a lane from the
+   * first frame rather than walking it on, because a lane count that changes
+   * mid-step breaks the per-lane mapping from lane to product.
    *
    * WHICH HYDROGEN, AND IT IS NOT EITHER OF THEM. `nic.h` is C4's pair, and
    * the LAST is the one GAPDH put there (mol-pathways.js says so where it

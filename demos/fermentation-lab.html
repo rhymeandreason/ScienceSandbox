@@ -32,14 +32,40 @@
     border:2px solid var(--hair);border-radius:var(--radius);
     padding:6px 15px;cursor:pointer}
   .btab:hover{color:var(--ink);border-color:var(--ink)}
-  .btab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);
+  .btab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);
     color:var(--paper);cursor:default}
   /* THE CONDITION THE BRANCH RUNS UNDER, under its own tab, and the only place
      the page says it. What sends pyruvate down either branch is the ABSENCE of
      oxygen — a precondition, not a reaction, so it has no step to live on. */
-  #branchwhen{position:absolute;right:22px;top:calc(50% + 22px);
-    font-family:var(--font-sans);font-size:11.5px;letter-spacing:.2px;
-    color:var(--muted);text-align:right}
+  /* UNDER THE RAIL, NOT UNDER THE TABS. It sat at the bar's right edge, which
+     is the column the ledger sticker occupies — and the ledger is up by default
+     now, so it covered the one place the page states the precondition. Centred,
+     it reads with the rail it qualifies: these steps, under this condition. */
+  #branchwhen{position:absolute;left:50%;transform:translateX(-50%);
+    top:calc(50% + 19px);white-space:nowrap;
+    font-family:var(--font-sans);font-size:12.5px;letter-spacing:.2px;
+    color:var(--muted);text-align:center;pointer-events:none}
+  #railbar{padding-bottom:24px}
+  /* THE CLOSING LINE IS NOT A CONTROL: same slot, same place, nothing to press.
+     The lesson is over and this says what it showed. */
+  #actbtn.done{background:transparent;border-color:transparent;color:var(--ink);
+    font-family:var(--font-marker);font-size:19px;cursor:default;box-shadow:none}
+
+  /* THE CAPTION BAND IS TALLER HERE, because on this page it carries every
+     step's prose rather than only the opening screen's — see drawCaption. The
+     reserve is a DECLARED height that the camera fit reads (capReservePx), so a
+     caption longer than this eats its own room and then runs over the molecule:
+     keep the step `msg` strings inside four lines at 1440 wide. */
+  #rxmsg{--caph:152px;bottom:calc(100% + 6px)}
+  /* HEADING FIRST, THEN ITS PARAGRAPH. pathways.css leaves #stephead in the
+     bar's own flow, below the caption, which is right on a page where the
+     caption is only the opening screen's and there is no heading to sit under.
+     Here every step has both, and a heading printed under its own paragraph
+     reads backwards. Lifted out of the bar, so --caph above covers the pair. */
+  /* text-align, because the centring it had was #bottombar's flex and taking it
+     out of that flow left it against the left edge. */
+  #stephead{position:absolute;left:0;right:0;bottom:calc(100% + 108px);
+    margin-bottom:0;text-align:center}
 
   /* THE CLOSING TALLY: one row, three cells. Two steps do not make a 2×2. */
   #tally{grid-template-columns:repeat(3,minmax(0,1fr));
@@ -78,14 +104,13 @@
     </div>
     <div id="bottombar">
       <div id="stephead"></div>
-      <div id="steptip" role="tooltip"></div>
       <button id="actbtn"></button>
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
   </div>
   <div id="tools">
     <div id="toggles" class="checkgroup">
-      <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
+      <label id="showledger" class="btn btn--check"><input type="checkbox" checked> Show ledger</label>
       <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
     </div>
   </div>
@@ -118,7 +143,6 @@
 <script src="kit/leaving.js"></script>
 <script src="kit/carriers.js"></script>
 <script src="kit/enzyme.js"></script>
-<script src="kit/modal.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <script src="annotate.js"></script>
@@ -222,7 +246,7 @@ const OWED=PER_GLUCOSE;
  * what makes the pair worth showing is that the same problem gets the same
  * solution in organisms that share nothing else. */
 const BRANCHES=[
-  { key:'lactic', tab:'Lactate', when:'No O₂ · muscle under load, most bacteria',
+  { key:'lactic', tab:'Lactate', when:'No O₂ · muscle under load, and lactic acid bacteria',
     product:'lactate' },
   { key:'alcoholic', tab:'Ethanol', when:'No O₂ · yeast, and flooded plant roots',
     product:'ethanolSkel' },
@@ -242,12 +266,13 @@ lactic:[
     // ONE REACTION'S WORTH. The ledger multiplies by PER_GLUCOSE; a step that
     // counted the doubling itself would say 2 while the stage showed 1.
     nad:1, made:0,
-    fx:'red', anchor:'oxC', perLane:true,
+    fx:'red', perLane:true,
     couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
     // `redBond` is pyruvate's own name for the C2=O a reduction attacks, so the
-    // target follows the bond on screen rather than a typed index.
-    spot:{ at:'redBond', say:'Hand the hydride over' },
-    takeaway:`NAD⁺ is back — glycolysis can run again`,
+    // target follows the bond on screen rather than a typed index. `act` names
+    // the action for the hotspot's accessible label, as in both siblings.
+    act:'Reduce the ketone', spot:{ at:'redBond', say:'Hand the hydride over' },
+    takeaway:`One hydride back, and glycolysis can run again`,
     msg:`<b>Lactate dehydrogenase</b> gives pyruvate the hydride NADH has been
       carrying since glycolysis step 6. Pyruvate becomes <b>lactate</b> and NADH
       becomes <b>NAD⁺</b>. No carbon leaves and no ATP is made: the only thing
@@ -269,7 +294,7 @@ alcoholic:[
      * mint an NADH. The cycle's decarboxylations are oxidative and bank a
      * carrier; this one banks nothing. */
     fx:'decarb', anchor:'decarb', perLane:true,
-    spot:{ at:'decarb', say:'Take the carbon off' },
+    act:'Take C1 off as CO₂', spot:{ at:'decarb', say:'Take the carbon off' },
     takeaway:`A carbon leaves as CO₂. No carrier moves`,
     msg:`<b>Pyruvate decarboxylase</b> takes C1 off as <b>CO₂</b>, leaving
       <b>acetaldehyde</b>. This is the step yeast has and muscle does not, and it
@@ -282,14 +307,14 @@ alcoholic:[
     // makes "reversible" worth saying here
     rev:true,
     nad:1, made:0,
-    fx:'red', anchor:'oxC', perLane:true,
+    fx:'red', perLane:true,
     couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
-    spot:{ at:'redBond', say:'Hand the hydride over' },
-    takeaway:`NAD⁺ is back — the same result, one step later`,
+    act:'Reduce the aldehyde', spot:{ at:'redBond', say:'Hand the hydride over' },
+    takeaway:`The same hydride, one step later`,
     msg:`<b>Alcohol dehydrogenase</b> gives acetaldehyde the hydride, exactly as
       lactate dehydrogenase gave it to pyruvate one branch over. Acetaldehyde
       becomes <b>ethanol</b> and NADH becomes <b>NAD⁺</b>. Two steps instead of
-      one, two carbons lighter, and the same two NAD⁺ at the end.` },
+      one, a carbon lighter, and the same NAD⁺ at the end.` },
 ]};
 
 /* =============================================================
@@ -355,10 +380,10 @@ function halfRun(){
  * is applied here, in the one place: a ledger that is per glucose and a stage
  * that is per pyruvate is the trade this page made (see PER_GLUCOSE), and the
  * multiply has to be visible in the code that does it.
- * `carbonOut` and `made` are summed on both branches; which of them gets a ROW
- * is decided by whether any step in the SELECTED branch declares it
- * (branchHas), so the lactate branch does not print "CO₂ 0" and invite a
- * comparison the page is not making. */
+ * `carbonOut` is summed on both branches but gets a ROW only where the selected
+ * branch actually declares it (branchHas), so the lactate branch does not print
+ * "CO₂ 0" and invite a comparison the page is not making. ATP is the deliberate
+ * exception; see drawLedger. */
 function ledgerAt(i){ const L={nad:0, made:0, carbonOut:0}, S=steps();
   for(let k=0;k<i;k++){ const s=S[k];
     L.nad+=s.nad||0; L.made+=s.made||0; L.carbonOut+=s.carbonOut||0; }
@@ -383,9 +408,10 @@ const carbonsAt=i=>speciesAt(i).filter(k=>!carrierKeys.has(k))
 /* THE LANE SEPARATION IS MEASURED, NOT TYPED. Both siblings can pick a number
  * by eye because their lanes hold molecules of one size; here a carrier drawn
  * at full scale is five times its substrate's width, and a hand-picked gap is
- * right only for the pair it was picked on — swapping the NADH conformer for
- * the idealized build widened it by half again and the two molecules overlapped
- * with nothing in the file saying why.
+ * right only for the pair it was picked on: swapping the NADH conformer for
+ * the idealized build widened the carrier by half again and the two molecules
+ * overlapped, with nothing in the file saying why. No width is written down
+ * here, because `drawnWidth` below is the thing that knows them.
  * Measured the way kit/lanes.js measures, which is the extent the student sees:
  * the spec's `view:` applied and the optional hydrogens dropped. Duplicated
  * here rather than asked of the module, because the module needs the answer to
@@ -443,6 +469,20 @@ const LANES=Lanes.create({
                 }
                 return g; },
   plateHTML:spec=>`<div class="pn">${spec.short||spec.name}</div><div class="pf">${spec.formula}</div>`,
+  /* THE CARRIER IS CALLED WHAT THE REST OF THE PAGE CALLS IT. kit/lanes.js
+   * defaults both spellings to the spec's own `name`/`short`, and `nadhSkel`'s
+   * are "Nicotinamide adenine dinucleotide (reduced)" and "NADH (idealized)" —
+   * right for molecule-viewer.html, which teaches about the derivation, and
+   * wrong on a stage where the ledger, the takeaway and the intro all say
+   * NADH. Neither sibling hits this: both keep this spec in a tray, not a lane.
+   * BOTH spellings, not just the narrow one: the systematic name is 43
+   * characters and runs under the ledger card at a laptop width, and this
+   * molecule is the one thing on stage the student has to be able to name in
+   * the same words the ledger uses. The formula line under it carries the
+   * detail. */
+  label:spec=>spec.gly && spec.gly.nic
+    ? (k=>({full:k, abbr:k}))(spec===NADP?'NAD⁺':'NADH')
+    : { full:spec.name, abbr:spec.short||spec.name },
 });
 const laneX=(i,n)=>LANES.xOf(i,n);
 const laneShift=key=>LANES.shift(key);
@@ -508,9 +548,12 @@ function barReservePx(){
   const cs=getComputedStyle(e);
   return (parseFloat(cs.getPropertyValue('--barh'))||0)+(parseFloat(cs.bottom)||0);
 }
+// UNCONDITIONAL, because the band carries a caption on every screen but the
+// closing tally — and the tally replaces the stage rather than sharing it, so
+// reserving for it too costs nothing and keeps one framing for the whole run.
 function capReservePx(){
   const e=document.getElementById('rxmsg');
-  if(!e||!e.classList.contains('show')) return 0;
+  if(!e) return 0;
   return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
 }
 // NO LEFT RESERVE: there is no tray (see the stylesheet's header).
@@ -635,8 +678,14 @@ function rewind(){
   if(done()===0){ intro=true; refresh(); return; }
   setDone(done()-1); renderLanes(done()); refresh();
 }
+/* RESTART IS THE LESSON, NOT THE BRANCH. `done` is per branch so that a tab
+ * switch keeps your place; the one control that means "put it all back" has to
+ * see past that, or finishing lactate and restarting ethanol leaves the rail
+ * filled on a branch you just reset and the end-of-lesson button hidden. */
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
-  setDone(0); intro=true; laneDone.clear();
+  Object.keys(progress).forEach(k=>{ progress[k]=0; });
+  intro=true; laneDone.clear();
+  prevLedger=null; shownReview=false; cplOpen=false; metaStep=null; shownCplStep=null;
   renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -646,20 +695,30 @@ const rxmsgEl=document.getElementById('rxmsg');
 /* THE OPENING IS THE PROBLEM, NOT THE MOLECULE. Every other page here opens by
  * introducing what is on stage; this one opens by saying why the stage is
  * stuck, because the branch that follows is only interesting as an answer. */
-const INTRO_MSG=`Glycolysis has just finished. It made 2 ATP — and it also spent
-  <b>2 NAD⁺</b>, which are now <b>2 NADH</b>. There is no NAD⁺ left, so
-  glycolysis <b>cannot run again</b> until something takes those hydrides back
-  off. With no oxygen, that is what these steps are for.
+const INTRO_MSG=`Glycolysis has just finished. It made 2 ATP, and it also spent
+  <b>2 NAD⁺</b>, which are now <b>2 NADH</b>. A cell holds less NAD⁺ than one
+  second of glycolysis uses, so it is never stockpiled: every NAD⁺ has to come
+  back. Until these hydrides come off, glycolysis <b>cannot run again</b>. With
+  no oxygen, that is what these steps are for.
   One glucose makes two pyruvate, so everything here happens twice: the stage
   follows one of them and the ledger counts both.`;
 const captionAt=i=>intro ? INTRO_MSG
   : i<nSteps() ? stepAt(i).msg : stepAt(nSteps()-1).msg;
 const headAt=i=>{ const st=stepAt(i); return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
 let shownCaption=null;
+/* THE CAPTION IS UP FOR THE WHOLE LESSON, not only the intro. Glycolysis puts
+ * each step's prose behind the ⓘ on its heading, and it is right to: ten steps
+ * with ten paragraphs would be a wall, and the band holding ONE height from
+ * step 1 on is what lets that page keep a single camera framing. Neither reason
+ * survives at two steps. Inheriting it here hid every sentence the page makes
+ * its argument in behind a 14px hover target, so a student who never hovered
+ * read the heading and the takeaway and nothing else.
+ * The reserve is unconditional (capReservePx), so the band costs the camera the
+ * same whether it is the intro's paragraph or a step's — no re-frame mid-step,
+ * which is the rule the ⓘ was protecting. */
 function drawCaption(){
-  const bare=intro;
-  const html=bare?captionAt(focusStep()):'';
-  const show=bare && !reviewing;
+  const html=captionAt(focusStep());
+  const show=!tallyOn();
   if(html!==shownCaption){
     shownCaption=html;
     rxmsgEl.querySelector('p').innerHTML=html;
@@ -677,7 +736,13 @@ function drawCaption(){
 const ledgerEl=document.getElementById('ledger');
 const sideEl=document.getElementById('side');
 let prevLedger=null;
-let showLedger=false;
+/* ON BY DEFAULT, which is the opposite of glycolysis and for the reason that
+ * page gives: there the arithmetic is the punchline, so a ledger open from step
+ * 1 reads as a spreadsheet saying 0 beside a reacting molecule. Here the
+ * arithmetic IS the lesson. Off by default, the three rows the page is built
+ * around first appear after the last click, at the moment they can no longer
+ * tell the student anything. */
+let showLedger=true;
 const ledgerOn=()=>showLedger||tallyOn();
 function placeLedger(){
   const hid=ledgerEl.classList.contains('hid');
@@ -701,6 +766,10 @@ function drawLedger(){
     +`<div class="row net"><span>Net NAD⁺</span><span class="v${bumped('net')}" data-row="net">${netStr(L.net)}</span></div>`
     // THE PRODUCTS, under the balance and not beside it: they are what the
     // reaction leaves behind, not what it was for.
+    // ATP IS SHOWN EVEN THOUGH IT IS ALWAYS ZERO, and that is the exception to
+    // the rule below rather than an oversight: "no ATP" is a claim this page
+    // makes, and a row that disappears cannot make it. Gating it on branchHas
+    // would be a no-op dressed as a decision — both branches declare `made:0`.
     +`<div class="row prod"><span>ATP made</span><span class="v" data-row="made">${L.made}</span></div>`
     +(branchHas('carbonOut')
       ? `<div class="row"><span>CO₂ out</span><span class="v${bumped('carbonOut')}" data-row="carbonOut">${L.carbonOut}</span></div>` : '')
@@ -830,19 +899,37 @@ enzMetaEl.addEventListener('click',e=>{
 function resolveCouple(st){
   const i=steps().indexOf(st), c=st.couple, nameOf=k=>SPECS(k).short||SPECS(k).name;
   return Object.assign({}, c, {
-    from: nameOf(speciesAt(i)[0]) + ' + NADH',
-    to:   nameOf(st.species[0]) });
+    // …AND THE PROTON. Every hydride transfer in the cell takes an H⁺ from
+    // solution as well, and this is the one place the page writes the reaction
+    // out, so leaving it off here is where a student would learn it balances
+    // without one.
+    from: nameOf(speciesAt(i)[0]) + ' + NADH + H⁺',
+    to:   nameOf(st.species[0]) + ' + NAD⁺' });
 }
 function soloSpec(st){
   const nameOf=k=>SPECS(k).short||SPECS(k).name, i=steps().indexOf(st);
   return { from:nameOf(speciesAt(i)[0]), to:nameOf(st.species[0]), drop:st.rev===false };
 }
-const soloLine=`Both sides sit at nearly the <b>same energy</b>, so the step runs
-   either way.`;
+/* ONE SENTENCE PER VERDICT, because the only uncoupled step on this page is the
+ * decarboxylation and that one is IRREVERSIBLE. glycolysis can state the
+ * near-equilibrium line unconditionally — its five uncoupled steps are all
+ * rearrangements — and copying it here put "runs either way" directly above a
+ * heading reading "Irreversible in the cell" and a figure drawn as a drop.
+ * krebs-lab.html already answers to `rev` for this reason. */
+const soloLine=st=>st.rev===false
+  ? `The product <b>leaves</b>: CO₂ comes out of solution and is gone. Nothing
+     drives this one backwards.`
+  : `Both sides sit at nearly the <b>same energy</b>, so the step runs either
+     way.`;
 // Neither reduction is uphill, so there is one sentence and not two: the drop
 // pays for the carrier turning over, which is the only reason the cell bothers.
-const coupleLine=c=>`This step runs <b>downhill</b>. The drop drives
-   <b>${c.cout}</b> back the other way — the only thing the cell wanted.`;
+// `cout` is the tray's spelling ("NAD+"); every other string on the page uses
+// the superscript, and this is the only line that puts a charged species into
+// prose rather than into an SVG label that energy/energy.js superscripts for us.
+const sup=n=>n.replace(/\+$/,'⁺');
+const coupleLine=c=>`This step runs <b>downhill</b>, and the drop is what pulls
+   <b>${sup(c.cout)}</b> back out of NADH. That is the only thing the cell
+   wanted from it.`;
 let figTab='curve';
 const cplEl=document.getElementById('couplebox');
 cplEl.addEventListener('click',e=>{
@@ -864,7 +951,7 @@ function drawCouple(){
           + `<p class="nbody">${coupleLine(c)}</p>`
         : `<div class="nhead cpl-h">Energy curve</div>`
           + Energy.solo(soloSpec(st))
-          + `<p class="nbody">${soloLine}</p>`)
+          + `<p class="nbody">${soloLine(st)}</p>`)
     + (st.rev===false
         ? `<div class="nhead irr">Irreversible in the cell</div>`
         : `<div class="nhead rev">Near equilibrium — reversible</div>`);
@@ -895,11 +982,18 @@ function setBranch(k){
 }
 function drawTabs(){
   tabsEl.innerHTML='';
+  /* A TABLIST, NOT TWO TOGGLES. `aria-pressed` announces "Lactate, pressed",
+   * which reads as a filter over one thing; these are two destinations and a
+   * screen reader should say which of them is showing. */
+  tabsEl.setAttribute('role','tablist');
+  tabsEl.setAttribute('aria-label','Which fermentation');
   BRANCHES.forEach(b=>{
     const el=document.createElement('button');
     el.className='btab'; el.type='button';
+    el.setAttribute('role','tab');
     el.textContent=b.tab;
-    el.setAttribute('aria-pressed', b.key===branch?'true':'false');
+    el.setAttribute('aria-selected', b.key===branch?'true':'false');
+    el.setAttribute('aria-label', `${b.tab} fermentation`);
     el.onclick=()=>setBranch(b.key);
     tabsEl.appendChild(el);
   });
@@ -941,7 +1035,6 @@ const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; setDone(k);
 
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
-const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;
 let pressing=false;
 function press(fn){
@@ -959,12 +1052,9 @@ function drawAct(){
   const head = intro ? ''
              : reviewing ? `Step ${stepAt(done()-1).n} complete`
              : hi<nSteps() ? headAt(hi) : '';
-  const tip = head ? captionAt(hi) : '';
-  stepHeadEl.innerHTML = head + (tip
-    ? `<span class="infowrap"><button class="infobtn" type="button"
-         aria-describedby="steptip"
-         aria-label="What happens in this step">i</button></span>` : '');
-  stepTipEl.innerHTML = tip;
+  // NO ⓘ. It opened the step's own prose, which now stands in the band under
+  // this heading; a button that reveals what is already on screen is furniture.
+  stepHeadEl.innerHTML = head;
   stepHeadEl.classList.toggle('on', !!head);
   const entering = reviewing && !shownReview;
   shownReview = reviewing;
@@ -990,8 +1080,18 @@ function drawAct(){
   if(done()>=nSteps() && !busy){
     const other=BRANCHES.find(b=>b.key!==branch);
     const bothDone=progress[other.key]>=STEPS[other.key].length;
-    if(bothDone){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
     actEl.style.visibility='visible';
+    /* BOTH BRANCHES RUN IS THE END OF THE LESSON, and this family always ends
+     * with something in this slot: glycolysis asks "What's next?", the cycle
+     * hands off. Hiding the button left the student on the tally with an empty
+     * bar and nothing saying the lesson was over or what it had shown. So the
+     * slot says the thing both branches were for. A statement, not a door. */
+    if(bothDone){
+      actEl.className='done';
+      actEl.innerHTML=`Two answers, one problem: NAD⁺ back either way`;
+      actEl.onclick=null;
+      return;
+    }
     actEl.innerHTML=`Now the ${other.tab.toLowerCase()} branch <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=()=>setBranch(other.key);
     return;
@@ -1015,11 +1115,23 @@ function refresh(){ drawTabs(); drawLedger(); drawTally(); drawEnz(); drawAct();
   drawRail(); drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
+/* → ADVANCES WHATEVER IS IN FRONT OF YOU, which in both siblings includes the
+ * steps themselves. Here every step is clicked on the molecule, so the key has
+ * to run the armed lane rather than a whole step — without it a student who
+ * drove ten glycolysis steps with the arrow key presses → and nothing happens.
+ * The FIRST lane still waiting, so the key and the callout point at the same
+ * reaction. */
+function advance(){
+  const st=(!intro && done()<nSteps()) ? stepAt(done()) : null;
+  if(!st) return;
+  const j=actingLanes(st).find(i=>!laneDone.has(i));
+  if(j!=null) press(()=>runLane(j));
+}
 addEventListener('keydown',e=>{
-  if(Modal.anyOpen()) return;
   if(e.key==='ArrowRight'||e.key===' '){ e.preventDefault();
     if(intro){ beginBranch(); }
-    else if(reviewing){ reviewing=false; refresh(); } }
+    else if(reviewing){ reviewing=false; refresh(); }
+    else advance(); }
   if(e.key==='ArrowLeft'){ e.preventDefault(); rewind(); }
 });
 

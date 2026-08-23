@@ -511,10 +511,9 @@
       // whichever hand fell out. Muscle LDH makes L-lactate, which is (S), and
       // this is the assertion that fails if a later edit reverses it.
       chiral:[{ at:1, priority:[oh, 0, 2, nh], hand:'S' }],
-      gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true,
-            // the atom the reduction ADDED, so reaction/reaction.js's `red`
-            // can fly a hydride to where it will be rather than to a guess
-            gained:nh, oh2:oh } });
+      // `nh` and `oh` are not named in the block: nothing reads them, and `oh2`
+      // already means a hydroxyl INDEX on bpg13 above, where it is read.
+      gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true } });
   }
   {
     // — acetaldehyde: what is left of pyruvate once pyruvate decarboxylase
@@ -544,9 +543,9 @@
     //   Index 0 is the reactive carbon in both this and acetaldehyde, so the
     //   step's before and after point at the same sphere.
     const g=chainC(2);
-    const oh=g.hydroxyl(0,0);                        // C1 –OH
+    g.hydroxyl(0,0);                                 // C1 –OH
     const fh=g.grow(0,'H',GL.CH,'sp3',0);            // the aldehyde H, kept
-    const nh=g.grow(0,'H',GL.CH,'sp3',0);            // the hydride from NADH
+    g.grow(0,'H',GL.CH,'sp3',0);                     // the hydride from NADH
     // NO STEREOCENTRE, and that is worth stating rather than leaving to be
     // noticed: C1 carries two identical hydrogens, so ethanol has no hand to
     // get wrong and needs no `chiral`. Lactate's C2 does, and has one.
@@ -558,8 +557,7 @@
     // somewhere else. Two specs, one name each, the way `atp`/`atpSkel` split.
     GLYCOLYSIS.ethanolSkel=g.spec({ name:'Ethanol', short:'Ethanol',
       formula:'C₂H₆O', charge:0, class:'sugar',
-      gly:{ carbons:2, cN:[0,1], phosphates:0, terminal:true,
-            gained:nh, formylH:fh, oh2:oh } });
+      gly:{ carbons:2, cN:[0,1], phosphates:0, terminal:true, formylH:fh } });
   }
   {
     // — inorganic phosphate (Pi), the free phosphate already dissolved in the
