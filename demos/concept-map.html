@@ -160,8 +160,10 @@
   .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
 
   /* focus: one node lit, its neighbours kept, everything else dropped back */
-  .focusing .node { opacity: 0.18; }
-  .focusing .node.lit { opacity: 1; }
+  /* dropped-back nodes stop taking the pointer, so a press that lands on one
+     pans the canvas instead of dragging a card the reader is not looking at */
+  .focusing .node { opacity: 0.18; pointer-events: none; }
+  .focusing .node.lit { opacity: 1; pointer-events: auto; }
   /* a lit question reads as a card, not as loose type on the paper */
   .focusing .node.question.lit {
     background: var(--card);
@@ -383,9 +385,16 @@ function expand(c) {
   const pending = neighbours(c).filter(n => !n.visible).sort((a, b) => a.rank - b.rank);
   if (!pending.length) { c.expanded = true; return; }
 
-  // One rank per click. A card opens with its rank 1 questions only — the way
-  // in, not the whole file — and each further click brings the next band down.
-  const wave = pending.filter(q => q.rank === pending[0].rank);
+  // A click reveals whole rank bands, best first — but never a stingy one or
+  // two: it keeps taking the next band until at least MIN have come down, so a
+  // card with a single rank 1 question opens with its rank 2s alongside rather
+  // than making you click three times to see anything.
+  const MIN = 3;
+  const wave = [];
+  for (const q of pending) {
+    if (wave.length >= MIN && q.rank !== wave[wave.length - 1].rank) break;
+    wave.push(q);
+  }
   const mark = live.length;
   wave.forEach((q, i) => {
     // 0, +1, -1, +2, -2 … so the first question lands on the card's own line
