@@ -413,7 +413,7 @@ function surfaceNear(side,y,span){
  *  A wall is ~1500 spheres and as many sticks and it never moves, so it is one
  *  InstancedMesh per element plus one for the bonds rather than 3000 objects.
  */
-const SPHERE=new THREE.SphereGeometry(1,16,12);
+const SPHERE=new THREE.SphereGeometry(1,12,8);   // 6 px across on screen; 16x12 was invisible detail
 const STICK=new THREE.CylinderGeometry(1,1,1,8,1,true);
 STICK.translate(0,0.5,0);            // origin at one end, so a bond is scale+aim
 
@@ -562,6 +562,9 @@ hbLines.frustumCulled=false; root.add(hbLines);
    wall. What holds this liquid in place is the wall and its own cohesion, which
    is the whole claim, so nothing else may hold it. */
 let DAMP=0.93;                    // light: a front that has to travel needs to keep moving
+/* The liquid's own mean speed, measured off a settled run rather than typed.
+   Vapour carries the same, because it is the same temperature. */
+let V_VAPOUR=0.30*A;
 let JITTER=0.004*A;
 let K_HB=0.030;                   // H-bond spring
 let K_COH=0.108;                // dispersion, the undirected part of cohesion
@@ -634,6 +637,16 @@ let RHO0=0;                            // calibrated at first settle, below
    tension, and stretched water holds fewer bonds. */
 let K_PRESS=0.22;                      // stiffness
 const P_CLAMP=2.2;                     // no runaway tension when a region tears
+/* THE BATH HAS A PRESSURE. A tube stands in a dish and the dish pushes: the
+   liquid at the tube's foot is held at the reservoir's pressure whatever the
+   column above it is doing. Without that the supply could only refuse to empty
+   — it backfilled holes and never pushed — so the only pressure gradient in the
+   model lived in the few layers around the front, and everything below was
+   dragged along behind them. Held at the foot instead, the gradient runs the
+   whole length of the column and the interior has a reason to move.
+   Blended in over the band rather than switched on at its edge, because a step
+   in pressure is a force no molecule should feel. */
+let P_BATH=0.06;                       // the reservoir's pressure, at the floor
 const HK=COH_MAX;                      // the kernel's reach, same as cohesion's
 const wDens=d=>{ const t=1-d/HK; return t>0 ? t*t*t : 0; };
 
@@ -705,9 +718,16 @@ function step(){
      is at negative pressure and pulls its neighbours toward it, which is how the
      body follows a surface that is being drawn away. */
   if(RHO0>0 && K_PRESS>0){
+    const bandTop=FLOOR+SUPPLY_BAND;
     for(let i=0;i<n;i++){
       if(waters[i].gone){ press[i]=0; continue; }
-      press[i]=Math.max(-P_CLAMP, Math.min(P_CLAMP, K_PRESS*(dens[i]-RHO0)/RHO0));
+      let p=Math.max(-P_CLAMP, Math.min(P_CLAMP, K_PRESS*(dens[i]-RHO0)/RHO0));
+      const y=waters[i].p.y;
+      if(y<bandTop){
+        const t=Math.min(1,(bandTop-y)/SUPPLY_BAND);   // 0 at the band's top, 1 at the floor
+        p=p*(1-t)+P_BATH*t;
+      }
+      press[i]=p;
     }
     for(let i=0;i<n;i++){
       if(waters[i].gone) continue;
@@ -851,7 +871,30 @@ function step(){
     forces[i].x += (Math.random()-0.5)*JITTER;
     forces[i].y += (Math.random()-0.5)*JITTER;
     forces[i].z += (Math.random()-0.5)*JITTER;
-    w.v.add(forces[i]).multiplyScalar(DAMP);
+    /* A molecule in the void is VAPOUR, and vapour is the FASTEST thing on
+       screen, not the slowest: same kT as the liquid, no neighbours to give the
+       energy to. Damping alone left these hanging motionless in the middle of
+       the channel — measured at 0.02-0.13 A a step against the liquid's 0.30 —
+       because a lone pair of molecules feels almost no force and keeps none of
+       its speed. Undamped is not enough either: nothing puts energy back, so
+       one that arrives slow stays slow. So it flies, at the speed its
+       temperature says, until it hits the liquid or leaves the frame.
+       Free flight is only honest where there is genuinely nothing in range:
+       two neighbours is still a cluster, and rescaling that one's velocity
+       would be heating the liquid's own surface. */
+    w.v.add(forces[i]);
+    const vapour = nbrN[i]<=2 && w.hb===0;
+    if(vapour){
+      /* ONE KICK AS IT LEAVES, not a speed held from outside. Clamping a
+         vapour molecule to thermal speed every step pumps energy in: measured,
+         it threw stragglers 44 A up the dry wall and left them stuck there,
+         which reads as a film climbing and is an artefact of the clamp. A
+         molecule that loses its last bond gets a single Maxwell draw, which is
+         what desorption is, and then flies free. */
+      if(!w.vap){ w.vap=1;
+        w.v.copy(_v.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5)
+                    .normalize().multiplyScalar(V_VAPOUR)); }
+    } else { w.vap=0; w.v.multiplyScalar(DAMP); }
     w.p.add(w.v);
     w.q.multiply(_tumble(w));
     place(w);
@@ -904,6 +947,10 @@ let EVAP_RATE=0;                       // molecules leaving per second; starts o
 function evaporate(){
   // molecules already on their way out: no bonds, no gravity, just going
   for(const w of waters){
+    /* One that leaves under its own thermal speed rather than through the
+       evaporation counter is still gone, and with no ceiling above the pore it
+       otherwise flies off forever and the column is quietly one short. */
+    if(!w.gone && w.p.y>escapeTop){ w.gone=true; w.v.set(0,0,0); }
     if(!w.gone) continue;
     w.p.y+=ESCAPE_V; place(w);
     if(w.p.y>escapeTop){               // out of the frame; the root sends another
@@ -1001,17 +1048,23 @@ function calibrateRho0(){
 }
 
 /* The supply. Counts what is in the bottom band and tops it up toward the
-   density a liquid has there, one molecule at a time so nothing is injected
-   into an occupied space. */
+   density a liquid has there, testing each spot before it puts anything in. */
 const SUPPLY_TARGET=Math.round(0.0334*(GAP/A)*(DEPTH/A)*(SUPPLY_BAND/A));
-let supplyClock=0;
+/* How many may arrive in one step. The band is refilled toward liquid density
+   rather than at a rate, so this is only a ceiling on how abruptly it happens:
+   a whole band's worth appearing in one frame would be a pressure wave. */
+const SUPPLY_PER_STEP=4;
 function supply(){
-  if(waters.length>=N_MAX) return;
-  if(++supplyClock%2) return;
   let inBand=0;
   for(const w of waters) if(!w.gone && w.p.y<FLOOR+SUPPLY_BAND) inBand++;
-  if(inBand>=SUPPLY_TARGET) return;
-  // a spot in the band that nothing is sitting in
+  for(let k=0;k<SUPPLY_PER_STEP;k++){
+    if(inBand>=SUPPLY_TARGET || waters.length>=N_MAX) return;
+    if(!injectOne()) return;                    // nowhere clear to put one
+    inBand++;
+  }
+}
+// a spot in the band that nothing is sitting in
+function injectOne(){
   for(let tries=0;tries<8;tries++){
     const p=new THREE.Vector3(
       (Math.random()-0.5)*(GAP-2.6*R_WATER),
@@ -1020,8 +1073,9 @@ function supply(){
     let clear=true;
     for(const w of waters){ if(w.gone) continue;
       if(w.p.distanceToSquared(p)<(OO_MIN*0.95)**2){ clear=false; break; } }
-    if(clear){ place(makeWater(p)); return; }
+    if(clear){ place(makeWater(p)); return true; }
   }
+  return false;
 }
 
 /* ============================================================= *
@@ -1030,6 +1084,10 @@ function supply(){
 const _M=new THREE.Matrix4();
 
 function draw(){
+  /* The buffers are sized for N_MAX and the pore starts a third full, so the
+     rest were being drawn every frame as degenerate spheres at the origin:
+     three quarters of the vertex work for nothing. */
+  oMesh.count=waters.length; hMesh.count=waters.length*2;
   waters.forEach((w,i)=>{
     _M.makeScale(R_O,R_O,R_O).setPosition(w.o); oMesh.setMatrixAt(i,_M);
     for(let k=0;k<2;k++){
@@ -1045,6 +1103,15 @@ function draw(){
 const readout=document.getElementById('readout');
 const WATER_DIA=2.80;                       // real angstroms, O...O contact
 let frames=0;
+/* Frames a second, measured over the interval between reports rather than off
+   one frame's delta, which reads as noise. The step count moves at this times
+   Speed, so it is also how fast the run is actually going. */
+let fps=0, fpsFrames=0, fpsT=performance.now();
+function tickFps(){
+  fpsFrames++;
+  const now=performance.now(), dt=now-fpsT;
+  if(dt>=500){ fps=fpsFrames*1000/dt; fpsFrames=0; fpsT=now; }
+}
 function report(){
   readout.innerHTML =
     `pore  <b>${(GAP/A/10).toFixed(1)} nm</b>  =  <b>${Math.round(GAP/A/WATER_DIA)}</b> molecules across\n`
@@ -1055,7 +1122,7 @@ function report(){
   + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight\n`
   /* The step count, because every measurement quoted about this page is "after
      N steps" and there is otherwise no way to tell where a run has got to. */
-  + `step  <b>${stepNo}</b>`;
+  + `step  <b>${stepNo}</b>   <b>${fps.toFixed(0)}</b> fps`;
 }
 
 let SPEED=1;                           // physics steps per drawn frame
@@ -1078,7 +1145,7 @@ function loop(){
      and the settling distances this page reports would stop being the model's.
      More steps is just watching the same physics from further along. */
   for(let k=0;k<SPEED;k++){ step(); supply(); evaporate(); }
-  draw(); stepTint(); NOTES.step();
+  draw(); stepTint(); NOTES.step(); tickFps();
   if((frames++ & 7)===0){ report(); reportClimb(); }
   renderer.render(scene,camera);
 }
@@ -1099,6 +1166,7 @@ const KNOBS=[
   {k:'Jitter',     get:()=>JITTER/A,  set:v=>JITTER=v*A,   min:0,   max:0.03, step:0.001, fmt:v=>v.toFixed(3)},
   {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
   {k:'Pressure',   get:()=>K_PRESS,   set:v=>K_PRESS=v,    min:0,   max:1.2,  step:0.02,  fmt:v=>v.toFixed(2)},
+  {k:'Bath',       get:()=>P_BATH,    set:v=>P_BATH=v,     min:0,   max:0.30, step:0.01,  fmt:v=>v.toFixed(2)},
 ];
 const knobRows=document.getElementById('knobrows');
 let evapInput=null, evapRow=null;
