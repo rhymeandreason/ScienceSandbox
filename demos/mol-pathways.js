@@ -473,6 +473,88 @@
         // carbon. See krebs-lab.html; glycolysis never reads either.
         decarb:0, oxC:1 } });
   }
+
+  /* =====================================================================
+   *  FERMENTATION INTERMEDIATES  (fermentation-lab.html)
+   * =====================================================================
+   *  Where pyruvate goes with no oxygen: reduced straight to lactate, or
+   *  decarboxylated and then reduced to ethanol. Same builder and same scale
+   *  family as the glycolysis intermediates above, which is not a filing
+   *  convenience — lactate differs from pyruvate at exactly one carbon, and
+   *  two molecules built by different routines would show that difference
+   *  mixed in with a difference in drawing style.
+   *
+   *  MODEL SIMPLIFICATIONS 1 (above) applies unchanged: methyls are united
+   *  atoms and the only C–H hydrogens drawn are the ones a step is about.
+   *  Here that is the hydride NADH hands over, so both products wear the H
+   *  they were given on the carbon that took it. Nothing else gains one.
+   */
+  {
+    // — lactate: pyruvate with its C2 ketone reduced to an alcohol. No carbon
+    //   lost, nothing else touched — C1 is still a carboxylate and C3 still a
+    //   methyl — so the ONLY difference from pyruvate is at C2, which trades
+    //   its double-bonded O for an –OH and an H. That one carbon is the claim.
+    const g=chainC(3);
+    g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);   // C1 carboxylate
+    const oh=g.hydroxyl(1,0);                        // C2 –OH …
+    const nh=g.grow(1,'H',GL.CH,'sp3',0);            // … and the hydride that made it
+    GLYCOLYSIS.lactate=g.spec({ name:'Lactate', short:'Lactate',
+      formula:'C₃H₅O₃⁻', charge:-1, class:'sugar',
+      // REDUCING A KETONE MAKES A STEREOCENTRE, and which one is not a detail
+      // the build gets to decide: C2's four slots come out of freeTet in an
+      // order set by the cross-product sign, so taking slot 0 twice would give
+      // whichever hand fell out. Muscle LDH makes L-lactate, which is (S), and
+      // this is the assertion that fails if a later edit reverses it.
+      chiral:[{ at:1, priority:[oh, 0, 2, nh], hand:'S' }],
+      gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true,
+            // the atom the reduction ADDED, so reaction/reaction.js's `red`
+            // can fly a hydride to where it will be rather than to a guess
+            gained:nh, oh2:oh } });
+  }
+  {
+    // — acetaldehyde: what is left of pyruvate once pyruvate decarboxylase
+    //   takes C1 away as CO₂. Two carbons, and the aldehyde H is DRAWN even
+    //   though no step moves it: it is the H that distinguishes an aldehyde
+    //   from the ketone pyruvate was, and the next step adds a second one
+    //   beside it. Both have to be visible for that to read as a change.
+    const g=chainC(2);
+    g.carbonyl(0,0);                                 // C1=O
+    // NOT named `aldehydeH`: that name means "the H a dehydrogenase takes"
+    // everywhere else in this library (G3P's), and this one stays put.
+    const fh=g.grow(0,'H',GL.CH,'sp2',0);
+    GLYCOLYSIS.acetaldehyde=g.spec({ name:'Acetaldehyde', short:'Acetaldehyde',
+      formula:'C₂H₄O', charge:0, class:'sugar',
+      // `oxC` is pyruvate's name for the carbon whose oxidation state the next
+      // step changes, and it is the right name in both directions: there a
+      // dehydrogenase takes from it, here a dehydrogenase gives to it. One
+      // atom, one name, so reaction/reaction.js does not learn a second.
+      gly:{ carbons:2, cN:[0,1], phosphates:0, formylH:fh, oxC:0 } });
+  }
+  {
+    // — ethanol: acetaldehyde's carbonyl reduced, the mirror of lactate's step
+    //   on a molecule one carbon shorter. C0 keeps the aldehyde H it had and
+    //   gains a second from NADH, which is why both are drawn: the carbon ends
+    //   the step wearing two hydrogens and neither is decoration.
+    //   Index 0 is the reactive carbon in both this and acetaldehyde, so the
+    //   step's before and after point at the same sphere.
+    const g=chainC(2);
+    const oh=g.hydroxyl(0,0);                        // C1 –OH
+    const fh=g.grow(0,'H',GL.CH,'sp3',0);            // the aldehyde H, kept
+    const nh=g.grow(0,'H',GL.CH,'sp3',0);            // the hydride from NADH
+    // NO STEREOCENTRE, and that is worth stating rather than leaving to be
+    // noticed: C1 carries two identical hydrogens, so ethanol has no hand to
+    // get wrong and needs no `chiral`. Lactate's C2 does, and has one.
+    // NOT `ethanol`: mol-small.js already holds one, all-atom and hand-written
+    // for the solvation lessons. Same substance, same scale family, different
+    // DEPICTION — its methyl carries three explicit H's and this file's methyls
+    // are united atoms, so reusing it would sprout three hydrogens on the
+    // methyl at the exact moment the step is claiming one hydride arrived
+    // somewhere else. Two specs, one name each, the way `atp`/`atpSkel` split.
+    GLYCOLYSIS.ethanolSkel=g.spec({ name:'Ethanol', short:'Ethanol',
+      formula:'C₂H₆O', charge:0, class:'sugar',
+      gly:{ carbons:2, cN:[0,1], phosphates:0, terminal:true,
+            gained:nh, formylH:fh, oh2:oh } });
+  }
   {
     // — inorganic phosphate (Pi), the free phosphate already dissolved in the
     //   cytosol. Students routinely assume the second phosphate on 1,3-BPG cost
