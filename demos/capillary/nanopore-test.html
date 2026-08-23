@@ -786,6 +786,12 @@ function step(){
       if(nbrN[j]<NBR_MAX) nbr[j*NBR_MAX+nbrN[j]++]=i;
       const wd=wDens(d); dens[i]+=wd; dens[j]+=wd;
       if(d<OO_MIN){
+        /* The soft half. It stays, and separate() below is the hard half on top
+           of it: with the force taken out entirely the liquid simply collapsed
+           — cohesion and pressure crushed it to 1.8 A and a couple of relaxation
+           passes could not undo a whole pool's worth of overlap in one step.
+           The force keeps the crush from happening; the constraint takes out
+           what still gets through. */
         _u.copy(_v).multiplyScalar((OO_MIN-d)/d*K_STERIC);
         forces[i].add(_u); forces[j].sub(_u);
       } else if(d>OO_EQ){
@@ -1027,11 +1033,81 @@ function step(){
     place(w);
   }
 
+  separate();
+
   hbGeo.setDrawRange(0,lines*2);
   hbGeo.attributes.position.needsUpdate=true;
   hbLines.computeLineDistances();
   return lines;
 }
+/* CONTACT AS A CONSTRAINT, NOT A FORCE, which is what let this liquid reach
+   its real density. As a spring it was punched straight through: molecules sat
+   2.44 A apart against a floor of 2.70 and a real 2.76, six of them inside
+   3.4 A where water has about 4.5, so the liquid was close-packed and no
+   molecule could bond four neighbours however well the torque turned it.
+   Stiffening the spring is not the fix — an explicit integrator overshoots a
+   stiff one and tears the liquid apart, 0.45 bonds a molecule at K_STERIC 1.6.
+
+   So after the positions move, any overlapping pair is simply pushed apart to
+   contact, half each, a couple of passes over the same neighbour list the
+   forces used. Position-based, so it is stable at any strength: there is no
+   spring to overshoot. Velocities are left alone, which means the correction
+   takes energy OUT of an overlap rather than storing it and firing it back.
+   STERIC_FIX is how much of an overlap one pass takes out, 1 being all of it,
+   and the passes are Gauss-Seidel: each sees what the last one did. Four of
+   them cost nothing measurable — 3.3 ms a step against 3.2 with none.
+
+   Settled pool, 800 steps: nearest neighbours 2.46 A without it and 2.57-2.60
+   with, against a real 2.76, and bonds per molecule 2.16 -> 2.26. Real but
+   modest, because the constraint is fighting an equilibrium rather than setting
+   one: with seven neighbours pulling a molecule inward every step, ~10% of
+   pairs are still inside contact when the passes finish.
+
+   WHAT ACTUALLY SETS THE DENSITY IS THE COHESION, and that is the next decision
+   rather than a thing already taken. Dispersion here is strong enough to close
+   the liquid up; in real water it is weak, and what holds the structure open is
+   the directional bond. Moving strength from one to the other, same 800 steps:
+
+       K_COH  K_HB   nearest   neighbours<3.4A   bonds/molecule
+       0.108  0.030    2.60          6.7              2.26
+       0.070  0.060    2.67          6.4              2.03
+       0.060  0.090    2.76          6.2              1.96
+       0.050  0.030    2.94          5.4              1.50
+
+   0.060/0.090 lands the spacing exactly on water's, and costs 0.3 of a bond.
+   Left at the old pair until someone decides which of the two numbers this
+   bench would rather be right about. */
+let STERIC_PASSES=4, STERIC_FIX=0.6;
+function separate(){
+  const n=waters.length;
+  for(let pass=0;pass<STERIC_PASSES;pass++){
+    for(let i=0;i<n;i++){
+      const a=waters[i];
+      if(!a||a.gone) continue;
+      for(let q=0;q<nbrN[i];q++){
+        const j=nbr[i*NBR_MAX+q];
+        if(j<i) continue;                       // each pair once
+        const b=waters[j];
+        if(!b||b.gone) continue;
+        _v.subVectors(a.p,b.p);
+        const d=_v.length();
+        if(d>=OO_MIN || d<1e-4) continue;
+        _v.multiplyScalar((OO_MIN-d)*0.5*STERIC_FIX/d);
+        a.p.add(_v); b.p.sub(_v);
+      }
+    }
+  }
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(!w||w.gone) continue;
+    /* A pair pushed apart at the wall must not be pushed INTO it: the face is
+       the limit here as it is everywhere else on this page. */
+    const lim=GAP/2-R_WATER;
+    if(w.p.x> lim) w.p.x= lim; else if(w.p.x<-lim) w.p.x=-lim;
+    place(w);
+  }
+}
+
 /* Unit-variance normal from three uniforms. Box-Muller costs a log and a cos
    per draw and this runs three times per molecule per step. */
 function _gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)*2; }
