@@ -238,69 +238,74 @@ const CONCEPTS = [
   { id: 'scale',     name: 'One vs a million',      built: 0 },
 ];
 
+/* Each row is [question, the concepts it needs, rank].
+   Rank is how well the question opens a card: 1 introduces the idea from cold,
+   2 follows up, 3 is depth. It orders a fan when a card is expanded — rank 1
+   nearest the card, the rest reading outward — so the first thing a student
+   sees off any card is its best way in, not row order. */
 const QUESTIONS = [
-  ['Why do oil and water separate, if separating makes things more ordered?', ['water','hydrophob','entropy']],
-  ['Why does soap work?',                                    ['hydrophob','membrane','solvation']],
-  ['Why do proteins bury their greasy parts with nothing pulling them in?', ['hydrophob','folding','entropy']],
-  ['What are the alternatives to road salt?',                ['water','solvation']],
-  ['Why do recipes change at altitude?',                     ['water','entropy']],
-  ['How are fizzy drinks made?',                             ['water','solvation','diffusion']],
-  ['Why are snowflakes six-sided?',                          ['crystal','water']],
-  ['What makes ice cream creamy rather than gritty?',        ['crystal','water']],
-  ['How do deep-sea fish keep their blood from crystallising?', ['crystal','binding','protein']],
-  ['How do wood frogs survive freezing solid?',              ['crystal','osmosis']],
-  ['A protein folds in a second out of more shapes than there are atoms. How?', ['folding','entropy']],
-  ['Why do egg whites turn opaque and solid?',               ['denature','folding','hydrophob']],
-  ['Why is a fever above 40&#176;C dangerous?',              ['denature','protein','enzyme']],
-  ['How do vent bacteria run enzymes above 100&#176;C?',     ['denature','protein']],
-  ['Why can&#8217;t you use up an enzyme?',                  ['enzyme','binding','scale']],
-  ['Why is cyanide deadly?',                                 ['binding','enzyme','etc']],
-  ['Why are some people lactose intolerant?',                ['binding','enzyme','shape']],
-  ['Why does one molecule smell of lemon and its mirror of orange?', ['shape','binding']],
-  ['Why did thalidomide&#8217;s two halves behave so differently?', ['shape','binding']],
-  ['Why does CO kill at 0.1% of the air?',                   ['cooperat','binding','protein']],
-  ['How does a fetus take oxygen from its own mother&#8217;s blood?', ['cooperat','protein','scale']],
-  ['Why does exercise release oxygen exactly where it&#8217;s needed?', ['cooperat','protein','ledger']],
-  ['Why are cells small?',                                    ['diffusion','scale']],
-  ['Why does an insect need no lungs and you do?',           ['diffusion','scale','membrane']],
-  ['Why can&#8217;t a metre-long neuron let its signal diffuse?', ['diffusion','scale']],
-  ['Why does breathing fast make you dizzy?',                ['massact','scale','solvation']],
-  ['Why does blood pH barely move when you drink Coke?',     ['massact','solvation','scale']],
-  ['How do salmon cross from salt water to fresh?',          ['osmosis','membrane']],
-  ['Why is an IV 0.9% saline, and distilled water fatal?',   ['osmosis','membrane','solvation']],
-  ['How does cholera dehydrate you without entering a cell?', ['osmosis','membrane','binding']],
-  ['How high can a tree grow?',                               ['osmosis','water']],
-  ['Poke a hole in a membrane and it heals. Why?',           ['membrane','hydrophob','entropy']],
-  ['What does a pump actually spend, and on what?',          ['membrane','coupling','glycolys']],
-  ['Why do sprinters&#8217; legs burn at 200m but marathoners&#8217; don&#8217;t?', ['ferment','glycolys']],
-  ['How does one organism running one pathway give you both bread and beer?', ['ferment','glycolys']],
-  ['How do crucian carp survive sealed under ice?',          ['ferment','glycolys']],
-  ['Why do red blood cells have no mitochondria?',           ['ferment','glycolys','krebs']],
-  ['Why are apples stored in low oxygen, not just cold?',    ['ferment','krebs']],
-  ['Why does fructose behave unlike glucose in the liver?',  ['glycolys','enzyme']],
-  ['Where does the CO&#8322; you exhale come from?',         ['ledger','krebs','glycolys']],
-  ['Why does the oxygen you breathe end up in water, not CO&#8322;?', ['ledger','etc','krebs']],
-  ['Why does fat carry more energy than sugar?',             ['ledger','betaox']],
-  ['How do camels get water from fat?',                       ['ledger','betaox','osmosis']],
-  ['How do bears hibernate?',                                 ['betaox','etc']],
-  ['How do hibernating animals burn fat as heat?',           ['etc','membrane','betaox']],
-  ['How do bacteria live on sulfur or iron with no sun?',    ['etc','coupling']],
-  ['Why is ATP worth spending at all?',                       ['coupling','krebs','massact']],
-  ['Why is one reaction enough to build all four polymers?',  ['macromol','bonds','water']],
-  ['Why isn&#8217;t the mutation rate zero?',                ['dna','binding','enzyme']],
-  ['What holds the two strands together, and why that strength?', ['dna','bonds','water']],
-  ['Why does a bond form at all?',                            ['bonds','entropy']],
-  ['One photon, one flash. One adrenaline, a million glucose. How?', ['scale','binding','glycolys']],
-  ['Why is a polymer built by removing water, and taken apart by adding it?', ['macromol','water','bonds']],
-  ['Why can you digest starch but not cellulose, when both are only glucose?', ['macromol','shape','enzyme']],
-  ['Why are there four classes of macromolecule and not forty?', ['macromol','bonds','dna']],
-  ['What makes a fat saturated, and why does a membrane care?', ['macromol','membrane']],
-  ['Why does one wrong amino acid out of 146 sickle a whole cell?', ['macromol','protein','folding']],
-  ['Why is DNA a double helix and not a single strand?', ['dna','bonds','shape']],
-  ['Why does the helix twist, instead of lying flat like a ladder?', ['dna','water','bonds']],
-  ['Why do the two strands run in opposite directions?', ['dna','shape','enzyme']],
-  ['How does a protein read the sequence without opening the helix?', ['dna','binding','protein']],
-  ['Why does heat separate the strands but leave the backbone intact?', ['dna','denature','bonds']],
+  ['Why do oil and water separate, if separating makes things more ordered?', ['water','hydrophob','entropy'], 1],
+  ['Why does soap work?',                                    ['hydrophob','membrane','solvation'], 1],
+  ['Why do proteins bury their greasy parts with nothing pulling them in?', ['hydrophob','folding','entropy'], 3],
+  ['What are the alternatives to road salt?',                ['water','solvation'], 2],
+  ['Why do recipes change at altitude?',                     ['water','entropy'], 2],
+  ['How are fizzy drinks made?',                             ['water','solvation','diffusion'], 2],
+  ['Why are snowflakes six-sided?',                          ['crystal','water'], 1],
+  ['What makes ice cream creamy rather than gritty?',        ['crystal','water'], 1],
+  ['How do deep-sea fish keep their blood from crystallising?', ['crystal','binding','protein'], 3],
+  ['How do wood frogs survive freezing solid?',              ['crystal','osmosis'], 3],
+  ['A protein folds in a second out of more shapes than there are atoms. How?', ['folding','entropy'], 3],
+  ['Why do egg whites turn opaque and solid?',               ['denature','folding','hydrophob'], 1],
+  ['Why is a fever above 40&#176;C dangerous?',              ['denature','protein','enzyme'], 2],
+  ['How do vent bacteria run enzymes above 100&#176;C?',     ['denature','protein'], 3],
+  ['Why can&#8217;t you use up an enzyme?',                  ['enzyme','binding','scale'], 1],
+  ['Why is cyanide deadly?',                                 ['binding','enzyme','etc'], 2],
+  ['Why are some people lactose intolerant?',                ['binding','enzyme','shape'], 1],
+  ['Why does one molecule smell of lemon and its mirror of orange?', ['shape','binding'], 1],
+  ['Why did thalidomide&#8217;s two halves behave so differently?', ['shape','binding'], 2],
+  ['Why does CO kill at 0.1% of the air?',                   ['cooperat','binding','protein'], 2],
+  ['How does a fetus take oxygen from its own mother&#8217;s blood?', ['cooperat','protein','scale'], 3],
+  ['Why does exercise release oxygen exactly where it&#8217;s needed?', ['cooperat','protein','ledger'], 3],
+  ['Why are cells small?',                                    ['diffusion','scale'], 1],
+  ['Why does an insect need no lungs and you do?',           ['diffusion','scale','membrane'], 2],
+  ['Why can&#8217;t a metre-long neuron let its signal diffuse?', ['diffusion','scale'], 3],
+  ['Why does breathing fast make you dizzy?',                ['massact','scale','solvation'], 2],
+  ['Why does blood pH barely move when you drink Coke?',     ['massact','solvation','scale'], 2],
+  ['How do salmon cross from salt water to fresh?',          ['osmosis','membrane'], 1],
+  ['Why is an IV 0.9% saline, and distilled water fatal?',   ['osmosis','membrane','solvation'], 1],
+  ['How does cholera dehydrate you without entering a cell?', ['osmosis','membrane','binding'], 3],
+  ['How high can a tree grow?',                               ['osmosis','water'], 2],
+  ['Poke a hole in a membrane and it heals. Why?',           ['membrane','hydrophob','entropy'], 2],
+  ['What does a pump actually spend, and on what?',          ['membrane','coupling','glycolys'], 2],
+  ['Why do sprinters&#8217; legs burn at 200m but marathoners&#8217; don&#8217;t?', ['ferment','glycolys'], 1],
+  ['How does one organism running one pathway give you both bread and beer?', ['ferment','glycolys'], 1],
+  ['How do crucian carp survive sealed under ice?',          ['ferment','glycolys'], 3],
+  ['Why do red blood cells have no mitochondria?',           ['ferment','glycolys','krebs'], 2],
+  ['Why are apples stored in low oxygen, not just cold?',    ['ferment','krebs'], 3],
+  ['Why does fructose behave unlike glucose in the liver?',  ['glycolys','enzyme'], 3],
+  ['Where does the CO&#8322; you exhale come from?',         ['ledger','krebs','glycolys'], 1],
+  ['Why does the oxygen you breathe end up in water, not CO&#8322;?', ['ledger','etc','krebs'], 2],
+  ['Why does fat carry more energy than sugar?',             ['ledger','betaox'], 1],
+  ['How do camels get water from fat?',                       ['ledger','betaox','osmosis'], 2],
+  ['How do bears hibernate?',                                 ['betaox','etc'], 3],
+  ['How do hibernating animals burn fat as heat?',           ['etc','membrane','betaox'], 3],
+  ['How do bacteria live on sulfur or iron with no sun?',    ['etc','coupling'], 3],
+  ['Why is ATP worth spending at all?',                       ['coupling','krebs','massact'], 1],
+  ['Why is one reaction enough to build all four polymers?',  ['macromol','bonds','water'], 1],
+  ['Why isn&#8217;t the mutation rate zero?',                ['dna','binding','enzyme'], 2],
+  ['What holds the two strands together, and why that strength?', ['dna','bonds','water'], 1],
+  ['Why does a bond form at all?',                            ['bonds','entropy'], 1],
+  ['One photon, one flash. One adrenaline, a million glucose. How?', ['scale','binding','glycolys'], 2],
+  ['Why is a polymer built by removing water, and taken apart by adding it?', ['macromol','water','bonds'], 1],
+  ['Why can you digest starch but not cellulose, when both are only glucose?', ['macromol','shape','enzyme'], 1],
+  ['Why are there four classes of macromolecule and not forty?', ['macromol','bonds','dna'], 2],
+  ['What makes a fat saturated, and why does a membrane care?', ['macromol','membrane'], 2],
+  ['Why does one wrong amino acid out of 146 sickle a whole cell?', ['macromol','protein','folding'], 2],
+  ['Why is DNA a double helix and not a single strand?', ['dna','bonds','shape'], 1],
+  ['Why does the helix twist, instead of lying flat like a ladder?', ['dna','water','bonds'], 3],
+  ['Why do the two strands run in opposite directions?', ['dna','shape','enzyme'], 3],
+  ['How does a protein read the sequence without opening the helix?', ['dna','binding','protein'], 3],
+  ['Why does heat separate the strands but leave the backbone intact?', ['dna','denature','bonds'], 2],
 ];
 
 /* ---- graph ---------------------------------------------------------- */
@@ -330,7 +335,7 @@ function build() {
     nodes.push(n);
   }
   QUESTIONS.forEach((q, i) => {
-    const n = { id: 'q' + i, kind: 'question', text: q[0], deg: 0 };
+    const n = { id: 'q' + i, kind: 'question', text: q[0], rank: q[2] || 2, deg: 0 };
     byId[n.id] = n;
     nodes.push(n);
     for (const r of q[1]) {
@@ -375,15 +380,22 @@ function show(n, depth, y) {
 // a concept's questions, and the concepts each of those questions reaches —
 // the same two hops the highlight draws, which is why a click can do both
 function expand(c) {
-  if (c.expanded) return;
-  c.expanded = true;
+  const pending = neighbours(c).filter(n => !n.visible).sort((a, b) => a.rank - b.rank);
+  if (!pending.length) { c.expanded = true; return; }
+
+  // One rank per click. A card opens with its rank 1 questions only — the way
+  // in, not the whole file — and each further click brings the next band down.
+  const wave = pending.filter(q => q.rank === pending[0].rank);
   const mark = live.length;
-  const qs = neighbours(c).filter(n => !n.visible);
-  qs.forEach((q, i) => {
-    show(q, c.depth + 1, c.y + (i - (qs.length - 1) / 2) * 130);
+  wave.forEach((q, i) => {
+    // 0, +1, -1, +2, -2 … so the first question lands on the card's own line
+    const rung = (i % 2 ? 1 : -1) * Math.ceil(i / 2);
+    show(q, c.depth + 1, c.y + rung * 130);
     const next = neighbours(q).filter(n => !n.visible);
     next.forEach((m, j) => show(m, q.depth + 1, q.y + (j - (next.length - 1) / 2) * 150));
   });
+  c.expanded = neighbours(c).every(n => n.visible);
+
   alpha = Math.max(alpha, 0.75);        // the new arrivals need room made for them
   follow = live.slice(mark);            // growth heads right; the view walks after it
   followFrames = follow.length ? 200 : 0;
