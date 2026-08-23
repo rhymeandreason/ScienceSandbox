@@ -532,7 +532,7 @@ hbLines.frustumCulled=false; root.add(hbLines);
 let DAMP=0.93;                    // light: a front that has to travel needs to keep moving
 let JITTER=0.004*A;
 let K_HB=0.030;                   // H-bond spring
-let K_COH=0.048;                // dispersion, the undirected part of cohesion
+let K_COH=0.108;                // dispersion, the undirected part of cohesion
 let K_STERIC=0.90;
 const K_WALL=0.20;                // the wall is solid
 /* Adhesion beats cohesion here, and that is the whole reason the meniscus is
@@ -557,7 +557,7 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    front crosses the pore's 94 A in about 1500 steps and the count climbs past
    700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
    the pool sits there. */
-let K_WET=0.065*A;              // per surface atom, summed; not per molecule
+let K_WET=0.020*A;              // per surface atom, summed; not per molecule
 /* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
    without a reload. The contact angle lives in the ratio of the first two, and
    sweeping it is what this bench is for. */
