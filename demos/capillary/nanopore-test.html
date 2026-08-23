@@ -113,6 +113,20 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
      with 2-3 A of thermal roughness, and no measurement of its shape
      meant anything. 900 is the smallest count where a surface is one.
 
+     COHESION HAD THE WRONG SHAPE, and finding it started from noticing the
+     water moved too much. The dispersion term was STRONGEST exactly at the
+     rest length and fell away outward, so a pair sitting at its own equilibrium
+     was pulled inward as hard as the term could pull while contact pushed it
+     back out. Force at a potential's minimum is zero; this one was at its
+     maximum. Every touching pair was in that tug of war. Corrected — rising
+     from nothing at contact, peaking midway, back to nothing at the cutoff —
+     the bulk quietens from 0.79 A a step to 0.55 and the molecules thrown clear
+     of the surface go from 7 to 4, at the same K_COH.
+
+     It does not overturn what follows, though, and that is the honest reading:
+     matched for structure rather than for K_COH, the corrected curve is just as
+     agitated. What the liquid does still tracks how hard it is held.
+
      THE CLIMB IS CURRENTLY DRIVEN BY AGITATION, NOT BY WETTING, and that is
      the most important thing known about this bench. Four independent ways of
      calming the liquid were tried, at the correct spacing, and every one of
@@ -837,14 +851,27 @@ function step(){
         _u.copy(_v).multiplyScalar((OO_MIN-d)/d*K_STERIC);
         forces[i].add(_u); forces[j].sub(_u);
       } else if(d>OO_EQ){
-        /* Dispersion, and only OUTSIDE the H-bond rest length. Letting it pull
-           at every separation crushes the liquid: it peaks just above the steric
-           floor, so it fights the floor instead of the gap, and the first
-           version of this bench settled with its neighbours 2.35 A apart
-           against a real 2.8. Attraction beyond equilibrium, repulsion below,
-           nothing in between — the shape any pair potential has. */
-        const fade=1-(d-OO_EQ)/(COH_MAX-OO_EQ);
-        _u.copy(_v).multiplyScalar(-K_COH*fade*fade/d);
+        /* Dispersion, outside the rest length only — and ZERO AT THE REST
+           LENGTH, which is the correction. It used to be strongest exactly
+           there: `fade` was 1 at d = OO_EQ and fell away outward, so a pair
+           sitting at its own equilibrium was being pulled inward as hard as the
+           term could pull, while contact pushed it back out. Every touching
+           pair in the liquid was in that tug of war, and the energy it threw
+           off is what shook the whole pool — bulk speed 0.79 A a step, molecules
+           flung clear of the surface and stranded on the dry wall. Lowering
+           K_COH quietened it because it made the fight weaker, which is how the
+           fight was spotted.
+
+           Force at a potential's minimum is zero. This one now rises from
+           nothing at OO_EQ, peaks midway out, and falls back to nothing at
+           COH_MAX. */
+        const w=(d-OO_EQ)/(COH_MAX-OO_EQ);      // 0 at contact, 1 at the cutoff
+        /* w(1-w) peaks at 0.25, which is what the old curve was worth in the
+           middle of its range: the shape changes, the strength a pair feels
+           halfway out does not, so K_COH still means what it meant. Normalised
+           to 1 instead, the mid-range pull is four times the old one and the
+           pool boils out of the pore. */
+        _u.copy(_v).multiplyScalar(-K_COH*w*(1-w)/d);
         forces[i].add(_u); forces[j].sub(_u);
       }
     }
