@@ -655,6 +655,68 @@ let condensed=0;
    slowest molecules and not much more. Say floor, not temperature. */
 let V_THERM=0.05*A;
 let V_MAX=0;                      // speed ceiling, 0 for none
+/* A THERMOSTAT WITH AUTHORITY. The Langevin pair above sets a temperature only
+   if the drag can carry off what the forces put in, and at DAMP 0.93 it cannot:
+   7% a step against terms that inject far more, so the liquid ran at 0.55 A a
+   step with a thermostat asking for 0.05, and K_COH ended up setting the
+   temperature. Coupling the drag harder does hold a temperature — and freezes
+   the flow with it, because drag cannot tell a molecule's share of the current
+   from its share of the heat.
+
+   This can. Each molecule's velocity is split against its NEIGHBOURS' mean:
+   what it shares with them is flow, what it has on top is thermal. Only the
+   thermal part is rescaled, so a column moving as a body is untouched however
+   hard the temperature is held. Standard Berendsen from there — one factor for
+   the whole liquid, eased in over T_TAU, so the Maxwell spread survives instead
+   of every molecule being pinned to the same speed.
+
+   IT WORKS AND IT DOES NOT EARN ITS PLACE, which is why it ships off. Held at
+   0.15, the thermal share falls from 0.468 to 0.384 A a step at T_TAU 0.10 and
+   sticks at 0.376 even at 0.40 — the forces put it back as fast as it comes
+   out. What that buys on screen is nothing: bulk speed is 0.55-0.62 either way,
+   because what makes the water look busy is the flow share, not the thermal one.
+   What it costs is a third of the intake and most of the climb: 508 molecules
+   and +13 to +21 A at the wall with it off, 378 and -2 to +9 with it on, over
+   four runs.
+
+   THE MEASUREMENT IT DID BUY IS THE POINT. Turn the positional constraint off
+   and the thermal share falls to 0.208 against a 0.15 target, with the local
+   flow at 0.027 — the thermostat holds easily and the liquid is calm. Turn the
+   constraint on and it is 0.369 and cannot be held. The constraint IS the pump.
+   And the constraint is what puts the spacing right, and the energy it pumps is
+   what drives the climb, so the three cannot hold at once in a force model with
+   a projection bolted on. That is the case for the pressure and the
+   incompressibility being one solver, where the corrections ARE the flow. */
+let T_SPEED=0.15*A;               // the thermal speed the liquid is held at
+let T_TAU=0;                      // and how quickly it is pulled back to it; 0 is off
+const pec=[];
+function thermostat(){
+  if(T_TAU<=0 || T_SPEED<=0) return;
+  const n=waters.length;
+  let sum=0, c=0;
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(!w||w.gone) continue;
+    const p=pec[i]||(pec[i]=new THREE.Vector3());
+    _t1.copy(w.v); let k=1;
+    for(let q=0;q<nbrN[i];q++){
+      const b=waters[nbr[i*NBR_MAX+q]];
+      if(!b||b.gone) continue;
+      _t1.add(b.v); k++;
+    }
+    p.copy(w.v).addScaledVector(_t1, -1/k);      // velocity minus the local flow
+    sum+=p.length(); c++;
+  }
+  if(!c) return;
+  const mean=sum/c;
+  if(mean<1e-9) return;
+  const sc=1+T_TAU*(T_SPEED/mean-1);
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(!w||w.gone) continue;
+    w.v.addScaledVector(pec[i], sc-1);           // rescale only the thermal share
+  }
+}
 /* TORQUE, because a bond that only pulls centres together cannot build a
    network. Measured before this existed: 1385 pairs sat close enough to bond
    and 806 of them — 58% — failed the angle test, on a cut already looser than
@@ -1108,6 +1170,7 @@ function step(){
   }
 
   separate();
+  thermostat();
 
   hbGeo.setDrawRange(0,lines*2);
   hbGeo.attributes.position.needsUpdate=true;
