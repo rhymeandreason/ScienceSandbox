@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cell-wall nanopore — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson.
+
+     THE QUESTION. Capillarity is on WaterSim.md's list of things that
+     must trace back to H-bonding, and the usual picture of it — water
+     climbing a stem — cannot be drawn at molecular scale. A xylem
+     vessel is 10-100 um, which is 36,000 to 360,000 water molecules
+     across, and capillary rise in one is about 1.5 m against a
+     redwood's 100. The vessel is not where the lift comes from.
+
+     Where it comes from is the cell-wall pore in the leaf: a few
+     nanometres, a few tens of molecules across, holding a curved
+     meniscus that evaporation pulls on. THAT is drawable at honest
+     scale, and this bench is whether it renders as anything.
+
+     SCALE. Everything here is family B — real angstroms x MolLib.SCALE
+     (MolecularGeometry.md 1.5) — because the page makes a size claim
+     and only family B may. So the water is mol-small's to-scale
+     spectroscopic geometry, NOT water-lab's family-A physics water,
+     and the engine constants below are real distances scaled once,
+     not tuned numbers.
+
+     THE WALLS ARE REAL CELLULOSE. Not a hydroxyl lattice standing in
+     for one: the cellobiose spec repeated by chain-repeat.js, the same
+     path chain/glucose-chains-test.html checks, so the -OH groups the
+     water bonds to are where beta-1,4 glucose actually puts them. The
+     right-hand wall is the left one turned 180 degrees about Y, never
+     mirrored: a mirrored sugar is the other enantiomer.
+
+     WHAT IT SHOWS. The wall wets: water reaches the hydroxyl surface,
+     sits 2.4-3.0 A from its oxygens, and holds H-bonds to them — which
+     is adhesion, drawn as the same bond as cohesion, because it is the
+     same bond. The liquid's own numbers are close: nearest neighbours
+     settle near 2.55 A against a real 2.8, at the seeded bulk density,
+     and about 2.5 H-bonds per molecule against a real 3.6.
+
+     WHAT IT DOES NOT SHOW YET: A CONCAVE MENISCUS. What the sweeps
+     found instead is that this model has the contact angle as a knob
+     and lands at both ends of it rather than in the middle. Cohesion
+     ahead of adhesion gives a DOME — a droplet sitting in a channel,
+     curving the wrong way. Adhesion ahead of cohesion gives films that
+     climb both walls and hollow the middle out, which is complete
+     wetting, also not an arc. The arc is the balance between them and
+     it does not fall out of tuning these two constants.
+
+     That reads as a missing term rather than a missing number. Surface
+     tension here is only whatever the pair forces happen to add up to
+     at a free surface, and a meniscus is a pressure balance ACROSS that
+     surface. The next thing to try is an explicit surface-energy term,
+     not a bigger K_WET: tripling that was tried and moved the surface
+     by nothing at 300 molecules, and only produced films at 900.
+
+     Molecule count did matter for everything else. At 300 the free
+     surface was 12 molecules across with 2-3 A of thermal roughness and
+     no measurement of its shape meant anything. 900 is the smallest
+     count where the surface reads as a surface.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  html,body{height:100%}
+  body{margin:0;background:var(--paper);overflow:hidden}
+  #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #bar{
+    position:absolute;left:50%;bottom:24px;transform:translateX(-50%);
+    z-index:5;display:flex;align-items:center;gap:10px;
+  }
+  #readout{
+    position:absolute;left:22px;top:20px;z-index:5;
+    font:12px/1.6 var(--font-mono);color:var(--muted);white-space:pre;
+  }
+  #readout b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<!-- The bench's numbers, measured off what was built. Nothing here is typed. -->
+<div id="readout"></div>
+
+<div id="bar">
+  <button class="pill" id="evap" type="button">Evaporate</button>
+  <button class="pill pill--ghost" id="reset" type="button">Reset</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../tokens-from-palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../skel.js"></script>
+<script src="../mol-monomers.js"></script>
+<script src="../mol-pathways.js"></script>
+<script src="../mol-contrast.js"></script>
+<script src="../mol-small.js"></script>
+<script src="../scene.js"></script>
+<script src="../chain/frame.js"></script>
+<script src="../chain-repeat.js"></script>
+<script>
+"use strict";
+
+/* ============================================================= *
+ *  Scale. One number, and every distance below is a real one.
+ * ============================================================= */
+const A = MolLib.SCALE;              // scene units per angstrom (family B)
+const nm = n => n*10*A;              // nanometres, for the pore itself
+const P  = MolLib.PALETTE;
+
+/* ---- the pore, in real numbers ----
+ *  Cell-wall pores run about 2-10 nm. 3.5 nm is in that range and is the
+ *  width at which a column tall enough to have a meniscus still fits the
+ *  molecule budget: water is 33.4 molecules per cubic nm, so the slot's
+ *  volume IS the count, and a 5 nm slot at this depth would be a puddle
+ *  rather than a column.
+ */
+const GAP   = nm(3.5);               // wall face to wall face
+const DEPTH = nm(1.5);               // the slab's thickness, ~2 molecules
+const FILL  = nm(5.1);               // how tall the water starts — see the count below
+const FLOOR = -nm(2.4);              // the reservoir below, where the column stands
+
+/* ---- water, from real distances ----
+ *  Every one of these is a measured number scaled once. WaterSim.md 4: the
+ *  steric floor sits BELOW the H-bond equilibrium, so a bonded pair rests
+ *  where the bond wants it rather than in a fight between two forces.
+ */
+const OO_EQ   = 2.76*A;              // liquid water O...O, the H-bond rest length
+let OO_MIN  = 2.70*A;              // hard contact; below this they push apart
+const HB_MAX  = 2.45*A;              // H...O reach for a bond to register
+const HB_LIN  = 0.55;                // O-H...O has to be near enough to straight
+const COH_MAX = 6.20*A;              // how far the weak, undirected pull reaches
+
+/* A liquid is not held together by H-bonds alone. Dispersion pulls on every
+   neighbour whatever way it is turned, and without it a box of molecules whose
+   only attraction is a near-linear O-H...O simply never condenses: each one
+   waits for a partner to be aimed correctly and drifts apart in the meantime.
+   So there is a weak undirected attraction out to ~6.2 A on top of the bond. */
+
+/* ============================================================= *
+ *  Stage
+ * ============================================================= */
+const canvas=document.getElementById('gl');
+const {scene,camera,renderer,root,cam,applyCam,resize}=
+  Stage.create(canvas,{cam:{theta:0, phi:Math.PI/2, r:nm(11)}, rMax:nm(40)});
+
+/* ============================================================= *
+ *  THE WALLS — cellulose, repeated from the checked linkage
+ * ============================================================= */
+const V3=(p)=>new THREE.Vector3(p[0],p[1],p[2]);
+const cello=MolLib.MOLECULES.cellobiose;
+const screw=ChainRepeat.screwOf(cello, ['O5','C1','C4'], 'A','B');
+const CHAIN_N=14;                                   // residues; ~5.2 A each
+const chain=ChainRepeat.extend(cello, screw, CHAIN_N, 'A');
+
+/* The chain comes out along the screw's own axis, wherever that points. Turn
+   it so the axis runs up the page (the pore's long direction) and the ribbon's
+   flat face looks into the pore. Both are proper rotations — a reflection here
+   would hand back L-glucose. */
+const qAxis=new THREE.Quaternion().setFromUnitVectors(
+  new THREE.Vector3(screw.axis[0],screw.axis[1],screw.axis[2]).normalize(),
+  new THREE.Vector3(0,1,0));
+const chainPts=[];
+chain.residues.forEach(res=>res.forEach(p=>chainPts.push(V3(p).applyQuaternion(qAxis))));
+
+/* The ribbon's flat face: of the two directions across the chain, the one it
+   is thinnest in is the face normal. Measured, not assumed — the spec's own
+   torsions decide which way the ribbon lies. */
+const mid=new THREE.Vector3();
+chainPts.forEach(p=>mid.add(p)); mid.multiplyScalar(1/chainPts.length);
+let bestAng=0, bestSpread=Infinity;
+for(let k=0;k<180;k++){
+  const th=k*Math.PI/180, nx=Math.cos(th), nz=Math.sin(th);
+  let s=0; for(const p of chainPts){ const d=(p.x-mid.x)*nx+(p.z-mid.z)*nz; s+=d*d; }
+  if(s<bestSpread){ bestSpread=s; bestAng=th; }
+}
+// turn that thin direction onto +x, so the flat face points across the pore
+const qFace=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -bestAng);
+chainPts.forEach(p=>p.applyQuaternion(qFace));
+
+// re-centre, and find the face that will front the pore
+const box=new THREE.Box3().setFromPoints(chainPts);
+const c=box.getCenter(new THREE.Vector3());
+chainPts.forEach(p=>p.sub(c));
+const faceX=new THREE.Box3().setFromPoints(chainPts).max.x;   // the pore-facing extreme
+
+/* One wall is this chain, stepped along z at cellulose Ibeta's own chain
+   spacing; the other is the same wall turned half a turn about y. */
+const CHAIN_SPACING=8.2*A;         // cellulose Ibeta b axis
+/* Two chains, not three: the wall has to be as deep as the water slab and no
+   deeper. A wall standing proud of the liquid on the near side reads as a gap
+   between the two, and the first version of this bench looked non-wetting for
+   that reason alone — perspective on a chain 8 A nearer the camera. */
+const CHAINS=4;
+const wallAtoms=[];                // {el, pos}
+const wallBonds=[];                // [a,b] into wallAtoms
+const wallOH=[];                   // {o, h} scene positions, the adhesion sites
+
+const perRes=chain.names.length;
+const iName=n=>chain.index(n);
+const OH_PAIRS=[['O2','HO2'],['O3','HO3'],['O6','HO6']].map(([o,h])=>[iName(o),iName(h)])
+  .filter(([o,h])=>o>=0&&h>=0);
+const optH=new Set(chain.optH);
+
+function buildWall(side){
+  // side = -1 (left) or +1 (right). The right wall is a rotation, never a mirror.
+  const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), side>0?Math.PI:0);
+  for(let k=0;k<CHAINS;k++){
+    const z=(k-(CHAINS-1)/2)*CHAIN_SPACING;
+    const base=wallAtoms.length;
+    for(let r=0;r<CHAIN_N;r++){
+      for(let i=0;i<perRes;i++){
+        if(optH.has(i)) continue;                    // C-H's hidden, as every page hides them
+        const p=chainPts[r*perRes+i].clone().applyQuaternion(q);
+        // slide the wall out so its pore-facing face sits exactly at the gap
+        p.x += side*(GAP/2 + faceX);
+        p.z += z;
+        wallAtoms.push({el:chain.el[i], pos:p});
+      }
+      const off=base+r*(perRes-optH.size);
+      // bonds are per-residue and in residue-local numbering; skip any that
+      // touch a hidden hydrogen, the same contract Stage.setOptionalH keeps
+      const keep=[]; for(let i=0;i<perRes;i++) if(!optH.has(i)) keep.push(i);
+      const localOf={}; keep.forEach((g,l)=>{ localOf[g]=l; });
+      chain.bonds.forEach(([a,b])=>{
+        if(optH.has(a)||optH.has(b)) return;
+        wallBonds.push([off+localOf[a], off+localOf[b]]);
+      });
+      // this residue's free hydroxyls, as adhesion sites, if they face the pore
+      OH_PAIRS.forEach(([oi,hi])=>{
+        if(optH.has(oi)||optH.has(hi)) return;
+        const o=wallAtoms[off+localOf[oi]].pos, h=wallAtoms[off+localOf[hi]].pos;
+        // depth into the wall from its pore-facing plane; a hydroxyl further in
+        // than a water molecule is wide can never be reached
+        if(side*o.x - GAP/2 > 3.2*A) return;
+        wallOH.push({o,h});
+      });
+    }
+  }
+}
+buildWall(-1); buildWall(+1);
+
+/* THE SURFACE, NOT A PLANE. A cellulose face is corrugated: the outermost atom
+   of the ribbon sits 1-3 A proud of the hydroxyl oxygens behind it. Stopping
+   the water at a flat plane through that outermost atom therefore holds every
+   molecule just out of reach of the very groups it is supposed to bond to, and
+   the wall reads as non-stick. So water is stopped by the ATOMS, at their own
+   van der Waals radii, and can settle into the grooves between them.
+
+   Only the atoms within a water's width of the face can ever be touched, and
+   they are bucketed by height so a molecule tests a few dozen rather than all
+   fifteen hundred. */
+/* CONTACT radii, not van der Waals ones. A hydrogen bond is two atoms sitting
+   INSIDE each other's van der Waals shells: water's O...O rests at 2.76 A while
+   two vdW oxygens sum to 3.04. Give the wall's oxygens their full shell and the
+   steric floor holds every water just too far out to bond, which is exactly the
+   bug this replaced. So a wall oxygen stops water at the H-bond rest length, a
+   hydroxyl hydrogen at the H...O it would form, and carbon — which bonds to
+   nothing here — keeps its real vdW radius. */
+const CONTACT={O:1.25*A, C:1.70*A, H:0.50*A};
+const R_WATER=1.40*A;                       // the water O's radius in these sums
+const BUCKET=6.0*A;
+const surface=new Map();                    // side|bucket -> [{pos, r}]
+wallAtoms.forEach(a=>{
+  const side=Math.sign(a.pos.x);
+  if(side*a.pos.x - GAP/2 > 3.5*A) return;  // buried; nothing reaches it
+  const key=side+'|'+Math.floor(a.pos.y/BUCKET);
+  (surface.get(key)||surface.set(key,[]).get(key)).push({pos:a.pos, r:CONTACT[a.el]||1.5*A});
+});
+function surfaceNear(side,y,span){
+  const b=Math.floor(y/BUCKET), out=[];
+  const n=span||1;
+  for(let k=-n;k<=n;k++){ const l=surface.get(side+'|'+(b+k)); if(l) out.push(l); }
+  return out;
+}
+
+/* ---- drawn as instances ----
+ *  A wall is ~1500 spheres and as many sticks and it never moves, so it is one
+ *  InstancedMesh per element plus one for the bonds rather than 3000 objects.
+ */
+const SPHERE=new THREE.SphereGeometry(1,16,12);
+const STICK=new THREE.CylinderGeometry(1,1,1,8,1,true);
+STICK.translate(0,0.5,0);            // origin at one end, so a bond is scale+aim
+
+const VDW_DRAW={C:1.70, O:1.52, H:1.20};
+function instancedSpheres(list, el){
+  const pts=list.filter(a=>a.el===el);
+  if(!pts.length) return null;
+  const m=new THREE.InstancedMesh(SPHERE,
+    new THREE.MeshLambertMaterial({color:P.atoms[el]||0x888888}), pts.length);
+  /* Space-filling, at 0.9 of van der Waals. A cell wall is dense matter and a
+     ball-and-stick one reads as a wire cage with gaps the water could swim
+     through — which is the opposite of what a wall does. Slightly under the
+     real shell so the corrugation between chains stays visible; colour, not
+     size, is what separates wall from water here. */
+  const r=(VDW_DRAW[el]||1.6)*0.9*A;
+  const M=new THREE.Matrix4();
+  pts.forEach((a,i)=>{ M.makeScale(r,r,r).setPosition(a.pos); m.setMatrixAt(i,M); });
+  m.instanceMatrix.needsUpdate=true; root.add(m); return m;
+}
+['C','O','H'].forEach(el=>instancedSpheres(wallAtoms,el));
+
+(function drawWallBonds(){
+  const m=new THREE.InstancedMesh(STICK,
+    new THREE.MeshLambertMaterial({color:P.bonds.covalent}), wallBonds.length);
+  const M=new THREE.Matrix4(), q=new THREE.Quaternion(), up=new THREE.Vector3(0,1,0);
+  const d=new THREE.Vector3(), s=new THREE.Vector3();
+  wallBonds.forEach(([a,b],i)=>{
+    const pa=wallAtoms[a].pos, pb=wallAtoms[b].pos;
+    d.subVectors(pb,pa);
+    q.setFromUnitVectors(up, s.copy(d).normalize());
+    M.compose(pa, q, new THREE.Vector3(0.09*A, d.length(), 0.09*A));
+    m.setMatrixAt(i,M);
+  });
+  m.instanceMatrix.needsUpdate=true; root.add(m);
+})();
+
+/* ============================================================= *
+ *  THE WATER
+ * ============================================================= */
+const wspec=MolLib.MOLECULES.water;             // family B, to scale
+const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
+
+const N_WATER=900;
+const waters=[];                                 // {p, v, q, o, h:[2]}
+const _v=new THREE.Vector3(), _u=new THREE.Vector3(), _w=new THREE.Vector3();
+
+function makeWater(p){
+  const w={ p:p.clone(), v:new THREE.Vector3(),
+            q:new THREE.Quaternion().setFromEuler(new THREE.Euler(
+              Math.random()*6.28, Math.random()*6.28, Math.random()*6.28)),
+            o:new THREE.Vector3(), h:[new THREE.Vector3(), new THREE.Vector3()],
+            hb:0 };
+  waters.push(w); return w;
+}
+function seed(){
+  waters.length=0;
+  for(let i=0;i<N_WATER;i++) makeWater(new THREE.Vector3(
+    (Math.random()-0.5)*(GAP-2.8*A),
+    FLOOR + Math.random()*FILL,
+    (Math.random()-0.5)*DEPTH));
+}
+seed();
+
+// world positions of one water's atoms, from its own quaternion
+function place(w){
+  w.o.copy(w.p);
+  w.h[0].copy(OH).applyQuaternion(w.q).add(w.p);
+  w.h[1].copy(OH2).applyQuaternion(w.q).add(w.p);
+}
+waters.forEach(place);
+
+/* THE WATER IS SPACE-FILLING AND THE WALL IS NOT, and that is the one place
+   this page departs from the house radii on purpose. PALETTE.radii are
+   ball-and-stick sizes, chosen so one molecule's sticks show; at a real liquid's
+   spacing (O...O 2.76 A) spheres that size leave gaps you could drive a
+   molecule through, and 300 of them read as a gas. These are near van der Waals
+   instead (O 1.40 A against a real 1.52, H 0.95 against 1.20), which is how a
+   liquid has to be drawn if its density is the claim. The wall stays
+   ball-and-stick, so structure and bulk do not look like the same substance. */
+const R_O=1.40*A, R_H=0.95*A;
+const oMesh=new THREE.InstancedMesh(SPHERE,
+  new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER);
+const hMesh=new THREE.InstancedMesh(SPHERE,
+  new THREE.MeshLambertMaterial({color:P.atoms.H}), N_WATER*2);
+root.add(oMesh,hMesh);
+
+/* H-bonds, dashed, the convention WaterSim.md 1 sets. The same line is drawn
+   for a bond to a wall hydroxyl: adhesion IS this bond, to a different partner,
+   and drawing it differently would be inventing a second force. */
+const hbGeo=new THREE.BufferGeometry();
+const HB_MAX_LINES=N_WATER*4;
+hbGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HB_MAX_LINES*6),3));
+const hbLines=new THREE.LineSegments(hbGeo,
+  new THREE.LineDashedMaterial({color:P.bonds.hbond, dashSize:0.42*A, gapSize:0.3*A,
+    transparent:true, opacity:0.85}));
+hbLines.frustumCulled=false; root.add(hbLines);
+
+/* ============================================================= *
+ *  The physics. Same rules as the solvation engine, at real scale.
+ * ============================================================= */
+let G=0.0060*A;                 // weight; what a climb would be balanced against
+const DAMP=0.86;
+const JITTER=0.004*A;
+const K_HB=0.030;                 // H-bond spring
+let K_COH=0.048;                // dispersion, the undirected part of cohesion
+let K_STERIC=0.90;
+const K_WALL=0.20;                // the wall is solid
+/* Adhesion beats cohesion here, and that is the whole reason the meniscus is
+   concave: a hydroxyl surface offers water the same bond another water does,
+   and there are more of them per unit area than a curved liquid surface can
+   present back. Under-set this and the render tells the waxed-windshield story
+   by accident. */
+const K_ADHERE=0.075;             // the bond itself, directional
+const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
+/* THE WALL AS A WALL, not as a bag of separate atoms. A single hydroxyl's pull
+   dies inside about 6 A, so a liquid that once lets go of the surface can never
+   feel it again and stays balled up in the middle of the pore — which is the
+   waxed windshield, not a cell wall. A solid attracts by the SUM over everything
+   behind the surface, and that sum falls off far more slowly than any one pair.
+   This is that sum, as a smooth pull toward the face; the drawn dashes still
+   come only from real H-bond geometry, so nothing is claimed that is not there. */
+let K_WET=0.026*A;              // per surface atom, summed; not per molecule
+/* K_WET, K_COH, G, K_STERIC and OO_MIN are `let` so the console can sweep them
+   without a reload. The contact angle lives in the ratio of the first two, and
+   sweeping it is what this bench is for. */
+const WET_REACH=11.0*A;
+
+let hbCount=0, adCount=0;
+const forces=[];
+const NBR_MAX=48;                                  // a water never has this many inside 6.2 A
+const nbr=new Int16Array(N_WATER*NBR_MAX), nbrN=new Int16Array(N_WATER);
+const accepted=new Uint8Array(N_WATER), bondedWith=new Int16Array(N_WATER);
+
+function step(){
+  const n=waters.length;
+  for(let i=0;i<n;i++) (forces[i]||(forces[i]=new THREE.Vector3())).set(0,-G,0);
+
+  // --- pairwise: steric floor, then the H-bond that pulls them back together
+  let lines=0; hbCount=0; adCount=0;
+  const pos=hbGeo.attributes.position.array;
+  /* The pair pass keeps a neighbour list, because the H-bond search below wants
+     exactly the pairs this loop already found and running it over all n^2 again
+     was two thirds of the frame. Counts live in typed arrays rather than a Map
+     and a Set of string keys — 180k `i+'|'+j` allocations a frame is most of
+     the rest of it. */
+  for(let i=0;i<n;i++){ nbrN[i]=0; accepted[i]=0; }
+
+  for(let i=0;i<n;i++){
+    for(let j=i+1;j<n;j++){
+      const a=waters[i], b=waters[j];
+      _v.subVectors(a.p,b.p);
+      const d=_v.length();
+      if(d>COH_MAX || d<1e-4) continue;
+      if(nbrN[i]<NBR_MAX) nbr[i*NBR_MAX+nbrN[i]++]=j;
+      if(nbrN[j]<NBR_MAX) nbr[j*NBR_MAX+nbrN[j]++]=i;
+      if(d<OO_MIN){
+        _u.copy(_v).multiplyScalar((OO_MIN-d)/d*K_STERIC);
+        forces[i].add(_u); forces[j].sub(_u);
+      } else if(d>OO_EQ){
+        /* Dispersion, and only OUTSIDE the H-bond rest length. Letting it pull
+           at every separation crushes the liquid: it peaks just above the steric
+           floor, so it fights the floor instead of the gap, and the first
+           version of this bench settled with its neighbours 2.35 A apart
+           against a real 2.8. Attraction beyond equilibrium, repulsion below,
+           nothing in between — the shape any pair potential has. */
+        const fade=1-(d-OO_EQ)/(COH_MAX-OO_EQ);
+        _u.copy(_v).multiplyScalar(-K_COH*fade*fade/d);
+        forces[i].add(_u); forces[j].sub(_u);
+      }
+    }
+  }
+  // --- H-bonds: a donor H reaching a lone pair, one bond per H, two per oxygen
+  for(let i=0;i<n;i++){ waters[i].hb=0; bondedWith[i]=-1; }
+  for(let i=0;i<n;i++){
+    const don=waters[i];
+    for(let k=0;k<2;k++){
+      let best=-1, bestD=HB_MAX, bestLin=0;
+      for(let q=0;q<nbrN[i];q++){
+        const j=nbr[i*NBR_MAX+q];
+        const acc=waters[j];
+        if(accepted[j]>=2) continue;                 // an oxygen has two lone pairs
+        if(bondedWith[i]===j) continue;              // and one pair shares one bond
+        const dd=don.h[k].distanceTo(acc.o);
+        if(dd<bestD){
+          _u.subVectors(don.h[k],don.o).normalize();
+          _w.subVectors(acc.o,don.h[k]).normalize();
+          const lin=_u.dot(_w);
+          if(lin>HB_LIN){ best=j; bestD=dd; bestLin=lin; }
+        }
+      }
+      if(best<0) continue;
+      const acc=waters[best];
+      accepted[best]++;
+      bondedWith[i]=best;
+      don.hb++; acc.hb++; hbCount++;
+      _v.subVectors(acc.p,don.p);
+      const dist=_v.length()||1;
+      _v.multiplyScalar((dist-OO_EQ)*K_HB*bestLin/dist);
+      forces[i].add(_v); forces[best].sub(_v);
+      if(lines<HB_MAX_LINES){
+        don.h[k].toArray(pos, lines*6); acc.o.toArray(pos, lines*6+3); lines++;
+      }
+    }
+  }
+
+  // --- the wall: solid, and covered in hydroxyls that will hold on
+  const reach=5.0*A;
+  for(let i=0;i<n;i++){
+    const w=waters[i], f=forces[i];
+    // contact with the wall's own atoms, at their radii
+    const side=Math.sign(w.p.x)||1;
+    if(Math.abs(w.p.x) > GAP/2 - 5.0*A){
+      for(const list of surfaceNear(side,w.p.y)) for(const at of list){
+        _v.subVectors(w.p,at.pos);
+        const d=_v.length(), touch=at.r+R_WATER;
+        if(d<touch && d>1e-4) f.addScaledVector(_v,(touch-d)/d*K_WALL);
+      }
+    }
+    /* The surface's long-range share, summed over the atoms themselves rather
+       than applied as a push along -x. The direction matters: a sideways-only
+       wall force cannot lift anything, so the column sat with a dead flat top
+       however strongly it was wetted. Pulled toward real atoms, a molecule at
+       the top of the column feels the wall ABOVE it too, and climbs — which is
+       the meniscus, and then capillary rise, and neither had to be drawn. */
+    if(GAP/2-Math.abs(w.p.x) < WET_REACH){
+      for(const list of surfaceNear(side,w.p.y,2)) for(const at of list){
+        _v.subVectors(at.pos,w.p);
+        const d=_v.length();
+        if(d>WET_REACH || d<1e-4) continue;
+        const t=1-d/WET_REACH;
+        f.addScaledVector(_v, K_WET*t*t/d);
+      }
+    }
+    // a backstop behind the surface, so nothing tunnels through a groove
+    const deep=Math.abs(w.p.x)-(GAP/2+1.0*A);
+    if(deep>0) f.x -= side*deep*K_WALL*3;
+    const dz=Math.abs(w.p.z)-DEPTH/2;
+    if(dz>0) f.z -= Math.sign(w.p.z)*dz*K_WALL;
+    if(w.p.y<FLOOR) f.y += (FLOOR-w.p.y)*K_WALL;
+    if(Math.abs(w.p.x) < GAP/2-reach) continue;      // too far in to feel a hydroxyl
+    for(const site of wallOH){
+      if(Math.abs(site.o.z-w.p.z)>reach) continue;
+      if(Math.abs(site.o.y-w.p.y)>reach) continue;
+      _v.subVectors(site.o,w.p);
+      const dist=_v.length()||1;
+      if(dist>COH_MAX) continue;
+      /* Two parts, as the force really has two. A hydroxyl pulls on a water
+         whatever way either is turned — that is the electrostatics, and it is
+         what wets the wall. The BOND is the strong directional part on top,
+         and only it earns a dash: a line drawn for the general attraction
+         would be claiming a hydrogen bond wherever water is merely near. */
+      const fade=1-(dist-OO_EQ)/(COH_MAX-OO_EQ);
+      if(fade>0) f.addScaledVector(_v, K_ADHERE_LR*fade*fade/dist);
+
+      const donates=site.h.distanceTo(w.o)<HB_MAX;
+      const accepts=!donates && (w.h[0].distanceTo(site.o)<HB_MAX || w.h[1].distanceTo(site.o)<HB_MAX);
+      if(!donates && !accepts) continue;
+      f.addScaledVector(_v,(dist-OO_EQ)*K_ADHERE/dist);
+      adCount++;
+      if(lines<HB_MAX_LINES){
+        if(donates){ site.h.toArray(pos,lines*6); w.o.toArray(pos,lines*6+3); }
+        else {
+          const k=w.h[0].distanceTo(site.o)<HB_MAX?0:1;
+          w.h[k].toArray(pos,lines*6); site.o.toArray(pos,lines*6+3);
+        }
+        lines++;
+      }
+    }
+  }
+
+  // --- integrate, and let each molecule turn toward the bond it is making
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    forces[i].x += (Math.random()-0.5)*JITTER;
+    forces[i].y += (Math.random()-0.5)*JITTER;
+    forces[i].z += (Math.random()-0.5)*JITTER;
+    w.v.add(forces[i]).multiplyScalar(DAMP);
+    w.p.add(w.v);
+    w.q.multiply(_tumble(w));
+    place(w);
+  }
+
+  hbGeo.setDrawRange(0,lines*2);
+  hbGeo.attributes.position.needsUpdate=true;
+  hbLines.computeLineDistances();
+  return lines;
+}
+// a small random tumble, damped by how many bonds hold the molecule
+const _qt=new THREE.Quaternion(), _ax=new THREE.Vector3();
+function _tumble(w){
+  const k=0.05/(1+w.hb);
+  _ax.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
+  return _qt.setFromAxisAngle(_ax,(Math.random()-0.5)*k);
+}
+
+/* ---- evaporation, which is the whole point ----
+ *  Molecules leave from the TOP, where the meniscus is, and only if they are
+ *  barely bonded — the energy of vaporisation, again. What leaves is fed back
+ *  in at the bottom, because that is what the root does: the column keeps its
+ *  height and the water in it moves up.
+ */
+let evaporating=false;
+function evaporate(){
+  if(!evaporating || !waters.length) return;
+  let top=null;
+  for(const w of waters) if((!top||w.p.y>top.p.y) && w.hb<=1) top=w;
+  if(!top) return;
+  top.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR-1.0*A, (Math.random()-0.5)*DEPTH);
+  top.v.set(0,0.02*A,0);
+  place(top);
+}
+
+/* ============================================================= *
+ *  Render
+ * ============================================================= */
+const _M=new THREE.Matrix4();
+
+function draw(){
+  waters.forEach((w,i)=>{
+    _M.makeScale(R_O,R_O,R_O).setPosition(w.o); oMesh.setMatrixAt(i,_M);
+    for(let k=0;k<2;k++){
+      _M.makeScale(R_H,R_H,R_H).setPosition(w.h[k]); hMesh.setMatrixAt(i*2+k,_M);
+    }
+  });
+  oMesh.instanceMatrix.needsUpdate=true;
+  hMesh.instanceMatrix.needsUpdate=true;
+}
+
+/* The bench's own numbers, off what was built rather than typed: the gap in
+   real nm, how many water diameters that is, and the bonds standing this frame. */
+const readout=document.getElementById('readout');
+const WATER_DIA=2.80;                       // real angstroms, O...O contact
+let frames=0;
+function report(){
+  readout.innerHTML =
+    `pore  <b>${(GAP/A/10).toFixed(1)} nm</b>  =  <b>${Math.round(GAP/A/WATER_DIA)}</b> molecules across\n`
+  + `water <b>${waters.length}</b>   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>`;
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+  step(); evaporate(); draw();
+  if((frames++ & 7)===0) report();
+  renderer.render(scene,camera);
+}
+resize(); applyCam(); loop();
+new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
+
+document.getElementById('evap').onclick=e=>{
+  evaporating=!evaporating;
+  e.currentTarget.classList.toggle('pill--ghost', !evaporating);
+  e.currentTarget.textContent = evaporating ? 'Evaporating' : 'Evaporate';
+};
+document.getElementById('reset').onclick=()=>{ seed(); waters.forEach(place); };
+</script>
+</body>
+</html>
