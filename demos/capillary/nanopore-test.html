@@ -467,7 +467,13 @@ const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
    front above has drawn water out of it, another molecule arrives. Nothing
    pushes. The front climbs because the wall is dry, and the supply only keeps
    the base from emptying while it does. */
-const N_START=420;                     // the pool at the foot of the pore
+/* The pool at the foot of the pore. 420 and 350 settle to the same place — 520
+   against 526 molecules after 1500 steps at bath 0.06, the same bond count,
+   the middle within 2 A — because the supply refills the base either way and
+   the steady state is the wall's business, not the seed's. 350 starts further
+   from it, so more of the filling is something you watch happen. `let` so the
+   console can try another. */
+let N_START=350;
 const N_MAX=1800;                      // enough to fill this pore, and a stop
 const SUPPLY_BAND=8.0*A;               // the depth of base kept topped up
 let N_WATER=N_MAX;                     // buffers are sized for the cap
