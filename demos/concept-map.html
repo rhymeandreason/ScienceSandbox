@@ -209,7 +209,7 @@
 /* ---- data -------------------------------------------------------------
    The bank lives in questions.js so other pages can read the same rows. */
 
-const { CONCEPTS, QUESTIONS } = QuestionBank;
+const { CONCEPTS, QUESTIONS, rankFor } = QuestionBank;
 
 /* ---- graph ---------------------------------------------------------- */
 
@@ -238,7 +238,9 @@ function build() {
     nodes.push(n);
   }
   QUESTIONS.forEach((q, i) => {
-    const n = { id: 'q' + i, kind: 'question', text: q[0], rank: q[2] || 2, deg: 0 };
+    // The rank a question carries depends on which card you opened it from,
+    // so the row travels with the node and the fan asks it per card.
+    const n = { id: 'q' + i, kind: 'question', text: q[0], row: q, deg: 0 };
     byId[n.id] = n;
     nodes.push(n);
     for (const r of q[1]) {
@@ -283,7 +285,8 @@ function show(n, depth, y) {
 // a concept's questions, and the concepts each of those questions reaches —
 // the same two hops the highlight draws, which is why a click can do both
 function expand(c) {
-  const pending = neighbours(c).filter(n => !n.visible).sort((a, b) => a.rank - b.rank);
+  const rank = q => rankFor(q.row, c.id);
+  const pending = neighbours(c).filter(n => !n.visible).sort((a, b) => rank(a) - rank(b));
   if (!pending.length) { c.expanded = true; return; }
 
   // A click reveals whole rank bands, best first — but never a stingy one or
@@ -293,7 +296,7 @@ function expand(c) {
   const MIN = 3;
   const wave = [];
   for (const q of pending) {
-    if (wave.length >= MIN && q.rank !== wave[wave.length - 1].rank) break;
+    if (wave.length >= MIN && rank(q) !== rank(wave[wave.length - 1])) break;
     wave.push(q);
   }
   const mark = live.length;

@@ -23,7 +23,8 @@
 
 const io = require('./questions-io.js');
 
-const { rows, concepts } = io.read();
+const { rows, concepts, rankFor } = io.read();
+const at = (r, id) => rankFor([r.text, r.refs, r.rank, r.per], id);
 const problems = io.validate(rows, concepts);
 
 console.log(`== the bank: ${rows.length} questions over ${concepts.length} lessons`);
@@ -42,18 +43,22 @@ const THIN = 3;
 
 for (const c of concepts) {
   const fan = rows.filter(r => r.refs.includes(c.id));
-  const ranks = [1, 2, 3].map(n => fan.filter(r => r.rank === n).length);
+  // Counted the way the card reads it: a per-lesson rank wins here.
+  const ranks = [1, 2, 3].map(n => fan.filter(r => at(r, c.id) === n).length);
   const flag = !fan.length ? 'nothing asks about it'
              : fan.length < THIN ? `only ${fan.length}`
              : !ranks[0] ? 'no rank 1 — the card opens on a follow-up'
              : '';
   if (flag) notes.push(`${c.name}: ${flag}`);
-  console.log(`  ${flag ? 'note' : 'ok  '}  ${c.name.padEnd(24)} ${String(fan.length).padStart(2)} questions` +
+  console.log(`  ${flag ? 'note' : 'ok  '}  ${(c.featured ? '★ ' : '  ') + c.name.padEnd(22)} ${String(fan.length).padStart(2)} questions` +
               `  (rank 1/2/3: ${ranks.join('/')})${flag ? '  ← ' + flag : ''}`);
 }
 
 const spread = [1, 2, 3].map(n => `${n}: ${rows.filter(r => r.rank === n).length}`).join(' · ');
-console.log(`\n  rank spread — ${spread}`);
+const over = rows.reduce((n, r) => n + Object.keys(r.per || {}).length, 0);
+console.log(`\n  rank spread — ${spread}` +
+            (over ? `  ·  ${over} per-lesson override(s)` : '') +
+            `\n  ★ marks a featured lesson`);
 
 if (problems.length) {
   console.log(`\nFAIL: ${problems.length} row(s) need fixing`);

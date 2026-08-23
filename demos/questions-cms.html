@@ -102,6 +102,13 @@
   .seg button + button { margin-left: -1px; }
   .seg button:first-child { border-radius: 3px 0 0 3px; }
   .seg button:last-child  { border-radius: 0 3px 3px 0; }
+  .rank { display: flex; flex-direction: column; gap: 0.25rem; min-width: 6rem; }
+  .mark { font-size: 0.6rem; letter-spacing: 0.04em; color: var(--muted); }
+  .mark button {
+    border: 0; background: none; cursor: pointer; color: var(--spark);
+    font-size: 0.75rem; padding: 0; line-height: 1;
+  }
+  .seg.per button.on { border-color: var(--spark); color: var(--spark); background: rgba(226,100,58,.09); }
   .seg button.on {
     color: var(--accent); border-color: var(--accent);
     background: rgba(31,95,79,.08); position: relative; z-index: 1;
@@ -208,12 +215,13 @@
 <script>window.__noLiveReload = true;</script>
 <script src="questions.js"></script>
 <script>
-const { CONCEPTS, QUESTIONS } = QuestionBank;
+const { CONCEPTS, QUESTIONS, rankFor } = QuestionBank;
 const NAME = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
 
 // The working copy. QUESTIONS itself is left alone so Revert has something to
 // go back to, and so the serialiser can tell which rows actually moved.
-const rows = QUESTIONS.map(([text, refs, rank]) => ({ text, refs: [...refs], rank }));
+const rows = QUESTIONS.map(([text, refs, rank, per]) =>
+  ({ text, refs: [...refs], rank, per: { ...(per || {}) } }));
 let baseline = JSON.stringify(rows);   // what the rows looked like at the last save
 
 const $ = id => document.getElementById(id);
@@ -223,8 +231,15 @@ const rowsEl = $('rows'), lessonEl = $('lesson'), findEl = $('find'), rankEl = $
 
 function fanCount(id) { return rows.filter(r => r.refs.includes(id)).length; }
 
-lessonEl.innerHTML = '<option value="">all lessons — ' + rows.length + ' questions</option>' +
-  CONCEPTS.map(c => '<option value="' + c.id + '">' + c.name + ' — ' + fanCount(c.id) + '</option>').join('');
+// The rank a given card reads. With no lesson in scope that is the plain rank;
+// filtered to one, it is that lesson's override if the row carries one.
+const effective = (r, id) => (id && r.per[id]) || r.rank;
+
+const option = c => '<option value="' + c.id + '">' + c.name + ' — ' + fanCount(c.id) + '</option>';
+lessonEl.innerHTML =
+  '<option value="">all lessons — ' + rows.length + ' questions</option>' +
+  '<optgroup label="featured">' + CONCEPTS.filter(c => c.featured).map(option).join('') + '</optgroup>' +
+  '<optgroup label="the rest">' + CONCEPTS.filter(c => !c.featured).map(option).join('') + '</optgroup>';
 
 function visible() {
   const lesson = lessonEl.value, q = findEl.value.trim().toLowerCase(), rank = rankEl.value;
@@ -233,7 +248,7 @@ function visible() {
   if (q) list = list.filter(({ r }) => r.text.toLowerCase().includes(q));
   if (rank) list = list.filter(({ r }) => String(r.rank) === rank);
   // Inside one lesson, read the fan the way the map reveals it: rank first.
-  if (lesson) list.sort((a, b) => a.r.rank - b.r.rank);
+  if (lesson) list.sort((a, b) => effective(a.r, lesson) - effective(b.r, lesson));
   return list;
 }
 
@@ -253,15 +268,46 @@ function rowEl(r, i) {
   const el = document.createElement('div');
   el.className = 'row' + (JSON.stringify(r) !== JSON.stringify(JSON.parse(baseline)[i]) ? ' dirty' : '');
 
+  // Filtered to a lesson, the buttons set THAT lesson's rank for this question
+  // and the plain rank is left alone. Unfiltered, they set the plain rank.
+  const scope = lessonEl.value;
+  const now = effective(r, scope);
+  const overridden = !!(scope && r.per[scope]);
+
   const seg = document.createElement('div');
-  seg.className = 'seg';
+  seg.className = 'seg' + (overridden ? ' per' : '');
   for (const n of [1, 2, 3]) {
     const b = document.createElement('button');
     b.textContent = n;
-    b.title = ['opens the card from cold', 'a follow-up', 'depth'][n - 1];
-    if (r.rank === n) b.classList.add('on');
-    b.addEventListener('click', () => { r.rank = n; render(); });
+    b.title = ['opens the card from cold', 'a follow-up', 'depth'][n - 1] +
+              (scope ? ' — for ' + NAME[scope].name + ' only' : '');
+    if (now === n) b.classList.add('on');
+    b.addEventListener('click', () => {
+      if (!scope) r.rank = n;
+      else if (n === r.rank) delete r.per[scope];    // back to inherited
+      else r.per[scope] = n;
+      render();
+    });
     seg.appendChild(b);
+  }
+
+  const mark = document.createElement('span');
+  mark.className = 'mark';
+  if (scope && overridden) {
+    mark.innerHTML = 'set for this lesson · plain rank ' + r.rank + ' ';
+    const undo = document.createElement('button');
+    undo.textContent = '×';
+    undo.title = 'drop the override, inherit rank ' + r.rank;
+    undo.addEventListener('click', () => { delete r.per[scope]; render(); });
+    mark.appendChild(undo);
+  } else if (scope) {
+    const elsewhere = Object.keys(r.per).length;
+    mark.textContent = elsewhere ? 'set elsewhere for ' + elsewhere + ' lesson(s)' : '';
+  } else {
+    const per = Object.entries(r.per);
+    mark.textContent = per.length
+      ? per.map(([id, n]) => (NAME[id] ? NAME[id].name : id) + ': ' + n).join(' · ')
+      : '';
   }
 
   const text = document.createElement('textarea');
@@ -292,7 +338,10 @@ function rowEl(r, i) {
   add.addEventListener('change', () => { if (add.value) { r.refs.push(add.value); render(); } });
   refs.appendChild(add);
 
-  el.append(seg, text, refs);
+  const left = document.createElement('div');
+  left.className = 'rank';
+  left.append(seg, mark);
+  el.append(left, text, refs);
   return el;
 }
 
@@ -382,9 +431,15 @@ $('revert').addEventListener('click', () => {
 const quote = s => "'" + s.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 
 function serialise() {
-  return rows.map(r =>
-    '  [' + quote(r.text) + ', [' + r.refs.map(quote).join(',') + '], ' + r.rank + '],'
-  ).join('\n');
+  return rows.map(r => {
+    // Mirrors tools/questions-io.js — an override equal to the plain rank says
+    // nothing, so it is not written.
+    const per = Object.entries(r.per)
+      .filter(([id, n]) => r.refs.includes(id) && n !== r.rank)
+      .sort(([a], [b]) => a.localeCompare(b));
+    const tail = per.length ? ', { ' + per.map(([id, n]) => id + ': ' + n).join(', ') + ' }' : '';
+    return '    [' + quote(r.text) + ', [' + r.refs.map(quote).join(',') + '], ' + r.rank + tail + '],';
+  }).join('\n');
 }
 
 $('export').addEventListener('click', async () => {

@@ -37,7 +37,9 @@ function parse(src) {
   }
   return {
     concepts: bank.CONCEPTS,
-    rows: bank.QUESTIONS.map(([text, refs, rank]) => ({ text, refs: [...refs], rank })),
+    rankFor: bank.rankFor,
+    rows: bank.QUESTIONS.map(([text, refs, rank, per]) =>
+      ({ text, refs: [...refs], rank, per: { ...(per || {}) } })),
   };
 }
 
@@ -67,6 +69,11 @@ function validate(rows, concepts) {
       if (new Set(r.refs).size !== r.refs.length) at('names the same lesson twice');
     }
     if (![1, 2, 3].includes(r.rank)) at('rank is not 1, 2 or 3');
+    for (const [id, n] of Object.entries(r.per || {})) {
+      if (!ids.has(id)) at('per-lesson rank for an unknown lesson: ' + id);
+      else if (!r.refs.includes(id)) at('per-lesson rank for ' + id + ', which it does not name');
+      if (![1, 2, 3].includes(n)) at('per-lesson rank for ' + id + ' is not 1, 2 or 3');
+    }
 
     const key = r.text.trim().toLowerCase();
     if (seen.has(key)) at('duplicate of row ' + seen.get(key));
@@ -89,7 +96,15 @@ function serialise(rows) {
   return rows.map(r => {
     const head = '    [' + quote(r.text) + ',';
     const pad = ' '.repeat(Math.max(1, COLUMN - head.length));
-    return head + pad + '[' + r.refs.map(quote).join(',') + '], ' + r.rank + '],';
+    // An override equal to the plain rank is not written: it says nothing, and
+    // a file full of them would hide the ones that mean something.
+    const per = Object.entries(r.per || {})
+      .filter(([id, n]) => r.refs.includes(id) && n !== r.rank)
+      .sort(([a], [b]) => a.localeCompare(b));
+    const tail = per.length
+      ? ', { ' + per.map(([id, n]) => id + ': ' + n).join(', ') + ' }'
+      : '';
+    return head + pad + '[' + r.refs.map(quote).join(',') + '], ' + r.rank + tail + '],';
   }).join('\n');
 }
 
