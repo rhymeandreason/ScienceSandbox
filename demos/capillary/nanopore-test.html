@@ -1144,7 +1144,11 @@ function loop(){
   requestAnimationFrame(loop);
   if(warmup>0){
     const burst=Math.min(warmup,14);   // a frame's worth, so the page stays live
-    for(let k=0;k<burst;k++){ step(); supply(); }
+    /* evaporate() runs here too, and not because anything is evaporating: with
+       the rate at zero its only job is recycling a molecule that has left the
+       frame, and leaving it out made the warm-up a different loop from the one
+       it hands over to. */
+    for(let k=0;k<burst;k++){ step(); supply(); evaporate(); }
     warmup-=burst;
   }
   /* Speed is steps per FRAME, not a bigger timestep. Scaling the timestep
