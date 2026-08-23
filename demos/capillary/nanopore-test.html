@@ -485,12 +485,25 @@ function seed(){
   waters.length=0;
   const d=2.85*A;                                     // liquid spacing, near O...O
   const nx=Math.max(1,Math.floor((GAP-2*R_WATER)/d)), nz=Math.max(1,Math.floor(DEPTH/d));
-  for(let i=0;i<N_START;i++){
-    const c=i%nx, r=Math.floor(i/nx)%nz, lay=Math.floor(i/(nx*nz));
-    makeWater(new THREE.Vector3(
-      (c-(nx-1)/2)*d + (Math.random()-0.5)*0.3*A,
-      FLOOR + 1.2*A + lay*d*0.92,
-      (r-(nz-1)/2)*d + (Math.random()-0.5)*0.3*A));
+  /* SEEDED WITH THE CURVE ALREADY IN IT. A flat-topped lattice has to grow its
+     own meniscus, and at these settings that takes a couple of thousand steps —
+     several seconds in which the page is showing a shape that is not its answer.
+     The sites are ranked as though the wall were already pulling, so the pool
+     arrives concave and the physics only has to relax it. This is an initial
+     condition, not a result: turn adhesion down and the same run flattens it out
+     again, which is the check that it was not drawn. */
+  const CURVE=11*A;                                   // how much lower the middle starts
+  const sites=[];
+  for(let lay=0;lay<80;lay++) for(let c=0;c<nx;c++) for(let r=0;r<nz;r++){
+    const x=(c-(nx-1)/2)*d, y=FLOOR+1.2*A+lay*d*0.92, z=(r-(nz-1)/2)*d;
+    const t=Math.abs(x)/(GAP/2);
+    sites.push({x, y, z, rank:y-CURVE*t*t});
+  }
+  sites.sort((a,b)=>a.rank-b.rank);
+  for(let i=0;i<N_START && i<sites.length;i++){
+    const q=sites[i];
+    makeWater(new THREE.Vector3(q.x+(Math.random()-0.5)*0.3*A,
+                                q.y, q.z+(Math.random()-0.5)*0.3*A));
   }
 }
 seed();
@@ -958,8 +971,20 @@ function report(){
 }
 
 let SPEED=1;                           // physics steps per drawn frame
+/* WARM-UP. The seed is a lattice with a flat top, so the meniscus has to form,
+   and for the first second or so the page shows a shape that is not its answer.
+   A student reads whatever is on screen when they arrive as the result, so the
+   settling runs at speed on load and then hands over. It is not a fast forward
+   past anything: the same steps happen, just before the first proper look. */
+const WARMUP_STEPS=200;
+let warmup=WARMUP_STEPS;
 function loop(){
   requestAnimationFrame(loop);
+  if(warmup>0){
+    const burst=Math.min(warmup,14);   // a frame's worth, so the page stays live
+    for(let k=0;k<burst;k++){ step(); supply(); }
+    warmup-=burst;
+  }
   /* Speed is steps per FRAME, not a bigger timestep. Scaling the timestep
      instead would let molecules jump through each other and through the wall,
      and the settling distances this page reports would stop being the model's.
@@ -1078,7 +1103,8 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 
 document.getElementById('reset').onclick=()=>{
-  seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place); evapCount=0; };
+  seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
+  evapCount=0; warmup=WARMUP_STEPS; };
 </script>
 </body>
 </html>
