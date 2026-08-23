@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<!-- Internal tool: edit the rank and wording of questions.js, per lesson.
+     Saves through the dev server's /api/questions, which exists in
+     tools/dev-server.js and nowhere else — so this page can only write on a
+     machine running that server. Without it the page is read-only and Export
+     hands back the file text instead. Kept out of the deploy by .vercelignore. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Questions — rank and wording</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Fraunces', Georgia, serif;
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    padding: 1.5rem clamp(1rem, 4vw, 3rem) 5rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  header.mast {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 1.25rem;
+  }
+  .logo {
+    font-size: 1.5rem; font-weight: 500; letter-spacing: -0.04em;
+    margin: 0; text-transform: lowercase; text-decoration: none; color: inherit;
+  }
+  .logo em { font-style: normal; color: var(--accent); }
+  .logo .dot { color: var(--spark); }
+  .mast .title { font-family: var(--serif); font-size: 0.95rem; color: var(--muted); }
+  .mast .spacer { flex: 1; }
+
+  /* ---- toolbar -------------------------------------------------------- */
+
+  .bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+    margin-bottom: 1.25rem;
+  }
+  select, input[type=search] {
+    font-family: var(--sans); font-size: 0.85rem; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 3px; padding: 0.4rem 0.55rem;
+  }
+  input[type=search] { min-width: 14rem; }
+  .btn {
+    font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 3px; padding: 0.45rem 0.75rem; cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn:hover { color: var(--accent); border-color: var(--accent); }
+  .btn.primary { color: var(--accent); border-color: var(--accent); }
+  .count { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.04em; }
+  .count b { color: var(--spark); font-weight: 500; }
+
+  /* ---- rows ----------------------------------------------------------- */
+
+  .rows { display: flex; flex-direction: column; gap: 0.4rem; }
+
+  .row {
+    display: grid;
+    grid-template-columns: auto 1fr 20rem;
+    align-items: start;
+    gap: 0.75rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.55rem 0.7rem;
+  }
+  .row.dirty { border-color: var(--spark); }
+
+  .seg { display: flex; }
+  .seg button {
+    font-family: var(--sans); font-size: 0.78rem; width: 1.9rem; height: 1.9rem;
+    background: var(--card); border: 1px solid var(--line); color: var(--muted);
+    cursor: pointer;
+  }
+  .seg button + button { margin-left: -1px; }
+  .seg button:first-child { border-radius: 3px 0 0 3px; }
+  .seg button:last-child  { border-radius: 0 3px 3px 0; }
+  .seg button.on {
+    color: var(--accent); border-color: var(--accent);
+    background: rgba(31,95,79,.08); position: relative; z-index: 1;
+  }
+
+  .q {
+    font-family: var(--serif); font-size: 0.92rem; color: var(--ink);
+    background: transparent; border: 1px solid transparent; border-radius: 3px;
+    padding: 0.25rem 0.35rem; width: 100%; resize: vertical; min-height: 2rem;
+    line-height: 1.35;
+  }
+  .q:hover { border-color: var(--line); }
+  .q:focus { outline: none; border-color: var(--accent); background: var(--paper); }
+  .q.bad { border-color: var(--spark); }
+
+  .refs { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.68rem; letter-spacing: 0.06em;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 0.15rem 0.5rem; color: var(--muted); background: var(--paper);
+  }
+  .chip.built { border-color: rgba(31,95,79,.4); color: var(--accent); }
+  .chip button {
+    border: 0; background: none; cursor: pointer; color: inherit;
+    font-size: 0.85rem; line-height: 1; padding: 0; opacity: .5;
+  }
+  .chip button:hover { opacity: 1; color: var(--spark); }
+  .refs select { font-size: 0.68rem; padding: 0.15rem 0.3rem; }
+
+  /* ---- export --------------------------------------------------------- */
+
+  dialog {
+    border: 1px solid var(--line); border-radius: 4px; background: var(--card);
+    max-width: min(60rem, 92vw); width: 60rem; padding: 1.1rem;
+  }
+  dialog::backdrop { background: rgba(20,22,26,.35); }
+  dialog h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 0.6rem; }
+  dialog textarea {
+    width: 100%; height: 55vh; font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.72rem; line-height: 1.5; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 3px; padding: 0.6rem; background: var(--paper);
+  }
+  dialog .actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; align-items: center; }
+
+  .note { font-size: 0.8rem; color: var(--muted); font-family: var(--serif); }
+
+  .banner {
+    font-family: var(--serif); font-size: 0.88rem;
+    border: 1px solid var(--line); border-left: 3px solid var(--spark);
+    background: var(--card); border-radius: 3px;
+    padding: 0.6rem 0.8rem; margin-bottom: 1rem; color: var(--muted);
+  }
+  .banner.ok { border-left-color: var(--accent); }
+  .banner b { color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <a class="logo" href="admin.html">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="title">questions — rank and wording</span>
+  <span class="spacer"></span>
+  <a class="btn" href="concept-map.html">Open the map</a>
+</header>
+
+<div class="bar">
+  <select id="lesson"></select>
+  <input type="search" id="find" placeholder="find a question…">
+  <select id="rankFilter">
+    <option value="">any rank</option>
+    <option value="1">rank 1 — opens the card</option>
+    <option value="2">rank 2 — follow-up</option>
+    <option value="3">rank 3 — depth</option>
+  </select>
+  <span class="spacer" style="flex:1"></span>
+  <span class="count" id="count"></span>
+  <button class="btn" id="revert">Revert</button>
+  <button class="btn" id="export">Export</button>
+  <button class="btn primary" id="save">Save to questions.js</button>
+</div>
+
+<div class="banner" id="banner" hidden></div>
+
+<div class="rows" id="rows"></div>
+
+<dialog id="out">
+  <h2>questions.js</h2>
+  <textarea id="outText" spellcheck="false"></textarea>
+  <div class="actions">
+    <button class="btn primary" id="copy">Copy</button>
+    <button class="btn" id="download">Download</button>
+    <span class="note" id="outNote"></span>
+    <span style="flex:1"></span>
+    <button class="btn" id="close">Close</button>
+  </div>
+</dialog>
+
+</div>
+
+<!-- Saving rewrites questions.js, which this page loads — so the dev server's
+     live reload would reload the editor on its own save. Opt out. -->
+<script>window.__noLiveReload = true;</script>
+<script src="questions.js"></script>
+<script>
+const { CONCEPTS, QUESTIONS } = QuestionBank;
+const NAME = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
+
+// The working copy. QUESTIONS itself is left alone so Revert has something to
+// go back to, and so the serialiser can tell which rows actually moved.
+const rows = QUESTIONS.map(([text, refs, rank]) => ({ text, refs: [...refs], rank }));
+let baseline = JSON.stringify(rows);   // what the rows looked like at the last save
+
+const $ = id => document.getElementById(id);
+const rowsEl = $('rows'), lessonEl = $('lesson'), findEl = $('find'), rankEl = $('rankFilter');
+
+/* ---- filters ---------------------------------------------------------- */
+
+function fanCount(id) { return rows.filter(r => r.refs.includes(id)).length; }
+
+lessonEl.innerHTML = '<option value="">all lessons — ' + rows.length + ' questions</option>' +
+  CONCEPTS.map(c => '<option value="' + c.id + '">' + c.name + ' — ' + fanCount(c.id) + '</option>').join('');
+
+function visible() {
+  const lesson = lessonEl.value, q = findEl.value.trim().toLowerCase(), rank = rankEl.value;
+  let list = rows.map((r, i) => ({ r, i }));
+  if (lesson) list = list.filter(({ r }) => r.refs.includes(lesson));
+  if (q) list = list.filter(({ r }) => r.text.toLowerCase().includes(q));
+  if (rank) list = list.filter(({ r }) => String(r.rank) === rank);
+  // Inside one lesson, read the fan the way the map reveals it: rank first.
+  if (lesson) list.sort((a, b) => a.r.rank - b.r.rank);
+  return list;
+}
+
+/* ---- rendering -------------------------------------------------------- */
+
+function render() {
+  const list = visible();
+  rowsEl.replaceChildren(...list.map(({ r, i }) => rowEl(r, i)));
+
+  const changed = rows.filter((r, i) => JSON.stringify(r) !== JSON.stringify(JSON.parse(baseline)[i])).length;
+  const spread = [1, 2, 3].map(n => n + ': ' + rows.filter(r => r.rank === n).length).join(' · ');
+  $('count').innerHTML = list.length + ' shown · ' + spread +
+    (changed ? ' · <b>' + changed + ' edited</b>' : '');
+}
+
+function rowEl(r, i) {
+  const el = document.createElement('div');
+  el.className = 'row' + (JSON.stringify(r) !== JSON.stringify(JSON.parse(baseline)[i]) ? ' dirty' : '');
+
+  const seg = document.createElement('div');
+  seg.className = 'seg';
+  for (const n of [1, 2, 3]) {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.title = ['opens the card from cold', 'a follow-up', 'depth'][n - 1];
+    if (r.rank === n) b.classList.add('on');
+    b.addEventListener('click', () => { r.rank = n; render(); });
+    seg.appendChild(b);
+  }
+
+  const text = document.createElement('textarea');
+  text.className = 'q' + (r.text.trim().endsWith('?') ? '' : ' bad');
+  text.value = r.text;
+  text.rows = 1;
+  text.title = r.text.trim().endsWith('?') ? '' : 'every row should be a question';
+  text.addEventListener('input', () => { r.text = text.value; text.classList.toggle('bad', !r.text.trim().endsWith('?')); });
+  text.addEventListener('change', render);
+
+  const refs = document.createElement('div');
+  refs.className = 'refs';
+  for (const id of r.refs) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (NAME[id] && NAME[id].built ? ' built' : '');
+    chip.append(NAME[id] ? NAME[id].name : id + ' ?');
+    const x = document.createElement('button');
+    x.textContent = '×';
+    x.title = 'unlink this lesson';
+    x.addEventListener('click', () => { r.refs = r.refs.filter(v => v !== id); render(); });
+    chip.appendChild(x);
+    refs.appendChild(chip);
+  }
+  const add = document.createElement('select');
+  add.innerHTML = '<option value="">+ lesson</option>' + CONCEPTS
+    .filter(c => !r.refs.includes(c.id))
+    .map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('');
+  add.addEventListener('change', () => { if (add.value) { r.refs.push(add.value); render(); } });
+  refs.appendChild(add);
+
+  el.append(seg, text, refs);
+  return el;
+}
+
+for (const el of [lessonEl, findEl, rankEl]) el.addEventListener('input', render);
+
+/* ---- is there a dev server to write through? --------------------------
+   The endpoint exists only in tools/dev-server.js, never in api/, so on
+   Vercel this probe simply fails and the page stays read-only. The hostname
+   check in front of it is the same claim made twice, cheaply: if this file
+   ever does get deployed, it does not even ask. */
+
+const LOCAL = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(location.hostname);
+let writable = false, mtimeMs = null;
+
+const banner = $('banner');
+function say(html, ok) {
+  banner.innerHTML = html;
+  banner.classList.toggle('ok', !!ok);
+  banner.hidden = false;
+}
+
+async function probe() {
+  $('save').hidden = true;
+  if (!LOCAL) {
+    say('<b>Read-only.</b> The bank is editable from a local dev server only — ' +
+        'Export hands you the file to paste.');
+    return;
+  }
+  try {
+    const r = await fetch('/api/questions', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    writable = !!data.writable;
+    mtimeMs = data.mtimeMs;
+    // The file on disk wins over the copy the page loaded as a script: they
+    // are the same file, but only one of them has an mtime to save against.
+    data.rows.forEach((row, i) => rows[i] && Object.assign(rows[i], row));
+    $('save').hidden = false;
+    banner.hidden = true;
+    render();
+  } catch (e) {
+    say('<b>Read-only.</b> No dev server on this port — start it with ' +
+        '<code>npm run serve</code> to save straight to questions.js, or use Export.');
+  }
+}
+
+$('save').addEventListener('click', async () => {
+  $('save').disabled = true;
+  try {
+    const r = await fetch('/api/questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows, mtimeMs }),
+    });
+    const data = await r.json();
+    if (r.status === 409) {
+      say('<b>Not saved.</b> questions.js changed on disk since this page loaded. ' +
+          'Reload to pick up that version — this page\'s edits will be lost.');
+    } else if (r.status === 422) {
+      say('<b>Not saved.</b> ' + (data.problems || []).map(p =>
+        'row ' + (p.row + 1) + ': ' + p.problem).join(' · '));
+    } else if (!r.ok) {
+      say('<b>Not saved.</b> ' + (data.error || r.status));
+    } else {
+      mtimeMs = data.mtimeMs;
+      baseline = JSON.stringify(rows);
+      say('Saved <b>' + data.rows + ' questions</b> to questions.js.', true);
+      render();
+    }
+  } catch (e) {
+    say('<b>Not saved.</b> ' + e.message);
+  }
+  $('save').disabled = false;
+});
+
+$('revert').addEventListener('click', () => {
+  if (!confirm('Throw away every edit on this page?')) return;
+  JSON.parse(baseline).forEach((r, i) => Object.assign(rows[i], r, { refs: [...r.refs] }));
+  render();
+});
+
+/* ---- export -----------------------------------------------------------
+   The page reads its own source file back, splices the new array into it and
+   hands the whole thing over. Nothing here writes to disk — the file is the
+   repo's, and it goes back through the editor like any other change. */
+
+const quote = s => "'" + s.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+
+function serialise() {
+  return rows.map(r =>
+    '  [' + quote(r.text) + ', [' + r.refs.map(quote).join(',') + '], ' + r.rank + '],'
+  ).join('\n');
+}
+
+$('export').addEventListener('click', async () => {
+  const bad = rows.filter(r => !r.text.trim().endsWith('?') || !r.refs.length ||
+                               r.refs.some(id => !NAME[id]));
+  let src;
+  try {
+    src = await fetch('questions.js', { cache: 'no-store' }).then(r => r.text());
+  } catch (e) {
+    src = null;
+  }
+  let out;
+  if (src && src.includes('const QUESTIONS = [')) {
+    const head = src.slice(0, src.indexOf('const QUESTIONS = [') + 'const QUESTIONS = ['.length);
+    const rest = src.slice(head.length);
+    out = head + '\n' + serialise() + rest.slice(rest.indexOf('\n  ];'));
+  } else {
+    out = 'const QUESTIONS = [\n' + serialise() + '\n  ];';   // the array alone
+  }
+  $('outText').value = out;
+  $('outNote').textContent = bad.length
+    ? bad.length + ' row(s) need attention: not a question, no lesson, or an unknown id'
+    : 'paste over demos/questions.js';
+  $('out').showModal();
+});
+
+$('copy').addEventListener('click', () => {
+  $('outText').select();
+  navigator.clipboard.writeText($('outText').value)
+    .then(() => { $('outNote').textContent = 'copied'; })
+    .catch(() => { $('outNote').textContent = 'press ⌘C'; });
+});
+
+$('download').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([$('outText').value], { type: 'text/javascript' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'questions.js';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+$('close').addEventListener('click', () => $('out').close());
+
+addEventListener('beforeunload', e => {
+  if (JSON.stringify(rows) !== baseline) e.preventDefault();
+});
+
+render();
+probe();
+</script>
+</body>
+</html>

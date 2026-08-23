@@ -6,3 +6,10 @@
 # is nothing the deployed copy would add except a way to get it wrong.
 demos/ask/log.html
 api/log.js
+
+# The question-bank editor is a local tool. It writes demos/questions.js through
+# the dev server's /api/questions, an endpoint that lives in tools/dev-server.js
+# and is deliberately not one of the Vercel functions in api/. Deployed, the page
+# would be a read-only form with a Save that could never work, so it is not
+# deployed at all — and the page checks its own hostname besides.
+demos/questions-cms.html

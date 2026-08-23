@@ -108,6 +108,10 @@ const CLIENT = `
         link.href = u.href;
       }
       console.info('[dev] css reloaded');
+    } else if (window.__noLiveReload) {
+      // A page that edits the repo would reload itself on its own save, which
+      // is at best a flash and at worst a lost form. It opts out by name.
+      console.info('[dev] change ignored — this page opted out of live reload');
     } else {
       location.reload();
     }
@@ -171,6 +175,54 @@ try {
   });
 } catch (e) {
   console.warn('watch failed — serving without live reload:', e.message);
+}
+
+/* ---- the question bank ----------------------------------------------------
+ * GET  → the rows on disk, and the mtime a save has to match.
+ * POST → validate and rewrite demos/questions.js.
+ *
+ * questions-cms.html probes the GET to decide whether it can save at all; on
+ * Vercel there is no endpoint, the probe fails, and the page falls back to
+ * handing over the file text for a paste.
+ */
+function questions(req, res, json) {
+  if (!require(path.join(ROOT, 'api/_local.js')).local(req)) {
+    return json(403, { error: 'the question bank is editable from this machine only' });
+  }
+
+  let io;
+  try { io = require('./questions-io.js'); }
+  catch (e) { console.error(e); return json(500, { error: 'questions-io.js would not load' }); }
+
+  if (req.method === 'GET') {
+    try {
+      const { rows, concepts, mtimeMs } = io.read();
+      return json(200, { writable: true, mtimeMs, rows, concepts });
+    } catch (e) {
+      return json(500, { error: e.message });
+    }
+  }
+  if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
+
+  let raw = '';
+  req.on('data', d => { raw += d; if (raw.length > 5e5) req.destroy(); });
+  req.on('end', () => {
+    let body;
+    try { body = JSON.parse(raw); }
+    catch { return json(400, { error: 'body is not JSON' }); }
+    if (!Array.isArray(body.rows)) return json(400, { error: 'body needs { rows }' });
+
+    try {
+      const saved = io.write(body.rows, { since: body.mtimeMs });
+      console.log(`  questions.js ← ${saved.rows} rows from the CMS`);
+      return json(200, { ok: true, ...saved });
+    } catch (e) {
+      if (e.code === 'STALE')   return json(409, { error: e.message });
+      if (e.code === 'INVALID') return json(422, { error: e.message, problems: e.problems });
+      console.error(e);
+      return json(500, { error: e.message });
+    }
+  });
 }
 
 /* ---- serve ---------------------------------------------------------------- */
@@ -277,6 +329,13 @@ function api(url, req, res) {
   };
   // `url` arrives with the query already stripped, so anything reading a
   // parameter has to go back to `req.url` for it.
+  // The question bank's editor. It exists ONLY here: `api/` holds the Vercel
+  // functions, and this one is deliberately not among them, so the deployed
+  // site has no way to write the repo — absent by construction, not by a flag.
+  // `api/_local.js` is still asked, because "the dev server" is not the claim
+  // as "the machine running it" the day this port is forwarded somewhere.
+  if (url === '/api/questions') return questions(req, res, json);
+
   if (url !== '/api/ask' && url !== '/api/log') return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
