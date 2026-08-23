@@ -120,9 +120,11 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="../main.css">
 <link rel="stylesheet" href="../sandbox.css">
+<link rel="stylesheet" href="../annotate.css">
 <style>
   html,body{height:100%}
   body{margin:0;background:var(--paper);overflow:hidden}
+  #stage{position:absolute;inset:0}
   #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
   #bar{
     position:absolute;left:50%;bottom:24px;transform:translateX(-50%);
@@ -160,7 +162,7 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 </style>
 </head>
 <body>
-<canvas id="gl"></canvas>
+<div id="stage"><canvas id="gl"></canvas></div>
 
 <!-- The bench's numbers, measured off what was built. Nothing here is typed. -->
 <div id="readout"></div>
@@ -191,6 +193,7 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 <script src="../scene.js"></script>
 <script src="../chain/frame.js"></script>
 <script src="../chain-repeat.js"></script>
+<script src="../annotate.js"></script>
 <script>
 "use strict";
 
@@ -845,6 +848,20 @@ function evaporate(){
 indexOH();
 escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
 
+/* One callout, on the thing a student would otherwise read as scenery. The
+   green slabs are the load-bearing part of a plant cell wall, and the pore is
+   the gap between two of its cellulose fibrils — which is the sentence that
+   turns this from an abstract slot into somewhere in a leaf. */
+const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:'on'});
+(function markWall(){
+  // a point on the left wall's pore-facing face, a little above the pool
+  const face=new THREE.Vector3(-GAP/2-1.5*A, FLOOR+nm(2.2), 0);
+  NOTES.add({ text:'plant cell wall', offset:[-150,-30], at:()=>face,
+    card:'Cellulose: beta-1,4 glucose chains packed into fibrils. The pore is '
+       + 'the gap between two of them, and every -OH on the surface is somewhere '
+       + 'a water can hold on.' });
+})();
+
 /* The supply. Counts what is in the bottom band and tops it up toward the
    density a liquid has there, one molecule at a time so nothing is injected
    into an occupied space. */
@@ -908,7 +925,7 @@ function loop(){
      and the settling distances this page reports would stop being the model's.
      More steps is just watching the same physics from further along. */
   for(let k=0;k<SPEED;k++){ step(); supply(); evaporate(); }
-  draw(); stepTint();
+  draw(); stepTint(); NOTES.step();
   if((frames++ & 7)===0){ report(); reportClimb(); }
   renderer.render(scene,camera);
 }
