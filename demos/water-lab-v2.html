@@ -94,6 +94,33 @@
 }
 @keyframes tryin { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1 } }
 
+/* ---- the top rail, as a change of scale ----
+   The first step is ONE molecule and every step after it is a liquid, which is
+   a jump of about 10^23 that the row of equal pills quietly denies. So the row
+   starts at the left edge like a sentence, and the first tab is set apart by a
+   gap with a line drawn across it: a dot at the near end, an arrowhead at the
+   far one. Left-aligned because a centred row has no beginning. */
+#brand { justify-content: flex-start; }
+#stepclaim { margin-left: 0; margin-right: auto; text-align: left; }
+#steps { align-items: center; }
+.scalejump {
+  flex: none; align-self: center; position: relative;
+  width: 62px; height: 1.5px; margin: 0 6px;
+  --jump-ink: color-mix(in srgb, var(--text-muted) 55%, transparent);
+  background: var(--jump-ink);
+}
+.scalejump::before {           /* the one molecule */
+  content: ''; position: absolute; left: -1px; top: -2.25px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--jump-ink);
+}
+.scalejump::after {            /* pointing at the crowd */
+  content: ''; position: absolute; right: 0; top: -3.75px;
+  width: 9px; height: 9px;
+  border-top: 1.5px solid var(--jump-ink);
+  border-right: 1.5px solid var(--jump-ink);
+  transform: rotate(45deg);
+}
+
 /* The tutor's launcher as a primary pill. chat.css draws it as a quiet outlined
    chip, deliberately, so a lesson that WANTS the tutor pressed says so itself
    rather than changing the shared module under the featured page. Same recipe
@@ -1001,7 +1028,7 @@ function tempParams(){
  *  Steps
  * ============================================================= */
 const stepMeta=[
- {tab:'a polar molecule',
+ {tab:'a single molecule',
   claim:`Water is V shaped. One end is slightly negative, the other slightly positive.`,
   hint:'One water molecule — H₂O'},
  {tab:'hydrogen bonds',
@@ -1367,7 +1394,7 @@ function applyStep(n){
   buildControls();
   cur=n;
   if(typeof syncInset==='function') syncInset();
-  [...stepsEl.children].forEach((b,k)=>b.classList.toggle('is-on',k===n));
+  stepBtns.forEach((b,k)=>b.classList.toggle('is-on',k===n));   // not children: the scale jump is one too
   const m=stepMeta[n];
   stepClaimEl.textContent=m.claim;
   stepT0=performance.now();
@@ -1376,9 +1403,12 @@ function applyStep(n){
 }
 // Named, not numbered: "hydrogen bonds" tells a student what they are about to
 // see, and 3 does not.
+const stepBtns=[];
 stepMeta.forEach((s,i)=>{ const b=document.createElement('button');
   b.type='button'; b.className='pill pill--ghost'; b.textContent=s.tab;
-  b.onclick=()=>applyStep(i); stepsEl.appendChild(b); });
+  b.onclick=()=>applyStep(i); stepsEl.appendChild(b); stepBtns.push(b);
+  // between one molecule and a liquid, the row draws the distance
+  if(i===0){ const j=document.createElement('div'); j.className='scalejump'; stepsEl.appendChild(j); } });
 
 
 /* ---------- where the model sits ----------
