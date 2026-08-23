@@ -41,23 +41,30 @@
      settle near 2.55 A against a real 2.8, and about 2.5 H-bonds per
      molecule against a real 3.6, at the seeded bulk density.
 
-     WATER CLIMBS THE WALLS, AND THAT IS WHAT THE PAGE IS FOR. The run
-     starts as a pool at the bottom of a DRY pore — bare cellulose above
-     it — so climbing is a result and not a setup. The water then rides
-     up both faces, standing about 9 A higher against the wall than in
-     the middle at the value set below, dragging the pool's surface into
-     a concave front. Nothing pushes it: the hydroxyls pull, the H-bonds
-     behind it hold, and the body follows its own edge. That is adhesion
-     and cohesion doing the only two things they can.
+     WATER TRAVELS UP THE CHANNEL, AND THAT IS WHAT THE PAGE IS FOR. It
+     starts as a pool at the foot of a DRY pore — bare cellulose above it
+     — and the front then crosses the whole 94 A of pore, films leading
+     up the faces and the body following. Nothing pushes it. The
+     hydroxyls pull, the H-bonds behind them hold, and water is drawn in
+     at the base to replace what left. Adhesion and cohesion doing the
+     only two things they can.
 
-     An earlier build could never have shown it, and the reason is worth
-     keeping: it seeded the pore ALREADY FULL. A full glass cannot show
-     pouring. The wall above the water has to be dry.
+     TWO THINGS HAD TO BE FIXED BEFORE IT WOULD MOVE, and both were
+     missing pieces rather than bad numbers.
 
-     How far it climbs answers to one knob, the wall's attraction, and
-     it is the same axis as a stem against a waxed windshield. Turned up
-     it goes past a climb into complete wetting: the pool drains itself
-     into two wall films and leaves a bridge across the middle.
+     One: it seeded the pore ALREADY FULL. A full glass cannot show
+     pouring; the wall above the water has to be dry.
+
+     Two, and this is the one that mattered: THERE WAS NO SUPPLY. A
+     finite pool in a wetting pore has nowhere to go. Its equilibrium is
+     to spread into two thin films and stop, which is exactly what it
+     did, and no amount of turning the wall up changed it — a stronger
+     pull only drained the pool faster. A capillary rises because the
+     tube stands in a bath: as the front climbs, more water is drawn up
+     behind it. The bottom band is now held at liquid density, which
+     models the rest of the cell wall as the endless reservoir it
+     effectively is. With that in place the same strong wall pull that
+     used to be a failure is the mechanism.
 
      AN EARLIER READING OF THIS WAS WRONG and the reason is worth
      keeping. Seeded at RANDOM through the pore, the old build reported
@@ -196,7 +203,7 @@ const GAP   = nm(3.5);               // wall face to wall face
    its cross-section. Widening the pore is not available (3.5 nm is the claim),
    so the depth carries it: at this thickness 900 molecules stand about 50 A
    deep in a pore 125 A tall, and there is somewhere to climb to. */
-const DEPTH = nm(2.5);
+const DEPTH = nm(1.5);
 const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom edge
 
 /* ---- water, from real distances ----
@@ -229,7 +236,7 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=
 const V3=(p)=>new THREE.Vector3(p[0],p[1],p[2]);
 const cello=MolLib.MOLECULES.cellobiose;
 const screw=ChainRepeat.screwOf(cello, ['O5','C1','C4'], 'A','B');
-const CHAIN_N=24;                                   // residues; ~5.2 A each, ~125 A of wall
+const CHAIN_N=18;                                   // residues; ~5.2 A each, ~94 A of wall
 const chain=ChainRepeat.extend(cello, screw, CHAIN_N, 'A');
 
 /* The chain comes out along the screw's own axis, wherever that points. Turn
@@ -270,7 +277,7 @@ const CHAIN_SPACING=8.2*A;         // cellulose Ibeta b axis
    deeper. A wall standing proud of the liquid on the near side reads as a gap
    between the two, and the first version of this bench looked non-wetting for
    that reason alone — perspective on a chain 8 A nearer the camera. */
-const CHAINS=4;
+const CHAINS=3;
 const wallAtoms=[];                // {el, pos}
 const wallBonds=[];                // [a,b] into wallAtoms
 const wallOH=[];                   // {o, h} scene positions, the adhesion sites
@@ -420,7 +427,21 @@ function instancedSpheres(list, el){
 const wspec=MolLib.MOLECULES.water;             // family B, to scale
 const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
 
-const N_WATER=900;
+/* A POOL, AND A SUPPLY BEHIND IT. This is the piece the bench was missing.
+   A finite pool in a wetting pore cannot travel anywhere: its equilibrium is to
+   spread itself into two thin films and stop, which is exactly what it did. A
+   capillary rises because the tube stands in a BATH — as the front climbs, more
+   water is drawn up behind it — and modelling the rest of the cell wall as an
+   endless supply is not a cheat, it is what the rest of the cell wall is.
+
+   So the bottom band is held at liquid density: whenever it thins, because the
+   front above has drawn water out of it, another molecule arrives. Nothing
+   pushes. The front climbs because the wall is dry, and the supply only keeps
+   the base from emptying while it does. */
+const N_START=420;                     // the pool at the foot of the pore
+const N_MAX=1800;                      // enough to fill this pore, and a stop
+const SUPPLY_BAND=8.0*A;               // the depth of base kept topped up
+let N_WATER=N_MAX;                     // buffers are sized for the cap
 const waters=[];                                 // {p, v, q, o, h:[2]}
 const _v=new THREE.Vector3(), _u=new THREE.Vector3(), _w=new THREE.Vector3();
 
@@ -444,7 +465,7 @@ function seed(){
   waters.length=0;
   const d=2.85*A;                                     // liquid spacing, near O...O
   const nx=Math.max(1,Math.floor((GAP-2*R_WATER)/d)), nz=Math.max(1,Math.floor(DEPTH/d));
-  for(let i=0;i<N_WATER;i++){
+  for(let i=0;i<N_START;i++){
     const c=i%nx, r=Math.floor(i/nx)%nz, lay=Math.floor(i/(nx*nz));
     makeWater(new THREE.Vector3(
       (c-(nx-1)/2)*d + (Math.random()-0.5)*0.3*A,
@@ -508,7 +529,7 @@ hbLines.frustumCulled=false; root.add(hbLines);
    made would be a picture of a capillary tube in a dish rather than of a cell
    wall. What holds this liquid in place is the wall and its own cohesion, which
    is the whole claim, so nothing else may hold it. */
-let DAMP=0.86;
+let DAMP=0.93;                    // light: a front that has to travel needs to keep moving
 let JITTER=0.004*A;
 let K_HB=0.030;                   // H-bond spring
 let K_COH=0.048;                // dispersion, the undirected part of cohesion
@@ -528,16 +549,15 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    behind the surface, and that sum falls off far more slowly than any one pair.
    This is that sum, as a smooth pull toward the face; the drawn dashes still
    come only from real H-bond geometry, so nothing is claimed that is not there. */
-/* Calibrated against the CLIMB, from a pool at the bottom of a dry pore, with
-   no gravity and the same seed each run. Height the water reaches at the wall
-   minus at the centre, after 900 steps:
-       0.026 ->   4.8 A   creeps, barely
-       0.037 ->   9.3 A   here; rides up both walls, pool stays a body
-       0.048 ->  25.7 A   the pool DRAINS into wall films and leaves a bridge
-   The last one is complete wetting and it is a real regime, not a bug: a
-   strongly wetting surface with limited liquid and no gravity spreads itself
-   thin over the wall. It is just not the picture of a column being drawn up. */
-let K_WET=0.037*A;              // per surface atom, summed; not per molecule
+/* Set for IMBIBITION, now that there is a supply. Without one, a strong wall
+   pull drained the pool into two films and stopped, so the setting had to be
+   weak enough to keep the pool a body. Fed from below, that same strong pull is
+   the whole point: the film runs up the dry wall, the liquid behind follows,
+   and water is drawn in at the base to replace it. From a 420-molecule pool the
+   front crosses the pore's 94 A in about 1500 steps and the count climbs past
+   700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
+   the pool sits there. */
+let K_WET=0.065*A;              // per surface atom, summed; not per molecule
 /* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
    without a reload. The contact angle lives in the ratio of the first two, and
    sweeping it is what this bench is for. */
@@ -823,6 +843,30 @@ function evaporate(){
 indexOH();
 escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
 
+/* The supply. Counts what is in the bottom band and tops it up toward the
+   density a liquid has there, one molecule at a time so nothing is injected
+   into an occupied space. */
+const SUPPLY_TARGET=Math.round(0.0334*(GAP/A)*(DEPTH/A)*(SUPPLY_BAND/A));
+let supplyClock=0;
+function supply(){
+  if(waters.length>=N_MAX) return;
+  if(++supplyClock%2) return;
+  let inBand=0;
+  for(const w of waters) if(!w.gone && w.p.y<FLOOR+SUPPLY_BAND) inBand++;
+  if(inBand>=SUPPLY_TARGET) return;
+  // a spot in the band that nothing is sitting in
+  for(let tries=0;tries<8;tries++){
+    const p=new THREE.Vector3(
+      (Math.random()-0.5)*(GAP-2.6*R_WATER),
+      FLOOR+0.6*A+Math.random()*SUPPLY_BAND*0.5,
+      (Math.random()-0.5)*(DEPTH-2*R_WATER));
+    let clear=true;
+    for(const w of waters){ if(w.gone) continue;
+      if(w.p.distanceToSquared(p)<(OO_MIN*0.95)**2){ clear=false; break; } }
+    if(clear){ place(makeWater(p)); return; }
+  }
+}
+
 /* ============================================================= *
  *  Render
  * ============================================================= */
@@ -850,7 +894,7 @@ let frames=0;
 function report(){
   readout.innerHTML =
     `pore  <b>${(GAP/A/10).toFixed(1)} nm</b>  =  <b>${Math.round(GAP/A/WATER_DIA)}</b> molecules across\n`
-  + `water <b>${waters.length}</b>   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>\n`
+  + `water <b>${waters.length}</b> of ${N_MAX}   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>\n`
   /* Throughput, not level. In steady flow the column keeps its height while
      every molecule in it travels, so the level says nothing and the count of
      molecules that have gone through says everything. */
@@ -864,7 +908,7 @@ function loop(){
      instead would let molecules jump through each other and through the wall,
      and the settling distances this page reports would stop being the model's.
      More steps is just watching the same physics from further along. */
-  for(let k=0;k<SPEED;k++){ step(); evaporate(); }
+  for(let k=0;k<SPEED;k++){ step(); supply(); evaporate(); }
   draw();
   if((frames++ & 7)===0){ report(); reportClimb(); }
   renderer.render(scene,camera);
