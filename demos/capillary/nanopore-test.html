@@ -1052,7 +1052,10 @@ function report(){
   /* Throughput, not level. In steady flow the column keeps its height while
      every molecule in it travels, so the level says nothing and the count of
      molecules that have gone through says everything. */
-  + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight`;
+  + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight\n`
+  /* The step count, because every measurement quoted about this page is "after
+     N steps" and there is otherwise no way to tell where a run has got to. */
+  + `step  <b>${stepNo}</b>`;
 }
 
 let SPEED=1;                           // physics steps per drawn frame
@@ -1146,7 +1149,10 @@ const frontEl=document.getElementById('front');
 const frontMark=(function(){
   const g=new THREE.Group();
   const bar=new THREE.Mesh(new THREE.BoxGeometry(GAP+6*A, 0.5*A, 0.5*A),
-    new THREE.MeshBasicMaterial({color:P.bonds.iondipole, transparent:true, opacity:0.85}));
+    /* The palette's brightest blue, taken here as a POINTER colour rather than
+       for what it means elsewhere: nothing on this page draws lone pairs, and
+       the marker has to stay legible against red oxygens and a cream ground. */
+    new THREE.MeshBasicMaterial({color:P.bonds.lonepair, transparent:true, opacity:0.9}));
   g.add(bar); g.visible=false; root.add(g); return g;
 })();
 const climbEl=document.getElementById('climb');
