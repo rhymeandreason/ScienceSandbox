@@ -241,7 +241,12 @@ const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom
  *  where the bond wants it rather than in a fight between two forces.
  */
 const OO_EQ   = 2.76*A;              // liquid water O...O, the H-bond rest length
-let OO_MIN  = 2.70*A;              // hard contact; below this they push apart
+/* CONTACT IS THE EQUILIBRIUM DISTANCE, not a little inside it. At 2.70 there
+   was a dead band: cohesion switched on only beyond 2.76, repulsion only below
+   2.70, and nothing at all in between — so a pair could sit anywhere in that gap
+   and the liquid drifted to the bottom of it. Contact at 2.76 removes the gap
+   and puts the floor where water's own pair minimum is. */
+let OO_MIN  = 2.76*A;              // hard contact; below this they push apart
 const HB_MAX  = 2.45*A;              // H...O reach for a bond to register
 const HB_LIN  = 0.55;                // O-H...O has to be near enough to straight
 const COH_MAX = 6.20*A;              // how far the weak, undirected pull reaches
@@ -1087,7 +1092,13 @@ function step(){
    0.060/0.090 lands the spacing exactly on water's, and costs 0.3 of a bond.
    Left at the old pair until someone decides which of the two numbers this
    bench would rather be right about. */
-let STERIC_PASSES=4, STERIC_FIX=0.6;
+/* SIX PASSES AT FULL STRENGTH, and the numbers are why. Four at 0.6 did not
+   converge: the liquid still sat at 2.60 A with the floor at 2.76, because the
+   passes took out less overlap per step than the forces put back. Six at 1.0
+   holds it at 2.71 and six is where it stops improving — ten gives the same
+   2.71. Marginal cost at 684 molecules: 5.6 ms a step with no passes, 5.7 at
+   four, 6.3 at six, 7.1 at ten. */
+let STERIC_PASSES=6, STERIC_FIX=1.0;
 /* BOTH OFF, and the reason is a finding rather than a preference. A pair
    constraint that also corrects velocity is the textbook way to do this, in
    either form — feed the correction back (STERIC_VFB) or stop the closing
