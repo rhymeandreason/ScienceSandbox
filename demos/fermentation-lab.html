@@ -51,22 +51,6 @@
   #actbtn.done{background:transparent;border-color:transparent;color:var(--ink);
     font-family:var(--font-marker);font-size:19px;cursor:default;box-shadow:none}
 
-  /* THE CAPTION BAND IS TALLER HERE, because on this page it carries every
-     step's prose rather than only the opening screen's — see drawCaption. The
-     reserve is a DECLARED height that the camera fit reads (capReservePx), so a
-     caption longer than this eats its own room and then runs over the molecule:
-     keep the step `msg` strings inside four lines at 1440 wide. */
-  #rxmsg{--caph:152px;bottom:calc(100% + 6px)}
-  /* HEADING FIRST, THEN ITS PARAGRAPH. pathways.css leaves #stephead in the
-     bar's own flow, below the caption, which is right on a page where the
-     caption is only the opening screen's and there is no heading to sit under.
-     Here every step has both, and a heading printed under its own paragraph
-     reads backwards. Lifted out of the bar, so --caph above covers the pair. */
-  /* text-align, because the centring it had was #bottombar's flex and taking it
-     out of that flow left it against the left edge. */
-  #stephead{position:absolute;left:0;right:0;bottom:calc(100% + 108px);
-    margin-bottom:0;text-align:center}
-
   /* THE CLOSING TALLY: one row, three cells. Two steps do not make a 2×2. */
   #tally{grid-template-columns:repeat(3,minmax(0,1fr));
     grid-template-rows:1fr;gap:10px 22px;padding:14px 6% 0}
@@ -104,6 +88,7 @@
     </div>
     <div id="bottombar">
       <div id="stephead"></div>
+      <div id="steptip" role="tooltip"></div>
       <button id="actbtn"></button>
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
@@ -563,12 +548,12 @@ function barReservePx(){
   const cs=getComputedStyle(e);
   return (parseFloat(cs.getPropertyValue('--barh'))||0)+(parseFloat(cs.bottom)||0);
 }
-// UNCONDITIONAL, because the band carries a caption on every screen but the
-// closing tally — and the tally replaces the stage rather than sharing it, so
-// reserving for it too costs nothing and keeps one framing for the whole run.
+// Only while the band is up, which is the intro. The height is the DECLARED
+// --caph and never the live box, so a longer caption eats the room set aside
+// rather than re-framing the shot.
 function capReservePx(){
   const e=document.getElementById('rxmsg');
-  if(!e) return 0;
+  if(!e||!e.classList.contains('show')) return 0;
   return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
 }
 // NO LEFT RESERVE: there is no tray (see the stylesheet's header).
@@ -725,19 +710,14 @@ const captionAt=i=>intro ? INTRO_MSG
   : i<nSteps() ? stepAt(i).msg : stepAt(nSteps()-1).msg;
 const headAt=i=>{ const st=stepAt(i); return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
 let shownCaption=null;
-/* THE CAPTION IS UP FOR THE WHOLE LESSON, not only the intro. Glycolysis puts
- * each step's prose behind the ⓘ on its heading, and it is right to: ten steps
- * with ten paragraphs would be a wall, and the band holding ONE height from
- * step 1 on is what lets that page keep a single camera framing. Neither reason
- * survives at two steps. Inheriting it here hid every sentence the page makes
- * its argument in behind a 14px hover target, so a student who never hovered
- * read the heading and the takeaway and nothing else.
- * The reserve is unconditional (capReservePx), so the band costs the camera the
- * same whether it is the intro's paragraph or a step's — no re-frame mid-step,
- * which is the rule the ⓘ was protecting. */
+/* THE BAND IS THE INTRO, AND NOTHING ELSE — the siblings' rule, kept. Each
+ * step's prose lives on the ⓘ beside its heading, so the band holds ONE height
+ * (zero) from step 1 on, which is what lets the camera keep a single framing
+ * for the whole run. */
 function drawCaption(){
-  const html=captionAt(focusStep());
-  const show=!tallyOn();
+  const bare=intro;
+  const html=bare?captionAt(focusStep()):'';
+  const show=bare && !reviewing;
   if(html!==shownCaption){
     shownCaption=html;
     rxmsgEl.querySelector('p').innerHTML=html;
@@ -1038,6 +1018,7 @@ const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; setDone(k);
 
 const actEl=document.getElementById('actbtn');
 const stepHeadEl=document.getElementById('stephead');
+const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;
 let pressing=false;
 function press(fn){
@@ -1055,9 +1036,14 @@ function drawAct(){
   const head = intro ? ''
              : reviewing ? `Step ${stepAt(done()-1).n} complete`
              : hi<nSteps() ? headAt(hi) : '';
-  // NO ⓘ. It opened the step's own prose, which now stands in the band under
-  // this heading; a button that reveals what is already on screen is furniture.
-  stepHeadEl.innerHTML = head;
+  // THE CAPTION HANGS OFF THE HEADING: the ⓘ carries this step's own text, so
+  // there is one caption per step and one place it comes from.
+  const tip = head ? captionAt(hi) : '';
+  stepHeadEl.innerHTML = head + (tip
+    ? `<span class="infowrap"><button class="infobtn" type="button"
+         aria-describedby="steptip"
+         aria-label="What happens in this step">i</button></span>` : '');
+  stepTipEl.innerHTML = tip;
   stepHeadEl.classList.toggle('on', !!head);
   const entering = reviewing && !shownReview;
   shownReview = reviewing;
