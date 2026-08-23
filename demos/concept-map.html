@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<!-- Test bench: the repo's concepts and the student questions that connect them,
+     as a draggable open canvas. Data below is a hand transcription of
+     QUESTIONS-ROADMAP.md's appendix; nothing here reads that file at runtime. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept map — topics and the questions between them</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Fraunces', Georgia, serif;
+
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    overflow: hidden;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- masthead, floating over the canvas ----------------------------- */
+
+  .mast {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 5;
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1.1rem clamp(1rem, 3vw, 2rem) 0.9rem;
+    pointer-events: none;
+  }
+  .mast > * { pointer-events: auto; }
+  .logo {
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    margin: 0;
+    text-transform: lowercase;
+    text-decoration: none;
+    color: inherit;
+  }
+  .logo em { font-style: normal; color: var(--accent); }
+  .logo .dot { color: var(--spark); }
+  .mast .title {
+    font-family: var(--serif);
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+  .mast .spacer { flex: 1; pointer-events: none; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn:hover { color: var(--accent); border-color: var(--accent); }
+  .btn.on { color: var(--accent); border-color: var(--accent); }
+
+  /* ---- canvas --------------------------------------------------------- */
+
+  #canvas {
+    position: fixed;
+    inset: 0;
+    cursor: grab;
+    touch-action: none;
+  }
+  #canvas.panning { cursor: grabbing; }
+
+  /* the pan/zoom frame; everything inside is laid out in world units */
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  #edges { position: absolute; overflow: visible; pointer-events: none; }
+
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    user-select: none;
+    border-radius: 4px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    transition: border-color .15s, box-shadow .15s, opacity .18s;
+  }
+  .node.dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(20,22,26,.12); }
+
+  .node.concept {
+    padding: 0.6rem 0.85rem 0.65rem;
+    width: 11rem;
+    text-align: center;
+  }
+  .node.concept .name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+  }
+  .node.concept .meta {
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--spark);
+    margin-top: 0.25rem;
+  }
+  .node.concept.built   { border-left: 3px solid var(--accent); }
+  .node.concept.planned { border-left: 3px dashed var(--muted); }
+  .node.concept.planned .name { color: var(--muted); }
+  .node.concept.planned .meta { color: var(--muted); }
+
+  .node.question {
+    padding: 0.5rem 0.7rem;
+    width: 13rem;
+    background: transparent;
+    border-color: transparent;
+    font-family: var(--serif);
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  .node.question .q { display: block; }
+
+  .node:hover { border-color: var(--accent); }
+  .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
+
+  /* focus: one node lit, its neighbours kept, everything else dropped back */
+  .focusing .node { opacity: 0.18; }
+  .focusing .node.lit { opacity: 1; }
+  .focusing .node.hub { border-color: var(--accent); }
+
+  /* ---- legend --------------------------------------------------------- */
+
+  .legend {
+    position: fixed;
+    left: clamp(1rem, 3vw, 2rem);
+    bottom: 1.1rem;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    background: rgba(250,248,244,.85);
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .legend span { display: flex; align-items: center; gap: 0.4rem; }
+  .swatch { width: 14px; height: 3px; border-radius: 2px; background: var(--accent); }
+  .swatch.dash { background: none; border-top: 3px dashed var(--muted); height: 0; }
+  .swatch.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--spark); }
+
+  .hint {
+    position: fixed;
+    right: clamp(1rem, 3vw, 2rem);
+    bottom: 1.1rem;
+    z-index: 5;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <a class="logo" href="index.html">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="title">what connects to what, and the question that does the connecting</span>
+  <span class="spacer"></span>
+  <button class="btn" id="relaxBtn">Relax</button>
+  <button class="btn" id="fitBtn">Fit</button>
+</header>
+
+<div id="canvas">
+  <div id="world">
+    <svg id="edges"></svg>
+  </div>
+</div>
+
+<div class="legend">
+  <span><i class="swatch"></i> engine on disk</span>
+  <span><i class="swatch dash"></i> not built yet</span>
+  <span><i class="swatch dot"></i> a question, drawn between the concepts it needs</span>
+</div>
+<div class="hint">drag a node · drag the paper to pan · scroll to zoom · click to focus</div>
+
+<script>
+/* ---- data ------------------------------------------------------------
+   Concepts are the engines and topics; a question is itself a node, drawn
+   between the concepts it needs. A question wiring three concepts together
+   is the point of the page — that is where a lesson would sit. */
+
+const CONCEPTS = [
+  { id: 'water',     name: 'Water',                 built: 1 },
+  { id: 'bonds',     name: 'Bonds',                 built: 1 },
+  { id: 'solvation', name: 'Solvation',             built: 1 },
+  { id: 'hydrophob', name: 'Hydrophobic effect',    built: 0 },
+  { id: 'entropy',   name: 'Entropy',               built: 0 },
+  { id: 'folding',   name: 'Protein folding',       built: 1 },
+  { id: 'protein',   name: 'Protein structure',     built: 1 },
+  { id: 'binding',   name: 'Binding &amp; recognition', built: 0 },
+  { id: 'enzyme',    name: 'Enzymes',               built: 0 },
+  { id: 'cooperat',  name: 'Cooperativity',         built: 0 },
+  { id: 'shape',     name: 'Shape is function',     built: 1 },
+  { id: 'membrane',  name: 'The membrane',          built: 1 },
+  { id: 'diffusion', name: 'Diffusion',             built: 1 },
+  { id: 'osmosis',   name: 'Osmosis',               built: 0 },
+  { id: 'massact',   name: 'Mass action',           built: 1 },
+  { id: 'coupling',  name: 'Energy coupling',       built: 1 },
+  { id: 'glycolys',  name: 'Glycolysis',            built: 1 },
+  { id: 'krebs',     name: 'Krebs cycle',           built: 1 },
+  { id: 'ferment',   name: 'Fermentation',          built: 0 },
+  { id: 'betaox',    name: 'Beta-oxidation',        built: 0 },
+  { id: 'etc',       name: 'Electron transport',    built: 0 },
+  { id: 'ledger',    name: 'Atom conservation',     built: 0 },
+  { id: 'macromol',  name: 'Macromolecules',        built: 1 },
+  { id: 'dna',       name: 'DNA',                   built: 1 },
+  { id: 'crystal',   name: 'Crystal growth',        built: 0 },
+  { id: 'denature',  name: 'Denaturing',            built: 0 },
+  { id: 'scale',     name: 'One vs a million',      built: 0 },
+];
+
+const QUESTIONS = [
+  ['Why do oil and water separate, if separating makes things more ordered?', ['water','hydrophob','entropy']],
+  ['Why does soap work?',                                    ['hydrophob','membrane','solvation']],
+  ['Why do proteins bury their greasy parts with nothing pulling them in?', ['hydrophob','folding','entropy']],
+  ['What are the alternatives to road salt?',                ['water','solvation']],
+  ['Why do recipes change at altitude?',                     ['water','entropy']],
+  ['How are fizzy drinks made?',                             ['water','solvation','diffusion']],
+  ['Why are snowflakes six-sided?',                          ['crystal','water']],
+  ['What makes ice cream creamy rather than gritty?',        ['crystal','water']],
+  ['How do deep-sea fish keep their blood from crystallising?', ['crystal','binding','protein']],
+  ['How do wood frogs survive freezing solid?',              ['crystal','osmosis']],
+  ['A protein folds in a second out of more shapes than there are atoms. How?', ['folding','entropy']],
+  ['Why do egg whites turn opaque and solid?',               ['denature','folding','hydrophob']],
+  ['Why is a fever above 40&#176;C dangerous?',              ['denature','protein','enzyme']],
+  ['How do vent bacteria run enzymes above 100&#176;C?',     ['denature','protein']],
+  ['Why can&#8217;t you use up an enzyme?',                  ['enzyme','binding','scale']],
+  ['Why is cyanide deadly?',                                 ['binding','enzyme','etc']],
+  ['Why are some people lactose intolerant?',                ['binding','enzyme','shape']],
+  ['Why does one molecule smell of lemon and its mirror of orange?', ['shape','binding']],
+  ['Why did thalidomide&#8217;s two halves behave so differently?', ['shape','binding']],
+  ['Why does CO kill at 0.1% of the air?',                   ['cooperat','binding','protein']],
+  ['How does a fetus take oxygen from its own mother&#8217;s blood?', ['cooperat','protein','scale']],
+  ['Why does exercise release oxygen exactly where it&#8217;s needed?', ['cooperat','protein','ledger']],
+  ['Why are cells small?',                                    ['diffusion','scale']],
+  ['Why does an insect need no lungs and you do?',           ['diffusion','scale','membrane']],
+  ['Why can&#8217;t a metre-long neuron let its signal diffuse?', ['diffusion','scale']],
+  ['Why does breathing fast make you dizzy?',                ['massact','scale','solvation']],
+  ['Why does blood pH barely move when you drink Coke?',     ['massact','solvation','scale']],
+  ['How do salmon cross from salt water to fresh?',          ['osmosis','membrane']],
+  ['Why is an IV 0.9% saline, and distilled water fatal?',   ['osmosis','membrane','solvation']],
+  ['How does cholera dehydrate you without entering a cell?', ['osmosis','membrane','binding']],
+  ['How high can a tree grow?',                               ['osmosis','water']],
+  ['Poke a hole in a membrane and it heals. Why?',           ['membrane','hydrophob','entropy']],
+  ['What does a pump actually spend, and on what?',          ['membrane','coupling','glycolys']],
+  ['Why do sprinters&#8217; legs burn at 200m but marathoners&#8217; don&#8217;t?', ['ferment','glycolys']],
+  ['Bread and beer: one organism, one pathway, two products.', ['ferment','glycolys']],
+  ['How do crucian carp survive sealed under ice?',          ['ferment','glycolys']],
+  ['Why do red blood cells have no mitochondria?',           ['ferment','glycolys','krebs']],
+  ['Why are apples stored in low oxygen, not just cold?',    ['ferment','krebs']],
+  ['Why does fructose behave unlike glucose in the liver?',  ['glycolys','enzyme']],
+  ['Where does the CO&#8322; you exhale come from?',         ['ledger','krebs','glycolys']],
+  ['Why does the oxygen you breathe end up in water, not CO&#8322;?', ['ledger','etc','krebs']],
+  ['Why does fat carry more energy than sugar?',             ['ledger','betaox']],
+  ['How do camels get water from fat?',                       ['ledger','betaox','osmosis']],
+  ['How do bears hibernate?',                                 ['betaox','etc']],
+  ['How do hibernating animals burn fat as heat?',           ['etc','membrane','betaox']],
+  ['How do bacteria live on sulfur or iron with no sun?',    ['etc','coupling']],
+  ['Why is ATP worth spending at all?',                       ['coupling','krebs','massact']],
+  ['The four polymers are one reaction run four times.',      ['macromol','bonds','water']],
+  ['Why isn&#8217;t the mutation rate zero?',                ['dna','binding','enzyme']],
+  ['What holds the two strands together, and why that strength?', ['dna','bonds','water']],
+  ['Why does a bond form at all?',                            ['bonds','entropy']],
+  ['One photon, one flash. One adrenaline, a million glucose. How?', ['scale','binding','glycolys']],
+];
+
+/* ---- graph ---------------------------------------------------------- */
+
+const nodes = [];
+const links = [];
+const byId = {};
+
+for (const c of CONCEPTS) {
+  const n = { ...c, kind: 'concept', deg: 0 };
+  byId[c.id] = n;
+  nodes.push(n);
+}
+QUESTIONS.forEach((q, i) => {
+  const n = { id: 'q' + i, kind: 'question', text: q[0], refs: q[1], deg: 0 };
+  byId[n.id] = n;
+  nodes.push(n);
+  for (const r of q[1]) {
+    if (!byId[r]) continue;          // a typo'd concept id would silently vanish
+    links.push({ a: n, b: byId[r] });
+    n.deg++; byId[r].deg++;
+  }
+});
+
+/* ---- layers ----------------------------------------------------------
+   The map reads left to right from water, so the layout is not a free blob:
+   a breadth-first walk from `water` gives every node a depth, depth becomes
+   a column, and the relax below is free only in y. Concept and question
+   alternate, so a concept sits every other column. */
+
+const COL = 300;
+const ROOT = 'water';
+
+const order = [byId[ROOT]];
+byId[ROOT].depth = 0;
+const nbrs = new Map(nodes.map(n => [n, []]));
+for (const l of links) { nbrs.get(l.a).push(l.b); nbrs.get(l.b).push(l.a); }
+for (let head = 0; head < order.length; head++) {
+  for (const m of nbrs.get(order[head])) {
+    if (m.depth !== undefined) continue;
+    m.depth = order[head].depth + 1;
+    order.push(m);
+  }
+}
+// anything the walk never reached hangs off the far end rather than at x=0
+const maxDepth = Math.max(...order.map(n => n.depth));
+for (const n of nodes) if (n.depth === undefined) n.depth = maxDepth + 1;
+
+// seed each column as a stack, in the order the walk found them: siblings of
+// one parent start adjacent, which is most of the untangling done for free
+const column = {};
+const walked = order.concat(nodes.filter(n => !order.includes(n)));
+for (const n of walked) (column[n.depth] = column[n.depth] || []).push(n);
+for (const stack of Object.values(column)) {
+  stack.forEach((n, row) => {
+    n.tx = n.depth * COL;                        // the column the spring holds it to
+    n.x = n.tx;
+    n.y = (row - (stack.length - 1) / 2) * 120;
+    n.vx = n.vy = 0;
+  });
+}
+
+/* ---- DOM ------------------------------------------------------------- */
+
+const world = document.getElementById('world');
+const svg = document.getElementById('edges');
+const NS = 'http://www.w3.org/2000/svg';
+
+for (const l of links) {
+  l.el = document.createElementNS(NS, 'line');
+  l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
+  l.el.setAttribute('stroke-width', '1');
+  l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
+  if (!l.b.built) l.el.setAttribute('stroke-dasharray', '4 4');
+  svg.appendChild(l.el);
+}
+
+for (const n of nodes) {
+  const el = document.createElement('div');
+  el.className = 'node ' + n.kind + (n.kind === 'concept' ? (n.built ? ' built' : ' planned') : '');
+  if (n.kind === 'concept') {
+    el.innerHTML = '<div class="name">' + n.name + '</div>' +
+      '<div class="meta">' + n.deg + (n.deg === 1 ? ' question' : ' questions') + '</div>';
+  } else {
+    el.innerHTML = '<span class="q">' + n.text + '</span>';
+  }
+  n.el = el;
+  world.appendChild(el);
+}
+
+// measured once, after layout: the radius the repulsion treats each label as
+for (const n of nodes) n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+
+/* ---- force relax ----------------------------------------------------- */
+
+let alpha = 1, running = true;
+
+function step() {
+  const REPEL = 9000, SPRING = 0.022, COLUMN = 0.14, ROW = 0.0016, VMAX = 26;
+  for (const n of nodes) { n.vx *= 0.86; n.vy *= 0.86; }
+
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const b = nodes[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
+      const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
+      // labels are boxes, not points: overlapping ones push far harder than 1/d²
+      const near = a.r + b.r;
+      const f = REPEL / d2 + (d < near ? (near - d) * 0.35 : 0);
+      a.vx -= ux * f; a.vy -= uy * f;
+      b.vx += ux * f; b.vy += uy * f;
+    }
+  }
+
+  for (const l of links) {
+    const rest = 250;
+    const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const f = (d - rest) * SPRING;
+    const ux = dx / d, uy = dy / d;
+    l.a.vx += ux * f; l.a.vy += uy * f;
+    l.b.vx -= ux * f; l.b.vy -= uy * f;
+  }
+
+  for (const n of nodes) {
+    n.vx += (n.tx - n.x) * COLUMN;               // x belongs to the column, not the forces
+    n.vy -= n.y * ROW;
+    const v = Math.hypot(n.vx, n.vy);            // a clamp, or one overlap can fling a node
+    if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
+    if (n === dragNode || n.pinned) continue;
+    n.x += n.vx * alpha; n.y += n.vy * alpha;
+  }
+  alpha *= 0.995;
+  if (alpha < 0.03) { alpha = 0.03; }
+}
+
+function draw() {
+  for (const n of nodes) n.el.style.transform =
+    'translate(-50%,-50%) translate(' + n.x.toFixed(1) + 'px,' + n.y.toFixed(1) + 'px)';
+  for (const l of links) {
+    l.el.setAttribute('x1', l.a.x); l.el.setAttribute('y1', l.a.y);
+    l.el.setAttribute('x2', l.b.x); l.el.setAttribute('y2', l.b.y);
+  }
+}
+
+function frame() {
+  if (running) step();
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---- pan, zoom, drag -------------------------------------------------- */
+
+const canvas = document.getElementById('canvas');
+let view = { x: innerWidth / 2, y: innerHeight / 2, k: 0.75 };
+
+function applyView() {
+  world.style.transform =
+    'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')';
+}
+applyView();
+
+let dragNode = null, dragging = null, last = null;
+
+canvas.addEventListener('pointerdown', e => {
+  const hit = e.target.closest('.node');
+  last = { x: e.clientX, y: e.clientY };
+  if (hit) {
+    dragNode = nodes.find(n => n.el === hit);
+    dragNode.moved = false;
+    hit.classList.add('dragging');
+    dragging = 'node';
+    alpha = Math.max(alpha, 0.35);              // a drag re-energises the layout
+  } else {
+    dragging = 'pan';
+    canvas.classList.add('panning');
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - last.x, dy = e.clientY - last.y;
+  last = { x: e.clientX, y: e.clientY };
+  if (dragging === 'pan') {
+    view.x += dx; view.y += dy; applyView();
+  } else {
+    dragNode.x += dx / view.k;
+    dragNode.y += dy / view.k;
+    dragNode.vx = dragNode.vy = 0;
+    if (Math.abs(dx) + Math.abs(dy) > 1) dragNode.moved = true;
+  }
+});
+
+function endDrag(e) {
+  if (dragging === 'node') {
+    dragNode.el.classList.remove('dragging');
+    if (dragNode.moved) dragNode.pinned = true;  // a node you placed stays placed
+    else focus(dragNode);                        // a click without motion is a focus
+    dragNode = null;
+  }
+  canvas.classList.remove('panning');
+  dragging = null;
+  if (e && canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const k = Math.min(2.5, Math.max(0.2, view.k * Math.exp(-e.deltaY * 0.0015)));
+  // zoom about the cursor, so the point under the pointer stays put
+  view.x = e.clientX - (e.clientX - view.x) * (k / view.k);
+  view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
+  view.k = k;
+  applyView();
+}, { passive: false });
+
+/* ---- focus ------------------------------------------------------------ */
+
+let focused = null;
+
+function focus(n) {
+  if (focused === n) { clearFocus(); return; }
+  focused = n;
+  document.body.classList.add('focusing');
+  for (const m of nodes) { m.el.classList.remove('lit', 'hub'); }
+  n.el.classList.add('lit', 'hub');
+  for (const l of links) {
+    if (l.a === n) l.b.el.classList.add('lit');
+    if (l.b === n) l.a.el.classList.add('lit');
+    const on = l.a === n || l.b === n;
+    l.el.setAttribute('stroke-opacity', on ? '.85' : '.06');
+    l.el.setAttribute('stroke', on ? '#e2643a' : (l.b.built ? '#1f5f4f' : '#6d6f76'));
+  }
+}
+
+function clearFocus() {
+  focused = null;
+  document.body.classList.remove('focusing');
+  for (const m of nodes) m.el.classList.remove('lit', 'hub');
+  for (const l of links) {
+    l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
+    l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
+  }
+}
+
+canvas.addEventListener('click', e => { if (!e.target.closest('.node') && focused) clearFocus(); });
+addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+
+/* ---- controls --------------------------------------------------------- */
+
+const relaxBtn = document.getElementById('relaxBtn');
+relaxBtn.classList.add('on');
+relaxBtn.addEventListener('click', () => {
+  running = !running;
+  relaxBtn.classList.toggle('on', running);
+  if (running) { alpha = 0.6; for (const n of nodes) n.pinned = false; }
+});
+
+document.getElementById('fitBtn').addEventListener('click', fit);
+
+function fit() {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of nodes) {
+    const w = n.el.offsetWidth / 2, h = n.el.offsetHeight / 2;
+    x0 = Math.min(x0, n.x - w); x1 = Math.max(x1, n.x + w);
+    y0 = Math.min(y0, n.y - h); y1 = Math.max(y1, n.y + h);
+  }
+  const pad = 60;
+  const k = Math.min((innerWidth - pad * 2) / (x1 - x0), (innerHeight - pad * 2) / (y1 - y0), 1.6);
+  view.k = Math.max(0.15, k);
+  view.x = innerWidth / 2 - ((x0 + x1) / 2) * view.k;
+  view.y = innerHeight / 2 - ((y0 + y1) / 2) * view.k;
+  applyView();
+}
+
+setTimeout(fit, 4000);   // let the relax settle before framing it
+
+// the pane can settle on its size after load, and a fit against the wrong
+// viewport leaves the map in a corner. Keep reframing until the user takes over.
+let touched = false;
+canvas.addEventListener('pointerdown', () => { touched = true; });
+canvas.addEventListener('wheel', () => { touched = true; });
+addEventListener('resize', () => { if (!touched) fit(); });
+</script>
+</body>
+</html>

@@ -61,8 +61,11 @@ const PDB_PAGES = new Set(['viewer-compare.html']);
 // droplet-test.html and adhesion-test.html render water as bulk — a refracting
 // continuum, not spheres — because cohesion, contact angle and wicking are all
 // properties of the bulk. There is no molecule on either page to load.
+// concept-map.html draws the topics themselves as a graph — labels and edges,
+// no stage.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
-                          'droplet-test.html', 'adhesion-test.html']);
+                          'droplet-test.html', 'adhesion-test.html',
+                          'concept-map.html']);
 
 const PAGES = fs.readdirSync(ROOT)
   .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();
