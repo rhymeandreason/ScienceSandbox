@@ -599,6 +599,43 @@ let condensed=0;
    apart, so at these force constants the temperature can be a floor under the
    slowest molecules and not much more. Say floor, not temperature. */
 let V_THERM=0.05*A;
+/* TORQUE, because a bond that only pulls centres together cannot build a
+   network. Measured before this existed: 1385 pairs sat close enough to bond
+   and 806 of them — 58% — failed the angle test, on a cut already looser than
+   real water's (123 degrees against about 140). The molecules were in the right
+   places pointing the wrong way, because nothing turned them: forces acted on
+   centres and orientation was a random walk. A real H-bond ORIENTS both
+   partners, and that is what lets a molecule satisfy four neighbours at once.
+
+   Overdamped, like everything else here: a bond turns its partners toward
+   alignment by a fraction each step rather than accumulating angular momentum
+   nothing would carry.
+
+   IT DID NOT RAISE THE BOND COUNT, and the reason is the useful part. Settled
+   pool, 800 steps: no torque 1.97 bonds a molecule, 0.10 gives 1.92, 0.30 gives
+   1.92, 0.60 with the thermal tumbling switched off entirely gives 2.05. All
+   one number, against a real 3.6.
+
+   The block is upstream. This liquid sits with 6 neighbours inside 3.4 A where
+   real water has about 4.5, and its nearest neighbours are 2.44 A apart against
+   2.76 — it is CLOSE-PACKED, not tetrahedral. A molecule with six neighbours
+   crowding it cannot point two H's and two lone pairs at four of them, however
+   well it is turned, so orientation was never what was short.
+
+   The torque stays because it is right and it is free — 3.5 ms a step either
+   way — and because the moment the liquid is opened up to its real spacing it
+   is what will let a network form. The thing to fix is the density, and that is
+   a steric floor being punched through rather than a constant being wrong:
+   raising K_STERIC to hold 2.76 tears the liquid apart in an explicit
+   integrator (0.45 bonds a molecule at 1.6). It wants a positional correction
+   rather than a stiffer spring. */
+let K_TORQ=0.10;                  // how far toward alignment a bond turns per step
+const TORQ_MAX=0.25;              // and a cap, so a molecule pulled two ways cannot spin
+/* The lone pairs, where the tetrahedron puts them: opposite the H's and out of
+   their plane by half the tetrahedral angle. An acceptor turns the NEARER of
+   the two toward the incoming H, which is what makes the second bond on an
+   oxygen cost the first one nothing. */
+const LP_C=Math.cos(54.75*Math.PI/180), LP_S=Math.sin(54.75*Math.PI/180);
 let K_HB=0.030;                   // H-bond spring
 let K_COH=0.108;                // dispersion, the undirected part of cohesion
 let K_STERIC=0.90;
@@ -632,7 +669,29 @@ let K_WET=0.020*A;              // per surface atom, summed; not per molecule
 const WET_REACH=11.0*A;
 
 let hbCount=0, adCount=0;
-const forces=[];
+const forces=[], torq=[];
+const _t1=new THREE.Vector3(), _t2=new THREE.Vector3(), _t3=new THREE.Vector3(),
+      _t4=new THREE.Vector3(), _t5=new THREE.Vector3();
+const _lpA=new THREE.Vector3(), _lpB=new THREE.Vector3();
+// the two lone-pair directions, from where the molecule is pointing now
+function lonePairs(w,a,b){
+  _t1.subVectors(w.h[0],w.o).normalize();
+  _t2.subVectors(w.h[1],w.o).normalize();
+  _t3.copy(_t1).add(_t2).normalize();            // the H-O-H bisector
+  b.crossVectors(_t1,_t2).normalize();           // and the plane's normal
+  a.copy(_t3).multiplyScalar(-LP_C).addScaledVector(b, LP_S);
+  b.multiplyScalar(LP_S).addScaledVector(_t3,-LP_C);
+}
+/* Turn `from` toward `to`, as a rotation vector added to this molecule's share.
+   Axis and angle come out of the cross and dot, so a molecule being turned by
+   two bonds at once gets the sum and lands between them, which is the
+   compromise a real molecule in a network is making. */
+function aim(i,from,to,k){
+  _t4.crossVectors(from,to);
+  const sn=_t4.length();
+  if(sn<1e-6) return;
+  torq[i].addScaledVector(_t4.multiplyScalar(1/sn), Math.atan2(sn, from.dot(to))*k);
+}
 /* A CELL LIST, because every pair is not worth asking about. Testing all 405k
    pairs of 900 molecules cost about 15 ms a step, which made the speed control
    a lie: eight steps a frame ran at eight frames a second and simulated no more
@@ -687,7 +746,10 @@ let stepNo=0;
 function step(){
   stepNo++;
   const n=waters.length;
-  for(let i=0;i<n;i++) (forces[i]||(forces[i]=new THREE.Vector3())).set(0,0,0);
+  for(let i=0;i<n;i++){
+    (forces[i]||(forces[i]=new THREE.Vector3())).set(0,0,0);
+    (torq[i]||(torq[i]=new THREE.Vector3())).set(0,0,0);
+  }
 
   // --- pairwise: steric floor, then the H-bond that pulls them back together
   let lines=0; hbCount=0; adCount=0;
@@ -804,6 +866,15 @@ function step(){
       don.hb++; acc.hb++; hbCount++;
       _v.subVectors(acc.p,don.p);
       const dist=_v.length()||1;
+      /* The donor turns this O-H onto the acceptor's oxygen, and the acceptor
+         turns its nearer lone pair onto this H. Both, because a bond that only
+         straightened the donor would leave the acceptor's other three
+         directions pointing wherever they were. */
+      aim(i, _t5.subVectors(don.h[k],don.o).normalize(),
+             _t3.subVectors(acc.o,don.o).normalize(), K_TORQ);
+      lonePairs(acc,_lpA,_lpB);
+      _t3.subVectors(don.h[k],acc.o).normalize();
+      aim(best, _lpA.dot(_t3)>=_lpB.dot(_t3)?_lpA:_lpB, _t3, K_TORQ);
       _v.multiplyScalar((dist-OO_EQ)*K_HB*bestLin/dist);
       forces[i].add(_v); forces[best].sub(_v);
       if(lines<HB_MAX_LINES){
@@ -884,6 +955,17 @@ function step(){
       const donates=site.h.distanceTo(w.o)<HB_MAX;
       const accepts=!donates && (w.h[0].distanceTo(site.o)<HB_MAX || w.h[1].distanceTo(site.o)<HB_MAX);
       if(!donates && !accepts) continue;
+      /* Adhesion is the same bond to a different partner, so it turns the water
+         the same way. Only the water turns: the cellulose is a solid. */
+      if(donates){
+        lonePairs(w,_lpA,_lpB);
+        _t3.subVectors(site.h,w.o).normalize();
+        aim(i, _lpA.dot(_t3)>=_lpB.dot(_t3)?_lpA:_lpB, _t3, K_TORQ);
+      } else {
+        const kk=w.h[0].distanceTo(site.o)<HB_MAX?0:1;
+        aim(i, _t5.subVectors(w.h[kk],w.o).normalize(),
+               _t3.subVectors(site.o,w.o).normalize(), K_TORQ);
+      }
       f.addScaledVector(_v,(dist-OO_EQ)*K_ADHERE/dist);
       adCount++;
       if(lines<HB_MAX_LINES){
@@ -938,6 +1020,9 @@ function step(){
       w.v.set(0,0,0); w.vap=0; condensed++;
     }
     w.p.add(w.v);
+    const ang=torq[i].length();
+    if(ang>1e-6) w.q.premultiply(_qt.setFromAxisAngle(
+      _t5.copy(torq[i]).multiplyScalar(1/ang), Math.min(ang,TORQ_MAX)));
     w.q.multiply(_tumble(w));
     place(w);
   }
@@ -951,12 +1036,16 @@ function step(){
    per draw and this runs three times per molecule per step. */
 function _gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)*2; }
 
-// a small random tumble, damped by how many bonds hold the molecule
-const _qt=new THREE.Quaternion(), _ax=new THREE.Vector3();
+/* Thermal tumbling, the rotational half of the thermostat. It used to be
+   divided by the bond count, which was standing in for the torque: a bonded
+   molecule was held still because nothing else was holding it. The torque holds
+   it now, so the noise is the same for everyone and what a molecule keeps of
+   its orientation is a result. */
+let TUMBLE=0.05;
+const _qt=new THREE.Quaternion(), _qr=new THREE.Quaternion(), _ax=new THREE.Vector3();
 function _tumble(w){
-  const k=0.05/(1+w.hb);
   _ax.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
-  return _qt.setFromAxisAngle(_ax,(Math.random()-0.5)*k);
+  return _qr.setFromAxisAngle(_ax,(Math.random()-0.5)*TUMBLE);
 }
 
 /* ---- evaporation, which is the whole point ----
