@@ -267,7 +267,16 @@ lactic:[
     // counted the doubling itself would say 2 while the stage showed 1.
     nad:1, made:0,
     fx:'red', perLane:true,
-    couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
+    /* NO `couple`, and this is the second step on the page whose missing couple
+     * is load-bearing. energy/energy.js draws a coupled step as "a real drop,
+     * part of it banked into a carrier" — true of glycolysis's GAPDH, where the
+     * oxidation genuinely stores energy in NADH, and backwards here: NAD⁺ is
+     * the DISCHARGED form and this reaction banks nothing. Declaring it coupled
+     * drew the spent carrier as though it were the charged one. Uncoupled and
+     * `rev:true`, the card draws both sides at nearly the same energy, which is
+     * what near-equilibrium means and what the verdict beneath it already says.
+     * The carrier turning over is the stage's claim and the ledger's, not this
+     * figure's. */
     // `redBond` is pyruvate's own name for the C2=O a reduction attacks, so the
     // target follows the bond on screen rather than a typed index. `act` names
     // the action for the hotspot's accessible label, as in both siblings.
@@ -307,8 +316,8 @@ alcoholic:[
     // makes "reversible" worth saying here
     rev:true,
     nad:1, made:0,
+    // uncoupled for the reason step 1 of the other branch gives
     fx:'red', perLane:true,
-    couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
     act:'Reduce the aldehyde', spot:{ at:'redBond', say:'Hand the hydride over' },
     takeaway:`The same hydride, one step later`,
     msg:`<b>Alcohol dehydrogenase</b> gives acetaldehyde the hydride, exactly as
@@ -891,21 +900,10 @@ enzMetaEl.addEventListener('click',e=>{
   cplOpen=!cplOpen; drawEnzMeta(); drawCouple();
 });
 
-/* ---- the coupling box: energy/energy.js's figures -------------------------
- * Names READ OFF THE MOLECULES, never typed. `from` names the second substrate
- * explicitly because on this page it is the whole story: the reaction is the
- * substrate plus NADH, and a curve labelled with the substrate alone would hide
- * the reagent the lesson is about. */
-function resolveCouple(st){
-  const i=steps().indexOf(st), c=st.couple, nameOf=k=>SPECS(k).short||SPECS(k).name;
-  return Object.assign({}, c, {
-    // …AND THE PROTON. Every hydride transfer in the cell takes an H⁺ from
-    // solution as well, and this is the one place the page writes the reaction
-    // out, so leaving it off here is where a student would learn it balances
-    // without one.
-    from: nameOf(speciesAt(i)[0]) + ' + NADH + H⁺',
-    to:   nameOf(st.species[0]) + ' + NAD⁺' });
-}
+/* ---- the energy card: energy/energy.js's figure ---------------------------
+ * ONE FIGURE, THE SOLO CURVE. No step here is coupled (see the `red` steps), so
+ * the tab strip, the pair view and `Energy.curve` are all unreachable and this
+ * page never calls them. Names are READ OFF THE MOLECULES, never typed. */
 function soloSpec(st){
   const nameOf=k=>SPECS(k).short||SPECS(k).name, i=steps().indexOf(st);
   return { from:nameOf(speciesAt(i)[0]), to:nameOf(st.species[0]), drop:st.rev===false };
@@ -923,35 +921,27 @@ const soloLine=st=>st.rev===false
      way.`;
 // Neither reduction is uphill, so there is one sentence and not two: the drop
 // pays for the carrier turning over, which is the only reason the cell bothers.
-// `cout` is the tray's spelling ("NAD+"); every other string on the page uses
-// the superscript, and this is the only line that puts a charged species into
-// prose rather than into an SVG label that energy/energy.js superscripts for us.
-const sup=n=>n.replace(/\+$/,'⁺');
-const coupleLine=c=>`This step runs <b>downhill</b>, and the drop is what pulls
-   <b>${sup(c.cout)}</b> back out of NADH. That is the only thing the cell
-   wanted from it.`;
-let figTab='curve';
+/* THE HYDRIDE AND THE PROTON, said in words rather than drawn. Both reductions
+ * take an H⁺ out of solution alongside the hydride, and with the pair figure
+ * gone this is the only place the page can say the reaction needs it. */
+const reduceLine=`<b>NADH</b> hands over a hydride and solution supplies an
+   <b>H⁺</b>. Both partners end lower: nothing is stored, and the cell is doing
+   this for the empty <b>NAD⁺</b> it gets back.`;
 const cplEl=document.getElementById('couplebox');
 cplEl.addEventListener('click',e=>{
-  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); return; }
-  const t=e.target.closest('[data-figtab]');
-  if(t){ figTab=t.dataset.figtab; drawCouple(); }
+  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); }
 });
 let shownCplStep=null;
 function drawCouple(){
   const i=focusStep();
   const st=(cplOpen&&!intro&&i<nSteps())?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
-  const c=st.couple?resolveCouple(st):null;
   cplEl.style.display='block';
   cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
-    +(c ? `<div class="nhead cpl-h">Coupled reaction</div>`
-          + Energy.tabs(figTab)
-          + (figTab==='curve' ? Energy.curve(c) : Energy.pair(c))
-          + `<p class="nbody">${coupleLine(c)}</p>`
-        : `<div class="nhead cpl-h">Energy curve</div>`
-          + Energy.solo(soloSpec(st))
-          + `<p class="nbody">${soloLine(st)}</p>`)
+    + `<div class="nhead cpl-h">Energy curve</div>`
+    + Energy.solo(soloSpec(st))
+    + `<p class="nbody">${soloLine(st)}</p>`
+    + (st.fx==='red' ? `<p class="nbody">${reduceLine}</p>` : '')
     + (st.rev===false
         ? `<div class="nhead irr">Irreversible in the cell</div>`
         : `<div class="nhead rev">Near equilibrium — reversible</div>`);
