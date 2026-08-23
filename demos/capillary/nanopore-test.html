@@ -148,6 +148,12 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
   #knobs .row b{color:var(--ink);font-weight:600}
   #knobs input[type=range]{width:100%;margin:2px 0 0;accent-color:var(--ink)}
   #knobs .measure{margin-top:9px;padding-top:8px;border-top:1px solid var(--paper-line)}
+  #knobs details{margin-top:9px;padding-top:8px;border-top:1px solid var(--paper-line)}
+  #knobs summary{cursor:pointer;list-style:none;color:var(--muted);
+    font:11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+  #knobs summary::-webkit-details-marker{display:none}
+  #knobs summary::after{content:' +'}
+  #knobs details[open] summary::after{content:' \2212'}
   .check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;
     font:600 var(--text-base)/1 var(--font-ui);color:var(--text-strong);
     padding:11px 18px;border-radius:var(--radius-pill);
@@ -949,9 +955,13 @@ function loop(){
 /* Each knob names the variable it drives, so the panel cannot drift from the
    physics: the getter and setter are the only place the value lives. */
 const KNOBS=[
-  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x'},
-  {k:'Wall pull',  get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3)},
-  {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3)},
+  /* THE THREE THAT TEACH. Capillary action is a competition between water
+     holding the wall and water holding itself, so adhesion and cohesion are the
+     lesson and everything else is apparatus. Speed is here because the outcome
+     takes a while to arrive and a student should not have to wait for it. */
+  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x', main:1},
+  {k:'Adhesion',   get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3), main:1},
+  {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
   {k:'H-bond',     get:()=>K_HB,      set:v=>K_HB=v,       min:0,   max:0.09, step:0.002, fmt:v=>v.toFixed(3)},
   {k:'Damping',    get:()=>DAMP,      set:v=>DAMP=v,       min:0.70,max:0.99, step:0.01,  fmt:v=>v.toFixed(2)},
   {k:'Jitter',     get:()=>JITTER/A,  set:v=>JITTER=v*A,   min:0,   max:0.03, step:0.001, fmt:v=>v.toFixed(3)},
@@ -959,6 +969,10 @@ const KNOBS=[
   {k:'Evap every', get:()=>EVAP_EVERY,set:v=>EVAP_EVERY=v, min:1,   max:60,   step:1,     fmt:v=>v+' fr'},
 ];
 const knobRows=document.getElementById('knobrows');
+/* The rest are apparatus, folded away: a panel of eight sliders says all eight
+   matter equally, and two of these are the whole point. */
+const more=document.createElement('details');
+more.innerHTML='<summary>more</summary>';
 KNOBS.forEach(kn=>{
   const l=document.createElement('label');
   l.innerHTML=`<span class="row"><span>${kn.k}</span><b></b></span>`
@@ -967,8 +981,9 @@ KNOBS.forEach(kn=>{
   input.value=kn.get();
   out.textContent=kn.fmt(kn.get());
   input.oninput=()=>{ const v=parseFloat(input.value); kn.set(v); out.textContent=kn.fmt(v); };
-  knobRows.appendChild(l);
+  (kn.main?knobRows:more).appendChild(l);
 });
+knobRows.appendChild(more);
 
 /* The number the knobs are being turned against: how much higher the water
    stands at the wall than in the middle. Measured off the molecules, so the
