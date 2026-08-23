@@ -67,6 +67,7 @@
     color: var(--muted);
   }
   .mast .spacer { flex: 1; pointer-events: none; }
+  .mast .gap { width: 0.6rem; pointer-events: none; }
 
   .btn {
     font-family: var(--sans);
@@ -200,10 +201,10 @@
   <a class="logo" href="index.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">what connects to what, and the question that does the connecting</span>
   <span class="spacer"></span>
-  <button class="btn on" id="engineBtn" data-view="engine">Engines</button>
-  <button class="btn" id="principleBtn" data-view="principle">Principles</button>
-  <button class="btn" id="relaxBtn">Relax</button>
-  <button class="btn" id="fitBtn">Fit</button>
+  <button class="btn on" data-view="lesson">Lessons</button>
+  <button class="btn" data-view="principle">Principles</button>
+  <span class="gap"></span>
+  <button class="btn" id="treeBtn">Gradual tree</button>
 </header>
 
 <div id="canvas">
@@ -213,11 +214,11 @@
 </div>
 
 <div class="legend">
-  <span><i class="swatch"></i> engine on disk</span>
+  <span><i class="swatch"></i> on disk</span>
   <span><i class="swatch dash"></i> not built yet</span>
   <span><i class="swatch dot"></i> a question, drawn between the concepts it needs</span>
 </div>
-<div class="hint">drag a node · drag the paper to pan · scroll to zoom · click to focus</div>
+<div class="hint" id="hint">drag a node · drag the paper to pan · scroll to zoom · click to focus</div>
 
 <script>
 /* ---- data ------------------------------------------------------------
@@ -290,7 +291,7 @@ const QUESTIONS = [
   ['Poke a hole in a membrane and it heals. Why?',           ['membrane','hydrophob','entropy']],
   ['What does a pump actually spend, and on what?',          ['membrane','coupling','glycolys']],
   ['Why do sprinters&#8217; legs burn at 200m but marathoners&#8217; don&#8217;t?', ['ferment','glycolys']],
-  ['Bread and beer: one organism, one pathway, two products.', ['ferment','glycolys']],
+  ['How does one organism running one pathway give you both bread and beer?', ['ferment','glycolys']],
   ['How do crucian carp survive sealed under ice?',          ['ferment','glycolys']],
   ['Why do red blood cells have no mitochondria?',           ['ferment','glycolys','krebs']],
   ['Why are apples stored in low oxygen, not just cold?',    ['ferment','krebs']],
@@ -303,15 +304,25 @@ const QUESTIONS = [
   ['How do hibernating animals burn fat as heat?',           ['etc','membrane','betaox']],
   ['How do bacteria live on sulfur or iron with no sun?',    ['etc','coupling']],
   ['Why is ATP worth spending at all?',                       ['coupling','krebs','massact']],
-  ['The four polymers are one reaction run four times.',      ['macromol','bonds','water']],
+  ['Why is one reaction enough to build all four polymers?',  ['macromol','bonds','water']],
   ['Why isn&#8217;t the mutation rate zero?',                ['dna','binding','enzyme']],
   ['What holds the two strands together, and why that strength?', ['dna','bonds','water']],
   ['Why does a bond form at all?',                            ['bonds','entropy']],
   ['One photon, one flash. One adrenaline, a million glucose. How?', ['scale','binding','glycolys']],
+  ['Why is a polymer built by removing water, and taken apart by adding it?', ['macromol','water','bonds']],
+  ['Why can you digest starch but not cellulose, when both are only glucose?', ['macromol','shape','enzyme']],
+  ['Why are there four classes of macromolecule and not forty?', ['macromol','bonds','dna']],
+  ['What makes a fat saturated, and why does a membrane care?', ['macromol','membrane']],
+  ['Why does one wrong amino acid out of 146 sickle a whole cell?', ['macromol','protein','folding']],
+  ['Why is DNA a double helix and not a single strand?', ['dna','bonds','shape']],
+  ['Why does the helix twist, instead of lying flat like a ladder?', ['dna','water','bonds']],
+  ['Why do the two strands run in opposite directions?', ['dna','shape','enzyme']],
+  ['How does a protein read the sequence without opening the helix?', ['dna','binding','protein']],
+  ['Why does heat separate the strands but leave the backbone intact?', ['dna','denature','bonds']],
 ];
 
 /* ---- the second view -------------------------------------------------
-   Same questions, different nodes. The engine view's concepts are the things
+   Same questions, different nodes. The lesson view's concepts are the things
    on disk, so a question attaches to the page that would answer it. The
    principle view's concepts are the ideas the question actually turns on, so
    glycolysis, Krebs and beta-oxidation stop being three nodes and become
@@ -387,6 +398,16 @@ const PRINCIPLE_REFS = [
   ['weak','charge','information'],        // two strands
   ['charge','freeenergy'],                // why a bond forms
   ['catalysis','recognition','scale'],    // amplification
+  ['charge','coupling'],                  // dehydration synthesis
+  ['recognition','catalysis'],            // starch vs cellulose
+  ['information','charge'],               // why four classes
+  ['assembly','weak'],                    // saturated fat
+  ['information','assembly'],             // one wrong amino acid
+  ['information','weak'],                 // double helix
+  ['weak','entropy'],                     // base stacking
+  ['information','catalysis'],            // antiparallel
+  ['recognition','information'],          // reading the grooves
+  ['weak','information'],                 // melting the strands
 ];
 
 /* ---- graph ---------------------------------------------------------- */
@@ -396,15 +417,21 @@ const svg = document.getElementById('edges');
 const NS = 'http://www.w3.org/2000/svg';
 
 const VIEWS = {
-  engine:    { concepts: CONCEPTS,   refs: QUESTIONS.map(q => q[1]), root: 'water',  label: 'Engines' },
-  principle: { concepts: PRINCIPLES, refs: PRINCIPLE_REFS,           root: 'charge', label: 'Principles' },
+  lesson:    { concepts: CONCEPTS,   refs: QUESTIONS.map(q => q[1]), root: 'water' },
+  principle: { concepts: PRINCIPLES, refs: PRINCIPLE_REFS,           root: 'charge' },
 };
 
+// `nodes`/`links` are the whole graph; `live`/`liveLinks` are what is on the
+// canvas. They differ only in tree mode, where the map starts at the root and
+// grows a level per click.
 let nodes = [], links = [], byId = {}, column = {};
+let live = [], liveLinks = [];
+let tree = false;
 
 function build(key) {
   const spec = VIEWS[key];
   nodes = []; links = []; byId = {}; column = {};
+  live = []; liveLinks = [];
   world.querySelectorAll('.node').forEach(el => el.remove());
   svg.replaceChildren();
 
@@ -424,8 +451,63 @@ function build(key) {
     }
   });
 
-  layer(spec.root);
-  paint();
+  if (tree) {
+    show(byId[spec.root], 0, 0);
+    expand(byId[spec.root]);
+  } else {
+    layer(spec.root);
+    for (const n of nodes) show(n, n.depth, n.y);
+  }
+}
+
+/* ---- growing the tree -------------------------------------------------
+   In tree mode a node's column is not its place in the whole graph but its
+   distance from the click that revealed it, so every expansion moves right
+   from where you asked. A node already on the canvas keeps its first
+   placement — the map grows, it does not rearrange under you. */
+
+function show(n, depth, y) {
+  if (n.visible) return;
+  n.visible = true;
+  n.depth = depth;
+  n.tx = depth * COL;
+  n.x = n.tx;
+  n.y = y;
+  n.vx = n.vy = 0;
+  paintNode(n);
+  live.push(n);
+  for (const l of links) {                       // the whole graph: this node may
+    if (l.painted || !l.a.visible || !l.b.visible) continue;   // complete an edge
+    paintLink(l);
+    liveLinks.push(l);
+  }
+}
+
+// a concept's questions, and the concepts each of those questions reaches —
+// the same two hops the highlight draws, which is why a click can do both
+function expand(c) {
+  if (c.expanded) return;
+  c.expanded = true;
+  const mark = live.length;
+  const qs = neighbours(c).filter(n => !n.visible);
+  qs.forEach((q, i) => {
+    show(q, c.depth + 1, c.y + (i - (qs.length - 1) / 2) * 130);
+    const next = neighbours(q).filter(n => !n.visible);
+    next.forEach((m, j) => show(m, q.depth + 1, q.y + (j - (next.length - 1) / 2) * 150));
+  });
+  alpha = Math.max(alpha, 0.75);        // the new arrivals need room made for them
+  follow = live.slice(mark);            // growth heads right; the view walks after it
+  followFrames = follow.length ? 200 : 0;
+  for (const n of live) if (n.kind === 'concept') n.el.querySelector('.meta').textContent = metaText(n);
+}
+
+function neighbours(n) {
+  const out = [];
+  for (const l of links) {
+    if (l.a === n) out.push(l.b);
+    if (l.b === n) out.push(l.a);
+  }
+  return out;
 }
 
 /* ---- layers ----------------------------------------------------------
@@ -468,47 +550,50 @@ function layer(root) {
 
 /* ---- DOM ------------------------------------------------------------- */
 
-function paint() {
-  for (const l of links) {
-    l.el = document.createElementNS(NS, 'line');
-    l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
-    l.el.setAttribute('stroke-width', '1');
-    l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
-    if (!l.b.built) l.el.setAttribute('stroke-dasharray', '4 4');
-    svg.appendChild(l.el);
-  }
-
-  for (const n of nodes) {
-    const el = document.createElement('div');
-    el.className = 'node ' + n.kind + (n.kind === 'concept' ? (n.built ? ' built' : ' planned') : '');
-    if (n.kind === 'concept') {
-      el.innerHTML = '<div class="name">' + n.name + '</div>' +
-        '<div class="meta">' + n.deg + (n.deg === 1 ? ' question' : ' questions') + '</div>' +
-        (n.on ? '<div class="on">' + n.on + '</div>' : '');
-    } else {
-      el.innerHTML = '<span class="q">' + n.text + '</span>';
-    }
-    n.el = el;
-    world.appendChild(el);
-  }
-
-  // measured once, after layout: the radius the repulsion treats each label as
-  for (const n of nodes) n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+function metaText(n) {
+  if (!tree || n.expanded) return n.deg + (n.deg === 1 ? ' question' : ' questions');
+  const hidden = neighbours(n).filter(m => !m.visible).length;
+  return hidden ? '+' + hidden + (hidden === 1 ? ' question' : ' questions') : n.deg + ' questions';
 }
 
+function paintNode(n) {
+  const el = document.createElement('div');
+  el.className = 'node ' + n.kind + (n.kind === 'concept' ? (n.built ? ' built' : ' planned') : '');
+  if (n.kind === 'concept') {
+    el.innerHTML = '<div class="name">' + n.name + '</div>' +
+      '<div class="meta">' + metaText(n) + '</div>' +
+      (n.on ? '<div class="on">' + n.on + '</div>' : '');
+  } else {
+    el.innerHTML = '<span class="q">' + n.text + '</span>';
+  }
+  n.el = el;
+  world.appendChild(el);
+  // measured on arrival: the radius the repulsion treats each label as
+  n.r = Math.hypot(el.offsetWidth, el.offsetHeight) / 2;
+}
+
+function paintLink(l) {
+  l.painted = true;
+  l.el = document.createElementNS(NS, 'line');
+  l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
+  l.el.setAttribute('stroke-width', '1');
+  l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
+  if (!l.b.built) l.el.setAttribute('stroke-dasharray', '4 4');
+  svg.appendChild(l.el);
+}
 
 /* ---- force relax ----------------------------------------------------- */
 
-let alpha = 1, running = true;
+let alpha = 1;
 
 function step() {
   const REPEL = 9000, SPRING = 0.022, COLUMN = 0.14, ROW = 0.0016, VMAX = 26;
-  for (const n of nodes) { n.vx *= 0.86; n.vy *= 0.86; }
+  for (const n of live) { n.vx *= 0.86; n.vy *= 0.86; }
 
-  for (let i = 0; i < nodes.length; i++) {
-    const a = nodes[i];
-    for (let j = i + 1; j < nodes.length; j++) {
-      const b = nodes[j];
+  for (let i = 0; i < live.length; i++) {
+    const a = live[i];
+    for (let j = i + 1; j < live.length; j++) {
+      const b = live[j];
       let dx = b.x - a.x, dy = b.y - a.y;
       let d2 = dx * dx + dy * dy;
       if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
@@ -521,7 +606,7 @@ function step() {
     }
   }
 
-  for (const l of links) {
+  for (const l of liveLinks) {
     const rest = 250;
     const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
     const d = Math.hypot(dx, dy) || 1;
@@ -531,7 +616,7 @@ function step() {
     l.b.vx -= ux * f; l.b.vy -= uy * f;
   }
 
-  for (const n of nodes) {
+  for (const n of live) {
     n.vx += (n.tx - n.x) * COLUMN;               // x belongs to the column, not the forces
     n.vy -= n.y * ROW;
     const v = Math.hypot(n.vx, n.vy);            // a clamp, or one overlap can fling a node
@@ -544,16 +629,35 @@ function step() {
 }
 
 function draw() {
-  for (const n of nodes) n.el.style.transform =
+  for (const n of live) n.el.style.transform =
     'translate(-50%,-50%) translate(' + n.x.toFixed(1) + 'px,' + n.y.toFixed(1) + 'px)';
-  for (const l of links) {
+  for (const l of liveLinks) {
     l.el.setAttribute('x1', l.a.x); l.el.setAttribute('y1', l.a.y);
     l.el.setAttribute('x2', l.b.x); l.el.setAttribute('y2', l.b.y);
   }
 }
 
+// A pan, never a zoom: refitting after every expansion snapped the whole map to
+// a new scale, which reads as a jerk. This eases the viewport sideways onto the
+// new growth instead, recomputed each frame because the nodes are still settling
+// under it, and leaves the zoom exactly where the reader put it.
+let follow = null, followFrames = 0;
+
+function followStep() {
+  if (!follow || followFrames-- <= 0) { follow = null; return; }
+  let cx = 0, cy = 0;
+  for (const n of follow) { cx += n.x; cy += n.y; }
+  cx /= follow.length; cy /= follow.length;
+  const tx = innerWidth * 0.62 - cx * view.k;   // new growth sits right of centre
+  const ty = innerHeight / 2 - cy * view.k;
+  view.x += (tx - view.x) * 0.05;
+  view.y += (ty - view.y) * 0.05;
+  applyView();
+}
+
 function frame() {
-  if (running) step();
+  step();
+  followStep();
   draw();
   requestAnimationFrame(frame);
 }
@@ -576,8 +680,9 @@ canvas.addEventListener('pointerdown', e => {
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
+  follow = null;
   if (hit) {
-    dragNode = nodes.find(n => n.el === hit);
+    dragNode = live.find(n => n.el === hit);
     hit.classList.add('dragging');
     dragging = 'node';
     alpha = Math.max(alpha, 0.35);              // a drag re-energises the layout
@@ -611,6 +716,7 @@ function endDrag(e) {
   const click = travel <= 5;
   if (dragging === 'node') {
     dragNode.el.classList.remove('dragging');
+    if (click && tree && dragNode.kind === 'concept') expand(dragNode);
     if (click) focus(dragNode);
     else dragNode.pinned = true;                // a node you placed stays placed
     dragNode = null;
@@ -626,6 +732,7 @@ canvas.addEventListener('pointercancel', endDrag);
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
+  follow = null;
   const k = Math.min(2.5, Math.max(0.2, view.k * Math.exp(-e.deltaY * 0.0015)));
   // zoom about the cursor, so the point under the pointer stays put
   view.x = e.clientX - (e.clientX - view.x) * (k / view.k);
@@ -642,17 +749,17 @@ function focus(n) {
   if (focused === n) { clearFocus(); return; }
   focused = n;
   document.body.classList.add('focusing');
-  for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
+  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
 
   // two hops, because one is not the interesting number here: a concept's
   // questions, and then the OTHER concept each question reaches. That second
   // ring is what the question is doing on the map at all.
   const hop1 = new Set(), hop2 = new Set();
-  for (const l of links) {
+  for (const l of liveLinks) {
     if (l.a === n) hop1.add(l.b);
     if (l.b === n) hop1.add(l.a);
   }
-  for (const l of links) {
+  for (const l of liveLinks) {
     if (hop1.has(l.a) && l.b !== n && !hop1.has(l.b)) hop2.add(l.b);
     if (hop1.has(l.b) && l.a !== n && !hop1.has(l.a)) hop2.add(l.a);
   }
@@ -661,7 +768,7 @@ function focus(n) {
   for (const m of hop1) m.el.classList.add('lit');
   for (const m of hop2) m.el.classList.add('lit', 'hop2');
 
-  for (const l of links) {
+  for (const l of liveLinks) {
     const first  = l.a === n || l.b === n;
     const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
     l.el.setAttribute('stroke', first || second ? '#e2643a' : (l.b.built ? '#1f5f4f' : '#6d6f76'));
@@ -672,8 +779,8 @@ function focus(n) {
 function clearFocus() {
   focused = null;
   document.body.classList.remove('focusing');
-  for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
-  for (const l of links) {
+  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+  for (const l of liveLinks) {
     l.el.setAttribute('stroke', l.b.built ? '#1f5f4f' : '#6d6f76');
     l.el.setAttribute('stroke-opacity', l.b.built ? '.30' : '.22');
   }
@@ -681,21 +788,11 @@ function clearFocus() {
 
 addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
 
-/* ---- controls --------------------------------------------------------- */
-
-const relaxBtn = document.getElementById('relaxBtn');
-relaxBtn.classList.add('on');
-relaxBtn.addEventListener('click', () => {
-  running = !running;
-  relaxBtn.classList.toggle('on', running);
-  if (running) { alpha = 0.6; for (const n of nodes) n.pinned = false; }
-});
-
-document.getElementById('fitBtn').addEventListener('click', fit);
+/* ---- framing ----------------------------------------------------------- */
 
 function fit() {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const n of nodes) {
+  for (const n of live) {
     const w = n.el.offsetWidth / 2, h = n.el.offsetHeight / 2;
     x0 = Math.min(x0, n.x - w); x1 = Math.max(x1, n.x + w);
     y0 = Math.min(y0, n.y - h); y1 = Math.max(y1, n.y + h);
@@ -710,7 +807,8 @@ function fit() {
 
 /* ---- the view toggle -------------------------------------------------- */
 
-let viewKey = 'engine';
+let viewKey = 'lesson';
+const hint = document.getElementById('hint');
 
 for (const btn of document.querySelectorAll('.btn[data-view]')) {
   btn.addEventListener('click', () => {
@@ -720,11 +818,23 @@ for (const btn of document.querySelectorAll('.btn[data-view]')) {
       b.classList.toggle('on', b.dataset.view === viewKey);
     clearFocus();
     build(viewKey);
-    alpha = 1; running = true;
-    relaxBtn.classList.add('on');
-    setTimeout(fit, 3000);          // the new layout needs the same settling time
+    alpha = 1;
+    setTimeout(fit, tree ? 1200 : 3000);   // the new layout needs settling time too
   });
 }
+
+const treeBtn = document.getElementById('treeBtn');
+treeBtn.addEventListener('click', () => {
+  tree = !tree;
+  treeBtn.classList.toggle('on', tree);
+  hint.textContent = tree
+    ? 'click a card to grow the next level · drag to pan · scroll to zoom'
+    : 'drag a node · drag the paper to pan · scroll to zoom · click to focus';
+  clearFocus();
+  build(viewKey);
+  alpha = 1;
+  setTimeout(fit, tree ? 1200 : 3000);
+});
 
 build(viewKey);
 setTimeout(fit, 4000);   // let the relax settle before framing it
