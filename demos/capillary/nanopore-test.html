@@ -113,6 +113,32 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
      with 2-3 A of thermal roughness, and no measurement of its shape
      meant anything. 900 is the smallest count where a surface is one.
 
+     THE CLIMB IS CURRENTLY DRIVEN BY AGITATION, NOT BY WETTING, and that is
+     the most important thing known about this bench. Four independent ways of
+     calming the liquid were tried, at the correct spacing, and every one of
+     them stopped the column dead while it was still 30 A short of where the
+     agitated run takes it:
+
+       feed the constraint's correction back into velocity   no climb
+       stop the closing approach at contact (inelastic)      no climb
+       couple the thermostat harder (DAMP 0.93 -> 0.85)      no climb
+       cap the speed at 0.5-1.0 A a step                     no climb
+
+     Each of those is the textbook-correct treatment of its own term, and each
+     leaves the same state behind: 8.6 neighbours inside 3.4 A, bulk speed
+     0.02-0.5, bonds up at 2.9. That is not a calm liquid, it is a SOLID. This
+     model has no liquid phase in between — it is either being shaken hard
+     enough to flow or it is frozen — and the rise on screen is the shaking.
+
+     Which traces back to the same root as everything else here: nothing sets a
+     temperature. The thermostat is a floor under the slowest molecules
+     (V_THERM 0.05 against a bulk that runs at 0.75), the energy actually
+     stirring the liquid comes from the constraint and the forces, and there is
+     no window where the water is warm enough to flow and cool enough to stay
+     put. Fixing it means the pressure drive and the incompressibility being the
+     same solver rather than two terms fighting, which is a different force
+     model, not another constant.
+
      WATCHING THE FLOW COSTS THE CURVE. Evaporation flattens the
      meniscus: ~10 A static, and 0-2 A once it is running, at every rate
      tried that still makes the flow watchable. The surface being drawn
@@ -614,6 +640,7 @@ let condensed=0;
    apart, so at these force constants the temperature can be a floor under the
    slowest molecules and not much more. Say floor, not temperature. */
 let V_THERM=0.05*A;
+let V_MAX=0;                      // speed ceiling, 0 for none
 /* TORQUE, because a bond that only pulls centres together cannot build a
    network. Measured before this existed: 1385 pairs sat close enough to bond
    and 806 of them — 58% — failed the angle test, on a cut already looser than
@@ -1033,6 +1060,11 @@ function step(){
     const sd=V_THERM*Math.sqrt(1-DAMP*DAMP);
     w.v.x+=_gauss()*sd; w.v.y+=_gauss()*sd; w.v.z+=_gauss()*sd;
     if(nbrN[i]===0 && w.hb===0) w.vap=(w.vap||0)+1; else w.vap=0;
+    /* A CEILING ON SPEED, off by default, and what it measures is worth more
+       than what it does. It cuts exactly the molecules thrown clear of the
+       surface — and it stops the column with them. See the header: every way of
+       calming this liquid stops the climb. */
+    if(V_MAX>0){ const sp=w.v.length(); if(sp>V_MAX) w.v.multiplyScalar(V_MAX/sp); }
     if(w.vap>VAP_DWELL && !w.gone){
       /* Dwell first, because a molecule at the top of a rising front is briefly
          free every few steps and hauling that one to the base would be moving
