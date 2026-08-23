@@ -902,11 +902,13 @@ const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
    to exactly that pixel, whatever the camera is doing, and the callout tracks
    the control without annotate.js knowing it is pointing at chrome. */
 const _anchor=new THREE.Vector3();
-function uiAnchor(el){
+/* `gap` is in CSS pixels, taken to the LEFT of the element's own left edge, so
+   the dot stands off the panel rather than sitting on its border. */
+function uiAnchor(el, gap){
   return ()=>{
     const host=stageEl.getBoundingClientRect(), r=el.getBoundingClientRect();
     return _anchor.set(
-      ((r.left+r.width*0.5-host.left)/host.width)*2-1,
+      ((r.left-(gap||0)-host.left)/host.width)*2-1,
       -(((r.top+r.height*0.5-host.top)/host.height)*2-1), 0.5).unproject(camera);
   };
 }
@@ -995,7 +997,7 @@ const KNOBS=[
   {k:'Steric',     get:()=>K_STERIC,  set:v=>K_STERIC=v,   min:0.1, max:2.5,  step:0.05,  fmt:v=>v.toFixed(2)},
 ];
 const knobRows=document.getElementById('knobrows');
-let evapInput=null;
+let evapInput=null, evapRow=null;
 /* The rest are apparatus, folded away: a panel of eight sliders says all eight
    matter equally, and two of these are the whole point. */
 const more=document.createElement('details');
@@ -1009,13 +1011,13 @@ KNOBS.forEach(kn=>{
   out.textContent=kn.fmt(kn.get());
   input.oninput=()=>{ const v=parseFloat(input.value); kn.set(v); out.textContent=kn.fmt(v); };
   (kn.main?knobRows:more).appendChild(l);
-  if(kn.k==='Evaporation') evapInput=input;
+  if(kn.k==='Evaporation'){ evapInput=input; evapRow=l; }
 });
 knobRows.appendChild(more);
 
-if(evapInput){
+if(evapInput&&evapRow){
   const note=NOTES.add({ text:'start the water leaving', offset:[-215,-4],
-    at:uiAnchor(evapInput),
+    at:uiAnchor(evapRow, 16),
     card:'Nothing climbs until water leaves the top. Evaporation at the surface '
        + 'is what draws the column up behind it, and in a leaf it is the dry air '
        + 'outside that does the pulling.' });
