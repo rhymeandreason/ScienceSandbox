@@ -893,28 +893,9 @@ const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
 })();
 
 /* THE ONE CONTROL THE PAGE WILL NOT SET FOR YOU, called out the same way the
-   wall is. Nothing travels up the pore until water starts leaving the top, so
-   the student has to start it.
-
-   Annotations anchor to a point in the SCENE, and this one has to land on a
-   slider in the DOM. So the slider's centre is taken in CSS pixels and
-   unprojected back through the camera: the world point that comes out projects
-   to exactly that pixel, whatever the camera is doing, and the callout tracks
-   the control without annotate.js knowing it is pointing at chrome. */
-const _anchor=new THREE.Vector3();
-/* Two elements, because the row and the control it holds want different axes:
-   the dot stands off the ROW's left edge by `gap` CSS pixels, and lines up with
-   the middle of the CONTROL rather than with the row's centre, which sits
-   between the name and the slider and looks like a miss. */
-function uiAnchor(xEl, yEl, gap){
-  return ()=>{
-    const host=stageEl.getBoundingClientRect();
-    const rx=xEl.getBoundingClientRect(), ry=yEl.getBoundingClientRect();
-    return _anchor.set(
-      ((rx.left-(gap||0)-host.left)/host.width)*2-1,
-      -(((ry.top+ry.height*0.5-host.top)/host.height)*2-1), 0.5).unproject(camera);
-  };
-}
+   wall is: nothing travels up the pore until water starts leaving the top.
+   `atElement` is annotate.js's DOM anchor — see its comment for why a callout
+   on chrome is the module's business rather than the page's. */
 
 /* The supply. Counts what is in the bottom band and tops it up toward the
    density a liquid has there, one molecule at a time so nothing is injected
@@ -1020,7 +1001,7 @@ knobRows.appendChild(more);
 
 if(evapInput&&evapRow){
   const note=NOTES.add({ text:'start the water leaving', offset:[-62,0],
-    at:uiAnchor(evapRow, evapInput, 16),
+    at:NOTES.atElement(evapRow, {gap:16, yFrom:evapInput}),
     card:'Nothing climbs until water leaves the top. Evaporation at the surface '
        + 'is what draws the column up behind it, and in a leaf it is the dry air '
        + 'outside that does the pulling.' });
