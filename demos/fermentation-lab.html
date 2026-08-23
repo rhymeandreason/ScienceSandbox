@@ -699,13 +699,8 @@ const rxmsgEl=document.getElementById('rxmsg');
 /* THE OPENING IS THE PROBLEM, NOT THE MOLECULE. Every other page here opens by
  * introducing what is on stage; this one opens by saying why the stage is
  * stuck, because the branch that follows is only interesting as an answer. */
-const INTRO_MSG=`Glycolysis has just finished. It made 2 ATP, and it also spent
-  <b>2 NAD⁺</b>, which are now <b>2 NADH</b>. A cell holds less NAD⁺ than one
-  second of glycolysis uses, so it is never stockpiled: every NAD⁺ has to come
-  back. Until these hydrides come off, glycolysis <b>cannot run again</b>. With
-  no oxygen, that is what these steps are for.
-  One glucose makes two pyruvate, so everything here happens twice: the stage
-  follows one of them and the ledger counts both.`;
+const INTRO_MSG=`Glycolysis has just spent the cell's <b>NAD⁺</b>, and it cannot
+  run again until something takes those hydrides back off <b>NADH</b>.`;
 const captionAt=i=>intro ? INTRO_MSG
   : i<nSteps() ? stepAt(i).msg : stepAt(nSteps()-1).msg;
 const headAt=i=>{ const st=stepAt(i); return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
