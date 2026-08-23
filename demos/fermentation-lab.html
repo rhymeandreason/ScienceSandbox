@@ -190,14 +190,23 @@ const carrierKeys=new Set(['nadh','nad']);
  *  THE LESSON SCRIPT
  * ============================================================= */
 
-/* THE OPENING BALANCE, CARRIED IN FROM GLYCOLYSIS. That page's POOL0 is chosen
+/* ONE GLUCOSE GAVE TWO PYRUVATE, AND THE STAGE SHOWS ONE OF THEM.
+ * Glycolysis shows its ×2 with two lanes and never labels it. That is not
+ * available here: NADH is 21 Å across against pyruvate's 6, so two pairs put
+ * four molecules in one frame and the substrate ends up 9% of the width, which
+ * is the reaction the page is about rendered as a speck. Standing the carrier
+ * on the stage is worth more than hiding the ×2, so the doubling becomes
+ * arithmetic — and it happens HERE, once, rather than in any step's numbers.
+ * Every step below counts what is on screen: one reaction, one carrier.
+ *
+ * THE OPENING BALANCE, CARRIED IN FROM GLYCOLYSIS. That page's POOL0 is chosen
  * so NAD⁺ runs to exactly 0 and 2 NADH are held at the end (glycolysis-lab.html),
  * and this page opens there. A COMMENTED LITERAL: nothing checks that the two
  * pages agree, so if glycolysis-lab.html's POOL0 changes, change this with it.
- * OWED is the debt the whole lesson is about — glycolysis spends one NAD⁺ per
- * G3P at its step 6, and there are two G3P per glucose. */
-const POOL0={NAD:0, NADH:2};
-const OWED=2;
+ * OWED then falls out of it — glycolysis spends one NAD⁺ per G3P at its step 6,
+ * and PER_GLUCOSE is how many G3P a glucose makes. */
+const PER_GLUCOSE=2;
+const OWED=PER_GLUCOSE;
 
 /* THE TWO DESTINATIONS. `when` is the precondition. `who` is inside it, because
  * what makes the pair worth showing is that the same problem gets the same
@@ -216,11 +225,13 @@ const BRANCHES=[
 const STEPS={
 lactic:[
   { n:1, enz:'Lactate dehydrogenase', hook:'One step, and that is the branch',
-    species:['lactate','lactate'], hold:['nad','nad'],
+    species:['lactate'], hold:['nad'],
     // near equilibrium: which way it runs is decided by how much NADH is about,
     // which is the same fact the branch exists to change
     rev:true,
-    pool:{NADH:-2, NAD:+2}, nad:2, made:0,
+    // ONE REACTION'S WORTH. The ledger multiplies by PER_GLUCOSE; a step that
+    // counted the doubling itself would say 2 while the stage showed 1.
+    nad:1, made:0,
     fx:'red', anchor:'oxC', perLane:true,
     couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
     // `redBond` is pyruvate's own name for the C2=O a reduction attacks, so the
@@ -235,14 +246,14 @@ lactic:[
 ],
 alcoholic:[
   { n:1, enz:'Pyruvate decarboxylase', hook:'A carbon leaves first',
-    species:['acetaldehyde','acetaldehyde'], hold:['nadh','nadh'],
+    species:['acetaldehyde'], hold:['nadh'],
     // a decarboxylation whose product leaves as a gas does not come back
     rev:false,
     // `carbonOut`, where the cycle's step record spells the same field `co2`:
     // tools/check-pages.js reads a quoted spec name as a page drawing that
     // molecule, and this page must NOT load a CO₂ spec — `decarb` assembles the
     // gas out of the substrate's own carbon and its two oxygens.
-    carbonOut:2, made:0,
+    carbonOut:1, made:0,
     /* NO `couple`, and that is load-bearing rather than an omission:
      * reaction/reaction.js's `decarb` reads exactly this to know it must not
      * mint an NADH. The cycle's decarboxylations are oxidative and bank a
@@ -256,11 +267,11 @@ alcoholic:[
       makes the carbonyl that the next step can reduce.` },
 
   { n:2, enz:'Alcohol dehydrogenase', hook:'The same event as lactate',
-    species:['ethanolSkel','ethanolSkel'], hold:['nad','nad'],
+    species:['ethanolSkel'], hold:['nad'],
     // liver alcohol dehydrogenase runs this one the other way, which is what
     // makes "reversible" worth saying here
     rev:true,
-    pool:{NADH:-2, NAD:+2}, nad:2, made:0,
+    nad:1, made:0,
     fx:'red', anchor:'oxC', perLane:true,
     couple:{ up:false, cin:'NADH', cout:'NAD+', tone:'n' },
     spot:{ at:'redBond', say:'Hand the hydride over' },
@@ -287,23 +298,22 @@ const setDone=v=>{ progress[branch]=v; };
 const stepAt=i=>steps()[i];
 const branchOf=k=>BRANCHES.find(b=>b.key===k);
 
-/* THE STAGE IS TWO PAIRS, INTERLEAVED — substrate, carrier, substrate, carrier.
- * One glucose gave two pyruvate and each needs its own NADH, so grouping them as
- * [pyruvate, pyruvate, NADH, NADH] would leave both substrates with the same
- * NEAREST carrier, and reaction/reaction.js's `red` picks its donor by nearness
- * (a stage question, answered by the stage). One NADH would then hand the same
- * hydride over twice. Woven, each pair is its own reaction standing on its own.
+/* THE STAGE IS ONE PAIR — substrate on the left, carrier on the right. `weave`
+ * survives the drop from two pairs to one and is still the right shape: it
+ * pairs each substrate with its own carrier, which is what keeps
+ * reaction/reaction.js's nearest-donor rule honest if a fourth pathway ever
+ * does fit two.
  */
-const BASE=['pyruvate','pyruvate'];
+const BASE=['pyruvate'];
 const weave=(subs,cars)=>subs.flatMap((k,j)=>cars&&cars[j]!=null?[k,cars[j]]:[k]);
-/* THE CARRIERS ARE ON STAGE FROM THE FIRST FRAME, on both branches, including
- * the ethanol branch's step 1 which does not touch them. Two reasons, and the
- * first is structural: a lane count that changes DURING a step breaks the
- * per-lane mapping from lane j to product j. The second is the lesson — an NADH
- * standing there unspent through the decarboxylation is the tension the branch
- * resolves, so it is the one molecule that has earned standing through a step it
- * has no part in. */
-const OPENING=weave(BASE, ['nadh','nadh']);
+/* THE CARRIER IS ON STAGE FROM THE FIRST FRAME, on both branches, including the
+ * ethanol branch's step 1 which does not touch it. Two reasons, and the first is
+ * structural: a lane count that changes DURING a step breaks the per-lane
+ * mapping from lane j to product j. The second is the lesson — an NADH standing
+ * there unspent through the decarboxylation is the tension the branch resolves,
+ * so it is the one molecule that has earned standing through a step it has no
+ * part in. */
+const OPENING=weave(BASE, ['nadh']);
 function speciesAt(i){
   if(i===0) return OPENING;
   const prev=steps()[i-1];
@@ -311,8 +321,8 @@ function speciesAt(i){
 }
 /* WHICH LANES A STEP ACTS ON — the ones with a target on them, asked of the
  * spec. glycolysis could say "every lane", because every lane held a substrate;
- * here two of the four are carriers, and a step that waits for four clicks when
- * only two lanes can be clicked never lands. */
+ * here one of the two is a carrier, and a step waiting for a click that cannot
+ * happen never lands. */
 const actsOn=(st,key)=>!!st&&!!st.spot&&!!spotPair(SPECS(key), st.spot.at);
 /* …off the step's INCOMING species, never off the lanes as they now stand. A
  * lane that has already run holds the product and stops answering, so asking
@@ -329,22 +339,22 @@ function halfRun(){
   const st=stepAt(done()), n=st?actingLanes(st).length:0;
   return (isPerLane(st) && n && laneDone.size) ? laneDone.size/n : 0;
 }
-function poolAt(i){ const p=Object.assign({},POOL0), S=steps();
-  for(let k=0;k<i;k++){ const d=S[k].pool||{}; for(const q in d) p[q]+=d[q]; }
-  if(i===done()){ const f=halfRun(), d=(S[i]||{}).pool||{};
-    for(const q in d) p[q]+=d[q]*f; }
-  return p; }
-/* THE LEDGER. Every row is a sum over the steps run, never a typed number —
- * `owed` is the one exception and it is the carried-in literal above.
- * `co2` and `made` are summed on both branches; which of them gets a ROW is
- * decided by whether any step in the SELECTED branch declares it (branchHas),
- * so the lactate branch does not print "CO₂ 0" and invite a comparison the page
- * is not making. */
+/* THE LEDGER, PER GLUCOSE. Every row is a sum over the steps run, never a typed
+ * number — `owed` is the one exception and it is the carried-in literal above.
+ * The steps count ONE reaction because that is what the stage shows, and the ×2
+ * is applied here, in the one place: a ledger that is per glucose and a stage
+ * that is per pyruvate is the trade this page made (see PER_GLUCOSE), and the
+ * multiply has to be visible in the code that does it.
+ * `carbonOut` and `made` are summed on both branches; which of them gets a ROW
+ * is decided by whether any step in the SELECTED branch declares it
+ * (branchHas), so the lactate branch does not print "CO₂ 0" and invite a
+ * comparison the page is not making. */
 function ledgerAt(i){ const L={nad:0, made:0, carbonOut:0}, S=steps();
   for(let k=0;k<i;k++){ const s=S[k];
     L.nad+=s.nad||0; L.made+=s.made||0; L.carbonOut+=s.carbonOut||0; }
   if(i===done()){ const f=halfRun(), s=S[i]||{};
     L.nad+=(s.nad||0)*f; L.made+=(s.made||0)*f; L.carbonOut+=(s.carbonOut||0)*f; }
+  for(const q of ['nad','made','carbonOut']) L[q]*=PER_GLUCOSE;
   // THE NUMBER THE PAGE IS FOR, and it is not a row that stands alone: what
   // makes the pathway able to continue is the debt and the repayment landing
   // on zero together.
@@ -352,15 +362,17 @@ function ledgerAt(i){ const L={nad:0, made:0, carbonOut:0}, S=steps();
   L.net=L.nad-OWED;
   return L; }
 const branchHas=f=>steps().some(s=>s[f]!=null);
+// …per glucose too, so the row cannot say 3 carbons beside a balance that is
+// counting two pyruvate.
 const carbonsAt=i=>speciesAt(i).filter(k=>!carrierKeys.has(k))
-                    .reduce((s,k)=>s+SPECS(k).gly.carbons,0);
+                    .reduce((s,k)=>s+SPECS(k).gly.carbons,0)*PER_GLUCOSE;
 
 /* =============================================================
  *  3D: lanes, labels, transitions
  * ============================================================= */
-// Half-separation of a PAIR (kit/lanes.js spaces n lanes evenly about it).
-// Tighter than glycolysis's 8 because there are four lanes, and one in every
-// two is a 44-heavy-atom dinucleotide beside a three-carbon acid.
+// Half-separation of the pair (kit/lanes.js spaces n lanes evenly about it).
+// Wider than glycolysis's 8: NADH is 21 Å across against pyruvate's 6, so the
+// gap has to clear the carrier rather than the substrate.
 const LANE=9.0;
 let lanes=[];
 let busy=false;
@@ -591,9 +603,11 @@ const rxmsgEl=document.getElementById('rxmsg');
  * introducing what is on stage; this one opens by saying why the stage is
  * stuck, because the branch that follows is only interesting as an answer. */
 const INTRO_MSG=`Glycolysis has just finished. It made 2 ATP — and it also spent
-  <b>2 NAD⁺</b>, which are standing here as <b>NADH</b>. There is no NAD⁺ left,
-  so glycolysis <b>cannot run again</b> until something takes those hydrides
-  back off. With no oxygen, that is what these steps are for.`;
+  <b>2 NAD⁺</b>, which are now <b>2 NADH</b>. There is no NAD⁺ left, so
+  glycolysis <b>cannot run again</b> until something takes those hydrides back
+  off. With no oxygen, that is what these steps are for.
+  One glucose makes two pyruvate, so everything here happens twice: the stage
+  follows one of them and the ledger counts both.`;
 const captionAt=i=>intro ? INTRO_MSG
   : i<nSteps() ? stepAt(i).msg : stepAt(nSteps()-1).msg;
 const headAt=i=>{ const st=stepAt(i); return st?`Step ${st.n} <em>(${st.hook})</em>`:''; };
@@ -663,7 +677,7 @@ const TALLY=[
   // counts read from the same ledger the sidebar prints, never typed
   { k:'nad',  spec:()=>NADP, name:()=>NADP.short, n:L=>L.nad },
   { k:'prod', spec:()=>M[branchOf(branch).product],
-    name:()=>M[branchOf(branch).product].short, n:()=>BASE.length },
+    name:()=>M[branchOf(branch).product].short, n:()=>PER_GLUCOSE },
 ];
 TALLY.forEach(t=>{
   t.host=tallyEl.querySelector(`[data-cell="${t.k}"]`);
