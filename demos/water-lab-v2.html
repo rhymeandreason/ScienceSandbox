@@ -93,6 +93,31 @@
   font-size: 15px; line-height: 1; color: var(--hot, #c1662a); margin-bottom: 2px;
 }
 @keyframes tryin { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1 } }
+
+/* The tutor's launcher as a primary pill. chat.css draws it as a quiet outlined
+   chip, deliberately, so a lesson that WANTS the tutor pressed says so itself
+   rather than changing the shared module under the featured page. Same recipe
+   as main.css's solid .pill — the id is only carrying the tokens the class
+   would have. */
+#askopen {
+  gap: var(--space-2);
+  padding: 12px 22px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: var(--weight-semibold) var(--text-base)/1 var(--font-ui);
+  letter-spacing: var(--tracking-wide);
+  color: #fff;
+  background: var(--text-strong);
+  box-shadow: var(--shadow-raise);
+  transition: filter var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
+}
+#askopen:hover { filter: brightness(1.07); background: var(--text-strong); }
+#askopen:active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-press);
+}
+#askopen .sub { color: rgba(255,255,255,.72); }
+#askopen.waiting::after { background: var(--accent-hot); }
 </style>
 </head>
 <body>
