@@ -109,7 +109,7 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
      meniscus: ~10 A static, and 0-2 A once it is running, at every rate
      tried that still makes the flow watchable. The surface being drawn
      down by flux is real. This flux is not — it is orders above a
-     leaf's, set so the tracers visibly move — so the flat surface under
+     leaf's, set so the flow is watchable — so the flat surface under
      Evaporate is an artefact of that choice, not a result. Watch the
      curve with it OFF and the flow with it ON; this bench cannot
      currently show both at once, and that is the honest state of it.
@@ -493,21 +493,11 @@ waters.forEach(place);
    liquid has to be drawn if its density is the claim. The wall stays
    ball-and-stick, so structure and bulk do not look like the same substance. */
 const R_O=1.40*A, R_H=0.95*A;
-/* TRACERS. A flowing liquid of 900 identical spheres shows no flow: the shape
-   stays put while every molecule in it moves, and the eye has nothing to follow.
-   So one in forty is tinted and otherwise identical — same mass, same forces,
-   same bonds — which is what a labelled-water experiment is. Watch these, not
-   the surface, to see whether the column moves. */
-const TRACER_EVERY=40;
-const isTracer=i=>i%TRACER_EVERY===0;
-const N_TRACE=Math.ceil(N_WATER/TRACER_EVERY);
 const oMesh=new THREE.InstancedMesh(SPHERE,
-  new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER-N_TRACE);
-const tMesh=new THREE.InstancedMesh(SPHERE,
-  new THREE.MeshLambertMaterial({color:P.bonds.hbond}), N_TRACE);
+  new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER);
 const hMesh=new THREE.InstancedMesh(SPHERE,
   new THREE.MeshLambertMaterial({color:P.atoms.H}), N_WATER*2);
-root.add(oMesh,tMesh,hMesh);
+root.add(oMesh,hMesh);
 
 /* H-bonds, dashed, the convention WaterSim.md 1 sets. The same line is drawn
    for a bond to a wall hydroxyl: adhesion IS this bond, to a different partner,
@@ -796,7 +786,7 @@ function _tumble(w){
  *
  *  Feeding it back in at the base is the root's half. Water leaves the leaf and
  *  water enters from below, so the column keeps its length and the water inside
- *  it travels up — which is the tracers' job to show.
+ *  it travels up.
  */
 let evaporating=false;
 /* It leaves FAST. Every molecule in flight is one the column has lost, so a
@@ -874,16 +864,13 @@ function supply(){
 const _M=new THREE.Matrix4();
 
 function draw(){
-  let o=0, t=0;
   waters.forEach((w,i)=>{
-    _M.makeScale(R_O,R_O,R_O).setPosition(w.o);
-    if(isTracer(i)) tMesh.setMatrixAt(t++,_M); else oMesh.setMatrixAt(o++,_M);
+    _M.makeScale(R_O,R_O,R_O).setPosition(w.o); oMesh.setMatrixAt(i,_M);
     for(let k=0;k<2;k++){
       _M.makeScale(R_H,R_H,R_H).setPosition(w.h[k]); hMesh.setMatrixAt(i*2+k,_M);
     }
   });
   oMesh.instanceMatrix.needsUpdate=true;
-  tMesh.instanceMatrix.needsUpdate=true;
   hMesh.instanceMatrix.needsUpdate=true;
 }
 
@@ -971,11 +958,10 @@ document.getElementById('evap').onclick=e=>{
    palette entries — chloride's green and the H-bond's blue — rather than typed
    colours, so they cannot drift from the rest of the sandbox.
 
-   The tracers keep their own colour and stay legible, because a labelled water
-   that matches the water around it is not a label. */
-const TINT_WALL=P.atoms.Cl, TINT_WATER=P.bonds.hbond, TINT_TRACER=P.bonds.iondipole;
+*/
+const TINT_WALL=P.atoms.Cl, TINT_WATER=P.bonds.hbond;
 const plain=new Map();
-[...wallMeshes, wallBondMesh, oMesh, hMesh, tMesh].forEach(m=>plain.set(m,m.material.color.getHex()));
+[...wallMeshes, wallBondMesh, oMesh, hMesh].forEach(m=>plain.set(m,m.material.color.getHex()));
 /* BLENDED, not replaced. Flooding every atom with one flat colour throws away
    the tone inside a molecule: a hydrogen and the oxygen it hangs off become the
    same sphere and the shape stops reading. Each element keeps its own colour and
@@ -993,7 +979,7 @@ document.getElementById('tint').onclick=e=>{
   };
   wallMeshes.forEach(m=>set(m,TINT_WALL));
   set(wallBondMesh,TINT_WALL);
-  set(oMesh,TINT_WATER); set(hMesh,TINT_WATER); set(tMesh,TINT_TRACER);
+  set(oMesh,TINT_WATER); set(hMesh,TINT_WATER);
   e.currentTarget.classList.toggle('pill--ghost',!tinted);
 };
 
