@@ -265,6 +265,13 @@ The stakes were not only money. With the prompt replaceable, the endpoint answer
 
 **Audience.** The tutor prompt says *high school*, chosen deliberately, even though `demos/CLAUDE.md` frames the lessons for college Bio 101.
 
+## Deploying
+
+`docs/deploy.md` - what deploys, the four environment variables, the smoke test,
+and why the domain moves last. Two of those variables fail quietly: unset
+`TUTOR_KEYS` makes the tutor public, unset `DATABASE_URL` removes the rate limit
+along with the log, and neither is visible from the page.
+
 ## Running it locally
 
 **The pages are dependency-free; the tutor is not.** `water-lab`'s ask box calls `api/`, which needs the model SDKs and a key, and neither is in the working tree:

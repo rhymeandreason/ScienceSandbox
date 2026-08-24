@@ -13,3 +13,27 @@ api/log.js
 # would be a read-only form with a Save that could never work, so it is not
 # deployed at all — and the page checks its own hostname besides.
 demos/questions-cms.html
+
+# ---------------------------------------------------------------------------
+# Everything below is about a CLI deploy (`vercel --prod` from a laptop), which
+# uploads the WORKING TREE. `.vercelignore` is the only list it consults - a
+# file being gitignored does not keep it out. A deploy from the Git integration
+# never sees any of this, because it only ever builds what is committed, and
+# that is the way to deploy this repo. These lines are the seatbelt for the day
+# somebody deploys from the laptop instead.
+
+# The key. Gitignored, and that is not the same as vercelignored.
+.env.local
+.env*.local
+
+# Agent worktrees: ~100 MB of full repo checkouts, including their own copies
+# of everything above.
+.claude/
+
+# Installed per build from package.json; uploading them is slower and can ship
+# a tree that does not match the manifest.
+node_modules/
+demos/node_modules/
+
+.DS_Store
+**/.DS_Store
