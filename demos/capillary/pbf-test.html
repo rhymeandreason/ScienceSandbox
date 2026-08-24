@@ -2311,8 +2311,25 @@ function evaporate(){
   for(let i=0;i<nW;i++){
     /* One that leaves under its own thermal speed rather than through the
        evaporation counter is still gone, and with no ceiling above the pore it
-       otherwise flies off forever and the column is quietly one short. */
-    if(!GONE[i] && PX[3*i+1]>escapeTop){ GONE[i]=1; VX[3*i]=VX[3*i+1]=VX[3*i+2]=0; }
+       otherwise flies off forever and the column is quietly one short.
+
+       BUT ONLY WHILE THE AIR IS DRY. This ran whatever the slider said, and it
+       was invisible until the pore started reaching the top: the brim now
+       stands about two angstroms under escapeTop, so surface molecules crossed
+       it constantly and left as vapour with evaporation switched off. Zero on
+       that slider is SATURATED air, not cold air — the note by EVAP_RATE says
+       so — and nothing evaporates into saturated air. So the ceiling turns
+       solid instead: a molecule that reaches it stops there and stays in the
+       liquid, and the only way out of this pore is the one the student opened. */
+    if(!GONE[i] && PX[3*i+1]>escapeTop){
+      if(EVAP_RATE<=0){
+        PX[3*i+1]=escapeTop;
+        if(VX[3*i+1]>0) VX[3*i+1]=0;
+        place(i);
+        continue;
+      }
+      GONE[i]=1; VX[3*i]=VX[3*i+1]=VX[3*i+2]=0;
+    }
     if(!GONE[i]) continue;
     PX[3*i+1]+=ESCAPE_V; place(i);
     if(PX[3*i+1]>vapourTop && !SPENT[i]){
