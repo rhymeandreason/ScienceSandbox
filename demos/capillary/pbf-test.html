@@ -1567,43 +1567,48 @@ const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
    itself off the seeded pool, so the comparison is like for like. Ghost
    molecules below the floor would be the proper answer and are worth it if this
    ever stops being a bench. */
-/* MEASURED, 4600 steps, evaporation off. Adhesion 0: the pool stays at the 300
-   it was seeded with and the blob stops growing, which is the whole point — a
-   non-wetting capillary does not imbibe, and the old headcount had it filling
-   anyway. Adhesion 0.026: 300 to 541, front -26.4 to -23.5, still drawing.
-   Adhesion 0.036: 616, and the water 46.8 A up the wall at 8 degrees. Water
-   enters in proportion to how hard the meniscus pulls, which is what a bath
-   does and what a headcount could not do. */
-const SUPPLY_PULL=0.02;                // how stretched the base must be to draw
-const SUPPLY_PER_STEP=4;               // a ceiling, so nothing arrives as a wave
-let RHO_BAND=0;                        // rest density AT THE BOUNDARY, measured
+/* MEASURED TWICE, and the second measurement changed the variable. Density was
+   the obvious signal — the base draws when the base is stretched — and it does
+   not work, for the reason the solver exists: an incompressible liquid barely
+   changes density under tension. The base band read between -1.2% and +0.6% of
+   its rest density while the column above it was pulling hard, so a 2% threshold
+   fired almost never: over 3000 steps the supply asked zero times in five
+   intervals out of six and put in 54 molecules against the ~1600 the pore holds.
+   The rise was supply-limited and looked like physics.
 
-function bandDensity(){
+   Pressure is the right variable and the solver already has it. lambda IS the
+   pressure, positive under tension, and in the column it runs to 0.9 where the
+   density deficit is one percent. So the band's mean lambda is what the
+   reservoir watches: water enters while the liquid at the mouth is being pulled
+   on, which is what a bath does, and the signal is large enough to act on.
+
+   The band reads 0.9 to 1.2 against a 0.15 threshold, so it draws steadily, and
+   the front finally MOVES: -28.8 A at step 500, -21.4 at 2000, -15.6 at 4200,
+   -12.1 at 4900, with the pool going 300 to 1078 on the way. Seventeen
+   angstroms of rise in about a minute at Speed 3x, which is a column climbing
+   rather than a number changing. On the density signal the same run put in 54
+   molecules and the front stayed where it was. */
+const SUPPLY_PULL=0.15;                // the tension at the mouth that draws
+const SUPPLY_PER_STEP=4;               // a ceiling, so nothing arrives as a wave
+
+/* The mean pressure over the base band. Under tension it is positive. */
+function bandTension(){
   const top=FLOOR+SUPPLY_BAND;
   let sum=0, n=0;
   for(let i=0;i<waters.length;i++){
     const a=waters[i];
-    if(!a||a.gone||a.p.y>top) continue;
-    let rho=wPoly(0);
-    for(let q=0;q<nbrN[i];q++){
-      const b=waters[nbr[i*NBR_MAX+q]];
-      if(!b||b.gone) continue;
-      const r2=a.p.distanceToSquared(b.p);
-      if(r2<H2) rho+=wPoly(r2);
-    }
-    sum+=rho; n++;
+    if(!a||a.gone||a.p.y>top||nbrN[i]<4) continue;
+    sum+=lam[i]; n++;
   }
-  return n<8 ? null : sum/n;
+  return n<6 ? null : sum/n;
 }
 
 let FEED=true;
 function supply(){
-  if(!FEED || RHO_0<=0) return;         // nothing to compare against yet
-  const rho=bandDensity();
-  if(rho===null){ injectOne(); return; }   // the base has emptied; re-establish it
-  if(RHO_BAND<=0){ RHO_BAND=rho; return; } // first reading is the reference
-  /* Stretched, and by enough to be a pull rather than thermal noise. */
-  if((rho-RHO_BAND)/RHO_BAND > -SUPPLY_PULL) return;
+  if(!FEED || RHO_0<=0) return;         // the solver has no pressure yet
+  const pull=bandTension();
+  if(pull===null){ injectOne(); return; }  // the base has emptied; re-establish it
+  if(pull < SUPPLY_PULL) return;           // nothing is pulling; nothing enters
   for(let k=0;k<SUPPLY_PER_STEP;k++){
     if(waters.length>=N_MAX) return;
     if(!injectOne()) return;             // nowhere clear to put one
@@ -1941,7 +1946,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; w.spent=false; }); waters.forEach(place);
-  evapCount=0; condensed=0; RHO_0=0; RHO_BAND=0; stepNo=0; angHist.length=0; };
+  evapCount=0; condensed=0; RHO_0=0; stepNo=0; angHist.length=0; };
 
 /* =============================================================
  *  MEASUREMENTS NOT MADE. Two, both designed and neither run, kept
