@@ -23,5 +23,10 @@
   "lobe2": 140,
   "frames": 41,
   "cutoff": 12,
+  "ss": {
+    "helix": 235,
+    "strand": 78,
+    "coil": 154
+  },
   "note": "PII apo vs PI holo: the angle is closure plus isozyme difference. The two cannot be separated from deposited structures; the only same-isozyme candidates are unsequenced (1HKG 83 UNK, 2YHX 78 UNK)."
 }

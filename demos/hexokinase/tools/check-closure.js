@@ -32,16 +32,18 @@ const meta = JSON.parse(fs.readFileSync(path.join(DATA, 'HK.closure.json'), 'utf
 
 head('1. the file is the format it says it is');
 const magic = buf.slice(0, 4).toString();
-ok(magic === 'HXM1', 'magic HXM1', magic);
+ok(magic === 'HXM2', 'magic HXM2', magic);
 const FR = buf.readUInt16LE(4), N = buf.readUInt16LE(6);
 ok(FR === meta.frames, 'frame count matches the metadata', `${FR} vs ${meta.frames}`);
 ok(N === meta.paired, 'residue count matches the metadata', `${N} vs ${meta.paired}`);
 
 let o = 8;
 const resNum = [], lobe = [];
+let ss = '';
 for (let i = 0; i < N; i++) { resNum.push(buf.readUInt16LE(o)); o += 2; }
 for (let i = 0; i < N; i++) { lobe.push(buf.readUInt8(o)); o += 1; }
-const expect = 8 + N * 3 + FR * N * 12;
+for (let i = 0; i < N; i++) { ss += String.fromCharCode(buf.readUInt8(o)); o += 1; }
+const expect = 8 + N * 4 + FR * N * 12;
 ok(buf.length === expect, 'file length is exactly the header plus the frames', `${buf.length} vs ${expect}`);
 
 const frames = [];
@@ -132,7 +134,19 @@ ok(Math.abs(angles[FR - 1] - meta.hingeAngleDeg) < 2.0,
    'the final angle is the one the metadata publishes',
    `${angles[FR - 1].toFixed(1)} vs ${meta.hingeAngleDeg} deg`);
 
-head('7. the honesty the page depends on');
+head('7. secondary structure is the file\'s own, not a guess');
+const { readSS } = require('./pdbio.js');
+const ssMap = readSS(fs.readFileSync(path.join(DATA, meta.open.id + '.pdb'), 'utf8'), A.chain);
+const fromFile = PA.map(c => ssMap.get(c.n) || 'C').join('');
+ok(ss === fromFile, `all ${N} assignments still match ${meta.open.id}'s HELIX/SHEET records`);
+ok(/^[HEC]+$/.test(ss), 'every residue is H, E or C');
+const cnt = { H: 0, E: 0, C: 0 };
+for (const c of ss) cnt[c]++;
+ok(cnt.H === meta.ss.helix && cnt.E === meta.ss.strand && cnt.C === meta.ss.coil,
+   'the metadata counts are the counts in the file',
+   `${cnt.H}H ${cnt.E}E ${cnt.C}C`);
+
+head('8. the honesty the page depends on');
 ok(meta.crossIsozyme === true, 'the cross-isozyme caveat is recorded in the metadata');
 ok(typeof meta.note === 'string' && meta.note.length > 40, 'the caveat is spelled out, not just flagged');
 ok(A.unk === 0 && B.unk === 0, 'neither endpoint has unsequenced residues', `${A.unk}/${B.unk}`);

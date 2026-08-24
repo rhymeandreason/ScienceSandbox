@@ -45,7 +45,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { readCA, align, superpose, dist } = require('./pdbio.js');
+const { readCA, readSS, align, superpose, dist } = require('./pdbio.js');
 
 const DATA = path.join(__dirname, '..', 'data');
 const OPEN = '1IG8', CLOSED = '3B8A';
@@ -53,7 +53,7 @@ const OPEN = '1IG8', CLOSED = '3B8A';
 const FRAMES = 41;      // t = 0 .. 1
 const CUTOFF = 12;      // A; pairs closer than this in either endpoint
 const ITERS = 300;      // SMACOF sweeps per frame
-const MAGIC = 'HXM1';
+const MAGIC = 'HXM2';   // HXM1 had no secondary structure; the tube needs it
 
 const load = id => {
   const s = readCA(fs.readFileSync(path.join(DATA, id + '.pdb'), 'utf8'));
@@ -171,8 +171,15 @@ for (let f = 0; f < FRAMES; f++) {
   }
 }
 
+/* ---- secondary structure, from the OPEN endpoint's own records ------ */
+const ssMap = readSS(fs.readFileSync(path.join(DATA, OPEN + '.pdb'), 'utf8'), A.chain);
+const ss = PA.map(c => ssMap.get(c.n) || 'C').join('');
+const ssCount = { H: 0, E: 0, C: 0 };
+for (const c of ss) ssCount[c]++;
+console.log(`secondary structure from ${OPEN}: ${ssCount.H} helix, ${ssCount.E} strand, ${ssCount.C} coil`);
+
 /* ---- write ---------------------------------------------------------- */
-const head = 4 + 2 + 2 + N * 2 + N;
+const head = 4 + 2 + 2 + N * 2 + N + N;
 const buf = Buffer.alloc(head + FRAMES * N * 3 * 4);
 let o = 0;
 buf.write(MAGIC, o); o += 4;
@@ -180,6 +187,7 @@ buf.writeUInt16LE(FRAMES, o); o += 2;
 buf.writeUInt16LE(N, o); o += 2;
 for (let i = 0; i < N; i++) { buf.writeUInt16LE(PA[i].n, o); o += 2; }
 for (let i = 0; i < N; i++) { buf.writeUInt8(lobeOf[i], o); o += 1; }
+for (let i = 0; i < N; i++) { buf.writeUInt8(ss.charCodeAt(i), o); o += 1; }
 for (const fr of frames) for (const p of fr) {
   buf.writeFloatLE(p.x, o); o += 4;
   buf.writeFloatLE(p.y, o); o += 4;
@@ -196,6 +204,7 @@ const meta = {
   hingeAngleDeg: +hingeFit.angle.toFixed(1),
   lobe1: lobe1.length, lobe2: lobe2.length,
   frames: FRAMES, cutoff: CUTOFF,
+  ss: { helix: ssCount.H, strand: ssCount.E, coil: ssCount.C },
   note: 'PII apo vs PI holo: the angle is closure plus isozyme difference. '
       + 'The two cannot be separated from deposited structures; the only '
       + 'same-isozyme candidates are unsequenced (1HKG 83 UNK, 2YHX 78 UNK).',

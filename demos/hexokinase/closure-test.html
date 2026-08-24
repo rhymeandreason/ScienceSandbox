@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hexokinase closure — test</title>
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
+<style>
+  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:400px;
+    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
+    background:rgba(255,255,255,.88);border:1px solid var(--hair);border-radius:8px;
+    padding:10px 12px}
+  #note b{color:var(--ink)}
+  #note .measured{color:#1f6b3a}
+  #note .caveat{color:#a8571b}
+  #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
+    font-size:12px;color:var(--muted);background:rgba(255,255,255,.88);
+    border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
+  #ctl{position:absolute;right:16px;bottom:16px;z-index:6;display:grid;gap:8px;
+    font-family:var(--font-sans);font-size:12px;color:var(--muted);
+    background:rgba(255,255,255,.92);border:1px solid var(--hair);
+    border-radius:8px;padding:10px 12px;width:250px}
+  #ctl label{display:grid;gap:2px}
+  #ctl label.row{grid-template-columns:auto 1fr;align-items:center;gap:6px}
+  #ctl label.row input{width:auto}
+  #ctl output{font-family:var(--font-mono,monospace);color:var(--ink)}
+  #ctl input[type=range]{width:100%}
+  #ctl hr{border:0;border-top:1px solid var(--hair);margin:2px 0;width:100%}
+  #ctl .head{font-weight:600;color:var(--ink)}
+  #ends{position:absolute;left:16px;bottom:16px;z-index:6;display:flex;gap:6px}
+  #ends button{font-family:var(--font-sans);font-size:13px;cursor:pointer;
+    background:var(--paper,#fff);color:var(--ink);border:1px solid var(--hair);
+    border-radius:8px;padding:8px 14px}
+  #ends button[aria-pressed="true"]{background:var(--ink);color:var(--paper,#fff)}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="gl"></canvas>
+  </main>
+</div>
+
+<div id="note">
+  <b>Test — does the hexokinase domain closure read as a hinge?</b><br><br>
+  The bench for the question the blob in <b>glycolysis-lab</b> currently
+  ducks: at step 1 an enzyme is drawn as a featureless disc, because at that
+  scale a drawn protein would be wrong about fold, size and active site
+  alike. This asks whether a real one is worth drawing instead.<br><br>
+  <span class="measured"><b>Green = measured.</b></span> Both endpoints are
+  deposited yeast hexokinase, and every number in the panel is read from the
+  bake, not typed here.<br><br>
+  <span class="caveat"><b>The caveat, stated because it is real:</b></span>
+  the open form is isozyme <b>PII</b> and the closed form is <b>PI</b>. They
+  are 77% identical, but the angle is closure <i>plus</i> whatever the two
+  isozymes differ by, and those cannot be separated from deposited files.
+  The same-isozyme candidates, 1HKG and 2YHX, have 83 and 78 residues the
+  depositors could not identify, so no residue-level path exists along them.
+</div>
+
+<div id="hud">loading…</div>
+
+<div id="ctl">
+  <div class="head">Closure</div>
+  <label>t <output id="tOut">0.00</output>
+    <input id="t" type="range" min="0" max="1" step="0.005" value="0"></label>
+  <label class="row"><input id="play" type="checkbox"> play</label>
+  <hr>
+  <div class="head">Show</div>
+  <label class="row"><input id="lobes" type="checkbox" checked> colour the two lobes</label>
+  <label class="row"><input id="ghost" type="checkbox"> ghost of the open form</label>
+  <label class="row"><input id="spin" type="checkbox"> turntable</label>
+</div>
+
+<div id="ends">
+  <button id="bOpen" aria-pressed="true">Open</button>
+  <button id="bClosed" aria-pressed="false">Closed</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../palette.js"></script>
+<script src="../tokens-from-palette.js"></script>
+<script src="../molecules.js"></script>
+<script src="../scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="../hemoglobin/tube.js"></script>
+<script src="closure.js"></script>
+<script>
+/* =====================================================================
+ *  closure-test.html — scrub the baked hexokinase closure.
+ *
+ *  A BENCH, NOT A LESSON. No step chrome, no lesson copy, no pathways.css.
+ *  The one question is whether 18.6 degrees of domain closure reads as a
+ *  hinge or as a crossfade; everything here serves looking at that, and
+ *  the decision about whether glycolysis step 1 should stop drawing a
+ *  blob comes after, as a separate conversation.
+ *
+ *  The tube is rebuilt per frame rather than morphed, because TubeLib
+ *  bakes positions into geometry: there is no vertex to move afterwards.
+ *  467 residues at these settings is cheap enough that the honest thing
+ *  is also the fast enough thing.
+ *
+ *  NUMBERS IN THE PANEL COME FROM HK.closure.json. None is typed in this
+ *  file -- a re-bake that changed the angle and left a caption saying
+ *  18.6 is exactly the drift the repo keeps paying for.
+ * ===================================================================== */
+
+const canvas = document.getElementById('gl');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam: { theta: 0.7, phi: 1.15, r: 200 }, rMin: 40, rMax: 900 });
+
+/* Stage.measure/frame take a MolLib spec and this is a Ca trace, so the
+   distance is solved here instead -- but SOLVED, off the widest frame of
+   the trajectory and the real frustum, never a number typed until it
+   looked right at one window size. Re-solved on resize for the same
+   reason: the vertical fov is fixed, so a narrow window crops width. */
+function frameAll(pointsPerFrame) {
+  let cx = 0, cy = 0, cz = 0, n = 0;
+  for (const pts of pointsPerFrame) for (const p of pts) { cx += p[0]; cy += p[1]; cz += p[2]; n++; }
+  cx /= n; cy /= n; cz /= n;
+  let maxR = 0;
+  for (const pts of pointsPerFrame)
+    for (const p of pts)
+      maxR = Math.max(maxR, Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz));
+  return { centre: [cx, cy, cz], maxR };
+}
+
+let FRAMING = null;
+function solveCam() {
+  if (!FRAMING) return;
+  const vfov = camera.fov * Math.PI / 180;
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const need = FRAMING.maxR / Math.sin(Math.min(vfov, hfov) / 2);
+  cam.r = need * 1.12;               // margin so the tube's own radius clears
+  applyCam();
+}
+
+const TUBE = { sides: 10, segPerRes: 2 };
+
+/* Lobe 1 holds still, lobe 2 swings, and the hinge strands belong to
+   neither. Three colours so the eye can see WHICH part moved -- a single
+   colour makes a hinge look like the whole protein breathing. */
+const COL = {
+  1: new THREE.Color(0x5b6b7a),    // large lobe, cool and recessive
+  2: new THREE.Color(0xc65d2e),    // small lobe, warm: the thing that moves
+  0: new THREE.Color(0x9aa4ad),    // hinge and termini
+  flat: new THREE.Color(0x7d8a95),
+};
+
+let D = null, meta = null;
+let group = null, ghostGroup = null;
+let t = 0, playing = false, dir = 1;
+
+const hud = document.getElementById('hud');
+const tIn = document.getElementById('t'), tOut = document.getElementById('tOut');
+const cbLobes = document.getElementById('lobes');
+const cbGhost = document.getElementById('ghost');
+const cbSpin = document.getElementById('spin');
+const cbPlay = document.getElementById('play');
+const bOpen = document.getElementById('bOpen'), bClosed = document.getElementById('bClosed');
+
+/* Split the trace into runs of one lobe, so each run becomes its own tube
+   and takes its own colour. A run needs its neighbours' endpoints or the
+   tubes show a gap at every boundary, hence the one-residue overlap. */
+function runsByLobe(lobe, N) {
+  const out = [];
+  let s = 0;
+  for (let i = 1; i <= N; i++) {
+    if (i === N || lobe[i] !== lobe[s]) {
+      out.push({ lo: Math.max(0, s - 1), hi: Math.min(N - 1, i), kind: lobe[s] });
+      s = i;
+    }
+  }
+  return out.filter(r => r.hi - r.lo >= 2);
+}
+
+let RUNS = null;
+
+function buildAt(u, target, opacity) {
+  const pts = D.at(u);
+  const g = new THREE.Group();
+  for (const r of RUNS) {
+    const CA = [], ss = [];
+    for (let i = r.lo; i <= r.hi; i++) { CA.push(pts[i]); ss.push(D.ss[i]); }
+    const colour = cbLobes.checked ? COL[r.kind] : COL.flat;
+    for (const part of TubeLib.chain(THREE, CA, ss, TUBE)) {
+      const mat = Stage.bondMat(colour.getHex());
+      if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; mat.depthWrite = false; }
+      g.add(new THREE.Mesh(part.geo, mat));
+    }
+  }
+  target.add(g);
+  return g;
+}
+
+function dispose(g) {
+  if (!g) return;
+  g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  g.parent && g.parent.remove(g);
+}
+
+function rebuild() {
+  dispose(group);
+  group = buildAt(t, root, 1);
+  const wantGhost = cbGhost.checked;
+  if (wantGhost && !ghostGroup) ghostGroup = buildAt(0, root, 0.18);
+  if (!wantGhost && ghostGroup) { dispose(ghostGroup); ghostGroup = null; }
+  paintHud();
+}
+
+function paintHud() {
+  const swing = (meta.hingeAngleDeg * easeInv(t)).toFixed(1);
+  hud.textContent =
+    `${meta.open.id}  open    ${meta.open.resolution.toFixed(2)} A  ${meta.open.ligands.length ? meta.open.ligands.join('+') : 'apo'}\n` +
+    `${meta.closed.id}  closed  ${meta.closed.resolution.toFixed(2)} A  ${meta.closed.ligands.join('+')}\n` +
+    `identity        ${meta.identity}%\n` +
+    `paired residues ${meta.paired}\n` +
+    `large lobe      ${meta.lobe1}\n` +
+    `small lobe      ${meta.lobe2}\n` +
+    `hinge, closed   ${meta.hingeAngleDeg} deg\n` +
+    `t = ${t.toFixed(2)}      ~${swing} deg`;
+}
+
+/* The bake eased t, so the frame at t is not the angle at t*18.6. Undo
+   the same smoothstep to report roughly where the hinge has got to. */
+function easeInv(u) {
+  // smoothstep inverse: solve 3x^2 - 2x^3 = u
+  let x = u;
+  for (let i = 0; i < 24; i++) {
+    const f = x * x * (3 - 2 * x) - u, d = 6 * x * (1 - x);
+    if (Math.abs(d) < 1e-9) break;
+    x -= f / d;
+  }
+  return Math.max(0, Math.min(1, x));
+}
+
+function setT(v, fromSlider) {
+  t = Math.max(0, Math.min(1, v));
+  if (!fromSlider) tIn.value = String(t);
+  tOut.textContent = t.toFixed(2);
+  bOpen.setAttribute('aria-pressed', String(t === 0));
+  bClosed.setAttribute('aria-pressed', String(t === 1));
+  rebuild();
+}
+
+tIn.addEventListener('input', () => setT(parseFloat(tIn.value), true));
+cbLobes.addEventListener('change', rebuild);
+cbGhost.addEventListener('change', rebuild);
+cbPlay.addEventListener('change', () => { playing = cbPlay.checked; });
+bOpen.addEventListener('click', () => { cbPlay.checked = playing = false; setT(0); });
+bClosed.addEventListener('click', () => { cbPlay.checked = playing = false; setT(1); });
+
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  if (playing) {
+    let v = t + dir * dt * 0.35;
+    if (v >= 1) { v = 1; dir = -1; }
+    else if (v <= 0) { v = 0; dir = 1; }
+    setT(v);
+  }
+  if (cbSpin.checked) { cam.theta += dt * 0.25; applyCam(); }
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+Promise.all([
+  fetch('data/HK.closure.bin').then(r => r.arrayBuffer()),
+  fetch('data/HK.closure.json').then(r => r.json()),
+]).then(([buf, m]) => {
+  D = Closure.decode(buf);
+  meta = m;
+  RUNS = runsByLobe(D.lobe, D.N);
+
+  /* Frame against BOTH endpoints, then leave the camera alone. Solving
+     per frame would chase the molecule and hide the very motion the page
+     exists to show -- the closure would read as the camera pulling in. */
+  FRAMING = frameAll([D.frame(0), D.frame(D.F - 1)]);
+  root.position.set(-FRAMING.centre[0], -FRAMING.centre[1], -FRAMING.centre[2]);
+  solveCam();
+
+  setT(0);
+  requestAnimationFrame(loop);
+}).catch(e => { hud.textContent = 'failed: ' + e.message; console.error(e); });
+
+new ResizeObserver(() => { resize(); solveCam(); }).observe(document.getElementById('stage'));
+</script>
+</body>
+</html>

@@ -63,6 +63,27 @@ function readCA(text) {
   return { title: title.trim(), res, chain, ca, het, unk, seq: ca.map(a => a.aa).join('') };
 }
 
+/* Secondary structure from the file's OWN HELIX and SHEET records, keyed
+ * by residue number. Not computed from geometry: the depositors assigned
+ * these against their density, and a page that says "eight helices"
+ * should be counting theirs, not a guess made downstream. */
+function readSS(text, chain) {
+  const ss = new Map();
+  for (const line of text.split('\n')) {
+    const rec = line.slice(0, 6);
+    let ch, lo, hi, kind;
+    if (rec === 'HELIX ') {
+      ch = line[19]; lo = parseInt(line.slice(21, 25), 10); hi = parseInt(line.slice(33, 37), 10); kind = 'H';
+    } else if (rec === 'SHEET ') {
+      ch = line[21]; lo = parseInt(line.slice(22, 26), 10); hi = parseInt(line.slice(33, 37), 10); kind = 'E';
+    } else continue;
+    if (chain && ch !== chain) continue;
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) continue;
+    for (let n = lo; n <= hi; n++) ss.set(n, kind);
+  }
+  return ss;
+}
+
 /* Needleman-Wunsch, identity scoring. These two entries cannot be aligned
  * by a residue-number offset -- the older one was solved before the
  * sequence was right, so the offset is not constant along the chain. */
@@ -203,4 +224,4 @@ function rg(pts) {
   return Math.sqrt(s / pts.length);
 }
 
-module.exports = { AA3TO1, readCA, align, superpose, centroid, dist, rg };
+module.exports = { AA3TO1, readCA, readSS, align, superpose, centroid, dist, rg };
