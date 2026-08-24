@@ -27,7 +27,7 @@ const AA3TO1 = {
  * but never enter the trace. */
 function readCA(text) {
   const ca = [], het = new Map();
-  let title = '', res = null, chain = null;
+  let title = '', res = null, chain = null, unk = 0;
   for (const line of text.split('\n')) {
     const rec = line.slice(0, 6);
     if (rec === 'TITLE ') title += line.slice(10).trim() + ' ';
@@ -42,6 +42,11 @@ function readCA(text) {
       const alt = line[16];
       if (alt !== ' ' && alt !== 'A') continue;
       const name = line.slice(17, 20).trim();
+      // UNK is a residue the depositors could not identify. It cannot be
+      // aligned, so it is dropped -- but it is COUNTED, because dropping
+      // it silently leaves a gap in the chain and a caller that never
+      // hears about it will align straight across the hole.
+      if (name === 'UNK') { unk++; continue; }
       if (!(name in AA3TO1)) continue;
       if (chain === null) chain = line[21];
       if (line[21] !== chain) continue;
@@ -55,7 +60,7 @@ function readCA(text) {
       });
     }
   }
-  return { title: title.trim(), res, chain, ca, het, seq: ca.map(a => a.aa).join('') };
+  return { title: title.trim(), res, chain, ca, het, unk, seq: ca.map(a => a.aa).join('') };
 }
 
 /* Needleman-Wunsch, identity scoring. These two entries cannot be aligned

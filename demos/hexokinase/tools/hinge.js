@@ -40,25 +40,61 @@ const PAIRS = [
   ['1HKG', '2YHX', 'the textbook pair, measured'],
 ];
 
-const CUT = 2.0;        // angstroms; a residue further than this is "moved"
-const MIN_CORE = 60;    // below this the decomposition has not found a lobe
+const INLIER = 1.5;     // angstroms; within this of its partner after a fit
+const MIN_LOBE = 60;    // fewer residues than this is not a domain
+const SEED_K = 30;      // residues in a seed patch
+const RIGID = 1.0;      // a lobe must fit ITSELF below this, or it is not one
+
+/* Find the largest set of residues that move together, by consensus.
+ *
+ * Seeding on a shrinking global cutoff (what this did first) does not
+ * work: with a 2.8 A whole-molecule RMSD the survivors of a cutoff are
+ * whichever residues happen to land near their partners, scattered over
+ * the whole chain, and the "rotation" of a scatter is a number with no
+ * meaning. It reported 70-180 degree hinges on every pair, including
+ * pairs that cannot hinge.
+ *
+ * So seed LOCALLY instead. A spatial patch around one residue is almost
+ * certainly inside a single domain, so the transform that fits the patch
+ * is that domain's transform, and the residues it carries into place are
+ * that domain. Every residue gets a turn as the seed and the largest
+ * consensus wins -- deterministic, no sampling.
+ */
+function consensus(A, B, pool) {
+  let best = null;
+  for (const s of pool) {
+    const near = [...pool]
+      .sort((i, j) => dist(A[s], A[i]) - dist(A[s], A[j]))
+      .slice(0, SEED_K);
+    if (near.length < 12) continue;
+    let set = near, last = -1, iter = 0;
+    while (set.length !== last && iter++ < 20) {
+      last = set.length;
+      const fit = superpose(set.map(i => A[i]), set.map(i => B[i]));
+      const moved = fit.apply(A);
+      set = pool.filter(i => dist(moved[i], B[i]) < INLIER);
+      if (set.length < 12) break;
+    }
+    if (set.length >= 12 && (!best || set.length > best.length)) best = set;
+  }
+  return best || [];
+}
 
 function decompose(A, B) {
-  // A, B are equal-length paired Ca arrays.
-  let core = A.map((_, i) => i);
-  let last = -1, iter = 0;
-  let fit = null;
-  while (core.length !== last && core.length >= MIN_CORE && iter++ < 50) {
-    last = core.length;
-    fit = superpose(core.map(i => A[i]), core.map(i => B[i]));
-    const moved = fit.apply(A);
-    const next = [];
-    for (let i = 0; i < A.length; i++) if (dist(moved[i], B[i]) < CUT) next.push(i);
-    core = next;
-  }
-  const coreSet = new Set(core);
-  const rest = A.map((_, i) => i).filter(i => !coreSet.has(i));
-  return { core, rest, fit, iter };
+  const all = A.map((_, i) => i);
+  const lobe1 = consensus(A, B, all);
+  const used = new Set(lobe1);
+  const lobe2 = consensus(A, B, all.filter(i => !used.has(i)));
+  return { lobe1, lobe2 };
+}
+
+/* A lobe is only a lobe if it is internally rigid: fit it to its own
+ * partner and the residual must be small. This is a PRECONDITION, not a
+ * diagnostic printed after the fact -- an angle measured on a non-rigid
+ * set is the exact mistake this file made the first time. */
+function rigidity(idx, A, B) {
+  const fit = superpose(idx.map(i => A[i]), idx.map(i => B[i]));
+  return { fit, rigid: fit.rmsd < RIGID };
 }
 
 function runs(idx, ca) {
@@ -84,28 +120,45 @@ for (const [idA, idB, note] of PAIRS) {
   console.log(`  ${idB}: ${B.ca.length} res, ${B.res} A, ${B.ligands.length ? B.ligands.join('+') : 'apo'}   Rg ${rg(B.ca).toFixed(2)}`);
   console.log(`  alignment: ${al.aligned} paired, ${(al.identity * 100).toFixed(1)}% identical`);
 
+  if (A.unk || B.unk) {
+    console.log(`  UNSEQUENCED: ${idA} has ${A.unk} UNK, ${idB} has ${B.unk}.`);
+    console.log('  No residue-level correspondence the file itself asserts. Not a morph pair.');
+    continue;
+  }
+
   const whole = superpose(PA, PB);
   console.log(`  whole-molecule superposition RMSD  ${whole.rmsd.toFixed(2)} A`);
 
-  const { core, rest, fit } = decompose(PA, PB);
-  if (!fit || core.length < MIN_CORE) {
-    console.log('  no two-lobe decomposition converged -- not a hinge pair');
+  const { lobe1, lobe2 } = decompose(PA, PB);
+  if (lobe1.length < MIN_LOBE) {
+    console.log(`  largest set moving together is only ${lobe1.length} res -- no domain here`);
     continue;
   }
-  console.log(`  large lobe ${core.length} res, RMSD ${fit.rmsd.toFixed(2)} A   ${JSON.stringify(runs(core, PA))}`);
-  console.log(`  small lobe ${rest.length} res                        ${JSON.stringify(runs(rest, PA))}`);
+  const r1 = rigidity(lobe1, PA, PB);
+  console.log(`  lobe 1  ${lobe1.length} res, self-fit ${r1.fit.rmsd.toFixed(2)} A ${r1.rigid ? 'RIGID' : 'NOT RIGID'}`);
+  console.log(`          ${JSON.stringify(runs(lobe1, PA))}`);
 
-  if (rest.length < 20) {
-    console.log('  small lobe too small to be a domain -- the difference is local, not a closure');
+  if (lobe2.length < MIN_LOBE) {
+    console.log(`  second lobe only ${lobe2.length} res -- one rigid body plus scatter, not a hinge`);
     continue;
   }
-  // The hinge: how the small lobe alone must rotate, once the large lobe is fixed.
-  const small = superpose(rest.map(i => PA[i]), rest.map(i => PB[i]));
-  const movedAll = fit.apply(PA);
+  const r2 = rigidity(lobe2, PA, PB);
+  console.log(`  lobe 2  ${lobe2.length} res, self-fit ${r2.fit.rmsd.toFixed(2)} A ${r2.rigid ? 'RIGID' : 'NOT RIGID'}`);
+  console.log(`          ${JSON.stringify(runs(lobe2, PA))}`);
+
+  const covered = ((lobe1.length + lobe2.length) / PA.length * 100).toFixed(0);
+  console.log(`  the two lobes account for ${covered}% of the chain`);
+
+  if (!r1.rigid || !r2.rigid) {
+    console.log('  NO ANGLE REPORTED: a rotation measured on a non-rigid set means nothing.');
+    continue;
+  }
+  // The hinge: how lobe 2 must still rotate once lobe 1 is superposed.
+  const onLobe1 = r1.fit.apply(PA);
+  const hinge = superpose(lobe2.map(i => onLobe1[i]), lobe2.map(i => PB[i]));
   let maxd = 0;
-  for (const i of rest) maxd = Math.max(maxd, dist(movedAll[i], PB[i]));
-  console.log(`  HINGE ANGLE  ${small.angle.toFixed(1)} deg`);
-  console.log(`  small lobe internal RMSD after its own fit  ${small.rmsd.toFixed(2)} A  (rigid if small)`);
-  console.log(`  furthest small-lobe atom travels  ${maxd.toFixed(1)} A`);
+  for (const i of lobe2) maxd = Math.max(maxd, dist(onLobe1[i], PB[i]));
+  console.log(`  HINGE ANGLE  ${hinge.angle.toFixed(1)} deg`);
+  console.log(`  furthest lobe-2 Ca travels  ${maxd.toFixed(1)} A`);
 }
 console.log('='.repeat(72));
