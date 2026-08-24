@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="main.css">
 <link rel="stylesheet" href="sandbox.css">
 <link rel="stylesheet" href="pathways.css">
-<link rel="stylesheet" href="kit/enzyme.css">
+<link rel="stylesheet" href="kit/enzyme-blob.css">
 <link rel="stylesheet" href="energy/energy.css">
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css.
@@ -135,7 +135,7 @@
 <script src="kit/hotspot.js"></script>
 <script src="kit/leaving.js"></script>
 <script src="kit/carriers.js"></script>
-<script src="kit/enzyme.js"></script>
+<script src="kit/enzyme-blob.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="atomkit.js"></script>
 <script src="annotate.js"></script>
@@ -868,7 +868,7 @@ const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps()) ? stepAt(i)
 const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
 const enzLanes=i=>{ const b=speciesAt(i), a=speciesAt(i+1);
   return b.map((k,j)=>k===a[j]?-1:j).filter(j=>j>=0); };
-const ENZ=Enzyme.create({camera, canvas, host:enzEl});
+const ENZ=EnzymeBlob.create({camera, canvas, host:enzEl});
 function drawEnz(){
   const st=enzLive()?enzOf():null;
   enzEl.hidden=!st; enzNameEl.hidden=!st;
