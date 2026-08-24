@@ -2297,6 +2297,33 @@ function _tumble(){
    the standing deficit starts to show as a column that shrinks while it
    evaporates, which is the opposite of the thing being drawn. */
 const ESCAPE_V=0.3*A;
+/* THE HALF-ANGLE OF THE PLUME. A molecule does not leave a surface straight
+   up — it leaves in whatever direction it happened to be going when the last
+   bond let go, which is any direction with an outward component. Straight up at
+   a fixed speed is what this did, and a column of evenly spaced molecules
+   rising in lockstep reads as an escalator.
+
+   Not the full hemisphere though, and the reason is framing rather than
+   physics: one that leaves at eighty degrees off vertical is out of the picture
+   sideways long before it is out of the top, so it reads as a molecule
+   wandering off rather than as water leaving. Forty degrees fans the plume and
+   keeps it in shot. */
+const ESCAPE_CONE=40*Math.PI/180;
+/* A molecule that leaves goes BALLISTICALLY, and that is worth being clear
+   about because it looks like it should be diffusing. Water vapour's mean free
+   path in air is about 70 nm; this flight is 2.5. It hits nothing on the way
+   out, so each one travels a straight line and the scatter you see is every
+   molecule having its own heading, not any one of them being knocked about.
+
+   What it does keep is its tumbling. Nothing damps rotation out there either,
+   so a molecule that left spinning stays spinning, and that is the jitter. */
+function launch(i){
+  const c=1-Math.random()*(1-Math.cos(ESCAPE_CONE));   // cos of the polar angle
+  const sn=Math.sqrt(Math.max(0,1-c*c)), az=Math.random()*6.283185;
+  VX[3*i]  =ESCAPE_V*sn*Math.cos(az);
+  VX[3*i+1]=ESCAPE_V*c;
+  VX[3*i+2]=ESCAPE_V*sn*Math.sin(az);
+}
 let escapeTop=0;                       // set from the wall's height, below
 let evapAcc=0, evapCount=0;
 /* A RATE, NOT A SWITCH. Evaporation never stops: at any temperature some
@@ -2328,10 +2355,22 @@ function evaporate(){
         place(i);
         continue;
       }
-      GONE[i]=1; VX[3*i]=VX[3*i+1]=VX[3*i+2]=0;
+      GONE[i]=1; launch(i);
     }
     if(!GONE[i]) continue;
-    PX[3*i+1]+=ESCAPE_V; place(i);
+    if(SPENT[i]) continue;                      // parked: not anywhere
+    /* STRAIGHT UP UNTIL IT IS OUT OF THE PORE. A departing molecule skips the
+       wall pass — it is no longer liquid and nothing should be pulling on it —
+       so its heading would carry it through the cellulose, and one leaving the
+       surface at forty degrees near a face does exactly that. The mouth is the
+       only way out of a slot, so the sideways part of the heading waits until
+       the walls have ended. */
+    if(PX[3*i+1]>escapeTop-6*A){ PX[3*i]+=VX[3*i]; PX[3*i+2]+=VX[3*i+2]; }
+    PX[3*i+1]+=VX[3*i+1];
+    /* Still turning. TUMBLE is a step's worth of the thermal wander every
+       molecule in the liquid gets, and out here there is nothing to damp it. */
+    qArr[i].multiply(_tumble());
+    place(i);
     if(PX[3*i+1]>vapourTop && !SPENT[i]){
       /* OUT OF THE FRAME, AND NOT PUT BACK. The force build teleported it
          straight to the base — water leaves the leaf, water enters from the
@@ -2386,7 +2425,7 @@ function evaporate(){
   for(let i=0;i<nW;i++) if(!GONE[i] && HBN[i]<=2 && PX[3*i+1]>hi-8*A) free.push(i);
   if(free.length){
     const i=free[(Math.random()*free.length)|0];
-    GONE[i]=1; VX[3*i]=VX[3*i+1]=VX[3*i+2]=0; evapCount++;
+    GONE[i]=1; launch(i); evapCount++;
   }
 }
 
