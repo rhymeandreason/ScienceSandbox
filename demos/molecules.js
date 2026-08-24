@@ -197,7 +197,7 @@
    *
    * The display scale is applied at REGISTRATION rather than at render, and
    * that is deliberate: `Stage.buildMolecule` is not the only reader.
-   * glycolysis-lab, contrast-lab, _compare and haworth.js all index
+   * glycolysis-lab, contrast-lab and haworth.js all index
    * `spec.atoms[i].pos` directly and compare it against PALETTE.radii, which
    * are scene units. Scaling at render would leave every one of those
    * comparing ångströms to scene units — a class of bug that renders as

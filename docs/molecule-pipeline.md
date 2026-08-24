@@ -350,8 +350,9 @@ Two pieces worth salvaging:
   message pointing at proline's comment, are both fine.
 - **A generating tool must write to a file it owns outright, which humans never
   edit.** Programmatically editing a hand-authored source file is a codegen
-  problem nobody wants. The underscore convention already in `demos/`
-  (`_generated-specs.json`, `_old-specs.json`) is the precedent, and
+  problem nobody wants. The underscore convention `demos/` used for
+  `_generated-specs.json` and `_old-specs.json` (deleted with `_compare.html`)
+  is the precedent, and
   `check-docs.js` already excludes `_`-prefixed files. Item 3b doesn't achieve
   this on its own — its files are all hand-authored.
 
@@ -470,7 +471,7 @@ The display scale is now **one number in one place**, moving 26 specs together;
 it used to be multiplied into eleven sets of literals plus two tables.
 
 **Applied at registration, not render** — deliberately. `Stage.buildMolecule`
-isn't the only reader: `glycolysis-lab`, `contrast-lab`, `_compare` and
+isn't the only reader: `glycolysis-lab`, `contrast-lab` and
 `haworth.js` index `spec.atoms[i].pos` directly and compare against
 `PALETTE.radii`, which are scene units. Scaling at render would leave all of them
 comparing ångströms to scene units. Registration is the seam every consumer is

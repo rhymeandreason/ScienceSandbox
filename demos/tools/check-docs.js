@@ -58,10 +58,18 @@ const KNOWN_ABSENT = {
   // branch, and it is not coming back — hemoglobin-lab.html supersedes
   // protein-lab.html, so there is no rewrite pending.
   //
-  // viewer-compare.html is NOT here: it returned on the sickle-cell branch with
-  // the ChemDoodle pane removed, so it vendors nothing and the licence guard
-  // has nothing to hold shut.
   'protein-lab.html':    'deleted with vendor/chemdoodle — docs/rendering-modules.md',
+  // The two comparison benches, deleted once their verdicts were settled. The
+  // prose that names them is history: ses.js and bake-surface.js cite the SES
+  // timings viewer-compare.html measured, and molecule-pipeline.md cites what
+  // _compare.html showed about the generated specs. Asserted absent so neither
+  // page comes back as a live link.
+  'viewer-compare.html': '3Dmol vs Mol* — settled, we draw proteins ourselves',
+  'pdb/1IGT.pdb':        'viewer-compare.html was its only reader',
+  'pdb/1LYZ.pdb':        'viewer-compare.html was its only reader',
+  '_compare.html':       'old-vs-generated spec bench — the conversion is done',
+  '_generated-specs.json': '_compare.html\'s data, deleted with it',
+  '_old-specs.json':       '_compare.html\'s data, deleted with it',
   // The Mol* stage-5 page and the orientation library it was the last consumer
   // of. protein-lab.html was pdb.js's reason to exist and is not coming back;
   // hemoglobin-inhouse.html, the surviving control arm, now carries the one

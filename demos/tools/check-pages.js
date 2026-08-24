@@ -45,13 +45,11 @@ const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
 
 // Pages that render deposited PDB structures through a third-party viewer
 // (docs/rendering-modules.md) are skipped here: they touch none of the spec library
-// — coordinates come from pdb/*.pdb, not MolLib — so there is no molecule
-// reference to check.
-//
-// viewer-compare.html is back from the sickle-cell branch: 3Dmol + Mol* over
-// pdb/*.pdb, no MolLib. protein-lab.html stays deleted (vendored ChemDoodle);
-// the non-GPL rewrite will need naming here if it still bypasses MolLib.
-const PDB_PAGES = new Set(['viewer-compare.html']);
+// — coordinates come from a .pdb, not MolLib — so there is no molecule
+// reference to check. The set is empty because no such page survives: the
+// third-party viewers were evaluated and none was adopted. A page that draws a
+// deposited structure without MolLib needs naming here.
+const PDB_PAGES = new Set();
 
 // index.html draws nothing at all — it is a redirect up to the lesson index at
 // the repo root, which is where GitHub Pages serves it from. admin.html is an

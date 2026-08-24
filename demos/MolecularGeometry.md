@@ -266,7 +266,7 @@ Two consequences:
 - **The display scale is one number in one place.** Changing `SCALE` moves all 26
   family-B specs together. `skel.js` no longer knows `SCALE` exists.
 - **Scale is applied at registration, not render.** `Stage.buildMolecule` isn't
-  the only reader — `glycolysis-lab`, `contrast-lab`, `_compare` and `haworth.js`
+  the only reader — `glycolysis-lab`, `contrast-lab` and `haworth.js`
   index `spec.atoms[i].pos` directly and compare against `PALETTE.radii`, which
   are scene units.
 

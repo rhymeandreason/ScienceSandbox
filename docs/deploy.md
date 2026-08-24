@@ -22,6 +22,22 @@ Two files are withheld by `.vercelignore` and both are local tools: the log
 viewer (`demos/ask/log.html` + `api/log.js`) and the question-bank editor. See
 that file for why each one.
 
+## The five featured lessons have short URLs
+
+`vercel.json` rewrites `/water`, `/builder`, `/hemoglobin`, `/glycolysis` and
+`/membrane` onto the `demos/*.html` files, and 301s the old `/demos/….html`
+paths onto them. `index.html` links the short form.
+
+A rewrite does not move the file, so every relative `src`, `href` and `fetch()`
+in those five pages would resolve against `/` instead of `/demos/`. Each of the
+five carries `<base href="/demos/">` for that reason, which is also correct at
+its own path and on the local dev server. **Adding a page to this list means
+adding the `<base>` tag too** - without it the short URL serves the HTML and
+then 404s every script in it.
+
+The short URLs are a Vercel routing feature; `dev-server.js` knows nothing about
+them, so locally a lesson is still `/demos/water-lab.html`.
+
 **Only `api/ask.js` becomes a public endpoint.** Vercel does not route files
 whose names begin with an underscore, so `_tutor.js`, `_keys.js`, `_limit.js`,
 `_log.js`, `_catalog.js`, `_targets.js`, `_local.js` and `_providers/` are
@@ -64,7 +80,9 @@ secret from `TUTOR_KEYS`.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/            # 200, the lesson index
-curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/water-lab.html   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/water            # 200, the lesson
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/scene.js   # 200, what <base> resolves to
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/water-lab.html   # 301 to /water
 curl -s -w ' %{http_code}\n' https://<deployment>/api/ask                 # 401 gated, 200 if not
 curl -s -w ' %{http_code}\n' -H "X-Tutor-Key: $K" https://<deployment>/api/ask       # 200 + config
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/_tutor  # 404: not a route
@@ -74,8 +92,8 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/.env.local  # 404:
 
 Then in a browser, which is the half curl cannot check:
 
-* `/demos/water-lab.html` with no `?k=` - **no Ask button**, and the console says why
-* `/demos/water-lab.html?k=<secret>` - the button appears, `k` is gone from the
+* `/water` with no `?k=` - **no Ask button**, and the console says why
+* `/water?k=<secret>` - the button appears, `k` is gone from the
   address bar, and a question comes back with a Show me pill
 * reload with no `?k=` - the button is still there, from `localStorage`
 

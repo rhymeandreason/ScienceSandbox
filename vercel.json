@@ -6,6 +6,20 @@
   "functions": {
     "api/ask.js": { "maxDuration": 30 }
   },
+  "redirects": [
+    { "source": "/demos/water-lab.html",       "destination": "/water",       "permanent": true },
+    { "source": "/demos/molecule-builder.html","destination": "/builder",     "permanent": true },
+    { "source": "/demos/hemoglobin-lab.html",  "destination": "/hemoglobin",  "permanent": true },
+    { "source": "/demos/glycolysis-lab.html",  "destination": "/glycolysis",  "permanent": true },
+    { "source": "/demos/membrane-lab.html",    "destination": "/membrane",    "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/water",      "destination": "/demos/water-lab.html" },
+    { "source": "/builder",    "destination": "/demos/molecule-builder.html" },
+    { "source": "/hemoglobin", "destination": "/demos/hemoglobin-lab.html" },
+    { "source": "/glycolysis", "destination": "/demos/glycolysis-lab.html" },
+    { "source": "/membrane",   "destination": "/demos/membrane-lab.html" }
+  ],
   "headers": [
     { "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
   ]

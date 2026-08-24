@@ -48,6 +48,12 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
+**A featured lesson is served at a short URL** (`/water`, `/builder`,
+`/hemoglobin`, `/glycolysis`, `/membrane`) by a `vercel.json` rewrite, which
+does not move the file. So each of the five carries `<base href="/demos/">` and
+its relative paths keep resolving. Promoting a page to featured means adding
+that tag and both routes: `docs/deploy.md`.
+
 ## Making a new lesson
 
 **Ask the human which existing page is closest, and copy it.** Every page loads `molecules.js` + `scene.js`; everything above that is chosen — the `mol-*.js` domains it draws, the `kit/` pieces its mechanic needs, and rarely a standalone module. A page loading a domain it never draws is paying for someone else's molecules.

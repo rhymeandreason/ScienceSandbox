@@ -6,11 +6,13 @@
 > (Three.js + `scene.js` + `folding/ribbon.js`). Read that first; this folder is
 > the working that led to it.
 >
-> **Nothing here is being deleted.** This is a prototype repo and the
-> evaluation is worth showing. The original plan was to `rm -r` this folder on a
-> verdict — that was really about not leaving an *ambiguous* evaluation lying
-> around, and a recorded decision fixes the ambiguity on its own. Deleting it
-> belongs to the eventual production-repo move, not to the decision.
+> **The pages and the structures are gone; this file is what is left.** The
+> three `folding-molstar*.html` stages and the 3.8 MB of `data/` they loaded
+> were deleted on the move to a deployed site, which is the production move this
+> file always said was the right moment for it. What deleting was ever about is
+> not leaving an *ambiguous* evaluation lying around, and the recorded decision
+> below fixes that without the pages. Everything the evaluation measured is
+> written down here.
 >
 > So: **read what follows as history, not as an open question.** Where it
 > weighs Mol\* against our renderer, the weighing is done.
