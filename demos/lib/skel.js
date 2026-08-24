@@ -33,7 +33,7 @@
   // fine — this page only ever shows its own specs — but it made C–C and C–O
   // the SAME length when C–O is really the shorter of the two, used one number
   // for both C–O and C=O, and put the whole page at ~0.7× the derived specs.
-  // That last one only surfaced when macromolecule-lab.html put this glucose
+  // That last one only surfaced when tests/macromolecule-lab.html put this glucose
   // next to alanine and AMP under the words "true relative size".
   //
   // Every value below still clears its radii sum by a wide margin (the tightest

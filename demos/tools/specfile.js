@@ -111,7 +111,7 @@ function setField(file, key, field, valueText) {
  * for. The point of the whole exercise is that nobody has to check by eye. */
 function verify(key, field, expected) {
   for (const k of Object.keys(require.cache)) delete require.cache[k];
-  const { MOLECULES } = require(path.join(ROOT, 'lib-node.js'));
+  const { MOLECULES } = require(path.join(ROOT, 'lib', 'lib-node.js'));
   const got = MOLECULES[key] && MOLECULES[key][field];
   return JSON.stringify(got) === JSON.stringify(expected);
 }

@@ -184,7 +184,7 @@ would say the opposite. Every effect fires at a position the module **asks for**
   `molecule-lab.html`.
 - Solute settle — `updateSolutes()` when descent ends and the hydration toast
   fires (gated to `class === 'polar'`), `molecule-lab.html`.
-- Peptide bond — `condense()` (`aminoacid-lab.html`): `spawnRing` in the peptide
+- Peptide bond — `condense()` (`tests/aminoacid-lab.html`): `spawnRing` in the peptide
   colour at the join + `popGlow` on both residues as water is released.
 
 New pages: add `<script src="fx.js">`, `FX.create(THREE, root, camera)` once,

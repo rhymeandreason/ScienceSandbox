@@ -28,12 +28,12 @@
 'use strict';
 
 const path = require('path');
-const CR = require(path.join(__dirname, '../chain-repeat.js'));
-const { MolLib } = require(path.join(__dirname, '../molecules.js'));
-require(path.join(__dirname, '../skel.js'));
-require(path.join(__dirname, '../mol-monomers.js'));
-require(path.join(__dirname, '../mol-pathways.js'));
-require(path.join(__dirname, '../mol-contrast.js'));
+const CR = require(path.join(__dirname, '../lib/chain-repeat.js'));
+const { MolLib } = require(path.join(__dirname, '../lib/molecules.js'));
+require(path.join(__dirname, '../lib/skel.js'));
+require(path.join(__dirname, '../lib/mol-monomers.js'));
+require(path.join(__dirname, '../lib/mol-pathways.js'));
+require(path.join(__dirname, '../lib/mol-contrast.js'));
 
 /* The builder hands back RAW ångströms — register() is what multiplies by
  * SCALE, and nothing here goes through it. Dividing by SCALE anyway (as the

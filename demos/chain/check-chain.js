@@ -18,8 +18,8 @@
  * ========================================================================== */
 'use strict';
 
-const CR = require('../chain-repeat.js');
-const { MOLECULES, SCALE } = require('../lib-node.js');
+const CR = require('../lib/chain-repeat.js');
+const { MOLECULES, SCALE } = require('../lib/lib-node.js');
 
 const TRIAD = ['O5','C1','C4'];
 const TURN_TOL = 0.15;      // fraction; 6.26 against a stated 6 is the real fit

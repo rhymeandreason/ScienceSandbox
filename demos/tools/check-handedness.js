@@ -38,7 +38,7 @@
 
 const path = require('path');
 const cp = require('child_process');
-const { MOLECULES } = require(path.join(__dirname, '..', 'lib-node.js'));
+const { MOLECULES } = require(path.join(__dirname, '..', 'lib', 'lib-node.js'));
 
 // spec key -> the PubChem name that pins the exact stereoisomer we claim to be.
 const REF = {

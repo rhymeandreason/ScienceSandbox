@@ -16,7 +16,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-const FILE = path.resolve(__dirname, '../questions.js');
+const FILE = path.resolve(__dirname, '../lib/questions.js');
 
 const OPEN = '  const QUESTIONS = [';
 const CLOSE = '\n  ];';

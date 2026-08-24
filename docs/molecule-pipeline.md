@@ -298,7 +298,7 @@ enumeration failure this repo keeps hitting. They all go through `lib-node.js`,
 which walks the manifest; adding a domain means editing one list, and
 `check-docs.js` asserts every name in it is a real file.
 
-**The split falsified a documented invariant.** `aminoacid-lab.html` builds
+**The split falsified a documented invariant.** `tests/aminoacid-lab.html` builds
 `MOLECULES.water` for every dehydration it shows, so a family-A water (O–H 1.55)
 sat among family-B residues that would draw it at 1.84 — **~16% short** — while
 `molecules.js` asserted the opposite. It survived because the dependency was

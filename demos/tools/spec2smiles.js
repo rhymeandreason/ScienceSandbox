@@ -22,7 +22,7 @@
  *   npm i @rdkit/rdkit && node tools/spec2smiles.js            # print the rows
  *   npm i @rdkit/rdkit && node tools/spec2smiles.js --write    # write them in
  */
-const { MOLECULES } = require('../lib-node.js');
+const { MOLECULES } = require('../lib/lib-node.js');
 const specfile = require('./specfile.js');
 // --write edits each spec's own mol-*.js in place instead of printing rows to
 // paste. See tools/specfile.js for why that hand-off was the weak link.

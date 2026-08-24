@@ -1,5 +1,5 @@
 /* =====================================================================
- *  actin.js — the last two rungs of folding-lab.html's zoom-out.
+ *  actin.js — the last two rungs of attic/folding-lab.html's zoom-out.
  *
  *  Page-specific, like folding.js and villin.js. Renders nothing, knows about
  *  no viewer, runs in Node so its claims can be checked. Real angstroms.

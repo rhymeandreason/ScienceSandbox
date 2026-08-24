@@ -3,7 +3,7 @@
  * Demonstrates the three steps a real converter needs:
  *   1. parse   — atoms, bonds, and BOND ORDERS straight out of the SDF
  *   2. reindex — force the library's fixed amino-acid atom order, because
- *                `pep:{cC,oOH,hOH,nN,hN}` and aminoacid-lab.html index into it
+ *                `pep:{cC,oOH,hOH,nN,hN}` and tests/aminoacid-lab.html index into it
  *   3. frame   — recentre on Ca, align backbone to +X / side chain to -Y,
  *                then apply ONE global scale so sticks clear the display radii
  */

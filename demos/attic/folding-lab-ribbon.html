@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
-<link rel="stylesheet" href="main.css">
-<link rel="stylesheet" href="sandbox.css">
+<link rel="stylesheet" href="../main.css">
+<link rel="stylesheet" href="../sandbox.css">
 <style>
   :root{ --hb:#0042aa; --core:#c2571b; }
 
@@ -289,7 +289,7 @@
         <h4>Level 4 · quaternary</h4>
         <p>Not here: this protein is one chain, so it stops at level 3. Level 4
           is what happens when <b>several finished chains</b> assemble into one
-          working unit — see the <a href="hemoglobin-lab.html">haemoglobin
+          working unit — see the <a href="../hemoglobin-lab.html">haemoglobin
           lesson</a>, where one chain folds and the other three dock onto it.</p>
       </section>
       <section>
@@ -306,15 +306,15 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="palette.js"></script>
-<script src="tokens-from-palette.js"></script>
-<script src="molecules.js"></script>
-<script src="scene.js"></script>
-<script src="fx.js"></script>
-<script src="folding/folding.js"></script>
-<script src="folding/villin.js"></script>
-<script src="folding/actin.js"></script>
-<script src="folding/ribbon.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/fx.js"></script>
+<script src="../folding/folding.js"></script>
+<script src="../folding/villin.js"></script>
+<script src="../folding/actin.js"></script>
+<script src="../folding/ribbon.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -517,10 +517,10 @@ const foldGroup = new THREE.Group(); root.add(foldGroup);
    folding/tools/bake-fold.js for why it is a committed file rather than work the
    browser repeats on every visit. */
 Promise.all([
-  fetch('folding/data/1VII.pdb').then(r => {
+  fetch('../folding/data/1VII.pdb').then(r => {
     if (!r.ok) throw new Error('folding/data/1VII.pdb — HTTP ' + r.status);
     return r.text(); }),
-  fetch('folding/data/1VII.fold.bin').then(r => {
+  fetch('../folding/data/1VII.fold.bin').then(r => {
     if (!r.ok) throw new Error('folding/data/1VII.fold.bin — HTTP ' + r.status +
       ' (run: node folding/tools/bake-fold.js)');
     return r.arrayBuffer(); }),
@@ -1350,12 +1350,12 @@ const DOM_COLORS = [0x8c7f6a, 0xa8927a, 0x7d8f7a, 0x94836b,
                     0x8a8f9c, 0x9c8a7d, 0xa39a86, 0x6f7f74];
 const HP_COLOR = 0x0042aa;
 
-fetch('folding/data/actin.bin')
+fetch('../folding/data/actin.bin')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
   .then(buf => { actin = ActinLib.decode(buf); })
   .catch(e => console.warn('rungs 4-5 unavailable — ' + e.message + ' (run: node folding/tools/bake-actin.js)'));
 
-fetch('folding/data/AF-P02640-villin.poses.bin')
+fetch('../folding/data/AF-P02640-villin.poses.bin')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
   .then(buf => { villin = VillinLib.decode(buf); buildArrangementButtons(); })
   .catch(e => {

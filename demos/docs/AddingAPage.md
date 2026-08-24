@@ -53,7 +53,7 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 3. Add new molecules to the right `mol-*.js` — never to `molecules.js`. A molecule in the wrong domain is one some page pays for and never draws. Prefer `tools/sdf2spec.js` over typing coordinates, give it a `src:`, then run the checkers. A new domain file also goes in `MolLib.DOMAINS`. **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** (MolecularGeometry.md §1.4 rule 2) — an undeclared claim is how every sugar here spent months being the wrong enantiomer.
 
-4. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});` then `const FXi=FX.create(THREE,root,camera);` — skip FX only if the page fires nothing (`contrast-lab.html`; `macromolecule-lab.html` still rings on selection).
+4. `const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{...});` then `const FXi=FX.create(THREE,root,camera);` — skip FX only if the page fires nothing (`contrast-lab.html`; `tests/macromolecule-lab.html` still rings on selection).
 
 5. Build with `Stage.buildMolecule(spec,{center:true})`, or a page-specific builder if you need outlines/physics `userData`. Then frame the camera:
 

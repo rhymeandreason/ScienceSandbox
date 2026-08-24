@@ -26,7 +26,7 @@
 'use strict';
 const path = require('path');
 const HERE = __dirname;
-const { MOLECULES } = require(path.join(HERE, '..', 'lib-node.js'));
+const { MOLECULES } = require(path.join(HERE, '..', 'lib', 'lib-node.js'));
 const { Lobes } = require(path.join(HERE, 'lobes.js'));
 const { MolGraph: MG } = require(path.join(HERE, '..', 'kit', 'molgraph.js'));
 
@@ -298,7 +298,7 @@ console.log('\n8. a lobe is the H-bond colour, not its atom\'s');
    * translucent and needs the brighter one to read as the same colour. Drift
    * far enough apart and the lobe stops saying "an H-bond lands here", which
    * is the only reason it is blue at all. */
-  const P = require(path.join(HERE, '..', 'palette.js')).PALETTE;
+  const P = require(path.join(HERE, '..', 'lib', 'palette.js')).PALETTE;
   const hueOf = n => {
     const r=(n>>16&255)/255, g=(n>>8&255)/255, b=(n&255)/255;
     const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
@@ -315,7 +315,7 @@ console.log('\n8. a lobe is the H-bond colour, not its atom\'s');
    * an event. It belongs beside the rule it breaks — a rule whose exception is
    * written down somewhere else is one someone helpfully "fixes" back. */
   {
-    const sci = fs.readFileSync(path.join(HERE, '..', 'SCIENCE.md'), 'utf8');
+    const sci = fs.readFileSync(path.join(HERE, '..', 'docs', 'SCIENCE.md'), 'utf8');
     const s3 = sci.split(/^## /m).find(s => s.startsWith('3.')) || '';
     ok(/lobes\/lobes\.js/.test(s3),
        'SCIENCE.md §3 records the exception, next to the rule it breaks');

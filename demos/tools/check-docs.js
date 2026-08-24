@@ -39,7 +39,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const rd = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const CLAUDE = rd('CLAUDE.md');
-const SCIENCE = rd('SCIENCE.md');
+const SCIENCE = rd('docs/SCIENCE.md');
 
 // Files a doc names on purpose that do not exist. A name here is not just
 // excused — it is asserted ABSENT, so if one gets built the check fails and
@@ -126,6 +126,8 @@ console.log('\n== 1. files named in docs exist');
 // after those became covalent-drag.js / ionic-drag.js.
 const DOCS = fs.readdirSync(ROOT)
   .filter(f => /\.(md|js|html)$/.test(f) && !f.startsWith('_'))
+  .concat(fs.readdirSync(path.join(ROOT, 'docs'))
+    .filter(f => /\.md$/.test(f)).map(f => `docs/${f}`))
   .concat(fs.readdirSync(path.join(ROOT, 'tools'))
     .filter(f => /\.(md|js)$/.test(f)).map(f => `tools/${f}`))
   // This file cites filenames as examples (water-drag.js, lab.html) and would
@@ -164,7 +166,10 @@ const norm = n => n.replace(/^demos\//, '');
 // cries wolf at correct documentation, which trains people to ignore it.
 // '..' is the repo root, which dev-server.js serves and GitHub Pages publishes;
 // a doc in demos/ naming api/_tutor.js is naming it from there, not from here.
-const SEARCH = ['.', '..', 'tools', 'folding', 'folding/tools',
+// 'docs' is where the rulebooks live and 'tests'/'attic' where the benches and
+// the superseded lessons do; all three are named bare in running text, the same
+// way a script is.
+const SEARCH = ['.', '..', 'lib', 'docs', 'tests', 'attic', 'tools', 'folding', 'folding/tools',
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
                 'kit', 'reaction', 'coupling', 'lobes', 'dna'];
@@ -205,8 +210,8 @@ function headings(src) {
 
 const SECTIONED = {
   'SCIENCE.md': headings(SCIENCE),
-  'MolecularGeometry.md': headings(rd('MolecularGeometry.md')),
-  'WaterSim.md': headings(rd('WaterSim.md')),
+  'MolecularGeometry.md': headings(rd('docs/MolecularGeometry.md')),
+  'WaterSim.md': headings(rd('docs/WaterSim.md')),
 };
 const { tops, subs } = SECTIONED['SCIENCE.md']; // only SCIENCE.md's index is audited below
 

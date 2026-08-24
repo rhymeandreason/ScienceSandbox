@@ -31,7 +31,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-require('../../residues.js');                      // sets global.ResidueLib
+require('../../lib/residues.js');                      // sets global.ResidueLib
 const SickleLib = require('../sickle.js');
 const B = require('./bake-sickle.js');
 

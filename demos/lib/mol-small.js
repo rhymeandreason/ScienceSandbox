@@ -25,7 +25,7 @@
  *  different questions and only one of them can be right on any given page.
  *  Duplicating the SUBSTANCE is the cost; the alternative was every page that
  *  merely draws a water having to either re-tune solvation or show a molecule
- *  16% too small, which is what aminoacid-lab.html did until this file existed.
+ *  16% too small, which is what tests/aminoacid-lab.html did until this file existed.
  *
  *  `register()` throws if both files load, so the mistake is loud.
  *

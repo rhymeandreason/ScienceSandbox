@@ -1,5 +1,5 @@
 /* =====================================================================
- *  folding.js — the folding mechanic for folding-lab.html.
+ *  folding.js — the folding mechanic for attic/folding-lab.html.
  *
  *  Page-specific by design (CLAUDE.md, "share the plumbing, not the
  *  physics"): nothing else in this sandbox folds a chain, so this is not a

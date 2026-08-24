@@ -22,7 +22,7 @@
  * ===================================================================== */
 'use strict';
 const path = require('path');
-const MolLib = require(path.join(__dirname, '..', 'lib-node.js'));
+const MolLib = require(path.join(__dirname, '..', 'lib', 'lib-node.js'));
 const { Pairing } = require(path.join(__dirname, 'pairing.js'));
 
 const S = MolLib.SCALE, M = MolLib.MOLECULES;

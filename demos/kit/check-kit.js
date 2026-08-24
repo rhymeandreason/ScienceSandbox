@@ -23,7 +23,7 @@
  * ===================================================================== */
 'use strict';
 const path=require('path');
-const MolLib=require(path.join(__dirname,'..','lib-node.js'));
+const MolLib=require(path.join(__dirname,'..','lib', 'lib-node.js'));
 const {MolGraph}=require(path.join(__dirname,'molgraph.js'));
 const {Motion}=require(path.join(__dirname,'motion.js'));
 const {HBond}=require(path.join(__dirname,'hbond.js'));

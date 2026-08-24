@@ -54,7 +54,7 @@
     <div id="formula">
       <div class="sketchbox">
         <span class="flabel">H<sub>2</sub>O</span>
-        <img src="molecule_water.png" alt="water molecule">
+        <img src="images/molecule_water.png" alt="water molecule">
       </div>
       <div class="addrow">
         <button class="addbtn" id="addwater" title="Add water molecule"><i class="ph-bold ph-plus"></i></button>
@@ -93,12 +93,12 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="palette.js"></script>
-<script src="tokens-from-palette.js"></script>
-<script src="molecules.js"></script>
-<script src="mol-solvation.js"></script>
-<script src="scene.js"></script>
-<script src="fx.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/mol-solvation.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/fx.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -1473,7 +1473,7 @@ function refreshCard(){
   cardEl.innerHTML=
     `<div class="cardtext"><h2>${spec.name} <span style="color:var(--muted)">${spec.formula}</span></h2>`
     +inScene+info.body+`</div>`
-    +`<div class="factwrap"><img class="bulb" src="sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${info.fact}</div></div>`;
+    +`<div class="factwrap"><img class="bulb" src="images/sticker_idea.png" alt="reveal fact" title="Reveal the interesting bit"><div class="fact">${info.fact}</div></div>`;
   cardEl.querySelector('.cardtext').scrollTop=0;
   [...libraryEl.querySelectorAll('.molrow')].forEach(r=>r.classList.toggle('sel',r.dataset.key===selected));
   addB.disabled=atCapacity(selected);

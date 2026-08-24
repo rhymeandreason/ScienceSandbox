@@ -200,7 +200,7 @@ if(!key || !cif){
     console.log(`  ${k.padEnd(11)} COD ${v.id}  ${v.why}`);
   process.exit(1);
 }
-const MOLECULES = require(path.join(__dirname,'..','lib-node.js')).MOLECULES;
+const MOLECULES = require(path.join(__dirname,'..','lib', 'lib-node.js')).MOLECULES;
 const spec = MOLECULES[key];
 if(!spec){ console.log(`no spec named ${key}`); process.exit(1); }
 if(REFERENCES[key]) console.log(`reference note: ${REFERENCES[key].why}`);

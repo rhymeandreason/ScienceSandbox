@@ -286,7 +286,7 @@ ok(!!(mStepsData && mSpeciesAt && mGen),
    'the page still has STEPS, speciesAt and massScenarios to run');
 
 if (mStepsData && mSpeciesAt && mGen) {
-  const M = require('../lib-node.js').MOLECULES;
+  const M = require('../lib/lib-node.js').MOLECULES;
   const { STEPS, speciesAt, massScenarios } = new Function('M', 'MASS_STEPS',
     mStepsData[0] + mSpeciesAt[0] + mGen[0] +
     '\n return { STEPS, speciesAt, massScenarios };'

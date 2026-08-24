@@ -2,7 +2,7 @@
  * NOT amino acids.
  *
  * `sdf2spec.js` exists to force the library's fixed amino-acid backbone order,
- * because `pep:{cC,oOH,hOH,nN,hN}` and aminoacid-lab.html index into it. A sugar
+ * because `pep:{cC,oOH,hOH,nN,hN}` and tests/aminoacid-lab.html index into it. A sugar
  * or a nucleotide has no such contract, so this converter keeps the SDF's own
  * atom order and only does the two steps that are universal:
  *

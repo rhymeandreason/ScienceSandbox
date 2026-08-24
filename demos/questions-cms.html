@@ -173,7 +173,7 @@
   <a class="logo" href="admin.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">questions — rank and wording</span>
   <span class="spacer"></span>
-  <a class="btn" href="concept-map.html">Open the map</a>
+  <a class="btn" href="tests/concept-map.html">Open the map</a>
 </header>
 
 <div class="bar">
@@ -213,7 +213,7 @@
 <!-- Saving rewrites questions.js, which this page loads — so the dev server's
      live reload would reload the editor on its own save. Opt out. -->
 <script>window.__noLiveReload = true;</script>
-<script src="questions.js"></script>
+<script src="lib/questions.js"></script>
 <script>
 const { CONCEPTS, QUESTIONS, rankFor } = QuestionBank;
 const NAME = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));

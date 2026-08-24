@@ -382,7 +382,7 @@ so stage 5 is one. Judge its looks by all means, but do not read "it looks like
 ours" as evidence about Mol\*, because it was made to.
 
 Colours and radii are **derived from `palette.js`**, not copied, exactly as
-`folding-lab.html` does it: `PALETTE.radii[el] / MolLib.SCALE` for the atoms and
+`attic/folding-lab.html` does it: `PALETTE.radii[el] / MolLib.SCALE` for the atoms and
 `× 0.165` for the sticks. Retuning the house palette retunes this page. The
 page loads `../palette.js` and `../molecules.js` for `PALETTE` and `SCALE` alone,
 with no `mol-*.js` domain, so the registry stays empty — the same arrangement
@@ -598,7 +598,7 @@ Written down before building, so the conclusion cannot be retrofitted:
 | Bundle size / first paint | within ~2× of the current page |
 | Playback frame rate | ≥ current, on a Chromebook |
 | Cued H-bond dashes | expressible without fighting the state tree |
-| Page source size | *smaller* than the current `folding-lab.html` |
+| Page source size | *smaller* than the current `attic/folding-lab.html` |
 | Surface cost | better than the 2.615 s measured on Mol\*'s own villin demo |
 
 **A tie means keep our renderer** — we already own it, and it carries no

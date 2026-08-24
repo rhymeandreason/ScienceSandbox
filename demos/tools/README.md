@@ -85,7 +85,7 @@ What it does, and why each step exists:
   what tags the carboxyl `C=O` as `[i,j,2]`; nobody has to spot it by hand.
 - **reindex** — forces the library's fixed backbone order
   (`0 N · 1 H · 2 H · 3 Ca · 4 H · 5 C · 6 O(=O) · 7 O(–OH) · 8 H · 9.. R`),
-  because `pep:{cC,oOH,hOH,nN,hN}` and `aminoacid-lab.html` index into it.
+  because `pep:{cC,oOH,hOH,nN,hN}` and `tests/aminoacid-lab.html` index into it.
   A converter that reshuffled indices would silently break the peptide reaction.
 - **reframe** — recentre on Ca, backbone N→C to +X, side chain to −Y. Output is
   **real ångströms**: since molecule-pipeline.md item 7 the specs store ångströms
@@ -109,7 +109,7 @@ non-planar, unlike the flat z=0 layouts elsewhere in `molecules.js`.
 
 The same converter for molecules that are **not** amino acids. `sdf2spec.js`
 exists mostly to force the library's fixed backbone order, because
-`pep:{cC,oOH,hOH,nN,hN}` and `aminoacid-lab.html` index into it; a sugar or a
+`pep:{cC,oOH,hOH,nN,hN}` and `tests/aminoacid-lab.html` index into it; a sugar or a
 nucleotide has no such contract, so this one keeps the SDF's own atom order.
 
 ```bash

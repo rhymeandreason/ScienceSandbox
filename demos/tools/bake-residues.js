@@ -53,7 +53,7 @@ const fs = require('fs');
 const path = require('path');
 
 const HERE = path.join(__dirname, '..');
-const OUT = path.join(HERE, 'residues.js');
+const OUT = path.join(HERE, 'lib', 'residues.js');
 
 /* The twenty, and where each is measured from. Glycine is in the list and
    ends up with an empty side chain, which is the point of glycine. */

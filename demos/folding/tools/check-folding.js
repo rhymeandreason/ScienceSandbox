@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =====================================================================
- *  check-folding.js — every claim folding-lab.html makes out loud.
+ *  check-folding.js — every claim attic/folding-lab.html makes out loud.
  *
  *  Lives beside the code and data it audits. These assertions used to sit at
  *  the foot of tools/check-pdb.js, which had grown three jobs: pdb.js's
@@ -40,10 +40,10 @@ const FIL = path.join(DATA, '9ZZI.pdb'), CPX = path.join(DATA, '9JUS.pdb');
 const ABIN = path.join(DATA, 'actin.bin');
 
 /* =====================================================================
- *  folding-lab.html — the claims folding.js makes about 1VII.
+ *  attic/folding-lab.html — the claims folding.js makes about 1VII.
  *
  *  MolecularGeometry.md §1.4 rule 2: a chemical claim ships with the
- *  assertion that checks it. folding-lab.html makes four, and all four are
+ *  assertion that checks it. attic/folding-lab.html makes four, and all four are
  *  things a student is told in so many words, so none of them may drift
  *  silently if the H-bond cutoffs or the solver are ever retuned.
  * ===================================================================== */
@@ -179,7 +179,7 @@ if (fs.existsSync(VII)) {
      check-molecules' own rule here: two bonded spheres must not merge, or the
      stick between them is buried inside the atoms and the bond renders as
      nothing. */
-  const LIB = require(path.join(ROOT, 'lib-node.js'));
+  const LIB = require(path.join(ROOT, 'lib', 'lib-node.js'));
   const RAD = Object.fromEntries(['C','N','O','H']
     .map(e => [e, LIB.PALETTE.radii[e] / LIB.SCALE]));
   const I = FoldLib.IDEAL;
@@ -195,7 +195,7 @@ if (fs.existsSync(VII)) {
   else ok(`display radii clear every backbone bond (tightest ${tightest.toFixed(3)} A, N-H)`);
 
   /* CLAIM 6 — the COMMITTED trajectory is the one this solver produces.
-     folding-lab.html no longer folds anything: it plays folding/data/1VII.fold.bin.
+     attic/folding-lab.html no longer folds anything: it plays folding/data/1VII.fold.bin.
      That file is only trustworthy while it matches the code, and nothing
      about a stale one looks wrong — it animates a perfectly plausible fold
      that the current solver would never generate. Compared byte-for-byte,
@@ -491,7 +491,7 @@ if (fs.existsSync(FIL) && fs.existsSync(CPX)) {
 }
 
 /* CLAIM 6 — ribbon.js's helices are 1VII's, not an invention.
-   folding-lab-ribbon.html draws HP35 as a ribbon whose helices come from
+   attic/folding-lab-ribbon.html draws HP35 as a ribbon whose helices come from
    RibbonLib.HP35_HELICES, hard-coded in villin numbering because act 3
    renders from villin.js's Ca trace and never loads 1VII. That constant is
    a claim about a deposited file, so it is checked against it: the HELIX

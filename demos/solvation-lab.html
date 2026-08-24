@@ -246,15 +246,15 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="palette.js"></script>
-<script src="tokens-from-palette.js"></script>
-<script src="molecules.js"></script>
-<script src="mol-solvation.js"></script>
-<script src="scene.js"></script>
-<script src="fx.js"></script>
-<script src="atomkit.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/mol-solvation.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/fx.js"></script>
+<script src="lib/atomkit.js"></script>
 <script src="kit/hbond.js"></script>
-<script src="ionic-drag.js"></script>
+<script src="lib/ionic-drag.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -460,7 +460,7 @@ function showSticky(note, delay){
   stickyTimer=setTimeout(()=>{
     stickyTimer=null; stickyPending=null;
     elSticky.dataset.key=note.title;
-    elSticky.innerHTML='<img class="simg" src="sticker_important.png" alt="">'+
+    elSticky.innerHTML='<img class="simg" src="images/sticker_important.png" alt="">'+
       '<div class="stitle">'+note.title+'</div>'+
       '<div class="sbody">'+note.body+'</div>'+
       (note.action?'<button class="sact" type="button">'+note.action.label+'</button>':'');

@@ -5,7 +5,7 @@
  *
  *  This is CONTENT, not a module: no behaviour, no DOM, nothing to call.
  *  It is split out because more than one page will read it —
- *  `concept-map.html` draws it as a graph today.
+ *  `tests/concept-map.html` draws it as a graph today.
  *
  *  CONCEPTS — the topics a question can name. `id` is what a question
  *  refers to; `built` says whether an engine for it is on disk, which is

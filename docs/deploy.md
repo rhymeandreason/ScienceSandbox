@@ -30,7 +30,7 @@ the exact structure a lesson was checked against. That is 13 MB the site never
 serves.
 
 Four pages fetch one at runtime and so are broken on the deployment, on purpose:
-`folding-lab.html` and `folding-lab-ribbon.html` (1VII),
+`attic/folding-lab.html` and `attic/folding-lab-ribbon.html` (1VII),
 `folding/ribbon-test.html` (villin), `hemoglobin/hemoglobin-inhouse.html`
 (2HHB). All four are prototypes or benches, used on the dev server. **Promoting
 one to a featured lesson means baking what it fetches, not un-ignoring the

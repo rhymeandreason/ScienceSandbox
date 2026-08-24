@@ -48,7 +48,7 @@ Math.random = function () {
 
 const HERE = __dirname;
 const src = fs.readFileSync(path.join(HERE, 'diffusion.js'), 'utf8');
-const MolLib = require('../lib-node.js');
+const MolLib = require('../lib/lib-node.js');
 globalThis.MolLib = MolLib;                     // radiusOf reads PALETTE through it
 const D = require(path.join(HERE, 'diffusion.js'));
 const { advance, radiusOf, diffusionOf, spreadOf, spreadSVG, gauss, PLOT } = D;

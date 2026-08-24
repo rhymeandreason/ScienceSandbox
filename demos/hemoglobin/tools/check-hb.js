@@ -1045,7 +1045,7 @@ ok(fold.right / (fold.right + fold.left) > 0.85,
    glycine rather than as a fault. So the coverage is asserted here, where
    the chain's own sequence is known. */
 {
-  const ResidueLib = require('../../residues.js');
+  const ResidueLib = require('../../lib/residues.js');
   const d2 = decode(fs.readFileSync(BIN));
   const missing = [...new Set(d2.resNames)].filter(t => !ResidueLib.SIDE[t]);
   ok(missing.length === 0,

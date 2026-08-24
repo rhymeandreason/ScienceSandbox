@@ -13,7 +13,7 @@
  *
  * Run:  node tools/name-atoms.js [molecule ...]     (default: every aminoacid)
  */
-const { MOLECULES } = require('../lib-node.js');
+const { MOLECULES } = require('../lib/lib-node.js');
 
 const GREEK = ['B', 'G', 'D', 'E', 'Z', 'H'];   // Cβ, Cγ, Cδ, Cε, Cζ, Cη
 

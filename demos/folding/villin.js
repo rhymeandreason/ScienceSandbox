@@ -1,5 +1,5 @@
 /* =====================================================================
- *  villin.js — the scale-out mechanic for folding-lab.html's third act.
+ *  villin.js — the scale-out mechanic for attic/folding-lab.html's third act.
  *
  *  Page-specific, like folding.js and for the same reason (CLAUDE.md,
  *  "share the plumbing, not the physics"): nothing else here zooms out from

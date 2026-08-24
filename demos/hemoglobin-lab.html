@@ -236,14 +236,14 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="palette.js"></script>
-<script src="tokens-from-palette.js"></script>
-<script src="molecules.js"></script>
-<script src="scene.js"></script>
-<script src="fx.js"></script>
-<script src="annotate.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/fx.js"></script>
+<script src="lib/annotate.js"></script>
 <script src="folding/ribbon.js"></script>
-<script src="residues.js"></script>
+<script src="lib/residues.js"></script>
 <script src="hemoglobin/hbfold.js"></script>
 <script>
 "use strict";
@@ -729,7 +729,7 @@ const RIBBON_IN = [0.10, 0.19];   // fold t; ACTS' level-2 caption posts at 0.10
 const RIBBON_UNDER = 0.45;
 
 /* THE OPENING IS A TOP-DOWN SHOT, and the elevation is measured rather
-   than picked — the same method folding-lab-ribbon.html uses for the same
+   than picked — the same method attic/folding-lab-ribbon.html uses for the same
    beat. `phi` is the angle from straight down the Y axis, so a smaller
    number is a higher camera. The question is how much of the segment's
    own thickness lies along the view axis, because depth is what turns

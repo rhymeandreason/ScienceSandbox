@@ -2,7 +2,7 @@
 /* =====================================================================
  *  bake-fold.js — solve the villin fold once, commit the answer.
  *
- *  folding-lab.html used to run the whole 900-frame relaxation in the
+ *  attic/folding-lab.html used to run the whole 900-frame relaxation in the
  *  browser on every visit: about a second and a half of constraint solving
  *  before the first frame could draw, repeated for every student, every
  *  time, to arrive at a number that is identical each run. The fold is
@@ -26,7 +26,7 @@ const HERE = path.join(__dirname, '..');   // demos/folding
 const SRC = path.join(HERE, 'data', '1VII.pdb');
 const OUT = path.join(HERE, 'data', '1VII.fold.bin');
 
-/* Must match folding-lab.html's CORE_RESIDUES: the three phenylalanines are
+/* Must match attic/folding-lab.html's CORE_RESIDUES: the three phenylalanines are
    in the trajectory as atoms, so baking a different set writes a file with a
    different atom count than the page expects. */
 const CORE_RESIDUES = [47, 51, 58];

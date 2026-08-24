@@ -29,7 +29,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const HERE = path.join(__dirname, '..');
-const ResidueLib = require(path.join(HERE, 'residues.js'));
+const ResidueLib = require(path.join(HERE, 'lib', 'residues.js'));
 
 let fails = 0;
 function ok(cond, label, detail) {

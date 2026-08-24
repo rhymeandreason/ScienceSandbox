@@ -159,12 +159,16 @@
         <div class="path">solvation-lab.html <span class="badge">prototype</span></div>
         <div class="desc">Forces between molecules: salt in water, hydration shells</div>
       </a>
-      <a class="card test" href="droplet-test.html">
-        <div class="path">droplet-test.html <span class="badge">test</span></div>
+      <a class="card test" href="tests/droplet-test.html">
+        <div class="path">tests/droplet-test.html <span class="badge">test</span></div>
         <div class="desc">Cohesion render bench: raymarched droplets, real refraction of the page behind them. Drag to gather them into one blob</div>
       </a>
-      <a class="card test" href="adhesion-test.html">
-        <div class="path">adhesion-test.html <span class="badge">test</span></div>
+      <a class="card test" href="tests/water-render-debug.html">
+        <div class="path">tests/water-render-debug.html <span class="badge">test</span></div>
+        <div class="desc">Water render bench: the sphere-and-stick water against its shader alternatives, with the knobs exposed</div>
+      </a>
+      <a class="card test" href="tests/adhesion-test.html">
+        <div class="path">tests/adhesion-test.html <span class="badge">test</span></div>
         <div class="desc">Adhesion bench: paper towel vs wax paper. Contact angle, grip, and wicking, all from the same spherical-cap solve. Drag a drop across the seam</div>
       </a>
     </div>
@@ -195,16 +199,16 @@
         <div class="path">molecule-builder.html <span class="badge">featured</span></div>
         <div class="desc">Build a bond by hand: valence, geometry, charge</div>
       </a>
-      <a class="card test" href="aminoacid-lab.html">
-        <div class="path">aminoacid-lab.html <span class="badge">test</span></div>
+      <a class="card test" href="tests/aminoacid-lab.html">
+        <div class="path">tests/aminoacid-lab.html <span class="badge">test</span></div>
         <div class="desc">Build a peptide by dehydration synthesis</div>
       </a>
       <a class="card prototype" href="contrast-lab.html">
         <div class="path">contrast-lab.html <span class="badge">prototype</span></div>
         <div class="desc">Spot the difference: six near-identical molecule pairs</div>
       </a>
-      <a class="card test" href="macromolecule-lab.html">
-        <div class="path">macromolecule-lab.html <span class="badge">test</span></div>
+      <a class="card test" href="tests/macromolecule-lab.html">
+        <div class="path">tests/macromolecule-lab.html <span class="badge">test</span></div>
         <div class="desc">Four macromolecule classes side by side, true relative size</div>
       </a>
       <a class="card test" href="chair/chair-test.html">
@@ -225,12 +229,12 @@
         <div class="path">hemoglobin-lab.html <span class="badge">featured</span></div>
         <div class="desc">Protein structure, all four levels, on one molecule</div>
       </a>
-      <a class="card reference" href="folding-lab-ribbon.html">
-        <div class="path">folding-lab-ribbon.html <span class="badge">reference</span></div>
+      <a class="card reference" href="attic/folding-lab-ribbon.html">
+        <div class="path">attic/folding-lab-ribbon.html <span class="badge">reference</span></div>
         <div class="desc">Levels 1→3 on villin — superseded by hemoglobin-lab</div>
       </a>
-      <a class="card reference" href="folding-lab.html">
-        <div class="path">folding-lab.html <span class="badge">reference</span></div>
+      <a class="card reference" href="attic/folding-lab.html">
+        <div class="path">attic/folding-lab.html <span class="badge">reference</span></div>
         <div class="desc">Earlier folding lesson</div>
       </a>
       <a class="card test" href="folding/ribbon-test.html">
@@ -305,9 +309,25 @@
         <div class="path">membrane-lab.html <span class="badge">featured</span></div>
         <div class="desc">What gets through the membrane, and what it costs — channels, pumps, ATP spend</div>
       </a>
-      <a class="card test" href="phospholipid-test.html">
-        <div class="path">phospholipid-test.html <span class="badge">test</span></div>
+      <a class="card test" href="tests/phospholipid-test.html">
+        <div class="path">tests/phospholipid-test.html <span class="badge">test</span></div>
         <div class="desc">One POPC, ball-and-stick, no UI — where the built lipid's pose gets judged</div>
+      </a>
+      <a class="card test" href="membrane/parts-test.html">
+        <div class="path">membrane/parts-test.html <span class="badge">test</span></div>
+        <div class="desc">Bench for membrane/parts.js — the pump built out of its profile solve, no cycle running</div>
+      </a>
+      <a class="card test" href="membrane/clip-test.html">
+        <div class="path">membrane/clip-test.html <span class="badge">test</span></div>
+        <div class="desc">Bench for membrane/clip.js — the sodium pump cut open against the bilayer plane</div>
+      </a>
+      <a class="card test" href="membrane/pump-test.html">
+        <div class="path">membrane/pump-test.html <span class="badge">test</span></div>
+        <div class="desc">Bench for membrane/pump.js — the sodium pump running its cycle, gates and all</div>
+      </a>
+      <a class="card test" href="membrane/membrane-pump-test.html">
+        <div class="path">membrane/membrane-pump-test.html <span class="badge">test</span></div>
+        <div class="desc">The pump on a full bilayer with captions, the staging rehearsal for membrane-lab</div>
       </a>
       <a class="card test" href="diffusion/diffusion-test.html">
         <div class="path">diffusion/diffusion-test.html <span class="badge">test</span></div>
@@ -359,8 +379,8 @@
         <div class="path">design-system.html <span class="badge">internal tool</span></div>
         <div class="desc">Every token, type step and button in main.css, on the stage's own paper</div>
       </a>
-      <a class="card test" href="concept-map.html">
-        <div class="path">concept-map.html <span class="badge">test</span></div>
+      <a class="card test" href="tests/concept-map.html">
+        <div class="path">tests/concept-map.html <span class="badge">test</span></div>
         <div class="desc">Node map of the topics and the student questions between them, on a draggable open canvas. Reads the shared bank in questions.js</div>
       </a>
       <a class="card tool" href="questions-cms.html">

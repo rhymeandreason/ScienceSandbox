@@ -123,10 +123,10 @@
       stereo:'all-equatorial',
       view:VIEW.pyranose,
       optH:CH,                            // nonpolar C–H; the five O–H are never optional
-      mono:'carbohydrate',                // macromolecule-lab.html: the carbohydrate monomer
+      mono:'carbohydrate',                // tests/macromolecule-lab.html: the carbohydrate monomer
       gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
             note:'β-D-glucopyranose — the ring form that dominates in water' },
-      // functional-group index map for macromolecule-lab.html's gallery — the
+      // functional-group index map for tests/macromolecule-lab.html's gallery — the
       // same kind of contract as `gly` above. Derived from the build variables,
       // not typed out, so re-ordering the build can't silently mislabel a group.
       groups:[

@@ -44,8 +44,8 @@
 'use strict';
 
 const path = require('path');
-const { MOLECULES } = require(path.join(__dirname, '..', 'lib-node.js'));
-const SCALE = require(path.join(__dirname, '..', 'lib-node.js')).SCALE || 1.9;
+const { MOLECULES } = require(path.join(__dirname, '..', 'lib', 'lib-node.js'));
+const SCALE = require(path.join(__dirname, '..', 'lib', 'lib-node.js')).SCALE || 1.9;
 
 const specfile = require('./specfile.js');
 // --write edits each spec's own mol-*.js in place instead of printing rows to

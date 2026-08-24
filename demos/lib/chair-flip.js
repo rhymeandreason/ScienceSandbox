@@ -58,7 +58,7 @@
   const unit=a=>{ const l=len(a); return l ? [a[0]/l,a[1]/l,a[2]/l] : [0,0,0]; };
 
   const graph = () => global.MolGraph
-    || (typeof require==='function' ? require('./kit/molgraph.js').MolGraph : null);
+    || (typeof require==='function' ? require('../kit/molgraph.js').MolGraph : null);
 
   function adjacency(spec){
     const a={};

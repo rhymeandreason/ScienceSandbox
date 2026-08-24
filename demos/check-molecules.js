@@ -97,7 +97,7 @@
 // lib-node.js walks MolLib.DOMAINS and loads every domain file, so this sees
 // the whole library even though no single PAGE does. (The `})(this)` at the
 // foot of each module is what puts MolLib on module.exports under CommonJS.)
-const { PALETTE, MOLECULES } = require('./lib-node.js');
+const { PALETTE, MOLECULES } = require('./lib/lib-node.js');
 
 let formulaFails = 0;
 const TIGHT = 0.03;   // a positive but very small gap: renders, but barely
@@ -988,7 +988,7 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
   //     layout. Same rule as the 3D geometry above: the display spheres must
   //     clear, because a merged pair buries the stick between them.
   if (mol.flat2d) {
-    const S = require('./lib-node.js').SCALE || 1.9;
+    const S = require('./lib/lib-node.js').SCALE || 1.9;
     const keep = mol.atoms.map((a, i) => i).filter(i => mol.atoms[i].el !== 'H');
     const fail = m => { stereoFails++; console.log(`   FLAT2D FAIL: ${m}`); };
     if (mol.flat2d.length !== keep.length) {

@@ -38,7 +38,7 @@ const vm = require('vm');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const ALL = Object.keys(require(path.join(ROOT, 'lib-node.js')).MOLECULES);
+const ALL = Object.keys(require(path.join(ROOT, 'lib', 'lib-node.js')).MOLECULES);
 
 let fails = 0;
 const fail = m => { fails++; console.log(`  FAIL  ${m}`); };
@@ -58,25 +58,41 @@ const PDB_PAGES = new Set();
 // internal nav page linking to other pages' scenes, not a scene itself.
 // design-system.html loads palette.js to read the atom colours as swatches,
 // which is the only reason it looks like a scene; it renders no molecule.
-// droplet-test.html and adhesion-test.html render water as bulk — a refracting
-// continuum, not spheres — because cohesion, contact angle and wicking are all
-// properties of the bulk. There is no molecule on either page to load.
-// concept-map.html draws the topics themselves as a graph — labels and edges,
-// no stage. questions-cms.html edits that graph's data file as text.
+// tests/droplet-test.html and tests/adhesion-test.html render water as bulk — a
+// refracting continuum, not spheres — because cohesion, contact angle and
+// wicking are all properties of the bulk. There is no molecule on either page.
+// tests/concept-map.html draws the topics themselves as a graph — labels and
+// edges, no stage. questions-cms.html edits that graph's data file as text.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
-                          'droplet-test.html', 'adhesion-test.html',
-                          'concept-map.html', 'questions-cms.html']);
+                          'tests/droplet-test.html', 'tests/adhesion-test.html',
+                          'tests/concept-map.html', 'questions-cms.html']);
 
-const PAGES = fs.readdirSync(ROOT)
-  .filter(f => f.endsWith('.html') && !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();
+// The lessons at the top level, plus the benches in tests/. Both directories,
+// because two of the pages in tests/ (aminoacid-lab, macromolecule-lab) build
+// real scenes out of the shared registry and were covered here before they
+// moved — a checker that only read the top level would have dropped them
+// silently, which is the failure this whole file exists to prevent.
+//
+// attic/ is NOT walked. Those pages are superseded (admin.html: reference) and
+// not deployed; holding them to the registry's current shape would mean
+// maintaining code nothing serves.
+const html = d => fs.readdirSync(path.join(ROOT, d))
+  .filter(f => f.endsWith('.html')).map(f => (d ? d + '/' : '') + f);
+const PAGES = [...html(''), ...html('tests')]
+  .filter(f => !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();
 
 console.log('== 1. every page loads the molecules it names');
 for (const page of PAGES) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
-  // Local scripts only, in page order; CDN Three is not our concern.
+  // Local scripts only, in page order; CDN Three is not our concern. A src is
+  // matched on its BASENAME and resolved against the page's own directory, so
+  // a bench in tests/ loading ../molecules.js counts the same as a lesson
+  // loading molecules.js.
   const libs = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])
-    .filter(s => !s.includes('/'))
-    .filter(s => s === 'palette.js' || s === 'molecules.js' || s === 'skel.js' || /^mol-/.test(s));
+    .filter(s => !/^https?:/.test(s))
+    .filter(s => { const b = path.basename(s);
+      return b === 'palette.js' || b === 'molecules.js' || b === 'skel.js' || /^mol-/.test(b); });
+  const dir = path.dirname(path.join(ROOT, page));
 
   // A fresh window per page — exactly what the browser hands it.
   const sandbox = { console, Math, JSON, Object, Array, String, Number, Error, Boolean };
@@ -84,7 +100,7 @@ for (const page of PAGES) {
   const ctx = vm.createContext(sandbox);
   try {
     for (const f of libs) {
-      vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
+      vm.runInContext(fs.readFileSync(path.resolve(dir, f), 'utf8'), ctx, { filename: f });
     }
   } catch (e) {
     fail(`${page}: loading [${libs.join(', ')}] threw — ${e.message}`);
@@ -103,7 +119,7 @@ for (const page of PAGES) {
     fail(`${page} names [${missing.join(', ')}] but loads only [${libs.join(', ')}] `
       + `— add the mol-*.js that owns them (and skel.js if it needs the builder)`);
   } else {
-    console.log(`  ok    ${page.padEnd(23)} ${String(have.size).padStart(2)}/${ALL.length} specs loaded, `
+    console.log(`  ok    ${page.padEnd(32)} ${String(have.size).padStart(2)}/${ALL.length} specs loaded, `
       + `${used.length} referenced`);
   }
 }

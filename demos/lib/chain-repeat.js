@@ -43,7 +43,7 @@
   'use strict';
 
   const F = global.CondenseFrame
-    || (typeof require==='function' ? require('./chain/frame.js') : null);
+    || (typeof require==='function' ? require('../chain/frame.js') : null);
 
   const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
   const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];

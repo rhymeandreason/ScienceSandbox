@@ -23,8 +23,8 @@
  * ========================================================================== */
 'use strict';
 
-const CF = require('../chair-flip.js');
-const { MOLECULES } = require('../lib-node.js');
+const CF = require('../lib/chair-flip.js');
+const { MOLECULES } = require('../lib/lib-node.js');
 
 let fails = 0;
 const fail = m => { fails++; console.log(`   FAIL: ${m}`); };

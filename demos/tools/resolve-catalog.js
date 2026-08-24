@@ -153,7 +153,7 @@ async function has3D(cid) {
 
 /* ---- what this library already knows, to check the tool against ---------- */
 function committed() {
-  const { MOLECULES } = require(path.join(__dirname, '..', 'lib-node.js'));
+  const { MOLECULES } = require(path.join(__dirname, '..', 'lib', 'lib-node.js'));
   const byQuery = new Map();
   for (const k of Object.keys(MOLECULES)) {
     const s = MOLECULES[k].src;
@@ -185,7 +185,7 @@ function verifyAgainstSpecs() {
   const head = rows[0], col = n => head.indexOf(n);
   const iMol = col('Molecule'), iId = col('Identifier'), iCid = col('CID');
   if (iCid < 0) { console.log('  no CID column yet — run the resolver first'); return 1; }
-  const { MOLECULES } = require(path.join(__dirname, '..', 'lib-node.js'));
+  const { MOLECULES } = require(path.join(__dirname, '..', 'lib', 'lib-node.js'));
   // Index the catalog by every string that might name a molecule.
   const byName = new Map();
   for (let r = 1; r < rows.length; r++) {

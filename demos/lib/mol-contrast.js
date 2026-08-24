@@ -302,7 +302,7 @@
     //   amino H — holds Cδ instead, and Cδ's own two hydrogens land at the
     //   tail (15, 16). `pep.hN` is therefore a ONE-element array, not two:
     //   documentation of the difference, not a page hookup — proline is not
-    //   in aminoacid-lab.html's AA_KEYS, so nothing ever reads hN[1] on it.
+    //   in tests/aminoacid-lab.html's AA_KEYS, so nothing ever reads hN[1] on it.
     //
     //   Real PubChem 3D conformer (CID 145742, L-proline), reindexed by hand
     //   into the above order and run through sdf2spec.js's own reframe()

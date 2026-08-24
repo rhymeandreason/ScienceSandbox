@@ -59,3 +59,11 @@ viewer-compare/
 # the deployed site and nowhere else. vercel.json redirects the extension away
 # for the same reason as viewer-compare/: this file alone is a CLI mechanism.
 *.pdb
+
+# Superseded lessons, kept as worked examples. folding-lab.html and
+# folding-lab-ribbon.html were the protein-structure lesson before
+# hemoglobin-lab.html took all four levels onto one molecule; both are tagged
+# `reference` on admin.html. They still load folding/, so they are kept rather
+# than deleted, but a student following a link into one would be reading a
+# lesson this repo no longer stands behind.
+demos/attic/
