@@ -1475,21 +1475,33 @@ const wPoly=r2=>{ const t=H2-r2; return t>0 ? POLY6*t*t*t : 0; };
    other would feel nothing pushing them apart. */
 const gSpiky=r=>{ const t=H-r; return t>0 ? SPIKY*t*t : 0; };
 
-/* TWO SWEEPS, NOT FOUR. Measured at 1200-1500 molecules: 27% cheaper a
-   molecule, and the liquid does not notice — nearest 2.74 A against 2.76,
-   coordination 6.3 against 6.2, 2.51 H-bonds a molecule against 2.53. The
-   contact constraint does most of the spacing work and it runs inside every
-   sweep either way, so the extra density sweeps were refining a number that was
-   already converged.
+/* ONE SWEEP. The density constraint is not what sets this liquid's spacing —
+   the contact constraint is, and it runs inside every sweep either way — so
+   extra density sweeps refine a number that has already converged. Settled at
+   800 molecules, one sweep against two:
 
-   A SKIN ON THE NEIGHBOUR LIST WAS TRIED HERE AND DOES NOT PAY, which is worth
-   recording so nobody tries it twice. Molecules move 0.27 A a step against a
-   6.2 A cutoff, so a skin large enough to survive several steps inflates the
-   list faster than it saves rebuilds: 0.05 A of skin cost 4.91 ms a step with a
-   26.8-neighbour list, 0.8 A cost 4.82 with 34.6, 1.6 A cost 5.68 with 46.3,
-   2.4 A cost 6.85 with 53.7. The one-pass cell build this already does is the
-   right structure for a liquid this mobile. */
-let SOLVER_ITERS=2;
+       step        5.9 ms      7.3 ms
+       nearest     2.72 A      2.73 A       real water 2.76
+       coordination 4.48       4.63         real water 4.5
+       bonds       2.52        2.57
+
+   A fifth of the whole step, and the coordination lands NEARER the real number
+   for it. The pore still wets: 2500 steps with the supply on gave 26 A of climb
+   at 16 degrees against 23 A at 18. One run each, and this pore is bistable
+   near threshold — see the note by K_COH — so read that as "no worse", not as a
+   difference.
+
+   Turn it up when the liquid is being changed rather than watched: a stiffer
+   constraint or a different kernel will need the sweeps back while it settles.
+
+   A SKIN ON THE NEIGHBOUR LIST DOES NOT PAY, which is worth recording so nobody
+   tries it twice. Molecules move 0.27 A a step against a 6.2 A cutoff, so a
+   skin large enough to survive several steps inflates the list faster than it
+   saves rebuilds: 0.05 A of skin cost 4.91 ms a step with a 26.8-neighbour
+   list, 0.8 A cost 4.82 with 34.6, 1.6 A cost 5.68 with 46.3, 2.4 A cost 6.85
+   with 53.7. The one-pass bin build this already does is the right structure
+   for a liquid this mobile. */
+let SOLVER_ITERS=1;
 /* How much of each sweep's correction is applied. Full strength overshoots: the
    whole pool blew apart, 5 to 13 A between neighbours and speeds of 9 to 30 A a
    step. Under-relaxed and iterated, the same solve converges instead. */
