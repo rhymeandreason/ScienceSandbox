@@ -362,7 +362,15 @@ const GAP   = nm(Math.min(12, Math.max(2, +_q.get('gap') || 3.5)));
    on all 1500 steps, injection into the base failed 1497 times out of 1740,
    because the band was packed. Nothing limits the fill but the volume that has
    to move. `?depth=1.0` is the knob for it. */
-const DEPTH = nm(Math.min(3, Math.max(0.6, +_q.get('depth') || 1.5)));
+const DEPTH = nm(Math.min(3, Math.max(0.6, +_q.get('depth') || 0.9)));
+/* 0.9 RATHER THAN 1.5, and it is a choice about the Speed slider rather than
+   about water. A step costs about 6 ms at this thickness against 13 at 1.5, and
+   the frame budget is 16.7, so the point where more Speed stops buying more
+   steps a second moves from about 1.3x out to about 2.7x. Thinner does not fill
+   in fewer steps — it fills in more, since the same arriving water has less
+   column to raise — but it puts the run in the range where the slider works,
+   and 3-4x with a thin slab is the fastest this feels. The liquid does not
+   notice: 2.73 A spacing, 2.49 H-bonds a molecule, 17 degrees. */
 const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom edge
 
 /* ---- water, from real distances ----
@@ -1750,7 +1758,7 @@ function report(){
   + `   <b>${sps.toFixed(0)}</b> steps/s   <b>${fps.toFixed(0)}</b> fps`;
 }
 
-let SPEED=1;                           // physics steps per drawn frame
+let SPEED=3;                           // physics steps per drawn frame; the knee at DEPTH 0.9
 /* NO WARM-UP. The seed is a lattice, so the first second is the meniscus
    forming rather than the answer, and an earlier version ran those 200 steps
    before the first paint so a student would not read the lattice as the result.
@@ -1798,7 +1806,7 @@ const KNOBS=[
      lesson. Evaporation joins them because it is what the competition acts on:
      nothing travels until water leaves the top. Speed is apparatus and sits
      with the rest. */
-  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x'},
+  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x'},   // opens at 3, which is the knee at this depth
   {k:'Adhesion',   get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3), main:1},
   {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
   {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
