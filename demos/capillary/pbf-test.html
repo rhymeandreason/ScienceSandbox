@@ -252,6 +252,11 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
     font:12px/1.6 var(--font-mono);color:var(--muted);white-space:pre;
   }
   #readout b{color:var(--ink);font-weight:600}
+  #caption{
+    position:absolute;left:22px;top:118px;z-index:5;width:340px;
+    font:11px/1.7 var(--font-mono);color:var(--muted);opacity:.75;
+    white-space:pre-line;
+  }
   #knobs{
     position:absolute;right:20px;top:18px;z-index:5;width:236px;
     font:11.5px/1.5 var(--font-mono);color:var(--muted);
@@ -289,6 +294,11 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 
 <!-- The bench's numbers, measured off what was built. Nothing here is typed. -->
 <div id="readout"></div>
+<!-- The one thing the numbers above cannot say for themselves. Static, because
+     it is a fact about a leaf rather than a measurement of this run. -->
+<div id="caption">a real pore fills in about a nanosecond.
+the seconds above are your wait, not the plant's.
+what this shows is the order things happen in, not the speed.</div>
 
 <!-- The bench's knobs. Everything here is a physics constant except Speed,
      which is how many steps are taken per drawn frame. -->
