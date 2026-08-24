@@ -280,6 +280,7 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
 </div>
 
 <div id="bar">
+  <label class="check"><input type="checkbox" id="feed" checked><span>Supply</span></label>
   <label class="check"><input type="checkbox" id="tint"><span>Tint</span></label>
   <button class="pill pill--ghost" id="reset" type="button">Reset</button>
 </div>
@@ -1442,7 +1443,27 @@ const SUPPLY_TARGET=Math.round(0.0334*(GAP/A)*(DEPTH/A)*(SUPPLY_BAND/A));
    rather than at a rate, so this is only a ceiling on how abruptly it happens:
    a whole band's worth appearing in one frame would be a pressure wave. */
 const SUPPLY_PER_STEP=4;
+/* THE SUPPLY, AND A SWITCH FOR IT, because the page needs to be able to ask
+   what the wall does on its own. Two things need it.
+
+   A CONTACT ANGLE IS ONLY DEFINED ON A CONTACT LINE THAT IS NOT MOVING. While
+   the pore fills, the panel is measuring an ADVANCING angle, which depends on
+   how fast the front is going and reads higher than the static one — that is
+   why the number drifts for thousands of steps and why tuning against it
+   mid-fill is matching a speed-dependent quantity to a textbook static one.
+   Hold the supply, let the front come to rest, and the reading means what the
+   textbook means.
+
+   AND IT IS THE CONTROL. Water climbing a wall it wets is capillarity; water
+   arriving because something keeps injecting it is not, and the two look alike
+   from outside. Measured with Adhesion at zero, the pool pulls away into a
+   blob that touches neither wall — right for a non-wetting pore — and goes on
+   growing anyway, which is wrong: a non-wetting capillary does not imbibe.
+   That is this switch's own finding, and the reason the next job is making the
+   supply answer to the solver rather than to a headcount. */
+let FEED=true;
 function supply(){
+  if(!FEED) return;
   let inBand=0;
   for(const w of waters) if(!w.gone && w.p.y<FLOOR+SUPPLY_BAND) inBand++;
   for(let k=0;k<SUPPLY_PER_STEP;k++){
@@ -1755,6 +1776,11 @@ function stepTint(){
   if(Math.abs(tintTarget-tintT)<0.002) tintT=tintTarget;
   applyTint();
 }
+/* Read the box rather than assume it: a browser restores checkbox state across
+   a reload, so a page that only listens for changes can come back with the
+   switch off and the variable on. */
+(function(){ const b=document.getElementById('feed');
+  FEED=b.checked; b.onchange=e=>{ FEED=e.currentTarget.checked; }; })();
 document.getElementById('tint').onchange=e=>{ tintTarget=e.currentTarget.checked?1:0; };
 
 resize(); applyCam(); loop();
