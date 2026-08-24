@@ -1838,6 +1838,70 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
   evapCount=0; condensed=0; RHO_0=0; stepNo=0; angHist.length=0; };
+
+/* =============================================================
+ *  MEASUREMENTS NOT MADE. Two, both designed and neither run, kept
+ *  here because the reasons for wanting them are easy to lose and
+ *  expensive to rediscover. Each says what to vary, what to record,
+ *  and — the part worth writing down — what each outcome would mean.
+ * =============================================================
+ *
+ *  1. THE WETTING PROBABILITY CURVE. Adhesion is currently set by eye
+ *  over many runs, because a single run's settled angle is not the
+ *  constant's value: at 0.026 the same setting gives 31 degrees with
+ *  the water 17 A up the wall on one run and 70 degrees with 4 A on
+ *  the next. The pore lands wetted or unwetted and which one is
+ *  chance.
+ *
+ *    Vary   K_WET over 0.020 to 0.036 in steps of 0.002.
+ *    Repeat ten runs a setting, each from Reset, supply on,
+ *           evaporation off, to step 4500.
+ *    Record ONE BIT per run — wetted or not. `climb at wall` splits
+ *           them cleanly: the wetted runs sit near 17 A, the others
+ *           near 4. Do not record the angle; it is the thing that
+ *           cannot be trusted from one run, which is the whole point.
+ *    Read   the fraction wetted against adhesion. A sigmoid, and its
+ *           midpoint is the number adhesion actually has.
+ *
+ *  A curve that rises over 0.004 or less says the transition is
+ *  genuinely sharp and the constant sits on a knife edge, so anything
+ *  that perturbs the liquid can tip it. One that rises over 0.010 or
+ *  more says the bistability is narrow and 0.026 is safely inside the
+ *  wetted basin. Either way it replaces a judgement with a
+ *  distribution.
+ *
+ *  2. THE PORE WIDTH TEST, which asks whether that sharpness is
+ *  physics or the model. Filling a pore this narrow is a first-order
+ *  transition: the wall bilayers on the two faces nearly touch, and
+ *  whether they bridge is a matter of chance and of how close they
+ *  are. If that is what is happening, widening the pore should soften
+ *  it — the walls stop cooperating and the liquid gets to choose an
+ *  intermediate state.
+ *
+ *    Vary   GAP over 3.5 nm, 5 nm, 7 nm, 10 nm, rebuilding the walls
+ *           for each. N_START and N_MAX scale with the volume.
+ *    Repeat the probability curve above at each width, or at least
+ *           five runs at three adhesions spanning the transition.
+ *    Record the same bit, plus the wall layer's thickness in
+ *           molecules — it should stay near two at every width, since
+ *           a wetting layer is a property of the surface and not of
+ *           the gap.
+ *
+ *  If the curve broadens as the pore widens, the sharpness is
+ *  confinement and this bench is telling the truth about nanopores —
+ *  and the page has a lesson it does not currently teach, which is
+ *  why a leaf builds pores of this size rather than larger ones. If
+ *  the curve stays a cliff at 10 nm, something in the wall model is
+ *  switching rather than balancing, and neither the adhesion value
+ *  nor the contact angle should be trusted until it is found. The
+ *  wetting layer staying two molecules thick at every width is the
+ *  control: if it thickens with the gap, WET_REACH is summing over a
+ *  field rather than a surface and that is the thing to fix first.
+ *
+ *  Both are mechanical enough to run unattended. Neither needs a
+ *  change to the physics — only a harness that resets, runs, and
+ *  records one number.
+ * ============================================================= */
 </script>
 </body>
 </html>
