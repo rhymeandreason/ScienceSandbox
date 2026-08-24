@@ -88,6 +88,36 @@ function loadEnv() {
 // .env.local takes effect on the next question with no restart.
 loadEnv();
 
+/* ---- the pretty URLs ------------------------------------------------------
+ * Production serves `/water`, not `/demos/water-lab.html`, and the index links
+ * the short form. Without this the index's own links 404 locally, which is the
+ * one thing a local server exists to catch.
+ *
+ * The map is READ FROM vercel.json rather than copied into a table here, so the
+ * two cannot drift: add a rewrite for the next lesson and this picks it up on
+ * restart. Only literal sources are taken — the pattern sources in that file are
+ * all `redirects`, which stay a deployment concern (locally you want
+ * /demos/water-lab.html to serve the page, not bounce to /water).
+ *
+ * Rewriting is invisible to the browser, which is what production does too: the
+ * URL bar still says /water, so `location.pathname` — the key the reload client
+ * reports — is /water, and the deps bookkeeping keys on the requested path, not
+ * on the file that answered it. */
+function loadRewrites() {
+  const map = new Map();
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+    for (const r of cfg.rewrites || []) {
+      if (/[(*?[\\]/.test(r.source)) continue;      // a pattern, not a literal path
+      map.set(r.source, r.destination.split('?')[0]);
+    }
+  } catch (e) {
+    console.warn('vercel.json would not parse — serving without pretty URLs:', e.message);
+  }
+  return map;
+}
+const REWRITES = loadRewrites();
+
 /* ---- the reload client, injected into HTML responses only ---------------- */
 // EventSource rather than a WebSocket: it is one line of client code, it
 // reconnects on its own when this server restarts, and it needs no dependency.
@@ -244,12 +274,20 @@ const server = http.createServer((req, res) => {
 
   if (url.startsWith('/api/')) return api(url, req, res);
 
+  // The path that actually answers, which is the requested one unless vercel.json
+  // maps it. Only file resolution follows the rewrite; everything the reload
+  // client keys on stays the URL the browser asked for.
+  const served = REWRITES.get(url) || url;
+
   // Attribute this request to the page that made it. An HTML response is its own
   // page and starts a fresh set — a reload should forget what the *previous*
   // version of the page loaded, or a removed script tag keeps waking it forever.
-  if (/\.html?$/.test(url) || url.endsWith('/')) {
+  if (/\.html?$/.test(served) || url.endsWith('/')) {
     const self = url.endsWith('/') ? url + 'index.html' : url;
-    deps.set(self, new Set([self]));
+    // Seeded with the file that answered as well as the page's own key: under a
+    // rewrite those differ, and a save to demos/water-lab.html arrives as that
+    // path while the open tab calls itself /water.
+    deps.set(self, new Set([self, served]));
   } else if (req.headers.referer) {
     try {
       const from = new URL(req.headers.referer).pathname;
@@ -259,7 +297,7 @@ const server = http.createServer((req, res) => {
 
   // Resolve inside ROOT only — a dev server still should not serve the whole
   // disk to anything that can reach this port.
-  const target = path.join(ROOT, url === '/' ? 'index.html' : url);
+  const target = path.join(ROOT, served === '/' ? 'index.html' : served);
   if (!target.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
 
   fs.stat(target, (err, st) => {
