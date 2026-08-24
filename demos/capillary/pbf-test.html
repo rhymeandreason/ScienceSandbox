@@ -355,7 +355,14 @@ const GAP   = nm(Math.min(12, Math.max(2, +_q.get('gap') || 3.5)));
    its cross-section. Widening the pore is not available (3.5 nm is the claim),
    so the depth carries it: at this thickness 900 molecules stand about 50 A
    deep in a pore 125 A tall, and there is somewhere to climb to. */
-const DEPTH = nm(1.5);
+/* AND SO IS DEPTH, for a different reason. The z faces are plain hard
+   boundaries — no hydroxyls, no wetting pull — so the depth carries no part of
+   the lesson, while multiplying both the molecules needed per angstrom of rise
+   and the cost of every step. Measured: with tension above the draw threshold
+   on all 1500 steps, injection into the base failed 1497 times out of 1740,
+   because the band was packed. Nothing limits the fill but the volume that has
+   to move. `?depth=1.0` is the knob for it. */
+const DEPTH = nm(Math.min(3, Math.max(0.6, +_q.get('depth') || 1.5)));
 const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom edge
 
 /* ---- water, from real distances ----
@@ -605,7 +612,7 @@ const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
    the base either way, and the steady state is the wall's business, not the
    seed's. A smaller pool just starts further from it, so more of the filling is
    something you watch happen. */
-let N_START=Math.round(300*(GAP/nm(3.5)));
+let N_START=Math.round(300*(GAP/nm(3.5))*(DEPTH/nm(1.5)));
 const N_MAX=1800;                      // enough to fill this pore, and a stop
 const SUPPLY_BAND=8.0*A;               // the depth of base kept topped up
 let N_WATER=N_MAX;                     // buffers are sized for the cap
@@ -715,7 +722,19 @@ hbLines.frustumCulled=false; root.add(hbLines);
    wall harvested the difference as a film running up it.
    DAMP is the bath coupling now rather than a viscosity, so it says how fast a
    molecule forgets its own velocity, not how thick the water is. */
-let DAMP=0.93;
+/* 0.99, NOT THE FORCE BUILD'S 0.93, and the reason is that DAMP does not mean
+   what it meant there. It was the viscosity; here XSPH is the viscosity — it
+   damps the difference between neighbours, so shear goes and the column's own
+   motion stays — and DAMP is only drag on the prediction, which is to say
+   friction against nothing.
+
+   Turning it down was costing the whole page. Measured, front rise: 0.0017 A a
+   step at 0.93 against 0.0109 at 0.99, six times, and 0.21 A a second against
+   0.94 once the extra cost per step is paid. The liquid is not worse for it, it
+   is better — nearest neighbours 2.76 A against a real 2.76, 2.58 H-bonds a
+   molecule, nothing airborne, and the contact angle settling at 25 degrees,
+   inside cellulose's band, where 0.93 gave 13. */
+let DAMP=0.99;
 /* How long a molecule may stand alone in the channel before it is put back in
    the reservoir. 40 steps is long enough that a surface molecule flickering
    free is left alone, short enough that nothing is seen hanging. */
