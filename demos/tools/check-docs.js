@@ -142,7 +142,7 @@ const norm = n => n.replace(/^demos\//, '');
 const SEARCH = ['.', '..', 'tools', 'folding', 'folding/tools',
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
-                'kit', 'reaction', 'coupling', 'lobes', 'dna'];
+                'kit', 'reaction', 'coupling', 'lobes', 'dna', 'ask'];
 const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
 for (const [n, docs] of [...named].sort()) {
