@@ -1,0 +1,27 @@
+{
+  "open": {
+    "id": "1IG8",
+    "title": "CRYSTAL STRUCTURE OF YEAST HEXOKINASE PII WITH THE CORRECT AMINO ACID SEQUENCE",
+    "resolution": 2.2,
+    "ligands": [],
+    "residues": 469
+  },
+  "closed": {
+    "id": "3B8A",
+    "title": "CRYSTAL STRUCTURE OF YEAST HEXOKINASE PI IN COMPLEX WITH GLUCOSE",
+    "resolution": 2.95,
+    "ligands": [
+      "BGC"
+    ],
+    "residues": 470
+  },
+  "crossIsozyme": true,
+  "identity": 76.9,
+  "paired": 467,
+  "hingeAngleDeg": 18.6,
+  "lobe1": 262,
+  "lobe2": 140,
+  "frames": 41,
+  "cutoff": 12,
+  "note": "PII apo vs PI holo: the angle is closure plus isozyme difference. The two cannot be separated from deposited structures; the only same-isozyme candidates are unsequenced (1HKG 83 UNK, 2YHX 78 UNK)."
+}
