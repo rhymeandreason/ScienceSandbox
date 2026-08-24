@@ -829,16 +829,22 @@ const hMesh=new THREE.InstancedMesh(SPHERE,
   new THREE.MeshLambertMaterial({color:P.atoms.H}), N_WATER*2);
 root.add(oMesh,hMesh);
 
-/* H-bonds, dashed, the convention WaterSim.md 1 sets. The same line is drawn
-   for a bond to a wall hydroxyl: adhesion IS this bond, to a different partner,
-   and drawing it differently would be inventing a second force. */
-const hbGeo=new THREE.BufferGeometry();
-const HB_MAX_LINES=N_WATER*4;
-hbGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HB_MAX_LINES*6),3));
-const hbLines=new THREE.LineSegments(hbGeo,
-  new THREE.LineDashedMaterial({color:P.bonds.hbond, dashSize:0.42*A, gapSize:0.3*A,
-    transparent:true, opacity:0.85}));
-hbLines.frustumCulled=false; root.add(hbLines);
+/* NO DASHED H-BONDS, AND THEY WERE NEVER VISIBLE HERE. WaterSim.md 1's
+   convention assumes ball-and-stick, where a dash between two atoms crosses
+   open space. This page draws water space-filling instead — that is the note by
+   R_O, and it is what makes the liquid read as a liquid — so the dash ran from
+   an H's centre to an O's centre with both spheres drawn on top of it.
+
+   Measured on a settled pool: the H...O line is 1.66 to 2.45 A, median 1.93,
+   against 2.35 A of sphere (R_H 0.95 + R_O 1.40). 91% of the lines were buried
+   whole, and the longest left 0.10 A showing, inside a neighbouring sphere.
+
+   It was not free. computeLineDistances walks the whole line buffer whatever
+   the draw range — 0.68 ms a frame — plus six endpoint writes per bond found,
+   in the water pass and the wall's both. The bonds are still found and still
+   counted; `H-bonds` in the readout is the same number it was.
+
+   To bring them back, the water has to shrink to ball-and-stick first. */
 
 /* ============================================================= *
  *  The physics. Same rules as the solvation engine, at real scale.
@@ -1144,13 +1150,13 @@ let stepNo=0;
 function step(){
   return _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
     bondTo,bondN,bondedWith,qArr,nW,
-    COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,HB_MAX_LINES,
+    COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,
     K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,WET_REACH,R_WATER,
     DAMP,V_THERM,V_MAX,TORQ_MAX,VAP_DWELL,GAP,DEPTH,FLOOR);
 }
 function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
     bondTo,bondN,bondedWith,qArr,nW,
-    COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,HB_MAX_LINES,
+    COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,
     K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,WET_REACH,R_WATER,
     DAMP,V_THERM,V_MAX,TORQ_MAX,VAP_DWELL,GAP,DEPTH,FLOOR){
   stepNo++;
@@ -1158,8 +1164,7 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
   FX.fill(0,0,3*n); TQ.fill(0,0,3*n);
 
   // --- pairwise: steric floor, then the H-bond that pulls them back together
-  let lines=0; hbCount=0; adCount=0;
-  const pos=hbGeo.attributes.position.array;
+  hbCount=0; adCount=0;
   /* The pair pass keeps a neighbour list, because the H-bond search below wants
      exactly the pairs this loop already found and running it over all n^2 again
      was two thirds of the frame. Counts live in typed arrays rather than a Map
@@ -1266,19 +1271,14 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
       const s=(dist-OO_EQ)*K_HB*bestLin/dist;
       FX[3*i]+=dx*s; FX[3*i+1]+=dy*s; FX[3*i+2]+=dz*s;
       FX[3*best]-=dx*s; FX[3*best+1]-=dy*s; FX[3*best+2]-=dz*s;
-      if(lines<HB_MAX_LINES){
-        pos[lines*6]=hx; pos[lines*6+1]=hy; pos[lines*6+2]=hz;
-        pos[lines*6+3]=PX[3*best]; pos[lines*6+4]=PX[3*best+1]; pos[lines*6+5]=PX[3*best+2];
-        lines++;
-      }
     }
   }
 
   // --- the wall: solid, and covered in hydroxyls that will hold on
-  lines=_wallPass(lines,pos,n,PX,HX,FX,TQ,GONE,WF,
+  _wallPass(n,PX,HX,FX,TQ,GONE,WF,
     surfX,surfY,surfZ,surfR,surfStart,ohOX,ohOY,ohOZ,ohHX,ohHY,ohHZ,ohStart,NB,
     GAP,DEPTH,FLOOR,R_WATER,K_WALL,WET_REACH,K_WET,COH_MAX,OO_EQ,
-    K_ADHERE,K_ADHERE_LR,K_TORQ,HB_MAX2,HB_MAX_LINES,5.0*A);
+    K_ADHERE,K_ADHERE_LR,K_TORQ,HB_MAX2,5.0*A);
 
   /* ---- PREDICT ----
      Forces move the velocity, the velocity moves a TRIAL position, and nothing
@@ -1330,28 +1330,15 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
   }
 
 
-  hbN=lines;
-  return lines;
-}
-/* THE DASHES GO TO THE GPU ONCE A FRAME, NOT ONCE A STEP. computeLineDistances
-   walks the whole line buffer whatever the draw range, and at 0.68 ms it was a
-   fifth of a step — paid SPEED times over for a picture drawn once. The buffer
-   is still filled by the step that ran last, so what is uploaded is the bonds
-   standing in the frame being drawn. */
-let hbN=0;
-function drawBonds(){
-  hbGeo.setDrawRange(0,hbN*2);
-  hbGeo.attributes.position.needsUpdate=true;
-  hbLines.computeLineDistances();
 }
 
 /* The wall, as its own pass so that the flat bucket arrays can be locals here
    rather than another dozen parameters on _step. Same reason the rest of the
    step takes its state as arguments. */
-function _wallPass(lines,pos,n,PX,HX,FX,TQ,GONE,WF,
+function _wallPass(n,PX,HX,FX,TQ,GONE,WF,
     surfX,surfY,surfZ,surfR,surfStart,ohOX,ohOY,ohOZ,ohHX,ohHY,ohHZ,ohStart,NB,
     GAP,DEPTH,FLOOR,R_WATER,K_WALL,WET_REACH,K_WET,COH_MAX,OO_EQ,
-    K_ADHERE,K_ADHERE_LR,K_TORQ,HB_MAX2,HB_MAX_LINES,reach){
+    K_ADHERE,K_ADHERE_LR,K_TORQ,HB_MAX2,reach){
   for(let i=0;i<n;i++){
     if(GONE[i]) continue;
     const px=PX[3*i], py=PX[3*i+1], pz=PX[3*i+2];
@@ -1429,8 +1416,8 @@ function _wallPass(lines,pos,n,PX,HX,FX,TQ,GONE,WF,
       /* Two parts, as the force really has two. A hydroxyl pulls on a water
          whatever way either is turned — that is the electrostatics, and it is
          what wets the wall. The BOND is the strong directional part on top,
-         and only it earns a dash: a line drawn for the general attraction
-         would be claiming a hydrogen bond wherever water is merely near. */
+         and it is counted separately: `wall contacts` in the readout is real
+         bond geometry, not water merely being near. */
       const fade=1-(dist-OO_EQ)/(COH_MAX-OO_EQ);
       if(fade>0){
         const s=K_ADHERE_LR*fade*fade/dist;
@@ -1457,22 +1444,9 @@ function _wallPass(lines,pos,n,PX,HX,FX,TQ,GONE,WF,
       const sa=(dist-OO_EQ)*K_ADHERE/dist;
       fx+=vx*sa; fy+=vy*sa; fz+=vz*sa;
       adCount++;
-      if(lines<HB_MAX_LINES){
-        if(donates){
-          pos[lines*6]=ohHX[k]; pos[lines*6+1]=ohHY[k]; pos[lines*6+2]=ohHZ[k];
-          pos[lines*6+3]=px;    pos[lines*6+4]=py;      pos[lines*6+5]=pz;
-        } else {
-          const kk=d0<HB_MAX2?0:1;
-          pos[lines*6]=HX[6*i+3*kk]; pos[lines*6+1]=HX[6*i+3*kk+1]; pos[lines*6+2]=HX[6*i+3*kk+2];
-          pos[lines*6+3]=sox; pos[lines*6+4]=soy; pos[lines*6+5]=soz;
-        }
-        lines++;
-      }
     }
     FX[3*i]=fx; FX[3*i+1]=fy; FX[3*i+2]=fz;
   }
-
-  return lines;
 }
 
 /* =============================================================
@@ -2025,7 +1999,6 @@ function draw(){
   }
   oMesh.instanceMatrix.needsUpdate=true;
   hMesh.instanceMatrix.needsUpdate=true;
-  drawBonds();
 }
 
 /* The bench's own numbers, off what was built rather than typed: the gap in
