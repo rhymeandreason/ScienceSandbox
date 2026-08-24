@@ -773,6 +773,22 @@ let K_HB=0.030;                   // H-bond spring
    A slack surface at the bottom, a stiff one above, and a knee between. That is
    why the meniscus changes with this slider while none of the bulk numbers do.
 
+   AND ADHESION IS NOT CALIBRATABLE BY A SINGLE RUN IN THIS RANGE, which is the
+   most important thing on this page. Fed, settled, cohesion 0.072, the readings
+   went 0.025 -> 54 degrees, 0.026 -> 31, 0.027 -> 58, 0.028 -> 21. Not a curve:
+   the same 0.026 run twice gave 31 degrees with the water 17 A up the wall, and
+   70 degrees with it 4 A up. The pore is BISTABLE — it lands wetted or unwetted
+   and which one is down to the run — so a single measurement anywhere near here
+   is a coin toss being read as a constant.
+
+   That is probably real. Capillary filling in a pore this narrow has a
+   nucleation barrier, so it is stochastic near the threshold and shows
+   hysteresis; the wall bilayers on the two faces nearly touch, and whether they
+   bridge is a matter of chance. But real or not, it means adhesion cannot be
+   set by one run. What can be measured here is the PROBABILITY of wetting
+   against adhesion, over repeats, and the honest calibration is either that or
+   a setting far enough inside the wetted basin that no run escapes it.
+
    0.072 SITS AT THE KNEE: the lowest setting where the surface is fully stiff.
    That is what defends it, rather than the bond count, which has no opinion.
    Above the knee the measurement saturates and cannot separate 0.072 from
