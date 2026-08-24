@@ -1722,6 +1722,10 @@ let frames=0;
    fps says whether it looks smooth. Steps a second says whether it is getting
    anywhere, and watching it while turning Speed up shows exactly where that
    stops being true. */
+/* And the clock, because every question about this page has turned out to be
+   "how long do I have to watch". Wall-clock seconds since the run started, so
+   the step count, the rate and the wait are all on the same line. */
+let runT0=performance.now();
 let fps=0, sps=0, fpsFrames=0, fpsSteps=0, fpsT=performance.now();
 function tickFps(){
   fpsFrames++;
@@ -1742,7 +1746,8 @@ function report(){
   + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone&&!w.spent).length}</b> in flight\n`
   /* The step count, because every measurement quoted about this page is "after
      N steps" and there is otherwise no way to tell where a run has got to. */
-  + `step  <b>${stepNo}</b>   <b>${sps.toFixed(0)}</b> steps/s   <b>${fps.toFixed(0)}</b> fps`;
+  + `step  <b>${stepNo}</b>   <b>${((performance.now()-runT0)/1000).toFixed(0)}</b> s`
+  + `   <b>${sps.toFixed(0)}</b> steps/s   <b>${fps.toFixed(0)}</b> fps`;
 }
 
 let SPEED=1;                           // physics steps per drawn frame
@@ -2006,7 +2011,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; w.spent=false; }); waters.forEach(place);
-  evapCount=0; condensed=0; RHO_0=0; stepNo=0; fpsSteps=0; angHist.length=0; };
+  evapCount=0; condensed=0; RHO_0=0; stepNo=0; fpsSteps=0; runT0=performance.now(); angHist.length=0; };
 
 /* =============================================================
  *  MEASUREMENTS NOT MADE. Two, both designed and neither run, kept
