@@ -246,6 +246,44 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
     bad('the turns view does not join on reply_to: an exchange can multiply');
 }
 
+/* ---- the rate limit ---------------------------------------------------------
+ * Sized against a real class, so the assertion is the sizing: thirty students
+ * asking eight questions each is ~240 turns, and a cap under that refuses the
+ * students it exists to serve. That is the failure nothing else would catch -
+ * a too-tight limit looks exactly like a working one until a class is using it.
+ *
+ * Offline. No database, which is also the configuration that must not limit. */
+{
+  const { exceeded, LIMITS } = require(path.join(ROOT, 'api/_limit.js'));
+
+  const CLASS = 30 * 8;   // the class this was sized for
+  if (LIMITS.cohortHour < CLASS)
+    bad(`cohortHour ${LIMITS.cohortHour} is under a real class's session (${CLASS} turns)`);
+  if (LIMITS.cohortDay < LIMITS.cohortHour)
+    bad('cohortDay is under cohortHour: the daily cap would fire first and the hourly one never');
+  if (LIMITS.visitorHour > LIMITS.cohortHour)
+    bad('visitorHour is over cohortHour: one browser could exhaust its whole class');
+
+  // The per-visitor cap must clear a single thread, or a student hits it inside
+  // one conversation the server was willing to hold.
+  if (LIMITS.visitorHour < 40)
+    bad(`visitorHour ${LIMITS.visitorHour} is under MAX_TURNS, so one thread cannot finish`);
+
+  // Ungated is not limited: with no cohort there is nothing to count against
+  // and nothing to revoke. Asserted because the opposite - counting every
+  // stranger into one shared bucket - looks like caution and is a shared outage.
+  pending.push(exceeded({ cohort: null, visitorId: null })
+    .then(r => { if (r) bad('an ungated request was rate limited'); })
+    .catch(e => bad(`exceeded() threw on an ungated request: ${e.message}`)));
+
+  // No database means no counting, and a turn that is allowed rather than
+  // refused. This is a local checkout, and it must not be a dead tutor.
+  pending.push(exceeded({ cohort: 'bio101', visitorId: null })
+    .then(r => { if (r && !process.env.DATABASE_URL)
+                   bad('with no DATABASE_URL the limit refused instead of failing open'); })
+    .catch(e => bad(`exceeded() threw with no database: ${e.message}`)));
+}
+
 /* ---- the access gate --------------------------------------------------------
  * A gate that has quietly stopped gating looks exactly like one that works: the
  * tutor answers, which is what it does either way. Nothing about a hole here is

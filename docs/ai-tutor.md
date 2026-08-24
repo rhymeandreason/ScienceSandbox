@@ -22,7 +22,8 @@ Working end to end on `demos/water-lab.html`:
 * provider switch: Gemini (default, `gemini-3.7-flash`) or Claude, one env var
 * the stable half of the prompt is cached server-side, and on a lesson page it is the large majority of the input
 * **the access gate is built** (`api/_keys.js`): `TUTOR_KEYS` names cohorts, the key rides in `?k=` once and travels as a header after. Unset means no gate, so a checkout is unchanged
-* **the cohort label is logged**, on `threads`, and the viewer filters by it. The rate limit that counts against that label is not built
+* **the cohort label is logged**, on `threads`, and the viewer filters by it
+* **the rate limit is built** (`api/_limit.js`): per class and per browser, counted in Postgres, failing open
 
 ## Next steps, in order
 
@@ -30,7 +31,7 @@ Reordered once the demo-mode design landed: glycolysis moved to the front, becau
 
 Reordered again: **deploying water-lab alone is what produces the logged questions everything else is gated on**, and glycolysis is not a prerequisite for that. The bake still wants glycolysis settled before its answers freeze, so glycolysis moved behind the deploy rather than in front of it.
 
-1. **Ship water-lab to Vercel.** In four pieces, each deployable on its own: the access gate (**done**), the cohort label in the log (**done**), the rate limit counted per label, then moving `kodolab.org` off Pages. The domain moves last, so it never points at an ungated endpoint. `vercel.json` exists but is untested.
+1. **Ship water-lab to Vercel.** In four pieces, each deployable on its own: the access gate (**done**), the cohort label in the log (**done**), the rate limit (**done**), then moving `kodolab.org` off Pages. The domain moves last, so it never points at an ungated endpoint. `vercel.json` exists but is untested.
 2. **Second lesson mount, and its UX.** Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). Ahead of the bake, because freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
 3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
 4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
@@ -134,6 +135,26 @@ Each lesson already hands `chat.js` an `examples` list for the empty state, and 
 
 **Loose end:** a student who clicks an example may then type a follow-up. That goes to the live tutor, or in a pure demo it misses honestly. Worth deciding, but it does not block the first turn being instant.
 
+### The rate limit — built
+
+`api/_limit.js`, counted in Postgres. A serverless function has no memory between requests and none shared with the other instances answering at the same moment, so an in-process counter would reset on every cold start and count each instance separately. The rows are already being written; this counts them. One round trip, three `FILTER`s over a single scan bounded to the last day: **~48 ms warm, ~200 ms on a cold connection**, against a ~2,100 ms answer.
+
+| | cap | what it clears |
+| --- | --- | --- |
+| per browser, rolling hour | 40 | one full thread (`MAX_TURNS`); typical is 8 |
+| per class, rolling hour | 500 | 2x thirty students asking eight each |
+| per class, rolling day | 1,500 | 6x a class's day |
+
+**Only the cohort cap is protection.** `visitorId` is a uuid the *browser* mints, so anyone willing to mint a thousand has a thousand. The per-visitor cap exists so one student with a stuck key does not eat their class's allowance by accident, and it must never be read as a defence against someone deliberate.
+
+**The daily cap is what buys reaction time.** At the hourly cap alone a leaked key drains a $10 prepaid balance overnight while nobody is reading the log. The daily cap stretches that past three days, long enough for the viewer's per-cohort counts to say which link escaped.
+
+**It fails open.** A database that is slow or down must not take a lesson away from thirty students mid-class, so an error allows the turn - measured on both an unreachable host and a bad password, refusing nothing and logging why. That does mean the limit is bypassable by anyone who can degrade the database, and it is why the prepaid cap stays the actual ceiling. No `DATABASE_URL` means no counting and therefore no limit, which is what a local checkout gets.
+
+**A refused turn is not logged**, so a cap that is firing does not show up as rows. It does not need to: a cohort sitting exactly at 500 in the viewer's per-class count *is* the evidence, and writing a row per refusal would turn a flood into a write amplifier, since the database write is now the expensive part.
+
+**`check-ask.js` asserts the sizing, not just the plumbing** - that `cohortHour` clears thirty students asking eight each, and that `visitorHour` clears `MAX_TURNS`. A too-tight limit looks exactly like a working one until a real class is using it, which is the wrong time to find out.
+
 ### The access link — built
 
 A link that turns the live tutor on, no accounts. `api/_keys.js` resolves a secret to a cohort label; `denied()` in `_tutor.js` refuses on the GET and the POST identically, before any model runs, so an unauthorised caller costs a JSON parse.
@@ -159,7 +180,9 @@ Planned filenames, so a reader can tell design from code: `bake-answers.js`, `ch
 
 ## What a session costs
 
-About **half a cent per turn**, measured, on `gemini-3.7-flash`. An eight-turn session is a cent or two. Thirty students is under a dollar.
+About **half a cent per turn** on `gemini-3.7-flash` by the original measurement. **The log does not agree**: over the turns it holds, `avg(cost_usd)` is about `$0.0006`, a sixteenth of a cent and eight times cheaper. The sample is small and probably missing a heavy thinking turn (those run ~3x), so neither number is settled - but the two are far enough apart that anything sized against the old one is over-restricting. `node demos/tools/db.js cost` reads the current figure; do not trust this paragraph over it.
+
+The rate limit is planned against **$0.002 a turn**, three times the logged average, so it is sized by the pessimistic number rather than by either measurement. An eight-turn session is a cent or two at worst. Thirty students is well under a dollar.
 
 The prompt is split in two because the two halves are priced differently. `situation(lesson)` is the catalog, the target list and the sim notes: byte-identical for every question asked on that page, by every student, all day, so it is held server-side and read back at a tenth. `moment(lesson, step, state, cited)` is the step they are standing on, their screen readings and what they have already been cited, and it rides in front of the newest question instead. For `water-lab` the split is about 94% cacheable; `check-ask.js` prints the current size per lesson rather than this paragraph naming one that will rot.
 
@@ -196,7 +219,7 @@ Those thought tokens bill as output at the output rate, so a thinking turn runs 
 
 ## Key context
 
-**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_keys.js` (the access gate), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` + `api/log.js` + `demos/ask/log.html` (the log and its viewer).
+**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_keys.js` (the access gate), `api/_limit.js` (the rate limit), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` + `api/log.js` + `demos/ask/log.html` (the log and its viewer).
 
 **Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`), and `DATABASE_URL` beside it if you want the log.
 

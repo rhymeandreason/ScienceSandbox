@@ -18,6 +18,7 @@ const providers = require('./_providers');
 const log       = require('./_log.js');
 const targets   = require('./_targets.js');
 const keys      = require('./_keys.js');
+const limit     = require('./_limit.js');
 
 const MAX_CHARS = 500;   // a question, not a pasted essay
 const MAX_TURNS = 40;    // a conversation, not an unbounded transcript to re-send
@@ -284,6 +285,12 @@ async function handleAsk(payload, { bench = false, cohort = null } = {}) {
     if (!bench) return { status: 403, body: { error: 'this deployment does not let the request set the prompt' } };
     system = String(body.system);
   }
+
+  // After the shape checks and before the model: a malformed question should be
+  // told so rather than counted against a class's allowance, and a well-formed
+  // one over the cap must not reach a provider. Fails open - see `_limit.js`.
+  const over = await limit.exceeded({ cohort, visitorId: body.visitorId });
+  if (over) return over;
 
   const t0 = Date.now();
   const note = (out, error, ms) => log.logTurn({
