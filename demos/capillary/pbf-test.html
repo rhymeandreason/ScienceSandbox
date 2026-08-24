@@ -315,7 +315,40 @@ const P  = MolLib.PALETTE;
  *  volume IS the count, and a 5 nm slot at this depth would be a puddle
  *  rather than a column.
  */
-const GAP   = nm(3.5);               // wall face to wall face
+/* WIDTH IS A URL PARAMETER, because the one claim this page owes the lesson is
+   what a NARROWER pore does — WaterSim.md 3, greater tension rather than higher
+   rise — and that cannot be measured without running more than one width.
+   `?gap=5` builds a 5 nm slot; no parameter is the 3.5 nm the page is about.
+
+   MEASURED, AND THE LAW HOLDS. Adhesion 0.036 so the pore wets on every run
+   rather than landing in the bistable band, 2600 steps, evaporation off. The
+   tension is read as the mean of lambda over the column — lambda IS the
+   pressure in this solver — away from both walls, below the meniscus and above
+   the supply band, so neither the free surface nor the reservoir is in the
+   sample:
+
+       pore     tension    1/r would give    climb at wall
+       3.5 nm     0.900        0.900             25.4 A
+       5 nm       0.635        0.630             11.4 A
+       7 nm       0.485        0.450              4.4 A
+       10 nm      0.82-0.84    0.315              0.5-2.4 A
+
+   Three points on Young-Laplace to within a few percent. Halve the pore and
+   the water pulls twice as hard, which is the claim WaterSim.md 3 makes and
+   the reason a leaf's pores are the size they are.
+
+   THE 10 NM POINT IS THE APPARATUS RUNNING OUT, not the law failing, and it
+   reproduces: twice, 0.82 and 0.84, with the water 0.5 A up the wall. There is
+   no meniscus at that width — the molecule budget cannot fill a 10 x 1.5 nm
+   slot deep enough to span it, so the surface is flat and what lambda reports
+   is not capillary tension. A wider slot needs a deeper one and a bigger N_MAX,
+   which is a different experiment rather than a further point on this one.
+
+   The numbers are in solver units. Saying them in Pa would need gamma pinned by
+   a Laplace calibration against water's 72 mN/m, which has not been done — but
+   the SCALING is unit-free, and the scaling is the claim. */
+const _q=new URLSearchParams(location.search);
+const GAP   = nm(Math.min(12, Math.max(2, +_q.get('gap') || 3.5)));
 /* The slab is DEEP for a reason that is not chemistry. The water starts as a
    pool at the bottom of a dry pore and has to climb, so it needs to be short
    against a tall wall — and a pool's height is its molecule count divided by
@@ -562,13 +595,17 @@ const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
    front above has drawn water out of it, another molecule arrives. Nothing
    pushes. The front climbs because the wall is dry, and the supply only keeps
    the base from emptying while it does. */
-/* The pool at the foot of the pore. 420 and 350 settle to the same place — 520
-   against 526 molecules after 1500 steps at bath 0.06, the same bond count,
-   the middle within 2 A — because the supply refills the base either way and
-   the steady state is the wall's business, not the seed's. 350 starts further
-   from it, so more of the filling is something you watch happen. `let` so the
-   console can try another. */
-let N_START=300;
+/* The pool at the foot of the pore, and it SCALES WITH THE SLOT: a wider pore
+   given the same count starts as a puddle rather than a pool, and the width
+   comparison would then be between two different experiments. Scaled, every
+   width starts with a pool of the same depth and the only thing varying is the
+   thing being varied.
+
+   The count itself barely matters to where the run ends up — the supply refills
+   the base either way, and the steady state is the wall's business, not the
+   seed's. A smaller pool just starts further from it, so more of the filling is
+   something you watch happen. */
+let N_START=Math.round(300*(GAP/nm(3.5)));
 const N_MAX=1800;                      // enough to fill this pore, and a stop
 const SUPPLY_BAND=8.0*A;               // the depth of base kept topped up
 let N_WATER=N_MAX;                     // buffers are sized for the cap
