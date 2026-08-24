@@ -1,8 +1,10 @@
-<!-- KIND: rulebook, scoped — load only when working on a solvation page. Nothing here applies to any other lesson. -->
+<!-- KIND: rulebook, scoped — load only when working on a solvation page or on capillary/. Nothing here applies to any other lesson. -->
 
 # Water Sim
 
-Applies to the solvation apps only (`water-lab.html`, `molecule-lab.html`).
+Applies to the solvation apps (`water-lab.html`, `molecule-lab.html`) and to
+`capillary/`, whose benches are water at real scale against a real surface and
+are held to §§3-4 the same way.
 
 ## 1. Hydrogen bonds
 
@@ -36,7 +38,22 @@ Applies to the solvation apps only (`water-lab.html`, `molecule-lab.html`).
 ## 3. Emergent properties must trace back to H-bonding
 
 - **Cohesion / surface tension** — H-bonds pull molecules together.
-- **Adhesion / capillary action** — narrower tube → higher rise.
+- **Adhesion / capillary action** — narrower pore → **greater tension**, not
+  higher rise. The rise version is the tube-in-a-dish picture, and it needs
+  gravity to have a height at all; at the scale where this is drawable, gravity
+  is nothing. In a 3.5 nm pore the capillary pressure is ~8e7 Pa against a
+  gravitational ~5e-5, so a wetting pore simply fills and no height is set.
+  What a narrower pore does is pull harder: Young-Laplace, ΔP = 2γcosθ/r, so
+  halving the pore doubles the tension. That is what a leaf uses — the meniscus
+  in the cell wall lifts nothing locally, it generates the tension that holds up
+  a hundred metres of xylem.
+- **Three things, and they are separate.** *Imbibition* is a dry pore filling by
+  capillarity alone, with no evaporation involved. *Tension* is what a curved
+  meniscus in a narrow pore holds the water at — negative pressure, the quantity
+  the plant actually uses. *Transpiration* is the steady state once the pore is
+  wet: evaporation retreats the meniscus, curvature and tension rise, and the
+  column follows. A page that shows filling has shown the first, which is worth
+  showing and is not the mechanism of the other two.
 - **High specific heat / heat of vaporization** — added heat first **breaks
   H-bonds** before molecules speed up or escape. Evaporation happens at high
   energy, not low.
