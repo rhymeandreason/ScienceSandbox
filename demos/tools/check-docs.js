@@ -59,14 +59,19 @@ const KNOWN_ABSENT = {
   // protein-lab.html, so there is no rewrite pending.
   //
   'protein-lab.html':    'deleted with vendor/chemdoodle — docs/rendering-modules.md',
-  // The two comparison benches, deleted once their verdicts were settled. The
-  // prose that names them is history: ses.js and bake-surface.js cite the SES
-  // timings viewer-compare.html measured, and molecule-pipeline.md cites what
-  // _compare.html showed about the generated specs. Asserted absent so neither
-  // page comes back as a live link.
-  'viewer-compare.html': '3Dmol vs Mol* — settled, we draw proteins ourselves',
-  'pdb/1IGT.pdb':        'viewer-compare.html was its only reader',
-  'pdb/1LYZ.pdb':        'viewer-compare.html was its only reader',
+  // viewer-compare.html left demos/ for /viewer-compare/ at the repo root: it
+  // loads its two libraries from CDNs and fetches structures from RCSB, so it
+  // shares nothing with the lessons and is ready to lift into its own repo.
+  // Still in weekly use as a style reference, and NOT deployed. ses.js,
+  // bake-surface.js and surface-test.html cite the SES timings it measured, by
+  // the filename it had here; asserted absent so it cannot come back to demos/.
+  'viewer-compare.html': 'moved to /viewer-compare/ at the repo root — local tool, not deployed',
+  // Deposited structures for a viewer-compare selector that never read them: it
+  // fetches from files.rcsb.org. Deleted as dead weight, not with the page.
+  'pdb/1IGT.pdb':        'nothing read it — viewer-compare fetches from RCSB',
+  'pdb/1LYZ.pdb':        'nothing read it — viewer-compare fetches from RCSB',
+  // The old-vs-generated spec bench, deleted once the conversion was done.
+  // molecule-pipeline.md cites what it showed; that prose is history.
   '_compare.html':       'old-vs-generated spec bench — the conversion is done',
   '_generated-specs.json': '_compare.html\'s data, deleted with it',
   '_old-specs.json':       '_compare.html\'s data, deleted with it',

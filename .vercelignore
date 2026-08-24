@@ -37,3 +37,10 @@ demos/node_modules/
 
 .DS_Store
 **/.DS_Store
+
+# The viewer-compare bench. A weekly-use style reference that shares nothing
+# with the lessons - CDN libraries, structures fetched from RCSB - and is meant
+# to be liftable into its own repo. Nothing about it belongs on a student's URL.
+# vercel.json also redirects the route away, because this file is a CLI-deploy
+# mechanism and the Git integration is what actually deploys here.
+viewer-compare/

@@ -7,6 +7,8 @@
     "api/ask.js": { "maxDuration": 30 }
   },
   "redirects": [
+    { "source": "/viewer-compare",             "destination": "/",            "permanent": false },
+    { "source": "/viewer-compare/(.*)",        "destination": "/",            "permanent": false },
     { "source": "/demos/water-lab.html",       "destination": "/water",       "permanent": true },
     { "source": "/demos/molecule-builder.html","destination": "/builder",     "permanent": true },
     { "source": "/demos/hemoglobin-lab.html",  "destination": "/hemoglobin",  "permanent": true },

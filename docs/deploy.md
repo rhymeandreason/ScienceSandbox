@@ -18,9 +18,17 @@ seatbelt for the day somebody deploys from a laptop.
 as Pages publishes it. The local URL is the URL that ships, which is the whole
 reason `dev-server.js` serves the root rather than `demos/`.
 
-Two files are withheld by `.vercelignore` and both are local tools: the log
-viewer (`demos/ask/log.html` + `api/log.js`) and the question-bank editor. See
-that file for why each one.
+Local tools are withheld by `.vercelignore`: the log viewer
+(`demos/ask/log.html` + `api/log.js`), the question-bank editor, and the
+`viewer-compare/` bench. See that file for why each one.
+
+`.vercelignore` is a CLI-deploy mechanism, and the Git integration is what
+deploys here - so anything that must be unreachable on the public site needs a
+route as well, not just the ignore. `vercel.json` redirects `/viewer-compare`
+and everything under it to `/`, and a redirect is matched before the
+filesystem, which is what makes it hold. The two `api/` tools do not need the
+same treatment: an undeployed function is not a route at all, and the smoke
+test below checks that.
 
 ## The five featured lessons have short URLs
 
@@ -87,6 +95,7 @@ curl -s -w ' %{http_code}\n' https://<deployment>/api/ask                 # 401 
 curl -s -w ' %{http_code}\n' -H "X-Tutor-Key: $K" https://<deployment>/api/ask       # 200 + config
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/_tutor  # 404: not a route
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/log     # 404: not deployed
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/viewer-compare/  # 307 to /, never the bench
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/.env.local  # 404: never uploaded
 ```
 
