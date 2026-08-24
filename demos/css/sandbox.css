@@ -592,7 +592,7 @@
    content: "";
    position: absolute;
    inset: -6px -4px;
-   background: url('images/sketch_circle.svg') center/100% 100% no-repeat
+   background: url('../images/sketch_circle.svg') center/100% 100% no-repeat
  }
 
  /* #card itself stays overflow:visible so the lightbulb (below) can spill past its

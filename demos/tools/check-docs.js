@@ -169,7 +169,7 @@ const norm = n => n.replace(/^demos\//, '');
 // 'docs' is where the rulebooks live and 'tests'/'attic' where the benches and
 // the superseded lessons do; all three are named bare in running text, the same
 // way a script is.
-const SEARCH = ['.', '..', 'lib', 'docs', 'tests', 'attic', 'tools', 'folding', 'folding/tools',
+const SEARCH = ['.', '..', 'lib', 'css', 'docs', 'tests', 'attic', 'tools', 'folding', 'folding/tools',
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
                 'kit', 'reaction', 'coupling', 'lobes', 'dna'];

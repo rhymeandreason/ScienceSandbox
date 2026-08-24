@@ -147,7 +147,7 @@ font-size: 20px;
      size-after-slash inconsistently and drops the whole declaration. */
   .east{display:block;width:36px;height:38px;margin-bottom:2px;
     background-color:currentColor;
-    -webkit-mask-image:url(images/asterisk.svg); mask-image:url(images/asterisk.svg);
+    -webkit-mask-image:url(../images/asterisk.svg); mask-image:url(../images/asterisk.svg);
     -webkit-mask-repeat:no-repeat;   mask-repeat:no-repeat;
     -webkit-mask-position:center;    mask-position:center;
     -webkit-mask-size:contain;       mask-size:contain}
