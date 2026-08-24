@@ -919,20 +919,30 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    front crosses the pore's 94 A in about 1500 steps and the count climbs past
    700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
    the pool sits there. */
-let K_WET=0.026*A;              // per surface atom, summed; not per molecule
-/* CHOSEN OVER MANY RUNS BY EYE, and that is the honest description rather than
-   an apology. The pore is bistable near here (see the note by K_COH), so no
-   single run's settled angle is the constant's value — the same 0.026 gives 31
-   degrees and a meniscus 17 A up the wall on one run and 70 degrees with 4 A on
-   the next. What survives repetition is what Mary watched for: across many runs
-   0.026 gives a body of water with a meniscus on it, a wetting layer two
-   molecules thick, and an angle in cellulose's 20-30 band when it wets.
+let K_WET=0.006*A;              // per surface atom, summed; not per molecule
+/* RECALIBRATED FOR THE OPEN LIQUID, and the old 0.026 is void: a different
+   liquid has a different contact angle, and after the H-bond work 0.026 read 4
+   degrees with a 58 A film where it had read 25. Measured again on the new
+   one, 1800 steps, supply on:
 
-   The measurement that would replace this judgement is a probability curve —
-   the fraction of runs that wet, against adhesion, over ten repeats a setting —
-   and it has not been run. Until it has, this number rests on repeated
-   observation, which is worth more than one settled reading and less than a
-   distribution. */
+       0.004   70 deg    climb  -1 A    barely wetting
+       0.006   23 deg    climb  15 A    the band, and a meniscus
+       0.007   16 deg    climb  23 A
+       0.012    8 deg    climb  47 A    films
+
+   THE SIZE OF THE NUMBER MEANS NOTHING. It is per wall atom and summed over
+   several hundred of them, so 0.006 is not "small" — only the angle it produces
+   is a claim about anything.
+
+   CLIMB AT WALL IS THE SECOND CHECK, and it is the one that separates the two
+   regimes by eye. The pore is 35 A across; water standing 15 A higher at the
+   faces than in the middle is a meniscus spanning it, and water standing 47 A
+   higher is two films with a gap between them, which pulls on nothing. Past
+   complete wetting the extra adhesion cannot raise the column — cos(theta) is
+   already 1 — so it goes into spreading instead.
+
+   Chosen on one run at each setting, which the bistability note by K_COH says
+   is not enough. It wants the same treatment 0.026 got: watched over several. */
 const WET_REACH=11.0*A;
 
 let hbCount=0, adCount=0;
