@@ -44,3 +44,18 @@ demos/node_modules/
 # vercel.json also redirects the route away, because this file is a CLI-deploy
 # mechanism and the Git integration is what actually deploys here.
 viewer-compare/
+
+# Deposited structures. These are BAKER INPUTS - the bakers under */tools/ read
+# them and write the .bin/.json the pages actually fetch, so the deploy needs
+# none of them. They stay in git precisely because they are not reproducible on
+# demand: a PDB entry gets superseded, an AlphaFold URL moves, and a re-bake
+# months later would silently use a different structure than the one the lesson
+# was checked against. Git is the pin.
+#
+# Four bench pages DO fetch one at runtime - folding-lab.html and
+# folding-lab-ribbon.html (1VII), folding/ribbon-test.html (villin),
+# hemoglobin/hemoglobin-inhouse.html (2HHB). All four are prototypes or test
+# benches, used on the dev server, and none is a featured lesson. They break on
+# the deployed site and nowhere else. vercel.json redirects the extension away
+# for the same reason as viewer-compare/: this file alone is a CLI mechanism.
+*.pdb

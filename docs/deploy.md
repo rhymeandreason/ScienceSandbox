@@ -22,11 +22,26 @@ Local tools are withheld by `.vercelignore`: the log viewer
 (`demos/ask/log.html` + `api/log.js`), the question-bank editor, and the
 `viewer-compare/` bench. See that file for why each one.
 
+**The deposited structures do not deploy either.** Every `.pdb` in the repo is a
+baker input: the bakers under `*/tools/` read one and write the `.bin`/`.json`
+a page actually fetches. They are committed because they are not reproducible on
+demand - an entry gets superseded, a download URL moves - so git is the pin on
+the exact structure a lesson was checked against. That is 13 MB the site never
+serves.
+
+Four pages fetch one at runtime and so are broken on the deployment, on purpose:
+`folding-lab.html` and `folding-lab-ribbon.html` (1VII),
+`folding/ribbon-test.html` (villin), `hemoglobin/hemoglobin-inhouse.html`
+(2HHB). All four are prototypes or benches, used on the dev server. **Promoting
+one to a featured lesson means baking what it fetches, not un-ignoring the
+`.pdb`.**
+
 `.vercelignore` is a CLI-deploy mechanism, and the Git integration is what
 deploys here - so anything that must be unreachable on the public site needs a
 route as well, not just the ignore. `vercel.json` redirects `/viewer-compare`
-and everything under it to `/`, and a redirect is matched before the
-filesystem, which is what makes it hold. The two `api/` tools do not need the
+and everything under it, and anything ending `.pdb`, to `/` - and a redirect is
+matched before the filesystem, which is what makes it hold whichever way
+`.vercelignore` is treated. The two `api/` tools do not need the
 same treatment: an undeployed function is not a route at all, and the smoke
 test below checks that.
 
@@ -96,6 +111,8 @@ curl -s -w ' %{http_code}\n' -H "X-Tutor-Key: $K" https://<deployment>/api/ask  
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/_tutor  # 404: not a route
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/log     # 404: not deployed
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/viewer-compare/  # 307 to /, never the bench
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/hemoglobin/data/2HHB.pdb        # 307 to /, not 200
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/hemoglobin/data/2HHB-B.fold.bin # 200: the baked file IS served
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/.env.local  # 404: never uploaded
 ```
 
