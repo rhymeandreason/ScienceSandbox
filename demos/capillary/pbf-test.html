@@ -1470,13 +1470,18 @@ const SUPPLY_PER_STEP=4;
 /* THE SUPPLY, AND A SWITCH FOR IT, because the page needs to be able to ask
    what the wall does on its own. Two things need it.
 
-   A CONTACT ANGLE IS ONLY DEFINED ON A CONTACT LINE THAT IS NOT MOVING. While
-   the pore fills, the panel is measuring an ADVANCING angle, which depends on
-   how fast the front is going and reads higher than the static one — that is
-   why the number drifts for thousands of steps and why tuning against it
-   mid-fill is matching a speed-dependent quantity to a textbook static one.
-   Hold the supply, let the front come to rest, and the reading means what the
-   textbook means.
+   DO NOT HOLD IT TO MEASURE THE ANGLE, which is what this switch was first
+   built for and is wrong. A finite pool in a wetting pore has one equilibrium
+   and it is TWO FILMS: with nothing feeding it, the body climbs both walls
+   until the middle is a thin bridge, and the angle then being measured is the
+   film's rather than a meniscus's. Measured at Adhesion 0.028 — held, the pool
+   falls from 373 molecules to 300, the front retreats to -35 A and the reading
+   sits at 26-32 and never settles; fed, it grows to 750, the front advances to
+   -19.5, and the angle settles at 20 with a body still in the middle.
+
+   The reservoir-connected state is the one to read. A slowly advancing front
+   has a perfectly well defined angle — the drift that made the early readings
+   worthless was the seeded lattice relaxing, not the advance.
 
    AND IT IS THE CONTROL. Water climbing a wall it wets is capillarity; water
    arriving because something keeps injecting it is not, and the two look alike
