@@ -1502,10 +1502,27 @@ const gSpiky=r=>{ const t=H-r; return t>0 ? SPIKY*t*t : 0; };
    with 53.7. The one-pass bin build this already does is the right structure
    for a liquid this mobile. */
 let SOLVER_ITERS=1;
-/* How much of each sweep's correction is applied. Full strength overshoots: the
-   whole pool blew apart, 5 to 13 A between neighbours and speeds of 9 to 30 A a
-   step. Under-relaxed and iterated, the same solve converges instead. */
-let RELAX=0.2;
+/* How much of each sweep's correction is applied — a NUMERICAL setting, not a
+   physical one, and that is why it may be pushed. Under-relaxing does not make
+   the liquid different; it makes the solver arrive at the same answer more
+   slowly, and a density deficit therefore travels down the column at a fraction
+   of the rate the solve says it should. Since the fill is limited by exactly
+   that transport, this is the knob the rise rate hangs on.
+
+   Swept, 3000 steps from the same seed, supply on, evaporation off:
+
+       0.20   front -8.4 A   1.04 A/s   nearest 2.73   bonds 2.50
+       0.35   front -2.6     1.47       nearest 2.73   bonds 2.50
+       0.45   front -7.6     1.42       nearest 2.71   bonds 2.54
+       0.55   front +0.8     1.96       nearest 2.72   bonds 2.47
+       0.65   BLOWS APART    —          nearest 3.32   bonds 0.49
+
+   0.45 for about 1.4x the rise with the liquid untouched. 0.55 reads faster
+   still and is not taken: 0.65 detonates — 3.32 A between neighbours, half a
+   bond a molecule, bulk speed 1.6 A a step, which is a gas — and a default one
+   notch from that cliff is a default that will fall off it when something else
+   changes. */
+let RELAX=0.45;
 /* CFM relaxation. It sits in the denominator with the summed gradients, so it
    has to be small against them or every multiplier comes out zero and the pool
    simply falls through itself — measured, at 600 the liquid collapsed to 0.5 A
@@ -1930,12 +1947,16 @@ const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
    reservoir watches: water enters while the liquid at the mouth is being pulled
    on, which is what a bath does, and the signal is large enough to act on.
 
-   The band reads 0.9 to 1.2 against a 0.15 threshold, so it draws steadily, and
-   the front finally MOVES: -28.8 A at step 500, -21.4 at 2000, -15.6 at 4200,
-   -12.1 at 4900, with the pool going 300 to 1078 on the way. Seventeen
-   angstroms of rise in about a minute at Speed 3x, which is a column climbing
-   rather than a number changing. On the density signal the same run put in 54
-   molecules and the front stayed where it was. */
+   THE THRESHOLD IS NOT WHAT LIMITS THE FILL, measured. Mid-fill, 1000 steps,
+   the band reads a median of -0.13 against this 0.15 — the gate is shut 84% of
+   the time, and it is shut because injected water makes the band dense, which
+   is the reservoir working rather than failing. Opening it completely, four
+   attempts every step with no early abort, bought 1.6x and no more: injection
+   then fails 95% of the time for want of anywhere to put a molecule.
+
+   So the mouth fills as fast as the mouth empties upward, and nothing here can
+   raise that. The knob that can is RELAX, above, which is how fast the column
+   transmits the deficit in the first place. */
 const SUPPLY_PULL=0.15;                // the tension at the mouth that draws
 const SUPPLY_PER_STEP=4;               // a ceiling, so nothing arrives as a wave
 
