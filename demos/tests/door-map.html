@@ -106,44 +106,80 @@
   }
 
   .node.module {
-    width: 10rem;
-    padding: 0.5rem 0.7rem 0.55rem;
+    width: 17.5rem;
+    padding: 0.85rem 1rem 0.9rem;
     background: var(--card);
     border: 1px solid var(--line);
-    text-align: center;
+    text-align: left;
   }
+  /* the name is an eyebrow — which lesson this is — and the claim is the card */
   .node.module .name {
-    font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em;
+    font-size: 0.6rem; font-weight: 500; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 0.4rem;
   }
+  .node.module .name::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--line); flex: none;
+  }
+  .node.module.built  .name::before { background: var(--accent); }
+  .node.module.engine .name::before { background: var(--spark); }
   /* the open card: the one you clicked grows and makes room for its picture */
-  .node.module.hub { width: 19rem; padding: 1rem 1.1rem 1.05rem; }
-  .node.module .thumb { display: none; }
-  .node.module.hub .thumb {
-    display: flex; align-items: center; justify-content: center;
-    height: 10.5rem; margin: 0.7rem 0 0.2rem;
-    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
-    font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: #b6b2a8;
+  .node.module.hub { width: 24rem; padding: 1.2rem 1.35rem 1.25rem; }
+  /* the claim: what this lesson asserts, in water-lab's own register — flat,
+     present tense, the fact itself rather than a tease of it */
+  .node.module .claim {
+    font-family: var(--serif); font-size: 1rem; line-height: 1.28;
+    color: var(--ink); margin-top: 0.35rem; letter-spacing: -0.005em;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .node.module.hub .name { font-size: 1.25rem; letter-spacing: -0.02em; }
+  .node.module.planned .claim { color: var(--muted); }
+  .node.module.hub .claim {
+    font-size: 1.35rem; line-height: 1.22; margin-top: 0.45rem;
+    -webkit-line-clamp: 5;
+  }
+  .node.module.hub .name { font-size: 0.6rem; }
+
+  .node.module .thumb {
+    display: flex; align-items: center; justify-content: center;
+    height: 6.6rem; margin: 0.65rem 0 0.25rem;
+    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+    font-size: 0.5rem; letter-spacing: 0.16em; text-transform: uppercase; color: #c2beb4;
+  }
+  .node.module.hub .thumb {
+    height: 13.5rem; margin: 0.7rem 0 0.2rem;
+    font-size: 0.55rem; letter-spacing: 0.18em; color: #b6b2a8;
+  }
 
   .node.module .meta {
     font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--spark); margin-top: 0.4rem;
   }
   /* state, drawn on the left edge: built is solid, planned is nothing */
-  .node.module.built     { border-left: 3px solid var(--accent); }
-  .node.module.engine    { border-left: 3px solid var(--spark); }
-  .node.module.planned   { border-style: dashed; }
-  .node.module.planned .name { color: var(--muted); }
+  .node.module.planned { border-style: dashed; }
   .node.module.away      { background: var(--paper); }   /* another door's module */
 
   .node.question {
-    width: 11.5rem;
-    padding: 0.45rem 0.6rem;
+    width: 13.5rem;
+    padding: 0.5rem 0.65rem;
     background: transparent;
     border: 1px solid transparent;
-    font-family: var(--serif); font-size: 0.78rem; color: var(--muted);
+    font-family: var(--serif); font-size: 1rem; line-height: 1.25; color: var(--muted);
     text-align: center;
+  }
+
+  /* a question opens the same way a module does: bigger, with room for a picture */
+  .node.question .thumb { display: none; }
+  .node.question.hub {
+    width: 17rem; padding: 0.9rem 1rem 0.95rem;
+    font-size: 1.28rem; line-height: 1.22; color: var(--ink);
+  }
+  .node.question.hub .thumb {
+    display: flex; align-items: center; justify-content: center;
+    height: 8.5rem; margin: 0.6rem 0 0;
+    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+    font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: #b6b2a8;
   }
 
   .node:hover { border-color: var(--accent); }
@@ -165,10 +201,10 @@
     display: flex; gap: 1.1rem; font-size: 0.68rem; letter-spacing: 0.05em;
     color: var(--muted);
   }
-  .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 0.35rem; }
+  .legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; }
   .legend .b { background: var(--accent); }
   .legend .e { background: var(--spark); }
-  .legend .p { background: none; border-top: 3px dashed var(--muted); }
+  .legend .p { background: var(--line); }
 </style>
 </head>
 <body>
@@ -214,61 +250,62 @@ const DOOR = {
 const MODULES = [
   { id: 'polarity', name: 'Polarity', door: 'water', rank: 1, state: 'built',
     host: 'water-lab · molecule-builder',
+    claim: 'An uneven share of electrons gives a molecule two charged ends.',
     qs: [['Why is water bent and CO₂ straight?', 1],
          ['Why do oil and water separate?', 1],
          ['Why does salt dissolve but sand doesn’t?', 2],
-         ['Is a hydrogen bond a real bond?', 2],
          ['Why does a bond form at all?', 3]] },
 
   { id: 'hbond', name: 'Hydrogen bonding', door: 'water', rank: 1, state: 'built', host: 'water-lab',
-    qs: [['Why does water stick to itself?', 1],
-         ['Is a hydrogen bond a real bond?', 1],
+    claim: 'The + H of one water molecule attracts the − O of another.',
+    qs: [['How high can a tree grow?', 1],
+         ['Why does a drop bead up on wax paper but soak into a towel?', 2],
          ['Why is water bent and CO₂ straight?', 1],
          ['What holds the two DNA strands together?', 2],
          ['Why does heat separate the DNA strands?', 3]] },
 
-  { id: 'dissolve', name: 'Dissolving', door: 'water', rank: 1, state: 'built', host: 'water-lab · solvation-lab',
-    qs: [['Why is water called the universal solvent?', 1],
-         ['Why do oil and water separate?', 1],
+  { id: 'solvation', name: 'Solvation', door: 'water', rank: 2, state: 'built', host: 'water-lab · solvation-lab',
+    claim: 'Water is polar, so it dissolves anything polar or charged.',
+    qs: [['Why do oil and water separate?', 1],
          ['Why does salt dissolve but sand doesn’t?', 1],
          ['What are the alternatives to road salt?', 2],
          ['Why is an IV 0.9% saline?', 2],
          ['How are fizzy drinks made?', 3]] },
 
   { id: 'ice', name: 'Ice & density', door: 'water', rank: 1, state: 'built', host: 'water-lab',
-    qs: [['Why does ice float?', 1],
-         ['Why are snowflakes six-sided?', 1],
+    claim: 'Unlike almost every substance, water is less dense as a solid.',
+    qs: [['Why are snowflakes six-sided?', 1],
          ['What makes ice cream creamy?', 1],
-         ['Why does frost grow on a window?', 2]] },
+         ['Why does frost grow on a window?', 2],
+         ['How do deep-sea fish keep their blood from crystallising?', 3],
+         ['How do wood frogs survive freezing solid?', 3]] },
 
-  { id: 'heat', name: 'Heat & temperature', door: 'water', rank: 2, state: 'built', host: 'water-lab',
-    qs: [['Why does water take so much heating?', 1],
-         ['Why do recipes change at altitude?', 1],
+  { id: 'heat', name: 'Heat & temperature', door: 'water', rank: 1, state: 'built', host: 'water-lab',
+    claim: 'Water takes a lot of heating, because the energy goes into breaking H-bonds first.',
+    qs: [['Why do recipes change at altitude?', 1],
          ['What are the alternatives to road salt?', 2],
          ['Why is a fever above 40°C dangerous?', 3]] },
 
-  { id: 'cohesion', name: 'Cohesion', door: 'water', rank: 2, state: 'engine', host: 'droplet-test · adhesion-test',
-    qs: [['Why does water climb?', 1],
-         ['How high can a tree grow?', 1],
+  { id: 'cohesion', name: 'Cohesion & adhesion', door: 'water', rank: 2, state: 'engine', host: 'droplet-test · adhesion-test',
+    claim: 'Water sticks to itself and to other things, hard enough to hang a column from a treetop.',
+    qs: [['How high can a tree grow?', 1],
+         ['Why does a drop bead up on wax paper but soak into a towel?', 1],
          ['Why does a smell take so long to cross a room?', 3]] },
 
   { id: 'hydrophob', name: 'The hydrophobic effect', door: 'water', rank: 2, state: 'planned',
+    claim: 'Oil and water separate because the water gains freedom by it.',
     qs: [['Why do oil and water separate?', 1],
          ['Why does soap work?', 1],
          ['Why do proteins bury their greasy parts?', 2]] },
 
   { id: 'entropy', name: 'Entropy', door: 'water', rank: 3, state: 'planned',
+    claim: 'Order can rise in one place as long as more disorder is made somewhere else.',
     qs: [['Why do proteins bury their greasy parts?', 2],
          ['Why does a hole in a membrane heal itself?', 1],
          ['Why does a bond form at all?', 2]] },
 
-  { id: 'crystal', name: 'Crystal growth', door: 'water', rank: 3, state: 'planned',
-    qs: [['How do deep-sea fish keep their blood from crystallising?', 1],
-         ['How do wood frogs survive freezing solid?', 1],
-         ['Why are snowflakes six-sided?', 2],
-         ['What makes ice cream creamy?', 2]] },
-
   { id: 'acids', name: 'Acids & pH', door: 'water', rank: 3, state: 'built', host: 'molecule-lab',
+    claim: 'A buffer trades protons back and forth, so pH barely moves.',
     qs: [['Why does breathing fast make you dizzy?', 1],
          ['Why does blood pH barely move when you drink Coke?', 1],
          ['Why does milk curdle in lemon juice?', 2]] },
@@ -276,6 +313,7 @@ const MODULES = [
   /* --- other doors, reached through a shared question --- */
 
   { id: 'basepair', name: 'Base pairing', door: 'information', rank: 1, away: true, state: 'built', host: 'dna-lab',
+    claim: 'A pairs only with T and G only with C, because that is where the hydrogen bonds line up.',
     qs: [['What holds the two DNA strands together?', 1],
          ['Why is DNA double-stranded?', 1],
          ['Why does the DNA helix twist?', 1],
@@ -283,11 +321,13 @@ const MODULES = [
          ['Why does heat separate the DNA strands?', 2]] },
 
   { id: 'replication', name: 'Replication & fidelity', door: 'information', rank: 2, away: true, state: 'planned',
+    claim: 'Copying is proofread as it goes, and the error rate is low but never zero.',
     qs: [['Why isn’t the mutation rate zero?', 1],
          ['Why do the two DNA strands run in opposite directions?', 1],
          ['How does a protein read DNA without opening it?', 2]] },
 
   { id: 'binding', name: 'Binding & recognition', door: 'proteins', rank: 1, away: true, state: 'planned',
+    claim: 'Two molecules stick because their shapes and charges match, and neither is changed by it.',
     qs: [['Why can’t you use up an enzyme?', 1],
          ['Why do mirror-image molecules smell different?', 1],
          ['How does a protein read DNA without opening it?', 1],
@@ -296,6 +336,7 @@ const MODULES = [
          ['Why is cyanide deadly?', 3]] },
 
   { id: 'enzyme', name: 'Enzyme catalysis', door: 'proteins', rank: 2, away: true, state: 'engine', host: 'hexokinase/',
+    claim: 'An enzyme lowers the barrier and comes out the other side unchanged.',
     qs: [['Why can’t you use up an enzyme?', 1],
          ['Why are some people lactose intolerant?', 1],
          ['Why is cyanide deadly?', 1],
@@ -303,23 +344,27 @@ const MODULES = [
          ['Why does fructose behave differently from glucose?', 2]] },
 
   { id: 'levels', name: 'Levels of structure', door: 'proteins', rank: 1, away: true, state: 'built', host: 'hemoglobin-lab',
+    claim: 'A protein has four levels of structure, and the sequence decides all four.',
     qs: [['What makes hair different from silk?', 1],
          ['Why does one wrong amino acid sickle a whole cell?', 1],
          ['How do vent bacteria run enzymes above 100°C?', 2],
          ['Why does CO kill at 0.1% of the air?', 2]] },
 
   { id: 'cooperat', name: 'Cooperativity', door: 'proteins', rank: 2, away: true, state: 'planned',
+    claim: 'One oxygen binding changes the shape, and makes the next one easier.',
     qs: [['How does blood know where to drop its oxygen?', 1],
          ['Why does haemoglobin have four parts and not one?', 1],
          ['Why does CO kill at 0.1% of the air?', 1],
          ['How does a fetus take oxygen from its mother’s blood?', 2]] },
 
   { id: 'pumps', name: 'Channels & pumps', door: 'boundaries', rank: 1, away: true, state: 'built', host: 'membrane-lab',
+    claim: 'A channel lets things through; a pump spends ATP to push them the wrong way.',
     qs: [['What does a membrane pump spend?', 1],
          ['How does cholera dehydrate you without entering a cell?', 1],
          ['Why do insects need no lungs?', 2]] },
 
   { id: 'polymers', name: 'Monomers & polymers', door: 'carbon', rank: 1, away: true, state: 'built', host: 'macromolecule-lab',
+    claim: 'Four classes of macromolecule, each one a chain of repeating units.',
     qs: [['Why can you digest starch but not cellulose?', 1],
          ['Why are there four classes of macromolecule and not forty?', 1],
          ['Why is sugar sweet and starch isn’t?', 1],
@@ -327,6 +372,7 @@ const MODULES = [
          ['Why is a polymer built by removing water?', 2]] },
 
   { id: 'glycolysis', name: 'Glycolysis', door: 'energy', rank: 1, away: true, state: 'built', host: 'glycolysis-lab',
+    claim: 'Ten steps split one sugar in two, spending two ATP to make four.',
     qs: [['Why can’t you sprint a marathon?', 1],
          ['Where does the CO₂ you exhale come from?', 1],
          ['Why do red blood cells have no mitochondria?', 2],
@@ -334,23 +380,26 @@ const MODULES = [
          ['Why does fructose behave differently from glucose?', 3]] },
 
   { id: 'geometry', name: 'Molecular geometry', door: 'carbon', rank: 2, away: true, state: 'built', host: 'molecule-builder',
+    claim: 'Electron pairs push each other apart, and that is what sets the shape.',
     qs: [['Why does carbon make four bonds?', 1],
          ['Why is water bent and CO₂ straight?', 1],
          ['Why is graphite soft and diamond hard?', 2],
          ['Why is sugar sweet and starch isn’t?', 3]] },
 
   { id: 'covalent', name: 'Covalent bonding', door: 'carbon', rank: 1, away: true, state: 'built', host: 'molecule-builder',
-    qs: [['Is a hydrogen bond a real bond?', 2],
-         ['Why does a bond form at all?', 1],
+    claim: 'Two atoms share a pair of electrons, and both count them as their own.',
+    qs: [['Why does a bond form at all?', 1],
          ['Why does carbon make four bonds?', 1],
          ['Why is water bent and CO₂ straight?', 2]] },
 
   { id: 'ionic', name: 'Ionic bonding', door: 'carbon', rank: 2, away: true, state: 'built', host: 'molecule-builder',
+    claim: 'One atom takes the electron outright, and the two ions hold on by charge.',
     qs: [['Why is table salt safe when sodium explodes in water?', 1],
          ['Why does salt dissolve but sand doesn’t?', 1],
          ['Why is graphite soft and diamond hard?', 2]] },
 
   { id: 'osmosis', name: 'Osmosis', door: 'boundaries', rank: 2, away: true, state: 'planned',
+    claim: 'Water crosses toward the saltier side with nothing pushing it.',
     qs: [['How do salmon cross from salt water to fresh?', 1],
          ['Why is an IV 0.9% saline?', 1],
          ['How does cholera dehydrate you without entering a cell?', 1],
@@ -358,6 +407,7 @@ const MODULES = [
          ['How high can a tree grow?', 2]] },
 
   { id: 'bilayer', name: 'The bilayer', door: 'boundaries', rank: 1, away: true, state: 'built', host: 'membrane-lab',
+    claim: 'Phospholipids assemble into a sheet on their own, because their tails avoid water.',
     qs: [['Why does soap work?', 1],
          ['Why does a hole in a membrane heal itself?', 1],
          ['What makes a fat saturated?', 1],
@@ -366,6 +416,7 @@ const MODULES = [
          ['How do hibernating animals burn fat as heat?', 3]] },
 
   { id: 'denature', name: 'Denaturing', door: 'proteins', rank: 2, away: true, state: 'planned',
+    claim: 'Heat and acid unfold a protein without breaking a single covalent bond.',
     qs: [['Why do egg whites turn opaque and solid?', 1],
          ['Why is a fever above 40°C dangerous?', 1],
          ['How do vent bacteria run enzymes above 100°C?', 1],
@@ -373,14 +424,14 @@ const MODULES = [
          ['Why does heat separate the DNA strands?', 3]] },
 
   { id: 'folding', name: 'Folding', door: 'proteins', rank: 1, away: true, state: 'built', host: 'folding-lab',
+    claim: 'The chain folds to one shape out of astronomically many, and the sequence picks it.',
     qs: [['Why do proteins bury their greasy parts?', 1],
-         ['Why does a protein fold the same way every time?', 1],
-         ['Why does a protein have a shape at all?', 1],
          ['How does a protein find its shape so fast?', 1],
          ['How do deep-sea fish keep their blood from crystallising?', 2],
          ['What makes hair different from silk?', 2]] },
 
   { id: 'diffusion', name: 'Simple diffusion', door: 'boundaries', rank: 1, away: true, state: 'built', host: 'membrane-lab · diffusion/',
+    claim: 'Random motion spreads molecules out; going twice as far takes four times as long.',
     qs: [['Why does a smell take so long to cross a room?', 1],
          ['Why are cells small?', 1],
          ['Why do insects need no lungs?', 1],
@@ -449,14 +500,16 @@ const rankFrom = (from, other) => {
 
 /* ---- reveal ----------------------------------------------------------- */
 
-const COL = 400;
+const COL = 560;
+const FIRST_ARM = 700;   // the door's own reach, scaled per module below
 let alpha = 1;
 
-function show(n, depth, y) {
+function show(n, depth, y, x, ty) {
   if (n.visible) return;
+  n.ty = ty;
   n.visible = true;
   n.depth = depth;
-  n.tx = depth * COL;
+  n.tx = x === undefined ? depth * COL : x;
   n.x = n.tx;
   n.y = y;
   n.vx = n.vy = 0;
@@ -489,9 +542,18 @@ function expand(n) {
   }
 
   const mark = live.length;
+
+  // A card's questions fan out to its RIGHT, on an arc, in rank order top to
+  // bottom — the reading direction the whole map already has. They carry a
+  // target y as well as an x, so the fan holds its shape instead of sagging
+  // toward the middle line the moment the relax touches it.
+  const REACH = n.kind === 'door' ? 640 : 580;   // how far right of the card
+  const STEP = m0 => m0 === 'question' ? 215 : 260;   // gap down the fan
   wave.forEach((m, i) => {
-    const rung = (i % 2 ? 1 : -1) * Math.ceil(i / 2);
-    show(m, n.depth + 1, n.y + rung * (m.kind === 'question' ? 130 : 150));
+    const t = wave.length === 1 ? 0 : (i / (wave.length - 1)) * 2 - 1;   // -1 … +1
+    const y = n.y + (i - (wave.length - 1) / 2) * STEP(m.kind);
+    const x = n.x + REACH - Math.abs(t) * 70;     // a gentle bow, not an arc
+    show(m, n.depth + 1, y, x, y);
   });
   n.done = true;
 
@@ -506,9 +568,8 @@ function refreshMeta(n) {
   if (!el) return;
   const hidden = neighbours(n).filter(m => !m.visible).length;
   if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' modules' : DOOR.label; return; }
-  const state = n.state === 'engine' ? 'engine only' : n.state;
   el.textContent = n.done || !hidden
-    ? state
+    ? ''
     : '+' + hidden + (hidden === 1 ? ' question' : ' questions');
 }
 
@@ -522,11 +583,12 @@ function paintNode(n) {
   } else if (n.kind === 'module') {
     el.className = 'node module ' + n.state + (n.away ? ' away' : '');
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
+                   '<div class="claim">' + n.claim + '</div>' +
                    '<div class="thumb">image</div>' +
                    '<div class="meta"></div>';
   } else {
     el.className = 'node question';
-    el.innerHTML = '<span>' + n.text + '</span>';
+    el.innerHTML = '<span>' + n.text + '</span><div class="thumb">image</div>';
   }
   n.el = el;
   world.appendChild(el);
@@ -548,7 +610,7 @@ function paintLink(l) {
 /* ---- relax ------------------------------------------------------------ */
 
 function step() {
-  const REPEL = 9000, SPRING = 0.022, COLUMN = 0.14, ROW = 0.0016, VMAX = 26;
+  const REPEL = 20000, SPRING = 0.02, COLUMN = 0.14, ROW = 0.0012, VMAX = 26;
   for (const n of live) { n.vx *= 0.86; n.vy *= 0.86; }
 
   for (let i = 0; i < live.length; i++) {
@@ -560,7 +622,7 @@ function step() {
       if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
       const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
       const near = a.r + b.r;
-      const f = REPEL / d2 + (d < near ? (near - d) * 0.35 : 0);
+      const f = REPEL / d2 + (d < near * 1.15 ? (near * 1.15 - d) * 0.45 : 0);
       a.vx -= ux * f; a.vy -= uy * f;
       b.vx += ux * f; b.vy += uy * f;
     }
@@ -569,14 +631,15 @@ function step() {
   for (const l of liveLinks) {
     const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
     const d = Math.hypot(dx, dy) || 1;
-    const f = (d - 300) * SPRING;
+    const f = (d - 420) * SPRING;
     l.a.vx += (dx / d) * f; l.a.vy += (dy / d) * f;
     l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
   }
 
   for (const n of live) {
     n.vx += (n.tx - n.x) * COLUMN;
-    n.vy -= n.y * ROW;
+    if (n.ty === undefined) n.vy -= n.y * ROW;
+    else n.vy += (n.ty - n.y) * 0.05;
     const v = Math.hypot(n.vx, n.vy);
     if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
     if (n === dragNode || n.pinned) continue;
@@ -615,7 +678,7 @@ requestAnimationFrame(frame);
 /* ---- pan, zoom, drag, focus ------------------------------------------- */
 
 const canvas = document.getElementById('canvas');
-let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.9 };
+let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.7 };
 const applyView = () =>
   world.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')';
 applyView();
@@ -735,8 +798,21 @@ canvas.addEventListener('pointerdown', () => { touched = true; });
 canvas.addEventListener('wheel', () => { touched = true; });
 addEventListener('resize', () => { if (!touched) centre(); });
 
+// The opening frame is composed, not chased: it fits the door and its four
+// modules exactly once, so the spacing can grow without pushing a card off the
+// top. Everything after this is the reader's own panning.
 function centre() {
-  view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.9 };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of live) {
+    const w = n.el.offsetWidth / 2, h = n.el.offsetHeight / 2;
+    x0 = Math.min(x0, n.x - w); x1 = Math.max(x1, n.x + w);
+    y0 = Math.min(y0, n.y - h); y1 = Math.max(y1, n.y + h);
+  }
+  if (!isFinite(x0)) return;
+  const k = Math.max(0.35, Math.min((innerWidth - 200) / (x1 - x0),
+                                    (innerHeight - 170) / (y1 - y0), 0.85));
+  view = { x: innerWidth / 2 - ((x0 + x1) / 2) * k,
+           y: innerHeight / 2 - ((y0 + y1) / 2) * k, k };
   applyView();
 }
 
@@ -749,10 +825,18 @@ function start() {
   svg.replaceChildren();
 
   show(door, 0, 0);
+  // The opening four hang off a longer arm than the rest of the map and sit on
+  // one column, evenly spread. It reads as a set rather than a cascade, and it
+  // leaves the room a card needs when it opens and its own questions arrive.
+  // Hand-composed rather than evenly stacked: a shallow fan, and the middle two
+  // reach further than the outer two. A column of four reads as a list, and the
+  // whole point of the door is that these are four ways in, not four steps.
+  const FAN = [[-22, 1.00], [-8, 1.55], [10, 1.36], [30, 0.94]];
   const first = neighbours(door).filter(m => m.rank === 1);
   first.forEach((m, i) => {
-    const rung = (i % 2 ? 1 : -1) * Math.ceil(i / 2);
-    show(m, 1, rung * 150);
+    const [deg, reach] = FAN[i % FAN.length];
+    const a = deg * Math.PI / 180, r = FIRST_ARM * reach;
+    show(m, 1, Math.sin(a) * r, Math.cos(a) * r, Math.sin(a) * r);
   });
   for (const m of live) refreshMeta(m);
   follow = null;                       // the opening frame is composed, not chased
