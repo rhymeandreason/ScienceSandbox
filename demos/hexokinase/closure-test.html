@@ -84,7 +84,6 @@
 <script src="../molecules.js"></script>
 <script src="../scene.js"></script>
 <script src="../folding/ribbon.js"></script>
-<script src="../hemoglobin/tube.js"></script>
 <script src="closure.js"></script>
 <script>
 /* =====================================================================
@@ -96,10 +95,17 @@
  *  the decision about whether glycolysis step 1 should stop drawing a
  *  blob comes after, as a separate conversation.
  *
- *  The tube is rebuilt per frame rather than morphed, because TubeLib
- *  bakes positions into geometry: there is no vertex to move afterwards.
- *  467 residues at these settings is cheap enough that the honest thing
- *  is also the fast enough thing.
+ *  The ribbon is rebuilt per frame rather than morphed, because
+ *  RibbonLib.build bakes positions into geometry: there is no vertex to
+ *  move afterwards. 467 residues is cheap enough that the honest thing is
+ *  also the fast enough thing.
+ *
+ *  RIBBON, NOT TUBE. tube.js is the abstraction for pictures with more
+ *  than one molecule in them, where the cartoon's extra detail is
+ *  invisible anyway. This page has one molecule and the whole question is
+ *  what a piece of it DOES, so the helices and strands have to be legible
+ *  as helices and strands -- an arrowhead turning through 18 degrees is
+ *  the motion; a smooth rope turning through 18 degrees is a rope.
  *
  *  NUMBERS IN THE PANEL COME FROM HK.closure.json. None is typed in this
  *  file -- a re-bake that changed the angle and left a caption saying
@@ -136,7 +142,7 @@ function solveCam() {
   applyCam();
 }
 
-const TUBE = { sides: 10, segPerRes: 2 };
+const RIB = { passes: 1 };
 
 /* Lobe 1 holds still, lobe 2 swings, and the hinge strands belong to
    neither. Three colours so the eye can see WHICH part moved -- a single
@@ -149,7 +155,7 @@ const COL = {
 };
 
 let D = null, meta = null;
-let group = null, ghostGroup = null;
+let ghostGroup = null;
 let t = 0, playing = false, dir = 1;
 
 const hud = document.getElementById('hud');
@@ -160,9 +166,11 @@ const cbSpin = document.getElementById('spin');
 const cbPlay = document.getElementById('play');
 const bOpen = document.getElementById('bOpen'), bClosed = document.getElementById('bClosed');
 
-/* Split the trace into runs of one lobe, so each run becomes its own tube
-   and takes its own colour. A run needs its neighbours' endpoints or the
-   tubes show a gap at every boundary, hence the one-residue overlap. */
+/* Split the trace into runs of one lobe, so each run becomes its own
+   ribbon and takes its own colour. A run needs its neighbours' endpoints
+   or the bands show a gap at every boundary, hence the one-residue
+   overlap. The overlap also gives RibbonLib a real tangent at the join
+   instead of an end condition, so the two bands meet edge to edge. */
 function runsByLobe(lobe, N) {
   const out = [];
   let s = 0;
@@ -177,35 +185,110 @@ function runsByLobe(lobe, N) {
 
 let RUNS = null;
 
-function buildAt(u, target, opacity) {
+/* ---------------------------------------------------------------------
+ *  WHY THE KEYFRAMES ARE CACHED AND THE VERTICES LERPED
+ * ---------------------------------------------------------------------
+ *  RibbonLib.build costs ~65 ms for 467 residues, so rebuilding it every
+ *  animation frame plays at 17 fps -- and `sub`, the knob that would make
+ *  it cheaper, is documented in ribbon.js as a SCALE knob, not a quality
+ *  knob: turning it down here to buy frames would be using it for the one
+ *  thing its header says it is not for.
+ *
+ *  So build each of the 41 baked keyframes ONCE, at full quality, and keep
+ *  their vertex arrays. Every frame has identical topology -- same
+ *  residues, same secondary structure, same `sub`, so the same bands,
+ *  arrowheads and vertex count -- which means a frame between two
+ *  keyframes is a straight lerp of two Float32Arrays rather than a
+ *  rebuild. That is ~2 ms instead of ~65.
+ *
+ *  Identical topology is an ASSUMPTION about RibbonLib, so it is checked
+ *  rather than trusted: a frame whose vertex count differs from frame 0's
+ *  is refused loudly instead of drawing a scrambled ribbon.
+ *
+ *  78 MB for the 41 frames, which a bench can afford and a lesson would
+ *  have to think about.
+ */
+const CACHE = [];          // CACHE[f][run] = {pos, nor}
+let LIVE = null;           // the meshes actually drawn, attributes rewritten
+let built = 0;
+
+function runGeoms(u) {
   const pts = D.at(u);
-  const g = new THREE.Group();
-  for (const r of RUNS) {
+  return RUNS.map(r => {
     const CA = [], ss = [];
-    for (let i = r.lo; i <= r.hi; i++) { CA.push(pts[i]); ss.push(D.ss[i]); }
-    const colour = cbLobes.checked ? COL[r.kind] : COL.flat;
-    for (const part of TubeLib.chain(THREE, CA, ss, TUBE)) {
-      const mat = Stage.bondMat(colour.getHex());
-      if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; mat.depthWrite = false; }
-      g.add(new THREE.Mesh(part.geo, mat));
+    for (let i = r.lo; i <= r.hi; i++) {
+      CA.push({ x: pts[i][0], y: pts[i][1], z: pts[i][2] });
+      ss.push(D.ss[i]);
     }
-  }
-  target.add(g);
-  return g;
+    return RibbonLib.build(THREE, CA, ss, RIB);
+  });
 }
 
-function dispose(g) {
-  if (!g) return;
-  g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
-  g.parent && g.parent.remove(g);
+function cacheFrame(f) {
+  const geos = runGeoms(f / (D.F - 1));
+  CACHE[f] = geos.map((g, k) => {
+    const pos = g.attributes.position.array, nor = g.attributes.normal.array;
+    if (CACHE[0] && CACHE[0][k].pos.length !== pos.length)
+      throw new Error(`ribbon topology changed at frame ${f}, run ${k}: `
+        + `${pos.length} vs ${CACHE[0][k].pos.length} — the lerp would scramble it`);
+    const out = { pos: new Float32Array(pos), nor: new Float32Array(nor) };
+    if (f !== 0) g.dispose();
+    return out;
+  });
+  return geos;
+}
+
+function makeLive(geos) {
+  LIVE = geos.map((g, k) => {
+    const mesh = new THREE.Mesh(g, Stage.bondMat(COL[RUNS[k].kind].getHex()));
+    mesh.material.side = THREE.DoubleSide;   // a flat band is seen from behind
+    root.add(mesh);
+    return mesh;
+  });
+}
+
+function paintLobes() {
+  if (!LIVE) return;
+  LIVE.forEach((m, k) =>
+    m.material.color.copy(cbLobes.checked ? COL[RUNS[k].kind] : COL.flat));
+}
+
+/* The ghost is one static copy of the open form, so it is built once and
+   then only shown or hidden -- never rebuilt with the scrub. */
+function setGhost(on) {
+  if (on && !ghostGroup) {
+    ghostGroup = new THREE.Group();
+    for (const g of runGeoms(0)) {
+      const mat = Stage.bondMat(0x9aa4ad);
+      mat.side = THREE.DoubleSide;
+      mat.transparent = true; mat.opacity = 0.16; mat.depthWrite = false;
+      ghostGroup.add(new THREE.Mesh(g, mat));
+    }
+    root.add(ghostGroup);
+  }
+  if (ghostGroup) ghostGroup.visible = on;
+}
+
+function applyFrame() {
+  if (!LIVE || built < 2) return;
+  const u = t * (D.F - 1);
+  const a = Math.min(built - 1, Math.floor(u));
+  const b = Math.min(built - 1, a + 1);
+  const m = Math.max(0, Math.min(1, u - a));
+  for (let k = 0; k < LIVE.length; k++) {
+    const A = CACHE[a][k], B = CACHE[b][k];
+    const P = LIVE[k].geometry.attributes.position, N = LIVE[k].geometry.attributes.normal;
+    const p = P.array, n = N.array;
+    for (let i = 0; i < p.length; i++) {
+      p[i] = A.pos[i] + (B.pos[i] - A.pos[i]) * m;
+      n[i] = A.nor[i] + (B.nor[i] - A.nor[i]) * m;
+    }
+    P.needsUpdate = true; N.needsUpdate = true;
+  }
 }
 
 function rebuild() {
-  dispose(group);
-  group = buildAt(t, root, 1);
-  const wantGhost = cbGhost.checked;
-  if (wantGhost && !ghostGroup) ghostGroup = buildAt(0, root, 0.18);
-  if (!wantGhost && ghostGroup) { dispose(ghostGroup); ghostGroup = null; }
+  applyFrame();
   paintHud();
 }
 
@@ -219,7 +302,8 @@ function paintHud() {
     `large lobe      ${meta.lobe1}\n` +
     `small lobe      ${meta.lobe2}\n` +
     `hinge, closed   ${meta.hingeAngleDeg} deg\n` +
-    `t = ${t.toFixed(2)}      ~${swing} deg`;
+    `t = ${t.toFixed(2)}      ~${swing} deg` +
+    (built < D.F ? `\ncaching ${built}/${D.F}` : '');
 }
 
 /* The bake eased t, so the frame at t is not the angle at t*18.6. Undo
@@ -245,8 +329,8 @@ function setT(v, fromSlider) {
 }
 
 tIn.addEventListener('input', () => setT(parseFloat(tIn.value), true));
-cbLobes.addEventListener('change', rebuild);
-cbGhost.addEventListener('change', rebuild);
+cbLobes.addEventListener('change', paintLobes);
+cbGhost.addEventListener('change', () => setGhost(cbGhost.checked));
 cbPlay.addEventListener('change', () => { playing = cbPlay.checked; });
 bOpen.addEventListener('click', () => { cbPlay.checked = playing = false; setT(0); });
 bClosed.addEventListener('click', () => { cbPlay.checked = playing = false; setT(1); });
@@ -281,8 +365,20 @@ Promise.all([
   root.position.set(-FRAMING.centre[0], -FRAMING.centre[1], -FRAMING.centre[2]);
   solveCam();
 
+  makeLive(cacheFrame(0));
+  built = 1;
   setT(0);
   requestAnimationFrame(loop);
+
+  /* Cache the rest a frame at a time so the page is draggable while it
+     fills, rather than blocking for two and a half seconds first. The
+     scrub clamps to what exists, so early dragging is coarse, not wrong. */
+  (function fill() {
+    if (built >= D.F) { paintHud(); return; }
+    cacheFrame(built++);
+    paintHud();
+    setTimeout(fill, 0);
+  })();
 }).catch(e => { hud.textContent = 'failed: ' + e.message; console.error(e); });
 
 new ResizeObserver(() => { resize(); solveCam(); }).observe(document.getElementById('stage'));
