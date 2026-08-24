@@ -166,26 +166,23 @@ const cbSpin = document.getElementById('spin');
 const cbPlay = document.getElementById('play');
 const bOpen = document.getElementById('bOpen'), bClosed = document.getElementById('bClosed');
 
-/* Split the trace into runs of one lobe, so each run becomes its own
-   ribbon and takes its own colour. A run needs its neighbours' endpoints
-   or the bands show a gap at every boundary, hence the one-residue
-   overlap. The overlap also gives RibbonLib a real tangent at the join
-   instead of an end condition, so the two bands meet edge to edge. */
-function runsByLobe(lobe, N) {
-  const out = [];
-  let s = 0;
-  for (let i = 1; i <= N; i++) {
-    if (i === N || lobe[i] !== lobe[s]) {
-      out.push({ lo: Math.max(0, s - 1), hi: Math.min(N - 1, i), kind: lobe[s] });
-      s = i;
-    }
-  }
-  return out.filter(r => r.hi - r.lo >= 2);
-}
-
-let RUNS = null;
-
 /* ---------------------------------------------------------------------
+ *  ONE RIBBON, COLOURED PER VERTEX
+ * ---------------------------------------------------------------------
+ *  The lobes interleave along the sequence -- 47 alternating runs, not two
+ *  blocks -- so drawing "one ribbon per run" needed each run to overlap
+ *  its neighbours by a residue to keep the band continuous across a join.
+ *  That put 80 residues on screen TWICE, in two different colours, from
+ *  two coplanar meshes. Coplanar duplicates z-fight, and which copy wins
+ *  changes as the geometry moves, so the seams flickered the moment the
+ *  animation played and sat still when it was paused.
+ *
+ *  So: build ONE ribbon over the whole chain, and colour its vertices.
+ *  Nothing is drawn twice because nothing is split. Each vertex takes the
+ *  lobe of its nearest Ca, resolved once through a grid at load -- the
+ *  topology never changes across frames, so neither does the mapping, and
+ *  the colour attribute is written once and never touched again.
+ * ---------------------------------------------------------------------
  *  WHY THE KEYFRAMES ARE CACHED AND THE VERTICES LERPED
  * ---------------------------------------------------------------------
  *  RibbonLib.build costs ~65 ms for 467 residues, so rebuilding it every
@@ -208,62 +205,90 @@ let RUNS = null;
  *  78 MB for the 41 frames, which a bench can afford and a lesson would
  *  have to think about.
  */
-const CACHE = [];          // CACHE[f][run] = {pos, nor}
-let LIVE = null;           // the meshes actually drawn, attributes rewritten
+const CACHE = [];          // CACHE[f] = {pos, nor}
+let LIVE = null;           // the one mesh drawn, attributes rewritten per frame
 let built = 0;
 
-function runGeoms(u) {
+function chainGeom(u) {
   const pts = D.at(u);
-  return RUNS.map(r => {
-    const CA = [], ss = [];
-    for (let i = r.lo; i <= r.hi; i++) {
-      CA.push({ x: pts[i][0], y: pts[i][1], z: pts[i][2] });
-      ss.push(D.ss[i]);
-    }
-    return RibbonLib.build(THREE, CA, ss, RIB);
-  });
+  const CA = pts.map(p => ({ x: p[0], y: p[1], z: p[2] }));
+  return RibbonLib.build(THREE, CA, D.ss.split(''), RIB);
 }
 
 function cacheFrame(f) {
-  const geos = runGeoms(f / (D.F - 1));
-  CACHE[f] = geos.map((g, k) => {
-    const pos = g.attributes.position.array, nor = g.attributes.normal.array;
-    if (CACHE[0] && CACHE[0][k].pos.length !== pos.length)
-      throw new Error(`ribbon topology changed at frame ${f}, run ${k}: `
-        + `${pos.length} vs ${CACHE[0][k].pos.length} — the lerp would scramble it`);
-    const out = { pos: new Float32Array(pos), nor: new Float32Array(nor) };
-    if (f !== 0) g.dispose();
-    return out;
-  });
-  return geos;
+  const g = chainGeom(f / (D.F - 1));
+  const pos = g.attributes.position.array, nor = g.attributes.normal.array;
+  if (CACHE[0] && CACHE[0].pos.length !== pos.length)
+    throw new Error(`ribbon topology changed at frame ${f}: ${pos.length} vs `
+      + `${CACHE[0].pos.length} vertices — the lerp would scramble it`);
+  CACHE[f] = { pos: new Float32Array(pos), nor: new Float32Array(nor) };
+  if (f !== 0) { g.dispose(); return null; }
+  return g;
 }
 
-function makeLive(geos) {
-  LIVE = geos.map((g, k) => {
-    const mesh = new THREE.Mesh(g, Stage.bondMat(COL[RUNS[k].kind].getHex()));
-    mesh.material.side = THREE.DoubleSide;   // a flat band is seen from behind
-    root.add(mesh);
-    return mesh;
-  });
+/* Nearest Ca for every vertex, through a uniform grid. Brute force is
+   180k x 467 and this runs at load; the grid makes it milliseconds. A
+   ribbon vertex is never far from its own residue, so one cell of slack
+   in each direction is plenty. */
+function vertexLobes(geo, pts) {
+  const CELL = 6;
+  const key = (a, b, c) => a + ',' + b + ',' + c;
+  const grid = new Map();
+  for (let i = 0; i < pts.length; i++) {
+    const k = key(Math.floor(pts[i][0] / CELL), Math.floor(pts[i][1] / CELL), Math.floor(pts[i][2] / CELL));
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  }
+  const p = geo.attributes.position.array;
+  const out = new Uint8Array(p.length / 3);
+  for (let v = 0; v < out.length; v++) {
+    const x = p[v * 3], y = p[v * 3 + 1], z = p[v * 3 + 2];
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL), cz = Math.floor(z / CELL);
+    let best = Infinity, bestI = 0;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+      const bucket = grid.get(key(cx + a, cy + b, cz + c));
+      if (!bucket) continue;
+      for (const i of bucket) {
+        const d = (pts[i][0] - x) ** 2 + (pts[i][1] - y) ** 2 + (pts[i][2] - z) ** 2;
+        if (d < best) { best = d; bestI = i; }
+      }
+    }
+    out[v] = D.lobe[bestI];
+  }
+  return out;
+}
+
+let VLOBE = null;
+
+function makeLive(geo) {
+  VLOBE = vertexLobes(geo, D.frame(0));
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(VLOBE.length * 3), 3));
+  const mat = Stage.bondMat(0xffffff);
+  mat.side = THREE.DoubleSide;             // a flat band is seen from behind
+  mat.vertexColors = true;
+  LIVE = new THREE.Mesh(geo, mat);
+  root.add(LIVE);
+  paintLobes();
 }
 
 function paintLobes() {
   if (!LIVE) return;
-  LIVE.forEach((m, k) =>
-    m.material.color.copy(cbLobes.checked ? COL[RUNS[k].kind] : COL.flat));
+  const attr = LIVE.geometry.attributes.color, a = attr.array;
+  for (let v = 0; v < VLOBE.length; v++) {
+    const c = cbLobes.checked ? COL[VLOBE[v]] : COL.flat;
+    a[v * 3] = c.r; a[v * 3 + 1] = c.g; a[v * 3 + 2] = c.b;
+  }
+  attr.needsUpdate = true;
 }
 
 /* The ghost is one static copy of the open form, so it is built once and
    then only shown or hidden -- never rebuilt with the scrub. */
 function setGhost(on) {
   if (on && !ghostGroup) {
-    ghostGroup = new THREE.Group();
-    for (const g of runGeoms(0)) {
-      const mat = Stage.bondMat(0x9aa4ad);
-      mat.side = THREE.DoubleSide;
-      mat.transparent = true; mat.opacity = 0.16; mat.depthWrite = false;
-      ghostGroup.add(new THREE.Mesh(g, mat));
-    }
+    const mat = Stage.bondMat(0x9aa4ad);
+    mat.side = THREE.DoubleSide;
+    mat.transparent = true; mat.opacity = 0.16; mat.depthWrite = false;
+    ghostGroup = new THREE.Mesh(chainGeom(0), mat);
     root.add(ghostGroup);
   }
   if (ghostGroup) ghostGroup.visible = on;
@@ -275,16 +300,14 @@ function applyFrame() {
   const a = Math.min(built - 1, Math.floor(u));
   const b = Math.min(built - 1, a + 1);
   const m = Math.max(0, Math.min(1, u - a));
-  for (let k = 0; k < LIVE.length; k++) {
-    const A = CACHE[a][k], B = CACHE[b][k];
-    const P = LIVE[k].geometry.attributes.position, N = LIVE[k].geometry.attributes.normal;
-    const p = P.array, n = N.array;
-    for (let i = 0; i < p.length; i++) {
-      p[i] = A.pos[i] + (B.pos[i] - A.pos[i]) * m;
-      n[i] = A.nor[i] + (B.nor[i] - A.nor[i]) * m;
-    }
-    P.needsUpdate = true; N.needsUpdate = true;
+  const A = CACHE[a], B = CACHE[b];
+  const P = LIVE.geometry.attributes.position, N = LIVE.geometry.attributes.normal;
+  const p = P.array, n = N.array;
+  for (let i = 0; i < p.length; i++) {
+    p[i] = A.pos[i] + (B.pos[i] - A.pos[i]) * m;
+    n[i] = A.nor[i] + (B.nor[i] - A.nor[i]) * m;
   }
+  P.needsUpdate = true; N.needsUpdate = true;
 }
 
 function rebuild() {
@@ -356,7 +379,6 @@ Promise.all([
 ]).then(([buf, m]) => {
   D = Closure.decode(buf);
   meta = m;
-  RUNS = runsByLobe(D.lobe, D.N);
 
   /* Frame against BOTH endpoints, then leave the camera alone. Solving
      per frame would chase the molecule and hide the very motion the page
