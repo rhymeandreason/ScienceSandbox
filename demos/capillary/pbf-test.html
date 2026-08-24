@@ -1219,7 +1219,21 @@ const wPoly=r2=>{ const t=H2-r2; return t>0 ? POLY6*t*t*t : 0; };
    other would feel nothing pushing them apart. */
 const gSpiky=r=>{ const t=H-r; return t>0 ? SPIKY*t*t : 0; };
 
-let SOLVER_ITERS=4;
+/* TWO SWEEPS, NOT FOUR. Measured at 1200-1500 molecules: 27% cheaper a
+   molecule, and the liquid does not notice — nearest 2.74 A against 2.76,
+   coordination 6.3 against 6.2, 2.51 H-bonds a molecule against 2.53. The
+   contact constraint does most of the spacing work and it runs inside every
+   sweep either way, so the extra density sweeps were refining a number that was
+   already converged.
+
+   A SKIN ON THE NEIGHBOUR LIST WAS TRIED HERE AND DOES NOT PAY, which is worth
+   recording so nobody tries it twice. Molecules move 0.27 A a step against a
+   6.2 A cutoff, so a skin large enough to survive several steps inflates the
+   list faster than it saves rebuilds: 0.05 A of skin cost 4.91 ms a step with a
+   26.8-neighbour list, 0.8 A cost 4.82 with 34.6, 1.6 A cost 5.68 with 46.3,
+   2.4 A cost 6.85 with 53.7. The one-pass cell build this already does is the
+   right structure for a liquid this mobile. */
+let SOLVER_ITERS=2;
 /* How much of each sweep's correction is applied. Full strength overshoots: the
    whole pool blew apart, 5 to 13 A between neighbours and speeds of 9 to 30 A a
    step. Under-relaxed and iterated, the same solve converges instead. */
@@ -1767,7 +1781,7 @@ const KNOBS=[
   {k:'Adhesion',   get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3), main:1},
   {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
   {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
-  {k:'Solve',      get:()=>SOLVER_ITERS,set:v=>SOLVER_ITERS=v,min:1, max:10,   step:1,     fmt:v=>v+'x'},
+  {k:'Solve',      get:()=>SOLVER_ITERS,set:v=>SOLVER_ITERS=v,min:1, max:8,    step:1,     fmt:v=>v+'x'},
   {k:'Viscosity',  get:()=>XSPH,      set:v=>XSPH=v,       min:0,   max:0.40, step:0.01,  fmt:v=>v.toFixed(2)},
 ];
 const knobRows=document.getElementById('knobrows');
