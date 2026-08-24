@@ -106,6 +106,53 @@ Amylase is an *endo*-α-1,4-glucanase and its real product is **maltose** — a 
 
 Hydrolysis is a condensation run backwards — a water goes in and the bond comes apart — and the specs already name which atoms move: the `condense:` blocks on `glucose`, `alphaGlucose` and `alanine`, audited by `check-molecules.js`. They outlived the drag page they were written for and are kept for this.
 
+**The missing half of the specificity claim: complementarity.** The chain
+page shows the two substrates differ, and the linkage specs show why. Neither
+says why the *enzyme* can take one and not the other, and that gap is where a
+student lands on "the enzyme just knows". The answer is a shape argument with
+two halves, and the repo now holds one of them and can get the other cheaply.
+
+Measured, from `1OSE` (porcine pancreatic α-amylase with acarbose, 2.3 Å, a
+pseudo-tetrasaccharide sitting in the site): the substrate lies in a **trough
+19.8 Å end to end**, spanning four subsites. It is a **track, not a pocket**:
+each sugar unit has its own contact set, adjacent units share only 42% of
+their contacts, and the union is 25 residues out of 495. Cutting happens
+between two subsites partway along, not at a single point.
+
+So the shape a substrate has to present is a chain that stays in a shallow
+open trough over ~20 Å. That is what α-1,4 gives and β-1,4 does not:
+
+* **α-1,4 turns.** Every linkage bends the chain the same way, so starch
+  coils into the six-fold helix `chain/glucose-chains-test.html` already
+  builds from solved torsions. A helix is locally curved and loosely packed,
+  it can lay a few units into a trough and let the rest spiral away, and its
+  glycosidic oxygens face outward where a catalytic pair can reach them.
+* **β-1,4 alternates.** Each glucose is flipped 180° from its neighbour, so
+  cellulose comes out as the straight two-fold ribbon on that same page. A
+  flat extended ribbon has the wrong curvature to sit in the trough, and its
+  linkage oxygen points along the ribbon rather than out of it. Worse, the
+  ribbon's exposed faces hydrogen-bond to the next ribbon, so cellulose is a
+  crystalline sheet before an enzyme ever meets it: the substrate an amylase
+  would have to accept is not a free chain at all.
+
+**Not yet measured, and it should be before the page asserts it.** Nobody in
+this repo has put the built cellulose ribbon against the 1OSE trough. The
+honest build is to try the fit and report what happens, which turns "one bond
+flipped, one enzyme works" from a told fact into a shown one. That is the
+whole reason the sugar chains got built with real torsions rather than drawn.
+
+Costs: `1OSE` and a render path, which the paragraph above says amylase
+avoids. That was true when the alternative was lysozyme and nothing here drew
+a protein. It is not true now: `folding/ribbon.js` draws a cartoon from a Cα
+trace, `hexokinase/tools/pdbio.js` reads one out of a PDB and superposes it, and
+`hexokinase/tools/probe-site.js` is the contact measurement above, pointed at
+a different file. A groove view is a page, not a project.
+
+Species caveat to state on the page: 1OSE is porcine pancreatic, not human
+salivary. Free detail sitting in every amylase file, and a better hook than
+most: a Ca²⁺ and a **Cl⁻ 5.9 Å from the sugar**, because amylase needs
+chloride to work at all.
+
 ### 2. Nucleic acids / DNA
 
 **The conflict.** As bad as it gets — ladder vs helix, bases as jigsaw tabs instead of hydrogen bonds, grooves invisible, antiparallel strands drawn parallel.
