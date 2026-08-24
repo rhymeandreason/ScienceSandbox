@@ -18,14 +18,42 @@ LOG_FILE="/tmp/sciencesandbox-dev-server.log"
 #
 # The server's root is the REPO root, not demos/ — that is what GitHub Pages
 # publishes, so a local URL is the URL that ships. `/` is the index; a lesson
-# is `/demos/…`, and a bare name gets that prefix and `.html` filled in.
+# is `/demos/…`, and a bare name is looked up under demos/ at any depth.
 PAGES=("${BASE_URL}/")
+
+# A bare name is LOOKED UP, not prefixed. Lessons sit at the top of demos/ but
+# benches sit beside the module they exercise — kit/kit-test, membrane/pump-test,
+# tests/droplet-test — so a fixed `/demos/NAME.html` finds the lessons and misses
+# every bench. Searching means you name the page, not its folder. attic/ is
+# excluded: those are superseded, and opening one by accident is the bug this
+# would otherwise introduce. Shallowest match wins if a name is ever ambiguous,
+# and the runners-up get printed rather than silently discarded.
+resolve() {
+  local name="$1" hits
+  hits="$(cd "${REPO_DIR}" \
+    && find demos -name "${name}.html" \
+         -not -path '*/node_modules/*' -not -path '*/attic/*' \
+    | awk '{ print gsub(/\//, "/"), $0 }' | sort -n | cut -d' ' -f2-)"
+  if [ -z "${hits}" ]; then
+    echo "No page named ${name}.html under demos/." >&2
+    return 1
+  fi
+  if [ "$(echo "${hits}" | wc -l)" -gt 1 ]; then
+    echo "Note: ${name}.html matches more than one page; opening the first:" >&2
+    echo "${hits}" | sed 's/^/  /' >&2
+  fi
+  echo "${hits}" | head -1
+}
+
 for arg in "$@"; do
   case "${arg}" in
     http*)     PAGES+=("${arg}") ;;
     /*)        PAGES+=("${BASE_URL}${arg}") ;;
-    *.html)    PAGES+=("${BASE_URL}/demos/${arg}") ;;
-    *)         PAGES+=("${BASE_URL}/demos/${arg}.html") ;;
+    *)         # `set -e` would abort here on a miss, before the index ever
+               # opened. A typo in one name is not a reason to open nothing.
+               if found="$(resolve "${arg%.html}")"; then
+                 PAGES+=("${BASE_URL}/${found}")
+               fi ;;
   esac
 done
 
