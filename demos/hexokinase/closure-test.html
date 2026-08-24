@@ -209,14 +209,26 @@ const CACHE = [];          // CACHE[f] = {pos, nor}
 let LIVE = null;           // the one mesh drawn, attributes rewritten per frame
 let built = 0;
 
-function chainGeom(u) {
+/* Each keyframe's ribbon frames are chained from the one before it, not
+   just along its own chain. Without that the band's face flips between
+   keyframes wherever the strand pleat puts the sign guard on the fence,
+   and the lerp then blends a ribbon with its own inverse -- which looked
+   like the sheets flickering, because that is where the pleat is.
+   RibbonLib.frames' header has the mechanism. */
+let refFrames = null;
+
+function chainGeom(u, chained) {
   const pts = D.at(u);
   const CA = pts.map(p => ({ x: p[0], y: p[1], z: p[2] }));
-  return RibbonLib.build(THREE, CA, D.ss.split(''), RIB);
+  const out = {};
+  const geo = RibbonLib.build(THREE, CA, D.ss.split(''),
+    Object.assign({}, RIB, chained ? { ref: refFrames, out } : {}));
+  if (chained) refFrames = out.frames;
+  return geo;
 }
 
 function cacheFrame(f) {
-  const g = chainGeom(f / (D.F - 1));
+  const g = chainGeom(f / (D.F - 1), true);
   const pos = g.attributes.position.array, nor = g.attributes.normal.array;
   if (CACHE[0] && CACHE[0].pos.length !== pos.length)
     throw new Error(`ribbon topology changed at frame ${f}: ${pos.length} vs `

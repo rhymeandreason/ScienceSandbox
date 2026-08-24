@@ -581,8 +581,29 @@ const RibbonLib = (() => {
 
      Unknown/absent `ss` is treated as coil, i.e. the guard runs. That is
      the safe default — a caller who forgets to pass `ss` gets a slightly
-     over-constrained loop rather than a silently shredded strand. */
-  function frames(pts, path, ss) {
+     over-constrained loop rather than a silently shredded strand.
+
+     ---------------------------------------------------------------------
+     `ref` — CONTINUITY WITH ANOTHER CONFORMATION, NOT JUST ALONG THE CHAIN
+     ---------------------------------------------------------------------
+     The guard above chains each residue's sign from the one before it,
+     seeded at residue 0. That makes ONE build self-consistent and says
+     nothing about two builds of the SAME chain in slightly different
+     conformations — which is what an animation is.
+
+     On a strand the bisector alternates a true 180 degrees per residue, so
+     `dot(nrm, prev)` sits at the decision boundary, and a hair of movement
+     between two conformations tips it the other way. The sign is then
+     propagated, so one tipped decision inverts the band for the rest of the
+     run: the two builds disagree about which face is up, and anything that
+     blends them passes through an inverted ribbon. Strands show it first
+     because the pleat is what puts that dot near zero.
+
+     Pass the previous conformation's frames as `ref` and each residue takes
+     its sign from ITS OWN normal last time rather than from its neighbour
+     this time. Spatial continuity survives because `ref` had it. Omit `ref`
+     and this behaves exactly as before. */
+  function frames(pts, path, ss, ref) {
     path = path || pts;
     ss = ss || [];
     const n = pts.length;
@@ -611,7 +632,8 @@ const RibbonLib = (() => {
          a helix's frame really turns 100 degrees per residue and must not
          be "corrected"; a strand's pleat really does alternate 180 and must
          be. */
-      if (prev && (ss[i] || 'C') !== 'H' && dot(nrm, prev) < 0)
+      const guide = ref ? ref[i] && ref[i].n : prev;
+      if (guide && (ss[i] || 'C') !== 'H' && dot(nrm, guide) < 0)
         nrm = [-nrm[0], -nrm[1], -nrm[2]];
       prev = nrm;
       out.push({ t, n: nrm });
@@ -630,6 +652,11 @@ const RibbonLib = (() => {
                           structures, or a table by SS code; default SMOOTH_W
                { passes } smoothing passes, default 1; 0 disables it
                { sub }    samples per residue, default SUB (10)
+               { ref }    the previous conformation's frames, when the same
+                          chain is being drawn moving — keeps the band's
+                          face from flipping between builds; frames() header
+               { out }    an object to receive { frames }, to pass back as
+                          the next build's `ref`
 
      SUB IS A SCALE KNOB, NOT A QUALITY KNOB. 10 is right when one chain
      fills the stage and a single residue is tens of pixels across. Drawing
@@ -690,7 +717,12 @@ const RibbonLib = (() => {
     const passes = (opts && opts.passes != null) ? opts.passes : 1;
     const w = (opts && opts.smooth != null) ? opts.smooth : SMOOTH_W;
     const SM = passes > 0 ? smooth(P, ss, passes, w) : P;
-    const F = frames(P, SM, ss);
+    /* `ref` is the PREVIOUS conformation's frames, for a caller drawing the
+       same chain moving; see the frames() header. It is threaded rather
+       than kept here because only the caller knows what "previous" means.
+       `opts.out` hands the frames back so they can become the next ref. */
+    const F = frames(P, SM, ss, opts && opts.ref);
+    if (opts && opts.out) opts.out.frames = F;
 
     /* Arrowheads sit at the end of every strand run, pointing the way the
        chain runs — N to C. Their geometry is built in strandPlan() below,
