@@ -287,7 +287,7 @@ async function handleAsk(payload, { bench = false, cohort = null } = {}) {
 
   const t0 = Date.now();
   const note = (out, error, ms) => log.logTurn({
-    threadId: body.threadId, visitorId: body.visitorId, lesson: body.lesson,
+    threadId: body.threadId, visitorId: body.visitorId, lesson: body.lesson, cohort,
     question: last.content, step: Number(body.step), state: body.state,
     out, error, ms,
   });

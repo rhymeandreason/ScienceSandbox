@@ -21,7 +21,8 @@ Working end to end on `demos/water-lab.html`:
 * the tutor sees live scene state (molecule count, temperature, phase, salt)
 * provider switch: Gemini (default, `gemini-3.7-flash`) or Claude, one env var
 * the stable half of the prompt is cached server-side, and on a lesson page it is the large majority of the input
-* **the access gate is built** (`api/_keys.js`): `TUTOR_KEYS` names cohorts, the key rides in `?k=` once and travels as a header after. Unset means no gate, so a checkout is unchanged. The rate limit that attaches to a cohort label is not built
+* **the access gate is built** (`api/_keys.js`): `TUTOR_KEYS` names cohorts, the key rides in `?k=` once and travels as a header after. Unset means no gate, so a checkout is unchanged
+* **the cohort label is logged**, on `threads`, and the viewer filters by it. The rate limit that counts against that label is not built
 
 ## Next steps, in order
 
@@ -29,7 +30,7 @@ Reordered once the demo-mode design landed: glycolysis moved to the front, becau
 
 Reordered again: **deploying water-lab alone is what produces the logged questions everything else is gated on**, and glycolysis is not a prerequisite for that. The bake still wants glycolysis settled before its answers freeze, so glycolysis moved behind the deploy rather than in front of it.
 
-1. **Ship water-lab to Vercel.** In four pieces, each deployable on its own: the access gate (**done**), the cohort label in the log, the rate limit counted per label, then moving `kodolab.org` off Pages. The domain moves last, so it never points at an ungated endpoint. `vercel.json` exists but is untested.
+1. **Ship water-lab to Vercel.** In four pieces, each deployable on its own: the access gate (**done**), the cohort label in the log (**done**), the rate limit counted per label, then moving `kodolab.org` off Pages. The domain moves last, so it never points at an ungated endpoint. `vercel.json` exists but is untested.
 2. **Second lesson mount, and its UX.** Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). Ahead of the bake, because freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
 3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
 4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
@@ -44,7 +45,9 @@ Reordered again: **deploying water-lab alone is what produces the logged questio
 
 **Failed turns get a row too**, with `error` set and `text` holding what the student was actually shown. A log of successes only would hide the failure you most want to see.
 
-**No IP, no user agent, no name.** A visitor is a random uuid the browser minted for itself. `visitor` lives in `localStorage`, so a second visit is recognisable as the same browser; `thread` is minted per page load, so a conversation is a conversation rather than one endless transcript per device. Clearing site data clears both.
+**A thread carries the cohort it arrived on**, written once when the thread row is inserted: `ON CONFLICT DO NOTHING` means a later turn cannot move a thread to another class. It is null for every row written before the gate and for any ungated request, so a local log looks exactly as it did. The viewer's class filter hides itself until something has actually written one.
+
+**No IP, no user agent, no name.** A visitor is a random uuid the browser minted for itself. A cohort says which class asked and never who. `visitor` lives in `localStorage`, so a second visit is recognisable as the same browser; `thread` is minted per page load, so a conversation is a conversation rather than one endless transcript per device. Clearing site data clears both.
 
 **A logging failure must never cost a student an answer.** `logTurn` swallows everything to the console and carries its own 2s budget; `handleAsk` awaits it and cannot be rejected by it. It is awaited rather than fired and forgotten because a serverless function may be frozen the instant it responds, and a promise left running is a row that never lands. `check-ask.js` asserts the swallowing offline, with no database, by handing `logTurn` the shapes a bad turn produces — and asserts every column `logTurn` writes exists in the `messages` block of the DDL, matched inside that block alone, because the `turns` view names most of them too and matching the whole file lets a renamed column pass.
 

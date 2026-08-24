@@ -1,7 +1,7 @@
 /* =============================================================================
  *  api/log.js — read the tutor's log
  * =============================================================================
- *  GET /api/log?limit=&offset=&lesson=&aimed=none  → {stats, turns}
+ *  GET /api/log?limit=&offset=&lesson=&cohort=&aimed=none  → {stats, turns}
  *
  *  A LOCAL TOOL. `.vercelignore` keeps this out of production, and this answers
  *  only to a request from the machine it runs on, so the two would both have to
@@ -34,7 +34,8 @@ module.exports = async function handler(req, res) {
     const [stats, turns] = await Promise.all([
       log.stats(),
       log.recent({ limit: q.limit, offset: q.offset, lesson: q.lesson || null,
-                   aimed: q.aimed || null, model: q.model || null }),
+                   aimed: q.aimed || null, model: q.model || null,
+                   cohort: q.cohort || null }),
     ]);
     return res.status(200).json({ stats, turns });
   } catch (err) {

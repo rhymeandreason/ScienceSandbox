@@ -218,6 +218,24 @@ for (const [lesson, L] of Object.entries(T.LESSONS)) {
                           'point', 'chapters', 'provider', 'model', 'usage', 'ms', 'error'])
     if (!new RegExp(`^\\s*${col}\\s`, 'm').test(table[1])) bad(`messages has no ${col} column`);
 
+  // Same for the thread row's columns, in the threads block. `cohort` is the
+  // one a rate limit will count against, so a schema without it is a limit that
+  // silently counts nothing.
+  const threads = /CREATE TABLE IF NOT EXISTS threads \(([\s\S]*?)\n\);/.exec(sql);
+  if (!threads) bad('_schema.sql has no threads table');
+  else for (const col of ['visitor_id', 'lesson', 'cohort'])
+    if (!new RegExp(`^\\s*${col}\\s`, 'm').test(threads[1])) bad(`threads has no ${col} column`);
+
+  // An existing database predates `cohort`, and only the ALTER reaches it. The
+  // CREATE alone would leave every deployed copy without the column.
+  if (!/ALTER TABLE threads ADD COLUMN IF NOT EXISTS cohort/.test(sql))
+    bad('_schema.sql creates cohort but never ALTERs it onto an existing threads table');
+
+  // The viewer and the limit both read the view, not the tables.
+  const cview = /CREATE VIEW turns AS([\s\S]*?);/.exec(sql);
+  if (cview && !/t\.cohort/.test(cview[1]))
+    bad('the turns view does not carry cohort: the log cannot filter by class');
+
   // The view must pair an answer with its question by id. Pairing on
   // (thread_id, turn) looks right and silently multiplies rows the moment one
   // thread holds two questions with the same number, which is every thread a

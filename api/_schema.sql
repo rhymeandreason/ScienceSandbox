@@ -4,7 +4,8 @@
 --  Applied by `npm run db:init`, which is idempotent. Neon Postgres.
 --
 --  No IP address, no user agent string, no name. A visitor is a random id the
---  browser minted for itself and can clear by clearing site data.
+--  browser minted for itself and can clear by clearing site data. `cohort` is
+--  the access link's label, so it says which class asked and never who.
 --
 --  One row per message. The question's row carries the moment it was asked in
 --  (`step`, `state`); the answer's row carries how it was produced (`point`,
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS threads (
   id          uuid PRIMARY KEY,
   visitor_id  uuid NOT NULL,               -- stable per browser, cleared with site data
   lesson      text,                        -- null: the plain ask box, no lesson around it
+  cohort      text,                        -- the access link's label; null: ungated (local, or no TUTOR_KEYS)
   started_at  timestamptz NOT NULL DEFAULT now()
 );
 
@@ -55,9 +57,18 @@ CREATE INDEX IF NOT EXISTS threads_visitor_idx  ON threads (visitor_id, started_
 -- Applied to a table that predates the column. Harmless on a fresh one.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to bigint REFERENCES messages(id) ON DELETE CASCADE;
 
--- After the ALTER, not with the other indexes: on an existing table the column
--- does not exist until the line above runs.
+-- Which access link the thread arrived on. A cohort, never a person: the label
+-- is what a rate limit counts against, so it has to be recorded before one can
+-- exist. Null on every row written before the gate, and on any ungated request.
+ALTER TABLE threads ADD COLUMN IF NOT EXISTS cohort text;
+
+-- After the ALTERs, not with the other indexes: on an existing table these
+-- columns do not exist until the lines above run.
 CREATE INDEX IF NOT EXISTS messages_reply_idx ON messages (reply_to);
+
+-- The rate limit's query is "how many turns has this cohort taken since T",
+-- which is this index and nothing cleverer.
+CREATE INDEX IF NOT EXISTS threads_cohort_idx ON threads (cohort, started_at DESC);
 
 -- Backfill: rows written before `reply_to` existed can only be paired the old
 -- way. Ambiguous cases are left null rather than guessed, so they drop out of
@@ -72,7 +83,7 @@ WHERE  a.reply_to IS NULL AND a.role = 'assistant' AND q.role = 'user'
 -- The debugging view. One row per exchange, the screen beside the aim.
 DROP VIEW IF EXISTS turns;
 CREATE VIEW turns AS
-SELECT t.id AS thread_id, t.lesson, t.visitor_id, q.turn,
+SELECT t.id AS thread_id, t.lesson, t.cohort, t.visitor_id, q.turn,
        q.created_at,
        q.text  AS question,
        a.text  AS answer,

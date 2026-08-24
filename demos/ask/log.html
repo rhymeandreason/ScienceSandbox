@@ -161,6 +161,7 @@
 
   <div class="bar">
     <select id="lesson"><option value="">every lesson</option></select>
+    <select id="cohort"><option value="">every class</option></select>
     <select id="aimed">
       <option value="">every answer</option>
       <option value="none">pointed at nothing</option>
@@ -216,6 +217,7 @@ function modelColour(m) {
 async function load() {
   const p = new URLSearchParams();
   if ($('lesson').value) p.set('lesson', $('lesson').value);
+  if ($('cohort').value) p.set('cohort', $('cohort').value);
   if ($('aimed').value)  p.set('aimed',  $('aimed').value);
   if (model)             p.set('model',  model);
   p.set('limit', $('limit').value);
@@ -270,6 +272,14 @@ function draw(data) {
   const sel = $('lesson'), had = sel.value;
   sel.innerHTML = '<option value="">every lesson</option>'
     + (s.lessons || []).map(l => `<option value="${esc(l.lesson)}">${esc(l.lesson)} (${l.n})</option>`).join('');
+
+  // Same, for the access links. Absent entirely until a gated deployment has
+  // written one, so a local log looks exactly as it did before the gate.
+  const csel = $('cohort'), chad = csel.value;
+  csel.innerHTML = '<option value="">every class</option>'
+    + (s.cohorts || []).map(c => `<option value="${esc(c.cohort)}">${esc(c.cohort)} (${c.n})</option>`).join('');
+  csel.value = chad;
+  csel.hidden = !(s.cohorts || []).length;
   sel.value = had;
 
   if (!data.turns.length) {
@@ -294,6 +304,7 @@ function draw(data) {
     return `<div class="turn ${kind}" style="border-left-color:hsl(${hue(t.thread_id)} 45% 55%)">
       <div class="meta">
         <span class="lesson">${esc(t.lesson || 'no lesson')}</span>
+        ${t.cohort ? `<span class="mono">${esc(t.cohort)}</span>` : ''}
         ${t.step == null ? '' : `<span>step ${esc(t.step)}</span>`}
         <span>turn ${esc(t.turn)}</span>
         <span class="aim ${kind}">&rarr; ${esc(t.point_id || 'nothing')}</span>
@@ -309,7 +320,7 @@ function draw(data) {
   }).join('');
 }
 
-for (const id of ['lesson', 'aimed', 'limit']) $(id).addEventListener('change', load);
+for (const id of ['lesson', 'cohort', 'aimed', 'limit']) $(id).addEventListener('change', load);
 $('reload').addEventListener('click', load);
 load();
 </script>

@@ -58,14 +58,16 @@ async function within(label, work) {
  * `turn` is counted from the rows already in the thread, not from the length of
  * the transcript the client sent. The single-question form has no transcript to
  * count, so a client using it would number every question 1. */
-async function logTurn({ threadId, visitorId, lesson, question, step, state, out, error, ms }) {
+async function logTurn({ threadId, visitorId, lesson, cohort, question, step, state, out, error, ms }) {
   const db = sql();
   if (!db) return;
   if (!isUuid(threadId) || !isUuid(visitorId)) return;   // a malformed id is not worth a row
 
   await within('write', async () => {
-    await db`INSERT INTO threads (id, visitor_id, lesson)
-             VALUES (${threadId}, ${visitorId}, ${lesson || null})
+    // DO NOTHING on conflict, so the cohort is whatever the thread started on.
+    // A thread belongs to the link it arrived by; a later turn cannot move it.
+    await db`INSERT INTO threads (id, visitor_id, lesson, cohort)
+             VALUES (${threadId}, ${visitorId}, ${lesson || null}, ${cohort || null})
              ON CONFLICT (id) DO NOTHING`;
 
     const [q] = await db`
@@ -99,7 +101,7 @@ async function logTurn({ threadId, visitorId, lesson, question, step, state, out
  * These DO throw. A viewer that silently shows nothing when the database is
  * unreachable is worse than one that says so, which is the opposite of the rule
  * on the write path. */
-async function recent({ limit = 50, offset = 0, lesson = null, aimed = null, model = null } = {}) {
+async function recent({ limit = 50, offset = 0, lesson = null, aimed = null, model = null, cohort = null } = {}) {
   const db = sql();
   if (!db) throw new Error('DATABASE_URL is not set');
   const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
@@ -113,6 +115,7 @@ async function recent({ limit = 50, offset = 0, lesson = null, aimed = null, mod
   return db`SELECT * FROM turns
             WHERE (${lesson}::text IS NULL OR lesson = ${lesson})
               AND (${model}::text  IS NULL OR model  = ${model})
+              AND (${cohort}::text IS NULL OR cohort = ${cohort})
               AND (${aimed}::text  IS NULL OR (${aimed} = 'none' AND point_id IS NULL))
             LIMIT ${n} OFFSET ${o}`;
 }
@@ -132,6 +135,12 @@ async function stats() {
     FROM turns`;
   const lessons = await db`SELECT coalesce(lesson, '(none)') AS lesson, count(*)::int AS n
                            FROM turns GROUP BY 1 ORDER BY 2 DESC`;
+  // Per cohort, which is per access link. Usage by class is what says whether a
+  // link has escaped: a cohort of thirty students that suddenly outruns the
+  // rest is the signal, and the totals hide it.
+  const cohorts = await db`SELECT cohort, count(*)::int AS n
+                           FROM turns WHERE cohort IS NOT NULL
+                           GROUP BY 1 ORDER BY 2 DESC`;
   // Per model, because comparing two models on the same questions is the whole
   // reason to look: median latency and spend per turn are what differ, and a
   // total hides both behind whichever model answered most.
@@ -139,7 +148,7 @@ async function stats() {
                                  round(avg((usage->>'cost_usd')::numeric), 5) AS avg_usd
                           FROM turns WHERE model IS NOT NULL
                           GROUP BY 1 ORDER BY 2 DESC`;
-  return { ...row, lessons, models };
+  return { ...row, lessons, models, cohorts };
 }
 
 /* Apply the schema. Idempotent, and separate from the answer path on purpose:
