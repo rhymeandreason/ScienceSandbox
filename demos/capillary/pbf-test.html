@@ -818,23 +818,20 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    front crosses the pore's 94 A in about 1500 steps and the count climbs past
    700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
    the pool sits there. */
-let K_WET=0.036*A;              // per surface atom, summed; not per molecule
-/* SET BY THE CONTACT ANGLE, not by how the meniscus looks. Water on cellulose
-   wets at 20-30 degrees, near zero on a clean surface, and the readout in the
-   panel measures what this liquid actually does. Swept at 1000 steps:
+let K_WET=0.026*A;              // per surface atom, summed; not per molecule
+/* CHOSEN OVER MANY RUNS BY EYE, and that is the honest description rather than
+   an apology. The pore is bistable near here (see the note by K_COH), so no
+   single run's settled angle is the constant's value — the same 0.026 gives 31
+   degrees and a meniscus 17 A up the wall on one run and 70 degrees with 4 A on
+   the next. What survives repetition is what Mary watched for: across many runs
+   0.026 gives a body of water with a meniscus on it, a wetting layer two
+   molecules thick, and an angle in cellulose's 20-30 band when it wets.
 
-       Adhesion 0      44 deg    barely wetting, and the water still holds the
-                                 wall a little because the hydroxyl H-bond is
-                                 adhesion too and is not on this slider
-       Adhesion 0.036  27 deg    inside the measured band. This is the default.
-       Adhesion 0.090   7 deg    a film, running 55 A up the dry wall
-
-   The shape follows from the angle and the pore's width. Tuning until the curve
-   looked right would be drawing the answer, which is the one thing this page
-   must not do. */
-/* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
-   without a reload. The contact angle lives in the ratio of the first two, and
-   sweeping it is what this bench is for. */
+   The measurement that would replace this judgement is a probability curve —
+   the fraction of runs that wet, against adhesion, over ten repeats a setting —
+   and it has not been run. Until it has, this number rests on repeated
+   observation, which is worth more than one settled reading and less than a
+   distribution. */
 const WET_REACH=11.0*A;
 
 let hbCount=0, adCount=0;
