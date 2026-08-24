@@ -1633,45 +1633,85 @@ const climbEl=document.getElementById('climb');
    by exactly the competition Adhesion and Cohesion are. Hit the angle and the
    curve follows from it and the pore's width, which is the honest order.
 
-   Measured, not assumed: the surface height is taken across the pore in bins,
-   a parabola is fitted to it, and the angle is between the wall and the
-   surface's tangent where they meet. 90 degrees is a flat surface that is not
-   wetting anything; 0 is water climbing the wall as a film. */
+   MEASURED AT THE WALL, WHICH IS WHERE THE DEFINITION PUTS IT. The first
+   version fitted a parabola across the whole pore, and that reads high — 21
+   degrees where the tangent at the contact line is nearer 11 — because a
+   wetting meniscus in a pore this narrow is nearly flat through the middle and
+   turns up sharply in the last few angstroms. A curve through the flat part
+   cannot know about the turn. So the fit is a straight line through the surface
+   over the outermost 8 A only, both walls averaged, in bins a molecule wide.
+
+   AND IT NEEDS A LONG TIME. The pool is seeded as a lattice with a curve
+   suggested, not a settled meniscus, so the angle starts near 90 and comes
+   down for thousands of steps: 78 at step 200, 43 at 600, 26 at 1000, and it
+   only stops moving near 2700, at 12. Reading it before then is reading the
+   lattice, which is why the panel says `settling` until the drift over 400
+   steps is under 3 degrees rather than quietly showing a number in motion.
+
+   WHAT IT SAYS ABOUT THE CURRENT SETTING. Adhesion 0.036 settles at 12
+   degrees: wetting, and more so than cellulose's usual 20-30, though clean
+   cellulose does go near zero. Adhesion 0.024 is still wandering around 80 at
+   step 2000 — barely wetting and not converged. Between those two the model
+   swings from almost no meniscus to a film, which is a narrower window than
+   the physics should have and is the next thing worth understanding. */
 const angleEl=document.getElementById('angle');
+const BIN=1.4;                                 // a water's radius, in angstroms
+const ANG_BAND=8;                              // how far in from the face the fit looks
 function contactAngle(){
-  const half=GAP/2/A, edge=half-R_WATER/A;
-  const xs=[], ys=[];
-  for(let b=-4;b<=4;b++){
-    const cx=b*edge/4.5;                       // bins across the pore, none on the face
-    const col=[];
-    for(const w of waters){
-      if(w.gone) continue;
-      if(Math.abs(w.p.x/A-cx)<edge/9) col.push(w.p.y/A);
+  const edge=GAP/2/A-R_WATER/A;
+  const pts=[];
+  for(let d=0; d<ANG_BAND; d+=BIN){            // d is distance in from the face
+    for(const sgn of [-1,1]){
+      const lo=edge-d-BIN, hi=edge-d;
+      const col=[];
+      for(const w of waters){
+        if(w.gone) continue;
+        const ax=w.p.x/A*sgn;
+        if(ax>lo && ax<=hi) col.push(w.p.y/A);
+      }
+      if(col.length<4) continue;
+      col.sort((p,q)=>q-p);
+      const n=Math.max(1,Math.round(col.length*0.15));
+      pts.push([d+BIN/2, col.slice(0,n).reduce((p,q)=>p+q,0)/n]);
     }
-    if(col.length<6) continue;
-    col.sort((p,q)=>q-p);
-    const n=Math.max(1,Math.round(col.length*0.1));
-    xs.push(cx); ys.push(col.slice(0,n).reduce((p,q)=>p+q,0)/n);
   }
-  if(xs.length<5) return null;
-  /* Least squares on y = a x^2 + c. The linear term is dropped on purpose: a
-     meniscus in a symmetric pore is symmetric, and fitting a tilt to thermal
-     noise would wobble the angle by degrees a frame. */
-  let sx2=0,sx4=0,sy=0,sx2y=0;
-  for(let i=0;i<xs.length;i++){ const x2=xs[i]*xs[i];
-    sx2+=x2; sx4+=x2*x2; sy+=ys[i]; sx2y+=x2*ys[i]; }
-  const n=xs.length, den=n*sx4-sx2*sx2;
+  if(pts.length<4) return null;
+  /* Least squares of height against distance in from the wall. The slope is
+     the surface's tangent there, which is the contact angle's own definition
+     rather than an average of the whole surface's shape. */
+  let sx=0,sy=0,sxy=0,sxx=0;
+  for(const [x,y] of pts){ sx+=x; sy+=y; sxy+=x*y; sxx+=x*x; }
+  const n=pts.length, den=n*sxx-sx*sx;
   if(Math.abs(den)<1e-9) return null;
-  const a=(n*sx2y-sx2*sy)/den;
-  const slope=2*a*edge;                        // dy/dx where the surface meets the face
+  const slope=(n*sxy-sx*sy)/den;               // negative: the water is higher at the wall
   return 90-Math.abs(Math.atan(slope))*180/Math.PI;
+}
+/* Settling is visible rather than hidden, and judged over a LONG window: this
+   angle drifts by a degree every few tens of steps, so any short window always
+   looks converged. Measured over 400, which is the timescale it actually moves
+   on — 70 degrees at step 50, 61 at 300, 43 at 600, 27 at 900, 17 at 1400.
+
+   It goes on creeping down while the pore fills, and that is not the fit being
+   unstable: with dry wall above, the water is ADVANCING, and an advancing angle
+   falls as the film runs ahead. It only settles when the filling does. Tune
+   against it once it stops saying `settling`, not before. */
+const angHist=[];
+function angleText(){
+  const a=contactAngle();
+  if(a==null) return '\u2014';
+  angHist.push([stepNo,a]);
+  while(angHist.length>2 && stepNo-angHist[0][0]>400) angHist.shift();
+  const span=stepNo-angHist[0][0];
+  const vals=angHist.map(p=>p[1]);
+  const drift=Math.max(...vals)-Math.min(...vals);
+  return (span>=300 && drift<3) ? Math.round(a)+'\u00b0'
+                                : Math.round(a)+'\u00b0 settling';
 }
 function reportClimb(){
   const wall=topAt(16), mid=topAt(0);
   climbEl.textContent=(wall==null||mid==null)?'—':(wall-mid).toFixed(1)+' \u00c5';
   frontEl.textContent=(mid==null)?'—':mid.toFixed(1)+' \u00c5';
-  const ang=contactAngle();
-  angleEl.textContent=(ang==null)?'—':Math.round(ang)+'\u00b0';
+  angleEl.textContent=angleText();
   if(mid!=null){ frontMark.position.y=mid*A; frontMark.visible=true; }
   else frontMark.visible=false;
 }
@@ -1723,7 +1763,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
-  evapCount=0; condensed=0; RHO_0=0; stepNo=0; };
+  evapCount=0; condensed=0; RHO_0=0; stepNo=0; angHist.length=0; };
 </script>
 </body>
 </html>
