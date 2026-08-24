@@ -822,7 +822,23 @@ for(let i=0;i<nW;i++) place(i);
    instead (O 1.40 A against a real 1.52, H 0.95 against 1.20), which is how a
    liquid has to be drawn if its density is the claim. The wall stays
    ball-and-stick, so structure and bulk do not look like the same substance. */
-const R_O=1.40*A, R_H=0.95*A;
+/* DRAWN SMALLER THAN LIFE, and it is a render setting rather than a physical
+   one — nothing in the solve reads these. Oxygen's van der Waals radius is
+   1.52 A and R_WATER, which the wall and the steric floor DO use, is 1.40.
+
+   The liquid reads as a solid block at any of those, and the reason is depth
+   rather than density: the slab is 9 A thick, which is 3.1 molecules through
+   the viewing direction, and the spheres project to 1.79 times the visible
+   area. Every gap in the front layer has a molecule behind it. Real water at
+   this depth would look the same, and slightly more so.
+
+   So the sphere is shrinkable to see into the liquid, and shrinking it changes
+   nothing that is measured. What it CANNOT do is make the liquid look like
+   water: the neighbours here sit at close-packed angles rather than tetrahedral
+   ones — the O-O-O measurement by K_TORQ — so there are no channels to see
+   into however small the spheres are drawn. */
+let R_O=1.40*A, R_H=0.95*A;
+const R_O_TRUE=R_O, R_H_TRUE=R_H;   // so the knob is a ratio off the real one
 const oMesh=new THREE.InstancedMesh(SPHERE,
   new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER);
 const hMesh=new THREE.InstancedMesh(SPHERE,
@@ -941,6 +957,31 @@ let V_MAX=0;                      // speed ceiling, 0 for none
    crowding it cannot point two H's and two lone pairs at four of them, however
    well it is turned, so orientation was never what was short.
 
+   THE DENSITY WORK FIXED THE RADIAL NUMBERS AND NOT THIS ONE, and the two got
+   confused. Coordination came to 4.53 and nearest neighbour to 2.72, both on
+   water's own values, and that was read as the close packing being gone. It is
+   not. Coordination and nearest-neighbour distance are RADIAL, and a
+   close-packed liquid and a tetrahedral one at the same density have the same
+   radial statistics — they cannot tell the two apart. What tells them apart is
+   the angle, and the angle had never been measured. Measured now: O-O-O over
+   every pair of neighbours inside 3.4 A, 1200 steps, as a percentage.
+
+       0-20  20-40  40-60  60-80  80-100  100-120  120-140  140-160  160-180
+          0      0   14.4   21.7    17.3     18.8     13.7      9.6      4.5
+
+   A tetrahedral network is one peak at 100-120. This peaks at 60-80, with 36%
+   of neighbour pairs inside 80 degrees, which is the close-packing signature
+   and nothing like water. The neighbours are at the right DISTANCE and in the
+   right NUMBER and in the wrong PLACES, and no orientation of two hydrogens
+   104.5 degrees apart will bond a pair of neighbours sitting 70 degrees apart.
+
+   Which is why the bond count will not move for anything angular. Three
+   independent tries, all small: the linearity cut rejects 4.7% of candidates,
+   re-matching by pair quality rather than by index buys nothing at all, and the
+   pre-bond torque below buys 0.25 against a deficit of 1.1. The missing bond is
+   POSITIONAL. What would fix it has to act on where a neighbour sits, not on
+   which way a molecule is turned.
+
    The torque stays because it is right and it is free — 3.5 ms a step either
    way — and because the moment the liquid is opened up to its real spacing it
    is what will let a network form. The thing to fix is the density, and that is
@@ -949,6 +990,57 @@ let V_MAX=0;                      // speed ceiling, 0 for none
    integrator (0.45 bonds a molecule at 1.6). It wants a positional correction
    rather than a stiffer spring. */
 let K_TORQ=0.10;                  // how far toward alignment a bond turns per step
+/* AND A WEAKER ONE FOR PAIRS THAT ARE NOT BONDED YET, which is the gap the
+   torque above leaves. Every aim() in this file sits INSIDE the branch that
+   found a bond, so orientation is only ever corrected for pairs already
+   bonded — and nothing turns an unbonded neighbour into a bonded one. That is a
+   trap rather than a network: bonded stays bonded, unbonded stays unbonded, and
+   the liquid has no way to nucleate the structure it is short of.
+
+   Measured on the liquid it leaves. Of 2036 close O...O pairs, where the
+   donor's nearest hydrogen actually sits:
+
+       1.5-2.0 A    404 pairs    aligned
+       2.0-2.5 A    299          marginal
+       2.5-3.5 A   1198          perpendicular, or pointing away
+
+   Sixty-five percent of pairs close enough to bond have the H somewhere else.
+   It is not the angular cut doing it — that rejects 31 candidates out of 666,
+   and the median O-H...O already stands at 151 degrees against a cut at 123 —
+   and it is not the allocation either: rebuilding the matching by pair quality
+   instead of by index gives 2.44 bonds a molecule against 2.44. The candidate
+   graph itself is the ceiling, at 600 edges where 3.6 bonds a molecule needs
+   about 1600. The hydrogens are not pointed at anything.
+
+   So a hydrogen that failed to bond is turned, weakly, toward the nearest
+   oxygen that could still accept one. This is not a bond and adds no force: a
+   real water feels its neighbour's dipole whatever the geometric criterion
+   says, and the criterion is a discretisation of something continuous. Weak,
+   because it must not overrule a bond that did form.
+
+   A REAL DEFECT AND A SMALL FIX, which are worth separating. Bench.sweep, four
+   runs a point, zero being the old bonded-only behaviour:
+
+       K_TORQ_PRE   bonds (range)      climb   film   wetted
+         0          2.51 (2.47-2.60)   22.7 A   20 A    3/4
+         0.04       2.56 (2.52-2.66)   24.2     20      4/4
+         0.12       2.54 (2.48-2.56)   22.9     28      4/4
+         0.30       2.76 (2.61-2.76)   29.8     28      4/4
+
+   Only 0.30 clears the control's range, and it buys 0.25 of a bond against a
+   deficit of 1.1 while making the film WORSE — 20 A of film-only column to 28.
+   The nucleation trap was real and this closes it; it is not where the missing
+   bonds are. See the O-O-O measurement by K_TORQ above, which says they are
+   positional.
+
+   THAT TABLE WAS MEASURED ON THE CLOSE-PACKED LIQUID AND IS HISTORY. With the
+   angular floor in, the oxygens are in tetrahedral positions and nothing was
+   re-aiming the molecules at them: bonds fell to 2.11 until this was turned up,
+   and 0.40 brings them back to 2.48. Same pattern K_HB records above — a
+   constant that does nothing until the thing upstream of it is right. Set at
+   0.40 for that reason, not for the film. */
+let K_TORQ_PRE=0.40;
+let PREBOND_MAX=3.5*A;            // O...O reach for that nudge: the first shell
 const TORQ_MAX=0.25;              // and a cap, so a molecule pulled two ways cannot spin
 /* The lone pairs, where the tetrahedron puts them: opposite the H's and out of
    their plane by half the tetrahedral angle. An acceptor turns the NEARER of
@@ -1007,8 +1099,8 @@ const K_WALL=0.20;                // the wall is solid
    and there are more of them per unit area than a curved liquid surface can
    present back. Under-set this and the render tells the waxed-windshield story
    by accident. */
-const K_ADHERE=0.075;             // the bond itself, directional
-const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
+let K_ADHERE=0.075;               // the bond itself, directional
+let K_ADHERE_LR=0.075;            // and the undirected pull from one hydroxyl
 /* THE WALL AS A WALL, not as a bag of separate atoms. A single hydroxyl's pull
    dies inside about 6 A, so a liquid that once lets go of the surface can never
    feel it again and stays balled up in the middle of the pore — which is the
@@ -1024,7 +1116,7 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    front crosses the pore's 94 A in about 1500 steps and the count climbs past
    700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
    the pool sits there. */
-let K_WET=0.006*A;              // per surface atom, summed; not per molecule
+let K_WET=0.022*A;              // per surface atom, summed; not per molecule
 /* RECALIBRATED FOR THE OPEN LIQUID, and the old 0.026 is void: a different
    liquid has a different contact angle, and after the H-bond work 0.026 read 4
    degrees with a 58 A film where it had read 25. Measured again on the new
@@ -1047,8 +1139,80 @@ let K_WET=0.006*A;              // per surface atom, summed; not per molecule
    already 1 — so it goes into spreading instead.
 
    Chosen on one run at each setting, which the bistability note by K_COH says
-   is not enough. It wants the same treatment 0.026 got: watched over several. */
-const WET_REACH=11.0*A;
+   is not enough. It wants the same treatment 0.026 got: watched over several.
+
+   AND THAT TABLE IS VOID TOO, for the third time on this constant: the angular
+   floor made a different liquid again, and 0.006 left the meniscus CONVEX at 77
+   degrees. Re-swept against it, four runs a point, tetra at 85:
+
+       K_WET    angle   climb    film-only   water in pore
+       0.006     77 deg  -4.8 A     0 A          847
+       0.012     60      +5.4       8            812
+       0.022     18      +31.1      4            890
+
+   0.022. And the climb needs reading against the film column beside it rather
+   than on its own: 31 A of climb with 4 A of film is a meniscus spanning the
+   pore, where the old liquid's 30 A of climb came with 28 A of film and was two
+   sheets riding the walls with nothing between them. Same number, different
+   thing, which is why filmOnly exists. */
+/* THE SOLID'S TAIL. The contact interaction is separate and already here:
+   K_ADHERE and K_ADHERE_LR above are the hydroxyl's own bond, short and
+   directional and per-site. This sum is the weak dispersion attraction of
+   everything behind the surface, on top of it.
+
+   IT IS NOT WEAK, and the name is aspirational. Summed at the positions water
+   actually occupies it puts 0.0251 on the first water layer against 0.0060 for
+   a single hydroxyl, and 0.0118 on the second — so the layer that ought to be
+   held by the layer under it is held by the wall instead, and needs nothing
+   beneath it to stay where it is. That is a film that runs up a dry wall and
+   never thickens.
+
+   SHORTENING IT DOES NOT WORK, measured. Cut to 5 A with a cubic falloff the
+   sum reads 0.0009 at contact — a thirtieth — because a short-range sum over a
+   corrugated surface CANCELS: the near atoms surround a molecule and pull it
+   every way at once. This field only has a net direction because it is broad,
+   and that breadth is also what gives it a vertical component, without which
+   the column sits with a dead flat top.
+
+   NOR DOES CUTTING THE MAGNITUDE, which was the next guess. Bench.sweep over
+   K_WET, four runs a point:
+
+       K_WET     rise    wetted   angle   film    (film = A of column
+       0.006     3.5 A    75%      28     12 A     carrying wall film with
+       0.003    15.5      0%       82      4       no water spanning it)
+       0.0015    6.7      0%       79      0
+       0.0008    7.6      0%       75      0
+
+   The film does go — it is this term's doing, which is the one thing here that
+   is settled. But the same term is what wets the wall at all, and by the time
+   the film is gone the pore is non-wetting at 79 degrees. One knob, two jobs.
+
+   AND HANDING THE JOB TO THE HYDROXYLS DOES NOT SEPARATE THEM EITHER. With the
+   tail at 0.0015, sweeping K_ADHERE and K_ADHERE_LR together:
+
+       K_ADHERE   angle   film     wetted
+       0.075       77 deg   0 A      0%
+       0.20        45      12       100%
+       0.40         9      52       100%
+       0.70         6      68       100%
+
+   The bond CAN carry the contact layer — 45 degrees at 0.20 with the tail cut
+   is the mechanism working. But the film returns with it, at every shape. So
+   the film is not the tail's shape and not the tail's strength: it is what any
+   wall attraction strong enough to wet does in a liquid whose cohesion cannot
+   pull the outer layers back. The thread to pull is cohesion at the surface,
+   or the bond count that cohesion is short of — not this constant.
+
+   THE COLUMN'S DECOUPLING IS NOT THIS TERM'S DOING AT ALL, and that is worth
+   more than the rest. `sag` — how far the worst interior band's pressure falls
+   below the line from the mouth to the meniscus, see bench.js — reads 0.98 to
+   1.02 across BOTH sweeps: a tenfold range of hydroxyl bond and a sevenfold
+   range of tail, while the pressure at the front moves 0.10 to 2.16. A number
+   that will not move for any wall setting is not the wall's. What is invariant
+   across all 32 runs is the supply and the solver: a deficit that travels one
+   neighbour shell times RELAX per step, and a base that injection compresses.
+   The pit sits between them and belongs to them. Look there, not here. */
+let TAIL_REACH=11.0*A;
 
 let hbCount=0, adCount=0;
 const _t1=new THREE.Vector3(), _t2=new THREE.Vector3(), _t3=new THREE.Vector3(),
@@ -1151,13 +1315,13 @@ function step(){
   return _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
     bondTo,bondN,bondedWith,qArr,nW,
     COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,
-    K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,WET_REACH,R_WATER,
+    K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,R_WATER,
     DAMP,V_THERM,V_MAX,TORQ_MAX,VAP_DWELL,GAP,DEPTH,FLOOR);
 }
 function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
     bondTo,bondN,bondedWith,qArr,nW,
     COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,
-    K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,WET_REACH,R_WATER,
+    K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,R_WATER,
     DAMP,V_THERM,V_MAX,TORQ_MAX,VAP_DWELL,GAP,DEPTH,FLOOR){
   stepNo++;
   const n=nW;
@@ -1233,6 +1397,7 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
   for(let i=0;i<n;i++){
     if(GONE[i]) continue;
     const ox=PX[3*i], oy=PX[3*i+1], oz=PX[3*i+2];
+    let prePicked=-1;                    // the other hydrogen's pre-bond target
     for(let k=0;k<2;k++){
       const hx=HX[6*i+3*k], hy=HX[6*i+3*k+1], hz=HX[6*i+3*k+2];
       // this O-H's direction, which the linearity test measures against
@@ -1252,7 +1417,33 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
           if(lin>HB_LIN){ best=j; bestD=dd; bestLin=lin; }
         }
       }
-      if(best<0) continue;
+      if(best<0){
+        /* Nothing bonded this H. Turn it toward the nearest oxygen that still
+           has a lone pair free, so the pair has a route to becoming a bond
+           instead of staying where it is for ever.
+
+           `prePicked` keeps the molecule's two hydrogens off the same target:
+           aim() turns the whole molecule, and the two O-H's are rigid at
+           104.5 degrees, so aiming both at one neighbour is asking the geometry
+           for something it cannot do and the molecule only spins. */
+        let pre=-1, preD2=PREBOND_MAX*PREBOND_MAX;
+        for(let q=0;q<nbrN[i];q++){
+          const j=nbr[i*NBR_MAX+q];
+          if(GONE[j]||j===prePicked) continue;
+          if(accepted[j]>=2||bondedWith[i]===j) continue;
+          const vx=PX[3*j]-ox, vy=PX[3*j+1]-oy, vz=PX[3*j+2]-oz;
+          const d2=vx*vx+vy*vy+vz*vz;
+          if(d2<preD2 && d2>1e-6){ preD2=d2; pre=j; }
+        }
+        if(pre>=0){
+          prePicked=pre;
+          const d=Math.sqrt(preD2);
+          aim(i, _t5.set(ohx,ohy,ohz),
+                 _t3.set((PX[3*pre]-ox)/d,(PX[3*pre+1]-oy)/d,(PX[3*pre+2]-oz)/d),
+                 K_TORQ_PRE);
+        }
+        continue;
+      }
       accepted[best]++;
       bondedWith[i]=best;
       HBN[i]++; HBN[best]++; hbCount++;
@@ -1277,7 +1468,7 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
   // --- the wall: solid, and covered in hydroxyls that will hold on
   _wallPass(n,PX,HX,FX,TQ,GONE,WF,
     surfX,surfY,surfZ,surfR,surfStart,ohOX,ohOY,ohOZ,ohHX,ohHY,ohHZ,ohStart,NB,
-    GAP,DEPTH,FLOOR,R_WATER,K_WALL,WET_REACH,K_WET,COH_MAX,OO_EQ,
+    GAP,DEPTH,FLOOR,R_WATER,K_WALL,TAIL_REACH,K_WET,COH_MAX,OO_EQ,
     K_ADHERE,K_ADHERE_LR,K_TORQ,HB_MAX2,5.0*A);
 
   /* ---- PREDICT ----
@@ -1337,7 +1528,7 @@ function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
    step takes its state as arguments. */
 function _wallPass(n,PX,HX,FX,TQ,GONE,WF,
     surfX,surfY,surfZ,surfR,surfStart,ohOX,ohOY,ohOZ,ohHX,ohHY,ohHZ,ohStart,NB,
-    GAP,DEPTH,FLOOR,R_WATER,K_WALL,WET_REACH,K_WET,COH_MAX,OO_EQ,
+    GAP,DEPTH,FLOOR,R_WATER,K_WALL,TAIL_REACH,K_WET,COH_MAX,OO_EQ,
     K_ADHERE,K_ADHERE_LR,K_TORQ,HB_MAX2,reach){
   for(let i=0;i<n;i++){
     if(GONE[i]) continue;
@@ -1372,14 +1563,16 @@ function _wallPass(n,PX,HX,FX,TQ,GONE,WF,
        and no frame carries all of it. */
     if((stepNo+i)%4===0){
       let wx=0, wy=0, wz=0;
-      if(GAP/2-Math.abs(px) < WET_REACH && Math.abs(px) < GAP/2){
-        const b0=bk-4<0?0:bk-4, b1=bk+4>=NB?NB-1:bk+4;
+      if(GAP/2-Math.abs(px) < TAIL_REACH && Math.abs(px) < GAP/2){
+        // the bucket window follows the reach rather than being typed alongside it
+        const bw=Math.ceil(TAIL_REACH/BUCKET);
+        const b0=bk-bw<0?0:bk-bw, b1=bk+bw>=NB?NB-1:bk+bw;
         for(let bb=b0;bb<=b1;bb++)
         for(let k=surfStart[base+bb], ke=surfStart[base+bb+1]; k<ke; k++){
           const vx=surfX[k]-px, vy=surfY[k]-py, vz=surfZ[k]-pz;
           const d=Math.sqrt(vx*vx+vy*vy+vz*vz);
-          if(d>WET_REACH || d<1e-4) continue;
-          const t=1-d/WET_REACH, s=K_WET*t*t/d;
+          if(d>TAIL_REACH || d<1e-4) continue;
+          const t=1-d/TAIL_REACH, s=K_WET*t*t/d;
           wx+=vx*s; wy+=vy*s; wz+=vz*s;
         }
       }
@@ -1491,6 +1684,52 @@ const gSpiky=r=>{ const t=H-r; return t>0 ? SPIKY*t*t : 0; };
    near threshold — see the note by K_COH — so read that as "no worse", not as a
    difference.
 
+   ALL OF THAT IS STRUCTURE, AND STRUCTURE IS NOT WHAT ONE SWEEP COSTS. The
+   table above says an extra sweep refines a converged number, and for nearest
+   neighbour and coordination it does. It says nothing about how far a pressure
+   deficit TRAVELS in a step, which is a different quantity, and it is the one
+   the fill depends on: each sweep carries the constraint about one neighbour
+   shell, so at one sweep the meniscus's deficit moves ~3 A a step down a column
+   tens of angstroms tall.
+
+   MEASURED AGAINST THAT, one sweep is not enough. Bench.sweep over sweeps and
+   relaxation together, four runs a point, reading `sag` — how far the worst
+   interior band's pressure falls below the line from the mouth to the meniscus,
+   see bench.js:
+
+       sweeps x relax   sag    lambda base   lambda front   water
+         1 x 0.35       0.60      -0.46          +0.49       474
+         1 x 0.55       0.73      -0.26          +1.04       452
+         2 x 0.35       0.58      +0.10          +1.06       454
+         4 x 0.35       0.27      +0.18          +0.33       509
+         4 x 0.55       0.16      +0.12          +0.28       479
+
+   The trough is transport's, and it comes out four-fold. More than that, the
+   pressure at the MOUTH flips sign at two sweeps: the base stops being squeezed
+   by the water arriving in it and starts being pulled on by the column above,
+   which is the condition the reservoir has been waiting for since it was built.
+   The run-to-run range collapses with it — sag 0.27 to 1.07 at one sweep
+   against 0.21 to 0.31 at four — so the bistability this page is full of is
+   partly the trough, not the wall.
+
+   AND IT DOES NOT FILL THE PORE, which is the useful half. Water in the pore
+   goes 474 to 509, seven percent, while the front appears to climb from 7.9 A
+   to 17.5. That gap is a MEASUREMENT TRAP and it is worth naming: `front` is
+   read mid-channel, so a meniscus flattening raises it by the climb at the wall
+   without a molecule arriving. Climb goes 15.4 to 3.2 across the same rows and
+   the wall top actually falls, 23.3 to 20.7. Read the water count, not the
+   front, whenever the surface shape is also moving.
+
+   So transport was the decoupling and is not the fill rate. With the gate no
+   longer shut, what is left is injectOne() failing for want of anywhere to put
+   a molecule.
+
+   AND THE MENISCUS WAS LARGELY FILM. Climb 15.4 to 3.2 and the film-only column
+   16 A to 0 across the same sweep: take away the slow-transport regime and the
+   curve goes with it, because what was curving was two wall films riding up
+   rather than a surface spanning the pore. The wall sweeps by TAIL_REACH end in
+   the same place. Surface cohesion, and the bond count it is short of.
+
    Turn it up when the liquid is being changed rather than watched: a stiffer
    constraint or a different kernel will need the sweeps back while it settles.
 
@@ -1517,12 +1756,13 @@ let SOLVER_ITERS=1;
        0.55   front +0.8     1.96       nearest 2.72   bonds 2.47
        0.65   BLOWS APART    —          nearest 3.32   bonds 0.49
 
-   0.45 for about 1.4x the rise with the liquid untouched. 0.55 reads faster
-   still and is not taken: 0.65 detonates — 3.32 A between neighbours, half a
-   bond a molecule, bulk speed 1.6 A a step, which is a gas — and a default one
-   notch from that cliff is a default that will fall off it when something else
-   changes. */
-let RELAX=0.45;
+   0.35 for about 1.4x the rise with the liquid untouched. The gain is flat from
+   0.35 to 0.45 — the two differ by less than one run's noise — so the tiebreak
+   is distance from the cliff: 0.65 detonates, at 3.32 A between neighbours,
+   half a bond a molecule and a bulk speed of 1.6 A a step, which is a gas.
+   0.55 reads faster still and sits one notch from that, which is a default that
+   will fall off it when something else changes. */
+let RELAX=0.35;
 /* CFM relaxation. It sits in the denominator with the summed gradients, so it
    has to be small against them or every multiplier comes out zero and the pool
    simply falls through itself — measured, at 600 the liquid collapsed to 0.5 A
@@ -1614,6 +1854,11 @@ function _solve(PX,GONE,nbr,nbrN,lam,pairG,pairS,DPa,nW,NBR_MAX,
       if(GONE[i]) continue;
       PX[3*i]+=DPa[3*i]*RELAX; PX[3*i+1]+=DPa[3*i+1]*RELAX; PX[3*i+2]+=DPa[3*i+2]*RELAX;
     }
+    /* Angle before distance: tetra() moves neighbours tangentially and leaves
+       their separation roughly alone, and contacts() then holds the floor
+       exactly. The other order would let a corrected distance be tilted back
+       out of true with nothing to catch it. */
+    tetra();
     contacts();
     collide();
   }
@@ -1692,6 +1937,133 @@ function _contacts(PX,GONE,nbr,nbrN,bondTo,bondN,nW,NBR_MAX,BOND_MAX,OO_MIN,OO_F
       PX[3*i]+=rx*s; PX[3*i+1]+=ry*s; PX[3*i+2]+=rz*s;
       PX[3*j]-=rx*s; PX[3*j+1]-=ry*s; PX[3*j+2]-=rz*s;
     }
+  }
+}
+
+/* =============================================================
+ *  THE ANGULAR FLOOR. Where a neighbour may not sit.
+ *
+ *  contacts() above says how CLOSE two molecules may come. Nothing until now
+ *  said anything about WHERE around a molecule its neighbours may sit, and that
+ *  omission is the whole of the liquid's remaining error: measured, the O-O-O
+ *  angle peaks at 60-80 degrees with 36% of neighbour pairs inside 80, which is
+ *  the close-packing signature. Water peaks at 109.5.
+ *
+ *  The radial numbers cannot see it. A close-packed liquid and a tetrahedral
+ *  one at the same density have the same nearest-neighbour distance and the
+ *  same coordination, which is why 2.72 A and 4.5 neighbours were read as this
+ *  being fixed when it was not.
+ *
+ *  A ONE-SIDED FLOOR, not a target at 109.5. Forcing the tetrahedral angle
+ *  would build a crystal; forbidding the crowded ones lets the liquid choose
+ *  anything open. It is the same shape of rule as OO_FREE and for the same
+ *  reason — a floor is a constraint a liquid can satisfy many ways, a target is
+ *  one it can satisfy one way.
+ *
+ *  AND POSITIONAL, not a force, which is the lesson K_TORQ's comment already
+ *  drew for the radial case: a spring stiff enough to hold the structure tears
+ *  the liquid apart in an explicit integrator, and the correction that works is
+ *  one applied to positions inside the solve.
+ *
+ *  Why 95 degrees is the floor and not 109.5: on a sphere, four directions can
+ *  all be 109.5 apart and five cannot do better than 90. So a floor at 95
+ *  admits four neighbours and expels the fifth, which is what makes a liquid
+ *  hold 4 close neighbours at a density that would otherwise pack 5.5 in. That
+ *  is water's openness, and it is why ice floats.
+ * ============================================================= */
+/* MEASURED AGAINST NO FLOOR AT ALL, four runs each, 2200 steps, with the
+   pre-bond torque and the wall re-set for the liquid it makes (see both):
+
+                        no floor              floor at 85
+       water in pore    518  [438-599]        917  [884-922]
+       film-only         28 A [16-36]           4 A [0-8]
+       climb at wall     30.5 A                31.2 A
+       contact angle     14.8 deg              24.8
+       bonds              2.54                  2.48
+       coordination       4.44                  3.97      water 4.5
+       nearest            2.72 A                2.67      water 2.76
+       sag                1.59 [0.44-2.12]      4.66 [1.88-8.52]
+       cost               3.0 ms/step           4.7
+
+   THE PORE HOLDS 77% MORE WATER and the ranges do not overlap, which no other
+   change on this page has managed — not the supply, not the wall, not the
+   solver. The film goes with it, 28 A to 4, and the climb stays: the same curve
+   with liquid across the pore instead of two sheets on the walls.
+
+   WHAT IT COSTS is in the same table and is not small. Coordination falls below
+   water's 4.5 rather than landing on it, nearest neighbour drifts 0.09 A
+   further from the real 2.76, the bond count does not move, and sag — the
+   pressure trough — gets worse by a factor of three. A step costs 55% more.
+
+   The bond count staying flat is the honest disappointment. Tetrahedral
+   POSITIONS were supposed to let the network form, and they have not: 2.48
+   bonds against 3.97 neighbours is 62% where water manages 80%. Something still
+   keeps a molecule from bonding what is in front of it. */
+let K_TETRA=0.35;                 // how much of the crowding is taken out per sweep
+let TETRA_R=3.4*A;                // the first shell: what counts as a neighbour here
+let TETRA_MIN=85;                 // degrees, below which two neighbours are crowding
+/* 85 AND NOT 95, measured. Four directions on a sphere can all be 109.5 apart
+   and five cannot beat 90, so a floor at 95 admits exactly four and expels the
+   fifth: coordination fell to 3.56 against water's 4.5, and the bond count with
+   it. Real water is not four-coordinate either — it holds 4.5 inside 3.4 A, so
+   some pairs really do sit under 90. 85 keeps them.
+
+       floor    bonds   coord   pairs <80 deg   80-120 deg   water in pore
+       off      2.46    4.45        37.3           35.0           581
+       75       2.44    4.66        36.0           36.2           477
+       85       2.11    3.90        20.7           51.4           694
+       95       1.75    3.56        19.3           53.2           979
+
+   75 does nothing at all. Past 85 the extra structure is bought by emptying the
+   first shell, which is not what water does. */
+const _shI=new Int32Array(24), _shD=new Float32Array(24);
+
+function tetra(){
+  if(K_TETRA<=0) return;
+  const cMax=Math.cos(TETRA_MIN*Math.PI/180), R2=TETRA_R*TETRA_R;
+  for(let i=0;i<nW;i++){
+    if(GONE[i]) continue;
+    const ax=PX[3*i], ay=PX[3*i+1], az=PX[3*i+2];
+    /* The first shell, pulled out of the 6.2 A neighbour list ONCE. Pairing
+       straight off nbr[] would be 27 squared per molecule for a shell of 4. */
+    let m=0;
+    for(let q=0;q<nbrN[i] && m<24;q++){
+      const j=nbr[i*NBR_MAX+q];
+      if(GONE[j]) continue;
+      const rx=PX[3*j]-ax, ry=PX[3*j+1]-ay, rz=PX[3*j+2]-az;
+      const d2=rx*rx+ry*ry+rz*rz;
+      if(d2>R2||d2<1e-8) continue;
+      _shI[m]=j; _shD[m]=Math.sqrt(d2); m++;
+    }
+    if(m<2) continue;
+    let cx=0, cy=0, cz=0;
+    for(let a=0;a<m;a++){
+      const j=_shI[a], dj=_shD[a];
+      const ux=(PX[3*j]-ax)/dj, uy=(PX[3*j+1]-ay)/dj, uz=(PX[3*j+2]-az)/dj;
+      for(let b=a+1;b<m;b++){
+        const k=_shI[b], dk=_shD[b];
+        const vx=(PX[3*k]-ax)/dk, vy=(PX[3*k+1]-ay)/dk, vz=(PX[3*k+2]-az)/dk;
+        const c=ux*vx+uy*vy+uz*vz;
+        if(c<=cMax) continue;                  // already open enough
+        /* Each of the two moves PERPENDICULAR to its own bond, so the angle
+           opens and the distance to i is left for contacts() to keep. */
+        let px=vx-c*ux, py=vy-c*uy, pz=vz-c*uz;
+        let qx=ux-c*vx, qy=uy-c*vy, qz=uz-c*vz;
+        const pl=Math.sqrt(px*px+py*py+pz*pz), ql=Math.sqrt(qx*qx+qy*qy+qz*qz);
+        if(pl<1e-6||ql<1e-6) continue;         // collinear: no tangent to push along
+        const over=c-cMax;
+        const sj=K_TETRA*over*dj*0.5/pl, sk=K_TETRA*over*dk*0.5/ql;
+        const jx=-px*sj, jy=-py*sj, jz=-pz*sj;
+        const kx=-qx*sk, ky=-qy*sk, kz=-qz*sk;
+        PX[3*j]+=jx; PX[3*j+1]+=jy; PX[3*j+2]+=jz;
+        PX[3*k]+=kx; PX[3*k+1]+=ky; PX[3*k+2]+=kz;
+        cx+=jx+kx; cy+=jy+ky; cz+=jz+kz;
+      }
+    }
+    /* The vertex takes the reaction, so opening an angle does not walk the
+       whole cluster across the pore. The two tangents are near opposite, so
+       this is small. */
+    PX[3*i]-=cx; PX[3*i+1]-=cy; PX[3*i+2]-=cz;
   }
 }
 
@@ -2139,6 +2511,15 @@ const KNOBS=[
   {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
   {k:'Solve',      get:()=>SOLVER_ITERS,set:v=>SOLVER_ITERS=v,min:1, max:8,    step:1,     fmt:v=>v+'x'},
   {k:'Viscosity',  get:()=>XSPH,      set:v=>XSPH=v,       min:0,   max:0.40, step:0.01,  fmt:v=>v.toFixed(2)},
+  /* APPARATUS, AND THE ONLY ONE HERE THAT IS NOT PHYSICS AT ALL. Nothing in
+     the solve reads the drawn radius; this is for seeing into a slab three
+     molecules deep. 1.0 is oxygen at the radius the steric floor uses. */
+  /* THE ANGULAR FLOOR, ON A SWITCH, because it is the one change here big
+     enough that the page looks like a different simulation with and without it
+     and the comparison is the point. Zero is the close-packed liquid. */
+  {k:'Tetra',      get:()=>K_TETRA,   set:v=>K_TETRA=v,    min:0,   max:0.8,  step:0.05, fmt:v=>v?v.toFixed(2):'off'},
+  {k:'Sphere',     get:()=>R_O/R_O_TRUE, set:v=>{ R_O=v*R_O_TRUE; R_H=v*R_H_TRUE; },
+                                                       min:0.3, max:1.0,  step:0.05, fmt:v=>v.toFixed(2)+'x'},
 ];
 const knobRows=document.getElementById('knobrows');
 let evapInput=null, evapRow=null;
@@ -2344,9 +2725,14 @@ resize(); applyCam(); loop();
 new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 
-document.getElementById('reset').onclick=()=>{
+/* One reset, because the bench has to start from exactly what the button
+   starts from — a harness that seeds differently is measuring its own setup. */
+function resetRun(){
   seed(); for(let i=0;i<nW;i++) place(i);
-  evapCount=0; condensed=0; RHO_0=0; stepNo=0; fpsSteps=0; runT0=performance.now(); angHist.length=0; };
+  evapCount=0; condensed=0; RHO_0=0; stepNo=0; fpsSteps=0; runT0=performance.now();
+  angHist.length=0;
+}
+document.getElementById('reset').onclick=resetRun;
 
 /* =============================================================
  *  MEASUREMENTS NOT MADE. Two, both designed and neither run, kept
@@ -2404,7 +2790,7 @@ document.getElementById('reset').onclick=()=>{
  *  switching rather than balancing, and neither the adhesion value
  *  nor the contact angle should be trusted until it is found. The
  *  wetting layer staying two molecules thick at every width is the
- *  control: if it thickens with the gap, WET_REACH is summing over a
+ *  control: if it thickens with the gap, TAIL_REACH is summing over a
  *  field rather than a surface and that is the thing to fix first.
  *
  *  Both are mechanical enough to run unattended. Neither needs a
@@ -2412,5 +2798,9 @@ document.getElementById('reset').onclick=()=>{
  *  records one number.
  * ============================================================= */
 </script>
+<!-- After the page's own script, deliberately: the constants and the state are
+     script-scope `let`s, and a later classic script shares that lexical scope.
+     The bench is a bench — no page behaviour depends on it loading. -->
+<script src="bench.js"></script>
 </body>
 </html>
