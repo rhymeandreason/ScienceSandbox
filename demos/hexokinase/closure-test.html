@@ -43,11 +43,11 @@
 </div>
 
 <div id="note">
-  <b>Test — does the hexokinase domain closure read as a hinge?</b><br><br>
-  The bench for the question the blob in <b>glycolysis-lab</b> currently
-  ducks: at step 1 an enzyme is drawn as a featureless disc, because at that
-  scale a drawn protein would be wrong about fold, size and active site
-  alike. This asks whether a real one is worth drawing instead.<br><br>
+  <b>Test — hexokinase closing on its substrate.</b><br><br>
+  A second view of the enzyme <b>glycolysis-lab</b> draws as a disc at step 1.
+  Not a replacement for it: at pathway scale the disc is the honest drawing,
+  because it claims nothing about fold, size or active site. This is the
+  other end of the same question, where the claim is the point.<br><br>
   <span class="measured"><b>Green = measured.</b></span> Both endpoints are
   deposited yeast hexokinase, and every number in the panel is read from the
   bake, not typed here.<br><br>
@@ -90,10 +90,12 @@
  *  closure-test.html — scrub the baked hexokinase closure.
  *
  *  A BENCH, NOT A LESSON. No step chrome, no lesson copy, no pathways.css.
- *  The one question is whether 18.6 degrees of domain closure reads as a
- *  hinge or as a crossfade; everything here serves looking at that, and
- *  the decision about whether glycolysis step 1 should stop drawing a
- *  blob comes after, as a separate conversation.
+ *
+ *  It does NOT compete with kit/enzyme-blob.js. That module draws a disc
+ *  and claims nothing about fold, size or active site, which is the right
+ *  drawing at pathway scale where the subject is the substrate. This is
+ *  the same enzyme at the scale where the protein IS the subject, so it
+ *  owes a measured structure instead. Two views, not a migration.
  *
  *  The ribbon is rebuilt per frame rather than morphed, because
  *  RibbonLib.build bakes positions into geometry: there is no vertex to
