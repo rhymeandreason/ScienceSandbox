@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<!-- Test bench for the door → module → question → module hierarchy.
+     One door is wired up: "Why is water the foundation of life?"
+
+     The module table lives in this page, not in lib/questions.js, because
+     modules are the part still being designed — a module owns a name, a
+     question of its own, a kind, a state, and the questions it answers. A
+     question naming two modules is what carries you from one door to the
+     next; nothing here links out to a lesson yet. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Door map — why is water the foundation of life?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Fraunces', Georgia, serif;
+
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    overflow: hidden;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- chrome --------------------------------------------------------- */
+
+  .mast {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 1rem;
+    padding: 1.1rem clamp(1rem, 3vw, 2rem) 0.9rem;
+    pointer-events: none;
+  }
+  .mast > * { pointer-events: auto; }
+  .logo {
+    font-size: 1.5rem; font-weight: 500; letter-spacing: -0.04em;
+    margin: 0; text-transform: lowercase; text-decoration: none; color: inherit;
+  }
+  .logo em { font-style: normal; color: var(--accent); }
+  .logo .dot { color: var(--spark); }
+  .mast .title { font-family: var(--serif); font-size: 0.95rem; color: var(--muted); }
+  .mast .spacer { flex: 1; pointer-events: none; }
+
+  .btn {
+    font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.45rem 0.75rem; cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
+  #canvas.panning { cursor: grabbing; }
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  #edges { position: absolute; overflow: visible; pointer-events: none; }
+
+  /* ---- the three altitudes -------------------------------------------- */
+
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    user-select: none;
+    border-radius: 4px;
+    transition: border-color .15s, box-shadow .15s, opacity .18s;
+  }
+  .node.dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(20,22,26,.12); }
+
+  /* the door: the only node that is a claim about a whole region */
+  .node.door {
+    width: 29rem;
+    padding: 2rem 2.2rem 2.1rem;
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    color: var(--paper);
+    text-align: center;
+  }
+  .node.door .q {
+    font-family: var(--serif);
+    font-size: 2.15rem;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+  }
+  .node.door .meta {
+    font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--spark); margin-top: 0.5rem;
+  }
+
+  .node.module {
+    width: 10rem;
+    padding: 0.5rem 0.7rem 0.55rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    text-align: center;
+  }
+  .node.module .name {
+    font-size: 0.85rem; font-weight: 500; letter-spacing: -0.01em;
+  }
+  /* the open card: the one you clicked grows and makes room for its picture */
+  .node.module.hub { width: 19rem; padding: 1rem 1.1rem 1.05rem; }
+  .node.module .thumb { display: none; }
+  .node.module.hub .thumb {
+    display: flex; align-items: center; justify-content: center;
+    height: 10.5rem; margin: 0.7rem 0 0.2rem;
+    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+    font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: #b6b2a8;
+  }
+  .node.module.hub .name { font-size: 1.25rem; letter-spacing: -0.02em; }
+
+  .node.module .meta {
+    font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--spark); margin-top: 0.4rem;
+  }
+  /* state, drawn on the left edge: built is solid, planned is nothing */
+  .node.module.built     { border-left: 3px solid var(--accent); }
+  .node.module.engine    { border-left: 3px solid var(--spark); }
+  .node.module.planned   { border-style: dashed; }
+  .node.module.planned .name { color: var(--muted); }
+  .node.module.away      { background: var(--paper); }   /* another door's module */
+
+  .node.question {
+    width: 11.5rem;
+    padding: 0.45rem 0.6rem;
+    background: transparent;
+    border: 1px solid transparent;
+    font-family: var(--serif); font-size: 0.78rem; color: var(--muted);
+    text-align: center;
+  }
+
+  .node:hover { border-color: var(--accent); }
+  .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
+
+  .focusing .node { opacity: 0.18; pointer-events: none; }
+  .focusing .node.lit { opacity: 1; pointer-events: auto; }
+  .focusing .node.hop2 { opacity: 0.55; }
+  .focusing .node.question.lit {
+    background: var(--card); border-color: var(--line); color: var(--ink);
+  }
+
+  .hint {
+    position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
+    font-size: 0.7rem; letter-spacing: 0.06em; color: var(--muted);
+  }
+  .legend {
+    position: fixed; left: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
+    display: flex; gap: 1.1rem; font-size: 0.68rem; letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 0.35rem; }
+  .legend .b { background: var(--accent); }
+  .legend .e { background: var(--spark); }
+  .legend .p { background: none; border-top: 3px dashed var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="title">one door, and what stacks under it</span>
+  <span class="spacer"></span>
+  <button class="btn" id="reset">Start over</button>
+</header>
+
+<div id="canvas">
+  <div id="world"><svg id="edges"></svg></div>
+</div>
+
+<div class="legend">
+  <span><i class="b"></i>built</span>
+  <span><i class="e"></i>engine, no lesson</span>
+  <span><i class="p"></i>planned</span>
+</div>
+<div class="hint">click a card to open the next level · drag to pan · scroll to zoom</div>
+
+<script>
+/* ---- the door --------------------------------------------------------- */
+
+const DOOR = {
+  id: 'water',
+  question: 'Why is water the foundation of life?',
+  label: 'the water door',
+};
+
+/* ---- modules ----------------------------------------------------------
+   `rank` is the module's place in ITS door's fan, the same 1/2/3 the
+   questions use — a door opens on its rank 1 modules, not on all nine.
+   A module has no question of its own: it is a lesson, and the alternation
+   reads question → lesson → question → lesson.
+   `qs` pairs a question with its rank ON THIS MODULE: the same question can
+   open one module and be depth on another, which is what the per-lesson
+   ranks in lib/questions.js already encode.
+   `away: true` marks a module belonging to another door — reachable, and
+   drawn on paper rather than white so a crossing is visible. */
+
+const MODULES = [
+  { id: 'polarity', name: 'Polarity', door: 'water', rank: 1, state: 'built',
+    host: 'water-lab · molecule-builder',
+    qs: [['Why is water bent and CO₂ straight?', 1],
+         ['Why do oil and water separate?', 1],
+         ['Why does salt dissolve but sand doesn’t?', 2],
+         ['Is a hydrogen bond a real bond?', 2],
+         ['Why does a bond form at all?', 3]] },
+
+  { id: 'hbond', name: 'Hydrogen bonding', door: 'water', rank: 1, state: 'built', host: 'water-lab',
+    qs: [['Why does water stick to itself?', 1],
+         ['Is a hydrogen bond a real bond?', 1],
+         ['Why is water bent and CO₂ straight?', 1],
+         ['What holds the two DNA strands together?', 2],
+         ['Why does heat separate the DNA strands?', 3]] },
+
+  { id: 'dissolve', name: 'Dissolving', door: 'water', rank: 1, state: 'built', host: 'water-lab · solvation-lab',
+    qs: [['Why is water called the universal solvent?', 1],
+         ['Why do oil and water separate?', 1],
+         ['Why does salt dissolve but sand doesn’t?', 1],
+         ['What are the alternatives to road salt?', 2],
+         ['Why is an IV 0.9% saline?', 2],
+         ['How are fizzy drinks made?', 3]] },
+
+  { id: 'ice', name: 'Ice & density', door: 'water', rank: 1, state: 'built', host: 'water-lab',
+    qs: [['Why does ice float?', 1],
+         ['Why are snowflakes six-sided?', 1],
+         ['What makes ice cream creamy?', 1],
+         ['Why does frost grow on a window?', 2]] },
+
+  { id: 'heat', name: 'Heat & temperature', door: 'water', rank: 2, state: 'built', host: 'water-lab',
+    qs: [['Why does water take so much heating?', 1],
+         ['Why do recipes change at altitude?', 1],
+         ['What are the alternatives to road salt?', 2],
+         ['Why is a fever above 40°C dangerous?', 3]] },
+
+  { id: 'cohesion', name: 'Cohesion', door: 'water', rank: 2, state: 'engine', host: 'droplet-test · adhesion-test',
+    qs: [['Why does water climb?', 1],
+         ['How high can a tree grow?', 1],
+         ['Why does a smell take so long to cross a room?', 3]] },
+
+  { id: 'hydrophob', name: 'The hydrophobic effect', door: 'water', rank: 2, state: 'planned',
+    qs: [['Why do oil and water separate?', 1],
+         ['Why does soap work?', 1],
+         ['Why do proteins bury their greasy parts?', 2]] },
+
+  { id: 'entropy', name: 'Entropy', door: 'water', rank: 3, state: 'planned',
+    qs: [['Why do proteins bury their greasy parts?', 2],
+         ['Why does a hole in a membrane heal itself?', 1],
+         ['Why does a bond form at all?', 2]] },
+
+  { id: 'crystal', name: 'Crystal growth', door: 'water', rank: 3, state: 'planned',
+    qs: [['How do deep-sea fish keep their blood from crystallising?', 1],
+         ['How do wood frogs survive freezing solid?', 1],
+         ['Why are snowflakes six-sided?', 2],
+         ['What makes ice cream creamy?', 2]] },
+
+  { id: 'acids', name: 'Acids & pH', door: 'water', rank: 3, state: 'built', host: 'molecule-lab',
+    qs: [['Why does breathing fast make you dizzy?', 1],
+         ['Why does blood pH barely move when you drink Coke?', 1],
+         ['Why does milk curdle in lemon juice?', 2]] },
+
+  /* --- other doors, reached through a shared question --- */
+
+  { id: 'basepair', name: 'Base pairing', door: 'information', rank: 1, away: true, state: 'built', host: 'dna-lab',
+    qs: [['What holds the two DNA strands together?', 1],
+         ['Why is DNA double-stranded?', 1],
+         ['Why does the DNA helix twist?', 1],
+         ['Why do the two DNA strands run in opposite directions?', 2],
+         ['Why does heat separate the DNA strands?', 2]] },
+
+  { id: 'replication', name: 'Replication & fidelity', door: 'information', rank: 2, away: true, state: 'planned',
+    qs: [['Why isn’t the mutation rate zero?', 1],
+         ['Why do the two DNA strands run in opposite directions?', 1],
+         ['How does a protein read DNA without opening it?', 2]] },
+
+  { id: 'binding', name: 'Binding & recognition', door: 'proteins', rank: 1, away: true, state: 'planned',
+    qs: [['Why can’t you use up an enzyme?', 1],
+         ['Why do mirror-image molecules smell different?', 1],
+         ['How does a protein read DNA without opening it?', 1],
+         ['How do deep-sea fish keep their blood from crystallising?', 2],
+         ['Why did thalidomide’s two mirror forms behave differently?', 2],
+         ['Why is cyanide deadly?', 3]] },
+
+  { id: 'enzyme', name: 'Enzyme catalysis', door: 'proteins', rank: 2, away: true, state: 'engine', host: 'hexokinase/',
+    qs: [['Why can’t you use up an enzyme?', 1],
+         ['Why are some people lactose intolerant?', 1],
+         ['Why is cyanide deadly?', 1],
+         ['Why is a fever above 40°C dangerous?', 2],
+         ['Why does fructose behave differently from glucose?', 2]] },
+
+  { id: 'levels', name: 'Levels of structure', door: 'proteins', rank: 1, away: true, state: 'built', host: 'hemoglobin-lab',
+    qs: [['What makes hair different from silk?', 1],
+         ['Why does one wrong amino acid sickle a whole cell?', 1],
+         ['How do vent bacteria run enzymes above 100°C?', 2],
+         ['Why does CO kill at 0.1% of the air?', 2]] },
+
+  { id: 'cooperat', name: 'Cooperativity', door: 'proteins', rank: 2, away: true, state: 'planned',
+    qs: [['How does blood know where to drop its oxygen?', 1],
+         ['Why does haemoglobin have four parts and not one?', 1],
+         ['Why does CO kill at 0.1% of the air?', 1],
+         ['How does a fetus take oxygen from its mother’s blood?', 2]] },
+
+  { id: 'pumps', name: 'Channels & pumps', door: 'boundaries', rank: 1, away: true, state: 'built', host: 'membrane-lab',
+    qs: [['What does a membrane pump spend?', 1],
+         ['How does cholera dehydrate you without entering a cell?', 1],
+         ['Why do insects need no lungs?', 2]] },
+
+  { id: 'polymers', name: 'Monomers & polymers', door: 'carbon', rank: 1, away: true, state: 'built', host: 'macromolecule-lab',
+    qs: [['Why can you digest starch but not cellulose?', 1],
+         ['Why are there four classes of macromolecule and not forty?', 1],
+         ['Why is sugar sweet and starch isn’t?', 1],
+         ['What makes a fat saturated?', 2],
+         ['Why is a polymer built by removing water?', 2]] },
+
+  { id: 'glycolysis', name: 'Glycolysis', door: 'energy', rank: 1, away: true, state: 'built', host: 'glycolysis-lab',
+    qs: [['Why can’t you sprint a marathon?', 1],
+         ['Where does the CO₂ you exhale come from?', 1],
+         ['Why do red blood cells have no mitochondria?', 2],
+         ['What does a membrane pump spend?', 2],
+         ['Why does fructose behave differently from glucose?', 3]] },
+
+  { id: 'geometry', name: 'Molecular geometry', door: 'carbon', rank: 2, away: true, state: 'built', host: 'molecule-builder',
+    qs: [['Why does carbon make four bonds?', 1],
+         ['Why is water bent and CO₂ straight?', 1],
+         ['Why is graphite soft and diamond hard?', 2],
+         ['Why is sugar sweet and starch isn’t?', 3]] },
+
+  { id: 'covalent', name: 'Covalent bonding', door: 'carbon', rank: 1, away: true, state: 'built', host: 'molecule-builder',
+    qs: [['Is a hydrogen bond a real bond?', 2],
+         ['Why does a bond form at all?', 1],
+         ['Why does carbon make four bonds?', 1],
+         ['Why is water bent and CO₂ straight?', 2]] },
+
+  { id: 'ionic', name: 'Ionic bonding', door: 'carbon', rank: 2, away: true, state: 'built', host: 'molecule-builder',
+    qs: [['Why is table salt safe when sodium explodes in water?', 1],
+         ['Why does salt dissolve but sand doesn’t?', 1],
+         ['Why is graphite soft and diamond hard?', 2]] },
+
+  { id: 'osmosis', name: 'Osmosis', door: 'boundaries', rank: 2, away: true, state: 'planned',
+    qs: [['How do salmon cross from salt water to fresh?', 1],
+         ['Why is an IV 0.9% saline?', 1],
+         ['How does cholera dehydrate you without entering a cell?', 1],
+         ['How do wood frogs survive freezing solid?', 2],
+         ['How high can a tree grow?', 2]] },
+
+  { id: 'bilayer', name: 'The bilayer', door: 'boundaries', rank: 1, away: true, state: 'built', host: 'membrane-lab',
+    qs: [['Why does soap work?', 1],
+         ['Why does a hole in a membrane heal itself?', 1],
+         ['What makes a fat saturated?', 1],
+         ['What does a membrane pump spend?', 2],
+         ['Why do oil and water separate?', 2],
+         ['How do hibernating animals burn fat as heat?', 3]] },
+
+  { id: 'denature', name: 'Denaturing', door: 'proteins', rank: 2, away: true, state: 'planned',
+    qs: [['Why do egg whites turn opaque and solid?', 1],
+         ['Why is a fever above 40°C dangerous?', 1],
+         ['How do vent bacteria run enzymes above 100°C?', 1],
+         ['Why does milk curdle in lemon juice?', 2],
+         ['Why does heat separate the DNA strands?', 3]] },
+
+  { id: 'folding', name: 'Folding', door: 'proteins', rank: 1, away: true, state: 'built', host: 'folding-lab',
+    qs: [['Why do proteins bury their greasy parts?', 1],
+         ['Why does a protein fold the same way every time?', 1],
+         ['Why does a protein have a shape at all?', 1],
+         ['How does a protein find its shape so fast?', 1],
+         ['How do deep-sea fish keep their blood from crystallising?', 2],
+         ['What makes hair different from silk?', 2]] },
+
+  { id: 'diffusion', name: 'Simple diffusion', door: 'boundaries', rank: 1, away: true, state: 'built', host: 'membrane-lab · diffusion/',
+    qs: [['Why does a smell take so long to cross a room?', 1],
+         ['Why are cells small?', 1],
+         ['Why do insects need no lungs?', 1],
+         ['Why can’t a neuron let its signal diffuse?', 2],
+         ['How are fizzy drinks made?', 2],
+         ['Why does breathing fast make you dizzy?', 2]] },
+];
+
+/* ---- graph ------------------------------------------------------------
+   Bipartite, like the concept map: modules never link to modules. A question
+   node is shared by every module that answers it, so the question IS the
+   crossing — from Hydrogen bonding to Base pairing, and with it from the
+   water door to the information door. */
+
+const world = document.getElementById('world');
+const svg = document.getElementById('edges');
+const NS = 'http://www.w3.org/2000/svg';
+
+const nodes = [], links = [], byId = {};
+let live = [], liveLinks = [];
+
+const door = { id: 'door', kind: 'door', text: DOOR.question, meta: DOOR.label, deg: 0 };
+byId.door = door;
+nodes.push(door);
+
+for (const m of MODULES) {
+  const n = { ...m, kind: 'module', deg: 0 };
+  byId[m.id] = n;
+  nodes.push(n);
+  if (m.door === DOOR.id) links.push({ a: door, b: n, rank: m.rank });
+}
+
+const qId = {};
+for (const m of MODULES) {
+  for (const [text, rank] of m.qs) {
+    let q = qId[text];
+    if (!q) {
+      q = { id: 'q' + nodes.length, kind: 'question', text, deg: 0 };
+      qId[text] = q;
+      byId[q.id] = q;
+      nodes.push(q);
+    }
+    links.push({ a: byId[m.id], b: q, rank });
+    q.deg++; byId[m.id].deg++;
+  }
+}
+
+const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
+
+// Browsing beats ranking. A question that is rank 2 or 3 everywhere would never
+// open a card, and could only be met by wandering in from a module that happens
+// to name it — so it is promoted to rank 1 on the card that ranks it best. It
+// still reads as depth wherever it IS depth; it just gets one card that owns it.
+for (const n of nodes) {
+  if (n.kind !== 'question') continue;
+  const mine = links.filter(l => l.a === n || l.b === n);
+  const best = Math.min(...mine.map(l => l.rank));
+  if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
+}
+// the rank of `other` as seen from `from` — a question's rank belongs to the
+// edge, not to the question, which is the whole point of the per-module ranks
+const rankFrom = (from, other) => {
+  const l = links.find(l => (l.a === from && l.b === other) || (l.b === from && l.a === other));
+  return l ? l.rank : 2;
+};
+
+/* ---- reveal ----------------------------------------------------------- */
+
+const COL = 400;
+let alpha = 1;
+
+function show(n, depth, y) {
+  if (n.visible) return;
+  n.visible = true;
+  n.depth = depth;
+  n.tx = depth * COL;
+  n.x = n.tx;
+  n.y = y;
+  n.vx = n.vy = 0;
+  paintNode(n);
+  live.push(n);
+  for (const l of links) {
+    if (l.painted || !l.a.visible || !l.b.visible) continue;
+    paintLink(l);
+    liveLinks.push(l);
+  }
+}
+
+// A card opens once, on its rank 1 questions — and if that is a thin showing,
+// the next band comes with it, and the one after that, until four are on screen.
+// Whole bands only: "all the rank 1s" is the promise, so the cut never lands
+// inside a rank. Clicking again brings the card back into focus and adds nothing,
+// which means a question ranked low here may only be reachable from the card that
+// ranks it highly — that is the per-card ranking doing its job, not a gap.
+const SHOW = 4;
+
+function expand(n) {
+  const pending = neighbours(n).filter(m => !m.visible)
+    .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
+  if (!pending.length) { n.done = true; return; }
+
+  const wave = [];
+  for (const m of pending) {
+    if (wave.length >= SHOW && rankFrom(n, m) !== rankFrom(n, wave[wave.length - 1])) break;
+    wave.push(m);
+  }
+
+  const mark = live.length;
+  wave.forEach((m, i) => {
+    const rung = (i % 2 ? 1 : -1) * Math.ceil(i / 2);
+    show(m, n.depth + 1, n.y + rung * (m.kind === 'question' ? 130 : 150));
+  });
+  n.done = true;
+
+  alpha = Math.max(alpha, 0.75);
+  follow = live.slice(mark);
+  followFrames = follow.length ? 200 : 0;
+  for (const m of live) refreshMeta(m);
+}
+
+function refreshMeta(n) {
+  const el = n.el.querySelector('.meta');
+  if (!el) return;
+  const hidden = neighbours(n).filter(m => !m.visible).length;
+  if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' modules' : DOOR.label; return; }
+  const state = n.state === 'engine' ? 'engine only' : n.state;
+  el.textContent = n.done || !hidden
+    ? state
+    : '+' + hidden + (hidden === 1 ? ' question' : ' questions');
+}
+
+/* ---- DOM -------------------------------------------------------------- */
+
+function paintNode(n) {
+  const el = document.createElement('div');
+  if (n.kind === 'door') {
+    el.className = 'node door';
+    el.innerHTML = '<div class="q">' + n.text + '</div><div class="meta"></div>';
+  } else if (n.kind === 'module') {
+    el.className = 'node module ' + n.state + (n.away ? ' away' : '');
+    el.innerHTML = '<div class="name">' + n.name + '</div>' +
+                   '<div class="thumb">image</div>' +
+                   '<div class="meta"></div>';
+  } else {
+    el.className = 'node question';
+    el.innerHTML = '<span>' + n.text + '</span>';
+  }
+  n.el = el;
+  world.appendChild(el);
+  n.r = Math.hypot(el.offsetWidth, el.offsetHeight) / 2;
+  refreshMeta(n);
+}
+
+function paintLink(l) {
+  l.painted = true;
+  const planned = l.b.state === 'planned' || l.a.state === 'planned';
+  l.el = document.createElementNS(NS, 'line');
+  l.el.setAttribute('stroke', planned ? '#6d6f76' : '#1f5f4f');
+  l.el.setAttribute('stroke-width', '1');
+  l.el.setAttribute('stroke-opacity', planned ? '.22' : '.30');
+  if (planned) l.el.setAttribute('stroke-dasharray', '4 4');
+  svg.appendChild(l.el);
+}
+
+/* ---- relax ------------------------------------------------------------ */
+
+function step() {
+  const REPEL = 9000, SPRING = 0.022, COLUMN = 0.14, ROW = 0.0016, VMAX = 26;
+  for (const n of live) { n.vx *= 0.86; n.vy *= 0.86; }
+
+  for (let i = 0; i < live.length; i++) {
+    const a = live[i];
+    for (let j = i + 1; j < live.length; j++) {
+      const b = live[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
+      const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
+      const near = a.r + b.r;
+      const f = REPEL / d2 + (d < near ? (near - d) * 0.35 : 0);
+      a.vx -= ux * f; a.vy -= uy * f;
+      b.vx += ux * f; b.vy += uy * f;
+    }
+  }
+
+  for (const l of liveLinks) {
+    const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const f = (d - 300) * SPRING;
+    l.a.vx += (dx / d) * f; l.a.vy += (dy / d) * f;
+    l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
+  }
+
+  for (const n of live) {
+    n.vx += (n.tx - n.x) * COLUMN;
+    n.vy -= n.y * ROW;
+    const v = Math.hypot(n.vx, n.vy);
+    if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
+    if (n === dragNode || n.pinned) continue;
+    n.x += n.vx * alpha; n.y += n.vy * alpha;
+  }
+  alpha = Math.max(0.03, alpha * 0.995);
+}
+
+function draw() {
+  for (const n of live) n.el.style.transform =
+    'translate(-50%,-50%) translate(' + n.x.toFixed(1) + 'px,' + n.y.toFixed(1) + 'px)';
+  for (const l of liveLinks) {
+    l.el.setAttribute('x1', l.a.x); l.el.setAttribute('y1', l.a.y);
+    l.el.setAttribute('x2', l.b.x); l.el.setAttribute('y2', l.b.y);
+  }
+}
+
+// A pan, never a zoom — refitting on every expansion reads as a jerk. Eases the
+// viewport onto the new arrivals instead, recomputed each frame because they are
+// still settling under it.
+let follow = null, followFrames = 0;
+
+function followStep() {
+  if (!follow || followFrames-- <= 0) { follow = null; return; }
+  let cx = 0, cy = 0;
+  for (const n of follow) { cx += n.x; cy += n.y; }
+  cx /= follow.length; cy /= follow.length;
+  view.x += (innerWidth * 0.62 - cx * view.k - view.x) * 0.05;
+  view.y += (innerHeight / 2 - cy * view.k - view.y) * 0.05;
+  applyView();
+}
+
+function frame() { step(); followStep(); draw(); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+
+/* ---- pan, zoom, drag, focus ------------------------------------------- */
+
+const canvas = document.getElementById('canvas');
+let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.9 };
+const applyView = () =>
+  world.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')';
+applyView();
+
+let dragNode = null, dragging = null, last = null, travel = 0;
+
+canvas.addEventListener('pointerdown', e => {
+  const hit = e.target.closest('.node');
+  last = { x: e.clientX, y: e.clientY };
+  travel = 0;
+  follow = null;
+  if (hit) {
+    dragNode = live.find(n => n.el === hit);
+    hit.classList.add('dragging');
+    dragging = 'node';
+    alpha = Math.max(alpha, 0.35);
+  } else {
+    dragging = 'pan';
+    canvas.classList.add('panning');
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - last.x, dy = e.clientY - last.y;
+  last = { x: e.clientX, y: e.clientY };
+  travel += Math.hypot(dx, dy);
+  if (dragging === 'pan') { view.x += dx; view.y += dy; applyView(); }
+  else { dragNode.x += dx / view.k; dragNode.y += dy / view.k; dragNode.vx = dragNode.vy = 0; }
+});
+
+function endDrag(e) {
+  // Settled here rather than on a `click` listener: the pointer capture above
+  // retargets that event to the canvas, so the node is only knowable from the
+  // pointerdown that started the press. A real click travels a pixel or two.
+  const click = travel <= 5;
+  if (dragging === 'node') {
+    dragNode.el.classList.remove('dragging');
+    if (click) { expand(dragNode); focus(dragNode); }
+    else dragNode.pinned = true;
+    dragNode = null;
+  } else if (dragging === 'pan' && click && focused) {
+    clearFocus();
+  }
+  canvas.classList.remove('panning');
+  dragging = null;
+  if (e && canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  follow = null;
+  const k = Math.min(2.5, Math.max(0.2, view.k * Math.exp(-e.deltaY * 0.0015)));
+  view.x = e.clientX - (e.clientX - view.x) * (k / view.k);
+  view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
+  view.k = k;
+  applyView();
+}, { passive: false });
+
+let focused = null;
+
+// Two hops: what you clicked, what it reaches, and what THOSE reach — the
+// second ring is the point, since it is where the next door shows up.
+function measure() {
+  for (const m of live) m.r = Math.hypot(m.el.offsetWidth, m.el.offsetHeight) / 2;
+  alpha = Math.max(alpha, 0.5);
+}
+
+function focus(n) {
+  focused = n;
+  document.body.classList.add('focusing');
+  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+
+  const hop1 = new Set(neighbours(n).filter(m => m.visible));
+  const hop2 = new Set();
+  for (const m of hop1) for (const o of neighbours(m))
+    if (o.visible && o !== n && !hop1.has(o)) hop2.add(o);
+
+  n.el.classList.add('lit', 'hub');
+  for (const m of hop1) m.el.classList.add('lit');
+  for (const m of hop2) m.el.classList.add('lit', 'hop2');
+
+  measure();
+
+  for (const l of liveLinks) {
+    const first = l.a === n || l.b === n;
+    const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
+    l.el.setAttribute('stroke-opacity', first ? '.85' : second ? '.4' : '.06');
+    if (first || second) l.el.setAttribute('stroke', '#e2643a');
+    else l.el.setAttribute('stroke', l.b.state === 'planned' ? '#6d6f76' : '#1f5f4f');
+  }
+}
+
+function clearFocus() {
+  focused = null;
+  document.body.classList.remove('focusing');
+  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+  measure();
+  for (const l of liveLinks) {
+    const planned = l.b.state === 'planned' || l.a.state === 'planned';
+    l.el.setAttribute('stroke', planned ? '#6d6f76' : '#1f5f4f');
+    l.el.setAttribute('stroke-opacity', planned ? '.22' : '.30');
+  }
+}
+
+addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+
+/* ---- start ------------------------------------------------------------ */
+
+// The pane can settle on its size after load, and a view composed against a
+// zero-height window leaves the map in a corner. Recentre until the reader moves.
+let touched = false;
+canvas.addEventListener('pointerdown', () => { touched = true; });
+canvas.addEventListener('wheel', () => { touched = true; });
+addEventListener('resize', () => { if (!touched) centre(); });
+
+function centre() {
+  view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.9 };
+  applyView();
+}
+
+function start() {
+  clearFocus();
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
+  for (const l of links) l.painted = false;
+  live = []; liveLinks = [];
+  world.querySelectorAll('.node').forEach(el => el.remove());
+  svg.replaceChildren();
+
+  show(door, 0, 0);
+  const first = neighbours(door).filter(m => m.rank === 1);
+  first.forEach((m, i) => {
+    const rung = (i % 2 ? 1 : -1) * Math.ceil(i / 2);
+    show(m, 1, rung * 150);
+  });
+  for (const m of live) refreshMeta(m);
+  follow = null;                       // the opening frame is composed, not chased
+  touched = false;
+  centre();
+  alpha = 1;
+}
+
+document.getElementById('reset').addEventListener('click', start);
+start();
+</script>
+</body>
+</html>
