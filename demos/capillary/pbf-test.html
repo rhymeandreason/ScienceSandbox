@@ -1731,26 +1731,32 @@ function contactAngle(){
   const slope=(n*sxy-sx*sy)/den;               // negative: the water is higher at the wall
   return 90-Math.abs(Math.atan(slope))*180/Math.PI;
 }
-/* Settling is visible rather than hidden, and judged over a LONG window: this
-   angle drifts by a degree every few tens of steps, so any short window always
-   looks converged. Measured over 400, which is the timescale it actually moves
-   on — 70 degrees at step 50, 61 at 300, 43 at 600, 27 at 900, 17 at 1400.
+/* SETTLING, JUDGED ON A MEAN RATHER THAN ON THE LAST READING. The surface
+   ripples — that is a real liquid and it is what the cohesion sweep measures —
+   so the instantaneous fit bounces by several degrees frame to frame. Judging
+   drift on single readings then means a shallow meniscus can never settle: the
+   noise is bigger than the 3 degree band, and the panel says `settling` for
+   ever while the shape on screen is perfectly steady. Measured past step 7000
+   at Adhesion 0.018, which is where this came from.
 
-   It goes on creeping down while the pore fills, and that is not the fit being
-   unstable: with dry wall above, the water is ADVANCING, and an advancing angle
-   falls as the film runs ahead. It only settles when the filling does. Tune
-   against it once it stops saying `settling`, not before. */
+   So what is shown is the mean of the last 150 samples, and what is judged is
+   whether that mean has moved between the older half of the window and the
+   newer one. A mean over a rippling surface is the quantity that has a value;
+   an instant of it is not. */
 const angHist=[];
 function angleText(){
   const a=contactAngle();
   if(a==null) return '\u2014';
   angHist.push([stepNo,a]);
-  while(angHist.length>2 && stepNo-angHist[0][0]>400) angHist.shift();
-  const span=stepNo-angHist[0][0];
+  while(angHist.length>150) angHist.shift();
+  const mean=arr=>arr.reduce((p,q)=>p+q,0)/arr.length;
   const vals=angHist.map(p=>p[1]);
-  const drift=Math.max(...vals)-Math.min(...vals);
-  return (span>=300 && drift<3) ? Math.round(a)+'\u00b0'
-                                : Math.round(a)+'\u00b0 settling';
+  const shown=Math.round(mean(vals));
+  if(angHist.length<80) return shown+'\u00b0 settling';
+  const h=Math.floor(vals.length/2);
+  const drift=Math.abs(mean(vals.slice(h))-mean(vals.slice(0,h)));
+  const span=stepNo-angHist[0][0];
+  return (span>=400 && drift<2) ? shown+'\u00b0' : shown+'\u00b0 settling';
 }
 function reportClimb(){
   const wall=topAt(16), mid=topAt(0);
