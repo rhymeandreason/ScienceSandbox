@@ -1473,45 +1473,71 @@ const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
    `atElement` is annotate.js's DOM anchor — see its comment for why a callout
    on chrome is the module's business rather than the page's. */
 
-/* The supply. Counts what is in the bottom band and tops it up toward the
-   density a liquid has there, testing each spot before it puts anything in. */
-const SUPPLY_TARGET=Math.round(0.0334*(GAP/A)*(DEPTH/A)*(SUPPLY_BAND/A));
-/* How many may arrive in one step. The band is refilled toward liquid density
-   rather than at a rate, so this is only a ceiling on how abruptly it happens:
-   a whole band's worth appearing in one frame would be a pressure wave. */
-const SUPPLY_PER_STEP=4;
-/* THE SUPPLY, AND A SWITCH FOR IT, because the page needs to be able to ask
-   what the wall does on its own. Two things need it.
+/* THE RESERVOIR, AS A DENSITY BOUNDARY. It used to be a headcount: count the
+   molecules in the base band, compare with water's real density times the
+   band's volume, top up the difference. That is not what a bath does. A bath
+   does not push water into a tube — it holds the liquid at the mouth at rest
+   density, and water moves in only when the liquid above is stretched enough to
+   pull it. With a headcount there is no such condition, so the old one filled a
+   pore that was not wetting at all: with Adhesion at zero the pool pulled away
+   into a blob touching neither wall and went on growing, which is a non-wetting
+   capillary imbibing, and it cannot.
 
-   DO NOT HOLD IT TO MEASURE THE ANGLE, which is what this switch was first
-   built for and is wrong. A finite pool in a wetting pore has one equilibrium
-   and it is TWO FILMS: with nothing feeding it, the body climbs both walls
-   until the middle is a thin bridge, and the angle then being measured is the
-   film's rather than a meniscus's. Measured at Adhesion 0.028 — held, the pool
-   falls from 373 molecules to 300, the front retreats to -35 A and the reading
-   sits at 26-32 and never settles; fed, it grows to 750, the front advances to
-   -19.5, and the angle settles at 20 with a body still in the middle.
+   The solver already computes the quantity that decides it. Every molecule
+   carries rho_i, and rho_i/rho0 - 1 is negative exactly when the liquid there is
+   being stretched. So the band is averaged, and water enters only while that
+   average says the base is under tension. A non-wetting pore then sits and does
+   nothing, because nothing is pulling; a wetting one draws at whatever rate the
+   meniscus asks for, which makes the fill rate a result rather than a ceiling
+   somebody chose.
 
-   The reservoir-connected state is the one to read. A slowly advancing front
-   has a perfectly well defined angle — the drift that made the early readings
-   worthless was the seeded lattice relaxing, not the advance.
+   THE BAND'S OWN REFERENCE, because SPH density is biased low at a boundary:
+   the kernel is cut off where there is nothing below the floor, so band
+   molecules read as stretched even when they are not, and a threshold against
+   the bulk rho0 would inject for ever. The reference is measured in the band
+   itself off the seeded pool, so the comparison is like for like. Ghost
+   molecules below the floor would be the proper answer and are worth it if this
+   ever stops being a bench. */
+/* MEASURED, 4600 steps, evaporation off. Adhesion 0: the pool stays at the 300
+   it was seeded with and the blob stops growing, which is the whole point — a
+   non-wetting capillary does not imbibe, and the old headcount had it filling
+   anyway. Adhesion 0.026: 300 to 541, front -26.4 to -23.5, still drawing.
+   Adhesion 0.036: 616, and the water 46.8 A up the wall at 8 degrees. Water
+   enters in proportion to how hard the meniscus pulls, which is what a bath
+   does and what a headcount could not do. */
+const SUPPLY_PULL=0.02;                // how stretched the base must be to draw
+const SUPPLY_PER_STEP=4;               // a ceiling, so nothing arrives as a wave
+let RHO_BAND=0;                        // rest density AT THE BOUNDARY, measured
 
-   AND IT IS THE CONTROL. Water climbing a wall it wets is capillarity; water
-   arriving because something keeps injecting it is not, and the two look alike
-   from outside. Measured with Adhesion at zero, the pool pulls away into a
-   blob that touches neither wall — right for a non-wetting pore — and goes on
-   growing anyway, which is wrong: a non-wetting capillary does not imbibe.
-   That is this switch's own finding, and the reason the next job is making the
-   supply answer to the solver rather than to a headcount. */
+function bandDensity(){
+  const top=FLOOR+SUPPLY_BAND;
+  let sum=0, n=0;
+  for(let i=0;i<waters.length;i++){
+    const a=waters[i];
+    if(!a||a.gone||a.p.y>top) continue;
+    let rho=wPoly(0);
+    for(let q=0;q<nbrN[i];q++){
+      const b=waters[nbr[i*NBR_MAX+q]];
+      if(!b||b.gone) continue;
+      const r2=a.p.distanceToSquared(b.p);
+      if(r2<H2) rho+=wPoly(r2);
+    }
+    sum+=rho; n++;
+  }
+  return n<8 ? null : sum/n;
+}
+
 let FEED=true;
 function supply(){
-  if(!FEED) return;
-  let inBand=0;
-  for(const w of waters) if(!w.gone && w.p.y<FLOOR+SUPPLY_BAND) inBand++;
+  if(!FEED || RHO_0<=0) return;         // nothing to compare against yet
+  const rho=bandDensity();
+  if(rho===null){ injectOne(); return; }   // the base has emptied; re-establish it
+  if(RHO_BAND<=0){ RHO_BAND=rho; return; } // first reading is the reference
+  /* Stretched, and by enough to be a pull rather than thermal noise. */
+  if((rho-RHO_BAND)/RHO_BAND > -SUPPLY_PULL) return;
   for(let k=0;k<SUPPLY_PER_STEP;k++){
-    if(inBand>=SUPPLY_TARGET || waters.length>=N_MAX) return;
-    if(!injectOne()) return;                    // nowhere clear to put one
-    inBand++;
+    if(waters.length>=N_MAX) return;
+    if(!injectOne()) return;             // nowhere clear to put one
   }
 }
 // a spot in the band that nothing is sitting in
@@ -1837,7 +1863,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 document.getElementById('reset').onclick=()=>{
   seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
-  evapCount=0; condensed=0; RHO_0=0; stepNo=0; angHist.length=0; };
+  evapCount=0; condensed=0; RHO_0=0; RHO_BAND=0; stepNo=0; angHist.length=0; };
 
 /* =============================================================
  *  MEASUREMENTS NOT MADE. Two, both designed and neither run, kept
