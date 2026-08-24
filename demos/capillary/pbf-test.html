@@ -276,6 +276,7 @@ THERE IS NO GRAVITY HERE, and that is a correction to an earlier
   <div id="knobrows"></div>
   <div class="measure row"><span>front</span><b id="front">—</b></div>
   <div class="row"><span>climb at wall</span><b id="climb">—</b></div>
+  <div class="row"><span>contact angle</span><b id="angle">—</b></div>
 </div>
 
 <div id="bar">
@@ -752,7 +753,7 @@ const TORQ_MAX=0.25;              // and a cap, so a molecule pulled two ways ca
    oxygen cost the first one nothing. */
 const LP_C=Math.cos(54.75*Math.PI/180), LP_S=Math.sin(54.75*Math.PI/180);
 let K_HB=0.030;                   // H-bond spring
-let K_COH=0.108;                // dispersion, the undirected part of cohesion
+let K_COH=0.072;                // dispersion, the undirected part of cohesion
 const K_WALL=0.20;                // the wall is solid
 /* Adhesion beats cohesion here, and that is the whole reason the meniscus is
    concave: a hydroxyl surface offers water the same bond another water does,
@@ -776,7 +777,20 @@ const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
    front crosses the pore's 94 A in about 1500 steps and the count climbs past
    700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
    the pool sits there. */
-let K_WET=0.020*A;              // per surface atom, summed; not per molecule
+let K_WET=0.036*A;              // per surface atom, summed; not per molecule
+/* SET BY THE CONTACT ANGLE, not by how the meniscus looks. Water on cellulose
+   wets at 20-30 degrees, near zero on a clean surface, and the readout in the
+   panel measures what this liquid actually does. Swept at 1000 steps:
+
+       Adhesion 0      44 deg    barely wetting, and the water still holds the
+                                 wall a little because the hydroxyl H-bond is
+                                 adhesion too and is not on this slider
+       Adhesion 0.036  27 deg    inside the measured band. This is the default.
+       Adhesion 0.090   7 deg    a film, running 55 A up the dry wall
+
+   The shape follows from the angle and the pore's width. Tuning until the curve
+   looked right would be drawing the answer, which is the one thing this page
+   must not do. */
 /* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
    without a reload. The contact angle lives in the ratio of the first two, and
    sweeping it is what this bench is for. */
@@ -1610,10 +1624,54 @@ const frontMark=(function(){
   g.add(bar); g.visible=false; root.add(g); return g;
 })();
 const climbEl=document.getElementById('climb');
+
+/* THE CONTACT ANGLE, WHICH IS THE ONLY NUMBER THE TWO SLIDERS HAVE TO HIT.
+   The meniscus's SHAPE is what this page exists to produce, so tuning until it
+   looks right would be drawing it — the same thing the seeded curve is
+   carefully checked against. The angle is different: water on cellulose has a
+   measured one, 20-30 degrees and near zero on a clean surface, and it is set
+   by exactly the competition Adhesion and Cohesion are. Hit the angle and the
+   curve follows from it and the pore's width, which is the honest order.
+
+   Measured, not assumed: the surface height is taken across the pore in bins,
+   a parabola is fitted to it, and the angle is between the wall and the
+   surface's tangent where they meet. 90 degrees is a flat surface that is not
+   wetting anything; 0 is water climbing the wall as a film. */
+const angleEl=document.getElementById('angle');
+function contactAngle(){
+  const half=GAP/2/A, edge=half-R_WATER/A;
+  const xs=[], ys=[];
+  for(let b=-4;b<=4;b++){
+    const cx=b*edge/4.5;                       // bins across the pore, none on the face
+    const col=[];
+    for(const w of waters){
+      if(w.gone) continue;
+      if(Math.abs(w.p.x/A-cx)<edge/9) col.push(w.p.y/A);
+    }
+    if(col.length<6) continue;
+    col.sort((p,q)=>q-p);
+    const n=Math.max(1,Math.round(col.length*0.1));
+    xs.push(cx); ys.push(col.slice(0,n).reduce((p,q)=>p+q,0)/n);
+  }
+  if(xs.length<5) return null;
+  /* Least squares on y = a x^2 + c. The linear term is dropped on purpose: a
+     meniscus in a symmetric pore is symmetric, and fitting a tilt to thermal
+     noise would wobble the angle by degrees a frame. */
+  let sx2=0,sx4=0,sy=0,sx2y=0;
+  for(let i=0;i<xs.length;i++){ const x2=xs[i]*xs[i];
+    sx2+=x2; sx4+=x2*x2; sy+=ys[i]; sx2y+=x2*ys[i]; }
+  const n=xs.length, den=n*sx4-sx2*sx2;
+  if(Math.abs(den)<1e-9) return null;
+  const a=(n*sx2y-sx2*sy)/den;
+  const slope=2*a*edge;                        // dy/dx where the surface meets the face
+  return 90-Math.abs(Math.atan(slope))*180/Math.PI;
+}
 function reportClimb(){
   const wall=topAt(16), mid=topAt(0);
   climbEl.textContent=(wall==null||mid==null)?'—':(wall-mid).toFixed(1)+' \u00c5';
   frontEl.textContent=(mid==null)?'—':mid.toFixed(1)+' \u00c5';
+  const ang=contactAngle();
+  angleEl.textContent=(ang==null)?'—':Math.round(ang)+'\u00b0';
   if(mid!=null){ frontMark.position.y=mid*A; frontMark.visible=true; }
   else frontMark.visible=false;
 }
