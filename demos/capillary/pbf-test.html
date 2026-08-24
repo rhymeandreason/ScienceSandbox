@@ -846,6 +846,54 @@ const hMesh=new THREE.InstancedMesh(SPHERE,
   new THREE.MeshLambertMaterial({color:P.atoms.H}), N_WATER*2);
 root.add(oMesh,hMesh);
 
+/* PER-INSTANCE OPACITY, WHICH InstancedMesh DOES NOT HAVE. It carries a matrix
+   and a colour per instance and nothing else, so a molecule cannot be faded
+   without either a second mesh per opacity level or a line of shader. This is
+   the line of shader: one float attribute, multiplied into the alpha after the
+   material has finished with it.
+
+   Colour-lerping toward the page instead would be simpler and is what a flat
+   background would allow, but the stage's paper is dotted and the canvas is
+   drawn with alpha, so a sphere faded by colour would sit as a cream disc over
+   the dots. Alpha lets them show through, which is what fading means here. */
+function fadeable(mesh, n){
+  const attr=new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1),1);
+  mesh.geometry.setAttribute('aFade', attr);
+  mesh.material.transparent=true;
+  mesh.material.onBeforeCompile=sh=>{
+    sh.vertexShader='attribute float aFade;\nvarying float vFade;\n'+
+      sh.vertexShader.replace('void main() {','void main() {\n\tvFade = aFade;');
+    sh.fragmentShader='varying float vFade;\n'+
+      sh.fragmentShader.replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\n\tgl_FragColor.a *= vFade;');
+  };
+  return attr;
+}
+/* The geometry is SHARED between the two meshes, so each needs its own copy or
+   the hydrogens read the oxygens' fades. */
+oMesh.geometry=SPHERE.clone(); hMesh.geometry=SPHERE.clone();
+const oFade=fadeable(oMesh,N_WATER), hFade=fadeable(hMesh,N_WATER*2);
+
+/* WHERE THE TOP OF THE PICTURE IS, in the world's own units, so the vapour
+   fades out at the edge of the frame rather than at a height somebody typed.
+   Half the frustum's height at the camera's distance, along whichever way is
+   up on screen — which is the world's up until the camera is tilted. */
+const _upv=new THREE.Vector3();
+function viewTopY(){
+  const half=cam.r*Math.tan(camera.fov*Math.PI/360);
+  _upv.set(0,1,0).applyQuaternion(camera.quaternion);
+  /* A FLOOR UNDER IT, because this is a camera reading and the camera can be
+     anywhere. Zoomed in far enough the top of the frame sits below the pore's
+     mouth, and a molecule would then be parked on the step it left the liquid:
+     no flight, no fade, evaporation invisible again and for a new reason. */
+  return Math.max(cam.target.y + half*Math.max(0.15,_upv.y), escapeTop+22*A);
+}
+let vapourTop=0;                    // refreshed each frame, read by evaporate()
+/* How far up the flight stays solid before it starts going. Fading from the
+   moment it leaves reads as the molecule being unsure it exists; holding it
+   and then letting it go reads as distance. */
+const FADE_HOLD=0.35;
+
 /* NO DASHED H-BONDS, AND THEY WERE NEVER VISIBLE HERE. WaterSim.md 1's
    convention assumes ball-and-stick, where a dash between two atoms crosses
    open space. This page draws water space-filling instead — that is the note by
@@ -2238,7 +2286,17 @@ function _tumble(){
    of the liquid at once, the column shrank, and the water went DOWN while
    evaporating — the opposite of the thing being shown. At this speed the
    round trip is about 45 frames and the deficit stays near 1%. */
-const ESCAPE_V=0.5*A;
+/* SLOW ENOUGH TO WATCH, and that is the only thing setting it. The flight is
+   about 25 A at the default framing, so at half an angstrom a step it was over
+   in 49 steps — half a second at Speed 3, which is a flicker rather than a
+   departure. At 0.3 it takes 82 steps and reads as drifting.
+
+   What limits it is that every molecule in flight is one the column has lost.
+   Measured at the slider's maximum, 25/s, which is the worst case: 41 in the
+   air against about a thousand in the pore, four per cent. Slower than this and
+   the standing deficit starts to show as a column that shrinks while it
+   evaporates, which is the opposite of the thing being drawn. */
+const ESCAPE_V=0.3*A;
 let escapeTop=0;                       // set from the wall's height, below
 let evapAcc=0, evapCount=0;
 /* A RATE, NOT A SWITCH. Evaporation never stops: at any temperature some
@@ -2257,7 +2315,7 @@ function evaporate(){
     if(!GONE[i] && PX[3*i+1]>escapeTop){ GONE[i]=1; VX[3*i]=VX[3*i+1]=VX[3*i+2]=0; }
     if(!GONE[i]) continue;
     PX[3*i+1]+=ESCAPE_V; place(i);
-    if(PX[3*i+1]>escapeTop && !SPENT[i]){
+    if(PX[3*i+1]>vapourTop && !SPENT[i]){
       /* OUT OF THE FRAME, AND NOT PUT BACK. The force build teleported it
          straight to the base — water leaves the leaf, water enters from the
          root, and the bookkeeping balanced. But that makes the two ends
@@ -2271,7 +2329,7 @@ function evaporate(){
          parked ones are the pool injectOne() revives from, so nothing is
          allocated per molecule and the count stays bounded. */
       SPENT[i]=1; VX[3*i]=VX[3*i+1]=VX[3*i+2]=0;
-      PX[3*i]=0; PX[3*i+1]=escapeTop+60*A; PX[3*i+2]=0; place(i);   // out of the camera's way
+      PX[3*i]=0; PX[3*i+1]=vapourTop+60*A; PX[3*i+2]=0; place(i);   // out of the camera's way
     }
   }
   /* Rate is a real trade-off, not a free knob: evaporating flattens the
@@ -2317,6 +2375,7 @@ function evaporate(){
 
 indexOH();
 escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
+vapourTop=viewTopY();      // before the first step, since evaporate() reads it
 
 /* One callout, on the thing a student would otherwise read as scenery. The
    green slabs are the load-bearing part of a plant cell wall, and the pore is
@@ -2538,6 +2597,10 @@ function draw(){
      rest were being drawn every frame as degenerate spheres at the origin:
      three quarters of the vertex work for nothing. */
   oMesh.count=nW; hMesh.count=nW*2;
+  /* Read once a frame rather than once a molecule, and cached for evaporate(),
+     which runs between frames and needs to know where the picture ends. */
+  vapourTop=viewTopY();
+  const span=Math.max(1e-3, vapourTop-escapeTop);
   for(let i=0;i<nW;i++){
     _M.makeScale(R_O,R_O,R_O);
     _M.elements[12]=PX[3*i]; _M.elements[13]=PX[3*i+1]; _M.elements[14]=PX[3*i+2];
@@ -2547,9 +2610,20 @@ function draw(){
       _M.elements[12]=HX[6*i+3*k]; _M.elements[13]=HX[6*i+3*k+1]; _M.elements[14]=HX[6*i+3*k+2];
       hMesh.setMatrixAt(i*2+k,_M);
     }
+    /* Solid in the liquid, solid for the first third of the climb, then away.
+       A parked one is not drawn at all — it is bookkeeping waiting to be
+       reused, not a molecule anywhere. */
+    let f=1;
+    if(SPENT[i]) f=0;
+    else if(GONE[i]){
+      const t=(PX[3*i+1]-escapeTop)/span;
+      f=t<=FADE_HOLD ? 1 : Math.max(0, 1-(t-FADE_HOLD)/(1-FADE_HOLD));
+    }
+    oFade.array[i]=f; hFade.array[2*i]=f; hFade.array[2*i+1]=f;
   }
   oMesh.instanceMatrix.needsUpdate=true;
   hMesh.instanceMatrix.needsUpdate=true;
+  oFade.needsUpdate=true; hFade.needsUpdate=true;
 }
 
 /* The bench's own numbers, off what was built rather than typed: the gap in
