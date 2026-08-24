@@ -308,6 +308,7 @@ what this shows is the order things happen in, not the speed.</div>
   <div class="measure row"><span>front</span><b id="front">—</b></div>
   <div class="row"><span>climb at wall</span><b id="climb">—</b></div>
   <div class="row"><span>contact angle</span><b id="angle">—</b></div>
+  <div class="row"><span>flow up</span><b id="flow">—</b></div>
 </div>
 
 <div id="bar">
@@ -1312,11 +1313,12 @@ let stepNo=0;
    sliders' own variables stay global, which is also why turning a knob still
    bites on the very next step. */
 function step(){
-  return _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
+  _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
     bondTo,bondN,bondedWith,qArr,nW,
     COH_MAX,COH_MAX2,OO_EQ,NBR_MAX,CELL,HB_MAX,HB_MAX2,HB_LIN,BOND_MAX,
     K_COH,K_HB,K_TORQ,K_WALL,K_WET,K_ADHERE,K_ADHERE_LR,R_WATER,
     DAMP,V_THERM,V_MAX,TORQ_MAX,VAP_DWELL,GAP,DEPTH,FLOOR);
+  flowTick();
 }
 function _step(PX,VX,HX,FX,TQ,PV,WF,GONE,HBN,VAPN,nbr,nbrN,accepted,
     bondTo,bondN,bondedWith,qArr,nW,
@@ -2181,8 +2183,37 @@ function _tumble(){
  *  water enters from below, so the column keeps its length and the water inside
  *  it travels up.
  */
-/* MEASURED, AND THERE IS A RATE THE PORE CANNOT EXCEED. Adhesion 0.036, the
-   supply on:
+/* RE-MEASURED, AND EVERY NUMBER BELOW MOVED. Two things invalidated them: the
+   angular floor made a liquid the supply can feed far harder, and the SPEED
+   division below is gone, so a rate now means what it says at any Speed rather
+   than a Speed-th of it. Read from a filled pore, 2600 steps:
+
+       rate    through   water in pore              what it is
+       0/s        0      1157 -> brims, climb -5    capillary fill alone
+       8/s      346       811 -> 1015               still gaining
+       15/s     650      1004 -> 990 -> 1019        STEADY: level holds
+       25/s    1084      1008 -> 748, front 30->14  draining
+       40/s    1733       981 -> 364, front -22     collapse
+
+   15/s is the state the page is about: the level stands still while 650
+   molecules travel through it, and `flow up` reads 15 beside it. Two numbers
+   agreeing is what steady flow looks like. 25/s is the ceiling and is also the
+   slider's maximum, so the control spans steady flow to cavitation with nothing
+   wasted at either end.
+
+   AND THE OLD CEILING WAS LOWER, at 8/s, which is worth keeping: that pore
+   drained at a rate this one gains on. The supply did not change. The liquid
+   did.
+
+   ONE THING IS STILL MISSING and the table shows it: `climb at wall` sits
+   between 1 and 8 A at every rate rather than deepening as the pull rises. A
+   transpiring meniscus should dig IN — retreat into the pore and curve harder,
+   which is where the tension comes from. That is the beat this page cannot yet
+   show.
+
+   The old reading, on the close-packed liquid, kept because the shape of the
+   argument still holds and only the numbers moved. Adhesion 0.036, the supply
+   on:
 
      3/s   the loop closes. Parked molecules fall 66 -> 43 -> 5 as the base
            draws them back, 225 go through, and the column keeps its body and
@@ -2249,12 +2280,24 @@ function evaporate(){
      a surface down, which is true, but even 7 a second here is orders above a
      leaf's, and the curve pays for it. */
   if(EVAP_RATE<=0) return;
-  /* Divided by SPEED so the number means molecules a SECOND, not a step. Left
-     per-step it multiplied by the speed control: 7/s at 1x was 56/s at 8x, and
-     the supply at the base cannot keep up with that, so winding the sim faster
-     quietly emptied the pore. Speed now only decides how quickly the physics
-     settles; how hard the leaf is transpiring is this slider alone. */
-  evapAcc += EVAP_RATE/(60*Math.max(1,SPEED));
+  /* PER STEP, AND NOT DIVIDED BY SPEED, which it used to be and which made
+     Speed a physics control. Measured, same seed and the same 1500 steps:
+     375 molecules left at Speed 1 and 47 at Speed 8, exactly eightfold, so the
+     pore drained at one setting and went on filling at the other. The comment
+     that stood here claimed Speed only decided how quickly the physics settled.
+     It decided the answer.
+
+     The division was put in to stop 7/s at 1x becoming 56/s at 8x. That reading
+     was per second of YOUR time, and per second of your time it is supposed to
+     rise: eight times the steps in a second is eight times of everything, the
+     supply included, and the balance between them never moved. Dividing one
+     side of that balance and not the other is what broke it.
+
+     So the unit is molecules per sixty steps, which is a second of the model's
+     time at 1x, and it is the same unit `flow up` reports. Put the two side by
+     side and steady flow is the two numbers agreeing. Speed now only decides
+     how long you wait to see it. */
+  evapAcc += EVAP_RATE/60;
   if(evapAcc<1) return;
   evapAcc -= 1;
   /* Anywhere on the free surface, not the single highest molecule. Taking the
@@ -2414,6 +2457,76 @@ function injectOne(){
   }
   return false;
 }
+
+/* =============================================================
+ *  HOW FAST THE WATER IS ACTUALLY MOVING.
+ *
+ *  Counted, not inferred: every molecule that crosses a plane just above the
+ *  supply band, up minus down, over the last few seconds of physics. The level
+ *  cannot say this — in steady flow the level does not move at all while every
+ *  molecule in the column travels, which is exactly the state a transpiring
+ *  leaf is in.
+ *
+ *  PER STEP, NOT PER SECOND OF YOUR TIME. Speed changes how many steps happen
+ *  in a second of yours; it does not change how fast the water moves, and a
+ *  number that tripled when you dragged Speed would be measuring the apparatus.
+ *  Same convention EVAP_RATE already uses, and for the same reason. Multiplied
+ *  by 60 it is molecules a second at 1x, which is the Evaporation slider's own
+ *  unit, so the two can be read against each other: when they match, every
+ *  molecule leaving the top is being replaced from below and nothing is
+ *  accumulating. That is transpiration, as a pair of numbers.
+ *
+ *  With evaporation off it falls to zero once the pore is full, because nothing
+ *  is leaving the top to make room. Water climbing a dry wall is a transient;
+ *  water travelling is not, and it needs a reason.
+ * ============================================================= */
+const FLOW_SLAB=10.0*A;                  // the depth of liquid the flux is read over
+/* WELL CLEAR OF THE INJECTION ZONE, and that is not tidiness. A flux estimator
+   is a statement about a control volume with nothing created inside it, and
+   injectOne() puts molecules between 0.6 and 4.6 A above the floor. With the
+   plane at the band's top the slab reached down over that, so every molecule
+   the reservoir made appeared inside the volume and was driven upward out of
+   it, with no matching flow in. Measured, the readout said 8.2 a second where
+   the count above the plane was rising at 0.67: twelve times, all of it the
+   supply being born inside the window. Two band-depths up, the slab spans
+   liquid that only ever arrives by flowing. */
+const FLOW_PLANE=FLOOR+2.5*SUPPLY_BAND;
+const FLOW_WIN=180;                      // steps averaged over, ~3 s of physics
+
+/* COUNTING CROSSINGS DOES NOT WORK, and it is worth saying why so nobody tries
+   it. The obvious measure is molecules crossing a plane, up minus down. But a
+   liquid at temperature has hundreds of molecules jittering back and forth
+   across any plane you pick, and the net of those is a random walk: measured,
+   about 5 crossings each way per step gives a window noise near 14 molecules a
+   second, against a real flow of 1. The signal sat underneath its own noise and
+   the readout said 8 a second for a pore that was standing still.
+
+   The velocity form has none of that. Flux through a plane is the sum of the
+   vertical velocities in a slab around it, divided by the slab's depth: every
+   molecule contributes its actual motion rather than a yes-or-no event, thermal
+   jitter cancels within a single step instead of over the window, and the noise
+   falls with the number of molecules in the slab rather than with the square
+   root of a crossing count. Standard, and about a hundred times quieter here. */
+const flowRing=new Float32Array(FLOW_WIN);
+let flowPtr=0, flowSum=0;
+function flowTick(){
+  const lo=FLOW_PLANE-FLOW_SLAB/2, hi=FLOW_PLANE+FLOW_SLAB/2;
+  let sv=0;
+  for(let i=0;i<nW;i++){
+    if(GONE[i]||SPENT[i]) continue;
+    const y=PX[3*i+1];
+    if(y<lo||y>hi) continue;
+    sv+=VX[3*i+1];
+  }
+  /* Divided by the slab's depth, which turns a sum of displacements into a rate
+     across the plane: molecules a step. */
+  const q=sv/FLOW_SLAB;
+  flowSum-=flowRing[flowPtr];
+  flowRing[flowPtr]=q;
+  flowSum+=q;
+  flowPtr=(flowPtr+1)%FLOW_WIN;
+}
+const flowRate=()=>flowSum/FLOW_WIN*60;   // molecules a second, at 1x
 
 /* ============================================================= *
  *  Render
@@ -2610,6 +2723,7 @@ const frontMark=(function(){
   g.add(bar); g.visible=false; root.add(g); return g;
 })();
 const climbEl=document.getElementById('climb');
+const flowEl=document.getElementById('flow');
 
 /* THE CONTACT ANGLE, WHICH IS THE ONLY NUMBER THE TWO SLIDERS HAVE TO HIT.
    The meniscus's SHAPE is what this page exists to produce, so tuning until it
@@ -2704,6 +2818,11 @@ function reportClimb(){
   climbEl.textContent=(wall==null||mid==null)?'—':(wall-mid).toFixed(1)+' \u00c5';
   frontEl.textContent=(mid==null)?'—':mid.toFixed(1)+' \u00c5';
   angleEl.textContent=angleText();
+  /* One decimal below ten, none above: the difference between 0.4 and 1.2 a
+     second is the difference between stopped and flowing, and 23 against 24 is
+     not a difference at all. */
+  const f=flowRate();
+  flowEl.textContent=(Math.abs(f)<0.05?'0':(Math.abs(f)<10?f.toFixed(1):f.toFixed(0)))+'/s';
   if(mid!=null){ frontMark.position.y=mid*A; frontMark.visible=true; }
   else frontMark.visible=false;
 }
@@ -2764,6 +2883,7 @@ function resetRun(){
   seed(); for(let i=0;i<nW;i++) place(i);
   evapCount=0; condensed=0; RHO_0=0; stepNo=0; fpsSteps=0; runT0=performance.now();
   angHist.length=0;
+  flowRing.fill(0); flowSum=0; flowPtr=0;
 }
 document.getElementById('reset').onclick=resetRun;
 
