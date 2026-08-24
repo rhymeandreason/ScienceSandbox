@@ -52,11 +52,12 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
-**A featured lesson is served at a short URL** (`/water`, `/builder`,
-`/hemoglobin`, `/glycolysis`, `/membrane`) by a `vercel.json` rewrite, which
-does not move the file. So each of the five carries `<base href="/demos/">` and
-its relative paths keep resolving. Promoting a page to featured means adding
-that tag and both routes: `docs/deploy.md`.
+**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which
+does not move the file. So every page in the table above marked *featured lesson*
+carries `<base href="/demos/">` and its relative paths keep resolving. Which URL
+maps to which file is `vercel.json`'s `rewrites` block, and copying that list
+into prose is how it goes stale. Promoting a page to featured means adding the
+tag and both routes: `docs/deploy.md`.
 
 ## Making a new lesson
 

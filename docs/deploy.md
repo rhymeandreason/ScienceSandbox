@@ -47,9 +47,16 @@ test below checks that.
 
 ## The five featured lessons have short URLs
 
-`vercel.json` rewrites `/water`, `/builder`, `/hemoglobin`, `/glycolysis` and
-`/membrane` onto the `demos/*.html` files, and 301s the old `/demos/….html`
-paths onto them. `index.html` links the short form.
+`vercel.json` rewrites a short URL onto each of the five `demos/*.html` files,
+and 301s the `/demos/….html` path onto it. `index.html` links the short form.
+**The `rewrites` block is the list**; it is not repeated here, because a URL
+renamed there and not here is a doc that lies.
+
+Renaming one is two edits plus a third: the paired `redirects` entry has to
+follow it, `index.html`'s link has to follow it, and the URL it replaces needs
+its own redirect onto the new one. The old `/demos/….html` 301 is `permanent`,
+so a returning browser goes to the retired short URL from cache and never asks
+the server which page it wanted.
 
 A rewrite does not move the file, so every relative `src`, `href` and `fetch()`
 in those five pages would resolve against `/` instead of `/demos/`. Each of the
@@ -58,8 +65,10 @@ its own path and on the local dev server. **Adding a page to this list means
 adding the `<base>` tag too** - without it the short URL serves the HTML and
 then 404s every script in it.
 
-The short URLs are a Vercel routing feature; `dev-server.js` knows nothing about
-them, so locally a lesson is still `/demos/water-lab.html`.
+The short URLs work locally too: `dev-server.js` reads the same `rewrites` block
+out of `vercel.json`, so the index's own links resolve on the dev server instead
+of 404ing there and working only once deployed. The file path still serves
+directly as well.
 
 **Only `api/ask.js` becomes a public endpoint.** Vercel does not route files
 whose names begin with an underscore, so `_tutor.js`, `_keys.js`, `_limit.js`,
