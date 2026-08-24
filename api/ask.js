@@ -10,8 +10,9 @@
  * ========================================================================== */
 'use strict';
 
-const { handleAsk, config } = require('./_tutor.js');
+const { handleAsk, config, denied } = require('./_tutor.js');
 const { local } = require('./_local.js');
+const { cohort } = require('./_keys.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -20,7 +21,16 @@ module.exports = async function handler(req, res) {
   // there, and neither is for the public. Deployed, `local` is never true.
   const bench = local(req);
 
-  if (req.method === 'GET') return res.status(200).json(config(bench));
+  // Which class this link belongs to, or null. Refused before anything else, so
+  // an unkeyed caller never reaches a model. A refused GET is also what keeps
+  // the launcher off the page: `chat.js` only offers the tutor when this
+  // answers ok, so a visitor without a link sees the lesson with no broken
+  // invitation on it, exactly as a static deploy does.
+  const who  = cohort(req);
+  const gate = denied(who);
+  if (gate) return res.status(gate.status).json(gate.body);
+
+  if (req.method === 'GET') return res.status(200).json(config(bench, who));
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
@@ -30,7 +40,7 @@ module.exports = async function handler(req, res) {
   // Vercel parses a JSON body already; a string body means some other caller.
   const payload = typeof req.body === 'string' ? safeParse(req.body) : req.body;
 
-  const { status, body } = await handleAsk(payload, { bench });
+  const { status, body } = await handleAsk(payload, { bench, cohort: who });
   return res.status(status).json(body);
 };
 

@@ -17,6 +17,7 @@ const { CHAPTERS, IDS, byId } = require('./_catalog.js');
 const providers = require('./_providers');
 const log       = require('./_log.js');
 const targets   = require('./_targets.js');
+const keys      = require('./_keys.js');
 
 const MAX_CHARS = 500;   // a question, not a pasted essay
 const MAX_TURNS = 40;    // a conversation, not an unbounded transcript to re-send
@@ -239,7 +240,25 @@ async function ask({ messages, provider, system, cited, lesson, step, state, ben
 /* Transport-free request handling: validation, the call, and the error mapping,
  * so the Vercel function and the dev server behave identically instead of
  * drifting into two versions of "what does a bad question do". */
-async function handleAsk(payload, { bench = false } = {}) {
+/* The access gate, as a value rather than a thrown error, so the GET and the
+ * POST refuse identically. `cohort` is a label the transport already resolved -
+ * see `_keys.js` for why it is a label and not a person.
+ *
+ * With TUTOR_KEYS unset this returns null and nothing is gated, which is what a
+ * checkout without one gets. With it set, a request without a valid key is
+ * refused BEFORE any model runs, so an unauthorised caller costs a JSON parse
+ * and nothing else. */
+function denied(cohort) {
+  if (!keys.enabled() || cohort) return null;
+  return { status: 401, body: { error: 'this tutor is open to invited classes; ask your instructor for the access link' } };
+}
+
+async function handleAsk(payload, { bench = false, cohort = null } = {}) {
+  // Checked here as well as in the transport: a transport that forgets fails
+  // closed rather than answering for free.
+  const gate = denied(cohort);
+  if (gate) return gate;
+
   const body   = payload || {};
   const wanted = body.provider || null;
 
@@ -342,8 +361,9 @@ function brief(err) {
 /* What the bench needs to draw its provider switch, without guessing. `bench`
  * is passed in for the same reason it is passed to `handleAsk`: only the
  * transport knows where the request came from. */
-function config(bench = false) {
+function config(bench = false, cohort = null) {
   return {
+    cohort,
     default: providers.DEFAULT,
     bench,
     limits: { maxChars: MAX_CHARS, maxTurns: MAX_TURNS },
@@ -364,4 +384,4 @@ function config(bench = false) {
   };
 }
 
-module.exports = { ask, handleAsk, config, situation, moment, schemaFor, SYSTEM, SCHEMA, MAX_CHARS };
+module.exports = { ask, handleAsk, config, denied, situation, moment, schemaFor, SYSTEM, SCHEMA, MAX_CHARS };

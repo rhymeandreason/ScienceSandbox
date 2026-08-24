@@ -21,13 +21,16 @@ Working end to end on `demos/water-lab.html`:
 * the tutor sees live scene state (molecule count, temperature, phase, salt)
 * provider switch: Gemini (default, `gemini-3.7-flash`) or Claude, one env var
 * the stable half of the prompt is cached server-side, and on a lesson page it is the large majority of the input
+* **the access gate is built** (`api/_keys.js`): `TUTOR_KEYS` names cohorts, the key rides in `?k=` once and travels as a header after. Unset means no gate, so a checkout is unchanged. The rate limit that attaches to a cohort label is not built
 
 ## Next steps, in order
 
 Reordered once the demo-mode design landed: glycolysis moved to the front, because the bake is downstream of it and of real logged questions.
 
-1. **Second lesson mount, and its UX.** Everything is justified by one page. Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). It comes first now: freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one.
-2. **Deploy, and collect.** `vercel.json` exists but is untested. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
+Reordered again: **deploying water-lab alone is what produces the logged questions everything else is gated on**, and glycolysis is not a prerequisite for that. The bake still wants glycolysis settled before its answers freeze, so glycolysis moved behind the deploy rather than in front of it.
+
+1. **Ship water-lab to Vercel.** In four pieces, each deployable on its own: the access gate (**done**), the cohort label in the log, the rate limit counted per label, then moving `kodolab.org` off Pages. The domain moves last, so it never points at an ungated endpoint. `vercel.json` exists but is untested.
+2. **Second lesson mount, and its UX.** Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). Ahead of the bake, because freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
 3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
 4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
 5. **Baked demo mode.** Gated on 1 and 2, *except* the examples bake, which is gated on nothing and is also a latency fix for the first turn a student ever takes.
@@ -128,9 +131,13 @@ Each lesson already hands `chat.js` an `examples` list for the empty state, and 
 
 **Loose end:** a student who clicks an example may then type a follow-up. That goes to the live tutor, or in a pure demo it misses honestly. Worth deciding, but it does not block the first turn being instant.
 
-### The access link
+### The access link — built
 
-A link that turns the live tutor on, no accounts. It needs no new concept: **no key means demo mode, a valid key means the live tutor**, so the public site degrades to the baked demo rather than to an error.
+A link that turns the live tutor on, no accounts. `api/_keys.js` resolves a secret to a cohort label; `denied()` in `_tutor.js` refuses on the GET and the POST identically, before any model runs, so an unauthorised caller costs a JSON parse.
+
+**No key reuses the absence path rather than inventing an error state.** The design said "no key means demo mode", but demo mode is not built, so today the refused GET simply keeps `chat.js` from adding the launcher and the lesson looks exactly as it does on GitHub Pages. There is nothing to explain to a visitor who was never invited. When demo mode lands it slots in here, and the degradation gets better without the gate changing.
+
+**Unset means no gate.** A checkout, and the dev server, answer as they always did. Set locally, the gate applies to loopback too: a gate you cannot exercise on the machine you wrote it on is a gate nobody has seen work. A malformed `TUTOR_KEYS` reads as *off*, not as a lockout, because a typo should not look identical to a deliberate one — `check-ask.js` asserts both, plus that the cohort label is not accepted as its own key and that a prefix of a real key fails.
 
 **The key rides in the URL once.** `?k=` on the shared link, then into `localStorage`, then stripped from the address bar, and sent as a header on every request after that. A query string ends up in server access logs, browser history and screenshots; a header ends up in none of them. Same reason `LOG_TOKEN` was dropped rather than fixed.
 
@@ -186,7 +193,7 @@ Those thought tokens bill as output at the output rate, so a thinking turn runs 
 
 ## Key context
 
-**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` + `api/log.js` + `demos/ask/log.html` (the log and its viewer).
+**Files.** `api/_tutor.js` (prompt in two halves, schema, validation, retries), `api/_keys.js` (the access gate), `api/_catalog.js` (7 chapters), `api/_targets.js` (35 targets across 5 lessons + per-lesson `notes`), `api/_providers/` (one module per vendor), `demos/ask/chat.js` + `chat.css` (the module), `demos/ask/check-ask.js`, `demos/water-lab.html` (the only page with a drawer), `api/_log.js` + `api/_schema.sql` + `demos/tools/db.js` + `api/log.js` + `demos/ask/log.html` (the log and its viewer).
 
 **Run it.** `node demos/tools/dev-server.js` — it serves `/api/*` by requiring the same handler Vercel runs, lazily and uncached, so editing `api/` takes effect on the next question with no restart. Needs `npm i` at the repo root. Key goes in `.env.local` (gitignored; copy `.env.local.example`), and `DATABASE_URL` beside it if you want the log.
 

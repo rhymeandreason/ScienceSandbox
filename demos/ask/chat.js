@@ -58,6 +58,44 @@ const VISITOR = (() => {
 
 const THREAD = uuid();
 
+/* ---- the access link --------------------------------------------------------
+ * The live tutor is open to invited classes, and the invitation is a link:
+ * `?k=<secret>`. It rides in the URL exactly once. On arrival it is copied to
+ * localStorage, stripped from the address bar, and after that it travels only
+ * as a request header - a query string ends up in server access logs, browser
+ * history and screenshots, and a header ends up in none of them.
+ *
+ * A key names a class rather than a person, so it is a bearer token and nothing
+ * more: it protects spend, never anything private. Storage refused (private
+ * mode, blocked cookies) is not an error - the key lives for this page load and
+ * the student asks again from the link next time.
+ *
+ * No key is not an error state either. The GET below simply does not answer,
+ * the launcher is never added, and the lesson looks the way it does on a static
+ * host. There is nothing to explain to a student who was never invited. */
+const KEY_KEY = 'ss.tutor.key';
+
+const KEY = (() => {
+  let k = null;
+  try {
+    const url = new URL(location.href);
+    const fromLink = url.searchParams.get('k');
+    if (fromLink) {
+      k = fromLink;
+      try { localStorage.setItem(KEY_KEY, k); } catch { /* this page load only */ }
+      url.searchParams.delete('k');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+  } catch { /* no URL API, or a history call a sandbox refused */ }
+  if (!k) { try { k = localStorage.getItem(KEY_KEY); } catch { k = null; } }
+  return k;
+})();
+
+/* Sent on every request, and simply absent without a key. */
+function keyed(headers) {
+  return KEY ? { ...headers, 'X-Tutor-Key': KEY } : headers;
+}
+
   function chat(opts) {
     const rail = opts.rail;
     const slot = opts.slot || rail;      // where the launcher goes; the panel
@@ -75,13 +113,13 @@ const THREAD = uuid();
     open.innerHTML = '<i class="ph-bold ph-chat-teardrop-dots"></i>'
       + '<span>Ask a question<span class="sub"> about what you are seeing</span></span>';
 
-    fetch(ENDPOINT, { method: 'GET' })
+    fetch(ENDPOINT, { method: 'GET', headers: keyed({}) })
       .then(r => r.ok && r.json())
       .then(cfg => { if (cfg) slot.appendChild(open); })
       .catch(() => {})
       .then(() => { if (!open.isConnected) console.info(
-        '[ask] no /api/ask on this host, so the tutor is not offered. '
-        + 'That is expected on a static deploy.'); });
+        '[ask] the tutor is not offered here: either this host has no /api/ask, '
+        + 'or the live tutor needs an access link and this browser has none.'); });
 
     /* ---- drawer ---- */
     const panel = document.createElement('div');
@@ -163,7 +201,7 @@ const THREAD = uuid();
       try {
         const res = await fetch(ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: keyed({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             messages,
             lesson: opts.lesson,

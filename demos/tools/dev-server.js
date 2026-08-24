@@ -371,7 +371,13 @@ function api(url, req, res) {
   // than hardcoded true, so the two transports cannot drift.
   const bench = require(path.join(ROOT, 'api/_local.js')).local(req);
 
-  if (req.method === 'GET')  return json(200, tutor.config(bench));
+  // The same gate the deployment applies. TUTOR_KEYS is normally unset locally,
+  // so this is a no-op; set it in .env.local to exercise the gate for real.
+  const who  = require(path.join(ROOT, 'api/_keys.js')).cohort(req);
+  const gate = tutor.denied(who);
+  if (gate) return json(gate.status, gate.body);
+
+  if (req.method === 'GET')  return json(200, tutor.config(bench, who));
   if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
 
   let raw = '';
@@ -379,7 +385,7 @@ function api(url, req, res) {
   req.on('end', async () => {
     let payload = {};
     try { payload = JSON.parse(raw || '{}'); } catch { /* handled as a missing question */ }
-    const out = await tutor.handleAsk(payload, { bench });
+    const out = await tutor.handleAsk(payload, { bench, cohort: who });
     console.log(`  api /api/ask → ${out.status}`);
     json(out.status, out.body);
   });
