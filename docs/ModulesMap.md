@@ -7,6 +7,7 @@ routes through the modules, not folders holding them.
 
 | Module | Kind | State | Also in |
 | --- | --- | --- | --- |
+| Polarity | principle | hosted · water-lab, molecule-builder | carbon |
 | Hydrogen bonding | object | hosted · water-lab | proteins, information |
 | Ice & density | object | hosted · water-lab | — |
 | Dissolving | process | hosted · water-lab, solvation-lab | carbon |
@@ -27,7 +28,7 @@ leaf can grab. The second half is why the plant modules live here.
 | --- | --- | --- | --- |
 | Covalent bonding | object | hosted · molecule-builder | — |
 | Ionic bonding | object | hosted · molecule-builder | water |
-| Geometry & polarity | object | hosted · molecule-builder | water |
+| Molecular geometry | object | hosted · molecule-builder | — |
 | Monomers & polymers | object | hosted · macromolecule-lab | information |
 | Dehydration synthesis & hydrolysis | process | engine-only · the `join` verb, and it run backwards | rot |
 | Isomers & chirality | object | hosted · contrast-lab | proteins |
@@ -187,7 +188,7 @@ onto essays. *Senses* folds into signalling; *archaea* into survival and boundar
 
 **What the shape tells you:**
 
-* **28 planned, 6 engine-only, 18 built**, over eight mechanism doors and seven subject doors. The engine-only six are the cheapest wins on the list — cohesion, dehydration synthesis, enzyme catalysis, the sickle fibre, scale, coupling all have working code and no lesson around them.
+* **28 planned, 6 engine-only, 19 built**, over eight mechanism doors and seven subject doors. The engine-only six are the cheapest wins on the list — cohesion, dehydration synthesis, enzyme catalysis, the sickle fibre, scale, coupling all have working code and no lesson around them.
 
 * **Processes cluster in Energy; objects cluster in Water and Carbon.** That matches the reuse asymmetry — the Water and Carbon objects carry the cross-arc memberships, and every Energy process belongs to exactly one arc.
 
