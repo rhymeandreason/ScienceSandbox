@@ -754,6 +754,30 @@ const TORQ_MAX=0.25;              // and a cap, so a molecule pulled two ways ca
    oxygen cost the first one nothing. */
 const LP_C=Math.cos(54.75*Math.PI/180), LP_S=Math.sin(54.75*Math.PI/180);
 let K_HB=0.030;                   // H-bond spring
+/* COHESION LIVES AT THE SURFACE HERE, NOT IN THE BULK, and both halves of that
+   were measured. Swept 0.010 to 0.140 with the supply held, the bulk does not
+   move at all: bonds a molecule 2.55-2.71, nearest neighbour 2.72-2.73 A,
+   neighbours inside 3.4 A 6.4-6.7, all flat inside run-to-run noise across a
+   fourteen-fold range. The solver holds the liquid together now, so cohesion
+   has nothing left to do there.
+
+   The free surface is a different story. Sampling the middle of the pore over
+   300 steps and taking how much it ripples — capillary waves, whose amplitude
+   goes as sqrt(kT/gamma), the closest thing to a surface tension this bench can
+   read:
+
+       cohesion 0.020    ripple 1.11 A
+       cohesion 0.072    ripple 0.34 A
+       cohesion 0.140    ripple 0.37 A
+
+   A slack surface at the bottom, a stiff one above, and a knee between. That is
+   why the meniscus changes with this slider while none of the bulk numbers do.
+
+   0.072 SITS AT THE KNEE: the lowest setting where the surface is fully stiff.
+   That is what defends it, rather than the bond count, which has no opinion.
+   Above the knee the measurement saturates and cannot separate 0.072 from
+   0.140 — pinning it there would need the real thing, a Laplace measurement of
+   the pressure jump across a curved interface against water's 72 mN/m. */
 let K_COH=0.072;                // dispersion, the undirected part of cohesion
 const K_WALL=0.20;                // the wall is solid
 /* Adhesion beats cohesion here, and that is the whole reason the meniscus is
