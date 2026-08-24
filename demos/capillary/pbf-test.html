@@ -379,12 +379,21 @@ const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom
  *  where the bond wants it rather than in a fight between two forces.
  */
 const OO_EQ   = 2.76*A;              // liquid water O...O, the H-bond rest length
-/* CONTACT IS THE EQUILIBRIUM DISTANCE, not a little inside it. At 2.70 there
-   was a dead band: cohesion switched on only beyond 2.76, repulsion only below
-   2.70, and nothing at all in between — so a pair could sit anywhere in that gap
-   and the liquid drifted to the bottom of it. Contact at 2.76 removes the gap
-   and puts the floor where water's own pair minimum is. */
-let OO_MIN  = 2.76*A;              // hard contact; below this they push apart
+/* THE FLOOR SITS BELOW THE EQUILIBRIUM, which is WaterSim.md 4's rule and was
+   being broken. With contact AT 2.76 a bonded pair could never be pulled taut:
+   the H-bond spring's rest length was exactly where the hard floor stood, so
+   the bond had nothing to pull against and K_HB did nothing at any setting.
+   Below it, a pair can be stretched, and the bond is what decides where a
+   neighbour sits rather than the floor.
+
+   That matters for more than the bond count. An isotropic constraint — be at
+   this density, do not overlap — packs like hard spheres, six to twelve
+   neighbours, and water does not: it holds 4.5 at 2.8 A, which is far more OPEN
+   than close packing, and the openness is why ice floats. Only a directional
+   bond can hold a liquid open, so until the bond could pull, the model had no
+   route to water's structure and sat 34% too dense. */
+let OO_MIN  = 2.70*A;              // how close a BONDED pair may come
+let OO_FREE = 3.10*A;              // and an unbonded one: oxygen's van der Waals contact
 const HB_MAX  = 2.45*A;              // H...O reach for a bond to register
 const HB_LIN  = 0.55;                // O-H...O has to be near enough to straight
 const COH_MAX = 6.20*A;              // how far the weak, undirected pull reaches
@@ -649,7 +658,31 @@ function seed(){
      which is 2.62 A against a 2.70 floor, so the pool was born with 445 pairs
      already overlapping and the first frames were the liquid shoving itself
      apart — visible as a bounce before anything else had happened. */
-  const d=2.85*A;                                     // liquid spacing, near O...O
+  /* SEEDED AT WATER'S DENSITY, NOT AT CONTACT. RHO_0 is measured off this
+     lattice on the first step and the solver then holds the liquid there for
+     ever, so the seed's density IS the model's density. Stacked at 2.85 it was
+     0.0446 molecules per cubic angstrom against water's 0.0334 — 34% too dense,
+     and every symptom followed: 6.2 neighbours inside 3.4 A against 4.5, 2.5
+     H-bonds a molecule against 3.6, and a pore that held 1161 molecules where
+     the real thing holds under 900.
+
+     A cube root of 1/0.0334 is 3.10 A, so that is the spacing. Nearest
+     neighbours are then meant to come IN to 2.76 on the H-bond's pull, leaving
+     the rest further out — which is what an open tetrahedral network is, and
+     what the bond now has the leverage to build.
+
+     IT WORKED, on the two numbers that measure structure. Neighbours inside
+     3.4 A went 6.2 to 4.9 against water's 4.5, and nearest neighbours sit at
+     2.72 against a real 2.76. The liquid is OPEN now, which it has never been:
+     that openness is water's anomaly, the reason ice floats, and the reason a
+     pore holds fewer molecules than close packing would put in it.
+
+     Bonds a molecule are 2.56 against a real 3.6, so half the story is still
+     missing — with 4.9 neighbours and 2.56 bonds, only half of what is in reach
+     is bonded, where real water manages four fifths. That is the angular
+     criterion rejecting pairs the geometry ought to allow, and it is the next
+     thread rather than this one. */
+  const d=3.10*A;                                     // water's own density, as a spacing
   const nx=Math.max(1,Math.floor((GAP-2*R_WATER)/d)), nz=Math.max(1,Math.floor(DEPTH/d));
   /* SEEDED WITH THE CURVE ALREADY IN IT. A flat-topped lattice has to grow its
      own meniscus, and at these settings that takes a couple of thousand steps —
@@ -661,7 +694,7 @@ function seed(){
   const CURVE=11*A;                                   // how much lower the middle starts
   const sites=[];
   for(let lay=0;lay<80;lay++) for(let c=0;c<nx;c++) for(let r=0;r<nz;r++){
-    const x=(c-(nx-1)/2)*d, y=FLOOR+1.2*A+lay*OO_EQ, z=(r-(nz-1)/2)*d;
+    const x=(c-(nx-1)/2)*d, y=FLOOR+1.2*A+lay*d, z=(r-(nz-1)/2)*d;
     const t=Math.abs(x)/(GAP/2);
     sites.push({x, y, z, rank:y-CURVE*t*t});
   }
@@ -817,7 +850,11 @@ const TORQ_MAX=0.25;              // and a cap, so a molecule pulled two ways ca
    the two toward the incoming H, which is what makes the second bond on an
    oxygen cost the first one nothing. */
 const LP_C=Math.cos(54.75*Math.PI/180), LP_S=Math.sin(54.75*Math.PI/180);
-let K_HB=0.030;                   // H-bond spring
+/* 0.25, EIGHT TIMES THE OLD ONE, and the first setting of it that has ever
+   changed a number. With the floor at the rest length the spring had nothing to
+   pull against and 0 to 0.09 all read the same; below it, the bond decides where
+   a neighbour sits and 0.03 to 0.25 moves bonds a molecule 2.32 to 2.59. */
+let K_HB=0.25;                    // H-bond spring
 /* COHESION LIVES AT THE SURFACE HERE, NOT IN THE BULK, and both halves of that
    were measured. Swept 0.010 to 0.140 with the supply held, the bulk does not
    move at all: bonds a molecule 2.55-2.71, nearest neighbour 2.72-2.73 A,
@@ -935,6 +972,16 @@ const cellKey=(x,y,z)=>((Math.floor(x/CELL)+512)*1024+(Math.floor(y/CELL)+512))*
 const NBR_MAX=48;                                  // a water never has this many inside 6.2 A
 const nbr=new Int16Array(N_WATER*NBR_MAX), nbrN=new Int16Array(N_WATER);
 const accepted=new Uint8Array(N_WATER), bondedWith=new Int16Array(N_WATER);
+/* WHO EACH MOLECULE IS BONDED TO THIS STEP, up to the four an oxygen can manage.
+   contacts() needs it: two waters may only approach within van der Waals
+   contact if a hydrogen bond is holding them there, and that is the difference
+   between a tetrahedral liquid and a heap of spheres. */
+const BOND_MAX=4;
+const bondTo=new Int16Array(N_WATER*BOND_MAX), bondN=new Uint8Array(N_WATER);
+function isBonded(i,j){
+  for(let k=0;k<bondN[i];k++) if(bondTo[i*BOND_MAX+k]===j) return true;
+  return false;
+}
 /* NO PRESSURE CONSTANT AND NO BATH PRESSURE. Both were the force build's way
    of saying "the liquid is incompressible and the reservoir pushes", and both
    are the solver's job here. The base pushes because it is held at rest density
@@ -1013,7 +1060,7 @@ function step(){
      added alongside the others: the whole point of this build is that the two
      stop being separate things. */
   // --- H-bonds: a donor H reaching a lone pair, one bond per H, two per oxygen
-  for(let i=0;i<n;i++){ waters[i].hb=0; bondedWith[i]=-1; }
+  for(let i=0;i<n;i++){ waters[i].hb=0; bondedWith[i]=-1; bondN[i]=0; }
   for(let i=0;i<n;i++){
     const don=waters[i];
     for(let k=0;k<2;k++){
@@ -1037,6 +1084,8 @@ function step(){
       accepted[best]++;
       bondedWith[i]=best;
       don.hb++; acc.hb++; hbCount++;
+      if(bondN[i]<BOND_MAX) bondTo[i*BOND_MAX+bondN[i]++]=best;
+      if(bondN[best]<BOND_MAX) bondTo[best*BOND_MAX+bondN[best]++]=i;
       _v.subVectors(acc.p,don.p);
       const dist=_v.length()||1;
       /* The donor turns this O-H onto the acceptor's oxygen, and the acceptor
@@ -1383,8 +1432,20 @@ function contacts(){
       if(!b||b.gone) continue;
       _t2.subVectors(a.p,b.p);
       const d=_t2.length();
-      if(d>=OO_MIN||d<1e-4) continue;
-      _t2.multiplyScalar((OO_MIN-d)*0.5/d);
+      /* A BOND IS A LICENCE TO COME CLOSER, and that is the whole of water's
+         structure. Two oxygens carrying no bond between them stop at van der
+         Waals contact, 3.1 A — which is what keeps a liquid OPEN, since only
+         four neighbours can be admitted past it and the rest are held out at
+         the second shell. A hydrogen bond overrides it and lets that pair sit
+         at 2.76, where the bond's own rest length puts them.
+
+         Without the distinction every neighbour could come to 2.45 and did:
+         nearest neighbours collapsed onto the floor at 2.42 A while the
+         coordination number was right, which is a tetrahedral network drawn at
+         the wrong scale. */
+      const floor=isBonded(i,j) ? OO_MIN : OO_FREE;
+      if(d>=floor||d<1e-4) continue;
+      _t2.multiplyScalar((floor-d)*0.5/d);
       a.p.add(_t2); b.p.sub(_t2);
     }
   }
