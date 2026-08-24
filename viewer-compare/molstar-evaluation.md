@@ -3,8 +3,15 @@
 > ## SETTLED — Mol\* was not adopted
 >
 > **The verdict is in `docs/rendering-modules.md`: we draw proteins ourselves**
-> (Three.js + `scene.js` + `folding/ribbon.js`). Read that first; this folder is
+> (Three.js + `scene.js` + `folding/ribbon.js`). Read that first; this file is
 > the working that led to it.
+>
+> **Every path below is written as it stood, relative to `demos/`.** This file
+> was `demos/molstar/README.md`; it sits beside `viewer-compare` now because
+> that bench asks the same question of the same two libraries, and the two
+> travel together if either leaves this repo. Nothing below was repointed —
+> rewriting the paths of a settled argument only makes it harder to check
+> against the commits it describes.
 >
 > **The pages and the structures are gone; this file is what is left.** The
 > three `folding-molstar*.html` stages and the 3.8 MB of `data/` they loaded
@@ -17,11 +24,11 @@
 > So: **read what follows as history, not as an open question.** Where it
 > weighs Mol\* against our renderer, the weighing is done.
 
-Everything specific to the evaluation lives in this folder, and nothing outside
-it was changed — which is still worth preserving, because it is what makes the
-folder readable as one self-contained argument.
+Everything specific to the evaluation lived in `demos/molstar/`, and nothing
+outside it was changed — which is still worth recording, because it is what
+made the evaluation readable as one self-contained argument.
 
-**There are now two questions in this folder**, and stages 0–4 below answer only
+**There are two questions here**, and stages 0–4 below answer only
 the first. The second — `protein-lab`, rebuilt on hemoglobin — is stage 5, at
 the bottom. It is a *different* question with a *different* strongest argument
 (licence, not capability), and it should be decided separately: Mol\* could

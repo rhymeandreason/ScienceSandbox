@@ -8,6 +8,11 @@ hydrophobicity" can be seen the way the field conventionally draws them before
 we build our own version of one. Where a renderer has no equivalent the pane
 says so, rather than quietly substituting.
 
+`molstar-evaluation.md` beside it is the long form: Mol\* given a real lesson to
+rebuild, stage by stage, with the measurements. It was `demos/molstar/README.md`
+and its paths still read that way on purpose. The two files are here together
+because they are one question asked twice.
+
 **The library question it was built to answer is closed** and reopening it is
 not what the page is for. Neither viewer was adopted: a viewer brings its own
 WebGL context and canvas, so it cannot draw into `scene.js`'s scene. That is a

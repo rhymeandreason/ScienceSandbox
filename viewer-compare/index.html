@@ -12,7 +12,8 @@
   it imports nothing from this repo and nothing here imports it — pick the
   folder up and it runs. .vercelignore withholds it and vercel.json redirects
   the route away, because it is a bench, not a lesson. See README.md beside
-  this file.
+  this file, and molstar-evaluation.md for the longer sit-down with the same two
+  libraries that ended the same way.
 
   ChemDoodle Web was the third pane and has been REMOVED. Two reasons, and the
   licence one alone was enough: it is GPLv3, so any page loading it inherits
@@ -52,7 +53,7 @@
      for this script as zero, so the download size in the pane header would have
      been a silent 0 B rather than a measurement. -->
 <script src="https://cdn.jsdelivr.net/npm/3dmol@2.5.5/build/3Dmol-min.js"></script>
-<!-- same version the molstar/ evaluation pinned, so the two agree -->
+<!-- same version molstar-evaluation.md pinned, so the two agree -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.css">
 <script src="https://cdn.jsdelivr.net/npm/molstar@5.11.0/build/viewer/molstar.js"></script>
 <style>
@@ -78,7 +79,7 @@
   /* 3Dmol needs an explicitly positioned host element */
   #viewer3dmol { position:absolute; inset:0; }
   /* Mol* ships a full plugin UI; this page wants only its viewport. Same
-     suppression the molstar/ evaluation uses — and the same caveat: these are
+     suppression molstar-evaluation.md records — and the same caveat: these are
      class names, so a version bump can rename them out from under us. */
   #viewermolstar { position:absolute; inset:0; }
   #viewermolstar .msp-viewport-controls { display:none !important; }

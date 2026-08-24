@@ -80,7 +80,13 @@ const KNOWN_ABSENT = {
   // hemoglobin-inhouse.html, the surviving control arm, now carries the one
   // call it used (orientPDB) inline. Asserted absent so the library does not
   // quietly reappear as a shared module with a single caller.
-  'molstar/protein-molstar.html': 'Mol* stage 5 — deleted, evaluation is over',
+  // demos/molstar/ is gone entirely now: its three pages and 3.8 MB of
+  // structures were deleted, and the README that held the measurements moved to
+  // viewer-compare/molstar-evaluation.md, beside the bench that asks the same
+  // question. hemoglobin-inhouse.html still discusses these pages in the past
+  // tense, which is why the names stay asserted here rather than being scrubbed.
+  'molstar/protein-molstar.html': 'Mol* stage 5 — deleted with the rest of molstar/',
+  'protein-molstar.html':         'same page, named without its folder',
   'pdb.js':              'deleted with protein-molstar.html; orient() ported into hemoglobin-inhouse.html',
   'tools/check-pdb.js':  'deleted with pdb.js — it had no other subject',
   'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',

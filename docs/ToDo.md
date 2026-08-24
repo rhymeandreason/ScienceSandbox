@@ -7,7 +7,7 @@ item leaves this file when it ships, or when a decision doc absorbs it.
 
 **Rendering decisions are reconciled.** We draw proteins ourselves — Three.js +
 `scene.js` + `folding/ribbon.js`; no third-party 3D viewer is used. Mol\* was
-evaluated and not adopted (`demos/molstar/README.md` holds the measurements);
+evaluated and not adopted (`viewer-compare/molstar-evaluation.md` holds the measurements);
 ChemDoodle was deleted for its GPLv3, along with the pages that loaded it, so no
 page here is GPL now. Both survive on the `chemdoodle-archive` branch.
 
