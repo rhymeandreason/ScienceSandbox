@@ -1730,6 +1730,39 @@ const gSpiky=r=>{ const t=H-r; return t>0 ? SPIKY*t*t : 0; };
    rather than a surface spanning the pore. The wall sweeps by TAIL_REACH end in
    the same place. Surface cohesion, and the bond count it is short of.
 
+   TWO SWEEPS, AND THE SURFACE IS WHY. The fill does not need them — the pore
+   holds 974 molecules at one sweep against 1022 at two, inside the noise, and
+   the angular floor is what fills it. What needs them is the SHAPE. Surface
+   height in 2 A columns across the pore, wall to wall, 2500 steps:
+
+     1 sweep   41.5 42.7 37.4 33.5 32.8 28.1 27.9 26.2 26.7 26.0 27.9 28.2
+               26.6 33.6 42.2 46.8 43.4
+     2 sweeps  43.7 44.1 45.4 43.9 43.5 39.9 40.1 38.3 37.8 35.8 36.6 38.5
+               40.5 41.3 39.4 40.3 35.0
+
+   One sweep is a flat pool at 26-28 with two arms up the walls to 42-47: a drop
+   of 20.8 A where a circular meniscus at the angle reported would be 10.6. That
+   is film, and it is the thing this page keeps growing. Two sweeps is a dish
+   about 8 A deep with no arms.
+
+   AND THE SETTLED PROFILE UNDERSTATES IT, which is the part that nearly got
+   this wrong. Those columns are at 2500 steps, where the body has caught most
+   of the way up to the arms. Mid-run, around step 1360 and fifteen seconds in,
+   which is when a student is actually watching:
+
+       1 sweep    climb at wall 44.2 A     front -1.2     angle 14 deg
+       2 sweeps   climb at wall  6.4 A     front 13.4     angle 63
+
+   Forty-four angstroms of water up the walls of a thirty-five angstrom pore,
+   with the body still at the bottom. The transient IS the lesson here and the
+   endpoint is not, so measure the shape while it is moving.
+
+   AND IT MEANS contactAngle() CANNOT BE TRUSTED WHERE THERE IS FILM. It fits
+   the surface slope near the wall, and at one sweep that slope IS the film arm,
+   so it reported 23-29 degrees — a good wetting angle for cellulose — off a
+   surface with no meniscus in it at all. Read the profile above, not the angle,
+   whenever the two disagree. The angle is honest only once the arms are gone.
+
    Turn it up when the liquid is being changed rather than watched: a stiffer
    constraint or a different kernel will need the sweeps back while it settles.
 
@@ -1740,7 +1773,7 @@ const gSpiky=r=>{ const t=H-r; return t>0 ? SPIKY*t*t : 0; };
    list, 0.8 A cost 4.82 with 34.6, 1.6 A cost 5.68 with 46.3, 2.4 A cost 6.85
    with 53.7. The one-pass bin build this already does is the right structure
    for a liquid this mobile. */
-let SOLVER_ITERS=1;
+let SOLVER_ITERS=2;
 /* How much of each sweep's correction is applied — a NUMERICAL setting, not a
    physical one, and that is why it may be pushed. Under-relaxing does not make
    the liquid different; it makes the solver arrive at the same answer more

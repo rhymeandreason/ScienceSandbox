@@ -109,7 +109,14 @@ function tension(){
   return { base, front, sag, coupled: sag < 0.2*Math.max(0.5, front-base), bands };
 }
 
-/* How much of the column is film with no body between the walls. This is the
+/* THIS ONLY CATCHES FILM THAT RUNS ABOVE THE BODY, which is the narrow case.
+   Film climbing the walls ALONGSIDE a body that is present reads as zero here
+   and is plainly visible on screen — measured, a run scoring 4 A by this metric
+   had a flat pool with two 20 A arms up the walls. Take the surface profile
+   when the question is the shape; this number only says whether anything has
+   run clear off the top of the liquid.
+
+   How much of the column is film with no body between the walls. This is the
    runaway film as a length rather than as a picture: at the default wall field
    it runs 20 A above the last water that spans the pore. */
 function filmOnly(){
@@ -134,10 +141,39 @@ function filmOnly(){
    per cent and the wall top FELL. So `live` and `wallTop` are reported beside
    it: whenever the shape is also in play, the count is the fill and the front
    is not. */
+/* THE SURFACE, WALL TO WALL, in 2 A columns. The one measure of the meniscus
+   that is not a proxy: filmOnly misses film beside a body, and contactAngle()
+   fits the slope near the wall, which IS the film arm when there is one. A
+   meniscus is a smooth curve, a film is a flat pool with steep arms, and the
+   profile tells them apart where neither number does. */
+function profile(){
+  const a=GAP/2/A-1.4, out=[];
+  for(let x=-a; x<a-1e-9; x+=2){
+    const ys=[];
+    for(let i=0;i<nW;i++){ if(GONE[i]||SPENT[i]) continue;
+      const px=PX[3*i]/A; if(px<x||px>=x+2) continue; ys.push(PX[3*i+1]/A); }
+    if(ys.length<3){ out.push(null); continue; }
+    ys.sort((p,q)=>q-p);
+    const n=Math.max(1,Math.round(ys.length*0.1));
+    out.push(+(ys.slice(0,n).reduce((p,q)=>p+q,0)/n).toFixed(1));
+  }
+  return out;
+}
+/* What a circular meniscus meeting the wall at this angle WOULD drop, so the
+   measured climb has something to be wrong against. Half-width times
+   (1 - sin theta) / cos theta. */
+function meniscusDepth(deg){
+  if(deg==null) return null;
+  const t=deg*Math.PI/180, a=GAP/2/A-1.4;
+  return +(a*(1-Math.sin(t))/Math.cos(t)).toFixed(1);
+}
+
 function snapshot(){
   const mid=topAt(0), wall=topAt(16), s=structure(), t=tension();
+  const ang=contactAngle();
   return { front:mid, wallTop:wall, climb:(wall==null||mid==null)?null:wall-mid,
-           angle:contactAngle(), filmOnly:filmOnly(),
+           profile:profile(), meniscusDepth:meniscusDepth(ang),
+           angle:ang, filmOnly:filmOnly(),
            lamBase:t.base, lamFront:t.front, sag:t.sag, coupled:t.coupled,
            nearest:s.nearest, coord:s.coord, bonds:s.bonds, live:s.live };
 }
@@ -230,6 +266,6 @@ async function sweep(label, values, apply, o){
   return table;
 }
 
-return { run, sweep, once, snapshot, structure, tension, filmOnly,
+return { run, sweep, once, snapshot, structure, tension, filmOnly, profile, meniscusDepth,
          FILM_A, WETTED_CLIMB_A };
 })();
