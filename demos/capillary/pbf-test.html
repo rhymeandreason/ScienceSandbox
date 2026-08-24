@@ -1411,6 +1411,27 @@ function _tumble(w){
  *  water enters from below, so the column keeps its length and the water inside
  *  it travels up.
  */
+/* MEASURED, AND THERE IS A RATE THE PORE CANNOT EXCEED. Adhesion 0.036, the
+   supply on:
+
+     3/s   the loop closes. Parked molecules fall 66 -> 43 -> 5 as the base
+           draws them back, 225 go through, and the column keeps its body and
+           goes on filling. Water is leaving the top and entering the bottom
+           and the middle is travelling: that is transpiration.
+     8/s   the pore drains. Live water 421 -> 331 -> 295 -> 236 over 5600
+           steps while the parked pile grows to 162 and the meniscus flattens
+           from 15 A of climb to 6.
+
+   The difference is not bookkeeping, which is the point of removing the
+   teleport: the base draws only when the base is under tension, so the flux is
+   limited by how fast a deficit at the surface can propagate down the column.
+   Ask for more than that and the column loses water it cannot replace, which is
+   what a plant calls cavitation and why a leaf cannot transpire without limit.
+
+   Whether the number here is the plant's number is a separate question — the
+   flux is set for watchability, as the note below says — but the CEILING is a
+   result rather than a setting, and it was not reachable in a build where a
+   molecule leaving the top put one back at the bottom by definition. */
 /* It leaves FAST. Every molecule in flight is one the column has lost, so a
    slow escape is a standing deficit: at 0.1 A a frame the vapour held a sixth
    of the liquid at once, the column shrank, and the water went DOWN while
@@ -1435,10 +1456,21 @@ function evaporate(){
     if(!w.gone && w.p.y>escapeTop){ w.gone=true; w.v.set(0,0,0); }
     if(!w.gone) continue;
     w.p.y+=ESCAPE_V; place(w);
-    if(w.p.y>escapeTop){               // out of the frame; the root sends another
-      w.gone=false;
-      w.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR+0.4*A, (Math.random()-0.5)*DEPTH);
-      w.v.set(0,0.01*A,0); place(w);
+    if(w.p.y>escapeTop && !w.spent){
+      /* OUT OF THE FRAME, AND NOT PUT BACK. The force build teleported it
+         straight to the base — water leaves the leaf, water enters from the
+         root, and the bookkeeping balanced. But that makes the two ends
+         connection a rule rather than a consequence: the column was refilled
+         because a molecule had left, not because anything pulled.
+
+         Here it is parked instead, and the base fills only when the base is
+         under tension. Evaporation removes, the surface goes short, the solver
+         propagates that down the column, and the reservoir draws — which is
+         transpiration as a chain rather than as two matched counters. The
+         parked ones are the pool injectOne() revives from, so nothing is
+         allocated per molecule and the count stays bounded. */
+      w.spent=true; w.v.set(0,0,0);
+      w.p.set(0, escapeTop+60*A, 0); place(w);       // out of the camera's way
     }
   }
   /* Rate is a real trade-off, not a free knob: evaporating flattens the
@@ -1577,7 +1609,10 @@ function supply(){
     if(!injectOne()) return;             // nowhere clear to put one
   }
 }
-// a spot in the band that nothing is sitting in
+/* A spot in the band that nothing is sitting in — and a molecule to put there,
+   taken from the ones evaporation has parked before any new one is made. That
+   ordering is what closes the loop: in steady flow every molecule arriving at
+   the base is one that left the top, and the count stops climbing. */
 function injectOne(){
   for(let tries=0;tries<8;tries++){
     const p=new THREE.Vector3(
@@ -1587,7 +1622,13 @@ function injectOne(){
     let clear=true;
     for(const w of waters){ if(w.gone) continue;
       if(w.p.distanceToSquared(p)<(OO_MIN*0.95)**2){ clear=false; break; } }
-    if(clear){ place(makeWater(p)); return true; }
+    if(!clear) continue;
+    const spent=waters.find(w=>w.spent);
+    if(spent){ spent.spent=false; spent.gone=false; spent.vap=0;
+               spent.p.copy(p); spent.v.set(0,0,0); place(spent); return true; }
+    if(waters.length>=N_MAX) return false;
+    place(makeWater(p));
+    return true;
   }
   return false;
 }
@@ -1629,11 +1670,11 @@ function tickFps(){
 function report(){
   readout.innerHTML =
     `pore  <b>${(GAP/A/10).toFixed(1)} nm</b>  =  <b>${Math.round(GAP/A/WATER_DIA)}</b> molecules across\n`
-  + `water <b>${waters.length}</b> of ${N_MAX}   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>\n`
+  + `water <b>${waters.filter(w=>!w.spent).length}</b> of ${N_MAX}   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>\n`
   /* Throughput, not level. In steady flow the column keeps its height while
      every molecule in it travels, so the level says nothing and the count of
      molecules that have gone through says everything. */
-  + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight\n`
+  + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone&&!w.spent).length}</b> in flight\n`
   /* The step count, because every measurement quoted about this page is "after
      N steps" and there is otherwise no way to tell where a run has got to. */
   + `step  <b>${stepNo}</b>   <b>${fps.toFixed(0)}</b> fps`;
@@ -1899,7 +1940,7 @@ new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
 
 
 document.getElementById('reset').onclick=()=>{
-  seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
+  seed(); waters.forEach(w=>{ w.gone=false; w.spent=false; }); waters.forEach(place);
   evapCount=0; condensed=0; RHO_0=0; RHO_BAND=0; stepNo=0; angHist.length=0; };
 
 /* =============================================================
