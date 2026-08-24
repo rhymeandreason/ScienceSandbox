@@ -27,9 +27,10 @@
 #     check-molecules.js re-derives and fails on when stale, and neither lives
 #     anywhere the patterns above would catch. A commit that only edits prose,
 #     an .html page, or fx.js cannot make a claim check-molecules.js audits.
-#   · does not run check-pages.js unless the commit touches a *.html page or a
+#   · does not run check-pages.js unless the commit touches a *.html page, a
 #     file that supplies the registry it reads (lib/molecules.js, lib/skel.js, a
-#     lib/mol-*.js domain file, lib/lib-node.js). A prose-only or scene.js commit
+#     lib/mol-*.js domain file, lib/lib-node.js), or the pair its third audit
+#     reads: the root index.html and vercel.json. A prose-only or scene.js commit
 #     cannot change which molecule a page loads or names.
 #   · does not check staged content in isolation. It runs against the working
 #     tree, so a partially-staged commit is checked as what is on disk, not as
@@ -40,11 +41,14 @@
 # =====================================================================
 set -e
 
-# Only care about commits that touch the molecule sandbox, or the tutor. api/ is
-# in here because it is the ONE checked thing outside demos/: the ask endpoint
-# lives at the repo root so Vercel will serve it, and a gate that only looked at
-# demos/ skipped the whole tutor without saying so.
-if git diff --cached --name-only | grep -qE '^(demos/|api/)'; then
+# Only care about commits that touch the molecule sandbox, the tutor, or the
+# front door. api/ is in here because the ask endpoint lives at the repo root so
+# Vercel will serve it, and a gate that only looked at demos/ skipped the whole
+# tutor without saying so. index.html and vercel.json are here for the same
+# reason one level out: the front page and the route table that resolves its
+# links are both outside demos/, and a commit touching only those two would exit
+# here and never reach the check-pages gate below.
+if git diff --cached --name-only | grep -qE '^(demos/|api/|index\.html$|vercel\.json$)'; then
   :
 else
   exit 0
@@ -68,12 +72,17 @@ else
   echo "pre-commit: skipping check-molecules.js — no spec file staged"
 fi
 
-if git diff --cached --name-only | grep -qE '^demos/(.*\.html|lib/(molecules|skel|mol-[^/]+|lib-node)\.js)$'; then
+# The root index.html and vercel.json are in the gate because audit 3 reads them:
+# the front page's links are short URLs, which vercel.json routes rather than the
+# filesystem, so renaming a rewrite can strip a lesson off the front page without
+# touching anything under demos/.
+if git diff --cached --name-only | grep -qE '^(demos/(.*\.html|lib/(molecules|skel|mol-[^/]+|lib-node)\.js)|index\.html|vercel\.json)$'; then
   if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
     tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
     echo ""
     echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load,"
-    echo "  or a proton hop leaves its source atom on the molecule."
+    echo "  a proton hop leaves its source atom on the molecule, or the root index"
+    echo "  links a URL that vercel.json no longer routes."
     exit 1
   fi
   rm -f /tmp/cp.$$

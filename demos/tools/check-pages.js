@@ -6,6 +6,7 @@
  *
  *    1. does each page load the molecules it actually uses?
  *    2. does every proton hop REMOVE THE ATOM IT MOVES?
+ *    3. does every link on the ROOT index resolve to something served?
  *
  *  This guards the failure mode that docs/molecule-pipeline.md item 3
  *  introduced. Before the split every page loaded every spec, so a page could
@@ -27,6 +28,14 @@
  *  not just MOLECULES.water. Over-reporting costs a page one extra file;
  *  under-reporting ships a broken lesson. If that ever gets annoying, make the
  *  scan narrower, not the failure quieter.
+ *
+ *  Audit 3 reaches OUTSIDE demos/, which nothing else here does. The root
+ *  index.html is the front door and the only page a student is handed, yet it
+ *  is the one page no checker walked: it links the short URLs, which are a
+ *  vercel.json routing fact rather than a file on disk, so "does this href
+ *  exist" needs the route table to answer. Renaming a rewrite and leaving the
+ *  link behind takes the two flagship lessons off the front page and shows up
+ *  nowhere until a student clicks.
  *
  *  It cannot check layout, framing or anything visual — TESTING.md covers why
  *  that stays a human job.
@@ -228,7 +237,43 @@ for (const page of HOP_SOURCES) {
 }
 if (!fails) console.log(`  ok    ${hops} proton hop(s), every one removes its source`);
 
+/* ---- 3. the root index's links ------------------------------------------
+ * A root-relative href resolves one of two ways: a rewrite in vercel.json, or a
+ * file on disk. Both are checked here, against the same table the dev server
+ * reads, so a link cannot pass this and 404 in production. */
+console.log('');
+console.log('== 3. every link on the root index resolves');
+const REPO = path.join(ROOT, '..');
+{
+  let routes = null;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'vercel.json'), 'utf8'));
+    routes = new Set((cfg.rewrites || []).map(r => r.source));
+    // A redirect is a served URL too: /builder is retired but still answers.
+    for (const r of cfg.redirects || []) if (!/[(*?[\\]/.test(r.source)) routes.add(r.source);
+  } catch (e) {
+    fail(`vercel.json would not parse, so no link on the index can be checked: ${e.message}`);
+  }
+
+  const index = path.join(REPO, 'index.html');
+  if (routes && !fs.existsSync(index)) {
+    fail('there is no index.html at the repo root — the site has no front door');
+  } else if (routes) {
+    const src = fs.readFileSync(index, 'utf8');
+    const links = [...new Set([...src.matchAll(/href="(\/[^"#]*)"/g)].map(m => m[1]))];
+    for (const href of links) {
+      const clean = href.split('?')[0];
+      if (routes.has(clean)) continue;
+      if (fs.existsSync(path.join(REPO, clean === '/' ? 'index.html' : clean))) continue;
+      fail(`index.html links ${href}, which is neither a vercel.json route nor a `
+        + `file on disk. Renaming a rewrite means renaming the link with it.`);
+    }
+    if (!fails) console.log(`  ok    ${links.length} root-relative link(s), every one served`);
+  }
+}
+
 console.log('');
 if (fails) { console.log(`FAIL: ${fails} page claim(s) no longer true`); process.exit(1); }
 console.log('PASS: every page loads every molecule it names, '
-  + 'and every proton hop removes its source');
+  + 'every proton hop removes its source, '
+  + 'and every link on the root index is served');
