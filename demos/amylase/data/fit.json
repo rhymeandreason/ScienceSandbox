@@ -1,0 +1,140 @@
+{
+  "control": {
+    "severe": 0,
+    "close": 9,
+    "min": 2.56,
+    "depth": 0,
+    "worst": "TRP59 O",
+    "atoms": 65,
+    "cuts": {
+      "severe": 2.2,
+      "close": 3
+    }
+  },
+  "chains": {
+    "maltose": {
+      "label": "starch    α-1,4",
+      "rmsd": 1.164,
+      "start": 1,
+      "dir": 1,
+      "window": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "perTurn": 6.26,
+      "rise": 1.43,
+      "site": {
+        "severe": 1,
+        "close": 9,
+        "min": 2.08,
+        "depth": 0.12,
+        "worst": "HIS305 ND1",
+        "atoms": 44,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      },
+      "flank": {
+        "severe": 5,
+        "close": 8,
+        "min": 0.89,
+        "depth": 3.57,
+        "worst": "TYR151 CD1",
+        "atoms": 23,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      },
+      "tail": {
+        "severe": 31,
+        "close": 45,
+        "min": 0.56,
+        "depth": 19.93,
+        "worst": "ASP356 CB",
+        "atoms": 89,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      },
+      "all": {
+        "severe": 32,
+        "close": 54,
+        "min": 0.56,
+        "depth": 20.05,
+        "worst": "ASP356 CB",
+        "atoms": 133,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      }
+    },
+    "cellobiose": {
+      "label": "cellulose β-1,4",
+      "rmsd": 0.803,
+      "start": 1,
+      "dir": 1,
+      "window": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "perTurn": 2,
+      "rise": 5.32,
+      "site": {
+        "severe": 13,
+        "close": 22,
+        "min": 0.79,
+        "depth": 8.49,
+        "worst": "ILE235 CB",
+        "atoms": 44,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      },
+      "flank": {
+        "severe": 14,
+        "close": 20,
+        "min": 0.69,
+        "depth": 11.94,
+        "worst": "ILE235 CA",
+        "atoms": 23,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      },
+      "tail": {
+        "severe": 15,
+        "close": 28,
+        "min": 0.69,
+        "depth": 12.04,
+        "worst": "ILE235 CA",
+        "atoms": 89,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      },
+      "all": {
+        "severe": 28,
+        "close": 50,
+        "min": 0.69,
+        "depth": 20.53,
+        "worst": "ILE235 CA",
+        "atoms": 133,
+        "cuts": {
+          "severe": 2.2,
+          "close": 3
+        }
+      }
+    }
+  }
+}

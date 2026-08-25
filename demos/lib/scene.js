@@ -89,6 +89,38 @@
     return m;
   }
 
+  /* ---- the structure style: half-coloured bonds, thicker sticks ---------
+   * `bond` above is the LESSON style: one neutral covalent colour, thin, with
+   * the spheres carrying the element. This is the other one, the convention
+   * every published structure figure uses (PyMOL calls it half_bond_colors)
+   * — one stick per bond, split at its midpoint, each half in its own atom's
+   * colour. It reads better on a molecule drawn from DEPOSITED coordinates,
+   * where there is no spec, no `optH` and often no hydrogens at all, so the
+   * bond is doing more of the work of saying what the atoms are.
+   *
+   * Which style a page uses is a page decision and both are correct. Do not
+   * mix them inside one molecule.
+   *
+   * STICK_RATIO is a RATIO and not a width, because these two styles are
+   * drawn at two scales — a lesson works in MolLib's SCALE space and a
+   * structure page in ångströms (Modules.md: display radii are
+   * PALETTE.radii / SCALE, computed in the page). A stored width would be
+   * right in one and wrong by 1.9x in the other. Multiply it by whatever
+   * carbon's ball radius is in the space you are drawing in.
+   *
+   * The number itself: 0.38 against the lesson bond's 0.165 of a carbon.
+   * A half-coloured stick has to be wide enough for two colours to be legible
+   * along it, and at the lesson width the seam is the whole stick. */
+  const STICK_RATIO = 0.38;
+  function bondSplit(a, b, colorA, colorB, rad){
+    const g=new THREE.Group();
+    g.userData.role='covalent';
+    const mid=a.clone().add(b).multiplyScalar(.5);
+    g.add(bond(a, mid, colorA, rad));
+    g.add(bond(mid, b, colorB, rad));
+    return g;
+  }
+
   // Clean molecule builder from a molecules.js spec. Tracks per-atom AND per-bond
   // meshes (each bond stamped with its atom `pair`) so a reaction can pull specific
   // atoms/bonds out later — e.g. the leaving –OH/–H of a peptide condensation.
@@ -492,6 +524,7 @@
   }
 
   global.Stage={ create, setToon, atomMat, bondMat, glowMat, atom, bond,
+    bondSplit, STICK_RATIO,
     buildMolecule, removeAtoms, setOptionalH, placeBond, measure, frame, centerOf,
     Rsphere, get toon(){return toon;} };
 })(this);

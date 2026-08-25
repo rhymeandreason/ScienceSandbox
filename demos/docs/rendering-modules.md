@@ -1,3 +1,5 @@
+<!-- KIND: recipe + reference — load when drawing a PROTEIN from deposited coordinates: which of tube / ribbon / surface a page wants, what each one costs, and the settled verdict on outside viewers. Not needed for a lesson that only draws molecules from specs. -->
+
 # Rendering modules
 
 **`hemoglobin/tube.js` — `TubeLib`**

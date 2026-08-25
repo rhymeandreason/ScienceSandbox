@@ -135,11 +135,26 @@ open trough over ~20 Å. That is what α-1,4 gives and β-1,4 does not:
   crystalline sheet before an enzyme ever meets it: the substrate an amylase
   would have to accept is not a free chain at all.
 
-**Not yet measured, and it should be before the page asserts it.** Nobody in
-this repo has put the built cellulose ribbon against the 1OSE trough. The
-honest build is to try the fit and report what happens, which turns "one bond
-flipped, one enzyme works" from a told fact into a shown one. That is the
-whole reason the sugar chains got built with real torsions rather than drawn.
+**Measured now, on `amylase/amylase-test.html`.** Both chains are placed by
+superposing their own three glycosidic oxygens onto acarbose's, which is the
+only input — the pose is deposited rather than searched, and neither chain is
+fitted to the protein. Acarbose scored in its own crystal pose is the control
+row, so the numbers have a scale. Over the four residues the trough holds:
+
+| | severe overlaps | contacts under 3 Å | closest approach |
+| --- | --- | --- | --- |
+| acarbose, as deposited | 0 | 9 | 2.56 Å |
+| starch, α-1,4 | 1 | 9 | 2.08 Å |
+| cellulose, β-1,4 | 13 | 22 | 0.79 Å |
+
+Two heavy-atom centres 0.79 Å apart are the same atom twice. So the ribbon
+does not sit in the trough at all, and "one bond flipped, one enzyme works"
+is now a shown fact — which is the whole reason the sugar chains got built
+with real torsions rather than drawn. Both chains and the protein are rigid
+in that measurement, so it says what these shapes do in this trough, not what
+a molecule can never do. `amylase/fit.js` is the arithmetic and
+`amylase/tools/check-fit.js` asserts it offline against the code the page
+draws with.
 
 Costs: `1OSE` and a render path, which the paragraph above says amylase
 avoids. That was true when the alternative was lysozyme and nothing here drew
