@@ -194,6 +194,30 @@ else
   echo "pre-commit: skipping check-pump.js — nothing under demos/membrane/ staged"
 fi
 
+# demos/water/ gates itself. check-water.js audits thermo(), which is the
+# temperature continuum and deliberately holds no THREE — so the numbers
+# water-lab.html PRINTS ("freezes -13C, boils 104C") are computed against a
+# checker rather than eyeballed on screen. The colligative shift is the one
+# claim on that step a student cannot verify by looking: the ice looks like ice
+# either way, and only the printed freezing point says the salt did anything.
+#
+# The rest of watersim.js is NOT covered — it reaches for THREE and runs a
+# molecular-dynamics loop with no fixed point to assert. water/water-test.html
+# is where those invariants (<=4 H-bonds per molecule, no merged oxygens) are
+# checked, live and every frame, because their failure mode is a transient.
+if git diff --cached --name-only | grep -qE '^demos/water/.*$'; then
+  if ! node tools/check-water.js > /tmp/cwt.$$ 2>&1; then
+    tail -25 /tmp/cwt.$$; rm -f /tmp/cwt.$$
+    echo ""
+    echo "pre-commit FAILED: check-water.js — water changed phase somewhere it should not."
+    echo "  Every assertion there is a number the solvent step renders as text."
+    exit 1
+  fi
+  rm -f /tmp/cwt.$$
+else
+  echo "pre-commit: skipping check-water.js — nothing under demos/water/ staged"
+fi
+
 # demos/diffusion/ gates itself, and palette.js is in the pattern from the other
 # direction: radiusOf() sizes a molecule from PALETTE.radii, so retuning those
 # for a 3D page — their actual job, with no idea this module exists — moves

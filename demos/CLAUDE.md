@@ -20,7 +20,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
 | Adding or changing a shared module | `Modules.md` |
 | A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
-| A solvation page | `WaterSim.md` |
+| A solvation page | `WaterSim.md`, then `Modules.md`'s `water/` note — `water/watersim.js` is the liquid itself |
 | The AI tutor, or `api/` | `docs/ai-tutor.md` — design, and the local setup the pages do not need |
 | Deciding what to build next | the two roadmaps. This is the only task they serve |
 

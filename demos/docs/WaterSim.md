@@ -6,6 +6,15 @@ Applies to the solvation apps (`water-lab.html`, `molecule-lab.html`) and to
 `capillary/`, whose benches are water at real scale against a real surface and
 are held to §§3-4 the same way.
 
+**`water/watersim.js` is where §§1-2 actually live.** The H-bond matcher, the
+ice Iₕ lattice, the hydration shells and the temperature continuum are one
+module, and a solvation page gets them by loading it rather than by
+re-implementing this document. `Modules.md` has the API. Two of the rules below
+are machine-checked: the phase-change points by `tools/check-water.js`, offline
+and on every commit under `water/`; the per-frame invariants by
+`water/water-test.html`, which prints them live because they fail as transients
+a screenshot misses.
+
 ## 1. Hydrogen bonds
 
 - An H-bond is **intermolecular**: a **δ+ H of one molecule** to a **δ− O lone
