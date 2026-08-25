@@ -230,7 +230,8 @@
    * card can take its own `snapshot()` on the way out. Firing it after would
    * hand back a corpse, and the one thing a caller wants at that moment is the
    * picture — the reason a reader tolerates a card going quiet is that it does
-   * not go blank. */
+   * not go blank. It fires on EVERY way out — evicted, released, cleared —
+   * because the caller's handle is dead in all three and only this says so. */
 
   function pool(opts = {}) {
     const limit = opts.limit || 4;
@@ -272,8 +273,15 @@
         return true;
       },
 
+      // Fires onEvict too, like release: every path out of the pool has to tell
+      // the caller, or a card keeps a handle to a destroyed box and quietly
+      // stops responding to clicks — it calls start() on a corpse and never
+      // asks for a new one. Found exactly that way.
       clear() {
-        for (const box of live.values()) box.destroy();
+        for (const [key, box] of live) {
+          if (opts.onEvict) opts.onEvict(key, box);
+          box.destroy();
+        }
         live.clear();
       },
     };

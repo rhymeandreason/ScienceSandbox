@@ -241,7 +241,7 @@ Rules that follow:
 4. **Anything a lab manipulates needs an index map** (`pep`, `gly`) — reactions
    address atoms by position and a reindex silently breaks them.
 
-### 1.5 Bond-length scale families — a page may only show one
+### 1.5 Bond-length scale families — one family per SCENE
 
 Display radii in `PALETTE` are stylised and **large**, so no spec can use true
 ångströms: a bond must exceed the sum of its two atoms' radii or the spheres
@@ -255,7 +255,8 @@ spec satisfies it is the trap. Two families:
 | **B. derived** | everything in `mol-monomers.js`, `mol-pathways.js`, `mol-contrast.js`, `mol-compare.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
 
 Families line up with the domain files, so **a page's script tags show which
-families it mixes**. That's the only mechanical signal — nothing fails a build.
+families it has available**. That's the only mechanical signal — nothing fails a
+build. The tags are not the violation, though: see the rule below.
 
 Family B stores real ångströms: a spec declares `units:'angstrom'` and
 `register()` multiplies by `SCALE` once; `units:'scene'` means already-display
@@ -292,8 +293,36 @@ tuned parameter of a physics engine; a family-B water is a picture of a water
 molecule.** Different objects sharing a name. Nothing scale-free is duplicated —
 `nacl` and `kcl` carry no coordinates, only dissociation records.
 
-**The rule: one page, one family.** Only family B is comparable
-molecule-to-molecule, so only family B may make a size claim.
+**The rule: one scene, one family.** Not one page.
+
+A size difference is a claim only where a reader can *see* it as one — two
+molecules drawn in the same scene, under the same camera, where one is visibly
+bigger than the other. That is what mixing families falsifies, and it is a
+property of the SCENE rather than of the script tags. A page whose stages are
+separate — its own canvas, its own camera, nothing drawn against anything from
+the other stage — makes no comparison for a family to be wrong about.
+`tests/cards-cluster.html` is the case: an ångström phospholipid in a
+`kit/inset.js` card beside display-scale water in `water/watersim.js` cards, and
+no size on that page is ever read against a size from the other family.
+
+The page-wide phrasing was a proxy for the real rule, and a safe one while every
+page had one stage. It stops being safe now that `kit/card-stage.js` makes many
+stages cheap, because it forbids pages that are fine and would have pushed
+someone toward the worse fix: a second copy of a molecule at the other scale.
+
+Two things this does NOT relax:
+
+* **`mol-small.js` and `mol-solvation.js` still may not both load**, and
+  `register()` still throws. That is a different rule with a different reason —
+  they define the same KEYS, so the second one silently wins and every scene on
+  the page gets whichever loaded last. Scenes cannot be separate about that.
+* **Only family B may make a size claim**, in any scene, because only family B
+  is comparable molecule-to-molecule.
+
+And one obligation it adds: a page mixing families **says so where the tags
+are**, naming the scenes and why they never meet. Nothing offline can check
+this — the scene a spec is drawn into is a runtime fact — so the comment is the
+whole of the enforcement.
 
 **Known residual, measured:** `ringPyranose()` builds a *regular* hexagon, so a
 pyranose's ring C–O is as long as its ring C–C. Against the real PubChem

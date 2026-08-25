@@ -36,6 +36,14 @@
  *       converted": it is not expressible as any molecule × any single factor,
  *       which is exactly why item 7 could un-bake family B and not this.
  *
+ *    THE RULE IS ONE FAMILY PER SCENE, NOT PER PAGE. A size difference is a
+ *    claim only where two molecules are drawn under the same camera; a page
+ *    whose stages are separate makes no such claim and may load both, saying
+ *    so at its script tags. Nothing here can check it — which scene a spec is
+ *    drawn into is a runtime fact. MolecularGeometry.md §1.5. The mol-small /
+ *    mol-solvation throw below is a DIFFERENT rule and is unaffected: those two
+ *    define the same keys, so the loser is overwritten for every scene at once.
+ *
  *    B. DERIVED (the amino acids, palmitate, amp, and everything the Skel
  *       builder makes — glucose and the glycolysis intermediates).
  *       These specs STORE REAL ÅNGSTRÖMS (`units:'angstrom'`) and register()

@@ -22,7 +22,10 @@
  *  ("one glucose, not two"): these are not two copies of one thing. A family-A
  *  water is a tuned parameter of a physics engine — changing it re-tunes the
  *  engine. A family-B water is a picture of a water molecule. They answer
- *  different questions and only one of them can be right on any given page.
+ *  different questions, and for this PAIR only one can be right on a given page
+ *  — not because of the general family rule, which is per scene (see
+ *  MolecularGeometry.md §1.5), but because these two define the same KEYS, so
+ *  whichever loads last wins for every stage at once.
  *  Duplicating the SUBSTANCE is the cost; the alternative was every page that
  *  merely draws a water having to either re-tune solvation or show a molecule
  *  16% too small, which is what tests/aminoacid-lab.html did until this file existed.

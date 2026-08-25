@@ -12,8 +12,10 @@
 
   // FAMILY A. Every bond length here was chosen individually to clear its two
   // display radii, and water-lab/molecule-lab hard-code HL=1.55 and tune their
-  // whole solvation engine around it. A page may not mix these with family B —
-  // see the scale-families note in molecules.js. Needs no builder.
+  // whole solvation engine around it. These may not share a SCENE with family B
+  // — a page whose stages are separate may load both, and says so at its script
+  // tags. mol-small.js is the exception either way: same keys, never both.
+  // See the scale-families note in molecules.js. Needs no builder.
   register({
     water: {
       name:'Water', formula:'H₂O', class:'solvent',
