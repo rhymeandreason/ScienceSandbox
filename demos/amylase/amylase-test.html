@@ -136,6 +136,14 @@
 /* =====================================================================
  *  amylase-test.html
  *
+ *  ONE SCALE FAMILY: REAL ÅNGSTRÖMS (MolecularGeometry.md §1.5). The protein
+ *  and the ligand arrive in them; the built chain arrives in MolLib's display
+ *  space and is divided by SCALE on the way in, radii included, which is what
+ *  the folding pages do with deposited coordinates. Mixing the two would put
+ *  a 1.9x error between the chain and the trough it is being measured
+ *  against — big enough to change every number on the page, small enough to
+ *  look like styling.
+ *
  *  THREE THINGS IN ONE FRAME, and they come from three places on purpose:
  *
  *    · the RIBBON is parsed out of 1OSE.pdb in the browser, through
@@ -408,6 +416,28 @@ function buildChain(key) {
            chain: { residues, bridge: c.index('O1'), heavy } };
 }
 
+/* Secondary structure from 1OSE's OWN HELIX and SHEET records, not from
+   running DSSP over the coordinates. docs/rendering-modules.md is explicit
+   about the preference and the reason — what a solver detects is a claim
+   about the structure, and the depositors' is the one this file publishes.
+   They disagree on about a quarter of the residues here: DSSP finds 20
+   helices and 27 strands, the records state 17 and 36, and this is a
+   (β/α)₈ barrel whose strand count is the thing a reader would count.
+   dssp() stays as the fallback for a file that states nothing. */
+function secondary(pdb, bb) {
+  const H = [], E = [];
+  for (const line of pdb.split('\n')) {
+    if (line.startsWith('HELIX')) H.push([+line.slice(21,25), +line.slice(33,37)]);
+    if (line.startsWith('SHEET')) E.push([+line.slice(22,26), +line.slice(33,37)]);
+  }
+  if (!H.length && !E.length) return RibbonLib.dssp(bb);
+  const n = bb.nums.length, first = bb.nums[0];
+  const h = RibbonLib.assign(n, first, H, 'H'), e = RibbonLib.assign(n, first, E, 'E');
+  /* Helix wins a residue claimed by both — the records overlap at a couple
+     of boundaries, and a residue cannot be drawn as two things. */
+  return h.map((v, i) => v === 'H' ? 'H' : (e[i] === 'E' ? 'E' : 'C'));
+}
+
 /* The protein as points, for the clash test. Parsed from the same PDB the
    ribbon comes from, in the same frame, so a red atom is red because it is
    in the protein and not because two frames disagree. */
@@ -537,7 +567,7 @@ async function main() {
 
   /* --- ribbon, in the baker's frame --- */
   const bb = RibbonLib.parseBackbone(pdb);
-  const ss = RibbonLib.dssp(bb);
+  const ss = secondary(pdb, bb);
   const pts = bb.CA.map(p => new THREE.Vector3(
     p[0] - J.centre[0], p[1] - J.centre[1], p[2] - J.centre[2]));
   const geo = RibbonLib.build(THREE, pts, ss, {});
