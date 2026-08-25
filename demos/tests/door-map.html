@@ -558,8 +558,12 @@ function expand(n) {
   n.done = true;
 
   alpha = Math.max(alpha, 0.75);
-  follow = live.slice(mark);
-  followFrames = follow.length ? 200 : 0;
+  // The clicked card leads the shot; what it revealed only decides how far left
+  // of centre it sits. The hold runs long, because the relax keeps shoving the
+  // arrivals outward well after the camera has arrived — any pointer or wheel
+  // event drops it, so it never fights the reader.
+  follow = [n, ...live.slice(mark)];
+  followFrames = 900;
   for (const m of live) refreshMeta(m);
 }
 
@@ -664,13 +668,18 @@ let follow = null, followFrames = 0;
 
 function followStep() {
   if (!follow || followFrames-- <= 0) { follow = null; return; }
-  let cx = 0, cy = 0;
-  for (const n of follow) { cx += n.x; cy += n.y; }
-  cx /= follow.length; cy /= follow.length;
-  view.x += (innerWidth * 0.62 - cx * view.k - view.x) * 0.05;
-  view.y += (innerHeight / 2 - cy * view.k - view.y) * 0.05;
+  // Framed on the SUBJECT, not on the average of it and what it revealed: a fan
+  // of five questions 580px to its right drags an average right with it, which
+  // pushes the card into the left margin and leaves the right half empty. The
+  // clicked card sits in the middle; its fan runs off to the right, which is
+  // where the reader is going next anyway.
+  const subject = follow[0];
+  const place = 0.5;
+  view.x += (innerWidth * place - subject.x * view.k - view.x) * 0.05;
+  view.y += (innerHeight / 2 - subject.y * view.k - view.y) * 0.05;
   applyView();
 }
+
 
 function frame() { step(); followStep(); draw(); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
@@ -752,6 +761,10 @@ function measure() {
 
 function focus(n) {
   focused = n;
+  // Every click frames what was clicked, including a card with nothing left to
+  // reveal. Adopting only when `follow` is empty left the camera on the PREVIOUS
+  // subject, since a shot from the click before is usually still running.
+  if (!follow || follow[0] !== n) { follow = [n]; followFrames = 900; }
   document.body.classList.add('focusing');
   for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
 
