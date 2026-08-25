@@ -184,7 +184,17 @@ const CHAINS = [
   { key: 'maltose',    label: 'starch',    tag: 'α-1,4' },
   { key: 'cellobiose', label: 'cellulose', tag: 'β-1,4' },
 ];
-const CLASHCOL = 0xc0392b;      // an atom inside the protein
+/* Magenta, and NOT red: these specs are half oxygen and oxygen is red, so a
+   red clash marker is invisible on the atoms most likely to be clashing. */
+const CLASHCOL = 0xd4148c;
+
+/* MolLib's radii and stick widths live in SCALE space, because spec
+   coordinates are multiplied by SCALE on the way in. This page works in
+   ångströms, so both come back out of it. Skipping this draws every sphere
+   1.9x too big: the atoms merge, the sticks disappear inside them, and a
+   ball-and-stick chain reads as a string of blobs — the same failure
+   check-molecules.js fails a spec for. */
+const A = 1 / MolLib.SCALE;
 
 const canvas = document.getElementById('cv');
 const { scene, camera, renderer, root, cam, applyCam, resize } =
@@ -399,15 +409,15 @@ function drawChain(key) {
       if (gone.has(i)) return;
       /* Residues outside the four the trough holds are drawn thinner, so
          the eye can tell the part being scored from its continuation. */
-      const r = (P.radii[c.el[i]] || 0.7) * (win.has(n) ? 1 : 0.75);
+      const r = (P.radii[c.el[i]] || 0.7) * A * (win.has(n) ? 1 : 0.75);
       g.add(Stage.atom(colour(i), r, V(p), c.el[i]));
     });
     c.bonds.forEach(([a, b, order]) => {
       if (gone.has(a) || gone.has(b)) return;
-      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14, order));
+      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14 * A, order));
     });
     const nx = best.moved[n + 1];
-    if (nx) g.add(Stage.bond(V(res[iO1]), V(nx[iC4]), P.bonds.covalent, 0.14, 1));
+    if (nx) g.add(Stage.bond(V(res[iO1]), V(nx[iC4]), P.bonds.covalent, 0.14 * A, 1));
   });
   root.add(g);
   chainGroup = g;
@@ -429,10 +439,11 @@ function fitReadout(key) {
     note.innerHTML =
       `Placed by its own glycosidic oxygens onto acarbose's ` +
       `(<b>${b.rmsd.toFixed(2)} Å</b> rmsd over three atoms), which is the only ` +
-      `input — nothing is fitted to the protein. Red atoms are closer than ` +
+      `input — nothing is fitted to the protein. Magenta atoms sit closer than ` +
       `${AmylaseFit.SEVERE} Å to a protein heavy atom, an overlap no side chain ` +
-      `explains away. Both chains and the protein are rigid here, so this says ` +
-      `what these shapes do in this trough, not what a molecule can never do.`;
+      `explains away; magenta rather than red because half of these atoms are ` +
+      `oxygen and red already. Both chains and the protein are rigid here, so this ` +
+      `says what these shapes do in this trough, not what a molecule can never do.`;
   } else {
     note.textContent = '';
   }
