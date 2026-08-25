@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>amylase — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson.
+
+     THE QUESTION. chain/glucose-chains-test.html shows that α-1,4 coils
+     and β-1,4 runs flat, from solved torsions rather than drawing. That
+     says the two substrates differ. It does not say why the ENZYME can
+     take one and refuse the other, and that gap is where a student lands
+     on "the enzyme just knows".
+
+     So: put the enzyme on screen and look at the site. 1OSE is porcine
+     pancreatic α-amylase with acarbose — a pseudo-tetrasaccharide lying
+     in the site, which is a picture of where a starch chain goes.
+
+     WHAT TO CHECK HERE: whether the site reads as a TROUGH rather than a
+     pocket, and which render says so. That is what the ribbon/surface
+     toggle is for, and the two answer differently: a cartoon shows the
+     (β/α)₈ barrel and hides the groove, a surface shows the groove and
+     hides the fold. The numbers in the panel are measured off the
+     structure by amylase/tools/bake-amylase.js — nothing here is typed.
+
+     NOT YET HERE: the built starch helix and cellulose ribbon dropped
+     into this trough. That is the measurement the specificity claim
+     actually needs, and this page is the place it will happen.
+
+     Species caveat: porcine pancreatic, not human salivary.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+
+<style>
+  #app{grid-template-columns:1fr 320px}
+  #stage{position:relative}
+  canvas{width:100%;height:100%;display:block}
+  /* sandbox.css's .panel expects a lesson's chrome; scratch pages state
+     their own, as folding/ribbon-test.html does. */
+  .panel{padding:14px 16px;overflow-y:auto;font-family:var(--font-sans);font-size:13px;
+    background:var(--paper,#f4ede2);color:#2c2a26;border-left:1.5px solid var(--hair,#d9d0c2)}
+  .panel h2{font-family:var(--font-hand);font-size:17px;margin:0 0 4px}
+  .panel h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a8175;
+    margin:16px 0 6px;font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .row label{flex:1;color:#4a453d}
+  .row input[type=range]{width:120px}
+  .val{font-variant-numeric:tabular-nums;color:#0042aa;min-width:38px;text-align:right;font-weight:600}
+  #seg{display:flex;gap:6px;margin:6px 0 2px}
+  #seg button{flex:1;padding:7px 4px;border:1.5px solid var(--hair);border-radius:7px;
+    background:#fff;cursor:pointer;font-family:var(--font-sans);font-size:12.5px}
+  #seg button[aria-pressed=true]{border-color:#0042aa;box-shadow:0 0 0 2px rgba(0,66,170,.15);font-weight:600}
+  .stat{display:flex;justify-content:space-between;padding:2px 0;color:#4a453d}
+  .stat b{font-variant-numeric:tabular-nums}
+  .out{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;line-height:1.55;
+    white-space:pre-wrap;background:#fff;border:1px solid var(--hair);border-radius:6px;padding:8px}
+  .note{color:#8a8175;font-size:11.5px;line-height:1.45;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div class="panel">
+    <h2>α-amylase — the site</h2>
+    <div class="note">1OSE, porcine pancreatic, 2.3 Å. Acarbose lies in the trough where a
+      starch chain would: four subsites, six rings, and a nitrogen where one glycosidic
+      oxygen belongs, which is why the enzyme cannot cut it and it stays put to be
+      crystallised. Drag to orbit, wheel to zoom.</div>
+
+    <h3>render</h3>
+    <div id="seg"></div>
+    <div class="row"><label>skin opacity</label><input type="range" id="op" min="0" max="100" value="80"><span class="val" id="opv">0.80</span></div>
+    <div class="row"><label><input type="checkbox" id="paint" checked> paint the contact residues</label></div>
+    <div class="row"><label><input type="checkbox" id="lig" checked> acarbose</label></div>
+    <div class="row"><label><input type="checkbox" id="ions" checked> Ca²⁺ and Cl⁻</label></div>
+    <div class="row"><label><input type="checkbox" id="spin"> spin</label></div>
+
+    <h3>measured, not typed</h3>
+    <div class="out" id="nums">loading…</div>
+
+    <h3>the contact residues</h3>
+    <div class="out" id="contacts">–</div>
+    <div class="note" id="verdict"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="../hemoglobin/surface.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  amylase-test.html
+ *
+ *  THREE THINGS IN ONE FRAME, and they come from three places on purpose:
+ *
+ *    · the RIBBON is parsed out of 1OSE.pdb in the browser, through
+ *      RibbonLib.parseBackbone + dssp — the same path folding-lab uses.
+ *      A cartoon is cheap to derive and baking one would be a second
+ *      copy of the fold to keep in register.
+ *    · the SURFACE is baked (SES is not a per-load computation) and
+ *      decoded by SurfLib.
+ *    · the LIGAND, the ions and every number in the panel come out of
+ *      amylase.json, written by the same baker.
+ *
+ *  They share a frame because the baker centred all of it on the same CA
+ *  centroid and wrote that centroid down; the ribbon subtracts it here.
+ *  A ribbon half an angstrom out of register with its own skin reads as a
+ *  bug in the renderer, which is a day lost to the wrong file.
+ *
+ *  THE SKIN DRAWS depthWrite OFF, renderOrder 1, FrontSide — the reasons
+ *  are worked out in hemoglobin/surface-test.html's header and are the
+ *  same here: with depthWrite on, the near wall culls the ribbon behind
+ *  it and the molecule reads as an empty shell.
+ * ===================================================================== */
+
+const SUB = { p: 'protein', c: 'contact', l: 'ligand' };
+const COL = {
+  skin:    0xd9d2c4,
+  contact: 0x0042aa,      // the 25 residues that touch the sugar
+  helix:   0xc2571b, strand: 0x0042aa, coil: 0xb8b0a4,
+  ca:      0x2e8b57, cl:    0x7a45c4,
+};
+const LIGCOL = { C: 0x3a3a3a, O: 0xd6362e, N: 0x3f6ae0 };
+const LIG_R = 0.42, LIG_STICK = 0.16;
+
+const canvas = document.getElementById('cv');
+const { scene, camera, renderer, root, cam, applyCam, resize } =
+  Stage.create(canvas, { cam: { theta: 0.6, phi: 1.15, r: 130 }, rMin: 30, rMax: 320 });
+
+/* Ribbon and skin are both built once and toggled by `visible`. Rebuilding
+   on each press would put a wait between two pictures the eye is meant to
+   compare, and the comparison IS the page's question. */
+const MODES = [
+  { key: 'skin',  label: 'surface', ribbon: false, surf: true  },
+  { key: 'both',  label: 'both',    ribbon: true,  surf: true  },
+  { key: 'ribbon',label: 'ribbon',  ribbon: true,  surf: false },
+];
+let mode = 0, S = null, skin = null, skinMat = null, ribbon = null;
+let ligGroup = null, ionGroup = null, J = null;
+
+const seg = MODES.map((m, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = m.label;
+  b.setAttribute('aria-pressed', String(i === mode));
+  b.onclick = () => { mode = i; apply(); };
+  document.getElementById('seg').appendChild(b);
+  return b;
+});
+
+/* ------------------------------------------------------------------ *
+ *  the skin
+ * ------------------------------------------------------------------ */
+/* Which residues the sugar touches, as a lookup on the surface's OWN
+   residue table. The baker wrote them as "A197:ASP" strings, so the key
+   is rebuilt the same way here rather than the two agreeing by index —
+   the surface's residue order is the PDB's and the baker's list is
+   sorted, and matching those by position would work until it did not. */
+function contactSet() {
+  return new Set(J.trough.contactUnionResidues);
+}
+function paintSkin() {
+  const on = document.getElementById('paint').checked;
+  const hit = contactSet();
+  const base = new THREE.Color(COL.skin), mark = new THREE.Color(COL.contact);
+  const table = S.head.residues.map(([chain, num, name]) =>
+    (on && hit.has(chain + num + ':' + name)) ? mark : base);
+  const col = new Float32Array(S.nVert * 3);
+  for (let v = 0; v < S.nVert; v++) {
+    const c = table[S.res[v]];
+    col[v*3] = c.r; col[v*3+1] = c.g; col[v*3+2] = c.b;
+  }
+  S.geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  skinMat.vertexColors = true;
+  skinMat.color.set(0xffffff);
+  skinMat.needsUpdate = true;
+}
+
+/* ------------------------------------------------------------------ *
+ *  the ligand
+ * ------------------------------------------------------------------ */
+function buildLigand() {
+  const g = new THREE.Group();
+  const P = J.ligand.atoms.map(a => new THREE.Vector3(a.p[0], a.p[1], a.p[2]));
+  J.ligand.atoms.forEach((a, i) =>
+    g.add(Stage.atom(LIGCOL[a.el] || 0x888888, LIG_R, P[i], a.el)));
+  for (const [i, j] of J.ligand.bonds) {
+    /* Split at the midpoint so each half takes its own atom's colour —
+       a C-O stick drawn in one colour reads as a bond between two of
+       whatever colour won. */
+    const mid = P[i].clone().add(P[j]).multiplyScalar(0.5);
+    g.add(Stage.bond(P[i], mid, LIGCOL[J.ligand.atoms[i].el] || 0x888888, LIG_STICK));
+    g.add(Stage.bond(mid, P[j], LIGCOL[J.ligand.atoms[j].el] || 0x888888, LIG_STICK));
+  }
+  return g;
+}
+function buildIons() {
+  const g = new THREE.Group();
+  for (const io of J.ions) {
+    const m = Stage.atom(io.el === 'CA' ? COL.ca : COL.cl, io.el === 'CA' ? 1.0 : 1.2,
+      new THREE.Vector3(io.p[0], io.p[1], io.p[2]), io.el);
+    g.add(m);
+  }
+  return g;
+}
+
+/* ------------------------------------------------------------------ *
+ *  the readout
+ * ------------------------------------------------------------------ */
+function readout() {
+  const t = J.trough;
+  const ion = e => J.ionDistances.find(i => i.el === e);
+  document.getElementById('nums').textContent = [
+    `structure     ${J.source}  ·  ${J.residues} residues`,
+    `skin          ${S.nTri.toLocaleString()} tris at ${S.head.spacing} Å`,
+    `              ${S.head.area.toFixed(0)} Å²  ${S.head.volume.toFixed(0)} Å³`,
+    `ligand        ${J.ligand.residues.map(r => r.name + r.num).join('–')}`,
+    `trough span   ${t.span} Å over ${t.subsites} subsites`,
+    `contacts      ${t.contactUnion} of ${J.residues}, within ${t.contactCut} Å`,
+    `adjacent      ${t.adjacentOverlap.map(s => `${s.both}/${s.of}`).join('   ')}  shared`,
+    `Cl⁻           ${ion('CL').toLigand} Å from the sugar`,
+    `Ca²⁺          ${ion('CA').toLigand} Å from the sugar`,
+  ].join('\n');
+
+  document.getElementById('contacts').textContent =
+    J.ligand.residues.map(r =>
+      `${(r.name + r.num).padEnd(7)} ${String(r.contacts).padStart(2)} residues`).join('\n') +
+    '\n' + '·'.repeat(28) + '\n' +
+    t.contactUnionResidues.map(s => s.split(':').reverse().join(' ')).join(', ');
+
+  /* The verdict is a sentence about numbers that are right there, so it
+     reads them rather than restating them. Each subsite carrying its own
+     contact set, with only a couple of residues shared between
+     neighbours, is what "track" means and what "pocket" would not. */
+  const worst = Math.max(...t.adjacentOverlap.map(s => s.both / s.of));
+  document.getElementById('verdict').innerHTML =
+    `Each sugar unit sits on its own contact set — neighbouring subsites share at most ` +
+    `<b>${(worst * 100).toFixed(0)}%</b> of the smaller one's residues, and the whole site is ` +
+    `<b>${(t.contactUnion / J.residues * 100).toFixed(1)}%</b> of the protein. ` +
+    `A track ${t.span} Å long, not a pocket.`;
+}
+
+/* ------------------------------------------------------------------ *
+ *  wiring
+ * ------------------------------------------------------------------ */
+function apply() {
+  const m = MODES[mode];
+  ribbon.visible = m.ribbon;
+  skin.visible = m.surf && +document.getElementById('op').value > 0;
+  ligGroup.visible = document.getElementById('lig').checked;
+  ionGroup.visible = document.getElementById('ions').checked;
+  skinMat.opacity = document.getElementById('op').value / 100;
+  document.getElementById('opv').textContent = skinMat.opacity.toFixed(2);
+  seg.forEach((b, i) => b.setAttribute('aria-pressed', String(i === mode)));
+}
+for (const id of ['op', 'lig', 'ions']) document.getElementById(id).oninput = apply;
+document.getElementById('paint').oninput = () => { paintSkin(); apply(); };
+
+async function main() {
+  const [pdb, json, buf] = await Promise.all([
+    fetch('data/1OSE.pdb').then(r => r.text()),
+    fetch('data/amylase.json').then(r => r.json()),
+    fetch('data/1OSE.surf.bin').then(r => r.arrayBuffer()),
+  ]);
+  J = json;
+
+  /* --- ribbon, in the baker's frame --- */
+  const bb = RibbonLib.parseBackbone(pdb);
+  const ss = RibbonLib.dssp(bb);
+  const pts = bb.CA.map(p => new THREE.Vector3(
+    p[0] - J.centre[0], p[1] - J.centre[1], p[2] - J.centre[2]));
+  const geo = RibbonLib.build(THREE, pts, ss, {});
+  /* build() emits one draw group per element tagged 0 coil / 1 helix /
+     2 strand, so colour is a material array — no mapping back to residues. */
+  ribbon = new THREE.Mesh(geo, [COL.coil, COL.helix, COL.strand].map(c => {
+    const m = Stage.bondMat(c); m.side = THREE.DoubleSide; return m;
+  }));
+  root.add(ribbon);
+
+  /* --- skin --- */
+  S = SurfLib.decode(THREE, buf);
+  skinMat = new THREE.MeshStandardMaterial({
+    color: COL.skin, roughness: .62, metalness: .02,
+    transparent: true, opacity: .8, depthWrite: false, side: THREE.FrontSide,
+  });
+  skin = new THREE.Mesh(S.geo, skinMat);
+  skin.renderOrder = 1;
+  root.add(skin);
+  paintSkin();
+
+  ligGroup = buildLigand(); root.add(ligGroup);
+  ionGroup = buildIons();   root.add(ionGroup);
+
+  readout();
+  apply();
+}
+
+function tick() {
+  if (document.getElementById('spin').checked) { cam.theta += 0.0025; applyCam(); }
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+addEventListener('resize', resize);
+resize(); applyCam(); tick();
+main().catch(e => {
+  document.getElementById('nums').textContent = 'failed: ' + e.message;
+  throw e;
+});
+</script>
+</body>
+</html>
