@@ -79,7 +79,9 @@
    */
   const RECIPES = {
     water: {
-      core:'O', ligand:'H', bond:1.55, polar:1,
+      /* Longer than the sum of the display radii on purpose: the shared pair
+       * needs room to sit visibly off the H, which is the whole claim. */
+      core:'O', ligand:'H', bond:1.90, polar:1,
       slots:   [[0.7910,-0.6116,0], [-0.7910,-0.6116,0]],
       slots2d: [[0.7910,-0.6116,0], [-0.7910,-0.6116,0]],
       lone:     [[0,0.6116,0.7910], [0,0.6116,-0.7910]],
@@ -102,7 +104,7 @@
      * 0/1/2 stay themselves and the proton takes index 3.
      */
     ammonia: {
-      core:'N', ligand:'H', bond:1.50, polar:0.7,
+      core:'N', ligand:'H', bond:1.75, polar:0.7,
       slots:   [[0.9272,-0.3746,0],[-0.4635,-0.3748,0.8029],[-0.4635,-0.3748,-0.8029]],
       slots2d: [[0.8660,-0.5,0],[-0.8660,-0.5,0],[0,-1,0]],
       lone:     [[0,1,0]],
@@ -152,7 +154,7 @@
      * 1.79, plus water's 0.05 of daylight. (The real thing is 1.27 Å.)
      */
     hcl: {
-      core:'Cl', ligand:'H', bond:1.85, polar:0.8,
+      core:'Cl', ligand:'H', bond:2.10, polar:0.8,
       slots:   [[1,0,0]],
       slots2d: [[1,0,0]],
       // three lone pairs, tetrahedral about the bond: cos(109.47°) = −1/3, and
@@ -188,7 +190,7 @@
       },
     },
     methane: {
-      core:'C', ligand:'H', bond:1.50, polar:0,      // the nonpolar control
+      core:'C', ligand:'H', bond:1.80, polar:0,      // the nonpolar control
       slots:   [[S3,S3,S3],[S3,-S3,-S3],[-S3,S3,-S3],[-S3,-S3,S3]],
       slots2d: [[0,1,0],[1,0,0],[0,-1,0],[-1,0,0]],
       lone:[], loneFlat:[],
@@ -554,32 +556,28 @@
     }
 
     /* The shared pair sits ON the bond axis, in the gap between the two
-     * SURFACES — not at the bond midpoint, which for O–H (bond 1.55, O radius
-     * 0.95) is buried inside the core. The surfaces meet at 0.95 and 1.00
-     * along the axis, so the pair goes at 0.975: visually right in the pinch
-     * between the two spheres, which is where a shared pair belongs. The two
-     * dots straddle the axis so the pair still reads as TWO electrons.
+     * SURFACES — not at the bond midpoint, which is buried inside the core.
+     * The two dots straddle the axis so the pair still reads as TWO electrons.
      * (They draw with depthTest:false, so the sliver of sphere in front of them
      * doesn't hide them — see dot().) */
     // where a slot's two shared dots belong, for the CURRENT view's geometry
     function pairPlacement(i){
       const b=slotPos(i);
       const along=b.clone().normalize();
-      /* Dead centre of the gap between the two SURFACES is where an equally
-       * shared pair belongs. A polar bond pulls it toward the core — not all the
-       * way onto it, which would be the ionic picture, but visibly off the middle
-       * and biased toward the atom that wants the electrons more. */
-      const gapMid=(P.radii[R.core] + (R.bond-P.radii[R.ligand]))/2;
-      /* Small on purpose. The stylised radii leave only ~0.05 between the two
-       * surfaces, so any pull at all puts the pair inside the core's silhouette;
-       * pushed further it stops reading as "shared, unequally" and starts
-       * reading as "transferred", which is the salt tab's picture, not this one.
-       * The δ badges and the leaning cloud carry the rest of the argument. */
-      /* Toward the core for O–H and N–H, toward the LIGAND for C=O — carbon is
-       * the electron-poor end, so a pair drawn leaning on carbon would say the
-       * opposite of the truth and take CO2's whole lesson with it. */
-      const pull=(R.polar||0)*0.08*(R.polarToward==='ligand'?-1:1);
-      const center=along.clone().multiplyScalar(gapMid-pull);
+      /* Every recipe's bond is drawn long enough to leave a gap between the two
+       * SURFACES that is wider than a dot, so the pair has somewhere to sit that
+       * is neither sphere. Place it as a FRACTION of that gap: 0.5 is dead
+       * centre, and polarity slides it toward whichever atom wants the electrons
+       * more without ever leaving the gap. A pair drawn inside the core reads as
+       * "transferred", which is the salt tab's picture, not this one.
+       *
+       * Toward the core for O–H, N–H and H–Cl; toward the LIGAND for C=O, since
+       * carbon is the electron-poor end and a pair leaning on carbon would say
+       * the opposite of the truth and take CO2's whole lesson with it. */
+      const gapWidth=Math.max(0, R.bond - P.radii[R.core] - P.radii[R.ligand]);
+      const lean=0.32*(R.polar||0)*(R.polarToward==='ligand'?-1:1);
+      const center=along.clone().multiplyScalar(
+        P.radii[R.core] + gapWidth*(0.5 - lean));
       /* Straddle the axis away from the OTHER bonds, so the pairs splay apart
        * instead of stacking. Summing the other slot dirs and negating gives that
        * for water (two slots) and for methane's flat cross; a real tetrahedron
@@ -982,7 +980,7 @@
      * interaction to draw one that only has to arrive and react.
      */
     const WATER={
-      bond:1.55,
+      bond:1.90,   // matches the water tab's, so the two waters are one molecule
       /* The reagent gets its OWN capture radius, much shorter than a ligand's
        * (S.CAPTURE 3.4). A ligand is a loose atom looking for a slot and should
        * feel pulled from across the bench; water is a whole molecule the student
