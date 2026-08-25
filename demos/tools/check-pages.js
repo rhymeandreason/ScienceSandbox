@@ -74,7 +74,7 @@ const PDB_PAGES = new Set();
 // edges, no stage. questions-cms.html edits that graph's data file as text.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
-                          'tests/concept-map.html', 'tests/door-map.html',
+                          'tests/concept-map.html',
                           'questions-cms.html']);
 
 // The lessons at the top level, plus the benches in tests/. Both directories,
