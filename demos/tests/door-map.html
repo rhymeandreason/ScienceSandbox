@@ -149,10 +149,17 @@
   }
   .node.module.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
 
+  /* 4:3, the same shape cards-cluster gives its stages, and a RATIO rather than
+     a height on purpose: the card sets the width, the picture follows, and the
+     closed thumb and the open one are then the same frame at two sizes. A
+     molecule solved into a 4:3 box is solved into the same box when the card
+     opens, so nothing about its framing changes except the scale. Two typed
+     heights could not promise that — 17.5rem wide against 6.6rem tall is 2.4:1,
+     which crops a tall molecule to a letterbox. */
   .node.module .thumb {
     position: relative; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
-    height: 6.6rem; margin: 0.65rem 0 0.25rem;
+    width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
     background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
     font-size: 0.5rem; letter-spacing: 0.16em; text-transform: uppercase; color: #c2beb4;
   }
@@ -171,8 +178,10 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; opacity: .5;
   }
+  /* The open card keeps the ratio and only the width changes, so opening a card
+     scales its picture rather than re-composing it. */
   .node.module.hub .thumb {
-    height: 19rem; margin: 1rem 0 0.35rem;
+    margin: 1rem 0 0.35rem;
     font-size: 0.6rem; letter-spacing: 0.2em; color: #b6b2a8;
   }
 
@@ -194,16 +203,15 @@
   }
 
   /* a question opens the same way a module does: bigger, with room for a picture */
-  .node.question .thumb { display: none; }
+  /* A question opens the same way a module does — bigger, and readable — but it
+     grows NO picture block. A module's placeholder is a promise: that card has
+     a lesson behind it and a stage is what arrives there. A question has
+     neither, so the grey box was only ever an empty rectangle appearing on
+     click, and the reader has to read it as meaning something. The question IS
+     the card. */
   .node.question.hub {
     width: 17rem; padding: 0.9rem 1rem 0.95rem;
     font-size: 1.28rem; line-height: 1.22; color: var(--ink);
-  }
-  .node.question.hub .thumb {
-    display: flex; align-items: center; justify-content: center;
-    height: 8.5rem; margin: 0.6rem 0 0;
-    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
-    font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: #b6b2a8;
   }
 
   .node:hover { border-color: var(--accent); }
@@ -764,7 +772,13 @@ function expand(n) {
   // target y as well as an x, so the fan holds its shape instead of sagging
   // toward the middle line the moment the relax touches it.
   const REACH = n.kind === 'door' ? 640 : 580;   // how far right of the card
-  const STEP = m0 => m0 === 'question' ? 215 : 260;   // gap down the fan
+  /* Gap down the fan, and it has to CLEAR the card or the wave is dealt on top
+     of itself and the relax opens with a shove. Measured: a module card is 304
+     tall once its picture is 4:3 (it was ~217 when the thumb was a fixed
+     6.6rem), a question card 58. So the module step is the card plus a gap, and
+     the question step is generous because a question is mostly air — it is
+     spacing the ROW, not clearing the box. */
+  const STEP = m0 => m0 === 'question' ? 215 : 345;   // gap down the fan
   wave.forEach((m, i) => {
     const t = wave.length === 1 ? 0 : (i / (wave.length - 1)) * 2 - 1;   // -1 … +1
     const y = n.y + (i - (wave.length - 1) / 2) * STEP(m.kind);
@@ -808,7 +822,7 @@ function paintNode(n) {
                    '<div class="meta"></div>';
   } else {
     el.className = 'node question';
-    el.innerHTML = '<span>' + n.text + '</span><div class="thumb">image</div>';
+    el.innerHTML = '<span>' + n.text + '</span>';
   }
   n.el = el;
   world.appendChild(el);
