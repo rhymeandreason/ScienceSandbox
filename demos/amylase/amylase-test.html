@@ -171,7 +171,20 @@ const COL = {
   ca:      0x2e8b57, cl:    0x7a45c4,
 };
 const LIGCOL = { C: 0x3a3a3a, O: 0xd6362e, N: 0x3f6ae0 };
-const LIG_R = 0.42, LIG_STICK = 0.16;
+/* ONE BALL-AND-STICK FOR EVERYTHING IN THE SITE. The ligand and the placed
+   chain reach the scene by different routes — acarbose is raw PDB atoms, the
+   chain is a spec repeated through ChainRepeat — and they were drawn to two
+   different scales because of it: MolLib's radii and stick widths live in
+   SCALE space, so a chain converted to ångströms came out with sticks half
+   the ligand's width beside it. Two molecules in one frame at two scales is
+   a comparison the eye cannot make, and this page exists to make exactly
+   that comparison. So both draw from these two numbers.
+
+   Radii are proportional to the element, taken relative to carbon, so an
+   oxygen is the same fraction bigger in both molecules. */
+const BALL = 0.42, STICK = 0.16;
+const ballOf = el =>
+  BALL * ((MolLib.PALETTE.radii[el] || MolLib.PALETTE.radii.C) / MolLib.PALETTE.radii.C);
 
 /* The two polymers, built here from the same specs and the same linkage
    repeat chain/glucose-chains-test.html uses — not a second copy of either
@@ -188,13 +201,9 @@ const CHAINS = [
    red clash marker is invisible on the atoms most likely to be clashing. */
 const CLASHCOL = 0xd4148c;
 
-/* MolLib's radii and stick widths live in SCALE space, because spec
-   coordinates are multiplied by SCALE on the way in. This page works in
-   ångströms, so both come back out of it. Skipping this draws every sphere
-   1.9x too big: the atoms merge, the sticks disappear inside them, and a
-   ball-and-stick chain reads as a string of blobs — the same failure
-   check-molecules.js fails a spec for. */
-const A = 1 / MolLib.SCALE;
+/* The chain arrives in SCALE space and is divided out of it on the way in
+   (see buildChain); nothing downstream of that uses MolLib's own radii,
+   because BALL and STICK above are what both molecules here draw with. */
 
 const canvas = document.getElementById('cv');
 const { scene, camera, renderer, root, cam, applyCam, resize } =
@@ -269,14 +278,14 @@ function buildLigand() {
   const g = new THREE.Group();
   const P = J.ligand.atoms.map(a => new THREE.Vector3(a.p[0], a.p[1], a.p[2]));
   J.ligand.atoms.forEach((a, i) =>
-    g.add(Stage.atom(LIGCOL[a.el] || 0x888888, LIG_R, P[i], a.el)));
+    g.add(Stage.atom(LIGCOL[a.el] || 0x888888, ballOf(a.el), P[i], a.el)));
   for (const [i, j] of J.ligand.bonds) {
     /* Split at the midpoint so each half takes its own atom's colour —
        a C-O stick drawn in one colour reads as a bond between two of
        whatever colour won. */
     const mid = P[i].clone().add(P[j]).multiplyScalar(0.5);
-    g.add(Stage.bond(P[i], mid, LIGCOL[J.ligand.atoms[i].el] || 0x888888, LIG_STICK));
-    g.add(Stage.bond(mid, P[j], LIGCOL[J.ligand.atoms[j].el] || 0x888888, LIG_STICK));
+    g.add(Stage.bond(P[i], mid, LIGCOL[J.ligand.atoms[i].el] || 0x888888, STICK));
+    g.add(Stage.bond(mid, P[j], LIGCOL[J.ligand.atoms[j].el] || 0x888888, STICK));
   }
   return g;
 }
@@ -409,15 +418,15 @@ function drawChain(key) {
       if (gone.has(i)) return;
       /* Residues outside the four the trough holds are drawn thinner, so
          the eye can tell the part being scored from its continuation. */
-      const r = (P.radii[c.el[i]] || 0.7) * A * (win.has(n) ? 1 : 0.75);
+      const r = ballOf(c.el[i]) * (win.has(n) ? 1 : 0.75);
       g.add(Stage.atom(colour(i), r, V(p), c.el[i]));
     });
     c.bonds.forEach(([a, b, order]) => {
       if (gone.has(a) || gone.has(b)) return;
-      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14 * A, order));
+      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, STICK, order));
     });
     const nx = best.moved[n + 1];
-    if (nx) g.add(Stage.bond(V(res[iO1]), V(nx[iC4]), P.bonds.covalent, 0.14 * A, 1));
+    if (nx) g.add(Stage.bond(V(res[iO1]), V(nx[iC4]), P.bonds.covalent, STICK, 1));
   });
   root.add(g);
   chainGroup = g;
