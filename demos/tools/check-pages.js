@@ -75,7 +75,7 @@ const PDB_PAGES = new Set();
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
                           'tests/concept-map.html',
-                          'questions-cms.html']);
+                          'questions-cms.html', 'map-cms.html']);
 
 // The lessons at the top level, plus the benches in tests/. Both directories,
 // because two of the pages in tests/ (aminoacid-lab, macromolecule-lab) build
@@ -119,10 +119,28 @@ for (const page of PAGES) {
   if (!sandbox.MolLib) { fail(`${page}: loads no molecules.js`); continue; }
 
   const have = new Set(Object.keys(sandbox.MolLib.MOLECULES));
+
+  /* A page's spec names do not all live in the page any more. door-map.html
+   * keeps its card table in lib/mapcontent.js — CONTENT, not a library: no
+   * behaviour, no scene, and the spec names it draws are in there. Without this
+   * the gate silently stopped covering that page (5 referenced fell to 1).
+   *
+   * A NAMED list, not "every script that is not a mol-*.js". That was the first
+   * try and it read scene.js and residues.js too, where the word `glycine`
+   * appears in prose — sixteen pages failed for naming a molecule none of them
+   * mentions. A content file is a deliberate thing and there are two, so adding
+   * the third is a line here, exactly as adding a domain is a line above. */
+  const CONTENT = new Set(['mapcontent.js', 'questions.js']);
+  const content = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])
+    .filter(f => !/^https?:/.test(f) && CONTENT.has(path.basename(f)))
+    .map(f => { try { return fs.readFileSync(path.resolve(dir, f), 'utf8'); }
+                catch { return ''; } });
+  const hay = [src, ...content].join('\n');
+
   const used = ALL.filter(n =>
-    new RegExp(`MOLECULES\\s*\\.\\s*${n}\\b`).test(src) ||
-    new RegExp(`MOLECULES\\s*\\[\\s*['"]${n}['"]`).test(src) ||
-    new RegExp(`['"]${n}['"]`).test(src));
+    new RegExp(`MOLECULES\\s*\\.\\s*${n}\\b`).test(hay) ||
+    new RegExp(`MOLECULES\\s*\\[\\s*['"]${n}['"]`).test(hay) ||
+    new RegExp(`['"]${n}['"]`).test(hay));
   const missing = used.filter(n => !have.has(n));
 
   if (missing.length) {
