@@ -320,7 +320,7 @@
 
   /* ---- the stage: renderer + scene + camera + orbit + resize ---- */
   // opts: cam {theta,phi,r} initial · phiMin/phiMax pitch clamp · rMin/rMax zoom
-  // clamp · wheel step · zoom:false drops wheel zoom entirely · onZoom(r) /
+  // clamp · wheel step per mouse detent · zoom:false drops wheel zoom entirely · onZoom(r) /
   // onDrag() side-effect hooks (per-page state)
   // · ortho:true swaps in an OrthographicCamera — no perspective foreshortening,
   //   so a shape read off one side of the frame is the same size as the same
@@ -388,9 +388,19 @@
     // the molecule — has nothing to offer a zoom but a way to falsify that, and
     // the page eases back to the solved distance anyway, so a scroll read as the
     // camera fighting the student.
+    // deltaY carries a MAGNITUDE: a mouse sends one ~100px detent, a trackpad
+    // sends a stream of few-pixel deltas. Reading only its sign made every one
+    // of those a full detent, so a two-finger swipe slammed r into its clamp.
+    // Scale by the delta instead, normalise the line/page modes Firefox and
+    // Safari can send, and cap one event at a detent so a flung trackpad or a
+    // coarse mouse still steps rather than jumps.
+    const DETENT=100;                       // px of deltaY per mouse detent
     if(o.zoom!==false)
       canvas.addEventListener('wheel',e=>{e.preventDefault();
-        cam.r=Math.max(o.rMin,Math.min(o.rMax,cam.r*(1+Math.sign(e.deltaY)*o.wheel)));
+        const px=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?DETENT*4:1);
+        const detents=Math.max(-1,Math.min(1,px/DETENT));
+        // exponential so zoom-in and zoom-out of the same swipe cancel exactly
+        cam.r=Math.max(o.rMin,Math.min(o.rMax,cam.r*Math.exp(detents*o.wheel)));
         if(o.onZoom) o.onZoom(cam.r); applyCam();},{passive:false});
 
     // Bail on a zero-sized canvas instead of computing w/0. A ResizeObserver
