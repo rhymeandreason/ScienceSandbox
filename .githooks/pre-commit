@@ -307,7 +307,14 @@ fi
 # leaves the box over here, on the opening screen, in every embedded panel.
 # palette.js is in too — the widths are measured off display radii, so a retune
 # moves the answer without either module changing.
-if git diff --cached --name-only | grep -qE '^demos/(molecule-builder/.*|lib/(covalent-drag|ionic-drag|palette)\.js)$'; then
+#
+# kit/card-stage.js and molecule-builder.html are in for the same reason, one
+# seam further out. The builder re-frames through card-stage's onResize, which
+# has to fire AFTER Stage.resize or the frame narrows on every resize; and the
+# page holds its own copy of the 900 ms turn, so the two can drift apart with
+# neither builder file touched. Both are asserted in section 3, and neither
+# would have been checked by a gate that only watched this folder.
+if git diff --cached --name-only | grep -qE '^demos/(molecule-builder/.*|molecule-builder\.html|kit/card-stage\.js|lib/(covalent-drag|ionic-drag|palette)\.js)$'; then
   if ! node molecule-builder/check-molecule-builder.js > /tmp/cmb.$$ 2>&1; then
     tail -25 /tmp/cmb.$$; rm -f /tmp/cmb.$$
     echo ""
