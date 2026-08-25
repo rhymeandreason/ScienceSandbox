@@ -81,6 +81,12 @@
     <div class="row"><label><input type="checkbox" id="ions" checked> Ca²⁺ and Cl⁻</label></div>
     <div class="row"><label><input type="checkbox" id="spin"> spin</label></div>
 
+    <h3>camera</h3>
+    <div class="out" id="camv">–</div>
+    <div class="note">Orbit to the view you want and paste that line into
+      <code>Stage.create</code>. It is the live camera, so what it prints is what is
+      on screen.</div>
+
     <h3>measured, not typed</h3>
     <div class="out" id="nums">loading…</div>
 
@@ -305,8 +311,20 @@ async function main() {
   apply();
 }
 
+/* The camera, printed. Which way a molecule faces by default is picked by
+   eye and there is no way to read it back off a screenshot, so the page
+   states it in the form Stage.create takes. */
+const camv = document.getElementById('camv');
+function showCam() {
+  const w = x => ((x % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  camv.textContent =
+    `cam: { theta: ${w(cam.theta).toFixed(2)}, phi: ${cam.phi.toFixed(2)}, ` +
+    `r: ${cam.r.toFixed(0)} }`;
+}
+
 function tick() {
   if (document.getElementById('spin').checked) { cam.theta += 0.0025; applyCam(); }
+  showCam();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
