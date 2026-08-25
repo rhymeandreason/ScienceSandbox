@@ -1128,6 +1128,22 @@ function start() {
   touched = false;
   centre();
   alpha = 1;
+
+  /* THE DOOR OPENS ON FOUR RUNNING MOLECULES, not on four grey rectangles.
+   * The map's whole claim is that a module is a thing you can look at, and a
+   * placeholder asks the reader to take that on faith for one more click.
+   *
+   * They have to RUN rather than be pre-rendered as stills: three of the four
+   * are water sims, and a freshly spawned one is molecules at random positions
+   * — a still taken at t=0 is a scatter, which is a worse picture than no
+   * picture. Only the builder card is correct on its first frame.
+   *
+   * This spends the whole budget at load, and that is the pool working rather
+   * than a problem: click a fifth card and the opening one you have ignored
+   * longest goes quiet and keeps its last frame, which by then has settled into
+   * something worth keeping. Clicking a card re-fronts it, so whatever the
+   * reader is actually looking at is never the one released. */
+  first.forEach(goLive);
 }
 
 document.getElementById('reset').addEventListener('click', start);
