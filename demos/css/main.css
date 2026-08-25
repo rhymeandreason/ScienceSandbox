@@ -92,6 +92,12 @@ body {
   --text-muted:      var(--clay-500);
   --text-inverse:    var(--cream-300);   /* on an ink fill */
 
+  /* Button fills. Brighter and more saturated than the readout accents: a
+     primary pill has to carry white type and win the stage. --bond-ionic
+     stays where it is because palette.js draws the bond with that number. */
+  --action-blue:     #2f7ee0;
+  --action-amber:    #ef8b17;
+
   --accent-hot:      var(--ember-500);
   --accent-cold:     var(--azure-500);
   --sketch:          var(--slate-700);
@@ -308,26 +314,64 @@ body {
   gap: var(--space-2);
   border: 0;
   border-radius: var(--radius-pill);
-  padding: 12px 24px;
-  font-size: var(--text-base);
+  padding: 16px 32px;
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-wide);
   line-height: 1;
   /* Solid is the default because an unqualified .pill on the stage is nearly
      always the thing the step is asking the student to press. A page sets
-     --pill-fill to its own substance's colour and changes nothing else. */
-  --pill-fill: var(--text-strong);
-  background: var(--pill-fill);
+     --pill-fill to its own substance's colour and changes nothing else.
+     The default charcoal is delivered as a var() fallback rather than a
+     declaration, so the edge below can substitute a lighter starting colour
+     for it: darkening ink by ink leaves no visible side. */
+  /* The key it sits on: the fill's own colour taken down toward ink, so the
+     edge reads as the same substance in shadow. Translucent ink is the
+     fallback where color-mix is missing. */
+  --pill-rest: 4px;
+  --pill-lift: var(--pill-rest);
+  --pill-edge: rgba(43, 39, 35, .32);
+  background: var(--pill-fill, var(--text-strong));
   color: #fff;
-  box-shadow: var(--shadow-raise);
-  transition: filter var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
+  /* Top highlight, solid edge, ambient shadow: the three things that make it
+     a body with a side rather than a rectangle with a drop shadow. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .22),
+    0 var(--pill-lift) 0 var(--pill-edge),
+    0 calc(var(--pill-lift) + 4px) 12px -4px rgba(43, 39, 35, .45);
+  /* The bottom of the edge is what stays put on the paper: the body rides
+     whatever --pill-lift is, so growing or collapsing the edge moves the label
+     and nothing else has to be restated. */
+  transform: translateY(calc(var(--pill-rest) - var(--pill-lift)));
+  transition: filter var(--dur-fast), transform var(--dur-fast) cubic-bezier(.2, .8, .3, 1), box-shadow var(--dur-fast);
 }
 
-.pill:hover:not([disabled]) { filter: brightness(1.07) }
+@supports (color: color-mix(in srgb, red, blue)) {
+  .pill { --pill-edge: color-mix(in srgb, var(--pill-fill, var(--clay-600)) 68%, #241f1b) }
+}
 
+/* Hover thickens the edge, which stands the whole key up off the paper. */
+.pill:hover:not([disabled]) {
+  filter: brightness(1.07);
+  --pill-lift: 7px;
+}
+
+/* Edge collapses to nothing, so the body lands flat on the paper. */
 .pill:active:not([disabled]) {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-press);
+  --pill-lift: 0px;
+  filter: brightness(.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .12),
+    0 0 0 var(--pill-edge),
+    0 1px 3px -1px rgba(43, 39, 35, .4);
+  transition-duration: .06s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill { transition: filter var(--dur-fast) }
+  .pill,
+  .pill:hover:not([disabled]),
+  .pill:active:not([disabled]) { transform: none }
 }
 
 /* Ghost: the same capsule with the fill taken away. This is what a row of step
@@ -336,6 +380,7 @@ body {
   background: transparent;
   color: var(--text-muted);
   border: 2px solid var(--border-hair);
+  --pill-rest: 0px;
   box-shadow: none;
   padding: 8px 16px;
   font-size: var(--text-sm);
@@ -347,6 +392,7 @@ body {
 
 .pill--ghost:hover:not([disabled]) {
   filter: none;
+  --pill-lift: 0px;
   color: var(--text-strong);
   border-color: var(--text-muted);
 }
@@ -360,23 +406,25 @@ body {
 
 /* 14 + 16 padding = 30. .pill's line-height:1 would make it 29 off a 13px
    label, so the small pill states its own. */
-.pill--sm { padding: 8px 16px; font-size: var(--text-sm); line-height: 14px }
+.pill--sm { padding: 10px 20px; font-size: var(--text-sm); line-height: 14px; --pill-rest: 3px }
 
 /* The nudge: a ring breathing out of a pill while the scene is still too empty
    to show what the step is about. The button itself does not move, so it stays
    an easy target while it is asking. */
 .pill.is-nudging { animation: pill-nudge 1.9s ease-out infinite }
 
+/* The ring is offset by half the lift: the button's visual mass is the body
+   plus the edge below it, so a ring centred on the body alone sits high. */
 @keyframes pill-nudge {
-  0%   { box-shadow: var(--shadow-press), 0 0 0 0   var(--pill-fill) }
-  70%  { box-shadow: var(--shadow-press), 0 0 0 14px transparent }
-  100% { box-shadow: var(--shadow-press), 0 0 0 0   transparent }
+  0%   { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 0   var(--pill-fill, var(--text-strong)) }
+  70%  { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 14px transparent }
+  100% { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 0   transparent }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pill.is-nudging {
     animation: none;
-    outline: 2px solid var(--pill-fill);
+    outline: 2px solid var(--pill-fill, var(--text-strong));
     outline-offset: 3px;
   }
 }

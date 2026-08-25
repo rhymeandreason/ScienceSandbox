@@ -51,8 +51,8 @@
    colour, so the button and the thing it drops into the water are the same
    idea: water the H-bond blue, salt the ion-dipole amber. --pill-fill is the
    only thing this page has to say about them, and the nudge ring picks it up. */
-#addwater { --pill-fill: #3d6fb0 }
-#addsalt  { --pill-fill: var(--bond-ionic) }
+#addwater { --pill-fill: var(--action-blue) }
+#addsalt  { --pill-fill: var(--action-amber) }
 
 /* ---- the title block, on a scrim ----
    Name, place in the lesson, and this step's title, in one block over the model.
