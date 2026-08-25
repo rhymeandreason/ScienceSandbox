@@ -114,23 +114,34 @@
  *    correct only at the size it was picked at, and a box like this is the
  *    most likely thing on a page to be resized by CSS alone.
  *
- *  · A SMALL MOLECULE WANTS `stage:{ortho:true}`, AND THE DEFAULT WILL NOT
- *    TELL YOU. Stage.frame floors the solved distance at 6 (its `min`), so
- *    anything whose fit wants less than that is pushed back and cannot fill
- *    its box: measured, water wants 3.84 and lands at 6, filling 49% of the
- *    frame; CO2 38%; methane 57%. `pad` cannot reach it — the floor overrides
- *    it, and water reads 49% at 1.30 and at 1.15 alike. The ortho branch of
- *    Stage.frame fits the frustum directly and returns BEFORE that clamp, so
- *    the same water fills 80%.
+ *  · THE PROJECTION IS ORTHOGRAPHIC BY DEFAULT, and that is not a preference.
+ *    A box holds ONE molecule. There is no scene depth to convey, and what the
+ *    reader is asked to compare is the parts of that molecule against each
+ *    other — this tail against that one, this atom against its neighbour.
+ *    Under perspective a nearer part reads BIGGER rather than closer, which is
+ *    the one misreading a close-up cannot survive. molecule-builder.js made
+ *    exactly this argument for exactly this reason; a magnified single molecule
+ *    is the same situation, so it gets the same answer.
  *
- *    Ortho is also the honest projection here rather than a way around a
- *    number: pulling a perspective camera in to r≈3.8 exaggerates depth
- *    across a molecule barely 2 units deep, and a nearer atom starts reading
- *    bigger instead of closer — the misreading molecule-builder.js went
- *    orthographic to avoid, and a close-up of one small molecule is the same
- *    situation. Large subjects (POPC solves 84) never meet the floor and can
- *    stay perspective. Nothing checks this; the symptom is a molecule that
- *    merely looks a bit small.
+ *    It also removes a floor that had no business being here. Stage.frame
+ *    clamps a solved PERSPECTIVE distance at 6, so every molecule whose fit
+ *    wants less is pushed back and cannot fill its box: measured, water wants
+ *    3.84 and lands at 6, filling 49% of the frame; CO2 38%; methane 57%. `pad`
+ *    cannot reach it — the floor overrides it, and water reads 49% at pad 1.30
+ *    and 1.15 alike. The ortho branch fits the frustum directly and returns
+ *    BEFORE that clamp: the same water fills 80%.
+ *
+ *    `stage:{ortho:false}` opts back, for a caller who wants the depth cue and
+ *    whose subject is big enough never to meet the floor.
+ *
+ *  · AN ORTHO CAMERA DOES NOT ZOOM BY MOVING. Its apparent size IS its
+ *    frustum, so Stage.create's wheel — which only moves `cam.r` — does
+ *    nothing at all under ortho, silently: measured, halving cam.r left the
+ *    visible height at 69.69 either way. So `cam.r` is mapped onto the frustum
+ *    here (`applyZoom`, and `fit` writes cam.r back from what it solved), the
+ *    same trick and the same reason as molecule-builder.js. Without it the
+ *    student can still orbit the box and the wheel is dead, which reads as a
+ *    broken control rather than as a projection.
  * ========================================================================== */
 (function(global){
   'use strict';
@@ -186,13 +197,42 @@
       fit();
     }
 
+    /* Under ortho, `cam.r` means the world half-height on screen rather than a
+     * standing distance — there is no other number for a wheel to turn. The
+     * mapping is 1:1 so the two rMin/rMax below are readable as world units,
+     * and so `fit` can hand its solved frustum straight back to cam.r. */
+    function applyZoom() {
+      if (!stage) return;
+      const c = stage.camera;
+      if (!c.isOrthographicCamera) return;
+      const a = c.aspect || 1, halfH = stage.cam.r;
+      c.top = halfH; c.bottom = -halfH;
+      c.left = -halfH * a; c.right = halfH * a;
+      c.updateProjectionMatrix();
+    }
+
     function fit() {
       _radii = null;                      // a resize may have swapped the rule
       if (!ext || !stage) return;
+      /* A BOX WITH NO SIZE MUST NOT BE FITTED, and ortho is what makes that
+       * matter. Stage.resize bails on a zero-sized canvas (its own NaN-aspect
+       * trap) and Stage.frame then bails on the missing aspect, so nothing is
+       * solved — and under perspective that was survivable, since cam.r simply
+       * kept its opening value and the molecule was merely mis-framed. Under
+       * ortho the camera is still on THREE's constructor frustum, top = 1, and
+       * reading that back as cam.r puts a thirty-unit molecule in a two-unit
+       * frame. membrane-lab hits this on every load: it builds its box while
+       * `#lipidBox` is still `hidden`, and only the ResizeObserver rescues it.
+       * Measured there — cam.r came out 1, and 34.84 once the box had a size. */
+      if (!mount.clientWidth || !mount.clientHeight) return;
       stage.resize();
       global.Stage.frame(stage.camera, stage.cam,
         [{ x: 0, y: 0, rxz: ext.rxz, hy: ext.hy }],
         { pad: opts.pad || 1.15 });
+      /* Stage.frame's ortho branch writes the frustum and leaves cam.r alone,
+       * so read the answer back — otherwise the first wheel event jumps the
+       * box to whatever cam.r happened to be left at. */
+      if (stage.camera.isOrthographicCamera) stage.cam.r = stage.camera.top;
       stage.applyCam();
     }
 
@@ -283,8 +323,14 @@
      * construction rather than by remembering (AddingAPage.md's rule). */
     const box = global.CardStage.create({
       mount, canvasClass: 'molbox-canvas',
-      stage: Object.assign({ cam: { theta: 0, phi: 1.35, r: 30 },
-                             rMin: 3, rMax: 400 }, opts.stage || {}),
+      /* rMin/rMax are world half-heights, because ortho is the default and
+       * that is what cam.r means here. 0.3 is closer than any spec needs and
+       * 400 clears the largest; both only bound the wheel, since `fit` writes
+       * cam.r from its own solve. */
+      stage: Object.assign({ ortho: true,
+                             cam: { theta: 0, phi: 1.35, r: 30 },
+                             rMin: 0.3, rMax: 400,
+                             onZoom: () => applyZoom() }, opts.stage || {}),
       step: dt => { if (spin) { stage.cam.theta += spin * dt; stage.applyCam(); } },
       // After the render, both of them: the leader reads the frame's live box,
       // and a page pinning a callout to a 3D point needs the camera this frame
