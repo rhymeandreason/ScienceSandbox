@@ -8,7 +8,7 @@ A science question box and an in-lesson tutor chat. The tutor answers in ≤3 se
 
 ## Status
 
-Runs locally only. Nothing is deployed. **Logging is built** and writes to Neon; it is off wherever `DATABASE_URL` is unset.
+**Live on `kodolab.org`**, on Vercel, behind an access link: no `?k=` means no Ask button. Logging writes to Neon, and is off wherever `DATABASE_URL` is unset. Deploying and the smoke test: `docs/deploy.md`.
 
 Working end to end on `demos/water-lab.html`:
 
@@ -31,7 +31,7 @@ Reordered once the demo-mode design landed: glycolysis moved to the front, becau
 
 Reordered again: **deploying water-lab alone is what produces the logged questions everything else is gated on**, and glycolysis is not a prerequisite for that. The bake still wants glycolysis settled before its answers freeze, so glycolysis moved behind the deploy rather than in front of it.
 
-1. **Ship water-lab to Vercel.** In four pieces, each deployable on its own: the access gate (**done**), the cohort label in the log (**done**), the rate limit (**done**), then moving `kodolab.org` off Pages. The domain moves last, so it never points at an ungated endpoint. `vercel.json` exists but is untested.
+1. ~~**Ship water-lab to Vercel.**~~ **Done.** The gate, the cohort label, the rate limit, then the domain, which moved last so it never pointed at an ungated endpoint. Smoke tested against the live host: the lesson answers, `/api/ask` is 401 without a key, and `.env.local`, `/api/log`, `/api/_tutor` and the log viewer are all 404. **Collecting real questions is now the thing everything downstream waits on.**
 2. **Second lesson mount, and its UX.** Glycolysis is the real test (10 steps, existing hotspots, modals to coexist with). Ahead of the bake, because freezing baked answers for a page still being reshaped is the reliable way to make baked content rot on day one. Nothing downstream can start until real students have asked real questions. (The bench used to need `ASK_BENCH` unset here; it is now a localhost check instead, so there is nothing to remember. See *The bench is localhost* below.)
 3. **Judge answer quality.** Never done properly. Multi-turn drift past turn 4, the 3-sentence cap, citation repetition, and flash-lite vs 3.7-flash vs Claude on the same questions. The log's per-model cards are the instrument.
 4. **Access link + rate limit.** See *Demo mode* below: the link and the limit are the same piece of work, because a key names a cohort and a limit attaches to the label. Google AI Studio is prepaid, capped at $10, which fixes the unbounded bill but not availability: at roughly a tenth of a cent a turn that is about 10,000 turns, and a script burns it in under an hour. The failure mode is now "a stranger turns the tutor off for everyone", not "a large bill".
@@ -52,7 +52,7 @@ Reordered again: **deploying water-lab alone is what produces the logged questio
 
 **A logging failure must never cost a student an answer.** `logTurn` swallows everything to the console and carries its own 2s budget; `handleAsk` awaits it and cannot be rejected by it. It is awaited rather than fired and forgotten because a serverless function may be frozen the instant it responds, and a promise left running is a row that never lands. `check-ask.js` asserts the swallowing offline, with no database, by handing `logTurn` the shapes a bad turn produces — and asserts every column `logTurn` writes exists in the `messages` block of the DDL, matched inside that block alone, because the `turns` view names most of them too and matching the whole file lets a renamed column pass.
 
-**Off by default.** No `DATABASE_URL` means every call is a no-op, which is what a checkout without a database gets and what GitHub Pages gets.
+**Off by default.** No `DATABASE_URL` means every call is a no-op, which is what a checkout without a database gets.
 
 **The viewer is `demos/ask/log.html`**, over `api/log.js`. Every exchange as a card: the question, the answer, where it pointed, and the screen it was asked against as chips. The left edge is coloured from the thread id, so a conversation reads as one block without a grouping UI; home / away / nothing is said in the meta line instead. Filter by lesson, by model, or to the answers that pointed nowhere, which is the pile worth reading first. Failed turns keep their state chips. System fonts and no web font: a tool reading a local database should not need the network to render.
 
@@ -60,7 +60,7 @@ Reordered again: **deploying water-lab alone is what produces the logged questio
 
 **Hue is the vendor and nothing else** - blue for Gemini, amber for Claude - with variants separated by depth rather than hue. Green and purple already mean "pointed at this lesson" and "pointed at another one", and a model drifting into either is a third thing wearing a colour that has a meaning. Letting hue vary did exactly that.
 
-**The viewer is not deployed**, by `.vercelignore`, and `/api/log` answers only to the machine it runs on. There is no token because there is nothing to reach: the log lives in Neon, so `.env.local` points at the same database production writes to and the dev server shows real student data with nothing public in the path. A secret exists to be leaked; not needing one beats guarding one. The static page still publishes to Pages, where there is no `/api` at all, so it is inert there.
+**The viewer is not deployed**, by `.vercelignore`, and `/api/log` answers only to the machine it runs on. There is no token because there is nothing to reach: the log lives in Neon, so `.env.local` points at the same database production writes to and the dev server shows real student data with nothing public in the path. A secret exists to be leaked; not needing one beats guarding one. Verified against the live host: `/api/log` and `demos/ask/log.html` are both 404 there.
 
 **An answer is paired with its question by `reply_to`, never by `(thread_id, turn)`.** A client using the single-question form has no transcript to count, so it numbers every question 1, and a join on the turn number multiplies two questions against two answers. Counts double and nothing errors. `turn` is now counted server-side from the rows already in the thread and is display only; `check-ask.js` asserts the view joins on `reply_to`.
 
@@ -251,9 +251,9 @@ What a successful jailbreak would actually buy: nothing secret, since `api/` pub
 
 * A hidden browser tab pauses rAF *and CSS animations*. A computed style sampled there reads as "not running"; the sim also stops, so no H-bonds form and the salt crystal never lands. Front the tab before believing a measurement.
 * `#askchat { display: flex }` silently beats `[hidden] { display: none }`. Open and closed is the `.on` class and nothing else. Do not reintroduce `hidden`.
-* The launcher is only added once `GET /api/ask` answers, so the tutor is simply absent on GitHub Pages instead of showing a JSON parse error.
+* The launcher is only added once `GET /api/ask` answers, so a host without the function, or a visitor without an access link, gets no Ask button rather than a JSON parse error.
 * Gemini 503s under load. Retries are in `_tutor.js`; 4xx never retries.
-* `api/` publishes as readable source on Pages. The system prompt is public. No key is in it.
+* `api/` publishes as readable source. The system prompt is public. No key is in it.
 
 **The bench is localhost.** Editing the tutor's prompt and picking a provider per request are developer affordances, and the question they really ask is "am I on the machine serving this". That is `api/_local.js`, checked by the transport (`api/ask.js`, `dev-server.js`) and passed into `handleAsk(payload, {bench})` and `config(bench)` as an argument. `handleAsk` stays transport-free: it receives a boolean, never a request.
 

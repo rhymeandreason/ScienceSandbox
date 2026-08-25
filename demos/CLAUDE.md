@@ -95,13 +95,17 @@ See `docs/ai-tutor.md`.
 node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
 ```
 
-Live reload, and `no-store` so you never debug a fix that's already correct on disk. **It serves the repo root, not `demos/`**, because that's what GitHub Pages publishes — the local URL is the URL that ships. `/` is the lesson index; a lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
+Live reload, and `no-store` so you never debug a fix that's already correct on disk. **It serves the repo root, not `demos/`**, because the root is what deploys. `/` is the lesson index; a lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
+
+**The dev server does not apply `vercel.json`'s rewrites**, so a featured lesson is its file path locally and its short URL in production (above). A query string survives the redirect between them, which is what keeps the tutor's `?k=` links working whichever form gets shared.
 
 Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in place, so the scene keeps its camera, selection and toggles.
 
 **The pages are dependency-free; the tutor is not.** `water-lab`'s ask box needs SDKs and a key that are not in the working tree; setup is in `docs/ai-tutor.md`.
 
-The reload client is injected into responses, never written to disk — this repo publishes to Pages straight from the working tree, so anything committed ships. To see exactly what deploys:
+**The tutor is live on `kodolab.org`, behind an access link.** No `?k=` means no Ask button, which is also what every checkout without a key sees, so its absence locally is normal and not a fault to chase. Deploying, the environment variables and the smoke test: `docs/deploy.md`.
+
+The reload client is injected into responses, never written to disk. **The site is on Vercel, built by the GitHub integration**, so what deploys is what is committed, and `.vercelignore` decides what is withheld from that. To see exactly what deploys:
 
 ```bash
 python3 -m http.server 8818     # from the repo root; no injection, no reload

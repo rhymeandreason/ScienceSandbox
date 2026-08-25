@@ -8,12 +8,13 @@
  *  instanced cylinders, which is honest about a BILAYER and says nothing
  *  about what a lipid IS. The inset is where the ball-and-stick goes.
  *
- *  PLUMBING ONLY, so it stays in kit/: a renderer, a camera solved from the
- *  molecule's own extent, a loop that stops when nobody is looking. It owns
- *  no lesson state, no chemistry, and no opinion about which molecule.
+ *  PLUMBING ONLY, so it stays in kit/: a camera solved from the molecule's own
+ *  extent, and the leader that says what the frame is a window onto. The stage
+ *  under it is kit/card-stage.js's. It owns no lesson state, no chemistry, and
+ *  no opinion about which molecule.
  *
  *  Usage:
- *    const box = Inset.create({ canvas, spec: MolLib.MOLECULES.popc });
+ *    const box = Inset.create({ mount, spec: MolLib.MOLECULES.popc });
  *    box.stop();  box.start();          // or let visibility drive it
  *
  * ---------------------------------------------------------------------
@@ -36,16 +37,26 @@
  *    by remembering. The optional turntable below advances `cam.theta` for
  *    the same reason; nothing here ever touches `group.rotation`.
  *
- *  · A SECOND WEBGL CONTEXT IS A REAL RESOURCE. Browsers cap them around
- *    8-16 and drop the OLDEST when you pass it, so a page that makes one
- *    inset per step eventually kills its own main stage — with no error,
- *    because losing a context is a canvas going blank. So: one inset,
- *    reused via `show()`, and `destroy()` actually releases it.
+ *  · THE CANVAS, THE LOOP AND THE CONTEXT ARE kit/card-stage.js's. One inset,
+ *    reused via `show()`, still stopped when nobody can see it, and a
+ *    `destroy()` that really gives the context back — browsers cap them near
+ *    8-16 and drop the OLDEST, so a page making one per step kills its own
+ *    main stage with no error. Those rules did not weaken; they moved
+ *    somewhere one file states them for all three boxes.
  *
- *  · A BOX NOBODY CAN SEE MUST NOT RENDER. An inset behind a hidden step
- *    is invisible waste, and it is the second context that makes it worth
- *    caring about. An IntersectionObserver drives start/stop, so a caller
- *    that forgets gets the right behaviour anyway.
+ *    THIS MODULE IS WHY THE MOVE MATTERED. It took a `canvas:` from the
+ *    caller and its destroy called `renderer.dispose()` alone — which does
+ *    NOT hand the context back. So a page that destroyed an inset kept the
+ *    context for the life of the tab, and the header above said otherwise.
+ *    It takes a `mount:` now and makes the canvas itself, because a canvas
+ *    that has lost a context can never be granted another.
+ *
+ *  · `spin` IS RADIANS PER SECOND. It was a per-frame increment, which runs a
+ *    third faster on a 120 Hz display — kit/README.md's standing rule, and the
+ *    one behaviour that changed meaning in the move. Nothing was spinning:
+ *    membrane-lab is the only caller and it turned the turntable off on
+ *    purpose, so the rename cost nothing to fix and would have cost a
+ *    mystery later.
  *
  *  · ANNOTATIONS GO IN `view`, NOT THE FRAME. annotate.js projects into
  *    `stageEl.clientWidth/Height` (its own Trap 3), so handing it the
@@ -57,9 +68,10 @@
  *
  *  · `afterFrame` RUNS AFTER THE RENDER, the same name and the same rule as
  *    kit/stagekit.js: anything pinning DOM to a 3D point belongs there,
- *    because before the render it reads the previous frame's camera. This
- *    module owns its own loop, so without the hook a page has nowhere to
- *    step a callout at all.
+ *    because before the render it reads the previous frame's camera. The
+ *    loop belongs to card-stage.js, so without the hook a page has nowhere
+ *    to step a callout at all. The leader is drawn from the same hook, and
+ *    for the same reason.
  *
  *  · THE LEADER IS THE OTHER HALF OF THE FRAME. A framed box says "this is
  *    a window"; only the leader says WHICH thing it is a window onto. Two
@@ -78,33 +90,45 @@
  * ========================================================================== */
 (function(global){
   'use strict';
-  const THREE = global.THREE;
+
+  /* Radians per SECOND, not per frame — kit/README.md's standing rule, and the
+     one thing about this module that changed meaning in the move onto
+     card-stage.js. The old default was a per-frame 0.0035, which is this at
+     60 Hz and a third faster on a 120 Hz display. */
+  const SPIN = 0.21;
 
   function create(opts = {}) {
-    const canvas = opts.canvas;
-    if (!canvas) throw new Error('kit/inset.js: needs a canvas');
+    /* The box the close-up fills, and the element whose box IS the canvas's —
+       `.inset-view` in main.css's component. The module makes the canvas
+       inside it and takes it away on destroy, which is not tidiness: destroy
+       force-loses the WebGL context to give it back, and a canvas that has
+       lost one can never be granted another, so a caller that supplied the
+       element could never be given a live box on it again. Same rule as
+       kit/card-stage.js and molecule-builder.js, and this module is the one
+       that used to break it — it took a `canvas:` and never force-lost the
+       context, which is why nobody had noticed. */
+    const mount = opts.mount;
+    if (!mount) throw new Error('kit/inset.js: needs a `mount` element');
 
-    /* The element whose box is exactly the canvas's, for anything projecting
-       DOM onto a 3D point. Defaults to the canvas's parent, which is the
-       `.inset-view` row in main.css's component. */
-    const view = opts.view || canvas.parentElement;
+    /* Where anything projecting DOM onto a 3D point goes. It is the mount by
+       construction now; an explicit `view` is still honoured, and still
+       measured below, because a caller who passes the FRAME instead skews
+       every dot by the caption row. */
+    const view = opts.view || mount;
 
     /* The framed box itself, which is what a leader points FROM. `.inset` is
        main.css's component and this module's header already names it. */
-    const frame = opts.frame || (canvas.closest && canvas.closest('.inset')) ||
-                  (view && view.parentElement);
+    const frame = opts.frame || (mount.closest && mount.closest('.inset')) ||
+                  mount.parentElement;
 
-    const stage = global.Stage.create(canvas, Object.assign({
-      cam: { theta: 0, phi: 1.35, r: 30 },
-      rMin: 3, rMax: 400,
-    }, opts.stage || {}));
-
+    // Forward-declared: card-stage.js calls `onResize` and draws one frame from
+    // inside create(), which is before this can be assigned.
+    let stage = null, canvas = null;
     let spec = null, group = null, ext = null;
-    let running = false, raf = 0;
     // Off by default. A spec that declares `view:` was posed by hand, and a
     // box that turns away from that angle within a second of appearing shows
     // it to nobody. Ask for it where the point IS that the thing is 3D.
-    let spin = opts.spin ? (typeof opts.spin === 'number' ? opts.spin : 0.0035) : 0;
+    let spin = opts.spin ? (typeof opts.spin === 'number' ? opts.spin : SPIN) : 0;
 
     function show(next) {
       if (group) { stage.root.remove(group); group = null; }
@@ -120,7 +144,7 @@
 
     function fit() {
       _radii = null;                      // a resize may have swapped the rule
-      if (!ext) return;
+      if (!ext || !stage) return;
       stage.resize();
       global.Stage.frame(stage.camera, stage.cam,
         [{ x: 0, y: 0, rxz: ext.rxz, hy: ext.hy }],
@@ -205,31 +229,37 @@
       mark.setAttribute('cy', p[1].toFixed(1));
     }
 
-    function draw() {
-      if (spin) { stage.cam.theta += spin; stage.applyCam(); }
-      stage.renderer.render(stage.scene, stage.camera);
-      drawLeader();
-      if (opts.afterFrame) opts.afterFrame();
-    }
+    /* The loop, the canvas, the visibility gate and the context release are
+     * kit/card-stage.js's. What is left here is what an inset IS: a molecule
+     * solved into a frame, and a leader that says which thing the frame is a
+     * window onto.
+     *
+     * The turntable turns the CAMERA — never `group.rotation` — so a spec's
+     * declared `view:` is still exactly what the box opens on, satisfied by
+     * construction rather than by remembering (AddingAPage.md's rule). */
+    const box = global.CardStage.create({
+      mount, canvasClass: 'inset-canvas',
+      stage: Object.assign({ cam: { theta: 0, phi: 1.35, r: 30 },
+                             rMin: 3, rMax: 400 }, opts.stage || {}),
+      step: dt => { if (spin) { stage.cam.theta += spin * dt; stage.applyCam(); } },
+      // After the render, both of them: the leader reads the frame's live box,
+      // and a page pinning a callout to a 3D point needs the camera this frame
+      // actually used. Same name and rule as kit/stagekit.js.
+      afterFrame: () => { drawLeader(); if (opts.afterFrame) opts.afterFrame(); },
+      onResize: fit,
+      onDestroy: () => {
+        if (svg && svg.parentNode) svg.parentNode.removeChild(svg);
+        if (group) stage.root.remove(group);
+      },
+    });
+    stage = box.stage;
+    canvas = box.canvas;
 
-    function tick() { if (!running) return; raf = requestAnimationFrame(tick); draw(); }
-    function start() { if (running) return; running = true; raf = requestAnimationFrame(tick); }
-    function stop() {
-      running = false; if (raf) cancelAnimationFrame(raf); raf = 0;
-      // The leader is drawn from the loop, so stopping would otherwise freeze
-      // it wherever it last was — pointing at nothing, over a hidden box.
-      if (svg) svg.style.display = 'none';
-    }
+    function draw() { box.draw(); }
 
-    const ro = new ResizeObserver(fit); ro.observe(canvas);
-    /* Visibility drives the loop, so a caller that never calls stop() still
-     * does not burn a frame on a box behind a closed step. `start()` called
-     * by hand on a hidden canvas is honoured until the observer disagrees —
-     * the observer is the fallback, not the authority. */
-    const io = new IntersectionObserver(es => {
-      es.forEach(e => e.isIntersecting ? start() : stop());
-    }, { threshold: 0.01 });
-    io.observe(canvas);
+    /* The leader is drawn from the loop, so a plain stop would freeze it where
+     * it last was — pointing at nothing, over a box that is no longer there. */
+    function stop() { box.stop(); if (svg) svg.style.display = 'none'; }
 
     /* Said out loud, because the symptom is a callout a few pixels off rather
        than anything that looks like an error. Measured after the first fit, so
@@ -250,19 +280,18 @@
     if (spec) draw();
 
     return {
-      show, fit, start, stop, draw,
-      setSpin(on) { spin = on ? (typeof on === 'number' ? on : 0.0035) : 0; },
+      show, fit, stop, draw,
+      start: box.start, pump: box.pump, snapshot: box.snapshot,
+      get running() { return box.running; },
+      // radians per SECOND — see SPIN at the top of the file
+      setSpin(on) { spin = on ? (typeof on === 'number' ? on : SPIN) : 0; },
       get spec() { return spec; },
       get group() { return group; },
       get stage() { return stage; },
+      get canvas() { return canvas; },
       get view() { return view; },
       get frame() { return frame; },
-      destroy() {
-        stop(); ro.disconnect(); io.disconnect();
-        if (svg && svg.parentNode) svg.parentNode.removeChild(svg);
-        if (group) stage.root.remove(group);
-        stage.renderer.dispose();          // the context, actually released
-      },
+      destroy: box.destroy,
     };
   }
 

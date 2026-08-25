@@ -225,7 +225,11 @@
       <!-- The canvas gets its own row: callouts are projected into it, and
            annotate.js divides by the element's clientHeight, so it must be
            the canvas's box and not the frame that also carries a caption. -->
-      <div class="inset-view" id="lipidView"><canvas id="lipidGl"></canvas></div>
+      <!-- No <canvas> here on purpose: kit/inset.js makes its own inside this
+           box and force-loses the context on destroy, and a canvas that has
+           lost one can never be granted another. main.css's `.inset-view
+           canvas` rule sizes whatever it puts there. -->
+      <div class="inset-view" id="lipidView"></div>
       <!-- The sentence a callout card would have hidden behind a click. In a
            box this size it has nowhere to open, so it is printed. -->
       <div class="inset-cap"><b>one phospholipid</b>
@@ -337,6 +341,7 @@
 <script src="kit/motion.js"></script>
 <script src="kit/focus.js"></script>
 <script src="kit/fit.js"></script>
+<script src="kit/card-stage.js"></script>
 <script src="kit/inset.js"></script>
 <script src="kit/stagekit.js"></script>
 <script src="membrane/parts.js"></script>
@@ -2633,7 +2638,7 @@ function lipidLeaderAt() {
    passes its cap, so a box rebuilt per step would eventually blank the main
    stage with no error at all. `show()` is how it would change molecule. */
 const lipidInset = Inset.create({
-  canvas: document.getElementById('lipidGl'),
+  mount: document.getElementById('lipidView'),
   spec: MolLib.MOLECULES.popc,
   /* NO TURNTABLE, now that a callout points into the box. A label tracks a
      spinning molecule correctly and still reads badly: in 152 px the words
