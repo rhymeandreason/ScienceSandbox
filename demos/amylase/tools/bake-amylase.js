@@ -46,6 +46,26 @@ const CONTACT = 4.0;                 // heavy-atom contact, the usual cut
    996 is a LONE glucose on the far side of the molecule and is not part
    of it; keeping it would put a fifth "subsite" in the measurement. */
 const LIG = [['B',1],['B',2],['B',3],['B',4]];
+
+/* THE THREE THAT DO THE CHEMISTRY, in 1OSE's own numbering. This is the one
+   fact on the page that is not measurable from the coordinates — which
+   residue attacks and which protonates comes from the enzymology, not from
+   where atoms are. So it is declared here, and everything ABOUT them is then
+   measured: check-amylase.js holds the names against the file, requires all
+   three to be in the site's contact set, and requires each to be close enough
+   to the sugar to reach it. A typo in a number would otherwise mark an
+   innocent residue and nothing would complain.
+   Porcine pancreatic α-amylase, the standard retaining double-displacement:
+   Asp197 attacks C1, Glu233 protonates the leaving oxygen, Asp300 holds the
+   substrate through both steps. */
+const CATALYTIC = [
+  { num: 197, name: 'ASP', role: 'attacks the sugar' },
+  { num: 233, name: 'GLU', role: 'hands over a hydrogen' },
+  { num: 300, name: 'ASP', role: 'holds it steady' },
+];
+/* The end of the side chain, which is the part that reaches the bond — an
+   Asp/Glu carboxyl. A residue's centroid would sit half a side chain back. */
+const TIP = { ASP: ['OD1','OD2'], GLU: ['OE1','OE2'] };
 const IONS = [['A',500],['A',498]];
 const isIn = (list, ch, n) => list.some(([c,k]) => c===ch && k===n);
 
@@ -144,6 +164,20 @@ function main() {
   }));
   const residueCount = new Set(prot.map(a => a.chain + a.num)).size;
 
+  const catalytic = CATALYTIC.map(c => {
+    const at = prot.filter(a => a.chain === 'A' && a.num === c.num);
+    if (!at.length) throw new Error(`no residue A${c.num}`);
+    const found = at[0].name;
+    if (found !== c.name)
+      throw new Error(`A${c.num} is ${found}, not the ${c.name} the table claims`);
+    const tip = at.filter(a => TIP[c.name].includes(a.atom));
+    if (tip.length !== 2) throw new Error(`A${c.num} is missing its carboxyl oxygens`);
+    const p = [0,1,2].map(k => tip.reduce((s2,a) => s2 + a.p[k], 0) / tip.length);
+    return { num: c.num, name: c.name, role: c.role,
+             p: sub(p).map(v => +v.toFixed(3)),
+             toLigand: +Math.min(...lig.map(l => dist(p, l.p))).toFixed(2) };
+  });
+
   const J = {
     source: '1OSE', note: 'porcine pancreatic alpha-amylase + acarbose, 2.3 A',
     baker: 'amylase/tools/bake-amylase.js',
@@ -166,6 +200,7 @@ function main() {
       contactCut: CONTACT,
     },
     ionDistances: nearest,
+    catalytic,
   };
 
   /* ---- the surface ---- */
@@ -201,6 +236,8 @@ function main() {
               `${J.trough.adjacentOverlap.map(s => `${s.both}/${s.of}`).join(', ')}` +
               ` residues shared`);
   console.log(`      ${nearest.map(n => `${n.el} ${n.toLigand} A`).join(', ')} from the sugar`);
+  console.log(`      catalytic: ` +
+              `${catalytic.map(c => `${c.name}${c.num} ${c.toLigand} A`).join(', ')}`);
   console.log(`      wrote 1OSE.surf.bin ${(buf.length/1024).toFixed(0)} KB, amylase.json`);
 }
 

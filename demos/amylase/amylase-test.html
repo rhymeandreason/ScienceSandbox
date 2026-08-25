@@ -82,6 +82,7 @@
     <div id="seg"></div>
     <div class="row"><label>skin opacity</label><input type="range" id="op" min="0" max="100" value="100"><span class="val" id="opv">0.80</span></div>
     <div class="row"><label><input type="checkbox" id="paint" checked> paint the contact residues</label></div>
+    <div class="row"><label><input type="checkbox" id="cat" checked> mark the catalytic three</label></div>
     <!-- Off by default: acarbose is a separate MOLECULE, not part of the
          enzyme, and a page that opens with it already in the groove invites
          exactly the wrong reading. Turning it on is then a deliberate act,
@@ -103,6 +104,9 @@
 
     <h3>measured, not typed</h3>
     <div class="out" id="nums">loading…</div>
+
+    <h3>the three that do the chemistry</h3>
+    <div class="out" id="catout">–</div>
 
     <h3>the contact residues</h3>
     <div class="out" id="contacts">–</div>
@@ -172,6 +176,7 @@ const SUB = { p: 'protein', c: 'contact', l: 'ligand' };
 const COL = {
   skin:    0xd9d2c4,
   contact: 0x0042aa,      // the 25 residues that touch the sugar
+  catalytic: 0xe07b1a,    // the three that do the chemistry
   helix:   0xc2571b, strand: 0x0042aa, coil: 0xb8b0a4,
   ca:      0x2e8b57, cl:    0x7a45c4,
 };
@@ -261,10 +266,20 @@ function contactSet() {
 }
 function paintSkin() {
   const on = document.getElementById('paint').checked;
+  const cat = document.getElementById('cat').checked;
   const hit = contactSet();
-  const base = new THREE.Color(COL.skin), mark = new THREE.Color(COL.contact);
-  const table = S.head.residues.map(([chain, num, name]) =>
-    (on && hit.has(chain + num + ':' + name)) ? mark : base);
+  const three = new Set(J.catalytic.map(c => 'A' + c.num + ':' + c.name));
+  const base = new THREE.Color(COL.skin), mark = new THREE.Color(COL.contact),
+        hot = new THREE.Color(COL.catalytic);
+  /* The catalytic three are painted OVER the contact set, not instead of it:
+     they are three of those 25, and a mode that hid the rest to show them
+     would lose the point — the site is a track, and these three sit at one
+     place along it. */
+  const table = S.head.residues.map(([chain, num, name]) => {
+    const key = chain + num + ':' + name;
+    if (cat && three.has(key)) return hot;
+    return (on && hit.has(key)) ? mark : base;
+  });
   const col = new Float32Array(S.nVert * 3);
   for (let v = 0; v < S.nVert; v++) {
     const c = table[S.res[v]];
@@ -304,6 +319,20 @@ function buildIons() {
   return g;
 }
 
+/* The same three as spheres on their own carboxyl tips, so they are visible
+   in ribbon mode and under an opaque skin alike — a patch painted on the
+   surface disappears the moment the surface does, and these three are the
+   answer to "where does the bond break", which is a question the ribbon
+   raises just as much. Drawn at the tip rather than the residue centre
+   because the tip is the part that reaches the sugar. */
+let catGroup = null;
+function buildCatalytic() {
+  const g = new THREE.Group();
+  for (const c of J.catalytic)
+    g.add(Stage.atom(COL.catalytic, 0.75, new THREE.Vector3(c.p[0], c.p[1], c.p[2]), c.name));
+  return g;
+}
+
 /* ------------------------------------------------------------------ *
  *  the readout
  * ------------------------------------------------------------------ */
@@ -321,6 +350,14 @@ function readout() {
     `Cl⁻           ${ion('CL').toLigand} Å from the sugar`,
     `Ca²⁺          ${ion('CA').toLigand} Å from the sugar`,
   ].join('\n');
+
+  /* Distances are measured, and the roles are the one declared fact here —
+     which residue attacks and which protonates is enzymology, not geometry.
+     The baker holds the numbering to the file so a role never lands on the
+     wrong residue in silence. */
+  document.getElementById('catout').textContent = J.catalytic
+    .map(c => `${(c.name + c.num).padEnd(8)}${c.toLigand.toFixed(2).padStart(5)} Å  ${c.role}`)
+    .join('\n');
 
   document.getElementById('contacts').textContent =
     J.ligand.residues.map(r =>
@@ -474,6 +511,7 @@ function apply() {
   ribbon.visible = m.ribbon;
   skin.visible = m.surf && +document.getElementById('op').value > 0;
   ligGroup.visible = document.getElementById('lig').checked;
+  if (catGroup) catGroup.visible = document.getElementById('cat').checked;
   ionGroup.visible = document.getElementById('ions').checked;
   const o = document.getElementById('op').value / 100;
   skinMat.opacity = o;
@@ -485,7 +523,8 @@ function apply() {
   seg.forEach((b, i) => b.setAttribute('aria-pressed', String(i === mode)));
 }
 for (const id of ['op', 'lig', 'ions']) document.getElementById(id).oninput = apply;
-document.getElementById('paint').oninput = () => { paintSkin(); apply(); };
+for (const id of ['paint', 'cat'])
+  document.getElementById(id).oninput = () => { paintSkin(); apply(); };
 
 async function main() {
   const [pdb, json, buf] = await Promise.all([
@@ -517,6 +556,7 @@ async function main() {
   root.add(skin);
   paintSkin();
 
+  catGroup = buildCatalytic(); root.add(catGroup);
   ligGroup = buildLigand(); root.add(ligGroup);
   ionGroup = buildIons();   root.add(ionGroup);
 

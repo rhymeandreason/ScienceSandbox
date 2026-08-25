@@ -98,7 +98,26 @@ const ca = J.ionDistances.find(i => i.el === 'CA');
 ok(cl && near(cl.toLigand, 5.9, 0.5), `Cl- sits ${cl && cl.toLigand} A from the sugar`);
 ok(ca && ca.toLigand > cl.toLigand, `Ca2+ (${ca && ca.toLigand} A) is the further of the two`);
 
-console.log('\n== 6. the surface is in the ligand\'s frame');
+console.log('\n== 6. the three that do the chemistry');
+/* WHICH residues these are is declared by the baker, from the enzymology.
+   Everything else about them is held to the file: that the numbering picks
+   out the residue the table names, that all three touch the substrate, and
+   that each can actually reach the bond. A mistyped number would otherwise
+   put a marker on an innocent residue in silence. */
+const cat = J.catalytic || [];
+ok(cat.length === 3, `${cat.length} catalytic residues declared`);
+for (const c of cat) {
+  const at = atoms.filter(a => a.chain === 'A' && a.num === c.num && !a.het);
+  ok(at.length > 0 && at[0].name === c.name,
+     `A${c.num} is ${at.length ? at[0].name : 'absent'}, and the file says ${c.name}`);
+  ok(hit.has('A' + c.num + ':' + c.name),
+     `${c.name}${c.num} is one of the ${hit.size} residues touching the sugar`);
+  /* Within a hydrogen bond of the substrate. A catalytic residue that cannot
+     reach the bond it is supposed to break is the wrong residue. */
+  ok(c.toLigand < 4.0, `${c.name}${c.num} reaches it: ${c.toLigand} A`);
+}
+
+console.log('\n== 7. the surface is in the ligand\'s frame');
 const buf = fs.readFileSync(path.join(DATA, '1OSE.surf.bin'));
 ok(buf.slice(0, 4).toString('ascii') === 'SES1', 'the mesh is an SES1 file');
 const head = JSON.parse(buf.slice(8, 8 + buf.readUInt32LE(4)).toString('utf8'));
