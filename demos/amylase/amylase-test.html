@@ -25,9 +25,13 @@
      hides the fold. The numbers in the panel are measured off the
      structure by amylase/tools/bake-amylase.js — nothing here is typed.
 
-     NOT YET HERE: the built starch helix and cellulose ribbon dropped
-     into this trough. That is the measurement the specificity claim
-     actually needs, and this page is the place it will happen.
+     AND THE CHAINS ARE IN IT NOW. The starch helix and the cellulose
+     ribbon that chain/glucose-chains-test.html builds out of one measured
+     linkage each are placed in this trough by superposing their own
+     glycosidic oxygens onto acarbose's — amylase/fit.js, which
+     amylase/tools/check-fit.js runs offline against the same code. The
+     placed chain is drawn with every atom that overlaps the protein
+     marked, so the result is visible and not only tabulated.
 
      Species caveat: porcine pancreatic, not human salivary.
      =================================================================== -->
@@ -52,10 +56,10 @@
   .row label{flex:1;color:#4a453d}
   .row input[type=range]{width:120px}
   .val{font-variant-numeric:tabular-nums;color:#0042aa;min-width:38px;text-align:right;font-weight:600}
-  #seg{display:flex;gap:6px;margin:6px 0 2px}
-  #seg button{flex:1;padding:7px 4px;border:1.5px solid var(--hair);border-radius:7px;
+  #seg,#chainseg{display:flex;gap:6px;margin:6px 0 8px}
+  #seg button,#chainseg button{flex:1;padding:7px 4px;border:1.5px solid var(--hair);border-radius:7px;
     background:#fff;cursor:pointer;font-family:var(--font-sans);font-size:12.5px}
-  #seg button[aria-pressed=true]{border-color:#0042aa;box-shadow:0 0 0 2px rgba(0,66,170,.15);font-weight:600}
+  #seg button[aria-pressed=true],#chainseg button[aria-pressed=true]{border-color:#0042aa;box-shadow:0 0 0 2px rgba(0,66,170,.15);font-weight:600}
   .stat{display:flex;justify-content:space-between;padding:2px 0;color:#4a453d}
   .stat b{font-variant-numeric:tabular-nums}
   .out{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;line-height:1.55;
@@ -81,6 +85,11 @@
     <div class="row"><label><input type="checkbox" id="ions" checked> Ca²⁺ and Cl⁻</label></div>
     <div class="row"><label><input type="checkbox" id="spin"> spin</label></div>
 
+    <h3>substrate</h3>
+    <div id="chainseg"></div>
+    <div class="out" id="fit">–</div>
+    <div class="note" id="fitnote"></div>
+
     <h3>camera</h3>
     <div class="out" id="camv">–</div>
     <div class="note">Orbit to the view you want and paste that line into
@@ -100,9 +109,19 @@
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
+<script src="../lib/skel.js"></script>
+<!-- mol-monomers BEFORE mol-contrast, which mirrors out of it — the load
+     order chain/glucose-chains-test.html states and depends on. This page
+     draws maltose and cellobiose only as the polymers they repeat into. -->
+<script src="../lib/mol-monomers.js"></script>
+<script src="../lib/mol-pathways.js"></script>
+<script src="../lib/mol-contrast.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../folding/ribbon.js"></script>
 <script src="../hemoglobin/surface.js"></script>
+<script src="../chain/frame.js"></script>
+<script src="../lib/chain-repeat.js"></script>
+<script src="fit.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -154,6 +173,19 @@ const COL = {
 const LIGCOL = { C: 0x3a3a3a, O: 0xd6362e, N: 0x3f6ae0 };
 const LIG_R = 0.42, LIG_STICK = 0.16;
 
+/* The two polymers, built here from the same specs and the same linkage
+   repeat chain/glucose-chains-test.html uses — not a second copy of either
+   geometry. `none` is first because the trough alone is the page's other
+   half and a substrate in it is a second question. */
+const TRIAD = ['O5','C1','C4'];
+const NRES = 12;
+const CHAINS = [
+  { key: null,         label: 'empty' },
+  { key: 'maltose',    label: 'starch',    tag: 'α-1,4' },
+  { key: 'cellobiose', label: 'cellulose', tag: 'β-1,4' },
+];
+const CLASHCOL = 0xc0392b;      // an atom inside the protein
+
 const canvas = document.getElementById('cv');
 const { scene, camera, renderer, root, cam, applyCam, resize } =
   /* Picked by eye in this bench's own camera readout: the trough faces the
@@ -177,6 +209,18 @@ const seg = MODES.map((m, i) => {
   b.setAttribute('aria-pressed', String(i === mode));
   b.onclick = () => { mode = i; apply(); };
   document.getElementById('seg').appendChild(b);
+  return b;
+});
+
+let grid = null, anchors = null, chainGroup = null, chainIdx = 0;
+const chainSeg = CHAINS.map((ch, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.innerHTML = ch.tag ? `${ch.label}<br><span style="color:#8a8175">${ch.tag}</span>` : ch.label;
+  b.setAttribute('aria-pressed', String(i === chainIdx));
+  b.onclick = () => { chainIdx = i; drawChain(CHAINS[i].key); fitReadout(CHAINS[i].key);
+                      chainSeg.forEach((x, k) => x.setAttribute('aria-pressed', String(k === i))); };
+  document.getElementById('chainseg').appendChild(b);
   return b;
 });
 
@@ -273,6 +317,129 @@ function readout() {
 }
 
 /* ------------------------------------------------------------------ *
+ *  the substrate
+ * ------------------------------------------------------------------ *
+ *  One linkage, repeated, then dropped into the site by superposing its
+ *  own three glycosidic oxygens onto acarbose's. amylase/fit.js owns the
+ *  arithmetic and amylase/tools/check-fit.js asserts the result offline,
+ *  so what is drawn here and what the checker measures are one code path.
+ *
+ *  ATOMS INSIDE THE PROTEIN ARE PAINTED RED, which is the finding made
+ *  visible: a table saying "13 severe overlaps" is a claim, and thirteen
+ *  red spheres buried in a wall is the thing itself.
+ */
+const FIT = {};                 // key -> { best, chain } once built
+
+function buildChain(key) {
+  const spec = MolLib.MOLECULES[key];
+  const screw = ChainRepeat.screwOf(spec, TRIAD, 'A', 'B');
+  const c = ChainRepeat.extend(spec, screw, NRES, 'A');
+  const iO4 = c.index('O4'), iHO4 = c.index('HO4');
+  /* Out of MolLib's scaled space and into ångströms, which is what the
+     protein is in. Everything downstream of here is real distance. */
+  const residues = c.residues.map(r => r.map(p => p.map(v => v / MolLib.SCALE)));
+  const heavy = residues.map((r, n) => {
+    const drop = new Set(n === 0 ? [] : [iO4, iHO4]);
+    return c.el.map((e, i) => (e !== 'H' && !drop.has(i)) ? i : -1).filter(i => i >= 0);
+  });
+  return { c, screw, drop: [iO4, iHO4],
+           chain: { residues, bridge: c.index('O1'), heavy } };
+}
+
+/* The protein as points, for the clash test. Parsed from the same PDB the
+   ribbon comes from, in the same frame, so a red atom is red because it is
+   in the protein and not because two frames disagree. */
+function proteinAtoms(pdb) {
+  const out = [];
+  for (const line of pdb.split('\n')) {
+    const het = line.startsWith('HETATM');
+    if (!line.startsWith('ATOM') && !(het && line.slice(17,20).trim() === 'PCA')) continue;
+    const alt = line[16];
+    if (alt !== ' ' && alt !== 'A') continue;
+    const el = (line.slice(76,78).trim() || line.slice(12,14).trim()[0]).toUpperCase();
+    if (el === 'H') continue;
+    out.push({ name: line.slice(17,20).trim(), num: +line.slice(22,26),
+               atom: line.slice(12,16).trim(),
+               p: [+line.slice(30,38) - J.centre[0],
+                   +line.slice(38,46) - J.centre[1],
+                   +line.slice(46,54) - J.centre[2]] });
+  }
+  return out;
+}
+
+function drawChain(key) {
+  if (chainGroup) {
+    root.remove(chainGroup);
+    chainGroup.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+    chainGroup = null;
+  }
+  if (!key) return;
+  if (!FIT[key]) {
+    const b = buildChain(key);
+    FIT[key] = Object.assign(b, { best: AmylaseFit.place(b.chain, anchors, grid) });
+  }
+  const { c, chain, drop, best } = FIT[key];
+  const P = MolLib.PALETTE;
+  const g = new THREE.Group();
+  const V = p => new THREE.Vector3(p[0], p[1], p[2]);
+  const iO1 = c.index('O1'), iC4 = c.index('C4');
+  const win = new Set(best.window);
+
+  best.moved.forEach((res, n) => {
+    const gone = new Set(n === 0 ? [] : drop);
+    const colour = i => {
+      /* Red for an atom inside the protein, and only for a heavy one —
+         these specs carry hydrogens and a hydrogen at 2.2 Å from a heavy
+         atom is a hydrogen bond, not an overlap. */
+      if (c.el[i] === 'H') return P.atoms.H;
+      return AmylaseFit.nearest(grid, res[i]).d < AmylaseFit.SEVERE
+        ? CLASHCOL : (P.atoms[c.el[i]] || 0x888888);
+    };
+    res.forEach((p, i) => {
+      if (gone.has(i)) return;
+      /* Residues outside the four the trough holds are drawn thinner, so
+         the eye can tell the part being scored from its continuation. */
+      const r = (P.radii[c.el[i]] || 0.7) * (win.has(n) ? 1 : 0.75);
+      g.add(Stage.atom(colour(i), r, V(p), c.el[i]));
+    });
+    c.bonds.forEach(([a, b, order]) => {
+      if (gone.has(a) || gone.has(b)) return;
+      g.add(Stage.bond(V(res[a]), V(res[b]), P.bonds.covalent, 0.14, order));
+    });
+    const nx = best.moved[n + 1];
+    if (nx) g.add(Stage.bond(V(res[iO1]), V(nx[iC4]), P.bonds.covalent, 0.14, 1));
+  });
+  root.add(g);
+  chainGroup = g;
+}
+
+/* The control row is acarbose scored in its OWN deposited pose — nothing
+   is superposed onto anything. Without it the other rows are unreadable:
+   nobody knows whether nine contacts under 3 Å is many. */
+function fitReadout(key) {
+  const el = document.getElementById('fit'), note = document.getElementById('fitnote');
+  const ctrl = AmylaseFit.clash(J.ligand.atoms.map(a => a.p), grid);
+  const line = (label, c) =>
+    `${label.padEnd(12)}${String(c.severe).padStart(4)}${String(c.close).padStart(6)}` +
+    `${c.min.toFixed(2).padStart(7)}`;
+  const rows = ['            over  near    min Å', line('acarbose', ctrl)];
+  if (key) {
+    const b = FIT[key].best;
+    rows.push(line('in the site', b.site), line('either side', b.flank));
+    note.innerHTML =
+      `Placed by its own glycosidic oxygens onto acarbose's ` +
+      `(<b>${b.rmsd.toFixed(2)} Å</b> rmsd over three atoms), which is the only ` +
+      `input — nothing is fitted to the protein. Red atoms are closer than ` +
+      `${AmylaseFit.SEVERE} Å to a protein heavy atom, an overlap no side chain ` +
+      `explains away. Both chains and the protein are rigid here, so this says ` +
+      `what these shapes do in this trough, not what a molecule can never do.`;
+  } else {
+    note.textContent = '';
+  }
+  el.textContent = rows.join('\n');
+}
+
+/* ------------------------------------------------------------------ *
  *  wiring
  * ------------------------------------------------------------------ */
 function apply() {
@@ -325,6 +492,14 @@ async function main() {
 
   ligGroup = buildLigand(); root.add(ligGroup);
   ionGroup = buildIons();   root.add(ionGroup);
+
+  grid = AmylaseFit.index(proteinAtoms(pdb), 6);
+  anchors = [1,2,3].map(num => {
+    const a = J.ligand.atoms.find(x => x.num === num && x.atom === 'O4');
+    if (!a) throw new Error(`no O4 on ligand residue ${num}`);
+    return a.p;
+  });
+  fitReadout(CHAINS[chainIdx].key);
 
   readout();
   apply();
