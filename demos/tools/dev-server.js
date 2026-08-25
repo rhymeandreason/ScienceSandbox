@@ -207,6 +207,63 @@ try {
   console.warn('watch failed — serving without live reload:', e.message);
 }
 
+
+/* ---- the door map's content -----------------------------------------------
+ * The same contract as the question bank above and the same reasons: local
+ * only, mtime-guarded, and absent from the deployed site by construction
+ * because `api/` does not hold it. Its own handler rather than a parameter on
+ * that one: the GET payloads differ (this hands over the modules a question can
+ * name, and the crossing counts the CMS ranks by), and folding them together
+ * would mean one function that answers two shapes.
+ */
+function editable(req, res, json, which) {
+  if (!require(path.join(ROOT, 'api/_local.js')).local(req)) {
+    return json(403, { error: which + ' is editable from this machine only' });
+  }
+
+  let io;
+  try { io = require('./mapcontent-io.js'); }
+  catch (e) { console.error(e); return json(500, { error: 'mapcontent-io.js would not load' }); }
+
+  if (req.method === 'GET') {
+    try {
+      const { rows, mods, doors, views, mtimeMs } = io.read();
+      return json(200, { writable: true, mtimeMs, rows, modules: mods, doors,
+                         views: Object.keys(views),
+                         crossings: io.crossings(rows, mods) });
+    } catch (e) {
+      return json(500, { error: e.message });
+    }
+  }
+  if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
+
+  let raw = '';
+  req.on('data', d => { raw += d; if (raw.length > 5e5) req.destroy(); });
+  req.on('end', () => {
+    let body;
+    try { body = JSON.parse(raw); }
+    catch { return json(400, { error: 'body is not JSON' }); }
+    // Either half, or both. Whichever is absent is left as the file has it, so
+    // the CMS's two screens can save independently.
+    if (!Array.isArray(body.rows) && !Array.isArray(body.mods)) {
+      return json(400, { error: 'body needs { rows } or { mods }' });
+    }
+
+    try {
+      const saved = io.write({ rows: body.rows, mods: body.mods, since: body.mtimeMs });
+      console.log(`  mapcontent.js ← ${body.mods ? saved.mods + ' modules' : ''}`
+        + `${body.mods && body.rows ? ' and ' : ''}`
+        + `${body.rows ? saved.rows + ' questions' : ''} from the map CMS`);
+      return json(200, { ok: true, ...saved });
+    } catch (e) {
+      if (e.code === 'STALE')   return json(409, { error: e.message });
+      if (e.code === 'INVALID') return json(422, { error: e.message, problems: e.problems });
+      console.error(e);
+      return json(500, { error: e.message });
+    }
+  });
+}
+
 /* ---- the question bank ----------------------------------------------------
  * GET  → the rows on disk, and the mtime a save has to match.
  * POST → validate and rewrite demos/questions.js.
@@ -373,6 +430,7 @@ function api(url, req, res) {
   // `api/_local.js` is still asked, because "the dev server" is not the claim
   // as "the machine running it" the day this port is forwarded somewhere.
   if (url === '/api/questions') return questions(req, res, json);
+  if (url === '/api/mapcontent') return editable(req, res, json, 'mapcontent');
 
   if (url !== '/api/ask' && url !== '/api/log') return json(404, { error: 'no such endpoint' });
 

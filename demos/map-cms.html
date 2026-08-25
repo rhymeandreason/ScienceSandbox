@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<!-- Internal tool: edit lib/mapcontent.js's QUESTIONS — the wording, which
+     modules each question names, and the rank it carries on each.
+
+     Saves through the dev server's /api/mapcontent, which lives in
+     tools/dev-server.js and nowhere else, so this page can only write on a
+     machine running that server. Without it the page is read-only and Export
+     hands back the file text instead. Kept out of the deploy by .vercelignore.
+
+     WHAT THIS IS FOR, AND WHY IT COUNTS CROSSINGS. The map goes module →
+     question → module: a question is the CROSSING, and one that names a single
+     module is a caption that costs a node and leads nowhere. 28 of the 63 are
+     still that. So every row wears what it joins, the filters are cut by it,
+     and the bar keeps the running score — the editorial work is turning
+     captions into crossings, and a tool that did not show the number would hide
+     the only thing worth watching.
+
+     It does NOT edit DOORS, MODULES or VIEWS. mapcontent-io.js splices only the
+     QUESTIONS array back, so a save cannot touch a module's claim or the prose
+     that states the curation rules. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map — questions and crossings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Literata', Georgia, serif;
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: var(--sans); background: var(--paper); color: var(--ink);
+         margin: 0; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 78rem; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2rem) 4rem; }
+
+  .mast { display: flex; align-items: baseline; gap: 1rem; padding: 1.1rem 0 0.7rem; }
+  .logo { font-size: 1.5rem; font-weight: 500; letter-spacing: -0.04em; margin: 0;
+          text-transform: lowercase; text-decoration: none; color: inherit; }
+  .logo em { font-style: normal; color: var(--accent); }
+  .logo .dot { color: var(--spark); }
+  .mast .title { font-family: var(--serif); font-size: 0.95rem; color: var(--muted); }
+  .mast .spacer { flex: 1; }
+
+  .btn { font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+         letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+         background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+         padding: 0.45rem 0.75rem; cursor: pointer; text-decoration: none;
+         transition: color .15s, border-color .15s; }
+  .btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn.primary { color: var(--card); background: var(--accent); border-color: var(--accent); }
+  .btn.primary:hover:not(:disabled) { color: var(--card); }
+
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center;
+         gap: 0.5rem; flex-wrap: wrap; padding: 0.7rem 0;
+         background: var(--paper); border-bottom: 1px solid var(--line); }
+  select, input[type=search] {
+    font-family: var(--sans); font-size: 0.8rem; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.4rem 0.5rem; }
+  input[type=search] { min-width: 14rem; }
+
+  /* The score, and it is the point of the page rather than a decoration. */
+  .score { font-size: 0.7rem; letter-spacing: 0.04em; color: var(--muted); }
+  .score b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .score .cap { color: var(--spark); }
+  .score .cross { color: var(--accent); }
+  .dirty { color: var(--spark); font-size: 0.7rem; letter-spacing: 0.1em;
+           text-transform: uppercase; }
+
+  .row { display: grid; grid-template-columns: 1fr 22rem; gap: 1rem;
+         align-items: start; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+  .row.caption { background: linear-gradient(90deg, rgba(226,100,58,.05), transparent 60%); }
+  .q { width: 100%; font-family: var(--serif); font-size: 1rem; line-height: 1.3;
+       color: var(--ink); background: transparent; border: 1px solid transparent;
+       border-radius: 3px; padding: 0.3rem 0.4rem; resize: none; overflow: hidden; }
+  .q:hover { border-color: var(--line); }
+  .q:focus { outline: none; border-color: var(--accent); background: var(--card); }
+  .q.bad { border-color: var(--spark); }
+
+  .tag { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+         color: var(--muted); margin-top: 0.35rem; display: flex; gap: 0.6rem; }
+  .tag .cap { color: var(--spark); }
+
+  /* Which modules a question names, and the rank on each. The rank belongs to
+     the EDGE, so it is drawn on the module chip and never on the question. */
+  .mods { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .chip { display: inline-flex; align-items: center; gap: 0.3rem;
+          font-size: 0.66rem; letter-spacing: 0.02em;
+          background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+          padding: 0.15rem 0.2rem 0.15rem 0.45rem; }
+  .chip .dr { width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
+  .chip select { font-size: 0.66rem; padding: 0.05rem 0.1rem; border-color: transparent;
+                 background: transparent; }
+  .chip button { font-size: 0.75rem; line-height: 1; color: var(--muted);
+                 background: none; border: 0; cursor: pointer; padding: 0 0.15rem; }
+  .chip button:hover { color: var(--spark); }
+  .chip.away { background: var(--paper); }
+  .addmod { font-size: 0.66rem; padding: 0.15rem 0.3rem; }
+
+  .tabs { display: flex; gap: 0.3rem; padding: 0.2rem 0 0; }
+  .tab { font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+         letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+         background: none; border: 0; border-bottom: 2px solid transparent;
+         padding: 0.4rem 0.6rem; cursor: pointer; }
+  .tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+
+  /* A module row leads with what the door opens on, because that is the one
+     field here that changes the map's first screen. */
+  .mrow { display: grid; grid-template-columns: 7rem 1fr 11rem; gap: 1rem;
+          align-items: start; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+  .mrow.starter { background: linear-gradient(90deg, rgba(31,95,79,.06), transparent 55%); }
+  .mrow .idc { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+               color: var(--muted); padding-top: 0.45rem; }
+  .mrow input.name { width: 100%; font-family: var(--sans); font-size: 0.86rem;
+                     font-weight: 500; color: var(--ink); background: transparent;
+                     border: 1px solid transparent; border-radius: 3px; padding: 0.25rem 0.4rem; }
+  .mrow textarea.claim { width: 100%; font-family: var(--serif); font-size: 0.92rem;
+                         line-height: 1.3; color: var(--ink); background: transparent;
+                         border: 1px solid transparent; border-radius: 3px;
+                         padding: 0.25rem 0.4rem; resize: none; overflow: hidden; }
+  .mrow input:hover, .mrow textarea:hover { border-color: var(--line); }
+  .mrow input:focus, .mrow textarea:focus { outline: none; border-color: var(--accent);
+                                            background: var(--card); }
+  .mrow .side { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; }
+  .mrow .side select { width: 100%; }
+  .mrow .qn { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); }
+
+  .empty { padding: 3rem 0; text-align: center; color: var(--muted);
+           font-family: var(--serif); }
+  .note { font-family: var(--serif); font-size: 0.9rem; color: var(--muted);
+          margin: 0.8rem 0 0; max-width: 46rem; }
+  .note code { font-family: var(--sans); font-size: 0.82rem; color: var(--accent); }
+  .msg { margin: 0.6rem 0 0; font-size: 0.8rem; }
+  .msg.bad { color: var(--spark); }
+  .msg.ok { color: var(--accent); }
+  textarea.dump { width: 100%; height: 22rem; font-family: ui-monospace, monospace;
+                  font-size: 0.72rem; margin-top: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <a class="logo" href="admin.html">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="title">map — questions and crossings</span>
+  <span class="spacer"></span>
+  <a class="btn" href="tests/door-map.html">Open the map</a>
+</header>
+
+<div class="tabs">
+  <button class="tab on" data-pane="questions">Questions</button>
+  <button class="tab" data-pane="modules">Modules</button>
+</div>
+
+<div class="bar" id="qbar">
+  <select id="door"></select>
+  <select id="module"></select>
+  <select id="kind">
+    <option value="all">every question</option>
+    <option value="caption">captions only (1 module)</option>
+    <option value="cross">crossings only (2+)</option>
+    <option value="doors">door crossings (2+ doors)</option>
+  </select>
+  <input type="search" id="find" placeholder="find a question…">
+  <span class="spacer" style="flex:1"></span>
+  <span class="score" id="score"></span>
+  <span class="dirty" id="dirty"></span>
+  <button class="btn" id="add">+ question</button>
+  <button class="btn" id="revert">Revert</button>
+  <button class="btn" id="export">Export</button>
+  <button class="btn primary" id="save">Save</button>
+</div>
+
+<!-- The modules screen. Separate rather than a column on the questions list,
+     because the two are edited in different sittings: wording and edges is bulk
+     work down a list, and a module's rank is one decision that changes what the
+     door OPENS with. They save independently for the same reason — the io
+     splices each array on its own, so one screen never writes back a stale copy
+     of the other's. -->
+<div class="bar" id="mbar" hidden>
+  <select id="mdoor"></select>
+  <span class="spacer" style="flex:1"></span>
+  <span class="score" id="mscore"></span>
+  <span class="dirty" id="mdirty"></span>
+  <button class="btn" id="mrevert">Revert</button>
+  <button class="btn primary" id="msave">Save</button>
+</div>
+
+<p class="note" id="note"></p>
+<p class="msg" id="msg"></p>
+
+<div id="list"></div>
+<div id="mlist" hidden></div>
+
+<script>
+/* ---- state -------------------------------------------------------------
+   `rows` is the working copy and the file on disk is the other one; nothing
+   is written until Save, and Revert throws the working copy away. `mtimeMs`
+   is what the save is checked against, so two editors cannot silently
+   overwrite each other. */
+
+let rows = [], base = '', modules = [], doors = [], viewIds = [];
+let writable = false, mtimeMs = null;
+
+const $ = id => document.getElementById(id);
+const byMod = id => modules.find(m => m.id === id);
+const say = (t, cls) => { const m = $('msg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); };
+
+/* One module is a caption, two or more is a crossing, and two or more DOORS is
+   the crossing the map exists for. Computed the same way tools/mapcontent-io.js
+   computes it, because the bar's score and any checker have to agree. */
+function reach(r) {
+  const ids = Object.keys(r.mods || {}).filter(byMod);
+  const ds = new Set(ids.map(id => byMod(id).door));
+  return { mods: ids.length, doors: ds.size };
+}
+
+function score() {
+  const all = rows.map(reach);
+  const cap = all.filter(a => a.mods === 1).length;
+  const cross = all.filter(a => a.mods > 1).length;
+  const dd = all.filter(a => a.doors > 1).length;
+  $('score').innerHTML =
+    '<b>' + rows.length + '</b> questions · ' +
+    '<span class="cross"><b>' + cross + '</b> crossings</span> · ' +
+    '<span class="cap"><b>' + cap + '</b> captions</span> · ' +
+    '<b>' + dd + '</b> across doors';
+  $('dirty').textContent = dirty() ? 'unsaved' : '';
+}
+
+const snapshot = () => JSON.stringify(rows);
+const dirty = () => snapshot() !== base;
+
+/* ---- drawing ------------------------------------------------------------ */
+
+function matches(r) {
+  const d = $('door').value, m = $('module').value, k = $('kind').value;
+  const f = $('find').value.trim().toLowerCase();
+  const ids = Object.keys(r.mods || {}).filter(byMod);
+  if (m !== 'all' && !ids.includes(m)) return false;
+  if (d !== 'all' && !ids.some(id => byMod(id).door === d)) return false;
+  const a = reach(r);
+  if (k === 'caption' && a.mods !== 1) return false;
+  if (k === 'cross' && a.mods < 2) return false;
+  if (k === 'doors' && a.doors < 2) return false;
+  if (f && !r.text.toLowerCase().includes(f)) return false;
+  return true;
+}
+
+function draw() {
+  const list = $('list');
+  list.replaceChildren();
+  const shown = rows.map((r, i) => [r, i]).filter(([r]) => matches(r));
+  if (!shown.length) {
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = 'Nothing matches that.';
+    list.appendChild(p);
+    score();
+    return;
+  }
+  for (const [r, i] of shown) list.appendChild(rowEl(r, i));
+  score();
+}
+
+function rowEl(r, i) {
+  const a = reach(r);
+  const el = document.createElement('div');
+  el.className = 'row' + (a.mods === 1 ? ' caption' : '');
+
+  const left = document.createElement('div');
+  const ta = document.createElement('textarea');
+  ta.className = 'q' + (r.text.trim().endsWith('?') ? '' : ' bad');
+  ta.rows = 1;
+  ta.value = r.text;
+  // Grown to fit rather than scrolled: a question you cannot read all of is one
+  // you cannot judge, and these run to 59 characters.
+  const grow = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+  ta.addEventListener('input', () => {
+    r.text = ta.value;
+    ta.classList.toggle('bad', !ta.value.trim().endsWith('?'));
+    grow(); score();
+  });
+  left.appendChild(ta);
+  requestAnimationFrame(grow);
+
+  const tag = document.createElement('div');
+  tag.className = 'tag';
+  tag.innerHTML = a.mods === 1
+    ? '<span class="cap">caption — names one module</span>'
+    : a.doors > 1
+      ? '<span>crosses ' + a.doors + ' doors</span>'
+      : '<span>joins ' + a.mods + ' modules on one door</span>';
+  /* TWO DESTRUCTIVE ACTIONS, ALWAYS BOTH, AND THEY MEAN DIFFERENT THINGS. A
+     question is ONE row however many modules name it, so deleting the row takes
+     it off all of them — including modules on doors this view is filtered away
+     from. Reading a list filtered to Water and pressing something called
+     `delete` on a question that also hangs off Carbon is the mistake the filter
+     invites, so the two are named apart and the delete's confirm counts what it
+     would actually take.
+
+     UNLINK targets the module in the filter, because that is the only module
+     this view can be said to be "in". With the filter on every module there is
+     no such target — a door names nine — so it disables and says why rather
+     than guessing. The × on a chip is the same action with the target picked by
+     hand, and stays the fast path. */
+  const here = $('module').value;
+  const linked = here !== 'all' && id_in(r, here);
+
+  const un = document.createElement('button');
+  un.className = 'btn'; un.style.padding = '0.1rem 0.35rem';
+  un.textContent = 'unlink';
+  un.disabled = !linked;
+  un.title = linked
+    ? 'Take this question off ' + byMod(here).name + ', leaving it on the others'
+    : 'Pick one module in the filter to unlink from — or use the × on a chip';
+  un.addEventListener('click', () => {
+    if (!linked) return;
+    delete r.mods[here];
+    draw();
+  });
+  tag.appendChild(un);
+
+  const del = document.createElement('button');
+  del.className = 'btn'; del.style.padding = '0.1rem 0.35rem';
+  del.textContent = 'delete question';
+  del.addEventListener('click', () => {
+    const names = Object.keys(r.mods).filter(byMod).map(id => byMod(id).name);
+    const scope = names.length > 1
+      ? '\n\nIt is named by ' + names.length + ' modules — ' + names.join(', ')
+        + ' — and this takes it off all of them.'
+        + '\nTo remove just one, unlink instead.'
+      : '';
+    if (!confirm('Delete “' + r.text + '”?' + scope)) return;
+    rows.splice(i, 1); draw();
+  });
+  tag.appendChild(del);
+  left.appendChild(tag);
+
+  const right = document.createElement('div');
+  right.className = 'mods';
+  for (const [id, rank] of Object.entries(r.mods || {})) {
+    const m = byMod(id);
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (m && m.door !== 'water' ? ' away' : '');
+    const dot = document.createElement('span');
+    dot.className = 'dr';
+    if (m) dot.style.background = m.state === 'built' ? 'var(--accent)'
+                                : m.state === 'engine' ? 'var(--spark)' : 'var(--line)';
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(m ? m.name : id + ' (unknown)'));
+
+    const sel = document.createElement('select');
+    // The rank is the EDGE's, so it lives on the chip: "is this a good FIRST
+    // thing to ask on THIS card?" has a different answer per card, and 27 rows
+    // already say so.
+    for (const n of [1, 2, 3]) {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = 'rank ' + n; o.selected = n === rank;
+      sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => { r.mods[id] = +sel.value; score(); });
+    chip.appendChild(sel);
+
+    const x = document.createElement('button');
+    x.textContent = '×'; x.title = 'unlink';
+    x.addEventListener('click', () => { delete r.mods[id]; draw(); });
+    chip.appendChild(x);
+    right.appendChild(chip);
+  }
+
+  const add = document.createElement('select');
+  add.className = 'addmod';
+  add.innerHTML = '<option value="">+ module…</option>';
+  for (const d of doors) {
+    const g = document.createElement('optgroup');
+    g.label = d.name + (d.open ? '' : ' (not opened)');
+    for (const m of modules.filter(x => x.door === d.id)) {
+      if (r.mods && id_in(r, m.id)) continue;
+      const o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
+      g.appendChild(o);
+    }
+    if (g.children.length) add.appendChild(g);
+  }
+  add.addEventListener('change', () => {
+    if (!add.value) return;
+    r.mods[add.value] = 1;      // a new edge opens at rank 1; re-rank on the chip
+    draw();
+  });
+  right.appendChild(add);
+
+  el.appendChild(left);
+  el.appendChild(right);
+  return el;
+}
+
+const id_in = (r, id) => Object.prototype.hasOwnProperty.call(r.mods || {}, id);
+
+/* ---- filters ------------------------------------------------------------ */
+
+function fillFilters() {
+  const dsel = $('door');
+  dsel.innerHTML = '<option value="all">every door</option>';
+  for (const d of doors) {
+    const o = document.createElement('option');
+    o.value = d.id;
+    o.textContent = d.name + (d.open ? '' : ' (not opened)');
+    dsel.appendChild(o);
+  }
+  const md = $('mdoor');
+  md.innerHTML = '<option value="all">every door</option>';
+  for (const d of doors) {
+    const o = document.createElement('option');
+    o.value = d.id;
+    o.textContent = d.name + (d.open ? '' : ' (not opened)');
+    md.appendChild(o);
+  }
+  const msel = $('module');
+  msel.innerHTML = '<option value="all">every module</option>';
+  for (const m of modules) {
+    const o = document.createElement('option');
+    o.value = m.id;
+    o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
+    msel.appendChild(o);
+  }
+}
+['door', 'module', 'kind', 'find'].forEach(id => $(id).addEventListener('input', draw));
+
+/* ---- modules -------------------------------------------------------------
+   The one field that changes the map's first screen is `rank`: a door opens on
+   its rank 1 modules and reveals the rest a band at a time. That used to be
+   capped at four by a hand-composed fan of four positions — a fifth wrapped and
+   was dealt on top of the first — so the fan is resampled now and any count
+   composes. Which is what makes this screen worth having.
+
+   The id is shown and NOT editable. Every question names its modules by id, so
+   changing one here would orphan those edges silently; the io catches it, but
+   the honest move is not to offer it. */
+
+let mods = [], mbase = '';
+
+const msnapshot = () => JSON.stringify(mods);
+const mdirty = () => msnapshot() !== mbase;
+
+function mscore() {
+  const d = $('mdoor').value;
+  const inDoor = m => d === 'all' || m.door === d;
+  const shown = mods.filter(inDoor);
+  const starters = shown.filter(m => m.rank === 1);
+  const openDoors = doors.filter(x => x.open && (d === 'all' || x.id === d));
+  const bad = openDoors.filter(x => mods.some(m => m.door === x.id)
+                                 && !mods.some(m => m.door === x.id && m.rank === 1));
+  $('mscore').innerHTML =
+    '<b>' + shown.length + '</b> modules · '
+    + '<span class="cross"><b>' + starters.length + '</b> open the door</span>'
+    + (bad.length ? ' · <span class="cap">' + bad.map(x => x.name).join(', ')
+                    + ' opens on nothing</span>' : '');
+  $('mdirty').textContent = mdirty() ? 'unsaved' : '';
+}
+
+function mdraw() {
+  const host = $('mlist');
+  host.replaceChildren();
+  const d = $('mdoor').value;
+  // Rank first, so what a door OPENS with is at the top and reads as a set.
+  const shown = mods.map((m, i) => [m, i])
+    .filter(([m]) => d === 'all' || m.door === d)
+    .sort((a, b) => (a[0].door.localeCompare(b[0].door)) || (a[0].rank - b[0].rank));
+  for (const [m, i] of shown) host.appendChild(mrowEl(m, i));
+  mscore();
+}
+
+function mrowEl(m, i) {
+  const el = document.createElement('div');
+  el.className = 'mrow' + (m.rank === 1 ? ' starter' : '');
+
+  const id = document.createElement('div');
+  id.className = 'idc';
+  id.textContent = m.id;
+  id.title = 'Questions name this module by id, so it is not editable here — '
+           + 'changing it would orphan every edge that names it.';
+  el.appendChild(id);
+
+  const mid = document.createElement('div');
+  const name = document.createElement('input');
+  name.className = 'name'; name.value = m.name;
+  name.addEventListener('input', () => { m.name = name.value; mscore(); });
+  mid.appendChild(name);
+  const claim = document.createElement('textarea');
+  claim.className = 'claim'; claim.rows = 1; claim.value = m.claim;
+  const grow = () => { claim.style.height = 'auto'; claim.style.height = claim.scrollHeight + 'px'; };
+  claim.addEventListener('input', () => { m.claim = claim.value; grow(); mscore(); });
+  mid.appendChild(claim);
+  requestAnimationFrame(grow);
+  const qn = document.createElement('div');
+  qn.className = 'qn';
+  const n = rows.filter(r => id_in(r, m.id)).length;
+  qn.textContent = n + (n === 1 ? ' question' : ' questions')
+                 + (viewIds.includes(m.id) ? ' · ◍ has a card' : '');
+  mid.appendChild(qn);
+  el.appendChild(mid);
+
+  const side = document.createElement('div');
+  side.className = 'side';
+
+  const rank = document.createElement('select');
+  for (const n2 of [1, 2, 3]) {
+    const o = document.createElement('option');
+    o.value = n2; o.selected = n2 === m.rank;
+    o.textContent = n2 === 1 ? 'rank 1 — opens the door' : 'rank ' + n2;
+    rank.appendChild(o);
+  }
+  rank.addEventListener('change', () => { m.rank = +rank.value; mdraw(); });
+  side.appendChild(rank);
+
+  const door = document.createElement('select');
+  for (const dd of doors) {
+    const o = document.createElement('option');
+    o.value = dd.id; o.selected = dd.id === m.door;
+    o.textContent = dd.name + (dd.open ? '' : ' (not opened)');
+    door.appendChild(o);
+  }
+  door.addEventListener('change', () => { m.door = door.value; mdraw(); });
+  side.appendChild(door);
+
+  const state = document.createElement('select');
+  for (const st of ['built', 'engine', 'planned']) {
+    const o = document.createElement('option');
+    o.value = st; o.selected = st === m.state; o.textContent = st;
+    state.appendChild(o);
+  }
+  state.addEventListener('change', () => { m.state = state.value; mscore(); });
+  side.appendChild(state);
+
+  el.appendChild(side);
+  return el;
+}
+
+$('mdoor').addEventListener('input', mdraw);
+
+/* ---- panes -------------------------------------------------------------- */
+
+function pane(which) {
+  const q = which === 'questions';
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('on', t.dataset.pane === which));
+  $('qbar').hidden = !q; $('list').hidden = !q;
+  $('mbar').hidden = q;  $('mlist').hidden = q;
+  say('');
+  if (q) draw(); else mdraw();
+}
+document.querySelectorAll('.tab').forEach(t =>
+  t.addEventListener('click', () => pane(t.dataset.pane)));
+
+/* ---- load, save --------------------------------------------------------- */
+
+async function load() {
+  try {
+    const r = await fetch('/api/mapcontent', { cache: 'no-store' });
+    if (!r.ok) throw new Error('status ' + r.status);
+    const data = await r.json();
+    rows = data.rows;
+    modules = data.modules;
+    doors = data.doors;
+    viewIds = data.views || [];
+    mtimeMs = data.mtimeMs;
+    writable = !!data.writable;
+    // The modules screen edits a COPY. `modules` stays the read-only lookup the
+    // questions screen resolves ids against, so an unsaved rename on one screen
+    // cannot quietly change what the other one is showing.
+    mods = data.modules.map(m => ({ ...m }));
+    base = snapshot(); mbase = msnapshot();
+    $('note').innerHTML = 'Editing <code>lib/mapcontent.js</code>. '
+      + 'A question naming one module is a caption; the work is turning those into '
+      + 'crossings. <b>◍</b> marks a module whose card has something to show.';
+  } catch (e) {
+    writable = false;
+    $('note').innerHTML = 'No dev server, so this page is read-only — run '
+      + '<code>node tools/dev-server.js</code> to save straight to '
+      + '<code>lib/mapcontent.js</code>, or use Export.';
+    // Fall back to the file the browser can already fetch, so the page is still
+    // useful for reading and for an Export/paste on a checkout with no server.
+    try {
+      const src = await fetch('lib/mapcontent.js', { cache: 'no-store' }).then(x => x.text());
+      const sb = { window: {} }; sb.window = sb;
+      new Function('global', src)(sb);
+      const c = sb.MapContent;
+      rows = c.QUESTIONS.map(([text, m]) => ({ text, mods: { ...m } }));
+      modules = c.MODULES; doors = c.DOORS; viewIds = Object.keys(c.VIEWS || {});
+      mods = c.MODULES.map(m => ({ ...m }));
+      base = snapshot(); mbase = msnapshot();
+    } catch (e2) { say('could not read mapcontent.js: ' + e2.message, 'bad'); }
+  }
+  $('save').disabled = !writable;
+  $('msave').disabled = !writable;
+  fillFilters();
+  draw();
+  mdraw();
+}
+
+$('save').addEventListener('click', async () => {
+  say('');
+  try {
+    const r = await fetch('/api/mapcontent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows, mtimeMs }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      if (data.problems) {
+        say(data.error + ' — ' + data.problems.map(p => '“' + (p.text || '') + '”: ' + p.problem).join(' · '), 'bad');
+      } else say(data.error || ('status ' + r.status), 'bad');
+      return;
+    }
+    mtimeMs = data.mtimeMs;
+    base = snapshot();
+    say('saved ' + data.rows + ' rows to mapcontent.js', 'ok');
+    score();
+  } catch (e) { say(e.message, 'bad'); }
+});
+
+$('msave').addEventListener('click', async () => {
+  say('');
+  try {
+    // `mods` only. The io leaves QUESTIONS exactly as the file has it, so an
+    // unsaved question edit on the other screen is neither written nor lost.
+    const r = await fetch('/api/mapcontent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mods, mtimeMs }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      if (data.problems) {
+        say(data.error + ' — ' + data.problems.map(p => '“' + (p.text || '') + '”: ' + p.problem).join(' · '), 'bad');
+      } else say(data.error || ('status ' + r.status), 'bad');
+      return;
+    }
+    mtimeMs = data.mtimeMs;
+    mbase = msnapshot();
+    // The questions screen resolves ids against this, so it has to follow.
+    modules = mods.map(m => ({ ...m }));
+    say('saved ' + data.mods + ' modules to mapcontent.js', 'ok');
+    mscore();
+  } catch (e) { say(e.message, 'bad'); }
+});
+
+$('mrevert').addEventListener('click', () => {
+  if (mdirty() && !confirm('Throw away the unsaved module edits?')) return;
+  load().then(() => say('reloaded from disk', 'ok'));
+});
+
+$('revert').addEventListener('click', () => {
+  if (dirty() && !confirm('Throw away the unsaved edits?')) return;
+  load().then(() => say('reloaded from disk', 'ok'));
+});
+
+$('add').addEventListener('click', () => {
+  rows.unshift({ text: 'New question?', mods: {} });
+  $('kind').value = 'all'; $('find').value = '';
+  draw();
+  const first = document.querySelector('.q');
+  if (first) { first.focus(); first.select(); }
+});
+
+/* Export writes the QUESTIONS array the way mapcontent-io.js would, so a paste
+   into the file lands identical to a save. The alignment is that module's, not
+   this page's opinion — a diff of 63 re-indented lines would bury the edit. */
+const COLUMN = 64;
+const quote = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+$('export').addEventListener('click', () => {
+  const body = rows.map(r => {
+    const head = '    [' + quote(r.text) + ',';
+    const pad = ' '.repeat(Math.max(1, COLUMN - head.length));
+    const mods = Object.entries(r.mods || {}).map(([id, n]) => id + ':' + n).join(', ');
+    return head + pad + '{ ' + mods + ' }],';
+  }).join('\n');
+  let ta = document.querySelector('textarea.dump');
+  if (!ta) { ta = document.createElement('textarea'); ta.className = 'dump'; $('list').before(ta); }
+  ta.value = '  const QUESTIONS = [\n' + body + '\n  ];';
+  ta.focus(); ta.select();
+  say('paste this over the QUESTIONS array in lib/mapcontent.js', 'ok');
+});
+
+addEventListener('beforeunload', e => { if (dirty() || mdirty()) e.preventDefault(); });
+
+load();
+</script>
+</div>
+</body>
+</html>

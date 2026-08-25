@@ -14,6 +14,11 @@ api/log.js
 # deployed at all — and the page checks its own hostname besides.
 demos/questions-cms.html
 
+# The map's editor, for the same reason and through the same kind of endpoint
+# (/api/mapcontent, also only in tools/dev-server.js). lib/mapcontent.js itself
+# IS deployed — door-map.html reads it — but nothing that writes it is.
+demos/map-cms.html
+
 # ---------------------------------------------------------------------------
 # Everything below is about a CLI deploy (`vercel --prod` from a laptop), which
 # uploads the WORKING TREE. `.vercelignore` is the only list it consults - a
