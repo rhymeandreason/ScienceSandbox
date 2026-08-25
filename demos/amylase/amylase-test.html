@@ -402,7 +402,6 @@ function drawChain(key) {
   const g = new THREE.Group();
   const V = p => new THREE.Vector3(p[0], p[1], p[2]);
   const iO1 = c.index('O1'), iC4 = c.index('C4');
-  const win = new Set(best.window);
 
   best.moved.forEach((res, n) => {
     const gone = new Set(n === 0 ? [] : drop);
@@ -416,10 +415,13 @@ function drawChain(key) {
     };
     res.forEach((p, i) => {
       if (gone.has(i)) return;
-      /* Residues outside the four the trough holds are drawn thinner, so
-         the eye can tell the part being scored from its continuation. */
-      const r = ballOf(c.el[i]) * (win.has(n) ? 1 : 0.75);
-      g.add(Stage.atom(colour(i), r, V(p), c.el[i]));
+      /* ONE SIZE FOR THE WHOLE CHAIN, and for the ligand beside it. The
+         continuation used to draw at 0.75x to mark it as unscored, which
+         put two ball sizes for the same element in one frame — and a
+         sphere that is smaller because of a bookkeeping distinction reads
+         as a smaller atom. What is scored is the readout's business, and
+         the magenta already says where the trouble is. */
+      g.add(Stage.atom(colour(i), ballOf(c.el[i]), V(p), c.el[i]));
     });
     c.bonds.forEach(([a, b, order]) => {
       if (gone.has(a) || gone.has(b)) return;
