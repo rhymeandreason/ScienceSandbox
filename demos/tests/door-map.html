@@ -198,40 +198,29 @@
     position: fixed; inset: 0; z-index: 20;
     display: none; flex-direction: column;
     background: var(--paper);
-    padding: clamp(1.5rem, 4vw, 3rem);
+    padding: clamp(1.6rem, 4vw, 3.2rem);
   }
   #full.on { display: flex; }
-  #full .head {
-    display: flex; align-items: baseline; gap: 1rem;
-    padding-bottom: 1rem; border-bottom: 1px solid var(--line);
-  }
-  #full .eyebrow {
-    font-size: 0.62rem; font-weight: 500; letter-spacing: 0.2em;
-    text-transform: uppercase; color: var(--muted);
-    display: flex; align-items: center; gap: 0.45rem;
-  }
-  #full .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
-  #full .eyebrow i.built  { background: var(--accent); }
-  #full .eyebrow i.engine { background: var(--spark); }
-  #full .spacer { flex: 1; }
   #full .lede {
     font-family: var(--serif);
-    font-size: clamp(1.6rem, 3.4vw, 2.9rem);
-    line-height: 1.1; letter-spacing: -0.02em;
-    margin: clamp(1.2rem, 3vw, 2.2rem) 0 0; max-width: 24ch;
+    font-size: clamp(1.7rem, 3.6vw, 3.1rem);
+    line-height: 1.08; letter-spacing: -0.02em;
+    margin: 0 0 clamp(1.1rem, 2.6vw, 1.9rem); max-width: 26ch;
   }
   #full .stage {
-    flex: 1; margin-top: clamp(1rem, 2.5vw, 1.8rem);
+    flex: 1;
     display: flex; align-items: center; justify-content: center;
     background: #eceae4; border: 1px solid var(--line); border-radius: 4px;
     font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: #b6b2a8;
   }
-  #full .foot {
-    display: flex; flex-wrap: wrap; gap: 0.6rem 1.4rem; align-items: baseline;
-    margin-top: 0.9rem; font-family: var(--serif); font-size: 0.9rem; color: var(--muted);
+  #full .x {
+    position: absolute; top: clamp(1.1rem, 2.5vw, 1.8rem); right: clamp(1.1rem, 2.5vw, 1.8rem);
+    display: flex; align-items: center; justify-content: center;
+    width: 2.2rem; height: 2.2rem; padding: 0;
+    background: none; border: 0; border-radius: 3px;
+    color: var(--muted); cursor: pointer; transition: color .15s;
   }
-  #full .foot b { font-family: var(--sans); font-size: 0.6rem; font-weight: 500;
-    letter-spacing: 0.18em; text-transform: uppercase; color: var(--spark); }
+  #full .x:hover { color: var(--spark); }
 
   .hint {
     position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
@@ -269,14 +258,14 @@
 <div class="hint">click a card to open the next level · double-click to see it whole · drag to pan · scroll to zoom</div>
 
 <div id="full" aria-modal="true" role="dialog">
-  <div class="head">
-    <span class="eyebrow" id="fullEyebrow"></span>
-    <span class="spacer"></span>
-    <button class="btn" id="fullClose">Close</button>
-  </div>
+  <button class="x" id="fullClose" title="Close" aria-label="Close">
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>
   <p class="lede" id="fullLede"></p>
   <div class="stage">image</div>
-  <div class="foot" id="fullFoot"></div>
 </div>
 
 <script>
@@ -755,21 +744,7 @@ requestAnimationFrame(frame);
 const full = document.getElementById('full');
 
 function openFull(n) {
-  const eyebrow = document.getElementById('fullEyebrow');
-  if (n.kind === 'module') {
-    eyebrow.innerHTML = '<i class="' + n.state + '"></i>' + n.name +
-      (n.host ? ' · ' + n.host : '');
-    document.getElementById('fullLede').textContent = n.claim;
-    document.getElementById('fullFoot').innerHTML =
-      '<b>' + n.qs.length + ' questions</b>' +
-      n.qs.map(q => '<span>' + q[0] + '</span>').join('');
-  } else {
-    const on = neighbours(n).map(m => m.name);
-    eyebrow.innerHTML = '<i></i>question';
-    document.getElementById('fullLede').textContent = n.text;
-    document.getElementById('fullFoot').innerHTML =
-      '<b>answered by</b><span>' + on.join(' · ') + '</span>';
-  }
+  document.getElementById('fullLede').textContent = n.kind === 'module' ? n.claim : n.text;
   full.classList.add('on');
 }
 
