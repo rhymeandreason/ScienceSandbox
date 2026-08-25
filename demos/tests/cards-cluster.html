@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<!-- Bench for kit/card-stage.js, and the second half of tests/door-map.html:
+     what a card looks like when the thing on it is the simulation rather than a
+     picture of one.
+
+     Six cards, one live-stage budget of four. Every card is the same solvation
+     scenario table driven through water/watersim.js — the module that owns the
+     physics and refuses to own a stage, which is the case card-stage.js exists
+     for. The scenarios live in this page because which slice of water a card
+     shows is a lesson question, and the module answers stage questions only. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cards cluster — live 3D on a card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+  /* Same paper as door-map.html: these are two halves of one paradigm, and a
+     card that changes colour when it grows a canvas reads as a different object. */
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Literata', Georgia, serif;
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--sans); background: var(--paper); color: var(--ink);
+    margin: 0; line-height: 1.4; -webkit-font-smoothing: antialiased;
+  }
+
+  .mast {
+    display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+    padding: 1.1rem clamp(1rem, 3vw, 2rem) 0.6rem;
+  }
+  .logo {
+    font-size: 1.5rem; font-weight: 500; letter-spacing: -0.04em;
+    margin: 0; text-transform: lowercase;
+  }
+  .logo em { font-style: normal; color: var(--accent); }
+  .mast .title { font-family: var(--serif); font-size: 0.95rem; color: var(--muted); }
+  .mast .spacer { flex: 1; }
+
+  .budget {
+    font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); border: 1px solid var(--line); background: var(--card);
+    border-radius: 3px; padding: 0.4rem 0.7rem;
+  }
+  .budget b { color: var(--spark); font-weight: 500; }
+
+  .lede {
+    font-family: var(--serif); font-size: 0.92rem; color: var(--muted);
+    margin: 0 clamp(1rem, 3vw, 2rem) 1.2rem; max-width: 48rem;
+  }
+
+  .grid {
+    display: grid; gap: 1.1rem;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    padding: 0 clamp(1rem, 3vw, 2rem) 3rem;
+  }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+    padding: 0.9rem 1rem 0.85rem; display: flex; flex-direction: column;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .card.live { border-color: var(--accent); box-shadow: 0 6px 20px rgba(20,22,26,.07); }
+  .card .name {
+    font-size: 0.6rem; font-weight: 500; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 0.45rem;
+  }
+  .card .name .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--line);
+    flex: none;
+  }
+  .card.live .name .dot { background: var(--spark); }
+  .card.live.paused .name .dot { background: var(--muted); }
+  /* Three lines reserved so every stagebox in a row starts at the same height:
+     a grid of near-identical boxes reads a 19px misalignment as a bug. It is a
+     floor, not a clamp, so a claim that wraps to four at some column width
+     pushes its own card down again — keep them to the length of these six. */
+  .card .claim {
+    font-family: var(--serif); font-size: 0.95rem; line-height: 1.3;
+    margin: 0.35rem 0 0.7rem; min-height: 3.9em;
+  }
+
+  /* The box the stage goes in. A fixed aspect rather than a height, so the
+     camera fit is the same on every card whatever the column width does. */
+  .stagebox {
+    position: relative; aspect-ratio: 4 / 3; width: 100%;
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+    background: #f4f1ea; cursor: pointer;
+  }
+  .stagebox .placeholder {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.35rem;
+    font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); text-align: center; padding: 1rem;
+  }
+  .stagebox .placeholder .big { font-size: 1.6rem; letter-spacing: 0; color: var(--line); }
+  .card.live .stagebox { cursor: grab; }
+  .card.live .stagebox .placeholder,
+  .card.stilled .stagebox .placeholder { display: none; }
+  /* The still sits under the placeholder and over nothing: a released card is
+     its own last frame, dimmed enough that "not running" is legible at a glance. */
+  .stagebox .still {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: .55; filter: saturate(.7);
+  }
+  .card.stilled .stagebox::after {
+    content: 'released'; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); background: rgba(250,248,244,.85);
+    border: 1px solid var(--line); border-radius: 3px; padding: 0.3rem 0.55rem;
+  }
+
+  .foot {
+    display: flex; align-items: center; gap: 0.5rem; margin-top: 0.65rem;
+    font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); min-height: 1.9rem;
+  }
+  .foot .read { flex: 1; letter-spacing: 0.04em; text-transform: none;
+                font-family: var(--serif); font-size: 0.78rem; }
+  .foot .read b { color: var(--ink); font-weight: 600; }
+
+  .btn {
+    font-family: var(--sans); font-size: 0.6rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.35rem 0.6rem; cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+  .btn:disabled { opacity: .35; cursor: default; }
+
+  .notes {
+    margin: 0 clamp(1rem, 3vw, 2rem) 3rem; max-width: 48rem;
+    font-size: 0.82rem; color: var(--muted);
+  }
+  .notes h2 {
+    font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink); margin: 0 0 0.5rem;
+  }
+  .notes li { margin-bottom: 0.35rem; }
+  .notes code { font-size: 0.78rem; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <h1 class="logo">cards<em>·</em>cluster</h1>
+  <span class="title">live 3D on a card, on a budget of four</span>
+  <span class="spacer"></span>
+  <span class="budget">live <b id="budget">0</b> / 4 · click a card to run it</span>
+</div>
+
+<p class="lede">
+  Each card runs <code>water/watersim.js</code> on its own stage. Four can be
+  live at once; opening a fifth releases whichever has gone longest without
+  being opened, and that card keeps the last frame it drew. Scroll a card off
+  screen and its loop stops on its own.
+</p>
+
+<div class="grid" id="grid"></div>
+
+<div class="notes">
+  <h2>What this bench is testing</h2>
+  <ul>
+    <li><b>The context budget.</b> Browsers cap WebGL contexts near 8-16 and drop
+      the oldest with no error. <code>CardStage.pool</code> rations them, so a
+      map with twenty cards never makes twenty stages.</li>
+    <li><b>Pausing keeps the picture.</b> <code>stop()</code> leaves the last
+      frame on the canvas, and an evicted card pins a snapshot of it — losing
+      the stage never means losing the picture.</li>
+    <li><b>Off screen costs nothing.</b> An IntersectionObserver stops the loop
+      without the page asking.</li>
+    <li><b>WaterSim still owns no stage.</b> It takes a root Object3D, and this
+      page hands it one per card.</li>
+  </ul>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-solvation.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../water/watersim.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script>
+/* ---- the scenarios ----------------------------------------------------
+   Which slice of water a card shows is a lesson question, so it lives here.
+   `frame` is the DESCRIPTION watersim.js's step() takes — the module reads it
+   and hands back what it did, including every number this page prints. */
+
+const CARDS = [
+  { id: 'liquid', name: 'Liquid water', waters: 14, salt: 0,
+    claim: 'Every molecule is hydrogen-bonded to its neighbours, and the bonds keep swapping.',
+    frame: { showHbonds: true, tempEnabled: true, temperature: 22 } },
+
+  { id: 'salt', name: 'Salt dissolving', waters: 13, salt: 1,
+    claim: 'Water pulls the ions apart and wraps each one in a shell of its own.',
+    frame: { showHbonds: true, tempEnabled: true, temperature: 22 } },
+
+  { id: 'ice', name: 'Ice', waters: 14, salt: 0,
+    claim: 'Frozen, the same molecules sit on a lattice — held further apart than they were.',
+    frame: { showHbonds: true, tempEnabled: true, temperature: -8, freezeEnabled: true } },
+
+  { id: 'warm', name: 'Warm water', waters: 14, salt: 0,
+    claim: 'Heat stretches the hydrogen bonds before it breaks them.',
+    frame: { showHbonds: true, tempEnabled: true, temperature: 80 } },
+
+  { id: 'brine', name: 'Brine', waters: 13, salt: 1,
+    claim: 'Salt water has to go colder than 0°C before it will freeze.',
+    frame: { showHbonds: true, tempEnabled: true, temperature: -8, freezeEnabled: true } },
+
+  { id: 'boiling', name: 'Boiling', waters: 14, salt: 0,
+    claim: 'Past the boiling point a molecule that gets enough of a kick simply leaves.',
+    frame: { showHbonds: false, tempEnabled: true, temperature: 108 } },
+];
+
+/* ---- the pool ---------------------------------------------------------
+   Four, because that is a budget this page can spend on every browser rather
+   than the most a good one would allow. */
+
+const pool = CardStage.pool({
+  limit: 4,
+  // Fires while the box is still live, which is the only moment its picture can
+  // be taken — see card-stage.js. The card keeps that still, so losing the
+  // stage reads as the card going quiet rather than as the card going away.
+  onEvict: (key, box) => { const c = byId[key]; if (c) c.demote(box.snapshot()); },
+});
+
+const byId = {};
+const grid = document.getElementById('grid');
+const budgetEl = document.getElementById('budget');
+const showBudget = () => { budgetEl.textContent = pool.size; };
+
+/* ---- one card ---------------------------------------------------------- */
+
+function buildCard(def) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML =
+    '<div class="name"><span class="dot"></span>' + def.name + '</div>' +
+    '<div class="claim">' + def.claim + '</div>' +
+    '<div class="stagebox"><img class="still" alt="" hidden>' +
+      '<div class="placeholder">' +
+      '<span class="big">◍</span><span>click to run</span></div></div>' +
+    '<div class="foot"><span class="read"></span>' +
+      '<button class="btn play" disabled>pause</button></div>';
+  grid.appendChild(el);
+
+  const box = el.querySelector('.stagebox');
+  const still = el.querySelector('.still');
+  const read = el.querySelector('.read');
+  const play = el.querySelector('.play');
+  let stage = null, sim = null;
+
+  /* Every number here comes back out of step(), never typed: the sim is the
+     only thing that knows how many bonds it just drew or what the salt did to
+     the freezing point. A paused card keeps whatever its last frame said. */
+  function readout(p) {
+    if (!p) { read.textContent = ''; return; }
+    const per = p.nWater ? (p.hbondCount * 2 / p.nWater).toFixed(1) : '0';
+    const bits = ['<b>' + per + '</b> H-bonds each'];
+    if (p.nIons) bits.push('freezes at <b>' + (-p.dTf).toFixed(1) + '°C</b>');
+    else if (p.escaping) bits.push('<b>' + p.escaping + '</b> escaping');
+    else if (p.fz > 0.05) bits.push('<b>' + Math.round(p.fz * 100) + '%</b> frozen');
+    read.innerHTML = bits.join(' · ');
+  }
+
+  function promote() {
+    if (stage) { stage.start(); syncPlay(); return; }
+    stage = pool.acquire(def.id, () => CardStage.create({
+      mount: box,
+      cam: { theta: 0.5, phi: 1.15, r: 24 },
+      // Built inside the factory so it is created with the stage and goes away
+      // with it: watersim.js hangs its meshes on the root it was given, so
+      // destroying the stage destroys the liquid. It has no destroy() of its
+      // own and needs none.
+      onDestroy: () => { sim = null; },
+      step: () => {
+        if (!sim) return;
+        readout(sim.step(Object.assign(
+          { solvent: sim.salt.length > 0 }, def.frame)));
+      },
+    }));
+    still.hidden = true;
+    // The sim wants the stage's root, which only exists once the box does.
+    sim = WaterSim.create(THREE, stage.root);
+    for (let i = 0; i < def.waters; i++) sim.spawn();
+    for (let i = 0; i < def.salt; i++) sim.addSalt('nacl');
+    if (def.salt) sim.assignShells();
+    el.classList.add('live');
+    play.disabled = false;
+    stage.start();
+    syncPlay();
+    showBudget();
+  }
+
+  // Evicted: the stage and its canvas are about to go, so the last frame is
+  // pinned as an image in their place. The readout stays with it — those
+  // numbers were true of that frame, and the card is now that frame.
+  function demote(png) {
+    stage = null; sim = null;
+    if (png) { still.src = png; still.hidden = false; }
+    el.classList.remove('live', 'paused');
+    el.classList.toggle('stilled', !!png);
+    play.disabled = true;
+    showBudget();
+  }
+
+  function syncPlay() {
+    const on = stage && stage.running;
+    play.textContent = on ? 'pause' : 'resume';
+    el.classList.toggle('paused', !!stage && !on);
+  }
+
+  box.addEventListener('click', e => {
+    // A drag on a live card is an orbit, and Stage already took the pointer.
+    if (stage && e.target.tagName === 'CANVAS') return;
+    promote();
+  });
+
+  play.addEventListener('click', () => {
+    if (!stage) return;
+    stage.running ? stage.stop() : stage.start();
+    syncPlay();
+  });
+
+  byId[def.id] = { promote, demote, el };
+}
+
+CARDS.forEach(buildCard);
+
+// One card live at load: the budget is the subject, so the page should not open
+// having already spent it.
+byId.liquid.promote();
+showBudget();
+</script>
+</body>
+</html>

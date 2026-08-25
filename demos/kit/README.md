@@ -27,9 +27,11 @@ second page would want it *slightly* different, it does not.
 | `enzyme-blob.js` | **the catalyst behind the substrate** — a translucent blob on the molecule a step acts on, with no structure drawn, because at this scale a drawn protein would be wrong about fold, size and active site alike. Owns the elements, the measurement and the placement; the page hands it GROUPS and keeps every chemical question (which molecule, how many blobs, what the enzyme is called), so this never learns what a lane is. Measures in the camera's basis off atom surfaces as a circumscribing circle, **live every frame** — the four ways that goes wrong are in its header, and each one shipped. `pin` is the single hold, and the caller takes it, because only the lesson knows the beat where one enzyme is beginning to hold two molecules or let go of two. Ships with `enzyme-blob.css`: its JS depends on the corner placement and on the sway riding a wrapper rather than the `<svg>` | the human, `check-kit.js` (the circle), `glycolysis-lab`, `krebs-lab` |
 | `leaving.js` | **a piece of a molecule leaves, travels, and is gone** — the event every reaction lesson animates. Sheds atoms *with their bonds* and puts them back (`unshed`, for an atom drawn only once it arrives), builds the travelling fragment from the spec's own geometry, keeps one registry of what is in the air so a cancel can sweep it, removes on a wall-clock beat (not the tween's last frame), assembles a product out of the pieces that left (atoms converge, bonds only after), and solves *offstage* off the camera — a screen edge, never a world height, with more clearance for a departure than an arrival. The page keeps the chemistry: which atoms, what colour, where to | the human, `glycolysis-lab` |
 | `inset.js` | **one molecule in a box, over a scene at another scale.** The framed close-up a figure uses when the stage draws the same object schematically — membrane-lab's bilayer is instanced cylinders, which says nothing about what a lipid IS. Owns its own renderer, a camera solved from the molecule's extent, an optional turntable that moves the CAMERA (so a spec's `view:` is still what the box opens on and the group's rotation stays identity), and an IntersectionObserver that stops the loop when nobody is looking. `afterFrame` runs after the render — same name and rule as `stagekit.js`, and the only place a page can step a callout, since the loop is the module's. `view` is the element whose box IS the canvas's: annotate.js divides by its `clientHeight`, so projecting into the FRAME instead skews every dot by the caption row, and the constructor measures the two and warns. `leader:{host,at}` is the other half of the frame: a framed box says "this is a window", only the leader says which thing it is a window ONTO — two lines from the frame's silhouette corners to a ringed point, with the page supplying the projection because the scene's camera is the page's. One context, reused via `show()`; `destroy()` releases it. The frame lives in `main.css`'s `.inset` and is not decoration — unframed, a magnified molecule reads as an object standing in the scene at that size | the human, `membrane-lab` |
+| `card-stage.js` | **a live 3D box on a card, and the budget of them.** The shell `inset.js` and `molecule-builder.js` each wrote separately — own canvas, own loop, IntersectionObserver gate, destroy — plus the half they had already drifted on: `renderer.dispose()` does not hand the context back, so this force-loses it the way the builder learned to and the inset does not. `water/watersim.js` is what forced the extraction: it takes an Object3D and refuses to own a stage, precisely so two pages can drive one liquid under two cameras, so it is the one shared module with nothing to mount into a card. **`pool({limit:4})` is the other half** — browsers cap contexts near 8-16 and drop the OLDEST with no error, which on a map of cards blanks the one the reader opened first, so a page with twenty cards holds four stages and destroys the least recently acquired. `onEvict` fires BEFORE the destroy, with the box still live, because the one thing a caller wants at that moment is `snapshot()`: a released card keeps its last frame, and that is the whole reason a reader tolerates a card going quiet. `pump(dt)` steps and renders by hand, for the backgrounded tab where rAF never fires. `stop()` freezes and does not reset. **First of its kind — inset and the builder are NOT converted yet**, so this is not a convention | the human, `cards-cluster.html` |
 | `modal.js` | **the card that covers the lesson** — the side doors every lesson grows. Opening, closing, the focus the four hand-written copies never gave back, the trap `aria-modal` already promised, and one Esc across a shared stack so the topmost closes. `anyOpen()` is what a page guards its stage keys on. Markup and content stay the page's | the human, `glycolysis-lab` |
 | `check-kit.js` | the assertions behind the offline modules. `node kit/check-kit.js` | — |
 | `kit-test.html` | bench for motion/focus/stagekit, with no lesson around them | — |
+| `../tests/cards-cluster.html` | bench for `card-stage.js`: six solvation cards over a budget of four, so eviction, the released card's still, and the visibility gate are all on one screen | — |
 | `hbond-test.html` | bench for `hbond.js`: two sliders that break the bond **without changing the distance**, and adenine's donor/acceptor asymmetry printed from the module's own site lists | — |
 
 ## Load order
@@ -51,6 +53,7 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="kit/hbond.js"></script>      <!-- after lobes, if it is loaded at all -->
 <script src="kit/modal.js"></script>      <!-- if the lesson has side doors; no deps -->
 <script src="kit/inset.js"></script>      <!-- if a molecule needs a close-up box; after scene.js -->
+<script src="kit/card-stage.js"></script> <!-- if the page shows SEVERAL live stages; after scene.js -->
 <script src="kit/focus.js"></script>      <!-- after scene.js -->
 <script src="kit/stagekit.js"></script>   <!-- last: it wires the other three -->
 ```
@@ -103,6 +106,16 @@ the rest.
   them to its own array gets molecules with no labels and no settle — `draw()`
   has nothing to label and `step()` nothing to ease. The split is a `render()`
   with a `place` hook for exactly this reason.
+* **Live stages are rationed, not counted.** A page that makes one `CardStage`
+  per card works until the browser's context cap, then blanks the oldest canvas
+  with no error — so cards go through `CardStage.pool`, and the cap is the
+  module's number rather than the page's. Four is a budget every browser honours,
+  not the most a good one would allow.
+* **A released card must not go blank.** `snapshot()` renders and reads
+  `toDataURL` in the same turn on purpose: without `preserveDrawingBuffer` the
+  buffer is only reliably readable until the compositor takes it, and preserving
+  it instead taxes every frame of every live card to serve the one moment a card
+  stops being live.
 * **`afterFrame`, not `frame`, for anything that projects.** `Vector3.project()`
   reads a matrix refreshed only on render, so a species label positioned in the
   `frame` hook is pinned to the previous frame's camera. Invisible at rest,

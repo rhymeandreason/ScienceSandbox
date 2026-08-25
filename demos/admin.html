@@ -88,11 +88,32 @@
   .reference .badge, .test .badge { background: #ececec; color: var(--muted); }
   .tool .badge { background: #e6ecf5; color: #34578f; }
 
+  .filters {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.7rem 1rem;
+    align-items: baseline;
+    margin: 0 0 2.5rem;
+    padding-bottom: 1.4rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .filters .label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
   .chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0 0 2.5rem;
+    gap: 0.45rem;
+  }
+  .chips .sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 0.15rem 0.35rem;
+    background: var(--line);
   }
   .chip {
     font-family: inherit;
@@ -111,7 +132,29 @@
     border-color: var(--ink);
     color: var(--paper);
   }
-  .chips + .chips { margin-top: -1.5rem; }
+  #q {
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--ink);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    width: 18rem;
+    max-width: 100%;
+  }
+  #q:focus { outline: none; border-color: var(--accent); }
+  .chip .n {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-left: 0.35rem;
+  }
+  .chip.active .n { color: var(--paper); opacity: 0.7; }
+  .chip.empty {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+  }
   section.topic.hidden { display: none; }
 </style>
 </head>
@@ -120,31 +163,28 @@
   <h1>All pages</h1>
   <p class="sub">Internal index — not linked from the public site. Grouped by topic; badge is status per <code>CLAUDE.md</code>.</p>
 
-  <div class="chips" id="statusChips">
-    <button class="chip active" data-status="all">All</button>
-    <button class="chip" data-status="featured">Featured</button>
-    <button class="chip" data-status="prototype">Prototype</button>
-    <button class="chip" data-status="reference">Reference</button>
-    <button class="chip" data-status="test">Test</button>
-    <button class="chip" data-status="tool">Internal tool</button>
-    <button class="chip" data-status="other">Other</button>
+  <div class="filters">
+    <span class="label">Status</span>
+    <div class="chips" id="statusChips">
+      <button class="chip active" data-status="all">All</button>
+      <button class="chip" data-status="featured">Featured</button>
+      <button class="chip" data-status="prototype">Prototype</button>
+      <span class="sep"></span>
+      <button class="chip" data-status="test">Test</button>
+      <button class="chip" data-status="tool">Internal tool</button>
+      <button class="chip" data-status="reference">Reference</button>
+    </div>
+
+    <span class="label">Topic</span>
+    <div class="chips" id="topicChips">
+      <button class="chip active" data-topic="all">All topics</button>
+    </div>
+
+    <span class="label"><label for="q">Find</label></span>
+    <input id="q" type="search" placeholder="path or description" autocomplete="off">
   </div>
 
-  <div class="chips" id="topicChips">
-    <button class="chip active" data-topic="all">All topics</button>
-    <button class="chip" data-topic="water">Water</button>
-    <button class="chip" data-topic="tutor">AI tutor</button>
-    <button class="chip" data-topic="bonding">Bonding</button>
-    <button class="chip" data-topic="hemoglobin">Hemoglobin</button>
-    <button class="chip" data-topic="glycolysis">Glycolysis</button>
-    <button class="chip" data-topic="krebs">Krebs cycle</button>
-    <button class="chip" data-topic="membrane">Membrane &amp; coupling</button>
-    <button class="chip" data-topic="dna">DNA</button>
-    <button class="chip" data-topic="kit">Kit</button>
-    <button class="chip" data-topic="tools">Internal tools</button>
-  </div>
-
-  <section class="topic" data-topic="water">
+  <section class="topic" data-topic="water" data-chip="Water" data-group="Molecules">
     <h2>Water &amp; solvation</h2>
     <div class="grid">
       <a class="card featured" href="water-lab.html">
@@ -190,25 +230,7 @@
     </div>
   </section>
 
-  <section class="topic" data-topic="tutor">
-    <h2>AI tutor</h2>
-    <div class="grid">
-      <a class="card test" href="ask/ask-test.html">
-        <div class="path">ask/ask-test.html <span class="badge">test</span></div>
-        <div class="desc">Bench for ask/ask.js against live /api/ask, DOM only, no scene</div>
-      </a>
-      <a class="card test" href="ask/chat-test.html">
-        <div class="path">ask/chat-test.html <span class="badge">test</span></div>
-        <div class="desc">Multi-turn bench: does the prompt survive a conversation</div>
-      </a>
-      <a class="card tool" href="ask/log.html">
-        <div class="path">ask/log.html <span class="badge">internal tool</span></div>
-        <div class="desc">Every question, the screen it was asked against, and where the tutor pointed. Localhost only: the page and /api/log are kept out of the deploy</div>
-      </a>
-    </div>
-  </section>
-
-  <section class="topic" data-topic="bonding">
+  <section class="topic" data-topic="bonding" data-chip="Bonding" data-group="Molecules">
     <h2>Bonding &amp; molecule building</h2>
     <div class="grid">
       <a class="card featured" href="molecule-builder.html">
@@ -235,14 +257,14 @@
         <div class="path">chain/glucose-chains-test.html <span class="badge">test</span></div>
         <div class="desc">One linkage repeated twelve times: starch's helix, cellulose's ribbon, galactan, and lactose as the control that does not chain</div>
       </a>
-      <a class="card test" href="amylase/amylase-test.html">
-        <div class="path">amylase/amylase-test.html <span class="badge">test</span></div>
-        <div class="desc">α-amylase's site as ribbon or SES: a 19.8 Å trough over four subsites, measured off 1OSE</div>
+      <a class="card tool" href="molecule-viewer.html">
+        <div class="path">molecule-viewer.html <span class="badge">internal tool</span></div>
+        <div class="desc">Reference shelf: ATP, NADH — 3D / skel / flat2d / diagram</div>
       </a>
     </div>
   </section>
 
-  <section class="topic" data-topic="hemoglobin">
+  <section class="topic" data-topic="hemoglobin" data-chip="Proteins" data-group="Structures">
     <h2>Protein folding, hemoglobin &amp; sickle cell</h2>
     <div class="grid">
       <a class="card featured" href="hemoglobin-lab.html">
@@ -281,19 +303,19 @@
         <div class="path">sickle/fibre-test.html <span class="badge">prototype</span></div>
         <div class="desc">HbS fibre structure test, with SES surface render</div>
       </a>
+      <a class="card tool" href="../viewer-compare/">
+        <div class="path">../viewer-compare/ <span class="badge">internal tool</span></div>
+        <div class="desc">3Dmol vs Mol* on the same structure: what a cartoon, putty or surface is conventionally supposed to look like. Outside demos/ and not deployed — it shares nothing with the lessons</div>
+      </a>
     </div>
   </section>
 
-  <section class="topic" data-topic="glycolysis">
-    <h2>Glycolysis &amp; mass action</h2>
+  <section class="topic" data-topic="enzyme" data-chip="Enzymes" data-group="Structures">
+    <h2>Enzymes</h2>
     <div class="grid">
-      <a class="card featured" href="glycolysis-lab.html">
-        <div class="path">glycolysis-lab.html <span class="badge">featured</span></div>
-        <div class="desc">Ten steps in five stages, everything as molecules</div>
-      </a>
-      <a class="card test" href="massaction/massaction-test.html">
-        <div class="path">massaction/massaction-test.html <span class="badge">test</span></div>
-        <div class="desc">Test bench for massaction/massaction.js</div>
+      <a class="card test" href="amylase/amylase-test.html">
+        <div class="path">amylase/amylase-test.html <span class="badge">test</span></div>
+        <div class="desc">α-amylase's site as ribbon or SES: a 19.8 Å trough over four subsites, measured off 1OSE</div>
       </a>
       <a class="card test" href="hexokinase/closure-test.html">
         <div class="path">hexokinase/closure-test.html <span class="badge">test</span></div>
@@ -302,27 +324,29 @@
     </div>
   </section>
 
-  <section class="topic" data-topic="krebs">
-    <h2>Krebs cycle</h2>
+  <section class="topic" data-topic="dna" data-chip="DNA" data-group="Structures">
+    <h2>DNA</h2>
     <div class="grid">
-      <a class="card prototype" href="krebs-lab.html">
-        <div class="path">krebs-lab.html <span class="badge">prototype</span></div>
-        <div class="desc">Pyruvate oxidation, eight steps around the ring, ×2 turn</div>
+      <a class="card prototype" href="dna-lab.html">
+        <div class="path">dna-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">How a base pair holds — drag a base at adenine, build the helix</div>
+      </a>
+      <a class="card test" href="lobes/lobes-test.html">
+        <div class="path">lobes/lobes-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for lobes/lobes.js</div>
+      </a>
+      <a class="card test" href="kit/hbond-test.html">
+        <div class="path">kit/hbond-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for kit/hbond.js</div>
+      </a>
+      <a class="card test" href="molecule-builder/builder-test.html">
+        <div class="path">molecule-builder/builder-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for molecule-builder/ — an ortho builder over a perspective host, both mechanics, two instances</div>
       </a>
     </div>
   </section>
 
-  <section class="topic" data-topic="fermentation">
-    <h2>Fermentation</h2>
-    <div class="grid">
-      <a class="card prototype" href="fermentation-lab.html">
-        <div class="path">fermentation-lab.html <span class="badge">prototype</span></div>
-        <div class="desc">Where pyruvate goes with no O₂ — two branches, and why the point is NAD⁺</div>
-      </a>
-    </div>
-  </section>
-
-  <section class="topic" data-topic="membrane">
+  <section class="topic" data-topic="membrane" data-chip="Membrane" data-group="Structures">
     <h2>Membrane transport &amp; energy coupling</h2>
     <div class="grid">
       <a class="card featured" href="membrane-lab.html">
@@ -364,45 +388,75 @@
     </div>
   </section>
 
-  <section class="topic" data-topic="dna">
-    <h2>DNA</h2>
+  <section class="topic" data-topic="glycolysis" data-chip="Glycolysis" data-group="Metabolism">
+    <h2>Glycolysis &amp; mass action</h2>
     <div class="grid">
-      <a class="card prototype" href="dna-lab.html">
-        <div class="path">dna-lab.html <span class="badge">prototype</span></div>
-        <div class="desc">How a base pair holds — drag a base at adenine, build the helix</div>
+      <a class="card featured" href="glycolysis-lab.html">
+        <div class="path">glycolysis-lab.html <span class="badge">featured</span></div>
+        <div class="desc">Ten steps in five stages, everything as molecules</div>
       </a>
-      <a class="card test" href="lobes/lobes-test.html">
-        <div class="path">lobes/lobes-test.html <span class="badge">test</span></div>
-        <div class="desc">Test bench for lobes/lobes.js</div>
-      </a>
-      <a class="card test" href="kit/hbond-test.html">
-        <div class="path">kit/hbond-test.html <span class="badge">test</span></div>
-        <div class="desc">Test bench for kit/hbond.js</div>
-      </a>
-      <a class="card test" href="molecule-builder/builder-test.html">
-        <div class="path">molecule-builder/builder-test.html <span class="badge">test</span></div>
-        <div class="desc">Test bench for molecule-builder/ — an ortho builder over a perspective host, both mechanics, two instances</div>
+      <a class="card test" href="massaction/massaction-test.html">
+        <div class="path">massaction/massaction-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for massaction/massaction.js</div>
       </a>
     </div>
   </section>
 
-  <section class="topic" data-topic="kit">
-    <h2>Shared kit (infra test bench)</h2>
+  <section class="topic" data-topic="krebs" data-chip="Krebs" data-group="Metabolism">
+    <h2>Krebs cycle</h2>
+    <div class="grid">
+      <a class="card prototype" href="krebs-lab.html">
+        <div class="path">krebs-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Pyruvate oxidation, eight steps around the ring, ×2 turn</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="fermentation" data-chip="Fermentation" data-group="Metabolism">
+    <h2>Fermentation</h2>
+    <div class="grid">
+      <a class="card prototype" href="fermentation-lab.html">
+        <div class="path">fermentation-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Where pyruvate goes with no O₂ — two branches, and why the point is NAD⁺</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="kit" data-chip="Kit &amp; tokens" data-group="Infra">
+    <h2>Shared kit &amp; design system</h2>
     <div class="grid">
       <a class="card test" href="kit/kit-test.html">
         <div class="path">kit/kit-test.html <span class="badge">test</span></div>
         <div class="desc">Test bench for kit/ — timeline, highlight vocab, camera fit</div>
       </a>
-    </div>
-  </section>
-
-  <section class="topic" data-topic="tools">
-    <h2>Internal tools</h2>
-    <div class="grid">
       <a class="card tool" href="design-system.html">
         <div class="path">design-system.html <span class="badge">internal tool</span></div>
         <div class="desc">Every token, type step and button in main.css, on the stage's own paper</div>
       </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="tutor" data-chip="AI tutor" data-group="Infra">
+    <h2>AI tutor</h2>
+    <div class="grid">
+      <a class="card test" href="ask/ask-test.html">
+        <div class="path">ask/ask-test.html <span class="badge">test</span></div>
+        <div class="desc">Bench for ask/ask.js against live /api/ask, DOM only, no scene</div>
+      </a>
+      <a class="card test" href="ask/chat-test.html">
+        <div class="path">ask/chat-test.html <span class="badge">test</span></div>
+        <div class="desc">Multi-turn bench: does the prompt survive a conversation</div>
+      </a>
+      <a class="card tool" href="ask/log.html">
+        <div class="path">ask/log.html <span class="badge">internal tool</span></div>
+        <div class="desc">Every question, the screen it was asked against, and where the tutor pointed. Localhost only: the page and /api/log are kept out of the deploy</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="map" data-chip="Map" data-group="Infra">
+    <h2>Concept map &amp; question bank</h2>
+    <div class="grid">
       <a class="card test" href="tests/concept-map.html">
         <div class="path">tests/concept-map.html <span class="badge">test</span></div>
         <div class="desc">Node map of the topics and the student questions between them, on a draggable open canvas. Reads the shared bank in questions.js</div>
@@ -411,58 +465,119 @@
         <div class="path">questions-cms.html <span class="badge">internal tool</span></div>
         <div class="desc">Curate questions.js: rank each question against the lessons it names, fix wording, link and unlink lessons, then export the file</div>
       </a>
-      <a class="card tool" href="molecule-viewer.html">
-        <div class="path">molecule-viewer.html <span class="badge">internal tool</span></div>
-        <div class="desc">Reference shelf: ATP, NADH — 3D / skel / flat2d / diagram</div>
+      <a class="card test" href="tests/door-map.html">
+        <div class="path">tests/door-map.html <span class="badge">test</span></div>
+        <div class="desc">One door — &ldquo;why is water the foundation of life?&rdquo; — opened into modules and the questions between them. The module table lives in the page; nothing links out to a lesson yet</div>
       </a>
-      <a class="card tool" href="../viewer-compare/">
-        <div class="path">../viewer-compare/ <span class="badge">internal tool</span></div>
-        <div class="desc">3Dmol vs Mol* on the same structure: what a cartoon, putty or surface is conventionally supposed to look like. Outside demos/ and not deployed — it shares nothing with the lessons</div>
+      <a class="card test" href="tests/cards-cluster.html">
+        <div class="path">tests/cards-cluster.html <span class="badge">test</span></div>
+        <div class="desc">The door map&rsquo;s other half: a card whose face is the running simulation, not a picture of one. Six cards, four live stages, on kit/card-stage.js</div>
       </a>
     </div>
   </section>
+
 </div>
 
 <script>
-  var statusChips = document.querySelectorAll('#statusChips .chip');
-  var topicChips = document.querySelectorAll('#topicChips .chip');
-  var topics = document.querySelectorAll('.topic');
+  var STATUSES = ['featured', 'prototype', 'reference', 'test', 'tool'];
+
+  var topics = Array.prototype.slice.call(document.querySelectorAll('.topic'));
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  var statusBar = document.getElementById('statusChips');
+  var topicBar = document.getElementById('topicChips');
+  var q = document.getElementById('q');
 
   var activeStatus = 'all';
   var activeTopic = 'all';
+  var query = '';
+
+  function statusOf(card) {
+    for (var i = 0; i < STATUSES.length; i++) {
+      if (card.classList.contains(STATUSES[i])) return STATUSES[i];
+    }
+    return 'other';
+  }
+
+  function textOf(card) { return card.textContent.toLowerCase() + ' ' + card.getAttribute('href').toLowerCase(); }
+
+  // Topic chips come from the sections, so a section can't exist without its chip.
+  var lastGroup = '';
+  topics.forEach(function (topic) {
+    if (topic.dataset.group !== lastGroup) {
+      topicBar.appendChild(document.createElement('span')).className = 'sep';
+    }
+    lastGroup = topic.dataset.group;
+    var chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.dataset.topic = topic.dataset.topic;
+    chip.title = topic.dataset.group;
+    chip.textContent = topic.dataset.chip;
+    topicBar.appendChild(chip);
+  });
+
+  var statusChips = statusBar.querySelectorAll('.chip');
+  var topicChips = topicBar.querySelectorAll('.chip');
+
+  function matches(card, skip) {
+    if (skip !== 'status' && activeStatus !== 'all' && statusOf(card) !== activeStatus) return false;
+    if (skip !== 'topic' && activeTopic !== 'all' && card.closest('.topic').dataset.topic !== activeTopic) return false;
+    return !query || textOf(card).indexOf(query) > -1;
+  }
+
+  function count(chip, n) {
+    var tag = chip.querySelector('.n');
+    if (!tag) { tag = document.createElement('span'); chip.appendChild(tag); }
+    tag.className = 'n';
+    tag.textContent = n;
+    chip.classList.toggle('empty', n === 0 && !chip.classList.contains('active'));
+  }
+
+  // Each axis counts against the other, so a chip never promises an empty view.
+  function recount(chips, key, axis) {
+    chips.forEach(function (chip) {
+      var want = chip.dataset[key];
+      count(chip, cards.filter(function (card) {
+        if (!matches(card, axis)) return false;
+        if (want === 'all') return true;
+        if (axis === 'status') return statusOf(card) === want;
+        return card.closest('.topic').dataset.topic === want;
+      }).length);
+    });
+  }
 
   function applyFilters() {
     topics.forEach(function (topic) {
-      var topicMatches = activeTopic === 'all' || topic.dataset.topic === activeTopic;
-      var cards = topic.querySelectorAll('.card');
       var anyVisible = false;
-      cards.forEach(function (card) {
-        var statusMatches = activeStatus === 'all' || card.classList.contains(activeStatus);
-        var show = topicMatches && statusMatches;
+      topic.querySelectorAll('.card').forEach(function (card) {
+        var show = matches(card);
         card.classList.toggle('hidden', !show);
         if (show) anyVisible = true;
       });
       topic.classList.toggle('hidden', !anyVisible);
     });
+    recount(statusChips, 'status', 'status');
+    recount(topicChips, 'topic', 'topic');
   }
 
-  statusChips.forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      statusChips.forEach(function (c) { c.classList.remove('active'); });
-      chip.classList.add('active');
-      activeStatus = chip.dataset.status;
-      applyFilters();
+  function wire(chips, key, set) {
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        // Clicking the active chip clears it, so getting back to everything is one click.
+        var next = chip.classList.contains('active') ? 'all' : chip.dataset[key];
+        chips.forEach(function (c) { c.classList.toggle('active', c.dataset[key] === next); });
+        set(next);
+        applyFilters();
+      });
     });
-  });
+  }
 
-  topicChips.forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      topicChips.forEach(function (c) { c.classList.remove('active'); });
-      chip.classList.add('active');
-      activeTopic = chip.dataset.topic;
-      applyFilters();
-    });
+  wire(statusChips, 'status', function (v) { activeStatus = v; });
+  wire(topicChips, 'topic', function (v) { activeTopic = v; });
+  q.addEventListener('input', function () {
+    query = q.value.trim().toLowerCase();
+    applyFilters();
   });
+  applyFilters();
 </script>
 </body>
 </html>
