@@ -142,7 +142,9 @@ const LIG_R = 0.42, LIG_STICK = 0.16;
 
 const canvas = document.getElementById('cv');
 const { scene, camera, renderer, root, cam, applyCam, resize } =
-  Stage.create(canvas, { cam: { theta: 0.6, phi: 1.15, r: 130 }, rMin: 30, rMax: 320 });
+  /* Picked by eye in this bench's own camera readout: the trough faces the
+     camera and the barrel's axis runs across it. Nothing derives this. */
+  Stage.create(canvas, { cam: { theta: 2.56, phi: 1.85, r: 130 }, rMin: 30, rMax: 320 });
 
 /* Ribbon and skin are both built once and toggled by `visible`. Rebuilding
    on each press would put a wait between two pictures the eye is meant to
@@ -318,8 +320,8 @@ const camv = document.getElementById('camv');
 function showCam() {
   const w = x => ((x % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
   camv.textContent =
-    `cam: { theta: ${w(cam.theta).toFixed(2)}, phi: ${cam.phi.toFixed(2)}, ` +
-    `r: ${cam.r.toFixed(0)} }`;
+    `cam:{theta:${w(cam.theta).toFixed(2)}, phi:${cam.phi.toFixed(2)}, ` +
+    `r:${cam.r.toFixed(0)}}`;
 }
 
 function tick() {
