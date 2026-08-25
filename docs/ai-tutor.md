@@ -281,3 +281,11 @@ npm i                           # at the REPO ROOT, not demos/. installs the SDK
 ```
 
 Then put the key in `.env.local` **at the repo root** (gitignored, the same file Vercel's CLI reads): `GEMINI_API_KEY=` for the default provider, or `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY=`. `GEMINI_MODEL` / `ANTHROPIC_MODEL` override the model. The dev server re-reads it per request, so pasting a key needs no restart, but installing the SDKs does, since the server resolved them at startup. A missing key answers `<KEY> is not set on the server`; a missing `npm i` answers `Cannot find module '@google/genai'`.
+
+**The real file lives outside the repo, and `.env.local` is a symlink to it.** Anything that sweeps the working tree - `git clean -fdx`, a fresh worktree, `vercel env pull` - takes the link and never the keys. Remake it from the repo root:
+
+```bash
+ln -sfn /Users/maryhuang/Projects/Eureka/dev/kodolab.env.local .env.local
+```
+
+A worktree needs its own; the link does not propagate. Symptom is the missing-key answer above, not a missing file, because the dev server reads through the link.
