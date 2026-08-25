@@ -534,7 +534,13 @@
        * which reads as the bonds coming loose. Holding them until the atoms
        * have arrived turns that into: the molecule folds up, THEN it is bonded.
        * Long enough to cover step()'s lerp, which is ~95% settled by 0.3s. */
-      if(moved){ stickHold=true; clearTimeout(holdT);
+      /* …and only when there is a bond to protect. The opening setDim('2d') runs
+       * on an empty bench, where nothing is slotted and nothing lerps, so the
+       * hold there guards a frame that cannot go wrong — and it costs something
+       * real now that a caller can ask for a still: holding() stays true for
+       * 340 ms after create, and anything taking a picture in that window is
+       * told there is nothing safe to take. */
+      if(moved && bondedCount()){ stickHold=true; clearTimeout(holdT);
                  holdT=setTimeout(()=>{ stickHold=false; applyMode(); }, 340); }
       kit.setDim(dim);   // light letters in 3D, dark on flat paper — and solid vs overlay
       layoutLone();

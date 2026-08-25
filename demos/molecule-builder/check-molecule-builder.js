@@ -238,6 +238,13 @@ assert(/holding\s*:\s*\(\)\s*=>/.test(read('lib/covalent-drag.js')),
   'covalent-drag answers holding()');
 assert(/holding\s*:\s*\(\)\s*=>/.test(read('lib/ionic-drag.js')),
   'ionic-drag answers holding() too, so nothing has to know which it got');
+/* …and the hold is only taken when there is a bond to protect. The opening
+ * setDim('2d') runs on an empty bench where nothing lerps, so holding it there
+ * guards a frame that cannot go wrong and blocks every still for the box's
+ * first 340 ms — which on a map where cards show their subject unprompted is a
+ * card that came up blank. */
+assert(/if\(moved && bondedCount\(\)\)/.test(read('lib/covalent-drag.js')),
+  'the stick hold is skipped on an empty bench, so a new box can be pictured at once');
 
 /* THE TURN. A finished molecule turns itself once, so a student who never
  * finds the toggle still learns the flat cross was a drawing and not a shape.
@@ -261,6 +268,23 @@ assert(/cancelTurn\(\);\s*\n\s*if \(toFlat === flat\)/.test(MB),
   'reaching for the control cancels a turn that has not fired yet');
 assert(/onDestroy[\s\S]{0,80}cancelTurn\(\)/.test(MB),
   'destroy cancels it, so no setView lands on a torn-down sim');
+
+/* …and it does not fire at a molecule the PAGE assembled. The beat says "you
+ * finished it, now look at it in three dimensions"; on a replayed state or a
+ * card that opens pre-built it says that to nobody and animates at a reader who
+ * has done nothing. Both fill() routes are wrapped, and the wrapping works only
+ * because both mechanics report from INSIDE fill() — covalent's calls
+ * bond(h,i,quiet) and ionic's calls transfer(a,instant), each firing onChange
+ * before fill() returns. If either ever reported a frame later the scope would
+ * miss it, so the two are pinned here. */
+assert(/if \(!replaying\) scheduleTurn\(\)/.test(MB),
+  'the turn is skipped while replaying a state the page assembled');
+assert(/if \(opts\.fill\) replay\(/.test(MB) && /fill\(\)\{ replay\(/.test(MB),
+  'both fill routes are wrapped — the create-time one and the public one');
+assert(/function fill\(\)\{[\s\S]{0,220}bond\(h, b\.i, true\)/.test(covSrc),
+  'covalent fill() bonds synchronously, so the scope covers its report');
+assert(/function fill\(\)\{[\s\S]{0,1000}transfer\(a, true\)/.test(ionSrc),
+  'ionic fill() transfers synchronously, so the scope covers its report');
 
 /* THE CLOSE-UP. `zoomOnComplete` re-frames a finished molecule for a card, and
  * two things about it break silently. It must be SOLVED from the built

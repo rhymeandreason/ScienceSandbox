@@ -65,12 +65,16 @@
  *    is skipped while a reagent can still arrive — closing in on the product
  *    would deal the second molecule off the paper.
  *
- *  · A FINISHED MOLECULE TURNS ITSELF, ONCE. The flat view is locked, so a
- *    student who never finds the toggle reads the flat cross as the molecule's
- *    SHAPE rather than as a way of drawing it. One unprompted turn is what says
- *    the two pictures are one object, and it is why the beat belongs here
- *    rather than in each host. Once, and only from flat: someone who turned it
- *    back to 2D is answering the question. `turn:false` opts out.
+ *  · A FINISHED MOLECULE TURNS ITSELF, ONCE — IF THE STUDENT FINISHED IT. The
+ *    flat view is locked, so a student who never finds the toggle reads the
+ *    flat cross as the molecule's SHAPE rather than as a way of drawing it. One
+ *    unprompted turn is what says the two pictures are one object, and it is
+ *    why the beat belongs here rather than in each host. Once, and only from
+ *    flat: someone who turned it back to 2D is answering the question. And
+ *    never on a molecule the PAGE assembled — `fill()` and `fill:true` are a
+ *    replay of a state the student reached earlier or a card opening
+ *    pre-built, and a turn fired at that says "you finished it" to nobody.
+ *    `turn:false` opts out of it entirely.
  *
  *  · THE VIEW TOGGLE IS NOT A VIEW TOGGLE. 2D and 3D each imply what gets
  *    DRAWN: flat is the projection for COUNTING, so it draws every valence
@@ -162,6 +166,24 @@
      * card was on screen, and a paused card resumes already turned. */
     const TURN_MS = 900;
     let turned = false, turnT = null;
+
+    /* A PRE-BUILT MOLECULE HAS NOT EARNED THE TURN. The beat says "you finished
+     * it, now look at it in three dimensions" — fire it at a molecule the page
+     * assembled and it says that to nobody, and the card animates at a reader
+     * who has done nothing. `molecule-builder.html` has always drawn this line
+     * (its `restoring` flag skips the completion ring and the auto-turn on a
+     * replayed state); the module was extracted without it.
+     *
+     * Scoped rather than a state flag, because both mechanics report from
+     * INSIDE fill(): covalent's fill() calls bond(h, i, quiet) and ionic's
+     * calls transfer(a, instant), and both fire onChange synchronously before
+     * fill() returns. `quiet`/`instant` are the same distinction one level
+     * down — they already suppress the shimmer for exactly this reason. */
+    let replaying = false;
+    function replay(fn) {
+      replaying = true;
+      try { fn(); } finally { replaying = false; }
+    }
     function cancelTurn(){ clearTimeout(turnT); turnT = null; }
     function scheduleTurn(){
       if (opts.turn === false || turned || !flat || turnT) return;
@@ -345,7 +367,7 @@
     function report(s){
       const two = !!(s && (s.canOfferWater || s.hasWater));
       wantZoom(two ? R_TWO : rBase, two ? W_TWO : wBase);
-      if (s && s.complete) { arm(true); scheduleTurn(); }
+      if (s && s.complete) { arm(true); if (!replaying) scheduleTurn(); }
       /* AFTER the wantZoom above, and only when a reagent is NOT in play. The
        * order is the rule: `two` means a second molecule can still arrive at
        * the edge of the frame, and closing in on what is already built would
@@ -364,7 +386,7 @@
 
     applyZoom();     // the frustum IS the framing; nothing is right until it is set
     sim.setDim('2d'); sim.setMode(modeFor());
-    if (opts.fill) sim.fill();
+    if (opts.fill) replay(() => sim.fill());
     box.start();
 
     return {
@@ -385,7 +407,7 @@
         sim.reset();
         sim.setMode(modeFor());
       },
-      fill(){ sim.fill(); sim.setMode(modeFor()); },
+      fill(){ replay(() => sim.fill()); sim.setMode(modeFor()); },
       destroy: box.destroy,
     };
   }
