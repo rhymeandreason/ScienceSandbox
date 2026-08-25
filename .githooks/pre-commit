@@ -300,6 +300,26 @@ else
   echo "pre-commit: skipping check-kit.js — nothing under demos/kit/ staged"
 fi
 
+# molecule-builder/ gates on itself AND on the two drag modules, because the
+# assertion runs across the seam between them: the builder's frame widths are
+# only right as long as no recipe deals an atom past them, and the starts live
+# in covalent-drag.js / ionic-drag.js. Widen a scatter over there and the atom
+# leaves the box over here, on the opening screen, in every embedded panel.
+# palette.js is in too — the widths are measured off display radii, so a retune
+# moves the answer without either module changing.
+if git diff --cached --name-only | grep -qE '^demos/(molecule-builder/.*|lib/(covalent-drag|ionic-drag|palette)\.js)$'; then
+  if ! node molecule-builder/check-molecule-builder.js > /tmp/cmb.$$ 2>&1; then
+    tail -25 /tmp/cmb.$$; rm -f /tmp/cmb.$$
+    echo ""
+    echo "pre-commit FAILED: check-molecule-builder.js — a recipe routes to the"
+    echo "  wrong mechanic, or deals an atom outside the frame the builder opens with."
+    exit 1
+  fi
+  rm -f /tmp/cmb.$$
+else
+  echo "pre-commit: skipping check-molecule-builder.js — no builder or drag module staged"
+fi
+
 # Everything folding-lab is now under demos/folding/, so one pattern covers its
 # modules, its data and its bake tools. palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,

@@ -76,8 +76,14 @@
    * side. Chloride goes first, and it is wider than its sphere — dealt at x 4.6,
    * 1.24 of radius, and a valence cloud outside that again.
    * So the half-height is whatever it takes to show this much WIDTH, and a
-   * narrow panel zooms out instead of cropping. */
-  const W_ONE = 5.9, W_IONS = 7.0, W_TWO = 7.7;
+   * narrow panel zooms out instead of cropping.
+   *
+   * These are MEASURED, not chosen: check-molecule-builder.js reads every
+   * recipe's own dealt positions out of the two drag modules and fails if one
+   * reaches past the frame it opens in. Widening a scatter means widening these.
+   * "Drawn extent" includes the valence cloud at 1.85x the display radius — a
+   * halo sliced off by the frame edge reads as badly as a cut sphere. */
+  const W_ONE = 7.0, W_IONS = 7.0, W_TWO = 9.0;
 
   // which module owns which recipe. Filling a valence slot and handing an
   // electron over are different MECHANICS, hence different files (SCIENCE.md 6)
