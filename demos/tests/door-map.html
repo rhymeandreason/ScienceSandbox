@@ -167,11 +167,22 @@
      which crops a tall molecule to a letterbox. */
   .node.module .thumb {
     position: relative; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
     width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
     background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+  }
+  /* The word is an OVERLAY, not a sibling of the canvas. As a text node in a
+     flex box it was a flex ITEM: the canvas took its 100% beside it and shoved
+     the word out of the left edge, leaving the tail of it — "GE" — showing on
+     every card wide enough to clip rather than hide it. Absolutely positioned,
+     it sits behind and is simply not displayed once a stage is mounted, so
+     nothing about the layout depends on whether there is a picture yet. */
+  .node.module .thumb .ph {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
     font-size: 0.5rem; letter-spacing: 0.16em; text-transform: uppercase; color: #c2beb4;
   }
+  .node.module.hub .thumb .ph { font-size: 0.6rem; letter-spacing: 0.2em; color: #b6b2a8; }
+  .node.module .thumb.mounted .ph { display: none; }
   /* Every stage this page mounts makes its own canvas inside the thumb —
      card-stage.js and molecule-builder.js both, and for the same reason: a
      destroy that force-loses the context can never give the element back.
@@ -182,17 +193,17 @@
      renderer for real. */
   .node.module .thumb > canvas { display: block; width: 100%; height: 100%; }
   /* The word goes when the picture arrives, and comes back when it leaves. */
-  .node.module .thumb.mounted { color: transparent; background: #f2f0ea; }
+  .node.module .thumb.mounted { background: #f2f0ea; }
   .node.module .thumb .still {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; opacity: .5;
   }
   /* The open card keeps the ratio and only the width changes, so opening a card
-     scales its picture rather than re-composing it. */
-  .node.module.hub .thumb {
-    margin: 1rem 0 0.35rem;
-    font-size: 0.6rem; letter-spacing: 0.2em; color: #b6b2a8;
-  }
+     scales its picture rather than re-composing it. Type for the placeholder
+     lives on `.ph` above: setting `color` here used to beat `.mounted`'s own
+     rule on equal specificity, which is why the word came back the moment a
+     card was expanded and nowhere else. */
+  .node.module.hub .thumb { margin: 1rem 0 0.35rem; }
 
   .node.module .meta {
     font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
@@ -875,7 +886,7 @@ function paintNode(n) {
     el.className = 'node module ' + n.state + (n.away ? ' away' : '');
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
                    '<div class="claim">' + n.claim + '</div>' +
-                   '<div class="thumb">image</div>' +
+                   '<div class="thumb"><span class="ph">image</span></div>' +
                    '<div class="meta"></div>';
   } else {
     el.className = 'node question';
