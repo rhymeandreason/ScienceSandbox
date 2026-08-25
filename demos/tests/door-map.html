@@ -194,13 +194,36 @@
 
   /* ---- full screen ----------------------------------------------------- */
 
+  /* It grows out of the card you double-clicked: the origin is set from that
+     card's centre, so the sheet expands from where you were looking rather than
+     appearing over it. Kept in the layout and hidden by visibility, because
+     display:none cannot transition. */
   #full {
     position: fixed; inset: 0; z-index: 20;
-    display: none; flex-direction: column;
+    display: flex; flex-direction: column;
     background: var(--paper);
     padding: clamp(1.6rem, 4vw, 3.2rem);
+    visibility: hidden; opacity: 0; pointer-events: none;
+    transform: scale(0.94);
+    transition: opacity .2s ease, transform .34s cubic-bezier(.2,.8,.2,1),
+                visibility 0s linear .34s;
   }
-  #full.on { display: flex; }
+  #full.on {
+    visibility: visible; opacity: 1; pointer-events: auto;
+    transform: none;
+    transition: opacity .18s ease, transform .34s cubic-bezier(.2,.8,.2,1),
+                visibility 0s;
+  }
+  #full .lede, #full .stage, #full .x {
+    opacity: 0; transform: translateY(10px);
+    transition: opacity .26s ease .06s, transform .34s cubic-bezier(.2,.8,.2,1) .06s;
+  }
+  #full.on .lede, #full.on .stage, #full.on .x { opacity: 1; transform: none; }
+  #full.on .stage { transition-delay: .1s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #full, #full .lede, #full .stage, #full .x { transition-duration: .01ms; }
+  }
   #full .lede {
     font-family: var(--serif);
     font-size: clamp(1.7rem, 3.6vw, 3.1rem);
@@ -745,6 +768,9 @@ const full = document.getElementById('full');
 
 function openFull(n) {
   document.getElementById('fullLede').textContent = n.kind === 'module' ? n.claim : n.text;
+  const r = n.el.getBoundingClientRect();
+  full.style.transformOrigin =
+    (r.left + r.width / 2) + 'px ' + (r.top + r.height / 2) + 'px';
   full.classList.add('on');
 }
 
