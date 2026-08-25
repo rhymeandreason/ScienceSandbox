@@ -72,16 +72,21 @@
   <div id="stage"><canvas id="cv"></canvas></div>
   <div class="panel">
     <h2>α-amylase — the site</h2>
-    <div class="note">1OSE, porcine pancreatic, 2.3 Å. Acarbose lies in the trough where a
-      starch chain would: four subsites, six rings, and a nitrogen where one glycosidic
-      oxygen belongs, which is why the enzyme cannot cut it and it stays put to be
-      crystallised. Drag to orbit, wheel to zoom.</div>
+    <div class="note">1OSE, porcine pancreatic, 2.3 Å. Acarbose is a separate molecule, not part of
+      the enzyme: a diabetes drug that lies in the trough where a starch chain would and
+      jams it. Four subsites, six rings, and a nitrogen where one glycosidic
+      oxygen belongs — which is why the enzyme cannot cut it, why it works as a drug, and
+      why it stays put long enough to be crystallised. Drag to orbit, wheel to zoom.</div>
 
     <h3>render</h3>
     <div id="seg"></div>
     <div class="row"><label>skin opacity</label><input type="range" id="op" min="0" max="100" value="100"><span class="val" id="opv">0.80</span></div>
     <div class="row"><label><input type="checkbox" id="paint" checked> paint the contact residues</label></div>
-    <div class="row"><label><input type="checkbox" id="lig" checked> acarbose</label></div>
+    <!-- Off by default: acarbose is a separate MOLECULE, not part of the
+         enzyme, and a page that opens with it already in the groove invites
+         exactly the wrong reading. Turning it on is then a deliberate act,
+         and the label says what it is. -->
+    <div class="row"><label><input type="checkbox" id="lig"> acarbose <span style="color:#8a8175">(drug)</span></label></div>
     <div class="row"><label><input type="checkbox" id="ions" checked> Ca²⁺ and Cl⁻</label></div>
     <div class="row"><label><input type="checkbox" id="spin"> spin</label></div>
 
