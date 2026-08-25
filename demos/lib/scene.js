@@ -369,6 +369,9 @@
     // camera than the other and perspective then magnifies it. Those pages take
     // the pointer themselves; wheel zoom stays either way.
     let drag=null;
+    // Live touch points, kept whatever `orbit` says: a two-finger pinch on a
+    // touchscreen is a zoom gesture, and the zoom block below reads this map.
+    const pts=new Map(); let pinchD=0;
     if(o.orbit!==false){
       // preventDefault stops the browser starting a TEXT SELECTION on the same
       // drag — sandbox.css also sets user-select:none on #stage, and both are
@@ -377,7 +380,11 @@
       // that begins on the canvas and sweeps out of the stage entirely.
       canvas.addEventListener('pointerdown',e=>{e.preventDefault();
         drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
-      canvas.addEventListener('pointermove',e=>{ if(!drag)return; if(o.onDrag)o.onDrag();
+      // A second finger down ends the orbit rather than fighting it: the hand
+      // is now asking for a scale, and orbiting off whichever finger happens to
+      // be `drag` swings the camera through the pinch.
+      canvas.addEventListener('pointermove',e=>{ if(!drag||pts.size>1)return;
+        if(o.onDrag)o.onDrag();
         cam.theta-=(e.clientX-drag.x)*0.008;
         cam.phi=Math.max(o.phiMin,Math.min(o.phiMax,cam.phi-(e.clientY-drag.y)*0.008));
         drag={x:e.clientX,y:e.clientY}; applyCam();});
@@ -395,13 +402,56 @@
     // Safari can send, and cap one event at a detent so a flung trackpad or a
     // coarse mouse still steps rather than jumps.
     const DETENT=100;                       // px of deltaY per mouse detent
-    if(o.zoom!==false)
+    // One place the distance changes, so wheel, trackpad pinch and touch pinch
+    // cannot drift apart in feel or in what they tell the page. `f` is a ratio:
+    // multiplying (never adding) is what makes a gesture and its reverse cancel.
+    function zoomBy(f){
+      const r=Math.max(o.rMin,Math.min(o.rMax,cam.r*f));
+      if(r===cam.r)return; cam.r=r; if(o.onZoom)o.onZoom(r); applyCam();
+    }
+    if(o.zoom!==false){
       canvas.addEventListener('wheel',e=>{e.preventDefault();
+        // A trackpad pinch arrives as a wheel event with ctrlKey set — the same
+        // event the browser would have used to zoom the PAGE. Its deltas are
+        // small and continuous, so they get their own gain and skip the detent
+        // quantising that exists for a mouse.
+        if(e.ctrlKey){ zoomBy(Math.exp(Math.max(-.15,Math.min(.15,e.deltaY*.01)))); return; }
         const px=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?DETENT*4:1);
         const detents=Math.max(-1,Math.min(1,px/DETENT));
         // exponential so zoom-in and zoom-out of the same swipe cancel exactly
-        cam.r=Math.max(o.rMin,Math.min(o.rMax,cam.r*Math.exp(detents*o.wheel)));
-        if(o.onZoom) o.onZoom(cam.r); applyCam();},{passive:false});
+        zoomBy(Math.exp(detents*o.wheel));},{passive:false});
+
+      // Safari on macOS answers a trackpad pinch with these non-standard gesture
+      // events as well as the ctrl-wheel above; `e.scale` is cumulative from the
+      // gesture's start, so the ratio between frames is what applies.
+      let gScale=1;
+      canvas.addEventListener('gesturestart',e=>{e.preventDefault();gScale=1;});
+      canvas.addEventListener('gesturechange',e=>{e.preventDefault();
+        if(e.scale>0){ zoomBy(gScale/e.scale); gScale=e.scale; }});
+      canvas.addEventListener('gestureend',e=>e.preventDefault());
+    }
+
+    // Touchscreen pinch. Tracked here rather than in the orbit block because a
+    // page that took the pointer itself (orbit:false) still wants two fingers to
+    // scale, and touch-action:none in the CSS is what stops the browser eating
+    // the second finger.
+    canvas.style.touchAction='none';        // or the browser scrolls/zooms instead
+    const span=()=>{const [a,b]=[...pts.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
+    canvas.addEventListener('pointerdown',e=>{
+      if(e.pointerType!=='touch')return;
+      pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pts.size===2) pinchD=span();
+    });
+    canvas.addEventListener('pointermove',e=>{
+      if(e.pointerType!=='touch'||!pts.has(e.pointerId))return;
+      pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pts.size!==2||!pinchD)return;
+      const d=span(); if(!d)return;
+      if(o.zoom!==false) zoomBy(pinchD/d); pinchD=d;
+    });
+    const lift=e=>{ if(pts.delete(e.pointerId)) pinchD=0; };
+    canvas.addEventListener('pointerup',lift);
+    canvas.addEventListener('pointercancel',lift);
 
     // Bail on a zero-sized canvas instead of computing w/0. A ResizeObserver
     // fires during layout, and a grid item is briefly 0px tall before its row is
