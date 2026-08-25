@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bench — MoleculeBuilder</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="molecule-builder.css">
+<style>
+  /* Bench furniture only. Nothing here is the module's; the module ships its
+     own .mb-* rules and this page must not need to know them. */
+  html,body{height:100%;margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font-sans)}
+  #host{position:fixed;inset:0;width:100%;height:100%;display:block}
+  /* the claim under test: a PERSPECTIVE host behind an ORTHOGRAPHIC builder */
+  #hostnote{position:fixed;left:18px;top:16px;max-width:290px;font-size:13px;
+    line-height:1.45;color:var(--muted);background:rgba(255,255,255,.82);
+    border-radius:10px;padding:12px 14px}
+  #hostnote b{color:var(--ink)}
+  .rig{position:fixed;top:16px;right:18px;display:flex;flex-direction:column;
+    gap:12px;align-items:flex-end}
+  .panel{width:min(46vw,520px);height:min(52vh,420px);background:var(--paper);
+    border:1.5px solid var(--ink);border-radius:14px;overflow:hidden;
+    box-shadow:0 18px 40px -22px rgba(0,0,0,.55)}
+  .panel.gone{display:none}
+  .bar{position:fixed;left:18px;bottom:16px;display:flex;gap:8px;flex-wrap:wrap;
+    align-items:center;background:rgba(255,255,255,.86);border-radius:10px;
+    padding:10px 12px}
+  .bar button,.bar select{font-family:var(--font-sans);font-size:13px;
+    font-weight:600;padding:7px 11px;border:1.5px solid var(--ink);
+    border-radius:8px;background:#fff;color:var(--ink);cursor:pointer}
+  .bar button:hover{background:var(--ink);color:var(--paper)}
+  #readout{font-size:12px;color:var(--muted);font-weight:500;min-width:230px}
+</style>
+</head>
+<body>
+
+<!-- THE HOST. Deliberately perspective, deliberately behind: if the builder
+     ever inherits a host projection, this page shows it instead of hiding it. -->
+<canvas id="host"></canvas>
+<div id="hostnote">
+  <b>Host scene: perspective.</b> The spheres behind are one size — the ones at
+  the back must read <i>smaller</i>. Inside the panel nothing may, however far
+  from centre it sits. That is the whole claim this bench exists to check.
+</div>
+
+<div class="rig">
+  <div class="panel mb-stage" id="boxA"></div>
+  <div class="panel mb-stage gone" id="boxB"></div>
+</div>
+
+<div class="bar">
+  <select id="recipe">
+    <optgroup label="covalent">
+      <option value="water">H2O</option>
+      <option value="methane">CH4</option>
+      <option value="ammonia">NH3 - NH4+</option>
+      <option value="co2">CO2</option>
+      <option value="n2">N2</option>
+      <option value="hcl">HCl</option>
+    </optgroup>
+    <optgroup label="ionic">
+      <option value="nacl">NaCl</option>
+      <option value="kcl">KCl</option>
+      <option value="mgcl2">MgCl2</option>
+    </optgroup>
+  </select>
+  <button id="reset">Reset</button>
+  <button id="fill">Fill</button>
+  <button id="second">Add 2nd builder</button>
+  <button id="kill">Destroy both</button>
+  <span id="readout"></span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-solvation.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/fx.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../lib/covalent-drag.js"></script>
+<script src="../lib/ionic-drag.js"></script>
+<script src="molecule-builder.js"></script>
+<script>
+"use strict";
+/* =============================================================
+ *  Bench for molecule-builder.js. Four things it is here to catch:
+ *
+ *   1. PROJECTION. The host is perspective and the builder is ortho. An atom
+ *      at the edge of the panel must be the same size as the same atom at the
+ *      centre; the host's spheres must fall off with distance. If those two
+ *      ever agree, the builder took the host's camera.
+ *   2. BOTH MECHANICS. The picker runs every recipe, so the CovalentDrag /
+ *      IonicDrag branch and ammonia's two-stage proton path are one click each.
+ *   3. INSTANCE SCOPE. A second builder on the same page: two contexts, two
+ *      toggles, and neither steals the other's pointer or its CSS.
+ *   4. RESIZE. Drag the window narrow. The panel is sized in vw/vh, so the
+ *      canvas box changes on every resize — an ortho frustum that is not
+ *      rewritten stretches, which is the scene.js bug this shipped with.
+ * ============================================================= */
+
+/* ---- the host: perspective, and nothing to do with the builder ---- */
+const hostCanvas=document.getElementById('host');
+const H=Stage.create(hostCanvas,{ cam:{theta:0.5,phi:1.2,r:34} });
+(function(){
+  const geo=new THREE.SphereGeometry(1,20,14);
+  const mat=new THREE.MeshStandardMaterial({
+    color:MolLib.PALETTE.atoms.C, roughness:.5, transparent:true, opacity:.5 });
+  // one row marching AWAY from the camera, all the same radius: the far ones
+  // read smaller only because the host is perspective
+  for(let i=-4;i<=4;i++){
+    const m=new THREE.Mesh(geo,mat);
+    m.position.set(i*3.4, -3, i*3.4);
+    H.root.add(m);
+  }
+})();
+(function loop(){ requestAnimationFrame(loop);
+  H.cam.theta+=0.0012; H.applyCam();
+  H.renderer.render(H.scene,H.camera);
+})();
+
+/* ---- the builders ---- */
+const boxA=document.getElementById('boxA'), boxB=document.getElementById('boxB');
+const out=document.getElementById('readout');
+let a=null, b=null;
+
+/* The two sims report DIFFERENT states, and that is the point rather than an
+   inconvenience: filling a slot counts bonds, handing an electron over counts
+   transfers. The builder passes each through untouched, so the bench reads
+   whichever it was given. */
+function describe(s){
+  const bits=[];
+  if(s.bonded!=null) bits.push('bonded '+s.bonded+'/'+(s.bonded+s.open));
+  if(s.transfers!=null) bits.push('transferred '+s.transfers+'/'+s.n);
+  bits.push(s.flat?'2D':'3D');
+  if(s.complete) bits.push('complete');
+  if(s.protonated) bits.push('protonated');
+  if(s.hasWater) bits.push('water in');
+  if(s.hydroxide) bits.push('OH-');
+  if(s.hydronium) bits.push('H3O+');
+  out.textContent=bits.join(' · ');
+}
+
+function make(box, recipe, report){
+  return MoleculeBuilder.create({
+    mount: box,
+    recipe,
+    // the bench wants the switch from the first frame; a lesson earns it
+    armDims:'always',
+    onChange: report || function(){},
+  });
+}
+function open(recipe){
+  if(a) a.destroy();
+  a=make(boxA, recipe, describe);
+  describe(a.state());
+}
+open(document.getElementById('recipe').value);
+
+document.getElementById('recipe').addEventListener('change',e=>open(e.target.value));
+document.getElementById('reset').addEventListener('click',()=>{ a.reset(); describe(a.state()); });
+document.getElementById('fill').addEventListener('click',()=>{ a.fill(); describe(a.state()); });
+
+document.getElementById('second').addEventListener('click',()=>{
+  if(b){ b.destroy(); b=null; boxB.classList.add('gone'); return; }
+  boxB.classList.remove('gone');
+  // a DIFFERENT recipe on purpose: if the two share any state, they diverge here
+  b=make(boxB,'nacl');
+});
+
+document.getElementById('kill').addEventListener('click',()=>{
+  if(a){ a.destroy(); a=null; }
+  if(b){ b.destroy(); b=null; boxB.classList.add('gone'); }
+  out.textContent='destroyed — the host behind must keep rendering';
+});
+</script>
+</body>
+</html>

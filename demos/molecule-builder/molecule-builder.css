@@ -1,0 +1,27 @@
+/* =============================================================================
+ *  molecule-builder/molecule-builder.css — the builder's own furniture
+ * =============================================================================
+ *  Everything here is class-scoped and prefixed `mb-`, so two builders on one
+ *  page do not fight and a host's own #dock/#dims rules do not reach in. The
+ *  module creates this markup itself; a page only supplies the box.
+ *
+ *  Colours are tokens from css/main.css — never a typed hex, so a caption and
+ *  the sphere it names cannot drift.
+ * ========================================================================== */
+
+/* the box the builder fills. The canvas inside is the module's own — it makes
+   it and removes it — so a host styles the BOX and never the canvas. */
+.mb-stage { position:relative; width:100%; height:100%; }
+.mb-stage > .mb-canvas { display:block; width:100%; height:100%; }
+
+/* view switch: 2D counts electrons, 3D shows shape. The control itself is
+   main.css's `.segmented` — this adds only placement and the earned-yet fade,
+   so the buttons cannot drift from every other segmented control in the repo. */
+.mb-dims {
+  position:absolute; left:50%; bottom:22px; transform:translateX(-50%);
+  box-shadow:0 5px 16px -8px rgba(0,0,0,.4);
+  /* faded, not removed, until there is a molecule worth turning — removing it
+     would shift anything beside it on every completion and reset */
+  opacity:0; pointer-events:none; transition:opacity .3s ease;
+}
+.mb-dims.armed { opacity:1; pointer-events:auto; }

@@ -461,7 +461,16 @@
     // camera from camera.aspect then silently frame against a garbage number.
     function resize(){ const w=canvas.clientWidth,h=canvas.clientHeight;
       if(!w||!h) return;
-      renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+      renderer.setSize(w,h,false); camera.aspect=w/h;
+      /* An ortho camera has no fov for `aspect` to reach, so a resize that only
+       * sets it leaves the frustum at the OLD aspect and the scene stretches
+       * until something calls frame() again. Hold the half-height the caller
+       * chose and rewrite the width from the new aspect. */
+      if(camera.isOrthographicCamera){
+        const halfH=camera.top;
+        camera.left=-halfH*camera.aspect; camera.right=halfH*camera.aspect;
+      }
+      camera.updateProjectionMatrix(); }
     new ResizeObserver(resize).observe(canvas);
     applyCam();
     return {scene,camera,renderer,root,cam,applyCam,resize};
