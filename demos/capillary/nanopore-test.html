@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>capillary action — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH. Not a lesson.
+
+     THE QUESTION. Capillarity is on WaterSim.md's list of things that
+     must trace back to H-bonding, and the usual picture of it — water
+     climbing a stem — cannot be drawn at molecular scale. A xylem
+     vessel is 10-100 um, which is 36,000 to 360,000 water molecules
+     across, and capillary rise in one is about 1.5 m against a
+     redwood's 100. The vessel is not where the lift comes from.
+
+     Where it comes from is the cell-wall pore in the leaf: a few
+     nanometres, a few tens of molecules across, holding a curved
+     meniscus that evaporation pulls on. THAT is drawable at honest
+     scale, and this bench is whether it renders as anything.
+
+     SCALE. Everything here is family B — real angstroms x MolLib.SCALE
+     (MolecularGeometry.md 1.5) — because the page makes a size claim
+     and only family B may. So the water is mol-small's to-scale
+     spectroscopic geometry, NOT water-lab's family-A physics water,
+     and the engine constants below are real distances scaled once,
+     not tuned numbers.
+
+     THE WALLS ARE REAL CELLULOSE. Not a hydroxyl lattice standing in
+     for one: the cellobiose spec repeated by chain-repeat.js, the same
+     path chain/glucose-chains-test.html checks, so the -OH groups the
+     water bonds to are where beta-1,4 glucose actually puts them. The
+     right-hand wall is the left one turned 180 degrees about Y, never
+     mirrored: a mirrored sugar is the other enantiomer.
+
+     WHAT IT SHOWS. The wall wets: water reaches the hydroxyl surface,
+     sits 2.4-3.0 A from its oxygens, and holds H-bonds to them — which
+     is adhesion, drawn as the same bond as cohesion, because it is the
+     same bond. The liquid's own numbers are close: nearest neighbours
+     settle near 2.55 A against a real 2.8, and about 2.5 H-bonds per
+     molecule against a real 3.6, at the seeded bulk density.
+
+     WATER TRAVELS UP THE CHANNEL, AND THAT IS WHAT THE PAGE IS FOR. It
+     starts as a pool at the foot of a DRY pore — bare cellulose above it
+     — and the front then climbs, as a BODY: over 3000 steps the middle
+     of the channel rises about 15 A and the water at the walls about 23,
+     with the count growing from 490 to 820 as more is drawn in at the
+     base. The wall leads the middle by roughly 17 A, which is the
+     meniscus, and nothing is ejected from the top.
+
+     THREE THINGS HAD TO BE FIXED BEFORE IT WOULD MOVE, and all three
+     were missing pieces rather than bad numbers.
+
+     One: it seeded the pore ALREADY FULL. A full glass cannot show
+     pouring; the wall above the water has to be dry.
+
+     Two: THERE WAS NO SUPPLY. A capillary rises because the tube stands
+     in a bath, so the bottom band is now held at liquid density, which
+     models the rest of the cell wall as the endless reservoir it
+     effectively is.
+
+     Three, and this is the one that took longest to see: THERE WAS NO
+     PRESSURE. With those two fixed the wall still only stripped FILMS
+     off the pool — measured across the whole adhesion range, the water
+     at the wall climbed from -7 A to +38 while the middle of the channel
+     never moved at all. Raising adhesion only stripped more; a narrower
+     pore did not help; a shorter-ranged wall did nothing at any strength.
+     The reason is structural. A liquid held only by pair forces is happy
+     to thin out and leave a void, so a wetting wall peels a film off it
+     and the body stays where it is. Real filling is the other way round:
+     the liquid is effectively incompressible, so the curved surface sets
+     up a pressure difference and drags the column behind it. Nothing in
+     a neighbour-force model expresses that, which is why no amount of
+     tuning found it.
+
+     AN EARLIER READING OF THIS WAS WRONG and the reason is worth
+     keeping. Seeded at RANDOM through the pore, the old build reported
+     10-17 A, the right order for a hemispherical meniscus. Seeded on a
+     lattice instead, the identical run gave 0.0 A and stayed flat for
+     thousands of steps: molecules that happened to land against the
+     wall had stuck there and never come down. A number that depends on
+     the seed is hysteresis, not equilibrium. Approaching from a full
+     pore AND an empty one is still the check this has not had.
+
+THERE IS NO GRAVITY HERE, and that is a correction to an earlier
+     version rather than a simplification. At 3.5 nm the capillary
+     pressure is ~8e7 Pa and the gravitational pressure across the pore
+     ~5e-5 Pa, twelve orders of magnitude apart. There is no up in a
+     cell-wall pore: water moves toward the EVAPORATING SURFACE, and in
+     a leaf those pores face the air spaces in every orientation. An
+     earlier build had a g strong enough to hold a column down, which
+     drew the dipped-capillary-tube picture — the wrong model for a
+     leaf, where the lifting happens in metres of xylem, pulled by the
+     tension these menisci generate. This bench is where the grip is,
+     not where the rope moves. What holds the liquid now is the wall and
+     its own cohesion, which is the only claim it was ever making.
+
+     The page still draws the pore standing upright, and that is now
+     only a camera angle: nothing in the physics knows which way is up.
+
+     IT WAS WRONG FIRST, AND THE FAILURE IS THE USEFUL PART. An earlier
+     version put the wall's backstop an angstrom BEHIND the face while
+     the steric list held only atoms near the surface, so a molecule
+     that slipped past the outermost ones found nothing behind them:
+     about a quarter of the water ended up inside the cellulose, sitting
+     high in its grooves. That leak read as water high at the walls,
+     which is what a meniscus also reads as. Every early measurement of
+     the surface was measuring the leak, and the shape only became
+     honest once the count of molecules past the face was zero.
+
+     Molecule count mattered too. At 300 the free surface was 12 across
+     with 2-3 A of thermal roughness, and no measurement of its shape
+     meant anything. 900 is the smallest count where a surface is one.
+
+     COHESION HAD THE WRONG SHAPE, and finding it started from noticing the
+     water moved too much. The dispersion term was STRONGEST exactly at the
+     rest length and fell away outward, so a pair sitting at its own equilibrium
+     was pulled inward as hard as the term could pull while contact pushed it
+     back out. Force at a potential's minimum is zero; this one was at its
+     maximum. Every touching pair was in that tug of war. Corrected — rising
+     from nothing at contact, peaking midway, back to nothing at the cutoff —
+     the bulk quietens from 0.79 A a step to 0.55 and the molecules thrown clear
+     of the surface go from 7 to 4, at the same K_COH.
+
+     It does not overturn what follows, though, and that is the honest reading:
+     matched for structure rather than for K_COH, the corrected curve is just as
+     agitated. What the liquid does still tracks how hard it is held.
+
+     THE CLIMB IS CURRENTLY DRIVEN BY AGITATION, NOT BY WETTING, and that is
+     the most important thing known about this bench. Four independent ways of
+     calming the liquid were tried, at the correct spacing, and every one of
+     them stopped the column dead while it was still 30 A short of where the
+     agitated run takes it:
+
+       feed the constraint's correction back into velocity   no climb
+       stop the closing approach at contact (inelastic)      no climb
+       couple the thermostat harder (DAMP 0.93 -> 0.85)      no climb
+       cap the speed at 0.5-1.0 A a step                     no climb
+
+     Each of those is the textbook-correct treatment of its own term, and each
+     leaves the same state behind: 8.6 neighbours inside 3.4 A, bulk speed
+     0.02-0.5, bonds up at 2.9. That is not a calm liquid, it is a SOLID. This
+     model has no liquid phase in between — it is either being shaken hard
+     enough to flow or it is frozen — and the rise on screen is the shaking.
+
+     Which traces back to the same root as everything else here: nothing sets a
+     temperature. The thermostat is a floor under the slowest molecules
+     (V_THERM 0.05 against a bulk that runs at 0.75), the energy actually
+     stirring the liquid comes from the constraint and the forces, and there is
+     no window where the water is warm enough to flow and cool enough to stay
+     put. Fixing it means the pressure drive and the incompressibility being the
+     same solver rather than two terms fighting, which is a different force
+     model, not another constant.
+
+     WATCHING THE FLOW COSTS THE CURVE. Evaporation flattens the
+     meniscus: ~10 A static, and 0-2 A once it is running, at every rate
+     tried that still makes the flow watchable. The surface being drawn
+     down by flux is real. This flux is not — it is orders above a
+     leaf's, set so the flow is watchable — so the flat surface under
+     Evaporate is an artefact of that choice, not a result. Watch the
+     curve with it OFF and the flow with it ON; this bench cannot
+     currently show both at once, and that is the honest state of it.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../css/annotate.css">
+<style>
+  html,body{height:100%}
+  body{margin:0;background:var(--paper);overflow:hidden}
+  #stage{position:absolute;inset:0}
+  #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #bar{
+    position:absolute;left:50%;bottom:24px;transform:translateX(-50%);
+    z-index:5;display:flex;align-items:center;gap:10px;
+  }
+  #readout{
+    position:absolute;left:22px;top:20px;z-index:5;
+    font:12px/1.6 var(--font-mono);color:var(--muted);white-space:pre;
+  }
+  #readout b{color:var(--ink);font-weight:600}
+  #knobs{
+    position:absolute;right:20px;top:18px;z-index:5;width:236px;
+    font:11.5px/1.5 var(--font-mono);color:var(--muted);
+    background:color-mix(in srgb, var(--surface-card, #fffdf7) 92%, transparent);
+    border:1px solid var(--hair);border-radius:3px;padding:11px 13px 8px;
+  }
+  #knobs h4{margin:0 0 8px;font:11px/1 var(--font-mono);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink)}
+  #knobs label{display:block;margin:0 0 7px}
+  #knobs .row{display:flex;justify-content:space-between;align-items:baseline}
+  #knobs .row b{color:var(--ink);font-weight:600}
+  #knobs input[type=range]{width:100%;margin:2px 0 0;accent-color:var(--ink)}
+  #knobs .measure{margin-top:9px;padding-top:8px;border-top:1px solid var(--paper-line)}
+  #knobs details{margin-top:9px;padding-top:8px;border-top:1px solid var(--paper-line)}
+  #knobs summary{cursor:pointer;list-style:none;color:var(--muted);
+    font:11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+  #knobs summary::-webkit-details-marker{display:none}
+  #knobs summary::after{content:' +'}
+  #knobs details[open] summary::after{content:' \2212'}
+  .check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+    font:600 var(--text-base)/1 var(--font-ui);color:var(--text-strong);
+    padding:11px 18px;border-radius:var(--radius-pill);
+    background:var(--surface-card);border:1px solid var(--hair)}
+  .check input{appearance:none;-webkit-appearance:none;margin:0;width:15px;height:15px;
+    border:1.5px solid var(--text-muted);border-radius:3px;background:transparent;
+    display:grid;place-content:center;cursor:pointer}
+  .check input:checked{background:var(--text-strong);border-color:var(--text-strong)}
+  .check input:checked::after{content:'';width:8px;height:5px;margin-top:-2px;
+    border-left:2px solid var(--surface-card);border-bottom:2px solid var(--surface-card);
+    transform:rotate(-45deg)}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl"></canvas></div>
+
+<!-- The bench's numbers, measured off what was built. Nothing here is typed. -->
+<div id="readout"></div>
+
+<!-- The bench's knobs. Everything here is a physics constant except Speed,
+     which is how many steps are taken per drawn frame. -->
+<div id="knobs">
+  <h4>tune</h4>
+  <div id="knobrows"></div>
+  <div class="measure row"><span>front</span><b id="front">—</b></div>
+  <div class="row"><span>climb at wall</span><b id="climb">—</b></div>
+</div>
+
+<div id="bar">
+  <label class="check"><input type="checkbox" id="tint"><span>Tint</span></label>
+  <button class="pill pill--ghost" id="reset" type="button">Reset</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/skel.js"></script>
+<script src="../lib/mol-monomers.js"></script>
+<script src="../lib/mol-pathways.js"></script>
+<script src="../lib/mol-contrast.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../chain/frame.js"></script>
+<script src="../lib/chain-repeat.js"></script>
+<script src="../lib/annotate.js"></script>
+<script>
+"use strict";
+
+/* ============================================================= *
+ *  Scale. One number, and every distance below is a real one.
+ * ============================================================= */
+const A = MolLib.SCALE;              // scene units per angstrom (family B)
+const nm = n => n*10*A;              // nanometres, for the pore itself
+const P  = MolLib.PALETTE;
+
+/* ---- the pore, in real numbers ----
+ *  Cell-wall pores run about 2-10 nm. 3.5 nm is in that range and is the
+ *  width at which a column tall enough to have a meniscus still fits the
+ *  molecule budget: water is 33.4 molecules per cubic nm, so the slot's
+ *  volume IS the count, and a 5 nm slot at this depth would be a puddle
+ *  rather than a column.
+ */
+const GAP   = nm(3.5);               // wall face to wall face
+/* The slab is DEEP for a reason that is not chemistry. The water starts as a
+   pool at the bottom of a dry pore and has to climb, so it needs to be short
+   against a tall wall — and a pool's height is its molecule count divided by
+   its cross-section. Widening the pore is not available (3.5 nm is the claim),
+   so the depth carries it: at this thickness 900 molecules stand about 50 A
+   deep in a pore 125 A tall, and there is somewhere to climb to. */
+const DEPTH = nm(1.5);
+const FLOOR_MARGIN = 4.0*A;          // the pool's base, above the wall's bottom edge
+
+/* ---- water, from real distances ----
+ *  Every one of these is a measured number scaled once. WaterSim.md 4: the
+ *  steric floor sits BELOW the H-bond equilibrium, so a bonded pair rests
+ *  where the bond wants it rather than in a fight between two forces.
+ */
+const OO_EQ   = 2.76*A;              // liquid water O...O, the H-bond rest length
+/* CONTACT IS THE EQUILIBRIUM DISTANCE, not a little inside it. At 2.70 there
+   was a dead band: cohesion switched on only beyond 2.76, repulsion only below
+   2.70, and nothing at all in between — so a pair could sit anywhere in that gap
+   and the liquid drifted to the bottom of it. Contact at 2.76 removes the gap
+   and puts the floor where water's own pair minimum is. */
+let OO_MIN  = 2.76*A;              // hard contact; below this they push apart
+const HB_MAX  = 2.45*A;              // H...O reach for a bond to register
+const HB_LIN  = 0.55;                // O-H...O has to be near enough to straight
+const COH_MAX = 6.20*A;              // how far the weak, undirected pull reaches
+
+/* A liquid is not held together by H-bonds alone. Dispersion pulls on every
+   neighbour whatever way it is turned, and without it a box of molecules whose
+   only attraction is a near-linear O-H...O simply never condenses: each one
+   waits for a partner to be aimed correctly and drifts apart in the meantime.
+   So there is a weak undirected attraction out to ~6.2 A on top of the bond. */
+
+/* ============================================================= *
+ *  Stage
+ * ============================================================= */
+const canvas=document.getElementById('gl');
+const {scene,camera,renderer,root,cam,applyCam,resize}=
+  Stage.create(canvas,{cam:{theta:0, phi:Math.PI/2, r:nm(19)}, rMax:nm(60)});
+
+/* ============================================================= *
+ *  THE WALLS — cellulose, repeated from the checked linkage
+ * ============================================================= */
+const V3=(p)=>new THREE.Vector3(p[0],p[1],p[2]);
+const cello=MolLib.MOLECULES.cellobiose;
+const screw=ChainRepeat.screwOf(cello, ['O5','C1','C4'], 'A','B');
+const CHAIN_N=18;                                   // residues; ~5.2 A each, ~94 A of wall
+const chain=ChainRepeat.extend(cello, screw, CHAIN_N, 'A');
+
+/* The chain comes out along the screw's own axis, wherever that points. Turn
+   it so the axis runs up the page (the pore's long direction) and the ribbon's
+   flat face looks into the pore. Both are proper rotations — a reflection here
+   would hand back L-glucose. */
+const qAxis=new THREE.Quaternion().setFromUnitVectors(
+  new THREE.Vector3(screw.axis[0],screw.axis[1],screw.axis[2]).normalize(),
+  new THREE.Vector3(0,1,0));
+const chainPts=[];
+chain.residues.forEach(res=>res.forEach(p=>chainPts.push(V3(p).applyQuaternion(qAxis))));
+
+/* The ribbon's flat face: of the two directions across the chain, the one it
+   is thinnest in is the face normal. Measured, not assumed — the spec's own
+   torsions decide which way the ribbon lies. */
+const mid=new THREE.Vector3();
+chainPts.forEach(p=>mid.add(p)); mid.multiplyScalar(1/chainPts.length);
+let bestAng=0, bestSpread=Infinity;
+for(let k=0;k<180;k++){
+  const th=k*Math.PI/180, nx=Math.cos(th), nz=Math.sin(th);
+  let s=0; for(const p of chainPts){ const d=(p.x-mid.x)*nx+(p.z-mid.z)*nz; s+=d*d; }
+  if(s<bestSpread){ bestSpread=s; bestAng=th; }
+}
+// turn that thin direction onto +x, so the flat face points across the pore
+const qFace=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -bestAng);
+chainPts.forEach(p=>p.applyQuaternion(qFace));
+
+// re-centre, and find the face that will front the pore
+const box=new THREE.Box3().setFromPoints(chainPts);
+const c=box.getCenter(new THREE.Vector3());
+chainPts.forEach(p=>p.sub(c));
+const faceX=new THREE.Box3().setFromPoints(chainPts).max.x;   // the pore-facing extreme
+
+/* One wall is this chain, stepped along z at cellulose Ibeta's own chain
+   spacing; the other is the same wall turned half a turn about y. */
+const CHAIN_SPACING=8.2*A;         // cellulose Ibeta b axis
+/* Two chains, not three: the wall has to be as deep as the water slab and no
+   deeper. A wall standing proud of the liquid on the near side reads as a gap
+   between the two, and the first version of this bench looked non-wetting for
+   that reason alone — perspective on a chain 8 A nearer the camera. */
+const CHAINS=3;
+const wallAtoms=[];                // {el, pos}
+const wallBonds=[];                // [a,b] into wallAtoms
+const wallOH=[];                   // {o, h} scene positions, the adhesion sites
+
+const perRes=chain.names.length;
+const iName=n=>chain.index(n);
+const OH_PAIRS=[['O2','HO2'],['O3','HO3'],['O6','HO6']].map(([o,h])=>[iName(o),iName(h)])
+  .filter(([o,h])=>o>=0&&h>=0);
+const optH=new Set(chain.optH);
+
+function buildWall(side){
+  // side = -1 (left) or +1 (right). The right wall is a rotation, never a mirror.
+  const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), side>0?Math.PI:0);
+  for(let k=0;k<CHAINS;k++){
+    const z=(k-(CHAINS-1)/2)*CHAIN_SPACING;
+    const base=wallAtoms.length;
+    for(let r=0;r<CHAIN_N;r++){
+      for(let i=0;i<perRes;i++){
+        if(optH.has(i)) continue;                    // C-H's hidden, as every page hides them
+        const p=chainPts[r*perRes+i].clone().applyQuaternion(q);
+        // slide the wall out so its pore-facing face sits exactly at the gap
+        p.x += side*(GAP/2 + faceX);
+        p.z += z;
+        wallAtoms.push({el:chain.el[i], pos:p});
+      }
+      const off=base+r*(perRes-optH.size);
+      // bonds are per-residue and in residue-local numbering; skip any that
+      // touch a hidden hydrogen, the same contract Stage.setOptionalH keeps
+      const keep=[]; for(let i=0;i<perRes;i++) if(!optH.has(i)) keep.push(i);
+      const localOf={}; keep.forEach((g,l)=>{ localOf[g]=l; });
+      chain.bonds.forEach(([a,b])=>{
+        if(optH.has(a)||optH.has(b)) return;
+        wallBonds.push([off+localOf[a], off+localOf[b]]);
+      });
+      // this residue's free hydroxyls, as adhesion sites, if they face the pore
+      OH_PAIRS.forEach(([oi,hi])=>{
+        if(optH.has(oi)||optH.has(hi)) return;
+        const o=wallAtoms[off+localOf[oi]].pos, h=wallAtoms[off+localOf[hi]].pos;
+        // depth into the wall from its pore-facing plane; a hydroxyl further in
+        // than a water molecule is wide can never be reached
+        if(side*o.x - GAP/2 > 3.2*A) return;
+        wallOH.push({o,h});
+      });
+    }
+  }
+}
+buildWall(-1); buildWall(+1);
+
+// the modelled region's lower edge, read off the wall rather than guessed
+const FLOOR=Math.min(...wallAtoms.map(a=>a.pos.y))+FLOOR_MARGIN;
+
+/* THE SURFACE, NOT A PLANE. A cellulose face is corrugated: the outermost atom
+   of the ribbon sits 1-3 A proud of the hydroxyl oxygens behind it. Stopping
+   the water at a flat plane through that outermost atom therefore holds every
+   molecule just out of reach of the very groups it is supposed to bond to, and
+   the wall reads as non-stick. So water is stopped by the ATOMS, at their own
+   van der Waals radii, and can settle into the grooves between them.
+
+   Only the atoms within a water's width of the face can ever be touched, and
+   they are bucketed by height so a molecule tests a few dozen rather than all
+   fifteen hundred. */
+/* CONTACT radii, not van der Waals ones. A hydrogen bond is two atoms sitting
+   INSIDE each other's van der Waals shells: water's O...O rests at 2.76 A while
+   two vdW oxygens sum to 3.04. Give the wall's oxygens their full shell and the
+   steric floor holds every water just too far out to bond, which is exactly the
+   bug this replaced. So a wall oxygen stops water at the H-bond rest length, a
+   hydroxyl hydrogen at the H...O it would form, and carbon — which bonds to
+   nothing here — keeps its real vdW radius. */
+const CONTACT={O:1.25*A, C:1.70*A, H:0.50*A};
+const R_WATER=1.40*A;                       // the water O's radius in these sums
+const BUCKET=3.0*A;   // finer than a water is wide, so a lookup returns few atoms
+const surface=new Map();                    // side|bucket -> [{pos, r}]
+wallAtoms.forEach(a=>{
+  const side=Math.sign(a.pos.x);
+  if(side*a.pos.x - GAP/2 > 4.5*A) return;  // deeper than this, nothing can reach it
+  const key=side+'|'+Math.floor(a.pos.y/BUCKET);
+  (surface.get(key)||surface.set(key,[]).get(key)).push({pos:a.pos, r:CONTACT[a.el]||1.5*A});
+});
+/* The hydroxyls, bucketed by height as well. Scanning all of them for every
+   molecule near a wall was the cost the cell list uncovered: with a tall pore
+   there are hundreds of sites and hundreds of near-wall molecules, and almost
+   every pair is rejected on the first comparison. */
+const ohBuckets=new Map();
+function indexOH(){
+  ohBuckets.clear();
+  for(const site of wallOH){
+    const key=Math.sign(site.o.x)+'|'+Math.floor(site.o.y/BUCKET);
+    const l=ohBuckets.get(key); if(l) l.push(site); else ohBuckets.set(key,[site]);
+  }
+}
+function ohNear(side,y){
+  const b=Math.floor(y/BUCKET), out=[];
+  for(let k=-1;k<=1;k++){ const l=ohBuckets.get(side+'|'+(b+k)); if(l) out.push(l); }
+  return out;
+}
+function surfaceNear(side,y,span){
+  const b=Math.floor(y/BUCKET), out=[];
+  const n=span||1;
+  for(let k=-n;k<=n;k++){ const l=surface.get(side+'|'+(b+k)); if(l) out.push(l); }
+  return out;
+}
+
+/* ---- drawn as instances ----
+ *  A wall is ~1500 spheres and as many sticks and it never moves, so it is one
+ *  InstancedMesh per element plus one for the bonds rather than 3000 objects.
+ */
+const SPHERE=new THREE.SphereGeometry(1,12,8);   // 6 px across on screen; 16x12 was invisible detail
+const STICK=new THREE.CylinderGeometry(1,1,1,8,1,true);
+STICK.translate(0,0.5,0);            // origin at one end, so a bond is scale+aim
+
+const VDW_DRAW={C:1.70, O:1.52, H:1.20};
+function instancedSpheres(list, el){
+  const pts=list.filter(a=>a.el===el);
+  if(!pts.length) return null;
+  const m=new THREE.InstancedMesh(SPHERE,
+    new THREE.MeshLambertMaterial({color:P.atoms[el]||0x888888}), pts.length);
+  /* Space-filling, at 0.9 of van der Waals. A cell wall is dense matter and a
+     ball-and-stick one reads as a wire cage with gaps the water could swim
+     through — which is the opposite of what a wall does. Slightly under the
+     real shell so the corrugation between chains stays visible; colour, not
+     size, is what separates wall from water here. */
+  const r=(VDW_DRAW[el]||1.6)*0.9*A;
+  const M=new THREE.Matrix4();
+  pts.forEach((a,i)=>{ M.makeScale(r,r,r).setPosition(a.pos); m.setMatrixAt(i,M); });
+  m.instanceMatrix.needsUpdate=true; root.add(m); return m;
+}
+const wallMeshes=['C','O','H'].map(el=>instancedSpheres(wallAtoms,el)).filter(Boolean);
+
+const wallBondMesh=(function drawWallBonds(){
+  const m=new THREE.InstancedMesh(STICK,
+    new THREE.MeshLambertMaterial({color:P.bonds.covalent}), wallBonds.length);
+  const M=new THREE.Matrix4(), q=new THREE.Quaternion(), up=new THREE.Vector3(0,1,0);
+  const d=new THREE.Vector3(), s=new THREE.Vector3();
+  wallBonds.forEach(([a,b],i)=>{
+    const pa=wallAtoms[a].pos, pb=wallAtoms[b].pos;
+    d.subVectors(pb,pa);
+    q.setFromUnitVectors(up, s.copy(d).normalize());
+    M.compose(pa, q, new THREE.Vector3(0.09*A, d.length(), 0.09*A));
+    m.setMatrixAt(i,M);
+  });
+  m.instanceMatrix.needsUpdate=true; root.add(m); return m;
+})();
+
+/* ============================================================= *
+ *  THE WATER
+ * ============================================================= */
+const wspec=MolLib.MOLECULES.water;             // family B, to scale
+const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
+
+/* A POOL, AND A SUPPLY BEHIND IT. This is the piece the bench was missing.
+   A finite pool in a wetting pore cannot travel anywhere: its equilibrium is to
+   spread itself into two thin films and stop, which is exactly what it did. A
+   capillary rises because the tube stands in a BATH — as the front climbs, more
+   water is drawn up behind it — and modelling the rest of the cell wall as an
+   endless supply is not a cheat, it is what the rest of the cell wall is.
+
+   So the bottom band is held at liquid density: whenever it thins, because the
+   front above has drawn water out of it, another molecule arrives. Nothing
+   pushes. The front climbs because the wall is dry, and the supply only keeps
+   the base from emptying while it does. */
+/* The pool at the foot of the pore. 420 and 350 settle to the same place — 520
+   against 526 molecules after 1500 steps at bath 0.06, the same bond count,
+   the middle within 2 A — because the supply refills the base either way and
+   the steady state is the wall's business, not the seed's. 350 starts further
+   from it, so more of the filling is something you watch happen. `let` so the
+   console can try another. */
+let N_START=300;
+const N_MAX=1800;                      // enough to fill this pore, and a stop
+const SUPPLY_BAND=8.0*A;               // the depth of base kept topped up
+let N_WATER=N_MAX;                     // buffers are sized for the cap
+const waters=[];                                 // {p, v, q, o, h:[2]}
+const _v=new THREE.Vector3(), _u=new THREE.Vector3(), _w=new THREE.Vector3();
+
+function makeWater(p){
+  const w={ p:p.clone(), v:new THREE.Vector3(),
+            q:new THREE.Quaternion().setFromEuler(new THREE.Euler(
+              Math.random()*6.28, Math.random()*6.28, Math.random()*6.28)),
+            o:new THREE.Vector3(), h:[new THREE.Vector3(), new THREE.Vector3()],
+            hb:0 };
+  waters.push(w); return w;
+}
+/* A POOL AT THE BOTTOM OF A DRY PORE. This is the initial condition the bench
+   exists for: everything above the pool is bare cellulose, so the water has
+   somewhere to go and whether it climbs is a result rather than a setup. An
+   earlier version seeded the pore already full, which cannot show a climb for
+   the same reason a full glass cannot show pouring.
+
+   On a lattice at the liquid's own spacing, so nothing collapses or expands on
+   the first frames and the only motion is the wetting. */
+function seed(){
+  waters.length=0;
+  /* At contact, not inside it. The layers used to be stacked at 0.92 of this,
+     which is 2.62 A against a 2.70 floor, so the pool was born with 445 pairs
+     already overlapping and the first frames were the liquid shoving itself
+     apart — visible as a bounce before anything else had happened. */
+  const d=2.85*A;                                     // liquid spacing, near O...O
+  const nx=Math.max(1,Math.floor((GAP-2*R_WATER)/d)), nz=Math.max(1,Math.floor(DEPTH/d));
+  /* SEEDED WITH THE CURVE ALREADY IN IT. A flat-topped lattice has to grow its
+     own meniscus, and at these settings that takes a couple of thousand steps —
+     several seconds in which the page is showing a shape that is not its answer.
+     The sites are ranked as though the wall were already pulling, so the pool
+     arrives concave and the physics only has to relax it. This is an initial
+     condition, not a result: turn adhesion down and the same run flattens it out
+     again, which is the check that it was not drawn. */
+  const CURVE=11*A;                                   // how much lower the middle starts
+  const sites=[];
+  for(let lay=0;lay<80;lay++) for(let c=0;c<nx;c++) for(let r=0;r<nz;r++){
+    const x=(c-(nx-1)/2)*d, y=FLOOR+1.2*A+lay*OO_EQ, z=(r-(nz-1)/2)*d;
+    const t=Math.abs(x)/(GAP/2);
+    sites.push({x, y, z, rank:y-CURVE*t*t});
+  }
+  sites.sort((a,b)=>a.rank-b.rank);
+  for(let i=0;i<N_START && i<sites.length;i++){
+    const q=sites[i];
+    makeWater(new THREE.Vector3(q.x+(Math.random()-0.5)*0.3*A,
+                                q.y, q.z+(Math.random()-0.5)*0.3*A));
+  }
+}
+seed();
+
+// world positions of one water's atoms, from its own quaternion
+function place(w){
+  w.o.copy(w.p);
+  w.h[0].copy(OH).applyQuaternion(w.q).add(w.p);
+  w.h[1].copy(OH2).applyQuaternion(w.q).add(w.p);
+}
+waters.forEach(place);
+
+/* THE WATER IS SPACE-FILLING AND THE WALL IS NOT, and that is the one place
+   this page departs from the house radii on purpose. PALETTE.radii are
+   ball-and-stick sizes, chosen so one molecule's sticks show; at a real liquid's
+   spacing (O...O 2.76 A) spheres that size leave gaps you could drive a
+   molecule through, and 300 of them read as a gas. These are near van der Waals
+   instead (O 1.40 A against a real 1.52, H 0.95 against 1.20), which is how a
+   liquid has to be drawn if its density is the claim. The wall stays
+   ball-and-stick, so structure and bulk do not look like the same substance. */
+const R_O=1.40*A, R_H=0.95*A;
+const oMesh=new THREE.InstancedMesh(SPHERE,
+  new THREE.MeshLambertMaterial({color:P.atoms.O}), N_WATER);
+const hMesh=new THREE.InstancedMesh(SPHERE,
+  new THREE.MeshLambertMaterial({color:P.atoms.H}), N_WATER*2);
+root.add(oMesh,hMesh);
+
+/* H-bonds, dashed, the convention WaterSim.md 1 sets. The same line is drawn
+   for a bond to a wall hydroxyl: adhesion IS this bond, to a different partner,
+   and drawing it differently would be inventing a second force. */
+const hbGeo=new THREE.BufferGeometry();
+const HB_MAX_LINES=N_WATER*4;
+hbGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HB_MAX_LINES*6),3));
+const hbLines=new THREE.LineSegments(hbGeo,
+  new THREE.LineDashedMaterial({color:P.bonds.hbond, dashSize:0.42*A, gapSize:0.3*A,
+    transparent:true, opacity:0.85}));
+hbLines.frustumCulled=false; root.add(hbLines);
+
+/* ============================================================= *
+ *  The physics. Same rules as the solvation engine, at real scale.
+ * ============================================================= */
+/* NO GRAVITY TERM. At 3.5 nm the capillary pressure is about 8e7 Pa and the
+   gravitational pressure across the pore about 5e-5 Pa: twelve orders of
+   magnitude, so weight is not a small effect here, it is no effect. A g that
+   competes with wetting would have to be ~1e12 times Earth's, and the column it
+   made would be a picture of a capillary tube in a dish rather than of a cell
+   wall. What holds this liquid in place is the wall and its own cohesion, which
+   is the whole claim, so nothing else may hold it. */
+/* A THERMOSTAT, so the liquid has a temperature. Damping and jitter used to be
+   two independent numbers, which is why neither did what its name said: drag
+   and the noise that balances it are one thing, and their ratio IS the
+   temperature. Set separately, most pairs of them are no temperature at all,
+   and a molecule that lost its neighbours simply stopped — 0.01 A a step
+   against the liquid's 0.48 — because nothing was putting energy back.
+   Every molecule now takes the same treatment, and that word is load-bearing.
+   Thermostatting only the stragglers is a Maxwell demon: energy in where a
+   molecule came off the liquid, out everywhere else through the drag, and the
+   wall harvested the difference as a film running up it.
+   DAMP is the bath coupling now rather than a viscosity, so it says how fast a
+   molecule forgets its own velocity, not how thick the water is. */
+let DAMP=0.93;
+/* How long a molecule may stand alone in the channel before it is put back in
+   the reservoir. 40 steps is long enough that a surface molecule flickering
+   free is left alone, short enough that nothing is seen hanging. */
+const VAP_DWELL=40;
+let condensed=0;
+/* The thermal speed, CALIBRATED rather than converted: this model has no mass,
+   no kB and no timestep, so there is no route from 300 K to a number here. What
+   it has is one measurable with a real value to hit, the H-bonds a molecule
+   holds, and the setting is whichever keeps most of them. Swept on a settled
+   pool, 1000 steps, bonds per molecule against a real 3.6:
+
+       off   1.82        0.10   1.69-1.73
+       0.05  1.79-1.92   0.15   1.45          0.30  0.74
+
+   0.05 it is: the bond count is the one it started with, and a molecule alone
+   in the void moves at 0.07-0.12 A a step where it used to sit at 0.037.
+   Above that the water simply heats — by 0.30 it is boiling, at a quarter of
+   the bonds and twice the speed, which is what the count is there to catch.
+
+   WHAT THIS DOES NOT DO IS MAKE THE LIQUID THERMAL. The bulk runs at about
+   0.3 A a step and only ~0.05 of that is the thermostat; the rest is forces
+   stirring it. A setting large enough to dominate tears the H-bond network
+   apart, so at these force constants the temperature can be a floor under the
+   slowest molecules and not much more. Say floor, not temperature. */
+let V_THERM=0.05*A;
+let V_MAX=0;                      // speed ceiling, 0 for none
+/* A THERMOSTAT WITH AUTHORITY. The Langevin pair above sets a temperature only
+   if the drag can carry off what the forces put in, and at DAMP 0.93 it cannot:
+   7% a step against terms that inject far more, so the liquid ran at 0.55 A a
+   step with a thermostat asking for 0.05, and K_COH ended up setting the
+   temperature. Coupling the drag harder does hold a temperature — and freezes
+   the flow with it, because drag cannot tell a molecule's share of the current
+   from its share of the heat.
+
+   This can. Each molecule's velocity is split against its NEIGHBOURS' mean:
+   what it shares with them is flow, what it has on top is thermal. Only the
+   thermal part is rescaled, so a column moving as a body is untouched however
+   hard the temperature is held. Standard Berendsen from there — one factor for
+   the whole liquid, eased in over T_TAU, so the Maxwell spread survives instead
+   of every molecule being pinned to the same speed.
+
+   IT WORKS AND IT DOES NOT EARN ITS PLACE, which is why it ships off. Held at
+   0.15, the thermal share falls from 0.468 to 0.384 A a step at T_TAU 0.10 and
+   sticks at 0.376 even at 0.40 — the forces put it back as fast as it comes
+   out. What that buys on screen is nothing: bulk speed is 0.55-0.62 either way,
+   because what makes the water look busy is the flow share, not the thermal one.
+   What it costs is a third of the intake and most of the climb: 508 molecules
+   and +13 to +21 A at the wall with it off, 378 and -2 to +9 with it on, over
+   four runs.
+
+   THE MEASUREMENT IT DID BUY IS THE POINT. Turn the positional constraint off
+   and the thermal share falls to 0.208 against a 0.15 target, with the local
+   flow at 0.027 — the thermostat holds easily and the liquid is calm. Turn the
+   constraint on and it is 0.369 and cannot be held. The constraint IS the pump.
+   And the constraint is what puts the spacing right, and the energy it pumps is
+   what drives the climb, so the three cannot hold at once in a force model with
+   a projection bolted on. That is the case for the pressure and the
+   incompressibility being one solver, where the corrections ARE the flow. */
+let T_SPEED=0.15*A;               // the thermal speed the liquid is held at
+let T_TAU=0;                      // and how quickly it is pulled back to it; 0 is off
+const pec=[];
+function thermostat(){
+  if(T_TAU<=0 || T_SPEED<=0) return;
+  const n=waters.length;
+  let sum=0, c=0;
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(!w||w.gone) continue;
+    const p=pec[i]||(pec[i]=new THREE.Vector3());
+    _t1.copy(w.v); let k=1;
+    for(let q=0;q<nbrN[i];q++){
+      const b=waters[nbr[i*NBR_MAX+q]];
+      if(!b||b.gone) continue;
+      _t1.add(b.v); k++;
+    }
+    p.copy(w.v).addScaledVector(_t1, -1/k);      // velocity minus the local flow
+    sum+=p.length(); c++;
+  }
+  if(!c) return;
+  const mean=sum/c;
+  if(mean<1e-9) return;
+  const sc=1+T_TAU*(T_SPEED/mean-1);
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(!w||w.gone) continue;
+    w.v.addScaledVector(pec[i], sc-1);           // rescale only the thermal share
+  }
+}
+/* TORQUE, because a bond that only pulls centres together cannot build a
+   network. Measured before this existed: 1385 pairs sat close enough to bond
+   and 806 of them — 58% — failed the angle test, on a cut already looser than
+   real water's (123 degrees against about 140). The molecules were in the right
+   places pointing the wrong way, because nothing turned them: forces acted on
+   centres and orientation was a random walk. A real H-bond ORIENTS both
+   partners, and that is what lets a molecule satisfy four neighbours at once.
+
+   Overdamped, like everything else here: a bond turns its partners toward
+   alignment by a fraction each step rather than accumulating angular momentum
+   nothing would carry.
+
+   IT DID NOT RAISE THE BOND COUNT, and the reason is the useful part. Settled
+   pool, 800 steps: no torque 1.97 bonds a molecule, 0.10 gives 1.92, 0.30 gives
+   1.92, 0.60 with the thermal tumbling switched off entirely gives 2.05. All
+   one number, against a real 3.6.
+
+   The block is upstream. This liquid sits with 6 neighbours inside 3.4 A where
+   real water has about 4.5, and its nearest neighbours are 2.44 A apart against
+   2.76 — it is CLOSE-PACKED, not tetrahedral. A molecule with six neighbours
+   crowding it cannot point two H's and two lone pairs at four of them, however
+   well it is turned, so orientation was never what was short.
+
+   The torque stays because it is right and it is free — 3.5 ms a step either
+   way — and because the moment the liquid is opened up to its real spacing it
+   is what will let a network form. The thing to fix is the density, and that is
+   a steric floor being punched through rather than a constant being wrong:
+   raising K_STERIC to hold 2.76 tears the liquid apart in an explicit
+   integrator (0.45 bonds a molecule at 1.6). It wants a positional correction
+   rather than a stiffer spring. */
+let K_TORQ=0.10;                  // how far toward alignment a bond turns per step
+const TORQ_MAX=0.25;              // and a cap, so a molecule pulled two ways cannot spin
+/* The lone pairs, where the tetrahedron puts them: opposite the H's and out of
+   their plane by half the tetrahedral angle. An acceptor turns the NEARER of
+   the two toward the incoming H, which is what makes the second bond on an
+   oxygen cost the first one nothing. */
+const LP_C=Math.cos(54.75*Math.PI/180), LP_S=Math.sin(54.75*Math.PI/180);
+let K_HB=0.030;                   // H-bond spring
+let K_COH=0.108;                // dispersion, the undirected part of cohesion
+let K_STERIC=0.90;
+const K_WALL=0.20;                // the wall is solid
+/* Adhesion beats cohesion here, and that is the whole reason the meniscus is
+   concave: a hydroxyl surface offers water the same bond another water does,
+   and there are more of them per unit area than a curved liquid surface can
+   present back. Under-set this and the render tells the waxed-windshield story
+   by accident. */
+const K_ADHERE=0.075;             // the bond itself, directional
+const K_ADHERE_LR=0.075;          // and the undirected pull from one hydroxyl
+/* THE WALL AS A WALL, not as a bag of separate atoms. A single hydroxyl's pull
+   dies inside about 6 A, so a liquid that once lets go of the surface can never
+   feel it again and stays balled up in the middle of the pore — which is the
+   waxed windshield, not a cell wall. A solid attracts by the SUM over everything
+   behind the surface, and that sum falls off far more slowly than any one pair.
+   This is that sum, as a smooth pull toward the face; the drawn dashes still
+   come only from real H-bond geometry, so nothing is claimed that is not there. */
+/* Set for IMBIBITION, now that there is a supply. Without one, a strong wall
+   pull drained the pool into two films and stopped, so the setting had to be
+   weak enough to keep the pool a body. Fed from below, that same strong pull is
+   the whole point: the film runs up the dry wall, the liquid behind follows,
+   and water is drawn in at the base to replace it. From a 420-molecule pool the
+   front crosses the pore's 94 A in about 1500 steps and the count climbs past
+   700 doing it. Turn it down toward 0.037 and the front creeps; turn it off and
+   the pool sits there. */
+let K_WET=0.020*A;              // per surface atom, summed; not per molecule
+/* K_WET, K_COH, K_STERIC and OO_MIN are `let` so the console can sweep them
+   without a reload. The contact angle lives in the ratio of the first two, and
+   sweeping it is what this bench is for. */
+const WET_REACH=11.0*A;
+
+let hbCount=0, adCount=0;
+const forces=[], torq=[];
+const _t1=new THREE.Vector3(), _t2=new THREE.Vector3(), _t3=new THREE.Vector3(),
+      _t4=new THREE.Vector3(), _t5=new THREE.Vector3();
+const _lpA=new THREE.Vector3(), _lpB=new THREE.Vector3();
+// the two lone-pair directions, from where the molecule is pointing now
+function lonePairs(w,a,b){
+  _t1.subVectors(w.h[0],w.o).normalize();
+  _t2.subVectors(w.h[1],w.o).normalize();
+  _t3.copy(_t1).add(_t2).normalize();            // the H-O-H bisector
+  b.crossVectors(_t1,_t2).normalize();           // and the plane's normal
+  a.copy(_t3).multiplyScalar(-LP_C).addScaledVector(b, LP_S);
+  b.multiplyScalar(LP_S).addScaledVector(_t3,-LP_C);
+}
+/* Turn `from` toward `to`, as a rotation vector added to this molecule's share.
+   Axis and angle come out of the cross and dot, so a molecule being turned by
+   two bonds at once gets the sum and lands between them, which is the
+   compromise a real molecule in a network is making. */
+function aim(i,from,to,k){
+  _t4.crossVectors(from,to);
+  const sn=_t4.length();
+  if(sn<1e-6) return;
+  torq[i].addScaledVector(_t4.multiplyScalar(1/sn), Math.atan2(sn, from.dot(to))*k);
+}
+/* A CELL LIST, because every pair is not worth asking about. Testing all 405k
+   pairs of 900 molecules cost about 15 ms a step, which made the speed control
+   a lie: eight steps a frame ran at eight frames a second and simulated no more
+   per second than one step a frame did. Molecules further apart than COH_MAX
+   exert nothing, so bin them at that size and only ask about the 27 cells that
+   can reach. The pairs actually tested drop to roughly a tenth. */
+const CELL=COH_MAX;
+const cells=new Map();
+const cellKey=(x,y,z)=>((Math.floor(x/CELL)+512)*1024+(Math.floor(y/CELL)+512))*1024
+                       +(Math.floor(z/CELL)+512);
+const NBR_MAX=48;                                  // a water never has this many inside 6.2 A
+const nbr=new Int16Array(N_WATER*NBR_MAX), nbrN=new Int16Array(N_WATER);
+const accepted=new Uint8Array(N_WATER), bondedWith=new Int16Array(N_WATER);
+/* ---- PRESSURE, which is what pair forces alone cannot give you ----
+   A liquid held only by neighbour attraction will happily thin out and leave a
+   void, so a wetting wall strips a film off it and the body never follows. Real
+   filling works the other way round: the liquid is effectively incompressible,
+   so a curved surface sets up a pressure difference and the whole column is
+   dragged along behind it.
+
+   So each molecule carries a local density and a pressure from it, the standard
+   weakly-compressible form: P = K(rho - rho0), NEGATIVE when the liquid is
+   stretched. That negative branch is the entire point — it is tension, the thing
+   that holds a column of water together under pull, and it is what the earlier
+   builds had no way to express. rho0 is measured off the seeded pool rather than
+   typed, so it is whatever this liquid's own bulk density turns out to be. */
+const dens=new Float32Array(N_WATER), press=new Float32Array(N_WATER);
+let RHO0=0;                            // calibrated at first settle, below
+/* Stiffness, and the window is narrow. Below ~0.1 nothing rises; at 0.34 the
+   term outweighs every other force in the model and the liquid tears and jets
+   out of the pore (H-bonds per molecule fall from 2.3 to 0.8, which is the
+   number that catches it). Between those, at 0.22, the front climbs steadily
+   and the liquid stays a liquid at about 1.9 bonds a molecule — lower than the
+   2.6 it sits at unpressurised, because a column being drawn up IS under
+   tension, and stretched water holds fewer bonds. */
+let K_PRESS=0.22;                      // stiffness
+const P_CLAMP=2.2;                     // no runaway tension when a region tears
+/* THE BATH HAS A PRESSURE. A tube stands in a dish and the dish pushes: the
+   liquid at the tube's foot is held at the reservoir's pressure whatever the
+   column above it is doing. Without that the supply could only refuse to empty
+   — it backfilled holes and never pushed — so the only pressure gradient in the
+   model lived in the few layers around the front, and everything below was
+   dragged along behind them. Held at the foot instead, the gradient runs the
+   whole length of the column and the interior has a reason to move.
+   Blended in over the band rather than switched on at its edge, because a step
+   in pressure is a force no molecule should feel. */
+let P_BATH=0.06;                       // the reservoir's pressure, at the floor
+const HK=COH_MAX;                      // the kernel's reach, same as cohesion's
+const wDens=d=>{ const t=1-d/HK; return t>0 ? t*t*t : 0; };
+
+let stepNo=0;
+function step(){
+  stepNo++;
+  const n=waters.length;
+  for(let i=0;i<n;i++){
+    (forces[i]||(forces[i]=new THREE.Vector3())).set(0,0,0);
+    (torq[i]||(torq[i]=new THREE.Vector3())).set(0,0,0);
+  }
+
+  // --- pairwise: steric floor, then the H-bond that pulls them back together
+  let lines=0; hbCount=0; adCount=0;
+  const pos=hbGeo.attributes.position.array;
+  /* The pair pass keeps a neighbour list, because the H-bond search below wants
+     exactly the pairs this loop already found and running it over all n^2 again
+     was two thirds of the frame. Counts live in typed arrays rather than a Map
+     and a Set of string keys — 180k `i+'|'+j` allocations a frame is most of
+     the rest of it. */
+  for(let i=0;i<n;i++){ nbrN[i]=0; accepted[i]=0; dens[i]=0; }
+
+  cells.clear();
+  for(let i=0;i<n;i++){
+    if(waters[i].gone) continue;
+    const k=cellKey(waters[i].p.x,waters[i].p.y,waters[i].p.z);
+    const c=cells.get(k); if(c) c.push(i); else cells.set(k,[i]);
+  }
+
+  for(let i=0;i<n;i++){
+    const a=waters[i];
+    if(a.gone) continue;
+    const bx=Math.floor(a.p.x/CELL), by=Math.floor(a.p.y/CELL), bz=Math.floor(a.p.z/CELL);
+    for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++) for(let dz=-1;dz<=1;dz++){
+    const c=cells.get(((bx+dx+512)*1024+(by+dy+512))*1024+(bz+dz+512));
+    if(!c) continue;
+    for(let q=0;q<c.length;q++){
+      const j=c[q];
+      if(j<=i) continue;               // each pair once, whichever cell finds it
+      const b=waters[j];
+      _v.subVectors(a.p,b.p);
+      const d=_v.length();
+      if(d>COH_MAX || d<1e-4) continue;
+      if(nbrN[i]<NBR_MAX) nbr[i*NBR_MAX+nbrN[i]++]=j;
+      if(nbrN[j]<NBR_MAX) nbr[j*NBR_MAX+nbrN[j]++]=i;
+      const wd=wDens(d); dens[i]+=wd; dens[j]+=wd;
+      if(d<OO_MIN){
+        /* The soft half. It stays, and separate() below is the hard half on top
+           of it: with the force taken out entirely the liquid simply collapsed
+           — cohesion and pressure crushed it to 1.8 A and a couple of relaxation
+           passes could not undo a whole pool's worth of overlap in one step.
+           The force keeps the crush from happening; the constraint takes out
+           what still gets through. */
+        _u.copy(_v).multiplyScalar((OO_MIN-d)/d*K_STERIC);
+        forces[i].add(_u); forces[j].sub(_u);
+      } else if(d>OO_EQ){
+        /* Dispersion, outside the rest length only — and ZERO AT THE REST
+           LENGTH, which is the correction. It used to be strongest exactly
+           there: `fade` was 1 at d = OO_EQ and fell away outward, so a pair
+           sitting at its own equilibrium was being pulled inward as hard as the
+           term could pull, while contact pushed it back out. Every touching
+           pair in the liquid was in that tug of war, and the energy it threw
+           off is what shook the whole pool — bulk speed 0.79 A a step, molecules
+           flung clear of the surface and stranded on the dry wall. Lowering
+           K_COH quietened it because it made the fight weaker, which is how the
+           fight was spotted.
+
+           Force at a potential's minimum is zero. This one now rises from
+           nothing at OO_EQ, peaks midway out, and falls back to nothing at
+           COH_MAX. */
+        const w=(d-OO_EQ)/(COH_MAX-OO_EQ);      // 0 at contact, 1 at the cutoff
+        /* w(1-w) peaks at 0.25, which is what the old curve was worth in the
+           middle of its range: the shape changes, the strength a pair feels
+           halfway out does not, so K_COH still means what it meant. Normalised
+           to 1 instead, the mid-range pull is four times the old one and the
+           pool boils out of the pore. */
+        _u.copy(_v).multiplyScalar(-K_COH*w*(1-w)/d);
+        forces[i].add(_u); forces[j].sub(_u);
+      }
+    }
+    }
+  }
+  /* rho0 is calibrated off the first settled frames rather than from the
+     warm-up counter, which only advances inside the render loop: a backgrounded
+     tab pauses that, and the page would then run with no pressure at all and
+     no sign of it. */
+  if(RHO0<=0 && stepNo>140) calibrateRho0();
+
+  /* --- pressure, over the neighbours the pair pass just found ---
+     A molecule in bulk sits at rho0 and feels nothing. One in a thinning region
+     is at negative pressure and pulls its neighbours toward it, which is how the
+     body follows a surface that is being drawn away. */
+  if(RHO0>0 && K_PRESS>0){
+    const bandTop=FLOOR+SUPPLY_BAND;
+    for(let i=0;i<n;i++){
+      if(waters[i].gone){ press[i]=0; continue; }
+      let p=Math.max(-P_CLAMP, Math.min(P_CLAMP, K_PRESS*(dens[i]-RHO0)/RHO0));
+      const y=waters[i].p.y;
+      if(y<bandTop){
+        const t=Math.min(1,(bandTop-y)/SUPPLY_BAND);   // 0 at the band's top, 1 at the floor
+        p=p*(1-t)+P_BATH*t;
+      }
+      press[i]=p;
+    }
+    for(let i=0;i<n;i++){
+      if(waters[i].gone) continue;
+      for(let q=0;q<nbrN[i];q++){
+        const j=nbr[i*NBR_MAX+q];
+        if(j<i || waters[j].gone) continue;
+        _v.subVectors(waters[j].p, waters[i].p);
+        const d=_v.length(); if(d<1e-4) continue;
+        const t=1-d/HK; if(t<=0) continue;
+        // negative pressure -> toward each other; positive -> apart
+        _u.copy(_v).multiplyScalar((press[i]+press[j])*t*t/d);
+        forces[i].add(_u); forces[j].sub(_u);
+      }
+    }
+  }
+
+  // --- H-bonds: a donor H reaching a lone pair, one bond per H, two per oxygen
+  for(let i=0;i<n;i++){ waters[i].hb=0; bondedWith[i]=-1; }
+  for(let i=0;i<n;i++){
+    const don=waters[i];
+    for(let k=0;k<2;k++){
+      let best=-1, bestD=HB_MAX, bestLin=0;
+      for(let q=0;q<nbrN[i];q++){
+        const j=nbr[i*NBR_MAX+q];
+        const acc=waters[j];
+        if(acc.gone) continue;
+        if(accepted[j]>=2) continue;                 // an oxygen has two lone pairs
+        if(bondedWith[i]===j) continue;              // and one pair shares one bond
+        const dd=don.h[k].distanceTo(acc.o);
+        if(dd<bestD){
+          _u.subVectors(don.h[k],don.o).normalize();
+          _w.subVectors(acc.o,don.h[k]).normalize();
+          const lin=_u.dot(_w);
+          if(lin>HB_LIN){ best=j; bestD=dd; bestLin=lin; }
+        }
+      }
+      if(best<0) continue;
+      const acc=waters[best];
+      accepted[best]++;
+      bondedWith[i]=best;
+      don.hb++; acc.hb++; hbCount++;
+      _v.subVectors(acc.p,don.p);
+      const dist=_v.length()||1;
+      /* The donor turns this O-H onto the acceptor's oxygen, and the acceptor
+         turns its nearer lone pair onto this H. Both, because a bond that only
+         straightened the donor would leave the acceptor's other three
+         directions pointing wherever they were. */
+      aim(i, _t5.subVectors(don.h[k],don.o).normalize(),
+             _t3.subVectors(acc.o,don.o).normalize(), K_TORQ);
+      lonePairs(acc,_lpA,_lpB);
+      _t3.subVectors(don.h[k],acc.o).normalize();
+      aim(best, _lpA.dot(_t3)>=_lpB.dot(_t3)?_lpA:_lpB, _t3, K_TORQ);
+      _v.multiplyScalar((dist-OO_EQ)*K_HB*bestLin/dist);
+      forces[i].add(_v); forces[best].sub(_v);
+      if(lines<HB_MAX_LINES){
+        don.h[k].toArray(pos, lines*6); acc.o.toArray(pos, lines*6+3); lines++;
+      }
+    }
+  }
+
+  // --- the wall: solid, and covered in hydroxyls that will hold on
+  const reach=5.0*A;
+  for(let i=0;i<n;i++){
+    const w=waters[i], f=forces[i];
+    if(w.gone) continue;
+    // contact with the wall's own atoms, at their radii
+    const side=Math.sign(w.p.x)||1;
+    if(Math.abs(w.p.x) > GAP/2 - 5.0*A){
+      for(const list of surfaceNear(side,w.p.y)) for(const at of list){
+        _v.subVectors(w.p,at.pos);
+        const d=_v.length(), touch=at.r+R_WATER;
+        if(d<touch && d>1e-4) f.addScaledVector(_v,(touch-d)/d*K_WALL);
+      }
+    }
+    /* The surface's long-range share, summed over the atoms themselves rather
+       than applied as a push along -x. The direction matters: a sideways-only
+       wall force cannot lift anything, so the column sat with a dead flat top
+       however strongly it was wetted. Pulled toward real atoms, a molecule at
+       the top of the column feels the wall ABOVE it too, and climbs — which is
+       the meniscus, and then capillary rise, and neither had to be drawn. */
+    /* Summed over a few hundred wall atoms, and REUSED for a few steps. The
+       wall does not move and a molecule crosses a fraction of an angstrom per
+       step, so recomputing this every step for every molecule was the single
+       most expensive thing in the frame and it returned nearly the same vector
+       each time. Each molecule refreshes on its own step, so the cost is spread
+       and no frame carries all of it. */
+    if(!w.wallF) w.wallF=new THREE.Vector3();
+    if((stepNo+i)%4===0){
+      w.wallF.set(0,0,0);
+      if(GAP/2-Math.abs(w.p.x) < WET_REACH && Math.abs(w.p.x) < GAP/2){
+        for(const list of surfaceNear(side,w.p.y,4)) for(const at of list){
+          _v.subVectors(at.pos,w.p);
+          const d=_v.length();
+          if(d>WET_REACH || d<1e-4) continue;
+          const t=1-d/WET_REACH;
+          w.wallF.addScaledVector(_v, K_WET*t*t/d);
+        }
+      }
+    }
+    f.add(w.wallF);
+    /* THE FACE IS THE LIMIT. This backstop used to sit an angstrom BEHIND the
+       face, and with the steric list only holding atoms near the surface, a
+       molecule that got past the outermost ones found nothing behind them and
+       sank into the wall: a quarter of the water ended up inside the cellulose,
+       riding high in its grooves, which is also what made an early version look
+       like it had a meniscus. It did not. It had a leak. */
+    const deep=Math.abs(w.p.x)-(GAP/2-R_WATER);
+    if(deep>0) f.x -= side*deep*K_WALL*8;
+    const dz=Math.abs(w.p.z)-DEPTH/2;
+    if(dz>0) f.z -= Math.sign(w.p.z)*dz*K_WALL;
+    // The supply boundary. Not a floor holding anything up — with no gravity
+    // nothing falls — but the edge of the modelled region, where water comes in
+    // from the rest of the wall and where a molecule fed back in appears.
+    if(w.p.y<FLOOR) f.y += (FLOOR-w.p.y)*K_WALL;
+    if(Math.abs(w.p.x) < GAP/2-reach) continue;      // too far in to feel a hydroxyl
+    for(const list of ohNear(side,w.p.y)) for(const site of list){
+      if(Math.abs(site.o.z-w.p.z)>reach) continue;
+      if(Math.abs(site.o.y-w.p.y)>reach) continue;
+      _v.subVectors(site.o,w.p);
+      const dist=_v.length()||1;
+      if(dist>COH_MAX) continue;
+      /* Two parts, as the force really has two. A hydroxyl pulls on a water
+         whatever way either is turned — that is the electrostatics, and it is
+         what wets the wall. The BOND is the strong directional part on top,
+         and only it earns a dash: a line drawn for the general attraction
+         would be claiming a hydrogen bond wherever water is merely near. */
+      const fade=1-(dist-OO_EQ)/(COH_MAX-OO_EQ);
+      if(fade>0) f.addScaledVector(_v, K_ADHERE_LR*fade*fade/dist);
+
+      const donates=site.h.distanceTo(w.o)<HB_MAX;
+      const accepts=!donates && (w.h[0].distanceTo(site.o)<HB_MAX || w.h[1].distanceTo(site.o)<HB_MAX);
+      if(!donates && !accepts) continue;
+      /* Adhesion is the same bond to a different partner, so it turns the water
+         the same way. Only the water turns: the cellulose is a solid. */
+      if(donates){
+        lonePairs(w,_lpA,_lpB);
+        _t3.subVectors(site.h,w.o).normalize();
+        aim(i, _lpA.dot(_t3)>=_lpB.dot(_t3)?_lpA:_lpB, _t3, K_TORQ);
+      } else {
+        const kk=w.h[0].distanceTo(site.o)<HB_MAX?0:1;
+        aim(i, _t5.subVectors(w.h[kk],w.o).normalize(),
+               _t3.subVectors(site.o,w.o).normalize(), K_TORQ);
+      }
+      f.addScaledVector(_v,(dist-OO_EQ)*K_ADHERE/dist);
+      adCount++;
+      if(lines<HB_MAX_LINES){
+        if(donates){ site.h.toArray(pos,lines*6); w.o.toArray(pos,lines*6+3); }
+        else {
+          const k=w.h[0].distanceTo(site.o)<HB_MAX?0:1;
+          w.h[k].toArray(pos,lines*6); site.o.toArray(pos,lines*6+3);
+        }
+        lines++;
+      }
+    }
+  }
+
+  // --- integrate, and let each molecule turn toward the bond it is making
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(w.gone) continue;               // evaporate() is flying this one
+    /* THERE IS NO VAPOUR IN THIS PORE, and that is the honest statement of it.
+       Saturated water vapour is about 1e-5 of the liquid's density, so a 3.5 nm
+       channel holds a hundredth of a molecule: any free molecule standing in
+       the middle of it is a modelling artefact, not a thing a student should be
+       looking at. The ones that hung there motionless — 0.02-0.13 A a step
+       against the liquid's 0.30 — were a lone PAIR, feeling almost no force and
+       damped to a stop, which the old gate missed by exempting only the
+       completely isolated.
+
+       Kicking them to thermal speed instead was worse. It is a second
+       evaporation channel with no rate control: molecules left the top with
+       Evaporation off, and near the wall each one was flung, caught by the
+       wall's pull, stripped again and re-kicked, which is the hopping.
+
+       A free molecule is thermostatted like every other, so it now leaves at
+       the speed its temperature says without anyone throwing it, and if it
+       stays free it goes back to the reservoir at the base. That is
+       condensation, and in saturated air it is exactly what happens to every
+       molecule that leaves. The ones evaporate() has marked are untouched:
+       those are the flux, and being seen to go is their job. */
+    /* Langevin: drag and noise in the same line, which is the only way the two
+       stay locked. A slow molecule gains, a fast one loses, and the average is
+       the temperature. sqrt(1-DAMP^2) is what makes that average hold — noise
+       set independently of the drag would either heat or freeze the liquid,
+       slowly, with nothing on screen to say which. */
+    w.v.add(forces[i]).multiplyScalar(DAMP);
+    const sd=V_THERM*Math.sqrt(1-DAMP*DAMP);
+    w.v.x+=_gauss()*sd; w.v.y+=_gauss()*sd; w.v.z+=_gauss()*sd;
+    if(nbrN[i]===0 && w.hb===0) w.vap=(w.vap||0)+1; else w.vap=0;
+    /* A CEILING ON SPEED, off by default, and what it measures is worth more
+       than what it does. It cuts exactly the molecules thrown clear of the
+       surface — and it stops the column with them. See the header: every way of
+       calming this liquid stops the climb. */
+    if(V_MAX>0){ const sp=w.v.length(); if(sp>V_MAX) w.v.multiplyScalar(V_MAX/sp); }
+    if(w.vap>VAP_DWELL && !w.gone){
+      /* Dwell first, because a molecule at the top of a rising front is briefly
+         free every few steps and hauling that one to the base would be moving
+         the liquid's own surface around. */
+      w.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR+0.4*A, (Math.random()-0.5)*DEPTH);
+      w.v.set(0,0,0); w.vap=0; condensed++;
+    }
+    w.p.add(w.v);
+    const ang=torq[i].length();
+    if(ang>1e-6) w.q.premultiply(_qt.setFromAxisAngle(
+      _t5.copy(torq[i]).multiplyScalar(1/ang), Math.min(ang,TORQ_MAX)));
+    w.q.multiply(_tumble(w));
+    place(w);
+  }
+
+  separate();
+  thermostat();
+
+  hbGeo.setDrawRange(0,lines*2);
+  hbGeo.attributes.position.needsUpdate=true;
+  hbLines.computeLineDistances();
+  return lines;
+}
+/* CONTACT AS A CONSTRAINT, NOT A FORCE, which is what let this liquid reach
+   its real density. As a spring it was punched straight through: molecules sat
+   2.44 A apart against a floor of 2.70 and a real 2.76, six of them inside
+   3.4 A where water has about 4.5, so the liquid was close-packed and no
+   molecule could bond four neighbours however well the torque turned it.
+   Stiffening the spring is not the fix — an explicit integrator overshoots a
+   stiff one and tears the liquid apart, 0.45 bonds a molecule at K_STERIC 1.6.
+
+   So after the positions move, any overlapping pair is simply pushed apart to
+   contact, half each, a couple of passes over the same neighbour list the
+   forces used. Position-based, so it is stable at any strength: there is no
+   spring to overshoot. Velocities are left alone, which means the correction
+   takes energy OUT of an overlap rather than storing it and firing it back.
+   STERIC_FIX is how much of an overlap one pass takes out, 1 being all of it,
+   and the passes are Gauss-Seidel: each sees what the last one did. Four of
+   them cost nothing measurable — 3.3 ms a step against 3.2 with none.
+
+   Settled pool, 800 steps: nearest neighbours 2.46 A without it and 2.57-2.60
+   with, against a real 2.76, and bonds per molecule 2.16 -> 2.26. Real but
+   modest, because the constraint is fighting an equilibrium rather than setting
+   one: with seven neighbours pulling a molecule inward every step, ~10% of
+   pairs are still inside contact when the passes finish.
+
+   WHAT ACTUALLY SETS THE DENSITY IS THE COHESION, and that is the next decision
+   rather than a thing already taken. Dispersion here is strong enough to close
+   the liquid up; in real water it is weak, and what holds the structure open is
+   the directional bond. Moving strength from one to the other, same 800 steps:
+
+       K_COH  K_HB   nearest   neighbours<3.4A   bonds/molecule
+       0.108  0.030    2.60          6.7              2.26
+       0.070  0.060    2.67          6.4              2.03
+       0.060  0.090    2.76          6.2              1.96
+       0.050  0.030    2.94          5.4              1.50
+
+   0.060/0.090 lands the spacing exactly on water's, and costs 0.3 of a bond.
+   Left at the old pair until someone decides which of the two numbers this
+   bench would rather be right about. */
+/* SIX PASSES AT FULL STRENGTH, and the numbers are why. Four at 0.6 did not
+   converge: the liquid still sat at 2.60 A with the floor at 2.76, because the
+   passes took out less overlap per step than the forces put back. Six at 1.0
+   holds it at 2.71 and six is where it stops improving — ten gives the same
+   2.71. Marginal cost at 684 molecules: 5.6 ms a step with no passes, 5.7 at
+   four, 6.3 at six, 7.1 at ten. */
+let STERIC_PASSES=6, STERIC_FIX=1.0;
+/* BOTH OFF, and the reason is a finding rather than a preference. A pair
+   constraint that also corrects velocity is the textbook way to do this, in
+   either form — feed the correction back (STERIC_VFB) or stop the closing
+   approach (STERIC_VDAMP). Both work exactly as advertised: the liquid goes
+   quiet, bulk speed falls to 0.1-0.3 A a step, and bonds per molecule rise from
+   2.0 to 3.0, the closest this bench has been to a real 3.6.
+
+   And the column stops dead. At any setting above about 0.2, either one, the
+   pool sits at its 420 molecules and neither the middle nor the wall moves in
+   1500 steps. What it buys the bond count it takes from the wetting: the liquid
+   settles at 9 neighbours inside 3.4 A, denser than it was, and a compacted
+   liquid does not climb.
+
+   So this bench cannot presently have both, and the climb is what it is for.
+   Left at zero, sweepable from the console, and the pair worth revisiting if
+   the pressure drive is ever rebuilt as a density constraint rather than a
+   force — which is the version of this where the two stop fighting. */
+let STERIC_VFB=0;                 // how much of the correction the velocity keeps
+let STERIC_VDAMP=0;               // and how much of a closing approach a contact stops
+const corr=[];
+function separate(){
+  const n=waters.length;
+  for(let i=0;i<n;i++) (corr[i]||(corr[i]=new THREE.Vector3())).set(0,0,0);
+  for(let pass=0;pass<STERIC_PASSES;pass++){
+    for(let i=0;i<n;i++){
+      const a=waters[i];
+      if(!a||a.gone) continue;
+      for(let q=0;q<nbrN[i];q++){
+        const j=nbr[i*NBR_MAX+q];
+        if(j<i) continue;                       // each pair once
+        const b=waters[j];
+        if(!b||b.gone) continue;
+        _v.subVectors(a.p,b.p);
+        const d=_v.length();
+        if(d>=OO_MIN || d<1e-4) continue;
+        _v.multiplyScalar((OO_MIN-d)*0.5*STERIC_FIX/d);
+        a.p.add(_v); b.p.sub(_v);
+        corr[i].add(_v); corr[j].sub(_v);
+        /* Inelastic contact, on the first pass only: two molecules driven into
+           each other stop approaching, the way a collision works. Only the
+           closing component along the contact goes, so a pair being carried
+           along together keeps its motion. */
+        if(pass===0 && STERIC_VDAMP>0){
+          _t1.copy(_v).normalize();
+          const clos=_t1.dot(_t2.subVectors(a.v,b.v));
+          if(clos<0){
+            _t1.multiplyScalar(clos*0.5*STERIC_VDAMP);
+            a.v.sub(_t1); b.v.add(_t1);
+          }
+        }
+      }
+    }
+  }
+  for(let i=0;i<n;i++){
+    const w=waters[i];
+    if(!w||w.gone) continue;
+    /* A pair pushed apart at the wall must not be pushed INTO it: the face is
+       the limit here as it is everywhere else on this page. */
+    /* A HARD STOP HAS TO STOP THE VELOCITY TOO. Clamping x and leaving v alone
+       let a molecule held against the face keep accelerating into it every step
+       while never moving, and the bulk average ran to 0.95 A a step against a
+       liquid that moves at 0.3 — which is the bouncing, and it came from here
+       rather than from the pair constraint. */
+    const lim=GAP/2-R_WATER;
+    if(w.p.x> lim){ w.p.x= lim; if(w.v.x>0) w.v.x=0; }
+    else if(w.p.x<-lim){ w.p.x=-lim; if(w.v.x<0) w.v.x=0; }
+    /* THE VELOCITY HAS TO KNOW IT WAS STOPPED. Leaving it alone looked like the
+       careful choice and was the opposite: a molecule pressed into its
+       neighbours kept accelerating inward every step while the constraint kept
+       putting it back, so it carried an inward velocity it never got to spend —
+       bulk speed ran to 0.95 A a step where the liquid actually moves at 0.3 —
+       and the moment its neighbours drifted it fired. That is the bouncing.
+       Velocity here is what the molecule ACTUALLY moved, correction included.
+       Off by default, and the note by STERIC_VFB says what it costs. */
+    w.v.addScaledVector(corr[i], STERIC_VFB);
+    place(w);
+  }
+}
+
+/* Unit-variance normal from three uniforms. Box-Muller costs a log and a cos
+   per draw and this runs three times per molecule per step. */
+function _gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)*2; }
+
+/* Thermal tumbling, the rotational half of the thermostat. It used to be
+   divided by the bond count, which was standing in for the torque: a bonded
+   molecule was held still because nothing else was holding it. The torque holds
+   it now, so the noise is the same for everyone and what a molecule keeps of
+   its orientation is a result. */
+let TUMBLE=0.05;
+const _qt=new THREE.Quaternion(), _qr=new THREE.Quaternion(), _ax=new THREE.Vector3();
+function _tumble(w){
+  _ax.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
+  return _qr.setFromAxisAngle(_ax,(Math.random()-0.5)*TUMBLE);
+}
+
+/* ---- evaporation, which is the whole point ----
+ *  A molecule leaves from the free surface, and only if it is weakly bonded,
+ *  which is the energy of vaporisation: the bonds go before the molecule does.
+ *  Two or fewer, against a bulk molecule's three or four — a stricter cut than
+ *  that leaves almost nobody eligible and the flow stops. It then
+ *  FLIES OFF, and is only recycled to the bottom once it is out of the frame.
+ *
+ *  The flying matters. An earlier version teleported it straight from the top
+ *  to the bottom, which is the same bookkeeping and shows nothing at all: no
+ *  molecule is ever seen leaving, none is seen arriving, and the column looks
+ *  static while the whole thing is supposedly flowing.
+ *
+ *  Feeding it back in at the base is the root's half. Water leaves the leaf and
+ *  water enters from below, so the column keeps its length and the water inside
+ *  it travels up.
+ */
+/* It leaves FAST. Every molecule in flight is one the column has lost, so a
+   slow escape is a standing deficit: at 0.1 A a frame the vapour held a sixth
+   of the liquid at once, the column shrank, and the water went DOWN while
+   evaporating — the opposite of the thing being shown. At this speed the
+   round trip is about 45 frames and the deficit stays near 1%. */
+const ESCAPE_V=0.5*A;
+let escapeTop=0;                       // set from the wall's height, below
+let evapAcc=0, evapCount=0;
+/* A RATE, NOT A SWITCH. Evaporation never stops: at any temperature some
+   surface molecules sit in the high end of the energy distribution with enough
+   to break their bonds and go, and heat only widens that end. In a leaf it is
+   not heat at all but the humidity outside, which is why transpiration runs on
+   an ordinary day. So the control is molecules per second, and zero is
+   saturated air rather than a cold one. */
+let EVAP_RATE=0;                       // molecules leaving per second; starts off
+function evaporate(){
+  // molecules already on their way out: no bonds, no gravity, just going
+  for(const w of waters){
+    /* One that leaves under its own thermal speed rather than through the
+       evaporation counter is still gone, and with no ceiling above the pore it
+       otherwise flies off forever and the column is quietly one short. */
+    if(!w.gone && w.p.y>escapeTop){ w.gone=true; w.v.set(0,0,0); }
+    if(!w.gone) continue;
+    w.p.y+=ESCAPE_V; place(w);
+    if(w.p.y>escapeTop){               // out of the frame; the root sends another
+      w.gone=false;
+      w.p.set((Math.random()-0.5)*(GAP-3*A), FLOOR+0.4*A, (Math.random()-0.5)*DEPTH);
+      w.v.set(0,0.01*A,0); place(w);
+    }
+  }
+  /* Rate is a real trade-off, not a free knob: evaporating flattens the
+     meniscus. Static the surface stands ~10 A higher at the walls; running,
+     it sits at 0-2 A at every rate that still shows visible flow. Flux draws
+     a surface down, which is true, but even 7 a second here is orders above a
+     leaf's, and the curve pays for it. */
+  if(EVAP_RATE<=0) return;
+  /* Divided by SPEED so the number means molecules a SECOND, not a step. Left
+     per-step it multiplied by the speed control: 7/s at 1x was 56/s at 8x, and
+     the supply at the base cannot keep up with that, so winding the sim faster
+     quietly emptied the pore. Speed now only decides how quickly the physics
+     settles; how hard the leaf is transpiring is this slider alone. */
+  evapAcc += EVAP_RATE/(60*Math.max(1,SPEED));
+  if(evapAcc<1) return;
+  evapAcc -= 1;
+  /* Anywhere on the free surface, not the single highest molecule. Taking the
+     top one always takes the water riding up the wall — the meniscus rim is by
+     definition the highest thing there — so evaporating slowly ate the curve
+     and flattened it, which real evaporation does not do. Sample the whole
+     surface instead: barely bonded, and within a molecule or two of the top. */
+  let hi=-Infinity;
+  for(const w of waters) if(!w.gone && w.p.y>hi) hi=w.p.y;
+  const surface=[];
+  for(const w of waters) if(!w.gone && w.hb<=2 && w.p.y>hi-8*A) surface.push(w);
+  if(surface.length){
+    const w=surface[(Math.random()*surface.length)|0];
+    w.gone=true; w.v.set(0,0,0); evapCount++;
+  }
+}
+
+indexOH();
+escapeTop=Math.max(...wallAtoms.map(a=>a.pos.y))+6*A;   // clear of the pore's mouth
+
+/* One callout, on the thing a student would otherwise read as scenery. The
+   green slabs are the load-bearing part of a plant cell wall, and the pore is
+   the gap between two of its cellulose fibrils — which is the sentence that
+   turns this from an abstract slot into somewhere in a leaf. */
+const stageEl=document.getElementById('stage');
+const NOTES=Annot.create(THREE, stageEl, camera, {mode:'on'});
+(function markWall(){
+  // the wall itself, named where it is thickest and unmistakably scenery
+  const face=new THREE.Vector3(-GAP/2-4*A, FLOOR+nm(3.4), 0);
+  NOTES.add({ text:'plant cell wall', offset:[-150,-34], at:()=>face,
+    card:'Cellulose fibrils, the load-bearing part of a plant cell wall. This '
+       + 'pore is the gap between two of them. In a leaf, pores like it are '
+       + 'where the water column finally meets air.' });
+
+  /* And ONE hydroxyl, by name. The macro label says where we are; this one says
+     why the water does not simply fall away from the wall, and it has to point
+     at an actual -OH the engine is bonding to rather than at the wall in
+     general — so it is picked out of the same wallOH list the physics uses. */
+  let best=null;
+  for(const site of wallOH){
+    if(site.o.x>0) continue;                       // the left wall, facing us
+    const score=Math.abs(site.o.z)+Math.abs(site.o.y-(FLOOR+nm(1.6)));
+    if(!best || score<best.score) best={site, score};
+  }
+  if(best) NOTES.add({ text:'adhesion', offset:[-150,26],
+    at:()=>best.site.o,
+    card:'Every glucose in the wall carries \u2013OH groups, and each one can '
+       + 'hydrogen bond a water exactly as another water would. Water holding '
+       + 'onto something else is adhesion. Water holding onto itself is cohesion. '
+       + 'Which one wins decides whether water climbs a surface or beads up on it.' });
+})();
+
+/* THE ONE CONTROL THE PAGE WILL NOT SET FOR YOU, called out the same way the
+   wall is: nothing travels up the pore until water starts leaving the top.
+   `atElement` is annotate.js's DOM anchor — see its comment for why a callout
+   on chrome is the module's business rather than the page's. */
+
+/* rho0 is the density this liquid actually settles at, read off the pool's
+   INTERIOR: away from the walls, and only molecules with a full complement of
+   neighbours, so a free surface does not drag the figure down. Typing a number
+   here would make every pressure in the model a claim about a constant nobody
+   measured. */
+function calibrateRho0(){
+  const inner=[];
+  for(let i=0;i<waters.length;i++){
+    const w=waters[i];
+    if(w.gone) continue;
+    if(Math.abs(w.p.x)>GAP/2-5*A) continue;          // not against a wall
+    if(nbrN[i]<8) continue;                          // not at a free surface
+    inner.push(dens[i]);
+  }
+  if(inner.length<20) return;                        // too few to mean anything
+  inner.sort((a,b)=>a-b);
+  RHO0=inner[Math.floor(inner.length/2)];            // median, not mean
+}
+
+/* The supply. Counts what is in the bottom band and tops it up toward the
+   density a liquid has there, testing each spot before it puts anything in. */
+const SUPPLY_TARGET=Math.round(0.0334*(GAP/A)*(DEPTH/A)*(SUPPLY_BAND/A));
+/* How many may arrive in one step. The band is refilled toward liquid density
+   rather than at a rate, so this is only a ceiling on how abruptly it happens:
+   a whole band's worth appearing in one frame would be a pressure wave. */
+const SUPPLY_PER_STEP=4;
+function supply(){
+  let inBand=0;
+  for(const w of waters) if(!w.gone && w.p.y<FLOOR+SUPPLY_BAND) inBand++;
+  for(let k=0;k<SUPPLY_PER_STEP;k++){
+    if(inBand>=SUPPLY_TARGET || waters.length>=N_MAX) return;
+    if(!injectOne()) return;                    // nowhere clear to put one
+    inBand++;
+  }
+}
+// a spot in the band that nothing is sitting in
+function injectOne(){
+  for(let tries=0;tries<8;tries++){
+    const p=new THREE.Vector3(
+      (Math.random()-0.5)*(GAP-2.6*R_WATER),
+      FLOOR+0.6*A+Math.random()*SUPPLY_BAND*0.5,
+      (Math.random()-0.5)*(DEPTH-2*R_WATER));
+    let clear=true;
+    for(const w of waters){ if(w.gone) continue;
+      if(w.p.distanceToSquared(p)<(OO_MIN*0.95)**2){ clear=false; break; } }
+    if(clear){ place(makeWater(p)); return true; }
+  }
+  return false;
+}
+
+/* ============================================================= *
+ *  Render
+ * ============================================================= */
+const _M=new THREE.Matrix4();
+
+function draw(){
+  /* The buffers are sized for N_MAX and the pore starts a third full, so the
+     rest were being drawn every frame as degenerate spheres at the origin:
+     three quarters of the vertex work for nothing. */
+  oMesh.count=waters.length; hMesh.count=waters.length*2;
+  waters.forEach((w,i)=>{
+    _M.makeScale(R_O,R_O,R_O).setPosition(w.o); oMesh.setMatrixAt(i,_M);
+    for(let k=0;k<2;k++){
+      _M.makeScale(R_H,R_H,R_H).setPosition(w.h[k]); hMesh.setMatrixAt(i*2+k,_M);
+    }
+  });
+  oMesh.instanceMatrix.needsUpdate=true;
+  hMesh.instanceMatrix.needsUpdate=true;
+}
+
+/* The bench's own numbers, off what was built rather than typed: the gap in
+   real nm, how many water diameters that is, and the bonds standing this frame. */
+const readout=document.getElementById('readout');
+const WATER_DIA=2.80;                       // real angstroms, O...O contact
+let frames=0;
+/* Frames a second, measured over the interval between reports rather than off
+   one frame's delta, which reads as noise. The step count moves at this times
+   Speed, so it is also how fast the run is actually going. */
+let fps=0, fpsFrames=0, fpsT=performance.now();
+function tickFps(){
+  fpsFrames++;
+  const now=performance.now(), dt=now-fpsT;
+  if(dt>=500){ fps=fpsFrames*1000/dt; fpsFrames=0; fpsT=now; }
+}
+function report(){
+  readout.innerHTML =
+    `pore  <b>${(GAP/A/10).toFixed(1)} nm</b>  =  <b>${Math.round(GAP/A/WATER_DIA)}</b> molecules across\n`
+  + `water <b>${waters.length}</b> of ${N_MAX}   H-bonds <b>${hbCount}</b>   wall contacts <b>${adCount}</b>\n`
+  /* Throughput, not level. In steady flow the column keeps its height while
+     every molecule in it travels, so the level says nothing and the count of
+     molecules that have gone through says everything. */
+  + `through  <b>${evapCount}</b> evaporated   <b>${waters.filter(w=>w.gone).length}</b> in flight\n`
+  /* The step count, because every measurement quoted about this page is "after
+     N steps" and there is otherwise no way to tell where a run has got to. */
+  + `step  <b>${stepNo}</b>   <b>${fps.toFixed(0)}</b> fps`;
+}
+
+let SPEED=1;                           // physics steps per drawn frame
+/* NO WARM-UP. The seed is a lattice, so the first second is the meniscus
+   forming rather than the answer, and an earlier version ran those 200 steps
+   before the first paint so a student would not read the lattice as the result.
+   It is drawn from the first step instead: the settle is worth watching, and
+   hiding it hides the only frames that show the surface being made. */
+function loop(){
+  requestAnimationFrame(loop);
+  /* Speed is steps per FRAME, not a bigger timestep. Scaling the timestep
+     instead would let molecules jump through each other and through the wall,
+     and the settling distances this page reports would stop being the model's.
+     More steps is just watching the same physics from further along. */
+  for(let k=0;k<SPEED;k++){ step(); supply(); evaporate(); }
+  draw(); stepTint(); NOTES.step(); tickFps();
+  if((frames++ & 7)===0){ report(); reportClimb(); }
+  renderer.render(scene,camera);
+}
+/* Each knob names the variable it drives, so the panel cannot drift from the
+   physics: the getter and setter are the only place the value lives. */
+/* NO H-BOND SLIDER, because it does nothing, and that is a finding rather than
+   a tidy-up. Swept across its whole range at 1000 steps, bonds a molecule went
+   1.96 at zero, 1.95 at the default, 1.98 at the top — the spring switched off
+   entirely changes nothing measurable. The reason: the liquid sits at 2.57 A
+   and the spring's rest length is 2.76, so a bonded pair is 0.19 A INSIDE it
+   and pulling at 0.006, while the steric floor at that same separation pushes
+   at 0.117. Twenty times. Cohesion contributes nothing at all there, being
+   gated to distances beyond 2.76 that almost no pair reaches. Every pair in
+   this liquid sits in the steric term's pocket, and the bond is a rounding
+   error on top of it. K_HB will start to matter when the density is right, and
+   the slider can come back then.
+
+   NO STERIC SLIDER either, for the opposite reason: it does far too much. It is
+   the density, and through the density it is the fill rate — 0.10 squashes the
+   liquid to 2.48 A and runs the column to the top of the pore, 2.50 opens it to
+   2.68 and nearly stops it. That is a numerical property of this model being
+   dressed as something a student could learn from. Console work, not a knob.
+
+   NO TEMPERATURE KNOB, though the model now has a temperature to put on one.
+   Heating the water is a lesson, and a good one, but not this page's: a pore
+   that fills faster because it is nearer boiling teaches the wrong thing about
+   why the leaf's water moves. V_THERM stays `let` for the console to sweep,
+   which is what a bench wants anyway. */
+const KNOBS=[
+  /* THE THREE THAT TEACH. Capillary action is a competition between water
+     holding the wall and water holding itself, so adhesion and cohesion are the
+     lesson. Evaporation joins them because it is what the competition acts on:
+     nothing travels until water leaves the top. Speed is apparatus and sits
+     with the rest. */
+  {k:'Speed',      get:()=>SPEED,     set:v=>SPEED=v,      min:1,   max:12,   step:1,     fmt:v=>v+'x'},
+  {k:'Adhesion',   get:()=>K_WET/A,   set:v=>K_WET=v*A,    min:0,   max:0.09, step:0.001, fmt:v=>v.toFixed(3), main:1},
+  {k:'Cohesion',   get:()=>K_COH,     set:v=>K_COH=v,      min:0,   max:0.14, step:0.002, fmt:v=>v.toFixed(3), main:1},
+  {k:'Evaporation',get:()=>EVAP_RATE, set:v=>EVAP_RATE=v,  min:0,   max:25,   step:1,     fmt:v=>v?v+'/s':'off', main:1},
+  {k:'Pressure',   get:()=>K_PRESS,   set:v=>K_PRESS=v,    min:0,   max:1.2,  step:0.02,  fmt:v=>v.toFixed(2)},
+  {k:'Bath',       get:()=>P_BATH,    set:v=>P_BATH=v,     min:0,   max:0.30, step:0.01,  fmt:v=>v.toFixed(2)},
+];
+const knobRows=document.getElementById('knobrows');
+let evapInput=null, evapRow=null;
+/* The rest are apparatus, folded away: a panel that lists everything says
+   everything matters equally, and two of these are the whole point. */
+const more=document.createElement('details');
+more.innerHTML='<summary>more</summary>';
+KNOBS.forEach(kn=>{
+  const l=document.createElement('label');
+  l.innerHTML=`<span class="row"><span>${kn.k}</span><b></b></span>`
+            + `<input type="range" min="${kn.min}" max="${kn.max}" step="${kn.step}">`;
+  const out=l.querySelector('b'), input=l.querySelector('input');
+  input.value=kn.get();
+  out.textContent=kn.fmt(kn.get());
+  input.oninput=()=>{ const v=parseFloat(input.value); kn.set(v); out.textContent=kn.fmt(v); };
+  (kn.main?knobRows:more).appendChild(l);
+  if(kn.k==='Evaporation'){ evapInput=input; evapRow=l; }
+});
+knobRows.appendChild(more);
+
+if(evapInput&&evapRow){
+  const note=NOTES.add({ text:'start the water leaving', offset:[-62,0],
+    at:NOTES.atElement(evapRow, {gap:16, yFrom:evapInput}),
+    card:'Nothing climbs until water leaves the top. Evaporation at the surface '
+       + 'is what draws the column up behind it, and in a leaf it is the dry air '
+       + 'outside that does the pulling.' });
+  evapInput.addEventListener('input',()=>note.remove(),{once:true});
+}
+
+/* The number the knobs are being turned against: how much higher the water
+   stands at the wall than in the middle. Measured off the molecules, so the
+   panel reports the model rather than the setting. */
+function topAt(bin){
+  const ys=[];
+  for(const w of waters){ if(w.gone) continue;
+    if(Math.round(Math.abs(w.p.x)/A/4)*4===bin) ys.push(w.p.y/A); }
+  if(!ys.length) return null;
+  ys.sort((a,b)=>b-a);
+  const n=Math.max(1,Math.round(ys.length*0.1));
+  return ys.slice(0,n).reduce((a,b)=>a+b,0)/n;
+}
+/* THE FRONT, DRAWN WHERE IT IS MEASURED. The number on its own is a claim the
+   student cannot check against the picture, and "where the water gets to" is
+   ambiguous by eye once films run ahead of the body. So the same value that is
+   printed also positions a line across the pore: middle-of-channel, which is
+   the body rather than the films. */
+const frontEl=document.getElementById('front');
+const frontMark=(function(){
+  const g=new THREE.Group();
+  const bar=new THREE.Mesh(new THREE.BoxGeometry(GAP+6*A, 0.5*A, 0.5*A),
+    /* The palette's brightest blue, taken here as a POINTER colour rather than
+       for what it means elsewhere: nothing on this page draws lone pairs, and
+       the marker has to stay legible against red oxygens and a cream ground. */
+    new THREE.MeshBasicMaterial({color:P.bonds.lonepair, transparent:true, opacity:0.9}));
+  g.add(bar); g.visible=false; root.add(g); return g;
+})();
+const climbEl=document.getElementById('climb');
+function reportClimb(){
+  const wall=topAt(16), mid=topAt(0);
+  climbEl.textContent=(wall==null||mid==null)?'—':(wall-mid).toFixed(1)+' \u00c5';
+  frontEl.textContent=(mid==null)?'—':mid.toFixed(1)+' \u00c5';
+  if(mid!=null){ frontMark.position.y=mid*A; frontMark.visible=true; }
+  else frontMark.visible=false;
+}
+
+/* TINT: one colour for the wall, one for the water, instead of one per element.
+   Element colours answer "what is this atom"; at 500 molecules against 3000 wall
+   atoms the more useful question is "which of the two things am I looking at",
+   and the boundary between them is what the whole page is about. Both tints are
+   palette entries — chloride's green and the H-bond's blue — rather than typed
+   colours, so they cannot drift from the rest of the sandbox.
+
+*/
+const TINT_WALL=P.atoms.Cl, TINT_WATER=P.bonds.hbond;
+const plain=new Map();
+[...wallMeshes, wallBondMesh, oMesh, hMesh].forEach(m=>plain.set(m,m.material.color.getHex()));
+/* BLENDED, not replaced. Flooding every atom with one flat colour throws away
+   the tone inside a molecule: a hydrogen and the oxygen it hangs off become the
+   same sphere and the shape stops reading. Each element keeps its own colour and
+   is carried most of the way toward the tint instead, so hydrogens stay pale
+   against their oxygens and the wall's carbons stay dark against its hydroxyls.
+   One hue per side of the boundary, still two tones within each. */
+const TINT_MIX=0.74;
+const _c=new THREE.Color(), _t=new THREE.Color();
+/* Faded, not switched. A hard cut between two colour schemes reads as the scene
+   being replaced; carrying every sphere across in a third of a second reads as
+   the same scene being looked at differently, and the eye keeps track of which
+   molecule was which. `tintT` is the position along that fade and the render
+   loop walks it toward the checkbox. */
+let tintT=0, tintTarget=0;
+function applyTint(){
+  const k=TINT_MIX*tintT;
+  const set=(m,c)=>{ _c.setHex(plain.get(m)); m.material.color.copy(_c.lerp(_t.setHex(c),k)); };
+  wallMeshes.forEach(m=>set(m,TINT_WALL));
+  set(wallBondMesh,TINT_WALL);
+  set(oMesh,TINT_WATER); set(hMesh,TINT_WATER);
+}
+function stepTint(){
+  if(tintT===tintTarget) return;
+  const d=tintTarget-tintT;
+  tintT += Math.sign(d)*Math.min(Math.abs(d), 0.055);   // ~1/3 s at 60fps
+  if(Math.abs(tintTarget-tintT)<0.002) tintT=tintTarget;
+  applyTint();
+}
+document.getElementById('tint').onchange=e=>{ tintTarget=e.currentTarget.checked?1:0; };
+
+resize(); applyCam(); loop();
+new ResizeObserver(()=>{ resize(); applyCam(); }).observe(canvas);
+
+
+document.getElementById('reset').onclick=()=>{
+  seed(); waters.forEach(w=>{ w.gone=false; }); waters.forEach(place);
+  evapCount=0; condensed=0; RHO0=0; stepNo=0; };
+</script>
+</body>
+</html>

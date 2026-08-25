@@ -504,8 +504,44 @@ window.Annot = (function () {
       live.forEach((e, i) => { e.n.el.style.zIndex = 100 + i; });
     }
 
+    /* ---- pointing at the CHROME, not the model ----
+       A callout that names a control rather than an atom: "set this to start
+       the flow". The look and the tracking have to be the lesson's other
+       callouts, or the student reads it as a different kind of object.
+
+       Anchors are scene points, and this one is a DOM element, so the
+       element's box is taken in CSS pixels and UNPROJECTED back through the
+       camera. The world point that comes out projects to exactly that pixel
+       whatever the camera is doing, so the dot rides the control through
+       orbit, zoom and resize with nothing else in the module knowing that
+       chrome is involved.
+
+         at: notes.atElement(slider, { gap: 16, yFrom: sliderInput })
+
+       `gap` is CSS pixels to the LEFT of the element's left edge, so the dot
+       stands off a panel rather than sitting on its border. `yFrom` takes the
+       vertical centre from a different element: a labelled row's own centre
+       falls between its name and its control and reads as a miss.
+
+       FIRST OF ITS KIND at the time of writing — capillary/nanopore-test.html
+       is the only caller. If you are adding the second, this comment is the
+       convention. */
+    const _uiAnchor = new THREE.Vector3();
+    function atElement(el, o) {
+      o = o || {};
+      return () => {
+        const host = stageEl.getBoundingClientRect();
+        const rx = el.getBoundingClientRect();
+        const ry = (o.yFrom || el).getBoundingClientRect();
+        return _uiAnchor.set(
+          ((rx.left - (o.gap || 0) - host.left) / host.width) * 2 - 1,
+          -(((ry.top + ry.height * 0.5 - host.top) / host.height) * 2 - 1),
+          0.5).unproject(camera);
+      };
+    }
+
     const api = {
-      add, step, play, show, fade, setMode, openCard, closeCard,
+      add, step, play, show, fade, setMode, openCard, closeCard, atElement,
       clear() { closeCard(); while (notes.length) notes[0].remove(); return api; },
       get cardOpen() { return !!cardNote; },
       get mode() { return mode; },
