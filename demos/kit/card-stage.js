@@ -20,11 +20,12 @@
  *  kit/inset.js and molecule-builder/molecule-builder.js each wrote the same
  *  four things — own canvas, own loop, IntersectionObserver gate, destroy — and
  *  had already drifted: the builder learned that `renderer.dispose()` does not
- *  return the context and added the `WEBGL_lose_context` call, and the inset
- *  did not. Both are right about everything else and neither is wrong enough to
- *  notice from a page. This is that shell, once, and `water/watersim.js` is what
- *  forced it: the one shared module that IS the physics, and therefore the one
- *  with no stage of its own to mount.
+ *  return the context and added the `WEBGL_lose_context` call, and the inset did
+ *  not. So an inset a page destroyed kept its context for the life of the tab,
+ *  while the inset's own header said it was released. Neither is wrong enough to
+ *  notice from a page, which is the whole argument for one shell. This is it,
+ *  and `water/watersim.js` is what forced it: the one shared module that IS the
+ *  physics, and therefore the one with no stage of its own to mount.
  *
  *  WaterSim keeps refusing to grow one. Its `create(THREE, root, opts)` takes an
  *  Object3D precisely so water-lab and capillary/ can drive the same liquid under
@@ -77,11 +78,15 @@
  *    it reads the previous frame's camera. The loop is this module's, so without
  *    the hook a card has nowhere to step a callout at all.
  *
- *  · THIS IS THE FIRST OF ITS KIND, AND ONE INSTANCE IS NOT A CONVENTION.
- *    `tests/cards-cluster.html` is the bench and the worked example. Inset and
- *    the bonding builder are NOT converted — doing that at the same time means
- *    risking membrane-lab and molecule-builder for a refactor no page needed
- *    yet. When one of them moves onto this, that is when the shape is settled.
+ *  · THE SHAPE IS SETTLED NOW, AND IT WAS NOT WHEN THIS WAS WRITTEN. All three
+ *    boxes are on it: `kit/inset.js`, `molecule-builder/molecule-builder.js`,
+ *    and the cards in `tests/cards-cluster.html`, which is the bench and the
+ *    worked example. What the two conversions taught, in case a fourth is
+ *    coming: the hooks that mattered were `onResize` (the builder's frustum
+ *    rule is the opposite of `Stage.resize`'s and has to run after it) and
+ *    `afterFrame` (the inset draws its leader there). Neither box needed a new
+ *    one. `snapshot()` is what both of them lacked and could not have had while
+ *    each owned a private loop.
  * ========================================================================== */
 (function (global) {
   'use strict';
