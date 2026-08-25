@@ -192,7 +192,7 @@ const LIGCOL = { C: 0x3a3a3a, O: 0xd6362e, N: 0x3f6ae0 };
 
    Radii are proportional to the element, taken relative to carbon, so an
    oxygen is the same fraction bigger in both molecules. */
-const BALL = 0.42, STICK = 0.16;
+const BALL = 0.42, STICK = BALL * Stage.STICK_RATIO;
 const ballOf = el =>
   BALL * ((MolLib.PALETTE.radii[el] || MolLib.PALETTE.radii.C) / MolLib.PALETTE.radii.C);
 
@@ -300,12 +300,13 @@ function buildLigand() {
   J.ligand.atoms.forEach((a, i) =>
     g.add(Stage.atom(LIGCOL[a.el] || 0x888888, ballOf(a.el), P[i], a.el)));
   for (const [i, j] of J.ligand.bonds) {
-    /* Split at the midpoint so each half takes its own atom's colour —
-       a C-O stick drawn in one colour reads as a bond between two of
-       whatever colour won. */
-    const mid = P[i].clone().add(P[j]).multiplyScalar(0.5);
-    g.add(Stage.bond(P[i], mid, LIGCOL[J.ligand.atoms[i].el] || 0x888888, STICK));
-    g.add(Stage.bond(mid, P[j], LIGCOL[J.ligand.atoms[j].el] || 0x888888, STICK));
+    /* The structure style — half the stick in each atom's colour. It is
+       Stage.bondSplit because this page is not the only place it belongs:
+       any molecule drawn from deposited coordinates has the same reason to
+       want it, and no spec to carry the alternative. */
+    g.add(Stage.bondSplit(P[i], P[j],
+      LIGCOL[J.ligand.atoms[i].el] || 0x888888,
+      LIGCOL[J.ligand.atoms[j].el] || 0x888888, STICK));
   }
   return g;
 }
