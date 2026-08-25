@@ -2,7 +2,8 @@
  *  molecule-builder/molecule-builder.js — the bonding builder as a box
  * =============================================================================
  *  Loaded as a classic script AFTER three.min.js, molecules.js, scene.js, fx.js,
- *  atomkit.js, covalent-drag.js and ionic-drag.js. Exposes window.MoleculeBuilder.
+ *  atomkit.js, kit/card-stage.js, covalent-drag.js and ionic-drag.js.
+ *  Exposes window.MoleculeBuilder.
  *
  *  What this owns is the STAGE a hand-built molecule needs, and nothing about
  *  chemistry: covalent-drag.js and ionic-drag.js still hold every rule, and this
@@ -24,19 +25,39 @@
  *    page about comparing sizes — an oxygen against a hydrogen, a chloride
  *    against a sodium. Under perspective a nearer atom reads BIGGER rather than
  *    closer, which is the one misreading the lesson cannot survive. So the
- *    builder brings its own canvas, renderer and ortho camera rather than
+ *    builder brings its own stage and ortho camera rather than
  *    borrowing the host's: a host drawn in perspective (water-lab) can mount one
  *    and the projection is still right, because the host never had a say.
  *
- *  · A SECOND WEBGL CONTEXT IS A REAL RESOURCE. Browsers cap them around 8-16
- *    and silently drop the OLDEST past that — the symptom is the host's main
- *    stage going blank, with no error. So: one builder, reused, and `destroy()`
- *    actually releases the context. A page that makes one per step will kill
- *    itself. Same rule as kit/inset.js, for the same reason.
+ *  · THE CANVAS, THE LOOP AND THE CONTEXT ARE kit/card-stage.js's. This file
+ *    used to own all three, and so did kit/inset.js, and the two had already
+ *    drifted. What stays here is the part that is a DECISION — the ortho
+ *    projection, the width-first frustum, the 2D lock, and what a view change
+ *    means. A builder is still one context that `destroy()` really releases,
+ *    and it still stops rendering when nobody can see it; those rules did not
+ *    weaken, they moved somewhere one file states them.
  *
- *  · A BOX NOBODY CAN SEE MUST NOT RENDER. An IntersectionObserver drives the
- *    loop, so a builder behind a closed step costs nothing and a caller that
- *    forgets to stop it gets the right behaviour anyway.
+ *  · THE RESIZE ORDER IS LOAD-BEARING, and it is the one thing the move could
+ *    have broken silently. `Stage.resize()` holds an ortho camera's HALF-HEIGHT
+ *    and rewrites the width from the new aspect; this module's rule is the
+ *    opposite — the half-height is whatever shows the WIDTH the recipe needs.
+ *    So `applyZoom` runs from card-stage.js's `onResize`, which fires after
+ *    `Stage.resize()` and overwrites it. Reversed, the frame narrows on every
+ *    resize until chloride falls off the side, and check-molecule-builder.js
+ *    cannot see it: that checker reads the constants, not a live resize.
+ *
+ *  · `snapshot()` REFUSES MID-FOLD. A 2D↔3D change hides the sticks for 340 ms
+ *    so the molecule folds up before it re-bonds (covalent-drag.js `setDim`),
+ *    and a still taken in that window shows a bonded molecule drawn with no
+ *    bonds. A bad FRAME is gone in 16 ms; a bad still is what a card keeps. So
+ *    the sim is asked — `holding()` — and null is a legitimate answer.
+ *
+ *  · A FINISHED MOLECULE TURNS ITSELF, ONCE. The flat view is locked, so a
+ *    student who never finds the toggle reads the flat cross as the molecule's
+ *    SHAPE rather than as a way of drawing it. One unprompted turn is what says
+ *    the two pictures are one object, and it is why the beat belongs here
+ *    rather than in each host. Once, and only from flat: someone who turned it
+ *    back to 2D is answering the question. `turn:false` opts out.
  *
  *  · THE VIEW TOGGLE IS NOT A VIEW TOGGLE. 2D and 3D each imply what gets
  *    DRAWN: flat is the projection for COUNTING, so it draws every valence
@@ -98,9 +119,6 @@
      * what makes destroy-then-create work at all. */
     const mount = opts.mount;
     if (!mount) throw new Error('MoleculeBuilder.create needs a mount element');
-    const canvas = document.createElement('canvas');
-    canvas.className = 'mb-canvas';
-    mount.appendChild(canvas);
     const recipe = opts.recipe || 'water';
     const onChange = opts.onChange || function(){};
     const ionic = !!IONIC[recipe];
@@ -112,32 +130,107 @@
     let flat = true;
 
     let userSpun = false, userZoomed = false;
-    const stage = global.Stage.create(canvas, {
-      ortho:true, cam:{ theta:0.6, phi:1.15, r:rBase },
-      rMin:ZOOM.min, rMax:ZOOM.max,
-      onZoom:()=>{ userZoomed = true; applyZoom(); },   // the wheel wins from then on
-      onDrag:()=>{ userSpun = true; },
-    });
-    const { scene, camera, renderer, root, cam, applyCam } = stage;
-
-    function applyZoom(){
-      const w = canvas.clientWidth, h = canvas.clientHeight;
-      if (!w || !h) return;
-      const a = w/h;
-      const halfH = Math.max(cam.r * ZOOM.k, wWant / a);
-      camera.top = halfH; camera.bottom = -halfH;
-      camera.left = -halfH*a; camera.right = halfH*a;
-      camera.updateProjectionMatrix();
-    }
     let rWant = rBase, wWant = wBase;
+
+    /* THE MOLECULE TURNS ITSELF, ONCE, WHEN IT IS FINISHED — and the beat is
+     * the argument, not the animation. 2D is the projection for COUNTING and it
+     * is locked, so a student who never finds the toggle never learns the thing
+     * is three-dimensional at all: the flat cross reads as the molecule's shape
+     * rather than as a way of drawing it. Turning it once, unprompted, is what
+     * says the two pictures are one object. molecule-builder.html has done this
+     * since before there was a module (its `spun` flag, at 900 ms); the module
+     * was extracted without it, which left every embedded builder flat forever.
+     *
+     * ONCE, and only from FLAT: a student who has turned it back to 2D on
+     * purpose is answering the question, and turning it again overrules them.
+     * `turn:false` opts a host out — a lesson driving its own beat wants the
+     * moment, not this one. A wall-clock timer, like covalent-drag's stick hold
+     * and for the same reason: it is a COMMIT, so it lands whether or not the
+     * card was on screen, and a paused card resumes already turned. */
+    const TURN_MS = 900;
+    let turned = false, turnT = null;
+    function cancelTurn(){ clearTimeout(turnT); turnT = null; }
+    function scheduleTurn(){
+      if (opts.turn === false || turned || !flat || turnT) return;
+      turned = true;
+      turnT = setTimeout(() => { turnT = null; setView(false); }, TURN_MS);
+    }
     // the two travel together: a stage that deals a second molecule needs both
     // the pull-back and the width, and setting one without the other clips
     function wantZoom(r, w){ rWant = r; wWant = w; }
 
-    const fx = global.FX.create(global.THREE, root, camera);
+    /* THE FRUSTUM IS THE FRAMING, and it is solved from the WIDTH the recipe
+     * needs rather than from a zoom level — the header's second trap. This runs
+     * on every resize through card-stage.js's `onResize`, which fires AFTER
+     * `Stage.resize()`: scene.js's ortho branch holds the half-height and
+     * rewrites the width from the new aspect, which is the opposite rule and
+     * would narrow this frame until chloride falls off the side. So it does not
+     * merely re-apply the zoom, it overwrites what Stage just wrote — and the
+     * ordering is the whole reason `onResize` exists. Nothing offline sees this:
+     * check-molecule-builder.js reads the constants, not a live resize. */
+    let stage = null;
+    function applyZoom(){
+      if (!stage) return;             // called once from inside create(), before this is set
+      const w = box.canvas.clientWidth, h = box.canvas.clientHeight;
+      if (!w || !h) return;
+      const a = w/h;
+      const halfH = Math.max(stage.cam.r * ZOOM.k, wWant / a);
+      const camera = stage.camera;
+      camera.top = halfH; camera.bottom = -halfH;
+      camera.left = -halfH*a; camera.right = halfH*a;
+      camera.updateProjectionMatrix();
+    }
+
+    /* ---- the frame ------------------------------------------------------
+     * Everything that has to happen before a render and needs `dt`. The loop
+     * itself, the canvas, the visibility gate and the context release are
+     * kit/card-stage.js's; every line in here is a decision of this module's. */
+    let sim = null, fx = null;
+    function frameStep(dt){
+      const cam = stage.cam, applyCam = stage.applyCam;
+      // the 2D lock, re-asserted rather than unbound — Stage's orbit handler is
+      // shared with the host and unbinding it would take the host's orbit too
+      if (flat) { cam.theta = 0; cam.phi = Math.PI/2; applyCam(); }
+      else if (!userSpun) { cam.theta += 0.0009; applyCam(); }   // idle turntable
+      /* Eased here rather than tweened on a timer: this is the only place that
+       * knows the frame rate. Stops calling applyZoom once it has arrived. */
+      if (!userZoomed && Math.abs(cam.r - rWant) > 0.05) {
+        cam.r += (rWant - cam.r) * (1 - Math.pow(0.02, dt));
+        applyZoom();
+      }
+      if (sim) sim.step(dt);
+      if (fx) fx.step();
+    }
+
+    /* THE PROJECTION IS ORTHOGRAPHIC, AND THAT IS NOT A PREFERENCE — the
+     * header's first trap. It goes through `stage:` because card-stage.js
+     * forwards that to Stage.create verbatim and has no opinion about cameras. */
+    const box = global.CardStage.create({
+      mount, canvasClass:'mb-canvas', autoplay:false,
+      stage:{
+        ortho:true, cam:{ theta:0.6, phi:1.15, r:rBase },
+        rMin:ZOOM.min, rMax:ZOOM.max,
+        onZoom:()=>{ userZoomed = true; applyZoom(); },   // the wheel wins from then on
+        onDrag:()=>{ userSpun = true; },
+      },
+      step: frameStep,
+      onResize: applyZoom,
+      afterFrame: opts.afterFrame,
+      onDestroy: () => {
+        cancelTurn();                   // no setView() on a torn-down sim
+        if (dims && dims.parentElement) dims.parentElement.removeChild(dims);
+        if (sim && sim.destroy) sim.destroy();
+      },
+    });
+    stage = box.stage;
+    const canvas = box.canvas;
+    // Only what this file still uses: the loop and the render are box's now.
+    const { camera, root } = stage;
+
+    fx = global.FX.create(global.THREE, root, camera);
     const Drag = ionic ? global.IonicDrag : global.CovalentDrag;
-    const sim = Drag.create({ THREE:global.THREE, root, camera, canvas, fx,
-                              recipe, onChange:report });
+    sim = Drag.create({ THREE:global.THREE, root, camera, canvas, fx,
+                        recipe, onChange:report });
 
     /* ---- the view -------------------------------------------------------
      * 2D is the default: locked, countable, and the view the electron argument
@@ -181,6 +274,9 @@
     arm(false);
 
     function setView(toFlat){
+      // Whoever asked, the scheduled turn is now redundant or overruled. Harmless
+      // when it is the timer itself calling: it has already cleared its handle.
+      cancelTurn();
       if (toFlat === flat) return;      // already there: a no-op, not a re-render
       flat = toFlat;
       if (dims) dims.querySelectorAll('[data-dim]').forEach(o =>
@@ -189,7 +285,8 @@
       else {
         // three-quarter camera, close enough to the flat one to read as a
         // continuation before it turns
-        cam.theta = 0.3; cam.phi = 1.4; applyCam(); userSpun = false;
+        stage.cam.theta = 0.3; stage.cam.phi = 1.4; stage.applyCam();
+        userSpun = false;
       }
       sim.setDim(flat ? '2d' : '3d');
       sim.setMode(modeFor());           // after setDim: the mode is derived from it
@@ -202,74 +299,38 @@
     function report(s){
       const two = !!(s && (s.canOfferWater || s.hasWater));
       wantZoom(two ? R_TWO : rBase, two ? W_TWO : wBase);
-      if (s && s.complete) arm(true);
+      if (s && s.complete) { arm(true); scheduleTurn(); }
       onChange(state(s));
     }
     function state(s){
       return Object.assign({ flat }, s || sim.state());
     }
 
-    /* ---- the loop -------------------------------------------------------
-     * Gated on visibility: a builder behind a closed step is invisible waste,
-     * and it is the second WebGL context that makes it worth caring about. */
-    let raf = 0, last = 0, running = false, visible = true;
-    function frame(now){
-      if (!running) return;
-      raf = requestAnimationFrame(frame);
-      const dt = last ? Math.min((now-last)/1000, 0.05) : 0.016; last = now;
-      // the 2D lock, re-asserted rather than unbound — Stage's orbit handler is
-      // shared with the host and unbinding it would take the host's orbit too
-      if (flat) { cam.theta = 0; cam.phi = Math.PI/2; applyCam(); }
-      else if (!userSpun) { cam.theta += 0.0009; applyCam(); }   // idle turntable
-      /* Eased here rather than tweened on a timer: this is the only place that
-       * knows the frame rate. Stops calling applyZoom once it has arrived. */
-      if (!userZoomed && Math.abs(cam.r - rWant) > 0.05) {
-        cam.r += (rWant - cam.r) * (1 - Math.pow(0.02, dt));
-        applyZoom();
-      }
-      sim.step(dt);
-      fx.step();
-      renderer.render(scene, camera);
-      if (opts.afterFrame) opts.afterFrame();
-    }
-    function start(){ if (running || !visible) return;
-      running = true; last = 0; raf = requestAnimationFrame(frame); }
-    function stop(){ running = false; cancelAnimationFrame(raf); }
-
-    const io = new IntersectionObserver(es => {
-      visible = es.some(e => e.isIntersecting);
-      visible ? start() : stop();
-    });
-    io.observe(canvas);
-    const ro = new ResizeObserver(applyZoom); ro.observe(canvas);
-
-    stage.resize();
     applyZoom();     // the frustum IS the framing; nothing is right until it is set
     sim.setDim('2d'); sim.setMode(modeFor());
     if (opts.fill) sim.fill();
-    start();
+    box.start();
 
     return {
-      sim, stage, canvas, start, stop, state,
+      sim, stage, canvas, state,
+      start: box.start, stop: box.stop, pump: box.pump,
+      get running(){ return box.running; },
       setView, get flat(){ return flat; },
+      /* No picture MID-FOLD. A dim change hides the sticks for a third of a
+       * second so the molecule folds up before it re-bonds, and a still caught
+       * in that window shows a bonded molecule with no bonds — a chemistry
+       * error that, unlike a bad frame, then sits there. Null is a legitimate
+       * answer: a caller that has nowhere to put a picture shows none. */
+      snapshot(){ return sim.holding() ? null : box.snapshot(); },
       reset(){
         userZoomed = false; wantZoom(rBase, wBase);
+        turned = false; cancelTurn();   // a fresh molecule earns the turn again
         arm(false);
         sim.reset();
         sim.setMode(modeFor());
       },
       fill(){ sim.fill(); sim.setMode(modeFor()); },
-      destroy(){
-        stop(); io.disconnect(); ro.disconnect();
-        if (dims && dims.parentElement) dims.parentElement.removeChild(dims);
-        if (canvas.parentElement) canvas.parentElement.removeChild(canvas);
-        if (sim.destroy) sim.destroy();
-        renderer.dispose();
-        // the context is the scarce thing, and dispose() alone does not give it
-        // back — see the header
-        const lose = renderer.getContext().getExtension('WEBGL_lose_context');
-        if (lose) lose.loseContext();
-      },
+      destroy: box.destroy,
     };
   }
 

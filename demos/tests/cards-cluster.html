@@ -16,6 +16,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<!-- main.css only for `.segmented`, which the builder's view switch is built on;
+     it goes FIRST so this page's own :root below wins the token names they share. -->
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../molecule-builder/molecule-builder.css">
 <style>
   /* Same paper as door-map.html: these are two halves of one paradigm, and a
      card that changes colour when it grows a canvas reads as a different object. */
@@ -106,6 +110,12 @@
     color: var(--muted); text-align: center; padding: 1rem;
   }
   .stagebox .placeholder .big { font-size: 1.6rem; letter-spacing: 0; color: var(--line); }
+  /* Both stages make their own canvas inside the box. The builder's own sizing
+     rule is scoped to `.mb-stage`, which this card is not, so it is said here. */
+  .stagebox > canvas { display: block; width: 100%; height: 100%; }
+  /* The view switch sits inside the box, so it needs room at the bottom of the
+     picture rather than over the molecule. */
+  .stagebox .mb-dims { bottom: 10px; }
   .card.live .stagebox { cursor: grab; }
   .card.live .stagebox .placeholder,
   .card.stilled .stagebox .placeholder { display: none; }
@@ -164,7 +174,9 @@
 </div>
 
 <p class="lede">
-  Each card runs <code>water/watersim.js</code> on its own stage. Four can be
+  Every card runs a real simulation on its own stage — five of
+  <code>water/watersim.js</code>, and two bonding builders, which bring an
+  orthographic camera of their own and share the same budget. Four can be
   live at once; opening a fifth releases whichever has gone longest without
   being opened, and that card keeps the last frame it drew. Scroll a card off
   screen and its loop stops on its own.
@@ -185,6 +197,11 @@
       without the page asking.</li>
     <li><b>WaterSim still owns no stage.</b> It takes a root Object3D, and this
       page hands it one per card.</li>
+    <li><b>Two kinds of card, one budget.</b> The builder card is orthographic
+      and the water cards are not, because that card compares atom sizes and
+      perspective would make a nearer atom read bigger. Finish the molecule and
+      it turns itself after 900 ms — the beat that says the flat cross was a
+      drawing, not a shape.</li>
   </ul>
 </div>
 
@@ -194,15 +211,38 @@
 <script src="../lib/molecules.js"></script>
 <script src="../lib/mol-solvation.js"></script>
 <script src="../lib/scene.js"></script>
+<script src="../lib/fx.js"></script>
+<script src="../lib/atomkit.js"></script>
 <script src="../water/watersim.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../lib/covalent-drag.js"></script>
+<script src="../lib/ionic-drag.js"></script>
+<script src="../molecule-builder/molecule-builder.js"></script>
 <script>
 /* ---- the scenarios ----------------------------------------------------
    Which slice of water a card shows is a lesson question, so it lives here.
    `frame` is the DESCRIPTION watersim.js's step() takes — the module reads it
-   and hands back what it did, including every number this page prints. */
+   and hands back what it did, including every number this page prints.
+
+   `kind:'build'` is the second sort of card, and it is here to be compared
+   rather than to fill the grid: the bonding builder brings its own stage — the
+   projection has to be ORTHOGRAPHIC, because that card is about comparing an
+   oxygen against a hydrogen and perspective makes a nearer atom read bigger —
+   so it goes through card-stage.js with `stage:{ortho:true}` of its own rather
+   than borrowing this page's camera. Everything else about the card is the
+   same: same pool, same budget, same still on the way out. */
 
 const CARDS = [
+  { id: 'build', kind: 'build', name: 'Build a water', recipe: 'water',
+    claim: 'Drag both hydrogens onto the oxygen. When it is finished it turns itself.' },
+
+  /* Beside the water on purpose. Both open as a flat cross, and the flat cross
+     is a lie about exactly one of them: water really is bent in a plane, and
+     methane is a tetrahedron drawn flat because paper has two dimensions. The
+     turn is what tells them apart, which is why the two cards sit together. */
+  { id: 'methane', kind: 'build', name: 'Build a methane', recipe: 'methane',
+    claim: 'Four hydrogens onto the carbon. Flat it draws as a cross; turned, it is a tetrahedron.' },
+
   { id: 'liquid', name: 'Liquid water', waters: 14, salt: 0,
     claim: 'Every molecule is hydrogen-bonded to its neighbours, and the bonds keep swapping.',
     frame: { showHbonds: true, tempEnabled: true, temperature: 22 } },
@@ -279,8 +319,33 @@ function buildCard(def) {
     read.innerHTML = bits.join(' · ');
   }
 
+  /* The builder reports its own state, so this reads the sim rather than
+     counting anything itself — same rule as the water cards' readout. */
+  function builderRead(st) {
+    if (!st) { read.textContent = ''; return; }
+    read.innerHTML = st.complete
+      ? '<b>done</b> · ' + (st.flat ? '2D, counting electrons' : '3D, showing shape')
+      : '<b>' + st.bonded + '</b> bonded, <b>' + st.open + '</b> to go';
+  }
+
   function promote() {
     if (stage) { stage.start(); syncPlay(); return; }
+
+    if (def.kind === 'build') {
+      stage = pool.acquire(def.id, () => {
+        still.hidden = true;
+        // Its own ortho stage, inside the same pool — see the table above.
+        return MoleculeBuilder.create({
+          mount: box, recipe: def.recipe, onChange: builderRead });
+      });
+      el.classList.add('live');
+      play.disabled = false;
+      stage.start();
+      syncPlay();
+      showBudget();
+      return;
+    }
+
     stage = pool.acquire(def.id, () => CardStage.create({
       mount: box,
       cam: { theta: 0.5, phi: 1.15, r: 24 },

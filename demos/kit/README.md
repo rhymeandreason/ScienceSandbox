@@ -53,7 +53,7 @@ After `scene.js` (and `fx.js` if the page fires effects):
 <script src="kit/hbond.js"></script>      <!-- after lobes, if it is loaded at all -->
 <script src="kit/modal.js"></script>      <!-- if the lesson has side doors; no deps -->
 <script src="kit/inset.js"></script>      <!-- if a molecule needs a close-up box; after scene.js -->
-<script src="kit/card-stage.js"></script> <!-- if the page shows SEVERAL live stages; after scene.js -->
+<script src="kit/card-stage.js"></script> <!-- if the page shows SEVERAL live stages, or embeds a builder; after scene.js -->
 <script src="kit/focus.js"></script>      <!-- after scene.js -->
 <script src="kit/stagekit.js"></script>   <!-- last: it wires the other three -->
 ```

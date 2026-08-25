@@ -1697,6 +1697,12 @@
     build();
     return { group, step, setMode, setDim, reset, destroy, state, fill, offerWater,
              finishReaction,
+             /* Whether a 2D↔3D change is still mid-fold: the sticks are hidden
+                for 340 ms so the molecule folds up BEFORE it re-bonds (setDim,
+                above). Anything taking a picture of the bench has to ask —
+                a still of a bonded molecule with no bonds drawn is a chemistry
+                error, and unlike a bad frame it does not go away. */
+             holding:()=>stickHold,
              /* Where the molecule IS, for effects that have to fire somewhere.
                 The core happens to sit at the origin, but read the mesh
                 rather than assuming it — the assumption is exactly what put the

@@ -1218,6 +1218,12 @@
 
     build();
     return { group, step, setMode, setDim, reset, destroy, state, fill,
+             /* The other half of covalent-drag's `holding()`, and it is always
+                false: an ion transfer has no bond to hide, so setDim above
+                re-inks and re-lays out in one frame with nothing in flight.
+                Answered here rather than left undefined so a caller never has
+                to know which module a recipe routed to. */
+             holding:()=>false,
              offerWater, finishReaction,
              // the solvent stage has no test bench of its own yet; this is how
              // a console reaches the shell

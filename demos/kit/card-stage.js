@@ -97,7 +97,10 @@
     // canvas leaves a descender's worth of gap under it, which on a card reads
     // as a misaligned border rather than as a line-height.
     const canvas = document.createElement('canvas');
-    canvas.className = 'cardstage-canvas';
+    // Named by the caller where a stylesheet already selects on it — the
+    // bonding builder's `.mb-stage > .mb-canvas` rule predates this module and
+    // pages depend on it, so the class comes in rather than the rule moving.
+    canvas.className = opts.canvasClass || 'cardstage-canvas';
     canvas.style.display = 'block';
     canvas.style.width = '100%';
     canvas.style.height = '100%';

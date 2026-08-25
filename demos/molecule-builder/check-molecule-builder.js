@@ -174,10 +174,99 @@ ionRecipes.forEach(name => {
 assert(W_TWO > W_ONE && W_TWO > W_IONS,
   'the two-molecule frame is wider than both one-molecule frames');
 
+
+/* =============================================================================
+ *  3. the resize order, and the still that must not be taken mid-fold
+ * =============================================================================
+ *  Both are consequences of the move onto kit/card-stage.js, and both break
+ *  silently — which is the only reason they are here.
+ *
+ *  THE ORDER. scene.js's resize holds an ortho camera's HALF-HEIGHT and rewrites
+ *  the width from the new aspect. This module's rule is the opposite: the
+ *  half-height is whatever shows the WIDTH the recipe needs. So applyZoom has to
+ *  run AFTER Stage.resize and overwrite it. Reversed — or dropped — the frame
+ *  narrows on every resize, and section 2 above cannot see it, because it reads
+ *  the constants and never a live aspect.
+ * ========================================================================== */
+
+console.log('');
+console.log('== 3. the resize order, and the mid-fold still');
+
+const MB = boxSrc;                     // already read for sections 1 and 2
+const CS = read('kit/card-stage.js');
+const R_ONE  = constOf(MB, 'R_ONE');
+const ZOOM_K = Number((block(MB, 'ZOOM').match(/k\s*:\s*([\d.]+)/) || [])[1]);
+assert(R_ONE > 0 && ZOOM_K > 0,
+  'the opening pull-back and the zoom mapping are readable from the module');
+
+// The builder must hand applyZoom to card-stage rather than observing itself:
+// its own ResizeObserver would race the one inside card-stage.
+assert(/onResize\s*:\s*applyZoom/.test(MB),
+  'the builder re-frames through card-stage.js\'s onResize');
+assert(!/new ResizeObserver/.test(MB),
+  'the builder installs no ResizeObserver of its own');
+
+// …and card-stage must call it after Stage.resize, not before.
+const roBody = (CS.match(/new ResizeObserver\(\(\)\s*=>\s*\{([\s\S]*?)\}\)/) || [])[1] || '';
+const iResize = roBody.indexOf('stage.resize()');
+const iHook   = roBody.indexOf('onResize');
+assert(iResize >= 0 && iHook > iResize,
+  'card-stage.js calls onResize AFTER Stage.resize, so the builder overwrites it');
+
+/* The same rule as arithmetic, so the reason survives a reader who does not
+ * believe the two greps. A tall narrow panel is the case that clips: aspect
+ * below 1 is where holding the half-height throws the width away. */
+const ASPECT = 260 / 430;                       // the narrowest panel a card gives
+const rOpen = R_ONE, half0 = Math.max(rOpen * ZOOM_K, W_ONE / 1.24);   // opened wide
+const stageOnly = 2 * half0 * ASPECT;           // scene.js: half-height preserved
+const halfFixed = Math.max(rOpen * ZOOM_K, W_ONE / ASPECT);
+const withZoom  = 2 * halfFixed * ASPECT;       // …then applyZoom overwrites it
+assert(stageOnly < 2 * W_ONE - 0.01,
+  'Stage.resize alone narrows a tall panel to ' + stageOnly.toFixed(2)
+  + ' — under the ' + (2 * W_ONE).toFixed(2) + ' every recipe needs');
+assert(Math.abs(withZoom - 2 * W_ONE) < 0.01,
+  'applyZoom after it restores the full ' + (2 * W_ONE).toFixed(2) + ' of width');
+
+/* THE STILL. A dim change hides the sticks for 340 ms so the molecule folds up
+ * before it re-bonds. A frame caught in that window is gone in 16 ms; a STILL
+ * caught in it is what a card keeps, and it shows a bonded molecule drawn with
+ * no bonds. So the builder asks the sim, and both mechanics have to answer —
+ * a recipe routed to the one that does not would throw on eviction. */
+assert(/sim\.holding\(\)\s*\?\s*null/.test(MB),
+  'snapshot() returns null while a 2D-3D change is still folding');
+assert(/holding\s*:\s*\(\)\s*=>/.test(read('lib/covalent-drag.js')),
+  'covalent-drag answers holding()');
+assert(/holding\s*:\s*\(\)\s*=>/.test(read('lib/ionic-drag.js')),
+  'ionic-drag answers holding() too, so nothing has to know which it got');
+
+/* THE TURN. A finished molecule turns itself once, so a student who never
+ * finds the toggle still learns the flat cross was a drawing and not a shape.
+ * molecule-builder.html has done it since before there was a module and keeps
+ * its own copy (it also fires a toast and carries a `restoring` flag the module
+ * has no business knowing), so the two hold the same beat by NUMBER and nothing
+ * but this line makes them. Diverge and the same lesson runs at two speeds
+ * depending on which builder the student met. */
+const PAGE = read('molecule-builder.html');
+const TURN_MB = constOf(MB, 'TURN_MS');
+const TURN_PAGE = Number((PAGE.match(/setView\(false,\s*true\)\s*;?\s*\}\s*,\s*(\d+)\)/) || [])[1]);
+assert(TURN_MB > 0 && TURN_PAGE > 0,
+  'both the module and the page state a turn delay (' + TURN_MB + ' / ' + TURN_PAGE + ' ms)');
+assert(TURN_MB === TURN_PAGE,
+  'the module and the page turn a finished molecule on the same beat');
+
+// The three ways the turn goes wrong, and all of them are silent.
+assert(/turned\s*=\s*true/.test(MB) && /if\s*\(opts\.turn === false \|\| turned/.test(MB),
+  'the turn fires once per molecule, not once per completion report');
+assert(/cancelTurn\(\);\s*\n\s*if \(toFlat === flat\)/.test(MB),
+  'reaching for the control cancels a turn that has not fired yet');
+assert(/onDestroy[\s\S]{0,80}cancelTurn\(\)/.test(MB),
+  'destroy cancels it, so no setView lands on a torn-down sim');
+
 console.log('');
 if (fails){
   console.log('FAIL: ' + fails + ' of ' + checks + ' checks');
   process.exit(1);
 }
-console.log('PASS: every recipe routes to exactly one mechanic, and every atom '
-  + 'either drag module deals is inside the frame the builder opens with');
+console.log('PASS: every recipe routes to exactly one mechanic, every atom either '
+  + 'drag module deals is inside the frame the builder opens with, and the frame '
+  + 'survives a resize');
