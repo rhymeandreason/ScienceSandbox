@@ -1,12 +1,37 @@
 /* =============================================================================
- *  kit/inset.js — one molecule in a box, over a scene at another scale
+ *  kit/molbox.js — one molecule, in a box, on a camera solved from it
  * =============================================================================
- *  The figure convention every textbook uses and this repo had no spelling
- *  for: a framed close-up of ONE molecule, sitting over a stage drawn at a
- *  scale where that molecule is a few pixels. membrane-lab is the case that
- *  forced it — membrane/parts.js draws a lipid as a head sphere and two
- *  instanced cylinders, which is honest about a BILAYER and says nothing
- *  about what a lipid IS. The inset is where the ball-and-stick goes.
+ *  Give it a spec and an element: it builds the molecule ball-and-stick, solves
+ *  the camera against the molecule's own extent, and keeps solving it as the
+ *  box changes size. Size-agnostic — the subject may be a water or a lipid.
+ *
+ *  IT WAS CALLED `inset.js`, AND THE RENAME IS THE POINT. The module is two
+ *  things, and only one of them is an inset:
+ *
+ *    1. a molecule on a solved camera in a box — what this IS, always;
+ *    2. the figure-inset convention — a framed close-up sitting over a stage
+ *       drawn at a scale where that molecule is a few pixels, with a leader
+ *       saying which thing it is a window onto. What this is FOR, sometimes.
+ *
+ *  membrane-lab wants both: membrane/parts.js draws a lipid as a head sphere
+ *  and two instanced cylinders, honest about a BILAYER and silent about what a
+ *  lipid IS, so the ball-and-stick goes in a framed box over it. A card in
+ *  tests/cards-cluster.html wants only (1) — there is no scene behind a card,
+ *  so the card is its own frame and the leader is off. One consumer using half
+ *  the module and ignoring the half the name described is what the old name
+ *  cost.
+ *
+ *  `.inset`, `.inset-view` and `.inset-leader*` in main.css KEEP their names,
+ *  because those are the convention and the convention is still called an
+ *  inset. The sentence that falls out: Molbox renders a molecule; wrap it in
+ *  `.inset` and pass a `leader`, and it becomes a figure inset.
+ *
+ *  NOT A MACROMOLECULE RENDERER, whatever it ends up being pointed at. This
+ *  draws a SPEC through Stage.buildMolecule and will never draw a protein;
+ *  hemoglobin/tube.js, hemoglobin/surface.js and folding/ribbon.js are those,
+ *  and they work from deposited coordinates. That the big molecules keep
+ *  landing here is emergent — the small ones have molecule-builder recipes —
+ *  and not a definition.
  *
  *  PLUMBING ONLY, so it stays in kit/: a camera solved from the molecule's own
  *  extent, and the leader that says what the frame is a window onto. The stage
@@ -14,14 +39,15 @@
  *  no opinion about which molecule.
  *
  *  Usage:
- *    const box = Inset.create({ mount, spec: MolLib.MOLECULES.popc });
+ *    const box = Molbox.create({ mount, spec: MolLib.MOLECULES.popc });
  *    box.stop();  box.start();          // or let visibility drive it
  *
  * ---------------------------------------------------------------------
  *  WHAT IS EASY TO GET WRONG, AND THEREFORE WHAT THIS OWNS
  * ---------------------------------------------------------------------
  *
- *  · THE FRAME IS NOT DECORATION. An inset is a magnification, so the
+ *  · THE FRAME IS NOT DECORATION, WHERE THERE IS A SCENE BEHIND IT. A
+ *    magnification over a stage is
  *    molecule in it is at a completely different scale from the scene
  *    behind it. Unframed, it reads as an object standing IN that scene at
  *    that size, which is a false claim about a lipid roughly a thousand
@@ -37,7 +63,7 @@
  *    by remembering. The optional turntable below advances `cam.theta` for
  *    the same reason; nothing here ever touches `group.rotation`.
  *
- *  · THE CANVAS, THE LOOP AND THE CONTEXT ARE kit/card-stage.js's. One inset,
+ *  · THE CANVAS, THE LOOP AND THE CONTEXT ARE kit/card-stage.js's. One box,
  *    reused via `show()`, still stopped when nobody can see it, and a
  *    `destroy()` that really gives the context back — browsers cap them near
  *    8-16 and drop the OLDEST, so a page making one per step kills its own
@@ -46,7 +72,7 @@
  *
  *    THIS MODULE IS WHY THE MOVE MATTERED. It took a `canvas:` from the
  *    caller and its destroy called `renderer.dispose()` alone — which does
- *    NOT hand the context back. So a page that destroyed an inset kept the
+ *    NOT hand the context back. So a page that destroyed one kept the
  *    context for the life of the tab, and the header above said otherwise.
  *    It takes a `mount:` now and makes the canvas itself, because a canvas
  *    that has lost a context can never be granted another.
@@ -85,8 +111,26 @@
  *
  *  · THE CAMERA IS SOLVED, NEVER TYPED. Stage.measure + Stage.frame against
  *    the real frustum, re-solved on every resize. A hand-picked `r` is
- *    correct only at the size it was picked at, and an inset is the most
- *    likely thing on a page to be resized by CSS alone.
+ *    correct only at the size it was picked at, and a box like this is the
+ *    most likely thing on a page to be resized by CSS alone.
+ *
+ *  · A SMALL MOLECULE WANTS `stage:{ortho:true}`, AND THE DEFAULT WILL NOT
+ *    TELL YOU. Stage.frame floors the solved distance at 6 (its `min`), so
+ *    anything whose fit wants less than that is pushed back and cannot fill
+ *    its box: measured, water wants 3.84 and lands at 6, filling 49% of the
+ *    frame; CO2 38%; methane 57%. `pad` cannot reach it — the floor overrides
+ *    it, and water reads 49% at 1.30 and at 1.15 alike. The ortho branch of
+ *    Stage.frame fits the frustum directly and returns BEFORE that clamp, so
+ *    the same water fills 80%.
+ *
+ *    Ortho is also the honest projection here rather than a way around a
+ *    number: pulling a perspective camera in to r≈3.8 exaggerates depth
+ *    across a molecule barely 2 units deep, and a nearer atom starts reading
+ *    bigger instead of closer — the misreading molecule-builder.js went
+ *    orthographic to avoid, and a close-up of one small molecule is the same
+ *    situation. Large subjects (POPC solves 84) never meet the floor and can
+ *    stay perspective. Nothing checks this; the symptom is a molecule that
+ *    merely looks a bit small.
  * ========================================================================== */
 (function(global){
   'use strict';
@@ -108,7 +152,7 @@
        that used to break it — it took a `canvas:` and never force-lost the
        context, which is why nobody had noticed. */
     const mount = opts.mount;
-    if (!mount) throw new Error('kit/inset.js: needs a `mount` element');
+    if (!mount) throw new Error('kit/molbox.js: needs a `mount` element');
 
     /* Where anything projecting DOM onto a 3D point goes. It is the mount by
        construction now; an explicit `view` is still honoured, and still
@@ -230,7 +274,7 @@
     }
 
     /* The loop, the canvas, the visibility gate and the context release are
-     * kit/card-stage.js's. What is left here is what an inset IS: a molecule
+     * kit/card-stage.js's. What is left here is the subject itself: a molecule
      * solved into a frame, and a leader that says which thing the frame is a
      * window onto.
      *
@@ -238,7 +282,7 @@
      * declared `view:` is still exactly what the box opens on, satisfied by
      * construction rather than by remembering (AddingAPage.md's rule). */
     const box = global.CardStage.create({
-      mount, canvasClass: 'inset-canvas',
+      mount, canvasClass: 'molbox-canvas',
       stage: Object.assign({ cam: { theta: 0, phi: 1.35, r: 30 },
                              rMin: 3, rMax: 400 }, opts.stage || {}),
       step: dt => { if (spin) { stage.cam.theta += spin * dt; stage.applyCam(); } },
@@ -268,7 +312,7 @@
       const dw = Math.abs(view.clientWidth - canvas.clientWidth);
       const dh = Math.abs(view.clientHeight - canvas.clientHeight);
       if (dw > 1 || dh > 1) console.warn(
-        'kit/inset.js: `view` is ' + view.clientWidth + 'x' + view.clientHeight +
+        'kit/molbox.js: `view` is ' + view.clientWidth + 'x' + view.clientHeight +
         ' but the canvas is ' + canvas.clientWidth + 'x' + canvas.clientHeight +
         ' — anything projected into it will be skewed. Wrap the canvas in an ' +
         'element whose box is the canvas\'s (main.css `.inset-view`).');
@@ -295,5 +339,5 @@
     };
   }
 
-  global.Inset = { create };
+  global.Molbox = { create };
 })(this);

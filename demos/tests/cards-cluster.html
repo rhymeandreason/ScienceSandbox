@@ -176,7 +176,7 @@
 <p class="lede">
   Three kinds of card on one budget: six of <code>water/watersim.js</code>,
   two bonding builders with an orthographic camera of their own, and one
-  <code>kit/inset.js</code> close-up, which runs no simulation at all. Four can
+  <code>kit/molbox.js</code> close-up, which runs no simulation at all. Four can
   be live at once; opening a fifth releases whichever has gone longest without
   being opened, and that card keeps the last frame it drew. Scroll a card off
   screen and its loop stops on its own.
@@ -222,7 +222,7 @@
 <script src="../lib/atomkit.js"></script>
 <script src="../water/watersim.js"></script>
 <script src="../kit/card-stage.js"></script>
-<script src="../kit/inset.js"></script>
+<script src="../kit/molbox.js"></script>
 <script src="../lib/covalent-drag.js"></script>
 <script src="../lib/ionic-drag.js"></script>
 <script src="../molecule-builder/molecule-builder.js"></script>
@@ -252,12 +252,12 @@ const CARDS = [
     claim: 'Four hydrogens onto the carbon. Flat it draws as a cross; turned, it is a tetrahedron.' },
 
   /* The third kind, and the one with no simulation in it at all: a molecule
-     solved into a frame by kit/inset.js. The turntable is ON here, which the
+     solved into a frame by kit/molbox.js. The turntable is ON here, which the
      module says to ask for only where the point IS that the thing is 3D — and
      on a card with nothing behind it and no callout pinned to it, that is the
      whole point. membrane-lab's own inset keeps it off, because a label there
      names a bond that would spend half of every turn hidden. */
-  { id: 'lipid', kind: 'inset', name: 'One phospholipid', spec: 'popc', spin: true,
+  { id: 'lipid', kind: 'molbox', name: 'One phospholipid', spec: 'popc', spin: true,
     claim: 'One cis double bond, in the longer tail only. A bent chain cannot stack flush against its neighbours.' },
 
   { id: 'liquid', name: 'Liquid water', waters: 14, salt: 0,
@@ -357,14 +357,14 @@ function buildCard(def) {
     still.hidden = true;
     el.classList.remove('stilled');
 
-    if (def.kind === 'inset') {
+    if (def.kind === 'molbox') {
       const spec = MolLib.MOLECULES[def.spec];
       stage = pool.acquire(def.id, () => {
         /* No `.inset` frame on this card, and that is not the module's rule
            being broken. The frame exists because a magnification floating over
            a scene at another scale reads as an object standing IN that scene at
            that size. There is no scene behind a card — the card is the frame. */
-        return Inset.create({ mount: box, spec, spin: def.spin });
+        return Molbox.create({ mount: box, spec, spin: def.spin });
       });
       // Read off the spec, never typed: the formula and the count are the
       // molecule's own, and a re-baked spec has to be able to change them.
@@ -381,7 +381,10 @@ function buildCard(def) {
       stage = pool.acquire(def.id, () => {
         // Its own ortho stage, inside the same pool — see the table above.
         return MoleculeBuilder.create({
-          mount: box, recipe: def.recipe, onChange: builderRead });
+          mount: box, recipe: def.recipe, onChange: builderRead,
+          // A card is a close-up: the opening frame is sized for the scattered
+          // atoms, and once they are bonded that room is empty.
+          zoomOnComplete: true });
       });
       el.classList.add('live');
       play.disabled = false;

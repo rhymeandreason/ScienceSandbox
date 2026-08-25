@@ -14,6 +14,7 @@
  *
  *  Usage:
  *    const b = MoleculeBuilder.create({ mount, recipe:'water', onChange });
+ *    //  …plus zoomOnComplete:true on a card, where the bench frame is too big
  *    b.setView(false);        // 3D
  *    b.reset();  b.fill();  b.destroy();
  *
@@ -30,7 +31,7 @@
  *    and the projection is still right, because the host never had a say.
  *
  *  · THE CANVAS, THE LOOP AND THE CONTEXT ARE kit/card-stage.js's. This file
- *    used to own all three, and so did kit/inset.js, and the two had already
+ *    used to own all three, and so did kit/molbox.js, and the two had already
  *    drifted. What stays here is the part that is a DECISION — the ortho
  *    projection, the width-first frustum, the 2D lock, and what a view change
  *    means. A builder is still one context that `destroy()` really releases,
@@ -51,6 +52,18 @@
  *    and a still taken in that window shows a bonded molecule drawn with no
  *    bonds. A bad FRAME is gone in 16 ms; a bad still is what a card keeps. So
  *    the sim is asked — `holding()` — and null is a legitimate answer.
+ *
+ *  · THE FRAME THAT HOLDS THE SCATTER IS TOO BIG FOR THE MOLECULE. Opening
+ *    width is measured against where the atoms are DEALT (W_ONE and friends,
+ *    check-molecule-builder.js §2), so a finished water sits 4.8 wide in a
+ *    frame 15.7 across and fills 30% of it. That is right on the lesson's big
+ *    stage and wrong on a card, which is a close-up by definition — so it is
+ *    `zoomOnComplete:true`, per instance, rather than a change to the shared
+ *    beat. The host decides, because only the host knows how big its box is.
+ *    The fit is SOLVED from the built molecule's own bounding box, never
+ *    typed: a typed pair would be right for water and wrong for MgCl2. And it
+ *    is skipped while a reagent can still arrive — closing in on the product
+ *    would deal the second molecule off the paper.
  *
  *  · A FINISHED MOLECULE TURNS ITSELF, ONCE. The flat view is locked, so a
  *    student who never finds the toggle reads the flat cross as the molecule's
@@ -158,6 +171,39 @@
     // the two travel together: a stage that deals a second molecule needs both
     // the pull-back and the width, and setting one without the other clips
     function wantZoom(r, w){ rWant = r; wWant = w; }
+
+    /* THE FRAME HAS TWO JOBS AND THEY WANT DIFFERENT SIZES. While you are
+     * building, it has to hold the atoms where they are DEALT — scattered out
+     * to x ±6, which is what W_ONE/W_IONS/W_TWO are measured against and what
+     * check-molecule-builder.js §2 enforces. Once the molecule is built, all
+     * that room is empty: a finished water is 4.8 wide inside a frame 15.7
+     * across, so it fills 30% of a card and reads as a small molecule rather
+     * than a close-up.
+     *
+     * On the LESSON page that frame is right — the stage is large, the molecule
+     * reads fine in it, and holding still is worth more than a closer look. On
+     * a CARD it is not. So this is opt-in per instance rather than a change to
+     * the shared beat: `zoomOnComplete:true` and the card gets its own framing.
+     *
+     * SOLVED, NEVER TYPED (AddingAPage.md). The extent comes out of the built
+     * molecule's own bounding box, so it is right for every recipe, and a
+     * change to any scatter or radius moves it without anyone editing a number.
+     * A typed pair would be correct for water and wrong for MgCl2. */
+    const FIT_PAD = 1.35;      // slack, and the room the view switch sits in
+    const _fitBox = new global.THREE.Box3();
+    function fitZoom(){
+      if (!sim || !sim.group) return null;
+      _fitBox.setFromObject(sim.group);
+      if (_fitBox.isEmpty()) return null;
+      // Symmetric about the origin, because the frustum is: applyZoom writes
+      // left = -halfH*a. Taking the larger side is what keeps the far edge in.
+      const halfW = Math.max(Math.abs(_fitBox.min.x), Math.abs(_fitBox.max.x)) * FIT_PAD;
+      const halfH = Math.max(Math.abs(_fitBox.min.y), Math.abs(_fitBox.max.y)) * FIT_PAD;
+      if (!(halfW > 0) || !(halfH > 0)) return null;
+      // wWant IS a half-width (applyZoom: halfH = max(cam.r*k, wWant/a), and the
+      // frame is 2*halfH*a across), and cam.r is that half-height over ZOOM.k.
+      return { r: halfH / ZOOM.k, w: halfW };
+    }
 
     /* THE FRUSTUM IS THE FRAMING, and it is solved from the WIDTH the recipe
      * needs rather than from a zoom level — the header's second trap. This runs
@@ -300,6 +346,16 @@
       const two = !!(s && (s.canOfferWater || s.hasWater));
       wantZoom(two ? R_TWO : rBase, two ? W_TWO : wBase);
       if (s && s.complete) { arm(true); scheduleTurn(); }
+      /* AFTER the wantZoom above, and only when a reagent is NOT in play. The
+       * order is the rule: `two` means a second molecule can still arrive at
+       * the edge of the frame, and closing in on what is already built would
+       * deal it off the paper. A reagent stage keeps the wide frame and gets
+       * no close-up, which is correct — the subject there is the reaction, not
+       * the product. */
+      if (opts.zoomOnComplete && s && s.complete && !two) {
+        const fit = fitZoom();
+        if (fit) wantZoom(fit.r, fit.w);
+      }
       onChange(state(s));
     }
     function state(s){

@@ -302,7 +302,7 @@ property of the SCENE rather than of the script tags. A page whose stages are
 separate — its own canvas, its own camera, nothing drawn against anything from
 the other stage — makes no comparison for a family to be wrong about.
 `tests/cards-cluster.html` is the case: an ångström phospholipid in a
-`kit/inset.js` card beside display-scale water in `water/watersim.js` cards, and
+`kit/molbox.js` card beside display-scale water in `water/watersim.js` cards, and
 no size on that page is ever read against a size from the other family.
 
 The page-wide phrasing was a proxy for the real rule, and a safe one while every

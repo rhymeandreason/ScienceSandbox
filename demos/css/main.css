@@ -796,7 +796,7 @@ body {
    9. INSET
 
    A framed close-up of one molecule, over a stage drawn at another scale.
-   Paired with kit/inset.js, which owns the renderer and the fit and
+   Paired with kit/molbox.js, which owns the renderer and the fit and
    deliberately owns no CSS.
 
    THE BORDER IS LOAD-BEARING, which is why this is a component and not a
@@ -813,7 +813,7 @@ body {
    row, so the canvas is given the space that is left and the molecule can
    never be drawn underneath the words — which is what an absolutely
    positioned label over a full-height canvas does, invisibly, until a taller
-   molecule reaches the bottom of the box. kit/inset.js re-solves its camera
+   molecule reaches the bottom of the box. kit/molbox.js re-solves its camera
    from a ResizeObserver, so the canvas being shorter than the frame costs
    nothing and is never something a caller has to subtract by hand. */
 /* `display:flex` here is an AUTHOR rule, and author rules beat the UA

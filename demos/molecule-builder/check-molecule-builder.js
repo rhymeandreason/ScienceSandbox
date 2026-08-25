@@ -190,7 +190,7 @@ assert(W_TWO > W_ONE && W_TWO > W_IONS,
  * ========================================================================== */
 
 console.log('');
-console.log('== 3. the resize order, and the mid-fold still');
+console.log('== 3. the resize order, the mid-fold still, and the close-up');
 
 const MB = boxSrc;                     // already read for sections 1 and 2
 const CS = read('kit/card-stage.js');
@@ -261,6 +261,24 @@ assert(/cancelTurn\(\);\s*\n\s*if \(toFlat === flat\)/.test(MB),
   'reaching for the control cancels a turn that has not fired yet');
 assert(/onDestroy[\s\S]{0,80}cancelTurn\(\)/.test(MB),
   'destroy cancels it, so no setView lands on a torn-down sim');
+
+/* THE CLOSE-UP. `zoomOnComplete` re-frames a finished molecule for a card, and
+ * two things about it break silently. It must be SOLVED from the built
+ * molecule rather than typed — a pair of constants would be right for water and
+ * wrong for MgCl2, and nothing on screen would say so. And it must lose to the
+ * reagent widening: `two` means a second molecule can still be dealt at the
+ * edge of the frame, so closing in on what is already built deals it off the
+ * paper. Section 2's opening widths are untouched by any of this, which is the
+ * other half of the claim — the frame a recipe OPENS with still holds its
+ * scatter, and that is what section 2 measures. */
+assert(/_fitBox\.setFromObject\(sim\.group\)/.test(MB),
+  'the close-up is solved from the built molecule, not from a typed pair');
+assert(/zoomOnComplete[\s\S]{0,120}&&\s*!two/.test(MB),
+  'the close-up is skipped while a reagent can still be dealt');
+const iWide = MB.indexOf('wantZoom(two ? R_TWO');
+const iFit  = MB.indexOf('opts.zoomOnComplete');
+assert(iWide >= 0 && iFit > iWide,
+  'the close-up runs after the reagent widening, so it can only narrow a frame nothing else wants');
 
 console.log('');
 if (fails){

@@ -606,15 +606,23 @@ const rankFrom = (from, other) => {
    yet. This table is the first draft of it: for now, whichever mountable sim
    already says the thing.
 
-   Three kinds, and only the first is inside the pool's budget by construction:
-     water  — card-stage.js + water/watersim.js. The stage is the pool's.
-     mol    — card-stage.js + one built spec on a turntable. Also the pool's.
-     build  — molecule-builder.js, which brings its OWN context and its OWN
-              loop. Pooled all the same, because the pool rations destroys and
-              not stages — but it cannot hand back a still on the way out, since
-              nothing outside it can drive one frame of a private loop. That is
-              the argument for putting the builder on card-stage.js, and it is
-              deliberately not being made in the same change as this one.
+   Two kinds:
+     water  — card-stage.js + water/watersim.js.
+     build  — molecule-builder.js, which brings its own ORTHOGRAPHIC stage.
+
+   There was a third, `mol`: one built spec on a turntable. It is gone, and
+   nothing replaced it, because it was two mistakes at once. It solved its
+   camera at create and never again, so a card re-framed for its opening size
+   kept that frame (measured: ethanol wants r 6.00 in the thumb and 6.48 open,
+   and would have stayed at 6.00 forever) — kit/molbox.js does the same job and
+   re-solves on every resize. And it was PERSPECTIVE, where Stage.frame floors
+   the distance at 6, so every molecule smaller than that floor sat at 49-57%
+   of its frame with no way to fill it.
+
+   The builder answers both by being what it already is: orthographic, so
+   there is no floor and no nearer-atom-reads-bigger, and about the electrons
+   rather than about a shape turning. A card showing a small molecule is a
+   card about that molecule's bonding, which is the builder's subject.
 
    A module with no entry keeps the placeholder. That is not a gap to fill with
    a stand-in: a picture that is not this module's is worse than no picture. */
@@ -629,7 +637,12 @@ const VIEWS = {
                        freezeEnabled:true } },
   heat:      { kind:'water', waters:16,
                frame:{ showHbonds:true, tempEnabled:true, temperature:85 } },
-  polarity:  { kind:'mol', spec:'water' },
+  /* The bonding builder rather than a picture of a water: this card's claim is
+     about the uneven SHARE, and the builder's flat view is the one that draws
+     every valence electron. It opens 2D for counting and turns itself once it
+     is built. Same recipe as `covalent` below, on purpose and not by accident:
+     the two modules make different claims about the same molecule. */
+  polarity:  { kind:'build', recipe:'water' },
   covalent:  { kind:'build', recipe:'water' },
   geometry:  { kind:'build', recipe:'methane' },
   ionic:     { kind:'build', recipe:'nacl' },
@@ -676,35 +689,26 @@ function goLive(n) {
 
     if (view.kind === 'build') {
       // Its own stage, its own loop, its own context — see the table above.
-      return MoleculeBuilder.create({ mount: thumb, recipe: view.recipe, fill: true });
+      // zoomOnComplete: a card is a close-up. The builder's opening frame holds
+      // the atoms where they are DEALT, which leaves a finished molecule at 30%
+      // of the box — right on the lesson's big stage, wrong here.
+      return MoleculeBuilder.create({ mount: thumb, recipe: view.recipe,
+                                      fill: true, zoomOnComplete: true });
     }
 
-    let sim = null, group = null;
+    let sim = null;
     const box = CardStage.create({
       mount: thumb,
-      cam: { theta: 0.5, phi: 1.15, r: view.kind === 'mol' ? 9 : 26 },
-      frame: () => { if (group) box.cam.theta += 0.004; },
+      cam: { theta: 0.5, phi: 1.15, r: 26 },
       step: () => { if (sim) sim.step(Object.assign(
         { solvent: sim.salt.length > 0 }, view.frame)); },
-      onDestroy: () => { sim = null; group = null; },
+      onDestroy: () => { sim = null; },
     });
 
-    if (view.kind === 'mol') {
-      // center:true bakes the spec's own `view:` in, so the turntable above
-      // turns the CAMERA and the group's rotation stays identity — the rule
-      // kit/inset.js keeps, for the same reason.
-      const spec = MolLib.MOLECULES[view.spec];
-      group = Stage.buildMolecule(spec, { center: true });
-      box.root.add(group);
-      const m = Stage.measure(spec);
-      Stage.frame(box.camera, box.cam, [{ x:0, y:0, rxz:m.rxz, hy:m.hy }], { pad:1.3 });
-      box.applyCam();
-    } else {
-      sim = WaterSim.create(THREE, box.root);
-      for (let i = 0; i < view.waters; i++) sim.spawn();
-      for (let i = 0; i < (view.salt || 0); i++) sim.addSalt('nacl');
-      if (view.salt) sim.assignShells();
-    }
+    sim = WaterSim.create(THREE, box.root);
+    for (let i = 0; i < view.waters; i++) sim.spawn();
+    for (let i = 0; i < (view.salt || 0); i++) sim.addSalt('nacl');
+    if (view.salt) sim.assignShells();
     box.draw();
     return box;
   });

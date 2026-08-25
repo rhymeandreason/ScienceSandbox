@@ -17,12 +17,12 @@
  * ---------------------------------------------------------------------
  *  WHY THIS EXISTS, GIVEN THAT TWO MODULES ALREADY DID IT
  * ---------------------------------------------------------------------
- *  kit/inset.js and molecule-builder/molecule-builder.js each wrote the same
+ *  kit/molbox.js and molecule-builder/molecule-builder.js each wrote the same
  *  four things — own canvas, own loop, IntersectionObserver gate, destroy — and
  *  had already drifted: the builder learned that `renderer.dispose()` does not
- *  return the context and added the `WEBGL_lose_context` call, and the inset did
- *  not. So an inset a page destroyed kept its context for the life of the tab,
- *  while the inset's own header said it was released. Neither is wrong enough to
+ *  return the context and added the `WEBGL_lose_context` call, and molbox — then
+ *  called inset.js — did not. So a box a page destroyed kept its context for the
+ *  life of the tab, while its own header said it was released. Neither is wrong enough to
  *  notice from a page, which is the whole argument for one shell. This is it,
  *  and `water/watersim.js` is what forced it: the one shared module that IS the
  *  physics, and therefore the one with no stage of its own to mount.
@@ -59,7 +59,7 @@
  *
  *  · A PAUSED BOX MUST NOT BE BLANK. One frame is rendered synchronously at
  *    create, and every `stop()` leaves the last frame on the canvas rather than
- *    clearing it. On a card that matters more than it does in an inset: a
+ *    clearing it. On a card that matters more than it does in a molbox: a
  *    stopped card is the reader's THUMBNAIL, and the whole reason pausing is
  *    acceptable is that the picture stays.
  *
@@ -79,12 +79,12 @@
  *    the hook a card has nowhere to step a callout at all.
  *
  *  · THE SHAPE IS SETTLED NOW, AND IT WAS NOT WHEN THIS WAS WRITTEN. All three
- *    boxes are on it: `kit/inset.js`, `molecule-builder/molecule-builder.js`,
+ *    boxes are on it: `kit/molbox.js`, `molecule-builder/molecule-builder.js`,
  *    and the cards in `tests/cards-cluster.html`, which is the bench and the
  *    worked example. What the two conversions taught, in case a fourth is
  *    coming: the hooks that mattered were `onResize` (the builder's frustum
  *    rule is the opposite of `Stage.resize`'s and has to run after it) and
- *    `afterFrame` (the inset draws its leader there). Neither box needed a new
+ *    `afterFrame` (molbox draws its leader there). Neither box needed a new
  *    one. `snapshot()` is what both of them lacked and could not have had while
  *    each owned a private loop.
  * ========================================================================== */
@@ -212,7 +212,7 @@
         if (opts.onDestroy) opts.onDestroy();
         stage.renderer.dispose();
         // dispose() alone does NOT hand the context back — the header's first
-        // trap, and the half kit/inset.js is missing.
+        // trap, and the half kit/molbox.js was missing before it moved here.
         const lose = stage.renderer.getContext().getExtension('WEBGL_lose_context');
         if (lose) lose.loseContext();
         if (canvas.parentElement) canvas.parentElement.removeChild(canvas);
