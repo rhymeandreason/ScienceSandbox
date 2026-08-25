@@ -54,6 +54,40 @@ into every student's browser on that domain.
 teacher who frames the plain `/water` URL and never reads the docs.
 Same-origin framing stays allowed so the builder's own preview works.
 
+### The wordmark
+
+A small `kodolab.org` link in the corner, embeds only. It is redundant on our
+own site.
+
+**It sits outside the customization contract.** `text=` and `chrome=` govern the
+lesson's UI; the wordmark is attribution, so it is not the teacher's to switch
+off. Say so in the param docs — the first teacher who wants a clean screenshot
+will go looking for the toggle.
+
+* **`target="_blank"` is load-bearing, not a nicety.** Inside an iframe a plain
+  link navigates *the iframe*: the teacher's Canvas page silently becomes our
+  homepage where their simulation used to be, with no back button in sight.
+  With `rel="noopener"`.
+* **Point it at the lesson, not the homepage.** Whoever clicks is a student who
+  just got interested in *that* model — send them to `/water` with the step
+  preserved, where the rail prose they were not shown is waiting. `?from=embed`
+  on the end is the only usage signal an iframe will ever give us.
+* **It must not eat the mouse.** Same treatment as `#side` (`css/main.css:660`):
+  `pointer-events:none` on the container, `auto` on the link, so a drag near the
+  corner still orbits.
+* **Bottom-right, `z-index: 7.5`-ish** — above the annot layer's 7, below
+  `#side`'s 8. Top-left is `#titleblock` and the right is where the ask drawer
+  slides, but the drawer does not mount in an embed, so that corner is
+  uncontested exactly where this lives.
+
+**Legible, not tasteful.** Attribution too quiet to read is not attribution. The
+stage is light dotted paper, so a mid-grey wordmark reads as restrained on a
+monitor and vanishes on a classroom projector with the lights on. Aim for small
+and genuinely legible over full-contrast or hidden.
+
+There is no wordmark component to reuse — "Kodolab" exists today only in
+`<title>` and the `index.html:357` footer — so this is the first one.
+
 ### Skipped on purpose
 
 LTI and oEmbed. LTI is OAuth, grade passback and per-LMS registration, and only
