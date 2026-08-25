@@ -37,7 +37,12 @@
   'use strict';
 
   const S = {
-    CAPTURE: 3.4,             // within this, the core starts pulling
+    CAPTURE: 3.4,             // within this, a RELEASED atom is pulled in
+    /* The pull felt while still dragging is deliberately shorter-range than
+     * CAPTURE. At the full radius the core takes the atom over from most of the
+     * stage, so aiming a slot is a fight; kept close, the drag stays the
+     * student's and the lean only shows up on the last stretch. */
+    LEAN: 1.9,
     SNAP: 0.42,               // this close to the slot and the bond forms
     BREAK: 1.35,              // drag a bonded atom this far off-slot and it lets go
     DAMP: 0.86,               // velocity damping for a free-floating atom
@@ -109,7 +114,9 @@
       slots2d: [[0.8660,-0.5,0],[-0.8660,-0.5,0],[0,-1,0]],
       lone:     [[0,1,0]],
       loneFlat: [[0,1,0]],
-      start:[[-5.0,-1.4,1.2],[5.0,1.2,-1.0],[-1.4,4.8,-1.4]],
+      // the third hydrogen fans out sideways rather than straight up: ±3 is the
+      // height the stage has before the dock and the cards take it
+      start:[[-5.0,-1.4,1.2],[5.0,1.2,-1.0],[-3.6,2.9,-1.4]],
       proton:{
         slots:   [[0.9428,-0.3333,0],[-0.4714,-0.3333,0.8165],[-0.4714,-0.3333,-0.8165],[0,1,0]],
         slots2d: [[0.8660,-0.5,0],[-0.8660,-0.5,0],[0,-1,0],[0,1,0]],
@@ -194,7 +201,11 @@
       slots:   [[S3,S3,S3],[S3,-S3,-S3],[-S3,S3,-S3],[-S3,-S3,S3]],
       slots2d: [[0,1,0],[1,0,0],[0,-1,0],[-1,0,0]],
       lone:[], loneFlat:[],
-      start:[[-5.2,-1.4,1.0],[5.2,1.2,-1.2],[-1.6,5.0,-1.4],[1.8,-5.0,1.4]],
+      /* Fanned out sideways, not stacked. The stage is wider than it is tall, so
+       * a hydrogen parked at ±5 vertically sits under the dock or off the frame;
+       * ±3 of height is all there is. Every one still clears S.CAPTURE (3.4)
+       * from its nearest slot, or it would fly in before the student touched it. */
+      start:[[-5.2,-1.4,1.0],[5.2,1.2,-1.2],[-4.2,3.0,-1.4],[4.4,-2.9,1.4]],
     },
     /* Carbon dioxide is the first recipe where one slot is not one pair. Carbon
      * has four electrons and only two neighbours, so each slot has to take TWO —
@@ -1574,8 +1585,8 @@
            * as it closes. You feel the core take over before you let go, which
            * is the honest version of "they pull together" — the last stretch is
            * not the mouse's doing. */
-          if(d<S.CAPTURE){
-            const k=1-(d/S.CAPTURE);            // 0 at the edge → 1 at the slot
+          if(d<S.LEAN){
+            const k=1-(d/S.LEAN);               // 0 at the edge → 1 at the slot
             h.group.position.addScaledVector(toSlot.normalize(), d*k*k*0.55);
           }
           shell(h);
