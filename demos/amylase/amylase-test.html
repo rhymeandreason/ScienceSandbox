@@ -75,7 +75,7 @@
 
     <h3>render</h3>
     <div id="seg"></div>
-    <div class="row"><label>skin opacity</label><input type="range" id="op" min="0" max="100" value="80"><span class="val" id="opv">0.80</span></div>
+    <div class="row"><label>skin opacity</label><input type="range" id="op" min="0" max="100" value="100"><span class="val" id="opv">0.80</span></div>
     <div class="row"><label><input type="checkbox" id="paint" checked> paint the contact residues</label></div>
     <div class="row"><label><input type="checkbox" id="lig" checked> acarbose</label></div>
     <div class="row"><label><input type="checkbox" id="ions" checked> Ca²⁺ and Cl⁻</label></div>
@@ -124,10 +124,24 @@
  *  A ribbon half an angstrom out of register with its own skin reads as a
  *  bug in the renderer, which is a day lost to the wrong file.
  *
- *  THE SKIN DRAWS depthWrite OFF, renderOrder 1, FrontSide — the reasons
- *  are worked out in hemoglobin/surface-test.html's header and are the
- *  same here: with depthWrite on, the near wall culls the ribbon behind
- *  it and the molecule reads as an empty shell.
+ *  THE SKIN SWITCHES BETWEEN TWO RENDER PATHS, and it must. Translucent
+ *  is the path hemoglobin/surface-test.html works out — depthWrite off,
+ *  renderOrder 1, FrontSide — because with depthWrite on the near wall
+ *  culls the ribbon behind it and the molecule reads as an empty shell.
+ *  The cost of that path is that the skin does not sort against ITSELF:
+ *  wherever one front-facing sheet sits in front of another (domain B
+ *  over the barrel, and both walls of this trough) the two composite in
+ *  index order rather than depth order, so a patch of far wall paints
+ *  over near wall and the shading reads as if the normals were inverted.
+ *  They are not — the mesh is watertight, its winding is consistent, and
+ *  the only disagreeing triangles are zero-area degenerates that every
+ *  bake in this repo carries.
+ *
+ *  So at full opacity the skin goes back to being ordinary opaque
+ *  geometry, depth-written and depth-sorted, which is exactly right when
+ *  there is nothing to see through it. That is the default here, because
+ *  this page's subject is the shape of the OUTSIDE. Pull the slider down
+ *  and it crosses to the translucent path to show the ribbon inside.
  * ===================================================================== */
 
 const SUB = { p: 'protein', c: 'contact', l: 'ligand' };
@@ -267,8 +281,13 @@ function apply() {
   skin.visible = m.surf && +document.getElementById('op').value > 0;
   ligGroup.visible = document.getElementById('lig').checked;
   ionGroup.visible = document.getElementById('ions').checked;
-  skinMat.opacity = document.getElementById('op').value / 100;
-  document.getElementById('opv').textContent = skinMat.opacity.toFixed(2);
+  const o = document.getElementById('op').value / 100;
+  skinMat.opacity = o;
+  skinMat.transparent = o < 1;
+  skinMat.depthWrite = o >= 1;
+  skin.renderOrder = o < 1 ? 1 : 0;
+  skinMat.needsUpdate = true;
+  document.getElementById('opv').textContent = o.toFixed(2);
   seg.forEach((b, i) => b.setAttribute('aria-pressed', String(i === mode)));
 }
 for (const id of ['op', 'lig', 'ions']) document.getElementById(id).oninput = apply;
@@ -298,11 +317,9 @@ async function main() {
   /* --- skin --- */
   S = SurfLib.decode(THREE, buf);
   skinMat = new THREE.MeshStandardMaterial({
-    color: COL.skin, roughness: .62, metalness: .02,
-    transparent: true, opacity: .8, depthWrite: false, side: THREE.FrontSide,
+    color: COL.skin, roughness: .62, metalness: .02, side: THREE.FrontSide,
   });
   skin = new THREE.Mesh(S.geo, skinMat);
-  skin.renderOrder = 1;
   root.add(skin);
   paintSkin();
 
