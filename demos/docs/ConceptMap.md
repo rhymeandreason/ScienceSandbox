@@ -18,7 +18,30 @@ CMS at map-cms.html
 
 **`tests/cards-cluster.html`** (new) — the bench: 9 cards, 3 kinds, budget of 4.
 
-**`tests/door-map.html`** — module cards go live on the click that opens them; the door's opening four are live at load. 4:3 picture blocks. Questions grow no picture block.
+**`tests/door-map.html`** — module cards go live on the click that opens them; the cards the door opens with are live at load. 4:3 picture blocks. Questions grow no picture block.
+
+**`lib/mapcontent.js`** — the map's content and nothing that draws it: DOORS, MODULES, QUESTIONS (question-major, rank on the EDGE), VIEWS. Its own header is the rulebook for what each field means.
+
+**`map-cms.html`** — edits that file through the dev server's `/api/mapcontent`, on two screens that save independently: questions and their module chips, and modules with their rank. Not served in production.
+
+## **How much opens, and when**
+
+The door opens **three levels deep, not one**: its rank 1 modules, their best band of questions, and the module each of those leads to. The water door is the argument for it — everything water does comes from polarity, so a fan of five peers would state the wrong thing. Polarity is the door's only rank 1 module, and hydrogen bonding, solvation, dehydration & hydrolysis and the hydrophobic effect arrive through the questions that cross to them.
+
+A click carries the same shape: expanding a module deals its questions **and** the modules each question ranks first, because a question with nothing on its far side is a crossing the reader has to take on faith. `expand(n, keep, next)` — `keep` filters the wave, `next` filters the step beyond it, and `start()` narrows `next` to this door so a crossing does not haul its far side in at load.
+
+**Band, not rank 1.** Both filters take the lowest rank a question actually has among its still-hidden modules, so a question whose modules are all rank 2 deals them rather than nothing. Whole bands only, which is the same promise a card's own wave makes.
+
+## **Zoom**
+
+Two mechanisms, split at k = 1, and the split is the point.
+
+* **Out (k < 1): `transform: scale()`.** Minifying costs nothing in sharpness and leaves the layout alone. A relayout at 0.7 rewraps a heading, which redesigns the card under the reader.
+* **In (k > 1): CSS `zoom`.** A scaled layer is rasterised once at layout size and stretched, so every glyph softens — worst in Safari, which holds the cached layer. Zoom relayouts at the size being looked at. `#world` carries `text-rendering: geometricPrecision` so glyph advances stay sub-pixel and the wrap does not drift with k.
+
+The two agree exactly at k = 1. All the pan/drag maths is in screen px; only the translate is divided, because zoom multiplies the element's own units too.
+
+**Canvases follow separately.** A card's canvas measures its UNZOOMED layout box, so at k = 2.5 it draws 2.5x fewer pixels than the screen shows. `reDensify()` sets each live box's pixel ratio to `dpr * k`, capped at 3 — 180ms after the wheel stops, because re-sizing a drawing buffer reallocates it, and again whenever a card mounts or re-fronts while zoomed in.
 
 ## **Invariants — the things that break silently**
 
@@ -58,7 +81,9 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 2. **Focused question size** — 272x82 among 300px cards. May read as unclickable, or the contrast may be the point. Human judgement.
 
-3. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the \~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
+3. **A second door.** Every door but water is `open:0` and has no modules of its own worth opening on. The dot tint is already keyed to the door, so a second one costs content, not a code change — which is the claim this page was built to make.
+
+4. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the \~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
 
 ## **Gotchas for a cold session**
 
