@@ -83,14 +83,31 @@ const mor = P.morph(nat, fib, { frames: 120 });
      `worst ${worst.toExponential(1)} A at trace bond ${where}`);
 }
 
-/* ---- 5. the disulfide is deposited at BOTH ends ------------------------
-   The page's central image. 1QLZ's SSBOND record says 2.02 A; 6LNI models
-   the same bond. If either end drifts, the side chains have stopped
-   interpolating and are being carried rigidly again. */
+/* ---- 5. the disulfide never opens -------------------------------------
+   The page's central image, and the reason ccd() exists. 1QLZ models this
+   bond at 2.016 A and 6LNI at 2.030; the constraint targets the
+   interpolation of those two, so every frame in between must sit inside
+   that range plus the closure tolerance.
+
+   The endpoints alone are not the test. Without ccd() they both pass while
+   the middle of the trajectory opens the bond to 25 A — a covalent bond
+   drawn breaking and re-forming, which neither deposition supports. */
 {
-  const a = P.disulfide(mor.at(0), 179, 214), b = P.disulfide(mor.at(1), 179, 214);
-  ok('S-S 179-214 at t=0', near(a, 2.02, 0.02), a.toFixed(3) + ' A');
-  ok('S-S 179-214 at t=1', near(b, 2.03, 0.02), b.toFixed(3) + ' A');
+  let worst = 0, at = 0;
+  for (let k = 0; k <= 40; k++) {
+    const d = P.disulfide(mor.at(k / 40), 179, 214);
+    const err = Math.max(2.016 - d, d - 2.030, 0);
+    if (err > worst) { worst = err; at = k / 40; }
+  }
+  ok('S-S 179-214 never opens', worst < 0.05,
+     `worst ${worst.toFixed(3)} A outside the deposited range, at t=${at.toFixed(2)}`);
+
+  /* And the unconstrained path is asserted to FAIL, so a change that
+     silently turns the constraint off cannot pass this file. */
+  const loose = P.morph(nat, fib, { frames: 40, hold: false });
+  let open = 0;
+  for (let k = 0; k <= 40; k++) open = Math.max(open, P.disulfide(loose.at(k / 40), 179, 214));
+  ok('...and would without the constraint', open > 20, `opens to ${open.toFixed(1)} A unheld`);
 }
 
 /* ---- 6. one sequence, two secondary structures -------------------------
@@ -135,12 +152,17 @@ const mor = P.morph(nat, fib, { frames: 120 });
    rather than relaxing them away, and until a constrained pass exists this
    line is how big the gap is. */
 {
-  console.log('\n  path quality (reported, not asserted — see prion.js)');
-  for (const t of [0.25, 0.5, 0.75]) {
-    const b = mor.at(t);
-    console.log(`    t=${t}   S-S ${P.disulfide(b, 179, 214).toFixed(1)} A` +
-                `   clashes ${P.clashes(b).length}`);
+  console.log('\n  self-intersection (reported, not asserted — see ccd()\'s header)');
+  let worst = 0, closest = 9, at = 0;
+  for (let k = 0; k <= 40; k++) {
+    const c = P.clashes(mor.at(k / 40));
+    if (c.length > worst) { worst = c.length; at = k / 40; }
+    for (const x of c) closest = Math.min(closest, x.d);
   }
+  console.log(`    worst ${worst} clashing pairs at t=${at.toFixed(2)},` +
+              ` closest approach ${closest.toFixed(2)} A`);
+  console.log('    the path still passes the chain through itself in the middle.');
+  console.log('    needs a repulsion term, which is a relaxation, not a closure.');
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall assertions pass');

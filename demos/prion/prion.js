@@ -335,7 +335,7 @@ const PrionLib = (function () {
      conformation onto residue 170 and every frame would still look like a
      protein. */
   function morph(native, fibril, opts) {
-    const o = Object.assign({ frames: 120, ease: true }, opts || {});
+    const o = Object.assign({ frames: 120, ease: true, hold: true }, opts || {});
 
     const a = native.residues, b = fibril.residues;
     if (a.length !== b.length)
@@ -346,6 +346,30 @@ const PrionLib = (function () {
     });
 
     const A = internals(a), B = internals(b);
+
+    /* The disulfide's direction at each end, for the closure target. Read
+       off the deposited sulfurs, so a structure that does not model them
+       simply turns the constraint off rather than aiming at a guess. */
+    const sgDir = R => {
+      const x = R.find(r => r.num === 179), y = R.find(r => r.num === 214);
+      return (x && y && x.atoms.SG && y.atoms.SG)
+        ? v3.norm(v3.sub(y.atoms.SG, x.atoms.SG)) : null;
+    };
+    const ssDir = { a: sgDir(a), b: sgDir(b) };
+
+    /* THE TARGET LENGTH IS THE DEPOSITED ONE, INTERPOLATED — not a
+       textbook 2.05 A. 1QLZ models this bond at 2.016 A and 6LNI at 2.030,
+       and aiming at any third number means the constraint is unsatisfied
+       at BOTH ends: CCD then "corrects" the endpoint frames toward a
+       length neither structure has, and t=0 stops being 1QLZ. It cost 0.04
+       A at the native end and 2.5 A at the fibril end before this line
+       existed, which is a morph that no longer arrives. */
+    const sgLen = R => {
+      const x = R.find(r => r.num === 179), y = R.find(r => r.num === 214);
+      return (x && y && x.atoms.SG && y.atoms.SG) ? v3.dist(x.atoms.SG, y.atoms.SG) : null;
+    };
+    const ssLen = { a: sgLen(a), b: sgLen(b) };
+    if (!ssDir.a || !ssDir.b || !ssLen.a) o.hold = false;
 
     /* The seed. The rebuild grows outward from three atoms, so where those
        three sit decides where the whole chain sits — interpolating the
@@ -395,7 +419,15 @@ const PrionLib = (function () {
           dst[j].dih = lerpAngle(A.sidechains[k][j].dih, q.dih, u);
         }
       }
-      return rebuild(shape, ic, seed);
+      if (!o.hold) return rebuild(shape, ic, seed);
+
+      /* The S-S direction is interpolated too, so the closed bond points
+         the way 6LNI points it rather than wherever the loop happened to
+         leave it. See ccd()'s "the target is a point, not a distance". */
+      const dir = [0, 1, 2].map(i => ssDir.a[i] + (ssDir.b[i] - ssDir.a[i]) * u);
+      const length = ssLen.a + (ssLen.b - ssLen.a) * u;
+      return ccd(shape, ic, seed,
+                 Object.assign({ dir, length }, o.hold === true ? {} : o.hold));
     };
 
     const ts = [];
@@ -406,6 +438,139 @@ const PrionLib = (function () {
       first: a[0].num, count: a.length,
       meta: { helices: native.helices, sheets: fibril.sheets },
     };
+  }
+
+  /* ---------------- 3b. holding the disulfide shut ---------------- */
+
+  /* THE PROBLEM THIS SOLVES. Interpolating every torsion independently is
+     the honest starting point — it keeps every bond length and moves only
+     the things that can move — and it opens the Cys179-Cys214 disulfide to
+     25 A halfway through. Both endpoints model that bond at 2.0 A, so the
+     morph is drawing a covalent bond breaking and re-forming, which is a
+     claim about the chemistry that neither deposition supports and that
+     the page would be making by accident.
+     
+     A disulfide is a real constraint, so enforcing it makes the path MORE
+     physical rather than less. That is the whole justification: this is not
+     smoothing the animation, it is removing a mechanism the interpolation
+     invented.
+
+     CCD (cyclic coordinate descent) is the standard loop-closure method —
+     take each rotatable torsion in turn, and rotate it by the angle that
+     best moves the end point toward its target. It converges fast, it
+     needs no derivatives, and it is naturally minimal: every pass makes the
+     smallest change to one torsion that helps, so the closed path stays
+     close to the interpolated one instead of finding some unrelated
+     conformation that happens to satisfy the bond.
+
+     ONLY THE TORSIONS BETWEEN THE TWO CYSTEINES MOVE. Residues 180-213 sit
+     between 179 and 214 on the chain, so rotating them changes where SG214
+     is RELATIVE TO SG179 — which is the distance being fixed. Rotating
+     anything outside that span swings both sulfurs together and cannot
+     close the gap; it would only drag the rest of the protein around to no
+     purpose. The helices outside the loop keep exactly the conformation the
+     interpolation gave them.
+
+     THE TARGET IS A POINT, NOT A DISTANCE. Aiming at "2.05 A from SG179 in
+     whatever direction it currently lies" is degenerate — the target moves
+     with the thing chasing it. So the S-S direction is interpolated between
+     the two structures' own, and the target is the point that direction
+     picks out. The bond arrives pointing the way 6LNI has it pointing.
+
+     WHAT THIS DOES NOT FIX, AND MUST NOT BE READ AS FIXING. The morph
+     still passes the chain through itself in the middle: 72 clashing pairs
+     at worst, some as close as 0.2 A, which is two atoms in one place. The
+     unconstrained path already did this (43 pairs at t=0.25) — closure did
+     not cause it, it concentrated it, because the loop now has less room.
+
+     CCD has no idea sterics exist; it knows one distance. Fixing this
+     needs a repulsion term, and that is a relaxation rather than a closure
+     — which is what folding/folding.js's Folder already is. Growing a
+     second physics solver in this file to avoid reusing that one would be
+     the wrong trade. Until then clashes() reports it and the bench shows
+     it, so nobody has to take the animation's word for the middle. */
+
+  function ccd(shape, ic, seed, opts) {
+    const o = Object.assign({ residues: [179, 214], length: null,
+                              passes: 60, tol: 0.01, dir: null,
+                              maxStep: 2 }, opts || {});
+    if (o.length == null) return rebuild(shape, ic, seed);
+
+    const idx = {};
+    shape.atoms.forEach((a, i) => {
+      if (a.name === 'CA') idx[a.res] = i;
+    });
+    const [lo, hi] = o.residues;
+
+    /* The rotatable set: phi and psi of every residue strictly between the
+       two cysteines. In the trace's N-CA-C order, residue m's phi is the
+       dihedral ending at its own C and its psi is the one ending at the
+       next residue's N. omega is left alone — the peptide bond is planar,
+       and rotating it is not a conformational change a protein makes. */
+    const axes = [];
+    for (let i = 0; i < shape.atoms.length; i++) {
+      const a = shape.atoms[i];
+      if (a.res <= lo || a.res >= hi) continue;
+      if (a.name === 'C' || a.name === 'N') axes.push(i);
+    }
+
+    const sgOf = (built, res) => {
+      const r = built.residues.find(x => x.num === res);
+      return r && r.atoms.SG;
+    };
+
+    let built = rebuild(shape, ic, seed);
+    let A = sgOf(built, lo), B = sgOf(built, hi);
+    if (!A || !B) return built;                    // no sulfurs: nothing to hold
+
+    for (let pass = 0; pass < o.passes; pass++) {
+      if (Math.abs(v3.dist(A, B) - o.length) < o.tol) break;
+
+      const dir = o.dir ? v3.norm(o.dir) : v3.norm(v3.sub(B, A));
+      const T = v3.add(A, v3.mul(dir, o.length));
+
+      for (const k of axes) {
+        if (k < 2) continue;
+        const O = built.P[k - 2];
+        const n = v3.norm(v3.sub(built.P[k - 1], O));
+
+        /* Component of each point perpendicular to the axis. A point on the
+           axis cannot be moved by rotating about it, and its perpendicular
+           component is zero — skipped rather than normalised into a NaN. */
+        const perp = p => {
+          const d = v3.sub(p, O);
+          return v3.sub(d, v3.mul(n, v3.dot(d, n)));
+        };
+        const r = perp(B), t = perp(T);
+        if (v3.len(r) < 1e-6 || v3.len(t) < 1e-6) continue;
+
+        const ru = v3.norm(r), tu = v3.norm(t);
+        const theta = Math.atan2(v3.dot(v3.cross(ru, tu), n),
+                                 Math.max(-1, Math.min(1, v3.dot(ru, tu)))) * DEG;
+
+        /* SUBTRACTED, NOT ADDED. theta is measured in the right-handed
+           sense about the axis, and place() negates its dihedral to be
+           IUPAC (see its header), so the two run opposite ways. Adding
+           makes every pass rotate away from the target: the disulfide
+           settles around 110 A instead of 2, which is the signature to
+           look for if this ever flips back.
+
+           The step is capped because an unbounded CCD pass will happily
+           swing one torsion 170 degrees to close the loop — that fixes the
+           bond and throws the residue somewhere the interpolation never
+           went. Many small passes spread the same correction over more
+           torsions, which is both closer to the interpolated path and
+           measurably less self-intersecting: 60 passes at 2 degrees peak
+           at 72 clashing pairs where 12 at 12 degrees peak at 113. The
+           numbers are from a sweep, not from taste. */
+        const step = Math.max(-o.maxStep, Math.min(o.maxStep, theta));
+        ic[k].dih -= step;
+
+        built = rebuild(shape, ic, seed);
+        A = sgOf(built, lo); B = sgOf(built, hi);
+      }
+    }
+    return built;
   }
 
   /* ---------------- 4. what the bench has to be able to see ---------------- */
@@ -554,7 +719,7 @@ const PrionLib = (function () {
   }
 
   return { parse, ss, internals, rebuild, morph, ca,
-           bondLengths, disulfide, clashes, rmsd, kabsch,
+           bondLengths, disulfide, clashes, rmsd, kabsch, ccd,
            _v3: v3, _place: place, _dihedral: dihedral, _lerpAngle: lerpAngle };
 })();
 

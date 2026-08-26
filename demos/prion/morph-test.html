@@ -106,6 +106,7 @@
 
     <h3>show</h3>
     <div class="row"><label for="dis">disulfide</label><input id="dis" type="checkbox" checked></div>
+    <div class="row"><label for="hold">hold the S&ndash;S shut</label><input id="hold" type="checkbox" checked></div>
     <div class="row"><label for="ends">ghost endpoints</label><input id="ends" type="checkbox"></div>
   </div>
 </div>
@@ -149,13 +150,21 @@ let t = 0, playing = false, ssMode = 'nat';
 
 const $ = id => document.getElementById(id);
 
+/* Off, the trajectory is a plain torsion interpolation and the disulfide
+   opens to 28 A halfway. That is not a mode anyone would ship — it is here
+   so the constraint's effect is something you can see rather than something
+   this page asserts. prion.js's ccd() carries the argument. */
+function rebuildMorph() {
+  mor = PrionLib.morph(nat, fib, { frames: 240, hold: $('hold').checked });
+}
+
 Promise.all([
   fetch('data/prp-native.pdb').then(r => r.text()),
   fetch('data/prp-fibril.pdb').then(r => r.text()),
 ]).then(([a, b]) => {
   nat = PrionLib.parse(a);
   fib = PrionLib.parse(b);
-  mor = PrionLib.morph(nat, fib, { frames: 240 });
+  rebuildMorph();
   buildGhosts();
   update();
   resize();                            // canvas is 300x150 until something asks
@@ -325,6 +334,14 @@ $('play').addEventListener('click', () => {
   });
 });
 $('dis').addEventListener('change', update);
+$('hold').addEventListener('change', () => {
+  rebuildMorph();
+  ghosts.forEach(g => { g.geometry.dispose(); root.remove(g); });
+  ghosts = [];
+  buildGhosts();
+  ghosts.forEach(g => g.visible = $('ends').checked);
+  update();
+});
 $('ends').addEventListener('change', () => ghosts.forEach(g => g.visible = $('ends').checked));
 
 (function loop() {
