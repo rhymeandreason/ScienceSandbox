@@ -168,6 +168,24 @@ The card prints both wordings (*the map words it as "…"*), because the reader 
 
 **`centre()` diverges from door-map's**: the composer is a fixed band across the top, and centring on the whole window put the root card underneath it.
 
+### Keywords are not questions
+
+A reader types `osmosis` as readily as a sentence, and the corpus is QUESTIONS. Measured against it:
+
+```
+polarity        0.811  refused    <- the door's own rank 1 module, by name
+glycolysis      0.819  refused
+photosynthesis  0.851  MATCH      <- there is no photosynthesis module
+```
+
+Both directions wrong: the most central card on the map is unreachable by its own name, and an off-map word scrapes over the floor. **No scoring rule fixes the first half.** `polarity` and `glycolysis` have zero questions within 0.83 of them, so there is nothing for a floor or a vote rule to work with — a module name is simply not a question, and this corpus contains only questions.
+
+So a keyword that names a card is answered **before any embedding**, by `moduleNamed()`: equality after normalising, or one being the other's prefix at five characters or more. That is enough for `hydrogen bond` to reach Hydrogen bonding and not enough for a stray word to claim a card. It becomes the first row and the default, ahead of the reader's own wording, because the reader named a thing that exists and the map has nothing better to offer than that thing. `openModule()` composes what clicking that card would have done.
+
+**The second half is not solved.** `photosynthesis` (0.851) and `mitosis` (0.849) sit above real on-map keywords like `pH` (0.852) and below none of them: there is no gap to cut. Corroboration narrows it (`DNA` has 7 near questions, `photosynthesis` 1) without separating it. A bare keyword that does not name a card can still land somewhere plausible and wrong, and the fixture is what should settle whether short queries want their own floor.
+
+**Three kinds of row means `cursor` indexes `order`, not `hits`.** The list is a named card (-1), the reader's wording (0), then authored questions (1+). Three index conventions in one handler is how an arrow key opens the wrong thing.
+
 ### The vector backend
 
 `tools/bake-vectors.js` embeds all 66 authored questions once (gemini-embedding-001, 256d, `SEMANTIC_SIMILARITY`) into `lib/mapcontent-vectors.json`. `api/find.js` embeds the READER's question and returns only that vector; the ranking happens in the page. The corpus vectors ship with the page anyway, so a server-side cosine would protect nothing, and the floors are the knobs worth tuning without a redeploy.

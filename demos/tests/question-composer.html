@@ -408,6 +408,11 @@
   .hits li.put b { font-weight: 400; font-style: italic; }
   .hits li.put .on { color: var(--spark); }
   .hits li.put { border-bottom: 1px solid var(--line); }
+  /* A card the reader named outranks both, so it reads as the answer and not
+     as one more suggestion. */
+  .hits li.card b { font-weight: 500; }
+  .hits li.card .on { color: var(--muted); font-family: var(--serif);
+                      text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
   .hits li.miss { cursor: default; color: var(--muted); font-style: italic; }
   .hits li.miss:hover { background: var(--card); }
 
@@ -1739,17 +1744,69 @@ async function search(text) {
   return { hits, near: lexNear(text, new Set(best ? neighbours(best) : [])) };
 }
 
+/* ---- a keyword that names a card --------------------------------------
+   Measured: "polarity" scores 0.811 against this corpus and "glycolysis" 0.819,
+   both under MATCH — the door's own rank 1 module, refused by name. Neither has
+   a single near question either, so no floor and no vote rule rescues them: the
+   corpus is QUESTIONS, and a module name is not a question. It is the one case
+   where knowing beats ranking, so it is answered before any embedding.
+
+   Deliberately narrow. Equality after normalising, or one being the other's
+   prefix at five characters or more — enough for "hydrogen bond" to reach
+   Hydrogen bonding, and not enough for a stray word to claim a card. */
+
+const norm = t => t.toLowerCase().normalize('NFKD')
+  .replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+
+const NAMED = MODNODES.map(m => ({ m, key: norm(m.name), id: norm(m.id) }));
+
+function moduleNamed(text) {
+  const k = norm(text);
+  if (k.length < 3) return null;
+  const hit = NAMED.find(x => x.key === k || x.id === k)
+    || (k.length >= 5 && NAMED.find(x => x.key.startsWith(k) || k.startsWith(x.key)));
+  return hit ? hit.m : null;
+}
+
+/* What clicking that card would have done, composed from cold: the module, its
+   best band of questions, and the module each of those leads to. Same shape
+   start() and openAsk() use, so a keyword lands on a map that reads like every
+   other one. */
+function openModule(m) {
+  clearFocus();
+  stages.clear();
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
+  for (const l of links) l.painted = false;
+  live = []; liveLinks = [];
+  world.querySelectorAll('.node').forEach(el => el.remove());
+  svg.replaceChildren();
+
+  show(m, 0, 0);
+  expand(m, null, band((q, x) => x.door === DOOR.id));
+  for (const n of live) refreshMeta(n);
+  follow = null;
+  touched = false;
+  centre();
+  alpha = 1;
+}
+
 /* ---- the box ---------------------------------------------------------- */
 
 const askEl = document.getElementById('ask');
 const hitsEl = document.getElementById('hits');
 let hits = [], near = [], cursor = -1;
+/* What the rows ARE, in the order they are drawn: -1 a named card, 0 the
+   reader's own wording, 1+ an authored question. `cursor` indexes THIS, not the
+   hits — three kinds of row with three index conventions is how an arrow key
+   ends up opening the wrong thing. */
+let order = [];
 
 /* NOT draw(). The map's own draw() is what positions every node from the rAF
    loop, and a second `function draw` at this scope silently replaces it — the
    cards stay at the origin, stacked, with no error anywhere. */
 function drawHits() {
   hitsEl.replaceChildren();
+  order = [];
   const text = askEl.value.trim();
   if (!text) return;
 
@@ -1760,9 +1817,31 @@ function drawHits() {
   const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
   const reach = inherited.length + near.length;
 
+  /* A named card outranks everything: the reader typed the name of a thing that
+     exists, and the map has nothing better to offer than that thing. */
+  const card = moduleNamed(text);
+  order = (card ? [-1] : []).concat([0], hits.map((_, i) => i + 1));
+  const sel = order[cursor < 0 ? 0 : cursor];
+
+  if (card) {
+    const li = document.createElement('li');
+    li.className = 'card';
+    li.setAttribute('aria-selected', sel === -1);
+    li.append('Open the card: ');
+    const b = document.createElement('b');
+    b.textContent = card.name;
+    li.append(b);
+    const on = document.createElement('span');
+    on.className = 'on';
+    on.textContent = card.claim || '';
+    li.append(on);
+    li.addEventListener('click', () => choose(-1));
+    hitsEl.append(li);
+  }
+
   const ask = document.createElement('li');
   ask.className = 'put';
-  ask.setAttribute('aria-selected', cursor <= 0);
+  ask.setAttribute('aria-selected', sel === 0);
   ask.append('Put my question on the map: ');
   const b = document.createElement('b');
   b.textContent = '\u201c' + text + '\u201d';
@@ -1780,7 +1859,7 @@ function drawHits() {
   hits.forEach((h, i) => {
     const li = document.createElement('li');
     li.textContent = h.q.text;
-    li.setAttribute('aria-selected', i + 1 === cursor);
+    li.setAttribute('aria-selected', sel === i + 1);
     const c = document.createElement('span');
     c.className = 'on';
     c.textContent = neighbours(h.q).map(m => m.name || m.id).join(' \u00b7 ');
@@ -1794,6 +1873,14 @@ function drawHits() {
    is written, with no card of the reader's on the map at all. */
 function choose(i) {
   const text = askEl.value.trim();
+  if (i === -1) {
+    const card = moduleNamed(text);
+    if (!card) return;
+    hitsEl.replaceChildren(); askEl.blur();
+    openModule(card);
+    hits = []; near = []; cursor = -1;
+    return;
+  }
   if (i > 0) {
     const h = hits[i - 1];
     if (!h) return;
@@ -1831,14 +1918,13 @@ askEl.addEventListener('input', () => {
 });
 
 askEl.addEventListener('keydown', e => {
-  const n = hits.length + 1;   // row 0 is the reader's own question
-  if (e.key === 'Enter')      { e.preventDefault(); choose(cursor < 0 ? 0 : cursor); }
-  else if (e.key === 'Escape'){ askEl.value = ''; hits = []; cursor = -1; hitsEl.replaceChildren(); askEl.blur(); }
+  if (e.key === 'Enter')      { e.preventDefault(); if (order.length) choose(order[cursor < 0 ? 0 : cursor]); }
+  else if (e.key === 'Escape'){ askEl.value = ''; hits = []; near = []; order = []; cursor = -1; hitsEl.replaceChildren(); askEl.blur(); }
   else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    if (!hitsEl.children.length) return;
+    if (!order.length) return;
     e.preventDefault();
     cursor = ((cursor < 0 ? (e.key === 'ArrowDown' ? -1 : 0) : cursor)
-              + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+              + (e.key === 'ArrowDown' ? 1 : order.length - 1)) % order.length;
     drawHits();
   }
 });
