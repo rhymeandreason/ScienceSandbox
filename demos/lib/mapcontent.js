@@ -237,7 +237,8 @@
   /* ONE chain of the same tetramer, because this card's claim is about one
      chain finding one shape — four of them would be the level above, which is
      the card next door. Same trace file, so nothing is baked twice. */
-  folding:   { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json', chains:'B' },
+  folding:   { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json', chains:'B',
+               fold:'hemoglobin/data/2HHB-B.fold.bin' },
   /* No `surface` here on purpose: the card-tier bake is the whole tetramer, and
      a card drawing chain B would show a skin around three chains it is not
      claiming. A one-chain bake is a bake, not a flag. */

@@ -243,6 +243,7 @@
 <script src="lib/fx.js"></script>
 <script src="lib/annotate.js"></script>
 <script src="folding/ribbon.js"></script>
+<script src="hemoglobin/foldplay.js"></script>   <!-- the ss-from-bonds rule, shared with door-map -->
 <script src="lib/residues.js"></script>
 <script src="hemoglobin/hbfold.js"></script>
 <script>
@@ -2223,30 +2224,15 @@ new ResizeObserver(() => { resize(); if (fold) seek(u); }).observe(canvas);
    helix the structure does not have. The width and the colour then arrive
    exactly where the bonds arrive, which is the claim act 2 is making.
 
-   `covers` is built once: for each residue, the bonds whose span contains
-   it. A bond from residue a to residue b covers a..b, which for the i->i+3
-   and i->i+4 bonds that make up 97% of this chain is the turn of spiral
-   that bond is holding shut. */
+   THE RULE ITSELF IS hemoglobin/foldplay.js. It moved there the moment a
+   door-map card wanted to play this fold: a card is exactly where a second
+   copy would drift unwatched — still looking like a fold, quietly asserting
+   something this page does not. `covers` is built once per trajectory, and
+   `ssFor` is the per-frame answer. */
 let covers = null;
-function buildCovers() {
-  covers = Array.from({ length: fold.R }, () => []);
-  fold.bonds.forEach((b, k) => {
-    const lo = Math.min(b.from, b.to) - fold.first;
-    const hi = Math.max(b.from, b.to) - fold.first;
-    for (let i = Math.max(0, lo); i <= Math.min(fold.R - 1, hi); i++) covers[i].push(k);
-  });
-}
-
+const buildCovers = () => { covers = FoldPlay.covers(fold); };
 const _ss = [];
-function ssAt(formed) {
-  for (let i = 0; i < fold.R; i++) {
-    if (fold.ss[i] !== 'H') { _ss[i] = fold.ss[i]; continue; }
-    let held = 0;
-    for (const k of covers[i]) held = Math.max(held, formed[k]);
-    _ss[i] = held > 0.5 ? 'H' : 'C';
-  }
-  return _ss;
-}
+const ssAt = formed => FoldPlay.ssFor(fold, covers, formed, _ss);
 
 /* ---------- seek ---------- */
 const _v = [];      // scratch Vector3s for the ribbon, reused every frame

@@ -258,6 +258,22 @@
   .node.module .rep button[disabled] { opacity: 0.5; cursor: progress; }
   .node.module:not(.near) .rep { opacity: 0; pointer-events: none; }
 
+  /* The play button sits in the picture's own corner rather than in the row of
+     segments: it starts an EVENT, and a reader looking for "how do I see this
+     happen" looks at the picture, not at a switch under it. */
+  .node.module .play {
+    position: absolute; right: 8px; bottom: 8px;
+    width: 26px; height: 26px; padding: 0; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; color: var(--muted); cursor: pointer;
+    background: var(--card); border: 1px solid var(--line); border-radius: 50%;
+    box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
+    transition: opacity .18s ease, color .15s, border-color .15s;
+  }
+  .node.module .play:hover { color: var(--ink); border-color: var(--ink); }
+  .node.module .play.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .node.module:not(.near) .play { opacity: 0; pointer-events: none; }
+
   .node.question {
     width: 13.5rem;
     padding: 0.5rem 0.65rem;
@@ -419,6 +435,8 @@
 <script src="../molecule-builder/molecule-builder.js"></script>
 <script src="../folding/ribbon.js"></script>   <!-- protein cards: RibbonLib -->
 <script src="../hemoglobin/surface.js"></script>   <!-- ...and SurfLib, on demand -->
+<script src="../hemoglobin/hbfold.js"></script>    <!-- ...and the fold, on demand -->
+<script src="../hemoglobin/foldplay.js"></script>  <!-- the ss-from-bonds rule, shared with hemoglobin-lab -->
 <script>
 /* ---- the content ------------------------------------------------------
    DOORS, MODULES, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
@@ -557,16 +575,25 @@ function protein(thumb, view, id) {
     if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
     box.applyCam();
   };
+  let player = null;              // the fold, once someone has asked for it
   const box = CardStage.create({
     mount: thumb,
     cam: { theta: 0.6, phi: 1.1, r: 40 },
-    stage: { ortho: true },
+    /* orbit:false — a drag on this card is a drag on the MAP. A canvas that
+       spins under the pointer means a reader who meant to move a card has
+       instead turned the molecule inside it, and there is no way back to the
+       framing the card was composed with. */
+    stage: { ortho: true, orbit: false },
+    autoplay: false,              // a still ribbon has nothing to run
+    step: dt => { if (player && rep === 'fold') player.tick(dt); },
     onResize: fit,
     onDestroy: () => { if (sesOwner === box) sesOwner = null; },
   });
 
   const chainGroup = new THREE.Group();
-  box.root.add(chainGroup);
+  const foldGroup = new THREE.Group();
+  box.root.add(chainGroup, foldGroup);
+  let stillMid = null, stillR = 0;      // what the static ribbon was framed on
   let surf = null;                  // the decoded mesh, while this card owns it
 
   fetch('../' + view.trace, { cache: 'force-cache' })
@@ -602,12 +629,11 @@ function protein(thumb, view, id) {
          every chain, since each one changes both the centre and the radius. */
       const reframe = () => {
         if (!drawn.length) return;
-        const mid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
-                         .multiplyScalar(1 / drawn.length);
-        box.root.position.copy(mid).negate();
-        radius = 0;
-        for (const p of drawn) radius = Math.max(radius, p.distanceTo(mid));
-        fit();
+        stillMid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
+                        .multiplyScalar(1 / drawn.length);
+        stillR = 0;
+        for (const p of drawn) stillR = Math.max(stillR, p.distanceTo(stillMid));
+        reframeStill();
         box.draw();
       };
       build();
@@ -652,24 +678,110 @@ function protein(thumb, view, id) {
       .then(() => { btns.forEach(b => { b.disabled = false; }); });
   }
 
+  /* ---- the fold, also only when asked for ----
+     833 KB of trajectory and a ribbon rebuilt every frame, which is the one
+     thing on this page that genuinely wants a running loop. Same three gates
+     as the surface, plus: the box only STARTS while the fold is the rep, so a
+     card left on ribbon costs nothing per frame. */
+  function showFold(btns) {
+    if (player) { chainGroup.visible = false; player.mesh.visible = true; box.start(); return; }
+    btns.forEach(b => { b.disabled = true; });
+    fetch('../' + view.fold, { cache: 'force-cache' })
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        if (box.dead) return;
+        const f = HbFold.decode(buf);
+        /* sub 3 against the lesson's 6: the rebuild is per frame and its cost
+           IS the triangle count, and this is a 280px box. */
+        player = FoldPlay.create(THREE, f, { sub: 3, speed: 0.16,
+                                             material: Stage.bondMat(RIB.H) });
+        /* The trajectory is in FoldLib.orient()'s frame and the trace is in the
+           crystal's, so the two are not the same molecule in the same place.
+           The fold gets its OWN group and the card re-centres on whichever is
+           showing — one at a time, never both, which is what makes that legal. */
+        foldGroup.add(player.mesh);
+        chainGroup.visible = false;
+        reframeFold();
+        box.start();
+      })
+      .catch(() => { setRep('ribbon'); })
+      .then(() => { btns.forEach(b => { b.disabled = false; }); });
+  }
+
+  function reframeFold() {
+    if (!player) return;
+    player.mesh.geometry.computeBoundingSphere();
+    const bs = player.mesh.geometry.boundingSphere;
+    foldGroup.position.copy(bs.center).negate();
+    /* Framed on the FINAL fold, not on this instant: a chain that starts
+       extended and ends compact would otherwise zoom out through the whole
+       animation, which reads as the camera folding rather than the protein. */
+    if (!foldR) { const t = player.t; player.seek(1); player.mesh.geometry.computeBoundingSphere();
+                  foldR = player.mesh.geometry.boundingSphere.radius; player.seek(t); }
+    radius = foldR;
+    box.root.position.set(0, 0, 0);
+    fit();
+  }
+  let foldR = 0;
+
+  // The two representations sit in different frames, so switching between them
+  // is a re-frame, not just a visibility flip.
+  function reframeStill() {
+    if (!stillMid) return;
+    box.root.position.copy(stillMid).negate();
+    radius = stillR;
+    fit();
+  }
+
+  /* Two controls, because they are two kinds of thing. Ribbon and surface are
+     REPRESENTATIONS — the same molecule, drawn two ways, and a segmented pair
+     is what says "one of these". The fold is an EVENT: it starts, it runs, it
+     ends. A play button is what says that, and putting it in the same row of
+     segments would have claimed the fold was a third way of drawing the same
+     still. */
   let rep = 'ribbon';
+  const reps = ['ribbon'];
+  if (view.surface) reps.push('surface');
   const bar = document.createElement('div');
   bar.className = 'rep';
-  const btns = ['ribbon', 'surface'].map(name => {
+  const btns = reps.map(name => {
     const b = document.createElement('button');
     b.type = 'button'; b.dataset.rep = name; b.textContent = name;
     b.addEventListener('click', e => { e.stopPropagation(); setRep(name); });
     bar.appendChild(b);
     return b;
   });
+
+  let play = null;
+  if (view.fold) {
+    play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'play';
+    play.title = 'play the fold';
+    play.textContent = '\u25B6';
+    play.addEventListener('click', e => {
+      e.stopPropagation();
+      setRep(rep === 'fold' ? 'ribbon' : 'fold');
+    });
+    thumb.appendChild(play);
+  }
   function setRep(next) {
     rep = next;
     btns.forEach(b => b.classList.toggle('on', b.dataset.rep === rep));
-    if (rep === 'ribbon') { chainGroup.visible = true; if (surf) surf.visible = false; box.draw(); }
-    else showSurface(btns);
+    if (surf) surf.visible = rep === 'surface';
+    if (player) player.mesh.visible = rep === 'fold';
+    if (rep !== 'fold') box.stop();
+    if (play) {
+      play.textContent = rep === 'fold' ? '\u25A0' : '\u25B6';
+      play.title = rep === 'fold' ? 'stop' : 'play the fold';
+      play.classList.toggle('on', rep === 'fold');
+    }
+    if (rep === 'ribbon') { chainGroup.visible = true; reframeStill(); box.draw(); }
+    else if (rep === 'surface') { chainGroup.visible = false; showSurface(btns); }
+    else showFold(btns);
   }
   setRep('ribbon');
-  if (view.surface) thumb.appendChild(bar);
+  if (reps.length > 1) thumb.appendChild(bar);
 
   // The page's one-surface rule reaches a card through this, and nothing else.
   box.drop = () => { setRep('ribbon'); dropSurface(); };
@@ -756,12 +868,17 @@ const densifySoon = () => {
    of that in the frame the wave arrives is a visible stall exactly where the
    reader is watching something move. Spread across frames it is the same total
    work and none of it lands on the animation.
-   Latest first: the reader is looking at what just arrived, and a card that
-   waits three frames for its picture is invisible next to a map that hitched. */
+   Order is drain()'s, and it differs between load and a click. */
 const liveQueue = [];   // cards waiting for a quiet frame to start in
+let opening = true;     // until the load's own cards are up — see drain()
 let liveDraining = false;
 function goLiveSoon(n) {
-  if (!VIEWS[n.id]) return;              // nothing to start, so nothing to wait for
+  const v = VIEWS[n.id];
+  if (!v) return;                        // nothing to start, so nothing to wait for
+  /* The bytes can be in flight while the card waits its turn: a fetch costs no
+     main thread, and the trace is what the first frame needs. Nothing reads the
+     result — this only warms the HTTP cache the card's own fetch will hit. */
+  if (v.trace) fetch('../' + v.trace, { cache: 'force-cache' }).catch(() => {});
   liveQueue.push(n);
   if (liveDraining) return;
   liveDraining = true;
@@ -773,9 +890,24 @@ function goLiveSoon(n) {
      dragged, a follow that keeps re-arming) must still get its pictures. */
   let waited = 0;
   const drain = () => {
-    if (!settled && ++waited < 240) { requestAnimationFrame(drain); return; }
-    const next = liveQueue.pop();
-    if (!next) { liveDraining = false; return; }
+    /* Except at LOAD. Waiting for quiet frames is about not stalling a motion
+       the reader is watching, and on the opening screen there is none — the
+       page is still arriving, the cards are the arrival, and a wave that has
+       nowhere to have been seen from is not one worth protecting. The first
+       drain therefore runs flat out; every one after it waits. */
+    /* Waiting for a full settle was too patient: the relax runs for seconds
+       after a click and the card the reader just opened sat on its placeholder
+       the whole time, which is the one thing the pool exists to prevent. The
+       gate is the WAVE, not the settle — alpha past its first fast decay — and
+       the cap is under a second, because a picture late is worse than a frame
+       long. */
+    if (!opening && alpha > 0.3 && ++waited < 45) { requestAnimationFrame(drain); return; }
+    /* Latest first once the map is being read — the reader is looking at what
+       just arrived. At load there is no "just arrived": the queue is the
+       opening screen in reveal order, which is reading order, so it goes out
+       the front. */
+    const next = opening ? liveQueue.shift() : liveQueue.pop();
+    if (!next) { liveDraining = false; opening = false; return; }
     if (next.visible) goLive(next);
     waited = 0;
     requestAnimationFrame(drain);
@@ -1234,7 +1366,7 @@ canvas.addEventListener('pointerdown', e => {
      click that reaches it is the card's — so the toggle looked dead while the
      card behind it opened. Both controls, since the builder's 3D/2D sits in a
      card the same way. */
-  if (e.target.closest('.rep, .mb-dims')) return;
+  if (e.target.closest('.rep, .play, .mb-dims')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
