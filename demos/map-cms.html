@@ -61,6 +61,7 @@
   .btn.primary { color: var(--card); background: var(--accent); border-color: var(--accent); }
   .btn.primary:hover:not(:disabled) { color: var(--card); }
 
+  .bar[hidden] { display: none; }   /* display:flex below beats the UA rule */
   .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center;
          gap: 0.5rem; flex-wrap: wrap; padding: 0.7rem 0;
          background: var(--paper); border-bottom: 1px solid var(--line); }
@@ -667,8 +668,18 @@ $('revert').addEventListener('click', () => {
   load().then(() => say('reloaded from disk', 'ok'));
 });
 
+/* Seeded from whatever the list is filtered to. A question born with no module
+   is invisible under any filter AND counts as unlinked, so the new row would
+   vanish at the moment it was asked for. Module filter wins; a door falls back
+   to what that door opens with. */
 $('add').addEventListener('click', () => {
-  rows.unshift({ text: 'New question?', mods: {} });
+  const m = $('module').value, d = $('door').value;
+  let seed = m !== 'all' ? m : null;
+  if (!seed && d !== 'all') {
+    const cand = modules.filter(x => x.door === d).sort((a, b) => a.rank - b.rank)[0];
+    if (cand) seed = cand.id;
+  }
+  rows.unshift({ text: 'New question?', mods: seed ? { [seed]: 1 } : {} });
   $('kind').value = 'all'; $('find').value = '';
   draw();
   const first = document.querySelector('.q');
