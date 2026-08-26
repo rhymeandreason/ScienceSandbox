@@ -316,10 +316,42 @@ const FoldLib = (function () {
     if (parsed.orientation) return parsed;
 
     const E = extended(parsed);            // no orientation set yet: raw frame
-    const n = E.length;
-    const c = [0,1,2].map(k => E.reduce((s, p) => s + p[k], 0) / n);
+    const R = viewBasis(E).R;
+    parsed.orientation = R;
+    parsed.nodes.forEach(nd => { nd.native = apply(R, nd.native); });
+    return parsed;
+  }
+
+  /* viewBasis(points) -> { R, ext, aniso, worth }
+
+     THE PRESENTATION FRAME FOR SOMETHING MEASURED IN A LAB, solved rather
+     than typed. A molecule spec has an origin somebody chose, so a hand-
+     picked `view:` is a real decision about it; a deposited protein's frame
+     is a crystal or an EM box, which is nobody's decision at all. The axes
+     that mean something are the structure's own, and they are computable:
+     longest to screen X, shortest to Z, so an elongated thing lies across
+     the frame and a flat thing faces the reader.
+
+     HANDEDNESS IS THE TRAP. An eigenvector's sign is arbitrary, so the basis
+     comes out left-handed about half the time, and a left-handed basis
+     MIRRORS the protein into its enantiomer — MolecularGeometry.md 1.3's
+     failure that no internal check can see, because every distance and every
+     angle survives it. Forced to det = +1 here, which is why nothing else
+     should assemble a basis by hand.
+
+     `worth` IS THE OTHER HALF, AND IT IS THE HONEST PART. A near-spherical
+     domain has three similar eigenvalues, its axes are noise, and a basis
+     solved off them flips between rebakes for no reason a reader could name.
+     So the solver says whether the shape justifies a frame at all, and a
+     caller that gets `worth:false` should leave the view alone and let a
+     human pick one. The threshold is separation between successive extents:
+     each axis has to be clearly shorter than the one before it. */
+  function viewBasis(points, opts) {
+    const sep = (opts && opts.sep != null) ? opts.sep : 0.15;
+    const n = points.length;
+    const c = [0,1,2].map(k => points.reduce((s, p) => s + p[k], 0) / n);
     const C = [[0,0,0],[0,0,0],[0,0,0]];
-    for (const p of E)
+    for (const p of points)
       for (let i = 0; i < 3; i++)
         for (let j = 0; j < 3; j++) C[i][j] += (p[i]-c[i]) * (p[j]-c[j]) / n;
 
@@ -327,9 +359,52 @@ const FoldLib = (function () {
     let R = [ev[0], ev[1], ev[2]];         // longest axis becomes screen X
     if (det3(R) < 0) R = [R[0], R[1], R[2].map(v => -v)];   // never mirror
 
-    parsed.orientation = R;
-    parsed.nodes.forEach(nd => { nd.native = apply(R, nd.native); });
-    return parsed;
+    /* Reported as EXTENTS, not eigenvalues. An extent is the thing a reader
+       can check against a picture: 65 x 41 x 6 A is a claim anybody can
+       measure, and a variance is not. */
+    const ext = R.map(ax => {
+      let lo = Infinity, hi = -Infinity;
+      for (const p of points) {
+        const v = ax[0]*(p[0]-c[0]) + ax[1]*(p[1]-c[1]) + ax[2]*(p[2]-c[2]);
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+      return hi - lo;
+    });
+
+    const drop = (a, b) => (a - b) / a;
+    return { R, ext, centre: c,
+             aniso: ext[2] / ext[0],
+             worth: drop(ext[0], ext[1]) > sep && drop(ext[1], ext[2]) > sep };
+  }
+
+  /* basisFrom(up, hint) -> a right-handed basis with `up` vertical.
+
+     For a structure whose meaningful axis is KNOWN rather than solved: a
+     fibril's stacking direction, a membrane protein's bilayer normal. The
+     field draws those upright, and a reader who has seen the literature
+     reads the picture faster for it — where a PCA frame would pick whatever
+     happens to be longest, which for a two-protofibril box is the gap
+     between the protofibrils and not the fibril at all.
+
+     `hint` is any direction that should lie across the screen; the component
+     along `up` is removed, so a caller can pass the structure's own longest
+     axis without having to make it perpendicular first. Rows are X, Y, Z,
+     matching viewBasis, and det is forced to +1 for the same reason: a
+     left-handed basis mirrors the protein and nothing downstream can see it. */
+  function basisFrom(up, hint) {
+    const nrm = v => { const L = Math.hypot(v[0],v[1],v[2]) || 1;
+                       return [v[0]/L, v[1]/L, v[2]/L]; };
+    const dot = (a,b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    const cross = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+
+    const Y = nrm(up);
+    let h = hint && Math.abs(dot(nrm(hint), Y)) < 0.98 ? hint
+          : (Math.abs(Y[0]) < 0.9 ? [1,0,0] : [0,1,0]);
+    const X = nrm(h.map((v, i) => v - dot(h, Y) * Y[i]));
+    const Z = cross(X, Y);
+    const R = [X, Y, Z];
+    return det3(R) < 0 ? [X, Y, Z.map(v => -v)] : R;
   }
 
   const apply = (R, p) => R.map(ax => ax[0]*p[0] + ax[1]*p[1] + ax[2]*p[2]);
@@ -825,7 +900,7 @@ const FoldLib = (function () {
     return v3.mul(c, 1 / idx.length);
   }
 
-  return { parse, hbonds, extended, orient, Folder, SCHEDULE, encode, decode,
+  return { parse, hbonds, extended, orient, viewBasis, basisFrom, Folder, SCHEDULE, encode, decode,
            IDEAL, BAKE: { frames: 1100, keep: 6 },
            _v3: v3, _place: place };
 })();

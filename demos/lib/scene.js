@@ -420,6 +420,10 @@
       cam.q.setFromRotationMatrix(m);
     };
     seedQ();
+    // A caller that writes theta/phi directly (a box seeding a canonical view)
+    // has to say so, because in trackball mode cam.q is the authority and
+    // theta/phi are only its seed.
+    cam.seed=seedQ;
 
     function applyCam(){
       if(o.turn==='trackball'){

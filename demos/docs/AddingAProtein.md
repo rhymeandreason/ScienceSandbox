@@ -18,7 +18,7 @@ For framents, check Alphafold and state the confidence score. If Alphafond score
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can look, and so the conversation about what the protein is for happens against something real. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
-See proteins/prion/prion-test.html as the example
+See proteins/prion/prion-test.html as the example and copy its layout.
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page (`proteins/prion/tools/prep.js` is the worked example) cuts each source down to what the bench draws and writes it to `data/`. Chain A unless the assembly is the point, alt-locs blank or `A` only, and the file's own `HELIX` / `SHEET` records ride along. Secondary structure is **read, never detected**: for a lesson about folding, detecting it is inventing the claim.
 
@@ -54,13 +54,13 @@ Most abundant in the brain.  The healthy form is a compact bundle, about 60% hel
 
 The misfolding causes a family of rare and fatal neurological diseases. Prion disease is also called transmissible spongiform encephalopathy, TSE, named for the sponge-like holes the brain ends up full of.
 
-Creutzfeldt-Jakob disease (CJD) is the common one, and happens sporadically with no known cause. 
+Creutzfeldt-Jakob disease (CJD) is the common one, and happens sporadically with no known cause.
 
 Mad-cow (BSE) is the same disease. BSE was unusually good at crossing barriers, which is why it was a public health emergency.
 
 Neurologist and biochemist Stanley Prusiner coined the word "prion” in 1982, for proteinaceous infectious particle. Most scientists at the time believed that only viruses, bacteria, fungi, or parasites could transmit disease using DNA or RNA. Prusiner got the Nobel for it in 1997, with fifteen years of being told he was wrong in between.
 
-Data Notes: 
+Data Notes:
 
 PrP^C for cellular, the healthy helical form. That's 1QLZ and 1B10.
 

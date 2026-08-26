@@ -62,6 +62,12 @@
  *  chain, and whether secondary structure is read or detected, and a page
  *  that owns a protein already owns those. What is shared is the box.
  *
+ *  `view:` is a 3x3 basis saying which way the structure should face, applied
+ *  to the chain group so the camera stays the reader's. A trace baked by
+ *  tools/bake-trace.js carries its own in `view` when the shape earned one;
+ *  pass this to override, and see FoldLib.viewBasis for why it is solved
+ *  rather than typed and why a globular domain does not get one.
+ *
  *  `colors:` overrides the ss palette — one number for a flat colour, or
  *  {C,H,E} for some of it. Omit it and every protein in the repo is drawn the
  *  same way, which is the default for a reason.
@@ -104,7 +110,14 @@
     }
 
     const mount = opts.mount;
-    let radius = 0, player = null, surf = null, rep = 'ribbon';
+    let radius = 0, player = null, surf = null, rep = 'ribbon', seeded = false;
+    /* Bumped by every setData. The chain loop below yields to rAF between
+       chains, so a switch that lands mid-build leaves the OLD loop running:
+       it keeps adding meshes to a group the new call already cleared, and
+       keeps widening the centre and radius with points nobody is drawing —
+       a ten-rung stack framing a single chain. The loop checks the token it
+       started with and stops when it is no longer the current one. */
+    let generation = 0;
     let stillMid = null, stillR = 0, foldR = 0;
 
     /* AN ORTHO CAMERA DOES NOT ZOOM BY MOVING: its size is its frustum, so a
@@ -163,6 +176,7 @@
        the scene, the camera, the framing and the turn. */
     function setData(t, o) {
       o = o || {};
+      const mine = ++generation;
       chainGroup.clear();
       const ids = (o.chains || opts.chains)
         ? String(o.chains || opts.chains).split(',') : t.order.slice();
@@ -181,19 +195,61 @@
         return m;
       });
 
+      /* THE PRESENTATION FRAME, applied to the GROUP and not to the camera.
+
+         A deposited protein opens in a crystal or EM frame, which is nobody's
+         decision about how it should be seen; `view` is the basis a bake
+         solved for it, or a human picked. Same split scene.js makes for a
+         molecule spec: the frame belongs to the structure, the camera belongs
+         to the reader, and composing the two anywhere else is the Euler trap
+         that made molecules cartwheel.
+
+         WHICH LEAVES THE PAGE ONE OBLIGATION, also scene.js's: the group's
+         rotation is an OFFSET and must be ZERO AT REST, or the declared view
+         is one nobody ever sees while the file still claims it. */
+      const view = o.view || opts.view || t.view;
+      chainGroup.quaternion.identity();
+      if (view) {
+        /* A VIEW BASIS IS RELATIVE TO A CANONICAL CAMERA, and saying "shortest
+           axis into the screen" means nothing unless the screen is down that
+           axis. The box's default camera stands off at an angle, which is
+           right for a card with no declared view and wrong the moment there
+           is one: the frame gets solved and then looked at obliquely, so a
+           rung one molecule thick still reads as a tilted squiggle.
+
+           FIRST DATA ONLY. After that the camera is the reader's, and a
+           switch between structures must not snap away the turn they just
+           made — the reason this box is re-fed rather than rebuilt. */
+        if (!seeded) {
+          box.cam.theta = 0;
+          box.cam.phi = Math.PI / 2;
+          if (box.cam.seed) box.cam.seed();
+          seeded = true;
+        }
+        chainGroup.setRotationFromMatrix(new THREE.Matrix4().set(
+          view[0][0], view[0][1], view[0][2], 0,
+          view[1][0], view[1][1], view[1][2], 0,
+          view[2][0], view[2][1], view[2][2], 0,
+          0, 0, 0, 1));
+      }
+
       const drawn = [];
       /* One chain per frame. A tetramer is ~80k triangles and building all
          four in the frame the trace lands is a visible stall on a page that
          is usually animating something when it arrives. */
       const build = () => {
         const cid = ids.shift();
-        if (cid === undefined || box.dead) return;
+        if (cid === undefined || box.dead || mine !== generation) return;
         const ch = t.chains[cid];
         if (ch) {
           for (const seg of runs(ch)) {
             if (seg.CA.length < 4) continue;   // RibbonLib needs a spline's worth
             const pts = seg.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-            drawn.push(...pts);
+            /* Centre and radius are solved in the frame the reader will see,
+               so `drawn` carries the rotated points. Measuring the raw ones
+               centres the box on where the molecule USED to be, which reads
+               as a framing bug rather than as a missing rotation. */
+            drawn.push(...pts.map(v => v.clone().applyQuaternion(chainGroup.quaternion)));
             chainGroup.add(new THREE.Mesh(
               RibbonLib.build(THREE, pts, seg.ss,
                               { sub: opts.sub == null ? 6 : opts.sub }), mats));
@@ -211,7 +267,17 @@
           }
           box.draw();
         }
-        if (ids.length) requestAnimationFrame(build);
+        /* rAF NEVER FIRES IN A HIDDEN TAB, and a chain-per-frame build then
+           stops partway: the box keeps whatever it had drawn, which on a
+           ten-rung stack is a fibril missing most of itself. Anything that
+           renders a page without showing it — an automated screenshot, a
+           thumbnail capture, a background tab a reader left open — lands
+           there. setTimeout is throttled in that state but it does run, so
+           the build finishes either way. */
+        if (ids.length) {
+          if (typeof document !== 'undefined' && document.hidden) setTimeout(build, 0);
+          else requestAnimationFrame(build);
+        }
       };
       build();
     }

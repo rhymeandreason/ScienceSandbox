@@ -37,6 +37,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const FoldLib = require('../folding/folding.js');
 
 const [, , src, want] = process.argv;
 if (!src) {
@@ -127,6 +128,26 @@ for (const [id, res] of chains) {
 }
 out.radius = r2(radius);
 
+/* ---- the presentation frame ----
+
+   Solved, not typed, and only when the shape earns it. A deposited frame is
+   a crystal or an EM box, so there is nothing in it worth preserving; what a
+   reader needs is the structure's own axes, longest across the frame and
+   shortest into the screen. That is what makes a fibril rung read as one
+   molecule thick instead of as a squiggle seen end-on.
+
+   `worth:false` means the three extents are too close to tell apart — a
+   globular domain, whose axes are noise and whose solved basis would flip
+   between rebakes. No `view` is written, the trace opens in the deposited
+   frame, and a human picks one. FoldLib.viewBasis carries the handedness
+   guard: a basis assembled by hand mirrors the protein half the time, and
+   nothing downstream can see it. */
+const all = [];
+for (const id of out.order) for (const p of out.chains[id].CA) all.push(p);
+const V = FoldLib.viewBasis(all);
+if (V.worth) out.view = V.R.map(ax => ax.map(r2));
+out.extents = V.ext.map(r2);
+
 const dst = src.replace(/\.pdb$/i, '') + '.trace.json';
 fs.writeFileSync(dst, JSON.stringify(out));
 const kb = (fs.statSync(dst).size / 1024).toFixed(0);
@@ -134,4 +155,6 @@ const breaks = out.order.reduce((k, id) => k + out.chains[id].nums
   .filter((v, i, a) => i && v !== a[i - 1] + 1).length, 0);
 console.log(dst + '  ' + out.order.length + ' chains, ' + n + ' residues, ' +
             (breaks ? breaks + ' chain break(s), ' : '') +
-            'ss ' + ssFrom + ', radius ' + out.radius + ' A, ' + kb + ' KB');
+            'ss ' + ssFrom + ', radius ' + out.radius + ' A, ' +
+            out.extents.join(' x ') + ' A, ' +
+            (out.view ? 'view solved' : 'view left to a human') + ', ' + kb + ' KB');
