@@ -407,33 +407,30 @@
   .hits li.miss { cursor: default; color: var(--muted); font-style: italic; }
   .hits li.miss:hover { background: var(--card); }
 
-  /* ---- the ghost ------------------------------------------------------
-     The reader's own words, on the map but never OF it. Dashed, tinted with
-     the spark, and captioned as theirs — because the one thing that must never
-     happen is a question nobody authored reading as one that was. Its edges are
-     dashed for the same reason: they are proximity, not a claim that this
-     question crosses there. */
-  .node.question.ghost {
+  /* ---- the reader's own words ----------------------------------------
+     The root card carries what was TYPED; the authored question it resolved to
+     is printed under it, because the map is wired through that one and the
+     reader is the only person who can tell whether the two mean the same thing.
+     Dashed and sparked so it never reads as a card someone wrote. */
+  .node.question.asked {
     color: var(--ink);
     background: var(--card);
     border: 1px dashed var(--spark);
-    width: 15rem;
+    width: 16rem;
+    font-size: 1.1rem;
   }
-  .node.question.ghost::before {
-    content: 'your question';
+  .node.question.asked::before {
+    content: 'you asked';
     display: block; margin-bottom: 0.3rem;
     font-family: var(--sans); font-size: 0.58rem; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--spark);
   }
-  .node.question.ghost:hover { border-color: var(--spark); }
-  /* Dashed edge, same argument as the dashed card. */
-  path.ghostline { stroke-dasharray: 4 4; opacity: 0.55; }
+  .node.question.asked .said {
+    display: block; margin-top: 0.45rem;
+    font-size: 0.78rem; line-height: 1.3; color: var(--muted);
+  }
+  .node.question.asked:hover { border-color: var(--spark); }
 
-  /* The row that offers it, always last: authored answers first, then the
-     reader's own question as the thing the map does NOT have. */
-  .hits li.put { border-top: 1px solid var(--line); }
-  .hits li.put b { font-weight: 400; font-style: italic; }
-  .hits li.put .on { color: var(--spark); }
 </style>
 </head>
 <body>
@@ -908,12 +905,7 @@ const top1 = band(null);
    crossings drag their away-door partners in and the door opens on twelve
    cards. */
 function expand(n, keep, next = top1) {
-  /* The ghost is a ROOT and never a wave. Its links make it a neighbour of the
-     modules it landed near, so without this `start()` deals the reader's last
-     typed question into the door's own map, dashed and captioned, as though it
-     were authored. Filtered here rather than at each call site because every
-     path that reveals a card goes through this one. */
-  const pending = neighbours(n).filter(m => !m.visible && !m.ghost && (!keep || keep(n, m)))
+  const pending = neighbours(n).filter(m => !m.visible && (!keep || keep(n, m)))
     .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
   if (!pending.length) { n.done = true; return; }
 
@@ -988,8 +980,17 @@ function paintNode(n) {
                    '<div class="claim">' + n.claim + '</div>' +
                    '<div class="thumb"><span class="ph">image</span></div>' +
                    '<div class="meta"></div>';
+  } else if (n.asked) {
+    /* textContent and not innerHTML: `asked` is typed by the reader. */
+    el.className = 'node question asked';
+    const mine = document.createElement('span');
+    mine.textContent = n.asked;
+    const said = document.createElement('span');
+    said.className = 'said';
+    said.textContent = 'answered here as \u201c' + n.text + '\u201d';
+    el.append(mine, said);
   } else {
-    el.className = 'node question' + (n.ghost ? ' ghost' : '');
+    el.className = 'node question';
     el.innerHTML = '<span>' + n.text + '</span>';
   }
   n.el = el;
@@ -1007,9 +1008,6 @@ function paintLink(l) {
   l.el.setAttribute('stroke-width', '1');
   l.el.setAttribute('stroke-opacity', planned ? '.22' : '.30');
   if (planned) l.el.setAttribute('stroke-dasharray', '4 4');
-  // Proximity, not a crossing. Drawn so the difference is visible at a glance.
-  if (l.ghost) { l.el.setAttribute('class', 'ghostline');
-                 l.el.setAttribute('stroke', '#e2643a'); }
   svg.appendChild(l.el);
 }
 
@@ -1353,8 +1351,7 @@ function centre() {
      does not fit is off screen, waiting to be panned to. */
   /* DIVERGES from door-map's centre(): the composer is a fixed band across the
      top, and centring on the whole window puts cards under it — measured, the
-     ghost's own best module landed there, which is the one card that must be
-     visible. So the frame is the window BELOW the box, and the fit is solved
+     root card landed there, which is the one card that must be visible. So the frame is the window BELOW the box, and the fit is solved
      against that height rather than the window's. */
   const top = document.querySelector('.composer').getBoundingClientRect().bottom + 18;
   const k = Math.max(0.5, Math.min((innerWidth - 200) / (x1 - x0),
@@ -1372,7 +1369,7 @@ function start() {
   // the contexts have to go back before the elements do — a destroy after the
   // element is gone leaks the context for the life of the tab.
   stages.clear();
-  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; n.asked = null; }
   for (const l of links) l.painted = false;
   live = []; liveLinks = [];
   world.querySelectorAll('.node').forEach(el => el.remove());
@@ -1482,15 +1479,17 @@ function rank(text) {
    every module that answers it, and each of those modules' best band. A question
    IS the crossing, so its own modules are the fan — that is the paradigm, not a
    special case built for the search box. */
-function openFrom(q) {
+function openFrom(q, asked) {
   clearFocus();
   stages.clear();
-  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; n.asked = null; }
   for (const l of links) l.painted = false;
   live = []; liveLinks = [];
   world.querySelectorAll('.node').forEach(el => el.remove());
   svg.replaceChildren();
 
+  // After the reset, which clears `asked` on every node including this one.
+  q.asked = asked || null;
   show(q, 0, 0);
   /* The door's FAN is hand-composed for four ways in; a question answers two or
      three modules at most, so it gets the same bow read at whatever count it
@@ -1518,61 +1517,6 @@ function openFrom(q) {
   alpha = 1;
 }
 
-/* ---- the ghost --------------------------------------------------------
-   A typed question the map has no node for, placed anyway. Its edges are
-   DISCOVERED, never generated: nearest modules by score, which is proximity and
-   not a claim that the question crosses there. Nothing here is written back to
-   lib/mapcontent.js — a generated edge carries no rank, and rank is the field
-   that makes the map work, so it cannot enter the graph even if it is right. */
-
-const GHOST = { id: 'ghost', kind: 'question', ghost: true, text: '', deg: 0 };
-byId.ghost = GHOST;
-nodes.push(GHOST);                 // so start()'s reset loop hides it like any other
-
-const MODNODES = nodes.filter(n => n.kind === 'module');
-/* A module's bag is its own words plus every question already filed under it —
-   the questions are most of what a module is ABOUT, and the name alone is two
-   tokens. Built before the ghost has any links, so it can never contain one. */
-const MBAG = new Map(MODNODES.map(m => [m, new Set([
-  ...toks(m.name + ' ' + (m.claim || '')),
-  ...neighbours(m).filter(x => x.kind === 'question').flatMap(x => toks(x.text)),
-])]));
-
-const NEAR = 3;          // how many modules a ghost attaches to
-const NEARFLOOR = 0.34;  // fraction of the query's own words a module has to cover
-
-/* Coverage of the QUERY, not similarity: a module's bag is large and growing,
-   so normalising by its size would punish the best-documented modules. */
-function nearestModules(text) {
-  const want = toks(text);
-  if (!want.length) return [];
-  return MODNODES.map(m => {
-    const bag = MBAG.get(m);
-    let hit = 0;
-    for (const w of want) if (bag.has(w)) hit++;
-    return { m, score: hit / want.length, hit };
-  /* Coverage alone is not enough evidence: a two-word question clears 0.34 on
-     ONE shared noun, which is how "what makes hair curly" attached itself to
-     Folding on the word `hair`. A ghost's edge is the only claim it makes, so
-     it costs two words unless the reader only typed one. */
-  }).filter(x => x.score >= NEARFLOOR && x.hit >= Math.min(2, want.length))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, NEAR);
-}
-
-function openGhost(text) {
-  GHOST.text = text;
-  // Last ghost's edges go before this one's arrive, or the map accumulates
-  // crossings from questions nobody is looking at any more.
-  for (let i = links.length - 1; i >= 0; i--)
-    if (links[i].a === GHOST || links[i].b === GHOST) links.splice(i, 1);
-  const near = nearestModules(text);
-  for (const { m } of near) links.push({ a: m, b: GHOST, rank: 1, ghost: true });
-  GHOST.deg = near.length;
-  openFrom(GHOST);
-  return near.length;
-}
-
 /* ---- the box ---------------------------------------------------------- */
 
 const askEl = document.getElementById('ask');
@@ -1587,6 +1531,18 @@ function drawHits() {
   const text = askEl.value.trim();
   if (!text) return;
 
+  if (!hits.length) {
+    /* A miss has nothing to borrow. The map's edges are authored and carry a
+       rank per edge; there is no honest way to draw a question that resolved to
+       nothing, so it is said plainly. The text is the artefact — it is the only
+       record of a door worth writing. */
+    const li = document.createElement('li');
+    li.className = 'miss';
+    li.textContent = 'Nothing here answers that yet.';
+    hitsEl.append(li);
+    return;
+  }
+
   hits.forEach((h, i) => {
     const li = document.createElement('li');
     li.textContent = h.q.text;
@@ -1598,46 +1554,17 @@ function drawHits() {
     li.addEventListener('click', () => choose(i));
     hitsEl.append(li);
   });
-
-  /* The ghost row is ALWAYS offered, not only on a miss: an authored question
-     that merely sounds like yours is still not yours, and the reader is the one
-     who can tell. On a miss it is the only row, which is the honest version of
-     a dead end — the map does not have this, and here is what it sits between. */
-  const near = nearestModules(text);
-  const li = document.createElement('li');
-  li.className = 'put';
-  li.setAttribute('aria-selected', cursor === hits.length);
-  li.innerHTML = '';
-  li.append(hits.length ? 'Put my question on the map: ' : 'Nothing here answers that. Put it on the map: ');
-  const b = document.createElement('b');
-  b.textContent = '\u201c' + text + '\u201d';
-  li.append(b);
-  const on = document.createElement('span');
-  on.className = 'on';
-  on.textContent = near.length
-    ? 'near ' + near.map(x => x.m.name).join(' · ')
-    : 'nothing on this map is near it';
-  li.append(on);
-  li.addEventListener('click', () => choose(hits.length));
-  hitsEl.append(li);
 }
 
+/* The typed question is a LABEL on an authored node, not a node of its own.
+   Everything the map draws from here is the authored question's own edges,
+   which is what keeps every crossing ranked and hand-written. */
 function choose(i) {
-  const text = askEl.value.trim();
-  const ghost = i === hits.length;
-  if (!ghost && !hits[i]) return;
+  const h = hits[i];
+  if (!h) { console.info('[composer] miss:', askEl.value.trim()); return; }
   hitsEl.replaceChildren();
   askEl.blur();
-  if (ghost) {
-    /* The miss is the artefact. Placing it is what the reader sees; the record
-       of what the map could not answer is what says which door to write next.
-       Logged until api/find.js has somewhere to put it. */
-    const n = openGhost(text);
-    if (!n) console.info('[composer] miss, unplaceable:', text);
-    else console.info('[composer] miss, placed near', n, 'module(s):', text);
-  } else {
-    openFrom(hits[i].q);
-  }
+  openFrom(h.q, askEl.value.trim());
   hits = []; cursor = -1;
 }
 
@@ -1650,20 +1577,18 @@ askEl.addEventListener('input', () => {
   // behaviour the reader can feel.
   timer = setTimeout(() => {
     if (!text) { hits = []; cursor = -1; hitsEl.replaceChildren(); return; }
-    // No early return on a miss: drawHits always offers the ghost row, so an
-    // empty answer list IS the miss state and needs no branch of its own.
+    // No early return on a miss: drawHits renders the empty case itself.
     hits = rank(text).filter(h => h.score >= FLOOR);
     cursor = -1; drawHits();
   }, 160);
 });
 
 askEl.addEventListener('keydown', e => {
-  // hits.length IS the ghost row, so the list is one longer than the answers.
-  const n = hits.length + 1;
+  const n = hits.length;
   if (e.key === 'Enter')      { e.preventDefault(); choose(cursor < 0 ? 0 : cursor); }
   else if (e.key === 'Escape'){ askEl.value = ''; hits = []; cursor = -1; hitsEl.replaceChildren(); askEl.blur(); }
   else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    if (!hitsEl.children.length) return;
+    if (!hits.length) return;
     e.preventDefault();
     cursor = ((cursor < 0 ? (e.key === 'ArrowDown' ? -1 : 0) : cursor)
               + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
