@@ -8,7 +8,7 @@ From "let's look at X" to a bench the human can click through. No lesson, no pag
 
 ## 1. Pull the data and say what is actually in it
 
-Pull the data and see if it’s complete
+Pull the data and see if it’s complete.
 
 \-Are there variants? do the variants tell a story? Are there quaternary structures? special features like heme groups? Are there ensemble views? Explain what you found to the human in non-technical words and include the links. If the data is incomplete, state simply “fragment: 104 out of 210 deposited” Flag if there are holes.
 
@@ -24,9 +24,11 @@ See proteins/prion/prion-test.html as the example and copy its layout.
 
 **Do not draw the ribbon yourself. Mount a `kit/proteinbox.js`.** The scene, the camera, the framing, the drag and the WebGL context are the module's, which is what makes every protein in the repo behave the same way. `rendering-modules.md` has the options; the shape of it is:
 
-    const box = Proteinbox.create({ mount, orbit:true, sub:10,
-                                    stage:{ ortho:false, turn:'trackball' } });
-    box.setData(data, { colors });      // again per structure, same box
+```
+const box = Proteinbox.create({ mount, orbit:true, sub:10,
+                                stage:{ ortho:false, turn:'trackball' } });
+box.setData(data, { colors });      // again per structure, same box
+```
 
 * **`sub:10` on a full-height stage.** The box asks for 6 samples per residue because a card is a thumbnail with a triangle budget. At full size that shows as faceting wherever the chain turns hard — the ends of arrows and the tight loops read chunky, which is the spline showing rather than the protein.
 * **`turn:'trackball'`.** The default turntable clamps its pitch short of the poles, about a hundred pixels of upward drag, which runs out exactly when someone is trying to look at the top of the molecule.

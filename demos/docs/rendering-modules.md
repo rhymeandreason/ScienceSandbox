@@ -38,9 +38,9 @@ The browser half of the SES1 format written by `bake-surface.js`.
 
 **`kit/proteinbox.js` — `Proteinbox`**
 
-`kit/molbox.js` draws a molecule built from a spec; this draws one measured in a lab. Its own CardStage scene, ortho, real angstroms — which is what lets it be angstroms at all, since one scale family per SCENE and the cards beside it are the small-molecule family.
+`kit/molbox.js` draws a molecule built from a spec; this draws one measured in a lab. Its own CardStage scene, ortho by default, real angstroms — which is what lets it be angstroms at all, since one scale family per SCENE and the cards beside it are the small-molecule family. A full-height stage passes `stage:{ortho:false}` and usually `orbit:true`; on a map neither is wanted.
 
-    Proteinbox.create({ mount, trace | data, chains, colors, surface, fold })
+    Proteinbox.create({ mount, trace | data, chains, view, colors, sub, orbit, surface, fold })
 
 Three things it can show, and only the first is free: the 12 KB trace on create, a ~360 KB SES and an ~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()`, `setData(t)` and `rep`.
 
@@ -48,6 +48,7 @@ Three things it can show, and only the first is free: the 12 KB trace on create,
 * **`setData(t)` redraws without replacing the box**, so a reader who turned the molecule keeps that view across a switch. A page comparing several structures wants one box re-fed, not one box per structure: the alternative costs a WebGL context each and snaps the camera back on every click.
 * **The ribbon breaks where the chain breaks**, on `nums` from the trace. A chain carrying only `first` is treated as contiguous, which is the honest reading of a file that does not say otherwise — and why `bake-trace.js` now writes them.
 * **`view:` is a 3x3 basis saying which way the structure should face**, applied to the chain group so the camera stays the reader's — the same split `scene.js` makes for a molecule spec's `view`. A trace carries its own when the bake solved one. **The box seeds a canonical camera on the FIRST data only**: "shortest axis into the screen" means nothing looked at obliquely, and a card's default camera stands off at an angle. After that the camera is the reader's, and a switch must not snap away the turn they just made.
+* **`sub:` is samples per residue, default 6.** A card is a thumbnail with a triangle budget; at full height 6 shows as faceting wherever the chain turns hard — the ends of arrows and tight loops read chunky, which is the spline showing rather than the protein. `RibbonLib`'s own default is 10 and that is what a stage wants.
 * **`colors:`** overrides the ss palette: one number for flat, or `{C,H,E}` for some of it. Omit it and every protein in the repo is drawn the same way, which is the default for a reason. A page overrides only when colour is carrying a claim of its own (prion: healthy fold against disease fold).
 
 * **One decoded surface across every box**, for the same reason contexts are rationed: the LRU rations contexts, not what a page hangs off one. A box that loses its surface falls back to the ribbon it never removed.
