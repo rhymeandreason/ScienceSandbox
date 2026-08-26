@@ -146,7 +146,6 @@
     ['How are fizzy drinks made?',                              { solvation:3, diffusion:2 }],
     ['Why are snowflakes six-sided?',                           { ice:1 }],
     ['What makes ice cream creamy?',                            { ice:1 }],
-    ['Why does frost grow on a window?',                        { ice:2 }],
     ['How do deep-sea fish keep their blood from crystallising?', { ice:3, binding:2, folding:2 }],
     ['How do wood frogs survive freezing solid?',               { ice:3, osmosis:2 }],
     ['Why is a fever above 40°C dangerous?',                    { enzyme:2, denature:1 }],

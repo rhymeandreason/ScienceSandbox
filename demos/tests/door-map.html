@@ -87,7 +87,13 @@
 
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
-  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  /* geometricPrecision, because #world is zoomed rather than scaled: with the
+     default (optimizeLegibility) WebKit rounds each glyph's advance to whole
+     pixels at the zoomed size, so a line's width drifts with k and a heading
+     that fits at 1.0 wraps at 0.7. Sub-pixel advances make the text metrics
+     scale linearly, which is what keeps the wrap fixed at every zoom. */
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0;
+           text-rendering: geometricPrecision; -webkit-text-size-adjust: none; }
   #edges { position: absolute; overflow: visible; pointer-events: none; }
 
   /* ---- the three altitudes -------------------------------------------- */
@@ -496,6 +502,32 @@ const stages = CardStage.pool({
   },
 });
 
+/* A card's canvas measures its UNZOOMED layout box, so at k = 2.5 it is drawing
+   2.5x fewer pixels than the screen shows — the picture goes soft exactly where
+   the text now stays sharp. So the device ratio carries the zoom: the renderer
+   is asked for dpr * k, capped at 3 because the cost is that number SQUARED and
+   a 280px thumb at 3 is already 840px of buffer.
+   Idle only. Re-sizing a drawing buffer reallocates it, which is not a thing to
+   do on a wheel frame, and the reader cannot judge sharpness mid-zoom anyway. */
+const DENSITY_CAP = 3;
+let densityTimer = 0;
+function reDensify() {
+  const px = Math.min(devicePixelRatio * view.k, DENSITY_CAP);
+  for (const id of stages.keys()) {
+    const box = stages.get(id);
+    const stage = box && box.stage;
+    if (!stage || !stage.renderer) continue;
+    if (stage.renderer.getPixelRatio() === px) continue;
+    stage.renderer.setPixelRatio(px);
+    stage.resize();
+    if (box.draw) box.draw(); else if (box.pump) box.pump(0);
+  }
+}
+const densifySoon = () => {
+  clearTimeout(densityTimer);
+  densityTimer = setTimeout(reDensify, 180);
+};
+
 // The click that opens a card is the click that starts it. A card asked twice
 // for its picture is a card the reader never sees move.
 function goLive(n) {
@@ -506,6 +538,7 @@ function goLive(n) {
   if (stages.has(n.id)) {                       // re-front, and resume if paused
     const box = stages.acquire(n.id, null);
     if (box.start) box.start();
+    reDensify();
     return;
   }
 
@@ -547,6 +580,7 @@ function goLive(n) {
     box.draw();
     return box;
   });
+  reDensify();                 // a card mounted while zoomed in opens sharp
 }
 
 /* ---- reveal ----------------------------------------------------------- */
@@ -811,8 +845,30 @@ document.getElementById('fullClose').addEventListener('click', closeFull);
 
 const canvas = document.getElementById('canvas');
 let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.7 };
-const applyView = () =>
-  world.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')';
+/* `zoom`, not `transform: scale()`. A scaled subtree is rasterised once at its
+   layout size and stretched by the compositor, so every glyph goes soft the
+   moment you zoom past 1 — worst in Safari, which holds the cached layer. Zoom
+   is a LAYOUT multiplier: the text is laid out and rasterised at the size you
+   are actually looking at, so it stays sharp at any k.
+   Everything else is unchanged because all the pan/zoom maths is in screen px
+   already; only the translate has to be divided, since zoom multiplies the
+   element's own units too. Canvases still measure their unzoomed clientWidth
+   (the note on .thumb), which is the same deal scale() gave them. */
+const applyView = () => {
+  /* Zooming OUT is a scale, zooming IN is a zoom. Minifying a layer costs
+     nothing in sharpness — there are more source pixels than screen ones — and
+     it leaves the layout alone, which is the half that matters below 1: a
+     relayout at k 0.7 rewraps a heading and the card is redesigned under the
+     reader. Above 1 the trade flips: the stretch is what you can see, and a
+     relayout at the size being looked at is the only way the glyphs are drawn
+     at it. The two agree exactly at k = 1, so the crossing is invisible. */
+  const zoomed = view.k > 1;
+  world.style.zoom = zoomed ? view.k : 1;
+  const t = zoomed ? view.k : 1;
+  world.style.transform =
+    'translate(' + (view.x / t) + 'px,' + (view.y / t) + 'px)' +
+    (zoomed ? '' : ' scale(' + view.k + ')');
+};
 applyView();
 
 let dragNode = null, dragging = null, last = null, travel = 0;
@@ -875,6 +931,7 @@ canvas.addEventListener('wheel', e => {
   view.x = e.clientX - (e.clientX - view.x) * (k / view.k);
   view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
   view.k = k;
+  densifySoon();                       // the canvases follow the zoom, once it stops
   applyView();
 }, { passive: false });
 
