@@ -1755,16 +1755,32 @@ async function search(text) {
    prefix at five characters or more — enough for "hydrogen bond" to reach
    Hydrogen bonding, and not enough for a stray word to claim a card. */
 
+/* Leading article dropped and each word de-pluralised, because the three things
+   that actually get typed are the article ("the hydrophobic effect" as
+   "hydrophobic"), the plural ("hydrogen bonds"), and the head word of a longer
+   name ("protein folding" for Folding). Measured: without this, all three miss. */
 const norm = t => t.toLowerCase().normalize('NFKD')
-  .replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+  .replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim()
+  .replace(/^the /, '')
+  .split(' ').map(w => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)).join(' ');
 
 const NAMED = MODNODES.map(m => ({ m, key: norm(m.name), id: norm(m.id) }));
 
+/* The typed text holds the name as WHOLE WORDS: "protein folding" reaches
+   Folding, "lipid bilayer" reaches The bilayer. Never a substring — `run` inside
+   `running` is how a matcher starts claiming cards nobody named. */
+const holds = (hay, needle) => (' ' + hay + ' ').includes(' ' + needle + ' ');
+
+/* Three ways in, and NOT "the name contains the typed word", which was tried and
+   is too loose: it let `effect` claim The hydrophobic effect and `levels` claim
+   Levels of structure. A tail word is not a name. The cost is that `density`
+   no longer reaches Ice & density, which is the right trade — being asked to
+   type the head of a name is normal, being answered from its tail is a surprise. */
 function moduleNamed(text) {
   const k = norm(text);
   if (k.length < 3) return null;
   const hit = NAMED.find(x => x.key === k || x.id === k)
-    || (k.length >= 5 && NAMED.find(x => x.key.startsWith(k) || k.startsWith(x.key)));
+    || (k.length >= 5 && NAMED.find(x => x.key.startsWith(k) || holds(k, x.key)));
   return hit ? hit.m : null;
 }
 

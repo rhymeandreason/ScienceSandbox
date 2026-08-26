@@ -182,7 +182,17 @@ photosynthesis  0.851  MATCH      <- there is no photosynthesis module
 
 Both directions wrong: the most central card on the map is unreachable by its own name, and an off-map word scrapes over the floor. **No scoring rule fixes the first half.** `polarity` and `glycolysis` have zero questions within 0.83 of them, so there is nothing for a floor or a vote rule to work with — a module name is simply not a question, and this corpus contains only questions.
 
-So a keyword that names a card is answered **before any embedding**, by `moduleNamed()`: equality after normalising, or one being the other's prefix at five characters or more. That is enough for `hydrogen bond` to reach Hydrogen bonding and not enough for a stray word to claim a card. It becomes the first row and the default, ahead of the reader's own wording, because the reader named a thing that exists and the map has nothing better to offer than that thing. `openModule()` composes what clicking that card would have done.
+So a keyword that names a card is answered **before any embedding**, by `moduleNamed()`. It is a CARD-NAME LOOKUP and not keyword search: three ways in, over the ~27 module names and ids, after normalising away a leading article and folding plurals.
+
+| the typed text | reaches |
+| --- | --- |
+| equals a name or an id | `polarity`, `osmosis`, `ice` |
+| is a prefix of a name | `hydrophobic` → The hydrophobic effect, `hydrogen bonds` → Hydrogen bonding |
+| holds a name as whole words | `protein folding` → Folding, `lipid bilayer` → The bilayer |
+
+**"The name holds the typed word" is deliberately NOT one of them.** It was tried, and it let `effect` claim The hydrophobic effect and `levels` claim Levels of structure — a tail word is not a name. The cost is that `density` no longer reaches Ice & density, which is the right trade: being asked to type the head of a name is normal, being answered from its tail is a surprise. Head-word prefixes like `simple` → Simple diffusion do still hit, and read as autocomplete rather than as a wrong answer.
+
+The card becomes the first row and the default, ahead of the reader's own wording, because they named a thing that exists and the map has nothing better to offer than that thing. `openModule()` composes what clicking that card would have done.
 
 **The second half is not solved.** `photosynthesis` (0.851) and `mitosis` (0.849) sit above real on-map keywords like `pH` (0.852) and below none of them: there is no gap to cut. Corroboration narrows it (`DNA` has 7 near questions, `photosynthesis` 1) without separating it. A bare keyword that does not name a card can still land somewhere plausible and wrong, and the fixture is what should settle whether short queries want their own floor.
 
