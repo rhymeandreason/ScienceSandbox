@@ -311,9 +311,9 @@
         <div class="path">hemoglobin/hemoglobin-inhouse.html <span class="badge">test</span></div>
         <div class="desc">Mol* evaluation — same hemoglobin, our renderer</div>
       </a>
-      <a class="card test" href="prion/morph-test.html">
-        <div class="path">prion/morph-test.html <span class="badge">test</span></div>
-        <div class="desc">PrP helix&rarr;sheet morph in torsion space: 1QLZ &rarr; 6LNI, with the disulfide and the clash count that say whether the path is legitimate</div>
+      <a class="card test" href="proteins/prion/prion-test.html">
+        <div class="path">proteins/prion/prion-test.html <span class="badge">test</span></div>
+        <div class="desc">PrP as deposited: native and fibril for human and hamster, plus the ten-chain stack, with the helix fraction and flatness that say how far apart the two states are</div>
       </a>
       <a class="card prototype" href="sickle/fibre-test.html">
         <div class="path">sickle/fibre-test.html <span class="badge">prototype</span></div>
@@ -479,7 +479,7 @@
       </a>
       <a class="card test" href="tests/question-composer.html">
         <div class="path">tests/question-composer.html <span class="badge">test</span></div>
-        <div class="desc">The door map, entered by typing. A question resolves to a node in lib/mapcontent.js and the map opens three levels around it, so the typed question becomes a temporary door. The matcher is a LEXICAL stand-in (token overlap, no network) so the opening can be judged before any embedding is baked; a miss says so rather than routing to the least-bad card</div>
+        <div class="desc">The door map, entered by typing. The reader&rsquo;s words become the root card, wired through the authored question they matched (solid, ranked) plus the modules the wording reached on its own (dashed). Gemini embeddings over lib/mapcontent-vectors.json through api/find.js, with word matching as the no-key fallback; a keyword that names a card opens it before any embedding runs. Rebased on door-map, and the one to work in</div>
       </a>
       <a class="card test" href="tests/cards-cluster.html">
         <div class="path">tests/cards-cluster.html <span class="badge">test</span></div>
