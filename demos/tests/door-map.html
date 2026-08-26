@@ -578,8 +578,13 @@ function show(n, depth, y, x, ty) {
 // ranks it highly — that is the per-card ranking doing its job, not a gap.
 const SHOW = 4;
 
-function expand(n) {
-  const pending = neighbours(n).filter(m => !m.visible)
+/* `keep` is the opening screen's only extra: a click passes nothing and takes
+   the whole wave, while start() opens three levels deep and has to say which of
+   a question's modules belong to the shape it is composing. Without it the four
+   crossings drag their away-door partners in and the door opens on twelve
+   cards. */
+function expand(n, keep) {
+  const pending = neighbours(n).filter(m => !m.visible && (!keep || keep(n, m)))
     .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
   if (!pending.length) { n.done = true; return; }
 
@@ -966,6 +971,19 @@ function start() {
     const a = deg * Math.PI / 180, r = FIRST_ARM * reach;
     show(m, 1, Math.sin(a) * r, Math.cos(a) * r, Math.sin(a) * r);
   });
+
+  /* The water door's claim is a CHAIN, not a fan: everything water does comes
+     from polarity, so the door opens already two crossings deep — the rank 1
+     module, its rank 1 questions, and the module each of those leads to. The
+     ranks in mapcontent.js still choose every card; this only says how many
+     levels are dealt before the reader touches anything. A door whose opening
+     module has no rank 1 questions just stops, so this costs nothing elsewhere.
+     Own-door and rank 1 only, or a crossing hauls its far side in as well. */
+  const onward = (q, m) => m.door === DOOR.id && rankFrom(q, m) === 1;
+  for (const m of first.slice()) {
+    expand(m);
+    for (const q of live.filter(x => x.kind === 'question')) expand(q, onward);
+  }
   for (const m of live) refreshMeta(m);
   follow = null;                       // the opening frame is composed, not chased
   touched = false;
