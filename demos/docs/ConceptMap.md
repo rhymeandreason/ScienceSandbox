@@ -145,9 +145,9 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 `tests/question-composer.html` is door-map with a text box, and the claim is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every module that answers it, then each of those modules' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
 
-**Two halves, and only the first one changes.** `rank()` scores the typed text against every authored question; `openFrom()` composes the map around whichever is chosen. The scorer in the page is LEXICAL — token overlap, no network, no key — and it exists so the OPENING can be judged before any vector is baked. It fails at the thing the real one is for: "why does water stick to itself" shares no token with `polarity`. Swapping it for cosine over baked embeddings moves nothing below it.
+**Two halves, and only the first one changed.** `search()` scores the typed text; `openAsk()` composes the map around what it returns. That seam held: the scorer went from token overlap to cosine over baked embeddings and nothing below it moved. `lexRank()` / `lexNear()` are the original lexical pair, kept as the no-key fallback rather than deleted — a checkout with no `GEMINI_API_KEY` is still a working page, and it is the same code path the session drops to when the endpoint refuses.
 
-**A miss is the artefact, not the failure.** Below `FLOOR` the box says nothing covers that yet rather than routing to the least-bad card, and the typed text is the only record of a door worth writing. Logged to the console until it has somewhere to go.
+**A miss is the artefact, not the failure.** Below the floor the box says nothing answers that yet rather than routing to the least-bad card, and the typed text is the only record of a door worth writing. Every search is now a row in `finds` (`api/_finds.js`), and `demos/ask/log.html`'s **Map** tab is where they are read — rolled up by repeated text, because one person asking about osmosis is a person and forty are a lesson that is missing.
 
 **25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against ~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
 
@@ -209,9 +209,11 @@ So a discovered module must clear a floor AND be corroborated: two near question
 Everything in the "no" rows is read live from `mapcontent.js` at load. Only the question text is embedded, and the vector path takes its modules from the questions it matched rather than from anything about the module itself.
 
 ```bash
-node tools/bake-vectors.js --check   # names the drift, embeds nothing
+npm run check:vectors                # = bake-vectors.js --check; names the drift, embeds nothing
 node tools/bake-vectors.js           # re-embeds only the rows whose text moved
 ```
+
+**There is no separate *check-mapcontent.js*.** One script, two modes: both read the same file and the same hashes, so a second one would only be a way for them to disagree. `--check` covers four things — questions with no vector, orphan vectors whose question was reworded, broken module references, and a note for modules with no questions.
 
 **Forgetting is silent, so the page says it out loud.** A question whose wording changed has no vector and is simply ABSENT from search: not a wrong answer, an unreachable card, and nothing about it is visible on screen. The page compares its question count against the baked file and warns to the console with the exact rows. Measured: rewording one question drops the corpus to 65 of 66 and names it.
 
@@ -233,7 +235,7 @@ It checks question rows, `VIEWS` keys and each module's `door` against the ids t
 
 ### A new KIND of node is a page change
 
-`DOORS` / `MODULES` / `QUESTIONS` / `VIEWS` are data, and a fifth table is not. The map is bipartite and the page says so in a dozen places: `paintNode`'s three branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES`. A new kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js`. This is the staleness the pre-commit gate will cover when the page is promoted.
+`DOORS` / `MODULES` / `QUESTIONS` / `VIEWS` are data, and a fifth table is not. The map is bipartite and the page says so in a dozen places: `paintNode`'s three branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES`. A new kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js`.
 
 **No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 
