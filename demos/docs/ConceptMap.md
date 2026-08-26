@@ -62,6 +62,14 @@ So opening a card is most of the way to being able to work on it, which is what 
 
 `markNear()` runs from `applyView()` and from `measure()` — `measure()` being the one place a card's size is re-read, so opening and closing a card re-tests it for free.
 
+### What runs, and when
+
+Three rules, all learned from a frame-rate readout in the corner rather than from reasoning about it — the loop's own JS turned out to be 0.12ms, so every real cost was paint, WebGL setup, or a rebuild.
+
+* **The relax settles.** `alpha` used to floor at 0.012 and run for ever, writing a transform on every card and a `d` on every link each frame whether or not anything had moved. It now decays to zero on a MOTION test (below 0.05px of movement) and `wake()` restarts it.
+* **Card loops pause while the map moves.** A pan, a wheel or a wave stops the live stages; they come back 220ms after the last event, and not before the map has settled. A paused box keeps its last frame, which is card-stage's whole bargain.
+* **A revealed card starts on a calm frame, not a settled one.** A context, its shaders and its geometry are tens of milliseconds that no spreading makes free — but waiting for a full settle left the card the reader just opened on its placeholder for seconds. The gate is the wave (`alpha` past its first fast decay), capped under a second. At LOAD there is no motion to protect, so the first drain runs flat out and in reveal order; every drain after it waits and goes latest-first.
+
 **Canvases follow separately.** A card's canvas measures its UNZOOMED layout box, so at k = 2.5 it draws 2.5x fewer pixels than the screen shows. `reDensify()` sets each live box's pixel ratio to `dpr * k`, capped at 3 — 180ms after the wheel stops, because re-sizing a drawing buffer reallocates it, and again whenever a card mounts or re-fronts while zoomed in.
 
 ## **Invariants — the things that break silently**
@@ -99,7 +107,21 @@ So opening a card is most of the way to being able to work on it, which is what 
 | `molbox` | `kit/molbox.js` | cards-cluster, membrane-lab |
 | `protein` | card-stage + `folding/ribbon.js`, from a baked trace | door-map |
 
-**A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. Ribbon only for now — the SES bake of the same structure is 1.5 MB, and at thumb size a surface is a blob, so the surface belongs behind a control on a card that is already `.near`.
+**A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. **Three things a protein card can show, and only the first is free.** Ribbon is the default and the only one fetched at reveal. The other two are gated the same way, and the gates are the design:
+
+| | bytes | control | gate |
+| --- | --- | --- | --- |
+| ribbon | 12 KB trace | — | drawn at reveal |
+| surface | 362 KB `*.card.surf.bin` | segment beside ribbon | `.near`, then the click |
+| the fold | 833 KB trajectory | play button in the picture's corner | `.near`, then the click |
+
+**One decoded surface per page** (`sesOwner`): 362 KB of quantised mesh becomes several MB of GPU buffers, and CardStage's LRU rations contexts, not what a page hangs off one. A card that loses its surface falls back to the ribbon it never removed.
+
+**The fold is a play button, not a third segment.** Ribbon and surface are representations — the same molecule drawn two ways, which is what a segmented pair says. The fold is an event: it starts, runs, ends. Its rule lives in `hemoglobin/foldplay.js`, shared with `hemoglobin-lab`, so the card cannot become a second unwatched copy of act 2.
+
+**The two live in different frames** — the trajectory in `FoldLib.orient()`'s, the trace in the crystal's — so the toggle re-frames rather than flipping visibility, and one is on screen at a time, which is what makes that legal. The fold is framed on its FINAL radius, or the camera appears to fold along with the protein.
+
+**Protein cards do not orbit** (`stage:{orbit:false}`): a drag on a card is a drag on the map. Otherwise a reader who meant to move a card turns the molecule inside it, with no way back to the framing the card was composed with.
 
 Small molecules go to the builder (flat view draws the electrons); molecules with no recipe go to molbox. Builder and molbox are ortho.
 
