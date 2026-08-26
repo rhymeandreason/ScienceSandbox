@@ -8,6 +8,8 @@
     "check:docs": "node tools/check-docs.js",
     "check:handedness": "node tools/check-handedness.js",
     "smiles": "node tools/spec2smiles.js",
+    "bake:vectors": "node tools/bake-vectors.js",
+    "check:vectors": "node tools/bake-vectors.js --check",
     "serve": "node tools/dev-server.js",
     "hooks": "git config core.hooksPath .githooks",
     "prepare": "git config core.hooksPath .githooks"
