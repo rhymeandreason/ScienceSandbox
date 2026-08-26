@@ -135,12 +135,20 @@
     text-transform: uppercase; color: var(--muted);
     display: flex; align-items: center; gap: 0.4rem;
   }
+  /* The dot is the DOOR, not the state: every card here is white, so its door
+     is the only thing the dot can carry that the card cannot. State survives in
+     the same dot's fill — solid is built, half is an engine with no lesson on
+     it, hollow is planned — which is a weaker signal than a colour, and the
+     right way round for a map about crossings. `--dot` is set per card in
+     paintNode from that module's door tint. */
   .node.module .name::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--line); flex: none;
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--dot, var(--line)); flex: none;
   }
-  .node.module.built  .name::before { background: var(--accent); }
-  .node.module.engine .name::before { background: var(--spark); }
+  .node.module.engine  .name::before { opacity: 0.5; }
+  .node.module.planned .name::before {
+    background: transparent; box-shadow: inset 0 0 0 1.5px var(--dot, var(--line));
+  }
   /* the open card: the one you clicked grows and makes room for its picture */
   .node.module.hub { width: 34rem; padding: 1.7rem 1.9rem 1.75rem; }
   /* the claim: what this lesson asserts, in water-lab's own register — flat,
@@ -211,7 +219,7 @@
   }
   /* state, drawn on the left edge: built is solid, planned is nothing */
   .node.module.planned { border-style: dashed; }
-  .node.module.away      { background: var(--paper); }   /* another door's module */
+
 
   .node.question {
     width: 13.5rem;
@@ -239,7 +247,9 @@
 
   .focusing .node { opacity: 0.18; pointer-events: none; }
   .focusing .node.lit { opacity: 1; pointer-events: auto; }
-  .focusing .node.hop2 { opacity: 0.55; }
+  /* Hop 2 is NOT dimmed: it is the modules the clicked card's questions cross
+     to, and the crossing is the point. Depth still reads, in the links. */
+  .focusing .node.hop2 { opacity: 1; }
   .focusing .node.question.lit {
     background: var(--card); border-color: var(--line); color: var(--ink);
   }
@@ -668,6 +678,8 @@ function paintNode(n) {
     el.innerHTML = '<div class="q">' + n.text + '</div><div class="meta"></div>';
   } else if (n.kind === 'module') {
     el.className = 'node module ' + n.state + (n.away ? ' away' : '');
+    const tint = (DOORS.find(d => d.id === n.door) || {}).tint;
+    if (tint) el.style.setProperty('--dot', tint);
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
                    '<div class="claim">' + n.claim + '</div>' +
                    '<div class="thumb"><span class="ph">image</span></div>' +

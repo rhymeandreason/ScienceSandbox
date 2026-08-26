@@ -15,7 +15,9 @@
  *  rather than one. 54 of the question texts started life there.
  *
  *  ---------------------------------------------------------------------
- *  DOORS — a door is a question big enough to hold a region. `open` says
+ *  DOORS — a door is a question big enough to hold a region. `tint` is the
+ *  door's colour on the map, and every module wears its own door's — which
+ *  is how a crossing is visible on a card that looks like all the rest. `open` says
  *  whether it has been written; the others are named because modules
  *  point at them, and they are what a second door costs: content, not a
  *  code change.
@@ -23,8 +25,8 @@
  *  MODULES — one lesson each. `rank` is its place in ITS door's fan, so a
  *  door opens on its rank 1 modules and not on all nine. `state` is
  *  CLAUDE.md's vocabulary (built / engine / planned) and `away` marks a
- *  module belonging to another door, drawn on paper rather than white so
- *  a crossing is visible.
+ *  module belonging to another door, which the map dots in a different
+ *  colour so a crossing is visible.
  *
  *  QUESTIONS — one row each, and QUESTION-MAJOR on purpose:
  *
@@ -59,13 +61,13 @@
   'use strict';
 
   const DOORS = [
-    { id:'water', name:'Water', open:1,
+    { id:'water', name:'Water', tint:'#2f7fb5', open:1,
       question:'Why is water the foundation of life?', label:'the water door' },
-    { id:'information', name:'Information', open:0 },
-    { id:'proteins', name:'Proteins', open:0 },
-    { id:'boundaries', name:'Boundaries', open:0 },
-    { id:'carbon', name:'Carbon', open:0 },
-    { id:'energy', name:'Energy', open:0 },
+    { id:'information', name:'Information', tint:'#8a5cc0', open:0 },
+    { id:'proteins', name:'Proteins', tint:'#c2553a', open:0 },
+    { id:'boundaries', name:'Boundaries', tint:'#1f7a5e', open:0 },
+    { id:'carbon', name:'Carbon', tint:'#5f6672', open:0 },
+    { id:'energy', name:'Energy', tint:'#c08a1e', open:0 },
   ];
 
   const MODULES = [
