@@ -93,6 +93,9 @@ So opening a card is most of the way to being able to work on it, which is what 
 | `water` | card-stage + `water/watersim.js` | door-map, cards-cluster |
 | `build` | `molecule-builder.js` (ortho, own context) | door-map, cards-cluster |
 | `molbox` | `kit/molbox.js` | cards-cluster, membrane-lab |
+| `protein` | card-stage + `folding/ribbon.js`, from a baked trace | door-map |
+
+**A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. Ribbon only for now — the SES bake of the same structure is 1.5 MB, and at thumb size a surface is a blob, so the surface belongs behind a control on a card that is already `.near`.
 
 Small molecules go to the builder (flat view draws the electrons); molecules with no recipe go to molbox. Builder and molbox are ortho.
 

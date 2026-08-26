@@ -226,6 +226,18 @@
      still of a species says it. */
   acids:     { kind:'build', recipe:'hcl' },
 
+  /* The tetramer, as a ribbon. `levels` claims four levels of structure on one
+     molecule, and a Ca ribbon is the only picture that shows three of them at
+     once: the chain, the helices it folds into, and four of those packed. The
+     trace is baked (tools/bake-trace.js) and its secondary structure is the
+     deposited HELIX records, not a guess. */
+  levels:    { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json' },
+
+  /* ONE chain of the same tetramer, because this card's claim is about one
+     chain finding one shape — four of them would be the level above, which is
+     the card next door. Same trace file, so nothing is baked twice. */
+  folding:   { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json', chains:'B' },
+
   /* One phospholipid, which is the whole of "their tails avoid water": the head
      and the two tails are visible as different things in one picture. The same
      spec membrane-lab puts in its inset, for the same reason. */

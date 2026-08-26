@@ -396,6 +396,7 @@
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/molbox.js"></script>
 <script src="../molecule-builder/molecule-builder.js"></script>
+<script src="../folding/ribbon.js"></script>   <!-- protein cards: RibbonLib -->
 <script>
 /* ---- the content ------------------------------------------------------
    DOORS, MODULES, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
@@ -491,6 +492,85 @@ const rankFrom = (from, other) => {
    fill it. The builder answers both by being what it already is: orthographic,
    and about the electrons rather than about a shape turning. */
 
+/* ---- a protein card ------------------------------------------------------
+   Real angstroms, from a trace baked by tools/bake-trace.js: Ca plus the
+   DEPOSITED secondary structure, centred, ~12 KB for a tetramer. The PDB it
+   came from is 453 KB and 60,000 atom records a ribbon throws away, so no card
+   parses one.
+
+   Its own scene, which is what lets it be angstroms at all — one scale family
+   per SCENE, MolecularGeometry.md 1.5, and every other card on this page is a
+   spec in the small-molecule family.
+
+   Ribbon, not surface. The SES bake for this same structure is 1.5 MB, and at
+   thumb size a surface is a blob: the surface is worth fetching only when the
+   reader asks for it on a card close enough to work on, which is what `.near`
+   already decides. That toggle is the next piece, not this one.
+
+   One mesh per chain, three draw groups each (coil / helix / strand), so a
+   tetramer is 4 geometries rather than one per element. */
+const RIB = { C: 0x7d8c7a, H: 0x0042aa, E: 0xc2571b };
+
+function protein(thumb, view) {
+  let radius = 0;
+  /* An ortho camera does not zoom by MOVING: its size is its frustum, so a
+     cam.r written straight onto the camera does nothing and the molecule is
+     drawn against THREE's constructor frustum, top = 1 — a 33 A protein in a
+     2 A frame, which is what a wall of blue is. Stage.frame's ortho branch
+     writes the frustum and leaves cam.r alone, so read the answer back or the
+     first wheel event jumps the card. Same shape as molbox's fit(), for the
+     same reason, and it has to re-run from onResize because the aspect it
+     solved against is gone the moment the card grows into a hub. */
+  const fit = () => {
+    if (!radius || !thumb.clientWidth || !thumb.clientHeight) return;
+    box.stage.resize();
+    Stage.frame(box.camera, box.cam,
+                [{ x: 0, y: 0, rxz: radius, hy: radius }], { pad: 1.12 });
+    if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
+    box.applyCam();
+  };
+  const box = CardStage.create({
+    mount: thumb,
+    cam: { theta: 0.6, phi: 1.1, r: 40 },
+    stage: { ortho: true },
+    onResize: fit,
+  });
+  fetch('../' + view.trace, { cache: 'force-cache' })
+    .then(r => r.json())
+    .then(t => {
+      if (box.dead) return;
+      const ids = view.chains ? view.chains.split(',') : t.order;
+      const mats = [RIB.C, RIB.H, RIB.E].map(c => {
+        const m = Stage.bondMat(c);
+        m.side = THREE.DoubleSide;
+        return m;
+      });
+      const drawn = [];
+      for (const id of ids) {
+        const c = t.chains[id];
+        if (!c) continue;
+        const pts = c.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        drawn.push(...pts);
+        box.root.add(new THREE.Mesh(RibbonLib.build(THREE, pts, c.ss.split('')), mats));
+      }
+      if (!drawn.length) return;
+      /* The trace is centred on every chain it holds, so a card drawing ONE of
+         four opens with its subject off to the side. Re-centre on what is
+         actually drawn — the group moves, the coordinates stay the file's. */
+      const mid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
+                       .multiplyScalar(1 / drawn.length);
+      box.root.position.copy(mid).negate();
+      /* Solved from the chains actually DRAWN, not from the trace's own radius:
+         that one is the whole tetramer, and a card showing one chain of four
+         framed to the four sits at a third of its box. */
+      for (const p of drawn) radius = Math.max(radius, p.distanceTo(mid));
+      fit();
+      box.draw();
+    })
+    .catch(() => {});          // a card with no picture keeps its placeholder
+  return box;
+}
+
 /* Four, and the number is card-stage.js's rather than this page's: browsers cap
    WebGL contexts near 8-16 and drop the OLDEST with no error, so on a map that
    can reveal twenty cards the one that blanks is the one the reader opened
@@ -574,6 +654,8 @@ function goLive(n) {
       return MoleculeBuilder.create({ mount: thumb, recipe: view.recipe,
                                       fill: true, zoomOnComplete: true });
     }
+
+    if (view.kind === 'protein') return protein(thumb, view);
 
     let sim = null;
     const box = CardStage.create({

@@ -35,3 +35,11 @@ The browser half of the SES1 format written by `bake-surface.js`.
 * `chainOf` / `numberOf` — per-vertex residue lookups, which is what lets a page paint one residue onto the skin
 
 * The format itself stays specified in `bake-surface.js`'s header, next to the writer
+
+**`tools/bake-trace.js`** (baker, not a module)
+
+A deposited PDB down to what a ribbon needs: `node tools/bake-trace.js <file.pdb> [chains]` writes `<file>.trace.json` beside it — per chain a Ca array, one ss letter per residue, and the record COUNT of helices and strands. Centred on the baked Ca, `centre` recording the vector removed so anything else baked from the same PDB can be brought into the frame.
+
+* Secondary structure is READ from HELIX/SHEET, never detected. No records bakes as all coil and says `ssFrom:'none'`, so the card is visibly a worm rather than silently wrong.
+* The helix COUNT is from the records, because adjacent helices merge into one run of `H`: 2HHB's eight per chain read as six. A caption saying "eight" has to say it from `helices`.
+* 2HHB: 4 chains, 574 residues, 12 KB — against 453 KB of PDB, most of it atoms a ribbon discards.
