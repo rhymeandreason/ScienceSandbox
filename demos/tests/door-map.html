@@ -238,6 +238,26 @@
   .node.module .mb-dims { transition: opacity .18s ease; }
   .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
+  /* The representation switch, on a protein card. Same placement and the same
+     `.near` rule as the builder's 3D/2D, because they are the same promise:
+     a control appears when the card is big enough to hit it. */
+  .node.module .rep {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+    display: inline-flex; border: 1px solid var(--line); border-radius: 3px;
+    overflow: hidden; background: var(--card);
+    box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
+    transition: opacity .18s ease;
+  }
+  .node.module .rep button {
+    font: inherit; font-size: 0.55rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    border: 0; background: none; padding: 0.3rem 0.55rem; cursor: pointer;
+  }
+  .node.module .rep button + button { border-left: 1px solid var(--line); }
+  .node.module .rep button.on { background: var(--ink); color: var(--paper); }
+  .node.module .rep button[disabled] { opacity: 0.5; cursor: progress; }
+  .node.module:not(.near) .rep { opacity: 0; pointer-events: none; }
+
   .node.question {
     width: 13.5rem;
     padding: 0.5rem 0.65rem;
@@ -353,6 +373,7 @@
 </div>
 
 <div class="legend">
+  <span id="fps">— fps</span>
   <span><i class="b"></i>built</span>
   <span><i class="e"></i>engine, no lesson</span>
   <span><i class="p"></i>planned</span>
@@ -397,6 +418,7 @@
 <script src="../kit/molbox.js"></script>
 <script src="../molecule-builder/molecule-builder.js"></script>
 <script src="../folding/ribbon.js"></script>   <!-- protein cards: RibbonLib -->
+<script src="../hemoglobin/surface.js"></script>   <!-- ...and SurfLib, on demand -->
 <script>
 /* ---- the content ------------------------------------------------------
    DOORS, MODULES, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
@@ -511,7 +533,13 @@ const rankFrom = (from, other) => {
    tetramer is 4 geometries rather than one per element. */
 const RIB = { C: 0x7d8c7a, H: 0x0042aa, E: 0xc2571b };
 
-function protein(thumb, view) {
+/* One decoded surface on the whole page, for the same reason there are four
+   contexts: 362 KB of quantised mesh becomes several MB of GPU buffers, and
+   CardStage's LRU rations contexts, not what a page hangs off one. The card
+   that loses its surface falls back to its ribbon, which was never removed. */
+let sesOwner = null;
+
+function protein(thumb, view, id) {
   let radius = 0;
   /* An ortho camera does not zoom by MOVING: its size is its frustum, so a
      cam.r written straight onto the camera does nothing and the molecule is
@@ -534,7 +562,13 @@ function protein(thumb, view) {
     cam: { theta: 0.6, phi: 1.1, r: 40 },
     stage: { ortho: true },
     onResize: fit,
+    onDestroy: () => { if (sesOwner === box) sesOwner = null; },
   });
+
+  const chainGroup = new THREE.Group();
+  box.root.add(chainGroup);
+  let surf = null;                  // the decoded mesh, while this card owns it
+
   fetch('../' + view.trace, { cache: 'force-cache' })
     .then(r => r.json())
     .then(t => {
@@ -545,29 +579,100 @@ function protein(thumb, view) {
         m.side = THREE.DoubleSide;
         return m;
       });
+      /* One chain per frame. A tetramer's ribbon is ~80k triangles and building
+         all four in the frame the trace lands is the same stall the wave was
+         just spread out to avoid. The frame is re-solved after each, so the
+         card grows into its box chain by chain rather than popping. */
       const drawn = [];
-      for (const id of ids) {
-        const c = t.chains[id];
-        if (!c) continue;
-        const pts = c.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-        drawn.push(...pts);
-        box.root.add(new THREE.Mesh(RibbonLib.build(THREE, pts, c.ss.split('')), mats));
-      }
-      if (!drawn.length) return;
-      /* The trace is centred on every chain it holds, so a card drawing ONE of
-         four opens with its subject off to the side. Re-centre on what is
-         actually drawn — the group moves, the coordinates stay the file's. */
-      const mid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
-                       .multiplyScalar(1 / drawn.length);
-      box.root.position.copy(mid).negate();
-      /* Solved from the chains actually DRAWN, not from the trace's own radius:
-         that one is the whole tetramer, and a card showing one chain of four
-         framed to the four sits at a third of its box. */
-      for (const p of drawn) radius = Math.max(radius, p.distanceTo(mid));
-      fit();
-      box.draw();
+      const build = () => {
+        const cid = ids.shift();
+        if (cid === undefined) return;
+        const c = t.chains[cid];
+        if (c) {
+          const pts = c.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+          drawn.push(...pts);
+          chainGroup.add(new THREE.Mesh(RibbonLib.build(THREE, pts, c.ss.split('')), mats));
+          reframe();
+        }
+        if (ids.length) requestAnimationFrame(build);
+      };
+      /* The trace is centred on every chain it HOLDS, so a card drawing one of
+         four would sit off to the side. Re-centre on what is actually drawn —
+         the group moves, the coordinates stay the file's — and re-solve after
+         every chain, since each one changes both the centre and the radius. */
+      const reframe = () => {
+        if (!drawn.length) return;
+        const mid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
+                         .multiplyScalar(1 / drawn.length);
+        box.root.position.copy(mid).negate();
+        radius = 0;
+        for (const p of drawn) radius = Math.max(radius, p.distanceTo(mid));
+        fit();
+        box.draw();
+      };
+      build();
+      return;
     })
     .catch(() => {});          // a card with no picture keeps its placeholder
+
+  /* ---- the surface, only when asked for ----
+     Three gates, and the point of all three is that a 362 KB fetch is never
+     something a card DOES to a reader who only scrolled past it: the control
+     exists only on a `.near` card, the bytes are asked for only on the click,
+     and the ribbon stays up until they land. */
+  function dropSurface() {
+    if (!surf) return;
+    chainGroup.visible = true;
+    box.root.remove(surf);
+    surf.geometry.dispose();
+    surf = null;
+    if (sesOwner === box) sesOwner = null;
+    box.draw();
+  }
+
+  function showSurface(btns) {
+    if (surf) { chainGroup.visible = false; surf.visible = true; box.draw(); return; }
+    btns.forEach(b => { b.disabled = true; });
+    fetch('../' + view.surface, { cache: 'force-cache' })
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        if (box.dead) return;
+        if (sesOwner && sesOwner !== box) sesOwner.drop();
+        const S = SurfLib.decode(THREE, buf);
+        surf = new THREE.Mesh(S.geo, new THREE.MeshStandardMaterial({
+          color: 0xdfe4ee, roughness: 0.45, metalness: 0.0,
+          flatShading: false, side: THREE.FrontSide,
+        }));
+        box.root.add(surf);
+        chainGroup.visible = false;
+        sesOwner = box;
+        box.draw();
+      })
+      .catch(() => { setRep('ribbon'); })
+      .then(() => { btns.forEach(b => { b.disabled = false; }); });
+  }
+
+  let rep = 'ribbon';
+  const bar = document.createElement('div');
+  bar.className = 'rep';
+  const btns = ['ribbon', 'surface'].map(name => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.rep = name; b.textContent = name;
+    b.addEventListener('click', e => { e.stopPropagation(); setRep(name); });
+    bar.appendChild(b);
+    return b;
+  });
+  function setRep(next) {
+    rep = next;
+    btns.forEach(b => b.classList.toggle('on', b.dataset.rep === rep));
+    if (rep === 'ribbon') { chainGroup.visible = true; if (surf) surf.visible = false; box.draw(); }
+    else showSurface(btns);
+  }
+  setRep('ribbon');
+  if (view.surface) thumb.appendChild(bar);
+
+  // The page's one-surface rule reaches a card through this, and nothing else.
+  box.drop = () => { setRep('ribbon'); dropSurface(); };
   return box;
 }
 
@@ -614,10 +719,69 @@ function reDensify() {
     if (box.draw) box.draw(); else if (box.pump) box.pump(0);
   }
 }
+/* The cards go quiet while the map is being MOVED. Four live stages is a water
+   sim stepping its physics and a renderer drawing, per card, per frame — which
+   is the budget the pan is asking for at the same moment. A paused box keeps
+   its last frame on screen (kit/card-stage.js's whole bargain), so this costs
+   nothing visible while the reader's attention is on where the cards are going
+   rather than on what one of them is doing. They come back 220ms after the
+   last pan or wheel event. */
+let quietTimer = 0, quieted = [];
+function cardsQuiet() {
+  clearTimeout(quietTimer);
+  if (!quieted.length) {
+    for (const id of stages.keys()) {
+      const b = stages.get(id);
+      if (b && b.running && b.stop) { b.stop(); quieted.push(b); }
+    }
+  }
+  const back = () => {
+    // Not while the map is still moving: a wave runs for about a second, and
+    // restarting into it is what the pause was for.
+    if (!settled) { quietTimer = setTimeout(back, 220); return; }
+    for (const b of quieted) if (!b.dead && b.start) b.start();
+    quieted = [];
+  };
+  quietTimer = setTimeout(back, 220);
+}
+
 const densifySoon = () => {
   clearTimeout(densityTimer);
   densityTimer = setTimeout(reDensify, 180);
 };
+
+/* ONE card starts per frame. A wave is up to four modules, and each one that
+   has something to show creates a WebGL context, compiles its shaders and
+   builds its geometry — the protein card alone is 80k triangles of ribbon. All
+   of that in the frame the wave arrives is a visible stall exactly where the
+   reader is watching something move. Spread across frames it is the same total
+   work and none of it lands on the animation.
+   Latest first: the reader is looking at what just arrived, and a card that
+   waits three frames for its picture is invisible next to a map that hitched. */
+const liveQueue = [];   // cards waiting for a quiet frame to start in
+let liveDraining = false;
+function goLiveSoon(n) {
+  if (!VIEWS[n.id]) return;              // nothing to start, so nothing to wait for
+  liveQueue.push(n);
+  if (liveDraining) return;
+  liveDraining = true;
+  /* And not until the map has stopped MOVING. A context is created, shaders
+     compile and a geometry is built — tens of milliseconds of main thread that
+     no amount of spreading makes free, so it waits for the frames where nothing
+     is animating rather than landing in the middle of the wave the click
+     started. `waited` is a backstop: a map that never settles (a card being
+     dragged, a follow that keeps re-arming) must still get its pictures. */
+  let waited = 0;
+  const drain = () => {
+    if (!settled && ++waited < 240) { requestAnimationFrame(drain); return; }
+    const next = liveQueue.pop();
+    if (!next) { liveDraining = false; return; }
+    if (next.visible) goLive(next);
+    waited = 0;
+    requestAnimationFrame(drain);
+  };
+  requestAnimationFrame(drain);
+}
 
 // The click that opens a card is the click that starts it. A card asked twice
 // for its picture is a card the reader never sees move.
@@ -655,7 +819,7 @@ function goLive(n) {
                                       fill: true, zoomOnComplete: true });
     }
 
-    if (view.kind === 'protein') return protein(thumb, view);
+    if (view.kind === 'protein') return protein(thumb, view, n.id);
 
     let sim = null;
     const box = CardStage.create({
@@ -681,6 +845,13 @@ function goLive(n) {
 const COL = 560;
 const FIRST_ARM = 700;   // the door's own reach, scaled per module below
 let alpha = 1;
+/* The relax used to floor at alpha 0.012 and run for ever, so every frame wrote
+   a transform on every card and a `d` on every link whether or not anything had
+   moved — which is style + paint work on the whole world, and it is what a pan
+   was competing with. Now it settles: below a twitch that no one can see, the
+   loop stops touching the DOM until something wakes it. */
+let settled = false;
+const wake = a => { alpha = Math.max(alpha, a); settled = false; };
 
 function show(n, depth, y, x, ty) {
   if (n.visible) return;
@@ -699,7 +870,7 @@ function show(n, depth, y, x, ty) {
    * last frame — so there is a picture on every card that has one to show, and
    * only four of them are running. A wave of new modules is by definition the
    * most recent, so it is never the thing evicted. */
-  goLive(n);
+  goLiveSoon(n);
   for (const l of links) {
     if (l.painted || !l.a.visible || !l.b.visible) continue;
     paintLink(l);
@@ -776,7 +947,8 @@ function expand(n, keep, next = top1) {
   if (n.kind === 'module' && next)
     for (const q of wave) if (q.kind === 'question') expand(q, next);
 
-  alpha = Math.max(alpha, 0.6);
+  wake(0.6);
+  cardsQuiet();                 // the wave owns the frame, not four water sims
   // The clicked card leads the shot; what it revealed only decides how far left
   // of centre it sits. The hold runs long, because the relax keeps shoving the
   // arrivals outward well after the camera has arrived — any pointer or wheel
@@ -863,6 +1035,7 @@ function step() {
     l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
   }
 
+  let moved = 0;
   for (const n of live) {
     n.vx += (n.tx - n.x) * COLUMN;
     if (n.ty === undefined) n.vy -= n.y * ROW;
@@ -870,9 +1043,15 @@ function step() {
     const v = Math.hypot(n.vx, n.vy);
     if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
     if (n === dragNode || n.pinned) continue;
-    n.x += n.vx * alpha; n.y += n.vy * alpha;
+    const dx = n.vx * alpha, dy = n.vy * alpha;
+    n.x += dx; n.y += dy;
+    moved = Math.max(moved, Math.abs(dx), Math.abs(dy));
   }
-  alpha = Math.max(0.012, alpha * 0.985);
+  alpha *= 0.985;
+  // Settled is a claim about MOTION, not about alpha: a card still sliding
+  // under a low alpha has to keep being drawn, and a high alpha with nothing
+  // moving is a wave that has already landed.
+  if (alpha < 0.05 && moved < 0.05) { settled = true; alpha = 0; }
 }
 
 function draw() {
@@ -912,7 +1091,33 @@ function followStep() {
 }
 
 
-function frame() { step(); followStep(); draw(); requestAnimationFrame(frame); }
+/* fps, and the two numbers beside it, because "it feels laggy" has three
+   different causes on this page and they need telling apart: how long THIS
+   loop's own work takes (relax + link redraw), how many card stages are
+   running their own loops, and how many nodes are being laid out. A frame
+   budget is 16.7ms; if `map` is 2ms and the fps is 30, the cost is not here.
+   Averaged over a second — a per-frame number is unreadable and jitters. */
+const fpsEl = document.getElementById('fps');
+let fCount = 0, fWork = 0, fWorst = 0, fSince = performance.now();
+function frame() {
+  const t0 = performance.now();
+  if (!settled) { step(); draw(); }
+  followStep();
+  const spent = performance.now() - t0;
+  fWork += spent;
+  fWorst = Math.max(fWorst, spent);   // the average hides exactly the frame that hurt
+  fCount++;
+  const dt = t0 - fSince;
+  if (dt >= 1000) {
+    let running = 0;
+    for (const id of stages.keys()) { const b = stages.get(id); if (b && b.running) running++; }
+    fpsEl.textContent = Math.round(fCount * 1000 / dt) + ' fps · map ' +
+                        (fWork / fCount).toFixed(1) + '/' + fWorst.toFixed(0) + 'ms · ' +
+                        running + '/' + stages.size + ' live · ' + live.length + ' nodes';
+    fCount = 0; fWork = 0; fWorst = 0; fSince = t0;
+  }
+  requestAnimationFrame(frame);
+}
 requestAnimationFrame(frame);
 
 /* ---- full screen ------------------------------------------------------
@@ -1024,6 +1229,12 @@ let dragNode = null, dragging = null, last = null, travel = 0;
 let lastHit = null, lastHitAt = 0;
 
 canvas.addEventListener('pointerdown', e => {
+  /* A card's own control keeps its pointer. Without this the canvas captures
+     the pointer on the way down, the button never sees the pointerup, and the
+     click that reaches it is the card's — so the toggle looked dead while the
+     card behind it opened. Both controls, since the builder's 3D/2D sits in a
+     card the same way. */
+  if (e.target.closest('.rep, .mb-dims')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
@@ -1032,7 +1243,7 @@ canvas.addEventListener('pointerdown', e => {
     dragNode = live.find(n => n.el === hit);
     hit.classList.add('dragging');
     dragging = 'node';
-    alpha = Math.max(alpha, 0.3);
+    wake(0.3);
   } else {
     dragging = 'pan';
     canvas.classList.add('panning');
@@ -1045,8 +1256,9 @@ canvas.addEventListener('pointermove', e => {
   const dx = e.clientX - last.x, dy = e.clientY - last.y;
   last = { x: e.clientX, y: e.clientY };
   travel += Math.hypot(dx, dy);
-  if (dragging === 'pan') { view.x += dx; view.y += dy; applyView(); }
-  else { dragNode.x += dx / view.k; dragNode.y += dy / view.k; dragNode.vx = dragNode.vy = 0; }
+  if (dragging === 'pan') { view.x += dx; view.y += dy; applyView(); cardsQuiet(); }
+  else { dragNode.x += dx / view.k; dragNode.y += dy / view.k; dragNode.vx = dragNode.vy = 0;
+         wake(0.3); }   // a dragged card is motion the relax did not cause
 });
 
 function endDrag(e) {
@@ -1081,6 +1293,7 @@ canvas.addEventListener('wheel', e => {
   view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
   view.k = k;
   densifySoon();                       // the canvases follow the zoom, once it stops
+  cardsQuiet();
   applyView();
 }, { passive: false });
 
@@ -1095,7 +1308,7 @@ let focused = null;
 function measure() {
   for (const m of live) m.r = Math.hypot(m.el.offsetWidth, m.el.offsetHeight) / 2;
   markNear();
-  alpha = Math.max(alpha, 0.4);
+  wake(0.4);
 }
 
 function focus(n) {
@@ -1239,7 +1452,7 @@ function start() {
   follow = null;                       // the opening frame is composed, not chased
   touched = false;
   centre();
-  alpha = 1;
+  wake(1);
 
 }
 
