@@ -22,11 +22,23 @@ See proteins/prion/prion-test.html as the example and copy its layout.
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page (`proteins/prion/tools/prep.js` is the worked example) cuts each source down to what the bench draws and writes it to `data/`. Chain A unless the assembly is the point, alt-locs blank or `A` only, and the file's own `HELIX` / `SHEET` records ride along. Secondary structure is **read, never detected**: for a lesson about folding, detecting it is inventing the claim.
 
-Four invariants. Each one is a bug that ships looking fine.
+**Do not draw the ribbon yourself. Mount a `kit/proteinbox.js`.** The scene, the camera, the framing, the drag and the WebGL context are the module's, which is what makes every protein in the repo behave the same way. `rendering-modules.md` has the options; the shape of it is:
 
-* **One ribbon per continuous run.** Split the residues wherever numbering skips, and give each run its own mesh. Handing a spline a list with a hole in it draws a smooth tube across 10 Å of nothing, and at ribbon width that is indistinguishable from data.
+    const box = Proteinbox.create({ mount, orbit:true, sub:10,
+                                    stage:{ ortho:false, turn:'trackball' } });
+    box.setData(data, { colors });      // again per structure, same box
+
+* **`sub:10` on a full-height stage.** The box asks for 6 samples per residue because a card is a thumbnail with a triangle budget. At full size that shows as faceting wherever the chain turns hard — the ends of arrows and the tight loops read chunky, which is the spline showing rather than the protein.
+* **`turn:'trackball'`.** The default turntable clamps its pitch short of the poles, about a hundred pixels of upward drag, which runs out exactly when someone is trying to look at the top of the molecule.
+* **One box, re-fed.** `setData` swaps the structure and keeps the camera, so a reader who turned the molecule still has that view after a switch. One box per structure costs a WebGL context each and snaps the framing back on every click.
+
+**What the page still owns is what a CHAIN is.** The box takes `{first, nums, CA, ss}` per chain — the shape `tools/bake-trace.js` writes — and never parses a deposition, because parsing decides which altloc, which chain, and whether secondary structure is read or detected. A page that owns a protein already owns those.
+
+Three invariants on that side. Each is a bug that ships looking fine.
+
 * **Parse chain-aware before anything multi-chain.** `PrionLib.parse` keys residues by number alone, which is right for one chain and silently wrong for ten: chain B's residue 180 overwrites chain A's, and a ten-rung stack parses as one rung wearing the last chain's coordinates.
-* **One camera, solved once, over everything being compared.** Re-framing per structure rescales them against each other and hides exactly the size difference a comparison is for. `Stage.frame` wants half-extents about a centre, not a `Box3`; passing a `Box3` gives NaN and renders nothing while every number in the panel stays right.
+* **Send `nums`, not just `first`.** They are what lets the box break the ribbon where the chain breaks. Omit them and a chain reads as contiguous, so an unmodelled loop is drawn as a smooth tube across 10 Å of nothing — indistinguishable from data at ribbon width. 7LNA is the case.
+* **Say where the frame came from.** A deposited frame is the experiment's, not a decision about how the structure should be seen, so the box gets a `view` basis: `FoldLib.viewBasis` solves one from the shape, `FoldLib.basisFrom` puts a known axis upright where the field has a convention (a fibril vertical, a membrane protein on its normal), and a globular domain gets neither — its extents are too close to tell apart, its solved basis would flip between rebakes, and a human picks one instead. Whichever it was, the panel names it rather than leaving a rotation nobody can account for.
 
 **Every number in the panel is counted off the parsed file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
 
