@@ -195,6 +195,28 @@ So a discovered module must clear a floor AND be corroborated: two near question
 
 **A refusal is not an outage.** The page drops to the lexical scorer on any non-ok reply, 429 included, and says so in the placeholder. That is what makes it safe to set the caps low rather than generously.
 
+### Editing the map after it is baked
+
+**Re-bake when a question's TEXT changes**, and only then. Vectors are keyed on the text, so:
+
+| what you edited in `lib/mapcontent.js` | re-bake? |
+| --- | --- |
+| a question's wording, or a new / deleted question | **yes** |
+| a question's ranks, or which modules it names | no |
+| a module's name, `claim`, `rank`, `state`, `door` | no |
+| `VIEWS`, `DOORS` | no |
+
+Everything in the "no" rows is read live from `mapcontent.js` at load. Only the question text is embedded, and the vector path takes its modules from the questions it matched rather than from anything about the module itself.
+
+```bash
+node tools/bake-vectors.js --check   # names the drift, embeds nothing
+node tools/bake-vectors.js           # re-embeds only the rows whose text moved
+```
+
+**Forgetting is silent, so the page says it out loud.** A question whose wording changed has no vector and is simply ABSENT from search: not a wrong answer, an unreachable card, and nothing about it is visible on screen. The page compares its question count against the baked file and warns to the console with the exact rows. Measured: rewording one question drops the corpus to 65 of 66 and names it.
+
+**The deployed page reads the committed file**, so a re-bake has to be committed and pushed like any other artefact. This is the staleness the pre-commit gate will cover when the page is promoted.
+
 **No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 
 ## **Gotchas for a cold session**
