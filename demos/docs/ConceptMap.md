@@ -194,11 +194,17 @@ So a keyword that names a card is answered **before any embedding**, by `moduleN
 
 **"The name holds the typed word" is deliberately NOT one of them.** It was tried, and it let `effect` claim The hydrophobic effect and `levels` claim Levels of structure — a tail word is not a name. The cost is that `density` no longer reaches Ice & density, which is the right trade: being asked to type the head of a name is normal, being answered from its tail is a surprise. Head-word prefixes like `simple` → Simple diffusion do still hit, and read as autocomplete rather than as a wrong answer.
 
-The card becomes the first row and the default, ahead of the reader's own wording, because they named a thing that exists and the map has nothing better to offer than that thing. `openModule()` composes what clicking that card would have done.
+The card becomes the first row in the list, because they named a thing that exists and the map has nothing better to offer than that thing. `openModule()` composes what clicking that card would have done.
 
 **The second half is not solved.** `photosynthesis` (0.851) and `mitosis` (0.849) sit above real on-map keywords like `pH` (0.852) and below none of them: there is no gap to cut. Corroboration narrows it (`DNA` has 7 near questions, `photosynthesis` 1) without separating it. A bare keyword that does not name a card can still land somewhere plausible and wrong, and the fixture is what should settle whether short queries want their own floor.
 
-**Three kinds of row means `cursor` indexes `order`, not `hits`.** The list is a named card (-1), the reader's wording (0), then authored questions (1+). Three index conventions in one handler is how an arrow key opens the wrong thing.
+### The list is what the map already says
+
+Putting the reader's own wording on the map is what **Enter** does, and it is **not a row**. It was one, and drawing it meant offering the reader back the thing they had just typed, above the answers they came for. So the list holds only what already exists: a named card if there is one, then authored questions, and no module chips under them — which cards a question opens is what the map itself shows a moment later, and saying it twice made a list of questions read as a list of metadata.
+
+`cursor` at -1 is **nothing highlighted**, and that is the resting state: Enter takes the default. Arrowing down starts at the first row rather than at a default that is not drawn. `cursor` indexes `order` (a named card is -1, questions are 1+, and 0 is the default that never appears in it) because three index conventions in one handler is how an arrow key opens the wrong thing.
+
+A miss keeps one line of its own. Without it, Enter on a question the map cannot answer does nothing at all and reads as a broken box.
 
 ### The vector backend
 

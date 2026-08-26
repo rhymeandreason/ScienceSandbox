@@ -402,10 +402,6 @@
   }
   /* A miss is not a failure state, it is the useful artefact — the map has no
      node for what was asked, and that is what says which door to write next. */
-  /* Row 0, the reader's own wording: the default, and marked as theirs. */
-  .hits li.put b { font-weight: 400; font-style: italic; }
-  .hits li.put .on { color: var(--spark); }
-  .hits li.put { border-bottom: 1px solid var(--line); }
   /* A card the reader named outranks both, so it reads as the answer and not
      as one more suggestion. */
   .hits li.card b { font-weight: 500; }
@@ -1870,18 +1866,14 @@ function drawHits() {
   const text = askEl.value.trim();
   if (!text) return;
 
-  /* The reader's own wording is row 0 and the default, because drawing THAT on
-     the map is what this box is for. The authored phrasings underneath are the
-     alternative, for a reader who can see the map already says it better. */
-  const best = hits.length ? hits[0].q : null;
-  const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
-  const reach = inherited.length + near.length;
-
-  /* A named card outranks everything: the reader typed the name of a thing that
-     exists, and the map has nothing better to offer than that thing. */
+  /* The list is what the map ALREADY says. Putting the reader's own wording on
+     the map stays what Enter does, and is not a row: it is the default, so
+     drawing it as a suggestion was offering the reader the thing they had
+     already typed. `cursor` at -1 means nothing is highlighted and Enter takes
+     that default; arrowing down starts at the first row here. */
   const card = moduleNamed(text);
-  order = (card ? [-1] : []).concat([0], hits.map((_, i) => i + 1));
-  const sel = order[cursor < 0 ? 0 : cursor];
+  order = (card ? [-1] : []).concat(hits.map((_, i) => i + 1));
+  const sel = cursor < 0 ? null : order[cursor];
 
   if (card) {
     const li = document.createElement('li');
@@ -1899,34 +1891,26 @@ function drawHits() {
     hitsEl.append(li);
   }
 
-  const ask = document.createElement('li');
-  ask.className = 'put';
-  ask.setAttribute('aria-selected', sel === 0);
-  ask.append('Put my question on the map: ');
-  const b = document.createElement('b');
-  b.textContent = '\u201c' + text + '\u201d';
-  ask.append(b);
-  const on = document.createElement('span');
-  on.className = 'on';
-  on.textContent = reach
-    ? [...inherited.map(m => m.name), ...near.map(x => x.m.name + ' (near)')].join(' · ')
-    : 'nothing on this map is near it';
-  ask.append(on);
-  if (!reach) ask.classList.add('miss');
-  else ask.addEventListener('click', () => choose(0));
-  hitsEl.append(ask);
-
+  /* No module chips. Which cards a question opens is what the MAP shows a
+     moment later, and saying it twice made a list of questions read as a list
+     of metadata. */
   hits.forEach((h, i) => {
     const li = document.createElement('li');
     li.textContent = h.q.text;
     li.setAttribute('aria-selected', sel === i + 1);
-    const c = document.createElement('span');
-    c.className = 'on';
-    c.textContent = neighbours(h.q).map(m => m.name || m.id).join(' \u00b7 ');
-    li.append(c);
     li.addEventListener('click', () => choose(i + 1));
     hitsEl.append(li);
   });
+
+  /* Nothing to list and nothing to place is the one case that still needs a
+     line: without it, Enter on a question this map cannot answer does nothing
+     at all and reads as a broken box. */
+  if (!order.length && !near.length) {
+    const li = document.createElement('li');
+    li.className = 'miss';
+    li.textContent = 'Nothing here answers that yet.';
+    hitsEl.append(li);
+  }
 }
 
 /* Row 0 draws the reader's own question; rows 1+ open the authored one as it
@@ -1978,13 +1962,20 @@ askEl.addEventListener('input', () => {
 });
 
 askEl.addEventListener('keydown', e => {
-  if (e.key === 'Enter')      { e.preventDefault(); if (order.length) choose(order[cursor < 0 ? 0 : cursor]); }
-  else if (e.key === 'Escape'){ askEl.value = ''; hits = []; near = []; order = []; cursor = -1; hitsEl.replaceChildren(); askEl.blur(); }
-  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    // Nothing highlighted: the default, which is the reader's own wording.
+    choose(cursor < 0 ? 0 : order[cursor]);
+  } else if (e.key === 'Escape') {
+    askEl.value = ''; hits = []; near = []; order = []; cursor = -1;
+    hitsEl.replaceChildren(); askEl.blur();
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     if (!order.length) return;
     e.preventDefault();
-    cursor = ((cursor < 0 ? (e.key === 'ArrowDown' ? -1 : 0) : cursor)
-              + (e.key === 'ArrowDown' ? 1 : order.length - 1)) % order.length;
+    // From nothing, down lands on the first row and up on the last.
+    cursor = cursor < 0
+      ? (e.key === 'ArrowDown' ? 0 : order.length - 1)
+      : (cursor + (e.key === 'ArrowDown' ? 1 : order.length - 1)) % order.length;
     drawHits();
   }
 });
