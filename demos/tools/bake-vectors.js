@@ -67,6 +67,36 @@ function env() {
 
 const sha = s => crypto.createHash('sha256').update(s, 'utf8').digest('hex').slice(0, 16);
 
+/* ---- map integrity ------------------------------------------------------
+ * Not about vectors at all, and here because this is the map's only checker.
+ *
+ * A question names its modules BY ID, and lib/mapcontent.js is loaded by a page
+ * that does `const m = byId[mid]; if (!m) continue;` — so renaming or deleting a
+ * module silently drops every edge pointing at it. The card is still drawn, the
+ * question is still drawn, and the crossing between them is simply gone. That is
+ * the one thing the map exists to do, and nothing was checking it. */
+function integrity() {
+  const { DOORS, MODULES, QUESTIONS, VIEWS } = require(SRC).MapContent;
+  const ids = new Set(MODULES.map(m => m.id));
+  const doors = new Set(DOORS.map(d => d.id));
+  const bad = [];
+
+  for (const [text, mods] of QUESTIONS)
+    for (const id of Object.keys(mods))
+      if (!ids.has(id)) bad.push(`question names no such module \`${id}\`: ${text}`);
+
+  for (const id of Object.keys(VIEWS || {}))
+    if (!ids.has(id)) bad.push(`VIEWS names no such module \`${id}\``);
+
+  for (const m of MODULES)
+    if (m.door && !doors.has(m.door)) bad.push(`module \`${m.id}\` sits on no such door \`${m.door}\``);
+
+  // Not a failure: a planned module with nothing filed under it is a card
+  // waiting for questions, which is a normal state to commit.
+  const lonely = MODULES.filter(m => !QUESTIONS.some(([, mods]) => mods[m.id])).map(m => m.id);
+  return { bad, lonely };
+}
+
 /* mapcontent.js hands its tables to `this`, which is module.exports here. */
 function corpus() {
   const { QUESTIONS, MODULES } = require(SRC).MapContent;
@@ -129,6 +159,17 @@ async function embed(texts) {
 
   const stale = rows.filter(r => FORCE || !have.has(r.hash));
   const orphans = old.rows.filter(r => !rows.some(x => x.hash === r.hash));
+
+  const { bad, lonely } = integrity();
+  if (lonely.length) console.log(`note  ${lonely.length} module(s) with no questions: ${lonely.join(', ')}`);
+  if (bad.length) {
+    // Fails --check, warns a bake: the page reads mapcontent.js live and never
+    // reads the `mods` written here, so a broken reference does not corrupt a
+    // vector. It breaks the map, which is worse, and is why it is said either way.
+    console.error(`${CHECK ? 'BROKEN' : 'WARNING'}: ${bad.length} bad reference(s) in lib/mapcontent.js`);
+    for (const b of bad) console.error('  ' + b);
+    if (CHECK) process.exit(1);
+  }
 
   if (CHECK) {
     if (!stale.length && !orphans.length) {

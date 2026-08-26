@@ -215,7 +215,25 @@ node tools/bake-vectors.js           # re-embeds only the rows whose text moved
 
 **Forgetting is silent, so the page says it out loud.** A question whose wording changed has no vector and is simply ABSENT from search: not a wrong answer, an unreachable card, and nothing about it is visible on screen. The page compares its question count against the baked file and warns to the console with the exact rows. Measured: rewording one question drops the corpus to 65 of 66 and names it.
 
-**The deployed page reads the committed file**, so a re-bake has to be committed and pushed like any other artefact. This is the staleness the pre-commit gate will cover when the page is promoted.
+**The deployed page reads the committed file**, so a re-bake has to be committed and pushed like any other artefact.
+
+### Changing modules, and adding new ones
+
+Modules need no bake at all, because nothing about a module is embedded: the vector path reads a matched question's `neighbours()` for its modules, so a module is reachable the moment a question with a vector names it. Two consequences worth knowing:
+
+* **Attaching an EXISTING question to a new module needs no bake.** The text did not move, only the edge, so the new card is searchable immediately. A new module built out of new questions does need one, for the questions.
+* **Renaming or deleting a module id silently drops every edge pointing at it.** The page resolves `byId[mid]` and does `if (!m) continue`, so the card is still drawn, the question is still drawn, and the crossing between them is simply gone — the one thing the map exists to do. Nothing caught this, so `--check` now does:
+
+```
+BROKEN: 1 bad reference(s) in lib/mapcontent.js
+  question names no such module `polarityy`: Why do water molecules stick to each other?
+```
+
+It checks question rows, `VIEWS` keys and each module's `door` against the ids that actually exist, and notes modules with no questions without failing on them — a planned card waiting for questions is a normal thing to commit. It fails `--check` and only warns a bake, because the page reads `mapcontent.js` live and never reads the `mods` the bake writes: a broken reference does not corrupt a vector, it breaks the map.
+
+### A new KIND of node is a page change
+
+`DOORS` / `MODULES` / `QUESTIONS` / `VIEWS` are data, and a fifth table is not. The map is bipartite and the page says so in a dozen places: `paintNode`'s three branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES`. A new kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js`. This is the staleness the pre-commit gate will cover when the page is promoted.
 
 **No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 
