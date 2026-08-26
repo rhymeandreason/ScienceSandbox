@@ -473,6 +473,10 @@
         <div class="path">tests/door-map.html <span class="badge">test</span></div>
         <div class="desc">One door — &ldquo;why is water the foundation of life?&rdquo; — opened into modules and the questions between them. The module table lives in the page; nothing links out to a lesson yet. The door opens on four running molecules, and any other module card with a sim behind it goes live on the click that opens it — four at a time, the rest keeping a still of their last frame (kit/card-stage.js)</div>
       </a>
+      <a class="card test" href="tests/question-composer.html">
+        <div class="path">tests/question-composer.html <span class="badge">test</span></div>
+        <div class="desc">The door map, entered by typing. A question resolves to a node in lib/mapcontent.js and the map opens three levels around it, so the typed question becomes a temporary door. The matcher is a LEXICAL stand-in (token overlap, no network) so the opening can be judged before any embedding is baked; a miss says so rather than routing to the least-bad card</div>
+      </a>
       <a class="card test" href="tests/cards-cluster.html">
         <div class="path">tests/cards-cluster.html <span class="badge">test</span></div>
         <div class="desc">The door map&rsquo;s other half: a card whose face is the running simulation, not a picture of one. Six cards, four live stages, on kit/card-stage.js</div>

@@ -1,4 +1,4 @@
-<!-- KIND: rulebook, scoped — load before touching kit/card-stage.js, kit/molbox.js, molecule-builder/molecule-builder.js as a mounted box, or either card page (tests/door-map.html, tests/cards-cluster.html). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. Nothing here applies to a lesson that draws one stage of its own. -->
+<!-- KIND: rulebook, scoped — load before touching kit/card-stage.js, kit/molbox.js, molecule-builder/molecule-builder.js as a mounted box, or any of the card pages (tests/door-map.html, tests/question-composer.html, tests/cards-cluster.html). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. Nothing here applies to a lesson that draws one stage of its own. -->
 
 # Cards, the stage modules, and door-map
 
@@ -86,6 +86,10 @@ So opening a card is most of the way to being able to work on it, which is what 
 
 10. **`molecule-builder.html` does NOT use the module.** It has its own shell. It keeps its own copy of the 900ms turn, and the checker fails if the two numbers diverge.
 
+11. **A module's neighbours include ITS DOOR.** `door-map`'s `start()` never sees it, because the door is visible before anything expands. Anything that roots the map on a node OTHER than the door must filter the door out of every module's wave (`expand`'s `keep`) — otherwise each module deals the same 29rem door node and they stack on it. `question-composer` hit this on its first run.
+
+12. **`function draw()` is taken.** The map's `draw()` is what positions every node from the rAF loop, and a second `function draw` at the page's top scope silently REPLACES it: function declarations redeclare without error, so every card stays at the origin with opacity 1 and nothing logs. Adding page-level UI to a copy of door-map is exactly when this happens. `question-composer` shipped it and it read as a physics bug for two rounds.
+
 ## **Card kinds**
 
 | KIND | MODULE | PAGES |
@@ -98,6 +102,18 @@ So opening a card is most of the way to being able to work on it, which is what 
 **A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. Ribbon only for now — the SES bake of the same structure is 1.5 MB, and at thumb size a surface is a blob, so the surface belongs behind a control on a card that is already `.near`.
 
 Small molecules go to the builder (flat view draws the electrons); molecules with no recipe go to molbox. Builder and molbox are ortho.
+
+## **question-composer: the map entered by typing**
+
+`tests/question-composer.html` is door-map with a text box, and the claim is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every module that answers it, then each of those modules' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
+
+**Two halves, and only the first one changes.** `rank()` scores the typed text against every authored question; `openFrom()` composes the map around whichever is chosen. The scorer in the page is LEXICAL — token overlap, no network, no key — and it exists so the OPENING can be judged before any vector is baked. It fails at the thing the real one is for: "why does water stick to itself" shares no token with `polarity`. Swapping it for cosine over baked embeddings moves nothing below it.
+
+**A miss is the artefact, not the failure.** Below `FLOOR` the box says nothing covers that yet rather than routing to the least-bad card, and the typed text is the only record of a door worth writing. Logged to the console until it has somewhere to go.
+
+**25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against ~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
+
+**No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 
 ## **Gotchas for a cold session**
 
