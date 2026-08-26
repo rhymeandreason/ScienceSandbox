@@ -90,6 +90,36 @@ else
   echo "pre-commit: skipping check-pages.js — no page or registry file staged"
 fi
 
+# The MAP, not the composer. lib/mapcontent.js is rewritten by map-cms.html, and
+# two different things go stale when it moves:
+#
+#   · a question whose wording changed has no vector, so it is ABSENT from the
+#     composer's search — not a wrong answer, an unreachable card, and the only
+#     symptom is a console warning nobody has open;
+#   · a renamed or deleted module id silently drops every edge pointing at it.
+#     The page resolves byId[mid] and continues past a miss, so the card is drawn,
+#     the question is drawn, and the crossing between them is gone. That one bites
+#     door-map too, and has nothing to do with embeddings.
+#
+# Gated even though question-composer.html is test status, because the usual
+# reason to wait — a test page has no audience — stops holding the moment the
+# link is shared. The check itself is offline: --check embeds nothing and only
+# compares hashes, so it belongs here rather than beside check-handedness.js.
+# Only the FIX needs the key, which is what --no-verify is for.
+if git diff --cached --name-only | grep -qE '^demos/(lib/mapcontent(-vectors)?\.(js|json)|tools/bake-vectors\.js)$'; then
+  if ! node tools/bake-vectors.js --check > /tmp/bv.$$ 2>&1; then
+    tail -25 /tmp/bv.$$; rm -f /tmp/bv.$$
+    echo ""
+    echo "pre-commit FAILED: bake-vectors.js --check — a question has no vector, or"
+    echo "  a question, VIEWS entry or module names an id that no longer exists."
+    echo "  Re-bake with: node tools/bake-vectors.js"
+    exit 1
+  fi
+  rm -f /tmp/bv.$$
+else
+  echo "pre-commit: skipping bake-vectors.js --check — no map file staged"
+fi
+
 # The mass-action model is demos/massaction/, so its own folder gates it — but
 # glycolysis-lab.html is in the pattern too, because the SCENARIOS (each step's
 # ΔE, and the names on the curve) live on the host page and the checker lifts

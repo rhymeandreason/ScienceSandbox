@@ -237,7 +237,9 @@ It checks question rows, `VIEWS` keys and each module's `door` against the ids t
 
 `DOORS` / `MODULES` / `QUESTIONS` / `VIEWS` are data, and a fifth table is not. The map is bipartite and the page says so in a dozen places: `paintNode`'s three branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES`. A new kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js`.
 
-**No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
+**Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed module id drops every edge pointing at it, which bites `door-map` just as hard and has nothing to do with embeddings.
+
+The check belongs in the hook rather than beside `tools/check-handedness.js` because it is offline: `--check` embeds nothing and only compares hashes. Only the fix needs the key, which is what `--no-verify` is for. The pattern covers `lib/mapcontent.js`, `lib/mapcontent-vectors.json` and `tools/bake-vectors.js`.
 
 ## **Gotchas for a cold session**
 
