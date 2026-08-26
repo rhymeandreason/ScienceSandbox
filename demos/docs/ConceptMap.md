@@ -90,6 +90,8 @@ So opening a card is most of the way to being able to work on it, which is what 
 
 12. **`function draw()` is taken.** The map's `draw()` is what positions every node from the rAF loop, and a second `function draw` at the page's top scope silently REPLACES it: function declarations redeclare without error, so every card stays at the origin with opacity 1 and nothing logs. Adding page-level UI to a copy of door-map is exactly when this happens. `question-composer` shipped it and it read as a physics bug for two rounds.
 
+13. **A ghost is a root, never a wave.** `question-composer`'s ghost node has real entries in `links`, so it is a genuine neighbour of the modules it landed near — and `start()` will deal it into the door's own map, dashed and captioned, as though someone had authored it. Filtered in `expand()` (`!m.ghost`) rather than at each call site, because every path that reveals a card goes through that one.
+
 ## **Card kinds**
 
 | KIND | MODULE | PAGES |
@@ -112,6 +114,16 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 **A miss is the artefact, not the failure.** Below `FLOOR` the box says nothing covers that yet rather than routing to the least-bad card, and the typed text is the only record of a door worth writing. Logged to the console until it has somewhere to go.
 
 **25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against ~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
+
+### The ghost
+
+A typed question the map has no node for is **placed anyway**, as `GHOST` — one reused node, dashed, captioned *your question*, wearing the spark rather than a door's tint. Its edges are dashed for the same reason the card is: they are **proximity, not a crossing**. `nearestModules()` scores the text against each module's own words plus every question already filed under it, and attaches the best 3.
+
+Nothing generated is written back to `lib/mapcontent.js`, and the reason is structural rather than editorial: **a discovered edge carries no rank**, and rank is per-edge pedagogical judgement ("is this a good FIRST thing to ask on this card"). An edge missing that field cannot enter the graph even when it is correct. Generation belongs in `map-cms.html` with a human on it; the drawn map stays authored.
+
+**Coverage needs two words, not one.** The score is the fraction of the QUERY the module covers, because a module's bag grows as questions are filed under it and normalising by size would punish the best-documented modules. But a two-word question clears any sane floor on ONE shared noun: measured, *what makes hair curly* attached itself to Folding on the word `hair`. So a ghost's edge costs `min(2, words)` hits. A ghost's edge is the only claim it makes.
+
+**The ghost is a ROOT and never a wave** — invariant 13. And `centre()` on this page diverges from door-map's: the composer is a fixed band across the top, and centring on the whole window put the ghost's own best module underneath it.
 
 **No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 
