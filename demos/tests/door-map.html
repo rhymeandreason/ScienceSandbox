@@ -227,6 +227,17 @@
   .node.module.planned { border-style: dashed; }
 
 
+  /* A card's own controls belong to the `interact` band and nowhere else. Below
+     0.75 the reader is placing cards in relation to each other, and a control
+     they cannot hit — the buttons are 22px tall before the zoom takes half of
+     it — is an invitation to a click that pans instead. `.near` is that test,
+     set per card because an open card is twice the width and passes it at half
+     the k. The module keeps deciding whether the control is EARNED
+     (mb-dims.armed, a finished molecule); this decides whether it is reachable.
+     Faded rather than removed, so nothing reflows as the reader scrolls in. */
+  .node.module .mb-dims { transition: opacity .18s ease; }
+  .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
+
   .node.question {
     width: 13.5rem;
     padding: 0.5rem 0.65rem;
@@ -346,7 +357,7 @@
   <span><i class="e"></i>engine, no lesson</span>
   <span><i class="p"></i>planned</span>
 </div>
-<div class="hint">click a card to open the next level · double-click to see it whole · drag to pan · scroll to zoom</div>
+<div class="hint" id="hint">k 0.00 · region</div>   <!-- readout while the bands are being tuned -->
 
 <div id="full" aria-modal="true" role="dialog">
   <button class="x" id="fullClose" title="Close" aria-label="Close">
@@ -844,6 +855,7 @@ document.getElementById('fullClose').addEventListener('click', closeFull);
 /* ---- pan, zoom, drag, focus ------------------------------------------- */
 
 const canvas = document.getElementById('canvas');
+const hint = document.getElementById('hint');
 let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.7 };
 /* `zoom`, not `transform: scale()`. A scaled subtree is rasterised once at its
    layout size and stretched by the compositor, so every glyph goes soft the
@@ -854,7 +866,62 @@ let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.7 };
    already; only the translate has to be divided, since zoom multiplies the
    element's own units too. Canvases still measure their unzoomed clientWidth
    (the note on .thumb), which is the same deal scale() gave them. */
+/* ---- zoom bands ---------------------------------------------------------
+   A map names its zoom levels, and so does this one: `data-zoom` on #world is
+   the single place a band is decided, so CSS can hide a claim and JS can budget
+   live contexts off the same fact without either polling `view.k`.
+
+   Absolute k, and it can be absolute because centre() no longer solves the
+   opening zoom out of the window — it floors at 0.5, which is a decision about
+   what a claim is readable at. So a band means the same thing on every screen
+   and for every door, however many cards it opens with.
+
+     atlas    < 0.40   the shape, not the words
+     region   < 0.75   the opening view: cards readable, whole neighbourhoods
+     interact >= 0.75  close enough to work ON a card rather than read it —
+                       where a card's own controls belong, and where a live
+                       canvas is worth its context.
+
+   centre() reports its own k as `openK`, which is what the readout compares
+   against and what keeps a band from silently ending up on the wrong side of
+   the view the reader is handed. */
+const BAND = [['atlas', 0.4], ['region', 0.75], ['interact', Infinity]];
+
+/* A band is the VIEW's, and a card's controls are the CARD's — and an open card
+   is 34rem where the rest are 17.5, so at one zoom the two are not the same
+   size on screen at all. What a control needs is apparent size, so that is what
+   is measured: k times the card's own width ratio, against one threshold.
+   0.95 of a default card, which is very nearly its own 1:1 — the buttons are
+   22px tall and letter-spaced, and shrinking them is how a control becomes a
+   thing you miss and pan the map instead. The open card clears the same bar at
+   k 0.49, because it is nearly twice as wide: opening a card IS most of the way
+   to being able to work on it, which is the behaviour the .hub width was
+   already promising and nothing was reading. */
+const HUB_RATIO = 34 / 17.5;
+const CONTROLS_AT = 0.95;
+function markNear() {
+  for (const n of live) {
+    if (!n.el || n.kind !== 'module') continue;
+    const f = n.el.classList.contains('hub') ? HUB_RATIO : 1;
+    n.el.classList.toggle('near', view.k * f >= CONTROLS_AT);
+  }
+}
+let openK = 0.5;                 // overwritten by the first centre()
+const bandFor = k => (BAND.find(b => k < b[1]) || BAND[BAND.length - 1])[0];
+let zoomBand = '';                // `band` is taken: the reveal's rank filter
+function setZoomBand(next) {
+  if (next === zoomBand) return;
+  zoomBand = next;
+  world.dataset.zoom = zoomBand;
+  document.body.dataset.zoom = zoomBand;
+}
+
 const applyView = () => {
+  setZoomBand(bandFor(view.k));
+  markNear();
+  hint.textContent = 'k ' + view.k.toFixed(2) + ' · ' + zoomBand +
+                     ' · controls ' + (view.k >= CONTROLS_AT ? 'every card'
+                       : view.k * HUB_RATIO >= CONTROLS_AT ? 'open card' : 'none');
   /* Zooming OUT is a scale, zooming IN is a zoom. Minifying a layer costs
      nothing in sharpness — there are more source pixels than screen ones — and
      it leaves the layout alone, which is the half that matters below 1: a
@@ -939,8 +1006,13 @@ let focused = null;
 
 // Two hops: what you clicked, what it reaches, and what THOSE reach — the
 // second ring is the point, since it is where the next door shows up.
+// The one place a card's SIZE is re-read, which is why the control test lives
+// here too: opening and closing a card changes what it is worth showing on it,
+// and a card that shrank back to 17.5rem keeping its buttons is a control at
+// half the size the threshold exists to guarantee.
 function measure() {
   for (const m of live) m.r = Math.hypot(m.el.offsetWidth, m.el.offsetHeight) / 2;
+  markNear();
   alpha = Math.max(alpha, 0.4);
 }
 
@@ -1011,8 +1083,16 @@ function centre() {
     y0 = Math.min(y0, n.y - h); y1 = Math.max(y1, n.y + h);
   }
   if (!isFinite(x0)) return;
-  const k = Math.max(0.35, Math.min((innerWidth - 200) / (x1 - x0),
-                                    (innerHeight - 170) / (y1 - y0), 0.85));
+  /* 0.5 is the floor as well as the design: three levels of cards do not fit a
+     laptop window at any zoom a reader can read, so the fit was solving to its
+     old 0.35 floor every load and the opening screen was set by a clamp rather
+     than by a decision. Below 0.5 the claim on a card is unreadable, which
+     makes the map a diagram of itself — so the opening view is 0.5 and what
+     does not fit is off screen, waiting to be panned to. */
+  const k = Math.max(0.5, Math.min((innerWidth - 200) / (x1 - x0),
+                                   (innerHeight - 170) / (y1 - y0), 0.85));
+  // The opening fit IS `region`: every band above is measured off it.
+  openK = k;
   view = { x: innerWidth / 2 - ((x0 + x1) / 2) * k,
            y: innerHeight / 2 - ((y0 + y1) / 2) * k, k };
   applyView();

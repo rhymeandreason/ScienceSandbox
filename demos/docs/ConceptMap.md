@@ -41,6 +41,27 @@ Two mechanisms, split at k = 1, and the split is the point.
 
 The two agree exactly at k = 1. All the pan/drag maths is in screen px; only the translate is divided, because zoom multiplies the element's own units too.
 
+### Zoom bands
+
+`data-zoom` on `#world` and `<body>` is the one place a band is decided, so CSS and JS read the same fact without either polling `view.k`. Absolute k, and it can be absolute because `centre()` no longer solves the opening zoom out of the window — it floors at **0.5**, which is a decision about what a claim is readable at, not a clamp the fit happened to hit. So a band means the same thing on every screen and for every door, however many cards it opens with. `centre()` reports its own k as `openK`.
+
+| band | k | what it is for |
+| --- | --- | --- |
+| `atlas` | < 0.40 | the shape, not the words |
+| `region` | 0.40 – 0.75 | **the opening view**: cards readable, whole neighbourhoods |
+| `interact` | ≥ 0.75 | close enough to work ON a card — where a live canvas is worth its context |
+
+**A card's controls are not on that scale.** A band is the VIEW's, and an open card is 34rem where the rest are 17.5, so at one zoom the two are not the same size on screen at all. What a control needs is APPARENT size, so that is what `markNear()` measures — `k` times the card's own width ratio, against one threshold, `CONTROLS_AT = 0.95` of a default card:
+
+| card | controls appear at |
+| --- | --- |
+| open (`.hub`, 34rem) | k ≥ 0.49 |
+| default (17.5rem) | k ≥ 0.95 |
+
+So opening a card is most of the way to being able to work on it, which is what the `.hub` width was already promising and nothing was reading. The module still decides whether a control is EARNED (`mb-dims.armed` is a finished molecule); `.near` decides whether it is reachable, and it is faded rather than removed so nothing reflows as the reader scrolls in.
+
+`markNear()` runs from `applyView()` and from `measure()` — `measure()` being the one place a card's size is re-read, so opening and closing a card re-tests it for free.
+
 **Canvases follow separately.** A card's canvas measures its UNZOOMED layout box, so at k = 2.5 it draws 2.5x fewer pixels than the screen shows. `reDensify()` sets each live box's pixel ratio to `dpr * k`, capped at 3 — 180ms after the wheel stops, because re-sizing a drawing buffer reallocates it, and again whenever a card mounts or re-fronts while zoomed in.
 
 ## **Invariants — the things that break silently**
@@ -75,16 +96,6 @@ The two agree exactly at k = 1. All the pan/drag maths is in screen px; only the
 
 Small molecules go to the builder (flat view draws the electrons); molecules with no recipe go to molbox. Builder and molbox are ortho.
 
-## **Next steps, in order**
-
-1. **`molecule-builder.html`'s framing.** The module got `zoomOnComplete` (a finished molecule fills 30% of the opening frame, which is sized for the scattered atoms). The lesson page did not, and has its own copy of the frame logic — so page and module now differ with nothing watching. Same shape as the turn, which IS watched. Decide: give the lesson the close-up, or assert the difference as deliberate.
-
-2. **Focused question size** — 272x82 among 300px cards. May read as unclickable, or the contrast may be the point. Human judgement.
-
-3. **A second door.** Every door but water is `open:0` and has no modules of its own worth opening on. The dot tint is already keyed to the door, so a second one costs content, not a code change — which is the claim this page was built to make.
-
-4. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the \~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
-
 ## **Gotchas for a cold session**
 
 * **The browser probe tab is hidden**, so `requestAnimationFrame`, `ResizeObserver` and `IntersectionObserver` delivery never fire. Drive `box.pump(dt)` and the page's own `step()` directly. `pump()` exists for this.
@@ -94,3 +105,7 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 * Checkers: `node tools/check-pages.js`, `tools/check-docs.js`, `kit/check-kit.js`, `molecule-builder/check-molecule-builder.js`, `check-molecules.js` (slow, \~2min). The pre-commit hook gates each; silence means it ran and passed.
 
 * `check-docs.js` treats any backticked path as a claim the file exists — write a former filename in italics, not in backticks. This doc broke that rule twice on its first commit and the checker caught both.
+
+## **Considered**
+
+1. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the \~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
