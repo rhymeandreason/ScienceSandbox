@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tutor log</title>
+<title>Log — tutor and map</title>
 <!--
   ask/log.html — what the tutor was asked, and what it did about it.
 
@@ -150,11 +150,22 @@
 
   .empty { color: var(--muted); padding: 2rem 0; }
 
-  /* ---- the composer's searches ---------------------------------------
-     A different log with a different question: not how the tutor answered,
-     but what people typed at the map and could not be answered. */
-  .searches { margin: 2.5rem 0 0; border-top: 1px solid var(--line, #2a2d33); padding-top: 1.5rem; }
-  .searches h2 { font-size: 1rem; margin: 0 0 .2rem; }
+  /* ---- the two logs ---------------------------------------------------
+     One page, two different questions: how the tutor ANSWERED, and what people
+     typed at the map. They share a visitor id and nothing else, so they are
+     tabs rather than one merged stream. */
+  .tabs { display: flex; gap: .25rem; margin: 0 0 1.25rem; border-bottom: 1px solid var(--line, #2a2d33); }
+  .tabs button {
+    font: inherit; font-size: .9rem; color: var(--muted);
+    background: none; border: 0; border-bottom: 2px solid transparent;
+    padding: .5rem .85rem; margin-bottom: -1px; cursor: pointer;
+  }
+  .tabs button:hover { color: inherit; }
+  .tabs button[aria-selected="true"] { color: inherit; border-bottom-color: currentColor; }
+  .tabs button .n {
+    font-size: .78rem; opacity: .55; margin-left: .4rem; font-variant-numeric: tabular-nums;
+  }
+  [hidden] { display: none !important; }
   .asked { display: flex; flex-wrap: wrap; gap: .4rem; margin: .8rem 0 1rem; }
   .asked b { font-variant-numeric: tabular-nums; opacity: .6; margin-right: .35rem; }
   .asked span {
@@ -169,33 +180,38 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Tutor log</h1>
-  <p class="sub">Every question, the screen it was asked against, and where the tutor pointed.</p>
+  <h1>Log</h1>
+  <p class="sub" id="sub"></p>
 
-  <div class="stats" id="stats"></div>
-  <div class="models" id="models"></div>
-
-  <div class="bar">
-    <select id="lesson"><option value="">every lesson</option></select>
-    <select id="cohort"><option value="">every class</option></select>
-    <select id="aimed">
-      <option value="">every answer</option>
-      <option value="none">pointed at nothing</option>
-    </select>
-    <select id="limit">
-      <option value="50">50</option>
-      <option value="100">100</option>
-      <option value="200">200</option>
-    </select>
-    <button class="act" id="reload">Reload</button>
-    <span class="note" id="note"></span>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-tutor" aria-controls="pane-tutor" aria-selected="true">Tutor<span class="n"></span></button>
+    <button role="tab" id="tab-map"   aria-controls="pane-map"   aria-selected="false">Map<span class="n"></span></button>
   </div>
 
-  <div id="list"></div>
+  <section id="pane-tutor" role="tabpanel">
+    <div class="stats" id="stats"></div>
+    <div class="models" id="models"></div>
 
-  <section class="searches">
-    <h2>Composer searches</h2>
-    <p class="sub">What was typed at the question map. Repeats first: one person asking is a person, forty are a lesson that is missing.</p>
+    <div class="bar">
+      <select id="lesson"><option value="">every lesson</option></select>
+      <select id="cohort"><option value="">every class</option></select>
+      <select id="aimed">
+        <option value="">every answer</option>
+        <option value="none">pointed at nothing</option>
+      </select>
+      <select id="limit">
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+      </select>
+      <button class="act" id="reload">Reload</button>
+      <span class="note" id="note"></span>
+    </div>
+
+    <div id="list"></div>
+  </section>
+
+  <section id="pane-map" role="tabpanel" hidden>
     <div class="stats" id="fstats"></div>
     <div class="asked" id="asked"></div>
     <div class="qlist" id="qlist"></div>
@@ -263,14 +279,49 @@ async function load() {
   $('note').textContent = data.turns.length + ' shown';
 }
 
+/* The chosen tab survives a reload, because reading a log is a thing you come
+   back to and landing on the other one every time is a small tax you pay all
+   day. Counts live on the tab labels, so the one you are NOT looking at can
+   still tell you something arrived. */
+const TABS = ['tutor', 'map'];
+const TAB_KEY = 'ss.log.tab';
+const SUBS = {
+  tutor: 'Every question, the screen it was asked against, and where the tutor pointed.',
+  map: 'What was typed at the question map. Repeats first: one person asking is a person, forty are a lesson that is missing.',
+};
+
+function showTab(which) {
+  if (!TABS.includes(which)) which = 'tutor';
+  for (const t of TABS) {
+    $('tab-' + t).setAttribute('aria-selected', String(t === which));
+    $('pane-' + t).hidden = t !== which;
+  }
+  $('sub').textContent = SUBS[which];
+  try { localStorage.setItem(TAB_KEY, which); } catch (e) { /* private window */ }
+}
+
+for (const t of TABS) $('tab-' + t).addEventListener('click', () => showTab(t));
+
+/* Left and right across the tablist, which is what a tablist is expected to do
+   and costs four lines. */
+$('tab-tutor').parentNode.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const i = TABS.findIndex(t => $('tab-' + t).getAttribute('aria-selected') === 'true');
+  const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+  showTab(next);
+  $('tab-' + next).focus();
+});
+
 function drawSearches(s) {
   if (!s || s.error) {
+    $('tab-map').querySelector('.n').textContent = '';
     $('fstats').innerHTML = '';
     $('asked').innerHTML = '';
     $('qlist').innerHTML = `<p class="empty">${esc(s ? s.error : 'no searches')}</p>`;
     return;
   }
   const k = s.stats;
+  $('tab-map').querySelector('.n').textContent = k.searches;
   $('fstats').innerHTML = [
     ['searches', k.searches], ['last 24h', k.day], ['visitors', k.visitors],
     ['distinct', k.distinct_q], ['avg', k.avg_ms == null ? '—' : k.avg_ms + 'ms'],
@@ -287,6 +338,7 @@ function drawSearches(s) {
 
 function draw(data) {
   const s = data.stats;
+  $('tab-tutor').querySelector('.n').textContent = s.turns;
 
   $('stats').innerHTML = [
     ['turns', s.turns], ['threads', s.threads], ['visitors', s.visitors],
@@ -369,6 +421,12 @@ function draw(data) {
 
 for (const id of ['lesson', 'cohort', 'aimed', 'limit']) $(id).addEventListener('change', load);
 $('reload').addEventListener('click', load);
+
+// Before load(), so the page opens on the right tab rather than switching once
+// the data lands.
+let opening = 'tutor';
+try { opening = localStorage.getItem(TAB_KEY) || 'tutor'; } catch (e) { /* private window */ }
+showTab(opening);
 load();
 </script>
 </body>
