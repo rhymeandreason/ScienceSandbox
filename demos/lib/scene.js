@@ -351,7 +351,8 @@
   }
 
   /* ---- the stage: renderer + scene + camera + orbit + resize ---- */
-  // opts: cam {theta,phi,r} initial · phiMin/phiMax pitch clamp · rMin/rMax zoom
+  // opts: cam {theta,phi,r} initial · turn:'trackball' for pole-free rotation
+  //       · phiMin/phiMax pitch clamp (turntable only) · rMin/rMax zoom
   // clamp · wheel step per mouse detent · zoom:false drops wheel zoom entirely · onZoom(r) /
   // onDrag() side-effect hooks (per-page state)
   // · ortho:true swaps in an OrthographicCamera — no perspective foreshortening,
@@ -388,7 +389,46 @@
     camera.add(keyL,keyL.target,fillL,fillL.target);
 
     const cam={theta:camInit.theta,phi:camInit.phi,r:camInit.r,target:new THREE.Vector3(0,0,0)};
+
+    // TRACKBALL vs TURNTABLE, and why a viewer wants the first.
+    //
+    // theta/phi is a turntable: the world has an up axis, the camera swings
+    // around it, and phi has to be clamped short of the poles or the view
+    // flips over as sin(phi) changes sign. That clamp is what a drag "getting
+    // stuck" is — at 0.008 rad per pixel the default range is about 100 px of
+    // upward travel, which on a page whose subject is a SHAPE runs out
+    // exactly when someone is trying to look at the top of it.
+    //
+    // A trackball has no up axis and no poles: each drag turns the view about
+    // axes in the CAMERA's own frame and composes onto what came before, so
+    // the molecule keeps rolling in whatever direction the hand moves. That
+    // is what every molecular viewer does, and what a page examining one
+    // structure wants. It is opt-in because a lesson with a composed framing
+    // usually does not: `turn:'trackball'`.
+    //
+    // cam.q is seeded FROM theta/phi so a page reads the same either way, and
+    // theta/phi stop being meaningful the moment a trackball drag lands. Zoom
+    // still writes cam.r, which is why the offset is rebuilt from it here.
+    cam.q=new THREE.Quaternion();
+    const seedQ=()=>{
+      const m=new THREE.Matrix4().lookAt(
+        new THREE.Vector3(
+          Math.sin(cam.phi)*Math.sin(cam.theta),
+          Math.cos(cam.phi),
+          Math.sin(cam.phi)*Math.cos(cam.theta)),
+        new THREE.Vector3(0,0,0), new THREE.Vector3(0,1,0));
+      cam.q.setFromRotationMatrix(m);
+    };
+    seedQ();
+
     function applyCam(){
+      if(o.turn==='trackball'){
+        camera.position.copy(cam.target).add(
+          new THREE.Vector3(0,0,cam.r).applyQuaternion(cam.q));
+        camera.up.set(0,1,0).applyQuaternion(cam.q);
+        camera.lookAt(cam.target);
+        return;
+      }
       camera.position.set(
         cam.target.x+cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
         cam.target.y+cam.r*Math.cos(cam.phi),
@@ -417,8 +457,17 @@
       // be `drag` swings the camera through the pinch.
       canvas.addEventListener('pointermove',e=>{ if(!drag||pts.size>1)return;
         if(o.onDrag)o.onDrag();
-        cam.theta-=(e.clientX-drag.x)*0.008;
-        cam.phi=Math.max(o.phiMin,Math.min(o.phiMax,cam.phi-(e.clientY-drag.y)*0.008));
+        const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+        if(o.turn==='trackball'){
+          // Composed in the camera's own frame (multiply, not premultiply), so
+          // the axes turn with the view and there is nothing to clamp.
+          const k=0.008, Q=THREE.Quaternion, V=THREE.Vector3;
+          cam.q.multiply(new Q().setFromAxisAngle(new V(0,1,0),-dx*k))
+               .multiply(new Q().setFromAxisAngle(new V(1,0,0),-dy*k));
+        } else {
+          cam.theta-=dx*0.008;
+          cam.phi=Math.max(o.phiMin,Math.min(o.phiMax,cam.phi-dy*0.008));
+        }
         drag={x:e.clientX,y:e.clientY}; applyCam();});
       canvas.addEventListener('pointerup',()=>drag=null);
     }

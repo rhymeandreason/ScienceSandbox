@@ -40,9 +40,14 @@ The browser half of the SES1 format written by `bake-surface.js`.
 
 `kit/molbox.js` draws a molecule built from a spec; this draws one measured in a lab. Its own CardStage scene, ortho, real angstroms — which is what lets it be angstroms at all, since one scale family per SCENE and the cards beside it are the small-molecule family.
 
-    Proteinbox.create({ mount, trace, chains, surface, fold })
+    Proteinbox.create({ mount, trace | data, chains, colors, surface, fold })
 
-Three things it can show, and only the first is free: the 12 KB trace on create, a ~360 KB SES and an ~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()` and `rep`.
+Three things it can show, and only the first is free: the 12 KB trace on create, a ~360 KB SES and an ~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()`, `setData(t)` and `rep`.
+
+* **`data:` is `trace:` already parsed** — the same object, no fetch. **It does not read PDB and must not learn to**: parsing decides which altloc, which chain, and whether secondary structure is read or detected, and a page that owns a protein already owns those decisions. What is shared is the box — the scene, the camera, the framing and the turn — so a page whose coordinates arrive as anything else parses them itself and hands over chains. `proteins/prion/prion-test.html` builds the object straight off a PDB with `proteins/prion/prion.js`.
+* **`setData(t)` redraws without replacing the box**, so a reader who turned the molecule keeps that view across a switch. A page comparing several structures wants one box re-fed, not one box per structure: the alternative costs a WebGL context each and snaps the camera back on every click.
+* **The ribbon breaks where the chain breaks**, on `nums` from the trace. A chain carrying only `first` is treated as contiguous, which is the honest reading of a file that does not say otherwise — and why `bake-trace.js` now writes them.
+* **`colors:`** overrides the ss palette: one number for flat, or `{C,H,E}` for some of it. Omit it and every protein in the repo is drawn the same way, which is the default for a reason. A page overrides only when colour is carrying a claim of its own (prion: healthy fold against disease fold).
 
 * **One decoded surface across every box**, for the same reason contexts are rationed: the LRU rations contexts, not what a page hangs off one. A box that loses its surface falls back to the ribbon it never removed.
 * **`orbit:false` by default** — a drag belongs to the page, not to the molecule; a canvas that spins under the pointer leaves no way back to the framing the card was composed with.
@@ -62,8 +67,9 @@ A trajectory from `HbFold.decode`, played as a ribbon that means something. It o
 
 **`tools/bake-trace.js`** (baker, not a module)
 
-A deposited PDB down to what a ribbon needs: `node tools/bake-trace.js <file.pdb> [chains]` writes `<file>.trace.json` beside it — per chain a Ca array, one ss letter per residue, and the record COUNT of helices and strands. Centred on the baked Ca, `centre` recording the vector removed so anything else baked from the same PDB can be brought into the frame.
+A deposited PDB down to what a ribbon needs: `node tools/bake-trace.js <file.pdb> [chains]` writes `<file>.trace.json` beside it — per chain a Ca array, every residue NUMBER, one ss letter per residue, and the record COUNT of helices and strands. Centred on the baked Ca, `centre` recording the vector removed so anything else baked from the same PDB can be brought into the frame.
 
+* **`nums` is what makes a chain break drawable.** A trace carrying only `first` describes the chain as contiguous, so an unmodelled loop reads as a chain that simply skips and the ribbon splines a smooth band across coordinates nobody measured — indistinguishable from data at ribbon width. 7LNA orders 95-227 and models nothing for 194-196, which is what this exists for; the baker prints the break count.
 * Secondary structure is READ from HELIX/SHEET, never detected. No records bakes as all coil and says `ssFrom:'none'`, so the card is visibly a worm rather than silently wrong.
 * The helix COUNT is from the records, because adjacent helices merge into one run of `H`: 2HHB's eight per chain read as six. A caption saying "eight" has to say it from `helices`.
 * 2HHB: 4 chains, 574 residues, 12 KB — against 453 KB of PDB, most of it atoms a ribbon discards.

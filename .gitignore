@@ -4,3 +4,9 @@ node_modules/
 .claude/worktrees/
 .env.local
 .vercel/
+
+# 2.7 MB of 20 NMR models; only prep.js reads it, and it bakes 169 KB.
+# prep.js skips the ensemble when it is absent and prints the curl.
+demos/proteins/prion/data/1QLZ.pdb
+# derived from it, and no page loads it today
+demos/proteins/prion/data/prp-view-ensemble.pdb

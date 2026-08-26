@@ -50,15 +50,26 @@
  *  hemoglobin/foldplay.js for `fold`.
  *
  *    const box = Proteinbox.create({
- *      mount, trace:'…/2HHB.trace.json',       // required
+ *      mount, trace:'…/2HHB.trace.json',       // or data: a parsed one
  *      chains:'B',                             // default: every chain in the file
  *      surface:'…/2HHB.card.surf.bin',         // omit and there is no toggle
  *      fold:'…/2HHB-B.fold.bin',               // omit and there is no play button
  *    });
  *
+ *  `data:` is `trace:` already parsed — same object, no fetch — for a page
+ *  whose coordinates arrive as something the box does not read. It does not
+ *  read PDB and should not learn to: parsing decides which altloc, which
+ *  chain, and whether secondary structure is read or detected, and a page
+ *  that owns a protein already owns those. What is shared is the box.
+ *
+ *  `colors:` overrides the ss palette — one number for a flat colour, or
+ *  {C,H,E} for some of it. Omit it and every protein in the repo is drawn the
+ *  same way, which is the default for a reason.
+ *
  *  Returns kit/card-stage.js's box, so a pool's acquire / snapshot / destroy
- *  work on it unchanged, plus `drop()` (back to ribbon, release the surface)
- *  and `rep` for a caller that wants to know what is showing.
+ *  work on it unchanged, plus `drop()` (back to ribbon, release the surface),
+ *  `setData(t)` (draw a different structure in the same box, keeping the
+ *  camera) and `rep` for a caller that wants to know what is showing.
  * ============================================================================= */
 (function (global) {
   'use strict';
@@ -137,50 +148,103 @@
     const foldGroup = new THREE.Group();
     box.root.add(chainGroup, foldGroup);
 
-    /* ---- the ribbon ---- */
-    fetch(opts.trace)
-      .then(r => r.json())
-      .then(t => {
-        if (box.dead) return;
-        const ids = opts.chains ? String(opts.chains).split(',') : t.order.slice();
-        const mats = [RIB.C, RIB.H, RIB.E].map(c => {
-          const m = Stage.bondMat(c);
-          m.side = THREE.DoubleSide;
-          return m;
-        });
-        const drawn = [];
-        /* One chain per frame. A tetramer is ~80k triangles and building all
-           four in the frame the trace lands is a visible stall on a page that
-           is usually animating something when it arrives. */
-        const build = () => {
-          const cid = ids.shift();
-          if (cid === undefined || box.dead) return;
-          const c = t.chains[cid];
-          if (c) {
-            const pts = c.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    /* ---- the ribbon ----
+
+       TWO WAYS IN, ONE SHAPE OF DATA. `trace:` fetches a bake-trace.js file;
+       `data:` hands the same object over directly, already parsed. A page
+       whose coordinates arrive as something else — a PDB it reads with its
+       own module, a format nobody has written yet — parses it however it
+       likes and calls setData().
+
+       The box deliberately does NOT learn to read those formats. Parsing
+       carries decisions this file has no business making (which altloc, which
+       chain, whether secondary structure is read or detected), and every page
+       that owns a protein already owns them. What is shared here is the box:
+       the scene, the camera, the framing and the turn. */
+    function setData(t, o) {
+      o = o || {};
+      chainGroup.clear();
+      const ids = (o.chains || opts.chains)
+        ? String(o.chains || opts.chains).split(',') : t.order.slice();
+
+      /* Colour. Default is the ss palette, which is the point of drawing every
+         protein in the repo the same way. A page that colours by something
+         else — a state, a mutation, a chain — passes `colors`, and one colour
+         means all three. */
+      const c = o.colors || opts.colors;
+      const pal = c == null ? RIB
+        : (typeof c === 'number' ? { C: c, H: c, E: c }
+                                 : Object.assign({}, RIB, c));
+      const mats = [pal.C, pal.H, pal.E].map(v => {
+        const m = Stage.bondMat(v);
+        m.side = THREE.DoubleSide;
+        return m;
+      });
+
+      const drawn = [];
+      /* One chain per frame. A tetramer is ~80k triangles and building all
+         four in the frame the trace lands is a visible stall on a page that
+         is usually animating something when it arrives. */
+      const build = () => {
+        const cid = ids.shift();
+        if (cid === undefined || box.dead) return;
+        const ch = t.chains[cid];
+        if (ch) {
+          for (const seg of runs(ch)) {
+            if (seg.CA.length < 4) continue;   // RibbonLib needs a spline's worth
+            const pts = seg.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
             drawn.push(...pts);
             chainGroup.add(new THREE.Mesh(
-              RibbonLib.build(THREE, pts, c.ss.split(''),
-                                     { sub: opts.sub == null ? 6 : opts.sub }), mats));
-            /* The trace is centred on every chain it HOLDS, so a box drawing
-               one of four would sit off to the side. Re-centre on what is
-               actually drawn, and re-solve after each — every chain changes
-               both the centre and the radius. */
-            stillMid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
+              RibbonLib.build(THREE, pts, seg.ss,
+                              { sub: opts.sub == null ? 6 : opts.sub }), mats));
+          }
+          /* The trace is centred on every chain it HOLDS, so a box drawing
+             one of four would sit off to the side. Re-centre on what is
+             actually drawn, and re-solve after each — every chain changes
+             both the centre and the radius. */
+          if (drawn.length) {
+            stillMid = drawn.reduce((acc, p) => acc.add(p), new THREE.Vector3())
                             .multiplyScalar(1 / drawn.length);
             stillR = 0;
             for (const p of drawn) stillR = Math.max(stillR, p.distanceTo(stillMid));
             if (rep === 'ribbon') reframeStill();
-            box.draw();
           }
-          if (ids.length) requestAnimationFrame(build);
-        };
-        build();
-      })
-      /* Loud, not silent. A swallowed catch here is a box that shows its
-         placeholder for ever and looks exactly like a module with no stage
-         yet — the one failure this file can produce that nobody can see. */
-      .catch(e => console.warn('Proteinbox: ' + opts.trace + ' — ' + e.message));
+          box.draw();
+        }
+        if (ids.length) requestAnimationFrame(build);
+      };
+      build();
+    }
+
+    /* A chain is drawn as one ribbon per CONSECUTIVE RUN of residues. Without
+       `nums` a trace cannot say where it breaks, so it is treated as
+       contiguous — which is what every trace baked before bake-trace.js
+       started writing them says, and the honest reading of a file that does
+       not carry the information. */
+    function runs(ch) {
+      const n = ch.ss.length, ss = ch.ss;
+      if (!ch.nums) return [{ CA: ch.CA, ss: ss.split('') }];
+      const out = [];
+      let from = 0;
+      for (let i = 1; i <= n; i++) {
+        if (i === n || ch.nums[i] !== ch.nums[i - 1] + 1) {
+          out.push({ CA: ch.CA.slice(from, i), ss: ss.slice(from, i).split('') });
+          from = i;
+        }
+      }
+      return out;
+    }
+
+    if (opts.data) setData(opts.data);
+    else if (opts.trace) {
+      fetch(opts.trace)
+        .then(r => r.json())
+        .then(t => { if (!box.dead) setData(t); })
+        /* Loud, not silent. A swallowed catch here is a box that shows its
+           placeholder for ever and looks exactly like a module with no stage
+           yet — the one failure this file can produce that nobody can see. */
+        .catch(e => console.warn('Proteinbox: ' + opts.trace + ' — ' + e.message));
+    }
 
     function reframeStill() {
       if (!stillMid) return;
@@ -323,6 +387,12 @@
     setRep('ribbon');
 
     box.drop = () => { setRep('ribbon'); dropSurface(); };
+
+    /* Replace what is drawn without replacing the box. A page that switches
+       between structures keeps one WebGL context, one camera and one turn,
+       which is the whole reason the box is shared: the reader's viewpoint
+       survives the switch instead of snapping back on every click. */
+    box.setData = setData;
     Object.defineProperty(box, 'rep', { get: () => rep });
     return box;
   }

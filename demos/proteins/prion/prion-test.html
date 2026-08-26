@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrP — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. Before there is a prion lesson there is a question
+     the numbers cannot answer: which deposited structures should it draw,
+     and is the difference between them something a student would SEE?
+
+     So this page draws them, in one camera, as themselves. Nothing here is
+     interpolated, fitted, or rebuilt. Coordinates come off the file, and
+     secondary structure comes off the file's own HELIX and SHEET records —
+     detecting it would be inventing the very claim a folding lesson makes.
+
+     WHAT IT SETTLED, so far:
+
+       native vs fibril   1QLZ is 60% helix, 6LNI is 0%. Same sequence,
+                          same disulfide, no covalent difference at all.
+       why a rung is flat A fibril monomer measures 65 x 41 x 5.6 A, one
+                          molecule thick, against the native's 44 x 32 x
+                          20. It is flat because it is one layer of a
+                          stack: its strand partners are the copies 4.9 A
+                          above and below, which is what the stack view is
+                          for.
+       which pair         1QLZ/6LNI is human; 1B10/7LNA is Syrian hamster,
+                          and the two differ at 15 of 104 residues. A pair
+                          can be one or the other and never a mix.
+
+     THE MORPH LIVES IN prion.js, NOT HERE. This page dropped it: the
+     trajectory is a question about animation, and answering it while the
+     structures were still unchosen was answering the second question
+     first. prion.js keeps morph(), ccd() and the geometry checks, and
+     check-prion.js still runs against them offline.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Nothing here is evidence about the
+     conversion, which is templated and has never been imaged. Both ends
+     are deposited; how a protein gets from one to the other is not.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* Every size, weight and colour below is a main.css token. The panel is a
+     reading column, not a control strip, so the hierarchy is carried by size
+     and colour rather than by rules and boxes. */
+  #app{display:grid;grid-template-columns:1fr 340px;height:100vh}
+  #stage{position:relative;background:var(--paper)}
+
+  .panel{padding:var(--space-5) var(--space-4);overflow-y:auto;
+    font-family:var(--font-sans);font-size:var(--text-sm);
+    line-height:var(--leading-body);
+    background:var(--surface-card);color:var(--ink);
+    border-left:1.5px solid var(--hair)}
+
+  /* Title: editorial, the one place the panel raises its voice. */
+  .panel h1{font-family:var(--font-editorial);font-size:var(--text-2xl);
+    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
+    line-height:var(--leading-tight);margin:0}
+  .panel .deck{font-family:var(--font-editorial);font-size:var(--text-md);
+    font-weight:var(--weight-regular);color:var(--muted);
+    line-height:var(--leading-snug);margin:2px 0 var(--space-5)}
+
+  /* Section labels: the quietest thing on the page, and the only uppercase. */
+  .panel h2{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;color:var(--muted);
+    font-weight:var(--weight-semibold);margin:var(--space-5) 0 var(--space-2)}
+
+  button.mode{display:flex;align-items:center;gap:var(--space-2);
+    width:100%;text-align:left;margin:3px 0;padding:8px 10px;
+    border:1.5px solid var(--hair);background:transparent;
+    border-radius:var(--radius-sm);cursor:pointer;
+    font:inherit;font-size:var(--text-sm);color:var(--ink);
+    transition:background var(--dur-fast) var(--ease-out)}
+  button.mode:hover{background:rgba(0,0,0,.035)}
+  button.mode .who{flex:1}
+  button.mode[aria-pressed=true]{background:#3f7abd;border-color:#3f7abd;color:#fff}
+  button.mode.disease[aria-pressed=true]{background:#b3300c;border-color:#b3300c}
+
+  /* The chip says HEALTHY or DISEASE, and it is the first thing the eye
+     lands on inside a row. Colour alone would not survive the pressed state,
+     so the word is always there. */
+  .chip{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;font-weight:var(--weight-semibold);
+    padding:2px 6px;border-radius:var(--radius-pill);
+    background:rgba(63,122,189,.14);color:#2c5b91}
+  .chip.disease{background:rgba(179,48,12,.14);color:#8f2708}
+  button.mode[aria-pressed=true] .chip{background:rgba(255,255,255,.22);color:#fff}
+
+  /* The readout. One claim in editorial at the top, then the measurements. */
+  .claim{font-family:var(--font-editorial);font-size:var(--text-md);
+    line-height:var(--leading-snug);margin:0 0 var(--space-1)}
+  .meta{font-size:var(--text-xs);color:var(--muted);margin:0 0 var(--space-3)}
+
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
+    font-size:var(--text-xs)}
+  td{padding:3px 0;vertical-align:baseline;border-bottom:1px solid var(--hair)}
+  tr:last-child td{border-bottom:0}
+  td:first-child{color:var(--muted)}
+  td:last-child{text-align:right;font-weight:var(--weight-semibold);
+    font-size:var(--text-sm);color:var(--ink)}
+  td.flag:last-child{color:#b3300c}
+
+  .frag{font-family:var(--font-mono);font-size:var(--text-xs);
+    color:var(--muted);margin:var(--space-3) 0 0}
+  .prov{font-size:var(--text-xs);line-height:var(--leading-body);
+    color:var(--muted);margin:var(--space-2) 0 0}
+
+  /* Where the coordinates came from, on the view they belong to. Three
+     links because they are three different things: the entry a reader would
+     cite, the file it downloads, and the reduced copy this page actually
+     parses — and the third is the one that would otherwise be invisible. */
+  .src{display:flex;flex-wrap:wrap;gap:var(--space-3);
+    margin:var(--space-3) 0 var(--space-6);
+    font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;font-weight:var(--weight-semibold)}
+  .src a{color:var(--muted);text-decoration:none;
+    border-bottom:1px solid var(--hair);padding-bottom:1px}
+  .src a:hover{color:var(--ink);border-bottom-color:currentColor}
+  /* The icon marks the links that LEAVE the page, so it is on both remote
+     ones and not on the local file. Drawn rather than fetched: an icon font
+     for one glyph is a webfont the rest of the page does not need. */
+  .src a{display:inline-flex;align-items:center;gap:4px}
+  .ext{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:1.6;
+    stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+  /* Completeness is the row a reader is most likely to mis-read as "the
+     whole protein", so it is the one row that is marked. A highlighter
+     stripe, and nothing else: the text keeps the colour and size every other
+     row has, because the figures here are scanned against each other and a
+     bigger or recoloured number reads as a different KIND of value rather
+     than as a more important row.
+
+     The yellow is literal rather than a token. Every accent in main.css is
+     already spoken for on this page — blue is the healthy fold, rust the
+     disease one — and borrowing either for UI emphasis would put a state
+     colour on a row that has no state. */
+  tr.hi td{background:#ffe94a;border-bottom:0}
+  tr.hi td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);
+    padding-left:6px}
+  tr.hi td:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    padding-right:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Prion protein</h1>
+    <p class="deck">One sequence, two shapes: the healthy fold and the disease fold, as deposited.</p>
+
+    <h2>human</h2>
+    <button class="mode" id="v-1QLZ" aria-pressed="true">
+      <span class="who">native fold &middot; 1QLZ</span><span class="chip">healthy</span></button>
+    <button class="mode disease" id="v-6LNI" aria-pressed="false">
+      <span class="who">fibril rung &middot; 6LNI</span><span class="chip disease">disease</span></button>
+    <button class="mode disease" id="v-stack" aria-pressed="false">
+      <span class="who">6LNI stacked</span><span class="chip disease">disease</span></button>
+
+    <h2>syrian hamster</h2>
+    <button class="mode" id="v-1B10" aria-pressed="false">
+      <span class="who">native fold &middot; 1B10</span><span class="chip">healthy</span></button>
+    <button class="mode disease" id="v-7LNA" aria-pressed="false">
+      <span class="who">scrapie fibril &middot; 7LNA</span><span class="chip disease">disease</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>assembly</td><td id="d-quat">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>thinnest &divide; longest</td><td id="d-flat">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="prion.js"></script>
+<script>
+'use strict';
+
+/* THE BOX IS kit/proteinbox.js, and the page's job stops at the chains.
+
+   Camera, framing, the turn and the WebGL context are the module's, so this
+   page orbits and frames exactly like every protein card in the repo. What is
+   NOT the module's is what a chain is: which altloc, which chain id, and
+   whether secondary structure was read or detected. prion.js decides those
+   from the file, and hands over the same object bake-trace.js writes.
+
+   ONE BOX, RE-FED. setData() swaps the structure without replacing the box,
+   so a reader who turned the molecule keeps that view across the switch —
+   which is the whole point of comparing five structures, and the thing a
+   destroy-and-recreate per click would throw away every time. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  /* Trackball, not turntable. A turntable clamps its pitch short of the poles
+     — about a hundred pixels of upward drag at the default rate — and on a
+     page whose whole subject is a SHAPE the drag runs out exactly when
+     someone is trying to look at the top of it. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* RibbonLib's own default. Proteinbox asks for 6 samples per residue
+     because a card is a thumbnail and a map of them is a triangle budget;
+     this page is one molecule at full height, where 6 is visible as faceting
+     wherever the chain turns hard — the ends of arrows and the tight loops
+     read chunky, which is the spline showing rather than the protein. */
+  sub: 10,
+});
+
+/* Colour says WHICH STATE, not which residue: blue is the healthy fold, rust
+   the disease one, the same two roles the contrast pages use. It overrides
+   Proteinbox's secondary-structure palette on purpose — the page's whole
+   claim is that one sequence occupies both states, and helix-vs-strand is
+   already carried by the ribbon's own shape and by the helix / strand row. */
+const NATIVE_COLOR = 0x3f7abd, FIBRIL_COLOR = 0xb3300c;
+
+const VIEWS = [
+  { id: '1QLZ', native: true },
+  { id: '6LNI', native: false },
+  { id: 'stack', native: false },
+  { id: '1B10', native: true },
+  { id: '7LNA', native: false },
+];
+
+const views = {};                        // id -> { chains, data, color, stats }
+let view = null;
+const $ = id => document.getElementById(id);
+
+/* A bench is a thing you poke at from the console. Lessons do not do this;
+   this page exists to be interrogated, and hiding its state behind module
+   scope would mean every question needed an edit. */
+window.bench = { views, box, get view() { return view; } };
+
+/* The denominator for completeness: the length of the molecule the entry
+   SAYS it is, off its own SEQRES records. Not a full-length PrP constant
+   typed here — that would be this page deciding what the protein is. It is
+   construct-relative and differs between entries (the human files declare
+   210, the hamster ones 142), which is a fact about what was expressed. */
+function declaredLength(txt) {
+  const first = txt.split('\n').find(l => l.startsWith('SEQRES') && l[11] === 'A');
+  return first ? parseInt(first.slice(13, 17), 10) : null;
+}
+
+/* PrionLib.parse keys residues by NUMBER, which is right for the one chain
+   the baker normally hands it and silently wrong for ten: residue 180 of
+   chain B would overwrite residue 180 of chain A, and the stack would parse
+   as a single rung wearing the last chain's coordinates. So chains are
+   separated before parse() ever sees them, and each carries the file's
+   records because every rung is the same conformation. */
+function byChain(txt) {
+  const recs = [], chains = new Map();
+  for (const line of txt.split('\n')) {
+    if (line.startsWith('SHEET') || line.startsWith('HELIX')) { recs.push(line); continue; }
+    if (!line.startsWith('ATOM')) continue;
+    const c = line[21];
+    if (!chains.has(c)) chains.set(c, []);
+    chains.get(c).push(line);
+  }
+  return [...chains.entries()].sort()
+    .map(([c, atoms]) => ({ chain: c, parsed: PrionLib.parse(recs.concat(atoms).join('\n')) }));
+}
+
+/* Consecutive runs of residue numbers. The BOX breaks the ribbon at these
+   now — it is handed `nums` and splits on them — so this is here only to
+   count the segments the panel reports. Two readings of one gap, and they
+   agree because both read the same numbers. */
+function runs(residues) {
+  const out = [];
+  let cur = [];
+  for (const r of residues) {
+    if (cur.length && r.num !== cur[cur.length - 1].num + 1) { out.push(cur); cur = []; }
+    cur.push(r);
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+/* Both record types on one array. A native PrP has three helices AND a
+   two-strand sheet, so assigning only the helices would draw the native
+   β-sheet as coil — and the native sheet is exactly what the fibril claims
+   to extend. */
+function ssBoth(residues, parsed) {
+  const first = residues[0].num, n = residues.length;
+  const out = PrionLib.ss(n, first, parsed.helices, 'H');
+  const e = PrionLib.ss(n, first, parsed.sheets, 'E');
+  for (let i = 0; i < n; i++) if (e[i] === 'E') out[i] = 'E';
+  return out;
+}
+
+/* prp-views.json is the baker's, not the page's: species, method and chain
+   count are read out of the source files, and the healthy/disease reading is
+   written next to the data it describes. A panel that typed any of it would
+   be making claims nothing checks. */
+let manifest = {};
+fetch('data/prp-views.json').then(r => r.json()).then(m => {
+  manifest = m;
+  if (view) show(view);
+});
+
+VIEWS.forEach(({ id, native }) => {
+  fetch(`data/prp-view-${id}.pdb`).then(r => r.text()).then(txt => {
+    const chains = byChain(txt);
+    const declared = declaredLength(txt);
+
+    /* The shape bake-trace.js writes, assembled here from the PDB instead.
+       Same fields, same meanings, including `nums` — which is what lets the
+       box break the ribbon where the chain breaks rather than splining a
+       smooth band across residues nobody modelled. */
+    const data = { order: [], chains: {} };
+    chains.forEach(({ chain, parsed }) => {
+      const R = parsed.residues.filter(r => r.atoms.CA);
+      data.order.push(chain);
+      data.chains[chain] = {
+        first: R[0].num,
+        nums: R.map(r => r.num),
+        CA: R.map(r => r.atoms.CA),
+        ss: ssBoth(R, parsed).join(''),
+        helices: parsed.helices.length,
+        strands: parsed.sheets.length,
+      };
+    });
+
+    const first = data.chains[data.order[0]];
+    views[id] = { chains, data, color: native ? NATIVE_COLOR : FIBRIL_COLOR,
+                  stats: measure(chains, first.ss.split(''), declared) };
+    if (view === id) show(id);           // clicked before the fetch landed
+  });
+});
+
+/* Everything the panel prints, counted off the parsed file. A typed number
+   is a claim nothing checks, and a re-bake falsifies it silently. */
+function measure(chains, ss, declared) {
+  const { parsed } = chains[0];
+  const R = parsed.residues, n = R.length;
+  const segs = runs(R).length;
+  const H = ss.filter(c => c === 'H').length, E = ss.filter(c => c === 'E').length;
+
+  /* Extents along the chain's own principal axes, not the file's frame: a
+     deposition's axes are wherever the depositor left them, so measuring x,
+     y and z would report the orientation rather than the shape. The
+     thinnest over the longest is what says "one molecule thick". */
+  const ext = principal(R.map(r => r.atoms.CA).filter(Boolean));
+
+  /* Completeness against the declared length, and the fixed phrasing that
+     goes with it. A percentage alone rounds a hole away, and a span alone
+     hides one entirely, so the segment count rides along. */
+  const pct = declared ? Math.round(100 * n / declared) : null;
+  const frag = declared === null ? 'no SEQRES records: completeness unknown'
+    : n >= declared ? `complete: ${n} of ${declared} deposited`
+    : `fragment: ${n} out of ${declared} deposited`;
+
+  return {
+    pct: pct === null ? '—' : `${n} of ${declared} · ${pct}%`,
+    frag,
+    span: `${R[0].num}–${R[n - 1].num}`,
+    res: `${n} residues` + (segs > 1 ? ` in ${segs} segments` : '') +
+         (chains.length > 1 ? ` × ${chains.length} chains` : ''),
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    ext: ext.map(v => v.toFixed(0)).join(' × '),
+    flat: (ext[2] / ext[0]).toFixed(2),
+    flatBad: ext[2] / ext[0] < 0.15,
+  };
+}
+
+/* Principal-axis extents by power iteration on the covariance. Three axes,
+   deflated in turn — enough for a shape statistic, and it keeps the page
+   free of a matrix library it would otherwise load for six numbers. */
+function principal(P) {
+  const n = P.length;
+  const c = [0, 1, 2].map(i => P.reduce((s, p) => s + p[i], 0) / n);
+  const Q = P.map(p => p.map((v, i) => v - c[i]));
+  let C = [0, 1, 2].map(i => [0, 1, 2].map(j =>
+    Q.reduce((s, q) => s + q[i] * q[j], 0) / n));
+
+  const out = [];
+  for (let k = 0; k < 3; k++) {
+    let v = [1, 0.3, 0.1];
+    for (let it = 0; it < 200; it++) {
+      const w = C.map(row => row.reduce((s, a, j) => s + a * v[j], 0));
+      const m = Math.hypot(...w) || 1;
+      v = w.map(x => x / m);
+    }
+    const proj = Q.map(q => q.reduce((s, x, i) => s + x * v[i], 0));
+    out.push(Math.max(...proj) - Math.min(...proj));
+    const lam = v.reduce((s, x, i) =>
+      s + x * C[i].reduce((t, a, j) => t + a * v[j], 0), 0);
+    C = C.map((row, i) => row.map((a, j) => a - lam * v[i] * v[j]));   // deflate
+  }
+  return out.sort((a, b) => b - a);
+}
+
+/* WHAT COUNTS AS QUATERNARY STRUCTURE, said per view rather than in a legend.
+
+   Quaternary structure is more than one polypeptide chain assembled into one
+   functional unit. A healthy PrP has none: it is a single chain that works
+   alone, which is exactly why the fibril is a different KIND of object and
+   not only a different fold. A fibril rung is one subunit of an assembly, so
+   drawing it by itself is drawing a part, and the page should say so on the
+   view where it is least obvious. */
+function quaternary(m) {
+  if (!m) return '—';
+  if (m.chains <= 1) return 'monomer, no quaternary structure';
+  if (m.drawn >= m.chains) return `${m.chains} chains stacked, quaternary`;
+  return `1 of ${m.chains} chains, a subunit of the fibril`;
+}
+
+function show(id) {
+  view = id;
+  const on = views[id];
+  if (!on) return;                       // fetch still in flight
+
+  const s = on.stats;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-frac').textContent = s.frac;
+  $('d-ext').textContent = s.ext;
+  $('d-flat').textContent = s.flat;
+  $('d-flat').classList.toggle('flag', s.flatBad);
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+
+  const m = manifest[id];
+  $('d-claim').textContent = m
+    ? `${m.species === 'human' ? 'Human' : 'Syrian hamster'} PrP in its ` +
+      `${m.state === 'healthy' ? 'healthy' : 'disease'} form, ${m.form}.`
+    : '—';
+  $('d-meta').textContent = m ? `${m.entry} · ${m.method}` : '—';
+  $('d-quat').textContent = quaternary(m);
+  $('d-prov').textContent = m ? m.prov : '—';
+
+  /* Built from the manifest's entry id, so a link cannot point at a
+     structure the panel is not describing. */
+  if (m) {
+    $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;
+    $('d-rcsb-label').textContent = `RCSB ${m.entry}`;
+    $('d-raw').href = `https://files.rcsb.org/download/${m.entry}.pdb`;
+    $('d-baked').href = `data/${m.file}`;
+  }
+
+  box.setData(on.data, { colors: on.color });
+}
+
+VIEWS.forEach(({ id }) => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v.id).setAttribute('aria-pressed', String(v.id === id)));
+    show(id);
+  });
+});
+
+show('1QLZ');
+</script>
+</body>
+</html>

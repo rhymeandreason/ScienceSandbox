@@ -107,6 +107,14 @@ for (const [id, res] of chains) {
      say it from here — the trap CLAUDE.md names about numbers in prose. */
   out.chains[id] = {
     first: res[0].num,
+    /* EVERY residue number, not just the first. A trace that carries only
+       `first` describes a chain as contiguous, and an unmodelled loop then
+       reads as a chain that simply skips: the ribbon splines a smooth band
+       across coordinates nobody measured, and at ribbon width that is
+       indistinguishable from data. With the numbers here a consumer can
+       break the band where the chain breaks. 7LNA orders 95-227 and models
+       nothing for 194-196, which is what this exists for. */
+    nums: res.map(r => r.num),
     helices: ranges.H.filter(h => h.chain === id).length,
     strands: ranges.E.filter(e => e.chain === id).length,
     CA: res.map(r => {
@@ -122,5 +130,8 @@ out.radius = r2(radius);
 const dst = src.replace(/\.pdb$/i, '') + '.trace.json';
 fs.writeFileSync(dst, JSON.stringify(out));
 const kb = (fs.statSync(dst).size / 1024).toFixed(0);
+const breaks = out.order.reduce((k, id) => k + out.chains[id].nums
+  .filter((v, i, a) => i && v !== a[i - 1] + 1).length, 0);
 console.log(dst + '  ' + out.order.length + ' chains, ' + n + ' residues, ' +
+            (breaks ? breaks + ' chain break(s), ' : '') +
             'ss ' + ssFrom + ', radius ' + out.radius + ' A, ' + kb + ' KB');

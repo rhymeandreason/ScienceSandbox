@@ -1,0 +1,57 @@
+{
+ "1QLZ": {
+  "entry": "1QLZ",
+  "species": "human",
+  "method": "solution nmr",
+  "chains": 1,
+  "drawn": 1,
+  "file": "prp-view-1QLZ.pdb",
+  "state": "healthy",
+  "form": "PrPᶜ",
+  "prov": "Recombinant human protein, folded as it is in a healthy cell."
+ },
+ "6LNI": {
+  "entry": "6LNI",
+  "species": "human",
+  "method": "electron microscopy",
+  "chains": 10,
+  "drawn": 1,
+  "file": "prp-view-6LNI.pdb",
+  "state": "disease",
+  "form": "PrPˢᶜ",
+  "prov": "Disease fold, grown in vitro from recombinant protein. Not taken from a sick brain."
+ },
+ "1B10": {
+  "entry": "1B10",
+  "species": "hamster",
+  "method": "solution nmr",
+  "chains": 1,
+  "drawn": 1,
+  "file": "prp-view-1B10.pdb",
+  "state": "healthy",
+  "form": "PrPᶜ",
+  "prov": "Recombinant hamster protein, the healthy fold."
+ },
+ "7LNA": {
+  "entry": "7LNA",
+  "species": "hamster",
+  "method": "electron microscopy",
+  "chains": 3,
+  "drawn": 1,
+  "file": "prp-view-7LNA.pdb",
+  "state": "disease",
+  "form": "PrPˢᶜ",
+  "prov": "Infectious material from the brain of a hamster with 263K scrapie."
+ },
+ "stack": {
+  "entry": "6LNI",
+  "species": "human",
+  "method": "electron microscopy",
+  "chains": 10,
+  "drawn": 10,
+  "file": "prp-view-stack.pdb",
+  "state": "disease",
+  "form": "PrPˢᶜ",
+  "prov": "The same in vitro fibril, all ten deposited chains."
+ }
+}

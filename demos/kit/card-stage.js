@@ -111,9 +111,27 @@
     canvas.style.height = '100%';
     mount.appendChild(canvas);
 
-    const stage = global.Stage.create(canvas, Object.assign({
+    /* A DRAG HAS TO REDRAW, BECAUSE A CARD IS USUALLY NOT RUNNING.
+       scene.js's orbit and zoom move the camera and call applyCam(), which
+       positions it and nothing more: on an ordinary page a rAF loop is
+       already drawing every frame, so the move is on screen before anyone
+       notices there was a gap. A box with autoplay:false runs no loop, so a
+       still card takes the drag, moves the camera, and keeps the last frame
+       it drew — pointer state changes, picture does not, and it reads as a
+       canvas that ignores the mouse rather than as a missing render.
+
+       onDrag / onZoom are scene.js's own hooks, so this is one draw per
+       event and not a loop started for a gesture. A caller's own hooks are
+       kept: a page that passes onDrag wants it as well as this, not
+       instead. */
+    const stageOpts = Object.assign({
       cam: { theta: 0.5, phi: 1.15, r: 26 },
-    }, opts.stage || {}, opts.cam ? { cam: opts.cam } : {}));
+    }, opts.stage || {}, opts.cam ? { cam: opts.cam } : {});
+    const also = fn => (...a) => { if (fn) fn(...a); if (!wanted) draw(); };
+    stageOpts.onDrag = also(stageOpts.onDrag);
+    stageOpts.onZoom = also(stageOpts.onZoom);
+
+    const stage = global.Stage.create(canvas, stageOpts);
 
     /* ---- the loop ----
      * Gated on visibility, and `visible` is the authority: start() sets the

@@ -2,7 +2,7 @@
 /* =====================================================================
  *  check-prion.js — the assertions behind the helix-to-sheet morph.
  *
- *  Every claim prion.js and morph-test.html make about the geometry is
+ *  Every claim prion.js makes about the geometry is
  *  here, because each of them fails INVISIBLY. A mirrored rebuild is still
  *  a protein-shaped object; a stretched bond is hidden under the ribbon;
  *  a morph that lands near the fibril instead of on it looks like a morph
