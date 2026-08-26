@@ -432,7 +432,8 @@ function api(url, req, res) {
   if (url === '/api/questions') return questions(req, res, json);
   if (url === '/api/mapcontent') return editable(req, res, json, 'mapcontent');
 
-  if (url !== '/api/ask' && url !== '/api/log') return json(404, { error: 'no such endpoint' });
+  if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find')
+    return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
   // .env.local or editing a provider takes effect on the next question with no
@@ -460,6 +461,22 @@ function api(url, req, res) {
     const shim = { setHeader: () => {}, status: c => ({ json: b => json(c, b) }) };
     return Promise.resolve(handler({ method: req.method, query, socket: req.socket }, shim))
       .catch(e => json(500, { error: e.message }));
+  }
+
+  /* Also a plain Vercel handler, but a POST one, so it needs the body read
+     before the shim can hand it over. Its own gate lives inside it. */
+  if (url === '/api/find') {
+    let handler;
+    try { handler = require(path.join(ROOT, 'api/find.js')); }
+    catch (e) { console.error(e); return json(500, { error: 'the find endpoint would not load' }); }
+    const shim = { setHeader: () => {}, status: c => ({ json: b => json(c, b) }) };
+    const run = body => Promise.resolve(
+      handler({ method: req.method, headers: req.headers, body, socket: req.socket }, shim)
+    ).catch(e => json(500, { error: e.message }));
+    if (req.method !== 'POST') return run(null);
+    let raw = '';
+    req.on('data', d => { raw += d; if (raw.length > 1e5) req.destroy(); });
+    return req.on('end', () => run(raw));
   }
 
   // The bench is a localhost affordance, and here every request is localhost by

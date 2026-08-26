@@ -168,6 +168,29 @@ The card prints both wordings (*the map words it as "…"*), because the reader 
 
 **`centre()` diverges from door-map's**: the composer is a fixed band across the top, and centring on the whole window put the root card underneath it.
 
+### The vector backend
+
+`tools/bake-vectors.js` embeds all 66 authored questions once (gemini-embedding-001, 256d, `SEMANTIC_SIMILARITY`) into `lib/mapcontent-vectors.json`. `api/find.js` embeds the READER's question and returns only that vector; the ranking happens in the page. The corpus vectors ship with the page anyway, so a server-side cosine would protect nothing, and the floors are the knobs worth tuning without a redeploy.
+
+**The task type is not a detail.** A query embedded with anything other than the corpus's task type lands in a different geometry: the cosines come back plausible and the ranking is quietly wrong. `api/find.js` echoes its task and dims, and the page refuses a vector that disagrees with the file it is comparing against.
+
+**Modules come from questions, not from a bag of their own.** The lexical fallback unions every question under a module into one token bag, which is where its noise came from: `ice` inherited the word `blood` from a question about freezing, so anything mentioning blood scored against it. Ranking whole questions and reading off THEIR modules is max-pooling instead of mean-pooling, and the collision has nowhere to form. Measured: *"why is blood red"* went from Ice & density to Cooperativity.
+
+**What ten queries settled, and what they did not.** The shape of the scoring is now known and the numbers are not:
+
+* An **absolute floor works for the match**. Off-map questions ("the capital of France", "how do I bake sourdough") land 0.79-0.83 and real ones land 0.87+, so `MATCH = 0.85` refuses cleanly. This was worth measuring, because corpus-to-corpus similarity sits in a narrow 0.75-0.99 band that suggests no floor could work; query-to-corpus separates where corpus-to-corpus does not.
+* **Normalising against the query's own distribution is worse.** A z-score ranks `asdfqwer` above a real membrane question, because a flat distribution has a high z at its own top. Tried and rejected.
+* **An absolute floor alone fails for discovered edges.** Glycolysis's best row for *"how does my body get energy from sugar"* is 0.836 and correct; Base pairing's for *"what makes hair curly"* is 0.841 and noise. No cut separates them.
+* **Votes alone fail too.** Counting how many top rows carry a module puts three of them on *"how do I bake sourdough bread"*.
+
+So a discovered module must clear a floor AND be corroborated: two near questions carry it, or one carries it from very close. Ten queries is enough to see that shape and nowhere near enough to trust `NEARABS` / `NEARSOLO` / `NEARK`. The fixture is what should fix them.
+
+**Embeddings recover coverage, not only phrasing.** *"why do we breathe"* reached nothing lexically and reads as a coverage gap; it matches *"Why does breathing fast make you dizzy?"* at 0.903. The question was always there.
+
+**No key, no vectors, no problem.** The page falls back to the lexical scorer, says so in the placeholder, and one endpoint failure drops the session to words rather than to nothing. A keyless checkout is a working page.
+
+**No turn counter on `api/find.js`, deliberately.** `api/_limit.js` counts rows in the tutor's tables and a search writes none, so reusing it would ration search against tutor usage. The key gate is the protection, and an embedding is orders of magnitude cheaper than a turn. A promoted page wants its own counter.
+
 **No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 
 ## **Gotchas for a cold session**

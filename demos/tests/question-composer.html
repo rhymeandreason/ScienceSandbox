@@ -1479,7 +1479,7 @@ const toks = s => s.toLowerCase().normalize('NFKD')
 const QNODES = nodes.filter(n => n.kind === 'question');
 const BAG = new Map(QNODES.map(q => [q, new Set(toks(q.text))]));
 
-function rank(text) {
+function lexRank(text) {
   const want = toks(text);
   if (!want.length) return [];
   return QNODES.map(q => {
@@ -1570,7 +1570,7 @@ const idf = w => Math.log(1 + MODNODES.length / (1 + (DF.get(w) || 0)));
 const NEAR = 3;          // most discovered edges a question gets
 const NEARFLOOR = 0.18;  // share of the query's WEIGHT a module has to carry
 
-function nearestModules(text, skip) {
+function lexNear(text, skip) {
   const want = toks(text);
   const total = want.reduce((a, w) => a + idf(w), 0);
   if (!total) return [];
@@ -1588,15 +1588,13 @@ function nearestModules(text, skip) {
 /* Returns how many modules the question reached. ZERO IS THE ONLY MISS, and the
    caller must not open on it: a root with no neighbours draws one card on blank
    paper, which reads as the page being broken rather than as an answer. */
-function openAsk(text, best) {
+function openAsk(text, best, near) {
   for (let i = links.length - 1; i >= 0; i--)
     if (links[i].a === ASKED || links[i].b === ASKED) links.splice(i, 1);
 
   const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
-  const seen = new Set(inherited);
   for (const m of inherited) links.push({ a: m, b: ASKED, rank: rankFrom(best, m) });
-  for (const { m } of nearestModules(text, seen))
-    links.push({ a: m, b: ASKED, rank: 1, near: true });
+  for (const { m } of near) links.push({ a: m, b: ASKED, rank: 1, near: true });
 
   ASKED.text = text;
   ASKED.said = best && best.text !== text ? best.text : null;
@@ -1605,11 +1603,120 @@ function openAsk(text, best) {
   return ASKED.deg;
 }
 
+/* ---- the vector backend -----------------------------------------------
+   lib/mapcontent-vectors.json is every authored question, embedded once by
+   tools/bake-vectors.js. api/find.js embeds the READER's question and returns
+   just that vector; the ranking is here, because the corpus vectors ship with
+   the page anyway and the floor is the knob worth tuning without a redeploy.
+
+   MODULES COME FROM QUESTIONS, NOT FROM A BAG OF THEIR OWN. The lexical
+   scorer below unions every question filed under a module into one token bag,
+   which is where its noise came from: `ice` inherited the word `blood` from a
+   question about freezing, so anything mentioning blood scored against it.
+   Ranking whole questions and reading off THEIR modules is max-pooling instead
+   of mean-pooling, and the collision has nowhere to form.
+
+   ABSOLUTE COSINE, and it had to be measured. Everything in this corpus sits
+   between 0.75 and 0.99, so the useful range is narrow — but query-to-corpus
+   separates cleanly where corpus-to-corpus does not: off-map questions
+   ("the capital of France", "how do I bake sourdough") land 0.79-0.83 and real
+   ones land 0.87+. Normalising against the query's own distribution was tried
+   and is WORSE: it ranks `asdfqwer` above a real membrane question, because a
+   flat distribution has a high z at its own top. */
+
+/* THESE FOUR ARE PROVISIONAL. They were set against ten queries, which is
+   enough to see the shape and nowhere near enough to trust the numbers; the
+   fixture is what should fix them. What the ten DID settle is the shape:
+
+     · an absolute floor alone does not work. Glycolysis's best row for "how
+       does my body get energy from sugar" is 0.836 and correct; Base pairing's
+       for "what makes hair curly" is 0.841 and noise. No cut separates them.
+     · votes alone do not work either. Counting how many of the top rows carry
+       a module puts three of them on "how do I bake sourdough bread", which
+       the map should refuse outright.
+
+   So a discovered module has to clear a floor AND be corroborated: two of the
+   near questions carry it, or one carries it from very close. */
+const MATCH = 0.85;     // below this, the map does not answer the question
+const NEARABS = 0.83;   // no module below this, however many rows name it
+const NEARSOLO = 0.87;  // ...unless one row is this close, which stands alone
+const NEARK = 8;        // how deep to read for discovered modules
+
+const VEC = { by: null, key: null, online: false };
+
+(async function bootVectors() {
+  VEC.key = new URLSearchParams(location.search).get('k');
+  try {
+    const file = await fetch('../lib/mapcontent-vectors.json').then(r => r.ok ? r.json() : null);
+    if (!file) return;
+    // Baked rows carry their text; the map's nodes are the things we return.
+    const byText = new Map(QNODES.map(n => [n.text, n]));
+    VEC.by = file.rows.map(r => ({ n: byText.get(r.text), v: r.v })).filter(x => x.n);
+    const cfg = await fetch('/api/find', { headers: head() }).then(r => r.ok ? r.json() : null);
+    VEC.online = !!(cfg && cfg.ok && cfg.task === file.task && cfg.dims === file.dims);
+    if (cfg && cfg.ok && !VEC.online) console.warn('[composer] vectors and endpoint disagree; staying lexical');
+  } catch (e) { /* keyless checkout, or offline: the lexical path still works */ }
+  askEl.placeholder = VEC.online ? 'Why does ice float?' : 'Why does ice float? (no key: word matching)';
+})();
+
+function head() {
+  const h = { 'content-type': 'application/json' };
+  if (VEC.key) h['x-tutor-key'] = VEC.key;
+  return h;
+}
+
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+
+/* Returns {hits, near} the same shape the lexical path does, so nothing
+   downstream knows which scorer ran. */
+async function search(text) {
+  if (VEC.online && VEC.by) {
+    try {
+      const r = await fetch('/api/find', { method: 'POST', headers: head(),
+                                           body: JSON.stringify({ q: text }) });
+      if (!r.ok) throw new Error('find ' + r.status);
+      const { v } = await r.json();
+      const ranked = VEC.by.map(x => ({ q: x.n, score: dot(v, x.v) }))
+                           .sort((a, b) => b.score - a.score);
+      const hits = ranked.filter(h => h.score >= MATCH).slice(0, HITS);
+      const best = hits.length ? hits[0].q : null;
+      /* Tallied over the top rows, not taken from them in order: a module two
+         near questions agree on is a neighbourhood, and a module one question
+         mentions is a coincidence. `covered` drops anything the match already
+         inherits, so a discovered edge is never a duplicate of a solid one. */
+      const covered = new Set(best ? neighbours(best) : []);
+      const tally = new Map();
+      for (const h of ranked.slice(0, NEARK)) {
+        for (const m of neighbours(h.q)) {
+          if (m.kind !== 'module' || covered.has(m)) continue;
+          const t = tally.get(m) || { votes: 0, score: 0 };
+          t.votes++;
+          t.score = Math.max(t.score, h.score);
+          tally.set(m, t);
+        }
+      }
+      const near = [...tally]
+        .filter(([, t]) => t.score >= NEARABS && (t.votes >= 2 || t.score >= NEARSOLO))
+        .sort((a, b) => b[1].votes - a[1].votes || b[1].score - a[1].score)
+        .slice(0, NEAR)
+        .map(([m, t]) => ({ m, score: t.score }));
+      return { hits, near };
+    } catch (e) {
+      // One failure drops this session to words rather than to nothing.
+      console.warn('[composer] find failed, falling back to word matching:', e.message);
+      VEC.online = false;
+    }
+  }
+  const hits = lexRank(text).filter(h => h.score >= FLOOR);
+  const best = hits.length ? hits[0].q : null;
+  return { hits, near: lexNear(text, new Set(best ? neighbours(best) : [])) };
+}
+
 /* ---- the box ---------------------------------------------------------- */
 
 const askEl = document.getElementById('ask');
 const hitsEl = document.getElementById('hits');
-let hits = [], cursor = -1;
+let hits = [], near = [], cursor = -1;
 
 /* NOT draw(). The map's own draw() is what positions every node from the rAF
    loop, and a second `function draw` at this scope silently replaces it — the
@@ -1623,7 +1730,6 @@ function drawHits() {
      the map is what this box is for. The authored phrasings underneath are the
      alternative, for a reader who can see the map already says it better. */
   const best = hits.length ? hits[0].q : null;
-  const near = nearestModules(text, new Set(best ? neighbours(best) : []));
   const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
   const reach = inherited.length + near.length;
 
@@ -1666,32 +1772,35 @@ function choose(i) {
     if (!h) return;
     hitsEl.replaceChildren(); askEl.blur();
     openFrom(h.q);
-    hits = []; cursor = -1;
+    hits = []; near = []; cursor = -1;
     return;
   }
-  const reach = openAsk(text, hits.length ? hits[0].q : null);
+  const reach = openAsk(text, hits.length ? hits[0].q : null, near);
   if (!reach) {
     // Never open on nothing: one card on blank paper reads as a broken page.
     console.info('[composer] miss, unreachable:', text);
     return;
   }
   hitsEl.replaceChildren(); askEl.blur();
-  hits = []; cursor = -1;
+  hits = []; near = []; cursor = -1;
 }
 
-let timer = 0;
+let timer = 0, seq = 0;
 askEl.addEventListener('input', () => {
   clearTimeout(timer);
   const text = askEl.value.trim();
-  // Debounced because the real scorer is a network call; the lexical stand-in
-  // does not need it, and inheriting the timing now means the swap changes no
-  // behaviour the reader can feel.
-  timer = setTimeout(() => {
-    if (!text) { hits = []; cursor = -1; hitsEl.replaceChildren(); return; }
-    // No early return on a miss: drawHits renders the empty case itself.
-    hits = rank(text).filter(h => h.score >= FLOOR);
-    cursor = -1; drawHits();
-  }, 160);
+  if (!text) { hits = []; near = []; cursor = -1; hitsEl.replaceChildren(); return; }
+  // Debounced because the vector path is a network call per keystroke.
+  timer = setTimeout(async () => {
+    // A slow reply must not overwrite a newer one: the reader has kept typing,
+    // and the list they end up looking at has to be the one for what is in the
+    // box. Without this the dropdown flickers back to an older query.
+    const mine = ++seq;
+    const found = await search(text);
+    if (mine !== seq || askEl.value.trim() !== text) return;
+    hits = found.hits; near = found.near; cursor = -1;
+    drawHits();
+  }, 220);
 });
 
 askEl.addEventListener('keydown', e => {
