@@ -96,3 +96,32 @@ FROM   threads t
 JOIN   messages q ON q.thread_id = t.id AND q.role = 'user'
 LEFT   JOIN messages a ON a.reply_to = q.id
 ORDER  BY q.created_at DESC;
+
+-- =============================================================================
+--  finds - one row per search on the question composer
+-- =============================================================================
+--  Two jobs, which is why it is one table. The RATE LIMIT counts these rows in
+--  a window; the EDITORIAL QUEUE reads their text, because a question the map
+--  could not answer is the only record of a door worth writing.
+--
+--  The outcome is NOT here, and that is deliberate: api/find.js returns a
+--  vector and the PAGE does the ranking, so the server never learns what the
+--  question resolved to. Rather than a second endpoint reporting it back, the
+--  queue re-scores these texts offline, where the vectors already live. One
+--  round trip per search stays one round trip.
+--
+--  Same privacy rule as the tutor: no IP, no user agent, no name. `visitor_id`
+--  is a uuid the browser minted for itself and shares with the tutor, so
+--  clearing site data clears both.
+CREATE TABLE IF NOT EXISTS finds (
+  id          bigserial PRIMARY KEY,
+  visitor_id  uuid,                        -- null: a browser that would not mint one
+  cohort      text,                        -- the access link's label, or null when open
+  q           text NOT NULL,               -- what was typed, capped at 400 chars upstream
+  ms          int,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- The limiter's only query is "how many since T", globally and per visitor.
+CREATE INDEX IF NOT EXISTS finds_created_idx ON finds (created_at DESC);
+CREATE INDEX IF NOT EXISTS finds_visitor_idx ON finds (visitor_id, created_at DESC);

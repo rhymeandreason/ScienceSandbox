@@ -189,7 +189,11 @@ So a discovered module must clear a floor AND be corroborated: two near question
 
 **No key, no vectors, no problem.** The page falls back to the lexical scorer, says so in the placeholder, and one endpoint failure drops the session to words rather than to nothing. A keyless checkout is a working page.
 
-**No turn counter on `api/find.js`, deliberately.** `api/_limit.js` counts rows in the tutor's tables and a search writes none, so reusing it would ration search against tutor usage. The key gate is the protection, and an embedding is orders of magnitude cheaper than a turn. A promoted page wants its own counter.
+**`api/find.js` is open, and metered by its own counter.** It does not use `api/_limit.js`, which counts rows in the tutor's tables that a search never writes. `api/_finds.js` counts the rows this endpoint writes: a per-visitor cap that is friction, and a global cap that is the actual protection, since it needs no identity and holds against a script. Both fail open, like the tutor's.
+
+**Why open rather than gated.** The gate it would inherit is `TUTOR_KEYS`, so a shared map link would hand out tutor spend along with it: one link, two budgets, and no way to give away the first without the second. Cost is not the reason either way. Gemini's rate limits are per PROJECT, so an abused search endpoint starves the tutor of quota whichever API key each presents, and a second key would buy revocation rather than isolation. The caps are what prevent that; the gate never could.
+
+**A refusal is not an outage.** The page drops to the lexical scorer on any non-ok reply, 429 included, and says so in the placeholder. That is what makes it safe to set the caps low rather than generously.
 
 **No pre-commit gate yet** — test status, like `chain/` and `chair/`. When the page is promoted, the vectors become a derived artefact of a file the CMS rewrites, and a stale vector does not error, it routes a student to the wrong door. That is what the gate has to catch.
 

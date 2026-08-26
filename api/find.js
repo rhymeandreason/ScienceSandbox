@@ -31,6 +31,7 @@
 'use strict';
 
 const keys = require('./_keys.js');
+const finds = require('./_finds.js');
 
 const MODEL = process.env.EMBED_MODEL || 'gemini-embedding-001';
 const DIMS = 256;
@@ -40,14 +41,18 @@ const MAXLEN = 400;          // a question, not a passage
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
+  /* OPEN, unlike the tutor, and not because a search is cheap. The gate it
+     would inherit is TUTOR_KEYS, so a shared map link would also hand out
+     tutor spend — one link, two budgets, and no way to give away the first
+     without the second. The caps in _finds.js are the protection here, and
+     they hold against someone with no key at all, which is the case the tutor's
+     gate cannot cover anyway. `cohort` is still read and still recorded, so a
+     link that HAS a key says which group it came from. */
   const who = keys.cohort(req);
-  if (keys.enabled() && !who) {
-    return res.status(401).json({ error: 'this map is open to invited classes; ask your instructor for the access link' });
-  }
 
   if (req.method === 'GET') {
     return res.status(200).json({
-      ok: !!process.env.GEMINI_API_KEY, model: MODEL, dims: DIMS, task: TASK, gated: keys.enabled(),
+      ok: !!process.env.GEMINI_API_KEY, model: MODEL, dims: DIMS, task: TASK, gated: false,
     });
   }
   if (req.method !== 'POST') {
@@ -58,6 +63,9 @@ module.exports = async function handler(req, res) {
   const body = typeof req.body === 'string' ? safeParse(req.body) : (req.body || {});
   const q = String(body.q || '').trim().slice(0, MAXLEN);
   if (!q) return res.status(400).json({ error: 'q is required' });
+
+  const capped = await finds.exceeded({ visitorId: body.visitorId });
+  if (capped) return res.status(capped.status).json(capped.body);
 
   const key = process.env.GEMINI_API_KEY;
   if (!key) return res.status(503).json({ error: 'no embedding key configured' });
@@ -91,7 +99,10 @@ module.exports = async function handler(req, res) {
     const n = Math.hypot(...raw);
     const v = n ? raw.map(x => +(x / n).toFixed(4)) : raw;
 
-    return res.status(200).json({ v, model: MODEL, dims: DIMS, task: TASK, ms: Date.now() - t0 });
+    const ms = Date.now() - t0;
+    // Not awaited: a reader waits for their answer, not for the row about it.
+    finds.record({ visitorId: body.visitorId, cohort: who, q, ms });
+    return res.status(200).json({ v, model: MODEL, dims: DIMS, task: TASK, ms });
   } catch (err) {
     console.error('[find] ' + ((err && err.message) || err));
     return res.status(502).json({ error: 'embedding failed' });

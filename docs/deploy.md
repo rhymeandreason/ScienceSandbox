@@ -70,11 +70,20 @@ out of `vercel.json`, so the index's own links resolve on the dev server instead
 of 404ing there and working only once deployed. The file path still serves
 directly as well.
 
-**Only `api/ask.js` becomes a public endpoint.** Vercel does not route files
-whose names begin with an underscore, so `_tutor.js`, `_keys.js`, `_limit.js`,
-`_log.js`, `_catalog.js`, `_targets.js`, `_local.js` and `_providers/` are
-imported by it and are not reachable. The smoke test below checks that rather
-than trusting it.
+**Two files become public endpoints: `api/ask.js` and `api/find.js`.** Vercel
+does not route files whose names begin with an underscore, so `_tutor.js`,
+`_keys.js`, `_limit.js`, `_finds.js`, `_log.js`, `_catalog.js`, `_targets.js`,
+`_local.js` and `_providers/` are imported by them and are not reachable. The
+smoke test below checks that rather than trusting it.
+
+**`api/find.js` is OPEN, and that is deliberate.** It embeds one question for
+the question composer. The gate it would otherwise inherit is `TUTOR_KEYS`, so
+a shared map link would hand out tutor spend with it: one link, two budgets.
+Its protection is `_finds.js` instead, which caps searches per visitor and
+globally, and a refusal degrades the page to word matching rather than breaking
+it. The global cap is the one that means anything, because Gemini's rate limits
+are per PROJECT, so an abused search endpoint starves the tutor of quota no
+matter which API key each one presents.
 
 **`api/` publishes as readable source.** The system prompt is public. No key is
 in it. This was already true on Pages.
@@ -87,13 +96,20 @@ Set in the Vercel project, Production scope. Same names as `.env.local`.
 | --- | --- |
 | `GEMINI_API_KEY` | required, or the tutor answers "not set on the server" |
 | `AI_PROVIDER` | `gemini` unless you mean otherwise |
-| `DATABASE_URL` | the Neon pooled string. **Unset means no log AND no rate limit** |
-| `TUTOR_KEYS` | `cohort:secret` pairs. **Unset means the tutor is public and unmetered** |
+| `DATABASE_URL` | the Neon pooled string. **Unset means no log AND no rate limit**, for the tutor and the search alike |
+| `TUTOR_KEYS` | `cohort:secret` pairs. **Unset means the tutor is public and unmetered.** Does not gate `api/find.js`, which is open by design |
+| `EMBED_MODEL` | optional; `gemini-embedding-001` unless set. **Must match what `lib/mapcontent-vectors.json` was baked with** |
 
 The last two are the ones that fail quietly. Unset `TUTOR_KEYS` does not error:
 it makes the tutor open to anyone who finds it. Unset `DATABASE_URL` does not
-error either: `_limit.js` has nothing to count and fails open, so the caps stop
-existing. Neither shows up on the page.
+error either: `_limit.js` and `_finds.js` have nothing to count and both fail
+open, so the caps stop existing. Neither shows up on the page.
+
+`EMBED_MODEL` fails quietly in a different way: a query embedded by one model
+against a corpus baked by another lands in a different geometry, so the cosines
+come back plausible and the composer's ranking is silently wrong. The page
+compares the endpoint's reported model against the baked file and drops to word
+matching when they disagree, which is the only visible symptom.
 
 ## The domain
 
@@ -117,7 +133,9 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/scene.js   #
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/water-lab.html   # 301 to /water
 curl -s -w ' %{http_code}\n' https://<deployment>/api/ask                 # 401 gated, 200 if not
 curl -s -w ' %{http_code}\n' -H "X-Tutor-Key: $K" https://<deployment>/api/ask       # 200 + config
+curl -s -w ' %{http_code}\n' https://<deployment>/api/find                # 200 + config, open by design
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/_tutor  # 404: not a route
+curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/_finds  # 404: not a route
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/api/log     # 404: not deployed
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/viewer-compare/  # 307 to /, never the bench
 curl -s -o /dev/null -w '%{http_code}\n' https://<deployment>/demos/hemoglobin/data/2HHB.pdb        # 307 to /, not 200
