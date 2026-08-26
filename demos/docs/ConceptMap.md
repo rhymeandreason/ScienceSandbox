@@ -98,6 +98,10 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 12. **`function draw()` is taken.** The map's `draw()` is what positions every node from the rAF loop, and a second `function draw` at the page's top scope silently REPLACES it: function declarations redeclare without error, so every card stays at the origin with opacity 1 and nothing logs. Adding page-level UI to a copy of door-map is exactly when this happens. `question-composer` shipped it and it read as a physics bug for two rounds.
 
+13. **The asked card is a root and never a wave.** Its links make it a genuine neighbour of every module it reached, so `start()` will otherwise deal the reader's last question into the door's own map as though someone had authored it. Filtered in `expand()`, because every path that reveals a card goes through that one.
+
+14. **`expand()` runs before the page's own additions exist.** `start()` is called at the bottom of the map's script, so anything appended below it has NOT initialized yet. Invariant 13's filter tests a PROPERTY (`!m.ask`) and not the `ASKED` binding for exactly this reason: touching that `const` from `expand()` is a temporal-dead-zone throw during load, which aborts the whole script and leaves the page blank with one error. Same shape as the `draw()` collision in 12 — appending to a copy of door-map is when both happen.
+
 ## **Card kinds**
 
 | KIND | MODULE | PAGES |
@@ -135,17 +139,20 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 **25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against ~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
 
-### The reader's own words
+### The reader's own words, and the edges off them
 
-A typed question is a **LABEL on an authored node, never a node of its own**. `openFrom(q, asked)` puts what was typed on the root card, dashed and captioned *you asked*, with the authored question it resolved to printed underneath — and everything the map draws from there is that authored question's own edges.
+The typed question is **one card carrying what was typed**, dashed and captioned *you asked*, with two kinds of edge off it:
 
-This is the whole reason the composer needs no second scorer and no second kind of edge. **Every crossing it draws is hand-written and carries its rank**, because it IS the authored crossing. An earlier pass had the typed question as a real node attaching itself to its nearest modules; those edges were proximity rather than crossings, they carried no rank (the field that answers "is this a good FIRST thing to ask on this card"), and they made the map assert things nobody wrote. Reusing the match's edges deletes the problem instead of managing it.
+* **Inherited (solid)** — the modules of the authored question it matched, carrying the rank that question already had on each. Real crossings.
+* **Discovered (dashed)** — modules the text reached on its own that the match did not already cover. Proximity, drawn as proximity.
 
-**`asked` is transient and set AFTER the reset.** Both `start()` and `openFrom()` clear it on every node, so a label cannot outlive the open it was set for — which also means `choose()` cannot set it before calling `openFrom`, since the reset would wipe it. It goes in as an argument.
+Both at once, because a question rarely lands entirely in one bucket. Measured: *"how does my body get energy from sugar"* matches *"Why is sugar sweet and starch isn't?"* and inherits Monomers & polymers and Molecular geometry, while the discovered edges are what reach **Glycolysis**, which the authored match never touches. The match explains what the map already answers; the discovered edges are where this particular wording pulls that the authored one does not.
 
-**The root card prints both.** The reader is the only one who can tell whether their question and the authored one mean the same thing, so the map never silently substitutes: it says *answered here as "…"*. Rendered with `textContent`, since it is text the reader typed.
+The card prints both wordings (*the map words it as "…"*), because the reader is the only one who can tell whether they mean the same thing. `textContent`, since it is text the reader typed.
 
-**A miss borrows nothing.** With no match above `FLOOR` there is no edge to reuse, so the box says so rather than drawing a question wired to nothing. The typed text is the artefact — the only record of a door worth writing.
+**Zero reach is the only miss, and it must not open.** A root with no neighbours draws one card on blank paper, which reads as a broken page rather than as an answer. `openAsk()` returns the reach and the caller refuses to open on nothing. This is the failure that killed the first version of this feature: two guards I added (a 0.34 floor and a two-matching-words rule) made most questions reach nothing, and every one of them rendered as an empty map.
+
+**Weight rare words, not all words.** Plain token counting made `water` worth as much as `curly`, and `water` is in nearly every module on a water door, so questions attached to Polarity for saying "water" at all. Module scores are IDF-weighted over the query.
 
 **`centre()` diverges from door-map's**: the composer is a fixed band across the top, and centring on the whole window put the root card underneath it.
 

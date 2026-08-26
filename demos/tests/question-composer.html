@@ -404,6 +404,10 @@
   }
   /* A miss is not a failure state, it is the useful artefact — the map has no
      node for what was asked, and that is what says which door to write next. */
+  /* Row 0, the reader's own wording: the default, and marked as theirs. */
+  .hits li.put b { font-weight: 400; font-style: italic; }
+  .hits li.put .on { color: var(--spark); }
+  .hits li.put { border-bottom: 1px solid var(--line); }
   .hits li.miss { cursor: default; color: var(--muted); font-style: italic; }
   .hits li.miss:hover { background: var(--card); }
 
@@ -430,6 +434,9 @@
     font-size: 0.78rem; line-height: 1.3; color: var(--muted);
   }
   .node.question.asked:hover { border-color: var(--spark); }
+  /* A discovered edge is dashed, and an authored one is not. Both come off the
+     same card, so the line is the only thing saying which is which. */
+  path.nearline { stroke-dasharray: 5 5; opacity: 0.5; }
 
 </style>
 </head>
@@ -905,7 +912,14 @@ const top1 = band(null);
    crossings drag their away-door partners in and the door opens on twelve
    cards. */
 function expand(n, keep, next = top1) {
-  const pending = neighbours(n).filter(m => !m.visible && (!keep || keep(n, m)))
+  /* The asked card is a root and never a wave: its links make it a genuine
+     neighbour of the modules it reached, so without this `start()` deals the
+     reader's last question into the door's own map as though someone had
+     authored it. Tested as a PROPERTY, not against the `ASKED` binding: this
+     runs from start() at the bottom of the map's own script, which is before
+     the composer's block below has initialized, and touching the const there
+     is a dead-zone throw that takes the whole page down. */
+  const pending = neighbours(n).filter(m => !m.visible && !m.ask && (!keep || keep(n, m)))
     .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
   if (!pending.length) { n.done = true; return; }
 
@@ -980,15 +994,18 @@ function paintNode(n) {
                    '<div class="claim">' + n.claim + '</div>' +
                    '<div class="thumb"><span class="ph">image</span></div>' +
                    '<div class="meta"></div>';
-  } else if (n.asked) {
-    /* textContent and not innerHTML: `asked` is typed by the reader. */
+  } else if (n.ask) {
+    /* textContent and not innerHTML: this text is typed by the reader. */
     el.className = 'node question asked';
     const mine = document.createElement('span');
-    mine.textContent = n.asked;
-    const said = document.createElement('span');
-    said.className = 'said';
-    said.textContent = 'answered here as \u201c' + n.text + '\u201d';
-    el.append(mine, said);
+    mine.textContent = n.text;
+    el.append(mine);
+    if (n.said) {
+      const said = document.createElement('span');
+      said.className = 'said';
+      said.textContent = 'the map words it as \u201c' + n.said + '\u201d';
+      el.append(said);
+    }
   } else {
     el.className = 'node question';
     el.innerHTML = '<span>' + n.text + '</span>';
@@ -1008,6 +1025,8 @@ function paintLink(l) {
   l.el.setAttribute('stroke-width', '1');
   l.el.setAttribute('stroke-opacity', planned ? '.22' : '.30');
   if (planned) l.el.setAttribute('stroke-dasharray', '4 4');
+  if (l.near) { l.el.setAttribute('class', 'nearline');
+                l.el.setAttribute('stroke', '#e2643a'); }
   svg.appendChild(l.el);
 }
 
@@ -1369,7 +1388,7 @@ function start() {
   // the contexts have to go back before the elements do — a destroy after the
   // element is gone leaks the context for the life of the tab.
   stages.clear();
-  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; n.asked = null; }
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
   for (const l of links) l.painted = false;
   live = []; liveLinks = [];
   world.querySelectorAll('.node').forEach(el => el.remove());
@@ -1479,17 +1498,15 @@ function rank(text) {
    every module that answers it, and each of those modules' best band. A question
    IS the crossing, so its own modules are the fan — that is the paradigm, not a
    special case built for the search box. */
-function openFrom(q, asked) {
+function openFrom(q) {
   clearFocus();
   stages.clear();
-  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; n.asked = null; }
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
   for (const l of links) l.painted = false;
   live = []; liveLinks = [];
   world.querySelectorAll('.node').forEach(el => el.remove());
   svg.replaceChildren();
 
-  // After the reset, which clears `asked` on every node including this one.
-  q.asked = asked || null;
   show(q, 0, 0);
   /* The door's FAN is hand-composed for four ways in; a question answers two or
      three modules at most, so it gets the same bow read at whatever count it
@@ -1517,6 +1534,77 @@ function openFrom(q, asked) {
   alpha = 1;
 }
 
+/* ---- the reader's question as a node ----------------------------------
+   ONE card carrying what was typed, and two kinds of edge off it.
+
+     INHERITED (solid) — the modules of the authored question it matched. Real
+       crossings, carrying the rank that question already had on each.
+     DISCOVERED (dashed) — modules the text reached on its own, that the match
+       did not already cover. Proximity, drawn as proximity.
+
+   Both at once, because a question rarely lands entirely in one bucket: the
+   match explains what the map already answers, and the discovered edges are
+   where this particular wording pulls that the authored one does not. */
+
+const ASKED = { id: 'asked', kind: 'question', ask: true, text: '', said: null, deg: 0 };
+byId.asked = ASKED;
+nodes.push(ASKED);
+
+const MODNODES = nodes.filter(n => n.kind === 'module');
+/* A module's words are its own plus every question filed under it: the name is
+   two tokens, and the questions are most of what it is ABOUT. Built before
+   ASKED has any links, so it can never contain one. */
+const MBAG = new Map(MODNODES.map(m => [m, new Set([
+  ...toks(m.name + ' ' + (m.claim || '')),
+  ...neighbours(m).filter(x => x.kind === 'question').flatMap(x => toks(x.text)),
+])]));
+
+/* Plain token counting made `water` worth as much as `curly`, and `water` is in
+   nearly every module on a water door — which is how the first version put
+   things on Polarity for saying "water" at all. Weighting by how RARE a word is
+   across modules is what makes a shared word evidence instead of noise. */
+const DF = new Map();
+for (const bag of MBAG.values()) for (const w of bag) DF.set(w, (DF.get(w) || 0) + 1);
+const idf = w => Math.log(1 + MODNODES.length / (1 + (DF.get(w) || 0)));
+
+const NEAR = 3;          // most discovered edges a question gets
+const NEARFLOOR = 0.18;  // share of the query's WEIGHT a module has to carry
+
+function nearestModules(text, skip) {
+  const want = toks(text);
+  const total = want.reduce((a, w) => a + idf(w), 0);
+  if (!total) return [];
+  return MODNODES.map(m => {
+    if (skip && skip.has(m)) return { m, score: 0 };
+    const bag = MBAG.get(m);
+    let hit = 0;
+    for (const w of want) if (bag.has(w)) hit += idf(w);
+    return { m, score: hit / total };
+  }).filter(x => x.score >= NEARFLOOR)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, NEAR);
+}
+
+/* Returns how many modules the question reached. ZERO IS THE ONLY MISS, and the
+   caller must not open on it: a root with no neighbours draws one card on blank
+   paper, which reads as the page being broken rather than as an answer. */
+function openAsk(text, best) {
+  for (let i = links.length - 1; i >= 0; i--)
+    if (links[i].a === ASKED || links[i].b === ASKED) links.splice(i, 1);
+
+  const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
+  const seen = new Set(inherited);
+  for (const m of inherited) links.push({ a: m, b: ASKED, rank: rankFrom(best, m) });
+  for (const { m } of nearestModules(text, seen))
+    links.push({ a: m, b: ASKED, rank: 1, near: true });
+
+  ASKED.text = text;
+  ASKED.said = best && best.text !== text ? best.text : null;
+  ASKED.deg = neighbours(ASKED).length;
+  if (ASKED.deg) openFrom(ASKED);
+  return ASKED.deg;
+}
+
 /* ---- the box ---------------------------------------------------------- */
 
 const askEl = document.getElementById('ask');
@@ -1531,40 +1619,63 @@ function drawHits() {
   const text = askEl.value.trim();
   if (!text) return;
 
-  if (!hits.length) {
-    /* A miss has nothing to borrow. The map's edges are authored and carry a
-       rank per edge; there is no honest way to draw a question that resolved to
-       nothing, so it is said plainly. The text is the artefact — it is the only
-       record of a door worth writing. */
-    const li = document.createElement('li');
-    li.className = 'miss';
-    li.textContent = 'Nothing here answers that yet.';
-    hitsEl.append(li);
-    return;
-  }
+  /* The reader's own wording is row 0 and the default, because drawing THAT on
+     the map is what this box is for. The authored phrasings underneath are the
+     alternative, for a reader who can see the map already says it better. */
+  const best = hits.length ? hits[0].q : null;
+  const near = nearestModules(text, new Set(best ? neighbours(best) : []));
+  const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
+  const reach = inherited.length + near.length;
+
+  const ask = document.createElement('li');
+  ask.className = 'put';
+  ask.setAttribute('aria-selected', cursor <= 0);
+  ask.append('Put my question on the map: ');
+  const b = document.createElement('b');
+  b.textContent = '\u201c' + text + '\u201d';
+  ask.append(b);
+  const on = document.createElement('span');
+  on.className = 'on';
+  on.textContent = reach
+    ? [...inherited.map(m => m.name), ...near.map(x => x.m.name + ' (near)')].join(' · ')
+    : 'nothing on this map is near it';
+  ask.append(on);
+  if (!reach) ask.classList.add('miss');
+  else ask.addEventListener('click', () => choose(0));
+  hitsEl.append(ask);
 
   hits.forEach((h, i) => {
     const li = document.createElement('li');
     li.textContent = h.q.text;
-    li.setAttribute('aria-selected', i === cursor);
-    const on = document.createElement('span');
-    on.className = 'on';
-    on.textContent = neighbours(h.q).map(m => m.name || m.id).join(' · ');
-    li.append(on);
-    li.addEventListener('click', () => choose(i));
+    li.setAttribute('aria-selected', i + 1 === cursor);
+    const c = document.createElement('span');
+    c.className = 'on';
+    c.textContent = neighbours(h.q).map(m => m.name || m.id).join(' \u00b7 ');
+    li.append(c);
+    li.addEventListener('click', () => choose(i + 1));
     hitsEl.append(li);
   });
 }
 
-/* The typed question is a LABEL on an authored node, not a node of its own.
-   Everything the map draws from here is the authored question's own edges,
-   which is what keeps every crossing ranked and hand-written. */
+/* Row 0 draws the reader's own question; rows 1+ open the authored one as it
+   is written, with no card of the reader's on the map at all. */
 function choose(i) {
-  const h = hits[i];
-  if (!h) { console.info('[composer] miss:', askEl.value.trim()); return; }
-  hitsEl.replaceChildren();
-  askEl.blur();
-  openFrom(h.q, askEl.value.trim());
+  const text = askEl.value.trim();
+  if (i > 0) {
+    const h = hits[i - 1];
+    if (!h) return;
+    hitsEl.replaceChildren(); askEl.blur();
+    openFrom(h.q);
+    hits = []; cursor = -1;
+    return;
+  }
+  const reach = openAsk(text, hits.length ? hits[0].q : null);
+  if (!reach) {
+    // Never open on nothing: one card on blank paper reads as a broken page.
+    console.info('[composer] miss, unreachable:', text);
+    return;
+  }
+  hitsEl.replaceChildren(); askEl.blur();
   hits = []; cursor = -1;
 }
 
@@ -1584,11 +1695,11 @@ askEl.addEventListener('input', () => {
 });
 
 askEl.addEventListener('keydown', e => {
-  const n = hits.length;
+  const n = hits.length + 1;   // row 0 is the reader's own question
   if (e.key === 'Enter')      { e.preventDefault(); choose(cursor < 0 ? 0 : cursor); }
   else if (e.key === 'Escape'){ askEl.value = ''; hits = []; cursor = -1; hitsEl.replaceChildren(); askEl.blur(); }
   else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    if (!hits.length) return;
+    if (!hitsEl.children.length) return;
     e.preventDefault();
     cursor = ((cursor < 0 ? (e.key === 'ArrowDown' ? -1 : 0) : cursor)
               + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
