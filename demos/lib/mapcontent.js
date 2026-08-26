@@ -126,12 +126,12 @@
   ];
 
   const QUESTIONS = [
-    ['Why is water the universal solvent?',                     { polarity:2, solvation:1 }],
+    ['Why is water the universal solvent?',                     { polarity:1, solvation:1 }],
     ['How does pushing molecules together build a structure?',  { hydrophob:1, folding:1 }],
-    ['Why do oil and water not mix?',                           { polarity:1, hydrophob:1, bilayer:2 }],
+    ['Why do oil and water not mix?',                           { polarity:3, hydrophob:1, bilayer:2 }],
     ['Why does salt dissolve but sand doesn’t?',                { solvation:1, ionic:1 }],
     ['Why do water molecules stick to each other?',             { polarity:1, hbond:1 }],
-    ['Why does water break a bond that heat cannot?',           { polarity:1, condense:1, acids:3 }],
+    ['Why does water break a bond that heat cannot?',           { polarity:3, condense:1, acids:3 }],
     ['How high can a tree grow?',                               { hbond:1, cohesion:1, osmosis:2 }],
     ['Why does a drop bead up on wax paper but soak into a towel?', { hbond:2, cohesion:1 }],
     ['What holds the two DNA strands together?',                { hbond:2, basepair:1 }],

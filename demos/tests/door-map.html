@@ -578,12 +578,27 @@ function show(n, depth, y, x, ty) {
 // ranks it highly — that is the per-card ranking doing its job, not a gap.
 const SHOW = 4;
 
+/* A question's best band, not literally rank 1: a question whose modules are
+   all rank 2 or 3 there would deal nothing and read as a dead end, so the cut
+   is the lowest rank it actually has among the modules still hidden. Whole
+   bands only, the same promise a card's own wave makes. `also` narrows the
+   field the band is measured over — measuring it before the narrowing picks a
+   band that then gets filtered away to nothing. */
+const band = also => (q, m) => {
+  const up = neighbours(q).filter(x => !x.visible && (!also || also(q, x)));
+  if (!up.length || (also && !also(q, m))) return false;
+  return rankFrom(q, m) === Math.min(...up.map(x => rankFrom(q, x)));
+};
+const top1 = band(null);
+
 /* `keep` is the opening screen's only extra: a click passes nothing and takes
    the whole wave, while start() opens three levels deep and has to say which of
-   a question's modules belong to the shape it is composing. Without it the four
+   a question's modules belong to the shape it is composing. `next` is the same
+   filter one level on: a module's wave carries its questions' first modules
+   with it, and start() narrows that to this door — without it the four
    crossings drag their away-door partners in and the door opens on twelve
    cards. */
-function expand(n, keep) {
+function expand(n, keep, next = top1) {
   const pending = neighbours(n).filter(m => !m.visible && (!keep || keep(n, m)))
     .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
   if (!pending.length) { n.done = true; return; }
@@ -615,6 +630,14 @@ function expand(n, keep) {
     show(m, n.depth + 1, y, x, y);
   });
   n.done = true;
+
+  /* A module's wave is questions, and a question alone is a dead end on the
+     screen — the reader has to click it to learn what it crosses to. So the
+     wave carries its own next step: each new question deals its best band of
+     modules, which is what makes the crossing visible instead of promised.
+     One band, or a click opens a card's entire second neighbourhood. */
+  if (n.kind === 'module' && next)
+    for (const q of wave) if (q.kind === 'question') expand(q, next);
 
   alpha = Math.max(alpha, 0.6);
   // The clicked card leads the shot; what it revealed only decides how far left
@@ -978,12 +1001,9 @@ function start() {
      ranks in mapcontent.js still choose every card; this only says how many
      levels are dealt before the reader touches anything. A door whose opening
      module has no rank 1 questions just stops, so this costs nothing elsewhere.
-     Own-door and rank 1 only, or a crossing hauls its far side in as well. */
-  const onward = (q, m) => m.door === DOOR.id && rankFrom(q, m) === 1;
-  for (const m of first.slice()) {
-    expand(m);
-    for (const q of live.filter(x => x.kind === 'question')) expand(q, onward);
-  }
+     Own-door only, or a crossing hauls its far side in as well. */
+  const onward = band((q, m) => m.door === DOOR.id);
+  for (const m of first) expand(m, null, onward);
   for (const m of live) refreshMeta(m);
   follow = null;                       // the opening frame is composed, not chased
   touched = false;
