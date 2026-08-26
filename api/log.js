@@ -31,13 +31,20 @@ module.exports = async function handler(req, res) {
   if (!log.enabled()) return res.status(503).json({ error: 'DATABASE_URL is not set: nothing is logged' });
 
   try {
-    const [stats, turns] = await Promise.all([
+    /* The searches are settled separately and allowed to fail on their own: a
+     * checkout whose database predates the `finds` table still has a working
+     * tutor log, and a viewer that 502s over a section the reader did not come
+     * for is worse than one that says that section is empty. */
+    const [stats, turns, searches] = await Promise.all([
       log.stats(),
       log.recent({ limit: q.limit, offset: q.offset, lesson: q.lesson || null,
                    aimed: q.aimed || null, model: q.model || null,
                    cohort: q.cohort || null }),
+      Promise.all([log.findStats(), log.finds({ limit: q.finds })])
+        .then(([fstats, rows]) => ({ stats: fstats, rows }))
+        .catch(err => ({ error: err.message })),
     ]);
-    return res.status(200).json({ stats, turns });
+    return res.status(200).json({ stats, turns, searches });
   } catch (err) {
     // Said out loud, unlike on the write path: a viewer showing an empty list
     // because the database is unreachable is a viewer that lies.

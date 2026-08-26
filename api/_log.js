@@ -171,4 +171,46 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUuid(s) { return typeof s === 'string' && UUID.test(s); }
 function json(v)   { return v == null ? null : JSON.stringify(v); }
 
-module.exports = { logTurn, recent, stats, init, enabled, sql };
+
+/* ---- the composer's searches -------------------------------------------
+ * A different table and a different question. `messages` records how the tutor
+ * ANSWERED; `finds` records what someone typed at the map, and the value in it
+ * is the repeats: one person asking about osmosis is a person, forty are a
+ * lesson that is missing. So the roll-up is by text, and the raw list is there
+ * to read the wording rather than to count it.
+ *
+ * Deliberately NOT joined to threads/messages. A visitor id is shared, so the
+ * join is possible, and building it would turn two anonymous logs into one
+ * profile of a person's afternoon. */
+async function finds({ limit = 60 } = {}) {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const n = Math.min(Math.max(Number(limit) || 60, 1), 300);
+  return db`
+    SELECT q, cohort, ms, created_at
+    FROM   finds
+    ORDER  BY id DESC
+    LIMIT  ${n}`;
+}
+
+async function findStats() {
+  const db = sql();
+  if (!db) throw new Error('DATABASE_URL is not set');
+  const [row] = await db`
+    SELECT count(*)::int                                                   AS searches,
+           count(DISTINCT visitor_id)::int                                 AS visitors,
+           count(DISTINCT lower(q))::int                                   AS distinct_q,
+           count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS day,
+           round(avg(ms))::int                                             AS avg_ms
+    FROM   finds`;
+  const asked = await db`
+    SELECT lower(q) AS q, count(*)::int AS n
+    FROM   finds
+    GROUP  BY lower(q)
+    HAVING count(*) > 1
+    ORDER  BY count(*) DESC, max(id) DESC
+    LIMIT  20`;
+  return { ...row, asked };
+}
+
+module.exports = { logTurn, recent, stats, init, enabled, sql, finds, findStats };

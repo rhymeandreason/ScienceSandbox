@@ -149,6 +149,22 @@
   .chip b { font-weight: 500; color: var(--faint); }
 
   .empty { color: var(--muted); padding: 2rem 0; }
+
+  /* ---- the composer's searches ---------------------------------------
+     A different log with a different question: not how the tutor answered,
+     but what people typed at the map and could not be answered. */
+  .searches { margin: 2.5rem 0 0; border-top: 1px solid var(--line, #2a2d33); padding-top: 1.5rem; }
+  .searches h2 { font-size: 1rem; margin: 0 0 .2rem; }
+  .asked { display: flex; flex-wrap: wrap; gap: .4rem; margin: .8rem 0 1rem; }
+  .asked b { font-variant-numeric: tabular-nums; opacity: .6; margin-right: .35rem; }
+  .asked span {
+    border: 1px solid var(--line, #2a2d33); border-radius: 3px;
+    padding: .25rem .5rem; font-size: .84rem;
+  }
+  .qlist { font-size: .88rem; }
+  .qlist div { padding: .3rem 0; border-top: 1px solid var(--line, #2a2d33); display: flex; gap: .8rem; }
+  .qlist div:first-child { border-top: 0; }
+  .qlist time { color: var(--faint, #6d6f76); font-variant-numeric: tabular-nums; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -176,6 +192,14 @@
   </div>
 
   <div id="list"></div>
+
+  <section class="searches">
+    <h2>Composer searches</h2>
+    <p class="sub">What was typed at the question map. Repeats first: one person asking is a person, forty are a lesson that is missing.</p>
+    <div class="stats" id="fstats"></div>
+    <div class="asked" id="asked"></div>
+    <div class="qlist" id="qlist"></div>
+  </section>
 </div>
 
 <script>
@@ -235,7 +259,30 @@ async function load() {
   }
 
   draw(data);
+  drawSearches(data.searches);
   $('note').textContent = data.turns.length + ' shown';
+}
+
+function drawSearches(s) {
+  if (!s || s.error) {
+    $('fstats').innerHTML = '';
+    $('asked').innerHTML = '';
+    $('qlist').innerHTML = `<p class="empty">${esc(s ? s.error : 'no searches')}</p>`;
+    return;
+  }
+  const k = s.stats;
+  $('fstats').innerHTML = [
+    ['searches', k.searches], ['last 24h', k.day], ['visitors', k.visitors],
+    ['distinct', k.distinct_q], ['avg', k.avg_ms == null ? '—' : k.avg_ms + 'ms'],
+  ].map(([label, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(label)}</span></div>`).join('');
+
+  $('asked').innerHTML = (k.asked || []).map(a =>
+    `<span><b>${esc(a.n)}×</b>${esc(a.q)}</span>`).join('')
+    || '<span class="empty">nothing asked twice yet</span>';
+
+  $('qlist').innerHTML = (s.rows || []).map(r =>
+    `<div><time>${esc(new Date(r.created_at).toLocaleString())}</time><span>${esc(r.q)}</span></div>`).join('')
+    || '<p class="empty">no searches yet</p>';
 }
 
 function draw(data) {
