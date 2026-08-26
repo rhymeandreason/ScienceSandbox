@@ -232,7 +232,10 @@
      trace is baked (tools/bake-trace.js) and its secondary structure is the
      deposited HELIX records, not a guess. */
   levels:    { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json',
-               surface:'hemoglobin/data/2HHB.card.surf.bin' },
+               surface:'hemoglobin/data/2HHB.card.surf.bin',
+               /* `chrome=bare` is the LESSON's parameter, not the map's: the map
+                  asks for a mode and hemoglobin-lab decides what it means. */
+               lesson:'hemoglobin-lab.html?chrome=bare' },
 
   /* ONE chain of the same tetramer, because this card's claim is about one
      chain finding one shape — four of them would be the level above, which is

@@ -125,6 +125,18 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 **The two live in different frames** — the trajectory in `FoldLib.orient()`'s, the trace in the crystal's — so the toggle re-frames rather than flipping visibility, and one is on screen at a time, which is what makes that legal. The fold is framed on its FINAL radius, or the camera appears to fold along with the protein.
 
+### The lesson behind a card
+
+A card is a promise that a thing is worth looking at; the full act is `hemoglobin-lab`'s, and it stays there. **Open lesson** on a `.near` protein card puts the lesson itself in a `kit/modal.js` card over the map, in an iframe.
+
+**`?chrome=bare` is the LESSON's parameter, not the map's.** The map asks for a mode; `hemoglobin-lab` reads it before first paint (so it never flashes its own title on the way into someone else's frame) and its own stylesheet decides what bare means — today, one rule hiding `#pagetitle`, because the modal has already said what the page is. Anything else that must go when the lesson is not the whole window is added beside that rule, in that file.
+
+The alternative was the map injecting a stylesheet through `contentDocument`, which same-origin allows. That is the map holding an opinion about another page's internals, and it breaks silently the day the lesson renames a selector. Nothing would check it.
+
+**The iframe is empty until it opens and emptied on close.** A lesson is its own WebGL context and about a megabyte of trajectory, and neither should be paid by a reader who never opened it. Behaviour is `kit/modal.js`'s (focus return, the Esc stack, the trap); the markup and the look are the page's, which is the contract that module states in its own header.
+
+**What did NOT get extracted, and why.** The lesson's act is ball-and-stick with per-frame pendant rebuilds, H-bond dashes gated on measured formation, the `fx` layer, a focus/opacity blend, a camera that turns across the coda, timed callouts, then the heme and three chains arriving. Almost none of that is a property of the fold — it is the telling of it, and extracting it would extract the lesson. `FoldPlay` took the one piece that is a rule.
+
 **Protein cards do not orbit** (`stage:{orbit:false}`): a drag on a card is a drag on the map. Otherwise a reader who meant to move a card turns the molecule inside it, with no way back to the framing the card was composed with.
 
 Small molecules go to the builder (flat view draws the electrons); molecules with no recipe go to molbox. Builder and molbox are ortho.

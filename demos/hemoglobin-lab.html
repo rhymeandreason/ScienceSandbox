@@ -24,6 +24,14 @@
   #pagetitle{position:absolute;left:50%;top:14px;transform:translateX(-50%);
     z-index:6;font-family:var(--font-marker);font-size:16px;color:var(--muted);
     text-align:center;pointer-events:none}
+
+  /* ?chrome=bare — the lesson inside someone else's frame. The door map opens
+     this page in a modal that has already said what it is, so the page's own
+     title would be the second one on screen. The PAGE owns what bare means:
+     the map asks for a mode, it does not reach into this document. Anything
+     else that has to go when this is not the whole window goes here too. */
+  html.bare #pagetitle{display:none}
+
   #molname{position:absolute;left:50%;bottom:100px;transform:translateX(-50%);
     z-index:6;font-size:16px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;
     text-align:center;pointer-events:none}
@@ -152,6 +160,12 @@
   }
 </style>
 </head>
+<!-- Read before the body paints, so a bare lesson never flashes its own title
+     on the way into someone else's frame. -->
+<script>
+  if (new URLSearchParams(location.search).get('chrome') === 'bare')
+    document.documentElement.classList.add('bare');
+</script>
 <body>
 <div id="app">
   <div id="stage">
