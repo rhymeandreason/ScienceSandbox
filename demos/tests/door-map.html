@@ -666,7 +666,7 @@ function goLiveSoon(n) {
   /* The bytes can be in flight while the card waits its turn: a fetch costs no
      main thread, and the trace is what the first frame needs. Nothing reads the
      result — this only warms the HTTP cache the card's own fetch will hit. */
-  if (v.trace) fetch('../' + v.trace, { cache: 'force-cache' }).catch(() => {});
+  if (v.trace) fetch('../' + v.trace).catch(() => {});
   liveQueue.push(n);
   if (liveDraining) return;
   liveDraining = true;

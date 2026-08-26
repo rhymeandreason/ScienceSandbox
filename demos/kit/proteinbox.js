@@ -30,6 +30,15 @@
  *  no modal, no `.near`. It owns the molecule and the two questions a reader
  *  can ask of it.
  *
+ *  NO `cache:'force-cache'` ON ANY OF THESE FETCHES. It reads as the right
+ *  thing to ask for — the files never change — but the dev server sends
+ *  `no-store` so a reload never serves a stale page, and WebKit fails a
+ *  force-cache request for a no-store resource outright rather than falling
+ *  back to the network. Safari-only, and it presents as a box that never draws.
+ *  Ordinary caching already does the job: these are static files with real
+ *  cache headers in production, and the second box asking for one gets it from
+ *  the memory cache anyway.
+ *
  *  Every library is read by its BARE name, not off `global`: folding/ribbon.js
  *  publishes `const RibbonLib` at script top level, which is script scope and
  *  never a property of window — `global.RibbonLib` is undefined, and only at
@@ -61,7 +70,28 @@
 
   let sesOwner = null;              // the one box holding a decoded surface
 
+  /* Checked rather than assumed: a library that is not there yet shows up as an
+     empty box, which reads as a module with no stage — the wrong story, and one
+     nobody can see is wrong. Bare `typeof` because classic scripts share one
+     global lexical scope, which is where ribbon.js's `const RibbonLib` lives:
+     it is never a property of window, so `global.RibbonLib` would say missing
+     on a page that has it. */
+  function missing() {
+    const gaps = [];
+    if (typeof THREE === 'undefined') gaps.push('three.min.js');
+    if (typeof Stage === 'undefined') gaps.push('lib/scene.js');
+    if (typeof CardStage === 'undefined') gaps.push('kit/card-stage.js');
+    if (typeof RibbonLib === 'undefined') gaps.push('folding/ribbon.js');
+    return gaps;
+  }
+
   function create(opts) {
+    const gaps = missing();
+    if (gaps.length) {
+      console.warn('Proteinbox needs ' + gaps.join(', ') + ' loaded before it');
+      return null;
+    }
+
     const mount = opts.mount;
     let radius = 0, player = null, surf = null, rep = 'ribbon';
     let stillMid = null, stillR = 0, foldR = 0;
@@ -108,7 +138,7 @@
     box.root.add(chainGroup, foldGroup);
 
     /* ---- the ribbon ---- */
-    fetch(opts.trace, { cache: 'force-cache' })
+    fetch(opts.trace)
       .then(r => r.json())
       .then(t => {
         if (box.dead) return;
@@ -147,7 +177,10 @@
         };
         build();
       })
-      .catch(() => {});        // a box with no trace shows nothing, and says so by that
+      /* Loud, not silent. A swallowed catch here is a box that shows its
+         placeholder for ever and looks exactly like a module with no stage
+         yet — the one failure this file can produce that nobody can see. */
+      .catch(e => console.warn('Proteinbox: ' + opts.trace + ' — ' + e.message));
 
     function reframeStill() {
       if (!stillMid) return;
@@ -168,7 +201,7 @@
     function showSurface() {
       if (surf) { surf.visible = true; box.draw(); return; }
       busy(true);
-      fetch(opts.surface, { cache: 'force-cache' })
+      fetch(opts.surface)
         .then(r => r.arrayBuffer())
         .then(buf => {
           if (box.dead) return;
@@ -190,7 +223,7 @@
     function showFold() {
       if (player) { player.mesh.visible = true; reframeFold(); box.start(); return; }
       busy(true);
-      fetch(opts.fold, { cache: 'force-cache' })
+      fetch(opts.fold)
         .then(r => r.arrayBuffer())
         .then(buf => {
           if (box.dead) return;
