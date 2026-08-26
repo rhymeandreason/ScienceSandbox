@@ -109,7 +109,9 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 | `water` | card-stage + `water/watersim.js` | door-map, cards-cluster |
 | `build` | `molecule-builder.js` (ortho, own context) | door-map, cards-cluster |
 | `molbox` | `kit/molbox.js` | cards-cluster, membrane-lab |
-| `protein` | card-stage + `folding/ribbon.js`, from a baked trace | door-map |
+| `protein` | `kit/proteinbox.js` | door-map |
+
+**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, and draws its own two controls. Which files a module names is `VIEWS`, and the lesson button and its modal are door-map's — a box has no opinion about what is behind the card it sits on. `rendering-modules.md` has the module.
 
 **A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. **Three things a protein card can show, and only the first is free.** Ribbon is the default and the only one fetched at reveal. The other two are gated the same way, and the gates are the design:
 

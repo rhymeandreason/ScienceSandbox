@@ -32,6 +32,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../molecule-builder/molecule-builder.css">
+<link rel="stylesheet" href="../kit/proteinbox.css">
 <style>
   :root {
     --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
@@ -238,71 +239,14 @@
   .node.module .mb-dims { transition: opacity .18s ease; }
   .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
-  /* The representation switch, on a protein card. Same placement and the same
-     `.near` rule as the builder's 3D/2D, because they are the same promise:
-     a control appears when the card is big enough to hit it. */
-  .node.module .rep {
-    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
-    display: inline-flex; border: 1px solid var(--line); border-radius: 3px;
-    overflow: hidden; background: var(--card);
-    box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
-    transition: opacity .18s ease;
-  }
-  .node.module .rep button {
-    font: inherit; font-size: 0.55rem; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--muted);
-    border: 0; background: none; padding: 0.3rem 0.55rem; cursor: pointer;
-  }
-  .node.module .rep button + button { border-left: 1px solid var(--line); }
-  .node.module .rep button.on { background: var(--ink); color: var(--paper); }
-  .node.module .rep button[disabled] { opacity: 0.5; cursor: progress; }
-  .node.module:not(.near) .rep { opacity: 0; pointer-events: none; }
+  /* Every control a card carries is gated the same way, and the gate is this
+     page's: only the map knows how big its card is on screen. What they look
+     like is the module's (kit/proteinbox.css) or the builder's. */
+  .node.module:not(.near) .pbox-rep,
+  .node.module:not(.near) .pbox-play,
+  .node.module:not(.near) .lesson,
+  .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
-  /* The play button sits in the picture's own corner rather than in the row of
-     segments: it starts an EVENT, and a reader looking for "how do I see this
-     happen" looks at the picture, not at a switch under it. */
-  .node.module .play {
-    position: absolute; right: 8px; bottom: 8px;
-    width: 26px; height: 26px; padding: 0; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.6rem; color: var(--muted); cursor: pointer;
-    background: var(--card); border: 1px solid var(--line); border-radius: 50%;
-    box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
-    transition: opacity .18s ease, color .15s, border-color .15s;
-  }
-  .node.module .play:hover { color: var(--ink); border-color: var(--ink); }
-  .node.module .play.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .node.module:not(.near) .play { opacity: 0; pointer-events: none; }
-
-  /* The lesson card. Nearly the whole window, because what is inside is a
-     lesson and not a dialog: anything smaller and the stage it frames its
-     molecule into is smaller than the card that sent the reader here. */
-  .modal[hidden] { display: none; }
-  .modal { position: fixed; inset: 0; z-index: 30; display: flex;
-           align-items: center; justify-content: center; padding: 2vmin; }
-  .modal .mback { position: absolute; inset: 0; background: rgba(20,22,26,.55); }
-  .modal .mcard {
-    position: relative; display: flex; flex-direction: column;
-    width: min(1400px, 96vw); height: min(900px, 92vh);
-    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
-    overflow: hidden; box-shadow: 0 30px 80px -30px rgba(20,22,26,.5);
-  }
-  .modal .mhead {
-    display: flex; align-items: center; gap: 1rem;
-    padding: 0.6rem 0.7rem 0.6rem 1rem; border-bottom: 1px solid var(--line);
-    font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted);
-  }
-  .modal .mhead span { flex: 1; }
-  .modal .mclose {
-    font-family: var(--sans); font-size: 1.1rem; line-height: 1;
-    color: var(--muted); background: none; border: 0; cursor: pointer;
-    padding: 0.1rem 0.4rem;
-  }
-  .modal .mclose:hover { color: var(--ink); }
-  .modal iframe { flex: 1; width: 100%; border: 0; display: block; background: var(--paper); }
-
-  /* Same gate as every other control on a card. */
   .node.module .lesson {
     position: absolute; left: 8px; bottom: 8px;
     font: inherit; font-size: 0.55rem; letter-spacing: 0.14em;
@@ -312,7 +256,6 @@
     transition: opacity .18s ease, color .15s, border-color .15s;
   }
   .node.module .lesson:hover { color: var(--ink); border-color: var(--ink); }
-  .node.module:not(.near) .lesson { opacity: 0; pointer-events: none; }
 
   .node.question {
     width: 13.5rem;
@@ -491,6 +434,7 @@
 <script src="../kit/molbox.js"></script>
 <script src="../molecule-builder/molecule-builder.js"></script>
 <script src="../folding/ribbon.js"></script>   <!-- protein cards: RibbonLib -->
+<script src="../kit/proteinbox.js"></script>   <!-- ...after every library it reads -->
 <script src="../hemoglobin/surface.js"></script>   <!-- ...and SurfLib, on demand -->
 <script src="../hemoglobin/hbfold.js"></script>    <!-- ...and the fold, on demand -->
 <script src="../hemoglobin/foldplay.js"></script>  <!-- the ss-from-bonds rule, shared with hemoglobin-lab -->
@@ -590,23 +534,9 @@ const rankFrom = (from, other) => {
    and about the electrons rather than about a shape turning. */
 
 /* ---- a protein card ------------------------------------------------------
-   Real angstroms, from a trace baked by tools/bake-trace.js: Ca plus the
-   DEPOSITED secondary structure, centred, ~12 KB for a tetramer. The PDB it
-   came from is 453 KB and 60,000 atom records a ribbon throws away, so no card
-   parses one.
-
-   Its own scene, which is what lets it be angstroms at all — one scale family
-   per SCENE, MolecularGeometry.md 1.5, and every other card on this page is a
-   spec in the small-molecule family.
-
-   Ribbon, not surface. The SES bake for this same structure is 1.5 MB, and at
-   thumb size a surface is a blob: the surface is worth fetching only when the
-   reader asks for it on a card close enough to work on, which is what `.near`
-   already decides. That toggle is the next piece, not this one.
-
-   One mesh per chain, three draw groups each (coil / helix / strand), so a
-   tetramer is 4 geometries rather than one per element. */
-const RIB = { C: 0x7d8c7a, H: 0x0042aa, E: 0xc2571b };
+   kit/proteinbox.js owns the molecule and the two questions a reader can ask
+   of it (the surface, the fold). This owns what belongs to the MAP: which
+   files a module names, and the button that opens the lesson behind it. */
 
 /* The lesson behind a card, opened over the map. `src` is set on show and
    cleared on hide, so the lesson's context and its megabyte of trajectory
@@ -622,205 +552,14 @@ const lessonModal = Modal.create({
   onHide: () => { lessonFrame.src = 'about:blank'; },
 });
 
-/* One decoded surface on the whole page, for the same reason there are four
-   contexts: 362 KB of quantised mesh becomes several MB of GPU buffers, and
-   CardStage's LRU rations contexts, not what a page hangs off one. The card
-   that loses its surface falls back to its ribbon, which was never removed. */
-let sesOwner = null;
-
 function protein(thumb, view, id, name) {
-  let radius = 0;
-  /* An ortho camera does not zoom by MOVING: its size is its frustum, so a
-     cam.r written straight onto the camera does nothing and the molecule is
-     drawn against THREE's constructor frustum, top = 1 — a 33 A protein in a
-     2 A frame, which is what a wall of blue is. Stage.frame's ortho branch
-     writes the frustum and leaves cam.r alone, so read the answer back or the
-     first wheel event jumps the card. Same shape as molbox's fit(), for the
-     same reason, and it has to re-run from onResize because the aspect it
-     solved against is gone the moment the card grows into a hub. */
-  const fit = () => {
-    if (!radius || !thumb.clientWidth || !thumb.clientHeight) return;
-    box.stage.resize();
-    Stage.frame(box.camera, box.cam,
-                [{ x: 0, y: 0, rxz: radius, hy: radius }], { pad: 1.12 });
-    if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
-    box.applyCam();
-  };
-  let player = null;              // the fold, once someone has asked for it
-  const box = CardStage.create({
+  // Paths in mapcontent.js are repo-relative; this page is a directory down.
+  const box = Proteinbox.create({
     mount: thumb,
-    cam: { theta: 0.6, phi: 1.1, r: 40 },
-    /* orbit:false — a drag on this card is a drag on the MAP. A canvas that
-       spins under the pointer means a reader who meant to move a card has
-       instead turned the molecule inside it, and there is no way back to the
-       framing the card was composed with. */
-    stage: { ortho: true, orbit: false },
-    autoplay: false,              // a still ribbon has nothing to run
-    step: dt => { if (player && rep === 'fold') player.tick(dt); },
-    onResize: fit,
-    onDestroy: () => { if (sesOwner === box) sesOwner = null; },
-  });
-
-  const chainGroup = new THREE.Group();
-  const foldGroup = new THREE.Group();
-  box.root.add(chainGroup, foldGroup);
-  let stillMid = null, stillR = 0;      // what the static ribbon was framed on
-  let surf = null;                  // the decoded mesh, while this card owns it
-
-  fetch('../' + view.trace, { cache: 'force-cache' })
-    .then(r => r.json())
-    .then(t => {
-      if (box.dead) return;
-      const ids = view.chains ? view.chains.split(',') : t.order;
-      const mats = [RIB.C, RIB.H, RIB.E].map(c => {
-        const m = Stage.bondMat(c);
-        m.side = THREE.DoubleSide;
-        return m;
-      });
-      /* One chain per frame. A tetramer's ribbon is ~80k triangles and building
-         all four in the frame the trace lands is the same stall the wave was
-         just spread out to avoid. The frame is re-solved after each, so the
-         card grows into its box chain by chain rather than popping. */
-      const drawn = [];
-      const build = () => {
-        const cid = ids.shift();
-        if (cid === undefined) return;
-        const c = t.chains[cid];
-        if (c) {
-          const pts = c.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-          drawn.push(...pts);
-          chainGroup.add(new THREE.Mesh(RibbonLib.build(THREE, pts, c.ss.split('')), mats));
-          reframe();
-        }
-        if (ids.length) requestAnimationFrame(build);
-      };
-      /* The trace is centred on every chain it HOLDS, so a card drawing one of
-         four would sit off to the side. Re-centre on what is actually drawn —
-         the group moves, the coordinates stay the file's — and re-solve after
-         every chain, since each one changes both the centre and the radius. */
-      const reframe = () => {
-        if (!drawn.length) return;
-        stillMid = drawn.reduce((a, p) => a.add(p), new THREE.Vector3())
-                        .multiplyScalar(1 / drawn.length);
-        stillR = 0;
-        for (const p of drawn) stillR = Math.max(stillR, p.distanceTo(stillMid));
-        reframeStill();
-        box.draw();
-      };
-      build();
-      return;
-    })
-    .catch(() => {});          // a card with no picture keeps its placeholder
-
-  /* ---- the surface, only when asked for ----
-     Three gates, and the point of all three is that a 362 KB fetch is never
-     something a card DOES to a reader who only scrolled past it: the control
-     exists only on a `.near` card, the bytes are asked for only on the click,
-     and the ribbon stays up until they land. */
-  function dropSurface() {
-    if (!surf) return;
-    chainGroup.visible = true;
-    box.root.remove(surf);
-    surf.geometry.dispose();
-    surf = null;
-    if (sesOwner === box) sesOwner = null;
-    box.draw();
-  }
-
-  function showSurface(btns) {
-    if (surf) { chainGroup.visible = false; surf.visible = true; box.draw(); return; }
-    btns.forEach(b => { b.disabled = true; });
-    fetch('../' + view.surface, { cache: 'force-cache' })
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        if (box.dead) return;
-        if (sesOwner && sesOwner !== box) sesOwner.drop();
-        const S = SurfLib.decode(THREE, buf);
-        surf = new THREE.Mesh(S.geo, new THREE.MeshStandardMaterial({
-          color: 0xdfe4ee, roughness: 0.45, metalness: 0.0,
-          flatShading: false, side: THREE.FrontSide,
-        }));
-        box.root.add(surf);
-        chainGroup.visible = false;
-        sesOwner = box;
-        box.draw();
-      })
-      .catch(() => { setRep('ribbon'); })
-      .then(() => { btns.forEach(b => { b.disabled = false; }); });
-  }
-
-  /* ---- the fold, also only when asked for ----
-     833 KB of trajectory and a ribbon rebuilt every frame, which is the one
-     thing on this page that genuinely wants a running loop. Same three gates
-     as the surface, plus: the box only STARTS while the fold is the rep, so a
-     card left on ribbon costs nothing per frame. */
-  function showFold(btns) {
-    if (player) { chainGroup.visible = false; player.mesh.visible = true; box.start(); return; }
-    btns.forEach(b => { b.disabled = true; });
-    fetch('../' + view.fold, { cache: 'force-cache' })
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        if (box.dead) return;
-        const f = HbFold.decode(buf);
-        /* sub 3 against the lesson's 6: the rebuild is per frame and its cost
-           IS the triangle count, and this is a 280px box. */
-        player = FoldPlay.create(THREE, f, { sub: 3, speed: 0.16,
-                                             material: Stage.bondMat(RIB.H) });
-        /* The trajectory is in FoldLib.orient()'s frame and the trace is in the
-           crystal's, so the two are not the same molecule in the same place.
-           The fold gets its OWN group and the card re-centres on whichever is
-           showing — one at a time, never both, which is what makes that legal. */
-        foldGroup.add(player.mesh);
-        chainGroup.visible = false;
-        reframeFold();
-        box.start();
-      })
-      .catch(() => { setRep('ribbon'); })
-      .then(() => { btns.forEach(b => { b.disabled = false; }); });
-  }
-
-  function reframeFold() {
-    if (!player) return;
-    player.mesh.geometry.computeBoundingSphere();
-    const bs = player.mesh.geometry.boundingSphere;
-    foldGroup.position.copy(bs.center).negate();
-    /* Framed on the FINAL fold, not on this instant: a chain that starts
-       extended and ends compact would otherwise zoom out through the whole
-       animation, which reads as the camera folding rather than the protein. */
-    if (!foldR) { const t = player.t; player.seek(1); player.mesh.geometry.computeBoundingSphere();
-                  foldR = player.mesh.geometry.boundingSphere.radius; player.seek(t); }
-    radius = foldR;
-    box.root.position.set(0, 0, 0);
-    fit();
-  }
-  let foldR = 0;
-
-  // The two representations sit in different frames, so switching between them
-  // is a re-frame, not just a visibility flip.
-  function reframeStill() {
-    if (!stillMid) return;
-    box.root.position.copy(stillMid).negate();
-    radius = stillR;
-    fit();
-  }
-
-  /* Two controls, because they are two kinds of thing. Ribbon and surface are
-     REPRESENTATIONS — the same molecule, drawn two ways, and a segmented pair
-     is what says "one of these". The fold is an EVENT: it starts, it runs, it
-     ends. A play button is what says that, and putting it in the same row of
-     segments would have claimed the fold was a third way of drawing the same
-     still. */
-  let rep = 'ribbon';
-  const reps = ['ribbon'];
-  if (view.surface) reps.push('surface');
-  const bar = document.createElement('div');
-  bar.className = 'rep';
-  const btns = reps.map(name => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.dataset.rep = name; b.textContent = name;
-    b.addEventListener('click', e => { e.stopPropagation(); setRep(name); });
-    bar.appendChild(b);
-    return b;
+    trace: '../' + view.trace,
+    chains: view.chains,
+    surface: view.surface ? '../' + view.surface : null,
+    fold: view.fold ? '../' + view.fold : null,
   });
 
   if (view.lesson) {
@@ -834,40 +573,6 @@ function protein(thumb, view, id, name) {
     });
     thumb.appendChild(open);
   }
-
-  let play = null;
-  if (view.fold) {
-    play = document.createElement('button');
-    play.type = 'button';
-    play.className = 'play';
-    play.title = 'play the fold';
-    play.textContent = '\u25B6';
-    play.addEventListener('click', e => {
-      e.stopPropagation();
-      setRep(rep === 'fold' ? 'ribbon' : 'fold');
-    });
-    thumb.appendChild(play);
-  }
-  function setRep(next) {
-    rep = next;
-    btns.forEach(b => b.classList.toggle('on', b.dataset.rep === rep));
-    if (surf) surf.visible = rep === 'surface';
-    if (player) player.mesh.visible = rep === 'fold';
-    if (rep !== 'fold') box.stop();
-    if (play) {
-      play.textContent = rep === 'fold' ? '\u25A0' : '\u25B6';
-      play.title = rep === 'fold' ? 'stop' : 'play the fold';
-      play.classList.toggle('on', rep === 'fold');
-    }
-    if (rep === 'ribbon') { chainGroup.visible = true; reframeStill(); box.draw(); }
-    else if (rep === 'surface') { chainGroup.visible = false; showSurface(btns); }
-    else showFold(btns);
-  }
-  setRep('ribbon');
-  if (reps.length > 1) thumb.appendChild(bar);
-
-  // The page's one-surface rule reaches a card through this, and nothing else.
-  box.drop = () => { setRep('ribbon'); dropSurface(); };
   return box;
 }
 
@@ -1449,7 +1154,7 @@ canvas.addEventListener('pointerdown', e => {
      click that reaches it is the card's — so the toggle looked dead while the
      card behind it opened. Both controls, since the builder's 3D/2D sits in a
      card the same way. */
-  if (e.target.closest('.rep, .play, .lesson, .mb-dims')) return;
+  if (e.target.closest('.pbox-rep, .pbox-play, .lesson, .mb-dims')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;

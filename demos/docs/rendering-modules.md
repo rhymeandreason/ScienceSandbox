@@ -36,6 +36,19 @@ The browser half of the SES1 format written by `bake-surface.js`.
 
 * The format itself stays specified in `bake-surface.js`'s header, next to the writer
 
+**`kit/proteinbox.js` — `Proteinbox`**
+
+`kit/molbox.js` draws a molecule built from a spec; this draws one measured in a lab. Its own CardStage scene, ortho, real angstroms — which is what lets it be angstroms at all, since one scale family per SCENE and the cards beside it are the small-molecule family.
+
+    Proteinbox.create({ mount, trace, chains, surface, fold })
+
+Three things it can show, and only the first is free: the 12 KB trace on create, a ~360 KB SES and an ~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()` and `rep`.
+
+* **One decoded surface across every box**, for the same reason contexts are rationed: the LRU rations contexts, not what a page hangs off one. A box that loses its surface falls back to the ribbon it never removed.
+* **`orbit:false` by default** — a drag belongs to the page, not to the molecule; a canvas that spins under the pointer leaves no way back to the framing the card was composed with.
+* **It reads every library by its BARE name.** `folding/ribbon.js` publishes `const RibbonLib` at script top level, which is script scope and never a property of window, so `global.RibbonLib` is undefined — and only at the moment a card tries to draw. Load it after every library it reads.
+* Look is `kit/proteinbox.css` (`.pbox-rep`, `.pbox-play`); the page decides WHEN they are reachable, because only the page knows how big its card is on screen.
+
 **`hemoglobin/foldplay.js` — `FoldPlay`**
 
 A trajectory from `HbFold.decode`, played as a ribbon that means something. It owns one rule, and the rule is the reason it is a module: **the ribbon must not show a helix before its bonds exist.** A residue is drawn helical when a formed H-bond spans it, and only where the deposited records say a helix belongs — so the assignment can arrive early or late but can never invent a helix the structure does not have. Pass the deposited `ss` to `RibbonLib` on every frame instead and the extended chain at t=0 comes out with eight wide blue bands in it: level 2 finished before level 1 has been read.

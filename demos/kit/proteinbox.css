@@ -1,0 +1,42 @@
+/* kit/proteinbox.css — the look of Proteinbox's two controls, and nothing else.
+   Structure and placement only: colour comes from the page's own tokens, so a
+   box in a lesson and a box on the map are the same control in two palettes.
+   A page decides WHEN they are reachable (door-map gates them on `.near`). */
+
+.pbox-rep {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  display: inline-flex; overflow: hidden;
+  border: 1px solid var(--line, #e4e0d7); border-radius: 3px;
+  background: var(--card, #fff);
+  box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
+  transition: opacity .18s ease;
+}
+.pbox-rep button {
+  font: inherit; font-size: 0.55rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted, #6d6f76);
+  border: 0; background: none; padding: 0.3rem 0.55rem; cursor: pointer;
+}
+.pbox-rep button + button { border-left: 1px solid var(--line, #e4e0d7); }
+.pbox-rep button.on { background: var(--ink, #14161a); color: var(--paper, #faf8f4); }
+.pbox-rep button[disabled] { opacity: .5; cursor: progress; }
+
+/* The play button sits in the picture's own corner rather than in the row of
+   segments: it starts an EVENT, and a reader looking for "how do I see this
+   happen" looks at the picture, not at a switch under it. */
+.pbox-play {
+  position: absolute; right: 8px; bottom: 8px;
+  width: 26px; height: 26px; padding: 0; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 0.6rem; cursor: pointer;
+  color: var(--muted, #6d6f76);
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e4e0d7); border-radius: 50%;
+  box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
+  transition: opacity .18s ease, color .15s, border-color .15s;
+}
+.pbox-play:hover { color: var(--ink, #14161a); border-color: var(--ink, #14161a); }
+.pbox-play.on {
+  background: var(--ink, #14161a); color: var(--paper, #faf8f4);
+  border-color: var(--ink, #14161a);
+}
+.pbox-play[disabled] { opacity: .5; cursor: progress; }
