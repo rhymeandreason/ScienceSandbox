@@ -434,6 +434,25 @@
     -webkit-line-clamp: 3;
   }
   .node.module.specimen .thumb { margin-top: 0.55rem; }
+  /* What made this file, read from the baker's half of the registry. Small,
+     tabular, and deliberately quiet: it is provenance, not the point. */
+  .node.module.specimen .prov {
+    font-family: var(--ui); font-size: 0.63rem; line-height: 1.35;
+    color: var(--faint, #9a9ca3); margin-top: 0.35rem;
+    font-variant-numeric: tabular-nums;
+  }
+  /* An enzyme, marked by its EC class rather than by the word. */
+  .node.module.specimen .tag {
+    display: inline-flex; align-items: baseline; gap: 0.4rem;
+    margin-top: 0.3rem;
+    font-family: var(--sans); font-size: 0.56rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+  }
+  .node.module.specimen .tag span {
+    letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .node.module.specimen.hub .prov { font-size: 0.75rem; margin-top: 0.5rem; }
+  .node.module.specimen.hub .tag { font-size: 0.62rem; }
   /* Opened, the name takes the size the claim would have had. */
   .node.module.specimen.hub .name {
     font-size: 1.9rem; line-height: 1.18; letter-spacing: -0.015em;
@@ -611,11 +630,18 @@ for (const [key, mods] of (SPECIMENS || [])) {
   const v = p.variants.find(x => x.default) || p.variants[0];
   const baked = v && v.read && v.read.baked;
   if (!baked) continue;
+  /* Every number on the card comes from `read`, which the baker rewrites from
+     the deposition, so a re-bake cannot leave a card claiming a residue count
+     the file no longer has. Nothing here is typed. */
+  const ec = v.read.ec || null;
+  const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
   const n = {
     id: 'p:' + key, kind: 'protein', deg: 0,
     name: p.name, claim: p.blurb, does: p.does,
     trace: (p.dir || p.key) + '/data/' + baked,
-    purpose: v.purpose, method: v.read.method, species: v.species,
+    purpose: v.purpose, species: v.species,
+    method: v.read.method, residues: v.read.residues, declared: v.read.declared,
+    ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
   };
   byId[n.id] = n;
   nodes.push(n);
@@ -1048,12 +1074,21 @@ function refreshMeta(n) {
   if (!el) return;
   const hidden = neighbours(n).filter(m => !m.visible).length;
   if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' modules' : DOOR.label; return; }
-  el.textContent = n.done || !hidden
-    ? ''
-    : '+' + hidden + (hidden === 1 ? ' question' : ' questions');
+  /* A specimen's hidden neighbours are MODULES — the concepts that hold it —
+     not questions, and the card said "+1 question" over two of them. */
+  const noun = n.kind === 'protein'
+    ? (hidden === 1 ? ' concept' : ' concepts')
+    : (hidden === 1 ? ' question' : ' questions');
+  el.textContent = n.done || !hidden ? '' : '+' + hidden + noun;
 }
 
 /* ---- DOM -------------------------------------------------------------- */
+
+/* The registry's strings are authored, not typed by a reader — but they go into
+   innerHTML beside a title attribute, and a stray quote there would break the
+   attribute rather than the sentence. Cheaper to escape than to remember. */
+const esc = t => String(t == null ? '' : t)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function paintNode(n) {
   const el = document.createElement('div');
@@ -1078,9 +1113,26 @@ function paintNode(n) {
        concept card leads with its CLAIM because the claim is the lesson; a
        specimen leads with its NAME because the thing is the point, and what we
        say about it is a label on the object. */
-    el.innerHTML = '<div class="name">' + n.name + '</div>' +
+    /* An enzyme is marked by WHAT IT DOES, not by the word "enzyme": the EC
+       number's first digit is a class, and the registry already carries the
+       class's own name and gloss. "translocase" says more than "enzyme" and
+       costs the same line. */
+    const tag = n.does === 'enzyme' && n.ecClass
+      ? '<div class="tag" title="' + esc(n.ecDoes || '') + '">' + esc(n.ecClass)
+        + '<span>EC ' + esc(n.ec) + '</span></div>'
+      : n.does === 'enzyme' ? '<div class="tag">enzyme</div>' : '';
+    /* Read at render time from `read`, which is the baker's half of the
+       registry — so this line cannot drift from the file it describes. */
+    const prov = [
+      n.method,
+      n.residues != null && n.declared != null
+        ? n.residues + ' of ' + n.declared + ' residues' : null,
+      n.species,
+    ].filter(Boolean).map(esc).join(' · ');
+    el.innerHTML = '<div class="name">' + n.name + '</div>' + tag +
                    '<div class="thumb"><span class="ph">image</span></div>' +
                    '<div class="claim">' + n.claim + '</div>' +
+                   '<div class="prov">' + prov + '</div>' +
                    '<div class="meta"></div>';
   } else if (n.ask) {
     /* textContent and not innerHTML: this text is typed by the reader. */

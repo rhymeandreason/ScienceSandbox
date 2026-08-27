@@ -287,6 +287,12 @@ A question reaches one by naming it in its own row, namespaced so a key can neve
 
 **The card is the concept card inverted.** On a module the name is an eyebrow and the CLAIM is the card, because a lesson is what it asserts; on a specimen the NAME is the card and the blurb is a caption under the picture, because a thing is the point and what we say about it is a label on it. No dot either: the dot carries which DOOR a module belongs to, and a specimen belongs to none — it is held by every concept that names it.
 
+**The card prints its provenance, and every number on it is read at render time** from the variant's `read` block — the baker's half of the registry, rewritten from the deposition on every run. So a card says *x-ray diffraction · 124 of 124 residues · bovine* without a human having typed a count a re-bake could falsify, which is the thing `proteins/proteins.js`'s two-halves design exists to make possible.
+
+**An enzyme is marked by WHAT IT DOES**, not by the word: the EC number's first digit is a class, and the registry carries that class's own name and gloss in `EC_CLASS`. So Ribonuclease A reads *HYDROLASE · EC 3.1.27.5* and Na⁺/K⁺-ATPase reads *TRANSLOCASE*, which says more than "enzyme" and costs the same line. A protein with no EC (haemoglobin, myoglobin, the prion) gets no tag rather than an empty one.
+
+**`refreshMeta` knows two nouns now.** A specimen's hidden neighbours are the concepts that hold it, and the card said "+1 question" over two modules.
+
 The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is Futura and Futura is a DISPLAY face here: it carries the logo, the buttons and the uppercase letterspaced labels, and it is unreadable as running text at 11px. Prose set in sans takes `--ui`; a label keeps `--sans`. This is the composer's own `:root`, so door-map is unchanged and a rebase carries it across with the rest of the CSS block. It draws through `kit/proteinbox.js` like any protein view; `viewFor()` is the one place that decides what a node draws, and a specimen carries its own view rather than needing a `VIEWS` entry — which would be a second source for a fact the registry already owns.
 
 **`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed module id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
