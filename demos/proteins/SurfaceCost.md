@@ -21,9 +21,15 @@ interesting finding is elsewhere, in the last section.
 | `amylase/data/1OSE.surf.bin` | 0.7 | 1.1 MB | `amylase/amylase-test.html`, `check-amylase.js` | not yet |
 
 `membrane/data/7E1Z.surf.bin` and `7E20.surf.bin` were a sixth and seventh
-row. `membrane/clip-test.html` was the only page that ever fetched them and it
-is deleted, so they went with it. `bake-pump.js` rebuilds them from the PDBs if
-the pump ever wants a real surface again.
+row, and they are gone along with the baker that made them. `clip-test.html`
+was the only page that ever fetched them; the surfaces were then tried against
+the pump and **did not earn their place** — a skin over a machine hides the
+site and the door, which is the whole of what the two states differ by. The
+structures themselves stayed and became `proteins/napump/`, where the bench
+draws them as ribbons standing in the bilayer OPM solved. If a lesson ever
+wants the pump's skin, `tools/bake-card-surface.js` bakes one from the same
+PDBs — the deleted script's only unshared knowledge was the OPM alignment,
+which `proteins/napump/tools/prep.js` now carries.
 
 Both remaining "not yet" rows have queued lessons in `LESSONS-ROADMAP.md`, so
 neither is a candidate for withholding from the deploy the way `*.pdb` is.

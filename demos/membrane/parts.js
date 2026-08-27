@@ -2,7 +2,7 @@
  *  membrane/parts.js — the membrane and its machines, built from numbers.
  * =============================================================================
  *  WHY THIS EXISTS, GIVEN THAT WE HAVE THE REAL SURFACE. membrane/clip.js and
- *  tools/bake-pump.js produce an honest solvent-excluded surface of the actual
+ *  proteins/napump/ hold the real structures, whose surface would be an honest
  *  pump, cut open, in a measured bilayer. That work settled what is TRUE, and
  *  it stays in the lesson as the aside that says "this is what the cartoon
  *  stands in for". But it cannot carry the lesson, for one hard reason and one
@@ -67,7 +67,8 @@
  *     Na+, which the lesson needs, because the pump's two site types tell them
  *     apart by size. Exaggerated, not falsified.
  *   · THE PROTEIN'S SHAPE IS INVENTED. Ro and Ri are not measured from 7E1Z.
- *     The bilayer thickness IS measured (bake-pump.js, from OPM) and the
+ *     The bilayer thickness IS measured (OPM's own remark, carried by
+ *     proteins/napump/tools/prep.js) and the
  *     protein's height and width are set to the real one's, so the proportions
  *     are right even though the silhouette is not. A student who later sees the
  *     SES aside should recognise the same object, not a different one.

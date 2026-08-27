@@ -39,7 +39,7 @@
  *  the causal story and the intermediate is not a Bio 101 fact. The 2022
  *  structures we baked (7E1Z, 7E20) are the two ENDS of this and there is no
  *  E2P among them, so nothing here is claiming structural support for the
- *  middle — see bake-pump.js's note on the same gap.
+ *  middle — see proteins/napump/tools/prep.js on the same gap.
  *
  *  WHAT IS NOT COMPRESSED, because it is the point:
  *

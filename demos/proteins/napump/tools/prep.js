@@ -40,9 +40,11 @@
  *  leaflet surfaces; they are HETATM, so a Cα trace never sees one, and
  *  the ligand reader skips them by name here.
  *
- *  SOURCES, for a re-run. The raw files are ~4 MB against the ~110 KB
- *  this bakes out of them, and they are committed because two tools read
- *  them — this one and `membrane/tools/bake-pump.js`:
+ *  SOURCES, for a re-run. The raw files are ~4 MB against the ~65 KB this
+ *  bakes out of them, and they are committed rather than gitignored for one
+ *  reason: the OPM copies are a SECOND source, and a plain RCSB curl does
+ *  not reproduce them. Losing them would mean losing the orientation, which
+ *  is the half of this bake that cannot be re-derived here:
  *
  *    https://files.rcsb.org/download/7E1Z.pdb     (the deposition)
  *    https://opm-assets.storage.googleapis.com/pdb/7e1z.pdb   (oriented)

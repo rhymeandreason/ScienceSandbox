@@ -16,6 +16,6 @@ demos/proteins/prion/data/prp-view-ensemble.pdb
 demos/proteins/rnase/data/src/
 demos/proteins/myoglobin/data/src/
 
-# NOT gitignored: demos/proteins/napump/data/src/ — 4 MB of PDBs that two
-# tools read (its own baker and membrane/tools/bake-pump.js), and the OPM
-# copies are a second source that a plain RCSB curl does not reproduce.
+# NOT gitignored: demos/proteins/napump/data/src/ — 4 MB of PDBs whose OPM
+# copies are a second source that a plain RCSB curl does not reproduce. The
+# orientation is the half of that bake nothing here could re-derive.

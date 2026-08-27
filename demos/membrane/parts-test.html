@@ -96,7 +96,7 @@ const Clip = ClipLib.create({ renderer:S.renderer });
    only thing that knows which axis is the thin one. Picking a normal here
    is how this page previously ended up slicing the bilayer lengthwise. */
 
-const HALF = 15.3;                    // the bilayer bake-pump.js measured
+const HALF = 15.3;                    // OPM's half-thickness for 7E1Z, via proteins/napump
 let T = null, mem = null, ionMesh = null, cutSec = null;
 
 function buildTransporter(lobes) {
