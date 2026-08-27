@@ -3,9 +3,16 @@
  *  ses.js — the solvent-excluded surface, on a grid, by marching cubes.
  *
  *  NODE ONLY. No page loads this: a surface is baked, never solved in
- *  the browser. viewer-compare.html measured the alternative — SES on
- *  2HHB took 3Dmol 5.7 s and Mol* 9.4 s, and 2HHB is the small case.
- *  What ships to a page is the mesh this writes.
+ *  the browser. What ships to a page is the mesh this writes.
+ *
+ *  THE BAKE IS NOT ABOUT CPU. This build is sub-second — 0.24 s on the
+ *  2HHB tetramer at 1.4 A, 0.37 s at 0.7. The 5.7 s (3Dmol) and 9.4 s
+ *  (Mol*) that viewer-compare.html measured on the same structure are
+ *  those viewers' cost, not this algorithm's. Baking wins on BYTES and
+ *  on the guarantee: 128 KB of mesh over the wire against the atoms
+ *  plus a runtime solve, and two structures baked to one committed grid
+ *  rather than two code paths agreeing about one. proteins/SurfaceCost.md
+ *  measures both sides and says when the trade flips.
  *
  *  It is deliberately structure-agnostic: it takes {p:[x,y,z], r} and
  *  knows nothing about chains, residues or PDB. bake-surface.js does

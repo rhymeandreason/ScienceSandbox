@@ -10,7 +10,7 @@
  *
  * ---------------------------------------------------------------------
  *  WHY A SECOND SURFACE AT ALL. hemoglobin/data/2HHB.surf.bin is 1.5 MB
- *  at 0.6 A, which is the resolution a full-screen lesson looking for
+ *  at 0.7 A, which is the resolution a full-screen lesson looking for
  *  one residue's patch needs. A card is 280 px, and the reader toggling
  *  a surface on one is asking a shape question, not a residue question.
  *  Coarser grid, and the file lands in the low hundreds of KB — the
@@ -35,10 +35,11 @@ const path = require('path');
 const SES = require('./ses.js');
 const { readAtoms, tagResidues, encode } = require('../hemoglobin/tools/bake-surface.js');
 
-/* 1.4 A against the lesson tier's 0.6. Measured on 2HHB: 0.6 is 1.5 MB, 1.1 is
-   608 KB, 1.4 is 362 KB and 1.7 is 266 KB. 1.4 is where the shape is still the
-   protein's and the file is small enough that the toggle answers rather than
-   makes the reader wait. Below it the lobes start to read as lumps. */
+/* 1.4 A against the lesson tier's 0.7. Measured on 2HHB: 0.7 is 1.5 MB, 1.1 is
+   608 KB, 1.4 is 362 KB, 1.7 is 266 KB, 2.0 is 190 KB. 1.4 is where the shape is
+   still the protein's and the file is small enough that the toggle answers
+   rather than makes the reader wait. Below it the lobes read as lumps, and the
+   bytes saved are ~170 KB once, on a click. */
 const SPACING = 1.4;
 
 const [, , src, want, sp] = process.argv;
