@@ -109,6 +109,12 @@ function validate(lib) {
         bad.push(`${vat}: chain ${v.chains} models ${v.read.residues} residues ` +
                  `against ${v.read.declared} declared`);
     }
+    /* EXACTLY ONE DEFAULT. None is the failure worth naming: with no mark the
+       choice falls to whichever variant the list starts with, so re-ordering
+       the list re-aims the bench and the card without anyone touching a
+       decision. Mark the first entry if nothing else earns it. */
+    if (defaults === 0)
+      bad.push(`${at}: no variant marked default — mark one, the first if nothing else`);
     if (defaults > 1) bad.push(`${at}: ${defaults} variants marked default`);
 
     /* The reference has to be one of the variants, or a bench superposes onto

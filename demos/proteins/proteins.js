@@ -397,7 +397,13 @@
   ];
 
   const byKey = key => PROTEINS.find(p => p.key === key) || null;
-  const defaultOf = p => p.variants.find(v => v.default) || p.variants[0];
+  /* THE VARIANT A PROTEIN OPENS ON, and the one a card shows. Required, not
+     inferred: falling back to the first entry would mean the choice is
+     wherever the list happens to start, and re-ordering the list would
+     silently re-aim every bench and every card. `check-proteins.js` fails a
+     protein with none, and the fix is to mark one — the first entry, if
+     nothing else earns it. */
+  const defaultOf = p => p.variants.find(v => v.default) || null;
   const variantOf = (p, id) => p.variants.find(v => v.id === id) || null;
 
   /* Both URLs a bench shows, derived from `source` so an id and its links

@@ -367,7 +367,16 @@ VIEWS.forEach(id => {
   });
 });
 
-show('1FS3');
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision, and it belongs in the file that holds the
+   other decisions about it. The pressed button is set from the same answer, so
+   the highlight and the stage cannot disagree. */
+const OPEN = ProteinLib.defaultOf(ME).id;
+VIEWS.forEach(v => {
+  const id = typeof v === 'string' ? v : v.id;
+  $('v-' + id).setAttribute('aria-pressed', String(id === OPEN));
+});
+show(OPEN);
 </script>
 </body>
 </html>
