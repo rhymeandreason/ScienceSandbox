@@ -213,6 +213,12 @@
    *      ['Why do proteins bury their greasy parts?',
    *       { hydrophob:1, folding:2, 'p:myoglobin':2 }]
    *
+   *  A third element picks the VARIANT, by its id in that protein's entry;
+   *  omitted, the registry's own default is drawn. Which deposition a card
+   *  shows is the MAP's decision — 2HHB or sickle 2HBS is a different claim —
+   *  and the paths behind it are the registry's, which kit/proteinbox.js reads
+   *  for itself from `protein:` and `variant:`.
+   *
    *  PLACEHOLDER CONTENT. Which specimen belongs under which concept, and at
    *  what rank, is the same editorial judgement as every other rank here.
    *  These six are a starting guess, not a decision.

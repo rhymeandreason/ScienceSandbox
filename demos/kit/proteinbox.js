@@ -56,6 +56,17 @@
  *      fold:'…/2HHB-B.fold.bin',               // omit and there is no play button
  *    });
  *
+ *  OR, by name, and then the registry answers all four:
+ *
+ *      Proteinbox.create({ mount, protein:'hemoglobin', base:'../' });
+ *      Proteinbox.create({ mount, protein:'hemoglobin', variant:'2HBS' });
+ *
+ *  proteins/proteins.js names every artefact by ROLE — trace, card, fold —
+ *  and check-proteins.js fails a role that is not on disk, so a caller
+ *  rebuilding those names from a stem is standing a convention where a fact
+ *  already is. An explicit path still wins, because hemoglobin-lab and the door
+ *  map's VIEWS name files the registry has no role for.
+ *
  *  `data:` is `trace:` already parsed — same object, no fetch — for a page
  *  whose coordinates arrive as something the box does not read. It does not
  *  read PDB and should not learn to: parsing decides which altloc, which
@@ -149,12 +160,75 @@
     return gaps;
   }
 
-  function create(opts) {
+  /* ---- a protein by NAME ---------------------------------------------
+   *  `protein:'hemoglobin'` instead of four paths. proteins/proteins.js is the
+   *  one place that knows which file plays which role for a structure — the
+   *  `bake` block names them, and check-proteins.js fails a role that is not on
+   *  disk — so a caller reconstructing `2HHB.card.surf.bin` from a stem is
+   *  standing a convention where a fact already is.
+   *
+   *  `variant` picks which deposition; omitted, it is the registry's default.
+   *  A caller still passing explicit paths wins: hemoglobin-lab and the door
+   *  map's VIEWS name files the registry has no role for, and this must not
+   *  take that away from them.
+   *
+   *  `base` is how far the calling page sits from the repo root, because the
+   *  registry's paths are repo-relative and a page in tests/ is a directory
+   *  down. It is the caller's fact about itself, not the registry's.
+   */
+  function fromRegistry(opts) {
+    if (!opts.protein) return opts;
+    const lib = (typeof ProteinLib !== 'undefined' && ProteinLib)
+      || (typeof global !== 'undefined' && global.ProteinLib);
+    if (!lib) {
+      console.warn('Proteinbox: protein:' + opts.protein + ' needs proteins/proteins.js loaded before it');
+      return opts;
+    }
+    const p = lib.PROTEINS.find(x => x.key === opts.protein);
+    if (!p) { console.warn('Proteinbox: no protein `' + opts.protein + '` in the registry'); return opts; }
+    const v = opts.variant
+      ? p.variants.find(x => x.id === opts.variant)
+      : (p.variants.find(x => x.default) || p.variants[0]);
+    if (!v) { console.warn('Proteinbox: no variant `' + opts.variant + '` of ' + opts.protein); return opts; }
+
+    const dir = (opts.base || '') + (p.dir || p.key) + '/data/';
+    const at = f => (f ? dir + f : null);
+    const bake = v.bake || {};
+    /* THE TRACE ROLE, not `read.baked`. They are usually the same file and for
+       sickle 2HBS they are not: its `baked` is the QUATERNARY json, because
+       what that entry is deposited for is a contact between tetramers and the
+       card that draws it wants chains, hemes and irons rather than a backbone.
+       This box draws ribbons, so it asks for the ribbon's role by name and says
+       so when there is none — the alternative is fetching a file of the wrong
+       shape and rendering nothing, which reads as a broken box. */
+    /* TWO CONVENTIONS, and the registry means both. A protein on its own
+       pipeline carries a `bake` block naming every artefact by role, so that
+       block is authoritative: hemoglobin's 2HBS has no `trace` in it because it
+       is deposited for a surface, and no ribbon exists. A protein on the shared
+       `trace` pipeline has no `bake` block at all, and `read.baked` IS its
+       trace — which is four of the six. Reading `read.baked` unconditionally
+       would hand 2HBS's quaternary json to a ribbon drawer. */
+    const ribbon = v.bake ? (bake.trace || null) : (v.read && v.read.baked) || null;
+    if (!opts.trace && !opts.data && !ribbon) {
+      console.warn('Proteinbox: ' + opts.protein + ' ' + v.id
+        + ' has no `trace` role to draw — the registry bakes it for '
+        + (Object.keys(bake).join(', ') || 'nothing') + '. Name a path if you meant one of those.');
+    }
+    return Object.assign({}, opts, {
+      trace:   opts.trace   || at(ribbon),
+      surface: opts.surface || at(bake.card),
+      fold:    opts.fold    || at(bake.fold),
+      chains:  opts.chains  || v.chains,
+    });
+  }
+
+  function create(rawOpts) {
     const gaps = missing();
     if (gaps.length) {
       console.warn('Proteinbox needs ' + gaps.join(', ') + ' loaded before it');
       return null;
     }
+    const opts = fromRegistry(rawOpts);
 
     const mount = opts.mount;
     let radius = 0, player = null, surf = null, rep = 'ribbon', seeded = false;

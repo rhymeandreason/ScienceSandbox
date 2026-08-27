@@ -624,34 +624,33 @@ for (const m of MODULES) {
    structure and the registry already says which. A key that does not resolve
    is SKIPPED rather than drawn empty — `--check` is what says so out loud. */
 const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
-for (const [key, mods] of (SPECIMENS || [])) {
+for (const [key, mods, opt] of (SPECIMENS || [])) {
   const p = SPEC.find(x => x.key === key);
   if (!p) continue;
-  const v = p.variants.find(x => x.default) || p.variants[0];
-  const baked = v && v.read && v.read.baked;
-  if (!baked) continue;
-  /* Every number on the card comes from `read`, which the baker rewrites from
-     the deposition, so a re-bake cannot leave a card claiming a residue count
-     the file no longer has. Nothing here is typed. */
+  const v = (opt && opt.variant && p.variants.find(x => x.id === opt.variant))
+    || p.variants.find(x => x.default) || p.variants[0];
+  /* A specimen card is a RIBBON. A `bake` block names roles and is
+     authoritative when present (2HBS has no `trace` in it and no ribbon
+     exists); without one, the protein is on the shared trace pipeline and
+     `read.baked` is that trace. Same rule kit/proteinbox.js applies. */
+  const ribbon = v && (v.bake ? v.bake.trace : v.read && v.read.baked);
+  if (!ribbon) continue;
+  /* NO PATHS HERE. The map decides WHICH specimen and WHICH variant; every
+     file behind that pair is named by role in proteins/proteins.js, and
+     kit/proteinbox.js reads it for itself. A page that resolved
+     `2HHB.card.surf.bin` would be a second place that has to be right.
+
+     What IS read here is what the card PRINTS — method, residues, species, the
+     EC class — because that is copy on a card and not a file to fetch. Every
+     number of it comes from `read`, which the baker rewrites from the
+     deposition, so a re-bake cannot leave the card claiming a count the file
+     no longer has. */
   const ec = v.read.ec || null;
   const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
-  /* The CARD-tier surface, never the lesson's: hemoglobin's is 362 KB against
-     1.5 MB for the same structure at 0.7 A, and a 280 px thumb cannot show the
-     difference. NAMED by the variant's `bake` block under the role `card`, not
-     derived from the trace's stem — the registry names every artefact by role
-     precisely because a filename does not prove which is which, and
-     check-proteins.js fails a name that is not on disk. Deriving it would be a
-     convention standing where a fact already is.
-
-     A variant with no `card` role has no toggle: for four of these six the
-     registry says in its own words that a skin hides the site that is the
-     point. */
-  const dir = (p.dir || p.key) + '/data/';
   const n = {
     id: 'p:' + key, kind: 'protein', deg: 0,
     name: p.name, claim: p.blurb, does: p.does,
-    trace: dir + baked,
-    surface: v.bake && v.bake.card ? dir + v.bake.card : null,
+    protein: key, variant: v.id,
     purpose: v.purpose, species: v.species,
     method: v.read.method, residues: v.read.residues, declared: v.read.declared,
     ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
@@ -741,14 +740,18 @@ const lessonModal = Modal.create({
 });
 
 function protein(thumb, view, id, name) {
-  // Paths in mapcontent.js are repo-relative; this page is a directory down.
-  const box = Proteinbox.create({
-    mount: thumb,
-    trace: '../' + view.trace,
-    chains: view.chains,
-    surface: view.surface ? '../' + view.surface : null,
-    fold: view.fold ? '../' + view.fold : null,
-  });
+  /* Two callers, one box. A SPECIMEN names a protein and lets the registry
+     answer; a module's VIEWS entry names files directly, because the ones it
+     draws (a chain-B fold, a lesson-tier surface) have no role in the registry.
+     `base` is this page's own fact: paths are repo-relative and tests/ is a
+     directory down. */
+  const box = Proteinbox.create(view.protein
+    ? { mount: thumb, base: '../', protein: view.protein, variant: view.variant }
+    : { mount: thumb,
+        trace: '../' + view.trace,
+        chains: view.chains,
+        surface: view.surface ? '../' + view.surface : null,
+        fold: view.fold ? '../' + view.fold : null });
 
   if (view.lesson) {
     const open = document.createElement('button');
@@ -897,7 +900,7 @@ function goLiveSoon(n) {
    carries its own, because the file it draws is the registry's answer and
    restating it in VIEWS would be a second source for the same fact. */
 function viewFor(n) {
-  if (n.kind === 'protein') return { kind: 'protein', trace: n.trace, surface: n.surface };
+  if (n.kind === 'protein') return { kind: 'protein', protein: n.protein, variant: n.variant };
   return VIEWS[n.id];
 }
 
