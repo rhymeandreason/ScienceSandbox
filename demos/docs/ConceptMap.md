@@ -1,28 +1,41 @@
-<!-- KIND: rulebook, scoped — load before touching kit/card-stage.js, kit/molbox.js, molecule-builder/molecule-builder.js as a mounted box, or any of the card pages (tests/door-map.html, tests/question-composer.html, tests/cards-cluster.html). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. Nothing here applies to a lesson that draws one stage of its own. -->
+<!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), any of the card pages (tests/question-composer.html, tests/door-map.html, tests/cards-cluster.html), the stage layer under them (kit/card-stage.js, kit/molbox.js, kit/proteinbox.js, molecule-builder/molecule-builder.js as a mounted box), or the composer's search (api/find.js). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. Nothing here applies to a lesson that draws one stage of its own. -->
 
 # Cards, the stage modules, and door-map
 
 ## **Goal**
 
-`tests/door-map.html` is a new interaction paradigm: exploration by connecting questions through biology concepts. Door → modules → questions, bipartite, where a shared question IS the crossing to the next door. The work here was making a module card **show its actual 3D content** rather than a placeholder, which meant building the shared stage layer underneath it.
+Exploration by **connecting questions through biology concepts**. A door opens onto modules; a shared QUESTION is the crossing from one module to the next, which is what makes the map a map rather than a list. Typing your own question is a second way in, needing no door. Specimens — real deposited structures — hang off the concepts that hold them.
+
+**`tests/question-composer.html` is the page to work in.** `tests/door-map.html` is the same engine without the box, kept as the plainer version and as the thing the composer is rebased onto.
+
+**Bipartite, with one exception.** Modules never link to modules, and a question is always the crossing between them. A module reaches a SPECIMEN directly, with no question between; that survives because a specimen is a leaf and never links onward.
 
 ## **What exists**
 
-CMS at map-cms.html
+**Content** — what the map says, and nothing that draws it:
 
-**`kit/card-stage.js`** (new). The shell all three boxes now sit on: own canvas, Stage, rAF loop, IntersectionObserver gate, ResizeObserver, and a `destroy()` that really releases the WebGL context. Plus `CardStage.pool({limit, onEvict})`, LRU, default 4.
+* **`lib/mapcontent.js`** — `DOORS`, `MODULES`, `QUESTIONS` (question-major, rank on the EDGE), `SPECIMENS`, `VIEWS`. Its own header is the rulebook for what each field means.
+* **`lib/mapcontent-vectors.json`** — every authored question embedded once, by `tools/bake-vectors.js`. Re-bake when a question's TEXT changes; `--check` is also the map's integrity checker.
+* **`proteins/proteins.js`** — not map content. The registry of which structures we hold and which file plays which role for each. `SPECIMENS` names keys in it.
 
-**Converted onto it:** `kit/molbox.js` (was *kit/inset.js*) and `molecule-builder/molecule-builder.js`. Both gained `snapshot()` and `pump()`, neither of which was possible while each owned a private loop.
+**Pages**:
 
-**`kit/molbox.js`** — renamed from *inset.js*. Orthographic by default now.
+* **`tests/question-composer.html`** — the map entered by typing, and the one to work in.
+* **`tests/door-map.html`** — the map with no box.
+* **`tests/cards-cluster.html`** — the stage bench: 9 cards, 3 kinds, budget of 4.
+* **`map-cms.html`** — edits `lib/mapcontent.js` through the dev server's `/api/mapcontent`, on two screens that save independently. Not served in production.
 
-**`tests/cards-cluster.html`** (new) — the bench: 9 cards, 3 kinds, budget of 4.
+**The stage layer**, which is what lets a card show its subject rather than a placeholder:
 
-**`tests/door-map.html`** — module cards go live on the click that opens them; the cards the door opens with are live at load. 4:3 picture blocks. Questions grow no picture block.
+* **`kit/card-stage.js`** — the shell all the boxes sit on: own canvas, Stage, rAF loop, IntersectionObserver gate, ResizeObserver, and a `destroy()` that really releases the WebGL context. Plus `CardStage.pool({limit, onEvict})`, LRU, default 4.
+* **`kit/molbox.js`** — a molecule from a spec. Orthographic by default.
+* **`kit/proteinbox.js`** — a deposited structure: ribbon, and the surface and fold toggles. Takes `protein:` / `variant:` and reads the registry itself, or explicit paths.
+* **`molecule-builder/molecule-builder.js`** — the builder, mounted as a box.
 
-**`lib/mapcontent.js`** — the map's content and nothing that draws it: DOORS, MODULES, QUESTIONS (question-major, rank on the EDGE), VIEWS. Its own header is the rulebook for what each field means.
+**Search**, which only the composer uses:
 
-**`map-cms.html`** — edits that file through the dev server's `/api/mapcontent`, on two screens that save independently: questions and their module chips, and modules with their rank. Not served in production.
+* **`api/find.js`** — embeds the reader's question and returns the vector; open, and metered by **`api/_finds.js`**.
+* **`tools/bake-vectors.js`** — the corpus, and `--check`.
 
 ## **How much opens, and when**
 
