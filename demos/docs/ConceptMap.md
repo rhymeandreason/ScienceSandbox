@@ -1,4 +1,4 @@
-<!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), any of the card pages (tests/question-composer.html, tests/door-map.html, tests/cards-cluster.html), the stage layer under them (kit/card-stage.js, kit/molbox.js, kit/proteinbox.js, molecule-builder/molecule-builder.js as a mounted box), or the composer's search (api/find.js). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. Nothing here applies to a lesson that draws one stage of its own. -->
+<!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), any of the card pages (tests/question-composer.html, tests/door-map.html, tests/cards-cluster.html), the stage layer under them (kit/card-stage.js, kit/molbox.js, kit/proteinbox.js, molecule-builder/molecule-builder.js as a mounted box), or the composer's search (api/find.js). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. The last section is an ARGUMENT rather than a rule and can be skipped during a build. Nothing here applies to a lesson that draws one stage of its own. -->
 
 # Cards, the stage modules, and door-map
 
@@ -271,11 +271,11 @@ It fires on the LATER of the graph being composed and a beat long enough to read
 
 **Every path out lowers it**, including the query that reaches nothing and the corpus that will not load — a title card still up is worse than the empty map it was covering. That is why the corpus failure THROWS rather than returning: the dismissal is at the bottom of `bootVectors`, and an early return would walk past it.
 
-**The one card we already know is drawn before any fetch returns.** `?q=` carries the reader's question, so the *you asked* card is composed synchronously at script time and the map grows around a card that was there from the first paint. Measured: the card is up at ~46ms and the query's own embedding lands at ~490ms, so it is most of half a second of something rather than nothing.
+**The question is on screen before any fetch returns.** `?q=` carries it, so the title is raised at parse time: up at ~46ms against ~490ms for the query's own embedding. That is most of half a second of something rather than nothing, and it is why the title exists rather than a spinner — the one thing worth looking at during the wait is the sentence being answered.
 
 **The three requests go out together.** Corpus, endpoint config, and the query's embedding were serial, and none needs the one before it — the POST is fired before the GET has said the endpoint is even up, because a wasted POST on a keyless checkout costs nothing while waiting for permission to send it costs a round trip on every load that works. `search(text, pre)` takes a vector that is already in flight. Locally the corpus and config are 10ms and 4ms so the saving is small; over a real network they are not.
 
-**`start()` does not run when `?q=` is present.** The query needs the vectors and a round trip, so composing the water door first and swapping it out a second later reads as an answer rather than as loading. The canvas stays empty and the box carries the question from the first paint, which reads as what it is. **Start over** then reloads the query rather than opening the water door — arriving on a saved query makes that query the starting point, and sending a reader who bookmarked the carbon door back to water is the door still being a node in the one place it should not be.
+**`start()` does not run when `?q=` is present.** The query needs the vectors and a round trip, so composing the water door first and swapping it out a second later reads as an answer rather than as loading. The canvas stays empty behind the title, which is what the intro is for. **Start over** then reloads the query rather than opening the water door — arriving on a saved query makes that query the starting point, and sending a reader who bookmarked the carbon door back to water is the door still being a node in the one place it should not be.
 
 **A door's question now has to RETRIEVE as well as read**, which is a constraint a door that was only a node never had. `What decides which things get into a cell?` opens the PROTEIN door: `cell` collides with *"Why does one wrong amino acid sickle a whole cell?"* at 0.863, and two separate phrasings using the word did it. `membrane` does not collide. Write a door's question against the corpus, not against the ear.
 
@@ -417,3 +417,22 @@ The check belongs in the hook rather than beside `tools/check-handedness.js` bec
 ## **Considered**
 
 1. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the \~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
+
+## **Where this is going**
+
+*The one section here that is an ARGUMENT and not a rule. Skip it during a build; it exists so a cold session knows which way the code is being pushed and does not defend a decision that is already on its way out.*
+
+**The ask box is what the map is for, and doors were the scaffold that let it be built before search existed.** The material is dense and getting denser — cells, genetics, animals, the experiments that settled the fundamentals, the instruments that did the settling — and the bet is that typing a question and landing in a neighbourhood is how a student browses that, rather than descending a tree somebody drew.
+
+**The architecture already suits it, in the one place that counts.** The relax is O(live²), not O(nodes²): it costs what is DRAWN, never what exists, and `openAsk()` never consults a door. A corpus ten times bigger costs the layout nothing, because the map is never drawn — a neighbourhood is.
+
+**What does not scale, in the order it will break:**
+
+* **Hand-authored rank.** 114 edges today. It does two jobs that separate under density — *what opens this card* stays editorial, *which four of two hundred questions* cannot be answered by hand. The plan is the `said` / `read` split this repo already runs on `proteins/proteins.js`: authored ranks are the human's half and are never overwritten, generated ranks are derived and regenerable, and `--check` fails a generated one sitting where an authored one was. The 114 edges become the eval set, and the **26 that carry a different rank on different cards** are the subset that matters, because they are the only evidence that rank belongs to the edge and not to the question.
+* **The absolute floor.** `MATCH = 0.85` was calibrated against 66 questions. As the corpus densifies the nearest neighbour gets closer for EVERY query, off-map ones included, so the floor drifts without anything being wrong. It has to become relative, or be recalibrated at every significant growth. The fixture is what would catch that.
+* **The shipped corpus.** ~2 KB a question: comfortable to ~500, awkward past ~1500. Quantising to int8 buys 4x. Past that, search moves server-side — which is why `api/find.js` returns a VECTOR rather than results, so that flip is a change in one file.
+* **Authoring throughput.** At which point generation into the CMS queue, human-approved and never drawn unapproved, stops being overkill. The miss log in `finds` is already collecting the evidence of what to write.
+
+**What to add, and as what.** More doors and modules are content and cost no mechanism. Tools and species are FACETS, not cards — `read.method` and `species` already connect every specimen, so "everything solved by cryo-EM" can highlight what exists rather than adding to it. Experiments earn a card, because an experiment has its own content and its own edge: the claim it settled. Images want a registry with licences before they want plumbing, on the model of `proteins/proteins.js` — bake the file in, record where it came from, and fail one with no licence.
+
+**The thing to protect through all of it: a question is the crossing.** Every kind added dilutes it, and under density it matters more rather than less, because it is the only thing separating this from a search results page with pictures. The test for anything new is whether it gives a reader a reason to move from one card to the next, or only puts more on the screen.
