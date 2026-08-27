@@ -53,15 +53,17 @@ box.setData(data, { colors });      // again per structure, same box
 * **The panel says it was fitted, and how well.** A `view: deposited` row is a half-truth the moment anything is superposed. Name the reference and print the residual beside it.
 * **A number that needs an alignment nobody has is null, not computed.** The backbone RMSD is meaningful across the whale and horse files, which number from the same alignment, and meaningless against a β chain, where residue 45 is not the same residue. The bench prints "numbering not comparable" there rather than a figure that would be read as a poor match instead of no match.
 
-**What the page still owns is what a CHAIN is.** The box takes `{first, nums, CA, ss}` per chain — the shape `tools/bake-trace.js` writes — and never parses a deposition, because parsing decides which altloc, which chain, and whether secondary structure is read or detected. A page that owns a protein already owns those.
+**The box will not read a PDB, and that refusal is the design.** It takes chains already decided — `{first, nums, CA, ss}`, the shape `proteins/bake-lib.js` writes — and draws them. Opening a deposition would force three judgement calls that change what the picture CLAIMS rather than how it looks: which altloc (a residue modelled twice contributes once, or the ribbon splines through both), which chains (a monomer, one subunit of an assembly, or the whole thing), and whether secondary structure is read or detected. A shared module has no business making those for every protein in the repo.
 
-Three invariants on that side. Each is a bug that ships looking fine.
+**So the protein owns them, in its baker.** `proteins/bake-lib.js` applies the altloc rule and reads `HELIX`/`SHEET`; the `proteins/<name>/tools/prep.js` beside the bench picks the chains and says what the view is. A bench then mostly `fetch`es a bake and hands it over. `proteins/prion/` is the exception that shows the rule — it parses reduced PDB text in the browser with `PrionLib`, so it makes these calls at runtime and the first invariant below is its scar.
+
+Three invariants, wherever the chains get built. Each is a bug that ships looking fine.
 
 * **Parse chain-aware before anything multi-chain.** `PrionLib.parse` keys residues by number alone, which is right for one chain and silently wrong for ten: chain B's residue 180 overwrites chain A's, and a ten-rung stack parses as one rung wearing the last chain's coordinates.
 * **Send `nums`, not just `first`.** They are what lets the box break the ribbon where the chain breaks. Omit them and a chain reads as contiguous, so an unmodelled loop is drawn as a smooth tube across 10 Å of nothing — indistinguishable from data at ribbon width. 1RNU is the case: subtilisin cuts RNase A at 20-21 and residues 16-23 go unmodelled, so the gap drawn is wider than the cut.
 * **Say where the frame came from.** A deposited frame is the experiment's, not a decision about how the structure should be seen, so the box gets a `view` basis: `FoldLib.viewBasis` solves one from the shape, `FoldLib.basisFrom` puts a known axis upright where the field has a convention (a fibril vertical, a membrane protein on its normal), and a globular domain gets neither — its extents are too close to tell apart, its solved basis would flip between rebakes, and a human picks one instead. Whichever it was, the panel names it rather than leaving a rotation nobody can account for.
 
-**Every number in the panel is counted off the parsed file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
+**Every number in the panel is counted off the file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
 
 ## 3. Summary
 
