@@ -46,6 +46,14 @@
                       // radius — kit/proteinbox.js sizes it as a multiple of
                       // carbon so it stays the biggest atom in the group at
                       // whatever scale the ring is drawn.
+      Co: 0x2f7f8f,   // cobalt — deep teal. Like Fe it arrives only from a
+                      // DEPOSITION and has no display radius; proteinbox sizes
+                      // both off carbon. NOT cobalt blue, which is the one
+                      // colour the palette cannot spare: nitrogen's indigo and
+                      // potassium's blue are both there already, and a metal
+                      // that reads as either is worse than a metal that reads
+                      // as no colour in particular. Teal is unclaimed and
+                      // clears chlorine's green.
       P:  0xe07b1f,   // phosphorus — orange (CPK). Deliberately the warmest atom
                       // in the palette: in glycolysis the phosphate IS the energy
                       // currency, so every P a student sees is "something ATP paid

@@ -79,9 +79,16 @@
  *  pass this to override, and see FoldLib.viewBasis for why it is solved
  *  rather than typed and why a globular domain does not get one.
  *
+ *  `afterFrame:` runs after every render, for a page drawing over the scene —
+ *  an annotate.js layer's `step()`. Orbit moves the camera without advancing
+ *  anything, so a label reprojected anywhere else shears off its atom on a
+ *  drag.
+ *
  *  `colors:` overrides the ss palette — one number for a flat colour, or
- *  {C,H,E} for some of it. Omit it and every protein in the repo is drawn the
- *  same way, which is the default for a reason.
+ *  {C,H,E} for some of it, or `{byChain:{A:…,B:…}}` where what has to be told
+ *  apart is which strand rather than what it is folded into. Omit it and every
+ *  protein in the repo is drawn the same way, which is the default for a
+ *  reason.
  *
  *  Returns kit/card-stage.js's box, so a pool's acquire / snapshot / destroy
  *  work on it unchanged, plus `drop()` (back to ribbon, release the surface),
@@ -99,6 +106,13 @@
  * ============================================================================= */
 (function (global) {
   'use strict';
+
+  /* THE METALS A DEPOSITION BRINGS. They have colours in palette.js and
+     deliberately no display radius, so they are sized here as a multiple of
+     carbon and stay the biggest atom in a group at whatever scale it is drawn.
+     A set rather than a test for 'Fe', because the second one to arrive would
+     otherwise be a grey ball the size of a carbon. */
+  const METAL = new Set(['Fe', 'Co', 'Mg', 'Zn', 'Mn', 'Ni', 'Cu']);
 
   /* Coil, helix, strand — folding/ribbon-test.html's, so a card and the bench
      that tunes the ribbon are never two opinions about the same helix. */
@@ -232,6 +246,14 @@
 
     const mount = opts.mount;
     let radius = 0, player = null, surf = null, rep = 'ribbon', seeded = false;
+    /* HALF-EXTENTS ACROSS AND UP, beside the radius, and only the ribbon has
+       them. A sphere is the right frame for a globular protein and the wrong
+       one for a rod: one collagen molecule is 3016 Å by 55, and framed on its
+       circumscribing radius the camera pulls back until the molecule is 1/60
+       of the height — a hairline in the middle of an empty stage. scene.js's
+       frame() already solves per axis; this is what lets it. Null falls back
+       to the radius, which is what the surface and the fold still give. */
+    let stillHX = 0, stillHY = 0;
     /* Bumped by every setData. The chain loop below yields to rAF between
        chains, so a switch that lands mid-build leaves the OLD loop running:
        it keeps adding meshes to a group the new call already cleared, and
@@ -252,9 +274,18 @@
     const fit = () => {
       if (!radius || !mount.clientWidth || !mount.clientHeight) return;
       box.stage.resize();
+      /* NO HOUSE CLAMP ON THE SOLVE. Stage.frame's own min/max default to
+         6-220 ångströms, which is the range a molecule stage lives in and
+         has nothing to say about a protein whose radius was MEASURED off
+         its own coordinates. One whole collagen molecule is 3016 Å end to
+         end and frames at ~2500: clamped to 220 it opens showing a tenth of
+         itself, off both edges, with nothing on screen saying so. The clamp
+         that matters is the zoom one below, and it is set from the answer. */
       Stage.frame(box.camera, box.cam,
-                         [{ x: 0, y: 0, rxz: radius, hy: radius }],
-                         { pad: opts.pad || 1.12 });
+                         [{ x: 0, y: 0,
+                            rxz: rep === 'ribbon' && stillHX ? stillHX : radius,
+                            hy:  rep === 'ribbon' && stillHY ? stillHY : radius }],
+                         { pad: opts.pad || 1.12, min: 0, max: Infinity });
       if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
       /* THE ZOOM CLAMP FOLLOWS THE FRAMING, because scene.js's default is a
          fixed 5-60 and a protein's size is not: 1DFJ frames at 63 and every
@@ -265,6 +296,14 @@
          monomer and a 580-residue complex both zoom the same amount. */
       if (box.stage.setZoomLimits)
         box.stage.setZoomLimits(box.cam.r * 0.2, box.cam.r * 3);
+      /* THE FAR PLANE FOLLOWS TOO. scene.js builds the camera for a molecule
+         stage and stops it at 1000, which is past anything in this repo until
+         a structure is 3000 Å long: the camera then stands correctly at 4200
+         and draws nothing at all, which reads as a bake that failed rather
+         than as a frustum. Solved from the standing distance plus the widest
+         the reader can zoom out to, which is the 3x above. */
+      const far = Math.max(1000, box.cam.r * 6);
+      if (box.camera.far < far) { box.camera.far = far; box.camera.updateProjectionMatrix(); }
       box.applyCam();
     };
 
@@ -279,6 +318,12 @@
                            opts.stage || {}),
       autoplay: false,                 // a still ribbon has nothing to run
       step: dt => { if (player && rep === 'fold') player.tick(dt); },
+      /* PASSED STRAIGHT THROUGH, the same hook molbox draws its leader in.
+         Anything drawn OVER the scene in CSS pixels — an annotate.js layer —
+         has to reproject after the camera the frame was rendered with, and
+         orbiting moves that camera without advancing anything, so a page
+         cannot do it from `step`. */
+      afterFrame: opts.afterFrame,
       onResize: fit,
       onDestroy: () => { if (sesOwner === box) sesOwner = null; },
     });
@@ -326,14 +371,26 @@
          else — a state, a mutation, a chain — passes `colors`, and one colour
          means all three. */
       const c = o.colors || opts.colors;
-      const pal = c == null ? RIB
-        : (typeof c === 'number' ? { C: c, H: c, E: c }
-                                 : Object.assign({}, RIB, c));
-      const mats = [pal.C, pal.H, pal.E].map(v => {
+      const palOf = v => v == null ? RIB
+        : (typeof v === 'number' ? { C: v, H: v, E: v }
+                                 : Object.assign({}, RIB, v));
+      const matsOf = pal => [pal.C, pal.H, pal.E].map(v => {
         const m = Stage.bondMat(v);
         m.side = THREE.DoubleSide;
         return m;
       });
+      /* ONE SET, OR ONE PER CHAIN. `byChain` is the case the ss palette cannot
+         serve: where what a reader has to tell apart is WHICH STRAND, not what
+         it is folded into. Collagen is why it exists — three chains wound
+         around each other, no HELIX or SHEET records in any collagen file, so
+         the default palette draws the braid as one green rope and the thing
+         the structure is famous for is invisible. A chain the map does not
+         name falls back to the palette beside it. */
+      const base = c && c.byChain ? Object.assign({}, c, { byChain: undefined }) : c;
+      const mats = matsOf(palOf(base));
+      const byChain = c && c.byChain
+        ? Object.fromEntries(Object.entries(c.byChain)
+            .map(([id, v]) => [id, matsOf(palOf(v))])) : null;
 
       /* THE PRESENTATION FRAME, applied to the GROUP and not to the camera.
 
@@ -392,7 +449,8 @@
             drawn.push(...pts.map(v => v.clone().applyQuaternion(chainGroup.quaternion)));
             chainGroup.add(new THREE.Mesh(
               RibbonLib.build(THREE, pts, seg.ss,
-                              { sub: opts.sub == null ? 6 : opts.sub }), mats));
+                              { sub: opts.sub == null ? 6 : opts.sub }),
+              (byChain && byChain[cid]) || mats));
           }
           /* The trace is centred on every chain it HOLDS, so a box drawing
              one of four would sit off to the side. Re-centre on what is
@@ -401,8 +459,12 @@
           if (drawn.length) {
             stillMid = drawn.reduce((acc, p) => acc.add(p), new THREE.Vector3())
                             .multiplyScalar(1 / drawn.length);
-            stillR = 0;
-            for (const p of drawn) stillR = Math.max(stillR, p.distanceTo(stillMid));
+            stillR = stillHX = stillHY = 0;
+            for (const p of drawn) {
+              stillR = Math.max(stillR, p.distanceTo(stillMid));
+              stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
+              stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
+            }
             if (rep === 'ribbon') reframeStill();
           }
           box.draw();
@@ -641,14 +703,17 @@
       const matFor = el => byEl[el] || (byEl[el] = materials[materials.push(
         new THREE.MeshStandardMaterial({
           color: colourOf(el),
-          /* A metal is the one atom here that should look like one. */
-          roughness: el === 'Fe' ? .35 : .5, metalness: el === 'Fe' ? .35 : 0,
+          /* A metal should look like one, and 'metal' is a set rather than
+             iron: a heme's Fe and the Co sitting where a Mg belongs are the
+             same kind of atom in a picture, and hardcoding one of them is how
+             the second arrives looking like a large grey carbon. */
+          roughness: METAL.has(el) ? .35 : .5, metalness: METAL.has(el) ? .35 : 0,
         })) - 1]);
 
       for (const a of p.atoms) {
         const el = norm(a.el);
-        const r = el === 'Fe' ? BALL * C * FE_BALL
-                              : BALL * ((R[el] || R.C) / MolLib.SCALE);
+        const r = METAL.has(el) ? BALL * C * FE_BALL
+                                : BALL * ((R[el] || R.C) / MolLib.SCALE);
         const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), matFor(el));
         m.position.set(a.p[0], a.p[1], a.p[2]);
         pocketGroup.add(m);

@@ -66,12 +66,35 @@ function modelOne(text) {
   return i < 0 ? text : text.slice(0, i);
 }
 
+/* THE MODIFIED RESIDUES A FILE DECLARES, off its own MODRES records, as a Set
+   of residue names. Not a list this repo keeps: which names are modified
+   residues is a fact each entry states about itself, and a hardcoded list is
+   the thing that silently misses the next one.
+
+   IT MATTERS BECAUSE A MODIFIED RESIDUE IS A HETATM. Hydroxyproline is the
+   case that forced this: collagen is one residue in three, and every one of
+   them is deposited as HETATM, so an ATOM-only trace drops a third of the
+   chain and splines the ribbon across the holes. Nothing about the render says
+   so — it looks like a protein with a lot of disorder. */
+function modResidues(text) {
+  const out = new Set();
+  for (const line of text.split('\n'))
+    if (line.startsWith('MODRES')) out.add(line.slice(12, 15).trim());
+  return out;
+}
+
 /* CA per chain, in file order. `only` is a Set of chain ids, or null for
-   every chain in the file. A chain with no id is keyed '_'. */
-function caTrace(text, only) {
+   every chain in the file. A chain with no id is keyed '_'.
+
+   `mod` is a Set from modResidues: pass it and a HETATM CA of a declared
+   modified residue counts as part of the chain. OPT-IN, because it changes
+   what a trace CONTAINS and every bake in the repo is a committed artefact —
+   a baker asks for it, and says why. */
+function caTrace(text, only, mod) {
   const chains = new Map();
   for (const line of text.split('\n')) {
-    if (!line.startsWith('ATOM')) continue;
+    const het = mod && line.startsWith('HETATM') && mod.has(line.slice(17, 20).trim());
+    if (!line.startsWith('ATOM') && !het) continue;
     if (line.slice(12, 16).trim() !== 'CA') continue;
     const alt = line[16];
     if (alt !== ' ' && alt !== 'A') continue;
@@ -132,12 +155,16 @@ function disulfides(text, only) {
    appearing forty times is one ligand modelled forty times or forty
    ligands, and only the key can tell them apart. Chain-filtered with the
    trace: an unfiltered count describes a structure that is not on screen. */
-function ligands(text, only) {
+function ligands(text, only, mod) {
   const seen = new Map();
   for (const line of text.split('\n')) {
     if (!line.startsWith('HETATM')) continue;
     const name = line.slice(17, 20).trim();
     if (name === 'HOH') continue;
+    /* A declared modified residue is part of the CHAIN, not something bound to
+       it. Hydroxyproline listed as a ligand ×30 would describe collagen as
+       carrying thirty passengers. Same Set caTrace was given, or nothing. */
+    if (mod && mod.has(name)) continue;
     if (only && !only.has(line[21])) continue;
     seen.set(name + '|' + line[21] + line.slice(22, 27), name);
   }
@@ -314,6 +341,7 @@ const breaks = trace => trace.order.reduce((k, id) => k + trace.chains[id].nums
 module.exports = {
   r2, xyz, modelOne, caTrace, ssRanges, ssFrom, declared, disulfides, ligands,
   line1, method, models, resolution, chainCount, chainsDeclared, provenance,
+  modResidues,
   ecNumbers, EC_CLASS,
   assemble, frameOf, breaks,
 };

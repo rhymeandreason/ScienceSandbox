@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collagen — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. Collagen is a third of the protein in a body and
+     the reason skin, bone, tendon and cornea hold their shape, and none
+     of that is a fold anyone has solved: what is deposited is short
+     synthetic peptides on one side and a 300 nm envelope at 5 Å on the
+     other, with a gap in the middle where the structure would be. So
+     the question this bench is for is which of those two ends a lesson
+     can be built on, and whether anything crosses between them.
+
+     Seven depositions in one camera, as themselves. Nothing is
+     interpolated, fitted or rebuilt. Coordinates come off the files
+     through tools/prep.js, and secondary structure comes off each
+     file's own records — which for collagen is a finding in itself, see
+     "the helix nobody records" below.
+
+     WHAT IT IS FOR SETTLING:
+
+       the helix      is the braid legible as a picture at all, or does
+                      it need a diagram (1K6F, and 1BKV for a real
+                      sequence with a proline-free stretch in it).
+       the disease    1CAG is one glycine replaced by one alanine, which
+                      is the osteogenesis imperfecta mutation. Whether
+                      the consequence is VISIBLE at ribbon width is the
+                      question, and the answer may well be no.
+       what holds on  1Q7D is the site a cell grips (GFOGER) with
+                      nothing holding it, and 1DZI is the same 21-mer
+                      with the integrin domain on it — the pair is one
+                      peptide with and without its partner. 4AU3 is the
+                      chaperone that stops the helix falling apart
+                      before it leaves the cell.
+       the scale      3HR2 is one whole molecule, 3016 Å of it. Nothing
+                      else in this repo is that shape, and it is the one
+                      view that could carry the fibril.
+
+     WHAT THIS BENCH CANNOT TELL YOU. The fibril is the thing collagen
+     IS — molecules staggered by 67 nm, which is what gives tendon its
+     banding under a microscope — and no deposition holds one. 3HR2 is a
+     single molecule refined inside the fibril's diffraction, so the
+     packing is the experiment's context and not something on screen
+     here. A fibril view would have to be BUILT from the unit cell, and
+     that is a decision for a lesson, not a bake.
+
+     THE COLLECTION DOES NOT HOLD COLLAGEN YET. These seven are
+     candidates: tools/prep.js's CANDIDATES table is the source, and
+     data/candidates.json is what this page reads. Nothing is in
+     proteins/proteins.js until the review says which survived.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../css/annotate.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* THE ONLY THING THIS PAGE SAYS WITH COLOUR, and it says it twice: the
+     swatch beside a chain's name is the same number the ribbon is drawn
+     with, read from one table. Collagen files carry no HELIX or SHEET
+     records, so the repo's ss palette would draw all three strands one
+     green and the braid — the entire subject — would be invisible. */
+  .strands{display:flex;flex-wrap:wrap;gap:0.5rem 0.9rem;margin:0.5rem 0 0}
+  .strands span{display:flex;align-items:center;gap:0.35rem;
+    font-size:0.78rem;color:var(--h-muted)}
+  .strands i{width:0.7rem;height:0.7rem;border-radius:2px;display:block}
+
+  /* TWO WAYS TO READ ONE PROTEIN, on tabs rather than stacked, because they
+     are not the same length or the same register: what the FILES do to this
+     molecule, and what the molecule IS. Set as section labels, not as the
+     stage's own controls — button.mode is the thing that changes what is
+     drawn, and neither of these does. */
+  .tabs{display:flex;gap:var(--space-4);
+    margin:var(--space-5) 0 var(--space-2);
+    border-bottom:1px solid var(--h-line)}
+  .tabs button{background:none;border:0;padding:0 0 6px;cursor:pointer;
+    font:inherit;font-family:var(--h-ui);font-size:0.7rem;font-weight:600;
+    letter-spacing:0.16em;text-transform:uppercase;color:var(--h-muted);
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+    transition:color var(--dur-fast) var(--ease-out),
+               border-color var(--dur-fast) var(--ease-out)}
+  .tabs button:hover{color:var(--h-spark)}
+  .tabs button[aria-selected=true]{color:var(--h-ink);
+    border-bottom-color:var(--h-ink)}
+  .tab-panel[hidden]{display:none}
+  /* The summary is prose and reads as prose: wider measure than a note, and
+     the ink of something meant to be read rather than checked. */
+  .tab-panel .lead{font-size:0.9rem;color:var(--h-ink);line-height:1.5;
+    margin:0 0 var(--space-3)}
+</style>
+
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Collagen</h1>
+    <p class="deck">Three chains wound into a rope, Gly-X-Y over and over, a
+      third of the protein in you. Seven depositions, one camera &mdash; none
+      of them registered yet.</p>
+
+    <h2>the helix</h2>
+    <button class="mode" id="v-ppg10" aria-pressed="true">
+      <span class="who">(Pro-Pro-Gly)&#8321;&#8320; &middot; 1K6F</span><span class="chip">1.3 &Aring;</span></button>
+    <button class="mode" id="v-natural" aria-pressed="false">
+      <span class="who">a real sequence &middot; 1BKV</span><span class="chip">type III</span></button>
+
+    <h2>one wrong residue</h2>
+    <button class="mode" id="v-oi" aria-pressed="false">
+      <span class="who">Gly &rarr; Ala &middot; 1CAG</span><span class="chip">brittle bone</span></button>
+
+    <h2>what holds on to it</h2>
+    <button class="mode" id="v-integrin" aria-pressed="false">
+      <span class="who">the GFOGER grip &middot; 1Q7D</span><span class="chip">cell</span></button>
+    <button class="mode" id="v-grip" aria-pressed="false">
+      <span class="who">integrin holding it &middot; 1DZI</span><span class="chip">4 chains</span></button>
+    <button class="mode" id="v-chaperone" aria-pressed="false">
+      <span class="who">Hsp47 &middot; 4AU3</span><span class="chip">5 chains</span></button>
+
+    <h2>the whole thing</h2>
+    <button class="mode" id="v-molecule" aria-pressed="false">
+      <span class="who">one molecule, 300 nm &middot; 3HR2</span><span class="chip">in a fibril</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+    <div class="strands" id="d-strands"></div>
+
+    <table>
+      <tr><td>assembly</td><td id="d-quat">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>hydroxylated</td><td id="d-mod">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>ss records</td><td id="d-ssfrom">&mdash;</td></tr>
+      <tr><td>bound</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>metal site</td><td id="d-site">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+
+    <div class="tabs" role="tablist">
+      <button id="t-science" role="tab" aria-selected="true"
+              aria-controls="p-science">what the files say</button>
+      <button id="t-summary" role="tab" aria-selected="false"
+              aria-controls="p-summary">summary</button>
+    </div>
+
+    <div class="tab-panel" id="p-science" role="tabpanel" aria-labelledby="t-science">
+      <p class="note"><strong>The helix nobody records.</strong> A PDB says
+        helix or sheet, and the collagen helix is neither &mdash; it is
+        polyproline II, three of them coiled together. Four of these seven
+        files therefore carry no secondary structure at all and bake as pure
+        coil, which is honest and is why the strands are told apart by colour
+        instead. Two of the three that do carry records are describing their
+        PARTNER &mdash; the integrin domain and Hsp47 are ordinary proteins
+        with real helices and sheets in them, and the collagen beside them is
+        still coil. That leaves 1CAG, the only file here that annotates a
+        collagen chain at all, as a helix of class 10 and a coiled coil in the
+        remark. So the collection holds both answers about the same shape, and
+        the <em>ss records</em> row says which one you are looking at.</p>
+
+      <p class="note">Hydroxyproline is deposited as HETATM, because it is a
+        modified residue. It is also every third residue of collagen: an
+        ATOM-only trace of 1CAG keeps 19 of 29 and splines the ribbon over the
+        holes, looking like a disordered protein rather than a broken read. The
+        bakes pass each file's own MODRES set, and the <em>hydroxylated</em>
+        row is what that bought.</p>
+    </div>
+
+    <div class="tab-panel" id="p-summary" role="tabpanel" aria-labelledby="t-summary" hidden>
+      <p class="lead">A third of the protein in you, and the reason skin, bone,
+        tendon and cornea hold their shape. Three chains, each a left-handed
+        polyproline helix, wound into a right-handed rope.</p>
+
+      <p class="note">The sequence is Gly-X-Y, forever: every third residue is
+        glycine because the three chains pack so close to the axis that nothing
+        with a side chain fits there. X is usually proline and Y usually
+        hydroxyproline, which is why you need vitamin C &mdash; the enzyme that
+        makes hydroxyproline needs it, and without it the helix is unstable at
+        body temperature. That is scurvy: not a missing protein, a protein that
+        cannot hold its shape.</p>
+
+      <p class="note">The glycine rule is what makes the disease. Swap one
+        glycine for alanine &mdash; one extra methyl group, the smallest
+        possible change &mdash; and the helix cannot close there. In a person
+        that is osteogenesis imperfecta, and it is dominant rather than
+        recessive: the bad chain joins triple helices built mostly from good
+        chains and ruins them, so one broken copy out of two is worse than
+        having none.</p>
+
+      <p class="note">Then it leaves the cell and assembles: molecules
+        staggered by 67 nm into fibrils, fibrils into fibres, cross-linked
+        until they stop being individual molecules at all. That is the step no
+        deposition holds, and the step that makes tendon.</p>
+    </div>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Every view here
+      already opens on its own long axis &mdash; the one thing about a rod's
+      frame that is never in doubt &mdash; so this is for choosing the roll.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../folding/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../lib/annotate.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file
+   and a colour. Camera, framing, the turn and the WebGL context are the
+   module's, so this bench orbits and frames exactly like every protein in the
+   repo. The chains are tools/prep.js's — baked, so nothing here parses a
+   deposition.
+
+   ONE BOX, RE-FED. setData() swaps the structure without replacing the box, so
+   a reader who turned the molecule keeps that view across the switch. */
+const stage = document.getElementById('stage');
+/* Declared before the box because the box's afterFrame closes over it and the
+   first render happens inside create(). */
+let notes = null;
+const box = Proteinbox.create({
+  mount: stage,
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+  /* THE CALLOUT LAYER REPROJECTS AFTER EVERY RENDER, not when the model
+     changes: orbiting and zooming move the camera without advancing anything,
+     and a label stepped anywhere else shears off its atom the moment the
+     reader drags. `notes` is created below, so this is guarded. */
+  afterFrame: () => { if (notes) notes.step(); },
+});
+
+/* ONE LAYER FOR THE PAGE, re-populated per view. Mode is 'on': there is at
+   most one callout on this bench, and a dot a reader has to find first is the
+   wrong trade for a single label — the thing being named is a metal ion four
+   pixels across, which nobody hunts for. The card behind it still answers the
+   why on a click. */
+notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
+
+/* WHICH STRUCTURES, AND WHAT EACH IS FOR, ARE THE BAKER'S — written to
+   data/candidates.json from the CANDIDATES table at the top of tools/prep.js,
+   which is where a protein under review keeps them. Not proteins/proteins.js:
+   everything in that file is a decision, and the review has not made one.
+   Fetched rather than typed so a button and the bake behind it cannot describe
+   two different things. */
+const ORDER = ['ppg10', 'natural', 'oi', 'integrin', 'grip', 'chaperone', 'molecule'];
+const OPEN = 'ppg10';
+
+/* THE PAGE'S OWN COPY. What a structure IS is the baker's; what this bench
+   SAYS about it under this stage is page copy and belongs here. Keyed by
+   candidate id, so a button and its paragraph cannot come apart. */
+const SAYS = {
+  ppg10: {
+    claim: 'The collagen triple helix with nothing else going on: '
+         + '(Pro-Pro-Gly)₁₀, three identical chains.',
+    prov: 'X-ray at 1.3 Å, the sharpest collagen structure there is. Every '
+        + 'third residue is glycine and it is always on the inside — the '
+        + 'three chains pack so close to the axis that nothing with a side '
+        + 'chain fits there. That single constraint is most of collagen.' },
+  natural: {
+    claim: 'A real type III collagen sequence, not a synthetic repeat.',
+    prov: 'The middle of this peptide is ITGARGLA: no proline, no '
+        + 'hydroxyproline. Collagen is not uniform, and the imino-poor '
+        + 'stretches are where it bends, where enzymes cut it, and where '
+        + 'things bind. The ends are (Pro-Hyp-Gly) to hold the helix '
+        + 'together while the middle is looked at.' },
+  oi: {
+    claim: 'One glycine swapped for one alanine — the osteogenesis '
+         + 'imperfecta substitution, built into a peptide on purpose.',
+    prov: 'Alanine is the smallest thing that is not glycine, one extra '
+        + 'methyl group, and it does not fit where the three chains meet. '
+        + 'The helix survives locally and pays for it in stability. In a '
+        + 'person, one such substitution in one copy of one collagen gene '
+        + 'gives brittle bone, because the wrong chain poisons every '
+        + 'triple helix it joins.' },
+  integrin: {
+    claim: 'The GFOGER site: the six residues a cell holds on by.',
+    prov: 'X-ray at 1.8 Å, and the peptide is ALONE — nothing is holding it. '
+        + 'Integrin α2β1 grips this sequence, which is how a cell knows it '
+        + 'is standing on collagen and not floating, but the partner is in '
+        + '1DZI next door and not in this file. The peptide is capped at '
+        + 'both ends (ACE, NH2) so it cannot fray, and the site itself is '
+        + 'one turn of an otherwise ordinary helix.' },
+  grip: {
+    claim: 'The same peptide with the integrin actually holding it: the α2 I '
+         + 'domain, and the metal ion the grip is made of.',
+    prov: 'X-ray at 2.1 Å. Chains B, C and D are the identical 21-mer 1Q7D '
+        + 'deposits on its own, so the pair is one peptide with and without '
+        + 'its partner. The contact is not a handshake between surfaces: a '
+        + 'glutamate in the GFOGER reaches in and completes the coordination '
+        + 'of a metal ion held by the integrin, deposited here as cobalt '
+        + 'standing in for magnesium. That is one residue of collagen doing '
+        + 'the whole job.' },
+  chaperone: {
+    claim: 'Hsp47 holding a finished triple helix — two chaperone molecules '
+         + 'on one rope.',
+    prov: 'A collagen helix is only stable at body temperature once it is '
+        + 'whole, and Hsp47 binds it in the endoplasmic reticulum and lets '
+        + 'go in the Golgi as the pH drops. The deposition holds two copies '
+        + 'of this assembly; this is one of them, chains A and B on E, F, G. '
+        + 'The size ratio is the picture: 380 residues of chaperone per 15 '
+        + 'of collagen.' },
+  molecule: {
+    claim: 'One whole type I collagen molecule, 3016 Å of it, as refined '
+         + 'inside a fibril.',
+    prov: 'Fibre diffraction at 5.2 Å — a molecular envelope, α-carbons '
+        + 'only, and it is the shape that is measured rather than the '
+        + 'chemistry. Two α1(I) chains and one α2(I). Everything else on '
+        + 'this bench is about 80 Å long, which makes this the only view '
+        + 'that says what collagen actually is.' },
+};
+
+/* THE COLOUR IS THE ONE CLAIM THIS PAGE MAKES ON ITS OWN, so it is made once
+   here and read twice — the ribbon and the legend beside it. Keyed by the
+   STRAND NAME the baker gave the chain, not by chain id, so a homotrimer's
+   three interchangeable chains get three colours and 3HR2's two α1 chains get
+   the same one. That is the difference between a braid and a heterotrimer,
+   and it is a claim about the molecule rather than about the file. */
+const STRAND = {
+  'chain 1': 0x1f5f4f,      // deep green, the house accent
+  'chain 2': 0xe2643a,      // rust
+  'chain 3': 0x2f6f9f,      // blue
+  'α1(I)':   0x1f5f4f,
+  'α2(I)':   0xe2643a,
+  'Hsp47':   0x9aa0a6,      // grey: not collagen, and not the subject
+  'integrin α2 I': 0x9aa0a6,
+};
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+
+const views = {};                        // id -> baked trace
+let cand = {};                           // id -> candidate record
+let view = null;
+const $ = id => document.getElementById(id);
+
+/* A bench is a thing you poke at from the console. */
+window.bench = { views, cand, box, get view() { return view; } };
+
+fetch('data/candidates.json').then(r => r.json()).then(list => {
+  list.forEach(c => { cand[c.id] = c; });
+  ORDER.forEach(id => {
+    fetch(`data/${cand[id].read.baked}`).then(r => r.json()).then(t => {
+      views[id] = t;
+      if (view === id) show(id);         // clicked before the fetch landed
+    });
+  });
+  show(OPEN);
+});
+
+/* WHAT COUNTS AS QUATERNARY STRUCTURE, said per view rather than in a legend.
+   A collagen molecule is three chains ALWAYS — a single chain is not a smaller
+   collagen, it is nothing — so "trimer" is the baseline here and not a finding,
+   which is the opposite of how the rnase bench reads its chain count. */
+function quaternary(t, c) {
+  /* A PARTNER IS A CHAIN THE BAKER DID NOT PUT IN `helix`. Said that way
+     rather than by matching a name, so a third complex does not have to teach
+     this function what its partner is called. */
+  const names = Object.values(c.strands);
+  const spine = new Set((c.helix || c.chains).split(','));
+  const partners = t.order.filter(k => !spine.has(k));
+  if (partners.length)
+    return `triple helix + ${partners.length} × ` +
+           `${c.strands[partners[0]]}`;
+  const kinds = new Set(names).size;
+  return kinds === 1 || names.every(n => n.startsWith('chain'))
+    ? 'triple helix, three chains'
+    : 'triple helix, heterotrimer';
+}
+
+/* Every figure below is counted off the bake, which counted it off the file. */
+function stats(t, c) {
+  const ids = t.order;
+  const letters = ids.map(k => t.chains[k].ss).join('');
+  const n = letters.length;
+  const H = [...letters].filter(k => k === 'H').length;
+  const E = [...letters].filter(k => k === 'E').length;
+
+  const segs = ids.reduce((k, id) => k + 1 + t.chains[id].nums
+    .filter((v, i, a) => i && v !== a[i - 1] + 1).length, 0);
+
+  const counts = t.meta.counts;
+  const modelled = counts.reduce((k, x) => k + x.modelled, 0);
+  const declared = counts.every(x => x.declared !== null)
+    ? counts.reduce((k, x) => k + x.declared, 0) : null;
+
+  const frag = declared === null ? 'no SEQRES records: completeness unknown'
+    : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+    : `fragment: ${modelled} out of ${declared} deposited`;
+
+  const mod = t.meta.modified;
+  return {
+    quat: quaternary(t, c),
+    span: ids.map(id => `${id} ${t.chains[id].first}–${t.chains[id].nums[t.chains[id].nums.length - 1]}`).join(', '),
+    res: `${modelled} residues` + (segs > ids.length ? ` in ${segs} segments` : '') +
+         ` × ${ids.length} chains`,
+    /* Floored, not rounded: 89 of 90 must not print as 100% above a line
+       calling the same structure a fragment. */
+    pct: declared === null ? '—'
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    /* The residues an ATOM-only trace would have dropped, as a fraction of the
+       ones drawn — the trap, in the row that shows it did not happen. */
+    mod: mod.length
+      ? mod.map(m => `${m.name} ×${m.n}`).join(', ') +
+        ` · ${Math.round(100 * mod.reduce((k, m) => k + m.n, 0) / modelled)}% of the chain`
+      : 'none declared',
+    lig: t.meta.ligands.length ? t.meta.ligands.join(', ') : 'nothing',
+    site: siteRow(t, c),
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+/* THE SITE IN WORDS, counted off the baked pocket rather than typed. Says how
+   many vertices the metal has and how many of them the COLLAGEN supplies,
+   which is the claim the picture makes and the one worth checking against it.
+   Waters are named separately: they are two of the six and a reader who is not
+   told will read them as protein. */
+function siteRow(t, c) {
+  if (!t.pocket) return 'none';
+  const spine = new Set((c.helix || c.chains).split(','));
+  const v = t.pocket.atoms.slice(1);             // [0] is the metal itself
+  const water = v.filter(a => a.of.res === 'HOH').length;
+  const mine = v.filter(a => spine.has(a.of.chain)).length;
+  const from = v.filter(a => spine.has(a.of.chain))
+    .map(a => `${a.of.res[0] + a.of.res.slice(1).toLowerCase()}${a.of.num}`);
+  return `${t.pocket.atoms[0].el} · ${v.length} contacts · ` +
+    `${mine} from the collagen (${from.join(', ')}) · ${water} water`;
+}
+
+function show(id) {
+  view = id;
+  const t = views[id], c = cand[id];
+  if (!t || !c) return;                  // fetch still in flight
+
+  const s = stats(t, c), m = t.meta, r = c.read;
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${c.source.id} · ${r.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '') +
+    (m.models > 1 ? ` · model 1 of ${m.models}` : '');
+  $('d-quat').textContent = s.quat;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-mod').textContent = s.mod;
+  $('d-frac').textContent = s.frac;
+  /* SAID AS WHAT THE FILE CARRIES, not as what the shape is: `none` here means
+     the depositors wrote no HELIX or SHEET records, and the bake is coil
+     because of that rather than because anything measured it. */
+  $('d-ssfrom').textContent = t.ssFrom === 'none'
+    ? 'none in the file · baked as coil'
+    : 'HELIX/SHEET records, read as deposited';
+  $('d-lig').textContent = s.lig;
+  $('d-site').textContent = s.site;
+  $('d-ext').textContent = s.ext;
+  $('d-view').textContent = t.frame;
+  $('d-prov').textContent = SAYS[id].prov;
+
+  /* The legend is built from the same table the ribbon is coloured from, so a
+     swatch cannot name a colour the molecule is not wearing. */
+  $('d-strands').innerHTML = t.order.map(k =>
+    `<span><i style="background:${hex(STRAND[c.strands[k]])}"></i>` +
+    `${k} · ${c.strands[k]}</span>`).join('');
+
+  /* Built by the registry from `source`, so an id and its links cannot
+     disagree — the one thing this page can already borrow from a file that
+     does not hold collagen yet. */
+  const u = ProteinLib.urls(c);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${c.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${r.baked}`;
+
+  /* BY CHAIN, and this is the page saying something with colour. The repo's
+     default is the ss palette and it would draw every view on this bench in
+     one green, because no collagen file records a polyproline II helix. What
+     a reader has to be able to tell apart here is which strand, not what it
+     is folded into. */
+  const byChain = {};
+  t.order.forEach(k => { byChain[k] = STRAND[c.strands[k]]; });
+  box.setData(t, { colors: { byChain } });
+  /* THE SITE IS DRAWN, not just tabulated. A ribbon can show that two things
+     touch and cannot show what the contact IS, and here the contact is one
+     atom: a metal the integrin holds, with collagen supplying one of its six
+     coordination positions. setData clears the previous pocket, so a view
+     without one needs no call. */
+  notes.clear();
+  if (t.pocket) {
+    const site = box.setPocket(t.pocket);
+    /* THE ANCHOR IS THE MESH, never the baked coordinate. The pocket group
+       carries the presentation frame and the box re-centres on what is drawn,
+       so a point copied out of the bake is right until the first setData and
+       silently wrong after it. atoms[0] is the metal and is added first, which
+       is what makes children[0] it. */
+    const metal = site.group.children[0];
+    const v = new THREE.Vector3();
+    /* The ONE residue of collagen that does the job, named off the bake so the
+       label cannot outlive a re-bake that moves it. */
+    const reach = t.pocket.atoms.slice(1)
+      .find(a => (c.helix || c.chains).split(',').includes(a.of.chain));
+    const res = reach.of.res[0] + reach.of.res.slice(1).toLowerCase() + reach.of.num;
+    notes.add({
+      text: 'Mg²⁺ site · cobalt here',
+      tone: 'cobalt',
+      card: `The integrin holds a magnesium here with its coordination one `
+          + `position short, and collagen's ${res} reaches in and fills it. `
+          + `That is the entire grip; the crystal was grown with cobalt `
+          + `standing in for the magnesium.`,
+      at: () => metal.getWorldPosition(v),
+      offset: [34, -26],
+    });
+  }
+}
+
+/* A view basis read off the camera and inverted: the camera says where the
+   reader is standing, a view basis says how the structure should be turned to
+   be seen from there. Opposites. */
+$('pick').addEventListener('click', () => {
+  const q = box.camera.quaternion.clone().invert();
+  const m = new THREE.Matrix4().makeRotationFromQuaternion(q);
+  const e = m.elements, r2 = v => Math.round(v * 1e4) / 1e4;
+  const R = [[e[0], e[4], e[8]], [e[1], e[5], e[9]], [e[2], e[6], e[10]]]
+    .map(row => row.map(r2));
+  const text = JSON.stringify(R);
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+/* The tabs switch reading, not what is drawn — the stage is untouched, which
+   is why they are not button.mode. */
+[['t-science', 'p-science'], ['t-summary', 'p-summary']].forEach(([tab], i, all) => {
+  $(tab).addEventListener('click', () => {
+    all.forEach(([t, panel]) => {
+      $(t).setAttribute('aria-selected', String(t === tab));
+      $(panel).hidden = t !== tab;
+    });
+  });
+});
+
+ORDER.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    ORDER.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+</script>
+</body>
+</html>

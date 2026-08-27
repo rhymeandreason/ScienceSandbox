@@ -118,6 +118,18 @@
    color: #8d2a16
 }
 
+/* Cobalt, off the palette token rather than typed: tokens-from-palette.js
+    publishes --atom-Co at load, so this callout and the sphere it points at
+    cannot drift. Teal is dark enough on the house cream to be label ink as
+    well as dot, which is why there is no second, darkened number here. */
+.annot-cobalt .annot-dot {
+   border-color: var(--atom-Co)
+}
+
+.annot-cobalt .annot-label {
+   color: var(--atom-Co)
+}
+
 /* Cards. The label says what, the card says why, and the label has to say
     "there is a why" while nobody is pointing at it — a hover-only tell is
     invisible to the student who has not already found the label.
