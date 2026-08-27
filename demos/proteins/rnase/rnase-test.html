@@ -43,95 +43,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="../../css/main.css">
 <link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
 <link rel="stylesheet" href="../../kit/proteinbox.css">
 
-<style>
-  /* Every size, weight and colour below is a main.css token. The panel is a
-     reading column, not a control strip, so the hierarchy is carried by size
-     and colour rather than by rules and boxes. Layout is prion-test.html's,
-     deliberately: two benches that look different read as two opinions about
-     what a protein bench is. */
-  #app{display:grid;grid-template-columns:1fr 340px;height:100vh}
-  #stage{position:relative;background:var(--paper)}
-
-  .panel{padding:var(--space-5) var(--space-4);overflow-y:auto;
-    font-family:var(--font-sans);font-size:var(--text-sm);
-    line-height:var(--leading-body);
-    background:var(--surface-card);color:var(--ink);
-    border-left:1.5px solid var(--hair)}
-
-  .panel h1{font-family:var(--font-editorial);font-size:var(--text-2xl);
-    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
-    line-height:var(--leading-tight);margin:0}
-  .panel .deck{font-family:var(--font-editorial);font-size:var(--text-md);
-    font-weight:var(--weight-regular);color:var(--muted);
-    line-height:var(--leading-snug);margin:2px 0 var(--space-5)}
-
-  .panel h2{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;color:var(--muted);
-    font-weight:var(--weight-semibold);margin:var(--space-5) 0 var(--space-2)}
-
-  button.mode{display:flex;align-items:center;gap:var(--space-2);
-    width:100%;text-align:left;margin:3px 0;padding:8px 10px;
-    border:1.5px solid var(--hair);background:transparent;
-    border-radius:var(--radius-sm);cursor:pointer;
-    font:inherit;font-size:var(--text-sm);color:var(--ink);
-    transition:background var(--dur-fast) var(--ease-out)}
-  button.mode:hover{background:rgba(0,0,0,.035)}
-  button.mode .who{flex:1}
-  button.mode[aria-pressed=true]{background:#3f7abd;border-color:#3f7abd;color:#fff}
-
-  /* The chip says how many chains, because that is the one thing about
-     these seven that changes what KIND of object is on screen: one
-     molecule, a pair, or an enzyme inside something else. */
-  .chip{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;font-weight:var(--weight-semibold);
-    padding:2px 6px;border-radius:var(--radius-pill);
-    background:rgba(63,122,189,.14);color:#2c5b91}
-  button.mode[aria-pressed=true] .chip{background:rgba(255,255,255,.22);color:#fff}
-
-  .claim{font-family:var(--font-editorial);font-size:var(--text-md);
-    line-height:var(--leading-snug);margin:0 0 var(--space-1)}
-  .meta{font-size:var(--text-xs);color:var(--muted);margin:0 0 var(--space-3)}
-
-  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
-    font-size:var(--text-xs)}
-  td{padding:3px 0;vertical-align:baseline;border-bottom:1px solid var(--hair)}
-  tr:last-child td{border-bottom:0}
-  td:first-child{color:var(--muted)}
-  td:last-child{text-align:right;font-weight:var(--weight-semibold);
-    font-size:var(--text-sm);color:var(--ink)}
-  td.flag:last-child{color:#b3300c}
-
-  .frag{font-family:var(--font-mono);font-size:var(--text-xs);
-    color:var(--muted);margin:var(--space-3) 0 0}
-  .prov,.note{font-size:var(--text-xs);line-height:var(--leading-body);
-    color:var(--muted);margin:var(--space-2) 0 0}
-
-  /* Three links because they are three different things: the entry a reader
-     would cite, the file it downloads, and the reduced copy this page
-     actually parses — the third being the one otherwise invisible. */
-  .src{display:flex;flex-wrap:wrap;gap:var(--space-3);
-    margin:var(--space-3) 0 var(--space-6);
-    font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;font-weight:var(--weight-semibold)}
-  .src a{color:var(--muted);text-decoration:none;
-    border-bottom:1px solid var(--hair);padding-bottom:1px;
-    display:inline-flex;align-items:center;gap:4px}
-  .src a:hover{color:var(--ink);border-bottom-color:currentColor}
-  .ext{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:1.6;
-    stroke-linecap:round;stroke-linejoin:round;flex:none}
-
-  /* Completeness is the row most likely to be mis-read as "the whole
-     protein", so it is the one row marked. A highlighter stripe and nothing
-     else: these figures are scanned against each other, and a recoloured
-     number would read as a different KIND of value. */
-  tr.hi td{background:#ffe94a;border-bottom:0}
-  tr.hi td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);
-    padding-left:6px}
-  tr.hi td:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0;
-    padding-right:6px}
-</style>
 </head>
 <body>
 <div id="app">
