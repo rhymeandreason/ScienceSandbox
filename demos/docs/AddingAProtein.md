@@ -10,9 +10,9 @@ From "let's look at X" to a bench the human can click through. No lesson, no pag
 
 Pull the data and see if it’s complete.
 
-\-Are there variants? do the variants tell a story? Are there quaternary structures? special features like heme groups? Are there ensemble views? Explain what you found to the human in non-technical words and include the links. If the data is incomplete, state simply “fragment: 104 out of 210 deposited” Flag if there are holes.
+\-Are there variants? do the variants tell a story? Are there quaternary structures? special features like heme groups? Are there ensemble views? Explain what you found to the human in non-technical words and include the links. If the data is incomplete, state simply “fragment: 104 out of 210 deposited” Flag if there are holes. Write in non-technical language using bullet points.
 
-For framents, check Alphafold and state the confidence score. If Alphafond score is low, also check for molecular dynamics papers that might have accessible data. Write in non-technical language using bullet points.
+For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data. 
 
 ## 2. Build the bench
 
