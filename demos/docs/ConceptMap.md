@@ -236,6 +236,27 @@ Putting the reader's own wording on the map is what **Enter** does, and it is **
 
 A miss keeps one line of its own. Without it, Enter on a question the map cannot answer does nothing at all and reads as a broken box.
 
+### A door as a saved query
+
+`?q=` opens the map on a question through the same path a reader's own typing takes. Every door now carries one, and `admin.html` links all six, so the claim is testable rather than argued: if a composed query reads as well as `start()`'s hand-tuned fan, the door stops being a node kind and becomes a URL somebody bookmarked.
+
+Measured, one link per door:
+
+| door | opens on | own-door share |
+| --- | --- | --- |
+| water | Polarity · Solvation · Hydrogen bonding | 3/3 |
+| carbon | Molecular geometry · Covalent bonding | 2/3 |
+| proteins | Folding · Levels of structure (+ H-bonding, hydrophobic effect) | 2/4 |
+| boundaries | Channels & pumps · The bilayer | 2/4 |
+| information | Base pairing (+ H-bonding, Folding) | 1/3 |
+| energy | Glycolysis | 1/1 |
+
+Water lands on the same three cards `start()` composes, which is the result that matters. The doors that pull in other doors' modules are doing the right thing rather than leaking: base pairing IS hydrogen bonding, and folding IS the hydrophobic effect, so a crossing at the opening frame is the map making its own argument. `energy` opens thin because that door has one module, which is content and not mechanism.
+
+**A door's question now has to RETRIEVE as well as read**, which is a constraint a door that was only a node never had. `What decides which things get into a cell?` opens the PROTEIN door: `cell` collides with *"Why does one wrong amino acid sickle a whole cell?"* at 0.863, and two separate phrasings using the word did it. `membrane` does not collide. Write a door's question against the corpus, not against the ear.
+
+**What deleting `DOORS` would actually cost.** The node and `start()` go, and so does the own-door filter in `expand()` — but `door` survives as a MODULE field, because it is also the colour system: `paintNode` reads a module's door tint for the dot, and that dot is how a crossing is visible on a card that looks like all the rest. So the end state is a lookup table of regions, not an entry point.
+
 ### The vector backend
 
 `tools/bake-vectors.js` embeds all 66 authored questions once (gemini-embedding-001, 256d, `SEMANTIC_SIMILARITY`) into `lib/mapcontent-vectors.json`. `api/find.js` embeds the READER's question and returns only that vector; the ranking happens in the page. The corpus vectors ship with the page anyway, so a server-side cosine would protect nothing, and the floors are the knobs worth tuning without a redeploy.

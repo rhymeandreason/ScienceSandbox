@@ -63,11 +63,21 @@
   const DOORS = [
     { id:'water', name:'Water', tint:'#2f7fb5', open:1,
       question:'Why is water the foundation of life?', label:'the water door' },
-    { id:'information', name:'Information', tint:'#8a5cc0', open:0 },
-    { id:'proteins', name:'Proteins', tint:'#c2553a', open:0 },
-    { id:'boundaries', name:'Boundaries', tint:'#1f7a5e', open:0 },
-    { id:'carbon', name:'Carbon', tint:'#5f6672', open:0 },
-    { id:'energy', name:'Energy', tint:'#c08a1e', open:0 },
+    { id:'information', name:'Information', tint:'#8a5cc0', open:0,
+      question:'How does life copy its instructions without losing them?', label:'the information door' },
+    { id:'proteins', name:'Proteins', tint:'#c2553a', open:0,
+      question:'How does a chain of amino acids become a machine?', label:'the protein door' },
+    { id:'boundaries', name:'Boundaries', tint:'#1f7a5e', open:0,
+      /* NOT "...into a cell?". A door's question is now also a QUERY, and `cell`
+         collides with "Why does one wrong amino acid sickle a whole cell?" hard
+         enough to open the protein door instead — measured 0.863, and two
+         phrasings using the word did it. Written to retrieve as well as to
+         read, which a door that was only a node never had to be. */
+      question:'What gets through a membrane, and what has to be pushed?', label:'the boundary door' },
+    { id:'carbon', name:'Carbon', tint:'#5f6672', open:0,
+      question:'Why is everything alive built out of carbon?', label:'the carbon door' },
+    { id:'energy', name:'Energy', tint:'#c08a1e', open:0,
+      question:'Where does the energy in food actually go?', label:'the energy door' },
   ];
 
   const MODULES = [

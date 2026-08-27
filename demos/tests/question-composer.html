@@ -1882,6 +1882,27 @@ const VISITOR = (() => {
   } catch (e) { /* keyless checkout, or offline: the lexical path still works */ }
   // Only says anything when it has bad news: an endpoint that is up needs no label.
   if (!VEC.online) askEl.placeholder = 'Why does ice float? (word matching)';
+
+  /* ?q= — A DOOR IS A SAVED QUERY. `start()` composes the water door from
+     DOORS, its rank 1 modules and an own-door filter; this composes the same
+     kind of opening from a question, through the path a reader's own typing
+     takes. If that reads as well, the door stops being a node kind and becomes
+     a URL somebody bookmarked, which collapses DOORS, start(), the own-door
+     filter and the tint into one mechanism that already exists.
+
+     Run here rather than at load because it needs the vectors: before they
+     land, the same query goes through the lexical fallback and opens something
+     worse, which would be judging the idea on the wrong scorer. */
+  const asked = new URLSearchParams(location.search).get('q');
+  if (asked) {
+    askEl.value = asked;
+    const found = await search(asked);
+    hits = found.hits; near = found.near;
+    const card = cardNamed(asked);
+    if (card) openCard(card);
+    else if (hits.length || near.length) openAsk(asked, hits.length ? hits[0].q : null, near);
+    hits = []; near = []; cursor = -1;
+  }
 })();
 
 function head() {
