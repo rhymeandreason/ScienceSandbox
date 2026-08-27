@@ -119,6 +119,7 @@
 <script src="../../folding/ribbon.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
 <script>
 'use strict';
 
@@ -150,9 +151,15 @@ const box = Proteinbox.create({
   sub: 10,
 });
 
-/* Order is the panel's, not the manifest's: the fold first, then the two views
-   of it working, then the three ways it comes apart. */
+/* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's — the
+   registry every protein in the repo is described in, and the same file the
+   baker read to write these bakes. Nothing about the seven is typed here, so
+   a variant cannot be described one way in the panel and baked another. */
+const ME = ProteinLib.byKey('rnase');
+/* Panel order, which is the page's business: the fold first, then the two
+   views of it working, then the three ways it comes apart. */
 const VIEWS = ['1FS3', '2AAS', '1RUV', '1DFJ', '1RNU', '1A2W', '1F0V'];
+const said = id => ProteinLib.variantOf(ME, id);
 
 /* A basis pasted from "copy this view", for a structure whose own axes are too
    close together for the solver to choose between. Empty until a human turns
@@ -169,7 +176,7 @@ const $ = id => document.getElementById(id);
 window.bench = { views, box, get view() { return view; } };
 
 VIEWS.forEach(id => {
-  fetch(`data/rnase-${id}.json`).then(r => r.json()).then(t => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
     if (CUSTOM[id]) { t.view = CUSTOM[id]; t.frame = 'custom view'; }
     views[id] = t;
     if (view === id) show(id);           // clicked before the fetch landed
@@ -181,21 +188,23 @@ VIEWS.forEach(id => {
    interesting: they are the same chain doing something it does not normally
    do. 1DFJ is a complex and not an oligomer — two different proteins — so it
    gets its own phrasing rather than being counted as two chains. */
-function quaternary(t) {
+function quaternary(t, v) {
   const m = t.meta;
-  if (m.kind === 'bound') return 'complex: enzyme + inhibitor, two proteins';
+  if (v.kind === 'bound') return 'complex: enzyme + inhibitor, two proteins';
   /* RNase S is two polypeptides that the file numbers as one chain, and
      calling it a monomer off the chain count would deny the cut the view
      exists to show. The break is in the residue numbers, not the chain id. */
-  if (m.kind === 'cut') return 'two pieces, deposited under one chain id';
+  if (v.kind === 'cut') return 'two pieces, deposited under one chain id';
   if (m.chainsDrawn <= 1) return 'monomer, works alone';
-  return `${m.chainsDrawn} chains of ${m.chainsInFile} in the file, one dimer`;
+  /* chainsInFile is the registry's, counted by the baker: 1F0V holds two
+     dimers and the bench draws one, which the row has to say. */
+  return `${m.chainsDrawn} chains of ${v.read.chainsInFile} in the file, one dimer`;
 }
 
 /* Every figure below is counted off the bake, which counted it off the file.
    A typed number is a claim nothing checks, and a re-bake falsifies it
    silently. */
-function stats(t) {
+function stats(t, v) {
   const ids = t.order;
   const letters = ids.map(c => t.chains[c].ss).join('');
   const n = letters.length;
@@ -221,7 +230,7 @@ function stats(t) {
     : `fragment: ${modelled} out of ${declared} deposited`;
 
   return {
-    quat: quaternary(t),
+    quat: quaternary(t, v),
     span: ids.length > 1
       ? ids.map(c => `${c} ${t.chains[c].first}–${t.chains[c].nums[t.chains[c].nums.length - 1]}`).join(', ')
       : `${c0.first}–${last}`,
@@ -245,10 +254,16 @@ function show(id) {
   const t = views[id];
   if (!t) return;                        // fetch still in flight
 
-  const s = stats(t), m = t.meta;
-  $('d-claim').textContent = m.claim;
-  $('d-meta').textContent = `${m.entry} · ${m.method}` +
-    (m.models > 1 ? ` · model 1 of ${m.models}` : '');
+  /* Prose from the registry, figures from the bake — the same split the
+     registry file makes. A number here has been counted off the deposition
+     twice over: once into the bake the panel reads, once into the `read`
+     block a card reads. */
+  const v = said(id), r = v.read;
+  const s = stats(t, v), m = t.meta;
+  $('d-claim').textContent = v.claim;
+  $('d-meta').textContent = `${v.source.id} · ${r.method}` +
+    (r.resolution ? ` · ${r.resolution.toFixed(2)} Å` : '') +
+    (r.models > 1 ? ` · model 1 of ${r.models}` : '');
   $('d-quat').textContent = s.quat;
   $('d-span').textContent = s.span;
   $('d-res').textContent = s.res;
@@ -264,14 +279,17 @@ function show(id) {
      baker's work, `deposited` is the file left alone, and `custom view` is a
      human's choice pasted into the page. */
   $('d-view').textContent = t.frame;
-  $('d-prov').textContent = m.prov;
+  $('d-prov').textContent = v.prov;
 
   /* Built from the entry id in the bake, so a link cannot point at a
      structure the panel is not describing. */
-  $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;
-  $('d-rcsb-label').textContent = `RCSB ${m.entry}`;
-  $('d-raw').href = `https://files.rcsb.org/download/${m.entry}.pdb`;
-  $('d-baked').href = `data/${m.file}`;
+  /* Built by the registry from `source`, so an id and its links cannot
+     disagree — and so an AlphaFold variant would get AlphaFold's URLs. */
+  const u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${r.baked}`;
 
   box.setData(t);
 }

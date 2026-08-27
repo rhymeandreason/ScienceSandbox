@@ -75,43 +75,24 @@ const { kabsch, mul } = require('../../../sickle/tools/bake-sickle.js');
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
-const HB = path.join(HERE, '..', '..', 'hemoglobin', 'data', '2HHB.pdb');
 
-/* `pocket` names the two histidines by residue number, because the
-   numbering is the animal's and not a constant: sperm whale and horse put
-   the proximal His at 93 and the distal at 64, haemoglobin's beta chain
-   at 92 and 63. Getting this wrong draws a tryptophan and says histidine,
-   which is exactly the kind of claim nothing downstream can check. */
-const VIEWS = [
-  { id: '1MBN', file: '1MBN.pdb', chains: 'A', pocket: { prox: 93, dist: 64 },
-    kind: 'history',
-    claim: 'Kendrew’s myoglobin: the first protein structure anyone ever saw.',
-    prov: 'Sperm whale, X-ray at 2.0 A. The 1958 model was a 6 A blob that showed only the sausage of the chain; this is the refined coordinate set that came out of the same work. The iron carries a hydroxide — the protein has been oxidised and cannot bind O2 in this state.' },
-  { id: '1BZP', file: '1BZP.pdb', chains: 'A', pocket: { prox: 93, dist: 64 },
-    kind: 'empty',
-    claim: 'Deoxy myoglobin: the site with nothing in it.',
-    prov: 'Sperm whale, 1.15 A. The iron sits slightly out of the porphyrin plane, pulled towards the histidine below it. This is the state that is waiting.' },
-  { id: '1A6M', file: '1A6M.pdb', chains: 'A', pocket: { prox: 93, dist: 64 },
-    kind: 'working',
-    claim: 'Oxygen bound: what myoglobin is for.',
-    prov: 'Sperm whale, 1.0 A — among the sharpest protein structures there are. The O2 comes in at an angle and is held there by the distal histidine, which is why the site binds oxygen well and carbon monoxide less well than a bare iron would.' },
-  { id: '1MBC', file: '1MBC.pdb', chains: 'A', pocket: { prox: 93, dist: 64 },
-    kind: 'poison',
-    claim: 'Carbon monoxide in the same place: poisoning, as a structure.',
-    prov: 'Sperm whale, 1.5 A. CO binds this site far more tightly than O2 and does not let go, so the protein is full and useless. The distal histidine is what keeps the ratio from being far worse than it is.' },
-  { id: '1ABS', file: '1ABS.pdb', chains: 'A', pocket: { prox: 93, dist: 64 },
-    kind: 'caught',
-    claim: 'The same CO, cut loose by light and frozen before it could leave.',
-    prov: 'Sperm whale, 1.5 A at 20 kelvin. A laser broke the Fe-CO bond and the crystal was held cold enough that the CO stopped in a pocket beside the iron instead of escaping. A reaction intermediate, held still and measured.' },
-  { id: '1YMB', file: '1YMB.pdb', chains: 'A', pocket: { prox: 93, dist: 64 },
-    kind: 'species',
-    claim: 'Horse heart myoglobin: another animal, the same answer.',
-    prov: 'X-ray at 1.9 A. About a fifth of the sequence differs from the whale’s and the fold does not care. The residues that do not change are the ones lining the pocket.' },
-  { id: '2HHB-B', file: HB, chains: 'B', pocket: { prox: 92, dist: 63 },
-    kind: 'relative',
-    claim: 'One beta chain of haemoglobin: the same fold, doing a job myoglobin cannot.',
-    prov: 'Human, 1.74 A, read from the file hemoglobin-lab already uses. Myoglobin holds oxygen; haemoglobin passes it on, and the difference is not in this chain — it is in having four of them that talk to each other.' },
-];
+/* THE VIEW TABLE IS proteins/proteins.js, with every other protein's. What
+   this file still owns is what a myoglobin bake IS: the pocket, the
+   superposition, and the two numbers only those can give.
+
+   The histidines come from the registry per variant, because the numbering is
+   the animal's and not a constant — whale and horse put the proximal at 93 and
+   the distal at 64, haemoglobin's beta chain at 92 and 63. Getting it wrong
+   draws a tryptophan and calls it a histidine.
+
+   Not 1BVC for an apo view, if one is ever wanted: it is apomyoglobin with
+   biliverdin sitting in the pocket, which is not an empty pocket. */
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('myoglobin');
+const VIEWS = ME.variants;
+const REF = ME.fit.on;
+const VIEW = ME.view.basis;
 
 /* Everything the pocket is made of. HEM is the ring; the rest are the
    things that get bound to its iron across these seven files, and a view
@@ -210,26 +191,12 @@ function pocket(text, chain, want) {
 
 /* ---- one view --------------------------------------------------------- */
 
-/* THE REFERENCE FRAME: 1BZP's heme, by atom name.
-
-   Deoxy is the reference rather than one of the bound states because it is
-   the one every other view is a change FROM — the empty site is where the
-   comparison starts — and because choosing an occupied one would put the
-   ligand of that file at the origin of the comparison it is supposed to be
-   one side of. */
-const REF = '1BZP';
-
-/* THE VIEW, PICKED BY HAND ONCE — and once is all it takes, which is the
-   dividend of the superposition above. Myoglobin is a globular bundle whose
-   three extents are too close together for a solver to choose between, so
-   `frameOf` writes no basis for it and a human turns the molecule instead
-   (the bench's "copy this view" prints exactly this array). Because every
-   view is fitted into the reference's frame before it is written, that one
-   choice is correct for all seven: they are not seven structures each needing
-   an orientation, they are one frame with seven things in it. */
-const VIEW = [[-0.5342, 0.633, -0.5604],
-              [0.8271, 0.5283, -0.1917],
-              [0.1747, -0.5659, -0.8058]];
+/* THE REFERENCE FRAME is the registry's `fit.on` — deoxy, because it is the
+   state every other view is a change FROM, and because choosing an occupied
+   one would put that file's ligand at the origin of the comparison it is
+   supposed to be one side of. The registry also carries the hand-picked
+   `view.basis`, which covers all seven precisely because they are fitted into
+   one frame first. */
 
 /* Matched pairs, by name, between two atom lists. Names are unique inside a
    heme, which is what makes this a match and not a guess; anything present
@@ -246,8 +213,9 @@ function matchByName(a, b) {
 }
 
 function bake(v, ref) {
-  const text = fs.readFileSync(v.file.includes(path.sep) ? v.file
-                                                         : path.join(SRC, v.file), 'utf8');
+  const text = fs.readFileSync(v.source.kind === 'repo'
+    ? path.join(HERE, '..', '..', v.source.path)
+    : path.join(SRC, v.source.id + '.pdb'), 'utf8');
   const chain = v.chains;
   const R = Bake.ssRanges(text);
 
@@ -294,7 +262,7 @@ function bake(v, ref) {
                           R, c);
 
   const out = {
-    source: path.basename(v.file), ssFrom: Bake.ssFrom(R),
+    source: v.source.id + '.pdb', ssFrom: Bake.ssFrom(R),
     centre: T.centre, order: T.order, chains: T.chains,
   };
   out.radius = T.radius;
@@ -327,30 +295,21 @@ function bake(v, ref) {
   const bound = site ? [...new Set(site.atoms.filter(a => a.group === 'bound')
                                              .map(a => a.res))] : [];
   out.meta = {
-    entry: v.id.split('-')[0], view: v.id, kind: v.kind, claim: v.claim, prov: v.prov,
-    chain,
-    method: ((text.split('\n').find(l => l.startsWith('EXPDTA')) || '')
-      .slice(10).trim() || 'unknown').toLowerCase(),
+    entry: v.source.id, view: v.id, chain,
     counts: [{ chain, modelled: res.length,
                declared: decl[chain] === undefined ? null : decl[chain] }],
-    /* Counted, not typed. It comes out 43 across all seven, which is the
-       protoporphyrin IX plus its iron and is worth PRINTING rather than
-       asserting: 1BZP writes 47 heme records, four of them a second
-       position for atoms modelled twice, and the altloc rule is what turns
-       that back into 43. A typed 43 would have hidden the question. */
+    /* Counted, not typed. It comes out 43 across all seven, which is worth
+       PRINTING rather than asserting: 1BZP writes 47 heme records, four of
+       them a second position for atoms modelled twice, and the altloc rule is
+       what turns that back into 43. */
     hemeAtoms: site ? site.atoms.filter(a => a.group === 'heme').length : 0,
     bound: bound.length ? bound : null,
     prox: v.pocket.prox, dist: v.pocket.dist,
-    /* How the view was put into the reference's frame, and how well. `fit`
-       is the heme superposition; `caRmsd` is the protein's own difference
-       from the reference, and it is null wherever the numbering is not
-       comparable rather than computed across the gap. */
     fitOn: ref ? REF : null,
     fitAtoms: fit ? fit.n : null,
     fitRmsd: fit ? +fit.rmsd.toFixed(3) : null,
     caRmsd: null,
   };
-
   /* The protein's own difference from the reference, once both are in one
      frame. Only where the numbering means the same thing: the whale and
      horse files number from the same alignment, haemoglobin's beta chain
@@ -368,16 +327,37 @@ function bake(v, ref) {
     });
     if (n) out.meta.caRmsd = +Math.sqrt(sd / n).toFixed(2);
   }
+
+  /* The half the registry owns: what a card prints without a human typing a
+     number a re-bake could falsify. */
+  out.read = {
+    method: Bake.method(text),
+    resolution: Bake.resolution(text),
+    title: Bake.line1(text, 'TITLE'),
+    chainsInFile: Bake.chainCount(text),
+    residues: out.meta.counts[0].modelled,
+    declared: out.meta.counts[0].declared,
+    helices: out.chains[chain].helices,
+    strands: out.chains[chain].strands,
+    heme: out.meta.hemeAtoms,
+    bound: out.meta.bound,
+    fitOn: out.meta.fitOn,
+    fitAtoms: out.meta.fitAtoms,
+    fitRmsd: out.meta.fitRmsd,
+    caRmsd: out.meta.caRmsd,
+    extents: out.extents,
+    frame: out.frame,
+    baked: `mb-${v.id}.json`,
+  };
   return out;
 }
 
 function main() {
-  const manifest = {};
+  const blocks = {};
 
-  /* TWO PASSES. The reference is baked first, in its own frame and centred
-     on its own trace; every other view is then fitted onto that ALREADY
-     CENTRED copy, so the fit and the centring are one step and no view has
-     to be moved twice. */
+  /* TWO PASSES. The reference is baked first, in its own frame and centred on
+     its own trace; every other view is then fitted onto that ALREADY CENTRED
+     copy, so the fit and the centring are one step. */
   const refView = VIEWS.find(v => v.id === REF);
   const refOut = bake(refView, null);
   const ref = {
@@ -388,24 +368,19 @@ function main() {
 
   for (const v of VIEWS) {
     const out = v.id === REF ? refOut : bake(v, ref);
-    const file = `mb-${v.id}.json`;
-    fs.writeFileSync(path.join(DATA, file), JSON.stringify(out));
-    manifest[v.id] = Object.assign({ file, frame: out.frame, extents: out.extents },
-                                   out.meta);
-    const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
-    console.log(`${v.id.padEnd(7)} ${out.meta.counts[0].modelled} residues, ` +
-      `${out.chains[v.chains].helices} helices, ` +
-      `heme ${out.meta.hemeAtoms} atoms, bound ${out.meta.bound || 'nothing'}, ` +
+    const { read, ...bakeOut } = out;
+    fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
+    read.bytes = fs.statSync(path.join(DATA, read.baked)).size;
+    blocks[v.id] = read;
+    console.log(`${v.id.padEnd(7)} ${read.residues} residues, ${read.helices} helices, ` +
+      `heme ${read.heme} atoms, bound ${read.bound || 'nothing'}, ` +
       `pocket ${out.pocket ? out.pocket.bonds.length + ' bonds' : 'none'}, ` +
-      (out.meta.fitOn ? `fit on ${out.meta.fitOn} ${out.meta.fitRmsd} A over ` +
-        `${out.meta.fitAtoms} heme atoms` +
-        (out.meta.caRmsd === null ? ', Ca not comparable'
-                                  : `, Ca ${out.meta.caRmsd} A`)
-        : 'reference frame') + `, ${kb} KB`);
+      (read.fitOn ? `fit on ${read.fitOn} ${read.fitRmsd} A over ${read.fitAtoms} heme atoms` +
+        (read.caRmsd === null ? ', Ca not comparable' : `, Ca ${read.caRmsd} A`)
+        : 'reference frame') + `, ${(read.bytes / 1024).toFixed(0)} KB`);
   }
-  fs.writeFileSync(path.join(DATA, 'mb-views.json'),
-                   JSON.stringify(manifest, null, 1) + '\n');
-  console.log(`manifest mb-views.json  ${Object.keys(manifest).length} views`);
+  const touched = IO.write('myoglobin', blocks);
+  console.log(`registry proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();

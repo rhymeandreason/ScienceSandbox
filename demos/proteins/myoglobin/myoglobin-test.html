@@ -142,6 +142,7 @@
 <script src="../../folding/ribbon.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
 <script>
 'use strict';
 
@@ -158,7 +159,12 @@ const box = Proteinbox.create({
   sub: 10,
 });
 
+/* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's — the
+   same file the baker read to write these bakes, so a variant cannot be
+   described one way here and baked another. Panel order is the page's. */
+const ME = ProteinLib.byKey('myoglobin');
 const VIEWS = ['1BZP', '1A6M', '1MBC', '1ABS', '1MBN', '1YMB', '2HHB-B'];
+const said = id => ProteinLib.variantOf(ME, id);
 /* A basis pasted from "copy this view", per view. Empty, and expected to stay
    so: the ONE hand-picked orientation lives in the bake and covers all seven,
    because they share a frame. This stays as the override for a view that ever
@@ -221,15 +227,15 @@ function ironOutOfPlane(t) {
 /* ---- the panel -------------------------------------------------------- */
 
 VIEWS.forEach(id => {
-  fetch(`data/mb-${id}.json`).then(r => r.json()).then(t => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
     if (CUSTOM[id]) { t.view = CUSTOM[id]; t.frame = 'custom view'; }
     views[id] = t;
     if (view === id) show(id);
   });
 });
 
-function stats(t) {
-  const cid = t.order[0], ch = t.chains[cid], m = t.meta;
+function stats(t, v) {
+  const cid = t.order[0], ch = t.chains[cid], m = t.meta, r = v.read;
   const n = ch.ss.length;
   const H = [...ch.ss].filter(c => c === 'H').length;
   const E = [...ch.ss].filter(c => c === 'E').length;
@@ -251,9 +257,9 @@ function stats(t) {
       : c0.modelled >= c0.declared ? `complete: ${c0.modelled} of ${c0.declared} deposited`
       : `fragment: ${c0.modelled} out of ${c0.declared} deposited`,
     frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
-    heme: m.hemeAtoms ? `${m.hemeAtoms} atoms · His ${m.prox} below, His ${m.dist} above`
-                      : 'none in this file',
-    bound: m.bound ? m.bound.join(', ') : 'nothing',
+    heme: r.heme ? `${r.heme} atoms · His ${v.pocket.prox} below, His ${v.pocket.dist} above`
+                 : 'none in this file',
+    bound: r.bound ? r.bound.join(', ') : 'nothing',
     fe: feL === null ? '—' : `${feL.toFixed(2)} Å`,
     /* A bond is about 1.8-2.1 Å. Anything past 3 is a molecule sitting NEAR
        the iron rather than on it, which for 1ABS is the entire result. */
@@ -267,10 +273,14 @@ function show(id) {
   view = id;
   const t = views[id];
   if (!t) return;
-  const s = stats(t), m = t.meta;
+  /* Prose from the registry, figures from the bake — the split the registry
+     file makes, so no number in the panel was typed by a human. */
+  const v = said(id), r = v.read;
+  const s = stats(t, v), m = t.meta;
 
-  $('d-claim').textContent = m.claim;
-  $('d-meta').textContent = `${m.entry} · chain ${m.chain} · ${m.method}`;
+  $('d-claim').textContent = v.claim;
+  $('d-meta').textContent = `${v.source.id} · chain ${m.chain} · ${r.method}` +
+    (r.resolution ? ` · ${r.resolution.toFixed(2)} Å` : '');
   $('d-fold').textContent = s.fold;
   $('d-span').textContent = s.span;
   $('d-res').textContent = s.res;
@@ -287,18 +297,22 @@ function show(id) {
      would be a half-truth now: the file's own orientation is the reference's
      only, and every other view is a fit onto it whose residual belongs beside
      the claim it supports. */
-  $('d-view').textContent = m.fitOn
-    ? `superposed on ${m.fitOn} · heme ${m.fitRmsd.toFixed(2)} Å over ${m.fitAtoms} atoms`
+  $('d-view').textContent = r.fitOn
+    ? `superposed on ${r.fitOn} · heme ${r.fitRmsd.toFixed(2)} Å over ${r.fitAtoms} atoms`
     : 'the reference · this file’s own frame';
-  $('d-ca').textContent = m.caRmsd === null
-    ? (m.fitOn ? 'numbering not comparable' : '—')
-    : `${m.caRmsd.toFixed(2)} Å RMSD`;
-  $('d-prov').textContent = m.prov;
+  $('d-ca').textContent = r.caRmsd === null
+    ? (r.fitOn ? 'numbering not comparable' : '—')
+    : `${r.caRmsd.toFixed(2)} Å RMSD`;
+  $('d-prov').textContent = v.prov;
 
-  $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;
-  $('d-rcsb-label').textContent = `RCSB ${m.entry}`;
-  $('d-raw').href = `https://files.rcsb.org/download/${m.entry}.pdb`;
-  $('d-baked').href = `data/${m.file}`;
+  /* Built by the registry from `source`: 2HHB-B's entry link points at the
+     deposition its chain was lifted out of, which is the honest citation for
+     a view of a file another page already holds. */
+  const u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${r.baked}`;
 
   box.setData(t);
   box.setPocket(t.pocket);

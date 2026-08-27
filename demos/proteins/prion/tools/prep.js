@@ -255,53 +255,61 @@ function main() {
      have an ensemble worth drawing; the file does not.
 
        curl -o proteins/prion/data/1QLZ.pdb https://files.rcsb.org/download/1QLZ.pdb */
-  /* ---- the manifest ----
+  /* ---- back to the registry ----
 
      What the page would otherwise TYPE. Species, method and chain count are
-     read out of each source file; state and provenance are the one judgement
-     here, written next to the data rather than in the panel where nothing
-     could check them against the file they describe.
+     read out of each source file; the state/form reading and the provenance
+     are judgements, and they live in proteins/proteins.js with every other
+     protein's rather than in a panel where nothing could check them against
+     the file they describe.
 
-     STATE IS NOT PROVENANCE, and conflating them is the trap this table
-     exists to avoid. 6LNI is the disease FOLD grown in a test tube from
-     recombinant protein; 7LNA is disease MATERIAL, pulled from the brain of
-     an infected hamster. Both are PrP-Sc shaped. Only one was ever in an
-     animal, and a page that labels both "disease" without saying which is
-     which is overclaiming on behalf of the easier file. */
-  const STATE = {
-    '1QLZ': { state: 'healthy', form: 'PrP\u1D9C',
-              prov: 'Recombinant human protein, folded as it is in a healthy cell.' },
-    '1B10': { state: 'healthy', form: 'PrP\u1D9C',
-              prov: 'Recombinant hamster protein, the healthy fold.' },
-    '6LNI': { state: 'disease', form: 'PrP\u02E2\u1D9C',
-              prov: 'Disease fold, grown in vitro from recombinant protein. Not taken from a sick brain.' },
-    'stack': { state: 'disease', form: 'PrP\u02E2\u1D9C',
-               prov: 'The same in vitro fibril, all ten deposited chains.' },
-    '7LNA': { state: 'disease', form: 'PrP\u02E2\u1D9C',
-              prov: 'Infectious material from the brain of a hamster with 263K scrapie.' },
-  };
+     STATE IS NOT PROVENANCE, and conflating them is the trap the registry's
+     prose exists to avoid. 6LNI is the disease FOLD grown in a test tube from
+     recombinant protein; 7LNA is disease MATERIAL, pulled from the brain of an
+     infected hamster. Both are PrP-Sc shaped. Only one was ever in an animal,
+     and a page labelling both "disease" without saying which is which is
+     overclaiming on behalf of the easier file. */
+  const IO = require('../../tools/registry-io.js');
+  const REG = require('../../proteins.js');
+  const ME = REG.byKey('prion');
 
   const expdta = t => (t.split('\n').find(l => l.startsWith('EXPDTA')) || '')
     .slice(10).trim().toLowerCase() || 'unknown';
   const chainCount = t => new Set(t.split('\n')
     .filter(l => l.startsWith('ATOM')).map(l => l[21])).size;
+  const caCount = t => t.split('\n')
+    .filter(l => l.startsWith('ATOM') && l.slice(12, 16).trim() === 'CA').length;
 
-  const manifest = {};
-  for (const [name, text, label] of VIEWS) {
+  /* RESOLUTION COMES OFF THE DEPOSITION, NOT THE VIEW FILE. The views are cut
+     down to coordinates and their headers go with the cut, so REMARK 2 is only
+     in the sources beside them — which is where a cryo-EM entry's resolution
+     has to be read from, and the registry refuses to store a measured
+     structure without one. */
+  const Bake = require('../../bake-lib.js');
+  const SOURCE = { '1QLZ': '1QLZ-model1.pdb', '1B10': '1B10-model1.pdb',
+                   '6LNI': '6LNI.pdb', '7LNA': '7LNA.pdb', stack: '6LNI.pdb' };
+  const resolutionOf = id => {
+    const f = path.join(DATA, SOURCE[id] || '');
+    return fs.existsSync(f) ? Bake.resolution(fs.readFileSync(f, 'utf8')) : null;
+  };
+
+  const blocks = {};
+  for (const [name, text] of VIEWS) {
     const id = name.slice('prp-view-'.length, -'.pdb'.length);
-    if (!STATE[id]) continue;
-    manifest[id] = Object.assign({
-      entry: id, species: label.split(/\s+/)[0],
-      method: expdta(text), chains: chainCount(text), drawn: 1,
-      file: name,
-    }, STATE[id]);
+    if (!REG.variantOf(ME, id)) continue;
+    blocks[id] = { method: expdta(text), resolution: resolutionOf(id),
+                   chainsInFile: chainCount(text), chainsDrawn: 1,
+                   residues: caCount(text), baked: name,
+                   bytes: fs.statSync(path.join(DATA, name)).size };
   }
-  manifest.stack = Object.assign({}, manifest['6LNI'], STATE.stack,
-                                 { entry: '6LNI', drawn: chainCount(fib),
-                                   file: 'prp-view-stack.pdb' });
-  fs.writeFileSync(path.join(DATA, 'prp-views.json'),
-                   JSON.stringify(manifest, null, 1) + '\n');
-  console.log(`manifest    prp-views.json  ${Object.keys(manifest).length} views`);
+  /* The stack is the same entry drawn whole: ten chains rather than one, so
+     everything about it except the drawn count is 6LNI's. */
+  blocks.stack = Object.assign({}, blocks['6LNI'], {
+    chainsDrawn: chainCount(fib), residues: caCount(fib),
+    baked: 'prp-view-stack.pdb',
+    bytes: fs.statSync(path.join(DATA, 'prp-view-stack.pdb')).size });
+  const touched = IO.write('prion', blocks);
+  console.log(`registry    proteins.js  ${touched.length} variants updated`);
 
   console.log(`core        ${nNums[0]}-${nNums[nNums.length - 1]}  ${nNums.length} residues, sequence identical`);
   console.log(`native      prp-native.pdb  ${nNat} lines, ${helix.length} HELIX records`);

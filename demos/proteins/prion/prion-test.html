@@ -117,6 +117,7 @@
 <script src="../../folding/ribbon.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
 <script src="prion.js"></script>
 <script>
 'use strict';
@@ -275,15 +276,14 @@ function ssBoth(residues, parsed) {
   return out;
 }
 
-/* prp-views.json is the baker's, not the page's: species, method and chain
-   count are read out of the source files, and the healthy/disease reading is
-   written next to the data it describes. A panel that typed any of it would
-   be making claims nothing checks. */
-let manifest = {};
-fetch('data/prp-views.json').then(r => r.json()).then(m => {
-  manifest = m;
-  if (view) show(view);
-});
+/* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's — the
+   registry every protein in the repo is described in. The healthy/disease
+   reading and the provenance are written there next to the data they
+   describe; method, chain and residue counts are the baker's, written back
+   into the same file. A panel that typed any of it would be making claims
+   nothing checks. */
+const ME = ProteinLib.byKey('prion');
+const said = id => ProteinLib.variantOf(ME, id);
 
 VIEWS.forEach(({ id, native }) => {
   fetch(`data/prp-view-${id}.pdb`).then(r => r.text()).then(txt => {
@@ -406,11 +406,10 @@ function principal(P) {
    not only a different fold. A fibril rung is one subunit of an assembly, so
    drawing it by itself is drawing a part, and the page should say so on the
    view where it is least obvious. */
-function quaternary(m) {
-  if (!m) return '—';
-  if (m.chains <= 1) return 'monomer, no quaternary structure';
-  if (m.drawn >= m.chains) return `${m.chains} chains stacked, quaternary`;
-  return `1 of ${m.chains} chains, a subunit of the fibril`;
+function quaternary(r) {
+  if (r.chainsInFile <= 1) return 'monomer, no quaternary structure';
+  if (r.chainsDrawn >= r.chainsInFile) return `${r.chainsInFile} chains stacked, quaternary`;
+  return `1 of ${r.chainsInFile} chains, a subunit of the fibril`;
 }
 
 function show(id) {
@@ -428,13 +427,11 @@ function show(id) {
   $('d-pct').textContent = s.pct;
   $('d-frag').textContent = s.frag;
 
-  const m = manifest[id];
-  $('d-claim').textContent = m
-    ? `${m.species === 'human' ? 'Human' : 'Syrian hamster'} PrP in its ` +
-      `${m.state === 'healthy' ? 'healthy' : 'disease'} form, ${m.form}.`
-    : '—';
-  $('d-meta').textContent = m ? `${m.entry} · ${m.method}` : '—';
-  $('d-quat').textContent = quaternary(m);
+  const m = said(id), r = m.read;
+  $('d-claim').textContent = m.claim;
+  $('d-meta').textContent = `${m.source.id} · ${r.method}` +
+    (r.resolution ? ` · ${r.resolution.toFixed(2)} Å` : '');
+  $('d-quat').textContent = quaternary(r);
   /* Three states, named by WHERE THE FRAME CAME FROM rather than by how it
      was arrived at. Nothing in a PDB says which way a structure should face:
      what is deposited is the experiment's frame, a crystal's axes or the box
@@ -443,16 +440,15 @@ function show(id) {
      work, `deposited` is the file left alone, and `custom view` is a human's
      choice pasted into the bake. */
   $('d-view').textContent = on.data.frame;
-  $('d-prov').textContent = m ? m.prov : '—';
+  $('d-prov').textContent = m.prov;
 
-  /* Built from the manifest's entry id, so a link cannot point at a
+  /* Built by the registry from `source`, so a link cannot point at a
      structure the panel is not describing. */
-  if (m) {
-    $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;
-    $('d-rcsb-label').textContent = `RCSB ${m.entry}`;
-    $('d-raw').href = `https://files.rcsb.org/download/${m.entry}.pdb`;
-    $('d-baked').href = `data/${m.file}`;
-  }
+  const u = ProteinLib.urls(m);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${m.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${r.baked}`;
 
   box.setData(on.data, { colors: on.color });
 }

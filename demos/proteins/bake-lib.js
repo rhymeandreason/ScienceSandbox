@@ -153,6 +153,16 @@ const method = text => (line1(text, 'EXPDTA') || 'unknown').toLowerCase();
 
 const models = text => (text.match(/^MODEL /gm) || []).length;
 
+/* Resolution in ångströms, or null. REMARK 2 is where it lives, and an NMR
+   entry writes NOT APPLICABLE there — which is a fact about the method and
+   must come back as null rather than as a number nobody measured. */
+function resolution(text) {
+  const line = text.split('\n').find(l => l.startsWith('REMARK   2 RESOLUTION'));
+  if (!line) return null;
+  const m = line.match(/(\d+\.?\d*)\s*ANGSTROM/);
+  return m ? +m[1] : null;
+}
+
 /* Every chain id that has coordinates, whatever the trace kept. */
 const chainCount = text =>
   new Set(text.split('\n').filter(l => l.startsWith('ATOM')).map(l => l[21])).size;
@@ -238,5 +248,5 @@ const breaks = trace => trace.order.reduce((k, id) => k + trace.chains[id].nums
 
 module.exports = {
   r2, xyz, modelOne, caTrace, ssRanges, ssFrom, declared, disulfides, ligands,
-  line1, method, models, chainCount, assemble, frameOf, breaks,
+  line1, method, models, resolution, chainCount, assemble, frameOf, breaks,
 };

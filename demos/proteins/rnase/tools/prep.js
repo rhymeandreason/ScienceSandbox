@@ -57,33 +57,20 @@ const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
 
-/* id, chains to draw (null = every chain), and the one judgement in the
-   file: what the reader is looking at. Kept beside the data it describes
-   rather than in the panel, where nothing could check it against the
-   structure it labels. */
-const VIEWS = [
-  { id: '1FS3', chains: null, kind: 'fold',
-    claim: 'Bovine pancreatic RNase A, wild type, nothing bound.',
-    prov: 'X-ray at 1.4 A. The reference fold: three helices over a long curled sheet, four disulfides.' },
-  { id: '2AAS', chains: null, kind: 'fold', model: 1,
-    claim: 'The same protein in solution, by NMR.',
-    prov: '32 deposited models; this is model 1, and it is not more real than model 12. The crystal fold and the solution fold agree.' },
-  { id: '1RUV', chains: null, kind: 'act',
-    claim: 'Uridine vanadate in the active site — the transition state, held still.',
-    prov: 'X-ray at 1.25 A. Vanadium fakes the five-coordinate phosphorus RNA passes through, so the enzyme cannot finish the reaction and will not let go.' },
-  { id: '1RNU', chains: null, kind: 'cut',
-    claim: 'RNase S: one backbone bond cut, and the protein still works.',
-    prov: 'Subtilisin cuts between residues 20 and 21. The 20-residue S-peptide stays bound to the S-protein and the pair is active. Residues 16-23 are unmodelled, so the gap drawn is wider than the cut.' },
-  { id: '1A2W', chains: 'A,B', kind: 'swap',
-    claim: 'Two molecules, each folded around the other’s C-terminal strand.',
-    prov: 'Domain swapping: the same contacts as the monomer, made between chains instead of within one. The hinge is the loop around 112-115.' },
-  { id: '1F0V', chains: 'A,B', kind: 'swap',
-    claim: 'The other swap: the N-terminal helix traded instead.',
-    prov: 'Chains A and B of a deposition holding two dimers, with a CpG dinucleotide bound on chains M-P, which the bench does not draw. One protein, two different ways to come apart and re-fold as a pair.' },
-  { id: '1DFJ', chains: null, kind: 'bound',
-    claim: 'RNase A held by ribonuclease inhibitor, the protein that keeps it off your own RNA.',
-    prov: 'A 456-residue leucine-rich horseshoe closing on a 124-residue enzyme. One of the tightest protein-protein complexes known.' },
-];
+/* THE VIEW TABLE IS proteins/proteins.js. What each entry is, which chains
+   are drawn, and what the bench claims about it live there with every other
+   protein's; this file turns that into files under data/ and writes the
+   counted half back. `said` is the human's and is read here; `read` is this
+   script's and is written at the end of main().
+
+   Not 7RSA, though it is the entry everyone cites for RNase A at 1.26 A: it
+   carries no SSBOND records at all, so a bench built on it prints "no
+   disulfides" for the protein whose four disulfides are the whole of the
+   Anfinsen story. 1FS3 is the wild type with them. */
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('rnase');
+const VIEWS = ME.variants;
 
 /* ---- baking one view ------------------------------------------------
  *
@@ -94,7 +81,7 @@ const VIEWS = [
  */
 
 function bake(v) {
-  const raw = fs.readFileSync(path.join(SRC, v.id + '.pdb'), 'utf8');
+  const raw = fs.readFileSync(path.join(SRC, v.source.id + '.pdb'), 'utf8');
   const text = v.model ? Bake.modelOne(raw) : raw;
   const only = v.chains ? new Set(v.chains.split(',')) : null;
 
@@ -108,7 +95,7 @@ function bake(v) {
      smooth band across eight residues nobody measured. */
   const T = Bake.assemble(chains, R);
 
-  const out = { source: v.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
+  const out = { source: v.source.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
                 order: T.order, chains: T.chains, radius: T.radius };
 
   /* RNase A is a kidney bean and its three extents are close enough that a
@@ -123,16 +110,10 @@ function bake(v) {
   out.frame = F.frame;
 
   const decl = Bake.declared(text);
+  /* What the bake carries for the page to draw with, and what goes back to
+     the registry for a card to read, are the same numbers counted once. */
   out.meta = {
-    entry: v.id, kind: v.kind, claim: v.claim, prov: v.prov,
-    title: Bake.line1(text, 'TITLE'),
-    method: Bake.method(text),
-    models: Bake.models(raw),
-    chainsInFile: Bake.chainCount(text),
-    chainsDrawn: out.order.length,
-    /* Per drawn chain: modelled residues against what SEQRES declares. The
-       panel phrases completeness off this pair, never off a length typed
-       anywhere. */
+    entry: v.source.id, chainsDrawn: out.order.length,
     counts: out.order.map(id => ({ chain: id, modelled: out.chains[id].nums.length,
                                    declared: decl[id] === undefined ? null : decl[id] })),
     /* The four disulfides are why Anfinsen could pull the protein apart and
@@ -141,29 +122,44 @@ function bake(v) {
     ss: Bake.disulfides(text, only),
     ligands: Bake.ligands(text, only),
   };
+  out.read = {
+    method: Bake.method(text),
+    resolution: Bake.resolution(text),
+    title: Bake.line1(text, 'TITLE'),
+    models: Bake.models(raw),
+    chainsInFile: Bake.chainCount(text),
+    chainsDrawn: out.order.length,
+    residues: out.meta.counts.reduce((k, c) => k + c.modelled, 0),
+    declared: out.meta.counts.every(c => c.declared !== null)
+      ? out.meta.counts.reduce((k, c) => k + c.declared, 0) : null,
+    disulfides: out.meta.ss.length,
+    ligands: out.meta.ligands,
+    extents: out.extents,
+    frame: out.frame,
+    baked: `rnase-${v.id}.json`,
+  };
   return out;
 }
 
 function main() {
-  const manifest = {};
+  const blocks = {};
   for (const v of VIEWS) {
     const out = bake(v);
-    const file = `rnase-${v.id}.json`;
-    fs.writeFileSync(path.join(DATA, file), JSON.stringify(out));
-    manifest[v.id] = Object.assign({ file, frame: out.frame,
-                                     extents: out.extents }, out.meta);
-    const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
-    const breaks = Bake.breaks(out);
-    const res = out.meta.counts.reduce((k, c) => k + c.modelled, 0);
-    console.log(`${v.id}  ${out.order.length} chain(s), ${res} residues` +
-      (breaks ? `, ${breaks} break(s)` : '') +
-      `, ss ${out.ssFrom}, ${out.extents.join(' × ')} A, ` +
-      `${out.meta.ss.length} SS, ligands [${out.meta.ligands.join(' ')}], ` +
-      `view ${out.frame}, ${kb} KB`);
+    const file = out.read.baked;
+    const { read, ...bakeOut } = out;
+    fs.writeFileSync(path.join(DATA, file), JSON.stringify(bakeOut));
+    read.bytes = fs.statSync(path.join(DATA, file)).size;
+    blocks[v.id] = read;
+    console.log(`${v.id}  ${out.order.length} chain(s), ${read.residues} residues` +
+      (Bake.breaks(out) ? `, ${Bake.breaks(out)} break(s)` : '') +
+      `, ss ${out.ssFrom}, ${read.extents.join(' × ')} A, ` +
+      `${read.disulfides} SS, ligands [${read.ligands.join(' ')}], ` +
+      `view ${read.frame}, ${(read.bytes / 1024).toFixed(0)} KB`);
   }
-  fs.writeFileSync(path.join(DATA, 'rnase-views.json'),
-                   JSON.stringify(manifest, null, 1) + '\n');
-  console.log(`manifest  rnase-views.json  ${Object.keys(manifest).length} views`);
+  /* The counted half goes back into proteins.js, where a card reads it. The
+     said half of that file is untouched by this write. */
+  const touched = IO.write('rnase', blocks);
+  console.log(`registry  proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
