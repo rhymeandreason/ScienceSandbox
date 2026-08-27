@@ -468,6 +468,15 @@
        which is the whole reason the box is shared: the reader's viewpoint
        survives the switch instead of snapping back on every click. */
     box.setData = setData;
+    /* THE STRUCTURE'S OWN FRAME, for anything else measured in the same
+       ångströms: a heme, a bound ligand, the one side chain a bench is about.
+       It is the chain group and not `root`, because the presentation `view` is
+       applied here — a ligand parented to root would keep the crystal's
+       orientation while the protein turned, and land in the right place only
+       for a trace that happened to earn no view. The ribbon clears this group
+       on every setData, so a caller re-adds after it. Coordinates go in
+       exactly as the bake writes them; the box owns the centring. */
+    box.group = chainGroup;
     Object.defineProperty(box, 'rep', { get: () => rep });
     return box;
   }

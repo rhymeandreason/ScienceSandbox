@@ -37,6 +37,8 @@ box.setData(data, { colors });      // again per structure, same box
 * **The zoom clamp is the box's, and it follows the framing.** `scene.js`'s `rMin`/`rMax` default to a fixed 5-60 A, which is below the distance a big structure frames at: the inhibitor complex opens at 107, so the first wheel tick used to clamp it to 60 and no zoom out ever came back. `Proteinbox.fit()` now retunes the clamp to 0.2x-3x of whatever it just solved, so nothing is needed from the page. Worth knowing only because it is invisible until a reader scrolls.
 * **One box, re-fed.** `setData` swaps the structure and keeps the camera, so a reader who turned the molecule still has that view after a switch. One box per structure costs a WebGL context each and snaps the framing back on every click.
 
+**A ribbon is not always the whole subject.** Myoglobin is 153 residues wrapped around one iron, and a bench that drew only the backbone would draw the box and leave out what is in it. `proteins/myoglobin/` is the worked example: its baker writes a `pocket` beside the trace — the heme, whatever is bound to its iron, the one or two side chains that make the site — **centred by the same vector as the trace**, because a pocket centred on itself sits at the origin with the protein somewhere else, and that reads as a bug in the ribbon. The page draws it ball-and-stick into `box.group`, which is the structure's own frame: parent it to `box.root` instead and a ligand keeps the crystal's orientation while the protein turns. The box clears that group on every `setData`, so re-add after. Connectivity comes off the file's `CONECT` records, never a distance cutoff — a cutoff wide enough for the 2.0 Å Fe–N coordination also draws the porphyrin's diagonals.
+
 **What the page still owns is what a CHAIN is.** The box takes `{first, nums, CA, ss}` per chain — the shape `tools/bake-trace.js` writes — and never parses a deposition, because parsing decides which altloc, which chain, and whether secondary structure is read or detected. A page that owns a protein already owns those.
 
 Three invariants on that side. Each is a bug that ships looking fine.
@@ -67,13 +69,13 @@ Write a short editorial style summary to capture the significance for a lesson. 
 
 **PrP — the prion protein**
 
-Most abundant in the brain.  The healthy form is a compact bundle, about 60% helix, tumbling alone in solution. The diseased form is the same sequence with the same disulfide bond and not one atom changed, flattened into a sheet one molecule thick and stacked against identical copies of itself every 4.9 ångströms. Nothing about it is helix any more. The stack is the reason it spreads: its exposed top face is shaped exactly like the molecule that should bind there, so any healthy PrP that drifts up gets pressed flat onto it and becomes the new top face. There is no gene here and no enzyme. Growing is copying, and breaking a fibril in half just gives you two of them.
-
-The misfolding causes a family of rare and fatal neurological diseases. Prion disease is also called transmissible spongiform encephalopathy, TSE, named for the sponge-like holes the brain ends up full of.
+Most abundant in the brain. Misfolding causes a family of rare and fatal neurological diseases. Prion disease is also called transmissible spongiform encephalopathy, TSE, named for the sponge-like holes the brain ends up full of.
 
 Creutzfeldt-Jakob disease (CJD) is the common one, and happens sporadically with no known cause.
 
 Mad-cow (BSE) is the same disease. BSE was unusually good at crossing barriers, which is why it was a public health emergency.
+
+The healthy form is a compact bundle, about 60% helix, tumbling alone in solution. The diseased form is the same sequence with the same disulfide bond and not one atom changed, flattened into a sheet one molecule thick and stacked against identical copies of itself every 4.9 ångströms. The stack is the reason it spreads: its exposed top face is shaped exactly like the molecule that should bind there, so any healthy PrP that drifts up gets pressed flat onto it and becomes the new top face. There is no gene here and no enzyme. Growing is copying, and breaking a fibril in half just gives you two of them.
 
 Neurologist and biochemist Stanley Prusiner coined the word "prion” in 1982, for proteinaceous infectious particle. Most scientists at the time believed that only viruses, bacteria, fungi, or parasites could transmit disease using DNA or RNA. Prusiner got the Nobel for it in 1997, with fifteen years of being told he was wrong in between.
 

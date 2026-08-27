@@ -14,3 +14,4 @@ demos/proteins/prion/data/prp-view-ensemble.pdb
 # 4.4 MB of seven raw depositions; only prep.js reads them, and it bakes 45 KB.
 # prep.js's header carries the curl loop that fetches them back.
 demos/proteins/rnase/data/src/
+demos/proteins/myoglobin/data/src/

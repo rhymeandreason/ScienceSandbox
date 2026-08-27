@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Myoglobin — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. Myoglobin is where protein crystallography starts —
+     Kendrew's 1958 model was the first anyone ever saw — and it is also
+     the cleanest binding site in biology. The question a lesson needs
+     answered first is which of those two it is about, and that is a
+     question about what a reader can SEE.
+
+     SO THIS BENCH DRAWS THE POCKET, not only the ribbon. Every other
+     protein page in the repo is a backbone; here the backbone is the
+     container and the 43 atoms inside it are the subject. They are drawn
+     ball-and-stick, in the box's own frame, from coordinates the baker
+     centred with the trace.
+
+     WHAT IT IS FOR SETTLING:
+
+       is the site legible   the heme is 10 A across inside a 40 A
+                             protein. If the pocket does not read at
+                             full-stage size, no lesson about binding can
+                             be built on this representation.
+       O2 vs CO              1A6M against 1MBC: the same iron, two
+                             different molecules on it, at 1.0 and 1.5 A.
+                             Whether the ANGLE difference is visible is
+                             the thing to look at.
+       the caught frame      1ABS has the CO photolysed and stalled beside
+                             the iron at 20 K. A reaction intermediate,
+                             measured. Whether it reads as one is the
+                             question.
+       fold vs job           2HHB-B is one haemoglobin chain: same fold,
+                             and everything interesting about it is a fact
+                             about the other three, which are not here.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Every view is a still. Binding is a
+     motion — the iron moves about 0.4 A into the porphyrin plane and
+     drags the histidine with it — and two files at either end of that is
+     evidence for the endpoints and none at all for the path.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css. What stays here is the one
+     thing this bench says with colour: rust for the iron, the same ink
+     hemoglobin-lab gives it, so a reader who has seen that page meets the
+     same metal here. */
+  .chip.metal{background:rgba(168,50,26,.14);color:#a8321a}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Myoglobin</h1>
+    <p class="deck">One iron atom, wrapped in 153 residues. The first protein
+      structure ever solved, and still the clearest binding site there is.</p>
+
+    <h2>the site, four states</h2>
+    <button class="mode" id="v-1BZP" aria-pressed="true">
+      <span class="who">empty &middot; deoxy &middot; 1BZP</span><span class="chip">1.15 &Aring;</span></button>
+    <button class="mode" id="v-1A6M" aria-pressed="false">
+      <span class="who">oxygen bound &middot; 1A6M</span><span class="chip metal">O₂</span></button>
+    <button class="mode" id="v-1MBC" aria-pressed="false">
+      <span class="who">carbon monoxide &middot; 1MBC</span><span class="chip metal">CO</span></button>
+    <button class="mode" id="v-1ABS" aria-pressed="false">
+      <span class="who">CO cut loose by light &middot; 1ABS</span><span class="chip metal">20 K</span></button>
+
+    <h2>where it came from</h2>
+    <button class="mode" id="v-1MBN" aria-pressed="false">
+      <span class="who">Kendrew, 1960 &middot; 1MBN</span><span class="chip">first</span></button>
+
+    <h2>relatives</h2>
+    <button class="mode" id="v-1YMB" aria-pressed="false">
+      <span class="who">horse heart &middot; 1YMB</span><span class="chip">1 chain</span></button>
+    <button class="mode" id="v-2HHB-B" aria-pressed="false">
+      <span class="who">haemoglobin β &middot; 2HHB</span><span class="chip">1 of 4</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>fold</td><td id="d-fold">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>heme</td><td id="d-heme">&mdash;</td></tr>
+      <tr><td>on the iron</td><td id="d-bound">&mdash;</td></tr>
+      <tr><td>iron to ligand</td><td id="d-fe">&mdash;</td></tr>
+      <tr><td>iron out of plane</td><td id="d-oop">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">Ribbon colour is secondary structure, the repo default. The
+      pocket is drawn ball-and-stick: the heme with its iron in rust, whatever
+      is bound to it, and the two histidines — proximal below the ring, distal
+      above it — with their backbone left to the ribbon.</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Prints the basis
+      the structure would need to open facing this way. Myoglobin is a bundle
+      whose three axes are too close together to solve, so every view here opens
+      in the file's own frame until someone picks one.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../folding/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* The box is kit/proteinbox.js, same as every protein in the repo: the
+   scene, the camera, the framing and the turn are the module's, and one box
+   is re-fed so a reader who turned the molecule keeps that view across a
+   switch. What this page adds is the POCKET, drawn into the box's own
+   structure frame — see drawPocket. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+});
+
+const VIEWS = ['1BZP', '1A6M', '1MBC', '1ABS', '1MBN', '1YMB', '2HHB-B'];
+const CUSTOM = {};                       // a basis pasted from "copy this view"
+
+const views = {};
+let view = null;
+const $ = id => document.getElementById(id);
+window.bench = { views, box, get view() { return view; } };
+
+/* ---- the pocket, ball-and-stick ----
+
+   REAL ÅNGSTRÖMS, so the radii are the house ones divided by SCALE — the
+   convention every page that draws deposited coordinates follows
+   (MolecularGeometry.md 1.5). The proportions are hemoglobin-lab's, and
+   deliberately so: smaller balls and fatter sticks than a close-up, because
+   here the subject is the RING'S SHAPE seen from across a 40 Å protein, and
+   the house stick width comes out about a pixel at that distance. */
+const PAL = MolLib.PALETTE;
+const RC = PAL.radii.C / MolLib.SCALE;
+const BALL = 0.72, FE_BALL = 2.7, STICK = RC * 0.36;
+const IRON_COLOR = 0xa8321a;             // hemoglobin-lab's, for the same metal
+
+const pocketGroup = new THREE.Group();
+
+function drawPocket(t) {
+  /* The box clears its chain group on every setData, which takes this with
+     it — so the group is re-added rather than re-created, and the meshes
+     inside it are rebuilt per structure. */
+  pocketGroup.clear();
+  box.group.add(pocketGroup);
+  if (!t.pocket) return;
+
+  /* One colour rule for the ball and for the stick half beside it, or the
+     iron is rust as a sphere and grey as a bond. PALETTE has no Fe — no
+     page in the repo had drawn one before hemoglobin-lab — so that one
+     colour is literal in both places and named once. */
+  const colorOf = el => el === 'FE' ? IRON_COLOR : (PAL.atoms[el] || 0x888888);
+  const byEl = {};
+  const matFor = el => byEl[el] || (byEl[el] = new THREE.MeshStandardMaterial({
+    color: colorOf(el),
+    roughness: el === 'FE' ? .35 : .5, metalness: el === 'FE' ? .35 : 0 }));
+
+  for (const a of t.pocket.atoms) {
+    const r = a.el === 'FE' ? BALL * RC * FE_BALL
+                            : BALL * ((PAL.radii[a.el] || PAL.radii.C) / MolLib.SCALE);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), matFor(a.el));
+    m.position.set(a.p[0], a.p[1], a.p[2]);
+    pocketGroup.add(m);
+  }
+
+  /* Split sticks, each half in its own atom's colour — the structure style,
+     which is what a page drawing deposited coordinates uses (SCIENCE.md §4):
+     there is no spec and no hydrogens here, so the bond does more of the work
+     of saying what the atoms are. */
+  const A = new THREE.Vector3(), B = new THREE.Vector3();
+  for (const [i, j] of t.pocket.bonds) {
+    const a = t.pocket.atoms[i], b = t.pocket.atoms[j];
+    A.set(a.p[0], a.p[1], a.p[2]); B.set(b.p[0], b.p[1], b.p[2]);
+    pocketGroup.add(Stage.bondSplit(A, B, colorOf(a.el), colorOf(b.el), STICK));
+  }
+  box.draw();
+}
+
+/* ---- the two measurements only the pocket can give -------------------- */
+
+const dist = (a, b) => Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], a.p[2] - b.p[2]);
+const iron = t => t.pocket && t.pocket.atoms.find(a => a.el === 'FE');
+
+/* Iron to whatever is bound, nearest atom of it. Null when nothing is bound,
+   which is deoxy's whole point and not a missing number. 1ABS is the reason
+   this is a MEASUREMENT and not a lookup: its CO is photolysed and sitting in
+   a docking site, so the distance is the evidence that the bond is broken. */
+function ironToLigand(t) {
+  const fe = iron(t);
+  if (!fe) return null;
+  const bound = t.pocket.atoms.filter(a => a.group === 'bound');
+  if (!bound.length) return null;
+  return Math.min(...bound.map(a => dist(fe, a)));
+}
+
+/* How far the iron sits out of the porphyrin plane, signed only in size.
+   The plane is the four pyrrole nitrogens — NA, NB, NC, ND — averaged and
+   fitted, and the number is the classic one: near zero when something is
+   bound, a few tenths of an ångström when the site is empty and the iron is
+   pulled down towards the proximal histidine. Measured here rather than
+   quoted, because the whole page's rule is that a printed number came off
+   the file. */
+function ironOutOfPlane(t) {
+  const fe = iron(t);
+  if (!fe) return null;
+  const N = t.pocket.atoms.filter(a => a.group === 'heme' && a.el === 'N');
+  if (N.length < 3) return null;
+  const c = [0, 1, 2].map(k => N.reduce((s, a) => s + a.p[k], 0) / N.length);
+  /* The plane's normal from the two widest in-plane directions: opposite
+     nitrogens, which for a porphyrin are N1-N3 and N2-N4 in file order. */
+  const v = (a, b) => [0, 1, 2].map(k => a.p[k] - b.p[k]);
+  const u = v(N[0], N[2]), w = v(N[1], N[3] || N[2]);
+  const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2],
+             u[0] * w[1] - u[1] * w[0]];
+  const L = Math.hypot(...n) || 1;
+  return Math.abs([0, 1, 2].reduce((s, k) => s + (fe.p[k] - c[k]) * n[k] / L, 0));
+}
+
+/* ---- the panel -------------------------------------------------------- */
+
+VIEWS.forEach(id => {
+  fetch(`data/mb-${id}.json`).then(r => r.json()).then(t => {
+    if (CUSTOM[id]) { t.view = CUSTOM[id]; t.frame = 'custom view'; }
+    views[id] = t;
+    if (view === id) show(id);
+  });
+});
+
+function stats(t) {
+  const cid = t.order[0], ch = t.chains[cid], m = t.meta;
+  const n = ch.ss.length;
+  const H = [...ch.ss].filter(c => c === 'H').length;
+  const E = [...ch.ss].filter(c => c === 'E').length;
+  const c0 = m.counts[0];
+  const segs = 1 + ch.nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length;
+
+  const feL = ironToLigand(t), oop = ironOutOfPlane(t);
+  return {
+    /* Said from the letters, not typed: all-α is the claim, and a strand
+       appearing in a rebake should change this line rather than be hidden
+       by it. */
+    fold: E ? `${m.counts[0].modelled} residues, ${ch.helices} helices + sheet`
+            : `all α · ${ch.helices} helices, no sheet`,
+    span: `${ch.first}–${ch.nums[ch.nums.length - 1]}`,
+    res: `${c0.modelled} residues` + (segs > 1 ? ` in ${segs} segments` : ''),
+    pct: c0.declared === null ? '—'
+      : `${c0.modelled} of ${c0.declared} · ${Math.floor(100 * c0.modelled / c0.declared)}%`,
+    frag: c0.declared === null ? 'no SEQRES records: completeness unknown'
+      : c0.modelled >= c0.declared ? `complete: ${c0.modelled} of ${c0.declared} deposited`
+      : `fragment: ${c0.modelled} out of ${c0.declared} deposited`,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    heme: m.hemeAtoms ? `${m.hemeAtoms} atoms · His ${m.prox} below, His ${m.dist} above`
+                      : 'none in this file',
+    bound: m.bound ? m.bound.join(', ') : 'nothing',
+    fe: feL === null ? '—' : `${feL.toFixed(2)} Å`,
+    /* A bond is about 1.8-2.1 Å. Anything past 3 is a molecule sitting NEAR
+       the iron rather than on it, which for 1ABS is the entire result. */
+    feBroken: feL !== null && feL > 3,
+    oop: oop === null ? '—' : `${oop.toFixed(2)} Å`,
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;
+  const s = stats(t), m = t.meta;
+
+  $('d-claim').textContent = m.claim;
+  $('d-meta').textContent = `${m.entry} · chain ${m.chain} · ${m.method}`;
+  $('d-fold').textContent = s.fold;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-frac').textContent = s.frac;
+  $('d-heme').textContent = s.heme;
+  $('d-bound').textContent = s.bound;
+  $('d-fe').textContent = s.fe;
+  $('d-fe').classList.toggle('flag', s.feBroken);
+  $('d-oop').textContent = s.oop;
+  $('d-ext').textContent = s.ext;
+  $('d-view').textContent = t.frame;
+  $('d-prov').textContent = m.prov;
+
+  $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;
+  $('d-rcsb-label').textContent = `RCSB ${m.entry}`;
+  $('d-raw').href = `https://files.rcsb.org/download/${m.entry}.pdb`;
+  $('d-baked').href = `data/${m.file}`;
+
+  box.setData(t);
+  drawPocket(t);
+}
+
+$('pick').addEventListener('click', () => {
+  const q = box.camera.quaternion.clone().invert();
+  const mtx = new THREE.Matrix4().makeRotationFromQuaternion(q);
+  const e = mtx.elements, r4 = v => Math.round(v * 1e4) / 1e4;
+  const R = [[e[0], e[4], e[8]], [e[1], e[5], e[9]], [e[2], e[6], e[10]]]
+    .map(row => row.map(r4));
+  const text = JSON.stringify(R);
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+show('1BZP');
+</script>
+</body>
+</html>
