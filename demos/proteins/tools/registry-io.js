@@ -9,7 +9,7 @@
  *  blocks the writer owns.
  *
  *  WHAT A SAVE MAY TOUCH IS EXACTLY ONE THING: the `read: { … }` object
- *  inside a variant. Everything else — the prose, the purposes, the
+ *  inside a variant. Everything else — the purposes, the species, the
  *  comments that say why a structure was chosen and which one it was
  *  chosen instead of — is a human's and is carried across untouched. A
  *  writer that re-emitted the whole file would lose the comments on the

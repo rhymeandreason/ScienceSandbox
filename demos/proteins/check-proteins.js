@@ -5,8 +5,9 @@
  *
  *    node proteins/check-proteins.js      (offline, no dependencies)
  *
- *  The registry is written by two authors — a human types the purposes
- *  and the prose, a baker writes the `read` blocks — and the failures
+ *  The registry is written by two authors — a human types the purposes,
+ *  the species and the reasons, a baker writes the `read` blocks — and the
+ *  failures
  *  worth catching are the ones where those two drift apart, or where the
  *  file describes something that is no longer on disk. Every assertion
  *  below is a bug that ships looking fine.

@@ -42,21 +42,31 @@
  *
  *  NO PAGE COPY HERE EITHER. What a structure IS belongs in this file; what a
  *  bench SAYS about it under one particular stage is page copy and lives on
- *  the page, in its `SAYS` table. `proteins/tools/registry-io.js` is the one place that knows how to
- *  splice a `read` block back in; it runs this file rather than parsing it,
- *  the same way `tools/mapcontent-io.js` handles the door map, so the prose
- *  around the data cannot be lost to a save.
+ *  the page, in its `SAYS` table.
+ *
+ *  `proteins/tools/registry-io.js` is the one place that knows how to splice a
+ *  `read` block back in. It runs this file rather than parsing it, the same way
+ *  `tools/mapcontent-io.js` handles the door map, so the prose and the comments
+ *  around the data cannot be lost to a save — and in this file the comments are
+ *  the reasons a structure was chosen, and which one it was chosen instead of.
  *
  *  METHOD IS A CONTROLLED VOCABULARY, and the reason is not tidiness:
  *
  *    'x-ray diffraction' · 'solution nmr' · 'electron microscopy' ·
- *    'neutron diffraction'          — MEASURED, and carry a resolution
- *    'predicted'                    — carries `plddt`, never a resolution
+ *    'neutron diffraction'          — MEASURED
+ *    'predicted'                    — MODELLED, by AlphaFold or its like
  *
  *  A predicted structure is a different kind of claim from a measured one, and
- *  a collection that lets the two read alike is a collection that will
- *  eventually show a student a guess as a fact. check-proteins.js fails a
- *  `predicted` variant carrying a resolution, and a measured one without.
+ *  a collection that lets the two read alike will eventually show a student a
+ *  guess as a fact. This is the field that keeps them apart, which is why it
+ *  is spelled one way — `check-proteins.js` fails a method outside the list,
+ *  so 'X-RAY DIFFRACTION' and 'x-ray' cannot both end up here and split the
+ *  collection in two on a sort.
+ *
+ *  What QUALIFIES a method — a resolution for a measured structure, a pLDDT
+ *  for a predicted one — is a fact about that one structure and lives in its
+ *  bake, not here. The index says which KIND of claim a variant is; the bake
+ *  says how good it is.
  *
  *  URLS ARE DERIVED FROM `source`, never stored — `rcsb.org/structure/<id>`
  *  and `files.rcsb.org/download/<id>.pdb` for a `kind:'rcsb'`, and a different
