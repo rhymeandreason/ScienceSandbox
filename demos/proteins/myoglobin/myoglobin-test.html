@@ -16,9 +16,10 @@
 
      SO THIS BENCH DRAWS THE POCKET, not only the ribbon. Every other
      protein page in the repo is a backbone; here the backbone is the
-     container and the 43 atoms inside it are the subject. They are drawn
-     ball-and-stick, in the box's own frame, from coordinates the baker
-     centred with the trace.
+     container and the 43 atoms inside it are the subject. The drawing is
+     kit/proteinbox.js's setPocket — the proportions and the split sticks
+     are the module's, so this heme and hemoglobin-lab's are one convention
+     — and what is IN the pocket is the baker's.
 
      WHAT IT IS FOR SETTLING:
 
@@ -146,8 +147,8 @@
 /* The box is kit/proteinbox.js, same as every protein in the repo: the
    scene, the camera, the framing and the turn are the module's, and one box
    is re-fed so a reader who turned the molecule keeps that view across a
-   switch. What this page adds is the POCKET, drawn into the box's own
-   structure frame — see drawPocket. */
+   switch. The pocket inside the ribbon is the box's too, through setPocket:
+   this page hands over what the baker put there and nothing more. */
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
   orbit: true,
@@ -164,59 +165,13 @@ let view = null;
 const $ = id => document.getElementById(id);
 window.bench = { views, box, get view() { return view; } };
 
-/* ---- the pocket, ball-and-stick ----
+/* THE POCKET IS kit/proteinbox.js's, like the ribbon.
 
-   REAL ÅNGSTRÖMS, so the radii are the house ones divided by SCALE — the
-   convention every page that draws deposited coordinates follows
-   (MolecularGeometry.md 1.5). The proportions are hemoglobin-lab's, and
-   deliberately so: smaller balls and fatter sticks than a close-up, because
-   here the subject is the RING'S SHAPE seen from across a 40 Å protein, and
-   the house stick width comes out about a pixel at that distance. */
-const PAL = MolLib.PALETTE;
-const RC = PAL.radii.C / MolLib.SCALE;
-const BALL = 0.72, FE_BALL = 2.7, STICK = RC * 0.36;
-const IRON_COLOR = 0xa8321a;             // hemoglobin-lab's, for the same metal
-
-const pocketGroup = new THREE.Group();
-
-function drawPocket(t) {
-  /* The box clears its chain group on every setData, which takes this with
-     it — so the group is re-added rather than re-created, and the meshes
-     inside it are rebuilt per structure. */
-  pocketGroup.clear();
-  box.group.add(pocketGroup);
-  if (!t.pocket) return;
-
-  /* One colour rule for the ball and for the stick half beside it, or the
-     iron is rust as a sphere and grey as a bond. PALETTE has no Fe — no
-     page in the repo had drawn one before hemoglobin-lab — so that one
-     colour is literal in both places and named once. */
-  const colorOf = el => el === 'FE' ? IRON_COLOR : (PAL.atoms[el] || 0x888888);
-  const byEl = {};
-  const matFor = el => byEl[el] || (byEl[el] = new THREE.MeshStandardMaterial({
-    color: colorOf(el),
-    roughness: el === 'FE' ? .35 : .5, metalness: el === 'FE' ? .35 : 0 }));
-
-  for (const a of t.pocket.atoms) {
-    const r = a.el === 'FE' ? BALL * RC * FE_BALL
-                            : BALL * ((PAL.radii[a.el] || PAL.radii.C) / MolLib.SCALE);
-    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), matFor(a.el));
-    m.position.set(a.p[0], a.p[1], a.p[2]);
-    pocketGroup.add(m);
-  }
-
-  /* Split sticks, each half in its own atom's colour — the structure style,
-     which is what a page drawing deposited coordinates uses (SCIENCE.md §4):
-     there is no spec and no hydrogens here, so the bond does more of the work
-     of saying what the atoms are. */
-  const A = new THREE.Vector3(), B = new THREE.Vector3();
-  for (const [i, j] of t.pocket.bonds) {
-    const a = t.pocket.atoms[i], b = t.pocket.atoms[j];
-    A.set(a.p[0], a.p[1], a.p[2]); B.set(b.p[0], b.p[1], b.p[2]);
-    pocketGroup.add(Stage.bondSplit(A, B, colorOf(a.el), colorOf(b.el), STICK));
-  }
-  box.draw();
-}
+   The proportions, the split sticks and the iron's rust are the module's now
+   — a heme drawn here and a heme drawn in hemoglobin-lab should not be two
+   opinions about the same group. What stays this page's is WHAT is in the
+   pocket, which the baker decided: the ring, whatever is on the iron, and the
+   two histidines that make the site. */
 
 /* ---- the two measurements only the pocket can give -------------------- */
 
@@ -341,7 +296,7 @@ function show(id) {
   $('d-baked').href = `data/${m.file}`;
 
   box.setData(t);
-  drawPocket(t);
+  box.setPocket(t.pocket);
 }
 
 $('pick').addEventListener('click', () => {

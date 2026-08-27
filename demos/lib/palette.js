@@ -40,6 +40,12 @@
       C:  0x3a3a3a,   // carbon   — charcoal
       N:  0x3f6ae0,   // nitrogen — blue
       S:  0xe0b93a,   // sulfur   — goldenrod (cysteine / methionine)
+      Fe: 0xa8321a,   // iron     — rust. The one atom here that arrives only
+                      // from a DEPOSITION: it is a heme's metal, never part of
+                      // a spec, so it has a colour and deliberately no display
+                      // radius — kit/proteinbox.js sizes it as a multiple of
+                      // carbon so it stays the biggest atom in the group at
+                      // whatever scale the ring is drawn.
       P:  0xe07b1f,   // phosphorus — orange (CPK). Deliberately the warmest atom
                       // in the palette: in glycolysis the phosphate IS the energy
                       // currency, so every P a student sees is "something ATP paid

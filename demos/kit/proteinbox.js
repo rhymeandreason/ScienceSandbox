@@ -75,7 +75,16 @@
  *  Returns kit/card-stage.js's box, so a pool's acquire / snapshot / destroy
  *  work on it unchanged, plus `drop()` (back to ribbon, release the surface),
  *  `setData(t)` (draw a different structure in the same box, keeping the
- *  camera) and `rep` for a caller that wants to know what is showing.
+ *  camera), `setPocket(p)` and `rep` for a caller that wants to know what is
+ *  showing.
+ *
+ *  `setPocket({atoms, bonds})` draws the few atoms that belong INSIDE the
+ *  ribbon — a heme, what is bound to its iron, the side chain a bench is about
+ *  — ball-and-stick, in the structure's frame, at the proportions BALL /
+ *  FE_BALL / STICK below. It returns `{group, materials}` so a lesson can fade
+ *  or tint them, and it clears with the ribbon on every setData. What is IN
+ *  the pocket is the baker's decision, never the box's, for the same reason
+ *  the box does not parse PDB.
  * ============================================================================= */
 (function (global) {
   'use strict';
@@ -85,6 +94,31 @@
   const RIB = { C: 0x7d8c7a, H: 0x0042aa, E: 0xc2571b };
   const SES_COLOUR = 0xdfe4ee;
 
+  /* ---- BALL-AND-STICK, FOR THE FEW ATOMS THAT EARN IT ----
+
+     A ribbon is what a protein is drawn as; these are the proportions for the
+     handful of atoms drawn INSIDE one — a heme, what is bound to its iron, the
+     one or two side chains a bench is about. 43 atoms is a shape you can read
+     at 10 A across, which is exactly what 150 residues of the same treatment
+     is not, and it is how every published figure draws a porphyrin.
+
+     SMALLER BALLS AND FATTER STICKS THAN A CLOSE-UP, deliberately, and this is
+     the part that is easy to get wrong from the outside. The subject is the
+     group's SHAPE seen from across a 40 A protein, not its volume: BALL shrinks
+     the house radii so a porphyrin reads as a ring rather than a clump of
+     touching spheres, and STICK is more than twice the house ratio because at
+     that distance the house width comes out about a pixel — a cobweb, not a
+     bond. They are set independently, since one is set by how far away the bond
+     is seen from and the other by how much volume the ring should have.
+
+     FE_BALL is a MULTIPLE of the shrunk carbon, never an absolute, so the iron
+     stays the biggest atom in the group at any size the rest is drawn at.
+
+     Judge them at a whole-protein framing, never zoomed in. */
+  const BALL = 0.72;         // × the house display radius
+  const FE_BALL = 2.7;       // × the shrunk carbon, for a metal
+  const STICK = 0.36;        // × the FULL carbon radius; the house ratio is 0.165
+
   let sesOwner = null;              // the one box holding a decoded surface
 
   /* Checked rather than assumed: a library that is not there yet shows up as an
@@ -93,11 +127,24 @@
      global lexical scope, which is where ribbon.js's `const RibbonLib` lives:
      it is never a property of window, so `global.RibbonLib` would say missing
      on a page that has it. */
+  /* PDB writes elements in upper case ('FE'); PALETTE keys them the way the
+     periodic table does ('Fe'). One spelling in, one lookup out — without this
+     an iron silently falls through to the default grey, which reads as a
+     rendering choice rather than as a missing key. */
+  function norm(el) {
+    if (!el) return 'C';
+    return el.length > 1 ? el[0].toUpperCase() + el.slice(1).toLowerCase()
+                         : el.toUpperCase();
+  }
+
   function missing() {
     const gaps = [];
     if (typeof THREE === 'undefined') gaps.push('three.min.js');
     if (typeof Stage === 'undefined') gaps.push('lib/scene.js');
     if (typeof CardStage === 'undefined') gaps.push('kit/card-stage.js');
+    /* Only setPocket reads it, but a box created without it fails at the
+       click rather than at load, which is the harder failure to place. */
+    if (typeof MolLib === 'undefined') gaps.push('lib/molecules.js');
     if (typeof RibbonLib === 'undefined') gaps.push('folding/ribbon.js');
     return gaps;
   }
@@ -168,6 +215,11 @@
        which is what makes drawing them from two frames legal. */
     const chainGroup = new THREE.Group();
     const foldGroup = new THREE.Group();
+    /* Inside the chain group, not beside it: a pocket is measured in the same
+       ångströms as the trace and has to wear the same presentation `view`, or
+       a heme keeps the crystal's orientation while the protein turns. */
+    const pocketGroup = new THREE.Group();
+    chainGroup.add(pocketGroup);
     box.root.add(chainGroup, foldGroup);
 
     /* ---- the ribbon ----
@@ -187,6 +239,11 @@
       o = o || {};
       const mine = ++generation;
       chainGroup.clear();
+      /* The pocket belongs to the structure that was just replaced, so it goes
+         with it — cleared and re-parented empty rather than left holding the
+         previous molecule's heme inside the next one's ribbon. */
+      pocketGroup.clear();
+      chainGroup.add(pocketGroup);
       const ids = (o.chains || opts.chains)
         ? String(o.chains || opts.chains).split(',') : t.order.slice();
 
@@ -468,14 +525,82 @@
        which is the whole reason the box is shared: the reader's viewpoint
        survives the switch instead of snapping back on every click. */
     box.setData = setData;
-    /* THE STRUCTURE'S OWN FRAME, for anything else measured in the same
-       ångströms: a heme, a bound ligand, the one side chain a bench is about.
-       It is the chain group and not `root`, because the presentation `view` is
+
+    /* ---- setPocket(pocket) ----
+
+       The few atoms drawn INSIDE the ribbon, ball-and-stick, in the
+       structure's own frame:
+
+         box.setPocket({ atoms:[{el, p:[x,y,z]}], bonds:[[i,j]] })
+
+       exactly the shape a baker writes beside the trace. Coordinates go in as
+       baked — centred with the trace by the same vector — because the box owns
+       the centring and a group centred on itself lands at the origin with the
+       protein somewhere else.
+
+       WHAT IS IN THE POCKET IS NOT THE BOX'S BUSINESS, the same refusal it
+       makes about parsing: which residues, which ligand names count, whether a
+       cross-residue bond is kept. Those decide what the picture CLAIMS, and a
+       page that owns a protein owns them. What is shared is how they are drawn.
+
+       SPLIT STICKS, each half in its own atom's colour — the structure style
+       every published figure uses, and the right one here for the reason
+       Modules.md gives: these are deposited coordinates with no spec and often
+       no hydrogens, so the bond does more of the work of saying what the atoms
+       are.
+
+       IT DOES NOT WIDEN THE FRAME. A pocket is inside the protein by
+       definition, so the framing radius stays the ribbon's; letting 43 atoms
+       vote on it would be a bug nobody could see.
+
+       Returns `{group, materials}` — one material per element plus one per
+       bond colour — so a LESSON can fade the group in, tint it, or hide it
+       without the box growing an opinion about timing. Call with no argument
+       to clear. */
+    function setPocket(p) {
+      pocketGroup.clear();
+      if (!p || !p.atoms || !p.atoms.length) return { group: pocketGroup, materials: [] };
+
+      const R = MolLib.PALETTE.radii, C = R.C / MolLib.SCALE;
+      const colourOf = el => MolLib.PALETTE.atoms[el] || 0x888888;
+      const materials = [], byEl = {};
+      const matFor = el => byEl[el] || (byEl[el] = materials[materials.push(
+        new THREE.MeshStandardMaterial({
+          color: colourOf(el),
+          /* A metal is the one atom here that should look like one. */
+          roughness: el === 'Fe' ? .35 : .5, metalness: el === 'Fe' ? .35 : 0,
+        })) - 1]);
+
+      for (const a of p.atoms) {
+        const el = norm(a.el);
+        const r = el === 'Fe' ? BALL * C * FE_BALL
+                              : BALL * ((R[el] || R.C) / MolLib.SCALE);
+        const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), matFor(el));
+        m.position.set(a.p[0], a.p[1], a.p[2]);
+        pocketGroup.add(m);
+      }
+
+      const A = new THREE.Vector3(), B = new THREE.Vector3();
+      for (const [i, j] of p.bonds || []) {
+        const a = p.atoms[i], b = p.atoms[j];
+        if (!a || !b) continue;
+        A.set(a.p[0], a.p[1], a.p[2]); B.set(b.p[0], b.p[1], b.p[2]);
+        const g = Stage.bondSplit(A, B, colourOf(norm(a.el)), colourOf(norm(b.el)),
+                                  C * STICK);
+        g.traverse(o => { if (o.material && !materials.includes(o.material)) materials.push(o.material); });
+        pocketGroup.add(g);
+      }
+      box.draw();
+      return { group: pocketGroup, materials };
+    }
+    box.setPocket = setPocket;
+
+    /* THE STRUCTURE'S OWN FRAME, for anything setPocket does not cover. It is
+       the chain group and not `root`, because the presentation `view` is
        applied here — a ligand parented to root would keep the crystal's
        orientation while the protein turned, and land in the right place only
-       for a trace that happened to earn no view. The ribbon clears this group
-       on every setData, so a caller re-adds after it. Coordinates go in
-       exactly as the bake writes them; the box owns the centring. */
+       for a trace that happened to earn no view. Cleared on every setData, so
+       a caller re-adds after it. */
     box.group = chainGroup;
     Object.defineProperty(box, 'rep', { get: () => rep });
     return box;
