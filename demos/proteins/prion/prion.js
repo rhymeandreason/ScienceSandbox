@@ -718,7 +718,57 @@ const PrionLib = (function () {
     return { vec: v, val: [a[0][0], a[1][1], a[2][2]] };
   }
 
-  return { parse, ss, internals, rebuild, morph, ca,
+  /* ------------------------------------------------------------------ trace
+   *
+   *  Reduced PDB text -> the shape kit/proteinbox.js draws, the same one
+   *  tools/bake-trace.js writes: {order, chains:{first, nums, CA, ss}}.
+   *
+   *  It lives here rather than on a page because it is a PARSE, and the two
+   *  traps in it are the kind that ship looking fine:
+   *
+   *  CHAIN-AWARE FIRST. `parse` keys residues by number alone, which is right
+   *  for one chain and silently wrong for ten — chain B's residue 180
+   *  overwrites chain A's, and a ten-rung stack comes back as one rung wearing
+   *  the last chain's coordinates. So the chains are separated before parse
+   *  ever sees them, and each carries the file's own HELIX/SHEET records,
+   *  because every rung is the same conformation.
+   *
+   *  BOTH RECORD TYPES. A native PrP has three helices AND a two-strand sheet,
+   *  so assigning only helices would draw the native β-sheet as coil — and
+   *  that sheet is exactly what the fibril claims to extend.
+   *
+   *  Two readers now: the bench, and the gallery card. A second copy of this
+   *  in a page is how the chain-aware rule gets lost. */
+  function trace(text) {
+    const recs = [], byChain = new Map();
+    for (const line of text.split('\n')) {
+      if (line.startsWith('SHEET') || line.startsWith('HELIX')) { recs.push(line); continue; }
+      if (!line.startsWith('ATOM')) continue;
+      const c = line[21];
+      if (!byChain.has(c)) byChain.set(c, []);
+      byChain.get(c).push(line);
+    }
+
+    const out = { order: [], chains: {} };
+    for (const [c, atoms] of [...byChain.entries()].sort()) {
+      const p = parse(recs.concat(atoms).join('\n'));
+      const R = p.residues.filter(r => r.atoms.CA);
+      if (!R.length) continue;
+      const n = R.length, first = R[0].num;
+      const letters = ss(n, first, p.helices, 'H');
+      const e = ss(n, first, p.sheets, 'E');
+      for (let i = 0; i < n; i++) if (e[i] === 'E') letters[i] = 'E';
+      out.order.push(c);
+      out.chains[c] = {
+        first, nums: R.map(r => r.num), CA: R.map(r => r.atoms.CA),
+        ss: letters.join(''), helices: p.helices.length, strands: p.sheets.length,
+        parsed: p,
+      };
+    }
+    return out;
+  }
+
+  return { parse, trace, ss, internals, rebuild, morph, ca,
            bondLengths, disulfide, clashes, rmsd, kabsch, ccd,
            _v3: v3, _place: place, _dihedral: dihedral, _lerpAngle: lerpAngle };
 })();

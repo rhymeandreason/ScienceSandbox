@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proteins — what the repo holds</title>
+
+<!-- ===================================================================
+     THE COLLECTION, AS A COLLECTION. One card per protein in
+     proteins/proteins.js: the structure it opens on, turning, and what
+     we have of it.
+
+     EVERYTHING ON A CARD IS READ FROM THE REGISTRY. The name, the blurb
+     and each variant's purpose are a human's; the method, the species,
+     the residue counts are the baker's, rewritten on every re-bake. This
+     page types none of it — which is the point of the registry, and the
+     reason a card cannot go stale against the files it describes.
+
+     IT IS NOT A LESSON AND NOT A BENCH. A bench is where a human decides
+     which structures earn a place; this is what that decision left, laid
+     out so the collection can be seen at once. `AddingAProtein.md` is the
+     workflow either end of it.
+
+     CONTEXTS ARE RATIONED, NOT COUNTED (ConceptMap.md invariant 1):
+     browsers cap WebGL contexts near 8-16 and drop the OLDEST with no
+     error, so the boxes come out of a CardStage pool and a card that
+     loses its box keeps the last frame it drew. Three proteins fit inside
+     the cap today; the tenth would not, and the pool is why nobody will
+     find that out from a blank card.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../kit/proteinbox.css">
+
+<style>
+  /* A gallery, not a bench: `protein-test.css` is the two-column stage and
+     reading column a bench wears, and none of it fits a grid of cards. Every
+     size, weight and colour here is a main.css token. */
+  body{background:var(--paper);color:var(--ink);
+    font-family:var(--font-sans);line-height:var(--leading-body)}
+  .wrap{max-width:1180px;margin:0 auto;padding:var(--space-7) var(--space-5)}
+
+  header{margin-bottom:var(--space-6)}
+  h1{font-family:var(--font-editorial);font-size:var(--text-3xl);
+    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
+    line-height:var(--leading-tight);margin:0}
+  .deck{font-family:var(--font-editorial);font-size:var(--text-lg);
+    color:var(--muted);line-height:var(--leading-snug);
+    margin:var(--space-2) 0 0;max-width:52ch}
+  /* The tally is counted from the registry at render, so it cannot drift from
+     the cards under it — the one number on this page most likely to be typed
+     and then quietly falsified by a fourth protein. */
+  .tally{font-size:var(--text-xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;color:var(--muted);
+    font-weight:var(--weight-semibold);margin:var(--space-4) 0 0}
+
+  .grid{display:grid;gap:var(--space-5);
+    grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+
+  .card{background:var(--surface-card);border:1.5px solid var(--hair);
+    border-radius:var(--radius-md);overflow:hidden;
+    display:flex;flex-direction:column}
+  /* The stage is the top of the card and has a fixed height: a grid whose
+     rows are sized by their 3D box is a grid that reflows while the boxes
+     fit, and every card jumps. */
+  .stage{position:relative;height:230px;background:var(--paper);
+    border-bottom:1.5px solid var(--hair)}
+  .body{padding:var(--space-4);display:flex;flex-direction:column;flex:1}
+
+  .name{font-family:var(--font-editorial);font-size:var(--text-xl);
+    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
+    margin:0}
+  .blurb{font-size:var(--text-sm);color:var(--muted);
+    line-height:var(--leading-snug);margin:var(--space-2) 0 var(--space-3)}
+
+  /* The default variant's own line: what the box above is showing. */
+  .showing{font-size:var(--text-xs);color:var(--muted);
+    margin:0 0 var(--space-3);font-variant-numeric:tabular-nums}
+  .showing b{color:var(--ink);font-weight:var(--weight-semibold)}
+
+  .facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 var(--space-3)}
+  .fact{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;font-weight:var(--weight-semibold);
+    padding:2px 7px;border-radius:var(--radius-pill);
+    background:rgba(0,0,0,.05);color:var(--muted)}
+  /* MEASURED AND PREDICTED MUST NOT READ ALIKE. Nothing here is predicted
+     yet, and the day one is, it says so in the loudest chip on the card
+     rather than in a field a reader has to go looking for. */
+  .fact.predicted{background:rgba(179,48,12,.14);color:#8f2708}
+
+  h2{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;color:var(--muted);
+    font-weight:var(--weight-semibold);margin:0 0 var(--space-2)}
+  .vars{list-style:none;margin:0 0 var(--space-4);padding:0;
+    font-size:var(--text-xs);line-height:var(--leading-body)}
+  .vars li{display:flex;gap:var(--space-2);padding:2px 0;
+    border-bottom:1px solid var(--hair)}
+  .vars li:last-child{border-bottom:0}
+  .vars .id{font-family:var(--font-mono);color:var(--muted);
+    flex:none;width:5.5em}
+  .vars li.def .id{color:#3f7abd}
+  .vars li.def{font-weight:var(--weight-semibold)}
+
+  .open{margin-top:auto;display:inline-flex;align-items:center;gap:6px;
+    align-self:flex-start;padding:7px 12px;border-radius:var(--radius-sm);
+    border:1.5px solid var(--hair);background:transparent;color:var(--ink);
+    font-size:var(--text-sm);text-decoration:none;
+    transition:background var(--dur-fast) var(--ease-out)}
+  .open:hover{background:rgba(0,0,0,.035)}
+
+  .note{font-size:var(--text-xs);color:var(--muted);margin:var(--space-6) 0 0;
+    max-width:60ch;line-height:var(--leading-body)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Proteins</h1>
+    <p class="deck">Every structure the repo holds, and what it is for. Each card
+      opens on the variant that protein is indexed by; the bench behind it is
+      where the rest were reviewed.</p>
+    <p class="tally" id="tally">&mdash;</p>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="note">Names, blurbs and purposes are written by hand; methods,
+    chain and residue counts are written by the bakers and rewritten on every
+    re-bake, so nothing on a card can drift from the file it describes.
+    <code>proteins/proteins.js</code> is the registry, and
+    <code>proteins/check-proteins.js</code> is what fails a commit where the two
+    disagree.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../folding/folding.js"></script>
+<script src="../folding/ribbon.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/proteinbox.js"></script>
+<script src="proteins.js"></script>
+<!-- Only for a `pipeline:'pdb'` protein: prion's bakes are reduced PDB text,
+     and PrionLib.trace is the chain-aware parse that turns one into the shape
+     the box draws. A page that copied that parse instead is how the ten-rung
+     stack comes back as one rung wearing the last chain's coordinates. -->
+<script src="prion/prion.js"></script>
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+
+/* THE BENCH PATH IS DERIVED, not stored: every protein's review page is
+   `<dir>/<key>-test.html` and the registry deliberately holds no path — a
+   second copy of a filename is a second thing to rename. */
+const benchOf = p => `${p.key}/${p.key}-test.html`;
+
+/* CONTEXTS ARE RATIONED (ConceptMap.md invariant 1). Four live boxes cost
+   about 4.5 ms a frame against the 16.7 ms a 60 fps budget allows; the tenth
+   protein would be past the browser's cap, where the OLDEST context is dropped
+   with no error and the card that blanks is the one the reader opened first.
+   `onEvict` fires before the destroy, so a card that loses its box keeps the
+   last frame it drew and reads as gone quiet rather than gone. */
+const POOL_LIMIT = 4;
+const pool = CardStage.pool({
+  limit: POOL_LIMIT,
+  onEvict: (key, box) => { const url = box.snapshot && box.snapshot(); still(key, url); },
+});
+
+/* The evicted card's last frame, as a plain image behind the (now empty)
+   mount. Kept rather than cleared because a still protein still says which
+   protein it is. */
+function still(key, url) {
+  const el = document.querySelector(`.stage[data-key="${key}"]`);
+  if (!el || !url) return;
+  el.style.backgroundImage = `url(${url})`;
+  el.style.backgroundSize = 'contain';
+  el.style.backgroundPosition = 'center';
+  el.style.backgroundRepeat = 'no-repeat';
+}
+
+/* One protein's default variant, as chains the box can draw. A trace bake is
+   already that shape; a reduced PDB is parsed by the library that owns it. */
+function load(p) {
+  const v = ProteinLib.defaultOf(p);
+  const url = `${p.key}/data/${v.read.baked}`;
+  if (p.pipeline === 'pdb') {
+    return fetch(url).then(r => r.text()).then(txt => {
+      const t = PrionLib.trace(txt);
+      /* The registry's frame, applied the way a bake would carry it. */
+      if (p.view && p.view.basis) t.view = p.view.basis;
+      return t;
+    });
+  }
+  return fetch(url).then(r => r.json());
+}
+
+/* Everything printed below is counted or read, never typed here. */
+function card(p) {
+  const v = ProteinLib.defaultOf(p), r = v.read;
+  const el = document.createElement('article');
+  el.className = 'card';
+
+  const pct = r.declared ? Math.floor(100 * r.residues / r.declared) : null;
+  const facts = [
+    v.species,
+    r.method,
+    r.declared ? `${r.residues} of ${r.declared} residues` : `${r.residues} residues`,
+    pct !== null && pct < 100 ? `fragment · ${pct}%` : null,
+    r.chainsInFile > 1 ? `${r.chainsInFile} chains in the entry` : null,
+  ].filter(Boolean);
+
+  el.innerHTML = `
+    <div class="stage" data-key="${p.key}"></div>
+    <div class="body">
+      <h3 class="name"></h3>
+      <p class="blurb"></p>
+      <p class="showing">showing <b></b> &mdash; <span class="purpose"></span></p>
+      <div class="facts"></div>
+      <h2>${p.variants.length} structure${p.variants.length === 1 ? '' : 's'}</h2>
+      <ul class="vars"></ul>
+      <a class="open" href="${benchOf(p)}">open the bench &rarr;</a>
+    </div>`;
+
+  el.querySelector('.name').textContent = p.name;
+  el.querySelector('.blurb').textContent = p.blurb;
+  el.querySelector('.showing b').textContent = v.source.id;
+  el.querySelector('.purpose').textContent = v.purpose;
+
+  const fx = el.querySelector('.facts');
+  for (const f of facts) {
+    const s = document.createElement('span');
+    /* The one chip that is allowed to shout. A predicted structure is a
+       different KIND of claim from a measured one, and a gallery that lets the
+       two read alike will eventually show a student a guess as a fact. */
+    s.className = 'fact' + (f === 'predicted' ? ' predicted' : '');
+    s.textContent = f;
+    fx.appendChild(s);
+  }
+
+  const list = el.querySelector('.vars');
+  for (const w of p.variants) {
+    const li = document.createElement('li');
+    if (w.default) li.className = 'def';
+    const id = document.createElement('span');
+    id.className = 'id'; id.textContent = w.source ? w.source.id : w.id;
+    const what = document.createElement('span');
+    what.textContent = w.purpose;
+    li.append(id, what);
+    list.appendChild(li);
+  }
+  return el;
+}
+
+const grid = $('grid');
+for (const p of ProteinLib.PROTEINS) grid.appendChild(card(p));
+
+/* The tally, counted at render. `entries` is smaller than `variants` wherever a
+   protein holds two cuts of one deposition — prion's stack is 6LNI drawn whole
+   — and saying both is what keeps "17 structures" from reading as 17 downloads. */
+const variants = ProteinLib.PROTEINS.reduce((k, p) => k + p.variants.length, 0);
+const entries = new Set(ProteinLib.PROTEINS.flatMap(p =>
+  p.variants.map(v => p.key + ':' + (v.source ? v.source.id : v.id)))).size;
+$('tally').textContent =
+  `${ProteinLib.PROTEINS.length} proteins · ${variants} structures · ` +
+  `${entries} depositions`;
+
+/* A BOX IS ACQUIRED WHEN ITS CARD IS SEEN, and re-acquired on a click, because
+   acquire is also bring-to-front: a card already live must re-acquire or the
+   one being looked at is the next evicted. A zero-sized mount is never handed
+   to a box — Stage.frame bails on a missing aspect and leaves THREE's
+   constructor frustum, a 30 Å protein in a 2 Å frame. */
+const io = new IntersectionObserver(entriesSeen => {
+  for (const e of entriesSeen) {
+    if (!e.isIntersecting) continue;
+    open(e.target.dataset.key, e.target);
+  }
+}, { rootMargin: '200px' });
+
+const traces = {};                       // key -> the loaded chains
+
+function open(key, mount) {
+  if (!mount.clientWidth || !mount.clientHeight) return;
+  const p = ProteinLib.byKey(key);
+  const draw = t => {
+    mount.style.backgroundImage = '';    // the still gives way to the live box
+    pool.acquire(key, () => Proteinbox.create({
+      mount, orbit: true, pad: 1.15, sub: 8,
+      /* Perspective and trackball, matching the benches: a card here is a
+         thumbnail a reader is invited to turn, and the turntable's pitch clamp
+         runs out exactly where someone looks at the top of a molecule.
+
+         `zoom:false` GIVES THE WHEEL BACK TO THE PAGE. On a bench the wheel is
+         the reader's zoom and the canvas is the whole stage; on a gallery it is
+         how they get down the grid, and a card that swallows it traps the
+         scroll under the pointer. Dragging still turns the molecule. */
+      stage: { ortho: false, turn: 'trackball', zoom: false },
+      data: t,
+    }));
+    /* THE POCKET, where a protein has one. Myoglobin without its heme is the
+       container drawn and the subject left out — and this is the card the
+       collection is indexed by, so it has to show what the protein is FOR.
+       Fed after the box exists; the box owns how it is drawn. */
+    const box = pool.get && pool.get(key);
+    if (box && box.setPocket && t.pocket) box.setPocket(t.pocket);
+  };
+  if (traces[key]) draw(traces[key]);
+  else load(p).then(t => { traces[key] = t; draw(t); })
+    .catch(e => console.warn(`gallery: ${key} — ${e.message}`));
+}
+
+/* THE FIRST FEW OPEN ON LOAD, and the rest wait to be seen. Two reasons, and
+   the second is the one that bites: the cards above the fold should be turning
+   when the page arrives rather than popping in behind an observer, and a
+   document that is never visible — a background tab, a thumbnail capture, an
+   automated screenshot — gets no intersection callbacks at all, so a gallery
+   that waited for one would render a grid of empty frames and look broken to
+   exactly the readers who cannot tell it apart from a bug. */
+const stages = [...document.querySelectorAll('.stage')];
+stages.forEach((el, i) => {
+  if (i < POOL_LIMIT) open(el.dataset.key, el);
+  io.observe(el);
+  el.addEventListener('pointerdown', () => open(el.dataset.key, el));
+});
+</script>
+</body>
+</html>
