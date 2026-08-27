@@ -1646,7 +1646,15 @@ function start() {
 }
 
 document.getElementById('reset').addEventListener('click', start);
-start();
+/* NOT when `?q=` is going to rebuild it. The query needs the vectors and a
+   round trip, so start() would compose the water door first and swap it out a
+   second later — which reads as an answer, not as loading. An empty canvas with
+   the question already in the box reads as what it is.
+
+   `new URLSearchParams` inline rather than the const the composer block below
+   declares: this line runs before that block initializes, and touching the
+   binding here is the dead-zone throw that takes the page down. */
+if (!new URLSearchParams(location.search).get('q')) start();
 
 /* =======================================================================
    The composer — a typed question, resolved to a node on this map.
@@ -1843,6 +1851,16 @@ const NEARABS = 0.83;   // no module below this, however many rows name it
 const NEARSOLO = 0.87;  // ...unless one row is this close, which stands alone
 const NEARK = 8;        // how deep to read for discovered modules
 
+/* Read and shown SYNCHRONOUSLY, before any await below: the map is deliberately
+   empty until the query resolves, and an empty map with an empty box is a page
+   that looks broken for the second it takes.
+   `getElementById` and not `askEl`, which is declared further down this same
+   block — a const is in the dead zone until its own line runs, so touching it
+   from above throws at load and takes the whole page with it. Third time this
+   file has been bitten by that; see invariant 14. */
+const ASKED_URL = new URLSearchParams(location.search).get('q');
+if (ASKED_URL) document.getElementById('ask').value = ASKED_URL;
+
 const VEC = { by: null, key: null, online: false };
 
 /* The tutor's visitor id, on purpose: same key, same uuid, so a reader is one
@@ -1893,9 +1911,17 @@ const VISITOR = (() => {
      Run here rather than at load because it needs the vectors: before they
      land, the same query goes through the lexical fallback and opens something
      worse, which would be judging the idea on the wrong scorer. */
-  const asked = new URLSearchParams(location.search).get('q');
+  const asked = ASKED_URL;
   if (asked) {
-    askEl.value = asked;
+    /* Start over goes back to the QUERY, not to the water door. Arriving on a
+       saved query makes that query the starting point, and sending a reader who
+       bookmarked the carbon door back to water is the door still being a node
+       in the one place it should not be. Swapped rather than added, or both
+       would fire. */
+    const reset = document.getElementById('reset');
+    reset.removeEventListener('click', start);
+    reset.addEventListener('click', () => { location.href = location.href; });
+
     const found = await search(asked);
     hits = found.hits; near = found.near;
     const card = cardNamed(asked);

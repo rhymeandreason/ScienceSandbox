@@ -113,7 +113,9 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 13. **The asked card is a root and never a wave.** Its links make it a genuine neighbour of every module it reached, so `start()` will otherwise deal the reader's last question into the door's own map as though someone had authored it. Filtered in `expand()`, because every path that reveals a card goes through that one.
 
-14. **`expand()` runs before the page's own additions exist.** `start()` is called at the bottom of the map's script, so anything appended below it has NOT initialized yet. Invariant 13's filter tests a PROPERTY (`!m.ask`) and not the `ASKED` binding for exactly this reason: touching that `const` from `expand()` is a temporal-dead-zone throw during load, which aborts the whole script and leaves the page blank with one error. Same shape as the `draw()` collision in 12 — appending to a copy of door-map is when both happen.
+14. **Declaration order inside the composer's own block bites too.** Invariant 14's dead-zone throw is not only about `start()` calling into the block from above: the block is ~500 lines and a `const` near its top touching one declared near its bottom is the same throw, with the same symptom — a blank page and one error, because the script aborts and nothing after the throwing line initializes. It has happened three times in this file (`ASKED`, `ASKED_URL`, and `expand()`'s filter). `document.getElementById` costs a lookup and has no dead zone.
+
+15. **`expand()` runs before the page's own additions exist.** `start()` is called at the bottom of the map's script, so anything appended below it has NOT initialized yet. Invariant 13's filter tests a PROPERTY (`!m.ask`) and not the `ASKED` binding for exactly this reason: touching that `const` from `expand()` is a temporal-dead-zone throw during load, which aborts the whole script and leaves the page blank with one error. Same shape as the `draw()` collision in 12 — appending to a copy of door-map is when both happen.
 
 ## **Card kinds**
 
@@ -252,6 +254,8 @@ Measured, one link per door:
 | energy | Glycolysis | 1/1 |
 
 Water lands on the same three cards `start()` composes, which is the result that matters. The doors that pull in other doors' modules are doing the right thing rather than leaking: base pairing IS hydrogen bonding, and folding IS the hydrophobic effect, so a crossing at the opening frame is the map making its own argument. `energy` opens thin because that door has one module, which is content and not mechanism.
+
+**`start()` does not run when `?q=` is present.** The query needs the vectors and a round trip, so composing the water door first and swapping it out a second later reads as an answer rather than as loading. The canvas stays empty and the box carries the question from the first paint, which reads as what it is. **Start over** then reloads the query rather than opening the water door — arriving on a saved query makes that query the starting point, and sending a reader who bookmarked the carbon door back to water is the door still being a node in the one place it should not be.
 
 **A door's question now has to RETRIEVE as well as read**, which is a constraint a door that was only a node never had. `What decides which things get into a cell?` opens the PROTEIN door: `cell` collides with *"Why does one wrong amino acid sickle a whole cell?"* at 0.863, and two separate phrasings using the word did it. `membrane` does not collide. Write a door's question against the corpus, not against the ear.
 
