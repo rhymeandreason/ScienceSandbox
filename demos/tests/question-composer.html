@@ -534,21 +534,8 @@
     font-family: var(--serif); font-size: 1.32rem; line-height: 1.16;
     letter-spacing: -0.015em;
   }
-  /* Under the sentence, like the title's `pondering…`. A real element rather
-     than `::after`, because the mapping line has to come after IT and generated
-     content always renders last. */
-  .node.question.asked .said {
-    display: block; margin-top: 0.7rem;
-    font-family: var(--sans); font-size: 0.58rem; font-weight: 500;
-    letter-spacing: 0.22em; text-transform: uppercase; color: var(--spark);
-  }
-  .node.question.asked .as {
-    display: block; margin-top: 0.5rem;
-    font-family: var(--ui); font-size: 0.72rem; line-height: 1.4; color: var(--muted);
-  }
   .node.question.asked:hover { background: var(--paper); }
   .node.question.asked.hub > span:first-child { font-size: 2rem; line-height: 1.14; }
-  .node.question.asked.hub .said { font-size: 0.64rem; }
 
   /* A discovered edge is dashed, and an authored one is not. Both come off the
      same card, so the line is the only thing saying which is which. */
@@ -1237,19 +1224,14 @@ function paintNode(n) {
                    '<div class="meta"></div>';
   } else if (n.ask) {
     /* textContent and not innerHTML: this text is typed by the reader. */
+    /* The sentence and nothing else. A label saying "you asked" over the
+       reader's own words tells them what they already know, and printing the
+       authored question the map matched put a second sentence on a card whose
+       whole job is to carry one. */
     el.className = 'node question asked';
     const mine = document.createElement('span');
     mine.textContent = n.text;
-    const label = document.createElement('span');
-    label.className = 'said';
-    label.textContent = 'you asked';
-    el.append(mine, label);
-    if (n.said) {
-      const as = document.createElement('span');
-      as.className = 'as';
-      as.textContent = 'the map words it as \u201c' + n.said + '\u201d';
-      el.append(as);
-    }
+    el.append(mine);
   } else {
     el.className = 'node question';
     el.innerHTML = '<span>' + n.text + '</span>';
@@ -1842,7 +1824,7 @@ function openFrom(q) {
    match explains what the map already answers, and the discovered edges are
    where this particular wording pulls that the authored one does not. */
 
-const ASKED = { id: 'asked', kind: 'question', ask: true, text: '', said: null, deg: 0 };
+const ASKED = { id: 'asked', kind: 'question', ask: true, text: '', deg: 0 };
 byId.asked = ASKED;
 nodes.push(ASKED);
 
@@ -1894,7 +1876,6 @@ function openAsk(text, best, near) {
   for (const { m } of near) links.push({ a: m, b: ASKED, rank: 1, near: true });
 
   ASKED.text = text;
-  ASKED.said = best && best.text !== text ? best.text : null;
   ASKED.deg = neighbours(ASKED).length;
   if (ASKED.deg) openFrom(ASKED);
   return ASKED.deg;

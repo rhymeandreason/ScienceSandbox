@@ -259,7 +259,9 @@ Water lands on the same three cards `start()` composes, which is the result that
 
 **The title and the root card are ONE IDEA AT TWO SIZES.** Both are the reader's question, so both wear the same treatment: serif, left aligned, no box, a small spark label under the sentence. They differ in scale and in what the label says — `pondering…` while it works, `you asked` once it has. Arriving at the map reads as the sentence taking its place rather than as a second thing replacing it.
 
-The card sits on `--paper` with no border, because it is the reader's own words and not something the map holds; the fill is there only to mask the edges passing behind it. The label is a real element rather than `::after`, since the *"the map words it as …"* line has to come after it and generated content always renders last.
+The card sits on `--paper` with no border, because it is the reader's own words and not something the map holds; the fill is there only to mask the edges passing behind it.
+
+**The card carries the sentence and nothing else.** No `you asked` label, because it tells the reader what they already know, and no line printing the authored question the match landed on, because that put a second sentence on a card whose whole job is to carry one. Which question the map matched is still what every edge off the card is drawn from; it just does not need saying in words.
 
 **No card is drawn during the intro.** The title on the left IS the question for that second, and drawing the card beside it says the same sentence twice. It arrives with the rest of the graph, off to the right, and the drift is what introduces it.
 
