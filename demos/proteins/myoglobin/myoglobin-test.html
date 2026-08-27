@@ -102,11 +102,16 @@
       <tr><td>iron to ligand</td><td id="d-fe">&mdash;</td></tr>
       <tr><td>iron out of plane</td><td id="d-oop">&mdash;</td></tr>
       <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
-      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+      <tr><td>frame</td><td id="d-view">&mdash;</td></tr>
+      <tr><td>backbone vs deoxy</td><td id="d-ca">&mdash;</td></tr>
     </table>
 
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">Every view is superposed on deoxy (1BZP) by its heme, matched
+      atom by atom, so flipping between states moves only what actually moved.
+      Seven crystals otherwise means seven arbitrary orientations, and the
+      molecule jumps on every click.</p>
     <p class="note">Ribbon colour is secondary structure, the repo default. The
       pocket is drawn ball-and-stick: the heme with its iron in rust, whatever
       is bound to it, and the two histidines — proximal below the ring, distal
@@ -115,8 +120,8 @@
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
     <p class="note" id="pick-note">Turn the molecule, then copy. Prints the basis
       the structure would need to open facing this way. Myoglobin is a bundle
-      whose three axes are too close together to solve, so every view here opens
-      in the file's own frame until someone picks one.</p>
+      whose three axes are too close together to solve, so the reference opens in
+      its own file's frame and every other view is fitted onto that.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -318,7 +323,16 @@ function show(id) {
   $('d-fe').classList.toggle('flag', s.feBroken);
   $('d-oop').textContent = s.oop;
   $('d-ext').textContent = s.ext;
-  $('d-view').textContent = t.frame;
+  /* WHERE THE FRAME CAME FROM, and how well it was put there. `deposited`
+     would be a half-truth now: the file's own orientation is the reference's
+     only, and every other view is a fit onto it whose residual belongs beside
+     the claim it supports. */
+  $('d-view').textContent = m.fitOn
+    ? `superposed on ${m.fitOn} · heme ${m.fitRmsd.toFixed(2)} Å over ${m.fitAtoms} atoms`
+    : 'the reference · this file’s own frame';
+  $('d-ca').textContent = m.caRmsd === null
+    ? (m.fitOn ? 'numbering not comparable' : '—')
+    : `${m.caRmsd.toFixed(2)} Å RMSD`;
   $('d-prov').textContent = m.prov;
 
   $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;

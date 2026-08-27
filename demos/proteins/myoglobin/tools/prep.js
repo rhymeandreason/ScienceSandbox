@@ -40,6 +40,22 @@
  *        https://files.rcsb.org/download/$id.pdb
  *    done
  *
+ *  EVERY VIEW IS SUPERPOSED ON 1BZP, and it has to be. Seven files are
+ *  seven crystals, so seven arbitrary orientations: flipping between them
+ *  in one camera made the whole molecule jump, and a reader comparing an
+ *  empty site with an occupied one cannot tell a real change from the
+ *  crystallographer's choice of origin. The fit is Kabsch on the HEME,
+ *  matched by atom name — not on the Ca trace, because the trace cannot
+ *  match haemoglobin's beta chain to a whale's myoglobin (different
+ *  numbering, different length) and because the pocket is what this bench
+ *  is about: aligning on the ring puts the iron in the same place in every
+ *  view, so what moves on screen is what actually moved.
+ *
+ *  The Ca RMSD against the reference is measured too and printed in the
+ *  panel, but only where the numbering is comparable — the whale and horse
+ *  files share it, haemoglobin does not, and a number computed across that
+ *  gap would be a fabricated comparison rather than a poor one.
+ *
  *  CONNECTIVITY IS DEPOSITED, NEVER INFERRED, for everything that comes
  *  off a HETATM: every one of these files CONECTs its heme, and a
  *  distance cutoff wide enough for the 2.0 A Fe-N coordination also
@@ -54,6 +70,7 @@
 const fs = require('fs');
 const path = require('path');
 const FoldLib = require('../../../folding/folding.js');
+const { kabsch, mul } = require('../../../sickle/tools/bake-sickle.js');
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
@@ -214,7 +231,30 @@ function pocket(text, chain, want) {
 
 /* ---- one view --------------------------------------------------------- */
 
-function bake(v) {
+/* THE REFERENCE FRAME: 1BZP's heme, by atom name.
+
+   Deoxy is the reference rather than one of the bound states because it is
+   the one every other view is a change FROM — the empty site is where the
+   comparison starts — and because choosing an occupied one would put the
+   ligand of that file at the origin of the comparison it is supposed to be
+   one side of. */
+const REF = '1BZP';
+
+/* Matched pairs, by name, between two atom lists. Names are unique inside a
+   heme, which is what makes this a match and not a guess; anything present
+   in one file and not the other simply drops out, and the count is printed
+   so a fit made on too few atoms is visible rather than silent. */
+function matchByName(a, b) {
+  const idx = new Map(b.map(x => [x.name, x.p]));
+  const P = [], Q = [];
+  for (const x of a) {
+    const q = idx.get(x.name);
+    if (q) { P.push(x.p); Q.push(q); }
+  }
+  return { P, Q };
+}
+
+function bake(v, ref) {
   const text = fs.readFileSync(v.file.includes(path.sep) ? v.file
                                                          : path.join(SRC, v.file), 'utf8');
   const chain = v.chains;
@@ -233,10 +273,31 @@ function bake(v) {
 
   const site = pocket(text, chain, v.pocket);
 
-  /* ONE CENTRE FOR BOTH. The trace decides it — the ribbon is what the box
-     frames — and the pocket is moved by the same vector so the iron stays
-     where the protein put it. */
-  const c = [0, 1, 2].map(k => res.reduce((s, r) => s + r.p[k], 0) / res.length);
+  /* SUPERPOSE BEFORE CENTRING, in the crystal's own coordinates, because
+     the fit is a rotation about the reference's origin and centring first
+     would fit the two structures' centroids to each other instead. Applied
+     to the trace and the pocket alike — they are one object. */
+  let fit = null;
+  if (ref && site) {
+    const heme = x => x.filter(a => a.group === 'heme');
+    const { P, Q } = matchByName(heme(site.atoms), heme(ref.atoms));
+    if (P.length >= 3) {
+      const k = kabsch(P, Q);
+      fit = { rmsd: k.rmsd, n: P.length };
+      const put = p => mul(k.R, p).map((x, i) => x + k.t[i]);
+      for (const a of site.atoms) a.p = put(a.p);
+      for (const r of res) r.p = put(r.p);
+    }
+  }
+
+  /* ONE CENTRE FOR BOTH, AND ONE CENTRE FOR ALL SEVEN. The trace decides
+     it — the ribbon is what the box frames — and the pocket is moved by the
+     same vector so the iron stays where the protein put it. The REFERENCE's
+     centre is what every superposed view then uses: centring each on its own
+     centroid would undo most of the fit that was just made, sliding the
+     structures back apart by the half-ångström their centroids differ by. */
+  const c = ref ? ref.centre
+    : [0, 1, 2].map(k => res.reduce((s, r) => s + r.p[k], 0) / res.length);
   const shift = p => p.map((v2, k) => r2(v2 - c[k]));
 
   const ss = res.map(r => {
@@ -259,6 +320,9 @@ function bake(v) {
   for (const p of out.chains[chain].CA) radius = Math.max(radius, Math.hypot(...p));
   out.radius = r2(radius);
 
+  /* Kept for the next view to fit against: the reference's pocket in its
+     own coordinates, and the centre every view will be moved by. */
+  out.centreRaw = c;
   if (site) out.pocket = {
     atoms: site.atoms.map(a => ({ name: a.name, el: a.el, res: a.res,
                                   group: a.group, p: shift(a.p) })),
@@ -293,14 +357,53 @@ function bake(v) {
     hemeAtoms: site ? site.atoms.filter(a => a.group === 'heme').length : 0,
     bound: bound.length ? bound : null,
     prox: v.pocket.prox, dist: v.pocket.dist,
+    /* How the view was put into the reference's frame, and how well. `fit`
+       is the heme superposition; `caRmsd` is the protein's own difference
+       from the reference, and it is null wherever the numbering is not
+       comparable rather than computed across the gap. */
+    fitOn: ref ? REF : null,
+    fitAtoms: fit ? fit.n : null,
+    fitRmsd: fit ? +fit.rmsd.toFixed(3) : null,
+    caRmsd: null,
   };
+
+  /* The protein's own difference from the reference, once both are in one
+     frame. Only where the numbering means the same thing: the whale and
+     horse files number from the same alignment, haemoglobin's beta chain
+     does not, and residue 45 of one is not residue 45 of the other. Rather
+     than compute a number across that gap and print it as a comparison,
+     this stays null and the panel says the fit was on the heme alone. */
+  if (ref && ref.prox === v.pocket.prox) {
+    let sd = 0, n = 0;
+    out.chains[chain].nums.forEach((num, i) => {
+      const q = ref.ca.get(num);
+      if (!q) return;
+      const p = out.chains[chain].CA[i];
+      sd += (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
+      n++;
+    });
+    if (n) out.meta.caRmsd = +Math.sqrt(sd / n).toFixed(2);
+  }
   return out;
 }
 
 function main() {
   const manifest = {};
+
+  /* TWO PASSES. The reference is baked first, in its own frame and centred
+     on its own trace; every other view is then fitted onto that ALREADY
+     CENTRED copy, so the fit and the centring are one step and no view has
+     to be moved twice. */
+  const refView = VIEWS.find(v => v.id === REF);
+  const refOut = bake(refView, null);
+  const ref = {
+    atoms: refOut.pocket.atoms, centre: [0, 0, 0], prox: refView.pocket.prox,
+    ca: new Map(refOut.chains[refView.chains].nums
+      .map((n, i) => [n, refOut.chains[refView.chains].CA[i]])),
+  };
+
   for (const v of VIEWS) {
-    const out = bake(v);
+    const out = v.id === REF ? refOut : bake(v, ref);
     const file = `mb-${v.id}.json`;
     fs.writeFileSync(path.join(DATA, file), JSON.stringify(out));
     manifest[v.id] = Object.assign({ file, frame: out.frame, extents: out.extents },
@@ -310,7 +413,11 @@ function main() {
       `${out.chains[v.chains].helices} helices, ` +
       `heme ${out.meta.hemeAtoms} atoms, bound ${out.meta.bound || 'nothing'}, ` +
       `pocket ${out.pocket ? out.pocket.bonds.length + ' bonds' : 'none'}, ` +
-      `view ${out.frame}, ${kb} KB`);
+      (out.meta.fitOn ? `fit on ${out.meta.fitOn} ${out.meta.fitRmsd} A over ` +
+        `${out.meta.fitAtoms} heme atoms` +
+        (out.meta.caRmsd === null ? ', Ca not comparable'
+                                  : `, Ca ${out.meta.caRmsd} A`)
+        : 'reference frame') + `, ${kb} KB`);
   }
   fs.writeFileSync(path.join(DATA, 'mb-views.json'),
                    JSON.stringify(manifest, null, 1) + '\n');
