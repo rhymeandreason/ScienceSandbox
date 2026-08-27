@@ -1,3 +1,6 @@
+COMPND   3 CHAIN: A, B, C, D, E, F, G, H, I, J;                                 
+EXPDTA    ELECTRON MICROSCOPY                                                   
+REMARK   2 RESOLUTION.    2.70 ANGSTROMS.                                       
 SEQRES   1 A  210  MET LYS LYS ARG PRO LYS PRO GLY GLY TRP ASN THR GLY          
 SEQRES   2 A  210  GLY SER ARG TYR PRO GLY GLN GLY SER PRO GLY GLY ASN          
 SEQRES   3 A  210  ARG TYR PRO PRO GLN GLY GLY GLY GLY TRP GLY GLN PRO          

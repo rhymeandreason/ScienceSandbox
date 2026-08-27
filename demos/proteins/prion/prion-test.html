@@ -343,7 +343,7 @@ VIEWS.forEach(({ id, native }) => {
     else data.frame = 'deposited';
 
     const first = data.chains[data.order[0]];
-    views[id] = { chains, data, worth: V.worth,
+    views[id] = { chains, data, text: txt, worth: V.worth,
                   color: native ? NATIVE_COLOR : FIBRIL_COLOR,
                   stats: measure(chains, first.ss.split(''), declared) };
     if (view === id) show(id);           // clicked before the fetch landed
@@ -420,10 +420,14 @@ function principal(P) {
    not only a different fold. A fibril rung is one subunit of an assembly, so
    drawing it by itself is drawing a part, and the page should say so on the
    view where it is least obvious. */
-function quaternary(r) {
+/* HOW MANY CHAINS THE ENTRY HAS is the registry's, off the file's own COMPND
+   line; how many are DRAWN is a fact about this view and is counted from what
+   the page just parsed. Reading the second out of an index is what made the
+   ten-rung stack describe itself as one rung. */
+function quaternary(r, drawn) {
   if (r.chainsInFile <= 1) return 'monomer, no quaternary structure';
-  if (r.chainsDrawn >= r.chainsInFile) return `${r.chainsInFile} chains stacked, quaternary`;
-  return `1 of ${r.chainsInFile} chains, a subunit of the fibril`;
+  if (drawn >= r.chainsInFile) return `${r.chainsInFile} chains stacked, quaternary`;
+  return `${drawn} of ${r.chainsInFile} chains, a subunit of the fibril`;
 }
 
 function show(id) {
@@ -443,11 +447,18 @@ function show(id) {
 
   const m = said(id), r = m.read;
   $('d-claim').textContent = SAYS[id].claim;
-  /* No resolution here: this bench's bakes are reduced PDB text with their
-     headers cut away, so REMARK 2 is not in anything the page loads. The
-     method is the registry's and is the honest half of that line. */
-  $('d-meta').textContent = `${m.source.id} · ${r.method}`;
-  $('d-quat').textContent = quaternary(r);
+  /* Resolution off the view file's own REMARK 2, which the baker carries into
+     every cut it writes — the same records that let the registry index this
+     variant on its method and chain count. A reduced file that cannot say what
+     it is would make the registry the source instead of the copy. */
+  const res = (txt => {
+    const l = (txt || '').split('\n').find(x => x.startsWith('REMARK   2 RESOLUTION'));
+    const g = l && l.match(/(\d+\.?\d*)\s*ANGSTROM/);
+    return g ? +g[1] : null;
+  })(on && on.text);
+  $('d-meta').textContent = `${m.source.id} · ${r.method}` +
+    (res ? ` · ${res.toFixed(2)} Å` : '');
+  $('d-quat').textContent = quaternary(r, on.chains.length);
   /* Three states, named by WHERE THE FRAME CAME FROM rather than by how it
      was arrived at. Nothing in a PDB says which way a structure should face:
      what is deposited is the experiment's frame, a crystal's axes or the box

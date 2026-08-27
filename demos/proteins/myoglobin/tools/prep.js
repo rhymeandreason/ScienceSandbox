@@ -297,7 +297,7 @@ function bake(v, ref) {
   out.meta = {
     entry: v.source.id, view: v.id, chain,
     method: Bake.method(text), resolution: Bake.resolution(text),
-    title: Bake.line1(text, 'TITLE'),
+    title: Bake.line1(text, 'TITLE'), chainsInFile: Bake.chainCount(text),
     helices: out.chains[chain].helices, strands: out.chains[chain].strands,
     counts: [{ chain, modelled: res.length,
                declared: decl[chain] === undefined ? null : decl[chain] }],

@@ -1,3 +1,6 @@
+COMPND   3 CHAIN: A;                                                            
+EXPDTA    SOLUTION NMR                                                          
+REMARK   2 RESOLUTION. NOT APPLICABLE.                                          
 SEQRES   1 A  210  GLY SER LYS LYS ARG PRO LYS PRO GLY GLY TRP ASN THR          
 SEQRES   2 A  210  GLY GLY SER ARG TYR PRO GLY GLN GLY SER PRO GLY GLY          
 SEQRES   3 A  210  ASN ARG TYR PRO PRO GLN GLY GLY GLY GLY TRP GLY GLN          

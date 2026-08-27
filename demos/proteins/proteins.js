@@ -21,12 +21,24 @@
  *  residues" without a human ever typing a number that a re-bake could
  *  falsify.
  *
- *  FIVE FIELDS IN `read`, AND NOT SIX. It is an INDEX: what the collection is
- *  listed, sorted and compared on. Everything else a reader wants about one
- *  structure — its resolution, its ligands, the fit residual, the extents —
- *  is in that structure's own bake, beside the coordinates it describes. An
- *  index that carried all of it would be a second copy of every bake, and the
- *  copy that goes stale is always the one further from the data.
+ *  EVERY `read` FIELD IS ALSO IN THE BAKE — that is the invariant the whole
+ *  file rests on. These five are convenience lines printed into an INDEX, so
+ *  the collection can be listed, sorted and compared without opening
+ *  seventeen files; they are never a fact the bake cannot produce. The moment
+ *  one is, the index stops being a copy and becomes a second source, and the
+ *  second source is the one that goes stale. `check-proteins.js` re-derives
+ *  all five from the baked file and fails on a disagreement — including the
+ *  case where the bake cannot answer at all, which is the way this could
+ *  otherwise be broken quietly.
+ *
+ *  It is why the prion baker carries EXPDTA, REMARK 2 and the COMPND chain
+ *  list into every reduced PDB it writes: a cut-down file that cannot say
+ *  which experiment made it, how sharp it is and how many chains its entry
+ *  has is a file this index would have to REMEMBER things for.
+ *
+ *  Everything else a reader wants about one structure — resolution, ligands,
+ *  the fit residual, the extents — stays in that structure's own bake, beside
+ *  the coordinates it describes, and a bench reads it from there.
  *
  *  NO PAGE COPY HERE EITHER. What a structure IS belongs in this file; what a
  *  bench SAYS about it under one particular stage is page copy and lives on

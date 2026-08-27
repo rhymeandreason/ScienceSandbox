@@ -22,6 +22,15 @@
 const fs = require('fs');
 const path = require('path');
 const IO = require('./tools/registry-io.js');
+const { chainsDeclared } = require('./bake-lib.js');
+
+/* SEQRES for chain A — the only reader here that bake-lib does not already
+   export, because a trace bake keeps the number and a reduced PDB keeps the
+   records. */
+const declaredOf = text => {
+  const l = text.split('\n').find(x => x.startsWith('SEQRES') && x[11] === 'A');
+  return l ? parseInt(l.slice(13, 17), 10) : null;
+};
 
 const HERE = __dirname;
 const bad = [];
@@ -54,13 +63,56 @@ for (const p of lib.PROTEINS) {
     const file = path.join(data, r.baked);
     if (!fs.existsSync(file)) { say(`${at}: ${r.baked} is not in ${p.dir}/data`); continue; }
 
-    /* 4. What the bake says about itself matches what the registry asked
-          for. A `pipeline:'pdb'` protein writes coordinates with no meta to
-          read, so only the trace bakes can answer this. */
+    /* 4. EVERY `read` FIELD IS RE-DERIVABLE FROM THE BAKE, and agrees with it.
+          That is the invariant the registry rests on: `read` is a few
+          convenience lines printed into an index, never a fact the bake cannot
+          produce. If it ever holds something the file does not, the file stops
+          being the source and the index becomes a second one — and the second
+          source is the one that goes stale.
+
+          A `pipeline:'pdb'` bake answers in its own records, which is why the
+          prion baker carries EXPDTA, REMARK 2 and the COMPND chain list into
+          every reduced file it writes. */
+    if (p.pipeline === 'pdb') {
+      const text = fs.readFileSync(file, 'utf8');
+      const from = {
+        method: (text.split('\n').find(l => l.startsWith('EXPDTA')) || '')
+          .slice(10).trim().toLowerCase() || null,
+        chainsInFile: chainsDeclared(text),
+        residues: text.split('\n')
+          .filter(l => l.startsWith('ATOM') && l.slice(12, 16).trim() === 'CA').length,
+        declared: declaredOf(text),
+      };
+      for (const k of Object.keys(from))
+        if (r[k] != null && from[k] !== r[k])
+          say(`${at}: registry says ${k} ${JSON.stringify(r[k])}, ` +
+              `${r.baked} says ${JSON.stringify(from[k])}`);
+    }
+
     if (p.pipeline !== 'pdb') {
       let t;
       try { t = JSON.parse(fs.readFileSync(file, 'utf8')); }
       catch (e) { say(`${at}: ${r.baked} is not JSON — ${e.message}`); continue; }
+
+      /* The same invariant for a trace bake, whose meta is where those four
+         were counted. */
+      const meta = t.meta || {};
+      /* Missing is a failure, not a skip: a registry field the bake cannot
+         produce is the invariant breaking quietly, which is the one way this
+         check could be passed by a file that no longer supports it. */
+      for (const k of ['method', 'chainsInFile', 'counts'])
+        if (meta[k] == null) say(`${at}: ${r.baked} has no meta.${k} to check the registry against`);
+      if (r.method != null && meta.method && meta.method !== r.method)
+        say(`${at}: registry says method ${r.method}, bake says ${meta.method}`);
+      if (r.chainsInFile != null && meta.chainsInFile != null &&
+          meta.chainsInFile !== r.chainsInFile)
+        say(`${at}: registry says ${r.chainsInFile} chains in file, bake says ${meta.chainsInFile}`);
+      if (r.declared != null && Array.isArray(meta.counts)) {
+        const declared = meta.counts.every(c => c.declared !== null)
+          ? meta.counts.reduce((k, c) => k + c.declared, 0) : null;
+        if (declared !== null && declared !== r.declared)
+          say(`${at}: registry says ${r.declared} declared, bake says ${declared}`);
+      }
 
       const entry = (v.source && v.source.id) || v.id;
       if (t.meta && t.meta.entry && t.meta.entry !== entry)

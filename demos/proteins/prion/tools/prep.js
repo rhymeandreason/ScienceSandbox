@@ -48,6 +48,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const Bake = require('../../bake-lib.js');
 
 const DATA = path.join(__dirname, '..', 'data');
 
@@ -194,7 +195,13 @@ function main() {
     const h = records(text, 'HELIX', 'A'), e = records(text, 'SHEET', 'A');
     const q = seqres(text, 'A');
     const nums = resNums(atoms);
-    write(name, q.concat(h, e, atoms));
+    /* EXPDTA, REMARK 2 and the COMPND chain list ride along with the cut, so
+       the view file can still answer what it is: which experiment, how sharp,
+       how many chains the entry has. Everything the registry indexes this
+       variant on is then IN the file it names, which is the invariant — the
+       registry prints a few convenience lines, it does not hold facts the
+       bake cannot produce. */
+    write(name, Bake.provenance(text).concat(q, h, e, atoms));
     return `view        ${name}  ${label}  ${nums[0]}-${nums[nums.length-1]}` +
            `  ${nums.length} residues, ${h.length} HELIX, ${e.length} SHEET`;
   });
@@ -217,7 +224,7 @@ function main() {
      showing the reason for the shape with the reason cropped out. */
   const stackFull = chains.flatMap(c => chainSlice(fib, c, -Infinity, Infinity));
   const nStkF = write('prp-view-stack.pdb',
-                      seqres(fib, 'A').concat(sheet, stackFull));
+                      Bake.provenance(fib).concat(seqres(fib, 'A'), sheet, stackFull));
 
   /* ---- the native ENSEMBLE ----
 
@@ -298,15 +305,19 @@ function main() {
        exactly what it did when this was wrong. `chainsInFile` is the
        deposition's, because that is the fact it names. */
     const baked = fs.readFileSync(path.join(DATA, name), 'utf8');
-    blocks[id] = { method: expdta(text), chainsInFile: chainCount(text),
-                   residues: caCount(baked), declared: declaredOf(text),
+    blocks[id] = { method: expdta(baked),
+                   chainsInFile: Bake.chainsDeclared(baked),
+                   residues: caCount(baked), declared: declaredOf(baked),
                    baked: name };
   }
   /* The stack is the same entry drawn whole: ten chains rather than one, so
      everything about it except the drawn count is 6LNI's. */
-  blocks.stack = Object.assign({}, blocks['6LNI'], {
-    residues: caCount(fs.readFileSync(path.join(DATA, 'prp-view-stack.pdb'), 'utf8')),
-    baked: 'prp-view-stack.pdb' });
+  {
+    const baked = fs.readFileSync(path.join(DATA, 'prp-view-stack.pdb'), 'utf8');
+    blocks.stack = { method: expdta(baked), chainsInFile: Bake.chainsDeclared(baked),
+                     residues: caCount(baked), declared: declaredOf(baked),
+                     baked: 'prp-view-stack.pdb' };
+  }
   const touched = IO.write('prion', blocks);
   console.log(`registry    proteins.js  ${touched.length} variants updated`);
 

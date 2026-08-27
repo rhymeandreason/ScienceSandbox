@@ -167,6 +167,31 @@ function resolution(text) {
 const chainCount = text =>
   new Set(text.split('\n').filter(l => l.startsWith('ATOM')).map(l => l[21])).size;
 
+/* The chains the ENTRY declares, off its COMPND `CHAIN:` lines — which is a
+   different question from how many are in the file in front of you, and the
+   one a bench answers with "1 of 10 chains, a subunit of the fibril". It is
+   readable from a reduced file only if the COMPND lines were carried into it,
+   which is why the prion baker carries them. Returns 0 when there are none,
+   and a caller should fall back to counting coordinates. */
+function chainsDeclared(text) {
+  const ids = new Set();
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('COMPND')) continue;
+    const m = line.match(/CHAIN:\s*(.+?);?\s*$/);
+    if (!m) continue;
+    for (const id of m[1].split(',')) if (id.trim()) ids.add(id.trim());
+  }
+  return ids.size;
+}
+
+/* The provenance lines a reduced file has to carry to stay self-describing:
+   what experiment produced it, how sharp it is, and which chains the entry
+   has. Without them a cut-down PDB cannot answer the questions the registry
+   indexes it on, and the answers have to be remembered somewhere else. */
+const provenance = text => text.split('\n')
+  .filter(l => l.startsWith('EXPDTA') || l.startsWith('REMARK   2 RESOLUTION') ||
+               (l.startsWith('COMPND') && /CHAIN:/.test(l)));
+
 /* ---------------------------------------------------------------- assemble
  *
  *  The trace shape every consumer reads — kit/proteinbox.js among them —
@@ -248,5 +273,6 @@ const breaks = trace => trace.order.reduce((k, id) => k + trace.chains[id].nums
 
 module.exports = {
   r2, xyz, modelOne, caTrace, ssRanges, ssFrom, declared, disulfides, ligands,
-  line1, method, models, resolution, chainCount, assemble, frameOf, breaks,
+  line1, method, models, resolution, chainCount, chainsDeclared, provenance,
+  assemble, frameOf, breaks,
 };
