@@ -12,15 +12,15 @@ Pull the data and see if it’s complete.
 
 \-Are there variants? do the variants tell a story? Are there quaternary structures? special features like heme groups? Are there ensemble views? Explain what you found to the human in non-technical words and include the links. If the data is incomplete, state simply “fragment: 104 out of 210 deposited” Flag if there are holes. Write in non-technical language using bullet points.
 
-For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data. 
+For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data.
 
 ## 2. Build the bench
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can look, and so the conversation about what the protein is for happens against something real. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
-Two worked examples, and they are not the same shape of problem: `proteins/prion/prion-test.html` is one sequence in two states, `proteins/rnase/rnase-test.html` is one state in seven situations. Copy whichever the protein resembles.
+Two worked examples: `proteins/prion/prion-test.html` is one sequence in two states, `proteins/rnase/rnase-test.html` is one state in seven situations. Copy whichever the protein resembles.
 
-**The layout is `proteins/protein-test.css` and a page does not restyle it.** Two columns, the panel type scale, `button.mode` + `.chip`, the figures table, the `.src` links and the completeness highlighter. Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all. A bench that restyles the chrome is asserting that this protein deserves a different kind of page.
+**The layout is `proteins/protein-test.css` .**  Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all. 
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/`. Two of them: `proteins/prion/tools/prep.js` writes reduced PDBs the page still parses, and `proteins/rnase/tools/prep.js` writes `bake-trace.js`-shaped JSON the box takes directly — **prefer the second**, because the page that parses nothing cannot decide an altloc differently from the baker that already decided it. Along with the trace, that baker writes a `meta` block holding every figure the panel prints: the declared length off `SEQRES`, the disulfides off `SSBOND`, the ligands off `HETATM`, the model count. A number counted in the baker is re-counted on every re-bake; the same number typed into a panel is not. Chain A unless the assembly is the point, alt-locs blank or `A` only, and the file's own `HELIX` / `SHEET` records ride along. Secondary structure is **read, never detected**: for a lesson about folding, detecting it is inventing the claim.
 
