@@ -48,10 +48,18 @@
 (function (global) {
   'use strict';
 
-  /* PrP's five, and the two that are not depositions: `stack` is 6LNI's ten
-     chains kept together, and `ensemble` is 1QLZ's twenty NMR models drawn as
-     twenty chains. Both are cuts of a file already in the list, which is why
-     they carry `of:` instead of a source of their own. */
+  /* PrP's three, one of which is not a deposition: `stack` is 6LNI's ten
+     chains kept together, a cut of a file already in the list, which is why
+     it carries `of:` instead of a source of its own.
+
+     HUMAN ONLY. The bench carried the Syrian hamster pair (1B10 native, 7LNA
+     scrapie fibril) through the review and they were not selected: the pair
+     says the same thing the human pair says, and two species on one bench is
+     a comparison a lesson has not asked for. What went with them is the one
+     thing they alone showed — 7LNA is disease MATERIAL from an infected
+     brain, where 6LNI is the disease FOLD grown in vitro. If a lesson ever
+     needs that distinction, it wants a brain-derived HUMAN fibril, not the
+     hamster back. */
   const PRION_VARIANTS = [
     { id: '1QLZ', default: true,
       purpose: 'the healthy fold, human',
@@ -99,36 +107,6 @@
         residues: 600,
         baked: "prp-view-stack.pdb",
         bytes: 400387 } },
-    { id: '1B10',
-      purpose: 'the healthy fold, hamster',
-      section: 'syrian hamster', label: 'native fold', chip: 'healthy',
-      source: { kind: 'rcsb', id: '1B10' },
-      state: 'healthy', form: 'PrP\u1D9C',
-      claim: 'Syrian hamster PrP in its healthy form.',
-      prov:  'Recombinant hamster protein, the healthy fold.',
-      read: {
-        method: "solution nmr",
-        resolution: null,
-        chainsInFile: 1,
-        chainsDrawn: 1,
-        residues: 104,
-        baked: "prp-view-1B10.pdb",
-        bytes: 136975 } },
-    { id: '7LNA',
-      purpose: 'disease material, from an infected brain',
-      section: 'syrian hamster', label: 'scrapie fibril', chip: 'disease',
-      source: { kind: 'rcsb', id: '7LNA' },
-      state: 'disease', form: 'PrP\u02E2\u1D9C',
-      claim: 'Hamster PrP as infectious material, pulled from a sick brain.',
-      prov:  'Infectious material from the brain of a hamster with 263K scrapie.',
-      read: {
-        method: "electron microscopy",
-        resolution: 3.14,
-        chainsInFile: 3,
-        chainsDrawn: 1,
-        residues: 390,
-        baked: "prp-view-7LNA.pdb",
-        bytes: 87565 } },
   ];
 
   const MYOGLOBIN_VARIANTS = [
@@ -512,8 +490,8 @@
   const PROTEINS = [
     {
       key: 'prion', name: 'Prion protein', dir: 'proteins/prion',
-      blurb: 'One sequence, two shapes: the healthy fold and the disease fold, '
-           + 'as deposited. The stack is the reason the conversion spreads.',
+      blurb: 'One sequence, two shapes: the healthy human fold and the disease '
+           + 'fold, as deposited. The stack is the reason it spreads.',
       /* The bench parses reduced PDB text at runtime with PrionLib rather than
          loading a trace, so its baker writes files this registry describes but
          does not shape. `pipeline:'pdb'` is what tells check-proteins.js to
@@ -524,8 +502,8 @@
          two intermediates the views are sliced out of. Listing them is what
          lets check-proteins.js flag a file that is in data/ for no reason —
          a stale bake from a renamed view, which a bench goes on loading. */
-      keeps: ['1QLZ.pdb', '1QLZ-model1.pdb', '1B10-model1.pdb', '6LNI.pdb',
-              '7LNA.pdb', 'prp-native.pdb', 'prp-fibril.pdb', 'prp-stack.pdb',
+      keeps: ['1QLZ.pdb', '1QLZ-model1.pdb', '6LNI.pdb',
+              'prp-native.pdb', 'prp-fibril.pdb', 'prp-stack.pdb',
               /* Baked and drawn by nothing today: twenty NMR models as twenty
                  chains, which says the native state is a FAMILY. The bench
                  does not offer it — see prep.js on why it was measured and

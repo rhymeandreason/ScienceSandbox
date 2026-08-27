@@ -92,7 +92,8 @@ function records(text, tag, chainId) {
    for "how much of this protein is modelled": it is the construct's own
    declared sequence, so a page can report 104 of 210 without this script
    inventing what full-length PrP means. Note it is construct-relative and
-   differs between entries — the human files declare 210, the hamster ones
+   differs between entries — the human files declare 210, the hamster ones the
+   bench used to carry declared 142
    142 — which is a fact about what was expressed, not about the protein. */
 function seqres(text, chainId) {
   return text.split('\n').filter(l => l.startsWith('SEQRES') && l[11] === chainId);
@@ -187,10 +188,6 @@ function main() {
   const VIEWS = [
     ['prp-view-1QLZ.pdb', nat, 'human native   1QLZ'],
     ['prp-view-6LNI.pdb', fib, 'human fibril   6LNI'],
-    ['prp-view-1B10.pdb', modelOne(fs.readFileSync(path.join(DATA, '1B10-model1.pdb'), 'utf8')),
-                               'hamster native 1B10'],
-    ['prp-view-7LNA.pdb', fs.readFileSync(path.join(DATA, '7LNA.pdb'), 'utf8'),
-                               'hamster fibril 7LNA'],
   ];
   const views = VIEWS.map(([name, text, label]) => {
     const atoms = chainSlice(text, 'A', -Infinity, Infinity);
@@ -265,10 +262,12 @@ function main() {
 
      STATE IS NOT PROVENANCE, and conflating them is the trap the registry's
      prose exists to avoid. 6LNI is the disease FOLD grown in a test tube from
-     recombinant protein; 7LNA is disease MATERIAL, pulled from the brain of an
-     infected hamster. Both are PrP-Sc shaped. Only one was ever in an animal,
-     and a page labelling both "disease" without saying which is which is
-     overclaiming on behalf of the easier file. */
+     recombinant protein, and every view here is that. Disease MATERIAL — a
+     fibril pulled out of an infected brain — is a different provenance and
+     this bench no longer carries one: the hamster 7LNA that did was dropped
+     with the rest of the hamster pair. A page labelling an in vitro fibril
+     "disease" without saying which it is overclaims on behalf of the easier
+     file, which is why the registry's prov line says it out loud. */
   const IO = require('../../tools/registry-io.js');
   const REG = require('../../proteins.js');
   const ME = REG.byKey('prion');
@@ -286,8 +285,8 @@ function main() {
      has to be read from, and the registry refuses to store a measured
      structure without one. */
   const Bake = require('../../bake-lib.js');
-  const SOURCE = { '1QLZ': '1QLZ-model1.pdb', '1B10': '1B10-model1.pdb',
-                   '6LNI': '6LNI.pdb', '7LNA': '7LNA.pdb', stack: '6LNI.pdb' };
+  const SOURCE = { '1QLZ': '1QLZ-model1.pdb', '6LNI': '6LNI.pdb',
+                   stack: '6LNI.pdb' };
   const resolutionOf = id => {
     const f = path.join(DATA, SOURCE[id] || '');
     return fs.existsSync(f) ? Bake.resolution(fs.readFileSync(f, 'utf8')) : null;

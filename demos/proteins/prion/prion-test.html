@@ -27,9 +27,11 @@
                           stack: its strand partners are the copies 4.9 A
                           above and below, which is what the stack view is
                           for.
-       which pair         1QLZ/6LNI is human; 1B10/7LNA is Syrian hamster,
-                          and the two differ at 15 of 104 residues. A pair
-                          can be one or the other and never a mix.
+       which pair         1QLZ/6LNI, both human. The Syrian hamster pair
+                          (1B10 / 7LNA) was reviewed here and dropped: it
+                          says what the human pair says, and the two species
+                          differ at 15 of 104 residues, so a pair can be one
+                          or the other and never a mix.
 
      THE MORPH LIVES IN prion.js, NOT HERE. This page dropped it: the
      trajectory is a question about animation, and answering it while the
@@ -63,7 +65,7 @@
   <div id="stage"></div>
   <div class="panel">
     <h1>Prion protein</h1>
-    <p class="deck">One sequence, two shapes: the healthy fold and the disease fold, as deposited.</p>
+    <p class="deck">One sequence, two shapes: the healthy fold and the disease fold, as deposited. Human.</p>
 
     <h2>human</h2>
     <button class="mode" id="v-1QLZ" aria-pressed="true">
@@ -73,11 +75,6 @@
     <button class="mode disease" id="v-stack" aria-pressed="false">
       <span class="who">6LNI stacked</span><span class="chip disease">disease</span></button>
 
-    <h2>syrian hamster</h2>
-    <button class="mode" id="v-1B10" aria-pressed="false">
-      <span class="who">native fold &middot; 1B10</span><span class="chip">healthy</span></button>
-    <button class="mode disease" id="v-7LNA" aria-pressed="false">
-      <span class="who">scrapie fibril &middot; 7LNA</span><span class="chip disease">disease</span></button>
 
     <h2>what you are looking at</h2>
     <p class="claim" id="d-claim">&mdash;</p>
@@ -162,8 +159,6 @@ const VIEWS = [
   { id: '1QLZ', native: true },
   { id: '6LNI', native: false },
   { id: 'stack', native: false },
-  { id: '1B10', native: true },
-  { id: '7LNA', native: false },
 ];
 
 /* THE STACKING AXIS, MEASURED OFF CONSECUTIVE RUNGS.
