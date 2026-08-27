@@ -31,125 +31,154 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/main.css">
-<link rel="stylesheet" href="../css/sandbox.css">
 <link rel="stylesheet" href="../kit/proteinbox.css">
 
 <style>
-  /* A gallery, not a bench: `protein-test.css` is the two-column stage and
-     reading column a bench wears, and none of it fits a grid of cards. Every
-     size, weight and colour here is a main.css token. */
-  body{background:var(--paper);color:var(--ink);
-    font-family:var(--font-sans);line-height:var(--leading-body)}
-  .wrap{max-width:1180px;margin:0 auto;padding:var(--space-7) var(--space-5)}
+  /* THE HOMEPAGE'S PAPER, not a bench's. `index.html` at the repo root sets
+     the house style — Futura over Jost for display, the warm paper and the
+     deep green — and a collection page is the closest
+     thing here to that shelf, so it wears it rather than main.css's stage
+     tokens. Nothing below is a colour a molecule uses; those still come from
+     the palette, through `tokens-from-palette.js`. */
+  :root{
+    /* Futura is the display face and nothing else — the masthead and the
+       card titles. `--ui` is what the whole page is actually read in. */
+    --sans:'Futura','Futura PT','Jost',-apple-system,'Segoe UI',sans-serif;
+    --ui:system-ui,-apple-system,'Segoe UI',sans-serif;
 
-  header{margin-bottom:var(--space-6)}
-  h1{font-family:var(--font-editorial);font-size:var(--text-3xl);
-    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
-    line-height:var(--leading-tight);margin:0}
-  .deck{font-family:var(--font-editorial);font-size:var(--text-lg);
-    color:var(--muted);line-height:var(--leading-snug);
-    margin:var(--space-2) 0 0;max-width:52ch}
+    --paper:#faf8f4;
+    --ink:#14161a;
+    --muted:#6d6f76;
+    --line:#e4e0d7;
+    --card:#ffffff;
+    --accent:#1f5f4f;
+    --spark:#e2643a;
+
+    --gap:clamp(1rem,2.2vw,1.5rem);
+  }
+
+  *{box-sizing:border-box}
+
+  /* FUTURA IS FOR THE NAMES ONLY — the masthead and each card's title.
+     Geometric caps at 0.7rem turn into a puzzle: the chips, the counts and
+     the running text are system-ui, which is what they are read in. */
+  body{font-family:var(--ui);background:var(--paper);color:var(--ink);
+    margin:0;padding:clamp(3rem,7vw,6rem) clamp(1.25rem,5vw,4rem) 6rem;
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-weight:400}
+  .wrap{max-width:1180px;margin:0 auto}
+
+  /* ---- masthead ------------------------------------------------------ */
+
+  header{display:flex;flex-wrap:wrap;align-items:baseline;
+    gap:0 var(--gap);padding-bottom:1.5rem;border-bottom:2px solid var(--ink);
+    margin-bottom:clamp(2rem,5vw,3.25rem)}
+  h1{font-family:var(--sans);font-size:clamp(2.4rem,7vw,4.2rem);font-weight:500;
+    letter-spacing:-0.045em;line-height:0.9;margin:0;text-transform:lowercase}
   /* The tally is counted from the registry at render, so it cannot drift from
      the cards under it — the one number on this page most likely to be typed
      and then quietly falsified by a fourth protein. */
-  .tally{font-size:var(--text-xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;color:var(--muted);
-    font-weight:var(--weight-semibold);margin:var(--space-4) 0 0}
+  .tally{margin-left:auto;font-size:0.74rem;letter-spacing:0.18em;
+    text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:0}
 
-  .grid{display:grid;gap:var(--space-5);
+  @media (max-width:700px){
+    .tally{margin:0.9rem 0 0;width:100%}
+  }
+
+  /* ---- the grid ------------------------------------------------------- */
+
+  .grid{display:grid;gap:var(--gap);
     grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
 
-  .card{background:var(--surface-card);border:1.5px solid var(--hair);
-    border-radius:var(--radius-md);overflow:hidden;
-    display:flex;flex-direction:column}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:4px;
+    overflow:hidden;display:flex;flex-direction:column;
+    transition:border-color .18s,transform .18s,box-shadow .18s}
+  .card:hover{border-color:var(--accent);transform:translateY(-3px);
+    box-shadow:0 10px 26px rgba(20,22,26,.07)}
   /* The stage is the top of the card and has a fixed height: a grid whose
      rows are sized by their 3D box is a grid that reflows while the boxes
      fit, and every card jumps. */
   .stage{position:relative;height:230px;background:var(--paper);
-    border-bottom:1.5px solid var(--hair)}
-  .body{padding:var(--space-4);display:flex;flex-direction:column;flex:1}
+    border-bottom:1px solid var(--line)}
+  .body{padding:1.5rem 1.4rem 1.6rem;display:flex;flex-direction:column;flex:1}
 
-  .name{font-family:var(--font-editorial);font-size:var(--text-xl);
-    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
-    margin:0}
+  .name{font-family:var(--sans);font-size:1.35rem;font-weight:500;letter-spacing:-0.02em;
+    line-height:1.12;margin:0}
   /* One word, above the blurb: what KIND of thing this is, which is the
      first question a reader has and the one a ribbon cannot answer. */
   /* `align-self` because the card is a flex column, where a block child is
      stretched to the full width whatever its display says — a chip that fills
      the card reads as a banner. */
-  .does{display:inline-block;align-self:flex-start;margin:var(--space-2) 0 0;
-    font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;font-weight:var(--weight-semibold);
-    padding:2px 8px;border-radius:var(--radius-pill)}
-  .does.enzyme{background:rgba(63,122,189,.14);color:#2c5b91}
-  .does.carrier{background:rgba(168,50,26,.13);color:#a8321a}
+  .does{display:inline-block;align-self:flex-start;margin:0.55rem 0 0;
+    font-size:0.7rem;letter-spacing:0.14em;text-transform:uppercase;
+    font-weight:600;color:var(--accent)}
+  .does.carrier{color:var(--spark)}
 
-  .blurb{font-size:var(--text-sm);color:var(--muted);
-    line-height:var(--leading-snug);margin:var(--space-2) 0 var(--space-3)}
+  .blurb{font-size:0.9rem;color:var(--muted);
+    line-height:1.5;margin:0.55rem 0 0.9rem}
 
   /* The default variant's own line: what the box above is showing. */
-  .showing{font-size:var(--text-xs);color:var(--muted);
-    margin:0 0 var(--space-3);font-variant-numeric:tabular-nums}
-  .showing b{color:var(--ink);font-weight:var(--weight-semibold)}
+  .showing{font-size:0.78rem;color:var(--muted);margin:0 0 0.9rem;
+    font-variant-numeric:tabular-nums}
+  .showing b{color:var(--ink);font-weight:600}
 
-  .facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 var(--space-3)}
-  .fact{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;font-weight:var(--weight-semibold);
-    padding:2px 7px;border-radius:var(--radius-pill);
-    background:rgba(0,0,0,.05);color:var(--muted)}
+  .facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 1rem}
+  .fact{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;
+    font-weight:600;padding:3px 8px;border-radius:999px;
+    border:1px solid var(--line);background:var(--paper);color:var(--muted)}
   /* MEASURED AND PREDICTED MUST NOT READ ALIKE. Nothing here is predicted
      yet, and the day one is, it says so in the loudest chip on the card
      rather than in a field a reader has to go looking for. */
-  .fact.predicted{background:rgba(179,48,12,.14);color:#8f2708}
+  .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
 
-  h2{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-    text-transform:uppercase;color:var(--muted);
-    font-weight:var(--weight-semibold);margin:0 0 var(--space-2)}
-  .vars{list-style:none;margin:0 0 var(--space-4);padding:0;
-    font-size:var(--text-xs);line-height:var(--leading-body)}
+  h2{font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin:0 0 0.5rem}
+  .vars{list-style:none;margin:0 0 1.4rem;padding:0;font-size:0.8rem;
+    line-height:1.5}
   /* A grid, not a flex row: the id keeps its column, the purpose takes what
      is left, and the bake roles get their own line under it rather than
      squeezing the sentence into three words a line. */
-  .vars li{display:grid;grid-template-columns:5.5em 1fr;gap:0 var(--space-2);
-    padding:3px 0;border-bottom:1px solid var(--hair)}
+  .vars li{display:grid;grid-template-columns:5.5em 1fr;gap:0 0.6rem;
+    padding:4px 0;border-bottom:1px solid var(--line)}
   .vars li:last-child{border-bottom:0}
-  .vars .id{font-family:var(--font-mono);color:var(--muted)}
+  .vars .id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--muted);font-size:0.75rem}
   /* The extra bakes sit under the purpose, quiet: they are what a page CAN
      ask for, not what this one is showing. */
-  .vars .bakes{grid-column:2;font-size:var(--text-2xs);
-    letter-spacing:var(--tracking-caps);text-transform:uppercase;
-    color:var(--muted);font-weight:var(--weight-semibold);opacity:.7;
+  .vars .bakes{grid-column:2;font-size:0.66rem;letter-spacing:0.1em;
+    text-transform:uppercase;color:var(--muted);font-weight:600;opacity:.7;
     margin-top:1px}
-  .vars li.def .id{color:#3f7abd}
-  .vars li.def{font-weight:var(--weight-semibold)}
+  .vars li.def .id{color:var(--spark)}
+  .vars li.def{font-weight:600}
 
   /* The links sit at the bottom of every card whatever the list above them
      is worth, so a row of cards ends on a line rather than a ragged edge. */
-  .links{margin-top:auto;display:flex;flex-wrap:wrap;gap:var(--space-2)}
-  .open{display:inline-flex;align-items:center;gap:6px;
-    padding:7px 12px;border-radius:var(--radius-sm);
-    border:1.5px solid var(--hair);background:transparent;color:var(--ink);
-    font-size:var(--text-sm);text-decoration:none;
-    transition:background var(--dur-fast) var(--ease-out)}
-  .open:hover{background:rgba(0,0,0,.035)}
+  .links{margin-top:auto;display:flex;flex-wrap:wrap;gap:0.5rem}
+  .open{display:inline-flex;align-items:center;gap:6px;padding:0.6rem 1.2rem;
+    border:1px solid var(--line);border-radius:999px;background:transparent;
+    color:var(--ink);font-size:0.8rem;font-weight:600;letter-spacing:0.06em;
+    text-transform:uppercase;text-decoration:none;
+    transition:background .18s,border-color .18s,color .18s}
+  .open:hover{border-color:var(--accent);color:var(--accent)}
   /* The lesson is the louder of the two where it exists: a finished page is
      what a reader most likely wants, and the bench behind it is for whoever is
      deciding what the collection should hold. */
-  .open.lesson{background:#3f7abd;border-color:#3f7abd;color:#fff}
-  .open.lesson:hover{background:#356ba8}
+  .open.lesson{background:var(--accent);border-color:var(--accent);color:#faf8f4}
+  .open.lesson:hover{background:var(--spark);border-color:var(--spark);
+    color:#faf8f4}
 
-  .note{font-size:var(--text-xs);color:var(--muted);margin:var(--space-6) 0 0;
-    max-width:60ch;line-height:var(--leading-body)}
+  .note{font-size:0.83rem;color:var(--muted);
+    margin:clamp(2.5rem,5vw,4rem) 0 0;padding-top:1.5rem;
+    border-top:1px solid var(--line);max-width:64ch;line-height:1.7}
+  .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:0.9em;color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Proteins</h1>
-    <p class="deck">Every structure the repo holds, and what it is for. Each card
-      opens on the variant that protein is indexed by; the bench behind it is
-      where the rest were reviewed.</p>
+    <h1>proteins</h1>
     <p class="tally" id="tally">&mdash;</p>
   </header>
 
