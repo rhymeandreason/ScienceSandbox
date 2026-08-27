@@ -285,7 +285,7 @@ A question reaches one by naming it in its own row, namespaced so a key can neve
 ['Why do proteins bury their greasy parts?', { hydrophob:1, folding:2, 'p:myoglobin':2 }]
 ```
 
-**The card is a module card wearing the spark**, because the map HOLDS a specimen rather than claiming it. It draws through `kit/proteinbox.js` like any protein view; `viewFor()` is the one place that decides what a node draws, and a specimen carries its own view rather than needing a `VIEWS` entry — which would be a second source for a fact the registry already owns.
+**The card is the concept card inverted.** On a module the name is an eyebrow and the CLAIM is the card, because a lesson is what it asserts; on a specimen the NAME is the card and the blurb is a caption under the picture, because a thing is the point and what we say about it is a label on it. No dot either: the dot carries which DOOR a module belongs to, and a specimen belongs to none — it is held by every concept that names it. It draws through `kit/proteinbox.js` like any protein view; `viewFor()` is the one place that decides what a node draws, and a specimen carries its own view rather than needing a `VIEWS` entry — which would be a second source for a fact the registry already owns.
 
 **`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed module id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
 

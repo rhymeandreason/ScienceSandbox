@@ -410,10 +410,30 @@
   .hits li.miss { cursor: default; color: var(--muted); font-style: italic; }
   .hits li.miss:hover { background: var(--card); }
 
-  /* A specimen wears the spark rather than a door's tint: the map holds it,
-     the map does not claim it. */
-  .node.module.specimen { --dot: var(--spark); }
-  .node.module.specimen .name { color: var(--spark); }
+  /* ---- a specimen card ------------------------------------------------
+     Built by inverting the concept card. There, the name is an eyebrow and the
+     CLAIM is the card, because a lesson is what it asserts. Here the NAME is
+     the card, because a specimen is a thing and its blurb is a label on it.
+
+     No dot either: the dot carries which DOOR a module belongs to, and a
+     specimen belongs to no door — it is held by every concept that names it. */
+  .node.module.specimen .name {
+    font-family: var(--serif); font-size: 1.1rem; line-height: 1.2;
+    font-weight: 400; letter-spacing: -0.01em; text-transform: none;
+    color: var(--ink); display: block;
+  }
+  .node.module.specimen .name::before { display: none; }
+  .node.module.specimen .claim {
+    font-family: var(--sans); font-size: 0.72rem; line-height: 1.35;
+    color: var(--muted); margin-top: 0.5rem; letter-spacing: 0;
+    -webkit-line-clamp: 3;
+  }
+  .node.module.specimen .thumb { margin-top: 0.55rem; }
+  /* Opened, the name takes the size the claim would have had. */
+  .node.module.specimen.hub .name {
+    font-size: 1.9rem; line-height: 1.18; letter-spacing: -0.015em;
+  }
+  .node.module.specimen.hub .claim { font-size: 0.85rem; margin-top: 0.7rem; }
 
   /* ---- the reader's own words ----------------------------------------
      The root card carries what was TYPED; the authored question it resolved to
@@ -1049,9 +1069,13 @@ function paintNode(n) {
        we hold rather than something the map asserts. The meta line is the
        registry's own words — method and species — never typed here. */
     el.className = 'node module specimen';
+    /* Name first and picture second, with the blurb a caption under it. A
+       concept card leads with its CLAIM because the claim is the lesson; a
+       specimen leads with its NAME because the thing is the point, and what we
+       say about it is a label on the object. */
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
-                   '<div class="claim">' + n.claim + '</div>' +
                    '<div class="thumb"><span class="ph">image</span></div>' +
+                   '<div class="claim">' + n.claim + '</div>' +
                    '<div class="meta"></div>';
   } else if (n.ask) {
     /* textContent and not innerHTML: this text is typed by the reader. */
