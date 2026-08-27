@@ -16,17 +16,19 @@ Pull the data and see if it’s complete.
 
 For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data.
 
+**A predicted structure is a different KIND of claim from a measured one**, and the registry keeps them apart on purpose: `method: 'predicted'` rather than an experiment, and its confidence in the bake where a measured structure's resolution goes. A collection that lets the two read alike will eventually show a student a guess as a fact, so say which it is in step 1 and carry that through — a prediction is a legitimate thing to hold, and an unmarked one is not.
+
 ## 2. Build the bench
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can look, and so the conversation about what the protein is for happens against something real. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
 Two worked examples: `proteins/prion/prion-test.html` is one sequence in two states, `proteins/rnase/rnase-test.html` is one state in seven situations. Copy whichever the protein resembles.
 
-**The layout is `proteins/protein-test.css` .**  Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all. 
+**The layout is `proteins/protein-test.css` .**  Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/`. Two of them: `proteins/prion/tools/prep.js` writes reduced PDBs the page still parses, and `proteins/rnase/tools/prep.js` writes `bake-trace.js`-shaped JSON the box takes directly — **prefer the second**, because the page that parses nothing cannot decide an altloc differently from the baker that already decided it.
 
-**While the protein is under review its candidates live in the baker**, as a `CANDIDATES` table at the top of `proteins/<name>/tools/prep.js`: id, chains, and one line saying what each is meant to show. Nothing goes into `proteins/proteins.js` yet, because everything in that file is a decision and none has been made. Bake generously here — a candidate that turns out to say nothing is what step 3 is for, and it is cheaper to look at one than to argue about it.
+**While the protein is under review its candidates live in the baker**, as a `CANDIDATES` table at the top of `proteins/<name>/tools/prep.js`: id, chains, and one line saying what each is meant to show. Nothing goes into `proteins/proteins.js` yet, because everything in that file is a decision and none has been made. Bake generously here — a candidate that turns out to say nothing is what step 4 is for, and it is cheaper to look at one than to argue about it.
 
 **Reading the file is `proteins/bake-lib.js`, and a new baker does not re-implement it.** The altloc rule, secondary structure read rather than detected, ss indexed by residue number, `nums` beside `first`, the centring, the solved frame, SEQRES / SSBOND / HETATM — each carries the trap it exists to prevent, and three copies is where those start to drift. What a baker writes for itself is the VIEW table and whatever its protein is about. It composes its own output object from `assemble` and `frameOf` rather than handing off to a shared writer, because the bakes are committed artefacts and a shared writer reorders every one of them the day it changes its mind about a key. Along with the trace, that baker writes a `meta` block holding every figure the panel prints: the declared length off `SEQRES`, the disulfides off `SSBOND`, the ligands off `HETATM`, the model count. A number counted in the baker is re-counted on every re-bake; the same number typed into a panel is not. Chain A unless the assembly is the point, alt-locs blank or `A` only, and the file's own `HELIX` / `SHEET` records ride along. Secondary structure is **read, never detected**: for a lesson about folding, detecting it is inventing the claim.
 
@@ -43,7 +45,7 @@ box.setData(data, { colors });      // again per structure, same box
 * **The zoom clamp is the box's, and it follows the framing.** `scene.js`'s `rMin`/`rMax` default to a fixed 5-60 A, which is below the distance a big structure frames at: the inhibitor complex opens at 107, so the first wheel tick used to clamp it to 60 and no zoom out ever came back. `Proteinbox.fit()` now retunes the clamp to 0.2x-3x of whatever it just solved, so nothing is needed from the page. Worth knowing only because it is invisible until a reader scrolls.
 * **One box, re-fed.** `setData` swaps the structure and keeps the camera, so a reader who turned the molecule still has that view after a switch. One box per structure costs a WebGL context each and snaps the framing back on every click.
 
-**A ribbon is not always the whole subject.** Myoglobin is 153 residues wrapped around one iron, and a bench that drew only the backbone would draw the box and leave out what is in it. `proteins/myoglobin/` is the worked example: its baker writes a `pocket` beside the trace — the heme, whatever is bound to its iron, the one or two side chains that make the site — **centred by the same vector as the trace**, because a pocket centred on itself sits at the origin with the protein somewhere else, and that reads as a bug in the ribbon. The page draws it ball-and-stick into `box.group`, which is the structure's own frame: parent it to `box.root` instead and a ligand keeps the crystal's orientation while the protein turns. The box clears that group on every `setData`, so re-add after. Connectivity comes off the file's `CONECT` records, never a distance cutoff — a cutoff wide enough for the 2.0 Å Fe–N coordination also draws the porphyrin's diagonals.
+**A ribbon is not always the whole subject.** Myoglobin is 153 residues wrapped around one iron, and a bench that drew only the backbone would draw the box and leave out what is in it. `proteins/myoglobin/` is the worked example: its baker writes a `pocket` beside the trace — the heme, whatever is bound to its iron, the one or two side chains that make the site — **centred by the same vector as the trace**, because a pocket centred on itself sits at the origin with the protein somewhere else, and that reads as a bug in the ribbon. The page hands it to `box.setPocket({atoms, bonds})` and the box draws it: the ball-and-stick proportions, the split sticks and the iron's rust are the module's, so this heme and hemoglobin-lab's cannot become two opinions about the same group. It draws in the structure's own frame, does not widen the framing radius, and clears with the ribbon on every `setData`. **What is IN the pocket stays the baker's** — which residues, which ligand names count, whether a cross-residue bond is kept — the same refusal the box makes about parsing. Connectivity comes off the file's `CONECT` records, never a distance cutoff — a cutoff wide enough for the 2.0 Å Fe–N coordination also draws the porphyrin's diagonals.
 
 **If the views are states of one thing, superpose them.** A deposition's orientation is its crystal's, so N files is N arbitrary frames: flipping between them turns the whole molecule, and a reader cannot tell a real change from the crystallographer's choice of origin. Fit every view onto ONE reference in the baker — `proteins/myoglobin/tools/prep.js` does it with the `kabsch` in `sickle/tools/bake-sickle.js` — and centre them all on the reference's centroid, or the re-centring slides back apart most of the fit that was just made.
 
@@ -56,7 +58,7 @@ box.setData(data, { colors });      // again per structure, same box
 Three invariants on that side. Each is a bug that ships looking fine.
 
 * **Parse chain-aware before anything multi-chain.** `PrionLib.parse` keys residues by number alone, which is right for one chain and silently wrong for ten: chain B's residue 180 overwrites chain A's, and a ten-rung stack parses as one rung wearing the last chain's coordinates.
-* **Send `nums`, not just `first`.** They are what lets the box break the ribbon where the chain breaks. Omit them and a chain reads as contiguous, so an unmodelled loop is drawn as a smooth tube across 10 Å of nothing — indistinguishable from data at ribbon width. 7LNA is the case.
+* **Send `nums`, not just `first`.** They are what lets the box break the ribbon where the chain breaks. Omit them and a chain reads as contiguous, so an unmodelled loop is drawn as a smooth tube across 10 Å of nothing — indistinguishable from data at ribbon width. 1RNU is the case: subtilisin cuts RNase A at 20-21 and residues 16-23 go unmodelled, so the gap drawn is wider than the cut.
 * **Say where the frame came from.** A deposited frame is the experiment's, not a decision about how the structure should be seen, so the box gets a `view` basis: `FoldLib.viewBasis` solves one from the shape, `FoldLib.basisFrom` puts a known axis upright where the field has a convention (a fibril vertical, a membrane protein on its normal), and a globular domain gets neither — its extents are too close to tell apart, its solved basis would flip between rebakes, and a human picks one instead. Whichever it was, the panel names it rather than leaving a rotation nobody can account for.
 
 **Every number in the panel is counted off the parsed file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
@@ -79,9 +81,11 @@ Neurologist and biochemist Stanley Prusiner coined the word "prion” in 1982, f
 
 Data Notes:
 
-PrP^C for cellular, the healthy helical form. That's 1QLZ and 1B10.
+PrP^C for cellular, the healthy helical form. That's 1QLZ.
 
-PrP^Sc for scrapie, the misfolded stacking form. That's 6LNI and 7LNA. The Sc is from sheep scrapie for historical reasons and gets used generically now, even for human disease, which trips people up.
+PrP^Sc for scrapie, the misfolded stacking form. That's 6LNI. The Sc is from sheep scrapie for historical reasons and gets used generically now, even for human disease, which trips people up.
+
+The Syrian hamster pair (1B10 native, 7LNA scrapie fibril) was on the bench for review and was not selected — which is what a summary is written against, and why this note says what we hold rather than what exists.
 
 ## 4. Review, and select
 
@@ -91,13 +95,13 @@ What to put in front of them, per candidate: what it shows that the others do no
 
 ## 5. Register what survived
 
-**Now the protein goes into `proteins/proteins.js`**, selected set only. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source: which entries, which chains, which variant is the default, what each is for, and the prose the bench prints, so a variant cannot be described one way in a panel and baked another.
+**Now the protein goes into `proteins/proteins.js`**, selected set only. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source for what a structure IS: which entries, which chains, which species, what each variant is for, and which one is the default. **Not what a bench SAYS about it** — that is page copy, written to be read under one particular stage, and it lives on the page in its `SAYS` table.
 
-The baker writes the `read` block back on every run — method, resolution, counts, ligands, whatever that protein measures. **A human never types a number into that file.** `node proteins/<name>/tools/prep.js` writes them, `proteins/tools/registry-io.js` splices only that block so the prose and the comments survive, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
+The baker writes the `read` block back on every run — method, chains in the file, residues modelled, residues declared, and the file it wrote. **A human never types a number into that file**, and **every one of those five is answerable by the bake itself**: they are convenience lines printed into an index so the collection can be listed and compared without opening seventeen files, never a fact the bake cannot produce. Everything else about one structure — resolution, ligands, extents, a fit residual — stays in that structure's own bake and a bench reads it from there. It is why the prion baker carries `EXPDTA`, `REMARK 2` and the `COMPND` chain list into every reduced PDB it writes: a cut-down file that cannot say what it is would make the index remember for it. `node proteins/<name>/tools/prep.js` writes them, `proteins/tools/registry-io.js` splices only that block so the prose and the comments survive, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
 
-* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "the site with nothing in it", "cut in two and still working". A file with no purpose is a file nobody can decide about later.
+* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "misfolded disease variant", "cut in two and still working". 
+* **One variant carries `default: true`, and it is required.** It is what the bench opens on and what a card shows, so it is a decision rather than a position — `defaultOf` reads the mark and never falls back to the first entry, because then re-ordering the list would silently re-aim every bench. It is not automatically the superposition reference: myoglobin opens on Kendrew's 1MBN and superposes onto deoxy 1BZP, and the registry says why.
 * **A trap gets a comment, not a list.** No register of rejected entries: the bench records what was kept, and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
-* **What a cut variant took with it goes in a comment too**, when it was the only one carrying something. Dropping prion's 7LNA dropped the only brain-derived structure on that bench, and the registry says so — along with the fact that a lesson needing that distinction wants a human brain-derived fibril, not the hamster back.
 
 ## 6. Say whether a surface is worth baking
 
@@ -112,5 +116,3 @@ It is expensive and it is a bake, not a render: `rendering-modules.md` owns the 
 ## 7. Downloads and files
 
 **Raw downloads are a separate question.** A deposition can be much larger than anything the bench reads (1QLZ is 2.7 MB of 20 models; the bake is 169 KB). Bake small, commit the bake, and ask before committing the raw file. The baker's header carries the source URLs so a re-run is possible without it.
-
-
