@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction map — bonds against who paid</title>
+
+<!-- ===================================================================
+     WHY THE SIX-CLASS LIST IS THE WRONG SHAPE.
+
+     Asked what kinds of reaction a cell runs, the answer reached for is
+     the EC list — oxidoreductase, transferase, hydrolase, lyase,
+     isomerase, ligase. It is a filing system for enzymes, so it inherits
+     two blind spots, and both of them are most of biology:
+
+       · it is SEVEN, not six. EC 7, translocase, was added in 2018 for
+         enzymes whose reaction IS moving something across a membrane.
+         Under the old list a pump was filed as a hydrolase, which names
+         what it spends and not what it does.
+       · it only classifies what an ENZYME does to a substrate. Water
+         H-bonding, a hydration shell, a protein folding, a proton
+         hopping off carbonic acid — no enzyme, no class, and no less
+         real. `water-lab` and `solvation-lab` are entirely down here.
+
+     SO THE PAGE PLOTS TWO AXES INSTEAD OF LISTING SEVEN NAMES: what
+     happened to the bonds, and who paid for it. The EC classes land as
+     points on it rather than as the frame, which puts the uncatalysed
+     and the non-covalent on the same picture as the enzymes — and lets
+     the map make a claim a list cannot. Translocase sits alone in the
+     top-left, paid for and yet changing no bond in the thing it moves.
+     That empty quadrant is why it needed a class of its own.
+
+     A BENCH, NOT A LESSON. It exercises the framing, not a module; it
+     draws no molecule and loads no scene. It lives here because the
+     enzymes it names are the proteins in this folder — `rnase` is the
+     EC 3 point, `napump` is the EC 7 one — and the map is what says
+     what makes them different kinds of thing.
+
+     NOTHING ON IT IS TYPED TWICE. Every point, axis tick and tally is
+     placed from CLASSES below, so the count in the standfirst and the
+     dots in the plot cannot disagree.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="protein-test.css">
+
+<style>
+  /* The bench chrome's palette is protein-test.css's `--h-*`; this page adds
+     only what a plot needs that a stage does not. Nothing here is a colour a
+     molecule uses. */
+  *{box-sizing:border-box}
+  body{font-family:var(--h-ui);background:var(--h-paper);color:var(--h-ink);
+    margin:0;padding:clamp(2.5rem,6vw,5rem) clamp(1.25rem,5vw,4rem) 5rem;
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto}
+
+  header{padding-bottom:1.25rem;border-bottom:2px solid var(--h-ink);
+    margin-bottom:clamp(1.5rem,4vw,2.5rem)}
+  h1{font-family:var(--h-display);font-size:clamp(2.1rem,6vw,3.6rem);
+    font-weight:500;letter-spacing:-0.045em;line-height:0.95;margin:0;
+    text-transform:lowercase}
+  .stand{max-width:60ch;margin:0.9rem 0 0;color:var(--h-muted);font-size:0.98rem}
+  .stand b{color:var(--h-ink);font-weight:500}
+
+  /* THE PLOT IS THE PAGE. It had a reading column beside it, which cost the
+     scatter a fifth of its width and shrank every label in it — a plot whose
+     text needs leaning into is not one you read positions off. The card is a
+     popup at the cursor instead, so nothing standing beside the plot is
+     taking width from it. */
+  .plot{position:relative;background:var(--h-card);border:1px solid var(--h-line);
+    border-radius:8px;padding:0.5rem}
+  svg{display:block;width:100%;height:auto}
+
+  .axis-line{stroke:var(--h-ink);stroke-width:1.2}
+  .grid{stroke:var(--h-line);stroke-width:1}
+  .axis-label{font-family:var(--h-ui);font-size:13px;font-weight:600;
+    fill:var(--h-ink);letter-spacing:0.02em}
+  .tick{font-family:var(--h-ui);font-size:12px;fill:var(--h-muted)}
+  .quad{font-family:var(--h-ui);font-size:12px;font-style:italic;
+    fill:var(--h-muted)}
+
+  /* A dot's fill says whether an enzyme is what makes it a category: filled =
+     an EC class, hollow = something that happens with no enzyme at all. The
+     hollow ones are the half the six-name list drops. */
+  .dot{cursor:pointer}
+  /* The default focus ring boxes the LABEL, not the dot, which reads as a
+     selected cell in a table nobody drew. The .on styling is the affordance. */
+  .dot:focus{outline:none}
+  .dot:focus-visible circle{stroke:var(--h-spark);stroke-width:3}
+  .dot circle{stroke:var(--h-accent);stroke-width:1.8;
+    transition:fill var(--t-fast,140ms) ease}
+  .dot.ec circle{fill:var(--h-accent)}
+  .dot.free circle{fill:var(--h-card)}
+  .dot:hover circle,.dot.on circle{stroke:var(--h-spark)}
+  .dot.ec:hover circle,.dot.ec.on circle{fill:var(--h-spark)}
+  /* While a card is pinned, hover stops marking dots: two dots in the accent
+     colour and one card between them is a question about which one it is for. */
+  .plot.pinned .dot:not(.on):hover circle{stroke:var(--h-accent)}
+  .plot.pinned .dot.ec:not(.on):hover circle{fill:var(--h-accent)}
+  .dot text{font-family:var(--h-ui);font-size:12.5px;fill:var(--h-ink);
+    pointer-events:none}
+  .dot.on text{font-weight:600}
+  /* The hit target is the dot AND its label, so a 7px circle is not what the
+     cursor has to find. The circle stays 7px; this is invisible. */
+  .dot .hit{fill:transparent;stroke:none}
+
+  .legend{display:flex;gap:1.25rem;flex-wrap:wrap;margin:0.75rem 0 0;
+    font-size:0.82rem;color:var(--h-muted)}
+  .legend span{display:flex;align-items:center;gap:0.4rem}
+  .key{width:11px;height:11px;border-radius:50%;
+    border:1.8px solid var(--h-accent)}
+  .key.ec{background:var(--h-accent)}
+
+  /* THE POPUP. `pointer-events:none` so it can sit over the dot that opened it
+     without stealing the hover and flickering — the one link inside it is
+     re-enabled below, and only once the card is pinned by a click. */
+  .card{position:absolute;z-index:5;width:21rem;max-width:calc(100% - 1rem);
+    background:var(--h-card);border:1px solid var(--h-line);border-radius:8px;
+    padding:1rem 1.15rem;box-shadow:0 6px 24px rgba(20,22,26,0.13);
+    pointer-events:none;opacity:0;transition:opacity var(--t-fast,140ms) ease}
+  .card.show{opacity:1}
+  .card.pinned{pointer-events:auto}
+  .card .ec{font-size:0.72rem;letter-spacing:0.09em;text-transform:uppercase;
+    color:var(--h-spark);font-weight:600}
+  .card h2{font-family:var(--h-display);font-size:1.35rem;font-weight:500;
+    letter-spacing:-0.02em;margin:0.15rem 0 0.5rem;line-height:1.05}
+  .card p{margin:0 0 0.75rem;font-size:0.9rem}
+  .card dl{margin:0;font-size:0.82rem;display:grid;
+    grid-template-columns:auto minmax(0,1fr);gap:0.3rem 0.7rem}
+  .card dt{color:var(--h-muted)}
+  .card dd{margin:0}
+  .card a{color:var(--h-accent)}
+
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;
+    background:var(--h-paper);padding:0.05em 0.3em;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>reaction map</h1>
+  <p class="stand">The EC list files <b>enzymes</b>, so it misses what happens
+  with no enzyme at all. Plot the two questions it is answering instead —
+  <b>what happened to the bonds</b>, and <b>who paid</b> — and all
+  <b id="tally">0</b> land on one picture. Hover a dot.</p>
+</header>
+
+<div class="plot" id="plot">
+  <svg id="svg" viewBox="0 0 1000 540" role="img"
+    aria-label="Reaction types plotted by bond change against energy source"></svg>
+
+  <!-- Populated and positioned by show(); hidden until a dot is hovered. -->
+  <div class="card" id="card" role="tooltip" aria-hidden="true">
+    <div class="ec" id="p-ec"></div>
+    <h2 id="p-name"></h2>
+    <p id="p-what"></p>
+    <dl id="p-rows"></dl>
+  </div>
+</div>
+<p class="legend">
+  <span><i class="key ec"></i> an EC class — needs an enzyme to be one</span>
+  <span><i class="key"></i> happens with no enzyme</span>
+  <span>hover a dot; click to pin it and follow its link</span>
+</p>
+
+</div>
+
+<script>
+/* WHAT THE COORDINATES MEAN, since a scatter with no units invites the reader
+   to measure it. `bond` and `paid` are 0-1 READING POSITIONS, not data: they
+   order the points along each axis and space them enough to label. A point one
+   third of the way up is not "33% coupled". The ordering is the claim; the
+   gaps are legibility. */
+const CLASSES = [
+  { ec:null, name:'H-bond network',    bond:0.07, paid:0.07, dy:-10,
+    what:'Water holding onto water. Bonds form and break constantly, none of them covalent.',
+    ex:'Liquid water, ice, a hydration shell', page:['water-lab.html','water-lab'] },
+  { ec:null, name:'Folding',           bond:0.13, paid:0.19, dy:-10,
+    what:'A chain finds its shape. Every covalent bond it had, it keeps.',
+    ex:'A β chain folding, then heme settling in', page:['hemoglobin-lab.html','hemoglobin-lab'] },
+  { ec:7,    name:'Translocase',       bond:0.09, paid:0.86, dy:-10,
+    what:'Something crosses a membrane and comes out chemically identical. Added in 2018 because filing a pump as a hydrolase named what it spends, not what it does.',
+    ex:'The Na⁺/K⁺ pump: 3 Na⁺ out, 2 K⁺ in, 1 ATP', page:['proteins/napump/napump-test.html','napump bench'] },
+  { ec:null, name:'Ring opening',      bond:0.31, paid:0.10, dy:16,
+    what:'A conformational change, not a reaction. An isomerase catalyses it, but glucose does it in water unaided.',
+    ex:'Glucose opening its pyranose ring', verb:'open' },
+  { ec:null, name:'Proton transfer',   bond:0.42, paid:0.05, dy:16,
+    what:'One bond to H breaks, another forms. Fast, reversible, and the whole of pH.',
+    ex:'Carbonic acid → bicarbonate + H⁺', page:['molecule-lab.html','molecule-lab'] },
+  { ec:5,    name:'Isomerase',         bond:0.46, paid:0.34, dy:-10,
+    what:'Same atoms, rearranged. Nothing enters and nothing leaves, so nothing has to be paid.',
+    ex:'Aldose → ketose; a phosphate sliding C3 → C2', verb:'iso, move' },
+  { ec:4,    name:'Lyase',             bond:0.68, paid:0.31, dy:-10,
+    what:'A bond breaks with no water and no oxidant — or a small molecule leaves the same way.',
+    ex:'Aldolase splitting a hexose in two; enolase shedding water', verb:'split, lose' },
+  { ec:3,    name:'Hydrolase',         bond:0.83, paid:0.09, dy:16,
+    what:'Water does the breaking, and the break is downhill, which is why nothing has to drive it.',
+    ex:'RNase A cutting RNA; ATP → ADP', page:['proteins/rnase/rnase-test.html','rnase bench'] },
+  { ec:1,    name:'Oxidoreductase',    bond:0.88, paid:0.55, dy:-10,
+    what:'Electrons move. The only class where an oxidation state changes — one step in ten of glycolysis, and the one that makes its real product.',
+    ex:'G3P → 1,3-BPG, with NAD⁺ → NADH', verb:'ox' },
+  { ec:2,    name:'Transferase',       bond:0.74, paid:0.74, dy:-10,
+    what:'A group moves between molecules. It runs either way, so a kinase spending ATP and one making ATP are one mechanism pointed twice.',
+    ex:'Hexokinase spends ATP; pyruvate kinase makes it', verb:'in, out' },
+  { ec:6,    name:'Ligase',            bond:0.93, paid:0.93, dy:-10,
+    what:'Two molecules joined into one. Always uphill, so it is always coupled to a nucleotide being spent.',
+    ex:'DNA ligase sealing a nick', verb:null }
+];
+
+const NS = 'http://www.w3.org/2000/svg';
+/* A WIDE, SHALLOW BOX. Full width at 900x600 made a plot two thirds of a
+ * laptop screen tall, so the top-left corner and the bottom-right one — the
+ * two the map is an argument about — were never in view together. */
+const L = 122, R = 962, T = 44, B = 438;               // plot rectangle
+const X = v => L + v * (R - L);
+const Y = v => B - v * (B - T);                        // 0 at the bottom
+
+const svg = document.getElementById('svg');
+const el = (tag, at) => { const n = document.createElementNS(NS, tag);
+  for (const k in at) n.setAttribute(k, at[k]); return n; };
+const add = (tag, at, txt) => { const n = el(tag, at);
+  if (txt != null) n.textContent = txt; svg.appendChild(n); return n; };
+
+/* ---- frame ----------------------------------------------------------
+ * Three gridlines a side, unlabelled between the ends: enough to read a
+ * position against, too few to invite measuring one. */
+for (let i = 1; i < 4; i++) {
+  add('line', {class:'grid', x1:X(i/4), x2:X(i/4), y1:T, y2:B});
+  add('line', {class:'grid', x1:L, x2:R, y1:Y(i/4), y2:Y(i/4)});
+}
+add('line', {class:'axis-line', x1:L, x2:R, y1:B, y2:B});
+add('line', {class:'axis-line', x1:L, x2:L, y1:T, y2:B});
+
+add('text', {class:'axis-label', x:L, y:B+40}, 'WHAT HAPPENED TO THE BONDS →');
+add('text', {class:'tick', x:L, y:B+60}, 'none broken — shape, position, or a proton');
+add('text', {class:'tick', x:R, y:B+60, 'text-anchor':'end'}, 'made and broken between molecules');
+
+const yl = add('text', {class:'axis-label', x:0, y:0,
+  transform:`translate(${L-46},${T}) rotate(-90)`}, '← WHO PAID');
+yl.setAttribute('text-anchor', 'end');
+const yt = add('text', {class:'tick', x:0, y:0,
+  transform:`translate(${L-30},${B}) rotate(-90)`}, 'runs downhill on its own');
+const yt2 = add('text', {class:'tick', x:0, y:0,
+  transform:`translate(${L-30},${T}) rotate(-90)`}, 'coupled — something is spent');
+yt2.setAttribute('text-anchor', 'end');
+
+/* THE POINT OF THE WHOLE PLOT is that this corner has exactly one occupant,
+   so the corner is labelled and the others are not. */
+add('text', {class:'quad', x:X(0.03), y:T-14}, 'paid for, and yet no bond in it changes');
+
+/* ---- points ---------------------------------------------------------
+ * Each dot carries an invisible `hit` rect spanning the circle AND its label,
+ * because a 7px target that opens a card is a target you have to aim at. */
+const card = document.getElementById('card');
+const plot = document.getElementById('plot');
+const state = { node:null, pinned:false };
+
+CLASSES.forEach(c => {
+  const g = el('g', {class:'dot ' + (c.ec ? 'ec' : 'free'), tabindex:'0',
+    role:'button', 'aria-label':c.name});
+  const x = X(c.bond), y = Y(c.paid);
+  const circle = el('circle', {cx:x, cy:y, r:7});
+  const t = el('text', {x:x, y:y + c.dy, 'text-anchor':'middle'});
+  t.textContent = c.ec ? `${c.name} · EC ${c.ec}` : c.name;
+  g.append(circle, t);
+  svg.appendChild(g);
+
+  // Measured after the text is in the DOM, so the rect fits the label it got
+  // rather than a guess at how wide the name renders.
+  const bb = g.getBBox();
+  const hit = el('rect', {class:'hit', x:bb.x-4, y:bb.y-4,
+    width:bb.width+8, height:bb.height+8});
+  g.insertBefore(hit, circle);
+
+  const open = pin => show(c, g, circle, pin);
+  g.addEventListener('mouseenter', () => { if (!state.pinned) open(false); });
+  g.addEventListener('focus', () => { if (!state.pinned) open(false); });
+  g.addEventListener('click', e => { e.stopPropagation(); open(true); });
+  g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ')
+    { e.preventDefault(); open(true); } });
+});
+
+// Leaving the plot closes an unpinned card. A pinned one is dismissed
+// deliberately — a click anywhere else, or Escape.
+plot.addEventListener('mouseleave', () => { if (!state.pinned) hide(); });
+document.addEventListener('click', () => { if (state.pinned) hide(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+
+/* ---- the card -------------------------------------------------------- */
+function row(dl, k, v) {
+  const dt = document.createElement('dt'); dt.textContent = k;
+  const dd = document.createElement('dd'); dd.innerHTML = v;
+  dl.append(dt, dd);
+}
+function hide() {
+  card.classList.remove('show', 'pinned');
+  plot.classList.remove('pinned');
+  card.setAttribute('aria-hidden', 'true');
+  if (state.node) state.node.classList.remove('on');
+  state.node = null; state.pinned = false;
+}
+function show(c, g, circle, pin) {
+  if (state.node) state.node.classList.remove('on');
+  state.node = g; g.classList.add('on');
+  state.pinned = pin;
+
+  document.getElementById('p-ec').textContent =
+    c.ec ? `EC ${c.ec}` : 'no enzyme, no class';
+  document.getElementById('p-name').textContent = c.name;
+  document.getElementById('p-what').textContent = c.what;
+  const dl = document.getElementById('p-rows');
+  dl.textContent = '';
+  row(dl, 'Example', c.ex);
+  /* The glycolysis row is the reason a verb table and a class list are the
+     same list read twice — `reaction/reaction.js` owns the animation, this
+     owns the chemistry it is animating. */
+  if (c.verb) row(dl, 'Glycolysis', c.verb.split(', ')
+    .map(v => `<code>${v}</code>`).join(' '));
+  /* The link is only reachable once pinned: an unpinned card is
+     pointer-transparent so it cannot steal the hover off the dot under it. */
+  if (c.page) row(dl, 'In the repo', pin
+    ? `<a href="../${c.page[0]}">${c.page[1]}</a>`
+    : `${c.page[1]} — click to open`);
+
+  card.classList.add('show');
+  card.classList.toggle('pinned', pin);
+  plot.classList.toggle('pinned', pin);
+  card.setAttribute('aria-hidden', 'false');
+  place(circle);
+}
+
+/* POSITIONED OFF THE RENDERED CIRCLE, not off `bond`/`paid`. The SVG scales
+   with the column, so viewBox units are not pixels and a card placed in them
+   drifts further from its dot the wider the window gets. */
+function place(circle) {
+  const p = plot.getBoundingClientRect();
+  const d = circle.getBoundingClientRect();
+  const w = card.offsetWidth, h = card.offsetHeight, PAD = 14;
+  const cx = d.left - p.left + d.width / 2, cy = d.top - p.top + d.height / 2;
+
+  // Right of the dot unless that overflows, then left. Never over the edge.
+  let x = cx + PAD + d.width / 2;
+  if (x + w > p.width - 8) x = cx - PAD - d.width / 2 - w;
+  x = Math.max(8, Math.min(x, p.width - w - 8));
+
+  let y = cy - h / 2;
+  y = Math.max(8, Math.min(y, p.height - h - 8));
+
+  card.style.left = x + 'px';
+  card.style.top = y + 'px';
+}
+
+/* Counted, not typed: the standfirst cannot claim a number the plot does not
+   draw. Both halves of the split are named so "all 11" is not read as 11
+   enzyme classes. */
+const ec = CLASSES.filter(c => c.ec).length;
+document.getElementById('tally').textContent =
+  `${CLASSES.length} — ${ec} EC classes and ${CLASSES.length - ec} things with no class —`;
+</script>
+</body>
+</html>
