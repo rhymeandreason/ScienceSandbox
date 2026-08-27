@@ -69,7 +69,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const FoldLib = require('../../../folding/folding.js');
+const Bake = require('../../bake-lib.js');
 const { kabsch, mul } = require('../../../sickle/tools/bake-sickle.js');
 
 const HERE = path.join(__dirname, '..');
@@ -118,35 +118,14 @@ const VIEWS = [
    with none of them bound is the point of that view rather than a gap. */
 const LIGANDS = new Set(['HEM', 'OXY', 'CMO', 'OH', 'CO', 'O2']);
 
-/* ---- reading ---------------------------------------------------------- */
+/* ---- reading ----------------------------------------------------------
 
-function ssRanges(text) {
-  const H = [], E = [];
-  for (const line of text.split('\n')) {
-    if (line.startsWith('HELIX ')) {
-      H.push({ chain: line[19], from: parseInt(line.slice(21, 25), 10),
-               to: parseInt(line.slice(33, 37), 10) });
-    } else if (line.startsWith('SHEET ')) {
-      E.push({ chain: line[21], from: parseInt(line.slice(22, 26), 10),
-               to: parseInt(line.slice(33, 37), 10) });
-    }
-  }
-  return { H, E };
-}
+   The deposition is read by proteins/bake-lib.js — the altloc rule, the ss
+   ranges, SEQRES, the centring and the frame. Only `xyz` is borrowed
+   directly, because the pocket reads HETATM lines the trace never sees. */
 
-const r2 = v => Math.round(v * 100) / 100;
-const xyz = l => [+l.slice(30, 38), +l.slice(38, 46), +l.slice(46, 54)];
+const r2 = Bake.r2, xyz = Bake.xyz;
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
-
-function declared(text) {
-  const out = {};
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('SEQRES')) continue;
-    const c = line[11] === ' ' ? '_' : line[11];
-    if (!(c in out)) out[c] = parseInt(line.slice(13, 17), 10);
-  }
-  return out;
-}
 
 /* ---- the pocket ------------------------------------------------------- */
 
@@ -258,18 +237,13 @@ function bake(v, ref) {
   const text = fs.readFileSync(v.file.includes(path.sep) ? v.file
                                                          : path.join(SRC, v.file), 'utf8');
   const chain = v.chains;
-  const R = ssRanges(text);
+  const R = Bake.ssRanges(text);
 
-  const res = [];
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('ATOM')) continue;
-    if (line.slice(12, 16).trim() !== 'CA') continue;
-    const alt = line[16];
-    if (alt !== ' ' && alt !== 'A') continue;
-    if (line[21] !== chain) continue;
-    res.push({ num: parseInt(line.slice(22, 26), 10), p: xyz(line) });
-  }
-  if (!res.length) throw new Error(v.id + ': no CA on chain ' + chain);
+  const traced = Bake.caTrace(text, new Set([chain]));
+  if (!traced.size) throw new Error(v.id + ': no CA on chain ' + chain);
+  /* Back into the {num, p} shape the superposition below moves, because the
+     fit happens BEFORE the trace is assembled and centred. */
+  const res = traced.get(chain).map(r => ({ num: r.num, p: [r.x, r.y, r.z] }));
 
   const site = pocket(text, chain, v.pocket);
 
@@ -300,25 +274,18 @@ function bake(v, ref) {
     : [0, 1, 2].map(k => res.reduce((s, r) => s + r.p[k], 0) / res.length);
   const shift = p => p.map((v2, k) => r2(v2 - c[k]));
 
-  const ss = res.map(r => {
-    for (const h of R.H) if (h.chain === chain && r.num >= h.from && r.num <= h.to) return 'H';
-    for (const e of R.E) if (e.chain === chain && r.num >= e.from && r.num <= e.to) return 'E';
-    return 'C';
-  }).join('');
+  /* The centre is passed in rather than left to bake-lib to solve, because
+     the pocket has to be moved by the SAME vector and it needs the unrounded
+     one — the trace's own copy is rounded to 0.01 A on the way out. */
+  const T = Bake.assemble(new Map([[chain, res.map(r => ({ num: r.num, x: r.p[0],
+                                                           y: r.p[1], z: r.p[2] }))]]),
+                          R, c);
 
   const out = {
-    source: path.basename(v.file), ssFrom: R.H.length || R.E.length ? 'deposited' : 'none',
-    centre: c.map(r2), order: [chain], chains: {},
+    source: path.basename(v.file), ssFrom: Bake.ssFrom(R),
+    centre: T.centre, order: T.order, chains: T.chains,
   };
-  out.chains[chain] = {
-    first: res[0].num, nums: res.map(r => r.num),
-    helices: R.H.filter(h => h.chain === chain).length,
-    strands: R.E.filter(e => e.chain === chain).length,
-    CA: res.map(r => shift(r.p)), ss,
-  };
-  let radius = 0;
-  for (const p of out.chains[chain].CA) radius = Math.max(radius, Math.hypot(...p));
-  out.radius = r2(radius);
+  out.radius = T.radius;
 
   /* Kept for the next view to fit against: the reference's pocket in its
      own coordinates, and the centre every view will be moved by. */
@@ -334,12 +301,12 @@ function bake(v, ref) {
      written, and the bench opens in the deposited frame until a human turns
      it and pastes one in. Kept as a call rather than an assumption because
      the answer is the file's to give. */
-  const V = FoldLib.viewBasis(out.chains[chain].CA);
-  if (V.worth) out.view = V.R.map(ax => ax.map(r2));
-  out.extents = V.ext.map(r2);
-  out.frame = V.worth ? 'computed' : 'deposited';
+  const F = Bake.frameOf(out.chains[chain].CA);
+  if (F.view) out.view = F.view;
+  out.extents = F.extents;
+  out.frame = F.frame;
 
-  const decl = declared(text);
+  const decl = Bake.declared(text);
   const bound = site ? [...new Set(site.atoms.filter(a => a.group === 'bound')
                                              .map(a => a.res))] : [];
   out.meta = {

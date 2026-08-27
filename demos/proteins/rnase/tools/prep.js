@@ -51,7 +51,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const FoldLib = require('../../../folding/folding.js');
+const Bake = require('../../bake-lib.js');
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
@@ -85,176 +85,61 @@ const VIEWS = [
     prov: 'A 456-residue leucine-rich horseshoe closing on a 124-residue enzyme. One of the tightest protein-protein complexes known.' },
 ];
 
-/* ---- reading the file ---------------------------------------------- */
-
-/* Everything up to the first ENDMDL, or the whole file when there are no
-   MODEL records. An X-ray file passes through untouched. */
-function modelOne(text) {
-  const i = text.indexOf('\nENDMDL');
-  return i < 0 ? text : text.slice(0, i);
-}
-
-function caTrace(text, only) {
-  const chains = new Map();
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('ATOM')) continue;
-    if (line.slice(12, 16).trim() !== 'CA') continue;
-    const alt = line[16];
-    if (alt !== ' ' && alt !== 'A') continue;   // one copy per residue
-    const id = line[21] === ' ' ? '_' : line[21];
-    if (only && !only.has(id)) continue;
-    if (!chains.has(id)) chains.set(id, []);
-    chains.get(id).push({ num: parseInt(line.slice(22, 26), 10),
-                          x: +line.slice(30, 38), y: +line.slice(38, 46),
-                          z: +line.slice(46, 54) });
-  }
-  return chains;
-}
-
-function ssRanges(text) {
-  const H = [], E = [];
-  for (const line of text.split('\n')) {
-    if (line.startsWith('HELIX ')) {
-      H.push({ chain: line[19], from: parseInt(line.slice(21, 25), 10),
-               to: parseInt(line.slice(33, 37), 10) });
-    } else if (line.startsWith('SHEET ')) {
-      E.push({ chain: line[21], from: parseInt(line.slice(22, 26), 10),
-               to: parseInt(line.slice(33, 37), 10) });
-    }
-  }
-  return { H, E };
-}
-
-/* SEQRES per chain: the length the entry says the molecule is. Not a 124
-   typed here — that would be this script deciding what RNase A is, and
-   1DFJ's inhibitor chain declares 457. */
-function declared(text) {
-  const out = {};
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('SEQRES')) continue;
-    const c = line[11] === ' ' ? '_' : line[11];
-    if (!(c in out)) out[c] = parseInt(line.slice(13, 17), 10);
-  }
-  return out;
-}
-
-/* SSBOND records, as "26-84". The four of RNase A are why Anfinsen could
-   pull the protein apart and watch it come back: eight cysteines pair 105
-   ways, and it finds the one right pairing on its own. */
-function disulfides(text, only) {
-  const out = [];
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('SSBOND')) continue;
-    const c1 = line[15], c2 = line[29];
-    if (only && !(only.has(c1) && only.has(c2))) continue;
-    out.push(line.slice(17, 21).trim() + '-' + line.slice(31, 35).trim());
-  }
-  return out;
-}
-
-/* HETATM residue names other than water, counted by how many copies are
-   present. A ligand is what says whether the structure was caught working
-   or sitting still. */
-function ligands(text, only) {
-  const seen = new Map();
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('HETATM')) continue;
-    const name = line.slice(17, 20).trim();
-    if (name === 'HOH') continue;
-    /* Chain-filtered with the trace: 1F0V's 24 glycerols belong to four
-       chains and only two are drawn, so an unfiltered count would describe
-       a structure that is not on screen. */
-    if (only && !only.has(line[21])) continue;
-    seen.set(name + '|' + line[21] + line.slice(22, 27), name);
-  }
-  const n = new Map();
-  for (const name of seen.values()) n.set(name, (n.get(name) || 0) + 1);
-  return [...n].map(([name, k]) => k > 1 ? `${name} ×${k}` : name);
-}
-
-const line1 = (text, tag) =>
-  (text.split('\n').find(l => l.startsWith(tag)) || '').slice(10).trim();
-
-/* ---- baking one view ------------------------------------------------ */
-
-const r2 = v => Math.round(v * 100) / 100;
+/* ---- baking one view ------------------------------------------------
+ *
+ *  Reading the file is proteins/bake-lib.js: the altloc rule, the ss ranges,
+ *  SEQRES, SSBOND, HETATM, the centring and the frame. What is left here is
+ *  what makes this RNase A's baker rather than a protein's — the view table
+ *  above, and the meta block the panel prints.
+ */
 
 function bake(v) {
   const raw = fs.readFileSync(path.join(SRC, v.id + '.pdb'), 'utf8');
-  const text = v.model ? modelOne(raw) : raw;
+  const text = v.model ? Bake.modelOne(raw) : raw;
   const only = v.chains ? new Set(v.chains.split(',')) : null;
 
-  const chains = caTrace(text, only);
+  const chains = Bake.caTrace(text, only);
   if (!chains.size) throw new Error(v.id + ': no CA atoms on those chains');
-  const R = ssRanges(text);
-  const ssFrom = (R.H.length || R.E.length) ? 'deposited' : 'none';
+  const R = Bake.ssRanges(text);
 
-  /* Centred on the CA the bench draws, because a box frames what it is
-     given and the crystal's origin is nowhere near the molecule. */
-  let cx = 0, cy = 0, cz = 0, n = 0;
-  for (const res of chains.values()) for (const r of res) { cx += r.x; cy += r.y; cz += r.z; n++; }
-  cx /= n; cy /= n; cz /= n;
+  /* Centred over every chain drawn — the default, since nothing here is
+     being fitted to anything else. 1RNU's gap at 16-23 is carried in `nums`,
+     which is what lets the box break the ribbon there instead of splining a
+     smooth band across eight residues nobody measured. */
+  const T = Bake.assemble(chains, R);
 
-  const out = { source: v.id + '.pdb', ssFrom, centre: [r2(cx), r2(cy), r2(cz)],
-                order: [], chains: {} };
-  let radius = 0;
-  for (const [id, res] of chains) {
-    /* Indexed by residue NUMBER, never by array position: 1RNU skips
-       16-23, and a letter list walked by position would slide every
-       assignment after the gap onto the wrong residue. */
-    const ss = res.map(r => {
-      for (const h of R.H) if (h.chain === id && r.num >= h.from && r.num <= h.to) return 'H';
-      for (const e of R.E) if (e.chain === id && r.num >= e.from && r.num <= e.to) return 'E';
-      return 'C';
-    }).join('');
-    out.order.push(id);
-    out.chains[id] = {
-      first: res[0].num,
-      /* Every residue number, so the box breaks the ribbon where the chain
-         breaks. Without them 1RNU's cut reads as a smooth band across
-         eight residues nobody measured. */
-      nums: res.map(r => r.num),
-      helices: R.H.filter(h => h.chain === id).length,
-      strands: R.E.filter(e => e.chain === id).length,
-      CA: res.map(r => {
-        const p = [r2(r.x - cx), r2(r.y - cy), r2(r.z - cz)];
-        radius = Math.max(radius, Math.hypot(p[0], p[1], p[2]));
-        return p;
-      }),
-      ss,
-    };
-  }
-  out.radius = r2(radius);
+  const out = { source: v.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
+                order: T.order, chains: T.chains, radius: T.radius };
 
-  /* THE FRAME, solved only when the shape earns it. RNase A is a kidney
-     bean: its three extents are close enough that a solved basis would
-     flip between rebakes, so `worth:false` writes no view, the bench opens
-     in the deposited frame, and a human picks one with the page's "copy
-     this view" button. The dimers and the complex are longer than they are
-     wide and may earn one. */
+  /* RNase A is a kidney bean and its three extents are close enough that a
+     solved basis would flip between rebakes; frameOf writes no view for one,
+     and a human picks it with the page's "copy this view". The dimers and the
+     complex are longer than they are wide and do earn one. */
   const all = [];
   for (const id of out.order) for (const p of out.chains[id].CA) all.push(p);
-  const V = FoldLib.viewBasis(all);
-  if (V.worth) out.view = V.R.map(ax => ax.map(r2));
-  out.extents = V.ext.map(r2);
-  out.frame = V.worth ? 'computed' : 'deposited';
+  const F = Bake.frameOf(all);
+  if (F.view) out.view = F.view;
+  out.extents = F.extents;
+  out.frame = F.frame;
 
-  const decl = declared(text);
+  const decl = Bake.declared(text);
   out.meta = {
     entry: v.id, kind: v.kind, claim: v.claim, prov: v.prov,
-    title: line1(text, 'TITLE'),
-    method: (line1(text, 'EXPDTA') || 'unknown').toLowerCase(),
-    models: (raw.match(/^MODEL /gm) || []).length,
-    chainsInFile: new Set(text.split('\n').filter(l => l.startsWith('ATOM'))
-      .map(l => l[21])).size,
+    title: Bake.line1(text, 'TITLE'),
+    method: Bake.method(text),
+    models: Bake.models(raw),
+    chainsInFile: Bake.chainCount(text),
     chainsDrawn: out.order.length,
-    /* Per drawn chain: modelled residues against what SEQRES declares.
-       The panel phrases completeness off this pair, never off a length
-       typed anywhere. */
+    /* Per drawn chain: modelled residues against what SEQRES declares. The
+       panel phrases completeness off this pair, never off a length typed
+       anywhere. */
     counts: out.order.map(id => ({ chain: id, modelled: out.chains[id].nums.length,
                                    declared: decl[id] === undefined ? null : decl[id] })),
-    ss: disulfides(text, only),
-    ligands: ligands(text, only),
+    /* The four disulfides are why Anfinsen could pull the protein apart and
+       watch it come back: eight cysteines pair 105 ways, and it finds the one
+       right pairing on its own. Read off SSBOND, not counted from cysteines. */
+    ss: Bake.disulfides(text, only),
+    ligands: Bake.ligands(text, only),
   };
   return out;
 }
@@ -268,8 +153,7 @@ function main() {
     manifest[v.id] = Object.assign({ file, frame: out.frame,
                                      extents: out.extents }, out.meta);
     const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
-    const breaks = out.order.reduce((k, id) => k + out.chains[id].nums
-      .filter((x, i, a) => i && x !== a[i - 1] + 1).length, 0);
+    const breaks = Bake.breaks(out);
     const res = out.meta.counts.reduce((k, c) => k + c.modelled, 0);
     console.log(`${v.id}  ${out.order.length} chain(s), ${res} residues` +
       (breaks ? `, ${breaks} break(s)` : '') +
@@ -283,4 +167,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { modelOne, caTrace, ssRanges, declared, disulfides, ligands, bake };
+module.exports = { bake, VIEWS };
