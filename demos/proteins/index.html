@@ -96,11 +96,19 @@
     font-weight:var(--weight-semibold);margin:0 0 var(--space-2)}
   .vars{list-style:none;margin:0 0 var(--space-4);padding:0;
     font-size:var(--text-xs);line-height:var(--leading-body)}
-  .vars li{display:flex;gap:var(--space-2);padding:2px 0;
-    border-bottom:1px solid var(--hair)}
+  /* A grid, not a flex row: the id keeps its column, the purpose takes what
+     is left, and the bake roles get their own line under it rather than
+     squeezing the sentence into three words a line. */
+  .vars li{display:grid;grid-template-columns:5.5em 1fr;gap:0 var(--space-2);
+    padding:3px 0;border-bottom:1px solid var(--hair)}
   .vars li:last-child{border-bottom:0}
-  .vars .id{font-family:var(--font-mono);color:var(--muted);
-    flex:none;width:5.5em}
+  .vars .id{font-family:var(--font-mono);color:var(--muted)}
+  /* The extra bakes sit under the purpose, quiet: they are what a page CAN
+     ask for, not what this one is showing. */
+  .vars .bakes{grid-column:2;font-size:var(--text-2xs);
+    letter-spacing:var(--tracking-caps);text-transform:uppercase;
+    color:var(--muted);font-weight:var(--weight-semibold);opacity:.7;
+    margin-top:1px}
   .vars li.def .id{color:#3f7abd}
   .vars li.def{font-weight:var(--weight-semibold)}
 
@@ -260,6 +268,17 @@ function card(p) {
     const what = document.createElement('span');
     what.textContent = w.purpose;
     li.append(id, what);
+    /* WHAT ELSE IS BAKED FOR THIS VARIANT, where a protein's files are made in
+       more than one shape. A surface is 1.5 MB and a fold is 830 KB — the two
+       most expensive things in the repo — and a collection page that showed
+       only the ribbon would leave a reader with no way to know either exists.
+       Roles, not filenames: which file is which is the registry's business. */
+    const roles = Object.keys(w.bake || {}).filter(k => k !== 'trace');
+    if (roles.length) {
+      const b = document.createElement('span');
+      b.className = 'bakes'; b.textContent = roles.join(' · ');
+      li.appendChild(b);
+    }
     list.appendChild(li);
   }
   return el;

@@ -83,6 +83,16 @@ for (const p of lib.PROTEINS) {
        one. The invariant survives — every read field is still answerable by a
        committed file — it is just a different file. */
     if (p.pipeline === 'own') {
+      /* Every bake the entry names, by role, has to be on disk. This is the
+         only place that notices when another pipeline renames or drops one —
+         the registry would otherwise keep pointing at a surface nothing
+         writes any more, and the page that asks for it fails at the click. */
+      for (const [role, file] of Object.entries(v.bake || {}))
+        if (!fs.existsSync(path.join(data, file)))
+          say(`${at}: ${role} bake ${file} is not in ${p.dir}/data`);
+      if (v.bake && r.baked && !Object.values(v.bake).includes(r.baked))
+        say(`${at}: read.baked ${r.baked} is not one of its bakes — re-run read-own.js`);
+
       const src = v.source && v.source.path;
       if (!src) { say(`${at}: pipeline 'own' needs source.path`); continue; }
       const full = path.join(HERE, '..', src);

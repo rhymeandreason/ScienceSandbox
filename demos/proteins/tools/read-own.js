@@ -54,21 +54,31 @@ function main() {
       const declared = [...chains.keys()].every(c => decl[c] != null)
         ? [...chains.keys()].reduce((k, c) => k + decl[c], 0) : null;
 
-      /* `bake` is the said half — which of that folder's several files this
-         entry means — and it is copied here so every consumer reads one key. */
-      const baked = v.bake;
-      if (!baked) throw new Error(`${p.key}/${v.id}: pipeline 'own' needs bake:`);
-      if (!fs.existsSync(path.join(ROOT, p.dir, 'data', baked)))
-        throw new Error(`${p.key}/${v.id}: ${baked} is not in ${p.dir}/data`);
+      /* `bake` is the said half — that folder's files by ROLE — and every one
+         of them has to be on disk before any of it reaches the registry. The
+         one a card draws is copied into `read.baked` so consumers read a
+         single key; a variant with no trace names its next-best drawable,
+         which for sickle haemoglobin is the quaternary file. */
+      const bakes = v.bake;
+      if (!bakes || typeof bakes !== 'object')
+        throw new Error(`${p.key}/${v.id}: pipeline 'own' needs bake: {role: file}`);
+      for (const [role, file] of Object.entries(bakes))
+        if (!fs.existsSync(path.join(ROOT, p.dir, 'data', file)))
+          throw new Error(`${p.key}/${v.id}: ${role} bake ${file} is not in ${p.dir}/data`);
+      const baked = bakes.trace || bakes.quaternary || Object.values(bakes)[0];
 
       blocks[v.id] = {
         method: Bake.method(text),
         chainsInFile: Bake.chainCount(text),
         residues, declared, baked,
       };
+      const kb = Object.values(bakes).reduce((k, f) =>
+        k + fs.statSync(path.join(ROOT, p.dir, 'data', f)).size, 0) / 1024;
       console.log(`${p.key}/${v.id.padEnd(6)} ${blocks[v.id].method}, ` +
         `${residues} of ${declared} residues, ` +
-        `${blocks[v.id].chainsInFile} chains in the entry, ${baked}`);
+        `${blocks[v.id].chainsInFile} chains in the entry, ` +
+        `${Object.keys(bakes).length} bakes (${Object.keys(bakes).join(' ')}), ` +
+        `${kb.toFixed(0)} KB, draws ${baked}`);
     }
     touched += IO.write(p.key, blocks).length;
   }

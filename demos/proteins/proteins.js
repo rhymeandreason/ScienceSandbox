@@ -397,12 +397,22 @@
           purpose: 'the tetramer, deoxy — what the lesson folds',
           species: 'human',
           source: { kind: 'repo', id: '2HHB', path: 'hemoglobin/data/2HHB.pdb' },
-          /* WHICH of that folder's bakes this entry points at. A protein whose
-             files another pipeline writes has several, in several shapes — a
-             trace, a quaternary file, a surface, a fold — and choosing the one
-             the registry means is a decision, so it is said here and copied
-             into `read.baked` where every consumer looks. */
-          bake: '2HHB.trace.json',
+          /* EVERY BAKE THIS ENTRY HAS, BY ROLE. A protein whose files another
+             pipeline writes has several in several shapes, and which is which
+             is a decision rather than something a filename proves — so the
+             roles are said here, `check-proteins.js` fails a name that is not
+             on disk, and `read.baked` is the one a card draws.
+
+               trace    the Cα ribbon, what a gallery card and a bench draw
+               quaternary  chains + hemes + irons, hemoglobin-lab's level 4
+               surface  the full SES, 1.5 MB, for a page that shows skin
+               card     the same surface cut down for a thumbnail
+               fold     the folding trajectory, chain B, 830 KB */
+          bake: { trace: '2HHB.trace.json',
+                  quaternary: '2HHB-quaternary.json',
+                  surface: '2HHB.surf.bin',
+                  card: '2HHB.card.surf.bin',
+                  fold: '2HHB-B.fold.bin' },
           read: {
             method: "x-ray diffraction",
             chainsInFile: 4,
@@ -414,10 +424,14 @@
           species: 'human',
           chains: 'A,B,C,D',
           source: { kind: 'repo', id: '2HBS', path: 'hemoglobin/data/2HBS.pdb' },
-          /* The first of the two tetramers in the asymmetric unit, with its
-             hemes and irons — sickle/fibre-test's shape, not a plain trace,
-             which is why nothing but that page draws it today. */
-          bake: '2HBS-T1-quaternary.json',
+          /* The first of the two tetramers in the asymmetric unit. NO TRACE,
+             and that is a fact worth reading off this list: the sickle side is
+             baked for its SURFACE, because what it is deposited for is a
+             contact between tetramers, and a contact is a claim about skin
+             rather than about a backbone. Its quaternary file carries the
+             chains, hemes and irons that surface-test draws beside it. */
+          bake: { quaternary: '2HBS-T1-quaternary.json',
+                  surface: '2HBS-T1.surf.bin' },
           read: {
             method: "x-ray diffraction",
             chainsInFile: 8,
