@@ -161,6 +161,48 @@ const ME = ProteinLib.byKey('rnase');
 const VIEWS = ['1FS3', '2AAS', '1RUV', '1DFJ', '1RNU', '1A2W', '1F0V'];
 const said = id => ProteinLib.variantOf(ME, id);
 
+/* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
+   bench SAYS about it is page copy, and page copy belongs to the page — a
+   database of structures is not the place for a sentence written to be read
+   under one particular stage. Keyed by variant id, so a button and its
+   paragraph cannot come apart. */
+const SAYS = {
+  '1FS3': {
+    claim: 'Bovine pancreatic RNase A, wild type, nothing bound.',
+    prov:  'X-ray at 1.4 A. The reference fold: three helices over a long curled '
+           + 'sheet, four disulfides.' },
+  '2AAS': {
+    claim: 'The same protein in solution, by NMR.',
+    prov:  '32 deposited models; this is model 1, and it is not more real than '
+           + 'model 12. The crystal fold and the solution fold agree.' },
+  '1RUV': {
+    claim: 'Uridine vanadate in the active site — the transition state, held '
+           + 'still.',
+    prov:  'X-ray at 1.25 A. Vanadium fakes the five-coordinate phosphorus RNA '
+           + 'passes through, so the enzyme cannot finish the reaction and will not '
+           + 'let go.' },
+  '1RNU': {
+    claim: 'RNase S: one backbone bond cut, and the protein still works.',
+    prov:  'Subtilisin cuts between residues 20 and 21. The 20-residue S-peptide '
+           + 'stays bound to the S-protein and the pair is active. Residues 16-23 '
+           + 'are unmodelled, so the gap drawn is wider than the cut.' },
+  '1A2W': {
+    claim: 'Two molecules, each folded around the other’s C-terminal strand.',
+    prov:  'Domain swapping: the same contacts as the monomer, made between chains '
+           + 'instead of within one. The hinge is the loop around 112-115.' },
+  '1F0V': {
+    claim: 'The other swap: the N-terminal helix traded instead.',
+    prov:  'Chains A and B of a deposition holding two dimers, with a CpG '
+           + 'dinucleotide bound on chains M-P, which the bench does not draw. One '
+           + 'protein, two different ways to come apart and re-fold as a pair.' },
+  '1DFJ': {
+    claim: 'RNase A held by ribonuclease inhibitor, the protein that keeps it off '
+           + 'your own RNA.',
+    prov:  'A 456-residue leucine-rich horseshoe closing on a 124-residue enzyme. '
+           + 'One of the tightest protein-protein complexes known.' },
+};
+
+
 /* A basis pasted from "copy this view", for a structure whose own axes are too
    close together for the solver to choose between. Empty until a human turns
    one and pastes — which is the only way a globular domain should get a frame,
@@ -260,10 +302,13 @@ function show(id) {
      block a card reads. */
   const v = said(id), r = v.read;
   const s = stats(t, v), m = t.meta;
-  $('d-claim').textContent = v.claim;
+  $('d-claim').textContent = SAYS[id].claim;
+  /* Method from the registry — it is what the collection is compared on;
+     resolution and the model count from the BAKE, where the facts about this
+     one structure live. */
   $('d-meta').textContent = `${v.source.id} · ${r.method}` +
-    (r.resolution ? ` · ${r.resolution.toFixed(2)} Å` : '') +
-    (r.models > 1 ? ` · model 1 of ${r.models}` : '');
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '') +
+    (m.models > 1 ? ` · model 1 of ${m.models}` : '');
   $('d-quat').textContent = s.quat;
   $('d-span').textContent = s.span;
   $('d-res').textContent = s.res;
@@ -279,7 +324,7 @@ function show(id) {
      baker's work, `deposited` is the file left alone, and `custom view` is a
      human's choice pasted into the page. */
   $('d-view').textContent = t.frame;
-  $('d-prov').textContent = v.prov;
+  $('d-prov').textContent = SAYS[id].prov;
 
   /* Built from the entry id in the bake, so a link cannot point at a
      structure the panel is not describing. */

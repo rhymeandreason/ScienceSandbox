@@ -165,6 +165,55 @@ const box = Proteinbox.create({
 const ME = ProteinLib.byKey('myoglobin');
 const VIEWS = ['1BZP', '1A6M', '1MBC', '1ABS', '1MBN', '1YMB', '2HHB-B'];
 const said = id => ProteinLib.variantOf(ME, id);
+
+/* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
+   bench SAYS about it is page copy, and page copy belongs to the page — a
+   database of structures is not the place for a sentence written to be read
+   under one particular stage. Keyed by variant id, so a button and its
+   paragraph cannot come apart. */
+const SAYS = {
+  '1MBN': {
+    claim: 'Kendrew’s myoglobin: the first protein structure anyone ever saw.',
+    prov:  'Sperm whale, X-ray at 2.0 A. The 1958 model was a 6 A blob that showed '
+           + 'only the sausage of the chain; this is the refined coordinate set that '
+           + 'came out of the same work. The iron carries a hydroxide — the protein '
+           + 'has been oxidised and cannot bind O2 in this state.' },
+  '1BZP': {
+    claim: 'Deoxy myoglobin: the site with nothing in it.',
+    prov:  'Sperm whale, 1.15 A. The iron sits slightly out of the porphyrin '
+           + 'plane, pulled towards the histidine below it. This is the state that '
+           + 'is waiting.' },
+  '1A6M': {
+    claim: 'Oxygen bound: what myoglobin is for.',
+    prov:  'Sperm whale, 1.0 A — among the sharpest protein structures there are. '
+           + 'The O2 comes in at an angle and is held there by the distal histidine, '
+           + 'which is why the site binds oxygen well and carbon monoxide less well '
+           + 'than a bare iron would.' },
+  '1MBC': {
+    claim: 'Carbon monoxide in the same place: poisoning, as a structure.',
+    prov:  'Sperm whale, 1.5 A. CO binds this site far more tightly than O2 and '
+           + 'does not let go, so the protein is full and useless. The distal '
+           + 'histidine is what keeps the ratio from being far worse than it is.' },
+  '1ABS': {
+    claim: 'The same CO, cut loose by light and frozen before it could leave.',
+    prov:  'Sperm whale, 1.5 A at 20 kelvin. A laser broke the Fe-CO bond and the '
+           + 'crystal was held cold enough that the CO stopped in a pocket beside '
+           + 'the iron instead of escaping. A reaction intermediate, held still and '
+           + 'measured.' },
+  '1YMB': {
+    claim: 'Horse heart myoglobin: another animal, the same answer.',
+    prov:  'X-ray at 1.9 A. About a fifth of the sequence differs from the whale’s '
+           + 'and the fold does not care. The residues that do not change are the '
+           + 'ones lining the pocket.' },
+  '2HHB-B': {
+    claim: 'One beta chain of haemoglobin: the same fold, doing a job myoglobin '
+           + 'cannot.',
+    prov:  'Human, 1.74 A, read from the file hemoglobin-lab already uses. '
+           + 'Myoglobin holds oxygen; haemoglobin passes it on, and the difference '
+           + 'is not in this chain — it is in having four of them that talk to each '
+           + 'other.' },
+};
+
 /* A basis pasted from "copy this view", per view. Empty, and expected to stay
    so: the ONE hand-picked orientation lives in the bake and covers all seven,
    because they share a frame. This stays as the override for a view that ever
@@ -247,7 +296,7 @@ function stats(t, v) {
     /* Said from the letters, not typed: all-α is the claim, and a strand
        appearing in a rebake should change this line rather than be hidden
        by it. */
-    fold: E ? `${m.counts[0].modelled} residues, ${ch.helices} helices + sheet`
+    fold: E ? `${r.residues} residues, ${ch.helices} helices + sheet`
             : `all α · ${ch.helices} helices, no sheet`,
     span: `${ch.first}–${ch.nums[ch.nums.length - 1]}`,
     res: `${c0.modelled} residues` + (segs > 1 ? ` in ${segs} segments` : ''),
@@ -257,9 +306,9 @@ function stats(t, v) {
       : c0.modelled >= c0.declared ? `complete: ${c0.modelled} of ${c0.declared} deposited`
       : `fragment: ${c0.modelled} out of ${c0.declared} deposited`,
     frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
-    heme: r.heme ? `${r.heme} atoms · His ${v.pocket.prox} below, His ${v.pocket.dist} above`
+    heme: m.hemeAtoms ? `${m.hemeAtoms} atoms · His ${v.pocket.prox} below, His ${v.pocket.dist} above`
                  : 'none in this file',
-    bound: r.bound ? r.bound.join(', ') : 'nothing',
+    bound: m.bound ? m.bound.join(', ') : 'nothing',
     fe: feL === null ? '—' : `${feL.toFixed(2)} Å`,
     /* A bond is about 1.8-2.1 Å. Anything past 3 is a molecule sitting NEAR
        the iron rather than on it, which for 1ABS is the entire result. */
@@ -278,9 +327,9 @@ function show(id) {
   const v = said(id), r = v.read;
   const s = stats(t, v), m = t.meta;
 
-  $('d-claim').textContent = v.claim;
+  $('d-claim').textContent = SAYS[id].claim;
   $('d-meta').textContent = `${v.source.id} · chain ${m.chain} · ${r.method}` +
-    (r.resolution ? ` · ${r.resolution.toFixed(2)} Å` : '');
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
   $('d-fold').textContent = s.fold;
   $('d-span').textContent = s.span;
   $('d-res').textContent = s.res;
@@ -297,13 +346,13 @@ function show(id) {
      would be a half-truth now: the file's own orientation is the reference's
      only, and every other view is a fit onto it whose residual belongs beside
      the claim it supports. */
-  $('d-view').textContent = r.fitOn
-    ? `superposed on ${r.fitOn} · heme ${r.fitRmsd.toFixed(2)} Å over ${r.fitAtoms} atoms`
+  $('d-view').textContent = m.fitOn
+    ? `superposed on ${m.fitOn} · heme ${m.fitRmsd.toFixed(2)} Å over ${m.fitAtoms} atoms`
     : 'the reference · this file’s own frame';
-  $('d-ca').textContent = r.caRmsd === null
-    ? (r.fitOn ? 'numbering not comparable' : '—')
-    : `${r.caRmsd.toFixed(2)} Å RMSD`;
-  $('d-prov').textContent = v.prov;
+  $('d-ca').textContent = m.caRmsd === null
+    ? (m.fitOn ? 'numbering not comparable' : '—')
+    : `${m.caRmsd.toFixed(2)} Å RMSD`;
+  $('d-prov').textContent = SAYS[id].prov;
 
   /* Built by the registry from `source`: 2HHB-B's entry link points at the
      deposition its chain was lifted out of, which is the honest citation for

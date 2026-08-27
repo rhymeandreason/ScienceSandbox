@@ -296,6 +296,9 @@ function bake(v, ref) {
                                              .map(a => a.res))] : [];
   out.meta = {
     entry: v.source.id, view: v.id, chain,
+    method: Bake.method(text), resolution: Bake.resolution(text),
+    title: Bake.line1(text, 'TITLE'),
+    helices: out.chains[chain].helices, strands: out.chains[chain].strands,
     counts: [{ chain, modelled: res.length,
                declared: decl[chain] === undefined ? null : decl[chain] }],
     /* Counted, not typed. It comes out 43 across all seven, which is worth
@@ -328,25 +331,15 @@ function bake(v, ref) {
     if (n) out.meta.caRmsd = +Math.sqrt(sd / n).toFixed(2);
   }
 
-  /* The half the registry owns: what a card prints without a human typing a
-     number a re-bake could falsify. */
+  /* THE REGISTRY'S HALF is five fields: what the collection is indexed and
+     compared on. The rest — resolution, the fit residuals, the pocket counts
+     — is a fact about THIS structure and rides in the bake beside the
+     coordinates it describes, where a reader of one structure looks. */
   out.read = {
     method: Bake.method(text),
-    resolution: Bake.resolution(text),
-    title: Bake.line1(text, 'TITLE'),
     chainsInFile: Bake.chainCount(text),
     residues: out.meta.counts[0].modelled,
     declared: out.meta.counts[0].declared,
-    helices: out.chains[chain].helices,
-    strands: out.chains[chain].strands,
-    heme: out.meta.hemeAtoms,
-    bound: out.meta.bound,
-    fitOn: out.meta.fitOn,
-    fitAtoms: out.meta.fitAtoms,
-    fitRmsd: out.meta.fitRmsd,
-    caRmsd: out.meta.caRmsd,
-    extents: out.extents,
-    frame: out.frame,
     baked: `mb-${v.id}.json`,
   };
   return out;
@@ -370,14 +363,14 @@ function main() {
     const out = v.id === REF ? refOut : bake(v, ref);
     const { read, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
-    read.bytes = fs.statSync(path.join(DATA, read.baked)).size;
     blocks[v.id] = read;
-    console.log(`${v.id.padEnd(7)} ${read.residues} residues, ${read.helices} helices, ` +
-      `heme ${read.heme} atoms, bound ${read.bound || 'nothing'}, ` +
+    const m = out.meta, kb = (fs.statSync(path.join(DATA, read.baked)).size / 1024).toFixed(0);
+    console.log(`${v.id.padEnd(7)} ${read.residues} residues, ${m.helices} helices, ` +
+      `heme ${m.hemeAtoms} atoms, bound ${m.bound || 'nothing'}, ` +
       `pocket ${out.pocket ? out.pocket.bonds.length + ' bonds' : 'none'}, ` +
-      (read.fitOn ? `fit on ${read.fitOn} ${read.fitRmsd} A over ${read.fitAtoms} heme atoms` +
-        (read.caRmsd === null ? ', Ca not comparable' : `, Ca ${read.caRmsd} A`)
-        : 'reference frame') + `, ${(read.bytes / 1024).toFixed(0)} KB`);
+      (m.fitOn ? `fit on ${m.fitOn} ${m.fitRmsd} A over ${m.fitAtoms} heme atoms` +
+        (m.caRmsd === null ? ', Ca not comparable' : `, Ca ${m.caRmsd} A`)
+        : 'reference frame') + `, ${kb} KB`);
   }
   const touched = IO.write('myoglobin', blocks);
   console.log(`registry proteins.js  ${touched.length} variants updated`);

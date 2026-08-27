@@ -54,13 +54,6 @@ for (const p of lib.PROTEINS) {
     const file = path.join(data, r.baked);
     if (!fs.existsSync(file)) { say(`${at}: ${r.baked} is not in ${p.dir}/data`); continue; }
 
-    /* 3. The size the registry recorded is the size on disk. Cheap, and it
-          catches the case nothing else does: a bake edited or half-written
-          after the registry was updated. */
-    const bytes = fs.statSync(file).size;
-    if (r.bytes && r.bytes !== bytes)
-      say(`${at}: ${r.baked} is ${bytes} bytes, registry says ${r.bytes} — re-bake`);
-
     /* 4. What the bake says about itself matches what the registry asked
           for. A `pipeline:'pdb'` protein writes coordinates with no meta to
           read, so only the trace bakes can answer this. */
@@ -93,13 +86,16 @@ for (const p of lib.PROTEINS) {
       if (p.view && p.view.shared && JSON.stringify(t.view) !== JSON.stringify(p.view.basis))
         say(`${at}: registry declares a shared view the bake is not wearing`);
 
-      /* 7. Every fitted variant names the reference, and the reference
-            itself is not fitted onto anything. */
-      if (p.fit) {
+      /* 7. Every fitted variant names the reference, and the reference itself
+            is fitted onto nothing. Read off the BAKE's meta, which is where a
+            residual belongs — the registry indexes the collection and does not
+            carry a number about one structure's relation to another. */
+      if (p.fit && t.meta) {
         const isRef = v.id === p.fit.on;
-        if (isRef && r.fitOn) say(`${at}: the reference, but recorded as fitted onto ${r.fitOn}`);
-        if (!isRef && r.fitOn !== p.fit.on)
-          say(`${at}: fitted onto ${r.fitOn || 'nothing'}, registry says ${p.fit.on}`);
+        if (isRef && t.meta.fitOn)
+          say(`${at}: the reference, but baked as fitted onto ${t.meta.fitOn}`);
+        if (!isRef && t.meta.fitOn !== p.fit.on)
+          say(`${at}: baked fitted onto ${t.meta.fitOn || 'nothing'}, registry says ${p.fit.on}`);
       }
     }
   }

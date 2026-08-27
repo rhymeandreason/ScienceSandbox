@@ -280,6 +280,25 @@ function ssBoth(residues, parsed) {
 const ME = ProteinLib.byKey('prion');
 const said = id => ProteinLib.variantOf(ME, id);
 
+/* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
+   bench SAYS about it is page copy, and page copy belongs to the page — a
+   database of structures is not the place for a sentence written to be read
+   under one particular stage. Keyed by variant id, so a button and its
+   paragraph cannot come apart. */
+const SAYS = {
+  '1QLZ': {
+    claim: 'Human PrP in its healthy form, a compact helical bundle.',
+    prov:  'Recombinant human protein, folded as it is in a healthy cell.' },
+  '6LNI': {
+    claim: 'Human PrP in its disease form, one flat rung of a fibril.',
+    prov:  'Disease fold, grown in vitro from recombinant protein. Not taken from '
+           + 'a sick brain.' },
+  'stack': {
+    claim: 'The same fibril, all ten deposited chains.',
+    prov:  'The same in vitro fibril, all ten deposited chains.' },
+};
+
+
 VIEWS.forEach(({ id, native }) => {
   fetch(`data/prp-view-${id}.pdb`).then(r => r.text()).then(txt => {
     const chains = byChain(txt);
@@ -423,9 +442,11 @@ function show(id) {
   $('d-frag').textContent = s.frag;
 
   const m = said(id), r = m.read;
-  $('d-claim').textContent = m.claim;
-  $('d-meta').textContent = `${m.source.id} · ${r.method}` +
-    (r.resolution ? ` · ${r.resolution.toFixed(2)} Å` : '');
+  $('d-claim').textContent = SAYS[id].claim;
+  /* No resolution here: this bench's bakes are reduced PDB text with their
+     headers cut away, so REMARK 2 is not in anything the page loads. The
+     method is the registry's and is the honest half of that line. */
+  $('d-meta').textContent = `${m.source.id} · ${r.method}`;
   $('d-quat').textContent = quaternary(r);
   /* Three states, named by WHERE THE FRAME CAME FROM rather than by how it
      was arrived at. Nothing in a PDB says which way a structure should face:
@@ -435,7 +456,7 @@ function show(id) {
      work, `deposited` is the file left alone, and `custom view` is a human's
      choice pasted into the bake. */
   $('d-view').textContent = on.data.frame;
-  $('d-prov').textContent = m.prov;
+  $('d-prov').textContent = SAYS[id].prov;
 
   /* Built by the registry from `source`, so a link cannot point at a
      structure the panel is not describing. */

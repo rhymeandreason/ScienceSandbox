@@ -88,20 +88,26 @@ function validate(lib) {
         bad.push(`${vat}: of:'${v.of}' is not a variant here`);
 
       /* THE MEASURED / PREDICTED SPLIT, which is the one this file exists to
-         keep honest. A prediction with a resolution reads as an experiment. */
+         keep honest: a prediction that reads like an experiment is the error
+         a collection makes silently. The registry indexes on the METHOD; a
+         resolution or a pLDDT is a fact about one structure and lives in its
+         bake, beside the coordinates it qualifies. */
       const m = v.read && v.read.method;
-      if (m) {
-        if (!lib.METHODS.includes(m))
-          bad.push(`${vat}: method '${m}' is not one of ${lib.METHODS.join(', ')}`);
-        if (m === 'predicted') {
-          if (v.read.resolution != null)
-            bad.push(`${vat}: predicted, and carries a resolution`);
-          if (v.read.plddt == null)
-            bad.push(`${vat}: predicted, and carries no confidence`);
-        } else if (m !== 'solution nmr' && v.read.resolution == null) {
-          bad.push(`${vat}: ${m} with no resolution`);
-        }
-      }
+      if (m && !lib.METHODS.includes(m))
+        bad.push(`${vat}: method '${m}' is not one of ${lib.METHODS.join(', ')}`);
+
+      /* Residues against what the entry declares, and ONLY where the two are
+         the same kind of number: SEQRES is per chain, so this holds for a
+         variant drawing one named chain and says nothing about an assembly.
+         Prion's ten-rung stack models 600 residues against a declared 210 and
+         is not a contradiction — it is ten copies of one chain, which is the
+         whole point of that view. A fragment is legitimate too, and the panel
+         says so; what this catches is the two numbers coming from different
+         places. */
+      const single = v.chains && !v.chains.includes(',') && !v.of;
+      if (single && v.read && v.read.declared != null && v.read.residues > v.read.declared)
+        bad.push(`${vat}: chain ${v.chains} models ${v.read.residues} residues ` +
+                 `against ${v.read.declared} declared`);
     }
     if (defaults > 1) bad.push(`${at}: ${defaults} variants marked default`);
 

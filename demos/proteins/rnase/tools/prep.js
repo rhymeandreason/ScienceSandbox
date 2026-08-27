@@ -114,6 +114,9 @@ function bake(v) {
      the registry for a card to read, are the same numbers counted once. */
   out.meta = {
     entry: v.source.id, chainsDrawn: out.order.length,
+    method: Bake.method(text), resolution: Bake.resolution(text),
+    title: Bake.line1(text, 'TITLE'), models: Bake.models(raw),
+    chainsInFile: Bake.chainCount(text),
     counts: out.order.map(id => ({ chain: id, modelled: out.chains[id].nums.length,
                                    declared: decl[id] === undefined ? null : decl[id] })),
     /* The four disulfides are why Anfinsen could pull the protein apart and
@@ -122,20 +125,17 @@ function bake(v) {
     ss: Bake.disulfides(text, only),
     ligands: Bake.ligands(text, only),
   };
+  /* THE REGISTRY'S HALF is deliberately five fields: what the collection is
+     indexed and compared on. Everything else a panel wants is in the bake
+     beside the coordinates it describes — resolution, title, the model count,
+     the ligands — because that is where a reader of one structure looks, and
+     an index that carried it all would be a second copy of every bake. */
   out.read = {
     method: Bake.method(text),
-    resolution: Bake.resolution(text),
-    title: Bake.line1(text, 'TITLE'),
-    models: Bake.models(raw),
     chainsInFile: Bake.chainCount(text),
-    chainsDrawn: out.order.length,
     residues: out.meta.counts.reduce((k, c) => k + c.modelled, 0),
     declared: out.meta.counts.every(c => c.declared !== null)
       ? out.meta.counts.reduce((k, c) => k + c.declared, 0) : null,
-    disulfides: out.meta.ss.length,
-    ligands: out.meta.ligands,
-    extents: out.extents,
-    frame: out.frame,
     baked: `rnase-${v.id}.json`,
   };
   return out;
@@ -148,13 +148,13 @@ function main() {
     const file = out.read.baked;
     const { read, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, file), JSON.stringify(bakeOut));
-    read.bytes = fs.statSync(path.join(DATA, file)).size;
     blocks[v.id] = read;
+    const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
     console.log(`${v.id}  ${out.order.length} chain(s), ${read.residues} residues` +
       (Bake.breaks(out) ? `, ${Bake.breaks(out)} break(s)` : '') +
-      `, ss ${out.ssFrom}, ${read.extents.join(' × ')} A, ` +
-      `${read.disulfides} SS, ligands [${read.ligands.join(' ')}], ` +
-      `view ${read.frame}, ${(read.bytes / 1024).toFixed(0)} KB`);
+      `, ss ${out.ssFrom}, ${out.extents.join(' × ')} A, ` +
+      `${out.meta.ss.length} SS, ligands [${out.meta.ligands.join(' ')}], ` +
+      `view ${out.frame}, ${kb} KB`);
   }
   /* The counted half goes back into proteins.js, where a card reads it. The
      said half of that file is untouched by this write. */

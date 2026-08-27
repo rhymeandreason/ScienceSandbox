@@ -279,34 +279,34 @@ function main() {
   const caCount = t => t.split('\n')
     .filter(l => l.startsWith('ATOM') && l.slice(12, 16).trim() === 'CA').length;
 
-  /* RESOLUTION COMES OFF THE DEPOSITION, NOT THE VIEW FILE. The views are cut
-     down to coordinates and their headers go with the cut, so REMARK 2 is only
-     in the sources beside them — which is where a cryo-EM entry's resolution
-     has to be read from, and the registry refuses to store a measured
-     structure without one. */
-  const Bake = require('../../bake-lib.js');
-  const SOURCE = { '1QLZ': '1QLZ-model1.pdb', '6LNI': '6LNI.pdb',
-                   stack: '6LNI.pdb' };
-  const resolutionOf = id => {
-    const f = path.join(DATA, SOURCE[id] || '');
-    return fs.existsSync(f) ? Bake.resolution(fs.readFileSync(f, 'utf8')) : null;
+  /* The length the entry declares, off chain A's first SEQRES line. The
+     registry compares residues against it, so it is read here rather than
+     left for a page to work out from a file it would have to fetch. */
+  const declaredOf = t => {
+    const l = t.split('\n').find(x => x.startsWith('SEQRES') && x[11] === 'A');
+    return l ? parseInt(l.slice(13, 17), 10) : null;
   };
 
   const blocks = {};
   for (const [name, text] of VIEWS) {
     const id = name.slice('prp-view-'.length, -'.pdb'.length);
     if (!REG.variantOf(ME, id)) continue;
-    blocks[id] = { method: expdta(text), resolution: resolutionOf(id),
-                   chainsInFile: chainCount(text), chainsDrawn: 1,
-                   residues: caCount(text), baked: name,
-                   bytes: fs.statSync(path.join(DATA, name)).size };
+    /* `residues` counts the BAKED view, not the source it was cut from: the
+       6LNI deposition is ten chains and the view drawn from it is one rung.
+       Counting the source would say 600 for a picture of 60 residues, and
+       against a declared 210 the registry would refuse the write — which is
+       exactly what it did when this was wrong. `chainsInFile` is the
+       deposition's, because that is the fact it names. */
+    const baked = fs.readFileSync(path.join(DATA, name), 'utf8');
+    blocks[id] = { method: expdta(text), chainsInFile: chainCount(text),
+                   residues: caCount(baked), declared: declaredOf(text),
+                   baked: name };
   }
   /* The stack is the same entry drawn whole: ten chains rather than one, so
      everything about it except the drawn count is 6LNI's. */
   blocks.stack = Object.assign({}, blocks['6LNI'], {
-    chainsDrawn: chainCount(fib), residues: caCount(fib),
-    baked: 'prp-view-stack.pdb',
-    bytes: fs.statSync(path.join(DATA, 'prp-view-stack.pdb')).size });
+    residues: caCount(fs.readFileSync(path.join(DATA, 'prp-view-stack.pdb'), 'utf8')),
+    baked: 'prp-view-stack.pdb' });
   const touched = IO.write('prion', blocks);
   console.log(`registry    proteins.js  ${touched.length} variants updated`);
 
