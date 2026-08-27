@@ -4,23 +4,61 @@
 
 From "let's look at X" to a bench the human can click through, and from there to a protein the repo holds. No lesson, no page copy, no roadmap. The report at the end of each step is the deliverable, not the code.
 
+**Say what the protein IS before pulling a byte of it.** Step 1 is a summary written from what you already know, printed into the chat, and it is the brief for the search that follows — every claim in it is a structure to go looking for. Pull first and you get whatever a keyword search returned, then write a caption for it.
+
 **The bench comes before the database.** `proteins/proteins.js` is what we have SELECTED, and selecting is a human looking at structures on a bench and saying which ones earn a place. So a new protein is not registered when it is pulled; it is registered in step 5, after step 4 has thrown some of it away. The prion bench carried a Syrian hamster pair through review and lost it there, which is the shape of a normal pass, not a failure of one.
 
 **The rule the whole file serves: look before you decide, and measure before you render.** A protein arrives as an argument about what it will show, and the argument is usually wrong. This repo has paid for that twice, and both receipts are in here.
 
-## 1. Pull the data and say what is actually in it
+## 1. Summary — write this FIRST, and print it into the chat
+
+Write a short editorial style summary capturing what the protein IS and why a lesson would want it. Before pulling anything.
+
+**IT IS THE BRIEF FOR STEP 2, which is why it comes first.** A summary written after the data is a caption for whatever happened to be deposited; written before, it is a list of claims, and each claim is a structure to go looking for. Collagen's went "Gly-X-Y, every third residue glycine · hydroxyproline and vitamin C · one wrong glycine gives brittle bone · staggered into fibrils", and that is exactly the shelf that came back: a bare helix, a hydroxylated twin, a Gly→Ala peptide, one whole molecule. Nothing on that bench was found by browsing.
+
+It is written from what you already know, so **it will contain things the data then corrects** — that is the point of the order, not a flaw in it. Collagen's first draft said the imino-poor stretch splays the helix; measuring said that was a frayed chain terminus. Fix the summary when the data says so, and say what changed.
+
+**PRINT IT INTO THE CHAT.** The human reads it here, before any bytes are pulled, because this is the cheapest moment to say "that is not the lesson I want".
+
+**IT ALSO GOES ON THE BENCH, in a `summary` tab beside the panel's own notes.** Not in a reply, not in a doc, and not in `proteins/proteins.js`: a reply is gone by the next session, and the registry says what a structure IS, never what it MEANS. `proteins/collagen/collagen-test.html` is the worked example — a two-button tab strip under the provenance line, `what the files say` holding the notes that were already there and `summary` holding this. Set as section labels rather than `button.mode`, because a tab changes what you READ and `button.mode` is the thing that changes what is DRAWN, and a bench that blurred those would have six buttons where three of them do nothing to the stage.
+
+It is PAGE COPY, so it lives in the page's markup with `SAYS`, and it is the only prose on a bench not keyed to one variant: the per-structure claims say what each file shows, and this says what the protein is for. **Open with a lead paragraph** — two or three sentences that would survive alone — then the rest as notes. The lead is what a reader takes away from a bench they clicked through once, and it is what gets compressed into the registry's `blurb` at step 5. The tab goes in once the bench exists at step 3; the words are written now.
+
+Some of what a summary says has nowhere else to go, and that is the second reason to write one: collagen's vitamin C and its dominant-not-recessive inheritance are in none of its seven files, and no panel row could ever print them.
+
+Example written for prion:
+
+**PrP — the prion protein**
+
+Most abundant in the brain. Misfolding causes a family of rare and fatal neurological diseases. Prion disease is also called transmissible spongiform encephalopathy, TSE, named for the sponge-like holes the brain ends up full of.
+
+Creutzfeldt-Jakob disease (CJD) is the common one, and happens sporadically with no known cause.
+
+Mad-cow (BSE) is the same disease. BSE was unusually good at crossing barriers, which is why it was a public health emergency.
+
+The healthy form is a compact bundle, about 60% helix, tumbling alone in solution. The diseased form is the same sequence with the same disulfide bond and not one atom changed, flattened into a sheet one molecule thick and stacked against identical copies of itself. The stack is the reason it spreads: its exposed top face is shaped exactly like the molecule that should bind there, so any healthy PrP that drifts up gets pressed flat onto it and becomes the new top face. There is no gene here and no enzyme. Growing is copying, and breaking a fibril in half just gives you two of them.
+
+Neurologist and biochemist Stanley Prusiner coined the word "prion” in 1982, for proteinaceous infectious particle. Most scientists at the time believed that only viruses, bacteria, fungi, or parasites could transmit disease using DNA or RNA. Prusiner got the Nobel for it in 1997, with fifteen years of being told he was wrong in between.
+
+## 2. Pull the data and say what is actually in it
+
+**Go looking for the claims step 1 made**, one search per claim, rather than pulling what a keyword search returns first. Then say what actually came back — including which claims have no structure behind them, because that gap is a finding and it decides what the lesson can show. Collagen's stability claim is the case: the summary said hydroxyproline is what holds the helix together at body temperature, and the evidence for it turned out to be two melting temperatures and no structure at all, since both crystals are folded.
 
 Pull the data and see if it’s complete.
 
 \-Are there variants? do the variants tell a story? Are there quaternary structures? special features like heme groups? Are there ensemble views? Explain what you found to the human in non-technical words and include the links. If the data is incomplete, state simply “fragment: 104 out of 210 deposited” Flag if there are holes. Write in non-technical language using bullet points.
 
-For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data.
+For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data and inform the human in the chat, don’t proceed to step 3.
 
-## 2. Build the bench
+## 3. Build the bench
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can look, and so the conversation about what the protein is for happens against something real. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
-Two worked examples: `proteins/prion/prion-test.html` is one sequence in two states, `proteins/rnase/rnase-test.html` is one state in seven situations. Copy whichever the protein resembles.
+Three worked examples, and they are different SHAPES of bench rather than three of the same thing. Copy whichever the protein resembles:
+
+* **`proteins/prion/prion-test.html` — one sequence in two states.** The pair IS the lesson, so the page says it with colour and almost nothing else.
+* **`proteins/rnase/rnase-test.html` — one molecule in seven situations.** Every entry is the same 124 residues doing something different, so the panel is about what changed.
+* **`proteins/collagen/collagen-test.html` — seven structures that are mostly NOT the same molecule.** Three designed peptides, a natural fragment of a different collagen gene, two complexes and one whole molecule. That is the hard case, because a reader will assume seven collagen structures are seven pieces of one thing, and six of them are pieces of nothing. What that bench had to grow to be honest is below.
 
 **The layout is `proteins/protein-test.css` .**  Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
 
@@ -40,7 +78,7 @@ box.setData(data, { colors });      // again per structure, same box
 
 * **`sub:10` on a full-height stage.** The box asks for 6 samples per residue because a card is a thumbnail with a triangle budget. At full size that shows as faceting wherever the chain turns hard — the ends of arrows and the tight loops read chunky, which is the spline showing rather than the protein.
 * **`turn:'trackball'`.** The default turntable clamps its pitch short of the poles, about a hundred pixels of upward drag, which runs out exactly when someone is trying to look at the top of the molecule.
-* **The zoom clamp is the box's, and it follows the framing.** `scene.js`'s `rMin`/`rMax` default to a fixed 5-60 A, which is below the distance a big structure frames at: the inhibitor complex opens at 107, so the first wheel tick used to clamp it to 60 and no zoom out ever came back. `Proteinbox.fit()` now retunes the clamp to 0.2x-3x of whatever it just solved, so nothing is needed from the page. Worth knowing only because it is invisible until a reader scrolls. Two more house numbers sit above it and moved for the same reason: `Stage.frame`'s own 6-220 A solve limit, and the camera's 1000 A far plane. One collagen molecule is 3016 A long and frames at ~2500, so clamped it opened showing a tenth of itself and unclamped it stood correctly behind the far plane and drew nothing. `fit()` lifts both off the radius it measured, and it frames per AXIS rather than on a circumscribing sphere — a 60:1 rod framed as a sphere is a hairline in the middle of an empty stage.
+* **The zoom clamp is the box's, and it follows the framing.** `scene.js`'s `rMin`/`rMax` default to a fixed 5-60 A, which is below the distance a big structure frames at: the inhibitor complex opens at 107, so the first wheel tick used to clamp it to 60 and no zoom out ever came back. `Proteinbox.fit()` now retunes the clamp to 0.2x-3x of whatever it just solved, so nothing is needed from the page. Worth knowing only because it is invisible until a reader scrolls. Two more house numbers sit above it and moved for the same reason: `Stage.frame`'s own 6-220 A solve limit, and the camera's 1000 A far plane. One collagen molecule is 3016 A long and frames at \~2500, so clamped it opened showing a tenth of itself and unclamped it stood correctly behind the far plane and drew nothing. `fit()` lifts both off the radius it measured, and it frames per AXIS rather than on a circumscribing sphere — a 60:1 rod framed as a sphere is a hairline in the middle of an empty stage.
 * **One box, re-fed.** `setData` swaps the structure and keeps the camera, so a reader who turned the molecule still has that view after a switch. One box per structure costs a WebGL context each and snaps the framing back on every click.
 
 **A ribbon is not always the whole subject.** Myoglobin is 153 residues wrapped around one iron, and a bench that drew only the backbone would draw the box and leave out what is in it. `proteins/myoglobin/` is the worked example: its baker writes a `pocket` beside the trace — the heme, whatever is bound to its iron, the one or two side chains that make the site — **centred by the same vector as the trace**, because a pocket centred on itself sits at the origin with the protein somewhere else, and that reads as a bug in the ribbon. The page hands it to `box.setPocket({atoms, bonds})` and the box draws it: the ball-and-stick proportions, the split sticks and the iron's rust are the module's, so this heme and hemoglobin-lab's cannot become two opinions about the same group. It draws in the structure's own frame, does not widen the framing radius, and clears with the ribbon on every `setData`. **What is IN the pocket stays the baker's** — which residues, which ligand names count, whether a cross-residue bond is kept — the same refusal the box makes about parsing. Connectivity comes off the file's `CONECT` records, never a distance cutoff — a cutoff wide enough for the 2.0 Å Fe–N coordination also draws the porphyrin's diagonals.
@@ -63,35 +101,18 @@ Three invariants, wherever the chains get built. Each is a bug that ships lookin
 
 **Every number in the panel is counted off the file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
 
-## 3. Summary
+### What the collagen bench had to add, and when yours will need the same
 
-Write a short editorial style summary to capture the significance for a lesson.
+Each of these started as a bug that rendered beautifully. They are in `proteins/collagen/` if you need to read one.
 
-**IT GOES ON THE BENCH, in a `summary` tab beside the panel's own notes.** Not in a reply, not in a doc, and not in `proteins/proteins.js`: a reply is gone by the next session, and the registry says what a structure IS, never what it MEANS. `proteins/collagen/collagen-test.html` is the worked example — a two-button tab strip under the provenance line, `what the files say` holding the notes that were already there and `summary` holding this. Set as section labels rather than `button.mode`, because a tab changes what you READ and `button.mode` is the thing that changes what is DRAWN, and a bench that blurred those would have six buttons where three of them do nothing to the stage.
-
-It is PAGE COPY, so it lives in the page's markup with `SAYS`, and it is the only prose on a bench not keyed to one variant: the per-structure claims say what each file shows, and this says what the protein is for. **Open with a lead paragraph** — two or three sentences that would survive alone — then the rest as notes. The lead is what a reader takes away from a bench they clicked through once, and it is what gets compressed into the registry's `blurb` at step 5.
-
-Some of what a summary says has nowhere else to go, and that is the point of writing one: collagen's vitamin C and the dominant-not-recessive inheritance are not in any of its six files, and no panel row could ever print them.
-
-Example written for prion:
-
-**PrP — the prion protein**
-
-Most abundant in the brain. Misfolding causes a family of rare and fatal neurological diseases. Prion disease is also called transmissible spongiform encephalopathy, TSE, named for the sponge-like holes the brain ends up full of.
-
-Creutzfeldt-Jakob disease (CJD) is the common one, and happens sporadically with no known cause.
-
-Mad-cow (BSE) is the same disease. BSE was unusually good at crossing barriers, which is why it was a public health emergency.
-
-The healthy form is a compact bundle, about 60% helix, tumbling alone in solution. The diseased form is the same sequence with the same disulfide bond and not one atom changed, flattened into a sheet one molecule thick and stacked against identical copies of itself every 4.9 ångströms. The stack is the reason it spreads: its exposed top face is shaped exactly like the molecule that should bind there, so any healthy PrP that drifts up gets pressed flat onto it and becomes the new top face. There is no gene here and no enzyme. Growing is copying, and breaking a fibril in half just gives you two of them.
-
-Neurologist and biochemist Stanley Prusiner coined the word "prion” in 1982, for proteinaceous infectious particle. Most scientists at the time believed that only viruses, bacteria, fungi, or parasites could transmit disease using DNA or RNA. Prusiner got the Nobel for it in 1997, with fifteen years of being told he was wrong in between.
-
-Data Notes:
-
-PrP^C for cellular, the healthy helical form. That's 1QLZ.
-
-PrP^Sc for scrapie, the misfolded stacking form. That's 6LNI. The Sc is from sheep scrapie for historical reasons and gets used generically now, even for human disease, which trips people up.
+* **A modified residue is a HETATM, so an ATOM-only trace drops it.** Hydroxyproline is every third residue of collagen and an ATOM-only read of 1CAG keeps 19 of 29, splining the ribbon over the holes — indistinguishable from a disordered protein. `Bake.modResidues` reads the file's own MODRES set; pass it to `caTrace` so they count as chain, and to `ligands` so they stop being reported as cargo. Opt-in, because it changes what a trace CONTAINS and every bake is a committed artefact.
+* **Colour by chain where the ss palette says nothing.** No collagen file carries a HELIX or SHEET record — polyproline II is neither — so the repo default draws a triple helix as one green rope and the braid, the entire subject, disappears. `colors:{byChain:{…}}` is for that, and the page's legend reads the same table the ribbon does. Ask what a reader has to TELL APART on this bench; if the answer is not "what it is folded into", the default palette is wrong for it.
+* **The framing clamps are a molecule stage's numbers.** `Stage.frame` solves within 6–220 Å and the camera stops at 1000; one collagen molecule is 3016 Å, frames at \~2500, and opened showing a tenth of itself and then nothing at all. `Proteinbox.fit` now lifts both off the radius it measured and frames per AXIS — a 60:1 rod framed on its circumscribing sphere is a hairline in the middle of an empty stage.
+* **A complex's frame is solved on the SUBJECT, not on everything drawn.** 1DZI's longest axis is the integrin's, so a frame over all four chains lays that across the screen and stands the collagen at an angle while the view row still claims "helix axis across". The candidate names its own `helix` chains; the roll about that axis is then chosen from everything drawn, so a partner ends up beside the subject rather than behind it.
+* **A pocket is what a view is ABOUT up close, and one view gets one.** The metal for the grip, the hydroxyls for the peptides — and 1DZI has 18 hydroxyprolines it deliberately does not draw, because on that view they are not the point. Two pockets is two subjects.
+* **The empty pocket is a measurement.** `(Pro-Pro-Gly)₁₀` ASKS for hydroxyls and has none, and its row says so; a baker that was never asked would look identical and mean nothing. Where an absence is half of a comparison, bake the absence.
+* **Say where a fragment sits on the whole molecule — by matching, never by typing.** Six of collagen's seven entries are designed peptides whose 1–30 numbering is construct-local. The baker sequence-matches each against the one entry that is a whole molecule and reports a position or `null`. **Two traps, both of which produced confident wrong answers first:** uniqueness is not enough, because a repeat protein has long runs that happen to occur once (a (Gly-Pro-Hyp)₉ peptide "located" itself in the C-terminal repeat); and LONGEST loses to coincidence (matching 1DZI by length picked a 9-residue run in an unrelated site over the 6 of `GFOGER`, putting the integrin's grip 440 residues from where it is). Score by INFORMATIVE residues instead — the ones outside the repeat's own alphabet — and require at least two.
+* **A field's numbering convention is not the file's.** Collagen positions are quoted from the start of the triple-helical domain; 3HR2 numbers from its telopeptide and runs 16 ahead of every number in a paper. Find the offset (look for where Gly-X-Y actually starts), print both numbers, and check the result against something known — `GFOGER` comes out at 502, which is where the literature puts it.
 
 ## 4. Review, and select
 

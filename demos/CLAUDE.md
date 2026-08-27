@@ -18,7 +18,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | Polish on a reviewed animation (timing, easing, camera) | nothing extra |
 | A new page | `AddingAPage.md`, then the sibling page the human names |
 | A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
-| Bringing a NEW protein into the repo, before any lesson exists for it | `AddingAProtein.md` — pull the data, say what is in it, build a bench to look at. Ends before the lesson does |
+| Bringing a NEW protein into the repo, before any lesson exists for it | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
 | Drawing a PROTEIN, or anything from deposited coordinates | `rendering-modules.md` — which of tube / ribbon / surface, what each costs, and why no outside viewer is loaded. **A protein is not a molecule spec**: it is real ångströms, its secondary structure comes from the file's own records, and `MolecularGeometry.md` §1.5's scale families are what keep it in one frame with anything built from a spec |
 | Adding or changing a shared module | `Modules.md` |
 | A page that mounts SEVERAL live 3D boxes, or any of `card-stage.js` / `molbox.js` / the builder-as-a-box | `ConceptMap.md` — the invariants half especially. Every item in it is a failure that ships looking fine, and most are invisible from the page that has them |
