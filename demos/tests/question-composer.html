@@ -464,25 +464,36 @@
      corpus and the embedding take can be spent READING it rather than looking
      at an empty canvas. It leaves on the later of "the graph is composed" and
      a beat long enough to finish the sentence. */
+  /* Not a curtain over the map — it stands ON it, in the left third, and the
+     graph composes off to the right where the camera has not arrived yet. */
   #ponder {
-    position: fixed; inset: 0; z-index: 20; background: var(--paper);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 2rem; text-align: center;
-    transition: opacity .55s ease;
+    position: fixed; z-index: 20;
+    left: clamp(1.5rem, 6vw, 6rem); top: 50%; transform: translateY(-50%);
+    width: min(30rem, 46vw);
+    text-align: left; pointer-events: none;
+    transition: opacity .7s ease;
   }
   #ponder[hidden] { display: none; }
-  #ponder.gone { opacity: 0; pointer-events: none; }
+  #ponder.gone { opacity: 0; }
   #ponder .q {
     font-family: var(--serif); font-weight: 400;
-    font-size: clamp(1.7rem, 4.4vw, 3.3rem); line-height: 1.14;
+    font-size: clamp(1.7rem, 3.6vw, 3rem); line-height: 1.14;
     letter-spacing: -0.02em; color: var(--ink);
-    max-width: 18ch; margin: 0;
+    margin: 0;
   }
   #ponder .say {
-    margin: 1.7rem 0 0;
+    margin: 1.6rem 0 0;
     font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
     letter-spacing: 0.22em; text-transform: uppercase; color: var(--spark);
   }
+
+  /* Everything the reader does not need while a sentence is being read. One
+     class, because the intro is a state of the PAGE and not of four widgets. */
+  body.intro .mast,
+  body.intro .composer,
+  body.intro .legend,
+  body.intro .hint { opacity: 0; pointer-events: none; }
+  .mast, .composer, .legend, .hint { transition: opacity .8s ease; }
   #ponder .say i { font-style: normal; animation: ponderdot 1.25s infinite; opacity: 0.15; }
   #ponder .say i:nth-child(2) { animation-delay: 0.18s; }
   #ponder .say i:nth-child(3) { animation-delay: 0.36s; }
@@ -551,6 +562,7 @@
     var el = document.getElementById('ponder');
     el.querySelector('.q').textContent = q;
     el.hidden = false;
+    document.body.classList.add('intro');
   })();
 </script>
 
@@ -1929,17 +1941,10 @@ const VISITOR = (() => {
 (async function bootVectors() {
   VEC.key = new URLSearchParams(location.search).get('k');
 
-  /* THE ONE CARD WE ALREADY KNOW. `?q=` carries the reader's question, so it can
-     be on screen before any fetch returns — the map then grows around a card
-     that was there from the first paint rather than appearing whole after a
-     blank second. Everything else needs the corpus and a round trip. */
-  if (ASKED_URL) {
-    ASKED.text = ASKED_URL;
-    ASKED.said = null;
-    show(ASKED, 0, 0);
-    centre();
-    alpha = 1;
-  }
+  /* No card drawn here. The title standing on the left IS the reader's question
+     for the length of the intro, and drawing the `you asked` card beside it
+     says the same sentence twice. It arrives with the rest of the graph, off to
+     the right, and the drift is what introduces it. */
 
   /* All three at once. They were serial — corpus, then config, then the query's
      own embedding — and none of them needs the one before it. Serial is three
@@ -1997,20 +2002,48 @@ const VISITOR = (() => {
      and a beat long enough to read the question. Whichever is slower is the one
      that matters — a fast load should not flash the sentence away, and a slow
      one should not add a wait on top of a wait. */
-  const PONDER_MIN = 1150, PONDER_FADE = 560;
+  /* The reveal, which is three things at once: the camera drifts off the title
+     and onto the map, the chrome the intro hid comes back, and the sentence
+     goes. It fires on the LATER of the graph being composed and a beat long
+     enough to read — a fast load must not flash the question away, and a slow
+     one must not add a wait on top of a wait. */
+  const PONDER_MIN = 1150, GLIDE_MS = 1500, PONDER_FADE = 900;
   const ponderEl = document.getElementById('ponder');
   const ponderFrom = performance.now();
-  function unponder() {
+
+  function reveal() {
     if (!ponderEl || ponderEl.hidden) return;
+    /* Pushed NOW, not after the beat: `openAsk` centres the camera on the graph
+       it just composed, so waiting would show the finished map behind the title
+       and then shove it off to slide it back. What moves is the SCREEN, never
+       the cards — the map was there the whole time, the reader was looking at
+       the question. */
+    const to = view.x;
+    const from = to + innerWidth * 0.72;
+    view.x = from;
+    applyView();
+
     const left = Math.max(0, PONDER_MIN - (performance.now() - ponderFrom));
     setTimeout(() => {
+      const t0 = performance.now();
+      const ease = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+      (function glide() {
+        // A reader who grabs the map owns it: the drift is an offer, not a ride.
+        if (touched) { view.x = to; applyView(); return; }
+        const u = Math.min(1, (performance.now() - t0) / GLIDE_MS);
+        view.x = from + (to - from) * ease(u);
+        applyView();
+        if (u < 1) requestAnimationFrame(glide);
+      })();
+
+      document.body.classList.remove('intro');
       ponderEl.classList.add('gone');
       setTimeout(() => { ponderEl.hidden = true; }, PONDER_FADE);
     }, left);
   }
 
   // Belt and braces: any path that never reaches the query still lowers it.
-  if (!ASKED_URL) unponder();
+  if (!ASKED_URL) reveal();
 
   const asked = ASKED_URL;
   if (asked) {
@@ -2033,7 +2066,7 @@ const VISITOR = (() => {
     } finally {
       // Every path, including the query that reaches nothing: a title card that
       // stays up is worse than the empty map it was covering.
-      unponder();
+      reveal();
     }
   }
 })();
