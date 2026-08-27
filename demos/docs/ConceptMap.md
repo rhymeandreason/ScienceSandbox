@@ -119,12 +119,14 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 | KIND | MODULE | PAGES |
 | --- | --- | --- |
-| `water` | card-stage + `water/watersim.js` | door-map, cards-cluster |
-| `build` | `molecule-builder.js` (ortho, own context) | door-map, cards-cluster |
+| `water` | card-stage + `water/watersim.js` | composer, door-map, cards-cluster |
+| `build` | `molecule-builder.js` (ortho, own context) | composer, door-map, cards-cluster |
 | `molbox` | `kit/molbox.js` | cards-cluster, membrane-lab |
-| `protein` | `kit/proteinbox.js` | door-map |
+| `protein` | `kit/proteinbox.js` | composer, door-map |
 
-**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, and draws its own two controls. Which files a module names is `VIEWS`, and the lesson button and its modal are door-map's — a box has no opinion about what is behind the card it sits on. `rendering-modules.md` has the module.
+A `VIEWS` entry picks the kind for a MODULE's card. A SPECIMEN is always `protein` and has no `VIEWS` entry at all — `viewFor()` hands the box a protein key instead of paths.
+
+**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, draws its own two controls, and — given `protein:` / `variant:` — reads `proteins/proteins.js` to find those three files itself. Which files a MODULE's card names is `VIEWS`; the lesson button and its modal are the page's, because a box has no opinion about what is behind the card it sits on. `rendering-modules.md` has the module.
 
 **A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. **Three things a protein card can show, and only the first is free.** Ribbon is the default and the only one fetched at reveal. The other two are gated the same way, and the gates are the design:
 
@@ -158,7 +160,22 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 ## **question-composer: the map entered by typing**
 
-**It is a REBASE of `tests/door-map.html`, not a fork left to drift** — and it is the one to work in. The first copy was taken from a dirty working tree and was ~175 lines behind within the day: it missed `goLiveSoon()` (card startup queued for quiet frames instead of created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and it still carried the protein card inline after `kit/proteinbox.js` had taken it out of door-map. Both pages now run the same engine, and the composer's own code is three insertions on top of it: a CSS block, the `.composer` markup, and everything after `start();`. Plus four surgical edits inside the engine, which are the only places the two genuinely differ — the `!m.ask` filter in `expand()`, the `n.ask` branch in `paintNode()`, the `l.near` branch in `paintLink()`, and `centre()`. Re-do the rebase the same way rather than porting functions across.
+**It is a REBASE of `tests/door-map.html`, not a fork left to drift** — and it is the one to work in. The first copy was taken from a dirty working tree and was ~175 lines behind within the day: it missed `goLiveSoon()` (card startup queued for quiet frames instead of created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and it still carried the protein card inline after `kit/proteinbox.js` had taken it out of door-map. Both pages now run the same engine. Re-do the rebase the same way rather than porting functions across: take door-map as it stands, then re-apply the composer's own code, which is **four insertions plus a set of edits inside the engine**.
+
+Insertions: the CSS block, the `.composer` markup, the `SPECIMENS` node loop (in the graph construction, after `MODULES` and before `QUESTIONS`), and everything after `start();`.
+
+Edits, and this list grows every time the composer gains a kind or a control — check it against the diff rather than trusting it:
+
+| where | what |
+| --- | --- |
+| `expand()` | the `!m.ask` filter |
+| `paintNode()` | the `n.ask` branch and the `kind === 'protein'` branch |
+| `paintLink()` | the `l.near` branch |
+| `centre()` | the composer's band across the top |
+| `markNear()` | specimens count as cards |
+| `refreshMeta()` | a specimen's hidden neighbours are concepts |
+| `goLive()` / `goLiveSoon()` | both go through `viewFor()` |
+| the protein card | `protein:`/`variant:` when a specimen, paths when a `VIEWS` entry |
 
 `tests/question-composer.html` is door-map with a text box, and the claim is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every module that answers it, then each of those modules' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
 
@@ -197,7 +214,7 @@ photosynthesis  0.851  MATCH      <- there is no photosynthesis module
 
 Both directions wrong: the most central card on the map is unreachable by its own name, and an off-map word scrapes over the floor. **No scoring rule fixes the first half.** `polarity` and `glycolysis` have zero questions within 0.83 of them, so there is nothing for a floor or a vote rule to work with — a module name is simply not a question, and this corpus contains only questions.
 
-So a keyword that names a card is answered **before any embedding**, by `moduleNamed()`. It is a CARD-NAME LOOKUP and not keyword search: three ways in, over the ~27 module names and ids, after normalising away a leading article and folding plurals.
+So a keyword that names a card is answered **before any embedding**, by `cardNamed()`. It is a CARD-NAME LOOKUP and not keyword search: three ways in, over the module AND specimen names and ids, after normalising away a leading article and folding plurals. `hemoglobin` reaches its card the same way `polarity` does.
 
 | the typed text | reaches |
 | --- | --- |
@@ -207,7 +224,7 @@ So a keyword that names a card is answered **before any embedding**, by `moduleN
 
 **"The name holds the typed word" is deliberately NOT one of them.** It was tried, and it let `effect` claim The hydrophobic effect and `levels` claim Levels of structure — a tail word is not a name. The cost is that `density` no longer reaches Ice & density, which is the right trade: being asked to type the head of a name is normal, being answered from its tail is a surprise. Head-word prefixes like `simple` → Simple diffusion do still hit, and read as autocomplete rather than as a wrong answer.
 
-The card becomes the first row in the list, because they named a thing that exists and the map has nothing better to offer than that thing. `openModule()` composes what clicking that card would have done.
+The card becomes the first row in the list, because they named a thing that exists and the map has nothing better to offer than that thing. `openCard()` composes what clicking that card would have done, and focuses it.
 
 **The second half is not solved.** `photosynthesis` (0.851) and `mitosis` (0.849) sit above real on-map keywords like `pH` (0.852) and below none of them: there is no gap to cut. Corroboration narrows it (`DNA` has 7 near questions, `photosynthesis` 1) without separating it. A bare keyword that does not name a card can still land somewhere plausible and wrong, and the fixture is what should settle whether short queries want their own floor.
 
@@ -344,9 +361,13 @@ The check belongs in the hook rather than beside `tools/check-handedness.js` bec
 
 * **Screenshots with 4 live contexts come back blank** in the probe tab — the compositor does not pick up four WebGL layers. Verify with `readPixels` or `snapshot()` instead, and ask the human to look in Safari.
 
-* Checkers: `node tools/check-pages.js`, `tools/check-docs.js`, `kit/check-kit.js`, `molecule-builder/check-molecule-builder.js`, `check-molecules.js` (slow, \~2min). The pre-commit hook gates each; silence means it ran and passed.
+* Checkers: `node tools/check-pages.js`, `tools/check-docs.js`, `tools/bake-vectors.js --check` (the map's own — vectors AND references), `proteins/check-proteins.js`, `kit/check-kit.js`, `molecule-builder/check-molecule-builder.js`, `check-molecules.js` (slow, \~2min). The pre-commit hook gates each; silence means it ran and passed.
 
-* `check-docs.js` treats any backticked path as a claim the file exists — write a former filename in italics, not in backticks. This doc broke that rule twice on its first commit and the checker caught both.
+* `check-docs.js` treats any backticked path as a claim the file exists, and resolves it from `demos/` — so a checker outside `demos/tools/` needs its directory (`proteins/check-proteins.js`, not the bare name). Write a former filename in italics, not in backticks. This doc has broken that rule four times now and the checker caught every one.
+
+* **`setTimeout` is throttled in the hidden probe tab**, so the composer's 220ms debounce does not fire on the schedule you typed against. A dropdown that looks empty a second after typing is usually this and not a bug — wait three seconds, or call the handler's work directly.
+
+* **`querySelectorAll` finds controls that `opacity: 0` has hidden.** The specimen's surface toggle was reported working twice from a DOM query while being invisible on screen. Anything gated by `.near`, `.hub` or a class is verified with `getComputedStyle`, never by presence.
 
 ## **Considered**
 
