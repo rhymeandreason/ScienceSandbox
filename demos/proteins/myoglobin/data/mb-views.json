@@ -1,7 +1,7 @@
 {
  "1MBN": {
   "file": "mb-1MBN.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    43.85,
    40.55,
@@ -34,7 +34,7 @@
  },
  "1BZP": {
   "file": "mb-1BZP.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    43.55,
    39.66,
@@ -65,7 +65,7 @@
  },
  "1A6M": {
   "file": "mb-1A6M.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    43.03,
    39.42,
@@ -98,7 +98,7 @@
  },
  "1MBC": {
   "file": "mb-1MBC.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    43.02,
    39.81,
@@ -131,7 +131,7 @@
  },
  "1ABS": {
   "file": "mb-1ABS.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    42.55,
    40.12,
@@ -164,7 +164,7 @@
  },
  "1YMB": {
   "file": "mb-1YMB.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    43.58,
    40.31,
@@ -195,7 +195,7 @@
  },
  "2HHB-B": {
   "file": "mb-2HHB-B.json",
-  "frame": "deposited",
+  "frame": "chosen by hand, shared by all seven",
   "extents": [
    43.6,
    38.54,

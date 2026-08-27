@@ -219,6 +219,18 @@ function pocket(text, chain, want) {
    one side of. */
 const REF = '1BZP';
 
+/* THE VIEW, PICKED BY HAND ONCE — and once is all it takes, which is the
+   dividend of the superposition above. Myoglobin is a globular bundle whose
+   three extents are too close together for a solver to choose between, so
+   `frameOf` writes no basis for it and a human turns the molecule instead
+   (the bench's "copy this view" prints exactly this array). Because every
+   view is fitted into the reference's frame before it is written, that one
+   choice is correct for all seven: they are not seven structures each needing
+   an orientation, they are one frame with seven things in it. */
+const VIEW = [[-0.5342, 0.633, -0.5604],
+              [0.8271, 0.5283, -0.1917],
+              [0.1747, -0.5659, -0.8058]];
+
 /* Matched pairs, by name, between two atom lists. Names are unique inside a
    heme, which is what makes this a match and not a guess; anything present
    in one file and not the other simply drops out, and the count is printed
@@ -301,10 +313,15 @@ function bake(v, ref) {
      written, and the bench opens in the deposited frame until a human turns
      it and pastes one in. Kept as a call rather than an assumption because
      the answer is the file's to give. */
+  /* The extents are still solved — they are a measurement of the shape and
+     the panel prints them — but the basis is the hand-picked one above,
+     overriding whatever `frameOf` would or would not have written. A solved
+     basis for a bundle this round would flip between rebakes, and seven views
+     each flipping independently is the jumping this page just stopped. */
   const F = Bake.frameOf(out.chains[chain].CA);
-  if (F.view) out.view = F.view;
+  out.view = VIEW;
   out.extents = F.extents;
-  out.frame = F.frame;
+  out.frame = 'chosen by hand, shared by all seven';
 
   const decl = Bake.declared(text);
   const bound = site ? [...new Set(site.atoms.filter(a => a.group === 'bound')

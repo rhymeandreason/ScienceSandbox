@@ -119,10 +119,11 @@
       above it — with their backbone left to the ribbon.</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy. Prints the basis
-      the structure would need to open facing this way. Myoglobin is a bundle
-      whose three axes are too close together to solve, so the reference opens in
-      its own file's frame and every other view is fitted onto that.</p>
+    <p class="note" id="pick-note">Turn the molecule, then copy, and paste the
+      basis into <code>VIEW</code> in the baker. Myoglobin is a bundle whose three
+      axes are too close together for a solver to choose between, so the
+      orientation is a human's — and because all seven views share one frame, one
+      choice re-aims every one of them.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -158,7 +159,11 @@ const box = Proteinbox.create({
 });
 
 const VIEWS = ['1BZP', '1A6M', '1MBC', '1ABS', '1MBN', '1YMB', '2HHB-B'];
-const CUSTOM = {};                       // a basis pasted from "copy this view"
+/* A basis pasted from "copy this view", per view. Empty, and expected to stay
+   so: the ONE hand-picked orientation lives in the bake and covers all seven,
+   because they share a frame. This stays as the override for a view that ever
+   needs its own. */
+const CUSTOM = {};
 
 const views = {};
 let view = null;
