@@ -765,10 +765,78 @@ const PrionLib = (function () {
         parsed: p,
       };
     }
+    frame(out);
     return out;
   }
 
-  return { parse, trace, ss, internals, rebuild, morph, ca,
+  /* ---------------------------------------------------------- the frame
+   *
+   *  WHICH WAY THE STRUCTURE FACES, solved once here so every consumer gets
+   *  the same answer. It used to live on the bench, and the gallery drew the
+   *  same file in the deposited frame because it had no copy of this — the
+   *  same protein, two orientations, and nothing on either page saying why.
+   *
+   *  THE STACKING AXIS IS MEASURED, NOT CHOSEN. A fibril is chains repeating
+   *  at a fixed step, so the axis is the direction from one rung's centre to
+   *  the next, taken from CONSECUTIVE pairs and only where the step is short:
+   *  6LNI holds two protofibrils 75 A apart, and averaging every pair or
+   *  fitting a line through all ten centroids finds that gap instead of the
+   *  fibril. Signs are aligned to the first step before averaging, or a chain
+   *  order that runs down one protofibril and back up the other cancels to
+   *  nothing and reports a fibril with no axis.
+   *
+   *  PCA CANNOT FIND IT, which is why this exists at all: the longest
+   *  direction in that box is the gap between the protofibrils, a fact about
+   *  what was deposited rather than about the fibril. The field draws a fibril
+   *  with its axis vertical, so a measured axis goes upright and a monomer
+   *  falls back to its own solved basis.
+   *
+   *  NEEDS FoldLib. In Node — check-prion.js — folding.js is not loaded, so no
+   *  frame is written and `frame` says 'deposited': the geometry assertions do
+   *  not care which way the structure faces, and a library this file does not
+   *  own should not become a hard dependency of a parse. */
+  function stackAxis(t) {
+    const NEAR = 8;                      // A; a rung step is 4.9
+    const centre = cid => {
+      const P = t.chains[cid].CA;
+      return [0, 1, 2].map(k => P.reduce((s, p) => s + p[k], 0) / P.length);
+    };
+    const C = t.order.map(centre);
+    const steps = [];
+    for (let i = 1; i < C.length; i++) {
+      const d = [0, 1, 2].map(k => C[i][k] - C[i - 1][k]);
+      const L = Math.hypot(...d);
+      if (L < NEAR) steps.push(d.map(v => v / L));
+    }
+    if (steps.length < 3) return null;
+    const ref = steps[0], sum = [0, 0, 0];
+    for (const d of steps) {
+      const sign = d[0] * ref[0] + d[1] * ref[1] + d[2] * ref[2] < 0 ? -1 : 1;
+      for (let k = 0; k < 3; k++) sum[k] += sign * d[k];
+    }
+    const L = Math.hypot(...sum);
+    return { dir: sum.map(v => v / L), steps: steps.length };
+  }
+
+  function frame(t) {
+    const F = typeof FoldLib !== 'undefined' ? FoldLib
+            : (typeof globalThis !== 'undefined' && globalThis.FoldLib) || null;
+    if (!F) { t.frame = 'deposited'; return t; }
+
+    /* Solved over EVERY chain, not the first: the stack's axis is a fact about
+       ten rungs, and a basis solved off one of them would face the reader with
+       that rung's shape and leave the stacking direction wherever it fell. */
+    const all = [];
+    for (const cid of t.order) all.push(...t.chains[cid].CA);
+    const V = F.viewBasis(all);
+    const axis = stackAxis(t);
+    if (axis) { t.view = F.basisFrom(axis.dir, V.R[0]); t.frame = 'fibril convention'; }
+    else if (V.worth) { t.view = V.R; t.frame = 'computed'; }
+    else t.frame = 'deposited';
+    return t;
+  }
+
+  return { parse, trace, frame, stackAxis, ss, internals, rebuild, morph, ca,
            bondLengths, disulfide, clashes, rmsd, kabsch, ccd,
            _v3: v3, _place: place, _dihedral: dihedral, _lerpAngle: lerpAngle };
 })();

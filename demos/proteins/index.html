@@ -190,12 +190,11 @@ function load(p) {
   const v = ProteinLib.defaultOf(p);
   const url = `${p.key}/data/${v.read.baked}`;
   if (p.pipeline === 'pdb') {
-    return fetch(url).then(r => r.text()).then(txt => {
-      const t = PrionLib.trace(txt);
-      /* The registry's frame, applied the way a bake would carry it. */
-      if (p.view && p.view.basis) t.view = p.view.basis;
-      return t;
-    });
+    /* `trace` solves the frame as well as the chains, so a card and the bench
+       behind it draw the same file facing the same way. Doing it here instead
+       would be a second copy of that decision, which is how the two came apart
+       in the first place. */
+    return fetch(url).then(r => r.text()).then(txt => PrionLib.trace(txt));
   }
   return fetch(url).then(r => r.json());
 }

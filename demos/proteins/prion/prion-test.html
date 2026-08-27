@@ -161,46 +161,6 @@ const VIEWS = [
   { id: 'stack', native: false },
 ];
 
-/* THE STACKING AXIS, MEASURED OFF CONSECUTIVE RUNGS.
-
-   A fibril is chains repeating at a fixed step, so the axis is the direction
-   from one rung's centre to the next. Taken from CONSECUTIVE pairs and only
-   where the step is short, because 6LNI holds two protofibrils 75 A apart:
-   averaging every pair would average in that gap, and fitting a line through
-   all ten centroids finds the gap instead of the fibril.
-
-   Returns null for anything that is not a stack, which is the same question
-   as "does this have a fibril axis at all" — a monomer has none, and two
-   chains are not yet a repeat. */
-function stackAxis(data) {
-  const NEAR = 8;                        // A; a rung step is 4.9
-  const centre = cid => {
-    const P = data.chains[cid].CA;
-    return [0,1,2].map(k => P.reduce((s, p) => s + p[k], 0) / P.length);
-  };
-  const C = data.order.map(centre);
-  const steps = [];
-  for (let i = 1; i < C.length; i++) {
-    const d = [0,1,2].map(k => C[i][k] - C[i-1][k]);
-    const L = Math.hypot(...d);
-    if (L < NEAR) steps.push({ d: d.map(v => v / L), L });
-  }
-  if (steps.length < 3) return null;
-
-  /* Signs are aligned to the first step before averaging: a chain order that
-     runs down one protofibril and back up the other would otherwise cancel
-     to nothing and report a fibril with no axis. */
-  const ref = steps[0].d;
-  const sum = [0,0,0];
-  for (const s of steps) {
-    const sign = s.d[0]*ref[0] + s.d[1]*ref[1] + s.d[2]*ref[2] < 0 ? -1 : 1;
-    for (let k = 0; k < 3; k++) sum[k] += sign * s.d[k];
-  }
-  const L = Math.hypot(...sum);
-  return { dir: sum.map(v => v / L), steps: steps.length,
-           spacing: steps.reduce((a, s) => a + s.L, 0) / steps.length };
-}
-
 /* A basis pasted from the bench's "copy this view", for a structure whose own
    axes are too close together for the solver to choose between. Empty today:
    every one of these five earns a computed frame. */
@@ -322,28 +282,15 @@ VIEWS.forEach(({ id, native }) => {
       };
     });
 
-    /* The frame is solved over EVERY chain drawn, not over the first: the
-       stack's axis is a fact about ten rungs, and a basis solved off one of
-       them would face the reader with the rung's own shape and leave the
-       stacking direction wherever it fell. */
-    const all = [];
-    for (const cid of data.order) all.push(...data.chains[cid].CA);
-    const V = FoldLib.viewBasis(all);
-    const axis = stackAxis(data);
+    /* THE FRAME IS PrionLib's, solved in `trace` where the parse is, so this
+       bench and the gallery card draw the same file facing the same way. It
+       lived here until the gallery drew prion in the deposited frame and
+       nothing on either page said why. */
+    PrionLib.frame(data);
     if (CUSTOM[id]) { data.view = CUSTOM[id]; data.frame = 'custom view'; }
-    else if (axis) {
-      /* The field draws a fibril with its axis vertical, and here that axis
-         is measured rather than chosen. PCA cannot find it: the longest
-         direction in this box is the 75 A between the two protofibrils,
-         which is a fact about what was deposited and not about the fibril. */
-      data.view = FoldLib.basisFrom(axis.dir, V.R[0]);
-      data.frame = 'fibril convention';
-    }
-    else if (V.worth) { data.view = V.R; data.frame = 'computed'; }
-    else data.frame = 'deposited';
 
     const first = data.chains[data.order[0]];
-    views[id] = { chains, data, text: txt, worth: V.worth,
+    views[id] = { chains, data, text: txt, worth: !!data.view,
                   color: native ? NATIVE_COLOR : FIBRIL_COLOR,
                   stats: measure(chains, first.ss.split(''), declared) };
     if (view === id) show(id);           // clicked before the fetch landed
