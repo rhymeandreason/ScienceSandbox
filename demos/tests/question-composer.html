@@ -1877,8 +1877,37 @@ const VISITOR = (() => {
 
 (async function bootVectors() {
   VEC.key = new URLSearchParams(location.search).get('k');
+
+  /* THE ONE CARD WE ALREADY KNOW. `?q=` carries the reader's question, so it can
+     be on screen before any fetch returns — the map then grows around a card
+     that was there from the first paint rather than appearing whole after a
+     blank second. Everything else needs the corpus and a round trip. */
+  if (ASKED_URL) {
+    ASKED.text = ASKED_URL;
+    ASKED.said = null;
+    show(ASKED, 0, 0);
+    centre();
+    alpha = 1;
+  }
+
+  /* All three at once. They were serial — corpus, then config, then the query's
+     own embedding — and none of them needs the one before it. Serial is three
+     round trips of blank screen where parallel is one. */
+  const filePromise = fetch('../lib/mapcontent-vectors.json')
+    .then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const cfgPromise = fetch('/api/find', { headers: head() })
+    .then(r => (r.ok ? r.json() : null)).catch(() => null);
+  /* Fired before we know the endpoint is up: a wasted POST on a keyless
+     checkout costs nothing, and waiting for the GET to say so costs the reader
+     a round trip on every load that works. */
+  const qPromise = ASKED_URL
+    ? fetch('/api/find', { method: 'POST', headers: head(),
+                           body: JSON.stringify({ q: ASKED_URL, visitorId: VISITOR }) })
+        .then(r => (r.ok ? r.json() : null)).catch(() => null)
+    : null;
+
   try {
-    const file = await fetch('../lib/mapcontent-vectors.json').then(r => r.ok ? r.json() : null);
+    const file = await filePromise;
     if (!file) return;
     // Baked rows carry their text; the map's nodes are the things we return.
     const byText = new Map(QNODES.map(n => [n.text, n]));
@@ -1894,7 +1923,7 @@ const VISITOR = (() => {
         + 'and cannot be found by search. Re-bake: node tools/bake-vectors.js\n  '
         + QNODES.filter(n => !have.has(n)).map(n => n.text).join('\n  '));
     }
-    const cfg = await fetch('/api/find', { headers: head() }).then(r => r.ok ? r.json() : null);
+    const cfg = await cfgPromise;
     VEC.online = !!(cfg && cfg.ok && cfg.task === file.task && cfg.dims === file.dims);
     if (cfg && cfg.ok && !VEC.online) console.warn('[composer] vectors and endpoint disagree; staying lexical');
   } catch (e) { /* keyless checkout, or offline: the lexical path still works */ }
@@ -1922,7 +1951,7 @@ const VISITOR = (() => {
     reset.removeEventListener('click', start);
     reset.addEventListener('click', () => { location.href = location.href; });
 
-    const found = await search(asked);
+    const found = await search(asked, await qPromise);
     hits = found.hits; near = found.near;
     const card = cardNamed(asked);
     if (card) openCard(card);
@@ -1941,15 +1970,20 @@ const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] 
 
 /* Returns {hits, near} the same shape the lexical path does, so nothing
    downstream knows which scorer ran. */
-async function search(text) {
+async function search(text, pre) {
   if (VEC.online && VEC.by) {
     try {
-      const r = await fetch('/api/find', { method: 'POST', headers: head(),
-                                           body: JSON.stringify({ q: text, visitorId: VISITOR }) });
-      // 429 included: a cap is not an outage, it is this session doing the rest
-      // of its browsing on words. The reader is told once, by the placeholder.
-      if (!r.ok) throw new Error('find ' + r.status);
-      const { v } = await r.json();
+      // `pre` is a vector already in flight before this call — the ?q= path
+      // fires it alongside the corpus rather than after it.
+      let v = pre && pre.v;
+      if (!v) {
+        const r = await fetch('/api/find', { method: 'POST', headers: head(),
+                                             body: JSON.stringify({ q: text, visitorId: VISITOR }) });
+        // 429 included: a cap is not an outage, it is this session doing the
+        // rest of its browsing on words. The reader is told once, by the placeholder.
+        if (!r.ok) throw new Error('find ' + r.status);
+        v = (await r.json()).v;
+      }
       const ranked = VEC.by.map(x => ({ q: x.n, score: dot(v, x.v) }))
                            .sort((a, b) => b.score - a.score);
       const hits = ranked.filter(h => h.score >= MATCH).slice(0, HITS);
