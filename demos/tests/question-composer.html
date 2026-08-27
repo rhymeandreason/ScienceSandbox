@@ -635,10 +635,18 @@ for (const [key, mods] of (SPECIMENS || [])) {
      the file no longer has. Nothing here is typed. */
   const ec = v.read.ec || null;
   const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
+  /* The CARD-tier surface, never the lesson's: hemoglobin's is 362 KB against
+     1.5 MB for the same structure at 0.7 A, and a 280 px thumb cannot show the
+     difference. Offered only where the registry says a surface EARNS one —
+     `surface.bake` is a judgement about whether the skin teaches anything, and
+     for most of these it hides the site that is the point. */
+  const dir = (p.dir || p.key) + '/data/';
+  const stem = baked.replace(/\.(trace\.)?json$/, '');
   const n = {
     id: 'p:' + key, kind: 'protein', deg: 0,
     name: p.name, claim: p.blurb, does: p.does,
-    trace: (p.dir || p.key) + '/data/' + baked,
+    trace: dir + baked,
+    surface: p.surface && p.surface.bake ? dir + stem + '.card.surf.bin' : null,
     purpose: v.purpose, species: v.species,
     method: v.read.method, residues: v.read.residues, declared: v.read.declared,
     ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
@@ -884,7 +892,7 @@ function goLiveSoon(n) {
    carries its own, because the file it draws is the registry's answer and
    restating it in VIEWS would be a second source for the same fact. */
 function viewFor(n) {
-  if (n.kind === 'protein') return { kind: 'protein', trace: n.trace };
+  if (n.kind === 'protein') return { kind: 'protein', trace: n.trace, surface: n.surface };
   return VIEWS[n.id];
 }
 
