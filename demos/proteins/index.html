@@ -219,12 +219,16 @@ function card(p) {
   const el = document.createElement('article');
   el.className = 'card';
 
-  const pct = r.declared ? Math.floor(100 * r.residues / r.declared) : null;
+  /* HOW MUCH IS MISSING, IN RESIDUES, and not a word for it. "Fragment" is
+     true of prion's half a protein and misleading of amylase, which is short
+     one residue because its N-terminus is a modified pyroglutamate that rides
+     on a HETATM line. A count says both without deciding where the line is. */
+  const short = r.declared ? r.declared - r.residues : null;
   const facts = [
     v.species,
     r.method,
     r.declared ? `${r.residues} of ${r.declared} residues` : `${r.residues} residues`,
-    pct !== null && pct < 100 ? `fragment · ${pct}%` : null,
+    short ? `${short} not modelled` : null,
     r.chainsInFile > 1 ? `${r.chainsInFile} chains in the entry` : null,
   ].filter(Boolean);
 

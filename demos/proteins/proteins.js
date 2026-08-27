@@ -352,6 +352,49 @@
       variants: PRION_VARIANTS,
     },
     {
+      key: 'amylase', name: 'α-Amylase', dir: 'amylase',
+      blurb: 'The enzyme in your saliva that starts on starch before you have '
+           + 'swallowed. One long trough, four subsites, and a drug sitting in '
+           + 'it that the enzyme cannot cut.',
+      /* Its own pipeline: `amylase/tools/` bakes the site measurements, the
+         surface and the docking control that `amylase-test.html` reads, and
+         `check-amylase.js` / `check-fit.js` audit them. Nothing here reaches
+         into that; the `read` block comes off 1OSE itself. */
+      pipeline: 'own',
+      page: 'amylase/amylase-test.html',
+      /* One entry, so nothing to superpose onto anything. */
+      fit: null,
+      fitWhy: 'a single deposition — there is no second structure to fit',
+      view: { by: 'deposited', shared: false,
+              why: 'a globular domain with a trough across it; a solved basis '
+                 + 'would flip between rebakes and no human has picked one' },
+      surface: { bake: true,
+                 why: 'baked, and it earns it: the lesson is a POCKET — a '
+                    + '19.8 Å trough over four subsites — and a ribbon draws '
+                    + 'the walls of it as a tangle of loops' },
+      variants: [
+        { id: '1OSE', default: true,
+          purpose: 'the site, with acarbose sitting in it',
+          species: 'pig',
+          chains: 'A',
+          source: { kind: 'repo', id: '1OSE', path: 'amylase/data/1OSE.pdb' },
+          /* The ribbon is a trace baked with `tools/bake-trace.js`, the
+             one-file conversion that tool exists for. The rest is this
+             protein's own: the SES the bench toggles, the site measurements
+             its panel prints, and the docking control `check-fit.js` audits. */
+          bake: { trace: '1OSE.trace.json',
+                  surface: '1OSE.surf.bin',
+                  site: 'amylase.json',
+                  fit: 'fit.json' },
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 1,
+            residues: 495,
+            declared: 496,
+            baked: "1OSE.trace.json" } },
+      ],
+    },
+    {
       key: 'hemoglobin', name: 'Haemoglobin', dir: 'hemoglobin',
       blurb: 'Four myoglobins that learned to talk to each other. One oxygen '
            + 'binding pulls the whole tetramer into the shape that binds the '
