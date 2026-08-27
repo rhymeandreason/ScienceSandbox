@@ -105,7 +105,7 @@
         chainsInFile: 1,
         residues: 104,
         declared: 210,
-        baked: "prp-view-1QLZ.pdb" } },
+        baked: "prp-1QLZ.json" } },
     { id: '6LNI',
       purpose: 'one rung of the disease fibril',
       species: 'human',
@@ -117,7 +117,7 @@
         chainsInFile: 10,
         residues: 60,
         declared: 210,
-        baked: "prp-view-6LNI.pdb" } },
+        baked: "prp-6LNI.json" } },
     { id: 'stack', of: '6LNI',
       purpose: 'ten rungs, which is why it spreads',
       species: 'human',
@@ -128,8 +128,8 @@
         method: "electron microscopy",
         chainsInFile: 10,
         residues: 600,
-        declared: 210,
-        baked: "prp-view-stack.pdb" } },
+        declared: 2100,
+        baked: "prp-stack.json" } },
   ];
 
   const MYOGLOBIN_VARIANTS = [
@@ -318,18 +318,20 @@
       key: 'prion', name: 'Prion protein', dir: 'proteins/prion',
       blurb: 'One sequence, two shapes: the healthy human fold and the disease '
            + 'fold, as deposited. The stack is the reason it spreads.',
-      /* The bench parses reduced PDB text at runtime with PrionLib rather than
-         loading a trace, so its baker writes files this registry describes but
-         does not shape. `pipeline:'pdb'` is what tells check-proteins.js to
-         expect a .pdb per variant instead of a .json. */
-      pipeline: 'pdb',
+      pipeline: 'trace',
       /* What else lives in data/ and is not a variant. Prion COMMITS its
          sources (they are small once cut to model 1) and its baker writes
          two intermediates the views are sliced out of. Listing them is what
          lets check-proteins.js flag a file that is in data/ for no reason —
          a stale bake from a renamed view, which a bench goes on loading. */
+      /* The sources and what the baker cuts out of them. They stay as PDB
+         because prion.js's morph and CCD need whole residues and
+         check-prion.js reads two of them for its geometry assertions — only
+         the three VIEWS became traces, when the unfold animation they were
+         shaped for was dropped. */
       keeps: ['1QLZ.pdb', '1QLZ-model1.pdb', '6LNI.pdb',
               'prp-native.pdb', 'prp-fibril.pdb', 'prp-stack.pdb',
+              'prp-view-1QLZ.pdb', 'prp-view-6LNI.pdb', 'prp-view-stack.pdb',
               /* Baked and drawn by nothing today: twenty NMR models as twenty
                  chains, which says the native state is a FAMILY. The bench
                  does not offer it — see prep.js on why it was measured and

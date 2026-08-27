@@ -145,11 +145,6 @@
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/proteinbox.js"></script>
 <script src="proteins.js"></script>
-<!-- Only for a `pipeline:'pdb'` protein: prion's bakes are reduced PDB text,
-     and PrionLib.trace is the chain-aware parse that turns one into the shape
-     the box draws. A page that copied that parse instead is how the ten-rung
-     stack comes back as one rung wearing the last chain's coordinates. -->
-<script src="prion/prion.js"></script>
 <script>
 'use strict';
 
@@ -184,19 +179,14 @@ function still(key, url) {
   el.style.backgroundRepeat = 'no-repeat';
 }
 
-/* One protein's default variant, as chains the box can draw. A trace bake is
-   already that shape; a reduced PDB is parsed by the library that owns it. */
+/* One protein's default variant, as chains the box can draw — every protein
+   bakes the same shape now, so there is one path and no branch on pipeline.
+   Prion was reduced PDB text until the unfold animation was dropped, and the
+   card drew it in a different frame from the bench for exactly as long as the
+   parse and the solved view happened at load in two places. */
 function load(p) {
   const v = ProteinLib.defaultOf(p);
-  const url = `${p.key}/data/${v.read.baked}`;
-  if (p.pipeline === 'pdb') {
-    /* `trace` solves the frame as well as the chains, so a card and the bench
-       behind it draw the same file facing the same way. Doing it here instead
-       would be a second copy of that decision, which is how the two came apart
-       in the first place. */
-    return fetch(url).then(r => r.text()).then(txt => PrionLib.trace(txt));
-  }
-  return fetch(url).then(r => r.json());
+  return fetch(`${p.key}/data/${v.read.baked}`).then(r => r.json());
 }
 
 /* Everything printed below is counted or read, never typed here. */

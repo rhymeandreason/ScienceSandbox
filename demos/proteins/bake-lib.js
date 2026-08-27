@@ -39,12 +39,13 @@
  *  Used by: proteins/rnase/tools/prep.js, proteins/myoglobin/tools/prep.js,
  *  tools/bake-trace.js.
  *
- *  TWO BAKERS DELIBERATELY DO NOT USE IT. `hemoglobin/tools/` feeds the
+ *  ONE BAKER DELIBERATELY DOES NOT USE IT: `hemoglobin/tools/` feeds the
  *  folding trajectory and is a pipeline of its own. `proteins/prion/tools/`
- *  emits reduced PDB TEXT rather than traces — its page parses at runtime with
- *  PrionLib — so it shares the rules and none of the code, and converting it
- *  would be rewriting a working bench rather than extracting anything. If it
- *  is ever moved onto traces, this is what it should be moved onto.
+ *  writes traces like the rest now, but through `PrionLib` rather than through
+ *  this file — its sources are already cut and aligned to each other by that
+ *  library, and re-reading them here would be a second parse of files a
+ *  library in the repo already owns. The RULES above still hold there; it is
+ *  the code that differs.
  * ============================================================================= */
 'use strict';
 

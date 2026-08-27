@@ -739,7 +739,7 @@ const PrionLib = (function () {
    *
    *  Two readers now: the bench, and the gallery card. A second copy of this
    *  in a page is how the chain-aware rule gets lost. */
-  function trace(text) {
+  function trace(text, lib) {
     const recs = [], byChain = new Map();
     for (const line of text.split('\n')) {
       if (line.startsWith('SHEET') || line.startsWith('HELIX')) { recs.push(line); continue; }
@@ -765,7 +765,7 @@ const PrionLib = (function () {
         parsed: p,
       };
     }
-    frame(out);
+    frame(out, lib);
     return out;
   }
 
@@ -791,10 +791,12 @@ const PrionLib = (function () {
    *  with its axis vertical, so a measured axis goes upright and a monomer
    *  falls back to its own solved basis.
    *
-   *  NEEDS FoldLib. In Node — check-prion.js — folding.js is not loaded, so no
-   *  frame is written and `frame` says 'deposited': the geometry assertions do
-   *  not care which way the structure faces, and a library this file does not
-   *  own should not become a hard dependency of a parse. */
+   *  NEEDS FoldLib, and takes it rather than requiring it: a browser has it as
+   *  a global, the prion baker passes the module in, and a caller with neither
+   *  gets no frame and `frame: 'deposited'` instead of a throw. check-prion.js
+   *  is that caller — its geometry assertions do not care which way the
+   *  structure faces, and a parse should not gain a hard dependency on a
+   *  library it does not own. */
   function stackAxis(t) {
     const NEAR = 8;                      // A; a rung step is 4.9
     const centre = cid => {
@@ -818,9 +820,9 @@ const PrionLib = (function () {
     return { dir: sum.map(v => v / L), steps: steps.length };
   }
 
-  function frame(t) {
-    const F = typeof FoldLib !== 'undefined' ? FoldLib
-            : (typeof globalThis !== 'undefined' && globalThis.FoldLib) || null;
+  function frame(t, lib) {
+    const F = lib || (typeof FoldLib !== 'undefined' ? FoldLib
+            : (typeof globalThis !== 'undefined' && globalThis.FoldLib) || null);
     if (!F) { t.frame = 'deposited'; return t; }
 
     /* Solved over EVERY chain, not the first: the stack's axis is a fact about

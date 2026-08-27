@@ -115,17 +115,18 @@
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
 <script src="../proteins.js"></script>
-<script src="prion.js"></script>
 <script>
 'use strict';
 
-/* THE BOX IS kit/proteinbox.js, and the page's job stops at the chains.
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
 
    Camera, framing, the turn and the WebGL context are the module's, so this
    page orbits and frames exactly like every protein card in the repo. What is
    NOT the module's is what a chain is: which altloc, which chain id, and
-   whether secondary structure was read or detected. prion.js decides those
-   from the file, and hands over the same object bake-trace.js writes.
+   whether secondary structure was read or detected. The BAKER decides those
+   and writes them into the trace this page fetches — it used to happen here,
+   at load, with PrionLib doing the parse, and moving it into prep.js is what
+   made this page stop being the second place those calls were made.
 
    ONE BOX, RE-FED. setData() swaps the structure without replacing the box,
    so a reader who turned the molecule keeps that view across the switch —
@@ -175,62 +176,6 @@ const $ = id => document.getElementById(id);
    scope would mean every question needed an edit. */
 window.bench = { views, box, get view() { return view; } };
 
-/* The denominator for completeness: the length of the molecule the entry
-   SAYS it is, off its own SEQRES records. Not a full-length PrP constant
-   typed here — that would be this page deciding what the protein is. It is
-   construct-relative and differs between entries (the human files declare
-   210, the hamster ones 142), which is a fact about what was expressed. */
-function declaredLength(txt) {
-  const first = txt.split('\n').find(l => l.startsWith('SEQRES') && l[11] === 'A');
-  return first ? parseInt(first.slice(13, 17), 10) : null;
-}
-
-/* PrionLib.parse keys residues by NUMBER, which is right for the one chain
-   the baker normally hands it and silently wrong for ten: residue 180 of
-   chain B would overwrite residue 180 of chain A, and the stack would parse
-   as a single rung wearing the last chain's coordinates. So chains are
-   separated before parse() ever sees them, and each carries the file's
-   records because every rung is the same conformation. */
-function byChain(txt) {
-  const recs = [], chains = new Map();
-  for (const line of txt.split('\n')) {
-    if (line.startsWith('SHEET') || line.startsWith('HELIX')) { recs.push(line); continue; }
-    if (!line.startsWith('ATOM')) continue;
-    const c = line[21];
-    if (!chains.has(c)) chains.set(c, []);
-    chains.get(c).push(line);
-  }
-  return [...chains.entries()].sort()
-    .map(([c, atoms]) => ({ chain: c, parsed: PrionLib.parse(recs.concat(atoms).join('\n')) }));
-}
-
-/* Consecutive runs of residue numbers. The BOX breaks the ribbon at these
-   now — it is handed `nums` and splits on them — so this is here only to
-   count the segments the panel reports. Two readings of one gap, and they
-   agree because both read the same numbers. */
-function runs(residues) {
-  const out = [];
-  let cur = [];
-  for (const r of residues) {
-    if (cur.length && r.num !== cur[cur.length - 1].num + 1) { out.push(cur); cur = []; }
-    cur.push(r);
-  }
-  if (cur.length) out.push(cur);
-  return out;
-}
-
-/* Both record types on one array. A native PrP has three helices AND a
-   two-strand sheet, so assigning only the helices would draw the native
-   β-sheet as coil — and the native sheet is exactly what the fibril claims
-   to extend. */
-function ssBoth(residues, parsed) {
-  const first = residues[0].num, n = residues.length;
-  const out = PrionLib.ss(n, first, parsed.helices, 'H');
-  const e = PrionLib.ss(n, first, parsed.sheets, 'E');
-  for (let i = 0; i < n; i++) if (e[i] === 'E') out[i] = 'E';
-  return out;
-}
-
 /* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's — the
    registry every protein in the repo is described in. The healthy/disease
    reading and the provenance are written there next to the data they
@@ -260,60 +205,40 @@ const SAYS = {
 
 
 VIEWS.forEach(({ id, native }) => {
-  fetch(`data/prp-view-${id}.pdb`).then(r => r.text()).then(txt => {
-    const chains = byChain(txt);
-    const declared = declaredLength(txt);
-
-    /* The shape bake-trace.js writes, assembled here from the PDB instead.
-       Same fields, same meanings, including `nums` — which is what lets the
-       box break the ribbon where the chain breaks rather than splining a
-       smooth band across residues nobody modelled. */
-    const data = { order: [], chains: {} };
-    chains.forEach(({ chain, parsed }) => {
-      const R = parsed.residues.filter(r => r.atoms.CA);
-      data.order.push(chain);
-      data.chains[chain] = {
-        first: R[0].num,
-        nums: R.map(r => r.num),
-        CA: R.map(r => r.atoms.CA),
-        ss: ssBoth(R, parsed).join(''),
-        helices: parsed.helices.length,
-        strands: parsed.sheets.length,
-      };
-    });
-
-    /* THE FRAME IS PrionLib's, solved in `trace` where the parse is, so this
-       bench and the gallery card draw the same file facing the same way. It
-       lived here until the gallery drew prion in the deposited frame and
-       nothing on either page said why. */
-    PrionLib.frame(data);
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(data => {
+    /* A bake, like every other protein's: the chain-aware parse and the solved
+       frame both happened in the baker, so this page reads coordinates and
+       draws them. It was PDB text until the unfold animation was dropped —
+       what a ribbon needs is a trace, and a page that parses is a page making
+       decisions the baker already made. */
     if (CUSTOM[id]) { data.view = CUSTOM[id]; data.frame = 'custom view'; }
-
-    const first = data.chains[data.order[0]];
-    views[id] = { chains, data, text: txt, worth: !!data.view,
-                  color: native ? NATIVE_COLOR : FIBRIL_COLOR,
-                  stats: measure(chains, first.ss.split(''), declared) };
+    views[id] = { data, color: native ? NATIVE_COLOR : FIBRIL_COLOR,
+                  stats: measure(data) };
     if (view === id) show(id);           // clicked before the fetch landed
-  });
+  }).catch(e => console.warn(`prion: ${id} — ${e.message}`));
 });
 
 /* Everything the panel prints, counted off the parsed file. A typed number
    is a claim nothing checks, and a re-bake falsifies it silently. */
-function measure(chains, ss, declared) {
-  const { parsed } = chains[0];
-  const R = parsed.residues, n = R.length;
-  const segs = runs(R).length;
-  const H = ss.filter(c => c === 'H').length, E = ss.filter(c => c === 'E').length;
+function measure(t) {
+  const ids = t.order, first = t.chains[ids[0]];
+  const nums = first.nums, n = nums.length;
+  const letters = first.ss;
+  const H = [...letters].filter(c => c === 'H').length;
+  const E = [...letters].filter(c => c === 'E').length;
+  /* Segments, counted off the residue numbers the box breaks the ribbon on. */
+  const segs = 1 + nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length;
 
   /* Extents along the chain's own principal axes, not the file's frame: a
-     deposition's axes are wherever the depositor left them, so measuring x,
-     y and z would report the orientation rather than the shape. The
-     thinnest over the longest is what says "one molecule thick". */
-  const ext = principal(R.map(r => r.atoms.CA).filter(Boolean));
+     deposition's axes are wherever the depositor left them, so measuring x, y
+     and z would report the orientation rather than the shape. The thinnest
+     over the longest is what says "one molecule thick". */
+  const ext = principal(first.CA);
 
-  /* Completeness against the declared length, and the fixed phrasing that
-     goes with it. A percentage alone rounds a hole away, and a span alone
-     hides one entirely, so the segment count rides along. */
+  /* Completeness against what the entry declares, off the bake's own meta.
+     A percentage alone rounds a hole away and a span alone hides one, so the
+     segment count rides along. */
+  const declared = t.meta.counts[0].declared;
   const pct = declared ? Math.round(100 * n / declared) : null;
   const frag = declared === null ? 'no SEQRES records: completeness unknown'
     : n >= declared ? `complete: ${n} of ${declared} deposited`
@@ -322,9 +247,9 @@ function measure(chains, ss, declared) {
   return {
     pct: pct === null ? '—' : `${n} of ${declared} · ${pct}%`,
     frag,
-    span: `${R[0].num}–${R[n - 1].num}`,
+    span: `${nums[0]}–${nums[n - 1]}`,
     res: `${n} residues` + (segs > 1 ? ` in ${segs} segments` : '') +
-         (chains.length > 1 ? ` × ${chains.length} chains` : ''),
+         (ids.length > 1 ? ` × ${ids.length} chains` : ''),
     frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
     ext: ext.map(v => v.toFixed(0)).join(' × '),
     flat: (ext[2] / ext[0]).toFixed(2),
@@ -394,18 +319,11 @@ function show(id) {
 
   const m = said(id), r = m.read;
   $('d-claim').textContent = SAYS[id].claim;
-  /* Resolution off the view file's own REMARK 2, which the baker carries into
-     every cut it writes — the same records that let the registry index this
-     variant on its method and chain count. A reduced file that cannot say what
-     it is would make the registry the source instead of the copy. */
-  const res = (txt => {
-    const l = (txt || '').split('\n').find(x => x.startsWith('REMARK   2 RESOLUTION'));
-    const g = l && l.match(/(\d+\.?\d*)\s*ANGSTROM/);
-    return g ? +g[1] : null;
-  })(on && on.text);
+  /* Resolution off the bake's meta, where every fact about this one structure
+     lives; the registry indexes on the method alone. */
   $('d-meta').textContent = `${m.source.id} · ${r.method}` +
-    (res ? ` · ${res.toFixed(2)} Å` : '');
-  $('d-quat').textContent = quaternary(r, on.chains.length);
+    (on.data.meta.resolution ? ` · ${on.data.meta.resolution.toFixed(2)} Å` : '');
+  $('d-quat').textContent = quaternary(r, on.data.order.length);
   /* Three states, named by WHERE THE FRAME CAME FROM rather than by how it
      was arrived at. Nothing in a PDB says which way a structure should face:
      what is deposited is the experiment's frame, a crystal's axes or the box

@@ -294,30 +294,73 @@ function main() {
     return l ? parseInt(l.slice(13, 17), 10) : null;
   };
 
+  /* ---- the bakes ----
+
+     JSON, like every other protein. The views were reduced PDB text while the
+     unfold animation was the point and the page needed whole residues to morph
+     between; that animation is gone, so what is left is a ribbon, and a ribbon
+     wants the trace shape kit/proteinbox.js reads. `PrionLib.trace` is the
+     chain-aware parse and `PrionLib.frame` the solved orientation, both used
+     here exactly as the pages used to call them at load — which is what makes
+     this a move rather than a rewrite.
+
+     THE SOURCES STAY. prion.js's morph and CCD need whole residues, and
+     check-prion.js reads prp-native.pdb and prp-fibril.pdb for the geometry
+     assertions. Only the three cut VIEWS become JSON. */
+  const PrionLib = require('../prion.js');
+  const FoldLib = require('../../../folding/folding.js');
+
   const blocks = {};
+  const bakeView = (id, text, drawn) => {
+    const t = PrionLib.trace(text, FoldLib);
+    /* The chains carry their parse for the morph code; a bake carries only
+       what a ribbon needs, so it goes before the file is written. */
+    for (const cid of t.order) delete t.chains[cid].parsed;
+
+    let radius = 0;
+    for (const cid of t.order)
+      for (const p of t.chains[cid].CA) radius = Math.max(radius, Math.hypot(...p));
+
+    t.source = id + '.pdb';
+    t.ssFrom = 'deposited';
+    t.radius = Math.round(radius * 100) / 100;
+    t.meta = {
+      entry: REG.variantOf(ME, id).source.id,
+      method: expdta(text), resolution: Bake.resolution(text),
+      chainsInFile: Bake.chainsDeclared(text),
+      chainsDrawn: t.order.length,
+      counts: t.order.map(cid => ({ chain: cid, modelled: t.chains[cid].nums.length,
+                                    declared: declaredOf(text) })),
+    };
+    const file = `prp-${id}.json`;
+    fs.writeFileSync(path.join(DATA, file), JSON.stringify(t));
+    /* BOTH NUMBERS COUNT THE SAME THING: every chain the bake draws. SEQRES
+       is per chain, so the stack's ten rungs declare 210 each and 2100 in
+       total — and an index holding 600 modelled against 210 declared would be
+       comparing ten chains with one. The panel still phrases completeness per
+       chain, off the bake's own counts, because a rung is what a reader is
+       looking at. */
+    blocks[id] = { method: t.meta.method, chainsInFile: t.meta.chainsInFile,
+                   residues: t.meta.counts.reduce((k, c) => k + c.modelled, 0),
+                   declared: t.meta.counts.reduce((k, c) => k + c.declared, 0),
+                   baked: file };
+    const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
+    console.log(`bake        ${file}  ${t.order.length} chain(s), ` +
+      `${blocks[id].residues} residues, frame ${t.frame}, ${kb} KB`);
+    return t;
+  };
+
+  /* NOT CENTRED, and that is the one difference from the other bakers. The
+     views come out of files this script already aligned to each other for the
+     morph, and re-centring each on its own centroid now would undo that; the
+     box centres what it is given anyway. */
   for (const [name, text] of VIEWS) {
     const id = name.slice('prp-view-'.length, -'.pdb'.length);
     if (!REG.variantOf(ME, id)) continue;
-    /* `residues` counts the BAKED view, not the source it was cut from: the
-       6LNI deposition is ten chains and the view drawn from it is one rung.
-       Counting the source would say 600 for a picture of 60 residues, and
-       against a declared 210 the registry would refuse the write — which is
-       exactly what it did when this was wrong. `chainsInFile` is the
-       deposition's, because that is the fact it names. */
-    const baked = fs.readFileSync(path.join(DATA, name), 'utf8');
-    blocks[id] = { method: expdta(baked),
-                   chainsInFile: Bake.chainsDeclared(baked),
-                   residues: caCount(baked), declared: declaredOf(baked),
-                   baked: name };
+    bakeView(id, fs.readFileSync(path.join(DATA, name), 'utf8'));
   }
-  /* The stack is the same entry drawn whole: ten chains rather than one, so
-     everything about it except the drawn count is 6LNI's. */
-  {
-    const baked = fs.readFileSync(path.join(DATA, 'prp-view-stack.pdb'), 'utf8');
-    blocks.stack = { method: expdta(baked), chainsInFile: Bake.chainsDeclared(baked),
-                     residues: caCount(baked), declared: declaredOf(baked),
-                     baked: 'prp-view-stack.pdb' };
-  }
+  bakeView('stack', fs.readFileSync(path.join(DATA, 'prp-view-stack.pdb'), 'utf8'));
+
   const touched = IO.write('prion', blocks);
   console.log(`registry    proteins.js  ${touched.length} variants updated`);
 
